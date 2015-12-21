@@ -4,6 +4,49 @@
 #include <net/ipv6.h>
 #include "nat64/common/str_utils.h"
 
+unsigned int assert_count = 0;
+
+
+bool is_printable(char chara)
+{
+	return 31 < chara && chara < 127;
+}
+
+void print_string(const char *str)
+{
+	char chara;
+	while (str[0] != '\0') {
+		chara = str[0];
+		if (is_printable(chara))
+			log_info("	'%c'", chara);
+		else
+			log_info("	%u", (unsigned char)chara);
+		str++;
+	}
+}
+
+bool ASSERT_STR(const char *expected, const char *actual,
+		const char *test_name)
+{
+	if (expected == actual)
+		return true;
+	if (!expected || !actual)
+		return false;
+
+	if (strcmp(expected, actual)) {
+//		log_err("Test '%s' failed. Expected:'%s' Actual:'%s'",
+//				test_name, expected, actual);
+		log_err("Test '%s' failed.", test_name);
+		log_info("Expected:");
+		print_string(expected);
+		log_info("Actual:");
+		print_string(actual);
+		return false;
+	}
+
+	return true;
+}
+
 bool __ASSERT_ADDR4(const struct in_addr *expected,
 		const struct in_addr *actual,
 		const char *test_name)
@@ -24,6 +67,8 @@ bool ASSERT_ADDR4(const char *expected_str, const struct in_addr *actual,
 		const char *test_name)
 {
 	struct in_addr expected;
+
+	one_more_assert();
 
 	if (!expected_str)
 		return __ASSERT_ADDR4(NULL, actual, test_name);
@@ -54,6 +99,8 @@ bool ASSERT_ADDR6(const char *expected_str, const struct in6_addr *actual,
 {
 	struct in6_addr expected;
 
+	one_more_assert();
+
 	if (!expected_str)
 		return __ASSERT_ADDR6(NULL, actual, test_name);
 
@@ -69,6 +116,8 @@ bool ASSERT_ADDR6(const char *expected_str, const struct in6_addr *actual,
 static bool ASSERT_TUPLE4(struct tuple *expected, struct tuple *actual,
 		char *test_name)
 {
+	one_more_assert();
+
 	if (expected->l4_proto != actual->l4_proto)
 		goto fail;
 	if (ipv4_addr_cmp(&expected->src.addr4.l3, &actual->src.addr4.l3))
@@ -105,6 +154,8 @@ fail:
 static bool ASSERT_TUPLE6(struct tuple *expected, struct tuple *actual,
 		char *test_name)
 {
+	one_more_assert();
+
 	if (expected->l4_proto != actual->l4_proto)
 		goto fail;
 	if (ipv6_addr_cmp(&expected->src.addr6.l3, &actual->src.addr6.l3))
@@ -136,6 +187,8 @@ fail:
 
 bool ASSERT_TUPLE(struct tuple *expected, struct tuple *actual, char *test_name)
 {
+	one_more_assert();
+
 	if (expected->l3_proto != actual->l3_proto) {
 		log_err("Test '%s' failed; Expected:%u Actual:%u", test_name,
 				expected->l3_proto, actual->l3_proto);
@@ -159,6 +212,8 @@ bool ASSERT_TUPLE(struct tuple *expected, struct tuple *actual, char *test_name)
 bool ASSERT_BIB(struct bib_entry* expected, struct bib_entry* actual,
 		char *test_name)
 {
+	one_more_assert();
+
 	if (expected == actual)
 		return true;
 
@@ -198,6 +253,8 @@ bool ASSERT_SESSION(struct session_entry *expected,
 		struct session_entry *actual,
 		char *test_name)
 {
+	one_more_assert();
+
 	if (expected == actual)
 		return true;
 	if (!expected || !actual)
@@ -231,3 +288,13 @@ fail:
 
 #undef SESSION_PRINT
 #undef SESSION_KEY
+
+void one_more_assert(void)
+{
+	assert_count++;
+}
+
+unsigned int get_assert_count(void)
+{
+	return assert_count;
+}

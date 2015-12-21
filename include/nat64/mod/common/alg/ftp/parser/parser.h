@@ -24,38 +24,27 @@
 
 struct ftp_parser {
 	struct sk_buff *skb;
-	struct ts_state ts_state;
-	bool ts_state_initialized;
 
-	/*
-	 * Last line of text (until the newline) read from the packet.
-	 * It's unsigned because endpoints can negotiate encoding.
-	 */
-	unsigned char *line;
+	/** Last chunk of data read from the packet. */
+	char *line;
+	/** Length of @line (it's not always null-terminated). */
 	unsigned int line_len;
+	/** Bytes from @line which have already been freed of Telnet noise. */
+	unsigned int line_clean;
+	/** Offset of the bytes that will be copied from @skb to @line next. */
 	unsigned int line_next_offset;
 
 	/**
-	 * Last character read from @line.
-	 * Can be any unsigned char character, but (unlike @buffer's characters)
-	 * can also be -1, which is @NEWLINE.
+	 * Telnet options the parser has found in the stream.
+	 * We need to store these because we have to reject them.
 	 */
-	int chara;
-	unsigned int chara_offset;
-
 	struct list_head options;
 };
 
 struct telnet_option {
 	unsigned char action;
 	unsigned char code;
-	unsigned int offset;
 	struct list_head list_hook;
-};
-
-struct ftp_word {
-	unsigned char charas[9];
-	unsigned int len;
 };
 
 int ftpparser_module_init(void);
@@ -64,14 +53,16 @@ void ftpparser_module_destroy(void);
 void parser_init(struct ftp_parser *parser,
 		struct sk_buff *skb,
 		unsigned int offset);
+/* TODO separate the unfinished fields for comfort? */
 void parser_init_continue(struct ftp_parser *parser,
 		struct sk_buff *skb,
 		unsigned int offset,
 		char *unfinished_line,
-		size_t unfinished_line_len);
+		unsigned int unfinished_line_len,
+		unsigned int unfinished_line_clean);
 void parser_destroy(struct ftp_parser *parser);
 
-int next_line(struct ftp_parser *parser, char **line);
+int parser_next_line(struct ftp_parser *parser, char **line);
 bool line_starts_with(char *line, char *expected);
 
 #endif /* _JOOL_MOD_ALG_FTP_PARSER_H */

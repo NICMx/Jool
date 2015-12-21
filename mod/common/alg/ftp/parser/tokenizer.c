@@ -3,10 +3,9 @@
 #include "nat64/mod/common/types.h"
 #include "nat64/mod/common/alg/ftp/parser/parser.h"
 
-static int parse_auth(struct ftp_parser *parser, struct ftp_client_msg *result)
+static bool is_digit(char chara)
 {
-	result->code = FTP_AUTH;
-	return 0;
+	return '0' <= chara && chara <= '9';
 }
 
 static bool is_whitespace(char chara)
@@ -24,13 +23,21 @@ static char *skip_whitespace(char *line)
 	return NULL;
 }
 
-static int parse_algs(char *line, struct ftp_client_msg *result)
+static int tokenize_auth(struct ftp_client_msg *result)
+{
+	result->code = FTP_AUTH;
+	return 0;
+}
+
+static int tokenize_algs(char *line, struct ftp_client_msg *result)
 {
 	result->code = FTP_ALGS;
 
 	line = skip_whitespace(line + 5); /* "+ 5" = Skip "ALGS ". */
-	if (!line)
+	if (!line) {
+		log_debug("ALGS lacks an argument.");
 		return -ENOENT;
+	}
 
 	if (line_starts_with(line, "STATUS64")) {
 		result->algs.arg = ALGS_STATUS64;
@@ -46,7 +53,7 @@ static int parse_algs(char *line, struct ftp_client_msg *result)
 	return 0;
 }
 
-static int parse_eprt(char *line, struct ftp_client_msg *result)
+static int tokenize_eprt(char *line, struct ftp_client_msg *result)
 {
 	char delimiter[2];
 	char *delimiter1;
@@ -57,22 +64,26 @@ static int parse_eprt(char *line, struct ftp_client_msg *result)
 
 	result->code = FTP_EPRT;
 
-	line = skip_whitespace(line + 5); /* "+ 5" = Skip "ALGS ". */
-	if (!line)
+	line = skip_whitespace(line + 5); /* "+ 5" = Skip "EPRT ". */
+	if (!line) {
+		log_debug("EPRT lacks arguments.");
 		return -ENOENT;
+	}
 
 	delimiter[0] = line[0];
 	delimiter[1] = '\0';
 
-	delimiter1 = strstr(line, delimiter);
-	if (!line)
-		return -ENOENT; /* TODO */
+	delimiter1 = line;
 	delimiter2 = strstr(delimiter1 + 1, delimiter);
-	if (!delimiter2)
+	if (!delimiter2) {
+		log_debug("EPRT lacks net-addr.");
 		return -ENOENT;
+	}
 	delimiter3 = strstr(delimiter2 + 1, delimiter);
-	if (!delimiter3)
+	if (!delimiter3) {
+		log_debug("EPRT lacks tcp-port.");
 		return -ENOENT;
+	}
 
 	error = kstrtouint(delimiter1 + 1, 10, &result->eprt.proto);
 	if (error) {
@@ -119,13 +130,15 @@ static int parse_eprt(char *line, struct ftp_client_msg *result)
 	return error;
 }
 
-static int parse_epsv(char *line, struct ftp_client_msg *result)
+static int tokenize_epsv(char *line, struct ftp_client_msg *result)
 {
 	result->code = FTP_EPSV;
 
 	line = skip_whitespace(line + 5); /* "+ 5" = Skip "EPSV ". */
-	if (!line)
+	if (!line) {
+		log_debug("EPSV lacks arguments.");
 		return -ENOENT;
+	}
 
 	if (line_starts_with(line, "ALL")) {
 		result->epsv.type = EPSV_ALL;
@@ -142,108 +155,104 @@ static int parse_epsv(char *line, struct ftp_client_msg *result)
 	return 0;
 }
 
-static int parse_client_unrecognized(struct ftp_client_msg *result)
+static int tokenize_client_unrecognized(struct ftp_client_msg *result)
 {
 	result->code = FTP_CLIENT_UNRECOGNIZED;
 	return 0;
 }
 
-int parser_client_next(struct ftp_parser *parser, struct ftp_client_msg *result)
+int client_next_token(struct ftp_parser *parser, struct ftp_client_msg *token)
 {
+	unsigned int start = parser->line_next_offset;
 	char *line;
 	int error;
 
-	error = next_line(parser, &line);
+	error = parser_next_line(parser, &line);
 	if (error)
 		return error;
 
+	token->skb = parser->skb;
+	token->start = start;
+	token->end = parser->line_next_offset;
+
 	if (line_starts_with(line, "AUTH")) {
-		error = parse_auth(parser, result);
+		error = tokenize_auth(token);
 	} else if (line_starts_with(line, "ALGS")) {
-		error = parse_algs(line, result);
+		error = tokenize_algs(line, token);
 	} else if (line_starts_with(line, "EPRT")) {
-		error = parse_eprt(line, result);
+		error = tokenize_eprt(line, token);
 	} else if (line_starts_with(line, "EPSV")) {
-		error = parse_epsv(line, result);
+		error = tokenize_epsv(line, token);
 	} else {
-		error = parse_client_unrecognized(result);
+		error = tokenize_client_unrecognized(token);
 	}
 
 	kfree(line);
 	return error;
 }
 
-static int parse_227(char *line, struct ftp_server_msg *result)
+static int tokenize_227(char *line, struct ftp_server_msg *result)
 {
-	union {
-		u8 as8[4];
-		u16 as16[2];
-		u32 as32;
-	} tmp;
+	unsigned int nums[6];
 	unsigned int i;
 	int error;
 
 	result->code = FTP_227;
 
-	line = strstr(line, "(");
-	if (!line)
-		return -ENOENT; /* TODO */
-	line++;
+	for (i = 0; line[i] != '\0'; i++) {
+		if (!is_digit(line[i]))
+			continue;
 
-	for (i = 0; i < 4; i++) {
-		error = kstrtou8(line, 10, &tmp.as8[i]);
-		if (error)
-			return error;
-		line = strstr(line, ",");
-		if (!line)
-			return -ENOENT;
-		line++;
+		error = sscanf(&line[i], "%u,%u,%u,%u,%u,%u",
+				&nums[0], &nums[1], &nums[2],
+				&nums[3], &nums[4], &nums[5]);
+		if (!error) {
+			result->epsv_227.addr.l3.s_addr = cpu_to_be32(
+					(nums[0] << 24) | (nums[1] << 16)
+					| (nums[2] << 8) | (nums[3]));
+			result->epsv_227.addr.l4 = (nums[4] << 8) + nums[5];
+			return 0;
+		}
 	}
-	result->epsv_227.addr.l3.s_addr = cpu_to_be32(tmp.as32);
 
-	for (i = 0; i < 2; i++) {
-		error = kstrtou8(line, 10, &tmp.as8[i]);
-		if (error)
-			return error;
-		line = strstr(line, ",");
-		if (!line)
-			return -ENOENT;
-		line++;
-	}
-	result->epsv_227.addr.l4 = cpu_to_be16(tmp.as16[0]);
-
-	return 0;
+	log_debug("227 doesn't have a comma-separated list of 6 numbers.");
+	return -EINVAL;
 }
 
-static int parse_error(struct ftp_server_msg *result)
+static int tokenize_error(struct ftp_server_msg *result)
 {
 	result->code = FTP_REJECT;
 	return 0;
 }
 
-static int parse_server_unrecognized(struct ftp_server_msg *result)
+static int tokenize_server_unrecognized(struct ftp_server_msg *result)
 {
 	result->code = FTP_SERVER_UNRECOGNIZED;
 	return 0;
 }
 
-int parser_server_next(struct ftp_parser *parser, struct ftp_server_msg *result)
+int server_next_token(struct ftp_parser *parser, struct ftp_server_msg *token)
 {
+	unsigned int start = parser->line_next_offset;
 	char *line;
 	int error;
 
-	error = next_line(parser, &line);
+	error = parser_next_line(parser, &line);
 	if (error)
 		return error;
 
+	token->skb = parser->skb;
+	token->start = start;
+	token->end = parser->line_next_offset;
+
 	if (line_starts_with(line, "227")) {
-		error = parse_227(line, result);
+		error = tokenize_227(line, token);
 	} else if (line_starts_with(line, "4")) {
-		error = parse_error(result);
+		error = tokenize_error(token);
 	} else if (line_starts_with(line, "5")) {
-		error = parse_error(result);
+		error = tokenize_error(token);
 	} else {
-		error = parse_server_unrecognized(result);
+		error = tokenize_server_unrecognized(token);
 	}
 
 	kfree(line);

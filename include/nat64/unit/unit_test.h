@@ -15,6 +15,7 @@
 			log_err("Test '" name "' failed. Expected:"	\
 				specifier " Actual:" specifier,		\
 				##__VA_ARGS__, __expected, __actual);	\
+		one_more_assert();					\
 		__expected == __actual;					\
 	})
 
@@ -41,6 +42,8 @@
  * easier to recognize.
  */
 
+bool ASSERT_STR(const char *expected, const char *actual,
+		const char *test_name);
 bool ASSERT_ADDR4(const char *expected, const struct in_addr *actual,
 		const char *test_name);
 bool __ASSERT_ADDR4(const struct in_addr *expected,
@@ -86,7 +89,10 @@ void end_full(void);
 	end_function
 #define END_TESTS \
 	log_info("Finished. Runs: %d; Errors: %d", test_counter, failure_counter); \
+	log_info("(Asserts: %u)", get_assert_count()); \
 	return (failure_counter > 0) ? -EINVAL : 0;
 
+void one_more_assert(void);
+unsigned int get_assert_count(void);
 
 #endif /* _JOOL_UNIT_TEST_H */

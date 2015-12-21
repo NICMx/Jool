@@ -1,8 +1,10 @@
-#include "nat64/mod/common/alg/ftp/core.h"
-
 #include "nat64/mod/common/config.h"
-#include "nat64/mod/common/alg/ftp/parser/ctrl_channel.h"
+#include "nat64/mod/common/packet.h"
+#include "nat64/mod/common/alg/ftp/parser/tokenizer.h"
 #include "nat64/mod/common/alg/ftp/state/db.h"
+#include "nat64/mod/common/alg/ftp/sm.h"
+#include <net/netfilter/ipv6/nf_defrag_ipv6.h>
+#include <net/netfilter/ipv4/nf_defrag_ipv4.h>
 
 /*
  * This is still a WIP. Still not included:
@@ -53,6 +55,18 @@
 
 static DEFINE_SPINLOCK(lock);
 
+int ftpalg_init(void)
+{
+	nf_defrag_ipv6_enable();
+	nf_defrag_ipv4_enable();
+	return 0;
+}
+
+void ftpalg_destroy(void)
+{
+	/* No code. */
+}
+
 static bool pkt_dst_is_ftp(struct packet *in)
 {
 	return (pkt_l4_proto(in) == L4PROTO_TCP)
@@ -70,89 +84,123 @@ static void update_ctrl_channel_timeout(struct packet *in)
 	/* TODO */
 }
 
-static enum ftpxlat_action sm64(struct packet *in, struct ftp_state *state)
+/*
+static int parse_pkt(struct packet *in, struct list_head *lines)
 {
-	struct ftp_ctrl_channel_parser parser;
+	struct ftp_parser parser;
 	struct ftp_client_msg token;
-	enum ftpxlat_action action = FTPXLAT_DO_NOTHING;
+	int error;
 
-	/* TODO result code? */
-	ftpparser_init(&parser, in);
+	INIT_LIST_HEAD(lines);
 
-	while (ftpparser_client_nextline(&parser, &token) != -ENOENT) {
-		switch (token.code) {
-		case FTP_AUTH:
-			action = ftpsm_client_sent_auth(state);
-			break;
-		case FTP_EPSV:
-			action = ftpsm_client_sent_epsv(state);
-			break;
-		case FTP_EPRT:
-			action = ftpsm_client_sent_eprt(state);
-			break;
-		case FTP_ALGS:
-			action = ftpsm_client_sent_algs(state, &token);
-			break;
-		case FTP_CLIENT_UNRECOGNIZED:
-			/*
-			 * TODO A list of actions is probably more appropriate.
-			 */
-			action = FTPXLAT_DO_NOTHING;
-			break;
-		}
+	parser_init(&parser, in->skb, pkt_payload_offset(in));
+
+	while (!(error = client_next_token(&parser, &token))) {
+		list_add_tail(&token->list_hook, lines);
 	}
 
-	ftpparser_destroy(&parser);
-
-	return action;
+	switch (error) {
+	case EOP:
+		break;
+	case -ETRUNCATED:
+		break;
+	}
 }
+*/
 
-static verdict handle_action64(enum ftpxlat_action action)
+static verdict sm64(struct packet *in, struct ftp_state *state)
 {
-	/* TODO */
-	return VERDICT_CONTINUE;
+	struct ftp_parser parser;
+	struct ftp_client_msg token;
+	struct ftp_translated output;
+	int error = 0;
+
+	parser_init(&parser, in->skb, pkt_payload_offset(in));
+
+	while (client_next_token(&parser, &token) != EOP) {
+		switch (token.code) {
+		case FTP_AUTH:
+			error = ftpsm_client_sent_auth(&token, &output, state);
+			break;
+		case FTP_EPSV:
+			error = ftpsm_client_sent_epsv(&token, &output, state);
+			break;
+		case FTP_EPRT:
+			error = ftpsm_client_sent_eprt(&token, &output, state);
+			break;
+		case FTP_ALGS:
+			error = ftpsm_client_sent_algs(&token, &output, state);
+			break;
+		case FTP_CLIENT_UNRECOGNIZED:
+			error = ftpsm_client_sent_whatever(&token, &output);
+			break;
+		}
+
+		if (error)
+			return error;
+	}
+
+	parser_destroy(&parser);
+
+	return 0;
 }
 
 /* client to server */
 verdict ftp_64(struct packet *in)
 {
+	struct list_head lines;
 	struct ftp_state *state;
-	enum ftpxlat_action action;
+	int error;
 
 	if (!config_xlat_ftp())
-		return VERDICT_CONTINUE;
-	/*
-	 * If the packet is fragmented, we'll just have to hope for the best.
-	 * SIIT can't band fragments together, so it can't even know if a
-	 * subsequent fragment contains FTP data or not.
-	 * FTP control connections always yield small packets anyway, so this
-	 * shouldn't be a problem in normal operation.
-	 *
-	 * RFC 6384 is completely silent on the topic of fragments.
-	 */
-	if (is_fragmented_ipv6(pkt_frag_hdr(in)))
 		return VERDICT_CONTINUE;
 	if (!pkt_dst_is_ftp(in)) {
 		update_ctrl_channel_timeout(in);
 		return VERDICT_CONTINUE;
 	}
 
-	spin_lock_bh(&lock);
-
-	state = ftpdb_get_or_create(in);
-	if (!state) {
-		spin_unlock_bh(&lock);
+	error = parse_pkt(&lines);
+	if (error) {
+		log_debug("Packet parsing threw errcode %d.", error);
 		return VERDICT_DROP;
 	}
 
-	/* TODO the line parsing can be pushed out of the spinlock. */
-	action = ftpsm_is_transparent_mode(state)
-			? FTPXLAT_DO_NOTHING
-			: sm64(in, state);
+	spin_lock_bh(&lock);
+
+	error = ftpdb_get_or_create(in, &state);
+	if (error) {
+		spin_unlock_bh(&lock);
+		log_debug("The state DB threw errcode %d.", error);
+		destroy_lines(&lines);
+		return VERDICT_DROP;
+	}
+
+	if (ftpsm_is_transparent_mode(state)) {
+		spin_unlock_bh(&lock);
+		log_debug("Transparent mode.");
+		destroy_lines(&lines);
+		return VERDICT_CONTINUE;
+	}
+
+	error = sm64(in, state);
+	if (error) {
+		spin_unlock_bh(&lock);
+		log_debug("The state machine threw errcode %d.", error);
+		destroy_lines(&lines);
+		return VERDICT_DROP;
+	}
 
 	spin_unlock_bh(&lock);
 
-	return handle_action64(action);
+	error = xlat_pkt(&lines);
+	if (error) {
+		log_debug("The packet translation threw errcode %d.", error);
+		destroy_lines(&lines);
+		return VERDICT_DROP;
+	}
+
+	destroy_lines(&lines);
+	return VERDICT_CONTINUE;
 }
 
 static enum ftpxlat_action sm46(struct packet *in, struct ftp_state *state)
@@ -166,7 +214,7 @@ static enum ftpxlat_action sm46(struct packet *in, struct ftp_state *state)
 	while (ftpparser_server_nextline(&parser, &token) != -ENOENT) {
 		switch (token.code) {
 		case FTP_227:
-			action = ftpsm_server_sent_227(state);
+			action = ftpsm_server_sent_227(&token, state);
 			break;
 		case FTP_REJECT:
 			action = ftpsm_server_denied(state);

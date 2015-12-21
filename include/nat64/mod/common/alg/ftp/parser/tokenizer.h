@@ -54,6 +54,13 @@ struct ftp_client_msg {
 			enum alg_argument arg;
 		} algs;
 	};
+
+	/* TODO init this. */
+	struct sk_buff *skb;
+	unsigned int start;
+	unsigned int end;
+
+	struct list_head list_hook;
 };
 
 enum ftp_server_code {
@@ -72,9 +79,14 @@ struct ftp_server_msg {
 			struct ipv4_transport_addr addr;
 		} epsv_227;
 	};
+
+	/* TODO init this. */
+	struct sk_buff *skb;
+	unsigned int start;
+	unsigned int end;
 };
 
-int parser_server_next(struct ftp_parser *parser, struct ftp_server_msg *msg);
-int parser_client_next(struct ftp_parser *parser, struct ftp_client_msg *msg);
+int server_next_token(struct ftp_parser *parser, struct ftp_server_msg *token);
+int client_next_token(struct ftp_parser *parser, struct ftp_client_msg *token);
 
 #endif /* _JOOL_MOD_ALG_FTP_TOKENIZER_H */

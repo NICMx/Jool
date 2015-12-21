@@ -52,4 +52,7 @@ jool += handling_hairpinning.o
 jool += nf_hook.o
 jool += impersonator.o
 
+#jool += ../common/alg/ftp/sm.o
+#jool += ../common/alg/ftp/core.o
+
 jool-objs += ${jool} ${jool_common}
