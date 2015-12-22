@@ -11,7 +11,7 @@
 #include "nat64/mod/common/send_packet.h"
 
 
-static unsigned int core_common(struct packet *in)
+static verdict core_common(struct packet *in)
 {
 	struct packet out;
 	struct tuple tuple_in;
@@ -60,23 +60,24 @@ static unsigned int core_common(struct packet *in)
 end:
 	if (result == VERDICT_ACCEPT)
 		log_debug("Returning the packet to the kernel.");
-
-	return (unsigned int) result;
+	return result;
 }
 
-static bool check_namespace(const struct net_device *dev)
+static struct jool_instance *get_jool_instance(const struct net_device *dev)
 {
 #ifdef CONFIG_NET_NS
-	if (dev && dev_net(dev) != joolns_get())
-		return false;
+	return joolns_get(dev_net(dev));
+#else
+	return joolns_get(&init_net); /* TODO is this right? */
 #endif
-	return true;
 }
 
 unsigned int core_4to6(struct sk_buff *skb, const struct net_device *dev)
 {
+	struct jool_instance *jool;
 	struct packet pkt;
 	struct iphdr *hdr = ip_hdr(skb);
+	verdict result;
 
 	/*
 	 * TODO (fine) The first if is silly.
@@ -84,27 +85,40 @@ unsigned int core_4to6(struct sk_buff *skb, const struct net_device *dev)
 	 */
 	if (config_is_xlat_disabled())
 		return NF_ACCEPT;
-	if (!check_namespace(dev))
+
+	jool = get_jool_instance(dev);
+	if (!jool)
 		return NF_ACCEPT;
 
 	log_debug("===============================================");
 	log_debug("Catching IPv4 packet: %pI4->%pI4", &hdr->saddr, &hdr->daddr);
 
 	/* Reminder: This function might change pointers. */
-	if (pkt_init_ipv4(&pkt, skb) != 0)
-		return NF_DROP;
+	if (pkt_init_ipv4(&pkt, skb, jool) != 0) {
+		result = VERDICT_DROP;
+		goto end;
+	}
 
-	return core_common(&pkt);
+	result = core_common(&pkt);
+	/* Fall through. */
+
+end:
+	joolns_return(jool);
+	return result;
 }
 
 unsigned int core_6to4(struct sk_buff *skb, const struct net_device *dev)
 {
+	struct jool_instance *jool;
 	struct packet pkt;
 	struct ipv6hdr *hdr = ipv6_hdr(skb);
+	verdict result;
 
 	if (config_is_xlat_disabled())
 		return NF_ACCEPT;
-	if (!check_namespace(dev))
+
+	jool = get_jool_instance(dev);
+	if (!jool)
 		return NF_ACCEPT;
 
 	log_debug("===============================================");
@@ -112,14 +126,21 @@ unsigned int core_6to4(struct sk_buff *skb, const struct net_device *dev)
 			&hdr->saddr, &hdr->daddr);
 
 	/* Reminder: This function might change pointers. */
-	if (pkt_init_ipv6(&pkt, skb) != 0)
-		return NF_DROP;
-
-	if (xlat_is_nat64()) {
-		verdict result = fragdb_handle(&pkt);
-		if (result != VERDICT_CONTINUE)
-			return (unsigned int) result;
+	if (pkt_init_ipv6(&pkt, skb, jool) != 0) {
+		result = VERDICT_DROP;
+		goto end;
 	}
 
-	return core_common(&pkt);
+	if (xlat_is_nat64()) {
+		result = fragdb_handle(&pkt);
+		if (result != VERDICT_CONTINUE)
+			goto end;
+	}
+
+	result = core_common(&pkt);
+	/* Fall through. */
+
+end:
+	joolns_return(jool);
+	return result;
 }

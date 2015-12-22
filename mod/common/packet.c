@@ -271,7 +271,8 @@ static int handle_icmp6(struct sk_buff *skb, struct pkt_metadata *meta)
  * As a contract, pkt_destroy() doesn't need to be called if this fails.
  * (Just like other init functions.)
  */
-int pkt_init_ipv6(struct packet *pkt, struct sk_buff *skb)
+int pkt_init_ipv6(struct packet *pkt, struct sk_buff *skb,
+		struct jool_instance *jool)
 {
 	struct pkt_metadata meta;
 	int error;
@@ -309,6 +310,7 @@ int pkt_init_ipv6(struct packet *pkt, struct sk_buff *skb)
 	}
 
 	pkt->skb = skb;
+	pkt->jool = jool;
 	pkt->l3_proto = L3PROTO_IPV6;
 	pkt->l4_proto = meta.l4_proto;
 	pkt->is_inner = 0;
@@ -438,7 +440,8 @@ static int summarize_skb4(struct sk_buff *skb, struct pkt_metadata *meta)
  * As a contract, pkt_destroy() doesn't need to be called if this fails.
  * (Just like other init functions.)
  */
-int pkt_init_ipv4(struct packet *pkt, struct sk_buff *skb)
+int pkt_init_ipv4(struct packet *pkt, struct sk_buff *skb,
+		struct jool_instance *jool)
 {
 	struct pkt_metadata meta;
 	int error;
@@ -466,6 +469,7 @@ int pkt_init_ipv4(struct packet *pkt, struct sk_buff *skb)
 	}
 
 	pkt->skb = skb;
+	pkt->jool = jool;
 	pkt->l3_proto = L3PROTO_IPV4;
 	pkt->l4_proto = meta.l4_proto;
 	pkt->is_inner = 0;

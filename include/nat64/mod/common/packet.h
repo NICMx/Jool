@@ -154,6 +154,11 @@ static inline unsigned int tcp_hdr_len(struct tcphdr *hdr)
  */
 struct packet {
 	struct sk_buff *skb;
+	/**
+	 * The (per namespace) Jool instance in charge of this packet's
+	 * translation.
+	 */
+	struct jool_instance *jool;
 
 	/**
 	 * Protocol of the layer-3 header of the packet.
@@ -482,8 +487,10 @@ static inline bool pkt_is_icmp4_error(const struct packet *pkt)
  * This function can change the packet's pointers. If you eg. stored a pointer to
  * skb_network_header(skb), you will need to assign it again (by calling skb_network_header again).
  */
-int pkt_init_ipv6(struct packet *pkt, struct sk_buff *skb);
-int pkt_init_ipv4(struct packet *pkt, struct sk_buff *skb);
+int pkt_init_ipv6(struct packet *pkt, struct sk_buff *skb,
+		struct jool_instance *jool);
+int pkt_init_ipv4(struct packet *pkt, struct sk_buff *skb,
+		struct jool_instance *jool);
 /**
  * @}
  */
