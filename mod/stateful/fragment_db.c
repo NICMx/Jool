@@ -71,6 +71,16 @@ static bool equals_function(const struct packet *key1, const struct packet *key2
 }
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 13, 0)
+# define JOOL_INET6_HASH_FRAG
+#else
+# ifdef RHEL_RELEASE_CODE
+#  if RHEL_RELEASE_CODE >= RHEL_RELEASE_VERSION(7, 2)
+#   define JOOL_INET6_HASH_FRAG
+#  endif
+# endif
+#endif
+
+#ifdef JOOL_INET6_HASH_FRAG
 /**
  * Hash function for IPv6 keys from reassembly.c
  */

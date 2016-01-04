@@ -72,6 +72,16 @@ verdict sendpkt_send(struct packet *in, struct packet *out)
 	}
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 16, 0)
+# define JOOL_SKB_IGNORE_DF
+#else
+# ifdef RHEL_RELEASE_CODE
+#  if RHEL_RELEASE_CODE >= RHEL_RELEASE_VERSION(7, 2)
+#   define JOOL_SKB_IGNORE_DF
+#  endif
+# endif
+#endif
+
+#ifdef JOOL_SKB_IGNORE_DF
 	out->skb->ignore_df = true; /* FFS, kernel. */
 #else
 	out->skb->local_df = true; /* FFS, kernel. */
