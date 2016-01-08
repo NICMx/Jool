@@ -77,7 +77,7 @@ configure
 depcomp
 install-sh
 missing
-Makefile
+#Makefile
 
 # DKMS version cache
 ######################
