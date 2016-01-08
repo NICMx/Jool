@@ -1,18 +1,13 @@
 #include "nat64/mod/common/nf_hook.h"
-#include "nat64/mod/common/config.h"
-#include "nat64/mod/common/core.h"
-#include "nat64/mod/common/namespace.h"
-#include "nat64/mod/common/nl_handler.h"
-#include "nat64/mod/common/pool6.h"
-#include "nat64/mod/common/types.h"
-#include "nat64/mod/common/log_time.h"
-#include "nat64/mod/stateless/eam.h"
-#include "nat64/mod/stateless/blacklist4.h"
-#include "nat64/mod/stateless/rfc6791.h"
 
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/version.h>
+#include "nat64/mod/common/core.h"
+#include "nat64/mod/common/log_time.h"
+#include "nat64/mod/common/namespace.h"
+#include "nat64/mod/common/nl/nl_handler.h"
+#include "nat64/mod/common/types.h"
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("NIC-ITESM");
@@ -82,39 +77,22 @@ static struct nf_hook_ops nfho[] = {
 	},
 };
 
-static int __init nat64_init(void)
+static int /* __init TODO uncomment */ jool_init(void)
 {
 	int error;
 
 	log_debug("Inserting %s...", xlat_get_name());
 
 	/* Init Jool's submodules. */
-	error = joolns_init();
-	if (error)
-		goto joolns_failure;
-	error = config_init(disabled);
-	if (error)
-		goto config_failure;
-	error = eamt_init();
-	if (error)
-		goto eamt_failure;
-#ifdef BENCHMARK
 	error = logtime_init();
 	if (error)
 		goto log_time_failure;
-#endif
+	error = joolns_init();
+	if (error)
+		goto joolns_failure;
 	error = nlhandler_init(sock_family);
 	if (error)
 		goto nlhandler_failure;
-	error = pool6_init(&pool6, pool6 ? 1 : 0);
-	if (error)
-		goto pool6_failure;
-	error = blacklist_init(blacklist, blacklist_size);
-	if (error)
-		goto blacklist_failure;
-	error = rfc6791_init(pool6791, pool6791_size);
-	if (error)
-		goto rfc6791_failure;
 
 	/* Hook Jool to Netfilter. */
 	error = nf_register_hooks(nfho, ARRAY_SIZE(nfho));
@@ -123,57 +101,28 @@ static int __init nat64_init(void)
 
 	/* Yay */
 	log_info("%s v" JOOL_VERSION_STR " module inserted.", xlat_get_name());
-	return error;
+	return 0;
 
 nf_register_hooks_failure:
-	rfc6791_destroy();
-
-rfc6791_failure:
-	blacklist_destroy();
-
-blacklist_failure:
-	pool6_destroy();
-
-pool6_failure:
 	nlhandler_destroy();
-
 nlhandler_failure:
-#ifdef BENCHMARK
-	logtime_destroy();
-
-log_time_failure:
-#endif
-	eamt_destroy();
-
-eamt_failure:
-	config_destroy();
-
-config_failure:
 	joolns_destroy();
-
 joolns_failure:
+	logtime_destroy();
+log_time_failure:
 	return error;
 }
 
-static void __exit nat64_exit(void)
+static void /* __exit TODO uncomment*/ jool_exit(void)
 {
-	/* Release the hook. */
 	nf_unregister_hooks(nfho, ARRAY_SIZE(nfho));
 
-	/* Deinitialize the submodules. */
-	rfc6791_destroy();
-	blacklist_destroy();
-	pool6_destroy();
 	nlhandler_destroy();
-#ifdef BENCHMARK
-	logtime_destroy();
-#endif
-	eamt_destroy();
-	config_destroy();
 	joolns_destroy();
+	logtime_destroy();
 
 	log_info("%s v" JOOL_VERSION_STR " module removed.", xlat_get_name());
 }
 
-module_init(nat64_init);
-module_exit(nat64_exit);
+module_init(jool_init);
+module_exit(jool_exit);

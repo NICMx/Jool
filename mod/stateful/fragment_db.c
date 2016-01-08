@@ -256,6 +256,10 @@ int fragdb_init(void)
 {
 	int error;
 
+	/* TODO test again siit doesn't modprobe these. */
+	nf_defrag_ipv6_enable();
+	nf_defrag_ipv4_enable();
+
 	buffer_cache = kmem_cache_create("jool_reassembly_buffers", sizeof(struct reassembly_buffer),
 			0, 0, NULL);
 	if (!buffer_cache) {

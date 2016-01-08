@@ -17,18 +17,22 @@ struct pool_entry {
 	struct list_head list_hook;
 };
 
-int pool_init(struct list_head __rcu **pool, char *pref_strs[], int pref_count);
-void pool_destroy(struct list_head __rcu *pool);
+struct addr4_pool {
+	struct list_head __rcu *list;
+};
 
-int pool_add(struct list_head __rcu *pool, struct ipv4_prefix *prefix);
-int pool_rm(struct list_head __rcu *pool, struct ipv4_prefix *prefix);
-int pool_flush(struct list_head __rcu *pool);
+int pool_init(struct addr4_pool *pool, char *pref_strs[], int pref_count);
+void pool_destroy(struct addr4_pool *pool);
 
-bool pool_contains(struct list_head __rcu *pool, struct in_addr *addr);
-int pool_foreach(struct list_head __rcu *pool,
+int pool_add(struct addr4_pool *pool, struct ipv4_prefix *prefix);
+int pool_rm(struct addr4_pool *pool, struct ipv4_prefix *prefix);
+int pool_flush(struct addr4_pool *pool);
+
+bool pool_contains(struct addr4_pool *pool, struct in_addr *addr);
+int pool_foreach(struct addr4_pool *pool,
 		int (*func)(struct ipv4_prefix *, void *), void *arg,
 		struct ipv4_prefix *offset);
-int pool_count(struct list_head __rcu *pool, __u64 *result);
-bool pool_is_empty(struct list_head __rcu *pool);
+int pool_count(struct addr4_pool *pool, __u64 *result);
+bool pool_is_empty(struct addr4_pool *pool);
 
 #endif /* _JOOL_MOD_POOL4_H */

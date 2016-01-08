@@ -172,7 +172,7 @@ static verdict generate_addr4_siit(struct in6_addr *addr6, __be32 *addr4,
 	if (error != -ESRCH)
 		return VERDICT_DROP;
 
-	error = pool6_get(addr6, &prefix);
+	error = pool6_find(addr6, &prefix);
 	if (error == -ESRCH) {
 		log_debug("Address %pI6c lacks the NAT64 prefix and an EAMT entry.", addr6);
 		return VERDICT_ACCEPT;

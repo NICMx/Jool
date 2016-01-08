@@ -38,43 +38,46 @@ static int parse_prefix4(const char *str, struct ipv4_prefix *prefix)
 	return error;
 }
 
+/**
+ * Assumes it has exclusive access to @list.
+ */
 RCUTAG_FREE
-static void __destroy(struct list_head *pool)
+static void __destroy(struct list_head *list)
 {
 	struct list_head *node;
 	struct list_head *tmp;
 
-	list_for_each_safe(node, tmp, pool) {
+	list_for_each_safe(node, tmp, list) {
 		list_del(node);
 		kfree(get_entry(node));
 	}
 
-	kfree(pool);
+	kfree(list);
 }
 
 RCUTAG_USR /* Only because of GFP_KERNEL. Can be easily upgraded to FREE. */
-static struct list_head *create_pool(void)
+static struct list_head *alloc_list(void)
 {
-	struct list_head *result;
+	struct list_head *list;
 
-	result = kmalloc(sizeof(*result), GFP_KERNEL);
-	if (!result)
+	list = kmalloc(sizeof(*list), GFP_KERNEL);
+	if (!list)
 		return NULL;
-	INIT_LIST_HEAD(result);
+	INIT_LIST_HEAD(list);
 
-	return result;
+	return list;
 }
 
 RCUTAG_USR
-int pool_init(struct list_head __rcu **pool, char *pref_strs[], int pref_count)
+int pool_init(struct addr4_pool *pool, char *pref_strs[], int pref_count)
 {
-	struct list_head *result;
+	struct list_head *list;
 	struct pool_entry *entry;
 	unsigned int i;
 	int error;
 
-	result = create_pool();
-	if (!result)
+	list = alloc_list();
+	if (!list)
 		return -ENOMEM;
 
 	for (i = 0; i < pref_count; i++) {
@@ -93,27 +96,27 @@ int pool_init(struct list_head __rcu **pool, char *pref_strs[], int pref_count)
 			goto revert;
 		}
 
-		list_add_tail(&entry->list_hook, result);
+		list_add_tail(&entry->list_hook, list);
 	}
 
 	mutex_lock(&lock);
-	rcu_assign_pointer(*pool, result);
+	rcu_assign_pointer(pool->list, list);
 	mutex_unlock(&lock);
 	return 0;
 
 revert:
-	__destroy(result);
+	__destroy(list);
 	return error;
 }
 
 RCUTAG_USR
-static void pool_replace(struct list_head __rcu *pool, struct list_head *new)
+static void pool_replace(struct addr4_pool *pool, struct list_head *new)
 {
 	struct list_head *tmp;
 
 	mutex_lock(&lock);
-	tmp = rcu_dereference_protected(pool, lockdep_is_held(&lock));
-	rcu_assign_pointer(pool, new);
+	tmp = rcu_dereference_protected(pool->list, lockdep_is_held(&lock));
+	rcu_assign_pointer(pool->list, new);
 	mutex_unlock(&lock);
 
 	synchronize_rcu_bh();
@@ -122,13 +125,13 @@ static void pool_replace(struct list_head __rcu *pool, struct list_head *new)
 }
 
 RCUTAG_USR
-void pool_destroy(struct list_head __rcu *pool)
+void pool_destroy(struct addr4_pool *pool)
 {
 	pool_replace(pool, NULL);
 }
 
 RCUTAG_USR
-int pool_add(struct list_head __rcu *pool, struct ipv4_prefix *prefix)
+int pool_add(struct addr4_pool *pool, struct ipv4_prefix *prefix)
 {
 	struct list_head *list;
 	struct list_head *node;
@@ -141,7 +144,7 @@ int pool_add(struct list_head __rcu *pool, struct ipv4_prefix *prefix)
 
 	mutex_lock(&lock);
 
-	list = rcu_dereference_protected(pool, lockdep_is_held(&lock));
+	list = rcu_dereference_protected(pool->list, lockdep_is_held(&lock));
 	list_for_each(node, list) {
 		entry = get_entry(node);
 		if (prefix4_intersects(&entry->prefix, prefix)) {
@@ -169,7 +172,7 @@ end:
 }
 
 RCUTAG_USR
-int pool_rm(struct list_head __rcu *pool, struct ipv4_prefix *prefix)
+int pool_rm(struct addr4_pool *pool, struct ipv4_prefix *prefix)
 {
 	struct list_head *list;
 	struct list_head *node;
@@ -177,7 +180,7 @@ int pool_rm(struct list_head __rcu *pool, struct ipv4_prefix *prefix)
 
 	mutex_lock(&lock);
 
-	list = rcu_dereference_protected(pool, lockdep_is_held(&lock));
+	list = rcu_dereference_protected(pool->list, lockdep_is_held(&lock));
 	list_for_each(node, list) {
 		entry = get_entry(node);
 		if (prefix4_equals(prefix, &entry->prefix)) {
@@ -195,11 +198,11 @@ int pool_rm(struct list_head __rcu *pool, struct ipv4_prefix *prefix)
 }
 
 RCUTAG_USR
-int pool_flush(struct list_head __rcu *pool)
+int pool_flush(struct addr4_pool *pool)
 {
 	struct list_head *new;
 
-	new = create_pool();
+	new = alloc_list();
 	if (!new)
 		return -ENOMEM;
 
@@ -208,7 +211,7 @@ int pool_flush(struct list_head __rcu *pool)
 }
 
 RCUTAG_PKT
-bool pool_contains(struct list_head __rcu *pool, struct in_addr *addr)
+bool pool_contains(struct addr4_pool *pool, struct in_addr *addr)
 {
 	struct list_head *list;
 	struct list_head *node;
@@ -216,7 +219,7 @@ bool pool_contains(struct list_head __rcu *pool, struct in_addr *addr)
 
 	rcu_read_lock_bh();
 
-	list = rcu_dereference_bh(pool);
+	list = rcu_dereference_bh(pool->list);
 	list_for_each_rcu_bh(node, list) {
 		entry = get_entry(node);
 		if (prefix4_contains(&entry->prefix, addr)) {
@@ -230,7 +233,7 @@ bool pool_contains(struct list_head __rcu *pool, struct in_addr *addr)
 }
 
 RCUTAG_PKT
-int pool_foreach(struct list_head __rcu *pool,
+int pool_foreach(struct addr4_pool *pool,
 		int (*func)(struct ipv4_prefix *, void *), void *arg,
 		struct ipv4_prefix *offset)
 {
@@ -241,7 +244,7 @@ int pool_foreach(struct list_head __rcu *pool,
 
 	rcu_read_lock_bh();
 
-	list = rcu_dereference_bh(pool);
+	list = rcu_dereference_bh(pool->list);
 	list_for_each_rcu_bh(node, list) {
 		entry = get_entry(node);
 		if (!offset) {
@@ -258,14 +261,14 @@ int pool_foreach(struct list_head __rcu *pool,
 }
 
 RCUTAG_PKT
-int pool_count(struct list_head __rcu *pool, __u64 *result)
+int pool_count(struct addr4_pool *pool, __u64 *result)
 {
 	struct list_head *list;
 	struct list_head *node;
 	__u64 count = 0;
 
 	rcu_read_lock_bh();
-	list = rcu_dereference_bh(pool);
+	list = rcu_dereference_bh(pool->list);
 	list_for_each_rcu_bh(node, list) {
 		count += prefix4_get_addr_count(&get_entry(node)->prefix);
 	}
@@ -276,13 +279,13 @@ int pool_count(struct list_head __rcu *pool, __u64 *result)
 }
 
 RCUTAG_PKT
-bool pool_is_empty(struct list_head __rcu *pool)
+bool pool_is_empty(struct addr4_pool *pool)
 {
 	struct list_head *list;
 	bool result;
 
 	rcu_read_lock_bh();
-	list = rcu_dereference_bh(pool);
+	list = rcu_dereference_bh(pool->list);
 	result = list_empty(list);
 	rcu_read_unlock_bh();
 

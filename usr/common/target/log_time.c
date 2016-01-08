@@ -13,6 +13,7 @@
 #include "nat64/usr/types.h"
 #include "nat64/usr/netlink.h"
 #include <errno.h>
+#include <time.h>
 
 #define HDR_LEN sizeof(struct request_hdr)
 #define PAYLOAD_LEN sizeof(struct request_logtime)

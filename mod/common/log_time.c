@@ -1,6 +1,11 @@
 #ifdef BENCHMARK
 #include "nat64/mod/common/log_time.h"
 
+struct log_time_db {
+	struct list_head list;
+	spinlock_t lock;
+};
+
 static struct log_time_db logs_ipv6_tcp;
 static struct log_time_db logs_ipv6_udp;
 static struct log_time_db logs_ipv6_icmp;

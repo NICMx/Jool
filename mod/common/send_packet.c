@@ -53,9 +53,7 @@ verdict sendpkt_send(struct packet *in, struct packet *out)
 {
 	int error;
 
-#ifdef BENCHMARK
 	logtime(out);
-#endif
 
 	if (!route(out)) {
 		kfree_skb(out->skb);

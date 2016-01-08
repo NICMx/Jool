@@ -123,7 +123,7 @@ int rfc6052_6to4(const struct in6_addr *addr6, struct in_addr *result)
 	struct ipv6_prefix prefix;
 	int error;
 
-	error = pool6_get(addr6, &prefix);
+	error = pool6_find(addr6, &prefix);
 	if (error)
 		return error;
 

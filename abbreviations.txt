@@ -34,6 +34,7 @@ mod = kernel module
 NIC = Network Interface Card
 nf = Netfilter (http://www.netfilter.org/)
 nl = Netlink (http://en.wikipedia.org/wiki/Netlink)
+ns = (network) namespace
 pkt = packet
 pref = prefix
 proto = protocol

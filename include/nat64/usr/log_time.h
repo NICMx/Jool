@@ -1,16 +1,17 @@
-#ifdef BENCHMARK
 #ifndef _JOOL_USR_LOG_TIME_H
 #define _JOOL_USR_LOG_TIME_H
-/*
- * log_time.h
- *
- *  Created on: Oct 3, 2014
- *      Author: dhernandez
- */
 
-#include <time.h>
+#ifdef BENCHMARK
 
-int logtime_display();
+int logtime_display(void);
+
+#else /* BENCHMARK */
+
+int logtime_display(void)
+{
+	return 0;
+}
+
+#endif
 
 #endif /* _JOOL_USR_LOG_TIME_H */
-#endif /* BENCHMARK */

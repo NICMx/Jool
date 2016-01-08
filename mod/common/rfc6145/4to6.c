@@ -110,7 +110,7 @@ static int generate_saddr6_nat64(struct tuple *tuple6, struct packet *in, struct
 
 	if (config_get_src_icmp6errs_better() && pkt_is_icmp4_error(in)) {
 		/* Issue #132 behaviour. */
-		error = pool6_get(&tuple6->src.addr6.l3, &prefix6);
+		error = pool6_find(&tuple6->src.addr6.l3, &prefix6);
 		if (error)
 			return error;
 		tmp.s_addr = pkt_ip4_hdr(in)->saddr;

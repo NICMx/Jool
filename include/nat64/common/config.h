@@ -135,6 +135,7 @@ enum parse_section {
 	SEC_POOL6 = 2,
 	SEC_POOL4 = 4,
 	SEC_BIB = 8,
+	/* TODO this should be called "commit". I think it's more expected. */
 	SEC_DONE = 16,
 	SEC_EAMT = 32,
 	SEC_BLACKLIST = 64,
@@ -142,6 +143,7 @@ enum parse_section {
 	SEC_INIT = 256
 };
 
+/* TODO NO-NO. */
 enum parse_entries_size {
 	POOL4_ENTRY_SIZE = 16,
 	BIB_ENTRY_SIZE = 25,

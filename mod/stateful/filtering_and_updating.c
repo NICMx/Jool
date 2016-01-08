@@ -50,36 +50,6 @@ static enum session_fate expired_cb(struct session_entry *session, void *arg)
 	return FATE_RM;
 }
 
-int filtering_init(void)
-{
-	int error;
-
-	error = bibdb_init();
-	if (error)
-		return error;
-
-	error = palloc_init();
-	if (error) {
-		bibdb_destroy();
-		return error;
-	}
-
-	error = sessiondb_init(expired_cb, expired_cb);
-	if (error) {
-		palloc_destroy();
-		bibdb_destroy();
-	}
-
-	return error;
-}
-
-void filtering_destroy(void)
-{
-	sessiondb_destroy();
-	palloc_destroy();
-	bibdb_destroy();
-}
-
 /**
  * Decides whether the packet should be filtered or not.
  *

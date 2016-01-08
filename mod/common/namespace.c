@@ -3,14 +3,73 @@
 #include "nat64/common/xlat.h"
 #include "nat64/mod/common/types.h"
 
+/**
+ * All the configuration and state of the Jool instance in the given network
+ * namespace (@ns).
+ */
+struct jool_instance {
+	struct xlator jool;
+
+	/*
+	 * I want to turn this into a hash table, but it doesn't seem like
+	 * @ns holds anything reminiscent of an identifier...
+	 */
+	struct list_head list_hook;
+};
+
 static struct list_head __rcu *pool;
 static DEFINE_MUTEX(lock);
+
+static void xlator_get(struct xlator *jool)
+{
+	get_net(jool->ns);
+
+//	global_get(jool->global);
+	pool6_get(jool->pool6);
+
+//	if (xlat_is_siit()) {
+//		eamt_get(jool->siit.eamt);
+//		blacklist_get(jool->siit.blacklist);
+//		pool6791_get(jool->siit.pool6791);
+//	} else {
+//		pool4_get(jool->nat64.pool4);
+//		bib_get(jool->nat64.bib);
+//		session_get(jool->nat64.session);
+//	}
+}
+
+static void xlator_put(struct xlator *jool)
+{
+	if (jool->ns)
+		put_net(jool->ns);
+
+//	if (jool->global)
+//		global_put(jool->global);
+	if (jool->pool6)
+		pool6_put(jool->pool6);
+
+//	if (xlat_is_siit()) {
+//		if (jool->siit.eamt)
+//			eamt_put(jool->siit.eamt);
+//		if (jool->siit.blacklist)
+//			blacklist_put(jool->siit.blacklist);
+//		if (jool->siit.pool6791)
+//			pool6791_put(jool->siit.pool6791);
+//	} else {
+//		if (jool->nat64.pool4)
+//			pool4_put(jool->nat64.pool4);
+//		if (jool->nat64.bib)
+//			bib_put(jool->nat64.bib);
+//		if (jool->nat64.session)
+//			session_put(jool->nat64.session);
+//	}
+}
 
 /**
  * joolns_exit_net - stops translation of packets traveling through the @ns
  * namespace.
  */
-static void /* __net_exit TODO uncomment */ joolns_exit_net(struct net *ns)
+static void __net_exit joolns_exit_net(struct net *ns)
 {
 	struct list_head *list;
 	struct jool_instance *instance;
@@ -19,10 +78,15 @@ static void /* __net_exit TODO uncomment */ joolns_exit_net(struct net *ns)
 
 	list = rcu_dereference_protected(pool, lockdep_is_held(&lock));
 	list_for_each_entry(instance, list, list_hook) {
-		if (instance->ns == ns) {
+		if (instance->jool.ns == ns) {
 			list_del_rcu(&instance->list_hook);
-			joolns_put(instance);
-			break;
+			mutex_unlock(&lock);
+			xlator_put(&instance->jool);
+
+			synchronize_rcu_bh();
+
+			kfree(instance);
+			return;
 		}
 	}
 
@@ -34,7 +98,7 @@ static struct pernet_operations joolns_ops = {
 };
 
 /**
- * joolns_exit_net - Initializes this module. Do not call other functions before
+ * joolns_init - Initializes this module. Do not call other functions before
  * this one.
  */
 int joolns_init(void)
@@ -46,9 +110,7 @@ int joolns_init(void)
 	if (!list)
 		return -ENOMEM;
 	INIT_LIST_HEAD(list);
-	mutex_lock(&lock);
-	rcu_assign_pointer(pool, list);
-	mutex_unlock(&lock);
+	RCU_INIT_POINTER(pool, list);
 
 	error = register_pernet_subsys(&joolns_ops);
 	if (error < 0) {
@@ -71,24 +133,22 @@ void joolns_destroy(void)
 
 	unregister_pernet_subsys(&joolns_ops);
 
-	mutex_lock(&lock);
-	list = rcu_dereference_protected(pool, lockdep_is_held(&lock));
-	rcu_assign_pointer(pool, NULL);
-	mutex_unlock(&lock);
-
-	list_for_each_entry_safe(instance, tmp, list, list_hook)
-		joolns_put(instance);
+	list = rcu_dereference_raw(pool);
+	list_for_each_entry_safe(instance, tmp, list, list_hook) {
+		joolns_put(&instance->jool);
+		kfree(instance);
+	}
 	kfree(list);
 }
 
-static int init_siit(struct jool_instance *instance)
+static int init_siit(struct xlator *jool)
 {
 	int error;
 
 //	error = config_init(instance->global);
 //	if (error)
 //		goto config_fail;
-	error = pool6_init(/* instance->pool6, */ NULL, 0);
+	error = pool6_init(&jool->pool6, NULL, 0);
 //	if (error)
 //		goto pool6_fail;
 //	error = eamt_init(instance->siit.eamt);
@@ -115,14 +175,14 @@ static int init_siit(struct jool_instance *instance)
 	return error;
 }
 
-static int init_nat64(struct jool_instance *instance)
+static int init_nat64(struct xlator *jool)
 {
 	int error;
 
 //	error = config_init(instance->global);
 //	if (error)
 //		goto config_fail;
-	error = pool6_init(/* instance->pool6, */ NULL, 0);
+	error = pool6_init(&jool->pool6, NULL, 0);
 //	if (error)
 //		goto pool6_fail;
 //	error = pool4_init(instance->nat64.pool4);
@@ -172,14 +232,15 @@ int joolns_add(void)
 		return -ENOMEM;
 	}
 
-	error = xlat_is_siit() ? init_siit(instance) : init_nat64(instance);
+	instance->jool.ns = ns;
+	error = xlat_is_siit()
+			? init_siit(&instance->jool)
+			: init_nat64(&instance->jool);
 	if (error) {
 		put_net(ns);
 		kfree(instance);
 		return error;
 	}
-	instance->ns = ns;
-	kref_init(&instance->refcount);
 
 	mutex_lock(&lock);
 	list = rcu_dereference_protected(pool, lockdep_is_held(&lock));
@@ -208,11 +269,46 @@ int joolns_rm(void)
 }
 
 /**
- * joolns_get - Returns the translation databases associated with namespace @ns.
- *
- * Please joolns_put() the instance when you're done.
+ * It is assumed @jool's krefs are transferred to the database.
  */
-struct jool_instance *joolns_get(struct net *ns)
+int joolns_replace(struct xlator *jool)
+{
+	struct list_head *list;
+	struct jool_instance *old;
+	struct jool_instance *new;
+
+	new = kmalloc(sizeof(*new), GFP_KERNEL);
+	if (!new)
+		return -ENOMEM;
+	memcpy(&new->jool, jool, sizeof(*jool));
+	memset(jool, 0, sizeof(*jool));
+
+	mutex_lock(&lock);
+
+	list = rcu_dereference_protected(pool, lockdep_is_held(&lock));
+	list_for_each_entry_rcu(old, list, list_hook) {
+		if (old->jool.ns == new->jool.ns) {
+			list_replace_rcu(&old->list_hook, &new->list_hook);
+			mutex_unlock(&lock);
+			xlator_put(&old->jool);
+
+			synchronize_rcu_bh();
+
+			kfree(old);
+			return 0;
+		}
+	}
+
+	mutex_unlock(&lock);
+	return -ESRCH;
+}
+
+/**
+ * joolns_get - Retrieves the Jool instance currently loaded in namespace @ns.
+ *
+ * Please joolns_put() the instance when you're done using it.
+ */
+int joolns_get(struct net *ns, struct xlator *result)
 {
 	struct list_head *list;
 	struct jool_instance *instance;
@@ -221,53 +317,40 @@ struct jool_instance *joolns_get(struct net *ns)
 
 	list = rcu_dereference_bh(pool);
 	list_for_each_entry_rcu(instance, list, list_hook) {
-		if (instance->ns == ns) {
-			kref_get(&instance->refcount);
+		if (instance->jool.ns == ns) {
+			xlator_get(&instance->jool);
+			memcpy(result, &instance->jool, sizeof(instance->jool));
 			rcu_read_unlock_bh();
-			return instance;
+			return 0;
 		}
 	}
 
 	rcu_read_unlock_bh();
-	return NULL;
-}
-
-static void destroy_siit(struct jool_instance *instance)
-{
-//	rfc6791_destroy(instance->siit.pool6791);
-//	blacklist_destroy(instance->siit.blacklist);
-//	eamt_destroy(instance->siit.eamt);
-	pool6_destroy(/* instance->pool6 */);
-//	config_destroy(instance->global);
-}
-
-static void destroy_nat64(struct jool_instance *instance)
-{
-//	sessiondb_destroy(instance->nat64.session);
-//	bibdb_destroy(instance->nat64.bib);
-//	pool4_destroy(instance->nat64.pool4);
-	pool6_destroy(/* instance->pool6 */);
-//	config_destroy(instance->global);
-}
-
-static void release_instance(struct kref *kref)
-{
-	struct jool_instance *instance;
-	instance = container_of(kref, typeof(*instance), refcount);
-
-	put_net(instance->ns);
-	if (xlat_is_siit())
-		destroy_siit(instance);
-	else
-		destroy_nat64(instance);
-	kfree(instance);
+	return -ESRCH;
 }
 
 /**
- * Marks @instance as no longer being used by the caller. Will destroy it if
- * it lacks more referencers.
+ * joolns_get - Retrieves the Jool instance loaded in the current namespace.
+ *
+ * Please joolns_put() the instance when you're done using it.
  */
-void joolns_put(struct jool_instance *instance)
+int joolns_get_current(struct xlator *result)
 {
-	kref_put(&instance->refcount, release_instance);
+	struct net *ns;
+	int error;
+
+	ns = get_net_ns_by_pid(task_pid_nr(current)); /* +1 to ns. */
+	if (IS_ERR(ns)) {
+		log_err("Could not retrieve the current namespace.");
+		return PTR_ERR(ns);
+	}
+
+	error = joolns_get(ns, result); /* +1 to result's DBs, including ns. */
+	put_net(ns); /* -1 to ns. */
+	return error;
+}
+
+void joolns_put(struct xlator *jool)
+{
+	xlator_put(jool);
 }

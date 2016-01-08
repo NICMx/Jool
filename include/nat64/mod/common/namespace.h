@@ -5,33 +5,30 @@
 #include "nat64/mod/common/pool6.h"
 
 /**
- * All the configuration and state of the Jool instance in the given network
- * namespace (@ns).
+ * A Jool translator "instance". The point is that each network namespace has
+ * a separate instance (if Jool has beed loaded there).
+ *
+ * The instance holds all the databases and configuration that the translating
+ * code should use to handle a packet.
  */
-struct jool_instance {
+struct xlator {
 	struct net *ns;
 
 	struct global_config *global;
-	struct prefix6_pool *pool6;
+	struct pool6 *pool6;
 	union {
 		struct {
 			struct eam_table *eamt;
-			struct blacklist_pool *blacklist;
-			struct rfc6791_pool *pool6791;
+			struct addr4_pool *blacklist;
+			struct addr4_pool *pool6791;
 		} siit;
 		struct {
+			/* TODO add palloc, fragdb */
 			struct taddr4_pool *pool4;
 			struct bib *bib;
 			struct session_db *session;
 		} nat64;
 	};
-
-	struct kref refcount;
-	/*
-	 * I want to turn this into a hash table, but it doesn't seem like
-	 * @ns holds anything reminiscent of an identifier...
-	 */
-	struct list_head list_hook;
 };
 
 int joolns_init(void);
@@ -39,8 +36,10 @@ void joolns_destroy(void);
 
 int joolns_add(void);
 int joolns_rm(void);
+int joolns_replace(struct xlator *jool);
 
-struct jool_instance *joolns_get(struct net *ns);
-void joolns_put(struct jool_instance *meta);
+int joolns_get(struct net *ns, struct xlator *result);
+int joolns_get_current(struct xlator *result);
+void joolns_put(struct xlator *instance);
 
 #endif /* _JOOL_MOD_NAMESPACE_H */

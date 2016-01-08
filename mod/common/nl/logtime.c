@@ -128,6 +128,10 @@ int logtime(struct packet *pkt)
 	return 0;
 }
 
+/**
+ * Iterate over a "struct log_time_db" (which is given by the l3_protocol and l4_protocol) and
+ * each iteration do the "func" call and then delete the node.
+ */
 int logtime_iterate_and_delete(l3_protocol l3_proto, l4_protocol l4_proto,
 		int (*func)(struct log_node *, void *), void *arg)
 {

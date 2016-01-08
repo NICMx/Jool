@@ -9,70 +9,35 @@
  * @author Daniel Hdz Felix
  */
 
-#include <linux/types.h>
 #include <linux/in6.h>
+#include <linux/kref.h>
+#include <linux/rculist.h>
+#include <linux/types.h>
+
 #include "nat64/common/types.h"
 
-/**
- * Readies the rest of this module for future use.
- *
- * @param pref_strs array of strings denoting the prefixes the pool should start with.
- * @param pref_count size of the "pref_strs" array.
- * @return result status (< 0 on error).
- */
-int pool6_init(char *pref_strs[], int pref_count);
-/**
- * Frees resources allocated by the pool.
- */
-void pool6_destroy(void);
-/**
- * Removes all prefixes from the pool.
- */
-int pool6_flush(void);
+struct pool6 {
+	struct list_head __rcu *list;
+	struct kref refcount;
+};
 
-/**
- * Returns (in "prefix") the pool's prefix corresponding to "addr".
- *
- * Because you're not actually borrowing the prefix,
- * - you don't have to return it, and
- * - this function can also be described as a way to infer "addr"'s actual network prefix.
- */
-int pool6_get(const struct in6_addr *addr, struct ipv6_prefix *prefix);
-/**
- * Returns (in "result") any prefix from the pool.
- */
-int pool6_peek(struct ipv6_prefix *result);
-/**
- * Returns whether "addr"'s network prefix belongs to the pool.
- */
-bool pool6_contains(struct in6_addr *addr);
+int pool6_init(struct pool6 **pool, char *prefix_strings[], int prefix_count);
+void pool6_get(struct pool6 *pool);
+void pool6_put(struct pool6 *pool);
 
-/**
- * Adds "prefix" to the pool. A copy is stored, not "prefix" itself.
- */
-int pool6_add(struct ipv6_prefix *prefix);
+int pool6_find(struct pool6 *pool, const struct in6_addr *addr,
+		struct ipv6_prefix *prefix);
+int pool6_peek(struct pool6 *pool, struct ipv6_prefix *result);
+bool pool6_contains(struct pool6 *pool, struct in6_addr *addr);
 
-/**
- * Replace the prefix in the pool.
- */
-int pool6_replace(struct ipv6_prefix *prefix);
-/**
- * Removes "prefix" from the pool.
- */
-int pool6_remove(struct ipv6_prefix *prefix);
+int pool6_add(struct pool6 *pool, struct ipv6_prefix *prefix);
+int pool6_rm(struct pool6 *pool, struct ipv6_prefix *prefix);
+int pool6_flush(struct pool6 *pool);
 
-/**
- * Executes the "func" function with the "arg" argument on every prefix in the pool.
- */
-int pool6_for_each(int (*func)(struct ipv6_prefix *, void *), void *arg,
+int pool6_foreach(struct pool6 *pool,
+		int (*func)(struct ipv6_prefix *, void *), void *arg,
 		struct ipv6_prefix *offset);
-/**
- * Copies the current number of prefixes in the pool to "result".
- */
-int pool6_count(__u64 *result);
-/**
- * Checks if the Pool is empty.
- */
-bool pool6_is_empty(void);
+int pool6_count(struct pool6 *pool, __u64 *result);
+bool pool6_is_empty(struct pool6 *pool);
 
 #endif /* _JOOL_MOD_POOL6_H */
