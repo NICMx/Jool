@@ -44,6 +44,7 @@ static int handle_session_display(struct genl_info *info, struct request_session
 	}
 
 	error = sessiondb_foreach(request->l4_proto, session_entry_to_userspace, buffer, remote4, local4);
+	buffer->pending_data = error > 0 ? true : false;
 	error = (error >= 0) ? nl_core_send_buffer(info, command, buffer) : nl_core_respond_error(info, command, error);
 
 	nl_core_free_buffer(buffer);
@@ -66,26 +67,32 @@ static int handle_session_count(struct genl_info *info, struct request_session *
 	if (error)
 		goto throw_error_with_deallocation;
 
+	log_info("writing to buffer count: %u", count);
+
+	nl_core_write_to_buffer(buffer, (__u8*) &count, sizeof(count));
+
 	error = nl_core_send_buffer(info, command, buffer);
 
 	if (error)
 		goto throw_error_with_deallocation;
 
 	nl_core_free_buffer(buffer);
+	log_info("buffer sent!!");
 
 	return 0;
 
 	throw_error_with_deallocation:
 	nl_core_free_buffer(buffer);
 	throw_error:
+	log_info("an error was thrown!");
 	return nl_core_respond_error(info, command, error);
 }
 
 int handle_session_config(struct genl_info *info)
 {
 
-	 struct request_hdr *jool_hdr = info->userhdr;
-	 struct request_session *request = (struct request_session *)jool_hdr + 1;
+	 struct request_hdr *jool_hdr = (struct request_hdr *) (info->attrs[ATTR_DATA] + 1);
+	 struct request_session *request = (struct request_session *) (jool_hdr + 1);
 
 	int error;
 

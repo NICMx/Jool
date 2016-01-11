@@ -27,6 +27,7 @@ static int handle_eamt_display(struct genl_info *info, union request_eamt *reque
 
 	prefix4 = request->display.prefix4_set ? &request->display.prefix4 : NULL;
 	error = eamt_foreach(eam_entry_to_userspace, buffer, prefix4);
+	buffer->pending_data = error > 0 ? true : false;
 	error = (error >= 0) ? nl_core_send_buffer(info, command, buffer) : nl_core_respond_error(info, command, error);
 
 	nl_core_free_buffer(buffer);
@@ -61,8 +62,8 @@ static int handle_eamt_count(struct genl_info *info) {
 }
 
 int handle_eamt_config(struct genl_info *info) {
-	struct request_hdr *jool_hdr = info->userhdr;
-	union request_eamt *request = (union request_eamt *)(jool_hdr + 1);
+	struct request_hdr *jool_hdr =(struct request_hdr *) (info->attrs[ATTR_DATA] + 1);
+	union request_eamt *request = (union request_eamt *) (jool_hdr + 1);
 
 	int error;
 

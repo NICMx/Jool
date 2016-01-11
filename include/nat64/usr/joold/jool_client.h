@@ -6,6 +6,8 @@
 #include <netlink/msg.h>
 #include <netlink/attr.h>
 #include <netlink/object.h>
+#include <netlink/genl/genl.h>
+#include <netlink/genl/ctrl.h>
 
 
 #if !defined(LIBNL_VER_NUM)

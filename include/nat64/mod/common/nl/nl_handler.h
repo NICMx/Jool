@@ -14,7 +14,7 @@
 /**
  * Activates this module. The module will then listen to user requests on its own.
  */
-int nlhandler_init(int receiver_sock_family);
+void nlhandler_init(void);
 /**
  * Terminates this module. Deletes any memory left on the heap.
  */

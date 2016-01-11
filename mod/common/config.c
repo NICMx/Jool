@@ -24,6 +24,10 @@ int config_init(bool is_disable)
 	cfg->reset_traffic_class = DEFAULT_RESET_TRAFFIC_CLASS;
 	cfg->reset_tos = DEFAULT_RESET_TOS;
 	cfg->new_tos = DEFAULT_NEW_TOS;
+	cfg->synch_elements_limit = DEFAULT_SYNCH_ELEMENTS_LIMIT;
+	cfg->synch_elements_period = DEFAULT_SYNCH_ELEMENTS_PERIOD;
+	cfg->synch_elements_threshold = DEFAULT_SYNCH_ELEMENTS_THRESHOLD;
+	cfg->synch_enabled = 0;
 
 	cfg->atomic_frags.df_always_on = DEFAULT_DF_ALWAYS_ON;
 	cfg->atomic_frags.build_ipv6_fh = DEFAULT_BUILD_IPV6_FH;
@@ -146,6 +150,20 @@ unsigned long config_get_ttl_frag(void)
 unsigned int config_get_max_pkts(void)
 {
 	return RCU_THINGY(unsigned int, nat64.max_stored_pkts);
+}
+
+int config_get_synch_elements_period(void)
+{
+	return RCU_THINGY(int, synch_elements_period);
+}
+
+int config_get_synch_elements_limit(void)
+{
+	return RCU_THINGY(int, synch_elements_limit);
+}
+
+unsigned long config_get_synch_elements_threshold(void) {
+	return RCU_THINGY(int, synch_elements_threshold);
 }
 
 bool config_get_src_icmp6errs_better(void)

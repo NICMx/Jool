@@ -7,8 +7,11 @@
 #include <sys/types.h>
 #include <string.h>
 #include "nat64/common/config.h"
+#include "nat64/common/genetlink.h"
 #include "nat64/common/joold/joold_config.h"
 #include "nat64/usr/joold/jool_client.h"
+
+#include "../../include/nat64/usr/netlink.h"
 #include "nat64/usr/types.h"
 
 //Socket which receives data from kernel.
@@ -27,7 +30,7 @@ void print_received_entries(struct request_hdr *received_data) {
 }
 
 int set_updated_entries(void *data) {
-	int error = 0;
+
 	struct request_hdr* received_data = (struct request_hdr *) data;
 
 	char * magic = malloc(5);
@@ -48,31 +51,9 @@ int set_updated_entries(void *data) {
 	free(magic);
 	magic = NULL;
 
-	error = nl_connect(sender_sk, NETLINK_USERSOCK);
-	error = nl_send_simple(sender_sk, MSG_TYPE_JOOL, 0, received_data,
-			received_data->length+sizeof(*received_data));
-	if (error < 0) {
-		log_err(
-				"Could not send the request to Jool (is it really up?).\n" "Netlink error message: %s (Code %d)",
-				nl_geterror(error), error);
-		goto fail_close;
-	}
 
-	error = nl_recvmsgs_default(sender_sk);
-	if (error < 0) {
-		log_err("%s (System error %d)", nl_geterror(error), error);
-		goto fail_close;
-	}
-
-	nl_close(sender_sk);
-
-	return 0;
-
-	fail_close:
-
-	nl_close(sender_sk);
-
-	return -1;
+	return netlink_request(data, received_data->length+sizeof(*received_data),
+				NULL , NULL);
 
 }
 
@@ -86,7 +67,6 @@ static int updated_entries_callback(struct nl_msg *msg, void *arg) {
 
 	joold_data = (struct request_hdr*) payload;
 
-	log_info("received header string -> %s", payload/*joold_data->magic*/);
 	sender_callback(payload, sizeof(struct request_hdr) + joold_data->length);
 
 	return 0;
@@ -95,6 +75,7 @@ static int updated_entries_callback(struct nl_msg *msg, void *arg) {
 int jool_client_sk_receiver_init(int (*cb)(void *, size_t size)) {
 
 	int error = 0;
+	int family = 0;
 	receiver_sk = nl_socket_alloc();
 
 	if (!receiver_sk) {
@@ -114,22 +95,34 @@ int jool_client_sk_receiver_init(int (*cb)(void *, size_t size)) {
 		goto fail;
 	}
 
-	error = nl_connect(receiver_sk, 22);
+	error = genl_connect(receiver_sk);
 
 	if (error) {
 		log_err("Couldn't connect the receiver socket to the kernel.");
 		log_err(
-				"This is likely because Jool isn't active and " "therefore it hasn't registered the protocol.");
+				"This is likely because Jool isn't active and "
+				"therefore it hasn't registered the protocol.");
 		goto fail;
 
 	}
 
-	error = nl_socket_add_membership(receiver_sk, JOOLD_MULTICAST_GROUP);
+	family = genl_ctrl_resolve_grp(receiver_sk, GNL_JOOL_FAMILY_NAME, GNL_JOOLD_MULTICAST_GRP_NAME);
+
+
+	if (family < 0) {
+		log_err("Clouldn't add socket as member of the family and multicast group!");
+		goto fail;
+	}
+
+
+	error = nl_socket_add_membership(receiver_sk, JOOLD_MC_ID);
 
 	if (error) {
-		log_err("Clouldn't add socket as member of JOOLD_MULTICAST_GROUP");
+		log_err("Clouldn't add socket as member of the family and multicast group!");
 		goto fail;
 	}
+
+
 
 	return 0;
 
@@ -157,17 +150,21 @@ int jool_client_init(int (*cb)(void *, size_t size)) {
 
 	int error = 0;
 
+
+	error = netlink_init();
+
+	if (error) {
+		return error;
+	}
+
+
 	error = jool_client_sk_receiver_init(cb);
 
 	if (error) {
 		return error;
 	}
 
-	error = jool_client_sk_sender_init();
 
-	if (error) {
-		return error;
-	}
 
 	return 0;
 }

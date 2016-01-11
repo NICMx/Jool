@@ -902,7 +902,11 @@ static int update_plateaus(struct global_config *config, size_t size, void *valu
 static int handle_global_update(enum global_type type, size_t size, unsigned char *value)
 {
 	struct global_config *config;
+	int synch_elements_limit;
+	unsigned long synch_period;
+
 	bool timer_needs_update = false;
+	bool joold_needs_update = false;
 	int error;
 
 	config = kmalloc(sizeof(*config), GFP_KERNEL);
@@ -1055,6 +1059,59 @@ static int handle_global_update(enum global_type type, size_t size, unsigned cha
 		config->atomic_frags.build_ipv4_id = !(*((__u8 *) value));
 		config->atomic_frags.lower_mtu_fail = !(*((__u8 *) value));
 		break;
+
+	case SYNCH_ELEMENTS_LIMIT:
+
+		synch_elements_limit = *((__u8*)value);
+
+		if (synch_elements_limit <  DEFAULT_SYNCH_ELEMENTS_LIMIT) {
+			log_err("The limit of synchronization elements can't be lower than %d", DEFAULT_SYNCH_ELEMENTS_LIMIT);
+			goto einval;
+		}
+
+		joold_needs_update = true;
+		config->synch_elements_limit = synch_elements_limit;
+
+		break;
+	case SYNCH_PERIOD:
+
+		synch_period = *((__u64*)value);
+
+		if (synch_period < DEFAULT_SYNCH_ELEMENTS_PERIOD) {
+			log_err("The period of synchronization can't be less than %d", DEFAULT_SYNCH_ELEMENTS_PERIOD);
+			goto einval;
+		}
+
+		joold_needs_update = true;
+		config->synch_elements_period = synch_period;
+
+		break;
+
+	case SYNCH_THRESHOLD:
+
+		config->synch_elements_threshold = *((__u64*)value);
+
+		break;
+
+	case SYNCH_ENABLE:
+
+		joold_start();
+
+		config->synch_enabled = 1;
+		joold_needs_update = true;
+
+		return error;
+		break;
+
+	case SYNCH_DISABLE:
+
+		joold_stop();
+
+		config->synch_enabled = 0;
+		joold_needs_update = true;
+
+		break;
+
 	default:
 		log_err("Unknown config type: %u", type);
 		goto einval;
@@ -1064,6 +1121,9 @@ static int handle_global_update(enum global_type type, size_t size, unsigned cha
 
 	if (timer_needs_update)
 		sessiondb_update_timers();
+
+	if (joold_needs_update)
+		joold_update_config();
 
 	return 0;
 
@@ -1144,12 +1204,15 @@ static int handle_netlink_message(struct sk_buff *skb_in, struct nlmsghdr *nl_hd
 		return -EINVAL;
 	}
 
+
 	jool_hdr = NLMSG_DATA(nl_hdr);
 	request = jool_hdr + 1;
+
 
 	error = validate_version(jool_hdr);
 	if (error)
 		return respond_error(nl_hdr, error);
+
 
 	switch (jool_hdr->mode) {
 	case MODE_POOL6:
@@ -1174,6 +1237,7 @@ static int handle_netlink_message(struct sk_buff *skb_in, struct nlmsghdr *nl_hd
 		return handle_json_file_config(nl_hdr, jool_hdr, request);
 	case MODE_JOOLD:
 		return handle_joold_request(nl_hdr, jool_hdr, request);
+
 	}
 
 	log_err("Unknown configuration mode: %d", jool_hdr->mode);

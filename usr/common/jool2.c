@@ -14,6 +14,7 @@
 #include <linux/types.h>
 #include <string.h>
 
+#include "nat64/usr/netlink.h"
 #include "nat64/common/constants.h"
 #include "nat64/common/config.h"
 #include "nat64/common/JsonReader.h"
@@ -29,9 +30,7 @@
 #include "nat64/usr/global.h"
 #include "nat64/usr/log_time.h"
 #include "nat64/usr/argp/options.h"
-#include "nat64/usr/netlink.h"
 
-int netlink_init(void);
 
 
 const char *argp_program_version = JOOL_VERSION_STR;
@@ -656,9 +655,6 @@ static int main_wrapped(int argc, char **argv)
 	if (error)
 		return error;
 
-	error = netlink_init();
-	if (error)
-		return error;
 
 	switch (args.mode) {
 	case MODE_POOL6:
@@ -868,7 +864,7 @@ static int main_wrapped(int argc, char **argv)
 		case OP_DISPLAY:
 			return global_display(args.csv_format);
 		case OP_UPDATE:
-			fprintf(stderr,"updating global parameters!");
+
 			error = global_update(args.global.type, args.global.size, args.global.data);
 			free(args.global.data);
 			return error;
@@ -891,5 +887,17 @@ static int main_wrapped(int argc, char **argv)
 
 int main(int argc, char **argv)
 {
-	return -main_wrapped(argc, argv);
+	int error;
+
+	error = netlink_init();
+
+	if (error)
+		return error;
+
+	error = -main_wrapped(argc, argv);
+
+	netlink_destroy();
+
+	return error;
+
 }

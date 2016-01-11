@@ -7,10 +7,12 @@ joold_SOURCES = joold.c \
 	mcastutil.c \
 	receiver.c \
 	sender.c \
-	argp/options.c
+	argp/options.c \
+	../stateful/xlat.c \
+	../common/netlink2.c
 	
-joold_LDADD = ${LIBNL3_LIBS}
+joold_LDADD = ${LIBNLGENL3_LIBS} ${LIBNL3_LIBS}
 joold_CFLAGS = -Wall -O2
 joold_CFLAGS += -I${srcdir}/../../include
-joold_CFLAGS += ${LIBNL3_CFLAGS} ${JOOL_FLAGS}
+joold_CFLAGS += ${LIBNLGENL3_CFLAGS} ${LIBNL3_CFLAGS} ${JOOL_FLAGS}
 #man_MANS = joold.8

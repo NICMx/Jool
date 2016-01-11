@@ -1,3 +1,4 @@
+#include "nat64/common/genetlink.h"
 #include "nat64/mod/common/json_parser.h"
 #include "nat64/mod/common/pool6.h"
 #include "nat64/mod/stateless/blacklist4.h"
@@ -196,9 +197,14 @@ static void end_configuration(void)
 
 
 
-int handle_json_file_config(struct nlmsghdr *nl_hdr,struct request_hdr *jool_hdr,__u8*request)
+int handle_json_file_config(struct genl_info *info)
 {
+	struct request_hdr *jool_hdr;
+	__u8*request = (__u8 *)(jool_hdr + 1);
 	int error = 0;
+
+	jool_hdr = (struct request_hdr *) (info->attrs[ATTR_DATA] + 1);
+
 	__u16 request_type =  *((__u16 *) request);
 	__u32 length = jool_hdr->length - (sizeof(struct request_hdr))-2;
 

@@ -28,16 +28,15 @@ static void print_eamt_entry(struct eamt_entry *entry, char *separator)
 	printf("\n");
 }
 
-static int eam_display_response(struct nl_msg *msg, void *arg)
+static int eam_display_response(struct nl_core_buffer *buffer, void *arg)
 {
-	struct nlmsghdr *hdr;
+
 	struct eamt_entry *entries;
 	struct display_params *params = arg;
 	__u16 entry_count, i;
 
-	hdr = nlmsg_hdr(msg);
-	entries = nlmsg_data(hdr);
-	entry_count = nlmsg_datalen(hdr) / sizeof(*entries);
+	entries = netlink_get_data(buffer);
+	entry_count = buffer->len / sizeof(*entries);
 
 	if (params->csv_format) {
 		for (i = 0; i < entry_count; i++) {
@@ -50,7 +49,7 @@ static int eam_display_response(struct nl_msg *msg, void *arg)
 	}
 
 	params->row_count += entry_count;
-	params->req_payload->display.prefix4_set = hdr->nlmsg_flags & NLM_F_MULTI;
+	params->req_payload->display.prefix4_set = buffer->len;
 	if (entry_count > 0)
 		params->req_payload->display.prefix4 = entries[entry_count - 1].prefix4;
 	return 0;
@@ -88,9 +87,9 @@ int eam_display(bool csv_format)
 	return error;
 }
 
-static int eam_count_response(struct nl_msg *msg, void *arg)
+static int eam_count_response(struct nl_core_buffer *buffer, void *arg)
 {
-	__u64 *conf = nlmsg_data(nlmsg_hdr(msg));
+	__u64 *conf = netlink_get_data(buffer);
 	printf("%llu\n", *conf);
 	return 0;
 }

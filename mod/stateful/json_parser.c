@@ -1,4 +1,7 @@
-#include "nat64/mod/common/json_parser.h"
+#include <net/netlink.h>
+#include <net/genetlink.h>
+#include "nat64/common/genetlink.h"
+#include "nat64/mod/common/config.h"
 #include "nat64/mod/stateful/bib/entry.h"
 #include "nat64/mod/stateful/pool4/db.h"
 
@@ -179,15 +182,18 @@ static void end_configuration(void)
 	initialized = 0;
 }
 
-int handle_json_file_config(struct nlmsghdr *nl_hdr, struct request_hdr *jool_hdr, __u8 *request)
+int handle_json_file_config(struct genl_info *info)
 {
-	int error = 0;
+
+	 struct request_hdr *jool_hdr = (struct request_hdr *) (info->attrs[ATTR_DATA] + 1);
+	 __u8 *request = (__u8 *) (jool_hdr + 1);
+
+	 int error = 0;
 	__u16 request_type = *((__u16 *) request);
 	__u32 length = jool_hdr->length - (sizeof(struct request_hdr)) - 2;
 
 
 	if (request_type == SEC_INIT) {
-		log_info("initializing configuration.");
 
 		if (init_configuration()) {
 			free_members_on_error();
@@ -198,7 +204,7 @@ int handle_json_file_config(struct nlmsghdr *nl_hdr, struct request_hdr *jool_hd
 	}
 
 	if(request_type == SEC_DONE) {
-		log_info("finalizing configuration.") ;
+
 		if(save_configuration())
 		{
 			free_members_on_error();
@@ -718,7 +724,6 @@ static int save_configuration(void)
 		//save bib_database
 	}
 
-	log_info("configuration saved.");
 
 	return 0;
 }

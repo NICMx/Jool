@@ -44,16 +44,15 @@ char *tcp_state_to_string(enum tcp_state state)
 	return "UNKNOWN";
 }
 
-static int session_display_response(struct nl_msg *msg, void *arg)
+static int session_display_response(struct nl_core_buffer *buffer, void *arg)
 {
-	struct nlmsghdr *hdr;
 	struct session_entry_usr *entries;
 	struct display_params *params = arg;
 	__u16 entry_count, i;
 
-	hdr = nlmsg_hdr(msg);
-	entries = nlmsg_data(hdr);
-	entry_count = nlmsg_datalen(hdr) / sizeof(*entries);
+
+	entries = netlink_get_data(buffer);
+	entry_count = buffer->len / sizeof(*entries);
 
 	if (params->csv_format) {
 		for (i = 0; i < entry_count; i++) {
@@ -106,7 +105,7 @@ static int session_display_response(struct nl_msg *msg, void *arg)
 	}
 
 	params->row_count += entry_count;
-	params->req_payload->display.connection_set = hdr->nlmsg_flags == NLM_F_MULTI;
+	params->req_payload->display.connection_set = buffer->pending_data;
 	if (entry_count > 0) {
 		params->req_payload->display.remote4 = entries[entry_count - 1].remote4;
 		params->req_payload->display.local4 = entries[entry_count - 1].local4;
@@ -177,10 +176,11 @@ int session_display(bool use_tcp, bool use_udp, bool use_icmp, bool numeric_host
 	return (tcp_error || udp_error || icmp_error) ? -EINVAL : 0;
 }
 
-static int session_count_response(struct nl_msg *msg, void *arg)
+static int session_count_response(struct nl_core_buffer *buffer, void *arg)
 {
-	__u64 *conf = nlmsg_data(nlmsg_hdr(msg));
+	__u64 *conf = netlink_get_data(buffer);
 	printf("%llu\n", *conf);
+	printf("printed!!");
 	return 0;
 }
 
@@ -207,7 +207,7 @@ int session_count(bool use_tcp, bool use_udp, bool use_icmp)
 	if (use_tcp)
 		tcp_error = display_single_count("TCP", L4PROTO_TCP);
 	if (use_udp)
-		udp_error = display_single_count("UDP", L4PROTO_UDP);
+		//udp_error = display_single_count("UDP", L4PROTO_UDP);
 	if (use_icmp)
 		icmp_error = display_single_count("ICMP", L4PROTO_ICMP);
 

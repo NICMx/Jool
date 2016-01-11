@@ -22,8 +22,9 @@ static int handle_blacklist_display(struct genl_info *info, union request_pool *
 
 	offset = request->display.offset_set ? &request->display.offset : NULL;
 	error = blacklist_for_each(pool_to_usr, buffer, offset);
-
+	buffer->pending_data = error > 0 ? true : false;
 	error = (error >= 0) ?  nl_core_send_buffer(info, command, buffer) : nl_core_respond_error(info, command, error);
+
 
 	nl_core_free_buffer(buffer);
 	return error;
@@ -60,8 +61,8 @@ static int handle_blacklist_count(struct genl_info *info)
 
 int handle_blacklist_config(struct genl_info *info)
 {
-	struct request_hdr *jool_hdr = info->userhdr;
-	union request_pool *request = (union request_pool *)(jool_hdr + 1);
+	struct request_hdr *jool_hdr = (struct request_hdr *) (info->attrs[ATTR_DATA] + 1);
+	union request_pool *request = (union request_pool *) (jool_hdr + 1);
 	int error = 0;
 
 	if (xlat_is_nat64()) {

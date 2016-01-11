@@ -1,6 +1,7 @@
 #ifndef __GENETLINK_H__
 #define __GENETLINK_H__
 
+#include <stdbool.h>
 #include <linux/types.h>
 
 #define GNL_JOOL_FAMILY_NAME "Jool"
@@ -25,6 +26,7 @@ enum genl_commands {
  */
 enum attributes {
 	ATTR_DUMMY,
+	ATTR_DATA,
 	__ATTR_MAX,
 };
 

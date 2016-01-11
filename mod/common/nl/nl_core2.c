@@ -29,7 +29,7 @@ struct genl_ops ops[] = {{ .cmd = JOOL_COMMAND, .flags = 0, .doit =	genetlink_ca
  */
 struct genl_family jool_family = {
 		.id = GENL_ID_GENERATE,
-		.hdrsize = sizeof(struct nl_core_buffer),
+		.hdrsize = 0,
 		.name = GNL_JOOL_FAMILY_NAME,
 		.version = 1,
 		.maxattr = __ATTR_MAX,
@@ -63,15 +63,12 @@ static int respond_single_msg(struct genl_info *info, enum config_mode command,	
 #endif
 
 
-	pr_info("Newing message.\n");
 	skb = genlmsg_new(sizeof(*buffer)+buffer->len, GFP_KERNEL);
 	if (!skb) {
 		pr_err("genlmsg_new() failed.\n");
 		return -ENOMEM;
 	}
 
-	log_info("skb len be -> %u", skb->len);
-	pr_info("Putting message.\n");
 	msg_head = genlmsg_put(skb, portid, 0, &jool_family, 0, command);
 	if (!msg_head) {
 		pr_err("genlmsg_put() failed.\n");
@@ -80,22 +77,14 @@ static int respond_single_msg(struct genl_info *info, enum config_mode command,	
 	}
 
 
-	log_info("sizeof nl_core_buffer -> %u", (__u16) sizeof(*buffer));
-
-
-	/** we tell the skb that we want to make some space for our data, otherwise we are going to lose some data when
-	the message is received by userspace. don't know why! */
-	skb_put(skb, sizeof(*buffer)+buffer->len);
-
-	log_info("sizeof nl_core_buffer and buffer len %u", sizeof(*buffer)+buffer->len);
-
-	memcpy(msg_head, buffer, sizeof(*buffer)+buffer->len);
-
-	pr_info("Ending message.\n");
-
+	error = nla_put(skb, ATTR_DATA, sizeof(*buffer)+buffer->len, buffer);
+	if (error) {
+		pr_err("nla_put() failed. \n");
+		kfree_skb(skb);
+		return -EINVAL;
+	}
 	total_length = genlmsg_end(skb, msg_head);
 
-	log_info("total length -> %d", total_length);
 
 	error = genlmsg_reply(skb, info);
 	if (error) {
@@ -103,7 +92,6 @@ static int respond_single_msg(struct genl_info *info, enum config_mode command,	
 		return error;
 	}
 
-	pr_info("Success.\n");
 	return 0;
 
 }
@@ -133,6 +121,7 @@ int nl_core_new_core_buffer(struct nl_core_buffer **out_buffer, size_t size)
 	buffer->error_code = 0;
 	buffer->len = 0;
 	buffer->capacity = size;
+	buffer->pending_data = false;
 
 	return 0;
 }
@@ -232,8 +221,6 @@ int nl_core_respond_error(struct genl_info *info, enum config_mode command, int 
 
 	buffer->error_code = error_code;
 
-	log_info("(size_t) msg_length -> %u",  (size_t) msg_length);
-
 	error = nl_core_write_to_buffer(buffer, (__u8 *)error_msg, (size_t) msg_length);
 
 	if (error) {
@@ -315,7 +302,7 @@ static int register_family(struct genl_family *family, struct genl_ops* ops,
 		return error;
 	}
 
-	pr_info("Echo module registered.\n");
+	pr_info("Jool module registered.\n");
 
 	return error;
 }

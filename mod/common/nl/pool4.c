@@ -17,8 +17,6 @@ static int handle_pool4_display(struct genl_info *info, union request_pool4 *req
 	struct pool4_sample *offset = NULL;
 	int error = 0;
 
-	log_debug("Sending IPv4 pool to userspace.");
-
 	error = nl_core_new_core_buffer(&buffer, nl_core_data_max_size());
 
 	if (error)
@@ -28,7 +26,9 @@ static int handle_pool4_display(struct genl_info *info, union request_pool4 *req
 		offset = &request->display.offset;
 
 	error = pool4db_foreach_sample(pool4_to_usr, buffer, offset);
+	buffer->pending_data = error > 0 ? true : false;
 	error = (error >= 0) ? nl_core_send_buffer(info, command, buffer) :  nl_core_respond_error(info, command, error);
+
 
 	nl_core_free_buffer(buffer);
 	return error;
@@ -129,8 +129,8 @@ static int handle_pool4_count(struct genl_info *info)
 int handle_pool4_config(struct genl_info *info)
 {
 
-	struct request_hdr *jool_hdr = info->userhdr;
-	union request_pool4 *request = (union request_pool4 *)jool_hdr + 1;
+	struct request_hdr *jool_hdr = (struct request_hdr *) (info->attrs[ATTR_DATA] + 1);
+	union request_pool4 *request = (union request_pool4 *) (jool_hdr + 1);
 
 
 	if (xlat_is_siit()) {

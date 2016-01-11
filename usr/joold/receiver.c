@@ -12,7 +12,7 @@
 
 static int sockfd;
 static char *lipaddress;
-static char b[2048];
+static char b[sizeof(size_t)];
 static struct sockaddr_storage clientaddr, addr;
 static socklen_t addrlen;
 static char clienthost[NI_MAXHOST];
@@ -57,11 +57,9 @@ int receiver_init(char * multicast_address, char * local_ip_address,
 void *receiver_start(void *args) {
 
 	int n;
-	printf("Starting receiver.");
+
 	addrlen = sizeof(clientaddr);
 	for (;;) {
-
-		printf("sizeof b -> %d \n",sizeof(b));
 
 		n = recvfrom(sockfd, b, sizeof(b), 0, (struct sockaddr *) &clientaddr,
 				&addrlen);
@@ -84,6 +82,7 @@ void *receiver_start(void *args) {
 		printf("Received request from host=[%s] port=[%s]\n", clienthost,
 				clientservice);
 		fflush(stdout);
+
 
 	}
 	return 0;

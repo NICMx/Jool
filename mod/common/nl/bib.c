@@ -33,7 +33,10 @@ static int handle_bib_display(struct genl_info *info, struct request_bib *reques
 
 	addr4 = request->display.addr4_set ? &request->display.addr4 : NULL;
 	error = bibdb_foreach(request->l4_proto, bib_entry_to_userspace, buffer, addr4);
+	buffer->pending_data = error > 0 ? true : false;
 	error = (error >= 0) ? nl_core_send_buffer(info, command, buffer) : nl_core_respond_error(info, command, error);
+
+
 
 	nl_core_free_buffer(buffer);
 	return error;
@@ -66,8 +69,8 @@ static int handle_bib_count(struct genl_info *info, struct request_bib *request)
 
 int handle_bib_config(struct genl_info *info)
 {
-	struct request_hdr *jool_hdr = info->userhdr;
-	struct request_bib *request = (struct request_bib *)(jool_hdr + 1);
+	struct request_hdr *jool_hdr = (struct request_hdr *) (info->attrs[ATTR_DATA] + 1);
+	struct request_bib *request = (struct request_bib *) (jool_hdr + 1);
 
 	int error = 0;
 

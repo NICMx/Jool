@@ -4,6 +4,6 @@
 #include <linux/netlink.h>
 #include "nat64/mod/common/config.h"
 
-int handle_json_file_config(struct nlmsghdr *nl_hdr,struct request_hdr *jool_hdr,__u8*request);
+int handle_json_file_config(struct genl_info *info);
 
 #endif /* JSON_PARSER_H_ */

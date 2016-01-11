@@ -190,6 +190,7 @@ struct request_hdr {
 	__u16 mode;
 	/** See "enum config_operation". */
 	__u8 operation;
+
 };
 
 static inline void init_request_hdr(struct request_hdr *hdr, __u32 length,
@@ -204,12 +205,14 @@ static inline void init_request_hdr(struct request_hdr *hdr, __u32 length,
 	hdr->length = length;
 	hdr->mode = mode;
 	hdr->operation = operation;
+
 }
 
 /**
  * Configuration for the "IPv6 Pool" module.
  */
 union request_pool6 {
+
 	struct {
 		__u8 prefix_set;
 		struct ipv6_prefix prefix;
@@ -232,6 +235,7 @@ union request_pool6 {
 		/* Whether the sessions tables should also be cleared (false) or not (true). */
 		__u8 quick;
 	} flush;
+
 };
 
 /**
@@ -410,6 +414,12 @@ enum global_type {
 	DROP_BY_ADDR,
 	DROP_ICMP6_INFO,
 	DROP_EXTERNAL_TCP,
+
+	SYNCH_ENABLE,
+	SYNCH_DISABLE,
+	SYNCH_ELEMENTS_LIMIT,
+	SYNCH_PERIOD,
+	SYNCH_THRESHOLD,
 
 	/* SIIT */
 	COMPUTE_UDP_CSUM_ZERO,
@@ -610,8 +620,8 @@ struct global_config {
 		__u8 drop_external_tcp;
 
 		/** Maximum number of simultaneous TCP connections Jool wil tolerate. */
-		__u64 max_stored_pkts;
 		/** True = issue #132 behaviour. False = RFC 6146 behaviour. (boolean) */
+		__u64 max_stored_pkts;
 		__u8 src_icmp6errs_better;
 
 		/** Log BIBs as they are created and destroyed? */
@@ -640,6 +650,30 @@ struct global_config {
 		 */
 		__u8 eam_hairpin_mode;
 	} siit;
+
+	__u8 synch_enabled;
+
+	/**
+	 * Max number of elemets to store in the synchronization queue before
+	 * send them to another jool's instance.
+	 */
+	int synch_elements_limit;
+
+	/**
+	 * Time lapse within the timer will be sending sessions to
+	 * another jool's instance if there are any in the synchronization
+	 * queue.
+	 */
+	int synch_elements_period;
+
+	/**
+	 * Milliseconds that have to pass since a session was created for it to be allowed to
+	 * get into the synchronization queue, this is intended to reduce synchronization traffic
+	 * over the network.
+	 */
+
+	unsigned long synch_elements_threshold;
+
 };
 
 /**

@@ -46,7 +46,8 @@ struct session_entry {
 
 	/** Jiffy (from the epoch) this session was last updated/used. */
 	unsigned long update_time;
-
+	/** Jiffy which represents the moment in which this session was created. */
+	unsigned long creation_time;
 	/**
 	 * Owner bib of this session. Used for quick access during removal.
 	 * (when the session dies, the BIB might have to die too.)

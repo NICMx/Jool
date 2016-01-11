@@ -22,6 +22,7 @@ enum argp_flags {
 	ARGP_GLOBAL = 'g',
 	ARGP_PARSE_FILE = 'p',
 
+
 	/* Operations */
 	ARGP_DISPLAY = 'd',
 	ARGP_COUNT = 'c',
@@ -74,6 +75,11 @@ enum argp_flags {
 	ARGP_EAM_HAIRPIN_MODE = 4018,
 	ARGP_RANDOMIZE_RFC6791 = 4017,
 	ARGP_ATOMIC_FRAGMENTS = 4016,
+	ARGP_SYNCH_ENABLE = 9000,
+	ARGP_SYNCH_DISABLE = 9001,
+	ARGP_SYNCH_MAX_SESSIONS = 9002,
+	ARGP_SYNCH_PERIOD = 9003,
+	ARGP_SYNCH_THRESHOLD = 9004
 };
 
 struct argp_option *build_options(void);

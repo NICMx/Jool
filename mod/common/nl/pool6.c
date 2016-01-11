@@ -15,20 +15,31 @@ static int handle_pool6_display(struct genl_info *info, union request_pool6 *req
 {
 	struct nl_core_buffer *buffer;
 	struct ipv6_prefix *prefix;
-	int error;
+	int error = 0;
 
 	log_debug("Sending IPv6 pool to userspace.");
+
 
 	error = nl_core_new_core_buffer(&buffer, nl_core_data_max_size());
 
 	if (error)
 		return nl_core_respond_error(info, command, error);
 
+	request->display.prefix_set ? log_info("prefix is set!") : log_info("prefix isn't set!");
+
 	prefix = request->display.prefix_set ? &request->display.prefix : NULL;
+
 	error = pool6_for_each(pool6_entry_to_userspace, buffer, prefix);
-	error = (error >= 0) ? nl_core_send_buffer(info, command, buffer) : nl_core_respond_error(info, command, error);
+
+	buffer->pending_data = error > 0 ?  true : false;
+
+	error = (error >= 0)  ?  nl_core_send_buffer(info, command, buffer) : nl_core_respond_error(info, command, error);
+
 
 	nl_core_free_buffer(buffer);
+
+
+
 	return error;
 }
 
@@ -63,26 +74,30 @@ int handle_pool6_config(struct genl_info *info)
 {
 	int error;
 
-	struct request_hdr *jool_hdr = info->userhdr;
-	union request_pool6 *request = (union request_pool6 *)jool_hdr + 1;
+	struct request_hdr *jool_hdr = (struct request_hdr *) (info->attrs[ATTR_DATA] + 1);
+	union request_pool6 *request = (union request_pool6 *) (jool_hdr + 1);
 
 
 	switch (jool_hdr->operation) {
 	case OP_DISPLAY:
+		log_info("entering pool6 display!");
 		return handle_pool6_display(info, request);
 
 	case OP_COUNT:
+		log_info("entering pool6 count!");
 		return handle_pool6_count(info);
 
 	case OP_ADD:
 	case OP_UPDATE:
-
+		log_info("entering pool6 add, update!");
 		if (verify_superpriv()) {
 			error = -EPERM;
 			goto throw_error;
 		}
 
 		log_debug("Adding a prefix to the IPv6 pool.");
+
+		log_info("prefix integer %lu \n", &request->add.prefix.address);
 
 		error = pool6_add(&request->add.prefix);
 
@@ -91,7 +106,7 @@ int handle_pool6_config(struct genl_info *info)
 
 		break;
 	case OP_REMOVE:
-
+		log_info("entering pool6 add, remove!");
 		if (verify_superpriv()) {
 			error = -EPERM;
 			goto throw_error;
@@ -108,7 +123,7 @@ int handle_pool6_config(struct genl_info *info)
 
 		break;
 	case OP_FLUSH:
-
+		log_info("entering pool6 add, flush!");
 		if (verify_superpriv()) {
 			error = -EPERM;
 			goto throw_error;

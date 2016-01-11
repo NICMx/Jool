@@ -76,18 +76,12 @@ static int handle_jool_message(struct sk_buff *skb_in,	struct genl_info *info)
 {
 
 	struct request_hdr *jool_hdr;
-	void *request;
 	int error;
 
-
-	struct nlmsghdr *nl_hdr = info->nlhdr;
-
-	jool_hdr = info->userhdr;
-	request = jool_hdr + 1;
+	jool_hdr = (struct request_hdr *) (info->attrs[ATTR_DATA] + 1);
 
 
 	error = validate_version(jool_hdr);
-
 
 	if (error)
 		return nl_core_respond_error(info, JOOL_COMMAND, error);

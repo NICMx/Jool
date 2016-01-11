@@ -15,6 +15,10 @@ unsigned long config_get_ttl_tcpest(void);
 unsigned long config_get_ttl_tcptrans(void);
 unsigned long config_get_ttl_icmp(void);
 
+int config_get_synch_elements_limit(void);
+int config_get_synch_elements_period(void);
+unsigned long config_get_synch_elements_threshold(void);
+
 unsigned int config_get_max_pkts(void);
 bool config_get_src_icmp6errs_better(void);
 bool config_get_bib_logging(void);

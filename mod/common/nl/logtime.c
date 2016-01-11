@@ -247,8 +247,8 @@ int handle_logtime_config(struct genl_info *info)
 {
 #ifdef BENCHMARK
 
-	struct request_hdr *jool_hdr = info->userhdr;
-	struct request_logtime *request = jool_hdr + 1;
+	struct request_hdr *jool_hdr = (struct request_hdr *) (info->attrs[ATTR_DATA] + 1);
+	struct request_logtime *request = (struct request_logtime *)(jool_hdr + 1);
 
 	int error;
 

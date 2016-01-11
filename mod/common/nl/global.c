@@ -299,15 +299,19 @@ static int handle_global_update(enum global_type type, size_t size, unsigned cha
 
 	case SYNCH_ENABLE:
 
+		log_info("enabling synchronization!");
+
 		joold_start();
 
 		config->synch_enabled = 1;
 		joold_needs_update = true;
 
-		return error;
+
 		break;
 
 	case SYNCH_DISABLE:
+
+		log_info("disabling synchronization!");
 
 		joold_stop();
 
@@ -379,8 +383,8 @@ static int handle_global_display(struct genl_info *info)
 
 int handle_global_config(struct genl_info *info)
 {
-	struct request_hdr *jool_hdr = info->userhdr;
-	union request_global *request = (union request_global *)(jool_hdr + 1);
+	struct request_hdr *jool_hdr = (struct request_hdr *) (info->attrs[ATTR_DATA] + 1);
+	union request_global *request = (union request_global *) (jool_hdr + 1);
 
 	unsigned char *buffer;
 	size_t buffer_len;

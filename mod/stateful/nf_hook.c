@@ -5,8 +5,9 @@
 #include "nat64/mod/common/core.h"
 #include "nat64/mod/common/log_time.h"
 #include "nat64/mod/common/namespace.h"
-#include "nat64/mod/common/nl_handler.h"
 #include "nat64/mod/common/pool6.h"
+#include "nat64/mod/common/nl/nl_handler.h"
+#include "nat64/mod/common/nl/nl_core2.h"
 #include "nat64/mod/stateful/filtering_and_updating.h"
 #include "nat64/mod/stateful/joold.h"
 #include "nat64/mod/stateful/fragment_db.h"
@@ -14,7 +15,6 @@
 
 #include <linux/kernel.h>
 #include <linux/module.h>
-
 #include <linux/version.h>
 #include <net/netfilter/ipv6/nf_defrag_ipv6.h>
 #include <net/netfilter/ipv4/nf_defrag_ipv4.h>
@@ -22,6 +22,11 @@
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("NIC-ITESM");
 MODULE_DESCRIPTION("Stateful NAT64 (RFC 6146)");
+
+#ifdef bool
+	#define bool_aux bool
+	#undef bool
+#endif
 
 static char *pool6[5];
 static int pool6_len;
@@ -41,17 +46,14 @@ static bool disabled;
 module_param(disabled, bool, 0);
 MODULE_PARM_DESC(disabled, "Disable the translation at the beginning of the module insertion.");
 
-static int sender_sock_family = NETLINK_MULTICAST_FAMILY;
-module_param(sender_sock_family,int,0);
-MODULE_PARM_DESC(sender_sock_family,"Family of the multicasting socket which will send session data to userspace.");
-
-static int receiver_sock_family = NETLINK_USERSOCK;
-module_param(receiver_sock_family,int,0);
-MODULE_PARM_DESC(receiver_sock_family,"Family of the socket which will receive data from userspace.");
-
 static int synch_period = 500;
 module_param(synch_period,int,0);
 MODULE_PARM_DESC(synch_timer_period,"Period of synchronization with other JOOL instances in miliseconds.");
+
+#ifdef bool_aux
+	#define bool bool_aux
+	#undef bool_aux
+#endif
 
 
 static char *banner = "\n"
@@ -134,9 +136,6 @@ static int __init nat64_init(void)
 	error = config_init(disabled);
 	if (error)
 		goto config_failure;
-	error = nlhandler_init(receiver_sock_family);
-	if (error)
-		goto nlhandler_failure;
 	error = pool6_init(pool6, pool6_len);
 	if (error)
 		goto pool6_failure;
@@ -149,9 +148,16 @@ static int __init nat64_init(void)
 	error = fragdb_init();
 	if (error)
 		goto fragdb_failure;
-	error = joold_init(sender_sock_family, synch_period);
+	error = nl_core_init();
+	if (error)
+		goto nl_core_failure;
+
+	nlhandler_init();
+
+	error = joold_init();
 	if (error)
 		goto joold_failure;
+
 #ifdef BENCHMARK
 	error = logtime_init();
 	if (error)
@@ -173,9 +179,15 @@ nf_register_hooks_failure:
 
 log_time_failure:
 #endif
-	joold_destroy();
+
+joold_destroy();
 
 joold_failure:
+	nlhandler_destroy();
+
+	nl_core_destroy();
+
+nl_core_failure:
 	fragdb_destroy();
 
 fragdb_failure:
@@ -188,9 +200,6 @@ pool4_failure:
 	pool6_destroy();
 
 pool6_failure:
-	nlhandler_destroy();
-
-nlhandler_failure:
 	config_destroy();
 
 config_failure:
@@ -215,6 +224,7 @@ static void __exit nat64_exit(void)
 	pool4db_destroy();
 	pool6_destroy();
 	nlhandler_destroy();
+	nl_core_destroy();
 	config_destroy();
 	joolns_destroy();
 
