@@ -38,8 +38,7 @@ static void reinitialize(void)
 	memset(&config, 0, sizeof(config));
 }
 
-int jparser_handle(struct nlmsghdr *nl_hdr, struct request_hdr *jool_hdr,
-		__u8 *request)
+int jparser_handle(struct request_hdr *jool_hdr, __u8 *request)
 {
 	__u16 type =  *((__u16 *) request);
 	__u32 length = jool_hdr->length - sizeof(*jool_hdr) - sizeof(type);

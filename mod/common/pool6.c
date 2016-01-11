@@ -171,6 +171,7 @@ static void destroy_pool6(struct kref *ref)
 	pool = container_of(ref, typeof(*pool), refcount);
 	destroy_list(rcu_dereference_raw(pool->list));
 	kfree(pool);
+	log_debug("pool6 destroyed.");
 }
 
 void pool6_put(struct pool6 *pool)
@@ -297,7 +298,7 @@ int pool6_add(struct pool6 *pool, struct ipv6_prefix *prefix)
 		mutex_unlock(&lock);
 		/*
 		 * TODO (4.0.0) remember to turn pool6 into a single global
-		 * param. This whole module being a list is stupid.
+		 * param. This whole module being a linked list is stupid.
 		 */
 		log_err("SIIT Jool only supports one pool6 prefix at a time.");
 		return -EINVAL;

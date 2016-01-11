@@ -113,7 +113,7 @@ int joolns_init(void)
 	RCU_INIT_POINTER(pool, list);
 
 	error = register_pernet_subsys(&joolns_ops);
-	if (error < 0) {
+	if (error) {
 		kfree(list);
 		return error;
 	}
@@ -265,6 +265,8 @@ int joolns_rm(void)
 	}
 
 	joolns_exit_net(ns);
+
+	put_net(ns);
 	return 0;
 }
 

@@ -7,7 +7,6 @@
 int jparser_init(void);
 void jparser_destroy(void);
 
-int jparser_handle(struct nlmsghdr *nl_hdr, struct request_hdr *jool_hdr,
-		__u8 *request);
+int jparser_handle(struct request_hdr *jool_hdr, __u8 *request);
 
 #endif /* JSON_PARSER_H_ */

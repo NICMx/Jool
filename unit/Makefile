@@ -29,6 +29,7 @@ CONFIG_PROTO = config_proto
 LOGTIME = logtime
 EAMT = eamt
 PALLOC = palloc4
+JOOLNS = joolns
 
 
 obj-m += $(ADDR).o
@@ -49,6 +50,7 @@ obj-m += $(CONFIG_PROTO).o
 obj-m += $(LOGTIME).o
 obj-m += $(EAMT).o
 obj-m += $(PALLOC).o
+obj-m += $(JOOLNS).o
 
 
 MIN_REQS = ../mod/common/types.o \
@@ -186,6 +188,12 @@ $(EAMT)-objs += eamt_test.o
 $(PALLOC)-objs += $(MIN_REQS)
 $(PALLOC)-objs += impersonator/bib.o
 $(PALLOC)-objs += port_allocator_test.o
+
+$(JOOLNS)-objs += $(MIN_REQS)
+$(JOOLNS)-objs += ../mod/common/pool6.o
+$(JOOLNS)-objs += ../mod/common/namespace.o
+$(JOOLNS)-objs += ../mod/stateless/json_parser.o
+$(JOOLNS)-objs += joolns_test.o
 
 all:
 	make -C ${KERNEL_DIR} M=$$PWD;
