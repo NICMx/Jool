@@ -105,7 +105,7 @@ static void logtime_db_add(struct log_time_db *log_db, struct log_node *node)
 /**
  * Increases the counter of the structure and add to the sum delta time registered.
  */
-int logtime(struct packet *pkt)
+void logtime(struct packet *pkt)
 {
 	struct log_time_db *log_db;
 	struct log_node *log_node;
@@ -116,16 +116,14 @@ int logtime(struct packet *pkt)
 	logtime_get_db(&log_db, pkt_l3_proto(pkt), pkt_l4_proto(pkt));
 	if (!log_db) {
 		log_err("Invalid L3 or L4 protocol.");
-		return -EINVAL;
+		return;
 	}
 
 	if (logtime_create_node(&log_node))
-		return -ENOMEM; /* Error message already printed. */
+		return; /* Error message already printed. */
 
 	subtract_timespec(&pkt->start_time, &end_time, log_node);
 	logtime_db_add(log_db, log_node);
-
-	return 0;
 }
 
 /**

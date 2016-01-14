@@ -24,19 +24,19 @@ static int fail(const char *function_name)
 	return -EINVAL;
 }
 
-verdict determine_in_tuple(struct packet *pkt, struct tuple *in_tuple)
+verdict determine_in_tuple(struct packet *in)
 {
 	fail(__func__);
 	return VERDICT_DROP;
 }
 
-verdict filtering_and_updating(struct packet *pkt, struct tuple *in_tuple)
+verdict filtering_and_updating(struct packet *in)
 {
 	fail(__func__);
 	return VERDICT_DROP;
 }
 
-verdict compute_out_tuple(struct tuple *in, struct tuple *out, struct packet *pkt_in)
+verdict compute_out_tuple(struct xlation *state)
 {
 	fail(__func__);
 	return VERDICT_DROP;
@@ -147,10 +147,4 @@ verdict fragdb_handle(struct packet *pkt)
 {
 	fail(__func__);
 	return VERDICT_DROP;
-}
-
-int joold_sync_entires(__u8 *data, __u32 size)
-{
-	fail(__func__);
-	return -EINVAL;
 }

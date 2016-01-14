@@ -15,24 +15,24 @@
  * @author Alberto Leiva
  */
 
-#include "nat64/mod/common/types.h"
 #include "nat64/mod/common/packet.h"
+#include "nat64/mod/common/types.h"
+#include "nat64/mod/common/translation_state.h"
+#include "nat64/mod/stateless/pool.h"
 
-int rfc6791_init(char *pref_strs[], int pref_count);
-void rfc6791_destroy(void);
+int rfc6791_init(struct addr4_pool **pool, char *pref_strs[], int pref_count);
+void rfc6791_get(struct addr4_pool *pool);
+void rfc6791_put(struct addr4_pool *pool);
 
-int rfc6791_add(struct ipv4_prefix *prefix);
-int rfc6791_rm(struct ipv4_prefix *prefix);
-int rfc6791_flush(void);
-int rfc6791_get(struct packet *in, struct packet *out, __be32 *result);
+int rfc6791_add(struct addr4_pool *pool, struct ipv4_prefix *prefix);
+int rfc6791_rm(struct addr4_pool *pool, struct ipv4_prefix *prefix);
+int rfc6791_flush(struct addr4_pool *pool);
+int rfc6791_find(struct xlation *state, __be32 *result);
 
-int rfc6791_for_each(int (*func)(struct ipv4_prefix *, void *), void *arg,
+int rfc6791_for_each(struct addr4_pool *pool,
+		int (*func)(struct ipv4_prefix *, void *), void *arg,
 		struct ipv4_prefix *offset);
-int rfc6791_count(__u64 *result);
-bool rfc6791_is_empty(void);
-
-struct list_head * rfc6791_config_init_db(void);
-int rfc6791_config_add(struct list_head * db, struct ipv4_prefix * entry);
-int rfc6791_switch_database(struct list_head * db);
+int rfc6791_count(struct addr4_pool *pool, __u64 *result);
+bool rfc6791_is_empty(struct addr4_pool *pool);
 
 #endif /* _JOOL_MOD_RFC6791_H */

@@ -353,7 +353,7 @@ verdict fragdb_handle(struct packet *pkt)
 	 * logic, keep in mind that this module used to do that in Jool 3.2, so you might be able
 	 * to reuse it.
 	 */
-	if (is_more_fragments_set_ipv6(hdr_frag)) {
+	if (is_mf_set_ipv6(hdr_frag)) {
 		spin_unlock_bh(&table_lock);
 		return VERDICT_STOLEN;
 	}

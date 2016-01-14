@@ -22,7 +22,7 @@ struct log_node {
 
 #ifdef BENCHMARK
 
-int logtime(struct packet *pkt);
+void logtime(struct packet *pkt);
 int logtime_iterate_and_delete(l3_protocol l3_proto, l4_protocol l4_proto,
 		int (*func)(struct log_node *, void *), void *arg);
 int logtime_init(void);
@@ -30,28 +30,10 @@ void logtime_destroy(void);
 
 #else /* BENCHMARK */
 
-static int logtime(struct packet *pkt)
-{
-	return 0;
-}
-
-static int logtime_iterate_and_delete(l3_protocol l3_proto,
-		l4_protocol l4_proto,
-		int (*func)(struct log_node *, void *),
-		void *arg)
-{
-	return 0;
-}
-
-static int logtime_init(void)
-{
-	return 0;
-}
-
-static void logtime_destroy(void)
-{
-	/* No code. */
-}
+#define logtime(pkt)
+#define logtime_iterate_and_delete(l3_proto, l4_proto, func, arg) 0
+#define logtime_init() 0
+#define logtime_destroy()
 
 #endif /* BENCHMARK */
 

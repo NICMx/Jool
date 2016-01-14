@@ -17,9 +17,9 @@ struct backup_skb {
 	l4_protocol l4_proto;
 };
 
-static verdict handle_unknown_l4(struct tuple *out_tuple, struct packet *in, struct packet *out)
+static verdict handle_unknown_l4(struct xlation *state)
 {
-	return copy_payload(in, out) ? VERDICT_DROP : VERDICT_CONTINUE;
+	return copy_payload(state) ? VERDICT_DROP : VERDICT_CONTINUE;
 }
 
 static struct translation_steps steps[][L4_PROTO_COUNT] = {
@@ -69,38 +69,41 @@ static struct translation_steps steps[][L4_PROTO_COUNT] = {
 	}
 };
 
-int copy_payload(struct packet *in, struct packet *out)
+int copy_payload(struct xlation *state)
 {
 	int error;
 
-	error = skb_copy_bits(in->skb, pkt_payload_offset(in), pkt_payload(out),
-			pkt_payload_len_frag(out));
+	error = skb_copy_bits(state->in.skb, pkt_payload_offset(&state->in),
+			pkt_payload(&state->out),
+			pkt_payload_len_frag(&state->out));
 	if (error)
 		log_debug("The payload copy threw errcode %d.", error);
 
 	return error;
 }
 
-static bool build_ipv6_frag_hdr(struct iphdr *in_hdr)
+static bool build_ipv6_frag_hdr(struct xlation *state)
 {
-	if (is_dont_fragment_set(in_hdr))
+	if (is_df_set(pkt_ip4_hdr(&state->in)))
 		return false;
 
-	return config_get_build_ipv6_fh();
+	return config_get_build_ipv6_fh(state->jool.global);
 }
 
-bool will_need_frag_hdr(struct iphdr *in_hdr)
+bool will_need_frag_hdr(struct xlation *state)
 {
 	/*
 	 * Note, build_ipv6_frag_hdr(in_hdr) should remain disabled.
-	 * See www.jool.mx/usr-flags-atomic.html.
+	 * See https://www.jool.mx/en/usr-flags-atomic.html
 	 * (if that's down, try doc/usr/usr-flags-atomic.md in Jool's source.)
 	 */
-	return build_ipv6_frag_hdr(in_hdr) || is_more_fragments_set_ipv4(in_hdr)
-			|| get_fragment_offset_ipv4(in_hdr);
+	return build_ipv6_frag_hdr(state)
+			|| is_mf_set_ipv4(pkt_ip4_hdr(&state->in))
+			|| get_fragment_offset_ipv4(pkt_ip4_hdr(&state->in));
 }
 
-static int move_pointers_in(struct packet *pkt, __u8 protocol, unsigned int l3hdr_len)
+static int move_pointers_in(struct packet *pkt, __u8 protocol,
+		unsigned int l3hdr_len)
 {
 	unsigned int l4hdr_len;
 
@@ -133,7 +136,8 @@ static int move_pointers_in(struct packet *pkt, __u8 protocol, unsigned int l3hd
 	return 0;
 }
 
-static int move_pointers_out(struct packet *in, struct packet *out, unsigned int l3hdr_len)
+static int move_pointers_out(struct packet *in, struct packet *out,
+		unsigned int l3hdr_len)
 {
 	skb_pull(out->skb, pkt_hdrs_len(out));
 	skb_reset_network_header(out->skb);
@@ -146,21 +150,21 @@ static int move_pointers_out(struct packet *in, struct packet *out, unsigned int
 	return 0;
 }
 
-static int move_pointers4(struct packet *in, struct packet *out)
+static int move_pointers4(struct xlation *state)
 {
 	struct iphdr *hdr4;
 	unsigned int l3hdr_len;
 	int error;
 
-	hdr4 = pkt_payload(in);
-	error = move_pointers_in(in, hdr4->protocol, 4 * hdr4->ihl);
+	hdr4 = pkt_payload(&state->in);
+	error = move_pointers_in(&state->in, hdr4->protocol, 4 * hdr4->ihl);
 	if (error)
 		return error;
 
 	l3hdr_len = sizeof(struct ipv6hdr);
-	if (will_need_frag_hdr(hdr4))
+	if (will_need_frag_hdr(state))
 		l3hdr_len += sizeof(struct frag_hdr);
-	return move_pointers_out(in, out, l3hdr_len);
+	return move_pointers_out(&state->in, &state->out, l3hdr_len);
 }
 
 static int move_pointers6(struct packet *in, struct packet *out)
@@ -171,7 +175,8 @@ static int move_pointers6(struct packet *in, struct packet *out)
 
 	hdr_iterator_last(&iterator);
 
-	error = move_pointers_in(in, iterator.hdr_type, iterator.data - (void *) hdr6);
+	error = move_pointers_in(in, iterator.hdr_type,
+			iterator.data - (void *)hdr6);
 	if (error)
 		return error;
 
@@ -197,9 +202,10 @@ static void restore(struct packet *pkt, struct backup_skb *bkp)
 	pkt->is_inner = 0;
 }
 
-verdict ttpcomm_translate_inner_packet(struct tuple *outer_tuple, struct packet *in,
-		struct packet *out)
+verdict ttpcomm_translate_inner_packet(struct xlation *state)
 {
+	struct packet *in = &state->in;
+	struct packet *out = &state->out;
 	struct backup_skb bkp_in, bkp_out;
 	struct tuple inner_tuple;
 	struct tuple *inner_tuple_ptr = NULL;
@@ -211,7 +217,7 @@ verdict ttpcomm_translate_inner_packet(struct tuple *outer_tuple, struct packet 
 
 	switch (pkt_l3_proto(in)) {
 	case L3PROTO_IPV4:
-		if (move_pointers4(in, out))
+		if (move_pointers4(state))
 			return VERDICT_DROP;
 		break;
 	case L3PROTO_IPV6:
@@ -224,16 +230,16 @@ verdict ttpcomm_translate_inner_packet(struct tuple *outer_tuple, struct packet 
 	}
 
 	if (xlat_is_nat64()) {
-		inner_tuple.src = outer_tuple->dst;
-		inner_tuple.dst = outer_tuple->src;
-		inner_tuple.l3_proto = outer_tuple->l3_proto;
-		inner_tuple.l4_proto = outer_tuple->l4_proto;
+		inner_tuple.src = out->tuple.dst;
+		inner_tuple.dst = out->tuple.src;
+		inner_tuple.l3_proto = out->tuple.l3_proto;
+		inner_tuple.l4_proto = out->tuple.l4_proto;
 		inner_tuple_ptr = &inner_tuple;
 	}
 
 	current_steps = &steps[pkt_l3_proto(in)][pkt_l4_proto(in)];
 
-	result = current_steps->l3_hdr_fn(inner_tuple_ptr, in, out);
+	result = current_steps->l3_hdr_fn(state);
 	if (result == VERDICT_ACCEPT) {
 		/*
 		 * Accepting because of an inner packet doesn't make sense.
@@ -244,7 +250,7 @@ verdict ttpcomm_translate_inner_packet(struct tuple *outer_tuple, struct packet 
 	if (result != VERDICT_CONTINUE)
 		return result;
 
-	result = current_steps->l3_payload_fn(inner_tuple_ptr, in, out);
+	result = current_steps->l3_payload_fn(state);
 	if (result == VERDICT_ACCEPT)
 		return VERDICT_DROP;
 	if (result != VERDICT_CONTINUE)
@@ -256,9 +262,9 @@ verdict ttpcomm_translate_inner_packet(struct tuple *outer_tuple, struct packet 
 	return VERDICT_CONTINUE;
 }
 
-struct translation_steps *ttpcomm_get_steps(enum l3_protocol l3_proto, enum l4_protocol l4_proto)
+struct translation_steps *ttpcomm_get_steps(struct packet *in)
 {
-	return &steps[l3_proto][l4_proto];
+	return &steps[pkt_l3_proto(in)][pkt_l4_proto(in)];
 }
 
 /**

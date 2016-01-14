@@ -3,23 +3,25 @@
 #include "nat64/mod/common/send_packet.h"
 #include "nat64/mod/common/rfc6145/core.h"
 
-
-bool is_hairpin(struct packet *pkt, struct tuple *tuple)
+bool is_hairpin(struct xlation *state)
 {
-	return pkt_is_intrinsic_hairpin(pkt);
+	return pkt_is_intrinsic_hairpin(&state->out);
 }
 
-verdict handling_hairpinning(struct packet *in, struct tuple *tuple)
+verdict handling_hairpinning(struct xlation *old)
 {
-	struct packet out;
+	struct xlation new;
 	verdict result;
 
 	log_debug("Packet is a hairpin. U-turning...");
 
-	result = translating_the_packet(NULL, in, &out);
+	new.jool = old->jool;
+	new.in = old->out;
+
+	result = translating_the_packet(&new);
 	if (result != VERDICT_CONTINUE)
 		return result;
-	result = sendpkt_send(in, &out);
+	result = sendpkt_send(&new);
 	if (result != VERDICT_CONTINUE)
 		return result;
 

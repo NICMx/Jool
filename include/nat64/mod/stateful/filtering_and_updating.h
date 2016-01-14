@@ -13,6 +13,6 @@
 
 #include "nat64/mod/common/packet.h"
 
-verdict filtering_and_updating(struct packet *pkt, struct tuple *in_tuple);
+verdict filtering_and_updating(struct packet *in);
 
 #endif /* _JOOL_MOD_FILTERING_H */

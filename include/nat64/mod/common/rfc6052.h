@@ -13,6 +13,7 @@
 #include <linux/in.h>
 #include <linux/in6.h>
 #include "nat64/common/types.h"
+#include "nat64/mod/common/pool6.h"
 
 
 /**
@@ -23,7 +24,8 @@
  *
  * @return error status.
  */
-int addr_6to4(const struct in6_addr *src, struct ipv6_prefix *prefix, struct in_addr *dst);
+int addr_6to4(const struct in6_addr *src, struct ipv6_prefix *prefix,
+		struct in_addr *dst);
 
 /**
  * Translates "src" into a IPv6 address and returns it as "dst.
@@ -33,9 +35,12 @@ int addr_6to4(const struct in6_addr *src, struct ipv6_prefix *prefix, struct in_
  *
  * @return error status.
  */
-int addr_4to6(struct in_addr *src, struct ipv6_prefix *prefix, struct in6_addr *dst);
+int addr_4to6(struct in_addr *src, struct ipv6_prefix *prefix,
+		struct in6_addr *dst);
 
-int rfc6052_6to4(const struct in6_addr *addr6, struct in_addr *result);
-int rfc6052_4to6(struct in_addr *addr4, struct in6_addr *result);
+int rfc6052_6to4(struct pool6 *pool, const struct in6_addr *addr6,
+		struct in_addr *result);
+int rfc6052_4to6(struct pool6 *pool, struct in_addr *addr4,
+		struct in6_addr *result);
 
 #endif /* _JOOL_MOD_RFC6052_H */

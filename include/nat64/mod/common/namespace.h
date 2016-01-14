@@ -2,11 +2,14 @@
 #define _JOOL_MOD_NAMESPACE_H
 
 #include <net/net_namespace.h>
+#include "nat64/mod/common/config.h"
 #include "nat64/mod/common/pool6.h"
+#include "nat64/mod/stateless/eam.h"
+#include "nat64/mod/stateless/pool.h"
 
 /**
  * A Jool translator "instance". The point is that each network namespace has
- * a separate instance (if Jool has beed loaded there).
+ * a separate instance (if Jool has been loaded there).
  *
  * The instance holds all the databases and configuration that the translating
  * code should use to handle a packet.
@@ -14,7 +17,7 @@
 struct xlator {
 	struct net *ns;
 
-	struct global_config *global;
+	struct global_configuration *global;
 	struct pool6 *pool6;
 	union {
 		struct {

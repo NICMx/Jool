@@ -50,12 +50,12 @@ static verdict unknown_inner_proto(__u8 proto)
 
 static verdict ipv4_udp(struct packet *pkt, struct tuple *tuple4)
 {
-	tuple4->src.addr4.l3.s_addr = pkt_ip4_hdr(pkt)->saddr;
-	tuple4->src.addr4.l4 = be16_to_cpu(pkt_udp_hdr(pkt)->source);
-	tuple4->dst.addr4.l3.s_addr = pkt_ip4_hdr(pkt)->daddr;
-	tuple4->dst.addr4.l4 = be16_to_cpu(pkt_udp_hdr(pkt)->dest);
-	tuple4->l3_proto = L3PROTO_IPV4;
-	tuple4->l4_proto = L4PROTO_UDP;
+	pkt->tuple.src.addr4.l3.s_addr = pkt_ip4_hdr(pkt)->saddr;
+	pkt->tuple.src.addr4.l4 = be16_to_cpu(pkt_udp_hdr(pkt)->source);
+	pkt->tuple.dst.addr4.l3.s_addr = pkt_ip4_hdr(pkt)->daddr;
+	pkt->tuple.dst.addr4.l4 = be16_to_cpu(pkt_udp_hdr(pkt)->dest);
+	pkt->tuple.l3_proto = L3PROTO_IPV4;
+	pkt->tuple.l4_proto = L4PROTO_UDP;
 	return VERDICT_CONTINUE;
 }
 
@@ -266,7 +266,7 @@ static verdict ipv6_icmp(struct packet *pkt, struct tuple *tuple6)
  * @param tuple this function will populate this value using "skb"'s contents.
  * @return whether packet processing should continue.
  */
-verdict determine_in_tuple(struct packet *pkt, struct tuple *in_tuple)
+verdict __determine_in_tuple(struct packet *pkt)
 {
 	verdict result = VERDICT_CONTINUE;
 
@@ -276,13 +276,13 @@ verdict determine_in_tuple(struct packet *pkt, struct tuple *in_tuple)
 	case L3PROTO_IPV4:
 		switch (pkt_l4_proto(pkt)) {
 		case L4PROTO_UDP:
-			result = ipv4_udp(pkt, in_tuple);
+			result = ipv4_udp(pkt, &pkt->tuple);
 			break;
 		case L4PROTO_TCP:
-			result = ipv4_tcp(pkt, in_tuple);
+			result = ipv4_tcp(pkt, &pkt->tuple);
 			break;
 		case L4PROTO_ICMP:
-			result = ipv4_icmp(pkt, in_tuple);
+			result = ipv4_icmp(pkt, &pkt->tuple);
 			break;
 		case L4PROTO_OTHER:
 			goto unknown_proto_ipv4;
@@ -292,13 +292,13 @@ verdict determine_in_tuple(struct packet *pkt, struct tuple *in_tuple)
 	case L3PROTO_IPV6:
 		switch (pkt_l4_proto(pkt)) {
 		case L4PROTO_UDP:
-			result = ipv6_udp(pkt, in_tuple);
+			result = ipv6_udp(pkt, &pkt->tuple);
 			break;
 		case L4PROTO_TCP:
-			result = ipv6_tcp(pkt, in_tuple);
+			result = ipv6_tcp(pkt, &pkt->tuple);
 			break;
 		case L4PROTO_ICMP:
-			result = ipv6_icmp(pkt, in_tuple);
+			result = ipv6_icmp(pkt, &pkt->tuple);
 			break;
 		case L4PROTO_OTHER:
 			goto unknown_proto_ipv6;
@@ -306,7 +306,7 @@ verdict determine_in_tuple(struct packet *pkt, struct tuple *in_tuple)
 		break;
 	}
 
-	log_tuple(in_tuple);
+	log_tuple(&pkt->tuple);
 	log_debug("Done step 1.");
 	return result;
 

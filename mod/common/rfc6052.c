@@ -47,7 +47,10 @@ int addr_6to4(const struct in6_addr *src, struct ipv6_prefix *prefix,
 		dst_aux.as32 = src->s6_addr32[3];
 		break;
 	default:
-		/* Critical because enforcing valid prefixes is pool6's responsibility, not ours. */
+		/*
+		 * Critical because enforcing valid prefixes is pool6's
+		 * responsibility, not ours.
+		 */
 		WARN(true, "Prefix has an invalid length: %u.", prefix->len);
 		return -EINVAL;
 	}
@@ -56,7 +59,8 @@ int addr_6to4(const struct in6_addr *src, struct ipv6_prefix *prefix,
 	return 0;
 }
 
-int addr_4to6(struct in_addr *src, struct ipv6_prefix *prefix, struct in6_addr *dst)
+int addr_4to6(struct in_addr *src, struct ipv6_prefix *prefix,
+		struct in6_addr *dst)
 {
 	union ipv4_address src_aux;
 
@@ -110,7 +114,10 @@ int addr_4to6(struct in_addr *src, struct ipv6_prefix *prefix, struct in6_addr *
 		dst->s6_addr32[3] = src_aux.as32;
 		break;
 	default:
-		/* Critical because enforcing valid prefixes is pool6's responsibility, not ours. */
+		/*
+		 * Critical because enforcing valid prefixes is pool6's
+		 * responsibility, not ours.
+		 */
 		WARN(true, "Prefix has an invalid length: %u.", prefix->len);
 		return -EINVAL;
 	}
@@ -118,24 +125,26 @@ int addr_4to6(struct in_addr *src, struct ipv6_prefix *prefix, struct in6_addr *
 	return 0;
 }
 
-int rfc6052_6to4(const struct in6_addr *addr6, struct in_addr *result)
+int rfc6052_6to4(struct pool6 *pool, const struct in6_addr *addr6,
+		struct in_addr *result)
 {
 	struct ipv6_prefix prefix;
 	int error;
 
-	error = pool6_find(addr6, &prefix);
+	error = pool6_find(pool, addr6, &prefix);
 	if (error)
 		return error;
 
 	return addr_6to4(addr6, &prefix, result);
 }
 
-int rfc6052_4to6(struct in_addr *addr4, struct in6_addr *result)
+int rfc6052_4to6(struct pool6 *pool, struct in_addr *addr4,
+		struct in6_addr *result)
 {
 	struct ipv6_prefix prefix;
 	int error;
 
-	error = pool6_peek(&prefix);
+	error = pool6_peek(pool, &prefix);
 	if (error)
 		return error;
 

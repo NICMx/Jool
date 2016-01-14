@@ -9,25 +9,23 @@
  * @author Daniel Hdz Felix
  */
 
+#include <net/net_namespace.h>
 #include "nat64/mod/common/types.h"
+#include "nat64/mod/stateless/pool.h"
 
-int blacklist_init(char *pref_strs[], int pref_count);
-void blacklist_destroy(void);
+int blacklist_init(struct addr4_pool **pool, char *pref_strs[], int pref_count);
+void blacklist_get(struct addr4_pool *pool);
+void blacklist_put(struct addr4_pool *pool);
 
-int blacklist_add(struct ipv4_prefix *prefix);
-int blacklist_rm(struct ipv4_prefix *prefix);
-int blacklist_flush(void);
-bool blacklist_contains(__be32 addr);
+int blacklist_add(struct addr4_pool *pool, struct ipv4_prefix *prefix);
+int blacklist_rm(struct addr4_pool *pool, struct ipv4_prefix *prefix);
+int blacklist_flush(struct addr4_pool *pool);
+bool blacklist_contains(struct addr4_pool *pool, struct net *ns, __be32 addr);
 
-void blacklist_replace(struct list_head *pool);
-
-int blacklist_for_each(int (*func)(struct ipv4_prefix *, void *), void *arg,
+int blacklist_foreach(struct addr4_pool *pool,
+		int (*func)(struct ipv4_prefix *, void *), void *arg,
 		struct ipv4_prefix *offset);
-int blacklist_count(__u64 *result);
-bool blacklist_is_empty(void);
-
-struct list_head * blacklist_config_init_db(void);
-int blacklist_config_add(struct list_head * db, struct ipv4_prefix * entry);
-int blacklist_switch_database(struct list_head * db);
+int blacklist_count(struct addr4_pool *pool, __u64 *result);
+bool blacklist_is_empty(struct addr4_pool *pool);
 
 #endif /* _JOOL_MOD_BLACKLIST4_H */

@@ -125,6 +125,13 @@ static bool key_equals(struct rtrie_key *key1, struct rtrie_key *key2)
 			: false;
 }
 
+void rtrie_init(struct rtrie *trie, size_t size)
+{
+	trie->root = NULL;
+	INIT_LIST_HEAD(&trie->list);
+	trie->value_size = size;
+}
+
 void rtrie_destroy(struct rtrie *trie)
 {
 	rtrie_flush(trie);
@@ -325,8 +332,7 @@ static int add_full_collision(struct rtrie *trie, struct rtrie_node *parent,
 	return 0;
 }
 
-static int __rtrie_add(struct rtrie *trie, void *value, size_t key_offset,
-		__u8 key_len)
+int rtrie_add(struct rtrie *trie, void *value, size_t key_offset, __u8 key_len)
 {
 	struct rtrie_node *new;
 	struct rtrie_node *parent;
@@ -407,17 +413,6 @@ simple_success:
 	return 0;
 }
 
-int rtrie_add(struct rtrie *trie, void *value, size_t key_offset, __u8 key_len)
-{
-	int error;
-
-	mutex_lock(&trie->lock);
-	error = __rtrie_add(trie, value, key_offset, key_len);
-	mutex_unlock(&trie->lock);
-
-	return error;
-}
-
 /**
  * rtrie_get - Finds the node keyed @key, and copies its value to @result.
  */
@@ -460,7 +455,7 @@ bool rtrie_is_empty(struct rtrie *trie)
 	return result;
 }
 
-static int __rtrie_rm(struct rtrie *trie, struct rtrie_key *key)
+int rtrie_rm(struct rtrie *trie, struct rtrie_key *key)
 {
 	struct rtrie_node *node;
 	struct rtrie_node *new;
@@ -530,17 +525,6 @@ static int __rtrie_rm(struct rtrie *trie, struct rtrie_key *key)
 	return 0;
 }
 
-int rtrie_rm(struct rtrie *trie, struct rtrie_key *key)
-{
-	int error;
-
-	mutex_lock(&trie->lock);
-	error = __rtrie_rm(trie, key);
-	mutex_unlock(&trie->lock);
-
-	return error;
-}
-
 void rtrie_flush(struct rtrie *trie)
 {
 	struct rtrie_node *node;
@@ -550,17 +534,13 @@ void rtrie_flush(struct rtrie *trie)
 
 	/* rtrie_print("Flushing trie", trie); */
 
-	mutex_lock(&trie->lock);
-
-	if (!deref_updater(trie, trie->root)) {
-		mutex_unlock(&trie->lock);
+	if (!deref_updater(trie, trie->root))
 		goto end;
-	}
 
 	rcu_assign_pointer(trie->root, NULL);
 	list_replace_init(&trie->list, &tmp_list);
-	mutex_unlock(&trie->lock);
 
+	/* TODO maybe we should be using call_rcu_bh() instead? */
 	synchronize_rcu_bh();
 
 	list_for_each_entry_safe(node, tmp_node, &tmp_list, list_hook) {
@@ -576,18 +556,17 @@ end:
 
 /**
  * TODO (performance) find offset using a normal trie find.
+ * TODO return -ESRCH if offset can't be found?
  */
 int rtrie_foreach(struct rtrie *trie,
 		int (*cb)(void *, void *), void *arg,
 		struct rtrie_key *offset)
 {
 	struct rtrie_node *node;
-	int error = 0;
-
-	mutex_lock(&trie->lock);
+	int error;
 
 	if (list_empty(&trie->list))
-		goto end;
+		return 0;
 
 	list_for_each_entry(node, &trie->list, list_hook) {
 		if (offset) {
@@ -596,13 +575,11 @@ int rtrie_foreach(struct rtrie *trie,
 		} else if (node->color == COLOR_WHITE) {
 			error = cb(node + 1, arg);
 			if (error)
-				goto end;
+				return error;
 		}
 	}
 
-end:
-	mutex_unlock(&trie->lock);
-	return error;
+	return 0;
 }
 
 static char *color2str(enum rtrie_color color)

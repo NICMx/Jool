@@ -11,11 +11,9 @@
  * @author Alberto Leiva
  */
 
-#include "nat64/mod/common/packet.h"
+#include "nat64/mod/common/translation_state.h"
 
-
-bool is_hairpin(struct packet *pkt, struct tuple *tuple);
-verdict handling_hairpinning(struct packet *pkt, struct tuple *tuple_in);
-
+bool is_hairpin(struct xlation *state);
+verdict handling_hairpinning(struct xlation *state);
 
 #endif /* _JOOL_MOD_HARPINNING_H */

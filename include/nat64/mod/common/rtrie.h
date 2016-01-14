@@ -71,29 +71,12 @@ struct rtrie {
 	struct list_head list;
 	/** Size of the values being stored (in bytes). */
 	size_t value_size;
-	/**
-	 * Protects the update code.
-	 * Only protects the trie operations from themselves. Additional
-	 * locking might be required, depending on the caller.
-	 */
-	struct mutex lock;
 };
 
-/**
- * OMG WHY IS THIS A MACRO!!1!!1oneone
- * Because mutex_init declares a static struct.
- * Also see the mutex semantics at linux/mutex.h.
- */
-#define rtrie_init(trie, size)			\
-	do {					\
-		(trie)->root = NULL;		\
-		INIT_LIST_HEAD(&(trie)->list);	\
-		(trie)->value_size = size;	\
-		mutex_init(&(trie)->lock);	\
-	} while (0)
+void rtrie_init(struct rtrie *trie, size_t size);
 void rtrie_destroy(struct rtrie *trie);
 
-/* Safe-to-use-anywhere functions */
+/* Safe-to-use-during-packet-translation functions */
 
 int rtrie_get(struct rtrie *trie, struct rtrie_key *key, void *result);
 bool rtrie_contains(struct rtrie *trie, struct rtrie_key *key);

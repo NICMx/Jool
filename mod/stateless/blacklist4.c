@@ -8,36 +8,38 @@
 #include "nat64/common/str_utils.h"
 #include "nat64/mod/common/namespace.h"
 #include "nat64/mod/common/rcu.h"
-#include "nat64/mod/stateless/pool.h"
 
-static struct list_head __rcu *pool;
-
-int blacklist_init(char *pref_strs[], int pref_count)
+int blacklist_init(struct addr4_pool **pool, char *pref_strs[], int pref_count)
 {
-	return pool_init(&pool, pref_strs, pref_count);
+	return pool_init(pool, pref_strs, pref_count);
 }
 
-void blacklist_destroy(void)
+void blacklist_get(struct addr4_pool *pool)
 {
-	pool_destroy(pool);
+	pool_get(pool);
 }
 
-int blacklist_add(struct ipv4_prefix *prefix)
+void blacklist_put(struct addr4_pool *pool)
+{
+	pool_put(pool);
+}
+
+int blacklist_add(struct addr4_pool *pool, struct ipv4_prefix *prefix)
 {
 	return pool_add(pool, prefix);
 }
 
-int blacklist_rm(struct ipv4_prefix *prefix)
+int blacklist_rm(struct addr4_pool *pool, struct ipv4_prefix *prefix)
 {
 	return pool_rm(pool, prefix);
 }
 
-int blacklist_flush(void)
+int blacklist_flush(struct addr4_pool *pool)
 {
 	return pool_flush(pool);
 }
 
-static bool interface_contains(struct in_addr *addr)
+static bool interface_contains(struct net *ns, struct in_addr *addr)
 {
 	struct net_device *dev;
 	struct in_device *in_dev;
@@ -45,7 +47,7 @@ static bool interface_contains(struct in_addr *addr)
 	struct in_addr net_addr;
 
 	rcu_read_lock();
-	for_each_netdev_rcu(joolns_get(), dev) {
+	for_each_netdev_rcu(ns, dev) {
 		in_dev = rcu_dereference(dev->ip_ptr);
 		ifaddr = in_dev->ifa_list;
 		while (ifaddr) {
@@ -62,58 +64,28 @@ static bool interface_contains(struct in_addr *addr)
 	return false;
 }
 
-bool blacklist_contains(__be32 be_addr)
+/*
+ * TODO remember I'm transferring ns's kref to outside.
+ */
+bool blacklist_contains(struct addr4_pool *pool, struct net *ns, __be32 be_addr)
 {
 	struct in_addr addr = { .s_addr = be_addr };
-	return pool_contains(pool, &addr) ? true : interface_contains(&addr);
+	return pool_contains(pool, &addr) ? true : interface_contains(ns, &addr);
 }
 
-int blacklist_for_each(int (*func)(struct ipv4_prefix *, void *), void *arg,
+int blacklist_foreach(struct addr4_pool *pool,
+		int (*func)(struct ipv4_prefix *, void *), void *arg,
 		struct ipv4_prefix *offset)
 {
 	return pool_foreach(pool, func, arg, offset);
 }
 
-int blacklist_count(__u64 *result)
+int blacklist_count(struct addr4_pool *pool, __u64 *result)
 {
 	return pool_count(pool, result);
 }
 
-bool blacklist_is_empty(void)
+bool blacklist_is_empty(struct addr4_pool *pool)
 {
 	return pool_is_empty(pool);
-}
-
-struct list_head *blacklist_config_init_db(void)
-{
-	struct list_head *config_db;
-
-	config_db = kmalloc(sizeof(*config_db), GFP_ATOMIC);
-	if (!config_db) {
-		log_err("Allocation of blacklist configuration database failed.");
-		return NULL;
-	}
-
-	INIT_LIST_HEAD(config_db);
-
-	return config_db;
-}
-
-int blacklist_config_add(struct list_head * db, struct ipv4_prefix * entry)
-{
-	return pool_add(db,entry);
-}
-
-int blacklist_switch_database(struct list_head * db)
-{
-	if (!db) {
-		 log_err("Error while switching blacklist database, null pointer received.");
-		 return 1;
-	}
-
-	blacklist_destroy();
-
-	pool = db;
-
-	return 0;
 }

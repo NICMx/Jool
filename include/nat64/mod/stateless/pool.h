@@ -10,6 +10,7 @@
  * @author Daniel Hdz Felix
  */
 
+#include <linux/kref.h>
 #include "nat64/mod/common/types.h"
 
 struct pool_entry {
@@ -19,14 +20,20 @@ struct pool_entry {
 
 struct addr4_pool {
 	struct list_head __rcu *list;
+	struct kref refcounter;
 };
 
-int pool_init(struct addr4_pool *pool, char *pref_strs[], int pref_count);
-void pool_destroy(struct addr4_pool *pool);
+/* Do-not-use-when-you-can't-sleep-functions */
+
+int pool_init(struct addr4_pool **pool, char *pref_strs[], int pref_count);
+void pool_get(struct addr4_pool *pool);
+void pool_put(struct addr4_pool *pool);
 
 int pool_add(struct addr4_pool *pool, struct ipv4_prefix *prefix);
 int pool_rm(struct addr4_pool *pool, struct ipv4_prefix *prefix);
 int pool_flush(struct addr4_pool *pool);
+
+/* Safe-to-use-during-packet-translation functions */
 
 bool pool_contains(struct addr4_pool *pool, struct in_addr *addr);
 int pool_foreach(struct addr4_pool *pool,

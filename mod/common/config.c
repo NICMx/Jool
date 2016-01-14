@@ -1,4 +1,5 @@
 #include "nat64/mod/common/config.h"
+
 #include <linux/ipv6.h>
 #include <linux/jiffies.h>
 #include "nat64/common/config.h"
@@ -6,21 +7,22 @@
 #include "nat64/mod/common/tags.h"
 #include "nat64/mod/common/types.h"
 
-static struct global_config __rcu *config;
 static DEFINE_MUTEX(lock);
 
 RCUTAG_USR
-int config_init(bool is_disable)
+int config_init(struct global_configuration **config, bool disable)
 {
 	struct global_config *cfg;
 	__u16 plateaus[] = DEFAULT_MTU_PLATEAUS;
 
-	cfg = kmalloc(sizeof(*cfg), GFP_KERNEL);
-	if (!cfg)
+	*config = kmalloc(sizeof(**config), GFP_KERNEL);
+	if (!(*config))
 		return -ENOMEM;
+	kref_init(&(*config)->refcounter);
+	cfg = &(*config)->config;
 
 	cfg->jool_status = 0; /* This is never read, but whatever. */
-	cfg->is_disable = (__u8) is_disable;
+	cfg->is_disable = (__u8) disable;
 	cfg->reset_traffic_class = DEFAULT_RESET_TRAFFIC_CLASS;
 	cfg->reset_tos = DEFAULT_RESET_TOS;
 	cfg->new_tos = DEFAULT_NEW_TOS;
@@ -51,195 +53,184 @@ int config_init(bool is_disable)
 	cfg->mtu_plateaus = kmalloc(sizeof(plateaus), GFP_ATOMIC);
 	if (!cfg->mtu_plateaus) {
 		log_err("Could not allocate memory to store the MTU plateaus.");
-		kfree(cfg);
+		kfree(*config);
 		return -ENOMEM;
 	}
 	memcpy(cfg->mtu_plateaus, &plateaus, sizeof(plateaus));
 
-	mutex_lock(&lock);
-	rcu_assign_pointer(config, cfg);
-	mutex_unlock(&lock);
-
 	return 0;
 }
 
-RCUTAG_USR
-void config_destroy(void)
+void config_get(struct global_configuration *config)
 {
-	config_replace(NULL);
+	kref_get(&config->refcounter);
 }
 
-RCUTAG_PKT
-int config_clone(struct global_config *clone)
+static void destroy_config(struct kref *refcounter)
 {
-	struct global_config *tmp;
-	size_t len;
-	rcu_read_lock_bh();
-
-	/* Clone the main structure. */
-	tmp = rcu_dereference_bh(config);
-	*clone = *tmp;
-
-	/* Clone plateaus. */
-	len = sizeof(*tmp->mtu_plateaus) * tmp->mtu_plateau_count;
-	clone->mtu_plateaus = kmalloc(len, GFP_ATOMIC);
-	if (!clone->mtu_plateaus) {
-		rcu_read_unlock_bh();
-		return -ENOMEM;
-	}
-	memcpy(clone->mtu_plateaus, tmp->mtu_plateaus, len);
-
-	rcu_read_unlock_bh();
-	return 0;
+	struct global_configuration *config;
+	config = container_of(refcounter, typeof(*config), refcounter);
+	kfree(config->config.mtu_plateaus);
+	kfree(config);
 }
 
-RCUTAG_USR
-void config_replace(struct global_config *new)
+void config_put(struct global_configuration *config)
 {
-	struct global_config *old;
-
-	mutex_lock(&lock);
-	old = rcu_dereference_protected(config, lockdep_is_held(&lock));
-	rcu_assign_pointer(config, new);
-	mutex_unlock(&lock);
-
-	synchronize_rcu_bh();
-
-	kfree(old->mtu_plateaus);
-	kfree(old);
+	kref_put(&config->refcounter, destroy_config);
 }
 
-#define RCU_THINGY(type, field) \
-	({ \
-		type result; \
-		rcu_read_lock_bh(); \
-		result = rcu_dereference_bh(config)->field; \
-		rcu_read_unlock_bh(); \
-		result; \
-	})
+//RCUTAG_PKT
+//int config_clone(struct global_config *clone)
+//{
+//	struct global_config *tmp;
+//	size_t len;
+//	rcu_read_lock_bh();
+//
+//	/* Clone the main structure. */
+//	tmp = rcu_dereference_bh(config);
+//	*clone = *tmp;
+//
+//	/* Clone plateaus. */
+//	len = sizeof(*tmp->mtu_plateaus) * tmp->mtu_plateau_count;
+//	clone->mtu_plateaus = kmalloc(len, GFP_ATOMIC);
+//	if (!clone->mtu_plateaus) {
+//		rcu_read_unlock_bh();
+//		return -ENOMEM;
+//	}
+//	memcpy(clone->mtu_plateaus, tmp->mtu_plateaus, len);
+//
+//	rcu_read_unlock_bh();
+//	return 0;
+//}
+//
+//RCUTAG_USR
+//void config_replace(struct global_config *new)
+//{
+//	struct global_config *old;
+//
+//	mutex_lock(&lock);
+//	old = rcu_dereference_protected(config, lockdep_is_held(&lock));
+//	rcu_assign_pointer(config, new);
+//	mutex_unlock(&lock);
+//
+//	synchronize_rcu_bh();
+//
+//	kfree(old->mtu_plateaus);
+//	kfree(old);
+//}
 
-unsigned long config_get_ttl_udp(void)
+unsigned long config_get_ttl_udp(struct global_configuration *config)
 {
-	return RCU_THINGY(unsigned long, nat64.ttl.udp);
+	return config->config.nat64.ttl.udp;
 }
 
-unsigned long config_get_ttl_tcpest(void)
+unsigned long config_get_ttl_tcpest(struct global_configuration *config)
 {
-	return RCU_THINGY(unsigned long, nat64.ttl.tcp_est);
+	return config->config.nat64.ttl.tcp_est;
 }
 
-unsigned long config_get_ttl_tcptrans(void)
+unsigned long config_get_ttl_tcptrans(struct global_configuration *config)
 {
-	return RCU_THINGY(unsigned long, nat64.ttl.tcp_trans);
+	return config->config.nat64.ttl.tcp_trans;
 }
 
-unsigned long config_get_ttl_icmp(void)
+unsigned long config_get_ttl_icmp(struct global_configuration *config)
 {
-	return RCU_THINGY(unsigned long, nat64.ttl.icmp);
+	return config->config.nat64.ttl.icmp;
 }
 
-unsigned long config_get_ttl_frag(void)
+unsigned long config_get_ttl_frag(struct global_configuration *config)
 {
-	return RCU_THINGY(unsigned long, nat64.ttl.frag);
+	return config->config.nat64.ttl.frag;
 }
 
-unsigned int config_get_max_pkts(void)
+unsigned int config_get_max_pkts(struct global_configuration *config)
 {
-	return RCU_THINGY(unsigned int, nat64.max_stored_pkts);
+	return config->config.nat64.max_stored_pkts;
 }
 
-bool config_get_src_icmp6errs_better(void)
+bool config_get_src_icmp6errs_better(struct global_configuration *config)
 {
-	return RCU_THINGY(bool, nat64.src_icmp6errs_better);
+	return config->config.nat64.src_icmp6errs_better;
 }
 
-bool config_get_bib_logging(void)
+bool config_get_bib_logging(struct global_configuration *config)
 {
-	return RCU_THINGY(bool, nat64.bib_logging);
+	return config->config.nat64.bib_logging;
 }
 
-bool config_get_session_logging(void)
+bool config_get_session_logging(struct global_configuration *config)
 {
-	return RCU_THINGY(bool, nat64.session_logging);
+	return config->config.nat64.session_logging;
 }
 
-bool config_get_filter_icmpv6_info(void)
+bool config_get_filter_icmpv6_info(struct global_configuration *config)
 {
-	return RCU_THINGY(bool, nat64.drop_icmp6_info);
+	return config->config.nat64.drop_icmp6_info;
 }
 
-bool config_get_addr_dependent_filtering(void)
+bool config_get_addr_dependent_filtering(struct global_configuration *config)
 {
-	return RCU_THINGY(bool, nat64.drop_by_addr);
+	return config->config.nat64.drop_by_addr;
 }
 
-bool config_get_drop_external_connections(void)
+bool config_get_drop_external_connections(struct global_configuration *config)
 {
-	return RCU_THINGY(bool, nat64.drop_external_tcp);
+	return config->config.nat64.drop_external_tcp;
 }
 
-bool config_amend_zero_csum(void)
+bool config_amend_zero_csum(struct global_configuration *config)
 {
-	return RCU_THINGY(bool, siit.compute_udp_csum_zero);
+	return config->config.siit.compute_udp_csum_zero;
 }
 
-enum eam_hairpinning_mode config_eam_hairpin_mode(void)
+enum eam_hairpinning_mode config_eam_hairpin_mode(struct global_configuration *config)
 {
-	return RCU_THINGY(__u8, siit.eam_hairpin_mode);
+	return config->config.siit.eam_hairpin_mode;
 }
 
-bool config_randomize_rfc6791_pool(void)
+bool config_randomize_rfc6791_pool(struct global_configuration *config)
 {
-	return RCU_THINGY(bool, siit.randomize_error_addresses);
+	return config->config.siit.randomize_error_addresses;
 }
 
-bool config_get_reset_traffic_class(void)
+bool config_get_reset_traffic_class(struct global_configuration *config)
 {
-	return RCU_THINGY(bool, reset_traffic_class);
+	return config->config.reset_traffic_class;
 }
 
-void config_get_hdr4_config(bool *reset_tos, __u8 *new_tos, bool *build_ipv4_id,
+void config_get_hdr4_config(struct global_configuration *config,
+		bool *reset_tos, __u8 *new_tos, bool *build_ipv4_id,
 		bool *df_always_on)
 {
-	struct global_config *tmp;
-
-	rcu_read_lock_bh();
-	tmp = rcu_dereference_bh(config);
-	*reset_tos = tmp->reset_tos;
-	*new_tos = tmp->new_tos;
+	*reset_tos = config->config.reset_tos;
+	*new_tos = config->config.new_tos;
 	if (build_ipv4_id)
-		*build_ipv4_id = tmp->atomic_frags.build_ipv4_id;
+		*build_ipv4_id = config->config.atomic_frags.build_ipv4_id;
 	if (df_always_on)
-		*df_always_on = tmp->atomic_frags.df_always_on;
-	rcu_read_unlock_bh();
+		*df_always_on = config->config.atomic_frags.df_always_on;
 }
 
-bool config_get_build_ipv6_fh(void)
+bool config_get_build_ipv6_fh(struct global_configuration *config)
 {
-	return RCU_THINGY(bool, atomic_frags.build_ipv6_fh);
+	return config->config.atomic_frags.build_ipv6_fh;
 }
 
-bool config_get_lower_mtu_fail(void)
+bool config_get_lower_mtu_fail(struct global_configuration *config)
 {
-	return RCU_THINGY(bool, atomic_frags.lower_mtu_fail);
+	return config->config.atomic_frags.lower_mtu_fail;
 }
 
-/**
- * You need to call rcu_read_lock_bh() before calling this function,
- * and then rcu_read_unlock_bh() when you don't need plateaus & count anymore.
- */
-void config_get_mtu_plateaus(__u16 **plateaus, __u16 *count)
+void config_get_mtu_plateaus(struct global_configuration *config,
+		__u16 **plateaus, __u16 *count)
 {
-	struct global_config *tmp;
-
-	tmp = rcu_dereference_bh(config);
-	*plateaus = tmp->mtu_plateaus;
-	*count = tmp->mtu_plateau_count;
+	*plateaus = config->config.mtu_plateaus;
+	*count = config->config.mtu_plateau_count;
 }
 
-bool config_is_xlat_disabled(void)
+bool config_is_xlat_disabled(struct global_configuration *config)
 {
-	return RCU_THINGY(bool, is_disable);
+	return config->config.is_disable;
 }
 
 RCUTAG_USR /* Only because of GFP_KERNEL. Can be easily upgraded to _FREE. */

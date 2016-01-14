@@ -13,7 +13,7 @@
 
 #include "nat64/mod/common/packet.h"
 
-verdict determine_in_tuple(struct packet *pkt, struct tuple *in_tuple);
+verdict determine_in_tuple(struct packet *pkt);
 
 
 #endif /* _JOOL_MOD_INCOMING_H */

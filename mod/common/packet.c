@@ -271,8 +271,7 @@ static int handle_icmp6(struct sk_buff *skb, struct pkt_metadata *meta)
  * As a contract, pkt_destroy() doesn't need to be called if this fails.
  * (Just like other init functions.)
  */
-int pkt_init_ipv6(struct packet *pkt, struct sk_buff *skb,
-		struct jool_instance *jool)
+int pkt_init_ipv6(struct packet *pkt, struct sk_buff *skb)
 {
 	struct pkt_metadata meta;
 	int error;
@@ -310,7 +309,6 @@ int pkt_init_ipv6(struct packet *pkt, struct sk_buff *skb,
 	}
 
 	pkt->skb = skb;
-	pkt->jool = jool;
 	pkt->l3_proto = L3PROTO_IPV6;
 	pkt->l4_proto = meta.l4_proto;
 	pkt->is_inner = 0;
@@ -440,8 +438,7 @@ static int summarize_skb4(struct sk_buff *skb, struct pkt_metadata *meta)
  * As a contract, pkt_destroy() doesn't need to be called if this fails.
  * (Just like other init functions.)
  */
-int pkt_init_ipv4(struct packet *pkt, struct sk_buff *skb,
-		struct jool_instance *jool)
+int pkt_init_ipv4(struct packet *pkt, struct sk_buff *skb)
 {
 	struct pkt_metadata meta;
 	int error;
@@ -469,7 +466,6 @@ int pkt_init_ipv4(struct packet *pkt, struct sk_buff *skb,
 	}
 
 	pkt->skb = skb;
-	pkt->jool = jool;
 	pkt->l3_proto = L3PROTO_IPV4;
 	pkt->l4_proto = meta.l4_proto;
 	pkt->is_inner = 0;
@@ -565,7 +561,7 @@ static void print_l3_hdr(struct packet *pkt)
 			if (frag_header->reserved != 0)
 				pr_debug("		reserved: %u\n", frag_header->reserved);
 			pr_debug("		fragment offset: %u bytes\n", get_fragment_offset_ipv6(frag_header));
-			pr_debug("		more fragments: %u\n", is_more_fragments_set_ipv6(frag_header));
+			pr_debug("		more fragments: %u\n", is_mf_set_ipv6(frag_header));
 			pr_debug("		identification: %u\n", be32_to_cpu(frag_header->identification));
 		}
 		break;
@@ -580,8 +576,8 @@ static void print_l3_hdr(struct packet *pkt)
 			pr_debug("		type of service: %u\n", hdr4->tos);
 		pr_debug("		total length: %u\n", be16_to_cpu(hdr4->tot_len));
 		pr_debug("		identification: %u\n", be16_to_cpu(hdr4->id));
-		pr_debug("		don't fragment: %u\n", is_dont_fragment_set(hdr4));
-		pr_debug("		more fragments: %u\n", is_more_fragments_set_ipv4(hdr4));
+		pr_debug("		don't fragment: %u\n", is_df_set(hdr4));
+		pr_debug("		more fragments: %u\n", is_mf_set_ipv4(hdr4));
 		pr_debug("		fragment offset: %u bytes\n", get_fragment_offset_ipv4(hdr4));
 		if (hdr4->ttl < 60)
 			pr_debug("		time to live: %u\n", hdr4->ttl);

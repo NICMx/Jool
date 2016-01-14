@@ -3,29 +3,29 @@
 #include "nat64/mod/common/rfc6145/core.h"
 #include "nat64/mod/common/rfc6145/common.h"
 
-static verdict translate_first(struct tuple *tuple, struct packet *in, struct packet *out)
+static verdict translate_first(struct xlation *state)
 {
-	struct translation_steps *steps = ttpcomm_get_steps(pkt_l3_proto(in), pkt_l4_proto(in));
+	struct translation_steps *steps = ttpcomm_get_steps(&state->in);
 	verdict result;
 
-	result = steps->skb_create_fn(in, out);
+	result = steps->skb_create_fn(state);
 	if (result != VERDICT_CONTINUE)
 		return result;
-	result = steps->l3_hdr_fn(tuple, in, out);
+	result = steps->l3_hdr_fn(state);
 	if (result != VERDICT_CONTINUE)
 		goto revert;
-	result = steps->l3_payload_fn(tuple, in, out);
+	result = steps->l3_payload_fn(state);
 	if (result != VERDICT_CONTINUE)
 		goto revert;
 
 	return result;
 
 revert:
-	kfree_skb(out->skb);
+	kfree_skb(state->out.skb);
 	return result;
 }
 
-static verdict translate_subsequent(struct packet *pkt_in, struct sk_buff *in,
+static verdict translate_subsequent(struct xlation *state, struct sk_buff *in,
 		struct sk_buff **out)
 {
 	struct sk_buff *result;
@@ -33,7 +33,7 @@ static verdict translate_subsequent(struct packet *pkt_in, struct sk_buff *in,
 	__u16 proto = 0;
 	int error;
 
-	switch (pkt_l3_proto(pkt_in)) {
+	switch (pkt_l3_proto(&state->in)) {
 	case L3PROTO_IPV6: /* out is IPv4. */
 		hdrs_len = sizeof(struct iphdr);
 		proto = ETH_P_IP;
@@ -46,7 +46,7 @@ static verdict translate_subsequent(struct packet *pkt_in, struct sk_buff *in,
 
 	result = alloc_skb(LL_MAX_HEADER + hdrs_len + in->len, GFP_ATOMIC);
 	if (!result) {
-		inc_stats(pkt_in, IPSTATS_MIB_INDISCARDS);
+		inc_stats(&state->in, IPSTATS_MIB_INDISCARDS);
 		return VERDICT_DROP;
 	}
 
@@ -67,7 +67,7 @@ static verdict translate_subsequent(struct packet *pkt_in, struct sk_buff *in,
 }
 
 
-verdict translating_the_packet(struct tuple *out_tuple, struct packet *in, struct packet *out)
+verdict translating_the_packet(struct xlation *state)
 {
 	struct sk_buff *skb_in;
 	struct sk_buff *skb_out = NULL;
@@ -79,26 +79,26 @@ verdict translating_the_packet(struct tuple *out_tuple, struct packet *in, struc
 	else
 		log_debug("Translating the Packet.");
 
-	result = translate_first(out_tuple, in, out);
+	result = translate_first(state);
 	if (result != VERDICT_CONTINUE)
 		return result;
 
-	skb_walk_frags(in->skb, skb_in) {
+	skb_walk_frags(state->in.skb, skb_in) {
 		log_debug("Translating a Fragment Packet");
 
-		result = translate_subsequent(in, skb_in, &skb_out);
+		result = translate_subsequent(state, skb_in, &skb_out);
 		if (result != VERDICT_CONTINUE) {
-			kfree_skb(out->skb);
+			kfree_skb(state->out.skb);
 			return result;
 		}
 
 		if (!skb_prev)
-			skb_shinfo(out->skb)->frag_list = skb_out;
+			skb_shinfo(state->out.skb)->frag_list = skb_out;
 		else
 			skb_prev->next = skb_out;
-		out->skb->len += skb_out->len;
-		out->skb->data_len += skb_out->len;
-		out->skb->truesize += skb_out->truesize;
+		state->out.skb->len += skb_out->len;
+		state->out.skb->data_len += skb_out->len;
+		state->out.skb->truesize += skb_out->truesize;
 
 		skb_prev = skb_out;
 	}

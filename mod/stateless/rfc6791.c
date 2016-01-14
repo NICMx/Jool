@@ -12,31 +12,33 @@
 #include "nat64/mod/common/rcu.h"
 #include "nat64/mod/common/route.h"
 #include "nat64/mod/common/tags.h"
-#include "nat64/mod/stateless/pool.h"
 
-static struct list_head __rcu *pool;
-
-int rfc6791_init(char *pref_strs[], int pref_count)
+int rfc6791_init(struct addr4_pool **pool, char *pref_strs[], int pref_count)
 {
-	return pool_init(&pool, pref_strs, pref_count);
+	return pool_init(pool, pref_strs, pref_count);
 }
 
-void rfc6791_destroy(void)
+void rfc6791_get(struct addr4_pool *pool)
 {
-	return pool_destroy(pool);
+	return pool_get(pool);
 }
 
-int rfc6791_add(struct ipv4_prefix *prefix)
+void rfc6791_put(struct addr4_pool *pool)
+{
+	return pool_put(pool);
+}
+
+int rfc6791_add(struct addr4_pool *pool, struct ipv4_prefix *prefix)
 {
 	return pool_add(pool, prefix);
 }
 
-int rfc6791_rm(struct ipv4_prefix *prefix)
+int rfc6791_rm(struct addr4_pool *pool, struct ipv4_prefix *prefix)
 {
 	return pool_rm(pool, prefix);
 }
 
-int rfc6791_flush(void)
+int rfc6791_flush(struct addr4_pool *pool)
 {
 	return pool_flush(pool);
 }
@@ -45,47 +47,57 @@ int rfc6791_flush(void)
  * Returns in "result" the IPv4 address an ICMP error towards "out"'s
  * destination should be sourced with.
  */
-static int get_rfc6791_address(struct packet *in, __u64 count, __be32 *result)
+static int get_rfc6791_address(struct xlation *state, __u64 count,
+		__be32 *result)
 {
 	struct list_head *list;
 	struct list_head *node;
-	struct pool_entry *entry = NULL;
-	unsigned int addr_index;
+	struct pool_entry *entry;
+	__u64 addr_index;
+	int error = 0;
 
-	if (config_randomize_rfc6791_pool())
+	if (state->jool.global->config.siit.randomize_error_addresses)
 		get_random_bytes(&addr_index, sizeof(addr_index));
 	else
-		addr_index = pkt_ip6_hdr(in)->hop_limit;
+		addr_index = pkt_ip6_hdr(&state->in)->hop_limit;
+	addr_index %= count;
 
-	/* unsigned int % __u64 does something weird, hence the trouble. */
-	if (count <= 0xFFFFFFFFU)
-		addr_index %= (unsigned int) count;
+	/*
+	 * The list can change between the last loop (the pool_count()) and the
+	 * following one. So use @cound and @addr_index only as a hint. That's
+	 * the rationale for the do while true.
+	 * Just ensure @addr_index keeps decreasing.
+	 */
 
-	list = rcu_dereference_bh(pool);
-	list_for_each_rcu_bh(node, list) {
-		entry = list_entry(node, struct pool_entry, list_hook);
-		count = prefix4_get_addr_count(&entry->prefix);
-		if (count >= addr_index)
-			break;
-		addr_index -= count;
-	}
+	rcu_read_lock_bh();
+	list = rcu_dereference_bh(state->jool.siit.pool6791->list);
+	do {
+		list_for_each_rcu_bh(node, list) {
+			entry = list_entry(node, struct pool_entry, list_hook);
+			count = prefix4_get_addr_count(&entry->prefix);
+			if (count >= addr_index)
+				goto success;
+			addr_index -= count;
+		}
 
-	if (!entry) {
-		/* Because count is not supposed to be zero. */
-		WARN(true, "The pool contents changed while locked!");
-		return -ESRCH;
-	}
+		if (list_empty(list)) {
+			error = -ESRCH;
+			goto end;
+		}
+	} while (true);
 
+success:
 	*result = htonl(ntohl(entry->prefix.address.s_addr) | addr_index);
-	return 0;
+end:
+	rcu_read_unlock_bh();
+	return error;
 }
 
 /**
  * Returns in "result" the IPv4 address an ICMP error towards "out"'s
  * destination should be sourced with, assuming the RFC6791 pool is empty.
  */
-static int get_host_address(struct packet *in, struct packet *out,
-		__be32 *result)
+static int get_host_address(struct xlation *state, __be32 *result)
 {
 	struct dst_entry *dst;
 	__be32 saddr;
@@ -93,11 +105,11 @@ static int get_host_address(struct packet *in, struct packet *out,
 
 	/* TODO what happens if the packet hairpins? */
 
-	dst = route4(out);
+	dst = route4(state->jool.ns, &state->out);
 	if (!dst)
 		return -EINVAL;
 
-	daddr = pkt_ip4_hdr(out)->daddr;
+	daddr = pkt_ip4_hdr(&state->out)->daddr;
 	saddr = inet_select_addr(dst->dev, daddr, RT_SCOPE_LINK);
 
 	if (!saddr) {
@@ -110,12 +122,10 @@ static int get_host_address(struct packet *in, struct packet *out,
 	return 0;
 }
 
-int rfc6791_get(struct packet *in, struct packet *out, __be32 *result)
+int rfc6791_find(struct xlation *state, __be32 *result)
 {
 	__u64 count;
 	int error;
-
-	rcu_read_lock_bh();
 
 	/*
 	 * I'm counting the list elements instead of using an algorithm like
@@ -124,69 +134,34 @@ int rfc6791_get(struct packet *in, struct packet *out, __be32 *result)
 	 * requires one random per iteration, this way requires one random
 	 * period.
 	 */
-	error = pool_count(pool, &count);
+	error = pool_count(state->jool.siit.pool6791, &count);
 	if (error) {
-		rcu_read_unlock_bh();
 		log_debug("pool_count failed with errcode %d.", error);
 		return error;
 	}
 
 	if (count != 0) {
-		error = get_rfc6791_address(in, count, result);
-		rcu_read_unlock_bh();
-		return error;
+		error = get_rfc6791_address(state, count, result);
+		if (!error)
+			return 0;
 	}
 
-	rcu_read_unlock_bh();
-	return get_host_address(in, out, result);
+	return get_host_address(state, result);
 }
 
-int rfc6791_for_each(int (*func)(struct ipv4_prefix *, void *), void *arg,
+int rfc6791_for_each(struct addr4_pool *pool,
+		int (*func)(struct ipv4_prefix *, void *), void *arg,
 		struct ipv4_prefix *offset)
 {
 	return pool_foreach(pool, func, arg, offset);
 }
 
-int rfc6791_count(__u64 *result)
+int rfc6791_count(struct addr4_pool *pool, __u64 *result)
 {
 	return pool_count(pool, result);
 }
 
-bool rfc6791_is_empty(void)
+bool rfc6791_is_empty(struct addr4_pool *pool)
 {
 	return pool_is_empty(pool);
-}
-
-struct list_head *rfc6791_config_init_db(void)
-{
-	struct list_head *config_db;
-
-	config_db = kmalloc(sizeof(*config_db), GFP_ATOMIC);
-	if (!config_db) {
-		log_err("Allocation of rfc6791 configuration database failed.");
-		return NULL;
-	}
-
-	INIT_LIST_HEAD(config_db);
-
-	return config_db;
-}
-
-int rfc6791_config_add(struct list_head *db, struct ipv4_prefix *entry)
-{
-	return pool_add(db,entry);
-}
-
-int rfc6791_switch_database(struct list_head *db)
-{
-	if (!db) {
-	   log_err("Error while switching rfc6791 database, null pointer received.");
-	   return -EINVAL;
-	}
-
-	rfc6791_destroy();
-
-	pool = db;
-
-	return 0;
 }

@@ -39,7 +39,7 @@ bool blacklist_contains(__be32 addr)
 	return false;
 }
 
-int blacklist_for_each(int (*func)(struct ipv4_prefix *, void *), void *arg,
+int blacklist_foreach(int (*func)(struct ipv4_prefix *, void *), void *arg,
 		struct ipv4_prefix *offset)
 {
 	return fail(__func__);

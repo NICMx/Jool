@@ -69,8 +69,9 @@ static struct list_head *alloc_list(void)
 }
 
 RCUTAG_USR
-int pool_init(struct addr4_pool *pool, char *pref_strs[], int pref_count)
+int pool_init(struct addr4_pool **pool, char *pref_strs[], int pref_count)
 {
+	struct addr4_pool *result;
 	struct list_head *list;
 	struct pool_entry *entry;
 	unsigned int i;
@@ -99,9 +100,15 @@ int pool_init(struct addr4_pool *pool, char *pref_strs[], int pref_count)
 		list_add_tail(&entry->list_hook, list);
 	}
 
-	mutex_lock(&lock);
-	rcu_assign_pointer(pool->list, list);
-	mutex_unlock(&lock);
+	result = kmalloc(sizeof(*result), GFP_KERNEL);
+	if (!result) {
+		error = -ENOMEM;
+		goto revert;
+	}
+	RCU_INIT_POINTER(result->list, list);
+	kref_init(&result->refcounter);
+
+	*pool = result;
 	return 0;
 
 revert:
@@ -109,25 +116,23 @@ revert:
 	return error;
 }
 
-RCUTAG_USR
-static void pool_replace(struct addr4_pool *pool, struct list_head *new)
+void pool_get(struct addr4_pool *pool)
 {
-	struct list_head *tmp;
-
-	mutex_lock(&lock);
-	tmp = rcu_dereference_protected(pool->list, lockdep_is_held(&lock));
-	rcu_assign_pointer(pool->list, new);
-	mutex_unlock(&lock);
-
-	synchronize_rcu_bh();
-
-	__destroy(tmp);
+	kref_get(&pool->refcounter);
 }
 
 RCUTAG_USR
-void pool_destroy(struct addr4_pool *pool)
+static void destroy_pool(struct kref *refcounter)
 {
-	pool_replace(pool, NULL);
+	struct addr4_pool *pool;
+	pool = container_of(refcounter, typeof(*pool), refcounter);
+	__destroy(rcu_dereference_raw(pool->list));
+	kfree(pool);
+}
+
+void pool_put(struct addr4_pool *pool)
+{
+	kref_put(&pool->refcounter, destroy_pool);
 }
 
 RCUTAG_USR
@@ -148,8 +153,7 @@ int pool_add(struct addr4_pool *pool, struct ipv4_prefix *prefix)
 	list_for_each(node, list) {
 		entry = get_entry(node);
 		if (prefix4_intersects(&entry->prefix, prefix)) {
-			log_err("The requested entry intersects with pool "
-					"entry %pI4/%u.",
+			log_err("The requested entry collides with pool entry %pI4/%u.",
 					&entry->prefix.address,
 					entry->prefix.len);
 			error = -EEXIST;
@@ -200,13 +204,21 @@ int pool_rm(struct addr4_pool *pool, struct ipv4_prefix *prefix)
 RCUTAG_USR
 int pool_flush(struct addr4_pool *pool)
 {
+	struct list_head *old;
 	struct list_head *new;
 
 	new = alloc_list();
 	if (!new)
 		return -ENOMEM;
 
-	pool_replace(pool, new);
+	mutex_lock(&lock);
+	old = rcu_dereference_protected(pool->list, lockdep_is_held(&lock));
+	rcu_assign_pointer(pool->list, new);
+	mutex_unlock(&lock);
+
+	synchronize_rcu_bh();
+
+	__destroy(old);
 	return 0;
 }
 

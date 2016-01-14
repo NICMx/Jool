@@ -35,19 +35,19 @@ static inline __be32 get_flow_label(struct ipv6hdr *hdr)
 }
 
 /** Returns IP_DF if the DF flag from the "hdr" IPv4 header is set, 0 otherwise. */
-static inline __u16 is_dont_fragment_set(struct iphdr *hdr)
+static inline __u16 is_df_set(struct iphdr *hdr)
 {
 	return be16_to_cpu(hdr->frag_off) & IP_DF;
 }
 
 /** Returns IP6_MF if the MF flag from the "hdr" IPv6 header is set, 0 otherwise. */
-static inline __u16 is_more_fragments_set_ipv6(struct frag_hdr *hdr)
+static inline __u16 is_mf_set_ipv6(struct frag_hdr *hdr)
 {
 	return be16_to_cpu(hdr->frag_off) & IP6_MF;
 }
 
 /** Returns IP_MF if the MF flag from the "hdr" IPv4 header is set, 0 otherwise. */
-static inline __u16 is_more_fragments_set_ipv4(struct iphdr *hdr)
+static inline __u16 is_mf_set_ipv4(struct iphdr *hdr)
 {
 	return be16_to_cpu(hdr->frag_off) & IP_MF;
 }
@@ -100,12 +100,12 @@ static inline bool is_first_frag6(struct frag_hdr *hdr)
  */
 static inline bool is_fragmented_ipv4(struct iphdr *hdr)
 {
-	return (get_fragment_offset_ipv4(hdr) != 0) || is_more_fragments_set_ipv4(hdr);
+	return (get_fragment_offset_ipv4(hdr) != 0) || is_mf_set_ipv4(hdr);
 }
 
 static inline bool is_fragmented_ipv6(struct frag_hdr *hdr)
 {
-	return hdr && ((get_fragment_offset_ipv6(hdr) != 0) || is_more_fragments_set_ipv6(hdr));
+	return hdr && ((get_fragment_offset_ipv6(hdr) != 0) || is_mf_set_ipv6(hdr));
 }
 /**
  * @}
@@ -149,32 +149,30 @@ static inline unsigned int tcp_hdr_len(struct tcphdr *hdr)
 /**
  * We need to store packet metadata, so we encapsulate sk_buffs into this.
  *
- * Do **not** use control buffers (skb->cb) for this purpose. The kernel is known to misbehave and
- * store information there which we should not override.
+ * Do **not** use control buffers (skb->cb) for this purpose. The kernel is
+ * known to misbehave and store information there which we should not override.
  */
 struct packet {
 	struct sk_buff *skb;
-	/**
-	 * The (per namespace) Jool instance in charge of this packet's
-	 * translation.
-	 */
-	struct jool_instance *jool;
+	struct tuple tuple;
 
 	/**
 	 * Protocol of the layer-3 header of the packet.
-	 * Yes, skb->proto has the same superpowers, but it's a little unreliable (it's not set in the
-	 * Local Out chain).
+	 * Yes, skb->proto has the same superpowers, but it's a little
+	 * unreliable (it's not set in the Local Out chain).
 	 * Also this spares me a switch in pkt_l3_proto() :p.
 	 */
 	enum l3_protocol l3_proto;
 	/**
-	 * Protocol of the layer-4 header of the packet. To the best of my knowledge, the kernel also
-	 * uses skb->proto for this, but only on layer-4 code (of which Jool isn't).
+	 * Protocol of the layer-4 header of the packet. To the best of my
+	 * knowledge, the kernel also uses skb->proto for this, but only on
+	 * layer-4 code (of which Jool isn't).
 	 * Skbs otherwise do not store a layer-4 identifier.
 	 */
 	enum l4_protocol l4_proto;
 	/**
-	 * Is this a subpacket, contained in an ICMP error? (used by the RFC6145 code.)
+	 * Is this a subpacket, contained in an ICMP error?
+	 * (used by the RFC6145 code.)
 	 */
 	bool is_inner;
 	/**
@@ -189,24 +187,26 @@ struct packet {
 	 * Pointer to the packet's payload.
 	 * Because skbs only store pointers to headers.
 	 *
-	 * Sometimes the kernel seems to use skb->data for this. It would be troublesome if we did the
-	 * same, however, since functions such as icmp_send() fail early when skb->data is after the
-	 * layer-3 header.
+	 * Sometimes the kernel seems to use skb->data for this. It would be
+	 * troublesome if we did the same, however, since functions such as
+	 * icmp_send() fail early when skb->data is after the layer-3 header.
 	 *
 	 * Note, the payload can be paged. Do not dereference carelessly.
 	 */
 	void *payload;
 	/**
-	 * If this is an incoming packet (as in, incoming to Jool), this points to the same packet.
-	 * Otherwise (which includes hairpin packets), this points to the original (incoming) packet.
-	 * Used by the ICMP wrapper because it needs to reply the original packet, not the one being
-	 * translated. Also used by the packet queue.
+	 * If this is an incoming packet (as in, incoming to Jool), this points
+	 * to the same packet. Otherwise (which includes hairpin packets),
+	 * this points to the original (incoming) packet.
+	 * Used by the ICMP wrapper because it needs to reply the original
+	 * packet, not the one being translated. Also used by the packet queue.
 	 */
 	struct packet *original_pkt;
 
 #ifdef BENCHMARK
 	/**
-	 * Log the time in epoch when this skb arrives to jool. For benchmark purposes.
+	 * Log the time in epoch when this skb arrives to jool.
+	 * For benchmark purposes.
 	 */
 	struct timespec start_time;
 #endif
@@ -487,10 +487,8 @@ static inline bool pkt_is_icmp4_error(const struct packet *pkt)
  * This function can change the packet's pointers. If you eg. stored a pointer to
  * skb_network_header(skb), you will need to assign it again (by calling skb_network_header again).
  */
-int pkt_init_ipv6(struct packet *pkt, struct sk_buff *skb,
-		struct jool_instance *jool);
-int pkt_init_ipv4(struct packet *pkt, struct sk_buff *skb,
-		struct jool_instance *jool);
+int pkt_init_ipv6(struct packet *pkt, struct sk_buff *skb);
+int pkt_init_ipv4(struct packet *pkt, struct sk_buff *skb);
 /**
  * @}
  */

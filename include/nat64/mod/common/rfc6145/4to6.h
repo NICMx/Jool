@@ -11,26 +11,29 @@
 #include "nat64/mod/common/rfc6145/common.h"
 
 /**
- * Creates in "out" a packet which other functions will fill with the IPv6 version of the IPv4
- * packet "in".
+ * Creates in "state->out.skb" a packet which other functions will fill with the
+ * IPv6 version of the IPv4 packet "in".
  */
-verdict ttp46_create_skb(struct packet *in, struct packet *out);
+verdict ttp46_create_skb(struct xlation *state);
 /**
- * Translates "in"'s IPv4 header into IPv6 and places the result in "out".
+ * Translates "state->in"'s IPv4 header into IPv6 and places the result in
+ * "state->out".
  */
-verdict ttp46_ipv6(struct tuple *tuple6, struct packet *in, struct packet *out);
+verdict ttp46_ipv6(struct xlation *state);
 /**
- * Translates "in"'s ICMPv4 header and payload into ICMPv6 and payload, and places the result in
- * "out".
+ * Translates "state->in"'s ICMPv4 header and payload, and places the result in
+ * "state->out".
  */
-verdict ttp46_icmp(struct tuple* tuple6, struct packet *in, struct packet *out);
+verdict ttp46_icmp(struct xlation *state);
 /**
- * Translates "in"'s TCP header and payload, and places the result in "out".
+ * Translates "state->in"'s TCP header and payload, and places the result in
+ * "state->out".
  */
-verdict ttp46_tcp(struct tuple *tuple6, struct packet *in, struct packet *out);
+verdict ttp46_tcp(struct xlation *state);
 /**
- * Translates "in"'s UDP header and payload, and places the result in "out".
+ * Translates "state->in"'s UDP header and payload, and places the result in
+ * "state->out".
  */
-verdict ttp46_udp(struct tuple *tuple6, struct packet *in, struct packet *out);
+verdict ttp46_udp(struct xlation *state);
 
 #endif /* _JOOL_MOD_RFC6145_4TO6_H */

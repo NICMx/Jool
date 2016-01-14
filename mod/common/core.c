@@ -3,6 +3,7 @@
 #include "nat64/mod/common/config.h"
 #include "nat64/mod/common/handling_hairpinning.h"
 #include "nat64/mod/common/namespace.h"
+#include "nat64/mod/common/translation_state.h"
 #include "nat64/mod/common/rfc6145/core.h"
 #include "nat64/mod/stateful/compute_outgoing_tuple.h"
 #include "nat64/mod/stateful/determine_incoming_tuple.h"
@@ -11,33 +12,30 @@
 #include "nat64/mod/common/send_packet.h"
 
 
-static verdict core_common(struct packet *in)
+static verdict core_common(struct xlation *state)
 {
-	struct packet out;
-	struct tuple tuple_in;
-	struct tuple tuple_out;
 	verdict result;
 
 	if (xlat_is_nat64()) {
-		result = determine_in_tuple(in, &tuple_in);
+		result = determine_in_tuple(&state->in);
 		if (result != VERDICT_CONTINUE)
 			goto end;
-		result = filtering_and_updating(in, &tuple_in);
+		result = filtering_and_updating(&state->in);
 		if (result != VERDICT_CONTINUE)
 			goto end;
-		result = compute_out_tuple(&tuple_in, &tuple_out, in);
+		result = compute_out_tuple(state);
 		if (result != VERDICT_CONTINUE)
 			goto end;
 	}
-	result = translating_the_packet(&tuple_out, in, &out);
+	result = translating_the_packet(state);
 	if (result != VERDICT_CONTINUE)
 		goto end;
 
-	if (is_hairpin(&out, &tuple_out)) {
-		result = handling_hairpinning(&out, &tuple_out);
-		kfree_skb(out.skb);
+	if (is_hairpin(state)) {
+		result = handling_hairpinning(state);
+		kfree_skb(state->out.skb); /* Put this inside of hh()? */
 	} else {
-		result = sendpkt_send(in, &out);
+		result = sendpkt_send(state);
 		/* sendpkt_send() releases out's skb regardless of verdict. */
 	}
 
@@ -53,7 +51,7 @@ static verdict core_common(struct packet *in)
 	 * count as an error, so we free the incoming packet ourselves and
 	 * return NF_STOLEN on success.
 	 */
-	kfree_skb(in->skb);
+	kfree_skb(state->in.skb);
 	result = VERDICT_STOLEN;
 	/* Fall through. */
 
@@ -63,84 +61,65 @@ end:
 	return result;
 }
 
-static struct jool_instance *get_jool_instance(const struct net_device *dev)
-{
-#ifdef CONFIG_NET_NS
-	return joolns_get(dev_net(dev));
-#else
-	return joolns_get(&init_net); /* TODO is this right? */
-#endif
-}
-
 unsigned int core_4to6(struct sk_buff *skb, const struct net_device *dev)
 {
-	struct jool_instance *jool;
-	struct packet pkt;
+	struct xlation state;
 	struct iphdr *hdr = ip_hdr(skb);
 	verdict result;
 
-	/*
-	 * TODO (fine) The first if is silly.
-	 * We should probably unhook Jool from Netfilter instead.
-	 */
-	if (config_is_xlat_disabled())
+	if (joolns_get(dev_net(dev), &state.jool))
 		return NF_ACCEPT;
-
-	jool = get_jool_instance(dev);
-	if (!jool)
+	if (config_is_xlat_disabled(state.jool.global)) {
+		xlation_put(&state);
 		return NF_ACCEPT;
+	}
 
 	log_debug("===============================================");
 	log_debug("Catching IPv4 packet: %pI4->%pI4", &hdr->saddr, &hdr->daddr);
 
 	/* Reminder: This function might change pointers. */
-	if (pkt_init_ipv4(&pkt, skb, jool) != 0) {
-		result = VERDICT_DROP;
-		goto end;
+	if (pkt_init_ipv4(&state.in, skb) != 0) {
+		xlation_put(&state);
+		return NF_DROP;
 	}
 
-	result = core_common(&pkt);
-	/* Fall through. */
-
-end:
-	joolns_return(jool);
+	result = core_common(&state);
+	xlation_put(&state);
 	return result;
 }
 
 unsigned int core_6to4(struct sk_buff *skb, const struct net_device *dev)
 {
-	struct jool_instance *jool;
-	struct packet pkt;
+	struct xlation state;
 	struct ipv6hdr *hdr = ipv6_hdr(skb);
 	verdict result;
 
-	if (config_is_xlat_disabled())
+	if (joolns_get(dev_net(dev), &state.jool))
 		return NF_ACCEPT;
-
-	jool = get_jool_instance(dev);
-	if (!jool)
+	if (config_is_xlat_disabled(state.jool.global)) {
+		xlation_put(&state);
 		return NF_ACCEPT;
+	}
 
 	log_debug("===============================================");
-	log_debug("Catching IPv6 packet: %pI6c->%pI6c",
-			&hdr->saddr, &hdr->daddr);
+	log_debug("Catching IPv6 packet: %pI6c->%pI6c", &hdr->saddr,
+			&hdr->daddr);
 
 	/* Reminder: This function might change pointers. */
-	if (pkt_init_ipv6(&pkt, skb, jool) != 0) {
-		result = VERDICT_DROP;
-		goto end;
+	if (pkt_init_ipv6(&state.in, skb) != 0) {
+		xlation_put(&state);
+		return NF_DROP;
 	}
 
 	if (xlat_is_nat64()) {
-		result = fragdb_handle(&pkt);
+		result = fragdb_handle(&state.in);
 		if (result != VERDICT_CONTINUE)
 			goto end;
 	}
 
-	result = core_common(&pkt);
+	result = core_common(&state);
 	/* Fall through. */
-
 end:
-	joolns_return(jool);
+	xlation_put(&state);
 	return result;
 }

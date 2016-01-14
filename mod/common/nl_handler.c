@@ -1,4 +1,4 @@
-#include "nat64/mod/common/nl_handler.h"
+#include "nat64/mod/common/nl/nl_handler.h"
 
 #include <linux/module.h>
 #include <linux/sort.h>

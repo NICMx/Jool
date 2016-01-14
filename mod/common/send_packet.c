@@ -21,15 +21,15 @@ static int whine_if_too_big(struct packet *in, struct packet *out)
 	unsigned int len;
 	unsigned int mtu;
 
-	if (pkt_l3_proto(in) == L3PROTO_IPV4 && !is_dont_fragment_set(pkt_ip4_hdr(in)))
+	if (pkt_l3_proto(in) == L3PROTO_IPV4 && !is_df_set(pkt_ip4_hdr(in)))
 		return 0;
 
 	len = pkt_len(out);
 	mtu = get_nexthop_mtu(out);
 	if (len > mtu) {
 		/*
-		 * We don't have to worry about ICMP errors causing this because the translate code already
-		 * truncates them.
+		 * We don't have to worry about ICMP errors causing this because
+		 * the translate code already truncates them.
 		 */
 		log_debug("Packet is too big (len: %u, mtu: %u).", len, mtu);
 
@@ -49,13 +49,14 @@ static int whine_if_too_big(struct packet *in, struct packet *out)
 	return 0;
 }
 
-verdict sendpkt_send(struct packet *in, struct packet *out)
+verdict sendpkt_send(struct xlation *state)
 {
+	struct packet *out = &state->out;
 	int error;
 
 	logtime(out);
 
-	if (!route(out)) {
+	if (!route(state->jool.ns, out)) {
 		kfree_skb(out->skb);
 		return VERDICT_ACCEPT;
 	}
@@ -63,7 +64,7 @@ verdict sendpkt_send(struct packet *in, struct packet *out)
 	out->skb->dev = skb_dst(out->skb)->dev;
 	log_debug("Sending skb.");
 
-	error = whine_if_too_big(in, out);
+	error = whine_if_too_big(&state->in, out);
 	if (error) {
 		kfree_skb(out->skb);
 		return VERDICT_DROP;
@@ -75,7 +76,7 @@ verdict sendpkt_send(struct packet *in, struct packet *out)
 	out->skb->local_df = true; /* FFS, kernel. */
 #endif
 
-	error = dst_output(out->skb); /* Implicit kfree_skb(out->skb) goes here. */
+	error = dst_output(out->skb); /* Implicit kfree_skb(out->skb) here. */
 	if (error) {
 		log_debug("dst_output() returned errcode %d.", error);
 		return VERDICT_DROP;

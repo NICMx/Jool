@@ -54,16 +54,16 @@ static bool test_function_is_df_set(void)
 	bool success = true;
 
 	hdr.frag_off = cpu_to_be16(0x0000);
-	success &= ASSERT_UINT(0, is_dont_fragment_set(&hdr), "All zeroes");
+	success &= ASSERT_UINT(0, is_df_set(&hdr), "All zeroes");
 
 	hdr.frag_off = cpu_to_be16(0x4000);
-	success &= ASSERT_UINT(IP_DF, is_dont_fragment_set(&hdr), "All zeroes except DF");
+	success &= ASSERT_UINT(IP_DF, is_df_set(&hdr), "All zeroes except DF");
 
 	hdr.frag_off = cpu_to_be16(0xFFFF);
-	success &= ASSERT_UINT(IP_DF, is_dont_fragment_set(&hdr), "All ones");
+	success &= ASSERT_UINT(IP_DF, is_df_set(&hdr), "All ones");
 
 	hdr.frag_off = cpu_to_be16(0xBFFF);
-	success &= ASSERT_UINT(0, is_dont_fragment_set(&hdr), "All ones except DF");
+	success &= ASSERT_UINT(0, is_df_set(&hdr), "All ones except DF");
 
 	return success;
 }
@@ -74,16 +74,16 @@ static bool test_function_is_mf_set(void)
 	bool success = true;
 
 	hdr.frag_off = cpu_to_be16(0x0000);
-	success &= ASSERT_UINT(0, is_more_fragments_set_ipv4(&hdr), "All zeroes");
+	success &= ASSERT_UINT(0, is_mf_set_ipv4(&hdr), "All zeroes");
 
 	hdr.frag_off = cpu_to_be16(0x2000);
-	success &= ASSERT_UINT(IP_MF, is_more_fragments_set_ipv4(&hdr), "All zeroes except MF");
+	success &= ASSERT_UINT(IP_MF, is_mf_set_ipv4(&hdr), "All zeroes except MF");
 
 	hdr.frag_off = cpu_to_be16(0xFFFF);
-	success &= ASSERT_UINT(IP_MF, is_more_fragments_set_ipv4(&hdr), "All ones");
+	success &= ASSERT_UINT(IP_MF, is_mf_set_ipv4(&hdr), "All ones");
 
 	hdr.frag_off = cpu_to_be16(0xDFFF);
-	success &= ASSERT_UINT(0, is_more_fragments_set_ipv4(&hdr), "All ones except MF");
+	success &= ASSERT_UINT(0, is_mf_set_ipv4(&hdr), "All ones except MF");
 
 	return success;
 }

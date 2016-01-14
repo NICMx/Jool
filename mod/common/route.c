@@ -17,8 +17,8 @@
  * The @pkt can be NULL. If this happens, make sure the resulting dst is
  * dst_release()d.
  */
-struct dst_entry *__route4(__be32 daddr, __u8 tos, __u8 proto, __u32 mark,
-		struct packet *pkt)
+struct dst_entry *__route4(struct net *ns, __be32 daddr, __u8 tos, __u8 proto,
+		__u32 mark, struct packet *pkt)
 {
 	struct flowi4 flow;
 	struct rtable *table;
@@ -72,19 +72,21 @@ struct dst_entry *__route4(__be32 daddr, __u8 tos, __u8 proto, __u32 mark,
 	 * I'm using neither ip_route_output_key() nor ip_route_output_flow()
 	 * because they only add XFRM overhead.
 	 */
-	table = __ip_route_output_key(joolns_get(), &flow);
+	table = __ip_route_output_key(ns, &flow);
 	if (!table || IS_ERR(table)) {
-		log_debug("__ip_route_output_key() returned %ld. Cannot route packet.", PTR_ERR(table));
+		log_debug("__ip_route_output_key() returned %ld. Cannot route packet.",
+				PTR_ERR(table));
 		return NULL;
 	}
 	dst = &table->dst;
 	if (dst->error) {
-		log_debug("__ip_route_output_key() returned error %d. Cannot route packet.", dst->error);
+		log_debug("__ip_route_output_key() returned error %d. Cannot route packet.",
+				dst->error);
 		dst_release(dst);
 		return NULL;
 	}
 	if (!dst->dev) {
-		log_debug("I found a dst entry with no dev. I don't know what to do; failing...");
+		log_debug("I found a dst entry with no dev; I don't know what to do.");
 		dst_release(dst);
 		return NULL;
 	}
@@ -93,24 +95,25 @@ struct dst_entry *__route4(__be32 daddr, __u8 tos, __u8 proto, __u32 mark,
 
 	if (pkt) {
 		skb_dst_set(pkt->skb, dst);
-		/* TODO quizá se usa debido a route_input + hairpinning? */
+		/* TODO maybe used due to route_input + hairpinning? */
 		/* pkt->skb->dev = dst->dev; */
 	}
 
 	return dst;
 }
 
-struct dst_entry *route4(struct packet *out)
+struct dst_entry *route4(struct net *ns, struct packet *out)
 {
 	struct iphdr *hdr = pkt_ip4_hdr(out);
-	return __route4(hdr->daddr, hdr->tos, hdr->protocol, out->skb->mark, out);
+	return __route4(ns, hdr->daddr, hdr->tos, hdr->protocol, out->skb->mark,
+			out);
 }
 
 /**
  * Unlike route4(), this function doesn't currently have any weird callers.
  * Therefore, @pkt is the outgoing IPv6 packet.
  */
-struct dst_entry *route6(struct packet *pkt)
+struct dst_entry *route6(struct net *ns, struct packet *pkt)
 {
 	struct ipv6hdr *hdr_ip = pkt_ip6_hdr(pkt);
 	struct flowi6 flow;
@@ -164,13 +167,14 @@ struct dst_entry *route6(struct packet *pkt)
 		}
 	}
 
-	dst = ip6_route_output(joolns_get(), NULL, &flow);
+	dst = ip6_route_output(ns, NULL, &flow);
 	if (!dst) {
 		log_debug("ip6_route_output() returned NULL. Cannot route packet.");
 		return NULL;
 	}
 	if (dst->error) {
-		log_debug("ip6_route_output() returned error %d. Cannot route packet.", dst->error);
+		log_debug("ip6_route_output() returned error %d. Cannot route packet.",
+				dst->error);
 		dst_release(dst);
 		return NULL;
 	}
@@ -180,13 +184,13 @@ struct dst_entry *route6(struct packet *pkt)
 	return dst;
 }
 
-struct dst_entry *route(struct packet *pkt)
+struct dst_entry *route(struct net *ns, struct packet *pkt)
 {
 	switch (pkt_l3_proto(pkt)) {
 	case L3PROTO_IPV6:
-		return route6(pkt);
+		return route6(ns, pkt);
 	case L3PROTO_IPV4:
-		return route4(pkt);
+		return route4(ns, pkt);
 	}
 
 	WARN(true, "Unsupported network protocol: %u.", pkt_l3_proto(pkt));
@@ -195,7 +199,7 @@ struct dst_entry *route(struct packet *pkt)
 
 int route4_input(struct packet *pkt)
 {
-	struct iphdr *hdr4;
+	struct iphdr *hdr;
 	struct sk_buff *skb;
 	int error;
 
@@ -210,14 +214,8 @@ int route4_input(struct packet *pkt)
 		return -EINVAL;
 	}
 
-	hdr4 = ip_hdr(skb);
-
-	/*
-	 * Some kernel functions assume that the incoming packet is already routed.
-	 * Because they seem to pop up where we least expect them, we'll just route every incoming
-	 * packet, regardless of whether we end up calling one of those functions.
-	 */
-	error = ip_route_input(skb, hdr4->daddr, hdr4->saddr, hdr4->tos, skb->dev);
+	hdr = ip_hdr(skb);
+	error = ip_route_input(skb, hdr->daddr, hdr->saddr, hdr->tos, skb->dev);
 	if (error) {
 		log_debug("ip_route_input failed: %d", error);
 		inc_stats(pkt, IPSTATS_MIB_INNOROUTES);
