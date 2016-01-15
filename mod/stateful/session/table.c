@@ -53,13 +53,12 @@ static void force_reschedule(struct expire_timer *expirer)
 	unsigned long next_time;
 	const unsigned long min_next_time = jiffies + MIN_TIMER_SLEEP;
 
-
 	if (list_empty(&expirer->sessions))
 		return;
 
 	first = list_entry(expirer->sessions.next, typeof(*first), list_hook);
 
-	next_time = first->update_time + expirer->get_timeout();
+	next_time = first->update_time + atomic_read(&expirer->timeout);
 
 	if (time_before(next_time, min_next_time))
 		next_time = min_next_time;
@@ -91,7 +90,7 @@ void sessiontable_reschedule(struct expire_timer *expirer)
 }
 
 static void decide_fate(fate_cb cb,
-		struct packet *pkt,
+		void *cb_arg,
 		struct session_table *table,
 		struct session_entry *session,
 		struct list_head *rms,
@@ -100,7 +99,7 @@ static void decide_fate(fate_cb cb,
 	enum session_fate fate;
 	struct session_entry *tmp;
 
-	fate = cb(session, pkt);
+	fate = cb(session, cb_arg);
 	switch (fate) {
 	case FATE_TIMER_EST:
 		session->update_time = jiffies;
@@ -145,7 +144,7 @@ static void decide_fate(fate_cb cb,
  *
  * Doesn't care about spinlocks, but "session" might.
  */
-static void send_probe_packet(struct session_entry *session)
+static void send_probe_packet(struct net *ns, struct session_entry *session)
 {
 	struct packet pkt;
 	struct sk_buff *skb;
@@ -205,7 +204,7 @@ static void send_probe_packet(struct session_entry *session)
 
 	pkt_fill(&pkt, skb, L3PROTO_IPV6, L4PROTO_TCP, NULL, th + 1, NULL);
 
-	if (!route6(&pkt)) {
+	if (!route6(ns, &pkt)) {
 		kfree_skb(skb);
 		goto fail;
 	}
@@ -222,16 +221,47 @@ fail:
 	log_debug("A TCP connection will probably break.");
 }
 
-static void post_fate(struct list_head *rms, struct list_head *probes)
+static void post_fate(struct net *ns, struct list_head *rms,
+		struct list_head *probes)
 {
-	struct session_entry *session, *tmp;
+	struct session_entry *session;
+	struct session_entry *tmp;
 
 	list_for_each_entry_safe(session, tmp, probes, list_hook) {
-		send_probe_packet(session);
+		send_probe_packet(ns, session);
 		session_return(session);
 	}
+
 	if (!list_empty(rms))
 		delete(rms);
+}
+
+/* TODO call this. */
+void sessiontable_clean(struct session_table *table,
+		struct net *ns,
+		struct list_head *sessions,
+		unsigned long timeout,
+		fate_cb decide_fate_cb)
+{
+	struct session_entry *session;
+	struct session_entry *tmp;
+	LIST_HEAD(rms);
+	LIST_HEAD(probes);
+
+	spin_lock_bh(&table->lock);
+	list_for_each_entry_safe(session, tmp, sessions, list_hook) {
+		/*
+		 * "list" is sorted by expiration date,
+		 * so stop on the first unexpired session.
+		 */
+		if (time_before(jiffies, session->update_time + timeout))
+			break;
+
+		decide_fate(decide_fate_cb, NULL, table, session, &rms, &probes);
+	}
+	spin_unlock_bh(&table->lock);
+
+	post_fate(ns, &rms, &probes);
 }
 
 /**
@@ -242,43 +272,11 @@ static void post_fate(struct list_head *rms, struct list_head *probes)
  */
 static void cleaner_timer(unsigned long param)
 {
-	struct expire_timer *expirer = (struct expire_timer *) param;
-	unsigned long timeout;
-	struct session_entry *session, *tmp;
-	LIST_HEAD(rms);
-	LIST_HEAD(probes);
 
-	log_debug("===============================================");
-	log_debug("Handling expired sessions...");
-
-	timeout = expirer->get_timeout();
-
-	spin_lock_bh(&expirer->table->lock);
-	list_for_each_entry_safe(session, tmp, &expirer->sessions, list_hook) {
-		log_info("executing foreach loop!");
-		/*
-		 * "list" is sorted by expiration date,
-		 * so stop on the first unexpired session.
-		 */
-		if (time_before(jiffies, session->update_time + timeout))
-			break;
-
-		log_info("executing fate function!");
-
-		decide_fate(expirer->decide_fate_cb, NULL, expirer->table,
-				session, &rms, &probes);
-	}
-
-	if (!list_empty(&expirer->sessions))
-		reschedule(expirer);
-
-	spin_unlock_bh(&expirer->table->lock);
-
-	post_fate(&rms, &probes);
 }
 
 static void init_expirer(struct expire_timer *expirer,
-		timeout_cb timeout_cb, fate_cb decide_fate_cb,
+		int timeout, fate_cb decide_fate_cb,
 		struct session_table *table)
 {
 	init_timer(&expirer->timer);
@@ -286,14 +284,14 @@ static void init_expirer(struct expire_timer *expirer,
 	expirer->timer.expires = 0;
 	expirer->timer.data = (unsigned long) expirer;
 	INIT_LIST_HEAD(&expirer->sessions);
-	expirer->get_timeout = timeout_cb;
+	atomic_set(&expirer->timeout, msecs_to_jiffies(1000 * timeout));
 	expirer->decide_fate_cb = decide_fate_cb;
 	expirer->table = table;
 }
 
 void sessiontable_init(struct session_table *table,
-		timeout_cb est_timeout, fate_cb est_callback,
-		timeout_cb trans_timeout, fate_cb trans_callback)
+		int est_timeout, fate_cb est_callback,
+		int trans_timeout, fate_cb trans_callback)
 {
 	table->tree6 = RB_ROOT;
 	table->tree4 = RB_ROOT;
@@ -301,6 +299,7 @@ void sessiontable_init(struct session_table *table,
 	init_expirer(&table->est_timer, est_timeout, est_callback, table);
 	init_expirer(&table->trans_timer, trans_timeout, trans_callback, table);
 	spin_lock_init(&table->lock);
+	atomic_set(&table->log_changes, DEFAULT_SESSION_LOGGING);
 }
 
 /**
@@ -455,7 +454,8 @@ static struct session_entry *get_by_ipv4(struct session_table *table,
 }
 
 int sessiontable_get(struct session_table *table, struct tuple *tuple,
-		fate_cb cb, struct packet *pkt, struct session_entry **result)
+		fate_cb cb, void *cb_arg,
+		struct session_entry **result)
 {
 	struct session_entry *session;
 	LIST_HEAD(rms);
@@ -479,13 +479,13 @@ int sessiontable_get(struct session_table *table, struct tuple *tuple,
 	if (session) {
 		session_get(session);
 		if (cb)
-			decide_fate(cb, pkt, table, session, &rms, &probes);
+			decide_fate(cb, cb_arg, table, session, &rms, &probes);
 	}
 
 	spin_unlock_bh(&table->lock);
 
 	if (cb)
-		post_fate(&rms, &probes);
+		post_fate(NULL, &rms, &probes);
 
 	if (!session)
 		return -ESRCH;
@@ -535,8 +535,6 @@ int sessiontable_add(struct session_table *table, struct session_entry *session,
 	struct expire_timer *expirer;
 	int error;
 
-	pktqueue_remove(session);
-
 	expirer = is_established ? &table->est_timer : &table->trans_timer;
 
 
@@ -564,7 +562,8 @@ int sessiontable_add(struct session_table *table, struct session_entry *session,
 
 	spin_unlock_bh(&table->lock);
 
-	session_log(session, "Added session");
+	if (atomic_read(&table->log_changes))
+		session_log(session, "Added session");
 
 	//function to add session for synchronization.
 

@@ -64,9 +64,6 @@ static bool interface_contains(struct net *ns, struct in_addr *addr)
 	return false;
 }
 
-/*
- * TODO remember I'm transferring ns's kref to outside.
- */
 bool blacklist_contains(struct addr4_pool *pool, struct net *ns, __be32 be_addr)
 {
 	struct in_addr addr = { .s_addr = be_addr };

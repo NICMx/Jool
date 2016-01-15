@@ -11,6 +11,7 @@ MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Alberto Leiva Popper");
 MODULE_DESCRIPTION("Session DB module test.");
 
+struct sessiondb *db;
 static const l4_protocol PROTO = L4PROTO_UDP;
 static struct session_entry *sessions4[4][4][4][4];
 static struct session_entry *sessions6[4][4][4][4];
@@ -31,13 +32,13 @@ static bool assert4(unsigned int la, unsigned int lp,
 
 	if (sessions4[la][lp][ra][rp]) {
 		success &= ASSERT_INT(0,
-				sessiondb_get(&tuple4, NULL, NULL, &session),
+				sessiondb_find(db, &tuple4, NULL, NULL, &session),
 				"get4 code - %u %u %u %u", la, lp, ra, rp);
 		success &= ASSERT_SESSION(sessions4[la][lp][ra][rp], session,
 				"get4 session");
 	} else {
 		success &= ASSERT_INT(-ESRCH,
-				sessiondb_get(&tuple4, NULL, NULL, &session),
+				sessiondb_find(db, &tuple4, NULL, NULL, &session),
 				"get4 code - %u %u %u %u", la, lp, ra, rp);
 	}
 
@@ -69,13 +70,13 @@ static bool assert6(unsigned int la, unsigned int lp,
 
 	if (sessions6[ra][rp][la][lp]) {
 		success &= ASSERT_INT(0,
-				sessiondb_get(&tuple6, NULL, NULL, &session),
+				sessiondb_find(db, &tuple6, NULL, NULL, &session),
 				"get6 code - %u %u %u %u", ra, rp, la, lp);
 		success &= ASSERT_SESSION(sessions6[ra][rp][la][lp], session,
 				"get6 session");
 	} else {
 		success &= ASSERT_INT(-ESRCH,
-				sessiondb_get(&tuple6, NULL, NULL, &session),
+				sessiondb_find(db, &tuple6, NULL, NULL, &session),
 				"get6 code - %u %u %u %u", ra, rp, la, lp);
 	}
 
@@ -115,22 +116,22 @@ static bool insert_test_sessions(void)
 	memset(sessions4, 0, sizeof(sessions4));
 	memset(sessions6, 0, sizeof(sessions6));
 
-	sessions[ 0] = session_inject("2001:db8::1", 2, "64::2", 2, "192.0.2.2", 1, "203.0.113.2", 1, PROTO, true);
-	sessions[ 1] = session_inject("2001:db8::1", 1, "64::2", 1, "192.0.2.2", 2, "203.0.113.2", 2, PROTO, true);
-	sessions[ 2] = session_inject("2001:db8::2", 1, "64::2", 1, "192.0.2.2", 2, "203.0.113.1", 2, PROTO, true);
-	sessions[ 3] = session_inject("2001:db8::2", 2, "64::2", 2, "192.0.2.2", 2, "203.0.113.1", 1, PROTO, true);
-	sessions[ 4] = session_inject("2001:db8::1", 1, "64::2", 2, "192.0.2.1", 2, "203.0.113.2", 2, PROTO, true);
-	sessions[ 5] = session_inject("2001:db8::2", 2, "64::1", 1, "192.0.2.2", 1, "203.0.113.1", 1, PROTO, true);
-	sessions[ 6] = session_inject("2001:db8::2", 1, "64::1", 1, "192.0.2.1", 1, "203.0.113.2", 2, PROTO, true);
-	sessions[ 7] = session_inject("2001:db8::1", 1, "64::1", 1, "192.0.2.2", 1, "203.0.113.2", 2, PROTO, true);
-	sessions[ 8] = session_inject("2001:db8::2", 2, "64::1", 2, "192.0.2.1", 2, "203.0.113.1", 1, PROTO, true);
-	sessions[ 9] = session_inject("2001:db8::1", 2, "64::1", 1, "192.0.2.2", 2, "203.0.113.2", 1, PROTO, true);
-	sessions[10] = session_inject("2001:db8::2", 1, "64::1", 2, "192.0.2.2", 1, "203.0.113.1", 2, PROTO, true);
-	sessions[11] = session_inject("2001:db8::1", 2, "64::1", 2, "192.0.2.1", 1, "203.0.113.2", 1, PROTO, true);
-	sessions[12] = session_inject("2001:db8::2", 1, "64::2", 2, "192.0.2.1", 2, "203.0.113.2", 1, PROTO, true);
-	sessions[13] = session_inject("2001:db8::1", 1, "64::1", 2, "192.0.2.1", 2, "203.0.113.1", 2, PROTO, true);
-	sessions[14] = session_inject("2001:db8::1", 2, "64::2", 1, "192.0.2.1", 1, "203.0.113.1", 1, PROTO, true);
-	sessions[15] = session_inject("2001:db8::2", 2, "64::2", 1, "192.0.2.1", 1, "203.0.113.1", 2, PROTO, true);
+	sessions[ 0] = session_inject(db, "2001:db8::1", 2, "64::2", 2, "192.0.2.2", 1, "203.0.113.2", 1, PROTO, true);
+	sessions[ 1] = session_inject(db, "2001:db8::1", 1, "64::2", 1, "192.0.2.2", 2, "203.0.113.2", 2, PROTO, true);
+	sessions[ 2] = session_inject(db, "2001:db8::2", 1, "64::2", 1, "192.0.2.2", 2, "203.0.113.1", 2, PROTO, true);
+	sessions[ 3] = session_inject(db, "2001:db8::2", 2, "64::2", 2, "192.0.2.2", 2, "203.0.113.1", 1, PROTO, true);
+	sessions[ 4] = session_inject(db, "2001:db8::1", 1, "64::2", 2, "192.0.2.1", 2, "203.0.113.2", 2, PROTO, true);
+	sessions[ 5] = session_inject(db, "2001:db8::2", 2, "64::1", 1, "192.0.2.2", 1, "203.0.113.1", 1, PROTO, true);
+	sessions[ 6] = session_inject(db, "2001:db8::2", 1, "64::1", 1, "192.0.2.1", 1, "203.0.113.2", 2, PROTO, true);
+	sessions[ 7] = session_inject(db, "2001:db8::1", 1, "64::1", 1, "192.0.2.2", 1, "203.0.113.2", 2, PROTO, true);
+	sessions[ 8] = session_inject(db, "2001:db8::2", 2, "64::1", 2, "192.0.2.1", 2, "203.0.113.1", 1, PROTO, true);
+	sessions[ 9] = session_inject(db, "2001:db8::1", 2, "64::1", 1, "192.0.2.2", 2, "203.0.113.2", 1, PROTO, true);
+	sessions[10] = session_inject(db, "2001:db8::2", 1, "64::1", 2, "192.0.2.2", 1, "203.0.113.1", 2, PROTO, true);
+	sessions[11] = session_inject(db, "2001:db8::1", 2, "64::1", 2, "192.0.2.1", 1, "203.0.113.2", 1, PROTO, true);
+	sessions[12] = session_inject(db, "2001:db8::2", 1, "64::2", 2, "192.0.2.1", 2, "203.0.113.2", 1, PROTO, true);
+	sessions[13] = session_inject(db, "2001:db8::1", 1, "64::1", 2, "192.0.2.1", 2, "203.0.113.1", 2, PROTO, true);
+	sessions[14] = session_inject(db, "2001:db8::1", 2, "64::2", 1, "192.0.2.1", 1, "203.0.113.1", 1, PROTO, true);
+	sessions[15] = session_inject(db, "2001:db8::2", 2, "64::2", 1, "192.0.2.1", 1, "203.0.113.1", 2, PROTO, true);
 	for (i = 0; i < ARRAY_SIZE(sessions); i++) {
 		if (!sessions[i]) {
 			log_debug("Allocation failed in index %u.", i);
@@ -161,7 +162,7 @@ static bool insert_test_sessions(void)
 static bool flush(void)
 {
 	log_debug("Flushing.");
-	sessiondb_flush();
+	sessiondb_flush(db);
 
 	memset(sessions4, 0, sizeof(sessions4));
 	memset(sessions6, 0, sizeof(sessions6));
@@ -193,7 +194,7 @@ static bool simple_session(void)
 	/* ---------------------------------------------------------- */
 
 	log_debug("Deleting sessions by BIB.");
-	error = sessiondb_delete_by_bib(&bib);
+	error = sessiondb_delete_by_bib(db, &bib);
 	success &= ASSERT_INT(0, error, "BIB delete result");
 
 	sessions6[2][1][1][1] = sessions4[1][1][2][2] = NULL;
@@ -205,7 +206,7 @@ static bool simple_session(void)
 	/* ---------------------------------------------------------- */
 
 	log_debug("Deleting again.");
-	error = sessiondb_delete_by_bib(&bib);
+	error = sessiondb_delete_by_bib(db, &bib);
 	success &= ASSERT_INT(0, error, "BIB delete result");
 	success &= test_db();
 
@@ -217,7 +218,7 @@ static bool simple_session(void)
 	prefix6.address.s6_addr32[2] = 0;
 	prefix6.address.s6_addr32[3] = cpu_to_be32(1);
 	prefix6.len = 128;
-	sessiondb_delete_taddr6s(&prefix6);
+	sessiondb_delete_taddr6s(db, &prefix6);
 
 	sessions6[2][2][1][1] = sessions4[2][1][1][1] = NULL;
 	sessions6[1][1][1][1] = sessions4[2][1][2][2] = NULL;
@@ -240,7 +241,7 @@ static bool simple_session(void)
 	prefix4.len = 30;
 	ports.min = 0;
 	ports.max = 1;
-	sessiondb_delete_taddr4s(&prefix4, &ports);
+	sessiondb_delete_taddr4s(db, &prefix4, &ports);
 
 	sessions6[1][2][2][2] = sessions4[2][1][2][1] = NULL;
 	sessions6[2][2][1][1] = sessions4[2][1][1][1] = NULL;
@@ -265,7 +266,7 @@ static bool simple_session(void)
 	prefix4.len = 31;
 	ports.min = 0;
 	ports.max = 65535;
-	sessiondb_delete_taddr4s(&prefix4, &ports);
+	sessiondb_delete_taddr4s(db, &prefix4, &ports);
 
 	sessions6[1][1][2][2] = sessions4[1][2][2][2] = NULL;
 	sessions6[2][1][1][1] = sessions4[1][1][2][2] = NULL;
@@ -295,7 +296,7 @@ static bool test_allow_aux(__u32 local_addr, __u16 local_port,
 	tuple4.l3_proto = L3PROTO_IPV4;
 
 	log_tuple(&tuple4);
-	return sessiondb_allow(&tuple4);
+	return sessiondb_allow(db, &tuple4);
 }
 
 static bool test_allow(void)
@@ -304,7 +305,7 @@ static bool test_allow(void)
 	bool success = true;
 
 	/* Init. */
-	session = session_inject("2001:db8::2", 20, "64::6", 60,
+	session = session_inject(db, "2001:db8::2", 20, "64::6", 60,
 			"192.0.2.1", 10, "203.0.113.2", 20, L4PROTO_UDP, true);
 	if (!session)
 		return false;
@@ -334,7 +335,7 @@ static bool test_allow(void)
 			test_allow_aux(0x12345678u, 10, 0xcb007102u, 20),
 			"dst addr mismatch");
 
-	sessiondb_flush();
+	sessiondb_flush(db);
 	session_return(session);
 	session = NULL;
 
@@ -352,27 +353,19 @@ static bool test_allow(void)
 	return success;
 }
 
-static enum session_fate expire_fn(struct session_entry *session, void *arg)
+enum session_fate tcp_expired_cb(struct session_entry *session, void *arg)
 {
 	return FATE_RM;
 }
 
 static bool init(void)
 {
-	if (config_init(false))
-		return false;
-	if (sessiondb_init(expire_fn, expire_fn)) {
-		config_destroy();
-		return false;
-	}
-
-	return true;
+	return !sessiondb_init(&db);
 }
 
 static void end(void)
 {
-	sessiondb_destroy();
-	config_destroy();
+	sessiondb_put(db);
 }
 
 int init_module(void)

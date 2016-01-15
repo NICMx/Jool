@@ -21,15 +21,16 @@ jool_common += ../common/rfc6052.o
 jool_common += ../common/nl_buffer.o
 jool_common += ../common/rbtree.o
 jool_common += ../common/config.o
-jool_common += ../common/nl_handler.o
+#jool_common += ../common/nl_handler.o
 jool_common += ../common/route.o
 jool_common += ../common/send_packet.o
 jool_common += ../common/core.o
 jool_common += ../common/error_pool.o
 jool_common += ../common/namespace.o
-jool_common += ../common/nl/nl_core.o
-jool_common += ../common/nl/nl_receiver.o
-jool_common += ../common/nl/nl_sender.o
+jool_common += ../common/translation_state.o
+#jool_common += ../common/nl/nl_core.o
+#jool_common += ../common/nl/nl_receiver.o
+#jool_common += ../common/nl/nl_sender.o
 
 jool += pool4/entry.o
 jool += pool4/table.o
@@ -37,7 +38,6 @@ jool += pool4/empty.o
 jool += pool4/db.o
 
 jool += bib/port_allocator.o
-jool += bib/entry.o
 jool += bib/table.o
 jool += bib/db.o
 jool += bib/static_routes.o
@@ -47,14 +47,14 @@ jool += session/db.o
 jool += session/pkt_queue.o
 
 jool += xlat.o
-jool += fragment_db.o
+#jool += fragment_db.o
 jool += determine_incoming_tuple.o
 jool += filtering_and_updating.o
 jool += compute_outgoing_tuple.o
 jool += handling_hairpinning.o
 jool += nf_hook.o
 jool += impersonator.o
-jool += json_parser.o
-jool += joold.o
+#jool += json_parser.o
+#jool += joold.o
 
 jool-objs += ${jool} ${jool_common}

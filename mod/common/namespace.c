@@ -5,6 +5,9 @@
 #include "nat64/mod/common/types.h"
 #include "nat64/mod/stateless/blacklist4.h"
 #include "nat64/mod/stateless/rfc6791.h"
+#include "nat64/mod/stateful/pool4/db.h"
+#include "nat64/mod/stateful/bib/db.h"
+#include "nat64/mod/stateful/session/db.h"
 
 /**
  * All the configuration and state of the Jool instance in the given network
@@ -35,9 +38,9 @@ static void xlator_get(struct xlator *jool)
 		blacklist_get(jool->siit.blacklist);
 		rfc6791_get(jool->siit.pool6791);
 	} else {
-//		pool4_get(jool->nat64.pool4);
-//		bib_get(jool->nat64.bib);
-//		session_get(jool->nat64.session);
+		pool4db_get(jool->nat64.pool4);
+		bibdb_get(jool->nat64.bib);
+		sessiondb_get(jool->nat64.session);
 	}
 }
 
@@ -59,12 +62,12 @@ static void xlator_put(struct xlator *jool)
 		if (jool->siit.pool6791)
 			rfc6791_put(jool->siit.pool6791);
 	} else {
-//		if (jool->nat64.pool4)
-//			pool4_put(jool->nat64.pool4);
-//		if (jool->nat64.bib)
-//			bib_put(jool->nat64.bib);
-//		if (jool->nat64.session)
-//			session_put(jool->nat64.session);
+		if (jool->nat64.pool4)
+			pool4db_put(jool->nat64.pool4);
+		if (jool->nat64.bib)
+			bibdb_put(jool->nat64.bib);
+		if (jool->nat64.session)
+			sessiondb_put(jool->nat64.session);
 	}
 }
 
@@ -186,28 +189,28 @@ static int init_nat64(struct xlator *jool)
 	if (error)
 		goto config_fail;
 	error = pool6_init(&jool->pool6, NULL, 0);
-//	if (error)
-//		goto pool6_fail;
-//	error = pool4_init(&jool->nat64.pool4);
-//	if (error)
-//		goto pool4_fail;
-//	error = bibdb_init(&jool->nat64.bib);
-//	if (error)
-//		goto bibdb_fail;
-//	error = sessiondb_init(&jool->nat64.session);
-//	if (error)
-//		goto sessiondb_fail;
-//
-//	return 0;
-//
-//sessiondb_fail:
-//	bibdb_put(&jool->nat64.bib);
-//bibdb_fail:
-//	pool4_put(&jool->nat64.pool4);
-//pool4_fail:
-//	pool6_put(&jool->pool6);
-//pool6_fail:
-//	config_put(&jool->global);
+	if (error)
+		goto pool6_fail;
+	error = pool4db_init(&jool->nat64.pool4, 0);
+	if (error)
+		goto pool4_fail;
+	error = bibdb_init(&jool->nat64.bib);
+	if (error)
+		goto bibdb_fail;
+	error = sessiondb_init(&jool->nat64.session);
+	if (error)
+		goto sessiondb_fail;
+
+	return 0;
+
+sessiondb_fail:
+	bibdb_put(jool->nat64.bib);
+bibdb_fail:
+	pool4db_put(jool->nat64.pool4);
+pool4_fail:
+	pool6_put(jool->pool6);
+pool6_fail:
+	config_put(jool->global);
 config_fail:
 	return error;
 }

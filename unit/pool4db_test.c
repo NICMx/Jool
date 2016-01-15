@@ -9,39 +9,37 @@ MODULE_AUTHOR("Ramiro Nava");
 MODULE_AUTHOR("Alberto Leiva");
 MODULE_DESCRIPTION("IPv4 pool DB module test");
 
-/*
- * These two are just parameter noise a function needs.
- * They're here because they won't fit in the stack and I don't want to
- * allocate.
+/**
+ * Instances the functions do their testing on.
+ * Ideally, each test would have its own pointers, but that floods argument
+ * lists.
  */
-static struct sk_buff skb = { .mark = 1 };
-static struct packet pkt = { .skb = &skb };
+struct pool4 *pool;
+struct net *ns;
 
 static bool test_init_power(void)
 {
-	unsigned int initial_power = power;
 	bool success = true;
 
-	success &= ASSERT_INT(0, init_power(0), "r0");
-	success &= ASSERT_UINT(16U, slots(), "p0"); /* Because default. */
-	success &= ASSERT_INT(0, init_power(1), "r1");
-	success &= ASSERT_UINT(1U, slots(), "p1");
-	success &= ASSERT_INT(0, init_power(2), "r2");
-	success &= ASSERT_UINT(2U, slots(), "p2");
-	success &= ASSERT_INT(0, init_power(3), "r3");
-	success &= ASSERT_UINT(4U, slots(), "p3");
-	success &= ASSERT_INT(0, init_power(4), "r4");
-	success &= ASSERT_UINT(4U, slots(), "p4");
-	success &= ASSERT_INT(0, init_power(5), "r5");
-	success &= ASSERT_UINT(8U, slots(), "p5");
-	success &= ASSERT_INT(0, init_power(1234), "r1234");
-	success &= ASSERT_UINT(2048U, slots(), "p1234");
-	success &= ASSERT_INT(0, init_power(0x80000000U), "rmax");
-	success &= ASSERT_UINT(0x80000000U, slots(), "pmax");
-	success &= ASSERT_INT(-EINVAL, init_power(0x80000001U), "2big1");
-	success &= ASSERT_INT(-EINVAL, init_power(0xFFFFFFFFU), "2big2");
+	success &= ASSERT_INT(0, init_power(pool, 0), "r0");
+	success &= ASSERT_UINT(16U, slots(pool), "p0"); /* Because default. */
+	success &= ASSERT_INT(0, init_power(pool, 1), "r1");
+	success &= ASSERT_UINT(1U, slots(pool), "p1");
+	success &= ASSERT_INT(0, init_power(pool, 2), "r2");
+	success &= ASSERT_UINT(2U, slots(pool), "p2");
+	success &= ASSERT_INT(0, init_power(pool, 3), "r3");
+	success &= ASSERT_UINT(4U, slots(pool), "p3");
+	success &= ASSERT_INT(0, init_power(pool, 4), "r4");
+	success &= ASSERT_UINT(4U, slots(pool), "p4");
+	success &= ASSERT_INT(0, init_power(pool, 5), "r5");
+	success &= ASSERT_UINT(8U, slots(pool), "p5");
+	success &= ASSERT_INT(0, init_power(pool, 1234), "r1234");
+	success &= ASSERT_UINT(2048U, slots(pool), "p1234");
+	success &= ASSERT_INT(0, init_power(pool, 0x80000000U), "rmax");
+	success &= ASSERT_UINT(0x80000000U, slots(pool), "pmax");
+	success &= ASSERT_INT(-EINVAL, init_power(pool, 0x80000001U), "2big1");
+	success &= ASSERT_INT(-EINVAL, init_power(pool, 0xFFFFFFFFU), "2big2");
 
-	power = initial_power;
 	return success;
 }
 
@@ -58,7 +56,7 @@ static bool add(__u32 addr, __u8 prefix_len, __u16 min, __u16 max)
 	ports.min = min;
 	ports.max = max;
 
-	return ASSERT_INT(0, pool4db_add(1, L4PROTO_TCP, &prefix, &ports),
+	return ASSERT_INT(0, pool4db_add(pool, 1, L4PROTO_TCP, &prefix, &ports),
 			"add of %pI4/%u (%u-%u)",
 			&prefix.address, prefix.len, min, max);
 }
@@ -73,7 +71,7 @@ static bool rm(__u32 addr, __u8 prefix_len, __u16 min, __u16 max)
 	ports.min = min;
 	ports.max = max;
 
-	return ASSERT_INT(0, pool4db_rm(1, L4PROTO_TCP, &prefix, &ports),
+	return ASSERT_INT(0, pool4db_rm(pool, 1, L4PROTO_TCP, &prefix, &ports),
 			"rm of %pI4/%u (%u-%u)",
 			&prefix.address, prefix.len, min, max);
 }
@@ -188,8 +186,8 @@ static bool test_foreach_taddr4(void)
 		args.expected = &expected[i % COUNT];
 		args.expected_len = COUNT;
 		args.i = 0;
-		error = pool4db_foreach_taddr4(&pkt, L4PROTO_TCP, NULL,
-				validate_taddr4, &args, i);
+		error = pool4db_foreach_taddr4(pool, ns, NULL, 0, IPPROTO_TCP,
+				1, validate_taddr4, &args, i);
 		success &= ASSERT_INT(0, error, "call %u", i);
 		/* log_debug("--------------"); */
 	}
@@ -268,7 +266,7 @@ static bool test_foreach_sample(void)
 	args.expected = &expected[0];
 	args.expected_len = COUNT;
 	args.i = 0;
-	error = pool4db_foreach_sample(validate_sample, &args, NULL);
+	error = pool4db_foreach_sample(pool, validate_sample, &args, NULL);
 	success &= ASSERT_INT(0, error, "no-offset call");
 
 	for (i = 0; i < COUNT; i++) {
@@ -276,7 +274,7 @@ static bool test_foreach_sample(void)
 		args.expected = &expected[i + 1];
 		args.expected_len = COUNT - i - 1;
 		args.i = 0;
-		error = pool4db_foreach_sample(validate_sample, &args,
+		error = pool4db_foreach_sample(pool, validate_sample, &args,
 				&expected[i]);
 		success &= ASSERT_INT(0, error, "call %u", i);
 		/* log_debug("--------------"); */
@@ -303,11 +301,11 @@ static bool assert_contains_range(__u32 addr_min, __u32 addr_max,
 	for (i = addr_min; i <= addr_max; i++) {
 		taddr.l3.s_addr = cpu_to_be32(0xc0000200U | i);
 		for (taddr.l4 = port_min; taddr.l4 <= port_max; taddr.l4++) {
-			result = pool4db_contains(L4PROTO_TCP, &taddr);
+			result = pool4db_contains(pool, ns, L4PROTO_TCP, &taddr);
 			success &= ASSERT_BOOL(expected, result,
 					"contains %pI4#%u",
 					&taddr.l3, taddr.l4);
-			result = pool4db_contains(L4PROTO_TCP, &taddr);
+			result = pool4db_contains(pool, ns, L4PROTO_TCP, &taddr);
 			success &= ASSERT_BOOL(expected, result,
 					"contains_all %pI4#%u",
 					&taddr.l3, taddr.l4);
@@ -327,7 +325,7 @@ static bool __foreach(struct pool4_sample *expected, unsigned int expected_len)
 	args.expected_len = expected_len;
 	args.i = 0;
 
-	error = pool4db_foreach_sample(validate_sample, &args, NULL);
+	error = pool4db_foreach_sample(pool, validate_sample, &args, NULL);
 	success &= ASSERT_INT(0, error, "foreach result");
 	success &= ASSERT_UINT(expected_len, args.i, "foreach count");
 	return success;
@@ -615,10 +613,17 @@ static bool init(void)
 {
 	int error;
 
-	error = pool4db_init(4, NULL, 0);
+	error = pool4db_init(&pool, 0);
 	if (error) {
 		log_err("Errcode on pool4 init: %d", error);
 		return false;
+	}
+
+	ns = get_net_ns_by_pid(task_pid_nr(current));
+	if (IS_ERR(ns)) {
+		log_err("Could not retrieve the current namespace.");
+		pool4db_put(pool);
+		return PTR_ERR(ns);
 	}
 
 	return true;
@@ -626,7 +631,8 @@ static bool init(void)
 
 static void destroy(void)
 {
-	pool4db_destroy();
+	put_net(ns);
+	pool4db_put(pool);
 }
 
 int init_module(void)

@@ -1,8 +1,94 @@
 #include "nat64/mod/stateful/bib/table.h"
 #include <net/ipv6.h>
+#include "nat64/common/constants.h"
+#include "nat64/common/str_utils.h"
 #include "nat64/mod/common/rbtree.h"
-#include "nat64/mod/stateful/bib/port_allocator.h"
 
+
+/** Cache for struct bib_entrys, for efficient allocation. */
+static struct kmem_cache *entry_cache;
+
+int bibentry_init(void)
+{
+	entry_cache = kmem_cache_create("jool_bib_entries",
+			sizeof(struct bib_entry), 0, 0, NULL);
+	if (!entry_cache) {
+		log_err("Could not allocate the BIB entry cache.");
+		return -ENOMEM;
+	}
+
+	return 0;
+}
+
+void bibentry_destroy(void)
+{
+	kmem_cache_destroy(entry_cache);
+}
+
+/**
+ * Allocates and initializes a BIB entry.
+ * The entry is generated in dynamic memory; remember to kfree, return or pass it along.
+ */
+struct bib_entry *bibentry_create(const struct ipv4_transport_addr *addr4,
+		const struct ipv6_transport_addr *addr6,
+		const bool is_static, const l4_protocol proto)
+{
+	struct bib_entry tmp = {
+			.ipv4 = *addr4,
+			.ipv6 = *addr6,
+			.l4_proto = proto,
+			.is_static = is_static,
+	};
+
+	struct bib_entry *result = kmem_cache_alloc(entry_cache, GFP_ATOMIC);
+	if (!result)
+		return NULL;
+
+	memcpy(result, &tmp, sizeof(tmp));
+	kref_init(&result->refcounter);
+	result->table = NULL;
+	RB_CLEAR_NODE(&result->tree6_hook);
+	RB_CLEAR_NODE(&result->tree4_hook);
+	result->host4_addr = NULL;
+
+	return result;
+}
+
+void bibentry_get(struct bib_entry *bib)
+{
+	kref_get(&bib->refcounter);
+}
+
+static void release(struct kref *ref)
+{
+	struct bib_entry *bib;
+	bib = container_of(ref, typeof(*bib), refcounter);
+
+	if (bib->table)
+		bibtable_rm(bib->table, bib);
+
+	kmem_cache_free(entry_cache, bib);
+}
+
+int bibentry_put(struct bib_entry *bib)
+{
+	return kref_put(&bib->refcounter, release);
+}
+
+void bibentry_log(const struct bib_entry *bib, const char *action)
+{
+	struct timeval tval;
+	struct tm t;
+
+	do_gettimeofday(&tval);
+	time_to_tm(tval.tv_sec, 0, &t);
+	log_info("%ld/%d/%d %d:%d:%d (GMT) - %s %pI6c#%u to %pI4#%u (%s)",
+			1900 + t.tm_year, t.tm_mon + 1, t.tm_mday,
+			t.tm_hour, t.tm_min, t.tm_sec, action,
+			&bib->ipv6.l3, bib->ipv6.l4,
+			&bib->ipv4.l3, bib->ipv4.l4,
+			l4proto_to_string(bib->l4_proto));
+}
 
 void bibtable_init(struct bib_table *table)
 {
@@ -10,11 +96,14 @@ void bibtable_init(struct bib_table *table)
 	table->tree4 = RB_ROOT;
 	table->count = 0;
 	spin_lock_init(&table->lock);
+	atomic_set(&table->log_changes, DEFAULT_BIB_LOGGING);
 }
 
 static void destroy_aux(struct rb_node *node)
 {
-	bibentry_kfree(rb_entry(node, struct bib_entry, tree6_hook));
+	struct bib_entry *bib;
+	bib = rb_entry(node, typeof(*bib), tree6_hook);
+	kmem_cache_free(entry_cache, bib);
 }
 
 void bibtable_destroy(struct bib_table *table)
@@ -167,10 +256,12 @@ int bibtable_add(struct bib_table *table, struct bib_entry *bib)
 		goto fail;
 	}
 
+	bib->table = table;
 	table->count++;
 
 	spin_unlock_bh(&table->lock);
-	bibentry_log(bib, "Mapped");
+	if (atomic_read(&table->log_changes))
+		bibentry_log(bib, "Mapped");
 	return 0;
 
 fail:
@@ -189,7 +280,8 @@ static void rm(struct bib_table *table, struct bib_entry *bib)
 		rb_erase(&bib->tree4_hook, &table->tree4);
 	table->count--;
 
-	bibentry_log(bib, "Forgot");
+	if (atomic_read(&table->log_changes))
+		bibentry_log(bib, "Forgot");
 }
 
 void bibtable_rm(struct bib_table *table, struct bib_entry *bib)
@@ -280,11 +372,8 @@ static int __flush(struct bib_entry *bib, void *void_args)
 	 * All we need to do is remove the fake user.
 	 * Otherwise we might free entries being actively pointed by sessions.
 	 */
-	if (bib->is_static && bibentry_return(bib)) {
-		rm(args->table, bib);
-		bibentry_kfree(bib);
-		args->deleted_count++;
-	}
+	if (bib->is_static)
+		args->deleted_count += bibentry_put(bib);
 
 	return 0;
 }

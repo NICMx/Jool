@@ -12,6 +12,8 @@ MODULE_DESCRIPTION("Unit tests for the Filtering module");
 #include "nat64/unit/skb_generator.h"
 #include "filtering_and_updating.c"
 
+struct xlator jool;
+
 static int bib_count_fn(struct bib_entry *bib, void *arg)
 {
 	int *count = arg;
@@ -24,7 +26,7 @@ static bool assert_bib_count(int expected, l4_protocol proto)
 	int count = 0;
 	bool success = true;
 
-	success &= ASSERT_INT(0, bibdb_foreach(proto, bib_count_fn, &count, NULL), "count");
+	success &= ASSERT_INT(0, bibdb_foreach(jool.nat64.bib, proto, bib_count_fn, &count, NULL), "count");
 	success &= ASSERT_INT(expected, count, "BIB count");
 
 	return success;
@@ -41,7 +43,7 @@ static bool assert_bib_exists(char *addr6, u16 port6, char *addr4, u16 port4,
 		return false;
 	tuple_addr.l4 = port6;
 
-	success &= ASSERT_INT(0, bibdb_get6(&tuple_addr, proto, &bib), "BIB exists");
+	success &= ASSERT_INT(0, bibdb_find6(jool.nat64.bib, &tuple_addr, proto, &bib), "BIB exists");
 	if (!success)
 		return false;
 
@@ -54,7 +56,7 @@ static bool assert_bib_exists(char *addr6, u16 port6, char *addr4, u16 port4,
 			atomic_read(&bib->refcounter.refcount) - 1,
 			"BIB Session count");
 
-	bibdb_return(bib);
+	bibentry_put(bib);
 
 	return success;
 }
@@ -71,7 +73,7 @@ static bool assert_session_count(int expected, l4_protocol proto)
 	int count = 0;
 	bool success = true;
 
-	success = ASSERT_INT(0, sessiondb_foreach(proto, session_count_fn, &count, NULL, NULL), "count");
+	success = ASSERT_INT(0, sessiondb_foreach(jool.nat64.session, proto, session_count_fn, &count, NULL, NULL), "count");
 	success = ASSERT_INT(expected, count, "Session count");
 
 	return success;
@@ -92,7 +94,7 @@ static bool assert_session_exists(char *remote_addr6, u16 remote_port6,
 	if (error)
 		return false;
 
-	success &= ASSERT_INT(0, sessiondb_get(&tuple6, NULL, NULL, &session), "Session exists");
+	success &= ASSERT_INT(0, sessiondb_find(jool.nat64.session, &tuple6, NULL, NULL, &session), "Session exists");
 	if (!success)
 		return false;
 
@@ -130,7 +132,7 @@ static int invert_tuple(struct tuple *tuple)
 {
 	struct session_entry *session;
 
-	if (sessiondb_get(tuple, NULL, NULL, &session)) {
+	if (sessiondb_find(jool.nat64.session, tuple, NULL, NULL, &session)) {
 		log_err("Could not find the session from the previous test.");
 		return -EEXIST;
 	}
@@ -145,20 +147,19 @@ static int invert_tuple(struct tuple *tuple)
 
 static bool test_filtering_and_updating(void)
 {
-	struct packet pkt;
+	struct xlation state = { .jool = jool };
 	struct sk_buff *skb;
-	struct tuple tuple;
 	bool success = true;
 
 	log_debug("ICMPv4 errors should succeed but not affect the tables.");
-	if (init_tuple4(&tuple, "8.7.6.5", 8765, "192.0.2.128", 65000, L4PROTO_TCP))
+	if (init_tuple4(&state.in.tuple, "8.7.6.5", 8765, "192.0.2.128", 65000, L4PROTO_TCP))
 		return false;
-	if (create_skb4_icmp_error(&tuple, &skb, 100, 32))
+	if (create_skb4_icmp_error(&state.in.tuple, &skb, 100, 32))
 		return false;
-	if (pkt_init_ipv4(&pkt, skb))
+	if (pkt_init_ipv4(&state.in, skb))
 		return false;
 
-	success &= ASSERT_INT(VERDICT_CONTINUE, filtering_and_updating(&pkt, &tuple), "ICMP error");
+	success &= ASSERT_INT(VERDICT_CONTINUE, filtering_and_updating(&state), "ICMP error");
 	success &= assert_bib_count(0, L4PROTO_TCP);
 	success &= assert_bib_count(0, L4PROTO_UDP);
 	success &= assert_bib_count(0, L4PROTO_ICMP);
@@ -171,14 +172,14 @@ static bool test_filtering_and_updating(void)
 		return false;
 
 	log_debug("ICMPv6 errors should succeed but not affect the tables.");
-	if (init_tuple6(&tuple, "1::2", 1212, "3::3:4", 3434, L4PROTO_TCP))
+	if (init_tuple6(&state.in.tuple, "1::2", 1212, "3::3:4", 3434, L4PROTO_TCP))
 		return false;
-	if (create_skb6_icmp_error(&tuple, &skb, 100, 32))
+	if (create_skb6_icmp_error(&state.in.tuple, &skb, 100, 32))
 		return false;
-	if (pkt_init_ipv6(&pkt, skb))
+	if (pkt_init_ipv6(&state.in, skb))
 		return false;
 
-	success &= ASSERT_INT(VERDICT_CONTINUE, filtering_and_updating(&pkt, &tuple), "ICMP error");
+	success &= ASSERT_INT(VERDICT_CONTINUE, filtering_and_updating(&state), "ICMP error");
 	success &= assert_bib_count(0, L4PROTO_TCP);
 	success &= assert_bib_count(0, L4PROTO_UDP);
 	success &= assert_bib_count(0, L4PROTO_ICMP);
@@ -191,14 +192,14 @@ static bool test_filtering_and_updating(void)
 		return false;
 
 	log_debug("Hairpinning loops should be dropped.");
-	if (init_tuple6(&tuple, "3::1:2", 1212, "3::3:4", 3434, L4PROTO_UDP))
+	if (init_tuple6(&state.in.tuple, "3::1:2", 1212, "3::3:4", 3434, L4PROTO_UDP))
 		return false;
-	if (create_skb6_udp(&tuple, &skb, 100, 32))
+	if (create_skb6_udp(&state.in.tuple, &skb, 100, 32))
 		return false;
-	if (pkt_init_ipv6(&pkt, skb))
+	if (pkt_init_ipv6(&state.in, skb))
 		return false;
 
-	success &= ASSERT_INT(VERDICT_DROP, filtering_and_updating(&pkt, &tuple), "Hairpinning");
+	success &= ASSERT_INT(VERDICT_DROP, filtering_and_updating(&state), "Hairpinning");
 	success &= assert_bib_count(0, L4PROTO_UDP);
 	success &= assert_session_count(0, L4PROTO_UDP);
 
@@ -207,14 +208,14 @@ static bool test_filtering_and_updating(void)
 		return false;
 
 	log_debug("Packets not headed to pool6 must not be translated.");
-	if (init_tuple6(&tuple, "1::2", 1212, "4::1", 3434, L4PROTO_UDP))
+	if (init_tuple6(&state.in.tuple, "1::2", 1212, "4::1", 3434, L4PROTO_UDP))
 		return false;
-	if (create_skb6_udp(&tuple, &skb, 100, 32))
+	if (create_skb6_udp(&state.in.tuple, &skb, 100, 32))
 		return false;
-	if (pkt_init_ipv6(&pkt, skb))
+	if (pkt_init_ipv6(&state.in, skb))
 		return false;
 
-	success &= ASSERT_INT(VERDICT_ACCEPT, filtering_and_updating(&pkt, &tuple), "Not pool6 packet");
+	success &= ASSERT_INT(VERDICT_ACCEPT, filtering_and_updating(&state), "Not pool6 packet");
 	success &= assert_bib_count(0, L4PROTO_UDP);
 	success &= assert_session_count(0, L4PROTO_UDP);
 
@@ -223,14 +224,14 @@ static bool test_filtering_and_updating(void)
 		return false;
 
 	log_debug("Packets not headed to pool4 must not be translated.");
-	if (init_tuple4(&tuple, "8.7.6.5", 8765, "5.6.7.8", 5678, L4PROTO_UDP))
+	if (init_tuple4(&state.in.tuple, "8.7.6.5", 8765, "5.6.7.8", 5678, L4PROTO_UDP))
 		return false;
-	if (create_skb4_udp(&tuple, &skb, 100, 32))
+	if (create_skb4_udp(&state.in.tuple, &skb, 100, 32))
 		return false;
-	if (pkt_init_ipv4(&pkt, skb))
+	if (pkt_init_ipv4(&state.in, skb))
 		return false;
 
-	success &= ASSERT_INT(VERDICT_ACCEPT, filtering_and_updating(&pkt, &tuple), "Not pool4 packet");
+	success &= ASSERT_INT(VERDICT_ACCEPT, filtering_and_updating(&state), "Not pool4 packet");
 	success &= assert_bib_count(0, L4PROTO_UDP);
 	success &= assert_session_count(0, L4PROTO_UDP);
 
@@ -240,14 +241,14 @@ static bool test_filtering_and_updating(void)
 
 	log_debug("Other IPv6 packets should survive validations.");
 	/*  */
-	if (init_tuple6(&tuple, "1::2", 1212, "3::3:4", 3434, L4PROTO_UDP))
+	if (init_tuple6(&state.in.tuple, "1::2", 1212, "3::3:4", 3434, L4PROTO_UDP))
 		return false;
-	if (create_skb6_udp(&tuple, &skb, 100, 32))
+	if (create_skb6_udp(&state.in.tuple, &skb, 100, 32))
 		return false;
-	if (pkt_init_ipv6(&pkt, skb))
+	if (pkt_init_ipv6(&state.in, skb))
 		return false;
 
-	success &= ASSERT_INT(VERDICT_CONTINUE, filtering_and_updating(&pkt, &tuple), "IPv6 success");
+	success &= ASSERT_INT(VERDICT_CONTINUE, filtering_and_updating(&state), "IPv6 success");
 	success &= assert_bib_count(1, L4PROTO_UDP);
 	success &= assert_session_count(1, L4PROTO_UDP);
 
@@ -256,14 +257,14 @@ static bool test_filtering_and_updating(void)
 		return false;
 
 	log_debug("Other IPv4 packets should survive validations.");
-	if (invert_tuple(&tuple))
+	if (invert_tuple(&state.in.tuple))
 		return false;
-	if (create_skb4_udp(&tuple, &skb, 100, 32))
+	if (create_skb4_udp(&state.in.tuple, &skb, 100, 32))
 		return false;
-	if (pkt_init_ipv4(&pkt, skb))
+	if (pkt_init_ipv4(&state.in, skb))
 		return false;
 
-	success &= ASSERT_INT(VERDICT_CONTINUE, filtering_and_updating(&pkt, &tuple), "IPv4 success");
+	success &= ASSERT_INT(VERDICT_CONTINUE, filtering_and_updating(&state), "IPv4 success");
 	success &= assert_bib_count(1, L4PROTO_UDP);
 	success &= assert_session_count(1, L4PROTO_UDP);
 
@@ -273,34 +274,33 @@ static bool test_filtering_and_updating(void)
 
 static bool test_udp(void)
 {
-	struct packet pkt;
+	struct xlation state = { .jool = jool };
 	struct sk_buff *skb;
-	struct tuple tuple;
 	bool success = true;
 
 	/* An IPv4 packet attempts to be translated without state. */
-	if (init_tuple4(&tuple, "0.0.0.4", 3434, "192.0.2.128", 1024, L4PROTO_UDP))
+	if (init_tuple4(&state.in.tuple, "0.0.0.4", 3434, "192.0.2.128", 1024, L4PROTO_UDP))
 		return false;
-	if (create_skb4_udp(&tuple, &skb, 16, 32))
+	if (create_skb4_udp(&state.in.tuple, &skb, 16, 32))
 		return false;
-	if (pkt_init_ipv4(&pkt, skb))
+	if (pkt_init_ipv4(&state.in, skb))
 		return false;
 
-	success &= ASSERT_INT(VERDICT_ACCEPT, ipv4_simple(&pkt, &tuple), "result 1");
+	success &= ASSERT_INT(VERDICT_ACCEPT, ipv4_simple(&state), "result 1");
 	success &= assert_bib_count(0, L4PROTO_UDP);
 	success &= assert_session_count(0, L4PROTO_UDP);
 
 	kfree_skb(skb);
 
 	/* IPv6 packet gets translated correctly. */
-	if (init_tuple6(&tuple, "1::2", 1212, "3::4", 3434, L4PROTO_UDP))
+	if (init_tuple6(&state.in.tuple, "1::2", 1212, "3::4", 3434, L4PROTO_UDP))
 		return false;
-	if (create_skb6_udp(&tuple, &skb, 16, 32))
+	if (create_skb6_udp(&state.in.tuple, &skb, 16, 32))
 		return false;
-	if (pkt_init_ipv6(&pkt, skb))
+	if (pkt_init_ipv6(&state.in, skb))
 		return false;
 
-	success &= ASSERT_INT(VERDICT_CONTINUE, ipv6_simple(&pkt, &tuple), "result 2");
+	success &= ASSERT_INT(VERDICT_CONTINUE, ipv6_simple(&state), "result 2");
 	success &= assert_bib_count(1, L4PROTO_UDP);
 	success &= assert_bib_exists("1::2", 1212, "192.0.2.128", 1024, L4PROTO_UDP, 1);
 	success &= assert_session_count(1, L4PROTO_UDP);
@@ -311,14 +311,14 @@ static bool test_udp(void)
 	kfree_skb(skb);
 
 	/* Now that there's state, the IPv4 packet manages to traverse. */
-	if (invert_tuple(&tuple))
+	if (invert_tuple(&state.in.tuple))
 		return false;
-	if (create_skb4_udp(&tuple, &skb, 16, 32))
+	if (create_skb4_udp(&state.in.tuple, &skb, 16, 32))
 		return false;
-	if (pkt_init_ipv4(&pkt, skb))
+	if (pkt_init_ipv4(&state.in, skb))
 		return false;
 
-	success &= ASSERT_INT(VERDICT_CONTINUE, ipv4_simple(&pkt, &tuple), "result 3");
+	success &= ASSERT_INT(VERDICT_CONTINUE, ipv4_simple(&state), "result 3");
 	success &= assert_bib_count(1, L4PROTO_UDP);
 	success &= assert_bib_exists("1::2", 1212, "192.0.2.128", 1024, L4PROTO_UDP, 1);
 	success &= assert_session_count(1, L4PROTO_UDP);
@@ -333,34 +333,33 @@ static bool test_udp(void)
 
 static bool test_icmp(void)
 {
-	struct packet pkt;
+	struct xlation state = { .jool = jool };
 	struct sk_buff *skb;
-	struct tuple tuple;
 	bool success = true;
 
 	/* A IPv4 packet attempts to be translated without state */
-	if (init_tuple4(&tuple, "0.0.0.4", 1024, "192.0.2.128", 1024, L4PROTO_ICMP))
+	if (init_tuple4(&state.in.tuple, "0.0.0.4", 1024, "192.0.2.128", 1024, L4PROTO_ICMP))
 		return false;
-	if (create_skb4_icmp_info(&tuple, &skb, 16, 32))
+	if (create_skb4_icmp_info(&state.in.tuple, &skb, 16, 32))
 		return false;
-	if (pkt_init_ipv4(&pkt, skb))
+	if (pkt_init_ipv4(&state.in, skb))
 		return false;
 
-	success &= ASSERT_INT(VERDICT_ACCEPT, ipv4_simple(&pkt, &tuple), "result 1");
+	success &= ASSERT_INT(VERDICT_ACCEPT, ipv4_simple(&state), "result 1");
 	success &= assert_bib_count(0, L4PROTO_ICMP);
 	success &= assert_session_count(0, L4PROTO_ICMP);
 
 	kfree_skb(skb);
 
 	/* IPv6 packet and gets translated correctly. */
-	if (init_tuple6(&tuple, "1::2", 1212, "3::4", 1212, L4PROTO_ICMP))
+	if (init_tuple6(&state.in.tuple, "1::2", 1212, "3::4", 1212, L4PROTO_ICMP))
 		return false;
-	if (create_skb6_icmp_info(&tuple, &skb, 16, 32))
+	if (create_skb6_icmp_info(&state.in.tuple, &skb, 16, 32))
 		return false;
-	if (pkt_init_ipv6(&pkt, skb))
+	if (pkt_init_ipv6(&state.in, skb))
 		return false;
 
-	success &= ASSERT_INT(VERDICT_CONTINUE, ipv6_simple(&pkt, &tuple), "result 2");
+	success &= ASSERT_INT(VERDICT_CONTINUE, ipv6_simple(&state), "result 2");
 	success &= assert_bib_count(1, L4PROTO_ICMP);
 	success &= assert_bib_exists("1::2", 1212, "192.0.2.128", 1024, L4PROTO_ICMP, 1);
 	success &= assert_session_count(1, L4PROTO_ICMP);
@@ -371,14 +370,14 @@ static bool test_icmp(void)
 	kfree_skb(skb);
 
 	/* Now that there's state, the IPv4 packet manages to traverse. */
-	if (invert_tuple(&tuple))
+	if (invert_tuple(&state.in.tuple))
 		return false;
-	if (create_skb4_icmp_info(&tuple, &skb, 16, 32))
+	if (create_skb4_icmp_info(&state.in.tuple, &skb, 16, 32))
 		return false;
-	if (pkt_init_ipv4(&pkt, skb))
+	if (pkt_init_ipv4(&state.in, skb))
 		return false;
 
-	success &= ASSERT_INT(VERDICT_CONTINUE, ipv4_simple(&pkt, &tuple), "result 3");
+	success &= ASSERT_INT(VERDICT_CONTINUE, ipv4_simple(&state), "result 3");
 	success &= assert_bib_count(1, L4PROTO_ICMP);
 	success &= assert_bib_exists("1::2", 1212, "192.0.2.128", 1024, L4PROTO_ICMP, 1);
 	success &= assert_session_count(1, L4PROTO_ICMP);
@@ -393,19 +392,18 @@ static bool test_icmp(void)
 
 static bool test_tcp_closed_state_handle_6(void)
 {
-	struct tuple tuple6;
-	struct packet pkt;
+	struct xlation state = { .jool = jool };
 	struct sk_buff *skb;
 	bool success = true;
 
-	if (init_tuple6(&tuple6, "1::2", 1212, "3::4", 3434, L4PROTO_TCP))
+	if (init_tuple6(&state.in.tuple, "1::2", 1212, "3::4", 3434, L4PROTO_TCP))
 		return false;
 	if (create_tcp_packet(&skb, L3PROTO_IPV6, true, false, false))
 		return false;
-	if (pkt_init_ipv6(&pkt, skb))
+	if (pkt_init_ipv6(&state.in, skb))
 		return false;
 
-	success &= ASSERT_INT(VERDICT_CONTINUE, tcp_closed_state(&pkt, &tuple6),
+	success &= ASSERT_INT(VERDICT_CONTINUE, tcp_closed_state(&state),
 			"V6 syn-result");
 	success &= assert_session_exists("1::2", 1212, "3::4", 3434,
 			"192.0.2.128", 1024, "0.0.0.4", 3434,
@@ -417,26 +415,25 @@ static bool test_tcp_closed_state_handle_6(void)
 
 static bool test_tcp_closed_state_handle_4(void)
 {
+	struct xlation state = { .jool = jool };
 	struct session_entry *session;
-	struct tuple tuple4;
-	struct packet pkt;
 	struct sk_buff *skb;
 	struct tcphdr *hdr_tcp;
 	bool success = true;
 
-	if (init_tuple4(&tuple4, "5.6.7.8", 5678, "192.0.2.128", 8765, L4PROTO_TCP))
+	if (init_tuple4(&state.in.tuple, "5.6.7.8", 5678, "192.0.2.128", 8765, L4PROTO_TCP))
 		return false;
-	if (create_skb4_tcp(&tuple4, &skb, 100, 32))
+	if (create_skb4_tcp(&state.in.tuple, &skb, 100, 32))
 		return false;
-	if (pkt_init_ipv4(&pkt, skb))
+	if (pkt_init_ipv4(&state.in, skb))
 		return false;
 	hdr_tcp = tcp_hdr(skb);
 	hdr_tcp->syn = true;
 	hdr_tcp->rst = false;
 	hdr_tcp->fin = false;
 
-	success &= ASSERT_INT(VERDICT_STOLEN, tcp_closed_state(&pkt, &tuple4), "V4 syn-result");
-	success &= ASSERT_INT(-ESRCH, sessiondb_get(&tuple4, NULL, NULL, &session), "V4 syn-session.");
+	success &= ASSERT_INT(VERDICT_STOLEN, tcp_closed_state(&state), "V4 syn-result");
+	success &= ASSERT_INT(-ESRCH, sessiondb_find(jool.nat64.session, &state.in.tuple, NULL, NULL, &session), "V4 syn-session.");
 	/*
 	 * Well, it would be nice to test the packet was actually linked in pkt
 	 * queue, but it's not possible using the current API.
@@ -454,20 +451,19 @@ static bool test_tcp_closed_state_handle_4(void)
  */
 static bool test_tcp(void)
 {
-	bool success = true;
-	struct tuple tuple6, tuple4;
-	struct packet pkt;
+	struct xlation state;
 	struct sk_buff *skb;
+	bool success = true;
 
 	/* V6 SYN */
-	if (init_tuple6(&tuple6, "1::2", 1212, "3::4", 3434, L4PROTO_TCP))
+	if (init_tuple6(&state.in.tuple, "1::2", 1212, "3::4", 3434, L4PROTO_TCP))
 		return false;
 	if (create_tcp_packet(&skb, L3PROTO_IPV6, true, false, false))
 		return false;
-	if (pkt_init_ipv6(&pkt, skb))
+	if (pkt_init_ipv6(&state.in, skb))
 		return false;
 
-	success &= ASSERT_INT(VERDICT_CONTINUE, tcp(&pkt, &tuple6), "Closed-result");
+	success &= ASSERT_INT(VERDICT_CONTINUE, tcp(&state), "Closed-result");
 	success &= assert_bib_count(1, L4PROTO_TCP);
 	success &= assert_bib_exists("1::2", 1212, "192.0.2.128", 1024, L4PROTO_TCP, 1);
 	success &= assert_session_count(1, L4PROTO_TCP);
@@ -478,15 +474,14 @@ static bool test_tcp(void)
 	kfree_skb(skb);
 
 	/* V4 SYN */
-	tuple4 = tuple6;
-	if (invert_tuple(&tuple4))
+	if (invert_tuple(&state.in.tuple))
 		return false;
 	if (create_tcp_packet(&skb, L3PROTO_IPV4, true, false, false))
 		return false;
-	if (pkt_init_ipv4(&pkt, skb))
+	if (pkt_init_ipv4(&state.in, skb))
 		return false;
 
-	success &= ASSERT_INT(VERDICT_CONTINUE, tcp(&pkt, &tuple4), "V6 init-result");
+	success &= ASSERT_INT(VERDICT_CONTINUE, tcp(&state), "V6 init-result");
 	success &= assert_bib_count(1, L4PROTO_TCP);
 	success &= assert_bib_exists("1::2", 1212, "192.0.2.128", 1024, L4PROTO_TCP, 1);
 	success &= assert_session_count(1, L4PROTO_TCP);
@@ -499,10 +494,10 @@ static bool test_tcp(void)
 	/* V6 RST */
 	if (create_tcp_packet(&skb, L3PROTO_IPV6, false, true, false))
 		return false;
-	if (pkt_init_ipv6(&pkt, skb))
+	if (pkt_init_ipv6(&state.in, skb))
 		return false;
 
-	success &= ASSERT_INT(VERDICT_CONTINUE, tcp(&pkt, &tuple6), "Established-result");
+	success &= ASSERT_INT(VERDICT_CONTINUE, tcp(&state), "Established-result");
 	success &= assert_bib_count(1, L4PROTO_TCP);
 	success &= assert_bib_exists("1::2", 1212, "192.0.2.128", 1024, L4PROTO_TCP, 1);
 	success &= assert_session_count(1, L4PROTO_TCP);
@@ -515,10 +510,10 @@ static bool test_tcp(void)
 	/* V6 SYN */
 	if (create_tcp_packet(&skb, L3PROTO_IPV6, true, false, false))
 		return false;
-	if (pkt_init_ipv6(&pkt, skb))
+	if (pkt_init_ipv6(&state.in, skb))
 		return false;
 
-	success &= ASSERT_INT(VERDICT_CONTINUE, tcp(&pkt, &tuple6), "Trans-result");
+	success &= ASSERT_INT(VERDICT_CONTINUE, tcp(&state), "Trans-result");
 	success &= assert_bib_count(1, L4PROTO_TCP);
 	success &= assert_bib_exists("1::2", 1212, "192.0.2.128", 1024, L4PROTO_TCP, 1);
 	success &= assert_session_count(1, L4PROTO_TCP);
@@ -533,37 +528,39 @@ static bool test_tcp(void)
 
 static bool init(void)
 {
-	char *prefixes6[] = { "3::/96" };
-	char *prefixes4[] = { "192.0.2.128/32" };
+	struct ipv6_prefix prefix;
+	int error;
 
-	if (config_init(false))
-		goto config_fail;
-	if (pool6_init(prefixes6, 1))
-		goto pool6_fail;
-	if (pool4db_init(16, prefixes4, 1))
-		goto pool4_fail;
-	if (filtering_init())
-		goto filtering_fail;
+	error = joolns_init();
+	if (error)
+		return error;
+	error = joolns_add();
+	if (error)
+		goto simple_fail;
+	error = joolns_get_current(&jool);
+	if (error)
+		goto simple_fail;
 
-	return true;
+	error = str_to_addr6("3::", &prefix.address);
+	if (error)
+		goto full_fail;
+	prefix.len = 96;
+	error = pool6_add(jool.pool6, &prefix);
+	if (error)
+		goto full_fail;
 
-filtering_fail:
-	pool4db_destroy();
-pool4_fail:
-	pool6_destroy();
-pool6_fail:
-	config_destroy();
-config_fail:
-	return false;
+full_fail:
+	joolns_put(&jool);
+simple_fail:
+	joolns_destroy();
+	return error;
 }
 
 static void end(void)
 {
 	icmp64_pop();
-	filtering_destroy();
-	pool4db_destroy();
-	pool6_destroy();
-	config_destroy();
+	joolns_put(&jool);
+	joolns_destroy();
 }
 
 static int filtering_test_init(void)

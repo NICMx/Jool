@@ -11,9 +11,9 @@
  * @author Alberto Leiva
  */
 
-#include "nat64/mod/common/packet.h"
+#include "nat64/mod/common/translation_state.h"
 
-verdict determine_in_tuple(struct packet *pkt);
+verdict determine_in_tuple(struct xlation *state);
 
 
 #endif /* _JOOL_MOD_INCOMING_H */

@@ -17,10 +17,10 @@ static verdict core_common(struct xlation *state)
 	verdict result;
 
 	if (xlat_is_nat64()) {
-		result = determine_in_tuple(&state->in);
+		result = determine_in_tuple(state);
 		if (result != VERDICT_CONTINUE)
 			goto end;
-		result = filtering_and_updating(&state->in);
+		result = filtering_and_updating(state);
 		if (result != VERDICT_CONTINUE)
 			goto end;
 		result = compute_out_tuple(state);
@@ -69,7 +69,7 @@ unsigned int core_4to6(struct sk_buff *skb, const struct net_device *dev)
 
 	if (joolns_get(dev_net(dev), &state.jool))
 		return NF_ACCEPT;
-	if (config_is_xlat_disabled(state.jool.global)) {
+	if (state.jool.global->cfg.is_disable) {
 		xlation_put(&state);
 		return NF_ACCEPT;
 	}
@@ -96,7 +96,7 @@ unsigned int core_6to4(struct sk_buff *skb, const struct net_device *dev)
 
 	if (joolns_get(dev_net(dev), &state.jool))
 		return NF_ACCEPT;
-	if (config_is_xlat_disabled(state.jool.global)) {
+	if (state.jool.global->cfg.is_disable) {
 		xlation_put(&state);
 		return NF_ACCEPT;
 	}

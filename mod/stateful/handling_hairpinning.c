@@ -13,9 +13,9 @@
  * @param pkt outgoing packet the NAT64 would send if it's not a hairpin.
  * @return whether pkt is a hairpin packet.
  */
-bool is_hairpin(struct packet *pkt, struct tuple *tuple)
+bool is_hairpin(struct xlation *state)
 {
-	if (tuple->l3_proto == L3PROTO_IPV6)
+	if (state->out.tuple.l3_proto == L3PROTO_IPV6)
 		return false;
 
 	/*
@@ -27,7 +27,8 @@ bool is_hairpin(struct packet *pkt, struct tuple *tuple)
 	 * for its node. It might take a miracle for these packets to exist,
 	 * but hey, why the hell not.
 	 */
-	return pool4db_contains(tuple->l4_proto, &tuple->dst.addr4);
+	return pool4db_contains(state->jool.nat64.pool4, state->jool.ns,
+			state->out.tuple.l4_proto, &state->out.tuple.dst.addr4);
 }
 
 /**
@@ -38,24 +39,26 @@ bool is_hairpin(struct packet *pkt, struct tuple *tuple)
  * @param tuple_in skb_in's tuple.
  * @return whether we managed to U-turn the packet successfully.
  */
-verdict handling_hairpinning(struct packet *in, struct tuple *tuple_in)
+verdict handling_hairpinning(struct xlation *old)
 {
-	struct packet out;
-	struct tuple tuple_out;
+	struct xlation new;
 	verdict result;
 
 	log_debug("Step 5: Handling Hairpinning...");
 
-	result = filtering_and_updating(in, tuple_in);
+	new.jool = old->jool;
+	new.in = old->out;
+
+	result = filtering_and_updating(&new);
 	if (result != VERDICT_CONTINUE)
 		return result;
-	result = compute_out_tuple(tuple_in, &tuple_out, in);
+	result = compute_out_tuple(&new);
 	if (result != VERDICT_CONTINUE)
 		return result;
-	result = translating_the_packet(&tuple_out, in, &out);
+	result = translating_the_packet(&new);
 	if (result != VERDICT_CONTINUE)
 		return result;
-	result = sendpkt_send(in, &out);
+	result = sendpkt_send(&new);
 	if (result != VERDICT_CONTINUE)
 		return result;
 

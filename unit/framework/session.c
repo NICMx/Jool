@@ -1,7 +1,6 @@
 #include "nat64/unit/session.h"
 
 #include "nat64/common/str_utils.h"
-#include "nat64/mod/stateful/session/db.h"
 
 static int session_print_aux(struct session_entry *session, void *arg)
 {
@@ -14,13 +13,14 @@ static int session_print_aux(struct session_entry *session, void *arg)
 	return 0;
 }
 
-int session_print(l4_protocol l4_proto)
+int session_print(struct sessiondb *db, l4_protocol l4_proto)
 {
 	log_debug("Sessions:");
-	return sessiondb_foreach(l4_proto, session_print_aux, NULL, NULL, NULL);
+	return sessiondb_foreach(db, l4_proto, session_print_aux, NULL, NULL,
+			NULL);
 }
 
-struct session_entry *session_inject(
+struct session_entry *session_inject(struct sessiondb *db,
 		char *remote6_addr, u16 remote6_id,
 		char *local6_addr, u16 local6_id,
 		char *local4_addr, u16 local4_id,
@@ -52,5 +52,5 @@ struct session_entry *session_inject(
 	if (!session)
 		return NULL;
 
-	return sessiondb_add(session, is_est, false) ? NULL : session;
+	return sessiondb_add(db, session, is_est, false) ? NULL : session;
 }

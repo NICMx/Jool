@@ -78,7 +78,7 @@ static void session_release(struct kref *ref)
 	session = container_of(ref, struct session_entry, refcounter);
 
 	if (session->bib)
-		bibdb_return(session->bib);
+		bibentry_put(session->bib);
 	kmem_cache_free(entry_cache, session);
 }
 
@@ -100,13 +100,9 @@ void session_log(const struct session_entry *session, const char *action)
 	struct timeval tval;
 	struct tm t;
 
-	if (!config_get_session_logging())
-		return;
-
 	do_gettimeofday(&tval);
 	time_to_tm(tval.tv_sec, 0, &t);
-	log_info("%ld/%d/%d %d:%d:%d (GMT) - %s %pI6c#%u|%pI6c#%u|"
-			"%pI4#%u|%pI4#%u|%s",
+	log_info("%ld/%d/%d %d:%d:%d (GMT) - %s %pI6c#%u|%pI6c#%u|%pI4#%u|%pI4#%u|%s",
 			1900 + t.tm_year, t.tm_mon + 1, t.tm_mday,
 			t.tm_hour, t.tm_min, t.tm_sec, action,
 			&session->remote6.l3, session->remote6.l4,

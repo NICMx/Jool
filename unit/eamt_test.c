@@ -12,14 +12,16 @@ MODULE_DESCRIPTION("Unit tests for the EAMT module");
 #include "nat64/unit/unit_test.h"
 #include "../mod/stateless/eam.c"
 
+static struct eam_table *eamt;
+
 static bool init(void)
 {
-	return eamt_init() ? false : true;
+	return eamt_init(&eamt) ? false : true;
 }
 
 static void end(void)
 {
-	eamt_destroy();
+	eamt_put(eamt);
 }
 
 static int __add_entry(char *addr4, __u8 len4, char *addr6, __u8 len6)
@@ -37,7 +39,7 @@ static int __add_entry(char *addr4, __u8 len4, char *addr6, __u8 len6)
 	prefix6.len = len6;
 
 	log_debug("\nInserting %s/%u | %s/%u", addr6, len6, addr4, len4);
-	error = eamt_add(&prefix6, &prefix4, true);
+	error = eamt_add(eamt, &prefix6, &prefix4, true);
 	/*
 	if (error) {
 		log_err("Errcode %d; I'm not going to print the tree.", error);
@@ -101,10 +103,10 @@ static bool test_6to4(char *addr6_str, char *addr4_str)
 		return false;
 
 	if (addr4_str) {
-		success &= ASSERT_INT(0, eamt_xlat_6to4(&addr6, &addr4), "errcode");
+		success &= ASSERT_INT(0, eamt_xlat_6to4(eamt, &addr6, &addr4), "errcode");
 		success &= ASSERT_ADDR4(addr4_str, &addr4, "resulting address");
 	} else {
-		success &= ASSERT_INT(-ESRCH, eamt_xlat_6to4(&addr6, &addr4), "errcode");
+		success &= ASSERT_INT(-ESRCH, eamt_xlat_6to4(eamt, &addr6, &addr4), "errcode");
 	}
 
 	return success;
@@ -122,10 +124,10 @@ static bool test_4to6(char *addr4_str, char *addr6_str)
 		return false;
 
 	if (addr6_str) {
-		success &= ASSERT_INT(0, eamt_xlat_4to6(&addr4, &addr6), "errcode");
+		success &= ASSERT_INT(0, eamt_xlat_4to6(eamt, &addr4, &addr6), "errcode");
 		success &= ASSERT_ADDR6(addr6_str, &addr6, "resulting address");
 	} else {
-		success &= ASSERT_INT(-ESRCH, eamt_xlat_4to6(&addr4, &addr6), "errcode");
+		success &= ASSERT_INT(-ESRCH, eamt_xlat_4to6(eamt, &addr4, &addr6), "errcode");
 	}
 
 	return success;
@@ -223,7 +225,7 @@ static bool remove_entry(char *addr4, __u8 len4, char *addr6, __u8 len6,
 		prefix6.len = len6;
 	}
 
-	error = eamt_rm(addr6 ? &prefix6 : NULL, addr4 ? &prefix4 : NULL);
+	error = eamt_rm(eamt, addr6 ? &prefix6 : NULL, addr4 ? &prefix4 : NULL);
 	success = ASSERT_INT(expected_error, error, "removing EAM entry");
 
 	/* rtrie_print(eamt.tree6); */
@@ -312,7 +314,7 @@ static bool remove_test(void)
 	success &= test_6to4("3::", NULL);
 	success &= test_4to6("30.0.0.0", NULL);
 
-	success &= ASSERT_U64(0ULL, eamt.count, "Table count");
+	success &= ASSERT_U64(0ULL, eamt->count, "Table count");
 	if (!success)
 		return false;
 
@@ -323,7 +325,7 @@ static bool remove_test(void)
 	success &= test_6to4("1::10", "1.0.0.0");
 	success &= test_4to6("2.0.0.0", NULL);
 	success &= test("3.0.0.0", "1::20");
-	eamt_flush();
+	eamt_flush(eamt);
 
 	success &= create_two_story_trie();
 	success &= remove_entry(NULL, 0, "1::20", 124, 0);
@@ -331,7 +333,7 @@ static bool remove_test(void)
 	success &= test("2.0.0.0", "1::10");
 	success &= test_6to4("1::20", "1.0.0.0");
 	success &= test_4to6("3.0.0.0", NULL);
-	eamt_flush();
+	eamt_flush(eamt);
 
 	success &= create_two_story_trie();
 	success &= remove_entry(NULL, 0, "1::00", 120, 0);
@@ -339,7 +341,7 @@ static bool remove_test(void)
 	success &= test_4to6("1.0.0.0", NULL);
 	success &= test("2.0.0.0", "1::10");
 	success &= test("3.0.0.0", "1::20");
-	eamt_flush();
+	eamt_flush(eamt);
 
 	/* trie is three or more nodes high */
 	success &= create_four_story_trie();
@@ -352,7 +354,7 @@ static bool remove_test(void)
 	success &= test("5.0.0.0", "1:1:2::");
 	success &= test("6.0.0.0", "1:2:1::");
 	success &= test("7.0.0.0", "1:2:1:1::");
-	eamt_flush();
+	eamt_flush(eamt);
 
 	success &= create_four_story_trie();
 	success &= remove_entry(NULL, 0, "1:1::", 32, 0);
@@ -363,7 +365,7 @@ static bool remove_test(void)
 	success &= test("5.0.0.0", "1:1:2::");
 	success &= test("6.0.0.0", "1:2:1::");
 	success &= test("7.0.0.0", "1:2:1:1::");
-	eamt_flush();
+	eamt_flush(eamt);
 
 	success &= create_four_story_trie();
 	success &= remove_entry(NULL, 0, "1:2::", 32, 0);
@@ -374,7 +376,7 @@ static bool remove_test(void)
 	success &= test("5.0.0.0", "1:1:2::");
 	success &= test("6.0.0.0", "1:2:1::");
 	success &= test("7.0.0.0", "1:2:1:1::");
-	eamt_flush();
+	eamt_flush(eamt);
 
 	success &= create_four_story_trie();
 	success &= remove_entry(NULL, 0, "1:1:1::", 48, 0);
@@ -385,7 +387,7 @@ static bool remove_test(void)
 	success &= test("5.0.0.0", "1:1:2::");
 	success &= test("6.0.0.0", "1:2:1::");
 	success &= test("7.0.0.0", "1:2:1:1::");
-	eamt_flush();
+	eamt_flush(eamt);
 
 	success &= create_four_story_trie();
 	success &= remove_entry(NULL, 0, "1:1:2::", 48, 0);
@@ -396,7 +398,7 @@ static bool remove_test(void)
 	success &= test_6to4("1:1:2::", "2.0.0.0");
 	success &= test("6.0.0.0", "1:2:1::");
 	success &= test("7.0.0.0", "1:2:1:1::");
-	eamt_flush();
+	eamt_flush(eamt);
 
 	success &= create_four_story_trie();
 	success &= remove_entry(NULL, 0, "1:2:1::", 48, 0);
@@ -407,7 +409,7 @@ static bool remove_test(void)
 	success &= test("5.0.0.0", "1:1:2::");
 	success &= test_6to4("1:2:1::", "3.0.0.0");
 	success &= test("7.0.0.0", "1:2:1:1::");
-	eamt_flush();
+	eamt_flush(eamt);
 
 	success &= create_four_story_trie();
 	success &= remove_entry(NULL, 0, "1:2:1:1::", 64, 0);
@@ -418,7 +420,7 @@ static bool remove_test(void)
 	success &= test("5.0.0.0", "1:1:2::");
 	success &= test("6.0.0.0", "1:2:1::");
 	success &= test_6to4("1:2:1:1::", "6.0.0.0");
-	eamt_flush();
+	eamt_flush(eamt);
 
 	return success;
 }

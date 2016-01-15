@@ -11,8 +11,9 @@
  * @author Daniel Hernandez
  */
 
-#include "nat64/mod/common/packet.h"
+#include "nat64/mod/common/translation_state.h"
 
-verdict filtering_and_updating(struct packet *in);
+verdict filtering_and_updating(struct xlation *state);
+enum session_fate tcp_expired_cb(struct session_entry *session, void *arg);
 
 #endif /* _JOOL_MOD_FILTERING_H */

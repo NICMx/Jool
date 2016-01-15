@@ -6,14 +6,13 @@
 #include "nat64/mod/common/ipv6_hdr_iterator.h"
 #include "nat64/mod/common/namespace.h"
 #include "nat64/mod/common/route.h"
-#include "nat64/mod/common/rfc6145/6to4.h"
 
-static bool contains_addr(const struct in_addr *addr)
+static bool contains_addr(struct net *ns, const struct in_addr *addr)
 {
 	struct net_device *dev;
 	struct in_device *in_dev;
 
-	for_each_netdev_rcu(joolns_get(), dev) {
+	for_each_netdev_rcu(ns, dev) {
 		in_dev = __in_dev_get_rcu(dev);
 		if (!in_dev)
 			continue;
@@ -29,7 +28,7 @@ static bool contains_addr(const struct in_addr *addr)
 	return false;
 }
 
-bool pool4empty_contains(const struct ipv4_transport_addr *addr)
+bool pool4empty_contains(struct net *ns, const struct ipv4_transport_addr *addr)
 {
 	bool found;
 
@@ -40,19 +39,10 @@ bool pool4empty_contains(const struct ipv4_transport_addr *addr)
 		return false;
 
 	rcu_read_lock();
-	found = contains_addr(&addr->l3);
+	found = contains_addr(ns, &addr->l3);
 	rcu_read_unlock();
 
 	return found;
-}
-
-static struct dst_entry *____route4(struct packet *in, struct in_addr *daddr)
-{
-	struct ipv6hdr *hdr = pkt_ip6_hdr(in);
-	__u8 tos = ttp64_xlat_tos(hdr);
-	__u8 proto = ttp64_xlat_proto(hdr);
-
-	return __route4(daddr->s_addr, tos, proto, in->skb->mark, NULL);
 }
 
 /**
@@ -61,8 +51,8 @@ static struct dst_entry *____route4(struct packet *in, struct in_addr *daddr)
  * precedence.
  * If everything fails, attempts to use a host address.
  */
-static int __pick_addr(struct dst_entry *dst, struct in_addr *daddr,
-		struct in_addr *result)
+static int __pick_addr(struct net *ns, struct dst_entry *dst,
+		struct in_addr *daddr, struct in_addr *result)
 {
 	struct in_device *in_dev;
 	__be32 saddr = 0;
@@ -89,7 +79,7 @@ static int __pick_addr(struct dst_entry *dst, struct in_addr *daddr,
 		return 0; /* This is the typical happy path. */
 	}
 
-	if (contains_addr(daddr)) {
+	if (contains_addr(ns, daddr)) {
 		*result = *daddr;
 		return 0;
 	}
@@ -98,13 +88,13 @@ static int __pick_addr(struct dst_entry *dst, struct in_addr *daddr,
 	return -ESRCH;
 }
 
-static int pick_addr(struct dst_entry *dst, struct in_addr *daddr,
-		struct in_addr *result)
+static int pick_addr(struct net *ns, struct dst_entry *dst,
+		struct in_addr *daddr, struct in_addr *result)
 {
 	int error;
 
 	rcu_read_lock();
-	error = __pick_addr(dst, daddr, result);
+	error = __pick_addr(ns, dst, daddr, result);
 	rcu_read_unlock();
 
 	return error;
@@ -140,7 +130,8 @@ static int foreach_port(struct in_addr *addr,
 	return 0;
 }
 
-int pool4empty_foreach_taddr4(struct packet *in, struct in_addr *daddr,
+int pool4empty_foreach_taddr4(struct net *ns,
+		struct in_addr *daddr, __u8 tos, __u8 proto, __u32 mark,
 		int (*cb)(struct ipv4_transport_addr *, void *), void *arg,
 		unsigned int offset)
 {
@@ -148,11 +139,11 @@ int pool4empty_foreach_taddr4(struct packet *in, struct in_addr *daddr,
 	struct dst_entry *dst;
 	int error;
 
-	dst = ____route4(in, daddr);
+	dst = __route4(ns, daddr->s_addr, tos, proto, mark, NULL);
 	if (!dst)
 		return -EINVAL;
 
-	error = pick_addr(dst, daddr, &saddr);
+	error = pick_addr(ns, dst, daddr, &saddr);
 	if (error)
 		goto end;
 

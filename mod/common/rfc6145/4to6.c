@@ -114,7 +114,7 @@ static int generate_saddr6_nat64(struct xlation *state)
 	struct in_addr tmp;
 	int error;
 
-	src_better = state->jool.global->config.nat64.src_icmp6errs_better;
+	src_better = state->jool.global->cfg.nat64.src_icmp6errs_better;
 
 	if (src_better && pkt_is_icmp4_error(&state->in)) {
 		/* Issue #132 behaviour. */
@@ -197,7 +197,7 @@ static verdict translate_addrs46_siit(struct xlation *state)
 	bool hairpin;
 	verdict result;
 
-	hairpin_mode = state->jool.global->config.siit.eam_hairpin_mode;
+	hairpin_mode = state->jool.global->cfg.siit.eam_hairpin_mode;
 	hairpin = (hairpin_mode == EAM_HAIRPIN_SIMPLE)
 			|| pkt_is_intrinsic_hairpin(in);
 
@@ -299,7 +299,7 @@ verdict ttp46_ipv6(struct xlation *state)
 	}
 
 	hdr6->version = 6;
-	if (state->jool.global->config.reset_traffic_class) {
+	if (state->jool.global->cfg.reset_traffic_class) {
 		hdr6->priority = 0;
 		hdr6->flow_lbl[0] = 0;
 	} else {
@@ -376,8 +376,8 @@ static __be32 icmp6_minimum_mtu(struct xlation *state,
 		 * Got to determine a likely path MTU.
 		 * See RFC 1191 sections 5, 7 and 7.1.
 		 */
-		__u16 *plateaus = state->jool.global->config.mtu_plateaus;
-		__u16 count = state->jool.global->config.mtu_plateau_count;
+		__u16 *plateaus = state->jool.global->cfg.mtu_plateaus;
+		__u16 count = state->jool.global->cfg.mtu_plateau_count;
 		int i;
 
 		for (i = 0; i < count; i++) {
@@ -394,7 +394,7 @@ static __be32 icmp6_minimum_mtu(struct xlation *state,
 	/* Core comparison to find the minimum value. */
 	result = min(packet_mtu, min(nexthop6_mtu, nexthop4_mtu));
 
-	lower_mtu_fail = state->jool.global->config.atomic_frags.lower_mtu_fail;
+	lower_mtu_fail = state->jool.global->cfg.atomic_frags.lower_mtu_fail;
 	if (lower_mtu_fail && result < IPV6_MIN_MTU) {
 		/*
 		 * Probably some router does not implement RFC 4890, section
@@ -783,7 +783,7 @@ static bool can_compute_csum(struct xlation *state)
 	 * addresses and port numbers in the packet.
 	 */
 	hdr4 = pkt_ip4_hdr(&state->in);
-	amend_csum0 = state->jool.global->config.siit.compute_udp_csum_zero;
+	amend_csum0 = state->jool.global->cfg.siit.compute_udp_csum_zero;
 	if (is_mf_set_ipv4(hdr4) || !amend_csum0) {
 		hdr_udp = pkt_udp_hdr(&state->in);
 		log_debug("Dropping zero-checksum UDP packet: %pI4#%u->%pI4#%u",

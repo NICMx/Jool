@@ -508,7 +508,7 @@ static int send_buffers()
 		goto error_happened;
 
 
-	error = send_multipart_request_buffer(0,0,SEC_DONE) ;
+	error = send_multipart_request_buffer(0,0,SEC_COMMIT) ;
 
 	if(error)
 		goto error_happened;

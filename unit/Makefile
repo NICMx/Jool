@@ -76,11 +76,9 @@ $(RFC6052)-objs += ../mod/common/pool6.o
 $(RFC6052)-objs += rfc6052_test.o
 
 $(PKT)-objs += $(MIN_REQS)
-$(PKT)-objs += ../mod/common/ipv6_hdr_iterator.o
 $(PKT)-objs += ../mod/common/packet.o
 $(PKT)-objs += framework/skb_generator.o
 $(PKT)-objs += framework/types.o
-$(PKT)-objs += impersonator/icmp_wrapper.o
 $(PKT)-objs += packet_test.o
 
 $(RBTREE)-objs += $(MIN_REQS)
@@ -93,31 +91,24 @@ $(POOL4DB)-objs += impersonator/pool4_empty.o
 $(POOL4DB)-objs += pool4db_test.o
 
 $(BIBTABLE)-objs += $(MIN_REQS)
-$(BIBTABLE)-objs += ../mod/common/config.o
 $(BIBTABLE)-objs += ../mod/common/rbtree.o
-$(BIBTABLE)-objs += ../mod/stateful/bib/entry.o
 $(BIBTABLE)-objs += bibtable_test.o
 
 $(BIBDB)-objs += $(MIN_REQS)
-$(BIBDB)-objs += ../mod/common/config.o
 $(BIBDB)-objs += ../mod/common/rbtree.o
-$(BIBDB)-objs += ../mod/stateful/bib/entry.o
 $(BIBDB)-objs += ../mod/stateful/bib/table.o
 $(BIBDB)-objs += framework/bib.o
 $(BIBDB)-objs += bibdb_test.o
 
 $(SESSIONTABLE)-objs += $(MIN_REQS)
-$(SESSIONTABLE)-objs += ../mod/common/config.o
 $(SESSIONTABLE)-objs += ../mod/common/rbtree.o
 $(SESSIONTABLE)-objs += ../mod/stateful/session/entry.o
-$(SESSIONTABLE)-objs += ../mod/stateful/session/pkt_queue.o
 $(SESSIONTABLE)-objs += impersonator/bib.o
-$(SESSIONTABLE)-objs += impersonator/icmp_wrapper.o
+$(SESSIONTABLE)-objs += impersonator/joold.o
 $(SESSIONTABLE)-objs += impersonator/route.o
 $(SESSIONTABLE)-objs += sessiontable_test.o
 
 $(SESSIONDB)-objs += $(MIN_REQS)
-$(SESSIONDB)-objs += ../mod/common/config.o
 $(SESSIONDB)-objs += ../mod/common/rbtree.o
 $(SESSIONDB)-objs += ../mod/stateful/session/entry.o
 $(SESSIONDB)-objs += ../mod/stateful/session/table.o
@@ -125,6 +116,7 @@ $(SESSIONDB)-objs += ../mod/stateful/session/pkt_queue.o
 $(SESSIONDB)-objs += framework/session.o
 $(SESSIONDB)-objs += impersonator/bib.o
 $(SESSIONDB)-objs += impersonator/icmp_wrapper.o
+$(SESSIONDB)-objs += impersonator/joold.o
 $(SESSIONDB)-objs += impersonator/route.o
 $(SESSIONDB)-objs += sessiondb_test.o
 
@@ -139,24 +131,25 @@ $(FRAGDB)-objs += fragment_db_test.o
 $(FILTERING)-objs += $(MIN_REQS)
 $(FILTERING)-objs += ../mod/common/config.o
 $(FILTERING)-objs += ../mod/common/packet.o
+$(FILTERING)-objs += ../mod/common/namespace.o
 $(FILTERING)-objs += ../mod/common/pool6.o
 $(FILTERING)-objs += ../mod/common/rbtree.o
 $(FILTERING)-objs += ../mod/common/rfc6052.o
+$(FILTERING)-objs += ../mod/stateful/impersonator.o
 $(FILTERING)-objs += ../mod/stateful/pool4/entry.o
 $(FILTERING)-objs += ../mod/stateful/pool4/table.o
 $(FILTERING)-objs += ../mod/stateful/pool4/db.o
-$(FILTERING)-objs += ../mod/stateful/bib/entry.o
 $(FILTERING)-objs += ../mod/stateful/bib/table.o
 $(FILTERING)-objs += ../mod/stateful/bib/db.o
-$(FILTERING)-objs += ../mod/stateful/bib/port_allocator.o
 $(FILTERING)-objs += ../mod/stateful/session/entry.o
 $(FILTERING)-objs += ../mod/stateful/session/table.o
 $(FILTERING)-objs += ../mod/stateful/session/db.o
 $(FILTERING)-objs += ../mod/stateful/session/pkt_queue.o
-$(FILTERING)-objs += framework/bib.o
 $(FILTERING)-objs += framework/skb_generator.o
 $(FILTERING)-objs += framework/types.o
 $(FILTERING)-objs += impersonator/icmp_wrapper.o
+$(FILTERING)-objs += impersonator/port_allocator.o
+$(FILTERING)-objs += impersonator/joold.o
 $(FILTERING)-objs += impersonator/pool4_empty.o
 $(FILTERING)-objs += impersonator/route.o
 $(FILTERING)-objs += filtering_and_updating_test.o
@@ -187,6 +180,8 @@ $(EAMT)-objs += eamt_test.o
 
 $(PALLOC)-objs += $(MIN_REQS)
 $(PALLOC)-objs += impersonator/bib.o
+$(PALLOC)-objs += impersonator/pool4.o
+$(PALLOC)-objs += impersonator/rfc6145.o
 $(PALLOC)-objs += port_allocator_test.o
 
 $(JOOLNS)-objs += $(MIN_REQS)
@@ -194,6 +189,28 @@ $(JOOLNS)-objs += ../mod/common/pool6.o
 $(JOOLNS)-objs += ../mod/common/namespace.o
 $(JOOLNS)-objs += ../mod/stateless/json_parser.o
 $(JOOLNS)-objs += joolns_test.o
+
+$(JOOLNS)-objs += ../mod/common/config.o
+$(JOOLNS)-objs += ../mod/common/rbtree.o
+$(JOOLNS)-objs += ../mod/common/rtrie.o
+$(JOOLNS)-objs += ../mod/stateless/blacklist4.o
+$(JOOLNS)-objs += ../mod/stateless/eam.o
+$(JOOLNS)-objs += ../mod/stateless/pool.o
+$(JOOLNS)-objs += ../mod/stateless/rfc6791.o
+$(JOOLNS)-objs += ../mod/stateful/pool4/entry.o
+$(JOOLNS)-objs += ../mod/stateful/pool4/table.o
+$(JOOLNS)-objs += ../mod/stateful/pool4/db.o
+$(JOOLNS)-objs += ../mod/stateful/bib/table.o
+$(JOOLNS)-objs += ../mod/stateful/bib/db.o
+$(JOOLNS)-objs += ../mod/stateful/session/entry.o
+$(JOOLNS)-objs += ../mod/stateful/session/table.o
+$(JOOLNS)-objs += ../mod/stateful/session/db.o
+$(JOOLNS)-objs += ../mod/stateful/session/pkt_queue.o
+$(JOOLNS)-objs += impersonator/icmp_wrapper.o
+$(JOOLNS)-objs += impersonator/joold.o
+$(JOOLNS)-objs += impersonator/pool4_empty.o
+$(JOOLNS)-objs += impersonator/route.o
+
 
 all:
 	make -C ${KERNEL_DIR} M=$$PWD;

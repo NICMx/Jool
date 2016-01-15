@@ -18,114 +18,164 @@ static int fail(const char *function_name)
 	return -EINVAL;
 }
 
-int blacklist_add(struct ipv4_prefix *prefix)
+int blacklist_init(struct addr4_pool **pool, char *pref_strs[], int pref_count)
 {
 	return fail(__func__);
 }
 
-int blacklist_rm(struct ipv4_prefix *prefix)
+void blacklist_get(struct addr4_pool *pool)
+{
+	fail(__func__);
+}
+
+void blacklist_put(struct addr4_pool *pool)
+{
+	fail(__func__);
+}
+
+int blacklist_add(struct addr4_pool *pool, struct ipv4_prefix *prefix)
 {
 	return fail(__func__);
 }
 
-int blacklist_flush(void)
+int blacklist_rm(struct addr4_pool *pool, struct ipv4_prefix *prefix)
 {
 	return fail(__func__);
 }
 
-bool blacklist_contains(__be32 addr)
+int blacklist_flush(struct addr4_pool *pool)
+{
+	return fail(__func__);
+}
+
+bool blacklist_contains(struct addr4_pool *pool, struct net *ns, __be32 addr)
 {
 	fail(__func__);
 	return false;
 }
 
-int blacklist_foreach(int (*func)(struct ipv4_prefix *, void *), void *arg,
+int blacklist_foreach(struct addr4_pool *pool,
+		int (*func)(struct ipv4_prefix *, void *), void *arg,
 		struct ipv4_prefix *offset)
 {
 	return fail(__func__);
 }
 
-int blacklist_count(__u64 *result)
+int blacklist_count(struct addr4_pool *pool, __u64 *result)
 {
 	return fail(__func__);
 }
 
-int rfc6791_add(struct ipv4_prefix *prefix)
+int rfc6791_init(struct addr4_pool **pool, char *pref_strs[], int pref_count)
 {
 	return fail(__func__);
 }
 
-int rfc6791_rm(struct ipv4_prefix *prefix)
-{
-	return fail(__func__);
-}
-
-int rfc6791_flush(void)
-{
-	return fail(__func__);
-}
-
-int rfc6791_get(struct packet *in, struct packet *out, __be32 *result)
-{
-	return fail(__func__);
-}
-
-int rfc6791_for_each(int (*func)(struct ipv4_prefix *, void *), void *arg,
-		struct ipv4_prefix *offset)
-{
-	return fail(__func__);
-}
-
-int rfc6791_count(__u64 *result)
-{
-	return fail(__func__);
-}
-
-
-int eamt_add(struct ipv6_prefix *ip6_pref, struct ipv4_prefix *ip4_pref,
-		bool force)
-{
-	return fail(__func__);
-}
-
-int eamt_rm(struct ipv6_prefix *prefix6, struct ipv4_prefix *prefix4)
-{
-	return fail(__func__);
-}
-
-void eamt_flush(void)
+void rfc6791_get(struct addr4_pool *pool)
 {
 	fail(__func__);
 }
 
-bool eamt_contains4(__be32 addr)
+void rfc6791_put(struct addr4_pool *pool)
+{
+	fail(__func__);
+}
+
+int rfc6791_add(struct addr4_pool *pool, struct ipv4_prefix *prefix)
+{
+	return fail(__func__);
+}
+
+int rfc6791_rm(struct addr4_pool *pool, struct ipv4_prefix *prefix)
+{
+	return fail(__func__);
+}
+
+int rfc6791_flush(struct addr4_pool *pool)
+{
+	return fail(__func__);
+}
+
+int rfc6791_find(struct xlation *state, __be32 *result)
+{
+	return fail(__func__);
+}
+
+int rfc6791_for_each(struct addr4_pool *pool,
+		int (*func)(struct ipv4_prefix *, void *), void *arg,
+		struct ipv4_prefix *offset)
+{
+	return fail(__func__);
+}
+
+int rfc6791_count(struct addr4_pool *pool, __u64 *result)
+{
+	return fail(__func__);
+}
+
+int eamt_init(struct eam_table **eamt)
+{
+	return fail(__func__);
+}
+
+void eamt_get(struct eam_table *eamt)
+{
+	fail(__func__);
+}
+
+void eamt_put(struct eam_table *eamt)
+{
+	fail(__func__);
+}
+
+int eamt_add(struct eam_table *eamt, struct ipv6_prefix *prefix6,
+		struct ipv4_prefix *prefix4, bool force)
+{
+	return fail(__func__);
+}
+
+int eamt_rm(struct eam_table *eamt, struct ipv6_prefix *prefix6,
+		struct ipv4_prefix *prefix4)
+{
+	return fail(__func__);
+}
+
+void eamt_flush(struct eam_table *eamt)
+{
+	fail(__func__);
+}
+
+bool eamt_contains4(struct eam_table *eamt, __be32 addr)
 {
 	fail(__func__);
 	return false;
 }
 
-int eamt_xlat_4to6(struct in_addr *addr, struct in6_addr *result)
+int eamt_xlat_4to6(struct eam_table *eamt, struct in_addr *addr4,
+		struct in6_addr *result)
 {
 	return fail(__func__);
 }
 
-int eamt_xlat_6to4(struct in6_addr *addr6, struct in_addr *result)
+int eamt_xlat_6to4(struct eam_table *eamt, struct in6_addr *addr6,
+		struct in_addr *result)
 {
 	return fail(__func__);
 }
 
-int eamt_foreach(int (*cb)(struct eamt_entry *, void *), void *arg,
+int eamt_foreach(struct eam_table *eamt,
+		int (*cb)(struct eamt_entry *, void *), void *arg,
 		struct ipv4_prefix *offset)
 {
 	return fail(__func__);
 }
 
-int eamt_count(__u64 *count)
+int eamt_count(struct eam_table *eamt, __u64 *count)
 {
 	return fail(__func__);
 }
 
-bool eamt_is_empty(void)
+bool eamt_is_empty(struct eam_table *eamt)
 {
 	fail(__func__);
 	return true;

@@ -73,9 +73,21 @@ verdict ttp64_create_skb(struct xlation *state)
 
 __u8 ttp64_xlat_tos(struct xlation *state, struct ipv6hdr *hdr)
 {
-	return state->jool.global->config.reset_tos
-			? state->jool.global->config.new_tos
+	return state->jool.global->cfg.reset_tos
+			? state->jool.global->cfg.new_tos
 			: get_traffic_class(hdr);
+}
+
+/**
+ * One-liner for creating the IPv4 header's Protocol field.
+ */
+__u8 ttp64_xlat_proto(struct ipv6hdr *hdr6)
+{
+	struct hdr_iterator iterator = HDR_ITERATOR_INIT(hdr6);
+	hdr_iterator_last(&iterator);
+	return (iterator.hdr_type == NEXTHDR_ICMP)
+			? IPPROTO_ICMP
+			: iterator.hdr_type;
 }
 
 /**
@@ -149,18 +161,6 @@ static __be16 generate_ipv4_id_nofrag(struct packet *out)
 static bool generate_df_flag(struct packet *out)
 {
 	return pkt_len(out) > 1260;
-}
-
-/**
- * One-liner for creating the IPv4 header's Protocol field.
- */
-__u8 ttp64_xlat_proto(struct ipv6hdr *hdr6)
-{
-	struct hdr_iterator iterator = HDR_ITERATOR_INIT(hdr6);
-	hdr_iterator_last(&iterator);
-	return (iterator.hdr_type == NEXTHDR_ICMP)
-			? IPPROTO_ICMP
-			: iterator.hdr_type;
 }
 
 static verdict generate_addr4_siit(struct xlation *state,
@@ -240,7 +240,7 @@ static verdict translate_addrs64_siit(struct xlation *state)
 	 * involved.
 	 * See the EAM draft.
 	 */
-	hairpin_mode = state->jool.global->config.siit.eam_hairpin_mode;
+	hairpin_mode = state->jool.global->cfg.siit.eam_hairpin_mode;
 	if (hairpin_mode == EAM_HAIRPIN_INTRINSIC) {
 		struct eam_table *eamt = state->jool.siit.eamt;
 		/* Condition set A */
@@ -332,9 +332,9 @@ verdict ttp64_ipv4(struct xlation *state)
 	hdr4->version = 4;
 	hdr4->ihl = 5;
 	hdr4->tot_len = build_tot_len(in, out);
-	hdr4->id = state->jool.global->config.atomic_frags.build_ipv4_id
+	hdr4->id = state->jool.global->cfg.atomic_frags.build_ipv4_id
 			? generate_ipv4_id_nofrag(out) : 0;
-	dont_fragment = state->jool.global->config.atomic_frags.df_always_on
+	dont_fragment = state->jool.global->cfg.atomic_frags.df_always_on
 			? 1 : generate_df_flag(out);
 	hdr4->frag_off = build_ipv4_frag_off_field(dont_fragment, 0, 0);
 	if (pkt_is_outer(in)) {

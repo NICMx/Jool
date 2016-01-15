@@ -8,6 +8,8 @@
 #include <linux/ip.h>
 #include <linux/ipv6.h>
 #include <net/ipv6.h>
+#include <net/netfilter/ipv4/nf_defrag_ipv4.h>
+#include <net/netfilter/ipv6/nf_defrag_ipv6.h>
 
 struct reassembly_buffer {
 	/** first fragment (fragment offset zero) of the packet. */

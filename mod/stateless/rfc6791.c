@@ -46,17 +46,19 @@ int rfc6791_flush(struct addr4_pool *pool)
 /**
  * Returns in "result" the IPv4 address an ICMP error towards "out"'s
  * destination should be sourced with.
+ *
+ * TODO validate count never surpasses uint max.
  */
-static int get_rfc6791_address(struct xlation *state, __u64 count,
+static int get_rfc6791_address(struct xlation *state, unsigned int count,
 		__be32 *result)
 {
 	struct list_head *list;
 	struct list_head *node;
 	struct pool_entry *entry;
-	__u64 addr_index;
+	unsigned int addr_index;
 	int error = 0;
 
-	if (state->jool.global->config.siit.randomize_error_addresses)
+	if (state->jool.global->cfg.siit.randomize_error_addresses)
 		get_random_bytes(&addr_index, sizeof(addr_index));
 	else
 		addr_index = pkt_ip6_hdr(&state->in)->hop_limit;

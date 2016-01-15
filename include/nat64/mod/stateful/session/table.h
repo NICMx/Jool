@@ -2,6 +2,7 @@
 #define _JOOL_MOD_SESSION_TABLE_H
 
 #include <linux/timer.h>
+#include "nat64/common/config.h"
 #include "nat64/mod/common/packet.h"
 #include "nat64/mod/stateful/session/entry.h"
 
@@ -33,13 +34,13 @@ enum session_fate {
 };
 
 typedef enum session_fate (*fate_cb)(struct session_entry *, void *);
-typedef unsigned long (*timeout_cb)(void);
+typedef unsigned long (*timeout_cb)(struct global_config *);
 
 struct session_table;
 struct expire_timer {
 	struct timer_list timer;
 	struct list_head sessions;
-	timeout_cb get_timeout;
+	atomic_t timeout;
 	fate_cb decide_fate_cb;
 	struct session_table *table;
 };
@@ -74,15 +75,18 @@ struct session_table {
 	 * you can get away with maintaining your reference count thingy.
 	 */
 	spinlock_t lock;
+
+	atomic_t log_changes;
 };
 
 void sessiontable_init(struct session_table *table,
-		timeout_cb est_timeout, fate_cb est_callback,
-		timeout_cb trans_timeout, fate_cb trans_callback);
+		int est_timeout, fate_cb est_callback,
+		int trans_timeout, fate_cb trans_callback);
 void sessiontable_destroy(struct session_table *table);
 
 int sessiontable_get(struct session_table *table, struct tuple *tuple,
-		fate_cb cb, struct packet *pkt, struct session_entry **result);
+		fate_cb cb, void *cb_arg,
+		struct session_entry **result);
 int sessiontable_add(struct session_table *table, struct session_entry *session,
 		bool is_established, bool is_synchronized);
 

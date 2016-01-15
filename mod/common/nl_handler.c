@@ -45,7 +45,7 @@ static int respond_single_msg(struct nlmsghdr *nl_hdr_in, int type, void *payloa
 
 	skb_out = nlmsg_new(NLMSG_ALIGN(payload_len), GFP_ATOMIC);
 	if (!skb_out) {
-		/* TODO review nrelines again. */
+		/* TODO review newlines again. */
 		pr_err("Failed to allocate a response skb to the user.\n");
 		return -ENOMEM;
 	}

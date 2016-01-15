@@ -197,7 +197,7 @@ int handle_json_file_config(struct nlmsghdr *nl_hdr, struct request_hdr *jool_hd
 		return 0;
 	}
 
-	if(request_type == SEC_DONE) {
+	if(request_type == SEC_COMMIT) {
 		log_info("finalizing configuration.") ;
 		if(save_configuration())
 		{

@@ -14,6 +14,8 @@ MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Alberto Leiva Popper");
 MODULE_DESCRIPTION("Translating the Packet module test.");
 
+struct global_configuration *config;
+
 static bool test_function_has_unexpired_src_route(void)
 {
 	struct iphdr *hdr = kmalloc(60, GFP_ATOMIC); /* 60 is the max value allowed by hdr.ihl. */
@@ -129,43 +131,27 @@ static bool test_function_build_id_field(void)
 	return success;
 }
 
-static bool update_config(bool lower_mtu_fail)
+static void update_config(bool lower_mtu_fail)
 {
-	struct global_config *config;
-	int error;
-
-	config = kmalloc(sizeof(*config), GFP_KERNEL);
-	if (!config)
-		return false;
-	error = config_clone(config);
-	if (error) {
-		log_err("Errcode %d while trying to clone the config.", error);
-		return false;
-	}
-
-	config->atomic_frags.lower_mtu_fail = lower_mtu_fail;
+	config->cfg.atomic_frags.lower_mtu_fail = lower_mtu_fail;
 	/*
 	 * I'm assuming the default plateaus list has 3 elements or more.
 	 * (so I don't have to reallocate mtu_plateaus.)
 	 */
-	config->mtu_plateaus[0] = 1400;
-	config->mtu_plateaus[1] = 1200;
-	config->mtu_plateaus[2] = 600;
-	config->mtu_plateau_count = 3;
-
-	config_replace(config);
-
-	return true;
+	config->cfg.mtu_plateaus[0] = 1400;
+	config->cfg.mtu_plateaus[1] = 1200;
+	config->cfg.mtu_plateaus[2] = 600;
+	config->cfg.mtu_plateau_count = 3;
 }
 
-#define min_mtu(packet, in, out, len) be32_to_cpu(icmp6_minimum_mtu(packet, in, out, len))
+#define min_mtu(packet, in, out, len) be32_to_cpu(icmp6_minimum_mtu(&state, packet, in, out, len))
 static bool test_function_icmp6_minimum_mtu(void)
 {
+	struct xlation state = { .jool.global = config };
 	int i;
 	bool success = true;
 
-	if (!update_config(false))
-		return false;
+	update_config(false);
 
 	/* Test the bare minimum functionality. */
 	success &= ASSERT_UINT(21, min_mtu(1, 100, 100, 0), "No hacks, min is packet");
@@ -192,8 +178,7 @@ static bool test_function_icmp6_minimum_mtu(void)
 		return false;
 
 	/* Test hack 2: User wants us to try to improve the failure rate. */
-	if (!update_config(true))
-		return false;
+	update_config(true);
 
 	success &= ASSERT_UINT(1280, min_mtu(1, 2, 2, 0), "Improve rate, min is packet");
 	success &= ASSERT_UINT(1280, min_mtu(2, 1, 2, 0), "Improve rate, min is in");
@@ -437,9 +422,9 @@ static bool test_function_icmp4_minimum_mtu(void)
 {
 	bool success = true;
 
-	success &= ASSERT_UINT(2, be16_to_cpu(icmp4_minimum_mtu(2, 4, 6)), "First is min");
-	success &= ASSERT_UINT(8, be16_to_cpu(icmp4_minimum_mtu(10, 8, 12)), "Second is min");
-	success &= ASSERT_UINT(14, be16_to_cpu(icmp4_minimum_mtu(16, 18, 14)), "Third is min");
+	success &= ASSERT_UINT(2, be16_to_cpu(minimum(2, 4, 6)), "First is min");
+	success &= ASSERT_UINT(8, be16_to_cpu(minimum(10, 8, 12)), "Second is min");
+	success &= ASSERT_UINT(14, be16_to_cpu(minimum(16, 18, 14)), "Third is min");
 
 	return success;
 }
@@ -493,28 +478,38 @@ static bool test_4to6(l4_protocol l4_proto,
 		int (*create_skb6_fn)(struct tuple *, struct sk_buff **, u16, u8),
 		u16 expected_payload6_len)
 {
-	struct packet pkt4, pkt6_actual = { .skb = NULL };
-	struct sk_buff *skb4 = NULL, *skb6_expected = NULL;
-	struct tuple tuple4, tuple6;
+	struct xlation state = { .jool.global = config, .in.skb = NULL, .out.skb = NULL };
+	struct sk_buff *expected = NULL;
+	int error;
 	bool result = false;
 
-	if (init_tuple4(&tuple4, "192.0.2.5", 1234, "192.0.2.2", 80, l4_proto) != 0
-			|| init_tuple6(&tuple6, "64::192.0.2.5", 51234, "1::1", 50080, l4_proto) != 0
-			|| create_skb4_fn(&tuple4, &skb4, 100, 32) != 0
-			|| create_skb6_fn(&tuple6, &skb6_expected, expected_payload6_len, 31) != 0
-			|| pkt_init_ipv4(&pkt4, skb4))
+	error = init_tuple4(&state.in.tuple, "192.0.2.5", 1234, "192.0.2.2", 80, l4_proto);
+	if (error)
+		goto end;
+	error = create_skb4_fn(&state.in.tuple, &state.out.skb, 100, 32);
+	if (error)
+		goto end;
+	error = pkt_init_ipv4(&state.in, state.out.skb);
+	if (error)
 		goto end;
 
-	if (translating_the_packet(&tuple6, &pkt4, &pkt6_actual) != VERDICT_CONTINUE)
+	error = init_tuple6(&state.out.tuple, "64::192.0.2.5", 51234, "1::1", 50080, l4_proto);
+	if (error)
+		goto end;
+	error = create_skb6_fn(&state.out.tuple, &expected, expected_payload6_len, 31);
+	if (error)
 		goto end;
 
-	result = compare_skbs(skb6_expected, pkt6_actual.skb);
+	if (translating_the_packet(&state) != VERDICT_CONTINUE)
+		goto end;
+
+	result = compare_skbs(expected, state.out.skb);
 	/* Fall through. */
 
 end:
-	kfree_skb(skb4);
-	kfree_skb(skb6_expected);
-	kfree_skb(pkt6_actual.skb);
+	kfree_skb(state.in.skb);
+	kfree_skb(state.out.skb);
+	kfree_skb(expected);
 	return result;
 }
 
@@ -543,43 +538,38 @@ static bool test_6to4(l4_protocol l4_proto,
 		int (*create_skb4_fn)(struct tuple *, struct sk_buff **, u16, u8),
 		u16 expected_payload4_len)
 {
-	struct global_config *config;
-	struct packet pkt6, pkt4_actual = { .skb = NULL };
-	struct sk_buff *skb6 = NULL, *skb4_expected = NULL;
-	struct tuple tuple6, tuple4;
+	struct xlation state = { .jool.global = config, .in.skb = NULL, .out.skb = NULL };
+	struct sk_buff *expected = NULL;
 	int error;
 	bool result = false;
 
-	config = kmalloc(sizeof(*config), GFP_KERNEL);
-	if (!config)
+	error = init_tuple6(&state.in.tuple, "1::1", 50080, "64::192.0.2.5", 51234, L4PROTO_UDP);
+	if (error)
 		goto end;
-	error = config_clone(config);
-	if (error) {
-		log_err("Errcode %d while trying to clone the config.", error);
+	error = create_skb6_fn(&state.in.tuple, &state.in.skb, 100, 32);
+	if (error)
 		goto end;
-	}
-	config->atomic_frags.df_always_on = true;
-	config->atomic_frags.build_ipv4_id = false;
-
-	config_replace(config);
-
-	if (init_tuple6(&tuple6, "1::1", 50080, "64::192.0.2.5", 51234, L4PROTO_UDP) != 0
-			|| init_tuple4(&tuple4, "192.0.2.2", 80, "192.0.2.5", 1234, L4PROTO_UDP) != 0
-			|| create_skb6_fn(&tuple6, &skb6, 100, 32) != 0
-			|| create_skb4_fn(&tuple4, &skb4_expected, expected_payload4_len, 31) != 0
-			|| pkt_init_ipv6(&pkt6, skb6))
+	error = pkt_init_ipv6(&state.in, state.in.skb);
+	if (error)
 		goto end;
 
-	if (translating_the_packet(&tuple4, &pkt6, &pkt4_actual) != VERDICT_CONTINUE)
+	error = init_tuple4(&state.out.tuple, "192.0.2.2", 80, "192.0.2.5", 1234, L4PROTO_UDP);
+	if (error)
+		goto end;
+	error = create_skb4_fn(&state.out.tuple, &expected, expected_payload4_len, 31);
+	if (error)
 		goto end;
 
-	result = compare_skbs(skb4_expected, pkt4_actual.skb);
+	if (translating_the_packet(&state) != VERDICT_CONTINUE)
+		goto end;
+
+	result = compare_skbs(expected, state.out.skb);
 	/* Fall through. */
 
 end:
-	kfree_skb(skb6);
-	kfree_skb(skb4_expected);
-	kfree_skb(pkt4_actual.skb);
+	kfree_skb(state.in.skb);
+	kfree_skb(state.out.skb);
+	kfree_skb(expected);
 	return result;
 }
 
@@ -588,32 +578,42 @@ static bool test_6to4_custom_payload(l4_protocol l4_proto,
 		int (*create_skb4_fn)(struct tuple *, struct sk_buff **, u16 *, u16, u8),
 		u16 expected_payload4_len, u16 *payload_array)
 {
-	struct packet pkt6, pkt4_actual = { .skb = NULL };
-	struct sk_buff *skb6 = NULL, *skb4_expected = NULL;
-	struct tuple tuple6, tuple4;
+	struct xlation state = { .jool.global = config, .in.skb = NULL, .out.skb = NULL };
+	struct sk_buff *expected = NULL;
+	int error;
 	bool result = false;
 
-	if (init_tuple6(&tuple6, "1::1", 50080, "64::192.0.2.5", 51234, L4PROTO_UDP) != 0
-			|| init_tuple4(&tuple4, "192.0.2.2", 80, "192.0.2.5", 1234, L4PROTO_UDP) != 0
-			|| create_skb6_fn(&tuple6, &skb6, payload_array, 4, 32) != 0
-			|| create_skb4_fn(&tuple4, &skb4_expected, payload_array, expected_payload4_len, 31) != 0
-			|| pkt_init_ipv6(&pkt6, skb6) != 0)
+	error = init_tuple6(&state.in.tuple, "1::1", 50080, "64::192.0.2.5", 51234, L4PROTO_UDP);
+	if (error)
+		goto end;
+	error = create_skb6_fn(&state.in.tuple, &state.in.skb, payload_array, 4, 32);
+	if (error)
+		goto end;
+	error = pkt_init_ipv6(&state.in, state.in.skb);
+	if (error)
 		goto end;
 
-	if (translating_the_packet(&tuple4, &pkt6, &pkt4_actual) != VERDICT_CONTINUE)
+	error = init_tuple4(&state.out.tuple, "192.0.2.2", 80, "192.0.2.5", 1234, L4PROTO_UDP);
+	if (error)
+		goto end;
+	error = create_skb4_fn(&state.out.tuple, &expected, payload_array, expected_payload4_len, 31);
+	if (error)
 		goto end;
 
-	result = compare_skbs(skb4_expected, pkt4_actual.skb);
+	if (translating_the_packet(&state) != VERDICT_CONTINUE)
+		goto end;
+
+	result = compare_skbs(expected, state.out.skb);
 	if (!result)
 		goto end;
 
-	result = ASSERT_BE16(0xFFFFU, pkt_udp_hdr(&pkt4_actual)->check, "checksum test");
+	result = ASSERT_BE16(0xFFFFU, pkt_udp_hdr(&state.out)->check, "checksum test");
 	/* Fall through. */
 
 end:
-	kfree_skb(skb6);
-	kfree_skb(skb4_expected);
-	kfree_skb(pkt4_actual.skb);
+	kfree_skb(state.in.skb);
+	kfree_skb(state.out.skb);
+	kfree_skb(expected);
 	return result;
 }
 
@@ -649,10 +649,10 @@ int init_module(void)
 {
 	START_TESTS("Translating the Packet");
 
-	if (is_error(config_init(false)))
+	if (config_init(&config, false))
 		return false;
-	if (is_error(pool6_init(NULL, 0)))
-		return false;
+	config->cfg.atomic_frags.df_always_on = true;
+	config->cfg.atomic_frags.build_ipv4_id = false;
 
 	/* Misc single function tests */
 	CALL_TEST(test_function_has_unexpired_src_route(), "Unexpired source route querier");
@@ -680,8 +680,7 @@ int init_module(void)
 
 	CALL_TEST(test_6to4_udp_custom_payload(), "zero IPv4-UDP checksums, 6->4 UDP");
 
-	pool6_destroy();
-	config_destroy();
+	config_put(config);
 
 	END_TESTS;
 }

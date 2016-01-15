@@ -266,8 +266,9 @@ static verdict ipv6_icmp(struct packet *pkt, struct tuple *tuple6)
  * @param tuple this function will populate this value using "skb"'s contents.
  * @return whether packet processing should continue.
  */
-verdict __determine_in_tuple(struct packet *pkt)
+verdict determine_in_tuple(struct xlation *state)
 {
+	struct packet *pkt = &state->in;
 	verdict result = VERDICT_CONTINUE;
 
 	log_debug("Step 1: Determining the Incoming Tuple");
@@ -333,7 +334,7 @@ unknown_proto_ipv6:
 	 */
 	log_debug("NAT64 doesn't support unknown transport protocols.");
 
-	if (!pool6_contains(&pkt_ip6_hdr(pkt)->daddr))
+	if (!pool6_contains(state->jool.pool6, &pkt_ip6_hdr(pkt)->daddr))
 		/* Not meant to be translated. unknown_proto_ipv4 logic. */
 		return VERDICT_ACCEPT;
 

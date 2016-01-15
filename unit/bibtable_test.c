@@ -1,7 +1,6 @@
 #include <linux/module.h>
 #include "nat64/unit/unit_test.h"
 #include "nat64/common/str_utils.h"
-#include "nat64/mod/common/config.h"
 #include "bib/table.c"
 
 MODULE_LICENSE("GPL");
@@ -208,12 +207,8 @@ static bool test_foreach(void)
 
 static bool init(void)
 {
-	if (config_init(false))
+	if (bibentry_init())
 		return false;
-	if (bibentry_init()) {
-		config_destroy();
-		return false;
-	}
 	bibtable_init(&table);
 
 	return true;
@@ -223,7 +218,6 @@ static void end(void)
 {
 	bibtable_destroy(&table);
 	bibentry_destroy();
-	config_destroy();
 }
 
 int init_module(void)

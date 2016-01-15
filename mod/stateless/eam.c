@@ -59,9 +59,10 @@ static int validate_overlapping(struct eam_table *eamt,
 	key6.len = 128;
 	key4.len = 32;
 
+	/* TODO review pr_err vs log_err in Rob's code. */
+
 	error = rtrie_get(&eamt->trie6, &key6, &old);
 	if (!error) {
-		/* TODO this should be log_. */
 		log_err("Prefix %pI6c/%u overlaps with EAM [%pI6c/%u|%pI4/%u].\n"
 				"(Use --force to override this validation.)",
 				&prefix6->address, prefix6->len,
@@ -72,7 +73,7 @@ static int validate_overlapping(struct eam_table *eamt,
 
 	error = rtrie_get(&eamt->trie4, &key4, &old);
 	if (!error) {
-		pr_err("Prefix %pI4/%u overlaps with EAM [%pI6c/%u|%pI4/%u].\n"
+		log_err("Prefix %pI4/%u overlaps with EAM [%pI6c/%u|%pI4/%u].\n"
 				"(Use --force to override this validation.)",
 				&prefix4->address, prefix4->len,
 				&old.prefix6.address, old.prefix6.len,

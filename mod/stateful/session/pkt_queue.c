@@ -20,15 +20,10 @@ struct packet_node {
 	struct rb_node tree_hook;
 };
 
-static struct list_head node_list;
-/** The same packets, sorted by IPv4 identifiers. */
-static struct rb_root node_tree;
-/** Current number of packets in the database. */
-static int node_count;
 /** Protects @nodes_list, @nodes_tree and @node_count. */
 static DEFINE_SPINLOCK(lock);
 
-static struct timer_list timer;
+//static struct timer_list timer;
 
 static unsigned long get_timeout(void)
 {
@@ -43,65 +38,27 @@ static void send_icmp_error(struct packet_node *node)
 	kfree(node);
 }
 
-static void rm(struct packet_node *node)
+static void rm(struct pktqueue *queue, struct packet_node *node)
 {
 	list_del(&node->list_hook);
-	rb_erase(&node->tree_hook, &node_tree);
-	node_count--;
+	rb_erase(&node->tree_hook, &queue->node_tree);
+	queue->node_count--;
 }
 
-static void cleaner_timer(unsigned long param)
+void pktqueue_init(struct pktqueue *queue)
 {
-	struct packet_node *node, *tmp;
-	const unsigned long TIMEOUT = get_timeout();
-	unsigned long next_timeout;
-	LIST_HEAD(icmps);
-
-	log_debug("===============================================");
-	log_debug("Handling expired SYN sessions...");
-
-	spin_lock_bh(&lock);
-	list_for_each_entry_safe(node, tmp, &node_list, list_hook) {
-		/*
-		 * "list" is sorted by expiration date,
-		 * so stop on the first unexpired session.
-		 */
-		next_timeout = node->session->update_time + TIMEOUT;
-		if (time_before(jiffies, next_timeout)) {
-			mod_timer(&timer, next_timeout);
-			break;
-		}
-
-		rm(node);
-		list_add(&node->list_hook, &icmps);
-	}
-	spin_unlock_bh(&lock);
-
-	list_for_each_entry_safe(node, tmp, &icmps, list_hook)
-		send_icmp_error(node);
+	INIT_LIST_HEAD(&queue->node_list);
+	queue->node_tree = RB_ROOT;
+	queue->node_count = 0;
+	atomic_set(&queue->capacity, DEFAULT_MAX_STORED_PKTS);
 }
 
-int pktqueue_init(void)
+void pktqueue_destroy(struct pktqueue *queue)
 {
-	INIT_LIST_HEAD(&node_list);
-	node_tree = RB_ROOT;
-	node_count = 0;
+	struct packet_node *node;
+	struct packet_node *tmp;
 
-	init_timer(&timer);
-	timer.function = cleaner_timer;
-	timer.expires = 0;
-	timer.data = 0;
-
-	return 0;
-}
-
-void pktqueue_destroy(void)
-{
-	struct packet_node *node, *tmp;
-
-	del_timer_sync(&timer);
-
-	list_for_each_entry_safe(node, tmp, &node_list, list_hook)
+	list_for_each_entry_safe(node, tmp, &queue->node_list, list_hook)
 		send_icmp_error(node);
 }
 
@@ -133,13 +90,16 @@ static int compare_fn(const struct packet_node *node,
 	return gap;
 }
 
-static int __tree_add(struct packet_node *node)
+static int __tree_add(struct pktqueue *queue, struct packet_node *node)
 {
-	return rbtree_add(node, node->session, &node_tree, compare_fn,
+	return rbtree_add(node, node->session, &queue->node_tree, compare_fn,
 			struct packet_node, tree_hook);
 }
 
-int pktqueue_add(struct session_entry *session, struct packet *pkt)
+/* TODO revert the timer */
+
+int pktqueue_add(struct pktqueue *queue, struct session_entry *session,
+		struct packet *pkt)
 {
 	struct packet_node *node;
 	int error;
@@ -160,7 +120,7 @@ int pktqueue_add(struct session_entry *session, struct packet *pkt)
 
 	spin_lock_bh(&lock);
 
-	if (node_count + 1 >= config_get_max_pkts()) {
+	if (queue->node_count + 1 >= atomic_read(&queue->capacity)) {
 		spin_unlock_bh(&lock);
 		log_debug("Too many IPv4-initiated TCP connections.");
 		/* Fall back to assume there's no Simultaneous Open. */
@@ -169,18 +129,18 @@ int pktqueue_add(struct session_entry *session, struct packet *pkt)
 		return -E2BIG;
 	}
 
-	error = __tree_add(node);
+	error = __tree_add(queue, node);
 	if (error) {
 		spin_unlock_bh(&lock);
 		log_debug("Simultaneous Open already exists; ignoring packet.");
 		kfree(node);
 		return error;
 	}
-	list_add_tail(&node->list_hook, &node_list);
-	node_count++;
+	list_add_tail(&node->list_hook, &queue->node_list);
+	queue->node_count++;
 
-	node = list_entry(node_list.next, typeof(*node), list_hook);
-	mod_timer(&timer, node->session->update_time + get_timeout());
+	node = list_entry(queue->node_list.next, typeof(*node), list_hook);
+//	mod_timer(&timer, node->session->update_time + get_timeout());
 
 	spin_unlock_bh(&lock);
 
@@ -194,13 +154,13 @@ int pktqueue_add(struct session_entry *session, struct packet *pkt)
 	return 0;
 }
 
-static struct packet_node *__tree_find(struct session_entry *session)
+static struct packet_node *__tree_find(struct pktqueue *queue, struct session_entry *session)
 {
-	return rbtree_find(session, &node_tree, compare_fn, struct packet_node,
+	return rbtree_find(session, &queue->node_tree, compare_fn, struct packet_node,
 			tree_hook);
 }
 
-void pktqueue_remove(struct session_entry *session)
+void pktqueue_rm(struct pktqueue *queue, struct session_entry *session)
 {
 	struct packet_node *node;
 
@@ -209,13 +169,13 @@ void pktqueue_remove(struct session_entry *session)
 		return;
 
 	spin_lock_bh(&lock);
-	node = __tree_find(session);
+	node = __tree_find(queue, session);
 	if (!node) {
 		spin_unlock_bh(&lock);
 		return;
 	}
 
-	rm(node);
+	rm(queue, node);
 	spin_unlock_bh(&lock);
 
 	session_return(node->session);
@@ -223,4 +183,33 @@ void pktqueue_remove(struct session_entry *session)
 	kfree(node);
 
 	log_debug("Pkt queue - I just cancelled an ICMP error.");
+}
+
+void pktqueue_clean(struct pktqueue *queue, unsigned long param)
+{
+	struct packet_node *node, *tmp;
+	const unsigned long TIMEOUT = get_timeout();
+	unsigned long next_timeout;
+	LIST_HEAD(icmps);
+
+	log_debug("===============================================");
+	log_debug("Handling expired SYN sessions...");
+
+	spin_lock_bh(&lock);
+	list_for_each_entry_safe(node, tmp, &queue->node_list, list_hook) {
+		/*
+		 * "list" is sorted by expiration date,
+		 * so stop on the first unexpired session.
+		 */
+		next_timeout = node->session->update_time + TIMEOUT;
+		if (time_before(jiffies, next_timeout))
+			break;
+
+		rm(queue, node);
+		list_add(&node->list_hook, &icmps);
+	}
+	spin_unlock_bh(&lock);
+
+	list_for_each_entry_safe(node, tmp, &icmps, list_hook)
+		send_icmp_error(node);
 }

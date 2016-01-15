@@ -304,7 +304,7 @@ static int update_session(struct list_head * synch_session_elements)
 		tuple_aux.l4_proto = s_entry->l4_proto;
 		tuple_aux.l3_proto = L3PROTO_IPV6;
 
-		error = sessiondb_get(&tuple_aux, 0, 0, &s_entry_aux);
+		error = sessiondb_find(&tuple_aux, 0, 0, &s_entry_aux);
 
 		if (error == -EINVAL) {
 			log_err("unexpected error!");
@@ -316,7 +316,7 @@ static int update_session(struct list_head * synch_session_elements)
 
 			log_info("creating session!");
 
-			error = bibdb_get(&tuple_aux, &b_entry);
+			error = bibdb_find(&tuple_aux, &b_entry);
 
 			if (error == -EINVAL) {
 				log_err("unexpected error!");

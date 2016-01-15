@@ -135,8 +135,7 @@ enum parse_section {
 	SEC_POOL6 = 2,
 	SEC_POOL4 = 4,
 	SEC_BIB = 8,
-	/* TODO this should be called "commit". I think it's more expected. */
-	SEC_DONE = 16,
+	SEC_COMMIT = 16,
 	SEC_EAMT = 32,
 	SEC_BLACKLIST = 64,
 	SEC_POOL6791 = 128,
@@ -592,14 +591,6 @@ struct global_config {
 		 * The kernel module is responsible for switching units as the the values approach the border.
 		 */
 		struct {
-			/** Maximum time inactive UDP sessions will remain in the DB. */
-			__u64 udp;
-			/** Maximum time inactive ICMP sessions will remain in the DB. */
-			__u64 icmp;
-			/** Maximum time established TCP sessions will remain in the DB. */
-			__u64 tcp_est;
-			/** Maximum time transitory TCP sessions will remain in the DB. */
-			__u64 tcp_trans;
 			/** Maximum time fragments will remain in the DB. */
 			__u64 frag;
 		} ttl;
@@ -611,15 +602,8 @@ struct global_config {
 		/** Drop externally initiated TCP connections? (IPv4 initiated) (boolean) */
 		__u8 drop_external_tcp;
 
-		/** Maximum number of simultaneous TCP connections Jool wil tolerate. */
-		__u64 max_stored_pkts;
 		/** True = issue #132 behaviour. False = RFC 6146 behaviour. (boolean) */
 		__u8 src_icmp6errs_better;
-
-		/** Log BIBs as they are created and destroyed? */
-		__u8 bib_logging;
-		/** Log sessions as they are created and destroyed? */
-		__u8 session_logging;
 	} nat64;
 
 	struct {

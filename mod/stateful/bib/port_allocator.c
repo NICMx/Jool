@@ -3,6 +3,7 @@
 #include <crypto/md5.h>
 #include <linux/crypto.h>
 #include "nat64/common/str_utils.h"
+#include "nat64/mod/common/rfc6145/6to4.h"
 #include "nat64/mod/stateful/bib/db.h"
 #include "nat64/mod/stateful/pool4/db.h"
 
@@ -101,6 +102,7 @@ unlock:
 }
 
 struct iteration_args {
+	struct bib *bib;
 	l4_protocol proto;
 	struct ipv4_transport_addr *result;
 };
@@ -111,7 +113,7 @@ static int choose_port(struct ipv4_transport_addr *addr, void *void_args)
 
 	atomic_inc(&next_ephemeral);
 
-	if (!bibdb_contains4(addr, args->proto)) {
+	if (!bibdb_contains4(args->bib, addr, args->proto)) {
 		*(args->result) = *addr;
 		return 1; /* positive = break iteration, no error. */
 	}
@@ -122,9 +124,11 @@ static int choose_port(struct ipv4_transport_addr *addr, void *void_args)
 /**
  * RFC 6056, Algorithm 3.
  */
-int palloc_allocate(struct packet *in_pkt, const struct tuple *tuple6,
-		struct in_addr *daddr, struct ipv4_transport_addr *result)
+int palloc_allocate(struct xlation *state, struct in_addr *daddr,
+		struct ipv4_transport_addr *result)
 {
+	struct tuple *tuple6 = &state->in.tuple;
+	struct ipv6hdr *hdr6;
 	struct iteration_args args;
 	unsigned int offset;
 	int error;
@@ -134,11 +138,14 @@ int palloc_allocate(struct packet *in_pkt, const struct tuple *tuple6,
 	if (error)
 		return error;
 
+	args.bib = state->jool.nat64.bib;
 	args.proto = tuple6->l4_proto;
 	args.result = result;
 
-	error = pool4db_foreach_taddr4(in_pkt, tuple6->l4_proto, daddr,
-			choose_port, &args,
+	hdr6 = pkt_ip6_hdr(&state->in);
+	error = pool4db_foreach_taddr4(state->jool.nat64.pool4, state->jool.ns,
+			daddr, ttp64_xlat_tos(state, hdr6), ttp64_xlat_proto(hdr6),
+			state->in.skb->mark, choose_port, &args,
 			offset + atomic_read(&next_ephemeral));
 
 	if (error == 1)
@@ -150,14 +157,14 @@ int palloc_allocate(struct packet *in_pkt, const struct tuple *tuple6,
 		 */
 		log_debug("There are no pool4 entries for %s packets with mark "
 				"%u.", l4proto_to_string(tuple6->l4_proto),
-				in_pkt->skb->mark);
+				state->in.skb->mark);
 		return -ESRCH;
 	}
 	if (error == 0) {
 		log_warn_once("pool4 is exhausted! There are no transport "
 				"addresses left for %s packets with mark %u.",
 				l4proto_to_string(tuple6->l4_proto),
-				in_pkt->skb->mark);
+				state->in.skb->mark);
 		return -ESRCH;
 	}
 

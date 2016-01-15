@@ -1,6 +1,5 @@
 #include <linux/module.h>
 #include "nat64/unit/unit_test.h"
-#include "nat64/mod/common/config.h"
 #include "session/table.c"
 
 MODULE_LICENSE("GPL");
@@ -41,7 +40,7 @@ static bool inject(unsigned int index, __u32 local4addr, __u16 local4id,
 	if (!entries[index])
 		return false;
 
-	error = sessiontable_add(&table, entries[index], true,false);
+	error = sessiontable_add(&table, entries[index], true, false);
 	if (error) {
 		log_err("Errcode %d on sessiontable_add.", error);
 		return false;
@@ -251,14 +250,9 @@ static enum session_fate just_die(struct session_entry *session, void *arg)
 
 static bool init(void)
 {
-	if (config_init(false))
+	if (session_init())
 		return false;
-	if (session_init()) {
-		config_destroy();
-		return false;
-	}
-	sessiontable_init(&table, config_get_ttl_udp, just_die, NULL, NULL);
-
+	sessiontable_init(&table, UDP_DEFAULT, just_die, 0, NULL);
 	return true;
 }
 
@@ -266,7 +260,6 @@ static void end(void)
 {
 	sessiontable_destroy(&table);
 	session_destroy();
-	config_destroy();
 }
 
 int init_module(void)

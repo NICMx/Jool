@@ -10,7 +10,8 @@ verdict compute_out_tuple(struct xlation *state)
 
 	log_debug("Step 3: Computing the Outgoing Tuple");
 
-	error = sessiondb_get(&state->in, NULL, NULL, &session);
+	error = sessiondb_find(state->jool.nat64.session, &state->in.tuple,
+			NULL, NULL, &session);
 	if (error) {
 		/*
 		 * Bogus ICMP errors might cause this because Filtering never

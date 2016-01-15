@@ -87,7 +87,7 @@ static bool build_ipv6_frag_hdr(struct xlation *state)
 	if (is_df_set(pkt_ip4_hdr(&state->in)))
 		return false;
 
-	return config_get_build_ipv6_fh(state->jool.global);
+	return state->jool.global->cfg.atomic_frags.build_ipv6_fh;
 }
 
 bool will_need_frag_hdr(struct xlation *state)

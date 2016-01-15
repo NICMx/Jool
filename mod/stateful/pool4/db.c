@@ -9,26 +9,13 @@
 #include "nat64/mod/stateful/pool4/empty.h"
 #include "nat64/mod/stateful/pool4/table.h"
 
-/** Note, this is an array (size 2^@power). */
-static struct hlist_head __rcu *db;
-/** Number of entries (ie. tables) in the database. */
-static unsigned int tables;
-
-/**
- * Defines the number of "slots" in the table (2^power).
- * (Each slot is a hlist_head.)
- *
- * It doesn't require locking because it never changes after init.
- */
-static unsigned int power;
-
 /** Protects @db and @tables, only on updater code. */
 static DEFINE_MUTEX(lock);
 
 RCUTAG_FREE
-static unsigned int slots(void)
+static unsigned int slots(struct pool4 *pool)
 {
-	return 1 << power;
+	return 1 << pool->power;
 }
 
 RCUTAG_FREE
@@ -38,7 +25,7 @@ static struct pool4_table *table_entry(struct hlist_node *node)
 }
 
 RCUTAG_USR /* Only because of GFP_KERNEL. Can be easily upgraded to FREE. */
-static struct hlist_head *init_db(unsigned int size)
+static struct hlist_head *init_hlist(unsigned int size)
 {
 	struct hlist_head *result;
 	unsigned int i;
@@ -52,46 +39,12 @@ static struct hlist_head *init_db(unsigned int size)
 	return result;
 }
 
-RCUTAG_USR
-static int add_prefix_strings(char *prefix_strs[], int prefix_count)
-{
-	struct ipv4_prefix prefix;
-	struct port_range ports;
-	unsigned int i;
-	int error;
-
-	/*
-	 * We're not using DEFAULT_POOL4_* here because those are defaults for
-	 * empty pool4 (otherwise it looks confusing from userspace).
-	 */
-	ports.min = 0;
-	ports.max = 65535;
-
-	for (i = 0; i < prefix_count; i++) {
-		error = prefix4_parse(prefix_strs[i], &prefix);
-		if (error)
-			return error;
-
-		error = pool4db_add(0, L4PROTO_TCP, &prefix, &ports);
-		if (error)
-			return error;
-		error = pool4db_add(0, L4PROTO_UDP, &prefix, &ports);
-		if (error)
-			return error;
-		error = pool4db_add(0, L4PROTO_ICMP, &prefix, &ports);
-		if (error)
-			return error;
-	}
-
-	return 0;
-}
-
 /*
  * This NEEDS to be called during initialization because @power needs to stay
  * put after that.
  */
 RCUTAG_INIT
-static int init_power(unsigned int size)
+static int init_power(struct pool4 *pool, unsigned int size)
 {
 	if (size == 0)
 		size = 16;
@@ -107,43 +60,54 @@ static int init_power(unsigned int size)
 	}
 
 	/* 2^@power = smallest power of two greater or equal than @size. */
-	for (power = 0; slots() < size; power++)
+	for (pool->power = 0; slots(pool) < size; pool->power++)
 		/* Chomp chomp. */;
 
 	return 0;
 }
 
 RCUTAG_INIT /* Inherits INIT from init_power(). */
-int pool4db_init(unsigned int size, char *prefix_strs[], int prefix_count)
+int pool4db_init(struct pool4 **pool, unsigned int size)
 {
-	struct hlist_head *tmp;
+	struct pool4 *result;
+	struct hlist_head *hlist;
 	int error;
 
-	error = init_power(size);
-	if (error)
-		return error;
-
-	tables = 0;
-	tmp = init_db(slots());
-	if (!tmp)
+	result = kmalloc(sizeof(*result), GFP_KERNEL);
+	if (!result)
 		return -ENOMEM;
-	rcu_assign_pointer(db, tmp);
 
-	error = add_prefix_strings(prefix_strs, prefix_count);
-	if (error)
-		pool4db_destroy();
+	error = init_power(result, size);
+	if (error) {
+		kfree(result);
+		return error;
+	}
+	result->tables = 0;
+	hlist = init_hlist(slots(result));
+	if (!hlist) {
+		kfree(result);
+		return -ENOMEM;
+	}
+	RCU_INIT_POINTER(result->db, hlist);
+	kref_init(&result->refcounter);
 
-	return error;
+	*pool = result;
+	return 0;
+}
+
+void pool4db_get(struct pool4 *pool)
+{
+	kref_get(&pool->refcounter);
 }
 
 RCUTAG_FREE
-static void __destroy(struct hlist_head *db)
+static void __destroy(struct hlist_head *db, unsigned int db_len)
 {
 	struct hlist_node *node;
 	struct hlist_node *tmp;
 	unsigned int i;
 
-	for (i = 0; i < slots(); i++) {
+	for (i = 0; i < db_len; i++) {
 		hlist_for_each_safe(node, tmp, &db[i]) {
 			hlist_del(node);
 			pool4table_destroy(table_entry(node));
@@ -153,31 +117,22 @@ static void __destroy(struct hlist_head *db)
 	kfree(db);
 }
 
-RCUTAG_USR
-static void pool4db_replace(struct hlist_head *new, unsigned int count)
+static void release(struct kref *refcounter)
 {
-	struct hlist_head *old;
-
-	mutex_lock(&lock);
-	old = rcu_dereference_protected(db, lockdep_is_held(&lock));
-	rcu_assign_pointer(db, new);
-	tables = count;
-	mutex_unlock(&lock);
-
-	synchronize_rcu_bh();
-
-	__destroy(old);
+	struct pool4 *pool;
+	pool = container_of(refcounter, typeof(*pool), refcounter);
+	__destroy(rcu_dereference_raw(pool->db), slots(pool));
+	kfree(pool);
 }
 
-RCUTAG_USR
-void pool4db_destroy(void)
+void pool4db_put(struct pool4 *pool)
 {
-	pool4db_replace(NULL, 0);
+	kref_put(&pool->refcounter, release);
 }
 
 RCUTAG_PKT /* Assumes locking (whether RCU or mutex) has already been done. */
 static struct pool4_table *find_table(struct hlist_head *database,
-		const __u32 mark, enum l4_protocol proto)
+		unsigned int power, const __u32 mark, enum l4_protocol proto)
 {
 	struct pool4_table *table;
 	struct hlist_node *node;
@@ -202,21 +157,23 @@ static struct pool4_table *find_table(struct hlist_head *database,
 	return NULL;
 }
 
-/* TODO review concurrency */
-int pool4db_generic_add(struct hlist_head *db,
-		const __u32 mark, enum l4_protocol proto,
+int pool4db_add(struct pool4 *pool, const __u32 mark, enum l4_protocol proto,
 		struct ipv4_prefix *prefix, struct port_range *ports)
 {
+	struct hlist_head *db;
 	struct pool4_table *table;
 	int error;
 
-	table = find_table(db, mark, proto);
-	error = -EINVAL;
+	mutex_lock(&lock);
 
+	db = rcu_dereference_protected(pool->db, lockdep_is_held(&lock));
+	table = find_table(db, pool->power, mark, proto);
 	if (!table) {
 		table = pool4table_create(mark, proto);
-		if (!table)
-			return -ENOMEM;
+		if (!table) {
+			error = -ENOMEM;
+			goto end;
+		}
 
 		error = pool4table_add(table, prefix, ports);
 		if (error) {
@@ -224,9 +181,10 @@ int pool4db_generic_add(struct hlist_head *db,
 			return error;
 		}
 
-		tables++;
-		hlist_add_head(&table->hlist_hook, &db[hash_32(mark, power)]);
-		if (tables > slots())
+		pool->tables++;
+		hlist_add_head_rcu(&table->hlist_hook,
+				&db[hash_32(mark, pool->power)]);
+		if (pool->tables > slots(pool))
 			log_warn_once("You have lots of pool4s, which can lag Jool. Consider increasing pool4_size.");
 
 	} else {
@@ -234,27 +192,23 @@ int pool4db_generic_add(struct hlist_head *db,
 
 	}
 
+end:
+	mutex_unlock(&lock);
 	return error;
 }
 
-int pool4db_add(const __u32 mark, enum l4_protocol proto,
-		struct ipv4_prefix *prefix, struct port_range *ports)
-{
-	return pool4db_generic_add(db, mark, proto, prefix, ports);
-}
-
 RCUTAG_USR
-int pool4db_rm(const __u32 mark, enum l4_protocol proto,
+int pool4db_rm(struct pool4 *pool, const __u32 mark, enum l4_protocol proto,
 		struct ipv4_prefix *prefix, struct port_range *ports)
 {
-	struct hlist_head *database;
+	struct hlist_head *db;
 	struct pool4_table *table;
 	int error;
 
 	mutex_lock(&lock);
 
-	database = rcu_dereference_protected(db, lockdep_is_held(&lock));
-	table = find_table(database, mark, proto);
+	db = rcu_dereference_protected(pool->db, lockdep_is_held(&lock));
+	table = find_table(db, pool->power, mark, proto);
 	if (!table) {
 		error = -ESRCH;
 		goto end;
@@ -268,7 +222,7 @@ int pool4db_rm(const __u32 mark, enum l4_protocol proto,
 		hlist_del_rcu(&table->hlist_hook);
 		synchronize_rcu_bh();
 		pool4table_destroy(table);
-		tables--;
+		pool->tables--;
 	}
 
 end:
@@ -277,23 +231,33 @@ end:
 }
 
 RCUTAG_USR
-int pool4db_flush(void)
+int pool4db_flush(struct pool4 *pool)
 {
 	struct hlist_head *new;
+	struct hlist_head *old;
 
-	new = init_db(slots());
+	new = init_hlist(slots(pool));
 	if (!new)
 		return -ENOMEM;
 
-	pool4db_replace(new, 0);
+	mutex_lock(&lock);
+	old = rcu_dereference_protected(pool->db, lockdep_is_held(&lock));
+	rcu_assign_pointer(pool->db, new);
+	pool->tables = 0;
+	mutex_unlock(&lock);
+
+	synchronize_rcu_bh();
+
+	__destroy(old, slots(pool));
 	return 0;
 }
 
 /* TODO Why is this not receving mark? */
 RCUTAG_PKT
-bool pool4db_contains(enum l4_protocol proto, struct ipv4_transport_addr *addr)
+bool pool4db_contains(struct pool4 *pool, struct net *ns,
+		enum l4_protocol proto, struct ipv4_transport_addr *addr)
 {
-	struct hlist_head *database;
+	struct hlist_head *db;
 	struct pool4_table *table;
 	struct hlist_node *node;
 	unsigned int i;
@@ -301,14 +265,14 @@ bool pool4db_contains(enum l4_protocol proto, struct ipv4_transport_addr *addr)
 
 	rcu_read_lock_bh();
 
-	if (pool4db_is_empty()) {
-		found = pool4empty_contains(addr);
+	if (pool4db_is_empty(pool)) {
+		found = pool4empty_contains(ns, addr);
 		goto end;
 	}
 
-	database = rcu_dereference_bh(db);
-	for (i = 0; i < slots(); i++) {
-		hlist_for_each_rcu_bh(node, &database[i]) {
+	db = rcu_dereference_bh(pool->db);
+	for (i = 0; i < slots(pool); i++) {
+		hlist_for_each_rcu_bh(node, &db[i]) {
 			table = table_entry(node);
 			if (table->proto != proto)
 				continue;
@@ -326,18 +290,18 @@ end:
 }
 
 RCUTAG_PKT
-bool pool4db_is_empty(void)
+bool pool4db_is_empty(struct pool4 *pool)
 {
-	struct hlist_head *database;
+	struct hlist_head *db;
 	struct hlist_node *node;
 	unsigned int i;
 	bool empty = true;
 
 	rcu_read_lock_bh();
 
-	database = rcu_dereference_bh(db);
-	for (i = 0; i < slots(); i++) {
-		hlist_for_each_rcu_bh(node, &database[i]) {
+	db = rcu_dereference_bh(pool->db);
+	for (i = 0; i < slots(pool); i++) {
+		hlist_for_each_rcu_bh(node, &db[i]) {
 			if (!pool4table_is_empty(table_entry(node))) {
 				empty = false;
 				goto end;
@@ -351,9 +315,10 @@ end:
 }
 
 RCUTAG_PKT
-void pool4db_count(__u32 *tables_out, __u64 *samples, __u64 *taddrs)
+void pool4db_count(struct pool4 *pool, __u32 *tables_out, __u64 *samples,
+		__u64 *taddrs)
 {
-	struct hlist_head *database;
+	struct hlist_head *db;
 	struct hlist_node *node;
 	unsigned int i;
 
@@ -362,34 +327,32 @@ void pool4db_count(__u32 *tables_out, __u64 *samples, __u64 *taddrs)
 	(*taddrs) = 0;
 
 	rcu_read_lock_bh();
-	database = rcu_dereference_bh(db);
-	for (i = 0; i < slots(); i++) {
-		hlist_for_each_rcu_bh(node, &database[i]) {
+	db = rcu_dereference_bh(pool->db);
+	for (i = 0; i < slots(pool); i++) {
+		hlist_for_each_rcu_bh(node, &db[i]) {
 			(*tables_out)++;
 			pool4table_count(table_entry(node), samples, taddrs);
 		}
 	}
 	rcu_read_unlock_bh();
-
-	WARN((*tables_out) != tables, "Computed table count doesn't match "
-			"stored table count.");
 }
 
 RCUTAG_PKT
-int pool4db_foreach_sample(int (*cb)(struct pool4_sample *, void *), void *arg,
+int pool4db_foreach_sample(struct pool4 *pool,
+		int (*cb)(struct pool4_sample *, void *), void *arg,
 		struct pool4_sample *offset)
 {
-	struct hlist_head *database;
+	struct hlist_head *db;
 	struct pool4_table *table;
 	struct hlist_node *node;
-	u32 hash = offset ? hash_32(offset->mark, power) : 0;
+	u32 hash = offset ? hash_32(offset->mark, pool->power) : 0;
 	int error = 0;
 
 	rcu_read_lock_bh();
 
-	database = rcu_dereference_bh(db);
-	for (; hash < slots(); hash++) {
-		hlist_for_each_rcu_bh(node, &database[hash]) {
+	db = rcu_dereference_bh(pool->db);
+	for (; hash < slots(pool); hash++) {
+		hlist_for_each_rcu_bh(node, &db[hash]) {
 			table = table_entry(node);
 			if (offset) {
 				if (table->mark == offset->mark && table->proto == offset->proto) {
@@ -413,6 +376,20 @@ end:
 	return error;
 }
 
+static enum l4_protocol proto_to_l4proto(__u8 proto)
+{
+	switch (proto) {
+	case IPPROTO_TCP:
+		return L4PROTO_TCP;
+	case IPPROTO_UDP:
+		return L4PROTO_UDP;
+	case IPPROTO_ICMP:
+		return L4PROTO_ICMP;
+	}
+
+	return L4PROTO_OTHER;
+}
+
 /**
  * As a contract, this function will return:
  *
@@ -425,15 +402,10 @@ end:
  * - 0 if iteration ended with no interruptions.
  *
  * This function might need to route, hence it has lots of noisy arguments.
- *
- * @in_pkt: The incoming IPv6 packet.
- * @tuple6: @in_pkt's tuple.
- * @daddr: The address of the IPv4 node the translated packet is headed to.
- * @result: resulting address and port allocation will be placed here.
  */
 RCUTAG_PKT
-int pool4db_foreach_taddr4(struct packet *in, enum l4_protocol l4_proto,
-		struct in_addr *daddr,
+int pool4db_foreach_taddr4(struct pool4 *pool, struct net *ns,
+		struct in_addr *daddr, __u8 tos, __u8 proto, __u32 mark,
 		int (*cb)(struct ipv4_transport_addr *, void *), void *arg,
 		unsigned int offset)
 {
@@ -442,50 +414,20 @@ int pool4db_foreach_taddr4(struct packet *in, enum l4_protocol l4_proto,
 
 	rcu_read_lock_bh();
 
-	if (pool4db_is_empty()) {
-		error = pool4empty_foreach_taddr4(in, daddr, cb, arg, offset);
+	if (pool4db_is_empty(pool)) {
+		error = pool4empty_foreach_taddr4(ns, daddr, tos, proto, mark,
+				cb, arg, offset);
 	} else {
-		table = find_table(rcu_dereference_bh(db), in->skb->mark,
-				l4_proto);
-		error = table ? pool4table_foreach_taddr4(table, cb, arg, offset)
-				: -ESRCH;
+		table = find_table(rcu_dereference_bh(pool->db), pool->power,
+				mark, proto_to_l4proto(proto));
+		if (!table) {
+			error = -ESRCH;
+			goto end;
+		}
+		error = pool4table_foreach_taddr4(table, cb, arg, offset);
 	}
 
+end:
 	rcu_read_unlock_bh();
 	return error;
-}
-
-struct hlist_head *pool4db_config_init_db(void)
-{
-	struct hlist_head *config_db;
-
-	config_db = init_db(slots());
-	if (!config_db) {
-		log_err("Allocation of pool4 configuration database failed.");
-		return NULL;
-	}
-
-	return config_db;
-}
-
-
-int pool4db_config_add(struct hlist_head *config_db,
-		const __u32 mark, enum l4_protocol proto,
-		struct ipv4_prefix *prefix, struct port_range *ports)
-{
-	return pool4db_generic_add(config_db, mark, proto, prefix, ports);
-}
-
-
-int pool4db_switch_database(struct hlist_head *config_db)
-{
-	if (!config_db) {
-		log_err("Error while switching pool4 database, null pointer received.");
-		return 1;
-	}
-
-	pool4db_destroy();
-	db = config_db;
-
-	return 0;
 }

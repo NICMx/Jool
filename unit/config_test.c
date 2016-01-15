@@ -51,18 +51,6 @@ static bool compare_global_configs(struct global_config *expected,
 		}
 	}
 
-	success &= ASSERT_U64(expected->nat64.ttl.udp,
-			actual->nat64.ttl.udp,
-			"ttl.udp");
-	success &= ASSERT_U64(expected->nat64.ttl.icmp,
-			actual->nat64.ttl.icmp,
-			"ttl.icmp");
-	success &= ASSERT_U64(expected->nat64.ttl.tcp_est,
-			actual->nat64.ttl.tcp_est,
-			"ttl.tcp_est");
-	success &= ASSERT_U64(expected->nat64.ttl.tcp_trans,
-			actual->nat64.ttl.tcp_trans,
-			"ttl.tcp_trans");
 	success &= ASSERT_U64(expected->nat64.ttl.frag,
 			actual->nat64.ttl.frag,
 			"ttl.frag");
@@ -77,10 +65,6 @@ static bool compare_global_configs(struct global_config *expected,
 			actual->nat64.drop_icmp6_info,
 			"drop_icmp6_info equals");
 
-	success &= ASSERT_U64(expected->nat64.max_stored_pkts,
-			actual->nat64.max_stored_pkts,
-			"max_pkts equals test");
-
 	return success;
 }
 
@@ -94,29 +78,24 @@ static bool compare_global_configs(struct global_config *expected,
  * */
 static bool basic_test(void)
 {
-	int error;
 	unsigned char *buffer;
 	size_t buffer_len;
 	bool success = true;
-	struct global_config config = { .mtu_plateaus = NULL };
-	struct global_config response = { .mtu_plateaus = NULL };
+	struct global_configuration *config;
+	struct global_config clone;
 
-	error = config_clone(&config);
-	if (error)
+	if (config_init(&config, false))
 		return false;
 
-	error = serialize_global_config(&config, true, &buffer, &buffer_len);
-	if (error)
+	if (serialize_global_config(&config->cfg, true, &buffer, &buffer_len))
+		return false;
+	if (deserialize_global_config(buffer, buffer_len, &clone))
 		return false;
 
-	error = deserialize_global_config(buffer, buffer_len, &response);
-	if (error)
-		return false;
-
-	success &= compare_global_configs(&config, &response);
-
+	success &= compare_global_configs(&config->cfg, &clone);
 	kfree(buffer);
-
+	config_put(config);
+	kfree(clone.mtu_plateaus);
 	return success;
 }
 
@@ -126,63 +105,50 @@ static bool basic_test(void)
  */
 static bool translate_nulls_mtu(void)
 {
-	int error;
 	unsigned char *buffer;
 	size_t buffer_len;
 	bool success = true;
-	struct global_config config = { .mtu_plateaus = NULL };
-	struct global_config response = { .mtu_plateaus = NULL };
+	struct global_configuration *config;
+	struct global_config clone;
 
-	error = config_clone(&config);
-	if (error)
+	if (config_init(&config, false))
 		return false;
 
 	/*
 	 * lets modify our local config manually, jool's update functions wont
 	 * update to null
 	 */
-	config.mtu_plateaus = NULL;
-	config.mtu_plateau_count = 0;
+	kfree(config->cfg.mtu_plateaus);
+	config->cfg.mtu_plateaus = NULL;
+	config->cfg.mtu_plateau_count = 0;
 
-	error = serialize_global_config(&config, true, &buffer, &buffer_len);
-	if (error)
+	if (serialize_global_config(&config->cfg, true, &buffer, &buffer_len))
+		return false;
+	if (deserialize_global_config(buffer, buffer_len, &clone))
 		return false;
 
-	error = deserialize_global_config(buffer, buffer_len, &response);
-	if (error)
-		return false;
-
-	success &= compare_global_configs(&config, &response);
+	success &= compare_global_configs(&config->cfg, &clone);
 
 	/* the "compare_global_configs" will not evaluate the mtu_plateaus
 	 * because of the plateau_count = 0
 	 */
-	success &= ASSERT_PTR(NULL, config.mtu_plateaus,
+	success &= ASSERT_PTR(NULL, config->cfg.mtu_plateaus,
 			"local config mtu_plateaus");
-	success &= ASSERT_PTR(NULL, response.mtu_plateaus,
+	success &= ASSERT_PTR(NULL, clone.mtu_plateaus,
 			"deserialized config mtu_plateaus");
 
 	kfree(buffer);
-
+	config_put(config);
+	kfree(clone.mtu_plateaus);
 	return success;
-}
-
-static bool init(void)
-{
-	return !config_init(false);
-}
-
-static void end(void)
-{
-	config_destroy();
 }
 
 static int configproto_test_init(void)
 {
 	START_TESTS("Packet queue");
 
-	INIT_CALL_END(init(), basic_test(), end(), "basic test");
-	INIT_CALL_END(init(), translate_nulls_mtu(), end(), "nulls mtus");
+	CALL_TEST(basic_test(), "basic test");
+	CALL_TEST(translate_nulls_mtu(), "nulls mtus");
 
 	END_TESTS;
 }

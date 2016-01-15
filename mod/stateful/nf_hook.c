@@ -109,9 +109,7 @@ static struct nf_hook_ops nfho[] = {
 	},
 };
 
-static int
-__init /* TODO fix indentation */
-jool_init(void)
+static int __init jool_init(void)
 {
 	int error;
 
@@ -119,6 +117,12 @@ jool_init(void)
 	log_debug("Inserting %s...", xlat_get_name());
 
 	/* Init Jool's submodules. */
+	error = bibentry_init();
+	if (error)
+		goto bibentry_failure;
+	error = session_init();
+	if (error)
+		goto session_failure;
 	error = joolns_init();
 	if (error)
 		goto joolns_failure;
@@ -150,12 +154,14 @@ joold_failure:
 nlhandler_failure:
 	joolns_destroy();
 joolns_failure:
+	session_destroy();
+session_failure:
+	bibentry_destroy();
+bibentry_failure:
 	return error;
 }
 
-static void
-__exit /* TODO fix indentation */
-jool_exit(void)
+static void __exit jool_exit(void)
 {
 	nf_unregister_hooks(nfho, ARRAY_SIZE(nfho));
 
@@ -163,6 +169,8 @@ jool_exit(void)
 	joold_destroy();
 	nlhandler_destroy();
 	joolns_destroy();
+	session_destroy();
+	bibentry_destroy();
 
 	log_info("%s v" JOOL_VERSION_STR " module removed.", xlat_get_name());
 }

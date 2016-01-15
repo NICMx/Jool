@@ -20,7 +20,7 @@ static int validate_bib(int error, struct bib_entry *bib)
 		log_err("%pI4#%u is already mapped to %pI6c#%u.",
 				&bib->ipv4.l3, bib->ipv4.l4,
 				&bib->ipv6.l3, bib->ipv6.l4);
-		bibdb_return(bib);
+		bibentry_put(bib);
 		return -EEXIST;
 	}
 
@@ -33,24 +33,27 @@ static int validate_bib(int error, struct bib_entry *bib)
 	return error;
 }
 
-int add_static_route(struct request_bib *request)
+int add_static_route(struct xlator *jool, struct request_bib *request)
 {
 	struct bib_entry *bib = NULL;
 	int error;
 
-	if (!pool4db_contains(request->l4_proto, &request->add.addr4)) {
+	if (!pool4db_contains(jool->nat64.pool4, jool->ns, request->l4_proto,
+			&request->add.addr4)) {
 		log_err("The transport address '%pI4#%u' does not belong to "
 				"the IPv4 pool. Please add it there first.",
 				&request->add.addr4.l3, request->add.addr4.l4);
 		return -EINVAL;
 	}
 
-	error = bibdb_get4(&request->add.addr4, request->l4_proto, &bib);
+	error = bibdb_find4(jool->nat64.bib, &request->add.addr4,
+			request->l4_proto, &bib);
 	error = validate_bib(error, bib);
 	if (error)
 		return error;
 
-	error = bibdb_get6(&request->add.addr6, request->l4_proto, &bib);
+	error = bibdb_find6(jool->nat64.bib, &request->add.addr6,
+			request->l4_proto, &bib);
 	error = validate_bib(error, bib);
 	if (error)
 		return error;
@@ -62,13 +65,13 @@ int add_static_route(struct request_bib *request)
 		return -ENOMEM;
 	}
 
-	error = bibdb_add(bib);
+	error = bibdb_add(jool->nat64.bib, bib);
 	if (error) {
 		log_err("The BIB entry could not be added to the database, "
 				"despite validations. This can happen if a "
 				"conflicting entry appeared while I was "
 				"trying to insert. Try again.");
-		bibentry_kfree(bib);
+		bibentry_put(bib);
 		return error;
 	}
 
@@ -80,7 +83,7 @@ int add_static_route(struct request_bib *request)
 	return 0;
 }
 
-int delete_static_route(struct request_bib *request)
+int delete_static_route(struct xlator *jool, struct request_bib *request)
 {
 	struct ipv4_transport_addr *req4 = &request->rm.addr4;
 	struct ipv6_transport_addr *req6 = &request->rm.addr6;
@@ -88,9 +91,9 @@ int delete_static_route(struct request_bib *request)
 	int error = 0;
 
 	if (request->rm.addr6_set) {
-		error = bibdb_get6(req6, request->l4_proto, &bib);
+		error = bibdb_find6(jool->nat64.bib, req6, request->l4_proto, &bib);
 	} else if (request->rm.addr4_set) {
-		error = bibdb_get4(req4, request->l4_proto, &bib);
+		error = bibdb_find4(jool->nat64.bib, req4, request->l4_proto, &bib);
 	} else {
 		log_err("You need to provide an address so I can find the "
 				"entry you want to remove.");
@@ -110,25 +113,25 @@ int delete_static_route(struct request_bib *request)
 					&bib->ipv6.l3, bib->ipv6.l4,
 					&bib->ipv4.l3, bib->ipv4.l4,
 					&req4->l3, req4->l4);
-			bibdb_return(bib);
+			bibentry_put(bib);
 			return -ESRCH;
 		}
 	}
 
 	/* Remove the fake user. */
 	if (bib->is_static) {
-		bibdb_return(bib);
+		bibentry_put(bib);
 		bib->is_static = false;
 	}
 
 	/* Remove bib's sessions and their references. */
-	error = sessiondb_delete_by_bib(bib);
+	error = sessiondb_delete_by_bib(jool->nat64.session, bib);
 	if (error) {
-		bibdb_return(bib);
+		bibentry_put(bib);
 		return error;
 	}
 
 	/* Remove our own reference. */
-	bibdb_return(bib);
+	bibentry_put(bib);
 	return 0;
 }

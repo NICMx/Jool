@@ -57,6 +57,7 @@ static bool simple_test(void)
  */
 static bool atomic_test(void)
 {
+	struct xlator *new;
 	struct request_hdr hdr;
 	unsigned char request[sizeof(__u16) + sizeof(struct ipv6_prefix)];
 	__u16 type;
@@ -64,7 +65,7 @@ static bool atomic_test(void)
 	int error;
 	bool success = false;
 
-	error = jparser_init();
+	error = jparser_init(&new);
 	if (error) {
 		log_info("jparser_init() threw %d", error);
 		return false;
@@ -80,17 +81,17 @@ static bool atomic_test(void)
 	memcpy(&request[0], &type, sizeof(__u16));
 	memcpy(&request[2], &prefix, sizeof(prefix));
 
-	error = jparser_handle(&hdr, request);
+	error = jparser_handle(new, &hdr, request);
 	if (error) {
 		log_info("jparser_handle() 1 threw %d", error);
 		goto end;
 	}
 
 	hdr.length = sizeof(hdr) + sizeof(__u16);
-	type = SEC_DONE;
+	type = SEC_COMMIT;
 	memcpy(&request[0], &type, sizeof(__u16));
 
-	error = jparser_handle(&hdr, request);
+	error = jparser_handle(new, &hdr, request);
 	if (error) {
 		log_info("jparser_handle() 2 threw %d", error);
 		goto end;
@@ -99,7 +100,7 @@ static bool atomic_test(void)
 	success = validate("2001:db8:bbbb::", 56);
 
 end:
-	jparser_destroy();
+	jparser_destroy(new);
 	return success;
 }
 
@@ -136,6 +137,11 @@ static bool krefs_test(int ns_kref)
 static bool ns_only_krefs_test(int ns_kref, struct net *ns)
 {
 	return ASSERT_INT(ns_kref, atomic_read(&ns->count), "ns kref");
+}
+
+enum session_fate tcp_expired_cb(struct session_entry *session, void *arg)
+{
+	return FATE_RM;
 }
 
 static int init(void)

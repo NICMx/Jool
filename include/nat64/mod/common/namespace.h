@@ -6,6 +6,9 @@
 #include "nat64/mod/common/pool6.h"
 #include "nat64/mod/stateless/eam.h"
 #include "nat64/mod/stateless/pool.h"
+#include "nat64/mod/stateful/bib/db.h"
+#include "nat64/mod/stateful/pool4/db.h"
+#include "nat64/mod/stateful/session/db.h"
 
 /**
  * A Jool translator "instance". The point is that each network namespace has
@@ -26,10 +29,10 @@ struct xlator {
 			struct addr4_pool *pool6791;
 		} siit;
 		struct {
-			/* TODO add palloc, fragdb */
-			struct taddr4_pool *pool4;
+			/* TODO add fragdb */
+			struct pool4 *pool4;
 			struct bib *bib;
-			struct session_db *session;
+			struct sessiondb *session;
 		} nat64;
 	};
 };
