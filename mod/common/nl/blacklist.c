@@ -125,7 +125,7 @@ int handle_blacklist_config(struct genl_info *info)
 		goto throw_error;
 	}
 
-	return 0;
+	return nl_core_send_acknowledgement(info, command);
 
 	throw_error:
 	return 	nl_core_respond_error(info,command,error);

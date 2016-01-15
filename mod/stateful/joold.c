@@ -13,10 +13,7 @@
 #include "nat64/mod/stateful/session/entry.h"
 #include "nat64/mod/stateful/session/db.h"
 #include "nat64/mod/stateful/bib/db.h"
-#include "nat64/mod/common/nl/nl_sender.h"
 #include "nat64/mod/common/nl/nl_core2.h"
-
-static struct sock *sender_sk;
 
 static DEFINE_SPINLOCK( lock_send);
 static DEFINE_SPINLOCK( lock_receive);
@@ -39,7 +36,6 @@ struct session_element {
 	__be64 creation_time;
 	__u8 l4_proto;
 	__u8 state;
-	char entry_magic[5];
 };
 
 struct joold_entry {
@@ -47,7 +43,8 @@ struct joold_entry {
 	struct list_head nextprev;
 };
 
-static int send_msg(void *payload, size_t payload_len) {
+static int send_msg(void *payload, size_t payload_len)
+{
 	int error = 0;
 	struct nl_core_buffer * buffer;
 	log_debug("Sending multicast message!");
@@ -78,7 +75,8 @@ static int send_msg(void *payload, size_t payload_len) {
 	return 0;
 }
 
-static int joold_send_to_userspace(struct list_head *list, int elem_num) {
+static int joold_send_to_userspace(struct list_head *list, int elem_num)
+{
 	struct request_hdr *hdr;
 	struct joold_entry * entry;
 	size_t total_size;
@@ -95,7 +93,6 @@ static int joold_send_to_userspace(struct list_head *list, int elem_num) {
 		return -ENOMEM;
 	}
 	payload = hdr + 1;
-
 	init_request_hdr(hdr, payload_size, MODE_JOOLD, 0);
 
 	while (!list_empty(list)) {
@@ -114,7 +111,8 @@ static int joold_send_to_userspace(struct list_head *list, int elem_num) {
 	return 0;
 }
 
-static void copy_elements(struct list_head *list_copy, int *out_element_num) {
+static void copy_elements(struct list_head *list_copy, int *out_element_num)
+{
 
 	struct joold_entry *entry;
 	(*out_element_num) = 0;
@@ -142,7 +140,9 @@ static void send_to_userspace_wrapper(void)
 	spin_unlock_bh(&lock_send);
 
 	if (element_num > 0)
+	{
 		joold_send_to_userspace(&list, element_num);
+	}
 }
 
 static void send_to_userspace_timeout(unsigned long parameter)
@@ -153,7 +153,8 @@ static void send_to_userspace_timeout(unsigned long parameter)
 		mod_timer(&updater_timer, jiffies + msecs_to_jiffies((unsigned int) config_get_synch_elements_period()));
 }
 
-int joold_init(void) {
+int joold_init(void)
+{
 	int error = 0;
 	enabled = 0;
 
@@ -174,7 +175,8 @@ int joold_init(void) {
 	return 0;
 }
 
-void joold_update_config(void) {
+void joold_update_config(void)
+{
 
 	int error;
 
@@ -197,27 +199,27 @@ void joold_update_config(void) {
 
 }
 
-void joold_start(void) {
-
+void joold_start(void)
+{
 	spin_lock_bh(&lock_send);
 	enabled = 1;
 	spin_unlock_bh(&lock_send);
-
 }
 
-void joold_stop(void) {
-
+void joold_stop(void)
+{
 	spin_lock_bh(&lock_send);
 	enabled = 0;
 	spin_unlock_bh(&lock_send);
 }
 
-void joold_destroy(void) {
+void joold_destroy(void)
+{
 	del_timer_sync(&updater_timer);
-	netlink_kernel_release(sender_sk);
 }
 
-int joold_add_session_element(struct session_entry *entry) {
+int joold_add_session_element(struct session_entry *entry)
+{
 	int error = 0;
 	struct joold_entry *entry_copy;
 	__u64 update_time;
@@ -235,11 +237,6 @@ int joold_add_session_element(struct session_entry *entry) {
 			return -ENOMEM;
 		}
 
-		entry_copy->element.entry_magic[0] = 'j';
-		entry_copy->element.entry_magic[1] = 'o';
-		entry_copy->element.entry_magic[2] = 'o';
-		entry_copy->element.entry_magic[3] = 'l';
-		entry_copy->element.entry_magic[4] = '\0';
 
 		entry_copy->element.l4_proto = entry->l4_proto;
 		entry_copy->element.local4 = entry->local4;
@@ -263,13 +260,15 @@ int joold_add_session_element(struct session_entry *entry) {
 
 		if (config_get_synch_elements_limit() <= session_list_elem_num)
 			send_to_userspace_wrapper();
+
 	}
 
 	return error;
 }
 
 static int add_new_session(struct session_entry *entry, struct tuple tuple,
-bool is_established) {
+bool is_established)
+{
 
 	int error;
 	struct bib_entry *b_entry;
@@ -325,8 +324,10 @@ bool is_established) {
 
 }
 
+
 static struct session_entry *initialize_session_entry(
-		struct session_element *element) {
+		struct session_element *element)
+{
 
 	struct session_entry *s_entry;
 
@@ -342,7 +343,6 @@ static struct session_entry *initialize_session_entry(
 	creation_time = be64_to_cpu(element->creation_time);
 	creation_time = jiffies - msecs_to_jiffies(creation_time);
 
-	log_debug("magic session element number %s", element->entry_magic);
 
 	s_entry = kmalloc(sizeof(struct session_entry), GFP_ATOMIC);
 
@@ -375,7 +375,10 @@ static struct session_entry *initialize_session_entry(
 
 }
 
-static int update_session(struct session_element *element, int num_elements) {
+
+
+static int update_session(struct session_element *element, int num_elements)
+{
 
 	struct session_entry *entry;
 	struct session_entry *entry_aux;
@@ -384,6 +387,7 @@ static int update_session(struct session_element *element, int num_elements) {
 
 	int error;
 	int i;
+
 
 	for (i = 0; i < num_elements; i++) {
 
@@ -419,6 +423,7 @@ static int update_session(struct session_element *element, int num_elements) {
 			entry_aux->update_time = entry->update_time;
 			entry_aux->state = entry->state;
 
+
 			if (sessiondb_set_session_timer(entry_aux, is_established)) {
 				log_err("Could not set session's timer!");
 			}
@@ -433,7 +438,8 @@ static int update_session(struct session_element *element, int num_elements) {
 	return 0;
 }
 
-int joold_sync_entires(__u8 *data, __u32 size) {
+int joold_sync_entires(__u8 *data, __u32 size)
+{
 	struct session_element * s_element;
 	int num_elements = size / sizeof(struct session_element);
 
@@ -441,8 +447,7 @@ int joold_sync_entires(__u8 *data, __u32 size) {
 		return 0;
 
 	if (size == 0 || size % sizeof(struct session_element) != 0) {
-		log_err(
-				"Inconsistent data detected while synchronizing BIB and SESSION ");
+		log_err("Inconsistent data detected while synchronizing BIB and SESSION ");
 		return -1;
 	}
 

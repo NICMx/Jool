@@ -179,8 +179,7 @@ int session_display(bool use_tcp, bool use_udp, bool use_icmp, bool numeric_host
 static int session_count_response(struct nl_core_buffer *buffer, void *arg)
 {
 	__u64 *conf = netlink_get_data(buffer);
-	printf("%llu\n", *conf);
-	printf("printed!!");
+	printf("%s: %llu\n", (char *)arg, *conf);
 	return 0;
 }
 
@@ -190,12 +189,12 @@ static bool display_single_count(char *count_name, u_int8_t l4_proto)
 	struct request_hdr *hdr = (struct request_hdr *) request;
 	struct request_session *payload = (struct request_session *) (request + HDR_LEN);
 
-	printf("%s: ", count_name);
+	//printf("%s: ", count_name);
 
 	init_request_hdr(hdr, sizeof(request), MODE_SESSION, OP_COUNT);
 	payload->l4_proto = l4_proto;
 
-	return netlink_request(request, hdr->length, session_count_response, NULL);
+	return netlink_request(request, hdr->length, session_count_response, count_name);
 }
 
 int session_count(bool use_tcp, bool use_udp, bool use_icmp)
@@ -207,7 +206,7 @@ int session_count(bool use_tcp, bool use_udp, bool use_icmp)
 	if (use_tcp)
 		tcp_error = display_single_count("TCP", L4PROTO_TCP);
 	if (use_udp)
-		//udp_error = display_single_count("UDP", L4PROTO_UDP);
+		udp_error = display_single_count("UDP", L4PROTO_UDP);
 	if (use_icmp)
 		icmp_error = display_single_count("ICMP", L4PROTO_ICMP);
 

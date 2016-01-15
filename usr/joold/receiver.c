@@ -1,3 +1,4 @@
+#include <linux/kernel.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
@@ -9,10 +10,11 @@
 
 #include "nat64/usr/joold/mcastutil.h"
 #include "nat64/usr/joold/jool_client.h"
+#include "nat64/usr/types.h"
 
 static int sockfd;
 static char *lipaddress;
-static char b[sizeof(size_t)];
+static __u8 b[0xFFFF];
 static struct sockaddr_storage clientaddr, addr;
 static socklen_t addrlen;
 static char clienthost[NI_MAXHOST];
@@ -54,35 +56,41 @@ int receiver_init(char * multicast_address, char * local_ip_address,
 	return 0;
 }
 
-void *receiver_start(void *args) {
+void *receiver_start(void *args)
+{
 
 	int n;
 
 	addrlen = sizeof(clientaddr);
 	for (;;) {
 
+		memset(b, 0, sizeof(b));
+
 		n = recvfrom(sockfd, b, sizeof(b), 0, (struct sockaddr *) &clientaddr,
 				&addrlen);
 
-		if (n < 0)
+		if (n <= 0)
 			continue;
+
 
 		memset(clienthost, 0, sizeof(clienthost));
 		memset(clientservice, 0, sizeof(clientservice));
+
 
 		getnameinfo((struct sockaddr *) &clientaddr, addrlen, clienthost,
 				sizeof(clienthost), clientservice, sizeof(clientservice),
 				NI_NUMERICHOST);
 
+
 		if (strcmp(clienthost, lipaddress) == 0)
 			continue;
 
+
 		n = set_updated_entries(b);
 
-		printf("Received request from host=[%s] port=[%s]\n", clienthost,
-				clientservice);
-		fflush(stdout);
 
+		log_info("Received request from host=[%s] port=[%s]\n", clienthost,
+				clientservice);
 
 	}
 	return 0;

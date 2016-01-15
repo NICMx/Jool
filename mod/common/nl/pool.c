@@ -127,8 +127,7 @@ int handle_rfc6791_config(struct genl_info *info)
 		goto throw_error;
 	}
 
-	nl_core_send_acknowledgement(info, command);
-	return 0;
+	return nl_core_send_acknowledgement(info, command);
 
 	throw_error:
 		return nl_core_respond_error(info, command, error);

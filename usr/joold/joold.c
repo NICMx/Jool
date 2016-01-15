@@ -11,8 +11,11 @@
 #include "nat64/usr/joold/argp/options.h"
 #include "nat64/usr/types.h"
 
+
 int init_threads(char *multicast_address, char *local_ip_address,
-		char *multicast_port) {
+		char *multicast_port)
+{
+
 
 	pthread_t thread1, thread2;
 	int ret;
@@ -27,6 +30,7 @@ int init_threads(char *multicast_address, char *local_ip_address,
 		return -1;
 	}
 
+
 	ret = pthread_create(&thread1, NULL, receiver_start, NULL);
 	if (ret) {
 		log_err("Error - pthread_create() return code: %d\n", ret);
@@ -38,6 +42,7 @@ int init_threads(char *multicast_address, char *local_ip_address,
 		log_err("Error - pthread_create() return code: %d\n", ret);
 		return ret;
 	}
+
 
 	pthread_join(thread1, NULL);
 	pthread_join(thread2, NULL);

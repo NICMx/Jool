@@ -2,7 +2,7 @@
 #include "nat64/mod/common/config.h"
 #include "nat64/mod/common/core.h"
 #include "nat64/mod/common/namespace.h"
-#include "nat64/mod/common/nl_handler.h"
+#include "nat64/mod/common/nl/nl_handler.h"
 #include "nat64/mod/common/pool6.h"
 #include "nat64/mod/common/types.h"
 #include "nat64/mod/common/log_time.h"
@@ -29,13 +29,11 @@ static char *pool6791[5];
 static int pool6791_size;
 module_param_array(pool6791, charp, &pool6791_size, 0);
 MODULE_PARM_DESC(pool6791, "The RFC6791 pool's addresses.");
+
 static bool disabled;
 module_param(disabled, bool, 0);
 MODULE_PARM_DESC(disabled, "Disable the translation at the beginning of the module insertion.");
 
-static int sock_family = NETLINK_USERSOCK;
-module_param(sock_family, int, 0);
-MODULE_PARM_DESC(sock_family, "Family of the socket which will handle userspace requests.");
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 13, 0)
 #define HOOK_ARG_TYPE const struct nf_hook_ops *
@@ -103,9 +101,9 @@ static int __init nat64_init(void)
 	if (error)
 		goto log_time_failure;
 #endif
-	error = nlhandler_init(sock_family);
-	if (error)
-		goto nlhandler_failure;
+
+	nlhandler_init();
+
 	error = pool6_init(&pool6, pool6 ? 1 : 0);
 	if (error)
 		goto pool6_failure;
@@ -137,7 +135,6 @@ blacklist_failure:
 pool6_failure:
 	nlhandler_destroy();
 
-nlhandler_failure:
 #ifdef BENCHMARK
 	logtime_destroy();
 

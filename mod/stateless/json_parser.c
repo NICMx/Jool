@@ -1,9 +1,13 @@
 #include "nat64/common/genetlink.h"
-#include "nat64/mod/common/json_parser.h"
 #include "nat64/mod/common/pool6.h"
+#include "nat64/mod/common/nl/nl_core2.h"
 #include "nat64/mod/stateless/blacklist4.h"
 #include "nat64/mod/stateless/rfc6791.h"
+#include "nat64/mod/common/config.h"
 
+
+
+static enum config_mode command = MODE_PARSE_FILE;
 
 static int init_configuration(void);
 static int init_members(void);
@@ -196,87 +200,93 @@ static void end_configuration(void)
 }
 
 
+static int handle_json_file_config_wrapped(struct genl_info *info)
+{
+
+	struct request_hdr *jool_hdr = (struct request_hdr *) (info->attrs[ATTR_DATA] + 1);
+		__u8*request = (__u8 *)(jool_hdr + 1);
+		int error = 0;
+		__u16 request_type =  *((__u16 *) request);
+		__u32 length = jool_hdr->length - 2;
+
+
+		if (request_type == SEC_INIT) {
+
+			if(init_configuration()) {
+				free_members_on_error();
+				initialized = 0;
+				return -EINVAL;
+			}
+		}
+
+
+		if (request_type == SEC_DONE) {
+			if(save_configuration()) {
+				free_members_on_error();
+				initialized = 0;
+				return -EINVAL;
+			}
+
+			end_configuration();
+			return 0;
+		}
+
+		if (!request) {
+			log_err("NULL request received!.");
+			free_members_on_error();
+			initialized = 0;
+			return -EINVAL;
+		}
+
+		request = request + 2;
+
+		if(initialized) {
+			switch(request_type) {
+
+			case SEC_GLOBAL:
+			error = handle_global_config(request,length);
+			break;
+
+			case SEC_POOL6:
+			error = handle_pool6_config(request,length);
+			break;
+
+			case SEC_EAMT:
+			error = handle_eamt_config(request,length);
+			break;
+
+			case SEC_BLACKLIST:
+			error = handle_blacklist_config(request,length);
+			break;
+
+			case SEC_POOL6791:
+			error = handle_pool6791_config(request,length);
+			break;
+			}
+
+			if(error) {
+				free_members_on_error();
+				initialized = 0;
+			}
+
+		} else {
+			log_err("Configuration transaction has not been initialized!.") ;
+			return -EINVAL;
+		}
+
+		return error;
+
+}
+
 
 int handle_json_file_config(struct genl_info *info)
 {
-	struct request_hdr *jool_hdr;
-	__u8*request = (__u8 *)(jool_hdr + 1);
-	int error = 0;
+	int error = handle_json_file_config_wrapped(info);
 
-	jool_hdr = (struct request_hdr *) (info->attrs[ATTR_DATA] + 1);
+	if (error)
+		return nl_core_respond_error(info, command, error);
 
-	__u16 request_type =  *((__u16 *) request);
-	__u32 length = jool_hdr->length - (sizeof(struct request_hdr))-2;
-
-
-
-	if (request_type == SEC_INIT) {
-
-		log_info("initializing configuration.");
-
-		if(init_configuration()) {
-			free_members_on_error();
-			initialized = 0;
-			return -EINVAL;
-		}
-	}
-
-
-	if (request_type == SEC_DONE) {
-		if(save_configuration()) {
-			free_members_on_error();
-			initialized = 0;
-			return -EINVAL;
-		}
-		log_info("configuration saved.") ;
-		end_configuration();
-		return 0;
-	}
-
-	if (!request) {
-		log_err("NULL request received!.");
-		free_members_on_error();
-		initialized = 0;
-		return -EINVAL;
-	}
-
-	request = request + 2;
-
-	if(initialized) {
-		switch(request_type) {
-
-		case SEC_GLOBAL:
-		error = handle_global_config(request,length);
-		break;
-
-		case SEC_POOL6:
-		error = handle_pool6_config(request,length);
-		break;
-
-		case SEC_EAMT:
-		error = handle_eamt_config(request,length);
-		break;
-
-		case SEC_BLACKLIST:
-		error = handle_blacklist_config(request,length);
-		break;
-
-		case SEC_POOL6791:
-		error = handle_pool6791_config(request,length);
-		break;
-		}
-
-		if(error) {
-			free_members_on_error();
-			initialized = 0;
-		}
-
-	} else {
-		log_err("Configuration transaction has not been initialized!.") ;
-		return -EINVAL;
-	}
-
-	return error;
+	return nl_core_send_acknowledgement(info, command);
 }
 
 

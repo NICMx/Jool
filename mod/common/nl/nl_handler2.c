@@ -1,4 +1,5 @@
 #include <linux/module.h>
+#include <net/netlink.h>
 #include <net/genetlink.h>
 #include <linux/sort.h>
 #include <linux/version.h>
@@ -34,6 +35,7 @@ static int validate_version(struct request_hdr *hdr) {
 	if (hdr->magic[2] != 'o' || hdr->magic[3] != 'l')
 		goto magic_fail;
 
+
 	switch (hdr->type) {
 	case 's':
 		if (xlat_is_nat64()) {
@@ -50,6 +52,7 @@ static int validate_version(struct request_hdr *hdr) {
 		}
 		break;
 	default:
+		log_info("entered to default!");
 		goto magic_fail;
 	}
 
@@ -71,7 +74,6 @@ static int validate_version(struct request_hdr *hdr) {
 	return -EINVAL;
 }
 
-
 static int handle_jool_message(struct sk_buff *skb_in,	struct genl_info *info)
 {
 
@@ -79,7 +81,6 @@ static int handle_jool_message(struct sk_buff *skb_in,	struct genl_info *info)
 	int error;
 
 	jool_hdr = (struct request_hdr *) (info->attrs[ATTR_DATA] + 1);
-
 
 	error = validate_version(jool_hdr);
 

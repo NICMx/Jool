@@ -144,11 +144,11 @@ static int handle_display_response(struct nl_core_buffer *buffer, void *arg)
 		printf("  Synchronization:\n");
 		printf("  Enabled (--%s, --%s): %s\n",
 				OPTNAME_SYNCH_ENABLE , OPTNAME_SYNCH_DISABLE,
-					print_bool(conf->synch_enabled));
+					conf->synch_enabled ? "Enabled" : "Disabled");
 
-		printf("    --%s: %u\n", OPTNAME_SYNCH_MAX_SESSIONS, conf->synch_elements_limit);
-		printf("    --%s: %u\n", OPTNAME_SYNCH_PERIOD, conf->synch_elements_period);
-		printf("    --%s: %lu\n", OPTNAME_SYNCH_THRESHOLD, conf->synch_elements_threshold);
+		printf("    --%s: %u sessions\n", OPTNAME_SYNCH_MAX_SESSIONS, conf->synch_elements_limit);
+		printf("    --%s: %u milliseconds\n", OPTNAME_SYNCH_PERIOD, conf->synch_elements_period);
+		printf("    --%s: %u milliseconds\n", OPTNAME_SYNCH_THRESHOLD, conf->synch_elements_threshold);
 	}
 
 
@@ -196,7 +196,13 @@ static int handle_display_response_csv(struct nl_core_buffer *buffer, void *arg)
 		printf(OPTNAME_TCPEST_TIMEOUT ",");
 		printf(OPTNAME_TCPTRANS_TIMEOUT ",");
 		printf(OPTNAME_ICMP_TIMEOUT ",");
-		printf(OPTNAME_FRAG_TIMEOUT);
+		printf(OPTNAME_FRAG_TIMEOUT",");
+
+		printf("Synchronization Status,");
+		printf(OPTNAME_SYNCH_MAX_SESSIONS ",");
+		printf(OPTNAME_SYNCH_PERIOD ",");
+		printf(OPTNAME_SYNCH_THRESHOLD);
+
 	}
 
 	printf("\n");
@@ -245,6 +251,15 @@ static int handle_display_response_csv(struct nl_core_buffer *buffer, void *arg)
 		print_time_csv(conf->nat64.ttl.icmp);
 		printf(",");
 		print_time_csv(conf->nat64.ttl.frag);
+		printf(",");
+
+		print_bool(conf->synch_enabled);
+		printf(",");
+		printf("%u", conf->synch_elements_limit);
+		printf(",");
+		printf("%u", conf->synch_elements_period);
+		printf(",");
+		printf("%u", conf->synch_elements_threshold);
 	}
 	printf("\n");
 

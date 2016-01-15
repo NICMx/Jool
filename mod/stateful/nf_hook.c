@@ -23,11 +23,6 @@ MODULE_LICENSE("GPL");
 MODULE_AUTHOR("NIC-ITESM");
 MODULE_DESCRIPTION("Stateful NAT64 (RFC 6146)");
 
-#ifdef bool
-	#define bool_aux bool
-	#undef bool
-#endif
-
 static char *pool6[5];
 static int pool6_len;
 module_param_array(pool6, charp, &pool6_len, 0);
@@ -45,15 +40,6 @@ MODULE_PARM_DESC(pool4_size, "Size of pool4 DB's hashtable.");
 static bool disabled;
 module_param(disabled, bool, 0);
 MODULE_PARM_DESC(disabled, "Disable the translation at the beginning of the module insertion.");
-
-static int synch_period = 500;
-module_param(synch_period,int,0);
-MODULE_PARM_DESC(synch_timer_period,"Period of synchronization with other JOOL instances in miliseconds.");
-
-#ifdef bool_aux
-	#define bool bool_aux
-	#undef bool_aux
-#endif
 
 
 static char *banner = "\n"

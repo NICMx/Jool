@@ -76,21 +76,21 @@ static int respond_single_msg(struct genl_info *info, enum config_mode command,	
 		return -ENOMEM;
 	}
 
-
-	error = nla_put(skb, ATTR_DATA, sizeof(*buffer)+buffer->len, buffer);
+	error = nla_put(skb, ATTR_DATA, (int)(sizeof(*buffer)+buffer->len), buffer);
 	if (error) {
 		pr_err("nla_put() failed. \n");
 		kfree_skb(skb);
-		return -EINVAL;
+		return error;
 	}
-	total_length = genlmsg_end(skb, msg_head);
 
+	total_length = genlmsg_end(skb, msg_head);
 
 	error = genlmsg_reply(skb, info);
 	if (error) {
 		pr_err("genlmsg_reply() failed: %d\n", error);
 		return error;
 	}
+
 
 	return 0;
 
@@ -159,7 +159,7 @@ int nl_core_send_multicast_message(struct nl_core_buffer * buffer, struct genl_m
 {
 	int error = 0;
 	struct sk_buff *skb_out;
-	void *data;
+	void *msg_head;
 
 	 skb_out = nlmsg_new(NLMSG_ALIGN(buffer->len), GFP_ATOMIC);
 
@@ -168,12 +168,20 @@ int nl_core_send_multicast_message(struct nl_core_buffer * buffer, struct genl_m
 			return -ENOMEM;
 	 }
 
-	data = genlmsg_put(skb_out, 0, 0, &jool_family,0,0);
+	msg_head = genlmsg_put(skb_out, 0, 0, &jool_family,0,0);
 
-	memcpy(data, (buffer+1), buffer->len);
+
+	error = nla_put(skb_out, ATTR_DATA, (int)(sizeof(*buffer)+buffer->len), buffer);
+
+	if (error) {
+		pr_err("nla_put() failed. \n");
+		kfree_skb(skb_out);
+		return -EINVAL;
+	}
+
+	genlmsg_end(skb_out, msg_head);
 
 	error = genlmsg_multicast_allns(skb_out, 0, grp->id, 0);
-
 
 	if (error) {
 		log_warn_once("Sending multicast message failed. (errcode %d)", error);

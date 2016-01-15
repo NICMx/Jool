@@ -154,3 +154,42 @@ int joold_sync_entires(__u8 *data, __u32 size)
 	fail(__func__);
 	return -EINVAL;
 }
+
+//Dummy function
+int joold_init(void)
+{
+    fail(__func__);
+    return -EINVAL;
+}
+//Dummy function
+void joold_update_config(void)
+{
+    fail(__func__);
+
+}
+//Dummy function
+void joold_start(void)
+{
+    fail(__func__);
+}
+//Dummy function
+void joold_stop(void)
+{
+    fail(__func__);
+
+}
+//Dummy function
+void joold_destroy(void)
+{
+    fail(__func__);
+
+}
+//Dummy function
+int joold_add_session_element(struct session_entry *entry)
+{
+    fail(__func__);
+    return -EINVAL;
+}
+
+
+

@@ -37,7 +37,6 @@ static int handle_bib_display(struct genl_info *info, struct request_bib *reques
 	error = (error >= 0) ? nl_core_send_buffer(info, command, buffer) : nl_core_respond_error(info, command, error);
 
 
-
 	nl_core_free_buffer(buffer);
 	return error;
 }
@@ -119,8 +118,7 @@ int handle_bib_config(struct genl_info *info)
 		goto throw_error;
 	}
 
-	nl_core_send_acknowledgement(info, command);
-	return 0;
+	return nl_core_send_acknowledgement(info, command);
 
 	throw_error:
 		return nl_core_respond_error(info, command, error);

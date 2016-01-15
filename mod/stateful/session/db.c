@@ -129,7 +129,6 @@ int sessiondb_set_session_timer(struct session_entry *session, bool is_establish
 	if (changed) {
 		list_del(&session->list_hook);
 		list_add_tail(&session->list_hook, &session->expirer->sessions);
-		sessiontable_reschedule(session->expirer);
 	}
 
 	sessiontable_reschedule(session->expirer);

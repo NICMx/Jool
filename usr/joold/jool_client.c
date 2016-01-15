@@ -23,22 +23,21 @@ struct sockaddr_nl sockaddr;
 struct nl_sock *sender_sk;
 
 //Callback function to pass data that was received from kernel.
-static int (*sender_callback)(void *, size_t size);
-
-void print_received_entries(struct request_hdr *received_data) {
-	log_info("received data length: %ul", received_data->length);
-}
+static int (*sender_callback)(void *, __u16 size);
 
 int set_updated_entries(void *data) {
 
-	struct request_hdr* received_data = (struct request_hdr *) data;
 
+	int error = 0;
+	struct request_hdr* received_data = (struct request_hdr *) data;
 	char * magic = malloc(5);
+
 
 	if (!magic) {
 		log_err("Could not allocate memory for magic string variable!");
 		return -1;
 	}
+
 
 	magic[4] = '\0';
 	memcpy(magic, received_data, 4);
@@ -48,34 +47,62 @@ int set_updated_entries(void *data) {
 		return -1;
 	}
 
+
 	free(magic);
 	magic = NULL;
 
 
-	return netlink_request(data, received_data->length+sizeof(*received_data),
-				NULL , NULL);
+	error = netlink_simple_request(data, received_data->length+sizeof(*received_data));
+
+	return error;
 
 }
 
-static int updated_entries_callback(struct nl_msg *msg, void *arg) {
+static int updated_entries_callback(struct nl_msg *msg, void *arg)
+{
+	struct nlattr *attrs[__ATTR_MAX + 1];
 	struct nlmsghdr *hdr;
 	struct request_hdr *joold_data;
-	__u8 * payload;
+	struct nl_core_buffer *buffer;
+	int error = 0;
 
 	hdr = nlmsg_hdr(msg);
-	payload = nlmsg_data(hdr);
 
-	joold_data = (struct request_hdr*) payload;
+	error = genlmsg_parse(hdr, 0, attrs, __ATTR_MAX, NULL);
 
-	sender_callback(payload, sizeof(struct request_hdr) + joold_data->length);
+	if (error) {
+		fprintf(stderr, "%s (%d)\n", nl_geterror(error), error);
+		fprintf(stderr, "genlmsg_parse failed. \n");
+		return error;
+	}
+
+	if (attrs[1]) {
+		buffer = (struct nl_core_buffer *)nla_data(attrs[1]);
+	} else {
+		fprintf(stderr, "null buffer!\n");
+		return 0;
+	}
+
+
+	joold_data = (struct request_hdr *)(buffer+1);
+
+
+	if (buffer->len > (~(__u16)0)) {
+		fprintf(stderr, "The kernel module is sending more bytes than this daemon can send through the netkwork! \n"
+						"I am not goin to synchronize this! \n"
+						"Reducing the number of sessions to queue through Jool's user-space application, can help to solve this");
+	}
+
+
+	sender_callback(joold_data, buffer->len);
 
 	return 0;
 }
 
-int jool_client_sk_receiver_init(int (*cb)(void *, size_t size)) {
+int jool_client_sk_receiver_init(int (*cb)(void *, __u16 size)) {
 
 	int error = 0;
-	int family = 0;
+	int family_mc_grp = 0;
 	receiver_sk = nl_socket_alloc();
 
 	if (!receiver_sk) {
@@ -84,6 +111,7 @@ int jool_client_sk_receiver_init(int (*cb)(void *, size_t size)) {
 	}
 
 	nl_socket_disable_seq_check(receiver_sk);
+
 
 	sender_callback = cb;
 
@@ -106,16 +134,16 @@ int jool_client_sk_receiver_init(int (*cb)(void *, size_t size)) {
 
 	}
 
-	family = genl_ctrl_resolve_grp(receiver_sk, GNL_JOOL_FAMILY_NAME, GNL_JOOLD_MULTICAST_GRP_NAME);
+	family_mc_grp = genl_ctrl_resolve_grp(receiver_sk, GNL_JOOL_FAMILY_NAME, GNL_JOOLD_MULTICAST_GRP_NAME);
 
 
-	if (family < 0) {
+	if (family_mc_grp < 0) {
 		log_err("Clouldn't add socket as member of the family and multicast group!");
 		goto fail;
 	}
 
 
-	error = nl_socket_add_membership(receiver_sk, JOOLD_MC_ID);
+	error = nl_socket_add_membership(receiver_sk, family_mc_grp);
 
 	if (error) {
 		log_err("Clouldn't add socket as member of the family and multicast group!");
@@ -146,7 +174,7 @@ int jool_client_sk_sender_init() {
 
 }
 
-int jool_client_init(int (*cb)(void *, size_t size)) {
+int jool_client_init(int (*cb)(void *, __u16 size)) {
 
 	int error = 0;
 

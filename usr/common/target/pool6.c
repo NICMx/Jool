@@ -106,8 +106,6 @@ int pool6_add(struct ipv6_prefix *prefix, bool force)
 		return -EINVAL;
 	}
 
-	fprintf(stderr, "prefix integer %lu \n", prefix->address);
-
 	init_request_hdr(hdr, sizeof(request), MODE_POOL6, OP_ADD);
 	payload->add.prefix = *prefix;
 

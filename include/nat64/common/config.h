@@ -651,20 +651,21 @@ struct global_config {
 		__u8 eam_hairpin_mode;
 	} siit;
 
+	/** Tells if synchronization is enabled*/
 	__u8 synch_enabled;
 
 	/**
 	 * Max number of elemets to store in the synchronization queue before
 	 * send them to another jool's instance.
 	 */
-	int synch_elements_limit;
+	__u32 synch_elements_limit;
 
 	/**
 	 * Time lapse within the timer will be sending sessions to
 	 * another jool's instance if there are any in the synchronization
 	 * queue.
 	 */
-	int synch_elements_period;
+	__u32 synch_elements_period;
 
 	/**
 	 * Milliseconds that have to pass since a session was created for it to be allowed to
@@ -672,7 +673,7 @@ struct global_config {
 	 * over the network.
 	 */
 
-	unsigned long synch_elements_threshold;
+	__u32 synch_elements_threshold;
 
 };
 

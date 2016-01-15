@@ -128,7 +128,6 @@ static int handle_pool4_count(struct genl_info *info)
 
 int handle_pool4_config(struct genl_info *info)
 {
-
 	struct request_hdr *jool_hdr = (struct request_hdr *) (info->attrs[ATTR_DATA] + 1);
 	union request_pool4 *request = (union request_pool4 *) (jool_hdr + 1);
 
@@ -146,16 +145,22 @@ int handle_pool4_config(struct genl_info *info)
 		return handle_pool4_count(info);
 
 	case OP_ADD:
-		return handle_pool4_add(info, request);
-
+		 handle_pool4_add(info, request);
+		 break;
 	case OP_REMOVE:
-		return handle_pool4_rm(info, request);
+		handle_pool4_rm(info, request);
+		break;
 
 	case OP_FLUSH:
-		return handle_pool4_flush(info, request);
+		handle_pool4_flush(info, request);
+		break;
 
 	default:
+
 		log_err("Unknown operation: %d", jool_hdr->operation);
-		return  nl_core_respond_error(info, command, -EINVAL);
+		return nl_core_respond_error(info, command, -EINVAL);
 	}
+
+	return nl_core_send_acknowledgement(info, command);
+
 }

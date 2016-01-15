@@ -266,6 +266,11 @@ static int handle_global_update(enum global_type type, size_t size, unsigned cha
 
 	case SYNCH_ELEMENTS_LIMIT:
 
+		if (xlat_is_siit()) {
+	  	   log_err("Jool siit can't modify synchronization parameters!");
+	  	   return -EINVAL;
+	  	}
+
 		synch_elements_limit = *((__u8*)value);
 
 		if (synch_elements_limit <  DEFAULT_SYNCH_ELEMENTS_LIMIT) {
@@ -278,6 +283,11 @@ static int handle_global_update(enum global_type type, size_t size, unsigned cha
 
 		break;
 	case SYNCH_PERIOD:
+
+		if (xlat_is_siit()) {
+	  	   log_err("Jool siit can't modify synchronization parameters!");
+	  	   return -EINVAL;
+	  	}
 
 		synch_period = *((__u64*)value);
 
@@ -293,11 +303,21 @@ static int handle_global_update(enum global_type type, size_t size, unsigned cha
 
 	case SYNCH_THRESHOLD:
 
+		if (xlat_is_siit()) {
+		  log_err("Jool siit can't modify synchronization parameters!");
+	  	  return -EINVAL;
+		}
+
 		config->synch_elements_threshold = *((__u64*)value);
 
 		break;
 
 	case SYNCH_ENABLE:
+
+		if (xlat_is_siit()) {
+		   log_err("Jool siit modify synchronization parameters!");
+		   return -EINVAL;
+		}
 
 		log_info("enabling synchronization!");
 
@@ -310,6 +330,11 @@ static int handle_global_update(enum global_type type, size_t size, unsigned cha
 		break;
 
 	case SYNCH_DISABLE:
+
+		if (xlat_is_siit()) {
+	  	   log_err("Jool siit modify synchronization parameters!");
+	  	   return -EINVAL;
+	  	}
 
 		log_info("disabling synchronization!");
 
@@ -395,17 +420,12 @@ int handle_global_config(struct genl_info *info)
 	switch (jool_hdr->operation) {
 	case OP_DISPLAY:
 		log_debug("Returning 'Global' options.");
+		return  handle_global_display(info);
 
-		error = handle_global_display(info);
-
-		if (error)
-			goto end;
-
-		return 0;
 	case OP_UPDATE:
 		if (verify_superpriv()) {
 			error = -EPERM;
-			goto end;
+			goto throw_error;
 		}
 
 		log_debug("Updating 'Global' options.");
@@ -416,17 +436,17 @@ int handle_global_config(struct genl_info *info)
 		error = handle_global_update(request->update.type, buffer_len, buffer);
 
 		if (error)
-			goto end;
-
-		return 0;
+			goto throw_error;
 
 		break;
-
 	default:
-		log_err("Unknown operation: %d", jool_hdr->operation);
 		error = -EINVAL;
+		log_err("Unknown operation: %d", jool_hdr->operation);
+		goto throw_error;
 	}
 
-end:
+	return nl_core_send_acknowledgement(info, command);
+
+	throw_error:
 	return nl_core_respond_error(info, command, error);
 }

@@ -67,8 +67,6 @@ static int handle_session_count(struct genl_info *info, struct request_session *
 	if (error)
 		goto throw_error_with_deallocation;
 
-	log_info("writing to buffer count: %u", count);
-
 	nl_core_write_to_buffer(buffer, (__u8*) &count, sizeof(count));
 
 	error = nl_core_send_buffer(info, command, buffer);
