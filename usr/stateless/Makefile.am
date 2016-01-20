@@ -4,7 +4,7 @@
 bin_PROGRAMS = jool_siit
 jool_siit_SOURCES = \
 	../common/dns.c \
-	../common/jool2.c \
+	../common/jool.c \
 	../common/netlink2.c \
 	../common/str_utils.c \
 	../common/cJSON.c \

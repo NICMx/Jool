@@ -14,5 +14,5 @@ joold_SOURCES = joold.c \
 joold_LDADD = ${LIBNLGENL3_LIBS} ${LIBNL3_LIBS}
 joold_CFLAGS = -Wall -O2
 joold_CFLAGS += -I${srcdir}/../../include
-joold_CFLAGS += ${LIBNLGENL3_CFLAGS} ${LIBNL3_CFLAGS} ${JOOL_FLAGS}
+joold_CFLAGS += ${LIBNLGENL3_CFLAGS} ${LIBNL3_CFLAGS} ${JOOL_FLAGS} -pthread
 #man_MANS = joold.8

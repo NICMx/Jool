@@ -11,7 +11,7 @@
 #include "nat64/common/joold/joold_config.h"
 #include "nat64/usr/joold/jool_client.h"
 
-#include "../../include/nat64/usr/netlink.h"
+#include "nat64/usr/netlink.h"
 #include "nat64/usr/types.h"
 
 //Socket which receives data from kernel.

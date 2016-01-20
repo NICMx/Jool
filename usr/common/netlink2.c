@@ -172,8 +172,7 @@ int genetlink_send_msg(void *request,
 		error = nl_socket_modify_cb(sk, callbacks[i], NL_CB_CUSTOM, netlink_msg_handler, cb_arg);
 
 		if (error < 0) {
-			log_err(
-					"Could not register response handler. " "I won't be able to parse Jool's response, so I won't send the request.\n" "Netlink error message: %s (Code %d)",
+			log_err("Could not register response handler. " "I won't be able to parse Jool's response, so I won't send the request.\n" "Netlink error message: %s (Code %d)",
 					nl_geterror(error), error);
 
 			return error;
@@ -210,6 +209,8 @@ int genetlink_send_msg(void *request,
 		error_function = "nl_send_auto";
 		goto fail;
 	}
+
+	nl_recvmsgs_default(sk);
 
 	if (error < 0) {
 		error_function = "nl_recvmsgs_default";

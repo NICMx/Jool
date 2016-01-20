@@ -26,6 +26,8 @@
 int netlink_request(void *request, __u32 request_len, int (*cb)(struct nl_core_buffer *, void *),
 		void *cb_arg);
 
+int netlink_simple_request(void *request, __u32 request_len);
+
 
 int netlink_request_multipart_done(void);
 

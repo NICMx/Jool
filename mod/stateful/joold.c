@@ -1,4 +1,5 @@
 #include <linux/netlink.h>
+#include <linux/version.h>
 #include <net/genetlink.h>
 #include <linux/list.h>
 #include <linux/spinlock_types.h>
@@ -64,7 +65,7 @@ static int send_msg(void *payload, size_t payload_len)
 		return error;
 	}
 
-	error = nl_core_send_multicast_message(buffer, &mc_group);
+	error = nl_core_send_multicast_message(buffer);
 
 	if (error) {
 		log_err("Couldn't send multicast msg!");
@@ -155,20 +156,9 @@ static void send_to_userspace_timeout(unsigned long parameter)
 
 int joold_init(void)
 {
-	int error = 0;
 	enabled = 0;
 
 	INIT_LIST_HEAD(&session_elements);
-
-	memcpy(mc_group.name, GNL_JOOLD_MULTICAST_GRP_NAME, sizeof(GNL_JOOLD_MULTICAST_GRP_NAME));
-	mc_group.id = JOOLD_MC_ID;
-
-	error = nl_core_register_mc_group(&mc_group);
-
-	if (error) {
-		log_err("Couldn't register joold's multicast group!");
-		return error;
-	}
 
 	setup_timer(&updater_timer, send_to_userspace_timeout, 0);
 

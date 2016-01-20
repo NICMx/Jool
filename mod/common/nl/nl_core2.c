@@ -14,6 +14,8 @@
 
 static int genetlink_callback(struct sk_buff *skb_in, struct genl_info *info);
 
+struct genl_multicast_group mc_groups[1];
+
 
 /**
  * Actual message type definition.
@@ -39,7 +41,9 @@ int (*main_callback)(struct sk_buff *skb_in, struct genl_info *info) = NULL;
 
 static int genetlink_callback(struct sk_buff *skb_in, struct genl_info *info)
 {
+
 	if (main_callback != NULL) {
+		log_info("calling main callback!");
 		return main_callback(skb_in, info);
 	} else {
 		log_warn_once("Wanted to call main callback but it is null!");
@@ -155,7 +159,7 @@ bool nl_core_write_to_buffer(struct nl_core_buffer *buffer, __u8 *data, size_t d
 	return 0;
 }
 
-int nl_core_send_multicast_message(struct nl_core_buffer * buffer, struct genl_multicast_group *grp)
+int nl_core_send_multicast_message(struct nl_core_buffer * buffer)
 {
 	int error = 0;
 	struct sk_buff *skb_out;
@@ -181,7 +185,11 @@ int nl_core_send_multicast_message(struct nl_core_buffer * buffer, struct genl_m
 
 	genlmsg_end(skb_out, msg_head);
 
-	error = genlmsg_multicast_allns(skb_out, 0, grp->id, 0);
+	#if LINUX_VERSION_CODE < KERNEL_VERSION(3,13,0)
+	error = genlmsg_multicast_allns(skb_out, 0, mc_groups[0].id, 0);
+	#else
+	error = genlmsg_multicast_allns(&jool_family, skb_out, 0, 0, GFP_ATOMIC);
+	#endif
 
 	if (error) {
 		log_warn_once("Sending multicast message failed. (errcode %d)", error);
@@ -193,7 +201,7 @@ int nl_core_send_multicast_message(struct nl_core_buffer * buffer, struct genl_m
 
 int nl_core_send_buffer(struct genl_info *info, enum config_mode command, struct nl_core_buffer *buffer)
 {
-
+	log_info("sending buffer!");
 	if (buffer->len > (size_t)NL_CORE_BUFFER_DATA_SIZE) {
 		log_err("Buffer too long to be sent!");
 		return -EINVAL;
@@ -267,63 +275,62 @@ int nl_core_send_acknowledgement(struct genl_info *info, enum config_mode comman
 	return error;
 }
 
-int nl_core_register_mc_group(struct genl_multicast_group *grp)
-{
-	int error = 0;
-
-	if (!grp) {
-		log_err("Trying to register a NULL multicast group!");
-		return -EINVAL;
-	}
-
-	error = genl_register_mc_group(&jool_family, grp);
-
-
-	if (error) {
-		log_err("Error while registering multicast group %s for family %s",
-				grp->name, jool_family.name);
-		return error;
-	}
-
-	return 0;
-}
-
-static int register_family(struct genl_family *family, struct genl_ops* ops,
-		size_t n_ops)
+static int register_family(void)
 {
 
 	int error = 0;
 
-	pr_info("Registering family.\n");
+	memcpy(&(mc_groups[0].name), GNL_JOOLD_MULTICAST_GRP_NAME, sizeof(GNL_JOOLD_MULTICAST_GRP_NAME));
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(3,13,0)
 
-	error = genl_register_family_with_ops(family, ops, n_ops);
+	#if LINUX_VERSION_CODE < KERNEL_VERSION(3,13,0)
+	mc_groups[0].id = JOOLD_MC_ID;
+	#endif
 
-#else
-	error = genl_register_family_with_ops(family, ops);
 
-#endif
+	log_info("Registering family.\n");
+
+	#if LINUX_VERSION_CODE < KERNEL_VERSION(3,13,0)
+
+	error = genl_register_family_with_ops(&jool_family, ops, 1);
 
 	if (error) {
-		pr_err("Family registration failed: %d\n", error);
+		log_err("Couldn't register family!");
 		return error;
 	}
 
-	pr_info("Jool module registered.\n");
+	error = genl_register_mc_group(&jool_family, &(mc_groups[0]));
+
+	if (error) {
+		log_err("Couldn't register multicast group!");
+		return error;
+	}
+
+	#else
+	error = genl_register_family_with_ops_groups(&jool_family, ops, mc_groups);
+	#endif
+
+	if (error) {
+		log_err("Family registration failed: %d\n", error);
+		return error;
+	}
+
+	log_info("Jool module registered.\n");
 
 	return error;
 }
 
 void nl_core_set_main_callback(int (*cb)(struct sk_buff *skb_in, struct genl_info *info))
 {
+	log_info("setting main callback!");
 	main_callback = cb;
 }
 
 int nl_core_init(void)
 {
 	error_pool_init();
-	return register_family(&jool_family, ops, 1);
+
+	return register_family();
 }
 
 int nl_core_destroy(void)

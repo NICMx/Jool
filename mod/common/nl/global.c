@@ -381,6 +381,8 @@ static int handle_global_display(struct genl_info *info)
 	bool disabled;
 	size_t buffer_len;
 
+	log_info("handling_global_display!");
+
 	error = config_clone(&response);
 		if (error)
 			return error;
@@ -398,6 +400,7 @@ static int handle_global_display(struct genl_info *info)
 			return nl_core_respond_error(info, command, error);
 
 		error = nl_core_write_to_buffer(response_buffer, (__u8*)buffer,buffer_len);
+
 		error = (error >= 0) ? nl_core_send_buffer(info, command, response_buffer) :  nl_core_respond_error(info, command, error);
 
 		nl_core_free_buffer(response_buffer);
