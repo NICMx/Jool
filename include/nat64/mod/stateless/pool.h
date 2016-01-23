@@ -5,23 +5,13 @@
  * @file
  * This is a handler for pool of IPv4 addresses.
  *
- *
  * @author Alberto Leiva
  * @author Daniel Hdz Felix
  */
 
-#include <linux/kref.h>
-#include "nat64/mod/common/types.h"
+#include "nat64/common/types.h"
 
-struct pool_entry {
-	struct ipv4_prefix prefix;
-	struct list_head list_hook;
-};
-
-struct addr4_pool {
-	struct list_head __rcu *list;
-	struct kref refcounter;
-};
+struct addr4_pool;
 
 /* Do-not-use-when-you-can't-sleep-functions */
 

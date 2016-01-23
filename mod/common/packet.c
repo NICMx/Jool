@@ -624,10 +624,10 @@ static void print_l4_hdr(struct packet *pkt)
 
 	case L4PROTO_ICMP:
 		icmp_header = pkt_icmp4_hdr(pkt);
-		pr_debug("		type: %u", icmp_header->type);
-		pr_debug("		code: %u", icmp_header->code);
+		pr_debug("		type: %u\n", icmp_header->type);
+		pr_debug("		code: %u\n", icmp_header->code);
 		pr_debug("		checksum: %x\n", be16_to_cpu((__force __be16) icmp_header->checksum));
-		pr_debug("		un: %x", be32_to_cpu(icmp_header->un.gateway));
+		pr_debug("		un: %x\n", be32_to_cpu(icmp_header->un.gateway));
 		break;
 
 	case L4PROTO_OTHER:

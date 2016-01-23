@@ -360,12 +360,20 @@ enum session_fate tcp_expired_cb(struct session_entry *session, void *arg)
 
 static bool init(void)
 {
-	return !sessiondb_init(&db);
+	if (session_init())
+		return false;
+	if (sessiondb_init(&db)) {
+		session_destroy();
+		return false;
+	}
+
+	return true;
 }
 
 static void end(void)
 {
 	sessiondb_put(db);
+	session_destroy();
 }
 
 int init_module(void)

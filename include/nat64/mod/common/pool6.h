@@ -9,17 +9,9 @@
  * @author Daniel Hdz Felix
  */
 
-#include <linux/in6.h>
-#include <linux/kref.h>
-#include <linux/rculist.h>
-#include <linux/types.h>
-
 #include "nat64/common/types.h"
 
-struct pool6 {
-	struct list_head __rcu *list;
-	struct kref refcount;
-};
+struct pool6;
 
 int pool6_init(struct pool6 **pool, char *prefix_strings[], int prefix_count);
 void pool6_get(struct pool6 *pool);

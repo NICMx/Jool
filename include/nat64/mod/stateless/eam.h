@@ -7,16 +7,7 @@
 #include "nat64/common/types.h"
 #include "nat64/mod/common/rtrie.h"
 
-struct eam_table {
-	struct rtrie trie6;
-	struct rtrie trie4;
-	/**
-	 * This one is not RCU-friendly. Touch only while you're holding the
-	 * mutex.
-	 */
-	u64 count;
-	struct kref refcount;
-};
+struct eam_table;
 
 int eamt_init(struct eam_table **eamt);
 void eamt_get(struct eam_table *eamt);

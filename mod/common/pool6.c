@@ -7,6 +7,10 @@
 #include "nat64/mod/common/tags.h"
 #include "nat64/mod/common/types.h"
 
+struct pool6 {
+	struct list_head __rcu *list;
+	struct kref refcount;
+};
 
 /**
  * A prefix within the pool.

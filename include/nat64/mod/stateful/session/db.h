@@ -14,6 +14,9 @@
 #include "nat64/mod/stateful/session/table.h"
 #include "nat64/mod/stateful/session/pkt_queue.h"
 
+/**
+ * TODO This is bad design; make this private.
+ */
 struct sessiondb {
 	/** The session table for UDP conversations. */
 	struct session_table udp;

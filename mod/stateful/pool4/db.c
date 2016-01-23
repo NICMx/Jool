@@ -9,6 +9,22 @@
 #include "nat64/mod/stateful/pool4/empty.h"
 #include "nat64/mod/stateful/pool4/table.h"
 
+struct pool4 {
+	/** Note, this is an array (size 2^@power). */
+	struct hlist_head __rcu *db;
+	/** Number of entries (ie. tables) in the database. */
+	unsigned int tables;
+	/**
+	 * Defines the number of "slots" in the table (2^power).
+	 * (Each slot is a hlist_head.)
+	 *
+	 * It doesn't require locking because it never changes after init.
+	 */
+	unsigned int power;
+
+	struct kref refcounter;
+};
+
 /** Protects @db and @tables, only on updater code. */
 static DEFINE_MUTEX(lock);
 

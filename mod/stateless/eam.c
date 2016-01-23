@@ -13,6 +13,17 @@
 #define ADDR_TO_KEY(addr)	INIT_KEY(addr, 8 * sizeof(*addr))
 #define PREFIX_TO_KEY(prefix)	INIT_KEY(&(prefix)->address, (prefix)->len)
 
+struct eam_table {
+	struct rtrie trie6;
+	struct rtrie trie4;
+	/**
+	 * This one is not RCU-friendly. Touch only while you're holding the
+	 * mutex.
+	 */
+	u64 count;
+	struct kref refcount;
+};
+
 static DEFINE_MUTEX(lock);
 
 static bool eamt_entry_equals(const struct eamt_entry *eam1,

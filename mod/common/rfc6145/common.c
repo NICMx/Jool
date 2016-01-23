@@ -15,6 +15,7 @@ struct backup_skb {
 	} offset;
 	void *payload;
 	l4_protocol l4_proto;
+	struct tuple tuple;
 };
 
 static verdict handle_unknown_l4(struct xlation *state)
@@ -190,6 +191,7 @@ static void backup(struct packet *pkt, struct backup_skb *bkp)
 	bkp->offset.l4 = skb_transport_offset(pkt->skb);
 	bkp->payload = pkt_payload(pkt);
 	bkp->l4_proto = pkt_l4_proto(pkt);
+	bkp->tuple = pkt->tuple;
 }
 
 static void restore(struct packet *pkt, struct backup_skb *bkp)
@@ -200,6 +202,7 @@ static void restore(struct packet *pkt, struct backup_skb *bkp)
 	pkt->payload = bkp->payload;
 	pkt->l4_proto = bkp->l4_proto;
 	pkt->is_inner = 0;
+	pkt->tuple = bkp->tuple;
 }
 
 verdict ttpcomm_translate_inner_packet(struct xlation *state)
@@ -207,8 +210,6 @@ verdict ttpcomm_translate_inner_packet(struct xlation *state)
 	struct packet *in = &state->in;
 	struct packet *out = &state->out;
 	struct backup_skb bkp_in, bkp_out;
-	struct tuple inner_tuple;
-	struct tuple *inner_tuple_ptr = NULL;
 	struct translation_steps *current_steps;
 	verdict result;
 
@@ -230,11 +231,10 @@ verdict ttpcomm_translate_inner_packet(struct xlation *state)
 	}
 
 	if (xlat_is_nat64()) {
-		inner_tuple.src = out->tuple.dst;
-		inner_tuple.dst = out->tuple.src;
-		inner_tuple.l3_proto = out->tuple.l3_proto;
-		inner_tuple.l4_proto = out->tuple.l4_proto;
-		inner_tuple_ptr = &inner_tuple;
+		in->tuple.src = bkp_in.tuple.dst;
+		in->tuple.dst = bkp_in.tuple.src;
+		out->tuple.src = bkp_out.tuple.dst;
+		out->tuple.dst = bkp_out.tuple.src;
 	}
 
 	current_steps = &steps[pkt_l3_proto(in)][pkt_l4_proto(in)];

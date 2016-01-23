@@ -75,6 +75,10 @@ static void release(struct kref *refcounter)
 	kfree(db);
 }
 
+/**
+ * Note: This function can trigger destruction of BIB entries.
+ * Always put sessions *BEFORE* BIB entries.
+ */
 void sessiondb_put(struct sessiondb *db)
 {
 	kref_put(&db->refcounter, release);

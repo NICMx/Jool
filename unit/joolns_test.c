@@ -5,6 +5,7 @@
 #include "nat64/mod/common/json_parser.h"
 #include "nat64/mod/common/namespace.h"
 #include "nat64/unit/unit_test.h"
+#include "../mod/common/pool6.c"
 
 /*
  * Er... this doesn't even try to test everything.

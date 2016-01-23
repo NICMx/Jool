@@ -15,8 +15,6 @@
  * @author Alberto Leiva
  */
 
-#include "nat64/mod/common/packet.h"
-#include "nat64/mod/common/types.h"
 #include "nat64/mod/common/translation_state.h"
 #include "nat64/mod/stateless/pool.h"
 

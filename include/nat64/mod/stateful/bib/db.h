@@ -12,16 +12,7 @@
 
 #include "nat64/mod/stateful/bib/table.h"
 
-struct bib {
-	/** The BIB table for TCP connections. */
-	struct bib_table tcp;
-	/** The BIB table for UDP connections. */
-	struct bib_table udp;
-	/** The BIB table for ICMP connections. */
-	struct bib_table icmp;
-
-	struct kref refcounter;
-};
+struct bib;
 
 int bibdb_init(struct bib **db);
 void bibdb_get(struct bib *db);

@@ -43,6 +43,29 @@ int rfc6791_flush(struct addr4_pool *pool)
 	return pool_flush(pool);
 }
 
+struct foreach_args {
+	unsigned int n;
+	__be32 *result;
+	bool flushed;
+};
+
+static int find_nth_addr(struct ipv4_prefix *prefix, void *void_args)
+{
+	struct foreach_args *args = void_args;
+	unsigned int count;
+
+	args->flushed = false;
+
+	count = prefix4_get_addr_count(prefix);
+	if (count < args->n) {
+		args->n -= count;
+		return 0; /* Keep iterating. */
+	}
+
+	*args->result = htonl(ntohl(prefix->address.s_addr) | args->n);
+	return 1; /* Success. */
+}
+
 /**
  * Returns in "result" the IPv4 address an ICMP error towards "out"'s
  * destination should be sourced with.
@@ -52,47 +75,33 @@ int rfc6791_flush(struct addr4_pool *pool)
 static int get_rfc6791_address(struct xlation *state, unsigned int count,
 		__be32 *result)
 {
-	struct list_head *list;
-	struct list_head *node;
-	struct pool_entry *entry;
-	unsigned int addr_index;
-	int error = 0;
+	struct foreach_args args;
+	int done;
 
 	if (state->jool.global->cfg.siit.randomize_error_addresses)
-		get_random_bytes(&addr_index, sizeof(addr_index));
+		get_random_bytes(&args.n, sizeof(args.n));
 	else
-		addr_index = pkt_ip6_hdr(&state->in)->hop_limit;
-	addr_index %= count;
+		args.n = pkt_ip6_hdr(&state->in)->hop_limit;
+	args.n %= count;
+	args.result = result;
 
 	/*
 	 * The list can change between the last loop (the pool_count()) and the
-	 * following one. So use @cound and @addr_index only as a hint. That's
+	 * following one. So use @count and @addr_index only as a hint. That's
 	 * the rationale for the do while true.
-	 * Just ensure @addr_index keeps decreasing.
+	 * Just ensure @args.n keeps decreasing.
 	 */
-
-	rcu_read_lock_bh();
-	list = rcu_dereference_bh(state->jool.siit.pool6791->list);
 	do {
-		list_for_each_rcu_bh(node, list) {
-			entry = list_entry(node, struct pool_entry, list_hook);
-			count = prefix4_get_addr_count(&entry->prefix);
-			if (count >= addr_index)
-				goto success;
-			addr_index -= count;
-		}
+		args.flushed = true;
 
-		if (list_empty(list)) {
-			error = -ESRCH;
-			goto end;
-		}
+		done = pool_foreach(state->jool.siit.pool6791, find_nth_addr,
+				&args, NULL);
+		if (done)
+			return done;
+
+		if (args.flushed)
+			return -ESRCH;
 	} while (true);
-
-success:
-	*result = htonl(ntohl(entry->prefix.address.s_addr) | addr_index);
-end:
-	rcu_read_unlock_bh();
-	return error;
 }
 
 /**

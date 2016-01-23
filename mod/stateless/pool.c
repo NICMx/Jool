@@ -1,11 +1,23 @@
 #include "nat64/mod/stateless/pool.h"
 
-#include <linux/rculist.h>
 #include <linux/inet.h>
+#include <linux/kref.h>
+#include <linux/rculist.h>
 
 #include "nat64/common/str_utils.h"
 #include "nat64/mod/common/rcu.h"
 #include "nat64/mod/common/tags.h"
+#include "nat64/mod/common/types.h"
+
+struct pool_entry {
+	struct ipv4_prefix prefix;
+	struct list_head list_hook;
+};
+
+struct addr4_pool {
+	struct list_head __rcu *list;
+	struct kref refcounter;
+};
 
 /* I can't have per-pool mutexes because of the replace function. */
 static DEFINE_MUTEX(lock);

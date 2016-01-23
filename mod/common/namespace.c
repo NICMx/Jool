@@ -64,10 +64,10 @@ static void xlator_put(struct xlator *jool)
 	} else {
 		if (jool->nat64.pool4)
 			pool4db_put(jool->nat64.pool4);
-		if (jool->nat64.bib)
-			bibdb_put(jool->nat64.bib);
 		if (jool->nat64.session)
 			sessiondb_put(jool->nat64.session);
+		if (jool->nat64.bib)
+			bibdb_put(jool->nat64.bib);
 	}
 }
 

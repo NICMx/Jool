@@ -361,8 +361,19 @@ struct iteration_args {
 	struct bib_table *table;
 	const struct ipv4_prefix *prefix;
 	const struct port_range *ports;
-	unsigned int deleted_count;
+	unsigned int deleted;
 };
+
+static void release_locked(struct kref *ref)
+{
+	struct bib_entry *bib;
+	bib = container_of(ref, typeof(*bib), refcounter);
+
+	if (bib->table)
+		rm(bib->table, bib);
+
+	kmem_cache_free(entry_cache, bib);
+}
 
 static int __flush(struct bib_entry *bib, void *void_args)
 {
@@ -373,7 +384,7 @@ static int __flush(struct bib_entry *bib, void *void_args)
 	 * Otherwise we might free entries being actively pointed by sessions.
 	 */
 	if (bib->is_static)
-		args->deleted_count += bibentry_put(bib);
+		args->deleted += kref_put(&bib->refcounter, release_locked);
 
 	return 0;
 }
@@ -382,11 +393,11 @@ void bibtable_flush(struct bib_table *table)
 {
 	struct iteration_args args = {
 			.table = table,
-			.deleted_count = 0,
+			.deleted = 0,
 	};
 
 	__foreach(table, __flush, &args, NULL, 0);
-	log_debug("Deleted %u BIB entries.", args.deleted_count);
+	log_debug("Deleted %u BIB entries.", args.deleted);
 }
 
 static int __delete_taddr4s(struct bib_entry *bib, void *void_args)
@@ -408,7 +419,7 @@ void bibtable_delete_taddr4s(struct bib_table *table,
 			.table = table,
 			.prefix = prefix,
 			.ports = ports,
-			.deleted_count = 0,
+			.deleted = 0,
 	};
 	struct ipv4_transport_addr offset = {
 			.l3 = prefix->address,
@@ -416,6 +427,6 @@ void bibtable_delete_taddr4s(struct bib_table *table,
 	};
 
 	__foreach(table, __delete_taddr4s, &args, &offset, true);
-	log_debug("Deleted %u BIB entries.", args.deleted_count);
+	log_debug("Deleted %u BIB entries.", args.deleted);
 }
 

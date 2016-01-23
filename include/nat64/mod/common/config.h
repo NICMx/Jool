@@ -3,7 +3,6 @@
 
 #include <linux/kref.h>
 #include "nat64/common/config.h"
-#include "nat64/common/types.h"
 
 /*
  * TODO maybe this should be called "global_config" and "global_config" should

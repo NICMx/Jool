@@ -43,7 +43,7 @@ obj-m += $(BIBTABLE).o
 obj-m += $(BIBDB).o
 obj-m += $(SESSIONTABLE).o
 obj-m += $(SESSIONDB).o
-obj-m += $(FRAGDB).o
+#obj-m += $(FRAGDB).o
 obj-m += $(FILTERING).o
 obj-m += $(TRANSLATE).o
 obj-m += $(CONFIG_PROTO).o
@@ -185,23 +185,20 @@ $(PALLOC)-objs += impersonator/rfc6145.o
 $(PALLOC)-objs += port_allocator_test.o
 
 $(JOOLNS)-objs += $(MIN_REQS)
-$(JOOLNS)-objs += ../mod/common/pool6.o
-$(JOOLNS)-objs += ../mod/common/namespace.o
-$(JOOLNS)-objs += ../mod/stateless/json_parser.o
-$(JOOLNS)-objs += joolns_test.o
-
 $(JOOLNS)-objs += ../mod/common/config.o
+$(JOOLNS)-objs += ../mod/common/namespace.o
 $(JOOLNS)-objs += ../mod/common/rbtree.o
 $(JOOLNS)-objs += ../mod/common/rtrie.o
 $(JOOLNS)-objs += ../mod/stateless/blacklist4.o
 $(JOOLNS)-objs += ../mod/stateless/eam.o
+$(JOOLNS)-objs += ../mod/stateless/json_parser.o
 $(JOOLNS)-objs += ../mod/stateless/pool.o
 $(JOOLNS)-objs += ../mod/stateless/rfc6791.o
+$(JOOLNS)-objs += ../mod/stateful/bib/table.o
+$(JOOLNS)-objs += ../mod/stateful/bib/db.o
 $(JOOLNS)-objs += ../mod/stateful/pool4/entry.o
 $(JOOLNS)-objs += ../mod/stateful/pool4/table.o
 $(JOOLNS)-objs += ../mod/stateful/pool4/db.o
-$(JOOLNS)-objs += ../mod/stateful/bib/table.o
-$(JOOLNS)-objs += ../mod/stateful/bib/db.o
 $(JOOLNS)-objs += ../mod/stateful/session/entry.o
 $(JOOLNS)-objs += ../mod/stateful/session/table.o
 $(JOOLNS)-objs += ../mod/stateful/session/db.o
@@ -210,6 +207,7 @@ $(JOOLNS)-objs += impersonator/icmp_wrapper.o
 $(JOOLNS)-objs += impersonator/joold.o
 $(JOOLNS)-objs += impersonator/pool4_empty.o
 $(JOOLNS)-objs += impersonator/route.o
+$(JOOLNS)-objs += joolns_test.o
 
 
 all:

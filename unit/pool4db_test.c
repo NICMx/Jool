@@ -19,6 +19,7 @@ struct net *ns;
 
 static bool test_init_power(void)
 {
+	unsigned int power_original = pool->power;
 	bool success = true;
 
 	success &= ASSERT_INT(0, init_power(pool, 0), "r0");
@@ -40,6 +41,7 @@ static bool test_init_power(void)
 	success &= ASSERT_INT(-EINVAL, init_power(pool, 0x80000001U), "2big1");
 	success &= ASSERT_INT(-EINVAL, init_power(pool, 0xFFFFFFFFU), "2big2");
 
+	pool->power = power_original;
 	return success;
 }
 

@@ -3,6 +3,17 @@
 #include "nat64/mod/stateful/bib/table.h"
 #include "nat64/mod/stateful/bib/port_allocator.h"
 
+struct bib {
+	/** The BIB table for TCP connections. */
+	struct bib_table tcp;
+	/** The BIB table for UDP connections. */
+	struct bib_table udp;
+	/** The BIB table for ICMP connections. */
+	struct bib_table icmp;
+
+	struct kref refcounter;
+};
+
 /**
  * One-liner to get the BIB table corresponding to the "proto" protocol.
  */

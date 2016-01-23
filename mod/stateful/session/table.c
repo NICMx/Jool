@@ -25,7 +25,8 @@ static void rm(struct session_table *table, struct session_entry *session,
 	list_add(&session->list_hook, rms);
 	session->expirer = NULL;
 
-	session_log(session, "Forgot session");
+	if (atomic_read(&table->log_changes))
+		session_log(session, "Forgot session");
 }
 
 static void delete(struct list_head *sessions)
@@ -49,23 +50,23 @@ static void delete(struct list_head *sessions)
  */
 static void force_reschedule(struct expire_timer *expirer)
 {
-	struct session_entry *first;
-	unsigned long next_time;
-	const unsigned long min_next_time = jiffies + MIN_TIMER_SLEEP;
-
-	if (list_empty(&expirer->sessions))
-		return;
-
-	first = list_entry(expirer->sessions.next, typeof(*first), list_hook);
-
-	next_time = first->update_time + atomic_read(&expirer->timeout);
-
-	if (time_before(next_time, min_next_time))
-		next_time = min_next_time;
-
-	mod_timer(&expirer->timer, next_time);
-	log_debug("Timer will awake in %u msecs.",
-			jiffies_to_msecs(expirer->timer.expires - jiffies));
+//	struct session_entry *first;
+//	unsigned long next_time;
+//	const unsigned long min_next_time = jiffies + MIN_TIMER_SLEEP;
+//
+//	if (list_empty(&expirer->sessions))
+//		return;
+//
+//	first = list_entry(expirer->sessions.next, typeof(*first), list_hook);
+//
+//	next_time = first->update_time + atomic_read(&expirer->timeout);
+//
+//	if (time_before(next_time, min_next_time))
+//		next_time = min_next_time;
+//
+//	mod_timer(&expirer->timer, next_time);
+//	log_debug("Timer will awake in %u msecs.",
+//			jiffies_to_msecs(expirer->timer.expires - jiffies));
 }
 
 /**
@@ -73,15 +74,15 @@ static void force_reschedule(struct expire_timer *expirer)
  */
 static void reschedule(struct expire_timer *expirer)
 {
-	/*
-	 * Any existing sessions will expire before the new one (because they
-	 * are sorted that way).
-	 * The timer should always trigger on the earliest session.
-	 */
-	if (timer_pending(&expirer->timer))
-		return;
-
-	force_reschedule(expirer);
+//	/*
+//	 * Any existing sessions will expire before the new one (because they
+//	 * are sorted that way).
+//	 * The timer should always trigger on the earliest session.
+//	 */
+//	if (timer_pending(&expirer->timer))
+//		return;
+//
+//	force_reschedule(expirer);
 }
 
 void sessiontable_reschedule(struct expire_timer *expirer)
@@ -315,8 +316,8 @@ static void __destroy_aux(struct rb_node *node)
 
 void sessiontable_destroy(struct session_table *table)
 {
-	del_timer_sync(&table->est_timer.timer);
-	del_timer_sync(&table->trans_timer.timer);
+//	del_timer_sync(&table->est_timer.timer);
+//	del_timer_sync(&table->trans_timer.timer);
 	/*
 	 * The values need to be released only in one of the trees
 	 * because both trees point to the same values.

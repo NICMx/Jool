@@ -225,12 +225,19 @@ static bool test_flow(void)
 
 static bool init(void)
 {
-	return !bibdb_init(&db);
+	if (bibentry_init())
+		return false;
+	if (bibdb_init(&db)) {
+		bibentry_destroy();
+		return false;
+	}
+	return true;
 }
 
 static void end(void)
 {
 	bibdb_put(db);
+	bibentry_destroy();
 }
 
 int init_module(void)

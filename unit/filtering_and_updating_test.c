@@ -240,7 +240,6 @@ static bool test_filtering_and_updating(void)
 		return false;
 
 	log_debug("Other IPv6 packets should survive validations.");
-	/*  */
 	if (init_tuple6(&state.in.tuple, "1::2", 1212, "3::3:4", 3434, L4PROTO_UDP))
 		return false;
 	if (create_skb6_udp(&state.in.tuple, &skb, 100, 32))
@@ -451,7 +450,7 @@ static bool test_tcp_closed_state_handle_4(void)
  */
 static bool test_tcp(void)
 {
-	struct xlation state;
+	struct xlation state = { .jool = jool };
 	struct sk_buff *skb;
 	bool success = true;
 
@@ -528,32 +527,52 @@ static bool test_tcp(void)
 
 static bool init(void)
 {
-	struct ipv6_prefix prefix;
-	int error;
+	struct ipv6_prefix prefix6;
+	struct ipv4_prefix prefix4;
+	struct port_range range;
 
-	error = joolns_init();
-	if (error)
-		return error;
-	error = joolns_add();
-	if (error)
-		goto simple_fail;
-	error = joolns_get_current(&jool);
-	if (error)
-		goto simple_fail;
+	if (bibentry_init())
+		return false;
+	if (session_init())
+		goto fail1;
 
-	error = str_to_addr6("3::", &prefix.address);
-	if (error)
-		goto full_fail;
-	prefix.len = 96;
-	error = pool6_add(jool.pool6, &prefix);
-	if (error)
-		goto full_fail;
+	if (joolns_init())
+		goto fail2;
+	if (joolns_add())
+		goto fail3;
+	if (joolns_get_current(&jool))
+		goto fail4;
 
-full_fail:
+	if (str_to_addr6("3::", &prefix6.address))
+		goto fail4;
+	prefix6.len = 96;
+	if (pool6_add(jool.pool6, &prefix6))
+		goto fail4;
+
+	if (str_to_addr4("192.0.2.128", &prefix4.address))
+		goto fail4;
+	prefix4.len = 32;
+	range.min = 0;
+	range.max = 65535;
+
+	if (pool4db_add(jool.nat64.pool4, 0, L4PROTO_TCP, &prefix4, &range))
+		goto fail4;
+	if (pool4db_add(jool.nat64.pool4, 0, L4PROTO_UDP, &prefix4, &range))
+		goto fail4;
+	if (pool4db_add(jool.nat64.pool4, 0, L4PROTO_ICMP, &prefix4, &range))
+		goto fail4;
+
+	return true;
+
+fail4:
 	joolns_put(&jool);
-simple_fail:
+fail3:
 	joolns_destroy();
-	return error;
+fail2:
+	session_destroy();
+fail1:
+	bibentry_destroy();
+	return false;
 }
 
 static void end(void)
@@ -561,6 +580,8 @@ static void end(void)
 	icmp64_pop();
 	joolns_put(&jool);
 	joolns_destroy();
+	bibentry_destroy();
+	session_destroy();
 }
 
 static int filtering_test_init(void)

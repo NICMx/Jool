@@ -10,7 +10,6 @@
  */
 
 #include <net/net_namespace.h>
-#include "nat64/mod/common/types.h"
 #include "nat64/mod/stateless/pool.h"
 
 int blacklist_init(struct addr4_pool **pool, char *pref_strs[], int pref_count);

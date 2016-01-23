@@ -17,4 +17,5 @@ int palloc_allocate(struct xlation *state, struct in_addr *daddr,
 {
 	result->l3.s_addr = cpu_to_be32(0xc0000280);
 	result->l4 = port++;
+	return 0;
 }
