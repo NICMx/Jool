@@ -48,4 +48,7 @@ int joolns_get(struct net *ns, struct xlator *result);
 int joolns_get_current(struct xlator *result);
 void joolns_put(struct xlator *instance);
 
+typedef int (*joolns_foreach_cb)(struct xlator *, void *);
+int joolns_foreach(joolns_foreach_cb cb, void *args);
+
 #endif /* _JOOL_MOD_NAMESPACE_H */

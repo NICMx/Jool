@@ -362,3 +362,23 @@ void joolns_put(struct xlator *jool)
 {
 	xlator_put(jool);
 }
+
+int joolns_foreach(joolns_foreach_cb cb, void *args)
+{
+	struct list_head *list;
+	struct jool_instance *instance;
+	int error = 0;
+
+	/* TODO are timers really BH context? */
+	rcu_read_lock_bh();
+
+	list = rcu_dereference_bh(pool);
+	list_for_each_entry_rcu(instance, list, list_hook) {
+		error = cb(&instance->jool, args);
+		if (error)
+			break;
+	}
+
+	rcu_read_unlock_bh();
+	return error;
+}

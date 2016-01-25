@@ -50,13 +50,11 @@ int sessiondb_delete_by_bib(struct sessiondb *db, struct bib_entry *bib);
 void sessiondb_delete_taddr4s(struct sessiondb *db, struct ipv4_prefix *prefix,
 		struct port_range *ports);
 void sessiondb_delete_taddr6s(struct sessiondb *db, struct ipv6_prefix *prefix);
+void sessiondb_clean(struct sessiondb *db, struct net *ns);
 void sessiondb_flush(struct sessiondb *db);
 
 bool sessiondb_allow(struct sessiondb *db, struct tuple *tuple4);
-void sessiondb_update_timers(struct sessiondb *db);
 
-bool sessiondb_is_session_established(struct sessiondb *db,
-		struct session_entry *session);
 int sessiondb_set_session_timer(struct sessiondb *db,
 		struct session_entry *session, bool is_established);
 

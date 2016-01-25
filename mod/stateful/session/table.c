@@ -45,51 +45,6 @@ static void delete(struct list_head *sessions)
 	log_debug("Deleted %lu sessions.", s);
 }
 
-/**
- * Spinlock must be held.
- */
-static void force_reschedule(struct expire_timer *expirer)
-{
-//	struct session_entry *first;
-//	unsigned long next_time;
-//	const unsigned long min_next_time = jiffies + MIN_TIMER_SLEEP;
-//
-//	if (list_empty(&expirer->sessions))
-//		return;
-//
-//	first = list_entry(expirer->sessions.next, typeof(*first), list_hook);
-//
-//	next_time = first->update_time + atomic_read(&expirer->timeout);
-//
-//	if (time_before(next_time, min_next_time))
-//		next_time = min_next_time;
-//
-//	mod_timer(&expirer->timer, next_time);
-//	log_debug("Timer will awake in %u msecs.",
-//			jiffies_to_msecs(expirer->timer.expires - jiffies));
-}
-
-/**
- * Spinlock must be held.
- */
-static void reschedule(struct expire_timer *expirer)
-{
-//	/*
-//	 * Any existing sessions will expire before the new one (because they
-//	 * are sorted that way).
-//	 * The timer should always trigger on the earliest session.
-//	 */
-//	if (timer_pending(&expirer->timer))
-//		return;
-//
-//	force_reschedule(expirer);
-}
-
-void sessiontable_reschedule(struct expire_timer *expirer)
-{
-	reschedule(expirer);
-}
-
 static void decide_fate(fate_cb cb,
 		void *cb_arg,
 		struct session_table *table,
@@ -107,7 +62,6 @@ static void decide_fate(fate_cb cb,
 		session->expirer = &table->est_timer;
 		list_del(&session->list_hook);
 		list_add_tail(&session->list_hook, &session->expirer->sessions);
-		reschedule(&table->est_timer);
 		break;
 	case FATE_PROBE:
 		tmp = session_clone(session);
@@ -125,7 +79,6 @@ static void decide_fate(fate_cb cb,
 		session->expirer = &table->trans_timer;
 		list_del(&session->list_hook);
 		list_add_tail(&session->list_hook, &session->expirer->sessions);
-		reschedule(&table->trans_timer);
 		break;
 	case FATE_RM:
 		rm(table, session, rms);
@@ -237,57 +190,47 @@ static void post_fate(struct net *ns, struct list_head *rms,
 		delete(rms);
 }
 
-/* TODO call this. */
-void sessiontable_clean(struct session_table *table,
-		struct net *ns,
-		struct list_head *sessions,
-		unsigned long timeout,
-		fate_cb decide_fate_cb)
+static void __clean(struct expire_timer *expirer,
+		struct session_table *table,
+		struct list_head *rms,
+		struct list_head *probes)
 {
 	struct session_entry *session;
 	struct session_entry *tmp;
-	LIST_HEAD(rms);
-	LIST_HEAD(probes);
+	int timeout;
 
-	spin_lock_bh(&table->lock);
-	list_for_each_entry_safe(session, tmp, sessions, list_hook) {
+	timeout = atomic_read(&expirer->timeout);
+	list_for_each_entry_safe(session, tmp, &expirer->sessions, list_hook) {
 		/*
 		 * "list" is sorted by expiration date,
 		 * so stop on the first unexpired session.
 		 */
 		if (time_before(jiffies, session->update_time + timeout))
 			break;
-
-		decide_fate(decide_fate_cb, NULL, table, session, &rms, &probes);
+		decide_fate(expirer->decide_fate_cb, NULL, table, session, rms,
+				probes);
 	}
+}
+
+void sessiontable_clean(struct session_table *table, struct net *ns)
+{
+	LIST_HEAD(rms);
+	LIST_HEAD(probes);
+
+	spin_lock_bh(&table->lock);
+	__clean(&table->est_timer, table, &rms, &probes);
+	__clean(&table->trans_timer, table, &rms, &probes);
 	spin_unlock_bh(&table->lock);
 
 	post_fate(ns, &rms, &probes);
 }
 
-/**
- * Called once in a while to kick off the scheduled expired sessions massacre.
- *
- * In that sense, it's a public function, so it requires spinlocks to NOT be
- * held.
- */
-static void cleaner_timer(unsigned long param)
+static void init_expirer(struct expire_timer *expirer, int timeout,
+		fate_cb decide_fate_cb)
 {
-
-}
-
-static void init_expirer(struct expire_timer *expirer,
-		int timeout, fate_cb decide_fate_cb,
-		struct session_table *table)
-{
-	init_timer(&expirer->timer);
-	expirer->timer.function = cleaner_timer;
-	expirer->timer.expires = 0;
-	expirer->timer.data = (unsigned long) expirer;
 	INIT_LIST_HEAD(&expirer->sessions);
 	atomic_set(&expirer->timeout, msecs_to_jiffies(1000 * timeout));
 	expirer->decide_fate_cb = decide_fate_cb;
-	expirer->table = table;
 }
 
 void sessiontable_init(struct session_table *table,
@@ -297,8 +240,8 @@ void sessiontable_init(struct session_table *table,
 	table->tree6 = RB_ROOT;
 	table->tree4 = RB_ROOT;
 	table->count = 0;
-	init_expirer(&table->est_timer, est_timeout, est_callback, table);
-	init_expirer(&table->trans_timer, trans_timeout, trans_callback, table);
+	init_expirer(&table->est_timer, est_timeout, est_callback);
+	init_expirer(&table->trans_timer, trans_timeout, trans_callback);
 	spin_lock_init(&table->lock);
 	atomic_set(&table->log_changes, DEFAULT_SESSION_LOGGING);
 }
@@ -316,8 +259,6 @@ static void __destroy_aux(struct rb_node *node)
 
 void sessiontable_destroy(struct session_table *table)
 {
-//	del_timer_sync(&table->est_timer.timer);
-//	del_timer_sync(&table->trans_timer.timer);
 	/*
 	 * The values need to be released only in one of the trees
 	 * because both trees point to the same values.
@@ -527,7 +468,6 @@ static void attach_timer(struct session_entry *session,
 	session->update_time = jiffies;
 	list_add_tail(&session->list_hook, &expirer->sessions);
 	session->expirer = expirer;
-	reschedule(expirer);
 }
 
 int sessiontable_add(struct session_table *table, struct session_entry *session,
@@ -817,12 +757,4 @@ void sessiontable_flush(struct session_table *table)
 
 	__foreach(table, __flush, &args, NULL, NULL, 0);
 	delete(&args.removed);
-}
-
-void sessiontable_update_timers(struct session_table *table)
-{
-	spin_lock_bh(&table->lock);
-	force_reschedule(&table->est_timer);
-	force_reschedule(&table->trans_timer);
-	spin_unlock_bh(&table->lock);
 }

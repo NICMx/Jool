@@ -112,41 +112,22 @@ int sessiondb_add(struct sessiondb *db, struct session_entry *session,
 	return sessiontable_add(table, session, is_est, is_synch);
 }
 
-bool sessiondb_is_session_established(struct sessiondb *db, struct session_entry *session)
-{
-	struct session_table *table = get_table(db, session->l4_proto);
-	return session->expirer == &table->est_timer ? true : false;
-}
-
 int sessiondb_set_session_timer(struct sessiondb *db, struct session_entry *session, bool is_established)
 {
 	struct session_table *table = get_table(db, session->l4_proto);
-	__u8 changed = 0;
 	if (!table)
 		return -EINVAL;
 
 	if (is_established) {
 		log_info("assinging est timer!");
-		if (session->expirer != &table->est_timer) {
-			changed = 1;
-			session->expirer = &table->est_timer;
-		}
-
+		session->expirer = &table->est_timer;
 	} else {
 		log_info("assinging trans timer!");
-		if (session->expirer != &table->est_timer) {
-			changed = 1;
-			session->expirer = &table->trans_timer;
-		}
+		session->expirer = &table->trans_timer;
 	}
 
-	if (changed) {
-		list_del(&session->list_hook);
-		list_add_tail(&session->list_hook, &session->expirer->sessions);
-		sessiontable_reschedule(session->expirer);
-	}
-
-	sessiontable_reschedule(session->expirer);
+	list_del(&session->list_hook);
+	list_add_tail(&session->list_hook, &session->expirer->sessions);
 
 	return 0;
 }
@@ -192,6 +173,16 @@ void sessiondb_delete_taddr6s(struct sessiondb *db, struct ipv6_prefix *prefix)
 	sessiontable_delete_taddr6s(&db->udp, prefix);
 }
 
+/**
+ * Forgets or downgrades (from EST to TRANS) old sessions.
+ */
+void sessiondb_clean(struct sessiondb *db, struct net *ns)
+{
+	sessiontable_clean(&db->udp, ns);
+	sessiontable_clean(&db->tcp, ns);
+	sessiontable_clean(&db->icmp, ns);
+}
+
 void sessiondb_flush(struct sessiondb *db)
 {
 	log_debug("Emptying the session tables...");
@@ -199,11 +190,4 @@ void sessiondb_flush(struct sessiondb *db)
 	sessiontable_flush(&db->udp);
 	sessiontable_flush(&db->tcp);
 	sessiontable_flush(&db->icmp);
-}
-
-void sessiondb_update_timers(struct sessiondb *db)
-{
-	sessiontable_update_timers(&db->udp);
-	sessiontable_update_timers(&db->tcp);
-	sessiontable_update_timers(&db->icmp);
 }

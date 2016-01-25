@@ -36,13 +36,10 @@ enum session_fate {
 typedef enum session_fate (*fate_cb)(struct session_entry *, void *);
 typedef unsigned long (*timeout_cb)(struct global_config *);
 
-struct session_table;
 struct expire_timer {
-	struct timer_list timer;
 	struct list_head sessions;
 	atomic_t timeout;
 	fate_cb decide_fate_cb;
-	struct session_table *table;
 };
 
 /**
@@ -102,10 +99,9 @@ void sessiontable_delete_taddr4s(struct session_table *table,
 		struct ipv4_prefix *prefix, struct port_range *ports);
 void sessiontable_delete_taddr6s(struct session_table *table,
 		struct ipv6_prefix *prefix);
+void sessiontable_clean(struct session_table *table, struct net *ns);
 void sessiontable_flush(struct session_table *table);
 
 bool sessiontable_allow(struct session_table *table, struct tuple *tuple4);
-void sessiontable_reschedule(struct expire_timer *expirer);
-void sessiontable_update_timers(struct session_table *table);
 
 #endif /* _JOOL_MOD_SESSION_TABLE_H */

@@ -109,7 +109,6 @@ static int handle_global_update(enum global_type type, size_t size, unsigned cha
 	int synch_elements_limit;
 	unsigned long synch_period;
 
-	bool timer_needs_update = false;
 	bool joold_needs_update = false;
 	int error;
 
@@ -149,28 +148,24 @@ static int handle_global_update(enum global_type type, size_t size, unsigned cha
 			goto einval;
 		if (!assign_timeout(value, UDP_MIN, &config->nat64.ttl.udp))
 			goto einval;
-		timer_needs_update = true;
 		break;
 	case ICMP_TIMEOUT:
 		if (!ensure_bytes(size, 8))
 			goto einval;
 		if (!assign_timeout(value, 0, &config->nat64.ttl.icmp))
 			goto einval;
-		timer_needs_update = true;
 		break;
 	case TCP_EST_TIMEOUT:
 		if (!ensure_bytes(size, 8))
 			goto einval;
 		if (!assign_timeout(value, TCP_EST, &config->nat64.ttl.tcp_est))
 			goto einval;
-		timer_needs_update = true;
 		break;
 	case TCP_TRANS_TIMEOUT:
 		if (!ensure_bytes(size, 8))
 			goto einval;
 		if (!assign_timeout(value, TCP_TRANS, &config->nat64.ttl.tcp_trans))
 			goto einval;
-		timer_needs_update = true;
 		break;
 	case FRAGMENT_TIMEOUT:
 		if (!ensure_bytes(size, 8))
@@ -322,9 +317,6 @@ static int handle_global_update(enum global_type type, size_t size, unsigned cha
 	}
 
 	config_replace(config);
-
-	if (timer_needs_update)
-		sessiondb_update_timers();
 
 	if (joold_needs_update)
 		joold_update_config();
