@@ -18,6 +18,8 @@
 #include "nat64/mod/common/translation_state.h"
 #include "nat64/mod/stateless/pool.h"
 
+/* TODO remove lots of these functions; they are just clutter. */
+
 int rfc6791_init(struct addr4_pool **pool, char *pref_strs[], int pref_count);
 void rfc6791_get(struct addr4_pool *pool);
 void rfc6791_put(struct addr4_pool *pool);

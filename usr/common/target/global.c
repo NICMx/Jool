@@ -60,9 +60,9 @@ static void print_allow_atomic_frags(struct global_config *conf)
 		printf("Mixed");
 }
 
-static int handle_display_response(struct nl_msg *msg, void *arg)
+static int handle_display_response(struct nl_core_buffer *buffer, void *arg)
 {
-	struct global_config *conf = nlmsg_data(nlmsg_hdr(msg));
+	struct global_config *conf = netlink_get_data(buffer);
 
 	printf("\n");
 	printf("  Status: %s\n", print_status(conf));
@@ -140,14 +140,25 @@ static int handle_display_response(struct nl_msg *msg, void *arg)
 		printf("    --%s: ", OPTNAME_FRAG_TIMEOUT);
 		print_time_friendly(conf->nat64.ttl.frag);
 		printf("\n");
+
+		printf("  Synchronization:\n");
+		printf("  Enabled (--%s, --%s): %s\n",
+				OPTNAME_SYNCH_ENABLE , OPTNAME_SYNCH_DISABLE,
+					conf->synch_enabled ? "Enabled" : "Disabled");
+
+		printf("    --%s: %u sessions\n", OPTNAME_SYNCH_MAX_SESSIONS, conf->synch_elements_limit);
+		printf("    --%s: %u milliseconds\n", OPTNAME_SYNCH_PERIOD, conf->synch_elements_period);
+		printf("    --%s: %u milliseconds\n", OPTNAME_SYNCH_THRESHOLD, conf->synch_elements_threshold);
 	}
+
+
 
 	return 0;
 }
 
-static int handle_display_response_csv(struct nl_msg *msg, void *arg)
+static int handle_display_response_csv(struct nl_core_buffer *buffer, void *arg)
 {
-	struct global_config *conf = nlmsg_data(nlmsg_hdr(msg));
+	struct global_config *conf = netlink_get_data(buffer);
 
 	printf("Status,");
 	printf("Manually disabled,");
@@ -185,7 +196,13 @@ static int handle_display_response_csv(struct nl_msg *msg, void *arg)
 		printf(OPTNAME_TCPEST_TIMEOUT ",");
 		printf(OPTNAME_TCPTRANS_TIMEOUT ",");
 		printf(OPTNAME_ICMP_TIMEOUT ",");
-		printf(OPTNAME_FRAG_TIMEOUT);
+		printf(OPTNAME_FRAG_TIMEOUT",");
+
+		printf("Synchronization Status,");
+		printf(OPTNAME_SYNCH_MAX_SESSIONS ",");
+		printf(OPTNAME_SYNCH_PERIOD ",");
+		printf(OPTNAME_SYNCH_THRESHOLD);
+
 	}
 
 	printf("\n");
@@ -234,6 +251,15 @@ static int handle_display_response_csv(struct nl_msg *msg, void *arg)
 		print_time_csv(conf->nat64.ttl.icmp);
 		printf(",");
 		print_time_csv(conf->nat64.ttl.frag);
+		printf(",");
+
+		print_bool(conf->synch_enabled);
+		printf(",");
+		printf("%u", conf->synch_elements_limit);
+		printf(",");
+		printf("%u", conf->synch_elements_period);
+		printf(",");
+		printf("%u", conf->synch_elements_threshold);
 	}
 	printf("\n");
 
@@ -243,7 +269,7 @@ static int handle_display_response_csv(struct nl_msg *msg, void *arg)
 int global_display(bool csv)
 {
 	struct request_hdr request;
-	int (*cb)(struct nl_msg *, void *);
+	int (*cb)(struct nl_core_buffer *, void *);
 
 	init_request_hdr(&request, sizeof(request), MODE_GLOBAL, OP_DISPLAY);
 	cb = csv ? handle_display_response_csv : handle_display_response;

@@ -474,8 +474,7 @@ static int send_buffers()
 {
 	int error = 0;
 
-	netlink_init_multipart_connection(0,0) ;
-	error = send_multipart_request_buffer(0,0,SEC_INIT) ;
+	error = send_multipart_request_buffer(0,0, SEC_INIT) ;
 
 	if(send_global)
 		error = send_global_buffer();
@@ -513,13 +512,10 @@ static int send_buffers()
 	if(error)
 		goto error_happened;
 
-	netlink_request_multipart_done();
 
 	return 0;
 
 	error_happened:
-	netlink_request_multipart_close();
-
 	return error;
 }
 static int send_global_buffer()
@@ -803,15 +799,23 @@ static int send_pool6791_buffer()
 
 static int send_multipart_request_buffer(__u8*buffer,__u16 request_len, __u16 section)
 {
-	__u8 buffer_to_send[request_len+2];
+	__u32 real_length = request_len +2;
+	__u8 * buffer_to_send = malloc(sizeof(struct request_hdr)+real_length);
 	__u8 * section_pointer = (__u8*)&section;
+
+	struct request_hdr * request_pointer = (struct request_hdr *)buffer_to_send;
+
+	init_request_hdr(request_pointer, real_length, MODE_PARSE_FILE, OP_UPDATE);
+
+	buffer_to_send += sizeof(*request_pointer);
 
 	buffer_to_send[0] = section_pointer[0];
 	buffer_to_send[1] = section_pointer[1];
 
-	memcpy(&buffer_to_send[2],buffer,request_len);
+	if(request_len > 0)
+		memcpy(&buffer_to_send[2],buffer,request_len);
 
-	return netlink_request_multipart(buffer_to_send, request_len+2, MODE_PARSE_FILE,OP_UPDATE) ;
+	return netlink_request(request_pointer, sizeof(*request_pointer)+2,NULL, NULL);
 }
 
 #ifdef DEBUG

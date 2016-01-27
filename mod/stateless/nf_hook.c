@@ -4,10 +4,10 @@
 #include <linux/module.h>
 #include <linux/version.h>
 #include "nat64/mod/common/core.h"
-#include "nat64/mod/common/log_time.h"
 #include "nat64/mod/common/namespace.h"
 #include "nat64/mod/common/nl/nl_handler.h"
 #include "nat64/mod/common/types.h"
+#include "nat64/mod/common/log_time.h"
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("NIC-ITESM");
@@ -28,9 +28,6 @@ static bool disabled;
 module_param(disabled, bool, 0);
 MODULE_PARM_DESC(disabled, "Disable the translation at the beginning of the module insertion.");
 
-static int sock_family = NETLINK_USERSOCK;
-module_param(sock_family, int, 0);
-MODULE_PARM_DESC(sock_family, "Family of the socket which will handle userspace requests.");
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 13, 0)
 #define HOOK_ARG_TYPE const struct nf_hook_ops *
@@ -77,51 +74,6 @@ static struct nf_hook_ops nfho[] = {
 	},
 };
 
-#include "nat64/common/str_utils.h"
-static int add_eam(struct xlator *jool,
-		char *addr6, __u8 len6,
-		char *addr4, __u8 len4)
-{
-	struct ipv6_prefix p6;
-	struct ipv4_prefix p4;
-	int error;
-
-	error = str_to_addr6(addr6, &p6.address);
-	if (error)
-		return error;
-	p6.len = len6;
-
-	error = str_to_addr4(addr4, &p4.address);
-	if (error)
-		return error;
-	p4.len = len4;
-
-	return eamt_add(jool->siit.eamt, &p6, &p4, false);
-}
-
-/* TODO rm this */
-static int configure(void)
-{
-	struct xlator jool;
-	int error;
-
-	error = joolns_add();
-	if (error)
-		return error;
-	error = joolns_get_current(&jool);
-	if (error)
-		return error;
-
-	error = add_eam(&jool, "2001:db8:6::8", 125, "10.0.0.8", 29);
-	if (error)
-		goto end;
-	error = add_eam(&jool, "2001:db8:4::8", 125, "192.0.2.8", 29);
-
-end:
-	joolns_put(&jool);
-	return error;
-}
-
 static int __init jool_init(void)
 {
 	int error;
@@ -129,19 +81,15 @@ static int __init jool_init(void)
 	log_debug("Inserting %s...", xlat_get_name());
 
 	/* Init Jool's submodules. */
-	error = logtime_init();
-	if (error)
-		goto log_time_failure;
 	error = joolns_init();
 	if (error)
 		goto joolns_failure;
-//	error = nlhandler_init(sock_family);
-//	if (error)
-//		goto nlhandler_failure;
-
-	error = configure();
+	error = logtime_init();
 	if (error)
-		goto nf_register_hooks_failure;
+		goto log_time_failure;
+	error = nlhandler_init();
+	if (error)
+		goto nlhandler_failure;
 
 	/* Hook Jool to Netfilter. */
 	error = nf_register_hooks(nfho, ARRAY_SIZE(nfho));
@@ -153,12 +101,12 @@ static int __init jool_init(void)
 	return 0;
 
 nf_register_hooks_failure:
-//	nlhandler_destroy();
-//nlhandler_failure:
-	joolns_destroy();
-joolns_failure:
+	nlhandler_destroy();
+nlhandler_failure:
 	logtime_destroy();
 log_time_failure:
+	joolns_destroy();
+joolns_failure:
 	return error;
 }
 
@@ -166,9 +114,9 @@ static void __exit jool_exit(void)
 {
 	nf_unregister_hooks(nfho, ARRAY_SIZE(nfho));
 
-//	nlhandler_destroy();
-	joolns_destroy();
+	nlhandler_destroy();
 	logtime_destroy();
+	joolns_destroy();
 
 	log_info("%s v" JOOL_VERSION_STR " module removed.", xlat_get_name());
 }

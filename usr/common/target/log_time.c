@@ -1,12 +1,5 @@
 #ifdef BENCHMARK
 
-/*
- * log_time.c
- *
- *  Created on: Oct 3, 2014
- *      Author: dhernandez
- */
-
 #include "nat64/usr/log_time.h"
 #include "nat64/common/config.h"
 #include "nat64/common/str_utils.h"

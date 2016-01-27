@@ -12,6 +12,8 @@
 #include <net/net_namespace.h>
 #include "nat64/mod/stateless/pool.h"
 
+/* TODO remove lots of these functions; they are just clutter. */
+
 int blacklist_init(struct addr4_pool **pool, char *pref_strs[], int pref_count);
 void blacklist_get(struct addr4_pool *pool);
 void blacklist_put(struct addr4_pool *pool);

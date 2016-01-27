@@ -46,7 +46,8 @@ struct session_entry {
 
 	/** Jiffy (from the epoch) this session was last updated/used. */
 	unsigned long update_time;
-
+	/** Jiffy which represents the moment in which this session was created. */
+	unsigned long creation_time;
 	/**
 	 * Owner bib of this session. Used for quick access during removal.
 	 * (when the session dies, the BIB might have to die too.)
@@ -96,6 +97,7 @@ struct session_entry *session_create(const struct ipv6_transport_addr *remote6,
 struct session_entry *session_clone(struct session_entry *session);
 
 void session_get(struct session_entry *session);
+/* TODO rename as session_put? */
 int session_return(struct session_entry *session);
 
 void session_log(const struct session_entry *session, const char *action);

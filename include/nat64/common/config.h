@@ -412,6 +412,12 @@ enum global_type {
 	DROP_ICMP6_INFO,
 	DROP_EXTERNAL_TCP,
 
+	SYNCH_ENABLE,
+	SYNCH_DISABLE,
+	SYNCH_ELEMENTS_LIMIT,
+	SYNCH_PERIOD,
+	SYNCH_THRESHOLD,
+
 	/* SIIT */
 	COMPUTE_UDP_CSUM_ZERO,
 	EAM_HAIRPINNING_MODE,
@@ -626,6 +632,31 @@ struct global_config {
 		 */
 		__u8 eam_hairpin_mode;
 	} siit;
+
+	/** Tells if synchronization is enabled*/
+	__u8 synch_enabled;
+
+	/**
+	 * Max number of elemets to store in the synchronization queue before
+	 * send them to another jool's instance.
+	 */
+	__u32 synch_elements_limit;
+
+	/**
+	 * Time lapse within the timer will be sending sessions to
+	 * another jool's instance if there are any in the synchronization
+	 * queue.
+	 */
+	__u32 synch_elements_period;
+
+	/**
+	 * Milliseconds that have to pass since a session was created for it to be allowed to
+	 * get into the synchronization queue, this is intended to reduce synchronization traffic
+	 * over the network.
+	 */
+
+	__u32 synch_elements_threshold;
+
 };
 
 /**

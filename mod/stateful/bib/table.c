@@ -256,6 +256,11 @@ int bibtable_add(struct bib_table *table, struct bib_entry *bib)
 		goto fail;
 	}
 
+	/*
+	 * Note: Because of the way bibentry_put() works, bib->table MUST only
+	 * be assigned when success is imminent. Please consider that if you
+	 * need to edit this function.
+	 */
 	bib->table = table;
 	table->count++;
 

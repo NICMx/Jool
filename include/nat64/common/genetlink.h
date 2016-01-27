@@ -17,14 +17,9 @@ enum genl_commands {
 	JOOL_COMMAND,
 };
 
-
-/**
- * Attributes are fields of data your messages will contain.
- * The designers of Netlink really want you to use these instead of just dumping
- * data to the packet payload... and I have really mixed feelings about it.
- */
 enum attributes {
 	ATTR_DUMMY,
+	ATTR_DATA,
 	__ATTR_MAX,
 };
 

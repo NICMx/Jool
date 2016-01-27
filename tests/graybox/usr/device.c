@@ -5,7 +5,7 @@
 #define HDR_LEN sizeof(struct request_hdr)
 #define PAYLOAD_LEN sizeof(struct request_device)
 
-static int handle_add_response(struct nl_msg *msg, void *arg)
+static int handle_add_response(struct nl_core_buffer *buffer, void *arg)
 {
 	log_debug("Device name added successfully.");
 	return 0;
@@ -30,7 +30,7 @@ int dev_add(char *device_name, __u32 name_len)
 			handle_add_response, NULL);
 }
 
-static int handle_remove_response(struct nl_msg *msg, void *arg)
+static int handle_remove_response(struct nl_core_buffer *buffer, void *arg)
 {
 	log_debug("Device name removed successfully.");
 	return 0;
@@ -55,7 +55,7 @@ int dev_remove(char *device_name, __u32 name_len)
 			handle_remove_response, NULL);
 }
 
-static int handle_display_response(struct nl_msg *msg, void *arg)
+static int handle_display_response(struct nl_core_buffer *buffer, void *arg)
 {
 	log_info("Printed in the kernel log, use dmesg to see it.");
 	return 0;
@@ -71,7 +71,7 @@ int dev_display(void) {
 	return netlink_request(&request, request.len, handle_display_response, NULL);
 }
 
-static int handle_flush_response(struct nl_msg *msg, void *arg)
+static int handle_flush_response(struct nl_core_buffer *buffer, void *arg)
 {
 	log_info("Devices names flushed successfully.");
 	return 0;

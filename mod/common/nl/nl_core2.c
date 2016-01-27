@@ -1,24 +1,41 @@
+#include "nat64/mod/common/nl/nl_core2.h"
+
 #include <linux/stddef.h>
 #include <linux/types.h>
 #include <linux/version.h>
 #include "nat64/common/config.h"
 #include "nat64/mod/common/types.h"
-#include "nat64/mod/common/nl/nl_core2.h"
 
 #include "nat64/common/genetlink.h"
 
 
 #define NL_CORE_BUFFER_TOTAL_SIZE 2000
-#define NL_CORE_BUFFER_DATA_SIZE	NL_CORE_BUFFER_TOTAL_SIZE - sizeof(struct nl_core_buffer)
+#define NL_CORE_BUFFER_DATA_SIZE (NL_CORE_BUFFER_TOTAL_SIZE - sizeof(struct nl_core_buffer))
 
 
 static int genetlink_callback(struct sk_buff *skb_in, struct genl_info *info);
+
+struct genl_multicast_group mc_groups[1] = {
+	{
+		.name = GNL_JOOLD_MULTICAST_GRP_NAME,
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3,13,0)
+		.id = JOOLD_MC_ID,
+#endif
+	},
+};
 
 
 /**
  * Actual message type definition.
  */
-struct genl_ops ops[] = {{ .cmd = JOOL_COMMAND, .flags = 0, .doit =	genetlink_callback, .dumpit = NULL}, };
+struct genl_ops ops[] = {
+	{
+		.cmd = JOOL_COMMAND,
+		.flags = 0,
+		.doit = genetlink_callback,
+		.dumpit = NULL,
+	},
+};
 
 
 /**
@@ -28,11 +45,11 @@ struct genl_ops ops[] = {{ .cmd = JOOL_COMMAND, .flags = 0, .doit =	genetlink_ca
  * as you.
  */
 struct genl_family jool_family = {
-		.id = GENL_ID_GENERATE,
-		.hdrsize = sizeof(struct nl_core_buffer),
-		.name = GNL_JOOL_FAMILY_NAME,
-		.version = 1,
-		.maxattr = __ATTR_MAX,
+	.id = GENL_ID_GENERATE,
+	.hdrsize = 0,
+	.name = GNL_JOOL_FAMILY_NAME,
+	.version = 1,
+	.maxattr = __ATTR_MAX,
 };
 
 int (*main_callback)(struct sk_buff *skb_in, struct genl_info *info) = NULL;
@@ -40,6 +57,7 @@ int (*main_callback)(struct sk_buff *skb_in, struct genl_info *info) = NULL;
 static int genetlink_callback(struct sk_buff *skb_in, struct genl_info *info)
 {
 	if (main_callback != NULL) {
+		log_info("calling main callback!");
 		return main_callback(skb_in, info);
 	} else {
 		log_warn_once("Wanted to call main callback but it is null!");
@@ -49,7 +67,6 @@ static int genetlink_callback(struct sk_buff *skb_in, struct genl_info *info)
 
 static int respond_single_msg(struct genl_info *info, enum config_mode command,	struct nl_core_buffer *buffer)
 {
-
 	struct sk_buff *skb;
 	void *msg_head;
 	int error;
@@ -62,16 +79,12 @@ static int respond_single_msg(struct genl_info *info, enum config_mode command,	
 	portid = info->snd_portid;
 #endif
 
-
-	pr_info("Newing message.\n");
-	skb = genlmsg_new(sizeof(*buffer)+buffer->len, GFP_KERNEL);
+	skb = genlmsg_new(sizeof(*buffer) + buffer->len, GFP_KERNEL);
 	if (!skb) {
 		pr_err("genlmsg_new() failed.\n");
 		return -ENOMEM;
 	}
 
-	log_info("skb len be -> %u", skb->len);
-	pr_info("Putting message.\n");
 	msg_head = genlmsg_put(skb, portid, 0, &jool_family, 0, command);
 	if (!msg_head) {
 		pr_err("genlmsg_put() failed.\n");
@@ -79,23 +92,14 @@ static int respond_single_msg(struct genl_info *info, enum config_mode command,	
 		return -ENOMEM;
 	}
 
-
-	log_info("sizeof nl_core_buffer -> %u", (__u16) sizeof(*buffer));
-
-
-	/** we tell the skb that we want to make some space for our data, otherwise we are going to lose some data when
-	the message is received by userspace. don't know why! */
-	skb_put(skb, sizeof(*buffer)+buffer->len);
-
-	log_info("sizeof nl_core_buffer and buffer len %u", sizeof(*buffer)+buffer->len);
-
-	memcpy(msg_head, buffer, sizeof(*buffer)+buffer->len);
-
-	pr_info("Ending message.\n");
+	error = nla_put(skb, ATTR_DATA, (int)(sizeof(*buffer) + buffer->len), buffer);
+	if (error) {
+		pr_err("nla_put() failed. \n");
+		kfree_skb(skb);
+		return error;
+	}
 
 	total_length = genlmsg_end(skb, msg_head);
-
-	log_info("total length -> %d", total_length);
 
 	error = genlmsg_reply(skb, info);
 	if (error) {
@@ -103,9 +107,7 @@ static int respond_single_msg(struct genl_info *info, enum config_mode command,	
 		return error;
 	}
 
-	pr_info("Success.\n");
 	return 0;
-
 }
 
 size_t nl_core_data_max_size(void)
@@ -113,27 +115,28 @@ size_t nl_core_data_max_size(void)
 	return NL_CORE_BUFFER_DATA_SIZE;
 }
 
-int nl_core_new_core_buffer(struct nl_core_buffer **out_buffer, size_t size)
+int nl_core_new_core_buffer(struct nl_core_buffer **out_buffer, size_t capacity)
 {
 	struct nl_core_buffer *buffer;
 
-	if (size > NL_CORE_BUFFER_DATA_SIZE) {
-		log_err("Invalid data size for buffer, maximum allowed size is %u", NL_CORE_BUFFER_DATA_SIZE);
+	if (WARN(capacity > NL_CORE_BUFFER_DATA_SIZE, "Message size is too big.")) {
+		log_err("Message size is too big. (%zu > %zu)", capacity,
+				NL_CORE_BUFFER_DATA_SIZE);
 		return -EINVAL;
 	}
 
-	buffer = kmalloc(sizeof(struct nl_core_buffer) + size, GFP_ATOMIC);
-	(*out_buffer) = (struct nl_core_buffer *)buffer;
-
-	if (!(*out_buffer)) {
+	buffer = kmalloc(sizeof(*buffer) + capacity, GFP_ATOMIC);
+	if (!buffer) {
 		log_err("Could not allocate memory for nl_core_buffer!");
 		return -ENOMEM;
 	}
 
 	buffer->error_code = 0;
 	buffer->len = 0;
-	buffer->capacity = size;
+	buffer->capacity = capacity;
+	buffer->pending_data = false;
 
+	*out_buffer = buffer;
 	return 0;
 }
 
@@ -145,10 +148,10 @@ void nl_core_free_buffer(struct nl_core_buffer *buffer)
 		kfree(internal_buffer);
 	else
 		log_warn_once("Trying to free unallocated buffer!");
-
 }
 
-bool nl_core_write_to_buffer(struct nl_core_buffer *buffer, __u8 *data, size_t data_length)
+bool nl_core_write_to_buffer(struct nl_core_buffer *buffer, void *data,
+		size_t data_length)
 {
 	__u8 *buffer_data;
 
@@ -166,28 +169,42 @@ bool nl_core_write_to_buffer(struct nl_core_buffer *buffer, __u8 *data, size_t d
 	return 0;
 }
 
-int nl_core_send_multicast_message(struct nl_core_buffer * buffer, struct genl_multicast_group *grp)
+int nl_core_send_multicast_message(struct nl_core_buffer *buffer)
 {
 	int error = 0;
 	struct sk_buff *skb_out;
-	void *data;
+	void *msg_head;
 
-	 skb_out = nlmsg_new(NLMSG_ALIGN(buffer->len), GFP_ATOMIC);
+	skb_out = nlmsg_new(NLMSG_ALIGN(buffer->len), GFP_ATOMIC);
+	if (!skb_out) {
+		log_debug("Failed to allocate the multicast message.");
+		return -ENOMEM;
+	}
 
-	 if (!skb_out) {
-			log_debug("Failed to allocate the multicast message.");
-			return -ENOMEM;
-	 }
+	msg_head = genlmsg_put(skb_out, 0, 0, &jool_family, 0, 0);
+	if (msg_head) {
+		log_err("genlmsg_put() returned NULL.");
+		return -EINVAL;
+	}
 
-	data = genlmsg_put(skb_out, 0, 0, &jool_family,0,0);
+	error = nla_put(skb_out, ATTR_DATA, sizeof(*buffer) + buffer->len, buffer);
+	if (error) {
+		pr_err("nla_put() failed. \n");
+		kfree_skb(skb_out);
+		return -EINVAL;
+	}
 
-	memcpy(data, (buffer+1), buffer->len);
+	genlmsg_end(skb_out, msg_head);
 
-	error = genlmsg_multicast_allns(skb_out, 0, grp->id, 0);
-
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3,13,0)
+	error = genlmsg_multicast_allns(skb_out, 0, mc_groups[0].id, 0);
+#else
+	error = genlmsg_multicast_allns(&jool_family, skb_out, 0, 0, GFP_ATOMIC);
+#endif
 
 	if (error) {
-		log_warn_once("Sending multicast message failed. (errcode %d)", error);
+		log_warn_once("Sending multicast message failed. (errcode %d)",
+				error);
 		return error;
 	}
 
@@ -196,7 +213,7 @@ int nl_core_send_multicast_message(struct nl_core_buffer * buffer, struct genl_m
 
 int nl_core_send_buffer(struct genl_info *info, enum config_mode command, struct nl_core_buffer *buffer)
 {
-
+	log_info("sending buffer!");
 	if (buffer->len > (size_t)NL_CORE_BUFFER_DATA_SIZE) {
 		log_err("Buffer too long to be sent!");
 		return -EINVAL;
@@ -232,9 +249,7 @@ int nl_core_respond_error(struct genl_info *info, enum config_mode command, int 
 
 	buffer->error_code = error_code;
 
-	log_info("(size_t) msg_length -> %u",  (size_t) msg_length);
-
-	error = nl_core_write_to_buffer(buffer, (__u8 *)error_msg, (size_t) msg_length);
+	error = nl_core_write_to_buffer(buffer, error_msg, (size_t) msg_length);
 
 	if (error) {
 		log_err("Error while trying to write to buffer for sending error message!");
@@ -250,13 +265,12 @@ int nl_core_respond_error(struct genl_info *info, enum config_mode command, int 
 
 }
 
-int nl_core_send_acknowledgement(struct genl_info *info, enum config_mode command)
+int nl_core_send_ack(struct genl_info *info, enum config_mode command)
 {
 	int error = 0;
 	struct nl_core_buffer *buffer;
 
 	error = nl_core_new_core_buffer(&buffer, 0);
-
 	if (error) {
 		log_err("Error while trying to allocate buffer for sending acknowledgement!");
 		return error;
@@ -272,67 +286,87 @@ int nl_core_send_acknowledgement(struct genl_info *info, enum config_mode comman
 	return error;
 }
 
-int nl_core_register_mc_group(struct genl_multicast_group *grp)
+
+int nlcore_respond(struct genl_info *info, enum config_mode command, int error)
 {
-	int error = 0;
-
-	if (!grp) {
-		log_err("Trying to register a NULL multicast group!");
-		return -EINVAL;
-	}
-
-	error = genl_register_mc_group(&jool_family, grp);
-
-
-	if (error) {
-		log_err("Error while registering multicast group %s for family %s",
-				grp->name, jool_family.name);
-		return error;
-	}
-
-	return 0;
+	if (error)
+		return nl_core_respond_error(info, command, error);
+	else
+		return nl_core_send_ack(info, command);
 }
 
-static int register_family(struct genl_family *family, struct genl_ops* ops,
-		size_t n_ops)
+int nlcore_respond_struct(struct genl_info *info, enum config_mode command,
+		void *content, size_t content_len)
 {
+	struct nl_core_buffer *buffer;
+	int error;
 
-	int error = 0;
+	error = nl_core_new_core_buffer(&buffer, content_len);
+	if (error)
+		return nl_core_respond_error(info, command, error);
 
-	pr_info("Registering family.\n");
+	error = nl_core_write_to_buffer(buffer, content, content_len);
+	if (error < 0)
+		return nl_core_respond_error(info, command, error);
+	/*
+	 * @content is supposed to be a statically-defined struct, and as such
+	 * should be several orders smaller than the Netlink packet size limit.
+	 */
+	if (WARN(error > 0, "Content exceeds the maximum packet size."))
+		return nl_core_respond_error(info, command, -E2BIG);
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(3,13,0)
+	error = nl_core_send_buffer(info, command, buffer);
+	nl_core_free_buffer(buffer);
+	return error;
+}
 
-	error = genl_register_family_with_ops(family, ops, n_ops);
 
-#else
-	error = genl_register_family_with_ops(family, ops);
+static int register_family(void)
+{
+	int error;
 
-#endif
+	log_info("Registering family.");
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 13, 0)
+
+	error = genl_register_family_with_ops(&jool_family, ops, 1);
 	if (error) {
-		pr_err("Family registration failed: %d\n", error);
+		log_err("Couldn't register family!");
 		return error;
 	}
 
-	pr_info("Echo module registered.\n");
+	error = genl_register_mc_group(&jool_family, &(mc_groups[0]));
+	if (error) {
+		log_err("Couldn't register multicast group!");
+		return error;
+	}
 
-	return error;
+#else
+	error = genl_register_family_with_ops_groups(&jool_family, ops, mc_groups);
+	if (error) {
+		log_err("Family registration failed: %d", error);
+		return error;
+	}
+#endif
+
+	log_info("Jool module registered.");
+	return 0;
 }
 
 void nl_core_set_main_callback(int (*cb)(struct sk_buff *skb_in, struct genl_info *info))
 {
+	log_info("setting main callback!");
 	main_callback = cb;
 }
 
 int nl_core_init(void)
 {
 	error_pool_init();
-	return register_family(&jool_family, ops, 1);
+	return register_family();
 }
 
-int nl_core_destroy(void)
+void nl_core_destroy(void)
 {
+	genl_unregister_family(&jool_family);
 	error_pool_destroy();
-	return genl_unregister_family(&jool_family);
 }

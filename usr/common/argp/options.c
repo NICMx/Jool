@@ -645,6 +645,49 @@ static const struct argp_option parse_file_opt = {
 		.group = 0,
 };
 
+static const struct argp_option synch_enable_opt = {
+		.name = OPTNAME_SYNCH_ENABLE,
+		.key = ARGP_SYNCH_ENABLE,
+		.flags = 0,
+		.doc = "Enables jool's synchronization mode.",
+		.group = 0,
+};
+
+static const struct argp_option synch_disable_opt = {
+		.name = OPTNAME_SYNCH_DISABLE,
+		.key = ARGP_SYNCH_DISABLE,
+		.flags = 0,
+		.doc = "Disables jool's synchronization mode.",
+		.group = 0,
+};
+
+static const struct argp_option synch_max_sessions_opt = {
+		.name = "synch-max-sessions",
+		.key = ARGP_SYNCH_MAX_SESSIONS,
+		.arg = NUM_FORMAT,
+		.flags = 0,
+		.doc = "Maximum number of sessions to queue in the synchronization queue before sending them to another jool server.",
+		.group = 0,
+};
+
+static const struct argp_option synch_period_opt = {
+		.name = "synch-period",
+		.key = ARGP_SYNCH_PERIOD,
+		.arg = NUM_FORMAT,
+		.flags = 0,
+		.doc = "Number of milliseconds within the period timer to send sessions to another jool server.",
+		.group = 0,
+};
+
+static const struct argp_option synch_threshold_opt = {
+		.name = "synch-threshold",
+		.key = ARGP_SYNCH_THRESHOLD ,
+		.arg = NUM_FORMAT,
+		.flags = 0,
+		.doc = "Number of milliseconds that have to pass after a session is created, so that it can be synchronized.",
+		.group = 0,
+};
+
 static const struct argp_option *options_siit[] = {
 	&targets_hdr_opt,
 	&pool6_opt,
@@ -768,6 +811,11 @@ static const struct argp_option *options_nat64[] = {
 	&address_opt,
 	&bib6_opt,
 	&bib4_opt,
+	&synch_enable_opt,
+	&synch_disable_opt,
+	&synch_max_sessions_opt,
+	&synch_period_opt,
+	&synch_threshold_opt
 };
 
 struct argp_option *__build_options(const struct argp_option **template,

@@ -12,7 +12,8 @@
 #include "nat64/usr/types.h"
 
 int init_threads(char *multicast_address, char *local_ip_address,
-		char *multicast_port) {
+		char *multicast_port)
+{
 
 	pthread_t thread1, thread2;
 	int ret;

@@ -6,7 +6,7 @@
 #define HDR_LEN sizeof(struct request_hdr)
 #define PAYLOAD_LEN sizeof(struct configuration)
 
-static int handle_send_pkt_response(struct nl_msg *msg, void *arg)
+static int handle_send_pkt_response(struct nl_core_buffer *buffer, void *arg)
 {
 	log_debug("Packet sent successfully.");
 	return 0;
@@ -39,7 +39,7 @@ int send_packet(void *pkt, __u32 pkt_len, char *filename, __u32 str_len, enum co
 }
 
 
-static int handle_flush_op_response(struct nl_msg *msg, void *arg)
+static int handle_flush_op_response(struct nl_core_buffer *buffer, void *arg)
 {
 	log_debug("Database flushed.");
 	return 0;
@@ -58,7 +58,7 @@ int send_flush_op(enum config_mode mode, enum config_operation op)
 	return netlink_request(request, HDR_LEN, handle_flush_op_response, NULL);
 }
 
-static int handle_update_response(struct nl_msg *msg, void *arg)
+static int handle_update_response(struct nl_core_buffer *buffer, void *arg)
 {
 	log_info("Value changed successfully.");
 	return 0;
@@ -82,7 +82,7 @@ int global_update(__u8 type, size_t size, void *data)
 	return netlink_request(hdr, HDR_LEN + size, handle_update_response, NULL);
 }
 
-static int handle_display_response(struct nl_msg *msg, void *arg)
+static int handle_display_response(struct nl_core_buffer *buffer, void *arg)
 {
 	log_info("Printed in the kernel log, use dmesg to see it.");
 	return 0;

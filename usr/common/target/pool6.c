@@ -16,17 +16,15 @@ struct display_args {
 	bool csv;
 };
 
-static int pool6_display_response(struct nl_msg *response, void *arg)
+static int pool6_display_response(struct nl_core_buffer *buffer, void *arg)
 {
-	struct nlmsghdr *hdr;
 	struct ipv6_prefix *prefixes;
 	unsigned int prefix_count, i;
 	char prefix_str[INET6_ADDRSTRLEN];
 	struct display_args *args = arg;
 
-	hdr = nlmsg_hdr(response);
-	prefixes = nlmsg_data(hdr);
-	prefix_count = nlmsg_datalen(hdr) / sizeof(*prefixes);
+	prefixes = netlink_get_data(buffer);
+	prefix_count = buffer->len / sizeof(*prefixes);
 
 	if (args->row_count == 0 && args->csv)
 		printf("Prefix\n");
@@ -37,7 +35,7 @@ static int pool6_display_response(struct nl_msg *response, void *arg)
 	}
 
 	args->row_count += prefix_count;
-	args->request->display.prefix_set = hdr->nlmsg_flags & NLM_F_MULTI;
+	args->request->display.prefix_set = buffer->pending_data;
 	if (prefix_count > 0)
 		args->request->display.prefix = prefixes[prefix_count - 1];
 	return 0;
@@ -58,6 +56,7 @@ int pool6_display(bool csv)
 	args.request = payload;
 	args.csv = csv;
 
+
 	do {
 		error = netlink_request(&request, hdr->length, pool6_display_response, &args);
 		if (error)
@@ -74,9 +73,9 @@ int pool6_display(bool csv)
 	return 0;
 }
 
-static int pool6_count_response(struct nl_msg *msg, void *arg)
+static int pool6_count_response(struct nl_core_buffer *buffer, void *arg)
 {
-	__u64 *conf = nlmsg_data(nlmsg_hdr(msg));
+	__u64 *conf = netlink_get_data(buffer);
 	printf("%llu\n", *conf);
 	return 0;
 }
@@ -95,6 +94,8 @@ static bool get_ubit(struct ipv6_prefix *prefix)
 
 int pool6_add(struct ipv6_prefix *prefix, bool force)
 {
+	fprintf(stderr, "adding pool6 prefix\n");
+
 	unsigned char request[HDR_LEN + PAYLOAD_LEN];
 	struct request_hdr *hdr = (struct request_hdr *) request;
 	union request_pool6 *payload = (union request_pool6 *) (request + HDR_LEN);

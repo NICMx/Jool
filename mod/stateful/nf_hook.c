@@ -9,6 +9,7 @@
 #include "nat64/mod/common/log_time.h"
 #include "nat64/mod/common/namespace.h"
 #include "nat64/mod/common/nl/nl_handler.h"
+#include "nat64/mod/common/nl/nl_core2.h"
 #include "nat64/mod/stateful/joold.h"
 
 MODULE_LICENSE("GPL");
@@ -32,18 +33,6 @@ MODULE_PARM_DESC(pool4_size, "Size of pool4 DB's hashtable.");
 static bool disabled;
 module_param(disabled, bool, 0);
 MODULE_PARM_DESC(disabled, "Disable the translation at the beginning of the module insertion.");
-
-static int sender_sock_family = NETLINK_MULTICAST_FAMILY;
-module_param(sender_sock_family,int,0);
-MODULE_PARM_DESC(sender_sock_family,"Family of the multicasting socket which will send session data to userspace.");
-
-static int receiver_sock_family = NETLINK_USERSOCK;
-module_param(receiver_sock_family,int,0);
-MODULE_PARM_DESC(receiver_sock_family,"Family of the socket which will receive data from userspace.");
-
-static int synch_period = 500;
-module_param(synch_period,int,0);
-MODULE_PARM_DESC(synch_timer_period,"Period of synchronization with other JOOL instances in miliseconds.");
 
 
 static char *banner = "\n"
@@ -126,15 +115,18 @@ static int __init jool_init(void)
 	error = joolns_init();
 	if (error)
 		goto joolns_failure;
-	error = nlhandler_init(receiver_sock_family);
+	error = nl_core_init();
+	if (error)
+		goto nl_core_failure;
+	error = nlhandler_init();
 	if (error)
 		goto nlhandler_failure;
-	error = joold_init(sender_sock_family, synch_period);
+	error = joold_init();
 	if (error)
 		goto joold_failure;
 	error = logtime_init();
 	if (error)
-		goto log_time_failure;
+		goto logtime_failure;
 
 	/* Hook Jool to Netfilter. */
 	error = nf_register_hooks(nfho, ARRAY_SIZE(nfho));
@@ -147,11 +139,13 @@ static int __init jool_init(void)
 
 nf_register_hooks_failure:
 	logtime_destroy();
-log_time_failure:
+logtime_failure:
 	joold_destroy();
 joold_failure:
 	nlhandler_destroy();
 nlhandler_failure:
+	nl_core_destroy();
+nl_core_failure:
 	joolns_destroy();
 joolns_failure:
 	session_destroy();
@@ -168,6 +162,7 @@ static void __exit jool_exit(void)
 	logtime_destroy();
 	joold_destroy();
 	nlhandler_destroy();
+	nl_core_destroy();
 	joolns_destroy();
 	session_destroy();
 	bibentry_destroy();

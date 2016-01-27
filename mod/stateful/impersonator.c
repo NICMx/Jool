@@ -33,37 +33,10 @@ void blacklist_put(struct addr4_pool *pool)
 	fail(__func__);
 }
 
-int blacklist_add(struct addr4_pool *pool, struct ipv4_prefix *prefix)
-{
-	return fail(__func__);
-}
-
-int blacklist_rm(struct addr4_pool *pool, struct ipv4_prefix *prefix)
-{
-	return fail(__func__);
-}
-
-int blacklist_flush(struct addr4_pool *pool)
-{
-	return fail(__func__);
-}
-
 bool blacklist_contains(struct addr4_pool *pool, struct net *ns, __be32 addr)
 {
 	fail(__func__);
 	return false;
-}
-
-int blacklist_foreach(struct addr4_pool *pool,
-		int (*func)(struct ipv4_prefix *, void *), void *arg,
-		struct ipv4_prefix *offset)
-{
-	return fail(__func__);
-}
-
-int blacklist_count(struct addr4_pool *pool, __u64 *result)
-{
-	return fail(__func__);
 }
 
 int rfc6791_init(struct addr4_pool **pool, char *pref_strs[], int pref_count)
@@ -81,34 +54,7 @@ void rfc6791_put(struct addr4_pool *pool)
 	fail(__func__);
 }
 
-int rfc6791_add(struct addr4_pool *pool, struct ipv4_prefix *prefix)
-{
-	return fail(__func__);
-}
-
-int rfc6791_rm(struct addr4_pool *pool, struct ipv4_prefix *prefix)
-{
-	return fail(__func__);
-}
-
-int rfc6791_flush(struct addr4_pool *pool)
-{
-	return fail(__func__);
-}
-
 int rfc6791_find(struct xlation *state, __be32 *result)
-{
-	return fail(__func__);
-}
-
-int rfc6791_for_each(struct addr4_pool *pool,
-		int (*func)(struct ipv4_prefix *, void *), void *arg,
-		struct ipv4_prefix *offset)
-{
-	return fail(__func__);
-}
-
-int rfc6791_count(struct addr4_pool *pool, __u64 *result)
 {
 	return fail(__func__);
 }
@@ -175,8 +121,29 @@ int eamt_count(struct eam_table *eamt, __u64 *count)
 	return fail(__func__);
 }
 
-bool eamt_is_empty(struct eam_table *eamt)
+int pool_add(struct addr4_pool *pool, struct ipv4_prefix *prefix)
 {
-	fail(__func__);
-	return true;
+	return fail(__func__);
+}
+
+int pool_rm(struct addr4_pool *pool, struct ipv4_prefix *prefix)
+{
+	return fail(__func__);
+}
+
+int pool_flush(struct addr4_pool *pool)
+{
+	return fail(__func__);
+}
+
+int pool_foreach(struct addr4_pool *pool,
+		int (*func)(struct ipv4_prefix *, void *), void *arg,
+		struct ipv4_prefix *offset)
+{
+	return fail(__func__);
+}
+
+int pool_count(struct addr4_pool *pool, __u64 *result)
+{
+	return fail(__func__);
 }

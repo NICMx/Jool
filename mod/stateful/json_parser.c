@@ -1,6 +1,14 @@
-#include "nat64/mod/common/json_parser.h"
-#include "nat64/mod/stateful/bib/entry.h"
+#include <net/netlink.h>
+#include <net/genetlink.h>
+#include "nat64/common/genetlink.h"
+#include "nat64/mod/common/config.h"
+#include "nat64/mod/common/nl/nl_core2.h"
+#include "nat64/mod/stateful/bib/db.h"
 #include "nat64/mod/stateful/pool4/db.h"
+
+
+
+static enum config_mode command = MODE_PARSE_FILE;
 
 struct pool4_entry {
 	__u32 mark;
@@ -179,78 +187,97 @@ static void end_configuration(void)
 	initialized = 0;
 }
 
-int handle_json_file_config(struct nlmsghdr *nl_hdr, struct request_hdr *jool_hdr, __u8 *request)
+
+static int handle_json_file_config_wrapped(struct genl_info *info)
 {
-	int error = 0;
-	__u16 request_type = *((__u16 *) request);
-	__u32 length = jool_hdr->length - (sizeof(struct request_hdr)) - 2;
+
+	 struct request_hdr *jool_hdr = (struct request_hdr *) (info->attrs[ATTR_DATA] + 1);
+		 __u8 *request = (__u8 *) (jool_hdr + 1);
+
+		 int error = 0;
+		__u16 request_type = *((__u16 *) request);
+		__u32 length = jool_hdr->length - 2;
+
+		log_info("json parser request_type -> %u",  request_type);
+		log_info("request length -> %u", length);
+
+		if (request_type == SEC_INIT) {
+
+			if (init_configuration()) {
+				free_members_on_error();
+				initialized = 0;
+				return -EINVAL;
+			}
+			return 0;
+		}
+
+		if(request_type == SEC_DONE) {
+
+			if(save_configuration())
+			{
+				free_members_on_error();
+				initialized = 0;
+				return -EINVAL;
+			}
+			end_configuration();
+			return 0;
+		}
 
 
-	if (request_type == SEC_INIT) {
-		log_info("initializing configuration.");
-
-		if (init_configuration()) {
+		if (!request) {
+			log_err("NULL request received!.");
 			free_members_on_error();
 			initialized = 0;
 			return -EINVAL;
 		}
-		return 0;
-	}
 
-	if(request_type == SEC_COMMIT) {
-		log_info("finalizing configuration.") ;
-		if(save_configuration())
-		{
-			free_members_on_error();
-			initialized = 0;
+		request = request + 2;
+
+		if (initialized) {
+
+			switch (request_type) {
+			case SEC_GLOBAL:
+
+				error = handle_global_config(request, length);
+				break;
+
+			case SEC_POOL6:
+
+				error = handle_pool6_config(request, length);
+				break;
+
+			case SEC_POOL4:
+				error = handle_pool4_config(request, length);
+				break;
+
+			case SEC_BIB:
+				error = handle_bib_config(request, length);
+				break;
+			}
+
+			if (error) {
+				log_err("An error occured configuration transaction will be ended.");
+				free_members_on_error();
+				initialized = 0;
+			}
+		} else {
+			log_err("Configuration transaction has not been initialized!.");
 			return -EINVAL;
 		}
-		end_configuration();
-		return 0;
-	}
+
+		return error;
+
+}
 
 
-	if (!request) {
-		log_err("NULL request received!.");
-		free_members_on_error();
-		initialized = 0;
-		return -EINVAL;
-	}
+int handle_json_file_config(struct genl_info *info)
+{
+	int error = handle_json_file_config_wrapped(info);
 
-	request = request + 2;
+	if (error)
+	return	nl_core_respond_error(info, command, error);
 
-	if (initialized) {
-
-		switch (request_type) {
-		case SEC_GLOBAL:
-
-			error = handle_global_config(request, length);
-			break;
-
-		case SEC_POOL6:
-
-			error = handle_pool6_config(request, length);
-			break;
-
-		case SEC_POOL4:
-			error = handle_pool4_config(request, length);
-			break;
-
-		case SEC_BIB:
-			error = handle_bib_config(request, length);
-			break;
-		}
-
-		if (error) {
-			log_err("An error occured configuration transaction will be ended.");
-			free_members_on_error();
-			initialized = 0;
-		}
-	} else {
-		log_err("Configuration transaction has not been initialized!.");
-		return -EINVAL;
-	}
-	return error;
+	return nl_core_send_ack(info, command);
 }
 static int handle_global_config(__u8 *request, __u32 length)
 {
@@ -718,7 +745,6 @@ static int save_configuration(void)
 		//save bib_database
 	}
 
-	log_info("configuration saved.");
 
 	return 0;
 }

@@ -22,10 +22,14 @@ int config_init(struct global_configuration **result, bool disable)
 	config = &(*result)->cfg;
 
 	config->jool_status = 0; /* This is never read, but whatever. */
-	config->is_disable = (__u8) disable;
+	config->is_disable = (__u8)disable;
 	config->reset_traffic_class = DEFAULT_RESET_TRAFFIC_CLASS;
 	config->reset_tos = DEFAULT_RESET_TOS;
 	config->new_tos = DEFAULT_NEW_TOS;
+	config->synch_elements_limit = DEFAULT_SYNCH_ELEMENTS_LIMIT;
+	config->synch_elements_period = DEFAULT_SYNCH_ELEMENTS_PERIOD;
+	config->synch_elements_threshold = DEFAULT_SYNCH_ELEMENTS_THRESHOLD;
+	config->synch_enabled = 0;
 
 	config->atomic_frags.df_always_on = DEFAULT_DF_ALWAYS_ON;
 	config->atomic_frags.build_ipv6_fh = DEFAULT_BUILD_IPV6_FH;

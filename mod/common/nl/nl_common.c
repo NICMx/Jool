@@ -1,14 +1,10 @@
-#include <linux/netlink.h>
-#include <linux/module.h>
-#include <linux/sort.h>
-#include <linux/version.h>
+#include "nat64/mod/common/nl/nl_common.h"
 
-#include "nat64/common/constants.h"
+#include "nat64/common/genetlink.h"
 #include "nat64/mod/common/types.h"
-#include "nat64/mod/common/config.h"
-#include "nat64/mod/common/nl/nl_core2.h"
 
-int verify_superpriv(void) {
+int verify_superpriv(void)
+{
 	if (!capable(CAP_NET_ADMIN)) {
 		log_err("Administrative privileges required.");
 		return -EPERM;
@@ -17,4 +13,7 @@ int verify_superpriv(void) {
 	return 0;
 }
 
-
+struct request_hdr *get_jool_hdr(struct genl_info *info)
+{
+	return (struct request_hdr *)(info->attrs[ATTR_DATA] + 1);
+}

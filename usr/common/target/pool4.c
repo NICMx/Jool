@@ -15,16 +15,15 @@ struct display_args {
 	bool csv;
 };
 
-static int pool4_display_response(struct nl_msg *response, void *arg)
+static int pool4_display_response(struct nl_core_buffer *buffer, void *arg)
 {
-	struct nlmsghdr *hdr;
+
 	struct pool4_sample *samples;
 	unsigned int sample_count, i;
 	struct display_args *args = arg;
 
-	hdr = nlmsg_hdr(response);
-	samples = nlmsg_data(hdr);
-	sample_count = nlmsg_datalen(hdr) / sizeof(*samples);
+	samples = netlink_get_data(buffer);
+	sample_count = buffer->len / sizeof(*samples);
 
 	if (args->row_count == 0 && args->csv)
 		printf("Mark,Protocol,Address,Min port,Max port\n");
@@ -45,7 +44,7 @@ static int pool4_display_response(struct nl_msg *response, void *arg)
 	}
 
 	args->row_count += sample_count;
-	args->request->display.offset_set = hdr->nlmsg_flags & NLM_F_MULTI;
+	args->request->display.offset_set = buffer->pending_data;
 	if (sample_count > 0)
 		args->request->display.offset = samples[sample_count - 1];
 
@@ -83,9 +82,9 @@ int pool4_display(bool csv)
 	return 0;
 }
 
-static int pool4_count_response(struct nl_msg *msg, void *arg)
+static int pool4_count_response(struct nl_core_buffer *buffer, void *arg)
 {
-	struct response_pool4_count *response = nlmsg_data(nlmsg_hdr(msg));
+	struct response_pool4_count *response = netlink_get_data(buffer);
 
 	printf("tables: %u\n", response->tables);
 	printf("samples: %llu\n", response->samples);

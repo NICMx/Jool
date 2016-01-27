@@ -9,9 +9,9 @@
 #include <limits.h>
 #include <unistd.h>
 
+#include "../usr/netlink.h"
 #include "nat64/usr/cJSON.h"
 #include "nat64/usr/str_utils.h"
-#include "nat64/usr/netlink.h"
 #include "nat64/common/config.h"
 #include "nat64/usr/types.h"
 

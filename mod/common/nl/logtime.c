@@ -1,3 +1,5 @@
+#include "nat64/mod/common/nl/logtime.h"
+
 #include "nat64/mod/common/nl/nl_core2.h"
 #include "nat64/mod/common/types.h"
 #ifdef BENCHMARK
@@ -249,8 +251,8 @@ int handle_logtime_config(struct genl_info *info)
 {
 #ifdef BENCHMARK
 
-	struct request_hdr *jool_hdr = info->userhdr;
-	struct request_logtime *request = jool_hdr + 1;
+	struct request_hdr *jool_hdr = (struct request_hdr *) (info->attrs[ATTR_DATA] + 1);
+	struct request_logtime *request = (struct request_logtime *)(jool_hdr + 1);
 
 	int error;
 
@@ -270,7 +272,7 @@ int handle_logtime_config(struct genl_info *info)
 		goto throw_error;
 	}
 
-	return 0;
+	return nl_core_send_acknowledgement(info, command);
 
 	throw_error:
 	return nl_core_respond_error(info, command, error);

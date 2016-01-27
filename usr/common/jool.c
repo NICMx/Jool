@@ -14,6 +14,7 @@
 #include <linux/types.h>
 #include <string.h>
 
+#include "nat64/usr/netlink.h"
 #include "nat64/common/constants.h"
 #include "nat64/common/config.h"
 #include "nat64/common/JsonReader.h"
@@ -29,7 +30,7 @@
 #include "nat64/usr/global.h"
 #include "nat64/usr/log_time.h"
 #include "nat64/usr/argp/options.h"
-#include "nat64/usr/netlink.h"
+
 
 
 const char *argp_program_version = JOOL_VERSION_STR;
@@ -83,6 +84,11 @@ struct arguments {
 		char *filename;
 	} parse_file;
 
+	struct {
+
+
+	} synchronization;
+
 	bool csv_format;
 };
 
@@ -127,6 +133,7 @@ static int set_global_arg(struct arguments *args, __u8 type, size_t size, void *
 	args->global.data = malloc(size);
 	if (!args->global.data)
 		return -ENOMEM;
+
 	memcpy(args->global.data, value, size);
 
 	return 0;
@@ -321,6 +328,7 @@ static int parse_opt(int key, char *str, struct argp_state *state)
 {
 	struct arguments *args = state->input;
 	int error = 0;
+	char dummy_argument = '\0';
 
 	switch (key) {
 	case ARGP_GLOBAL:
@@ -526,6 +534,23 @@ static int parse_opt(int key, char *str, struct argp_state *state)
 		strcpy(args->parse_file.filename,str);
 		break;
 
+	case ARGP_SYNCH_ENABLE:
+		error = set_global_arg(args, SYNCH_ENABLE, 1, &dummy_argument);
+		break;
+	case ARGP_SYNCH_DISABLE:
+		error = set_global_arg(args, SYNCH_DISABLE, 1, &dummy_argument);
+		break;
+	case ARGP_SYNCH_MAX_SESSIONS:
+		error = set_global_u8(args, SYNCH_ELEMENTS_LIMIT, str, 0, MAX_U8);
+		break;
+	case ARGP_SYNCH_PERIOD:
+		error = set_global_u64(args, SYNCH_PERIOD, str, 0, MAX_U64,1);
+		break;
+	case ARGP_SYNCH_THRESHOLD:
+		error = set_global_u64(args, SYNCH_THRESHOLD, str, 0, MAX_U32,1);
+		break;
+
+
 	default:
 		error = ARGP_ERR_UNKNOWN;
 	}
@@ -626,8 +651,10 @@ static int main_wrapped(int argc, char **argv)
 	int error;
 
 	error = parse_args(argc, argv, &args);
+
 	if (error)
 		return error;
+
 
 	switch (args.mode) {
 	case MODE_POOL6:
@@ -837,6 +864,7 @@ static int main_wrapped(int argc, char **argv)
 		case OP_DISPLAY:
 			return global_display(args.csv_format);
 		case OP_UPDATE:
+
 			error = global_update(args.global.type, args.global.size, args.global.data);
 			free(args.global.data);
 			return error;
@@ -848,6 +876,9 @@ static int main_wrapped(int argc, char **argv)
 
 	case MODE_PARSE_FILE:
 		return parse_file(args.parse_file.filename);
+
+	case MODE_JOOLD:
+		break;
 	}
 
 	log_err("Unknown configuration mode: %u", args.mode);
@@ -856,5 +887,17 @@ static int main_wrapped(int argc, char **argv)
 
 int main(int argc, char **argv)
 {
-	return -main_wrapped(argc, argv);
+	int error;
+
+	error = netlink_init();
+
+	if (error)
+		return error;
+
+	error = -main_wrapped(argc, argv);
+
+	netlink_destroy();
+
+	return error;
+
 }

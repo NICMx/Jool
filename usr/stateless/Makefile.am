@@ -5,7 +5,7 @@ bin_PROGRAMS = jool_siit
 jool_siit_SOURCES = \
 	../common/dns.c \
 	../common/jool.c \
-	../common/netlink.c \
+	../common/netlink2.c \
 	../common/str_utils.c \
 	../common/cJSON.c \
 	../common/JsonReaderCommon.c \
@@ -21,8 +21,8 @@ jool_siit_SOURCES = \
 	xlat.c \
 	JsonReader.c
 
-jool_siit_LDADD = ${LIBNL3_LIBS} -lm
+jool_siit_LDADD = ${LIBNLGENL3_LIBS} -lm
 jool_siit_CFLAGS = -Wall -O2
 jool_siit_CFLAGS += -I${srcdir}/../../include
-jool_siit_CFLAGS += ${LIBNL3_CFLAGS} ${JOOL_FLAGS}
+jool_siit_CFLAGS += ${LIBNLGENL3_CFLAGS} ${LIBNL3_CFLAGS} ${JOOL_FLAGS}
 man_MANS = jool_siit.8

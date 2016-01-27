@@ -3,18 +3,18 @@
 
 /**
  * @file
- * The NAT64's layer/bridge towards the user. S/he can control its behavior using this.
+ * The NAT64's layer/bridge towards the user. S/he can control its behavior
+ * using this.
  *
  * @author Miguel Gonzalez
  * @author Alberto Leiva
  */
 
-#include <linux/netlink.h>
-
 /**
- * Activates this module. The module will then listen to user requests on its own.
+ * Activates this module. The module will then listen to user requests on its
+ * own.
  */
-int nlhandler_init(int receiver_sock_family);
+int nlhandler_init(void);
 /**
  * Terminates this module. Deletes any memory left on the heap.
  */

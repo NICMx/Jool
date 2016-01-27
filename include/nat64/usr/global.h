@@ -39,6 +39,13 @@
 #define OPTNAME_SESSION_LOGGING		"logging-session"
 
 
+/* Synchronization flags */
+#define OPTNAME_SYNCH_ENABLE "synch-enable"
+#define OPTNAME_SYNCH_DISABLE "synch-disable"
+#define OPTNAME_SYNCH_MAX_SESSIONS "synch-max-sessions"
+#define OPTNAME_SYNCH_PERIOD "synch-period"
+#define OPTNAME_SYNCH_THRESHOLD "synch-threshold"
+
 int global_display(bool csv);
 int global_update(__u8 type, size_t size, void *data);
 

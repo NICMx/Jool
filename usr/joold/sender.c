@@ -1,3 +1,4 @@
+#include <linux/types.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
@@ -15,7 +16,7 @@
 
 
 
-int send_payload(void * payload, size_t size) {
+int send_payload(void * payload, __u16 size) {
 
 		n = sendto(sockfd, payload, size, MSG_DONTWAIT,
 		            dst_addr->ai_addr, sizeof(*dst_addr->ai_addr));
