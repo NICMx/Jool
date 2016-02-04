@@ -111,7 +111,7 @@ static bool assert_session_exists(char *remote_addr6, u16 remote_port6,
 	success &= ASSERT_INT(proto, session->l4_proto, "Session's l4 proto");
 	success &= ASSERT_INT(state, session->state, "Session's state");
 
-	session_return(session);
+	session_put(session);
 
 	return success;
 }
@@ -141,7 +141,7 @@ static int invert_tuple(struct tuple *tuple)
 	tuple->dst.addr4 = session->local4;
 	tuple->l3_proto = L3PROTO_IPV4;
 
-	session_return(session);
+	session_put(session);
 	return 0;
 }
 
@@ -536,11 +536,11 @@ static bool init(void)
 	if (session_init())
 		goto fail1;
 
-	if (joolns_init())
+	if (xlator_init())
 		goto fail2;
-	if (joolns_add())
+	if (xlator_add())
 		goto fail3;
-	if (joolns_get_current(&jool))
+	if (xlator_find_current(&jool))
 		goto fail4;
 
 	if (str_to_addr6("3::", &prefix6.address))
@@ -565,9 +565,9 @@ static bool init(void)
 	return true;
 
 fail4:
-	joolns_put(&jool);
+	xlator_put(&jool);
 fail3:
-	joolns_destroy();
+	xlator_destroy();
 fail2:
 	session_destroy();
 fail1:
@@ -578,8 +578,8 @@ fail1:
 static void end(void)
 {
 	icmp64_pop();
-	joolns_put(&jool);
-	joolns_destroy();
+	xlator_put(&jool);
+	xlator_destroy();
 	bibentry_destroy();
 	session_destroy();
 }

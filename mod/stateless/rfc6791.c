@@ -114,7 +114,7 @@ static int get_host_address(struct xlation *state, __be32 *result)
 	__be32 saddr;
 	__be32 daddr;
 
-	/* TODO what happens if the packet hairpins? */
+	/* TODO (final) what happens if the packet hairpins? */
 
 	dst = route4(state->jool.ns, &state->out);
 	if (!dst)

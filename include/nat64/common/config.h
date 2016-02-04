@@ -16,7 +16,7 @@
 
 #include "nat64/common/types.h"
 #include "nat64/common/xlat.h"
-/* TODO really necessary? */
+/* TODO (usr) really necessary? */
 #ifdef BENCHMARK
 	#ifdef __KERNEL__
 		#include <linux/time.h>
@@ -28,7 +28,7 @@
 /**
  * ID of Netlink messages Jool listens to.
  * This value was chosen at random, if I remember correctly.
- * TODO you sure this is sane? 0x22 > 32.
+ * TODO (next) you sure this is sane? 0x22 > 32.
  */
 #define MSG_TYPE_JOOL (0x20 + 2)
 #define MSG_TYPE_JOOL_DONE (0x20+4)
@@ -71,6 +71,8 @@ enum config_mode {
 	MODE_PARSE_FILE = (1 << 9),
 	/** The current message is talking about synchronization entries.*/
 	MODE_JOOLD = (1 << 10),
+
+	MODE_INSTANCE = (1 << 11),
 };
 
 /**
@@ -142,7 +144,7 @@ enum parse_section {
 	SEC_INIT = 256
 };
 
-/* TODO NO-NO. */
+/* TODO (usr) NO-NO. */
 enum parse_entries_size {
 	POOL4_ENTRY_SIZE = 16,
 	BIB_ENTRY_SIZE = 25,
@@ -235,6 +237,13 @@ union request_pool6 {
 	} flush;
 };
 
+struct pool4_entry_usr {
+	__u32 mark;
+	__u8 proto;
+	struct ipv4_prefix addrs;
+	struct port_range ports;
+};
+
 /**
  * Configuration for the "IPv4 Pool" module.
  */
@@ -244,18 +253,10 @@ union request_pool4 {
 		struct pool4_sample offset;
 	} display;
 	struct {
-		__u32 mark;
-		__u8 proto;
-		/** The addresses the user wants to add to the pool. */
-		struct ipv4_prefix addrs;
-		struct port_range ports;
+		struct pool4_entry_usr entry;
 	} add;
 	struct {
-		__u32 mark;
-		__u8 proto;
-		/** The addresses the user wants to remove from the pool. */
-		struct ipv4_prefix addrs;
-		struct port_range ports;
+		struct pool4_entry_usr entry;
 		/* Whether the address's BIB entries and sessions should be cleared too (false) or not (true). */
 		__u8 quick;
 	} rm;
@@ -297,7 +298,7 @@ union request_eamt {
 	struct {
 		struct ipv6_prefix prefix6;
 		struct ipv4_prefix prefix4;
-		/* TODO this might have been moved over to the userspace app. */
+		/* TODO (usr) this might have been moved over to the userspace app. */
 		__u8 force;
 	} add;
 	struct {
@@ -416,7 +417,6 @@ enum global_type {
 	SYNCH_DISABLE,
 	SYNCH_ELEMENTS_LIMIT,
 	SYNCH_PERIOD,
-	SYNCH_THRESHOLD,
 
 	/* SIIT */
 	COMPUTE_UDP_CSUM_ZERO,
@@ -435,19 +435,6 @@ enum global_type {
 	DISABLE,
 	ENABLE,
 	ATOMIC_FRAGMENTS,
-};
-
-/**
- * A request to edit a miscellaneous configuration value.
- */
-union request_global {
-	struct {
-		/* Nothing needed here. */
-	} display;
-	struct {
-		__u8 type;
-		/* The value is given in a variable-sized payload so it's not here. */
-	} update;
 };
 
 struct response_pool4_count {
@@ -481,6 +468,7 @@ struct logtime_entry_usr {
 struct bib_entry_usr {
 	struct ipv4_transport_addr addr4;
 	struct ipv6_transport_addr addr6;
+	__u8 l4_proto;
 	__u8 is_static;
 };
 
@@ -517,62 +505,68 @@ struct eamt_entry {
 struct global_config {
 	/**
 	 * Is Jool actually translating?
-	 * This depends on several factors depending on stateness, and is not an actual variable Jool
-	 * stores; it is computed as it is requested.
+	 * This depends on several factors depending on stateness, and is not an
+	 * actual variable Jool stores; it is computed as it is requested.
 	 * Boolean.
 	 */
-	__u8 jool_status;
+	__u8 status;
 	/**
-	 * Did the user manually instruct Jool to sit idle?
+	 * Does the user wants this Jool instance to translate packets?
 	 * Boolean.
 	 */
-	__u8 is_disable;
+	__u8 enabled;
 
 	/**
-	 * "true" if the Traffic Class field of translated IPv6 headers should always be zeroized.
+	 * "true" if the Traffic Class field of translated IPv6 headers should
+	 * always be zeroized.
 	 * Otherwise it will be copied from the IPv4 header's TOS field.
 	 * Boolean.
 	 */
 	__u8 reset_traffic_class;
 	/**
-	 * "true" if the Type of Service (TOS) field of translated IPv4 headers should always be set
-	 * as "new_tos".
-	 * Otherwise it will be copied from the IPv6 header's Traffic Class field.
+	 * "true" if the Type of Service (TOS) field of translated IPv4 headers
+	 * should always be set as "new_tos".
+	 * Otherwise it will be copied from the IPv6 header's Traffic Class
+	 * field.
 	 * Boolean.
 	 */
 	__u8 reset_tos;
 	/**
-	 * If "reset_tos" is "true", this is the value the translator will always write in the TOS
-	 * field of translated IPv4 headers.
+	 * If "reset_tos" is "true", this is the value the translator will
+	 * always write in the TOS field of translated IPv4 headers.
 	 * If "reset_tos" is "false", then this doesn't do anything.
 	 */
 	__u8 new_tos;
 
 	struct {
 		/**
-		 * If "true", the translator will always set translated IPv4 headers' Don't Fragment (DF)
-		 * flags as one.
-		 * Otherwise the value of the flag will depend on the packet's length.
+		 * If "true", the translator will always set translated IPv4
+		 * headers' Don't Fragment (DF) flags as one.
+		 * Otherwise the value of the flag will depend on the packet's
+		 * length.
 		 * Boolean.
 		 */
 		__u8 df_always_on;
 		/**
-		 * If the incoming IPv4 packet is a fragment, Jool will include a fragment header in the
-		 * translated IPv6 packet.
-		 * If this is "true", Jool will also include a Fragment Header if DF is false.
+		 * If the incoming IPv4 packet is a fragment, Jool will include
+		 * a fragment header in the translated IPv6 packet.
+		 * If this is "true", Jool will also include a Fragment Header
+		 * if DF is false.
 		 * Boolean.
 		 */
 		__u8 build_ipv6_fh;
 		/**
-		 * Whether translated IPv4 headers' Identification fields should be computed (Either from the
-		 * IPv6 fragment header's Identification field or deduced from the packet's length).
+		 * Whether translated IPv4 headers' Identification fields should
+		 * be computed (Either from the IPv6 fragment header's
+		 * Identification field or deduced from the packet's length).
 		 * Otherwise it will always be set as zero.
 		 * Boolean.
 		 */
 		__u8 build_ipv4_id;
 		/**
-		 * "true" if the value for MTU fields of outgoing ICMPv6 fragmentation needed packets should
-		 * be set as no less than 1280, regardless of MTU plateaus and whatnot.
+		 * "true" if the value for MTU fields of outgoing ICMPv6
+		 * fragmentation needed packets should be set as no less than
+		 * 1280, regardless of MTU plateaus and whatnot.
 		 * See RFC 6145 section 6, second approach.
 		 * Boolean.
 		 */
@@ -580,21 +574,22 @@ struct global_config {
 	} atomic_frags;
 
 	/**
-	 * If the translator detects the source of the incoming packet does not implement RFC 1191,
-	 * these are the plateau values used to determine a likely path MTU for outgoing ICMPv6
-	 * fragmentation needed packets.
-	 * The translator is supposed to pick the greatest plateau value that is less than the incoming
-	 * packet's Total Length field.
+	 * If the translator detects the source of the incoming packet does not
+	 * implement RFC 1191, these are the plateau values used to determine a
+	 * likely path MTU for outgoing ICMPv6 fragmentation needed packets.
+	 * The translator is supposed to pick the greatest plateau value that is
+	 * less than the incoming packet's Total Length field.
 	 */
-	__u16 *mtu_plateaus;
+	__u16 mtu_plateaus[64];
 	/** Length of the mtu_plateaus array. */
 	__u16 mtu_plateau_count;
 
 	struct {
 		/**
-		 * Time values in this structure should be read as jiffies in the kernel, milliseconds in
-		 * userspace.
-		 * The kernel module is responsible for switching units as the the values approach the border.
+		 * Time values in this structure should be read as jiffies in
+		 * the kernel, milliseconds in userspace.
+		 * The kernel module is responsible for switching units as the
+		 * the values approach the border.
 		 */
 		struct {
 			/** Maximum time fragments will remain in the DB. */
@@ -605,24 +600,31 @@ struct global_config {
 		__u8 drop_by_addr;
 		/** Filter ICMPv6 Informational packets? (boolean) */
 		__u8 drop_icmp6_info;
-		/** Drop externally initiated TCP connections? (IPv4 initiated) (boolean) */
+		/**
+		 * Drop externally initiated TCP connections? (IPv4 initiated)
+		 * (boolean)
+		 */
 		__u8 drop_external_tcp;
 
-		/** True = issue #132 behaviour. False = RFC 6146 behaviour. (boolean) */
+		/**
+		 * True = issue #132 behaviour. False = RFC 6146 behaviour.
+		 * (boolean)
+		 */
 		__u8 src_icmp6errs_better;
 	} nat64;
 
 	struct {
 		/**
-		 * Amend the UDP checksum of incoming IPv4-UDP packets when it's zero?
-		 * Otherwise these packets will be dropped (because they're illegal in IPv6).
+		 * Amend the UDP checksum of incoming IPv4-UDP packets when it's
+		 * zero? Otherwise these packets will be dropped (because
+		 * they're illegal in IPv6).
 		 * Boolean.
 		 */
 		__u8 compute_udp_csum_zero;
 		/**
 		 * Randomize choice of RFC6791 address?
-		 * Otherwise it will be set depending on the incoming packet's Hop Limit. See
-		 * https://github.com/NICMx/NAT64/issues/130.
+		 * Otherwise it will be set depending on the incoming packet's
+		 * Hop Limit. See https://github.com/NICMx/NAT64/issues/130.
 		 * Boolean.
 		 */
 		__u8 randomize_error_addresses;
@@ -632,31 +634,64 @@ struct global_config {
 		 */
 		__u8 eam_hairpin_mode;
 	} siit;
+};
 
-	/** Tells if synchronization is enabled*/
-	__u8 synch_enabled;
+struct bib_config {
+	__u8 log_changes;
+};
+
+struct joold_config {
+	/*
+	 * Note: joold can run without timer, so timer_pending() is not a valid
+	 * replacement for this.
+	 */
+	__u8 enabled;
 
 	/**
-	 * Max number of elemets to store in the synchronization queue before
-	 * send them to another jool's instance.
+	 * If more sessions than this number have been accumulated, they will
+	 * be flushed immediately.
 	 */
-	__u32 synch_elements_limit;
+	__u32 queue_capacity;
+	/**
+	 * The timer will flush the queue every this amount of jiffies
+	 * regardless of @queue_capacity.
+	 * If this is zero, the timer is inactive.
+	 */
+	__u32 timer_period;
 
 	/**
-	 * Time lapse within the timer will be sending sessions to
-	 * another jool's instance if there are any in the synchronization
-	 * queue.
+	 * TODO (final) I removed the thresholds because the implementation
+	 * didn't quite do what it was supposed to.
+	 *
+	 * "In order to limit the amount of state replication traffic, another
+	 * idea could be to only synchronize long-lived sessions (as it's
+	 * usually not a problem if short-lived HTTP requests and such get
+	 * interrupted half-way through)."
+	 * https://github.com/NICMx/Jool/issues/113#issuecomment-64077194
 	 */
-	__u32 synch_elements_period;
+};
 
-	/**
-	 * Milliseconds that have to pass since a session was created for it to be allowed to
-	 * get into the synchronization queue, this is intended to reduce synchronization traffic
-	 * over the network.
-	 */
+struct pktqueue_config {
+	__u32 max_stored_pkts;
+};
 
-	__u32 synch_elements_threshold;
+struct session_config {
+	struct {
+		__u64 tcp_est;
+		__u64 tcp_trans;
+		__u64 udp;
+		__u64 icmp;
+	} ttl;
+	__u8 log_changes;
 
+	struct joold_config joold;
+	struct pktqueue_config pktqueue;
+};
+
+struct full_config {
+	struct global_config global;
+	struct bib_config bib;
+	struct session_config session;
 };
 
 /**
@@ -673,18 +708,9 @@ enum eam_hairpinning_mode {
 };
 
 /**
- * "struct global_config" has pointers, so if the userspace app wants the configuration,
- * the structure cannot simply be copied to userspace.
- * This translates "config" and its subobjects into a byte array which can then be transformed back
- * using "deserialize_global_config()".
+ * Converts config's fields to userspace friendly units.
  */
-int serialize_global_config(struct global_config *config, bool pools_empty,
-		unsigned char **buffer_out, size_t *buffer_len_out);
-/**
- * Reverts the work of serialize_translate_config() by creating "config" out of the byte array
- * "buffer".
- */
-int deserialize_global_config(void *buffer, __u16 buffer_len, struct global_config *config);
+void prepare_config_for_userspace(struct full_config *config, bool pools_empty);
 
 
 #endif /* _JOOL_COMMON_CONFIG_H */

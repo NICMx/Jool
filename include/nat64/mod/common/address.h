@@ -24,9 +24,9 @@ int prefix4_parse(char *str, struct ipv4_prefix *result);
  */
 bool addr4_equals(const struct in_addr *a, const struct in_addr *b);
 bool addr6_equals(const struct in6_addr *a, const struct in6_addr *b);
-bool ipv4_transport_addr_equals(const struct ipv4_transport_addr *a,
+bool taddr4_equals(const struct ipv4_transport_addr *a,
 		const struct ipv4_transport_addr *b);
-bool ipv6_transport_addr_equals(const struct ipv6_transport_addr *a,
+bool taddr6_equals(const struct ipv6_transport_addr *a,
 		const struct ipv6_transport_addr *b);
 bool prefix6_equals(const struct ipv6_prefix *a, const struct ipv6_prefix *b);
 bool prefix4_equals(const struct ipv4_prefix *a, const struct ipv4_prefix *b);

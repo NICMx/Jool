@@ -97,9 +97,9 @@ struct session_entry *session_create(const struct ipv6_transport_addr *remote6,
 struct session_entry *session_clone(struct session_entry *session);
 
 void session_get(struct session_entry *session);
-/* TODO rename as session_put? */
-int session_return(struct session_entry *session);
+void session_put(struct session_entry *session, bool must_die);
 
+bool session_equals(const struct session_entry *s1, const struct session_entry *s2);
 void session_log(const struct session_entry *session, const char *action);
 
 #endif /* _JOOL_MOD_SESSION_ENTRY_H */

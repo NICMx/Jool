@@ -258,7 +258,7 @@ int fragdb_init(void)
 {
 	int error;
 
-	/* TODO test again siit doesn't modprobe these. */
+	/* TODO (final) test again siit doesn't modprobe these. */
 	nf_defrag_ipv6_enable();
 	nf_defrag_ipv4_enable();
 

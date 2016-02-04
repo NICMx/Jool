@@ -65,8 +65,7 @@ bool addr6_equals(const struct in6_addr *expected, const struct in6_addr *actual
 	return true;
 }
 
-/* TODO OMFG. Rename this as "taddr4_equals", ffs. */
-bool ipv4_transport_addr_equals(const struct ipv4_transport_addr *expected,
+bool taddr4_equals(const struct ipv4_transport_addr *expected,
 		const struct ipv4_transport_addr *actual)
 {
 	if (expected == actual)
@@ -81,8 +80,7 @@ bool ipv4_transport_addr_equals(const struct ipv4_transport_addr *expected,
 	return true;
 }
 
-/* TODO ditto. */
-bool ipv6_transport_addr_equals(const struct ipv6_transport_addr *expected,
+bool taddr6_equals(const struct ipv6_transport_addr *expected,
 		const struct ipv6_transport_addr *actual)
 {
 	if (expected == actual)

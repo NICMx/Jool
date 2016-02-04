@@ -70,7 +70,7 @@ static int validate_overlapping(struct eam_table *eamt,
 	key6.len = 128;
 	key4.len = 32;
 
-	/* TODO review pr_err vs log_err in Rob's code. */
+	/* TODO (final) review pr_err vs log_err in Rob's code. */
 
 	error = rtrie_get(&eamt->trie6, &key6, &old);
 	if (!error) {

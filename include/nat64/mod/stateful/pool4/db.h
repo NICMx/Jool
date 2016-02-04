@@ -9,6 +9,7 @@
  * @author Alberto Leiva
  */
 
+#include "nat64/mod/common/config.h"
 #include "nat64/mod/common/types.h"
 #include "nat64/mod/stateful/pool4/entry.h"
 
@@ -24,8 +25,10 @@ void pool4db_put(struct pool4 *pool);
 
 int pool4db_add(struct pool4 *pool, const __u32 mark, enum l4_protocol proto,
 		struct ipv4_prefix *prefix, struct port_range *ports);
+int pool4db_add_usr(struct pool4 *pool, struct pool4_entry_usr *entry);
 int pool4db_rm(struct pool4 *pool, const __u32 mark, enum l4_protocol proto,
 		struct ipv4_prefix *prefix, struct port_range *ports);
+int pool4db_rm_usr(struct pool4 *pool, struct pool4_entry_usr *entry);
 int pool4db_flush(struct pool4 *pool);
 
 /*

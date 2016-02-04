@@ -2,5 +2,5 @@
 
 void xlation_put(struct xlation *state)
 {
-	joolns_put(&state->jool);
+	xlator_put(&state->jool);
 }

@@ -83,6 +83,18 @@ void bibdb_put(struct bib *db)
 	kref_put(&db->refcounter, release);
 }
 
+void bibdb_config_copy(struct bib *db, struct bib_config *config)
+{
+	bibtable_config_clone(&db->tcp, config);
+}
+
+void bibdb_config_set(struct bib *db, struct bib_config *config)
+{
+	bibtable_config_set(&db->tcp, config);
+	bibtable_config_set(&db->udp, config);
+	bibtable_config_set(&db->icmp, config);
+}
+
 /**
  * Makes "result" point to the BIB entry you'd expect from the "tuple" tuple.
  *
@@ -158,21 +170,22 @@ int bibdb_find6(struct bib *db, const struct ipv6_transport_addr *addr,
 }
 
 /**
- * Adds "entry" to the BIB table it belongs. Make sure you initialized "entry"
- * using bib_create(), please.
+ * Append @entry to the table (from @db) it belongs.
+ * @db: BIB where the entry should be inserted.
+ * @entry: Row to be added to the database.
+ *    Make sure you create it via bibentry_create(), please.
+ * @old: If @entry collides with an already existing entry, the function will
+ *    return -EEXIST and @old will point to the existing entry.
+ *    If you're not interested, send NULL.
  *
  * The table's references are not supposed to count towards the entries'
- * refcounts. Do free your reference if your entry made it into the table;
- * do not assume you're transferring it.
- *
- * @param entry row to be added to the table.
- * @param l4_proto identifier of the table to add "entry" to.
- * @return whether the entry could be inserted or not.
+ * refcounts. Do bibentry_put() your reference if your entry made it into the
+ * table; do not assume you're transferring it.
  */
-int bibdb_add(struct bib *db, struct bib_entry *entry)
+int bibdb_add(struct bib *db, struct bib_entry *entry, struct bib_entry **old)
 {
 	struct bib_table *table = get_table(db, entry->l4_proto);
-	return table ? bibtable_add(table, entry) : -EINVAL;
+	return table ? bibtable_add(table, entry, old) : -EINVAL;
 }
 
 /**

@@ -6,5 +6,6 @@
 
 int verify_superpriv(void);
 struct request_hdr *get_jool_hdr(struct genl_info *info);
+int validate_request_size(struct request_hdr *hdr, size_t min_expected);
 
 #endif

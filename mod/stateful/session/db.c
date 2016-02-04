@@ -3,6 +3,7 @@
 #include "nat64/common/constants.h"
 #include "nat64/mod/common/types.h"
 #include "nat64/mod/common/config.h"
+#include "nat64/mod/stateful/joold.h"
 #include "nat64/mod/stateful/session/table.h"
 #include "nat64/mod/stateful/session/pkt_queue.h"
 
@@ -33,7 +34,7 @@ static enum session_fate just_die(struct session_entry *session, void *arg)
 	return FATE_RM;
 }
 
-/* TODO maybe put this in some common header? */
+/* TODO (final) maybe put this in some common header? */
 enum session_fate tcp_expired_cb(struct session_entry *session, void *arg);
 
 int sessiondb_init(struct sessiondb **db)
@@ -84,6 +85,18 @@ void sessiondb_put(struct sessiondb *db)
 	kref_put(&db->refcounter, release);
 }
 
+void sessiondb_config_copy(struct sessiondb *db, struct session_config *config)
+{
+	sessiontable_config_clone(&db->tcp, config);
+}
+
+void sessiondb_config_set(struct sessiondb *db, struct session_config *config)
+{
+	sessiontable_config_set(&db->tcp, config);
+	sessiontable_config_set(&db->udp, config);
+	sessiontable_config_set(&db->icmp, config);
+}
+
 int sessiondb_find(struct sessiondb *db, struct tuple *tuple,
 		fate_cb cb, void *cb_arg,
 		struct session_entry **result)
@@ -101,15 +114,21 @@ bool sessiondb_allow(struct sessiondb *db, struct tuple *tuple4)
 }
 
 int sessiondb_add(struct sessiondb *db, struct session_entry *session,
-		bool is_est, bool is_synch)
+		bool is_synch, fate_cb cb, void *cb_args)
 {
 	struct session_table *table = get_table(db, session->l4_proto);
+	int error;
+
 	if (!table)
 		return -EINVAL;
 
 	pktqueue_rm(&db->pkt_queue, session);
 
-	return sessiontable_add(table, session, is_est, is_synch);
+	error = sessiontable_add(table, session, cb, cb_args);
+	if (!error && !is_synch)
+		joold_add_session(db->joold, session);
+
+	return error;
 }
 
 int sessiondb_set_session_timer(struct sessiondb *db, struct session_entry *session, bool is_established)

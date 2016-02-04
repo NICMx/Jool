@@ -3,7 +3,7 @@
 #include <linux/sched.h>
 #include "nat64/common/str_utils.h"
 #include "nat64/mod/common/json_parser.h"
-#include "nat64/mod/common/namespace.h"
+#include "nat64/mod/common/xlator.h"
 #include "nat64/unit/unit_test.h"
 #include "../mod/common/pool6.c"
 
@@ -24,14 +24,14 @@ static bool validate(char *expected_addr, __u8 expected_len)
 	int error;
 	bool success = true;
 
-	error = joolns_get_current(&jool);
+	error = xlator_find_current(&jool);
 	if (error) {
 		log_info("joolns_get_current() threw %d", error);
 		return false;
 	}
 
 	error = pool6_peek(jool.pool6, &prefix);
-	joolns_put(&jool);
+	xlator_put(&jool);
 	if (error) {
 		log_info("pool6_peek() threw %d", error);
 		return false;
@@ -82,7 +82,7 @@ static bool atomic_test(void)
 	memcpy(&request[0], &type, sizeof(__u16));
 	memcpy(&request[2], &prefix, sizeof(prefix));
 
-	error = jparser_handle(new, &hdr, request);
+	error = handle_atomic_config(new, &hdr, request);
 	if (error) {
 		log_info("jparser_handle() 1 threw %d", error);
 		goto end;
@@ -92,7 +92,7 @@ static bool atomic_test(void)
 	type = SEC_COMMIT;
 	memcpy(&request[0], &type, sizeof(__u16));
 
-	error = jparser_handle(new, &hdr, request);
+	error = handle_atomic_config(new, &hdr, request);
 	if (error) {
 		log_info("jparser_handle() 2 threw %d", error);
 		goto end;
@@ -116,7 +116,7 @@ static bool krefs_test(int ns_kref)
 	int error;
 	bool success = true;
 
-	error = joolns_get_current(&jool);
+	error = xlator_find_current(&jool);
 	if (error) {
 		log_info("joolns_get_current() threw %d", error);
 		return false;
@@ -127,7 +127,7 @@ static bool krefs_test(int ns_kref)
 	/* joolns's kref + the one we just took. */
 	success &= ASSERT_INT(2, atomic_read(&jool.pool6->refcount.refcount), "pool6 kref");
 
-	joolns_put(&jool);
+	xlator_put(&jool);
 	return success;
 }
 
@@ -151,17 +151,17 @@ static int init(void)
 	struct ipv6_prefix prefix;
 	int error;
 
-	error = joolns_init();
+	error = xlator_init();
 	if (error) {
 		log_info("joolns_init() threw %d", error);
 		return error;
 	}
-	error = joolns_add();
+	error = xlator_add();
 	if (error) {
 		log_info("joolns_add() threw %d", error);
 		goto fail;
 	}
-	error = joolns_get_current(&jool);
+	error = xlator_find_current(&jool);
 	if (error) {
 		log_info("joolns_get_current() threw %d", error);
 		goto fail;
@@ -178,11 +178,11 @@ static int init(void)
 		goto fail;
 	}
 
-	joolns_put(&jool);
+	xlator_put(&jool);
 	return 0;
 
 fail:
-	joolns_destroy();
+	xlator_destroy();
 	return error;
 }
 
@@ -192,8 +192,8 @@ fail:
 static bool destroy(void)
 {
 	bool success;
-	success = ASSERT_INT(0, joolns_rm(), "joolns_rm");
-	joolns_destroy();
+	success = ASSERT_INT(0, xlator_rm(), "joolns_rm");
+	xlator_destroy();
 	return success;
 }
 

@@ -10,7 +10,7 @@ static const enum config_mode COMMAND = MODE_POOL4;
 
 static int pool4_to_usr(struct pool4_sample *sample, void *arg)
 {
-	return nl_core_write_to_buffer(arg, sample, sizeof(*sample));
+	return nlbuffer_write(arg, sample, sizeof(*sample));
 }
 
 static int handle_pool4_display(struct pool4 *pool, struct genl_info *info,
@@ -22,9 +22,9 @@ static int handle_pool4_display(struct pool4 *pool, struct genl_info *info,
 
 	log_debug("Sending pool4 to userspace.");
 
-	error = nl_core_new_core_buffer(&buffer, nl_core_data_max_size());
+	error = nlbuffer_new(&buffer, nlbuffer_data_max_size());
 	if (error)
-		return nl_core_respond_error(info, COMMAND, error);
+		return nlcore_respond_error(info, COMMAND, error);
 
 	if (request->display.offset_set)
 		offset = &request->display.offset;
@@ -32,10 +32,10 @@ static int handle_pool4_display(struct pool4 *pool, struct genl_info *info,
 	error = pool4db_foreach_sample(pool, pool4_to_usr, buffer, offset);
 	buffer->pending_data = error > 0;
 	error = (error >= 0)
-			? nl_core_send_buffer(info, COMMAND, buffer)
-			: nl_core_respond_error(info, COMMAND, error);
+			? nlbuffer_send(info, COMMAND, buffer)
+			: nlcore_respond_error(info, COMMAND, error);
 
-	nl_core_free_buffer(buffer);
+	nlbuffer_free(buffer);
 	return error;
 }
 
@@ -45,12 +45,11 @@ static int handle_pool4_add(struct pool4 *pool, struct genl_info *info,
 	int error;
 
 	if (verify_superpriv())
-		return nl_core_respond_error(info, COMMAND, -EPERM);
+		return nlcore_respond_error(info, COMMAND, -EPERM);
 
 	log_debug("Adding elements to pool4.");
 
-	error = pool4db_add(pool, request->add.mark, request->add.proto,
-			&request->add.addrs, &request->add.ports);
+	error = pool4db_add_usr(pool, &request->add.entry);
 	return nlcore_respond(info, COMMAND, error);
 }
 
@@ -60,13 +59,11 @@ static int handle_pool4_rm(struct xlator *jool, struct genl_info *info,
 	int error;
 
 	if (verify_superpriv())
-		return nl_core_respond_error(info, COMMAND, -EPERM);
+		return nlcore_respond_error(info, COMMAND, -EPERM);
 
 	log_debug("Removing elements from pool4.");
 
-	error = pool4db_rm(jool->nat64.pool4, request->rm.mark,
-			request->rm.proto, &request->rm.addrs,
-			&request->rm.ports);
+	error = pool4db_rm_usr(jool->nat64.pool4, &request->rm.entry);
 
 	/*
 	 * See the respective comment in handle_pool4_flush().
@@ -74,9 +71,11 @@ static int handle_pool4_rm(struct xlator *jool, struct genl_info *info,
 	 */
 	if (xlat_is_nat64() && !request->rm.quick) {
 		sessiondb_delete_taddr4s(jool->nat64.session,
-				&request->rm.addrs, &request->rm.ports);
-		bibdb_delete_taddr4s(jool->nat64.bib, &request->rm.addrs,
-				&request->rm.ports);
+				&request->rm.entry.addrs,
+				&request->rm.entry.ports);
+		bibdb_delete_taddr4s(jool->nat64.bib,
+				&request->rm.entry.addrs,
+				&request->rm.entry.ports);
 	}
 
 	return nlcore_respond(info, COMMAND, error);
@@ -88,7 +87,7 @@ static int handle_pool4_flush(struct xlator *jool, struct genl_info *info,
 	int error;
 
 	if (verify_superpriv())
-		return nl_core_respond_error(info, COMMAND, -EPERM);
+		return nlcore_respond_error(info, COMMAND, -EPERM);
 
 	log_debug("Flushing pool4.");
 	error = pool4db_flush(jool->nat64.pool4);
@@ -118,11 +117,16 @@ int handle_pool4_config(struct xlator *jool, struct genl_info *info)
 {
 	struct request_hdr *jool_hdr = get_jool_hdr(info);
 	union request_pool4 *request = (union request_pool4 *)(jool_hdr + 1);
+	int error;
 
 	if (xlat_is_siit()) {
 		log_err("SIIT doesn't have pool4.");
-		return nl_core_respond_error(info, COMMAND, -EINVAL);
+		return nlcore_respond_error(info, COMMAND, -EINVAL);
 	}
+
+	error = validate_request_size(jool_hdr, sizeof(*request));
+	if (error)
+		return nlcore_respond_error(info, COMMAND, error);
 
 	switch (jool_hdr->operation) {
 	case OP_DISPLAY:
@@ -138,5 +142,5 @@ int handle_pool4_config(struct xlator *jool, struct genl_info *info)
 	}
 
 	log_err("Unknown operation: %d", jool_hdr->operation);
-	return nl_core_respond_error(info, COMMAND, -EINVAL);
+	return nlcore_respond_error(info, COMMAND, -EINVAL);
 }

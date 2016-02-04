@@ -121,6 +121,22 @@ int eamt_count(struct eam_table *eamt, __u64 *count)
 	return fail(__func__);
 }
 
+bool eamt_is_empty(struct eam_table *eamt)
+{
+	fail(__func__);
+	return true;
+}
+
+int pool_init(struct addr4_pool **pool, char *pref_strs[], int pref_count)
+{
+	return fail(__func__);
+}
+
+void pool_put(struct addr4_pool *pool)
+{
+	fail(__func__);
+}
+
 int pool_add(struct addr4_pool *pool, struct ipv4_prefix *prefix)
 {
 	return fail(__func__);

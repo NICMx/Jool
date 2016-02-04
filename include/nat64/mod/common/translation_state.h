@@ -1,7 +1,7 @@
 #ifndef _JOOL_MOD_TRANSLATION_STATE_H
 #define _JOOL_MOD_TRANSLATION_STATE_H
 
-#include "nat64/mod/common/namespace.h"
+#include "nat64/mod/common/xlator.h"
 #include "nat64/mod/common/packet.h"
 
 /**
@@ -20,7 +20,7 @@ struct xlation {
 	struct packet out;
 
 	/*
-	 * TODO we should probably store the session here as well, so
+	 * TODO (stateful) we should probably store the session here as well, so
 	 * compute_out_tuple can skip the lookup.
 	 */
 };

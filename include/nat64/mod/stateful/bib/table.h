@@ -1,6 +1,7 @@
 #ifndef _JOOL_MOD_BIB_TABLE_H
 #define _JOOL_MOD_BIB_TABLE_H
 
+#include "nat64/mod/common/config.h"
 #include "nat64/mod/common/types.h"
 
 /**
@@ -17,13 +18,11 @@ struct bib_table {
 	/**
 	 * Lock to sync access.
 	 * Note, this protects the structure of the trees, not the entries.
-	 * The entries are immutable, and when they're part of the database,
-	 * they can only be killed by bib_release(), which spinlockly deletes
-	 * them from the trees first.
+	 * (The entries are generally immutable.)
 	 */
 	spinlock_t lock;
 
-	atomic_t log_changes;
+	bool log_changes;
 };
 
 /**
@@ -87,9 +86,11 @@ void bibentry_destroy(void);
 struct bib_entry *bibentry_create(const struct ipv4_transport_addr *addr4,
 		const struct ipv6_transport_addr *addr6,
 		const bool is_static, const l4_protocol proto);
+struct bib_entry *bibentry_create_usr(struct bib_entry_usr *usr);
 void bibentry_get(struct bib_entry *bib);
-int bibentry_put(struct bib_entry *bib);
+void bibentry_put(struct bib_entry *bib, bool must_die);
 
+bool bibentry_equals(const struct bib_entry *b1, const struct bib_entry *b2);
 void bibentry_log(const struct bib_entry *bib, const char *action);
 
 
@@ -98,7 +99,11 @@ void bibentry_log(const struct bib_entry *bib, const char *action);
 void bibtable_init(struct bib_table *table);
 void bibtable_destroy(struct bib_table *table);
 
-int bibtable_add(struct bib_table *table, struct bib_entry *entry);
+void bibtable_config_clone(struct bib_table *table, struct bib_config *config);
+void bibtable_config_set(struct bib_table *table, struct bib_config *config);
+
+int bibtable_add(struct bib_table *table, struct bib_entry *entry,
+		struct bib_entry **old);
 void bibtable_rm(struct bib_table *table, struct bib_entry *entry);
 void bibtable_flush(struct bib_table *table);
 void bibtable_delete_taddr4s(struct bib_table *table,

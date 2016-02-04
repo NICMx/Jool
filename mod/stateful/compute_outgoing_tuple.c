@@ -66,7 +66,7 @@ verdict compute_out_tuple(struct xlation *state)
 		break;
 	}
 
-	session_return(session);
+	session_put(session, false);
 	log_tuple(out);
 
 	log_debug("Done step 3.");

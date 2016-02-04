@@ -2,7 +2,7 @@
 
 #include "nat64/mod/common/config.h"
 #include "nat64/mod/common/handling_hairpinning.h"
-#include "nat64/mod/common/namespace.h"
+#include "nat64/mod/common/xlator.h"
 #include "nat64/mod/common/translation_state.h"
 #include "nat64/mod/common/rfc6145/core.h"
 #include "nat64/mod/stateful/compute_outgoing_tuple.h"
@@ -67,9 +67,9 @@ unsigned int core_4to6(struct sk_buff *skb, const struct net_device *dev)
 	struct iphdr *hdr = ip_hdr(skb);
 	verdict result;
 
-	if (joolns_get(dev_net(dev), &state.jool))
+	if (xlator_find(dev_net(dev), &state.jool))
 		return NF_ACCEPT;
-	if (state.jool.global->cfg.is_disable) {
+	if (!state.jool.global->cfg.enabled) {
 		xlation_put(&state);
 		return NF_ACCEPT;
 	}
@@ -94,9 +94,9 @@ unsigned int core_6to4(struct sk_buff *skb, const struct net_device *dev)
 	struct ipv6hdr *hdr = ipv6_hdr(skb);
 	verdict result;
 
-	if (joolns_get(dev_net(dev), &state.jool))
+	if (xlator_find(dev_net(dev), &state.jool))
 		return NF_ACCEPT;
-	if (state.jool.global->cfg.is_disable) {
+	if (!state.jool.global->cfg.enabled) {
 		xlation_put(&state);
 		return NF_ACCEPT;
 	}

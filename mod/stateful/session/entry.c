@@ -79,21 +79,34 @@ static void session_release(struct kref *ref)
 	session = container_of(ref, struct session_entry, refcounter);
 
 	if (session->bib)
-		bibentry_put(session->bib);
+		bibentry_put(session->bib, false);
 	kmem_cache_free(entry_cache, session);
 }
 
 /**
  * session_release - unregister your reference towards @session. Will destroy
  * @session if there are no more references.
+ * @must_die: If you know @session is supposed to die during this put, send true.
+ * Will drop a stack trace in the kernel logs if it doesn't die.
+ * true = "entry MUST die." false = "entry might or might not die."
  *
  * You might want to do this outside of spinlocks, because it can cascade into
  * removing @session's BIB entry from its database, and that can be somewhat
  * expensive.
  */
-int session_return(struct session_entry *session)
+void session_put(struct session_entry *session, bool must_die)
 {
-	return kref_put(&session->refcounter, session_release);
+	bool dead = kref_put(&session->refcounter, session_release);
+	WARN(must_die && !dead, "BIB entry did not die!");
+}
+
+bool session_equals(const struct session_entry *s1, const struct session_entry *s2)
+{
+	return taddr6_equals(&s1->remote6, &s2->remote6)
+			&& taddr6_equals(&s1->local6, &s2->local6)
+			&& taddr4_equals(&s1->local4, &s2->local4)
+			&& taddr4_equals(&s1->remote4, &s2->remote4)
+			&& (s1->l4_proto == s2->l4_proto);
 }
 
 void session_log(const struct session_entry *session, const char *action)

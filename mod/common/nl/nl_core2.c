@@ -110,12 +110,12 @@ static int respond_single_msg(struct genl_info *info, enum config_mode command,	
 	return 0;
 }
 
-size_t nl_core_data_max_size(void)
+size_t nlbuffer_data_max_size(void)
 {
 	return NL_CORE_BUFFER_DATA_SIZE;
 }
 
-int nl_core_new_core_buffer(struct nl_core_buffer **out_buffer, size_t capacity)
+int nlbuffer_new(struct nl_core_buffer **out_buffer, size_t capacity)
 {
 	struct nl_core_buffer *buffer;
 
@@ -140,17 +140,12 @@ int nl_core_new_core_buffer(struct nl_core_buffer **out_buffer, size_t capacity)
 	return 0;
 }
 
-void nl_core_free_buffer(struct nl_core_buffer *buffer)
+void nlbuffer_free(struct nl_core_buffer *buffer)
 {
-	struct nl_core_buffer *internal_buffer = (struct nl_core_buffer *) buffer;
-
-	if (internal_buffer != NULL)
-		kfree(internal_buffer);
-	else
-		log_warn_once("Trying to free unallocated buffer!");
+	kfree(buffer);
 }
 
-bool nl_core_write_to_buffer(struct nl_core_buffer *buffer, void *data,
+bool nlbuffer_write(struct nl_core_buffer *buffer, void *data,
 		size_t data_length)
 {
 	__u8 *buffer_data;
@@ -169,7 +164,7 @@ bool nl_core_write_to_buffer(struct nl_core_buffer *buffer, void *data,
 	return 0;
 }
 
-int nl_core_send_multicast_message(struct nl_core_buffer *buffer)
+int nlcore_send_multicast_message(struct nl_core_buffer *buffer)
 {
 	int error = 0;
 	struct sk_buff *skb_out;
@@ -211,7 +206,7 @@ int nl_core_send_multicast_message(struct nl_core_buffer *buffer)
 	return 0;
 }
 
-int nl_core_send_buffer(struct genl_info *info, enum config_mode command, struct nl_core_buffer *buffer)
+int nlbuffer_send(struct genl_info *info, enum config_mode command, struct nl_core_buffer *buffer)
 {
 	log_info("sending buffer!");
 	if (buffer->len > (size_t)NL_CORE_BUFFER_DATA_SIZE) {
@@ -222,7 +217,7 @@ int nl_core_send_buffer(struct genl_info *info, enum config_mode command, struct
 	return respond_single_msg(info, command, buffer);
 }
 
-int nl_core_respond_error(struct genl_info *info, enum config_mode command, int error_code)
+int nlcore_respond_error(struct genl_info *info, enum config_mode command, int error_code)
 {
 	struct nl_core_buffer *buffer;
 	int error = 0;
@@ -239,7 +234,7 @@ int nl_core_respond_error(struct genl_info *info, enum config_mode command, int 
 	log_info("msg len: %d", msg_length);
 
 
-	error = nl_core_new_core_buffer(&buffer, (size_t) msg_length);
+	error = nlbuffer_new(&buffer, (size_t) msg_length);
 
 	if (error) {
 		log_err("Error while trying to allocate buffer for sending error message!");
@@ -249,7 +244,7 @@ int nl_core_respond_error(struct genl_info *info, enum config_mode command, int 
 
 	buffer->error_code = error_code;
 
-	error = nl_core_write_to_buffer(buffer, error_msg, (size_t) msg_length);
+	error = nlbuffer_write(buffer, error_msg, (size_t) msg_length);
 
 	if (error) {
 		log_err("Error while trying to write to buffer for sending error message!");
@@ -259,18 +254,18 @@ int nl_core_respond_error(struct genl_info *info, enum config_mode command, int 
 	error = respond_single_msg(info, command, buffer);
 
 	kfree(error_msg);
-	nl_core_free_buffer(buffer);
+	nlbuffer_free(buffer);
 
 	return error;
 
 }
 
-int nl_core_send_ack(struct genl_info *info, enum config_mode command)
+int nlcore_send_ack(struct genl_info *info, enum config_mode command)
 {
 	int error = 0;
 	struct nl_core_buffer *buffer;
 
-	error = nl_core_new_core_buffer(&buffer, 0);
+	error = nlbuffer_new(&buffer, 0);
 	if (error) {
 		log_err("Error while trying to allocate buffer for sending acknowledgement!");
 		return error;
@@ -281,7 +276,7 @@ int nl_core_send_ack(struct genl_info *info, enum config_mode command)
 
 	error = respond_single_msg(info, command, buffer);
 
-	nl_core_free_buffer(buffer);
+	nlbuffer_free(buffer);
 
 	return error;
 }
@@ -290,9 +285,9 @@ int nl_core_send_ack(struct genl_info *info, enum config_mode command)
 int nlcore_respond(struct genl_info *info, enum config_mode command, int error)
 {
 	if (error)
-		return nl_core_respond_error(info, command, error);
+		return nlcore_respond_error(info, command, error);
 	else
-		return nl_core_send_ack(info, command);
+		return nlcore_send_ack(info, command);
 }
 
 int nlcore_respond_struct(struct genl_info *info, enum config_mode command,
@@ -301,22 +296,22 @@ int nlcore_respond_struct(struct genl_info *info, enum config_mode command,
 	struct nl_core_buffer *buffer;
 	int error;
 
-	error = nl_core_new_core_buffer(&buffer, content_len);
+	error = nlbuffer_new(&buffer, content_len);
 	if (error)
-		return nl_core_respond_error(info, command, error);
+		return nlcore_respond_error(info, command, error);
 
-	error = nl_core_write_to_buffer(buffer, content, content_len);
+	error = nlbuffer_write(buffer, content, content_len);
 	if (error < 0)
-		return nl_core_respond_error(info, command, error);
+		return nlcore_respond_error(info, command, error);
 	/*
 	 * @content is supposed to be a statically-defined struct, and as such
 	 * should be several orders smaller than the Netlink packet size limit.
 	 */
 	if (WARN(error > 0, "Content exceeds the maximum packet size."))
-		return nl_core_respond_error(info, command, -E2BIG);
+		return nlcore_respond_error(info, command, -E2BIG);
 
-	error = nl_core_send_buffer(info, command, buffer);
-	nl_core_free_buffer(buffer);
+	error = nlbuffer_send(info, command, buffer);
+	nlbuffer_free(buffer);
 	return error;
 }
 
@@ -353,19 +348,19 @@ static int register_family(void)
 	return 0;
 }
 
-void nl_core_set_main_callback(int (*cb)(struct sk_buff *skb_in, struct genl_info *info))
+void nlcore_set_main_callback(int (*cb)(struct sk_buff *skb_in, struct genl_info *info))
 {
 	log_info("setting main callback!");
 	main_callback = cb;
 }
 
-int nl_core_init(void)
+int nlcore_init(void)
 {
 	error_pool_init();
 	return register_family();
 }
 
-void nl_core_destroy(void)
+void nlcore_destroy(void)
 {
 	genl_unregister_family(&jool_family);
 	error_pool_destroy();

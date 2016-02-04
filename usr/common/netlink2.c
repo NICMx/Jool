@@ -27,7 +27,7 @@ static enum nl_cb_type callbacks[] = {
  * whether the error returned by nl_recvmsgs_default() is a Netlink error or a
  * Jool error.
  *
- * TODO might need to apply #184 to the new code.
+ * TODO (final) might need to apply #184 to the new code.
  */
 bool error_handler_called = false;
 

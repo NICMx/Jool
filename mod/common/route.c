@@ -5,7 +5,7 @@
 #include <net/route.h>
 
 #include "nat64/mod/common/ipv6_hdr_iterator.h"
-#include "nat64/mod/common/namespace.h"
+#include "nat64/mod/common/xlator.h"
 #include "nat64/mod/common/packet.h"
 #include "nat64/mod/common/stats.h"
 #include "nat64/mod/common/types.h"
@@ -95,7 +95,7 @@ struct dst_entry *__route4(struct net *ns, __be32 daddr, __u8 tos, __u8 proto,
 
 	if (pkt) {
 		skb_dst_set(pkt->skb, dst);
-		/* TODO maybe used due to route_input + hairpinning? */
+		/* TODO (final) maybe used due to route_input + hairpinning? */
 		/* pkt->skb->dev = dst->dev; */
 	}
 

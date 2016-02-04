@@ -43,7 +43,7 @@ static bool assert4(unsigned int la, unsigned int lp,
 	}
 
 	if (session)
-		session_return(session);
+		session_put(session);
 
 	return success;
 }
@@ -81,7 +81,7 @@ static bool assert6(unsigned int la, unsigned int lp,
 	}
 
 	if (session)
-		session_return(session);
+		session_put(session);
 
 	return success;
 }
@@ -336,7 +336,7 @@ static bool test_allow(void)
 			"dst addr mismatch");
 
 	sessiondb_flush(db);
-	session_return(session);
+	session_put(session);
 	session = NULL;
 
 	/*

@@ -540,7 +540,7 @@ void rtrie_flush(struct rtrie *trie)
 	rcu_assign_pointer(trie->root, NULL);
 	list_replace_init(&trie->list, &tmp_list);
 
-	/* TODO maybe we should be using call_rcu_bh() instead? */
+	/* TODO (final) maybe we should be using call_rcu_bh() instead? */
 	synchronize_rcu_bh();
 
 	list_for_each_entry_safe(node, tmp_node, &tmp_list, list_hook) {
@@ -556,7 +556,6 @@ end:
 
 /**
  * TODO (performance) find offset using a normal trie find.
- * TODO return -ESRCH if offset can't be found?
  */
 int rtrie_foreach(struct rtrie *trie,
 		int (*cb)(void *, void *), void *arg,
@@ -579,7 +578,7 @@ int rtrie_foreach(struct rtrie *trie,
 		}
 	}
 
-	return 0;
+	return offset ? -ESRCH : 0;
 }
 
 static char *color2str(enum rtrie_color color)

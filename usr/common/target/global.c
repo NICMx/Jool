@@ -7,7 +7,7 @@
 
 static char *print_status(struct global_config *conf)
 {
-	return conf->jool_status ? "Enabled" : "Disabled";
+	return conf->status ? "Enabled" : "Disabled";
 }
 
 static char *print_bool(bool value)
@@ -66,9 +66,9 @@ static int handle_display_response(struct nl_core_buffer *buffer, void *arg)
 
 	printf("\n");
 	printf("  Status: %s\n", print_status(conf));
-	printf("  Manually disabled (--%s, --%s): %s\n",
+	printf("  Manually enabled (--%s, --%s): %s\n",
 			OPTNAME_ENABLE, OPTNAME_DISABLE,
-			print_bool(conf->is_disable));
+			print_bool(conf->enabled));
 	printf("\n");
 
 	printf("  --%s: %s\n", OPTNAME_ZEROIZE_TC,
@@ -161,7 +161,7 @@ static int handle_display_response_csv(struct nl_core_buffer *buffer, void *arg)
 	struct global_config *conf = netlink_get_data(buffer);
 
 	printf("Status,");
-	printf("Manually disabled,");
+	printf("Manually enabled,");
 	printf(OPTNAME_ZEROIZE_TC ",");
 	printf(OPTNAME_OVERRIDE_TOS ",");
 	printf(OPTNAME_TOS ",");
@@ -208,7 +208,7 @@ static int handle_display_response_csv(struct nl_core_buffer *buffer, void *arg)
 	printf("\n");
 
 	printf("%s,", print_status(conf));
-	printf("%s,", print_bool(conf->is_disable));
+	printf("%s,", print_bool(conf->enabled));
 	printf("%s,", print_bool(conf->reset_traffic_class));
 	printf("%s,", print_bool(conf->reset_tos));
 	printf("%u,", conf->new_tos);

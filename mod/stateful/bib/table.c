@@ -27,7 +27,8 @@ void bibentry_destroy(void)
 
 /**
  * Allocates and initializes a BIB entry.
- * The entry is generated in dynamic memory; remember to kfree, return or pass it along.
+ * The entry is generated in dynamic memory; remember to bibentry_put() or pass
+ * it along.
  */
 struct bib_entry *bibentry_create(const struct ipv4_transport_addr *addr4,
 		const struct ipv6_transport_addr *addr6,
@@ -54,6 +55,12 @@ struct bib_entry *bibentry_create(const struct ipv4_transport_addr *addr4,
 	return result;
 }
 
+struct bib_entry *bibentry_create_usr(struct bib_entry_usr *usr)
+{
+	return bibentry_create(&usr->addr4, &usr->addr6, usr->is_static,
+			usr->l4_proto);
+}
+
 void bibentry_get(struct bib_entry *bib)
 {
 	kref_get(&bib->refcounter);
@@ -70,9 +77,25 @@ static void release(struct kref *ref)
 	kmem_cache_free(entry_cache, bib);
 }
 
-int bibentry_put(struct bib_entry *bib)
+/**
+ * bibentry_put - Decreases @bib's refcounter and kills it if no more references
+ * remain.
+ *
+ * @must_die: If you know @bib is supposed to die during this put, send true.
+ * Will drop a stack trace in the kernel logs if it doesn't die.
+ * true = "entry MUST die." false = "entry might or might not die."
+ */
+void bibentry_put(struct bib_entry *bib, bool must_die)
 {
-	return kref_put(&bib->refcounter, release);
+	bool dead = kref_put(&bib->refcounter, release);
+	WARN(must_die && !dead, "BIB entry did not die!");
+}
+
+bool bibentry_equals(const struct bib_entry *b1, const struct bib_entry *b2)
+{
+	return taddr4_equals(&b1->ipv4, &b2->ipv4)
+			&& taddr6_equals(&b1->ipv6, &b2->ipv6)
+			&& (b1->l4_proto == b2->l4_proto);
 }
 
 void bibentry_log(const struct bib_entry *bib, const char *action)
@@ -96,7 +119,7 @@ void bibtable_init(struct bib_table *table)
 	table->tree4 = RB_ROOT;
 	table->count = 0;
 	spin_lock_init(&table->lock);
-	atomic_set(&table->log_changes, DEFAULT_BIB_LOGGING);
+	table->log_changes = DEFAULT_BIB_LOGGING;
 }
 
 static void destroy_aux(struct rb_node *node)
@@ -113,6 +136,20 @@ void bibtable_destroy(struct bib_table *table)
 	 * because both trees point to the same values.
 	 */
 	rbtree_clear(&table->tree6, destroy_aux);
+}
+
+void bibtable_config_clone(struct bib_table *table, struct bib_config *config)
+{
+	spin_lock_bh(&table->lock);
+	config->log_changes = table->log_changes;
+	spin_lock_bh(&table->lock);
+}
+
+void bibtable_config_set(struct bib_table *table, struct bib_config *config)
+{
+	spin_lock_bh(&table->lock);
+	table->log_changes = config->log_changes;
+	spin_lock_bh(&table->lock);
 }
 
 /**
@@ -225,35 +262,36 @@ bool bibtable_contains4(struct bib_table *table,
 	return result;
 }
 
-static int add6(struct bib_table *table, struct bib_entry *bib)
+static struct bib_entry *add6(struct bib_table *table, struct bib_entry *bib)
 {
 	return rbtree_add(bib, &bib->ipv6, &table->tree6, compare_full6,
 			struct bib_entry, tree6_hook);
 }
 
-static int add4(struct bib_table *table, struct bib_entry *bib)
+static struct bib_entry *add4(struct bib_table *table, struct bib_entry *bib)
 {
 	return rbtree_add(bib, &bib->ipv4, &table->tree4, compare_full4,
 			struct bib_entry, tree4_hook);
 }
 
-int bibtable_add(struct bib_table *table, struct bib_entry *bib)
+int bibtable_add(struct bib_table *table, struct bib_entry *bib,
+		struct bib_entry **old)
 {
-	int error;
+	struct bib_entry *collision;
 
 	spin_lock_bh(&table->lock);
 
-	error = add6(table, bib);
-	if (error) {
+	collision = add6(table, bib);
+	if (collision) {
 		log_debug("IPv6 index failed.");
-		goto fail;
+		goto exists;
 	}
 
-	error = add4(table, bib);
-	if (error) {
+	collision = add4(table, bib);
+	if (collision) {
 		rb_erase(&bib->tree6_hook, &table->tree6);
 		log_debug("IPv4 index failed.");
-		goto fail;
+		goto exists;
 	}
 
 	/*
@@ -265,13 +303,17 @@ int bibtable_add(struct bib_table *table, struct bib_entry *bib)
 	table->count++;
 
 	spin_unlock_bh(&table->lock);
-	if (atomic_read(&table->log_changes))
+	if (table->log_changes)
 		bibentry_log(bib, "Mapped");
 	return 0;
 
-fail:
+exists:
+	if (old) {
+		bibentry_get(collision);
+		*old = collision;
+	}
 	spin_unlock_bh(&table->lock);
-	return error;
+	return -EEXIST;
 }
 
 /**
@@ -285,7 +327,7 @@ static void rm(struct bib_table *table, struct bib_entry *bib)
 		rb_erase(&bib->tree4_hook, &table->tree4);
 	table->count--;
 
-	if (atomic_read(&table->log_changes))
+	if (table->log_changes)
 		bibentry_log(bib, "Forgot");
 }
 

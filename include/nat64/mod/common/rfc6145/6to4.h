@@ -37,7 +37,7 @@ verdict ttp64_tcp(struct xlation *state);
  */
 verdict ttp64_udp(struct xlation *state);
 
-/* TODO is the header necessary? */
+/* TODO (final) is the header necessary? */
 __u8 ttp64_xlat_tos(struct xlation *state, struct ipv6hdr *hdr);
 __u8 ttp64_xlat_proto(struct ipv6hdr *hdr);
 

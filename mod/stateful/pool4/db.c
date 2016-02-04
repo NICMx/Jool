@@ -213,6 +213,12 @@ end:
 	return error;
 }
 
+int pool4db_add_usr(struct pool4 *pool, struct pool4_entry_usr *entry)
+{
+	return pool4db_add(pool, entry->mark, entry->proto, &entry->addrs,
+			&entry->ports);
+}
+
 RCUTAG_USR
 int pool4db_rm(struct pool4 *pool, const __u32 mark, enum l4_protocol proto,
 		struct ipv4_prefix *prefix, struct port_range *ports)
@@ -246,6 +252,12 @@ end:
 	return error;
 }
 
+int pool4db_rm_usr(struct pool4 *pool, struct pool4_entry_usr *entry)
+{
+	return pool4db_rm(pool, entry->mark, entry->proto, &entry->addrs,
+			&entry->ports);
+}
+
 RCUTAG_USR
 int pool4db_flush(struct pool4 *pool)
 {
@@ -268,7 +280,7 @@ int pool4db_flush(struct pool4 *pool)
 	return 0;
 }
 
-/* TODO Why is this not receving mark? */
+/* TODO (stateful) Why is this not receving mark? */
 RCUTAG_PKT
 bool pool4db_contains(struct pool4 *pool, struct net *ns,
 		enum l4_protocol proto, struct ipv4_transport_addr *addr)

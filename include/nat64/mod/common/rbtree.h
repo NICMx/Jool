@@ -3,9 +3,9 @@
 
 /**
  * @file
- * This is just some convenience additions to the kernel's Red-Black Tree data structure.
- * I'm sorry it looks rather convoluted, but the alternative is a lot of redundant code.
- * Constructive criticism would be very appreciated.
+ * This is just some convenience additions to the kernel's Red-Black Tree
+ * implementation.
+ * I'm sorry it's a macro maze, but the alternative is a lot of redundant code.
  *
  * @author Alberto Leiva
  * @author Daniel Hernandez
@@ -14,10 +14,10 @@
 #include <linux/rbtree.h>
 
 /**
- * This is just a stock search on a Red-Black tree.
+ * rbtree_find - Stock search on a Red-Black tree.
  *
- * I can't find a way to turn this into a function; if you want to read a cleaner version of it,
- * see https://www.kernel.org/doc/Documentation/rbtree.txt.
+ * If you want to read a cleaner version of it, see
+ * https://www.kernel.org/doc/Documentation/rbtree.txt
  */
 #define rbtree_find(expected, root, compare_fn, type, hook_name) \
 	({ \
@@ -43,15 +43,18 @@
 	})
 
 /**
- * This is just a stock add a node to a Red-Black tree.
+ * rbtree_add - Add a node to a Red-Black tree.
  *
- * I can't find a way to turn this into a function; if you want to read a cleaner version of it,
- * see https://www.kernel.org/doc/Documentation/rbtree.txt.
+ * Returns NULL on success. If there was a collision, it returns the in-tree
+ * entry that caused it. There are no other possible outcomes.
+ *
+ * If you want to read a cleaner version of it, see
+ * https://www.kernel.org/doc/Documentation/rbtree.txt
  */
 #define rbtree_add(entry, key, root, compare_fn, type, hook_name) \
 	({ \
 		struct rb_node **new = &((root)->rb_node), *parent = NULL; \
-		int error = 0; \
+		type *collision = NULL; \
 		\
 		/* Figure out where to put new node */ \
 		while (*new) { \
@@ -64,25 +67,27 @@
 			} else if (result > 0) { \
 				new = &((*new)->rb_left); \
 			} else { \
-				error = -EEXIST; \
+				collision = this; \
 				break; \
 			} \
 		} \
 		\
 		/* Add new node and rebalance tree. */ \
-		if (!error) { \
+		if (!collision) { \
 			rb_link_node(&(entry)->hook_name, parent, new); \
 			rb_insert_color(&(entry)->hook_name, root); \
 		} \
 		\
-		error; \
+		collision; \
 	})
 
 /**
-  * Similar to rbtree_find(), except if it doesn't find the node it returns the slot where it'd be
-  * placed so you can insert something in there.
+  * rbtree_find_node - Similar to rbtree_find(), except if it doesn't find the
+  * node it returns the slot where it'd be placed so you can insert something in
+  * there.
   */
-#define rbtree_find_node(expected, root, compare_cb, type, hook_name, parent, node) \
+#define rbtree_find_node(expected, root, compare_cb, type, hook_name, parent, \
+		node) \
 	({ \
 		node = &((root)->rb_node); \
 		parent = NULL; \

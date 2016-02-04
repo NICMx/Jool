@@ -78,7 +78,7 @@ int pktqueue_add(struct pktqueue *queue, struct session_entry *session,
  */
 void pktqueue_rm(struct pktqueue *queue, struct session_entry *session);
 
-/* TODO call this. */
+/* TODO (stateful) call this. */
 void pktqueue_clean(struct pktqueue *queue, unsigned long param);
 
 

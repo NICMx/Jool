@@ -2,9 +2,9 @@
 
 #include <net/ipv6.h>
 #include "nat64/common/constants.h"
+#include "nat64/common/session.h"
 #include "nat64/mod/common/rbtree.h"
 #include "nat64/mod/common/route.h"
-#include "nat64/mod/stateful/joold.h"
 #include "nat64/mod/stateful/session/pkt_queue.h"
 
 /**
@@ -25,7 +25,7 @@ static void rm(struct session_table *table, struct session_entry *session,
 	list_add(&session->list_hook, rms);
 	session->expirer = NULL;
 
-	if (atomic_read(&table->log_changes))
+	if (table->log_changes)
 		session_log(session, "Forgot session");
 }
 
@@ -38,7 +38,7 @@ static void delete(struct list_head *sessions)
 		session = list_entry(sessions->next, typeof(*session),
 				list_hook);
 		list_del(&session->list_hook);
-		session_return(session);
+		session_put(session, false);
 		s++;
 	}
 
@@ -183,7 +183,7 @@ static void post_fate(struct net *ns, struct list_head *rms,
 
 	list_for_each_entry_safe(session, tmp, probes, list_hook) {
 		send_probe_packet(ns, session);
-		session_return(session);
+		session_put(session, false);
 	}
 
 	if (!list_empty(rms))
@@ -243,7 +243,7 @@ void sessiontable_init(struct session_table *table,
 	init_expirer(&table->est_timer, est_timeout, est_callback);
 	init_expirer(&table->trans_timer, trans_timeout, trans_callback);
 	spin_lock_init(&table->lock);
-	atomic_set(&table->log_changes, DEFAULT_SESSION_LOGGING);
+	table->log_changes = DEFAULT_SESSION_LOGGING;
 }
 
 /**
@@ -254,7 +254,7 @@ void sessiontable_init(struct session_table *table,
  */
 static void __destroy_aux(struct rb_node *node)
 {
-	session_return(rb_entry(node, struct session_entry, tree6_hook));
+	session_put(rb_entry(node, struct session_entry, tree6_hook), false);
 }
 
 void sessiontable_destroy(struct session_table *table)
@@ -264,6 +264,22 @@ void sessiontable_destroy(struct session_table *table)
 	 * because both trees point to the same values.
 	 */
 	rbtree_clear(&table->tree6, __destroy_aux);
+}
+
+void sessiontable_config_clone(struct session_table *table,
+		struct session_config *config)
+{
+	spin_lock_bh(&table->lock);
+	config->log_changes = table->log_changes;
+	spin_lock_bh(&table->lock);
+}
+
+void sessiontable_config_set(struct session_table *table,
+		struct session_config *config)
+{
+	spin_lock_bh(&table->lock);
+	table->log_changes = config->log_changes;
+	spin_lock_bh(&table->lock);
 }
 
 static int compare_addr6(const struct ipv6_transport_addr *a1,
@@ -395,6 +411,9 @@ static struct session_entry *get_by_ipv4(struct session_table *table,
 			struct session_entry, tree4_hook);
 }
 
+/**
+ * Important: This particular @cb is not prepared to return FATE_PROBE.
+ */
 int sessiontable_get(struct session_table *table, struct tuple *tuple,
 		fate_cb cb, void *cb_arg,
 		struct session_entry **result)
@@ -450,13 +469,15 @@ bool sessiontable_allow(struct session_table *table, struct tuple *tuple4)
 	return result;
 }
 
-static int add6(struct session_table *table, struct session_entry *session)
+static struct session_entry *add6(struct session_table *table,
+		struct session_entry *session)
 {
 	return rbtree_add(session, session, &table->tree6, compare_session6,
 			struct session_entry, tree6_hook);
 }
 
-static int add4(struct session_table *table, struct session_entry *session)
+static struct session_entry *add4(struct session_table *table,
+		struct session_entry *session)
 {
 	return rbtree_add(session, session, &table->tree4, compare_session4,
 			struct session_entry, tree4_hook);
@@ -470,49 +491,47 @@ static void attach_timer(struct session_entry *session,
 	session->expirer = expirer;
 }
 
+/**
+ * Important: this particular @cb is not currently prepared to return FATE_RM
+ * nor FATE_PROBE.
+ */
 int sessiontable_add(struct session_table *table, struct session_entry *session,
-		bool is_established, bool is_synchronized)
+		fate_cb cb, void *cb_arg)
 {
 	struct expire_timer *expirer;
-	int error;
+	struct session_entry *collision;
+	bool est;
 
-	expirer = is_established ? &table->est_timer : &table->trans_timer;
-
+	est = session->l4_proto != L4PROTO_TCP || session->state == ESTABLISHED;
+	expirer = est ? &table->est_timer : &table->trans_timer;
 
 	spin_lock_bh(&table->lock);
 
+	collision = add6(table, session);
+	if (collision)
+		goto exists;
 
-	error = add6(table, session);
-	if (error) {
-		spin_unlock_bh(&table->lock);
-		return error;
-	}
-
-
-	error = add4(table, session);
-	if (error) {
+	collision = add4(table, session);
+	if (collision) {
 		rb_erase(&session->tree6_hook, &table->tree6);
-		spin_unlock_bh(&table->lock);
-		return error;
+		goto exists;
 	}
 
 	attach_timer(session, expirer);
 	session_get(session); /* Database's references. */
 	table->count++;
 
-
-	spin_unlock_bh(&table->lock);
-
-	if (atomic_read(&table->log_changes))
+	if (table->log_changes)
 		session_log(session, "Added session");
 
-	//function to add session for synchronization.
-
-	if (!is_synchronized)
-	error = joold_add_session_element(session);
-
-
+	spin_unlock_bh(&table->lock);
 	return 0;
+
+exists:
+	if (cb)
+		decide_fate(cb, cb_arg, table, collision, NULL, NULL);
+	spin_unlock_bh(&table->lock);
+	return -EEXIST;
 }
 
 /**
@@ -600,7 +619,7 @@ static int __rm_by_bib(struct session_entry *session, void *args_void)
 {
 	struct bib_remove_args *args = args_void;
 
-	if (!ipv4_transport_addr_equals(args->addr4, &session->local4))
+	if (!taddr4_equals(args->addr4, &session->local4))
 		return 1; /* positive = break iteration early, no error. */
 
 	rm(args->table, session, &args->removed);

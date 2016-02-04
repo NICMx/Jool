@@ -56,14 +56,12 @@ void pool4db_put(struct pool4 *pool)
 	fail(__func__);
 }
 
-int pool4db_add(struct pool4 *pool, const __u32 mark, enum l4_protocol proto,
-		struct ipv4_prefix *prefix, struct port_range *ports)
+int pool4db_add_usr(struct pool4 *pool, struct pool4_entry_usr *entry)
 {
 	return fail(__func__);
 }
 
-int pool4db_rm(struct pool4 *pool, const __u32 mark, enum l4_protocol proto,
-		struct ipv4_prefix *prefix, struct port_range *ports)
+int pool4db_rm_usr(struct pool4 *pool, struct pool4_entry_usr *entry)
 {
 	return fail(__func__);
 }
@@ -108,6 +106,16 @@ void bibdb_put(struct bib *db)
 	fail(__func__);
 }
 
+void bibdb_config_copy(struct bib *db, struct bib_config *config)
+{
+	fail(__func__);
+}
+
+void bibdb_config_set(struct bib *db, struct bib_config *config)
+{
+	fail(__func__);
+}
+
 int bibdb_find6(struct bib *db, const struct ipv6_transport_addr *addr,
 		const l4_protocol proto, struct bib_entry **result)
 {
@@ -120,7 +128,7 @@ int bibdb_find4(struct bib *db, const struct ipv4_transport_addr *addr,
 	return fail(__func__);
 }
 
-int bibdb_add(struct bib *db, struct bib_entry *entry)
+int bibdb_add(struct bib *db, struct bib_entry *entry, struct bib_entry **old)
 {
 	return fail(__func__);
 }
@@ -148,6 +156,12 @@ int bibdb_count(struct bib *db, const l4_protocol proto, __u64 *result)
 	return fail(__func__);
 }
 
+struct bib_entry *bibentry_create_usr(struct bib_entry_usr *usr)
+{
+	fail(__func__);
+	return NULL;
+}
+
 struct bib_entry *bibentry_create(const struct ipv4_transport_addr *addr4,
 		const struct ipv6_transport_addr *addr6,
 		const bool is_static, const l4_protocol proto)
@@ -156,9 +170,9 @@ struct bib_entry *bibentry_create(const struct ipv4_transport_addr *addr4,
 	return NULL;
 }
 
-int bibentry_put(struct bib_entry *bib)
+void bibentry_put(struct bib_entry *bib, bool must_die)
 {
-	return fail(__func__);
+	fail(__func__);
 }
 
 int sessiondb_init(struct sessiondb **db)
@@ -172,6 +186,16 @@ void sessiondb_get(struct sessiondb *db)
 }
 
 void sessiondb_put(struct sessiondb *db)
+{
+	fail(__func__);
+}
+
+void sessiondb_config_copy(struct sessiondb *db, struct session_config *config)
+{
+	fail(__func__);
+}
+
+void sessiondb_config_set(struct sessiondb *db, struct session_config *config)
 {
 	fail(__func__);
 }

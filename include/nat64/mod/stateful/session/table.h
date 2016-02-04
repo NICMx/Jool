@@ -73,7 +73,7 @@ struct session_table {
 	 */
 	spinlock_t lock;
 
-	atomic_t log_changes;
+	bool log_changes;
 };
 
 void sessiontable_init(struct session_table *table,
@@ -81,11 +81,16 @@ void sessiontable_init(struct session_table *table,
 		int trans_timeout, fate_cb trans_callback);
 void sessiontable_destroy(struct session_table *table);
 
+void sessiontable_config_clone(struct session_table *table,
+		struct session_config *config);
+void sessiontable_config_set(struct session_table *table,
+		struct session_config *config);
+
 int sessiontable_get(struct session_table *table, struct tuple *tuple,
 		fate_cb cb, void *cb_arg,
 		struct session_entry **result);
 int sessiontable_add(struct session_table *table, struct session_entry *session,
-		bool is_established, bool is_synchronized);
+		fate_cb cb, void *cb_args);
 
 int sessiontable_foreach(struct session_table *table,
 		int (*func)(struct session_entry *, void *), void *arg,

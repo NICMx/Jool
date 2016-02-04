@@ -1,6 +1,6 @@
 #include "nat64/mod/stateful/timer.h"
 
-#include "nat64/mod/common/namespace.h"
+#include "nat64/mod/common/xlator.h"
 #include "nat64/mod/stateful/session/db.h"
 
 #define TIMER_PERIOD msecs_to_jiffies(2000)
@@ -9,14 +9,14 @@ static struct timer_list timer;
 
 static int clean_state(struct xlator *jool, void *args)
 {
-	/* TODO fragdb_clean(jool->nat64.frag); */
+	/* TODO (stateful) fragdb_clean(jool->nat64.frag); */
 	sessiondb_clean(jool->nat64.session, jool->ns);
 	return 0;
 }
 
 static void timer_function(unsigned long arg)
 {
-	joolns_foreach(clean_state, NULL);
+	xlator_foreach(clean_state, NULL);
 	mod_timer(&timer, jiffies + TIMER_PERIOD);
 }
 

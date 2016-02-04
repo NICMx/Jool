@@ -2,10 +2,9 @@
 #define __NL_POOL_H__
 
 #include <net/genetlink.h>
-#include "nat64/common/config.h"
-#include "nat64/mod/stateless/pool.h"
+#include "nat64/mod/common/xlator.h"
 
-int handle_addr4pool_config(struct addr4_pool *pool, enum config_mode command,
-		struct genl_info *info);
+int handle_blacklist_config(struct xlator *jool, struct genl_info *info);
+int handle_pool6791_config(struct xlator *jool, struct genl_info *info);
 
 #endif

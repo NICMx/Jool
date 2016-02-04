@@ -26,7 +26,7 @@ static int session_entry_to_userspace(struct session_entry *entry, void *arg)
 			? jiffies_to_msecs(dying_time - jiffies)
 			: 0;
 
-	return nl_core_write_to_buffer(buffer, &entry_usr, sizeof(entry_usr));
+	return nlbuffer_write(buffer, &entry_usr, sizeof(entry_usr));
 }
 
 static int handle_session_display(struct sessiondb *db, struct genl_info *info,
@@ -39,9 +39,9 @@ static int handle_session_display(struct sessiondb *db, struct genl_info *info,
 
 	log_debug("Sending session table to userspace.");
 
-	error = nl_core_new_core_buffer(&buffer, nl_core_data_max_size());
+	error = nlbuffer_new(&buffer, nlbuffer_data_max_size());
 	if (error)
-		return nl_core_respond_error(info, COMMAND, error);
+		return nlcore_respond_error(info, COMMAND, error);
 
 	if (request->display.connection_set) {
 		remote4 = &request->display.remote4;
@@ -52,10 +52,10 @@ static int handle_session_display(struct sessiondb *db, struct genl_info *info,
 			session_entry_to_userspace, buffer, remote4, local4);
 	buffer->pending_data = error > 0;
 	error = (error >= 0)
-			? nl_core_send_buffer(info, COMMAND, buffer)
-			: nl_core_respond_error(info, COMMAND, error);
+			? nlbuffer_send(info, COMMAND, buffer)
+			: nlcore_respond_error(info, COMMAND, error);
 
-	nl_core_free_buffer(buffer);
+	nlbuffer_free(buffer);
 	return error;
 }
 
@@ -69,28 +69,36 @@ static int handle_session_count(struct sessiondb *db, struct genl_info *info,
 
 	error = sessiondb_count(db, request->l4_proto, &count);
 	if (error)
-		return nl_core_respond_error(info, COMMAND, error);
+		return nlcore_respond_error(info, COMMAND, error);
 
 	return nlcore_respond_struct(info, COMMAND, &count, sizeof(count));
 }
 
-int handle_session_config(struct sessiondb *db, struct genl_info *info)
+int handle_session_config(struct xlator *jool, struct genl_info *info)
 {
-	struct request_hdr *jool_hdr = get_jool_hdr(info);
-	struct request_session *request = (struct request_session *)(jool_hdr + 1);
+	struct request_hdr *jool_hdr;
+	struct request_session *request;
+	int error;
 
 	if (xlat_is_siit()) {
 		log_err("SIIT doesn't have session tables.");
-		return nl_core_respond_error(info, COMMAND, -EINVAL);
+		return nlcore_respond_error(info, COMMAND, -EINVAL);
 	}
+
+	jool_hdr = get_jool_hdr(info);
+	request = (struct request_session *)(jool_hdr + 1);
+
+	error = validate_request_size(jool_hdr, sizeof(*request));
+	if (error)
+		return nlcore_respond_error(info, COMMAND, error);
 
 	switch (jool_hdr->operation) {
 	case OP_DISPLAY:
-		return handle_session_display(db, info, request);
+		return handle_session_display(jool->nat64.session, info, request);
 	case OP_COUNT:
-		return handle_session_count(db, info, request);
+		return handle_session_count(jool->nat64.session, info, request);
 	}
 
 	log_err("Unknown operation: %d", jool_hdr->operation);
-	return nl_core_respond_error(info, COMMAND, -EINVAL);
+	return nlcore_respond_error(info, COMMAND, -EINVAL);
 }

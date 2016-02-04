@@ -18,6 +18,9 @@ int bibdb_init(struct bib **db);
 void bibdb_get(struct bib *db);
 void bibdb_put(struct bib *db);
 
+void bibdb_config_copy(struct bib *db, struct bib_config *config);
+void bibdb_config_set(struct bib *db, struct bib_config *config);
+
 int bibdb_find(struct bib *db, const struct tuple *tuple,
 		struct bib_entry **result);
 int bibdb_find4(struct bib *db, const struct ipv4_transport_addr *addr,
@@ -25,7 +28,7 @@ int bibdb_find4(struct bib *db, const struct ipv4_transport_addr *addr,
 int bibdb_find6(struct bib *db, const struct ipv6_transport_addr *addr,
 		const l4_protocol proto, struct bib_entry **result);
 
-int bibdb_add(struct bib *db, struct bib_entry *entry);
+int bibdb_add(struct bib *db, struct bib_entry *entry, struct bib_entry **old);
 int bibdb_count(struct bib *db, const l4_protocol proto, __u64 *result);
 void bibdb_flush(struct bib *db);
 

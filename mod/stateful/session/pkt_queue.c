@@ -33,7 +33,7 @@ static unsigned long get_timeout(void)
 static void send_icmp_error(struct packet_node *node)
 {
 	icmp64_send(&node->pkt, ICMPERR_PORT_UNREACHABLE, 0);
-	session_return(node->session);
+	session_put(node->session, false);
 	kfree_skb(node->pkt.skb);
 	kfree(node);
 }
@@ -90,19 +90,19 @@ static int compare_fn(const struct packet_node *node,
 	return gap;
 }
 
-static int __tree_add(struct pktqueue *queue, struct packet_node *node)
+static struct packet_node *__tree_add(struct pktqueue *queue,
+		struct packet_node *node)
 {
 	return rbtree_add(node, node->session, &queue->node_tree, compare_fn,
 			struct packet_node, tree_hook);
 }
 
-/* TODO revert the timer */
+/* TODO (stateful) revert the timer */
 
 int pktqueue_add(struct pktqueue *queue, struct session_entry *session,
 		struct packet *pkt)
 {
 	struct packet_node *node;
-	int error;
 
 	/* Note: this if assumes ICMP errors don't reach this code. */
 	if (session->l4_proto != L4PROTO_TCP)
@@ -129,12 +129,11 @@ int pktqueue_add(struct pktqueue *queue, struct session_entry *session,
 		return -E2BIG;
 	}
 
-	error = __tree_add(queue, node);
-	if (error) {
+	if (__tree_add(queue, node)) {
 		spin_unlock_bh(&lock);
 		log_debug("Simultaneous Open already exists; ignoring packet.");
 		kfree(node);
-		return error;
+		return -EEXIST;
 	}
 	list_add_tail(&node->list_hook, &queue->node_list);
 	queue->node_count++;
@@ -178,7 +177,7 @@ void pktqueue_rm(struct pktqueue *queue, struct session_entry *session)
 	rm(queue, node);
 	spin_unlock_bh(&lock);
 
-	session_return(node->session);
+	session_put(node->session, false);
 	kfree_skb(node->pkt.skb);
 	kfree(node);
 

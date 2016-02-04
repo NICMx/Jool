@@ -14,9 +14,9 @@ static bool compare_global_configs(struct global_config *expected,
 	bool success = true;
 	__u16 i;
 
-	success &= ASSERT_UINT(expected->is_disable,
-			actual->is_disable,
-			"is_disable");
+	success &= ASSERT_UINT(expected->enabled,
+			actual->enabled,
+			"is_enabled");
 	success &= ASSERT_UINT(expected->reset_traffic_class,
 			actual->reset_traffic_class,
 			"reset_traffic_class");
@@ -84,7 +84,7 @@ static bool basic_test(void)
 	struct global_configuration *config;
 	struct global_config clone;
 
-	if (config_init(&config, false))
+	if (config_init(&config, true))
 		return false;
 
 	if (serialize_global_config(&config->cfg, true, &buffer, &buffer_len))
@@ -111,7 +111,7 @@ static bool translate_nulls_mtu(void)
 	struct global_configuration *config;
 	struct global_config clone;
 
-	if (config_init(&config, false))
+	if (config_init(&config, true))
 		return false;
 
 	/*

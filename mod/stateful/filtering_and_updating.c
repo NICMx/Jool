@@ -124,10 +124,13 @@ static int get_or_create_bib6(struct xlation *state, struct bib_entry **result)
 	 * If somebody inserted a colliding BIB since we last searched,
 	 * this will fail. Instead, it should fall back to use the already
 	 * official entry.
+	 * (Note: using the "old" argument is more trouble than it seems because
+	 * this has to be handled differently depending on whether the collision
+	 * was v4 or v6.)
 	 */
-	error = bibdb_add(state->jool.nat64.bib, bib);
+	error = bibdb_add(state->jool.nat64.bib, bib, NULL);
 	if (error) {
-		bibentry_put(bib);
+		bibentry_put(bib, true);
 		return error;
 	}
 
@@ -213,9 +216,10 @@ static int get_or_create_session(struct xlation *state, struct bib_entry *bib,
 	if (error)
 		return error;
 
-	error = sessiondb_add(state->jool.nat64.session, session, true, false);
+	error = sessiondb_add(state->jool.nat64.session, session, false,
+			NULL, NULL);
 	if (error) {
-		session_return(session);
+		session_put(session, true);
 		return error;
 	}
 
@@ -248,13 +252,13 @@ static verdict ipv6_simple(struct xlation *state)
 	error = get_or_create_session(state, bib, &session);
 	if (error) {
 		inc_stats(&state->in, IPSTATS_MIB_INDISCARDS);
-		bibentry_put(bib);
+		bibentry_put(bib, false);
 		return VERDICT_DROP;
 	}
 	log_session(session);
 
-	session_return(session);
-	bibentry_put(bib);
+	session_put(session, false);
+	bibentry_put(bib, false);
 
 	return VERDICT_CONTINUE;
 }
@@ -286,7 +290,7 @@ static int get_bib4(struct xlation *state, struct bib_entry **bib)
 		log_debug("Packet was blocked by address-dependent filtering.");
 		icmp64_send(in, ICMPERR_FILTER, 0);
 		inc_stats(in, IPSTATS_MIB_INDISCARDS);
-		bibentry_put(*bib);
+		bibentry_put(*bib, false);
 		return -EPERM;
 	}
 
@@ -319,13 +323,13 @@ static verdict ipv4_simple(struct xlation *state)
 	error = get_or_create_session(state, bib, &session);
 	if (error) {
 		inc_stats(&state->in, IPSTATS_MIB_INDISCARDS);
-		bibentry_put(bib);
+		bibentry_put(bib, false);
 		return VERDICT_DROP;
 	}
 	log_session(session);
 
-	session_return(session);
-	bibentry_put(bib);
+	session_put(session, false);
+	bibentry_put(bib, false);
 
 	return VERDICT_CONTINUE;
 }
@@ -352,7 +356,8 @@ static int tcp_closed_v6_syn(struct xlation *state)
 		goto bib_end;
 	session->state = V6_INIT;
 
-	error = sessiondb_add(state->jool.nat64.session, session, false, false);
+	error = sessiondb_add(state->jool.nat64.session, session, false,
+			NULL, NULL);
 	if (error)
 		goto session_end;
 
@@ -360,9 +365,9 @@ static int tcp_closed_v6_syn(struct xlation *state)
 	/* Fall through. */
 
 session_end:
-	session_return(session);
+	session_put(session, false);
 bib_end:
-	bibentry_put(bib);
+	bibentry_put(bib, false);
 simple_end:
 	return error;
 }
@@ -411,7 +416,7 @@ static verdict tcp_closed_v4_syn(struct xlation *state)
 
 	} else {
 		error = sessiondb_add(state->jool.nat64.session, session, false,
-				false);
+				NULL, NULL);
 		if (error) {
 			log_debug("Error code %d while adding the session to the DB.",
 					error);
@@ -424,12 +429,12 @@ static verdict tcp_closed_v4_syn(struct xlation *state)
 	/* Fall through. */
 
 end_session:
-	session_return(session);
+	session_put(session, false);
 	/* Fall through. */
 
 end_bib:
 	if (bib)
-		bibentry_put(bib);
+		bibentry_put(bib, false);
 	return result;
 }
 
@@ -470,7 +475,7 @@ static verdict tcp_closed_state(struct xlation *state)
 		return VERDICT_DROP;
 	}
 
-	bibentry_put(bib);
+	bibentry_put(bib, false);
 	return VERDICT_CONTINUE;
 
 syn_out:
@@ -488,7 +493,7 @@ static enum session_fate tcp_v4_init_state(struct session_entry *session,
 {
 	if (pkt_l3_proto(pkt) == L3PROTO_IPV6 && pkt_tcp_hdr(pkt)->syn) {
 		session->state = ESTABLISHED;
-		joold_add_session_element(session);
+		joold_add_session(session);
 		return FATE_TIMER_EST;
 	}
 
@@ -506,7 +511,7 @@ static enum session_fate tcp_v6_init_state(struct session_entry *session,
 		switch (pkt_l3_proto(pkt)) {
 		case L3PROTO_IPV4:
 			session->state = ESTABLISHED;
-			joold_add_session_element(session);
+			joold_add_session(session);
 			return FATE_TIMER_EST;
 		case L3PROTO_IPV6:
 			return FATE_TIMER_TRANS;
@@ -527,11 +532,11 @@ static enum session_fate tcp_established_state(struct session_entry *session,
 		switch (pkt_l3_proto(pkt)) {
 		case L3PROTO_IPV4:
 			session->state = V4_FIN_RCV;
-			joold_add_session_element(session);
+			joold_add_session(session);
 			break;
 		case L3PROTO_IPV6:
 			session->state = V6_FIN_RCV;
-			joold_add_session_element(session);
+			joold_add_session(session);
 			break;
 		}
 		return FATE_PRESERVE;
@@ -553,7 +558,7 @@ static enum session_fate tcp_v4_fin_rcv_state(struct session_entry *session,
 {
 	if (pkt_l3_proto(pkt) == L3PROTO_IPV6 && pkt_tcp_hdr(pkt)->fin) {
 		session->state = V4_FIN_V6_FIN_RCV;
-		joold_add_session_element(session);
+		joold_add_session(session);
 		return FATE_TIMER_TRANS;
 	}
 
@@ -569,7 +574,7 @@ static enum session_fate tcp_v6_fin_rcv_state(struct session_entry *session,
 {
 	if (pkt_l3_proto(pkt) == L3PROTO_IPV4 && pkt_tcp_hdr(pkt)->fin) {
 		session->state = V4_FIN_V6_FIN_RCV;
-		joold_add_session_element(session);
+		joold_add_session(session);
 		return FATE_TIMER_TRANS;
 	}
 
@@ -595,7 +600,7 @@ static enum session_fate tcp_trans_state(struct session_entry *session,
 {
 	if (!pkt_tcp_hdr(pkt)->rst) {
 		session->state = ESTABLISHED;
-		joold_add_session_element(session);
+		joold_add_session(session);
 		return FATE_TIMER_EST;
 	}
 
@@ -655,7 +660,7 @@ static verdict tcp(struct xlation *state)
 	}
 
 	log_session(session);
-	session_return(session);
+	session_put(session, false);
 	return VERDICT_CONTINUE;
 }
 

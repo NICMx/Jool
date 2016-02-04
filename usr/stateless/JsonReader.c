@@ -206,7 +206,7 @@ static int parse_siit_global(cJSON * global_json)
 
 		//Reading manually-enabled
 		error = parse_bool_parameter(global_json, "manually-enabled", "Global",
-						&configured_parameters->manually_enabled,&global->is_disable);
+						&configured_parameters->manually_enabled,&global->enabled);
 		if (error) {
 			return error;
 		}
@@ -531,7 +531,7 @@ static int send_global_buffer()
 
 
 	if (configured_parameters->manually_enabled) {
-		memcpy(&global_parameters_buffer[index],&global->is_disable,1);
+		memcpy(&global_parameters_buffer[index],&global->enabled,1);
 	}
 
 	index+=1;
@@ -857,7 +857,7 @@ static int print_global()
 {
 
 	if (configured_parameters->manually_enabled) {
-		log_info("manually-enabled: %s", (!global->is_disable) ? "true" : "false") ;
+		log_info("manually-enabled: %s", (!global->enabled) ? "true" : "false") ;
 	}
 
 	if (configured_parameters->drop_icmpv6_info) {

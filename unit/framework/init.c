@@ -10,7 +10,7 @@ bool init_full(void)
 	char *prefixes6[] = { "3::/96" };
 	char *prefixes4[] = { "192.0.2.2/32" };
 
-	if (config_init(false))
+	if (config_init(true))
 		goto config_fail;
 	if (pool6_init(prefixes6, ARRAY_SIZE(prefixes6)))
 		goto pool6_fail;

@@ -4,7 +4,7 @@
 #include <linux/module.h>
 #include <linux/version.h>
 #include "nat64/mod/common/core.h"
-#include "nat64/mod/common/namespace.h"
+#include "nat64/mod/common/xlator.h"
 #include "nat64/mod/common/nl/nl_handler.h"
 #include "nat64/mod/common/types.h"
 #include "nat64/mod/common/log_time.h"
@@ -81,9 +81,9 @@ static int __init jool_init(void)
 	log_debug("Inserting %s...", xlat_get_name());
 
 	/* Init Jool's submodules. */
-	error = joolns_init();
+	error = xlator_init();
 	if (error)
-		goto joolns_failure;
+		goto xlator_failure;
 	error = logtime_init();
 	if (error)
 		goto log_time_failure;
@@ -105,8 +105,8 @@ nf_register_hooks_failure:
 nlhandler_failure:
 	logtime_destroy();
 log_time_failure:
-	joolns_destroy();
-joolns_failure:
+	xlator_destroy();
+xlator_failure:
 	return error;
 }
 
@@ -116,7 +116,7 @@ static void __exit jool_exit(void)
 
 	nlhandler_destroy();
 	logtime_destroy();
-	joolns_destroy();
+	xlator_destroy();
 
 	log_info("%s v" JOOL_VERSION_STR " module removed.", xlat_get_name());
 }

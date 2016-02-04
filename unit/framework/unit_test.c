@@ -173,8 +173,8 @@ bool ASSERT_BIB(struct bib_entry* expected, struct bib_entry* actual,
 		return false;
 	}
 
-	if (!ipv4_transport_addr_equals(&expected->ipv4, &actual->ipv4)
-			|| !ipv6_transport_addr_equals(&expected->ipv6, &actual->ipv6)) {
+	if (!taddr4_equals(&expected->ipv4, &actual->ipv4)
+			|| !taddr6_equals(&expected->ipv6, &actual->ipv6)) {
 		log_err("Test '%s' failed: Expected:" BIB_KEY
 				" Actual:" BIB_KEY, test_name,
 				BIB_PRINT(expected), BIB_PRINT(actual));
@@ -205,13 +205,13 @@ bool ASSERT_SESSION(struct session_entry *expected,
 
 	if (expected->l4_proto != actual->l4_proto)
 		goto fail;
-	if (!ipv6_transport_addr_equals(&expected->remote6, &actual->remote6))
+	if (!taddr6_equals(&expected->remote6, &actual->remote6))
 		goto fail;
-	if (!ipv6_transport_addr_equals(&expected->local6, &actual->local6))
+	if (!taddr6_equals(&expected->local6, &actual->local6))
 		goto fail;
-	if (!ipv4_transport_addr_equals(&expected->local4, &actual->local4))
+	if (!taddr4_equals(&expected->local4, &actual->local4))
 		goto fail;
-	if (!ipv4_transport_addr_equals(&expected->remote4, &actual->remote4))
+	if (!taddr4_equals(&expected->remote4, &actual->remote4))
 		goto fail;
 
 	return true;

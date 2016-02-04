@@ -2,8 +2,8 @@
 #define __NL_SESSION_H__
 
 #include <net/genetlink.h>
-#include "nat64/mod/stateful/session/db.h"
+#include "nat64/mod/common/xlator.h"
 
-int handle_session_config(struct sessiondb *db, struct genl_info *info);
+int handle_session_config(struct xlator *jool, struct genl_info *info);
 
 #endif

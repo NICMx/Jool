@@ -10,7 +10,7 @@ static const enum config_mode COMMAND = MODE_EAMT;
 static int eam_entry_to_userspace(struct eamt_entry *entry, void *arg)
 {
 	struct nl_core_buffer *buffer = (struct nl_core_buffer *)arg;
-	return nl_core_write_to_buffer(buffer, entry, sizeof(*entry));
+	return nlbuffer_write(buffer, entry, sizeof(*entry));
 }
 
 static int handle_eamt_display(struct eam_table *eamt, struct genl_info *info,
@@ -22,18 +22,18 @@ static int handle_eamt_display(struct eam_table *eamt, struct genl_info *info,
 
 	log_debug("Sending EAMT to userspace.");
 
-	error = nl_core_new_core_buffer(&buffer, nl_core_data_max_size());
+	error = nlbuffer_new(&buffer, nlbuffer_data_max_size());
 	if (error)
-		 nl_core_respond_error(info, COMMAND, error);
+		 nlcore_respond_error(info, COMMAND, error);
 
 	prefix4 = request->display.prefix4_set ? &request->display.prefix4 : NULL;
 	error = eamt_foreach(eamt, eam_entry_to_userspace, buffer, prefix4);
 	buffer->pending_data = error > 0;
 	error = (error >= 0)
-			? nl_core_send_buffer(info, COMMAND, buffer)
-			: nl_core_respond_error(info, COMMAND, error);
+			? nlbuffer_send(info, COMMAND, buffer)
+			: nlcore_respond_error(info, COMMAND, error);
 
-	nl_core_free_buffer(buffer);
+	nlbuffer_free(buffer);
 	return error;
 }
 
@@ -46,7 +46,7 @@ static int handle_eamt_count(struct eam_table *eamt, struct genl_info *info)
 
 	error = eamt_count(eamt, &count);
 	if (error)
-		return nl_core_respond_error(info, COMMAND, error);
+		return nlcore_respond_error(info, COMMAND, error);
 
 	return nlcore_respond_struct(info, COMMAND, &count, sizeof(count));
 }
@@ -85,30 +85,37 @@ static int handle_eamt_flush(struct eam_table *eamt)
 	return 0;
 }
 
-int handle_eamt_config(struct eam_table *eamt, struct genl_info *info)
+int handle_eamt_config(struct xlator *jool, struct genl_info *info)
 {
-	struct request_hdr *jool_hdr = get_jool_hdr(info);
-	union request_eamt *request = (union request_eamt *)(jool_hdr + 1);
+	struct request_hdr *jool_hdr;
+	union request_eamt *request;
 	int error;
 
 	if (xlat_is_nat64()) {
 		log_err("Stateful NAT64 doesn't have an EAMT.");
-		return nl_core_respond_error(info, COMMAND, -EINVAL);
+		return nlcore_respond_error(info, COMMAND, -EINVAL);
 	}
+
+	jool_hdr = get_jool_hdr(info);
+	request = (union request_eamt *)(jool_hdr + 1);
+
+	error = validate_request_size(jool_hdr, sizeof(*request));
+	if (error)
+		return nlcore_respond_error(info, COMMAND, error);
 
 	switch (jool_hdr->operation) {
 	case OP_DISPLAY:
-		return handle_eamt_display(eamt, info, request);
+		return handle_eamt_display(jool->siit.eamt, info, request);
 	case OP_COUNT:
-		return handle_eamt_count(eamt, info);
+		return handle_eamt_count(jool->siit.eamt, info);
 	case OP_ADD:
-		error = handle_eamt_add(eamt, request);
+		error = handle_eamt_add(jool->siit.eamt, request);
 		break;
 	case OP_REMOVE:
-		error = handle_eamt_rm(eamt, request);
+		error = handle_eamt_rm(jool->siit.eamt, request);
 		break;
 	case OP_FLUSH:
-		error = handle_eamt_flush(eamt);
+		error = handle_eamt_flush(jool->siit.eamt);
 		break;
 	default:
 		log_err("Unknown operation: %d", jool_hdr->operation);

@@ -7,7 +7,7 @@
 #include "nat64/common/xlat.h"
 #include "nat64/mod/common/core.h"
 #include "nat64/mod/common/log_time.h"
-#include "nat64/mod/common/namespace.h"
+#include "nat64/mod/common/xlator.h"
 #include "nat64/mod/common/nl/nl_handler.h"
 #include "nat64/mod/common/nl/nl_core2.h"
 #include "nat64/mod/stateful/joold.h"
@@ -112,18 +112,15 @@ static int __init jool_init(void)
 	error = session_init();
 	if (error)
 		goto session_failure;
-	error = joolns_init();
+	error = xlator_init();
 	if (error)
-		goto joolns_failure;
-	error = nl_core_init();
+		goto xlator_failure;
+	error = nlcore_init();
 	if (error)
-		goto nl_core_failure;
+		goto nlcore_failure;
 	error = nlhandler_init();
 	if (error)
 		goto nlhandler_failure;
-	error = joold_init();
-	if (error)
-		goto joold_failure;
 	error = logtime_init();
 	if (error)
 		goto logtime_failure;
@@ -140,14 +137,12 @@ static int __init jool_init(void)
 nf_register_hooks_failure:
 	logtime_destroy();
 logtime_failure:
-	joold_destroy();
-joold_failure:
 	nlhandler_destroy();
 nlhandler_failure:
-	nl_core_destroy();
-nl_core_failure:
-	joolns_destroy();
-joolns_failure:
+	nlcore_destroy();
+nlcore_failure:
+	xlator_destroy();
+xlator_failure:
 	session_destroy();
 session_failure:
 	bibentry_destroy();
@@ -160,10 +155,9 @@ static void __exit jool_exit(void)
 	nf_unregister_hooks(nfho, ARRAY_SIZE(nfho));
 
 	logtime_destroy();
-	joold_destroy();
 	nlhandler_destroy();
-	nl_core_destroy();
-	joolns_destroy();
+	nlcore_destroy();
+	xlator_destroy();
 	session_destroy();
 	bibentry_destroy();
 
