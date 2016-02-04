@@ -5,18 +5,18 @@ EXTRA_CFLAGS += -DUNIT_TESTING
 EXTRA_CFLAGS += -DBENCHMARK
 
 #CC=cgcc
-ccflags-y := -I$(src)/../../include
-ccflags-y += -I$(src)/../../mod/common
-ccflags-y += -I$(src)/../../mod/stateful
-ccflags-y += -I$(src)/../../mod/stateless
+ccflags-y := -I$(src)/../../../include
+ccflags-y += -I$(src)/../../../mod/common
+ccflags-y += -I$(src)/../../../mod/stateful
+ccflags-y += -I$(src)/../../../mod/stateless
 
 
 CONFIG_PROTO = config_proto
 
 obj-m += $(CONFIG_PROTO).o
 
-MIN_REQS = ../../mod/common/types.o \
-	../../mod/common/address.o \
+MIN_REQS = ../../../mod/common/types.o \
+	../../../mod/common/address.o \
 	../framework/str_utils.o \
 	../framework/unit_test.o \
 	../impersonator/error_pool.o \
@@ -25,7 +25,7 @@ MIN_REQS = ../../mod/common/types.o \
 
 
 $(CONFIG_PROTO)-objs += $(MIN_REQS)
-$(CONFIG_PROTO)-objs += ../../mod/common/config.o
+$(CONFIG_PROTO)-objs += ../../../mod/common/config.o
 $(CONFIG_PROTO)-objs += config_test.o
 
 all:

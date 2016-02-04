@@ -5,18 +5,18 @@ EXTRA_CFLAGS += -DUNIT_TESTING
 EXTRA_CFLAGS += -DBENCHMARK
 
 #CC=cgcc
-ccflags-y := -I$(src)/../../include
-ccflags-y += -I$(src)/../../mod/common
-ccflags-y += -I$(src)/../../mod/stateful
-ccflags-y += -I$(src)/../../mod/stateless
+ccflags-y := -I$(src)/../../../include
+ccflags-y += -I$(src)/../../../mod/common
+ccflags-y += -I$(src)/../../../mod/stateful
+ccflags-y += -I$(src)/../../../mod/stateless
 
 
 SESSIONTABLE = sessiontable
 
 obj-m += $(SESSIONTABLE).o
 
-MIN_REQS = ../../mod/common/types.o \
-	../../mod/common/address.o \
+MIN_REQS = ../../../mod/common/types.o \
+	../../../mod/common/address.o \
 	../framework/str_utils.o \
 	../framework/unit_test.o \
 	../impersonator/error_pool.o \
@@ -24,10 +24,10 @@ MIN_REQS = ../../mod/common/types.o \
 	../impersonator/xlat.o
 
 $(SESSIONTABLE)-objs += $(MIN_REQS)
-$(SESSIONTABLE)-objs += ../../mod/common/config.o
-$(SESSIONTABLE)-objs += ../../mod/common/rbtree.o
-$(SESSIONTABLE)-objs += ../../mod/stateful/session/entry.o
-$(SESSIONTABLE)-objs += ../../mod/stateful/session/pkt_queue.o
+$(SESSIONTABLE)-objs += ../../../mod/common/config.o
+$(SESSIONTABLE)-objs += ../../../mod/common/rbtree.o
+$(SESSIONTABLE)-objs += ../../../mod/stateful/session/entry.o
+$(SESSIONTABLE)-objs += ../../../mod/stateful/session/pkt_queue.o
 $(SESSIONTABLE)-objs += ../impersonator/bib.o
 $(SESSIONTABLE)-objs += ../impersonator/icmp_wrapper.o
 $(SESSIONTABLE)-objs += ../impersonator/route.o

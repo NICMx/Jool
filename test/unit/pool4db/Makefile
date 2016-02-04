@@ -5,18 +5,18 @@ EXTRA_CFLAGS += -DUNIT_TESTING
 EXTRA_CFLAGS += -DBENCHMARK
 
 #CC=cgcc
-ccflags-y := -I$(src)/../../include
-ccflags-y += -I$(src)/../../mod/common
-ccflags-y += -I$(src)/../../mod/stateful
-ccflags-y += -I$(src)/../../mod/stateless
+ccflags-y := -I$(src)/../../../include
+ccflags-y += -I$(src)/../../../mod/common
+ccflags-y += -I$(src)/../../../mod/stateful
+ccflags-y += -I$(src)/../../../mod/stateless
 
 
 POOL4DB = pool4db
 
 obj-m += $(POOL4DB).o
 
-MIN_REQS = ../../mod/common/types.o \
-	../../mod/common/address.o \
+MIN_REQS = ../../../mod/common/types.o \
+	../../../mod/common/address.o \
 	../framework/str_utils.o \
 	../framework/unit_test.o \
 	../impersonator/error_pool.o \
@@ -25,8 +25,8 @@ MIN_REQS = ../../mod/common/types.o \
 
 
 $(POOL4DB)-objs += $(MIN_REQS)
-$(POOL4DB)-objs += ../../mod/stateful/pool4/table.o
-$(POOL4DB)-objs += ../../mod/stateful/pool4/entry.o
+$(POOL4DB)-objs += ../../../mod/stateful/pool4/table.o
+$(POOL4DB)-objs += ../../../mod/stateful/pool4/entry.o
 $(POOL4DB)-objs += ../impersonator/pool4_empty.o
 $(POOL4DB)-objs += pool4db_test.o
 

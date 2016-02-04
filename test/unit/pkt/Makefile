@@ -5,18 +5,18 @@ EXTRA_CFLAGS += -DUNIT_TESTING
 EXTRA_CFLAGS += -DBENCHMARK
 
 #CC=cgcc
-ccflags-y := -I$(src)/../../include
-ccflags-y += -I$(src)/../../mod/common
-ccflags-y += -I$(src)/../../mod/stateful
-ccflags-y += -I$(src)/../../mod/stateless
+ccflags-y := -I$(src)/../../../include
+ccflags-y += -I$(src)/../../../mod/common
+ccflags-y += -I$(src)/../../../mod/stateful
+ccflags-y += -I$(src)/../../../mod/stateless
 
 
 PKT = pkt
 
 obj-m += $(PKT).o
 
-MIN_REQS = ../../mod/common/types.o \
-	../../mod/common/address.o \
+MIN_REQS = ../../../mod/common/types.o \
+	../../../mod/common/address.o \
 	../framework/str_utils.o \
 	../framework/unit_test.o \
 	../impersonator/error_pool.o \
@@ -24,8 +24,8 @@ MIN_REQS = ../../mod/common/types.o \
 	../impersonator/xlat.o
 
 $(PKT)-objs += $(MIN_REQS)
-$(PKT)-objs += ../../mod/common/ipv6_hdr_iterator.o
-$(PKT)-objs += ../../mod/common/packet.o
+$(PKT)-objs += ../../../mod/common/ipv6_hdr_iterator.o
+$(PKT)-objs += ../../../mod/common/packet.o
 $(PKT)-objs += ../framework/skb_generator.o
 $(PKT)-objs += ../framework/types.o
 $(PKT)-objs += ../impersonator/icmp_wrapper.o

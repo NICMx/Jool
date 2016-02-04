@@ -5,17 +5,17 @@ EXTRA_CFLAGS += -DUNIT_TESTING
 EXTRA_CFLAGS += -DBENCHMARK
 
 #CC=cgcc
-ccflags-y := -I$(src)/../../include
-ccflags-y += -I$(src)/../../mod/common
-ccflags-y += -I$(src)/../../mod/stateful
-ccflags-y += -I$(src)/../../mod/stateless
+ccflags-y := -I$(src)/../../../include
+ccflags-y += -I$(src)/../../../mod/common
+ccflags-y += -I$(src)/../../../mod/stateful
+ccflags-y += -I$(src)/../../../mod/stateless
 
 RFC6052 = rfc6052
 
 obj-m += $(RFC6052).o
 
-MIN_REQS = ../../mod/common/types.o \
-	../../mod/common/address.o \
+MIN_REQS = ../../../mod/common/types.o \
+	../../../mod/common/address.o \
 	../framework/str_utils.o \
 	../framework/unit_test.o \
 	../impersonator/error_pool.o \
@@ -23,7 +23,7 @@ MIN_REQS = ../../mod/common/types.o \
 	../impersonator/xlat.o
 
 $(RFC6052)-objs += $(MIN_REQS)
-$(RFC6052)-objs += ../../mod/common/pool6.o
+$(RFC6052)-objs += ../../../mod/common/pool6.o
 $(RFC6052)-objs += rfc6052_test.o
 
 all:

@@ -5,18 +5,18 @@ EXTRA_CFLAGS += -DUNIT_TESTING
 EXTRA_CFLAGS += -DBENCHMARK
 
 #CC=cgcc
-ccflags-y := -I$(src)/../../include
-ccflags-y += -I$(src)/../../mod/common
-ccflags-y += -I$(src)/../../mod/stateful
-ccflags-y += -I$(src)/../../mod/stateless
+ccflags-y := -I$(src)/../../../include
+ccflags-y += -I$(src)/../../../mod/common
+ccflags-y += -I$(src)/../../../mod/stateful
+ccflags-y += -I$(src)/../../../mod/stateless
 
 
 TRANSLATE = translate
 
 obj-m += $(TRANSLATE).o
 
-MIN_REQS = ../../mod/common/types.o \
-	../../mod/common/address.o \
+MIN_REQS = ../../../mod/common/types.o \
+	../../../mod/common/address.o \
 	../framework/str_utils.o \
 	../framework/unit_test.o \
 	../impersonator/error_pool.o \
@@ -24,13 +24,13 @@ MIN_REQS = ../../mod/common/types.o \
 	../impersonator/xlat.o
 
 $(TRANSLATE)-objs += $(MIN_REQS)
-$(TRANSLATE)-objs += ../../mod/common/config.o
-$(TRANSLATE)-objs += ../../mod/common/ipv6_hdr_iterator.o
-$(TRANSLATE)-objs += ../../mod/common/packet.o
-$(TRANSLATE)-objs += ../../mod/common/pool6.o
-$(TRANSLATE)-objs += ../../mod/common/rfc6052.o
-$(TRANSLATE)-objs += ../../mod/common/rfc6145/common.o
-$(TRANSLATE)-objs += ../../mod/stateful/impersonator.o
+$(TRANSLATE)-objs += ../../../mod/common/config.o
+$(TRANSLATE)-objs += ../../../mod/common/ipv6_hdr_iterator.o
+$(TRANSLATE)-objs += ../../../mod/common/packet.o
+$(TRANSLATE)-objs += ../../../mod/common/pool6.o
+$(TRANSLATE)-objs += ../../../mod/common/rfc6052.o
+$(TRANSLATE)-objs += ../../../mod/common/rfc6145/common.o
+$(TRANSLATE)-objs += ../../../mod/stateful/impersonator.o
 $(TRANSLATE)-objs += ../framework/skb_generator.o
 $(TRANSLATE)-objs += ../framework/types.o
 $(TRANSLATE)-objs += ../impersonator/icmp_wrapper.o

@@ -5,17 +5,17 @@ EXTRA_CFLAGS += -DUNIT_TESTING
 EXTRA_CFLAGS += -DBENCHMARK
 
 #CC=cgcc
-ccflags-y := -I$(src)/../../include
-ccflags-y += -I$(src)/../../mod/common
-ccflags-y += -I$(src)/../../mod/stateful
-ccflags-y += -I$(src)/../../mod/stateless
+ccflags-y := -I$(src)/../../../include
+ccflags-y += -I$(src)/../../../mod/common
+ccflags-y += -I$(src)/../../../mod/stateful
+ccflags-y += -I$(src)/../../../mod/stateless
 
 PALLOC = palloc4
 
 obj-m += $(PALLOC).o
 
-MIN_REQS = ../../mod/common/types.o \
-	../../mod/common/address.o \
+MIN_REQS = ../../../mod/common/types.o \
+	../../../mod/common/address.o \
 	../framework/str_utils.o \
 	../framework/unit_test.o \
 	../impersonator/error_pool.o \
@@ -23,7 +23,7 @@ MIN_REQS = ../../mod/common/types.o \
 	../impersonator/xlat.o
 
 $(PALLOC)-objs += $(MIN_REQS)
-$(PALLOC)-objs += ../../mod/common/config.o
+$(PALLOC)-objs += ../../../mod/common/config.o
 $(PALLOC)-objs += ../framework/types.o
 $(PALLOC)-objs += ../impersonator/bib.o
 $(PALLOC)-objs += port_allocator_test.o
