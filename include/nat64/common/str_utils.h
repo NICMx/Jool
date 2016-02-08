@@ -4,8 +4,6 @@
 /**
  * @file
  * String-to-address conversion, intended to unify the API for both kernel and userspace.
- *
- * @author Alberto Leiva
  */
 
 #include "nat64/common/types.h"

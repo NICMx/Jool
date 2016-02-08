@@ -4,9 +4,6 @@
 /**
  * @file
  * The algorithm defined in RFC 6052 (http://tools.ietf.org/html/rfc6052).
- *
- * @author Ramiro Nava
- * @author Alberto Leiva
  */
 
 #include <linux/types.h>

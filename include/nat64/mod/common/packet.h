@@ -4,8 +4,6 @@
 /**
  * @file
  * Random skb-related functions.
- *
- * @author Alberto Leiva
  */
 
 #include <linux/skbuff.h>

@@ -11,8 +11,6 @@
  * include the IPv6 address as an Interface IP Address Sub-Object."
  *
  * The ICMP extension thing has not been implemented yet.
- *
- * @author Alberto Leiva
  */
 
 #include "nat64/mod/common/translation_state.h"

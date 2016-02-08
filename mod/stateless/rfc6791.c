@@ -69,8 +69,6 @@ static int find_nth_addr(struct ipv4_prefix *prefix, void *void_args)
 /**
  * Returns in "result" the IPv4 address an ICMP error towards "out"'s
  * destination should be sourced with.
- *
- * TODO validate count never surpasses uint max.
  */
 static int get_rfc6791_address(struct xlation *state, unsigned int count,
 		__be32 *result)

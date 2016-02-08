@@ -6,11 +6,6 @@
  * The NAT64's core data types. Structures used all over the code.
  *
  * Both the kernel module and the userspace application can see this file.
- *
- * @author Miguel Gonzalez
- * @author Ramiro Nava
- * @author Roberto Aceves
- * @author Alberto Leiva
  */
 
 #include <linux/types.h>

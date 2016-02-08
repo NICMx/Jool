@@ -4,9 +4,6 @@
 /**
  * @file
  * This is a handler for pool of IPv4 addresses.
- *
- * @author Alberto Leiva
- * @author Daniel Hdz Felix
  */
 
 #include "nat64/common/types.h"

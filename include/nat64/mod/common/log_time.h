@@ -7,8 +7,6 @@
  *
  * This code is not used during normal translations; we link it only when we
  * want to measure stuff.
- *
- * @author Daniel Hernandez
  */
 
 #include "nat64/mod/common/packet.h"

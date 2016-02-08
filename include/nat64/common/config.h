@@ -9,9 +9,6 @@
  * If you see a "__u8", keep in mind it might be intended as a boolean. sizeof(bool) is
  * implementation defined, which is unacceptable because these structures define a communication
  * protocol.
- *
- * @author Miguel Gonzalez
- * @author Alberto Leiva
  */
 
 #include "nat64/common/types.h"
@@ -91,6 +88,7 @@ enum config_mode {
 #define BIB_OPS (DATABASE_OPS & ~OP_FLUSH)
 #define SESSION_OPS (OP_DISPLAY | OP_COUNT)
 #define LOGTIME_OPS (OP_DISPLAY)
+#define INSTANCE_OPS (OP_ADD | OP_REMOVE)
 /**
  * @}
  */
@@ -163,15 +161,15 @@ enum parse_entries_size {
 
 #define DISPLAY_MODES (MODE_GLOBAL | POOL_MODES | TABLE_MODES | MODE_LOGTIME)
 #define COUNT_MODES (POOL_MODES | TABLE_MODES)
-#define ADD_MODES (POOL_MODES | MODE_EAMT | MODE_BIB)
-#define REMOVE_MODES (POOL_MODES | MODE_EAMT | MODE_BIB)
+#define ADD_MODES (POOL_MODES | MODE_EAMT | MODE_BIB | MODE_INSTANCE)
+#define REMOVE_MODES (POOL_MODES | MODE_EAMT | MODE_BIB | MODE_INSTANCE)
 #define FLUSH_MODES (POOL_MODES | MODE_EAMT)
 #define UPDATE_MODES (MODE_GLOBAL | MODE_PARSE_FILE)
 
 #define SIIT_MODES (MODE_GLOBAL | MODE_POOL6 | MODE_BLACKLIST | MODE_RFC6791 \
-		| MODE_EAMT | MODE_LOGTIME | MODE_PARSE_FILE)
+		| MODE_EAMT | MODE_LOGTIME | MODE_PARSE_FILE | MODE_INSTANCE)
 #define NAT64_MODES (MODE_GLOBAL | MODE_POOL6 | MODE_POOL4 | MODE_BIB \
-		| MODE_SESSION | MODE_LOGTIME | MODE_PARSE_FILE)
+		| MODE_SESSION | MODE_LOGTIME | MODE_PARSE_FILE | MODE_INSTANCE)
 /**
  * @}
  */

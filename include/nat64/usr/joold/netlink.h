@@ -21,7 +21,7 @@
 	#error "Unsupported LIBNL library version number (< 3.0)."
 #endif
 
-int netlink_simple_request(void *request, __u32 request_len);
+int netlink_request_simple(void *request, __u32 request_len);
 
 
 #endif /* _JOOL_USR_NETLINK_H_ */

@@ -21,6 +21,7 @@ enum argp_flags {
 	ARGP_LOGTIME = 'l',
 	ARGP_GLOBAL = 'g',
 	ARGP_PARSE_FILE = 'p',
+	ARGP_INSTANCE = 7001,
 
 
 	/* Operations */
@@ -79,7 +80,6 @@ enum argp_flags {
 	ARGP_SYNCH_DISABLE = 9001,
 	ARGP_SYNCH_MAX_SESSIONS = 9002,
 	ARGP_SYNCH_PERIOD = 9003,
-	ARGP_SYNCH_THRESHOLD = 9004
 };
 
 struct argp_option *build_options(void);

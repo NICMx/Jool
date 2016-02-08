@@ -4,8 +4,6 @@
 /**
  * @file
  * Receiver module that compare incoming packets from the network.
- *
- * @author Daniel Hdz Felix
  */
 
 

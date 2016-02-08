@@ -111,6 +111,15 @@ static const struct argp_option operations_hdr_opt = {
 		.group = 3,
 };
 
+static const struct argp_option instance_opt = {
+		.name = "instance",
+		.key = ARGP_INSTANCE,
+		.arg = NULL,
+		.flags = 0,
+		.doc = "The command will operate on per-namespace Jool instances.",
+		.group = 0,
+};
+
 static const struct argp_option display_opt = {
 		.name = "display",
 		.key = ARGP_DISPLAY,
@@ -679,15 +688,6 @@ static const struct argp_option synch_period_opt = {
 		.group = 0,
 };
 
-static const struct argp_option synch_threshold_opt = {
-		.name = "synch-threshold",
-		.key = ARGP_SYNCH_THRESHOLD ,
-		.arg = NUM_FORMAT,
-		.flags = 0,
-		.doc = "Number of milliseconds that have to pass after a session is created, so that it can be synchronized.",
-		.group = 0,
-};
-
 static const struct argp_option *options_siit[] = {
 	&targets_hdr_opt,
 	&pool6_opt,
@@ -700,6 +700,7 @@ static const struct argp_option *options_siit[] = {
 	&benchmark_opt,
 #endif
 	&parse_file_opt,
+	&instance_opt,
 
 	&operations_hdr_opt,
 	&display_opt,
@@ -749,6 +750,7 @@ static const struct argp_option *options_nat64[] = {
 	&benchmark_opt,
 #endif
 	&parse_file_opt,
+	&instance_opt,
 
 	&operations_hdr_opt,
 	&display_opt,
@@ -815,7 +817,6 @@ static const struct argp_option *options_nat64[] = {
 	&synch_disable_opt,
 	&synch_max_sessions_opt,
 	&synch_period_opt,
-	&synch_threshold_opt
 };
 
 struct argp_option *__build_options(const struct argp_option **template,
@@ -838,6 +839,7 @@ struct argp_option *__build_options(const struct argp_option **template,
 	return result;
 }
 
+/* TODO are you freeing the result? */
 struct argp_option *build_options(void)
 {
 	return xlat_is_siit()

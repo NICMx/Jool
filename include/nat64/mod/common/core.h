@@ -4,11 +4,6 @@
 /**
  * @file
  * The core is the packet handling's entry point.
- *
- * @author Miguel Gonzalez
- * @author Ramiro Nava
- * @author Roberto Aceves
- * @author Alberto Leiva
  */
 
 #include <linux/skbuff.h>

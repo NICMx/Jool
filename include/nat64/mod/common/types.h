@@ -4,8 +4,6 @@
 /**
  * @file
  * Kernel-specific core data types and routines.
- *
- * @author Alberto Leiva
  */
 
 #include "nat64/common/types.h"

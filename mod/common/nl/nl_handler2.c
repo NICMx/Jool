@@ -152,17 +152,17 @@ static int handle_jool_message(struct genl_info *info)
 	if (error)
 		return error; /* client is not Jool, so don't answer. */
 
-	if (jool_hdr->operation == MODE_INSTANCE)
+	if (jool_hdr->mode == MODE_INSTANCE)
 		return handle_instance_request(info);
 
 	error = xlator_find_current(&translator);
 	if (error == -ESRCH) {
 		log_err("This namespace lacks a Jool instance.");
-		return nlcore_respond_error(info, jool_hdr->operation, -ESRCH);
+		return nlcore_respond_error(info, jool_hdr->mode, -ESRCH);
 	}
 	if (error) {
 		log_err("Unknown error %d; Jool instance not found.", error);
-		return nlcore_respond_error(info, jool_hdr->operation, error);
+		return nlcore_respond_error(info, jool_hdr->mode, error);
 	}
 
 	/*

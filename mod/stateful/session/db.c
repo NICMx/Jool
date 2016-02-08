@@ -138,10 +138,8 @@ int sessiondb_set_session_timer(struct sessiondb *db, struct session_entry *sess
 		return -EINVAL;
 
 	if (is_established) {
-		log_info("assinging est timer!");
 		session->expirer = &table->est_timer;
 	} else {
-		log_info("assinging trans timer!");
 		session->expirer = &table->trans_timer;
 	}
 

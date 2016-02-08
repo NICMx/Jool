@@ -151,8 +151,8 @@ RCUTAG_USR
 int pool_add(struct addr4_pool *pool, struct ipv4_prefix *prefix)
 {
 	struct list_head *list;
-	struct list_head *node;
 	struct pool_entry *entry;
+	__u64 count;
 	int error;
 
 	error = prefix4_validate(prefix);
@@ -161,16 +161,19 @@ int pool_add(struct addr4_pool *pool, struct ipv4_prefix *prefix)
 
 	mutex_lock(&lock);
 
-	list = rcu_dereference_protected(pool->list, lockdep_is_held(&lock));
-	list_for_each(node, list) {
-		entry = get_entry(node);
-		if (prefix4_intersects(&entry->prefix, prefix)) {
-			log_err("The requested entry collides with pool entry %pI4/%u.",
-					&entry->prefix.address,
-					entry->prefix.len);
-			error = -EEXIST;
-			goto end;
-		}
+	error = pool_count(pool, &count);
+	if (error) {
+		log_err("Unknown error %d while trying to validate overflow.",
+				error);
+		goto end;
+	}
+
+	if (count + prefix4_get_addr_count(prefix) > UINT_MAX) {
+		/* Otherwise get_rfc6791_address() overflows. */
+		log_err("The pool must not contain more than %u addresses.\n"
+				"(Duplicates do count towards the limit.)",
+				UINT_MAX);
+		goto end;
 	}
 
 	entry = kmalloc(sizeof(*entry), GFP_KERNEL);
@@ -180,6 +183,7 @@ int pool_add(struct addr4_pool *pool, struct ipv4_prefix *prefix)
 	}
 	entry->prefix = *prefix;
 
+	list = rcu_dereference_protected(pool->list, lockdep_is_held(&lock));
 	list_add_tail_rcu(&entry->list_hook, list);
 
 end:

@@ -6,9 +6,6 @@
  * This is just some convenience additions to the kernel's Red-Black Tree
  * implementation.
  * I'm sorry it's a macro maze, but the alternative is a lot of redundant code.
- *
- * @author Alberto Leiva
- * @author Daniel Hernandez
  */
 
 #include <linux/rbtree.h>

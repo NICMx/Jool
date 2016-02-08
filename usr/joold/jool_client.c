@@ -46,7 +46,7 @@ int set_updated_entries(void *data) {
 	magic = NULL;
 
 
-	error = netlink_simple_request(data, received_data->length+sizeof(*received_data));
+	error = netlink_request_simple(data, received_data->length+sizeof(*received_data));
 
 	return error;
 

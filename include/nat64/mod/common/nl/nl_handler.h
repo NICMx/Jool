@@ -5,9 +5,6 @@
  * @file
  * The NAT64's layer/bridge towards the user. S/he can control its behavior
  * using this.
- *
- * @author Miguel Gonzalez
- * @author Alberto Leiva
  */
 
 /**

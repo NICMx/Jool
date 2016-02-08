@@ -1,11 +1,6 @@
 #include "nat64/mod/stateless/eam.h"
 #include "nat64/mod/common/types.h"
 
-/**
- * @author Daniel Hdz Felix
- * @author Alberto Leiva
- */
-
 #define ADDR6_BITS		128
 #define ADDR4_BITS		32
 

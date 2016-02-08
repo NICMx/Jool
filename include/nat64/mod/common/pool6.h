@@ -4,9 +4,6 @@
 /**
  * @file
  * The pool of IPv6 prefixes.
- *
- * @author Alberto Leiva
- * @author Daniel Hdz Felix
  */
 
 #include "nat64/common/types.h"

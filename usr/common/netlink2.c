@@ -1,24 +1,17 @@
-#include <stdbool.h>
-#include <stdlib.h>
-#include <netlink/netlink.h>
-#include <netlink/attr.h>
-#include <netlink/socket.h>
-#include <netlink/msg.h>
+#include "nat64/usr/netlink.h"
+
 #include <netlink/genl/genl.h>
 #include <netlink/genl/ctrl.h>
 #include <errno.h>
-#include <unistd.h>
-
-
-#include "nat64/common/genetlink.h"
 #include "nat64/usr/types.h"
+
+struct response_cb {
+	jool_response_cb cb;
+	void *arg;
+};
 
 static struct nl_sock *sk;
 static int family;
-
-static enum nl_cb_type callbacks[] = {
-		NL_CB_MSG_IN,
-	};
 
 /*
  * This will need to be refactored if some day we need multiple request calls
@@ -31,267 +24,213 @@ static enum nl_cb_type callbacks[] = {
  */
 bool error_handler_called = false;
 
-static int (*response_callback)(struct nl_core_buffer *, void *);
-
-static int fail(int error, char *func_name)
+static int nl_fail(int error)
 {
-	printf("%s() failed.\n", func_name);
+	log_err("Netlink error message: '%s' (Code %d)",
+			nl_geterror(error), error);
 	return error;
 }
 
-static int nl_fail(int error, char *func_name)
-{
-	printf("%s (%d)\n", nl_geterror(error), error);
-	return fail(error, func_name);
-}
-
+/*
 static int error_handler(struct sockaddr_nl *nla, struct nlmsgerr *nlerr,
 		void *arg)
 {
-
-	fprintf(stderr, "error handler\n");
-
-	fprintf(stderr, "Error: %s", ((char*) nlerr) + sizeof(*nlerr));
-	fprintf(stderr, "(Error code: %d)\n", nlerr->error);
+	log_err("Error: %s", ((char *)nlerr) + sizeof(*nlerr));
+	log_err("(Error code: %d)", nlerr->error);
 	error_handler_called = true;
 	return -abs(nlerr->error);
+}
+*/
 
+static int print_error_msg(struct nl_core_buffer *buffer)
+{
+	char *msg;
+
+	error_handler_called = true;
+
+	/* TODO isn't len supposed to include the header? */
+	if (buffer->len <= 0) {
+		log_err("Error (The kernel's response is empty so the cause is unknown.)");
+		goto end;
+	}
+
+	msg = (char *)(buffer + 1);
+	if (msg[buffer->len - 1] != '\0') {
+		log_err("Error (The kernel's response is not a string so the cause is unknown.)");
+		goto end;
+	}
+
+	log_err("Jool Error: %s", msg);
+	/* Fall through. */
+
+end:
+	log_err("(Error code: %d)", buffer->error_code);
+	return buffer->error_code;
 }
 
-static int netlink_msg_handler(struct nl_msg * msg, void * arg)
+static int response_handler(struct nl_msg * msg, void * void_arg)
 {
 	struct nl_core_buffer *buffer;
-
-	struct nlmsghdr *nl_hdr;
 	struct nlattr *attrs[__ATTR_MAX + 1];
-	char * error_msg;
-	int error = 0;
+	struct response_cb *arg;
+	int error;
 
-	nl_hdr = nlmsg_hdr(msg);
-
-	error = genlmsg_parse(nl_hdr, 0, attrs, __ATTR_MAX, NULL);
-
+	/* TODO this doesn't need deallocation? */
+	error = genlmsg_parse(nlmsg_hdr(msg), 0, attrs, __ATTR_MAX, NULL);
 	if (error) {
-		printf("%s (%d)\n", nl_geterror(error), error);
-		printf("genlmsg_parse failed. \n");
+		log_err("%s (error code %d)", nl_geterror(error), error);
 		return error;
 	}
 
-	if (attrs[1]) {
-		buffer = (struct nl_core_buffer *)nla_data(attrs[1]);
-	} else {
-		printf("null buffer!\n");
-		return 0;
+	if (!attrs[ATTR_DATA]) {
+		log_err("null buffer!");
+		return 0; /* TODO how is this a success? */
 	}
 
-	if (buffer->error_code < 0) {
+	buffer = (struct nl_core_buffer *)nla_data(attrs[ATTR_DATA]);
+	if (buffer->error_code < 0)
+		return print_error_msg(buffer);
 
-		if (buffer->len > 0) {
+	arg = void_arg;
+	return (arg && arg->cb) ? arg->cb(buffer, arg->arg) : 0;
+}
 
-			error_msg = malloc(sizeof(char) * buffer->len + 1);
-			error_msg[buffer->len] = '\0';
-			memcpy(error_msg, (buffer+1), sizeof(char) * buffer->len);
-			fprintf(stderr, "Jool Error: %s", error_msg);
-			free(error_msg);
+void *netlink_get_data(struct nl_core_buffer *buffer)
+{
+	return buffer + 1;
+}
 
+int netlink_request(void *request, __u32 request_len,
+		jool_response_cb cb, void *cb_arg)
+{
+	struct nl_msg *msg;
+	struct response_cb callback = { .cb = cb, .arg = cb_arg };
+	int error;
+
+	error = nl_socket_modify_cb(sk, NL_CB_MSG_IN, NL_CB_CUSTOM,
+			response_handler, &callback);
+	if (error < 0) {
+		log_err("Could not register response handler.");
+		log_err("I will not be able to parse Jool's response, so I won't send the request.");
+		return nl_fail(error);
+	}
+
+	msg = nlmsg_alloc();
+	if (!msg) {
+		log_err("Could not allocate the message to the kernel; it seems we're out of memory.");
+		return -ENOMEM;
+	}
+
+	if (!genlmsg_put(msg, NL_AUTO_PORT, NL_AUTO_SEQ, family, 0, 0,
+			JOOL_COMMAND, 1)) {
+		log_err("Unknown error building the packet to the kernel.");
+		nlmsg_free(msg);
+		return -EINVAL;
+	}
+
+	error = nla_put(msg, ATTR_DATA, request_len, request);
+	if (error) {
+		log_err("Could not write on the packet to kernelspace.");
+		nlmsg_free(msg);
+		return nl_fail(error);
+	}
+
+	error = nl_send_auto(sk, msg);
+	nlmsg_free(msg);
+	if (error < 0) {
+		log_err("Could not dispatch the request to kernelspace.");
+		return nl_fail(error);
+	}
+
+	error = nl_recvmsgs_default(sk);
+	if (error < 0) {
+		if (error_handler_called) {
+			error_handler_called = false;
+			return error;
 		}
-
-		fprintf(stderr, "(Error code: %d)\n", buffer->error_code);
-
-	} else {
-
-		if (response_callback != NULL) {
-			return response_callback(buffer, arg);
-		}
+		log_err("Error receiving the kernel module's response.");
+		return nl_fail(error);
 	}
 
 	return 0;
 }
 
-void * netlink_get_data(struct nl_core_buffer *buffer)
+int netlink_request_simple(void *request, __u32 request_len)
 {
-	return buffer + 1;
-}
-
-static int prepare_socket(void)
-{
+	struct nl_msg *msg;
 	int error;
-	char *error_function;
 
-	sk = nl_socket_alloc();
-	if (!sk)
-		return fail(-ENOMEM, "nl_socket_alloc");
-
-	nl_socket_disable_seq_check(sk);
-
-	error = nl_socket_modify_err_cb(sk, NL_CB_CUSTOM , error_handler, NULL);
-
-	if (error) {
-		error_function = "nl_socket_modify_err_cb";
-		goto fail;
+	msg = nlmsg_alloc();
+	if (!msg) {
+		log_err("Could not allocate the request; it seems we're out of memory.");
+		return -ENOMEM;
 	}
 
+	if (!genlmsg_put(msg, NL_AUTO_PORT, NL_AUTO_SEQ, family, 0, 0,
+			JOOL_COMMAND, 1)) {
+		log_err("Unknown error building the packet to the kernel.");
+		nlmsg_free(msg);
+		return -EINVAL;
+	}
 
+	error = nla_put(msg, ATTR_DATA, request_len, request);
+	if (error) {
+		log_err("Could not write on the packet to kernelspace.");
+		nlmsg_free(msg);
+		return nl_fail(error);
+	}
+
+	error = nl_send_auto(sk, msg);
+	nlmsg_free(msg);
+	if (error < 0) {
+		log_err("Could not dispatch the request to kernelspace.");
+		return nl_fail(error);
+	}
+
+	return 0;
+}
+
+int netlink_init(void)
+{
+	int error;
+
+	sk = nl_socket_alloc();
+	if (!sk) {
+		log_err("Could not allocate the socket to kernelspace; it seems we're out of memory.");
+		return -ENOMEM;
+	}
+
+	nl_socket_disable_seq_check(sk);
 	nl_socket_disable_auto_ack(sk);
 
 	error = genl_connect(sk);
 	if (error) {
-		error_function = "genl_connect";
+		log_err("Could not open the socket to kernelspace.");
 		goto fail;
 	}
 
 	family = genl_ctrl_resolve(sk, GNL_JOOL_FAMILY_NAME);
 	if (family < 0) {
-			error = family;
-			error_function = "genl_ctrl_resolve";
-			printf("(remember the kernel module needs to register the "
-					"family before we can use it.)\n");
-			goto fail;
+		log_err("Jool's socket family doesn't seem to exist.");
+		log_err("(This probably means Jool hasn't been modprobed.)");
+		error = family;
+		goto fail;
 	}
+
+	/*
+	error = nl_socket_modify_err_cb(sk, NL_CB_CUSTOM, error_handler, NULL);
+	if (error) {
+		log_err("Could not register the error handler function.");
+		log_err("This means the socket to kernelspace cannot be used.");
+		goto fail;
+	}
+	*/
 
 	return 0;
 
-	fail:
+fail:
 	nl_socket_free(sk);
-	return nl_fail(error, error_function);
-}
-
-int genetlink_send_msg(void *request,
-		__u32 request_len, void *cb_arg)
-{
-
-	char *error_function;
-	void *payload;
-	struct nl_msg *msg;
-
-	int error;
-	int i;
-
-	for (i = 0; i < (sizeof(callbacks) / sizeof(callbacks[0])); i++) {
-
-		error = nl_socket_modify_cb(sk, callbacks[i], NL_CB_CUSTOM, netlink_msg_handler, cb_arg);
-
-		if (error < 0) {
-			log_err("Could not register response handler. " "I won't be able to parse Jool's response, so I won't send the request.\n" "Netlink error message: %s (Code %d)",
-					nl_geterror(error), error);
-
-			return error;
-		}
-	}
-
-	msg = nlmsg_alloc();
-
-	if (!msg) {
-		error = -1;
-		error_function = "nlmsg_alloc";
-
-		goto fail2;
-	}
-
-	payload = genlmsg_put(msg, NL_AUTO_PORT, NL_AUTO_SEQ, family,0, 0, JOOL_COMMAND, 1);
-
-	if (!payload) {
-		error = -1;
-		error_function = "genlmsg_put";
-		goto fail;
-	}
-
-	error = nla_put(msg, ATTR_DATA, (int)request_len, request);
-
-	if (error) {
-		error_function = "nla_put";
-		goto fail;
-	}
-
-	error = nl_send_auto(sk, msg);
-
-	if (error < 0) {
-		error_function = "nl_send_auto";
-		goto fail;
-	}
-
-	nl_recvmsgs_default(sk);
-
-	if (error < 0) {
-		error_function = "nl_recvmsgs_default";
-		goto fail;
-	}
-
-	nlmsg_free(msg);
-
-	return 0;
-
-	fail:
-	nlmsg_free(msg);
-	fail2:
-	return nl_fail(error, error_function);
-}
-
-int netlink_request(void *request, __u32 request_len,
-		int (*cb)(struct nl_core_buffer *, void *), void *cb_arg)
-{
-	response_callback = cb;
-
-	int error = genetlink_send_msg(request, request_len, cb_arg);
-
-	return error;
-}
-
-int netlink_simple_request(void *request, __u32 request_len) {
-
-	char *error_function;
-	void *payload;
-	struct nl_msg *msg;
-
-	int error;
-
-	msg = nlmsg_alloc();
-
-	if (!msg) {
-		error = -1;
-		error_function = "nlmsg_alloc";
-
-		goto fail2;
-	}
-
-	payload = genlmsg_put(msg, NL_AUTO_PORT, NL_AUTO_SEQ, family,0, 0, JOOL_COMMAND, 1);
-
-	if (!payload) {
-		error = -1;
-		error_function = "genlmsg_put";
-		goto fail;
-	}
-
-	error = nla_put(msg, ATTR_DATA, (int)request_len, request);
-
-	if (error) {
-		error_function = "nla_put";
-		goto fail;
-	}
-
-	error = nl_send_auto(sk, msg);
-
-	if (error < 0) {
-		error_function = "nl_send_auto";
-		goto fail;
-	}
-
-	nlmsg_free(msg);
-	return 0;
-
-	fail:
-	nlmsg_free(msg);
-	fail2:
-	return nl_fail(error, error_function);
-}
-
-int netlink_init(void)
-{
-	int error = 0;
-
-	error = prepare_socket();
-
-	return error;
+	return nl_fail(error);
 }
 
 void netlink_destroy(void)

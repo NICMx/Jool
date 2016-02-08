@@ -5,9 +5,6 @@
  * @file
  * The Session tables.
  * Formally defined in RFC 6146 section 3.2.
- *
- * @author Alberto Leiva
- * @author Daniel Hernandez
  */
 
 #include "nat64/mod/common/packet.h"

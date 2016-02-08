@@ -5,9 +5,6 @@
  * @file
  * The Binding Information Bases.
  * Formally defined in RFC 6146 section 3.1.
- *
- * @author Alberto Leiva
- * @author Daniel Hernandez
  */
 
 #include "nat64/mod/stateful/bib/table.h"

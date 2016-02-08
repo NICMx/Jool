@@ -2,6 +2,9 @@
 #define __GENETLINK_H__
 
 #include <linux/types.h>
+#ifndef __KERNEL__
+#include <stdbool.h>
+#endif
 
 #define GNL_JOOL_FAMILY_NAME "Jool"
 
@@ -23,7 +26,7 @@ enum attributes {
 	__ATTR_MAX,
 };
 
-struct nl_core_buffer{
+struct nl_core_buffer {
 	int error_code;
 	bool pending_data;
 	size_t len;

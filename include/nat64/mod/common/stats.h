@@ -7,9 +7,6 @@
  *
  * This exists because, based on experience, we can't really afford the assumptions that led to
  * those functions lacking argument validations.
- *
- * @author Alberto Leiva
- * @author Daniel Hernandez
  */
 
 #include "nat64/mod/common/packet.h"

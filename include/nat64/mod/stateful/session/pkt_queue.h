@@ -40,10 +40,6 @@
  * eventually realize this on its own by means of the handshake), otherwise a
  * ICMP error containing the original IPv4 packet is generated (because there's
  * no Simultaneous Open going on).
- *
- * @author Angel Cazares
- * @author Daniel Hernandez
- * @author Alberto Leiva
  */
 
 #include "nat64/mod/common/packet.h"

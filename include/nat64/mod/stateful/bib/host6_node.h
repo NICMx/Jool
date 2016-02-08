@@ -14,8 +14,6 @@
  *
  * Note: Use all this functions here to manipulate the objects described in here, all this functions
  * are intended to be thread safe.
- *
- * @author Daniel Hernandez
  */
 
 #include "nat64/mod/common/types.h"

@@ -7,19 +7,20 @@ jool_siit_SOURCES = \
 	../common/jool.c \
 	../common/netlink2.c \
 	../common/str_utils.c \
-	../common/cJSON.c \
-	../common/JsonReaderCommon.c \
 	../common/argp/options.c \
 	../common/target/bib.c \
 	../common/target/eam.c \
 	../common/target/global.c \
+	../common/target/instance.c \
 	../common/target/log_time.c \
 	../common/target/pool.c \
 	../common/target/pool4.c \
 	../common/target/pool6.c \
 	../common/target/session.c \
-	xlat.c \
-	JsonReader.c
+	xlat.c
+#	../common/cJSON.c \
+#	../common/JsonReaderCommon.c \
+#	JsonReader.c
 
 jool_siit_LDADD = ${LIBNLGENL3_LIBS} -lm
 jool_siit_CFLAGS = -Wall -O2

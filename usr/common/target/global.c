@@ -20,7 +20,7 @@ static void print_plateaus(struct global_config *conf, char *separator)
 	__u16 *plateaus;
 	int i;
 
-	plateaus = (__u16 *) (conf + 1);
+	plateaus = (__u16 *)(conf + 1);
 	for (i = 0; i < conf->mtu_plateau_count; i++) {
 		printf("%u", plateaus[i]);
 		if (i != conf->mtu_plateau_count - 1)
@@ -62,103 +62,100 @@ static void print_allow_atomic_frags(struct global_config *conf)
 
 static int handle_display_response(struct nl_core_buffer *buffer, void *arg)
 {
-	struct global_config *conf = netlink_get_data(buffer);
+	struct full_config *conf = netlink_get_data(buffer);
 
 	printf("\n");
-	printf("  Status: %s\n", print_status(conf));
+	printf("  Status: %s\n", print_status(&conf->global));
 	printf("  Manually enabled (--%s, --%s): %s\n",
 			OPTNAME_ENABLE, OPTNAME_DISABLE,
-			print_bool(conf->enabled));
+			print_bool(conf->global.enabled));
 	printf("\n");
 
 	printf("  --%s: %s\n", OPTNAME_ZEROIZE_TC,
-			print_bool(conf->reset_traffic_class));
+			print_bool(conf->global.reset_traffic_class));
 	printf("  --%s: %s\n", OPTNAME_OVERRIDE_TOS,
-			print_bool(conf->reset_tos));
+			print_bool(conf->global.reset_tos));
 	printf("  --%s: %u (0x%x)\n", OPTNAME_TOS,
-			conf->new_tos, conf->new_tos);
+			conf->global.new_tos, conf->global.new_tos);
 	printf("  --%s:\n     ", OPTNAME_MTU_PLATEAUS);
-	print_plateaus(conf, "\n     ");
+	print_plateaus(&conf->global, "\n     ");
 	printf("\n");
 
 	if (xlat_is_nat64()) {
-		printf("  --%s: %llu\n", OPTNAME_MAX_SO,
-				conf->nat64.max_stored_pkts);
+		printf("  --%s: %u\n", OPTNAME_MAX_SO,
+				conf->session.pktqueue.max_stored_pkts);
 		printf("  --%s: %s\n", OPTNAME_SRC_ICMP6E_BETTER,
-				print_bool(conf->nat64.src_icmp6errs_better));
+				print_bool(conf->global.nat64.src_icmp6errs_better));
 	} else {
 		printf("  --%s: %s\n", OPTNAME_AMEND_UDP_CSUM,
-				print_bool(conf->siit.compute_udp_csum_zero));
+				print_bool(conf->global.siit.compute_udp_csum_zero));
 		printf("  --%s: %u (%s)\n", OPTNAME_EAM_HAIRPIN_MODE,
-				conf->siit.eam_hairpin_mode,
-				int_to_hairpin_mode(conf->siit.eam_hairpin_mode));
+				conf->global.siit.eam_hairpin_mode,
+				int_to_hairpin_mode(conf->global.siit.eam_hairpin_mode));
 		printf("  --%s: %s\n", OPTNAME_RANDOMIZE_RFC6791,
-				print_bool(conf->siit.randomize_error_addresses));
+				print_bool(conf->global.siit.randomize_error_addresses));
 	}
 	printf("\n");
 
 	printf("  --%s: ", OPTNAME_ALLOW_ATOMIC_FRAGS);
-	print_allow_atomic_frags(conf);
+	print_allow_atomic_frags(&conf->global);
 	printf("\n");
 
 	printf("    --%s: %s\n", OPTNAME_DF_ALWAYS_ON,
-			print_bool(conf->atomic_frags.df_always_on));
+			print_bool(conf->global.atomic_frags.df_always_on));
 	printf("    --%s: %s\n", OPTNAME_GENERATE_FH,
-			print_bool(conf->atomic_frags.build_ipv6_fh));
+			print_bool(conf->global.atomic_frags.build_ipv6_fh));
 	printf("    --%s: %s\n", OPTNAME_GENERATE_ID4,
-			print_bool(conf->atomic_frags.build_ipv4_id));
+			print_bool(conf->global.atomic_frags.build_ipv4_id));
 	printf("    --%s: %s\n", OPTNAME_FIX_ILLEGAL_MTUS,
-			print_bool(conf->atomic_frags.lower_mtu_fail));
+			print_bool(conf->global.atomic_frags.lower_mtu_fail));
 	printf("\n");
 
 	if (xlat_is_nat64()) {
 		printf("  Additional Logging:\n");
 		printf("  --%s: %s\n", OPTNAME_BIB_LOGGING,
-				print_bool(conf->nat64.bib_logging));
+				print_bool(conf->bib.log_changes));
 		printf("  --%s: %s\n", OPTNAME_SESSION_LOGGING,
-				print_bool(conf->nat64.session_logging));
+				print_bool(conf->session.log_changes));
 		printf("\n");
 
 		printf("  Filtering:\n");
 		printf("    --%s: %s\n", OPTNAME_DROP_BY_ADDR,
-				print_bool(conf->nat64.drop_by_addr));
+				print_bool(conf->global.nat64.drop_by_addr));
 		printf("    --%s: %s\n", OPTNAME_DROP_ICMP6_INFO,
-				print_bool(conf->nat64.drop_icmp6_info));
+				print_bool(conf->global.nat64.drop_icmp6_info));
 		printf("    --%s: %s\n", OPTNAME_DROP_EXTERNAL_TCP,
-				print_bool(conf->nat64.drop_external_tcp));
+				print_bool(conf->global.nat64.drop_external_tcp));
 		printf("\n");
 
 		printf("  Timeouts:\n");
 		printf("    --%s: ", OPTNAME_UDP_TIMEOUT);
-		print_time_friendly(conf->nat64.ttl.udp);
+		print_time_friendly(conf->session.ttl.udp);
 		printf("    --%s: ", OPTNAME_TCPEST_TIMEOUT);
-		print_time_friendly(conf->nat64.ttl.tcp_est);
+		print_time_friendly(conf->session.ttl.tcp_est);
 		printf("    --%s: ", OPTNAME_TCPTRANS_TIMEOUT);
-		print_time_friendly(conf->nat64.ttl.tcp_trans);
+		print_time_friendly(conf->session.ttl.tcp_trans);
 		printf("    --%s: ", OPTNAME_ICMP_TIMEOUT);
-		print_time_friendly(conf->nat64.ttl.icmp);
+		print_time_friendly(conf->session.ttl.icmp);
 		printf("    --%s: ", OPTNAME_FRAG_TIMEOUT);
-		print_time_friendly(conf->nat64.ttl.frag);
+		print_time_friendly(conf->global.nat64.ttl.frag);
 		printf("\n");
 
 		printf("  Synchronization:\n");
 		printf("  Enabled (--%s, --%s): %s\n",
 				OPTNAME_SYNCH_ENABLE , OPTNAME_SYNCH_DISABLE,
-					conf->synch_enabled ? "Enabled" : "Disabled");
+				conf->session.joold.enabled ? "Enabled" : "Disabled");
 
-		printf("    --%s: %u sessions\n", OPTNAME_SYNCH_MAX_SESSIONS, conf->synch_elements_limit);
-		printf("    --%s: %u milliseconds\n", OPTNAME_SYNCH_PERIOD, conf->synch_elements_period);
-		printf("    --%s: %u milliseconds\n", OPTNAME_SYNCH_THRESHOLD, conf->synch_elements_threshold);
+		printf("    --%s: %u sessions\n", OPTNAME_SYNCH_MAX_SESSIONS, conf->session.joold.queue_capacity);
+		printf("    --%s: %u milliseconds\n", OPTNAME_SYNCH_PERIOD, conf->session.joold.timer_period);
 	}
-
-
 
 	return 0;
 }
 
 static int handle_display_response_csv(struct nl_core_buffer *buffer, void *arg)
 {
-	struct global_config *conf = netlink_get_data(buffer);
+	struct full_config *conf = netlink_get_data(buffer);
 
 	printf("Status,");
 	printf("Manually enabled,");
@@ -201,65 +198,61 @@ static int handle_display_response_csv(struct nl_core_buffer *buffer, void *arg)
 		printf("Synchronization Status,");
 		printf(OPTNAME_SYNCH_MAX_SESSIONS ",");
 		printf(OPTNAME_SYNCH_PERIOD ",");
-		printf(OPTNAME_SYNCH_THRESHOLD);
-
 	}
 
 	printf("\n");
 
-	printf("%s,", print_status(conf));
-	printf("%s,", print_bool(conf->enabled));
-	printf("%s,", print_bool(conf->reset_traffic_class));
-	printf("%s,", print_bool(conf->reset_tos));
-	printf("%u,", conf->new_tos);
+	printf("%s,", print_status(&conf->global));
+	printf("%s,", print_bool(conf->global.enabled));
+	printf("%s,", print_bool(conf->global.reset_traffic_class));
+	printf("%s,", print_bool(conf->global.reset_tos));
+	printf("%u,", conf->global.new_tos);
 
 	printf("\"");
-	print_plateaus(conf, ",");
+	print_plateaus(&conf->global, ",");
 	printf("\",");
 
 	if (xlat_is_nat64()) {
-		printf("%llu,", conf->nat64.max_stored_pkts);
-		printf("%s,", print_bool(conf->nat64.src_icmp6errs_better));
+		printf("%u,", conf->session.pktqueue.max_stored_pkts);
+		printf("%s,", print_bool(conf->global.nat64.src_icmp6errs_better));
 	} else {
-		printf("%s,", print_bool(conf->siit.compute_udp_csum_zero));
-		printf("%s,", int_to_hairpin_mode(conf->siit.eam_hairpin_mode));
-		printf("%s,", print_bool(conf->siit.randomize_error_addresses));
+		printf("%s,", print_bool(conf->global.siit.compute_udp_csum_zero));
+		printf("%s,", int_to_hairpin_mode(conf->global.siit.eam_hairpin_mode));
+		printf("%s,", print_bool(conf->global.siit.randomize_error_addresses));
 	}
 
-	print_allow_atomic_frags(conf);
+	print_allow_atomic_frags(&conf->global);
 	printf(",");
-	printf("%s,", print_bool(conf->atomic_frags.df_always_on));
-	printf("%s,", print_bool(conf->atomic_frags.build_ipv6_fh));
-	printf("%s,", print_bool(conf->atomic_frags.build_ipv4_id));
-	printf("%s", print_bool(conf->atomic_frags.lower_mtu_fail));
+	printf("%s,", print_bool(conf->global.atomic_frags.df_always_on));
+	printf("%s,", print_bool(conf->global.atomic_frags.build_ipv6_fh));
+	printf("%s,", print_bool(conf->global.atomic_frags.build_ipv4_id));
+	printf("%s", print_bool(conf->global.atomic_frags.lower_mtu_fail));
 
 	if (xlat_is_nat64()) {
 		printf(",");
 
-		printf("%s,", print_bool(conf->nat64.bib_logging));
-		printf("%s,", print_bool(conf->nat64.session_logging));
-		printf("%s,", print_bool(conf->nat64.drop_by_addr));
-		printf("%s,", print_bool(conf->nat64.drop_icmp6_info));
-		printf("%s,", print_bool(conf->nat64.drop_external_tcp));
+		printf("%s,", print_bool(conf->bib.log_changes));
+		printf("%s,", print_bool(conf->session.log_changes));
+		printf("%s,", print_bool(conf->global.nat64.drop_by_addr));
+		printf("%s,", print_bool(conf->global.nat64.drop_icmp6_info));
+		printf("%s,", print_bool(conf->global.nat64.drop_external_tcp));
 
-		print_time_csv(conf->nat64.ttl.udp);
+		print_time_csv(conf->session.ttl.udp);
 		printf(",");
-		print_time_csv(conf->nat64.ttl.tcp_est);
+		print_time_csv(conf->session.ttl.tcp_est);
 		printf(",");
-		print_time_csv(conf->nat64.ttl.tcp_trans);
+		print_time_csv(conf->session.ttl.tcp_trans);
 		printf(",");
-		print_time_csv(conf->nat64.ttl.icmp);
+		print_time_csv(conf->session.ttl.icmp);
 		printf(",");
-		print_time_csv(conf->nat64.ttl.frag);
+		print_time_csv(conf->global.nat64.ttl.frag);
 		printf(",");
 
-		print_bool(conf->synch_enabled);
+		print_bool(conf->session.joold.enabled);
 		printf(",");
-		printf("%u", conf->synch_elements_limit);
+		printf("%u", conf->session.joold.queue_capacity);
 		printf(",");
-		printf("%u", conf->synch_elements_period);
-		printf(",");
-		printf("%u", conf->synch_elements_threshold);
+		printf("%u", conf->session.joold.timer_period);
 	}
 	printf("\n");
 
@@ -279,24 +272,22 @@ int global_display(bool csv)
 
 int global_update(__u8 type, size_t size, void *data)
 {
-	struct request_hdr *main_hdr;
-	union request_global *global_hdr;
+	struct request_hdr *hdr;
 	void *payload;
 	size_t len;
 	int result;
 
-	len = sizeof(*main_hdr) + sizeof(*global_hdr) + size;
-	main_hdr = malloc(len);
-	if (!main_hdr)
+	len = sizeof(*hdr) + sizeof(type) + size;
+	hdr = malloc(len);
+	if (!hdr)
 		return -ENOMEM;
-	global_hdr = (union request_global *) (main_hdr + 1);
-	payload = global_hdr + 1;
+	payload = hdr + 1;
 
-	init_request_hdr(main_hdr, len, MODE_GLOBAL, OP_UPDATE);
-	global_hdr->update.type = type;
-	memcpy(payload, data, size);
+	init_request_hdr(hdr, len, MODE_GLOBAL, OP_UPDATE);
+	memcpy(payload, &type, sizeof(type));
+	memcpy(payload + sizeof(type), data, size);
 
-	result = netlink_request(main_hdr, len, NULL, NULL);
-	free(main_hdr);
+	result = netlink_request(hdr, len, NULL, NULL);
+	free(hdr);
 	return result;
 }

@@ -94,8 +94,6 @@ static bool get_ubit(struct ipv6_prefix *prefix)
 
 int pool6_add(struct ipv6_prefix *prefix, bool force)
 {
-	fprintf(stderr, "adding pool6 prefix\n");
-
 	unsigned char request[HDR_LEN + PAYLOAD_LEN];
 	struct request_hdr *hdr = (struct request_hdr *) request;
 	union request_pool6 *payload = (union request_pool6 *) (request + HDR_LEN);

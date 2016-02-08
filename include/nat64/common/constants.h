@@ -4,11 +4,6 @@
 /**
  * @file
  * General purpose #defines, intended to minimize use of numerical constants elsewhere in the code.
- *
- * @author Roberto Aceves
- * @author Ramiro Nava
- * @author Miguel Gonzalez
- * @author Alberto Leiva
  */
 
 

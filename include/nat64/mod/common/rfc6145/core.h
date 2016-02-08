@@ -8,8 +8,6 @@
  *
  * "Translating the Packet" is the core translation of SIIT and the fourth step
  * of NAT64 (RFC6146 section 3.7).
- *
- * @author Alberto Leiva
  */
 
 #include <linux/ip.h>

@@ -14,8 +14,6 @@
  * For the sake of consistency, and so the unit tests don't send bogus ICMP errors left and right
  * (because the unit tests use an impersonator no-op ICMP wrapper), use this module even if your
  * code isn't reused in hairpinning, please.
- *
- * @author Alberto Leiva
  */
 
 #include "nat64/mod/common/packet.h"

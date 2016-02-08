@@ -4,8 +4,6 @@
 /**
  * @file
  * Commons operations to compare a incoming skb to an usr_skb;
- *
- * @author Daniel Hdz Felix
  */
 
 

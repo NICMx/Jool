@@ -2,9 +2,6 @@
  * @file
  * Main for the NAT64's userspace application.
  * Parses parameters from the user and hands the real work to the other .c's.
- *
- * @author Miguel González
- * @author Alberto Leiva
  */
 
 #include <stdio.h>
@@ -21,6 +18,7 @@
 #include "nat64/common/xlat.h"
 #include "nat64/usr/str_utils.h"
 #include "nat64/usr/types.h"
+#include "nat64/usr/instance.h"
 #include "nat64/usr/pool.h"
 #include "nat64/usr/pool6.h"
 #include "nat64/usr/pool4.h"
@@ -358,6 +356,9 @@ static int parse_opt(int key, char *str, struct argp_state *state)
 	case ARGP_LOGTIME:
 		error = update_state(args, MODE_LOGTIME, LOGTIME_OPS);
 		break;
+	case ARGP_INSTANCE:
+		error = update_state(args, MODE_INSTANCE, INSTANCE_OPS);
+		break;
 
 	case ARGP_DISPLAY:
 		error = update_state(args, DISPLAY_MODES, OP_DISPLAY);
@@ -524,7 +525,7 @@ static int parse_opt(int key, char *str, struct argp_state *state)
 	case ARGP_PARSE_FILE:
 		error = update_state(args, MODE_PARSE_FILE, OP_UPDATE);
 
-		args->parse_file.filename =  malloc(sizeof(char)*(strlen(str)+1));
+		args->parse_file.filename =  malloc(sizeof(char) * (strlen(str) + 1));
 		if (!args->parse_file.filename) {
 			error = -ENOMEM;
 			log_err("Unable to allocate memory!.");
@@ -544,12 +545,8 @@ static int parse_opt(int key, char *str, struct argp_state *state)
 		error = set_global_u8(args, SYNCH_ELEMENTS_LIMIT, str, 0, MAX_U8);
 		break;
 	case ARGP_SYNCH_PERIOD:
-		error = set_global_u64(args, SYNCH_PERIOD, str, 0, MAX_U64,1);
+		error = set_global_u64(args, SYNCH_PERIOD, str, 0, MAX_U64, 1);
 		break;
-	case ARGP_SYNCH_THRESHOLD:
-		error = set_global_u64(args, SYNCH_THRESHOLD, str, 0, MAX_U32,1);
-		break;
-
 
 	default:
 		error = ARGP_ERR_UNKNOWN;
@@ -642,6 +639,27 @@ static bool validate_pool6(struct arguments *args)
 	return -EINVAL;
 }
 
+/* TODO use this more? */
+static char *op2str(enum config_operation op)
+{
+	switch (op) {
+	case OP_DISPLAY:
+		return "display";
+	case OP_COUNT:
+		return "count";
+	case OP_ADD:
+		return "add";
+	case OP_UPDATE:
+		return "update";
+	case OP_REMOVE:
+		return "remove";
+	case OP_FLUSH:
+		return "flush";
+	}
+
+	return "unknown";
+}
+
 /*
  * The main function.
  */
@@ -651,10 +669,8 @@ static int main_wrapped(int argc, char **argv)
 	int error;
 
 	error = parse_args(argc, argv, &args);
-
 	if (error)
 		return error;
-
 
 	switch (args.mode) {
 	case MODE_POOL6:
@@ -875,9 +891,24 @@ static int main_wrapped(int argc, char **argv)
 		break;
 
 	case MODE_PARSE_FILE:
-		return parse_file(args.parse_file.filename);
+//		return parse_file(args.parse_file.filename);
+		log_err("Not reviewed yet.");
+		return -EINVAL;
 
 	case MODE_JOOLD:
+		break;
+
+	case MODE_INSTANCE:
+		switch (args.op) {
+		case OP_ADD:
+			return instance_add();
+		case OP_REMOVE:
+			return instance_rm();
+		default:
+			log_err("Instance mode doesn't support operation '%s'.",
+					op2str(args.op));
+			return -EINVAL;
+		}
 		break;
 	}
 
@@ -890,7 +921,6 @@ int main(int argc, char **argv)
 	int error;
 
 	error = netlink_init();
-
 	if (error)
 		return error;
 

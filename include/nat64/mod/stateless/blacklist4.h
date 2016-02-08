@@ -4,9 +4,6 @@
 /**
  * @file
  * Pool of banned IPv4 addresses; Jool will refuse to translate these addresses.
- *
- * @author Alberto Leiva
- * @author Daniel Hdz Felix
  */
 
 #include <net/net_namespace.h>

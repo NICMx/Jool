@@ -57,7 +57,6 @@ int (*main_callback)(struct sk_buff *skb_in, struct genl_info *info) = NULL;
 static int genetlink_callback(struct sk_buff *skb_in, struct genl_info *info)
 {
 	if (main_callback != NULL) {
-		log_info("calling main callback!");
 		return main_callback(skb_in, info);
 	} else {
 		log_warn_once("Wanted to call main callback but it is null!");
@@ -208,7 +207,6 @@ int nlcore_send_multicast_message(struct nl_core_buffer *buffer)
 
 int nlbuffer_send(struct genl_info *info, enum config_mode command, struct nl_core_buffer *buffer)
 {
-	log_info("sending buffer!");
 	if (buffer->len > (size_t)NL_CORE_BUFFER_DATA_SIZE) {
 		log_err("Buffer too long to be sent!");
 		return -EINVAL;
@@ -231,11 +229,8 @@ int nlcore_respond_error(struct genl_info *info, enum config_mode command, int e
 		return -EINVAL;
 	}
 
-	log_info("msg len: %d", msg_length);
-
-
-	error = nlbuffer_new(&buffer, (size_t) msg_length);
-
+	/* TODO it should just be a size_t. */
+	error = nlbuffer_new(&buffer, (size_t)msg_length);
 	if (error) {
 		log_err("Error while trying to allocate buffer for sending error message!");
 		return error;
@@ -244,7 +239,7 @@ int nlcore_respond_error(struct genl_info *info, enum config_mode command, int e
 
 	buffer->error_code = error_code;
 
-	error = nlbuffer_write(buffer, error_msg, (size_t) msg_length);
+	error = nlbuffer_write(buffer, error_msg, (size_t)msg_length);
 
 	if (error) {
 		log_err("Error while trying to write to buffer for sending error message!");
@@ -320,7 +315,7 @@ static int register_family(void)
 {
 	int error;
 
-	log_info("Registering family.");
+	log_debug("Registering Generic Netlink family...");
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(3, 13, 0)
 
@@ -344,13 +339,11 @@ static int register_family(void)
 	}
 #endif
 
-	log_info("Jool module registered.");
 	return 0;
 }
 
 void nlcore_set_main_callback(int (*cb)(struct sk_buff *skb_in, struct genl_info *info))
 {
-	log_info("setting main callback!");
 	main_callback = cb;
 }
 

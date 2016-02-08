@@ -122,10 +122,10 @@ static int __add(__u32 mark, enum l4_protocol proto,
 	}
 
 	init_request_hdr(hdr, sizeof(request), MODE_POOL4, OP_ADD);
-	payload->add.mark = mark;
-	payload->add.proto = proto;
-	payload->add.addrs = *addrs;
-	payload->add.ports = *ports;
+	payload->add.entry.mark = mark;
+	payload->add.entry.proto = proto;
+	payload->add.entry.addrs = *addrs;
+	payload->add.entry.ports = *ports;
 
 	return netlink_request(request, hdr->length, NULL, NULL);
 }
@@ -157,10 +157,10 @@ static int __rm(__u32 mark, enum l4_protocol proto,
 	union request_pool4 *payload = (union request_pool4 *) (request + HDR_LEN);
 
 	init_request_hdr(hdr, sizeof(request), MODE_POOL4, OP_REMOVE);
-	payload->rm.mark = mark;
-	payload->rm.proto = proto;
-	payload->rm.addrs = *addrs;
-	payload->rm.ports = *ports;
+	payload->rm.entry.mark = mark;
+	payload->rm.entry.proto = proto;
+	payload->rm.entry.addrs = *addrs;
+	payload->rm.entry.ports = *ports;
 	payload->rm.quick = quick;
 
 	return netlink_request(request, hdr->length, NULL, NULL);

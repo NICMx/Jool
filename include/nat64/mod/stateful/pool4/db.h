@@ -5,8 +5,6 @@
  * @file
  * The pool of IPv4 addresses. Stateful NAT64 Jool uses this to figure out
  * which packets should be translated.
- *
- * @author Alberto Leiva
  */
 
 #include "nat64/mod/common/config.h"

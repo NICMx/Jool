@@ -8,9 +8,6 @@
  * resized or anything.
  *
  * Specifically intended for the config module's convenience.
- *
- * @author Alberto Leiva
- * @author Daniel Hernandez
  */
 
 #include "linux/netlink.h"

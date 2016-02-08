@@ -6,8 +6,6 @@
  * Two-liners (since you need to check the return value) for string-to-something else conversions.
  * This is only used by the parser of the user's arguments, so it's very noisy on the console on
  * purpose.
- *
- * @author Alberto Leiva
  */
 
 #include "nat64/common/str_utils.h"

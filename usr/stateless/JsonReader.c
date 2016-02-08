@@ -1,3 +1,10 @@
+/*
+ * TODO this is missing error handling everywhere.
+ * It also has C++-style comments and spanish.
+ * Indentation and naming are not following Linux standards.
+ * It also duplicates lots of the stateful counterpart.
+ */
+
 #include "nat64/common/JsonReader.h"
 #include "nat64/common/JsonReaderCommon.h"
 
@@ -266,6 +273,8 @@ static int parse_siit_global(cJSON * global_json)
 		read_value = cJSON_GetObjectItem(global_json, "mtu-plateaus") ;
 		configured_parameters->mtu_plateaus = 0;
 
+		/* TODO where the hell is mtu_plateau_count? */
+
 		int i;
 		num_items_mtu_plateaus = 0;
 
@@ -279,13 +288,11 @@ static int parse_siit_global(cJSON * global_json)
 				num_items_mtu_plateaus++;
 			}
 
-			global->mtu_plateaus = malloc(sizeof(__u16)*num_items_mtu_plateaus) ;
-
 			__u16 value;
 			mtu_item = read_value->child;
 
 			for (i=0 ; i < num_items_mtu_plateaus; i++) {
-				error = str_to_u16(mtu_item->valuestring,&value,0,3000) ;
+				error = str_to_u16(mtu_item->valuestring, &value, 0, 3000);
 
 				if (error) {
 					log_err("mtu-plateaus, not valid!. Global: %s", read_value->valuestring) ;

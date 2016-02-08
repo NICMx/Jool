@@ -8,8 +8,6 @@
  * Everything in this file assumes the main IPv6 header is glued in memory to the extension headers,
  * preceding them (such as in a linearized sk_buff). This assumption is fine in this project
  * because early validation ensures all headers can be pulled (see pskb_may_pull()).
- *
- * @author Alberto Leiva
  */
 
 #include <linux/types.h>

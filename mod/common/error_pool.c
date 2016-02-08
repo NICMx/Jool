@@ -104,7 +104,7 @@ int error_pool_get_message(char **out_message, unsigned int *msg_len)
 
 	buffer_pointer[0] = '\0';
 
-	(*msg_len) = msg_size;
+	(*msg_len) = msg_size + 1;
 	msg_size = 0;
 
 	return 0;
