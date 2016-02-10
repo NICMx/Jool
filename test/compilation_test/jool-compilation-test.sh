@@ -6,7 +6,7 @@
 
 #Substute with where your git directory is:
 GIT_DIR="/home/jool/git"
-JOOL_DIR=$(echo ${PWD%/test/compile_test})
+JOOL_DIR=$(echo ${PWD%/test/compilation_test})
 LINUX_DIR="$GIT_DIR/linux"
 LINUX_GIT="https://github.com/torvalds/linux.git"
 
