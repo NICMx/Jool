@@ -5,10 +5,10 @@ EXTRA_CFLAGS += -DUNIT_TESTING
 EXTRA_CFLAGS += -DBENCHMARK
 
 #CC=cgcc
-ccflags-y := -I$(src)/../../include
-ccflags-y += -I$(src)/../../mod/common
-ccflags-y += -I$(src)/../../mod/stateful
-ccflags-y += -I$(src)/../../mod/stateless
+ccflags-y := -I$(src)/../../../include
+ccflags-y += -I$(src)/../../../mod/common
+ccflags-y += -I$(src)/../../../mod/stateful
+ccflags-y += -I$(src)/../../../mod/stateless
 
 
 RBTREE = rbtree
@@ -16,8 +16,8 @@ RBTREE = rbtree
 obj-m += $(RBTREE).o
 
 
-MIN_REQS = ../../mod/common/types.o \
-	../../mod/common/address.o \
+MIN_REQS = ../../../mod/common/types.o \
+	../../../mod/common/address.o \
 	../framework/str_utils.o \
 	../framework/unit_test.o \
 	../impersonator/error_pool.o \
