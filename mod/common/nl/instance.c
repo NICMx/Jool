@@ -7,12 +7,12 @@
 
 int handle_instance_add(struct genl_info *info)
 {
-	return nlcore_respond(info, MODE_INSTANCE, xlator_add());
+	return nlcore_respond(info, xlator_add());
 }
 
 int handle_instance_rm(struct genl_info *info)
 {
-	return nlcore_respond(info, MODE_INSTANCE, xlator_rm());
+	return nlcore_respond(info, xlator_rm());
 }
 
 int handle_instance_request(struct genl_info *info)
@@ -20,7 +20,7 @@ int handle_instance_request(struct genl_info *info)
 	struct request_hdr *jool_hdr = get_jool_hdr(info);
 
 	if (verify_superpriv())
-		return nlcore_respond(info, MODE_INSTANCE, -EPERM);
+		return nlcore_respond(info, -EPERM);
 
 	switch (jool_hdr->operation) {
 	case OP_ADD:
@@ -30,5 +30,5 @@ int handle_instance_request(struct genl_info *info)
 	}
 
 	log_err("Unknown operation: %d", jool_hdr->operation);
-	return nlcore_respond_error(info, MODE_INSTANCE, -EINVAL);
+	return nlcore_respond_error(info, -EINVAL);
 }

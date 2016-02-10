@@ -21,6 +21,6 @@ struct arguments
 };
 
 error_t parse_opt (int key, char *arg, struct argp_state *state);
-struct argp_option * build_options();
+struct argp_option * build_opts();
 
 #endif

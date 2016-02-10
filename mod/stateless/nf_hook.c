@@ -6,7 +6,6 @@
 #include "nat64/mod/common/core.h"
 #include "nat64/mod/common/xlator.h"
 #include "nat64/mod/common/nl/nl_core2.h"
-#include "nat64/mod/common/nl/nl_handler.h"
 #include "nat64/mod/common/types.h"
 #include "nat64/mod/common/log_time.h"
 
@@ -88,9 +87,6 @@ static int __init jool_init(void)
 	error = logtime_init();
 	if (error)
 		goto log_time_failure;
-	error = nlhandler_init();
-	if (error)
-		goto nlhandler_failure;
 	error = nlcore_init();
 	if (error)
 		goto nlcore_failure;
@@ -107,8 +103,6 @@ static int __init jool_init(void)
 nf_register_hooks_failure:
 	nlcore_destroy();
 nlcore_failure:
-	nlhandler_destroy();
-nlhandler_failure:
 	logtime_destroy();
 log_time_failure:
 	xlator_destroy();
@@ -121,7 +115,6 @@ static void __exit jool_exit(void)
 	nf_unregister_hooks(nfho, ARRAY_SIZE(nfho));
 
 	nlcore_destroy();
-	nlhandler_destroy();
 	logtime_destroy();
 	xlator_destroy();
 

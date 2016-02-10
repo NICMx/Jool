@@ -11,5 +11,5 @@ int handle_atomconfig_request(struct xlator *jool, struct genl_info *info)
 
 	hdr = get_jool_hdr(info);
 	error = atomconfig_add(jool, hdr + 1, hdr->length - sizeof(*hdr));
-	return nlcore_respond(info, MODE_PARSE_FILE, error);
+	return nlcore_respond(info, error);
 }

@@ -46,10 +46,10 @@ int init_threads(char *multicast_address, char *local_ip_address,
 	return 0;
 }
 
-int main_wrapped(int argc, char **argv) {
+int main_wrapped(int argc, char **argv, struct argp_option *opts) {
 
 	struct arguments arguments;
-	struct argp argp_struct = { build_options(), parse_opt, "", "" };
+	struct argp argp_struct = { opts, parse_opt, "", "" };
 	struct in6_addr ipv6_addr;
 	struct in_addr ipv4_addr;
 
@@ -139,5 +139,11 @@ int main_wrapped(int argc, char **argv) {
 
 int main(int argc, char **argv) {
 
-	return main_wrapped(argc, argv);
+	struct argp_option *opts = build_opts();
+	int error;
+
+	error = main_wrapped(argc, argv, opts);
+
+	free(opts);
+	return error;
 }

@@ -1,6 +1,6 @@
+#include "nat64/usr/joold/argp/options.h"
 #include <stdlib.h>
 #include <string.h>
-#include "nat64/usr/joold/argp/options.h"
 
 
 static const struct argp_option local_addr = {
@@ -48,7 +48,7 @@ static const struct argp_option *options[] = {
 		&ip_version
 };
 
-struct argp_option * build_options() {
+struct argp_option * build_opts() {
 
 	struct argp_option *result;
 	size_t template_size = sizeof(options);

@@ -13,8 +13,8 @@
  * @file
  * NAT64-specific functions, as linked by SIIT code.
  *
- * These are all supposed to be unreachable code, so they're very noisy on the
- * kernel log.
+ * Most of these are supposed to be unreachable code, so they're very noisy on
+ * the kernel log.
  */
 
 static int fail(const char *function_name)
@@ -108,12 +108,12 @@ void bibdb_put(struct bib *db)
 
 void bibdb_config_copy(struct bib *db, struct bib_config *config)
 {
-	fail(__func__);
+	/* No code. */
 }
 
 void bibdb_config_set(struct bib *db, struct bib_config *config)
 {
-	fail(__func__);
+	/* No code. */
 }
 
 int bibdb_find6(struct bib *db, const struct ipv6_transport_addr *addr,
@@ -192,12 +192,12 @@ void sessiondb_put(struct sessiondb *db)
 
 void sessiondb_config_copy(struct sessiondb *db, struct session_config *config)
 {
-	fail(__func__);
+	/* No code. */
 }
 
 void sessiondb_config_set(struct sessiondb *db, struct session_config *config)
 {
-	fail(__func__);
+	/* No code. */
 }
 
 void sessiondb_delete_taddr6s(struct sessiondb *db, struct ipv6_prefix *prefix)

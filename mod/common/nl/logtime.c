@@ -12,8 +12,6 @@ static struct log_time_db logs_ipv4_tcp;
 static struct log_time_db logs_ipv4_udp;
 static struct log_time_db logs_ipv4_icmp;
 
-static enum config_mode command = MODE_LOGTIME;
-
 /** Cache for struct log_node, for efficient allocation. */
 static struct kmem_cache *entry_cache;
 

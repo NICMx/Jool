@@ -1,6 +1,6 @@
 /**
  * @file
- * Main for the NAT64's userspace application.
+ * Main for the `jool_siit` and `jool` userspace applications.
  * Parses parameters from the user and hands the real work to the other .c's.
  */
 
@@ -35,7 +35,8 @@ const char *argp_program_version = JOOL_VERSION_STR;
 const char *argp_program_bug_address = "jool@nic.mx";
 
 /**
- * The parameters received from the user, formatted and ready to be read in any order.
+ * The program arguments received from the user,
+ * formatted and ready to be read in any order.
  */
 struct arguments {
 	enum config_mode mode;
@@ -73,7 +74,7 @@ struct arguments {
 	} db;
 
 	struct {
-		__u8 type;
+		__u16 type;
 		size_t size;
 		void *data;
 	} global;
@@ -81,11 +82,6 @@ struct arguments {
 	struct {
 		char *filename;
 	} parse_file;
-
-	struct {
-
-
-	} synchronization;
 
 	bool csv_format;
 };
@@ -111,18 +107,19 @@ static int update_state(struct arguments *args, enum config_mode valid_modes,
 	return 0;
 
 fail:
-	log_err("Illegal combination of parameters. See the manpage for readable grammar.");
+	log_err("Illegal arguments combination. See the manpage for grammar.");
 	return -EINVAL;
 }
 
-static int set_global_arg(struct arguments *args, __u8 type, size_t size, void *value)
+static int set_global_arg(struct arguments *args, __u16 type, size_t size,
+		void *value)
 {
 	int error = update_state(args, MODE_GLOBAL, OP_UPDATE);
 	if (error)
 		return error;
 
 	if (args->global.data) {
-		log_err("You can only edit one global configuration value at a time.");
+		log_err("You can only edit one global config value at a time.");
 		return -EINVAL;
 	}
 
@@ -137,7 +134,7 @@ static int set_global_arg(struct arguments *args, __u8 type, size_t size, void *
 	return 0;
 }
 
-static int set_global_bool(struct arguments *args, __u8 type, char *value)
+static int set_global_bool(struct arguments *args, __u16 type, char *value)
 {
 	__u8 tmp;
 	int error;
@@ -149,7 +146,8 @@ static int set_global_bool(struct arguments *args, __u8 type, char *value)
 	return set_global_arg(args, type, sizeof(tmp), &tmp);
 }
 
-static int set_global_u8(struct arguments *args, __u8 type, char *value, __u8 min, __u8 max)
+static int set_global_u8(struct arguments *args, __u16 type, char *value,
+		__u8 min, __u8 max)
 {
 	__u8 tmp;
 	int error;
@@ -161,7 +159,8 @@ static int set_global_u8(struct arguments *args, __u8 type, char *value, __u8 mi
 	return set_global_arg(args, type, sizeof(tmp), &tmp);
 }
 
-static int set_global_u64(struct arguments *args, __u8 type, char *value, __u64 min, __u64 max,
+static int set_global_u64(struct arguments *args, __u16 type, char *value,
+		__u64 min, __u64 max,
 		__u64 multiplier)
 {
 	__u64 tmp;
@@ -175,7 +174,7 @@ static int set_global_u64(struct arguments *args, __u8 type, char *value, __u64 
 	return set_global_arg(args, type, sizeof(tmp), &tmp);
 }
 
-static int set_global_u16_array(struct arguments *args, int type, char *value)
+static int set_global_u16_array(struct arguments *args, __u16 type, char *value)
 {
 	__u16* array;
 	size_t array_len;
@@ -194,35 +193,36 @@ static int set_ipv4_prefix(struct arguments *args, char *str)
 {
 	int error;
 
-	error = update_state(args, MODE_POOL4 | MODE_BLACKLIST | MODE_RFC6791 | MODE_EAMT,
-			OP_ADD | OP_REMOVE);
+	error = update_state(args, MODE_POOL4 | MODE_BLACKLIST | MODE_RFC6791
+			| MODE_EAMT, OP_ADD | OP_REMOVE);
 	if (error)
 		return error;
 
 	if (args->db.pool4.prefix_set) {
-		log_err("Only one IPv4 prefix can be added or removed at a time.");
+		log_err("Only one IPv4 prefix can be added/removed at a time.");
 		return -EINVAL;
 	}
 
 	args->db.pool4.prefix_set = true;
-	return str_to_ipv4_prefix(str, &args->db.pool4.prefix);
+	return str_to_prefix4(str, &args->db.pool4.prefix);
 }
 
 static int set_ipv6_prefix(struct arguments *args, char *str)
 {
 	int error;
 
-	error = update_state(args, MODE_POOL6 | MODE_EAMT, OP_ADD | OP_UPDATE | OP_REMOVE);
+	error = update_state(args, MODE_POOL6 | MODE_EAMT, OP_ADD | OP_UPDATE
+			| OP_REMOVE);
 	if (error)
 		return error;
 
 	if (args->db.pool6.prefix_set) {
-		log_err("Only one IPv6 prefix can be added or removed at a time.");
+		log_err("Only one IPv6 prefix can be added/removed at a time.");
 		return -EINVAL;
 	}
 
 	args->db.pool6.prefix_set = true;
-	return str_to_ipv6_prefix(str, &args->db.pool6.prefix);
+	return str_to_prefix6(str, &args->db.pool6.prefix);
 }
 
 static int set_bib6(struct arguments *args, char *str)
@@ -239,8 +239,8 @@ static int set_bib6(struct arguments *args, char *str)
 		return error;
 
 	if (args->db.tables.bib.addr6_set) {
-		log_err("You entered more than one IPv6 transport address. "
-				"Only one BIB entry can be added or removed at a time.");
+		log_err("You entered more than one IPv6 transport address.");
+		log_err("Only one BIB entry can be added/removed at a time.");
 		return -EINVAL;
 	}
 
@@ -262,8 +262,8 @@ static int set_bib4(struct arguments *args, char *str)
 		return error;
 
 	if (args->db.tables.bib.addr4_set) {
-		log_err("You entered more than one IPv4 transport address. "
-				"Only one BIB entry can be added or removed at a time.");
+		log_err("You entered more than one IPv4 transport address.");
+		log_err("Only one BIB entry can be added/removed at a time.");
 		return -EINVAL;
 	}
 
@@ -276,8 +276,7 @@ static int set_port_range(struct arguments *args, char *str)
 	int error;
 
 	if (xlat_is_siit()) {
-		log_err("You seem to have entered a port range. "
-				"SIIT doesn't need them...");
+		log_err("You seem to have entered a port range. SIIT doesn't need them...");
 		return -EINVAL;
 	}
 
@@ -325,8 +324,7 @@ static int set_ip_args(struct arguments *args, char *str)
 static int parse_opt(int key, char *str, struct argp_state *state)
 {
 	struct arguments *args = state->input;
-	int error = 0;
-	char dummy_argument = '\0';
+	int error;
 
 	switch (key) {
 	case ARGP_GLOBAL:
@@ -399,16 +397,14 @@ static int parse_opt(int key, char *str, struct argp_state *state)
 		args->db.tables.numeric = true;
 		break;
 	case ARGP_CSV:
-		error = update_state(args, MODE_GLOBAL
-				| MODE_POOL6 | MODE_POOL4
-				| MODE_BLACKLIST | MODE_RFC6791
-				| MODE_EAMT | MODE_BIB | MODE_SESSION,
-				OP_DISPLAY);
+		error = update_state(args, POOL_MODES | TABLE_MODES
+				| MODE_GLOBAL, OP_DISPLAY);
 		args->csv_format = true;
 		break;
 
 	case ARGP_QUICK:
-		error = update_state(args, MODE_POOL6 | MODE_POOL4, OP_REMOVE | OP_FLUSH);
+		error = update_state(args, MODE_POOL6 | MODE_POOL4,
+				OP_REMOVE | OP_FLUSH);
 		args->db.quick = true;
 		break;
 	case ARGP_MARK:
@@ -417,66 +413,65 @@ static int parse_opt(int key, char *str, struct argp_state *state)
 			error = str_to_u32(str, &args->db.pool4.mark, 0, MAX_U32);
 		break;
 	case ARGP_FORCE:
-		error = update_state(args, MODE_POOL6 | MODE_POOL4 | MODE_EAMT, OP_ADD);
+		error = update_state(args, ANY_MODE, ANY_OP);
 		args->db.force = true;
 		break;
 
-	case ARGP_BIB_IPV6:
-		error = set_bib6(args, str);
+	case ARGP_ENABLE_TRANSLATION:
+	case ARGP_DISABLE_TRANSLATION:
+	case ARGP_SYNCH_ENABLE:
+	case ARGP_SYNCH_DISABLE:
+		error = set_global_bool(args, key, "true");
 		break;
-	case ARGP_BIB_IPV4:
-		error = set_bib4(args, str);
-		break;
-
-	case ARGP_DROP_ADDR:
-		error = set_global_bool(args, DROP_BY_ADDR, str);
-		break;
-	case ARGP_DROP_INFO:
-		error = set_global_bool(args, DROP_ICMP6_INFO, str);
-		break;
-	case ARGP_DROP_TCP:
-		error = set_global_bool(args, DROP_EXTERNAL_TCP, str);
-		break;
-
-	case ARGP_UDP_TO:
-		error = set_global_u64(args, UDP_TIMEOUT, str, UDP_MIN, MAX_U32/1000, 1000);
-		break;
-	case ARGP_ICMP_TO:
-		error = set_global_u64(args, ICMP_TIMEOUT, str, 0, MAX_U32/1000, 1000);
-		break;
-	case ARGP_TCP_TO:
-		error = set_global_u64(args, TCP_EST_TIMEOUT, str, TCP_EST, MAX_U32/1000, 1000);
-		break;
-	case ARGP_TCP_TRANS_TO:
-		error = set_global_u64(args, TCP_TRANS_TIMEOUT, str, TCP_TRANS, MAX_U32/1000, 1000);
-		break;
-	case ARGP_FRAG_TO:
-		error = set_global_u64(args, FRAGMENT_TIMEOUT, str, FRAGMENT_MIN, MAX_U32/1000, 1000);
-		break;
-
-	case ARGP_STORED_PKTS:
-		error = set_global_u64(args, MAX_PKTS, str, 0, MAX_U64, 1);
-		break;
-	case ARGP_SRC_ICMP6ERRS_BETTER:
-		error = set_global_bool(args, SRC_ICMP6ERRS_BETTER, str);
-		break;
-
-	case ARGP_BIB_LOGGING:
-		error = set_global_bool(args, BIB_LOGGING, str);
-		break;
-	case ARGP_SESSION_LOGGING:
-		error = set_global_bool(args, SESSION_LOGGING, str);
-		break;
-
+	case ARGP_RESET_TCLASS:
+	case ARGP_RESET_TOS:
+	case ARGP_ATOMIC_FRAGMENTS:
+	case ARGP_DF:
+	case ARGP_BUILD_FH:
+	case ARGP_BUILD_ID:
+	case ARGP_LOWER_MTU_FAIL:
 	case ARGP_COMPUTE_CSUM_ZERO:
-		error = set_global_bool(args, COMPUTE_UDP_CSUM_ZERO, str);
+	case ARGP_RANDOMIZE_RFC6791:
+	case ARGP_DROP_ADDR:
+	case ARGP_DROP_INFO:
+	case ARGP_DROP_TCP:
+	case ARGP_SRC_ICMP6ERRS_BETTER:
+	case ARGP_BIB_LOGGING:
+	case ARGP_SESSION_LOGGING:
+		error = set_global_bool(args, key, str);
+		break;
+	case ARGP_NEW_TOS:
+		error = set_global_u8(args, key, str, 0, MAX_U8);
+		break;
+	case ARGP_PLATEAUS:
+		error = set_global_u16_array(args, key, str);
 		break;
 	case ARGP_EAM_HAIRPIN_MODE:
-		error = set_global_u8(args, EAM_HAIRPINNING_MODE, str, 0,
-				EAM_HAIRPIN_MODE_COUNT - 1);
+		error = set_global_u8(args, key, str, 0, EAM_HAIRPIN_MODE_COUNT - 1);
 		break;
-	case ARGP_RANDOMIZE_RFC6791:
-		error = set_global_bool(args, RANDOMIZE_RFC6791, str);
+	case ARGP_UDP_TO:
+		error = set_global_u64(args, key, str, UDP_MIN, MAX_U32/1000, 1000);
+		break;
+	case ARGP_ICMP_TO:
+		error = set_global_u64(args, key, str, 0, MAX_U32/1000, 1000);
+		break;
+	case ARGP_TCP_TO:
+		error = set_global_u64(args, key, str, TCP_EST, MAX_U32/1000, 1000);
+		break;
+	case ARGP_TCP_TRANS_TO:
+		error = set_global_u64(args, key, str, TCP_TRANS, MAX_U32/1000, 1000);
+		break;
+	case ARGP_FRAG_TO:
+		error = set_global_u64(args, key, str, FRAGMENT_MIN, MAX_U32/1000, 1000);
+		break;
+	case ARGP_STORED_PKTS:
+		error = set_global_u64(args, key, str, 0, MAX_U64, 1);
+		break;
+	case ARGP_SYNCH_MAX_SESSIONS:
+		error = set_global_u8(args, key, str, 0, MAX_U8);
+		break;
+	case ARGP_SYNCH_PERIOD:
+		error = set_global_u64(args, key, str, 0, MAX_U64, 1);
 		break;
 
 	case ARGP_PREFIX:
@@ -485,40 +480,13 @@ static int parse_opt(int key, char *str, struct argp_state *state)
 	case ARGP_ADDRESS:
 		error = set_ipv4_prefix(args, str);
 		break;
+	case ARGP_BIB_IPV6:
+		error = set_bib6(args, str);
+		break;
+	case ARGP_BIB_IPV4:
+		error = set_bib4(args, str);
+		break;
 
-	case ARGP_RESET_TCLASS:
-		error = set_global_bool(args, RESET_TCLASS, str);
-		break;
-	case ARGP_RESET_TOS:
-		error = set_global_bool(args, RESET_TOS, str);
-		break;
-	case ARGP_NEW_TOS:
-		error = set_global_u8(args, NEW_TOS, str, 0, MAX_U8);
-		break;
-	case ARGP_DF:
-		error = set_global_bool(args, DF_ALWAYS_ON, str);
-		break;
-	case ARGP_BUILD_FH:
-		error = set_global_bool(args, BUILD_IPV6_FH, str);
-		break;
-	case ARGP_BUILD_ID:
-		error = set_global_bool(args, BUILD_IPV4_ID, str);
-		break;
-	case ARGP_LOWER_MTU_FAIL:
-		error = set_global_bool(args, LOWER_MTU_FAIL, str);
-		break;
-	case ARGP_PLATEAUS:
-		error = set_global_u16_array(args, MTU_PLATEAUS, str);
-		break;
-	case ARGP_ENABLE_TRANSLATION:
-		error = set_global_bool(args, ENABLE, "true");
-		break;
-	case ARGP_DISABLE_TRANSLATION:
-		error = set_global_bool(args, DISABLE, "true");
-		break;
-	case ARGP_ATOMIC_FRAGMENTS:
-		error = set_global_bool(args, ATOMIC_FRAGMENTS, str);
-		break;
 	case ARGP_KEY_ARG:
 		error = set_ip_args(args, str);
 		break;
@@ -533,19 +501,6 @@ static int parse_opt(int key, char *str, struct argp_state *state)
 		}
 
 		strcpy(args->parse_file.filename,str);
-		break;
-
-	case ARGP_SYNCH_ENABLE:
-		error = set_global_arg(args, SYNCH_ENABLE, 1, &dummy_argument);
-		break;
-	case ARGP_SYNCH_DISABLE:
-		error = set_global_arg(args, SYNCH_DISABLE, 1, &dummy_argument);
-		break;
-	case ARGP_SYNCH_MAX_SESSIONS:
-		error = set_global_u8(args, SYNCH_ELEMENTS_LIMIT, str, 0, MAX_U8);
-		break;
-	case ARGP_SYNCH_PERIOD:
-		error = set_global_u64(args, SYNCH_PERIOD, str, 0, MAX_U64, 1);
 		break;
 
 	default:
@@ -590,11 +545,11 @@ static unsigned int zeroize_upper_bits(__u16 num)
 static int parse_args(int argc, char **argv, struct arguments *result)
 {
 	int error;
-	struct argp argp = { build_options(), parse_opt, args_doc, doc };
+	struct argp argp = { build_opts(), parse_opt, args_doc, doc };
 
 	memset(result, 0, sizeof(*result));
-	result->mode = 0xFFFF;
-	result->op = 0xFF;
+	result->mode = ANY_MODE;
+	result->op = ANY_OP;
 	result->db.pool4.ports.min = 0;
 	result->db.pool4.ports.max = 65535U;
 
@@ -621,7 +576,8 @@ static bool validate_pool6(struct arguments *args)
 	int i;
 
 	if (!args->db.pool6.prefix_set) {
-		log_err("Please enter the prefix to be added or removed (%s).", PREFIX6_FORMAT);
+		log_err("Please enter the prefix to be added or removed (%s).",
+				PREFIX6_FORMAT);
 		return -EINVAL;
 	}
 
@@ -630,7 +586,7 @@ static bool validate_pool6(struct arguments *args)
 			return 0;
 	}
 
-	log_err("RFC 6052 does not like prefix length %u.",args->db.pool6.prefix.len);
+	log_err("RFC 6052 does not like prefix length %u.", args->db.pool6.prefix.len);
 	printf("These are valid: ");
 	for (i = 0; i < valid_lengths_size - 1; i++)
 		printf("%u, ", valid_lengths[i]);
@@ -891,9 +847,7 @@ static int main_wrapped(int argc, char **argv)
 		break;
 
 	case MODE_PARSE_FILE:
-//		return parse_file(args.parse_file.filename);
-		log_err("Not reviewed yet.");
-		return -EINVAL;
+		return parse_file(args.parse_file.filename);
 
 	case MODE_JOOLD:
 		break;

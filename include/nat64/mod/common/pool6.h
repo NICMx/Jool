@@ -28,5 +28,6 @@ int pool6_foreach(struct pool6 *pool,
 		struct ipv6_prefix *offset);
 int pool6_count(struct pool6 *pool, __u64 *result);
 bool pool6_is_empty(struct pool6 *pool);
+void pool6_print_refcount(struct pool6 *pool);
 
 #endif /* _JOOL_MOD_POOL6_H */

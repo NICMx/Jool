@@ -8,7 +8,7 @@
 #define OPTNAME_DISABLE			"disable"
 #define OPTNAME_ZEROIZE_TC		"zeroize-traffic-class"
 #define OPTNAME_OVERRIDE_TOS		"override-tos"
-#define OPTNAME_PARSE_FILE              "parse-file"
+#define OPTNAME_PARSE_FILE		"parse-file"
 #define OPTNAME_TOS			"tos"
 #define OPTNAME_MTU_PLATEAUS		"mtu-plateaus"
 
@@ -40,10 +40,10 @@
 
 
 /* Synchronization flags */
-#define OPTNAME_SYNCH_ENABLE "synch-enable"
-#define OPTNAME_SYNCH_DISABLE "synch-disable"
-#define OPTNAME_SYNCH_MAX_SESSIONS "synch-max-sessions"
-#define OPTNAME_SYNCH_PERIOD "synch-period"
+#define OPTNAME_SYNCH_ENABLE		"synch-enable"
+#define OPTNAME_SYNCH_DISABLE		"synch-disable"
+#define OPTNAME_SYNCH_MAX_SESSIONS	"synch-max-sessions"
+#define OPTNAME_SYNCH_PERIOD		"synch-period"
 
 int global_display(bool csv);
 int global_update(__u8 type, size_t size, void *data);

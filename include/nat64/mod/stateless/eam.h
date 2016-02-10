@@ -38,4 +38,6 @@ int eamt_foreach(struct eam_table *eamt,
 		int (*cb)(struct eamt_entry *, void *), void *arg,
 		struct ipv4_prefix *offset);
 
+void eamt_print_refcount(struct eam_table *eamt);
+
 #endif /* _JOOL_MOD_EAM_H */

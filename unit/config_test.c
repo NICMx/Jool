@@ -95,7 +95,6 @@ static bool basic_test(void)
 	success &= compare_global_configs(&config->cfg, &clone);
 	kfree(buffer);
 	config_put(config);
-	kfree(clone.mtu_plateaus);
 	return success;
 }
 
@@ -118,7 +117,6 @@ static bool translate_nulls_mtu(void)
 	 * lets modify our local config manually, jool's update functions wont
 	 * update to null
 	 */
-	kfree(config->cfg.mtu_plateaus);
 	config->cfg.mtu_plateaus = NULL;
 	config->cfg.mtu_plateau_count = 0;
 

@@ -21,7 +21,7 @@ debug:
 
 insert:
 	sudo dmesg -C
-	sudo insmod jool_siit.ko pool6=2001:db8:100::/40
+	sudo insmod jool_siit.ko
 	dmesg
 
 remove:

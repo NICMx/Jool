@@ -3,11 +3,13 @@
 
 bin_PROGRAMS = jool_siit
 jool_siit_SOURCES = \
+	../common/cJSON.c \
 	../common/dns.c \
 	../common/jool.c \
 	../common/netlink2.c \
 	../common/str_utils.c \
 	../common/argp/options.c \
+	../common/nl/buffer.c \
 	../common/target/bib.c \
 	../common/target/eam.c \
 	../common/target/global.c \
@@ -17,10 +19,8 @@ jool_siit_SOURCES = \
 	../common/target/pool4.c \
 	../common/target/pool6.c \
 	../common/target/session.c \
+	JsonReader.c \
 	xlat.c
-#	../common/cJSON.c \
-#	../common/JsonReaderCommon.c \
-#	JsonReader.c
 
 jool_siit_LDADD = ${LIBNLGENL3_LIBS} -lm
 jool_siit_CFLAGS = -Wall -O2

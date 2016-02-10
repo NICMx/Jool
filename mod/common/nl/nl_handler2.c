@@ -108,9 +108,10 @@ static int validate_header(struct genl_info *info)
 	return 0;
 }
 
-static int multiplex_request(struct xlator *jool, struct request_hdr *jool_hdr,
-		struct genl_info *info)
+static int multiplex_request(struct xlator *jool, struct genl_info *info)
 {
+	struct request_hdr *jool_hdr = get_jool_hdr(info);
+
 	switch (jool_hdr->mode) {
 	case MODE_POOL6:
 		return handle_pool6_config(jool, info);
@@ -139,10 +140,10 @@ static int multiplex_request(struct xlator *jool, struct request_hdr *jool_hdr,
 	}
 
 	log_err("Unknown configuration mode: %d", jool_hdr->mode);
-	return nlcore_respond_error(info, 0, -EINVAL);
+	return nlcore_respond_error(info, -EINVAL);
 }
 
-static int handle_jool_message(struct genl_info *info)
+static int __handle_jool_message(struct genl_info *info)
 {
 	struct request_hdr *jool_hdr = get_jool_hdr(info);
 	struct xlator translator;
@@ -158,11 +159,11 @@ static int handle_jool_message(struct genl_info *info)
 	error = xlator_find_current(&translator);
 	if (error == -ESRCH) {
 		log_err("This namespace lacks a Jool instance.");
-		return nlcore_respond_error(info, jool_hdr->mode, -ESRCH);
+		return nlcore_respond_error(info, -ESRCH);
 	}
 	if (error) {
 		log_err("Unknown error %d; Jool instance not found.", error);
-		return nlcore_respond_error(info, jool_hdr->mode, error);
+		return nlcore_respond_error(info, error);
 	}
 
 	/*
@@ -170,34 +171,22 @@ static int handle_jool_message(struct genl_info *info)
 	 * namespace-aware?
 	 */
 
-	error = multiplex_request(&translator, jool_hdr, info);
+	error = multiplex_request(&translator, info);
 	xlator_put(&translator);
 	return error;
 }
 
-static int handle_jool_message_wrapper(struct sk_buff *skb,
-		struct genl_info *info)
+int handle_jool_message(struct sk_buff *skb, struct genl_info *info)
 {
 	int error;
 
 	mutex_lock(&config_mutex);
 
 	error_pool_activate();
-	error = handle_jool_message(info);
+	error = __handle_jool_message(info);
 	error_pool_deactivate();
 
 	mutex_unlock(&config_mutex);
 
 	return error;
-}
-
-int nlhandler_init(void)
-{
-	nlcore_set_main_callback(handle_jool_message_wrapper);
-	return 0;
-}
-
-void nlhandler_destroy(void)
-{
-	/* No code. */
 }

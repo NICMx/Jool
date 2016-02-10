@@ -364,7 +364,7 @@ int str_to_addr6_port(const char *str, struct ipv6_transport_addr *addr_out)
 
 #undef STR_MAX_LEN
 #define STR_MAX_LEN (INET_ADDRSTRLEN + 1 + 2) /* [addr + null chara] + / + mask */
-int str_to_ipv4_prefix(const char *str, struct ipv4_prefix *prefix_out)
+int str_to_prefix4(const char *str, struct ipv4_prefix *prefix_out)
 {
 	const char *FORMAT = "<IPv4 address>[/<mask>] (eg. 192.0.2.0/24)";
 	/* strtok corrupts the string, so we'll be using this copy instead. */
@@ -398,7 +398,7 @@ int str_to_ipv4_prefix(const char *str, struct ipv4_prefix *prefix_out)
 
 #undef STR_MAX_LEN
 #define STR_MAX_LEN (INET6_ADDRSTRLEN + 1 + 3) /* [addr + null chara] + / + pref len */
-int str_to_ipv6_prefix(const char *str, struct ipv6_prefix *prefix_out)
+int str_to_prefix6(const char *str, struct ipv6_prefix *prefix_out)
 {
 	const char *FORMAT = "<IPv6 address>[/<length>] (eg. 64:ff9b::/96)";
 	/* strtok corrupts the string, so we'll be using this copy instead. */

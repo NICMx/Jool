@@ -78,6 +78,7 @@ enum config_mode {
  * eg. BIB_OPS = Allowed operations for BIB requests.
  */
 #define DATABASE_OPS (OP_DISPLAY | OP_COUNT | OP_ADD | OP_REMOVE | OP_FLUSH)
+#define ANY_OP 0xFF
 
 #define GLOBAL_OPS (OP_DISPLAY | OP_UPDATE)
 #define POOL6_OPS (DATABASE_OPS)
@@ -108,28 +109,6 @@ enum config_operation {
 	OP_FLUSH = (1 << 5),
 };
 
-struct global_bits {
-	__u8 manually_enabled;
-	__u8 address_dependent_filtering;
-	__u8 drop_icmpv6_info;
-	__u8 drop_externally_initiated_tcp;
-	__u8 udp_timeout;
-	__u8 tcp_est_timeout;
-	__u8 tcp_trans_timeout;
-	__u8 icmp_timeout;
-	__u8 fragment_arrival_timeout;
-	__u8 maximum_simultaneous_opens;
-	__u8 source_icmpv6_errors_better;
-	__u8 logging_bib;
-	__u8 logging_session;
-	__u8 zeroize_traffic_class;
-	__u8 override_tos;
-	__u8 tos;
-	__u8 mtu_plateaus;
-	__u8 amend_udp_checksum_zero;
-	__u8 randomize_rfc6791_addresses;
-};
-
 enum parse_section {
 	SEC_GLOBAL = 1,
 	SEC_POOL6 = 2,
@@ -142,15 +121,6 @@ enum parse_section {
 	SEC_INIT = 256
 };
 
-/* TODO (usr) NO-NO. */
-enum parse_entries_size {
-	POOL4_ENTRY_SIZE = 16,
-	BIB_ENTRY_SIZE = 25,
-	EAMT_ENTRY_SIZE = 22,
-	BLACKLIST_ENTRY_SIZE = 5,
-	POOL6791_ENTRY_SIZE = 5
-};
-
 /**
  * @{
  * Allowed modes for the operation mentioned in the name.
@@ -158,6 +128,7 @@ enum parse_entries_size {
  */
 #define POOL_MODES (MODE_POOL6 | MODE_POOL4 | MODE_BLACKLIST | MODE_RFC6791)
 #define TABLE_MODES (MODE_EAMT | MODE_BIB | MODE_SESSION)
+#define ANY_MODE 0xFFFF
 
 #define DISPLAY_MODES (MODE_GLOBAL | POOL_MODES | TABLE_MODES | MODE_LOGTIME)
 #define COUNT_MODES (POOL_MODES | TABLE_MODES)
@@ -206,6 +177,12 @@ static inline void init_request_hdr(struct request_hdr *hdr, __u32 length,
 	hdr->mode = mode;
 	hdr->operation = operation;
 }
+
+struct response_hdr {
+	struct request_hdr req;
+	__u16 error_code;
+	__u8 pending_data;
+};
 
 /**
  * Configuration for the "IPv6 Pool" module.
@@ -394,45 +371,42 @@ struct request_session {
  * Indicators of the respective fields in the sessiondb_config structure.
  */
 enum global_type {
-	/* NAT64 */
-	UDP_TIMEOUT,
-	ICMP_TIMEOUT,
-	TCP_EST_TIMEOUT,
-	TCP_TRANS_TIMEOUT,
-	FRAGMENT_TIMEOUT,
-
-	MAX_PKTS,
-	SRC_ICMP6ERRS_BETTER,
-
-	BIB_LOGGING,
-	SESSION_LOGGING,
-
-	DROP_BY_ADDR,
-	DROP_ICMP6_INFO,
-	DROP_EXTERNAL_TCP,
-
-	SYNCH_ENABLE,
-	SYNCH_DISABLE,
-	SYNCH_ELEMENTS_LIMIT,
-	SYNCH_PERIOD,
-
-	/* SIIT */
-	COMPUTE_UDP_CSUM_ZERO,
-	EAM_HAIRPINNING_MODE,
-	RANDOMIZE_RFC6791,
-
 	/* Common */
+	ENABLE = 1024,
+	DISABLE,
+	ENABLE_BOOL,
 	RESET_TCLASS,
 	RESET_TOS,
 	NEW_TOS,
+	ATOMIC_FRAGMENTS,
 	DF_ALWAYS_ON,
 	BUILD_IPV6_FH,
 	BUILD_IPV4_ID,
 	LOWER_MTU_FAIL,
 	MTU_PLATEAUS,
-	DISABLE,
-	ENABLE,
-	ATOMIC_FRAGMENTS,
+
+	/* SIIT */
+	COMPUTE_UDP_CSUM_ZERO,
+	RANDOMIZE_RFC6791,
+	EAM_HAIRPINNING_MODE,
+
+	/* NAT64 */
+	DROP_BY_ADDR,
+	DROP_ICMP6_INFO,
+	DROP_EXTERNAL_TCP,
+	SRC_ICMP6ERRS_BETTER,
+	UDP_TIMEOUT,
+	ICMP_TIMEOUT,
+	TCP_EST_TIMEOUT,
+	TCP_TRANS_TIMEOUT,
+	FRAGMENT_TIMEOUT,
+	BIB_LOGGING,
+	SESSION_LOGGING,
+	MAX_PKTS,
+	SYNCH_ENABLE,
+	SYNCH_DISABLE,
+	SYNCH_ELEMENTS_LIMIT,
+	SYNCH_PERIOD,
 };
 
 struct response_pool4_count {
@@ -496,6 +470,8 @@ struct eamt_entry {
 	struct ipv6_prefix prefix6;
 	struct ipv4_prefix prefix4;
 };
+
+#define PLATEAUS_MAX 64
 
 /**
  * A copy of the entire running configuration, excluding databases.
@@ -578,38 +554,9 @@ struct global_config {
 	 * The translator is supposed to pick the greatest plateau value that is
 	 * less than the incoming packet's Total Length field.
 	 */
-	__u16 mtu_plateaus[64];
+	__u16 mtu_plateaus[PLATEAUS_MAX];
 	/** Length of the mtu_plateaus array. */
 	__u16 mtu_plateau_count;
-
-	struct {
-		/**
-		 * Time values in this structure should be read as jiffies in
-		 * the kernel, milliseconds in userspace.
-		 * The kernel module is responsible for switching units as the
-		 * the values approach the border.
-		 */
-		struct {
-			/** Maximum time fragments will remain in the DB. */
-			__u64 frag;
-		} ttl;
-
-		/** Use Address-Dependent Filtering? (boolean) */
-		__u8 drop_by_addr;
-		/** Filter ICMPv6 Informational packets? (boolean) */
-		__u8 drop_icmp6_info;
-		/**
-		 * Drop externally initiated TCP connections? (IPv4 initiated)
-		 * (boolean)
-		 */
-		__u8 drop_external_tcp;
-
-		/**
-		 * True = issue #132 behaviour. False = RFC 6146 behaviour.
-		 * (boolean)
-		 */
-		__u8 src_icmp6errs_better;
-	} nat64;
 
 	struct {
 		/**
@@ -632,6 +579,35 @@ struct global_config {
 		 */
 		__u8 eam_hairpin_mode;
 	} siit;
+
+	struct {
+		/** Use Address-Dependent Filtering? (boolean) */
+		__u8 drop_by_addr;
+		/** Filter ICMPv6 Informational packets? (boolean) */
+		__u8 drop_icmp6_info;
+		/**
+		 * Drop externally initiated TCP connections? (IPv4 initiated)
+		 * (boolean)
+		 */
+		__u8 drop_external_tcp;
+
+		/**
+		 * True = issue #132 behaviour. False = RFC 6146 behaviour.
+		 * (boolean)
+		 */
+		__u8 src_icmp6errs_better;
+
+		/**
+		 * Time values in this structure should be read as jiffies in
+		 * the kernel, milliseconds in userspace.
+		 * The kernel module is responsible for switching units as the
+		 * the values approach the border.
+		 */
+		struct {
+			/** Maximum time fragments will remain in the DB. */
+			__u64 frag;
+		} ttl;
+	} nat64;
 };
 
 struct bib_config {
@@ -690,6 +666,11 @@ struct full_config {
 	struct global_config global;
 	struct bib_config bib;
 	struct session_config session;
+};
+
+struct global_value {
+	__u16 type;
+	__u16 len;
 };
 
 /**

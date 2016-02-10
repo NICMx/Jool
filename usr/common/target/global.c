@@ -17,12 +17,10 @@ static char *print_bool(bool value)
 
 static void print_plateaus(struct global_config *conf, char *separator)
 {
-	__u16 *plateaus;
 	int i;
 
-	plateaus = (__u16 *)(conf + 1);
 	for (i = 0; i < conf->mtu_plateau_count; i++) {
-		printf("%u", plateaus[i]);
+		printf("%u", conf->mtu_plateaus[i]);
 		if (i != conf->mtu_plateau_count - 1)
 			printf("%s", separator);
 	}
@@ -60,9 +58,14 @@ static void print_allow_atomic_frags(struct global_config *conf)
 		printf("Mixed");
 }
 
-static int handle_display_response(struct nl_core_buffer *buffer, void *arg)
+static int handle_display_response(struct jool_response *response, void *arg)
 {
-	struct full_config *conf = netlink_get_data(buffer);
+	struct full_config *conf = response->payload;
+
+	if (response->payload_len != sizeof(struct full_config)) {
+		log_err("Jool's response is not a structure containing global values.");
+		return -EINVAL;
+	}
 
 	printf("\n");
 	printf("  Status: %s\n", print_status(&conf->global));
@@ -153,9 +156,14 @@ static int handle_display_response(struct nl_core_buffer *buffer, void *arg)
 	return 0;
 }
 
-static int handle_display_response_csv(struct nl_core_buffer *buffer, void *arg)
+static int handle_display_response_csv(struct jool_response *response, void *arg)
 {
-	struct full_config *conf = netlink_get_data(buffer);
+	struct full_config *conf = response->payload;
+
+	if (response->payload_len != sizeof(struct full_config)) {
+		log_err("Jool's response is not a structure containing global values.");
+		return -EINVAL;
+	}
 
 	printf("Status,");
 	printf("Manually enabled,");
@@ -262,7 +270,7 @@ static int handle_display_response_csv(struct nl_core_buffer *buffer, void *arg)
 int global_display(bool csv)
 {
 	struct request_hdr request;
-	int (*cb)(struct nl_core_buffer *, void *);
+	jool_response_cb cb;
 
 	init_request_hdr(&request, sizeof(request), MODE_GLOBAL, OP_DISPLAY);
 	cb = csv ? handle_display_response_csv : handle_display_response;

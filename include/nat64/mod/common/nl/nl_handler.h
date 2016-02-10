@@ -7,14 +7,9 @@
  * using this.
  */
 
-/**
- * Activates this module. The module will then listen to user requests on its
- * own.
- */
-int nlhandler_init(void);
-/**
- * Terminates this module. Deletes any memory left on the heap.
- */
-void nlhandler_destroy(void);
+#include <linux/skbuff.h>
+#include <net/genetlink.h>
+
+int handle_jool_message(struct sk_buff *skb, struct genl_info *info);
 
 #endif /* _JOOL_MOD_NL_HANDLER_H */

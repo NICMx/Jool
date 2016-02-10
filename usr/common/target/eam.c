@@ -28,34 +28,30 @@ static void print_eamt_entry(struct eamt_entry *entry, char *separator)
 	printf("\n");
 }
 
-static int eam_display_response(struct nl_core_buffer *buffer, void *arg)
+static int eam_display_response(struct jool_response *response, void *arg)
 {
-
-	struct eamt_entry *entries;
+	struct eamt_entry *entries = response->payload;
 	struct display_params *params = arg;
 	__u16 entry_count, i;
 
-	entries = netlink_get_data(buffer);
-	entry_count = buffer->len / sizeof(*entries);
+	entry_count = response->payload_len / sizeof(*entries);
 
 	if (params->csv_format) {
-		for (i = 0; i < entry_count; i++) {
+		for (i = 0; i < entry_count; i++)
 			print_eamt_entry(&entries[i], ",");
-		}
 	} else {
-		for (i = 0; i < entry_count; i++) {
+		for (i = 0; i < entry_count; i++)
 			print_eamt_entry(&entries[i], " - ");
-		}
 	}
 
 	params->row_count += entry_count;
-	params->req_payload->display.prefix4_set = buffer->len;
+	params->req_payload->display.prefix4_set = response->hdr->pending_data;
 	if (entry_count > 0)
 		params->req_payload->display.prefix4 = entries[entry_count - 1].prefix4;
 	return 0;
 }
 
-int eam_display(bool csv_format)
+int eam_display(bool csv)
 {
 	unsigned char request[HDR_LEN + PAYLOAD_LEN];
 	struct request_hdr *hdr = (struct request_hdr *) request;
@@ -66,31 +62,37 @@ int eam_display(bool csv_format)
 	init_request_hdr(hdr, sizeof(request), MODE_EAMT, OP_DISPLAY);
 	payload->display.prefix4_set = false;
 	memset(&payload->display.prefix4, 0, sizeof(payload->display.prefix4));
-	params.csv_format = csv_format;
+	params.csv_format = csv;
 	params.row_count = 0;
 	params.req_payload = payload;
 
-	if (csv_format)
+	if (csv)
 		printf("IPv6 Prefix,IPv4 Prefix\n");
 
 	do {
 		error = netlink_request(request, hdr->length, eam_display_response, &params);
-	} while (!error && payload->display.prefix4_set);
+		if (error)
+			return error;
+	} while (payload->display.prefix4_set);
 
-	if (!csv_format && !error) {
+	if (!csv) {
 		if (params.row_count > 0)
-			printf("  (Fetched %u entries.)\n", params.row_count);
+			log_info("  (Fetched %u entries.)", params.row_count);
 		else
-			printf("  (empty)\n");
+			log_info("  (empty)");
 	}
 
-	return error;
+	return 0;
 }
 
-static int eam_count_response(struct nl_core_buffer *buffer, void *arg)
+static int eam_count_response(struct jool_response *response, void *arg)
 {
-	__u64 *conf = netlink_get_data(buffer);
-	printf("%llu\n", *conf);
+	if (response->payload_len != sizeof(__u64)) {
+		log_err("Jool's response is not the expected integer.");
+		return -EINVAL;
+	}
+
+	printf("%llu\n", *((__u64 *)response->payload));
 	return 0;
 }
 

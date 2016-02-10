@@ -1,1021 +1,493 @@
-/*
- * TODO this is missing error handling everywhere.
- * It also has C++-style comments and spanish.
- * Indentation and naming are not following Linux standards.
- * It also duplicates lots of the stateful counterpart.
- */
-
 #include "nat64/common/JsonReader.h"
-#include "nat64/common/JsonReaderCommon.h"
 
+#include <errno.h>
+#include <stdlib.h>
+#include <string.h>
+#include "nat64/common/config.h"
+#include "nat64/usr/cJSON.h"
+#include "nat64/usr/global.h"
+#include "nat64/usr/netlink.h"
+#include "nat64/usr/nl/buffer.h"
+#include "nat64/usr/str_utils.h"
+#include "nat64/usr/types.h"
+#include "nat64/usr/argp/options.h"
 
-static int do_parsing(char * buffer);
-static int parse_siit_json(cJSON * json_structure);
-static int parse_siit_global(cJSON * global_json);
-static int parse_siit_pool6(cJSON * pool6_json);
-static int parse_siit_eamt(cJSON * eamt_json);
-static int parse_siit_blacklist(cJSON * blacklist_json);
-static int parse_siit_pool6791(cJSON * pool6791_json);
+static int do_parsing(char *buffer);
+static int parse_siit_json(cJSON *json);
+static int handle_global(cJSON *global_json);
+static int handle_pool6(cJSON *pool6_json);
+static int handle_eamt(cJSON *json);
+static int handle_addr4_pool(cJSON *json, enum parse_section section);
 
-static int send_buffers();
-static int send_global_buffer();
-static int send_pool6_buffer();
-static int send_eamt_buffer();
-static int send_blacklist_buffer();
-static int send_pool6791_buffer();
-static int send_multipart_request_buffer(__u8*buffer,__u16 request_len, __u16 section);
-
-#ifdef DEBUG
-
-static int print_config();
-static int print_global();
-static int print_pool6();
-static int print_eamt();
-static int print_blacklist();
-static int print_pool6791();
-
-#endif
-
-static struct global_bits * configured_parameters;
-static __u16 num_items_mtu_plateaus=0;
-
-static __u8 send_global = 0;
-static struct global_config * global;
-
-static __u8 send_pool6 = 0;
-static struct ipv6_prefix * pool6_entry;
-
-static __u8 send_eamt = 0;
-static __u16 eamt_items_num = 0;
-static __u8 * eamt_buffer;
-
-static __u8 send_blacklist = 0;
-static __u16 blacklist_items_num = 0;
-static __u8 * blacklist_buffer;
-
-static __u8 send_pool6791 = 0;
-static __u16 pool6791_items_num = 0;
-static __u8 * pool6791_buffer;
-
-
-extern int parse_file(char * fileName)
+extern int parse_file(char *file_name)
 {
-	FILE * file = fopen(fileName, "rb");
-
+	FILE *file;
 	long length;
 	long read_bytes = 0;
-	char * buffer = 0;
+	char *buffer;
+	int error;
 
-	int error = 0;
-
-	if (file) {
-
-		fseek(file, 0, SEEK_END);
-		length = ftell(file);
-		fseek(file, 0, SEEK_SET);
-		buffer = malloc(length);
-
-		if (buffer) {
-
-			while (read_bytes < length) {
-				read_bytes+= fread(&buffer[read_bytes], 1, length, file);
-			}
-		}
-
-		fclose(file);
-
-	} else {
-		printf("%s", "File not found!");
-		error = -1;
+	file = fopen(file_name, "rb");
+	if (!file) {
+		perror("fopen() error");
+		return -EINVAL;
 	}
 
-	if (buffer) {
-		error = do_parsing(buffer);
-	} else {
-		printf("%s", "No buffer!");
-		error = -1;
+	error = fseek(file, 0, SEEK_END);
+	if (error) {
+		perror("fseek() 1 error");
+		goto fail;
 	}
+
+	length = ftell(file);
+	if (length == -1) {
+		perror("ftell() error");
+		error = length;
+		goto fail;
+	}
+
+	error = fseek(file, 0, SEEK_SET);
+	if (error) {
+		perror("fseek() 2 error");
+		goto fail;
+	}
+
+	buffer = malloc(length);
+	if (!buffer) {
+		log_err("Out of memory.");
+		error = -ENOMEM;
+		goto fail;
+	}
+
+	while (read_bytes < length)
+		read_bytes += fread(&buffer[read_bytes], 1, length, file);
+
+	fclose(file);
+
+	error = do_parsing(buffer);
+	free(buffer);
+	return error;
+
+fail:
+	fclose(file);
+	return error;
+}
+
+static int validate_file_type(cJSON *json_structure)
+{
+	cJSON *file_type = cJSON_GetObjectItem(json_structure, "File_Type");
+	if (!file_type)
+		return 0; /* The user doesn't care. */
+
+	if (strcmp(file_type->valuestring, "SIIT") != 0) {
+		log_err("File_Type is supposed to be 'SIIT' (got '%s').",
+				file_type->valuestring);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static int do_parsing(char *buffer)
+{
+	int error;
+
+	cJSON *json = cJSON_Parse(buffer);
+	if (!json) {
+		log_err("The JSON parsing yielded the following error:");
+		log_err("%s", cJSON_GetErrorPtr());
+		return -EINVAL;
+	}
+
+	error = validate_file_type(json);
+	if (error)
+		return error;
+
+	return parse_siit_json(json);
+}
+
+static int write_section(struct nl_buffer *buffer, enum parse_section section)
+{
+	__u16 tmp = section;
+	int error;
+
+	error = nlbuffer_write(buffer, &tmp, sizeof(tmp));
+	if (error)
+		log_err("Writing on an empty buffer yielded error %d.", error);
 
 	return error;
 }
 
-
-static int do_parsing(char * buffer)
+static struct nl_buffer *buffer_create(enum parse_section section)
 {
-	int error = 0;
+	struct nl_buffer *buffer;
+	struct request_hdr hdr;
+	int error;
 
-	cJSON * json_structure = cJSON_Parse(buffer);
-
-	if (json_structure) {
-
-		cJSON * file_type = cJSON_GetObjectItem(json_structure, "File_Type");
-
-		if (file_type) {
-			if (strcmp(file_type->valuestring, "SIIT") != 0) {
-				log_err("El valor - %s - del atributo FILE_TYPE no es válido.",file_type->valuestring);
-				return 1;
-			}
-		} else {
-			return 1;
-		}
-
-		log_info("parsing file...");
-		error = parse_siit_json(json_structure);
-
-		if (!error) {
-
-			log_info("file parsed!!.");
-			#ifdef DEBUG
-			error = print_config();
-			if (error) {
-				log_err("Something went wrong while trying to print the configuration!.");
-				return 1;
-			}
-			#endif
-
-
-			error = send_buffers();
-			if (error) {
-				log_err("Something went wrong while trying to send the buffers to the kernel!.");
-				return 1;
-			}
-
-			return 0;
-		}
-
-		log_info("file parsed with errors!!.");
-		return 1;
-
-	} else {
-		log_err("Something went wrong while trying to parse the file!. ->  %s", cJSON_GetErrorPtr());
-		return 1;
+	buffer = nlbuffer_create();
+	if (!buffer) {
+		log_err("Out of memory.");
+		return NULL;
 	}
 
-	return 0;
+	init_request_hdr(&hdr, 0, MODE_PARSE_FILE, OP_ADD);
+	error = nlbuffer_write(buffer, &hdr, sizeof(hdr));
+	if (error) {
+		log_err("Writing on an empty buffer yielded error %d.", error);
+		goto fail;
+	}
+
+	error = write_section(buffer, section);
+	if (error)
+		goto fail;
+
+	return buffer;
+
+fail:
+	nlbuffer_destroy(buffer);
+	return NULL;
 }
 
-static int parse_siit_json(cJSON * json_structure)
+static int buffer_write(struct nl_buffer *buffer,
+		void *payload, size_t payload_len,
+		enum parse_section section)
 {
-	int error = 0;
-	char * section_name = "Global";
+	int error;
 
-	cJSON * global = cJSON_GetObjectItem(json_structure, section_name);
-	error = parse_siit_global(global);
-
-	if (error) {
+	error = nlbuffer_write(buffer, payload, payload_len);
+	if (!error || error != -ENOSPC)
 		return error;
-	}
 
-	cJSON * pool6_json = cJSON_GetObjectItem(json_structure, "Pool6");
-	error = parse_siit_pool6(pool6_json);
-
-	if (error) {
+	error = nlbuffer_flush(buffer);
+	if (error)
 		return error;
-	}
+	error = write_section(buffer, section);
+	return error ? : nlbuffer_write(buffer, payload, payload_len);
+}
 
-	cJSON * eamt_json = cJSON_GetObjectItem(json_structure, "EAMT");
-	error = parse_siit_eamt(eamt_json);
+static int send_ctrl_msg(enum parse_section section)
+{
+	struct nl_buffer *buffer;
+	int error;
 
-	if (error) {
-		return error;
-	}
+	buffer = buffer_create(section);
+	if (!buffer)
+		return -ENOMEM;
 
-	cJSON * blacklist_json = cJSON_GetObjectItem(json_structure, "Blacklist");
-	error = parse_siit_blacklist(blacklist_json);
-
-	if (error) {
-		return error;
-	}
-
-	cJSON * pool6791_json = cJSON_GetObjectItem(json_structure, "Pool6791");
-	error = parse_siit_pool6791(pool6791_json);
-
+	error = nlbuffer_flush(buffer);
+	nlbuffer_destroy(buffer);
 	return error;
 }
 
-static int parse_siit_global(cJSON * global_json)
+static int parse_siit_json(cJSON *json)
 {
-	int error = 0;
-	cJSON * read_value;
+	int error;
 
-	//We verify that the bitfield structure, that tells which parameters are initialized, dont be already allocated, if so, we free it.
-	if (configured_parameters)
-		free(configured_parameters);
+	error = send_ctrl_msg(SEC_INIT);
+	if (error)
+		return error;
 
-	configured_parameters  = malloc(sizeof(struct global_bits));
+	cJSON *global = cJSON_GetObjectItem(json, "Global");
+	error = handle_global(global);
+	if (error)
+		return error;
 
+	cJSON *pool6_json = cJSON_GetObjectItem(json, "Pool6");
+	error = handle_pool6(pool6_json);
+	if (error)
+		return error;
 
-	if (global_json) {
+	cJSON *eamt_json = cJSON_GetObjectItem(json, "EAMT");
+	error = handle_eamt(eamt_json);
+	if (error)
+		return error;
 
-		send_global = 1;
+	cJSON *blacklist_json = cJSON_GetObjectItem(json, "Blacklist");
+	error = handle_addr4_pool(blacklist_json, SEC_BLACKLIST);
+	if (error)
+		return error;
 
-		global = (struct global_config *) malloc(sizeof(struct global_config));
+	cJSON *pool6791_json = cJSON_GetObjectItem(json, "Pool6791");
+	error = handle_addr4_pool(pool6791_json, SEC_POOL6791);
 
-		//Reading manually-enabled
-		error = parse_bool_parameter(global_json, "manually-enabled", "Global",
-						&configured_parameters->manually_enabled,&global->enabled);
-		if (error) {
-			return error;
-		}
-
-
-		//Reading drop-icmpv6-info.
-		error = parse_bool_parameter(global_json, "drop-icmpv6-info", "Global",
-						&configured_parameters->drop_icmpv6_info,&global->nat64.drop_icmp6_info) ;
-		if (error) {
-			return error;
-		}
-
-		//Reading zeroize-traffic-class.
-		error = parse_bool_parameter(global_json, "zeroize-traffic-class", "Global",
-						&configured_parameters->zeroize_traffic_class,&global->reset_traffic_class) ;
-		if (error) {
-			return error;
-		}
-
-
-		//Reading override-tos.
-		error = parse_bool_parameter(global_json, "override-tos", "Global",
-						&configured_parameters->override_tos,&global->reset_tos) ;
-		if (error) {
-			return error;
-		}
-
-
-
-		//Reading tos.
-		error = parse_u8_parameter(global_json, "tos", "Global",
-					 	 &configured_parameters->tos, &global->new_tos);
-		if (error) {
-			return error;
-		}
-
-
-		//Reading amend-udp-checksum-zero.
-		error = parse_bool_parameter(global_json, "amend-udp-checksum-zero", "Global",
-					&configured_parameters->amend_udp_checksum_zero, &global->siit.compute_udp_csum_zero);
-		if (error) {
-			return error;
-		}
-
-
-
-		//Reading randomize-rfc6791-addresses.
-		error = parse_bool_parameter(global_json, "randomize-rfc6791-addresses", "Global",
-							&configured_parameters->randomize_rfc6791_addresses, &global->siit.randomize_error_addresses) ;
-
-		if (error) {
-			return error;
-		}
-
-
-		//Se intenta leer el parámetro mtu-plateaus.
-		read_value = cJSON_GetObjectItem(global_json, "mtu-plateaus") ;
-		configured_parameters->mtu_plateaus = 0;
-
-		/* TODO where the hell is mtu_plateau_count? */
-
-		int i;
-		num_items_mtu_plateaus = 0;
-
-
-		if (read_value) {
-			cJSON * mtu_item = read_value->child;
-
-
-			while (mtu_item) {
-				mtu_item = mtu_item->next;
-				num_items_mtu_plateaus++;
-			}
-
-			__u16 value;
-			mtu_item = read_value->child;
-
-			for (i=0 ; i < num_items_mtu_plateaus; i++) {
-				error = str_to_u16(mtu_item->valuestring, &value, 0, 3000);
-
-				if (error) {
-					log_err("mtu-plateaus, not valid!. Global: %s", read_value->valuestring) ;
-					return 1;
-				}
-
-				global->mtu_plateaus[i] = value;
-				mtu_item = mtu_item->next;
-			}
-
-			configured_parameters->mtu_plateaus = 1;
-		}
-
-	}
-
-	return 0;
-}
-static int parse_siit_pool6(cJSON * pool6_json)
-{
-	int error = 0;
-	//ver cual va a ser el valor por default si es que habra alguno.
-	struct ipv6_prefix pool6_value;
-
-	if (pool6_json) {
-		send_pool6 = 1;
-		pool6_entry = malloc(sizeof(struct ipv6_prefix));
-
-		error = str_to_ipv6_prefix(pool6_json->valuestring,&pool6_value);
-		if (!error) {
-			pool6_entry->address = pool6_value.address;
-			pool6_entry->len = pool6_value.len;
-		} else {
-			log_err("Pool6 value not valid!.: %s",pool6_json->valuestring);
-			return 1;
-		}
-
-	}
-
-	return 0;
-
-}
-static int parse_siit_eamt(cJSON * eamt_json)
-{
-	__u8 i = 0;
-	int error = 0;
-	eamt_items_num = 0;
-	if (eamt_json) {
-
-		send_eamt = 1;
-		cJSON * item = eamt_json->child;
-
-		while (item) {
-			eamt_items_num+=1;
-			item = item->next;
-		}
-
-		eamt_buffer = malloc(sizeof(__u8)*eamt_items_num*22) ;
-		item = eamt_json->child;
-
-		cJSON * ipv6_prefix_item;
-		struct ipv6_prefix ipv6_value;
-
-		cJSON * ipv4_prefix_item;
-		struct ipv4_prefix ipv4_value;
-
-		for (i = 0; i < eamt_items_num;i++) {
-
-			ipv6_prefix_item = cJSON_GetObjectItem(item, "ipv6_prefix");
-
-			if (!ipv6_prefix_item) {
-				log_err("EAMT item #%d does not contain an ipv6_prefix.",(i+1));
-				return 1;
-			}
-
-			ipv4_prefix_item = cJSON_GetObjectItem(item, "ipv4_prefix");
-
-			if (!ipv4_prefix_item) {
-				log_err("EAMT item #%d does not contain an ipv4_prefix.",(i+1));
-				return 1;
-			}
-
-			error = str_to_ipv6_prefix(ipv6_prefix_item->valuestring,&ipv6_value);
-
-			if (error) {
-				log_err("Ipv6 Prefix, not valid!. EAMT item: #%d",(i+1)) ;
-				return 1;
-			}
-
-
-			error = str_to_ipv4_prefix(ipv4_prefix_item->valuestring,&ipv4_value) ;
-
-			if (error) {
-				log_err("Ipv4 Prefix, not valid!. EAMT item: #%d",(i+1)) ;
-				return 1;
-			}
-
-			memcpy(&eamt_buffer[i*22],(__u8*)(&ipv6_value.address),16);
-			memcpy(&eamt_buffer[(i*22)+16],(&ipv6_value.len),1);
-
-			memcpy(&eamt_buffer[(i*22)+17],(__u8*)(&ipv4_value.address),4);
-			memcpy(&eamt_buffer[(i*22)+21],(&ipv4_value.len),1);
-
-			item = item->next;
-		}
-	}
-	return 0;
+	return send_ctrl_msg(SEC_COMMIT);
 }
 
-static int parse_siit_blacklist(cJSON * blacklist_json)
+static int write_bool(struct nl_buffer *buffer, enum global_type type,
+		cJSON *json)
 {
-	int error = 0;
-	int i = 0;
+	struct global_value *chunk;
+	size_t size;
+	int error;
 
-	if (blacklist_json) {
-
-		send_blacklist = 1;
-		cJSON * item = blacklist_json->child;
-
-		while (item) {
-			blacklist_items_num+=1;
-			item = item->next;
-		}
-
-		blacklist_buffer = malloc(sizeof(__u8)*blacklist_items_num*5) ;
-		item = blacklist_json->child;
-
-		struct ipv4_prefix ipv4_value;
-
-		for (i=0; i < blacklist_items_num; i++) {
-
-			error = str_to_ipv4_prefix(item->valuestring, &ipv4_value) ;
-
-			if (error) {
-				log_err("Ipv4 Prefix, not valid. Blacklist item: %s", item->valuestring) ;
-				return 1;
-			}
-
-			memcpy(&blacklist_buffer[i*5] ,(__u8*)&ipv4_value.address,4);
-			memcpy(&blacklist_buffer[(i*5)+4] ,(__u8*)&ipv4_value.len,1);
-
-			item = item->next;
-		}
+	size = sizeof(struct global_value) + sizeof(__u8);
+	chunk = malloc(size);
+	if (!chunk) {
+		log_err("Out of memory.");
+		return -ENOMEM;
 	}
 
-	return 0;
-}
-static int parse_siit_pool6791(cJSON * pool6791_json)
-{
-	int error = 0;
-	int i = 0;
+	chunk->type = type;
+	chunk->len = size;
+	error = str_to_bool(json->valuestring, (__u8 *)(chunk + 1));
+	if (error)
+		goto end;
 
-	if (pool6791_json) {
+	error = buffer_write(buffer, chunk, size, SEC_GLOBAL);
+	/* Fall through. */
 
-		send_pool6791 = 1;
-		cJSON * item = pool6791_json->child;
-
-		while (item) {
-			pool6791_items_num+=1;
-			item = item->next;
-		}
-
-		item = pool6791_json->child;
-		pool6791_buffer = malloc(sizeof(__u8)*eamt_items_num*5) ;
-		struct ipv4_prefix ipv4_value;
-
-		for (i=0; i < pool6791_items_num;i++) {
-
-			error = str_to_ipv4_prefix(item->valuestring,&ipv4_value) ;
-			if (error) {
-				log_err("Ipv4 Prefix, not valid!. Pool6791 item: %s", item->valuestring) ;
-				return 1;
-			}
-
-			memcpy(&pool6791_buffer[i*5] ,(__u8*)&ipv4_value.address,4);
-			memcpy(&pool6791_buffer[(i*5)+4] ,(__u8*)&ipv4_value.len,1);
-
-			item = item->next;
-		}
-
-	}
-	return 0;
-}
-
-
-static int send_buffers()
-{
-	int error = 0;
-
-	error = send_multipart_request_buffer(0,0, SEC_INIT) ;
-
-	if(send_global)
-		error = send_global_buffer();
-
-	if(error)
-		goto error_happened;
-
-	if(send_pool6)
-		error = send_pool6_buffer();
-
-	if(error)
-		goto error_happened;
-
-	if(send_eamt)
-		error = send_eamt_buffer();
-
-	if(error)
-		goto error_happened;
-
-	if(send_blacklist)
-		error = send_blacklist_buffer();
-
-	if(error)
-		goto error_happened;
-
-	if(send_pool6791)
-		error = send_pool6791_buffer();
-
-	if(error)
-		goto error_happened;
-
-
-	error = send_multipart_request_buffer(0,0,SEC_COMMIT) ;
-
-	if(error)
-		goto error_happened;
-
-
-	return 0;
-
-	error_happened:
+end:
+	free(chunk);
 	return error;
 }
-static int send_global_buffer()
+
+static int write_number(struct nl_buffer *buffer, enum global_type type,
+		cJSON *json)
 {
-	int error = 0;
-	int index = 0;
+	struct global_value *chunk;
+	size_t size;
+	int error;
 
-	__u8 global_parameters_buffer[41];
-	__u8 plateaus_value[2];
-
-	memcpy(global_parameters_buffer,(__u8*)(configured_parameters),32) ;
-	index+=32;
-
-
-	if (configured_parameters->manually_enabled) {
-		memcpy(&global_parameters_buffer[index],&global->enabled,1);
+	size = sizeof(struct global_value) + sizeof(__u64);
+	chunk = malloc(size);
+	if (!chunk) {
+		log_err("Out of memory.");
+		return -ENOMEM;
 	}
 
-	index+=1;
+	chunk->type = type;
+	chunk->len = size;
+	error = str_to_u64(json->valuestring, (__u64 *)(chunk + 1), 0, MAX_U64);
+	if (error)
+		goto end;
 
-	if (configured_parameters->drop_icmpv6_info) {
-		memcpy(&global_parameters_buffer[index],&global->nat64.drop_icmp6_info,1);
-	}
+	error = buffer_write(buffer, chunk, size, SEC_GLOBAL);
+	/* Fall through. */
 
-	index+=1;
-
-	if (configured_parameters->zeroize_traffic_class) {
-		memcpy(&global_parameters_buffer[index],&global->reset_traffic_class,1);
-	}
-
-	index+=1;
-
-	if (configured_parameters->override_tos) {
-		memcpy(&global_parameters_buffer[index],&global->reset_tos,1);
-	}
-
-	index+=1;
-
-	if (configured_parameters->tos) {
-		memcpy(&global_parameters_buffer[index],&global->new_tos,1);
-	}
-
-	index+=1;
-
-	if (configured_parameters->amend_udp_checksum_zero) {
-		memcpy(&global_parameters_buffer[index],&global->siit.compute_udp_csum_zero,1);
-	}
-
-	index+=1;
-
-	if (configured_parameters->randomize_rfc6791_addresses) {
-		memcpy(&global_parameters_buffer[index],&global->siit.randomize_error_addresses,1);
-	}
-
-	index+=1;
-
-	memcpy(&global_parameters_buffer[index],(__u8*)&num_items_mtu_plateaus,2);
-	error = send_multipart_request_buffer(global_parameters_buffer,41,SEC_GLOBAL) ;
-	log_info("Global buffer has been sent.");
-
-
-	if (error) {
-
-		log_err("Something went wrong while sending Global Parameters to the kernel!.") ;
-		return error;
-	}
-
-	index+=2;
-	int i;
-
-	log_info("Sending %d mtu-plateaus-items", num_items_mtu_plateaus) ;
-
-
-	if (configured_parameters->mtu_plateaus) {
-		for (i=0 ; i < num_items_mtu_plateaus; i++) {
-			memcpy(plateaus_value,(__u8*)&(global->mtu_plateaus[i]),2) ;
-			error = send_multipart_request_buffer(plateaus_value,2,SEC_GLOBAL) ;
-
-			if (error) {
-				log_err("Something went wrong while sending a mtu-plateaus element to the kernel!.");
-				return error;
-			}
-
-		}
-	}
-
-	return 0;
-
-}
-static int send_pool6_buffer()
-{
-	int error = 0;
-
-	error = send_multipart_request_buffer((__u8*)&pool6_entry->address,16,SEC_POOL6) ;
-	if (error) {
-		log_err("Something went wrong while sending the pool6 prefix address to the kernel!.");
-		return error;
-	}
-
-	error = send_multipart_request_buffer(&pool6_entry->len,
-			1,SEC_POOL6) ;
-
-	if (error) {
-		log_err("Something went wrong while sending the pool6 prefix segment to the kernel!.");
-		return error;
-	}
-
+end:
+	free(chunk);
 	return error;
 }
-static int send_eamt_buffer()
+
+static int write_plateaus(struct nl_buffer *buffer, cJSON *root)
 {
-	int error = 0;
-
-	int page_size = getpagesize();
-	int eamt_entry_size= EAMT_ENTRY_SIZE;
-
-	int buffer_size = (page_size-sizeof(struct request_hdr)-sizeof(struct nlmsghdr)-100);
-	int entries_per_message =  (buffer_size-2)/ eamt_entry_size;
-
-	__u8 eamt_kernel_buffer[buffer_size];
-	__u8 * kernel_buffer_pointer;
-
-
-
-	error = send_multipart_request_buffer((__u8*)&eamt_items_num,2,SEC_EAMT) ;
-
-	if(error) {
-		log_err("Something went wrong while sending the eamt entries number to the kernel!.");
-		return error;
-	}
-
-	log_info("Sending eamt entries to the kernel!.");
-	log_info("Eamt buffer size: %d",buffer_size) ;
-	log_info("Eamt page size: %d", page_size);
-
-	int items_sent = 0;
-	int items_sent_in_message = 0;
-	int i;
-	int real_index = 0;
-
-	while (items_sent < eamt_items_num) {
-		kernel_buffer_pointer = eamt_kernel_buffer;
-		kernel_buffer_pointer += 2;
-
-		for (i=0; (i < entries_per_message) && real_index < eamt_items_num; i++) {
-
-			memcpy(&kernel_buffer_pointer[0],&eamt_buffer[real_index*eamt_entry_size],16);
-			memcpy(&kernel_buffer_pointer[16],&eamt_buffer[(real_index*eamt_entry_size)+16],1);
-			memcpy(&kernel_buffer_pointer[17],&eamt_buffer[(real_index*eamt_entry_size)+17],4);
-			memcpy(&kernel_buffer_pointer[21],&eamt_buffer[(real_index*eamt_entry_size)+21],1);
-
-
-			kernel_buffer_pointer +=eamt_entry_size;
-			real_index++;
-		}
-
-		//We add the number of elements to send at the beginning of the buffer.
-		items_sent_in_message = real_index - items_sent;
-		memcpy(eamt_kernel_buffer,(__u8*)&items_sent_in_message,2);
-
-		items_sent = real_index;
-
-		error = send_multipart_request_buffer(eamt_kernel_buffer,buffer_size,SEC_EAMT) ;
-		if (error) {
-			log_err("Something went wrong while sending eamt entries to the kernel!.");
-			return error;
-		}
-	}
-
-	return error;
-}
-static int send_blacklist_buffer()
-{
-	int error = 0;
-
-	__u8 entry_size = BLACKLIST_ENTRY_SIZE;
-	__u32 page_size = getpagesize();
-	__u32 buffer_size = (page_size-sizeof(struct request_hdr)-sizeof(struct nlmsghdr)-100);
-	__u32 entries_per_message =  (buffer_size-2)/ entry_size;
-
-	__u8 blacklist_kernel_buffer[buffer_size];
-	__u8 * kernel_buffer_pointer;
-
-
-
-	error = send_multipart_request_buffer((__u8*)&blacklist_items_num,2,SEC_BLACKLIST) ;
-	if (error) {
-		log_err("Something went wrong while sending the blacklist entries number to the kernel!.");
-		return error;
-	}
-
-	__u16 items_sent = 0;
-	__u16 items_sent_in_message = 0;
+	struct global_value *chunk;
+	size_t size;
+	cJSON *json;
+	__u16 *plateaus;
 	__u16 i;
-	__u16 real_index = 0;
+	int error;
 
-	log_info("blacklist entries num: %d",blacklist_items_num) ;
-	log_info("blacklist entries per message: %d", entries_per_message) ;
-
-	while (items_sent < blacklist_items_num) {
-		kernel_buffer_pointer = blacklist_kernel_buffer;
-		kernel_buffer_pointer += 2;
-
-		for (i=0; i < entries_per_message && real_index < blacklist_items_num;i++) {
-			memcpy(kernel_buffer_pointer,(__u8*)&blacklist_buffer[real_index*entry_size],4);
-			memcpy(&kernel_buffer_pointer[4],(__u8*)&blacklist_buffer[real_index*entry_size+4],1);
-			kernel_buffer_pointer+=entry_size;
-			real_index++;
+	i = 0;
+	for (json = root->child; json; json = json->next) {
+		if (i > PLATEAUS_MAX) {
+			log_err("Too many plateaus. (max is %u)", PLATEAUS_MAX);
+			return -EINVAL;
 		}
-
-		items_sent_in_message = real_index - items_sent;
-
-		memcpy(blacklist_kernel_buffer,(__u8*)&items_sent_in_message,2);
-		items_sent = real_index;
-
-		log_info("blacklist items sent in message: %d", items_sent_in_message) ;
-		log_info("blacklist items sent: %d", items_sent) ;
-
-		error = send_multipart_request_buffer(blacklist_kernel_buffer,buffer_size,SEC_BLACKLIST) ;
-		if (error) {
-			log_err("Something went wrong while sending blacklist entries to the kernel!.");
-			return -1;
-		}
+		i++;
 	}
 
+	size = sizeof(struct global_value) + i * sizeof(__u16);
+	chunk = malloc(size);
+	if (!chunk) {
+		log_err("Out of memory.");
+		return -ENOMEM;
+	}
+
+	chunk->type = MTU_PLATEAUS;
+	chunk->len = size;
+	plateaus = (__u16 *)(chunk + 1);
+
+	i = 0;
+	for (json = root->child; json; json = json->next) {
+		error = str_to_u16(json->valuestring, &plateaus[i], 0, 0xFFFF);
+		if (error)
+			goto end;
+		i++;
+	}
+
+	error = buffer_write(buffer, chunk, size, SEC_GLOBAL);
+	/* Fall through. */
+
+end:
+	free(chunk);
 	return error;
 }
-static int send_pool6791_buffer()
+
+static int write_field(cJSON *json, struct argp_option *opt,
+		struct nl_buffer *buffer)
 {
-	int error = 0;
-
-	__u8 entry_size = POOL6791_ENTRY_SIZE;
-	__u32 page_size = getpagesize();
-	__u32 buffer_size = (page_size-sizeof(struct request_hdr)-sizeof(struct nlmsghdr)-100);
-	__u32 entries_per_message =  (buffer_size-2)/ entry_size;
-
-	__u8 pool6791_kernel_buffer[buffer_size];
-	__u8 * kernel_buffer_pointer = pool6791_kernel_buffer;
-
-
-
-	error = send_multipart_request_buffer((__u8*)&pool6791_items_num,2,SEC_POOL6791) ;
-	if (error) {
-		log_err("Something went wrong while sending the pool6791 entries number to the kernel!.");
-		return error;
+	if (strcmp(opt->arg, BOOL_FORMAT) == 0) {
+		return write_bool(buffer, opt->key, json);
+	} else if (strcmp(opt->arg, NUM_FORMAT) == 0) {
+		return write_number(buffer, opt->key, json);
+	} else if (strcmp(opt->arg, NUM_ARRAY_FORMAT) == 0) {
+		return write_plateaus(buffer, json);
 	}
 
-	__u16 items_sent = 0;
-	__u16 items_sent_in_message = 0;
-	__u16 i;
-	__u16 real_index = 0;
+	log_err("Unimplemented data type: %s", opt->arg);
+	return -EINVAL;
+}
 
-	while (items_sent < pool6791_items_num) {
-		kernel_buffer_pointer = pool6791_kernel_buffer;
+static int handle_global_field(cJSON *json, struct nl_buffer *buffer)
+{
+	struct argp_option *opts;
+	unsigned int i;
+	int error;
 
-		kernel_buffer_pointer += 2;
+	opts = get_global_opts();
+	if (!opts)
+		return -ENOMEM;
 
-		for (i=0; i < entries_per_message && real_index < pool6791_items_num;i++) {
-			memcpy(kernel_buffer_pointer,&pool6791_buffer[real_index*entry_size],4);
-			memcpy(&kernel_buffer_pointer[4] ,&pool6791_buffer[real_index*entry_size+4],1);
-			kernel_buffer_pointer+=entry_size;
-			real_index++;
-		}
-
-		items_sent_in_message = real_index - items_sent;
-
-		memcpy(pool6791_kernel_buffer,(__u8*)&items_sent_in_message,2);
-		items_sent = real_index;
-
-
-		error = send_multipart_request_buffer(pool6791_kernel_buffer,buffer_size,SEC_POOL6791) ;
-
-		if (error) {
-			log_err("Something went wrong while sending a Pool6791 entries to the kernel!.");
+	for (i = 0; opts[i].name && opts[i].key; i++) {
+		if (strcmp(json->string, opts[i].name) == 0) {
+			error = write_field(json, &opts[i], buffer);
+			free(opts);
 			return error;
 		}
 	}
+
+	log_err("Unknown global configuration field: %s", json->string);
+	free(opts);
+	return -EINVAL;
+}
+
+static int handle_global(cJSON *json)
+{
+	struct nl_buffer *buffer;
+	int error = 0;
+
+	if (!json)
+		return 0;
+
+	buffer = buffer_create(SEC_GLOBAL);
+	if (!buffer)
+		return -ENOMEM;
+
+	for (json = json->child; json; json = json->next) {
+		error = handle_global_field(json, buffer);
+		if (error)
+			goto end;
+	}
+
+	error = nlbuffer_flush(buffer);
+	/* Fall through. */
+
+end:
+	nlbuffer_destroy(buffer);
 	return error;
 }
 
-
-static int send_multipart_request_buffer(__u8*buffer,__u16 request_len, __u16 section)
+static int handle_pool6(cJSON *pool6_json)
 {
-	__u32 real_length = request_len +2;
-	__u8 * buffer_to_send = malloc(sizeof(struct request_hdr)+real_length);
-	__u8 * section_pointer = (__u8*)&section;
+	struct nl_buffer *buffer;
+	struct ipv6_prefix prefix;
+	int error;
 
-	struct request_hdr * request_pointer = (struct request_hdr *)buffer_to_send;
+	if (!pool6_json)
+		return 0;
 
-	init_request_hdr(request_pointer, real_length, MODE_PARSE_FILE, OP_UPDATE);
+	buffer = buffer_create(SEC_POOL6);
+	if (!buffer)
+		return -ENOMEM;
 
-	buffer_to_send += sizeof(*request_pointer);
+	error = str_to_prefix6(pool6_json->valuestring, &prefix);
+	if (error)
+		goto end;
 
-	buffer_to_send[0] = section_pointer[0];
-	buffer_to_send[1] = section_pointer[1];
+	error = buffer_write(buffer, &prefix, sizeof(prefix), SEC_POOL6);
+	if (error)
+		goto end;
 
-	if(request_len > 0)
-		memcpy(&buffer_to_send[2],buffer,request_len);
+	error = nlbuffer_flush(buffer);
+	/* Fall through. */
 
-	return netlink_request(request_pointer, sizeof(*request_pointer)+2,NULL, NULL);
+end:
+	nlbuffer_destroy(buffer);
+	return error;
 }
 
-#ifdef DEBUG
-
-static int print_config()
+static int handle_eamt(cJSON *json)
 {
+	struct nl_buffer *buffer;
+	cJSON *prefix_json;
+	struct eamt_entry eam;
+	unsigned int i = 1;
+	int error;
+
+	if (!json)
+		return 0;
+
+	buffer = buffer_create(SEC_EAMT);
+	if (!buffer)
+		return -ENOMEM;
+
+	for (json = json->child; json; json = json->next) {
+		prefix_json = cJSON_GetObjectItem(json, "ipv6_prefix");
+		if (!prefix_json) {
+			log_err("EAM entry #%u lacks an ipv6_prefix field.", i);
+			error = -EINVAL;
+			goto end;
+		}
+		error = str_to_prefix6(prefix_json->valuestring, &eam.prefix6);
+		if (error) {
+			log_err("Error found on EAM entry #%u.", i);
+			goto end;
+		}
+
+		prefix_json = cJSON_GetObjectItem(json, "ipv4_prefix");
+		if (!prefix_json) {
+			log_err("EAM entry #%u lacks an ipv4_prefix field.", i);
+			error = -EINVAL;
+			goto end;
+		}
+		error = str_to_prefix4(prefix_json->valuestring, &eam.prefix4);
+		if (error) {
+			log_err("Error found on EAM entry #%u.", i);
+			goto end;
+		}
+
+		error = buffer_write(buffer, &eam, sizeof(eam), SEC_EAMT);
+		if (error)
+			goto end;
+
+		i++;
+	}
+
+	error = nlbuffer_flush(buffer);
+	/* Fall through. */
+
+end:
+	nlbuffer_destroy(buffer);
+	return error;
+}
+
+static int handle_addr4_pool(cJSON *json, enum parse_section section)
+{
+	struct nl_buffer *buffer;
+	struct ipv4_prefix prefix;
 	int error = 0;
-	error = print_global();
 
-	if (error) {
-		log_info("error while trying to print global section.");
+	if (!json)
+		return 0;
+
+	buffer = buffer_create(section);
+	if (!buffer)
+		return -ENOMEM;
+
+	for (json = json->child; json; json = json->next) {
+		error = str_to_prefix4(json->valuestring, &prefix);
+		if (error)
+			goto end;
+		error = buffer_write(buffer, &prefix, sizeof(prefix), section);
+		if (error)
+			goto end;
 	}
 
-	error = print_pool6();
+	error = nlbuffer_flush(buffer);
+	/* Fall through. */
 
-	if (error) {
-		log_info("error while trying to print pool6 section.");
-	}
-	error = print_eamt();
-
-	if (error) {
-		log_info("error while trying to print eamt section.");
-	}
-	error = print_blacklist();
-
-	if (error) {
-		log_info("error while trying to print blacklist section.");
-	}
-
-	error = print_pool6791();
-
-	if (error) {
-		log_info("error while trying to print pool6791 section.");
-	}
-
-	return 0;
+end:
+	nlbuffer_destroy(buffer);
+	return error;
 }
-static int print_global()
-{
-
-	if (configured_parameters->manually_enabled) {
-		log_info("manually-enabled: %s", (!global->enabled) ? "true" : "false") ;
-	}
-
-	if (configured_parameters->drop_icmpv6_info) {
-		log_info("drop-icmpv6-info: %s", global->nat64.drop_icmp6_info ? "true" : "false") ;
-
-	}
-
-	if (configured_parameters->zeroize_traffic_class) {
-		log_info("zeroize-traffic-class: %s", global->reset_traffic_class ? "true" : "false") ;
-	}
-
-
-	if (configured_parameters->override_tos) {
-		log_info("override-tos: %s", global->reset_tos ? "true" : "false") ;
-	}
-
-
-	if (configured_parameters->tos) {
-		log_info("tos: %u", global->new_tos) ;
-	}
-
-	if (configured_parameters->amend_udp_checksum_zero) {
-		log_info("amend-udp-checksum-zero: %s", global->siit.compute_udp_csum_zero ? "true" : "false") ;
-	}
-
-
-	if (configured_parameters->randomize_rfc6791_addresses) {
-		log_info("randomize-rfc6791-addresses: %s", global->siit.randomize_error_addresses ? "true" : "false") ;
-	}
-
-
-
-	int i;
-
-	log_info ("mtu-plateaus-items Number: %u", num_items_mtu_plateaus) ;
-
-	if (configured_parameters->mtu_plateaus) {
-
-		for (i=0 ; i < num_items_mtu_plateaus; i++) {
-			log_info("mtu-plateaus-item #%d: %u",i,global->mtu_plateaus[i]) ;
-		}
-	}
-
-	return 0;
-}
-static int print_pool6()
-{
-	if(pool6_entry) {
-		char ipv6_str[32];
-		if (!inet_ntop(AF_INET6,&pool6_entry->address,ipv6_str,32)) {
-			log_err("error while trying to print pool6!.");
-			return 1;
-		}
-		log_info("Pool6: %s/%u", ipv6_str,pool6_entry->len) ;
-	}
-
-	return 0;
-}
-static int print_eamt()
-{
-	int i;
-	struct ipv6_prefix ipv6_value;
-	char ipv6_str[32];
-
-	struct ipv4_prefix ipv4_value;
-	char ipv4_str[16];
-
-	log_info("Printing eamt-items...") ;
-	log_info("----------------------") ;
-	log_info("eamt-items Ammount: %u", num_items_mtu_plateaus) ;
-
-	for (i = 0; i < eamt_items_num;i++) {
-
-		memcpy((__u8*)(&ipv6_value.address),&eamt_buffer[i*22],16);
-		memcpy((&ipv6_value.len),&eamt_buffer[(i*22)+16],1);
-
-		if (!inet_ntop(AF_INET6,&(ipv6_value.address),ipv6_str,32)) {
-			log_err("error while trying to get Ipv6 address from eamt item #%d.",(i+1));
-			return 1;
-		}
-
-		memcpy(&eamt_buffer[(i*22)+17],(__u8*)(&ipv4_value.address),4);
-		memcpy(&eamt_buffer[(i*22)+21],(&ipv4_value.len),1);
-
-		if (!inet_ntop(AF_INET,&(ipv4_value.address),ipv4_str,16)) {
-			log_err("error while trying to get Ipv4 address from eamt item #%d.",(i+1));
-			return 1;
-		}
-
-		log_info("eamt item #%d:",(i+1));
-		log_info("Ipv6 value: %s/%u ",ipv6_str,ipv6_value.len);
-		log_info("Ipv4 value: %s/%u ",ipv4_str,ipv4_value.len);
-		log_info("---------------------");
-
-	}
-	return 0;
-
-}
-static int print_blacklist()
-{
-	int i = 0;
-
-	log_info("Printing blacklist-items...") ;
-	log_info("---------------------------") ;
-	log_info("blacklist-items Ammount: %u", blacklist_items_num) ;
-
-	struct ipv4_prefix ipv4_value;
-	char ipv4_str[16];
-	for (i=0; i < blacklist_items_num; i++) {
-		memcpy((__u8*)&ipv4_value.address,&blacklist_buffer[i*5],4);
-		memcpy((__u8*)&ipv4_value.len,&blacklist_buffer[(i*5)+4],1);
-
-		if (!inet_ntop(AF_INET,&(ipv4_value.address),ipv4_str,16)) {
-			log_err("error while trying to get Ipv4 address from blacklist item #%d.",(i+1));
-			return 1;
-		}
-
-		log_info("blacklist item #%d:",(i+1));
-		log_info("Ipv4 value: %s/%u",ipv4_str,ipv4_value.len);
-		log_info("---------------------");
-	}
-
-	return 0;
-
-}
-static int print_pool6791()
-{
-	int i=0;
-
-	log_info("Printing blacklist-items...") ;
-	log_info("---------------------------") ;
-	log_info("pool6791-items Ammount: %u", blacklist_items_num) ;
-
-	struct ipv4_prefix ipv4_value;
-	char ipv4_str[16];
-	for (i=0; i < pool6791_items_num;i++) {
-		memcpy((__u8*)&ipv4_value.address,&pool6791_buffer[i*5],4);
-		memcpy((__u8*)&ipv4_value.len,&pool6791_buffer[(i*5)+4],1);
-
-		if (!inet_ntop(AF_INET,&(ipv4_value.address),ipv4_str,16)) {
-			log_err("error while trying to get Ipv4 address from pool6791 item #%d.",(i+1));
-			return 1;
-		}
-
-		log_info("pool6791 item #%d:",(i+1));
-		log_info("Ipv4 value: %s/%u",ipv4_str,ipv4_value.len);
-		log_info("---------------------");
-
-	}
-
-	return 0;
-}
-
-#endif

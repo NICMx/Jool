@@ -3,6 +3,7 @@
 #include <netlink/genl/genl.h>
 #include <netlink/genl/ctrl.h>
 #include <errno.h>
+#include "nat64/common/config.h"
 #include "nat64/usr/types.h"
 
 struct response_cb {
@@ -42,20 +43,19 @@ static int error_handler(struct sockaddr_nl *nla, struct nlmsgerr *nlerr,
 }
 */
 
-static int print_error_msg(struct nl_core_buffer *buffer)
+static int print_error_msg(struct jool_response *response)
 {
 	char *msg;
 
 	error_handler_called = true;
 
-	/* TODO isn't len supposed to include the header? */
-	if (buffer->len <= 0) {
+	if (response->payload_len <= 0) {
 		log_err("Error (The kernel's response is empty so the cause is unknown.)");
 		goto end;
 	}
 
-	msg = (char *)(buffer + 1);
-	if (msg[buffer->len - 1] != '\0') {
+	msg = response->payload;
+	if (msg[response->payload_len - 1] != '\0') {
 		log_err("Error (The kernel's response is not a string so the cause is unknown.)");
 		goto end;
 	}
@@ -64,18 +64,17 @@ static int print_error_msg(struct nl_core_buffer *buffer)
 	/* Fall through. */
 
 end:
-	log_err("(Error code: %d)", buffer->error_code);
-	return buffer->error_code;
+	log_err("(Error code: %u)", response->hdr->error_code);
+	return response->hdr->error_code;
 }
 
 static int response_handler(struct nl_msg * msg, void * void_arg)
 {
-	struct nl_core_buffer *buffer;
+	struct jool_response response;
 	struct nlattr *attrs[__ATTR_MAX + 1];
 	struct response_cb *arg;
 	int error;
 
-	/* TODO this doesn't need deallocation? */
 	error = genlmsg_parse(nlmsg_hdr(msg), 0, attrs, __ATTR_MAX, NULL);
 	if (error) {
 		log_err("%s (error code %d)", nl_geterror(error), error);
@@ -83,21 +82,23 @@ static int response_handler(struct nl_msg * msg, void * void_arg)
 	}
 
 	if (!attrs[ATTR_DATA]) {
-		log_err("null buffer!");
-		return 0; /* TODO how is this a success? */
+		log_err("The module's response seems to be empty.");
+		return -EINVAL;
+	}
+	if (attrs[ATTR_DATA]->nla_len < sizeof(struct response_hdr)) {
+		log_err("The module's response is too small to even contain a header.");
+		return -EINVAL;
 	}
 
-	buffer = (struct nl_core_buffer *)nla_data(attrs[ATTR_DATA]);
-	if (buffer->error_code < 0)
-		return print_error_msg(buffer);
+	response.hdr = nla_data(attrs[ATTR_DATA]);
+	response.payload = response.hdr + 1;
+	response.payload_len = attrs[ATTR_DATA]->nla_len - sizeof(struct response_hdr);
+
+	if (response.hdr->error_code)
+		return print_error_msg(&response);
 
 	arg = void_arg;
-	return (arg && arg->cb) ? arg->cb(buffer, arg->arg) : 0;
-}
-
-void *netlink_get_data(struct nl_core_buffer *buffer)
-{
-	return buffer + 1;
+	return (arg && arg->cb) ? arg->cb(&response, arg->arg) : 0;
 }
 
 int netlink_request(void *request, __u32 request_len,

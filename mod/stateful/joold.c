@@ -111,10 +111,10 @@ static void extract_list(struct joold_queue *queue, struct list_head *list,
 /**
  * Builds an nl-core-compatible buffer out of @sessions.
  */
-static struct nl_core_buffer *build_buffer(struct list_head *sessions,
+static struct nlcore_buffer *build_buffer(struct list_head *sessions,
 		unsigned int session_count)
 {
-	struct nl_core_buffer *buffer;
+	struct nlcore_buffer *buffer;
 	struct request_hdr jool_hdr;
 	struct joold_node *node;
 	size_t total_len;
@@ -123,7 +123,7 @@ static struct nl_core_buffer *build_buffer(struct list_head *sessions,
 	total_len = sizeof(jool_hdr);
 	total_len += session_count * sizeof(struct joold_session);
 
-	error = nlbuffer_new(&buffer, total_len);
+	error = nlbuffer_init(&buffer, total_len);
 	if (error) {
 		log_debug("nlbuffer_new() threw error %d.", error);
 		return NULL;
@@ -152,7 +152,7 @@ fail:
 	return NULL;
 }
 
-static void send_buffer(struct nl_core_buffer *buffer)
+static void send_buffer(struct nlcore_buffer *buffer)
 {
 	int error;
 
@@ -179,7 +179,7 @@ static void free_list(struct list_head *list)
 
 static void send_to_userspace(struct list_head *list, unsigned int list_len)
 {
-	struct nl_core_buffer *buffer;
+	struct nlcore_buffer *buffer;
 
 	if (list_len == 0)
 		return;

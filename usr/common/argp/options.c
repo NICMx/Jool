@@ -4,12 +4,6 @@
 #include <string.h>
 #include "nat64/usr/global.h"
 
-#define BOOL_FORMAT "BOOL"
-#define NUM_FORMAT "NUM"
-#define NUM_ARRAY_FORMAT "NUM[,NUM]*"
-#define TRANSPORT6_FORMAT "ADDR6#NUM"
-#define TRANSPORT4_FORMAT "ADDR4#NUM"
-
 static const struct argp_option targets_hdr_opt = {
 		.doc = "Configuration targets/modes:",
 		.group = 2,
@@ -285,6 +279,15 @@ static const struct argp_option disable_opt = {
 		.arg = NULL,
 		.flags = 0,
 		.doc = "Pause translation of packets.\n",
+		.group = 0,
+};
+
+static const struct argp_option manual_enable_opt = {
+		.name = "manually-enabled",
+		.key = ARGP_MANUAL_ENABLE,
+		.arg = BOOL_FORMAT,
+		.flags = 0,
+		.doc = "Boolean version of --enable and --disable.\n",
 		.group = 0,
 };
 
@@ -688,7 +691,7 @@ static const struct argp_option synch_period_opt = {
 		.group = 0,
 };
 
-static const struct argp_option *options_siit[] = {
+static const struct argp_option *opts_siit[] = {
 	&targets_hdr_opt,
 	&pool6_opt,
 	&eamt_opt,
@@ -738,7 +741,7 @@ static const struct argp_option *options_siit[] = {
 	&fix_illegal_mtus_opt,
 };
 
-static const struct argp_option *options_nat64[] = {
+static const struct argp_option *opts_nat64[] = {
 	&targets_hdr_opt,
 	&pool6_opt,
 	&pool4_opt,
@@ -819,7 +822,7 @@ static const struct argp_option *options_nat64[] = {
 	&synch_period_opt,
 };
 
-struct argp_option *__build_options(const struct argp_option **template,
+struct argp_option *__build_opts(const struct argp_option **template,
 		size_t template_size)
 {
 	struct argp_option *result;
@@ -839,10 +842,51 @@ struct argp_option *__build_options(const struct argp_option **template,
 	return result;
 }
 
-/* TODO are you freeing the result? */
-struct argp_option *build_options(void)
+struct argp_option *build_opts(void)
 {
 	return xlat_is_siit()
-			? __build_options(options_siit, sizeof(options_siit))
-			: __build_options(options_nat64, sizeof(options_nat64));
+			? __build_opts(opts_siit, sizeof(opts_siit))
+			: __build_opts(opts_nat64, sizeof(opts_nat64));
+}
+
+static const struct argp_option *opts_global_siit[] = {
+	&manual_enable_opt,
+	&zeroize_tc_opt,
+	&override_tos_opt,
+	&tos_opt,
+	&plateaus_opt,
+	&csum_fix_opt,
+	&hairpin_mode_opt,
+	&random_pool6791_opt,
+};
+
+static const struct argp_option *opts_global_nat64[] = {
+	&manual_enable_opt,
+	&zeroize_tc_opt,
+	&override_tos_opt,
+	&tos_opt,
+	&plateaus_opt,
+	&adf_opt,
+	&icmp_filter_opt,
+	&tcp_filter_opt,
+	&icmp_src_opt,
+	&ttl_udp_opt,
+	&ttl_icmp_opt,
+	&ttl_tcpest_opt,
+	&ttl_tcptrans_opt,
+	&ttl_frag_opt,
+	&logging_bib_opt,
+	&logging_session_opt,
+	&max_so_opt,
+	&synch_enable_opt,
+	&synch_disable_opt,
+	&synch_max_sessions_opt,
+	&synch_period_opt,
+};
+
+struct argp_option *get_global_opts(void)
+{
+	if (xlat_is_siit())
+		return __build_opts(opts_global_siit, sizeof(opts_global_siit));
+	return __build_opts(opts_global_nat64, sizeof(opts_global_nat64));
 }

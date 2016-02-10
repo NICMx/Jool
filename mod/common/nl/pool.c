@@ -11,32 +11,31 @@ static int pool_to_usr(struct ipv4_prefix *prefix, void *arg)
 }
 
 static int handle_addr4pool_display(struct addr4_pool *pool,
-		struct genl_info *info, enum config_mode command,
-		union request_pool *request)
+		struct genl_info *info, union request_pool *request)
 {
-	struct nl_core_buffer *buffer;
+	struct nlcore_buffer buffer;
 	struct ipv4_prefix *offset;
 	int error;
 
 	log_debug("Sending IPv4 address pool to userspace.");
 
-	error = nlbuffer_new(&buffer, nlbuffer_data_max_size());
+	error = nlbuffer_init(&buffer, info, nlbuffer_data_max_size());
 	if (error)
-		return nlcore_respond_error(info, command, error);
+		return nlcore_respond_error(info, error);
 
 	offset = request->display.offset_set ? &request->display.offset : NULL;
-	error = pool_foreach(pool, pool_to_usr, buffer, offset);
-	buffer->pending_data = error > 0;
+	error = pool_foreach(pool, pool_to_usr, &buffer, offset);
+	nlbuffer_set_pending_data(&buffer, error > 0);
 	error = (error >= 0)
-			? nlbuffer_send(info, command, buffer)
-			: nlcore_respond_error(info, command, error);
+			? nlbuffer_send(info, &buffer)
+			: nlcore_respond_error(info, error);
 
-	nlbuffer_free(buffer);
+	nlbuffer_free(&buffer);
 	return error;
 }
 
 static int handle_addr4pool_count(struct addr4_pool *pool,
-		struct genl_info *info, enum config_mode command)
+		struct genl_info *info)
 {
 	__u64 count;
 	int error;
@@ -44,9 +43,9 @@ static int handle_addr4pool_count(struct addr4_pool *pool,
 	log_debug("Returning address count.");
 	error = pool_count(pool, &count);
 	if (error)
-		return nlcore_respond_error(info, command, error);
+		return nlcore_respond_error(info, error);
 
-	return nlcore_respond_struct(info, command, &count, sizeof(count));
+	return nlcore_respond_struct(info, &count, sizeof(count));
 }
 
 static int handle_addr4pool_add(struct addr4_pool *pool,
@@ -78,8 +77,7 @@ static int handle_addr4pool_flush(struct addr4_pool *pool)
 	return pool_flush(pool);
 }
 
-static int handle_addr4pool(struct addr4_pool *pool, enum config_mode command,
-		struct genl_info *info)
+static int handle_addr4pool(struct addr4_pool *pool, struct genl_info *info)
 {
 	struct request_hdr *jool_hdr = get_jool_hdr(info);
 	union request_pool *request = (union request_pool *)(jool_hdr + 1);
@@ -87,13 +85,13 @@ static int handle_addr4pool(struct addr4_pool *pool, enum config_mode command,
 
 	error = validate_request_size(jool_hdr, sizeof(*request));
 	if (error)
-		return nlcore_respond_error(info, command, error);
+		return nlcore_respond_error(info, error);
 
 	switch (jool_hdr->operation) {
 	case OP_DISPLAY:
-		return handle_addr4pool_display(pool, info, command, request);
+		return handle_addr4pool_display(pool, info, request);
 	case OP_COUNT:
-		return handle_addr4pool_count(pool, info, command);
+		return handle_addr4pool_count(pool, info);
 	case OP_ADD:
 		error = handle_addr4pool_add(pool, request);
 		break;
@@ -108,25 +106,25 @@ static int handle_addr4pool(struct addr4_pool *pool, enum config_mode command,
 		error = -EINVAL;
 	}
 
-	return nlcore_respond(info, command, error);
+	return nlcore_respond(info, error);
 }
 
 int handle_blacklist_config(struct xlator *jool, struct genl_info *info)
 {
 	if (xlat_is_nat64()) {
 		log_err("Stateful NAT64 doesn't have a blacklist pool.");
-		return nlcore_respond_error(info, MODE_BLACKLIST, -EINVAL);
+		return nlcore_respond_error(info, -EINVAL);
 	}
 
-	return handle_addr4pool(jool->siit.blacklist, MODE_BLACKLIST, info);
+	return handle_addr4pool(jool->siit.blacklist, info);
 }
 
 int handle_pool6791_config(struct xlator *jool, struct genl_info *info)
 {
 	if (xlat_is_nat64()) {
 		log_err("Stateful NAT64 doesn't have an RFC6791 pool.");
-		return nlcore_respond_error(info, MODE_RFC6791, -EINVAL);
+		return nlcore_respond_error(info, -EINVAL);
 	}
 
-	return handle_addr4pool(jool->siit.pool6791, MODE_RFC6791, info);
+	return handle_addr4pool(jool->siit.pool6791, info);
 }

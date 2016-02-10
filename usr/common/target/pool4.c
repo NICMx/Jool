@@ -15,15 +15,13 @@ struct display_args {
 	bool csv;
 };
 
-static int pool4_display_response(struct nl_core_buffer *buffer, void *arg)
+static int pool4_display_response(struct jool_response *response, void *arg)
 {
-
-	struct pool4_sample *samples;
+	struct pool4_sample *samples = response->payload;
 	unsigned int sample_count, i;
 	struct display_args *args = arg;
 
-	samples = netlink_get_data(buffer);
-	sample_count = buffer->len / sizeof(*samples);
+	sample_count = response->payload_len / sizeof(*samples);
 
 	if (args->row_count == 0 && args->csv)
 		printf("Mark,Protocol,Address,Min port,Max port\n");
@@ -44,7 +42,7 @@ static int pool4_display_response(struct nl_core_buffer *buffer, void *arg)
 	}
 
 	args->row_count += sample_count;
-	args->request->display.offset_set = buffer->pending_data;
+	args->request->display.offset_set = response->hdr->pending_data;
 	if (sample_count > 0)
 		args->request->display.offset = samples[sample_count - 1];
 
@@ -82,13 +80,19 @@ int pool4_display(bool csv)
 	return 0;
 }
 
-static int pool4_count_response(struct nl_core_buffer *buffer, void *arg)
+static int pool4_count_response(struct jool_response *response, void *arg)
 {
-	struct response_pool4_count *response = netlink_get_data(buffer);
+	struct response_pool4_count *counts;
 
-	printf("tables: %u\n", response->tables);
-	printf("samples: %llu\n", response->samples);
-	printf("transport addresses: %llu\n", response->taddrs);
+	if (response->payload_len != sizeof(struct response_pool4_count)) {
+		log_err("Jool's response is not a bunch of integers.");
+		return -EINVAL;
+	}
+
+	counts = response->payload;
+	printf("tables: %u\n", counts->tables);
+	printf("samples: %llu\n", counts->samples);
+	printf("transport addresses: %llu\n", counts->taddrs);
 
 	return 0;
 }

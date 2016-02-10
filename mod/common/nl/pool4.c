@@ -6,8 +6,6 @@
 #include "nat64/mod/stateful/pool4/db.h"
 #include "nat64/mod/stateful/session/db.h"
 
-static const enum config_mode COMMAND = MODE_POOL4;
-
 static int pool4_to_usr(struct pool4_sample *sample, void *arg)
 {
 	return nlbuffer_write(arg, sample, sizeof(*sample));
@@ -16,26 +14,26 @@ static int pool4_to_usr(struct pool4_sample *sample, void *arg)
 static int handle_pool4_display(struct pool4 *pool, struct genl_info *info,
 		union request_pool4 *request)
 {
-	struct nl_core_buffer *buffer;
+	struct nlcore_buffer buffer;
 	struct pool4_sample *offset = NULL;
 	int error = 0;
 
 	log_debug("Sending pool4 to userspace.");
 
-	error = nlbuffer_new(&buffer, nlbuffer_data_max_size());
+	error = nlbuffer_init(&buffer, info, nlbuffer_data_max_size());
 	if (error)
-		return nlcore_respond_error(info, COMMAND, error);
+		return nlcore_respond_error(info, error);
 
 	if (request->display.offset_set)
 		offset = &request->display.offset;
 
-	error = pool4db_foreach_sample(pool, pool4_to_usr, buffer, offset);
-	buffer->pending_data = error > 0;
+	error = pool4db_foreach_sample(pool, pool4_to_usr, &buffer, offset);
+	nlbuffer_set_pending_data(&buffer, error > 0);
 	error = (error >= 0)
-			? nlbuffer_send(info, COMMAND, buffer)
-			: nlcore_respond_error(info, COMMAND, error);
+			? nlbuffer_send(info, &buffer)
+			: nlcore_respond_error(info, error);
 
-	nlbuffer_free(buffer);
+	nlbuffer_free(&buffer);
 	return error;
 }
 
@@ -45,12 +43,12 @@ static int handle_pool4_add(struct pool4 *pool, struct genl_info *info,
 	int error;
 
 	if (verify_superpriv())
-		return nlcore_respond_error(info, COMMAND, -EPERM);
+		return nlcore_respond_error(info, -EPERM);
 
 	log_debug("Adding elements to pool4.");
 
 	error = pool4db_add_usr(pool, &request->add.entry);
-	return nlcore_respond(info, COMMAND, error);
+	return nlcore_respond(info, error);
 }
 
 static int handle_pool4_rm(struct xlator *jool, struct genl_info *info,
@@ -59,7 +57,7 @@ static int handle_pool4_rm(struct xlator *jool, struct genl_info *info,
 	int error;
 
 	if (verify_superpriv())
-		return nlcore_respond_error(info, COMMAND, -EPERM);
+		return nlcore_respond_error(info, -EPERM);
 
 	log_debug("Removing elements from pool4.");
 
@@ -78,7 +76,7 @@ static int handle_pool4_rm(struct xlator *jool, struct genl_info *info,
 				&request->rm.entry.ports);
 	}
 
-	return nlcore_respond(info, COMMAND, error);
+	return nlcore_respond(info, error);
 }
 
 static int handle_pool4_flush(struct xlator *jool, struct genl_info *info,
@@ -87,7 +85,7 @@ static int handle_pool4_flush(struct xlator *jool, struct genl_info *info,
 	int error;
 
 	if (verify_superpriv())
-		return nlcore_respond_error(info, COMMAND, -EPERM);
+		return nlcore_respond_error(info, -EPERM);
 
 	log_debug("Flushing pool4.");
 	error = pool4db_flush(jool->nat64.pool4);
@@ -102,7 +100,7 @@ static int handle_pool4_flush(struct xlator *jool, struct genl_info *info,
 		bibdb_flush(jool->nat64.bib);
 	}
 
-	return nlcore_respond(info, COMMAND, error);
+	return nlcore_respond(info, error);
 }
 
 static int handle_pool4_count(struct pool4 *pool, struct genl_info *info)
@@ -110,7 +108,7 @@ static int handle_pool4_count(struct pool4 *pool, struct genl_info *info)
 	struct response_pool4_count counts;
 	log_debug("Returning pool4 counters.");
 	pool4db_count(pool, &counts.tables, &counts.samples, &counts.taddrs);
-	return nlcore_respond_struct(info, COMMAND, &counts, sizeof(counts));
+	return nlcore_respond_struct(info, &counts, sizeof(counts));
 }
 
 int handle_pool4_config(struct xlator *jool, struct genl_info *info)
@@ -121,12 +119,12 @@ int handle_pool4_config(struct xlator *jool, struct genl_info *info)
 
 	if (xlat_is_siit()) {
 		log_err("SIIT doesn't have pool4.");
-		return nlcore_respond_error(info, COMMAND, -EINVAL);
+		return nlcore_respond_error(info, -EINVAL);
 	}
 
 	error = validate_request_size(jool_hdr, sizeof(*request));
 	if (error)
-		return nlcore_respond_error(info, COMMAND, error);
+		return nlcore_respond_error(info, error);
 
 	switch (jool_hdr->operation) {
 	case OP_DISPLAY:
@@ -142,5 +140,5 @@ int handle_pool4_config(struct xlator *jool, struct genl_info *info)
 	}
 
 	log_err("Unknown operation: %d", jool_hdr->operation);
-	return nlcore_respond_error(info, COMMAND, -EINVAL);
+	return nlcore_respond_error(info, -EINVAL);
 }

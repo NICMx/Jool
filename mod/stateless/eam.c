@@ -111,7 +111,7 @@ static int eamt_add6(struct eam_table *eamt, struct eamt_entry *eam)
 		log_err("Prefix %pI6c/%u already exists.",
 				&eam->prefix6.address, eam->prefix6.len);
 	}
-	/* rtrie_print("IPv6 trie after add", &eamt.trie6); */
+	/* rtrie_print("IPv6 trie after add", &eamt->trie6); */
 
 	return error;
 }
@@ -127,7 +127,7 @@ static int eamt_add4(struct eam_table *eamt, struct eamt_entry *eam)
 		log_err("Prefix %pI4/%u already exists.",
 				&eam->prefix4.address, eam->prefix4.len);
 	}
-	/* rtrie_print("IPv4 trie after add", &eamt.trie4); */
+	/* rtrie_print("IPv4 trie after add", &eamt->trie4); */
 
 	return error;
 }
@@ -423,4 +423,9 @@ static void destroy_eamt(struct kref *refcount)
 void eamt_put(struct eam_table *eamt)
 {
 	kref_put(&eamt->refcount, destroy_eamt);
+}
+
+void eamt_print_refcount(struct eam_table *eamt)
+{
+	log_info("eamt: %d", atomic_read(&eamt->refcount.refcount));
 }

@@ -16,15 +16,14 @@ struct display_args {
 	bool csv;
 };
 
-static int pool6_display_response(struct nl_core_buffer *buffer, void *arg)
+static int pool6_display_response(struct jool_response *response, void *arg)
 {
-	struct ipv6_prefix *prefixes;
+	struct ipv6_prefix *prefixes = response->payload;
 	unsigned int prefix_count, i;
 	char prefix_str[INET6_ADDRSTRLEN];
 	struct display_args *args = arg;
 
-	prefixes = netlink_get_data(buffer);
-	prefix_count = buffer->len / sizeof(*prefixes);
+	prefix_count = response->payload_len / sizeof(*prefixes);
 
 	if (args->row_count == 0 && args->csv)
 		printf("Prefix\n");
@@ -35,7 +34,7 @@ static int pool6_display_response(struct nl_core_buffer *buffer, void *arg)
 	}
 
 	args->row_count += prefix_count;
-	args->request->display.prefix_set = buffer->pending_data;
+	args->request->display.prefix_set = response->hdr->pending_data;
 	if (prefix_count > 0)
 		args->request->display.prefix = prefixes[prefix_count - 1];
 	return 0;
@@ -56,7 +55,6 @@ int pool6_display(bool csv)
 	args.request = payload;
 	args.csv = csv;
 
-
 	do {
 		error = netlink_request(&request, hdr->length, pool6_display_response, &args);
 		if (error)
@@ -73,10 +71,14 @@ int pool6_display(bool csv)
 	return 0;
 }
 
-static int pool6_count_response(struct nl_core_buffer *buffer, void *arg)
+static int pool6_count_response(struct jool_response *response, void *arg)
 {
-	__u64 *conf = netlink_get_data(buffer);
-	printf("%llu\n", *conf);
+	if (response->payload_len != sizeof(__u64)) {
+		log_err("Jool's response is not the expected integer.");
+		return -EINVAL;
+	}
+
+	printf("%llu\n", *((__u64 *)response->payload));
 	return 0;
 }
 

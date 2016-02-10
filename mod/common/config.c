@@ -57,7 +57,6 @@ static void destroy_config(struct kref *refcounter)
 {
 	struct global_configuration *config;
 	config = container_of(refcounter, typeof(*config), refcounter);
-	kfree(config->cfg.mtu_plateaus);
 	kfree(config);
 }
 

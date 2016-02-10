@@ -6,8 +6,6 @@
 #include "nat64/mod/common/pool6.h"
 #include "nat64/mod/stateful/session/db.h"
 
-static const enum config_mode COMMAND = MODE_POOL6;
-
 static int pool6_entry_to_userspace(struct ipv6_prefix *prefix, void *arg)
 {
 	return nlbuffer_write(arg, prefix, sizeof(*prefix));
@@ -16,24 +14,24 @@ static int pool6_entry_to_userspace(struct ipv6_prefix *prefix, void *arg)
 static int handle_pool6_display(struct pool6 *pool, struct genl_info *info,
 		union request_pool6 *request)
 {
-	struct nl_core_buffer *buffer;
+	struct nlcore_buffer buffer;
 	struct ipv6_prefix *prefix;
 	int error;
 
 	log_debug("Sending pool6 to userspace.");
 
-	error = nlbuffer_new(&buffer, nlbuffer_data_max_size());
+	error = nlbuffer_init(&buffer, info, nlbuffer_data_max_size());
 	if (error)
-		return nlcore_respond_error(info, COMMAND, error);
+		return nlcore_respond_error(info, error);
 
 	prefix = request->display.prefix_set ? &request->display.prefix : NULL;
-	error = pool6_foreach(pool, pool6_entry_to_userspace, buffer, prefix);
-	buffer->pending_data = error > 0;
+	error = pool6_foreach(pool, pool6_entry_to_userspace, &buffer, prefix);
+	nlbuffer_set_pending_data(&buffer, error > 0);
 	error = (error >= 0)
-			? nlbuffer_send(info, COMMAND, buffer)
-			: nlcore_respond_error(info, COMMAND, error);
+			? nlbuffer_send(info, &buffer)
+			: nlcore_respond_error(info, error);
 
-	nlbuffer_free(buffer);
+	nlbuffer_free(&buffer);
 	return error;
 }
 
@@ -45,9 +43,9 @@ static int handle_pool6_count(struct pool6 *pool, struct genl_info *info)
 	log_debug("Returning pool6's prefix count.");
 	error = pool6_count(pool, &count);
 	if (error)
-		return nlcore_respond_error(info, COMMAND, error);
+		return nlcore_respond_error(info, error);
 
-	return nlcore_respond_struct(info, COMMAND, &count, sizeof(count));
+	return nlcore_respond_struct(info, &count, sizeof(count));
 }
 
 static int handle_pool6_add(struct pool6 *pool, union request_pool6 *request)
@@ -101,7 +99,7 @@ int handle_pool6_config(struct xlator *jool, struct genl_info *info)
 
 	error = validate_request_size(jool_hdr, sizeof(*request));
 	if (error)
-		return nlcore_respond_error(info, COMMAND, error);
+		return nlcore_respond_error(info, error);
 
 	switch (jool_hdr->operation) {
 	case OP_DISPLAY:
@@ -123,5 +121,5 @@ int handle_pool6_config(struct xlator *jool, struct genl_info *info)
 		error = -EINVAL;
 	}
 
-	return nlcore_respond(info, COMMAND, error);
+	return nlcore_respond(info, error);
 }

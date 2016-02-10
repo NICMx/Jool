@@ -18,15 +18,13 @@ struct display_params {
 	struct request_bib *req_payload;
 };
 
-static int bib_display_response(struct nl_core_buffer *buffer, void *arg)
+static int bib_display_response(struct jool_response *response, void *arg)
 {
-	struct bib_entry_usr *entries;
+	struct bib_entry_usr *entries = response->payload;
 	struct display_params *params = arg;
 	__u16 entry_count, i;
 
-
-	entries = netlink_get_data(buffer);
-	entry_count = buffer->len / sizeof(*entries);
+	entry_count = response->payload_len / sizeof(*entries);
 
 	if (params->csv_format) {
 		for (i = 0; i < entry_count; i++) {
@@ -49,7 +47,7 @@ static int bib_display_response(struct nl_core_buffer *buffer, void *arg)
 	}
 
 	params->row_count += entry_count;
-	params->req_payload->display.addr4_set = buffer->pending_data;
+	params->req_payload->display.addr4_set = response->hdr->pending_data;
 	if (entry_count > 0)
 		params->req_payload->display.addr4 = entries[entry_count - 1].addr4;
 	return 0;
@@ -109,10 +107,14 @@ int bib_display(bool use_tcp, bool use_udp, bool use_icmp, bool numeric_hostname
 	return (tcp_error || udp_error || icmp_error) ? -EINVAL : 0;
 }
 
-static int bib_count_response(struct nl_core_buffer *buffer, void *arg)
+static int bib_count_response(struct jool_response *response, void *arg)
 {
-	__u64 *conf = netlink_get_data(buffer);
-	printf("%llu\n", *conf);
+	if (response->payload_len != sizeof(__u64)) {
+		log_err("Jool's response is not the expected integer.");
+		return -EINVAL;
+	}
+
+	printf("%llu\n", *((__u64 *)response->payload));
 	return 0;
 }
 
@@ -147,7 +149,7 @@ int bib_count(bool use_tcp, bool use_udp, bool use_icmp)
 }
 
 static int exec_request(bool use_tcp, bool use_udp, bool use_icmp, struct request_hdr *hdr,
-		struct request_bib *payload, int (*callback)(struct nl_core_buffer *buffer, void *arg))
+		struct request_bib *payload, jool_response_cb callback)
 {
 	int tcp_error = 0;
 	int udp_error = 0;
@@ -172,7 +174,7 @@ static int exec_request(bool use_tcp, bool use_udp, bool use_icmp, struct reques
 	return (tcp_error || udp_error || icmp_error) ? -EINVAL : 0;
 }
 
-static int bib_add_response(struct nl_core_buffer *buffer, void *arg)
+static int bib_add_response(struct jool_response *response, void *arg)
 {
 	log_info("The BIB entry was added successfully.");
 	return 0;
@@ -192,7 +194,7 @@ int bib_add(bool use_tcp, bool use_udp, bool use_icmp, struct ipv6_transport_add
 	return exec_request(use_tcp, use_udp, use_icmp, hdr, payload, bib_add_response);
 }
 
-static int bib_remove_response(struct nl_core_buffer *buffer, void *arg)
+static int bib_remove_response(struct jool_response *response, void *arg)
 {
 	log_info("The BIB entry was removed successfully.");
 	return 0;

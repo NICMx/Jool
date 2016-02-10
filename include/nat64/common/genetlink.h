@@ -26,11 +26,10 @@ enum attributes {
 	__ATTR_MAX,
 };
 
-struct nl_core_buffer {
-	int error_code;
-	bool pending_data;
-	size_t len;
-	size_t capacity;
+struct nlcore_buffer {
+	__u16 payload_len;
+	__u16 capacity;
+	void *data;
 };
 
 

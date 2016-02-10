@@ -129,7 +129,7 @@ static int init_siit(struct xlator *jool)
 {
 	int error;
 
-	error = config_init(&jool->global, true);
+	error = config_init(&jool->global, false);
 	if (error)
 		goto config_fail;
 	error = pool6_init(&jool->pool6, NULL, 0);
@@ -168,7 +168,7 @@ static int init_nat64(struct xlator *jool)
 {
 	int error;
 
-	error = config_init(&jool->global, true);
+	error = config_init(&jool->global, false);
 	if (error)
 		goto config_fail;
 	error = pool6_init(&jool->pool6, NULL, 0);

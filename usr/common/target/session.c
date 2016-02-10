@@ -44,15 +44,13 @@ char *tcp_state_to_string(enum tcp_state state)
 	return "UNKNOWN";
 }
 
-static int session_display_response(struct nl_core_buffer *buffer, void *arg)
+static int session_display_response(struct jool_response *response, void *arg)
 {
-	struct session_entry_usr *entries;
+	struct session_entry_usr *entries = response->payload;
 	struct display_params *params = arg;
 	__u16 entry_count, i;
 
-
-	entries = netlink_get_data(buffer);
-	entry_count = buffer->len / sizeof(*entries);
+	entry_count = response->payload_len / sizeof(*entries);
 
 	if (params->csv_format) {
 		for (i = 0; i < entry_count; i++) {
@@ -105,7 +103,7 @@ static int session_display_response(struct nl_core_buffer *buffer, void *arg)
 	}
 
 	params->row_count += entry_count;
-	params->req_payload->display.connection_set = buffer->pending_data;
+	params->req_payload->display.connection_set = response->hdr->pending_data;
 	if (entry_count > 0) {
 		params->req_payload->display.remote4 = entries[entry_count - 1].remote4;
 		params->req_payload->display.local4 = entries[entry_count - 1].local4;
@@ -176,10 +174,14 @@ int session_display(bool use_tcp, bool use_udp, bool use_icmp, bool numeric_host
 	return (tcp_error || udp_error || icmp_error) ? -EINVAL : 0;
 }
 
-static int session_count_response(struct nl_core_buffer *buffer, void *arg)
+static int session_count_response(struct jool_response *response, void *arg)
 {
-	__u64 *conf = netlink_get_data(buffer);
-	printf("%s: %llu\n", (char *)arg, *conf);
+	if (response->payload_len != sizeof(__u64)) {
+		log_err("Jool's response is not the expected integer.");
+		return -EINVAL;
+	}
+
+	printf("%llu\n", *((__u64 *)response->payload));
 	return 0;
 }
 

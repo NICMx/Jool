@@ -20,14 +20,16 @@
 	#error "Unsupported LIBNL library version number (< 3.0)."
 #endif
 
+struct jool_response {
+	struct response_hdr *hdr;
+	void *payload;
+	size_t payload_len;
+};
 
-typedef int (*jool_response_cb)(struct nl_core_buffer *, void *);
+typedef int (*jool_response_cb)(struct jool_response *, void *);
 int netlink_request(void *request, __u32 request_len,
 		jool_response_cb cb, void *cb_arg);
 int netlink_request_simple(void *request, __u32 request_len);
-
-/* TODO shouldn't this be in genetlink.h? */
-void *netlink_get_data(struct nl_core_buffer *buffer);
 
 int netlink_init(void);
 void netlink_destroy(void);

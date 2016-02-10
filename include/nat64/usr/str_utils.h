@@ -58,8 +58,8 @@ int str_to_addr6_port(const char *str, struct ipv6_transport_addr *out);
  * Parses "str" as an IP prefix (<prefix address>/<mask>), which it then copies to "out".
  * If str contains no mask, it will default to "out"'s maximum sensible mask.
  */
-int str_to_ipv6_prefix(const char *str, struct ipv6_prefix *out);
-int str_to_ipv4_prefix(const char *str, struct ipv4_prefix *out);
+int str_to_prefix6(const char *str, struct ipv6_prefix *out);
+int str_to_prefix4(const char *str, struct ipv4_prefix *out);
 /**
  * @}
  */

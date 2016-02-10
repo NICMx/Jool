@@ -46,4 +46,6 @@ void cfgcandidate_put(struct config_candidate *candidate);
 
 int atomconfig_add(struct xlator *jool, void *config, size_t config_len);
 
+void cfgcandidate_print_refcount(struct config_candidate *candidate);
+
 #endif /* _JOOL_MOD_ATOMIC_CONFIG_H */

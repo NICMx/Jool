@@ -20,7 +20,7 @@ struct error_node {
 };
 
 static __u8 activated = 0;
-static __u16 msg_size = 0;
+static size_t msg_size = 0;
 static struct list_head db;
 
 void error_pool_init(void)
@@ -73,21 +73,26 @@ int error_pool_add_message(char * msg)
 
 	strcpy(node->msg,msg);
 	list_add_tail(&node->prev_next,&db) ;
-	msg_size+= strlen(msg);
+	msg_size += strlen(msg);
 	return 0;
 }
 
-int error_pool_get_message(char **out_message, unsigned int *msg_len)
+/**
+ * Note: @msg_len includes the NULL chara.
+ */
+int error_pool_get_message(char **out_message, size_t *msg_len)
 {
 	struct error_node *node;
 	char *buffer_pointer;
 
-	if (!activated)
+	if (!activated) {
+		pr_err("error_pool_get_message() seems to have been called ouside of an userspace request handler.\n");
 		return -EINVAL;
+	}
 
 	(*out_message) = kmalloc(msg_size + 1, GFP_KERNEL);
 	if (!(*out_message)) {
-		pr_err("Could not allocate the error pool message!") ;
+		pr_err("Could not allocate the error pool message!\n") ;
 		return -ENOMEM;
 	}
 

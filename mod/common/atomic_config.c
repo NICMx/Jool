@@ -102,10 +102,17 @@ static int handle_global(struct xlator *jool, void *payload, __u32 payload_len)
 		jool->newcfg->global = config;
 	}
 
+	/*
+	 * TODO if there's an error in config_parse, this can easily fall into
+	 * an infinite loop.
+	 * Maybe add validations?
+	 */
+
 	do {
 		result = config_parse(config, payload, payload_len);
 		if (result < 0)
 			return result;
+
 		payload += result;
 		payload_len -= result;
 	} while (payload_len > 0);
@@ -141,6 +148,7 @@ static int handle_eamt(struct config_candidate *new, void *payload,
 {
 	struct eamt_entry *eams = payload;
 	unsigned int eam_count = payload_len / sizeof(*eams);
+	struct eamt_entry *eam;
 	unsigned int i;
 	int error;
 
@@ -151,9 +159,10 @@ static int handle_eamt(struct config_candidate *new, void *payload,
 	}
 
 	for (i = 0; i < eam_count; i++) {
+		eam = &eams[i];
 		/* TODO (final) force should be variable. */
-		error = eamt_add(new->siit.eamt, &eams[i].prefix6,
-				&eams->prefix4, true);
+		error = eamt_add(new->siit.eamt, &eam->prefix6, &eam->prefix4,
+				true);
 		if (error)
 			return error;
 	}
@@ -370,4 +379,9 @@ int atomconfig_add(struct xlator *jool, void *config, size_t config_len)
 	mutex_unlock(&lock);
 
 	return error;
+}
+
+void cfgcandidate_print_refcount(struct config_candidate *candidate)
+{
+	log_info("cfg candidate: %d", atomic_read(&candidate->refcount.refcount));
 }

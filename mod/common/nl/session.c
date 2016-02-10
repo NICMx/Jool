@@ -4,11 +4,9 @@
 #include "nat64/mod/common/nl/nl_common.h"
 #include "nat64/mod/common/nl/nl_core2.h"
 
-static const enum config_mode COMMAND = MODE_SESSION;
-
 static int session_entry_to_userspace(struct session_entry *entry, void *arg)
 {
-	struct nl_core_buffer *buffer = (struct nl_core_buffer *) arg;
+	struct nlcore_buffer *buffer = (struct nlcore_buffer *) arg;
 	struct session_entry_usr entry_usr;
 	unsigned long dying_time;
 
@@ -32,16 +30,16 @@ static int session_entry_to_userspace(struct session_entry *entry, void *arg)
 static int handle_session_display(struct sessiondb *db, struct genl_info *info,
 		struct request_session *request)
 {
-	struct nl_core_buffer *buffer;
+	struct nlcore_buffer buffer;
 	struct ipv4_transport_addr *remote4 = NULL;
 	struct ipv4_transport_addr *local4 = NULL;
 	int error;
 
 	log_debug("Sending session table to userspace.");
 
-	error = nlbuffer_new(&buffer, nlbuffer_data_max_size());
+	error = nlbuffer_init(&buffer, info, nlbuffer_data_max_size());
 	if (error)
-		return nlcore_respond_error(info, COMMAND, error);
+		return nlcore_respond_error(info, error);
 
 	if (request->display.connection_set) {
 		remote4 = &request->display.remote4;
@@ -49,13 +47,13 @@ static int handle_session_display(struct sessiondb *db, struct genl_info *info,
 	}
 
 	error = sessiondb_foreach(db, request->l4_proto,
-			session_entry_to_userspace, buffer, remote4, local4);
-	buffer->pending_data = error > 0;
+			session_entry_to_userspace, &buffer, remote4, local4);
+	nlbuffer_set_pending_data(&buffer, error > 0);
 	error = (error >= 0)
-			? nlbuffer_send(info, COMMAND, buffer)
-			: nlcore_respond_error(info, COMMAND, error);
+			? nlbuffer_send(info, &buffer)
+			: nlcore_respond_error(info, error);
 
-	nlbuffer_free(buffer);
+	nlbuffer_free(&buffer);
 	return error;
 }
 
@@ -69,9 +67,9 @@ static int handle_session_count(struct sessiondb *db, struct genl_info *info,
 
 	error = sessiondb_count(db, request->l4_proto, &count);
 	if (error)
-		return nlcore_respond_error(info, COMMAND, error);
+		return nlcore_respond_error(info, error);
 
-	return nlcore_respond_struct(info, COMMAND, &count, sizeof(count));
+	return nlcore_respond_struct(info, &count, sizeof(count));
 }
 
 int handle_session_config(struct xlator *jool, struct genl_info *info)
@@ -82,7 +80,7 @@ int handle_session_config(struct xlator *jool, struct genl_info *info)
 
 	if (xlat_is_siit()) {
 		log_err("SIIT doesn't have session tables.");
-		return nlcore_respond_error(info, COMMAND, -EINVAL);
+		return nlcore_respond_error(info, -EINVAL);
 	}
 
 	jool_hdr = get_jool_hdr(info);
@@ -90,7 +88,7 @@ int handle_session_config(struct xlator *jool, struct genl_info *info)
 
 	error = validate_request_size(jool_hdr, sizeof(*request));
 	if (error)
-		return nlcore_respond_error(info, COMMAND, error);
+		return nlcore_respond_error(info, error);
 
 	switch (jool_hdr->operation) {
 	case OP_DISPLAY:
@@ -100,5 +98,5 @@ int handle_session_config(struct xlator *jool, struct genl_info *info)
 	}
 
 	log_err("Unknown operation: %d", jool_hdr->operation);
-	return nlcore_respond_error(info, COMMAND, -EINVAL);
+	return nlcore_respond_error(info, -EINVAL);
 }
