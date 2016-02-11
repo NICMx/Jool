@@ -36,7 +36,7 @@ static int __add_entry(char *addr4, __u8 len4, char *addr6, __u8 len6)
 		return false;
 	prefix6.len = len6;
 
-	log_debug("\nInserting %s/%u | %s/%u", addr6, len6, addr4, len4);
+	log_debug("Inserting %s/%u | %s/%u", addr6, len6, addr4, len4);
 	error = eamt_add(&prefix6, &prefix4, true);
 	/*
 	if (error) {
@@ -169,7 +169,7 @@ static bool daniel_test(void)
 	return success;
 }
 
-static bool anderson_test(void)
+static bool rfc7757_examples_test(void)
 {
 	bool success = true;
 
@@ -177,7 +177,8 @@ static bool anderson_test(void)
 	success &= add_entry("192.0.2.2", 32, "2001:db8:bbbb::b", 128);
 	success &= add_entry("192.0.2.16", 28, "2001:db8:cccc::", 124);
 	success &= add_entry("192.0.2.128", 26, "2001:db8:dddd::", 64);
-	success &= add_entry("192.0.2.192", 31, "64:ff9b::", 127);
+	success &= add_entry("192.0.2.192", 29, "2001:db8:eeee:8::", 62);
+	success &= add_entry("192.0.2.224", 31, "64:ff9b::", 127);
 	if (!success)
 		return false;
 
@@ -190,7 +191,33 @@ static bool anderson_test(void)
 	success &= test("192.0.2.152", "2001:db8:dddd:0:6000::");
 	success &= test("192.0.2.183", "2001:db8:dddd:0:dc00::");
 	success &= test("192.0.2.191", "2001:db8:dddd:0:fc00::");
-	success &= test("192.0.2.193", "64:ff9b::1");
+	success &= test("192.0.2.195", "2001:db8:eeee:9:8000::");
+	success &= test("192.0.2.225", "64:ff9b::1");
+
+	return success;
+}
+
+static bool rfc7757_overlapping_test(void)
+{
+	bool success = true;
+
+	success &= add_entry("0.0.0.0", 0, "2001:db8:ff00::", 40);
+	success &= add_entry("198.51.100.64", 32, "2001:db8::abcd", 128);
+	if (!success)
+		return false;
+
+	success &= test_6to4("2001:db8:ffc6:3364:4000::", "198.51.100.64");
+	success &= test_4to6("198.51.100.64", "2001:db8::abcd");
+
+	return success;
+}
+
+static bool rfc7757_identical_test(void)
+{
+	bool success = true;
+
+	success &= add_entry("198.51.100.8", 32, "2001:db8::1", 128);
+	success &= ASSERT_INT(-EEXIST, __add_entry("198.51.100.9", 32, "2001:db8::1", 128), "full collision");
 
 	return success;
 }
@@ -429,7 +456,9 @@ static int address_mapping_test_init(void)
 
 	INIT_CALL_END(init(), add_test(), end(), "add function");
 	INIT_CALL_END(init(), daniel_test(), end(), "Daniel's xlat tests");
-	INIT_CALL_END(init(), anderson_test(), end(), "Tore's xlat tests");
+	INIT_CALL_END(init(), rfc7757_examples_test(), end(), "RFC 7757 Appendix B");
+	INIT_CALL_END(init(), rfc7757_overlapping_test(), end(), "RFC 7757 Section 5, 1st half");
+	INIT_CALL_END(init(), rfc7757_identical_test(), end(), "RFC 7757 Section 5, 2nd half");
 	INIT_CALL_END(init(), remove_test(), end(), "remove function");
 
 	END_TESTS;
