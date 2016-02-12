@@ -263,7 +263,7 @@ static int commit(struct xlator *jool)
 	int error;
 
 	if (new->global) {
-		error = config_init(&global, true);
+		error = config_init(&global);
 		if (error)
 			return error;
 		config_copy(&new->global->global, &global->cfg);

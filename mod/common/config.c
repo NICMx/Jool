@@ -10,7 +10,7 @@
 static DEFINE_MUTEX(lock);
 
 RCUTAG_USR
-int config_init(struct global_configuration **result, bool enable)
+int config_init(struct global_configuration **result)
 {
 	struct global_config *config;
 	__u16 plateaus[] = DEFAULT_MTU_PLATEAUS;
@@ -22,7 +22,7 @@ int config_init(struct global_configuration **result, bool enable)
 	config = &(*result)->cfg;
 
 	config->status = 0; /* This is never read, but whatever. */
-	config->enabled = (__u8)enable;
+	config->enabled = DEFAULT_INSTANCE_ENABLED;
 	config->reset_traffic_class = DEFAULT_RESET_TRAFFIC_CLASS;
 	config->reset_tos = DEFAULT_RESET_TOS;
 	config->new_tos = DEFAULT_NEW_TOS;

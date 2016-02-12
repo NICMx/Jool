@@ -178,28 +178,21 @@ static int update_plateaus(struct global_config *config,
 	return 0;
 }
 
-/* El máximo que puedo enviar a través de nlcore_respond_struct() es 4056. */
-
-static __u8 confif[4056];
-
 static int handle_global_display(struct xlator *jool, struct genl_info *info)
 {
-	struct full_config *config = (struct full_config *)confif;
-	bool enabled;
-
-	log_info("nl_core_buffer es %zu bytes.", sizeof(struct nlcore_buffer));
-	log_info("Van a ser %zu bytes.", sizeof(confif));
+	struct full_config config;
+	bool pools_empty;
 
 	log_debug("Returning 'Global' options.");
 
-	xlator_copy_config(jool, config);
+	xlator_copy_config(jool, &config);
 
-	enabled = !pool6_is_empty(jool->pool6);
+	pools_empty = pool6_is_empty(jool->pool6);
 	if (xlat_is_nat64())
-		enabled |= !eamt_is_empty(jool->siit.eamt);
-	prepare_config_for_userspace(config, enabled);
+		pools_empty &= eamt_is_empty(jool->siit.eamt);
+	prepare_config_for_userspace(&config, pools_empty);
 
-	return nlcore_respond_struct(info, config, sizeof(confif));
+	return nlcore_respond_struct(info, &config, sizeof(config));
 }
 
 static int massive_switch(struct full_config *cfg, struct global_value *chunk,
@@ -207,8 +200,6 @@ static int massive_switch(struct full_config *cfg, struct global_value *chunk,
 {
 	__u8 tmp8;
 	int error;
-
-log_info("massive");
 
 	if (!ensure_bytes(size, chunk->len))
 		return -EINVAL;
@@ -346,7 +337,7 @@ static int commit_config(struct xlator *jool, struct full_config *config)
 	int error;
 
 	config_put(jool->global);
-	error = config_init(&jool->global, false);
+	error = config_init(&jool->global);
 	if (error)
 		return error;
 

@@ -84,7 +84,7 @@ static bool basic_test(void)
 	struct global_configuration *config;
 	struct global_config clone;
 
-	if (config_init(&config, true))
+	if (config_init(&config))
 		return false;
 
 	if (serialize_global_config(&config->cfg, true, &buffer, &buffer_len))
@@ -110,7 +110,7 @@ static bool translate_nulls_mtu(void)
 	struct global_configuration *config;
 	struct global_config clone;
 
-	if (config_init(&config, true))
+	if (config_init(&config))
 		return false;
 
 	/*

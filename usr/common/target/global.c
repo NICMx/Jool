@@ -63,7 +63,9 @@ static int handle_display_response(struct jool_response *response, void *arg)
 	struct full_config *conf = response->payload;
 
 	if (response->payload_len != sizeof(struct full_config)) {
-		log_err("Jool's response is not a structure containing global values.");
+		log_err("Jool's response has a bogus length. (expected %zu, got %zu)",
+				sizeof(struct full_config),
+				response->payload_len);
 		return -EINVAL;
 	}
 
@@ -161,7 +163,9 @@ static int handle_display_response_csv(struct jool_response *response, void *arg
 	struct full_config *conf = response->payload;
 
 	if (response->payload_len != sizeof(struct full_config)) {
-		log_err("Jool's response is not a structure containing global values.");
+		log_err("Jool's response has a bogus length. (expected %zu, got %zu)",
+				sizeof(struct full_config),
+				response->payload_len);
 		return -EINVAL;
 	}
 

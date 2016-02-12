@@ -149,6 +149,8 @@ static int __handle_jool_message(struct genl_info *info)
 	struct xlator translator;
 	int error;
 
+	log_debug("===============================================");
+
 	error = validate_header(info);
 	if (error)
 		return error; /* client is not Jool, so don't answer. */

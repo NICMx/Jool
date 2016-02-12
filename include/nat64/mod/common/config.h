@@ -13,7 +13,7 @@ struct global_configuration {
 	struct kref refcounter;
 };
 
-int config_init(struct global_configuration **global, bool disable);
+int config_init(struct global_configuration **global);
 void config_get(struct global_configuration *global);
 void config_put(struct global_configuration *global);
 

@@ -9,6 +9,11 @@
 #include "nat64/mod/common/nl/nl_common.h"
 #include "nat64/mod/common/nl/nl_handler.h"
 
+#ifndef GENLMSG_DEFAULT_SIZE
+/* This happens in old kernels. */
+#define GENLMSG_DEFAULT_SIZE (NLMSG_DEFAULT_SIZE - GENL_HDRLEN)
+#endif
+
 /*
  * From my experience, the maximum packet size is exactly PAGE_SIZE. Any more
  * and the packet will not be delivered. (and the packet dispatch function will
@@ -36,7 +41,7 @@
  * not want to tempt the devil.
  *
  * IF YOU PLAN ON TWEAKING THIS MACRO, YOU HAVE TO CASCADE YOUR CHANGES TO THE
- * BUILD_BUG_ON_MSG() AT nlcore_init()!!!
+ * BUILD_BUG_ON() AT nlcore_init()!!!
  */
 #define NLBUFFER_MAX_PAYLOAD \
 	(GENLMSG_DEFAULT_SIZE - sizeof(struct response_hdr) - 256)
@@ -81,7 +86,7 @@ static int respond_single_msg(struct genl_info *info, struct nlcore_buffer *buff
 	int error;
 	uint32_t portid;
 
-	skb = genlmsg_new(nlbuffer_size(buffer), GFP_KERNEL);
+	skb = genlmsg_new(nla_total_size(nlbuffer_size(buffer)), GFP_KERNEL);
 	if (!skb) {
 		pr_err("genlmsg_new() failed.\n");
 		return -ENOMEM;
@@ -102,7 +107,7 @@ static int respond_single_msg(struct genl_info *info, struct nlcore_buffer *buff
 
 	error = nla_put(skb, ATTR_DATA, nlbuffer_size(buffer), buffer->data);
 	if (error) {
-		pr_err("nla_put() failed.\n");
+		pr_err("nla_put() failed. (errcode %d)\n", error);
 		kfree_skb(skb);
 		return error;
 	}
@@ -111,7 +116,7 @@ static int respond_single_msg(struct genl_info *info, struct nlcore_buffer *buff
 
 	error = genlmsg_reply(skb, info);
 	if (error) {
-		pr_err("genlmsg_reply() failed: %d\n", error);
+		pr_err("genlmsg_reply() failed. (errcode %d)\n", error);
 		return error;
 	}
 
@@ -157,7 +162,7 @@ int nlbuffer_init(struct nlcore_buffer *buffer, struct genl_info *info,
 
 	if (WARN(capacity > NLBUFFER_MAX_PAYLOAD, "Message size is too big.")) {
 		log_err("Message size is too big. (%zu > %zu)", capacity,
-				NLBUFFER_MAX_PAYLOAD);
+				(size_t)NLBUFFER_MAX_PAYLOAD);
 		return -EINVAL;
 	}
 
@@ -205,7 +210,7 @@ int nlcore_send_multicast_message(struct nlcore_buffer *buffer)
 	struct sk_buff *skb;
 	void *msg_head;
 
-	skb = genlmsg_new(nlbuffer_size(buffer), GFP_ATOMIC);
+	skb = genlmsg_new(nla_total_size(nlbuffer_size(buffer)), GFP_ATOMIC);
 	if (!skb) {
 		log_debug("Failed to allocate the multicast message.");
 		return -ENOMEM;
@@ -219,7 +224,7 @@ int nlcore_send_multicast_message(struct nlcore_buffer *buffer)
 
 	error = nla_put(skb, ATTR_DATA, nlbuffer_size(buffer), buffer->data);
 	if (error) {
-		pr_err("nla_put() failed. \n");
+		pr_err("nla_put() failed. (errcode %d)\n", error);
 		kfree_skb(skb);
 		return error;
 	}
@@ -388,8 +393,12 @@ static int register_family(void)
 
 int nlcore_init(void)
 {
-	BUILD_BUG_ON_MSG(GENLMSG_DEFAULT_SIZE <= sizeof(struct response_hdr) + 256,
-			"GENLMSG_DEFAULT_SIZE is too small!");
+	/*
+	 * If this triggers, GENLMSG_DEFAULT_SIZE is too small.
+	 * Sorry; I don't want to use BUILD_BUG_ON_MSG because old kernels don't
+	 * have it.
+	 */
+	BUILD_BUG_ON(GENLMSG_DEFAULT_SIZE <= sizeof(struct response_hdr) + 256);
 
 	error_pool_init();
 	return register_family();

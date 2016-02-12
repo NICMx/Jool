@@ -649,7 +649,7 @@ int init_module(void)
 {
 	START_TESTS("Translating the Packet");
 
-	if (config_init(&config, true))
+	if (config_init(&config))
 		return false;
 	config->cfg.atomic_frags.df_always_on = true;
 	config->cfg.atomic_frags.build_ipv4_id = false;

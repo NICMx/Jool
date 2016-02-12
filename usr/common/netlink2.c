@@ -92,7 +92,7 @@ static int response_handler(struct nl_msg * msg, void * void_arg)
 
 	response.hdr = nla_data(attrs[ATTR_DATA]);
 	response.payload = response.hdr + 1;
-	response.payload_len = attrs[ATTR_DATA]->nla_len - sizeof(struct response_hdr);
+	response.payload_len = nla_len(attrs[ATTR_DATA]) - sizeof(struct response_hdr);
 
 	if (response.hdr->error_code)
 		return print_error_msg(&response);
