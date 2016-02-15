@@ -35,6 +35,9 @@ static int handle_session_display(struct sessiondb *db, struct genl_info *info,
 	struct ipv4_transport_addr *local4 = NULL;
 	int error;
 
+	if (verify_superpriv())
+		return nlcore_respond_error(info, -EPERM);
+
 	log_debug("Sending session table to userspace.");
 
 	error = nlbuffer_init(&buffer, info, nlbuffer_data_max_size());

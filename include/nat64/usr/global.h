@@ -35,6 +35,7 @@
 #define OPTNAME_FRAG_TIMEOUT		"fragment-arrival-timeout"
 #define OPTNAME_MAX_SO			"maximum-simultaneous-opens"
 #define OPTNAME_SRC_ICMP6E_BETTER	"source-icmpv6-errors-better"
+#define OPTNAME_F_ARGS			"f-args"
 #define OPTNAME_BIB_LOGGING		"logging-bib"
 #define OPTNAME_SESSION_LOGGING		"logging-session"
 

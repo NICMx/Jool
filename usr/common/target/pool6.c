@@ -101,7 +101,7 @@ int pool6_add(struct ipv6_prefix *prefix, bool force)
 	union request_pool6 *payload = (union request_pool6 *) (request + HDR_LEN);
 
 	if (!force && get_ubit(prefix)) {
-		log_err("Warning: The u-bit is nonzero; see https://github.com/NICMx/NAT64/issues/174.");
+		log_err("Warning: The u-bit is nonzero; see https://github.com/NICMx/Jool/issues/174.");
 		log_err("Will cancel the operation. Use --force to override this.");
 		return -EINVAL;
 	}

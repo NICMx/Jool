@@ -122,8 +122,23 @@ void pool_put(struct addr4_pool *pool)
 	kref_put(&pool->refcounter, destroy_pool);
 }
 
+static int validate_scope(struct ipv4_prefix *prefix, bool force)
+{
+	struct ipv4_prefix subnet;
+
+	if (!force && prefix4_has_subnet_scope(prefix, &subnet)) {
+		log_err("Prefix %pI4/%u intersects with subnet scoped network %pI4/%u.",
+				&prefix->address, prefix->len,
+				&subnet.address, subnet.len);
+		log_err("Will cancel the operation. Use --force to ignore this validation.");
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 RCUTAG_USR
-int pool_add(struct addr4_pool *pool, struct ipv4_prefix *prefix)
+int pool_add(struct addr4_pool *pool, struct ipv4_prefix *prefix, bool force)
 {
 	struct list_head *list;
 	struct pool_entry *entry;
@@ -131,6 +146,9 @@ int pool_add(struct addr4_pool *pool, struct ipv4_prefix *prefix)
 	int error;
 
 	error = prefix4_validate(prefix);
+	if (error)
+		return error;
+	error = validate_scope(prefix, force);
 	if (error)
 		return error;
 
@@ -178,7 +196,7 @@ int pool_add_str(struct addr4_pool *pool, char *pref_strs[], int pref_count)
 		error = parse_prefix4(pref_strs[i], &prefix);
 		if (error)
 			return error;
-		error = pool_add(pool, &prefix);
+		error = pool_add(pool, &prefix, false);
 		if (error)
 			return error;
 	}

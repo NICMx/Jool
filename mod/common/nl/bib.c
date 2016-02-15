@@ -27,6 +27,9 @@ static int handle_bib_display(struct bib *db, struct genl_info *info,
 	struct ipv4_transport_addr *addr4;
 	int error;
 
+	if (verify_superpriv())
+		return nlcore_respond_error(info, -EPERM);
+
 	log_debug("Sending BIB to userspace.");
 
 	error = nlbuffer_init(&buffer, info, nlbuffer_data_max_size());

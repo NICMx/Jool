@@ -27,7 +27,7 @@ void blacklist_put(struct addr4_pool *pool)
 
 int blacklist_add(struct addr4_pool *pool, struct ipv4_prefix *prefix)
 {
-	return pool_add(pool, prefix);
+	return pool_add(pool, prefix, false);
 }
 
 int blacklist_rm(struct addr4_pool *pool, struct ipv4_prefix *prefix)

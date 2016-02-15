@@ -1,7 +1,7 @@
 .\" Manpage for jool's userspace app.
 .\" Report bugs to jool@nic.mx.
 
-.TH jool 8 2015-11-11 v3.4.1 "NAT64 Jool's Userspace Application"
+.TH jool 8 2015-11-20 v3.4.2 "NAT64 Jool's Userspace Application"
 
 .SH NAME
 jool - Interact with NAT64 Jool (the kernel module).
@@ -183,6 +183,18 @@ Set the timeout for arrival of fragments.
 Set the maximum allowable 'simultaneous' Simultaneos Opens of TCP connections.
 .IP --source-icmpv6-errors-better=BOOL
 Translate source addresses directly on 4-to-6 ICMP errors?
+.IP --f-args=INT
+Defines the arguments that will be sent to F().
+.br
+(F() is defined by algorithm 3 of RFC 6056.)
+.br
+- First (leftmost) bit is source address.
+.br
+- Second bit is source port.
+.br
+- Third bit is destination address.
+.br
+- Fourth (rightmost) bit is destination port.
 .IP --logging-bib=BOOL
 Log BIBs as they are created and destroyed?
 .IP --logging-session=BOOL
@@ -263,7 +275,7 @@ Zero on success, non-zero on failure.
 NIC Mexico & ITESM
 
 .SH REPORTING BUGS
-Our issue tracker is https://github.com/NICMx/NAT64/issues.
+Our issue tracker is https://github.com/NICMx/Jool/issues.
 If you want to mail us instead, use jool@nic.mx.
 
 .SH COPYRIGHT
@@ -275,6 +287,7 @@ This is free software: you are free to change and redistribute it.
 There is NO WARRANTY, to the extent permitted by law.
 
 .SH SEE ALSO
-https://nicmx.github.io/jool-doc
+https://www.jool.mx
 .br
-https://nicmx.github.io/jool-doc/en/documentation.html#userspace-application-arguments
+https://www.jool.mx/en/documentation.html#userspace-application-arguments
+

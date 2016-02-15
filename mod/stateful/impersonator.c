@@ -137,7 +137,7 @@ void pool_put(struct addr4_pool *pool)
 	fail(__func__);
 }
 
-int pool_add(struct addr4_pool *pool, struct ipv4_prefix *prefix)
+int pool_add(struct addr4_pool *pool, struct ipv4_prefix *prefix, bool force)
 {
 	return fail(__func__);
 }

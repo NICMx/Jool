@@ -260,6 +260,9 @@ static int massive_switch(struct full_config *cfg, struct global_value *chunk,
 	case SRC_ICMP6ERRS_BETTER:
 		error = ensure_nat64(OPTNAME_SRC_ICMP6E_BETTER);
 		return error ? : parse_bool(&cfg->global.nat64.src_icmp6errs_better, chunk, size);
+	case F_ARGS:
+		error = ensure_nat64(OPTNAME_F_ARGS);
+		return error ? : parse_u8(&cfg->global.nat64.f_args, chunk, size);
 	case UDP_TIMEOUT:
 		error = ensure_nat64(OPTNAME_UDP_TIMEOUT);
 		return error ? : parse_timeout(&cfg->session.ttl.udp, chunk, size, UDP_MIN);

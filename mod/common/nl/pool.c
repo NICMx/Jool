@@ -55,7 +55,7 @@ static int handle_addr4pool_add(struct addr4_pool *pool,
 		return -EPERM;
 
 	log_debug("Adding an address to an IPv4 address pool.");
-	return pool_add(pool, &request->add.addrs);
+	return pool_add(pool, &request->add.addrs, request->add.force);
 }
 
 static int handle_addr4pool_rm(struct addr4_pool *pool,

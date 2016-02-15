@@ -41,6 +41,7 @@ int config_init(struct global_configuration **result)
 		config->nat64.drop_by_addr = DEFAULT_ADDR_DEPENDENT_FILTERING;
 		config->nat64.drop_external_tcp = DEFAULT_DROP_EXTERNAL_CONNECTIONS;
 		config->nat64.drop_icmp6_info = DEFAULT_FILTER_ICMPV6_INFO;
+		config->nat64.f_args = DEFAULT_F_ARGS;
 	}
 
 	config->mtu_plateau_count = ARRAY_SIZE(plateaus);

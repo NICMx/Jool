@@ -186,7 +186,8 @@ static int handle_addr4_pool(struct addr4_pool **pool, void *payload,
 	}
 
 	for (i = 0; i < prefix_count; i++) {
-		error = pool_add(*pool, &prefixes[i]);
+		/* TODO (final) force should be variable. */
+		error = pool_add(*pool, &prefixes[i], true);
 		if (error)
 			return error;
 	}

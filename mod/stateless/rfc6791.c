@@ -28,9 +28,9 @@ void rfc6791_put(struct addr4_pool *pool)
 	return pool_put(pool);
 }
 
-int rfc6791_add(struct addr4_pool *pool, struct ipv4_prefix *prefix)
+int rfc6791_add(struct addr4_pool *pool, struct ipv4_prefix *prefix, bool force)
 {
-	return pool_add(pool, prefix);
+	return pool_add(pool, prefix, force);
 }
 
 int rfc6791_rm(struct addr4_pool *pool, struct ipv4_prefix *prefix)

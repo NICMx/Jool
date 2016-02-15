@@ -53,8 +53,45 @@ void palloc_destroy(void)
 	kfree(secret_key);
 }
 
-static int f(const struct in6_addr *local_ip, const struct in6_addr *remote_ip,
-		__u16 remote_port, unsigned int *result)
+void build_scatterlist(const struct tuple *tuple6, __u16 f_args,
+		struct scatterlist *sg, unsigned int *sg_len)
+{
+	unsigned int sg_index;
+	unsigned int field_len;
+
+	*sg_len = 0;
+	sg_index = 0;
+
+	if (f_args & F_ARGS_SRC_ADDR) {
+		field_len = sizeof(tuple6->src.addr6.l3);
+		sg_set_buf(&sg[sg_index], &tuple6->src.addr6.l3, field_len);
+		*sg_len += field_len;
+		sg_index++;
+	}
+	if (f_args & F_ARGS_SRC_PORT) {
+		field_len = sizeof(tuple6->src.addr6.l4);
+		sg_set_buf(&sg[sg_index], &tuple6->src.addr6.l4, field_len);
+		*sg_len += field_len;
+		sg_index++;
+	}
+	if (f_args & F_ARGS_DST_ADDR) {
+		field_len = sizeof(tuple6->dst.addr6.l3);
+		sg_set_buf(&sg[sg_index], &tuple6->dst.addr6.l3, field_len);
+		*sg_len += field_len;
+		sg_index++;
+	}
+	if (f_args & F_ARGS_DST_PORT) {
+		field_len = sizeof(tuple6->dst.addr6.l4);
+		sg_set_buf(&sg[sg_index], &tuple6->dst.addr6.l4, field_len);
+		*sg_len += field_len;
+		sg_index++;
+	}
+
+	sg_set_buf(&sg[sg_index], secret_key, secret_key_len);
+	*sg_len += secret_key_len;
+}
+
+static int f(const struct tuple *tuple6, __u8 fields, unsigned int *result)
 {
 	/*
 	 * See http://stackoverflow.com/questions/3869028.
@@ -65,18 +102,14 @@ static int f(const struct in6_addr *local_ip, const struct in6_addr *remote_ip,
 		__be32 as32[4];
 		__u8 as8[16];
 	} md5_result;
-	struct scatterlist sg[4];
-	unsigned int len;
+	struct scatterlist sg[5];
+	unsigned int sg_len;
 	struct hash_desc desc;
 	int error;
 
 	sg_init_table(sg, ARRAY_SIZE(sg));
-	sg_set_buf(&sg[0], local_ip, sizeof(*local_ip));
-	sg_set_buf(&sg[1], remote_ip, sizeof(*remote_ip));
-	sg_set_buf(&sg[2], &remote_port, sizeof(remote_port));
-	sg_set_buf(&sg[3], secret_key, secret_key_len);
-	len = sizeof(*local_ip) + sizeof(*remote_ip) + sizeof(remote_port) +
-			secret_key_len;
+	build_scatterlist(tuple6, fields, sg, &sg_len);
+
 	desc.tfm = tfm;
 	desc.flags = 0;
 
@@ -87,7 +120,7 @@ static int f(const struct in6_addr *local_ip, const struct in6_addr *remote_ip,
 		log_debug("crypto_hash_init() failed. Errcode: %d", error);
 		goto unlock;
 	}
-	error = crypto_hash_digest(&desc, sg, len, md5_result.as8);
+	error = crypto_hash_digest(&desc, sg, sg_len, md5_result.as8);
 	if (error) {
 		log_debug("crypto_hash_digest() failed. Errcode: %d", error);
 		goto unlock;
@@ -133,8 +166,7 @@ int palloc_allocate(struct xlation *state, struct in_addr *daddr,
 	unsigned int offset;
 	int error;
 
-	error = f(&tuple6->src.addr6.l3, &tuple6->dst.addr6.l3,
-			tuple6->dst.addr6.l4, &offset);
+	error = f(tuple6, state->jool.global->cfg.nat64.f_args, &offset);
 	if (error)
 		return error;
 

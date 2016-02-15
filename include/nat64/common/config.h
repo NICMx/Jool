@@ -27,8 +27,8 @@
  * This value was chosen at random, if I remember correctly.
  * TODO (next) you sure this is sane? 0x22 > 32.
  */
-#define MSG_TYPE_JOOL (0x20 + 2)
-#define MSG_TYPE_JOOL_DONE (0x20+4)
+#define MSG_TYPE_JOOL (0x10 + 2)
+
 /**
  * ID of messages intended to return configuration to userspace.
  * ("set config" is intended to be read from the kernel's perspective).
@@ -249,6 +249,8 @@ union request_pool {
 	struct {
 		/** The addresses the user wants to add to the pool. */
 		struct ipv4_prefix addrs;
+		/** Add @addrs even if it contains subnet-scoped addresses? */
+		bool force;
 	} add;
 	struct {
 		/** The addresses the user wants to remove from the pool. */
@@ -395,6 +397,7 @@ enum global_type {
 	DROP_ICMP6_INFO,
 	DROP_EXTERNAL_TCP,
 	SRC_ICMP6ERRS_BETTER,
+	F_ARGS,
 	UDP_TIMEOUT,
 	ICMP_TIMEOUT,
 	TCP_EST_TIMEOUT,
@@ -469,6 +472,13 @@ struct session_entry_usr {
 struct eamt_entry {
 	struct ipv6_prefix prefix6;
 	struct ipv4_prefix prefix4;
+};
+
+enum f_args {
+	F_ARGS_SRC_ADDR = (1 << 3),
+	F_ARGS_SRC_PORT = (1 << 2),
+	F_ARGS_DST_ADDR = (1 << 1),
+	F_ARGS_DST_PORT = (1 << 0),
 };
 
 #define PLATEAUS_MAX 64
@@ -571,7 +581,7 @@ struct global_config {
 			 * Randomize choice of RFC6791 address?
 			 * Otherwise it will be set depending on the incoming
 			 * packet's Hop Limit.
-			 * See https://github.com/NICMx/NAT64/issues/130.
+			 * See https://github.com/NICMx/Jool/issues/130.
 			 * Boolean.
 			 */
 			__u8 randomize_error_addresses;
@@ -599,6 +609,12 @@ struct global_config {
 			 * (boolean)
 			 */
 			__u8 src_icmp6errs_better;
+			/**
+			 * Fields of the packet that will be sent to the F() function.
+			 * (RFC 6056 algorithm 3.)
+			 * See "enum f_args".
+			 */
+			__u8 f_args;
 		} nat64;
 	};
 };

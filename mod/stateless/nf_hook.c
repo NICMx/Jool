@@ -14,6 +14,7 @@
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("NIC-ITESM");
 MODULE_DESCRIPTION("Stateless IP/ICMP Translation (RFC 6145)");
+MODULE_VERSION(JOOL_VERSION_STR);
 
 static char *pool6;
 module_param(pool6, charp, 0);

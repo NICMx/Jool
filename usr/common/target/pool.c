@@ -87,7 +87,7 @@ int pool_count(enum config_mode mode)
 	return netlink_request(&request, request.length, pool_count_response, NULL);
 }
 
-int pool_add(enum config_mode mode, struct ipv4_prefix *addrs)
+int pool_add(enum config_mode mode, struct ipv4_prefix *addrs, bool force)
 {
 	unsigned char request[HDR_LEN + PAYLOAD_LEN];
 	struct request_hdr *hdr = (struct request_hdr *) request;
@@ -95,6 +95,7 @@ int pool_add(enum config_mode mode, struct ipv4_prefix *addrs)
 
 	init_request_hdr(hdr, sizeof(request), mode, OP_ADD);
 	payload->add.addrs = *addrs;
+	payload->add.force = force;
 
 	return netlink_request(request, hdr->length, NULL, NULL);
 }

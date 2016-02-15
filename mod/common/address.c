@@ -265,3 +265,31 @@ bool addr4_is_scope_subnet(const __be32 addr)
 			|| ipv4_is_multicast(addr)
 			|| ipv4_is_lbcast(addr);
 }
+
+/**
+ * prefix4_has_subnet_scope - returns true if @prefix intersects with one of the
+ * low-scoped networks ("this" subnet or lower), false otherwise.
+ * If @subnet is sent, the colliding subnet is copied to it.
+ */
+bool prefix4_has_subnet_scope(struct ipv4_prefix *prefix,
+		struct ipv4_prefix *subnet)
+{
+	struct ipv4_prefix subnets[] = {
+			{ .address.s_addr = cpu_to_be32(0x00000000), .len = 8 },
+			{ .address.s_addr = cpu_to_be32(0x7f000000), .len = 8 },
+			{ .address.s_addr = cpu_to_be32(0xa9fe0000), .len = 16 },
+			{ .address.s_addr = cpu_to_be32(0xe0000000), .len = 4 },
+			{ .address.s_addr = cpu_to_be32(0xffffffff), .len = 32 },
+	};
+	unsigned int i;
+
+	for (i = 0; i < ARRAY_SIZE(subnets); i++) {
+		if (prefix4_intersects(prefix, &subnets[i])) {
+			if (subnet)
+				*subnet = subnets[i];
+			return true;
+		}
+	}
+
+	return false;
+}

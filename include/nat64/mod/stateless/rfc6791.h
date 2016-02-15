@@ -20,7 +20,7 @@ int rfc6791_init(struct addr4_pool **pool);
 void rfc6791_get(struct addr4_pool *pool);
 void rfc6791_put(struct addr4_pool *pool);
 
-int rfc6791_add(struct addr4_pool *pool, struct ipv4_prefix *prefix);
+int rfc6791_add(struct addr4_pool *pool, struct ipv4_prefix *prefix, bool force);
 int rfc6791_rm(struct addr4_pool *pool, struct ipv4_prefix *prefix);
 int rfc6791_flush(struct addr4_pool *pool);
 int rfc6791_find(struct xlation *state, __be32 *result);

@@ -507,6 +507,20 @@ static const struct argp_option icmp_src_opt = {
 		.group = 0,
 };
 
+static const struct argp_option f_args_opt = {
+		.name = OPTNAME_F_ARGS,
+		.key = ARGP_F_ARGS,
+		.arg = NUM_FORMAT,
+		.flags = 0,
+		.doc = "Defines the arguments that will be sent to F().\n"
+			"(F() is defined by algorithm 3 of RFC 6056.)\n"
+			"- First (leftmost) bit is source address.\n"
+			"- Second bit is source port.\n"
+			"- Third bit is destination address.\n"
+			"- Fourth (rightmost) bit is destination port.\n",
+		.group = 0,
+};
+
 static const struct argp_option logging_bib_opt = {
 		.name = OPTNAME_BIB_LOGGING,
 		.key = ARGP_BIB_LOGGING,
@@ -803,6 +817,7 @@ static const struct argp_option *opts_nat64[] = {
 	&max_so_opt,
 	&max_so_alias_opt,
 	&icmp_src_opt,
+	&f_args_opt,
 	&logging_bib_opt,
 	&logging_session_opt,
 

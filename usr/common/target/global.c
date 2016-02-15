@@ -15,6 +15,18 @@ static char *print_bool(bool value)
 	return value ? "ON" : "OFF";
 }
 
+static char *print_csv_bool(bool value)
+{
+	return value ? "TRUE" : "FALSE";
+}
+
+static void print_binary(unsigned int value, unsigned int size)
+{
+	int i;
+	for (i = size - 1; i >= 0; i--)
+		printf("%u", (value >> i) & 0x1);
+}
+
 static void print_plateaus(struct global_config *conf, char *separator)
 {
 	int i;
@@ -40,22 +52,21 @@ static char *int_to_hairpin_mode(enum eam_hairpinning_mode mode)
 	return "unknown";
 }
 
-static void print_allow_atomic_frags(struct global_config *conf)
+static char* print_allow_atomic_frags(struct global_config *conf)
 {
 	if (!conf->atomic_frags.df_always_on
 			&& !conf->atomic_frags.build_ipv6_fh
 			&& conf->atomic_frags.build_ipv4_id
 			&& conf->atomic_frags.lower_mtu_fail)
-		printf("OFF");
+		return "OFF";
 
-	else if (conf->atomic_frags.df_always_on
+	if (conf->atomic_frags.df_always_on
 			&& conf->atomic_frags.build_ipv6_fh
 			&& !conf->atomic_frags.build_ipv4_id
 			&& !conf->atomic_frags.lower_mtu_fail)
-		printf("ON");
+		return "ON";
 
-	else
-		printf("Mixed");
+	return "Mixed";
 }
 
 static int handle_display_response(struct jool_response *response, void *arg)
@@ -91,6 +102,14 @@ static int handle_display_response(struct jool_response *response, void *arg)
 				conf->session.pktqueue.max_stored_pkts);
 		printf("  --%s: %s\n", OPTNAME_SRC_ICMP6E_BETTER,
 				print_bool(conf->global.nat64.src_icmp6errs_better));
+
+		printf("  --%s: %u (0b", OPTNAME_F_ARGS, conf->global.nat64.f_args);
+		print_binary(conf->global.nat64.f_args, 4);
+		printf(")\n");
+		printf("    Src addr: %s\n", print_bool(conf->global.nat64.f_args & F_ARGS_SRC_ADDR));
+		printf("    Src port: %s\n", print_bool(conf->global.nat64.f_args & F_ARGS_SRC_PORT));
+		printf("    Dst addr: %s\n", print_bool(conf->global.nat64.f_args & F_ARGS_DST_ADDR));
+		printf("    Dst port: %s\n", print_bool(conf->global.nat64.f_args & F_ARGS_DST_PORT));
 	} else {
 		printf("  --%s: %s\n", OPTNAME_AMEND_UDP_CSUM,
 				print_bool(conf->global.siit.compute_udp_csum_zero));
@@ -161,6 +180,7 @@ static int handle_display_response(struct jool_response *response, void *arg)
 static int handle_display_response_csv(struct jool_response *response, void *arg)
 {
 	struct full_config *conf = response->payload;
+	struct global_config *global = &conf->global;
 
 	if (response->payload_len != sizeof(struct full_config)) {
 		log_err("Jool's response has a bogus length. (expected %zu, got %zu)",
@@ -169,104 +189,73 @@ static int handle_display_response_csv(struct jool_response *response, void *arg
 		return -EINVAL;
 	}
 
-	printf("Status,");
-	printf("Manually enabled,");
-	printf(OPTNAME_ZEROIZE_TC ",");
-	printf(OPTNAME_OVERRIDE_TOS ",");
-	printf(OPTNAME_TOS ",");
-	printf(OPTNAME_MTU_PLATEAUS ",");
+	printf("Status,%s\n", print_status(global));
+	printf("Manually enabled,%s\n", print_csv_bool(global->enabled));
 
-	if (xlat_is_nat64()) {
-		printf(OPTNAME_MAX_SO ",");
-		printf(OPTNAME_SRC_ICMP6E_BETTER ",");
-	} else {
-		printf(OPTNAME_AMEND_UDP_CSUM ",");
-		printf(OPTNAME_EAM_HAIRPIN_MODE ",");
-		printf(OPTNAME_RANDOMIZE_RFC6791 ",");
-	}
+	printf("%s,%s\n", OPTNAME_ZEROIZE_TC,
+			print_csv_bool(global->reset_traffic_class));
+	printf("%s,%s\n", OPTNAME_OVERRIDE_TOS,
+			print_csv_bool(global->reset_tos));
+	printf("%s,%u\n", OPTNAME_TOS, global->new_tos);
 
-	printf(OPTNAME_ALLOW_ATOMIC_FRAGS ",");
-	printf(OPTNAME_DF_ALWAYS_ON ",");
-	printf(OPTNAME_GENERATE_FH ",");
-	printf(OPTNAME_GENERATE_ID4 ",");
-	printf(OPTNAME_FIX_ILLEGAL_MTUS);
+	printf("%s,%s\n", OPTNAME_ALLOW_ATOMIC_FRAGS,
+			print_allow_atomic_frags(global));
+	printf("%s,%s\n", OPTNAME_DF_ALWAYS_ON,
+			print_csv_bool(global->atomic_frags.df_always_on));
+	printf("%s,%s\n", OPTNAME_GENERATE_FH,
+			print_csv_bool(global->atomic_frags.build_ipv6_fh));
+	printf("%s,%s\n", OPTNAME_GENERATE_ID4,
+			print_csv_bool(global->atomic_frags.build_ipv4_id));
+	printf("%s,%s\n", OPTNAME_FIX_ILLEGAL_MTUS,
+			print_csv_bool(global->atomic_frags.lower_mtu_fail));
 
-	if (xlat_is_nat64()) {
-		printf(",");
-
-		printf(OPTNAME_BIB_LOGGING ",");
-		printf(OPTNAME_SESSION_LOGGING ",");
-
-		printf(OPTNAME_DROP_BY_ADDR ",");
-		printf(OPTNAME_DROP_ICMP6_INFO ",");
-		printf(OPTNAME_DROP_EXTERNAL_TCP ",");
-
-		printf(OPTNAME_UDP_TIMEOUT ",");
-		printf(OPTNAME_TCPEST_TIMEOUT ",");
-		printf(OPTNAME_TCPTRANS_TIMEOUT ",");
-		printf(OPTNAME_ICMP_TIMEOUT ",");
-		printf(OPTNAME_FRAG_TIMEOUT",");
-
-		printf("Synchronization Status,");
-		printf(OPTNAME_SYNCH_MAX_SESSIONS ",");
-		printf(OPTNAME_SYNCH_PERIOD ",");
-	}
-
-	printf("\n");
-
-	printf("%s,", print_status(&conf->global));
-	printf("%s,", print_bool(conf->global.enabled));
-	printf("%s,", print_bool(conf->global.reset_traffic_class));
-	printf("%s,", print_bool(conf->global.reset_tos));
-	printf("%u,", conf->global.new_tos);
-
+	printf("%s,", OPTNAME_MTU_PLATEAUS);
 	printf("\"");
-	print_plateaus(&conf->global, ",");
-	printf("\",");
+	print_plateaus(global, ",");
+	printf("\"\n");
 
-	if (xlat_is_nat64()) {
-		printf("%u,", conf->session.pktqueue.max_stored_pkts);
-		printf("%s,", print_bool(conf->global.nat64.src_icmp6errs_better));
+	if (xlat_is_siit()) {
+		printf("%s,%s\n", OPTNAME_AMEND_UDP_CSUM,
+				print_csv_bool(global->siit.compute_udp_csum_zero));
+		printf("%s,%s\n", OPTNAME_RANDOMIZE_RFC6791,
+				print_csv_bool(global->siit.randomize_error_addresses));
+		printf("%s,%s\n", OPTNAME_EAM_HAIRPIN_MODE,
+				int_to_hairpin_mode(global->siit.eam_hairpin_mode));
 	} else {
-		printf("%s,", print_bool(conf->global.siit.compute_udp_csum_zero));
-		printf("%s,", int_to_hairpin_mode(conf->global.siit.eam_hairpin_mode));
-		printf("%s,", print_bool(conf->global.siit.randomize_error_addresses));
-	}
+		printf("%s,%s\n", OPTNAME_DROP_BY_ADDR,
+				print_csv_bool(global->nat64.drop_by_addr));
+		printf("%s,%s\n", OPTNAME_DROP_ICMP6_INFO,
+				print_csv_bool(global->nat64.drop_icmp6_info));
+		printf("%s,%s\n", OPTNAME_DROP_EXTERNAL_TCP,
+				print_csv_bool(global->nat64.drop_external_tcp));
+		printf("%s,%s\n", OPTNAME_SRC_ICMP6E_BETTER,
+				print_csv_bool(global->nat64.src_icmp6errs_better));
+		printf("%s,%u\n", OPTNAME_F_ARGS,
+				global->nat64.f_args);
+		printf("%s,%s\n", OPTNAME_BIB_LOGGING,
+				print_csv_bool(conf->bib.log_changes));
+		printf("%s,%s\n", OPTNAME_SESSION_LOGGING,
+				print_csv_bool(conf->session.log_changes));
 
-	print_allow_atomic_frags(&conf->global);
-	printf(",");
-	printf("%s,", print_bool(conf->global.atomic_frags.df_always_on));
-	printf("%s,", print_bool(conf->global.atomic_frags.build_ipv6_fh));
-	printf("%s,", print_bool(conf->global.atomic_frags.build_ipv4_id));
-	printf("%s", print_bool(conf->global.atomic_frags.lower_mtu_fail));
+		printf("Jool Enabled,%s\n",
+				print_csv_bool(conf->session.joold.enabled));
+		printf("%s,%u\n", OPTNAME_SYNCH_MAX_SESSIONS, conf->session.joold.queue_capacity);
+		printf("%s,%u\n", OPTNAME_SYNCH_PERIOD, conf->session.joold.timer_period);
 
-	if (xlat_is_nat64()) {
-		printf(",");
+		printf("%s,%u\n", OPTNAME_MAX_SO, conf->session.pktqueue.max_stored_pkts);
 
-		printf("%s,", print_bool(conf->bib.log_changes));
-		printf("%s,", print_bool(conf->session.log_changes));
-		printf("%s,", print_bool(conf->global.nat64.drop_by_addr));
-		printf("%s,", print_bool(conf->global.nat64.drop_icmp6_info));
-		printf("%s,", print_bool(conf->global.nat64.drop_external_tcp));
-
+		printf("%s,", OPTNAME_UDP_TIMEOUT);
 		print_time_csv(conf->session.ttl.udp);
-		printf(",");
+		printf("\n%s,", OPTNAME_TCPEST_TIMEOUT);
 		print_time_csv(conf->session.ttl.tcp_est);
-		printf(",");
+		printf("\n%s,", OPTNAME_TCPTRANS_TIMEOUT);
 		print_time_csv(conf->session.ttl.tcp_trans);
-		printf(",");
+		printf("\n%s,", OPTNAME_ICMP_TIMEOUT);
 		print_time_csv(conf->session.ttl.icmp);
-		printf(",");
+		printf("\n%s,", OPTNAME_FRAG_TIMEOUT);
 		print_time_csv(conf->frag.ttl);
-		printf(",");
-
-		print_bool(conf->session.joold.enabled);
-		printf(",");
-		printf("%u", conf->session.joold.queue_capacity);
-		printf(",");
-		printf("%u", conf->session.joold.timer_period);
+		printf("\n");
 	}
-	printf("\n");
 
 	return 0;
 }

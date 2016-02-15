@@ -1,7 +1,7 @@
 ***********************************************************************
 
 	Before you continue, perhaps you want to have a look at
-	https://nicmx.github.io/jool-doc/en/documentation.html, where
+	https://nicmx.github.io/Jool/en/documentation.html, where
 	you should find a newcomer-friendlier version of this file.
 	Alternatively, see doc/README.md and doc/usr/en/documentation.md.
 
@@ -18,14 +18,14 @@ Installing the modules using Dynamic Kernel Module Support (DKMS):
 	1. Ensure the DKMS framework is installed:
 		# apt-get install dkms
 	2. Add Jool to the DKMS framework (builds and installs the modules):
-		# dkms install /path/to/NAT64
+		# dkms install /path/to/Jool
 
 Alternatively, manually install the modules using Kbuild directly:
 	1. Compile the modules:
-		NAT64$ cd mod
-		NAT64/mod$ make
+		Jool$ cd mod
+		Jool/mod$ make
 	2. Install the modules:
-		NAT64/mod# make install
+		Jool/mod# make install
 
 Insert the module:
 	Configure networking.
@@ -52,11 +52,11 @@ Insert the module:
 
 Configure the module:
 	Compile the userspace application.
-		NAT64$ cd usr
-		NAT64/usr$ ./autogen.sh # Only if you downloaded via Git.
-		NAT64/usr$ ./configure
-		NAT64/usr$ make
-		NAT64/usr# make install
+		Jool$ cd usr
+		Jool/usr$ ./autogen.sh # Only if you downloaded via Git.
+		Jool/usr$ ./configure
+		Jool/usr$ make
+		Jool/usr# make install
 
 	Send requests to the module using the userspace application.
 		Show help:

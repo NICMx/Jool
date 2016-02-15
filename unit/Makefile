@@ -179,6 +179,8 @@ $(EAMT)-objs += ../mod/common/rtrie.o
 $(EAMT)-objs += eamt_test.o
 
 $(PALLOC)-objs += $(MIN_REQS)
+$(PALLOC)-objs += ../mod/common/config.o
+$(PALLOC)-objs += framework/types.o
 $(PALLOC)-objs += impersonator/bib.o
 $(PALLOC)-objs += impersonator/pool4.o
 $(PALLOC)-objs += impersonator/rfc6145.o

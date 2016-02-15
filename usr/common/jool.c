@@ -149,14 +149,16 @@ static int set_global_bool(struct arguments *args, __u16 type, char *value)
 static int set_global_u8(struct arguments *args, __u16 type, char *value,
 		__u8 min, __u8 max)
 {
-	__u8 tmp;
+	__u8 tmp8;
+	__u64 tmp64;
 	int error;
 
-	error = str_to_u8(value, &tmp, min, max);
+	error = str_to_u8(value, &tmp8, min, max);
 	if (error)
 		return error;
 
-	return set_global_arg(args, type, sizeof(tmp), &tmp);
+	tmp64 = tmp8;
+	return set_global_arg(args, type, sizeof(tmp64), &tmp64);
 }
 
 static int set_global_u64(struct arguments *args, __u16 type, char *value,
@@ -439,6 +441,9 @@ static int parse_opt(int key, char *str, struct argp_state *state)
 	case ARGP_BIB_LOGGING:
 	case ARGP_SESSION_LOGGING:
 		error = set_global_bool(args, key, str);
+		break;
+	case ARGP_F_ARGS:
+		error = set_global_u8(args, key, str, 0, 0xF);
 		break;
 	case ARGP_NEW_TOS:
 		error = set_global_u8(args, key, str, 0, MAX_U8);
@@ -801,7 +806,7 @@ static int main_wrapped(int argc, char **argv)
 				log_err("Please enter the address or prefix to be added (%s).", PREFIX4_FORMAT);
 				return -EINVAL;
 			}
-			return pool_add(args.mode, &args.db.pool4.prefix);
+			return pool_add(args.mode, &args.db.pool4.prefix, args.db.force);
 		case OP_REMOVE:
 			if (!args.db.pool4.prefix_set) {
 				log_err("Please enter the address or prefix to be removed (%s).", PREFIX4_FORMAT);
