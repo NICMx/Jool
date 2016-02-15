@@ -6,12 +6,13 @@ else
 	TESTS=$1/$1.ko
 fi
 
+sudo dmesg -C
 
 for i in $TESTS
 do
 	echo "Running test '$i'."
 	sudo insmod $i && sudo rmmod $i
 	clear
-	sudo dmesg -ct | less
+	sudo dmesg -ct 
 done
 

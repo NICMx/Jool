@@ -29,4 +29,4 @@ install:
 	cp graybox /usr/local/bin/
 
 uninstall:
-	rm -f /usr/local/bin/graybox
+	sudo rm -f /usr/local/bin/graybox
