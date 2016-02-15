@@ -4,10 +4,12 @@
 #include <linux/module.h>
 #include <linux/version.h>
 #include "nat64/mod/common/core.h"
+#include "nat64/mod/common/pool6.h"
 #include "nat64/mod/common/xlator.h"
 #include "nat64/mod/common/nl/nl_core2.h"
 #include "nat64/mod/common/types.h"
 #include "nat64/mod/common/log_time.h"
+#include "nat64/mod/stateless/pool.h"
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("NIC-ITESM");
@@ -27,7 +29,9 @@ MODULE_PARM_DESC(pool6791, "The RFC6791 pool's addresses.");
 static bool disabled;
 module_param(disabled, bool, 0);
 MODULE_PARM_DESC(disabled, "Disable the translation at the beginning of the module insertion.");
-
+static bool no_instance;
+module_param(no_instance, bool, 0);
+MODULE_PARM_DESC(no_instance, "Prevent an instance to be added to the current namespace during the modprobe.");
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 13, 0)
 #define HOOK_ARG_TYPE const struct nf_hook_ops *
@@ -74,6 +78,33 @@ static struct nf_hook_ops nfho[] = {
 	},
 };
 
+static int add_instance(void)
+{
+	struct xlator jool;
+	int error;
+
+	if (no_instance)
+		return 0;
+
+	error = xlator_add(&jool);
+	if (error)
+		return error;
+
+	jool.global->cfg.enabled = !disabled;
+	error = pool6_add_str(jool.pool6, &pool6, pool6 ? 1 : 0);
+	if (error)
+		goto end;
+	error = pool_add_str(jool.siit.blacklist, blacklist, blacklist_size);
+	if (error)
+		goto end;
+	error = pool_add_str(jool.siit.pool6791, pool6791, pool6791_size);
+	/* Fall through. */
+
+end:
+	xlator_put(&jool);
+	return error;
+}
+
 static int __init jool_init(void)
 {
 	int error;
@@ -83,30 +114,37 @@ static int __init jool_init(void)
 	/* Init Jool's submodules. */
 	error = xlator_init();
 	if (error)
-		goto xlator_failure;
+		goto xlator_fail;
 	error = logtime_init();
 	if (error)
-		goto log_time_failure;
+		goto log_time_fail;
 	error = nlcore_init();
 	if (error)
-		goto nlcore_failure;
+		goto nlcore_fail;
+
+	/* This needs to be last! (except for the hook registering.) */
+	error = add_instance();
+	if (error)
+		goto instance_fail;
 
 	/* Hook Jool to Netfilter. */
 	error = nf_register_hooks(nfho, ARRAY_SIZE(nfho));
 	if (error)
-		goto nf_register_hooks_failure;
+		goto nf_register_hooks_fail;
 
 	/* Yay */
 	log_info("%s v" JOOL_VERSION_STR " module inserted.", xlat_get_name());
 	return 0;
 
-nf_register_hooks_failure:
+nf_register_hooks_fail:
+	xlator_rm();
+instance_fail:
 	nlcore_destroy();
-nlcore_failure:
+nlcore_fail:
 	logtime_destroy();
-log_time_failure:
+log_time_fail:
 	xlator_destroy();
-xlator_failure:
+xlator_fail:
 	return error;
 }
 

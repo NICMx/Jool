@@ -111,10 +111,9 @@ static void extract_list(struct joold_queue *queue, struct list_head *list,
 /**
  * Builds an nl-core-compatible buffer out of @sessions.
  */
-static struct nlcore_buffer *build_buffer(struct list_head *sessions,
-		unsigned int session_count)
+static int build_buffer(struct nlcore_buffer *buffer,
+		struct list_head *sessions, unsigned int session_count)
 {
-	struct nlcore_buffer *buffer;
 	struct request_hdr jool_hdr;
 	struct joold_node *node;
 	size_t total_len;
@@ -123,10 +122,10 @@ static struct nlcore_buffer *build_buffer(struct list_head *sessions,
 	total_len = sizeof(jool_hdr);
 	total_len += session_count * sizeof(struct joold_session);
 
-	error = nlbuffer_init(&buffer, total_len);
+	error = nlbuffer_init_joold(buffer, total_len);
 	if (error) {
 		log_debug("nlbuffer_new() threw error %d.", error);
-		return NULL;
+		return error;
 	}
 
 	init_request_hdr(&jool_hdr, total_len, MODE_JOOLD, 0);
@@ -145,11 +144,11 @@ static struct nlcore_buffer *build_buffer(struct list_head *sessions,
 		}
 	}
 
-	return buffer;
+	return 0;
 
 fail:
 	nlbuffer_free(buffer);
-	return NULL;
+	return error;
 }
 
 static void send_buffer(struct nlcore_buffer *buffer)
@@ -179,17 +178,19 @@ static void free_list(struct list_head *list)
 
 static void send_to_userspace(struct list_head *list, unsigned int list_len)
 {
-	struct nlcore_buffer *buffer;
+	struct nlcore_buffer buffer;
 
 	if (list_len == 0)
 		return;
 
-	buffer = build_buffer(list, list_len);
-	if (buffer) { /* Actually happy path. */
-		send_buffer(buffer);
-		nlbuffer_free(buffer);
-	}
+	if (build_buffer(&buffer, list, list_len))
+		goto end;
 
+	send_buffer(&buffer);
+	nlbuffer_free(&buffer);
+	/* Fall through. */
+
+end:
 	free_list(list);
 }
 
@@ -210,13 +211,13 @@ static void send_to_userspace_timeout(unsigned long arg)
 /**
  * joold_create - Constructor for joold_queue structs.
  */
-int joold_create(struct joold_queue **result)
+struct joold_queue *joold_create(void)
 {
 	struct joold_queue *queue;
 
-	queue = kmalloc(sizeof(*queue), GFP_KERNEL);
+	queue = kmalloc(sizeof(struct joold_queue), GFP_KERNEL);
 	if (!queue)
-		return -ENOMEM;
+		return NULL;
 
 	INIT_LIST_HEAD(&queue->sessions);
 	queue->count = 0;
@@ -227,8 +228,7 @@ int joold_create(struct joold_queue **result)
 	queue->config.timer_period = DEFAULT_JOOLD_PERIOD;
 	spin_lock_init(&queue->lock);
 
-	*result = queue;
-	return 0;
+	return queue;
 }
 
 /**
@@ -241,6 +241,20 @@ void joold_destroy(struct joold_queue *queue)
 	del_timer_sync(&queue->timer);
 	free_list(&queue->sessions);
 	kfree(queue);
+}
+
+void joold_config_copy(struct joold_queue *queue, struct joold_config *config)
+{
+	spin_lock_bh(&queue->lock);
+	memcpy(config, &queue->config, sizeof(queue->config));
+	spin_unlock_bh(&queue->lock);
+}
+
+void joold_config_set(struct joold_queue *queue, struct joold_config *config)
+{
+	spin_lock_bh(&queue->lock);
+	memcpy(&queue->config, config, sizeof(*config));
+	spin_unlock_bh(&queue->lock);
 }
 
 static bool user_wants_timer(struct joold_queue *queue)

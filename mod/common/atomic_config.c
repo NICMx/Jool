@@ -4,6 +4,7 @@
 #include "nat64/mod/common/pool6.h"
 #include "nat64/mod/stateless/eam.h"
 #include "nat64/mod/stateless/pool.h"
+#include "nat64/mod/stateful/fragment_db.h"
 #include "nat64/mod/stateful/bib/db.h"
 #include "nat64/mod/stateful/pool4/db.h"
 #include "nat64/mod/stateful/session/db.h"
@@ -129,7 +130,7 @@ static int handle_pool6(struct config_candidate *new, void *payload,
 	int error;
 
 	if (!new->pool6) {
-		error = pool6_init(&new->pool6, NULL, 0);
+		error = pool6_init(&new->pool6);
 		if (error)
 			return error;
 	}
@@ -179,7 +180,7 @@ static int handle_addr4_pool(struct addr4_pool **pool, void *payload,
 	int error;
 
 	if (!(*pool)) {
-		error = pool_init(pool, NULL, 0);
+		error = pool_init(pool);
 		if (error)
 			return error;
 	}
@@ -321,6 +322,7 @@ static int commit(struct xlator *jool)
 	if (remnants) {
 		bibdb_config_set(jool->nat64.bib, &remnants->bib);
 		sessiondb_config_set(jool->nat64.session, &remnants->session);
+		fragdb_config_set(jool->nat64.frag, &remnants->frag);
 		kfree(remnants);
 	}
 

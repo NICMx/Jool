@@ -1,14 +1,15 @@
 #include "nat64/mod/stateful/compute_outgoing_tuple.h"
 #include "nat64/mod/stateful/session/db.h"
 
-verdict compute_out_tuple(struct xlation *state)
+static struct session_entry *find_session(struct xlation *state)
 {
 	struct session_entry *session;
-	struct tuple *in;
-	struct tuple *out;
 	int error;
 
-	log_debug("Step 3: Computing the Outgoing Tuple");
+	if (state->session) {
+		session_get(state->session);
+		return state->session;
+	}
 
 	error = sessiondb_find(state->jool.nat64.session, &state->in.tuple,
 			NULL, NULL, &session);
@@ -18,8 +19,23 @@ verdict compute_out_tuple(struct xlation *state)
 		 * cares for them, so it's not critical.
 		 */
 		log_debug("Session not found. Error code is %d.", error);
-		return VERDICT_ACCEPT;
+		return NULL;
 	}
+
+	return session;
+}
+
+verdict compute_out_tuple(struct xlation *state)
+{
+	struct session_entry *session;
+	struct tuple *in;
+	struct tuple *out;
+
+	log_debug("Step 3: Computing the Outgoing Tuple");
+
+	session = find_session(state);
+	if (!session)
+		return VERDICT_ACCEPT;
 
 	/*
 	 * Though the end result is the same, the following section of code

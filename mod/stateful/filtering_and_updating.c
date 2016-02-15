@@ -257,7 +257,8 @@ static verdict ipv6_simple(struct xlation *state)
 	}
 	log_session(session);
 
-	session_put(session, false);
+	/* Transfer session refcount to @state; do not put yet. */
+	state->session = session;
 	bibentry_put(bib, false);
 
 	return VERDICT_CONTINUE;
@@ -328,7 +329,8 @@ static verdict ipv4_simple(struct xlation *state)
 	}
 	log_session(session);
 
-	session_put(session, false);
+	/* Transfer session refcount to @state; do not put yet. */
+	state->session = session;
 	bibentry_put(bib, false);
 
 	return VERDICT_CONTINUE;
@@ -484,16 +486,23 @@ syn_out:
 	return result;
 }
 
+static void joold_add(struct xlation *state, struct session_entry *session)
+{
+	joold_add_session(state->jool.nat64.session->joold, session);
+}
+
 /**
  * Filtering and updating during the V4 INIT state of the TCP state machine.
  * Part of RFC 6146 section 3.5.2.2.
  */
 static enum session_fate tcp_v4_init_state(struct session_entry *session,
-		struct packet *pkt)
+		struct xlation *state)
 {
+	struct packet *pkt = &state->in;
+
 	if (pkt_l3_proto(pkt) == L3PROTO_IPV6 && pkt_tcp_hdr(pkt)->syn) {
 		session->state = ESTABLISHED;
-		joold_add_session(session);
+		joold_add(state, session);
 		return FATE_TIMER_EST;
 	}
 
@@ -505,13 +514,15 @@ static enum session_fate tcp_v4_init_state(struct session_entry *session,
  * Part of RFC 6146 section 3.5.2.2.
  */
 static enum session_fate tcp_v6_init_state(struct session_entry *session,
-		struct packet *pkt)
+		struct xlation *state)
 {
+	struct packet *pkt = &state->in;
+
 	if (pkt_tcp_hdr(pkt)->syn) {
 		switch (pkt_l3_proto(pkt)) {
 		case L3PROTO_IPV4:
 			session->state = ESTABLISHED;
-			joold_add_session(session);
+			joold_add(state, session);
 			return FATE_TIMER_EST;
 		case L3PROTO_IPV6:
 			return FATE_TIMER_TRANS;
@@ -526,17 +537,19 @@ static enum session_fate tcp_v6_init_state(struct session_entry *session,
  * Part of RFC 6146 section 3.5.2.2.
  */
 static enum session_fate tcp_established_state(struct session_entry *session,
-		struct packet *pkt)
+		struct xlation *state)
 {
+	struct packet *pkt = &state->in;
+
 	if (pkt_tcp_hdr(pkt)->fin) {
 		switch (pkt_l3_proto(pkt)) {
 		case L3PROTO_IPV4:
 			session->state = V4_FIN_RCV;
-			joold_add_session(session);
+			joold_add(state, session);
 			break;
 		case L3PROTO_IPV6:
 			session->state = V6_FIN_RCV;
-			joold_add_session(session);
+			joold_add(state, session);
 			break;
 		}
 		return FATE_PRESERVE;
@@ -554,11 +567,13 @@ static enum session_fate tcp_established_state(struct session_entry *session,
  * Part of RFC 6146 section 3.5.2.2.
  */
 static enum session_fate tcp_v4_fin_rcv_state(struct session_entry *session,
-		struct packet *pkt)
+		struct xlation *state)
 {
+	struct packet *pkt = &state->in;
+
 	if (pkt_l3_proto(pkt) == L3PROTO_IPV6 && pkt_tcp_hdr(pkt)->fin) {
 		session->state = V4_FIN_V6_FIN_RCV;
-		joold_add_session(session);
+		joold_add(state, session);
 		return FATE_TIMER_TRANS;
 	}
 
@@ -570,11 +585,13 @@ static enum session_fate tcp_v4_fin_rcv_state(struct session_entry *session,
  * Part of RFC 6146 section 3.5.2.2.
  */
 static enum session_fate tcp_v6_fin_rcv_state(struct session_entry *session,
-		struct packet *pkt)
+		struct xlation *state)
 {
+	struct packet *pkt = &state->in;
+
 	if (pkt_l3_proto(pkt) == L3PROTO_IPV4 && pkt_tcp_hdr(pkt)->fin) {
 		session->state = V4_FIN_V6_FIN_RCV;
-		joold_add_session(session);
+		joold_add(state, session);
 		return FATE_TIMER_TRANS;
 	}
 
@@ -596,11 +613,13 @@ static enum session_fate tcp_v4_fin_v6_fin_rcv_state(void)
  * Part of RFC 6146 section 3.5.2.2.
  */
 static enum session_fate tcp_trans_state(struct session_entry *session,
-		struct packet *pkt)
+		struct xlation *state)
 {
+	struct packet *pkt = &state->in;
+
 	if (!pkt_tcp_hdr(pkt)->rst) {
 		session->state = ESTABLISHED;
-		joold_add_session(session);
+		joold_add(state, session);
 		return FATE_TIMER_EST;
 	}
 
@@ -649,7 +668,7 @@ static verdict tcp(struct xlation *state)
 	int error;
 
 	error = sessiondb_find(state->jool.nat64.session, &state->in.tuple,
-			tcp_state_machine, &state->in, &session);
+			tcp_state_machine, state, &session);
 	if (error == -ESRCH)
 		return tcp_closed_state(state);
 	if (error) {
@@ -660,7 +679,8 @@ static verdict tcp(struct xlation *state)
 	}
 
 	log_session(session);
-	session_put(session, false);
+	/* Transfer session refcount to @state; do not put yet. */
+	state->session = session;
 	return VERDICT_CONTINUE;
 }
 

@@ -46,7 +46,7 @@
 #define OPTNAME_SYNCH_PERIOD		"synch-period"
 
 int global_display(bool csv);
-int global_update(__u8 type, size_t size, void *data);
+int global_update(__u16 type, size_t size, void *data);
 
 
 #endif /* _JOOL_USR_GLOBAL_H */

@@ -7,6 +7,7 @@
 #include "nat64/mod/common/pool6.h"
 #include "nat64/mod/common/nl/nl_common.h"
 #include "nat64/mod/common/nl/nl_core2.h"
+#include "nat64/mod/stateful/fragment_db.h"
 #include "nat64/mod/stateful/joold.h"
 #include "nat64/mod/stateful/session/db.h"
 #include "nat64/mod/stateless/eam.h"
@@ -188,7 +189,7 @@ static int handle_global_display(struct xlator *jool, struct genl_info *info)
 	xlator_copy_config(jool, &config);
 
 	pools_empty = pool6_is_empty(jool->pool6);
-	if (xlat_is_nat64())
+	if (xlat_is_siit())
 		pools_empty &= eamt_is_empty(jool->siit.eamt);
 	prepare_config_for_userspace(&config, pools_empty);
 
@@ -273,7 +274,7 @@ static int massive_switch(struct full_config *cfg, struct global_value *chunk,
 		return error ? : parse_timeout(&cfg->session.ttl.tcp_trans, chunk, size, TCP_TRANS);
 	case FRAGMENT_TIMEOUT:
 		error = ensure_nat64(OPTNAME_FRAG_TIMEOUT);
-		return error ? : parse_timeout(&cfg->global.nat64.ttl.frag, chunk, size, FRAGMENT_MIN);
+		return error ? : parse_timeout(&cfg->frag.ttl, chunk, size, FRAGMENT_MIN);
 	case BIB_LOGGING:
 		error = ensure_nat64(OPTNAME_BIB_LOGGING);
 		return error ? : parse_bool(&cfg->bib.log_changes, chunk, size);
@@ -344,6 +345,7 @@ static int commit_config(struct xlator *jool, struct full_config *config)
 	config_copy(&config->global, &jool->global->cfg);
 	bibdb_config_set(jool->nat64.bib, &config->bib);
 	sessiondb_config_set(jool->nat64.session, &config->session);
+	fragdb_config_set(jool->nat64.frag, &config->frag);
 
 	return xlator_replace(jool);
 }

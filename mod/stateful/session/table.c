@@ -197,15 +197,13 @@ static void __clean(struct expire_timer *expirer,
 {
 	struct session_entry *session;
 	struct session_entry *tmp;
-	int timeout;
 
-	timeout = atomic_read(&expirer->timeout);
 	list_for_each_entry_safe(session, tmp, &expirer->sessions, list_hook) {
 		/*
 		 * "list" is sorted by expiration date,
 		 * so stop on the first unexpired session.
 		 */
-		if (time_before(jiffies, session->update_time + timeout))
+		if (time_before(jiffies, session->update_time + expirer->timeout))
 			break;
 		decide_fate(expirer->decide_fate_cb, NULL, table, session, rms,
 				probes);
@@ -229,7 +227,7 @@ static void init_expirer(struct expire_timer *expirer, int timeout,
 		fate_cb decide_fate_cb)
 {
 	INIT_LIST_HEAD(&expirer->sessions);
-	atomic_set(&expirer->timeout, msecs_to_jiffies(1000 * timeout));
+	expirer->timeout = msecs_to_jiffies(1000 * timeout);
 	expirer->decide_fate_cb = decide_fate_cb;
 }
 
@@ -266,20 +264,56 @@ void sessiontable_destroy(struct session_table *table)
 	rbtree_clear(&table->tree6, __destroy_aux);
 }
 
-void sessiontable_config_clone(struct session_table *table,
-		struct session_config *config)
+void sessiontable_config_copy(struct session_table *table,
+		struct session_config *config,
+		enum l4_protocol proto)
 {
 	spin_lock_bh(&table->lock);
+
+	switch (proto) {
+	case L4PROTO_TCP:
+		config->ttl.tcp_est = table->est_timer.timeout;
+		config->ttl.tcp_trans = table->trans_timer.timeout;
+		break;
+	case L4PROTO_UDP:
+		config->ttl.udp = table->est_timer.timeout;
+		break;
+	case L4PROTO_ICMP:
+		config->ttl.icmp = table->est_timer.timeout;
+		break;
+	case L4PROTO_OTHER:
+		break;
+	}
+
 	config->log_changes = table->log_changes;
-	spin_lock_bh(&table->lock);
+
+	spin_unlock_bh(&table->lock);
 }
 
 void sessiontable_config_set(struct session_table *table,
-		struct session_config *config)
+		struct session_config *config,
+		enum l4_protocol proto)
 {
 	spin_lock_bh(&table->lock);
+
+	switch (proto) {
+	case L4PROTO_TCP:
+		table->est_timer.timeout = config->ttl.tcp_est;
+		table->trans_timer.timeout = config->ttl.tcp_trans;
+		break;
+	case L4PROTO_UDP:
+		table->est_timer.timeout = config->ttl.udp;
+		break;
+	case L4PROTO_ICMP:
+		table->est_timer.timeout = config->ttl.icmp;
+		break;
+	case L4PROTO_OTHER:
+		break;
+	}
+
 	table->log_changes = config->log_changes;
-	spin_lock_bh(&table->lock);
+
+	spin_unlock_bh(&table->lock);
 }
 
 static int compare_addr6(const struct ipv6_transport_addr *a1,

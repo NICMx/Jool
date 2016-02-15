@@ -219,6 +219,39 @@ int pool4db_add_usr(struct pool4 *pool, struct pool4_entry_usr *entry)
 			&entry->ports);
 }
 
+int pool4db_add_str(struct pool4 *pool, char *prefix_strs[], int prefix_count)
+{
+	struct ipv4_prefix prefix;
+	struct port_range ports;
+	unsigned int i;
+	int error;
+
+	/*
+	 * We're not using DEFAULT_POOL4_* here because those are defaults for
+	 * empty pool4 (otherwise it looks confusing from userspace).
+	 */
+	ports.min = 0;
+	ports.max = 65535;
+
+	for (i = 0; i < prefix_count; i++) {
+		error = prefix4_parse(prefix_strs[i], &prefix);
+		if (error)
+			return error;
+
+		error = pool4db_add(pool, 0, L4PROTO_TCP, &prefix, &ports);
+		if (error)
+			return error;
+		error = pool4db_add(pool, 0, L4PROTO_UDP, &prefix, &ports);
+		if (error)
+			return error;
+		error = pool4db_add(pool, 0, L4PROTO_ICMP, &prefix, &ports);
+		if (error)
+			return error;
+	}
+
+	return 0;
+}
+
 RCUTAG_USR
 int pool4db_rm(struct pool4 *pool, const __u32 mark, enum l4_protocol proto,
 		struct ipv4_prefix *prefix, struct port_range *ports)
@@ -280,7 +313,11 @@ int pool4db_flush(struct pool4 *pool)
 	return 0;
 }
 
-/* TODO (stateful) Why is this not receving mark? */
+/**
+ * BTW: The reason why this doesn't care about mark is because it's an
+ * inherently 4-to-6 function (it doesn't make sense otherwise).
+ * Mark is only used in the 6-to-4 direction.
+ */
 RCUTAG_PKT
 bool pool4db_contains(struct pool4 *pool, struct net *ns,
 		enum l4_protocol proto, struct ipv4_transport_addr *addr)

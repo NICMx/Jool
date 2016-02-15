@@ -1,5 +1,4 @@
 #include "nat64/mod/common/nf_hook.h"
-
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/version.h>
@@ -7,10 +6,13 @@
 #include "nat64/common/xlat.h"
 #include "nat64/mod/common/core.h"
 #include "nat64/mod/common/log_time.h"
+#include "nat64/mod/common/pool6.h"
 #include "nat64/mod/common/xlator.h"
-#include "nat64/mod/common/nl/nl_handler.h"
 #include "nat64/mod/common/nl/nl_core2.h"
+#include "nat64/mod/stateful/fragment_db.h"
 #include "nat64/mod/stateful/joold.h"
+#include "nat64/mod/stateful/timer.h"
+#include "nat64/mod/stateful/pool4/db.h"
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("NIC-ITESM");
@@ -33,6 +35,10 @@ MODULE_PARM_DESC(pool4_size, "Size of pool4 DB's hashtable.");
 static bool disabled;
 module_param(disabled, bool, 0);
 MODULE_PARM_DESC(disabled, "Disable the translation at the beginning of the module insertion.");
+
+static bool no_instance;
+module_param(no_instance, bool, 0);
+MODULE_PARM_DESC(no_instance, "Prevent an instance to be added to the current namespace during the modprobe.");
 
 
 static char *banner = "\n"
@@ -98,6 +104,30 @@ static struct nf_hook_ops nfho[] = {
 	},
 };
 
+static int add_instance(void)
+{
+	struct xlator jool;
+	int error;
+
+	if (no_instance)
+		return 0;
+
+	error = xlator_add(&jool);
+	if (error)
+		return error;
+
+	jool.global->cfg.enabled = !disabled;
+	error = pool6_add_str(jool.pool6, pool6, pool6_len);
+	if (error)
+		goto end;
+	error = pool4db_add_str(jool.nat64.pool4, pool4, pool4_len);
+	/* Fall through. */
+
+end:
+	xlator_put(&jool);
+	return error;
+}
+
 static int __init jool_init(void)
 {
 	int error;
@@ -108,45 +138,57 @@ static int __init jool_init(void)
 	/* Init Jool's submodules. */
 	error = bibentry_init();
 	if (error)
-		goto bibentry_failure;
+		goto bibentry_fail;
 	error = session_init();
 	if (error)
-		goto session_failure;
+		goto session_fail;
+	error = fragdb_init();
+	if (error)
+		goto fragdb_fail;
 	error = xlator_init();
 	if (error)
-		goto xlator_failure;
+		goto xlator_fail;
 	error = nlcore_init();
 	if (error)
-		goto nlcore_failure;
-	error = nlhandler_init();
+		goto nlcore_fail;
+	error = timer_init();
 	if (error)
-		goto nlhandler_failure;
+		goto timer_fail;
 	error = logtime_init();
 	if (error)
-		goto logtime_failure;
+		goto logtime_fail;
+
+	/* This needs to be last! (except for the hook registering.) */
+	error = add_instance();
+	if (error)
+		goto instance_fail;
 
 	/* Hook Jool to Netfilter. */
 	error = nf_register_hooks(nfho, ARRAY_SIZE(nfho));
 	if (error)
-		goto nf_register_hooks_failure;
+		goto nf_register_hooks_fail;
 
 	/* Yay */
 	log_info("%s v" JOOL_VERSION_STR " module inserted.", xlat_get_name());
 	return error;
 
-nf_register_hooks_failure:
+nf_register_hooks_fail:
+	xlator_rm();
+instance_fail:
 	logtime_destroy();
-logtime_failure:
-	nlhandler_destroy();
-nlhandler_failure:
+logtime_fail:
+	timer_destroy();
+timer_fail:
 	nlcore_destroy();
-nlcore_failure:
+nlcore_fail:
 	xlator_destroy();
-xlator_failure:
+xlator_fail:
+	fragdb_destroy();
+fragdb_fail:
 	session_destroy();
-session_failure:
+session_fail:
 	bibentry_destroy();
-bibentry_failure:
+bibentry_fail:
 	return error;
 }
 
@@ -155,9 +197,10 @@ static void __exit jool_exit(void)
 	nf_unregister_hooks(nfho, ARRAY_SIZE(nfho));
 
 	logtime_destroy();
-	nlhandler_destroy();
+	timer_destroy();
 	nlcore_destroy();
 	xlator_destroy();
+	fragdb_destroy();
 	session_destroy();
 	bibentry_destroy();
 

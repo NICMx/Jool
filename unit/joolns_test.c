@@ -156,14 +156,9 @@ static int init(void)
 		log_info("joolns_init() threw %d", error);
 		return error;
 	}
-	error = xlator_add();
+	error = xlator_add(&jool);
 	if (error) {
 		log_info("joolns_add() threw %d", error);
-		goto fail;
-	}
-	error = xlator_find_current(&jool);
-	if (error) {
-		log_info("joolns_get_current() threw %d", error);
 		goto fail;
 	}
 

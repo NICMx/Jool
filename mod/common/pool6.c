@@ -89,29 +89,6 @@ static int create_list(struct list_head **list)
 	return 0;
 }
 
-static int create_pool(struct pool6 **pool)
-{
-	struct pool6 *result;
-	struct list_head *list;
-	int error;
-
-	result = kmalloc(sizeof(*result), GFP_KERNEL);
-	if (!result)
-		return -ENOMEM;
-
-	error = create_list(&list);
-	if (error) {
-		kfree(result);
-		return error;
-	}
-
-	RCU_INIT_POINTER(result->list, list);
-	kref_init(&result->refcount);
-
-	*pool = result;
-	return 0;
-}
-
 /**
  * Assumes it has exclusive access to @list.
  */
@@ -135,33 +112,27 @@ static void destroy_list(struct list_head *list)
  * @prefix_count size of the "pref_strs" array.
  */
 RCUTAG_USR
-int pool6_init(struct pool6 **pool, char *prefix_strings[], int prefix_count)
+int pool6_init(struct pool6 **pool)
 {
-	struct ipv6_prefix prefix;
-	int i;
+	struct pool6 *result;
+	struct list_head *list;
 	int error;
 
-	error = create_pool(pool);
-	if (error)
+	result = kmalloc(sizeof(*result), GFP_KERNEL);
+	if (!result)
+		return -ENOMEM;
+
+	error = create_list(&list);
+	if (error) {
+		kfree(result);
 		return error;
-
-	if (!prefix_strings || prefix_count == 0)
-		return 0;
-
-	for (i = 0; i < prefix_count; i++) {
-		error = prefix6_parse(prefix_strings[i], &prefix);
-		if (error)
-			goto fail;
-		error = pool6_add(*pool, &prefix);
-		if (error)
-			goto fail;
 	}
 
-	return 0;
+	RCU_INIT_POINTER(result->list, list);
+	kref_init(&result->refcount);
 
-fail:
-	pool6_put(*pool);
-	return error;
+	*pool = result;
+	return 0;
 }
 
 void pool6_get(struct pool6 *pool)
@@ -326,6 +297,24 @@ int pool6_add(struct pool6 *pool, struct ipv6_prefix *prefix)
 	list_add_tail_rcu(&entry->list_hook, list);
 
 	mutex_unlock(&lock);
+	return 0;
+}
+
+int pool6_add_str(struct pool6 *pool, char *prefix_strings[], int prefix_count)
+{
+	struct ipv6_prefix prefix;
+	int i;
+	int error;
+
+	for (i = 0; i < prefix_count; i++) {
+		error = prefix6_parse(prefix_strings[i], &prefix);
+		if (error)
+			return error;
+		error = pool6_add(pool, &prefix);
+		if (error)
+			return error;
+	}
+
 	return 0;
 }
 

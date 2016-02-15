@@ -7,11 +7,13 @@
 
 int handle_instance_add(struct genl_info *info)
 {
-	return nlcore_respond(info, xlator_add());
+	log_debug("Adding Jool instance.");
+	return nlcore_respond(info, xlator_add(NULL));
 }
 
 int handle_instance_rm(struct genl_info *info)
 {
+	log_debug("Removing Jool instance.");
 	return nlcore_respond(info, xlator_rm());
 }
 

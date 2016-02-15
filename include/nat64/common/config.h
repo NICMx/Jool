@@ -558,56 +558,49 @@ struct global_config {
 	/** Length of the mtu_plateaus array. */
 	__u16 mtu_plateau_count;
 
-	struct {
-		/**
-		 * Amend the UDP checksum of incoming IPv4-UDP packets when it's
-		 * zero? Otherwise these packets will be dropped (because
-		 * they're illegal in IPv6).
-		 * Boolean.
-		 */
-		__u8 compute_udp_csum_zero;
-		/**
-		 * Randomize choice of RFC6791 address?
-		 * Otherwise it will be set depending on the incoming packet's
-		 * Hop Limit. See https://github.com/NICMx/NAT64/issues/130.
-		 * Boolean.
-		 */
-		__u8 randomize_error_addresses;
-		/**
-		 * How should hairpinning be handled by EAM-translated packets.
-		 * See @eam_hairpinning_mode.
-		 */
-		__u8 eam_hairpin_mode;
-	} siit;
-
-	struct {
-		/** Use Address-Dependent Filtering? (boolean) */
-		__u8 drop_by_addr;
-		/** Filter ICMPv6 Informational packets? (boolean) */
-		__u8 drop_icmp6_info;
-		/**
-		 * Drop externally initiated TCP connections? (IPv4 initiated)
-		 * (boolean)
-		 */
-		__u8 drop_external_tcp;
-
-		/**
-		 * True = issue #132 behaviour. False = RFC 6146 behaviour.
-		 * (boolean)
-		 */
-		__u8 src_icmp6errs_better;
-
-		/**
-		 * Time values in this structure should be read as jiffies in
-		 * the kernel, milliseconds in userspace.
-		 * The kernel module is responsible for switching units as the
-		 * the values approach the border.
-		 */
+	union {
 		struct {
-			/** Maximum time fragments will remain in the DB. */
-			__u64 frag;
-		} ttl;
-	} nat64;
+			/**
+			 * Amend the UDP checksum of incoming IPv4-UDP packets
+			 * when it's zero? Otherwise these packets will be
+			 * dropped (because they're illegal in IPv6).
+			 * Boolean.
+			 */
+			__u8 compute_udp_csum_zero;
+			/**
+			 * Randomize choice of RFC6791 address?
+			 * Otherwise it will be set depending on the incoming
+			 * packet's Hop Limit.
+			 * See https://github.com/NICMx/NAT64/issues/130.
+			 * Boolean.
+			 */
+			__u8 randomize_error_addresses;
+			/**
+			 * How should hairpinning be handled by EAM-translated
+			 * packets.
+			 * See @eam_hairpinning_mode.
+			 */
+			__u8 eam_hairpin_mode;
+		} siit;
+		struct {
+			/** Use Address-Dependent Filtering? (boolean) */
+			__u8 drop_by_addr;
+			/** Filter ICMPv6 Informational packets? (boolean) */
+			__u8 drop_icmp6_info;
+			/**
+			 * Drop externally initiated (IPv4) TCP connections?
+			 * (boolean)
+			 */
+			__u8 drop_external_tcp;
+
+			/**
+			 * True = issue #132 behaviour.
+			 * False = RFC 6146 behaviour.
+			 * (boolean)
+			 */
+			__u8 src_icmp6errs_better;
+		} nat64;
+	};
 };
 
 struct bib_config {
@@ -662,14 +655,20 @@ struct session_config {
 	struct pktqueue_config pktqueue;
 };
 
+struct fragdb_config {
+	__u64 ttl;
+};
+
 struct full_config {
 	struct global_config global;
 	struct bib_config bib;
 	struct session_config session;
+	struct fragdb_config frag;
 };
 
 struct global_value {
 	__u16 type;
+	/** Includes header (this) and payload. */
 	__u16 len;
 };
 

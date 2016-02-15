@@ -1,4 +1,4 @@
-#include "nat64/common/JsonReader.h"
+#include "nat64/usr/file.h"
 
 #include <errno.h>
 #include <stdlib.h>

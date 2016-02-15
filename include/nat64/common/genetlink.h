@@ -2,13 +2,10 @@
 #define __GENETLINK_H__
 
 #include <linux/types.h>
-#ifndef __KERNEL__
-#include <stdbool.h>
-#endif
 
-#define GNL_JOOL_FAMILY_NAME "Jool"
 
-#define GNL_JOOLD_MULTICAST_GRP_NAME "MCJoold"
+#define GNL_JOOL_FAMILY_NAME (xlat_is_siit() ? "SIIT_Jool" : "NAT64_Jool")
+#define GNL_JOOLD_MULTICAST_GRP_NAME "joold"
 
 
 enum genl_mc_group_ids {
@@ -31,7 +28,6 @@ struct nlcore_buffer {
 	__u16 capacity;
 	void *data;
 };
-
 
 
 #endif

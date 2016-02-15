@@ -14,11 +14,11 @@
 
 static int fail(const char *function_name)
 {
-	WARN(true, "%s() was called from SIIT code.", function_name);
+	WARN(true, "%s() was called from NAT64 code.", function_name);
 	return -EINVAL;
 }
 
-int blacklist_init(struct addr4_pool **pool, char *pref_strs[], int pref_count)
+int blacklist_init(struct addr4_pool **pool)
 {
 	return fail(__func__);
 }
@@ -39,7 +39,7 @@ bool blacklist_contains(struct addr4_pool *pool, struct net *ns, __be32 addr)
 	return false;
 }
 
-int rfc6791_init(struct addr4_pool **pool, char *pref_strs[], int pref_count)
+int rfc6791_init(struct addr4_pool **pool)
 {
 	return fail(__func__);
 }
@@ -127,7 +127,7 @@ bool eamt_is_empty(struct eam_table *eamt)
 	return true;
 }
 
-int pool_init(struct addr4_pool **pool, char *pref_strs[], int pref_count)
+int pool_init(struct addr4_pool **pool)
 {
 	return fail(__func__);
 }

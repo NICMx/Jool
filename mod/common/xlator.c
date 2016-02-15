@@ -8,6 +8,7 @@
 #include "nat64/mod/stateless/blacklist4.h"
 #include "nat64/mod/stateless/eam.h"
 #include "nat64/mod/stateless/rfc6791.h"
+#include "nat64/mod/stateful/fragment_db.h"
 #include "nat64/mod/stateful/pool4/db.h"
 #include "nat64/mod/stateful/bib/db.h"
 #include "nat64/mod/stateful/session/db.h"
@@ -41,6 +42,7 @@ static void xlator_get(struct xlator *jool)
 		blacklist_get(jool->siit.blacklist);
 		rfc6791_get(jool->siit.pool6791);
 	} else {
+		fragdb_get(jool->nat64.frag);
 		pool4db_get(jool->nat64.pool4);
 		bibdb_get(jool->nat64.bib);
 		sessiondb_get(jool->nat64.session);
@@ -132,16 +134,16 @@ static int init_siit(struct xlator *jool)
 	error = config_init(&jool->global);
 	if (error)
 		goto config_fail;
-	error = pool6_init(&jool->pool6, NULL, 0);
+	error = pool6_init(&jool->pool6);
 	if (error)
 		goto pool6_fail;
 	error = eamt_init(&jool->siit.eamt);
 	if (error)
 		goto eamt_fail;
-	error = blacklist_init(&jool->siit.blacklist, NULL, 0);
+	error = blacklist_init(&jool->siit.blacklist);
 	if (error)
 		goto blacklist_fail;
-	error = rfc6791_init(&jool->siit.pool6791, NULL, 0);
+	error = rfc6791_init(&jool->siit.pool6791);
 	if (error)
 		goto rfc6791_fail;
 	jool->newcfg = cfgcandidate_create();
@@ -171,9 +173,12 @@ static int init_nat64(struct xlator *jool)
 	error = config_init(&jool->global);
 	if (error)
 		goto config_fail;
-	error = pool6_init(&jool->pool6, NULL, 0);
+	error = pool6_init(&jool->pool6);
 	if (error)
 		goto pool6_fail;
+	jool->nat64.frag = fragdb_create();
+	if (!jool->nat64.frag)
+		goto fragdb_fail;
 	error = pool4db_init(&jool->nat64.pool4, 0);
 	if (error)
 		goto pool4_fail;
@@ -196,6 +201,8 @@ sessiondb_fail:
 bibdb_fail:
 	pool4db_put(jool->nat64.pool4);
 pool4_fail:
+	fragdb_put(jool->nat64.frag);
+fragdb_fail:
 	pool6_put(jool->pool6);
 pool6_fail:
 	config_put(jool->global);
@@ -206,8 +213,10 @@ config_fail:
 /**
  * joolns_add - Whenever called, starts translation of packets traveling through
  * the namespace running in the caller's context.
+ * @result: Will be initialized with a reference to the new translator. Send
+ *     NULL if you're not interested.
  */
-int xlator_add(void)
+int xlator_add(struct xlator *result)
 {
 	struct list_head *list;
 	struct jool_instance *instance;
@@ -240,6 +249,11 @@ int xlator_add(void)
 	list = rcu_dereference_protected(pool, lockdep_is_held(&lock));
 	list_add_tail_rcu(&instance->list_hook, list);
 	mutex_unlock(&lock);
+
+	if (result) {
+		xlator_get(&instance->jool);
+		memcpy(result, &instance->jool, sizeof(instance->jool));
+	}
 
 	return 0;
 }
@@ -355,6 +369,7 @@ void xlator_put(struct xlator *jool)
 		blacklist_put(jool->siit.blacklist);
 		rfc6791_put(jool->siit.pool6791);
 	} else {
+		fragdb_put(jool->nat64.frag);
 		pool4db_put(jool->nat64.pool4);
 		sessiondb_put(jool->nat64.session);
 		bibdb_put(jool->nat64.bib);
@@ -388,4 +403,5 @@ void xlator_copy_config(struct xlator *jool, struct full_config *copy)
 	config_copy(&jool->global->cfg, &copy->global);
 	bibdb_config_copy(jool->nat64.bib, &copy->bib);
 	sessiondb_config_copy(jool->nat64.session, &copy->session);
+	fragdb_config_copy(jool->nat64.frag, &copy->frag);
 }

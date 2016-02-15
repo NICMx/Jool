@@ -23,8 +23,6 @@ struct packet_node {
 /** Protects @nodes_list, @nodes_tree and @node_count. */
 static DEFINE_SPINLOCK(lock);
 
-//static struct timer_list timer;
-
 static unsigned long get_timeout(void)
 {
 	return msecs_to_jiffies(1000 * TCP_INCOMING_SYN);
@@ -50,7 +48,7 @@ void pktqueue_init(struct pktqueue *queue)
 	INIT_LIST_HEAD(&queue->node_list);
 	queue->node_tree = RB_ROOT;
 	queue->node_count = 0;
-	atomic_set(&queue->capacity, DEFAULT_MAX_STORED_PKTS);
+	queue->capacity = DEFAULT_MAX_STORED_PKTS;
 }
 
 void pktqueue_destroy(struct pktqueue *queue)
@@ -60,6 +58,20 @@ void pktqueue_destroy(struct pktqueue *queue)
 
 	list_for_each_entry_safe(node, tmp, &queue->node_list, list_hook)
 		send_icmp_error(node);
+}
+
+void pktqueue_config_copy(struct pktqueue *queue, struct pktqueue_config *config)
+{
+	spin_lock_bh(&lock);
+	config->max_stored_pkts = queue->capacity;
+	spin_unlock_bh(&lock);
+}
+
+void pktqueue_config_set(struct pktqueue *queue, struct pktqueue_config *config)
+{
+	spin_lock_bh(&lock);
+	queue->capacity = config->max_stored_pkts;
+	spin_unlock_bh(&lock);
 }
 
 /**
@@ -97,8 +109,6 @@ static struct packet_node *__tree_add(struct pktqueue *queue,
 			struct packet_node, tree_hook);
 }
 
-/* TODO (stateful) revert the timer */
-
 int pktqueue_add(struct pktqueue *queue, struct session_entry *session,
 		struct packet *pkt)
 {
@@ -120,7 +130,7 @@ int pktqueue_add(struct pktqueue *queue, struct session_entry *session,
 
 	spin_lock_bh(&lock);
 
-	if (queue->node_count + 1 >= atomic_read(&queue->capacity)) {
+	if (queue->node_count + 1 >= queue->capacity) {
 		spin_unlock_bh(&lock);
 		log_debug("Too many IPv4-initiated TCP connections.");
 		/* Fall back to assume there's no Simultaneous Open. */
@@ -139,7 +149,6 @@ int pktqueue_add(struct pktqueue *queue, struct session_entry *session,
 	queue->node_count++;
 
 	node = list_entry(queue->node_list.next, typeof(*node), list_hook);
-//	mod_timer(&timer, node->session->update_time + get_timeout());
 
 	spin_unlock_bh(&lock);
 
@@ -184,7 +193,7 @@ void pktqueue_rm(struct pktqueue *queue, struct session_entry *session)
 	log_debug("Pkt queue - I just cancelled an ICMP error.");
 }
 
-void pktqueue_clean(struct pktqueue *queue, unsigned long param)
+void pktqueue_clean(struct pktqueue *queue)
 {
 	struct packet_node *node, *tmp;
 	const unsigned long TIMEOUT = get_timeout();

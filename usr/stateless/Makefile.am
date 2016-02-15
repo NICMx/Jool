@@ -12,6 +12,7 @@ jool_siit_SOURCES = \
 	../common/nl/buffer.c \
 	../common/target/bib.c \
 	../common/target/eam.c \
+	../common/target/file.c \
 	../common/target/global.c \
 	../common/target/instance.c \
 	../common/target/log_time.c \
@@ -19,7 +20,6 @@ jool_siit_SOURCES = \
 	../common/target/pool4.c \
 	../common/target/pool6.c \
 	../common/target/session.c \
-	JsonReader.c \
 	xlat.c
 
 jool_siit_LDADD = ${LIBNLGENL3_LIBS} -lm

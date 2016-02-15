@@ -69,9 +69,10 @@ static struct genl_ops ops[] = {
 static struct genl_family jool_family = {
 	.id = GENL_ID_GENERATE,
 	.hdrsize = 0,
-	.name = GNL_JOOL_FAMILY_NAME,
+	/* .name = GNL_JOOL_FAMILY_NAME, */
 	.version = 1,
 	.maxattr = __ATTR_MAX,
+	.netnsok = true,
 };
 
 size_t nlbuffer_size(struct nlcore_buffer *buffer)
@@ -154,10 +155,9 @@ size_t nlbuffer_data_max_size(void)
  *
  * TODO (later) maybe find a way to do this without attributes?
  */
-int nlbuffer_init(struct nlcore_buffer *buffer, struct genl_info *info,
+int __nlbuffer_init(struct nlcore_buffer *buffer, struct request_hdr *request,
 		size_t capacity)
 {
-	struct request_hdr *request = get_jool_hdr(info);
 	struct response_hdr *response;
 
 	if (WARN(capacity > NLBUFFER_MAX_PAYLOAD, "Message size is too big.")) {
@@ -180,6 +180,19 @@ int nlbuffer_init(struct nlcore_buffer *buffer, struct genl_info *info,
 	response->pending_data = false;
 
 	return 0;
+}
+
+int nlbuffer_init(struct nlcore_buffer *buffer, struct genl_info *info,
+		size_t capacity)
+{
+	return __nlbuffer_init(buffer, get_jool_hdr(info), capacity);
+}
+
+int nlbuffer_init_joold(struct nlcore_buffer *buffer, size_t capacity)
+{
+	struct request_hdr hdr;
+	init_request_hdr(&hdr, 0, MODE_JOOLD, OP_ADD);
+	return __nlbuffer_init(buffer, &hdr, capacity);
 }
 
 void nlbuffer_free(struct nlcore_buffer *buffer)
@@ -365,6 +378,8 @@ static int register_family(void)
 	int error;
 
 	log_debug("Registering Generic Netlink family...");
+
+	strcpy(jool_family.name, GNL_JOOL_FAMILY_NAME);
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(3, 13, 0)
 

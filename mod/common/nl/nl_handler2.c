@@ -168,11 +168,6 @@ static int __handle_jool_message(struct genl_info *info)
 		return nlcore_respond_error(info, error);
 	}
 
-	/*
-	 * TODO wasn't there something we needed to do to tell genetlink we're
-	 * namespace-aware?
-	 */
-
 	error = multiplex_request(&translator, info);
 	xlator_put(&translator);
 	return error;

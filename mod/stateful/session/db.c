@@ -9,8 +9,6 @@
 
 /**
  * One-liner to get the session table corresponding to the "l4_proto" protocol.
- *
- * Doesn't care about spinlocks.
  */
 static struct session_table *get_table(struct sessiondb *db, l4_protocol l4_proto)
 {
@@ -45,11 +43,18 @@ int sessiondb_init(struct sessiondb **db)
 	if (!result)
 		return -ENOMEM;
 
+	result->joold = joold_create();
+	if (!result->joold) {
+		kfree(result);
+		return -ENOMEM;
+	}
+
 	sessiontable_init(&result->udp, UDP_DEFAULT, just_die, 0, NULL);
 	sessiontable_init(&result->tcp, TCP_EST, tcp_expired_cb,
 			TCP_TRANS, tcp_expired_cb);
 	sessiontable_init(&result->icmp, ICMP_DEFAULT, just_die, 0, NULL);
 	pktqueue_init(&result->pkt_queue);
+
 	kref_init(&result->refcounter);
 
 	*db = result;
@@ -68,6 +73,7 @@ static void release(struct kref *refcounter)
 
 	log_debug("Emptying the session tables...");
 
+	joold_destroy(db->joold);
 	pktqueue_destroy(&db->pkt_queue);
 	sessiontable_destroy(&db->udp);
 	sessiontable_destroy(&db->tcp);
@@ -87,14 +93,20 @@ void sessiondb_put(struct sessiondb *db)
 
 void sessiondb_config_copy(struct sessiondb *db, struct session_config *config)
 {
-	sessiontable_config_clone(&db->tcp, config);
+	sessiontable_config_copy(&db->tcp, config, L4PROTO_TCP);
+	sessiontable_config_copy(&db->udp, config, L4PROTO_UDP);
+	sessiontable_config_copy(&db->icmp, config, L4PROTO_ICMP);
+	pktqueue_config_copy(&db->pkt_queue, &config->pktqueue);
+	joold_config_copy(db->joold, &config->joold);
 }
 
 void sessiondb_config_set(struct sessiondb *db, struct session_config *config)
 {
-	sessiontable_config_set(&db->tcp, config);
-	sessiontable_config_set(&db->udp, config);
-	sessiontable_config_set(&db->icmp, config);
+	sessiontable_config_set(&db->tcp, config, L4PROTO_TCP);
+	sessiontable_config_set(&db->udp, config, L4PROTO_UDP);
+	sessiontable_config_set(&db->icmp, config, L4PROTO_ICMP);
+	pktqueue_config_set(&db->pkt_queue, &config->pktqueue);
+	joold_config_set(db->joold, &config->joold);
 }
 
 int sessiondb_find(struct sessiondb *db, struct tuple *tuple,
@@ -198,6 +210,7 @@ void sessiondb_clean(struct sessiondb *db, struct net *ns)
 	sessiontable_clean(&db->udp, ns);
 	sessiontable_clean(&db->tcp, ns);
 	sessiontable_clean(&db->icmp, ns);
+	pktqueue_clean(&db->pkt_queue);
 }
 
 void sessiondb_flush(struct sessiondb *db)

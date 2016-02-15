@@ -32,15 +32,16 @@ int config_init(struct global_configuration **result)
 	config->atomic_frags.build_ipv4_id = DEFAULT_BUILD_IPV4_ID;
 	config->atomic_frags.lower_mtu_fail = DEFAULT_LOWER_MTU_FAIL;
 
-	config->nat64.ttl.frag = msecs_to_jiffies(1000 * FRAGMENT_MIN);
-	config->nat64.src_icmp6errs_better = DEFAULT_SRC_ICMP6ERRS_BETTER;
-	config->nat64.drop_by_addr = DEFAULT_ADDR_DEPENDENT_FILTERING;
-	config->nat64.drop_external_tcp = DEFAULT_DROP_EXTERNAL_CONNECTIONS;
-	config->nat64.drop_icmp6_info = DEFAULT_FILTER_ICMPV6_INFO;
-
-	config->siit.compute_udp_csum_zero = DEFAULT_COMPUTE_UDP_CSUM0;
-	config->siit.eam_hairpin_mode = DEFAULT_EAM_HAIRPIN_MODE;
-	config->siit.randomize_error_addresses = DEFAULT_RANDOMIZE_RFC6791;
+	if (xlat_is_siit()) {
+		config->siit.compute_udp_csum_zero = DEFAULT_COMPUTE_UDP_CSUM0;
+		config->siit.eam_hairpin_mode = DEFAULT_EAM_HAIRPIN_MODE;
+		config->siit.randomize_error_addresses = DEFAULT_RANDOMIZE_RFC6791;
+	} else {
+		config->nat64.src_icmp6errs_better = DEFAULT_SRC_ICMP6ERRS_BETTER;
+		config->nat64.drop_by_addr = DEFAULT_ADDR_DEPENDENT_FILTERING;
+		config->nat64.drop_external_tcp = DEFAULT_DROP_EXTERNAL_CONNECTIONS;
+		config->nat64.drop_icmp6_info = DEFAULT_FILTER_ICMPV6_INFO;
+	}
 
 	config->mtu_plateau_count = ARRAY_SIZE(plateaus);
 	memcpy(config->mtu_plateaus, &plateaus, sizeof(plateaus));
@@ -76,14 +77,17 @@ void prepare_config_for_userspace(struct full_config *config, bool pools_empty)
 {
 	struct global_config *global;
 	struct session_config *session;
+	struct fragdb_config *frag;
 
 	global = &config->global;
 	global->status = global->enabled && !pools_empty;
-	global->nat64.ttl.frag = jiffies_to_msecs(global->nat64.ttl.frag);
 
 	session = &config->session;
 	session->ttl.tcp_est = jiffies_to_msecs(session->ttl.tcp_est);
 	session->ttl.tcp_trans = jiffies_to_msecs(session->ttl.tcp_trans);
 	session->ttl.udp = jiffies_to_msecs(session->ttl.udp);
 	session->ttl.icmp = jiffies_to_msecs(session->ttl.icmp);
+
+	frag = &config->frag;
+	frag->ttl = jiffies_to_msecs(frag->ttl);
 }

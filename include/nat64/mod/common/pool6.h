@@ -10,7 +10,7 @@
 
 struct pool6;
 
-int pool6_init(struct pool6 **pool, char *prefix_strings[], int prefix_count);
+int pool6_init(struct pool6 **pool);
 void pool6_get(struct pool6 *pool);
 void pool6_put(struct pool6 *pool);
 
@@ -20,6 +20,7 @@ int pool6_peek(struct pool6 *pool, struct ipv6_prefix *result);
 bool pool6_contains(struct pool6 *pool, struct in6_addr *addr);
 
 int pool6_add(struct pool6 *pool, struct ipv6_prefix *prefix);
+int pool6_add_str(struct pool6 *pool, char *prefix_strings[], int prefix_count);
 int pool6_rm(struct pool6 *pool, struct ipv6_prefix *prefix);
 int pool6_flush(struct pool6 *pool);
 

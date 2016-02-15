@@ -4,7 +4,7 @@
 /**
  * @file
  * As the name implies, this is just a small database of packets. These packets
- * are meant to be replied (in the form of a ICMP error) in the future.
+ * are meant to be replied (in the form of an ICMP error) in the future.
  *
  * You can find the specifications for this in pages 28 and 29 (look up
  * "simultaneous open of TCP connections"), and 30 (look up "stored is sent
@@ -42,6 +42,7 @@
  * no Simultaneous Open going on).
  */
 
+#include "nat64/common/config.h"
 #include "nat64/mod/common/packet.h"
 #include "nat64/mod/stateful/session/entry.h"
 
@@ -52,7 +53,7 @@ struct pktqueue {
 	/** Current number of packets in the database. */
 	int node_count;
 
-	atomic_t capacity;
+	unsigned int capacity;
 };
 
 /**
@@ -64,6 +65,9 @@ void pktqueue_init(struct pktqueue *queue);
  */
 void pktqueue_destroy(struct pktqueue *queue);
 
+void pktqueue_config_copy(struct pktqueue *queue, struct pktqueue_config *config);
+void pktqueue_config_set(struct pktqueue *queue, struct pktqueue_config *config);
+
 /**
  * Stores packet "skb", associating it with "session".
  */
@@ -74,8 +78,7 @@ int pktqueue_add(struct pktqueue *queue, struct session_entry *session,
  */
 void pktqueue_rm(struct pktqueue *queue, struct session_entry *session);
 
-/* TODO (stateful) call this. */
-void pktqueue_clean(struct pktqueue *queue, unsigned long param);
+void pktqueue_clean(struct pktqueue *queue);
 
 
 #endif /* _JOOL_MOD_PKT_QUEUE_H */

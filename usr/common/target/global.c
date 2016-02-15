@@ -143,7 +143,7 @@ static int handle_display_response(struct jool_response *response, void *arg)
 		printf("    --%s: ", OPTNAME_ICMP_TIMEOUT);
 		print_time_friendly(conf->session.ttl.icmp);
 		printf("    --%s: ", OPTNAME_FRAG_TIMEOUT);
-		print_time_friendly(conf->global.nat64.ttl.frag);
+		print_time_friendly(conf->frag.ttl);
 		printf("\n");
 
 		printf("  Synchronization:\n");
@@ -257,7 +257,7 @@ static int handle_display_response_csv(struct jool_response *response, void *arg
 		printf(",");
 		print_time_csv(conf->session.ttl.icmp);
 		printf(",");
-		print_time_csv(conf->global.nat64.ttl.frag);
+		print_time_csv(conf->frag.ttl);
 		printf(",");
 
 		print_bool(conf->session.joold.enabled);
@@ -282,22 +282,25 @@ int global_display(bool csv)
 	return netlink_request(&request, request.length, cb, NULL);
 }
 
-int global_update(__u8 type, size_t size, void *data)
+int global_update(__u16 type, size_t size, void *data)
 {
 	struct request_hdr *hdr;
+	struct global_value *chunk;
 	void *payload;
 	size_t len;
 	int result;
 
-	len = sizeof(*hdr) + sizeof(type) + size;
+	len = sizeof(struct request_hdr) + sizeof(struct global_value) + size;
 	hdr = malloc(len);
 	if (!hdr)
 		return -ENOMEM;
-	payload = hdr + 1;
+	chunk = (struct global_value *)(hdr + 1);
+	payload = chunk + 1;
 
 	init_request_hdr(hdr, len, MODE_GLOBAL, OP_UPDATE);
-	memcpy(payload, &type, sizeof(type));
-	memcpy(payload + sizeof(type), data, size);
+	chunk->type = type;
+	chunk->len = sizeof(struct global_value) + size;
+	memcpy(payload, data, size);
 
 	result = netlink_request(hdr, len, NULL, NULL);
 	free(hdr);

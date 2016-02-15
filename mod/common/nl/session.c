@@ -19,7 +19,7 @@ static int session_entry_to_userspace(struct session_entry *entry, void *arg)
 	entry_usr.remote4 = entry->remote4;
 	entry_usr.state = entry->state;
 
-	dying_time = entry->update_time + atomic_read(&entry->expirer->timeout);
+	dying_time = entry->update_time + entry->expirer->timeout;
 	entry_usr.dying_time = (dying_time > jiffies)
 			? jiffies_to_msecs(dying_time - jiffies)
 			: 0;

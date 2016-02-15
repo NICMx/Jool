@@ -175,6 +175,11 @@ void bibentry_put(struct bib_entry *bib, bool must_die)
 	fail(__func__);
 }
 
+void session_put(struct session_entry *session, bool must_die)
+{
+	fail(__func__);
+}
+
 int sessiondb_init(struct sessiondb **db)
 {
 	return fail(__func__);
@@ -234,7 +239,33 @@ int sessiondb_count(struct sessiondb *db, l4_protocol proto, __u64 *result)
 	return fail(__func__);
 }
 
-verdict fragdb_handle(struct packet *pkt)
+struct fragdb *fragdb_create(void)
+{
+	fail(__func__);
+	return NULL;
+}
+
+void fragdb_get(struct fragdb *db)
+{
+	fail(__func__);
+}
+
+void fragdb_put(struct fragdb *db)
+{
+	fail(__func__);
+}
+
+void fragdb_config_copy(struct fragdb *db, struct fragdb_config *config)
+{
+	/* No code. */
+}
+
+void fragdb_config_set(struct fragdb *db, struct fragdb_config *config)
+{
+	/* No code. */
+}
+
+verdict fragdb_handle(struct fragdb *db, struct packet *pkt)
 {
 	fail(__func__);
 	return VERDICT_DROP;

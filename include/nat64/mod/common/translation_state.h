@@ -19,10 +19,13 @@ struct xlation {
 	/** The translated version of @in. */
 	struct packet out;
 
-	/*
-	 * TODO (stateful) we should probably store the session here as well, so
-	 * compute_out_tuple can skip the lookup.
+	/**
+	 * Convenient accesor to the session that corresponds to the packet
+	 * being translated, so you don't have to find it again.
+	 *
+	 * You should never trust this has been set.
 	 */
+	struct session_entry *session;
 };
 
 void xlation_put(struct xlation *state);

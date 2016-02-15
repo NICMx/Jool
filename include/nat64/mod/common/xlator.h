@@ -22,7 +22,7 @@ struct xlator {
 			struct addr4_pool *pool6791;
 		} siit;
 		struct {
-			/* TODO (stateful) add fragdb */
+			struct fragdb *frag;
 			struct pool4 *pool4;
 			struct bib *bib;
 			struct sessiondb *session;
@@ -35,7 +35,7 @@ struct xlator {
 int xlator_init(void);
 void xlator_destroy(void);
 
-int xlator_add(void);
+int xlator_add(struct xlator *result);
 int xlator_rm(void);
 int xlator_replace(struct xlator *instance);
 

@@ -538,10 +538,8 @@ static bool init(void)
 
 	if (xlator_init())
 		goto fail2;
-	if (xlator_add())
+	if (xlator_add(&jool))
 		goto fail3;
-	if (xlator_find_current(&jool))
-		goto fail4;
 
 	if (str_to_addr6("3::", &prefix6.address))
 		goto fail4;

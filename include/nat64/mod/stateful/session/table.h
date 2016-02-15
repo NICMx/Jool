@@ -38,7 +38,7 @@ typedef unsigned long (*timeout_cb)(struct global_config *);
 
 struct expire_timer {
 	struct list_head sessions;
-	atomic_t timeout;
+	unsigned long timeout;
 	fate_cb decide_fate_cb;
 };
 
@@ -81,10 +81,12 @@ void sessiontable_init(struct session_table *table,
 		int trans_timeout, fate_cb trans_callback);
 void sessiontable_destroy(struct session_table *table);
 
-void sessiontable_config_clone(struct session_table *table,
-		struct session_config *config);
+void sessiontable_config_copy(struct session_table *table,
+		struct session_config *config,
+		enum l4_protocol proto);
 void sessiontable_config_set(struct session_table *table,
-		struct session_config *config);
+		struct session_config *config,
+		enum l4_protocol proto);
 
 int sessiontable_get(struct session_table *table, struct tuple *tuple,
 		fate_cb cb, void *cb_arg,

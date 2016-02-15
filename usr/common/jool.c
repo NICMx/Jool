@@ -14,11 +14,11 @@
 #include "nat64/usr/netlink.h"
 #include "nat64/common/constants.h"
 #include "nat64/common/config.h"
-#include "nat64/common/JsonReader.h"
 #include "nat64/common/xlat.h"
 #include "nat64/usr/str_utils.h"
 #include "nat64/usr/types.h"
 #include "nat64/usr/instance.h"
+#include "nat64/usr/file.h"
 #include "nat64/usr/pool.h"
 #include "nat64/usr/pool6.h"
 #include "nat64/usr/pool4.h"
@@ -836,7 +836,6 @@ static int main_wrapped(int argc, char **argv)
 		case OP_DISPLAY:
 			return global_display(args.csv_format);
 		case OP_UPDATE:
-
 			error = global_update(args.global.type, args.global.size, args.global.data);
 			free(args.global.data);
 			return error;

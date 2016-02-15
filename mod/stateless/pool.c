@@ -81,51 +81,26 @@ static struct list_head *alloc_list(void)
 }
 
 RCUTAG_USR
-int pool_init(struct addr4_pool **pool, char *pref_strs[], int pref_count)
+int pool_init(struct addr4_pool **pool)
 {
 	struct addr4_pool *result;
 	struct list_head *list;
-	struct pool_entry *entry;
-	unsigned int i;
-	int error;
-
-	list = alloc_list();
-	if (!list)
-		return -ENOMEM;
-
-	for (i = 0; i < pref_count; i++) {
-		log_debug("Inserting address or prefix to the IPv4 pool: %s.",
-				pref_strs[i]);
-
-		entry = kmalloc(sizeof(*entry), GFP_KERNEL);
-		if (!entry) {
-			error = -ENOMEM;
-			goto revert;
-		}
-
-		error = parse_prefix4(pref_strs[i], &entry->prefix);
-		if (error) {
-			kfree(entry);
-			goto revert;
-		}
-
-		list_add_tail(&entry->list_hook, list);
-	}
 
 	result = kmalloc(sizeof(*result), GFP_KERNEL);
-	if (!result) {
-		error = -ENOMEM;
-		goto revert;
+	if (!result)
+		return -ENOMEM;
+
+	list = alloc_list();
+	if (!list) {
+		kfree(result);
+		return -ENOMEM;
 	}
+
 	RCU_INIT_POINTER(result->list, list);
 	kref_init(&result->refcounter);
 
 	*pool = result;
 	return 0;
-
-revert:
-	__destroy(list);
-	return error;
 }
 
 void pool_get(struct addr4_pool *pool)
@@ -189,6 +164,26 @@ int pool_add(struct addr4_pool *pool, struct ipv4_prefix *prefix)
 end:
 	mutex_unlock(&lock);
 	return error;
+}
+
+int pool_add_str(struct addr4_pool *pool, char *pref_strs[], int pref_count)
+{
+	struct ipv4_prefix prefix;
+	unsigned int i;
+	int error;
+
+	for (i = 0; i < pref_count; i++) {
+		log_debug("Inserting address or prefix to the IPv4 pool: %s.",
+				pref_strs[i]);
+		error = parse_prefix4(pref_strs[i], &prefix);
+		if (error)
+			return error;
+		error = pool_add(pool, &prefix);
+		if (error)
+			return error;
+	}
+
+	return 0;
 }
 
 RCUTAG_USR

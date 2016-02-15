@@ -142,14 +142,14 @@ void bibtable_config_clone(struct bib_table *table, struct bib_config *config)
 {
 	spin_lock_bh(&table->lock);
 	config->log_changes = table->log_changes;
-	spin_lock_bh(&table->lock);
+	spin_unlock_bh(&table->lock);
 }
 
 void bibtable_config_set(struct bib_table *table, struct bib_config *config)
 {
 	spin_lock_bh(&table->lock);
 	table->log_changes = config->log_changes;
-	spin_lock_bh(&table->lock);
+	spin_unlock_bh(&table->lock);
 }
 
 /**
