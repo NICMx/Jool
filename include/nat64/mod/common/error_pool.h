@@ -1,6 +1,8 @@
 #ifndef _JOOL_MOD_ERROR_POOL_H
 #define _JOOL_MOD_ERROR_POOL_H
 
+#include <linux/types.h>
+
 void error_pool_init(void);
 void error_pool_destroy(void);
 

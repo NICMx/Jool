@@ -442,7 +442,7 @@ static int compute_mtu6(struct xlation *state)
 	log_debug("Resulting MTU: %u", be32_to_cpu(out_icmp->icmp6_mtu));
 
 #else
-	out_icmp->icmp6_mtu = cpu_to_be32(1500);
+	out_icmp->icmp6_mtu = icmp6_minimum_mtu(state, 9999, 1500, 9999, 100);
 #endif
 
 	return 0;

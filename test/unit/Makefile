@@ -1,0 +1,45 @@
+# Layer 1 tests (utils)
+PROJECTS += addr
+PROJECTS += hashtable
+PROJECTS += iterator
+PROJECTS += logtime
+PROJECTS += pkt
+PROJECTS += rbtree
+
+# Layer 2 tests (tables)
+PROJECTS += bibtable
+PROJECTS += eamt
+PROJECTS += rfc6052
+PROJECTS += sessiontable
+
+# Layer 3 tests (dbutils)
+PROJECTS += palloc4
+
+# Layer 3 tests (dbs)
+PROJECTS += bibdb
+PROJECTS += fragdb
+PROJECTS += pool4db
+PROJECTS += sessiondb
+
+# Layer 4 tests
+PROJECTS += joolns
+
+# Layer 5 tests (translation steps)
+PROJECTS += filtering
+PROJECTS += translate
+
+
+CLEANPROJECTS = $(patsubst %,%.clean,$(PROJECTS))
+
+all: $(PROJECTS)
+
+$(PROJECTS):
+	$(MAKE) -C $@
+
+clean: $(CLEANPROJECTS)
+	find ../../mod -type f -name "*.o" -delete
+
+$(CLEANPROJECTS):
+	$(MAKE) -C $(@:.clean=) clean
+
+.PHONY: clean $(PROJECTS) $(CLEANPROJECTS)

@@ -97,7 +97,7 @@ static void session_release(struct kref *ref)
 void session_put(struct session_entry *session, bool must_die)
 {
 	bool dead = kref_put(&session->refcounter, session_release);
-	WARN(must_die && !dead, "BIB entry did not die!");
+	WARN(must_die && !dead, "Session entry did not die!");
 }
 
 bool session_equals(const struct session_entry *s1, const struct session_entry *s2)

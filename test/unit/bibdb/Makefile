@@ -1,0 +1,44 @@
+MODULES_DIR := /lib/modules/$(shell uname -r)
+KERNEL_DIR := ${MODULES_DIR}/build
+EXTRA_CFLAGS += -DDEBUG
+EXTRA_CFLAGS += -DUNIT_TESTING
+EXTRA_CFLAGS += -DBENCHMARK
+
+#CC=cgcc
+ccflags-y := -I$(src)/../../../include
+ccflags-y += -I$(src)/../../../mod/common
+ccflags-y += -I$(src)/../../../mod/stateful
+ccflags-y += -I$(src)/../../../mod/stateless
+
+
+BIBDB = bibdb
+
+obj-m += $(BIBDB).o
+
+MIN_REQS = ../../../mod/common/types.o \
+	../../../mod/common/address.o \
+	../framework/str_utils.o \
+	../framework/unit_test.o \
+	../impersonator/error_pool.o \
+	../impersonator/stats.o \
+	../impersonator/xlat.o
+
+
+$(BIBDB)-objs += $(MIN_REQS)
+$(BIBDB)-objs += ../../../mod/common/config.o
+$(BIBDB)-objs += ../../../mod/common/rbtree.o
+$(BIBDB)-objs += ../../../mod/stateful/bib/table.o
+$(BIBDB)-objs += ../framework/bib.o
+$(BIBDB)-objs += bibdb_test.o
+
+all:
+	make -C ${KERNEL_DIR} M=$$PWD;
+modules:
+	make -C ${KERNEL_DIR} M=$$PWD $@;
+clean:
+	make -C ${KERNEL_DIR} M=$$PWD $@;
+	rm -f  *.ko  *.o
+test:
+	sudo dmesg -C
+	-sudo insmod $(BIBDB).ko && sudo rmmod $(BIBDB)
+	sudo dmesg -c | less

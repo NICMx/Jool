@@ -416,7 +416,7 @@ static int compute_mtu4(struct xlation *state)
 	log_debug("Resulting MTU: %u", be16_to_cpu(out_icmp->un.frag.mtu));
 
 #else
-	out_icmp->un.frag.mtu = cpu_to_be16(1500);
+	out_icmp->un.frag.mtu = minimum(1500, 9999, 9999);
 #endif
 
 	return 0;

@@ -109,8 +109,10 @@ static unsigned int hash_function(const struct packet *key)
 
 int fragdb_init(void)
 {
+#ifndef UNIT_TESTING
 	nf_defrag_ipv6_enable();
 	nf_defrag_ipv4_enable();
+#endif
 
 	buffer_cache = kmem_cache_create("jool_reassembly_buffers",
 			sizeof(struct reassembly_buffer), 0, 0, NULL);
@@ -360,6 +362,8 @@ verdict fragdb_handle(struct fragdb *db, struct packet *pkt)
 	 * kernel 3.12 or lower at this point.
 	 * (Other defragmenters conceal the fragment header, effectively
 	 * pretending there's no fragmentation.)
+	 *
+	 * TODO what about RHEL?
 	 */
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 13, 0)
 	WARN(true, "This code is supposed to be unreachable in kernels 3.13+! Please report.");
