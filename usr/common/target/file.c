@@ -75,13 +75,19 @@ fail:
 
 static int validate_file_type(cJSON *json_structure)
 {
+	char *siit = "SIIT";
+	char *nat64 = "NAT64";
+	char *expected;
+
 	cJSON *file_type = cJSON_GetObjectItem(json_structure, "File_Type");
 	if (!file_type)
 		return 0; /* The user doesn't care. */
 
-	if (strcmp(file_type->valuestring, "SIIT") != 0) {
-		log_err("File_Type is supposed to be 'SIIT' (got '%s').",
-				file_type->valuestring);
+	expected = xlat_is_siit() ? siit : nat64;
+
+	if (strcmp(file_type->valuestring, expected) != 0) {
+		log_err("File_Type is supposed to be '%s' (got '%s').",
+				expected, file_type->valuestring);
 		return -EINVAL;
 	}
 
