@@ -12,6 +12,7 @@
 #include "nat64/mod/stateful/fragment_db.h"
 #include "nat64/mod/stateful/joold.h"
 #include "nat64/mod/stateful/timer.h"
+#include "nat64/mod/stateful/bib/port_allocator.h"
 #include "nat64/mod/stateful/pool4/db.h"
 
 MODULE_LICENSE("GPL");
@@ -146,6 +147,9 @@ static int __init jool_init(void)
 	error = fragdb_init();
 	if (error)
 		goto fragdb_fail;
+	error = palloc_init();
+	if (error)
+		goto palloc_fail;
 	error = xlator_init();
 	if (error)
 		goto xlator_fail;
@@ -184,6 +188,8 @@ timer_fail:
 nlcore_fail:
 	xlator_destroy();
 xlator_fail:
+	palloc_destroy();
+palloc_fail:
 	fragdb_destroy();
 fragdb_fail:
 	session_destroy();
@@ -201,6 +207,7 @@ static void __exit jool_exit(void)
 	timer_destroy();
 	nlcore_destroy();
 	xlator_destroy();
+	palloc_destroy();
 	fragdb_destroy();
 	session_destroy();
 	bibentry_destroy();
