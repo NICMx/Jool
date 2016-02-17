@@ -74,6 +74,7 @@ You might also want to see [contact info](https://www.jool.mx/en/contact.html).
 * [Stanislav Bogatyrev](https://github.com/realloc)
 * [tbe](https://github.com/tbe)
 * [techmotive](https://github.com/techmotive)
+* Terry Froy
 * [Tore Anderson](https://github.com/toreanderson)
 * Washam Fan
 

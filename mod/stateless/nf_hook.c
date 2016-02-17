@@ -4,6 +4,7 @@
 #include <linux/module.h>
 #include <linux/version.h>
 #include "nat64/mod/common/core.h"
+#include "nat64/mod/common/nf_wrapper.h"
 #include "nat64/mod/common/pool6.h"
 #include "nat64/mod/common/xlator.h"
 #include "nat64/mod/common/nl/nl_core2.h"
@@ -34,45 +35,25 @@ static bool no_instance;
 module_param(no_instance, bool, 0);
 MODULE_PARM_DESC(no_instance, "Prevent an instance to be added to the current namespace during the modprobe.");
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 13, 0)
-#define HOOK_ARG_TYPE const struct nf_hook_ops *
-#else
-#define HOOK_ARG_TYPE unsigned int
-#endif
-
-static unsigned int hook_ipv4(HOOK_ARG_TYPE hook, struct sk_buff *skb,
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 1, 0)
-		const struct nf_hook_state *state)
-#else
-		const struct net_device *in, const struct net_device *out,
-		int (*okfn)(struct sk_buff *))
-#endif
-{
-	return core_4to6(skb, skb->dev);
-}
-
-static unsigned int hook_ipv6(HOOK_ARG_TYPE hook, struct sk_buff *skb,
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 1, 0)
-		const struct nf_hook_state *state)
-#else
-		const struct net_device *in, const struct net_device *out,
-		int (*okfn)(struct sk_buff *))
-#endif
+static NF_CALLBACK(hook_ipv6, skb)
 {
 	return core_6to4(skb, skb->dev);
+}
+
+static NF_CALLBACK(hook_ipv4, skb)
+{
+	return core_4to6(skb, skb->dev);
 }
 
 static struct nf_hook_ops nfho[] = {
 	{
 		.hook = hook_ipv6,
-		.owner = NULL,
 		.pf = PF_INET6,
 		.hooknum = NF_INET_PRE_ROUTING,
 		.priority = NF_IP6_PRI_JOOL,
 	},
 	{
 		.hook = hook_ipv4,
-		.owner = NULL,
 		.pf = PF_INET,
 		.hooknum = NF_INET_PRE_ROUTING,
 		.priority = NF_IP_PRI_JOOL,

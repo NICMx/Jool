@@ -1,5 +1,6 @@
 #include "nat64/mod/stateful/session/table.h"
 
+#include <linux/version.h>
 #include <net/ipv6.h>
 #include "nat64/common/constants.h"
 #include "nat64/common/session.h"
@@ -163,7 +164,13 @@ static void send_probe_packet(struct net *ns, struct session_entry *session)
 		goto fail;
 	}
 
-	error = ip6_local_out(skb); /* Implicit kfree_skb(skb) goes here. */
+	/* TODO it looks like this should be dst_output, not ip6_local_out. */
+	/* Implicit kfree_skb(skb) here. */
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 4, 0)
+	error = ip6_local_out(joolns_get(), NULL, skb);
+#else
+	error = ip6_local_out(skb);
+#endif
 	if (error) {
 		log_debug("ip6_local_out returned errcode %d.", error);
 		goto fail;

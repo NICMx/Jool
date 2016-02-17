@@ -70,13 +70,29 @@ verdict sendpkt_send(struct xlation *state)
 		return VERDICT_DROP;
 	}
 
+	/* TODO this is a little big. Isn't a "||" enough? */
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 16, 0)
+# define JOOL_SKB_IGNORE_DF
+#else
+# ifdef RHEL_RELEASE_CODE
+#  if RHEL_RELEASE_CODE >= RHEL_RELEASE_VERSION(7, 2)
+#   define JOOL_SKB_IGNORE_DF
+#  endif
+# endif
+#endif
+
+#ifdef JOOL_SKB_IGNORE_DF
 	out->skb->ignore_df = true; /* FFS, kernel. */
 #else
 	out->skb->local_df = true; /* FFS, kernel. */
 #endif
 
-	error = dst_output(out->skb); /* Implicit kfree_skb(out->skb) here. */
+	/* Implicit kfree_skb(out->skb) here. */
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 4, 0)
+	error = dst_output(joolns_get(), NULL, out->skb);
+#else
+	error = dst_output(out->skb);
+#endif
 	if (error) {
 		log_debug("dst_output() returned errcode %d.", error);
 		return VERDICT_DROP;
