@@ -61,12 +61,12 @@ static char *banner = "\n"
 
 static NF_CALLBACK(hook_ipv6, skb)
 {
-	return core_4to6(skb, skb->dev);
+	return core_6to4(skb, skb->dev);
 }
 
 static NF_CALLBACK(hook_ipv4, skb)
 {
-	return core_6to4(skb, skb->dev);
+	return core_4to6(skb, skb->dev);
 }
 
 static struct nf_hook_ops nfho[] = {
