@@ -21,6 +21,7 @@
 #include "send_packet.h"
 #include "receiver.h"
 #include "skb_ops.h"
+#include "util.h"
 #include "nat64/mod/common/ipv6_hdr_iterator.h"
 
 
@@ -76,6 +77,7 @@ static int respond_error(struct nlmsghdr *nl_hdr_in, int error)
 			sizeof(payload));
 }
 
+/*
 static void print_pkt(void *skb)
 {
 	struct iphdr *hdr4;
@@ -86,7 +88,7 @@ static void print_pkt(void *skb)
 		hdr6 = skb;
 		log_debug("Version: %u", hdr6->version);
 		log_debug("Priority: %u", hdr6->priority);
-		/* __u8 flow_lbl[3]; */
+		// __u8 flow_lbl[3];
 		log_debug("Payload length: %u", ntohs(hdr6->payload_len));
 		log_debug("Nexthdr: %u", hdr6->nexthdr);
 		log_debug("Hop limit: %u", hdr6->hop_limit);
@@ -103,7 +105,7 @@ static void print_pkt(void *skb)
 		log_debug("Fragment offset: %u", hdr4->frag_off);
 		log_debug("TTL: %u", hdr4->ttl);
 		log_debug("Proto: %u", hdr4->protocol);
-		/* log_debug("Check: %u", hdr4->); */
+		// log_debug("Check: %u", hdr4->);
 		log_debug("Saddr: %pI4", &hdr4->saddr);
 		log_debug("Daddr: %pI4", &hdr4->daddr);
 		break;
@@ -112,6 +114,7 @@ static void print_pkt(void *skb)
 		break;
 	}
 }
+*/
 
 /**
  *	Handler for the sender module.
@@ -137,10 +140,10 @@ static int handle_send_packet_order(void *request_hdr)
 
 	switch (get_l3_proto(request->pkt)) {
 	case 6:
-		error = ip6_local_out(skb);
+		error = ip6_local_out_wrapped(skb);
 		break;
 	case 4:
-		error = ip_local_out(skb);
+		error = ip_local_out_wrapped(skb);
 		break;
 	default:
 		error = -EINVAL;
@@ -177,10 +180,12 @@ static int handle_receiver_packet_order(void *request_hdr)
 	return error;
 }
 
+/*
 static int respond_setcfg(struct nlmsghdr *nl_hdr_in, void *payload, int payload_len)
 {
 	return respond_single_msg(nl_hdr_in, MSG_TYPE_GRAYBOX, payload, payload_len);
 }
+*/
 
 /**
  * Gets called by "netlink_rcv_skb" when the userspace application wants to

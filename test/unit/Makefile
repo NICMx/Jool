@@ -31,6 +31,7 @@ PROJECTS += translate
 
 CLEANPROJECTS = $(patsubst %,%.clean,$(PROJECTS))
 
+
 all: $(PROJECTS)
 
 $(PROJECTS):

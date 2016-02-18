@@ -15,7 +15,7 @@
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Alberto Leiva");
-MODULE_DESCRIPTION("JoolNS test.");
+MODULE_DESCRIPTION("Xlator test.");
 
 static bool validate(char *expected_addr, __u8 expected_len)
 {
@@ -26,7 +26,7 @@ static bool validate(char *expected_addr, __u8 expected_len)
 
 	error = xlator_find_current(&jool);
 	if (error) {
-		log_info("joolns_get_current() threw %d", error);
+		log_info("xlator_find_current() threw %d", error);
 		return false;
 	}
 
@@ -44,7 +44,7 @@ static bool validate(char *expected_addr, __u8 expected_len)
 }
 
 /**
- * Superfluous test over joolns. It's mostly just API manhandling so krefs can
+ * Superfluous test over xlator. It's mostly just API manhandling so krefs can
  * be tested next.
  */
 static bool simple_test(void)
@@ -115,13 +115,13 @@ static bool krefs_test(int ns_kref)
 
 	error = xlator_find_current(&jool);
 	if (error) {
-		log_info("joolns_get_current() threw %d", error);
+		log_info("xlator_find_current() threw %d", error);
 		return false;
 	}
 
 	/* @ns_kref + the one we just took. */
 	success &= ASSERT_INT(ns_kref + 1, atomic_read(&jool.ns->count), "ns kref");
-	/* joolns's kref + the one we just took. */
+	/* xlator DB's kref + the one we just took. */
 	success &= ASSERT_INT(2, atomic_read(&jool.pool6->refcount.refcount), "pool6 kref");
 
 	xlator_put(&jool);
@@ -129,7 +129,7 @@ static bool krefs_test(int ns_kref)
 }
 
 /**
- * Test the previous test handled krefs correctly. Assumes the joolns has been
+ * Test the previous test handled krefs correctly. Assumes the xlator has been
  * deinitialized.
  */
 static bool ns_only_krefs_test(int ns_kref, struct net *ns)
@@ -145,12 +145,12 @@ static int init(void)
 
 	error = xlator_init();
 	if (error) {
-		log_info("joolns_init() threw %d", error);
+		log_info("xlator_init() threw %d", error);
 		return error;
 	}
 	error = xlator_add(&jool);
 	if (error) {
-		log_info("joolns_add() threw %d", error);
+		log_info("xlator_add() threw %d", error);
 		goto fail;
 	}
 
@@ -179,7 +179,7 @@ fail:
 static bool destroy(void)
 {
 	bool success;
-	success = ASSERT_INT(0, xlator_rm(), "joolns_rm");
+	success = ASSERT_INT(0, xlator_rm(), "xlator_rm");
 	xlator_destroy();
 	return success;
 }
@@ -189,7 +189,7 @@ int init_module(void)
 	struct net *ns;
 	int old;
 	int error;
-	START_TESTS("JoolNS");
+	START_TESTS("Xlator");
 
 	ns = get_net_ns_by_pid(task_pid_nr(current));
 	if (IS_ERR(ns)) {
@@ -204,7 +204,7 @@ int init_module(void)
 		return error;
 	}
 
-	CALL_TEST(simple_test(), "joolns API");
+	CALL_TEST(simple_test(), "xlator API");
 	CALL_TEST(krefs_test(old + 1), "kfref checks 1");
 	CALL_TEST(atomic_test(), "atomic config API");
 	CALL_TEST(krefs_test(old + 1), "kfref checks 2");

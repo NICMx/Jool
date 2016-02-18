@@ -89,7 +89,7 @@ verdict sendpkt_send(struct xlation *state)
 
 	/* Implicit kfree_skb(out->skb) here. */
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 4, 0)
-	error = dst_output(joolns_get(), NULL, out->skb);
+	error = dst_output(state->jool.ns, NULL, out->skb);
 #else
 	error = dst_output(out->skb);
 #endif

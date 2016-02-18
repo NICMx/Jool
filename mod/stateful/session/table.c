@@ -167,7 +167,7 @@ static void send_probe_packet(struct net *ns, struct session_entry *session)
 	/* TODO it looks like this should be dst_output, not ip6_local_out. */
 	/* Implicit kfree_skb(skb) here. */
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 4, 0)
-	error = ip6_local_out(joolns_get(), NULL, skb);
+	error = ip6_local_out(ns, NULL, skb);
 #else
 	error = ip6_local_out(skb);
 #endif

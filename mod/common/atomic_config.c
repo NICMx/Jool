@@ -308,7 +308,7 @@ static int commit(struct xlator *jool)
 
 	error = xlator_replace(jool);
 	if (error) {
-		log_err("joolns_replace() failed. Errcode %d", error);
+		log_err("xlator_replace() failed. Errcode %d", error);
 		return error;
 	}
 

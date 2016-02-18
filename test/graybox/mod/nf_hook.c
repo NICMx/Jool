@@ -8,6 +8,7 @@
 #include <linux/netfilter_ipv4.h>
 #include <linux/netfilter_ipv6.h>
 #include "device_name.h"
+#include "nat64/mod/common/nf_wrapper.h"
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("NIC-ITESM");
@@ -18,22 +19,12 @@ static char *banner = "\n"
 	" ================= Packet Sender and Receiver ================\n";
 
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 13, 0)
-#define HOOK_ARG_TYPE const struct nf_hook_ops *
-#else
-#define HOOK_ARG_TYPE unsigned int
-#endif
-
-static unsigned int hook_ipv4(HOOK_ARG_TYPE hook, struct sk_buff *skb,
-		const struct net_device *in, const struct net_device *out,
-		int (*okfn)(struct sk_buff *))
+static NF_CALLBACK(hook_ipv4, skb)
 {
 	return receiver_incoming_skb4(skb);
 }
 
-static unsigned int hook_ipv6(HOOK_ARG_TYPE hook, struct sk_buff *skb,
-		const struct net_device *in, const struct net_device *out,
-		int (*okfn)(struct sk_buff *))
+static NF_CALLBACK(hook_ipv6, skb)
 {
 	return receiver_incoming_skb6(skb);
 }
@@ -42,12 +33,12 @@ static struct nf_hook_ops nfho[] = {
 	{
 		.hook = hook_ipv6,
 		.pf = PF_INET6,
-		.hooknum = NF_INET_PRE_ROUTING
+		.hooknum = NF_INET_PRE_ROUTING,
 	},
 	{
 		.hook = hook_ipv4,
 		.pf = PF_INET,
-		.hooknum = NF_INET_PRE_ROUTING
+		.hooknum = NF_INET_PRE_ROUTING,
 	}
 };
 
@@ -76,10 +67,8 @@ static int __init graybox_init(void)
 		goto skbops_failure;
 
 	/* Hook Jool to Netfilter. */
-	for (i = 0; i < ARRAY_SIZE(nfho); i++) {
-		nfho[i].owner = NULL;
+	for (i = 0; i < ARRAY_SIZE(nfho); i++)
 		nfho[i].priority = NF_IP_PRI_FIRST + 25;
-	}
 
 	error = nf_register_hooks(nfho, ARRAY_SIZE(nfho));
 	if (error)

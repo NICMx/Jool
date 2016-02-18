@@ -84,7 +84,7 @@ static struct pernet_operations joolns_ops = {
 };
 
 /**
- * joolns_init - Initializes this module. Do not call other functions before
+ * xlator_init - Initializes this module. Do not call other functions before
  * this one.
  */
 int xlator_init(void)
@@ -108,7 +108,7 @@ int xlator_init(void)
 }
 
 /**
- * joolns_destroy - Graceful termination of this module. Reverts joolns_init().
+ * xlator_destroy - Graceful termination of this module. Reverts xlator_init().
  * Will clean up any allocated memory.
  */
 void xlator_destroy(void)
@@ -211,7 +211,7 @@ config_fail:
 }
 
 /**
- * joolns_add - Whenever called, starts translation of packets traveling through
+ * xlator_add - Whenever called, starts translation of packets traveling through
  * the namespace running in the caller's context.
  * @result: Will be initialized with a reference to the new translator. Send
  *     NULL if you're not interested.
@@ -259,7 +259,7 @@ int xlator_add(struct xlator *result)
 }
 
 /**
- * joolns_rm - Whenever called, stops translation of packets traveling through
+ * xlator_rm - Whenever called, stops translation of packets traveling through
  * the namespace running in the caller's context.
  */
 int xlator_rm(void)
@@ -311,7 +311,7 @@ int xlator_replace(struct xlator *jool)
 }
 
 /**
- * joolns_get - Retrieves the Jool instance currently loaded in namespace @ns.
+ * xlator_find - Retrieves the Jool instance currently loaded in namespace @ns.
  *
  * Please xlator_put() the instance when you're done using it.
  */
@@ -337,9 +337,10 @@ int xlator_find(struct net *ns, struct xlator *result)
 }
 
 /**
- * joolns_get - Retrieves the Jool instance loaded in the current namespace.
+ * xlator_find_current - Retrieves the Jool instance loaded in the current
+ * namespace.
  *
- * Please joolns_put() the instance when you're done using it.
+ * Please xlator_put() the instance when you're done using it.
  */
 int xlator_find_current(struct xlator *result)
 {

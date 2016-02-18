@@ -1,29 +1,20 @@
-MODULES_DIR := /lib/modules/$(shell uname -r)
-KERNEL_DIR := ${MODULES_DIR}/build
-EXTRA_CFLAGS += -DDEBUG
-EXTRA_CFLAGS += -DUNIT_TESTING
-EXTRA_CFLAGS += -DBENCHMARK
-EXTRA_CFLAGS += -DSIIT
-
-#CC=cgcc
-ccflags-y := -I$(src)/../../../include
-ccflags-y += -I$(src)/../../../mod/common
-ccflags-y += -I$(src)/../../../mod/stateful
-ccflags-y += -I$(src)/../../../mod/stateless
+# It appears the -C's during the makes below prevent this include from happening
+# when it's supposed to.
+# For that reason, I can't just do "include ../common.mk". I need the absolute
+# path of the file.
+# Unfortunately, while the (as always utterly useless) working directory is (as
+# always) brain-dead easy to access, the easiest way I found to get to the
+# "current" directory is the mouthful below.
+# And yet, it still has at least one major problem: if the path contains
+# whitespace, `lastword $(MAKEFILE_LIST)` goes apeshit.
+# This is the one and only reason why the unit tests need to be run in a
+# space-free directory.
+include $(shell dirname $(realpath $(lastword $(MAKEFILE_LIST))))/../common.mk
 
 
 JOOLNS = joolns
 
 obj-m += $(JOOLNS).o
-
-MIN_REQS = ../../../mod/common/types.o \
-	../../../mod/common/address.o \
-	../framework/str_utils.o \
-	../framework/unit_test.o \
-	../impersonator/error_pool.o \
-	../impersonator/stats.o \
-	../impersonator/xlat.o
-
 
 $(JOOLNS)-objs += $(MIN_REQS)
 $(JOOLNS)-objs += ../../../mod/common/atomic_config.o
@@ -38,6 +29,7 @@ $(JOOLNS)-objs += ../../../mod/common/xlator.o
 $(JOOLNS)-objs += ../impersonator/nl.o
 $(JOOLNS)-objs += ../impersonator/route.o
 $(JOOLNS)-objs += joolns_test.o
+
 
 all:
 	make -C ${KERNEL_DIR} M=$$PWD;
