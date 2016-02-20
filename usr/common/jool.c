@@ -498,14 +498,14 @@ static int parse_opt(int key, char *str, struct argp_state *state)
 	case ARGP_PARSE_FILE:
 		error = update_state(args, MODE_PARSE_FILE, OP_UPDATE);
 
-		args->parse_file.filename =  malloc(sizeof(char) * (strlen(str) + 1));
+		args->parse_file.filename = malloc(sizeof(char) * (strlen(str) + 1));
 		if (!args->parse_file.filename) {
 			error = -ENOMEM;
 			log_err("Unable to allocate memory!.");
 			break;
 		}
 
-		strcpy(args->parse_file.filename,str);
+		strcpy(args->parse_file.filename, str);
 		break;
 
 	default:

@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "nat64/common/config.h"
+#include "nat64/common/constants.h"
 #include "nat64/usr/cJSON.h"
 #include "nat64/usr/global.h"
 #include "nat64/usr/netlink.h"
@@ -14,10 +15,13 @@
 
 static int do_parsing(char *buffer);
 static int parse_siit_json(cJSON *json);
+static int parse_nat64_json(cJSON *json);
 static int handle_global(cJSON *global_json);
 static int handle_pool6(cJSON *pool6_json);
 static int handle_eamt(cJSON *json);
 static int handle_addr4_pool(cJSON *json, enum parse_section section);
+static int handle_pool4(cJSON *pool4);
+static int handle_bib(cJSON *bib);
 
 extern int parse_file(char *file_name)
 {
@@ -109,7 +113,7 @@ static int do_parsing(char *buffer)
 	if (error)
 		return error;
 
-	return parse_siit_json(json);
+	return xlat_is_siit() ? parse_siit_json(json) : parse_nat64_json(json);
 }
 
 static int write_section(struct nl_buffer *buffer, enum parse_section section)
@@ -215,6 +219,39 @@ static int parse_siit_json(cJSON *json)
 
 	cJSON *pool6791_json = cJSON_GetObjectItem(json, "Pool6791");
 	error = handle_addr4_pool(pool6791_json, SEC_POOL6791);
+	if (error)
+		return error;
+
+	return send_ctrl_msg(SEC_COMMIT);
+}
+
+static int parse_nat64_json(cJSON *json)
+{
+	int error;
+
+	error = send_ctrl_msg(SEC_INIT);
+	if (error)
+		return error;
+
+	cJSON *global = cJSON_GetObjectItem(json, "Global");
+	error = handle_global(global);
+	if (error)
+		return error;
+
+	cJSON *pool6_json = cJSON_GetObjectItem(json, "Pool6");
+	error = handle_pool6(pool6_json);
+	if (error)
+		return error;
+
+	cJSON *pool4_json = cJSON_GetObjectItem(json, "Pool4");
+	error = handle_pool4(pool4_json);
+	if (error)
+		return error;
+
+	cJSON *bib_json = cJSON_GetObjectItem(json, "BIB");
+	error = handle_bib(bib_json);
+	if (error)
+		return error;
 
 	return send_ctrl_msg(SEC_COMMIT);
 }
@@ -361,7 +398,7 @@ static int handle_global_field(cJSON *json, struct nl_buffer *buffer)
 static int handle_global(cJSON *json)
 {
 	struct nl_buffer *buffer;
-	int error = 0;
+	int error;
 
 	if (!json)
 		return 0;
@@ -428,7 +465,7 @@ static int handle_eamt(cJSON *json)
 	if (!buffer)
 		return -ENOMEM;
 
-	for (json = json->child; json; json = json->next) {
+	for (json = json->child; json; json = json->next, i++) {
 		prefix_json = cJSON_GetObjectItem(json, "ipv6_prefix");
 		if (!prefix_json) {
 			log_err("EAM entry #%u lacks an ipv6_prefix field.", i);
@@ -456,8 +493,6 @@ static int handle_eamt(cJSON *json)
 		error = buffer_write(buffer, &eam, sizeof(eam), SEC_EAMT);
 		if (error)
 			goto end;
-
-		i++;
 	}
 
 	error = nlbuffer_flush(buffer);
@@ -472,7 +507,7 @@ static int handle_addr4_pool(cJSON *json, enum parse_section section)
 {
 	struct nl_buffer *buffer;
 	struct ipv4_prefix prefix;
-	int error = 0;
+	int error;
 
 	if (!json)
 		return 0;
@@ -496,4 +531,77 @@ static int handle_addr4_pool(cJSON *json, enum parse_section section)
 end:
 	nlbuffer_destroy(buffer);
 	return error;
+}
+
+static int handle_pool4(cJSON *json)
+{
+	struct nl_buffer *buffer;
+	struct cJSON *child;
+	struct pool4_entry_usr entry;
+	unsigned int i = 1;
+	int error = 0;
+
+	if (!json)
+		return 0;
+
+	buffer = buffer_create(SEC_POOL4);
+	if (!buffer)
+		return -ENOMEM;
+
+	for (json = json->child; json; json = json->next, i++) {
+		child = cJSON_GetObjectItem(json, "mark");
+		entry.mark = child ? child->valueint : 0;
+
+		child = cJSON_GetObjectItem(json, "protocol");
+		if (!child) {
+			log_err("Pool4 entry %u lacks a protocol field.", i);
+			error = -EINVAL;
+			goto end;
+		}
+		entry.proto = str_to_l4proto(child->valuestring);
+		if (entry.proto == L4PROTO_OTHER) {
+			log_err("Protocol '%s' is unknown.",
+					child->valuestring);
+			error = -EINVAL;
+			goto end;
+		}
+
+		child = cJSON_GetObjectItem(json, "prefix");
+		if (!child) {
+			log_err("Pool4 entry %u lacks a prefix field.", i);
+			error = -EINVAL;
+			goto end;
+		}
+		error = str_to_prefix4(child->valuestring, &entry.addrs);
+		if (error)
+			goto end;
+
+		child = cJSON_GetObjectItem(json, "port_range");
+		if (child) {
+			error = str_to_port_range(child->valuestring,
+					&entry.ports);
+			if (error)
+				goto end;
+		} else {
+			entry.ports.min = DEFAULT_POOL4_MIN_PORT;
+			entry.ports.max = DEFAULT_POOL4_MAX_PORT;
+		}
+
+		error = buffer_write(buffer, &entry, sizeof(entry), SEC_POOL4);
+		if (error)
+			goto end;
+	}
+
+	error = nlbuffer_flush(buffer);
+	/* Fall through. */
+
+end:
+	nlbuffer_destroy(buffer);
+	return error;
+}
+
+static int handle_bib(cJSON *json)
+{
+	/* TODO first do the kernel part. */
+	return 0;
 }

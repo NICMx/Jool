@@ -79,10 +79,10 @@
 	})
 
 /**
-  * rbtree_find_node - Similar to rbtree_find(), except if it doesn't find the
-  * node it returns the slot where it'd be placed so you can insert something in
-  * there.
-  */
+ * rbtree_find_node - Similar to rbtree_find(), except if it doesn't find the
+ * node it returns the slot where it'd be placed so you can insert something in
+ * there.
+ */
 #define rbtree_find_node(expected, root, compare_cb, type, hook_name, parent, \
 		node) \
 	({ \

@@ -24,6 +24,8 @@
  */
 int str_to_bool(const char *str, __u8 *out);
 
+int validate_int(const char *str);
+
 /**
  * @{
  * Parses "str" as a number, which it then copies to "out".

@@ -74,7 +74,7 @@ static void decide_fate(fate_cb cb,
 			 */
 			list_add(&tmp->list_hook, probes);
 		}
-		/*  Fall through. */
+		/* Fall through. */
 	case FATE_TIMER_TRANS:
 		session->update_time = jiffies;
 		session->expirer = &table->trans_timer;

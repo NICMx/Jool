@@ -19,7 +19,7 @@ static int handle_addr4pool_display(struct addr4_pool *pool,
 
 	log_debug("Sending IPv4 address pool to userspace.");
 
-	error = nlbuffer_init(&buffer, info, nlbuffer_data_max_size());
+	error = nlbuffer_init_response(&buffer, info, nlbuffer_response_max_size());
 	if (error)
 		return nlcore_respond_error(info, error);
 

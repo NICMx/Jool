@@ -52,10 +52,9 @@ static void xlator_get(struct xlator *jool)
 }
 
 /**
- * joolns_exit_net - stops translation of packets traveling through the @ns
- * namespace.
+ * exit_net - stops translation of packets traveling through the @ns namespace.
  */
-static void __net_exit joolns_exit_net(struct net *ns)
+static int exit_net(struct net *ns)
 {
 	struct list_head *list;
 	struct jool_instance *instance;
@@ -72,11 +71,17 @@ static void __net_exit joolns_exit_net(struct net *ns)
 			synchronize_rcu_bh();
 
 			kfree(instance);
-			return;
+			return 0;
 		}
 	}
 
 	mutex_unlock(&lock);
+	return -ESRCH;
+}
+
+static void __net_exit joolns_exit_net(struct net *ns)
+{
+	exit_net(ns);
 }
 
 static struct pernet_operations joolns_ops = {
@@ -229,7 +234,7 @@ int xlator_add(struct xlator *result)
 		return PTR_ERR(ns);
 	}
 
-	instance = kmalloc(sizeof(*instance), GFP_KERNEL);
+	instance = kmalloc(sizeof(struct jool_instance), GFP_KERNEL);
 	if (!instance) {
 		put_net(ns);
 		return -ENOMEM;
@@ -246,6 +251,19 @@ int xlator_add(struct xlator *result)
 	}
 
 	mutex_lock(&lock);
+	error = xlator_find(ns, NULL);
+	switch (error) {
+	case 0:
+		log_err("This namespace already has a Jool instance.");
+		error = -EEXIST;
+		goto mutex_fail;
+	case -ESRCH: /* Happy path. */
+		break;
+	default:
+		log_err("Unknown error code: %d.", error);
+		goto mutex_fail;
+	}
+
 	list = rcu_dereference_protected(pool, lockdep_is_held(&lock));
 	list_add_tail_rcu(&instance->list_hook, list);
 	mutex_unlock(&lock);
@@ -256,6 +274,12 @@ int xlator_add(struct xlator *result)
 	}
 
 	return 0;
+
+mutex_fail:
+	mutex_unlock(&lock);
+	xlator_put(&instance->jool);
+	kfree(instance);
+	return error;
 }
 
 /**
@@ -265,6 +289,7 @@ int xlator_add(struct xlator *result)
 int xlator_rm(void)
 {
 	struct net *ns;
+	int error;
 
 	ns = get_net_ns_by_pid(task_pid_nr(current));
 	if (IS_ERR(ns)) {
@@ -272,10 +297,20 @@ int xlator_rm(void)
 		return PTR_ERR(ns);
 	}
 
-	joolns_exit_net(ns);
+	error = exit_net(ns);
+	switch (error) {
+	case 0:
+		break;
+	case -ESRCH:
+		log_err("This namespace doesn't have a Jool instance.");
+		break;
+	default:
+		log_err("Unknown error code: %d.", error);
+		break;
+	}
 
 	put_net(ns);
-	return 0;
+	return error;
 }
 
 int xlator_replace(struct xlator *jool)
@@ -314,6 +349,8 @@ int xlator_replace(struct xlator *jool)
  * xlator_find - Retrieves the Jool instance currently loaded in namespace @ns.
  *
  * Please xlator_put() the instance when you're done using it.
+ *
+ * If @result is NULL, it can be used to know whether the instance exists.
  */
 int xlator_find(struct net *ns, struct xlator *result)
 {
@@ -325,8 +362,10 @@ int xlator_find(struct net *ns, struct xlator *result)
 	list = rcu_dereference_bh(pool);
 	list_for_each_entry_rcu(instance, list, list_hook) {
 		if (instance->jool.ns == ns) {
-			xlator_get(&instance->jool);
-			memcpy(result, &instance->jool, sizeof(instance->jool));
+			if (result) {
+				xlator_get(&instance->jool);
+				memcpy(result, &instance->jool, sizeof(instance->jool));
+			}
 			rcu_read_unlock_bh();
 			return 0;
 		}

@@ -46,7 +46,7 @@ cd $LINUX_DIR
 # Update the Linux clone.
 make clean
 rm .config
-git clean -f
+git clean -xdf
 git checkout master
 git pull
 
@@ -98,6 +98,6 @@ for a in ${kernels[@]}; do
 	cd $LINUX_DIR
 	make clean > /dev/null 2>&1
 	rm .config
-	git clean -f
+	git clean -xdf
 done
 

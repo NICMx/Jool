@@ -20,7 +20,7 @@ static int handle_pool6_display(struct pool6 *pool, struct genl_info *info,
 
 	log_debug("Sending pool6 to userspace.");
 
-	error = nlbuffer_init(&buffer, info, nlbuffer_data_max_size());
+	error = nlbuffer_init_response(&buffer, info, 0);
 	if (error)
 		return nlcore_respond_error(info, error);
 

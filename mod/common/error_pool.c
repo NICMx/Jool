@@ -58,21 +58,21 @@ int error_pool_add_message(char * msg)
 	if (!activated)
 		return 0;
 
-	node = kmalloc(sizeof(struct error_node),GFP_ATOMIC);
-	if(!node) {
+	node = kmalloc(sizeof(struct error_node), GFP_ATOMIC);
+	if (!node) {
 		pr_err("Could not allocate memory to store an error pool node!\n") ;
 		return -ENOMEM;
 	}
 
-	node->msg = kmalloc(strlen(msg)+1,GFP_ATOMIC);
+	node->msg = kmalloc(strlen(msg) + 1, GFP_ATOMIC);
 	if (!node->msg) {
 		pr_err("Could not allocate memory to store an error pool message!\n") ;
 		kfree(node);
 		return -ENOMEM;
 	}
 
-	strcpy(node->msg,msg);
-	list_add_tail(&node->prev_next,&db) ;
+	strcpy(node->msg, msg);
+	list_add_tail(&node->prev_next, &db) ;
 	msg_size += strlen(msg);
 	return 0;
 }
@@ -98,10 +98,10 @@ int error_pool_get_message(char **out_message, size_t *msg_len)
 
 	buffer_pointer = (*out_message);
 	while (!list_empty(&db)) {
-		node = list_first_entry(&db,struct error_node,prev_next);
+		node = list_first_entry(&db, struct error_node, prev_next);
 
-		strcpy(buffer_pointer,node->msg);
-		buffer_pointer+=strlen(node->msg);
+		strcpy(buffer_pointer, node->msg);
+		buffer_pointer += strlen(node->msg);
 		list_del(&(node->prev_next));
 		kfree(node->msg);
 		kfree(node);

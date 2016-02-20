@@ -315,10 +315,10 @@ int config_init(void)
 		nl_socket = netlink_kernel_create(&init_net, NETLINK_USERSOCK, 0, receive_from_userspace,
 				NULL, THIS_MODULE);
 	#elif LINUX_VERSION_CODE < KERNEL_VERSION(3, 7, 0)
-		struct netlink_kernel_cfg nl_cfg = { .input  = receive_from_userspace };
+		struct netlink_kernel_cfg nl_cfg = { .input = receive_from_userspace };
 		nl_socket = netlink_kernel_create(&init_net, NETLINK_USERSOCK, THIS_MODULE, &nl_cfg);
 	#else
-		struct netlink_kernel_cfg nl_cfg = { .input  = receive_from_userspace };
+		struct netlink_kernel_cfg nl_cfg = { .input = receive_from_userspace };
 		nl_socket = netlink_kernel_create(&init_net, NETLINK_USERSOCK, &nl_cfg);
 	#endif
 	/**nl_socket = netlink_kernel_create(&init_net, NETLINK_USERSOCK, 0,

@@ -857,6 +857,7 @@ struct argp_option *__build_opts(const struct argp_option **template,
 	return result;
 }
 
+/* TODO the caller is supposed to free the result. */
 struct argp_option *build_opts(void)
 {
 	return xlat_is_siit()

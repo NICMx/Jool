@@ -117,7 +117,7 @@ static int verify_array_order(__u16 array[], int array_len)
 	}
 
 	for (i = 0; i < array_len - 1; i++) {
-		if (array[i] > array[i+1]) {
+		if (array[i] > array[i + 1]) {
 			log_err("Insert the array in ascendent order.");
 			return -EINVAL;
 		}

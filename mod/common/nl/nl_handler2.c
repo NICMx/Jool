@@ -100,7 +100,7 @@ static int validate_header(struct genl_info *info)
 	if (error)
 		return error;
 
-	if (nla_len(attr) != get_jool_hdr(info)->length) {
+	if (nla_len(attr) != hdr->length) {
 		log_err("Generic Netlink's packet size does not match the amount the client claims it sent.");
 		return -EINVAL;
 	}

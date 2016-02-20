@@ -43,13 +43,12 @@
  * IF YOU PLAN ON TWEAKING THIS MACRO, YOU HAVE TO CASCADE YOUR CHANGES TO THE
  * BUILD_BUG_ON() AT nlcore_init()!!!
  */
-#define NLBUFFER_MAX_PAYLOAD \
-	(GENLMSG_DEFAULT_SIZE - sizeof(struct response_hdr) - 256)
+#define NLBUFFER_MAX_PAYLOAD ((size_t)(GENLMSG_DEFAULT_SIZE - 256))
 
 static struct genl_multicast_group mc_groups[1] = {
 	{
 		.name = GNL_JOOLD_MULTICAST_GRP_NAME,
-#if LINUX_VERSION_CODE < KERNEL_VERSION(3,13,0)
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 13, 0)
 		.id = JOOLD_MC_ID,
 #endif
 	},
@@ -75,11 +74,6 @@ static struct genl_family jool_family = {
 	.netnsok = true,
 };
 
-size_t nlbuffer_size(struct nlcore_buffer *buffer)
-{
-	return sizeof(struct response_hdr) + buffer->payload_len;
-}
-
 static int respond_single_msg(struct genl_info *info, struct nlcore_buffer *buffer)
 {
 	struct sk_buff *skb;
@@ -87,7 +81,7 @@ static int respond_single_msg(struct genl_info *info, struct nlcore_buffer *buff
 	int error;
 	uint32_t portid;
 
-	skb = genlmsg_new(nla_total_size(nlbuffer_size(buffer)), GFP_KERNEL);
+	skb = genlmsg_new(nla_total_size(buffer->len), GFP_KERNEL);
 	if (!skb) {
 		pr_err("genlmsg_new() failed.\n");
 		return -ENOMEM;
@@ -106,7 +100,7 @@ static int respond_single_msg(struct genl_info *info, struct nlcore_buffer *buff
 		return -ENOMEM;
 	}
 
-	error = nla_put(skb, ATTR_DATA, nlbuffer_size(buffer), buffer->data);
+	error = nla_put(skb, ATTR_DATA, buffer->len, buffer->data);
 	if (error) {
 		pr_err("nla_put() failed. (errcode %d)\n", error);
 		kfree_skb(skb);
@@ -124,75 +118,56 @@ static int respond_single_msg(struct genl_info *info, struct nlcore_buffer *buff
 	return 0;
 }
 
-size_t nlbuffer_data_max_size(void)
+size_t nlbuffer_response_max_size(void)
 {
-	return NLBUFFER_MAX_PAYLOAD;
+	return NLBUFFER_MAX_PAYLOAD - sizeof(struct response_hdr);
 }
 
-/**
- * Caller writes on the buffer. Once the buffer is full or the caller finishes
- * writing, the buffer is written into an skb and fetched.
- *
- * The caller does not work on the skb directly because:
- *
- * Rob had trouble making Generic Netlink work without attributes. It might be
- * impossible. We do not want to fetch attributes because we do not have any
- * warranty they will work the same in a different Linux kernel (which is
- * relevant in joold's case - the two NAT64s can be running in different
- * kernels). So what we did is use a single binary attribute. Userspace joold
- * unwraps the attribute and sends the binary data as is. The joold on the other
- * side should parse the data correctly because it is reasonable to expect
- * Jool's version to be the same.
- *
- * TODO did we include the magic number and module version in that message?
- *
- * The problem with that is the binary blob needs to be ready by the time the
- * attribute is written into the packet. This is never the case for responses
- * to --display. In fact, it is also not true for joold.
- *
- * So we use a buffer to build the attribute content first and write the
- * attribute later.
- *
- * TODO (later) maybe find a way to do this without attributes?
- */
-int __nlbuffer_init(struct nlcore_buffer *buffer, struct request_hdr *request,
-		size_t capacity)
+int __nlbuffer_init(struct nlcore_buffer *buffer, size_t capacity)
 {
-	struct response_hdr *response;
-
 	if (WARN(capacity > NLBUFFER_MAX_PAYLOAD, "Message size is too big.")) {
 		log_err("Message size is too big. (%zu > %zu)", capacity,
-				(size_t)NLBUFFER_MAX_PAYLOAD);
+				NLBUFFER_MAX_PAYLOAD);
 		return -EINVAL;
 	}
 
-	buffer->payload_len = 0;
+	buffer->len = 0;
 	buffer->capacity = capacity;
-	buffer->data = kmalloc(sizeof(struct response_hdr) + capacity, GFP_ATOMIC);
+	buffer->data = kmalloc(capacity, GFP_ATOMIC);
 	if (!buffer->data) {
 		log_err("Could not allocate memory for nl_core_buffer!");
 		return -ENOMEM;
 	}
 
-	response = buffer->data;
-	memcpy(&response->req, request, sizeof(*request));
-	response->error_code = 0;
-	response->pending_data = false;
-
 	return 0;
 }
 
-int nlbuffer_init(struct nlcore_buffer *buffer, struct genl_info *info,
+int nlbuffer_init_request(struct nlcore_buffer *buffer, struct request_hdr *hdr,
 		size_t capacity)
 {
-	return __nlbuffer_init(buffer, get_jool_hdr(info), capacity);
+	int error;
+
+	error = __nlbuffer_init(buffer, sizeof(*hdr) + capacity);
+	if (error)
+		return error;
+
+	return nlbuffer_write(buffer, hdr, sizeof(*hdr));
 }
 
-int nlbuffer_init_joold(struct nlcore_buffer *buffer, size_t capacity)
+int nlbuffer_init_response(struct nlcore_buffer *buffer, struct genl_info *info,
+		size_t capacity)
 {
-	struct request_hdr hdr;
-	init_request_hdr(&hdr, 0, MODE_JOOLD, OP_ADD);
-	return __nlbuffer_init(buffer, &hdr, capacity);
+	struct response_hdr response;
+	int error;
+
+	error = __nlbuffer_init(buffer, sizeof(response) + capacity);
+	if (error)
+		return error;
+
+	memcpy(&response.req, get_jool_hdr(info), sizeof(response.req));
+	response.error_code = 0;
+	response.pending_data = false;
+	return nlbuffer_write(buffer, &response, sizeof(response));
 }
 
 void nlbuffer_free(struct nlcore_buffer *buffer)
@@ -204,15 +179,15 @@ bool nlbuffer_write(struct nlcore_buffer *buffer, void *data, size_t data_size)
 {
 	void *tail;
 
-	if (buffer->payload_len + data_size > buffer->capacity) {
+	if (buffer->len + data_size > buffer->capacity) {
 		log_debug("The buffer's storage capacity has been surpassed.");
 		nlbuffer_set_pending_data(buffer, true);
 		return 1;
 	}
 
-	tail = buffer->data + sizeof(struct response_hdr) + buffer->payload_len;
+	tail = buffer->data + buffer->len;
 	memcpy(tail, data, data_size);
-	buffer->payload_len += data_size;
+	buffer->len += data_size;
 
 	return 0;
 }
@@ -223,7 +198,7 @@ int nlcore_send_multicast_message(struct nlcore_buffer *buffer)
 	struct sk_buff *skb;
 	void *msg_head;
 
-	skb = genlmsg_new(nla_total_size(nlbuffer_size(buffer)), GFP_ATOMIC);
+	skb = genlmsg_new(nla_total_size(buffer->len), GFP_ATOMIC);
 	if (!skb) {
 		log_debug("Failed to allocate the multicast message.");
 		return -ENOMEM;
@@ -235,7 +210,7 @@ int nlcore_send_multicast_message(struct nlcore_buffer *buffer)
 		return -ENOMEM;
 	}
 
-	error = nla_put(skb, ATTR_DATA, nlbuffer_size(buffer), buffer->data);
+	error = nla_put(skb, ATTR_DATA, buffer->len, buffer->data);
 	if (error) {
 		pr_err("nla_put() failed. (errcode %d)\n", error);
 		kfree_skb(skb);
@@ -244,7 +219,7 @@ int nlcore_send_multicast_message(struct nlcore_buffer *buffer)
 
 	genlmsg_end(skb, msg_head);
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(3,13,0)
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 13, 0)
 	error = genlmsg_multicast_allns(skb, 0, mc_groups[0].id, 0);
 #else
 	error = genlmsg_multicast_allns(&jool_family, skb, 0, 0, GFP_ATOMIC);
@@ -260,7 +235,7 @@ int nlcore_send_multicast_message(struct nlcore_buffer *buffer)
 
 int nlbuffer_send(struct genl_info *info, struct nlcore_buffer *buffer)
 {
-	if (buffer->payload_len > NLBUFFER_MAX_PAYLOAD) {
+	if (buffer->len > NLBUFFER_MAX_PAYLOAD) {
 		log_err("Buffer too long to be sent!");
 		return -EINVAL;
 	}
@@ -297,7 +272,7 @@ int nlcore_respond_error(struct genl_info *info, int error_code)
 		error_msg_size = NLBUFFER_MAX_PAYLOAD;
 	}
 
-	error = nlbuffer_init(&buffer, info, error_msg_size);
+	error = nlbuffer_init_response(&buffer, info, error_msg_size);
 	if (error) {
 		pr_err("Error while trying to allocate buffer for sending error message!\n");
 		goto end_simple;
@@ -326,7 +301,7 @@ int nlcore_send_ack(struct genl_info *info)
 	int error;
 	struct nlcore_buffer buffer;
 
-	error = nlbuffer_init(&buffer, info, 0);
+	error = nlbuffer_init_response(&buffer, info, 0);
 	if (error) {
 		log_err("Error while trying to allocate buffer for sending acknowledgement!");
 		return error;
@@ -353,7 +328,7 @@ int nlcore_respond_struct(struct genl_info *info, void *content,
 	struct nlcore_buffer buffer;
 	int error;
 
-	error = nlbuffer_init(&buffer, info, content_len);
+	error = nlbuffer_init_response(&buffer, info, content_len);
 	if (error)
 		return nlcore_respond_error(info, error);
 
@@ -413,7 +388,7 @@ int nlcore_init(void)
 	 * Sorry; I don't want to use BUILD_BUG_ON_MSG because old kernels don't
 	 * have it.
 	 */
-	BUILD_BUG_ON(GENLMSG_DEFAULT_SIZE <= sizeof(struct response_hdr) + 256);
+	BUILD_BUG_ON(GENLMSG_DEFAULT_SIZE <= 256);
 
 	error_pool_init();
 	return register_family();

@@ -16,7 +16,7 @@
 #if !defined(LIBNL_VER_NUM)
 	#error "Missing LIBNL dependency (need at least version 3)."
 #endif
-#if LIBNL_VER_NUM < LIBNL_VER(3,0)
+#if LIBNL_VER_NUM < LIBNL_VER(3, 0)
 	#error "Unsupported LIBNL library version number (< 3.0)."
 #endif
 

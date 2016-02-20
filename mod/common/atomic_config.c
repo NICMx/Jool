@@ -299,6 +299,11 @@ static int commit(struct xlator *jool)
 			new->siit.pool6791 = NULL;
 		}
 	} else {
+		if (new->nat64.pool4) {
+			pool4db_put(jool->nat64.pool4);
+			jool->nat64.pool4 = new->nat64.pool4;
+			new->nat64.pool4 = NULL;
+		}
 		if (new->nat64.bib) {
 			bibdb_put(jool->nat64.bib);
 			jool->nat64.bib = new->nat64.bib;
@@ -333,7 +338,7 @@ static int commit(struct xlator *jool)
 
 int atomconfig_add(struct xlator *jool, void *config, size_t config_len)
 {
-	__u16 type =  *((__u16 *)config);
+	__u16 type = *((__u16 *)config);
 	int error;
 
 	config += sizeof(type);
@@ -341,6 +346,7 @@ int atomconfig_add(struct xlator *jool, void *config, size_t config_len)
 
 	mutex_lock(&lock);
 
+	/* TODO validate stateness. */
 	switch (type) {
 	case SEC_INIT:
 		rollback(jool);

@@ -6,10 +6,11 @@
 #include "nat64/common/config.h"
 #include "nat64/common/genetlink.h"
 
-size_t nlbuffer_data_max_size(void);
-int nlbuffer_init(struct nlcore_buffer *buffer, struct genl_info *info,
+size_t nlbuffer_response_max_size(void);
+int nlbuffer_init_request(struct nlcore_buffer *buffer, struct request_hdr *hdr,
 		size_t capacity);
-int nlbuffer_init_joold(struct nlcore_buffer *buffer, size_t capacity);
+int nlbuffer_init_response(struct nlcore_buffer *buffer, struct genl_info *info,
+		size_t capacity);
 void nlbuffer_free(struct nlcore_buffer *buffer);
 bool nlbuffer_write(struct nlcore_buffer *buffer, void *data, size_t data_size);
 int nlbuffer_send(struct genl_info *info, struct nlcore_buffer *buffer);

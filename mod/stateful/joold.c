@@ -119,27 +119,20 @@ static int build_buffer(struct nlcore_buffer *buffer,
 	size_t total_len;
 	int error;
 
-	total_len = sizeof(jool_hdr);
-	total_len += session_count * sizeof(struct joold_session);
+	total_len = session_count * sizeof(struct joold_session);
+	init_request_hdr(&jool_hdr, total_len, MODE_JOOLD, OP_ADD);
 
-	error = nlbuffer_init_joold(buffer, total_len);
+	error = nlbuffer_init_request(buffer, &jool_hdr, total_len);
 	if (error) {
 		log_debug("nlbuffer_new() threw error %d.", error);
 		return error;
-	}
-
-	init_request_hdr(&jool_hdr, total_len, MODE_JOOLD, 0);
-	error = nlbuffer_write(buffer, &jool_hdr, sizeof(jool_hdr));
-	if (error) {
-		log_debug("nlbuffer_write() 1 threw error %d.", error);
-		goto fail;
 	}
 
 	list_for_each_entry(node, sessions, nextprev) {
 		error = nlbuffer_write(buffer, &node->session,
 				sizeof(node->session));
 		if (error) {
-			log_debug("nlbuffer_write() 2 threw error %d.", error);
+			log_debug("nlbuffer_write() threw error %d.", error);
 			goto fail;
 		}
 	}

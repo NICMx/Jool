@@ -33,7 +33,7 @@ static void flush(struct list_head *root, bool sync)
 	if (sync)
 		spin_lock_bh(&dev_lock);
 
-	while(!list_empty(root)) {
+	while (!list_empty(root)) {
 		dev = list_first_entry(root, struct device_name, list);
 		if (!dev)
 			continue;
@@ -160,7 +160,7 @@ int dev_name_filter(char *skb_dev_name)
 	spin_lock_bh(&dev_lock);
 	if (list_empty(&device_list)) {
 		spin_unlock_bh(&dev_lock);
-		return 0;  /* nothing to be filter. */
+		return 0; /* nothing to be filter. */
 	}
 
 	list_for_each_entry(entry, &device_list, list) {

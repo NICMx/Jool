@@ -32,7 +32,7 @@ static int handle_bib_display(struct bib *db, struct genl_info *info,
 
 	log_debug("Sending BIB to userspace.");
 
-	error = nlbuffer_init(&buffer, info, nlbuffer_data_max_size());
+	error = nlbuffer_init_response(&buffer, info, nlbuffer_response_max_size());
 	if (error)
 		return nlcore_respond_error(info, error);
 

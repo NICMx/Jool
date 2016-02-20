@@ -33,7 +33,7 @@
  * Netlink.
  */
 #define MSG_TYPE_GRAYBOX (0x10 + 5)
-#define MSG_GRAYBOX    (0x11)
+#define MSG_GRAYBOX (0x11)
 
 /**
  * Config.

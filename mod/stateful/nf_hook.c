@@ -128,6 +128,9 @@ static int __init jool_init(void)
 	error = fragdb_init();
 	if (error)
 		goto fragdb_fail;
+	error = joold_init();
+	if (error)
+		goto joold_fail;
 	error = palloc_init();
 	if (error)
 		goto palloc_fail;
@@ -171,6 +174,8 @@ nlcore_fail:
 xlator_fail:
 	palloc_destroy();
 palloc_fail:
+	joold_terminate();
+joold_fail:
 	fragdb_destroy();
 fragdb_fail:
 	session_destroy();
@@ -189,6 +194,7 @@ static void __exit jool_exit(void)
 	nlcore_destroy();
 	xlator_destroy();
 	palloc_destroy();
+	joold_terminate();
 	fragdb_destroy();
 	session_destroy();
 	bibentry_destroy();

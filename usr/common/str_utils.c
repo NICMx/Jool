@@ -44,17 +44,61 @@ const char *l4proto_to_string(l4_protocol l4_proto)
 	return NULL;
 }
 
+l4_protocol str_to_l4proto(char *str)
+{
+	if (strcasecmp("TCP", str) == 0)
+		return L4PROTO_TCP;
+	if (strcasecmp("UDP", str) == 0)
+		return L4PROTO_UDP;
+	if (strcasecmp("ICMP", str) == 0)
+		return L4PROTO_ICMP;
+	return L4PROTO_OTHER;
+}
+
+int validate_int(const char *str)
+{
+	regex_t integer_regex;
+
+	if (!str) {
+		log_err("Programming error: 'str' is NULL.");
+		return -EINVAL;
+	}
+
+	/* TODO this regular expression looks like it accepts "". */
+	if (regcomp(&integer_regex, "^[0-9]*", 0)) {
+		log_err("Warning: Integer regex didn't compile.");
+		log_err("(I will be unable to validate integer inputs.)");
+		regfree(&integer_regex);
+		/*
+		 * Don't punish the user over our incompetence.
+		 * If the number is valid, this will not bother the user.
+		 * Otherwise strtoull() will just read a random value, but then
+		 * the user is at fault.
+		 */
+		return 0;
+	}
+
+	if (regexec(&integer_regex, str, 0, NULL, 0) == REG_NOMATCH) {
+		log_err("'%s' is not a number.", str);
+		regfree(&integer_regex);
+		return -EINVAL;
+	}
+
+	regfree(&integer_regex);
+	return 0;
+}
+
 static int str_to_ull(const char *str, char **endptr,
 		const unsigned long long int min,
 		const unsigned long long int max,
 		unsigned long long int *result)
 {
 	unsigned long long int parsed;
+	int error;
 
-	if (*str < '0' || '9' < *str) {
-		log_err("'%s' is not a number.", str);
-		return -EINVAL;
-	}
+	error = validate_int(str);
+	if (error)
+		return error;
 
 	errno = 0;
 	parsed = strtoull(str, endptr, 10);
@@ -98,21 +142,7 @@ int str_to_bool(const char *str, __u8 *bool_out)
 int str_to_u8(const char *str, __u8 *u8_out, __u8 min, __u8 max)
 {
 	unsigned long long int result;
-	int error = 0;
-
-        regex_t integer_regex;
-    	if(regcomp(&integer_regex,"^[0-9]*",0)) {
-    		log_err("str_to_u64: integer_regex didn't compile.");
-    	}
-
-        if(str == NULL || regexec(&integer_regex,str,0,NULL,0) == REG_NOMATCH)	{
-    	  		log_err("Cannot parse '%s' as an integer value.", str);
-    	  		error = 1;
-    	}
-
-
-  	if (error)
-  	  return error;
+	int error;
 
 	error = str_to_ull(str, NULL, min, max, &result);
 	
@@ -123,23 +153,9 @@ int str_to_u8(const char *str, __u8 *u8_out, __u8 min, __u8 max)
 int str_to_u16(const char *str, __u16 *u16_out, __u16 min, __u16 max)
 {
 	unsigned long long int result;
-	int error = 0;
-          
-        regex_t integer_regex;
-    	if(regcomp(&integer_regex,"^[0-9]*",0)) {
-    		log_err("str_to_u64: integer_regex didn't compile.");
-    	}
-
-        if(str == NULL || regexec(&integer_regex,str,0,NULL,0) == REG_NOMATCH)	{
-    	  		log_err("Cannot parse '%s' as an integer value.", str);
-    	  		error = 1;
-    	}
-
-        if (error)
-	return error;
+	int error;
 
 	error = str_to_ull(str, NULL, min, max, &result);
-	
 
 	*u16_out = result;
 	return error;
@@ -148,22 +164,9 @@ int str_to_u16(const char *str, __u16 *u16_out, __u16 min, __u16 max)
 int str_to_u32(const char *str, __u32 *u32_out, __u32 min, __u32 max)
 {
 	unsigned long long int result;
-	int error=0;
+	int error;
 
-         regex_t integer_regex;
-     	if(regcomp(&integer_regex,"^[0-9]*",0)) {
-     		log_err("str_to_u64: integer_regex didn't compile.");
-     	}
-
-         if(str == NULL || regexec(&integer_regex,str,0,NULL,0) == REG_NOMATCH)	{
-     	  		log_err("Cannot parse '%s' as an integer value.", str);
-     	  		error = 1;
-     	}
-
-        if (error)
-	 return error;
-
-	 error = str_to_ull(str, NULL, min, max, &result);
+	error = str_to_ull(str, NULL, min, max, &result);
 
 	*u32_out = result;
 	return error;
@@ -172,24 +175,9 @@ int str_to_u32(const char *str, __u32 *u32_out, __u32 min, __u32 max)
 int str_to_u64(const char *str, __u64 *u64_out, __u64 min, __u64 max)
 {
 	unsigned long long int result;
-	int error=0;
-
-         regex_t integer_regex;
-	if(regcomp(&integer_regex,"^[0-9]*",0)) {
-		log_err("str_to_u64: integer_regex didn't compile.");
-	}        
-
-    if(str == NULL || regexec(&integer_regex,str,0,NULL,0) == REG_NOMATCH)	{
-	  		log_err("Cannot parse '%s' as an integer value.", str);
-	  		error = 1;
-	}
-         
-        if (error)
-	 return error;
-
+	int error;
 
 	error = str_to_ull(str, NULL, min, max, &result);
-	
 
 	*u64_out = result;
 	return error;

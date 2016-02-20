@@ -81,14 +81,14 @@ static int updated_entries_callback(struct nl_msg *msg, void *arg)
 	joold_data = (struct request_hdr *)(buffer+1);
 
 
-	if (buffer->payload_len > (~(__u16)0)) {
+	if (buffer->len > (~(__u16)0)) {
 		fprintf(stderr, "The kernel module is sending more bytes than this daemon can send through the netkwork! \n"
 						"I am not goin to synchronize this! \n"
 						"Reducing the number of sessions to queue through Jool's user-space application, can help to solve this");
 	}
 
 
-	sender_callback(joold_data, buffer->payload_len);
+	sender_callback(joold_data, buffer->len);
 
 	return 0;
 }
