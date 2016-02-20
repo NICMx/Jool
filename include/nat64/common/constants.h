@@ -23,8 +23,7 @@
  * In other words, the tolerance time for established and healthy TCP sessions.
  * If a connection remains idle for longer than this, then we expect it to terminate soon.
  */
-//#define TCP_EST (2 * 60 * 60)
-#define TCP_EST (60)
+#define TCP_EST (2 * 60 * 60)
 /**
  * Transitory connection idle timeout (in seconds).
  * In other words, the timeout of TCP sessions which are expected to terminate soon.
