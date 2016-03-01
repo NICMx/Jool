@@ -10,4 +10,4 @@ const char *xlat_get_name(void)
 	return "SIIT Jool";
 }
 
-/* TODO (fine) this is redundant... */
+/* TODO (duplicate code) this is redundant... */

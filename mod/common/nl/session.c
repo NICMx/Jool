@@ -89,7 +89,7 @@ int handle_session_config(struct xlator *jool, struct genl_info *info)
 	jool_hdr = get_jool_hdr(info);
 	request = (struct request_session *)(jool_hdr + 1);
 
-	error = validate_request_size(jool_hdr, sizeof(*request));
+	error = validate_request_size(info, sizeof(*request));
 	if (error)
 		return nlcore_respond_error(info, error);
 

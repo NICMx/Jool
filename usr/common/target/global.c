@@ -265,10 +265,10 @@ int global_display(bool csv)
 	struct request_hdr request;
 	jool_response_cb cb;
 
-	init_request_hdr(&request, sizeof(request), MODE_GLOBAL, OP_DISPLAY);
+	init_request_hdr(&request, MODE_GLOBAL, OP_DISPLAY);
 	cb = csv ? handle_display_response_csv : handle_display_response;
 
-	return netlink_request(&request, request.length, cb, NULL);
+	return netlink_request(&request, sizeof(request), cb, NULL);
 }
 
 int global_update(__u16 type, size_t size, void *data)
@@ -286,7 +286,7 @@ int global_update(__u16 type, size_t size, void *data)
 	chunk = (struct global_value *)(hdr + 1);
 	payload = chunk + 1;
 
-	init_request_hdr(hdr, len, MODE_GLOBAL, OP_UPDATE);
+	init_request_hdr(hdr, MODE_GLOBAL, OP_UPDATE);
 	chunk->type = type;
 	chunk->len = sizeof(struct global_value) + size;
 	memcpy(payload, data, size);

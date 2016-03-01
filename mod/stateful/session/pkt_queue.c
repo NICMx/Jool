@@ -200,8 +200,10 @@ void pktqueue_clean(struct pktqueue *queue)
 	unsigned long next_timeout;
 	LIST_HEAD(icmps);
 
+	/* TODO return maybe? note that the code below is silent.
 	log_debug("===============================================");
 	log_debug("Handling expired SYN sessions...");
+	*/
 
 	spin_lock_bh(&lock);
 	list_for_each_entry_safe(node, tmp, &queue->node_list, list_hook) {

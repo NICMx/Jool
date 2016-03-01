@@ -355,7 +355,8 @@ static int commit_config(struct xlator *jool, struct full_config *config)
 
 static int handle_global_update(struct xlator *jool, struct genl_info *info)
 {
-	struct request_hdr *hdr = get_jool_hdr(info);
+	struct request_hdr *hdr;
+	size_t total_len;
 	struct full_config config;
 	int error;
 
@@ -366,7 +367,9 @@ static int handle_global_update(struct xlator *jool, struct genl_info *info)
 
 	xlator_copy_config(jool, &config);
 
-	error = config_parse(&config, hdr + 1, hdr->length - sizeof(*hdr));
+	hdr = nla_data(info->attrs[ATTR_DATA]);
+	total_len = nla_len(info->attrs[ATTR_DATA]);
+	error = config_parse(&config, hdr + 1, total_len - sizeof(*hdr));
 	if (error < 0)
 		return nlcore_respond_error(info, error);
 

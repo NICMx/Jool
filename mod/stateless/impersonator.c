@@ -271,8 +271,17 @@ verdict fragdb_handle(struct fragdb *db, struct packet *pkt)
 	return VERDICT_DROP;
 }
 
-int joold_sync_entries(struct xlator *jool, __u8 *data, __u32 size)
+int joold_sync(struct xlator *jool, __u8 *data, __u32 size)
 {
-	fail(__func__);
-	return -EINVAL;
+	return fail(__func__);
+}
+
+int joold_test(struct xlator *jool)
+{
+	return fail(__func__);
+}
+
+int joold_advertise(struct xlator *jool)
+{
+	return fail(__func__);
 }

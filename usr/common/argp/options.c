@@ -45,6 +45,15 @@ static const struct argp_option session_opt = {
 		.group = 0,
 };
 
+static const struct argp_option joold_opt = {
+		.name = "joold",
+		.key = ARGP_JOOLD,
+		.arg = NULL,
+		.flags = 0,
+		.doc = "The command will control the kernel half of joold.",
+		.group = 0,
+};
+
 static const struct argp_option eamt_opt = {
 		.name = "eamt",
 		.key = ARGP_EAMT,
@@ -132,15 +141,6 @@ static const struct argp_option count_opt = {
 		.group = 0,
 };
 
-static const struct argp_option test_opt = {
-		.name = "test",
-		.key = ARGP_TEST,
-		.arg = NULL,
-		.flags = 0,
-		.doc = ":>",
-		.group = 0,
-};
-
 static const struct argp_option add_opt = {
 		.name = "add",
 		.key = ARGP_ADD,
@@ -174,6 +174,24 @@ static const struct argp_option flush_opt = {
 		.arg = NULL,
 		.flags = 0,
 		.doc = "Clear the target.",
+		.group = 0,
+};
+
+static const struct argp_option advertise_opt = {
+		.name = "advertise",
+		.key = ARGP_ADVERTISE,
+		.arg = NULL,
+		.flags = 0,
+		.doc = "Advertise the entire session DB to the multicast group.",
+		.group = 0,
+};
+
+static const struct argp_option test_opt = {
+		.name = "test",
+		.key = ARGP_TEST,
+		.arg = NULL,
+		.flags = 0,
+		.doc = ":>",
 		.group = 0,
 };
 
@@ -722,7 +740,6 @@ static const struct argp_option *opts_siit[] = {
 	&operations_hdr_opt,
 	&display_opt,
 	&count_opt,
-	&test_opt,
 	&add_opt,
 	&update_opt,
 	&rm_opt,
@@ -761,6 +778,7 @@ static const struct argp_option *opts_nat64[] = {
 	&pool4_opt,
 	&bib_opt,
 	&session_opt,
+	&joold_opt,
 	&global_opt,
 	&global_alias_opt,
 #ifdef BENCHMARK
@@ -776,6 +794,8 @@ static const struct argp_option *opts_nat64[] = {
 	&update_opt,
 	&rm_opt,
 	&flush_opt,
+	&advertise_opt,
+	&test_opt,
 
 	&db_hdr_opt,
 	&quick_opt,

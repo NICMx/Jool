@@ -34,5 +34,6 @@ int netlink_request_simple(void *request, __u32 request_len);
 int netlink_init(void);
 void netlink_destroy(void);
 
+int netlink_print_error(int error);
 
 #endif /* _JOOL_USR_NETLINK_H_ */

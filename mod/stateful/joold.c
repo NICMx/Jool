@@ -116,13 +116,13 @@ static int build_buffer(struct nlcore_buffer *buffer,
 {
 	struct request_hdr jool_hdr;
 	struct joold_node *node;
-	size_t total_len;
 	int error;
 
-	total_len = session_count * sizeof(struct joold_session);
-	init_request_hdr(&jool_hdr, total_len, MODE_JOOLD, OP_ADD);
+	init_request_hdr(&jool_hdr, MODE_JOOLD, OP_ADD);
+	jool_hdr.castness = 'm';
 
-	error = nlbuffer_init_request(buffer, &jool_hdr, total_len);
+	error = nlbuffer_init_request(buffer, &jool_hdr,
+			session_count * sizeof(struct joold_session));
 	if (error) {
 		log_debug("nlbuffer_new() threw error %d.", error);
 		return error;
@@ -480,6 +480,25 @@ static bool add_new_session(struct xlator *jool, struct joold_session *in)
 	return true;
 }
 
+static int validate_enabled(struct xlator *jool)
+{
+	struct joold_queue *queue;
+	bool enabled;
+
+	/* TODO (final) Review BH contextness. */
+	queue = jool->nat64.session->joold;
+	spin_lock_bh(&queue->lock);
+	enabled = queue->config.enabled;
+	spin_unlock_bh(&queue->lock);
+
+	if (!enabled) {
+		log_err("Session sync is disabled on this instance.");
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 /**
  * joold_sync_entries - Parses a bunch of sessions out of @data and adds them
  * to @jool's session database.
@@ -487,26 +506,19 @@ static bool add_new_session(struct xlator *jool, struct joold_session *in)
  * This is the function that gets called whenever the jool daemon sends data to
  * the @jool Jool instance.
  */
-int joold_sync_entries(struct xlator *jool, void *data, __u32 data_len)
+int joold_sync(struct xlator *jool, void *data, __u32 data_len)
 {
-	struct joold_queue *queue;
 	struct joold_session *session;
 	unsigned int num_sessions;
 	unsigned int i;
-	bool enabled;
+	int error;
 	bool success;
 
-	/* TODO (final) Review BH contextness. */
+	error = validate_enabled(jool);
+	if (error)
+		return error;
 
-	queue = jool->nat64.session->joold;
-	spin_lock_bh(&queue->lock);
-	enabled = queue->config.enabled;
-	spin_unlock_bh(&queue->lock);
-
-	if (!enabled)
-		return 0;
-
-	if (data_len == 0 || data_len % sizeof(struct joold_session) != 0) {
+	if (data_len % sizeof(struct joold_session) != 0) {
 		log_err("The Netlink packet seems corrupted.");
 		return -EINVAL;
 	}
@@ -518,5 +530,40 @@ int joold_sync_entries(struct xlator *jool, void *data, __u32 data_len)
 	for (i = 0; i < num_sessions; i++, session++)
 		success &= add_new_session(jool, session);
 
+	log_debug("Added %u sessions.", i);
 	return success ? 0 : -EINVAL;
+}
+
+int joold_test(struct xlator *jool)
+{
+	struct nlcore_buffer buffer;
+	struct request_hdr hdr;
+	int error;
+
+	error = validate_enabled(jool);
+	if (error)
+		return error;
+
+	init_request_hdr(&hdr, MODE_JOOLD, OP_ADD);
+	hdr.castness = 'm';
+
+	error = nlbuffer_init_request(&buffer, &hdr, 0);
+	if (error)
+		return error;
+
+	error = nlcore_send_multicast_message(&buffer);
+	nlbuffer_free(&buffer);
+	return error;
+}
+
+int joold_advertise(struct xlator *jool)
+{
+	int error;
+
+	error = validate_enabled(jool);
+	if (error)
+		return error;
+
+	/* TODO Not implemented yet. */
+	return -EINVAL;
 }

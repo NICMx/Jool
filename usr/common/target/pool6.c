@@ -48,7 +48,7 @@ int pool6_display(bool csv)
 	struct display_args args;
 	int error;
 
-	init_request_hdr(hdr, sizeof(request), MODE_POOL6, OP_DISPLAY);
+	init_request_hdr(hdr, MODE_POOL6, OP_DISPLAY);
 	payload->display.prefix_set = false;
 	memset(&payload->display.prefix, 0, sizeof(payload->display.prefix));
 	args.row_count = 0;
@@ -56,7 +56,7 @@ int pool6_display(bool csv)
 	args.csv = csv;
 
 	do {
-		error = netlink_request(&request, hdr->length, pool6_display_response, &args);
+		error = netlink_request(&request, sizeof(request), pool6_display_response, &args);
 		if (error)
 			return error;
 	} while (args.request->display.prefix_set);
@@ -85,8 +85,8 @@ static int pool6_count_response(struct jool_response *response, void *arg)
 int pool6_count(void)
 {
 	struct request_hdr request;
-	init_request_hdr(&request, sizeof(request), MODE_POOL6, OP_COUNT);
-	return netlink_request(&request, request.length, pool6_count_response, NULL);
+	init_request_hdr(&request, MODE_POOL6, OP_COUNT);
+	return netlink_request(&request, sizeof(request), pool6_count_response, NULL);
 }
 
 static bool get_ubit(struct ipv6_prefix *prefix)
@@ -106,10 +106,10 @@ int pool6_add(struct ipv6_prefix *prefix, bool force)
 		return -EINVAL;
 	}
 
-	init_request_hdr(hdr, sizeof(request), MODE_POOL6, OP_ADD);
+	init_request_hdr(hdr, MODE_POOL6, OP_ADD);
 	payload->add.prefix = *prefix;
 
-	return netlink_request(request, hdr->length, NULL, NULL);
+	return netlink_request(request, sizeof(request), NULL, NULL);
 }
 
 int pool6_remove(struct ipv6_prefix *prefix, bool quick)
@@ -118,11 +118,11 @@ int pool6_remove(struct ipv6_prefix *prefix, bool quick)
 	struct request_hdr *hdr = (struct request_hdr *) request;
 	union request_pool6 *payload = (union request_pool6 *) (request + HDR_LEN);
 
-	init_request_hdr(hdr, sizeof(request), MODE_POOL6, OP_REMOVE);
+	init_request_hdr(hdr, MODE_POOL6, OP_REMOVE);
 	payload->rm.prefix = *prefix;
 	payload->rm.quick = quick;
 
-	return netlink_request(request, hdr->length, NULL, NULL);
+	return netlink_request(request, sizeof(request), NULL, NULL);
 }
 
 int pool6_flush(bool quick)
@@ -131,8 +131,8 @@ int pool6_flush(bool quick)
 	struct request_hdr *hdr = (struct request_hdr *) request;
 	union request_pool6 *payload = (union request_pool6 *) (request + HDR_LEN);
 
-	init_request_hdr(hdr, sizeof(request), MODE_POOL6, OP_FLUSH);
+	init_request_hdr(hdr, MODE_POOL6, OP_FLUSH);
 	payload->flush.quick = quick;
 
-	return netlink_request(&request, hdr->length, NULL, NULL);
+	return netlink_request(&request, sizeof(request), NULL, NULL);
 }

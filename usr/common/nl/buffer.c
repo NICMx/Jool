@@ -49,11 +49,7 @@ int nlbuffer_write(struct nl_buffer *buffer, void *payload, size_t payload_len)
 
 int nlbuffer_flush(struct nl_buffer *buffer)
 {
-	struct request_hdr *hdr;
 	int error;
-
-	hdr = (struct request_hdr *)(&buffer->chars[0]);
-	hdr->length = buffer->len;
 
 	error = netlink_request(&buffer->chars[0], buffer->len, NULL, NULL);
 	buffer->len = 0;

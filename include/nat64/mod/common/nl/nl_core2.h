@@ -12,7 +12,7 @@ int nlbuffer_init_request(struct nlcore_buffer *buffer, struct request_hdr *hdr,
 int nlbuffer_init_response(struct nlcore_buffer *buffer, struct genl_info *info,
 		size_t capacity);
 void nlbuffer_free(struct nlcore_buffer *buffer);
-bool nlbuffer_write(struct nlcore_buffer *buffer, void *data, size_t data_size);
+int nlbuffer_write(struct nlcore_buffer *buffer, void *data, size_t data_size);
 int nlbuffer_send(struct genl_info *info, struct nlcore_buffer *buffer);
 
 void nlbuffer_set_pending_data(struct nlcore_buffer *buffer, bool pending_data);

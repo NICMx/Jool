@@ -15,14 +15,14 @@ int verify_superpriv(void)
 
 struct request_hdr *get_jool_hdr(struct genl_info *info)
 {
-	return (struct request_hdr *)(info->attrs[ATTR_DATA] + 1);
+	return nla_data(info->attrs[ATTR_DATA]);
 }
 
-int validate_request_size(struct request_hdr *hdr, size_t min_expected)
+int validate_request_size(struct genl_info *info, size_t min_expected)
 {
-	size_t request_size = hdr->length;
+	size_t request_size = nla_len(info->attrs[ATTR_DATA]);
 
-	min_expected += sizeof(*hdr);
+	min_expected += sizeof(struct request_hdr);
 	if (request_size < min_expected) {
 		log_err("The minimum expected request size was %zu bytes; got %zu instead.",
 				min_expected, request_size);

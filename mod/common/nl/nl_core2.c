@@ -165,6 +165,7 @@ int nlbuffer_init_response(struct nlcore_buffer *buffer, struct genl_info *info,
 		return error;
 
 	memcpy(&response.req, get_jool_hdr(info), sizeof(response.req));
+	response.req.castness = 'u';
 	response.error_code = 0;
 	response.pending_data = false;
 	return nlbuffer_write(buffer, &response, sizeof(response));
@@ -175,7 +176,7 @@ void nlbuffer_free(struct nlcore_buffer *buffer)
 	kfree(buffer->data);
 }
 
-bool nlbuffer_write(struct nlcore_buffer *buffer, void *data, size_t data_size)
+int nlbuffer_write(struct nlcore_buffer *buffer, void *data, size_t data_size)
 {
 	void *tail;
 
@@ -205,7 +206,7 @@ int nlcore_send_multicast_message(struct nlcore_buffer *buffer)
 	}
 
 	msg_head = genlmsg_put(skb, 0, 0, &jool_family, 0, 0);
-	if (msg_head) {
+	if (!msg_head) {
 		log_err("genlmsg_put() returned NULL.");
 		return -ENOMEM;
 	}
@@ -286,6 +287,10 @@ int nlcore_respond_error(struct genl_info *info, int error_code)
 		goto end_full;
 	}
 
+	if (error_code)
+		log_debug("Sending error code %d to userspace.", error_code);
+	else
+		log_debug("Sending ACK to userspace.");
 	error = respond_single_msg(info, &buffer);
 	/* Fall through. */
 

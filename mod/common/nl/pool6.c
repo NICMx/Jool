@@ -97,7 +97,7 @@ int handle_pool6_config(struct xlator *jool, struct genl_info *info)
 	union request_pool6 *request = (union request_pool6 *)(jool_hdr + 1);
 	int error;
 
-	error = validate_request_size(jool_hdr, sizeof(*request));
+	error = validate_request_size(info, sizeof(*request));
 	if (error)
 		return nlcore_respond_error(info, error);
 

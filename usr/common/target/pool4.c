@@ -57,7 +57,7 @@ int pool4_display(bool csv)
 	struct display_args args;
 	int error;
 
-	init_request_hdr(hdr, sizeof(request), MODE_POOL4, OP_DISPLAY);
+	init_request_hdr(hdr, MODE_POOL4, OP_DISPLAY);
 	payload->display.offset_set = false;
 	memset(&payload->display.offset, 0, sizeof(payload->display.offset));
 	args.row_count = 0;
@@ -65,7 +65,7 @@ int pool4_display(bool csv)
 	args.csv = csv;
 
 	do {
-		error = netlink_request(&request, hdr->length, pool4_display_response, &args);
+		error = netlink_request(&request, sizeof(request), pool4_display_response, &args);
 		if (error)
 			return error;
 	} while (args.request->display.offset_set);
@@ -100,8 +100,8 @@ static int pool4_count_response(struct jool_response *response, void *arg)
 int pool4_count(void)
 {
 	struct request_hdr request;
-	init_request_hdr(&request, sizeof(request), MODE_POOL4, OP_COUNT);
-	return netlink_request(&request, request.length, pool4_count_response, NULL);
+	init_request_hdr(&request, MODE_POOL4, OP_COUNT);
+	return netlink_request(&request, sizeof(request), pool4_count_response, NULL);
 }
 
 static int __add(__u32 mark, enum l4_protocol proto,
@@ -125,13 +125,13 @@ static int __add(__u32 mark, enum l4_protocol proto,
 		return -E2BIG;
 	}
 
-	init_request_hdr(hdr, sizeof(request), MODE_POOL4, OP_ADD);
+	init_request_hdr(hdr, MODE_POOL4, OP_ADD);
 	payload->add.entry.mark = mark;
 	payload->add.entry.proto = proto;
 	payload->add.entry.addrs = *addrs;
 	payload->add.entry.ports = *ports;
 
-	return netlink_request(request, hdr->length, NULL, NULL);
+	return netlink_request(request, sizeof(request), NULL, NULL);
 }
 
 int pool4_add(__u32 mark, bool tcp, bool udp, bool icmp,
@@ -160,14 +160,14 @@ static int __rm(__u32 mark, enum l4_protocol proto,
 	struct request_hdr *hdr = (struct request_hdr *) request;
 	union request_pool4 *payload = (union request_pool4 *) (request + HDR_LEN);
 
-	init_request_hdr(hdr, sizeof(request), MODE_POOL4, OP_REMOVE);
+	init_request_hdr(hdr, MODE_POOL4, OP_REMOVE);
 	payload->rm.entry.mark = mark;
 	payload->rm.entry.proto = proto;
 	payload->rm.entry.addrs = *addrs;
 	payload->rm.entry.ports = *ports;
 	payload->rm.quick = quick;
 
-	return netlink_request(request, hdr->length, NULL, NULL);
+	return netlink_request(request, sizeof(request), NULL, NULL);
 }
 
 int pool4_rm(__u32 mark, bool tcp, bool udp, bool icmp,
@@ -194,8 +194,8 @@ int pool4_flush(bool quick)
 	struct request_hdr *hdr = (struct request_hdr *) request;
 	union request_pool4 *payload = (union request_pool4 *) (request + HDR_LEN);
 
-	init_request_hdr(hdr, sizeof(request), MODE_POOL4, OP_FLUSH);
+	init_request_hdr(hdr, MODE_POOL4, OP_FLUSH);
 	payload->flush.quick = quick;
 
-	return netlink_request(&request, hdr->length, NULL, NULL);
+	return netlink_request(&request, sizeof(request), NULL, NULL);
 }

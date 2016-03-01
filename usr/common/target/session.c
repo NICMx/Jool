@@ -124,7 +124,7 @@ static bool display_single_table(u_int8_t l4_proto, bool numeric_hostname, bool 
 		printf("---------------------------------\n");
 	}
 
-	init_request_hdr(hdr, sizeof(request), MODE_SESSION, OP_DISPLAY);
+	init_request_hdr(hdr, MODE_SESSION, OP_DISPLAY);
 	payload->l4_proto = l4_proto;
 	payload->display.connection_set = false;
 	memset(&payload->display.remote4, 0, sizeof(payload->display.remote4));
@@ -136,7 +136,7 @@ static bool display_single_table(u_int8_t l4_proto, bool numeric_hostname, bool 
 	params.req_payload = payload;
 
 	do {
-		error = netlink_request(request, hdr->length, session_display_response, &params);
+		error = netlink_request(request, sizeof(request), session_display_response, &params);
 	} while (!error && params.req_payload->display.connection_set);
 
 	if (!csv_format && !error) {
@@ -193,10 +193,10 @@ static bool display_single_count(char *count_name, u_int8_t l4_proto)
 
 	//printf("%s: ", count_name);
 
-	init_request_hdr(hdr, sizeof(request), MODE_SESSION, OP_COUNT);
+	init_request_hdr(hdr, MODE_SESSION, OP_COUNT);
 	payload->l4_proto = l4_proto;
 
-	return netlink_request(request, hdr->length, session_count_response, count_name);
+	return netlink_request(request, sizeof(request), session_count_response, count_name);
 }
 
 int session_count(bool use_tcp, bool use_udp, bool use_icmp)

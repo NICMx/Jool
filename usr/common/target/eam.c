@@ -59,7 +59,7 @@ int eam_display(bool csv)
 	struct display_params params;
 	int error;
 
-	init_request_hdr(hdr, sizeof(request), MODE_EAMT, OP_DISPLAY);
+	init_request_hdr(hdr, MODE_EAMT, OP_DISPLAY);
 	payload->display.prefix4_set = false;
 	memset(&payload->display.prefix4, 0, sizeof(payload->display.prefix4));
 	params.csv_format = csv;
@@ -70,7 +70,7 @@ int eam_display(bool csv)
 		printf("IPv6 Prefix,IPv4 Prefix\n");
 
 	do {
-		error = netlink_request(request, hdr->length, eam_display_response, &params);
+		error = netlink_request(request, sizeof(request), eam_display_response, &params);
 		if (error)
 			return error;
 	} while (payload->display.prefix4_set);
@@ -99,8 +99,8 @@ static int eam_count_response(struct jool_response *response, void *arg)
 int eam_count(void)
 {
 	struct request_hdr request;
-	init_request_hdr(&request, sizeof(request), MODE_EAMT, OP_COUNT);
-	return netlink_request(&request, request.length, eam_count_response, NULL);
+	init_request_hdr(&request, MODE_EAMT, OP_COUNT);
+	return netlink_request(&request, sizeof(request), eam_count_response, NULL);
 }
 
 int eam_add(struct ipv6_prefix *prefix6, struct ipv4_prefix *prefix4, bool force)
@@ -109,12 +109,12 @@ int eam_add(struct ipv6_prefix *prefix6, struct ipv4_prefix *prefix4, bool force
 	struct request_hdr *hdr = (struct request_hdr *) request;
 	union request_eamt *payload = (union request_eamt *) (request + HDR_LEN);
 
-	init_request_hdr(hdr, sizeof(request), MODE_EAMT, OP_ADD);
+	init_request_hdr(hdr, MODE_EAMT, OP_ADD);
 	payload->add.prefix4 = *prefix4;
 	payload->add.prefix6 = *prefix6;
 	payload->add.force = force;
 
-	return netlink_request(request, hdr->length, NULL, NULL);
+	return netlink_request(request, sizeof(request), NULL, NULL);
 }
 
 int eam_remove(bool pref6_set, struct ipv6_prefix *prefix6, bool pref4_set,
@@ -124,18 +124,18 @@ int eam_remove(bool pref6_set, struct ipv6_prefix *prefix6, bool pref4_set,
 	struct request_hdr *hdr = (struct request_hdr *) request;
 	union request_eamt *payload = (union request_eamt *) (request + HDR_LEN);
 
-	init_request_hdr(hdr, sizeof(request), MODE_EAMT, OP_REMOVE);
+	init_request_hdr(hdr, MODE_EAMT, OP_REMOVE);
 	payload->rm.prefix4_set = pref4_set;
 	payload->rm.prefix4 = *prefix4;
 	payload->rm.prefix6_set = pref6_set;
 	payload->rm.prefix6 = *prefix6;
 
-	return netlink_request(request, hdr->length, NULL, NULL);
+	return netlink_request(request, sizeof(request), NULL, NULL);
 }
 
 int eam_flush(void)
 {
 	struct request_hdr request;
-	init_request_hdr(&request, sizeof(request), MODE_EAMT, OP_FLUSH);
-	return netlink_request(&request, request.length, NULL, NULL);
+	init_request_hdr(&request, MODE_EAMT, OP_FLUSH);
+	return netlink_request(&request, sizeof(request), NULL, NULL);
 }

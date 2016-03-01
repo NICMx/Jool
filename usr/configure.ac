@@ -19,7 +19,9 @@ AC_CHECK_HEADERS([arpa/inet.h stdlib.h string.h unistd.h])
 AC_CHECK_HEADER_STDBOOL
 
 # Checks for library functions.
-AC_CHECK_FUNCS([inet_ntoa memset strcasecmp strtol])
+AC_CHECK_FUNCS([inet_ntoa memset strcasecmp strtol pow])
+AC_SEARCH_LIBS([pow], [m])
+AC_SEARCH_LIBS([pthread_create], [pthread])
 
 # Checks for dependencies.
 PKG_CHECK_MODULES(LIBNL3, libnl-3.0 >= 3.1)

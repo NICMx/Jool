@@ -21,6 +21,7 @@ enum argp_flags {
 	ARGP_POOL4 = '4',
 	ARGP_BIB = 'b',
 	ARGP_SESSION = 's',
+	ARGP_JOOLD = 7002,
 	ARGP_EAMT = 'e',
 	ARGP_BLACKLIST = 7000,
 	ARGP_RFC6791 = 6791,
@@ -32,11 +33,12 @@ enum argp_flags {
 	/* Operations */
 	ARGP_DISPLAY = 'd',
 	ARGP_COUNT = 'c',
-	ARGP_TEST = 5001,
 	ARGP_ADD = 'a',
 	ARGP_UPDATE = 5000,
 	ARGP_REMOVE = 'r',
 	ARGP_FLUSH = 'f',
+	ARGP_ADVERTISE = 5002,
+	ARGP_TEST = 5001,
 
 	/* Pools */
 	ARGP_PREFIX = 3000,

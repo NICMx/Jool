@@ -19,6 +19,8 @@
 #include "nat64/usr/types.h"
 #include "nat64/usr/instance.h"
 #include "nat64/usr/file.h"
+#include "nat64/usr/joold.h"
+#include "nat64/usr/json.h"
 #include "nat64/usr/pool.h"
 #include "nat64/usr/pool6.h"
 #include "nat64/usr/pool4.h"
@@ -353,6 +355,10 @@ static int parse_opt(int key, char *str, struct argp_state *state)
 	case ARGP_SESSION:
 		error = update_state(args, MODE_SESSION, SESSION_OPS);
 		break;
+	case ARGP_JOOLD:
+		error = update_state(args, MODE_JOOLD, JOOLD_OPS);
+		break;
+
 	case ARGP_LOGTIME:
 		error = update_state(args, MODE_LOGTIME, LOGTIME_OPS);
 		break;
@@ -377,6 +383,12 @@ static int parse_opt(int key, char *str, struct argp_state *state)
 		break;
 	case ARGP_FLUSH:
 		error = update_state(args, FLUSH_MODES, OP_FLUSH);
+		break;
+	case ARGP_ADVERTISE:
+		error = update_state(args, MODE_JOOLD, OP_ADVERTISE);
+		break;
+	case ARGP_TEST:
+		error = update_state(args, MODE_JOOLD, OP_TEST);
 		break;
 
 	case ARGP_UDP:
@@ -616,6 +628,10 @@ static char *op2str(enum config_operation op)
 		return "remove";
 	case OP_FLUSH:
 		return "flush";
+	case OP_ADVERTISE:
+		return "advertise";
+	case OP_TEST:
+		return "test";
 	}
 
 	return "unknown";
@@ -854,6 +870,15 @@ static int main_wrapped(int argc, char **argv)
 		return parse_file(args.parse_file.filename);
 
 	case MODE_JOOLD:
+		switch (args.op) {
+		case OP_ADVERTISE:
+			return joold_advertise();
+		case OP_TEST:
+			return joold_test();
+		default:
+			log_err("Unknown operation for jool mode: %u.", args.op);
+			return -EINVAL;
+		}
 		break;
 
 	case MODE_INSTANCE:

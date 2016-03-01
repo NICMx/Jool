@@ -25,7 +25,7 @@ static int family;
  */
 bool error_handler_called = false;
 
-static int nl_fail(int error)
+int netlink_print_error(int error)
 {
 	log_err("Netlink error message: '%s' (Code %d)",
 			nl_geterror(error), error);
@@ -113,7 +113,7 @@ int netlink_request(void *request, __u32 request_len,
 	if (error < 0) {
 		log_err("Could not register response handler.");
 		log_err("I will not be able to parse Jool's response, so I won't send the request.");
-		return nl_fail(error);
+		return netlink_print_error(error);
 	}
 
 	msg = nlmsg_alloc();
@@ -133,14 +133,14 @@ int netlink_request(void *request, __u32 request_len,
 	if (error) {
 		log_err("Could not write on the packet to kernelspace.");
 		nlmsg_free(msg);
-		return nl_fail(error);
+		return netlink_print_error(error);
 	}
 
 	error = nl_send_auto(sk, msg);
 	nlmsg_free(msg);
 	if (error < 0) {
 		log_err("Could not dispatch the request to kernelspace.");
-		return nl_fail(error);
+		return netlink_print_error(error);
 	}
 
 	error = nl_recvmsgs_default(sk);
@@ -150,7 +150,7 @@ int netlink_request(void *request, __u32 request_len,
 			return error;
 		}
 		log_err("Error receiving the kernel module's response.");
-		return nl_fail(error);
+		return netlink_print_error(error);
 	}
 
 	return 0;
@@ -178,14 +178,14 @@ int netlink_request_simple(void *request, __u32 request_len)
 	if (error) {
 		log_err("Could not write on the packet to kernelspace.");
 		nlmsg_free(msg);
-		return nl_fail(error);
+		return netlink_print_error(error);
 	}
 
 	error = nl_send_auto(sk, msg);
 	nlmsg_free(msg);
 	if (error < 0) {
 		log_err("Could not dispatch the request to kernelspace.");
-		return nl_fail(error);
+		return netlink_print_error(error);
 	}
 
 	return 0;
@@ -231,7 +231,7 @@ int netlink_init(void)
 
 fail:
 	nl_socket_free(sk);
-	return nl_fail(error);
+	return netlink_print_error(error);
 }
 
 void netlink_destroy(void)

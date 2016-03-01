@@ -1,20 +1,19 @@
-#include "nat64/usr/instance.h"
+#include "nat64/usr/joold.h"
 
+#include <stddef.h>
 #include "nat64/common/config.h"
 #include "nat64/usr/netlink.h"
 
-#define HDR_LEN sizeof(struct request_hdr)
-
-int instance_add(void)
+int joold_advertise(void)
 {
 	struct request_hdr hdr;
-	init_request_hdr(&hdr, MODE_INSTANCE, OP_ADD);
+	init_request_hdr(&hdr, MODE_JOOLD, OP_ADVERTISE);
 	return netlink_request(&hdr, sizeof(hdr), NULL, NULL);
 }
 
-int instance_rm(void)
+int joold_test(void)
 {
 	struct request_hdr hdr;
-	init_request_hdr(&hdr, MODE_INSTANCE, OP_REMOVE);
+	init_request_hdr(&hdr, MODE_JOOLD, OP_TEST);
 	return netlink_request(&hdr, sizeof(hdr), NULL, NULL);
 }

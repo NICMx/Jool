@@ -304,7 +304,8 @@ void fragdb_clean(struct fragdb *db)
 	unsigned int b = 0;
 	struct reassembly_buffer *buffer;
 
-	log_debug("Deleting expired reassembly buffers...");
+//	/* TODO uncomment? */
+//	log_debug("Deleting expired reassembly buffers...");
 
 	spin_lock_bh(&db->lock);
 
@@ -324,7 +325,7 @@ void fragdb_clean(struct fragdb *db)
 	}
 
 	spin_unlock_bh(&db->lock);
-	log_debug("Deleted %u reassembly buffers. The DB is now empty.", b);
+//	log_debug("Deleted %u reassembly buffers. The DB is now empty.", b);
 }
 
 #define COMMON_MSG " I will not be able to translate; aborting.\n" \

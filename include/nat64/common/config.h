@@ -78,7 +78,7 @@ enum config_mode {
  * eg. BIB_OPS = Allowed operations for BIB requests.
  */
 #define DATABASE_OPS (OP_DISPLAY | OP_COUNT | OP_ADD | OP_REMOVE | OP_FLUSH)
-#define ANY_OP 0xFF
+#define ANY_OP 0xFFFF
 
 #define GLOBAL_OPS (OP_DISPLAY | OP_UPDATE)
 #define POOL6_OPS (DATABASE_OPS)
@@ -88,6 +88,7 @@ enum config_mode {
 #define EAMT_OPS (DATABASE_OPS)
 #define BIB_OPS (DATABASE_OPS & ~OP_FLUSH)
 #define SESSION_OPS (OP_DISPLAY | OP_COUNT)
+#define JOOLD_OPS (OP_ADVERTISE | OP_TEST)
 #define LOGTIME_OPS (OP_DISPLAY)
 #define INSTANCE_OPS (OP_ADD | OP_REMOVE)
 /**
@@ -107,6 +108,10 @@ enum config_operation {
 	OP_REMOVE = (1 << 4),
 	/* The userspace app wants to clear some table. */
 	OP_FLUSH = (1 << 5),
+
+	OP_ADVERTISE = (1 << 6),
+
+	OP_TEST = (1 << 7),
 };
 
 enum parse_section {
@@ -140,7 +145,8 @@ enum parse_section {
 #define SIIT_MODES (MODE_GLOBAL | MODE_POOL6 | MODE_BLACKLIST | MODE_RFC6791 \
 		| MODE_EAMT | MODE_LOGTIME | MODE_PARSE_FILE | MODE_INSTANCE)
 #define NAT64_MODES (MODE_GLOBAL | MODE_POOL6 | MODE_POOL4 | MODE_BIB \
-		| MODE_SESSION | MODE_LOGTIME | MODE_PARSE_FILE | MODE_INSTANCE)
+		| MODE_SESSION | MODE_LOGTIME | MODE_PARSE_FILE \
+		| MODE_INSTANCE | MODE_JOOLD)
 /**
  * @}
  */
@@ -154,26 +160,34 @@ struct request_hdr {
 	char magic[4];
 	/** Translation type (SIIT or NAT64) */
 	char type;
+	/**
+	 * 'u'nicast or 'm'ulticast. Only userspace joold needs it, so most of
+	 * the time this field is ignored.
+	 *
+	 * This exists because I haven't found a way for joold to tell whether a
+	 * kernel packet is a multicast request or a unicast response.
+	 * TODO (fine) Find a way to do that?
+	 */
+	char castness;
 	/** Jool's version. */
 	__u32 version;
-	/** Size of the message. Includes header (this one) and payload. */
-	__u32 length;
 	/** See "enum config_mode". */
 	__u16 mode;
 	/** See "enum config_operation". */
 	__u8 operation;
 };
 
-static inline void init_request_hdr(struct request_hdr *hdr, __u32 length,
-		enum config_mode mode, enum config_operation operation)
+static inline void init_request_hdr(struct request_hdr *hdr,
+		enum config_mode mode,
+		enum config_operation operation)
 {
 	hdr->magic[0] = 'j';
 	hdr->magic[1] = 'o';
 	hdr->magic[2] = 'o';
 	hdr->magic[3] = 'l';
 	hdr->type = xlat_is_nat64() ? 'n' : 's'; /* 'n'at64 or 's'iit. */
+	hdr->castness = 'u';
 	hdr->version = xlat_version();
-	hdr->length = length;
 	hdr->mode = mode;
 	hdr->operation = operation;
 }

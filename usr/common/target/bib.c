@@ -64,7 +64,7 @@ static bool display_single_table(l4_protocol l4_proto, bool numeric_hostname, bo
 	if (!csv_format)
 		printf("%s:\n", l4proto_to_string(l4_proto));
 
-	init_request_hdr(hdr, sizeof(request), MODE_BIB, OP_DISPLAY);
+	init_request_hdr(hdr, MODE_BIB, OP_DISPLAY);
 	payload->l4_proto = l4_proto;
 	payload->display.addr4_set = false;
 	memset(&payload->display.addr4, 0, sizeof(payload->display.addr4));
@@ -75,7 +75,7 @@ static bool display_single_table(l4_protocol l4_proto, bool numeric_hostname, bo
 	params.req_payload = payload;
 
 	do {
-		error = netlink_request(request, hdr->length, bib_display_response, &params);
+		error = netlink_request(request, sizeof(request), bib_display_response, &params);
 	} while (!error && payload->display.addr4_set);
 
 	if (!csv_format && !error) {
@@ -126,10 +126,10 @@ static bool display_single_count(char *count_name, u_int8_t l4_proto)
 
 	printf("%s: ", count_name);
 
-	init_request_hdr(hdr, sizeof(request), MODE_BIB, OP_COUNT);
+	init_request_hdr(hdr, MODE_BIB, OP_COUNT);
 	payload->l4_proto = l4_proto;
 
-	return netlink_request(request, hdr->length, bib_count_response, NULL);
+	return netlink_request(request, sizeof(request), bib_count_response, NULL);
 }
 
 int bib_count(bool use_tcp, bool use_udp, bool use_icmp)
@@ -148,7 +148,8 @@ int bib_count(bool use_tcp, bool use_udp, bool use_icmp)
 	return (tcp_error || udp_error || icmp_error) ? -EINVAL : 0;
 }
 
-static int exec_request(bool use_tcp, bool use_udp, bool use_icmp, struct request_hdr *hdr,
+static int exec_request(bool use_tcp, bool use_udp, bool use_icmp,
+		struct request_hdr *hdr, size_t request_len,
 		struct request_bib *payload, jool_response_cb callback)
 {
 	int tcp_error = 0;
@@ -158,17 +159,17 @@ static int exec_request(bool use_tcp, bool use_udp, bool use_icmp, struct reques
 	if (use_tcp) {
 		printf("TCP:\n");
 		payload->l4_proto = L4PROTO_TCP;
-		tcp_error = netlink_request(hdr, hdr->length, callback, NULL);
+		tcp_error = netlink_request(hdr, request_len, callback, NULL);
 	}
 	if (use_udp) {
 		printf("UDP:\n");
 		payload->l4_proto = L4PROTO_UDP;
-		udp_error = netlink_request(hdr, hdr->length, callback, NULL);
+		udp_error = netlink_request(hdr, request_len, callback, NULL);
 	}
 	if (use_icmp) {
 		printf("ICMP:\n");
 		payload->l4_proto = L4PROTO_ICMP;
-		icmp_error = netlink_request(hdr, hdr->length, callback, NULL);
+		icmp_error = netlink_request(hdr, request_len, callback, NULL);
 	}
 
 	return (tcp_error || udp_error || icmp_error) ? -EINVAL : 0;
@@ -187,11 +188,13 @@ int bib_add(bool use_tcp, bool use_udp, bool use_icmp, struct ipv6_transport_add
 	struct request_hdr *hdr = (struct request_hdr *) request;
 	struct request_bib *payload = (struct request_bib *) (request + HDR_LEN);
 
-	init_request_hdr(hdr, sizeof(request), MODE_BIB, OP_ADD);
+	init_request_hdr(hdr, MODE_BIB, OP_ADD);
 	payload->add.addr6 = *addr6;
 	payload->add.addr4 = *addr4;
 
-	return exec_request(use_tcp, use_udp, use_icmp, hdr, payload, bib_add_response);
+	return exec_request(use_tcp, use_udp, use_icmp,
+			hdr, sizeof(request),
+			payload, bib_add_response);
 }
 
 static int bib_remove_response(struct jool_response *response, void *arg)
@@ -208,11 +211,13 @@ int bib_remove(bool use_tcp, bool use_udp, bool use_icmp,
 	struct request_hdr *hdr = (struct request_hdr *) request;
 	struct request_bib *payload = (struct request_bib *) (request + HDR_LEN);
 
-	init_request_hdr(hdr, sizeof(request), MODE_BIB, OP_REMOVE);
+	init_request_hdr(hdr, MODE_BIB, OP_REMOVE);
 	payload->rm.addr6_set = addr6_set;
 	payload->rm.addr6 = *addr6;
 	payload->rm.addr4_set = addr4_set;
 	payload->rm.addr4 = *addr4;
 
-	return exec_request(use_tcp, use_udp, use_icmp, hdr, payload, bib_remove_response);
+	return exec_request(use_tcp, use_udp, use_icmp,
+			hdr, sizeof(request),
+			payload, bib_remove_response);
 }

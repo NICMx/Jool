@@ -5,6 +5,7 @@ bin_PROGRAMS = jool
 jool_SOURCES = \
 	../common/cJSON.c \
 	../common/dns.c \
+	../common/file.c \
 	../common/jool.c \
 	../common/netlink2.c \
 	../common/str_utils.c \
@@ -12,9 +13,10 @@ jool_SOURCES = \
 	../common/nl/buffer.c \
 	../common/target/bib.c \
 	../common/target/eam.c \
-	../common/target/file.c \
 	../common/target/global.c \
 	../common/target/instance.c \
+	../common/target/joold.c \
+	../common/target/json.c \
 	../common/target/log_time.c \
 	../common/target/pool.c \
 	../common/target/pool4.c \
@@ -22,7 +24,7 @@ jool_SOURCES = \
 	../common/target/session.c \
 	xlat.c
 
-jool_LDADD = ${LIBNLGENL3_LIBS}  -lm
+jool_LDADD = ${LIBNLGENL3_LIBS}
 jool_CFLAGS = -Wall -O2
 jool_CFLAGS += -I${srcdir}/../../include
 jool_CFLAGS += ${LIBNLGENL3_CFLAGS} ${LIBNL3_CFLAGS} ${JOOL_FLAGS}

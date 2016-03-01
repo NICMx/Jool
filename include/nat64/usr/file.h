@@ -1,6 +1,6 @@
-#ifndef JSONREADER_H_
-#define JSONREADER_H_
+#ifndef _JOOL_USR_FILE_H
+#define _JOOL_USR_FILE_H
 
-int parse_file(char *fileName);
+int file_to_string(char *file_name, char **result);
 
-#endif /* JSONREADER_H_ */
+#endif

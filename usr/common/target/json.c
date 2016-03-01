@@ -1,4 +1,4 @@
-#include "nat64/usr/file.h"
+#include "nat64/usr/json.h"
 
 #include <errno.h>
 #include <stdlib.h>
@@ -6,6 +6,7 @@
 #include "nat64/common/config.h"
 #include "nat64/common/constants.h"
 #include "nat64/usr/cJSON.h"
+#include "nat64/usr/file.h"
 #include "nat64/usr/global.h"
 #include "nat64/usr/netlink.h"
 #include "nat64/usr/nl/buffer.h"
@@ -23,57 +24,17 @@ static int handle_addr4_pool(cJSON *json, enum parse_section section);
 static int handle_pool4(cJSON *pool4);
 static int handle_bib(cJSON *bib);
 
-extern int parse_file(char *file_name)
+int parse_file(char *file_name)
 {
-	FILE *file;
-	long length;
-	long read_bytes = 0;
 	char *buffer;
 	int error;
 
-	file = fopen(file_name, "rb");
-	if (!file) {
-		perror("fopen() error");
-		return -EINVAL;
-	}
-
-	error = fseek(file, 0, SEEK_END);
-	if (error) {
-		perror("fseek() 1 error");
-		goto fail;
-	}
-
-	length = ftell(file);
-	if (length == -1) {
-		perror("ftell() error");
-		error = length;
-		goto fail;
-	}
-
-	error = fseek(file, 0, SEEK_SET);
-	if (error) {
-		perror("fseek() 2 error");
-		goto fail;
-	}
-
-	buffer = malloc(length);
-	if (!buffer) {
-		log_err("Out of memory.");
-		error = -ENOMEM;
-		goto fail;
-	}
-
-	while (read_bytes < length)
-		read_bytes += fread(&buffer[read_bytes], 1, length, file);
-
-	fclose(file);
+	error = file_to_string(file_name, &buffer);
+	if (error)
+		return error;
 
 	error = do_parsing(buffer);
 	free(buffer);
-	return error;
-
-fail:
-	fclose(file);
 	return error;
 }
 
@@ -104,7 +65,7 @@ static int do_parsing(char *buffer)
 
 	cJSON *json = cJSON_Parse(buffer);
 	if (!json) {
-		log_err("The JSON parsing yielded the following error:");
+		log_err("The JSON parser got confused around about here:");
 		log_err("%s", cJSON_GetErrorPtr());
 		return -EINVAL;
 	}
@@ -140,7 +101,7 @@ static struct nl_buffer *buffer_create(enum parse_section section)
 		return NULL;
 	}
 
-	init_request_hdr(&hdr, 0, MODE_PARSE_FILE, OP_ADD);
+	init_request_hdr(&hdr, MODE_PARSE_FILE, OP_ADD);
 	error = nlbuffer_write(buffer, &hdr, sizeof(hdr));
 	if (error) {
 		log_err("Writing on an empty buffer yielded error %d.", error);

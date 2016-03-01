@@ -122,7 +122,7 @@ int handle_pool4_config(struct xlator *jool, struct genl_info *info)
 		return nlcore_respond_error(info, -EINVAL);
 	}
 
-	error = validate_request_size(jool_hdr, sizeof(*request));
+	error = validate_request_size(info, sizeof(*request));
 	if (error)
 		return nlcore_respond_error(info, error);
 

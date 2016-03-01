@@ -83,7 +83,7 @@ static int handle_addr4pool(struct addr4_pool *pool, struct genl_info *info)
 	union request_pool *request = (union request_pool *)(jool_hdr + 1);
 	int error;
 
-	error = validate_request_size(jool_hdr, sizeof(*request));
+	error = validate_request_size(info, sizeof(*request));
 	if (error)
 		return nlcore_respond_error(info, error);
 

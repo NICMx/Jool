@@ -21,9 +21,12 @@ void joold_destroy(struct joold_queue *queue);
 void joold_config_copy(struct joold_queue *queue, struct joold_config *config);
 void joold_config_set(struct joold_queue *queue, struct joold_config *config);
 
-int joold_sync_entries(struct xlator *jool, void *data, __u32 size);
+int joold_sync(struct xlator *jool, void *data, __u32 size);
 void joold_add_session(struct joold_queue *queue, struct session_entry *entry);
 void joold_update_config(struct joold_queue *queue,
 		struct joold_config *new_config);
+
+int joold_test(struct xlator *jool);
+int joold_advertise(struct xlator *jool);
 
 #endif

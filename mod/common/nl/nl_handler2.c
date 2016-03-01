@@ -100,11 +100,6 @@ static int validate_header(struct genl_info *info)
 	if (error)
 		return error;
 
-	if (nla_len(attr) != hdr->length) {
-		log_err("Generic Netlink's packet size does not match the amount the client claims it sent.");
-		return -EINVAL;
-	}
-
 	return 0;
 }
 
@@ -150,6 +145,7 @@ static int __handle_jool_message(struct genl_info *info)
 	int error;
 
 	log_debug("===============================================");
+	log_debug("Received a request from userspace.");
 
 	error = validate_header(info);
 	if (error)

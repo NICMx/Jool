@@ -46,7 +46,7 @@ int pool_display(enum config_mode mode, bool csv)
 	struct display_args args;
 	int error;
 
-	init_request_hdr(hdr, sizeof(request), mode, OP_DISPLAY);
+	init_request_hdr(hdr, mode, OP_DISPLAY);
 	payload->display.offset_set = false;
 	memset(&payload->display.offset, 0, sizeof(payload->display.offset));
 	args.row_count = 0;
@@ -54,7 +54,7 @@ int pool_display(enum config_mode mode, bool csv)
 	args.csv = csv;
 
 	do {
-		error = netlink_request(&request, hdr->length, pool_display_response, &args);
+		error = netlink_request(&request, sizeof(request), pool_display_response, &args);
 		if (error)
 			return error;
 	} while (args.request->display.offset_set);
@@ -83,8 +83,8 @@ static int pool_count_response(struct jool_response *response, void *arg)
 int pool_count(enum config_mode mode)
 {
 	struct request_hdr request;
-	init_request_hdr(&request, sizeof(request), mode, OP_COUNT);
-	return netlink_request(&request, request.length, pool_count_response, NULL);
+	init_request_hdr(&request, mode, OP_COUNT);
+	return netlink_request(&request, sizeof(request), pool_count_response, NULL);
 }
 
 int pool_add(enum config_mode mode, struct ipv4_prefix *addrs, bool force)
@@ -93,11 +93,11 @@ int pool_add(enum config_mode mode, struct ipv4_prefix *addrs, bool force)
 	struct request_hdr *hdr = (struct request_hdr *) request;
 	union request_pool *payload = (union request_pool *) (request + HDR_LEN);
 
-	init_request_hdr(hdr, sizeof(request), mode, OP_ADD);
+	init_request_hdr(hdr, mode, OP_ADD);
 	payload->add.addrs = *addrs;
 	payload->add.force = force;
 
-	return netlink_request(request, hdr->length, NULL, NULL);
+	return netlink_request(request, sizeof(request), NULL, NULL);
 }
 
 int pool_rm(enum config_mode mode, struct ipv4_prefix *addrs)
@@ -106,10 +106,10 @@ int pool_rm(enum config_mode mode, struct ipv4_prefix *addrs)
 	struct request_hdr *hdr = (struct request_hdr *) request;
 	union request_pool *payload = (union request_pool *) (request + HDR_LEN);
 
-	init_request_hdr(hdr, sizeof(request), mode, OP_REMOVE);
+	init_request_hdr(hdr, mode, OP_REMOVE);
 	payload->rm.addrs = *addrs;
 
-	return netlink_request(request, hdr->length, NULL, NULL);
+	return netlink_request(request, sizeof(request), NULL, NULL);
 }
 
 int pool_flush(enum config_mode mode)
@@ -117,7 +117,7 @@ int pool_flush(enum config_mode mode)
 	unsigned char request[HDR_LEN + PAYLOAD_LEN];
 	struct request_hdr *hdr = (struct request_hdr *) request;
 
-	init_request_hdr(hdr, sizeof(request), mode, OP_FLUSH);
+	init_request_hdr(hdr, mode, OP_FLUSH);
 
-	return netlink_request(&request, hdr->length, NULL, NULL);
+	return netlink_request(&request, sizeof(request), NULL, NULL);
 }
