@@ -98,8 +98,13 @@ static int eam_count_response(struct jool_response *response, void *arg)
 
 int eam_count(void)
 {
-	struct request_hdr request;
-	init_request_hdr(&request, MODE_EAMT, OP_COUNT);
+	unsigned char request[HDR_LEN + PAYLOAD_LEN];
+	struct request_hdr *hdr = (struct request_hdr *)request;
+	union request_eamt *payload = (union request_eamt *)(request + HDR_LEN);
+
+	init_request_hdr(hdr, MODE_EAMT, OP_COUNT);
+	memset(payload, 0, sizeof(*payload));
+
 	return netlink_request(&request, sizeof(request), eam_count_response, NULL);
 }
 
@@ -135,7 +140,12 @@ int eam_remove(bool pref6_set, struct ipv6_prefix *prefix6, bool pref4_set,
 
 int eam_flush(void)
 {
-	struct request_hdr request;
-	init_request_hdr(&request, MODE_EAMT, OP_FLUSH);
+	unsigned char request[HDR_LEN + PAYLOAD_LEN];
+	struct request_hdr *hdr = (struct request_hdr *)request;
+	union request_eamt *payload = (union request_eamt *)(request + HDR_LEN);
+
+	init_request_hdr(hdr, MODE_EAMT, OP_FLUSH);
+	memset(payload, 0, sizeof(*payload));
+
 	return netlink_request(&request, sizeof(request), NULL, NULL);
 }
