@@ -68,7 +68,14 @@ end:
 	return response->hdr->error_code;
 }
 
-static int response_handler(struct nl_msg * msg, void * void_arg)
+/*
+ * Heads up:
+ * This function is supposed to return either an error core or an enum
+ * nl_cb_action.
+ * Because NL_SKIP == EPERM and NL_STOP == ENOENT, you should mind the sign of
+ * the result real hard.
+ */
+static int response_handler(struct nl_msg *msg, void *void_arg)
 {
 	struct jool_response response;
 	struct nlattr *attrs[__ATTR_MAX + 1];
@@ -78,7 +85,7 @@ static int response_handler(struct nl_msg * msg, void * void_arg)
 	error = genlmsg_parse(nlmsg_hdr(msg), 0, attrs, __ATTR_MAX, NULL);
 	if (error) {
 		log_err("%s (error code %d)", nl_geterror(error), error);
-		return error;
+		return -abs(error);
 	}
 
 	if (!attrs[ATTR_DATA]) {
@@ -95,10 +102,10 @@ static int response_handler(struct nl_msg * msg, void * void_arg)
 	response.payload_len = nla_len(attrs[ATTR_DATA]) - sizeof(struct response_hdr);
 
 	if (response.hdr->error_code)
-		return print_error_msg(&response);
+		return -abs(print_error_msg(&response));
 
 	arg = void_arg;
-	return (arg && arg->cb) ? arg->cb(&response, arg->arg) : 0;
+	return (arg && arg->cb) ? (-abs(arg->cb(&response, arg->arg))) : 0;
 }
 
 int netlink_request(void *request, __u32 request_len,
@@ -201,7 +208,11 @@ int netlink_init(void)
 		return -ENOMEM;
 	}
 
-	nl_socket_disable_seq_check(sk);
+	/*
+	 * We handle ACKs ourselves. The reason is that Netlink ACK errors do
+	 * not contain the friendly error string, so they're useless to us.
+	 * See https://github.com/NICMx/Jool/issues/169
+	 */
 	nl_socket_disable_auto_ack(sk);
 
 	error = genl_connect(sk);

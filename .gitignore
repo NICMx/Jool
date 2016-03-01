@@ -18,10 +18,6 @@
 *.o.d
 *.c.orig
 *.h.orig
-# binaries
-jool
-jool_siit
-joold
 # documentation
 _site
 

@@ -18,8 +18,6 @@ int file_to_string(char *file_name, char **result)
 	char *buffer;
 	int error;
 
-	log_info("Opening file %s...", file_name);
-
 	file = fopen(file_name, "rb");
 	if (!file) {
 		perror("fopen() error");

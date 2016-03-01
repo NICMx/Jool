@@ -92,8 +92,8 @@ static int respond_single_msg(struct genl_info *info, struct nlcore_buffer *buff
 	portid = info->snd_portid;
 #endif
 
-	msg_head = genlmsg_put(skb, portid, 0, &jool_family, 0,
-			get_jool_hdr(info)->mode);
+	msg_head = genlmsg_put(skb, portid, info->nlhdr->nlmsg_seq,
+			&jool_family, 0, get_jool_hdr(info)->mode);
 	if (!msg_head) {
 		pr_err("genlmsg_put() failed.\n");
 		kfree_skb(skb);
