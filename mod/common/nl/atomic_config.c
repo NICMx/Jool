@@ -10,6 +10,9 @@ int handle_atomconfig_request(struct xlator *jool, struct genl_info *info)
 	size_t total_len;
 	int error;
 
+	if (verify_superpriv())
+		return nlcore_respond(info, -EPERM);
+
 	hdr = nla_data(info->attrs[ATTR_DATA]);
 	total_len = nla_len(info->attrs[ATTR_DATA]);
 
