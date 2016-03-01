@@ -51,9 +51,9 @@ void error_pool_activate(void)
 	msg_size = 0;
 }
 
-int error_pool_add_message(char * msg)
+int error_pool_add_message(char *msg)
 {
-	struct error_node * node;
+	struct error_node *node;
 
 	if (!activated)
 		return 0;

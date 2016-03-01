@@ -70,7 +70,7 @@ end:
 
 /*
  * Heads up:
- * This function is supposed to return either an error core or an enum
+ * This function is supposed to return either a negative error core or an enum
  * nl_cb_action.
  * Because NL_SKIP == EPERM and NL_STOP == ENOENT, you should mind the sign of
  * the result real hard.
@@ -115,6 +115,7 @@ int netlink_request(void *request, __u32 request_len,
 	struct response_cb callback = { .cb = cb, .arg = cb_arg };
 	int error;
 
+	/* TODO this should be in netlink_init... */
 	error = nl_socket_modify_cb(sk, NL_CB_MSG_IN, NL_CB_CUSTOM,
 			response_handler, &callback);
 	if (error < 0) {
