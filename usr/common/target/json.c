@@ -17,7 +17,7 @@
 static int do_parsing(char *buffer);
 static int parse_siit_json(cJSON *json);
 static int parse_nat64_json(cJSON *json);
-static int handle_global(cJSON *global_json);
+static int handle_global(cJSON *json, bool *globals_found);
 static int handle_pool6(cJSON *pool6_json);
 static int handle_eamt(cJSON *json);
 static int handle_addr4_pool(cJSON *json, enum parse_section section);
@@ -50,7 +50,7 @@ static int validate_file_type(cJSON *json_structure)
 
 	expected = xlat_is_siit() ? siit : nat64;
 
-	if (strcmp(file_type->valuestring, expected) != 0) {
+	if (strcasecmp(file_type->valuestring, expected) != 0) {
 		log_err("File_Type is supposed to be '%s' (got '%s').",
 				expected, file_type->valuestring);
 		return -EINVAL;
@@ -75,6 +75,13 @@ static int do_parsing(char *buffer)
 		return error;
 
 	return xlat_is_siit() ? parse_siit_json(json) : parse_nat64_json(json);
+}
+
+static void check_duplicates(bool *found, char *section)
+{
+	if (*found)
+		log_info("Note: I found multiple '%s' sections.", section);
+	*found = true;
 }
 
 static int write_section(struct nl_buffer *buffer, enum parse_section section)
@@ -150,69 +157,121 @@ static int send_ctrl_msg(enum parse_section section)
 	return error;
 }
 
+static bool *create_globals_found_array(void)
+{
+	struct argp_option *opts;
+	size_t i;
+
+	opts = get_global_opts();
+	if (!opts)
+		return NULL;
+
+	for (i = 0; opts[i].name; i++)
+		/* No code; just counting. */;
+
+	return calloc(i, sizeof(bool));
+}
+
 static int parse_siit_json(cJSON *json)
 {
+	bool global_found = false;
+	bool pool6_found = false;
+	bool eamt_found = false;
+	bool blacklist_found = false;
+	bool pool6791_found = false;
+	bool *globals_found;
 	int error;
 
 	error = send_ctrl_msg(SEC_INIT);
 	if (error)
 		return error;
 
-	cJSON *global = cJSON_GetObjectItem(json, "Global");
-	error = handle_global(global);
-	if (error)
-		return error;
+	globals_found = create_globals_found_array();
+	if (!globals_found) {
+		log_err("Out of memory.");
+		return -ENOMEM;
+	}
 
-	cJSON *pool6_json = cJSON_GetObjectItem(json, "Pool6");
-	error = handle_pool6(pool6_json);
-	if (error)
-		return error;
+	for (json = json->child; json; json = json->next) {
+		if (strcasecmp("global", json->string) == 0) {
+			check_duplicates(&global_found, "global");
+			error = handle_global(json, globals_found);
+		} else if (strcasecmp("pool6", json->string) == 0) {
+			check_duplicates(&pool6_found, "pool6");
+			error = handle_pool6(json);
+		} else if (strcasecmp("eamt", json->string) == 0) {
+			check_duplicates(&eamt_found, "eamt");
+			error = handle_eamt(json);
+		} else if (strcasecmp("blacklist", json->string) == 0) {
+			check_duplicates(&blacklist_found, "blacklist");
+			error = handle_addr4_pool(json, SEC_BLACKLIST);
+		} else if (strcasecmp("pool6791", json->string) == 0) {
+			check_duplicates(&pool6791_found, "pool6791");
+			error = handle_addr4_pool(json, SEC_POOL6791);
+		} else if (strcasecmp("file_type", json->string) == 0) {
+			/* No code. */
+		} else {
+			log_err("I don't know what '%s' is; Canceling.",
+					json->string);
+			error = -EINVAL;
+		}
 
-	cJSON *eamt_json = cJSON_GetObjectItem(json, "EAMT");
-	error = handle_eamt(eamt_json);
-	if (error)
-		return error;
-
-	cJSON *blacklist_json = cJSON_GetObjectItem(json, "Blacklist");
-	error = handle_addr4_pool(blacklist_json, SEC_BLACKLIST);
-	if (error)
-		return error;
-
-	cJSON *pool6791_json = cJSON_GetObjectItem(json, "Pool6791");
-	error = handle_addr4_pool(pool6791_json, SEC_POOL6791);
-	if (error)
-		return error;
+		if (error) {
+			free(globals_found);
+			return error;
+		}
+	}
+	free(globals_found);
 
 	return send_ctrl_msg(SEC_COMMIT);
 }
 
 static int parse_nat64_json(cJSON *json)
 {
+	bool global_found = false;
+	bool pool6_found = false;
+	bool pool4_found = false;
+	bool bib_found = false;
+	bool *globals_found;
 	int error;
 
 	error = send_ctrl_msg(SEC_INIT);
 	if (error)
 		return error;
 
-	cJSON *global = cJSON_GetObjectItem(json, "Global");
-	error = handle_global(global);
-	if (error)
-		return error;
+	globals_found = create_globals_found_array();
+	if (!globals_found) {
+		log_err("Out of memory.");
+		return -ENOMEM;
+	}
 
-	cJSON *pool6_json = cJSON_GetObjectItem(json, "Pool6");
-	error = handle_pool6(pool6_json);
-	if (error)
-		return error;
+	for (json = json->child; json; json = json->next) {
+		if (strcasecmp("global", json->string) == 0) {
+			check_duplicates(&global_found, "global");
+			error = handle_global(json, globals_found);
+		} else if (strcasecmp("pool6", json->string) == 0) {
+			check_duplicates(&pool6_found, "pool6");
+			error = handle_pool6(json);
+		} else if (strcasecmp("pool4", json->string) == 0) {
+			check_duplicates(&pool4_found, "pool4");
+			error = handle_pool4(json);
+		} else if (strcasecmp("bib", json->string) == 0) {
+			check_duplicates(&bib_found, "bib");
+			error = handle_bib(json);
+		} else if (strcasecmp("file_type", json->string) == 0) {
+			/* No code. */
+		} else {
+			log_err("I don't know what '%s' is; Canceling.",
+					json->string);
+			error = -EINVAL;
+		}
 
-	cJSON *pool4_json = cJSON_GetObjectItem(json, "Pool4");
-	error = handle_pool4(pool4_json);
-	if (error)
-		return error;
-
-	cJSON *bib_json = cJSON_GetObjectItem(json, "BIB");
-	error = handle_bib(bib_json);
-	if (error)
-		return error;
+		if (error) {
+			free(globals_found);
+			return error;
+		}
+	}
+	free(globals_found);
 
 	return send_ctrl_msg(SEC_COMMIT);
 }
@@ -333,7 +392,8 @@ static int write_field(cJSON *json, struct argp_option *opt,
 	return -EINVAL;
 }
 
-static int handle_global_field(cJSON *json, struct nl_buffer *buffer)
+static int handle_global_field(cJSON *json, struct nl_buffer *buffer,
+		bool *globals_found)
 {
 	struct argp_option *opts;
 	unsigned int i;
@@ -344,8 +404,12 @@ static int handle_global_field(cJSON *json, struct nl_buffer *buffer)
 		return -ENOMEM;
 
 	for (i = 0; opts[i].name && opts[i].key; i++) {
-		if (strcmp(json->string, opts[i].name) == 0) {
+		if (strcasecmp(json->string, opts[i].name) == 0) {
 			error = write_field(json, &opts[i], buffer);
+			if (globals_found[i])
+				log_info("Note: I found multiple '%s' definitions.",
+						opts[i].name);
+			globals_found[i] = true;
 			free(opts);
 			return error;
 		}
@@ -356,7 +420,7 @@ static int handle_global_field(cJSON *json, struct nl_buffer *buffer)
 	return -EINVAL;
 }
 
-static int handle_global(cJSON *json)
+static int handle_global(cJSON *json, bool *globals_found)
 {
 	struct nl_buffer *buffer;
 	int error;
@@ -369,7 +433,7 @@ static int handle_global(cJSON *json)
 		return -ENOMEM;
 
 	for (json = json->child; json; json = json->next) {
-		error = handle_global_field(json, buffer);
+		error = handle_global_field(json, buffer, globals_found);
 		if (error)
 			goto end;
 	}
