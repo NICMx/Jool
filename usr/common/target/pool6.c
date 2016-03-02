@@ -84,8 +84,13 @@ static int pool6_count_response(struct jool_response *response, void *arg)
 
 int pool6_count(void)
 {
-	struct request_hdr request;
-	init_request_hdr(&request, MODE_POOL6, OP_COUNT);
+	unsigned char request[HDR_LEN + PAYLOAD_LEN];
+	struct request_hdr *hdr = (struct request_hdr *)request;
+	union request_pool6 *payload = (union request_pool6 *)(request + HDR_LEN);
+
+	init_request_hdr(hdr, MODE_POOL6, OP_COUNT);
+	memset(payload, 0, sizeof(*payload));
+
 	return netlink_request(&request, sizeof(request), pool6_count_response, NULL);
 }
 
