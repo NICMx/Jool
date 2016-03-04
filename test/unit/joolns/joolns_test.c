@@ -191,6 +191,17 @@ int init_module(void)
 	int error;
 	START_TESTS("Xlator");
 
+	/*
+	 * This whole test assumes nothing else will grab or return references
+	 * towards @ns, but some kernels seem to spawn threads during module
+	 * insertion that do. So we sleep 2 seconds to wait them out.
+	 *
+	 * Of course, this is not bulletproof. @ns can always change without
+	 * warning, but at least this does reduce the chance from almost
+	 * guaranteed failure to almost guaranteed success.
+	 */
+	ssleep(2);
+
 	ns = get_net_ns_by_pid(task_pid_nr(current));
 	if (IS_ERR(ns)) {
 		log_err("Could not retrieve the current namespace.");

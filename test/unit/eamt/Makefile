@@ -12,6 +12,8 @@
 include $(shell dirname $(realpath $(lastword $(MAKEFILE_LIST))))/../common.mk
 
 
+EXTRA_CFLAGS += -DSIIT
+
 EAMT = eamt
 
 obj-m += $(EAMT).o

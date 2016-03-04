@@ -12,6 +12,8 @@
 include $(shell dirname $(realpath $(lastword $(MAKEFILE_LIST))))/../common.mk
 
 
+EXTRA_CFLAGS += -DSIIT
+
 JOOLNS = joolns
 
 obj-m += $(JOOLNS).o
