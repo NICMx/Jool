@@ -24,16 +24,15 @@ int bibdb_find4(struct bib *db, const struct ipv4_transport_addr *addr,
 		const l4_protocol proto, struct bib_entry **result);
 int bibdb_find6(struct bib *db, const struct ipv6_transport_addr *addr,
 		const l4_protocol proto, struct bib_entry **result);
+/* If you're looking for bibdb_contains, just do bibdb_find(blah blah, NULL) */
 
 int bibdb_add(struct bib *db, struct bib_entry *entry, struct bib_entry **old);
 int bibdb_count(struct bib *db, const l4_protocol proto, __u64 *result);
 void bibdb_flush(struct bib *db);
 
-void bibdb_delete_taddr4s(struct bib *db, const struct ipv4_prefix *prefix,
+void bibdb_rm_taddr4s(struct bib *db, const struct ipv4_prefix *prefix,
 		struct port_range *ports);
 
-bool bibdb_contains4(struct bib *db, const struct ipv4_transport_addr *addr,
-		const l4_protocol proto);
 int bibdb_foreach(struct bib *db, const l4_protocol proto,
 		int (*func)(struct bib_entry *, void *), void *arg,
 		const struct ipv4_transport_addr *offset);

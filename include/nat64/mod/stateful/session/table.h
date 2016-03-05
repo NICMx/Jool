@@ -102,9 +102,9 @@ int sessiontable_count(struct session_table *table, __u64 *result);
 
 void sessiontable_delete_by_bib(struct session_table *table,
 		struct bib_entry *bib);
-void sessiontable_delete_taddr4s(struct session_table *table,
+void sessiontable_rm_taddr4s(struct session_table *table,
 		struct ipv4_prefix *prefix, struct port_range *ports);
-void sessiontable_delete_taddr6s(struct session_table *table,
+void sessiontable_rm_taddr6s(struct session_table *table,
 		struct ipv6_prefix *prefix);
 void sessiontable_clean(struct session_table *table, struct net *ns);
 void sessiontable_flush(struct session_table *table);

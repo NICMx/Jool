@@ -68,7 +68,7 @@ static int handle_pool6_rm(struct xlator *jool, union request_pool6 *request)
 	error = pool6_rm(jool->pool6, &request->rm.prefix);
 
 	if (xlat_is_nat64() && !request->flush.quick) {
-		sessiondb_delete_taddr6s(jool->nat64.session,
+		sessiondb_rm_taddr6s(jool->nat64.session,
 				&request->rm.prefix);
 	}
 

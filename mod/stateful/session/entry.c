@@ -63,7 +63,7 @@ struct session_entry *session_clone(struct session_entry *session)
 	RB_CLEAR_NODE(&result->tree4_hook);
 
 	if (session->bib)
-		bibentry_get(session->bib);
+		bibentry_get_db(session->bib);
 
 	return result;
 }
@@ -79,7 +79,7 @@ static void session_release(struct kref *ref)
 	session = container_of(ref, struct session_entry, refcounter);
 
 	if (session->bib)
-		bibentry_put(session->bib, false);
+		bibentry_put_db(session->bib);
 	kmem_cache_free(entry_cache, session);
 }
 

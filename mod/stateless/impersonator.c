@@ -133,7 +133,7 @@ int bibdb_add(struct bib *db, struct bib_entry *entry, struct bib_entry **old)
 	return fail(__func__);
 }
 
-void bibdb_delete_taddr4s(struct bib *db, const struct ipv4_prefix *prefix,
+void bibdb_rm_taddr4s(struct bib *db, const struct ipv4_prefix *prefix,
 		struct port_range *ports)
 {
 	fail(__func__);
@@ -170,7 +170,17 @@ struct bib_entry *bibentry_create(const struct ipv4_transport_addr *addr4,
 	return NULL;
 }
 
-void bibentry_put(struct bib_entry *bib, bool must_die)
+void bibentry_get_db(struct bib_entry *bib)
+{
+	fail(__func__);
+}
+
+int bibentry_put_db(struct bib_entry *bib)
+{
+	return fail(__func__);
+}
+
+void bibentry_put_thread(struct bib_entry *bib, bool must_die)
 {
 	fail(__func__);
 }
@@ -205,12 +215,12 @@ void sessiondb_config_set(struct sessiondb *db, struct session_config *config)
 	/* No code. */
 }
 
-void sessiondb_delete_taddr6s(struct sessiondb *db, struct ipv6_prefix *prefix)
+void sessiondb_rm_taddr6s(struct sessiondb *db, struct ipv6_prefix *prefix)
 {
 	fail(__func__);
 }
 
-void sessiondb_delete_taddr4s(struct sessiondb *db, struct ipv4_prefix *prefix,
+void sessiondb_rm_taddr4s(struct sessiondb *db, struct ipv4_prefix *prefix,
 		struct port_range *ports)
 {
 	fail(__func__);

@@ -95,20 +95,18 @@ static int handle_bib_add(struct xlator *jool, struct request_bib *request)
 				&bib->ipv4.l3, bib->ipv4.l4,
 				&old->ipv6.l3, old->ipv6.l4,
 				&old->ipv4.l3, old->ipv4.l4);
-		bibentry_put(bib, true);
-		bibentry_put(old, false);
+		bibentry_put_thread(bib, true);
+		bibentry_put_thread(old, false);
 		return error;
 	}
 	if (error) {
 		log_err("Unknown error (%d) during the entry add.", error);
-		bibentry_put(bib, true);
+		bibentry_put_thread(bib, true);
 		return error;
 	}
 
-	/*
-	 * We do not call bib_return(bib) here, because we want the entry to
-	 * hold a fake user so the timer doesn't delete it.
-	 */
+	bibentry_get_db(bib); /* Add a fake user (for staticness) */
+	bibentry_put_thread(bib, false);
 
 	return 0;
 }
@@ -147,27 +145,38 @@ static int handle_bib_rm(struct xlator *jool, struct request_bib *request)
 					&bib->ipv6.l3, bib->ipv6.l4,
 					&bib->ipv4.l3, bib->ipv4.l4,
 					&req4->l3, req4->l4);
-			bibentry_put(bib, false);
+			bibentry_put_thread(bib, false);
 			return -ESRCH;
 		}
 	}
 
-	/* Remove the fake user. */
+	/*
+	 * Remove the fake user.
+	 *
+	 * TODO (issue204) This is kind of bad, though not incorrect just yet.
+	 * In principle, "is_static" is supposed to only be touched while
+	 * holding the BIB table lock.
+	 * However, it just so happens that every r/w on is_static is currently
+	 * also being protected by the configuration mutex. (The one in
+	 * nl_handler2.c).
+	 * So... for the sake of good coding practices, please move this to a
+	 * spinlock-protected area the next time you refactor BIB.
+	 *
+	 * The next planned BIB refactor happens when I fix #204 (which is
+	 * probably going to happen in another revision release), hence the
+	 * "issue204" priority.
+	 */
 	if (bib->is_static) {
-		bibentry_put(bib, false);
+		bibentry_put_db(bib);
 		bib->is_static = false;
 	}
 
 	/* Remove bib's sessions and their references. */
 	error = sessiondb_delete_by_bib(jool->nat64.session, bib);
-	if (error) {
-		bibentry_put(bib, false);
-		return error;
-	}
 
 	/* Remove our own reference. */
-	bibentry_put(bib, false);
-	return 0;
+	bibentry_put_thread(bib, false);
+	return error;
 }
 
 int handle_bib_config(struct xlator *jool, struct genl_info *info)

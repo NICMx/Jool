@@ -249,6 +249,7 @@ static int handle_bib(struct config_candidate *new, void *payload, __u32 payload
 		if (!entry)
 			return -ENOMEM;
 
+		entry->is_static = true; /* Just in case. */
 		error = bibdb_add(new->nat64.bib, entry, NULL);
 		if (error)
 			return error;

@@ -187,19 +187,19 @@ int sessiondb_delete_by_bib(struct sessiondb *db, struct bib_entry *bib)
 	return 0;
 }
 
-void sessiondb_delete_taddr4s(struct sessiondb *db, struct ipv4_prefix *prefix,
+void sessiondb_rm_taddr4s(struct sessiondb *db, struct ipv4_prefix *prefix,
 		struct port_range *ports)
 {
-	sessiontable_delete_taddr4s(&db->tcp, prefix, ports);
-	sessiontable_delete_taddr4s(&db->icmp, prefix, ports);
-	sessiontable_delete_taddr4s(&db->udp, prefix, ports);
+	sessiontable_rm_taddr4s(&db->tcp, prefix, ports);
+	sessiontable_rm_taddr4s(&db->icmp, prefix, ports);
+	sessiontable_rm_taddr4s(&db->udp, prefix, ports);
 }
 
-void sessiondb_delete_taddr6s(struct sessiondb *db, struct ipv6_prefix *prefix)
+void sessiondb_rm_taddr6s(struct sessiondb *db, struct ipv6_prefix *prefix)
 {
-	sessiontable_delete_taddr6s(&db->tcp, prefix);
-	sessiontable_delete_taddr6s(&db->icmp, prefix);
-	sessiontable_delete_taddr6s(&db->udp, prefix);
+	sessiontable_rm_taddr6s(&db->tcp, prefix);
+	sessiontable_rm_taddr6s(&db->icmp, prefix);
+	sessiontable_rm_taddr6s(&db->udp, prefix);
 }
 
 /**

@@ -704,7 +704,7 @@ static int __rm_taddr4s(struct session_entry *session, void *args_void)
 	return 0;
 }
 
-void sessiontable_delete_taddr4s(struct session_table *table,
+void sessiontable_rm_taddr4s(struct session_table *table,
 		struct ipv4_prefix *prefix, struct port_range *ports)
 {
 	struct taddr4_remove_args args = {
@@ -768,7 +768,7 @@ static int __rm_taddr6s(struct session_entry *session,
 	return 0;
 }
 
-void sessiontable_delete_taddr6s(struct session_table *table,
+void sessiontable_rm_taddr6s(struct session_table *table,
 		struct ipv6_prefix *prefix)
 {
 	struct taddr6_remove_args args = {

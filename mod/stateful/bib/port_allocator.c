@@ -146,11 +146,13 @@ static int choose_port(struct ipv4_transport_addr *addr, void *void_args)
 
 	atomic_inc(&next_ephemeral);
 
-	if (!bibdb_contains4(args->bib, addr, args->proto)) {
+	if (bibdb_find4(args->bib, addr, args->proto, NULL)) {
+		/* Entry not found (we found an empty slot). */
 		*(args->result) = *addr;
 		return 1; /* positive = break iteration, no error. */
 	}
 
+	/* Entry found (collision). */
 	return 0; /* Keep looking */
 }
 

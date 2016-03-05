@@ -68,10 +68,10 @@ static int handle_pool4_rm(struct xlator *jool, struct genl_info *info,
 	 * The rationale is more or less the same.
 	 */
 	if (xlat_is_nat64() && !request->rm.quick) {
-		sessiondb_delete_taddr4s(jool->nat64.session,
+		sessiondb_rm_taddr4s(jool->nat64.session,
 				&request->rm.entry.addrs,
 				&request->rm.entry.ports);
-		bibdb_delete_taddr4s(jool->nat64.bib,
+		bibdb_rm_taddr4s(jool->nat64.bib,
 				&request->rm.entry.addrs,
 				&request->rm.entry.ports);
 	}

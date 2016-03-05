@@ -45,6 +45,7 @@ rm = remove
 	   Sometimes, this also means the entry is deleted.
 	-> "delete" means to actually erase the entry.
 rtrie = radix trie (https://en.wikipedia.org/wiki/Radix_trie)
+ref = reference
 saddr = source address
 skb = socket buffer (To all intents and purposes, a packet. Inherited from the kernel)
 taddr = Transport address (A network layer id plus a transport layer id).

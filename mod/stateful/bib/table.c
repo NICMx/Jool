@@ -1,4 +1,5 @@
 #include "nat64/mod/stateful/bib/table.h"
+
 #include <net/ipv6.h>
 #include "nat64/common/constants.h"
 #include "nat64/common/str_utils.h"
@@ -46,7 +47,8 @@ struct bib_entry *bibentry_create(const struct ipv4_transport_addr *addr4,
 		return NULL;
 
 	memcpy(result, &tmp, sizeof(tmp));
-	kref_init(&result->refcounter);
+	kref_init(&result->mem_refs);
+	atomic_set(&result->db_refs, 0);
 	result->table = NULL;
 	RB_CLEAR_NODE(&result->tree6_hook);
 	RB_CLEAR_NODE(&result->tree4_hook);
@@ -61,33 +63,92 @@ struct bib_entry *bibentry_create_usr(struct bib_entry_usr *usr)
 			usr->l4_proto);
 }
 
-void bibentry_get(struct bib_entry *bib)
+/**
+ * It's probably obvious, since this applies to all these functions probably,
+ * but I'll say it anyway:
+ * You *MUST* hold a memory reference to @bib while calling this function.
+ */
+void bibentry_get_db(struct bib_entry *bib)
 {
-	kref_get(&bib->refcounter);
+	if (atomic_inc_return(&bib->db_refs) == 1)
+		kref_get(&bib->mem_refs);
 }
 
-static void release(struct kref *ref)
+static void release_entry(struct kref *kref)
 {
 	struct bib_entry *bib;
-	bib = container_of(ref, typeof(*bib), refcounter);
-
-	if (bib->table)
-		bibtable_rm(bib->table, bib);
-
+	bib = container_of(kref, struct bib_entry, mem_refs);
 	kmem_cache_free(entry_cache, bib);
 }
 
+static bool __rm(struct bib_table *table, struct bib_entry *bib)
+{
+	bib->table = NULL;
+	if (!WARN(RB_EMPTY_NODE(&bib->tree6_hook), "Faulty IPv6 index"))
+		rb_erase(&bib->tree6_hook, &table->tree6);
+	if (!WARN(RB_EMPTY_NODE(&bib->tree4_hook), "Faulty IPv4 index"))
+		rb_erase(&bib->tree4_hook, &table->tree4);
+	table->count--;
+
+	return table->log_changes;
+}
+
+static bool rm(struct bib_table *table, struct bib_entry *bib, bool lock)
+{
+	bool log;
+
+	if (lock) {
+		spin_lock_bh(&table->lock);
+		log = __rm(table, bib);
+		spin_unlock_bh(&table->lock);
+	} else {
+		log = __rm(table, bib);
+	}
+
+	if (log)
+		bibentry_log(bib, "Forgot");
+
+	return true;
+}
+
 /**
- * bibentry_put - Decreases @bib's refcounter and kills it if no more references
- * remain.
+ * Returns 1 if @bib was removed from its table, 0 otherwise.
+ * Note that this doesn't mean the entry was released from memory.
+ */
+int __bibentry_put_db(struct bib_entry *bib, bool lock)
+{
+	bool removed = false;
+
+	if (atomic_sub_and_test(1, &bib->db_refs)) {
+		if (bib->table)
+			removed = rm(bib->table, bib, lock);
+		kref_put(&bib->mem_refs, release_entry);
+	}
+
+	return removed;
+}
+
+int bibentry_put_db(struct bib_entry *bib)
+{
+	return __bibentry_put_db(bib, true);
+}
+
+void bibentry_get_thread(struct bib_entry *bib)
+{
+	kref_get(&bib->mem_refs);
+}
+
+/**
+ * bibentry_put_thread - Decreases @bib's refcounter and kills it if no more
+ * references remain.
  *
  * @must_die: If you know @bib is supposed to die during this put, send true.
  * Will drop a stack trace in the kernel logs if it doesn't die.
  * true = "entry MUST die." false = "entry might or might not die."
  */
-void bibentry_put(struct bib_entry *bib, bool must_die)
+void bibentry_put_thread(struct bib_entry *bib, bool must_die)
 {
-	bool dead = kref_put(&bib->refcounter, release);
+	bool dead = kref_put(&bib->mem_refs, release_entry);
 	WARN(must_die && !dead, "BIB entry did not die!");
 }
 
@@ -122,20 +183,9 @@ void bibtable_init(struct bib_table *table)
 	table->log_changes = DEFAULT_BIB_LOGGING;
 }
 
-static void destroy_aux(struct rb_node *node)
-{
-	struct bib_entry *bib;
-	bib = rb_entry(node, typeof(*bib), tree6_hook);
-	kmem_cache_free(entry_cache, bib);
-}
-
 void bibtable_destroy(struct bib_table *table)
 {
-	/*
-	 * The values need to be released only in one of the trees
-	 * because both trees point to the same values.
-	 */
-	rbtree_clear(&table->tree6, destroy_aux);
+	bibtable_flush(table);
 }
 
 void bibtable_config_clone(struct bib_table *table, struct bib_config *config)
@@ -153,27 +203,16 @@ void bibtable_config_set(struct bib_table *table, struct bib_config *config)
 }
 
 /**
- * Returns > 0 if bib->ipv6.l3 > addr.
- * Returns < 0 if bib->ipv6.l3 < addr.
- * Returns 0 if bib->ipv6.l3 == addr.
- */
-static int compare_addr6(const struct bib_entry *bib,
-		const struct in6_addr *addr)
-{
-	return ipv6_addr_cmp(&bib->ipv6.l3, addr);
-}
-
-/**
  * Returns > 0 if bib->ipv6 > addr.
  * Returns < 0 if bib->ipv6 < addr.
  * Returns 0 if bib->ipv6 == addr.
  */
-static int compare_full6(const struct bib_entry *bib,
+static int compare6(const struct bib_entry *bib,
 		const struct ipv6_transport_addr *addr)
 {
 	int gap;
 
-	gap = compare_addr6(bib, &addr->l3);
+	gap = ipv6_addr_cmp(&bib->ipv6.l3, &addr->l3);
 	if (gap)
 		return gap;
 
@@ -182,27 +221,16 @@ static int compare_full6(const struct bib_entry *bib,
 }
 
 /**
- * Returns > 0 if bib->ipv4.l3 > addr.
- * Returns < 0 if bib->ipv4.l3 < addr.
- * Returns zero if bib->ipv4.l3 == addr.
- */
-static int compare_addr4(const struct bib_entry *bib,
-		const struct in_addr *addr)
-{
-	return ipv4_addr_cmp(&bib->ipv4.l3, addr);
-}
-
-/**
  * Returns > 0 if bib->ipv4 > addr.
  * Returns < 0 if bib->ipv4 < addr.
  * Returns 0 if bib->ipv4 == addr.
  */
-static int compare_full4(const struct bib_entry *bib,
+static int compare4(const struct bib_entry *bib,
 		const struct ipv4_transport_addr *addr)
 {
 	int gap;
 
-	gap = compare_addr4(bib, &addr->l3);
+	gap = ipv4_addr_cmp(&bib->ipv4.l3, &addr->l3);
 	if (gap)
 		return gap;
 
@@ -213,64 +241,60 @@ static int compare_full4(const struct bib_entry *bib,
 static struct bib_entry *find_by_addr6(const struct bib_table *table,
 		const struct ipv6_transport_addr *addr)
 {
-	return rbtree_find(addr, &table->tree6, compare_full6, struct bib_entry,
+	return rbtree_find(addr, &table->tree6, compare6, struct bib_entry,
 			tree6_hook);
 }
 
 static struct bib_entry *find_by_addr4(const struct bib_table *table,
 		const struct ipv4_transport_addr *addr)
 {
-	return rbtree_find(addr, &table->tree4, compare_full4, struct bib_entry,
+	return rbtree_find(addr, &table->tree4, compare4, struct bib_entry,
 			tree4_hook);
 }
 
-int bibtable_get6(struct bib_table *table,
+int bibtable_find6(struct bib_table *table,
 		const struct ipv6_transport_addr *addr,
 		struct bib_entry **result)
 {
+	struct bib_entry *bib;
 	spin_lock_bh(&table->lock);
-	*result = find_by_addr6(table, addr);
-	if (*result)
-		bibentry_get(*result);
-	spin_unlock_bh(&table->lock);
 
-	return (*result) ? 0 : -ESRCH;
+	bib = find_by_addr6(table, addr);
+	if (bib && result) {
+		bibentry_get_thread(bib);
+		*result = bib;
+	}
+
+	spin_unlock_bh(&table->lock);
+	return bib ? 0 : -ESRCH;
 }
 
-int bibtable_get4(struct bib_table *table,
+int bibtable_find4(struct bib_table *table,
 		const struct ipv4_transport_addr *addr,
 		struct bib_entry **result)
 {
+	struct bib_entry *bib;
 	spin_lock_bh(&table->lock);
-	*result = find_by_addr4(table, addr);
-	if (*result)
-		bibentry_get(*result);
+
+	bib = find_by_addr4(table, addr);
+	if (bib && result) {
+		bibentry_get_thread(bib);
+		*result = bib;
+	}
+
 	spin_unlock_bh(&table->lock);
-
-	return (*result) ? 0 : -ESRCH;
-}
-
-bool bibtable_contains4(struct bib_table *table,
-		const struct ipv4_transport_addr *addr)
-{
-	bool result;
-
-	spin_lock_bh(&table->lock);
-	result = find_by_addr4(table, addr) ? true : false;
-	spin_unlock_bh(&table->lock);
-
-	return result;
+	return bib ? 0 : -ESRCH;
 }
 
 static struct bib_entry *add6(struct bib_table *table, struct bib_entry *bib)
 {
-	return rbtree_add(bib, &bib->ipv6, &table->tree6, compare_full6,
+	return rbtree_add(bib, &bib->ipv6, &table->tree6, compare6,
 			struct bib_entry, tree6_hook);
 }
 
 static struct bib_entry *add4(struct bib_table *table, struct bib_entry *bib)
 {
-	return rbtree_add(bib, &bib->ipv4, &table->tree4, compare_full4,
+	return rbtree_add(bib, &bib->ipv4, &table->tree4, compare4,
 			struct bib_entry, tree4_hook);
 }
 
@@ -278,6 +302,7 @@ int bibtable_add(struct bib_table *table, struct bib_entry *bib,
 		struct bib_entry **old)
 {
 	struct bib_entry *collision;
+	bool log;
 
 	spin_lock_bh(&table->lock);
 
@@ -295,47 +320,26 @@ int bibtable_add(struct bib_table *table, struct bib_entry *bib,
 	}
 
 	/*
-	 * Note: Because of the way bibentry_put() works, bib->table MUST only
-	 * be assigned when success is imminent. Please consider that if you
-	 * need to edit this function.
+	 * Note: Because of the way bibentry_put_db() works, bib->table MUST
+	 * only be assigned when success is imminent. Please consider that if
+	 * you need to edit this function.
 	 */
 	bib->table = table;
 	table->count++;
+	log = table->log_changes;
 
 	spin_unlock_bh(&table->lock);
-	if (table->log_changes)
+	if (log)
 		bibentry_log(bib, "Mapped");
 	return 0;
 
 exists:
 	if (old) {
-		bibentry_get(collision);
+		bibentry_get_thread(collision);
 		*old = collision;
 	}
 	spin_unlock_bh(&table->lock);
 	return -EEXIST;
-}
-
-/**
- * Spinlock must be held.
- */
-static void rm(struct bib_table *table, struct bib_entry *bib)
-{
-	if (!WARN(RB_EMPTY_NODE(&bib->tree6_hook), "Faulty IPv6 index"))
-		rb_erase(&bib->tree6_hook, &table->tree6);
-	if (!WARN(RB_EMPTY_NODE(&bib->tree4_hook), "Faulty IPv4 index"))
-		rb_erase(&bib->tree4_hook, &table->tree4);
-	table->count--;
-
-	if (table->log_changes)
-		bibentry_log(bib, "Forgot");
-}
-
-void bibtable_rm(struct bib_table *table, struct bib_entry *bib)
-{
-	spin_lock_bh(&table->lock);
-	rm(table, bib);
-	spin_unlock_bh(&table->lock);
 }
 
 static struct rb_node *find_starting_point(struct bib_table *table,
@@ -350,7 +354,7 @@ static struct rb_node *find_starting_point(struct bib_table *table,
 		return rb_first(&table->tree4);
 
 	/* If offset is found, start from offset or offset's next. */
-	rbtree_find_node(offset, &table->tree4, compare_full4, struct bib_entry,
+	rbtree_find_node(offset, &table->tree4, compare4, struct bib_entry,
 			tree4_hook, parent, node);
 	if (*node)
 		return include_offset ? (*node) : rb_next(*node);
@@ -364,11 +368,17 @@ static struct rb_node *find_starting_point(struct bib_table *table,
 	 * the caller wasn't holding the spinlock; it's nothing to worry about.)
 	 */
 	bib = rb_entry(parent, struct bib_entry, tree4_hook);
-	return (compare_full4(bib, offset) < 0) ? rb_next(parent) : parent;
+	return (compare4(bib, offset) < 0) ? rb_next(parent) : parent;
 }
 
 /**
- * The iteration is "safe"; it doesn't die if func() removes and/or deletes the
+ * __foreach: Run @func on every entry in @table, starting from the entry whose
+ * IPv4 transport address is @offset.
+ *
+ * Whether the @offset entry is included in the iteration depends on
+ * @include_offset.
+ *
+ * The iteration is "safe"; it doesn't die if @func removes and/or deletes the
  * entry.
  */
 static int __foreach(struct bib_table *table,
@@ -405,49 +415,30 @@ int bibtable_count(struct bib_table *table, __u64 *result)
 }
 
 struct iteration_args {
-	struct bib_table *table;
 	const struct ipv4_prefix *prefix;
 	const struct port_range *ports;
-	unsigned int deleted;
 };
-
-static void release_locked(struct kref *ref)
-{
-	struct bib_entry *bib;
-	bib = container_of(ref, typeof(*bib), refcounter);
-
-	if (bib->table)
-		rm(bib->table, bib);
-
-	kmem_cache_free(entry_cache, bib);
-}
 
 static int __flush(struct bib_entry *bib, void *void_args)
 {
-	struct iteration_args *args = void_args;
-
 	/*
-	 * All we need to do is remove the fake user.
-	 * Otherwise we might free entries being actively pointed by sessions.
+	 * All we want to do is put the fake user;
+	 * We do not want to remove entries being actively pointed by sessions.
+	 * This is also the reason why we don't use rbtree_clear() during a
+	 * flush; the tree must not break.
 	 */
 	if (bib->is_static)
-		args->deleted += kref_put(&bib->refcounter, release_locked);
+		__bibentry_put_db(bib, false);
 
 	return 0;
 }
 
 void bibtable_flush(struct bib_table *table)
 {
-	struct iteration_args args = {
-			.table = table,
-			.deleted = 0,
-	};
-
-	__foreach(table, __flush, &args, NULL, 0);
-	log_debug("Deleted %u BIB entries.", args.deleted);
+	__foreach(table, __flush, NULL, NULL, 0);
 }
 
-static int __delete_taddr4s(struct bib_entry *bib, void *void_args)
+static int __rm_taddr4s(struct bib_entry *bib, void *void_args)
 {
 	struct iteration_args *args = void_args;
 
@@ -456,24 +447,20 @@ static int __delete_taddr4s(struct bib_entry *bib, void *void_args)
 	if (!port_range_contains(args->ports, bib->ipv4.l4))
 		return 0;
 
-	return __flush(bib, void_args);
+	return __flush(bib, NULL);
 }
 
-void bibtable_delete_taddr4s(struct bib_table *table,
+void bibtable_rm_taddr4s(struct bib_table *table,
 		const struct ipv4_prefix *prefix, struct port_range *ports)
 {
 	struct iteration_args args = {
-			.table = table,
 			.prefix = prefix,
 			.ports = ports,
-			.deleted = 0,
 	};
 	struct ipv4_transport_addr offset = {
 			.l3 = prefix->address,
 			.l4 = ports->min,
 	};
 
-	__foreach(table, __delete_taddr4s, &args, &offset, true);
-	log_debug("Deleted %u BIB entries.", args.deleted);
+	__foreach(table, __rm_taddr4s, &args, &offset, true);
 }
-

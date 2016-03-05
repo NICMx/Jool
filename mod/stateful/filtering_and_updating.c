@@ -130,7 +130,7 @@ static int get_or_create_bib6(struct xlation *state, struct bib_entry **result)
 	 */
 	error = bibdb_add(state->jool.nat64.bib, bib, NULL);
 	if (error) {
-		bibentry_put(bib, true);
+		bibentry_put_thread(bib, true);
 		return error;
 	}
 
@@ -252,14 +252,14 @@ static verdict ipv6_simple(struct xlation *state)
 	error = get_or_create_session(state, bib, &session);
 	if (error) {
 		inc_stats(&state->in, IPSTATS_MIB_INDISCARDS);
-		bibentry_put(bib, false);
+		bibentry_put_thread(bib, false);
 		return VERDICT_DROP;
 	}
 	log_session(session);
 
 	/* Transfer session refcount to @state; do not put yet. */
 	state->session = session;
-	bibentry_put(bib, false);
+	bibentry_put_thread(bib, false);
 
 	return VERDICT_CONTINUE;
 }
@@ -291,7 +291,7 @@ static int get_bib4(struct xlation *state, struct bib_entry **bib)
 		log_debug("Packet was blocked by address-dependent filtering.");
 		icmp64_send(in, ICMPERR_FILTER, 0);
 		inc_stats(in, IPSTATS_MIB_INDISCARDS);
-		bibentry_put(*bib, false);
+		bibentry_put_thread(*bib, false);
 		return -EPERM;
 	}
 
@@ -324,14 +324,14 @@ static verdict ipv4_simple(struct xlation *state)
 	error = get_or_create_session(state, bib, &session);
 	if (error) {
 		inc_stats(&state->in, IPSTATS_MIB_INDISCARDS);
-		bibentry_put(bib, false);
+		bibentry_put_thread(bib, false);
 		return VERDICT_DROP;
 	}
 	log_session(session);
 
 	/* Transfer session refcount to @state; do not put yet. */
 	state->session = session;
-	bibentry_put(bib, false);
+	bibentry_put_thread(bib, false);
 
 	return VERDICT_CONTINUE;
 }
@@ -369,7 +369,7 @@ static int tcp_closed_v6_syn(struct xlation *state)
 session_end:
 	session_put(session, false);
 bib_end:
-	bibentry_put(bib, false);
+	bibentry_put_thread(bib, false);
 simple_end:
 	return error;
 }
@@ -436,7 +436,7 @@ end_session:
 
 end_bib:
 	if (bib)
-		bibentry_put(bib, false);
+		bibentry_put_thread(bib, false);
 	return result;
 }
 
@@ -477,7 +477,7 @@ static verdict tcp_closed_state(struct xlation *state)
 		return VERDICT_DROP;
 	}
 
-	bibentry_put(bib, false);
+	bibentry_put_thread(bib, false);
 	return VERDICT_CONTINUE;
 
 syn_out:

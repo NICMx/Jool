@@ -194,10 +194,10 @@ int init_module(void)
 	/*
 	 * This whole test assumes nothing else will grab or return references
 	 * towards @ns, but some kernels seem to spawn threads during module
-	 * insertion that do. So we sleep 2 seconds to wait them out.
+	 * insertion that do. So we sleep two seconds to wait them out.
 	 *
 	 * Of course, this is not bulletproof. @ns can always change without
-	 * warning, but at least this does reduce the chance from almost
+	 * warning, but at least this does improve the rate from almost
 	 * guaranteed failure to almost guaranteed success.
 	 */
 	ssleep(2);

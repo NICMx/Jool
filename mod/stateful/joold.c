@@ -355,7 +355,7 @@ static int add_new_bib(struct bib *db, struct joold_session *session,
 	if (error != -EEXIST) {
 		/* Unexpected errors. @new was rejected, @old is unset. */
 		log_err("bibdb_add() threw unknown error code %d.", error);
-		bibentry_put(new, true);
+		bibentry_put_thread(new, true);
 		return error;
 	}
 
@@ -364,7 +364,7 @@ static int add_new_bib(struct bib *db, struct joold_session *session,
 		 * @new was rejected because the BIB already had an identical
 		 * entry.
 		 */
-		bibentry_put(new, true);
+		bibentry_put_thread(new, true);
 		*result = old;
 		return 0; /* Slightly less likely happy path. */
 	}
@@ -382,8 +382,8 @@ static int add_new_bib(struct bib *db, struct joold_session *session,
 			&new->ipv4.l3, new->ipv4.l4,
 			&old->ipv6.l3, old->ipv6.l4,
 			&old->ipv4.l3, old->ipv4.l4);
-	bibentry_put(new, true);
-	bibentry_put(old, false);
+	bibentry_put_thread(new, true);
+	bibentry_put_thread(old, false);
 	return -EEXIST;
 }
 
@@ -459,7 +459,7 @@ static bool add_new_session(struct xlator *jool, struct joold_session *in)
 	new = init_session_entry(in, bib);
 	if (!new) {
 		log_err("Couldn't allocate session.");
-		bibentry_put(bib, false);
+		bibentry_put_thread(bib, false);
 		return false;
 	}
 
