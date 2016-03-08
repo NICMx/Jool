@@ -131,12 +131,12 @@ static void send_probe_packet(struct net *ns, struct session_entry *session)
 	iph->payload_len = cpu_to_be16(l4_hdr_len);
 	iph->nexthdr = NEXTHDR_TCP;
 	iph->hop_limit = 255;
-	iph->saddr = session->local6.l3;
-	iph->daddr = session->remote6.l3;
+	iph->saddr = session->dst6.l3;
+	iph->daddr = session->src6.l3;
 
 	th = tcp_hdr(skb);
-	th->source = cpu_to_be16(session->local6.l4);
-	th->dest = cpu_to_be16(session->remote6.l4);
+	th->source = cpu_to_be16(session->dst6.l4);
+	th->dest = cpu_to_be16(session->src6.l4);
 	th->seq = htonl(0);
 	th->ack_seq = htonl(0);
 	th->res1 = 0;
@@ -238,15 +238,14 @@ static void init_expirer(struct expire_timer *expirer, int timeout,
 	expirer->decide_fate_cb = decide_fate_cb;
 }
 
-void sessiontable_init(struct session_table *table,
-		int est_timeout, fate_cb est_callback,
-		int trans_timeout, fate_cb trans_callback)
+void sessiontable_init(struct session_table *table, fate_cb expired_cb,
+		int est_timeout, int trans_timeout)
 {
 	table->tree6 = RB_ROOT;
 	table->tree4 = RB_ROOT;
 	table->count = 0;
-	init_expirer(&table->est_timer, est_timeout, est_callback);
-	init_expirer(&table->trans_timer, trans_timeout, trans_callback);
+	init_expirer(&table->est_timer, est_timeout, expired_cb);
+	init_expirer(&table->trans_timer, trans_timeout, expired_cb);
 	spin_lock_init(&table->lock);
 	table->log_changes = DEFAULT_SESSION_LOGGING;
 }
@@ -341,11 +340,11 @@ static int compare_session6(const struct session_entry *s1,
 {
 	int gap;
 
-	gap = compare_addr6(&s1->local6, &s2->local6);
+	gap = compare_addr6(&s1->dst6, &s2->dst6);
 	if (gap)
 		return gap;
 
-	gap = compare_addr6(&s1->remote6, &s2->remote6);
+	gap = compare_addr6(&s1->src6, &s2->src6);
 	return gap;
 }
 
@@ -361,11 +360,11 @@ static int compare_full6(const struct session_entry *session,
 {
 	int gap;
 
-	gap = compare_addr6(&session->local6, &tuple6->dst.addr6);
+	gap = compare_addr6(&session->dst6, &tuple6->dst.addr6);
 	if (gap)
 		return gap;
 
-	gap = compare_addr6(&session->remote6, &tuple6->src.addr6);
+	gap = compare_addr6(&session->src6, &tuple6->src.addr6);
 	return gap;
 }
 
@@ -387,11 +386,11 @@ static int compare_session4(const struct session_entry *s1,
 {
 	int gap;
 
-	gap = compare_addr4(&s1->local4, &s2->local4);
+	gap = compare_addr4(&s1->src4, &s2->src4);
 	if (gap)
 		return gap;
 
-	gap = compare_addr4(&s1->remote4, &s2->remote4);
+	gap = compare_addr4(&s1->dst4, &s2->dst4);
 	return gap;
 }
 
@@ -410,11 +409,11 @@ static int compare_addrs4(const struct session_entry *session,
 {
 	int gap;
 
-	gap = compare_addr4(&session->local4, &tuple4->dst.addr4);
+	gap = compare_addr4(&session->src4, &tuple4->dst.addr4);
 	if (gap)
 		return gap;
 
-	gap = ipv4_addr_cmp(&session->remote4.l3, &tuple4->src.addr4.l3);
+	gap = ipv4_addr_cmp(&session->dst4.l3, &tuple4->src.addr4.l3);
 	return gap;
 }
 
@@ -430,11 +429,11 @@ static int compare_full4(const struct session_entry *session,
 {
 	int gap;
 
-	gap = compare_addr4(&session->local4, &tuple4->dst.addr4);
+	gap = compare_addr4(&session->src4, &tuple4->dst.addr4);
 	if (gap)
 		return gap;
 
-	gap = compare_addr4(&session->remote4, &tuple4->src.addr4);
+	gap = compare_addr4(&session->dst4, &tuple4->src.addr4);
 	return gap;
 }
 
@@ -455,7 +454,7 @@ static struct session_entry *get_by_ipv4(struct session_table *table,
 /**
  * Important: This particular @cb is not prepared to return FATE_PROBE.
  */
-int sessiontable_get(struct session_table *table, struct tuple *tuple,
+int sessiontable_find(struct session_table *table, struct tuple *tuple,
 		fate_cb cb, void *cb_arg,
 		struct session_entry **result)
 {
@@ -660,7 +659,7 @@ static int __rm_by_bib(struct session_entry *session, void *args_void)
 {
 	struct bib_remove_args *args = args_void;
 
-	if (!taddr4_equals(args->addr4, &session->local4))
+	if (!taddr4_equals(args->addr4, &session->src4))
 		return 1; /* positive = break iteration early, no error. */
 
 	rm(args->table, session, &args->removed);
@@ -695,9 +694,9 @@ static int __rm_taddr4s(struct session_entry *session, void *args_void)
 {
 	struct taddr4_remove_args *args = args_void;
 
-	if (!prefix4_contains(args->prefix, &session->local4.l3))
+	if (!prefix4_contains(args->prefix, &session->src4.l3))
 		return 1; /* positive = break iteration early, no error. */
-	if (!port_range_contains(args->ports, session->local4.l4))
+	if (!port_range_contains(args->ports, session->src4.l4))
 		return 0;
 
 	rm(args->table, session, &args->removed);
@@ -761,7 +760,7 @@ struct taddr6_remove_args {
 static int __rm_taddr6s(struct session_entry *session,
 		struct taddr6_remove_args *args)
 {
-	if (!prefix6_contains(args->prefix, &session->local6.l3))
+	if (!prefix6_contains(args->prefix, &session->dst6.l3))
 		return 1; /* positive = break iteration early, no error. */
 
 	rm(args->table, session, &args->removed);

@@ -57,14 +57,14 @@ static int session_display_response(struct jool_response *response, void *arg)
 			struct session_entry_usr *entry = &entries[i];
 
 			printf("%s,", l4proto_to_string(params->req_payload->l4_proto));
-			print_addr6(&entry->remote6, params->numeric_hostname, ",",
+			print_addr6(&entry->src6, params->numeric_hostname, ",",
 					params->req_payload->l4_proto);
 			printf(",");
-			print_addr6(&entry->local6, true, ",", params->req_payload->l4_proto);
+			print_addr6(&entry->dst6, true, ",", params->req_payload->l4_proto);
 			printf(",");
-			print_addr4(&entry->local4, true, ",", params->req_payload->l4_proto);
+			print_addr4(&entry->src4, true, ",", params->req_payload->l4_proto);
 			printf(",");
-			print_addr4(&entry->remote4, params->numeric_hostname, ",",
+			print_addr4(&entry->dst4, params->numeric_hostname, ",",
 					params->req_payload->l4_proto);
 			printf(",");
 			print_time_csv(entry->dying_time);
@@ -83,19 +83,19 @@ static int session_display_response(struct jool_response *response, void *arg)
 			print_time_friendly(entry->dying_time);
 
 			printf("Remote: ");
-			print_addr4(&entry->remote4, params->numeric_hostname, "#",
+			print_addr4(&entry->dst4, params->numeric_hostname, "#",
 					params->req_payload->l4_proto);
 
 			printf("\t");
-			print_addr6(&entry->remote6, params->numeric_hostname, "#",
+			print_addr6(&entry->src6, params->numeric_hostname, "#",
 					params->req_payload->l4_proto);
 			printf("\n");
 
 			printf("Local: ");
-			print_addr4(&entry->local4, true, "#", params->req_payload->l4_proto);
+			print_addr4(&entry->src4, true, "#", params->req_payload->l4_proto);
 
 			printf("\t");
-			print_addr6(&entry->local6, true, "#", params->req_payload->l4_proto);
+			print_addr6(&entry->dst6, true, "#", params->req_payload->l4_proto);
 			printf("\n");
 
 			printf("---------------------------------\n");
@@ -105,8 +105,8 @@ static int session_display_response(struct jool_response *response, void *arg)
 	params->row_count += entry_count;
 	params->req_payload->display.connection_set = response->hdr->pending_data;
 	if (entry_count > 0) {
-		params->req_payload->display.remote4 = entries[entry_count - 1].remote4;
-		params->req_payload->display.local4 = entries[entry_count - 1].local4;
+		params->req_payload->display.remote4 = entries[entry_count - 1].dst4;
+		params->req_payload->display.local4 = entries[entry_count - 1].src4;
 	}
 	return 0;
 }

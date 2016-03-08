@@ -70,15 +70,15 @@ verdict compute_out_tuple(struct xlation *state)
 	case L3PROTO_IPV6:
 		out->l3_proto = L3PROTO_IPV4;
 		out->l4_proto = in->l4_proto;
-		out->src.addr4 = session->local4;
-		out->dst.addr4 = session->remote4;
+		out->src.addr4 = session->src4;
+		out->dst.addr4 = session->dst4;
 		break;
 
 	case L3PROTO_IPV4:
 		out->l3_proto = L3PROTO_IPV6;
 		out->l4_proto = in->l4_proto;
-		out->src.addr6 = session->local6;
-		out->dst.addr6 = session->remote6;
+		out->src.addr6 = session->dst6;
+		out->dst.addr6 = session->src6;
 		break;
 	}
 

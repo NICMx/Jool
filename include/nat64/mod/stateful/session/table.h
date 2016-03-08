@@ -76,9 +76,8 @@ struct session_table {
 	bool log_changes;
 };
 
-void sessiontable_init(struct session_table *table,
-		int est_timeout, fate_cb est_callback,
-		int trans_timeout, fate_cb trans_callback);
+void sessiontable_init(struct session_table *table, fate_cb expired_cb,
+		int est_timeout, int trans_timeout);
 void sessiontable_destroy(struct session_table *table);
 
 void sessiontable_config_copy(struct session_table *table,
@@ -88,7 +87,7 @@ void sessiontable_config_set(struct session_table *table,
 		struct session_config *config,
 		enum l4_protocol proto);
 
-int sessiontable_get(struct session_table *table, struct tuple *tuple,
+int sessiontable_find(struct session_table *table, struct tuple *tuple,
 		fate_cb cb, void *cb_arg,
 		struct session_entry **result);
 int sessiontable_add(struct session_table *table, struct session_entry *session,

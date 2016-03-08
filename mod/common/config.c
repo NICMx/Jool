@@ -6,6 +6,7 @@
 #include "nat64/common/constants.h"
 #include "nat64/mod/common/tags.h"
 #include "nat64/mod/common/types.h"
+#include "nat64/mod/common/wkmalloc.h"
 
 static DEFINE_MUTEX(lock);
 
@@ -15,7 +16,7 @@ int config_init(struct global_configuration **result)
 	struct global_config *config;
 	__u16 plateaus[] = DEFAULT_MTU_PLATEAUS;
 
-	*result = kmalloc(sizeof(**result), GFP_KERNEL);
+	*result = wkmalloc(struct global_configuration, GFP_KERNEL);
 	if (!(*result))
 		return -ENOMEM;
 	kref_init(&(*result)->refcounter);
@@ -59,7 +60,7 @@ static void destroy_config(struct kref *refcounter)
 {
 	struct global_configuration *config;
 	config = container_of(refcounter, typeof(*config), refcounter);
-	kfree(config);
+	wkfree(struct global_configuration, config);
 }
 
 void config_put(struct global_configuration *config)

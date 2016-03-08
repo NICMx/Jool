@@ -1,5 +1,6 @@
 #include "nat64/mod/stateless/eam.h"
 #include "nat64/mod/common/types.h"
+#include "nat64/mod/common/wkmalloc.h"
 
 #define ADDR6_BITS		128
 #define ADDR4_BITS		32
@@ -392,7 +393,9 @@ void eamt_flush(struct eam_table *eamt)
 
 int eamt_init(struct eam_table **eamt)
 {
-	struct eam_table *result = kmalloc(sizeof(*result), GFP_KERNEL);
+	struct eam_table *result;
+
+	result = wkmalloc(struct eam_table, GFP_KERNEL);
 	if (!result)
 		return -ENOMEM;
 
@@ -417,7 +420,7 @@ static void destroy_eamt(struct kref *refcount)
 	log_debug("Emptying EAMT...");
 	rtrie_destroy(&eamt->trie6);
 	rtrie_destroy(&eamt->trie4);
-	kfree(eamt);
+	wkfree(struct eam_table, eamt);
 }
 
 void eamt_put(struct eam_table *eamt)

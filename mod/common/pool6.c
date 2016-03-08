@@ -6,6 +6,7 @@
 #include "nat64/mod/common/rcu.h"
 #include "nat64/mod/common/tags.h"
 #include "nat64/mod/common/types.h"
+#include "nat64/mod/common/wkmalloc.h"
 
 struct pool6 {
 	struct list_head __rcu *list;
@@ -80,7 +81,7 @@ static int create_list(struct list_head **list)
 {
 	struct list_head *result;
 
-	result = kmalloc(sizeof(*result), GFP_KERNEL);
+	result = __wkmalloc("pool6 list", sizeof(struct list_head), GFP_KERNEL);
 	if (!result)
 		return -ENOMEM;
 	INIT_LIST_HEAD(result);
@@ -99,10 +100,10 @@ static void destroy_list(struct list_head *list)
 
 	list_for_each_safe(node, tmp, list) {
 		list_del(node);
-		kfree(get_entry(node));
+		wkfree(struct pool_entry, get_entry(node));
 	}
 
-	kfree(list);
+	__wkfree("pool6 list", list);
 }
 
 /**
@@ -118,13 +119,13 @@ int pool6_init(struct pool6 **pool)
 	struct list_head *list;
 	int error;
 
-	result = kmalloc(sizeof(*result), GFP_KERNEL);
+	result = wkmalloc(struct pool6, GFP_KERNEL);
 	if (!result)
 		return -ENOMEM;
 
 	error = create_list(&list);
 	if (error) {
-		kfree(result);
+		wkfree(struct pool6, result);
 		return error;
 	}
 
@@ -145,7 +146,7 @@ static void destroy_pool6(struct kref *ref)
 	struct pool6 *pool;
 	pool = container_of(ref, typeof(*pool), refcount);
 	destroy_list(rcu_dereference_raw(pool->list));
-	kfree(pool);
+	wkfree(struct pool6, pool);
 	log_debug("pool6 destroyed.");
 }
 
@@ -287,7 +288,7 @@ int pool6_add(struct pool6 *pool, struct ipv6_prefix *prefix)
 		}
 	}
 
-	entry = kmalloc(sizeof(*entry), GFP_KERNEL);
+	entry = wkmalloc(struct pool_entry, GFP_KERNEL);
 	if (!entry) {
 		mutex_unlock(&lock);
 		log_err("Allocation of IPv6 pool node failed.");
@@ -334,7 +335,7 @@ int pool6_rm(struct pool6 *pool, struct ipv6_prefix *prefix)
 			list_del_rcu(&entry->list_hook);
 			mutex_unlock(&lock);
 			synchronize_rcu_bh();
-			kfree(entry);
+			wkfree(struct pool_entry, entry);
 			return 0;
 		}
 	}

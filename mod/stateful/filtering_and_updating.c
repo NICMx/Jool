@@ -65,10 +65,10 @@ static void log_session(struct session_entry *session)
 {
 	if (session)
 		log_debug("Session entry: %pI6c#%u - %pI6c#%u | %pI4#%u - %pI4#%u (%s)",
-				&session->remote6.l3, session->remote6.l4,
-				&session->local6.l3, session->local6.l4,
-				&session->local4.l3, session->local4.l4,
-				&session->remote4.l3, session->remote4.l4,
+				&session->src6.l3, session->src6.l4,
+				&session->dst6.l3, session->dst6.l4,
+				&session->src4.l3, session->src4.l4,
+				&session->dst4.l3, session->dst4.l4,
 				l4proto_to_string(session->l4_proto));
 	else
 		log_debug("Session entry: None");
@@ -408,7 +408,7 @@ static verdict tcp_closed_v4_syn(struct xlation *state)
 	session->state = V4_INIT;
 
 	if (!bib || state->jool.global->cfg.nat64.drop_by_addr) {
-		error = pktqueue_add(&state->jool.nat64.session->pkt_queue,
+		error = pktqueue_add(state->jool.nat64.session->pkt_queue,
 				session, &state->in);
 		if (error)
 			goto end_session;

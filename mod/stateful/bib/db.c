@@ -1,4 +1,5 @@
 #include "nat64/mod/stateful/bib/db.h"
+#include "nat64/mod/common/wkmalloc.h"
 
 struct bib {
 	/** The BIB table for TCP connections. */
@@ -38,7 +39,7 @@ int bibdb_init(struct bib **db)
 {
 	struct bib *result;
 
-	result = kmalloc(sizeof(*result), GFP_KERNEL);
+	result = wkmalloc(struct bib, GFP_KERNEL);
 	if (!result)
 		return -ENOMEM;
 
@@ -72,7 +73,7 @@ static void release(struct kref *refcounter)
 	bibtable_destroy(&db->tcp);
 	bibtable_destroy(&db->icmp);
 
-	kfree(db);
+	wkfree(struct bib, db);
 }
 
 /**

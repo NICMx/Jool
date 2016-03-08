@@ -4,11 +4,22 @@
 #include "nat64/mod/common/config.h"
 #include "nat64/mod/common/icmp_wrapper.h"
 #include "nat64/mod/common/rbtree.h"
+#include "nat64/mod/common/wkmalloc.h"
+
+struct pktqueue {
+	struct list_head node_list;
+	/** The same packets, sorted by IPv4 identifiers. */
+	struct rb_root node_tree;
+	/** Current number of packets in the database. */
+	int node_count;
+
+	unsigned int capacity;
+};
 
 /**
  * A stored packet.
  */
-struct packet_node {
+struct pktqueue_node {
 	/** The packet's session entry. */
 	struct session_entry *session;
 	/** The packet. */
@@ -28,36 +39,45 @@ static unsigned long get_timeout(void)
 	return msecs_to_jiffies(1000 * TCP_INCOMING_SYN);
 }
 
-static void send_icmp_error(struct packet_node *node)
+static void send_icmp_error(struct pktqueue_node *node)
 {
 	icmp64_send(&node->pkt, ICMPERR_PORT_UNREACHABLE, 0);
 	session_put(node->session, false);
 	kfree_skb(node->pkt.skb);
-	kfree(node);
+	wkfree(struct pktqueue_node, node);
 }
 
-static void rm(struct pktqueue *queue, struct packet_node *node)
+static void rm(struct pktqueue *queue, struct pktqueue_node *node)
 {
 	list_del(&node->list_hook);
 	rb_erase(&node->tree_hook, &queue->node_tree);
 	queue->node_count--;
 }
 
-void pktqueue_init(struct pktqueue *queue)
+struct pktqueue *pktqueue_create(void)
 {
-	INIT_LIST_HEAD(&queue->node_list);
-	queue->node_tree = RB_ROOT;
-	queue->node_count = 0;
-	queue->capacity = DEFAULT_MAX_STORED_PKTS;
+	struct pktqueue *result;
+
+	result = wkmalloc(struct pktqueue, GFP_KERNEL);
+	if (!result)
+		return NULL;
+
+	INIT_LIST_HEAD(&result->node_list);
+	result->node_tree = RB_ROOT;
+	result->node_count = 0;
+	result->capacity = DEFAULT_MAX_STORED_PKTS;
+
+	return result;
 }
 
 void pktqueue_destroy(struct pktqueue *queue)
 {
-	struct packet_node *node;
-	struct packet_node *tmp;
+	struct pktqueue_node *node;
+	struct pktqueue_node *tmp;
 
 	list_for_each_entry_safe(node, tmp, &queue->node_list, list_hook)
 		send_icmp_error(node);
+	wkfree(struct pktqueue, queue);
 }
 
 void pktqueue_config_copy(struct pktqueue *queue, struct pktqueue_config *config)
@@ -81,44 +101,44 @@ void pktqueue_config_set(struct pktqueue *queue, struct pktqueue_config *config)
  *
  * Doesn't care about spinlocks.
  */
-static int compare_fn(const struct packet_node *node,
+static int compare_fn(const struct pktqueue_node *node,
 		const struct session_entry *session)
 {
 	int gap;
 
-	gap = ipv4_addr_cmp(&node->session->remote4.l3, &session->remote4.l3);
+	gap = ipv4_addr_cmp(&node->session->dst4.l3, &session->dst4.l3);
 	if (gap)
 		return gap;
 
-	gap = node->session->remote4.l4 - session->remote4.l4;
+	gap = node->session->dst4.l4 - session->dst4.l4;
 	if (gap)
 		return gap;
 
-	gap = ipv4_addr_cmp(&node->session->local4.l3, &session->local4.l3);
+	gap = ipv4_addr_cmp(&node->session->src4.l3, &session->src4.l3);
 	if (gap)
 		return gap;
 
-	gap = node->session->local4.l4 - session->local4.l4;
+	gap = node->session->src4.l4 - session->src4.l4;
 	return gap;
 }
 
-static struct packet_node *__tree_add(struct pktqueue *queue,
-		struct packet_node *node)
+static struct pktqueue_node *__tree_add(struct pktqueue *queue,
+		struct pktqueue_node *node)
 {
 	return rbtree_add(node, node->session, &queue->node_tree, compare_fn,
-			struct packet_node, tree_hook);
+			struct pktqueue_node, tree_hook);
 }
 
 int pktqueue_add(struct pktqueue *queue, struct session_entry *session,
 		struct packet *pkt)
 {
-	struct packet_node *node;
+	struct pktqueue_node *node;
 
 	/* Note: this if assumes ICMP errors don't reach this code. */
 	if (session->l4_proto != L4PROTO_TCP)
 		return 0;
 
-	node = kmalloc(sizeof(*node), GFP_ATOMIC);
+	node = wkmalloc(struct pktqueue_node, GFP_ATOMIC);
 	if (!node) {
 		log_debug("Allocation of packet node failed.");
 		return -ENOMEM;
@@ -135,14 +155,14 @@ int pktqueue_add(struct pktqueue *queue, struct session_entry *session,
 		log_debug("Too many IPv4-initiated TCP connections.");
 		/* Fall back to assume there's no Simultaneous Open. */
 		icmp64_send(&node->pkt, ICMPERR_PORT_UNREACHABLE, 0);
-		kfree(node);
+		wkfree(struct pktqueue_node, node);
 		return -E2BIG;
 	}
 
 	if (__tree_add(queue, node)) {
 		spin_unlock_bh(&lock);
 		log_debug("Simultaneous Open already exists; ignoring packet.");
-		kfree(node);
+		wkfree(struct pktqueue_node, node);
 		return -EEXIST;
 	}
 	list_add_tail(&node->list_hook, &queue->node_list);
@@ -162,15 +182,15 @@ int pktqueue_add(struct pktqueue *queue, struct session_entry *session,
 	return 0;
 }
 
-static struct packet_node *__tree_find(struct pktqueue *queue, struct session_entry *session)
+static struct pktqueue_node *__tree_find(struct pktqueue *queue, struct session_entry *session)
 {
-	return rbtree_find(session, &queue->node_tree, compare_fn, struct packet_node,
+	return rbtree_find(session, &queue->node_tree, compare_fn, struct pktqueue_node,
 			tree_hook);
 }
 
 void pktqueue_rm(struct pktqueue *queue, struct session_entry *session)
 {
-	struct packet_node *node;
+	struct pktqueue_node *node;
 
 	/* Note: this if assumes ICMP errors don't reach this code. */
 	if (session->l4_proto != L4PROTO_TCP)
@@ -188,14 +208,14 @@ void pktqueue_rm(struct pktqueue *queue, struct session_entry *session)
 
 	session_put(node->session, false);
 	kfree_skb(node->pkt.skb);
-	kfree(node);
+	wkfree(struct pktqueue_node, node);
 
 	log_debug("Pkt queue - I just cancelled an ICMP error.");
 }
 
 void pktqueue_clean(struct pktqueue *queue)
 {
-	struct packet_node *node, *tmp;
+	struct pktqueue_node *node, *tmp;
 	const unsigned long TIMEOUT = get_timeout();
 	unsigned long next_timeout;
 	LIST_HEAD(icmps);

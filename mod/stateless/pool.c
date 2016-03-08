@@ -8,6 +8,7 @@
 #include "nat64/mod/common/rcu.h"
 #include "nat64/mod/common/tags.h"
 #include "nat64/mod/common/types.h"
+#include "nat64/mod/common/wkmalloc.h"
 
 struct pool_entry {
 	struct ipv4_prefix prefix;
@@ -61,10 +62,10 @@ static void __destroy(struct list_head *list)
 
 	list_for_each_safe(node, tmp, list) {
 		list_del(node);
-		kfree(get_entry(node));
+		wkfree(struct pool_entry, get_entry(node));
 	}
 
-	kfree(list);
+	__wkfree("IPv4 address pool list", list);
 }
 
 RCUTAG_USR /* Only because of GFP_KERNEL. Can be easily upgraded to FREE. */
@@ -72,7 +73,7 @@ static struct list_head *alloc_list(void)
 {
 	struct list_head *list;
 
-	list = kmalloc(sizeof(*list), GFP_KERNEL);
+	list = __wkmalloc("IPv4 address pool list", sizeof(*list), GFP_KERNEL);
 	if (!list)
 		return NULL;
 	INIT_LIST_HEAD(list);
@@ -86,13 +87,13 @@ int pool_init(struct addr4_pool **pool)
 	struct addr4_pool *result;
 	struct list_head *list;
 
-	result = kmalloc(sizeof(*result), GFP_KERNEL);
+	result = wkmalloc(struct addr4_pool, GFP_KERNEL);
 	if (!result)
 		return -ENOMEM;
 
 	list = alloc_list();
 	if (!list) {
-		kfree(result);
+		wkfree(struct addr4_pool, result);
 		return -ENOMEM;
 	}
 
@@ -114,7 +115,7 @@ static void destroy_pool(struct kref *refcounter)
 	struct addr4_pool *pool;
 	pool = container_of(refcounter, typeof(*pool), refcounter);
 	__destroy(rcu_dereference_raw(pool->list));
-	kfree(pool);
+	wkfree(struct addr4_pool, pool);
 }
 
 void pool_put(struct addr4_pool *pool)
@@ -169,7 +170,7 @@ int pool_add(struct addr4_pool *pool, struct ipv4_prefix *prefix, bool force)
 		goto end;
 	}
 
-	entry = kmalloc(sizeof(*entry), GFP_KERNEL);
+	entry = wkmalloc(struct pool_entry, GFP_KERNEL);
 	if (!entry) {
 		error = -ENOMEM;
 		goto end;
@@ -220,7 +221,7 @@ int pool_rm(struct addr4_pool *pool, struct ipv4_prefix *prefix)
 			list_del_rcu(&entry->list_hook);
 			mutex_unlock(&lock);
 			synchronize_rcu_bh();
-			kfree(entry);
+			wkfree(struct pool_entry, entry);
 			return 0;
 		}
 	}

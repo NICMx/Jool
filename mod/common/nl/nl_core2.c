@@ -6,6 +6,7 @@
 #include "nat64/common/config.h"
 #include "nat64/common/genetlink.h"
 #include "nat64/mod/common/types.h"
+#include "nat64/mod/common/wkmalloc.h"
 #include "nat64/mod/common/nl/nl_common.h"
 #include "nat64/mod/common/nl/nl_handler.h"
 
@@ -133,7 +134,7 @@ int __nlbuffer_init(struct nlcore_buffer *buffer, size_t capacity)
 
 	buffer->len = 0;
 	buffer->capacity = capacity;
-	buffer->data = kmalloc(capacity, GFP_ATOMIC);
+	buffer->data = __wkmalloc("nlcore_buffer.data", capacity, GFP_ATOMIC);
 	if (!buffer->data) {
 		log_err("Could not allocate memory for nl_core_buffer!");
 		return -ENOMEM;
@@ -173,7 +174,7 @@ int nlbuffer_init_response(struct nlcore_buffer *buffer, struct genl_info *info,
 
 void nlbuffer_free(struct nlcore_buffer *buffer)
 {
-	kfree(buffer->data);
+	__wkfree("nlcore_buffer.data", buffer->data);
 }
 
 int nlbuffer_write(struct nlcore_buffer *buffer, void *data, size_t data_size)
@@ -297,7 +298,7 @@ int nlcore_respond_error(struct genl_info *info, int error_code)
 end_full:
 	nlbuffer_free(&buffer);
 end_simple:
-	kfree(error_msg);
+	__wkfree("Error msg out", error_msg);
 	return error;
 }
 

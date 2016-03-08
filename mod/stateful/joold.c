@@ -3,6 +3,7 @@
 #include "nat64/common/constants.h"
 #include "nat64/common/session.h"
 #include "nat64/common/str_utils.h"
+#include "nat64/mod/common/wkmalloc.h"
 #include "nat64/mod/common/nl/nl_core2.h"
 #include "nat64/mod/stateful/session/db.h"
 #include "nat64/mod/stateful/bib/db.h"
@@ -208,7 +209,7 @@ struct joold_queue *joold_create(void)
 {
 	struct joold_queue *queue;
 
-	queue = kmalloc(sizeof(struct joold_queue), GFP_KERNEL);
+	queue = wkmalloc(struct joold_queue, GFP_KERNEL);
 	if (!queue)
 		return NULL;
 
@@ -233,7 +234,7 @@ void joold_destroy(struct joold_queue *queue)
 {
 	del_timer_sync(&queue->timer);
 	free_list(&queue->sessions);
-	kfree(queue);
+	wkfree(struct joold_queue, queue);
 }
 
 void joold_config_copy(struct joold_queue *queue, struct joold_config *config)
@@ -307,10 +308,10 @@ void joold_add_session(struct joold_queue *queue, struct session_entry *entry)
 		goto end;
 
 	entry_copy->session.l4_proto = entry->l4_proto;
-	entry_copy->session.local4 = entry->local4;
-	entry_copy->session.local6 = entry->local6;
-	entry_copy->session.remote4 = entry->remote4;
-	entry_copy->session.remote6 = entry->remote6;
+	entry_copy->session.local4 = entry->src4;
+	entry_copy->session.local6 = entry->dst6;
+	entry_copy->session.remote4 = entry->dst4;
+	entry_copy->session.remote6 = entry->src6;
 	entry_copy->session.state = entry->state;
 
 	update_time = jiffies_to_msecs(jiffies - entry->update_time);
@@ -432,14 +433,14 @@ static enum session_fate collision_cb(struct session_entry *old, void *arg)
 
 	log_err("We're out of sync: Incoming %s session entry %pI6c#%u|%pI6c#%u|%pI4#%u|%pI4#%u collides with DB entry %pI6c#%u|%pI6c#%u|%pI4#%u|%pI4#%u.",
 			l4proto_to_string(new->l4_proto),
-			&new->remote6.l3, new->remote6.l4,
-			&new->local6.l3, new->local6.l4,
-			&new->local4.l3, new->local4.l4,
-			&new->remote4.l3, new->remote4.l4,
-			&old->remote6.l3, old->remote6.l4,
-			&old->local6.l3, old->local6.l4,
-			&old->local4.l3, old->local4.l4,
-			&old->remote4.l3, old->remote4.l4);
+			&new->src6.l3, new->src6.l4,
+			&new->dst6.l3, new->dst6.l4,
+			&new->src4.l3, new->src4.l4,
+			&new->dst4.l3, new->dst4.l4,
+			&old->src6.l3, old->src6.l4,
+			&old->dst6.l3, old->dst6.l4,
+			&old->src4.l3, old->src4.l4,
+			&old->dst4.l3, old->dst4.l4);
 	params->result = -EINVAL;
 	return FATE_PRESERVE;
 }

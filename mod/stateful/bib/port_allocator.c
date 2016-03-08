@@ -3,6 +3,7 @@
 #include <crypto/md5.h>
 #include <linux/crypto.h>
 #include "nat64/common/str_utils.h"
+#include "nat64/mod/common/wkmalloc.h"
 #include "nat64/mod/common/rfc6145/6to4.h"
 #include "nat64/mod/stateful/bib/db.h"
 #include "nat64/mod/stateful/pool4/db.h"
@@ -25,7 +26,7 @@ int palloc_init(void)
 	if (secret_key_len > 128)
 		secret_key_len = 128;
 
-	secret_key = kmalloc(secret_key_len, GFP_KERNEL);
+	secret_key = __wkmalloc("Secrey key", secret_key_len, GFP_KERNEL);
 	if (!secret_key)
 		return -ENOMEM;
 	get_random_bytes(secret_key, secret_key_len);
@@ -40,7 +41,7 @@ int palloc_init(void)
 		error = PTR_ERR(tfm);
 		log_warn_once("Failed to load transform for MD5; errcode %d",
 				error);
-		kfree(secret_key);
+		__wkfree("Secret key", secret_key);
 		return error;
 	}
 
@@ -50,7 +51,7 @@ int palloc_init(void)
 void palloc_destroy(void)
 {
 	crypto_free_hash(tfm);
-	kfree(secret_key);
+	__wkfree("Secret key", secret_key);
 }
 
 void build_scatterlist(const struct tuple *tuple6, __u16 f_args,

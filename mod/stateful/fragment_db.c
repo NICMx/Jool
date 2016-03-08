@@ -146,13 +146,13 @@ struct fragdb *fragdb_create(void)
 	struct fragdb *db;
 	int error;
 
-	db = kmalloc(sizeof(struct fragdb), GFP_KERNEL);
+	db = wkmalloc(struct fragdb, GFP_KERNEL);
 	if (!db)
 		return NULL;
 
 	error = fragdb_table_init(&db->table, equals_function, hash_function);
 	if (error) {
-		kfree(db);
+		wkfree(struct fragdb, db);
 		return NULL;
 	}
 
@@ -180,7 +180,7 @@ static void fragdb_release(struct kref *ref)
 	struct fragdb *db;
 	db = container_of(ref, struct fragdb, ref);
 	fragdb_table_empty(&db->table, buffer_dealloc);
-	kfree(db);
+	wkfree(struct fragdb, db);
 }
 
 void fragdb_put(struct fragdb *db)

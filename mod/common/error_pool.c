@@ -4,6 +4,7 @@
 #include <linux/printk.h>
 #include "nat64/mod/common/error_pool.h"
 #include "nat64/mod/common/types.h"
+#include "nat64/mod/common/wkmalloc.h"
 
 /*
  * @file
@@ -35,8 +36,8 @@ static void flush_list(void)
 	while (!list_empty(&db)) {
 		node = list_first_entry(&db, struct error_node, prev_next);
 		list_del(&node->prev_next);
-		kfree(node->msg);
-		kfree(node);
+		__wkfree("error_code.msg", node->msg);
+		wkfree(struct error_node, node);
 	}
 }
 
@@ -58,16 +59,16 @@ int error_pool_add_message(char *msg)
 	if (!activated)
 		return 0;
 
-	node = kmalloc(sizeof(struct error_node), GFP_ATOMIC);
+	node = wkmalloc(struct error_node, GFP_ATOMIC);
 	if (!node) {
 		pr_err("Could not allocate memory to store an error pool node!\n") ;
 		return -ENOMEM;
 	}
 
-	node->msg = kmalloc(strlen(msg) + 1, GFP_ATOMIC);
+	node->msg = __wkmalloc("error_code.msg", strlen(msg) + 1, GFP_ATOMIC);
 	if (!node->msg) {
 		pr_err("Could not allocate memory to store an error pool message!\n") ;
-		kfree(node);
+		wkfree(struct error_node, node);
 		return -ENOMEM;
 	}
 
@@ -90,7 +91,7 @@ int error_pool_get_message(char **out_message, size_t *msg_len)
 		return -EINVAL;
 	}
 
-	(*out_message) = kmalloc(msg_size + 1, GFP_KERNEL);
+	(*out_message) = __wkmalloc("Error msg out", msg_size + 1, GFP_KERNEL);
 	if (!(*out_message)) {
 		pr_err("Could not allocate the error pool message!\n") ;
 		return -ENOMEM;
@@ -103,8 +104,8 @@ int error_pool_get_message(char **out_message, size_t *msg_len)
 		strcpy(buffer_pointer, node->msg);
 		buffer_pointer += strlen(node->msg);
 		list_del(&(node->prev_next));
-		kfree(node->msg);
-		kfree(node);
+		__wkfree("error_code.msg", node->msg);
+		wkfree(struct error_node, node);
 	}
 
 	buffer_pointer[0] = '\0';

@@ -205,13 +205,13 @@ bool ASSERT_SESSION(struct session_entry *expected,
 
 	if (expected->l4_proto != actual->l4_proto)
 		goto fail;
-	if (!taddr6_equals(&expected->remote6, &actual->remote6))
+	if (!taddr6_equals(&expected->src6, &actual->src6))
 		goto fail;
-	if (!taddr6_equals(&expected->local6, &actual->local6))
+	if (!taddr6_equals(&expected->dst6, &actual->dst6))
 		goto fail;
-	if (!taddr4_equals(&expected->local4, &actual->local4))
+	if (!taddr4_equals(&expected->src4, &actual->src4))
 		goto fail;
-	if (!taddr4_equals(&expected->remote4, &actual->remote4))
+	if (!taddr4_equals(&expected->dst4, &actual->dst4))
 		goto fail;
 
 	return true;

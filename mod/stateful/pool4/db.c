@@ -6,6 +6,7 @@
 #include "nat64/mod/common/rcu.h"
 #include "nat64/mod/common/types.h"
 #include "nat64/mod/common/tags.h"
+#include "nat64/mod/common/wkmalloc.h"
 #include "nat64/mod/stateful/pool4/empty.h"
 #include "nat64/mod/stateful/pool4/table.h"
 
@@ -46,7 +47,7 @@ static struct hlist_head *init_hlist(unsigned int size)
 	struct hlist_head *result;
 	unsigned int i;
 
-	result = kmalloc(size * sizeof(*result), GFP_KERNEL);
+	result = __wkmalloc("pool4 hlist", size * sizeof(*result), GFP_KERNEL);
 	if (!result)
 		return NULL;
 	for (i = 0; i < size; i++)
@@ -89,19 +90,19 @@ int pool4db_init(struct pool4 **pool, unsigned int size)
 	struct hlist_head *hlist;
 	int error;
 
-	result = kmalloc(sizeof(*result), GFP_KERNEL);
+	result = wkmalloc(struct pool4, GFP_KERNEL);
 	if (!result)
 		return -ENOMEM;
 
 	error = init_power(result, size);
 	if (error) {
-		kfree(result);
+		wkfree(struct pool4, result);
 		return error;
 	}
 	result->tables = 0;
 	hlist = init_hlist(slots(result));
 	if (!hlist) {
-		kfree(result);
+		wkfree(struct pool4, result);
 		return -ENOMEM;
 	}
 	RCU_INIT_POINTER(result->db, hlist);
@@ -130,7 +131,7 @@ static void __destroy(struct hlist_head *db, unsigned int db_len)
 		}
 	}
 
-	kfree(db);
+	__wkfree("pool4 hlist", db);
 }
 
 static void release(struct kref *refcounter)
@@ -138,7 +139,7 @@ static void release(struct kref *refcounter)
 	struct pool4 *pool;
 	pool = container_of(refcounter, typeof(*pool), refcounter);
 	__destroy(rcu_dereference_raw(pool->db), slots(pool));
-	kfree(pool);
+	wkfree(struct pool4, pool);
 }
 
 void pool4db_put(struct pool4 *pool)

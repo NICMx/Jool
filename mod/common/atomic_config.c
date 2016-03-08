@@ -2,6 +2,7 @@
 
 #include "nat64/mod/common/nl/global.h"
 #include "nat64/mod/common/pool6.h"
+#include "nat64/mod/common/wkmalloc.h"
 #include "nat64/mod/stateless/eam.h"
 #include "nat64/mod/stateless/pool.h"
 #include "nat64/mod/stateful/fragment_db.h"
@@ -21,7 +22,7 @@ struct config_candidate *cfgcandidate_create(void)
 {
 	struct config_candidate *candidate;
 
-	candidate = kmalloc(sizeof(*candidate), GFP_KERNEL);
+	candidate = wkmalloc(struct config_candidate, GFP_KERNEL);
 	if (!candidate)
 		return NULL;
 
@@ -38,7 +39,7 @@ void cfgcandidate_get(struct config_candidate *candidate)
 static void candidate_clean(struct config_candidate *candidate)
 {
 	if (candidate->global) {
-		kfree(candidate->global);
+		wkfree(struct full_config, candidate->global);
 		candidate->global = NULL;
 	}
 	if (candidate->pool6) {
@@ -75,7 +76,7 @@ static void candidate_destroy(struct kref *refcount)
 	struct config_candidate *candidate;
 	candidate = container_of(refcount, typeof(*candidate), refcount);
 	candidate_clean(candidate);
-	kfree(candidate);
+	wkfree(struct config_candidate, candidate);
 }
 
 void cfgcandidate_put(struct config_candidate *candidate)
@@ -95,7 +96,7 @@ static int handle_global(struct xlator *jool, void *payload, __u32 payload_len)
 
 	config = jool->newcfg->global;
 	if (!config) {
-		config = kmalloc(sizeof(*config), GFP_KERNEL);
+		config = wkmalloc(struct full_config, GFP_KERNEL);
 		if (!config)
 			return -ENOMEM;
 		xlator_copy_config(jool, config);
@@ -330,7 +331,7 @@ static int commit(struct xlator *jool)
 		bibdb_config_set(jool->nat64.bib, &remnants->bib);
 		sessiondb_config_set(jool->nat64.session, &remnants->session);
 		fragdb_config_set(jool->nat64.frag, &remnants->frag);
-		kfree(remnants);
+		wkfree(struct full_config, remnants);
 	}
 
 	log_debug("Configuration replaced.");

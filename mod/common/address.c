@@ -1,7 +1,6 @@
 #include "nat64/mod/common/address.h"
 #include "nat64/mod/common/types.h"
 #include <linux/inet.h>
-#include <net/ipv6.h>
 
 int prefix6_parse(char *str, struct ipv6_prefix *result)
 {
@@ -41,86 +40,26 @@ fail:
 	return -EINVAL;
 }
 
-bool addr4_equals(const struct in_addr *expected, const struct in_addr *actual)
+bool taddr6_equals(const struct ipv6_transport_addr *a,
+		const struct ipv6_transport_addr *b)
 {
-	if (expected == actual)
-		return true;
-	if (expected == NULL || actual == NULL)
-		return false;
-	if (expected->s_addr != actual->s_addr)
-		return false;
-
-	return true;
+	return addr6_equals(&a->l3, &b->l3) && (a->l4 == b->l4);
 }
 
-bool addr6_equals(const struct in6_addr *expected, const struct in6_addr *actual)
+bool taddr4_equals(const struct ipv4_transport_addr *a,
+		const struct ipv4_transport_addr *b)
 {
-	if (expected == actual)
-		return true;
-	if (expected == NULL || actual == NULL)
-		return false;
-	if (!ipv6_addr_equal(expected, actual))
-		return false;
-
-	return true;
+	return addr4_equals(&a->l3, &b->l3) && (a->l4 == b->l4);
 }
 
-bool taddr4_equals(const struct ipv4_transport_addr *expected,
-		const struct ipv4_transport_addr *actual)
+bool prefix6_equals(const struct ipv6_prefix *a, const struct ipv6_prefix *b)
 {
-	if (expected == actual)
-		return true;
-	if (expected == NULL || actual == NULL)
-		return false;
-	if (expected->l3.s_addr != actual->l3.s_addr)
-		return false;
-	if (expected->l4 != actual->l4)
-		return false;
-
-	return true;
+	return addr6_equals(&a->address, &b->address) && (a->len == b->len);
 }
 
-bool taddr6_equals(const struct ipv6_transport_addr *expected,
-		const struct ipv6_transport_addr *actual)
+bool prefix4_equals(const struct ipv4_prefix *a, const struct ipv4_prefix *b)
 {
-	if (expected == actual)
-		return true;
-	if (expected == NULL || actual == NULL)
-		return false;
-	if (!ipv6_addr_equal(&expected->l3, &actual->l3))
-		return false;
-	if (expected->l4 != actual->l4)
-		return false;
-
-	return true;
-}
-
-bool prefix6_equals(const struct ipv6_prefix *expected, const struct ipv6_prefix *actual)
-{
-	if (expected == actual)
-		return true;
-	if (expected == NULL || actual == NULL)
-		return false;
-	if (!ipv6_addr_equal(&expected->address, &actual->address))
-		return false;
-	if (expected->len != actual->len)
-		return false;
-
-	return true;
-}
-
-bool prefix4_equals(const struct ipv4_prefix *expected, const struct ipv4_prefix *actual)
-{
-	if (expected == actual)
-		return true;
-	if (expected == NULL || actual == NULL)
-		return false;
-	if (expected->address.s_addr != actual->address.s_addr)
-		return false;
-	if (expected->len != actual->len)
-		return false;
-
-	return true;
+	return addr4_equals(&a->address, &b->address) && (a->len == b->len);
 }
 
 static __u32 get_prefix4_mask(const struct ipv4_prefix *prefix)

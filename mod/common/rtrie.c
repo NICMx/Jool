@@ -1,6 +1,6 @@
 #include "nat64/mod/common/rtrie.h"
 #include "nat64/mod/common/types.h"
-#include <linux/slab.h>
+#include "nat64/mod/common/wkmalloc.h"
 
 #define deref_reader(node) \
 	rcu_dereference_bh(node)
@@ -19,10 +19,10 @@ static struct rtrie_node *create_inode(struct rtrie_key *key,
 		struct rtrie_node *right_child)
 {
 	struct rtrie_node *inode;
-	__u8 value_bytes;
+	__u8 key_len;
 
-	value_bytes = bits_to_bytes(key->len);
-	inode = kmalloc(sizeof(*inode) + value_bytes, GFP_ATOMIC);
+	key_len = bits_to_bytes(key->len);
+	inode = __wkmalloc("Rtrie node", sizeof(*inode) + key_len, GFP_ATOMIC);
 	if (!inode)
 		return NULL;
 
@@ -33,7 +33,7 @@ static struct rtrie_node *create_inode(struct rtrie_key *key,
 	INIT_LIST_HEAD(&inode->list_hook);
 	inode->key.bytes = (__u8 *) (inode + 1);
 	inode->key.len = key->len;
-	memcpy(inode->key.bytes, key->bytes, value_bytes);
+	memcpy(inode->key.bytes, key->bytes, key_len);
 
 	return inode;
 }
@@ -43,7 +43,7 @@ static struct rtrie_node *create_leaf(void *content, size_t content_len,
 {
 	struct rtrie_node *leaf;
 
-	leaf = kmalloc(sizeof(*leaf) + content_len, GFP_ATOMIC);
+	leaf = __wkmalloc("Rtrie node", sizeof(*leaf) + content_len, GFP_ATOMIC);
 	if (!leaf)
 		return NULL;
 
@@ -211,7 +211,7 @@ static void swap_nodes(struct rtrie *trie, struct rtrie_node *old,
 	list_add(&new->list_hook, &trie->list);
 	list_del(&old->list_hook);
 
-	kfree(old);
+	__wkfree("Rtrie node", old);
 }
 
 static int add_to_root(struct rtrie *trie, struct rtrie_node *new)
@@ -353,7 +353,7 @@ int rtrie_add(struct rtrie *trie, void *value, size_t key_offset, __u8 key_len)
 			swap_nodes(trie, parent, new);
 			return 0;
 		}
-		kfree(new);
+		__wkfree("Rtrie node", new);
 		return -EEXIST;
 	}
 
@@ -483,7 +483,7 @@ int rtrie_rm(struct rtrie *trie, struct rtrie_key *key)
 		deref_updater(trie, new->right)->parent = new;
 		list_add(&new->list_hook, &trie->list);
 		list_del(&node->list_hook);
-		kfree(node);
+		__wkfree("Rtrie node", node);
 		return 0;
 	}
 
@@ -501,7 +501,7 @@ int rtrie_rm(struct rtrie *trie, struct rtrie_key *key)
 			synchronize_rcu_bh();
 			deref_updater(trie, node->left)->parent = parent;
 			list_del(&node->list_hook);
-			kfree(node);
+			__wkfree("Rtrie node", node);
 			return 0;
 		}
 
@@ -510,14 +510,14 @@ int rtrie_rm(struct rtrie *trie, struct rtrie_key *key)
 			synchronize_rcu_bh();
 			deref_updater(trie, node->right)->parent = parent;
 			list_del(&node->list_hook);
-			kfree(node);
+			__wkfree("Rtrie node", node);
 			return 0;
 		}
 
 		rcu_assign_pointer(*parent_ptr, NULL);
 		synchronize_rcu_bh();
 		list_del(&node->list_hook);
-		kfree(node);
+		__wkfree("Rtrie node", node);
 
 		node = parent;
 	} while (node && node->color == COLOR_BLACK);
@@ -545,7 +545,7 @@ void rtrie_flush(struct rtrie *trie)
 
 	list_for_each_entry_safe(node, tmp_node, &tmp_list, list_hook) {
 		list_del(&node->list_hook);
-		kfree(node);
+		__wkfree("Rtrie node", node);
 		i++;
 	}
 

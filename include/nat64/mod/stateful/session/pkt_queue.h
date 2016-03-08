@@ -46,20 +46,12 @@
 #include "nat64/mod/common/packet.h"
 #include "nat64/mod/stateful/session/entry.h"
 
-struct pktqueue {
-	struct list_head node_list;
-	/** The same packets, sorted by IPv4 identifiers. */
-	struct rb_root node_tree;
-	/** Current number of packets in the database. */
-	int node_count;
-
-	unsigned int capacity;
-};
+struct pktqueue;
 
 /**
  * Call during initialization for the remaining functions to work properly.
  */
-void pktqueue_init(struct pktqueue *queue);
+struct pktqueue *pktqueue_create(void);
 /**
  * Call during destruction to avoid memory leaks.
  */

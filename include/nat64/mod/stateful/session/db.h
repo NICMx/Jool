@@ -22,11 +22,11 @@ struct sessiondb {
 	/** The session table for ICMP conversations. */
 	struct session_table icmp;
 	/** Packet storage for simultaneous open of TCP connections. */
-	struct pktqueue pkt_queue;
+	struct pktqueue *pkt_queue;
 
 	struct joold_queue *joold;
 
-	struct kref refcounter;
+	struct kref refs;
 };
 
 int sessiondb_init(struct sessiondb **db);

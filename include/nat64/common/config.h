@@ -470,10 +470,10 @@ struct bib_entry_usr {
  * See "struct session_entry" for documentation on the fields.
  */
 struct session_entry_usr {
-	struct ipv6_transport_addr remote6;
-	struct ipv6_transport_addr local6;
-	struct ipv4_transport_addr local4;
-	struct ipv4_transport_addr remote4;
+	struct ipv6_transport_addr src6;
+	struct ipv6_transport_addr dst6;
+	struct ipv4_transport_addr src4;
+	struct ipv4_transport_addr dst4;
 	__u64 dying_time;
 	__u8 state;
 };

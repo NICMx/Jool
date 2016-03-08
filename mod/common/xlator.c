@@ -5,6 +5,7 @@
 #include "nat64/mod/common/atomic_config.h"
 #include "nat64/mod/common/pool6.h"
 #include "nat64/mod/common/types.h"
+#include "nat64/mod/common/wkmalloc.h"
 #include "nat64/mod/stateless/blacklist4.h"
 #include "nat64/mod/stateless/eam.h"
 #include "nat64/mod/stateless/rfc6791.h"
@@ -70,7 +71,7 @@ static int exit_net(struct net *ns)
 
 			synchronize_rcu_bh();
 
-			kfree(instance);
+			wkfree(struct jool_instance, instance);
 			return 0;
 		}
 	}
@@ -97,7 +98,7 @@ int xlator_init(void)
 	struct list_head *list;
 	int error;
 
-	list = kmalloc(sizeof(*list), GFP_KERNEL);
+	list = __wkmalloc("xlator DB", sizeof(struct list_head), GFP_KERNEL);
 	if (!list)
 		return -ENOMEM;
 	INIT_LIST_HEAD(list);
@@ -105,7 +106,7 @@ int xlator_init(void)
 
 	error = register_pernet_subsys(&joolns_ops);
 	if (error) {
-		kfree(list);
+		__wkfree("xlator DB", list);
 		return error;
 	}
 
@@ -127,9 +128,9 @@ void xlator_destroy(void)
 	list = rcu_dereference_raw(pool);
 	list_for_each_entry_safe(instance, tmp, list, list_hook) {
 		xlator_put(&instance->jool);
-		kfree(instance);
+		wkfree(struct jool_instance, instance);
 	}
-	kfree(list);
+	__wkfree("xlator DB", list);
 }
 
 static int init_siit(struct xlator *jool)
@@ -234,7 +235,7 @@ int xlator_add(struct xlator *result)
 		return PTR_ERR(ns);
 	}
 
-	instance = kmalloc(sizeof(struct jool_instance), GFP_KERNEL);
+	instance = wkmalloc(struct jool_instance, GFP_KERNEL);
 	if (!instance) {
 		put_net(ns);
 		return -ENOMEM;
@@ -246,7 +247,7 @@ int xlator_add(struct xlator *result)
 			: init_nat64(&instance->jool);
 	if (error) {
 		put_net(ns);
-		kfree(instance);
+		wkfree(struct jool_instance, instance);
 		return error;
 	}
 
@@ -278,7 +279,7 @@ int xlator_add(struct xlator *result)
 mutex_fail:
 	mutex_unlock(&lock);
 	xlator_put(&instance->jool);
-	kfree(instance);
+	wkfree(struct jool_instance, instance);
 	return error;
 }
 
@@ -319,7 +320,7 @@ int xlator_replace(struct xlator *jool)
 	struct jool_instance *old;
 	struct jool_instance *new;
 
-	new = kmalloc(sizeof(*new), GFP_KERNEL);
+	new = wkmalloc(struct jool_instance, GFP_KERNEL);
 	if (!new)
 		return -ENOMEM;
 	memcpy(&new->jool, jool, sizeof(*jool));
@@ -336,7 +337,7 @@ int xlator_replace(struct xlator *jool)
 
 			synchronize_rcu_bh();
 
-			kfree(old);
+			wkfree(struct jool_instance, old);
 			return 0;
 		}
 	}

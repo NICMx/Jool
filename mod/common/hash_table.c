@@ -30,7 +30,7 @@
  */
 
 #include "nat64/mod/common/types.h"
-#include <linux/slab.h>
+#include "nat64/mod/common/wkmalloc.h"
 
 /********************************************
  * Macros.
@@ -197,7 +197,7 @@ static int PUT(struct HTABLE_NAME *table, KEY_TYPE *key, VALUE_TYPE *value)
 	 * (Because we'll later need the key available during lookups.)
 	 * We generate it here.
 	 */
-	key_value = kmalloc(sizeof(struct KEY_VALUE_PAIR), GFP_ATOMIC);
+	key_value = wkmalloc(struct KEY_VALUE_PAIR, GFP_ATOMIC);
 	if (!key_value) {
 		log_debug("Could not allocate the key-value struct.");
 		return -ENOMEM;
@@ -246,7 +246,7 @@ static bool REMOVE(struct HTABLE_NAME *table, KEY_TYPE *key, void (*destructor)(
 
 	if (destructor)
 		destructor(key_value->value);
-	kfree(key_value);
+	wkfree(struct KEY_VALUE_PAIR, key_value);
 
 	return true;
 }
@@ -274,7 +274,7 @@ static void EMPTY(struct HTABLE_NAME *table, void (*destructor)(VALUE_TYPE *))
 
 		if (destructor)
 			destructor(current_pair->value);
-		kfree(current_pair);
+		wkfree(struct KEY_VALUE_PAIR, current_pair);
 	}
 
 }

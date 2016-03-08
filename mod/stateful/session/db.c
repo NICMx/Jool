@@ -1,18 +1,19 @@
 #include "nat64/mod/stateful/session/db.h"
 
 #include "nat64/common/constants.h"
-#include "nat64/mod/common/types.h"
 #include "nat64/mod/common/config.h"
+#include "nat64/mod/common/types.h"
+#include "nat64/mod/common/wkmalloc.h"
 #include "nat64/mod/stateful/joold.h"
 #include "nat64/mod/stateful/session/table.h"
 #include "nat64/mod/stateful/session/pkt_queue.h"
 
 /**
- * One-liner to get the session table corresponding to the "l4_proto" protocol.
+ * One-liner to get the session table corresponding to the @proto protocol.
  */
-static struct session_table *get_table(struct sessiondb *db, l4_protocol l4_proto)
+static struct session_table *get_table(struct sessiondb *db, l4_protocol proto)
 {
-	switch (l4_proto) {
+	switch (proto) {
 	case L4PROTO_UDP:
 		return &db->udp;
 	case L4PROTO_TCP:
@@ -23,7 +24,7 @@ static struct session_table *get_table(struct sessiondb *db, l4_protocol l4_prot
 		break;
 	}
 
-	WARN(true, "Unsupported transport protocol: %u.", l4_proto);
+	WARN(true, "Unsupported transport protocol: %u.", proto);
 	return NULL;
 }
 
@@ -39,23 +40,28 @@ int sessiondb_init(struct sessiondb **db)
 {
 	struct sessiondb *result;
 
-	result = kmalloc(sizeof(*result), GFP_KERNEL);
+	result = wkmalloc(struct sessiondb, GFP_KERNEL);
 	if (!result)
 		return -ENOMEM;
 
 	result->joold = joold_create();
 	if (!result->joold) {
-		kfree(result);
+		wkfree(struct sessiondb, result);
 		return -ENOMEM;
 	}
 
-	sessiontable_init(&result->udp, UDP_DEFAULT, just_die, 0, NULL);
-	sessiontable_init(&result->tcp, TCP_EST, tcp_expired_cb,
-			TCP_TRANS, tcp_expired_cb);
-	sessiontable_init(&result->icmp, ICMP_DEFAULT, just_die, 0, NULL);
-	pktqueue_init(&result->pkt_queue);
+	result->pkt_queue = pktqueue_create();
+	if (!result->pkt_queue) {
+		joold_destroy(result->joold);
+		wkfree(struct sessiondb, result);
+		return -ENOMEM;
+	}
 
-	kref_init(&result->refcounter);
+	sessiontable_init(&result->udp, just_die, UDP_DEFAULT, 0);
+	sessiontable_init(&result->tcp, tcp_expired_cb, TCP_EST, TCP_TRANS);
+	sessiontable_init(&result->icmp, just_die, ICMP_DEFAULT, 0);
+
+	kref_init(&result->refs);
 
 	*db = result;
 	return 0;
@@ -63,32 +69,31 @@ int sessiondb_init(struct sessiondb **db)
 
 void sessiondb_get(struct sessiondb *db)
 {
-	kref_get(&db->refcounter);
+	kref_get(&db->refs);
 }
 
 static void release(struct kref *refcounter)
 {
 	struct sessiondb *db;
-	db = container_of(refcounter, typeof(*db), refcounter);
+	db = container_of(refcounter, typeof(*db), refs);
 
 	log_debug("Emptying the session tables...");
 
-	joold_destroy(db->joold);
-	pktqueue_destroy(&db->pkt_queue);
 	sessiontable_destroy(&db->udp);
 	sessiontable_destroy(&db->tcp);
 	sessiontable_destroy(&db->icmp);
+	pktqueue_destroy(db->pkt_queue);
+	joold_destroy(db->joold);
 
-	kfree(db);
+	wkfree(struct sessiondb, db);
 }
 
 /**
  * Note: This function can trigger destruction of BIB entries.
- * Always put sessions *BEFORE* BIB entries.
  */
 void sessiondb_put(struct sessiondb *db)
 {
-	kref_put(&db->refcounter, release);
+	kref_put(&db->refs, release);
 }
 
 void sessiondb_config_copy(struct sessiondb *db, struct session_config *config)
@@ -96,7 +101,7 @@ void sessiondb_config_copy(struct sessiondb *db, struct session_config *config)
 	sessiontable_config_copy(&db->tcp, config, L4PROTO_TCP);
 	sessiontable_config_copy(&db->udp, config, L4PROTO_UDP);
 	sessiontable_config_copy(&db->icmp, config, L4PROTO_ICMP);
-	pktqueue_config_copy(&db->pkt_queue, &config->pktqueue);
+	pktqueue_config_copy(db->pkt_queue, &config->pktqueue);
 	joold_config_copy(db->joold, &config->joold);
 }
 
@@ -105,7 +110,7 @@ void sessiondb_config_set(struct sessiondb *db, struct session_config *config)
 	sessiontable_config_set(&db->tcp, config, L4PROTO_TCP);
 	sessiontable_config_set(&db->udp, config, L4PROTO_UDP);
 	sessiontable_config_set(&db->icmp, config, L4PROTO_ICMP);
-	pktqueue_config_set(&db->pkt_queue, &config->pktqueue);
+	pktqueue_config_set(db->pkt_queue, &config->pktqueue);
 	joold_config_set(db->joold, &config->joold);
 }
 
@@ -116,7 +121,7 @@ int sessiondb_find(struct sessiondb *db, struct tuple *tuple,
 	struct session_table *table = get_table(db, tuple->l4_proto);
 	if (!table)
 		return -EINVAL;
-	return sessiontable_get(table, tuple, cb, cb_arg, result);
+	return sessiontable_find(table, tuple, cb, cb_arg, result);
 }
 
 bool sessiondb_allow(struct sessiondb *db, struct tuple *tuple4)
@@ -134,7 +139,7 @@ int sessiondb_add(struct sessiondb *db, struct session_entry *session,
 	if (!table)
 		return -EINVAL;
 
-	pktqueue_rm(&db->pkt_queue, session);
+	pktqueue_rm(db->pkt_queue, session);
 
 	error = sessiontable_add(table, session, cb, cb_args);
 	if (!error && !is_synch)
@@ -210,7 +215,7 @@ void sessiondb_clean(struct sessiondb *db, struct net *ns)
 	sessiontable_clean(&db->udp, ns);
 	sessiontable_clean(&db->tcp, ns);
 	sessiontable_clean(&db->icmp, ns);
-	pktqueue_clean(&db->pkt_queue);
+	pktqueue_clean(db->pkt_queue);
 }
 
 void sessiondb_flush(struct sessiondb *db)

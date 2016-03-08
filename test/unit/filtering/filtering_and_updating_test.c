@@ -98,15 +98,15 @@ static bool assert_session_exists(char *remote_addr6, u16 remote_port6,
 	if (!success)
 		return false;
 
-	success &= ASSERT_ADDR6(remote_addr6, &session->remote6.l3, "remote addr6");
-	success &= ASSERT_UINT(remote_port6, session->remote6.l4, "remote port6");
-	success &= ASSERT_ADDR6(local_addr6, &session->local6.l3, "local addr6");
-	success &= ASSERT_UINT(local_port6, session->local6.l4, "local port6");
-	success &= ASSERT_ADDR4(local_addr4, &session->local4.l3, "local addr4");
+	success &= ASSERT_ADDR6(remote_addr6, &session->src6.l3, "remote addr6");
+	success &= ASSERT_UINT(remote_port6, session->src6.l4, "remote port6");
+	success &= ASSERT_ADDR6(local_addr6, &session->dst6.l3, "local addr6");
+	success &= ASSERT_UINT(local_port6, session->dst6.l4, "local port6");
+	success &= ASSERT_ADDR4(local_addr4, &session->src4.l3, "local addr4");
 	/* Local port4 is unpredictable. */
-	success &= ASSERT_ADDR4(remote_addr4, &session->remote4.l3, "remote addr4");
+	success &= ASSERT_ADDR4(remote_addr4, &session->dst4.l3, "remote addr4");
 	if (proto != L4PROTO_ICMP)
-		success &= ASSERT_UINT(remote_port4, session->remote4.l4, "remote port4");
+		success &= ASSERT_UINT(remote_port4, session->dst4.l4, "remote port4");
 	success &= ASSERT_BOOL(true, session->bib != NULL, "Session's BIB");
 	success &= ASSERT_INT(proto, session->l4_proto, "Session's l4 proto");
 	success &= ASSERT_INT(state, session->state, "Session's state");
@@ -146,8 +146,8 @@ static int invert_tuple(struct tuple *tuple)
 		return -EEXIST;
 	}
 
-	tuple->src.addr4 = session->remote4;
-	tuple->dst.addr4 = session->local4;
+	tuple->src.addr4 = session->dst4;
+	tuple->dst.addr4 = session->src4;
 	tuple->l3_proto = L3PROTO_IPV4;
 
 	session_put(session, false);

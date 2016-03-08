@@ -13,10 +13,10 @@ static int session_entry_to_userspace(struct session_entry *entry, void *arg)
 	if (!entry->expirer)
 		return -EINVAL;
 
-	entry_usr.remote6 = entry->remote6;
-	entry_usr.local6 = entry->local6;
-	entry_usr.local4 = entry->local4;
-	entry_usr.remote4 = entry->remote4;
+	entry_usr.src6 = entry->src6;
+	entry_usr.dst6 = entry->dst6;
+	entry_usr.src4 = entry->src4;
+	entry_usr.dst4 = entry->dst4;
 	entry_usr.state = entry->state;
 
 	dying_time = entry->update_time + entry->expirer->timeout;

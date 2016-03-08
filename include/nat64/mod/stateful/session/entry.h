@@ -8,92 +8,89 @@
 
 /**
  * A row, intended to be part of one of the session tables.
- * The mapping between the connections, as perceived by both sides (IPv4 vs IPv6).
+ * An IPv6 connection and the IPv4 version of it once translated.
  *
  * Please note that modifications to this structure may need to cascade to
  * "struct session_entry_usr".
  *
- * TODO (performance) this structure is somewhat big (probably 128+ bytes) and there will be lots
- * of sessions in memory. Maybe turn l4_proto into a single-byte integer and remove some of the
- * transport addresses (since they can be extracted from bib).
+ * TODO (performance) this structure is somewhat big (probably 128+ bytes) and
+ * there will be lots of sessions in memory. Maybe turn l4_proto into a
+ * single-byte integer and remove some of the transport addresses (since they
+ * can be extracted from @bib).
  */
 struct session_entry {
 	/**
 	 * IPv6 version of the connection.
 	 *
-	 * The RFC always calls the remote IPv6 node's address the "Source" IPv6 address.
-	 * The prefix-based NAT64 address is always the "Destination" address.
-	 * That is regardless of translation direction, which looks awful in the IPv4-to-IPv6 pipeline.
-	 * We've decided to rename the "Source" address the "Remote" address. The "Destination" address
-	 * is here the "Local" address.
-	 * "Local" and "Remote" as in, from the NAT64's perspective.
+	 * "src" and "dst" are inherited names from the RFC. They are
+	 * unfortunate, as they only make sense in the 6-to-4 direction.
+	 *
+	 * @src6 is the remote IPv6 node's transport address.
+	 *     We used to call it "remote6".
+	 * @dst6 is the address the NAT64 is using to mask the IPv4 endpoint.
+	 *     We used to call it "local6".
 	 */
-	const struct ipv6_transport_addr remote6;
-	const struct ipv6_transport_addr local6;
+	const struct ipv6_transport_addr src6;
+	const struct ipv6_transport_addr dst6;
 
 	/**
 	 * IPv4 version of the connection.
 	 *
-	 * The RFC always calls the remote IPv4 node's address the "Destination" IPv4 address.
-	 * The pool NAT64 address is always the "Source" address.
-	 * That is regardless of translation direction, which looks awful in the IPv4-to-IPv6 pipeline.
-	 * We've decided to rename the "Source" address the "Local" address. The "Destination" address
-	 * is here the "Remote" address.
-	 * "Local" and "Remote" as in, from the NAT64's perspective.
+	 * "src" and "dst" are inherited names from the RFC. They are
+	 * unfortunate, as they only make sense in the 6-to-4 direction.
+	 *
+	 * @src4 is the address the NAT64 is using to mask the IPv6 endpoint.
+	 *     We used to call it "local4".
+	 * @dst4 is the remote IPv4 node's transport address.
+	 *     We used to call it "remote4".
 	 */
-	const struct ipv4_transport_addr local4;
-	const struct ipv4_transport_addr remote4;
+	const struct ipv4_transport_addr src4;
+	const struct ipv4_transport_addr dst4;
+
+	/** Transport protocol of the connection this session describes. */
+	const l4_protocol l4_proto;
+	/** Current TCP state. Only relevant if @l4_proto == L4PROTO_TCP. */
+	u_int8_t state;
 
 	/** Jiffy (from the epoch) this session was last updated/used. */
 	unsigned long update_time;
-	/** Jiffy which represents the moment in which this session was created. */
+	/** Jiffy at which this session was created. */
 	unsigned long creation_time;
+
+	/**
+	 * When the session is in the database, this chains it to its
+	 * corresponding expiration queue.
+	 * The code can otherwise use it for other purposes. The expirer
+	 * module, for example, uses it to chain sessions that need
+	 * post-processing after a spinlock release.
+	 */
+	struct list_head list_hook;
+	/** Timer supposed to delete this session when it expires. */
+	struct expire_timer *expirer;
 	/**
 	 * Owner bib of this session. Used for quick access during removal.
 	 * (when the session dies, the BIB might have to die too.)
 	 */
 	struct bib_entry *const bib;
 
-	/**
-	 * Number of active references to this entry, including the ones from the table it belongs to.
-	 * When this reaches zero, the entry is released from memory.
-	 */
-	struct kref refcounter;
-	/**
-	 * When the session is in the database, this chains it to its
-	 * corresponding expiration queue.
-	 * Otherwise, the code can use it for other purposes. The expirer
-	 * module, for example, uses it to chain sessions that need
-	 * post-processing after a spinlock release.
-	 */
-	struct list_head list_hook;
-	/**
-	 * Expiration timer who is supposed to delete this session when its death time is reached.
-	 */
-	struct expire_timer *expirer;
-	/**
-	 * Transport protocol of the table this entry is in.
-	 * Used to know which table the session should be removed from when expired.
-	 */
-	const l4_protocol l4_proto;
-
-	/** Current TCP state. Only relevant if l4_proto == L4PROTO_TCP. */
-	u_int8_t state;
-
-	/** Appends this entry to the database's IPv6 index. */
+	/** Appends this entry to the table's IPv6 index. */
 	struct rb_node tree6_hook;
-	/** Appends this entry to the database's IPv4 index. */
+	/** Appends this entry to the table's IPv4 index. */
 	struct rb_node tree4_hook;
+
+	/** Reference counter for releasing purposes. */
+	struct kref refs;
 };
 
 int session_init(void);
 void session_destroy(void);
 
-struct session_entry *session_create(const struct ipv6_transport_addr *remote6,
-		const struct ipv6_transport_addr *local6,
-		const struct ipv4_transport_addr *local4,
-		const struct ipv4_transport_addr *remote4,
-		l4_protocol l4_proto, struct bib_entry *bib);
+struct session_entry *session_create(const struct ipv6_transport_addr *src6,
+		const struct ipv6_transport_addr *dst6,
+		const struct ipv4_transport_addr *src4,
+		const struct ipv4_transport_addr *dst4,
+		l4_protocol l4_proto,
+		struct bib_entry *bib);
 struct session_entry *session_clone(struct session_entry *session);
 
 void session_get(struct session_entry *session);

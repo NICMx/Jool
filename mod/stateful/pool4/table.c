@@ -1,15 +1,15 @@
 #include "nat64/mod/stateful/pool4/table.h"
 #include "nat64/mod/common/address.h"
 #include "nat64/mod/common/types.h"
+#include "nat64/mod/common/wkmalloc.h"
 
-#include <linux/slab.h>
 #include <linux/rculist.h>
 
 struct pool4_table *pool4table_create(__u32 mark, enum l4_protocol proto)
 {
 	struct pool4_table *result;
 
-	result = kmalloc(sizeof(*result), GFP_KERNEL);
+	result = wkmalloc(struct pool4_table, GFP_KERNEL);
 	if (!result)
 		return NULL;
 
@@ -30,14 +30,14 @@ void pool4table_destroy(struct pool4_table *table)
 	list_for_each_entry_safe(addr, tmpa, &table->rows, list_hook) {
 		list_for_each_entry_safe(ports, tmpp, &addr->ports, list_hook) {
 			list_del(&ports->list_hook);
-			kfree(ports);
+			wkfree(struct pool4_ports, ports);
 		}
 
 		list_del(&addr->list_hook);
-		kfree(addr);
+		wkfree(struct pool4_addr, addr);
 	}
 
-	kfree(table);
+	wkfree(struct pool4_table, table);
 }
 
 static unsigned int count_ports(struct pool4_table *table)
@@ -76,7 +76,7 @@ static bool try_fusion(struct pool4_addr *addr, struct port_range *range)
 
 		if (fusion) {
 			fuse(&ports->range, &fusion->range, &fusion->range);
-			kfree(ports);
+			wkfree(struct pool4_ports, ports);
 		} else {
 			fuse(&ports->range, range, &ports->range);
 			fusion = ports;
@@ -98,7 +98,7 @@ static int add_ports(struct pool4_addr *addr, struct port_range *range)
 	if (try_fusion(addr, range))
 		return 0;
 
-	ports = kmalloc(sizeof(*ports), GFP_KERNEL);
+	ports = wkmalloc(struct pool4_ports, GFP_KERNEL);
 	if (!ports)
 		return -ENOMEM;
 	ports->range = *range;
@@ -126,7 +126,7 @@ static int add_sample(struct pool4_table *table, struct pool4_sample *sample)
 			return add_ports(addr, &sample->range);
 	}
 
-	addr = kmalloc(sizeof(*addr), GFP_KERNEL);
+	addr = wkmalloc(struct pool4_addr, GFP_KERNEL);
 	if (!addr)
 		return -ENOMEM;
 	addr->addr = sample->addr;
@@ -134,7 +134,7 @@ static int add_sample(struct pool4_table *table, struct pool4_sample *sample)
 
 	error = add_ports(addr, &sample->range);
 	if (error) {
-		kfree(addr);
+		wkfree(struct pool4_addr, addr);
 		return error;
 	}
 
@@ -251,8 +251,8 @@ static int rm_range(struct pool4_addr *addr, const struct port_range *rm)
 			}
 
 			synchronize_rcu_bh();
-			kfree(ports);
-			kfree(tmp);
+			wkfree(struct pool4_ports, ports);
+			wkfree(struct pool4_addr, tmp);
 			continue;
 		}
 
@@ -263,14 +263,14 @@ static int rm_range(struct pool4_addr *addr, const struct port_range *rm)
 				return -ENOMEM;
 			new2 = pool4_ports_create(rm->max + 1, ports->range.max);
 			if (!new2) {
-				kfree(new1);
+				wkfree(struct pool4_ports, new1);
 				return -ENOMEM;
 			}
 
 			list_del_rcu(&ports->list_hook);
 			list_add_tail_rcu(&new1->list_hook, &addr->ports);
 			list_add_tail_rcu(&new2->list_hook, &addr->ports);
-			kfree(ports);
+			wkfree(struct pool4_ports, ports);
 			continue;
 		}
 
