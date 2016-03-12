@@ -3,22 +3,16 @@
 
 bin_PROGRAMS = joold
 joold_SOURCES = \
-	hdr.c \
 	joold.c \
 	modsocket.c \
 	netsocket.c \
+	../../common/netlink/config.c \
+	../../common/stateful/xlat.c \
 	../common/cJSON.c \
 	../common/file.c \
 	../common/netlink2.c \
-	../common/str_utils.c \
-	../stateful/xlat.c
+	../common/str_utils.c
 
-#	jool_client.c \
-#	mcastutil.c \
-#	receiver.c \
-#	sender.c \
-#	argp/options.c
-	
 joold_LDADD = ${LIBNLGENL3_LIBS} ${LIBNL3_LIBS}
 joold_CFLAGS = -Wall -O2
 joold_CFLAGS += -I${srcdir}/../../include

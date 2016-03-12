@@ -1,6 +1,6 @@
 #include "nat64/mod/common/nl/eam.h"
 
-#include "nat64/mod/common/types.h"
+#include "nat64/common/types.h"
 #include "nat64/mod/common/nl/nl_common.h"
 #include "nat64/mod/common/nl/nl_core2.h"
 #include "nat64/mod/stateless/eam.h"
@@ -22,14 +22,14 @@ static int handle_eamt_display(struct eam_table *eamt, struct genl_info *info,
 
 	error = nlbuffer_init_response(&buffer, info, nlbuffer_response_max_size());
 	if (error)
-		 nlcore_respond_error(info, error);
+		 nlcore_respond(info, error);
 
 	prefix4 = request->display.prefix4_set ? &request->display.prefix4 : NULL;
 	error = eamt_foreach(eamt, eam_entry_to_userspace, &buffer, prefix4);
 	nlbuffer_set_pending_data(&buffer, error > 0);
 	error = (error >= 0)
 			? nlbuffer_send(info, &buffer)
-			: nlcore_respond_error(info, error);
+			: nlcore_respond(info, error);
 
 	nlbuffer_free(&buffer);
 	return error;
@@ -44,7 +44,7 @@ static int handle_eamt_count(struct eam_table *eamt, struct genl_info *info)
 
 	error = eamt_count(eamt, &count);
 	if (error)
-		return nlcore_respond_error(info, error);
+		return nlcore_respond(info, error);
 
 	return nlcore_respond_struct(info, &count, sizeof(count));
 }
@@ -91,7 +91,7 @@ int handle_eamt_config(struct xlator *jool, struct genl_info *info)
 
 	if (xlat_is_nat64()) {
 		log_err("Stateful NAT64 doesn't have an EAMT.");
-		return nlcore_respond_error(info, -EINVAL);
+		return nlcore_respond(info, -EINVAL);
 	}
 
 	jool_hdr = get_jool_hdr(info);
@@ -99,7 +99,7 @@ int handle_eamt_config(struct xlator *jool, struct genl_info *info)
 
 	error = validate_request_size(info, sizeof(*request));
 	if (error)
-		return nlcore_respond_error(info, error);
+		return nlcore_respond(info, error);
 
 	switch (jool_hdr->operation) {
 	case OP_DISPLAY:

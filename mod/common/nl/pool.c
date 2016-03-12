@@ -1,6 +1,6 @@
 #include "nat64/mod/common/nl/pool.h"
 
-#include "nat64/mod/common/types.h"
+#include "nat64/common/types.h"
 #include "nat64/mod/common/nl/nl_common.h"
 #include "nat64/mod/common/nl/nl_core2.h"
 #include "nat64/mod/stateless/pool.h"
@@ -21,14 +21,14 @@ static int handle_addr4pool_display(struct addr4_pool *pool,
 
 	error = nlbuffer_init_response(&buffer, info, nlbuffer_response_max_size());
 	if (error)
-		return nlcore_respond_error(info, error);
+		return nlcore_respond(info, error);
 
 	offset = request->display.offset_set ? &request->display.offset : NULL;
 	error = pool_foreach(pool, pool_to_usr, &buffer, offset);
 	nlbuffer_set_pending_data(&buffer, error > 0);
 	error = (error >= 0)
 			? nlbuffer_send(info, &buffer)
-			: nlcore_respond_error(info, error);
+			: nlcore_respond(info, error);
 
 	nlbuffer_free(&buffer);
 	return error;
@@ -43,7 +43,7 @@ static int handle_addr4pool_count(struct addr4_pool *pool,
 	log_debug("Returning address count.");
 	error = pool_count(pool, &count);
 	if (error)
-		return nlcore_respond_error(info, error);
+		return nlcore_respond(info, error);
 
 	return nlcore_respond_struct(info, &count, sizeof(count));
 }
@@ -85,7 +85,7 @@ static int handle_addr4pool(struct addr4_pool *pool, struct genl_info *info)
 
 	error = validate_request_size(info, sizeof(*request));
 	if (error)
-		return nlcore_respond_error(info, error);
+		return nlcore_respond(info, error);
 
 	switch (jool_hdr->operation) {
 	case OP_DISPLAY:
@@ -113,7 +113,7 @@ int handle_blacklist_config(struct xlator *jool, struct genl_info *info)
 {
 	if (xlat_is_nat64()) {
 		log_err("Stateful NAT64 doesn't have a blacklist pool.");
-		return nlcore_respond_error(info, -EINVAL);
+		return nlcore_respond(info, -EINVAL);
 	}
 
 	return handle_addr4pool(jool->siit.blacklist, info);
@@ -123,7 +123,7 @@ int handle_pool6791_config(struct xlator *jool, struct genl_info *info)
 {
 	if (xlat_is_nat64()) {
 		log_err("Stateful NAT64 doesn't have an RFC6791 pool.");
-		return nlcore_respond_error(info, -EINVAL);
+		return nlcore_respond(info, -EINVAL);
 	}
 
 	return handle_addr4pool(jool->siit.pool6791, info);

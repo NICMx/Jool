@@ -454,9 +454,9 @@ static verdict tcp_closed_state(struct xlation *state)
 	switch (pkt_l3_proto(pkt)) {
 	case L3PROTO_IPV6:
 		if (pkt_tcp_hdr(pkt)->syn) {
-			result = is_error(tcp_closed_v6_syn(state))
-					? VERDICT_DROP
-					: VERDICT_CONTINUE;
+			result = (tcp_closed_v6_syn(state) == 0)
+					? VERDICT_CONTINUE
+					: VERDICT_DROP;
 			goto syn_out;
 		}
 		break;

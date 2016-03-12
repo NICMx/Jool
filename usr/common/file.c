@@ -3,8 +3,7 @@
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
-
-#include "nat64/usr/types.h"
+#include "nat64/common/types.h"
 
 /**
  * Remember to free @result when you're done.

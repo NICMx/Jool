@@ -1,10 +1,10 @@
 #include "nat64/mod/common/xlator.h"
 
 #include <linux/sched.h>
+#include "nat64/common/types.h"
 #include "nat64/common/xlat.h"
 #include "nat64/mod/common/atomic_config.h"
 #include "nat64/mod/common/pool6.h"
-#include "nat64/mod/common/types.h"
 #include "nat64/mod/common/wkmalloc.h"
 #include "nat64/mod/stateless/blacklist4.h"
 #include "nat64/mod/stateless/eam.h"

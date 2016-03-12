@@ -22,28 +22,22 @@
 	#endif
 #endif
 
-/**
- * ID of Netlink messages Jool listens to.
- * This value was chosen at random, if I remember correctly.
- * TODO (next) you sure this is sane? 0x22 > 32.
- */
-#define MSG_TYPE_JOOL (0x10 + 2)
+#define GNL_JOOL_FAMILY_NAME (xlat_is_siit() ? "SIIT_Jool" : "NAT64_Jool")
+#define GNL_JOOLD_MULTICAST_GRP_NAME "joold"
 
-/**
- * ID of messages intended to return configuration to userspace.
- * ("set config" is intended to be read from the kernel's perspective).
- * This exists as an attempt to match Netlink's conventions; Jool doesn't really care about it.
- */
-#define MSG_SETCFG		0x11
-/**
- * ID of messages intended to update configuration.
- * ("get config" is intended to be read from the kernel's perspective).
- * This exists as an attempt to match Netlink's conventions; Jool doesn't really care about it.
- *
- * TODO (fine) Looks like nobody is using this. Jool's alignment to Netlink's conventions should
- * probably be rethought.
- */
-#define MSG_GETCFG		0x12
+enum genl_mc_group_ids {
+	JOOLD_MC_ID = (1 << 0),
+};
+
+enum genl_commands {
+	JOOL_COMMAND,
+};
+
+enum attributes {
+	ATTR_DUMMY,
+	ATTR_DATA,
+	__ATTR_MAX,
+};
 
 enum config_mode {
 	/** The current message is talking about global configuration values. */
@@ -177,20 +171,9 @@ struct request_hdr {
 	__u8 operation;
 };
 
-static inline void init_request_hdr(struct request_hdr *hdr,
-		enum config_mode mode,
-		enum config_operation operation)
-{
-	hdr->magic[0] = 'j';
-	hdr->magic[1] = 'o';
-	hdr->magic[2] = 'o';
-	hdr->magic[3] = 'l';
-	hdr->type = xlat_is_nat64() ? 'n' : 's'; /* 'n'at64 or 's'iit. */
-	hdr->castness = 'u';
-	hdr->version = xlat_version();
-	hdr->mode = mode;
-	hdr->operation = operation;
-}
+void init_request_hdr(struct request_hdr *hdr, enum config_mode mode,
+		enum config_operation operation);
+int validate_request(void *data, size_t data_len, char *sender, char *receiver);
 
 struct response_hdr {
 	struct request_hdr req;
@@ -704,8 +687,6 @@ struct global_value {
 
 /**
  * The modes are defined by the latest version of the EAM draft.
- *
- * They are exclusive, so this needn't be considered bit fields.
  */
 enum eam_hairpinning_mode {
 	EAM_HAIRPIN_OFF = 0,

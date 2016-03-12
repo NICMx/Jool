@@ -1,9 +1,9 @@
 #ifndef FRAGS_MOD_UTIL_H
 #define FRAGS_MOD_UTIL_H
 
-#include <linux/skbuff.h>
-
-int ip6_local_out_wrapped(struct sk_buff *skb);
-int ip_local_out_wrapped(struct sk_buff *skb);
+static inline int get_l3_proto(void *l3_hdr)
+{
+	return (*((char *) l3_hdr)) >> 4;
+}
 
 #endif

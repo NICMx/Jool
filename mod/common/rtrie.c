@@ -1,5 +1,6 @@
 #include "nat64/mod/common/rtrie.h"
-#include "nat64/mod/common/types.h"
+
+#include "nat64/common/types.h"
 #include "nat64/mod/common/wkmalloc.h"
 
 #define deref_reader(node) \

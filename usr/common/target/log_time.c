@@ -1,12 +1,13 @@
 #ifdef BENCHMARK
 
 #include "nat64/usr/log_time.h"
-#include "nat64/common/config.h"
-#include "nat64/common/str_utils.h"
-#include "nat64/usr/types.h"
-#include "nat64/usr/netlink.h"
+
 #include <errno.h>
 #include <time.h>
+#include "nat64/common/config.h"
+#include "nat64/common/str_utils.h"
+#include "nat64/common/types.h"
+#include "nat64/usr/netlink.h"
 
 #define HDR_LEN sizeof(struct request_hdr)
 #define PAYLOAD_LEN sizeof(struct request_logtime)

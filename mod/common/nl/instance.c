@@ -1,6 +1,6 @@
 #include "nat64/mod/common/nl/instance.h"
 
-#include "nat64/mod/common/types.h"
+#include "nat64/common/types.h"
 #include "nat64/mod/common/xlator.h"
 #include "nat64/mod/common/nl/nl_common.h"
 #include "nat64/mod/common/nl/nl_core2.h"
@@ -32,5 +32,5 @@ int handle_instance_request(struct genl_info *info)
 	}
 
 	log_err("Unknown operation: %d", jool_hdr->operation);
-	return nlcore_respond_error(info, -EINVAL);
+	return nlcore_respond(info, -EINVAL);
 }

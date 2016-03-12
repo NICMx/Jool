@@ -1,8 +1,8 @@
 #include "nat64/mod/stateful/session/db.h"
 
 #include "nat64/common/constants.h"
+#include "nat64/common/types.h"
 #include "nat64/mod/common/config.h"
-#include "nat64/mod/common/types.h"
 #include "nat64/mod/common/wkmalloc.h"
 #include "nat64/mod/stateful/joold.h"
 #include "nat64/mod/stateful/session/table.h"

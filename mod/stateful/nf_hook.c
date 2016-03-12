@@ -9,7 +9,7 @@
 #include "nat64/mod/common/nf_wrapper.h"
 #include "nat64/mod/common/pool6.h"
 #include "nat64/mod/common/xlator.h"
-#include "nat64/mod/common/nl/nl_core2.h"
+#include "nat64/mod/common/nl/nl_handler.h"
 #include "nat64/mod/stateful/fragment_db.h"
 #include "nat64/mod/stateful/joold.h"
 #include "nat64/mod/stateful/timer.h"
@@ -137,9 +137,9 @@ static int __init jool_init(void)
 	error = xlator_init();
 	if (error)
 		goto xlator_fail;
-	error = nlcore_init();
+	error = nlhandler_init();
 	if (error)
-		goto nlcore_fail;
+		goto nlhandler_fail;
 	error = timer_init();
 	if (error)
 		goto timer_fail;
@@ -168,8 +168,8 @@ instance_fail:
 logtime_fail:
 	timer_destroy();
 timer_fail:
-	nlcore_destroy();
-nlcore_fail:
+	nlhandler_destroy();
+nlhandler_fail:
 	xlator_destroy();
 xlator_fail:
 	palloc_destroy();
@@ -191,7 +191,7 @@ static void __exit jool_exit(void)
 
 	logtime_destroy();
 	timer_destroy();
-	nlcore_destroy();
+	nlhandler_destroy();
 	xlator_destroy();
 	palloc_destroy();
 	joold_terminate();

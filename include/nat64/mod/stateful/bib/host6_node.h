@@ -16,7 +16,7 @@
  * are intended to be thread safe.
  */
 
-#include "nat64/mod/common/types.h"
+#include "nat64/common/types.h"
 #include "nat64/mod/common/packet.h"
 #include "nat64/mod/stateful/bib_db.h"
 

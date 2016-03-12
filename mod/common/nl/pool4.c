@@ -22,7 +22,7 @@ static int handle_pool4_display(struct pool4 *pool, struct genl_info *info,
 
 	error = nlbuffer_init_response(&buffer, info, nlbuffer_response_max_size());
 	if (error)
-		return nlcore_respond_error(info, error);
+		return nlcore_respond(info, error);
 
 	if (request->display.offset_set)
 		offset = &request->display.offset;
@@ -31,7 +31,7 @@ static int handle_pool4_display(struct pool4 *pool, struct genl_info *info,
 	nlbuffer_set_pending_data(&buffer, error > 0);
 	error = (error >= 0)
 			? nlbuffer_send(info, &buffer)
-			: nlcore_respond_error(info, error);
+			: nlcore_respond(info, error);
 
 	nlbuffer_free(&buffer);
 	return error;
@@ -43,7 +43,7 @@ static int handle_pool4_add(struct pool4 *pool, struct genl_info *info,
 	int error;
 
 	if (verify_superpriv())
-		return nlcore_respond_error(info, -EPERM);
+		return nlcore_respond(info, -EPERM);
 
 	log_debug("Adding elements to pool4.");
 
@@ -57,7 +57,7 @@ static int handle_pool4_rm(struct xlator *jool, struct genl_info *info,
 	int error;
 
 	if (verify_superpriv())
-		return nlcore_respond_error(info, -EPERM);
+		return nlcore_respond(info, -EPERM);
 
 	log_debug("Removing elements from pool4.");
 
@@ -85,7 +85,7 @@ static int handle_pool4_flush(struct xlator *jool, struct genl_info *info,
 	int error;
 
 	if (verify_superpriv())
-		return nlcore_respond_error(info, -EPERM);
+		return nlcore_respond(info, -EPERM);
 
 	log_debug("Flushing pool4.");
 	error = pool4db_flush(jool->nat64.pool4);
@@ -119,12 +119,12 @@ int handle_pool4_config(struct xlator *jool, struct genl_info *info)
 
 	if (xlat_is_siit()) {
 		log_err("SIIT doesn't have pool4.");
-		return nlcore_respond_error(info, -EINVAL);
+		return nlcore_respond(info, -EINVAL);
 	}
 
 	error = validate_request_size(info, sizeof(*request));
 	if (error)
-		return nlcore_respond_error(info, error);
+		return nlcore_respond(info, error);
 
 	switch (jool_hdr->operation) {
 	case OP_DISPLAY:
@@ -140,5 +140,5 @@ int handle_pool4_config(struct xlator *jool, struct genl_info *info)
 	}
 
 	log_err("Unknown operation: %d", jool_hdr->operation);
-	return nlcore_respond_error(info, -EINVAL);
+	return nlcore_respond(info, -EINVAL);
 }

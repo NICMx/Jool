@@ -3,9 +3,10 @@
 #include <net/ipv6.h>
 #include "nat64/common/constants.h"
 #include "nat64/common/str_utils.h"
+#include "nat64/common/types.h"
+#include "nat64/mod/common/address.h"
 #include "nat64/mod/common/rcu.h"
 #include "nat64/mod/common/tags.h"
-#include "nat64/mod/common/types.h"
 #include "nat64/mod/common/wkmalloc.h"
 
 struct pool6 {

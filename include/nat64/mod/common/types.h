@@ -13,56 +13,6 @@
 #include "nat64/mod/common/address.h"
 #include "nat64/mod/common/error_pool.h"
 
-
-/**
- * Messages to help us walk through a run. Also covers normal packet drops (bad checksums,
- * bogus addresses, etc) and failed memory allocations (because the kernel already prints those).
- */
-#define log_debug(text, ...) pr_debug(text "\n", ##__VA_ARGS__)
-/** Responses to events triggered by the user, which might not show signs of life elsehow. */
-#define log_info(text, ...) pr_info(text "\n", ##__VA_ARGS__)
-/**
- * "I'm dropping a packet because the config's flipped out."
- * These rate limit themselves so the log doesn't get too flooded.
- */
-#define log_warn_once(text, ...) \
-	do { \
-		static bool __logged = false; \
-		static unsigned long __last_log; \
-		\
-		if (!__logged || __last_log < jiffies - msecs_to_jiffies(60 * 1000)) { \
-			pr_warn("%s WARNING (%s): " text "\n", xlat_get_name(), __func__, ##__VA_ARGS__); \
-			__logged = true; \
-			__last_log = jiffies; \
-		} \
-	} while (0)
-/**
- * "Your configuration cannot be applied, user."
- * log_warn_once() signals errors while processing packets. log_err() signals
- * errors while processing user requests.
- * I the code found a **programming** error, use WARN() or its variations
- * instead.
- */
-#define log_err(text, ...) \
-	do { \
-		char __error_message[512]; \
-		pr_err("%s ERROR (%s): " text "\n", xlat_get_name(), __func__, \
-				##__VA_ARGS__); \
-		sprintf(__error_message, text "\n", ##__VA_ARGS__); \
-		error_pool_add_message(__error_message); \
-	} while (0)
-
-/**
- * This is intended to be equivalent to WARN(), except it's silent if you're unit testing.
- * Do this when you're testing errors being caught correctly and don't want dumped stacks on the
- * log.
- */
-#ifdef UNIT_TESTING
-	#define WARN_IF_REAL(condition, format...) condition
-#else
-	#define WARN_IF_REAL(condition, format...) WARN(condition, format)
-#endif
-
 /**
  * An indicator of what a function expects its caller to do with the packet being translated.
  */

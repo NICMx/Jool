@@ -1,8 +1,9 @@
 #ifndef _JOOL_MOD_BIB_TABLE_H
 #define _JOOL_MOD_BIB_TABLE_H
 
+#include <linux/rbtree.h>
+#include "nat64/common/types.h"
 #include "nat64/mod/common/config.h"
-#include "nat64/mod/common/types.h"
 
 /*
  * Note: If your code is a BIB user, you probably do not want to use most of

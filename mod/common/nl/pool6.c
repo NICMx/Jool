@@ -1,6 +1,6 @@
 #include "nat64/mod/common/nl/pool6.h"
 
-#include "nat64/mod/common/types.h"
+#include "nat64/common/types.h"
 #include "nat64/mod/common/nl/nl_common.h"
 #include "nat64/mod/common/nl/nl_core2.h"
 #include "nat64/mod/common/pool6.h"
@@ -22,14 +22,14 @@ static int handle_pool6_display(struct pool6 *pool, struct genl_info *info,
 
 	error = nlbuffer_init_response(&buffer, info, nlbuffer_response_max_size());
 	if (error)
-		return nlcore_respond_error(info, error);
+		return nlcore_respond(info, error);
 
 	prefix = request->display.prefix_set ? &request->display.prefix : NULL;
 	error = pool6_foreach(pool, pool6_entry_to_userspace, &buffer, prefix);
 	nlbuffer_set_pending_data(&buffer, error > 0);
 	error = (error >= 0)
 			? nlbuffer_send(info, &buffer)
-			: nlcore_respond_error(info, error);
+			: nlcore_respond(info, error);
 
 	nlbuffer_free(&buffer);
 	return error;
@@ -43,7 +43,7 @@ static int handle_pool6_count(struct pool6 *pool, struct genl_info *info)
 	log_debug("Returning pool6's prefix count.");
 	error = pool6_count(pool, &count);
 	if (error)
-		return nlcore_respond_error(info, error);
+		return nlcore_respond(info, error);
 
 	return nlcore_respond_struct(info, &count, sizeof(count));
 }
@@ -99,7 +99,7 @@ int handle_pool6_config(struct xlator *jool, struct genl_info *info)
 
 	error = validate_request_size(info, sizeof(*request));
 	if (error)
-		return nlcore_respond_error(info, error);
+		return nlcore_respond(info, error);
 
 	switch (jool_hdr->operation) {
 	case OP_DISPLAY:

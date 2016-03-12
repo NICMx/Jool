@@ -4,8 +4,8 @@
 #include <linux/jiffies.h>
 #include "nat64/common/config.h"
 #include "nat64/common/constants.h"
+#include "nat64/common/types.h"
 #include "nat64/mod/common/tags.h"
-#include "nat64/mod/common/types.h"
 #include "nat64/mod/common/wkmalloc.h"
 
 static DEFINE_MUTEX(lock);

@@ -7,6 +7,7 @@
  * Formally defined in RFC 6146 section 3.1.
  */
 
+#include "nat64/mod/common/types.h"
 #include "nat64/mod/stateful/bib/table.h"
 
 struct bib;

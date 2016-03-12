@@ -3,8 +3,8 @@
 #include <linux/hash.h>
 #include <linux/list.h>
 #include <linux/slab.h>
+#include "nat64/common/types.h"
 #include "nat64/mod/common/rcu.h"
-#include "nat64/mod/common/types.h"
 #include "nat64/mod/common/tags.h"
 #include "nat64/mod/common/wkmalloc.h"
 #include "nat64/mod/stateful/pool4/empty.h"

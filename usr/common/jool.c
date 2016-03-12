@@ -11,16 +11,16 @@
 #include <linux/types.h>
 #include <string.h>
 
-#include "nat64/usr/netlink.h"
-#include "nat64/common/constants.h"
 #include "nat64/common/config.h"
+#include "nat64/common/constants.h"
+#include "nat64/common/types.h"
 #include "nat64/common/xlat.h"
 #include "nat64/usr/str_utils.h"
-#include "nat64/usr/types.h"
 #include "nat64/usr/instance.h"
 #include "nat64/usr/file.h"
 #include "nat64/usr/joold.h"
 #include "nat64/usr/json.h"
+#include "nat64/usr/netlink.h"
 #include "nat64/usr/pool.h"
 #include "nat64/usr/pool6.h"
 #include "nat64/usr/pool4.h"

@@ -1,14 +1,9 @@
 #include "nat64/mod/common/route.h"
 
-#include <linux/icmp.h>
+#include <net/flow.h>
 #include <net/ip6_route.h>
 #include <net/route.h>
-
 #include "nat64/mod/common/ipv6_hdr_iterator.h"
-#include "nat64/mod/common/xlator.h"
-#include "nat64/mod/common/packet.h"
-#include "nat64/mod/common/stats.h"
-#include "nat64/mod/common/types.h"
 
 /**
  * Callers of this function need to mind hairpinning. What happens if @daddr
@@ -18,7 +13,7 @@
  * dst_release()d.
  */
 struct dst_entry *__route4(struct net *ns, __be32 daddr, __u8 tos, __u8 proto,
-		__u32 mark, struct packet *pkt)
+		__u32 mark, struct sk_buff *skb)
 {
 	struct flowi4 flow;
 	struct rtable *table;
@@ -28,8 +23,8 @@ struct dst_entry *__route4(struct net *ns, __be32 daddr, __u8 tos, __u8 proto,
 	 * Sometimes Jool needs to route prematurely,
 	 * so don't sweat this on the normal pipelines.
 	 */
-	if (pkt) {
-		dst = skb_dst(pkt->skb);
+	if (skb) {
+		dst = skb_dst(skb);
 		if (dst)
 			return dst;
 	}
@@ -93,8 +88,8 @@ struct dst_entry *__route4(struct net *ns, __be32 daddr, __u8 tos, __u8 proto,
 
 	log_debug("Packet routed via device '%s'.", dst->dev->name);
 
-	if (pkt) {
-		skb_dst_set(pkt->skb, dst);
+	if (skb) {
+		skb_dst_set(skb, dst);
 		/* TODO (final) maybe used due to route_input + hairpinning? */
 		/* pkt->skb->dev = dst->dev; */
 	}
@@ -106,21 +101,18 @@ struct dst_entry *route4(struct net *ns, struct packet *out)
 {
 	struct iphdr *hdr = pkt_ip4_hdr(out);
 	return __route4(ns, hdr->daddr, hdr->tos, hdr->protocol, out->skb->mark,
-			out);
+			out->skb);
 }
 
-/**
- * Unlike route4(), this function doesn't currently have any weird callers.
- * Therefore, @pkt is the outgoing IPv6 packet.
- */
-struct dst_entry *route6(struct net *ns, struct packet *pkt)
+struct dst_entry *__route6(struct net *ns, struct sk_buff *skb,
+		l4_protocol proto)
 {
-	struct ipv6hdr *hdr_ip = pkt_ip6_hdr(pkt);
+	struct ipv6hdr *hdr_ip = ipv6_hdr(skb);
 	struct flowi6 flow;
 	struct dst_entry *dst;
 	struct hdr_iterator iterator;
 
-	dst = skb_dst(pkt->skb);
+	dst = skb_dst(skb);
 	if (dst)
 		return dst;
 
@@ -130,7 +122,7 @@ struct dst_entry *route6(struct net *ns, struct packet *pkt)
 	memset(&flow, 0, sizeof(flow));
 	/* flow->flowi6_oif; */
 	/* flow->flowi6_iif; */
-	flow.flowi6_mark = pkt->skb->mark;
+	flow.flowi6_mark = skb->mark;
 	flow.flowi6_tos = get_traffic_class(hdr_ip);
 	flow.flowi6_scope = RT_SCOPE_UNIVERSE;
 	flow.flowi6_proto = iterator.hdr_type;
@@ -146,19 +138,19 @@ struct dst_entry *route6(struct net *ns, struct packet *pkt)
 			struct icmp6hdr *icmp6;
 		} hdr;
 
-		switch (pkt_l4_proto(pkt)) {
+		switch (proto) {
 		case L4PROTO_TCP:
-			hdr.tcp = pkt_tcp_hdr(pkt);
+			hdr.tcp = tcp_hdr(skb);
 			flow.fl6_sport = hdr.tcp->source;
 			flow.fl6_dport = hdr.tcp->dest;
 			break;
 		case L4PROTO_UDP:
-			hdr.udp = pkt_udp_hdr(pkt);
+			hdr.udp = udp_hdr(skb);
 			flow.fl6_sport = hdr.udp->source;
 			flow.fl6_dport = hdr.udp->dest;
 			break;
 		case L4PROTO_ICMP:
-			hdr.icmp6 = pkt_icmp6_hdr(pkt);
+			hdr.icmp6 = icmp6_hdr(skb);
 			flow.fl6_icmp_type = hdr.icmp6->icmp6_type;
 			flow.fl6_icmp_code = hdr.icmp6->icmp6_code;
 			break;
@@ -180,8 +172,13 @@ struct dst_entry *route6(struct net *ns, struct packet *pkt)
 	}
 
 	log_debug("Packet routed via device '%s'.", dst->dev->name);
-	skb_dst_set(pkt->skb, dst);
+	skb_dst_set(skb, dst);
 	return dst;
+}
+
+struct dst_entry *route6(struct net *ns, struct packet *out)
+{
+	return __route6(ns, out->skb, pkt_l4_proto(out));
 }
 
 struct dst_entry *route(struct net *ns, struct packet *pkt)
@@ -195,31 +192,4 @@ struct dst_entry *route(struct net *ns, struct packet *pkt)
 
 	WARN(true, "Unsupported network protocol: %u.", pkt_l3_proto(pkt));
 	return NULL;
-}
-
-int route4_input(struct packet *pkt)
-{
-	struct iphdr *hdr;
-	struct sk_buff *skb;
-	int error;
-
-	if (unlikely(!pkt)) {
-		log_err("pkt can't be empty");
-		return -EINVAL;
-	}
-
-	skb = pkt->skb;
-	if (unlikely(!skb) || !skb->dev) {
-		log_err("pkt->skb can't be empty");
-		return -EINVAL;
-	}
-
-	hdr = ip_hdr(skb);
-	error = ip_route_input(skb, hdr->daddr, hdr->saddr, hdr->tos, skb->dev);
-	if (error) {
-		log_debug("ip_route_input failed: %d", error);
-		inc_stats(pkt, IPSTATS_MIB_INNOROUTES);
-	}
-
-	return error;
 }

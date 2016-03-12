@@ -3,13 +3,13 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/version.h>
+#include "nat64/common/types.h"
 #include "nat64/mod/common/core.h"
+#include "nat64/mod/common/log_time.h"
 #include "nat64/mod/common/nf_wrapper.h"
 #include "nat64/mod/common/pool6.h"
 #include "nat64/mod/common/xlator.h"
-#include "nat64/mod/common/nl/nl_core2.h"
-#include "nat64/mod/common/types.h"
-#include "nat64/mod/common/log_time.h"
+#include "nat64/mod/common/nl/nl_handler.h"
 #include "nat64/mod/stateless/pool.h"
 
 MODULE_LICENSE("GPL");
@@ -100,9 +100,9 @@ static int __init jool_init(void)
 	error = logtime_init();
 	if (error)
 		goto log_time_fail;
-	error = nlcore_init();
+	error = nlhandler_init();
 	if (error)
-		goto nlcore_fail;
+		goto nlhandler_fail;
 
 	/* This needs to be last! (except for the hook registering.) */
 	error = add_instance();
@@ -121,8 +121,8 @@ static int __init jool_init(void)
 nf_register_hooks_fail:
 	xlator_rm();
 instance_fail:
-	nlcore_destroy();
-nlcore_fail:
+	nlhandler_destroy();
+nlhandler_fail:
 	logtime_destroy();
 log_time_fail:
 	xlator_destroy();
@@ -134,7 +134,7 @@ static void __exit jool_exit(void)
 {
 	nf_unregister_hooks(nfho, ARRAY_SIZE(nfho));
 
-	nlcore_destroy();
+	nlhandler_destroy();
 	logtime_destroy();
 	xlator_destroy();
 

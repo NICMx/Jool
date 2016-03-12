@@ -1,68 +1,87 @@
 #include "netlink.h"
+
 #include <errno.h>
-#include "types.h"
+#include <netlink/genl/ctrl.h>
+#include <netlink/genl/genl.h>
+#include "nat64/common/types.h"
 
-int error_handler(struct sockaddr_nl *nla, struct nlmsgerr *nlerr, void *arg) {
+static struct nl_sock *sk;
+static int family;
 
-	log_err("this is the message length: %d", nlerr->msg->nlmsg_len) ;
-
-	return 0;
-}
-
-int netlink_request(void *request, __u16 request_len,
-		int (*cb)(struct nl_msg *, void *), void *cb_arg)
+int nlsocket_init(char *family_name)
 {
-	struct nl_sock *sk;
-	enum nl_cb_type callbacks[] = { NL_CB_VALID, NL_CB_FINISH, NL_CB_ACK };
-	int i;
 	int error;
 
 	sk = nl_socket_alloc();
 	if (!sk) {
-		log_err("Could not allocate a socket.");
+		log_err("Could not allocate the socket to kernelspace.");
+		log_err("(I guess we're out of memory.)");
+		return -1;
+	}
+
+	/* TODO there was a comment here. */
+	nl_socket_disable_auto_ack(sk);
+
+	error = genl_connect(sk);
+	if (error) {
+		log_err("Could not open the socket to kernelspace.");
+		goto fail;
+	}
+
+	family = genl_ctrl_resolve(sk, family_name);
+	if (family < 0) {
+		log_err("Jool's socket family doesn't seem to exist.");
+		log_err("(This probably means Jool hasn't been modprobed.)");
+		error = family;
+		goto fail;
+	}
+
+	return 0;
+
+fail:
+	nl_socket_free(sk);
+	return netlink_print_error(error);
+}
+
+void nlsocket_destroy()
+{
+	nl_socket_free(sk);
+}
+
+int nlsocket_create_msg(int cmd, struct nl_msg **result)
+{
+	struct nl_msg *msg;
+
+	msg = nlmsg_alloc();
+	if (!msg) {
+		log_err("Out of memory!");
 		return -ENOMEM;
 	}
 
-	for (i = 0; i < (sizeof(callbacks) / sizeof(callbacks[0])); i++) {
-		error = nl_socket_modify_cb(sk, callbacks[i], NL_CB_CUSTOM, cb, cb_arg);
-		if (error < 0) {
-			log_err("Could not register response handler. "
-					"Netlink error message: %s (Code %d)", nl_geterror(error),
-					error);
-			goto fail_free;
-		}
+	if (!genlmsg_put(msg, NL_AUTO_PORT, NL_AUTO_SEQ, family, 0, 0, cmd, 1)) {
+		log_err("Unknown error building the packet to the kernel.");
+		nlmsg_free(msg);
+		return -EINVAL;
 	}
 
-	error = nl_connect(sk, NETLINK_USERSOCK);
-	if (error < 0) {
-		log_err("Could not bind the socket. Netlink error msg: %s (Code %d)",
-				nl_geterror(error), error);
-		goto fail_free;
-	}
-
-	error = nl_send_simple(sk, MSG_TYPE_GRAYBOX, 0, request, request_len);
-	if (error < 0) {
-		log_err("Could not send the request (is the module really up?).\n"
-				"Netlink error message: %s (Code %d)", nl_geterror(error),
-				error);
-		goto fail_close;
-	}
-
-	error = nl_recvmsgs_default(sk);
-	if (error < 0) {
-		log_err("%s (System error %d)", nl_geterror(error), error);
-		goto fail_close;
-	}
-
-	nl_close(sk);
-	nl_socket_free(sk);
 	return 0;
+}
 
-fail_close:
-	nl_close(sk);
-	/* Fall through. */
+int nlsocket_send(struct nl_msg *msg)
+{
+	int error;
 
-fail_free:
-	nl_socket_free(sk);
-	return -EINVAL;
+	error = nl_send_auto(sk, msg);
+	if (error < 0) {
+		log_err("Could not dispatch the request to kernelspace.");
+		return netlink_print_error(error);
+	}
+
+	return 0;
+}
+
+int netlink_print_error(int error)
+{
+	log_err("Netlink error %d: %s", error, nl_geterror(error));
+	return error;
 }

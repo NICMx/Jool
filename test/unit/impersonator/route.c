@@ -1,5 +1,5 @@
 #include "nat64/mod/common/route.h"
-#include "nat64/mod/common/types.h"
+#include "nat64/common/types.h"
 
 struct dst_entry *__route4(struct net *ns, __be32 daddr, __u8 tos, __u8 proto,
 		__u32 mark, struct packet *pkt)

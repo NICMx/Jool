@@ -1,8 +1,9 @@
 #include "nat64/usr/global.h"
-#include "nat64/usr/str_utils.h"
-#include "nat64/usr/types.h"
-#include "nat64/usr/netlink.h"
+
 #include <errno.h>
+#include "nat64/common/types.h"
+#include "nat64/usr/str_utils.h"
+#include "nat64/usr/netlink.h"
 
 
 static char *print_status(struct global_config *conf)

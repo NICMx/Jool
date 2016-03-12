@@ -1,6 +1,7 @@
 #include "nat64/mod/common/address.h"
-#include "nat64/mod/common/types.h"
+
 #include <linux/inet.h>
+#include "nat64/common/types.h"
 
 int prefix6_parse(char *str, struct ipv6_prefix *result)
 {

@@ -2,7 +2,7 @@
 
 #include <linux/sort.h>
 #include "nat64/common/constants.h"
-#include "nat64/mod/common/types.h"
+#include "nat64/common/types.h"
 #include "nat64/mod/common/config.h"
 #include "nat64/mod/common/pool6.h"
 #include "nat64/mod/common/nl/nl_common.h"
@@ -361,7 +361,7 @@ static int handle_global_update(struct xlator *jool, struct genl_info *info)
 	int error;
 
 	if (verify_superpriv())
-		return nlcore_respond_error(info, -EPERM);
+		return nlcore_respond(info, -EPERM);
 
 	log_debug("Updating 'Global' options.");
 
@@ -371,7 +371,7 @@ static int handle_global_update(struct xlator *jool, struct genl_info *info)
 	total_len = nla_len(info->attrs[ATTR_DATA]);
 	error = config_parse(&config, hdr + 1, total_len - sizeof(*hdr));
 	if (error < 0)
-		return nlcore_respond_error(info, error);
+		return nlcore_respond(info, error);
 
 	error = commit_config(jool, &config);
 	return nlcore_respond(info, error);
@@ -389,5 +389,5 @@ int handle_global_config(struct xlator *jool, struct genl_info *info)
 	}
 
 	log_err("Unknown operation: %d", jool_hdr->operation);
-	return nlcore_respond_error(info, -EINVAL);
+	return nlcore_respond(info, -EINVAL);
 }

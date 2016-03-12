@@ -3,6 +3,7 @@
 #include <net/ipv6.h>
 #include "nat64/common/constants.h"
 #include "nat64/common/str_utils.h"
+#include "nat64/mod/common/address.h"
 #include "nat64/mod/common/rbtree.h"
 
 

@@ -1,9 +1,9 @@
 #include "nat64/mod/common/nl/nl_handler.h"
 
 #include <linux/mutex.h>
+#include <linux/version.h>
 #include <net/genetlink.h>
-#include "nat64/common/genetlink.h"
-#include "nat64/mod/common/types.h"
+#include "nat64/common/types.h"
 #include "nat64/mod/common/config.h"
 #include "nat64/mod/common/xlator.h"
 #include "nat64/mod/common/nl/atomic_config.h"
@@ -20,88 +20,37 @@
 #include "nat64/mod/common/nl/pool6.h"
 #include "nat64/mod/common/nl/session.h"
 
+static struct genl_multicast_group mc_groups[1] = {
+	{
+		.name = GNL_JOOLD_MULTICAST_GRP_NAME,
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 13, 0)
+		.id = JOOLD_MC_ID,
+#endif
+	},
+};
+
+/**
+ * Actual message type definition.
+ */
+static struct genl_ops ops[] = {
+	{
+		.cmd = JOOL_COMMAND,
+		.doit = handle_jool_message,
+		.dumpit = NULL,
+	},
+};
+
+static struct genl_family jool_family = {
+	.id = GENL_ID_GENERATE,
+	.hdrsize = 0,
+	/* .name = GNL_JOOL_FAMILY_NAME, */
+	.version = 1,
+	.maxattr = __ATTR_MAX,
+	.netnsok = true,
+};
+
 /* TODO (final) remove? */
 static DEFINE_MUTEX(config_mutex);
-
-static int validate_magic(struct request_hdr *hdr)
-{
-	if (hdr->magic[0] != 'j' || hdr->magic[1] != 'o')
-		goto fail;
-	if (hdr->magic[2] != 'o' || hdr->magic[3] != 'l')
-		goto fail;
-	return 0;
-
-fail:
-	log_err("It appears you're trying to speak to Jool using some other\n"
-			"Netlink client or an older userspace application.\n"
-			"If the latter is true, please update the userspace app.");
-	return -EINVAL;
-}
-
-static int validate_stateness(struct request_hdr *hdr)
-{
-	switch (hdr->type) {
-	case 's':
-		if (xlat_is_siit())
-			return 0;
-
-		log_err("You're speaking to NAT64 Jool using the SIIT app.");
-		return -EINVAL;
-	case 'n':
-		if (xlat_is_nat64())
-			return 0;
-
-		log_err("You're speaking to SIIT Jool using the NAT64 app.");
-		return -EINVAL;
-	}
-
-	log_err("Unknown stateness: '%c'", hdr->type);
-	return -EINVAL;
-}
-
-static int validate_version(struct request_hdr *hdr)
-{
-	if (xlat_version() == hdr->version)
-		return 0;
-
-	log_err("Version mismatch. The kernel module is %u.%u.%u.%u,\n"
-			"but the userspace application is %u.%u.%u.%u.\n"
-			"Please update Jool's %s.",
-			JOOL_VERSION_MAJOR, JOOL_VERSION_MINOR,
-			JOOL_VERSION_REV, JOOL_VERSION_DEV,
-			hdr->version >> 24, (hdr->version >> 16) & 0xFFU,
-			(hdr->version >> 8) & 0xFFU, hdr->version & 0xFFU,
-			(xlat_version() > hdr->version)
-					? "userspace application"
-					: "kernel module");
-	return -EINVAL;
-}
-
-static int validate_header(struct genl_info *info)
-{
-	struct nlattr *attr = info->attrs[ATTR_DATA];
-	struct request_hdr *hdr;
-	int error;
-
-	if (nla_len(attr) < sizeof(struct request_hdr)) {
-		log_err("The message is too small to even contain Jool's header.");
-		return -EINVAL;
-	}
-
-	hdr = (struct request_hdr *)(attr + 1);
-
-	error = validate_magic(hdr);
-	if (error)
-		return error;
-	error = validate_stateness(hdr);
-	if (error)
-		return error;
-	error = validate_version(hdr);
-	if (error)
-		return error;
-
-	return 0;
-}
 
 static int multiplex_request(struct xlator *jool, struct genl_info *info)
 {
@@ -135,33 +84,35 @@ static int multiplex_request(struct xlator *jool, struct genl_info *info)
 	}
 
 	log_err("Unknown configuration mode: %d", jool_hdr->mode);
-	return nlcore_respond_error(info, -EINVAL);
+	return nlcore_respond(info, -EINVAL);
 }
 
 static int __handle_jool_message(struct genl_info *info)
 {
-	struct request_hdr *jool_hdr = get_jool_hdr(info);
 	struct xlator translator;
 	int error;
 
 	log_debug("===============================================");
 	log_debug("Received a request from userspace.");
 
-	error = validate_header(info);
+	error = validate_request(nla_data(info->attrs[ATTR_DATA]),
+			nla_len(info->attrs[ATTR_DATA]),
+			"userspace client",
+			"kernel module");
 	if (error)
 		return error; /* client is not Jool, so don't answer. */
 
-	if (jool_hdr->mode == MODE_INSTANCE)
+	if (get_jool_hdr(info)->mode == MODE_INSTANCE)
 		return handle_instance_request(info);
 
 	error = xlator_find_current(&translator);
 	if (error == -ESRCH) {
 		log_err("This namespace lacks a Jool instance.");
-		return nlcore_respond_error(info, -ESRCH);
+		return nlcore_respond(info, -ESRCH);
 	}
 	if (error) {
 		log_err("Unknown error %d; Jool instance not found.", error);
-		return nlcore_respond_error(info, error);
+		return nlcore_respond(info, error);
 	}
 
 	error = multiplex_request(&translator, info);
@@ -182,4 +133,57 @@ int handle_jool_message(struct sk_buff *skb, struct genl_info *info)
 	mutex_unlock(&config_mutex);
 
 	return error;
+}
+
+static int register_family(void)
+{
+	int error;
+
+	log_debug("Registering Generic Netlink family...");
+
+	strcpy(jool_family.name, GNL_JOOL_FAMILY_NAME);
+
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 13, 0)
+
+	error = genl_register_family_with_ops(&jool_family, ops, ARRAY_SIZE(ops));
+	if (error) {
+		log_err("Couldn't register family!");
+		return error;
+	}
+
+	error = genl_register_mc_group(&jool_family, &(mc_groups[0]));
+	if (error) {
+		log_err("Couldn't register multicast group!");
+		return error;
+	}
+
+#else
+	error = genl_register_family_with_ops_groups(&jool_family, ops, mc_groups);
+	if (error) {
+		log_err("Family registration failed: %d", error);
+		return error;
+	}
+#endif
+
+	nlcore_init(&jool_family);
+	return 0;
+}
+
+int nlhandler_init(void)
+{
+	/*
+	 * If this triggers, GENLMSG_DEFAULT_SIZE is too small.
+	 * Sorry; I don't want to use BUILD_BUG_ON_MSG because old kernels don't
+	 * have it.
+	 */
+	BUILD_BUG_ON(GENLMSG_DEFAULT_SIZE <= 256);
+
+	error_pool_init();
+	return register_family();
+}
+
+void nlhandler_destroy(void)
+{
+	genl_unregister_family(&jool_family);
+	error_pool_destroy();
 }

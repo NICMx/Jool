@@ -2,7 +2,7 @@
 #define _JOOL_UNIT_VALIDATOR_H
 
 #include <linux/icmp.h>
-#include "nat64/mod/common/types.h"
+#include "nat64/common/types.h"
 #include "nat64/mod/common/packet.h"
 
 

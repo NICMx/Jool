@@ -7,56 +7,14 @@
 #include <sys/types.h>
 #include "nat64/common/config.h"
 #include "nat64/common/genetlink.h"
+#include "nat64/common/types.h"
 #include "nat64/common/joold/joold_config.h"
 #include "nat64/usr/netlink.h"
-#include "nat64/usr/types.h"
-#include "nat64/usr/joold/hdr.h"
 #include "nat64/usr/joold/netsocket.h"
 
 /** Receives Generic Netlink packets from the kernel module. */
 static struct nl_sock *sk;
-int family;
-
-/* TODO (duplicate code) */
-static int print_error_msg(struct jool_response *response)
-{
-	char *msg;
-
-	if (response->payload_len <= 0) {
-		log_err("Error (The kernel's response is empty so the cause is unknown.)");
-		goto end;
-	}
-
-	msg = response->payload;
-	if (msg[response->payload_len - 1] != '\0') {
-		log_err("Error (The kernel's response is not a string so the cause is unknown.)");
-		goto end;
-	}
-
-	log_err("Jool Error: %s", msg);
-	/* Fall through. */
-
-end:
-	log_err("(Error code: %u)", response->hdr->error_code);
-	return response->hdr->error_code;
-}
-
-/* TODO (duplicate code) */
-int handle_response(void *data, size_t data_len, char *sender)
-{
-	struct jool_response response;
-
-	if (data_len < sizeof(struct response_hdr)) {
-		log_err("The module's response is too small to contain a response header.");
-		return -EINVAL;
-	}
-
-	response.hdr = data;
-	response.payload = response.hdr + 1;
-	response.payload_len = data_len - sizeof(struct response_hdr);
-
-	return response.hdr->error_code ? print_error_msg(&response) : 0;
-}
+static int family;
 
 /**
  * Called when joold receives data from kernelspace.
@@ -69,6 +27,7 @@ static int updated_entries_cb(struct nl_msg *msg, void *arg)
 	struct request_hdr *data;
 	size_t data_size;
 	char castness;
+	 struct jool_response response;
 	int error;
 
 	log_info("Received a packet from kernelspace.");
@@ -94,7 +53,8 @@ static int updated_entries_cb(struct nl_msg *msg, void *arg)
 		return -EINVAL;
 	}
 
-	error = validate_header(data, data_size, "the kernel module");
+	error = validate_request(data, data_size, "the kernel module",
+			"joold daemon");
 	if (error)
 		return error;
 
@@ -104,7 +64,7 @@ static int updated_entries_cb(struct nl_msg *msg, void *arg)
 		netsocket_send(data, data_size); /* handle request. */
 		return 0;
 	case 'u':
-		return handle_response(data, data_size, "the kernel module");
+		return netlink_parse_response(data, data_size, &response);
 	}
 
 	log_err("Packet sent by the module has unknown castness: %c", castness);
@@ -197,7 +157,8 @@ void modsocket_send(void *request, size_t request_len)
 	struct nl_msg *msg;
 	int error;
 
-	error = validate_header(request, request_len, "a joold peer");
+	error = validate_request(request, request_len, "joold peer",
+			"local joold");
 	if (error)
 		return;
 

@@ -1,17 +1,14 @@
 #ifndef _NETLINK_H_
 #define _NETLINK_H_
 
-#include <netlink/netlink.h>
+#include <netlink/msg.h>
 
-/* Assert we're compiling with libnl version >= 3.0 */
-#if !defined(LIBNL_VER_NUM)
-	#error "Missing LIBNL dependency (need at least version 3)."
-#endif
-#if LIBNL_VER_NUM < LIBNL_VER(3, 0)
-	#error "Unsupported LIBNL library version number (< 3.0)."
-#endif
+int nlsocket_init(char *family);
+void nlsocket_destroy();
 
-int netlink_request(void *request, __u16 request_len,
-		int (*cb)(struct nl_msg *, void *), void *cb_arg);
+int nlsocket_create_msg(int cmd, struct nl_msg **msg);
+int nlsocket_send(struct nl_msg *msg);
+
+int netlink_print_error(int error);
 
 #endif

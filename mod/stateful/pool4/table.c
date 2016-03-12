@@ -1,9 +1,9 @@
 #include "nat64/mod/stateful/pool4/table.h"
-#include "nat64/mod/common/address.h"
-#include "nat64/mod/common/types.h"
-#include "nat64/mod/common/wkmalloc.h"
 
 #include <linux/rculist.h>
+#include "nat64/common/types.h"
+#include "nat64/mod/common/address.h"
+#include "nat64/mod/common/wkmalloc.h"
 
 struct pool4_table *pool4table_create(__u32 mark, enum l4_protocol proto)
 {

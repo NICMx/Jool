@@ -36,13 +36,13 @@ static int handle_session_display(struct sessiondb *db, struct genl_info *info,
 	int error;
 
 	if (verify_superpriv())
-		return nlcore_respond_error(info, -EPERM);
+		return nlcore_respond(info, -EPERM);
 
 	log_debug("Sending session table to userspace.");
 
 	error = nlbuffer_init_response(&buffer, info, nlbuffer_response_max_size());
 	if (error)
-		return nlcore_respond_error(info, error);
+		return nlcore_respond(info, error);
 
 	if (request->display.connection_set) {
 		remote4 = &request->display.remote4;
@@ -54,7 +54,7 @@ static int handle_session_display(struct sessiondb *db, struct genl_info *info,
 	nlbuffer_set_pending_data(&buffer, error > 0);
 	error = (error >= 0)
 			? nlbuffer_send(info, &buffer)
-			: nlcore_respond_error(info, error);
+			: nlcore_respond(info, error);
 
 	nlbuffer_free(&buffer);
 	return error;
@@ -70,7 +70,7 @@ static int handle_session_count(struct sessiondb *db, struct genl_info *info,
 
 	error = sessiondb_count(db, request->l4_proto, &count);
 	if (error)
-		return nlcore_respond_error(info, error);
+		return nlcore_respond(info, error);
 
 	return nlcore_respond_struct(info, &count, sizeof(count));
 }
@@ -83,7 +83,7 @@ int handle_session_config(struct xlator *jool, struct genl_info *info)
 
 	if (xlat_is_siit()) {
 		log_err("SIIT doesn't have session tables.");
-		return nlcore_respond_error(info, -EINVAL);
+		return nlcore_respond(info, -EINVAL);
 	}
 
 	jool_hdr = get_jool_hdr(info);
@@ -91,7 +91,7 @@ int handle_session_config(struct xlator *jool, struct genl_info *info)
 
 	error = validate_request_size(info, sizeof(*request));
 	if (error)
-		return nlcore_respond_error(info, error);
+		return nlcore_respond(info, error);
 
 	switch (jool_hdr->operation) {
 	case OP_DISPLAY:
@@ -101,5 +101,5 @@ int handle_session_config(struct xlator *jool, struct genl_info *info)
 	}
 
 	log_err("Unknown operation: %d", jool_hdr->operation);
-	return nlcore_respond_error(info, -EINVAL);
+	return nlcore_respond(info, -EINVAL);
 }

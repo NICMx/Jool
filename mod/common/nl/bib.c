@@ -28,13 +28,13 @@ static int handle_bib_display(struct bib *db, struct genl_info *info,
 	int error;
 
 	if (verify_superpriv())
-		return nlcore_respond_error(info, -EPERM);
+		return nlcore_respond(info, -EPERM);
 
 	log_debug("Sending BIB to userspace.");
 
 	error = nlbuffer_init_response(&buffer, info, nlbuffer_response_max_size());
 	if (error)
-		return nlcore_respond_error(info, error);
+		return nlcore_respond(info, error);
 
 	addr4 = request->display.addr4_set ? &request->display.addr4 : NULL;
 	error = bibdb_foreach(db, request->l4_proto, bib_entry_to_userspace,
@@ -42,7 +42,7 @@ static int handle_bib_display(struct bib *db, struct genl_info *info,
 	nlbuffer_set_pending_data(&buffer, error > 0);
 	error = (error >= 0)
 			? nlbuffer_send(info, &buffer)
-			: nlcore_respond_error(info, error);
+			: nlcore_respond(info, error);
 
 	nlbuffer_free(&buffer);
 	return error;
@@ -57,7 +57,7 @@ static int handle_bib_count(struct bib *db, struct genl_info *info,
 	log_debug("Returning BIB count.");
 	error = bibdb_count(db, request->l4_proto, &count);
 	if (error)
-		return nlcore_respond_error(info, error);
+		return nlcore_respond(info, error);
 
 	return nlcore_respond_struct(info, &count, sizeof(count));
 }
@@ -187,12 +187,12 @@ int handle_bib_config(struct xlator *jool, struct genl_info *info)
 
 	if (xlat_is_siit()) {
 		log_err("SIIT doesn't have BIBs.");
-		return nlcore_respond_error(info, -EINVAL);
+		return nlcore_respond(info, -EINVAL);
 	}
 
 	error = validate_request_size(info, sizeof(*request));
 	if (error)
-		return nlcore_respond_error(info, error);
+		return nlcore_respond(info, error);
 
 	switch (jool_hdr->operation) {
 	case OP_DISPLAY:

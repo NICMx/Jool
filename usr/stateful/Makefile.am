@@ -3,6 +3,8 @@
 
 bin_PROGRAMS = jool
 jool_SOURCES = \
+	../../common/netlink/config.c \
+	../../common/stateful/xlat.c \
 	../common/cJSON.c \
 	../common/dns.c \
 	../common/file.c \
@@ -21,8 +23,7 @@ jool_SOURCES = \
 	../common/target/pool.c \
 	../common/target/pool4.c \
 	../common/target/pool6.c \
-	../common/target/session.c \
-	xlat.c
+	../common/target/session.c
 
 jool_LDADD = ${LIBNLGENL3_LIBS}
 jool_CFLAGS = -Wall -O2

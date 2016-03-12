@@ -7,8 +7,9 @@
  * which packets should be translated.
  */
 
+#include <linux/net.h>
+#include "nat64/common/types.h"
 #include "nat64/mod/common/config.h"
-#include "nat64/mod/common/types.h"
 #include "nat64/mod/stateful/pool4/entry.h"
 
 struct pool4;

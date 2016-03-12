@@ -1,8 +1,9 @@
 #include "nat64/usr/pool4.h"
-#include "nat64/common/str_utils.h"
-#include "nat64/usr/types.h"
-#include "nat64/usr/netlink.h"
+
 #include <errno.h>
+#include "nat64/common/str_utils.h"
+#include "nat64/common/types.h"
+#include "nat64/usr/netlink.h"
 
 
 #define HDR_LEN sizeof(struct request_hdr)

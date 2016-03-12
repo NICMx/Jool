@@ -29,7 +29,7 @@
  * This module contains no header file; it needs to be #included directly.
  */
 
-#include "nat64/mod/common/types.h"
+#include "nat64/common/types.h"
 #include "nat64/mod/common/wkmalloc.h"
 
 /********************************************

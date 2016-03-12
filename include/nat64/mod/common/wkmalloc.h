@@ -1,7 +1,8 @@
 #ifndef _JOOL_MOD_KREF_ANALYZER_H
 #define _JOOL_MOD_KREF_ANALYZER_H
 
-#include "nat64/mod/common/types.h"
+#include <linux/slab.h>
+#include "nat64/common/types.h"
 
 static inline void *__wkmalloc(char *name, size_t size, gfp_t flags)
 {

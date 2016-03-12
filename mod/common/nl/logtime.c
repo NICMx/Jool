@@ -1,7 +1,7 @@
 #include "nat64/mod/common/nl/logtime.h"
 
+#include "nat64/common/types.h"
 #include "nat64/mod/common/nl/nl_core2.h"
-#include "nat64/mod/common/types.h"
 #ifdef BENCHMARK
 #include "nat64/mod/common/log_time.h"
 

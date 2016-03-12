@@ -4,7 +4,7 @@
 #include <netlink/genl/ctrl.h>
 #include <errno.h>
 #include "nat64/common/config.h"
-#include "nat64/usr/types.h"
+#include "nat64/common/types.h"
 
 struct response_cb {
 	jool_response_cb cb;
@@ -68,12 +68,26 @@ end:
 	return response->hdr->error_code;
 }
 
+int netlink_parse_response(void *data, size_t data_len, struct jool_response *result)
+{
+	if (data_len < sizeof(struct response_hdr)) {
+		log_err("The module's response is too small to contain a response header.");
+		return -EINVAL;
+	}
+
+	result->hdr = data;
+	result->payload = result->hdr + 1;
+	result->payload_len = data_len - sizeof(struct response_hdr);
+
+	return result->hdr->error_code ? print_error_msg(result) : 0;
+}
+
 /*
  * Heads up:
- * This function is supposed to return either a negative error core or an enum
+ * Netlink wants this function to return either a negative error code or an enum
  * nl_cb_action.
  * Because NL_SKIP == EPERM and NL_STOP == ENOENT, you should mind the sign of
- * the result real hard.
+ * the result HARD.
  */
 static int response_handler(struct nl_msg *msg, void *void_arg)
 {
@@ -92,17 +106,11 @@ static int response_handler(struct nl_msg *msg, void *void_arg)
 		log_err("The module's response seems to be empty.");
 		return -EINVAL;
 	}
-	if (attrs[ATTR_DATA]->nla_len < sizeof(struct response_hdr)) {
-		log_err("The module's response is too small to even contain a header.");
-		return -EINVAL;
-	}
-
-	response.hdr = nla_data(attrs[ATTR_DATA]);
-	response.payload = response.hdr + 1;
-	response.payload_len = nla_len(attrs[ATTR_DATA]) - sizeof(struct response_hdr);
-
-	if (response.hdr->error_code)
-		return -abs(print_error_msg(&response));
+	error = netlink_parse_response(nla_data(attrs[ATTR_DATA]),
+			nla_len(attrs[ATTR_DATA]),
+			&response);
+	if (error)
+		return -abs(error);
 
 	arg = void_arg;
 	return (arg && arg->cb) ? (-abs(arg->cb(&response, arg->arg))) : 0;

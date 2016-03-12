@@ -1,11 +1,12 @@
 #include "nat64/mod/common/stats.h"
-#include <linux/skbuff.h>
+
 #include <linux/netdevice.h>
+#include <linux/skbuff.h>
+#include <net/addrconf.h>
 #include <net/ip.h>
 #include <net/ipv6.h>
-#include <net/addrconf.h>
+#include "nat64/common/types.h"
 #include "nat64/mod/common/packet.h"
-#include "nat64/mod/common/types.h"
 
 
 static int validate_skb(struct sk_buff *skb)
@@ -43,22 +44,22 @@ static void inc_stats4(struct sk_buff *skb, int field)
 
 void inc_stats_skb6(struct sk_buff *skb, int field)
 {
-	if (!is_error(validate_skb(skb)))
+	if (validate_skb(skb) == 0)
 		inc_stats6(skb, field);
 }
 
 void inc_stats_skb4(struct sk_buff *skb, int field)
 {
-	if (!is_error(validate_skb(skb)))
+	if (validate_skb(skb) == 0)
 		inc_stats4(skb, field);
 }
 
 static void inc_stats_pkt6(struct packet *pkt, int field)
 {
-	if (is_error(validate_pkt(pkt))) {
+	if (validate_pkt(pkt) != 0) {
 		/* Maybe we can fall back to increase the stat on the other skb's dev... */
 		pkt = pkt_original_pkt(pkt);
-		if (is_error(validate_pkt(pkt)))
+		if (validate_pkt(pkt) != 0)
 			return;
 	}
 
@@ -67,9 +68,9 @@ static void inc_stats_pkt6(struct packet *pkt, int field)
 
 static void inc_stats_pkt4(struct packet *pkt, int field)
 {
-	if (is_error(validate_pkt(pkt))) {
+	if (validate_pkt(pkt) != 0) {
 		pkt = pkt_original_pkt(pkt);
-		if (is_error(validate_pkt(pkt)))
+		if (validate_pkt(pkt) != 0)
 			return;
 	}
 

@@ -5,6 +5,9 @@ ccflags-y := -I$(src)/../../include $(JOOL_FLAGS)
 
 obj-m += jool.o
 
+jool_common += ../../common/stateful/xlat.o
+jool_common += ../../common/netlink/config.o
+
 jool_common += ../common/rfc6145/4to6.o
 jool_common += ../common/rfc6145/6to4.o
 jool_common += ../common/rfc6145/common.o
@@ -23,7 +26,8 @@ jool_common += ../common/rfc6052.o
 jool_common += ../common/translation_state.o
 jool_common += ../common/rbtree.o
 jool_common += ../common/config.o
-jool_common += ../common/route.o
+jool_common += ../common/route_in.o
+jool_common += ../common/route_out.o
 jool_common += ../common/send_packet.o
 jool_common += ../common/core.o
 jool_common += ../common/error_pool.o
@@ -56,7 +60,6 @@ jool += session/table.o
 jool += session/db.o
 jool += session/pkt_queue.o
 
-jool += xlat.o
 jool += timer.o
 jool += fragment_db.o
 jool += determine_incoming_tuple.o
