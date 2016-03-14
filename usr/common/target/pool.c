@@ -69,7 +69,7 @@ int pool_display(enum config_mode mode, bool csv)
 	return 0;
 }
 
-static int pool_count_response(struct jool_response *response, void *arg)
+static int count_response(struct jool_response *response, void *arg)
 {
 	if (response->payload_len != sizeof(__u64)) {
 		log_err("Jool's response is not the expected integer.");
@@ -82,9 +82,10 @@ static int pool_count_response(struct jool_response *response, void *arg)
 
 int pool_count(enum config_mode mode)
 {
-	struct request_hdr request;
-	init_request_hdr(&request, mode, OP_COUNT);
-	return netlink_request(&request, sizeof(request), pool_count_response, NULL);
+	unsigned char request[HDR_LEN + PAYLOAD_LEN];
+	struct request_hdr *hdr = (struct request_hdr *) request;
+	init_request_hdr(hdr, mode, OP_COUNT);
+	return netlink_request(request, sizeof(request), count_response, NULL);
 }
 
 int pool_add(enum config_mode mode, struct ipv4_prefix *addrs, bool force)
