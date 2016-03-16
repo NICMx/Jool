@@ -1,11 +1,10 @@
 #include "nl_handler.h"
 
 #include <linux/version.h>
-
-#include "nat64/mod/common/nl/nl_core2.h"
-
 #include "expecter.h"
+#include "genetlink.h"
 #include "sender.h"
+#include "nat64/common/types.h"
 
 /*
 static void print_pkt(void *skb)
@@ -55,65 +54,129 @@ static struct genl_family family = {
 	.netnsok = true,
 };
 
-int handle_expect(struct sk_buff *skb, struct genl_info *info)
+static int handle_expect_add(struct genl_info *info)
 {
 	struct expected_packet pkt;
+	struct nlattr *attr;
 
-	pkt.filename = nla_data(info->attrs[ATTR_FILENAME]);
-	pkt.bytes = nla_data(info->attrs[ATTR_PKT]);
-	pkt.bytes_len = nla_len(info->attrs[ATTR_PKT]);
-	pkt.exceptions = nla_data(info->attrs[ATTR_EXCEPTIONS]);
-	pkt.exceptions_len = nla_len(info->attrs[ATTR_EXCEPTIONS]);
+	attr = info->attrs[ATTR_FILENAME];
+	if (!attr) {
+		log_err("Request lacks a file name.");
+		return -EINVAL;
+	}
+	pkt.filename = nla_data(attr);
 
-	return nlcore_respond(info, expecter_add(&pkt));
+	attr = info->attrs[ATTR_PKT];
+	if (!attr) {
+		log_err("Request lacks a packet.");
+		return -EINVAL;
+	}
+	pkt.bytes = nla_data(attr);
+	pkt.bytes_len = nla_len(attr);
+
+	attr = info->attrs[ATTR_EXCEPTIONS];
+	pkt.exceptions = attr ? nla_data(attr) : NULL;
+	pkt.exceptions_len = attr ? (nla_len(attr) / sizeof(*pkt.exceptions)) : 0;
+
+	return genl_respond(info, expecter_add(&pkt));
 }
 
-int handle_send(struct sk_buff *skb, struct genl_info *info)
+static int handle_send(struct genl_info *info)
 {
 	char *filename;
-	struct nlattr *pkt;
+	struct nlattr *attr;
 	int error;
 
-	filename = nla_data(info->attrs[ATTR_FILENAME]);
-	pkt = info->attrs[ATTR_PKT];
+	attr = info->attrs[ATTR_FILENAME];
+	if (!attr) {
+		log_err("Request lacks a file name.");
+		return -EINVAL;
+	}
+	filename = nla_data(attr);
 
-	error = sender_send(filename, nla_data(pkt), nla_len(pkt));
-	return nlcore_respond(info, error);
+	attr = info->attrs[ATTR_PKT];
+	if (!attr) {
+		log_err("Request lacks a packet.");
+		return -EINVAL;
+	}
+
+	error = sender_send(filename, nla_data(attr), nla_len(attr));
+	return genl_respond(info, error);
 }
 
-int handle_flush(struct sk_buff *skb, struct genl_info *info)
+static int handle_expect_flush(struct genl_info *info)
 {
 	expecter_flush();
-	return nlcore_respond(info, 0);
+	return genl_respond(info, 0);
 }
 
-int handle_stats(struct sk_buff *skb, struct genl_info *info)
+static int handle_stats_display(struct genl_info *info)
 {
 	struct graybox_stats stats;
 	expecter_stat(&stats);
-	return nlcore_respond_struct(info, &stats, sizeof(stats));
+	return genl_respond_attr(info, ATTR_STATS, &stats, sizeof(stats));
+}
+
+static int handle_stats_flush(struct genl_info *info)
+{
+	expecter_stat_flush();
+	return genl_respond(info, 0);
+}
+
+static int handle_userspace_msg(struct sk_buff *skb, struct genl_info *info)
+{
+	int error;
+
+	/* TODO mutex this. */
+	error_pool_activate();
+
+	switch (info->genlhdr->cmd) {
+	case COMMAND_EXPECT_ADD:
+		error = handle_expect_add(info);
+		break;
+	case COMMAND_EXPECT_FLUSH:
+		error = handle_expect_flush(info);
+		break;
+	case COMMAND_SEND:
+		error = handle_send(info);
+		break;
+	case COMMAND_STATS_DISPLAY:
+		error = handle_stats_display(info);
+		break;
+	case COMMAND_STATS_FLUSH:
+		error = handle_stats_flush(info);
+		break;
+	default:
+		log_err("Unknown command code: %d", info->genlhdr->cmd);
+		error_pool_deactivate();
+		return genl_respond(info, -EINVAL);
+	}
+
+	error_pool_deactivate();
+
+	return error;
 }
 
 static struct genl_ops ops[] = {
 	{
-		.cmd = COMMAND_EXPECT,
-		.doit = handle_expect,
-		.dumpit = NULL,
+		.cmd = COMMAND_EXPECT_ADD,
+		.doit = handle_userspace_msg,
+	},
+	{
+		.cmd = COMMAND_EXPECT_FLUSH,
+		.doit = handle_userspace_msg,
 	},
 	{
 		.cmd = COMMAND_SEND,
-		.doit = handle_send,
-		.dumpit = NULL,
+		.doit = handle_userspace_msg,
 	},
 	{
-		.cmd = COMMAND_FLUSH,
-		.doit = handle_flush,
-		.dumpit = NULL,
+		.cmd = COMMAND_STATS_DISPLAY,
+		.doit = handle_userspace_msg,
 	},
 	{
-		.cmd = COMMAND_STATS,
-		.doit = handle_stats,
-		.dumpit = NULL,
+		.cmd = COMMAND_STATS_FLUSH,
+		.doit = handle_userspace_msg,
 	},
 };
 
@@ -131,7 +194,7 @@ int nlhandler_init(void)
 		return error;
 	}
 
-	nlcore_init(&family);
+	genl_init(&family);
 	return 0;
 }
 

@@ -75,6 +75,7 @@ depcomp
 install-sh
 missing
 Makefile
+autom4te.cache
 
 # DKMS version cache
 ######################

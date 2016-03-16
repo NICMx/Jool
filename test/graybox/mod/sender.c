@@ -106,7 +106,6 @@ int sender_send(char *pkt_name, void *pkt, size_t pkt_len)
 	}
 
 	skb->ip_summed = CHECKSUM_UNNECESSARY;
-	error = -EINVAL;
 	switch (get_l3_proto(pkt)) {
 	case 6:
 		skb->protocol = htons(ETH_P_IPV6);
@@ -128,9 +127,12 @@ int sender_send(char *pkt_name, void *pkt, size_t pkt_len)
 #else
 		error = dst_output(skb);
 #endif
+	} else {
+		log_err("The packet could not be routed.");
+		error = -ENETUNREACH;
+		kfree_skb(skb);
 	}
 
 	put_net(ns);
-	kfree_skb(skb);
 	return error;
 }

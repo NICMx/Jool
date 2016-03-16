@@ -33,7 +33,8 @@ static struct nf_hook_ops nfho[] = {
 	}
 };
 
-static int __init graybox_init(void)
+static int __init
+graybox_init(void)
 {
 	int error;
 
@@ -42,24 +43,30 @@ static int __init graybox_init(void)
 	error = nlhandler_init();
 	if (error)
 		return error;
+	error_pool_init();
 	expecter_init();
 
 	error = nf_register_hooks(nfho, ARRAY_SIZE(nfho));
 	if (error) {
+		expecter_destroy();
+		error_pool_destroy();
 		nlhandler_destroy();
 		return error;
 	}
 
 	log_info("%s module inserted.\n", xlat_get_name());
 	return error;
-
-	return error;
 }
 
-static void __exit graybox_exit(void)
+static void __exit
+graybox_exit(void)
 {
 	nf_unregister_hooks(nfho, ARRAY_SIZE(nfho));
+
+	expecter_destroy();
+	error_pool_destroy();
 	nlhandler_destroy();
+
 	log_info("%s module removed.", xlat_get_name());
 }
 

@@ -6,7 +6,11 @@ AUTOMAKE_OPTIONS = foreign
 bin_PROGRAMS = graybox
 graybox_SOURCES = \
 	graybox.c \
-	netlink.c \
+	genetlink.c \
+	command/expect.c \
+	command/send.c \
+	command/stats.c \
+	command/common.c \
 	../../../usr/common/str_utils.c
 
 graybox_LDADD = ${LIBNLGENL3_LIBS}

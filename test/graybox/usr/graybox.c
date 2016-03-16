@@ -2,118 +2,60 @@
 #include <stddef.h>
 #include <netlink/attr.h>
 
-#include "netlink.h"
+#include "genetlink.h"
 #include "types.h"
-#include "nat64/usr/str_utils.h"
+#include "command/expect.h"
+#include "command/send.h"
+#include "command/stats.h"
+#include "nat64/common/types.h"
 
 struct request {
 	enum graybox_command cmd;
-
-	char *file_name;
-	unsigned char *pkt;
-	int pkt_len;
-
-	__u16 *exceptions;
-	int exceptions_len;
+	union {
+		struct expect_add_request expect_add;
+		struct send_request send;
+	};
 };
 
-static int load_pkt(char *filename, struct request *req)
-{
-	FILE *file;
-	int bytes_read;
-
-	file = fopen(filename, "rb");
-	if (!file) {
-		log_err("Could not open the file %s.", filename);
-		return -EINVAL;
-	}
-
-	fseek(file, 0, SEEK_END);
-	req->pkt_len = ftell(file);
-	rewind(file);
-
-	req->pkt = malloc(req->pkt_len);
-	if (!req->pkt) {
-		log_err("Could not allocate the packet.");
-		fclose(file);
-		return -ENOMEM;
-	}
-
-	bytes_read = fread(req->pkt, 1, req->pkt_len, file);
-	fclose(file);
-
-	if (bytes_read != req->pkt_len) {
-		log_err("Reading error.");
-		free(req->pkt);
-		return -EINVAL;
-	}
-
-	return 0;
-}
-
-int parse_exceptions(char *exceptions, struct request *req)
-{
-	size_t len;
-	int error;
-
-	if (!exceptions) {
-		req->exceptions = NULL;
-		req->exceptions_len = 0;
-		return 0;
-	}
-
-	error = str_to_u16_array(exceptions, &req->exceptions, &len);
-	if (!error)
-		req->exceptions_len = len;
-	return error;
-}
-
-static int request_create(int argc, char **argv, struct request *req)
+static int request_create(int argc, char **argv, struct request *request)
 {
 	char *type;
-	char *file;
-	char *exceptions;
-	int error;
 
-	if (argc < 3) {
-		log_err("I need at least 2 arguments.");
-		return EINVAL;
-	}
-
-	type = argv[1];
-	file = argv[2];
-	exceptions = (argc >= 4) ? argv[3] : NULL;
-
-	if (strcasecmp(type, "expect")) {
-		req->cmd = COMMAND_EXPECT;
-	} else if (strcasecmp(type, "send")) {
-		req->cmd = COMMAND_SEND;
-	} else if (strcasecmp(type, "stats")) {
-		req->cmd = COMMAND_STATS;
-	} else {
-		log_err("'%s' is an unknown operation.", argv[1]);
+	if (argc < 1) {
+		log_err("I need at least 1 argument. (see `man graybox`)");
 		return -EINVAL;
 	}
+	memset(request, 0, sizeof(*request));
+	type = argv[0];
+	argc -= 1;
+	argv += 1;
 
-	error = load_pkt(file, req);
-	if (error)
-		return error;
-
-	error = parse_exceptions(exceptions, req);
-	if (error) {
-		free(req->pkt);
-		return error;
+	if (strcasecmp(type, "expect") == 0) {
+		return expect_init_request(argc, argv, &request->cmd, &request->expect_add);
+	} else if (strcasecmp(type, "send") == 0) {
+		return send_init_request(argc, argv, &request->cmd, &request->send);
+	} else if (strcasecmp(type, "stats") == 0) {
+		return stats_init_request(argc, argv, &request->cmd);
 	}
 
-	return 0;
+	log_err("'%s' is an unknown operation.", type);
+	return -EINVAL;
 }
 
 void request_destroy(struct request *req)
 {
-	if (req->pkt)
-		free(req->pkt);
-	if (req->exceptions)
-		free(req->exceptions);
+	switch (req->cmd) {
+	case COMMAND_EXPECT_ADD:
+		expect_add_destroy(&req->expect_add);
+		break;
+	case COMMAND_SEND:
+		send_destroy(&req->send);
+		break;
+	case COMMAND_EXPECT_FLUSH:
+	case COMMAND_STATS_DISPLAY:
+	case COMMAND_STATS_FLUSH:
+		break;
+	}
 }
 
 static int build_packet(struct request *req, struct nl_msg **result)
@@ -125,29 +67,43 @@ static int build_packet(struct request *req, struct nl_msg **result)
 	if (error)
 		return error;
 
-	error = nla_put_string(msg, ATTR_FILENAME, req->file_name);
-	if (error)
-		goto put_fail;
+	switch (req->cmd) {
+	case COMMAND_EXPECT_ADD:
+		error = expect_add_build_pkt(&req->expect_add, msg);
+		break;
+	case COMMAND_SEND:
+		error = send_build_pkt(&req->send, msg);
+		break;
+	case COMMAND_EXPECT_FLUSH:
+	case COMMAND_STATS_DISPLAY:
+	case COMMAND_STATS_FLUSH:
+		break;
+	}
 
-	error = nla_put(msg, ATTR_PKT, req->pkt_len, req->pkt);
-	if (error)
-		goto put_fail;
-
-	if (req->exceptions) {
-		error = nla_put(msg, ATTR_EXCEPTIONS,
-				sizeof(*req->exceptions) * req->exceptions_len,
-				req->exceptions);
-		if (error)
-			goto put_fail;
+	if (error) {
+		log_err("Could not write on the packet to kernelspace.");
+		nlmsg_free(msg);
+		return netlink_print_error(error);
 	}
 
 	*result = msg;
 	return 0;
+}
 
-put_fail:
-	log_err("Could not write on the packet to kernelspace.");
-	nlmsg_free(msg);
-	return netlink_print_error(error);
+static int send_request(struct request *req, struct nl_msg *msg)
+{
+	switch (req->cmd) {
+	case COMMAND_EXPECT_ADD:
+	case COMMAND_EXPECT_FLUSH:
+	case COMMAND_SEND:
+	case COMMAND_STATS_FLUSH:
+		return nlsocket_send(msg, NULL, NULL);
+	case COMMAND_STATS_DISPLAY:
+		return nlsocket_send(msg, stats_response_handle, NULL);
+	}
+
+	log_err("Unknown command code: %d", req->cmd);
+	return -EINVAL;
 }
 
 int main(int argc, char *argv[])
@@ -156,9 +112,9 @@ int main(int argc, char *argv[])
 	struct nl_msg *msg = NULL;
 	int error;
 
-	error = request_create(argc, argv, &req);
+	error = request_create(argc - 1, argv + 1, &req);
 	if (error)
-		return error;
+		goto end1;
 
 	error = nlsocket_init("graybox");
 	if (error)
@@ -168,7 +124,7 @@ int main(int argc, char *argv[])
 	if (error)
 		goto end2;
 
-	error = nlsocket_send(msg);
+	error = send_request(&req, msg);
 
 	nlmsg_free(msg);
 end2:

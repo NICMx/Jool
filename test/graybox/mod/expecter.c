@@ -33,7 +33,7 @@ void free_node(struct expecter_node *node)
 	if (node->pkt.exceptions)
 		kfree(node->pkt.exceptions);
 	if (node->pkt.bytes)
-		kfree(node->pkt.filename);
+		kfree(node->pkt.bytes);
 	if (node->pkt.filename)
 		kfree(node->pkt.filename);
 	kfree(node);
@@ -67,42 +67,44 @@ static void sort_exceptions(struct expected_packet *pkt)
 			list[i] = list[j];
 		}
 	}
+
+	pkt->exceptions_len = i;
 }
 
 int expecter_add(struct expected_packet *pkt)
 {
-	struct expecter_node *node = { 0 };
-
-	log_debug("Storing packet '%s'.", pkt->filename);
+	struct expecter_node *node;
+	size_t exceptions_size;
 
 	node = kmalloc(sizeof(struct expecter_node), GFP_KERNEL);
 	if (!node)
 		goto enomem;
+	memset(node, 0, sizeof(*node));
 
 	node->pkt.filename = kmalloc(strlen(pkt->filename) + 1, GFP_KERNEL);
 	if (!node->pkt.filename)
 		goto enomem;
+	strcpy(node->pkt.filename, pkt->filename);
 
 	node->pkt.bytes = kmalloc(pkt->bytes_len, GFP_KERNEL);
 	if (!node->pkt.bytes)
 		goto enomem;
-
-	if (pkt->exceptions) {
-		node->pkt.exceptions = kmalloc(pkt->exceptions_len, GFP_KERNEL);
-		if (!node->pkt.exceptions)
-			goto enomem;
-	}
-
-	strcpy(node->pkt.filename, pkt->filename);
 	memcpy(node->pkt.bytes, pkt->bytes, pkt->bytes_len);
 	node->pkt.bytes_len = pkt->bytes_len;
+
 	if (pkt->exceptions) {
-		memcpy(node->pkt.exceptions, pkt->exceptions, pkt->exceptions_len);
+		exceptions_size = pkt->exceptions_len * sizeof(*pkt->exceptions);
+		node->pkt.exceptions = kmalloc(exceptions_size, GFP_KERNEL);
+		if (!node->pkt.exceptions)
+			goto enomem;
+		memcpy(node->pkt.exceptions, pkt->exceptions, exceptions_size);
+		node->pkt.exceptions_len = pkt->exceptions_len;
 		sort_exceptions(&node->pkt);
 	}
-	node->pkt.exceptions_len = pkt->exceptions_len;
+
 	list_add_tail(&node->list_hook, &list);
 
+	log_debug("Stored packet '%s'.", pkt->filename);
 	return 0;
 
 enomem:
@@ -115,10 +117,20 @@ void expecter_flush(void)
 	struct expecter_node *node;
 	struct list_head *hook;
 
-	while (list_empty(&list)) {
+	while (!list_empty(&list)) {
 		hook = list.next;
 		list_del(hook);
 		node = list_entry(hook, struct expecter_node, list_hook);
+
+		switch (get_l3_proto(node->pkt.bytes)) {
+		case 4:
+			stats.ipv4.queued++;
+			break;
+		case 6:
+			stats.ipv6.queued++;
+			break;
+		}
+
 		free_node(node);
 	}
 }
@@ -221,8 +233,6 @@ int expecter_handle_pkt(struct sk_buff *actual)
 	if (list_empty(&list)) /* nothing to do. */
 		return NF_ACCEPT;
 
-	log_debug("Received packet.");
-
 	node = list_entry(list.next, struct expecter_node, list_hook);
 	expected = &node->pkt;
 
@@ -230,6 +240,8 @@ int expecter_handle_pkt(struct sk_buff *actual)
 		return NF_ACCEPT;
 
 	list_del(&node->list_hook);
+
+	log_debug("Received packet matches '%s'.", expected->filename);
 
 	stats = get_stats(expected);
 	if (WARN(!stats, "Unreachable code: protocol was already validated."))
@@ -247,5 +259,25 @@ int expecter_handle_pkt(struct sk_buff *actual)
 
 void expecter_stat(struct graybox_stats *result)
 {
+	struct expecter_node *node;
+	struct list_head *hook;
+
 	memcpy(result, &stats, sizeof(stats));
+
+	list_for_each(hook, &list) {
+		node = list_entry(hook, struct expecter_node, list_hook);
+		switch (get_l3_proto(node->pkt.bytes)) {
+		case 4:
+			result->ipv4.queued++;
+			break;
+		case 6:
+			result->ipv6.queued++;
+			break;
+		}
+	}
+}
+
+void expecter_stat_flush(void)
+{
+	memset(&stats, 0, sizeof(stats));
 }

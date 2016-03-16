@@ -2,7 +2,6 @@
 #define _JOOL_USR_NETLINK2_H_
 
 #include <netlink/netlink.h>
-#include "nat64/common/genetlink.h"
 
 
 /*

@@ -81,3 +81,6 @@ if [[ -z $1 || $1 = *icmpe46* ]]; then
 	test-single 4-icmp4err-csumok-nodf 6-icmp6err-csumok-nodf
 fi
 
+graybox stats display
+graybox stats flush
+

@@ -6,7 +6,6 @@
 #include <netlink/genl/genl.h>
 #include <sys/types.h>
 #include "nat64/common/config.h"
-#include "nat64/common/genetlink.h"
 #include "nat64/common/types.h"
 #include "nat64/common/joold/joold_config.h"
 #include "nat64/usr/netlink.h"

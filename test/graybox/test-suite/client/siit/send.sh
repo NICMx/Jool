@@ -1,24 +1,19 @@
 #!/bin/bash
 
-FRAGS=graybox
-PREFIX=pktgen
-
 
 function test-single {
-	if [ -n "${3+x}" ]; then $FRAGS -ga --numArray $3; fi
-	$FRAGS -ra --pkt $PREFIX/receiver/$2.pkt
-	$FRAGS -sa --pkt $PREFIX/sender/$1.pkt
+	graybox expect add pktgen/receiver/$2.pkt $3
+	graybox send pktgen/sender/$1.pkt
 	sleep 0.1
-	if [ -n "${3+x}" ]; then $FRAGS -gf; fi
-	$FRAGS -rf
+	graybox expect flush
 }
 
 function test-frag {
-	$FRAGS -ra --pkt $PREFIX/receiver/$2.pkt
-	$FRAGS -ra --pkt $PREFIX/receiver/$3.pkt
-	$FRAGS -sa --pkt $PREFIX/sender/$1.pkt
+	graybox expect add pktgen/receiver/$2.pkt
+	graybox expect add pktgen/receiver/$3.pkt
+	graybox send pktgen/sender/$1.pkt
 	sleep 0.1
-	$FRAGS -rf
+	graybox expect flush
 }
 
 
@@ -111,4 +106,7 @@ fi
 	#test-single frag-icmp4 frag-icmp4
 	#test-single frag-minmtu6-big frag-minmtu6-big0 frag-minmtu6-big1
 #fi
+
+graybox stats display
+graybox stats flush
 

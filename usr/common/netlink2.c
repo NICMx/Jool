@@ -123,7 +123,6 @@ int netlink_request(void *request, __u32 request_len,
 	struct response_cb callback = { .cb = cb, .arg = cb_arg };
 	int error;
 
-	/* TODO this should be in netlink_init... */
 	error = nl_socket_modify_cb(sk, NL_CB_MSG_IN, NL_CB_CUSTOM,
 			response_handler, &callback);
 	if (error < 0) {
@@ -220,7 +219,7 @@ int netlink_init(void)
 	/*
 	 * We handle ACKs ourselves. The reason is that Netlink ACK errors do
 	 * not contain the friendly error string, so they're useless to us.
-	 * See https://github.com/NICMx/Jool/issues/169
+	 * https://github.com/NICMx/Jool/issues/169
 	 */
 	nl_socket_disable_auto_ack(sk);
 
