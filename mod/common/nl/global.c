@@ -290,19 +290,19 @@ static int massive_switch(struct full_config *cfg, struct global_value *chunk,
 	case SYNCH_ENABLE:
 		error = ensure_nat64(OPTNAME_SYNCH_ENABLE);
 		if (!error)
-			cfg->session.joold.enabled = true;
+			cfg->joold.enabled = true;
 		return error;
 	case SYNCH_DISABLE:
 		error = ensure_nat64(OPTNAME_SYNCH_DISABLE);
 		if (!error)
-			cfg->session.joold.enabled = false;
+			cfg->joold.enabled = false;
 		return error;
 	case SYNCH_ELEMENTS_LIMIT:
 		error = ensure_nat64(OPTNAME_SYNCH_MAX_SESSIONS);
-		return error ? : parse_u32(&cfg->session.joold.queue_capacity, chunk, size);
+		return error ? : parse_u32(&cfg->joold.queue_capacity, chunk, size);
 	case SYNCH_PERIOD:
 		error = ensure_nat64(OPTNAME_SYNCH_PERIOD);
-		return error ? : parse_u32(&cfg->session.joold.timer_period, chunk, size);
+		return error ? : parse_u32(&cfg->joold.timer_period, chunk, size);
 	}
 
 	log_err("Unknown config type: %u", chunk->type);
@@ -348,6 +348,7 @@ static int commit_config(struct xlator *jool, struct full_config *config)
 	config_copy(&config->global, &jool->global->cfg);
 	bibdb_config_set(jool->nat64.bib, &config->bib);
 	sessiondb_config_set(jool->nat64.session, &config->session);
+	joold_config_set(jool->nat64.joold, &config->joold);
 	fragdb_config_set(jool->nat64.frag, &config->frag);
 
 	return xlator_replace(jool);

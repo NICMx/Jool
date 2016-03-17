@@ -169,10 +169,10 @@ static int handle_display_response(struct jool_response *response, void *arg)
 		printf("  Synchronization:\n");
 		printf("  Enabled (--%s, --%s): %s\n",
 				OPTNAME_SYNCH_ENABLE , OPTNAME_SYNCH_DISABLE,
-				conf->session.joold.enabled ? "Enabled" : "Disabled");
+				conf->joold.enabled ? "Enabled" : "Disabled");
 
-		printf("    --%s: %u sessions\n", OPTNAME_SYNCH_MAX_SESSIONS, conf->session.joold.queue_capacity);
-		printf("    --%s: %u milliseconds\n", OPTNAME_SYNCH_PERIOD, conf->session.joold.timer_period);
+		printf("    --%s: %u sessions\n", OPTNAME_SYNCH_MAX_SESSIONS, conf->joold.queue_capacity);
+		printf("    --%s: %u milliseconds\n", OPTNAME_SYNCH_PERIOD, conf->joold.timer_period);
 	}
 
 	return 0;
@@ -238,12 +238,12 @@ static int handle_display_response_csv(struct jool_response *response, void *arg
 		printf("%s,%s\n", OPTNAME_SESSION_LOGGING,
 				print_csv_bool(conf->session.log_changes));
 
-		printf("Jool Enabled,%s\n",
-				print_csv_bool(conf->session.joold.enabled));
-		printf("%s,%u\n", OPTNAME_SYNCH_MAX_SESSIONS, conf->session.joold.queue_capacity);
-		printf("%s,%u\n", OPTNAME_SYNCH_PERIOD, conf->session.joold.timer_period);
-
 		printf("%s,%u\n", OPTNAME_MAX_SO, conf->session.pktqueue.max_stored_pkts);
+
+		printf("joold Enabled,%s\n",
+				print_csv_bool(conf->joold.enabled));
+		printf("%s,%u\n", OPTNAME_SYNCH_MAX_SESSIONS, conf->joold.queue_capacity);
+		printf("%s,%u\n", OPTNAME_SYNCH_PERIOD, conf->joold.timer_period);
 
 		printf("%s,", OPTNAME_UDP_TIMEOUT);
 		print_time_csv(conf->session.ttl.udp);

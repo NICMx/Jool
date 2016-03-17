@@ -663,8 +663,6 @@ struct session_config {
 		__u64 icmp;
 	} ttl;
 	__u8 log_changes;
-
-	struct joold_config joold;
 	struct pktqueue_config pktqueue;
 };
 
@@ -676,6 +674,7 @@ struct full_config {
 	struct global_config global;
 	struct bib_config bib;
 	struct session_config session;
+	struct joold_config joold;
 	struct fragdb_config frag;
 };
 

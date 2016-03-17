@@ -6,6 +6,7 @@
 #include "nat64/mod/stateless/eam.h"
 #include "nat64/mod/stateless/pool.h"
 #include "nat64/mod/stateful/fragment_db.h"
+#include "nat64/mod/stateful/joold.h"
 #include "nat64/mod/stateful/bib/db.h"
 #include "nat64/mod/stateful/pool4/db.h"
 #include "nat64/mod/stateful/session/db.h"
@@ -330,6 +331,7 @@ static int commit(struct xlator *jool)
 	if (remnants) {
 		bibdb_config_set(jool->nat64.bib, &remnants->bib);
 		sessiondb_config_set(jool->nat64.session, &remnants->session);
+		joold_config_set(jool->nat64.joold, &remnants->joold);
 		fragdb_config_set(jool->nat64.frag, &remnants->frag);
 		wkfree(struct full_config, remnants);
 	}

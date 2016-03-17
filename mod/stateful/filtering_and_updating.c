@@ -216,8 +216,7 @@ static int get_or_create_session(struct xlation *state, struct bib_entry *bib,
 	if (error)
 		return error;
 
-	error = sessiondb_add(state->jool.nat64.session, session, false,
-			NULL, NULL);
+	error = sessiondb_add(state->jool.nat64.session, session, NULL, NULL);
 	if (error) {
 		session_put(session, true);
 		return error;
@@ -225,6 +224,11 @@ static int get_or_create_session(struct xlation *state, struct bib_entry *bib,
 
 	*result = session;
 	return 0;
+}
+
+static void joold_add(struct xlation *state, struct session_entry *session)
+{
+	joold_add_session(state->jool.nat64.joold, session);
 }
 
 /**
@@ -256,6 +260,8 @@ static verdict ipv6_simple(struct xlation *state)
 		return VERDICT_DROP;
 	}
 	log_session(session);
+
+	joold_add(state, session);
 
 	/* Transfer session refcount to @state; do not put yet. */
 	state->session = session;
@@ -329,6 +335,8 @@ static verdict ipv4_simple(struct xlation *state)
 	}
 	log_session(session);
 
+	joold_add(state, session);
+
 	/* Transfer session refcount to @state; do not put yet. */
 	state->session = session;
 	bibentry_put_thread(bib, false);
@@ -350,27 +358,28 @@ static int tcp_closed_v6_syn(struct xlation *state)
 
 	error = get_or_create_bib6(state, &bib);
 	if (error)
-		goto simple_end;
+		return error;
 	log_bib(bib);
 
 	error = create_session(state, bib, &session);
 	if (error)
-		goto bib_end;
+		goto end;
 	session->state = V6_INIT;
 
-	error = sessiondb_add(state->jool.nat64.session, session, false,
-			NULL, NULL);
-	if (error)
-		goto session_end;
+	error = sessiondb_add(state->jool.nat64.session, session, NULL, NULL);
+	if (error) {
+		session_put(session, true);
+		goto end;
+	}
 
 	log_session(session);
+	joold_add(state, session);
+	/* Transfer session refcount to @state; do not put yet. */
+	state->session = session;
 	/* Fall through. */
 
-session_end:
-	session_put(session, false);
-bib_end:
+end:
 	bibentry_put_thread(bib, false);
-simple_end:
 	return error;
 }
 
@@ -388,7 +397,7 @@ static verdict tcp_closed_v4_syn(struct xlation *state)
 	verdict result = VERDICT_DROP;
 
 	if (state->jool.global->cfg.nat64.drop_external_tcp) {
-		log_debug("Applying policy: Dropping externally initiated TCP connections.");
+		log_debug("Applying policy: Drop externally initiated TCP connections.");
 		return VERDICT_DROP;
 	}
 
@@ -410,30 +419,27 @@ static verdict tcp_closed_v4_syn(struct xlation *state)
 	if (!bib || state->jool.global->cfg.nat64.drop_by_addr) {
 		error = pktqueue_add(state->jool.nat64.session->pkt_queue,
 				session, &state->in);
-		if (error)
-			goto end_session;
-
-		/* skb's original skb completely belongs to pktqueue now. */
-		result = VERDICT_STOLEN;
-
-	} else {
-		error = sessiondb_add(state->jool.nat64.session, session, false,
-				NULL, NULL);
-		if (error) {
-			log_debug("Error code %d while adding the session to the DB.",
-					error);
-			goto end_session;
+		if (!error) {
+			/* the original skb belongs to pktqueue now. */
+			result = VERDICT_STOLEN;
 		}
-
-		result = VERDICT_CONTINUE;
+		goto end_session;
 	}
 
-	/* Fall through. */
+	error = sessiondb_add(state->jool.nat64.session, session, NULL, NULL);
+	if (error) {
+		log_debug("Could not add session to database: %d", error);
+		goto end_session;
+	}
+
+	joold_add(state, session);
+	/* Transfer session refcount to @state; do not put yet. */
+	state->session = session;
+	bibentry_put_thread(bib, false);
+	return VERDICT_CONTINUE;
 
 end_session:
 	session_put(session, false);
-	/* Fall through. */
-
 end_bib:
 	if (bib)
 		bibentry_put_thread(bib, false);
@@ -484,15 +490,6 @@ syn_out:
 	if (result == VERDICT_DROP)
 		inc_stats(pkt, IPSTATS_MIB_INDISCARDS);
 	return result;
-}
-
-/**
- * TODO I think the intent is to post *updates*. But then, why is it not being
- * called by updating UDP and ICMP sessions?
- */
-static void joold_add(struct xlation *state, struct session_entry *session)
-{
-	joold_add_session(state->jool.nat64.session->joold, session);
 }
 
 /**

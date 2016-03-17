@@ -190,7 +190,7 @@ void session_put(struct session_entry *session, bool must_die)
 	fail(__func__);
 }
 
-int sessiondb_init(struct sessiondb **db, struct net *ns)
+int sessiondb_init(struct sessiondb **db)
 {
 	return fail(__func__);
 }
@@ -247,6 +247,32 @@ int sessiondb_foreach(struct sessiondb *db, l4_protocol proto,
 int sessiondb_count(struct sessiondb *db, l4_protocol proto, __u64 *result)
 {
 	return fail(__func__);
+}
+
+struct joold_queue *joold_create(struct net *ns)
+{
+	fail(__func__);
+	return NULL;
+}
+
+void joold_get(struct joold_queue *queue)
+{
+	fail(__func__);
+}
+
+void joold_put(struct joold_queue *queue)
+{
+	fail(__func__);
+}
+
+void joold_config_copy(struct joold_queue *queue, struct joold_config *config)
+{
+	fail(__func__);
+}
+
+void joold_config_set(struct joold_queue *queue, struct joold_config *config)
+{
+	fail(__func__);
 }
 
 struct fragdb *fragdb_create(void)

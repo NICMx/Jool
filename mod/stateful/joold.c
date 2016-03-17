@@ -47,6 +47,7 @@ struct joold_queue {
 	struct net *ns;
 
 	spinlock_t lock;
+	struct kref refs;
 };
 
 /**
@@ -236,21 +237,30 @@ struct joold_queue *joold_create(struct net *ns)
 	get_net(ns);
 
 	spin_lock_init(&queue->lock);
+	kref_init(&queue->refs);
 
 	return queue;
 }
 
-/**
- * joold_destroy - Destructor of joold_queue structs.
- *
- * Assumes no other threads hold references to @queue.
- */
-void joold_destroy(struct joold_queue *queue)
+void joold_get(struct joold_queue *queue)
 {
+	kref_get(&queue->refs);
+}
+
+static void joold_release(struct kref *refs)
+{
+	struct joold_queue *queue;
+	queue = container_of(refs, struct joold_queue, refs);
+
 	put_net(queue->ns);
 	del_timer_sync(&queue->timer);
 	free_list(&queue->sessions);
 	wkfree(struct joold_queue, queue);
+}
+
+void joold_put(struct joold_queue *queue)
+{
+	kref_put(&queue->refs, joold_release);
 }
 
 void joold_config_copy(struct joold_queue *queue, struct joold_config *config)
@@ -488,8 +498,7 @@ static bool add_new_session(struct xlator *jool, struct joold_session *in)
 	}
 
 	params.new = new;
-	error = sessiondb_add(jool->nat64.session, new, true, collision_cb,
-			&params);
+	error = sessiondb_add(jool->nat64.session, new, collision_cb, &params);
 	if (error == -EEXIST) {
 		session_put(new, true);
 		return params.result;
@@ -510,7 +519,7 @@ static int validate_enabled(struct xlator *jool)
 	bool enabled;
 
 	/* TODO (final) Review BH contextness. */
-	queue = jool->nat64.session->joold;
+	queue = jool->nat64.joold;
 	spin_lock_bh(&queue->lock);
 	enabled = queue->config.enabled;
 	spin_unlock_bh(&queue->lock);

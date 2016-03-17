@@ -24,12 +24,10 @@ struct sessiondb {
 	/** Packet storage for simultaneous open of TCP connections. */
 	struct pktqueue *pkt_queue;
 
-	struct joold_queue *joold;
-
 	struct kref refs;
 };
 
-int sessiondb_init(struct sessiondb **db, struct net *ns);
+int sessiondb_init(struct sessiondb **db);
 void sessiondb_get(struct sessiondb *db);
 void sessiondb_put(struct sessiondb *db);
 
@@ -40,7 +38,7 @@ int sessiondb_find(struct sessiondb *db, struct tuple *tuple,
 		fate_cb cb, void *cb_arg,
 		struct session_entry **result);
 int sessiondb_add(struct sessiondb *db, struct session_entry *session,
-		bool is_synch, fate_cb cb, void *cb_args);
+		fate_cb cb, void *cb_args);
 
 int sessiondb_foreach(struct sessiondb *db, l4_protocol proto,
 		int (*func)(struct session_entry *, void *), void *arg,

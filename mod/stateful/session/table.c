@@ -164,12 +164,11 @@ static void send_probe_packet(struct net *ns, struct session_entry *session)
 		goto fail;
 	}
 
-	/* TODO it looks like this should be dst_output, not ip6_local_out. */
 	/* Implicit kfree_skb(skb) here. */
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 4, 0)
-	error = ip6_local_out(ns, NULL, skb);
+	error = dst_output(ns, NULL, skb);
 #else
-	error = ip6_local_out(skb);
+	error = dst_output(skb);
 #endif
 	if (error) {
 		log_debug("ip6_local_out returned errcode %d.", error);

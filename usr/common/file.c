@@ -42,14 +42,13 @@ int file_to_string(char *file_name, char **result)
 		goto fail;
 	}
 
-	buffer = malloc(length);
+	buffer = malloc(length + 1);
 	if (!buffer) {
 		log_err("Out of memory.");
 		error = -ENOMEM;
 		goto fail;
 	}
 
-	/* TODO WTF ARE YOU SURE THIS IS NULL TERMINATED? */
 	total_read = 0;
 	while (total_read < length) {
 		current_read = fread(&buffer[total_read], 1, length, file);
@@ -67,6 +66,7 @@ int file_to_string(char *file_name, char **result)
 
 	fclose(file);
 
+	buffer[total_read] = '\0';
 	*result = buffer;
 	return 0;
 

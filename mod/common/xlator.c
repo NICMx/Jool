@@ -10,6 +10,7 @@
 #include "nat64/mod/stateless/eam.h"
 #include "nat64/mod/stateless/rfc6791.h"
 #include "nat64/mod/stateful/fragment_db.h"
+#include "nat64/mod/stateful/joold.h"
 #include "nat64/mod/stateful/pool4/db.h"
 #include "nat64/mod/stateful/bib/db.h"
 #include "nat64/mod/stateful/session/db.h"
@@ -47,6 +48,7 @@ static void xlator_get(struct xlator *jool)
 		pool4db_get(jool->nat64.pool4);
 		bibdb_get(jool->nat64.bib);
 		sessiondb_get(jool->nat64.session);
+		joold_get(jool->nat64.joold);
 	}
 
 	cfgcandidate_get(jool->newcfg);
@@ -191,9 +193,13 @@ static int init_nat64(struct xlator *jool, struct net *ns)
 	error = bibdb_init(&jool->nat64.bib);
 	if (error)
 		goto bibdb_fail;
-	error = sessiondb_init(&jool->nat64.session, ns);
+	error = sessiondb_init(&jool->nat64.session);
 	if (error)
 		goto sessiondb_fail;
+	jool->nat64.joold = joold_create(ns);
+	if (!jool->nat64.joold)
+		goto joold_fail;
+
 	jool->newcfg = cfgcandidate_create();
 	if (!jool->newcfg)
 		goto newcfg_fail;
@@ -201,6 +207,8 @@ static int init_nat64(struct xlator *jool, struct net *ns)
 	return 0;
 
 newcfg_fail:
+	joold_put(jool->nat64.joold);
+joold_fail:
 	sessiondb_put(jool->nat64.session);
 sessiondb_fail:
 	bibdb_put(jool->nat64.bib);
@@ -414,6 +422,7 @@ void xlator_put(struct xlator *jool)
 		pool4db_put(jool->nat64.pool4);
 		sessiondb_put(jool->nat64.session);
 		bibdb_put(jool->nat64.bib);
+		joold_put(jool->nat64.joold);
 	}
 
 	cfgcandidate_put(jool->newcfg);
@@ -444,5 +453,6 @@ void xlator_copy_config(struct xlator *jool, struct full_config *copy)
 	config_copy(&jool->global->cfg, &copy->global);
 	bibdb_config_copy(jool->nat64.bib, &copy->bib);
 	sessiondb_config_copy(jool->nat64.session, &copy->session);
+	joold_config_copy(jool->nat64.joold, &copy->joold);
 	fragdb_config_copy(jool->nat64.frag, &copy->frag);
 }
