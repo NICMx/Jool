@@ -165,19 +165,12 @@ static int register_family(void)
 	}
 #endif
 
-	nlcore_init(&jool_family);
+	nlcore_init(&jool_family, &mc_groups[0]);
 	return 0;
 }
 
 int nlhandler_init(void)
 {
-	/*
-	 * If this triggers, GENLMSG_DEFAULT_SIZE is too small.
-	 * Sorry; I don't want to use BUILD_BUG_ON_MSG because old kernels don't
-	 * have it.
-	 */
-	BUILD_BUG_ON(GENLMSG_DEFAULT_SIZE <= 256);
-
 	error_pool_init();
 	return register_family();
 }

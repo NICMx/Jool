@@ -29,7 +29,7 @@ struct sessiondb {
 	struct kref refs;
 };
 
-int sessiondb_init(struct sessiondb **db);
+int sessiondb_init(struct sessiondb **db, struct net *ns);
 void sessiondb_get(struct sessiondb *db);
 void sessiondb_put(struct sessiondb *db);
 

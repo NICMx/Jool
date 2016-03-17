@@ -486,6 +486,10 @@ syn_out:
 	return result;
 }
 
+/**
+ * TODO I think the intent is to post *updates*. But then, why is it not being
+ * called by updating UDP and ICMP sessions?
+ */
 static void joold_add(struct xlation *state, struct session_entry *session)
 {
 	joold_add_session(state->jool.nat64.session->joold, session);

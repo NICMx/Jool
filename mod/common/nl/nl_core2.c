@@ -44,11 +44,21 @@
  */
 #define NLBUFFER_MAX_PAYLOAD ((size_t)(GENLMSG_DEFAULT_SIZE - 256))
 
-struct genl_family *family;
+static struct genl_family *family;
+static struct genl_multicast_group *group;
 
-void nlcore_init(struct genl_family *new_family)
+void nlcore_init(struct genl_family *new_family,
+		struct genl_multicast_group *new_group)
 {
+	/*
+	 * If this triggers, GENLMSG_DEFAULT_SIZE is too small.
+	 * Sorry; I don't want to use BUILD_BUG_ON_MSG because old kernels don't
+	 * have it.
+	 */
+	BUILD_BUG_ON(GENLMSG_DEFAULT_SIZE <= 256);
+
 	family = new_family;
+	group = new_group;
 }
 
 static int respond_single_msg(struct genl_info *info, struct nlcore_buffer *buffer)
@@ -285,7 +295,7 @@ int nlcore_respond_struct(struct genl_info *info, void *content,
 	return error;
 }
 
-int nlcore_send_multicast_message(struct nlcore_buffer *buffer)
+int nlcore_send_multicast_message(struct net *ns, struct nlcore_buffer *buffer)
 {
 	int error;
 	struct sk_buff *skb;
@@ -313,9 +323,19 @@ int nlcore_send_multicast_message(struct nlcore_buffer *buffer)
 	genlmsg_end(skb, msg_head);
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(3, 13, 0)
-	error = genlmsg_multicast_allns(skb, 0, mc_groups[0].id, 0);
+	error = genlmsg_multicast_netns(ns, skb, 0, group->id, GFP_ATOMIC);
 #else
-	error = genlmsg_multicast_allns(family, skb, 0, 0, GFP_ATOMIC);
+	/*
+	 * Note: Starting from kernel 3.13, all groups of a common family share
+	 * a group offset (from a common pool), and they are numbered
+	 * monotonically from there. That means if all we have is one group,
+	 * its id will always be zero.
+	 *
+	 * That's the reason why so many callers of this function stopped
+	 * providing a group when the API started forcing them to provide a
+	 * family.
+	 */
+	error = genlmsg_multicast_netns(family, ns, skb, 0, 0, GFP_ATOMIC);
 #endif
 	if (error) {
 		log_warn_once("Sending multicast message failed. (errcode %d)",

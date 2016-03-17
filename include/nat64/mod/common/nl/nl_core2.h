@@ -37,7 +37,8 @@ struct nlcore_buffer {
 	void *data;
 };
 
-void nlcore_init(struct genl_family *new_family);
+void nlcore_init(struct genl_family *new_family,
+		struct genl_multicast_group *new_group);
 /* There's no nlcore_destroy; just destroy the family yourself. */
 
 size_t nlbuffer_response_max_size(void);
@@ -55,6 +56,6 @@ void nlbuffer_set_errcode(struct nlcore_buffer *buffer, int error);
 int nlcore_respond_struct(struct genl_info *info, void *content, size_t content_len);
 int nlcore_respond(struct genl_info *info, int error);
 
-int nlcore_send_multicast_message(struct nlcore_buffer * buffer);
+int nlcore_send_multicast_message(struct net *ns, struct nlcore_buffer *buffer);
 
 #endif

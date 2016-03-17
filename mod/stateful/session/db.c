@@ -36,7 +36,7 @@ static enum session_fate just_die(struct session_entry *session, void *arg)
 /* TODO (final) maybe put this in some common header? */
 enum session_fate tcp_expired_cb(struct session_entry *session, void *arg);
 
-int sessiondb_init(struct sessiondb **db)
+int sessiondb_init(struct sessiondb **db, struct net *ns)
 {
 	struct sessiondb *result;
 
@@ -44,7 +44,7 @@ int sessiondb_init(struct sessiondb **db)
 	if (!result)
 		return -ENOMEM;
 
-	result->joold = joold_create();
+	result->joold = joold_create(ns);
 	if (!result->joold) {
 		wkfree(struct sessiondb, result);
 		return -ENOMEM;

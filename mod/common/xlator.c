@@ -172,7 +172,7 @@ config_fail:
 	return error;
 }
 
-static int init_nat64(struct xlator *jool)
+static int init_nat64(struct xlator *jool, struct net *ns)
 {
 	int error;
 
@@ -191,7 +191,7 @@ static int init_nat64(struct xlator *jool)
 	error = bibdb_init(&jool->nat64.bib);
 	if (error)
 		goto bibdb_fail;
-	error = sessiondb_init(&jool->nat64.session);
+	error = sessiondb_init(&jool->nat64.session, ns);
 	if (error)
 		goto sessiondb_fail;
 	jool->newcfg = cfgcandidate_create();
@@ -244,7 +244,7 @@ int xlator_add(struct xlator *result)
 	instance->jool.ns = ns;
 	error = xlat_is_siit()
 			? init_siit(&instance->jool)
-			: init_nat64(&instance->jool);
+			: init_nat64(&instance->jool, ns);
 	if (error) {
 		put_net(ns);
 		wkfree(struct jool_instance, instance);

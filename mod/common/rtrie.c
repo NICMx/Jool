@@ -1,5 +1,6 @@
 #include "nat64/mod/common/rtrie.h"
 
+#include <linux/rcupdate.h>
 #include "nat64/common/types.h"
 #include "nat64/mod/common/wkmalloc.h"
 

@@ -2,6 +2,7 @@
 #define _JOOL_MOD_BIB_TABLE_H
 
 #include <linux/rbtree.h>
+#include <linux/spinlock.h>
 #include "nat64/common/types.h"
 #include "nat64/mod/common/config.h"
 

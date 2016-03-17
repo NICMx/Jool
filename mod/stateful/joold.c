@@ -43,6 +43,9 @@ struct joold_queue {
 	/* User-defined values (--global). */
 	struct joold_config config;
 
+	/** Namespace where the sessions will be multicasted. */
+	struct net *ns;
+
 	spinlock_t lock;
 };
 
@@ -145,13 +148,13 @@ fail:
 	return error;
 }
 
-static void send_buffer(struct nlcore_buffer *buffer)
+static void send_buffer(struct net *ns, struct nlcore_buffer *buffer)
 {
 	int error;
 
 	log_debug("Sending multicast message.");
 
-	error = nlcore_send_multicast_message(buffer);
+	error = nlcore_send_multicast_message(ns, buffer);
 	if (error) {
 		log_debug("nl_core_send_multicast_message() threw errcode %d.",
 				error);
@@ -170,7 +173,8 @@ static void free_list(struct list_head *list)
 	}
 }
 
-static void send_to_userspace(struct list_head *list, unsigned int list_len)
+static void send_to_userspace(struct net *ns, struct list_head *list,
+		unsigned int list_len)
 {
 	struct nlcore_buffer buffer;
 
@@ -180,7 +184,7 @@ static void send_to_userspace(struct list_head *list, unsigned int list_len)
 	if (build_buffer(&buffer, list, list_len))
 		goto end;
 
-	send_buffer(&buffer);
+	send_buffer(ns, &buffer);
 	nlbuffer_free(&buffer);
 	/* Fall through. */
 
@@ -193,19 +197,26 @@ static void send_to_userspace_timeout(unsigned long arg)
 	struct joold_queue *queue = (typeof(queue))arg;
 	LIST_HEAD(list);
 	unsigned int list_len;
+	struct net *ns;
 
 	spin_lock_bh(&queue->lock);
+
 	extract_list(queue, &list, &list_len);
 	mod_timer(&queue->timer, jiffies + queue->config.timer_period);
+
+	ns = queue->ns;
+	get_net(ns);
+
 	spin_unlock_bh(&queue->lock);
 
-	send_to_userspace(&list, list_len);
+	send_to_userspace(ns, &list, list_len);
+	put_net(ns);
 }
 
 /**
  * joold_create - Constructor for joold_queue structs.
  */
-struct joold_queue *joold_create(void)
+struct joold_queue *joold_create(struct net *ns)
 {
 	struct joold_queue *queue;
 
@@ -220,6 +231,10 @@ struct joold_queue *joold_create(void)
 	queue->config.enabled = DEFAULT_JOOLD_ENABLED;
 	queue->config.queue_capacity = DEFAULT_JOOLD_CAPACITY;
 	queue->config.timer_period = DEFAULT_JOOLD_PERIOD;
+
+	queue->ns = ns;
+	get_net(ns);
+
 	spin_lock_init(&queue->lock);
 
 	return queue;
@@ -232,6 +247,7 @@ struct joold_queue *joold_create(void)
  */
 void joold_destroy(struct joold_queue *queue)
 {
+	put_net(queue->ns);
 	del_timer_sync(&queue->timer);
 	free_list(&queue->sessions);
 	wkfree(struct joold_queue, queue);
@@ -297,15 +313,20 @@ void joold_add_session(struct joold_queue *queue, struct session_entry *entry)
 	__u64 creation_time;
 	LIST_HEAD(list);
 	unsigned int list_len = 0;
+	struct net *ns;
 
 	spin_lock_bh(&queue->lock);
 
-	if (!queue->config.enabled)
-		goto end;
+	if (!queue->config.enabled) {
+		spin_unlock_bh(&queue->lock);
+		return;
+	}
 
 	entry_copy = kmem_cache_alloc(node_cache, GFP_ATOMIC);
-	if (!entry_copy)
-		goto end;
+	if (!entry_copy) {
+		spin_unlock_bh(&queue->lock);
+		return;
+	}
 
 	entry_copy->session.l4_proto = entry->l4_proto;
 	entry_copy->session.local4 = entry->src4;
@@ -324,12 +345,14 @@ void joold_add_session(struct joold_queue *queue, struct session_entry *entry)
 
 	if (queue->config.queue_capacity <= queue->count)
 		extract_list(queue, &list, &list_len);
-	/* Fall through. */
 
-end:
+	ns = queue->ns;
+	get_net(ns);
+
 	spin_unlock_bh(&queue->lock);
 
-	send_to_userspace(&list, list_len);
+	send_to_userspace(ns, &list, list_len);
+	put_net(ns);
 }
 
 static int add_new_bib(struct bib *db, struct joold_session *session,
@@ -552,7 +575,7 @@ int joold_test(struct xlator *jool)
 	if (error)
 		return error;
 
-	error = nlcore_send_multicast_message(&buffer);
+	error = nlcore_send_multicast_message(jool->ns, &buffer);
 	nlbuffer_free(&buffer);
 	return error;
 }

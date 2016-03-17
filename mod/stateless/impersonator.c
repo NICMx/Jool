@@ -190,7 +190,7 @@ void session_put(struct session_entry *session, bool must_die)
 	fail(__func__);
 }
 
-int sessiondb_init(struct sessiondb **db)
+int sessiondb_init(struct sessiondb **db, struct net *ns)
 {
 	return fail(__func__);
 }
