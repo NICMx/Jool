@@ -627,6 +627,6 @@ end:
 
 static int handle_bib(cJSON *json)
 {
-	/* TODO first do the kernel part. */
+	/* TODO (3.5.1) first do the kernel part. */
 	return 0;
 }

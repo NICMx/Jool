@@ -6,6 +6,8 @@
 #include "sender.h"
 #include "nat64/common/types.h"
 
+static DEFINE_MUTEX(config_mutex);
+
 /*
 static void print_pkt(void *skb)
 {
@@ -127,7 +129,7 @@ static int handle_userspace_msg(struct sk_buff *skb, struct genl_info *info)
 {
 	int error;
 
-	/* TODO mutex this. */
+	mutex_lock(&config_mutex);
 	error_pool_activate();
 
 	switch (info->genlhdr->cmd) {
@@ -153,6 +155,7 @@ static int handle_userspace_msg(struct sk_buff *skb, struct genl_info *info)
 	}
 
 	error_pool_deactivate();
+	mutex_unlock(&config_mutex);
 
 	return error;
 }

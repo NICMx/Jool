@@ -83,6 +83,11 @@ static int handle_addr4pool(struct addr4_pool *pool, struct genl_info *info)
 	union request_pool *request = (union request_pool *)(jool_hdr + 1);
 	int error;
 
+	if (xlat_is_nat64()) {
+		log_err("Stateful NAT64 doesn't have IPv4 address pools.");
+		return nlcore_respond(info, -EINVAL);
+	}
+
 	error = validate_request_size(info, sizeof(*request));
 	if (error)
 		return nlcore_respond(info, error);
@@ -111,20 +116,10 @@ static int handle_addr4pool(struct addr4_pool *pool, struct genl_info *info)
 
 int handle_blacklist_config(struct xlator *jool, struct genl_info *info)
 {
-	if (xlat_is_nat64()) {
-		log_err("Stateful NAT64 doesn't have a blacklist pool.");
-		return nlcore_respond(info, -EINVAL);
-	}
-
 	return handle_addr4pool(jool->siit.blacklist, info);
 }
 
 int handle_pool6791_config(struct xlator *jool, struct genl_info *info)
 {
-	if (xlat_is_nat64()) {
-		log_err("Stateful NAT64 doesn't have an RFC6791 pool.");
-		return nlcore_respond(info, -EINVAL);
-	}
-
 	return handle_addr4pool(jool->siit.pool6791, info);
 }

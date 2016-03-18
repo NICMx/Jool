@@ -59,14 +59,15 @@ l4_protocol str_to_l4proto(char *str)
 int validate_int(const char *str)
 {
 	regex_t integer_regex;
+	int error;
 
 	if (!str) {
 		log_err("Programming error: 'str' is NULL.");
 		return -EINVAL;
 	}
 
-	/* TODO this regular expression looks like it accepts "". */
-	if (regcomp(&integer_regex, "^[0-9]*", 0)) {
+	/* It seems this RE implementation doesn't understand '+'. */
+	if (regcomp(&integer_regex, "^[0-9][0-9]*", 0)) {
 		log_err("Warning: Integer regex didn't compile.");
 		log_err("(I will be unable to validate integer inputs.)");
 		regfree(&integer_regex);
@@ -79,10 +80,11 @@ int validate_int(const char *str)
 		return 0;
 	}
 
-	if (regexec(&integer_regex, str, 0, NULL, 0) == REG_NOMATCH) {
-		log_err("'%s' is not a number.", str);
+	error = regexec(&integer_regex, str, 0, NULL, 0);
+	if (error) {
+		log_err("'%s' is not a number. (error code %d)", str, error);
 		regfree(&integer_regex);
-		return -EINVAL;
+		return error;
 	}
 
 	regfree(&integer_regex);

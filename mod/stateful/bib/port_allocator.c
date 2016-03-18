@@ -26,7 +26,7 @@ int palloc_init(void)
 	if (secret_key_len > 128)
 		secret_key_len = 128;
 
-	secret_key = __wkmalloc("Secrey key", secret_key_len, GFP_KERNEL);
+	secret_key = __wkmalloc("Secret key", secret_key_len, GFP_KERNEL);
 	if (!secret_key)
 		return -ENOMEM;
 	get_random_bytes(secret_key, secret_key_len);

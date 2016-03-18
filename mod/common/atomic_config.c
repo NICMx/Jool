@@ -107,7 +107,7 @@ static int handle_global(struct xlator *jool, void *payload, __u32 payload_len)
 
 	/*
 	 * TODO if there's an error in config_parse, this can easily fall into
-	 * an infinite loop.
+	 * an infinite loop. An attacker could abuse this.
 	 * Maybe add validations?
 	 */
 
@@ -155,6 +155,11 @@ static int handle_eamt(struct config_candidate *new, void *payload,
 	unsigned int i;
 	int error;
 
+	if (xlat_is_nat64()) {
+		log_err("Stateful NAT64 doesn't have an EAMT.");
+		return -EINVAL;
+	}
+
 	if (!new->siit.eamt) {
 		error = eamt_init(&new->siit.eamt);
 		if (error)
@@ -180,6 +185,11 @@ static int handle_addr4_pool(struct addr4_pool **pool, void *payload,
 	unsigned int prefix_count = payload_len / sizeof(*prefixes);
 	unsigned int i;
 	int error;
+
+	if (xlat_is_nat64()) {
+		log_err("Stateful NAT64 doesn't have IPv4 address pools.");
+		return -EINVAL;
+	}
 
 	if (!(*pool)) {
 		error = pool_init(pool);
@@ -217,6 +227,11 @@ static int handle_pool4(struct config_candidate *new, void *payload,
 	unsigned int i;
 	int error;
 
+	if (xlat_is_siit()) {
+		log_err("SIIT doesn't have pool4.");
+		return -EINVAL;
+	}
+
 	if (!new->nat64.pool4) {
 		error = pool4db_init(&new->nat64.pool4, 0);
 		if (error)
@@ -239,6 +254,11 @@ static int handle_bib(struct config_candidate *new, void *payload, __u32 payload
 	struct bib_entry *entry;
 	unsigned int i;
 	int error;
+
+	if (xlat_is_siit()) {
+		log_err("SIIT doesn't have BIBs.");
+		return -EINVAL;
+	}
 
 	if (!new->nat64.bib) {
 		error = bibdb_init(&new->nat64.bib);
@@ -350,7 +370,6 @@ int atomconfig_add(struct xlator *jool, void *config, size_t config_len)
 
 	mutex_lock(&lock);
 
-	/* TODO validate stateness. */
 	switch (type) {
 	case SEC_INIT:
 		rollback(jool);

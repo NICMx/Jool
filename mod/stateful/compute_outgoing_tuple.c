@@ -15,8 +15,8 @@ static struct session_entry *find_session(struct xlation *state)
 			NULL, NULL, &session);
 	if (error) {
 		/*
-		 * Bogus ICMP errors might cause this because Filtering never
-		 * cares for them, so it's not critical.
+		 * Bogus ICMP errors might cause this because Filtering skips
+		 * them, so it's not critical.
 		 */
 		log_debug("Session not found. Error code is %d.", error);
 		return NULL;

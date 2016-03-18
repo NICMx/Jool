@@ -562,7 +562,8 @@ static unsigned int zeroize_upper_bits(__u16 num)
 static int parse_args(int argc, char **argv, struct arguments *result)
 {
 	int error;
-	struct argp argp = { build_opts(), parse_opt, args_doc, doc };
+	struct argp_option *options = build_opts();
+	struct argp argp = { options, parse_opt, args_doc, doc };
 
 	memset(result, 0, sizeof(*result));
 	result->mode = ANY_MODE;
@@ -571,6 +572,7 @@ static int parse_args(int argc, char **argv, struct arguments *result)
 	result->db.pool4.ports.max = 65535U;
 
 	error = argp_parse(&argp, argc, argv, 0, NULL, result);
+	free(options);
 	if (error)
 		return error;
 
