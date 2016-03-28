@@ -241,13 +241,13 @@ static bool remove_entry(char *addr4, __u8 len4, char *addr6, __u8 len6,
 	}
 
 	if (addr4) {
-		if (is_error(str_to_addr4(addr4, &prefix4.address)))
+		if (str_to_addr4(addr4, &prefix4.address) != 0)
 			return false;
 		prefix4.len = len4;
 	}
 
 	if (addr6) {
-		if (is_error(str_to_addr6(addr6, &prefix6.address)))
+		if (str_to_addr6(addr6, &prefix6.address) != 0)
 			return false;
 		prefix6.len = len6;
 	}

@@ -223,7 +223,7 @@ static bool simple_session(void)
 	prefix6.address.s6_addr32[2] = 0;
 	prefix6.address.s6_addr32[3] = cpu_to_be32(1);
 	prefix6.len = 128;
-	sessiondb_delete_taddr6s(db, &prefix6);
+	sessiondb_rm_taddr6s(db, &prefix6);
 
 	sessions6[2][2][1][1] = sessions4[2][1][1][1] = NULL;
 	sessions6[1][1][1][1] = sessions4[2][1][2][2] = NULL;
@@ -246,7 +246,7 @@ static bool simple_session(void)
 	prefix4.len = 30;
 	ports.min = 0;
 	ports.max = 1;
-	sessiondb_delete_taddr4s(db, &prefix4, &ports);
+	sessiondb_rm_taddr4s(db, &prefix4, &ports);
 
 	sessions6[1][2][2][2] = sessions4[2][1][2][1] = NULL;
 	sessions6[2][2][1][1] = sessions4[2][1][1][1] = NULL;
@@ -271,7 +271,7 @@ static bool simple_session(void)
 	prefix4.len = 31;
 	ports.min = 0;
 	ports.max = 65535;
-	sessiondb_delete_taddr4s(db, &prefix4, &ports);
+	sessiondb_rm_taddr4s(db, &prefix4, &ports);
 
 	sessions6[1][1][2][2] = sessions4[1][2][2][2] = NULL;
 	sessions6[2][1][1][1] = sessions4[1][1][2][2] = NULL;

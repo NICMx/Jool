@@ -52,11 +52,10 @@ static bool assert_bib_exists(char *addr6, u16 port6, char *addr4, u16 port4,
 	success &= ASSERT_ADDR4(addr4, &bib->ipv4.l3, "IPv4 address");
 	/* The IPv4 port is unpredictable. */
 	success &= ASSERT_BOOL(false, bib->is_static, "BIB is dynamic");
-	success &= ASSERT_INT(session_count,
-			atomic_read(&bib->refcounter.refcount) - 1,
-			"BIB Session count");
+	success &= ASSERT_INT(session_count, atomic_read(&bib->db_refs),
+			"BIB's DB refs");
 
-	bibentry_put(bib, false);
+	bibentry_put_thread(bib, false);
 
 	return success;
 }

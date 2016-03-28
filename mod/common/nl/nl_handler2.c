@@ -49,7 +49,6 @@ static struct genl_family jool_family = {
 	.netnsok = true,
 };
 
-/* TODO (final) remove? */
 static DEFINE_MUTEX(config_mutex);
 
 static int multiplex_request(struct xlator *jool, struct genl_info *info)

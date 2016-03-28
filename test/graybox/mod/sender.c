@@ -84,6 +84,11 @@ int sender_send(char *pkt_name, void *pkt, size_t pkt_len)
 
 	log_debug("Sending packet '%s'...", pkt_name);
 
+	if (pkt_len == 0) {
+		log_err("The packet is zero bytes long.");
+		return -EINVAL;
+	}
+
 	skb = alloc_skb(LL_MAX_HEADER + pkt_len, GFP_KERNEL);
 	if (!skb) {
 		log_err("Could not allocate a skb.");

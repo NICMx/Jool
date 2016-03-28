@@ -17,7 +17,7 @@ SESSIONDB = sessiondb
 obj-m += $(SESSIONDB).o
 
 $(SESSIONDB)-objs += $(MIN_REQS)
-$(SESSIONDB)-objs += ../../../mod/common/config.o
+$(SESSIONDB)-objs += ../../../common/netlink/config.o
 $(SESSIONDB)-objs += ../../../mod/common/rbtree.o
 $(SESSIONDB)-objs += ../../../mod/common/nl/nl_common.o
 $(SESSIONDB)-objs += ../../../mod/common/nl/nl_core2.o

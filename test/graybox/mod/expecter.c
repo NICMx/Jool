@@ -68,13 +68,18 @@ static void sort_exceptions(struct expected_packet *pkt)
 		}
 	}
 
-	pkt->exceptions_len = i;
+	pkt->exceptions_len = i + 1;
 }
 
 int expecter_add(struct expected_packet *pkt)
 {
 	struct expecter_node *node;
 	size_t exceptions_size;
+
+	if (pkt->bytes_len == 0) {
+		log_err("The packet is zero bytes long.");
+		return -EINVAL;
+	}
 
 	node = kmalloc(sizeof(struct expecter_node), GFP_KERNEL);
 	if (!node)
@@ -92,7 +97,7 @@ int expecter_add(struct expected_packet *pkt)
 	memcpy(node->pkt.bytes, pkt->bytes, pkt->bytes_len);
 	node->pkt.bytes_len = pkt->bytes_len;
 
-	if (pkt->exceptions) {
+	if (pkt->exceptions && pkt->exceptions_len) {
 		exceptions_size = pkt->exceptions_len * sizeof(*pkt->exceptions);
 		node->pkt.exceptions = kmalloc(exceptions_size, GFP_KERNEL);
 		if (!node->pkt.exceptions)

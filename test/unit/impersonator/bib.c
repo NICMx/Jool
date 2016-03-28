@@ -15,12 +15,18 @@ struct bib_entry *bibentry_create(const struct ipv4_transport_addr *addr4,
 	return NULL;
 }
 
-void bibentry_get(struct bib_entry *bib)
+void bibentry_get_db(struct bib_entry *bib)
 {
 	WARN(true, "This function was called! The unit test is broken.");
 }
 
-void bibentry_put(struct bib_entry *bib, bool must_die)
+int bibentry_put_db(struct bib_entry *bib)
+{
+	WARN(true, "This function was called! The unit test is broken.");
+	return 1;
+}
+
+void bibentry_put_thread(struct bib_entry *bib, bool must_die)
 {
 	WARN(true, "This function was called! The unit test is broken.");
 }
@@ -31,11 +37,11 @@ bool bibentry_equals(const struct bib_entry *b1, const struct bib_entry *b2)
 	return false;
 }
 
-bool bibdb_contains4(struct bib *db, const struct ipv4_transport_addr *addr,
-		const l4_protocol proto)
+int bibdb_find4(struct bib *db, const struct ipv4_transport_addr *addr,
+		const l4_protocol proto, struct bib_entry **result)
 {
 	WARN(true, "This function was called! The unit test is broken.");
-	return false;
+	return -EINVAL;
 }
 
 int bibdb_add(struct bib *db, struct bib_entry *entry, struct bib_entry **old)

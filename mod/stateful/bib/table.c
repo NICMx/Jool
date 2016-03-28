@@ -50,6 +50,8 @@ struct bib_entry *bibentry_create(const struct ipv4_transport_addr *addr4,
 	memcpy(result, &tmp, sizeof(tmp));
 	kref_init(&result->mem_refs);
 	atomic_set(&result->db_refs, 0);
+	if (is_static)
+		bibentry_get_db(result);
 	result->table = NULL;
 	RB_CLEAR_NODE(&result->tree6_hook);
 	RB_CLEAR_NODE(&result->tree4_hook);
@@ -60,8 +62,8 @@ struct bib_entry *bibentry_create(const struct ipv4_transport_addr *addr4,
 
 struct bib_entry *bibentry_create_usr(struct bib_entry_usr *usr)
 {
-	return bibentry_create(&usr->addr4, &usr->addr6, usr->is_static,
-			usr->l4_proto);
+	/* The user requested this entry, so discard usr->is_static. */
+	return bibentry_create(&usr->addr4, &usr->addr6, true, usr->l4_proto);
 }
 
 /**

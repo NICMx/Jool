@@ -33,7 +33,7 @@ struct bib_entry *bib_inject(struct bib *db,
 	taddr4.l4 = port4;
 	taddr6.l4 = port6;
 
-	entry = bibentry_create(&taddr4, &taddr6, false, proto);
+	entry = bibentry_create(&taddr4, &taddr6, true, proto);
 	if (!entry) {
 		log_err("Could not allocate the BIB entry.");
 		return NULL;

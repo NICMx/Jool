@@ -25,18 +25,14 @@ static bool assert4(unsigned int addr_id, unsigned int port)
 	if (bibs4[addr_id][port]) {
 		success &= ASSERT_INT(0, bibdb_find4(db, &taddr, PROTO, &bib),
 				"7th (%u %u) - get4", addr_id, port);
-		success &= ASSERT_BOOL(true, bibdb_contains4(db, &taddr, PROTO),
-				"7th (%u %u) - contains4", addr_id, port);
 		success &= ASSERT_BIB(bibs4[addr_id][port], bib, "7th by 4");
 	} else {
 		success &= ASSERT_INT(-ESRCH, bibdb_find4(db, &taddr, PROTO, &bib),
 				"get4 fails (%u %u)", addr_id, port);
-		success &= ASSERT_BOOL(false, bibdb_contains4(db, &taddr, PROTO),
-				"contains4 fails (%u %u)", addr_id, port);
 	}
 
 	if (bib)
-		bibentry_put(bib, false);
+		bibentry_put_thread(bib, false);
 
 	return success;
 }
@@ -63,7 +59,7 @@ static bool assert6(unsigned int addr_id, unsigned int port)
 	}
 
 	if (bib)
-		bibentry_put(bib, false);
+		bibentry_put_thread(bib, false);
 
 	return success;
 }
@@ -84,13 +80,36 @@ static bool test_db(void)
 	return success;
 }
 
+static void drop_bib(int addr6, int port6, int addr4, int port4)
+{
+	bibentry_put_thread(bibs6[addr6][port6], true);
+	bibs6[addr6][port6] = NULL;
+	bibs4[addr4][port4] = NULL;
+}
+
+/**
+ * Returns @bibs4 and @bibs6 to factory condition.
+ */
+static void drop_test_bibs(void)
+{
+	unsigned int addr, port;
+
+	for (addr = 0; addr < 4; addr++) {
+		for (port = 0; port < 25; port++) {
+			if (bibs6[addr][port])
+				drop_bib(addr, port, 0, 0);
+		}
+	}
+
+	memset(bibs4, 0, sizeof(bibs4));
+}
+
 static bool insert_test_bibs(void)
 {
 	struct bib_entry *bibs[8];
 	unsigned int i;
 
-	memset(bibs4, 0, sizeof(bibs4));
-	memset(bibs6, 0, sizeof(bibs6));
+	drop_test_bibs();
 
 	bibs[0] = bib_inject(db, "2001:db8::2", 18, "192.0.2.3", 20, PROTO);
 	bibs[1] = bib_inject(db, "2001:db8::0", 10, "192.0.2.1", 21, PROTO);
@@ -105,7 +124,6 @@ static bool insert_test_bibs(void)
 			log_debug("Allocation failed in index %u.", i);
 			return false;
 		}
-		bibs[i]->is_static = true;
 	}
 
 	bibs6[2][18] = bibs4[3][20] = bibs[0];
@@ -136,12 +154,12 @@ static bool test_flow(void)
 	prefix.len = 31;
 	range.min = 0;
 	range.max = 65535;
-	bibdb_delete_taddr4s(db, &prefix, &range);
+	bibdb_rm_taddr4s(db, &prefix, &range);
 
-	bibs6[0][10] = bibs4[1][21] = NULL;
-	bibs6[1][19] = bibs4[0][20] = NULL;
-	bibs6[2][8] = bibs4[0][10] = NULL;
-	bibs6[1][9] = bibs4[1][11] = NULL;
+	drop_bib(0, 10, 1, 21);
+	drop_bib(1, 19, 0, 20);
+	drop_bib(2, 8, 0, 10);
+	drop_bib(1, 9, 1, 11);
 	success &= test_db();
 
 	/* ---------------------------------------------------------- */
@@ -151,10 +169,10 @@ static bool test_flow(void)
 	prefix.len = 31;
 	range.min = 11;
 	range.max = 20;
-	bibdb_delete_taddr4s(db, &prefix, &range);
+	bibdb_rm_taddr4s(db, &prefix, &range);
 
-	bibs6[2][18] = bibs4[3][20] = NULL;
-	bibs6[0][20] = bibs4[2][12] = NULL;
+	drop_bib(2, 18, 3, 20);
+	drop_bib(0, 20, 2, 12);
 	success &= test_db();
 
 	/* ---------------------------------------------------------- */
@@ -164,10 +182,10 @@ static bool test_flow(void)
 	prefix.len = 0;
 	range.min = 0;
 	range.max = 65535;
-	bibdb_delete_taddr4s(db, &prefix, &range);
+	bibdb_rm_taddr4s(db, &prefix, &range);
 
-	bibs6[3][10] = bibs4[3][10] = NULL;
-	bibs6[3][20] = bibs4[2][22] = NULL;
+	drop_bib(3, 10, 3, 10);
+	drop_bib(3, 20, 2, 22);
 	success &= test_db();
 
 	/* ---------------------------------------------------------- */
@@ -177,8 +195,7 @@ static bool test_flow(void)
 
 	log_debug("Flush using bibdb_flush().");
 	bibdb_flush(db);
-	memset(bibs4, 0, sizeof(bibs4));
-	memset(bibs6, 0, sizeof(bibs6));
+	drop_test_bibs();
 	success &= test_db();
 
 	/* ---------------------------------------------------------- */
@@ -186,38 +203,38 @@ static bool test_flow(void)
 	if (!insert_test_bibs())
 		return false;
 
-	log_debug("Test bibdb_return().");
+	log_debug("Test bibentry_put_db().");
 
-	bibentry_put(bibs4[3][20], true);
-	bibs6[2][18] = bibs4[3][20] = NULL;
+	bibentry_put_db(bibs4[3][20]);
+	drop_bib(2, 18, 3, 20);
 	success &= test_db();
 
-	bibentry_put(bibs4[1][21], true);
-	bibs6[0][10] = bibs4[1][21] = NULL;
+	bibentry_put_db(bibs4[1][21]);
+	drop_bib(0, 10, 1, 21);
 	success &= test_db();
 
-	bibentry_put(bibs4[2][12], true);
-	bibs6[0][20] = bibs4[2][12] = NULL;
+	bibentry_put_db(bibs4[2][12]);
+	drop_bib(0, 20, 2, 12);
 	success &= test_db();
 
-	bibentry_put(bibs4[3][10], true);
-	bibs6[3][10] = bibs4[3][10] = NULL;
+	bibentry_put_db(bibs4[3][10]);
+	drop_bib(3, 10, 3, 10);
 	success &= test_db();
 
-	bibentry_put(bibs4[2][22], true);
-	bibs6[3][20] = bibs4[2][22] = NULL;
+	bibentry_put_db(bibs4[2][22]);
+	drop_bib(3, 20, 2, 22);
 	success &= test_db();
 
-	bibentry_put(bibs4[0][20], true);
-	bibs6[1][19] = bibs4[0][20] = NULL;
+	bibentry_put_db(bibs4[0][20]);
+	drop_bib(1, 19, 0, 20);
 	success &= test_db();
 
-	bibentry_put(bibs4[0][10], true);
-	bibs6[2][8] = bibs4[0][10] = NULL;
+	bibentry_put_db(bibs4[0][10]);
+	drop_bib(2, 8, 0, 10);
 	success &= test_db();
 
-	bibentry_put(bibs4[1][11], true);
-	bibs6[1][9] = bibs4[1][11] = NULL;
+	bibentry_put_db(bibs4[1][11]);
+	drop_bib(1, 9, 1, 11);
 	success &= test_db();
 
 	return success;

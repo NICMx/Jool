@@ -254,7 +254,7 @@ static bool init(void)
 {
 	if (session_init())
 		return false;
-	sessiontable_init(&table, UDP_DEFAULT, just_die, 0, NULL);
+	sessiontable_init(&table, just_die, UDP_DEFAULT, 0);
 	return true;
 }
 

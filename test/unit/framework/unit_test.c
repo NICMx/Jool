@@ -187,12 +187,12 @@ bool ASSERT_BIB(struct bib_entry* expected, struct bib_entry* actual,
 #undef BIB_PRINT
 #undef BIB_KEY
 
-#define SESSION_KEY "session [%pI4#%u, %pI4#%u, %pI6c#%u, %pI6c#%u]"
+#define SESSION_KEY "session [%pI6c#%u, %pI6c#%u, %pI4#%u, %pI4#%u]"
 #define SESSION_PRINT(session) \
-	&session->remote4.l3, session->remote4.l4, \
-	&session->local4.l3, session->local4.l4, \
-	&session->local6.l3, session->local6.l4, \
-	&session->remote6.l3, session->remote6.l4
+	&session->dst4.l3, session->dst4.l4, \
+	&session->src4.l3, session->src4.l4, \
+	&session->dst6.l3, session->dst6.l4, \
+	&session->src6.l3, session->src6.l4
 
 bool ASSERT_SESSION(struct session_entry *expected,
 		struct session_entry *actual,

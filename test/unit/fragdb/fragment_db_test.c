@@ -339,7 +339,7 @@ int init_module(void)
 {
 	START_TESTS("Fragment database");
 
-	if (is_error(fragdb_init()))
+	if (fragdb_init())
 		return -EINVAL;
 	db = fragdb_create();
 	if (!db) {

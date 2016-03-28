@@ -19,6 +19,7 @@
 
 #ifdef __KERNEL__
 
+#include <linux/printk.h>
 #include "nat64/common/xlat.h"
 #include "nat64/mod/common/error_pool.h"
 
@@ -65,6 +66,12 @@
 		sprintf(__error_message, text "\n", ##__VA_ARGS__); \
 		error_pool_add_message(__error_message); \
 	} while (0)
+
+#ifdef UNIT_TESTING
+#undef log_err
+#define log_err(text, ...) pr_err("%s ERROR (%s): " text "\n", \
+		xlat_get_name(), __func__, ##__VA_ARGS__)
+#endif
 
 #else
 

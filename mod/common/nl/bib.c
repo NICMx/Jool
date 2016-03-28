@@ -105,9 +105,7 @@ static int handle_bib_add(struct xlator *jool, struct request_bib *request)
 		return error;
 	}
 
-	bibentry_get_db(bib); /* Add a fake user (for staticness) */
 	bibentry_put_thread(bib, false);
-
 	return 0;
 }
 

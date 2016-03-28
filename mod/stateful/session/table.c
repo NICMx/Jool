@@ -531,8 +531,12 @@ static void attach_timer(struct session_entry *session,
 }
 
 /**
- * Important: this particular @cb is not currently prepared to return FATE_RM
- * nor FATE_PROBE.
+ * @cb: this function will be called iff an already existing entry collides
+ *     with @session.
+ *     IMPORTANT: this particular @cb is not currently prepared to return
+ *     FATE_RM nor FATE_PROBE. Current users of this function don't mind this.
+ * @return 0 on success, -EEXIST if @session collides (and @cb was therefore
+ *     called).
  */
 int sessiontable_add(struct session_table *table, struct session_entry *session,
 		fate_cb cb, void *cb_arg)

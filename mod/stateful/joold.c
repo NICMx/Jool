@@ -376,7 +376,7 @@ static int add_new_bib(struct bib *db, struct joold_session *session,
 			session->l4_proto);
 	if (!new) {
 		log_err("Couldn't allocate BIB entry.");
-		return false;
+		return -ENOMEM;
 	}
 
 	error = bibdb_add(db, new, &old);
@@ -447,7 +447,7 @@ static struct session_entry *init_session_entry(struct joold_session *in,
 
 struct add_params {
 	struct session_entry *new;
-	int result;
+	bool success;
 };
 
 static enum session_fate collision_cb(struct session_entry *old, void *arg)
@@ -456,8 +456,9 @@ static enum session_fate collision_cb(struct session_entry *old, void *arg)
 	struct session_entry *new = params->new;
 
 	if (session_equals(old, new)) {
+		/* It's the same session; update it. */
 		old->state = new->state;
-		params->result = 0;
+		params->success = true;
 		if (old->l4_proto != L4PROTO_TCP || old->state == ESTABLISHED)
 			return FATE_TIMER_EST;
 		else
@@ -474,14 +475,14 @@ static enum session_fate collision_cb(struct session_entry *old, void *arg)
 			&old->dst6.l3, old->dst6.l4,
 			&old->src4.l3, old->src4.l4,
 			&old->dst4.l3, old->dst4.l4);
-	params->result = -EINVAL;
+	params->success = false;
 	return FATE_PRESERVE;
 }
 
 static bool add_new_session(struct xlator *jool, struct joold_session *in)
 {
 	struct session_entry *new;
-	struct bib_entry *bib;
+	struct bib_entry *bib = 0;
 	struct add_params params;
 	int error;
 
@@ -501,7 +502,7 @@ static bool add_new_session(struct xlator *jool, struct joold_session *in)
 	error = sessiondb_add(jool->nat64.session, new, collision_cb, &params);
 	if (error == -EEXIST) {
 		session_put(new, true);
-		return params.result;
+		return params.success;
 	}
 	if (error) {
 		log_err("sessiondb_add() threw unknown error code %d.", error);
