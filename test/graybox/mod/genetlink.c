@@ -2,6 +2,7 @@
 
 #include <linux/version.h>
 #include "types.h"
+#include "nat64/mod/common/linux_version.h"
 #include "nat64/mod/common/error_pool.h"
 
 #ifndef GENLMSG_DEFAULT_SIZE
