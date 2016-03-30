@@ -205,18 +205,28 @@ static int bib_remove_response(struct jool_response *response, void *arg)
 }
 
 int bib_remove(bool use_tcp, bool use_udp, bool use_icmp,
-		bool addr6_set, struct ipv6_transport_addr *addr6,
-		bool addr4_set, struct ipv4_transport_addr *addr4)
+		struct ipv6_transport_addr *addr6,
+		struct ipv4_transport_addr *addr4)
 {
 	unsigned char request[HDR_LEN + PAYLOAD_LEN];
 	struct request_hdr *hdr = (struct request_hdr *) request;
 	struct request_bib *payload = (struct request_bib *) (request + HDR_LEN);
 
 	init_request_hdr(hdr, MODE_BIB, OP_REMOVE);
-	payload->rm.addr6_set = addr6_set;
-	payload->rm.addr6 = *addr6;
-	payload->rm.addr4_set = addr4_set;
-	payload->rm.addr4 = *addr4;
+	if (addr6) {
+		payload->rm.addr6_set = true;
+		memcpy(&payload->rm.addr6, addr6, sizeof(*addr6));
+	} else {
+		payload->rm.addr6_set = false;
+		memset(&payload->rm.addr6, 0, sizeof(payload->rm.addr6));
+	}
+	if (addr4) {
+		payload->rm.addr4_set = true;
+		memcpy(&payload->rm.addr4, addr4, sizeof(*addr4));
+	} else {
+		payload->rm.addr4_set = false;
+		memset(&payload->rm.addr4, 0, sizeof(payload->rm.addr4));
+	}
 
 	return exec_request(use_tcp, use_udp, use_icmp,
 			hdr, sizeof(request),

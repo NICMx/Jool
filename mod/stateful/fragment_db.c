@@ -1,6 +1,7 @@
 #include "nat64/mod/stateful/fragment_db.h"
 #include "nat64/common/constants.h"
 #include "nat64/mod/common/config.h"
+#include "nat64/mod/common/linux_version.h"
 #include "nat64/mod/common/stats.h"
 #include "nat64/mod/common/packet.h"
 
@@ -82,17 +83,7 @@ static bool equals_function(const struct packet *k1, const struct packet *k2)
 	return true;
 }
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 13, 0)
-# define JOOL_INET6_HASH_FRAG
-#else
-# ifdef RHEL_RELEASE_CODE
-#  if RHEL_RELEASE_CODE >= RHEL_RELEASE_VERSION(7, 2)
-#   define JOOL_INET6_HASH_FRAG
-#  endif
-# endif
-#endif
-
-#ifdef JOOL_INET6_HASH_FRAG
+#if LINUX_VERSION_AT_LEAST(3, 13, 0, 7, 2)
 /**
  * Hash function for IPv6 keys from reassembly.c
  */
@@ -369,10 +360,8 @@ verdict fragdb_handle(struct fragdb *db, struct packet *pkt)
 	 * kernel 3.12 or lower at this point.
 	 * (Other defragmenters conceal the fragment header, effectively
 	 * pretending there's no fragmentation.)
-	 *
-	 * TODO what about RHEL?
 	 */
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 13, 0)
+#if LINUX_VERSION_AT_LEAST(3, 13, 0, 7, 0)
 	WARN(true, "This code is supposed to be unreachable in kernels 3.13+! Please report.");
 	return VERDICT_DROP;
 #endif

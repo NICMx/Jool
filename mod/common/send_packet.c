@@ -2,6 +2,7 @@
 
 #include <linux/version.h>
 
+#include "nat64/mod/common/linux_version.h"
 #include "nat64/mod/common/icmp_wrapper.h"
 #include "nat64/mod/common/packet.h"
 #include "nat64/mod/common/route.h"
@@ -70,25 +71,19 @@ verdict sendpkt_send(struct xlation *state)
 		return VERDICT_DROP;
 	}
 
-	/* TODO this is a little big. Isn't a "||" enough? */
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 16, 0)
-# define JOOL_SKB_IGNORE_DF
-#else
-# ifdef RHEL_RELEASE_CODE
-#  if RHEL_RELEASE_CODE >= RHEL_RELEASE_VERSION(7, 2)
-#   define JOOL_SKB_IGNORE_DF
-#  endif
-# endif
-#endif
-
-#ifdef JOOL_SKB_IGNORE_DF
+#if LINUX_VERSION_AT_LEAST(3, 16, 0, 7, 2)
 	out->skb->ignore_df = true; /* FFS, kernel. */
 #else
 	out->skb->local_df = true; /* FFS, kernel. */
 #endif
 
-	/* Implicit kfree_skb(out->skb) here. */
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 4, 0)
+	/*
+	 * Implicit kfree_skb(out->skb) here.
+	 *
+	 * At time of writing, RHEL hasn't yet upgraded to the messy version of
+	 * dst_output().
+	 */
+#if LINUX_VERSION_AT_LEAST(4, 4, 0, 9999, 0)
 	error = dst_output(state->jool.ns, NULL, out->skb);
 #else
 	error = dst_output(out->skb);

@@ -5,6 +5,7 @@
 #include <net/genetlink.h>
 #include "nat64/common/types.h"
 #include "nat64/mod/common/config.h"
+#include "nat64/mod/common/linux_version.h"
 #include "nat64/mod/common/xlator.h"
 #include "nat64/mod/common/nl/atomic_config.h"
 #include "nat64/mod/common/nl/bib.h"
@@ -23,7 +24,7 @@
 static struct genl_multicast_group mc_groups[1] = {
 	{
 		.name = GNL_JOOLD_MULTICAST_GRP_NAME,
-#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 13, 0)
+#if LINUX_VERSION_LOWER_THAN(3, 13, 0, 7, 1)
 		.id = JOOLD_MC_ID,
 #endif
 	},
@@ -142,7 +143,7 @@ static int register_family(void)
 
 	strcpy(jool_family.name, GNL_JOOL_FAMILY_NAME);
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 13, 0)
+#if LINUX_VERSION_LOWER_THAN(3, 13, 0, 7, 1)
 
 	error = genl_register_family_with_ops(&jool_family, ops, ARRAY_SIZE(ops));
 	if (error) {

@@ -19,6 +19,11 @@
 
 #ifdef __KERNEL__
 
+/*
+ * Why include kernel.h? because printk.h depends on it in some old kernels.
+ * (3.2-3.9 it seems.)
+ */
+#include <linux/kernel.h>
 #include <linux/printk.h>
 #include "nat64/common/xlat.h"
 #include "nat64/mod/common/error_pool.h"

@@ -107,7 +107,13 @@ static void icmp6_send(struct sk_buff *skb, icmp_error_code error, __u32 info)
 		return; /* Not supported or needed. */
 	}
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 12, 0) || LINUX_VERSION_CODE >= KERNEL_VERSION(3, 13, 0)
+	/*
+	 * RHELs 7.0 and 7.1 behave just like kernel 3.11, while 7.2 behaves
+	 * like 3.13. Lucky us ;p
+	 */
+#if defined RHEL_VERSION_CODE \
+		|| LINUX_VERSION_CODE < KERNEL_VERSION(3, 12, 0) \
+		|| LINUX_VERSION_CODE >= KERNEL_VERSION(3, 13, 0)
 	log_debug("Sending ICMPv6 error: %s, type: %d, code: %d", icmp_error_to_string(error), type,
 			code);
 	icmpv6_send(skb, type, code, info);

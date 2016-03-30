@@ -11,8 +11,8 @@ int bib_add(bool use_tcp, bool use_udp, bool use_icmp,
 		struct ipv6_transport_addr *ipv6,
 		struct ipv4_transport_addr *ipv4);
 int bib_remove(bool use_tcp, bool use_udp, bool use_icmp,
-		bool addr6_set, struct ipv6_transport_addr *addr6,
-		bool addr4_set, struct ipv4_transport_addr *addr4);
+		struct ipv6_transport_addr *addr6,
+		struct ipv4_transport_addr *addr4);
 
 
 #endif /* _JOOL_USR_BIB_H */

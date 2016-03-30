@@ -4,6 +4,7 @@
 #include <net/ipv6.h>
 #include "nat64/common/constants.h"
 #include "nat64/common/session.h"
+#include "nat64/mod/common/linux_version.h"
 #include "nat64/mod/common/rbtree.h"
 #include "nat64/mod/common/route.h"
 #include "nat64/mod/stateful/session/pkt_queue.h"
@@ -165,7 +166,7 @@ static void send_probe_packet(struct net *ns, struct session_entry *session)
 	}
 
 	/* Implicit kfree_skb(skb) here. */
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 4, 0)
+#if LINUX_VERSION_AT_LEAST(4, 4, 0, 9999, 0)
 	error = dst_output(ns, NULL, skb);
 #else
 	error = dst_output(skb);

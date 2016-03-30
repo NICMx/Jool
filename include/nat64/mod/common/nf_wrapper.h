@@ -43,6 +43,7 @@
  * NF_CALLBACK macro here.
  * Also, kernel headers per version can be found here: http://vault.centos.org/
  */
+#error "Sorry; this version of RHEL is not supported because it's kind of old."
 
 #endif /* RHEL_RELEASE_CODE >= x */
 

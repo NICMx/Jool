@@ -44,8 +44,8 @@ static int pool6_display_response(struct jool_response *response, void *arg)
 int pool6_display(bool csv)
 {
 	unsigned char request[HDR_LEN + PAYLOAD_LEN];
-	struct request_hdr *hdr = (struct request_hdr *) request;
-	union request_pool6 *payload = (union request_pool6 *) (request + HDR_LEN);
+	struct request_hdr *hdr = (struct request_hdr *)request;
+	union request_pool6 *payload = (union request_pool6 *)(request + HDR_LEN);
 	struct display_args args;
 	int error;
 
@@ -103,8 +103,8 @@ static bool get_ubit(struct ipv6_prefix *prefix)
 int pool6_add(struct ipv6_prefix *prefix, bool force)
 {
 	unsigned char request[HDR_LEN + PAYLOAD_LEN];
-	struct request_hdr *hdr = (struct request_hdr *) request;
-	union request_pool6 *payload = (union request_pool6 *) (request + HDR_LEN);
+	struct request_hdr *hdr = (struct request_hdr *)request;
+	union request_pool6 *payload = (union request_pool6 *)(request + HDR_LEN);
 
 	if (!force && get_ubit(prefix)) {
 		log_err("Warning: The u-bit is nonzero; see https://github.com/NICMx/Jool/issues/174.");
@@ -121,8 +121,8 @@ int pool6_add(struct ipv6_prefix *prefix, bool force)
 int pool6_remove(struct ipv6_prefix *prefix, bool quick)
 {
 	unsigned char request[HDR_LEN + PAYLOAD_LEN];
-	struct request_hdr *hdr = (struct request_hdr *) request;
-	union request_pool6 *payload = (union request_pool6 *) (request + HDR_LEN);
+	struct request_hdr *hdr = (struct request_hdr *)request;
+	union request_pool6 *payload = (union request_pool6 *)(request + HDR_LEN);
 
 	init_request_hdr(hdr, MODE_POOL6, OP_REMOVE);
 	payload->rm.prefix = *prefix;
@@ -134,8 +134,8 @@ int pool6_remove(struct ipv6_prefix *prefix, bool quick)
 int pool6_flush(bool quick)
 {
 	unsigned char request[HDR_LEN + PAYLOAD_LEN];
-	struct request_hdr *hdr = (struct request_hdr *) request;
-	union request_pool6 *payload = (union request_pool6 *) (request + HDR_LEN);
+	struct request_hdr *hdr = (struct request_hdr *)request;
+	union request_pool6 *payload = (union request_pool6 *)(request + HDR_LEN);
 
 	init_request_hdr(hdr, MODE_POOL6, OP_FLUSH);
 	payload->flush.quick = quick;

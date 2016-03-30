@@ -37,7 +37,7 @@ static int respond(struct genl_info *info, int error_code,
 		pr_err("genlmsg_new() failed.\n");
 		return -ENOMEM;
 	}
-#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 7, 0)
+#if LINUX_VERSION_LOWER_THAN(3, 7, 0, 7, 0)
 	pid = info->snd_pid;
 #else
 	pid = info->snd_portid;

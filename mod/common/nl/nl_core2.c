@@ -5,6 +5,7 @@
 #include <linux/version.h>
 #include "nat64/common/config.h"
 #include "nat64/common/types.h"
+#include "nat64/mod/common/linux_version.h"
 #include "nat64/mod/common/wkmalloc.h"
 #include "nat64/mod/common/nl/nl_common.h"
 
@@ -73,7 +74,7 @@ static int respond_single_msg(struct genl_info *info, struct nlcore_buffer *buff
 		pr_err("genlmsg_new() failed.\n");
 		return -ENOMEM;
 	}
-#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 7, 0)
+#if LINUX_VERSION_LOWER_THAN(3, 7, 0, 7, 0)
 	portid = info->snd_pid;
 #else
 	portid = info->snd_portid;
@@ -322,7 +323,7 @@ int nlcore_send_multicast_message(struct net *ns, struct nlcore_buffer *buffer)
 
 	genlmsg_end(skb, msg_head);
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 13, 0)
+#if LINUX_VERSION_LOWER_THAN(3, 13, 0, 7, 1)
 	error = genlmsg_multicast_netns(ns, skb, 0, group->id, GFP_ATOMIC);
 #else
 	/*
