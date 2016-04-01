@@ -947,6 +947,11 @@ static int handle_global_update(enum global_type type, size_t size, unsigned cha
 			goto einval;
 		config->nat64.f_args = *((__u8 *) value);
 		break;
+	case HANDLE_RST_DURING_FIN_RCV:
+		if (!ensure_bytes(size, 1))
+			goto einval;
+		config->nat64.handle_rst_during_fin_rcv = *((__u8 *) value);
+		break;
 	case BIB_LOGGING:
 		if (!ensure_bytes(size, 1))
 			goto einval;

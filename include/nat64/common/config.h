@@ -367,6 +367,7 @@ enum global_type {
 	MAX_PKTS,
 	SRC_ICMP6ERRS_BETTER,
 	F_ARGS,
+	HANDLE_RST_DURING_FIN_RCV,
 
 	BIB_LOGGING,
 	SESSION_LOGGING,
@@ -590,6 +591,12 @@ struct global_config {
 		 * See "enum f_args".
 		 */
 		__u8 f_args;
+		/**
+		 * Decrease timer when a FIN packet is received during the
+		 * `V4 FIN RCV` or `V6 FIN RCV` states? (boolean)
+		 * https://github.com/NICMx/Jool/issues/212
+		 */
+		__u8 handle_rst_during_fin_rcv;
 
 		/** Log BIBs as they are created and destroyed? */
 		__u8 bib_logging;

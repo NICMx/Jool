@@ -578,9 +578,18 @@ static enum session_fate tcp_established_state(struct session_entry *session,
 static enum session_fate tcp_v4_fin_rcv_state(struct session_entry *session,
 		struct packet *pkt)
 {
-	if (pkt_l3_proto(pkt) == L3PROTO_IPV6 && pkt_tcp_hdr(pkt)->fin) {
-		session->state = V4_FIN_V6_FIN_RCV;
-		return FATE_TIMER_TRANS;
+	struct tcphdr *hdr;
+
+	if (pkt_l3_proto(pkt) == L3PROTO_IPV6) {
+		hdr = pkt_tcp_hdr(pkt);
+		if (hdr->fin) {
+			session->state = V4_FIN_V6_FIN_RCV;
+			return FATE_TIMER_TRANS;
+		}
+		if (config_handle_rst_during_fin_rcv() && hdr->rst) {
+			/* https://github.com/NICMx/Jool/issues/212 */
+			return FATE_TIMER_TRANS;
+		}
 	}
 
 	return FATE_TIMER_EST;
@@ -593,9 +602,18 @@ static enum session_fate tcp_v4_fin_rcv_state(struct session_entry *session,
 static enum session_fate tcp_v6_fin_rcv_state(struct session_entry *session,
 		struct packet *pkt)
 {
-	if (pkt_l3_proto(pkt) == L3PROTO_IPV4 && pkt_tcp_hdr(pkt)->fin) {
-		session->state = V4_FIN_V6_FIN_RCV;
-		return FATE_TIMER_TRANS;
+	struct tcphdr *hdr;
+
+	if (pkt_l3_proto(pkt) == L3PROTO_IPV4) {
+		hdr = pkt_tcp_hdr(pkt);
+		if (hdr->fin) {
+			session->state = V4_FIN_V6_FIN_RCV;
+			return FATE_TIMER_TRANS;
+		}
+		if (config_handle_rst_during_fin_rcv() && hdr->rst) {
+			/* https://github.com/NICMx/Jool/issues/212 */
+			return FATE_TIMER_TRANS;
+		}
 	}
 
 	return FATE_TIMER_EST;

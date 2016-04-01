@@ -508,6 +508,15 @@ static const struct argp_option f_args_opt = {
 		.group = 0,
 };
 
+static const struct argp_option rst_during_fin_rcv_opt = {
+		.name = OPTNAME_HANDLE_FIN_RCV_RST,
+		.key = ARGP_HANDLE_RST_DURING_FIN_RCV,
+		.arg = BOOL_FORMAT,
+		.flags = 0,
+		.doc = "Use transitory timer when an RST is received during V6 FIN RCV or V4 FIN RCV?",
+		.group = 0,
+};
+
 static const struct argp_option logging_bib_opt = {
 		.name = OPTNAME_BIB_LOGGING,
 		.key = ARGP_BIB_LOGGING,
@@ -758,6 +767,7 @@ static const struct argp_option *options_nat64[] = {
 	&max_so_alias_opt,
 	&icmp_src_opt,
 	&f_args_opt,
+	&rst_during_fin_rcv_opt,
 	&logging_bib_opt,
 	&logging_session_opt,
 

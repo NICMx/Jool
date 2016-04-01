@@ -97,6 +97,8 @@ static int handle_display_response(struct nl_msg *msg, void *arg)
 				conf->nat64.max_stored_pkts);
 		printf("  --%s: %s\n", OPTNAME_SRC_ICMP6E_BETTER,
 				print_bool(conf->nat64.src_icmp6errs_better));
+		printf("  --%s: %s\n", OPTNAME_HANDLE_FIN_RCV_RST,
+				print_bool(conf->nat64.handle_rst_during_fin_rcv));
 
 		printf("  --%s: %u (0b", OPTNAME_F_ARGS, conf->nat64.f_args);
 		print_binary(conf->nat64.f_args, 4);
@@ -186,6 +188,8 @@ static int handle_display_response_csv(struct nl_msg *msg, void *arg)
 				conf->nat64.max_stored_pkts);
 		printf("%s,%s\n", OPTNAME_SRC_ICMP6E_BETTER,
 				print_csv_bool(conf->nat64.src_icmp6errs_better));
+		printf("%s,%u\n", OPTNAME_HANDLE_FIN_RCV_RST,
+				conf->nat64.handle_rst_during_fin_rcv);
 		printf("%s,%u\n", OPTNAME_F_ARGS, conf->nat64.f_args);
 
 	} else {
@@ -213,8 +217,6 @@ static int handle_display_response_csv(struct nl_msg *msg, void *arg)
 				print_csv_bool(conf->nat64.bib_logging));
 		printf("%s,%s\n", OPTNAME_SESSION_LOGGING,
 				print_csv_bool(conf->nat64.session_logging));
-		printf("%s,%u\n", OPTNAME_F_ARGS,
-				conf->nat64.f_args);
 
 		printf("%s,%s\n", OPTNAME_DROP_BY_ADDR,
 				print_csv_bool(conf->nat64.drop_by_addr));

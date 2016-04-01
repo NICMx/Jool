@@ -449,6 +449,9 @@ static int parse_opt(int key, char *str, struct argp_state *state)
 	case ARGP_F_ARGS:
 		error = set_global_u8(args, F_ARGS, str, 0, 0xF);
 		break;
+	case ARGP_HANDLE_RST_DURING_FIN_RCV:
+		error = set_global_bool(args, HANDLE_RST_DURING_FIN_RCV, str);
+		break;
 
 	case ARGP_BIB_LOGGING:
 		error = set_global_bool(args, BIB_LOGGING, str);
