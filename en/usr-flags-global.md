@@ -131,9 +131,7 @@ Because the BIB entry exists, _J_ knows that _n4b_ means "2001:db8::1#10" when h
 If `--address-dependent-filtering` is OFF, _J_ will allow _n4b_'s packet to pass. If `--address-dependent-filtering` is ON, _J_ will drop _n4b_'s packet and respond with a "Communication Administratively Prohibited" ICMP error. This effectively wrecks any IPv4-started communication attempts, even if there are BIB entries (static or otherwise).
 
 * If you're using the NAT64 to publish a IPv6-only service to the IPv4 Internet, it makes sense for `--address-dependent-filtering` to be OFF. This is because clients are expected to find out about the IPv6 service on their own, and the server doesn't normally start packet streams.
-* If you're using the NAT64 to allow IPv6 nodes to browse the IPv4 Internet, it makes sense for `--address-dependent-filtering` to be ON. This is because clients choose their ports at random; it is suspicious for random outsider nodes to guess these ports.
-
-`--address-dependent-filtering` ON might break NAT traversal methods like STUN (or at least make some operation modes impossible).
+* If you're using the NAT64 to allow IPv6 nodes to browse the IPv4 Internet, please consider the recommendation on [RFC6888 REQ-7](https://tools.ietf.org/html/rfc6888#section-3) before setting `--address-dependent-filtering` to ON.  While it's true that  clients choose their ports at random, so it is suspicious for random outsider nodes to guess these ports, `--address-dependent-filtering` ON might break NAT traversal methods like STUN (or at least make some operation modes impossible) or it might impair some games and peer-to-peer applications.
 
 ### `--drop-icmpv6-info`
 
