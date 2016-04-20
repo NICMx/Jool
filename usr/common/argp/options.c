@@ -723,6 +723,15 @@ static const struct argp_option synch_period_opt = {
 		.group = 0,
 };
 
+static const struct argp_option rfc6791v6_prefix_opt = {
+		.name = "rfc6791v6-prefix",
+		.key = ARGP_RFC6791V6_PREFIX,
+		.arg = PREFIX6_FORMAT,
+		.flags = 0,
+		.doc = "Ipv6 prefix to be used as base for rfc6791v6 ip addresses.",
+		.group = 0,
+};
+
 static const struct argp_option *opts_siit[] = {
 	&targets_hdr_opt,
 	&pool6_opt,
@@ -736,6 +745,7 @@ static const struct argp_option *opts_siit[] = {
 #endif
 	&parse_file_opt,
 	&instance_opt,
+	&rfc6791v6_prefix_opt,
 
 	&operations_hdr_opt,
 	&display_opt,

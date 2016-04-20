@@ -56,5 +56,6 @@ jool_siit += pool.o
 jool_siit += blacklist4.o
 jool_siit += rfc6791.o
 jool_siit += impersonator.o
+jool_siit += rfc6791v6.o
 
 jool_siit-objs += ${jool_common} ${jool_siit}

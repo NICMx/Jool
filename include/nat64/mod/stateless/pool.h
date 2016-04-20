@@ -31,4 +31,4 @@ int pool_count(struct addr4_pool *pool, __u64 *result);
 bool pool_is_empty(struct addr4_pool *pool);
 void pool_print_refcount(struct addr4_pool *pool);
 
-#endif /* _JOOL_MOD_POOL4_H */
+#endif /* _JOOL_MOD_POOL_H */

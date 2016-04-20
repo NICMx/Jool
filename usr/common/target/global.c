@@ -70,6 +70,38 @@ static char* print_allow_atomic_frags(struct global_config *conf)
 	return "Mixed";
 }
 
+static void print_rfc6791v6_prefix(struct full_config *config) {
+
+	char buffer[INET6_ADDRSTRLEN];
+
+	if (config->global.siit.use_rfc6791_v6) {
+
+		inet_ntop(AF_INET6, &config->global.siit.rfc6791_v6_prefix, buffer, INET6_ADDRSTRLEN);
+		printf("  --%s: %s/%u\n", OPTNAME_RFC6791V6_PREFIX, buffer, config->global.siit.rfc6791_v6_prefix.len);
+
+	} else {
+		printf("  --%s: %s\n", OPTNAME_RFC6791V6_PREFIX,"(not set)");
+	}
+
+}
+
+
+static void print_csv_rfc6791v6_prefix(struct full_config *config) {
+
+	char buffer[INET6_ADDRSTRLEN];
+
+	if (config->global.siit.use_rfc6791_v6) {
+
+		inet_ntop(AF_INET6, &config->global.siit.rfc6791_v6_prefix, buffer, INET6_ADDRSTRLEN);
+		printf("  --%s: %s/%u\n", OPTNAME_RFC6791V6_PREFIX, buffer, config->global.siit.rfc6791_v6_prefix.len);
+
+	} else {
+		printf("  --%s: %s\n", OPTNAME_RFC6791V6_PREFIX,"(not set)");
+	}
+
+}
+
+
 static int handle_display_response(struct jool_response *response, void *arg)
 {
 	struct full_config *conf = response->payload;
@@ -99,6 +131,7 @@ static int handle_display_response(struct jool_response *response, void *arg)
 	printf("\n");
 
 	if (xlat_is_nat64()) {
+
 		printf("  --%s: %u\n", OPTNAME_MAX_SO,
 				conf->session.pktqueue.max_stored_pkts);
 		printf("  --%s: %s\n", OPTNAME_SRC_ICMP6E_BETTER,
@@ -111,7 +144,9 @@ static int handle_display_response(struct jool_response *response, void *arg)
 		printf("    Src port: %s\n", print_bool(conf->global.nat64.f_args & F_ARGS_SRC_PORT));
 		printf("    Dst addr: %s\n", print_bool(conf->global.nat64.f_args & F_ARGS_DST_ADDR));
 		printf("    Dst port: %s\n", print_bool(conf->global.nat64.f_args & F_ARGS_DST_PORT));
+
 	} else {
+
 		printf("  --%s: %s\n", OPTNAME_AMEND_UDP_CSUM,
 				print_bool(conf->global.siit.compute_udp_csum_zero));
 		printf("  --%s: %u (%s)\n", OPTNAME_EAM_HAIRPIN_MODE,
@@ -119,6 +154,10 @@ static int handle_display_response(struct jool_response *response, void *arg)
 				int_to_hairpin_mode(conf->global.siit.eam_hairpin_mode));
 		printf("  --%s: %s\n", OPTNAME_RANDOMIZE_RFC6791,
 				print_bool(conf->global.siit.randomize_error_addresses));
+
+
+		print_rfc6791v6_prefix(conf);
+
 	}
 	printf("\n");
 
@@ -222,6 +261,9 @@ static int handle_display_response_csv(struct jool_response *response, void *arg
 				print_csv_bool(global->siit.randomize_error_addresses));
 		printf("%s,%s\n", OPTNAME_EAM_HAIRPIN_MODE,
 				int_to_hairpin_mode(global->siit.eam_hairpin_mode));
+
+		print_csv_rfc6791v6_prefix(conf);
+
 	} else {
 		printf("%s,%s\n", OPTNAME_DROP_BY_ADDR,
 				print_csv_bool(global->nat64.drop_by_addr));

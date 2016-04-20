@@ -37,6 +37,7 @@ int config_init(struct global_configuration **result)
 		config->siit.compute_udp_csum_zero = DEFAULT_COMPUTE_UDP_CSUM0;
 		config->siit.eam_hairpin_mode = DEFAULT_EAM_HAIRPIN_MODE;
 		config->siit.randomize_error_addresses = DEFAULT_RANDOMIZE_RFC6791;
+		config->siit.use_rfc6791_v6 = DEFAULT_USE_RFC6791V6_PREFIX;
 	} else {
 		config->nat64.src_icmp6errs_better = DEFAULT_SRC_ICMP6ERRS_BETTER;
 		config->nat64.drop_by_addr = DEFAULT_ADDR_DEPENDENT_FILTERING;

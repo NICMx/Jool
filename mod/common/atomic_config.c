@@ -112,6 +112,7 @@ static int handle_global(struct xlator *jool, void *payload, __u32 payload_len)
 	 */
 
 	do {
+		log_info("atomic config flow!");
 		result = config_parse(config, payload, payload_len);
 		if (result < 0)
 			return result;

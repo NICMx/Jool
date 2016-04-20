@@ -37,11 +37,40 @@ static int ensure_nat64(char *field)
 static bool ensure_bytes(size_t actual, size_t expected)
 {
 	if (actual < expected) {
-		log_err("Expected a %zu-byte value, got %zu bytes.",
+		log_err("Expected a %zu-byte, got %zu bytes.",
 				expected, actual);
 		return false;
 	}
 	return true;
+}
+
+
+static bool ensure_bytes_ipv6_prefix(size_t actual, size_t expected)
+{
+	if (actual < expected && actual != 0) {
+		log_err("Expected a %zu-byte or 0-byte value, got %zu bytes.",
+				expected, actual);
+		return false;
+	}
+	return true;
+}
+
+static int parse_ipv6_prefix(struct global_config *config, struct global_value *chunk, size_t size)
+{
+
+	if (!ensure_bytes_ipv6_prefix(size - sizeof(struct global_value), sizeof(struct ipv6_prefix)))
+		return -EINVAL;
+
+	if (size - sizeof(struct global_value) != 0) {
+
+		memcpy(&config->siit.rfc6791_v6_prefix, (struct ipv6_prefix*)(chunk+1), sizeof(struct ipv6_prefix));
+		config->siit.use_rfc6791_v6 = 1;
+
+	} else {
+		config->siit.use_rfc6791_v6 = 0;
+	}
+
+	return 0;
 }
 
 static int parse_bool(__u8 *field, struct global_value *chunk, size_t size)
@@ -248,6 +277,9 @@ static int massive_switch(struct full_config *cfg, struct global_value *chunk,
 	case EAM_HAIRPINNING_MODE:
 		error = ensure_siit(OPTNAME_EAM_HAIRPIN_MODE);
 		return error ? : parse_bool(&cfg->global.siit.eam_hairpin_mode, chunk, size);
+	case RFC6791V6_PREFIX:
+		error = ensure_siit(OPTNAME_RFC6791V6_PREFIX);
+		return error ? : parse_ipv6_prefix(&cfg->global, chunk, size);
 	case DROP_BY_ADDR:
 		error = ensure_nat64(OPTNAME_DROP_BY_ADDR);
 		return error ? : parse_bool(&cfg->global.nat64.drop_by_addr, chunk, size);
@@ -303,6 +335,7 @@ static int massive_switch(struct full_config *cfg, struct global_value *chunk,
 	case SYNCH_PERIOD:
 		error = ensure_nat64(OPTNAME_SYNCH_PERIOD);
 		return error ? : parse_u32(&cfg->joold.timer_period, chunk, size);
+
 	}
 
 	log_err("Unknown config type: %u", chunk->type);
@@ -370,6 +403,8 @@ static int handle_global_update(struct xlator *jool, struct genl_info *info)
 
 	hdr = nla_data(info->attrs[ATTR_DATA]);
 	total_len = nla_len(info->attrs[ATTR_DATA]);
+
+
 	error = config_parse(&config, hdr + 1, total_len - sizeof(*hdr));
 	if (error < 0)
 		return nlcore_respond(info, error);

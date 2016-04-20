@@ -407,6 +407,7 @@ enum global_type {
 	SYNCH_DISABLE,
 	SYNCH_ELEMENTS_LIMIT,
 	SYNCH_PERIOD,
+	RFC6791V6_PREFIX
 };
 
 struct response_pool4_count {
@@ -588,6 +589,14 @@ struct global_config {
 			 * See @eam_hairpinning_mode.
 			 */
 			__u8 eam_hairpin_mode;
+
+			__u8 use_rfc6791_v6;
+			/**
+			 * Address used to represent a not translatable source
+			 * address of an incoming packet.
+			 */
+			struct ipv6_prefix rfc6791_v6_prefix;
+
 		} siit;
 		struct {
 			/** Use Address-Dependent Filtering? (boolean) */

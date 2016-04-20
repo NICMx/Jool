@@ -9,6 +9,7 @@
 #include "nat64/mod/common/stats.h"
 #include "nat64/mod/stateless/blacklist4.h"
 #include "nat64/mod/stateless/eam.h"
+#include "nat64/mod/stateless/rfc6791v6.h"
 
 verdict ttp46_create_skb(struct xlation *state)
 {
@@ -204,8 +205,15 @@ static verdict translate_addrs46_siit(struct xlation *state)
 	/* Src address. */
 	result = generate_addr6_siit(state, hdr4->saddr, &hdr6->saddr, false,
 			!disable_src_eam(in, hairpin));
-	if (result != VERDICT_CONTINUE)
+
+	if (result == VERDICT_ACCEPT && pkt_is_icmp4_error(in)) {
+
+		if (rfc6791_find_v6(state,& hdr6->saddr) != 0)
+			return VERDICT_ACCEPT;
+
+	} else if (result != VERDICT_CONTINUE) {
 		return result;
+	}
 
 	/* Dst address. */
 	result = generate_addr6_siit(state, hdr4->daddr, &hdr6->daddr, true,

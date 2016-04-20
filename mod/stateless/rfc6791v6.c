@@ -34,13 +34,13 @@ static int get_rfc6791_address_v6(struct xlation *state, struct in6_addr *out_re
 
 		prefix  = state->jool.global->cfg.siit.rfc6791_v6_prefix;
 
-		host_bytes_num = ((__u8)128 - prefix.len) / (__u8)8;
-		segment_bytes_num = (__u8)16 - host_bytes_num;
+		segment_bytes_num = prefix.len / (__u8)8;
 		modulus = prefix.len % 8;
+		offset = segment_bytes_num;
+
+		host_bytes_num = (__u8)16 - segment_bytes_num - 1;
 
 		(*out_result) = prefix.address;
-
-		offset = segment_bytes_num;
 
 		if (modulus != 0)
 			offset++;
@@ -51,8 +51,12 @@ static int get_rfc6791_address_v6(struct xlation *state, struct in6_addr *out_re
 
 			get_random_bytes(&randomized_byte, 1);
 
-			for (i = 0; i < modulus ; i--) {
+			for (i = 0; i < modulus ; i++) {
 				randomized_byte &= ~(1 << (7-i));
+			}
+
+			for (i = modulus; i < 8; i++) {
+				*(((__u8*)out_result)+segment_bytes_num) &= ~(1 << (7-i));
 			}
 
 			*(((__u8*)out_result)+segment_bytes_num) = *(((__u8*)out_result)+segment_bytes_num) | randomized_byte;

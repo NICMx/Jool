@@ -120,11 +120,16 @@ static int set_global_arg(struct arguments *args, __u16 type, size_t size,
 
 	args->global.type = type;
 	args->global.size = size;
-	args->global.data = malloc(size);
-	if (!args->global.data)
-		return -ENOMEM;
+	args->global.data = NULL;
 
-	memcpy(args->global.data, value, size);
+	if (size != 0) {
+		args->global.data = malloc(size);
+		if (!args->global.data)
+			return -ENOMEM;
+
+		memcpy(args->global.data, value, size);
+	}
+
 
 	return 0;
 }
@@ -169,6 +174,25 @@ static int set_global_u64(struct arguments *args, __u16 type, char *value,
 	tmp *= multiplier;
 
 	return set_global_arg(args, type, sizeof(tmp), &tmp);
+}
+
+static int set_global_rfc6791_prefix(struct arguments *args, __u16 type, char *value)
+{
+	int error;
+
+	struct ipv6_prefix tmp;
+
+	if (strcmp(value, "clear") != 0) {
+		fflush(stderr);
+		error = str_to_prefix6(value, &tmp);
+		if (error)
+			return error;
+
+		return set_global_arg(args, type, sizeof(tmp), &tmp);
+	}
+
+	fflush(stderr);
+	return set_global_arg(args, type, 0, 0);
 }
 
 static int set_global_u16_array(struct arguments *args, __u16 type, char *value)
@@ -483,7 +507,9 @@ static int parse_opt(int key, char *str, struct argp_state *state)
 	case ARGP_SYNCH_PERIOD:
 		error = set_global_u64(args, key, str, 0, MAX_U64, 1);
 		break;
-
+	case ARGP_RFC6791V6_PREFIX:
+		error = set_global_rfc6791_prefix(args, key, str);
+		break;
 	case ARGP_PREFIX:
 		error = set_ipv6_prefix(args, str);
 		break;
@@ -557,6 +583,7 @@ static int parse_args(int argc, char **argv, struct arguments *result)
 	int error;
 	struct argp_option *options = build_opts();
 	struct argp argp = { options, parse_opt, args_doc, doc };
+
 
 	memset(result, 0, sizeof(*result));
 	result->mode = ANY_MODE;
