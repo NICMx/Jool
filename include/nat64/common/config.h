@@ -590,6 +590,11 @@ struct global_config {
 			 */
 			__u8 eam_hairpin_mode;
 
+			/**
+			 * States if the rfc6791_v6_prefix configuration
+			 * attribute has been set. If this flag is true then
+			 * the value of rfc6791_v6_prefix is going to be used
+			 */
 			__u8 use_rfc6791_v6;
 			/**
 			 * Address used to represent a not translatable source
