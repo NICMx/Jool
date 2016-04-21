@@ -513,7 +513,7 @@ static const struct argp_option rst_during_fin_rcv_opt = {
 		.key = ARGP_HANDLE_RST_DURING_FIN_RCV,
 		.arg = BOOL_FORMAT,
 		.flags = 0,
-		.doc = "Use transitory timer when an RST is received during V6 FIN RCV or V4 FIN RCV?",
+		.doc = "Use transitory timer when RST is received during the V6 FIN RCV or V4 FIN RCV states?",
 		.group = 0,
 };
 
