@@ -71,6 +71,7 @@ You might also want to see [contact info](https://www.jool.mx/en/contact.html).
 * [Masaya YAMAMOTO](https://github.com/pandax381)
 * [Michael Richardson](http://www.sandelman.ca/mcr)
 * [Philar Law] (https://github.com/philar)
+* [Pier Carlo Chiodi](https://pierky.com/)
 * [Stanislav Bogatyrev](https://github.com/realloc)
 * [tbe](https://github.com/tbe)
 * [techmotive](https://github.com/techmotive)
