@@ -57,7 +57,7 @@ This will happen:
 
 The translator is "fooling" each node into thinking the other one can speak their language.
 
-"EAM" stands for "Explicit Address Mapping", and is more versatile than simply binding arbitrary addresses to other arbitrary addresses. See the [EAM draft]({{ site.draft-siit-eam }}) or [our summary of it](eamt.html) for more information.
+"EAM" stands for "Explicit Address Mapping", and is more versatile than simply binding arbitrary addresses to other arbitrary addresses. See the [EAM RFC]({{ site.draft-siit-eam }}) or [our summary of it](eamt.html) for more information.
 
 ## SIIT (traditional)
 

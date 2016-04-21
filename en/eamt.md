@@ -9,7 +9,7 @@ title: EAMT
 
 # EAMT
 
-The _Explicit Address Mappings Table_ (EAMT) is a collection of records in an SIIT device which describe how different addresses should be translated. As of 2015-11-05, its latest revision is [draft-ietf-v6ops-siit-eam-03]({{ site.draft-siit-eam }}).
+The _Explicit Address Mappings Table_ (EAMT) is a collection of records in an SIIT device which describe how different addresses should be translated. It is defined in [RFC 7757]({{ site.draft-siit-eam }}).
 
 Here's an example of an EAMT:
 

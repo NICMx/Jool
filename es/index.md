@@ -20,7 +20,7 @@ Jool es un [SIIT y NAT64](intro-xlat.html) de código abierto para Linux.
 
 ## Estatus
 
-Jool es un SIIT y NAT64 [razonablemente apegado a estándares](intro-jool.html#cumplimiento). Esta es la agenda hasta el 2015-11-04:
+Jool es un SIIT y NAT64 [razonablemente apegado a estándares](intro-jool.html#cumplimiento). Esta es la agenda hasta el 2016-04-21:
 
 1. [La versión 3.5.0]({{ site.repository-url }}/issues?q=milestone%3A3.5.0) añadirá funcionalidad nueva.
 2. [La versión 4.0.0]({{ site.repository-url }}/issues?q=milestone%3A4.0.0) va a ser una [refactorización interna]({{ site.repository-url }}/issues/140) que hará la configuración más versátil.
@@ -28,11 +28,19 @@ Jool es un SIIT y NAT64 [razonablemente apegado a estándares](intro-jool.html#c
 
 A veces interpolamos versiones intermedias dependiendo de cómo evoluciona el [bug tracker]({{ site.repository-url }}/issues).
 
-La versión más reciente es la [3.4.2]({{ site.repository-url }}/issues?q=milestone%3A3.4.2).
+La versión más reciente es la [3.4.3]({{ site.repository-url }}/issues?q=milestone%3A3.4.3).
 
 -------------------
 
 ## Noticias
+
+### 2016-04-21
+
+Jool 3.4.3 fue liberado.
+
+1. Se agregó soporte para un mayor rango de kernels. El soporte es ahora desde Linux 3.2 hasta 4.4, y también RHEL 7.0 hasta 7.2.
+2. Nueva bandera de configuración para NAT64: [`--f-args`](usr-flags-global.html#f-args)
+3. Nueva bandera de configuración para NAT64: [`--handle-rst-during-fin-rcv`](usr-flags-global.html#handle-rst-during-fin-rcv)
 
 ### 2015-11-20
 

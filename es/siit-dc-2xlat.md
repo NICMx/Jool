@@ -23,7 +23,7 @@ SIIT-DC-DTM es una mejora opcional a [SIIT-DC](siit-dc.html) que agrega un tradu
 
 ## Red
 
-Esta es la arquitectura mostrada en la [sección 3.2 de draft-siit-dc-2xlat]({{ site.draft-siit-dc-2xlat }}#section-3.2):
+Esta es la arquitectura mostrada en la [sección 3.2 del RFC 7756]({{ site.draft-siit-dc-2xlat }}#section-3.2):
 
 ![Figura 1 - ](../images/network/siit-dc-2xlat.svg "Figura 1 - Network Overview")
 

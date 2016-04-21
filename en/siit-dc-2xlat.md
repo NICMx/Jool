@@ -23,7 +23,7 @@ SIIT-DC-DTM is an optional improvement over [SIIT-DC](siit-dc.html) which adds a
 
 ## Sample Network
 
-This is the sample architecture from [draft-siit-dc-2xlat section 3.2]({{ site.draft-siit-dc-2xlat }}#section-3.2):
+This is the sample architecture from [RFC 7756 section 3.2]({{ site.draft-siit-dc-2xlat }}#section-3.2):
 
 ![Fig.1 - Network Overview](../images/network/siit-dc-2xlat.svg "Fig.1 - Network Overview")
 

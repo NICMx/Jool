@@ -23,7 +23,7 @@ SIIT-DC is an improvement over traditional SIIT where EAMs are introduced and st
 
 ## Sample Network
 
-This is the sample architecture from [draft-siit-dc section 3]({{ site.draft-siit-dc }}#section-3):
+This is the sample architecture from [RFC 7755 section 3]({{ site.draft-siit-dc }}#section-3):
 
 ![Fig.1 - Network Overview](../images/network/siit-dc.svg "Fig.1 - Network Overview")
 

@@ -21,11 +21,12 @@ title: Download
 
 Jool 3.4 is a [compliant SIIT and Stateful NAT64](intro-jool.html#compliance).
 
-3.4.2 is the latest version.
+3.4.3 is the latest version. It is also considered the most mature version of Jool.
 
 | Download | SHA512 | MD5| Git commit |
 |----------|--------|----|------------|
-| **[3.4.2]({{ site.downloads-url }}/Jool-3.4.2.zip)** | [SHA512]({{ site.downloads-url }}/Jool-3.4.2.sha) | [MD5]({{ site.downloads-url }}/Jool-3.4.2.md5) | <a href="{{ site.repository-url }}/tree/v3.4.2" target="_blank">Link</a> |
+| **[3.4.3]({{ site.downloads-url }}/Jool-3.4.3.zip)** | [SHA512]({{ site.downloads-url }}/Jool-3.4.3.sha) | [MD5]({{ site.downloads-url }}/Jool-3.4.3.md5) | <a href="{{ site.repository-url }}/tree/v3.4.3" target="_blank">Link</a> |
+| [3.4.2]({{ site.downloads-url }}/Jool-3.4.2.zip) | [SHA512]({{ site.downloads-url }}/Jool-3.4.2.sha) | [MD5]({{ site.downloads-url }}/Jool-3.4.2.md5) | <a href="{{ site.repository-url }}/tree/v3.4.2" target="_blank">Link</a> |
 | <del>[3.4.1]({{ site.downloads-url }}/Jool-3.4.1.zip)</del> | [SHA512]({{ site.downloads-url }}/Jool-3.4.1.sha) | [MD5]({{ site.downloads-url }}/Jool-3.4.1.md5) | <a href="{{ site.repository-url }}/tree/v3.4.1" target="_blank">Link</a> |
 | <del>[3.4.0]({{ site.downloads-url }}/Jool-3.4.0.zip)</del> | [SHA512]({{ site.downloads-url }}/Jool-3.4.0.sha) | [MD5]({{ site.downloads-url }}/Jool-3.4.0.md5) | <a href="{{ site.repository-url }}/tree/v3.4.0" target="_blank">Link</a> |
 
@@ -33,7 +34,7 @@ Jool 3.4 is a [compliant SIIT and Stateful NAT64](intro-jool.html#compliance).
 
 Jool 3.3 is a fairly compliant SIIT and Stateful NAT64.
 
-3.3.5 is the latest version. It is also considered the most mature version of Jool.
+3.3.5 is the latest version.
 
 The documentation on this site pertains the 3.4 series. You can download a snapshot of the 3.3 documentation [here]({{ site.downloads-url }}/Jool-3.3-doc.zip).
 

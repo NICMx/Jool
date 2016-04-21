@@ -33,10 +33,10 @@ Este es el estatus actual de cumplimiento de Jool 3.4:
 | [RFC 6384](http://tools.ietf.org/html/rfc6384) | FTP sobre NAT64 | [Por Completar]({{ site.repository-url }}/issues/114). |
 | [RFC 6791](https://tools.ietf.org/html/rfc6791) | Peculiaridades de ICMP | El RFC quiere dos cosas: [pool6791](pool6791.html) (implementado) y extensión de encabezado de ICMP (no implementado). |
 | [RFC 6877](http://tools.ietf.org/html/rfc6877) | 464XLAT | Implementado como SIIT-DC-DCM; ver abajo. |
-| [draft-ietf-v6ops-siit-dc]({{ site.draft-siit-dc }}) | SIIT-DC | Cumple Totalmente. |
-| [draft-ietf-v6ops-siit-dc-2xlat]({{ site.draft-siit-dc-2xlat }}) | SIIT-DC Edge Translator | Cumple Totalmente. |
+| [RFC 7755]({{ site.draft-siit-dc }}) | SIIT-DC | Cumple Totalmente. |
+| [RFC 7756]({{ site.draft-siit-dc-2xlat }}) | SIIT-DC Edge Translator | Cumple Totalmente. |
 | [draft-ietf-6man-deprecate-atomfrag-generation]({{ site.draft-deprecate-atomfrag-generation }}) | Deprecación de los Fragmentos Atómicos | Jool contiene código que maneja fragmentos atómicos, pero [va de salida](usr-flags-atomic.html#overview). |
-| [draft-anderson-v6ops-siit-eam]({{ site.draft-siit-eam }}) | EAM | Cumple totalmente. |
+| [RFC 7757]({{ site.draft-siit-eam }}) | EAM | Cumple totalmente. |
 
 ![E-mail](../images/email.svg) Problemas de cumplimiento y nuevos estándares o funcionalidades pueden reportarse en el [Bug Tracker]({{ site.repository-url }}/issues).
 

@@ -20,7 +20,7 @@ Jool is an Open Source [SIIT and NAT64](intro-xlat.html) for Linux.
 
 ## Status
 
-As far as we know, Jool is a [fairly compliant](intro-jool.html#compliance) SIIT and Stateful NAT64. This is the roadmap as of 2015-11-23:
+As far as we know, Jool is a [fairly compliant](intro-jool.html#compliance) SIIT and Stateful NAT64. This is the roadmap as of 2016-04-21:
 
 1. [Milestone 3.5.0]({{ site.repository-url }}/issues?q=milestone%3A3.5.0) will add several new features.
 2. [Milestone 4.0.0]({{ site.repository-url }}/issues?q=milestone%3A4.0.0) will be an [internal refactor]({{ site.repository-url }}/issues/140) which should enhance Jool's config versatility.
@@ -28,11 +28,19 @@ As far as we know, Jool is a [fairly compliant](intro-jool.html#compliance) SIIT
 
 New bug reports might interpolate other milestones in-between. Feedback from users can persuade us to change priorities. See [Contact](contact.html) for options on this.
 
-Our latest release is version [3.4.2]({{ site.repository-url }}/issues?q=milestone%3A3.4.2).
+Our latest release is version [3.4.3]({{ site.repository-url }}/issues?q=milestone%3A3.4.3).
 
 -------------------
 
 ## News
+
+### 2016-04-21
+
+Version 3.4.3 released.
+
+1. Added support for a wider range of kernels. Support is now from Linux 3.2 to 4.4, and also RHEL 7.0 to 7.2.
+2. New configuration flag for NAT64: [`--f-args`](usr-flags-global.html#f-args)
+3. New configuration flag for NAT64: [`--handle-rst-during-fin-rcv`](usr-flags-global.html#handle-rst-during-fin-rcv)
 
 ### 2015-11-20
 

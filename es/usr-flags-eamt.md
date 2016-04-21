@@ -21,7 +21,7 @@ title: --eamt
 
 ## Descripción
 
-Interactúa con la EAMT (_Tabla de mapeos explícitos de direcciones_). Ver [la introducción](intro-xlat.html#siit-con-eam) para una visión general rápida, el [resumen del draft](eamt.html) para más detalles, o el [draft]({{ site.draft-siit-eam }}) para todos los detalles.
+Interactúa con la EAMT (_Tabla de mapeos explícitos de direcciones_). Ver [la introducción](intro-xlat.html#siit-con-eam) para una visión general rápida, el [resumen del RFC](eamt.html) para más detalles, o el [RFC]({{ site.draft-siit-eam }}) para todos los detalles.
 
 ## Sintaxis
 

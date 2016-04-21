@@ -21,11 +21,12 @@ title: Descargar
 
 Jool 3.4 es un [SIIT y NAT64 apegado al estándar](intro-jool.html#cumplimiento).
 
-La versión 3.4.2 es la más actual.
+3.4.3 es la más actual, y es considerada la versión más madura de Jool.
 
 | Descarga | SHA512 | MD5| Commit de Git |
 |----------|--------|----|------------|
-| **[3.4.2]({{ site.downloads-url }}/Jool-3.4.2.zip)** | [SHA512]({{ site.downloads-url }}/Jool-3.4.2.sha) | [MD5]({{ site.downloads-url }}/Jool-3.4.2.md5) | [Enlace]({{ site.repository-url }}/tree/v3.4.2) |
+| **[3.4.3]({{ site.downloads-url }}/Jool-3.4.3.zip)** | [SHA512]({{ site.downloads-url }}/Jool-3.4.3.sha) | [MD5]({{ site.downloads-url }}/Jool-3.4.3.md5) | [Enlace]({{ site.repository-url }}/tree/v3.4.3) |
+| [3.4.2]({{ site.downloads-url }}/Jool-3.4.2.zip) | [SHA512]({{ site.downloads-url }}/Jool-3.4.2.sha) | [MD5]({{ site.downloads-url }}/Jool-3.4.2.md5) | [Enlace]({{ site.repository-url }}/tree/v3.4.2) |
 | <del>[3.4.1]({{ site.downloads-url }}/Jool-3.4.1.zip)</del> | [SHA512]({{ site.downloads-url }}/Jool-3.4.1.sha) | [MD5]({{ site.downloads-url }}/Jool-3.4.1.md5) | [Enlace]({{ site.repository-url }}/tree/v3.4.1) |
 | <del>[3.4.0]({{ site.downloads-url }}/Jool-3.4.0.zip)</del> | [SHA512]({{ site.downloads-url }}/Jool-3.4.0.sha) | [MD5]({{ site.downloads-url }}/Jool-3.4.0.md5) | [Enlace]({{ site.repository-url }}/tree/v3.4.0) |
 

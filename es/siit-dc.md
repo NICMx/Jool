@@ -23,7 +23,7 @@ SIIT-DC es una mejora sobre SIIT tradicional donde la EAMT se introduce y estand
 
 ## Red
 
-Esta es la arquitectura mostrada en [la sección 3 de draft-siit-dc]({{ site.draft-siit-dc }}#section-3):
+Esta es la arquitectura mostrada en [la sección 3 del RFC 7755]({{ site.draft-siit-dc }}#section-3):
 
 ![Figura 1 - Network Overview](../images/network/siit-dc.svg "Fig.1 - Network Overview")
 

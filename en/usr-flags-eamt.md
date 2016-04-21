@@ -21,7 +21,7 @@ title: --eamt
 
 ## Description
 
-Interacts with Jool's Explicit Address Mapping Table (EAMT). See [the introduction](intro-xlat.html#siit-with-eam) for a swift overview, our [draft summary](eamt.html) for more details, or the [EAM draft]({{ site.draft-siit-eam }}) for the full story.
+Interacts with Jool's Explicit Address Mapping Table (EAMT). See [the introduction](intro-xlat.html#siit-with-eam) for a swift overview, our [RFC summary](eamt.html) for more details, or the [EAM RFC]({{ site.draft-siit-eam }}) for the full story.
 
 ## Syntax
 
