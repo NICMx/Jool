@@ -39,6 +39,8 @@ title: --global
 	13. [`--amend-udp-checksum-zero`](#amend-udp-checksum-zero)
 	14. [`--randomize-rfc6791-addresses`](#randomize-rfc6791-addresses)
 	13. [`--mtu-plateaus`](#mtu-plateaus)
+	21. [`--f-args`](#f-args)
+	22. [`--handle-rst-during-fin-rcv`](#handle-rst-during-fin-rcv)
 
 ## Description
 
@@ -444,4 +446,84 @@ To address this problem, when Jool finds itself attempting to translate a zero-M
 Note that if `--boostMTU` is activated, the MTU will still be 1280 even if the relevant plateau is less than 1280.
 
 You don't really need to sort the values as you input them.
+
+### `--f-args`
+
+- Type: Integer
+- Default: 11 (binary 1011)
+- Modes: Stateful NAT64 only
+- Translation direction: IPv6 to IPv4
+- Source: [Issue 195](https://github.com/NICMx/Jool/issues/195)
+
+When choosing an IPv4 transport address to mask an IPv6 source, it is [recommended]({{ site.draft-nat64-port-allocation }}) that the address should be as random as possible, but at the same time, dependent of several properties from the connection. You want the randomness to enhance the defense against hijacking of flows, and you want the dependence so that similar connections share similar masks. (Which enhances reliability when IPv4 outsiders expect so.)
+
+In other words, when translating an IPv6 packet from a new connection, the translator needs a function (`F`) that hashes certain fields into an IPv4 transport address (`m`) from pool4, which is then used as the IPv4 packet source (and stored in the BIB and session database):
+
+	F(Source IPv6 address, Destination IPv6 address, Destination port) = m
+
+(Jool's implementation of `F` is [Algorithm 3 of RFC 6056](https://tools.ietf.org/html/rfc6056#page-14).)
+
+The following three packet flows exemplify how this works out. Let's say `2001:db8::1` writes packet `2001:db8::1#5000 -> 64:ff9b::192.0.2.1#80`.
+
+![Fig.5: --f-args example](../images/network/f-args.svg)
+
+Jool needs a mask. Let's say `F`'s hash yields `203.0.113.6#6789`:
+
+	F(2001:db8::1, 64:ff9b::192.0.2.1, 80) = 203.0.113.6#6789
+
+So Jool stores BIB entry `2001:db8::1#5000 | 203.0.113.6#6789` and the packet is translated as `203.0.113.6#6789 -> 192.0.2.1#80`.
+
+Now let's say another IPv6 node (`2001:db8::2`) opens a socket to someone else. The new packet is `2001:db8::2#6000 -> 64:ff9b::198.51.100.4#443`. `F` yields something else because it has been given different arguments:
+
+	F(2001:db8::2, 64:ff9b::198.51.100.4, 443) = 203.0.113.25#4421
+
+So Jool stores BIB entry `2001:db8::2#6000 | 203.0.113.25#4421` and the packet is translated as `203.0.113.25#4421 -> 198.51.100.4#443`.
+
+Finally, the same IPv6 node needs to open another socket towards the same IPv4 service. (This often happens in multiple socket applications such as gaming. The server will, of course, expect the client's address to be the same.) The new packet is `2001:db8::2#7000 -> 64:ff9b::198.51.100.4#443`. Because all of the relevant arguments are the same, `F` yields the same source as in the previous flow.
+
+	F(2001:db8::2, 64:ff9b::198.51.100.4, 443) = 203.0.113.25#4421
+
+Two BIB entries cannot share the same IPv4 transport address (a _collision_ just happened), so Jool picks a nearby available one. It creates BIB entry `2001:db8::2#7000 | 203.0.113.25#4422` and the packet is translated as `203.0.113.25#4422 -> 198.51.100.4#443`.
+
+You can see the mechanism is designed so masks are scattered randomly across the pool4 domain as much as possible, unless the IPv4 node expects a transport source that is similar to one from a previous connection. (Including the source port in `F` would break this.)
+
+That's all well and good, but it turns out there's at least one protocol (FTP using EPSV) in which the server expects a client to open a second connection on a similar transport source, but the connection is also supposed to interact with another server port. The mechanism explained above usually breaks this second connection because the Destination port randoms the `F` hash so `m` is not necessarily a similar source.
+
+`--f-args` allows you to include and exclude arguments from `F`. You can use this to engineer argument combinations that will be friendlier to awkwardly-designed application protocols. Keep in mind though, excluding arguments from `F` increases collision rate because of the reduced randomness, which is somewhat expensive to handle. (for kernel standards, anyway.)
+
+`--f-args` is a bit field. Each bit in `--f-args` represents an argument to `F`. Activate the bit to include the respective argument (from most significant to least):
+
+1. Source (IPv6) address
+2. Source port
+3. Destination (IPv6) address
+4. Destination port
+
+So, the default value (decimal 11, binary 1011) excludes source port from the equation.
+
+To fix the FTP/EPSV problem, you would remove Destination port from `F`. This would force all connections involving the same nodes to be masked similarly.
+
+Unfortunately, `--f-args` can only be entered via its decimal representation. This is possible:
+
+	$ jool --f-args 10
+
+While this is not:
+
+	$ jool --f-args 0b1010
+
+### `--handle-rst-during-fin-rcv`
+
+- Type: Boolean
+- Default: OFF
+- Modes: Stateful NAT64 only
+- Translation direction: Both
+- Source: [Issue 212](https://github.com/NICMx/Jool/issues/212)
+
+Some endpoints have a nasty habit of ending TCP connections ungracefully. Instead of performing a standard FIN handshake (FIN, FIN-ACK, ACK), they kill half-finished packet streams abruptly (FIN, RST). The current NAT64 specification does not seem to consider this, so their respective NAT64 mappings stay alive for `--tcp-est-timeout` seconds. Since the connection is being terminated, a `--tcp-trans-timeout`-second timeout would be more appropriate. This means these sessions stay alive for longer than they probably should.
+
+If you activate `--handle-rst-during-fin-rcv`, Jool will assign the transitory lifetime to connections ended with a FIN followed by a RST. This is nonstandard behavior, but should optimize pool4 utilization.
+
+The only known downside to activating `--handle-rst-during-fin-rcv` is that attackers can potentially terminate connections that fulfill the following conditions:
+
+- Are idle. (more than `--tcp-trans-timeout` seconds between packets)
+- One endpoint has already sent a FIN.
 

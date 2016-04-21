@@ -39,6 +39,8 @@ title: --global
 	18. [`--amend-udp-checksum-zero`](#amend-udp-checksum-zero)
 	19. [`--randomize-rfc6791-addresses`](#randomize-rfc6791-addresses)
 	20. [`--mtu-plateaus`](#mtu-plateaus)
+	21. [`--f-args`](#f-args)
+	22. [`--handle-rst-during-fin-rcv`](#handle-rst-during-fin-rcv)
 
 ## Descripción
 
@@ -467,4 +469,86 @@ Por lo tanto, cuando Jool se encuentra intentando traducir un error ICMP sin MTU
 Nótese que el mínimo MTU en IPv6 es 1280, de modo que cualquier plateau menor a 1280 será ajustado.
 
 No es necesario que se ordenen los valores mientras se ingresan.
+
+### `--f-args`
+
+- Nombre: ***Argumentos para `F()`***
+- Tipo: ***Entero***
+- Valor por omisión: ***11 (binario 1011)***
+- Modos: ***NAT64***
+- Sentido de traducción: ***IPv6 -> IPv4***
+- Fuente: [Issue 195](https://github.com/NICMx/Jool/issues/195)
+
+Es [recomendado]({{ site.draft-nat64-port-allocation }}) que la dirección fuente IPv4 que se elija para enmascarar un socket de IPv6 sea lo más aleatoria posible, pero al mismo tiempo, que sea dependiente de varias propiedades de la conexión. La aleatoriedad es deseada para enforzar la defensa contra intercepciones de conexión maliciosas, y la dependencia sirve para que conexiones similares tengan máscaras similares (lo cual es esperado por ciertos protocolos de más alto nivel).
+
+En otras palabras, cuando se traduce un paquete IPv6 de una nueva conexión, el traductor emplea una función (`F`). Esta función hashea ciertos campos, convirtiéndolos en una dirección de transporte (`m`) de pool4, la cual se usa como fuente del paquete resultante:
+
+	F(Dirección fuente IPv6, Dirección destino IPv6, Puerto destino) = m
+
+(La implementación de `F` es el [Algoritmo 3 del RFC 6056](https://tools.ietf.org/html/rfc6056#page-14).)
+
+Los siguientes flujos de paquetes ejemplifican el trabajo de `F`:
+
+![Fig.5: --f-args, ejemplo](../images/network/f-args.svg)
+
+`2001:db8::1` escribe el paquete `2001:db8::1#5000 -> 64:ff9b::192.0.2.1#80`. Jool necesita reservar una máscara, de modo que `F` resulta en el hash `203.0.113.6#6789`:
+
+	F(2001:db8::1, 64:ff9b::192.0.2.1, 80) = 203.0.113.6#6789
+
+Por lo tanto, Jool guarda la entrada BIB `2001:db8::1#5000 | 203.0.113.6#6789` y el paquete se convierte en `203.0.113.6#6789 -> 192.0.2.1#80`.
+
+A continuación, otro nodo de IPv6 (`2001:db8::2`) abre un socket hacia alguien más. El nuevo paquete es `2001:db8::2#6000 -> 64:ff9b::198.51.100.4#443` y `F` produce otra dirección porque ha recibido otros argumentos:
+
+	F(2001:db8::2, 64:ff9b::198.51.100.4, 443) = 203.0.113.25#4421
+
+Jool guarda la entrada BIB `2001:db8::2#6000 | 203.0.113.25#4421` y el paquete se traduce como `203.0.113.25#4421 -> 198.51.100.4#443`.
+
+Por último, el mismo nodo de IPv6 necesita abrir otro socket hacia el mismo servicio IPv4. Esto generalmente sucede en aplicaciones con múltiples sockets, tales como juegos (El servidor, por supuesto, espera que la dirección del cliente sea la misma en ambas conexiones). El nuevo paquete es `2001:db8::2#7000 -> 64:ff9b::198.51.100.4#443`. Como los argumentos relevantes son los mismos, `F` da el mismo resultado que en el flujo anterior.
+
+	F(2001:db8::2, 64:ff9b::198.51.100.4, 443) = 203.0.113.25#4421
+
+No es posible que dos entradas BIB tengan la misma dirección de transporte IPv4 (acaba de suceder una _colisión_), por lo que Jool elige una cercana. Se genera la entrada BIB `2001:db8::2#7000 | 203.0.113.25#4422` y el paquete se traduce como `203.0.113.25#4422 -> 198.51.100.4#443`.
+
+Aquí se puede observar que el mecanismo está diseñado para que las máscaras se distribuyan aleatoriamente a través del dominio de pool4, a menos de que el nodo IPv4 espere una dirección de transporte fuente que sea similar a una de las de una conexión anterior. (Incluir el puerto fuente en `F` rompería esto.)
+
+Lo anterior normalmente funciona sin problemas. Sucede, sin embargo, que existe al menos un protocolo (FTP utilizando EPSV) en el cual el servidor espera que el cliente abra una segunda conexión en una fuente similar, pero también se espera que esta conexión interactúe con otro puerto del servidor. El mecanismo explicado arriba generalmente rompe esta segunda conexión porque el puerto destino aleatoriza al hash de `F`, de modo que `m` generalmente resulta no ser una fuente similar.
+
+`--f-args` permite incluir y excluir argumentos de `F`. Es posible usarlo para idear una combinación de argumentos que va a ser más amigable con protocolos de aplicación que hacen suposiciones extrañas respecto a las direcciones de un paquete. Es necesario mantener en mente, sin embargo, que excluir argumentos de `F` incrementa la frecuencia de colisiones debido a la reducción de aleatoriedad, lo cual puede ser costoso (para los estándares del kernel).
+
+`--f-args` es un campo de bits. Cada bit en `--f-args` representa un argumento para `F`. Si se activa el bit, el argumento se incluye. Estos son los argumentos disponibles (desde el más hacia el menos significativo):
+
+1. Dirección fuente (IPv6)
+2. Puerto fuente
+3. Dirección destino (IPv6)
+4. Puerto destino
+
+A modo de ejemplo, el valor por defecto (decimal 11, binario 1011) excluye al puerto fuente de la ecuación.
+
+Para solucionar el problema de FTP/EPSV, es preciso remover el puerto destino de `F`. Esto obliga a que todas las conexiones que involucren a los mismos nodos sean enmascaradas similarmente.
+
+Desafortunadamente, `--f-args` solamente puede ser introducido mediante su representación en decimal. Esto es posible:
+
+	$ jool --f-args 10
+
+Esto no lo es:
+
+	$ jool --f-args 0b1010
+
+### `--handle-rst-during-fin-rcv`
+
+- Nombre: ***"Responder a la bandera RST durante los estados V4 FIN RCV y V6 FIN RCV"***
+- Tipo: ***Booleano***
+- Valor ***por omisión: Apagado (0)***
+- Modes: ***NAT64***
+- Sentido de traducción: ***IPv4 -> IPv6 & IPv6 -> IPv4***
+- Fuente: [Issue 212](https://github.com/NICMx/Jool/issues/212)
+
+Algunas implementaciones tienen el mal hábito de terminar conexiones de TCP de manera poco elegante. En lugar de realizar un FIN handshake estándar (FIN, FIN-ACK, ACK), terminan flujos abruptamente (FIN, RST). La especificación de NAT64 no considera esto, de modo que los mapeos relevantes se mantienen vivos por `--tcp-est-timeout` segundos. Dado que la conexión está siendo terminada, `--tcp-trans-timeout` segundos sería más apropiado. Esto normalmente significa que estos mapeos inactivos se mantienen en la base de datos por más tiempo del ideal.
+
+Si se activa `--handle-rst-during-fin-rcv`, Jool va a asignar el tiempo de vida transitorio a conexiones terminadas con un FIN seguido por un RST. Esto es comportamiento no estándar, pero debería optimizar el uso de pool4.
+
+El único problema conocido con activar `--handle-rst-during-fin-rcv` es que hace que un atacante sea capaz de prematuramente terminar conexiones que cumplan con las siguientes condiciones:
+
+- Están ociosas (Más de `--tcp-trans-timeout` segundos entre paquetes).
+- Uno de los extremos ya ha enviado un FIN.
 
