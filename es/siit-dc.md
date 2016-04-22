@@ -41,7 +41,11 @@ Y este va a ser el flujo esperado para _n4_:
 
 ![Figura 3 - flujo de paquetes de n4](../images/flow/siit-dc-n4.svg "Figura 3 - flujo de paquetes de n4")
 
-Algunas propiedades de esto son:
+La fuente de _n4_ se traduce a través del prefijo tradicional del [RFC 6052](https://tools.ietf.org/html/rfc6052). Esto no se limita a _n4_, por supuesto: La dirección de cualquier nodo de IPv4 va a ser traducida de esta manera. El resultado neto es que, desde la perspectiva del Data Centre, todo el Internet de IPv4 es simplemente una red llamada "`2001:db8:46::/96`".
+
+Por otro lado, la dirección de _s6_ es traducida por la EAMT. Esto se hace para que no sea necesario codificar la dirección IPv4 dentro de la dirección IPv6 de _s6_. Esto simplifica la tarea del operador a la hora de diseñar la red.
+
+Algunas propiedades generales de SIIT-DC son:
 
 - Dentro del Data Centre, casi toda operación es single-stack (IPv6). Esto simplifica el mantenimiento dado que soportar un protocolo es más fácil que dos.
 - El tráfico IPv6 nativo jamás se modifica.
@@ -49,6 +53,8 @@ Algunas propiedades de esto son:
 - Puede optimizar el uso de direcciones IPv4 dentro del Data Centre (porque no impone restricciones en las direcciones IPv6 de los servidores).
 - Promueve el despliegue de IPv6 (conectividad hacia clientes IPv4 se convierte en un servicio proveído por la red).
 - Si se desea descartar a IPv4 en el futuro, lo único que hay que hacer es quitar a _BR_.
+
+Se espera que el DNS funcione de la misma manera que si se estuviera manejando Dual Stack: Si un nodo solicita la dirección IPv4 de _s6_, el DNS debe regresar `192.0.2.1`. Si un nodo solicita la dirección IPv6, el DNS debe regresar `2001:db8:12:34::1`.
 
 ## Configuración
 
@@ -59,5 +65,5 @@ Dejando comandos de red de lado, esto es Jool en _BR_:
 # jool_siit --eamt --add 192.0.2.1 2001:db8:12:34::1
 {% endhighlight %}
 
-Para cada servidor que se desee publicar en IPv4, agregar una entrada EAM (como se muestra para _s6_) y registros DNS IPv4 adecuados.
+Para cada servidor que se desee publicar en IPv4, agregar una entrada EAM (como se muestra para _s6_) y registros DNS adecuados.
 

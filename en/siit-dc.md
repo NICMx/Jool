@@ -41,7 +41,11 @@ And this will be the expected packet flow for _n4_:
 
 ![Fig.3 - n4 Packet Flow](../images/flow/siit-dc-n4.svg "Fig.3 - n4 Packet Flow")
 
-Some properties of this are:
+_n4_'s source is translated by means of the traditional [RFC 6052](https://tools.ietf.org/html/rfc6052) prefix. Of course, this is not limited to _n4_: Any v4 Internet node address will be translated this way. The net result is that, from the Data Centre's perspective, the whole v4 Internet is nothing more than just another network named "`2001:db8:46::/96`".
+
+On the other hand, _s6_'s address is translated via the EAMT. This is done so you don't have to embed an IPv4 address in _s6_'s IPv6 address. (Which could become a significant pain when you're designing your network.)
+
+In general, some properties of SIIT-DC are:
 
 - Mostly Single (IPv6) Stack operation (in the Data Centre). This simplifies maintenance as running one protocol is simpler than two.
 - Native IPv6 traffic is never modified at all.
@@ -49,6 +53,8 @@ Some properties of this are:
 - Can optimize IPv4 address usage within the Data Centre (because it doesn't impose restrictions on the servers' IPv6 addresses).
 - Promotes IPv6 deployment (IPv4 end-user connectivity becomes a service provided by the network).
 - If you want to stop needing IPv4 in the future, all you need to do is shut down _BR_.
+
+The DNS is expected to work the same way as if you were dual stacking: If a node requests _s6_'s IPv4 address, the DNS server should return `192.0.2.1`. If a node requests _s6_'s IPv6 address, the DNS should return `2001:db8:12:34::1`.
 
 ## Configuration
 
@@ -59,5 +65,5 @@ Obviating networking commands, this is Jool on _BR_:
 # jool_siit --eamt --add 192.0.2.1 2001:db8:12:34::1
 {% endhighlight %}
 
-For every server you want to publish on IPv4, you add one EAMT entry (as done above for _s6_) and appropriate IPv4 DNS records.
+For every server you want to publish on IPv4, you add one EAMT entry (as done above for _s6_) and appropriate DNS records.
 
