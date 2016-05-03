@@ -267,7 +267,7 @@ void joold_put(struct joold_queue *queue)
 
 void joold_config_copy(struct joold_queue *queue, struct joold_config *config)
 {
-	fail(__func__);
+	/* No code. */
 }
 
 void joold_config_set(struct joold_queue *queue, struct joold_config *config)
