@@ -11,23 +11,20 @@
  * instead.
  */
 
-#ifndef RHEL_RELEASE_VERSION
-/**
- * Don't mind this one; it's intended to prevent the macros below from expanding
- * "RHEL_RELEASE_VERSION(rhela, rhelb)" into "0(rhela, rhelb)".
- * :p
- */
-#define RHEL_RELEASE_VERSION(a, b) 0
-#endif
+#ifdef RHEL_RELEASE_CODE
 
 #define LINUX_VERSION_AT_LEAST(a, b, c, ra, rb) \
-	((defined RHEL_RELEASE_CODE \
-			&& RHEL_RELEASE_CODE >= RHEL_RELEASE_VERSION(ra, rb)) \
-	|| LINUX_VERSION_CODE >= KERNEL_VERSION(a, b, c))
-
+		RHEL_RELEASE_CODE >= RHEL_RELEASE_VERSION(ra, rb)
 #define LINUX_VERSION_LOWER_THAN(a, b, c, ra, rb) \
-	(defined RHEL_RELEASE_CODE \
-			&& RHEL_RELEASE_CODE < RHEL_RELEASE_VERSION(ra, rb)) \
-	|| LINUX_VERSION_CODE < KERNEL_VERSION(a, b, c)
+		RHEL_RELEASE_CODE < RHEL_RELEASE_VERSION(ra, rb)
+
+#else
+
+#define LINUX_VERSION_AT_LEAST(a, b, c, ra, rb) \
+		LINUX_VERSION_CODE >= KERNEL_VERSION(a, b, c)
+#define LINUX_VERSION_LOWER_THAN(a, b, c, ra, rb) \
+		LINUX_VERSION_CODE < KERNEL_VERSION(a, b, c)
+
+#endif
 
 #endif
