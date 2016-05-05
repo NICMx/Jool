@@ -20,6 +20,16 @@ struct xlator {
 			struct eam_table *eamt;
 			struct addr4_pool *blacklist;
 			struct addr4_pool *pool6791;
+
+			/** MAP-T */
+
+			/** End-user IPv6 prefix table */
+			struct enduser_prefix6_table *mapt_enduprefix6_table;
+			/** Mapping Rule table */
+			struct mapping_rule_table *mapt_mr_table;
+			/** Forwarding-Mapping-Rule(FMR) table */
+			struct mapping_rule_table *mapt_fmr_table;
+
 		} siit;
 		struct {
 			struct fragdb *frag;

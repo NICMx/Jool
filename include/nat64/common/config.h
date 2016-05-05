@@ -596,11 +596,25 @@ struct global_config {
 			 * the value of rfc6791_v6_prefix is going to be used
 			 */
 			__u8 use_rfc6791_v6;
+
 			/**
 			 * Address used to represent a not translatable source
 			 * address of an incoming packet.
 			 */
 			struct ipv6_prefix rfc6791_v6_prefix;
+
+			/**
+			 * This flag tells JOOL SIIT whether its going to
+			 * try translating packets using MAP-T
+			*/
+			__u8 mapt_enabled;
+
+			/**
+			 * This flag tells JOOL SIIT whether it is going to
+			 * work as a MAP-T CE(client edge)  or a
+			 * MAP-T BR(border relay)
+			 */
+			__u8 mapt_ce_enabled;
 
 		} siit;
 		struct {
@@ -633,6 +647,7 @@ struct global_config {
 struct bib_config {
 	__u8 log_changes;
 };
+
 
 struct joold_config {
 	/*

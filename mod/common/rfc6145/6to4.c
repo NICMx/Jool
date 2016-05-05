@@ -218,7 +218,7 @@ static verdict translate_addrs64_siit(struct xlation *state)
 	enum eam_hairpinning_mode hairpin_mode;
 	verdict result;
 
-
+	/* perhaps this means (SRC DEPENDS ->ON DST)
 	/* Dst address. (SRC DEPENDS CON DST, SO WE NEED TO XLAT DST FIRST!) */
 	result = generate_addr4_siit(state, &hdr6->daddr, &hdr4->daddr, true,
 			&dst_was_6052);

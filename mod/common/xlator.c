@@ -154,13 +154,27 @@ static int init_siit(struct xlator *jool)
 	error = rfc6791_init(&jool->siit.pool6791);
 	if (error)
 		goto rfc6791_fail;
+
+	error = mapt_init(&jool->siit.mapt_bmr_table);
+	if (error)
+		goto mapt_fail;
+
+	error = mapt_init_enduser_prefix6_table(&jool->siit.mapt_enduprefix6_table);
+	if (error)
+		goto mapt_enduser_fail;
+
 	jool->newcfg = cfgcandidate_create();
 	if (!jool->newcfg)
 		goto newcfg_fail;
 
 	return 0;
 
+
 newcfg_fail:
+	mapt_enduser_put(jool->siit.mapt_enduprefix6_table);
+mapt_enduser_fail:
+	mapt_put(jool->siit.mapt_bmr_table);
+mapt_fail:
 	rfc6791_put(jool->siit.pool6791);
 rfc6791_fail:
 	blacklist_put(jool->siit.blacklist);
