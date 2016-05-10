@@ -30,6 +30,8 @@ struct xlator {
 			/** Forwarding-Mapping-Rule(FMR) table */
 			struct mapping_rule_table *mapt_fmr_table;
 
+			struct eup6_mr_relation_table *relation_table;
+
 		} siit;
 		struct {
 			struct fragdb *frag;

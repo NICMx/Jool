@@ -73,11 +73,36 @@ static int create_map_ipv6_address(struct in_addr *address4,
 
 }
 
+static int assign_map_addr6(struct in_addr6 *map_addr, __u32 prefix_length,
+			    struct xlator *jool)
+{
 
-static int assign_enduser_ipv6_prefix( struct ipv6_prefix *prefix6,
-		struct enduser_prefix6_table *eu_prefix_table,
-		struct map_rule_table *mr_table,
-		struct eup6_mr_relation_table *relation_table)
+    int error = 0;
+
+    struct in6_ifreq req;
+
+    req.ifr6_addr = *map_addr;
+    req.ifr6_prefixlen = prefix_length;
+    req.ifr6_ifindex = 0;
+
+    error = addrconf_add_ifaddr(jool->ns, &req);
+
+    if (error == -EPERM) {
+	log_err("Not enough permissions to assing map ipv6 address!");
+	return error;
+    }
+
+    if (error == -EFAULT) {
+	log_err("Something is wroing in the ipv6 map address!");
+	return error;
+    }
+
+    return error;
+}
+
+
+static int mapt_add_enduser_ipv6_prefix( struct ipv6_prefix *prefix6,
+		struct xlator *jool)
 {
 
 	int error = 0;
@@ -85,10 +110,13 @@ static int assign_enduser_ipv6_prefix( struct ipv6_prefix *prefix6,
 	struct in_addr6 map_addr6;
 	struct in_addr local_addr4;
 
-	if (enduser_prefix6_table_contains(eu_prefix_table, prefix6))
+	if (enduser_prefix6_table_contains(jool->siit.mapt_enduprefix6_table,
+			prefix6)) {
 		return -EEXIST;
+	}
 
-	error = mapping_rule_table_get_exact_match6(mr_table, prefix6, &rule);
+	error = mapping_rule_table_get_exact_match6(jool->siit.mapt_mr_table,
+			prefix6, &rule);
 
 	if (error) {
 
@@ -100,14 +128,26 @@ static int assign_enduser_ipv6_prefix( struct ipv6_prefix *prefix6,
 	}
 
 
-	if (eup6_mr_relation_table_contains(relation_table, &rule))
+	if (eup6_mr_relation_table_contains(jool->siit.relation_table, &rule))
 		return -EEXIST;
 
 
 
 
-	error = create_map_ipv6_address()
+	error = create_map_ipv6_address(&local_addr4, &rule, prefix6, 0,
+					&map_addr6);
 
+
+	if (error)
+	    return error;
+
+
+
+	error = assign_map_addr6(&map_addr6);
+
+
+
+	return error;
 
 	/**	when an end-user ipv6 prefix is assigned to the mapt ce this are
 		the	steps to follow:
@@ -126,17 +166,19 @@ static int assign_enduser_ipv6_prefix( struct ipv6_prefix *prefix6,
 }
 
 
+int mapt_ce_add_enduser_ipv6_prefix(struct ipv6_prefix *prefix6,
+		struct enduser_prefix6_table *eu_prefix_table,
+		struct map_rule_table *mr_table,
+		struct eup6_mr_relation_table *relation_table)
+{
+  mapt_add_enduser_ipv6_prefix(prefix6, eu_prefix_table, mr_table,
+		relation_table);
+}
+
+
 
 
 /** ---------------------------------------------------------------------- **/
-
-/**
- *  Next steps:
- *    (focus on section 5 rfc 7597)
- *  1 .- implement storage for multiple end-user ipv6 prefixes.
- *  2 .- determine the right way to find the basic mapping rule for a given
- *  	end user ipv6 prefix.
- */
 
 
    /*  Each MAP-T CE is assigned with a regular IPv6 prefix from the
