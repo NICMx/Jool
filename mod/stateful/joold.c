@@ -7,6 +7,16 @@
 #include "nat64/mod/common/nl/nl_core2.h"
 #include "nat64/mod/stateful/session/db.h"
 #include "nat64/mod/stateful/bib/db.h"
+#include "nat64/mod/common/xlator.h"
+
+
+
+struct joold_advertise_struct {
+    struct nlcore_buffer buffer;
+    __u32 count;
+    __u32 queue_capacity;
+    struct net* ns;
+};
 
 /*
  * Remember to include in the user documentation:
@@ -590,6 +600,125 @@ int joold_test(struct xlator *jool)
 	return error;
 }
 
+
+
+static int init_advertise_struct(struct joold_advertise_struct *advertise_struct)
+{
+
+  int error = 0;
+  struct request_hdr jool_hdr;
+
+  init_request_hdr(&jool_hdr, MODE_JOOLD, OP_ADD);
+  jool_hdr.castness = 'm';
+
+  error = nlbuffer_init_request(&advertise_struct->buffer, &jool_hdr,
+  		nlbuffer_response_max_size() - sizeof(jool_hdr));
+  if (error) {
+  	log_debug("nlbuffer_new() threw error %d.", error);
+  	return error;
+  }
+
+  advertise_struct->count = 0;
+  advertise_struct->queue_capacity =
+	  (nlbuffer_response_max_size() - sizeof(jool_hdr))
+	      / sizeof(struct joold_session);
+
+  return error;
+
+}
+
+static int advertise_session(struct session_entry *session, void *arg)
+{
+    struct joold_advertise_struct *advertise_struct = arg;
+    struct joold_session entry_copy;
+    __u64 creation_time;
+    __u64 update_time;
+    int error = 0;
+
+    entry_copy.l4_proto = session->l4_proto;
+    entry_copy.local4 = session->src4;
+    entry_copy.local6 = session->dst6;
+    entry_copy.remote4 = session->dst4;
+    entry_copy.remote6 = session->src6;
+    entry_copy.state = session->state;
+
+    update_time = jiffies_to_msecs(jiffies - session->update_time);
+    entry_copy.update_time = cpu_to_be64(update_time);
+
+    creation_time = jiffies_to_msecs(jiffies - session->creation_time);
+    entry_copy.creation_time = cpu_to_be64(creation_time);
+
+    error = nlbuffer_write(&advertise_struct->buffer, &entry_copy,
+		sizeof(entry_copy));
+
+    if (error) {
+	log_err("An error occurred while trying to write a session to the"
+		" buffer!");
+	goto end;
+    }
+
+    advertise_struct->count += 1;
+
+    if (advertise_struct->queue_capacity <= advertise_struct->queue_capacity) {
+
+	send_buffer(advertise_struct->ns, &advertise_struct->buffer);
+
+	error = init_advertise_struct(advertise_struct);
+
+	if (error)
+	  log_err("An error occurred while trying to initialize the advertise struct !");
+
+    }
+
+   end:
+   return error;
+
+}
+
+
+
+
+static int advertise(struct xlator *jool)
+{
+  int error = 0;
+   struct joold_advertise_struct advertise_struct;
+
+
+  sessiondb_get(jool->nat64.session);
+
+  init_advertise_struct(&advertise_struct);
+
+  error = sessiondb_foreach(jool->nat64.session,L4PROTO_TCP, advertise_session,
+		(void *) &advertise_struct, NULL, NULL);
+
+  if (error) {
+      log_err("Something went wrong while trying to advertise TCP sessions!");
+      goto end;
+  }
+
+  init_advertise_struct(&advertise_struct);
+
+  error = sessiondb_foreach(jool->nat64.session,L4PROTO_UDP, advertise_session,
+  		(void *) &advertise_struct, NULL, NULL);
+
+  if (error) {
+      log_err("Something went wrong while trying to advertise UDP sessions!");
+      goto end;
+  }
+
+  init_advertise_struct(&advertise_struct);
+
+  error = sessiondb_foreach(jool->nat64.session,L4PROTO_ICMP, advertise_session,
+  		(void *) &advertise_struct, NULL, NULL);
+
+  if (error)
+      log_err("Something went wrong while trying to advertise ICMP sessions!");
+
+  end:
+  sessiondb_put(jool->nat64.session);
+  return error;
+}
+
 int joold_advertise(struct xlator *jool)
 {
 	int error;
@@ -598,6 +727,7 @@ int joold_advertise(struct xlator *jool)
 	if (error)
 		return error;
 
-	/* TODO Not implemented yet. */
-	return -EINVAL;
+	error = advertise(jool);
+
+	return error;
 }
