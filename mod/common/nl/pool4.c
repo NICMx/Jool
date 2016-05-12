@@ -82,25 +82,18 @@ static int handle_pool4_rm(struct xlator *jool, struct genl_info *info,
 static int handle_pool4_flush(struct xlator *jool, struct genl_info *info,
 		union request_pool4 *request)
 {
-	int error;
-
 	if (verify_superpriv())
 		return nlcore_respond(info, -EPERM);
 
 	log_debug("Flushing pool4.");
-	error = pool4db_flush(jool->nat64.pool4);
 
-	/*
-	 * Well, pool4db_flush() only errors on memory allocation failures,
-	 * so I guess clearing BIB and session even if pool4db_flush fails
-	 * is a good idea.
-	 */
+	pool4db_flush(jool->nat64.pool4);
 	if (xlat_is_nat64() && !request->flush.quick) {
 		sessiondb_flush(jool->nat64.session);
 		bibdb_flush(jool->nat64.bib);
 	}
 
-	return nlcore_respond(info, error);
+	return nlcore_respond(info, 0);
 }
 
 static int handle_pool4_count(struct pool4 *pool, struct genl_info *info)

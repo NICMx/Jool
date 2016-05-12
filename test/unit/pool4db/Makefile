@@ -17,9 +17,7 @@ POOL4DB = pool4db
 obj-m += $(POOL4DB).o
 
 $(POOL4DB)-objs += $(MIN_REQS)
-$(POOL4DB)-objs += ../../../mod/stateful/pool4/table.o
-$(POOL4DB)-objs += ../../../mod/stateful/pool4/entry.o
-$(POOL4DB)-objs += ../impersonator/pool4_empty.o
+$(POOL4DB)-objs += ../../../mod/common/rbtree.o
 $(POOL4DB)-objs += pool4db_test.o
 
 

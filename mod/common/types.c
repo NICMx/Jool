@@ -27,6 +27,12 @@ bool port_range_equals(const struct port_range *r1,
 	return (r1->min == r2->min) && (r1->max == r2->max);
 }
 
+/**
+ * Range [1,3] touches [2,6].
+ * Range [1,3] touches [3,6].
+ * Range [1,3] touches [4,6].
+ * Range [1,3] does not touch [5,6].
+ */
 bool port_range_touches(const struct port_range *r1,
 		const struct port_range *r2)
 {

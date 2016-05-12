@@ -18,7 +18,7 @@ struct pool4;
  * Write functions (Caller must prevent concurrence)
  */
 
-int pool4db_init(struct pool4 **pool, unsigned int capacity);
+int pool4db_init(struct pool4 **pool);
 void pool4db_get(struct pool4 *pool);
 void pool4db_put(struct pool4 *pool);
 
@@ -29,7 +29,7 @@ int pool4db_add_str(struct pool4 *pool, char *prefix_strs[], int prefix_count);
 int pool4db_rm(struct pool4 *pool, const __u32 mark, enum l4_protocol proto,
 		struct ipv4_prefix *prefix, struct port_range *ports);
 int pool4db_rm_usr(struct pool4 *pool, struct pool4_entry_usr *entry);
-int pool4db_flush(struct pool4 *pool);
+void pool4db_flush(struct pool4 *pool);
 
 /*
  * Read functions (Legal to use anywhere)
@@ -37,11 +37,12 @@ int pool4db_flush(struct pool4 *pool);
 
 bool pool4db_contains(struct pool4 *pool, struct net *ns,
 		enum l4_protocol proto, struct ipv4_transport_addr *addr);
-bool pool4db_is_empty(struct pool4 *pool);
+/* This doesn't need to be public now. */
+/* bool pool4db_is_empty(struct pool4 *pool); */
 void pool4db_count(struct pool4 *pool, __u32 *tables, __u64 *samples,
 		__u64 *taddrs);
 
-int pool4db_foreach_sample(struct pool4 *pool,
+int pool4db_foreach_sample(struct pool4 *pool, l4_protocol proto,
 		int (*cb)(struct pool4_sample *, void *), void *arg,
 		struct pool4_sample *offset);
 int pool4db_foreach_taddr4(struct pool4 *pool, struct net *ns,

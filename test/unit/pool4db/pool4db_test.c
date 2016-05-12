@@ -17,34 +17,6 @@ MODULE_DESCRIPTION("IPv4 pool DB module test");
 struct pool4 *pool;
 struct net *ns;
 
-static bool test_init_power(void)
-{
-	unsigned int power_original = pool->power;
-	bool success = true;
-
-	success &= ASSERT_INT(0, init_power(pool, 0), "r0");
-	success &= ASSERT_UINT(16U, slots(pool), "p0"); /* Because default. */
-	success &= ASSERT_INT(0, init_power(pool, 1), "r1");
-	success &= ASSERT_UINT(1U, slots(pool), "p1");
-	success &= ASSERT_INT(0, init_power(pool, 2), "r2");
-	success &= ASSERT_UINT(2U, slots(pool), "p2");
-	success &= ASSERT_INT(0, init_power(pool, 3), "r3");
-	success &= ASSERT_UINT(4U, slots(pool), "p3");
-	success &= ASSERT_INT(0, init_power(pool, 4), "r4");
-	success &= ASSERT_UINT(4U, slots(pool), "p4");
-	success &= ASSERT_INT(0, init_power(pool, 5), "r5");
-	success &= ASSERT_UINT(8U, slots(pool), "p5");
-	success &= ASSERT_INT(0, init_power(pool, 1234), "r1234");
-	success &= ASSERT_UINT(2048U, slots(pool), "p1234");
-	success &= ASSERT_INT(0, init_power(pool, 0x80000000U), "rmax");
-	success &= ASSERT_UINT(0x80000000U, slots(pool), "pmax");
-	success &= ASSERT_INT(-EINVAL, init_power(pool, 0x80000001U), "2big1");
-	success &= ASSERT_INT(-EINVAL, init_power(pool, 0xFFFFFFFFU), "2big2");
-
-	pool->power = power_original;
-	return success;
-}
-
 /**
  * add - Boilerplate code to add an entry to the pool during the tests.
  */
@@ -143,6 +115,13 @@ static bool test_foreach_taddr4(void)
 	if (!add_common_samples())
 		return false;
 
+	/*
+	 * The iteration order is the same in which the entries were inserted,
+	 * except ports must be grouped by address.
+	 * The former is an implementation detail. What matters is the port
+	 * aggregation and that the foreach never revisits.
+	 */
+
 	/* 192.0.2.0/31 (6-7) */
 	init_taddr(&expected[i++], 0xc0000200, 6);
 	init_taddr(&expected[i++], 0xc0000200, 7);
@@ -150,19 +129,13 @@ static bool test_foreach_taddr4(void)
 	init_taddr(&expected[i++], 0xc0000201, 7);
 
 	/* 192.0.2.16 (15-19, 22-23) */
-	init_taddr(&expected[i++], 0xc0000210, 22);
-	init_taddr(&expected[i++], 0xc0000210, 23);
 	init_taddr(&expected[i++], 0xc0000210, 15);
 	init_taddr(&expected[i++], 0xc0000210, 16);
 	init_taddr(&expected[i++], 0xc0000210, 17);
 	init_taddr(&expected[i++], 0xc0000210, 18);
 	init_taddr(&expected[i++], 0xc0000210, 19);
-
-	/*
-	 * As you can see, the order of the transport addresses is not entirely
-	 * intuitive, but we're good as long as it groups them by address and
-	 * the foreach never revisits.
-	 */
+	init_taddr(&expected[i++], 0xc0000210, 22);
+	init_taddr(&expected[i++], 0xc0000210, 23);
 
 	/* 192.0.2.32/30 (1) */
 	init_taddr(&expected[i++], 0xc0000220, 1);
@@ -202,6 +175,8 @@ static bool test_foreach_taddr4(void)
 static void init_sample(struct pool4_sample *sample, __u32 addr, __u16 min,
 		__u16 max)
 {
+	sample->mark = 1;
+	sample->proto = L4PROTO_TCP;
 	sample->addr.s_addr = cpu_to_be32(addr);
 	sample->range.min = min;
 	sample->range.max = max;
@@ -252,8 +227,8 @@ static bool test_foreach_sample(void)
 
 	init_sample(&expected[i++], 0xc0000200U, 6, 7);
 	init_sample(&expected[i++], 0xc0000201U, 6, 7);
-	init_sample(&expected[i++], 0xc0000210U, 22, 23);
 	init_sample(&expected[i++], 0xc0000210U, 15, 19);
+	init_sample(&expected[i++], 0xc0000210U, 22, 23);
 	init_sample(&expected[i++], 0xc0000220U, 1, 1);
 	init_sample(&expected[i++], 0xc0000221U, 1, 1);
 	init_sample(&expected[i++], 0xc0000222U, 1, 1);
@@ -268,7 +243,8 @@ static bool test_foreach_sample(void)
 	args.expected = &expected[0];
 	args.expected_len = COUNT;
 	args.i = 0;
-	error = pool4db_foreach_sample(pool, validate_sample, &args, NULL);
+	error = pool4db_foreach_sample(pool, L4PROTO_TCP, validate_sample,
+			&args, NULL);
 	success &= ASSERT_INT(0, error, "no-offset call");
 
 	for (i = 0; i < COUNT; i++) {
@@ -276,8 +252,8 @@ static bool test_foreach_sample(void)
 		args.expected = &expected[i + 1];
 		args.expected_len = COUNT - i - 1;
 		args.i = 0;
-		error = pool4db_foreach_sample(pool, validate_sample, &args,
-				&expected[i]);
+		error = pool4db_foreach_sample(pool, L4PROTO_TCP,
+				validate_sample, &args, &expected[i]);
 		success &= ASSERT_INT(0, error, "call %u", i);
 		/* log_debug("--------------"); */
 	}
@@ -327,7 +303,8 @@ static bool __foreach(struct pool4_sample *expected, unsigned int expected_len)
 	args.expected_len = expected_len;
 	args.i = 0;
 
-	error = pool4db_foreach_sample(pool, validate_sample, &args, NULL);
+	error = pool4db_foreach_sample(pool, L4PROTO_TCP, validate_sample,
+			&args, NULL);
 	success &= ASSERT_INT(0, error, "foreach result");
 	success &= ASSERT_UINT(expected_len, args.i, "foreach count");
 	return success;
@@ -615,7 +592,7 @@ static bool init(void)
 {
 	int error;
 
-	error = pool4db_init(&pool, 0);
+	error = pool4db_init(&pool);
 	if (error) {
 		log_err("Errcode on pool4 init: %d", error);
 		return false;
@@ -646,7 +623,6 @@ int init_module(void)
 	 * (it always does mark = 1.)
 	 */
 
-	INIT_CALL_END(init(), test_init_power(), destroy(), "Power init");
 	INIT_CALL_END(init(), test_foreach_taddr4(), destroy(), "Taddr for");
 	INIT_CALL_END(init(), test_foreach_sample(), destroy(), "Sample for");
 	INIT_CALL_END(init(), test_add(), destroy(), "Add");
