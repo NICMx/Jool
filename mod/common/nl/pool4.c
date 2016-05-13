@@ -27,7 +27,8 @@ static int handle_pool4_display(struct pool4 *pool, struct genl_info *info,
 	if (request->display.offset_set)
 		offset = &request->display.offset;
 
-	error = pool4db_foreach_sample(pool, pool4_to_usr, &buffer, offset);
+	error = pool4db_foreach_sample(pool, request->display.proto,
+			pool4_to_usr, &buffer, offset);
 	nlbuffer_set_pending_data(&buffer, error > 0);
 	error = (error >= 0)
 			? nlbuffer_send(info, &buffer)

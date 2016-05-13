@@ -41,7 +41,7 @@ verdict compute_out_tuple(struct xlation *state)
 	return VERDICT_DROP;
 }
 
-int pool4db_init(struct pool4 **pool, unsigned int capacity)
+int pool4db_init(struct pool4 **pool)
 {
 	return fail(__func__);
 }
@@ -66,12 +66,12 @@ int pool4db_rm_usr(struct pool4 *pool, struct pool4_entry_usr *entry)
 	return fail(__func__);
 }
 
-int pool4db_flush(struct pool4 *pool)
+void pool4db_flush(struct pool4 *pool)
 {
-	return fail(__func__);
+	fail(__func__);
 }
 
-int pool4db_foreach_sample(struct pool4 *pool,
+int pool4db_foreach_sample(struct pool4 *pool, l4_protocol proto,
 		int (*cb)(struct pool4_sample *, void *), void *arg,
 		struct pool4_sample *offset)
 {

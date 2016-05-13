@@ -234,7 +234,7 @@ static int handle_pool4(struct config_candidate *new, void *payload,
 	}
 
 	if (!new->nat64.pool4) {
-		error = pool4db_init(&new->nat64.pool4, 0);
+		error = pool4db_init(&new->nat64.pool4);
 		if (error)
 			return error;
 	}

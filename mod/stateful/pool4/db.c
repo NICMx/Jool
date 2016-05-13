@@ -128,12 +128,12 @@ static struct pool4_entry *find_by_prefix(struct rb_root *tree,
 			addr_tree_hook);
 }
 
-//static bool is_empty(struct pool4 *pool)
-//{
-//	return RB_EMPTY_ROOT(&pool->tree_mark.tcp)
-//			&& RB_EMPTY_ROOT(&pool->tree_mark.udp)
-//			&& RB_EMPTY_ROOT(&pool->tree_mark.icmp);
-//}
+static bool is_empty(struct pool4 *pool)
+{
+	return RB_EMPTY_ROOT(&pool->tree_mark.tcp)
+			&& RB_EMPTY_ROOT(&pool->tree_mark.udp)
+			&& RB_EMPTY_ROOT(&pool->tree_mark.icmp);
+}
 
 int pool4db_init(struct pool4 **pool)
 {
@@ -445,9 +445,9 @@ int pool4db_add(struct pool4 *pool, const __u32 mark, l4_protocol proto,
 
 	foreach_addr4(addr, tmp, prefix)
 	{
-//		spin_lock_bh(&pool->lock); TODO
+		spin_lock_bh(&pool->lock);
 		error = add_addr(pool, mark, proto, &addr, ports);
-//		spin_unlock_bh(&pool->lock);
+		spin_unlock_bh(&pool->lock);
 		if (error)
 			return error;
 	}
@@ -716,16 +716,13 @@ int pool4db_rm(struct pool4 *pool, const __u32 mark, l4_protocol proto,
 	if (ports->min > ports->max)
 		swap(ports->min, ports->max);
 
-//	spin_lock_bh(&pool->lock);
+	spin_lock_bh(&pool->lock);
 
 	error = rm_from_mark_tree(pool, mark, proto, prefix, ports);
-	if (error)
-		goto end;
+	if (!error)
+		error = rm_from_addr_tree(pool, proto, prefix, ports);
 
-	error = rm_from_addr_tree(pool, proto, prefix, ports);
-
-end:
-//	spin_unlock_bh(&pool->lock);
+	spin_unlock_bh(&pool->lock);
 	return error;
 }
 
@@ -746,32 +743,32 @@ static void flush_mark_tree(struct rb_node *node)
 	entry = table->first_entry.next;
 	for (; entry != &table->first_entry; entry = next) {
 		next = entry->next;
-		wkfree(struct port_range, &entry->ports);
-		wkfree(struct pool4_entry, &entry);
+		wkfree(struct port_range, entry->ports);
+		wkfree(struct pool4_entry, entry);
 	}
 
-	wkfree(struct port_range, &table->first_entry.ports);
-	wkfree(struct pool4_table, &table);
+	wkfree(struct port_range, table->first_entry.ports);
+	wkfree(struct pool4_table, table);
 }
 
 static void flush_addr_tree(struct rb_node *node)
 {
 	struct pool4_entry *entry;
-entry = rb_entry(node, struct pool4_entry, addr_tree_hook);
-		wkfree(struct port_range, &entry->ports);
-	wkfree(struct pool4_entry, &entry);
+	entry = rb_entry(node, struct pool4_entry, addr_tree_hook);
+	wkfree(struct port_range, entry->ports);
+	wkfree(struct pool4_entry, entry);
 }
 
 void pool4db_flush(struct pool4 *pool)
 {
-//	spin_lock_bh(&pool->lock);
+	spin_lock_bh(&pool->lock);
 	rbtree_clear(&pool->tree_mark.tcp, flush_mark_tree);
 	rbtree_clear(&pool->tree_mark.udp, flush_mark_tree);
 	rbtree_clear(&pool->tree_mark.icmp, flush_mark_tree);
 	rbtree_clear(&pool->tree_addr.tcp, flush_addr_tree);
 	rbtree_clear(&pool->tree_addr.udp, flush_addr_tree);
 	rbtree_clear(&pool->tree_addr.icmp, flush_addr_tree);
-//	spin_unlock_bh(&pool->lock);
+	spin_unlock_bh(&pool->lock);
 }
 
 static struct port_range *find_port_range(struct pool4_entry *entry, __u16 port)
@@ -807,12 +804,12 @@ bool pool4db_contains(struct pool4 *pool, struct net *ns, l4_protocol proto,
 	struct pool4_entry *entry;
 	bool found = false;
 
-//	spin_lock_bh(&pool->lock);
+	spin_lock_bh(&pool->lock);
 
-//	if (is_empty(pool)) {
-//		found = pool4empty_contains(ns, addr);
-//		goto end;
-//	}
+	if (is_empty(pool)) {
+		found = pool4empty_contains(ns, addr);
+		goto end;
+	}
 
 	entry = find_by_addr(get_tree(&pool->tree_addr, proto), &addr->l3);
 	if (!entry)
@@ -822,7 +819,7 @@ bool pool4db_contains(struct pool4 *pool, struct net *ns, l4_protocol proto,
 	/* Fall through. */
 
 end:
-//	spin_unlock_bh(&pool->lock);
+	spin_unlock_bh(&pool->lock);
 	return found;
 }
 
@@ -878,27 +875,34 @@ int pool4db_foreach_sample(struct pool4 *pool, l4_protocol proto,
 		int (*cb)(struct pool4_sample *, void *), void *arg,
 		struct pool4_sample *offset)
 {
-	/* TODO locking */
 	struct rb_root *tree;
 	struct rb_node *node;
 	struct pool4_table *table;
 	struct pool4_entry *entry;
 	struct pool4_sample sample;
 	unsigned int ports;
-	int error;
+	int error = 0;
+
+	spin_lock_bh(&pool->lock);
 
 	tree = get_tree(&pool->tree_mark, proto);
-	if (!tree)
-		return -EINVAL;
+	if (!tree) {
+		error = -EINVAL;
+		goto end;
+	}
+
+	sample.proto = proto;
 
 	if (offset) {
 		/* TODO error msg? */
 		table = find_by_mark(tree, offset->mark);
-		if (!table)
-			return -ESRCH;
+		if (!table) {
+			error = -ESRCH;
+			goto end;
+		}
 		error = find_offset(offset, table, &entry, &ports);
 		if (error)
-			return error;
+			goto end;
 		sample.mark = table->mark;
 		sample.addr = entry->addr;
 		goto offset_start;
@@ -912,12 +916,12 @@ int pool4db_foreach_sample(struct pool4 *pool, l4_protocol proto,
 		do {
 			sample.addr = entry->addr;
 			ports = 0;
-			offset_start: for (; ports < entry->ports_len;
-					ports++) {
+offset_start:
+			for (; ports < entry->ports_len; ports++) {
 				sample.range = entry->ports[ports];
 				error = cb(&sample, arg);
 				if (error)
-					return error;
+					goto end;
 			}
 
 			entry = entry->next;
@@ -926,7 +930,9 @@ int pool4db_foreach_sample(struct pool4 *pool, l4_protocol proto,
 		node = rb_next(&table->mark_tree_hook);
 	}
 
-	return 0;
+end:
+	spin_unlock_bh(&pool->lock);
+	return error;
 }
 
 static int foreach_taddr4(struct pool4_table *table,
@@ -992,13 +998,13 @@ int pool4db_foreach_taddr4(struct pool4 *pool, struct net *ns,
 	struct pool4_table *table;
 	int error;
 
-//	spin_lock_bh(&pool->lock);
+	spin_lock_bh(&pool->lock);
 
-//	if (is_empty(pool)) {
-//		error = pool4empty_foreach_taddr4(ns, daddr, tos, proto, mark,
-//				cb, arg, offset);
-//		goto end;
-//	}
+	if (is_empty(pool)) {
+		error = pool4empty_foreach_taddr4(ns, daddr, tos, proto, mark,
+				cb, arg, offset);
+		goto end;
+	}
 
 	table = find_by_mark(get_tree_u8(&pool->tree_mark, proto), mark);
 	if (!table) {
@@ -1010,7 +1016,7 @@ int pool4db_foreach_taddr4(struct pool4 *pool, struct net *ns,
 	/* Fall through. */
 
 end:
-//	spin_unlock_bh(&pool->lock);
+	spin_unlock_bh(&pool->lock);
 	return error;
 }
 
@@ -1027,8 +1033,8 @@ static void print_mark_tree(struct rb_root *tree)
 	}
 
 	while (node) {
-table = rb_entry(node, struct pool4_table, mark_tree_hook);
-				log_info("\tMark:%u", table->mark);
+		table = rb_entry(node, struct pool4_table, mark_tree_hook);
+		log_info("\tMark:%u", table->mark);
 		log_info("\tTaddr count:%u", table->taddr_count);
 		entry = &table->first_entry;
 		do {

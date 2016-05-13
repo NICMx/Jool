@@ -588,6 +588,24 @@ static bool test_rm(void)
 	return success;
 }
 
+static bool test_flush(void)
+{
+	bool success = true;
+
+	/*
+	 * It doesn't look like there are corner cases here.
+	 * Not even empty pool4, since that's pretty much all RB tree logic.
+	 * (Which is tested elsewhere.)
+	 */
+
+	if (!add_common_samples())
+		return false;
+
+	pool4db_flush(pool);
+	success &= __foreach(NULL, 0);
+	return success;
+}
+
 static bool init(void)
 {
 	int error;
@@ -627,6 +645,7 @@ int init_module(void)
 	INIT_CALL_END(init(), test_foreach_sample(), destroy(), "Sample for");
 	INIT_CALL_END(init(), test_add(), destroy(), "Add");
 	INIT_CALL_END(init(), test_rm(), destroy(), "Rm");
+	INIT_CALL_END(init(), test_flush(), destroy(), "Rm");
 
 	END_TESTS;
 }

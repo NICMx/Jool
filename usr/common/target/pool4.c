@@ -50,7 +50,7 @@ static int pool4_display_response(struct jool_response *response, void *arg)
 	return 0;
 }
 
-int pool4_display(bool csv)
+int pool4_display_proto(bool csv, l4_protocol proto, unsigned int *count)
 {
 	unsigned char request[HDR_LEN + PAYLOAD_LEN];
 	struct request_hdr *hdr = (struct request_hdr *) request;
@@ -59,6 +59,7 @@ int pool4_display(bool csv)
 	int error;
 
 	init_request_hdr(hdr, MODE_POOL4, OP_DISPLAY);
+	payload->display.proto = proto;
 	payload->display.offset_set = false;
 	memset(&payload->display.offset, 0, sizeof(payload->display.offset));
 	args.row_count = 0;
@@ -66,14 +67,34 @@ int pool4_display(bool csv)
 	args.csv = csv;
 
 	do {
-		error = netlink_request(&request, sizeof(request), pool4_display_response, &args);
+		error = netlink_request(&request, sizeof(request),
+				pool4_display_response, &args);
 		if (error)
 			return error;
 	} while (args.request->display.offset_set);
 
+	*count += args.row_count;
+	return 0;
+}
+
+int pool4_display(bool csv)
+{
+	int error;
+	unsigned int count = 0;
+
+	error = pool4_display_proto(csv, L4PROTO_TCP, &count);
+	if (error)
+		return error;
+	error = pool4_display_proto(csv, L4PROTO_UDP, &count);
+	if (error)
+		return error;
+	error = pool4_display_proto(csv, L4PROTO_ICMP, &count);
+	if (error)
+		return error;
+
 	if (!csv) {
-		if (args.row_count > 0)
-			log_info("  (Fetched %u samples.)", args.row_count);
+		if (count > 0)
+			log_info("  (Fetched %u samples.)", count);
 		else
 			log_info("  (empty)");
 	}

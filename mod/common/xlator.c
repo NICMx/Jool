@@ -187,7 +187,7 @@ static int init_nat64(struct xlator *jool, struct net *ns)
 	jool->nat64.frag = fragdb_create();
 	if (!jool->nat64.frag)
 		goto fragdb_fail;
-	error = pool4db_init(&jool->nat64.pool4, 0);
+	error = pool4db_init(&jool->nat64.pool4);
 	if (error)
 		goto pool4_fail;
 	error = bibdb_init(&jool->nat64.bib);

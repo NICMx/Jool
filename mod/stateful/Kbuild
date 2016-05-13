@@ -47,8 +47,6 @@ jool_common += ../common/nl/pool4.o
 jool_common += ../common/nl/pool6.o
 jool_common += ../common/nl/session.o
 
-jool += pool4/entry.o
-jool += pool4/table.o
 jool += pool4/empty.o
 jool += pool4/db.o
 

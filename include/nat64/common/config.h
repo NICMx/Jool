@@ -221,6 +221,7 @@ struct pool4_entry_usr {
  */
 union request_pool4 {
 	struct {
+		__u8 proto;
 		__u8 offset_set;
 		struct pool4_sample offset;
 	} display;
