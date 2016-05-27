@@ -11,6 +11,7 @@
 #include <netinet/in.h>
 #include "nat64/common/str_utils.h"
 #include "nat64/common/types.h"
+#include "nat64/common/joold/joold_config.h"
 #include "nat64/usr/cJSON.h"
 #include "nat64/usr/file.h"
 #include "nat64/usr/joold/modsocket.h"
@@ -433,7 +434,7 @@ void netsocket_destroy(void)
 
 void *netsocket_listen(void *arg)
 {
-	char buffer[2048];
+	char buffer[JOOLD_PACKET_SIZE];
 	int bytes;
 
 	log_info("Listening...");

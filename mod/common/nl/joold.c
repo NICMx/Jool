@@ -8,7 +8,7 @@ int handle_joold_request(struct xlator *jool, struct genl_info *info)
 {
 	struct request_hdr *hdr;
 	size_t total_len;
-	int error;
+	int error = 0;
 
 	log_debug("Received a joold request.");
 
@@ -36,6 +36,9 @@ int handle_joold_request(struct xlator *jool, struct genl_info *info)
 		break;
 	case OP_ADVERTISE:
 		error = joold_advertise(jool);
+		break;
+	case OP_ACK:
+		joold_ack(jool);
 		break;
 	default:
 		log_err("Unknown operation: %d", hdr->operation);

@@ -59,6 +59,11 @@ int rfc6791_find(struct xlation *state, __be32 *result)
 	return fail(__func__);
 }
 
+int rfc6791_find_v6(struct xlation *state, struct in6_addr *result)
+{
+	return fail(__func__);
+}
+
 int eamt_init(struct eam_table **eamt)
 {
 	return fail(__func__);

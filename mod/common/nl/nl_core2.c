@@ -142,6 +142,18 @@ int nlbuffer_init_request(struct nlcore_buffer *buffer, struct request_hdr *hdr,
 	return nlbuffer_write(buffer, hdr, sizeof(*hdr));
 }
 
+int nlbuffer_init_advertise_response(struct nlcore_buffer *buffer, 	struct response_hdr *hdr,
+		size_t capacity)
+{
+	int error;
+
+	error = __nlbuffer_init(buffer, sizeof(*hdr) + capacity);
+	if(error)
+		return error;
+
+	return nlbuffer_write(buffer, hdr, sizeof(*hdr));
+}
+
 int nlbuffer_init_response(struct nlcore_buffer *buffer, struct genl_info *info,
 		size_t capacity)
 {
@@ -150,8 +162,8 @@ int nlbuffer_init_response(struct nlcore_buffer *buffer, struct genl_info *info,
 
 	error = __nlbuffer_init(buffer, sizeof(response) + capacity);
 	if (error)
-		return error;
 
+		return error;
 	memcpy(&response.req, get_jool_hdr(info), sizeof(response.req));
 	response.req.castness = 'u';
 	response.error_code = 0;
@@ -339,7 +351,7 @@ int nlcore_send_multicast_message(struct net *ns, struct nlcore_buffer *buffer)
 	error = genlmsg_multicast_netns(family, ns, skb, 0, 0, GFP_ATOMIC);
 #endif
 	if (error) {
-		log_warn_once("Sending multicast message failed. (errcode %d)",
+		log_info("Sending multicast message failed. (errcode %d)",
 				error);
 		return error;
 	}

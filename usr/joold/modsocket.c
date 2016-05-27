@@ -15,6 +15,61 @@
 static struct nl_sock *sk;
 static int family;
 
+
+/* TODO (duplicate code) this is a ripoff of netlink_request_simple(). */
+void modsocket_send(void *request, size_t request_len)
+{
+	struct nl_msg *msg;
+	int error;
+
+	error = validate_request(request, request_len, "joold peer",
+			"local joold");
+	if (error)
+		return;
+
+	msg = nlmsg_alloc();
+	if (!msg) {
+		log_err("Could not allocate the request to kernelspace.");
+		log_err("(I guess we're out of memory.)");
+		return;
+	}
+
+	if (!genlmsg_put(msg, NL_AUTO_PORT, NL_AUTO_SEQ, family, 0, 0,
+			JOOL_COMMAND, 1)) {
+		log_err("Unknown error building the packet to the kernel.");
+		nlmsg_free(msg);
+		return;
+	}
+
+	error = nla_put(msg, ATTR_DATA, request_len, request);
+	if (error) {
+		log_err("Could not write on the packet to kernelspace.");
+		netlink_print_error(error);
+		nlmsg_free(msg);
+		return;
+	}
+
+	log_info("Sending %zu bytes to the kernel.", request_len);
+	error = nl_send_auto(sk, msg);
+	if (error < 0) {
+		log_err("Could not dispatch the request to kernelspace.");
+		netlink_print_error(error);
+		/* Fall through. */
+	}
+
+	nlmsg_free(msg);
+}
+
+static void send_ack()
+{
+	struct request_hdr hdr;
+
+	init_request_hdr(&hdr, MODE_JOOLD, OP_ACK);
+
+	modsocket_send(&hdr, sizeof(hdr));
+
+}
+
 /**
  * Called when joold receives data from kernelspace.
  * This data can be either sessions that should be multicasted to other joolds
@@ -23,11 +78,13 @@ static int family;
 static int updated_entries_cb(struct nl_msg *msg, void *arg)
 {
 	struct nlattr *attrs[__ATTR_MAX + 1];
-	struct request_hdr *data;
+	struct request_hdr  *data;
+
 	size_t data_size;
 	char castness;
-	 struct jool_response response;
+	struct jool_response response;
 	int error;
+
 
 	log_info("Received a packet from kernelspace.");
 
@@ -41,6 +98,7 @@ static int updated_entries_cb(struct nl_msg *msg, void *arg)
 		log_err("The request from kernelspace lacks a DATA attribute.");
 		return -EINVAL;
 	}
+
 	data = nla_data(attrs[ATTR_DATA]);
 	if (!data) {
 		log_err("The request from kernelspace is empty!");
@@ -57,10 +115,11 @@ static int updated_entries_cb(struct nl_msg *msg, void *arg)
 	if (error)
 		return error;
 
-	castness = ((struct request_hdr *)data)->castness;
+	castness = data->castness;
 	switch (castness) {
 	case 'm':
 		netsocket_send(data, data_size); /* handle request. */
+		send_ack();
 		return 0;
 	case 'u':
 		return netlink_parse_response(data, data_size, &response);
@@ -87,6 +146,7 @@ int modsocket_init(void)
 	 * We use UDP in the network, so we're assuming best-effort anyway.
 	 */
 	nl_socket_disable_auto_ack(sk);
+
 
 	error = nl_socket_modify_cb(sk, NL_CB_VALID, NL_CB_CUSTOM,
 			updated_entries_cb, NULL);
@@ -150,46 +210,4 @@ void *modsocket_listen(void *arg)
 	return 0;
 }
 
-/* TODO (duplicate code) this is a ripoff of netlink_request_simple(). */
-void modsocket_send(void *request, size_t request_len)
-{
-	struct nl_msg *msg;
-	int error;
 
-	error = validate_request(request, request_len, "joold peer",
-			"local joold");
-	if (error)
-		return;
-
-	msg = nlmsg_alloc();
-	if (!msg) {
-		log_err("Could not allocate the request to kernelspace.");
-		log_err("(I guess we're out of memory.)");
-		return;
-	}
-
-	if (!genlmsg_put(msg, NL_AUTO_PORT, NL_AUTO_SEQ, family, 0, 0,
-			JOOL_COMMAND, 1)) {
-		log_err("Unknown error building the packet to the kernel.");
-		nlmsg_free(msg);
-		return;
-	}
-
-	error = nla_put(msg, ATTR_DATA, request_len, request);
-	if (error) {
-		log_err("Could not write on the packet to kernelspace.");
-		netlink_print_error(error);
-		nlmsg_free(msg);
-		return;
-	}
-
-	log_info("Sending %zu bytes to the kernel.", request_len);
-	error = nl_send_auto(sk, msg);
-	if (error < 0) {
-		log_err("Could not dispatch the request to kernelspace.");
-		netlink_print_error(error);
-		/* Fall through. */
-	}
-
-	nlmsg_free(msg);
-}

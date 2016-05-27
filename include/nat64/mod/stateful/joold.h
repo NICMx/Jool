@@ -29,5 +29,6 @@ void joold_update_config(struct joold_queue *queue,
 
 int joold_test(struct xlator *jool);
 int joold_advertise(struct xlator *jool);
+void joold_ack(struct xlator *jool);
 
 #endif

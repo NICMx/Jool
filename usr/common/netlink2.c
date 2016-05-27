@@ -123,6 +123,7 @@ int netlink_request(void *request, __u32 request_len,
 	struct response_cb callback = { .cb = cb, .arg = cb_arg };
 	int error;
 
+
 	error = nl_socket_modify_cb(sk, NL_CB_MSG_IN, NL_CB_CUSTOM,
 			response_handler, &callback);
 	if (error < 0) {
@@ -131,11 +132,13 @@ int netlink_request(void *request, __u32 request_len,
 		return netlink_print_error(error);
 	}
 
+
 	msg = nlmsg_alloc();
 	if (!msg) {
 		log_err("Could not allocate the message to the kernel; it seems we're out of memory.");
 		return -ENOMEM;
 	}
+
 
 	if (!genlmsg_put(msg, NL_AUTO_PORT, NL_AUTO_SEQ, family, 0, 0,
 			JOOL_COMMAND, 1)) {
@@ -144,6 +147,7 @@ int netlink_request(void *request, __u32 request_len,
 		return -EINVAL;
 	}
 
+
 	error = nla_put(msg, ATTR_DATA, request_len, request);
 	if (error) {
 		log_err("Could not write on the packet to kernelspace.");
@@ -151,12 +155,14 @@ int netlink_request(void *request, __u32 request_len,
 		return netlink_print_error(error);
 	}
 
+
 	error = nl_send_auto(sk, msg);
 	nlmsg_free(msg);
 	if (error < 0) {
 		log_err("Could not dispatch the request to kernelspace.");
 		return netlink_print_error(error);
 	}
+
 
 	error = nl_recvmsgs_default(sk);
 	if (error < 0) {

@@ -106,6 +106,8 @@ enum config_operation {
 	OP_ADVERTISE = (1 << 6),
 
 	OP_TEST = (1 << 7),
+
+	OP_ACK = 9
 };
 
 enum parse_section {
