@@ -60,14 +60,13 @@ void modsocket_send(void *request, size_t request_len)
 	nlmsg_free(msg);
 }
 
-static void send_ack()
+static void send_ack(void)
 {
 	struct request_hdr hdr;
 
 	init_request_hdr(&hdr, MODE_JOOLD, OP_ACK);
 
 	modsocket_send(&hdr, sizeof(hdr));
-
 }
 
 /**

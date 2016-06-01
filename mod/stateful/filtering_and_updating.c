@@ -228,7 +228,8 @@ static int get_or_create_session(struct xlation *state, struct bib_entry *bib,
 
 static void joold_add(struct xlation *state, struct session_entry *session)
 {
-	joold_add_session(state->jool.nat64.joold, session);
+	joold_add_session(state->jool.nat64.joold, session,
+			state->jool.nat64.session);
 }
 
 /**

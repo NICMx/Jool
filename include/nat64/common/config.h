@@ -106,7 +106,7 @@ enum config_operation {
 	OP_ADVERTISE = (1 << 6),
 
 	OP_TEST = (1 << 7),
-
+	/* TODO not a bitfield? something's probably going to break. */
 	OP_ACK = 9
 };
 

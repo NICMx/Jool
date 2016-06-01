@@ -10,11 +10,11 @@
 #include "nat64/mod/stateful/bib/db.h"
 #include "nat64/mod/common/xlator.h"
 
-#include<linux/inet.h>
+#include <linux/inet.h>
 
 struct joold_offset {
-	struct ipv4_transport_addr local_offset;
-	struct ipv4_transport_addr remote_offset;
+	struct ipv4_transport_addr local;
+	struct ipv4_transport_addr remote;
 };
 
 struct joold_advertise_struct {
@@ -48,6 +48,8 @@ struct joold_queue {
 	/** Length of the @sessions list. */
 	unsigned int count;
 
+	bool can_send;
+
 	/**
 	 * This will continuously fetch listed sessions to userspace every now
 	 * and then.
@@ -69,10 +71,10 @@ struct joold_queue {
  * across Jool instances.
  */
 struct joold_session {
-	struct ipv6_transport_addr remote6;
-	struct ipv6_transport_addr local6;
-	struct ipv4_transport_addr local4;
-	struct ipv4_transport_addr remote4;
+	struct ipv6_transport_addr src6;
+	struct ipv6_transport_addr dst6;
+	struct ipv4_transport_addr src4;
+	struct ipv4_transport_addr dst4;
 	__be64 update_time;
 	__be64 creation_time;
 	__u8 l4_proto;
@@ -83,19 +85,24 @@ struct joold_session {
  * List elements in struct joold_queue->sessions.
  */
 struct joold_node {
+	/* TODO change into an enum. */
 	/** S - in case of a single session **/
 	/** A - in case of advertising tcp sessions **/
 	/** B - in case of advertising udp sessions **/
 	/** C - in case of advertising icmp sessions **/
 	char type;
-	struct joold_offset offset;
-	struct sessiondb *db;
-	struct joold_session session;
+	union {
+		/**
+		 * If type != 'S', the last session successfully transmitted.
+		 */
+		struct joold_offset offset;
+		/** If type == 'S', the session to be transmitted. */
+		struct joold_session session;
+	};
 	struct list_head nextprev;
 };
 
 static struct kmem_cache *node_cache;
-static volatile __u8 can_send;
 
 
 /**
@@ -110,8 +117,6 @@ int joold_init(void)
 		log_err("Could not allocate the Joold node cache.");
 		return -ENOMEM;
 	}
-
-	can_send = 1;
 
 	return 0;
 }
@@ -128,18 +133,17 @@ void joold_terminate(void)
 
 static int foreach_cb(struct session_entry *entry, void *arg)
 {
-
-	int error = 0;
-	struct joold_advertise_struct *adv_struct = arg;
+	int status;
+	struct joold_advertise_struct *adv = arg;
 	struct joold_session session;
 	__u64 update_time;
 	__u64 creation_time;
 
 	session.l4_proto = entry->l4_proto;
-	session.local4 = entry->src4;
-	session.local6 = entry->dst6;
-	session.remote4 = entry->dst4;
-	session.remote6 = entry->src6;
+	session.src4 = entry->src4;
+	session.dst6 = entry->dst6;
+	session.dst4 = entry->dst4;
+	session.src6 = entry->src6;
 	session.state = entry->state;
 
 	update_time = jiffies_to_msecs(jiffies - entry->update_time);
@@ -148,49 +152,46 @@ static int foreach_cb(struct session_entry *entry, void *arg)
 	creation_time = jiffies_to_msecs(jiffies - entry->creation_time);
 	session.creation_time = cpu_to_be64(creation_time);
 
-	error = nlbuffer_write(adv_struct->buffer, &session, sizeof(session));
-
-	if (!error) {
-
-		adv_struct->offset.local_offset = entry->src4;
-		adv_struct->offset.remote_offset = entry->dst4;
-
+	status = nlbuffer_write(adv->buffer, &session, sizeof(session));
+	if (status) {
+		adv->offset.local = entry->src4;
+		adv->offset.remote = entry->dst4;
 	}
 
-
-	return error;
+	return status;
 }
 
 
-static int write_special_node(struct joold_node *node, struct nlcore_buffer *buffer)
+static int write_node(struct joold_node *node, struct nlcore_buffer *buffer,
+		struct sessiondb *sdb)
 {
-	int error = 0;
-	struct joold_advertise_struct adv_struct;
-
-	struct ipv4_transport_addr addr_local = node->offset.local_offset;
-	struct ipv4_transport_addr addr_remote = node->offset.remote_offset;
-
-
-	adv_struct.buffer = buffer;
+	struct joold_advertise_struct arg;
+	l4_protocol proto;
+	int error;
 
 	switch (node->type) {
-		case 'A':
-				error = sessiondb_foreach(node->db, L4PROTO_TCP, foreach_cb, &adv_struct, &addr_remote, &addr_local);
-			break;
-		case 'B':
-				error = sessiondb_foreach(node->db, L4PROTO_UDP, foreach_cb, &adv_struct, &addr_remote, &addr_local);
-			break;
-		case 'C':
-				error = sessiondb_foreach(node->db, L4PROTO_ICMP, foreach_cb, &adv_struct, &addr_remote, &addr_local);
-			break;
+	case 'A':
+		proto = L4PROTO_TCP;
+		break;
+	case 'B':
+		proto = L4PROTO_UDP;
+		break;
+	case 'C':
+		proto = L4PROTO_ICMP;
+		break;
+	case 'S':
+		return nlbuffer_write(buffer, &node->session,
+				sizeof(node->session));
+	default:
+		WARN(1, "Programming error: Unknown node type: '%c'", node->type);
+		return -EINVAL;
 	}
 
-	if (error) {
-
-		node->offset.local_offset = adv_struct.offset.local_offset;
-		node->offset.remote_offset = adv_struct.offset.remote_offset;
-
-	}
+	arg.buffer = buffer;
+	error = sessiondb_foreach(sdb, proto, foreach_cb, &arg,
+			&node->offset.remote, &node->offset.local);
+	if (error > 0)
+		memcpy(&node->offset, &arg.offset, sizeof(arg.offset));
 
 	return error;
 }
@@ -209,7 +210,8 @@ static void free_list(struct list_head *list)
 /**
  * Builds an nl-core-compatible buffer out of @sessions.
  */
-static int build_buffer(struct nlcore_buffer *buffer, struct joold_queue *queue)
+static int build_buffer(struct nlcore_buffer *buffer, struct joold_queue *queue,
+		struct sessiondb *sdb)
 {
 	struct request_hdr jool_hdr;
 	struct joold_node *node;
@@ -219,73 +221,72 @@ static int build_buffer(struct nlcore_buffer *buffer, struct joold_queue *queue)
 	jool_hdr.castness = 'm';
 
 	error = nlbuffer_init_request(buffer, &jool_hdr, JOOLD_PACKET_SIZE - sizeof(jool_hdr));
-
 	if (error) {
 		log_debug("nlbuffer_init_request() threw error %d.", error);
 		return error;
 	}
 
-	while(!list_empty(&queue->sessions)) {
-
+	while (!list_empty(&queue->sessions)) {
 		node = list_first_entry(&queue->sessions, struct joold_node, nextprev);
-
-		if (node->type == 'S') {
-
-			error = nlbuffer_write(buffer, &node->session,
-					sizeof(node->session));
-
-		} else {
-
-			error = write_special_node(node, buffer);
-		}
-
-		if (!error) {
-			list_del(&node->nextprev);
-			queue->count -= 1;
-		} else {
+		error = write_node(node, buffer, sdb);
+		if (error > 0) {
 			return 0;
+		} else if (error) {
+			nlbuffer_free(buffer);
+			return error;
 		}
 
+		list_del(&node->nextprev);
+		kmem_cache_free(node_cache, node);
+
+		queue->count -= 1;
 	}
 
 	return 0;
 
 }
 
-static void send_buffer(struct net *ns, struct nlcore_buffer *buffer)
+static void send_buffer(struct joold_queue *queue, struct nlcore_buffer *buffer)
 {
 	int error;
 
 	log_debug("Sending multicast message.");
 
-	error = nlcore_send_multicast_message(ns, buffer);
+	error = nlcore_send_multicast_message(queue->ns, buffer);
 	if (error) {
 		log_debug("nl_core_send_multicast_message() threw errcode %d.",
 				error);
-	} else {
-		can_send = false;
-		log_debug("Multicast message sent.");
+		return;
 	}
+
+	queue->can_send = false;
+	log_debug("Multicast message sent.");
 }
 
-static void send_to_userspace(struct joold_queue *queue)
+/*
+ * Assumes the lock is held.
+ *
+ * TODO which is bad. The lock is useless after build_buffer().
+ */
+static void send_to_userspace(struct joold_queue *queue, struct sessiondb *sdb)
 {
 	struct nlcore_buffer buffer;
 
-	if (queue->count == 0)
+	if (!queue->can_send || queue->count == 0)
 		return;
 
-	if (build_buffer(&buffer, queue))
-	 return;
+	if (build_buffer(&buffer, queue, sdb))
+		return;
 
-	send_buffer(queue->ns, &buffer);
+	send_buffer(queue, &buffer);
 	nlbuffer_free(&buffer);
-
 }
 
 static void send_to_userspace_timeout(unsigned long arg)
 {
 	struct joold_queue *queue = (typeof(queue))arg;
+
+	// TODO mod_timer out of the spinlock, please.
 
 	spin_lock_bh(&queue->lock);
 
@@ -295,7 +296,6 @@ static void send_to_userspace_timeout(unsigned long arg)
 	mod_timer(&queue->timer, jiffies + queue->config.timer_period);
 
 	spin_unlock_bh(&queue->lock);
-
 }
 
 /**
@@ -311,6 +311,7 @@ struct joold_queue *joold_create(struct net *ns)
 
 	INIT_LIST_HEAD(&queue->sessions);
 	queue->count = 0;
+	queue->can_send = true;
 	setup_timer(&queue->timer, send_to_userspace_timeout,
 			(unsigned long)queue);
 	queue->config.enabled = DEFAULT_JOOLD_ENABLED;
@@ -400,13 +401,13 @@ void joold_update_config(struct joold_queue *queue,
  * successfully triggers the creation of a session entry. @entry will be sent
  * to the joold daemon.
  */
-void joold_add_session(struct joold_queue *queue, struct session_entry *entry)
+void joold_add_session(struct joold_queue *queue, struct session_entry *entry,
+		struct sessiondb *sdb)
 {
 	struct joold_node *entry_copy;
 	__u64 update_time;
 	__u64 creation_time;
 	LIST_HEAD(list);
-	struct net *ns;
 
 	spin_lock_bh(&queue->lock);
 
@@ -423,10 +424,10 @@ void joold_add_session(struct joold_queue *queue, struct session_entry *entry)
 
 	entry_copy->type = 'S';
 	entry_copy->session.l4_proto = entry->l4_proto;
-	entry_copy->session.local4 = entry->src4;
-	entry_copy->session.local6 = entry->dst6;
-	entry_copy->session.remote4 = entry->dst4;
-	entry_copy->session.remote6 = entry->src6;
+	entry_copy->session.src4 = entry->src4;
+	entry_copy->session.dst6 = entry->dst6;
+	entry_copy->session.dst4 = entry->dst4;
+	entry_copy->session.src6 = entry->src6;
 	entry_copy->session.state = entry->state;
 
 	update_time = jiffies_to_msecs(jiffies - entry->update_time);
@@ -437,16 +438,10 @@ void joold_add_session(struct joold_queue *queue, struct session_entry *entry)
 	list_add_tail(&entry_copy->nextprev, &queue->sessions);
 	queue->count++;
 
-	ns = queue->ns;
-	get_net(ns);
-
-	if (queue->config.queue_capacity <= queue->count && can_send)
-		send_to_userspace(queue);
+	if (queue->config.queue_capacity <= queue->count)
+		send_to_userspace(queue, sdb);
 
 	spin_unlock_bh(&queue->lock);
-
-
-	put_net(ns);
 }
 
 static int add_new_bib(struct bib *db, struct joold_session *session,
@@ -456,7 +451,7 @@ static int add_new_bib(struct bib *db, struct joold_session *session,
 	struct bib_entry *old; /* The one that was already in the database. */
 	int error;
 
-	new = bibentry_create(&session->local4, &session->remote6, false,
+	new = bibentry_create(&session->src4, &session->src6, false,
 			session->l4_proto);
 	if (!new) {
 		log_err("Couldn't allocate BIB entry.");
@@ -512,8 +507,8 @@ static struct session_entry *init_session_entry(struct joold_session *in,
 	__u64 update_time;
 	__u64 creation_time;
 
-	out = session_create(&in->remote6, &in->local6, &in->local4,
-			&in->remote4, in->l4_proto, bib);
+	out = session_create(&in->src6, &in->dst6, &in->src4,
+			&in->dst4, in->l4_proto, bib);
 	if (!out)
 		return NULL;
 
@@ -598,23 +593,27 @@ static bool add_new_session(struct xlator *jool, struct joold_session *in)
 	return true;
 }
 
-static int validate_enabled(struct xlator *jool)
+static int __validate_enabled(struct joold_queue *queue)
 {
-	struct joold_queue *queue;
-	bool enabled;
-
-	/* TODO (final) Review BH contextness. */
-	queue = jool->nat64.joold;
-	spin_lock_bh(&queue->lock);
-	enabled = queue->config.enabled;
-	spin_unlock_bh(&queue->lock);
-
-	if (!enabled) {
+	if (!queue->config.enabled) {
 		log_err("Session sync is disabled on this instance.");
 		return -EINVAL;
 	}
 
 	return 0;
+}
+
+static int validate_enabled(struct xlator *jool)
+{
+	struct joold_queue *queue = jool->nat64.joold;
+	int enabled;
+
+	/* TODO (final) Review BH contextness. */
+	spin_lock_bh(&queue->lock);
+	enabled = __validate_enabled(queue);
+	spin_unlock_bh(&queue->lock);
+
+	return enabled;
 }
 
 /**
@@ -675,21 +674,18 @@ int joold_test(struct xlator *jool)
 }
 
 
-static int add_advertise_node(struct joold_queue *queue, struct sessiondb *db, char type)
+static int add_advertise_node(struct joold_queue *queue, char type)
 {
 	struct joold_node *node;
 
 	node = kmem_cache_alloc(node_cache, GFP_ATOMIC);
-
 	if (!node) {
-		log_err("could not allocate joold_node for session advertising!");
+		log_err("Out of memory.");
 		return -ENOMEM;
 	}
 
 	node->type = type;
-	node->db = db;
-	memset(&node->offset.local_offset, 0, sizeof(node->offset.local_offset));
-	memset(&node->offset.remote_offset, 0, sizeof(node->offset.local_offset));
+	memset(&node->offset, 0, sizeof(node->offset));
 
 	list_add_tail(&node->nextprev, &queue->sessions);
 	queue->count++;
@@ -697,56 +693,57 @@ static int add_advertise_node(struct joold_queue *queue, struct sessiondb *db, c
 	return 0;
 }
 
-static int advertise(struct joold_queue *queue, struct sessiondb *db)
+static int advertise(struct joold_queue *queue)
 {
-	int error = 0;
+	int error;
 
-
-	error = add_advertise_node(queue, db, 'A');
-
+	error = add_advertise_node(queue, 'A');
 	if (error)
 		return error;
 
-	error = add_advertise_node(queue, db, 'B');
-
+	error = add_advertise_node(queue, 'B');
 	if (error)
 		return error;
 
-	error = add_advertise_node(queue, db, 'C');
-
-
-	return error;
-
+	return add_advertise_node(queue, 'C');
 }
 
 int joold_advertise(struct xlator *jool)
 {
-	int error = 0;
+	struct joold_queue *queue = jool->nat64.joold;
+	int error;
 
-	error = validate_enabled(jool);
+	spin_lock_bh(&queue->lock);
+
+	error = __validate_enabled(queue);
 	if (error)
-		return error;
+		goto end;
 
-	spin_lock_bh(&jool->nat64.joold->lock);
+	error = advertise(queue);
+	if (error)
+		goto end;
 
-	sessiondb_get(jool->nat64.session);
-	error = advertise(jool->nat64.joold, jool->nat64.session);
-	sessiondb_put(jool->nat64.session);
+	send_to_userspace(queue, jool->nat64.session);
+	/* Fall through */
 
-	send_to_userspace(jool->nat64.joold);
-
-	spin_unlock_bh(&jool->nat64.joold->lock);
-
+end:
+	spin_unlock_bh(&queue->lock);
 	return error;
 }
 
 void joold_ack(struct xlator *jool)
 {
-	spin_lock_bh(&jool->nat64.joold->lock);
+	struct joold_queue *queue = jool->nat64.joold;
 
-	send_to_userspace(jool->nat64.joold);
+	spin_lock_bh(&queue->lock);
 
-	can_send = 1;
-	spin_unlock_bh(&jool->nat64.joold->lock);
+	if (__validate_enabled(queue))
+		goto end;
 
+	queue->can_send = true;
+	send_to_userspace(queue, jool->nat64.session);
+	/* Fall through */
+
+end:
+	spin_unlock_bh(&queue->lock);
 }

@@ -142,18 +142,6 @@ int nlbuffer_init_request(struct nlcore_buffer *buffer, struct request_hdr *hdr,
 	return nlbuffer_write(buffer, hdr, sizeof(*hdr));
 }
 
-int nlbuffer_init_advertise_response(struct nlcore_buffer *buffer, 	struct response_hdr *hdr,
-		size_t capacity)
-{
-	int error;
-
-	error = __nlbuffer_init(buffer, sizeof(*hdr) + capacity);
-	if(error)
-		return error;
-
-	return nlbuffer_write(buffer, hdr, sizeof(*hdr));
-}
-
 int nlbuffer_init_response(struct nlcore_buffer *buffer, struct genl_info *info,
 		size_t capacity)
 {
@@ -162,8 +150,8 @@ int nlbuffer_init_response(struct nlcore_buffer *buffer, struct genl_info *info,
 
 	error = __nlbuffer_init(buffer, sizeof(response) + capacity);
 	if (error)
-
 		return error;
+
 	memcpy(&response.req, get_jool_hdr(info), sizeof(response.req));
 	response.req.castness = 'u';
 	response.error_code = 0;
@@ -178,16 +166,15 @@ void nlbuffer_free(struct nlcore_buffer *buffer)
 
 int nlbuffer_write(struct nlcore_buffer *buffer, void *data, size_t data_size)
 {
-	void *tail;
-
 	if (buffer->len + data_size > buffer->capacity) {
 		log_debug("The buffer's storage capacity has been surpassed.");
-		nlbuffer_set_pending_data(buffer, true);
+		/*
+		 * Do not set the pending data flag yet; not everyone wants it.
+		 */
 		return 1;
 	}
 
-	tail = buffer->data + buffer->len;
-	memcpy(tail, data, data_size);
+	memcpy(buffer->data + buffer->len, data, data_size);
 	buffer->len += data_size;
 
 	return 0;
