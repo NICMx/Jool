@@ -67,12 +67,23 @@ static int exit_net(struct net *ns)
 	list = rcu_dereference_protected(pool, lockdep_is_held(&lock));
 	list_for_each_entry(instance, list, list_hook) {
 		if (instance->jool.ns == ns) {
+			/* Remove the instance from the list FIRST. */
 			list_del_rcu(&instance->list_hook);
 			mutex_unlock(&lock);
-			xlator_put(&instance->jool);
 
+			/* Then wait for the grace period. */
 			synchronize_rcu_bh();
 
+			/*
+			 * Nobody can kref_get the databases now:
+			 * Other code should not do it because of the
+			 * xlator_find() contract, and xlator_find()'s
+			 * xlator_get() already happened. Other xlator_find()'s
+			 * xlator_get()s are not going to get in the way either
+			 * because the instance is no longer listed.
+			 * So finally return everything.
+			 */
+			xlator_put(&instance->jool);
 			wkfree(struct jool_instance, instance);
 			return 0;
 		}
@@ -174,7 +185,7 @@ config_fail:
 	return error;
 }
 
-static int init_nat64(struct xlator *jool, struct net *ns)
+static int init_nat64(struct xlator *jool)
 {
 	int error;
 
@@ -196,7 +207,7 @@ static int init_nat64(struct xlator *jool, struct net *ns)
 	error = sessiondb_init(&jool->nat64.session);
 	if (error)
 		goto sessiondb_fail;
-	jool->nat64.joold = joold_create(ns);
+	jool->nat64.joold = joold_create(jool->ns);
 	if (!jool->nat64.joold)
 		goto joold_fail;
 
@@ -252,7 +263,7 @@ int xlator_add(struct xlator *result)
 	instance->jool.ns = ns;
 	error = xlat_is_siit()
 			? init_siit(&instance->jool)
-			: init_nat64(&instance->jool, ns);
+			: init_nat64(&instance->jool);
 	if (error) {
 		put_net(ns);
 		wkfree(struct jool_instance, instance);
@@ -275,13 +286,13 @@ int xlator_add(struct xlator *result)
 
 	list = rcu_dereference_protected(pool, lockdep_is_held(&lock));
 	list_add_tail_rcu(&instance->list_hook, list);
-	mutex_unlock(&lock);
 
 	if (result) {
 		xlator_get(&instance->jool);
 		memcpy(result, &instance->jool, sizeof(instance->jool));
 	}
 
+	mutex_unlock(&lock);
 	return 0;
 
 mutex_fail:
@@ -339,12 +350,13 @@ int xlator_replace(struct xlator *jool)
 	list = rcu_dereference_protected(pool, lockdep_is_held(&lock));
 	list_for_each_entry_rcu(old, list, list_hook) {
 		if (old->jool.ns == new->jool.ns) {
+			/* The comments at exit_net() also apply here. */
 			list_replace_rcu(&old->list_hook, &new->list_hook);
 			mutex_unlock(&lock);
-			xlator_put(&old->jool);
 
 			synchronize_rcu_bh();
 
+			xlator_put(&old->jool);
 			wkfree(struct jool_instance, old);
 			return 0;
 		}
@@ -358,6 +370,8 @@ int xlator_replace(struct xlator *jool)
  * xlator_find - Retrieves the Jool instance currently loaded in namespace @ns.
  *
  * Please xlator_put() the instance when you're done using it.
+ * IT IS EXTREMELY IMPORTANT THAT YOU NEVER KREF_GET ANY OF @result'S MEMBERS!!!
+ * (You are not meant to fork pointers to them.)
  *
  * If @result is NULL, it can be used to know whether the instance exists.
  */
@@ -373,7 +387,8 @@ int xlator_find(struct net *ns, struct xlator *result)
 		if (instance->jool.ns == ns) {
 			if (result) {
 				xlator_get(&instance->jool);
-				memcpy(result, &instance->jool, sizeof(instance->jool));
+				memcpy(result, &instance->jool,
+						sizeof(instance->jool));
 			}
 			rcu_read_unlock_bh();
 			return 0;
@@ -406,6 +421,15 @@ int xlator_find_current(struct xlator *result)
 	return error;
 }
 
+/*
+ * I am kref_put()ting and there's no lock.
+ * This can be dangerous: http://lwn.net/Articles/93617/
+ *
+ * I believe this is safe because this module behaves as as a "home" for all
+ * these objects. While this module is dropping its reference, the refcounter
+ * is guaranteed to be at least 1. Nobody can get a new reference while or after
+ * this happens. Therefore nobody can sneak in a kref_get during the final put.
+ */
 void xlator_put(struct xlator *jool)
 {
 	put_net(jool->ns);

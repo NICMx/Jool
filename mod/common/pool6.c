@@ -181,7 +181,7 @@ int pool6_flush(struct pool6 *pool)
 }
 
 /**
- * pool6_get - Returns (in @result) @pool's prefix corresponding to @addr.
+ * pool6_find - Returns (in @result) @pool's prefix corresponding to @addr.
  *
  * You're not actually borrowing the prefix, so you don't have to return it.
  */
