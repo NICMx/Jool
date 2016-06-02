@@ -329,12 +329,12 @@ static int massive_switch(struct full_config *cfg, struct global_value *chunk,
 		if (!error)
 			cfg->joold.enabled = false;
 		return error;
-	case SYNCH_ELEMENTS_LIMIT:
-		error = ensure_nat64(OPTNAME_SYNCH_MAX_SESSIONS);
-		return error ? : parse_u32(&cfg->joold.queue_capacity, chunk, size);
-	case SYNCH_PERIOD:
-		error = ensure_nat64(OPTNAME_SYNCH_PERIOD);
-		return error ? : parse_u32(&cfg->joold.timer_period, chunk, size);
+//	case SYNCH_ELEMENTS_LIMIT:
+//		error = ensure_nat64(OPTNAME_SYNCH_MAX_SESSIONS);
+//		return error ? : parse_u32(&cfg->joold.queue_capacity, chunk, size);
+//	case SYNCH_PERIOD:
+//		error = ensure_nat64(OPTNAME_SYNCH_PERIOD);
+//		return error ? : parse_u32(&cfg->joold.flush_limit, chunk, size);
 
 	}
 

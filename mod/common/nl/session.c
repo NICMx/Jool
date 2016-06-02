@@ -50,7 +50,8 @@ static int handle_session_display(struct sessiondb *db, struct genl_info *info,
 	}
 
 	error = sessiondb_foreach(db, request->l4_proto,
-			session_entry_to_userspace, &buffer, remote4, local4);
+			session_entry_to_userspace, &buffer,
+			remote4, local4, false);
 	nlbuffer_set_pending_data(&buffer, error > 0);
 	error = (error >= 0)
 			? nlbuffer_send(info, &buffer)

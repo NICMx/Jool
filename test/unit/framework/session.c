@@ -17,7 +17,7 @@ int session_print(struct sessiondb *db, l4_protocol l4_proto)
 {
 	log_debug("Sessions:");
 	return sessiondb_foreach(db, l4_proto, session_print_aux, NULL, NULL,
-			NULL);
+			NULL, false);
 }
 
 struct session_entry *session_inject(struct sessiondb *db,

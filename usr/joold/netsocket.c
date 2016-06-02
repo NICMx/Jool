@@ -434,7 +434,7 @@ void netsocket_destroy(void)
 
 void *netsocket_listen(void *arg)
 {
-	char buffer[JOOLD_PACKET_SIZE];
+	char buffer[JOOLD_MAX_PAYLOAD];
 	int bytes;
 
 	log_info("Listening...");

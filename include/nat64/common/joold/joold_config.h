@@ -4,6 +4,8 @@
 /* This has to be <= 32. */
 #define JOOLD_MULTICAST_GROUP 30
 #define JOOLD_NETLINK_FAMILY
-#define JOOLD_PACKET_SIZE 2048
+/* TODO where did this number come from? */
+#define JOOLD_MAX_PAYLOAD 2048
+#define JOOLD_MAX_SESSIONS (JOOLD_MAX_PAYLOAD / sizeof(struct joold_session))
 
 #endif /* NAT64_INCLUDE_NAT64_COMMON_JOOLD_JOOLD_CONFIG_H_ */

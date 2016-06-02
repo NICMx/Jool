@@ -239,7 +239,8 @@ void sessiondb_flush(struct sessiondb *db)
 int sessiondb_foreach(struct sessiondb *db, l4_protocol proto,
 		int (*func)(struct session_entry *, void *), void *arg,
 		struct ipv4_transport_addr *offset_remote,
-		struct ipv4_transport_addr *offset_local)
+		struct ipv4_transport_addr *offset_local,
+		bool include_offset)
 {
 	return fail(__func__);
 }
@@ -318,6 +319,11 @@ int joold_test(struct xlator *jool)
 }
 
 int joold_advertise(struct xlator *jool)
+{
+	return fail(__func__);
+}
+
+int joold_ack(struct xlator *jool)
 {
 	return fail(__func__);
 }

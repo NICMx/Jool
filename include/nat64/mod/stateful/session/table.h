@@ -96,7 +96,8 @@ int sessiontable_add(struct session_table *table, struct session_entry *session,
 int sessiontable_foreach(struct session_table *table,
 		int (*func)(struct session_entry *, void *), void *arg,
 		const struct ipv4_transport_addr *offset_remote,
-		const struct ipv4_transport_addr *offset_local);
+		const struct ipv4_transport_addr *offset_local,
+		const bool include_offset);
 int sessiontable_count(struct session_table *table, __u64 *result);
 
 void sessiontable_delete_by_bib(struct session_table *table,

@@ -151,11 +151,12 @@ int sessiondb_set_session_timer(struct sessiondb *db, struct session_entry *sess
 int sessiondb_foreach(struct sessiondb *db, l4_protocol proto,
 		int (*func)(struct session_entry *, void *), void *arg,
 		struct ipv4_transport_addr *offset_remote,
-		struct ipv4_transport_addr *offset_local)
+		struct ipv4_transport_addr *offset_local,
+		const bool include_offset)
 {
 	struct session_table *table = get_table(db, proto);
 	return table ? sessiontable_foreach(table, func, arg, offset_remote,
-			offset_local) : -EINVAL;
+			offset_local, include_offset) : -EINVAL;
 }
 
 int sessiondb_count(struct sessiondb *db, l4_protocol proto, __u64 *result)

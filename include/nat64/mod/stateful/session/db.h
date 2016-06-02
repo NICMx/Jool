@@ -43,7 +43,8 @@ int sessiondb_add(struct sessiondb *db, struct session_entry *session,
 int sessiondb_foreach(struct sessiondb *db, l4_protocol proto,
 		int (*func)(struct session_entry *, void *), void *arg,
 		struct ipv4_transport_addr *offset_remote,
-		struct ipv4_transport_addr *offset_local);
+		struct ipv4_transport_addr *offset_local,
+		const bool include_offset);
 int sessiondb_count(struct sessiondb *db, l4_protocol proto, __u64 *result);
 
 int sessiondb_delete_by_bib(struct sessiondb *db, struct bib_entry *bib);

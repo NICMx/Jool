@@ -614,7 +614,7 @@ static struct rb_node *find_starting_point(struct session_table *table,
 	return (compare_full4(session, &offset) < 0) ? rb_next(parent) : parent;
 }
 
-static int __foreach(struct session_table *table,
+int sessiontable_foreach(struct session_table *table,
 		int (*func)(struct session_entry *, void *), void *arg,
 		const struct ipv4_transport_addr *offset_remote,
 		const struct ipv4_transport_addr *offset_local,
@@ -635,14 +635,6 @@ static int __foreach(struct session_table *table,
 
 	spin_unlock_bh(&table->lock);
 	return error;
-}
-
-int sessiontable_foreach(struct session_table *table,
-		int (*func)(struct session_entry *, void *), void *arg,
-		const struct ipv4_transport_addr *offset_remote,
-		const struct ipv4_transport_addr *offset_local)
-{
-	return __foreach(table, func, arg, offset_remote, offset_local, false);
 }
 
 int sessiontable_count(struct session_table *table, __u64 *result)
@@ -683,7 +675,7 @@ void sessiontable_delete_by_bib(struct session_table *table,
 			.l4 = 0,
 	};
 
-	__foreach(table, __rm_by_bib, &args, &remote, &bib->ipv4, true);
+	sessiontable_foreach(table, __rm_by_bib, &args, &remote, &bib->ipv4, 1);
 	delete(&args.removed);
 }
 
@@ -725,7 +717,7 @@ void sessiontable_rm_taddr4s(struct session_table *table,
 			.l4 = ports->min,
 	};
 
-	__foreach(table, __rm_taddr4s, &args, &remote, &local, true);
+	sessiontable_foreach(table, __rm_taddr4s, &args, &remote, &local, 1);
 	delete(&args.removed);
 }
 
@@ -818,6 +810,6 @@ void sessiontable_flush(struct session_table *table)
 			.removed = LIST_HEAD_INIT(args.removed),
 	};
 
-	__foreach(table, __flush, &args, NULL, NULL, 0);
+	sessiontable_foreach(table, __flush, &args, NULL, NULL, 0);
 	delete(&args.removed);
 }
