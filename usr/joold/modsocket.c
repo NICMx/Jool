@@ -58,6 +58,8 @@ void modsocket_send(void *request, size_t request_len)
 	}
 
 	nlmsg_free(msg);
+
+	log_info("Sent.\n");
 }
 
 static void send_ack(void)
@@ -67,6 +69,99 @@ static void send_ack(void)
 	init_request_hdr(&hdr, MODE_JOOLD, OP_ACK);
 
 	modsocket_send(&hdr, sizeof(hdr));
+}
+
+static void print_pkt_meta(struct request_hdr *hdr)
+{
+	printf("The packet is ");
+
+	switch (hdr->castness) {
+	case 'm':
+		printf("multicast");
+		break;
+	case 'u':
+		printf("unicast");
+		break;
+	}
+
+	printf("/");
+
+	switch (hdr->mode) {
+	case MODE_GLOBAL:
+		printf("global");
+		break;
+	case MODE_POOL6:
+		printf("pool6");
+		break;
+	case MODE_POOL4:
+		printf("pool4");
+		break;
+	case MODE_BLACKLIST:
+		printf("blacklist");
+		break;
+	case MODE_RFC6791:
+		printf("rfc6791");
+		break;
+	case MODE_EAMT:
+		printf("eamt");
+		break;
+	case MODE_BIB:
+		printf("bib");
+		break;
+	case MODE_SESSION:
+		printf("session");
+		break;
+	case MODE_LOGTIME:
+		printf("log");
+		break;
+	case MODE_PARSE_FILE:
+		printf("file");
+		break;
+	case MODE_JOOLD:
+		printf("joold");
+		break;
+	case MODE_INSTANCE:
+		printf("instance");
+		break;
+	default:
+		printf("unknown (%u)", hdr->mode);
+	}
+
+	printf("/");
+
+	switch (hdr->operation) {
+	case OP_DISPLAY:
+		printf("display");
+		break;
+	case OP_COUNT:
+		printf("count");
+		break;
+	case OP_ADD:
+		printf("add");
+		break;
+	case OP_UPDATE:
+		printf("update");
+		break;
+	case OP_REMOVE:
+		printf("remove");
+		break;
+	case OP_FLUSH:
+		printf("flush");
+		break;
+	case OP_ADVERTISE:
+		printf("advertise");
+		break;
+	case OP_TEST:
+		printf("test");
+		break;
+	case OP_ACK:
+		printf("ack");
+		break;
+	default:
+		printf("unknown (%u)", hdr->operation);
+	}
+
+	printf(".\n");
 }
 
 /**
@@ -113,6 +208,9 @@ static int updated_entries_cb(struct nl_msg *msg, void *arg)
 			"joold daemon");
 	if (error)
 		return error;
+
+	if (0)
+		print_pkt_meta(data);
 
 	castness = data->castness;
 	switch (castness) {
@@ -208,5 +306,3 @@ void *modsocket_listen(void *arg)
 
 	return 0;
 }
-
-

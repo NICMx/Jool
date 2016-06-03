@@ -45,8 +45,10 @@ struct joold_queue {
 	 * currently).
 	 */
 	struct list_head sessions;
-	/** Length of the @sessions list. */
+	/** Number of nodes in @sessions. */
 	unsigned int count;
+	/** Number of advertisement nodes in @sessions. */
+	unsigned int advertisement_count;
 
 	/**
 	 * Can we send a packet?
@@ -80,7 +82,20 @@ struct joold_session {
 	struct ipv6_transport_addr dst6;
 	struct ipv4_transport_addr src4;
 	struct ipv4_transport_addr dst4;
+	/**
+	 * This is not actually the same as session_entry->update_time.
+	 * session_entry->update_time is the time at which the session was last
+	 * updated.
+	 * This update_time is the age of the session's last update.
+	 * We do this so we don't have to ask the user to synchronize clocks.
+	 * (We're assuming the session will travel to the other Jools
+	 * instantaneously.)
+	 *
+	 * Also, session->entry->update time is measured in jiffies.
+	 * This one is measured in milliseconds.
+	 */
 	__be64 update_time;
+	/** The quirks of @update_time also apply here. */
 	__be64 creation_time;
 	__u8 l4_proto;
 	__u8 state;
@@ -102,10 +117,7 @@ struct joold_node {
 		 * These are added whenever a translating packet updates a
 		 * session.
 		 */
-		struct {
-			/** The session to be transmitted. */
-			struct joold_session session;
-		} single;
+		struct joold_session single;
 		/**
 		 * If @group is valid, the user issued an --advertise.
 		 * The whole database needs to be transmitted.
@@ -132,7 +144,6 @@ struct joold_node {
 
 static struct kmem_cache *node_cache;
 
-
 /**
  * joold_init - Initializes this module. Make sure you call this before other
  * joold_ functions.
@@ -155,6 +166,49 @@ int joold_init(void)
 void joold_terminate(void)
 {
 	kmem_cache_destroy(node_cache);
+}
+
+static bool should_send(struct joold_queue *queue)
+{
+	unsigned long deadline;
+
+	if (queue->count == 0)
+		return false;
+
+	/*
+	 * This cast is fair; incoming validations prevent this number
+	 * from being higher than 0xFFFFFFFF even on 64-bit machines.
+	 */
+	deadline = (unsigned long)queue->config.flush_deadline;
+	if (time_before(queue->last_flush_time + deadline, jiffies))
+		return true;
+
+	if (!queue->ack_received)
+		return false;
+
+	if (queue->config.flush_asap)
+		return true;
+
+	if (queue->advertisement_count > 0)
+		return true;
+
+	return queue->count >= JOOLD_MAX_SESSIONS;
+}
+
+static int write_single_node(struct joold_node *node,
+		struct nlcore_buffer *buffer)
+{
+	__u64 time;
+
+	time = be64_to_cpu(node->single.update_time);
+	time = jiffies_to_msecs(jiffies - time);
+	node->single.update_time = cpu_to_be64(time);
+
+	time = be64_to_cpu(node->single.creation_time);
+	time = jiffies_to_msecs(jiffies - time);
+	node->single.creation_time = cpu_to_be64(time);
+
+	return nlbuffer_write(buffer, &node->single, sizeof(node->single));
 }
 
 static int foreach_cb(struct session_entry *entry, void *arg)
@@ -187,18 +241,14 @@ static int foreach_cb(struct session_entry *entry, void *arg)
 	return status;
 }
 
-static int write_node(struct joold_node *node, struct nlcore_buffer *buffer,
+static int write_group_node(struct joold_node *node,
+		struct nlcore_buffer *buffer,
 		struct sessiondb *sdb)
 {
 	struct joold_advertise_struct arg;
 	struct ipv4_transport_addr *remote;
 	struct ipv4_transport_addr *local;
 	int error;
-
-	if (!node->is_group) {
-		return nlbuffer_write(buffer, &node->single.session,
-				sizeof(node->single.session));
-	}
 
 	arg.buffer = buffer;
 	if (node->group.offset_set) {
@@ -217,23 +267,6 @@ static int write_node(struct joold_node *node, struct nlcore_buffer *buffer,
 
 	return error;
 }
-
-static void purge_sessions(struct joold_queue *queue)
-{
-	struct joold_node *node;
-
-	while (!list_empty(&queue->sessions)) {
-		node = list_first_entry(&queue->sessions, typeof(*node),
-				nextprev);
-		list_del(&node->nextprev);
-		kmem_cache_free(node_cache, node);
-	}
-
-	queue->count = 0;
-	queue->ack_received = true;
-	queue->last_flush_time = jiffies;
-}
-
 
 /**
  * Builds an nl-core-compatible buffer out of @sessions.
@@ -258,7 +291,9 @@ static int build_buffer(struct nlcore_buffer *buffer, struct joold_queue *queue,
 	while (!list_empty(&queue->sessions)) {
 		node = list_first_entry(&queue->sessions, struct joold_node,
 				nextprev);
-		error = write_node(node, buffer, sdb);
+		error = (node->is_group)
+				? write_group_node(node, buffer, sdb)
+				: write_single_node(node, buffer);
 		if (error > 0) {
 			return 0;
 		} else if (error) {
@@ -266,10 +301,12 @@ static int build_buffer(struct nlcore_buffer *buffer, struct joold_queue *queue,
 			return error;
 		}
 
+		queue->count--;
+		if (node->is_group)
+			queue->advertisement_count--;
+
 		list_del(&node->nextprev);
 		kmem_cache_free(node_cache, node);
-
-		queue->count -= 1;
 	}
 
 	return 0;
@@ -289,28 +326,16 @@ static int build_buffer(struct nlcore_buffer *buffer, struct joold_queue *queue,
 static void send_to_userspace(struct joold_queue *queue, struct sessiondb *sdb)
 {
 	struct nlcore_buffer buffer;
-	bool force_flush;
-	int error;
 
-	if (queue->count == 0)
+	if (!should_send(queue))
 		return;
-
-	if (!queue->ack_received) {
-		force_flush = time_before(queue->last_flush_time + queue->config.flush_limit, jiffies);
-		if (!force_flush)
-			return;
-	}
 
 	if (build_buffer(&buffer, queue, sdb))
 		return;
 
 	log_debug("Sending multicast message.");
-	error = nlcore_send_multicast_message(queue->ns, &buffer);
-	if (error) {
-		log_debug("nl_core_send_multicast_message() threw errcode %d.",
-				error);
+	if (nlcore_send_multicast_message(queue->ns, &buffer))
 		return;
-	}
 	log_debug("Multicast message sent.");
 
 	queue->ack_received = false;
@@ -331,10 +356,12 @@ struct joold_queue *joold_create(struct net *ns)
 
 	INIT_LIST_HEAD(&queue->sessions);
 	queue->count = 0;
+	queue->advertisement_count = 0;
 	queue->ack_received = true;
+	queue->last_flush_time = jiffies;
 	queue->config.enabled = DEFAULT_JOOLD_ENABLED;
 	queue->config.flush_asap = DEFAULT_JOOLD_FLUSH_ASAP;
-	queue->config.flush_limit = DEFAULT_JOOLD_FLUSH_LIMIT;
+	queue->config.flush_deadline = DEFAULT_JOOLD_DEADLINE;
 	queue->config.capacity = DEFAULT_JOOLD_CAPACITY;
 
 	queue->ns = ns;
@@ -349,6 +376,23 @@ struct joold_queue *joold_create(struct net *ns)
 void joold_get(struct joold_queue *queue)
 {
 	kref_get(&queue->refs);
+}
+
+static void purge_sessions(struct joold_queue *queue)
+{
+	struct joold_node *node;
+
+	while (!list_empty(&queue->sessions)) {
+		node = list_first_entry(&queue->sessions, typeof(*node),
+				nextprev);
+		list_del(&node->nextprev);
+		kmem_cache_free(node_cache, node);
+	}
+
+	queue->count = 0;
+	queue->advertisement_count = 0;
+	queue->ack_received = true;
+	queue->last_flush_time = jiffies;
 }
 
 static void joold_release(struct kref *refs)
@@ -404,9 +448,7 @@ void joold_update_config(struct joold_queue *queue,
 void joold_add_session(struct joold_queue *queue, struct session_entry *entry,
 		struct sessiondb *sdb)
 {
-	struct joold_node *entry_copy;
-	__u64 update_time;
-	__u64 creation_time;
+	struct joold_node *copy;
 
 	spin_lock_bh(&queue->lock);
 
@@ -415,26 +457,27 @@ void joold_add_session(struct joold_queue *queue, struct session_entry *entry,
 		return;
 	}
 
-	entry_copy = kmem_cache_alloc(node_cache, GFP_ATOMIC);
-	if (!entry_copy) {
+	copy = kmem_cache_alloc(node_cache, GFP_ATOMIC);
+	if (!copy) {
 		spin_unlock_bh(&queue->lock);
 		return;
 	}
 
-	entry_copy->is_group = false;
-	entry_copy->single.session.l4_proto = entry->l4_proto;
-	entry_copy->single.session.src4 = entry->src4;
-	entry_copy->single.session.dst6 = entry->dst6;
-	entry_copy->single.session.dst4 = entry->dst4;
-	entry_copy->single.session.src6 = entry->src6;
-	entry_copy->single.session.state = entry->state;
+	copy->is_group = false;
+	copy->single.l4_proto = entry->l4_proto;
+	copy->single.src4 = entry->src4;
+	copy->single.dst6 = entry->dst6;
+	copy->single.dst4 = entry->dst4;
+	copy->single.src6 = entry->src6;
+	copy->single.state = entry->state;
+	/*
+	 * Do not convert the times yet; if the session is queued for a long
+	 * time, these will be horribly inaccurate.
+	 */
+	copy->single.update_time = cpu_to_be64(entry->update_time);
+	copy->single.creation_time = cpu_to_be64(entry->creation_time);
 
-	update_time = jiffies_to_msecs(jiffies - entry->update_time);
-	entry_copy->single.session.update_time = cpu_to_be64(update_time);
-	creation_time = jiffies_to_msecs(jiffies - entry->creation_time);
-	entry_copy->single.session.creation_time = cpu_to_be64(creation_time);
-
-	list_add_tail(&entry_copy->nextprev, &queue->sessions);
+	list_add_tail(&copy->nextprev, &queue->sessions);
 	queue->count++;
 
 	if (queue->count > queue->config.capacity) {
@@ -442,8 +485,7 @@ void joold_add_session(struct joold_queue *queue, struct session_entry *entry,
 				"Cannot synchronize fast enough; I will have to drop some sessions.\n"
 				"Sorry.");
 		purge_sessions(queue);
-	} else if (queue->config.flush_asap
-			|| queue->count >= JOOLD_MAX_SESSIONS) {
+	} else {
 		send_to_userspace(queue, sdb);
 	}
 
@@ -697,11 +739,12 @@ static int add_advertise_node(struct joold_queue *queue, l4_protocol proto)
 
 	list_add_tail(&node->nextprev, &queue->sessions);
 	queue->count++;
+	queue->advertisement_count++;
 
 	return 0;
 }
 
-static int advertise(struct joold_queue *queue)
+static int prepare_advertisement(struct joold_queue *queue)
 {
 	int error;
 
@@ -727,7 +770,7 @@ int joold_advertise(struct xlator *jool)
 	if (error)
 		goto end;
 
-	error = advertise(queue);
+	error = prepare_advertisement(queue);
 	if (error)
 		goto end;
 
@@ -750,6 +793,26 @@ void joold_ack(struct xlator *jool)
 
 	queue->ack_received = true;
 	send_to_userspace(queue, jool->nat64.session);
+	/* Fall through */
+
+end:
+	spin_unlock_bh(&queue->lock);
+}
+
+/**
+ * Called every now and then to flush the queue in case nodes have been queued,
+ * the deadline is in the past and no new packets have triggered a flush.
+ * It's just a last-resort attempt to prevent nodes from lingering here for too
+ * long that's generally only useful in non-flush-asap mode.
+ */
+void joold_clean(struct joold_queue *queue, struct sessiondb *sdb)
+{
+	spin_lock_bh(&queue->lock);
+
+	if (!queue->config.enabled)
+		goto end;
+
+	send_to_userspace(queue, sdb);
 	/* Fall through */
 
 end:

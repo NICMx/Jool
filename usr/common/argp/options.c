@@ -705,21 +705,30 @@ static const struct argp_option synch_disable_opt = {
 		.group = 0,
 };
 
-static const struct argp_option synch_max_sessions_opt = {
-		.name = "synch-max-sessions",
-		.key = ARGP_SYNCH_MAX_SESSIONS,
-		.arg = NUM_FORMAT,
+static const struct argp_option synch_flush_asap_opt = {
+		.name = OPTNAME_SYNCH_FLUSH_ASAP,
+		.key = ARGP_SYNCH_FLUSH_ASAP,
+		.arg = BOOL_FORMAT,
 		.flags = 0,
-		.doc = "Maximum number of sessions to queue in the synchronization queue before sending them to another jool server.",
+		.doc = "",
 		.group = 0,
 };
 
-static const struct argp_option synch_period_opt = {
-		.name = "synch-period",
-		.key = ARGP_SYNCH_PERIOD,
+static const struct argp_option synch_flush_deadline_opt = {
+		.name = OPTNAME_SYNCH_FLUSH_DEADLINE,
+		.key = ARGP_SYNCH_FLUSH_DEADLINE,
 		.arg = NUM_FORMAT,
 		.flags = 0,
-		.doc = "Number of milliseconds within the period timer to send sessions to another jool server.",
+		.doc = "",
+		.group = 0,
+};
+
+static const struct argp_option synch_capacity_opt = {
+		.name = OPTNAME_SYNCH_CAPACITY,
+		.key = ARGP_SYNCH_CAPACITY,
+		.arg = NUM_FORMAT,
+		.flags = 0,
+		.doc = "",
 		.group = 0,
 };
 
@@ -863,8 +872,10 @@ static const struct argp_option *opts_nat64[] = {
 	&bib4_opt,
 	&synch_enable_opt,
 	&synch_disable_opt,
-	&synch_max_sessions_opt,
-	&synch_period_opt,
+	&synch_flush_asap_opt,
+	&synch_flush_deadline_opt,
+	&synch_capacity_opt,
+	/* TODO where's the 6791v6 prefix? */
 };
 
 struct argp_option *__build_opts(const struct argp_option **template,
@@ -925,8 +936,9 @@ static const struct argp_option *opts_global_nat64[] = {
 	&max_so_opt,
 	&synch_enable_opt,
 	&synch_disable_opt,
-	&synch_max_sessions_opt,
-	&synch_period_opt,
+	&synch_flush_asap_opt,
+	&synch_flush_deadline_opt,
+	&synch_capacity_opt,
 };
 
 struct argp_option *get_global_opts(void)

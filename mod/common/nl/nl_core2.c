@@ -338,7 +338,7 @@ int nlcore_send_multicast_message(struct net *ns, struct nlcore_buffer *buffer)
 	error = genlmsg_multicast_netns(family, ns, skb, 0, 0, GFP_ATOMIC);
 #endif
 	if (error) {
-		log_info("Sending multicast message failed. (errcode %d)",
+		log_warn_once("Looks like nobody received my multicast message. Is the joold daemon really active? (errcode %d)",
 				error);
 		return error;
 	}

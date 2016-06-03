@@ -407,8 +407,9 @@ enum global_type {
 	MAX_PKTS,
 	SYNCH_ENABLE,
 	SYNCH_DISABLE,
-	SYNCH_ELEMENTS_LIMIT,
-	SYNCH_PERIOD,
+	SYNCH_FLUSH_ASAP,
+	SYNCH_FLUSH_DEADLINE,
+	SYNCH_CAPACITY,
 	RFC6791V6_PREFIX
 };
 
@@ -637,10 +638,11 @@ struct bib_config {
 };
 
 struct joold_config {
-	/** Is joold enabled on this Jool instance? */
+	/** Is joold enabled on this Jool instance? Boolean. */
 	__u8 enabled;
 
 	/**
+	 * Boolean.
 	 * true:  Whenever a session changes, packet it up and send it.
 	 *        (Note: In theory, this might be more often than it seems.
 	 *        It's not whenever a connection is initiated;
@@ -658,10 +660,10 @@ struct joold_config {
 
 	/**
 	 * The timer forcibly flushes the queue if this hasn't happened after
-	 * @timer_period jiffies.
+	 * this amount of jiffies, regardless of the ACK and @flush_asap.
 	 * This helps if an ACK is lost for some reason.
 	 */
-	__u32 flush_limit;
+	__u64 flush_deadline;
 
 	/**
 	 * Maximim number of queuable entries.
@@ -669,7 +671,7 @@ struct joold_config {
 	 * sessions.
 	 * This exists because it's theoretically possible for joold to not be
 	 * able to catch up with the translating traffic, and there's not much
-	 * we can do if this happens.
+	 * we can do to recover if this happens.
 	 */
 	__u32 capacity;
 };

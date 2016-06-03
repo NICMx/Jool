@@ -32,4 +32,6 @@ int joold_test(struct xlator *jool);
 int joold_advertise(struct xlator *jool);
 void joold_ack(struct xlator *jool);
 
+void joold_clean(struct joold_queue *queue, struct sessiondb *sdb);
+
 #endif

@@ -44,8 +44,9 @@
 /* Synchronization flags */
 #define OPTNAME_SYNCH_ENABLE		"synch-enable"
 #define OPTNAME_SYNCH_DISABLE		"synch-disable"
-#define OPTNAME_SYNCH_MAX_SESSIONS	"synch-max-sessions"
-#define OPTNAME_SYNCH_PERIOD		"synch-period"
+#define OPTNAME_SYNCH_FLUSH_ASAP	"synch-flush-asap"
+#define OPTNAME_SYNCH_FLUSH_DEADLINE	"synch-flush-deadline"
+#define OPTNAME_SYNCH_CAPACITY		"synch-capacity"
 
 int global_display(bool csv);
 int global_update(__u16 type, size_t size, void *data);
