@@ -3,7 +3,6 @@
 #include <linux/version.h>
 #include <net/ipv6.h>
 #include "nat64/common/constants.h"
-#include "nat64/common/session.h"
 #include "nat64/mod/common/linux_version.h"
 #include "nat64/mod/common/rbtree.h"
 #include "nat64/mod/common/route.h"
@@ -231,10 +230,11 @@ void sessiontable_clean(struct session_table *table, struct net *ns)
 }
 
 static void init_expirer(struct expire_timer *expirer, int timeout,
-		fate_cb decide_fate_cb)
+		bool is_established, fate_cb decide_fate_cb)
 {
 	INIT_LIST_HEAD(&expirer->sessions);
 	expirer->timeout = msecs_to_jiffies(1000 * timeout);
+	expirer->is_established = is_established;
 	expirer->decide_fate_cb = decide_fate_cb;
 }
 
@@ -244,8 +244,8 @@ void sessiontable_init(struct session_table *table, fate_cb expired_cb,
 	table->tree6 = RB_ROOT;
 	table->tree4 = RB_ROOT;
 	table->count = 0;
-	init_expirer(&table->est_timer, est_timeout, expired_cb);
-	init_expirer(&table->trans_timer, trans_timeout, expired_cb);
+	init_expirer(&table->est_timer, est_timeout, true, expired_cb);
+	init_expirer(&table->trans_timer, trans_timeout, false, expired_cb);
 	spin_lock_init(&table->lock);
 	table->log_changes = DEFAULT_SESSION_LOGGING;
 }
@@ -526,7 +526,10 @@ static struct session_entry *add4(struct session_table *table,
 static void attach_timer(struct session_entry *session,
 		struct expire_timer *expirer)
 {
-	session->update_time = jiffies;
+	/*
+	 * Please do not override session->update_time here;
+	 * joold needs to define update time on its own.
+	 */
 	list_add_tail(&session->list_hook, &expirer->sessions);
 	session->expirer = expirer;
 }
@@ -540,14 +543,9 @@ static void attach_timer(struct session_entry *session,
  *     called).
  */
 int sessiontable_add(struct session_table *table, struct session_entry *session,
-		fate_cb cb, void *cb_arg)
+		fate_cb cb, void *cb_arg, bool est)
 {
-	struct expire_timer *expirer;
 	struct session_entry *collision;
-	bool est;
-
-	est = session->l4_proto != L4PROTO_TCP || session->state == ESTABLISHED;
-	expirer = est ? &table->est_timer : &table->trans_timer;
 
 	spin_lock_bh(&table->lock);
 
@@ -561,7 +559,7 @@ int sessiontable_add(struct session_table *table, struct session_entry *session,
 		goto exists;
 	}
 
-	attach_timer(session, expirer);
+	attach_timer(session, est ? &table->est_timer : &table->trans_timer);
 	session_get(session); /* Database's references. */
 	table->count++;
 

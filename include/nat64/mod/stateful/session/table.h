@@ -39,6 +39,7 @@ typedef unsigned long (*timeout_cb)(struct global_config *);
 struct expire_timer {
 	struct list_head sessions;
 	unsigned long timeout;
+	bool is_established;
 	fate_cb decide_fate_cb;
 };
 
@@ -91,7 +92,7 @@ int sessiontable_find(struct session_table *table, struct tuple *tuple,
 		fate_cb cb, void *cb_arg,
 		struct session_entry **result);
 int sessiontable_add(struct session_table *table, struct session_entry *session,
-		fate_cb cb, void *cb_args);
+		fate_cb cb, void *cb_args, bool est);
 
 int sessiontable_foreach(struct session_table *table,
 		int (*func)(struct session_entry *, void *), void *arg,

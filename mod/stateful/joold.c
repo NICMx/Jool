@@ -1,7 +1,6 @@
 #include "nat64/mod/stateful/joold.h"
 
 #include "nat64/common/constants.h"
-#include "nat64/common/session.h"
 #include "nat64/common/str_utils.h"
 #include "nat64/mod/common/wkmalloc.h"
 #include "nat64/common/joold/joold_config.h"
@@ -82,6 +81,7 @@ struct joold_session {
 	struct ipv6_transport_addr dst6;
 	struct ipv4_transport_addr src4;
 	struct ipv4_transport_addr dst4;
+	__u8 l4_proto;
 	/**
 	 * This is not actually the same as session_entry->update_time.
 	 * session_entry->update_time is the time at which the session was last
@@ -95,10 +95,12 @@ struct joold_session {
 	 * This one is measured in milliseconds.
 	 */
 	__be64 update_time;
-	/** The quirks of @update_time also apply here. */
-	__be64 creation_time;
-	__u8 l4_proto;
 	__u8 state;
+	/*
+	 * true: timer is established.
+	 * false: timer is transitory.
+	 */
+	__u8 est;
 };
 
 /**
@@ -198,17 +200,23 @@ static bool should_send(struct joold_queue *queue)
 static int write_single_node(struct joold_node *node,
 		struct nlcore_buffer *buffer)
 {
+	__be64 old;
 	__u64 time;
+	int full;
+
+	old = node->single.update_time;
 
 	time = be64_to_cpu(node->single.update_time);
 	time = jiffies_to_msecs(jiffies - time);
 	node->single.update_time = cpu_to_be64(time);
 
-	time = be64_to_cpu(node->single.creation_time);
-	time = jiffies_to_msecs(jiffies - time);
-	node->single.creation_time = cpu_to_be64(time);
+	full = nlbuffer_write(buffer, &node->single, sizeof(node->single));
+	if (full) {
+		/* We'll convert the time again in the next flush, so revert. */
+		node->single.update_time = old;
+	}
 
-	return nlbuffer_write(buffer, &node->single, sizeof(node->single));
+	return full;
 }
 
 static int foreach_cb(struct session_entry *entry, void *arg)
@@ -217,20 +225,16 @@ static int foreach_cb(struct session_entry *entry, void *arg)
 	struct joold_advertise_struct *adv = arg;
 	struct joold_session session;
 	__u64 update_time;
-	__u64 creation_time;
 
-	session.l4_proto = entry->l4_proto;
 	session.src4 = entry->src4;
 	session.dst6 = entry->dst6;
 	session.dst4 = entry->dst4;
 	session.src6 = entry->src6;
-	session.state = entry->state;
-
+	session.l4_proto = entry->l4_proto;
 	update_time = jiffies_to_msecs(jiffies - entry->update_time);
 	session.update_time = cpu_to_be64(update_time);
-
-	creation_time = jiffies_to_msecs(jiffies - entry->creation_time);
-	session.creation_time = cpu_to_be64(creation_time);
+	session.state = entry->state;
+	session.est = entry->expirer->is_established;
 
 	status = nlbuffer_write(adv->buffer, &session, sizeof(session));
 	if (status) {
@@ -310,7 +314,6 @@ static int build_buffer(struct nlcore_buffer *buffer, struct joold_queue *queue,
 	}
 
 	return 0;
-
 }
 
 /*
@@ -464,18 +467,18 @@ void joold_add_session(struct joold_queue *queue, struct session_entry *entry,
 	}
 
 	copy->is_group = false;
-	copy->single.l4_proto = entry->l4_proto;
-	copy->single.src4 = entry->src4;
-	copy->single.dst6 = entry->dst6;
-	copy->single.dst4 = entry->dst4;
 	copy->single.src6 = entry->src6;
-	copy->single.state = entry->state;
+	copy->single.dst6 = entry->dst6;
+	copy->single.src4 = entry->src4;
+	copy->single.dst4 = entry->dst4;
 	/*
-	 * Do not convert the times yet; if the session is queued for a long
+	 * Do not convert the time yet; if the session is queued for a long
 	 * time, these will be horribly inaccurate.
 	 */
 	copy->single.update_time = cpu_to_be64(entry->update_time);
-	copy->single.creation_time = cpu_to_be64(entry->creation_time);
+	copy->single.l4_proto = entry->l4_proto;
+	copy->single.state = entry->state;
+	copy->single.est = entry->expirer->is_established;
 
 	list_add_tail(&copy->nextprev, &queue->sessions);
 	queue->count++;
@@ -553,7 +556,6 @@ static struct session_entry *init_session_entry(struct joold_session *in,
 {
 	struct session_entry *out;
 	__u64 update_time;
-	__u64 creation_time;
 
 	out = session_create(&in->src6, &in->dst6, &in->src4,
 			&in->dst4, in->l4_proto, bib);
@@ -562,12 +564,9 @@ static struct session_entry *init_session_entry(struct joold_session *in,
 
 	update_time = be64_to_cpu(in->update_time);
 	update_time = jiffies - msecs_to_jiffies(update_time);
-	creation_time = be64_to_cpu(in->creation_time);
-	creation_time = jiffies - msecs_to_jiffies(creation_time);
 
 	out->state = in->state;
 	out->update_time = update_time;
-	out->creation_time = creation_time;
 
 	return out;
 }
@@ -626,7 +625,9 @@ static bool add_new_session(struct xlator *jool, struct joold_session *in)
 	}
 
 	params.new = new;
-	error = sessiondb_add(jool->nat64.session, new, collision_cb, &params);
+	error = sessiondb_add(jool->nat64.session, new,
+			collision_cb, &params,
+			in->est);
 	if (error == -EEXIST) {
 		session_put(new, true);
 		return params.success;
@@ -665,8 +666,8 @@ static int validate_enabled(struct xlator *jool)
 }
 
 /**
- * joold_sync_entries - Parses a bunch of sessions out of @data and adds them
- * to @jool's session database.
+ * joold_sync - Parses a bunch of sessions out of @data and adds them to @jool's
+ * session database.
  *
  * This is the function that gets called whenever the jool daemon sends data to
  * the @jool Jool instance.

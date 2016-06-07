@@ -1,6 +1,5 @@
 #include "nat64/mod/stateful/filtering_and_updating.h"
 
-#include "nat64/common/session.h"
 #include "nat64/common/str_utils.h"
 #include "nat64/mod/common/config.h"
 #include "nat64/mod/common/icmp_wrapper.h"
@@ -216,7 +215,7 @@ static int get_or_create_session(struct xlation *state, struct bib_entry *bib,
 	if (error)
 		return error;
 
-	error = sessiondb_add(state->jool.nat64.session, session, NULL, NULL);
+	error = sessiondb_add(state->jool.nat64.session, session, NULL, NULL, 1);
 	if (error) {
 		session_put(session, true);
 		return error;
@@ -367,14 +366,15 @@ static int tcp_closed_v6_syn(struct xlation *state)
 		goto end;
 	session->state = V6_INIT;
 
-	error = sessiondb_add(state->jool.nat64.session, session, NULL, NULL);
+	error = sessiondb_add(state->jool.nat64.session, session, NULL, NULL, 0);
 	if (error) {
 		session_put(session, true);
 		goto end;
 	}
-
 	log_session(session);
+
 	joold_add(state, session);
+
 	/* Transfer session refcount to @state; do not put yet. */
 	state->session = session;
 	/* Fall through. */
@@ -427,13 +427,14 @@ static verdict tcp_closed_v4_syn(struct xlation *state)
 		goto end_session;
 	}
 
-	error = sessiondb_add(state->jool.nat64.session, session, NULL, NULL);
+	error = sessiondb_add(state->jool.nat64.session, session, NULL, NULL, 0);
 	if (error) {
 		log_debug("Could not add session to database: %d", error);
 		goto end_session;
 	}
 
 	joold_add(state, session);
+
 	/* Transfer session refcount to @state; do not put yet. */
 	state->session = session;
 	bibentry_put_thread(bib, false);
@@ -504,7 +505,6 @@ static enum session_fate tcp_v4_init_state(struct session_entry *session,
 
 	if (pkt_l3_proto(pkt) == L3PROTO_IPV6 && pkt_tcp_hdr(pkt)->syn) {
 		session->state = ESTABLISHED;
-		joold_add(state, session);
 		return FATE_TIMER_EST;
 	}
 
@@ -524,7 +524,6 @@ static enum session_fate tcp_v6_init_state(struct session_entry *session,
 		switch (pkt_l3_proto(pkt)) {
 		case L3PROTO_IPV4:
 			session->state = ESTABLISHED;
-			joold_add(state, session);
 			return FATE_TIMER_EST;
 		case L3PROTO_IPV6:
 			return FATE_TIMER_TRANS;
@@ -547,11 +546,9 @@ static enum session_fate tcp_established_state(struct session_entry *session,
 		switch (pkt_l3_proto(pkt)) {
 		case L3PROTO_IPV4:
 			session->state = V4_FIN_RCV;
-			joold_add(state, session);
 			break;
 		case L3PROTO_IPV6:
 			session->state = V6_FIN_RCV;
-			joold_add(state, session);
 			break;
 		}
 		return FATE_PRESERVE;
@@ -575,7 +572,6 @@ static enum session_fate tcp_v4_fin_rcv_state(struct session_entry *session,
 
 	if (pkt_l3_proto(pkt) == L3PROTO_IPV6 && pkt_tcp_hdr(pkt)->fin) {
 		session->state = V4_FIN_V6_FIN_RCV;
-		joold_add(state, session);
 		return FATE_TIMER_TRANS;
 	}
 
@@ -593,7 +589,6 @@ static enum session_fate tcp_v6_fin_rcv_state(struct session_entry *session,
 
 	if (pkt_l3_proto(pkt) == L3PROTO_IPV4 && pkt_tcp_hdr(pkt)->fin) {
 		session->state = V4_FIN_V6_FIN_RCV;
-		joold_add(state, session);
 		return FATE_TIMER_TRANS;
 	}
 
@@ -621,7 +616,6 @@ static enum session_fate tcp_trans_state(struct session_entry *session,
 
 	if (!pkt_tcp_hdr(pkt)->rst) {
 		session->state = ESTABLISHED;
-		joold_add(state, session);
 		return FATE_TIMER_EST;
 	}
 
@@ -679,8 +673,31 @@ static verdict tcp(struct xlation *state)
 		inc_stats(&state->in, IPSTATS_MIB_INDISCARDS);
 		return VERDICT_DROP;
 	}
-
 	log_session(session);
+
+	/*
+	 * Sometimes the session doesn't change as a result of the state
+	 * machine's schemes.
+	 * No state change, no timeout change, no update time change.
+	 *
+	 * One might argue that we shouldn't joold the session in those cases.
+	 * It's a lot more trouble than it's worth:
+	 *
+	 * - Calling joold_add() on the TCP SM state functions is incorrect
+	 *   because the session's update_time and expirer haven't been updated
+	 *   by that point. So what gets synchronizes is half-baked data.
+	 * - Calling joold_add() on decide_fate() is a freaking mess because
+	 *   we'd need to send the xlator and a boolean (indicating whether this
+	 *   is packet or timer context) to it and all intermediate functions,
+	 *   and these functions all already have too many arguments as it is.
+	 *   It's bad design anyway; the session module belongs to a layer that
+	 *   shouldn't be aware of the xlator.
+	 * - These special no-changes cases are rare.
+	 *
+	 * So let's simplify everything by just joold_add()ing here.
+	 */
+	joold_add(state, session);
+
 	/* Transfer session refcount to @state; do not put yet. */
 	state->session = session;
 	return VERDICT_CONTINUE;

@@ -38,7 +38,7 @@ int sessiondb_find(struct sessiondb *db, struct tuple *tuple,
 		fate_cb cb, void *cb_arg,
 		struct session_entry **result);
 int sessiondb_add(struct sessiondb *db, struct session_entry *session,
-		fate_cb cb, void *cb_args);
+		fate_cb cb, void *cb_args, bool est_timer);
 
 int sessiondb_foreach(struct sessiondb *db, l4_protocol proto,
 		int (*func)(struct session_entry *, void *), void *arg,

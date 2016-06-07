@@ -2,7 +2,7 @@
 #define _JOOL_COMMON_SESSION_H
 
 /** The states from the TCP state machine; RFC 6146 section 3.5.2. */
-enum tcp_state {
+typedef enum tcp_state {
 	/** No traffic has been seen; state is fictional. */
 	CLOSED = 0,
 	/** A SYN packet arrived from the IPv6 side; some IPv4 node is trying to start a connection. */
@@ -25,6 +25,6 @@ enum tcp_state {
 	V4_FIN_V6_FIN_RCV,
 	/** The session might die in a short while. */
 	TRANS,
-};
+} tcp_state;
 
 #endif /* _JOOL_COMMON_SESSION_H */

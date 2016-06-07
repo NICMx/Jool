@@ -120,14 +120,14 @@ bool sessiondb_allow(struct sessiondb *db, struct tuple *tuple4)
 }
 
 int sessiondb_add(struct sessiondb *db, struct session_entry *session,
-		fate_cb cb, void *cb_args)
+		fate_cb cb, void *cb_args, bool est_timer)
 {
 	struct session_table *table = get_table(db, session->l4_proto);
 	if (!table)
 		return -EINVAL;
 
 	pktqueue_rm(db->pkt_queue, session);
-	return sessiontable_add(table, session, cb, cb_args);
+	return sessiontable_add(table, session, cb, cb_args, est_timer);
 }
 
 int sessiondb_set_session_timer(struct sessiondb *db, struct session_entry *session, bool is_established)

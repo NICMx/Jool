@@ -21,7 +21,7 @@ struct display_params {
 	struct request_session *req_payload;
 };
 
-char *tcp_state_to_string(enum tcp_state state)
+char *tcp_state_to_string(tcp_state state)
 {
 	switch (state) {
 	case CLOSED:
