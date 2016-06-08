@@ -3,7 +3,6 @@
 #include "nat64/common/constants.h"
 #include "nat64/common/str_utils.h"
 #include "nat64/mod/common/wkmalloc.h"
-#include "nat64/common/joold/joold_config.h"
 #include "nat64/mod/common/nl/nl_core2.h"
 #include "nat64/mod/stateful/session/db.h"
 #include "nat64/mod/stateful/bib/db.h"
@@ -75,13 +74,13 @@ struct joold_queue {
 /**
  * Subset of fields from struct session_entry which need to be synchronized
  * across Jool instances.
+ *
+ * Note: Careful with the layout of this structure! It's currently padded and
+ * packed to fit in exactly 64 bytes.
+ * http://www.catb.org/esr/structure-packing/
  */
 struct joold_session {
-	struct ipv6_transport_addr src6;
-	struct ipv6_transport_addr dst6;
-	struct ipv4_transport_addr src4;
-	struct ipv4_transport_addr dst4;
-	__u8 l4_proto;
+
 	/**
 	 * This is not actually the same as session_entry->update_time.
 	 * session_entry->update_time is the time at which the session was last
@@ -95,12 +94,37 @@ struct joold_session {
 	 * This one is measured in milliseconds.
 	 */
 	__be64 update_time;
-	__u8 state;
+
+	/* Exactly 8 bytes so far. */
+
+	struct in6_addr src6_addr;
+	struct in6_addr dst6_addr;
+	struct in_addr src4_addr;
+	struct in_addr dst4_addr;
+	__u16 src6_port;
+	__u16 dst6_port;
+	__u16 src4_port;
+	__u16 dst4_port;
+
 	/*
-	 * true: timer is established.
-	 * false: timer is transitory.
+	 * Exactly 56 bytes so far.
+	 * Notice that the following can be compressed further but there's no
+	 * point currently.
 	 */
+
+	__u8 l4_proto;
+	__u8 state;
+	/* true: timer is established. false: timer is transitory. */
 	__u8 est;
+
+	/* Exactly 59 bytes so far. */
+
+	/**
+	 * Forces sizeof(struct joold_session) to be exacly 64 bytes.
+	 * If not present, sizeof yields me 60 in a 32-bit machine and 64 in a
+	 * 64-bit machine, which breaks compatibility.
+	 */
+	__u8 padding[5];
 };
 
 /**
@@ -173,6 +197,7 @@ void joold_terminate(void)
 static bool should_send(struct joold_queue *queue)
 {
 	unsigned long deadline;
+	unsigned int max_sessions;
 
 	if (queue->count == 0)
 		return false;
@@ -194,7 +219,8 @@ static bool should_send(struct joold_queue *queue)
 	if (queue->advertisement_count > 0)
 		return true;
 
-	return queue->count >= JOOLD_MAX_SESSIONS;
+	max_sessions = queue->config.max_payload / sizeof(struct joold_session);
+	return queue->count >= max_sessions;
 }
 
 static int write_single_node(struct joold_node *node,
@@ -226,15 +252,22 @@ static int foreach_cb(struct session_entry *entry, void *arg)
 	struct joold_session session;
 	__u64 update_time;
 
-	session.src4 = entry->src4;
-	session.dst6 = entry->dst6;
-	session.dst4 = entry->dst4;
-	session.src6 = entry->src6;
-	session.l4_proto = entry->l4_proto;
 	update_time = jiffies_to_msecs(jiffies - entry->update_time);
 	session.update_time = cpu_to_be64(update_time);
+
+	session.src6_addr = entry->src6.l3;
+	session.dst6_addr = entry->dst6.l3;
+	session.src4_addr = entry->src4.l3;
+	session.dst4_addr = entry->dst4.l3;
+	session.src6_port = entry->src6.l4;
+	session.dst6_port = entry->dst6.l4;
+	session.src4_port = entry->src4.l4;
+	session.dst4_port = entry->dst4.l4;
+
+	session.l4_proto = entry->l4_proto;
 	session.state = entry->state;
 	session.est = entry->expirer->is_established;
+	memset(session.padding, 0, sizeof(session.padding));
 
 	status = nlbuffer_write(adv->buffer, &session, sizeof(session));
 	if (status) {
@@ -286,7 +319,7 @@ static int build_buffer(struct nlcore_buffer *buffer, struct joold_queue *queue,
 	jool_hdr.castness = 'm';
 
 	error = nlbuffer_init_request(buffer, &jool_hdr,
-			JOOLD_MAX_PAYLOAD - sizeof(jool_hdr));
+			queue->config.max_payload - sizeof(jool_hdr));
 	if (error) {
 		log_debug("nlbuffer_init_request() threw error %d.", error);
 		return error;
@@ -366,6 +399,7 @@ struct joold_queue *joold_create(struct net *ns)
 	queue->config.flush_asap = DEFAULT_JOOLD_FLUSH_ASAP;
 	queue->config.flush_deadline = DEFAULT_JOOLD_DEADLINE;
 	queue->config.capacity = DEFAULT_JOOLD_CAPACITY;
+	queue->config.max_payload = DEFAULT_JOOLD_MAX_PAYLOAD;
 
 	queue->ns = ns;
 	get_net(ns);
@@ -467,18 +501,23 @@ void joold_add_session(struct joold_queue *queue, struct session_entry *entry,
 	}
 
 	copy->is_group = false;
-	copy->single.src6 = entry->src6;
-	copy->single.dst6 = entry->dst6;
-	copy->single.src4 = entry->src4;
-	copy->single.dst4 = entry->dst4;
 	/*
 	 * Do not convert the time yet; if the session is queued for a long
 	 * time, these will be horribly inaccurate.
 	 */
 	copy->single.update_time = cpu_to_be64(entry->update_time);
+	copy->single.src6_addr = entry->src6.l3;
+	copy->single.dst6_addr = entry->dst6.l3;
+	copy->single.src4_addr = entry->src4.l3;
+	copy->single.dst4_addr = entry->dst4.l3;
+	copy->single.src6_port = entry->src6.l4;
+	copy->single.dst6_port = entry->dst6.l4;
+	copy->single.src4_port = entry->src4.l4;
+	copy->single.dst4_port = entry->dst4.l4;
 	copy->single.l4_proto = entry->l4_proto;
 	copy->single.state = entry->state;
 	copy->single.est = entry->expirer->is_established;
+	memset(copy->single.padding, 0, sizeof(copy->single.padding));
 
 	list_add_tail(&copy->nextprev, &queue->sessions);
 	queue->count++;
@@ -500,10 +539,16 @@ static int add_new_bib(struct bib *db, struct joold_session *session,
 {
 	struct bib_entry *new; /* The one we're trying to add. */
 	struct bib_entry *old; /* The one that was already in the database. */
+	struct ipv6_transport_addr tmp6;
+	struct ipv4_transport_addr tmp4;
 	int error;
 
-	new = bibentry_create(&session->src4, &session->src6, false,
-			session->l4_proto);
+	tmp6.l3 = session->src6_addr;
+	tmp6.l4 = session->src6_port;
+	tmp4.l3 = session->src4_addr;
+	tmp4.l4 = session->src4_port;
+
+	new = bibentry_create(&tmp4, &tmp6, false, session->l4_proto);
 	if (!new) {
 		log_err("Couldn't allocate BIB entry.");
 		return -ENOMEM;
@@ -556,9 +601,21 @@ static struct session_entry *init_session_entry(struct joold_session *in,
 {
 	struct session_entry *out;
 	__u64 update_time;
+	struct ipv6_transport_addr src6;
+	struct ipv6_transport_addr dst6;
+	struct ipv4_transport_addr src4;
+	struct ipv4_transport_addr dst4;
 
-	out = session_create(&in->src6, &in->dst6, &in->src4,
-			&in->dst4, in->l4_proto, bib);
+	src6.l3 = in->src6_addr;
+	src6.l4 = in->src6_port;
+	dst6.l3 = in->dst6_addr;
+	dst6.l4 = in->dst6_port;
+	src4.l3 = in->src4_addr;
+	src4.l4 = in->src4_port;
+	dst4.l3 = in->dst4_addr;
+	dst4.l4 = in->dst4_port;
+
+	out = session_create(&src6, &dst6, &src4, &dst4, in->l4_proto, bib);
 	if (!out)
 		return NULL;
 
@@ -573,22 +630,28 @@ static struct session_entry *init_session_entry(struct joold_session *in,
 
 struct add_params {
 	struct session_entry *new;
+	struct joold_session *newd;
 	bool success;
 };
 
 static enum session_fate collision_cb(struct session_entry *old, void *arg)
 {
+	__u64 update_time;
 	struct add_params *params = arg;
 	struct session_entry *new = params->new;
+	struct joold_session *newd;
 
-	if (session_equals(old, new)) {
-		/* It's the same session; update it. */
-		old->state = new->state;
+	if (session_equals(old, new)) { /* It's the same session; update it. */
+		newd = params->newd;
+
+		update_time = be64_to_cpu(newd->update_time);
+		update_time = jiffies - msecs_to_jiffies(update_time);
+
+		old->state = newd->state;
+		old->update_time = update_time;
 		params->success = true;
-		if (old->l4_proto != L4PROTO_TCP || old->state == ESTABLISHED)
-			return FATE_TIMER_EST;
-		else
-			return FATE_TIMER_TRANS;
+
+		return newd->est ? FATE_TIMER_EST_SLOW : FATE_TIMER_TRANS_SLOW;
 	}
 
 	log_err("We're out of sync: Incoming %s session entry %pI6c#%u|%pI6c#%u|%pI4#%u|%pI4#%u collides with DB entry %pI6c#%u|%pI6c#%u|%pI4#%u|%pI4#%u.",
@@ -625,6 +688,7 @@ static bool add_new_session(struct xlator *jool, struct joold_session *in)
 	}
 
 	params.new = new;
+	params.newd = in;
 	error = sessiondb_add(jool->nat64.session, new,
 			collision_cb, &params,
 			in->est);

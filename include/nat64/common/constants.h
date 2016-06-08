@@ -86,6 +86,12 @@
 #define DEFAULT_JOOLD_FLUSH_ASAP true
 #define DEFAULT_JOOLD_DEADLINE msecs_to_jiffies(2000)
 #define DEFAULT_JOOLD_CAPACITY 512
+/**
+ * 1500 (typical MTU) - max(20, 40) (maximum IP header size) - 8 (UDP header)
+ * There's a 16-bytes joold header and each session spans 64 bytes currently.
+ * This means we can fit 22 sessions per packet. (Regardless of IPv4/IPv6)
+ */
+#define DEFAULT_JOOLD_MAX_PAYLOAD 1452
 
 /* -- IPv6 Pool -- */
 

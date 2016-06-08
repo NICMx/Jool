@@ -7,7 +7,6 @@
 #include <sys/types.h>
 #include "nat64/common/config.h"
 #include "nat64/common/types.h"
-#include "nat64/common/joold/joold_config.h"
 #include "nat64/usr/netlink.h"
 #include "nat64/usr/joold/netsocket.h"
 

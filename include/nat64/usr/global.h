@@ -47,6 +47,7 @@
 #define OPTNAME_SYNCH_FLUSH_ASAP	"synch-flush-asap"
 #define OPTNAME_SYNCH_FLUSH_DEADLINE	"synch-flush-deadline"
 #define OPTNAME_SYNCH_CAPACITY		"synch-capacity"
+#define OPTNAME_SYNCH_MAX_PAYLOAD	"synch-max-payload"
 
 int global_display(bool csv);
 int global_update(__u16 type, size_t size, void *data);

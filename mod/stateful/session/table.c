@@ -46,6 +46,28 @@ static void delete(struct list_head *sessions)
 	log_debug("Deleted %lu sessions.", s);
 }
 
+static void queue_unsorted_session(struct expire_timer *timer,
+		struct session_entry *new)
+{
+	struct list_head *list;
+	struct list_head *cursor;
+	struct session_entry *old;
+
+	new->expirer = timer;
+	list_del(&new->list_hook);
+
+	list = &timer->sessions;
+	for (cursor = list->prev; cursor != list; cursor = cursor->prev) {
+		old = list_entry(cursor, struct session_entry, list_hook);
+		if (old->update_time < new->update_time) {
+			list_add(&new->list_hook, &old->list_hook);
+			return;
+		}
+	}
+
+	list_add(&new->list_hook, list);
+}
+
 static void decide_fate(fate_cb cb,
 		void *cb_arg,
 		struct session_table *table,
@@ -85,6 +107,12 @@ static void decide_fate(fate_cb cb,
 		rm(table, session, rms);
 		break;
 	case FATE_PRESERVE:
+		break;
+	case FATE_TIMER_EST_SLOW:
+		queue_unsorted_session(&table->est_timer, session);
+		break;
+	case FATE_TIMER_TRANS_SLOW:
+		queue_unsorted_session(&table->trans_timer, session);
 		break;
 	}
 }

@@ -81,6 +81,24 @@ static int parse_u32(__u32 *field, struct global_value *chunk, size_t size)
 	return 0;
 }
 
+static int parse_u16(__u16 *field, struct global_value *chunk, size_t size,
+		__u16 max)
+{
+	__u16 value;
+
+	if (!ensure_bytes(size, 2))
+		return -EINVAL;
+
+	value = *((__u16 *)(chunk + 1));
+	if (value > max) {
+		log_err("Expected a number <= %u.", max);
+		return -EINVAL;
+	}
+
+	*field = value;
+	return 0;
+}
+
 static int parse_u8(__u8 *field, struct global_value *chunk, size_t size)
 {
 	if (!ensure_bytes(size, 1))
@@ -320,6 +338,9 @@ static int massive_switch(struct full_config *cfg, struct global_value *chunk,
 	case SYNCH_CAPACITY:
 		error = ensure_nat64(OPTNAME_SYNCH_CAPACITY);
 		return error ? : parse_u32(&cfg->joold.capacity, chunk, size);
+	case SYNCH_MAX_PAYLOAD:
+		error = ensure_nat64(OPTNAME_SYNCH_MAX_PAYLOAD);
+		return error ? : parse_u16(&cfg->joold.max_payload, chunk, size, JOOLD_MAX_PAYLOAD);
 	}
 
 	log_err("Unknown config type: %u", chunk->type);

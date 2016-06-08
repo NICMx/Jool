@@ -728,7 +728,16 @@ static const struct argp_option synch_capacity_opt = {
 		.key = ARGP_SYNCH_CAPACITY,
 		.arg = NUM_FORMAT,
 		.flags = 0,
-		.doc = "",
+		.doc = "Maximim number of queuable entries.",
+		.group = 0,
+};
+
+static const struct argp_option synch_max_payload_opt = {
+		.name = OPTNAME_SYNCH_MAX_PAYLOAD,
+		.key = ARGP_SYNCH_MAX_PAYLOAD,
+		.arg = NUM_FORMAT,
+		.flags = 0,
+		.doc = "Maximum amount of bytes joold should send per packet.",
 		.group = 0,
 };
 
@@ -875,6 +884,7 @@ static const struct argp_option *opts_nat64[] = {
 	&synch_flush_asap_opt,
 	&synch_flush_deadline_opt,
 	&synch_capacity_opt,
+	&synch_max_payload_opt,
 	/* TODO where's the 6791v6 prefix? */
 };
 
@@ -939,6 +949,7 @@ static const struct argp_option *opts_global_nat64[] = {
 	&synch_flush_asap_opt,
 	&synch_flush_deadline_opt,
 	&synch_capacity_opt,
+	&synch_max_payload_opt,
 };
 
 struct argp_option *get_global_opts(void)

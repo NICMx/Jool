@@ -410,6 +410,7 @@ enum global_type {
 	SYNCH_FLUSH_ASAP,
 	SYNCH_FLUSH_DEADLINE,
 	SYNCH_CAPACITY,
+	SYNCH_MAX_PAYLOAD,
 	RFC6791V6_PREFIX
 };
 
@@ -637,6 +638,10 @@ struct bib_config {
 	__u8 log_changes;
 };
 
+/* This has to be <= 32. */
+#define JOOLD_MULTICAST_GROUP 30
+#define JOOLD_MAX_PAYLOAD 2048
+
 struct joold_config {
 	/** Is joold enabled on this Jool instance? Boolean. */
 	__u8 enabled;
@@ -674,6 +679,23 @@ struct joold_config {
 	 * we can do to recover if this happens.
 	 */
 	__u32 capacity;
+
+	/**
+	 * Maximum amount of bytes joold should send per packet, excluding
+	 * IP/UDP headers.
+	 *
+	 * This exists because userspace joold sends sessions via UDP. UDP is
+	 * rather packet-oriented, as opposed to stream-oriented, so it doesn't
+	 * discover PMTU and instead tends to fragment when we send too many
+	 * sessions per packet. Which is bad.
+	 *
+	 * So the user, after figuring out the MTU, can tweak this number to
+	 * prevent fragmentation.
+	 *
+	 * We should probably handle this ourselves but it sounds like a lot of
+	 * code. (I guess I'm missing something.)
+	 */
+	__u16 max_payload;
 };
 
 struct pktqueue_config {

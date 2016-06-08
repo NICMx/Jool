@@ -159,6 +159,19 @@ static int set_global_u8(struct arguments *args, __u16 type, char *value,
 	return set_global_arg(args, type, sizeof(tmp), &tmp);
 }
 
+static int set_global_u16(struct arguments *args, __u16 type, char *value,
+		__u16 min, __u16 max)
+{
+	__u16 tmp;
+	int error;
+
+	error = str_to_u16(value, &tmp, min, max);
+	if (error)
+		return error;
+
+	return set_global_arg(args, type, sizeof(tmp), &tmp);
+}
+
 static int set_global_u32(struct arguments *args, __u16 type, char *value,
 		__u32 min, __u32 max)
 {
@@ -518,6 +531,9 @@ static int parse_opt(int key, char *str, struct argp_state *state)
 		break;
 	case ARGP_SYNCH_CAPACITY:
 		error = set_global_u32(args, key, str, 0, MAX_U32);
+		break;
+	case ARGP_SYNCH_MAX_PAYLOAD:
+		error = set_global_u16(args, key, str, 0, JOOLD_MAX_PAYLOAD);
 		break;
 	case ARGP_RFC6791V6_PREFIX:
 		error = set_global_rfc6791_prefix(args, key, str);
