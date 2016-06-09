@@ -72,7 +72,7 @@ static bool assert_session_count(int expected, l4_protocol proto)
 	int count = 0;
 	bool success = true;
 
-	success = ASSERT_INT(0, sessiondb_foreach(jool.nat64.session, proto, session_count_fn, &count, NULL, NULL), "count");
+	success = ASSERT_INT(0, sessiondb_foreach(jool.nat64.session, proto, session_count_fn, &count, NULL, NULL, false), "count");
 	success = ASSERT_INT(expected, count, "Session count");
 
 	return success;

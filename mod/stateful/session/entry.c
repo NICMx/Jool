@@ -39,7 +39,6 @@ struct session_entry *session_create(const struct ipv6_transport_addr *src6,
 			.l4_proto = l4_proto,
 			.state = 0,
 			.update_time = jiffies,
-			.creation_time = jiffies,
 			.bib = bib,
 			.expirer = NULL,
 	};

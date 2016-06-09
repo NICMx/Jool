@@ -106,6 +106,8 @@ enum config_operation {
 	OP_ADVERTISE = (1 << 6),
 
 	OP_TEST = (1 << 7),
+	/* TODO not a bitfield? something's probably going to break. */
+	OP_ACK = 9
 };
 
 enum parse_section {
@@ -406,8 +408,10 @@ enum global_type {
 	MAX_PKTS,
 	SYNCH_ENABLE,
 	SYNCH_DISABLE,
-	SYNCH_ELEMENTS_LIMIT,
-	SYNCH_PERIOD,
+	SYNCH_FLUSH_ASAP,
+	SYNCH_FLUSH_DEADLINE,
+	SYNCH_CAPACITY,
+	SYNCH_MAX_PAYLOAD,
 	RFC6791V6_PREFIX
 };
 
@@ -635,35 +639,64 @@ struct bib_config {
 	__u8 log_changes;
 };
 
+/* This has to be <= 32. */
+#define JOOLD_MULTICAST_GROUP 30
+#define JOOLD_MAX_PAYLOAD 2048
+
 struct joold_config {
-	/*
-	 * Note: joold can run without timer, so timer_pending() is not a valid
-	 * replacement for this.
-	 */
+	/** Is joold enabled on this Jool instance? Boolean. */
 	__u8 enabled;
 
 	/**
-	 * If more sessions than this number have been accumulated, they will
-	 * be flushed immediately.
+	 * Boolean.
+	 * true:  Whenever a session changes, packet it up and send it.
+	 *        (Note: In theory, this might be more often than it seems.
+	 *        It's not whenever a connection is initiated;
+	 *        it's on every translated packet except ICMP errors.
+	 *        In practice however, flushes are prohibited until the next
+	 *        ACK (otherwise joold quickly saturates the kernel), so
+	 *        sessions will end up queuing up even in this mode.)
+	 *        This is the preferred method in active scenarios.
+	 * false: Wait until we have enough sessions to fill a packet before
+	 *        sending them.
+	 *        (ACKs are still required, but expected to arrive faster.)
+	 *        This is the preferred method in passive scenarios.
 	 */
-	__u32 queue_capacity;
-	/**
-	 * The timer will flush the queue every this amount of jiffies
-	 * regardless of @queue_capacity.
-	 * If this is zero, the timer is inactive.
-	 */
-	__u32 timer_period;
+	__u8 flush_asap;
 
 	/**
-	 * TODO (final) I removed the thresholds because the implementation
-	 * didn't quite do what it was supposed to.
-	 *
-	 * "In order to limit the amount of state replication traffic, another
-	 * idea could be to only synchronize long-lived sessions (as it's
-	 * usually not a problem if short-lived HTTP requests and such get
-	 * interrupted half-way through)."
-	 * https://github.com/NICMx/Jool/issues/113#issuecomment-64077194
+	 * The timer forcibly flushes the queue if this hasn't happened after
+	 * this amount of jiffies, regardless of the ACK and @flush_asap.
+	 * This helps if an ACK is lost for some reason.
 	 */
+	__u64 flush_deadline;
+
+	/**
+	 * Maximim number of queuable entries.
+	 * If this capacity is exceeded, Jool will have to start dropping
+	 * sessions.
+	 * This exists because it's theoretically possible for joold to not be
+	 * able to catch up with the translating traffic, and there's not much
+	 * we can do to recover if this happens.
+	 */
+	__u32 capacity;
+
+	/**
+	 * Maximum amount of bytes joold should send per packet, excluding
+	 * IP/UDP headers.
+	 *
+	 * This exists because userspace joold sends sessions via UDP. UDP is
+	 * rather packet-oriented, as opposed to stream-oriented, so it doesn't
+	 * discover PMTU and instead tends to fragment when we send too many
+	 * sessions per packet. Which is bad.
+	 *
+	 * So the user, after figuring out the MTU, can tweak this number to
+	 * prevent fragmentation.
+	 *
+	 * We should probably handle this ourselves but it sounds like a lot of
+	 * code. (I guess I'm missing something.)
+	 */
+	__u16 max_payload;
 };
 
 struct pktqueue_config {

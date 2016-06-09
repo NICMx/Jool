@@ -6,9 +6,13 @@
 
 int joold_advertise(void)
 {
-	struct request_hdr hdr;
-	init_request_hdr(&hdr, MODE_JOOLD, OP_ADVERTISE);
-	return netlink_request(&hdr, sizeof(hdr), NULL, NULL);
+	int error = 0;
+	struct request_hdr request;
+
+	init_request_hdr(&request, MODE_JOOLD, OP_ADVERTISE);
+	error = netlink_request(&request, sizeof(request), NULL, NULL);
+
+	return error;
 }
 
 int joold_test(void)

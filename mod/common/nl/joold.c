@@ -37,6 +37,9 @@ int handle_joold_request(struct xlator *jool, struct genl_info *info)
 	case OP_ADVERTISE:
 		error = joold_advertise(jool);
 		break;
+	case OP_ACK:
+		joold_ack(jool);
+		return 0; /* Do not ack the ack! */
 	default:
 		log_err("Unknown operation: %d", hdr->operation);
 		error = -EINVAL;

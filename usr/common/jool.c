@@ -149,16 +149,40 @@ static int set_global_bool(struct arguments *args, __u16 type, char *value)
 static int set_global_u8(struct arguments *args, __u16 type, char *value,
 		__u8 min, __u8 max)
 {
-	__u8 tmp8;
-	__u64 tmp64;
+	__u8 tmp;
 	int error;
 
-	error = str_to_u8(value, &tmp8, min, max);
+	error = str_to_u8(value, &tmp, min, max);
 	if (error)
 		return error;
 
-	tmp64 = tmp8;
-	return set_global_arg(args, type, sizeof(tmp64), &tmp64);
+	return set_global_arg(args, type, sizeof(tmp), &tmp);
+}
+
+static int set_global_u16(struct arguments *args, __u16 type, char *value,
+		__u16 min, __u16 max)
+{
+	__u16 tmp;
+	int error;
+
+	error = str_to_u16(value, &tmp, min, max);
+	if (error)
+		return error;
+
+	return set_global_arg(args, type, sizeof(tmp), &tmp);
+}
+
+static int set_global_u32(struct arguments *args, __u16 type, char *value,
+		__u32 min, __u32 max)
+{
+	__u32 tmp;
+	int error;
+
+	error = str_to_u32(value, &tmp, min, max);
+	if (error)
+		return error;
+
+	return set_global_arg(args, type, sizeof(tmp), &tmp);
 }
 
 static int set_global_u64(struct arguments *args, __u16 type, char *value,
@@ -469,6 +493,7 @@ static int parse_opt(int key, char *str, struct argp_state *state)
 	case ARGP_SRC_ICMP6ERRS_BETTER:
 	case ARGP_BIB_LOGGING:
 	case ARGP_SESSION_LOGGING:
+	case ARGP_SYNCH_FLUSH_ASAP:
 		error = set_global_bool(args, key, str);
 		break;
 	case ARGP_F_ARGS:
@@ -499,13 +524,16 @@ static int parse_opt(int key, char *str, struct argp_state *state)
 		error = set_global_u64(args, key, str, FRAGMENT_MIN, MAX_U32/1000, 1000);
 		break;
 	case ARGP_STORED_PKTS:
-		error = set_global_u64(args, key, str, 0, MAX_U64, 1);
+		error = set_global_u32(args, key, str, 0, MAX_U32);
 		break;
-	case ARGP_SYNCH_MAX_SESSIONS:
-		error = set_global_u8(args, key, str, 0, MAX_U8);
+	case ARGP_SYNCH_FLUSH_DEADLINE:
+		error = set_global_u64(args, key, str, 0, MAX_U32, 1);
 		break;
-	case ARGP_SYNCH_PERIOD:
-		error = set_global_u64(args, key, str, 0, MAX_U64, 1);
+	case ARGP_SYNCH_CAPACITY:
+		error = set_global_u32(args, key, str, 0, MAX_U32);
+		break;
+	case ARGP_SYNCH_MAX_PAYLOAD:
+		error = set_global_u16(args, key, str, 0, JOOLD_MAX_PAYLOAD);
 		break;
 	case ARGP_RFC6791V6_PREFIX:
 		error = set_global_rfc6791_prefix(args, key, str);

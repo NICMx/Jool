@@ -73,30 +73,27 @@ static int parse_ipv6_prefix(struct global_config *config, struct global_value *
 	return 0;
 }
 
-static int parse_bool(__u8 *field, struct global_value *chunk, size_t size)
-{
-	if (!ensure_bytes(size, 1))
-		return -EINVAL;
-	*field = *((__u8 *)(chunk + 1));
-	return 0;
-}
-
-static int parse_u64(__u64 *field, struct global_value *chunk, size_t size)
-{
-	if (!ensure_bytes(size, 8))
-		return -EINVAL;
-	*field = *((__u64 *)(chunk + 1));
-	return 0;
-}
-
 static int parse_u32(__u32 *field, struct global_value *chunk, size_t size)
 {
-	__u64 value;
-	int error;
+	if (!ensure_bytes(size, 4))
+		return -EINVAL;
+	*field = *((__u32 *)(chunk + 1));
+	return 0;
+}
 
-	error = parse_u64(&value, chunk, size);
-	if (error)
-		return error;
+static int parse_u16(__u16 *field, struct global_value *chunk, size_t size,
+		__u16 max)
+{
+	__u16 value;
+
+	if (!ensure_bytes(size, 2))
+		return -EINVAL;
+
+	value = *((__u16 *)(chunk + 1));
+	if (value > max) {
+		log_err("Expected a number <= %u.", max);
+		return -EINVAL;
+	}
 
 	*field = value;
 	return 0;
@@ -104,15 +101,15 @@ static int parse_u32(__u32 *field, struct global_value *chunk, size_t size)
 
 static int parse_u8(__u8 *field, struct global_value *chunk, size_t size)
 {
-	__u64 value;
-	int error;
-
-	error = parse_u64(&value, chunk, size);
-	if (error)
-		return error;
-
-	*field = value;
+	if (!ensure_bytes(size, 1))
+		return -EINVAL;
+	*field = *((__u8 *)(chunk + 1));
 	return 0;
+}
+
+static int parse_bool(__u8 *field, struct global_value *chunk, size_t size)
+{
+	return parse_u8(field, chunk, size);
 }
 
 static int parse_timeout(__u64 *field, struct global_value *chunk, size_t size,
@@ -122,6 +119,9 @@ static int parse_timeout(__u64 *field, struct global_value *chunk, size_t size,
 	 * TODO (fine) this max is somewhat arbitrary. We do have a maximum,
 	 * but I don't recall what or why it was. I do remember it's bigger than
 	 * this.
+	 *
+	 * Update: Except for the joold deadline! That thing needs to be 32-bits
+	 * no matter what.
 	 */
 	const __u32 MAX_U32 = 0xFFFFFFFFU;
 	__u64 value64;
@@ -329,13 +329,18 @@ static int massive_switch(struct full_config *cfg, struct global_value *chunk,
 		if (!error)
 			cfg->joold.enabled = false;
 		return error;
-	case SYNCH_ELEMENTS_LIMIT:
-		error = ensure_nat64(OPTNAME_SYNCH_MAX_SESSIONS);
-		return error ? : parse_u32(&cfg->joold.queue_capacity, chunk, size);
-	case SYNCH_PERIOD:
-		error = ensure_nat64(OPTNAME_SYNCH_PERIOD);
-		return error ? : parse_u32(&cfg->joold.timer_period, chunk, size);
-
+	case SYNCH_FLUSH_ASAP:
+		error = ensure_nat64(OPTNAME_SYNCH_FLUSH_ASAP);
+		return error ? : parse_bool(&cfg->joold.flush_asap, chunk, size);
+	case SYNCH_FLUSH_DEADLINE:
+		error = ensure_nat64(OPTNAME_SYNCH_FLUSH_DEADLINE);
+		return error ? : parse_timeout(&cfg->joold.flush_deadline, chunk, size, 0);
+	case SYNCH_CAPACITY:
+		error = ensure_nat64(OPTNAME_SYNCH_CAPACITY);
+		return error ? : parse_u32(&cfg->joold.capacity, chunk, size);
+	case SYNCH_MAX_PAYLOAD:
+		error = ensure_nat64(OPTNAME_SYNCH_MAX_PAYLOAD);
+		return error ? : parse_u16(&cfg->joold.max_payload, chunk, size, JOOLD_MAX_PAYLOAD);
 	}
 
 	log_err("Unknown config type: %u", chunk->type);

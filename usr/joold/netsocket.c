@@ -9,6 +9,7 @@
 #include <arpa/inet.h>
 #include <net/if.h>
 #include <netinet/in.h>
+#include "nat64/common/config.h"
 #include "nat64/common/str_utils.h"
 #include "nat64/common/types.h"
 #include "nat64/usr/cJSON.h"
@@ -433,7 +434,7 @@ void netsocket_destroy(void)
 
 void *netsocket_listen(void *arg)
 {
-	char buffer[2048];
+	char buffer[JOOLD_MAX_PAYLOAD];
 	int bytes;
 
 	log_info("Listening...");

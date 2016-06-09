@@ -166,16 +166,15 @@ void nlbuffer_free(struct nlcore_buffer *buffer)
 
 int nlbuffer_write(struct nlcore_buffer *buffer, void *data, size_t data_size)
 {
-	void *tail;
-
 	if (buffer->len + data_size > buffer->capacity) {
 		log_debug("The buffer's storage capacity has been surpassed.");
-		nlbuffer_set_pending_data(buffer, true);
+		/*
+		 * Do not set the pending data flag yet; not everyone wants it.
+		 */
 		return 1;
 	}
 
-	tail = buffer->data + buffer->len;
-	memcpy(tail, data, data_size);
+	memcpy(buffer->data + buffer->len, data, data_size);
 	buffer->len += data_size;
 
 	return 0;
@@ -339,7 +338,7 @@ int nlcore_send_multicast_message(struct net *ns, struct nlcore_buffer *buffer)
 	error = genlmsg_multicast_netns(family, ns, skb, 0, 0, GFP_ATOMIC);
 #endif
 	if (error) {
-		log_warn_once("Sending multicast message failed. (errcode %d)",
+		log_warn_once("Looks like nobody received my multicast message. Is the joold daemon really active? (errcode %d)",
 				error);
 		return error;
 	}

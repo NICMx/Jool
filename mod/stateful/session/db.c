@@ -120,14 +120,14 @@ bool sessiondb_allow(struct sessiondb *db, struct tuple *tuple4)
 }
 
 int sessiondb_add(struct sessiondb *db, struct session_entry *session,
-		fate_cb cb, void *cb_args)
+		fate_cb cb, void *cb_args, bool est_timer)
 {
 	struct session_table *table = get_table(db, session->l4_proto);
 	if (!table)
 		return -EINVAL;
 
 	pktqueue_rm(db->pkt_queue, session);
-	return sessiontable_add(table, session, cb, cb_args);
+	return sessiontable_add(table, session, cb, cb_args, est_timer);
 }
 
 int sessiondb_set_session_timer(struct sessiondb *db, struct session_entry *session, bool is_established)
@@ -151,11 +151,12 @@ int sessiondb_set_session_timer(struct sessiondb *db, struct session_entry *sess
 int sessiondb_foreach(struct sessiondb *db, l4_protocol proto,
 		int (*func)(struct session_entry *, void *), void *arg,
 		struct ipv4_transport_addr *offset_remote,
-		struct ipv4_transport_addr *offset_local)
+		struct ipv4_transport_addr *offset_local,
+		const bool include_offset)
 {
 	struct session_table *table = get_table(db, proto);
 	return table ? sessiontable_foreach(table, func, arg, offset_remote,
-			offset_local) : -EINVAL;
+			offset_local, include_offset) : -EINVAL;
 }
 
 int sessiondb_count(struct sessiondb *db, l4_protocol proto, __u64 *result)

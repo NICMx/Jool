@@ -4,6 +4,7 @@
 #include <linux/kref.h>
 #include <linux/rbtree.h>
 #include "nat64/common/types.h"
+#include "nat64/common/session.h"
 #include "nat64/mod/stateful/bib/db.h"
 
 /**
@@ -49,13 +50,11 @@ struct session_entry {
 
 	/** Transport protocol of the connection this session describes. */
 	const l4_protocol l4_proto;
-	/** Current TCP state. Only relevant if @l4_proto == L4PROTO_TCP. */
-	u_int8_t state;
+	/** Current TCP SM state. Only relevant if @l4_proto == L4PROTO_TCP. */
+	tcp_state state;
 
 	/** Jiffy (from the epoch) this session was last updated/used. */
 	unsigned long update_time;
-	/** Jiffy at which this session was created. */
-	unsigned long creation_time;
 
 	/**
 	 * When the session is in the database, this chains it to its

@@ -2,6 +2,7 @@
 
 #include "nat64/mod/common/xlator.h"
 #include "nat64/mod/stateful/fragment_db.h"
+#include "nat64/mod/stateful/joold.h"
 #include "nat64/mod/stateful/session/db.h"
 
 #define TIMER_PERIOD msecs_to_jiffies(2000)
@@ -12,6 +13,7 @@ static int clean_state(struct xlator *jool, void *args)
 {
 	fragdb_clean(jool->nat64.frag);
 	sessiondb_clean(jool->nat64.session, jool->ns);
+	joold_clean(jool->nat64.joold, jool->nat64.session);
 	return 0;
 }
 

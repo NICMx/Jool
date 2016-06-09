@@ -177,9 +177,9 @@ static int handle_display_response(struct jool_response *response, void *arg)
 
 	if (xlat_is_nat64()) {
 		printf("  Additional Logging:\n");
-		printf("  --%s: %s\n", OPTNAME_BIB_LOGGING,
+		printf("    --%s: %s\n", OPTNAME_BIB_LOGGING,
 				print_bool(conf->bib.log_changes));
-		printf("  --%s: %s\n", OPTNAME_SESSION_LOGGING,
+		printf("    --%s: %s\n", OPTNAME_SESSION_LOGGING,
 				print_bool(conf->session.log_changes));
 		printf("\n");
 
@@ -206,12 +206,14 @@ static int handle_display_response(struct jool_response *response, void *arg)
 		printf("\n");
 
 		printf("  Synchronization:\n");
-		printf("  Enabled (--%s, --%s): %s\n",
+		printf("    Enabled (--%s, --%s): %s\n",
 				OPTNAME_SYNCH_ENABLE , OPTNAME_SYNCH_DISABLE,
 				conf->joold.enabled ? "Enabled" : "Disabled");
-
-		printf("    --%s: %u sessions\n", OPTNAME_SYNCH_MAX_SESSIONS, conf->joold.queue_capacity);
-		printf("    --%s: %u milliseconds\n", OPTNAME_SYNCH_PERIOD, conf->joold.timer_period);
+		printf("    --%s: %s\n", OPTNAME_SYNCH_FLUSH_ASAP, print_bool(conf->joold.flush_asap));
+		printf("    --%s: ", OPTNAME_SYNCH_FLUSH_DEADLINE);
+		print_time_friendly(conf->joold.flush_deadline);
+		printf("    --%s: %u\n", OPTNAME_SYNCH_CAPACITY, conf->joold.capacity);
+		printf("    --%s: %u\n", OPTNAME_SYNCH_MAX_PAYLOAD, conf->joold.max_payload);
 	}
 
 	return 0;
@@ -280,12 +282,19 @@ static int handle_display_response_csv(struct jool_response *response, void *arg
 		printf("%s,%s\n", OPTNAME_SESSION_LOGGING,
 				print_csv_bool(conf->session.log_changes));
 
-		printf("%s,%u\n", OPTNAME_MAX_SO, conf->session.pktqueue.max_stored_pkts);
+		printf("%s,%u\n", OPTNAME_MAX_SO,
+				conf->session.pktqueue.max_stored_pkts);
 
 		printf("joold Enabled,%s\n",
 				print_csv_bool(conf->joold.enabled));
-		printf("%s,%u\n", OPTNAME_SYNCH_MAX_SESSIONS, conf->joold.queue_capacity);
-		printf("%s,%u\n", OPTNAME_SYNCH_PERIOD, conf->joold.timer_period);
+		printf("%s,%s\n", OPTNAME_SYNCH_FLUSH_ASAP,
+				print_csv_bool(conf->joold.flush_asap));
+		printf("%s,", OPTNAME_SYNCH_FLUSH_DEADLINE);
+		print_time_csv(conf->joold.flush_deadline);
+		printf("\n%s,%u\n", OPTNAME_SYNCH_CAPACITY,
+				conf->joold.capacity);
+		printf("%s,%u\n", OPTNAME_SYNCH_MAX_PAYLOAD,
+				conf->joold.max_payload);
 
 		printf("%s,", OPTNAME_UDP_TIMEOUT);
 		print_time_csv(conf->session.ttl.udp);

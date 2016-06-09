@@ -81,6 +81,7 @@ void prepare_config_for_userspace(struct full_config *config, bool pools_empty)
 	struct global_config *global;
 	struct session_config *session;
 	struct fragdb_config *frag;
+	struct joold_config *joold;
 
 	global = &config->global;
 	global->status = global->enabled && !pools_empty;
@@ -93,4 +94,7 @@ void prepare_config_for_userspace(struct full_config *config, bool pools_empty)
 
 	frag = &config->frag;
 	frag->ttl = jiffies_to_msecs(frag->ttl);
+
+	joold = &config->joold;
+	joold->flush_deadline = jiffies_to_msecs(joold->flush_deadline);
 }

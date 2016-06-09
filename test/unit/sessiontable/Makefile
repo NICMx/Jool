@@ -20,6 +20,7 @@ $(SESSIONTABLE)-objs += $(MIN_REQS)
 $(SESSIONTABLE)-objs += ../../../mod/common/config.o
 $(SESSIONTABLE)-objs += ../../../mod/common/rbtree.o
 $(SESSIONTABLE)-objs += ../../../mod/stateful/session/entry.o
+$(SESSIONTABLE)-objs += ../../../mod/stateful/session/table.o
 $(SESSIONTABLE)-objs += ../../../mod/stateful/session/pkt_queue.o
 $(SESSIONTABLE)-objs += ../impersonator/bib.o
 $(SESSIONTABLE)-objs += ../impersonator/icmp_wrapper.o

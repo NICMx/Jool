@@ -3,7 +3,6 @@
 #include <linux/version.h>
 #include <net/ipv6.h>
 #include "nat64/common/constants.h"
-#include "nat64/common/session.h"
 #include "nat64/mod/common/linux_version.h"
 #include "nat64/mod/common/rbtree.h"
 #include "nat64/mod/common/route.h"
@@ -47,6 +46,28 @@ static void delete(struct list_head *sessions)
 	log_debug("Deleted %lu sessions.", s);
 }
 
+static void queue_unsorted_session(struct expire_timer *timer,
+		struct session_entry *new)
+{
+	struct list_head *list;
+	struct list_head *cursor;
+	struct session_entry *old;
+
+	new->expirer = timer;
+	list_del(&new->list_hook);
+
+	list = &timer->sessions;
+	for (cursor = list->prev; cursor != list; cursor = cursor->prev) {
+		old = list_entry(cursor, struct session_entry, list_hook);
+		if (old->update_time < new->update_time) {
+			list_add(&new->list_hook, &old->list_hook);
+			return;
+		}
+	}
+
+	list_add(&new->list_hook, list);
+}
+
 static void decide_fate(fate_cb cb,
 		void *cb_arg,
 		struct session_table *table,
@@ -86,6 +107,12 @@ static void decide_fate(fate_cb cb,
 		rm(table, session, rms);
 		break;
 	case FATE_PRESERVE:
+		break;
+	case FATE_TIMER_EST_SLOW:
+		queue_unsorted_session(&table->est_timer, session);
+		break;
+	case FATE_TIMER_TRANS_SLOW:
+		queue_unsorted_session(&table->trans_timer, session);
 		break;
 	}
 }
@@ -231,10 +258,11 @@ void sessiontable_clean(struct session_table *table, struct net *ns)
 }
 
 static void init_expirer(struct expire_timer *expirer, int timeout,
-		fate_cb decide_fate_cb)
+		bool is_established, fate_cb decide_fate_cb)
 {
 	INIT_LIST_HEAD(&expirer->sessions);
 	expirer->timeout = msecs_to_jiffies(1000 * timeout);
+	expirer->is_established = is_established;
 	expirer->decide_fate_cb = decide_fate_cb;
 }
 
@@ -244,8 +272,8 @@ void sessiontable_init(struct session_table *table, fate_cb expired_cb,
 	table->tree6 = RB_ROOT;
 	table->tree4 = RB_ROOT;
 	table->count = 0;
-	init_expirer(&table->est_timer, est_timeout, expired_cb);
-	init_expirer(&table->trans_timer, trans_timeout, expired_cb);
+	init_expirer(&table->est_timer, est_timeout, true, expired_cb);
+	init_expirer(&table->trans_timer, trans_timeout, false, expired_cb);
 	spin_lock_init(&table->lock);
 	table->log_changes = DEFAULT_SESSION_LOGGING;
 }
@@ -526,7 +554,10 @@ static struct session_entry *add4(struct session_table *table,
 static void attach_timer(struct session_entry *session,
 		struct expire_timer *expirer)
 {
-	session->update_time = jiffies;
+	/*
+	 * Please do not override session->update_time here;
+	 * joold needs to define update time on its own.
+	 */
 	list_add_tail(&session->list_hook, &expirer->sessions);
 	session->expirer = expirer;
 }
@@ -540,14 +571,9 @@ static void attach_timer(struct session_entry *session,
  *     called).
  */
 int sessiontable_add(struct session_table *table, struct session_entry *session,
-		fate_cb cb, void *cb_arg)
+		fate_cb cb, void *cb_arg, bool est)
 {
-	struct expire_timer *expirer;
 	struct session_entry *collision;
-	bool est;
-
-	est = session->l4_proto != L4PROTO_TCP || session->state == ESTABLISHED;
-	expirer = est ? &table->est_timer : &table->trans_timer;
 
 	spin_lock_bh(&table->lock);
 
@@ -561,7 +587,7 @@ int sessiontable_add(struct session_table *table, struct session_entry *session,
 		goto exists;
 	}
 
-	attach_timer(session, expirer);
+	attach_timer(session, est ? &table->est_timer : &table->trans_timer);
 	session_get(session); /* Database's references. */
 	table->count++;
 
@@ -614,7 +640,7 @@ static struct rb_node *find_starting_point(struct session_table *table,
 	return (compare_full4(session, &offset) < 0) ? rb_next(parent) : parent;
 }
 
-static int __foreach(struct session_table *table,
+int sessiontable_foreach(struct session_table *table,
 		int (*func)(struct session_entry *, void *), void *arg,
 		const struct ipv4_transport_addr *offset_remote,
 		const struct ipv4_transport_addr *offset_local,
@@ -635,14 +661,6 @@ static int __foreach(struct session_table *table,
 
 	spin_unlock_bh(&table->lock);
 	return error;
-}
-
-int sessiontable_foreach(struct session_table *table,
-		int (*func)(struct session_entry *, void *), void *arg,
-		const struct ipv4_transport_addr *offset_remote,
-		const struct ipv4_transport_addr *offset_local)
-{
-	return __foreach(table, func, arg, offset_remote, offset_local, false);
 }
 
 int sessiontable_count(struct session_table *table, __u64 *result)
@@ -683,7 +701,7 @@ void sessiontable_delete_by_bib(struct session_table *table,
 			.l4 = 0,
 	};
 
-	__foreach(table, __rm_by_bib, &args, &remote, &bib->ipv4, true);
+	sessiontable_foreach(table, __rm_by_bib, &args, &remote, &bib->ipv4, 1);
 	delete(&args.removed);
 }
 
@@ -725,7 +743,7 @@ void sessiontable_rm_taddr4s(struct session_table *table,
 			.l4 = ports->min,
 	};
 
-	__foreach(table, __rm_taddr4s, &args, &remote, &local, true);
+	sessiontable_foreach(table, __rm_taddr4s, &args, &remote, &local, 1);
 	delete(&args.removed);
 }
 
@@ -818,6 +836,6 @@ void sessiontable_flush(struct session_table *table)
 			.removed = LIST_HEAD_INIT(args.removed),
 	};
 
-	__foreach(table, __flush, &args, NULL, NULL, 0);
+	sessiontable_foreach(table, __flush, &args, NULL, NULL, 0);
 	delete(&args.removed);
 }
