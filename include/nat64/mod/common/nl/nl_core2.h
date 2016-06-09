@@ -20,8 +20,6 @@
  * side should parse the data correctly because it is reasonable to expect
  * Jool's version to be the same.
  *
- * TODO did we include the magic number and module version in that message?
- *
  * The problem with that is the binary blob needs to be ready by the time the
  * attribute is written into the packet. This is never the case for responses
  * to --display. In fact, it is also not true for joold.

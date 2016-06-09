@@ -746,7 +746,7 @@ static const struct argp_option rfc6791v6_prefix_opt = {
 		.key = ARGP_RFC6791V6_PREFIX,
 		.arg = PREFIX6_FORMAT,
 		.flags = 0,
-		.doc = "Ipv6 prefix to be used as base for rfc6791v6 ip addresses.",
+		.doc = "IPv6 prefix to generate RFC6791v6 addresses from.",
 		.group = 0,
 };
 
@@ -885,7 +885,6 @@ static const struct argp_option *opts_nat64[] = {
 	&synch_flush_deadline_opt,
 	&synch_capacity_opt,
 	&synch_max_payload_opt,
-	/* TODO where's the 6791v6 prefix? */
 };
 
 struct argp_option *__build_opts(const struct argp_option **template,

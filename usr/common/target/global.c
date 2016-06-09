@@ -70,37 +70,27 @@ static char* print_allow_atomic_frags(struct global_config *conf)
 	return "Mixed";
 }
 
-static void print_rfc6791v6_prefix(struct full_config *config) {
-
+static void print_rfc6791v6_prefix(struct full_config *config)
+{
+	struct ipv6_prefix *prefix;
+	const char *str;
 	char buffer[INET6_ADDRSTRLEN];
 
 	if (config->global.siit.use_rfc6791_v6) {
-
-		inet_ntop(AF_INET6, &config->global.siit.rfc6791_v6_prefix, buffer, INET6_ADDRSTRLEN);
-		printf("  --%s: %s/%u\n", OPTNAME_RFC6791V6_PREFIX, buffer, config->global.siit.rfc6791_v6_prefix.len);
-
-	} else {
-		printf("  --%s: %s\n", OPTNAME_RFC6791V6_PREFIX,"(not set)");
-	}
-
-}
-
-
-static void print_csv_rfc6791v6_prefix(struct full_config *config) {
-
-	char buffer[INET6_ADDRSTRLEN];
-
-	if (config->global.siit.use_rfc6791_v6) {
-
-		inet_ntop(AF_INET6, &config->global.siit.rfc6791_v6_prefix, buffer, INET6_ADDRSTRLEN);
-		printf("  --%s: %s/%u\n", OPTNAME_RFC6791V6_PREFIX, buffer, config->global.siit.rfc6791_v6_prefix.len);
+		prefix = &config->global.siit.rfc6791_v6_prefix;
+		str = inet_ntop(AF_INET6, &prefix->address, buffer,
+				sizeof(buffer));
+		if (str)
+			printf("%s/%u", str, prefix->len);
+		else
+			perror("inet_ntop");
 
 	} else {
-		printf("  --%s: %s\n", OPTNAME_RFC6791V6_PREFIX,"(not set)");
+		printf("(not set)");
 	}
 
+	printf("\n");
 }
-
 
 static int handle_display_response(struct jool_response *response, void *arg)
 {
@@ -154,8 +144,7 @@ static int handle_display_response(struct jool_response *response, void *arg)
 				int_to_hairpin_mode(conf->global.siit.eam_hairpin_mode));
 		printf("  --%s: %s\n", OPTNAME_RANDOMIZE_RFC6791,
 				print_bool(conf->global.siit.randomize_error_addresses));
-
-
+		printf("  --%s: ", OPTNAME_RFC6791V6_PREFIX);
 		print_rfc6791v6_prefix(conf);
 
 	}
@@ -259,12 +248,12 @@ static int handle_display_response_csv(struct jool_response *response, void *arg
 	if (xlat_is_siit()) {
 		printf("%s,%s\n", OPTNAME_AMEND_UDP_CSUM,
 				print_csv_bool(global->siit.compute_udp_csum_zero));
-		printf("%s,%s\n", OPTNAME_RANDOMIZE_RFC6791,
-				print_csv_bool(global->siit.randomize_error_addresses));
 		printf("%s,%s\n", OPTNAME_EAM_HAIRPIN_MODE,
 				int_to_hairpin_mode(global->siit.eam_hairpin_mode));
-
-		print_csv_rfc6791v6_prefix(conf);
+		printf("%s,%s\n", OPTNAME_RANDOMIZE_RFC6791,
+				print_csv_bool(global->siit.randomize_error_addresses));
+		printf("%s,", OPTNAME_RFC6791V6_PREFIX);
+		print_rfc6791v6_prefix(conf);
 
 	} else {
 		printf("%s,%s\n", OPTNAME_DROP_BY_ADDR,

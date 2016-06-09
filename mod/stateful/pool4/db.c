@@ -494,15 +494,6 @@ int pool4db_add_str(struct pool4 *pool, char *prefix_strs[], int prefix_count)
 	return 0;
 }
 
-/*
- * TODO use this more.
- * (Note: Maybe you should bring the whole memmove in.)
- */
-static size_t remainder2(struct pool4_entry *entry, unsigned int i)
-{
-	return sizeof(struct port_range) * (entry->ports_len - i);
-}
-
 static int __rm_taddrs(struct pool4_entry *entry, struct ipv4_prefix *prefix,
 		struct port_range *rm)
 {
@@ -523,7 +514,8 @@ static int __rm_taddrs(struct pool4_entry *entry, struct ipv4_prefix *prefix,
 
 		if (rm->min <= ports->min && ports->max <= rm->max) {
 			entry->taddr_count -= port_range_count(ports);
-			memmove(ports, ports + 1, remainder2(entry, i));
+			memmove(ports, ports + 1, sizeof(struct port_range)
+					* (entry->ports_len - i));
 			entry->ports_len--;
 			i--;
 			continue;
@@ -894,10 +886,10 @@ int pool4db_foreach_sample(struct pool4 *pool, l4_protocol proto,
 	sample.proto = proto;
 
 	if (offset) {
-		/* TODO error msg? */
 		table = find_by_mark(tree, offset->mark);
 		if (!table) {
-			error = -ESRCH;
+			log_err("Oops. Pool4 changed while I was iterating so I lost track of where I was. Try again.");
+			error = -EAGAIN;
 			goto end;
 		}
 		error = find_offset(offset, table, &entry, &ports);
