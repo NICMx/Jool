@@ -6,3 +6,5 @@ at the root directory. You can tell make which modules to compile as parameters.
 After compiling the modules, run the test.sh script.
 
 You can also clean the directories by running make clean.
+
+**The tests need to be in a space-free directory, otherwise they will cryptically refuse to compile!!!**

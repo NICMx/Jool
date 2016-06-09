@@ -1,6 +1,7 @@
 #include <linux/module.h>
 #include "nat64/unit/unit_test.h"
-#include "session/table.c"
+#include "nat64/common/constants.h"
+#include "nat64/mod/stateful/session/table.h"
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Alberto Leiva");
@@ -40,7 +41,7 @@ static bool inject(unsigned int index, __u32 local4addr, __u16 local4id,
 	if (!entries[index])
 		return false;
 
-	error = sessiontable_add(&table, entries[index], NULL, NULL);
+	error = sessiontable_add(&table, entries[index], NULL, NULL, true);
 	if (error) {
 		log_err("Errcode %d on sessiontable_add.", error);
 		session_put(entries[index], true);
@@ -114,21 +115,21 @@ static bool test_foreach(void)
 	/* Empty table, no offset. */
 	args.i = 0;
 	args.offset = 0;
-	error = __foreach(&table, cb, &args, NULL, NULL, 0);
+	error = sessiontable_foreach(&table, cb, &args, NULL, NULL, 0);
 	success &= ASSERT_INT(0, error, "call 1 result");
 	success &= ASSERT_UINT(0, args.i, "call 1 counter");
 
 	/* Empty table, offset, include offset, offset not found. */
 	args.i = 0;
 	args.offset = 0;
-	error = __foreach(&table, cb, &args, &remote, &local, true);
+	error = sessiontable_foreach(&table, cb, &args, &remote, &local, true);
 	success &= ASSERT_INT(0, error, "call 2 result");
 	success &= ASSERT_UINT(0, args.i, "call 2 counter");
 
 	/* Empty table, offset, do not include offset, offset not found. */
 	args.i = 0;
 	args.offset = 0;
-	error = __foreach(&table, cb, &args, &remote, &local, false);
+	error = sessiontable_foreach(&table, cb, &args, &remote, &local, false);
 	success &= ASSERT_INT(0, error, "call 3 result");
 	success &= ASSERT_UINT(0, args.i, "call 3 counter");
 
@@ -140,14 +141,14 @@ static bool test_foreach(void)
 	/* Populated table, no offset. */
 	args.i = 0;
 	args.offset = 0;
-	error = __foreach(&table, cb, &args, NULL, NULL, 0);
+	error = sessiontable_foreach(&table, cb, &args, NULL, NULL, 0);
 	success &= ASSERT_INT(0, error, "call 4 result");
 	success &= ASSERT_UINT(9, args.i, "call 4 counter");
 
 	/* Populated table, offset, include offset, offset found. */
 	args.i = 0;
 	args.offset = 4;
-	error = __foreach(&table, cb, &args, &remote, &local, true);
+	error = sessiontable_foreach(&table, cb, &args, &remote, &local, true);
 	success &= ASSERT_INT(0, error, "call 5 result");
 	success &= ASSERT_UINT(5, args.i, "call 5 counter");
 
@@ -155,7 +156,7 @@ static bool test_foreach(void)
 	args.i = 0;
 	args.offset = 5;
 	remote.l4 = 1250;
-	error = __foreach(&table, cb, &args, &remote, &local, true);
+	error = sessiontable_foreach(&table, cb, &args, &remote, &local, true);
 	success &= ASSERT_INT(0, error, "call 6 result");
 	success &= ASSERT_UINT(4, args.i, "call 6 counter");
 
@@ -163,7 +164,7 @@ static bool test_foreach(void)
 	args.i = 0;
 	args.offset = 5;
 	remote.l4 = 1200;
-	error = __foreach(&table, cb, &args, &remote, &local, false);
+	error = sessiontable_foreach(&table, cb, &args, &remote, &local, false);
 	success &= ASSERT_INT(0, error, "call 7 result");
 	success &= ASSERT_UINT(4, args.i, "call 7 counter");
 
@@ -171,7 +172,7 @@ static bool test_foreach(void)
 	args.i = 0;
 	args.offset = 5;
 	remote.l4 = 1250;
-	error = __foreach(&table, cb, &args, &remote, &local, false);
+	error = sessiontable_foreach(&table, cb, &args, &remote, &local, false);
 	success &= ASSERT_INT(0, error, "call 8 result");
 	success &= ASSERT_UINT(4, args.i, "call 8 counter");
 
@@ -185,13 +186,13 @@ static bool test_foreach(void)
 
 	args.i = 0;
 	args.offset = 0;
-	error = __foreach(&table, cb, &args, &remote, &local, true);
+	error = sessiontable_foreach(&table, cb, &args, &remote, &local, true);
 	success &= ASSERT_INT(0, error, "call 9 result");
 	success &= ASSERT_UINT(9, args.i, "call 9 counter");
 
 	/* Offset is before first, do not include offset. */
 	args.i = 0;
-	error = __foreach(&table, cb, &args, &remote, &local, false);
+	error = sessiontable_foreach(&table, cb, &args, &remote, &local, false);
 	success &= ASSERT_INT(0, error, "call 10 result");
 	success &= ASSERT_UINT(9, args.i, "call 10 counter");
 
@@ -199,14 +200,14 @@ static bool test_foreach(void)
 	remote.l4 = 1300;
 
 	args.i = 0;
-	error = __foreach(&table, cb, &args, &remote, &local, true);
+	error = sessiontable_foreach(&table, cb, &args, &remote, &local, true);
 	success &= ASSERT_INT(0, error, "call 11 result");
 	success &= ASSERT_UINT(9, args.i, "call 11 counter");
 
 	/* Offset is first, do not include offset. */
 	args.i = 0;
 	args.offset = 1;
-	error = __foreach(&table, cb, &args, &remote, &local, false);
+	error = sessiontable_foreach(&table, cb, &args, &remote, &local, false);
 	success &= ASSERT_INT(0, error, "call 12 result");
 	success &= ASSERT_UINT(8, args.i, "call 12 counter");
 
@@ -218,13 +219,13 @@ static bool test_foreach(void)
 
 	args.i = 0;
 	args.offset = 8;
-	error = __foreach(&table, cb, &args, &remote, &local, true);
+	error = sessiontable_foreach(&table, cb, &args, &remote, &local, true);
 	success &= ASSERT_INT(0, error, "call 13 result");
 	success &= ASSERT_UINT(1, args.i, "call 13 counter");
 
 	/* Offset is last, do not include offset. */
 	args.i = 0;
-	error = __foreach(&table, cb, &args, &remote, &local, false);
+	error = sessiontable_foreach(&table, cb, &args, &remote, &local, false);
 	success &= ASSERT_INT(0, error, "call 14 result");
 	success &= ASSERT_UINT(0, args.i, "call 14 counter");
 
@@ -232,13 +233,13 @@ static bool test_foreach(void)
 	remote.l4 = 1200;
 
 	args.i = 0;
-	error = __foreach(&table, cb, &args, &remote, &local, true);
+	error = sessiontable_foreach(&table, cb, &args, &remote, &local, true);
 	success &= ASSERT_INT(0, error, "call 15 result");
 	success &= ASSERT_UINT(0, args.i, "call 15 counter");
 
 	/* Offset is after last, do not include offset. */
 	args.i = 0;
-	error = __foreach(&table, cb, &args, &remote, &local, false);
+	error = sessiontable_foreach(&table, cb, &args, &remote, &local, false);
 	success &= ASSERT_INT(0, error, "call 16 result");
 	success &= ASSERT_UINT(0, args.i, "call 16 counter");
 
