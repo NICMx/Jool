@@ -277,7 +277,7 @@ bool eamt_contains6(struct eam_table *eamt, struct in6_addr *addr)
 	return rtrie_contains(&eamt->trie6, &key);
 }
 
-bool eamt_contains4(struct eam_table *eamt, __u32 addr)
+bool eamt_contains4(struct eam_table *eamt, __be32 addr)
 {
 	struct in_addr tmp = { .s_addr = addr };
 	struct rtrie_key key = ADDR_TO_KEY(&tmp);

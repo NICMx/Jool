@@ -10,7 +10,6 @@
 #include <linux/net.h>
 #include "nat64/common/types.h"
 #include "nat64/mod/common/config.h"
-#include "nat64/mod/stateful/pool4/entry.h"
 
 struct pool4;
 
@@ -39,8 +38,6 @@ bool pool4db_contains(struct pool4 *pool, struct net *ns,
 		enum l4_protocol proto, struct ipv4_transport_addr *addr);
 /* This doesn't need to be public now. */
 /* bool pool4db_is_empty(struct pool4 *pool); */
-void pool4db_count(struct pool4 *pool, __u32 *tables, __u64 *samples,
-		__u64 *taddrs);
 
 int pool4db_foreach_sample(struct pool4 *pool, l4_protocol proto,
 		int (*cb)(struct pool4_sample *, void *), void *arg,
@@ -49,5 +46,7 @@ int pool4db_foreach_taddr4(struct pool4 *pool, struct net *ns,
 		struct in_addr *daddr, __u8 tos, __u8 proto, __u32 mark,
 		int (*func)(struct ipv4_transport_addr *, void *), void *arg,
 		unsigned int offset);
+
+void pool4db_print(struct pool4 *pool);
 
 #endif /* _JOOL_MOD_POOL4_DB_H */

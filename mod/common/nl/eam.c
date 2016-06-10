@@ -85,7 +85,7 @@ static int handle_eamt_flush(struct eam_table *eamt)
 
 int handle_eamt_config(struct xlator *jool, struct genl_info *info)
 {
-	struct request_hdr *jool_hdr;
+	struct request_hdr *hdr;
 	union request_eamt *request;
 	int error;
 
@@ -94,14 +94,14 @@ int handle_eamt_config(struct xlator *jool, struct genl_info *info)
 		return nlcore_respond(info, -EINVAL);
 	}
 
-	jool_hdr = get_jool_hdr(info);
-	request = (union request_eamt *)(jool_hdr + 1);
+	hdr = get_jool_hdr(info);
+	request = (union request_eamt *)(hdr + 1);
 
 	error = validate_request_size(info, sizeof(*request));
 	if (error)
 		return nlcore_respond(info, error);
 
-	switch (jool_hdr->operation) {
+	switch (be16_to_cpu(hdr->operation)) {
 	case OP_DISPLAY:
 		return handle_eamt_display(jool->siit.eamt, info, request);
 	case OP_COUNT:
@@ -116,7 +116,7 @@ int handle_eamt_config(struct xlator *jool, struct genl_info *info)
 		error = handle_eamt_flush(jool->siit.eamt);
 		break;
 	default:
-		log_err("Unknown operation: %d", jool_hdr->operation);
+		log_err("Unknown operation: %u", be16_to_cpu(hdr->operation));
 		error = -EINVAL;
 	}
 

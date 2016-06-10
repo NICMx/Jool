@@ -79,8 +79,8 @@ static int handle_addr4pool_flush(struct addr4_pool *pool)
 
 static int handle_addr4pool(struct addr4_pool *pool, struct genl_info *info)
 {
-	struct request_hdr *jool_hdr = get_jool_hdr(info);
-	union request_pool *request = (union request_pool *)(jool_hdr + 1);
+	struct request_hdr *hdr = get_jool_hdr(info);
+	union request_pool *request = (union request_pool *)(hdr + 1);
 	int error;
 
 	if (xlat_is_nat64()) {
@@ -92,7 +92,7 @@ static int handle_addr4pool(struct addr4_pool *pool, struct genl_info *info)
 	if (error)
 		return nlcore_respond(info, error);
 
-	switch (jool_hdr->operation) {
+	switch (be16_to_cpu(hdr->operation)) {
 	case OP_DISPLAY:
 		return handle_addr4pool_display(pool, info, request);
 	case OP_COUNT:
@@ -107,7 +107,7 @@ static int handle_addr4pool(struct addr4_pool *pool, struct genl_info *info)
 		error = handle_addr4pool_flush(pool);
 		break;
 	default:
-		log_err("Unknown operation: %d", jool_hdr->operation);
+		log_err("Unknown operation: %u", be16_to_cpu(hdr->operation));
 		error = -EINVAL;
 	}
 

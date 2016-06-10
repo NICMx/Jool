@@ -179,8 +179,8 @@ static int handle_bib_rm(struct xlator *jool, struct request_bib *request)
 
 int handle_bib_config(struct xlator *jool, struct genl_info *info)
 {
-	struct request_hdr *jool_hdr = get_jool_hdr(info);
-	struct request_bib *request = (struct request_bib *)(jool_hdr + 1);
+	struct request_hdr *hdr = get_jool_hdr(info);
+	struct request_bib *request = (struct request_bib *)(hdr + 1);
 	int error;
 
 	if (xlat_is_siit()) {
@@ -192,7 +192,7 @@ int handle_bib_config(struct xlator *jool, struct genl_info *info)
 	if (error)
 		return nlcore_respond(info, error);
 
-	switch (jool_hdr->operation) {
+	switch (be16_to_cpu(hdr->operation)) {
 	case OP_DISPLAY:
 		return handle_bib_display(jool->nat64.bib, info, request);
 	case OP_COUNT:
@@ -204,7 +204,7 @@ int handle_bib_config(struct xlator *jool, struct genl_info *info)
 		error = handle_bib_rm(jool, request);
 		break;
 	default:
-		log_err("Unknown operation: %d", jool_hdr->operation);
+		log_err("Unknown operation: %u", be16_to_cpu(hdr->operation));
 		error = -EINVAL;
 	}
 

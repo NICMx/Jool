@@ -102,33 +102,11 @@ int pool4_display(bool csv)
 	return 0;
 }
 
-static int pool4_count_response(struct jool_response *response, void *arg)
-{
-	struct response_pool4_count *counts;
-
-	if (response->payload_len != sizeof(struct response_pool4_count)) {
-		log_err("Jool's response is not a bunch of integers.");
-		return -EINVAL;
-	}
-
-	counts = response->payload;
-	printf("tables: %u\n", counts->tables);
-	printf("samples: %llu\n", counts->samples);
-	printf("transport addresses: %llu\n", counts->taddrs);
-
-	return 0;
-}
-
 int pool4_count(void)
 {
-	unsigned char request[HDR_LEN + PAYLOAD_LEN];
-	struct request_hdr *hdr = (struct request_hdr *)request;
-	union request_pool4 *payload = (union request_pool4 *)(request + HDR_LEN);
-
-	init_request_hdr(hdr, MODE_POOL4, OP_COUNT);
-	memset(payload, 0, sizeof(*payload));
-
-	return netlink_request(&request, sizeof(request), pool4_count_response, NULL);
+	log_err("Sorry; --pool4 --count is not implemented anymore.");
+	log_err("See https://github.com/NICMx/pool4-usage-analyzer");
+	return -EINVAL;
 }
 
 static int __add(__u32 mark, enum l4_protocol proto,

@@ -14,7 +14,7 @@ MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Alberto Leiva Popper");
 MODULE_DESCRIPTION("Translating the Packet module test.");
 
-struct global_configuration *config;
+static struct global_configuration *config;
 
 static bool test_function_has_unexpired_src_route(void)
 {
@@ -607,7 +607,7 @@ static bool test_6to4_custom_payload(l4_protocol l4_proto,
 	if (!result)
 		goto end;
 
-	result = ASSERT_BE16(0xFFFFU, pkt_udp_hdr(&state.out)->check, "checksum test");
+	result = ASSERT_BE16(0xFFFFU, (__force __be16)pkt_udp_hdr(&state.out)->check, "checksum test");
 	/* Fall through. */
 
 end:

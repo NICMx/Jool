@@ -3,6 +3,7 @@
 #include "nat64/mod/stateless/blacklist4.h"
 #include "nat64/mod/stateless/eam.h"
 #include "nat64/mod/stateless/rfc6791.h"
+#include "nat64/mod/stateless/rfc6791v6.h"
 
 /**
  * @file

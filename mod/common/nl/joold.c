@@ -19,7 +19,7 @@ int handle_joold_request(struct xlator *jool, struct genl_info *info)
 
 	hdr = get_jool_hdr(info);
 
-	switch (hdr->operation) {
+	switch (be16_to_cpu(hdr->operation)) {
 	case OP_ADD:
 		total_len = nla_len(info->attrs[ATTR_DATA]);
 		error = joold_sync(jool, hdr + 1, total_len - sizeof(*hdr));
@@ -41,7 +41,7 @@ int handle_joold_request(struct xlator *jool, struct genl_info *info)
 		joold_ack(jool);
 		return 0; /* Do not ack the ack! */
 	default:
-		log_err("Unknown operation: %d", hdr->operation);
+		log_err("Unknown operation: %u", be16_to_cpu(hdr->operation));
 		error = -EINVAL;
 	}
 

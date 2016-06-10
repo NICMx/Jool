@@ -12,7 +12,7 @@ MODULE_DESCRIPTION("Unit tests for the Filtering module");
 #include "nat64/unit/skb_generator.h"
 #include "filtering_and_updating.c"
 
-struct xlator jool;
+static struct xlator jool;
 
 static int bib_count_fn(struct bib_entry *bib, void *arg)
 {

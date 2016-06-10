@@ -30,7 +30,7 @@ static bool addr_count_test(void)
 	success &= test_count(3, 0x20000000U);
 	success &= test_count(2, 0x40000000U);
 	success &= test_count(1, 0x80000000U);
-	success &= test_count(0, 0x100000000U);
+	success &= test_count(0, 0x100000000UL);
 
 	return success;
 }

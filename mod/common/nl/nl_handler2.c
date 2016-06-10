@@ -54,9 +54,9 @@ static DEFINE_MUTEX(config_mutex);
 
 static int multiplex_request(struct xlator *jool, struct genl_info *info)
 {
-	struct request_hdr *jool_hdr = get_jool_hdr(info);
+	struct request_hdr *hdr = get_jool_hdr(info);
 
-	switch (jool_hdr->mode) {
+	switch (be16_to_cpu(hdr->mode)) {
 	case MODE_POOL6:
 		return handle_pool6_config(jool, info);
 	case MODE_POOL4:
@@ -83,7 +83,7 @@ static int multiplex_request(struct xlator *jool, struct genl_info *info)
 		return handle_instance_request(info);
 	}
 
-	log_err("Unknown configuration mode: %d", jool_hdr->mode);
+	log_err("Unknown configuration mode: %d", be16_to_cpu(hdr->mode));
 	return nlcore_respond(info, -EINVAL);
 }
 
@@ -102,7 +102,7 @@ static int __handle_jool_message(struct genl_info *info)
 	if (error)
 		return error; /* client is not Jool, so don't answer. */
 
-	if (get_jool_hdr(info)->mode == MODE_INSTANCE)
+	if (be16_to_cpu(get_jool_hdr(info)->mode) == MODE_INSTANCE)
 		return handle_instance_request(info);
 
 	error = xlator_find_current(&translator);

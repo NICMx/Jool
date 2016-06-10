@@ -78,7 +78,7 @@ static int handle_session_count(struct sessiondb *db, struct genl_info *info,
 
 int handle_session_config(struct xlator *jool, struct genl_info *info)
 {
-	struct request_hdr *jool_hdr;
+	struct request_hdr *hdr;
 	struct request_session *request;
 	int error;
 
@@ -87,20 +87,20 @@ int handle_session_config(struct xlator *jool, struct genl_info *info)
 		return nlcore_respond(info, -EINVAL);
 	}
 
-	jool_hdr = get_jool_hdr(info);
-	request = (struct request_session *)(jool_hdr + 1);
+	hdr = get_jool_hdr(info);
+	request = (struct request_session *)(hdr + 1);
 
 	error = validate_request_size(info, sizeof(*request));
 	if (error)
 		return nlcore_respond(info, error);
 
-	switch (jool_hdr->operation) {
+	switch (be16_to_cpu(hdr->operation)) {
 	case OP_DISPLAY:
 		return handle_session_display(jool->nat64.session, info, request);
 	case OP_COUNT:
 		return handle_session_count(jool->nat64.session, info, request);
 	}
 
-	log_err("Unknown operation: %d", jool_hdr->operation);
+	log_err("Unknown operation: %u", be16_to_cpu(hdr->operation));
 	return nlcore_respond(info, -EINVAL);
 }

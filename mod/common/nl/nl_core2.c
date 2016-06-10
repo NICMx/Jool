@@ -81,7 +81,7 @@ static int respond_single_msg(struct genl_info *info, struct nlcore_buffer *buff
 #endif
 
 	msg_head = genlmsg_put(skb, portid, info->nlhdr->nlmsg_seq, family, 0,
-			get_jool_hdr(info)->mode);
+			be16_to_cpu(get_jool_hdr(info)->mode));
 	if (!msg_head) {
 		pr_err("genlmsg_put() failed.\n");
 		kfree_skb(skb);
@@ -111,7 +111,7 @@ size_t nlbuffer_response_max_size(void)
 	return NLBUFFER_MAX_PAYLOAD - sizeof(struct response_hdr);
 }
 
-int __nlbuffer_init(struct nlcore_buffer *buffer, size_t capacity)
+static int __nlbuffer_init(struct nlcore_buffer *buffer, size_t capacity)
 {
 	if (WARN(capacity > NLBUFFER_MAX_PAYLOAD, "Message size is too big.")) {
 		log_err("Message size is too big. (%zu > %zu)", capacity,

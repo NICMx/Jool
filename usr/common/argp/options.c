@@ -744,7 +744,7 @@ static const struct argp_option synch_max_payload_opt = {
 static const struct argp_option rfc6791v6_prefix_opt = {
 		.name = "rfc6791v6-prefix",
 		.key = ARGP_RFC6791V6_PREFIX,
-		.arg = PREFIX6_FORMAT,
+		.arg = OPTIONAL_PREFIX6_FORMAT,
 		.flags = 0,
 		.doc = "IPv6 prefix to generate RFC6791v6 addresses from.",
 		.group = 0,
@@ -763,7 +763,6 @@ static const struct argp_option *opts_siit[] = {
 #endif
 	&parse_file_opt,
 	&instance_opt,
-	&rfc6791v6_prefix_opt,
 
 	&operations_hdr_opt,
 	&display_opt,
@@ -791,6 +790,7 @@ static const struct argp_option *opts_siit[] = {
 	&csum_fix_opt,
 	&hairpin_mode_opt,
 	&random_pool6791_opt,
+	&rfc6791v6_prefix_opt,
 
 	&deprecated_hdr_opt,
 	&atomic_frags_opt,
@@ -923,6 +923,7 @@ static const struct argp_option *opts_global_siit[] = {
 	&csum_fix_opt,
 	&hairpin_mode_opt,
 	&random_pool6791_opt,
+	&rfc6791v6_prefix_opt,
 };
 
 static const struct argp_option *opts_global_nat64[] = {

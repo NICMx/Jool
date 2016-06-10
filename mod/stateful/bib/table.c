@@ -118,7 +118,7 @@ static bool rm(struct bib_table *table, struct bib_entry *bib, bool lock)
  * Returns 1 if @bib was removed from its table, 0 otherwise.
  * Note that this doesn't mean the entry was released from memory.
  */
-int __bibentry_put_db(struct bib_entry *bib, bool lock)
+static int __bibentry_put_db(struct bib_entry *bib, bool lock)
 {
 	bool removed = false;
 

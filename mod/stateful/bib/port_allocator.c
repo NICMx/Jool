@@ -54,7 +54,7 @@ void palloc_destroy(void)
 	__wkfree("Secret key", secret_key);
 }
 
-void build_scatterlist(const struct tuple *tuple6, __u16 f_args,
+static void build_scatterlist(const struct tuple *tuple6, __u16 f_args,
 		struct scatterlist *sg, unsigned int *sg_len)
 {
 	unsigned int sg_index;
@@ -127,7 +127,7 @@ static int f(const struct tuple *tuple6, __u8 fields, unsigned int *result)
 		goto unlock;
 	}
 
-	*result = md5_result.as32[3];
+	*result = be32_to_cpu(md5_result.as32[3]);
 	/* Fall through. */
 
 unlock:

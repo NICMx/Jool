@@ -53,7 +53,7 @@ static char *int_to_hairpin_mode(enum eam_hairpinning_mode mode)
 	return "unknown";
 }
 
-static char* print_allow_atomic_frags(struct global_config *conf)
+static char* atomic_frags_to_string(struct global_config *conf)
 {
 	if (!conf->atomic_frags.df_always_on
 			&& !conf->atomic_frags.build_ipv6_fh
@@ -70,7 +70,7 @@ static char* print_allow_atomic_frags(struct global_config *conf)
 	return "Mixed";
 }
 
-static void print_rfc6791v6_prefix(struct full_config *config)
+static void print_rfc6791v6_prefix(struct full_config *config, bool csv)
 {
 	struct ipv6_prefix *prefix;
 	const char *str;
@@ -86,7 +86,8 @@ static void print_rfc6791v6_prefix(struct full_config *config)
 			perror("inet_ntop");
 
 	} else {
-		printf("(not set)");
+		if (!csv)
+			printf("(not set)");
 	}
 
 	printf("\n");
@@ -145,15 +146,13 @@ static int handle_display_response(struct jool_response *response, void *arg)
 		printf("  --%s: %s\n", OPTNAME_RANDOMIZE_RFC6791,
 				print_bool(conf->global.siit.randomize_error_addresses));
 		printf("  --%s: ", OPTNAME_RFC6791V6_PREFIX);
-		print_rfc6791v6_prefix(conf);
+		print_rfc6791v6_prefix(conf, false);
 
 	}
 	printf("\n");
 
-	printf("  --%s: ", OPTNAME_ALLOW_ATOMIC_FRAGS);
-	print_allow_atomic_frags(&conf->global);
-	printf("\n");
-
+	printf("  --%s: %s\n", OPTNAME_ALLOW_ATOMIC_FRAGS,
+			atomic_frags_to_string(&conf->global));
 	printf("    --%s: %s\n", OPTNAME_DF_ALWAYS_ON,
 			print_bool(conf->global.atomic_frags.df_always_on));
 	printf("    --%s: %s\n", OPTNAME_GENERATE_FH,
@@ -230,7 +229,7 @@ static int handle_display_response_csv(struct jool_response *response, void *arg
 	printf("%s,%u\n", OPTNAME_TOS, global->new_tos);
 
 	printf("%s,%s\n", OPTNAME_ALLOW_ATOMIC_FRAGS,
-			print_allow_atomic_frags(global));
+			atomic_frags_to_string(global));
 	printf("%s,%s\n", OPTNAME_DF_ALWAYS_ON,
 			print_csv_bool(global->atomic_frags.df_always_on));
 	printf("%s,%s\n", OPTNAME_GENERATE_FH,
@@ -253,7 +252,7 @@ static int handle_display_response_csv(struct jool_response *response, void *arg
 		printf("%s,%s\n", OPTNAME_RANDOMIZE_RFC6791,
 				print_csv_bool(global->siit.randomize_error_addresses));
 		printf("%s,", OPTNAME_RFC6791V6_PREFIX);
-		print_rfc6791v6_prefix(conf);
+		print_rfc6791v6_prefix(conf, true);
 
 	} else {
 		printf("%s,%s\n", OPTNAME_DROP_BY_ADDR,

@@ -96,18 +96,18 @@ enum config_operation {
 	OP_COUNT = (1 << 1),
 	/** The userspace app wants to add an element to the table being requested. */
 	OP_ADD = (1 << 2),
-	/* The userspace app wants to edit some value. */
+	/** The userspace app wants to edit some value. */
 	OP_UPDATE = (1 << 3),
 	/** The userspace app wants to delete an element from the table being requested. */
 	OP_REMOVE = (1 << 4),
-	/* The userspace app wants to clear some table. */
+	/** The userspace app wants to clear some table. */
 	OP_FLUSH = (1 << 5),
-
+	/** The userspace app wants us to shout something somewhere. */
 	OP_ADVERTISE = (1 << 6),
-
+	/** The userspace app wants to test something. */
 	OP_TEST = (1 << 7),
-	/* TODO not a bitfield? something's probably going to break. */
-	OP_ACK = 9
+	/** Somebody is acknowledging a previous message. */
+	OP_ACK = (1 << 8),
 };
 
 enum parse_section {
@@ -153,9 +153,9 @@ enum parse_section {
  */
 struct request_hdr {
 	/** Protocol magic header (always "jool"). */
-	char magic[4];
+	__u8 magic[4];
 	/** Translation type (SIIT or NAT64) */
-	char type;
+	__u8 type;
 	/**
 	 * 'u'nicast or 'm'ulticast. Only userspace joold needs it, so most of
 	 * the time this field is ignored.
@@ -164,13 +164,21 @@ struct request_hdr {
 	 * kernel packet is a multicast request or a unicast response.
 	 * TODO (fine) Find a way to do that?
 	 */
-	char castness;
+	__u8 castness;
+
+	/**
+	 * http://www.catb.org/esr/structure-packing/
+	 * Explicit unused space for future functionality and to ensure
+	 * sizeof(struct request_hdr) is a power of 2.
+	 */
+	__be16 slop;
+
 	/** Jool's version. */
-	__u32 version;
+	__be32 version;
 	/** See "enum config_mode". */
-	__u16 mode;
+	__be16 mode;
 	/** See "enum config_operation". */
-	__u8 operation;
+	__be16 operation;
 };
 
 void init_request_hdr(struct request_hdr *hdr, enum config_mode mode,
@@ -413,12 +421,6 @@ enum global_type {
 	SYNCH_CAPACITY,
 	SYNCH_MAX_PAYLOAD,
 	RFC6791V6_PREFIX
-};
-
-struct response_pool4_count {
-	__u32 tables;
-	__u64 samples;
-	__u64 taddrs;
 };
 
 #ifdef BENCHMARK

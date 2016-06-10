@@ -97,18 +97,10 @@ static int handle_pool4_flush(struct xlator *jool, struct genl_info *info,
 	return nlcore_respond(info, 0);
 }
 
-static int handle_pool4_count(struct pool4 *pool, struct genl_info *info)
-{
-	struct response_pool4_count counts;
-	log_debug("Returning pool4 counters.");
-	pool4db_count(pool, &counts.tables, &counts.samples, &counts.taddrs);
-	return nlcore_respond_struct(info, &counts, sizeof(counts));
-}
-
 int handle_pool4_config(struct xlator *jool, struct genl_info *info)
 {
-	struct request_hdr *jool_hdr = get_jool_hdr(info);
-	union request_pool4 *request = (union request_pool4 *)(jool_hdr + 1);
+	struct request_hdr *hdr = get_jool_hdr(info);
+	union request_pool4 *request = (union request_pool4 *)(hdr + 1);
 	int error;
 
 	if (xlat_is_siit()) {
@@ -120,11 +112,9 @@ int handle_pool4_config(struct xlator *jool, struct genl_info *info)
 	if (error)
 		return nlcore_respond(info, error);
 
-	switch (jool_hdr->operation) {
+	switch (be16_to_cpu(hdr->operation)) {
 	case OP_DISPLAY:
 		return handle_pool4_display(jool->nat64.pool4, info, request);
-	case OP_COUNT:
-		return handle_pool4_count(jool->nat64.pool4, info);
 	case OP_ADD:
 		return handle_pool4_add(jool->nat64.pool4, info, request);
 	case OP_REMOVE:
@@ -133,6 +123,6 @@ int handle_pool4_config(struct xlator *jool, struct genl_info *info)
 		return handle_pool4_flush(jool, info, request);
 	}
 
-	log_err("Unknown operation: %d", jool_hdr->operation);
+	log_err("Unknown operation: %u", be16_to_cpu(hdr->operation));
 	return nlcore_respond(info, -EINVAL);
 }

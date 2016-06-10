@@ -279,57 +279,37 @@ static int parse_nat64_json(cJSON *json)
 static int write_bool(struct nl_buffer *buffer, enum global_type type,
 		cJSON *json)
 {
-	struct global_value *chunk;
-	size_t size;
+	struct {
+		struct global_value hdr;
+		__u8 payload;
+	} msg;
 	int error;
 
-	size = sizeof(struct global_value) + sizeof(__u8);
-	chunk = malloc(size);
-	if (!chunk) {
-		log_err("Out of memory.");
-		return -ENOMEM;
-	}
-
-	chunk->type = type;
-	chunk->len = size;
-	error = str_to_bool(json->valuestring, (__u8 *)(chunk + 1));
+	msg.hdr.type = type;
+	msg.hdr.len = sizeof(msg);
+	error = str_to_bool(json->valuestring, &msg.payload);
 	if (error)
-		goto end;
+		return error;
 
-	error = buffer_write(buffer, chunk, size, SEC_GLOBAL);
-	/* Fall through. */
-
-end:
-	free(chunk);
-	return error;
+	return buffer_write(buffer, &msg, msg.hdr.len, SEC_GLOBAL);
 }
 
 static int write_number(struct nl_buffer *buffer, enum global_type type,
 		cJSON *json)
 {
-	struct global_value *chunk;
-	size_t size;
+	struct {
+		struct global_value hdr;
+		__u64 payload;
+	} msg;
 	int error;
 
-	size = sizeof(struct global_value) + sizeof(__u64);
-	chunk = malloc(size);
-	if (!chunk) {
-		log_err("Out of memory.");
-		return -ENOMEM;
-	}
-
-	chunk->type = type;
-	chunk->len = size;
-	error = str_to_u64(json->valuestring, (__u64 *)(chunk + 1), 0, MAX_U64);
+	msg.hdr.type = type;
+	msg.hdr.len = sizeof(msg);
+	error = str_to_u64(json->valuestring, &msg.payload, 0, MAX_U64);
 	if (error)
-		goto end;
+		return error;
 
-	error = buffer_write(buffer, chunk, size, SEC_GLOBAL);
-	/* Fall through. */
-
-end:
-	free(chunk);
-	return error;
+	return buffer_write(buffer, &msg, msg.hdr.len, SEC_GLOBAL);
 }
 
 static int write_plateaus(struct nl_buffer *buffer, cJSON *root)
@@ -377,6 +357,28 @@ end:
 	return error;
 }
 
+static int write_optional_prefix6(struct nl_buffer *buffer,
+		enum global_type type, cJSON *json)
+{
+	struct {
+		struct global_value hdr;
+		struct ipv6_prefix payload;
+	} msg;
+	int error;
+
+	msg.hdr.type = type;
+	if (strcmp(json->valuestring, "clear") != 0) {
+		msg.hdr.len = sizeof(msg);
+		error = str_to_prefix6(json->valuestring, &msg.payload);
+		if (error)
+			return error;
+	} else {
+		msg.hdr.len = sizeof(msg.hdr);
+	}
+
+	return buffer_write(buffer, &msg, msg.hdr.len, SEC_GLOBAL);
+}
+
 static int write_field(cJSON *json, struct argp_option *opt,
 		struct nl_buffer *buffer)
 {
@@ -386,6 +388,8 @@ static int write_field(cJSON *json, struct argp_option *opt,
 		return write_number(buffer, opt->key, json);
 	} else if (strcmp(opt->arg, NUM_ARRAY_FORMAT) == 0) {
 		return write_plateaus(buffer, json);
+	} else if (strcmp(opt->arg, OPTIONAL_PREFIX6_FORMAT) == 0) {
+		return write_optional_prefix6(buffer, opt->key, json);
 	}
 
 	log_err("Unimplemented data type: %s", opt->arg);

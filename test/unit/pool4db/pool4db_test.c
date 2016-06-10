@@ -14,8 +14,8 @@ MODULE_DESCRIPTION("IPv4 pool DB module test");
  * Ideally, each test would have its own pointers, but that floods argument
  * lists.
  */
-struct pool4 *pool;
-struct net *ns;
+static struct pool4 *pool;
+static struct net *ns;
 
 /**
  * add - Boilerplate code to add an entry to the pool during the tests.

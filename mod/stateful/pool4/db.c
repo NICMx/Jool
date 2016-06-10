@@ -815,29 +815,6 @@ end:
 	return found;
 }
 
-void pool4db_count(struct pool4 *pool, __u32 *tables_out, __u64 *samples,
-		__u64 *taddrs)
-{
-//	TODO
-//	struct hlist_head *db;
-//	struct hlist_node *node;
-//	unsigned int i;
-
-	(*tables_out) = 0;
-	(*samples) = 0;
-	(*taddrs) = 0;
-
-//	rcu_read_lock_bh();
-//	db = rcu_dereference_bh(pool->db);
-//	for (i = 0; i < slots(pool); i++) {
-//		hlist_for_each_rcu_bh(node, &db[i]) {
-//			(*tables_out)++;
-//			pool4table_count(table_entry(node), samples, taddrs);
-//		}
-//	}
-//	rcu_read_unlock_bh();
-}
-
 static int find_offset(struct pool4_sample *offset, struct pool4_table *table,
 		struct pool4_entry **result_entry, unsigned int *result_ports)
 {

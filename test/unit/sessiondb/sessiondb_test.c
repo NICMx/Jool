@@ -11,9 +11,9 @@ MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Alberto Leiva Popper");
 MODULE_DESCRIPTION("Session DB module test.");
 
-struct sessiondb *db;
+static struct sessiondb *db;
 static const l4_protocol PROTO = L4PROTO_UDP;
-struct session_entry *sessions[16];
+static struct session_entry *sessions[16];
 static struct session_entry *sessions4[4][4][4][4];
 static struct session_entry *sessions6[4][4][4][4];
 

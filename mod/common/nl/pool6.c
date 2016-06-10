@@ -93,15 +93,15 @@ static int handle_pool6_flush(struct xlator *jool, union request_pool6 *request)
 
 int handle_pool6_config(struct xlator *jool, struct genl_info *info)
 {
-	struct request_hdr *jool_hdr = get_jool_hdr(info);
-	union request_pool6 *request = (union request_pool6 *)(jool_hdr + 1);
+	struct request_hdr *hdr = get_jool_hdr(info);
+	union request_pool6 *request = (union request_pool6 *)(hdr + 1);
 	int error;
 
 	error = validate_request_size(info, sizeof(*request));
 	if (error)
 		return nlcore_respond(info, error);
 
-	switch (jool_hdr->operation) {
+	switch (be16_to_cpu(hdr->operation)) {
 	case OP_DISPLAY:
 		return handle_pool6_display(jool->pool6, info, request);
 	case OP_COUNT:
@@ -117,7 +117,7 @@ int handle_pool6_config(struct xlator *jool, struct genl_info *info)
 		error = handle_pool6_flush(jool, request);
 		break;
 	default:
-		log_err("Unknown operation: %d", jool_hdr->operation);
+		log_err("Unknown operation: %u", be16_to_cpu(hdr->operation));
 		error = -EINVAL;
 	}
 

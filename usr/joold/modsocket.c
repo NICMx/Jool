@@ -85,7 +85,7 @@ static void print_pkt_meta(struct request_hdr *hdr)
 
 	printf("/");
 
-	switch (hdr->mode) {
+	switch (ntohs(hdr->mode)) {
 	case MODE_GLOBAL:
 		printf("global");
 		break;
@@ -123,12 +123,12 @@ static void print_pkt_meta(struct request_hdr *hdr)
 		printf("instance");
 		break;
 	default:
-		printf("unknown (%u)", hdr->mode);
+		printf("unknown (%u)", ntohs(hdr->mode));
 	}
 
 	printf("/");
 
-	switch (hdr->operation) {
+	switch (ntohs(hdr->operation)) {
 	case OP_DISPLAY:
 		printf("display");
 		break;
@@ -157,7 +157,7 @@ static void print_pkt_meta(struct request_hdr *hdr)
 		printf("ack");
 		break;
 	default:
-		printf("unknown (%u)", hdr->operation);
+		printf("unknown (%u)", ntohs(hdr->operation));
 	}
 
 	printf(".\n");

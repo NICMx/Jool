@@ -1,4 +1,4 @@
-#CC=cgcc
+CC=cgcc
 
 ccflags-y := -I$(src)/../../include $(JOOL_FLAGS)
 #ccflags-y += -Wfatal-errors

@@ -106,13 +106,13 @@ static int handle_global(struct xlator *jool, void *payload, __u32 payload_len)
 	}
 
 	/*
-	 * TODO if there's an error in config_parse, this can easily fall into
-	 * an infinite loop. An attacker could abuse this.
+	 * TODO (final) if there's an error in config_parse, this can easily
+	 * fall into an infinite loop. An attacker could abuse this.
 	 * Maybe add validations?
 	 */
 
 	do {
-		log_info("atomic config flow!");
+		log_debug("atomic config flow!");
 		result = config_parse(config, payload, payload_len);
 		if (result < 0)
 			return result;

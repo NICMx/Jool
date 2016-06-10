@@ -420,15 +420,15 @@ static int handle_global_update(struct xlator *jool, struct genl_info *info)
 
 int handle_global_config(struct xlator *jool, struct genl_info *info)
 {
-	struct request_hdr *jool_hdr = get_jool_hdr(info);
+	struct request_hdr *hdr = get_jool_hdr(info);
 
-	switch (jool_hdr->operation) {
+	switch (be16_to_cpu(hdr->operation)) {
 	case OP_DISPLAY:
 		return handle_global_display(jool, info);
 	case OP_UPDATE:
 		return handle_global_update(jool, info);
 	}
 
-	log_err("Unknown operation: %d", jool_hdr->operation);
+	log_err("Unknown operation: %u", be16_to_cpu(hdr->operation));
 	return nlcore_respond(info, -EINVAL);
 }

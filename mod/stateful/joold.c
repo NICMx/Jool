@@ -101,10 +101,10 @@ struct joold_session {
 	struct in6_addr dst6_addr;
 	struct in_addr src4_addr;
 	struct in_addr dst4_addr;
-	__u16 src6_port;
-	__u16 dst6_port;
-	__u16 src4_port;
-	__u16 dst4_port;
+	__be16 src6_port;
+	__be16 dst6_port;
+	__be16 src4_port;
+	__be16 dst4_port;
 
 	/*
 	 * Exactly 56 bytes so far.
@@ -259,10 +259,10 @@ static int foreach_cb(struct session_entry *entry, void *arg)
 	session.dst6_addr = entry->dst6.l3;
 	session.src4_addr = entry->src4.l3;
 	session.dst4_addr = entry->dst4.l3;
-	session.src6_port = entry->src6.l4;
-	session.dst6_port = entry->dst6.l4;
-	session.src4_port = entry->src4.l4;
-	session.dst4_port = entry->dst4.l4;
+	session.src6_port = cpu_to_be16(entry->src6.l4);
+	session.dst6_port = cpu_to_be16(entry->dst6.l4);
+	session.src4_port = cpu_to_be16(entry->src4.l4);
+	session.dst4_port = cpu_to_be16(entry->dst4.l4);
 
 	session.l4_proto = entry->l4_proto;
 	session.state = entry->state;
@@ -510,10 +510,10 @@ void joold_add_session(struct joold_queue *queue, struct session_entry *entry,
 	copy->single.dst6_addr = entry->dst6.l3;
 	copy->single.src4_addr = entry->src4.l3;
 	copy->single.dst4_addr = entry->dst4.l3;
-	copy->single.src6_port = entry->src6.l4;
-	copy->single.dst6_port = entry->dst6.l4;
-	copy->single.src4_port = entry->src4.l4;
-	copy->single.dst4_port = entry->dst4.l4;
+	copy->single.src6_port = cpu_to_be16(entry->src6.l4);
+	copy->single.dst6_port = cpu_to_be16(entry->dst6.l4);
+	copy->single.src4_port = cpu_to_be16(entry->src4.l4);
+	copy->single.dst4_port = cpu_to_be16(entry->dst4.l4);
 	copy->single.l4_proto = entry->l4_proto;
 	copy->single.state = entry->state;
 	copy->single.est = entry->expirer->is_established;
@@ -544,9 +544,9 @@ static int add_new_bib(struct bib *db, struct joold_session *session,
 	int error;
 
 	tmp6.l3 = session->src6_addr;
-	tmp6.l4 = session->src6_port;
+	tmp6.l4 = be16_to_cpu(session->src6_port);
 	tmp4.l3 = session->src4_addr;
-	tmp4.l4 = session->src4_port;
+	tmp4.l4 = be16_to_cpu(session->src4_port);
 
 	new = bibentry_create(&tmp4, &tmp6, false, session->l4_proto);
 	if (!new) {
@@ -607,13 +607,13 @@ static struct session_entry *init_session_entry(struct joold_session *in,
 	struct ipv4_transport_addr dst4;
 
 	src6.l3 = in->src6_addr;
-	src6.l4 = in->src6_port;
+	src6.l4 = be16_to_cpu(in->src6_port);
 	dst6.l3 = in->dst6_addr;
-	dst6.l4 = in->dst6_port;
+	dst6.l4 = be16_to_cpu(in->dst6_port);
 	src4.l3 = in->src4_addr;
-	src4.l4 = in->src4_port;
+	src4.l4 = be16_to_cpu(in->src4_port);
 	dst4.l3 = in->dst4_addr;
-	dst4.l4 = in->dst4_port;
+	dst4.l4 = be16_to_cpu(in->dst4_port);
 
 	out = session_create(&src6, &dst6, &src4, &dst4, in->l4_proto, bib);
 	if (!out)
@@ -671,7 +671,7 @@ static enum session_fate collision_cb(struct session_entry *old, void *arg)
 static bool add_new_session(struct xlator *jool, struct joold_session *in)
 {
 	struct session_entry *new;
-	struct bib_entry *bib = 0;
+	struct bib_entry *bib;
 	struct add_params params;
 	int error;
 

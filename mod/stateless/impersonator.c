@@ -5,6 +5,7 @@
 #include "nat64/mod/stateful/determine_incoming_tuple.h"
 #include "nat64/mod/stateful/filtering_and_updating.h"
 #include "nat64/mod/stateful/fragment_db.h"
+#include "nat64/mod/stateful/joold.h"
 #include "nat64/mod/stateful/pool4/db.h"
 #include "nat64/mod/stateful/bib/db.h"
 #include "nat64/mod/stateful/session/db.h"
@@ -76,12 +77,6 @@ int pool4db_foreach_sample(struct pool4 *pool, l4_protocol proto,
 		struct pool4_sample *offset)
 {
 	return fail(__func__);
-}
-
-void pool4db_count(struct pool4 *pool, __u32 *tables, __u64 *samples,
-		__u64 *taddrs)
-{
-	fail(__func__);
 }
 
 bool pool4db_contains(struct pool4 *pool, struct net *ns,
@@ -273,7 +268,7 @@ void joold_config_copy(struct joold_queue *queue, struct joold_config *config)
 
 void joold_config_set(struct joold_queue *queue, struct joold_config *config)
 {
-	fail(__func__);
+	/* No code. */
 }
 
 struct fragdb *fragdb_create(void)
@@ -308,7 +303,7 @@ verdict fragdb_handle(struct fragdb *db, struct packet *pkt)
 	return VERDICT_DROP;
 }
 
-int joold_sync(struct xlator *jool, __u8 *data, __u32 size)
+int joold_sync(struct xlator *jool, void *data, __u32 size)
 {
 	return fail(__func__);
 }
@@ -323,7 +318,7 @@ int joold_advertise(struct xlator *jool)
 	return fail(__func__);
 }
 
-int joold_ack(struct xlator *jool)
+void joold_ack(struct xlator *jool)
 {
-	return fail(__func__);
+	fail(__func__);
 }

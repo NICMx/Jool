@@ -1,6 +1,6 @@
-#include "nat64/mod/stateful/pool4/db.h"
+#include "nat64/mod/stateful/pool4/empty.h"
 
-bool pool4empty_contains(const struct ipv4_transport_addr *addr)
+bool pool4empty_contains(struct net *ns, const struct ipv4_transport_addr *addr)
 {
 	return false;
 }

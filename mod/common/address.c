@@ -170,7 +170,7 @@ __u32 addr6_get_bit(struct in6_addr *addr, unsigned int pos)
 
 void addr6_set_bit(struct in6_addr *addr, unsigned int pos, bool value)
 {
-	__u32 *quadrant;
+	__be32 *quadrant;
 	__u32 mask;
 
 	quadrant = &addr->s6_addr32[pos >> 5];

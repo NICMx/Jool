@@ -14,9 +14,10 @@ void init_request_hdr(struct request_hdr *hdr, enum config_mode mode,
 	hdr->magic[3] = 'l';
 	hdr->type = xlat_is_nat64() ? 'n' : 's'; /* 'n'at64 or 's'iit. */
 	hdr->castness = 'u';
-	hdr->version = xlat_version();
-	hdr->mode = mode;
-	hdr->operation = operation;
+	hdr->slop = 0;
+	hdr->version = htonl(xlat_version());
+	hdr->mode = htons(mode);
+	hdr->operation = htons(operation);
 }
 
 static int validate_magic(struct request_hdr *hdr, char *sender)
@@ -62,19 +63,21 @@ static int validate_stateness(struct request_hdr *hdr,
 static int validate_version(struct request_hdr *hdr,
 		char *sender, char *receiver)
 {
-	if (xlat_version() == hdr->version)
+	__u32 hdr_version = ntohl(hdr->version);
+
+	if (xlat_version() == hdr_version)
 		return 0;
 
 	log_err("Version mismatch. The %s's version is %u.%u.%u.%u,\n"
 			"but the %s is %u.%u.%u.%u.\n"
 			"Please update the %s.",
 			sender,
-			hdr->version >> 24, (hdr->version >> 16) & 0xFFU,
-			(hdr->version >> 8) & 0xFFU, hdr->version & 0xFFU,
+			hdr_version >> 24, (hdr_version >> 16) & 0xFFU,
+			(hdr_version >> 8) & 0xFFU, hdr_version & 0xFFU,
 			receiver,
 			JOOL_VERSION_MAJOR, JOOL_VERSION_MINOR,
 			JOOL_VERSION_REV, JOOL_VERSION_DEV,
-			(xlat_version() > hdr->version) ? sender : receiver);
+			(xlat_version() > hdr_version) ? sender : receiver);
 	return -EINVAL;
 }
 
