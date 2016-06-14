@@ -142,10 +142,10 @@ static int create_session(struct xlation *state, struct bib_entry *bib,
 {
 	struct tuple *tuple = &state->in.tuple;
 	struct session_entry *session;
-	struct ipv6_transport_addr remote6;
-	struct ipv6_transport_addr local6;
-	struct ipv4_transport_addr local4;
-	struct ipv4_transport_addr remote4;
+	struct ipv6_transport_addr src6;
+	struct ipv6_transport_addr dst6;
+	struct ipv4_transport_addr src4;
+	struct ipv4_transport_addr dst4;
 	int error;
 
 	/*
@@ -155,36 +155,36 @@ static int create_session(struct xlation *state, struct bib_entry *bib,
 	 */
 	switch (tuple->l3_proto) {
 	case L3PROTO_IPV6:
-		remote6 = tuple->src.addr6;
-		local6 = tuple->dst.addr6;
-		local4 = bib->ipv4;
-		error = xlat_addr64(state, &remote4.l3);
+		src6 = tuple->src.addr6;
+		dst6 = tuple->dst.addr6;
+		src4 = bib->ipv4;
+		error = xlat_addr64(state, &dst4.l3);
 		if (error)
 			return error;
-		remote4.l4 = (tuple->l4_proto != L4PROTO_ICMP)
+		dst4.l4 = (tuple->l4_proto != L4PROTO_ICMP)
 				? tuple->dst.addr6.l4
 				: bib->ipv4.l4;
 		break;
 	case L3PROTO_IPV4:
 		if (bib)
-			remote6 = bib->ipv6;
+			src6 = bib->ipv6;
 		else
 			/* Simultaneous Open (TCP quirk). */
-			memset(&remote6, 0, sizeof(remote6));
+			memset(&src6, 0, sizeof(src6));
 		error = rfc6052_4to6(state->jool.pool6, &tuple->src.addr4.l3,
-				&local6.l3);
+				&dst6.l3);
 		if (error)
 			return error;
-		local6.l4 = (tuple->l4_proto != L4PROTO_ICMP)
+		dst6.l4 = (tuple->l4_proto != L4PROTO_ICMP)
 				? tuple->src.addr4.l4
 				: bib->ipv6.l4;
-		local4 = tuple->dst.addr4;
-		remote4 = tuple->src.addr4;
+		src4 = tuple->dst.addr4;
+		dst4 = tuple->src.addr4;
 		break;
 	}
 
-	session = session_create(&remote6, &local6, &local4, &remote4,
-			tuple->l4_proto, bib);
+	session = session_create(&src6, &dst6, &src4, &dst4, tuple->l4_proto,
+			bib);
 	if (!session) {
 		log_debug("Failed to allocate a session entry.");
 		return -ENOMEM;
@@ -420,11 +420,13 @@ static verdict tcp_closed_v4_syn(struct xlation *state)
 	if (!bib || state->jool.global->cfg.nat64.drop_by_addr) {
 		error = pktqueue_add(state->jool.nat64.session->pkt_queue,
 				session, &state->in);
-		if (!error) {
-			/* the original skb belongs to pktqueue now. */
-			result = VERDICT_STOLEN;
-		}
-		goto end_session;
+		if (error)
+			goto end_session;
+
+		/* The original skb belongs to pktqueue now. */
+		result = VERDICT_STOLEN;
+		/* Do not put the session; the kref was transferred. */
+		goto end_bib;
 	}
 
 	error = sessiondb_add(state->jool.nat64.session, session, NULL, NULL, 0);

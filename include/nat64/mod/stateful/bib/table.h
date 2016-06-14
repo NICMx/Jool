@@ -88,7 +88,7 @@ struct bib_entry {
 	 * A reference for the IPv4 borrowed from pool4, this is hold it just
 	 * for keeping the host6_node alive in the database.
 	 */
-	struct host_addr4 *host4_addr;
+	/* struct host_addr4 *host4_addr; */
 };
 
 int bibentry_init(void);

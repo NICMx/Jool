@@ -127,7 +127,7 @@ static int f(const struct tuple *tuple6, __u8 fields, unsigned int *result)
 		goto unlock;
 	}
 
-	*result = be32_to_cpu(md5_result.as32[3]);
+	*result = (__force __u32)md5_result.as32[3];
 	/* Fall through. */
 
 unlock:

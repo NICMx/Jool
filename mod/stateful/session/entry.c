@@ -42,6 +42,7 @@ struct session_entry *session_create(const struct ipv6_transport_addr *src6,
 			.bib = bib,
 			.expirer = NULL,
 	};
+	/* I have to initialize it like this because of the const fields. */
 	return session_clone(&tmp);
 }
 
@@ -67,11 +68,6 @@ struct session_entry *session_clone(struct session_entry *session)
 	kref_init(&result->refs);
 
 	return result;
-}
-
-void session_get(struct session_entry *session)
-{
-	kref_get(&session->refs);
 }
 
 static void session_release(struct kref *ref)

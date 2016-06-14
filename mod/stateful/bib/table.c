@@ -55,7 +55,7 @@ struct bib_entry *bibentry_create(const struct ipv4_transport_addr *addr4,
 	result->table = NULL;
 	RB_CLEAR_NODE(&result->tree6_hook);
 	RB_CLEAR_NODE(&result->tree4_hook);
-	result->host4_addr = NULL;
+	/* result->host4_addr = NULL; */
 
 	return result;
 }
@@ -68,13 +68,13 @@ struct bib_entry *bibentry_create_usr(struct bib_entry_usr *usr)
 
 /**
  * It's probably obvious, since this applies to all these functions probably,
- * but I'll say it anyway:
+ * and you *are* carrying @bib around, but I'll say it anyway:
  * You *MUST* hold a memory reference to @bib while calling this function.
  */
 void bibentry_get_db(struct bib_entry *bib)
 {
 	if (atomic_inc_return(&bib->db_refs) == 1)
-		kref_get(&bib->mem_refs);
+		bibentry_get_thread(bib);
 }
 
 static void release_entry(struct kref *kref)
@@ -123,6 +123,10 @@ static int __bibentry_put_db(struct bib_entry *bib, bool lock)
 	bool removed = false;
 
 	if (atomic_sub_and_test(1, &bib->db_refs)) {
+		/*
+		 * TODO under what freaking circumstance could a BIB not have
+		 * a table when we're returning a "database" reference?
+		 */
 		if (bib->table)
 			removed = rm(bib->table, bib, lock);
 		kref_put(&bib->mem_refs, release_entry);

@@ -11,6 +11,7 @@ static bool test_md5(void)
 {
 	struct tuple tuple6;
 	unsigned int result;
+	bool success = true;
 
 	memset(&tuple6, 0, sizeof(tuple6));
 
@@ -46,15 +47,17 @@ static bool test_md5(void)
 	tuple6.dst.addr6.l3.s6_addr[13] = 'D';
 	tuple6.dst.addr6.l3.s6_addr[14] = 'E';
 	tuple6.dst.addr6.l3.s6_addr[15] = 'F';
-	tuple6.dst.addr6.l4 = cpu_to_be16(('G' << 8) | 'H');
+	tuple6.dst.addr6.l4 = (__force __u16)cpu_to_be16(('G' << 8) | 'H');
 
 	secret_key[0] = 'I';
 	secret_key[1] = 'J';
 	secret_key_len = 2;
 
+	success &= ASSERT_INT(0, f(&tuple6, 0b1011, &result), "errcode");
 	/* Expected value gotten from DuckDuckGo. Look up "md5 abcdefg...". */
-	return ASSERT_INT(0, f(&tuple6, 0b1011, &result), "errcode")
-			&& ASSERT_BE32(0xb6a824a9u, result, "hash");
+	success &= ASSERT_BE32(0xb6a824a9u, (__force __be32)result, "hash");
+
+	return success;
 }
 
 static bool f_args_test(void)

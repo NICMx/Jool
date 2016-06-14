@@ -9,6 +9,31 @@
 #include "nat64/mod/stateful/session/pkt_queue.h"
 
 /**
+ * Yes, this is private. If you think you need to kref_get outside of the
+ * database spinlock, then I need you to sit down and think about it for a
+ * while.
+ *
+ * It is buggy to run kref_get() at the same time as the last kref_put().
+ * (See the kernel's kref.txt file.)
+ *
+ * Sessions managed by the session database currently handle this by keeping a
+ * reference and by wrapping all existing session_get()s inside of database
+ * functions protected by the spinlock.
+ * The database's own reference prevents user kref_put()s from being the last
+ * ones, as long as the session remain in the database.
+ * When the session is detached from the database, the fact that this function
+ * is private prevents any further session_get()s.
+ *
+ * Other databases (such as the pktqueue ones) do not currently share sessions
+ * with other code so they don't need this function. (They can get away with
+ * the kref_init() in session_create().)
+ */
+static void session_get(struct session_entry *session)
+{
+	kref_get(&session->refs);
+}
+
+/**
  * Removes all of this database's references towards "session", and drops its
  * refcount accordingly.
  *

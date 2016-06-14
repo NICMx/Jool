@@ -1,4 +1,4 @@
-#include "nat64/mod/stateful/host6_node.h"
+#include "nat64/mod/stateful/bib/host6_node.h"
 
 #include "nat64/mod/common/rbtree.h"
 #include "nat64/mod/stateful/bib_db.h"

@@ -92,7 +92,8 @@ struct session_entry *session_create(const struct ipv6_transport_addr *src6,
 		struct bib_entry *bib);
 struct session_entry *session_clone(struct session_entry *session);
 
-void session_get(struct session_entry *session);
+/* I made session_put() private; See its comment in table.c. */
+/* static void session_get(struct session_entry *session); */
 void session_put(struct session_entry *session, bool must_die);
 
 bool session_equals(const struct session_entry *s1, const struct session_entry *s2);

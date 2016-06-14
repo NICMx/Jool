@@ -13,6 +13,6 @@ do
 	echo "Running test '$i'."
 	sudo insmod $i && sudo rmmod $i
 	clear
-	sudo dmesg -ct 
+	sudo dmesg -ct | less
 done
 

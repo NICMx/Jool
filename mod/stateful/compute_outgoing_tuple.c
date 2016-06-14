@@ -1,28 +1,28 @@
 #include "nat64/mod/stateful/compute_outgoing_tuple.h"
 #include "nat64/mod/stateful/session/db.h"
 
-static struct session_entry *find_session(struct xlation *state)
+/**
+ * Ensures @state->session is computed and valid.
+ * (Assuming @state really maps to a databased session, that is.)
+ */
+static int find_session(struct xlation *state)
 {
-	struct session_entry *session;
 	int error;
 
-	if (state->session) {
-		session_get(state->session);
-		return state->session;
-	}
+	if (state->session)
+		return 0;
 
 	error = sessiondb_find(state->jool.nat64.session, &state->in.tuple,
-			NULL, NULL, &session);
+			NULL, NULL, &state->session);
 	if (error) {
 		/*
 		 * Bogus ICMP errors might cause this because Filtering skips
 		 * them, so it's not critical.
 		 */
 		log_debug("Session not found. Error code is %d.", error);
-		return NULL;
 	}
 
-	return session;
+	return error;
 }
 
 verdict compute_out_tuple(struct xlation *state)
@@ -33,8 +33,7 @@ verdict compute_out_tuple(struct xlation *state)
 
 	log_debug("Step 3: Computing the Outgoing Tuple");
 
-	session = find_session(state);
-	if (!session)
+	if (find_session(state))
 		return VERDICT_ACCEPT;
 
 	/*
@@ -63,6 +62,7 @@ verdict compute_out_tuple(struct xlation *state)
 	 * claim makes sense even in a general sense.
 	 */
 
+	session = state->session;
 	in = &state->in.tuple;
 	out = &state->out.tuple;
 
@@ -82,9 +82,7 @@ verdict compute_out_tuple(struct xlation *state)
 		break;
 	}
 
-	session_put(session, false);
 	log_tuple(out);
-
 	log_debug("Done step 3.");
 	return VERDICT_CONTINUE;
 }

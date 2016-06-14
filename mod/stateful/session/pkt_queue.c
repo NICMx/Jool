@@ -129,6 +129,10 @@ static struct pktqueue_node *__tree_add(struct pktqueue *queue,
 			struct pktqueue_node, tree_hook);
 }
 
+/**
+ * On success, assumes the caller's reference to @session is being transferred
+ * to @queue.
+ */
 int pktqueue_add(struct pktqueue *queue, struct session_entry *session,
 		struct packet *pkt)
 {
@@ -168,15 +172,7 @@ int pktqueue_add(struct pktqueue *queue, struct session_entry *session,
 	list_add_tail(&node->list_hook, &queue->node_list);
 	queue->node_count++;
 
-	node = list_entry(queue->node_list.next, typeof(*node), list_hook);
-
 	spin_unlock_bh(&lock);
-
-	/*
-	 * I'm assuming caller has a reference; that's why it's legal to do this
-	 * outside of the spinlock.
-	 */
-	session_get(session);
 
 	log_debug("Pkt queue - I just stored a packet.");
 	return 0;
