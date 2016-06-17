@@ -476,13 +476,13 @@ void joold_update_config(struct joold_queue *queue,
 }
 
 /**
- * joold_add_session - Add the @entry session to @queue.
+ * joold_add - Add the @entry session to @queue.
  *
  * This is the function that gets called whenever a packet translation
  * successfully triggers the creation of a session entry. @entry will be sent
  * to the joold daemon.
  */
-void joold_add_session(struct joold_queue *queue, struct session_entry *entry,
+void joold_add(struct joold_queue *queue, struct session_entry *entry,
 		struct sessiondb *sdb)
 {
 	struct joold_node *copy;

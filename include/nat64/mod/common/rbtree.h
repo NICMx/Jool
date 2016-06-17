@@ -108,6 +108,8 @@
 /**
  * Destroys all the nodes from "root"'s tree.
  */
-void rbtree_clear(struct rb_root *root, void (*destructor)(struct rb_node *));
+void rbtree_clear(struct rb_root *root,
+		void (*destructor)(struct rb_node *, void *),
+		void *arg);
 
 #endif /* _JOOL_MOD_RBTREE_H */

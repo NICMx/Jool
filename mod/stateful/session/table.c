@@ -9,6 +9,40 @@
 #include "nat64/mod/stateful/session/pkt_queue.h"
 
 /**
+ * Session table definition.
+ * Holds red-black trees, one for each indexing need (IPv4 and IPv6).
+ */
+struct session_table {
+	/**
+	 * Indexes the entries using their IPv6 identifiers.
+	 * (sorted by local6, then remote6. The taddr6 foreach needs this.)
+	 */
+	struct rb_root tree6;
+	/**
+	 * Indexes the entries using their IPv4 identifiers.
+	 * (sorted by local4, then remote4. sessiontable_allow() and the BIB and
+	 * taddr4 foreachs need this.)
+	 */
+	struct rb_root tree4;
+	/** Number of session entries in this table. */
+	u64 count;
+
+	/** Expires this table's established sessions. */
+	struct expire_timer est_timer;
+	/** Expires this table's transitory sessions. */
+	struct expire_timer trans_timer;
+
+	/**
+	 * Lock to sync access. This protects both the trees and the entries,
+	 * but if you only need to read the const portion of the entries,
+	 * you can get away with maintaining your reference count thingy.
+	 */
+	spinlock_t lock;
+
+	bool log_changes;
+};
+
+/**
  * Yes, this is private. If you think you need to kref_get outside of the
  * database spinlock, then I need you to sit down and think about it for a
  * while.
@@ -430,7 +464,7 @@ static int compare_addr4(const struct ipv4_transport_addr *a1,
 	if (gap)
 		return gap;
 
-	gap = a1->l4 - a2->l4;
+	gap = ((int)a1->l4) - ((int)a2->l4);
 	return gap;
 }
 
@@ -504,9 +538,6 @@ static struct session_entry *get_by_ipv4(struct session_table *table,
 			struct session_entry, tree4_hook);
 }
 
-/**
- * Important: This particular @cb is not prepared to return FATE_PROBE.
- */
 int sessiontable_find(struct session_table *table, struct tuple *tuple,
 		fate_cb cb, void *cb_arg,
 		struct session_entry **result)
@@ -546,20 +577,6 @@ int sessiontable_find(struct session_table *table, struct tuple *tuple,
 
 	*result = session;
 	return 0;
-}
-
-bool sessiontable_allow(struct session_table *table, struct tuple *tuple4)
-{
-	struct session_entry *session;
-	bool result;
-
-	spin_lock_bh(&table->lock);
-	session = rbtree_find(tuple4, &table->tree4, compare_addrs4,
-			struct session_entry, tree4_hook);
-	result = session ? true : false;
-	spin_unlock_bh(&table->lock);
-
-	return result;
 }
 
 static struct session_entry *add6(struct session_table *table,

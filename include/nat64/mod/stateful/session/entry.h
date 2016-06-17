@@ -66,11 +66,6 @@ struct session_entry {
 	struct list_head list_hook;
 	/** Timer supposed to delete this session when it expires. */
 	struct expire_timer *expirer;
-	/**
-	 * Owner bib of this session. Used for quick access during removal.
-	 * (when the session dies, the BIB might have to die too.)
-	 */
-	struct bib_entry *const bib;
 
 	/** Appends this entry to the table's IPv6 index. */
 	struct rb_node tree6_hook;
@@ -79,6 +74,20 @@ struct session_entry {
 
 	/** Reference counter for releasing purposes. */
 	struct kref refs;
+
+	/**
+	 * The "layer 2" IPv4 subtree.
+	 * This tree can be populated only if this is a layer 1 session.
+	 * Sessions treed here share this session's @src4, but have different
+	 * @dst4.l3.
+	 */
+	struct rb_root tree4l2;
+	/**
+	 * The "layer 3" IPv4 subtree.
+	 * This tree can be populated only if this is not a layer 3 session.
+	 * Sessions treed here share this session's @src4 and @dst4.l3.
+	 */
+	struct rb_root tree4l3;
 };
 
 int session_init(void);
@@ -88,8 +97,7 @@ struct session_entry *session_create(const struct ipv6_transport_addr *src6,
 		const struct ipv6_transport_addr *dst6,
 		const struct ipv4_transport_addr *src4,
 		const struct ipv4_transport_addr *dst4,
-		l4_protocol l4_proto,
-		struct bib_entry *bib);
+		l4_protocol l4_proto);
 struct session_entry *session_clone(struct session_entry *session);
 
 /* I made session_put() private; See its comment in table.c. */

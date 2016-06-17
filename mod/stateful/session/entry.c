@@ -28,8 +28,7 @@ struct session_entry *session_create(const struct ipv6_transport_addr *src6,
 		const struct ipv6_transport_addr *dst6,
 		const struct ipv4_transport_addr *src4,
 		const struct ipv4_transport_addr *dst4,
-		l4_protocol l4_proto,
-		struct bib_entry *bib)
+		l4_protocol l4_proto)
 {
 	struct session_entry tmp = {
 			.src6 = *src6,
@@ -39,7 +38,6 @@ struct session_entry *session_create(const struct ipv6_transport_addr *src6,
 			.l4_proto = l4_proto,
 			.state = 0,
 			.update_time = jiffies,
-			.bib = bib,
 			.expirer = NULL,
 	};
 	/* I have to initialize it like this because of the const fields. */

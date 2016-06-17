@@ -23,7 +23,7 @@ void joold_config_copy(struct joold_queue *queue, struct joold_config *config);
 void joold_config_set(struct joold_queue *queue, struct joold_config *config);
 
 int joold_sync(struct xlator *jool, void *data, __u32 size);
-void joold_add_session(struct joold_queue *queue, struct session_entry *entry,
+void joold_add(struct joold_queue *queue, struct session_entry *entry,
 		struct sessiondb *sdb);
 void joold_update_config(struct joold_queue *queue,
 		struct joold_config *new_config);

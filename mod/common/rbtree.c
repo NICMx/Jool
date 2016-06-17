@@ -1,6 +1,8 @@
 #include "nat64/mod/common/rbtree.h"
 
-void rbtree_clear(struct rb_root *root, void (*destructor)(struct rb_node *))
+void rbtree_clear(struct rb_root *root,
+		void (*destructor)(struct rb_node *, void *),
+		void *arg)
 {
 	/* ... using a postorder traversal. */
 	struct rb_node *parent_hook, *current_hook;
@@ -22,7 +24,7 @@ void rbtree_clear(struct rb_root *root, void (*destructor)(struct rb_node *))
 			else /* if (current_hook == parent_hook->rb_right) */
 				parent_hook->rb_right = NULL;
 		}
-		destructor(current_hook);
+		destructor(current_hook, arg);
 
 		current_hook = parent_hook;
 	}

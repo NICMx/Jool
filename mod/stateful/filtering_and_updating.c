@@ -7,7 +7,7 @@
 #include "nat64/mod/common/rfc6052.h"
 #include "nat64/mod/common/stats.h"
 #include "nat64/mod/stateful/joold.h"
-#include "nat64/mod/stateful/bib/db.h"
+#include "nat64/mod/stateful/bib/table.h"
 #include "nat64/mod/stateful/bib/port_allocator.h"
 #include "nat64/mod/stateful/pool4/db.h"
 #include "nat64/mod/stateful/session/db.h"
@@ -49,96 +49,67 @@ enum session_fate tcp_expired_cb(struct session_entry *session, void *arg)
 	return FATE_RM;
 }
 
-static void log_bib(struct bib_entry *bib)
-{
-	if (bib)
-		log_debug("BIB entry: %pI6c#%u - %pI4#%u (%s)",
-				&bib->ipv6.l3, bib->ipv6.l4,
-				&bib->ipv4.l3, bib->ipv4.l4,
-				l4proto_to_string(bib->l4_proto));
-	else
-		log_debug("BIB entry: None");
-}
-
 static void log_session(struct session_entry *session)
 {
-	if (session)
-		log_debug("Session entry: %pI6c#%u - %pI6c#%u | %pI4#%u - %pI4#%u (%s)",
-				&session->src6.l3, session->src6.l4,
-				&session->dst6.l3, session->dst6.l4,
-				&session->src4.l3, session->src4.l4,
-				&session->dst4.l3, session->dst4.l4,
-				l4proto_to_string(session->l4_proto));
-	else
+	char const *proto;
+
+	if (!session) {
+		log_debug("BIB entry: None");
 		log_debug("Session entry: None");
-}
-
-static int xlat_addr64(struct xlation *state, struct in_addr *addr4)
-{
-	struct in6_addr *addr6 = &state->in.tuple.dst.addr6.l3;
-	return rfc6052_6to4(state->jool.pool6, addr6, addr4);
-}
-
-static int create_bib6(struct xlation *state, struct bib_entry **result)
-{
-	struct ipv4_transport_addr saddr;
-	struct in_addr daddr;
-	struct bib_entry *bib;
-	int error;
-
-	error = xlat_addr64(state, &daddr);
-	if (error)
-		return error;
-	error = palloc_allocate(state, &daddr, &saddr);
-	if (error)
-		return error;
-
-	bib = bibentry_create(&saddr, &state->in.tuple.src.addr6, false,
-			state->in.tuple.l4_proto);
-	if (!bib) {
-		log_debug("Failed to allocate a BIB entry.");
-		return -ENOMEM;
+		return;
 	}
 
-	*result = bib;
-	return 0;
+	proto = l4proto_to_string(session->l4_proto);
+	log_debug("BIB entry: %pI6c#%u - %pI4#%u (%s)",
+			&session->src6.l3, session->src6.l4,
+			&session->src4.l3, session->src4.l4,
+			proto);
+	log_debug("Session entry: %pI6c#%u - %pI6c#%u | %pI4#%u - %pI4#%u (%s)",
+			&session->src6.l3, session->src6.l4,
+			&session->dst6.l3, session->dst6.l4,
+			&session->src4.l3, session->src4.l4,
+			&session->dst4.l3, session->dst4.l4,
+			proto);
 }
 
-static int get_or_create_bib6(struct xlation *state, struct bib_entry **result)
+static verdict succeed(struct xlation *state, struct session_entry *session)
 {
-	struct bib_entry *bib;
-	int error;
-
-	error = bibdb_find(state->jool.nat64.bib, &state->in.tuple, result);
-	if (error != -ESRCH)
-		return error; /* entry found and misc errors.*/
-
-	/* entry not found. */
-	error = create_bib6(state, &bib);
-	if (error)
-		return error;
-
+	log_session(session);
 	/*
-	 * TODO (fine) this could be better.
-	 * If somebody inserted a colliding BIB since we last searched,
-	 * this will fail. Instead, it should fall back to use the already
-	 * official entry.
-	 * (Note: using the "old" argument is more trouble than it seems because
-	 * this has to be handled differently depending on whether the collision
-	 * was v4 or v6.)
+	 * Sometimes the session doesn't change as a result of the state
+	 * machine's schemes.
+	 * No state change, no timeout change, no update time change.
+	 *
+	 * One might argue that we shouldn't joold the session in those cases.
+	 * It's a lot more trouble than it's worth:
+	 *
+	 * - Calling joold_add() on the TCP SM state functions is incorrect
+	 *   because the session's update_time and expirer haven't been updated
+	 *   by that point. So what gets synchronizes is half-baked data.
+	 * - Calling joold_add() on decide_fate() is a freaking mess because
+	 *   we'd need to send the xlator and a boolean (indicating whether this
+	 *   is packet or timer context) to it and all intermediate functions,
+	 *   and these functions all already have too many arguments as it is.
+	 *   It's bad design anyway; the session module belongs to a layer that
+	 *   shouldn't be aware of the xlator.
+	 * - These special no-changes cases are rare.
+	 *
+	 * So let's simplify everything by just joold_add()ing here.
 	 */
-	error = bibdb_add(state->jool.nat64.bib, bib, NULL);
-	if (error) {
-		bibentry_put_thread(bib, true);
-		return error;
-	}
-
-	*result = bib;
-	return 0;
+	joold_add(state->jool.nat64.joold, session, state->jool.nat64.session);
+	/* Transfer session refcount to @state; do not put yet. */
+	state->session = session;
+	return VERDICT_CONTINUE;
 }
 
-static int create_session(struct xlation *state, struct bib_entry *bib,
-		struct session_entry **result)
+static verdict breakdown(struct xlation *state)
+{
+	inc_stats(&state->in, IPSTATS_MIB_INDISCARDS);
+	return VERDICT_DROP;
+}
+
+static struct session_entry *create_session(struct xlation *state,
+		struct bib_entry *bib, tcp_state sm_state)
 {
 	struct tuple *tuple = &state->in.tuple;
 	struct session_entry *session;
@@ -146,24 +117,27 @@ static int create_session(struct xlation *state, struct bib_entry *bib,
 	struct ipv6_transport_addr dst6;
 	struct ipv4_transport_addr src4;
 	struct ipv4_transport_addr dst4;
-	int error;
 
 	/*
 	 * Fortunately, ICMP errors cannot reach this code because of the
 	 * requirements in the header of section 3.5, so we can use the tuple
-	 * as shortcuts for the packet's fields.
+	 * as shortcuts for the packet fields.
 	 */
 	switch (tuple->l3_proto) {
 	case L3PROTO_IPV6:
 		src6 = tuple->src.addr6;
 		dst6 = tuple->dst.addr6;
-		src4 = bib->ipv4;
-		error = xlat_addr64(state, &dst4.l3);
-		if (error)
-			return error;
+
+		if (rfc6052_6to4(state->jool.pool6, &tuple->dst.addr6.l3,
+				&dst4.l3))
+			return NULL;
+
+		if (palloc_allocate(state, &dst4.l3, &src4))
+			return NULL;
+
 		dst4.l4 = (tuple->l4_proto != L4PROTO_ICMP)
 				? tuple->dst.addr6.l4
-				: bib->ipv4.l4;
+				: src4.l4;
 		break;
 	case L3PROTO_IPV4:
 		if (bib)
@@ -171,27 +145,22 @@ static int create_session(struct xlation *state, struct bib_entry *bib,
 		else
 			/* Simultaneous Open (TCP quirk). */
 			memset(&src6, 0, sizeof(src6));
-		error = rfc6052_4to6(state->jool.pool6, &tuple->src.addr4.l3,
-				&dst6.l3);
-		if (error)
-			return error;
+		if (rfc6052_4to6(state->jool.pool6, &tuple->src.addr4.l3,
+				&dst6.l3))
+			return NULL;
 		dst6.l4 = (tuple->l4_proto != L4PROTO_ICMP)
 				? tuple->src.addr4.l4
-				: bib->ipv6.l4;
+				: src6.l4;
 		src4 = tuple->dst.addr4;
 		dst4 = tuple->src.addr4;
 		break;
 	}
 
-	session = session_create(&src6, &dst6, &src4, &dst4, tuple->l4_proto,
-			bib);
-	if (!session) {
-		log_debug("Failed to allocate a session entry.");
-		return -ENOMEM;
-	}
-
-	*result = session;
-	return 0;
+	session = session_create(&src6, &dst6, &src4, &dst4, tuple->l4_proto);
+	if (!session)
+		return NULL;
+	session->state = sm_state;
+	return session;
 }
 
 static enum session_fate update_timer(struct session_entry *session, void *arg)
@@ -199,36 +168,30 @@ static enum session_fate update_timer(struct session_entry *session, void *arg)
 	return FATE_TIMER_EST;
 }
 
-static int get_or_create_session(struct xlation *state, struct bib_entry *bib,
-		struct session_entry **result)
+static verdict create_and_add_session(struct xlation *state, tcp_state sm_state,
+		bool est)
 {
 	struct session_entry *session;
-	int error;
 
-	error = sessiondb_find(state->jool.nat64.session, &state->in.tuple,
-			update_timer, NULL, result);
-	if (error != -ESRCH)
-		return error; /* entry found and misc errors.*/
+	session = create_session(state, NULL, sm_state);
+	if (!session)
+		return breakdown(state);
 
-	/* entry not found. */
-	error = create_session(state, bib, &session);
-	if (error)
-		return error;
-
-	error = sessiondb_add(state->jool.nat64.session, session, NULL, NULL, 1);
-	if (error) {
+	/*
+	 * TODO (fine) this could be better.
+	 * If somebody inserted a colliding entry since we last searched, this
+	 * will fail. Instead, it should fall back to use the already official
+	 * entry.
+	 * (Note: using the "old" argument is more trouble than it seems because
+	 * this has to be handled differently depending on whether the collision
+	 * was v4 or v6.)
+	 */
+	if (sessiondb_add_simple(state->jool.nat64.session, session, est)) {
 		session_put(session, true);
-		return error;
+		return breakdown(state);
 	}
 
-	*result = session;
-	return 0;
-}
-
-static void joold_add(struct xlation *state, struct session_entry *session)
-{
-	joold_add_session(state->jool.nat64.joold, session,
-			state->jool.nat64.session);
+	return succeed(state, session);
 }
 
 /**
@@ -242,67 +205,55 @@ static void joold_add(struct xlation *state, struct session_entry *session)
  */
 static verdict ipv6_simple(struct xlation *state)
 {
-	struct bib_entry *bib;
 	struct session_entry *session;
 	int error;
 
-	error = get_or_create_bib6(state, &bib);
-	if (error) {
-		inc_stats(&state->in, IPSTATS_MIB_INDISCARDS);
-		return VERDICT_DROP;
+	error = sessiondb_find(state->jool.nat64.session, &state->in.tuple,
+			update_timer, NULL, &session);
+	switch (error) {
+	case 0:
+		return succeed(state, session);
+	case -ESRCH:
+		return create_and_add_session(state, ESTABLISHED, true);
+	default:
+		return breakdown(state);
 	}
-	log_bib(bib);
-
-	error = get_or_create_session(state, bib, &session);
-	if (error) {
-		inc_stats(&state->in, IPSTATS_MIB_INDISCARDS);
-		bibentry_put_thread(bib, false);
-		return VERDICT_DROP;
-	}
-	log_session(session);
-
-	joold_add(state, session);
-
-	/* Transfer session refcount to @state; do not put yet. */
-	state->session = session;
-	bibentry_put_thread(bib, false);
-
-	return VERDICT_CONTINUE;
 }
 
-/**
- * Attempts to find "tuple"'s BIB entry and returns it in "bib".
- * Assumes "tuple" represents a IPv4 packet.
- */
-static int get_bib4(struct xlation *state, struct bib_entry **bib)
-{
-	struct packet *in = &state->in;
-	bool adf;
-	int error;
-
-	error = bibdb_find(state->jool.nat64.bib, &in->tuple, bib);
-	if (error == -ESRCH) {
-		log_debug("There is no BIB entry for the IPv4 packet.");
-		inc_stats(in, IPSTATS_MIB_INNOROUTES);
-		return error;
-	} else if (error) {
-		log_debug("Errcode %d while finding a BIB entry.", error);
-		inc_stats(in, IPSTATS_MIB_INDISCARDS);
-		icmp64_send(in, ICMPERR_ADDR_UNREACHABLE, 0);
-		return error;
-	}
-
-	adf = state->jool.global->cfg.nat64.drop_by_addr;
-	if (adf && !sessiondb_allow(state->jool.nat64.session, &in->tuple)) {
-		log_debug("Packet was blocked by address-dependent filtering.");
-		icmp64_send(in, ICMPERR_FILTER, 0);
-		inc_stats(in, IPSTATS_MIB_INDISCARDS);
-		bibentry_put_thread(*bib, false);
-		return -EPERM;
-	}
-
-	return 0;
-}
+///**
+// * Attempts to find "tuple"'s BIB entry and returns it in "bib".
+// * Assumes "tuple" represents a IPv4 packet.
+// */
+//static int get_bib4(struct xlation *state, struct bib_entry **bib)
+//{
+////	TODO
+//	struct packet *in = &state->in;
+//	bool adf;
+//	int error;
+//
+//	error = bibdb_find(state->jool.nat64.bib, &in->tuple, bib);
+//	if (error == -ESRCH) {
+//		log_debug("There is no BIB entry for the IPv4 packet.");
+//		inc_stats(in, IPSTATS_MIB_INNOROUTES);
+//		return error;
+//	} else if (error) {
+//		log_debug("Errcode %d while finding a BIB entry.", error);
+//		inc_stats(in, IPSTATS_MIB_INDISCARDS);
+//		icmp64_send(in, ICMPERR_ADDR_UNREACHABLE, 0);
+//		return error;
+//	}
+//
+//	adf = state->jool.global->cfg.nat64.drop_by_addr;
+//	if (adf && !sessiondb_allow(state->jool.nat64.session, &in->tuple)) {
+//		log_debug("Packet was blocked by address-dependent filtering.");
+//		icmp64_send(in, ICMPERR_FILTER, 0);
+//		inc_stats(in, IPSTATS_MIB_INDISCARDS);
+//		bibentry_put_thread(*bib, false);
+//		return -EPERM;
+//	}
+//
+//	return 0;
+//}
 
 /**
  * Assumes that "tuple" represents a IPv4-UDP or ICMP packet, and filters and
@@ -316,32 +267,45 @@ static int get_bib4(struct xlation *state, struct bib_entry **bib)
  */
 static verdict ipv4_simple(struct xlation *state)
 {
-	int error;
-	struct bib_entry *bib;
+	struct bib_entry bib;
 	struct session_entry *session;
+	bool allow;
+	int error;
 
-	error = get_bib4(state, &bib);
-	if (error == -ESRCH)
+	error = sessiondb_find_full(state->jool.nat64.session, &bib, &session,
+			&allow);
+	switch (error) {
+	case 0:
+		break;
+	case -ESRCH:
+		log_debug("There is no BIB entry for the IPv4 packet.");
+		inc_stats(in, IPSTATS_MIB_INNOROUTES);
 		return VERDICT_ACCEPT;
-	else if (error)
-		return VERDICT_DROP;
-	log_bib(bib);
-
-	error = get_or_create_session(state, bib, &session);
-	if (error) {
-		inc_stats(&state->in, IPSTATS_MIB_INDISCARDS);
-		bibentry_put_thread(bib, false);
-		return VERDICT_DROP;
+	default:
+		log_debug("Errcode %d while finding a BIB entry.", error);
+		inc_stats(in, IPSTATS_MIB_INDISCARDS);
+		icmp64_send(in, ICMPERR_ADDR_UNREACHABLE, 0);
+		return breakdown(state);
 	}
-	log_session(session);
 
-	joold_add(state, session);
+	if (state->jool.global->cfg.nat64.drop_by_addr && !allow) {
+		log_debug("Packet was blocked by address-dependent filtering.");
+		icmp64_send(in, ICMPERR_FILTER, 0);
+		inc_stats(in, IPSTATS_MIB_INDISCARDS);
+		return -EPERM;
+	}
 
-	/* Transfer session refcount to @state; do not put yet. */
-	state->session = session;
-	bibentry_put_thread(bib, false);
+	if (session)
+		return succeed(state, session);
 
-	return VERDICT_CONTINUE;
+	session = create_session(state, &bib, ESTABLISHED);
+	if (!session)
+		return breakdown(state);
+	if (sessiondb_add_simple(state->jool.nat64.session, session, true)) {
+		session_put(session, true);
+		return breakdown(state);
+	}
+	return succeed(state, session);
 }
 
 /**
@@ -350,38 +314,28 @@ static verdict ipv4_simple(struct xlation *state)
  * Processes IPv6 SYN packets when there's no state.
  * Part of RFC 6146 section 3.5.2.2.
  */
-static int tcp_closed_v6_syn(struct xlation *state)
+static verdict tcp_closed_v6_syn(struct xlation *state)
 {
-	struct bib_entry *bib;
+	return create_and_add_session(state, V6_INIT, false);
+}
+
+static verdict send_session_to_pktqueue(struct xlation *state,
+		struct bib_entry *bib)
+{
 	struct session_entry *session;
-	int error;
 
-	error = get_or_create_bib6(state, &bib);
-	if (error)
-		return error;
-	log_bib(bib);
+	session = create_session(state, bib, V4_INIT);
+	if (!session)
+		return breakdown(state);
 
-	error = create_session(state, bib, &session);
-	if (error)
-		goto end;
-	session->state = V6_INIT;
-
-	error = sessiondb_add(state->jool.nat64.session, session, NULL, NULL, 0);
-	if (error) {
+	if (sessiondb_queue(state->jool.nat64.session, session, &state->in)) {
 		session_put(session, true);
-		goto end;
+		return breakdown(state);
 	}
-	log_session(session);
 
-	joold_add(state, session);
-
-	/* Transfer session refcount to @state; do not put yet. */
-	state->session = session;
-	/* Fall through. */
-
-end:
-	bibentry_put_thread(bib, false);
-	return error;
+	/* The original skb belongs to pktqueue now. */
+	/* Also do not put the session; the kref was transferred. */
+	return VERDICT_STOLEN;
 }
 
 /**
@@ -392,62 +346,36 @@ end:
  */
 static verdict tcp_closed_v4_syn(struct xlation *state)
 {
-	struct bib_entry *bib;
+	struct bib_entry bib;
 	struct session_entry *session;
-	int error;
-	verdict result = VERDICT_DROP;
 
 	if (state->jool.global->cfg.nat64.drop_external_tcp) {
 		log_debug("Applying policy: Drop externally initiated TCP connections.");
-		return VERDICT_DROP;
+		return breakdown(state);
 	}
 
-	error = bibdb_find(state->jool.nat64.bib, &state->in.tuple, &bib);
-	if (error) {
-		if (error != -ESRCH)
-			return VERDICT_DROP;
-		bib = NULL;
-	}
-	log_bib(bib);
-
-	error = create_session(state, bib, &session);
-	if (error)
-		goto end_bib;
-	log_session(session);
-
-	session->state = V4_INIT;
-
-	if (!bib || state->jool.global->cfg.nat64.drop_by_addr) {
-		error = pktqueue_add(state->jool.nat64.session->pkt_queue,
-				session, &state->in);
-		if (error)
-			goto end_session;
-
-		/* The original skb belongs to pktqueue now. */
-		result = VERDICT_STOLEN;
-		/* Do not put the session; the kref was transferred. */
-		goto end_bib;
+	switch (sessiondb_find_bib(state->jool.nat64.session, &state->in.tuple,
+			&bib)) {
+	case 0:
+		break;
+	case -ESRCH:
+		return send_session_to_pktqueue(state, NULL);
+	default:
+		return breakdown(state);
 	}
 
-	error = sessiondb_add(state->jool.nat64.session, session, NULL, NULL, 0);
-	if (error) {
-		log_debug("Could not add session to database: %d", error);
-		goto end_session;
+	if (state->jool.global->cfg.nat64.drop_by_addr)
+		return send_session_to_pktqueue(state, &bib);
+
+	session = create_session(state, &bib, V4_INIT);
+	if (!session)
+		return breakdown(state);
+	if (sessiondb_add_simple(state->jool.nat64.session, session, false)) {
+		session_put(session, true);
+		return breakdown(state);
 	}
 
-	joold_add(state, session);
-
-	/* Transfer session refcount to @state; do not put yet. */
-	state->session = session;
-	bibentry_put_thread(bib, false);
-	return VERDICT_CONTINUE;
-
-end_session:
-	session_put(session, false);
-end_bib:
-	if (bib)
-		bibentry_put_thread(bib, false);
-	return result;
+	return succeed(state, session);
 }
 
 /**
@@ -457,43 +385,28 @@ end_bib:
 static verdict tcp_closed_state(struct xlation *state)
 {
 	struct packet *pkt = &state->in;
-	struct bib_entry *bib;
-	verdict result;
 	int error;
 
-	switch (pkt_l3_proto(pkt)) {
-	case L3PROTO_IPV6:
-		if (pkt_tcp_hdr(pkt)->syn) {
-			result = (tcp_closed_v6_syn(state) == 0)
-					? VERDICT_CONTINUE
-					: VERDICT_DROP;
-			goto syn_out;
+	if (pkt_tcp_hdr(pkt)->syn) {
+		switch (pkt_l3_proto(pkt)) {
+		case L3PROTO_IPV6:
+			return tcp_closed_v6_syn(state);
+		case L3PROTO_IPV4:
+			return tcp_closed_v4_syn(state);
 		}
-		break;
-
-	case L3PROTO_IPV4:
-		if (pkt_tcp_hdr(pkt)->syn) {
-			result = tcp_closed_v4_syn(state);
-			goto syn_out;
-		}
-		break;
 	}
 
-	error = bibdb_find(state->jool.nat64.bib, &pkt->tuple, &bib);
+	error = sessiondb_find_bib(state->jool.nat64.session, &pkt->tuple,
+			NULL);
 	if (error) {
 		log_debug("Closed state: Packet is not SYN and there is no BIB entry, so discarding. ERRcode %d",
 				error);
 		inc_stats(pkt, IPSTATS_MIB_INNOROUTES);
+		/* TODO wth? should this not be an ACCEPT? */
 		return VERDICT_DROP;
 	}
 
-	bibentry_put_thread(bib, false);
 	return VERDICT_CONTINUE;
-
-syn_out:
-	if (result == VERDICT_DROP)
-		inc_stats(pkt, IPSTATS_MIB_INDISCARDS);
-	return result;
 }
 
 /**
@@ -667,42 +580,14 @@ static verdict tcp(struct xlation *state)
 
 	error = sessiondb_find(state->jool.nat64.session, &state->in.tuple,
 			tcp_state_machine, state, &session);
-	if (error == -ESRCH)
+	switch (error) {
+	case 0:
+		return succeed(state, session);
+	case -ESRCH:
 		return tcp_closed_state(state);
-	if (error) {
-		log_debug("Error code %d while trying to find a TCP session.",
-				error);
-		inc_stats(&state->in, IPSTATS_MIB_INDISCARDS);
-		return VERDICT_DROP;
+	default:
+		return breakdown(state);
 	}
-	log_session(session);
-
-	/*
-	 * Sometimes the session doesn't change as a result of the state
-	 * machine's schemes.
-	 * No state change, no timeout change, no update time change.
-	 *
-	 * One might argue that we shouldn't joold the session in those cases.
-	 * It's a lot more trouble than it's worth:
-	 *
-	 * - Calling joold_add() on the TCP SM state functions is incorrect
-	 *   because the session's update_time and expirer haven't been updated
-	 *   by that point. So what gets synchronizes is half-baked data.
-	 * - Calling joold_add() on decide_fate() is a freaking mess because
-	 *   we'd need to send the xlator and a boolean (indicating whether this
-	 *   is packet or timer context) to it and all intermediate functions,
-	 *   and these functions all already have too many arguments as it is.
-	 *   It's bad design anyway; the session module belongs to a layer that
-	 *   shouldn't be aware of the xlator.
-	 * - These special no-changes cases are rare.
-	 *
-	 * So let's simplify everything by just joold_add()ing here.
-	 */
-	joold_add(state, session);
-
-	/* Transfer session refcount to @state; do not put yet. */
-	state->session = session;
-	return VERDICT_CONTINUE;
 }
 
 /**

@@ -7,6 +7,19 @@
 #include "nat64/mod/stateful/session/table.h"
 #include "nat64/mod/stateful/session/pkt_queue.h"
 
+struct sessiondb {
+	/** The session table for UDP conversations. */
+	struct session_table udp;
+	/** The session table for TCP connections. */
+	struct session_table tcp;
+	/** The session table for ICMP conversations. */
+	struct session_table icmp;
+	/** Packet storage for simultaneous open of TCP connections. */
+	struct pktqueue *pkt_queue;
+
+	struct kref refs;
+};
+
 /**
  * One-liner to get the session table corresponding to the @proto protocol.
  */
@@ -79,9 +92,6 @@ static void release(struct kref *refcounter)
 	wkfree(struct sessiondb, db);
 }
 
-/**
- * Note: This function can trigger destruction of BIB entries.
- */
 void sessiondb_put(struct sessiondb *db)
 {
 	kref_put(&db->refs, release);
@@ -130,22 +140,10 @@ int sessiondb_add(struct sessiondb *db, struct session_entry *session,
 	return sessiontable_add(table, session, cb, cb_args, est_timer);
 }
 
-int sessiondb_set_session_timer(struct sessiondb *db, struct session_entry *session, bool is_established)
+int sessiondb_add_simple(struct sessiondb *db, struct session_entry *session,
+		bool est_timer)
 {
-	struct session_table *table = get_table(db, session->l4_proto);
-	if (!table)
-		return -EINVAL;
-
-	if (is_established) {
-		session->expirer = &table->est_timer;
-	} else {
-		session->expirer = &table->trans_timer;
-	}
-
-	list_del(&session->list_hook);
-	list_add_tail(&session->list_hook, &session->expirer->sessions);
-
-	return 0;
+	return sessiondb_add(db, session, NULL, NULL, est_timer);
 }
 
 int sessiondb_foreach(struct sessiondb *db, l4_protocol proto,

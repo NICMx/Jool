@@ -4,6 +4,7 @@
 #include <linux/timer.h>
 #include "nat64/common/config.h"
 #include "nat64/mod/common/packet.h"
+#include "nat64/mod/stateful/bib/table.h"
 #include "nat64/mod/stateful/session/entry.h"
 
 enum session_fate {
@@ -59,39 +60,7 @@ struct expire_timer {
 	fate_cb decide_fate_cb;
 };
 
-/**
- * Session table definition.
- * Holds red-black trees, one for each indexing need (IPv4 and IPv6).
- */
-struct session_table {
-	/**
-	 * Indexes the entries using their IPv6 identifiers.
-	 * (sorted by local6, then remote6. The taddr6 foreach needs this.)
-	 */
-	struct rb_root tree6;
-	/**
-	 * Indexes the entries using their IPv4 identifiers.
-	 * (sorted by local4, then remote4. sessiontable_allow() and the BIB and
-	 * taddr4 foreachs need this.)
-	 */
-	struct rb_root tree4;
-	/** Number of session entries in this table. */
-	u64 count;
-
-	/** Expires this table's established sessions. */
-	struct expire_timer est_timer;
-	/** Expires this table's transitory sessions. */
-	struct expire_timer trans_timer;
-
-	/**
-	 * Lock to sync access. This protects both the trees and the entries,
-	 * but if you only need to read the const portion of the entries,
-	 * you can get away with maintaining your reference count thingy.
-	 */
-	spinlock_t lock;
-
-	bool log_changes;
-};
+struct session_table;
 
 void sessiontable_init(struct session_table *table, fate_cb expired_cb,
 		int est_timeout, int trans_timeout);

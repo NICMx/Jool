@@ -1,7 +1,7 @@
 #ifndef _JOOL_UNIT_TEST_H
 #define _JOOL_UNIT_TEST_H
 
-#include "nat64/common/types.h"
+#include "nat64/mod/common/types.h"
 #include "nat64/mod/stateful/bib/table.h"
 #include "nat64/mod/stateful/session/entry.h"
 
