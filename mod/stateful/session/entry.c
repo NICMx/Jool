@@ -1,8 +1,9 @@
 #include "nat64/mod/stateful/session/entry.h"
 
+#include <linux/slab.h>
 #include "nat64/common/str_utils.h"
+#include "nat64/mod/common/address.h"
 #include "nat64/mod/common/config.h"
-#include "nat64/mod/stateful/bib/db.h"
 
 /** Cache for struct session_entrys, for efficient allocation. */
 static struct kmem_cache *entry_cache;
@@ -59,11 +60,11 @@ struct session_entry *session_clone(struct session_entry *session)
 
 	memcpy(result, session, sizeof(*session));
 	INIT_LIST_HEAD(&result->list_hook);
-	if (session->bib)
-		bibentry_get_db(session->bib);
 	RB_CLEAR_NODE(&result->tree6_hook);
 	RB_CLEAR_NODE(&result->tree4_hook);
 	kref_init(&result->refs);
+	result->tree4l2.rb_node = NULL;
+	result->tree4l3.rb_node = NULL;
 
 	return result;
 }
@@ -72,9 +73,6 @@ static void session_release(struct kref *ref)
 {
 	struct session_entry *session;
 	session = container_of(ref, struct session_entry, refs);
-
-	if (session->bib)
-		bibentry_put_db(session->bib);
 	kmem_cache_free(entry_cache, session);
 }
 
@@ -84,10 +82,6 @@ static void session_release(struct kref *ref)
  * @must_die: If @session is expected to die during this put, send true.
  * Will drop a stack trace in the kernel logs if it doesn't die.
  * true = "entry MUST die." false = "entry might or might not die."
- *
- * You might want to do this outside of spinlocks, because it can cascade into
- * removing @session's BIB entry from its database, and that can be somewhat
- * expensive.
  */
 void session_put(struct session_entry *session, bool must_die)
 {

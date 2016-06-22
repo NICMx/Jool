@@ -8,7 +8,8 @@
  */
 
 #include "nat64/mod/common/packet.h"
-#include "nat64/mod/stateful/session/table.h"
+#include "nat64/mod/stateful/bib/table.h"
+#include "nat64/mod/stateful/session/table6.h"
 #include "nat64/mod/stateful/session/pkt_queue.h"
 
 struct sessiondb;
@@ -93,25 +94,21 @@ int sessiondb_queue(struct sessiondb *db, struct session_entry *session,
 		struct packet *pkt);
 
 int sessiondb_add(struct sessiondb *db, struct session_entry *session,
-		fate_cb cb, void *cb_args,
-		bool est_timer);
+		fate_cb cb, void *cb_arg, bool est);
 int sessiondb_add_simple(struct sessiondb *db, struct session_entry *session,
-		bool est_timer);
+		bool est);
 
 int sessiondb_foreach(struct sessiondb *db, l4_protocol proto,
-		int (*func)(struct session_entry *, void *), void *arg,
-		struct ipv4_transport_addr *offset_remote,
-		struct ipv4_transport_addr *offset_local,
-		const bool include_offset);
+		struct session_foreach_func *func,
+		struct session_foreach_offset *offset);
 int sessiondb_count(struct sessiondb *db, l4_protocol proto, __u64 *result);
 
-int sessiondb_delete_by_bib(struct sessiondb *db, struct bib_entry *bib);
-void sessiondb_rm_taddr4s(struct sessiondb *db, struct ipv4_prefix *prefix,
-		struct port_range *ports);
-void sessiondb_rm_taddr6s(struct sessiondb *db, struct ipv6_prefix *prefix);
+void sessiondb_delete_by_bib(struct sessiondb *db, struct bib_entry *bib);
+void sessiondb_rm_range(struct sessiondb *db, l4_protocol proto,
+		struct ipv4_range *range);
+void sessiondb_rm_prefix6(struct sessiondb *db, l4_protocol proto,
+		struct ipv6_prefix *prefix);
 void sessiondb_clean(struct sessiondb *db, struct net *ns);
 void sessiondb_flush(struct sessiondb *db);
-
-bool sessiondb_allow(struct sessiondb *db, struct tuple *tuple4);
 
 #endif /* _JOOL_MOD_SESSION_DB_H */

@@ -210,12 +210,12 @@ void sessiondb_config_set(struct sessiondb *db, struct session_config *config)
 	/* No code. */
 }
 
-void sessiondb_rm_taddr6s(struct sessiondb *db, struct ipv6_prefix *prefix)
+void sessiondb_rm_prefix6(struct sessiondb *db, struct ipv6_prefix *prefix)
 {
 	fail(__func__);
 }
 
-void sessiondb_rm_taddr4s(struct sessiondb *db, struct ipv4_prefix *prefix,
+void sessiondb_rm_range(struct sessiondb *db, struct ipv4_prefix *prefix,
 		struct port_range *ports)
 {
 	fail(__func__);

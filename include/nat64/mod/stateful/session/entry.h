@@ -5,7 +5,6 @@
 #include <linux/rbtree.h>
 #include "nat64/common/types.h"
 #include "nat64/common/session.h"
-#include "nat64/mod/stateful/bib/db.h"
 
 /**
  * A row, intended to be part of one of the session tables.
@@ -15,9 +14,7 @@
  * "struct session_entry_usr".
  *
  * TODO (performance) this structure is somewhat big (probably 128+ bytes) and
- * there will be lots of sessions in memory. Maybe turn l4_proto into a
- * single-byte integer and remove some of the transport addresses (since they
- * can be extracted from @bib).
+ * there will be lots of sessions in memory. Maybe try to pack it and stuff.
  */
 struct session_entry {
 	/**
@@ -31,8 +28,8 @@ struct session_entry {
 	 * @dst6 is the address the NAT64 is using to mask the IPv4 endpoint.
 	 *     We used to call it "local6".
 	 */
-	const struct ipv6_transport_addr src6;
-	const struct ipv6_transport_addr dst6;
+	struct ipv6_transport_addr src6;
+	struct ipv6_transport_addr dst6;
 
 	/**
 	 * IPv4 version of the connection.
@@ -45,11 +42,11 @@ struct session_entry {
 	 * @dst4 is the remote IPv4 node's transport address.
 	 *     We used to call it "remote4".
 	 */
-	const struct ipv4_transport_addr src4;
-	const struct ipv4_transport_addr dst4;
+	struct ipv4_transport_addr src4;
+	struct ipv4_transport_addr dst4;
 
 	/** Transport protocol of the connection this session describes. */
-	const l4_protocol l4_proto;
+	l4_protocol l4_proto;
 	/** Current TCP SM state. Only relevant if @l4_proto == L4PROTO_TCP. */
 	tcp_state state;
 
@@ -90,6 +87,12 @@ struct session_entry {
 	struct rb_root tree4l3;
 };
 
+typedef void (*st4_destructor_cb)(struct session_entry *, void *);
+struct destructor_arg {
+	st4_destructor_cb cb;
+	void *arg;
+};
+
 int session_init(void);
 void session_destroy(void);
 
@@ -100,7 +103,7 @@ struct session_entry *session_create(const struct ipv6_transport_addr *src6,
 		l4_protocol l4_proto);
 struct session_entry *session_clone(struct session_entry *session);
 
-/* I made session_put() private; See its comment in table.c. */
+/* I made session_get() private; See its comment in table.c. */
 /* static void session_get(struct session_entry *session); */
 void session_put(struct session_entry *session, bool must_die);
 

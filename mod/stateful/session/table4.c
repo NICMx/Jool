@@ -89,14 +89,30 @@ static int compare_src4(const struct session_entry *a,
 static void session2bib(struct session_entry *session,
 		struct bib_entry *bib)
 {
-	bib->ipv6 = session->src6;
-	bib->ipv4 = session->src4;
-	bib->l4_proto = session->l4_proto;
+	if (bib) {
+		bib->ipv6 = session->src6;
+		bib->ipv4 = session->src4;
+		bib->l4_proto = session->l4_proto;
+	}
+}
+
+struct session_entry *st4_find(struct session_table4 *table,
+		struct tuple *tuple4)
+{
+	struct session_entry *result;
+	bool allow;
+	int error;
+
+	error = st4_find_full(table, tuple4, NULL, &result, &allow);
+	return error ? NULL : result;
 }
 
 #define rbtree_find4(tuple, tree, compare_cb) \
 	rbtree_find(tuple, tree, compare_cb, struct session_entry, tree4_hook)
 
+/**
+ * @bib is optional.
+ */
 int st4_find_full(struct session_table4 *table, struct tuple *tuple4,
 		struct bib_entry *bib, struct session_entry **session,
 		bool *allow)
@@ -151,28 +167,29 @@ int st4_find_bib(struct session_table4 *table, struct tuple *tuple4,
 	rbtree_add(session, session, tree, compare_cb, struct session_entry, \
 			tree4_hook)
 
-int st4_add(struct session_table4 *table, struct session_entry *session)
+/**
+ * If there's a collision, returns the colliding session.
+ * If the add was successful, returns NULL.
+ */
+struct session_entry *st4_add(struct session_table4 *table,
+		struct session_entry *session)
 {
 	struct session_entry *clash;
 
 	clash = add4(session, &table->tree, compare_bib);
 	if (!clash)
-		return 0;
+		return NULL;
 
 	if (session->dst4.l3.s_addr != clash->dst4.l3.s_addr) {
 		clash = add4(session, &clash->tree4l2, compare_allow);
 		if (!clash)
-			return 0;
+			return NULL;
 	}
 
 	if (session->dst4.l4 == clash->dst4.l4)
-		return -EEXIST;
+		return clash;
 
-	clash = add4(session, &clash->tree4l3, compare_session);
-	if (!clash)
-		return 0;
-
-	return -EEXIST;
+	return add4(session, &clash->tree4l3, compare_session);
 }
 
 static struct rb_root *find_root(struct session_table4 *table,
@@ -244,21 +261,21 @@ void st4_flush(struct session_table4 *table)
 
 static void prune_l3(struct rb_node *node, void *arg)
 {
-	st4_destructor_cb destructor = arg;
-	destructor(st4_entry(node));
+	struct destructor_arg *destructor = arg;
+	destructor->cb(st4_entry(node), destructor->arg);
 }
 
 static void prune_l2(struct rb_node *node, void *arg)
 {
-	st4_destructor_cb destructor = arg;
+	struct destructor_arg *destructor = arg;
 	struct session_entry *session = st4_entry(node);
 	rbtree_clear(&session->tree4l3, prune_l3, destructor);
-	destructor(session);
+	destructor->cb(session, destructor->arg);
 }
 
 void st4_prune_src4(struct session_table4 *table,
 		struct ipv4_transport_addr *src4,
-		st4_destructor_cb destructor)
+		struct destructor_arg *destructor)
 {
 	struct session_entry *root;
 
@@ -268,9 +285,57 @@ void st4_prune_src4(struct session_table4 *table,
 
 	rbtree_clear(&root->tree4l2, prune_l2, destructor);
 	rbtree_clear(&root->tree4l3, prune_l3, destructor);
+	destructor->cb(root, destructor->arg);
+}
 
-	rb_erase(&root->tree4_hook, &table->tree);
-	destructor(root);
+static int compare_range(const struct session_entry *session,
+		const struct ipv4_range *range)
+{
+	if (prefix4_contains(&range->prefix, &session->src4.l3)) {
+		if (port_range_contains(&range->ports, session->src4.l4))
+			return 0;
+		return (session->src4.l4 < range->ports.min) ? -1 : 1;
+	}
+
+	return ipv4_addr_cmp(&session->src4.l3, &range->prefix.address);
+}
+
+void st4_prune_range(struct session_table4 *table,
+		struct ipv4_range *range,
+		struct destructor_arg *destructor)
+{
+	struct session_entry *session;
+	struct rb_node *node;
+	struct rb_node *prev;
+	struct rb_node *next;
+
+	session = rbtree_find4(range, &table->tree, compare_range);
+	if (!session)
+		return;
+
+	node = &session->tree4_hook;
+	prev = rb_prev(node);
+	next = rb_next(node);
+
+	destructor->cb(session, destructor->arg);
+
+	while (prev) {
+		node = prev;
+		session = st4_entry(node);
+		if (!range4_contains(range, &session->src4))
+			break;
+		prev = rb_prev(node);
+		destructor->cb(session, destructor->arg);
+	}
+
+	while (next) {
+		node = next;
+		session = st4_entry(node);
+		if (!range4_contains(range, &session->src4))
+			break;
+		next = rb_next(node);
+		destructor->cb(session, destructor->arg);
+	}
 }
 
 static void print_session(int level, int layer, char *type,

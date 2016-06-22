@@ -2,7 +2,6 @@
 #define _JOOL_MOD_BIB_PORT_ALLOCATOR_H
 
 #include "nat64/common/types.h"
-#include "nat64/mod/common/packet.h"
 #include "nat64/mod/common/translation_state.h"
 
 int palloc_init(void);

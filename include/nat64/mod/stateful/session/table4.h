@@ -24,14 +24,17 @@ int st4_find_full(struct session_table4 *table, struct tuple *tuple4,
 int st4_find_bib(struct session_table4 *table, struct tuple *tuple4,
 		struct bib_entry *bib);
 
-int st4_add(struct session_table4 *table, struct session_entry *session);
+struct session_entry *st4_add(struct session_table4 *table,
+		struct session_entry *session);
 void st4_rm(struct session_table4 *table, struct session_entry *session);
 void st4_flush(struct session_table4 *table);
 
-typedef void (*st4_destructor_cb)(struct session_entry *);
 void st4_prune_src4(struct session_table4 *table,
 		struct ipv4_transport_addr *src4,
-		st4_destructor_cb destructor);
+		struct destructor_arg *destructor);
+void st4_prune_range(struct session_table4 *table,
+		struct ipv4_range *range,
+		struct destructor_arg *destructor);
 
 void st4_print(struct session_table4 *table);
 

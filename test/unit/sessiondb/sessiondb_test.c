@@ -116,22 +116,22 @@ static bool insert_test_sessions(void)
 	memset(sessions4, 0, sizeof(sessions4));
 	memset(sessions6, 0, sizeof(sessions6));
 
-	sessions[ 0] = session_inject(db, "2001:db8::1", 2, "64::2", 2, "192.0.2.2", 1, "203.0.113.2", 1, PROTO, true);
-	sessions[ 1] = session_inject(db, "2001:db8::1", 1, "64::2", 1, "192.0.2.2", 2, "203.0.113.2", 2, PROTO, true);
-	sessions[ 2] = session_inject(db, "2001:db8::2", 1, "64::2", 1, "192.0.2.2", 2, "203.0.113.1", 2, PROTO, true);
-	sessions[ 3] = session_inject(db, "2001:db8::2", 2, "64::2", 2, "192.0.2.2", 2, "203.0.113.1", 1, PROTO, true);
-	sessions[ 4] = session_inject(db, "2001:db8::1", 1, "64::2", 2, "192.0.2.1", 2, "203.0.113.2", 2, PROTO, true);
-	sessions[ 5] = session_inject(db, "2001:db8::2", 2, "64::1", 1, "192.0.2.2", 1, "203.0.113.1", 1, PROTO, true);
-	sessions[ 6] = session_inject(db, "2001:db8::2", 1, "64::1", 1, "192.0.2.1", 1, "203.0.113.2", 2, PROTO, true);
-	sessions[ 7] = session_inject(db, "2001:db8::1", 1, "64::1", 1, "192.0.2.2", 1, "203.0.113.2", 2, PROTO, true);
-	sessions[ 8] = session_inject(db, "2001:db8::2", 2, "64::1", 2, "192.0.2.1", 2, "203.0.113.1", 1, PROTO, true);
-	sessions[ 9] = session_inject(db, "2001:db8::1", 2, "64::1", 1, "192.0.2.2", 2, "203.0.113.2", 1, PROTO, true);
-	sessions[10] = session_inject(db, "2001:db8::2", 1, "64::1", 2, "192.0.2.2", 1, "203.0.113.1", 2, PROTO, true);
-	sessions[11] = session_inject(db, "2001:db8::1", 2, "64::1", 2, "192.0.2.1", 1, "203.0.113.2", 1, PROTO, true);
-	sessions[12] = session_inject(db, "2001:db8::2", 1, "64::2", 2, "192.0.2.1", 2, "203.0.113.2", 1, PROTO, true);
-	sessions[13] = session_inject(db, "2001:db8::1", 1, "64::1", 2, "192.0.2.1", 2, "203.0.113.1", 2, PROTO, true);
-	sessions[14] = session_inject(db, "2001:db8::1", 2, "64::2", 1, "192.0.2.1", 1, "203.0.113.1", 1, PROTO, true);
-	sessions[15] = session_inject(db, "2001:db8::2", 2, "64::2", 1, "192.0.2.1", 1, "203.0.113.1", 2, PROTO, true);
+	sessions[ 0] = session_inject(db, "2001:db8::1", 2, "64::2", 2, "192.0.2.2", 1, "203.0.113.2", 1, PROTO);
+	sessions[ 1] = session_inject(db, "2001:db8::1", 1, "64::2", 1, "192.0.2.2", 2, "203.0.113.2", 2, PROTO);
+	sessions[ 2] = session_inject(db, "2001:db8::2", 1, "64::2", 1, "192.0.2.2", 2, "203.0.113.1", 2, PROTO);
+	sessions[ 3] = session_inject(db, "2001:db8::2", 2, "64::2", 2, "192.0.2.2", 2, "203.0.113.1", 1, PROTO);
+	sessions[ 4] = session_inject(db, "2001:db8::1", 1, "64::2", 2, "192.0.2.1", 2, "203.0.113.2", 2, PROTO);
+	sessions[ 5] = session_inject(db, "2001:db8::2", 2, "64::1", 1, "192.0.2.2", 1, "203.0.113.1", 1, PROTO);
+	sessions[ 6] = session_inject(db, "2001:db8::2", 1, "64::1", 1, "192.0.2.1", 1, "203.0.113.2", 2, PROTO);
+	sessions[ 7] = session_inject(db, "2001:db8::1", 1, "64::1", 1, "192.0.2.2", 1, "203.0.113.2", 2, PROTO);
+	sessions[ 8] = session_inject(db, "2001:db8::2", 2, "64::1", 2, "192.0.2.1", 2, "203.0.113.1", 1, PROTO);
+	sessions[ 9] = session_inject(db, "2001:db8::1", 2, "64::1", 1, "192.0.2.2", 2, "203.0.113.2", 1, PROTO);
+	sessions[10] = session_inject(db, "2001:db8::2", 1, "64::1", 2, "192.0.2.2", 1, "203.0.113.1", 2, PROTO);
+	sessions[11] = session_inject(db, "2001:db8::1", 2, "64::1", 2, "192.0.2.1", 1, "203.0.113.2", 1, PROTO);
+	sessions[12] = session_inject(db, "2001:db8::2", 1, "64::2", 2, "192.0.2.1", 2, "203.0.113.2", 1, PROTO);
+	sessions[13] = session_inject(db, "2001:db8::1", 1, "64::1", 2, "192.0.2.1", 2, "203.0.113.1", 2, PROTO);
+	sessions[14] = session_inject(db, "2001:db8::1", 2, "64::2", 1, "192.0.2.1", 1, "203.0.113.1", 1, PROTO);
+	sessions[15] = session_inject(db, "2001:db8::2", 2, "64::2", 1, "192.0.2.1", 1, "203.0.113.1", 2, PROTO);
 	for (i = 0; i < ARRAY_SIZE(sessions); i++) {
 		if (!sessions[i]) {
 			log_debug("Allocation failed in index %u.", i);
@@ -188,19 +188,18 @@ static bool simple_session(void)
 			.l4_proto = PROTO,
 	};
 	struct ipv6_prefix prefix6;
-	struct ipv4_prefix prefix4;
-	struct port_range ports;
-	int error;
+	struct ipv4_range range;
 	bool success = true;
 
 	if (!insert_test_sessions())
 		return false;
 
+	st4_print(db->udp.t4);
+
 	/* ---------------------------------------------------------- */
 
 	log_debug("Deleting sessions by BIB.");
-	error = sessiondb_delete_by_bib(db, &bib);
-	success &= ASSERT_INT(0, error, "BIB delete result");
+	sessiondb_delete_by_bib(db, &bib);
 
 	sessions6[2][1][1][1] = sessions4[1][1][2][2] = NULL;
 	sessions6[1][2][1][2] = sessions4[1][1][2][1] = NULL;
@@ -211,8 +210,7 @@ static bool simple_session(void)
 	/* ---------------------------------------------------------- */
 
 	log_debug("Deleting again.");
-	error = sessiondb_delete_by_bib(db, &bib);
-	success &= ASSERT_INT(0, error, "BIB delete result");
+	sessiondb_delete_by_bib(db, &bib);
 	success &= test_db();
 
 	/* ---------------------------------------------------------- */
@@ -223,7 +221,7 @@ static bool simple_session(void)
 	prefix6.address.s6_addr32[2] = 0;
 	prefix6.address.s6_addr32[3] = cpu_to_be32(1);
 	prefix6.len = 128;
-	sessiondb_rm_taddr6s(db, &prefix6);
+	sessiondb_rm_prefix6(db, PROTO, &prefix6);
 
 	sessions6[2][2][1][1] = sessions4[2][1][1][1] = NULL;
 	sessions6[1][1][1][1] = sessions4[2][1][2][2] = NULL;
@@ -242,11 +240,11 @@ static bool simple_session(void)
 	/* ---------------------------------------------------------- */
 
 	log_debug("Deleting by taddr4s (all addresses, lower ports).");
-	prefix4.address.s_addr = cpu_to_be32(0xc0000200u);
-	prefix4.len = 30;
-	ports.min = 0;
-	ports.max = 1;
-	sessiondb_rm_taddr4s(db, &prefix4, &ports);
+	range.prefix.address.s_addr = cpu_to_be32(0xc0000200u);
+	range.prefix.len = 30;
+	range.ports.min = 0;
+	range.ports.max = 1;
+	sessiondb_rm_range(db, PROTO, &range);
 
 	sessions6[1][2][2][2] = sessions4[2][1][2][1] = NULL;
 	sessions6[2][2][1][1] = sessions4[2][1][1][1] = NULL;
@@ -267,11 +265,11 @@ static bool simple_session(void)
 	/* ---------------------------------------------------------- */
 
 	log_debug("Deleting by taddr4s (lower addresses, all ports).");
-	prefix4.address.s_addr = cpu_to_be32(0xc0000200u);
-	prefix4.len = 31;
-	ports.min = 0;
-	ports.max = 65535;
-	sessiondb_rm_taddr4s(db, &prefix4, &ports);
+	range.prefix.address.s_addr = cpu_to_be32(0xc0000200u);
+	range.prefix.len = 31;
+	range.ports.min = 0;
+	range.ports.max = 65535;
+	sessiondb_rm_range(db, PROTO, &range);
 
 	sessions6[1][1][2][2] = sessions4[1][2][2][2] = NULL;
 	sessions6[2][1][1][1] = sessions4[1][1][2][2] = NULL;
@@ -289,75 +287,75 @@ static bool simple_session(void)
 	return success;
 }
 
-static bool test_allow_aux(__u32 local_addr, __u16 local_port,
-		__u32 remote_addr, __u16 remote_port)
-{
-	struct tuple tuple4;
-
-	tuple4.src.addr4.l3.s_addr = cpu_to_be32(remote_addr);
-	tuple4.src.addr4.l4 = remote_port;
-	tuple4.dst.addr4.l3.s_addr = cpu_to_be32(local_addr);
-	tuple4.dst.addr4.l4 = local_port;
-	tuple4.l4_proto = L4PROTO_UDP;
-	tuple4.l3_proto = L3PROTO_IPV4;
-
-	log_tuple(&tuple4);
-	return sessiondb_allow(db, &tuple4);
-}
-
-static bool test_allow(void)
-{
-	struct session_entry *session;
-	bool success = true;
-
-	/* Init. */
-	session = session_inject(db, "2001:db8::2", 20, "64::6", 60,
-			"192.0.2.1", 10, "203.0.113.2", 20, L4PROTO_UDP, true);
-	if (!session)
-		return false;
-
-	/* Test admittance when the tuple and session match perfectly. */
-	success &= ASSERT_BOOL(true,
-			test_allow_aux(0xc0000201u, 10, 0xcb007102u, 20),
-			"perfect match");
-	/* Test a tuple that completely mismatches the session. */
-	success &= ASSERT_BOOL(false,
-			test_allow_aux(0x12345678u, 90, 0x90876543u, 21),
-			"perfect mismatch");
-	/*
-	 * Now test tuples that nearly match the session.
-	 * (The remote port is the only one that doesn't matter.)
-	 */
-	success &= ASSERT_BOOL(true,
-			test_allow_aux(0xc0000201u, 10, 0xcb007102u, 21),
-			"src port mismatch");
-	success &= ASSERT_BOOL(false,
-			test_allow_aux(0xc0000201u, 10, 0x90876543u, 20),
-			"src addr mismatch");
-	success &= ASSERT_BOOL(false,
-			test_allow_aux(0xc0000201u, 90, 0xcb007102u, 20),
-			"dst port mismatch");
-	success &= ASSERT_BOOL(false,
-			test_allow_aux(0x12345678u, 10, 0xcb007102u, 20),
-			"dst addr mismatch");
-
-	sessiondb_flush(db);
-	session_put(session, true);
-	session = NULL;
-
-	/*
-	 * Now that the original session is no longer in the DB, the previously
-	 * positive tests should now fail.
-	 */
-	success &= ASSERT_BOOL(false,
-			test_allow_aux(0xc0000201u, 10, 0xcb007102u, 20),
-			"perfect match deleted");
-	success &= ASSERT_BOOL(false,
-			test_allow_aux(0xc0000201u, 10, 0xcb007102u, 21),
-			"src port mismatch deleted");
-
-	return success;
-}
+//static bool test_allow_aux(__u32 local_addr, __u16 local_port,
+//		__u32 remote_addr, __u16 remote_port)
+//{
+//	struct tuple tuple4;
+//
+//	tuple4.src.addr4.l3.s_addr = cpu_to_be32(remote_addr);
+//	tuple4.src.addr4.l4 = remote_port;
+//	tuple4.dst.addr4.l3.s_addr = cpu_to_be32(local_addr);
+//	tuple4.dst.addr4.l4 = local_port;
+//	tuple4.l4_proto = L4PROTO_UDP;
+//	tuple4.l3_proto = L3PROTO_IPV4;
+//
+//	log_tuple(&tuple4);
+//	return sessiondb_allow(db, &tuple4);
+//}
+//
+//static bool test_allow(void)
+//{
+//	struct session_entry *session;
+//	bool success = true;
+//
+//	/* Init. */
+//	session = session_inject(db, "2001:db8::2", 20, "64::6", 60,
+//			"192.0.2.1", 10, "203.0.113.2", 20, L4PROTO_UDP, true);
+//	if (!session)
+//		return false;
+//
+//	/* Test admittance when the tuple and session match perfectly. */
+//	success &= ASSERT_BOOL(true,
+//			test_allow_aux(0xc0000201u, 10, 0xcb007102u, 20),
+//			"perfect match");
+//	/* Test a tuple that completely mismatches the session. */
+//	success &= ASSERT_BOOL(false,
+//			test_allow_aux(0x12345678u, 90, 0x90876543u, 21),
+//			"perfect mismatch");
+//	/*
+//	 * Now test tuples that nearly match the session.
+//	 * (The remote port is the only one that doesn't matter.)
+//	 */
+//	success &= ASSERT_BOOL(true,
+//			test_allow_aux(0xc0000201u, 10, 0xcb007102u, 21),
+//			"src port mismatch");
+//	success &= ASSERT_BOOL(false,
+//			test_allow_aux(0xc0000201u, 10, 0x90876543u, 20),
+//			"src addr mismatch");
+//	success &= ASSERT_BOOL(false,
+//			test_allow_aux(0xc0000201u, 90, 0xcb007102u, 20),
+//			"dst port mismatch");
+//	success &= ASSERT_BOOL(false,
+//			test_allow_aux(0x12345678u, 10, 0xcb007102u, 20),
+//			"dst addr mismatch");
+//
+//	sessiondb_flush(db);
+//	session_put(session, true);
+//	session = NULL;
+//
+//	/*
+//	 * Now that the original session is no longer in the DB, the previously
+//	 * positive tests should now fail.
+//	 */
+//	success &= ASSERT_BOOL(false,
+//			test_allow_aux(0xc0000201u, 10, 0xcb007102u, 20),
+//			"perfect match deleted");
+//	success &= ASSERT_BOOL(false,
+//			test_allow_aux(0xc0000201u, 10, 0xcb007102u, 21),
+//			"src port mismatch deleted");
+//
+//	return success;
+//}
 
 enum session_fate tcp_expired_cb(struct session_entry *session, void *arg)
 {
@@ -387,7 +385,7 @@ int init_module(void)
 	START_TESTS("Session");
 
 	INIT_CALL_END(init(), simple_session(), end(), "Single Session");
-	INIT_CALL_END(init(), test_allow(), end(), "Allow function");
+//	INIT_CALL_END(init(), test_allow(), end(), "Allow function");
 
 	END_TESTS;
 }

@@ -10,6 +10,6 @@ struct session_entry *session_inject(struct sessiondb *db,
 		char *local6_addr, u16 local6_id,
 		char *local4_addr, u16 local4_id,
 		char *remote4_addr, u16 remote4_id,
-		l4_protocol l4_proto, bool is_est);
+		l4_protocol l4_proto);
 
 #endif /* _JOOL_UNIT_SESSION_H */

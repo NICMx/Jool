@@ -4,8 +4,7 @@
 
 static int session_print_aux(struct session_entry *session, void *arg)
 {
-	log_debug("  [%s][%pI6c#%u, %pI6c#%u, %pI4#%u, %pI4#%u]",
-			session->bib->is_static ? "Static" : "Dynamic",
+	log_debug("  [%pI6c#%u, %pI6c#%u, %pI4#%u, %pI4#%u]",
 			&session->src6.l3, session->src6.l4,
 			&session->dst6.l3, session->dst6.l4,
 			&session->src4.l3, session->src4.l4,
@@ -15,9 +14,13 @@ static int session_print_aux(struct session_entry *session, void *arg)
 
 int session_print(struct sessiondb *db, l4_protocol l4_proto)
 {
+	struct session_foreach_func func = {
+			.cb = session_print_aux,
+			.arg = NULL,
+	};
+
 	log_debug("Sessions:");
-	return sessiondb_foreach(db, l4_proto, session_print_aux, NULL, NULL,
-			NULL, false);
+	return sessiondb_foreach(db, l4_proto, &func, NULL);
 }
 
 struct session_entry *session_inject(struct sessiondb *db,
@@ -25,7 +28,7 @@ struct session_entry *session_inject(struct sessiondb *db,
 		char *local6_addr, u16 local6_id,
 		char *local4_addr, u16 local4_id,
 		char *remote4_addr, u16 remote4_id,
-		l4_protocol proto, bool is_est)
+		l4_protocol proto)
 {
 	struct ipv6_transport_addr remote6;
 	struct ipv6_transport_addr local6;
@@ -47,8 +50,7 @@ struct session_entry *session_inject(struct sessiondb *db,
 		return NULL;
 	remote4.l4 = remote4_id;
 
-	session = session_create(&remote6, &local6, &local4, &remote4, proto,
-			NULL);
+	session = session_create(&remote6, &local6, &local4, &remote4, proto);
 	if (!session)
 		return NULL;
 
