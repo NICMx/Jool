@@ -33,6 +33,20 @@ bool ASSERT_ADDR4(const char *expected_str, const struct in_addr *actual,
 			: __ASSERT_ADDR4(&expected, actual, test_name);
 }
 
+bool ASSERT_TADDR4(const struct ipv4_transport_addr *expected,
+		const struct ipv4_transport_addr *actual,
+		const char *test_name)
+{
+	if (taddr4_equals(expected, actual))
+		return true;
+
+	log_err("Test '%s' failed. Expected:%pI4#%u Actual:%pI4#%u",
+			test_name,
+			&expected->l3, expected->l4,
+			&actual->l3, actual->l4);
+	return false;
+}
+
 bool __ASSERT_ADDR6(const struct in6_addr *expected,
 		const struct in6_addr *actual,
 		const char *test_name)
@@ -60,6 +74,20 @@ bool ASSERT_ADDR6(const char *expected_str, const struct in6_addr *actual,
 	return str_to_addr6(expected_str, &expected)
 			? false
 			: __ASSERT_ADDR6(&expected, actual, test_name);
+}
+
+bool ASSERT_TADDR6(const struct ipv6_transport_addr *expected,
+		const struct ipv6_transport_addr *actual,
+		const char *test_name)
+{
+	if (taddr6_equals(expected, actual))
+		return true;
+
+	log_err("Test '%s' failed. Expected:%pI6c#%u Actual:%pI6c#%u",
+			test_name,
+			&expected->l3, expected->l4,
+			&actual->l3, actual->l4);
+	return false;
 }
 
 #define TUPLE_KEY "%pI4#%u -> %pI4#%u [%u]"

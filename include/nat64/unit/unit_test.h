@@ -46,10 +46,16 @@ bool ASSERT_ADDR4(const char *expected, const struct in_addr *actual,
 bool __ASSERT_ADDR4(const struct in_addr *expected,
 		const struct in_addr *actual,
 		const char *test_name);
+bool ASSERT_TADDR4(const struct ipv4_transport_addr *expected,
+		const struct ipv4_transport_addr *actual,
+		const char *test_name);
 bool ASSERT_ADDR6(const char *expected, const struct in6_addr *actual,
 		const char *test_name);
 bool __ASSERT_ADDR6(const struct in6_addr *expected,
 		const struct in6_addr *actual,
+		const char *test_name);
+bool ASSERT_TADDR6(const struct ipv6_transport_addr *expected,
+		const struct ipv6_transport_addr *actual,
 		const char *test_name);
 bool ASSERT_TUPLE(struct tuple *expected, struct tuple *actual,
 		char *test_name);

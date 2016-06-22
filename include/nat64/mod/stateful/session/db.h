@@ -13,6 +13,51 @@
 
 struct sessiondb;
 
+enum session_fate {
+	/**
+	 * Assign the established timer to the session.
+	 * (An "established" timer is one where it is assumed the session is
+	 * not going to die soon.)
+	 */
+	FATE_TIMER_EST,
+	/**
+	 * Assign the transitory timer to the session.
+	 * (A "transitory" timer is one where it is assumed the session is
+	 * going to die soon.)
+	 */
+	FATE_TIMER_TRANS,
+	/**
+	 * The session expired; it has to be removed from the DB right away.
+	 */
+	FATE_RM,
+	/**
+	 * No changes.
+	 */
+	FATE_PRESERVE,
+	/**
+	 * Send a probe packet, then reset timer into transitory mode.
+	 */
+	FATE_PROBE,
+
+	/**
+	 * Like FATE_TIMER_EST, except the session's lifetime must not be reset.
+	 * It's called "slow" because this means the database cannot just add
+	 * the session to the end of the sorted (by expiration date) list and so
+	 * the proper slot has to be found in a sequential search.
+	 */
+	FATE_TIMER_EST_SLOW,
+	/**
+	 * Like FATE_TIMER_TRANS, except the session's lifetime must not be
+	 * reset.
+	 * It's called "slow" because this means the database cannot just add
+	 * the session to the end of the sorted (by expiration date) list and so
+	 * the proper slot has to be found in a sequential search.
+	 */
+	FATE_TIMER_TRANS_SLOW,
+};
+
+typedef enum session_fate (*fate_cb)(struct session_entry *, void *);
+
 int sessiondb_init(struct sessiondb **db);
 void sessiondb_get(struct sessiondb *db);
 void sessiondb_put(struct sessiondb *db);

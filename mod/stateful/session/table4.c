@@ -97,7 +97,7 @@ static void session2bib(struct session_entry *session,
 #define rbtree_find4(tuple, tree, compare_cb) \
 	rbtree_find(tuple, tree, compare_cb, struct session_entry, tree4_hook)
 
-int st4_find(struct session_table4 *table, struct tuple *tuple4,
+int st4_find_full(struct session_table4 *table, struct tuple *tuple4,
 		struct bib_entry *bib, struct session_entry **session,
 		bool *allow)
 {
@@ -106,24 +106,31 @@ int st4_find(struct session_table4 *table, struct tuple *tuple4,
 	*allow = false;
 	*session = NULL;
 
-	/* First layer (BIB) */
 	tmp = rbtree_find4(tuple4, &table->tree, compare_tuple_bib);
 	if (!tmp)
 		return -ESRCH;
 	session2bib(tmp, bib);
 
-	/* TODO might need the add and find_hook thing here. */
+	/* We know tuple4.dst4 == tmp.src4 at this point. */
 
-	/* 2nd layer (allow) */
-	tmp = rbtree_find4(tuple4, &tmp->tree4l2, compare_tuple_allow);
-	if (!tmp)
-		return 0;
+	if (tuple4->src.addr4.l3.s_addr != tmp->dst4.l3.s_addr) {
+		tmp = rbtree_find4(tuple4, &tmp->tree4l2, compare_tuple_allow);
+		if (!tmp)
+			return 0; /* @bib is the closest thing we have. */
+	}
+
+	/*
+	 * We know tuple4.dst4 == tmp.src4 and tuple4.src4.l3 == tmp.dst4.l3
+	 * at this point.
+	 */
+
 	*allow = true;
+	if (tuple4->src.addr4.l4 == tmp->dst4.l4) {
+		*session = tmp;
+		return 0;
+	}
 
-	/* 3rd layer (session) */
 	*session = rbtree_find4(tuple4, &tmp->tree4l3, compare_tuple_session);
-	/* Fall through. */
-
 	return 0;
 }
 
@@ -151,11 +158,16 @@ int st4_add(struct session_table4 *table, struct session_entry *session)
 	clash = add4(session, &table->tree, compare_bib);
 	if (!clash)
 		return 0;
+
 	if (session->dst4.l3.s_addr != clash->dst4.l3.s_addr) {
 		clash = add4(session, &clash->tree4l2, compare_allow);
 		if (!clash)
 			return 0;
 	}
+
+	if (session->dst4.l4 == clash->dst4.l4)
+		return -EEXIST;
+
 	clash = add4(session, &clash->tree4l3, compare_session);
 	if (!clash)
 		return 0;

@@ -16,7 +16,9 @@ struct session_table4;
 struct session_table4 *st4_create(void);
 void st4_destroy(struct session_table4 *table);
 
-int st4_find(struct session_table4 *table, struct tuple *tuple4,
+struct session_entry *st4_find(struct session_table4 *table,
+		struct tuple *tuple4);
+int st4_find_full(struct session_table4 *table, struct tuple *tuple4,
 		struct bib_entry *bib, struct session_entry **session,
 		bool *allow);
 int st4_find_bib(struct session_table4 *table, struct tuple *tuple4,
