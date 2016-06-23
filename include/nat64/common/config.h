@@ -222,8 +222,7 @@ union request_pool6 {
 struct pool4_entry_usr {
 	__u32 mark;
 	__u8 proto;
-	struct ipv4_prefix addrs;
-	struct port_range ports;
+	struct ipv4_range range;
 };
 
 /**
@@ -356,20 +355,13 @@ struct request_session {
 	__u8 l4_proto;
 	union {
 		struct {
-			/** Are remote4 and local4 set? */
-			__u8 connection_set;
+			/** Is offset set? */
+			__u8 offset_set;
 			/**
-			 * Remote node from the connection the userspace app
-			 * received in the last chunk. Iteration should continue
-			 * from here.
+			 * Connection the userspace app received in the last
+			 * chunk. Iteration should continue from here.
 			 */
-			struct ipv4_transport_addr remote4;
-			/**
-			 * Remote IPv6 node's IPv4 mask, from the connection the
-			 * userspace app received in the last chunk.
-			 * Iteration should continue from here.
-			 */
-			struct ipv4_transport_addr local4;
+			struct taddr6_tuple offset;
 		} display;
 		struct {
 			/* Nothing needed here. */

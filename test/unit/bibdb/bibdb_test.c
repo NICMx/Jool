@@ -1,8 +1,8 @@
 #include <linux/module.h>
 #include <linux/printk.h>
+#include "../../../mod/stateful/bib/bib.c"
 #include "nat64/unit/unit_test.h"
 #include "nat64/unit/bib.h"
-#include "bib/db.c"
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Alberto Leiva");

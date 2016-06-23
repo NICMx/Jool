@@ -2,7 +2,6 @@
 
 #include "nat64/mod/common/nl/nl_common.h"
 #include "nat64/mod/common/nl/nl_core2.h"
-#include "nat64/mod/stateful/bib/db.h"
 #include "nat64/mod/stateful/pool4/db.h"
 #include "nat64/mod/stateful/session/db.h"
 
@@ -69,12 +68,10 @@ static int handle_pool4_rm(struct xlator *jool, struct genl_info *info,
 	 * The rationale is more or less the same.
 	 */
 	if (xlat_is_nat64() && !request->rm.quick) {
+		/* TODO recall that this also has to clear static BIBs */
 		sessiondb_rm_range(jool->nat64.session,
-				&request->rm.entry.addrs,
-				&request->rm.entry.ports);
-		bibdb_rm_taddr4s(jool->nat64.bib,
-				&request->rm.entry.addrs,
-				&request->rm.entry.ports);
+				request->rm.entry.proto,
+				&request->rm.entry.range);
 	}
 
 	return nlcore_respond(info, error);
@@ -90,8 +87,8 @@ static int handle_pool4_flush(struct xlator *jool, struct genl_info *info,
 
 	pool4db_flush(jool->nat64.pool4);
 	if (xlat_is_nat64() && !request->flush.quick) {
+		/* TODO recall that this also has to clear static BIBs */
 		sessiondb_flush(jool->nat64.session);
-		bibdb_flush(jool->nat64.bib);
 	}
 
 	return nlcore_respond(info, 0);

@@ -19,7 +19,7 @@ static int session_entry_to_userspace(struct session_entry *entry, void *arg)
 	entry_usr.dst4 = entry->dst4;
 	entry_usr.state = entry->state;
 
-	dying_time = entry->update_time + entry->expirer->timeout;
+	dying_time = entry->update_time + session_get_timeout(entry);
 	entry_usr.dying_time = (dying_time > jiffies)
 			? jiffies_to_msecs(dying_time - jiffies)
 			: 0;
@@ -31,8 +31,12 @@ static int handle_session_display(struct sessiondb *db, struct genl_info *info,
 		struct request_session *request)
 {
 	struct nlcore_buffer buffer;
-	struct ipv4_transport_addr *remote4 = NULL;
-	struct ipv4_transport_addr *local4 = NULL;
+	struct session_foreach_func func = {
+			.cb = session_entry_to_userspace,
+			.arg = &buffer,
+	};
+	struct session_foreach_offset offset_struct;
+	struct session_foreach_offset *offset = NULL;
 	int error;
 
 	if (verify_superpriv())
@@ -44,14 +48,13 @@ static int handle_session_display(struct sessiondb *db, struct genl_info *info,
 	if (error)
 		return nlcore_respond(info, error);
 
-	if (request->display.connection_set) {
-		remote4 = &request->display.remote4;
-		local4 = &request->display.local4;
+	if (request->display.offset_set) {
+		offset_struct.offset = request->display.offset;
+		offset_struct.include_offset = false;
+		offset = &offset_struct;
 	}
 
-	error = sessiondb_foreach(db, request->l4_proto,
-			session_entry_to_userspace, &buffer,
-			remote4, local4, false);
+	error = sessiondb_foreach(db, request->l4_proto, &func, offset);
 	nlbuffer_set_pending_data(&buffer, error > 0);
 	error = (error >= 0)
 			? nlbuffer_send(info, &buffer)

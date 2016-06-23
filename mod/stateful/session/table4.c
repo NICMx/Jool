@@ -150,12 +150,13 @@ int st4_find_full(struct session_table4 *table, struct tuple *tuple4,
 	return 0;
 }
 
-int st4_find_bib(struct session_table4 *table, struct tuple *tuple4,
+int st4_find_bib(struct session_table4 *table,
+		struct ipv4_transport_addr *addr,
 		struct bib_entry *bib)
 {
 	struct session_entry *session;
 
-	session = rbtree_find4(tuple4, &table->tree, compare_tuple_bib);
+	session = rbtree_find4(addr, &table->tree, compare_src4);
 	if (!session)
 		return -ESRCH;
 
@@ -273,6 +274,14 @@ static void prune_l2(struct rb_node *node, void *arg)
 	destructor->cb(session, destructor->arg);
 }
 
+static void prune(struct session_entry *session,
+		struct destructor_arg *destructor)
+{
+	rbtree_clear(&session->tree4l2, prune_l2, destructor);
+	rbtree_clear(&session->tree4l3, prune_l3, destructor);
+	destructor->cb(session, destructor->arg);
+}
+
 void st4_prune_src4(struct session_table4 *table,
 		struct ipv4_transport_addr *src4,
 		struct destructor_arg *destructor)
@@ -280,24 +289,8 @@ void st4_prune_src4(struct session_table4 *table,
 	struct session_entry *root;
 
 	root = rbtree_find4(src4, &table->tree, compare_src4);
-	if (!root)
-		return;
-
-	rbtree_clear(&root->tree4l2, prune_l2, destructor);
-	rbtree_clear(&root->tree4l3, prune_l3, destructor);
-	destructor->cb(root, destructor->arg);
-}
-
-static int compare_range(const struct session_entry *session,
-		const struct ipv4_range *range)
-{
-	if (prefix4_contains(&range->prefix, &session->src4.l3)) {
-		if (port_range_contains(&range->ports, session->src4.l4))
-			return 0;
-		return (session->src4.l4 < range->ports.min) ? -1 : 1;
-	}
-
-	return ipv4_addr_cmp(&session->src4.l3, &range->prefix.address);
+	if (root)
+		prune(root, destructor);
 }
 
 void st4_prune_range(struct session_table4 *table,
@@ -305,36 +298,23 @@ void st4_prune_range(struct session_table4 *table,
 		struct destructor_arg *destructor)
 {
 	struct session_entry *session;
-	struct rb_node *node;
-	struct rb_node *prev;
-	struct rb_node *next;
+	struct rb_node *node, *next;
 
-	session = rbtree_find4(range, &table->tree, compare_range);
-	if (!session)
-		return;
+	/*
+	 * The entries are in no way sorted by range,
+	 * so we'll have to do a full traversal.
+	 * Don't worry; this operation is rare (operator-initiated).
+	 */
 
-	node = &session->tree4_hook;
-	prev = rb_prev(node);
-	next = rb_next(node);
-
-	destructor->cb(session, destructor->arg);
-
-	while (prev) {
-		node = prev;
-		session = st4_entry(node);
-		if (!range4_contains(range, &session->src4))
-			break;
-		prev = rb_prev(node);
-		destructor->cb(session, destructor->arg);
-	}
-
-	while (next) {
-		node = next;
-		session = st4_entry(node);
-		if (!range4_contains(range, &session->src4))
-			break;
+	node = rb_first(&table->tree);
+	while (node) {
 		next = rb_next(node);
-		destructor->cb(session, destructor->arg);
+
+		session = st4_entry(node);
+		if (range4_contains(range, &session->src4))
+			prune(session, destructor);
+
+		node = next;
 	}
 }
 

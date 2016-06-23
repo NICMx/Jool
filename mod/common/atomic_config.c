@@ -7,7 +7,6 @@
 #include "nat64/mod/stateless/pool.h"
 #include "nat64/mod/stateful/fragment_db.h"
 #include "nat64/mod/stateful/joold.h"
-#include "nat64/mod/stateful/bib/db.h"
 #include "nat64/mod/stateful/pool4/db.h"
 #include "nat64/mod/stateful/session/db.h"
 

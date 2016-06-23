@@ -67,10 +67,8 @@ static int handle_pool6_rm(struct xlator *jool, union request_pool6 *request)
 	log_debug("Removing a prefix from pool6.");
 	error = pool6_rm(jool->pool6, &request->rm.prefix);
 
-	if (xlat_is_nat64() && !request->flush.quick) {
-		sessiondb_rm_prefix6(jool->nat64.session,
-				&request->rm.prefix);
-	}
+	if (xlat_is_nat64() && !request->flush.quick)
+		sessiondb_rm_prefix6(jool->nat64.session, &request->rm.prefix);
 
 	return error;
 }

@@ -1,5 +1,5 @@
-#ifndef _JOOL_MOD_BIB_TABLE_H
-#define _JOOL_MOD_BIB_TABLE_H
+#ifndef _JOOL_MOD_BIB_ENTRY_H
+#define _JOOL_MOD_BIB_ENTRY_H
 
 #include "nat64/common/types.h"
 
@@ -19,4 +19,6 @@ struct bib_entry {
 	l4_protocol l4_proto;
 };
 
-#endif /* _JOOL_MOD_BIB_TABLE_H */
+void bibentry_log(const struct bib_entry *bib, const char *action);
+
+#endif /* _JOOL_MOD_BIB_ENTRY_H */

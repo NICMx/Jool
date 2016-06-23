@@ -165,6 +165,7 @@ void st6_prune_range(struct session_table6 *table,
 	/*
 	 * We'll most likely end up flushing the entire tree anyway,
 	 * so might as well do a full traversal.
+	 * Don't worry; this operation is rare (operator-initiated).
 	 */
 
 	node = rb_first(&table->tree);

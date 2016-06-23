@@ -155,6 +155,11 @@ struct ipv6_transport_addr {
 	__u16 l4;
 };
 
+struct taddr6_tuple {
+	struct ipv6_transport_addr src;
+	struct ipv6_transport_addr dst;
+};
+
 /**
  * The network component of a IPv4 address.
  */
@@ -180,6 +185,11 @@ struct port_range {
 	__u16 max;
 };
 
+struct ipv4_range {
+	struct ipv4_prefix prefix;
+	struct port_range ports;
+};
+
 struct pool4_sample {
 	__u32 mark;
 	__u8 proto;
@@ -193,5 +203,8 @@ bool port_range_touches(const struct port_range *r1,
 		const struct port_range *r2);
 bool port_range_contains(const struct port_range *range, __u16 port);
 unsigned int port_range_count(const struct port_range *range);
+
+bool range4_contains(struct ipv4_range *range,
+		struct ipv4_transport_addr *addr);
 
 #endif /* _JOOL_COMMON_TYPES_H */

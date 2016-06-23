@@ -5,18 +5,12 @@
 #include "nat64/mod/common/wkmalloc.h"
 #include "nat64/mod/common/nl/nl_core2.h"
 #include "nat64/mod/stateful/session/db.h"
-#include "nat64/mod/stateful/bib/db.h"
 #include "nat64/mod/common/xlator.h"
 
 #include <linux/inet.h>
 
-struct joold_offset {
-	struct ipv4_transport_addr local;
-	struct ipv4_transport_addr remote;
-};
-
 struct joold_advertise_struct {
-	struct joold_offset offset;
+	struct taddr6_tuple offset;
 	struct nlcore_buffer *buffer;
 };
 
@@ -152,8 +146,8 @@ struct joold_node {
 		 * keep track of what is yet to be sent.
 		 */
 		struct {
-			/** IPv4 ID of the session sent in the last packet. */
-			struct joold_offset offset;
+			/** IPv6 ID of the session sent in the last packet. */
+			struct taddr6_tuple offset;
 			/**
 			 * true - @offset above is valid.
 			 * false - @no sessions from this node have been sent.
@@ -266,13 +260,13 @@ static int foreach_cb(struct session_entry *entry, void *arg)
 
 	session.l4_proto = entry->l4_proto;
 	session.state = entry->state;
-	session.est = entry->expirer->is_established;
+	session.est = session_is_established(entry);
 	memset(session.padding, 0, sizeof(session.padding));
 
 	status = nlbuffer_write(adv->buffer, &session, sizeof(session));
 	if (status) {
-		adv->offset.local = entry->src4;
-		adv->offset.remote = entry->dst4;
+		adv->offset.src = entry->src6;
+		adv->offset.dst = entry->dst6;
 	}
 
 	return status;
@@ -283,20 +277,22 @@ static int write_group_node(struct joold_node *node,
 		struct sessiondb *sdb)
 {
 	struct joold_advertise_struct arg;
-	struct ipv4_transport_addr *remote;
-	struct ipv4_transport_addr *local;
+	struct session_foreach_func func = {
+		.cb = foreach_cb,
+		.arg = &arg,
+	};
+	struct session_foreach_offset offset_struct;
+	struct session_foreach_offset *offset = NULL;
 	int error;
 
 	arg.buffer = buffer;
 	if (node->group.offset_set) {
-		remote = &node->group.offset.remote;
-		local = &node->group.offset.local;
-	} else {
-		remote = local = NULL;
+		offset_struct.offset = node->group.offset;
+		offset_struct.include_offset = true;
+		offset = &offset_struct;
 	}
 
-	error = sessiondb_foreach(sdb, node->group.proto, foreach_cb, &arg,
-			remote, local, true);
+	error = sessiondb_foreach(sdb, node->group.proto, &func, offset);
 	if (error > 0) {
 		memcpy(&node->group.offset, &arg.offset, sizeof(arg.offset));
 		node->group.offset_set = true;
@@ -516,7 +512,7 @@ void joold_add(struct joold_queue *queue, struct session_entry *entry,
 	copy->single.dst4_port = cpu_to_be16(entry->dst4.l4);
 	copy->single.l4_proto = entry->l4_proto;
 	copy->single.state = entry->state;
-	copy->single.est = entry->expirer->is_established;
+	copy->single.est = session_is_established(entry);
 	memset(copy->single.padding, 0, sizeof(copy->single.padding));
 
 	list_add_tail(&copy->nextprev, &queue->sessions);
@@ -534,70 +530,7 @@ void joold_add(struct joold_queue *queue, struct session_entry *entry,
 	spin_unlock_bh(&queue->lock);
 }
 
-static int add_new_bib(struct bib *db, struct joold_session *session,
-		struct bib_entry **result)
-{
-	struct bib_entry *new; /* The one we're trying to add. */
-	struct bib_entry *old; /* The one that was already in the database. */
-	struct ipv6_transport_addr tmp6;
-	struct ipv4_transport_addr tmp4;
-	int error;
-
-	tmp6.l3 = session->src6_addr;
-	tmp6.l4 = be16_to_cpu(session->src6_port);
-	tmp4.l3 = session->src4_addr;
-	tmp4.l4 = be16_to_cpu(session->src4_port);
-
-	new = bibentry_create(&tmp4, &tmp6, false, session->l4_proto);
-	if (!new) {
-		log_err("Couldn't allocate BIB entry.");
-		return -ENOMEM;
-	}
-
-	error = bibdb_add(db, new, &old);
-	if (!error) {
-		/* @new was successfully inserted, @old is unset. */
-		*result = new;
-		return 0; /* Happy path. */
-	}
-
-	if (error != -EEXIST) {
-		/* Unexpected errors. @new was rejected, @old is unset. */
-		log_err("bibdb_add() threw unknown error code %d.", error);
-		bibentry_put_thread(new, true);
-		return error;
-	}
-
-	if (bibentry_equals(new, old)) {
-		/*
-		 * @new was rejected because the BIB already had an identical
-		 * entry.
-		 */
-		bibentry_put_thread(new, true);
-		*result = old;
-		return 0; /* Slightly less likely happy path. */
-	}
-
-	/*
-	 * @new was rejected because an incompatible entry was already there.
-	 *
-	 * This happens when two packets of the same connection were routed via
-	 * different NAT64s and they chose different masks before
-	 * synchronization.
-	 */
-	log_err("We're out of sync: Incoming %s BIB entry %pI6c#%u|%pI4#%u collides with DB entry %pI6c#%u|%pI4#%u.",
-			l4proto_to_string(new->l4_proto),
-			&new->ipv6.l3, new->ipv6.l4,
-			&new->ipv4.l3, new->ipv4.l4,
-			&old->ipv6.l3, old->ipv6.l4,
-			&old->ipv4.l3, old->ipv4.l4);
-	bibentry_put_thread(new, true);
-	bibentry_put_thread(old, false);
-	return -EEXIST;
-}
-
-static struct session_entry *init_session_entry(struct joold_session *in,
-		struct bib_entry *bib)
+static struct session_entry *init_session_entry(struct joold_session *in)
 {
 	struct session_entry *out;
 	__u64 update_time;
@@ -615,7 +548,7 @@ static struct session_entry *init_session_entry(struct joold_session *in,
 	dst4.l3 = in->dst4_addr;
 	dst4.l4 = be16_to_cpu(in->dst4_port);
 
-	out = session_create(&src6, &dst6, &src4, &dst4, in->l4_proto, bib);
+	out = session_create(&src6, &dst6, &src4, &dst4, in->l4_proto);
 	if (!out)
 		return NULL;
 
@@ -671,19 +604,14 @@ static enum session_fate collision_cb(struct session_entry *old, void *arg)
 static bool add_new_session(struct xlator *jool, struct joold_session *in)
 {
 	struct session_entry *new;
-	struct bib_entry *bib;
 	struct add_params params;
 	int error;
 
 	log_debug("Adding session!");
 
-	if (add_new_bib(jool->nat64.bib, in, &bib))
-		return false;
-
-	new = init_session_entry(in, bib);
+	new = init_session_entry(in);
 	if (!new) {
 		log_err("Couldn't allocate session.");
-		bibentry_put_thread(bib, false);
 		return false;
 	}
 

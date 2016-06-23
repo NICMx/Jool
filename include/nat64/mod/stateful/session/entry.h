@@ -103,7 +103,7 @@ struct session_entry *session_create(const struct ipv6_transport_addr *src6,
 		l4_protocol l4_proto);
 struct session_entry *session_clone(struct session_entry *session);
 
-/* I made session_get() private; See its comment in table.c. */
+/* I made session_get() private; See its comment in db.c. */
 /* static void session_get(struct session_entry *session); */
 void session_put(struct session_entry *session, bool must_die);
 

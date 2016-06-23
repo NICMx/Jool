@@ -280,13 +280,25 @@ int sessiondb_find_full(struct sessiondb *db, struct tuple *tuple4,
 	return st4_find_full(table->t4, tuple4, bib, session, allow);
 }
 
-int sessiondb_find_bib(struct sessiondb *db, struct tuple *tuple,
+/**
+ * @bib is optional.
+ * (This can be useful if you only need to know if it is tabled.)
+ */
+int sessiondb_find_bib_tuple(struct sessiondb *db, struct tuple *tuple,
 		struct bib_entry *bib)
 {
-	struct session_table *table = get_table(db, tuple->l4_proto);
+	return sessiondb_find_bib(db, &tuple->dst.addr4, tuple->l4_proto, bib);
+}
+
+int sessiondb_find_bib(struct sessiondb *db,
+		struct ipv4_transport_addr *addr,
+		l4_protocol proto,
+		struct bib_entry *bib)
+{
+	struct session_table *table = get_table(db, proto);
 	if (!table)
 		return -EINVAL;
-	return st4_find_bib(table->t4, tuple, bib);
+	return st4_find_bib(table->t4, addr, bib);
 }
 
 /**
@@ -617,18 +629,23 @@ int sessiondb_count(struct sessiondb *db, l4_protocol proto, __u64 *result)
 	return 0;
 }
 
+int sessiondb_queue(struct sessiondb *db, struct session_entry *session,
+		struct packet *pkt)
+{
+	return pktqueue_add(db->pkt_queue, session, pkt);
+}
+
 static void destroy_session(struct session_entry *session, void *arg)
 {
 	struct session_table *table = arg;
 
-	log_debug("Deleting session %pI4#%u -> %pI4#%u",
+	log_debug("Removing session %pI4#%u -> %pI4#%u",
 			&session->src4.l3, session->src4.l4,
 			&session->dst4.l3, session->dst4.l4);
 
 	st6_rm(table->t6, session);
 	st4_rm(table->t4, session);
 	list_del(&session->list_hook);
-	/* TODO subtrees? */
 
 	session_put(session, false);
 }
@@ -674,15 +691,10 @@ void sessiondb_rm_range(struct sessiondb *db, l4_protocol proto,
 	spin_unlock_bh(&table->lock);
 }
 
-void sessiondb_rm_prefix6(struct sessiondb *db, l4_protocol proto,
+static void __rm_prefix6(struct session_table *table,
 		struct ipv6_prefix *prefix)
 {
-	struct session_table *table;
 	struct destructor_arg destructor;
-
-	table = get_table(db, proto);
-	if (!table)
-		return;
 
 	destructor.cb = destroy_session;
 	destructor.arg = table;
@@ -690,6 +702,13 @@ void sessiondb_rm_prefix6(struct sessiondb *db, l4_protocol proto,
 	spin_lock_bh(&table->lock);
 	st6_prune_range(table->t6, prefix, &destructor);
 	spin_unlock_bh(&table->lock);
+}
+
+void sessiondb_rm_prefix6(struct sessiondb *db, struct ipv6_prefix *prefix)
+{
+	__rm_prefix6(&db->tcp, prefix);
+	__rm_prefix6(&db->udp, prefix);
+	__rm_prefix6(&db->icmp, prefix);
 }
 
 static void __clean(struct expire_timer *expirer,
@@ -752,4 +771,14 @@ void sessiondb_flush(struct sessiondb *db)
 	__flush(&db->udp);
 	__flush(&db->tcp);
 	__flush(&db->icmp);
+}
+
+bool session_is_established(struct session_entry *session)
+{
+	return session->expirer->is_established;
+}
+
+unsigned long int session_get_timeout(struct session_entry *session)
+{
+	return session->expirer->timeout;
 }

@@ -1,4 +1,4 @@
-#include "nat64/mod/stateful/bib/db.h"
+#include "nat64/mod/stateful/bib/bib.h"
 
 /*
  * In current BIB impersonator users, BIB is optional.
@@ -29,12 +29,6 @@ int bibentry_put_db(struct bib_entry *bib)
 void bibentry_put_thread(struct bib_entry *bib, bool must_die)
 {
 	WARN(true, "This function was called! The unit test is broken.");
-}
-
-bool bibentry_equals(const struct bib_entry *b1, const struct bib_entry *b2)
-{
-	WARN(true, "This function was called! The unit test is broken.");
-	return false;
 }
 
 int bibdb_find4(struct bib *db, const struct ipv4_transport_addr *addr,

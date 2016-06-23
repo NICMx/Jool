@@ -119,9 +119,6 @@ static int __init jool_init(void)
 	log_debug("Inserting %s...", xlat_get_name());
 
 	/* Init Jool's submodules. */
-	error = bibentry_init();
-	if (error)
-		goto bibentry_fail;
 	error = session_init();
 	if (error)
 		goto session_fail;
@@ -180,8 +177,6 @@ joold_fail:
 fragdb_fail:
 	session_destroy();
 session_fail:
-	bibentry_destroy();
-bibentry_fail:
 	return error;
 }
 
@@ -197,7 +192,6 @@ static void __exit jool_exit(void)
 	joold_terminate();
 	fragdb_destroy();
 	session_destroy();
-	bibentry_destroy();
 
 	log_info("%s v" JOOL_VERSION_STR " module removed.", xlat_get_name());
 }

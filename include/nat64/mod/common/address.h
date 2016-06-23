@@ -11,11 +11,6 @@ union transport_addr {
 	struct ipv4_transport_addr addr4;
 };
 
-struct ipv4_range {
-	struct ipv4_prefix prefix;
-	struct port_range ports;
-};
-
 int prefix6_parse(char *str, struct ipv6_prefix *result);
 int prefix4_parse(char *str, struct ipv4_prefix *result);
 
@@ -83,9 +78,6 @@ static inline int ipv4_addr_cmp(const struct in_addr *a1, const struct in_addr *
 bool addr4_is_scope_subnet(const __be32 addr);
 bool prefix4_has_subnet_scope(struct ipv4_prefix *prefix,
 		struct ipv4_prefix *subnet);
-
-bool range4_contains(struct ipv4_range *range,
-		struct ipv4_transport_addr *addr);
 
 
 #endif /* _JOOL_MOD_ADDRESS_H */

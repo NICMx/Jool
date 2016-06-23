@@ -7,7 +7,7 @@
 #include "nat64/mod/common/rfc6052.h"
 #include "nat64/mod/common/stats.h"
 #include "nat64/mod/stateful/joold.h"
-#include "nat64/mod/stateful/bib/table.h"
+#include "nat64/mod/stateful/bib/entry.h"
 #include "nat64/mod/stateful/bib/port_allocator.h"
 #include "nat64/mod/stateful/pool4/db.h"
 #include "nat64/mod/stateful/session/db.h"
@@ -272,26 +272,26 @@ static verdict ipv4_simple(struct xlation *state)
 	bool allow;
 	int error;
 
-	error = sessiondb_find_full(state->jool.nat64.session, &bib, &session,
-			&allow);
+	error = sessiondb_find_full(state->jool.nat64.session, &state->in.tuple,
+			&bib, &session, &allow);
 	switch (error) {
 	case 0:
 		break;
 	case -ESRCH:
 		log_debug("There is no BIB entry for the IPv4 packet.");
-		inc_stats(in, IPSTATS_MIB_INNOROUTES);
+		inc_stats(&state->in, IPSTATS_MIB_INNOROUTES);
 		return VERDICT_ACCEPT;
 	default:
 		log_debug("Errcode %d while finding a BIB entry.", error);
-		inc_stats(in, IPSTATS_MIB_INDISCARDS);
-		icmp64_send(in, ICMPERR_ADDR_UNREACHABLE, 0);
+		inc_stats(&state->in, IPSTATS_MIB_INDISCARDS);
+		icmp64_send(&state->in, ICMPERR_ADDR_UNREACHABLE, 0);
 		return breakdown(state);
 	}
 
 	if (state->jool.global->cfg.nat64.drop_by_addr && !allow) {
 		log_debug("Packet was blocked by address-dependent filtering.");
-		icmp64_send(in, ICMPERR_FILTER, 0);
-		inc_stats(in, IPSTATS_MIB_INDISCARDS);
+		icmp64_send(&state->in, ICMPERR_FILTER, 0);
+		inc_stats(&state->in, IPSTATS_MIB_INDISCARDS);
 		return -EPERM;
 	}
 
@@ -354,7 +354,7 @@ static verdict tcp_closed_v4_syn(struct xlation *state)
 		return breakdown(state);
 	}
 
-	switch (sessiondb_find_bib(state->jool.nat64.session, &state->in.tuple,
+	switch (sessiondb_find_bib_tuple(state->jool.nat64.session, &state->in.tuple,
 			&bib)) {
 	case 0:
 		break;
@@ -396,7 +396,7 @@ static verdict tcp_closed_state(struct xlation *state)
 		}
 	}
 
-	error = sessiondb_find_bib(state->jool.nat64.session, &pkt->tuple,
+	error = sessiondb_find_bib_tuple(state->jool.nat64.session, &pkt->tuple,
 			NULL);
 	if (error) {
 		log_debug("Closed state: Packet is not SYN and there is no BIB entry, so discarding. ERRcode %d",

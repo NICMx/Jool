@@ -1,3 +1,4 @@
+#include "../../include/nat64/mod/stateful/bib/bib.h"
 #include "nat64/common/types.h"
 #include "nat64/common/config.h"
 #include "nat64/mod/common/packet.h"
@@ -7,7 +8,6 @@
 #include "nat64/mod/stateful/fragment_db.h"
 #include "nat64/mod/stateful/joold.h"
 #include "nat64/mod/stateful/pool4/db.h"
-#include "nat64/mod/stateful/bib/db.h"
 #include "nat64/mod/stateful/session/db.h"
 
 /**

@@ -233,9 +233,3 @@ bool prefix4_has_subnet_scope(struct ipv4_prefix *prefix,
 
 	return false;
 }
-
-bool range4_contains(struct ipv4_range *range, struct ipv4_transport_addr *addr)
-{
-	return prefix4_contains(&range->prefix, &addr->l3)
-			&& port_range_contains(&range->ports, addr->l4);
-}

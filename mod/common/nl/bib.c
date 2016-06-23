@@ -2,8 +2,8 @@
 
 #include "nat64/mod/common/nl/nl_common.h"
 #include "nat64/mod/common/nl/nl_core2.h"
-#include "nat64/mod/stateful/bib/db.h"
 #include "nat64/mod/stateful/pool4/db.h"
+#include "nat64/mod/stateful/bib/bib.h"
 #include "nat64/mod/stateful/session/db.h"
 
 static int bib_entry_to_userspace(struct bib_entry *entry, void *arg)

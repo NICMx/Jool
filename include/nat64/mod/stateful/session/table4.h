@@ -8,7 +8,7 @@
  */
 
 #include "nat64/mod/common/types.h"
-#include "nat64/mod/stateful/bib/table.h"
+#include "nat64/mod/stateful/bib/entry.h"
 #include "nat64/mod/stateful/session/entry.h"
 
 struct session_table4;
@@ -21,7 +21,8 @@ struct session_entry *st4_find(struct session_table4 *table,
 int st4_find_full(struct session_table4 *table, struct tuple *tuple4,
 		struct bib_entry *bib, struct session_entry **session,
 		bool *allow);
-int st4_find_bib(struct session_table4 *table, struct tuple *tuple4,
+int st4_find_bib(struct session_table4 *table,
+		struct ipv4_transport_addr *addr,
 		struct bib_entry *bib);
 
 struct session_entry *st4_add(struct session_table4 *table,

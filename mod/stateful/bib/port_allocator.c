@@ -5,8 +5,8 @@
 #include "nat64/common/str_utils.h"
 #include "nat64/mod/common/wkmalloc.h"
 #include "nat64/mod/common/rfc6145/6to4.h"
-#include "nat64/mod/stateful/bib/db.h"
 #include "nat64/mod/stateful/pool4/db.h"
+#include "nat64/mod/stateful/session/db.h"
 
 /* TODO (issue175) RFC 6056 wants us to change this from time to time. */
 static unsigned char *secret_key;
@@ -136,7 +136,7 @@ unlock:
 }
 
 struct iteration_args {
-	struct bib *bib;
+	struct sessiondb *session;
 	l4_protocol proto;
 	struct ipv4_transport_addr *result;
 };
@@ -147,7 +147,7 @@ static int choose_port(struct ipv4_transport_addr *addr, void *void_args)
 
 	atomic_inc(&next_ephemeral);
 
-	if (bibdb_find4(args->bib, addr, args->proto, NULL)) {
+	if (sessiondb_find_bib(args->session, addr, args->proto, NULL)) {
 		/* Entry not found (we found an empty slot). */
 		*(args->result) = *addr;
 		return 1; /* positive = break iteration, no error. */
@@ -173,7 +173,7 @@ int palloc_allocate(struct xlation *state, struct in_addr *daddr,
 	if (error)
 		return error;
 
-	args.bib = state->jool.nat64.bib;
+	args.session = state->jool.nat64.session;
 	args.proto = tuple6->l4_proto;
 	args.result = result;
 

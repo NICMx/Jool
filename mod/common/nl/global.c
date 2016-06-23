@@ -384,7 +384,6 @@ static int commit_config(struct xlator *jool, struct full_config *config)
 		return error;
 
 	config_copy(&config->global, &jool->global->cfg);
-	bibdb_config_set(jool->nat64.bib, &config->bib);
 	sessiondb_config_set(jool->nat64.session, &config->session);
 	joold_config_set(jool->nat64.joold, &config->joold);
 	fragdb_config_set(jool->nat64.frag, &config->frag);

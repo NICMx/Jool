@@ -161,7 +161,7 @@ void pool4db_get(struct pool4 *pool)
 	kref_get(&pool->refcounter);
 }
 
-static void destroy_table(struct rb_node *node)
+static void destroy_table(struct rb_node *node, void *arg)
 {
 	struct pool4_table *table;
 	struct pool4_entry *entry;
@@ -185,9 +185,9 @@ static void release(struct kref *refcounter)
 	struct pool4 *pool;
 	pool = container_of(refcounter, struct pool4, refcounter);
 
-	rbtree_clear(&pool->tree_mark.tcp, destroy_table);
-	rbtree_clear(&pool->tree_mark.udp, destroy_table);
-	rbtree_clear(&pool->tree_mark.icmp, destroy_table);
+	rbtree_clear(&pool->tree_mark.tcp, destroy_table, NULL);
+	rbtree_clear(&pool->tree_mark.udp, destroy_table, NULL);
+	rbtree_clear(&pool->tree_mark.icmp, destroy_table, NULL);
 
 	wkfree(struct pool4, pool);
 }
@@ -371,7 +371,7 @@ static int add_to_mark_tree(struct pool4 *pool, const __u32 mark,
 	collision = rbtree_add(table, mark, tree, cmp_mark, struct pool4_table,
 			mark_tree_hook);
 	if (WARN(collision, "Table wasn't and then was in the tree.")) {
-		destroy_table(&table->mark_tree_hook);
+		destroy_table(&table->mark_tree_hook, NULL);
 		return -EINVAL;
 	}
 
@@ -432,8 +432,9 @@ static int add_addr(struct pool4 *pool, const __u32 mark, l4_protocol proto,
 }
 
 int pool4db_add(struct pool4 *pool, const __u32 mark, l4_protocol proto,
-		struct ipv4_prefix *prefix, struct port_range *ports)
+		struct ipv4_range *range)
 {
+	struct port_range *ports = &range->ports;
 	struct in_addr addr;
 	u64 tmp;
 	int error;
@@ -443,7 +444,7 @@ int pool4db_add(struct pool4 *pool, const __u32 mark, l4_protocol proto,
 	if ((proto == L4PROTO_TCP || proto == L4PROTO_UDP) && ports->min == 0)
 		ports->min = 1;
 
-	foreach_addr4(addr, tmp, prefix)
+	foreach_addr4(addr, tmp, &range->prefix)
 	{
 		spin_lock_bh(&pool->lock);
 		error = add_addr(pool, mark, proto, &addr, ports);
@@ -457,14 +458,12 @@ int pool4db_add(struct pool4 *pool, const __u32 mark, l4_protocol proto,
 
 int pool4db_add_usr(struct pool4 *pool, struct pool4_entry_usr *entry)
 {
-	return pool4db_add(pool, entry->mark, entry->proto, &entry->addrs,
-			&entry->ports);
+	return pool4db_add(pool, entry->mark, entry->proto, &entry->range);
 }
 
 int pool4db_add_str(struct pool4 *pool, char *prefix_strs[], int prefix_count)
 {
-	struct ipv4_prefix prefix;
-	struct port_range ports;
+	struct ipv4_range range;
 	unsigned int i;
 	int error;
 
@@ -472,21 +471,21 @@ int pool4db_add_str(struct pool4 *pool, char *prefix_strs[], int prefix_count)
 	 * We're not using DEFAULT_POOL4_* here because those are defaults for
 	 * empty pool4 (otherwise it looks confusing from userspace).
 	 */
-	ports.min = 0;
-	ports.max = 65535;
+	range.ports.min = 0;
+	range.ports.max = 65535;
 
 	for (i = 0; i < prefix_count; i++) {
-		error = prefix4_parse(prefix_strs[i], &prefix);
+		error = prefix4_parse(prefix_strs[i], &range.prefix);
 		if (error)
 			return error;
 
-		error = pool4db_add(pool, 0, L4PROTO_TCP, &prefix, &ports);
+		error = pool4db_add(pool, 0, L4PROTO_TCP, &range);
 		if (error)
 			return error;
-		error = pool4db_add(pool, 0, L4PROTO_UDP, &prefix, &ports);
+		error = pool4db_add(pool, 0, L4PROTO_UDP, &range);
 		if (error)
 			return error;
-		error = pool4db_add(pool, 0, L4PROTO_ICMP, &prefix, &ports);
+		error = pool4db_add(pool, 0, L4PROTO_ICMP, &range);
 		if (error)
 			return error;
 	}
@@ -494,9 +493,9 @@ int pool4db_add_str(struct pool4 *pool, char *prefix_strs[], int prefix_count)
 	return 0;
 }
 
-static int __rm_taddrs(struct pool4_entry *entry, struct ipv4_prefix *prefix,
-		struct port_range *rm)
+static int __rm_taddrs(struct pool4_entry *entry, struct ipv4_range *range)
 {
+	struct port_range *rm = &range->ports;
 	struct port_range *ports;
 	struct port_range tmp;
 	/*
@@ -506,7 +505,7 @@ static int __rm_taddrs(struct pool4_entry *entry, struct ipv4_prefix *prefix,
 	int i;
 	int error;
 
-	if (!prefix4_contains(prefix, &entry->addr))
+	if (!prefix4_contains(&range->prefix, &entry->addr))
 		return 0;
 
 	for (i = 0; i < entry->ports_len; i++) {
@@ -553,15 +552,14 @@ static int __rm_taddrs(struct pool4_entry *entry, struct ipv4_prefix *prefix,
 /*
  * Note: This also takes care of updating the entries' taddr_counts.
  */
-static int remove_taddrs(struct pool4_table *table, struct ipv4_prefix *prefix,
-		struct port_range *ports)
+static int remove_taddrs(struct pool4_table *table, struct ipv4_range *range)
 {
 	struct pool4_entry *entry;
 	int error;
 
 	entry = &table->first_entry;
 	do {
-		error = __rm_taddrs(entry, prefix, ports);
+		error = __rm_taddrs(entry, range);
 		if (error)
 			return error;
 		entry = entry->next;
@@ -613,8 +611,7 @@ static int prune_empty_nodes(struct rb_root *tree, struct pool4_table *table)
 }
 
 static int rm_from_mark_tree(struct pool4 *pool, const __u32 mark,
-		l4_protocol proto, struct ipv4_prefix *prefix,
-		struct port_range *ports)
+		l4_protocol proto, struct ipv4_range *range)
 {
 	struct rb_root *tree;
 	struct pool4_table *table;
@@ -628,7 +625,7 @@ static int rm_from_mark_tree(struct pool4 *pool, const __u32 mark,
 	if (!table)
 		return 0;
 
-	error = remove_taddrs(table, prefix, ports);
+	error = remove_taddrs(table, range);
 	if (error)
 		return error;
 
@@ -636,11 +633,11 @@ static int rm_from_mark_tree(struct pool4 *pool, const __u32 mark,
 }
 
 static int __rm(struct rb_root *tree, struct pool4_entry *entry,
-		struct ipv4_prefix *prefix, struct port_range *ports)
+		struct ipv4_range *range)
 {
 	int error;
 
-	error = __rm_taddrs(entry, prefix, ports);
+	error = __rm_taddrs(entry, range);
 	if (error)
 		return error;
 
@@ -654,7 +651,7 @@ static int __rm(struct rb_root *tree, struct pool4_entry *entry,
 }
 
 static int rm_from_addr_tree(struct pool4 *pool, l4_protocol proto,
-		struct ipv4_prefix *prefix, struct port_range *ports)
+		struct ipv4_range *range)
 {
 	struct rb_root *tree;
 	struct pool4_entry *entry;
@@ -666,33 +663,33 @@ static int rm_from_addr_tree(struct pool4 *pool, l4_protocol proto,
 	if (!tree)
 		return -EINVAL;
 
-	entry = find_by_prefix(tree, prefix);
+	entry = find_by_prefix(tree, &range->prefix);
 	if (!entry)
 		return 0;
 
 	prev = rb_prev(&entry->addr_tree_hook);
 	next = rb_next(&entry->addr_tree_hook);
 
-	error = __rm(tree, entry, prefix, ports);
+	error = __rm(tree, entry, range);
 	if (error)
 		return error;
 
 	while (prev) {
 		entry = rb_entry(prev, struct pool4_entry, addr_tree_hook);
-		if (!prefix4_contains(prefix, &entry->addr))
+		if (!prefix4_contains(&range->prefix, &entry->addr))
 			break;
 		prev = rb_prev(&entry->addr_tree_hook);
-		error = __rm(tree, entry, prefix, ports);
+		error = __rm(tree, entry, range);
 		if (error)
 			return error;
 	}
 
 	while (next) {
 		entry = rb_entry(next, struct pool4_entry, addr_tree_hook);
-		if (!prefix4_contains(prefix, &entry->addr))
+		if (!prefix4_contains(&range->prefix, &entry->addr))
 			break;
 		next = rb_next(&entry->addr_tree_hook);
-		error = __rm(tree, entry, prefix, ports);
+		error = __rm(tree, entry, range);
 		if (error)
 			return error;
 	}
@@ -701,18 +698,18 @@ static int rm_from_addr_tree(struct pool4 *pool, l4_protocol proto,
 }
 
 int pool4db_rm(struct pool4 *pool, const __u32 mark, l4_protocol proto,
-		struct ipv4_prefix *prefix, struct port_range *ports)
+		struct ipv4_range *range)
 {
 	int error;
 
-	if (ports->min > ports->max)
-		swap(ports->min, ports->max);
+	if (range->ports.min > range->ports.max)
+		swap(range->ports.min, range->ports.max);
 
 	spin_lock_bh(&pool->lock);
 
-	error = rm_from_mark_tree(pool, mark, proto, prefix, ports);
+	error = rm_from_mark_tree(pool, mark, proto, range);
 	if (!error)
-		error = rm_from_addr_tree(pool, proto, prefix, ports);
+		error = rm_from_addr_tree(pool, proto, range);
 
 	spin_unlock_bh(&pool->lock);
 	return error;
@@ -720,11 +717,10 @@ int pool4db_rm(struct pool4 *pool, const __u32 mark, l4_protocol proto,
 
 int pool4db_rm_usr(struct pool4 *pool, struct pool4_entry_usr *entry)
 {
-	return pool4db_rm(pool, entry->mark, entry->proto, &entry->addrs,
-			&entry->ports);
+	return pool4db_rm(pool, entry->mark, entry->proto, &entry->range);
 }
 
-static void flush_mark_tree(struct rb_node *node)
+static void flush_mark_tree(struct rb_node *node, void *arg)
 {
 	struct pool4_table *table;
 	struct pool4_entry *entry;
@@ -743,7 +739,7 @@ static void flush_mark_tree(struct rb_node *node)
 	wkfree(struct pool4_table, table);
 }
 
-static void flush_addr_tree(struct rb_node *node)
+static void flush_addr_tree(struct rb_node *node, void *arg)
 {
 	struct pool4_entry *entry;
 	entry = rb_entry(node, struct pool4_entry, addr_tree_hook);
@@ -754,12 +750,12 @@ static void flush_addr_tree(struct rb_node *node)
 void pool4db_flush(struct pool4 *pool)
 {
 	spin_lock_bh(&pool->lock);
-	rbtree_clear(&pool->tree_mark.tcp, flush_mark_tree);
-	rbtree_clear(&pool->tree_mark.udp, flush_mark_tree);
-	rbtree_clear(&pool->tree_mark.icmp, flush_mark_tree);
-	rbtree_clear(&pool->tree_addr.tcp, flush_addr_tree);
-	rbtree_clear(&pool->tree_addr.udp, flush_addr_tree);
-	rbtree_clear(&pool->tree_addr.icmp, flush_addr_tree);
+	rbtree_clear(&pool->tree_mark.tcp, flush_mark_tree, NULL);
+	rbtree_clear(&pool->tree_mark.udp, flush_mark_tree, NULL);
+	rbtree_clear(&pool->tree_mark.icmp, flush_mark_tree, NULL);
+	rbtree_clear(&pool->tree_addr.tcp, flush_addr_tree, NULL);
+	rbtree_clear(&pool->tree_addr.udp, flush_addr_tree, NULL);
+	rbtree_clear(&pool->tree_addr.icmp, flush_addr_tree, NULL);
 	spin_unlock_bh(&pool->lock);
 }
 

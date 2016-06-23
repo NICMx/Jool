@@ -24,7 +24,6 @@ struct xlator {
 		struct {
 			struct fragdb *frag;
 			struct pool4 *pool4;
-			struct bib *bib;
 			struct sessiondb *session;
 			struct joold_queue *joold;
 		} nat64;

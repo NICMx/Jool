@@ -1,7 +1,7 @@
 #ifndef _JOOL_UNIT_BIB_H
 #define _JOOL_UNIT_BIB_H
 
-#include "nat64/mod/stateful/bib/db.h"
+#include "../mod/stateful/bib/bib.h"
 
 int bib_print(struct bib *db, l4_protocol l4_proto);
 

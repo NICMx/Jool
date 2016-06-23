@@ -27,12 +27,6 @@ void st6_flush(struct session_table6 *table);
 //		struct ipv6_transport_addr *src6,
 //		st6_destructor_cb destructor);
 
-/* TODO move elsewhere */
-struct taddr6_tuple {
-	struct ipv6_transport_addr src;
-	struct ipv6_transport_addr dst;
-};
-
 struct session_foreach_offset {
 	struct taddr6_tuple offset;
 	bool include_offset;
