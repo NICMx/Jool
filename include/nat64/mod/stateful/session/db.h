@@ -71,7 +71,7 @@ int sessiondb_find(struct sessiondb *db, struct tuple *tuple,
 		struct session_entry **result);
 /**
  * Full mapping finder package. Tries to yield both the BIB and session entries
- * that correspond to @tuple. (@tuple is assumed to be IPv4.)
+ * that correspond to @tuple4. (@tuple4 is assumed to be IPv4.)
  *
  * If a matching BIB is found,
  * - will initialize @bib as a copy of this entry,
@@ -87,9 +87,13 @@ int sessiondb_find(struct sessiondb *db, struct tuple *tuple,
 int sessiondb_find_full(struct sessiondb *db, struct tuple *tuple4,
 		struct bib_entry *bib, struct session_entry **session,
 		bool *allow);
-int sessiondb_find_bib_tuple(struct sessiondb *db, struct tuple *tuple,
+int sessiondb_find_bib_by_tuple(struct sessiondb *db, struct tuple *tuple,
 		struct bib_entry *bib);
-int sessiondb_find_bib(struct sessiondb *db,
+int sessiondb_find_bib6(struct sessiondb *db,
+		struct ipv6_transport_addr *addr,
+		l4_protocol proto,
+		struct bib_entry *bib);
+int sessiondb_find_bib4(struct sessiondb *db,
 		struct ipv4_transport_addr *addr,
 		l4_protocol proto,
 		struct bib_entry *bib);
@@ -107,12 +111,24 @@ int sessiondb_count(struct sessiondb *db, l4_protocol proto, __u64 *result);
 int sessiondb_queue(struct sessiondb *db, struct session_entry *session,
 		struct packet *pkt);
 
-void sessiondb_delete_by_bib(struct sessiondb *db, struct bib_entry *bib);
 void sessiondb_rm_range(struct sessiondb *db, l4_protocol proto,
 		struct ipv4_range *range);
 void sessiondb_rm_prefix6(struct sessiondb *db, struct ipv6_prefix *prefix);
 void sessiondb_clean(struct sessiondb *db, struct net *ns);
 void sessiondb_flush(struct sessiondb *db);
+
+struct bib_foreach_func {
+	int (*cb)(struct bib_entry *, bool, void *);
+	void *arg;
+};
+
+int sessiondb_foreach_bib(struct sessiondb *db, l4_protocol proto,
+			struct bib_foreach_func *func,
+			struct ipv4_transport_addr *offset);
+int sessiondb_count_bib(struct sessiondb *db, l4_protocol proto, __u64 *result);
+int sessiondb_add_bib(struct sessiondb *db, struct bib_entry *new,
+		struct bib_entry *old);
+int sessiondb_rm_bib(struct sessiondb *db, struct bib_entry *bib);
 
 bool session_is_established(struct session_entry *session);
 unsigned long int session_get_timeout(struct session_entry *session);

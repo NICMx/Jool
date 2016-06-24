@@ -147,7 +147,7 @@ static int choose_port(struct ipv4_transport_addr *addr, void *void_args)
 
 	atomic_inc(&next_ephemeral);
 
-	if (sessiondb_find_bib(args->session, addr, args->proto, NULL)) {
+	if (sessiondb_find_bib4(args->session, addr, args->proto, NULL)) {
 		/* Entry not found (we found an empty slot). */
 		*(args->result) = *addr;
 		return 1; /* positive = break iteration, no error. */

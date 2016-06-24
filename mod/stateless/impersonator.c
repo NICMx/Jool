@@ -1,4 +1,3 @@
-#include "../../include/nat64/mod/stateful/bib/bib.h"
 #include "nat64/common/types.h"
 #include "nat64/common/config.h"
 #include "nat64/mod/common/packet.h"
@@ -8,6 +7,7 @@
 #include "nat64/mod/stateful/fragment_db.h"
 #include "nat64/mod/stateful/joold.h"
 #include "nat64/mod/stateful/pool4/db.h"
+#include "nat64/mod/stateful/bib/bib.h"
 #include "nat64/mod/stateful/session/db.h"
 
 /**
@@ -128,7 +128,7 @@ int bibdb_add(struct bib *db, struct bib_entry *entry, struct bib_entry **old)
 	return fail(__func__);
 }
 
-void bibdb_rm_taddr4s(struct bib *db, const struct ipv4_prefix *prefix,
+void bibdb_rm_range(struct bib *db, const struct ipv4_prefix *prefix,
 		struct port_range *ports)
 {
 	fail(__func__);
@@ -221,7 +221,7 @@ void sessiondb_rm_range(struct sessiondb *db, struct ipv4_prefix *prefix,
 	fail(__func__);
 }
 
-int sessiondb_delete_by_bib(struct sessiondb *db, struct bib_entry *bib)
+int sessiondb_rm_bib(struct sessiondb *db, struct bib_entry *bib)
 {
 	return fail(__func__);
 }

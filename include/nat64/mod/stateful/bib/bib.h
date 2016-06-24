@@ -14,7 +14,7 @@
 
 struct bib;
 
-int bibdb_init(struct bib **db);
+struct bib *bibdb_init(void);
 void bibdb_get(struct bib *db);
 void bibdb_put(struct bib *db);
 
@@ -30,7 +30,8 @@ int bibdb_add(struct bib *db, struct bib_entry *new, struct bib_entry *old);
 int bibdb_count(struct bib *db, const l4_protocol proto, __u64 *result);
 void bibdb_flush(struct bib *db);
 
-void bibdb_rm_taddr4s(struct bib *db, const struct ipv4_range *range);
+int bibdb_rm(struct bib *db, struct bib_entry *entry);
+void bibdb_rm_range(struct bib *db, const struct ipv4_range *range);
 
 int bibdb_foreach(struct bib *db, const l4_protocol proto,
 		int (*func)(struct bib_entry *, void *), void *arg,

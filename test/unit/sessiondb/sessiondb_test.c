@@ -199,7 +199,7 @@ static bool simple_session(void)
 	/* ---------------------------------------------------------- */
 
 	log_debug("Deleting sessions by BIB.");
-	sessiondb_delete_by_bib(db, &bib);
+	sessiondb_rm_bib(db, &bib);
 
 	sessions6[2][1][1][1] = sessions4[1][1][2][2] = NULL;
 	sessions6[1][2][1][2] = sessions4[1][1][2][1] = NULL;
@@ -210,7 +210,7 @@ static bool simple_session(void)
 	/* ---------------------------------------------------------- */
 
 	log_debug("Deleting again.");
-	sessiondb_delete_by_bib(db, &bib);
+	sessiondb_rm_bib(db, &bib);
 	success &= test_db();
 
 	/* ---------------------------------------------------------- */

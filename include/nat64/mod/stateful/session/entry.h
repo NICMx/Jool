@@ -64,10 +64,12 @@ struct session_entry {
 	/** Timer supposed to delete this session when it expires. */
 	struct expire_timer *expirer;
 
-	/** Appends this entry to the table's IPv6 index. */
+	/** Appends this entry to the database's IPv6 index. */
 	struct rb_node tree6_hook;
-	/** Appends this entry to the table's IPv4 index. */
+	/** Appends this entry to the database's IPv4 index. */
 	struct rb_node tree4_hook;
+	/** Appends this entry to the database's src6-src4 index. */
+	struct rb_node tree64_hook;
 
 	/** Reference counter for releasing purposes. */
 	struct kref refs;

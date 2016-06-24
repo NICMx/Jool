@@ -6,11 +6,11 @@
 #include "nat64/mod/common/linux_version.h"
 #include "nat64/mod/common/route.h"
 #include "nat64/mod/common/wkmalloc.h"
+#include "nat64/mod/stateful/bib/bib.h"
 #include "nat64/mod/stateful/session/pkt_queue.h"
 #include "nat64/mod/stateful/session/table4.h"
 #include "nat64/mod/stateful/session/table6.h"
-
-typedef unsigned long (*timeout_cb)(void);
+#include "nat64/mod/stateful/session/table64.h"
 
 struct expire_timer {
 	struct list_head sessions;
@@ -20,8 +20,21 @@ struct expire_timer {
 };
 
 struct session_table {
-	struct session_table4 *t4;
-	struct session_table6 *t6;
+	/**
+	 * Indexes entries by [src4, dst4.l3, dst4.l4] triplet,
+	 * prevents [src4, dst4.l3, dst4.l4] duplicates.
+	 */
+	struct session_table4 t4;
+	/**
+	 * Indexes entries by [src6, dst6] tuple,
+	 * prevents [src6, dst6] duplicates.
+	 */
+	struct session_table6 t6;
+	/**
+	 * Indexes entries by [src6, src4] tuple,
+	 * prevents [src6, src4] duplicates.
+	 */
+	struct session_table64 t64;
 
 	/** Expires this table's established sessions. */
 	struct expire_timer est_timer;
@@ -45,6 +58,12 @@ struct sessiondb {
 	struct session_table icmp;
 	/** Packet storage for simultaneous open of TCP connections. */
 	struct pktqueue *pkt_queue;
+
+	/**
+	 * Static BIB entries.
+	 * (Dynamic BIB entries are inferred from the session tables.)
+	 */
+	struct bib *bib;
 
 	struct kref refs;
 };
@@ -111,17 +130,12 @@ static void init_expirer(struct expire_timer *expirer, int timeout,
 	expirer->decide_fate_cb = decide_fate_cb;
 }
 
-static int sessiontable_init(struct session_table *table, fate_cb expired_cb,
+static void sessiontable_init(struct session_table *table, fate_cb expired_cb,
 		int est_timeout, int trans_timeout)
 {
-	table->t6 = st6_create();
-	if (!table->t6)
-		return -ENOMEM;
-	table->t4 = st4_create();
-	if (!table->t4) {
-		st6_destroy(table->t6);
-		return -ENOMEM;
-	}
+	table->t4 = RB_ROOT;
+	table->t6 = RB_ROOT;
+	table->t64 = RB_ROOT;
 
 	init_expirer(&table->est_timer, est_timeout, true, expired_cb);
 	init_expirer(&table->trans_timer, trans_timeout, false, expired_cb);
@@ -129,54 +143,37 @@ static int sessiontable_init(struct session_table *table, fate_cb expired_cb,
 	table->count = 0;
 	table->log_changes = DEFAULT_SESSION_LOGGING;
 	spin_lock_init(&table->lock);
-
-	return 0;
-}
-
-static void sessiontable_destroy(struct session_table *table)
-{
-	st6_destroy(table->t6);
-	st4_destroy(table->t4);
 }
 
 int sessiondb_init(struct sessiondb **result)
 {
 	struct sessiondb *sdb;
-	int error;
 
 	sdb = wkmalloc(struct sessiondb, GFP_KERNEL);
 	if (!sdb)
-		goto fail0;
+		return -ENOMEM;
 
-	error = sessiontable_init(&sdb->udp, just_die, UDP_DEFAULT, 0);
-	if (error)
-		goto fail1;
-	error = sessiontable_init(&sdb->tcp, tcp_expired_cb, TCP_EST, TCP_TRANS);
-	if (error)
-		goto fail2;
-	error = sessiontable_init(&sdb->icmp, just_die, ICMP_DEFAULT, 0);
-	if (error)
-		goto fail3;
+	sessiontable_init(&sdb->udp, just_die, UDP_DEFAULT, 0);
+	sessiontable_init(&sdb->tcp, tcp_expired_cb, TCP_EST, TCP_TRANS);
+	sessiontable_init(&sdb->icmp, just_die, ICMP_DEFAULT, 0);
 
 	sdb->pkt_queue = pktqueue_create();
-	if (!sdb->pkt_queue)
-		goto fail4;
+	if (!sdb->pkt_queue) {
+		wkfree(struct sessiondb, sdb);
+		return -ENOMEM;
+	}
+
+	sdb->bib = bibdb_init();
+	if (!sdb->bib) {
+		pktqueue_destroy(sdb->pkt_queue);
+		wkfree(struct sessiondb, sdb);
+		return -ENOMEM;
+	}
 
 	kref_init(&sdb->refs);
 
 	*result = sdb;
 	return 0;
-
-fail4:
-	sessiontable_destroy(&sdb->icmp);
-fail3:
-	sessiontable_destroy(&sdb->tcp);
-fail2:
-	sessiontable_destroy(&sdb->udp);
-fail1:
-	wkfree(struct sessiondb, sdb);
-fail0:
-	return -ENOMEM;
 }
 
 void sessiondb_get(struct sessiondb *db)
@@ -184,17 +181,32 @@ void sessiondb_get(struct sessiondb *db)
 	kref_get(&db->refs);
 }
 
+static void destroy_sessions(struct list_head *list, const bool log)
+{
+	struct session_entry *session;
+	struct session_entry *tmp;
+
+	list_for_each_entry_safe(session, tmp, list, list_hook) {
+		session_put(session, false);
+		if (log)
+			session_log(session, "Forgot session");
+	}
+}
+
 static void release(struct kref *refcounter)
 {
 	struct sessiondb *db;
-	db = container_of(refcounter, typeof(*db), refs);
+	db = container_of(refcounter, struct sessiondb, refs);
 
 	log_debug("Emptying the session tables...");
-
-	sessiontable_destroy(&db->udp);
-	sessiontable_destroy(&db->tcp);
-	sessiontable_destroy(&db->icmp);
+	destroy_sessions(&db->udp.est_timer.sessions, db->udp.log_changes);
+	destroy_sessions(&db->udp.trans_timer.sessions, db->udp.log_changes);
+	destroy_sessions(&db->tcp.est_timer.sessions, db->tcp.log_changes);
+	destroy_sessions(&db->tcp.trans_timer.sessions, db->tcp.log_changes);
+	destroy_sessions(&db->icmp.est_timer.sessions, db->icmp.log_changes);
+	destroy_sessions(&db->icmp.trans_timer.sessions, db->icmp.log_changes);
 	pktqueue_destroy(db->pkt_queue);
+	bibdb_put(db->bib);
 
 	wkfree(struct sessiondb, db);
 }
@@ -274,31 +286,58 @@ int sessiondb_find_full(struct sessiondb *db, struct tuple *tuple4,
 		struct bib_entry *bib, struct session_entry **session,
 		bool *allow)
 {
-	struct session_table *table = get_table(db, tuple4->l4_proto);
+	struct session_table *table;
+	int error;
+
+	table = get_table(db, tuple4->l4_proto);
 	if (!table)
 		return -EINVAL;
-	return st4_find_full(table->t4, tuple4, bib, session, allow);
+	spin_lock_bh(&table->lock);
+
+	error = st4_find_full(&table->t4, tuple4, bib, session, allow);
+	if (error == -ESRCH) {
+		/*
+		 * Maybe the operator set up a static BIB entry for such an
+		 * occasion.
+		 */
+		*allow = false;
+		*session = NULL;
+		error = bibdb_find(db->bib, tuple4, bib);
+	}
+
+	spin_unlock_bh(&table->lock);
+	return error;
 }
 
 /**
  * @bib is optional.
  * (This can be useful if you only need to know if it is tabled.)
  */
-int sessiondb_find_bib_tuple(struct sessiondb *db, struct tuple *tuple,
+int sessiondb_find_bib_by_tuple(struct sessiondb *db, struct tuple *tuple,
 		struct bib_entry *bib)
 {
-	return sessiondb_find_bib(db, &tuple->dst.addr4, tuple->l4_proto, bib);
+	return sessiondb_find_bib4(db, &tuple->dst.addr4, tuple->l4_proto, bib);
 }
 
-int sessiondb_find_bib(struct sessiondb *db,
+int sessiondb_find_bib4(struct sessiondb *db,
 		struct ipv4_transport_addr *addr,
 		l4_protocol proto,
 		struct bib_entry *bib)
 {
-	struct session_table *table = get_table(db, proto);
+	struct session_table *table;
+	int error;
+
+	table = get_table(db, proto);
 	if (!table)
 		return -EINVAL;
-	return st4_find_bib(table->t4, addr, bib);
+	spin_lock_bh(&table->lock);
+
+	error = st4_find_bib(&table->t4, addr, bib);
+	if (error == -ESRCH)
+		error = bibdb_find4(db->bib, addr, proto, bib);
+
+	spin_unlock_bh(&table->lock);
+	return error;
 }
 
 /**
@@ -309,9 +348,11 @@ int sessiondb_find_bib(struct sessiondb *db,
  */
 static void rm(struct session_table *table, struct session_entry *session)
 {
-	st4_rm(table->t4, session);
-	st6_rm(table->t6, session);
+	st4_rm(&table->t4, session);
+	st6_rm(&table->t6, session);
+	st64_rm(&table->t64, session);
 	list_del(&session->list_hook);
+	session_put(session, false);
 	table->count--;
 
 	if (table->log_changes)
@@ -510,10 +551,10 @@ int sessiondb_find(struct sessiondb *db, struct tuple *tuple,
 
 	switch (tuple->l3_proto) {
 	case L3PROTO_IPV6:
-		session = st6_find(table->t6, tuple);
+		session = st6_find(&table->t6, tuple);
 		break;
 	case L3PROTO_IPV4:
-		session = st4_find(table->t4, tuple);
+		session = st4_find(&table->t4, tuple);
 		break;
 	default:
 		WARN(true, "Unsupported network protocol: %u", tuple->l3_proto);
@@ -565,16 +606,20 @@ int sessiondb_add(struct sessiondb *db, struct session_entry *session,
 
 	spin_lock_bh(&table->lock);
 
-	/* Removing from t6 is faster than on t4, so let's add on t6 first */
-	collision = st6_add(table->t6, session);
+	/*
+	 * Removing from t4 is slowest.
+	 * That's the only metric deciding this add order right now.
+	 */
+	/* TODO check static BIB collision */
+	collision = st64_add(&table->t64, session);
 	if (collision)
-		goto exists;
-
-	collision = st4_add(table->t4, session);
-	if (collision) {
-		st6_rm(table->t6, session);
-		goto exists;
-	}
+		goto exists64;
+	collision = st6_add(&table->t6, session);
+	if (collision)
+		goto exists6;
+	collision = st4_add(&table->t4, session);
+	if (collision)
+		goto exists4;
 
 	attach_timer(session, est ? &table->est_timer : &table->trans_timer);
 	session_get(session); /* Database's references. */
@@ -586,7 +631,11 @@ int sessiondb_add(struct sessiondb *db, struct session_entry *session,
 	spin_unlock_bh(&table->lock);
 	return 0;
 
-exists:
+exists4:
+	st6_rm(&table->t6, session);
+exists6:
+	st64_rm(&table->t64, session);
+exists64:
 	if (cb)
 		decide_fate(cb, cb_arg, table, collision, NULL);
 	spin_unlock_bh(&table->lock);
@@ -611,7 +660,7 @@ int sessiondb_foreach(struct sessiondb *db, l4_protocol proto,
 		return -EINVAL;
 
 	spin_lock_bh(&table->lock);
-	error = st6_foreach(table->t6, func, offset);
+	error = st6_foreach(&table->t6, func, offset);
 	spin_unlock_bh(&table->lock);
 
 	return error;
@@ -638,39 +687,16 @@ int sessiondb_queue(struct sessiondb *db, struct session_entry *session,
 static void destroy_session(struct session_entry *session, void *arg)
 {
 	struct session_table *table = arg;
-
 	log_debug("Removing session %pI4#%u -> %pI4#%u",
 			&session->src4.l3, session->src4.l4,
 			&session->dst4.l3, session->dst4.l4);
-
-	st6_rm(table->t6, session);
-	st4_rm(table->t4, session);
-	list_del(&session->list_hook);
-
-	session_put(session, false);
+	rm(table, session);
 }
 
 static int destroy_session_return(struct session_entry *session, void *arg)
 {
 	destroy_session(session, arg);
 	return 0;
-}
-
-void sessiondb_delete_by_bib(struct sessiondb *db, struct bib_entry *bib)
-{
-	struct session_table *table;
-	struct destructor_arg destructor;
-
-	table = get_table(db, bib->l4_proto);
-	if (!table)
-		return;
-
-	destructor.cb = destroy_session;
-	destructor.arg = table;
-
-	spin_lock_bh(&table->lock);
-	st4_prune_src4(table->t4, &bib->ipv4, &destructor);
-	spin_unlock_bh(&table->lock);
 }
 
 void sessiondb_rm_range(struct sessiondb *db, l4_protocol proto,
@@ -687,7 +713,8 @@ void sessiondb_rm_range(struct sessiondb *db, l4_protocol proto,
 	destructor.arg = table;
 
 	spin_lock_bh(&table->lock);
-	st4_prune_range(table->t4, range, &destructor);
+	st4_prune_range(&table->t4, range, &destructor);
+	bibdb_rm_range(db->bib, range);
 	spin_unlock_bh(&table->lock);
 }
 
@@ -700,7 +727,7 @@ static void __rm_prefix6(struct session_table *table,
 	destructor.arg = table;
 
 	spin_lock_bh(&table->lock);
-	st6_prune_range(table->t6, prefix, &destructor);
+	st6_prune_range(&table->t6, prefix, &destructor);
 	spin_unlock_bh(&table->lock);
 }
 
@@ -760,7 +787,7 @@ static void __flush(struct session_table *table)
 	};
 
 	spin_lock_bh(&table->lock);
-	st6_foreach(table->t6, &func, NULL);
+	st6_foreach(&table->t6, &func, NULL);
 	spin_unlock_bh(&table->lock);
 }
 
@@ -771,6 +798,50 @@ void sessiondb_flush(struct sessiondb *db)
 	__flush(&db->udp);
 	__flush(&db->tcp);
 	__flush(&db->icmp);
+}
+
+int sessiondb_foreach_bib(struct sessiondb *db, l4_protocol proto,
+			struct bib_foreach_func *func,
+			struct ipv4_transport_addr *offset);
+
+int sessiondb_count_bib(struct sessiondb *db, l4_protocol proto, __u64 *result)
+{
+	/*
+	 * Why?
+	 * If there are static BIB entries mapped to sessions,
+	 * it's kind of hard to not count them twice.
+	 */
+	log_info("Sorry; not implemented anymore.");
+	return -EINVAL;
+}
+
+int sessiondb_add_bib(struct sessiondb *db, struct bib_entry *new,
+		struct bib_entry *old)
+{
+	return bibdb_add(db->bib, new, old);
+}
+
+int sessiondb_rm_bib(struct sessiondb *db, struct bib_entry *bib)
+{
+	struct session_table *table;
+	struct destructor_arg destructor;
+	int error;
+
+	table = get_table(db, bib->l4_proto);
+	if (!table)
+		return -EINVAL;
+
+	destructor.cb = destroy_session;
+	destructor.arg = table;
+
+	spin_lock_bh(&table->lock);
+	/* TODO hmmmmmmmmmmmmmmmmmmm. ==/!= -ESRCH? */
+	error = bibdb_rm(db->bib, bib);
+	if (!error)
+		st4_prune_src4(&table->t4, &bib->ipv4, &destructor);
+	spin_unlock_bh(&table->lock);
+
+	return error;
 }
 
 bool session_is_established(struct session_entry *session)

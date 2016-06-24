@@ -154,7 +154,7 @@ static bool test_flow(void)
 	prefix.len = 31;
 	range.min = 0;
 	range.max = 65535;
-	bibdb_rm_taddr4s(db, &prefix, &range);
+	bibdb_rm_range(db, &prefix, &range);
 
 	drop_bib(0, 10, 1, 21);
 	drop_bib(1, 19, 0, 20);
@@ -169,7 +169,7 @@ static bool test_flow(void)
 	prefix.len = 31;
 	range.min = 11;
 	range.max = 20;
-	bibdb_rm_taddr4s(db, &prefix, &range);
+	bibdb_rm_range(db, &prefix, &range);
 
 	drop_bib(2, 18, 3, 20);
 	drop_bib(0, 20, 2, 12);
@@ -182,7 +182,7 @@ static bool test_flow(void)
 	prefix.len = 0;
 	range.min = 0;
 	range.max = 65535;
-	bibdb_rm_taddr4s(db, &prefix, &range);
+	bibdb_rm_range(db, &prefix, &range);
 
 	drop_bib(3, 10, 3, 10);
 	drop_bib(3, 20, 2, 22);

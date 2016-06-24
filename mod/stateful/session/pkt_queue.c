@@ -80,7 +80,8 @@ void pktqueue_destroy(struct pktqueue *queue)
 	wkfree(struct pktqueue, queue);
 }
 
-void pktqueue_config_copy(struct pktqueue *queue, struct pktqueue_config *config)
+void pktqueue_config_copy(struct pktqueue *queue,
+		struct pktqueue_config *config)
 {
 	spin_lock_bh(&lock);
 	config->max_stored_pkts = queue->capacity;
@@ -178,10 +179,11 @@ int pktqueue_add(struct pktqueue *queue, struct session_entry *session,
 	return 0;
 }
 
-static struct pktqueue_node *__tree_find(struct pktqueue *queue, struct session_entry *session)
+static struct pktqueue_node *__tree_find(struct pktqueue *queue,
+		struct session_entry *session)
 {
-	return rbtree_find(session, &queue->node_tree, compare_fn, struct pktqueue_node,
-			tree_hook);
+	return rbtree_find(session, &queue->node_tree, compare_fn,
+			struct pktqueue_node, tree_hook);
 }
 
 void pktqueue_rm(struct pktqueue *queue, struct session_entry *session)

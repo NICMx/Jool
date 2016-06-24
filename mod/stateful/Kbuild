@@ -35,7 +35,7 @@ jool_common += ../common/xlator.o
 jool_common += ../common/nl/atomic_config.o
 jool_common += ../common/nl/nl_handler2.o
 jool_common += ../common/nl/nl_core2.o
-#jool_common += ../common/nl/bib.o
+jool_common += ../common/nl/bib.o
 jool_common += ../common/nl/pool.o
 jool_common += ../common/nl/eam.o
 jool_common += ../common/nl/global.o
@@ -56,6 +56,7 @@ jool += bib/port_allocator.o
 jool += session/entry.o
 jool += session/table4.o
 jool += session/table6.o
+jool += session/table64.o
 jool += session/db.o
 jool += session/pkt_queue.o
 

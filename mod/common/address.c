@@ -233,3 +233,27 @@ bool prefix4_has_subnet_scope(struct ipv4_prefix *prefix,
 
 	return false;
 }
+
+int taddr6_compare(const struct ipv6_transport_addr *a1,
+		const struct ipv6_transport_addr *a2)
+{
+	int gap;
+
+	gap = ipv6_addr_cmp(&a1->l3, &a2->l3);
+	if (gap)
+		return gap;
+
+	return ((int)a1->l4) - ((int)a2->l4);
+}
+
+int taddr4_compare(const struct ipv4_transport_addr *a1,
+		const struct ipv4_transport_addr *a2)
+{
+	int gap;
+
+	gap = ipv4_addr_cmp(&a1->l3, &a2->l3);
+	if (gap)
+		return gap;
+
+	return ((int)a1->l4) - ((int)a2->l4);
+}

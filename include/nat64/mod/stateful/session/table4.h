@@ -7,14 +7,12 @@
  * then by dst4.l4.
  */
 
+#include <linux/rbtree.h>
 #include "nat64/mod/common/types.h"
 #include "nat64/mod/stateful/bib/entry.h"
 #include "nat64/mod/stateful/session/entry.h"
 
-struct session_table4;
-
-struct session_table4 *st4_create(void);
-void st4_destroy(struct session_table4 *table);
+#define session_table4 rb_root
 
 struct session_entry *st4_find(struct session_table4 *table,
 		struct tuple *tuple4);

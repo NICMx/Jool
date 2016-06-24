@@ -6,25 +6,29 @@
 #include "nat64/mod/stateful/bib/bib.h"
 #include "nat64/mod/stateful/session/db.h"
 
-static int bib_entry_to_userspace(struct bib_entry *entry, void *arg)
+static int bib_entry_to_userspace(struct bib_entry *entry, bool is_static,
+		void *arg)
 {
 	struct nlcore_buffer *buffer = (struct nlcore_buffer *)arg;
-
 	struct bib_entry_usr entry_usr;
 
 	entry_usr.addr4 = entry->ipv4;
 	entry_usr.addr6 = entry->ipv6;
 	entry_usr.l4_proto = entry->l4_proto;
-	entry_usr.is_static = entry->is_static;
+	entry_usr.is_static = is_static;
 
 	return nlbuffer_write(buffer, &entry_usr, sizeof(entry_usr));
 }
 
-static int handle_bib_display(struct bib *db, struct genl_info *info,
+static int handle_bib_display(struct sessiondb *db, struct genl_info *info,
 		struct request_bib *request)
 {
 	struct nlcore_buffer buffer;
-	struct ipv4_transport_addr *addr4;
+	struct bib_foreach_func func = {
+			.cb = bib_entry_to_userspace,
+			.arg = &buffer,
+	};
+	struct ipv4_transport_addr *offset;
 	int error;
 
 	if (verify_superpriv())
@@ -36,9 +40,8 @@ static int handle_bib_display(struct bib *db, struct genl_info *info,
 	if (error)
 		return nlcore_respond(info, error);
 
-	addr4 = request->display.addr4_set ? &request->display.addr4 : NULL;
-	error = bibdb_foreach(db, request->l4_proto, bib_entry_to_userspace,
-			&buffer, addr4);
+	offset = request->display.addr4_set ? &request->display.addr4 : NULL;
+	error = sessiondb_foreach_bib(db, request->l4_proto, &func, offset);
 	nlbuffer_set_pending_data(&buffer, error > 0);
 	error = (error >= 0)
 			? nlbuffer_send(info, &buffer)
@@ -48,14 +51,14 @@ static int handle_bib_display(struct bib *db, struct genl_info *info,
 	return error;
 }
 
-static int handle_bib_count(struct bib *db, struct genl_info *info,
+static int handle_bib_count(struct sessiondb *db, struct genl_info *info,
 		struct request_bib *request)
 {
-	int error = 0;
+	int error;
 	__u64 count;
 
 	log_debug("Returning BIB count.");
-	error = bibdb_count(db, request->l4_proto, &count);
+	error = sessiondb_count_bib(db, request->l4_proto, &count);
 	if (error)
 		return nlcore_respond(info, error);
 
@@ -64,9 +67,8 @@ static int handle_bib_count(struct bib *db, struct genl_info *info,
 
 static int handle_bib_add(struct xlator *jool, struct request_bib *request)
 {
-	struct bib_entry *bib;
-	struct bib_entry *old;
-	int error;
+	struct bib_entry new;
+	struct bib_entry old;
 
 	if (verify_superpriv())
 		return -EPERM;
@@ -81,39 +83,17 @@ static int handle_bib_add(struct xlator *jool, struct request_bib *request)
 		return -EINVAL;
 	}
 
-	bib = bibentry_create(&request->add.addr4, &request->add.addr6, true,
-			request->l4_proto);
-	if (!bib) {
-		log_err("Could not allocate the BIB entry.");
-		return -ENOMEM;
-	}
-
-	error = bibdb_add(jool->nat64.bib, bib, &old);
-	if (error == -EEXIST) {
-		log_err("[%pI6c#%u|%pI4#%u] collides with [%pI6c#%u|%pI4#%u].",
-				&bib->ipv6.l3, bib->ipv6.l4,
-				&bib->ipv4.l3, bib->ipv4.l4,
-				&old->ipv6.l3, old->ipv6.l4,
-				&old->ipv4.l3, old->ipv4.l4);
-		bibentry_put_thread(bib, true);
-		bibentry_put_thread(old, false);
-		return error;
-	}
-	if (error) {
-		log_err("Unknown error (%d) during the entry add.", error);
-		bibentry_put_thread(bib, true);
-		return error;
-	}
-
-	bibentry_put_thread(bib, false);
-	return 0;
+	new.ipv6 = request->add.addr6;
+	new.ipv4 = request->add.addr4;
+	new.l4_proto = request->l4_proto;
+	/* TODO Note that other session collisions also count as collisions. */
+	/* TODO Error messages */
+	return sessiondb_add_bib(jool->nat64.session, &new, &old);
 }
 
 static int handle_bib_rm(struct xlator *jool, struct request_bib *request)
 {
-	struct ipv4_transport_addr *req4 = &request->rm.addr4;
-	struct ipv6_transport_addr *req6 = &request->rm.addr6;
-	struct bib_entry *bib;
+	struct bib_entry bib;
 	int error;
 
 	if (verify_superpriv())
@@ -121,60 +101,40 @@ static int handle_bib_rm(struct xlator *jool, struct request_bib *request)
 
 	log_debug("Removing BIB entry.");
 
-	if (request->rm.addr6_set) {
-		error = bibdb_find6(jool->nat64.bib, req6, request->l4_proto, &bib);
+	if (request->rm.addr6_set && request->rm.addr4_set) {
+		bib.ipv6 = request->rm.addr6;
+		bib.ipv4 = request->rm.addr4;
+		bib.l4_proto = request->l4_proto;
+		error = 0;
+	} else if (request->rm.addr6_set) {
+		error = sessiondb_find_bib6(jool->nat64.session,
+				&request->rm.addr6, request->l4_proto, &bib);
 	} else if (request->rm.addr4_set) {
-		error = bibdb_find4(jool->nat64.bib, req4, request->l4_proto, &bib);
+		error = sessiondb_find_bib4(jool->nat64.session,
+				&request->rm.addr4, request->l4_proto, &bib);
 	} else {
 		log_err("You need to provide an address so I can find the entry you want to remove.");
 		return -EINVAL;
 	}
 
-	if (error == -ESRCH) {
-		log_err("The entry wasn't in the database.");
-		return error;
-	}
+	if (error == -ESRCH)
+		goto esrch;
 	if (error)
 		return error;
 
-	if (request->rm.addr6_set && request->rm.addr4_set) {
-		if (!taddr4_equals(&bib->ipv4, req4)) {
-			log_err("%pI6c#%u is mapped to %pI4#%u, not %pI4#%u.",
-					&bib->ipv6.l3, bib->ipv6.l4,
-					&bib->ipv4.l3, bib->ipv4.l4,
-					&req4->l3, req4->l4);
-			bibentry_put_thread(bib, false);
-			return -ESRCH;
-		}
+	error = sessiondb_rm_bib(jool->nat64.session, &bib);
+	if (error == -ESRCH) {
+		if (request->rm.addr6_set && request->rm.addr4_set)
+			goto esrch;
+		/* It died on its own between the find and the rm. */
+		return 0;
 	}
 
-	/*
-	 * Remove the fake user.
-	 *
-	 * TODO (issue204) This is kind of bad, though not incorrect just yet.
-	 * In principle, "is_static" is supposed to only be touched while
-	 * holding the BIB table lock.
-	 * However, it just so happens that every r/w on is_static is currently
-	 * also being protected by the configuration mutex. (The one in
-	 * nl_handler2.c).
-	 * So... for the sake of good coding practices, please move this to a
-	 * spinlock-protected area the next time you refactor BIB.
-	 *
-	 * The next planned BIB refactor happens when I fix #204 (which is
-	 * probably going to happen in another revision release), hence the
-	 * "issue204" priority.
-	 */
-	if (bib->is_static) {
-		bibentry_put_db(bib);
-		bib->is_static = false;
-	}
-
-	/* Remove bib's sessions and their references. */
-	error = sessiondb_delete_by_bib(jool->nat64.session, bib);
-
-	/* Remove our own reference. */
-	bibentry_put_thread(bib, false);
 	return error;
+
+esrch:
+	log_err("The entry wasn't in the database.");
+	return -ESRCH;
 }
 
 int handle_bib_config(struct xlator *jool, struct genl_info *info)
@@ -194,9 +154,9 @@ int handle_bib_config(struct xlator *jool, struct genl_info *info)
 
 	switch (be16_to_cpu(hdr->operation)) {
 	case OP_DISPLAY:
-		return handle_bib_display(jool->nat64.bib, info, request);
+		return handle_bib_display(jool->nat64.session, info, request);
 	case OP_COUNT:
-		return handle_bib_count(jool->nat64.bib, info, request);
+		return handle_bib_count(jool->nat64.session, info, request);
 	case OP_ADD:
 		error = handle_bib_add(jool, request);
 		break;

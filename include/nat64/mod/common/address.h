@@ -75,6 +75,11 @@ static inline int ipv4_addr_cmp(const struct in_addr *a1, const struct in_addr *
 	return memcmp(a1, a2, sizeof(struct in_addr));
 }
 
+int taddr6_compare(const struct ipv6_transport_addr *a1,
+		const struct ipv6_transport_addr *a2);
+int taddr4_compare(const struct ipv4_transport_addr *a1,
+		const struct ipv4_transport_addr *a2);
+
 bool addr4_is_scope_subnet(const __be32 addr);
 bool prefix4_has_subnet_scope(struct ipv4_prefix *prefix,
 		struct ipv4_prefix *subnet);

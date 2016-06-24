@@ -184,7 +184,7 @@ static verdict create_and_add_session(struct xlation *state, tcp_state sm_state,
 	 * entry.
 	 * (Note: using the "old" argument is more trouble than it seems because
 	 * this has to be handled differently depending on whether the collision
-	 * was v4 or v6.)
+	 * was v4, v6 or v64.)
 	 */
 	if (sessiondb_add_simple(state->jool.nat64.session, session, est)) {
 		session_put(session, true);
@@ -354,8 +354,8 @@ static verdict tcp_closed_v4_syn(struct xlation *state)
 		return breakdown(state);
 	}
 
-	switch (sessiondb_find_bib_tuple(state->jool.nat64.session, &state->in.tuple,
-			&bib)) {
+	switch (sessiondb_find_bib_by_tuple(state->jool.nat64.session,
+			&state->in.tuple, &bib)) {
 	case 0:
 		break;
 	case -ESRCH:
@@ -396,8 +396,8 @@ static verdict tcp_closed_state(struct xlation *state)
 		}
 	}
 
-	error = sessiondb_find_bib_tuple(state->jool.nat64.session, &pkt->tuple,
-			NULL);
+	error = sessiondb_find_bib_by_tuple(state->jool.nat64.session,
+			&pkt->tuple, NULL);
 	if (error) {
 		log_debug("Closed state: Packet is not SYN and there is no BIB entry, so discarding. ERRcode %d",
 				error);

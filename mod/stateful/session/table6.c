@@ -3,46 +3,9 @@
 #include <net/ipv6.h>
 #include "nat64/mod/common/rbtree.h"
 
-struct session_table6 {
-	struct rb_root tree;
-};
-
 static struct session_entry *st6_entry(struct rb_node *node)
 {
 	return rb_entry(node, struct session_entry, tree6_hook);
-}
-
-struct session_table6 *st6_create(void)
-{
-	struct session_table6 *table;
-
-	table = kmalloc(sizeof(struct session_table6), GFP_ATOMIC);
-	if (!table)
-		return NULL;
-	table->tree.rb_node = NULL;
-	return table;
-}
-
-/**
- * Does not destroy the nodes!
- * (Because they are shared with other indexes.)
- */
-void st6_destroy(struct session_table6 *table)
-{
-	kfree(table);
-}
-
-static int compare_addr6(const struct ipv6_transport_addr *a1,
-		const struct ipv6_transport_addr *a2)
-{
-	int gap;
-
-	gap = ipv6_addr_cmp(&a1->l3, &a2->l3);
-	if (gap)
-		return gap;
-
-	gap = ((int)a1->l4) - ((int)a2->l4);
-	return gap;
 }
 
 static int compare_tuple6(const struct session_entry *session,
@@ -50,19 +13,19 @@ static int compare_tuple6(const struct session_entry *session,
 {
 	int gap;
 
-	gap = compare_addr6(&session->dst6, &tuple6->dst.addr6);
+	gap = taddr6_compare(&session->dst6, &tuple6->dst.addr6);
 	if (gap)
 		return gap;
 
-	gap = compare_addr6(&session->src6, &tuple6->src.addr6);
+	gap = taddr6_compare(&session->src6, &tuple6->src.addr6);
 	return gap;
 }
 
 struct session_entry *st6_find(struct session_table6 *table,
 		struct tuple *tuple6)
 {
-	return rbtree_find(tuple6, &table->tree, compare_tuple6,
-			struct session_entry, tree6_hook);
+	return rbtree_find(tuple6, table, compare_tuple6, struct session_entry,
+			tree6_hook);
 }
 
 static int compare_session6(const struct session_entry *s1,
@@ -70,29 +33,29 @@ static int compare_session6(const struct session_entry *s1,
 {
 	int gap;
 
-	gap = compare_addr6(&s1->dst6, &s2->dst6);
+	gap = taddr6_compare(&s1->dst6, &s2->dst6);
 	if (gap)
 		return gap;
 
-	gap = compare_addr6(&s1->src6, &s2->src6);
+	gap = taddr6_compare(&s1->src6, &s2->src6);
 	return gap;
 }
 
 struct session_entry *st6_add(struct session_table6 *table,
 		struct session_entry *session)
 {
-	return rbtree_add(session, session, &table->tree, compare_session6,
+	return rbtree_add(session, session, table, compare_session6,
 			struct session_entry, tree6_hook);
 }
 
 void st6_rm(struct session_table6 *table, struct session_entry *session)
 {
-	rb_erase(&session->tree6_hook, &table->tree);
+	rb_erase(&session->tree6_hook, table);
 }
 
 void st6_flush(struct session_table6 *table)
 {
-	table->tree.rb_node = NULL;
+	table->rb_node = NULL;
 }
 
 static int compare_offset(const struct session_entry *session,
@@ -100,11 +63,11 @@ static int compare_offset(const struct session_entry *session,
 {
 	int gap;
 
-	gap = compare_addr6(&session->dst6, &offset->offset.dst);
+	gap = taddr6_compare(&session->dst6, &offset->offset.dst);
 	if (gap)
 		return gap;
 
-	gap = compare_addr6(&session->src6, &offset->offset.src);
+	gap = taddr6_compare(&session->src6, &offset->offset.src);
 	return gap;
 }
 
@@ -116,12 +79,11 @@ static struct rb_node *find_starting_point(struct session_table6 *table,
 
 	/* If there's no offset, start from the beginning. */
 	if (!offset)
-		return rb_first(&table->tree);
+		return rb_first(table);
 
 	/* If offset is found, start from offset or offset's next. */
-	rbtree_find_node(offset, &table->tree, compare_offset,
-			struct session_entry, tree6_hook,
-			parent, node);
+	rbtree_find_node(offset, table, compare_offset, struct session_entry,
+			tree6_hook, parent, node);
 	if (*node)
 		return offset->include_offset ? (*node) : rb_next(*node);
 
@@ -168,7 +130,7 @@ void st6_prune_range(struct session_table6 *table,
 	 * Don't worry; this operation is rare (operator-initiated).
 	 */
 
-	node = rb_first(&table->tree);
+	node = rb_first(table);
 	while (node) {
 		next = rb_next(node);
 

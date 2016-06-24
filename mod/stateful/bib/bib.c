@@ -170,24 +170,20 @@ static struct bib_table *get_table(struct bib *db, const l4_protocol proto)
 	return NULL;
 }
 
-/**
- * bibdb_init - Initializes the @db database instance.
- */
-int bibdb_init(struct bib **db)
+struct bib *bibdb_init(void)
 {
 	struct bib *result;
 
 	result = wkmalloc(struct bib, GFP_KERNEL);
 	if (!result)
-		return -ENOMEM;
+		return NULL;
 
 	bibtable_init(&result->tcp);
 	bibtable_init(&result->udp);
 	bibtable_init(&result->icmp);
 	kref_init(&result->refs);
 
-	*db = result;
-	return 0;
+	return result;
 }
 
 /**
@@ -415,6 +411,14 @@ int bibdb_count(struct bib *db, const l4_protocol proto, __u64 *result)
 	return 0;
 }
 
+static void rm(struct bib_table *table, struct table_entry *entry)
+{
+	rb_erase(&entry->tree6_hook, &table->tree6);
+	rb_erase(&entry->tree4_hook, &table->tree4);
+	kfree(entry);
+	table->count--;
+}
+
 /* TODO if this works, copy the logic to sessiondb_rm_range(). */
 static void rm_taddr4s(struct bib_table *table, const struct ipv4_range *range)
 {
@@ -432,20 +436,33 @@ static void rm_taddr4s(struct bib_table *table, const struct ipv4_range *range)
 		entry = get_table4_entry(node);
 		if (!prefix4_contains(&range->prefix, &entry->bib.ipv4.l3))
 			return;
-		if (port_range_contains(&range->ports, entry->bib.ipv4.l4)) {
-			rb_erase(&entry->tree6_hook, &table->tree6);
-			rb_erase(&entry->tree4_hook, &table->tree4);
-			kfree(entry);
-			table->count--;
-		}
+		if (port_range_contains(&range->ports, entry->bib.ipv4.l4))
+			rm(table, entry);
 	}
+}
+
+int bibdb_rm(struct bib *db, struct bib_entry *bib)
+{
+	struct bib_table *table;
+	struct table_entry *entry;
+
+	table = get_table(db, bib->l4_proto);
+	if (!table)
+		return -EINVAL;
+
+	entry = find_by_addr4(table, &bib->ipv4);
+	if (!entry || !taddr6_equals(&bib->ipv6, &entry->bib.ipv6))
+		return -ESRCH;
+
+	rm(table, entry);
+	return 0;
 }
 
 /**
  * bibdb_delete_taddr4s - Removes the fake users of all the BIB entries whose
- * IPv4 transport addreses match @prefix4 and @ports.
+ * IPv4 transport addreses match @range.
  */
-void bibdb_rm_taddr4s(struct bib *db, const struct ipv4_range *range)
+void bibdb_rm_range(struct bib *db, const struct ipv4_range *range)
 {
 	rm_taddr4s(&db->tcp, range);
 	rm_taddr4s(&db->udp, range);

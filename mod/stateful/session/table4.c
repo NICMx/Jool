@@ -2,52 +2,15 @@
 
 #include "nat64/mod/common/rbtree.h"
 
-struct session_table4 {
-	struct rb_root tree;
-};
-
 static struct session_entry *st4_entry(struct rb_node *node)
 {
 	return rb_entry(node, struct session_entry, tree4_hook);
 }
 
-struct session_table4 *st4_create(void)
-{
-	struct session_table4 *table;
-
-	table = kmalloc(sizeof(struct session_table4), GFP_ATOMIC);
-	if (!table)
-		return NULL;
-	table->tree.rb_node = NULL;
-	return table;
-}
-
-/**
- * Does not destroy the nodes!
- * (Because they are shared with other indexes.)
- */
-void st4_destroy(struct session_table4 *table)
-{
-	kfree(table);
-}
-
-static int compare_addr4(const struct ipv4_transport_addr *a1,
-		const struct ipv4_transport_addr *a2)
-{
-	int gap;
-
-	gap = ipv4_addr_cmp(&a1->l3, &a2->l3);
-	if (gap)
-		return gap;
-
-	gap = ((int)a1->l4) - ((int)a2->l4);
-	return gap;
-}
-
 static int compare_tuple_bib(const struct session_entry *session,
 		const struct tuple *tuple4)
 {
-	return compare_addr4(&session->src4, &tuple4->dst.addr4);
+	return taddr4_compare(&session->src4, &tuple4->dst.addr4);
 }
 
 static int compare_tuple_allow(const struct session_entry *session,
@@ -65,7 +28,7 @@ static int compare_tuple_session(const struct session_entry *session,
 static int compare_bib(const struct session_entry *a,
 		const struct session_entry *b)
 {
-	return compare_addr4(&a->src4, &b->src4);
+	return taddr4_compare(&a->src4, &b->src4);
 }
 
 static int compare_allow(const struct session_entry *a,
@@ -83,7 +46,7 @@ static int compare_session(const struct session_entry *a,
 static int compare_src4(const struct session_entry *a,
 		const struct ipv4_transport_addr *b)
 {
-	return compare_addr4(&a->src4, b);
+	return taddr4_compare(&a->src4, b);
 }
 
 static void session2bib(struct session_entry *session,
@@ -122,7 +85,7 @@ int st4_find_full(struct session_table4 *table, struct tuple *tuple4,
 	*allow = false;
 	*session = NULL;
 
-	tmp = rbtree_find4(tuple4, &table->tree, compare_tuple_bib);
+	tmp = rbtree_find4(tuple4, table, compare_tuple_bib);
 	if (!tmp)
 		return -ESRCH;
 	session2bib(tmp, bib);
@@ -156,7 +119,7 @@ int st4_find_bib(struct session_table4 *table,
 {
 	struct session_entry *session;
 
-	session = rbtree_find4(addr, &table->tree, compare_src4);
+	session = rbtree_find4(addr, table, compare_src4);
 	if (!session)
 		return -ESRCH;
 
@@ -177,7 +140,7 @@ struct session_entry *st4_add(struct session_table4 *table,
 {
 	struct session_entry *clash;
 
-	clash = add4(session, &table->tree, compare_bib);
+	clash = add4(session, table, compare_bib);
 	if (!clash)
 		return NULL;
 
@@ -199,11 +162,11 @@ static struct rb_root *find_root(struct session_table4 *table,
 	struct session_entry *found;
 	struct rb_root *root;
 
-	found = rbtree_find4(session, &table->tree, compare_bib);
+	found = rbtree_find4(session, table, compare_bib);
 	if (unlikely(!found))
 		return NULL;
 	if (session == found)
-		return &table->tree;
+		return table;
 
 	if (session->dst4.l3.s_addr == found->dst4.l3.s_addr)
 		return &found->tree4l3;
@@ -257,7 +220,7 @@ void st4_rm(struct session_table4 *table, struct session_entry *session)
 
 void st4_flush(struct session_table4 *table)
 {
-	table->tree.rb_node = NULL;
+	table->rb_node = NULL;
 }
 
 static void prune_l3(struct rb_node *node, void *arg)
@@ -288,7 +251,7 @@ void st4_prune_src4(struct session_table4 *table,
 {
 	struct session_entry *root;
 
-	root = rbtree_find4(src4, &table->tree, compare_src4);
+	root = rbtree_find4(src4, table, compare_src4);
 	if (root)
 		prune(root, destructor);
 }
@@ -306,7 +269,7 @@ void st4_prune_range(struct session_table4 *table,
 	 * Don't worry; this operation is rare (operator-initiated).
 	 */
 
-	node = rb_first(&table->tree);
+	node = rb_first(table);
 	while (node) {
 		next = rb_next(node);
 
@@ -377,5 +340,5 @@ static void print_node_l1(int level, char *type, struct rb_node *node)
 void st4_print(struct session_table4 *table)
 {
 	pr_info("------------------------------\n");
-	print_node_l1(0, "T", table->tree.rb_node);
+	print_node_l1(0, "T", table->rb_node);
 }

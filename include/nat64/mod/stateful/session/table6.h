@@ -6,13 +6,11 @@
  * It's a Red-Black tree, plain and simple.
  */
 
+#include <linux/rbtree.h>
 #include "nat64/mod/common/types.h"
 #include "nat64/mod/stateful/session/entry.h"
 
-struct session_table6;
-
-struct session_table6 *st6_create(void);
-void st6_destroy(struct session_table6 *table);
+#define session_table6 rb_root
 
 struct session_entry *st6_find(struct session_table6 *table,
 		struct tuple *tuple6);
@@ -27,14 +25,14 @@ void st6_flush(struct session_table6 *table);
 //		struct ipv6_transport_addr *src6,
 //		st6_destructor_cb destructor);
 
-struct session_foreach_offset {
-	struct taddr6_tuple offset;
-	bool include_offset;
-};
-
 struct session_foreach_func {
 	int (*cb)(struct session_entry *, void *);
 	void *arg;
+};
+
+struct session_foreach_offset {
+	struct taddr6_tuple offset;
+	bool include_offset;
 };
 
 int st6_foreach(struct session_table6 *table,
