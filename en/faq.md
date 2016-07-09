@@ -35,7 +35,6 @@ SIIT Jool's minimum configuration requirements are
 Stateful Jool's minimum configuration requirements are
 
 - At least one prefix in the [IPv6 pool](usr-flags-pool6.html).
-- At least one prefix/address in the [IPv4 pool](usr-flags-pool4.html).
 - You must have not [manually disabled](usr-flags-global.html#enable---disable) it.
 
 If that doesn't seem to be the problem, try the [logs](logging.html).
