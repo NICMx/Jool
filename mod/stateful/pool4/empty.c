@@ -21,7 +21,7 @@ static bool contains_addr(const struct in_addr *addr)
 		for_primary_ifa(in_dev) {
 			if (ifa->ifa_scope != RT_SCOPE_UNIVERSE)
 				continue;
-			if (ifa->ifa_address == addr->s_addr)
+			if (ifa->ifa_local == addr->s_addr)
 				return true;
 		} endfor_ifa(in_dev);
 	}
