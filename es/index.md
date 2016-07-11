@@ -20,7 +20,7 @@ Jool es un [SIIT y NAT64](intro-xlat.html) de código abierto para Linux.
 
 ## Estatus
 
-Jool es un SIIT y NAT64 [razonablemente apegado a estándares](intro-jool.html#cumplimiento). Esta es la agenda hasta el 2016-04-21:
+Jool es un SIIT y NAT64 [razonablemente apegado a estándares](intro-jool.html#cumplimiento). Esta es la agenda hasta el 2016-07-11:
 
 1. [La versión 3.5.0]({{ site.repository-url }}/issues?q=milestone%3A3.5.0) añadirá funcionalidad nueva.
 2. [La versión 4.0.0]({{ site.repository-url }}/issues?q=milestone%3A4.0.0) va a ser una [refactorización interna]({{ site.repository-url }}/issues/140) que hará la configuración más versátil.
@@ -28,11 +28,17 @@ Jool es un SIIT y NAT64 [razonablemente apegado a estándares](intro-jool.html#c
 
 A veces interpolamos versiones intermedias dependiendo de cómo evoluciona el [bug tracker]({{ site.repository-url }}/issues).
 
-La versión más reciente es la [3.4.3]({{ site.repository-url }}/issues?q=milestone%3A3.4.3).
+La versión más reciente es la [3.4.4]({{ site.repository-url }}/milestone/34).
 
 -------------------
 
 ## Noticias
+
+### 2016-07-11
+
+Liberado Jool 3.4.4. Se corrigió un error:
+
+1. La implementación de pool4 ([en modo vacío](usr-flags-pool4.html#notas)) solía confundir direcciones de interfaces punto-a-punto, [lo cual llevaba a paquetes tirados]({{ site.repository-url }}/issues/217).
 
 ### 2016-04-21
 

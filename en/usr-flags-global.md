@@ -453,7 +453,7 @@ You don't really need to sort the values as you input them.
 - Default: 11 (binary 1011)
 - Modes: Stateful NAT64 only
 - Translation direction: IPv6 to IPv4
-- Source: [Issue 195](https://github.com/NICMx/Jool/issues/195)
+- Source: [Issue 195]({{ site.repository-url }}/issues/195)
 
 When choosing an IPv4 transport address to mask an IPv6 source, it is [recommended]({{ site.draft-nat64-port-allocation }}) that the address should be as random as possible, but at the same time, dependent of several properties from the connection. You want the randomness to enhance the defense against hijacking of flows, and you want the dependence so that similar connections share similar masks. (Which enhances reliability when IPv4 outsiders expect so.)
 
@@ -516,7 +516,7 @@ While this is not:
 - Default: OFF
 - Modes: Stateful NAT64 only
 - Translation direction: Both
-- Source: [Issue 212](https://github.com/NICMx/Jool/issues/212)
+- Source: [Issue 212]({{ site.repository-url }}/issues/212)
 
 Some endpoints have a nasty habit of ending TCP connections ungracefully. Instead of performing a standard FIN handshake (FIN, FIN-ACK, ACK), they kill half-finished packet streams abruptly (FIN, RST). The current NAT64 specification does not seem to consider this, so their respective NAT64 mappings stay alive for `--tcp-est-timeout` seconds. Since the connection is being terminated, a `--tcp-trans-timeout`-second timeout would be more appropriate. This means these sessions stay alive for longer than they probably should.
 

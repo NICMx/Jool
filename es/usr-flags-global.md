@@ -477,7 +477,7 @@ No es necesario que se ordenen los valores mientras se ingresan.
 - Valor por omisión: ***11 (binario 1011)***
 - Modos: ***NAT64***
 - Sentido de traducción: ***IPv6 -> IPv4***
-- Fuente: [Issue 195](https://github.com/NICMx/Jool/issues/195)
+- Fuente: [Issue 195]({{ site.repository-url }}/issues/195)
 
 Es [recomendado]({{ site.draft-nat64-port-allocation }}) que la dirección fuente IPv4 que se elija para enmascarar un socket de IPv6 sea lo más aleatoria posible, pero al mismo tiempo, que sea dependiente de varias propiedades de la conexión. La aleatoriedad es deseada para enforzar la defensa contra intercepciones de conexión maliciosas, y la dependencia sirve para que conexiones similares tengan máscaras similares (lo cual es esperado por ciertos protocolos de más alto nivel).
 
@@ -541,7 +541,7 @@ Esto no lo es:
 - Valor ***por omisión: Apagado (0)***
 - Modes: ***NAT64***
 - Sentido de traducción: ***IPv4 -> IPv6 & IPv6 -> IPv4***
-- Fuente: [Issue 212](https://github.com/NICMx/Jool/issues/212)
+- Fuente: [Issue 212]({{ site.repository-url }}/issues/212)
 
 Algunas implementaciones tienen el mal hábito de terminar conexiones de TCP de manera poco elegante. En lugar de realizar un FIN handshake estándar (FIN, FIN-ACK, ACK), terminan flujos abruptamente (FIN, RST). La especificación de NAT64 no considera esto, de modo que los mapeos relevantes se mantienen vivos por `--tcp-est-timeout` segundos. Dado que la conexión está siendo terminada, `--tcp-trans-timeout` segundos sería más apropiado. Esto normalmente significa que estos mapeos inactivos se mantienen en la base de datos por más tiempo del ideal.
 

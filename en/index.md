@@ -20,7 +20,7 @@ Jool is an Open Source [SIIT and NAT64](intro-xlat.html) for Linux.
 
 ## Status
 
-As far as we know, Jool is a [fairly compliant](intro-jool.html#compliance) SIIT and Stateful NAT64. This is the roadmap as of 2016-04-21:
+As far as we know, Jool is a [fairly compliant](intro-jool.html#compliance) SIIT and Stateful NAT64. This is the roadmap as of 2016-07-11:
 
 1. [Milestone 3.5.0]({{ site.repository-url }}/issues?q=milestone%3A3.5.0) will add several new features.
 2. [Milestone 4.0.0]({{ site.repository-url }}/issues?q=milestone%3A4.0.0) will be an [internal refactor]({{ site.repository-url }}/issues/140) which should enhance Jool's config versatility.
@@ -28,11 +28,17 @@ As far as we know, Jool is a [fairly compliant](intro-jool.html#compliance) SIIT
 
 New bug reports might interpolate other milestones in-between. Feedback from users can persuade us to change priorities. See [Contact](contact.html) for options on this.
 
-Our latest release is version [3.4.3]({{ site.repository-url }}/issues?q=milestone%3A3.4.3).
+Our latest release is version [3.4.4]({{ site.repository-url }}/milestone/34).
 
 -------------------
 
 ## News
+
+### 2016-07-11
+
+Version 3.4.4 released. One bug was found:
+
+1. NAT64 Jool's implementation of [empty pool4](usr-flags-pool4.html#notes) used to [mistake point-to-point interface addresses]({{ site.repository-url }}/issues/217), leading to packet drops.
 
 ### 2016-04-21
 
