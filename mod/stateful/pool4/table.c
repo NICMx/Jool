@@ -377,7 +377,7 @@ int pool4table_foreach_sample(struct pool4_table *table,
 }
 
 /**
- * pool4table_foreach_port - run @func on every transport address on @table.
+ * pool4table_foreach_taddr4 - run @func on every transport address on @table.
  * @table: sample collection that will be iterated.
  * @func: callback to be run for every transport address in @table.
  * @arg: additional argument to send to @func on every iteration.

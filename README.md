@@ -65,6 +65,7 @@ You might also want to see [contact info](https://www.jool.mx/en/contact.html).
 ### Special Thanks (contributing users)
 
 * [airsnail](https://github.com/airsnail)
+* [Andreas Urke](https://github.com/arurke)
 * Eric Gamess
 * [Hidekazu Tadokoro](https://github.com/tadokoro)
 * [ipclouds](https://github.com/ipclouds)
