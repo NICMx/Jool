@@ -629,8 +629,22 @@ struct global_config {
 	};
 };
 
+struct pktqueue_config {
+	__u32 max_stored_pkts;
+};
+
 struct bib_config {
-	__u8 log_changes;
+	struct {
+		__u64 tcp_est;
+		__u64 tcp_trans;
+		__u64 udp;
+		__u64 icmp;
+	} ttl;
+
+	__u8 bib_logging;
+	__u8 session_logging;
+
+	struct pktqueue_config pktqueue;
 };
 
 /* This has to be <= 32. */
@@ -693,21 +707,6 @@ struct joold_config {
 	__u16 max_payload;
 };
 
-struct pktqueue_config {
-	__u32 max_stored_pkts;
-};
-
-struct session_config {
-	struct {
-		__u64 tcp_est;
-		__u64 tcp_trans;
-		__u64 udp;
-		__u64 icmp;
-	} ttl;
-	__u8 log_changes;
-	struct pktqueue_config pktqueue;
-};
-
 struct fragdb_config {
 	__u64 ttl;
 };
@@ -715,7 +714,6 @@ struct fragdb_config {
 struct full_config {
 	struct global_config global;
 	struct bib_config bib;
-	struct session_config session;
 	struct joold_config joold;
 	struct fragdb_config frag;
 };

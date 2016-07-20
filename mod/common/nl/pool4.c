@@ -3,7 +3,7 @@
 #include "nat64/mod/common/nl/nl_common.h"
 #include "nat64/mod/common/nl/nl_core2.h"
 #include "nat64/mod/stateful/pool4/db.h"
-#include "nat64/mod/stateful/session/db.h"
+#include "nat64/mod/stateful/bib/db.h"
 
 static int pool4_to_usr(struct pool4_sample *sample, void *arg)
 {
@@ -63,14 +63,8 @@ static int handle_pool4_rm(struct xlator *jool, struct genl_info *info,
 
 	error = pool4db_rm_usr(jool->nat64.pool4, &request->rm.entry);
 
-	/*
-	 * See the respective comment in handle_pool4_flush().
-	 * The rationale is more or less the same.
-	 */
 	if (xlat_is_nat64() && !request->rm.quick) {
-		/* TODO recall that this also has to clear static BIBs */
-		sessiondb_rm_range(jool->nat64.session,
-				request->rm.entry.proto,
+		bib_rm_range(jool->nat64.bib, request->rm.entry.proto,
 				&request->rm.entry.range);
 	}
 
@@ -87,8 +81,12 @@ static int handle_pool4_flush(struct xlator *jool, struct genl_info *info,
 
 	pool4db_flush(jool->nat64.pool4);
 	if (xlat_is_nat64() && !request->flush.quick) {
-		/* TODO recall that this also has to clear static BIBs */
-		sessiondb_flush(jool->nat64.session);
+		/*
+		 * This will also clear *previously* orphaned entries, but given
+		 * that "not quick" generally means "please clean up", this is
+		 * more likely what people wants.
+		 */
+		bib_flush(jool->nat64.bib);
 	}
 
 	return nlcore_respond(info, 0);

@@ -22,32 +22,30 @@ static struct net *ns;
  */
 static bool add(__u32 addr, __u8 prefix_len, __u16 min, __u16 max)
 {
-	struct ipv4_prefix prefix;
-	struct port_range ports;
+	struct ipv4_range range;
 
-	prefix.address.s_addr = cpu_to_be32(addr);
-	prefix.len = prefix_len;
-	ports.min = min;
-	ports.max = max;
+	range.prefix.address.s_addr = cpu_to_be32(addr);
+	range.prefix.len = prefix_len;
+	range.ports.min = min;
+	range.ports.max = max;
 
-	return ASSERT_INT(0, pool4db_add(pool, 1, L4PROTO_TCP, &prefix, &ports),
+	return ASSERT_INT(0, pool4db_add(pool, 1, L4PROTO_TCP, &range),
 			"add of %pI4/%u (%u-%u)",
-			&prefix.address, prefix.len, min, max);
+			&range.prefix.address, prefix_len, min, max);
 }
 
 static bool rm(__u32 addr, __u8 prefix_len, __u16 min, __u16 max)
 {
-	struct ipv4_prefix prefix;
-	struct port_range ports;
+	struct ipv4_range range;
 
-	prefix.address.s_addr = cpu_to_be32(addr);
-	prefix.len = prefix_len;
-	ports.min = min;
-	ports.max = max;
+	range.prefix.address.s_addr = cpu_to_be32(addr);
+	range.prefix.len = prefix_len;
+	range.ports.min = min;
+	range.ports.max = max;
 
-	return ASSERT_INT(0, pool4db_rm(pool, 1, L4PROTO_TCP, &prefix, &ports),
+	return ASSERT_INT(0, pool4db_rm(pool, 1, L4PROTO_TCP, &range),
 			"rm of %pI4/%u (%u-%u)",
-			&prefix.address, prefix.len, min, max);
+			&range.prefix.address, prefix_len, min, max);
 }
 
 static bool add_common_samples(void)
@@ -66,120 +64,20 @@ static bool add_common_samples(void)
 	return true;
 }
 
-/**
- * init_taddr - Boilerplate code to initialize a transport address during the
- * tests.
- */
-static void init_taddr(struct ipv4_transport_addr *taddr, __u32 addr,
-		__u16 port)
-{
-	taddr->l3.s_addr = cpu_to_be32(addr);
-	taddr->l4 = port;
-}
-
 struct foreach_taddr4_args {
 	struct ipv4_transport_addr *expected;
 	unsigned int expected_len;
 	unsigned int i;
 };
 
-static int validate_taddr4(struct ipv4_transport_addr *addr, void *void_args)
-{
-	struct foreach_taddr4_args *args = void_args;
-	bool success = true;
-
-	/* log_debug("foreaching %pI4:%u", &addr->l3, addr->l4); */
-
-	success &= ASSERT_BOOL(true, args->i < args->expected_len,
-			"overflow (%u %u)", args->i, args->expected_len);
-	if (!success)
-		return -EINVAL;
-
-	success &= __ASSERT_ADDR4(&args->expected[args->i].l3, &addr->l3, "addr");
-	success &= ASSERT_UINT(args->expected[args->i].l4, addr->l4, "port");
-
-	args->i++;
-	return success ? 0 : -EINVAL;
-}
-
-#define COUNT 16
-
-static bool test_foreach_taddr4(void)
-{
-	struct ipv4_transport_addr expected[2 * COUNT];
-	unsigned int i = 0;
-	struct foreach_taddr4_args args;
-	int error;
-	bool success = true;
-
-	if (!add_common_samples())
-		return false;
-
-	/*
-	 * The iteration order is the same in which the entries were inserted,
-	 * except ports must be grouped by address.
-	 * The former is an implementation detail. What matters is the port
-	 * aggregation and that the foreach never revisits.
-	 */
-
-	/* 192.0.2.0/31 (6-7) */
-	init_taddr(&expected[i++], 0xc0000200, 6);
-	init_taddr(&expected[i++], 0xc0000200, 7);
-	init_taddr(&expected[i++], 0xc0000201, 6);
-	init_taddr(&expected[i++], 0xc0000201, 7);
-
-	/* 192.0.2.16 (15-19, 22-23) */
-	init_taddr(&expected[i++], 0xc0000210, 15);
-	init_taddr(&expected[i++], 0xc0000210, 16);
-	init_taddr(&expected[i++], 0xc0000210, 17);
-	init_taddr(&expected[i++], 0xc0000210, 18);
-	init_taddr(&expected[i++], 0xc0000210, 19);
-	init_taddr(&expected[i++], 0xc0000210, 22);
-	init_taddr(&expected[i++], 0xc0000210, 23);
-
-	/* 192.0.2.32/30 (1) */
-	init_taddr(&expected[i++], 0xc0000220, 1);
-	init_taddr(&expected[i++], 0xc0000221, 1);
-	init_taddr(&expected[i++], 0xc0000222, 1);
-	init_taddr(&expected[i++], 0xc0000223, 1);
-
-	/* 192.0.2.17 (19) */
-	init_taddr(&expected[i++], 0xc0000211, 19);
-
-	if (i != COUNT) {
-		log_err("Input mismatch. Unit test is broken: %u %u", i, COUNT);
-		return false;
-	}
-
-	/*
-	 * This simulates wrap-arounding without having to reinit the array for
-	 * every test.
-	 */
-	memcpy(&expected[COUNT], &expected[0], COUNT * sizeof(*expected));
-
-	for (i = 0; i < 3 * COUNT; i++) {
-		args.expected = &expected[i % COUNT];
-		args.expected_len = COUNT;
-		args.i = 0;
-		error = pool4db_foreach_taddr4(pool, ns, NULL, 0, IPPROTO_TCP,
-				1, validate_taddr4, &args, i);
-		success &= ASSERT_INT(0, error, "call %u", i);
-		/* log_debug("--------------"); */
-	}
-
-	return success;
-}
-
-#undef COUNT
-
 static void init_sample(struct pool4_sample *sample, __u32 addr, __u16 min,
 		__u16 max)
 {
 	sample->mark = 1;
 	sample->proto = L4PROTO_TCP;
-	sample->addr.s_addr = cpu_to_be32(addr);
-	sample->range.min = min;
-	sample->range.max = max;
+	sample->range.addr.s_addr = cpu_to_be32(addr);
+	sample->range.ports.min = min;
+	sample->range.ports.max = max;
 }
 
 struct foreach_sample_args {
@@ -201,12 +99,12 @@ static int validate_sample(struct pool4_sample *sample, void *void_args)
 	if (!success)
 		return -EINVAL;
 
-	success &= __ASSERT_ADDR4(&args->expected[args->i].addr,
-			&sample->addr, "addr");
-	success &= ASSERT_UINT(args->expected[args->i].range.min,
-			sample->range.min, "min");
-	success &= ASSERT_UINT(args->expected[args->i].range.max,
-			sample->range.max, "max");
+	success &= __ASSERT_ADDR4(&args->expected[args->i].range.addr,
+			&sample->range.addr, "addr");
+	success &= ASSERT_UINT(args->expected[args->i].range.ports.min,
+			sample->range.ports.min, "min");
+	success &= ASSERT_UINT(args->expected[args->i].range.ports.max,
+			sample->range.ports.max, "max");
 
 	args->i++;
 	return success ? 0 : -EINVAL;
@@ -641,7 +539,6 @@ int init_module(void)
 	 * (it always does mark = 1.)
 	 */
 
-	INIT_CALL_END(init(), test_foreach_taddr4(), destroy(), "Taddr for");
 	INIT_CALL_END(init(), test_foreach_sample(), destroy(), "Sample for");
 	INIT_CALL_END(init(), test_add(), destroy(), "Add");
 	INIT_CALL_END(init(), test_rm(), destroy(), "Rm");

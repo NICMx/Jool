@@ -1,7 +1,7 @@
 #include <linux/module.h>
+#include "pool4/rfc6056.c"
 #include "nat64/unit/types.h"
 #include "nat64/unit/unit_test.h"
-#include "bib/port_allocator.c"
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Alberto Leiva");
@@ -53,7 +53,7 @@ static bool test_md5(void)
 	secret_key[1] = 'J';
 	secret_key_len = 2;
 
-	success &= ASSERT_INT(0, f(&tuple6, 0b1011, &result), "errcode");
+	success &= ASSERT_INT(0, rfc6056_f(&tuple6, 0b1011, &result), "errcode");
 	/* Expected value gotten from DuckDuckGo. Look up "md5 abcdefg...". */
 	success &= ASSERT_BE32(0xb6a824a9u, (__force __be32)result, "hash");
 
@@ -70,8 +70,8 @@ static bool f_args_test(void)
 	if (init_tuple6(&tuple6, "1::1", 1111, "2::2", 2222, L4PROTO_TCP))
 		return false;
 
-	success &= ASSERT_INT(0, f(&tuple6, 0b1111, &result1), "result 1");
-	success &= ASSERT_INT(0, f(&tuple6, 0b1111, &result2), "result 2");
+	success &= ASSERT_INT(0, rfc6056_f(&tuple6, 0b1111, &result1), "result 1");
+	success &= ASSERT_INT(0, rfc6056_f(&tuple6, 0b1111, &result2), "result 2");
 	success &= ASSERT_UINT(result1, result2,
 			"Same arguments, result has to be the same");
 
@@ -83,28 +83,28 @@ static bool f_args_test(void)
 	 * small change this test will spit a false negative.
 	 * But the chance is small enough that it shouldn't matter.
 	 */
-	success &= ASSERT_INT(0, f(&tuple6, 0b1111, &result2), "result 3");
+	success &= ASSERT_INT(0, rfc6056_f(&tuple6, 0b1111, &result2), "result 3");
 	success &= ASSERT_BOOL(true, result1 != result2,
 			"Small change on all fields matter");
 
 	if (init_tuple6(&tuple6, "1::1", 1111, "2::2", 2222, L4PROTO_TCP))
 		return false;
 
-	success &= ASSERT_INT(0, f(&tuple6, 0b0010, &result1), "result 4");
-	success &= ASSERT_INT(0, f(&tuple6, 0b0010, &result2), "result 5");
+	success &= ASSERT_INT(0, rfc6056_f(&tuple6, 0b0010, &result1), "result 4");
+	success &= ASSERT_INT(0, rfc6056_f(&tuple6, 0b0010, &result2), "result 5");
 	success &= ASSERT_UINT(result1, result2,
 			"Same arguments, fewer arguments than first test");
 
 	memset(&tuple6.src, 3, sizeof(tuple6.src));
 	tuple6.dst.addr6.l4 = 3333;
 
-	success &= ASSERT_INT(0, f(&tuple6, 0b0010, &result2), "result 6");
+	success &= ASSERT_INT(0, rfc6056_f(&tuple6, 0b0010, &result2), "result 6");
 	success &= ASSERT_UINT(result1, result2,
 			"All fields that don't matter changed");
 
 	memset(&tuple6.dst.addr6.l3, 3, sizeof(tuple6.dst.addr6.l3));
 
-	success &= ASSERT_INT(0, f(&tuple6, 0b0010, &result2), "result 7");
+	success &= ASSERT_INT(0, rfc6056_f(&tuple6, 0b0010, &result2), "result 7");
 	success &= ASSERT_BOOL(true, result1 != result2,
 			"The one field that matters changed");
 
@@ -116,14 +116,14 @@ int init_module(void)
 	int error;
 	START_TESTS("Port Allocator");
 
-	error = palloc_init();
+	error = rfc6056_init();
 	if (error)
 		return error;
 
 	CALL_TEST(test_md5(), "MD5 Test");
 	CALL_TEST(f_args_test(), "F() arguments test");
 
-	palloc_destroy();
+	rfc6056_destroy();
 
 	END_TESTS;
 }

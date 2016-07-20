@@ -12,7 +12,7 @@ static int session_print_aux(struct session_entry *session, void *arg)
 	return 0;
 }
 
-int session_print(struct sessiondb *db, l4_protocol l4_proto)
+int session_print(struct bib *db, l4_protocol l4_proto)
 {
 	struct session_foreach_func func = {
 			.cb = session_print_aux,
@@ -20,39 +20,35 @@ int session_print(struct sessiondb *db, l4_protocol l4_proto)
 	};
 
 	log_debug("Sessions:");
-	return sessiondb_foreach(db, l4_proto, &func, NULL);
+	return bib_foreach_session(db, l4_proto, &func, NULL);
 }
 
-struct session_entry *session_inject(struct sessiondb *db,
-		char *remote6_addr, u16 remote6_id,
-		char *local6_addr, u16 local6_id,
-		char *local4_addr, u16 local4_id,
-		char *remote4_addr, u16 remote4_id,
-		l4_protocol proto)
+int session_inject(struct bib *db,
+		char *src6_addr, u16 src6_id,
+		char *dst6_addr, u16 dst6_id,
+		char *src4_addr, u16 src4_id,
+		char *dst4_addr, u16 dst_id,
+		l4_protocol proto, struct session_entry *session)
 {
-	struct ipv6_transport_addr remote6;
-	struct ipv6_transport_addr local6;
-	struct ipv4_transport_addr local4;
-	struct ipv4_transport_addr remote4;
-	struct session_entry *session;
+	int error;
 
-	if (str_to_addr6(remote6_addr, &remote6.l3))
-		return NULL;
-	remote6.l4 = remote6_id;
-	if (str_to_addr6(local6_addr, &local6.l3))
-		return NULL;
-	local6.l4 = local6_id;
+	error = str_to_addr6(src6_addr, &session->src6.l3);
+	if (error)
+		return error;
+	error = str_to_addr6(dst6_addr, &session->dst6.l3);
+	if (error)
+		return error;
+	error = str_to_addr4(src4_addr, &session->src4.l3);
+	if (error)
+		return error;
+	error = str_to_addr4(dst4_addr, &session->dst4.l3);
+	if (error)
+		return error;
 
-	if (str_to_addr4(local4_addr, &local4.l3))
-		return NULL;
-	local4.l4 = local4_id;
-	if (str_to_addr4(remote4_addr, &remote4.l3))
-		return NULL;
-	remote4.l4 = remote4_id;
+	session->src6.l4 = src6_id;
+	session->dst6.l4 = dst6_id;
+	session->src4.l4 = src4_id;
+	session->dst4.l4 = dst_id;
 
-	session = session_create(&remote6, &local6, &local4, &remote4, proto);
-	if (!session)
-		return NULL;
-
-	return sessiondb_add(db, session, NULL, NULL, true) ? NULL : session;
+	return bib_add_session(db, session, NULL);
 }

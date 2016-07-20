@@ -10,11 +10,12 @@ MODULE_DESCRIPTION("Unit tests for the Filtering module");
 #include "nat64/unit/types.h"
 #include "nat64/unit/unit_test.h"
 #include "nat64/unit/skb_generator.h"
+#include "nat64/mod/stateful/pool4/rfc6056.h"
 #include "filtering_and_updating.c"
 
 static struct xlator jool;
 
-static int bib_count_fn(struct bib_entry *bib, void *arg)
+static int bib_count_fn(struct bib_entry *bib, bool is_static, void *arg)
 {
 	int *count = arg;
 	(*count)++;
@@ -24,9 +25,10 @@ static int bib_count_fn(struct bib_entry *bib, void *arg)
 static bool assert_bib_count(int expected, l4_protocol proto)
 {
 	int count = 0;
+	struct bib_foreach_func func = { .cb = bib_count_fn, .arg = &count, };
 	bool success = true;
 
-	success &= ASSERT_INT(0, bibdb_foreach(jool.nat64.bib, proto, bib_count_fn, &count, NULL), "count");
+	success &= ASSERT_INT(0, bib_foreach(jool.nat64.bib, proto, &func, NULL), "count");
 	success &= ASSERT_INT(expected, count, "BIB count");
 
 	return success;
@@ -35,7 +37,7 @@ static bool assert_bib_count(int expected, l4_protocol proto)
 static bool assert_bib_exists(char *addr6, u16 port6, char *addr4, u16 port4,
 		l4_protocol proto, unsigned int session_count)
 {
-	struct bib_entry *bib;
+	struct bib_entry bib;
 	struct ipv6_transport_addr tuple_addr;
 	bool success = true;
 
@@ -43,19 +45,15 @@ static bool assert_bib_exists(char *addr6, u16 port6, char *addr4, u16 port4,
 		return false;
 	tuple_addr.l4 = port6;
 
-	success &= ASSERT_INT(0, bibdb_find6(jool.nat64.bib, &tuple_addr, proto, &bib), "BIB exists");
+	success &= ASSERT_INT(0, bib_find6(jool.nat64.bib, proto, &tuple_addr, &bib), "BIB exists");
 	if (!success)
 		return false;
 
-	success &= ASSERT_ADDR6(addr6, &bib->ipv6.l3, "IPv6 address");
-	success &= ASSERT_UINT(port6, bib->ipv6.l4, "IPv6 port");
-	success &= ASSERT_ADDR4(addr4, &bib->ipv4.l3, "IPv4 address");
+	success &= ASSERT_ADDR6(addr6, &bib.ipv6.l3, "IPv6 address");
+	success &= ASSERT_UINT(port6, bib.ipv6.l4, "IPv6 port");
+	success &= ASSERT_ADDR4(addr4, &bib.ipv4.l3, "IPv4 address");
 	/* The IPv4 port is unpredictable. */
-	success &= ASSERT_BOOL(false, bib->is_static, "BIB is dynamic");
-	success &= ASSERT_INT(session_count, atomic_read(&bib->db_refs),
-			"BIB's DB refs");
-
-	bibentry_put_thread(bib, false);
+	success &= ASSERT_BOOL(proto, bib.l4_proto, "BIB proto");
 
 	return success;
 }
@@ -70,9 +68,12 @@ static int session_count_fn(struct session_entry *session, void *arg)
 static bool assert_session_count(int expected, l4_protocol proto)
 {
 	int count = 0;
+	struct session_foreach_func cb = { .cb = session_count_fn, .arg = &count, };
 	bool success = true;
 
-	success = ASSERT_INT(0, sessiondb_foreach(jool.nat64.session, proto, session_count_fn, &count, NULL, NULL, false), "count");
+	/* TODO maybe also compare the number to bib_count_sessions. */
+
+	success = ASSERT_INT(0, bib_foreach_session(jool.nat64.bib, proto, &cb, NULL), "count");
 	success = ASSERT_INT(expected, count, "Session count");
 
 	return success;
@@ -84,7 +85,7 @@ static bool assert_session_exists(char *remote_addr6, u16 remote_port6,
 		char *remote_addr4, u16 remote_port4,
 		l4_protocol proto, u_int8_t state)
 {
-	struct session_entry *session;
+	struct bib_session result;
 	struct tuple tuple6;
 	int error;
 	bool success = true;
@@ -93,35 +94,28 @@ static bool assert_session_exists(char *remote_addr6, u16 remote_port6,
 	if (error)
 		return false;
 
-	success &= ASSERT_INT(0, sessiondb_find(jool.nat64.session, &tuple6, NULL, NULL, &session), "Session exists");
+	success &= ASSERT_INT(0, bib_find(jool.nat64.bib, &tuple6, &result), "Session exists");
 	if (!success)
 		return false;
 
-	success &= ASSERT_ADDR6(remote_addr6, &session->src6.l3, "remote addr6");
-	success &= ASSERT_UINT(remote_port6, session->src6.l4, "remote port6");
-	success &= ASSERT_ADDR6(local_addr6, &session->dst6.l3, "local addr6");
-	success &= ASSERT_UINT(local_port6, session->dst6.l4, "local port6");
-	success &= ASSERT_ADDR4(local_addr4, &session->src4.l3, "local addr4");
+	success &= ASSERT_BOOL(true, result.bib_set, "bib set");
+	success &= ASSERT_BOOL(true, result.session_set, "bib set");
+	success &= ASSERT_ADDR6(remote_addr6, &result.session.src6.l3, "remote addr6");
+	success &= ASSERT_UINT(remote_port6, result.session.src6.l4, "remote port6");
+	success &= ASSERT_ADDR6(local_addr6, &result.session.dst6.l3, "local addr6");
+	success &= ASSERT_UINT(local_port6, result.session.dst6.l4, "local port6");
+	success &= ASSERT_ADDR4(local_addr4, &result.session.src4.l3, "local addr4");
 	/* Local port4 is unpredictable. */
-	success &= ASSERT_ADDR4(remote_addr4, &session->dst4.l3, "remote addr4");
+	success &= ASSERT_ADDR4(remote_addr4, &result.session.dst4.l3, "remote addr4");
 	if (proto != L4PROTO_ICMP)
-		success &= ASSERT_UINT(remote_port4, session->dst4.l4, "remote port4");
-	success &= ASSERT_BOOL(true, session->bib != NULL, "Session's BIB");
-	success &= ASSERT_INT(proto, session->l4_proto, "Session's l4 proto");
-	success &= ASSERT_INT(state, session->state, "Session's state");
-
-	session_put(session, false);
+		success &= ASSERT_UINT(remote_port4, result.session.dst4.l4, "remote port4");
+	success &= ASSERT_INT(proto, result.session.proto, "Session's l4 proto");
+	success &= ASSERT_INT(state, result.session.state, "Session's state");
+	success &= ASSERT_BOOL(true, result.session.established, "Session established?");
+//	TODO
+//	success &= ASSERT_INT(state, result.session.timeout, "Session's timeout");
 
 	return success;
-}
-
-static void put_session(struct xlation *state)
-{
-	if (!state->session)
-		return;
-
-	session_put(state->session, false);
-	state->session = NULL;
 }
 
 /**
@@ -138,18 +132,26 @@ static void put_session(struct xlation *state)
  */
 static int invert_tuple(struct tuple *tuple)
 {
-	struct session_entry *session;
+	struct bib_session session;
 
-	if (sessiondb_find(jool.nat64.session, tuple, NULL, NULL, &session)) {
+	if (bib_find(jool.nat64.bib, tuple, &session)) {
 		log_err("Could not find the session from the previous test.");
 		return -EEXIST;
 	}
 
-	tuple->src.addr4 = session->dst4;
-	tuple->dst.addr4 = session->src4;
+	if (!session.bib_set) {
+		log_err("Session was expected to have a BIB entry.");
+		return -ESRCH;
+	}
+	if (!session.session_set) {
+		log_err("Session was expected to have a session."); /* Lel */
+		return -ESRCH;
+	}
+
+	tuple->src.addr4 = session.session.dst4;
+	tuple->dst.addr4 = session.session.src4;
 	tuple->l3_proto = L3PROTO_IPV4;
 
-	session_put(session, false);
 	return 0;
 }
 
@@ -176,7 +178,6 @@ static bool test_filtering_and_updating(void)
 	success &= assert_session_count(0, L4PROTO_ICMP);
 
 	kfree_skb(skb);
-	put_session(&state);
 	if (!success)
 		return false;
 
@@ -197,7 +198,6 @@ static bool test_filtering_and_updating(void)
 	success &= assert_session_count(0, L4PROTO_ICMP);
 
 	kfree_skb(skb);
-	put_session(&state);
 	if (!success)
 		return false;
 
@@ -214,7 +214,6 @@ static bool test_filtering_and_updating(void)
 	success &= assert_session_count(0, L4PROTO_UDP);
 
 	kfree_skb(skb);
-	put_session(&state);
 	if (!success)
 		return false;
 
@@ -231,7 +230,6 @@ static bool test_filtering_and_updating(void)
 	success &= assert_session_count(0, L4PROTO_UDP);
 
 	kfree_skb(skb);
-	put_session(&state);
 	if (!success)
 		return false;
 
@@ -248,7 +246,6 @@ static bool test_filtering_and_updating(void)
 	success &= assert_session_count(0, L4PROTO_UDP);
 
 	kfree_skb(skb);
-	put_session(&state);
 	if (!success)
 		return false;
 
@@ -265,7 +262,6 @@ static bool test_filtering_and_updating(void)
 	success &= assert_session_count(1, L4PROTO_UDP);
 
 	kfree_skb(skb);
-	put_session(&state);
 	if (!success)
 		return false;
 
@@ -282,7 +278,6 @@ static bool test_filtering_and_updating(void)
 	success &= assert_session_count(1, L4PROTO_UDP);
 
 	kfree_skb(skb);
-	put_session(&state);
 	return success;
 }
 
@@ -305,7 +300,6 @@ static bool test_udp(void)
 	success &= assert_session_count(0, L4PROTO_UDP);
 
 	kfree_skb(skb);
-	put_session(&state);
 
 	/* IPv6 packet gets translated correctly. */
 	if (init_tuple6(&state.in.tuple, "1::2", 1212, "3::4", 3434, L4PROTO_UDP))
@@ -324,7 +318,6 @@ static bool test_udp(void)
 			L4PROTO_UDP, 0);
 
 	kfree_skb(skb);
-	put_session(&state);
 
 	/* Now that there's state, the IPv4 packet manages to traverse. */
 	if (invert_tuple(&state.in.tuple))
@@ -343,7 +336,6 @@ static bool test_udp(void)
 			L4PROTO_UDP, 0);
 
 	kfree_skb(skb);
-	put_session(&state);
 
 	return success;
 }
@@ -367,7 +359,6 @@ static bool test_icmp(void)
 	success &= assert_session_count(0, L4PROTO_ICMP);
 
 	kfree_skb(skb);
-	put_session(&state);
 
 	/* IPv6 packet and gets translated correctly. */
 	if (init_tuple6(&state.in.tuple, "1::2", 1212, "3::4", 1212, L4PROTO_ICMP))
@@ -386,7 +377,6 @@ static bool test_icmp(void)
 			L4PROTO_ICMP, 0);
 
 	kfree_skb(skb);
-	put_session(&state);
 
 	/* Now that there's state, the IPv4 packet manages to traverse. */
 	if (invert_tuple(&state.in.tuple))
@@ -405,64 +395,7 @@ static bool test_icmp(void)
 			L4PROTO_ICMP, 0);
 
 	kfree_skb(skb);
-	put_session(&state);
 
-	return success;
-}
-
-static bool test_tcp_closed_state_handle_6(void)
-{
-	struct xlation state = { .jool = jool };
-	struct sk_buff *skb;
-	bool success = true;
-
-	if (init_tuple6(&state.in.tuple, "1::2", 1212, "3::4", 3434, L4PROTO_TCP))
-		return false;
-	if (create_tcp_packet(&skb, L3PROTO_IPV6, true, false, false))
-		return false;
-	if (pkt_init_ipv6(&state.in, skb))
-		return false;
-
-	success &= ASSERT_INT(VERDICT_CONTINUE, tcp_closed_state(&state),
-			"V6 syn-result");
-	success &= assert_session_exists("1::2", 1212, "3::4", 3434,
-			"192.0.2.128", 1024, "0.0.0.4", 3434,
-			L4PROTO_TCP, V6_INIT);
-
-	kfree_skb(skb);
-	put_session(&state);
-	return success;
-}
-
-static bool test_tcp_closed_state_handle_4(void)
-{
-	struct xlation state = { .jool = jool };
-	struct session_entry *session;
-	struct sk_buff *skb;
-	struct tcphdr *hdr_tcp;
-	bool success = true;
-
-	if (init_tuple4(&state.in.tuple, "5.6.7.8", 5678, "192.0.2.128", 8765, L4PROTO_TCP))
-		return false;
-	if (create_skb4_tcp(&state.in.tuple, &skb, 100, 32))
-		return false;
-	if (pkt_init_ipv4(&state.in, skb))
-		return false;
-	hdr_tcp = tcp_hdr(skb);
-	hdr_tcp->syn = true;
-	hdr_tcp->rst = false;
-	hdr_tcp->fin = false;
-
-	success &= ASSERT_INT(VERDICT_STOLEN, tcp_closed_state(&state), "V4 syn-result");
-	success &= ASSERT_INT(-ESRCH, sessiondb_find(jool.nat64.session, &state.in.tuple, NULL, NULL, &session), "V4 syn-session.");
-	/*
-	 * Well, it would be nice to test the packet was actually linked in pkt
-	 * queue, but it's not possible using the current API.
-	 * It's better to test it in graybox anyway.
-	 */
-
-	/* "skb" is kfreed when pktqueue is executed */
-	put_session(&state);
 	return success;
 }
 
@@ -485,7 +418,7 @@ static bool test_tcp(void)
 	if (pkt_init_ipv6(&state.in, skb))
 		return false;
 
-	success &= ASSERT_INT(VERDICT_CONTINUE, tcp(&state), "Closed-result");
+	success &= ASSERT_INT(VERDICT_CONTINUE, ipv6_tcp(&state), "Closed-result");
 	success &= assert_bib_count(1, L4PROTO_TCP);
 	success &= assert_bib_exists("1::2", 1212, "192.0.2.128", 1024, L4PROTO_TCP, 1);
 	success &= assert_session_count(1, L4PROTO_TCP);
@@ -494,7 +427,6 @@ static bool test_tcp(void)
 			L4PROTO_TCP, V6_INIT);
 
 	kfree_skb(skb);
-	put_session(&state);
 
 	/* V4 SYN */
 	if (invert_tuple(&state.in.tuple))
@@ -504,7 +436,7 @@ static bool test_tcp(void)
 	if (pkt_init_ipv4(&state.in, skb))
 		return false;
 
-	success &= ASSERT_INT(VERDICT_CONTINUE, tcp(&state), "V6 init-result");
+	success &= ASSERT_INT(VERDICT_CONTINUE, ipv4_tcp(&state), "V6 init-result");
 	success &= assert_bib_count(1, L4PROTO_TCP);
 	success &= assert_bib_exists("1::2", 1212, "192.0.2.128", 1024, L4PROTO_TCP, 1);
 	success &= assert_session_count(1, L4PROTO_TCP);
@@ -513,7 +445,6 @@ static bool test_tcp(void)
 			L4PROTO_TCP, ESTABLISHED);
 
 	kfree_skb(skb);
-	put_session(&state);
 
 	/* V6 RST */
 	if (create_tcp_packet(&skb, L3PROTO_IPV6, false, true, false))
@@ -521,7 +452,7 @@ static bool test_tcp(void)
 	if (pkt_init_ipv6(&state.in, skb))
 		return false;
 
-	success &= ASSERT_INT(VERDICT_CONTINUE, tcp(&state), "Established-result");
+	success &= ASSERT_INT(VERDICT_CONTINUE, ipv6_tcp(&state), "Established-result");
 	success &= assert_bib_count(1, L4PROTO_TCP);
 	success &= assert_bib_exists("1::2", 1212, "192.0.2.128", 1024, L4PROTO_TCP, 1);
 	success &= assert_session_count(1, L4PROTO_TCP);
@@ -530,7 +461,6 @@ static bool test_tcp(void)
 			L4PROTO_TCP, TRANS);
 
 	kfree_skb(skb);
-	put_session(&state);
 
 	/* V6 SYN */
 	if (create_tcp_packet(&skb, L3PROTO_IPV6, true, false, false))
@@ -538,7 +468,7 @@ static bool test_tcp(void)
 	if (pkt_init_ipv6(&state.in, skb))
 		return false;
 
-	success &= ASSERT_INT(VERDICT_CONTINUE, tcp(&state), "Trans-result");
+	success &= ASSERT_INT(VERDICT_CONTINUE, ipv6_tcp(&state), "Trans-result");
 	success &= assert_bib_count(1, L4PROTO_TCP);
 	success &= assert_bib_exists("1::2", 1212, "192.0.2.128", 1024, L4PROTO_TCP, 1);
 	success &= assert_session_count(1, L4PROTO_TCP);
@@ -547,7 +477,6 @@ static bool test_tcp(void)
 			L4PROTO_TCP, ESTABLISHED);
 
 	kfree_skb(skb);
-	put_session(&state);
 
 	return success;
 }
@@ -555,14 +484,11 @@ static bool test_tcp(void)
 static bool init(void)
 {
 	struct ipv6_prefix prefix6;
-	struct ipv4_prefix prefix4;
-	struct port_range range;
+	struct ipv4_range range;
 
-	if (bibentry_init())
+	if (bib_init())
 		return false;
-	if (session_init())
-		goto fail1;
-	if (palloc_init())
+	if (rfc6056_init())
 		goto fail2;
 
 	if (xlator_init())
@@ -576,17 +502,17 @@ static bool init(void)
 	if (pool6_add(jool.pool6, &prefix6))
 		goto fail5;
 
-	if (str_to_addr4("192.0.2.128", &prefix4.address))
+	if (str_to_addr4("192.0.2.128", &range.prefix.address))
 		goto fail5;
-	prefix4.len = 32;
-	range.min = 0;
-	range.max = 65535;
+	range.prefix.len = 32;
+	range.ports.min = 0;
+	range.ports.max = 65535;
 
-	if (pool4db_add(jool.nat64.pool4, 0, L4PROTO_TCP, &prefix4, &range))
+	if (pool4db_add(jool.nat64.pool4, 0, L4PROTO_TCP, &range))
 		goto fail5;
-	if (pool4db_add(jool.nat64.pool4, 0, L4PROTO_UDP, &prefix4, &range))
+	if (pool4db_add(jool.nat64.pool4, 0, L4PROTO_UDP, &range))
 		goto fail5;
-	if (pool4db_add(jool.nat64.pool4, 0, L4PROTO_ICMP, &prefix4, &range))
+	if (pool4db_add(jool.nat64.pool4, 0, L4PROTO_ICMP, &range))
 		goto fail5;
 
 	return true;
@@ -596,11 +522,9 @@ fail5:
 fail4:
 	xlator_destroy();
 fail3:
-	palloc_destroy();
+	rfc6056_destroy();
 fail2:
-	session_destroy();
-fail1:
-	bibentry_destroy();
+	bib_destroy();
 	return false;
 }
 
@@ -609,27 +533,17 @@ static void end(void)
 	icmp64_pop();
 	xlator_put(&jool);
 	xlator_destroy();
-	palloc_destroy();
-	session_destroy();
-	bibentry_destroy();
+	rfc6056_destroy();
+	bib_destroy();
 }
 
 static int filtering_test_init(void)
 {
 	START_TESTS("Filtering and Updating");
 
-	/* General */
 	INIT_CALL_END(init(), test_filtering_and_updating(), end(), "core function");
-
-	/* UDP */
 	INIT_CALL_END(init(), test_udp(), end(), "UDP");
-
-	/* ICMP */
 	INIT_CALL_END(init(), test_icmp(), end(), "ICMP");
-
-	/* TCP */
-	INIT_CALL_END(init(), test_tcp_closed_state_handle_6(), end(), "TCP-CLOSED-6");
-	INIT_CALL_END(init(), test_tcp_closed_state_handle_4(), end(), "TCP-CLOSED-4");
 	INIT_CALL_END(init(), test_tcp(), end(), "test_tcp");
 
 	END_TESTS;

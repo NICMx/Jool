@@ -2,6 +2,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/version.h>
+
 #include "nat64/common/constants.h"
 #include "nat64/common/xlat.h"
 #include "nat64/mod/common/core.h"
@@ -13,8 +14,9 @@
 #include "nat64/mod/stateful/fragment_db.h"
 #include "nat64/mod/stateful/joold.h"
 #include "nat64/mod/stateful/timer.h"
-#include "nat64/mod/stateful/bib/port_allocator.h"
 #include "nat64/mod/stateful/pool4/db.h"
+#include "nat64/mod/stateful/pool4/rfc6056.h"
+#include "nat64/mod/stateful/bib/db.h"
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("NIC-ITESM");
@@ -119,18 +121,18 @@ static int __init jool_init(void)
 	log_debug("Inserting %s...", xlat_get_name());
 
 	/* Init Jool's submodules. */
-	error = session_init();
+	error = bib_init();
 	if (error)
-		goto session_fail;
+		goto bib_fail;
 	error = fragdb_init();
 	if (error)
 		goto fragdb_fail;
 	error = joold_init();
 	if (error)
 		goto joold_fail;
-	error = palloc_init();
+	error = rfc6056_init();
 	if (error)
-		goto palloc_fail;
+		goto rfc6056_fail;
 	error = xlator_init();
 	if (error)
 		goto xlator_fail;
@@ -169,14 +171,14 @@ timer_fail:
 nlhandler_fail:
 	xlator_destroy();
 xlator_fail:
-	palloc_destroy();
-palloc_fail:
+	rfc6056_destroy();
+rfc6056_fail:
 	joold_terminate();
 joold_fail:
 	fragdb_destroy();
 fragdb_fail:
-	session_destroy();
-session_fail:
+	bib_destroy();
+bib_fail:
 	return error;
 }
 
@@ -188,10 +190,10 @@ static void __exit jool_exit(void)
 	timer_destroy();
 	nlhandler_destroy();
 	xlator_destroy();
-	palloc_destroy();
+	rfc6056_destroy();
 	joold_terminate();
 	fragdb_destroy();
-	session_destroy();
+	bib_destroy();
 
 	log_info("%s v" JOOL_VERSION_STR " module removed.", xlat_get_name());
 }

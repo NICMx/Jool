@@ -4,7 +4,7 @@
 #include "nat64/mod/common/nl/nl_common.h"
 #include "nat64/mod/common/nl/nl_core2.h"
 #include "nat64/mod/common/pool6.h"
-#include "nat64/mod/stateful/session/db.h"
+#include "nat64/mod/stateful/bib/db.h"
 
 static int pool6_entry_to_userspace(struct ipv6_prefix *prefix, void *arg)
 {
@@ -67,8 +67,21 @@ static int handle_pool6_rm(struct xlator *jool, union request_pool6 *request)
 	log_debug("Removing a prefix from pool6.");
 	error = pool6_rm(jool->pool6, &request->rm.prefix);
 
-	if (xlat_is_nat64() && !request->flush.quick)
-		sessiondb_rm_prefix6(jool->nat64.session, &request->rm.prefix);
+	if (xlat_is_nat64() && !request->flush.quick) {
+		/*
+		 * This will also clear *previously* orphaned entries, but given
+		 * that "not quick" generally means "please clean up", this is
+		 * more likely what people wants.
+		 *
+		 * Also, very important:
+		 * The BIB/session module currently *assumes* there's only one
+		 * RFC 6052 prefix at play at any given time.
+		 * If you want otherwise, you'll need each BIB to index its
+		 * sessions by means of two trees, not one. (Which'll be
+		 * slower.)
+		 */
+		bib_flush(jool->nat64.bib);
+	}
 
 	return error;
 }
@@ -83,8 +96,14 @@ static int handle_pool6_flush(struct xlator *jool, union request_pool6 *request)
 	log_debug("Flushing pool6.");
 	error = pool6_flush(jool->pool6);
 
-	if (xlat_is_nat64() && !request->flush.quick)
-		sessiondb_flush(jool->nat64.session);
+	if (xlat_is_nat64() && !request->flush.quick) {
+		/*
+		 * This will also clear *previously* orphaned entries, but given
+		 * that "not quick" generally means "please clean up", this is
+		 * more likely what people wants.
+		 */
+		bib_flush(jool->nat64.bib);
+	}
 
 	return error;
 }

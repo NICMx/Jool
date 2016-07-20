@@ -4,10 +4,9 @@
 #include "nat64/common/types.h"
 #include "nat64/mod/common/translation_state.h"
 
-int palloc_init(void);
-void palloc_destroy(void);
+int rfc6056_init(void);
+void rfc6056_destroy(void);
 
-int palloc_allocate(struct xlation *state, struct in_addr *daddr,
-		struct ipv4_transport_addr *result);
+int rfc6056_f(const struct tuple *tuple6, __u8 fields, unsigned int *result);
 
 #endif /* _JOOL_MOD_BIB_PORT_ALLOCATOR_H */

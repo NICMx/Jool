@@ -31,7 +31,6 @@ struct config_candidate {
 		} siit;
 		struct {
 			struct pool4 *pool4;
-			struct bib *bib;
 		} nat64;
 	};
 

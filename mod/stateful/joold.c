@@ -3,9 +3,9 @@
 #include "nat64/common/constants.h"
 #include "nat64/common/str_utils.h"
 #include "nat64/mod/common/wkmalloc.h"
-#include "nat64/mod/common/nl/nl_core2.h"
-#include "nat64/mod/stateful/session/db.h"
 #include "nat64/mod/common/xlator.h"
+#include "nat64/mod/common/nl/nl_core2.h"
+#include "nat64/mod/stateful/bib/db.h"
 
 #include <linux/inet.h>
 
@@ -258,9 +258,9 @@ static int foreach_cb(struct session_entry *entry, void *arg)
 	session.src4_port = cpu_to_be16(entry->src4.l4);
 	session.dst4_port = cpu_to_be16(entry->dst4.l4);
 
-	session.l4_proto = entry->l4_proto;
+	session.l4_proto = entry->proto;
 	session.state = entry->state;
-	session.est = session_is_established(entry);
+	session.est = entry->established;
 	memset(session.padding, 0, sizeof(session.padding));
 
 	status = nlbuffer_write(adv->buffer, &session, sizeof(session));
@@ -274,7 +274,7 @@ static int foreach_cb(struct session_entry *entry, void *arg)
 
 static int write_group_node(struct joold_node *node,
 		struct nlcore_buffer *buffer,
-		struct sessiondb *sdb)
+		struct bib *bib)
 {
 	struct joold_advertise_struct arg;
 	struct session_foreach_func func = {
@@ -292,7 +292,7 @@ static int write_group_node(struct joold_node *node,
 		offset = &offset_struct;
 	}
 
-	error = sessiondb_foreach(sdb, node->group.proto, &func, offset);
+	error = bib_foreach_session(bib, node->group.proto, &func, offset);
 	if (error > 0) {
 		memcpy(&node->group.offset, &arg.offset, sizeof(arg.offset));
 		node->group.offset_set = true;
@@ -305,7 +305,7 @@ static int write_group_node(struct joold_node *node,
  * Builds an nl-core-compatible buffer out of @sessions.
  */
 static int build_buffer(struct nlcore_buffer *buffer, struct joold_queue *queue,
-		struct sessiondb *sdb)
+		struct bib *bib)
 {
 	struct request_hdr jool_hdr;
 	struct joold_node *node;
@@ -325,7 +325,7 @@ static int build_buffer(struct nlcore_buffer *buffer, struct joold_queue *queue,
 		node = list_first_entry(&queue->sessions, struct joold_node,
 				nextprev);
 		error = (node->is_group)
-				? write_group_node(node, buffer, sdb)
+				? write_group_node(node, buffer, bib)
 				: write_single_node(node, buffer);
 		if (error > 0) {
 			return 0;
@@ -355,14 +355,14 @@ static int build_buffer(struct nlcore_buffer *buffer, struct joold_queue *queue,
  * (nlbuffer_free() also doesn't need the spinlock but shouldn't be that
  * influential.)
  */
-static void send_to_userspace(struct joold_queue *queue, struct sessiondb *sdb)
+static void send_to_userspace(struct joold_queue *queue, struct bib *bib)
 {
 	struct nlcore_buffer buffer;
 
 	if (!should_send(queue))
 		return;
 
-	if (build_buffer(&buffer, queue, sdb))
+	if (build_buffer(&buffer, queue, bib))
 		return;
 
 	log_debug("Sending multicast message.");
@@ -479,7 +479,7 @@ void joold_update_config(struct joold_queue *queue,
  * to the joold daemon.
  */
 void joold_add(struct joold_queue *queue, struct session_entry *entry,
-		struct sessiondb *sdb)
+		struct bib *bib)
 {
 	struct joold_node *copy;
 
@@ -510,9 +510,9 @@ void joold_add(struct joold_queue *queue, struct session_entry *entry,
 	copy->single.dst6_port = cpu_to_be16(entry->dst6.l4);
 	copy->single.src4_port = cpu_to_be16(entry->src4.l4);
 	copy->single.dst4_port = cpu_to_be16(entry->dst4.l4);
-	copy->single.l4_proto = entry->l4_proto;
+	copy->single.l4_proto = entry->proto;
 	copy->single.state = entry->state;
-	copy->single.est = session_is_established(entry);
+	copy->single.est = entry->established;
 	memset(copy->single.padding, 0, sizeof(copy->single.padding));
 
 	list_add_tail(&copy->nextprev, &queue->sessions);
@@ -524,54 +524,54 @@ void joold_add(struct joold_queue *queue, struct session_entry *entry,
 				"Sorry.");
 		purge_sessions(queue);
 	} else {
-		send_to_userspace(queue, sdb);
+		send_to_userspace(queue, bib);
 	}
 
 	spin_unlock_bh(&queue->lock);
 }
 
-static struct session_entry *init_session_entry(struct joold_session *in)
+static void init_session_entry(struct joold_session *in,
+		struct session_entry *out)
 {
-	struct session_entry *out;
 	__u64 update_time;
-	struct ipv6_transport_addr src6;
-	struct ipv6_transport_addr dst6;
-	struct ipv4_transport_addr src4;
-	struct ipv4_transport_addr dst4;
 
-	src6.l3 = in->src6_addr;
-	src6.l4 = be16_to_cpu(in->src6_port);
-	dst6.l3 = in->dst6_addr;
-	dst6.l4 = be16_to_cpu(in->dst6_port);
-	src4.l3 = in->src4_addr;
-	src4.l4 = be16_to_cpu(in->src4_port);
-	dst4.l3 = in->dst4_addr;
-	dst4.l4 = be16_to_cpu(in->dst4_port);
-
-	out = session_create(&src6, &dst6, &src4, &dst4, in->l4_proto);
-	if (!out)
-		return NULL;
-
+	out->src6.l3 = in->src6_addr;
+	out->src6.l4 = be16_to_cpu(in->src6_port);
+	out->dst6.l3 = in->dst6_addr;
+	out->dst6.l4 = be16_to_cpu(in->dst6_port);
+	out->src4.l3 = in->src4_addr;
+	out->src4.l4 = be16_to_cpu(in->src4_port);
+	out->dst4.l3 = in->dst4_addr;
+	out->dst4.l4 = be16_to_cpu(in->dst4_port);
+	out->proto = in->l4_proto;
+	out->state = in->state;
+	out->established = in->est;
 	update_time = be64_to_cpu(in->update_time);
 	update_time = jiffies - msecs_to_jiffies(update_time);
-
-	out->state = in->state;
 	out->update_time = update_time;
-
-	return out;
 }
 
 struct add_params {
-	struct session_entry *new;
+	struct session_entry new;
 	struct joold_session *newd;
 	bool success;
 };
+
+static bool session_equals(const struct session_entry *s1,
+		const struct session_entry *s2)
+{
+	return taddr6_equals(&s1->src6, &s2->src6)
+			&& taddr6_equals(&s1->dst6, &s2->dst6)
+			&& taddr4_equals(&s1->src4, &s2->src4)
+			&& taddr4_equals(&s1->dst4, &s2->dst4)
+			&& (s1->proto == s2->proto);
+}
 
 static enum session_fate collision_cb(struct session_entry *old, void *arg)
 {
 	__u64 update_time;
 	struct add_params *params = arg;
-	struct session_entry *new = params->new;
+	struct session_entry *new = &params->new;
 	struct joold_session *newd;
 
 	if (session_equals(old, new)) { /* It's the same session; update it. */
@@ -588,7 +588,7 @@ static enum session_fate collision_cb(struct session_entry *old, void *arg)
 	}
 
 	log_err("We're out of sync: Incoming %s session entry %pI6c#%u|%pI6c#%u|%pI4#%u|%pI4#%u collides with DB entry %pI6c#%u|%pI6c#%u|%pI4#%u|%pI4#%u.",
-			l4proto_to_string(new->l4_proto),
+			l4proto_to_string(new->proto),
 			&new->src6.l3, new->src6.l4,
 			&new->dst6.l3, new->dst6.l4,
 			&new->src4.l3, new->src4.l4,
@@ -603,34 +603,25 @@ static enum session_fate collision_cb(struct session_entry *old, void *arg)
 
 static bool add_new_session(struct xlator *jool, struct joold_session *in)
 {
-	struct session_entry *new;
 	struct add_params params;
+	struct collision_cb cb = {
+			.cb = collision_cb,
+			.arg = &params,
+	};
 	int error;
 
 	log_debug("Adding session!");
 
-	new = init_session_entry(in);
-	if (!new) {
-		log_err("Couldn't allocate session.");
-		return false;
-	}
-
-	params.new = new;
+	init_session_entry(in, &params.new);
 	params.newd = in;
-	error = sessiondb_add(jool->nat64.session, new,
-			collision_cb, &params,
-			in->est);
-	if (error == -EEXIST) {
-		session_put(new, true);
+	error = bib_add_session(jool->nat64.bib, &params.new, &cb);
+	if (error == -EEXIST)
 		return params.success;
-	}
 	if (error) {
 		log_err("sessiondb_add() threw unknown error code %d.", error);
-		session_put(new, true);
 		return false;
 	}
 
-	session_put(new, false);
 	return true;
 }
 
@@ -767,7 +758,7 @@ int joold_advertise(struct xlator *jool)
 	if (error)
 		goto end;
 
-	send_to_userspace(queue, jool->nat64.session);
+	send_to_userspace(queue, jool->nat64.bib);
 	/* Fall through */
 
 end:
@@ -785,7 +776,7 @@ void joold_ack(struct xlator *jool)
 		goto end;
 
 	queue->ack_received = true;
-	send_to_userspace(queue, jool->nat64.session);
+	send_to_userspace(queue, jool->nat64.bib);
 	/* Fall through */
 
 end:
@@ -798,14 +789,14 @@ end:
  * It's just a last-resort attempt to prevent nodes from lingering here for too
  * long that's generally only useful in non-flush-asap mode.
  */
-void joold_clean(struct joold_queue *queue, struct sessiondb *sdb)
+void joold_clean(struct joold_queue *queue, struct bib *bib)
 {
 	spin_lock_bh(&queue->lock);
 
 	if (!queue->config.enabled)
 		goto end;
 
-	send_to_userspace(queue, sdb);
+	send_to_userspace(queue, bib);
 	/* Fall through */
 
 end:

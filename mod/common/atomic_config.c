@@ -8,7 +8,7 @@
 #include "nat64/mod/stateful/fragment_db.h"
 #include "nat64/mod/stateful/joold.h"
 #include "nat64/mod/stateful/pool4/db.h"
-#include "nat64/mod/stateful/session/db.h"
+#include "nat64/mod/stateful/bib/db.h"
 
 /*
  * TODO (final) this module is missing a timer.
@@ -63,10 +63,6 @@ static void candidate_clean(struct config_candidate *candidate)
 		if (candidate->nat64.pool4) {
 			pool4db_put(candidate->nat64.pool4);
 			candidate->nat64.pool4 = NULL;
-		}
-		if (candidate->nat64.bib) {
-			bibdb_put(candidate->nat64.bib);
-			candidate->nat64.bib = NULL;
 		}
 	}
 }
@@ -247,35 +243,16 @@ static int handle_pool4(struct config_candidate *new, void *payload,
 	return 0;
 }
 
-static int handle_bib(struct config_candidate *new, void *payload, __u32 payload_len)
+static int handle_bib(struct config_candidate *new, void *payload,
+		__u32 payload_len)
 {
-	struct bib_entry_usr *bibs = payload;
-	unsigned int bib_count = payload_len / sizeof(*bibs);
-	struct bib_entry *entry;
-	unsigned int i;
-	int error;
-
 	if (xlat_is_siit()) {
 		log_err("SIIT doesn't have BIBs.");
 		return -EINVAL;
 	}
 
-	if (!new->nat64.bib) {
-		error = bibdb_init(&new->nat64.bib);
-		if (error)
-			return error;
-	}
-
-	for (i = 0; i < bib_count; i++) {
-		entry = bibentry_create_usr(&bibs[i]);
-		if (!entry)
-			return -ENOMEM;
-		error = bibdb_add(new->nat64.bib, entry, NULL);
-		if (error)
-			return error;
-	}
-
-	return 0;
+	log_err("Atomic configuration of the BIB is not implemented.");
+	return -EINVAL;
 }
 
 static int commit(struct xlator *jool)
@@ -284,6 +261,12 @@ static int commit(struct xlator *jool)
 	struct global_configuration *global;
 	struct full_config *remnants = NULL;
 	int error;
+
+	/*
+	 * Reminder: Our @jool is a copy of the one stored in the xlator DB.
+	 * Nobody else is refencing it.
+	 * (But the objects pointed by @jool's members can be shared.)
+	 */
 
 	if (new->global) {
 		error = config_init(&global);
@@ -325,11 +308,6 @@ static int commit(struct xlator *jool)
 			jool->nat64.pool4 = new->nat64.pool4;
 			new->nat64.pool4 = NULL;
 		}
-		if (new->nat64.bib) {
-			bibdb_put(jool->nat64.bib);
-			jool->nat64.bib = new->nat64.bib;
-			new->nat64.bib = NULL;
-		}
 	}
 
 	error = xlator_replace(jool);
@@ -340,15 +318,15 @@ static int commit(struct xlator *jool)
 
 	/*
 	 * This the little flaw in the design.
-	 * I can't make full new versions of BIB and session just over a few
-	 * configuration values because the trees can be massive, so instead
-	 * I'm patching values after I know the pointer swap was successful.
+	 * I can't make full new versions of BIB, session, joold and frag just
+	 * over a few configuration values because the tables can be massive,
+	 * so instead I'm patching values after I know the pointer swap was
+	 * successful.
 	 * Because they can't fail there are no dire consequences, but you know.
 	 * These look a little out of place.
 	 */
 	if (remnants) {
-		bibdb_config_set(jool->nat64.bib, &remnants->bib);
-		sessiondb_config_set(jool->nat64.session, &remnants->session);
+		bib_config_set(jool->nat64.bib, &remnants->bib);
 		joold_config_set(jool->nat64.joold, &remnants->joold);
 		fragdb_config_set(jool->nat64.frag, &remnants->frag);
 		wkfree(struct full_config, remnants);

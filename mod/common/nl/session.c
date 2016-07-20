@@ -1,8 +1,8 @@
 #include "nat64/mod/common/nl/session.h"
 
-#include "nat64/mod/stateful/session/db.h"
 #include "nat64/mod/common/nl/nl_common.h"
 #include "nat64/mod/common/nl/nl_core2.h"
+#include "nat64/mod/stateful/bib/db.h"
 
 static int session_entry_to_userspace(struct session_entry *entry, void *arg)
 {
@@ -10,16 +10,13 @@ static int session_entry_to_userspace(struct session_entry *entry, void *arg)
 	struct session_entry_usr entry_usr;
 	unsigned long dying_time;
 
-	if (!entry->expirer)
-		return -EINVAL;
-
 	entry_usr.src6 = entry->src6;
 	entry_usr.dst6 = entry->dst6;
 	entry_usr.src4 = entry->src4;
 	entry_usr.dst4 = entry->dst4;
 	entry_usr.state = entry->state;
 
-	dying_time = entry->update_time + session_get_timeout(entry);
+	dying_time = entry->update_time + entry->timeout;
 	entry_usr.dying_time = (dying_time > jiffies)
 			? jiffies_to_msecs(dying_time - jiffies)
 			: 0;
@@ -27,7 +24,7 @@ static int session_entry_to_userspace(struct session_entry *entry, void *arg)
 	return nlbuffer_write(buffer, &entry_usr, sizeof(entry_usr));
 }
 
-static int handle_session_display(struct sessiondb *db, struct genl_info *info,
+static int handle_session_display(struct bib *db, struct genl_info *info,
 		struct request_session *request)
 {
 	struct nlcore_buffer buffer;
@@ -54,7 +51,7 @@ static int handle_session_display(struct sessiondb *db, struct genl_info *info,
 		offset = &offset_struct;
 	}
 
-	error = sessiondb_foreach(db, request->l4_proto, &func, offset);
+	error = bib_foreach_session(db, request->l4_proto, &func, offset);
 	nlbuffer_set_pending_data(&buffer, error > 0);
 	error = (error >= 0)
 			? nlbuffer_send(info, &buffer)
@@ -64,7 +61,7 @@ static int handle_session_display(struct sessiondb *db, struct genl_info *info,
 	return error;
 }
 
-static int handle_session_count(struct sessiondb *db, struct genl_info *info,
+static int handle_session_count(struct bib *db, struct genl_info *info,
 		struct request_session *request)
 {
 	int error;
@@ -72,7 +69,7 @@ static int handle_session_count(struct sessiondb *db, struct genl_info *info,
 
 	log_debug("Returning session count.");
 
-	error = sessiondb_count(db, request->l4_proto, &count);
+	error = bib_count_sessions(db, request->l4_proto, &count);
 	if (error)
 		return nlcore_respond(info, error);
 
@@ -99,9 +96,9 @@ int handle_session_config(struct xlator *jool, struct genl_info *info)
 
 	switch (be16_to_cpu(hdr->operation)) {
 	case OP_DISPLAY:
-		return handle_session_display(jool->nat64.session, info, request);
+		return handle_session_display(jool->nat64.bib, info, request);
 	case OP_COUNT:
-		return handle_session_count(jool->nat64.session, info, request);
+		return handle_session_count(jool->nat64.bib, info, request);
 	}
 
 	log_err("Unknown operation: %u", be16_to_cpu(hdr->operation));

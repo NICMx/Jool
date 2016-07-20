@@ -231,7 +231,7 @@ bool ASSERT_SESSION(struct session_entry *expected,
 	if (!expected || !actual)
 		goto fail;
 
-	if (expected->l4_proto != actual->l4_proto)
+	if (expected->proto != actual->proto)
 		goto fail;
 	if (!taddr6_equals(&expected->src6, &actual->src6))
 		goto fail;

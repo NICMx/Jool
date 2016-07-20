@@ -49,6 +49,25 @@ unsigned int port_range_count(const struct port_range *range)
 	return range->max - range->min + 1U;
 }
 
+void port_range_fuse(struct port_range *r1, const struct port_range *r2)
+{
+	r1->min = min(r1->min, r2->min);
+	r1->max = max(r1->max, r2->max);
+}
+
+bool pool4_range_equals(struct pool4_range *r1, struct pool4_range *r2)
+{
+	return addr4_equals(&r1->addr, &r2->addr)
+			&& port_range_equals(&r1->ports, &r2->ports);
+}
+
+bool pool4_range_touches(const struct pool4_range *r1,
+		const struct pool4_range *r2)
+{
+	return addr4_equals(&r1->addr, &r2->addr)
+			&& port_range_touches(&r1->ports, &r1->ports);
+}
+
 bool is_icmp6_info(__u8 type)
 {
 	return (type == ICMPV6_ECHO_REQUEST) || (type == ICMPV6_ECHO_REPLY);
@@ -102,11 +121,4 @@ void log_tuple(struct tuple *tuple)
 				l4proto_to_string(tuple->l4_proto));
 		break;
 	}
-}
-
-/* TODO I think nobody will use this shortly */
-bool range4_contains(struct ipv4_range *range, struct ipv4_transport_addr *addr)
-{
-	return prefix4_contains(&range->prefix, &addr->l3)
-			&& port_range_contains(&range->ports, addr->l4);
 }

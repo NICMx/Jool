@@ -67,9 +67,10 @@ unsigned int core_4to6(struct sk_buff *skb, const struct net_device *dev)
 	struct iphdr *hdr = ip_hdr(skb);
 	verdict result;
 
+	xlation_init(&state);
+
 	if (xlator_find(dev_net(dev), &state.jool))
 		return NF_ACCEPT;
-	state.session = NULL;
 	if (!state.jool.global->cfg.enabled) {
 		xlation_put(&state);
 		return NF_ACCEPT;
@@ -95,9 +96,10 @@ unsigned int core_6to4(struct sk_buff *skb, const struct net_device *dev)
 	struct ipv6hdr *hdr = ipv6_hdr(skb);
 	verdict result;
 
+	xlation_init(&state);
+
 	if (xlator_find(dev_net(dev), &state.jool))
 		return NF_ACCEPT;
-	state.session = NULL;
 	if (!state.jool.global->cfg.enabled) {
 		xlation_put(&state);
 		return NF_ACCEPT;

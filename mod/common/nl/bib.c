@@ -3,8 +3,7 @@
 #include "nat64/mod/common/nl/nl_common.h"
 #include "nat64/mod/common/nl/nl_core2.h"
 #include "nat64/mod/stateful/pool4/db.h"
-#include "nat64/mod/stateful/bib/bib.h"
-#include "nat64/mod/stateful/session/db.h"
+#include "nat64/mod/stateful/bib/db.h"
 
 static int bib_entry_to_userspace(struct bib_entry *entry, bool is_static,
 		void *arg)
@@ -20,7 +19,7 @@ static int bib_entry_to_userspace(struct bib_entry *entry, bool is_static,
 	return nlbuffer_write(buffer, &entry_usr, sizeof(entry_usr));
 }
 
-static int handle_bib_display(struct sessiondb *db, struct genl_info *info,
+static int handle_bib_display(struct bib *db, struct genl_info *info,
 		struct request_bib *request)
 {
 	struct nlcore_buffer buffer;
@@ -41,7 +40,7 @@ static int handle_bib_display(struct sessiondb *db, struct genl_info *info,
 		return nlcore_respond(info, error);
 
 	offset = request->display.addr4_set ? &request->display.addr4 : NULL;
-	error = sessiondb_foreach_bib(db, request->l4_proto, &func, offset);
+	error = bib_foreach(db, request->l4_proto, &func, offset);
 	nlbuffer_set_pending_data(&buffer, error > 0);
 	error = (error >= 0)
 			? nlbuffer_send(info, &buffer)
@@ -51,14 +50,14 @@ static int handle_bib_display(struct sessiondb *db, struct genl_info *info,
 	return error;
 }
 
-static int handle_bib_count(struct sessiondb *db, struct genl_info *info,
+static int handle_bib_count(struct bib *db, struct genl_info *info,
 		struct request_bib *request)
 {
 	int error;
 	__u64 count;
 
 	log_debug("Returning BIB count.");
-	error = sessiondb_count_bib(db, request->l4_proto, &count);
+	error = bib_count(db, request->l4_proto, &count);
 	if (error)
 		return nlcore_respond(info, error);
 
@@ -69,6 +68,7 @@ static int handle_bib_add(struct xlator *jool, struct request_bib *request)
 {
 	struct bib_entry new;
 	struct bib_entry old;
+	int error;
 
 	if (verify_superpriv())
 		return -EPERM;
@@ -86,9 +86,25 @@ static int handle_bib_add(struct xlator *jool, struct request_bib *request)
 	new.ipv6 = request->add.addr6;
 	new.ipv4 = request->add.addr4;
 	new.l4_proto = request->l4_proto;
-	/* TODO Note that other session collisions also count as collisions. */
-	/* TODO Error messages */
-	return sessiondb_add_bib(jool->nat64.session, &new, &old);
+
+	/* TODO remember to upgrade if a dynamic entry is found. */
+	error = bib_add_static(jool->nat64.bib, &new, &old);
+	switch (error) {
+	case 0:
+		break;
+	case -ESRCH:
+		log_err("Entry %pI4#%u|%pI6c#%u collides with %pI4#%u|%pI6c#%u.",
+				&new.ipv4.l3, new.ipv4.l4,
+				&new.ipv6.l3, new.ipv6.l4,
+				&old.ipv4.l3, old.ipv4.l4,
+				&old.ipv6.l3, old.ipv6.l4);
+		break;
+	default:
+		log_err("Unknown error code: %d", error);
+		break;
+	}
+
+	return error;
 }
 
 static int handle_bib_rm(struct xlator *jool, struct request_bib *request)
@@ -107,11 +123,11 @@ static int handle_bib_rm(struct xlator *jool, struct request_bib *request)
 		bib.l4_proto = request->l4_proto;
 		error = 0;
 	} else if (request->rm.addr6_set) {
-		error = sessiondb_find_bib6(jool->nat64.session,
-				&request->rm.addr6, request->l4_proto, &bib);
+		error = bib_find6(jool->nat64.bib, request->l4_proto,
+				&request->rm.addr6, &bib);
 	} else if (request->rm.addr4_set) {
-		error = sessiondb_find_bib4(jool->nat64.session,
-				&request->rm.addr4, request->l4_proto, &bib);
+		error = bib_find4(jool->nat64.bib, request->l4_proto,
+				&request->rm.addr4, &bib);
 	} else {
 		log_err("You need to provide an address so I can find the entry you want to remove.");
 		return -EINVAL;
@@ -122,7 +138,7 @@ static int handle_bib_rm(struct xlator *jool, struct request_bib *request)
 	if (error)
 		return error;
 
-	error = sessiondb_rm_bib(jool->nat64.session, &bib);
+	error = bib_rm(jool->nat64.bib, &bib);
 	if (error == -ESRCH) {
 		if (request->rm.addr6_set && request->rm.addr4_set)
 			goto esrch;
@@ -154,9 +170,9 @@ int handle_bib_config(struct xlator *jool, struct genl_info *info)
 
 	switch (be16_to_cpu(hdr->operation)) {
 	case OP_DISPLAY:
-		return handle_bib_display(jool->nat64.session, info, request);
+		return handle_bib_display(jool->nat64.bib, info, request);
 	case OP_COUNT:
-		return handle_bib_count(jool->nat64.session, info, request);
+		return handle_bib_count(jool->nat64.bib, info, request);
 	case OP_ADD:
 		error = handle_bib_add(jool, request);
 		break;

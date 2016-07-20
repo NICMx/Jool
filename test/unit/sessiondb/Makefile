@@ -17,17 +17,11 @@ SESSIONDB = sessiondb
 obj-m += $(SESSIONDB).o
 
 $(SESSIONDB)-objs += $(MIN_REQS)
-$(SESSIONDB)-objs += ../../../common/netlink/config.o
 $(SESSIONDB)-objs += ../../../mod/common/rbtree.o
-$(SESSIONDB)-objs += ../../../mod/common/nl/nl_common.o
-$(SESSIONDB)-objs += ../../../mod/common/nl/nl_core2.o
-$(SESSIONDB)-objs += ../../../mod/stateful/session/entry.o
-$(SESSIONDB)-objs += ../../../mod/stateful/session/table4.o
-$(SESSIONDB)-objs += ../../../mod/stateful/session/table6.o
-$(SESSIONDB)-objs += ../../../mod/stateful/session/pkt_queue.o
+$(SESSIONDB)-objs += ../../../mod/stateful/bib/db.o
 $(SESSIONDB)-objs += ../framework/session.o
-$(SESSIONDB)-objs += ../impersonator/icmp_wrapper.o
-$(SESSIONDB)-objs += ../impersonator/nl.o
+$(SESSIONDB)-objs += ../impersonator/mask_domain.o
+$(SESSIONDB)-objs += ../impersonator/pkt_queue.o
 $(SESSIONDB)-objs += ../impersonator/route.o
 $(SESSIONDB)-objs += sessiondb_test.o
 

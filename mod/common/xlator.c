@@ -12,7 +12,7 @@
 #include "nat64/mod/stateful/fragment_db.h"
 #include "nat64/mod/stateful/joold.h"
 #include "nat64/mod/stateful/pool4/db.h"
-#include "nat64/mod/stateful/session/db.h"
+#include "nat64/mod/stateful/bib/db.h"
 
 /**
  * All the configuration and state of the Jool instance in the given network
@@ -45,7 +45,7 @@ static void xlator_get(struct xlator *jool)
 	} else {
 		fragdb_get(jool->nat64.frag);
 		pool4db_get(jool->nat64.pool4);
-		sessiondb_get(jool->nat64.session);
+		bib_get(jool->nat64.bib);
 		joold_get(jool->nat64.joold);
 	}
 
@@ -199,9 +199,9 @@ static int init_nat64(struct xlator *jool)
 	error = pool4db_init(&jool->nat64.pool4);
 	if (error)
 		goto pool4_fail;
-	error = sessiondb_init(&jool->nat64.session);
-	if (error)
-		goto sessiondb_fail;
+	jool->nat64.bib = bib_create();
+	if (!jool->nat64.bib)
+		goto bib_fail;
 	jool->nat64.joold = joold_create(jool->ns);
 	if (!jool->nat64.joold)
 		goto joold_fail;
@@ -215,8 +215,8 @@ static int init_nat64(struct xlator *jool)
 newcfg_fail:
 	joold_put(jool->nat64.joold);
 joold_fail:
-	sessiondb_put(jool->nat64.session);
-sessiondb_fail:
+	bib_put(jool->nat64.bib);
+bib_fail:
 	pool4db_put(jool->nat64.pool4);
 pool4_fail:
 	fragdb_put(jool->nat64.frag);
@@ -437,7 +437,7 @@ void xlator_put(struct xlator *jool)
 	} else {
 		fragdb_put(jool->nat64.frag);
 		pool4db_put(jool->nat64.pool4);
-		sessiondb_put(jool->nat64.session);
+		bib_put(jool->nat64.bib);
 		joold_put(jool->nat64.joold);
 	}
 
@@ -467,7 +467,7 @@ int xlator_foreach(xlator_foreach_cb cb, void *args)
 void xlator_copy_config(struct xlator *jool, struct full_config *copy)
 {
 	config_copy(&jool->global->cfg, &copy->global);
-	sessiondb_config_copy(jool->nat64.session, &copy->session);
+	bib_config_copy(jool->nat64.bib, &copy->bib);
 	joold_config_copy(jool->nat64.joold, &copy->joold);
 	fragdb_config_copy(jool->nat64.frag, &copy->frag);
 }

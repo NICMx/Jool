@@ -78,10 +78,53 @@
 		collision; \
 	})
 
+struct tree_slot {
+	struct rb_root *tree;
+	struct rb_node *entry;
+	struct rb_node *parent;
+	struct rb_node **rb_link;
+};
+
+void treeslot_init(struct tree_slot *slot,
+		struct rb_root *tree,
+		struct rb_node *entry);
+void treeslot_commit(struct tree_slot *slot);
+
 /**
  * rbtree_find_node - Similar to rbtree_find(), except if it doesn't find the
  * node it returns the slot where it'd be placed so you can insert something in
  * there.
+ */
+#define rbtree_find_slot(expected, root, compare_cb, slot) \
+	({ \
+		struct rb_node *collision = NULL; \
+		struct rb_node *node; \
+		\
+		treeslot_init(slot, root, expected); \
+		node = (root)->rb_node; \
+		\
+		while (node) { \
+			int comparison = compare_cb(node, expected); \
+			(slot)->parent = node; \
+			if (comparison < 0) { \
+				(slot)->rb_link = &node->rb_right; \
+				node = node->rb_right; \
+			} else if (comparison > 0) { \
+				(slot)->rb_link = &node->rb_left; \
+				node = node->rb_left; \
+			} else { \
+				collision = node; \
+			} \
+		} \
+		\
+		collision; \
+	})
+
+/**
+ * rbtree_find_node - Similar to rbtree_find_slot(), except it doesn't rely
+ * on a struct tree_slot.
+ *
+ * TODO seriously. The point of this module is to prevent duplicate code.
  */
 #define rbtree_find_node(expected, root, compare_cb, type, hook_name, parent, \
 		node) \

@@ -1,12 +1,8 @@
-#include "nat64/mod/stateful/bib/port_allocator.h"
+#include "nat64/mod/stateful/pool4/rfc6056.h"
 
-#include <crypto/md5.h>
+/* #include <crypto/md5.h> */
 #include <linux/crypto.h>
-#include "nat64/common/str_utils.h"
 #include "nat64/mod/common/wkmalloc.h"
-#include "nat64/mod/common/rfc6145/6to4.h"
-#include "nat64/mod/stateful/pool4/db.h"
-#include "nat64/mod/stateful/session/db.h"
 
 /* TODO (issue175) RFC 6056 wants us to change this from time to time. */
 static unsigned char *secret_key;
@@ -16,7 +12,7 @@ static atomic_t next_ephemeral;
 static struct crypto_hash *tfm;
 static DEFINE_SPINLOCK(tfm_lock);
 
-int palloc_init(void)
+int rfc6056_init(void)
 {
 	unsigned int tmp;
 	int error;
@@ -48,7 +44,7 @@ int palloc_init(void)
 	return 0;
 }
 
-void palloc_destroy(void)
+void rfc6056_destroy(void)
 {
 	crypto_free_hash(tfm);
 	__wkfree("Secret key", secret_key);
@@ -92,7 +88,10 @@ static void build_scatterlist(const struct tuple *tuple6, __u16 f_args,
 	*sg_len += secret_key_len;
 }
 
-static int f(const struct tuple *tuple6, __u8 fields, unsigned int *result)
+/**
+ * RFC 6056, Algorithm 3.
+ */
+int rfc6056_f(const struct tuple *tuple6, __u8 fields, unsigned int *result)
 {
 	/*
 	 * See http://stackoverflow.com/questions/3869028.
@@ -132,76 +131,5 @@ static int f(const struct tuple *tuple6, __u8 fields, unsigned int *result)
 
 unlock:
 	spin_unlock_bh(&tfm_lock);
-	return error;
-}
-
-struct iteration_args {
-	struct sessiondb *session;
-	l4_protocol proto;
-	struct ipv4_transport_addr *result;
-};
-
-static int choose_port(struct ipv4_transport_addr *addr, void *void_args)
-{
-	struct iteration_args *args = void_args;
-
-	atomic_inc(&next_ephemeral);
-
-	if (sessiondb_find_bib4(args->session, addr, args->proto, NULL)) {
-		/* Entry not found (we found an empty slot). */
-		*(args->result) = *addr;
-		return 1; /* positive = break iteration, no error. */
-	}
-
-	/* Entry found (collision). */
-	return 0; /* Keep looking */
-}
-
-/**
- * RFC 6056, Algorithm 3.
- */
-int palloc_allocate(struct xlation *state, struct in_addr *daddr,
-		struct ipv4_transport_addr *result)
-{
-	struct tuple *tuple6 = &state->in.tuple;
-	struct ipv6hdr *hdr6;
-	struct iteration_args args;
-	unsigned int offset;
-	int error;
-
-	error = f(tuple6, state->jool.global->cfg.nat64.f_args, &offset);
-	if (error)
-		return error;
-
-	args.session = state->jool.nat64.session;
-	args.proto = tuple6->l4_proto;
-	args.result = result;
-
-	hdr6 = pkt_ip6_hdr(&state->in);
-	error = pool4db_foreach_taddr4(state->jool.nat64.pool4, state->jool.ns,
-			daddr, ttp64_xlat_tos(state, hdr6), ttp64_xlat_proto(hdr6),
-			state->in.skb->mark, choose_port, &args,
-			offset + atomic_read(&next_ephemeral));
-
-	if (error == 1)
-		return 0;
-	if (error == -ESRCH) {
-		/*
-		 * Assume the user doesn't need this mark/protocol.
-		 * From our point of view, this is completely normal.
-		 */
-		log_debug("There are no pool4 entries for %s packets with mark "
-				"%u.", l4proto_to_string(tuple6->l4_proto),
-				state->in.skb->mark);
-		return -ESRCH;
-	}
-	if (error == 0) {
-		log_warn_once("pool4 is exhausted! There are no transport "
-				"addresses left for %s packets with mark %u.",
-				l4proto_to_string(tuple6->l4_proto),
-				state->in.skb->mark);
-		return -ESRCH;
-	}
-
 	return error;
 }

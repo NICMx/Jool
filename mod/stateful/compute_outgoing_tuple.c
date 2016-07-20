@@ -1,19 +1,21 @@
 #include "nat64/mod/stateful/compute_outgoing_tuple.h"
-#include "nat64/mod/stateful/session/db.h"
+
+#include "nat64/mod/common/rfc6052.h"
+#include "nat64/mod/stateful/bib/db.h"
 
 /**
- * Ensures @state->session is computed and valid.
+ * Ensures @state->entries->bib is computed and valid.
  * (Assuming @state really maps to a databased session, that is.)
  */
-static int find_session(struct xlation *state)
+static int find_bib(struct xlation *state)
 {
 	int error;
 
-	if (state->session)
+	if (state->entries.bib_set)
 		return 0;
 
-	error = sessiondb_find(state->jool.nat64.session, &state->in.tuple,
-			NULL, NULL, &state->session);
+	error = bib_find(state->jool.nat64.bib, &state->in.tuple,
+			&state->entries);
 	if (error) {
 		/*
 		 * Bogus ICMP errors might cause this because Filtering skips
@@ -25,44 +27,34 @@ static int find_session(struct xlation *state)
 	return error;
 }
 
+static int xlat_addr64(struct xlation *state, struct ipv4_transport_addr *addr4)
+{
+	/* The RFC labels this as "(D', d)". */
+	struct ipv6_transport_addr *d = &state->in.tuple.dst.addr6;
+
+	addr4->l4 = d->l4;
+	return rfc6052_6to4(state->jool.pool6, &d->l3, &addr4->l3);
+}
+
+static int xlat_addr46(struct xlation *state, struct ipv6_transport_addr *addr6)
+{
+	/* The RFC labels this as (S, s). */
+	struct ipv4_transport_addr *s = &state->in.tuple.src.addr4;
+
+	addr6->l4 = s->l4;
+	return rfc6052_4to6(state->jool.pool6, &s->l3, &addr6->l3);
+}
+
 verdict compute_out_tuple(struct xlation *state)
 {
-	struct session_entry *session;
 	struct tuple *in;
 	struct tuple *out;
 
 	log_debug("Step 3: Computing the Outgoing Tuple");
 
-	if (find_session(state))
+	if (find_bib(state))
 		return VERDICT_ACCEPT;
 
-	/*
-	 * Though the end result is the same, the following section of code
-	 * collides with the RFC in a superfluous sense.
-	 *
-	 * If the IPv6 pool has multiple prefixes, algorithmically generating
-	 * addresses at this point is pointless because, in order to do that,
-	 * we'd need to know which prefix was used when the session was created.
-	 * This bit of information would have to be extracted from the session.
-	 * However, the address already algorithmically generated also belongs
-	 * to the session. So why bother generating it again? Just copy it.
-	 *
-	 * Additionally, the RFC wants some information extracted from the BIB
-	 * entry. We *also* extract that information from the session because
-	 * it's the same, by definition.
-	 *
-	 * And finally, the RFC wants some information extracted from the tuple.
-	 * Same deal. If you draw all the scenarios (weirdass ICMP errors
-	 * included), it's always the same as the session.
-	 *
-	 * Given all of that, I really don't understand why the RFC bothers with
-	 * any of this, including making a distinction between 3-tuples and
-	 * 5-tuples. The outgoing tuple is always a copy of the other side of
-	 * the session, plain and simple. When you think about it, that last
-	 * claim makes sense even in a general sense.
-	 */
-
-	session = state->session;
 	in = &state->in.tuple;
 	out = &state->out.tuple;
 
@@ -70,15 +62,17 @@ verdict compute_out_tuple(struct xlation *state)
 	case L3PROTO_IPV6:
 		out->l3_proto = L3PROTO_IPV4;
 		out->l4_proto = in->l4_proto;
-		out->src.addr4 = session->src4;
-		out->dst.addr4 = session->dst4;
+		out->src.addr4 = state->entries.session.src4;
+		if (xlat_addr64(state, &out->dst.addr4))
+			return VERDICT_ACCEPT;
 		break;
 
 	case L3PROTO_IPV4:
 		out->l3_proto = L3PROTO_IPV6;
 		out->l4_proto = in->l4_proto;
-		out->src.addr6 = session->dst6;
-		out->dst.addr6 = session->src6;
+		if (xlat_addr46(state, &out->src.addr6))
+			return VERDICT_ACCEPT;
+		out->dst.addr6 = state->entries.session.src6;
 		break;
 	}
 

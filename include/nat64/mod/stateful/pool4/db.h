@@ -8,7 +8,7 @@
  */
 
 #include <linux/net.h>
-#include "nat64/common/types.h"
+#include "nat64/mod/common/types.h"
 #include "nat64/mod/common/config.h"
 
 struct pool4;
@@ -42,11 +42,17 @@ bool pool4db_contains(struct pool4 *pool, struct net *ns,
 int pool4db_foreach_sample(struct pool4 *pool, l4_protocol proto,
 		int (*cb)(struct pool4_sample *, void *), void *arg,
 		struct pool4_sample *offset);
-int pool4db_foreach_taddr4(struct pool4 *pool, struct net *ns,
-		struct in_addr *daddr, __u8 tos, __u8 proto, __u32 mark,
-		int (*func)(struct ipv4_transport_addr *, void *), void *arg,
-		unsigned int offset);
 
 void pool4db_print(struct pool4 *pool);
+
+
+struct mask_domain;
+
+struct mask_domain *mask_domain_find(struct pool4 *pool, struct tuple *tuple6,
+		__u8 f_args, __u32 mark);
+void mask_domain_put(struct mask_domain *masks);
+int mask_domain_next(struct mask_domain *masks,
+		struct ipv4_transport_addr *addr,
+		bool *consecutive);
 
 #endif /* _JOOL_MOD_POOL4_DB_H */

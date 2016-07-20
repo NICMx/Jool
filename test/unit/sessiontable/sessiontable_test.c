@@ -1,54 +1,53 @@
 #include <linux/module.h>
 #include "nat64/unit/unit_test.h"
 #include "nat64/common/constants.h"
-#include "nat64/mod/stateful/session/table.h"
+#include "nat64/mod/stateful/bib/db.h"
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Alberto Leiva");
 MODULE_DESCRIPTION("Session table module test.");
 
-static struct session_table table;
+static struct bib *db;
 #define TEST_SESSION_COUNT 9
-static struct session_entry *entries[TEST_SESSION_COUNT];
+static struct session_entry entries[TEST_SESSION_COUNT];
 
-static bool inject(unsigned int index, __u32 local4addr, __u16 local4id,
-		__u32 remote4addr, __u16 remote4id)
+static void init_src6(struct in6_addr *addr, __u16 last_byte)
 {
-	struct ipv6_transport_addr remote6;
-	struct ipv6_transport_addr local6;
-	struct ipv4_transport_addr local4;
-	struct ipv4_transport_addr remote4;
+	addr->s6_addr32[0] = cpu_to_be32(0x20010db8u);
+	addr->s6_addr32[1] = 0;
+	addr->s6_addr32[2] = 0;
+	addr->s6_addr32[3] = cpu_to_be32(last_byte);
+}
+
+static void init_dst6(struct in6_addr *addr, __u16 last_byte)
+{
+	addr->s6_addr32[0] = cpu_to_be32(0x0064ff9bu);
+	addr->s6_addr32[1] = 0;
+	addr->s6_addr32[2] = 0;
+	addr->s6_addr32[3] = cpu_to_be32(0xc0000200u | last_byte);
+}
+
+static bool inject(unsigned int index, __u32 src_addr, __u16 src_id,
+		__u32 dst_addr, __u16 dst_id)
+{
+	struct session_entry *entry = &entries[index];
 	int error;
 
-	remote6.l3.s6_addr32[0] = cpu_to_be32(0x20010db8u);
-	remote6.l3.s6_addr32[1] = 0;
-	remote6.l3.s6_addr32[2] = 0;
-	remote6.l3.s6_addr32[3] = cpu_to_be32(local4addr);
-	remote6.l4 = local4id;
-	local6.l3.s6_addr32[0] = cpu_to_be32(0x0064ff9bu);
-	local6.l3.s6_addr32[1] = 0;
-	local6.l3.s6_addr32[2] = 0;
-	local6.l3.s6_addr32[3] = cpu_to_be32(0xc0000200u | remote4addr);
-	local6.l4 = remote4id;
+	init_src6(&entry->src6.l3, src_addr);
+	entry->src6.l4 = src_id;
+	init_dst6(&entry->dst6.l3, dst_addr);
+	entry->dst6.l4 = dst_id;
+	entry->src4.l3.s_addr = cpu_to_be32(0xcb007100u | src_addr);
+	entry->src4.l4 = src_id;
+	entry->dst4.l3.s_addr = cpu_to_be32(0xc0000200u | dst_addr);
+	entry->dst4.l4 = dst_id;
 
-	local4.l3.s_addr = cpu_to_be32(0xcb007100u | local4addr);
-	local4.l4 = local4id;
-	remote4.l3.s_addr = cpu_to_be32(0xc0000200u | remote4addr);
-	remote4.l4 = remote4id;
-
-	entries[index] = session_create(&remote6, &local6, &local4, &remote4,
-			L4PROTO_UDP, NULL);
-	if (!entries[index])
-		return false;
-
-	error = sessiontable_add(&table, entries[index], NULL, NULL, true);
+	error = bib_add_session(db, entry, NULL);
 	if (error) {
 		log_err("Errcode %d on sessiontable_add.", error);
-		session_put(entries[index], true);
 		return false;
 	}
 
-	session_put(entries[index], false);
 	return true;
 }
 
@@ -62,8 +61,8 @@ static bool insert_test_sessions(void)
 	 * However, I'm also adding noise to the add function because it's free:
 	 *
 	 * This should be every combination needed to test sessiontable_add()
-	 * sorts by local transport address, then by remote transport address.
-	 * (Though the test only covers IPv4 order.)
+	 * sorts by src transport address, then by dst transport address.
+	 * (Though the test only covers IPv6 order.)
 	 * Also,
 	 * the insertion order is random; it doesn't have any purpose other
 	 * than tentatively messing with the add function.
@@ -93,7 +92,7 @@ static int cb(struct session_entry *session, void *void_args)
 	index = args->offset + args->i;
 	success &= ASSERT_BOOL(true, index < TEST_SESSION_COUNT, "overflow");
 	if (success)
-		success &= ASSERT_SESSION(entries[index], session, "Session");
+		success &= ASSERT_SESSION(&entries[index], session, "Session");
 
 	args->i++;
 	return success ? 0 : -EINVAL;
@@ -101,35 +100,37 @@ static int cb(struct session_entry *session, void *void_args)
 
 static bool test_foreach(void)
 {
-	struct ipv4_transport_addr local;
-	struct ipv4_transport_addr remote;
 	struct unit_iteration_args args;
+	struct session_foreach_func func = { .cb = cb, .arg = &args, };
+	struct session_foreach_offset offset;
 	int error;
 	bool success = true;
 
-	local.l3.s_addr = cpu_to_be32(0xcb007102u); /* 203.0.113.2 */
-	local.l4 = 200;
-	remote.l3.s_addr = cpu_to_be32(0xc0000202u); /* 192.0.2.2 */
-	remote.l4 = 1200;
+	init_src6(&offset.offset.src.l3, 2);
+	offset.offset.src.l4 = 200;
+	init_dst6(&offset.offset.dst.l3, 2);
+	offset.offset.src.l4 = 1200;
 
 	/* Empty table, no offset. */
 	args.i = 0;
 	args.offset = 0;
-	error = sessiontable_foreach(&table, cb, &args, NULL, NULL, 0);
+	error = bib_foreach_session(db, L4PROTO_UDP, &func, NULL);
 	success &= ASSERT_INT(0, error, "call 1 result");
 	success &= ASSERT_UINT(0, args.i, "call 1 counter");
 
 	/* Empty table, offset, include offset, offset not found. */
 	args.i = 0;
 	args.offset = 0;
-	error = sessiontable_foreach(&table, cb, &args, &remote, &local, true);
+	offset.include_offset = true;
+	error = bib_foreach_session(db, L4PROTO_UDP, &func, &offset);
 	success &= ASSERT_INT(0, error, "call 2 result");
 	success &= ASSERT_UINT(0, args.i, "call 2 counter");
 
 	/* Empty table, offset, do not include offset, offset not found. */
 	args.i = 0;
 	args.offset = 0;
-	error = sessiontable_foreach(&table, cb, &args, &remote, &local, false);
+	offset.include_offset = false;
+	error = bib_foreach_session(db, L4PROTO_UDP, &func, &offset);
 	success &= ASSERT_INT(0, error, "call 3 result");
 	success &= ASSERT_UINT(0, args.i, "call 3 counter");
 
@@ -141,128 +142,142 @@ static bool test_foreach(void)
 	/* Populated table, no offset. */
 	args.i = 0;
 	args.offset = 0;
-	error = sessiontable_foreach(&table, cb, &args, NULL, NULL, 0);
+	error = bib_foreach_session(db, L4PROTO_UDP, &func, NULL);
 	success &= ASSERT_INT(0, error, "call 4 result");
 	success &= ASSERT_UINT(9, args.i, "call 4 counter");
 
 	/* Populated table, offset, include offset, offset found. */
 	args.i = 0;
 	args.offset = 4;
-	error = sessiontable_foreach(&table, cb, &args, &remote, &local, true);
+	offset.include_offset = true;
+	error = bib_foreach_session(db, L4PROTO_UDP, &func, &offset);
 	success &= ASSERT_INT(0, error, "call 5 result");
 	success &= ASSERT_UINT(5, args.i, "call 5 counter");
 
 	/* Populated table, offset, include offset, offset not found. */
 	args.i = 0;
 	args.offset = 5;
-	remote.l4 = 1250;
-	error = sessiontable_foreach(&table, cb, &args, &remote, &local, true);
+	offset.include_offset = true;
+	offset.offset.src.l4 = 1250;
+	error = bib_foreach_session(db, L4PROTO_UDP, &func, &offset);
 	success &= ASSERT_INT(0, error, "call 6 result");
 	success &= ASSERT_UINT(4, args.i, "call 6 counter");
 
 	/* Populated table, offset, do not include offset, offset found. */
 	args.i = 0;
 	args.offset = 5;
-	remote.l4 = 1200;
-	error = sessiontable_foreach(&table, cb, &args, &remote, &local, false);
+	offset.include_offset = false;
+	offset.offset.src.l4 = 1200;
+	error = bib_foreach_session(db, L4PROTO_UDP, &func, &offset);
 	success &= ASSERT_INT(0, error, "call 7 result");
 	success &= ASSERT_UINT(4, args.i, "call 7 counter");
 
 	/* Populated table, offset, do not include offset, offset not found. */
 	args.i = 0;
 	args.offset = 5;
-	remote.l4 = 1250;
-	error = sessiontable_foreach(&table, cb, &args, &remote, &local, false);
+	offset.include_offset = false;
+	offset.offset.src.l4 = 1250;
+	error = bib_foreach_session(db, L4PROTO_UDP, &func, &offset);
 	success &= ASSERT_INT(0, error, "call 8 result");
 	success &= ASSERT_UINT(4, args.i, "call 8 counter");
 
 	/* ----------------------------------- */
 
 	/* Offset is before first, include offset. */
-	local.l3.s_addr = cpu_to_be32(0xcb007101u); /* 203.0.113.1 */
-	local.l4 = 300;
-	remote.l3.s_addr = cpu_to_be32(0xc0000203u); /* 192.0.2.3 */
-	remote.l4 = 1200;
+	init_src6(&offset.offset.src.l3, 1);
+	offset.offset.src.l4 = 300;
+	init_dst6(&offset.offset.dst.l3, 3);
+	offset.offset.src.l4 = 1200;
 
 	args.i = 0;
 	args.offset = 0;
-	error = sessiontable_foreach(&table, cb, &args, &remote, &local, true);
+	offset.include_offset = true;
+	error = bib_foreach_session(db, L4PROTO_UDP, &func, &offset);
 	success &= ASSERT_INT(0, error, "call 9 result");
 	success &= ASSERT_UINT(9, args.i, "call 9 counter");
 
 	/* Offset is before first, do not include offset. */
 	args.i = 0;
-	error = sessiontable_foreach(&table, cb, &args, &remote, &local, false);
+	offset.include_offset = false;
+	error = bib_foreach_session(db, L4PROTO_UDP, &func, &offset);
 	success &= ASSERT_INT(0, error, "call 10 result");
 	success &= ASSERT_UINT(9, args.i, "call 10 counter");
 
 	/* Offset is first, include offset. */
-	remote.l4 = 1300;
+	offset.offset.src.l4 = 1300;
 
 	args.i = 0;
-	error = sessiontable_foreach(&table, cb, &args, &remote, &local, true);
+	offset.include_offset = true;
+	error = bib_foreach_session(db, L4PROTO_UDP, &func, &offset);
 	success &= ASSERT_INT(0, error, "call 11 result");
 	success &= ASSERT_UINT(9, args.i, "call 11 counter");
 
 	/* Offset is first, do not include offset. */
 	args.i = 0;
 	args.offset = 1;
-	error = sessiontable_foreach(&table, cb, &args, &remote, &local, false);
+	offset.include_offset = false;
+	error = bib_foreach_session(db, L4PROTO_UDP, &func, &offset);
 	success &= ASSERT_INT(0, error, "call 12 result");
 	success &= ASSERT_UINT(8, args.i, "call 12 counter");
 
 	/* Offset is last, include offset. */
-	local.l3.s_addr = cpu_to_be32(0xcb007103u); /* 203.0.113.3 */
-	local.l4 = 100;
-	remote.l3.s_addr = cpu_to_be32(0xc0000201u); /* 192.0.2.1 */
-	remote.l4 = 1100;
+	init_src6(&offset.offset.src.l3, 3);
+	offset.offset.src.l4 = 100;
+	init_dst6(&offset.offset.dst.l3, 1);
+	offset.offset.src.l4 = 1100;
 
 	args.i = 0;
 	args.offset = 8;
-	error = sessiontable_foreach(&table, cb, &args, &remote, &local, true);
+	offset.include_offset = true;
+	error = bib_foreach_session(db, L4PROTO_UDP, &func, &offset);
 	success &= ASSERT_INT(0, error, "call 13 result");
 	success &= ASSERT_UINT(1, args.i, "call 13 counter");
 
 	/* Offset is last, do not include offset. */
 	args.i = 0;
-	error = sessiontable_foreach(&table, cb, &args, &remote, &local, false);
+	offset.include_offset = false;
+	error = bib_foreach_session(db, L4PROTO_UDP, &func, &offset);
 	success &= ASSERT_INT(0, error, "call 14 result");
 	success &= ASSERT_UINT(0, args.i, "call 14 counter");
 
 	/* Offset is after last, include offset. */
-	remote.l4 = 1200;
+	offset.offset.src.l4 = 1200;
 
 	args.i = 0;
-	error = sessiontable_foreach(&table, cb, &args, &remote, &local, true);
+	offset.include_offset = true;
+	error = bib_foreach_session(db, L4PROTO_UDP, &func, &offset);
 	success &= ASSERT_INT(0, error, "call 15 result");
 	success &= ASSERT_UINT(0, args.i, "call 15 counter");
 
 	/* Offset is after last, do not include offset. */
 	args.i = 0;
-	error = sessiontable_foreach(&table, cb, &args, &remote, &local, false);
+	offset.include_offset = false;
+	error = bib_foreach_session(db, L4PROTO_UDP, &func, &offset);
 	success &= ASSERT_INT(0, error, "call 16 result");
 	success &= ASSERT_UINT(0, args.i, "call 16 counter");
 
 	return success;
 }
 
-static enum session_fate just_die(struct session_entry *session, void *arg)
+enum session_fate tcp_expired_cb(struct session_entry *session, void *arg)
 {
 	return FATE_RM;
 }
 
 static bool init(void)
 {
-	if (session_init())
+	if (bib_init())
 		return false;
-	sessiontable_init(&table, just_die, UDP_DEFAULT, 0);
-	return true;
+	db = bib_create();
+	if (!db)
+		bib_destroy();
+	return db;
 }
 
 static void end(void)
 {
-	sessiontable_destroy(&table);
-	session_destroy();
+	bib_put(db);
+	bib_destroy();
 }
 
 int init_module(void)

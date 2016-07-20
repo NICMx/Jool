@@ -79,18 +79,18 @@ RCUTAG_FREE
 void prepare_config_for_userspace(struct full_config *config, bool pools_empty)
 {
 	struct global_config *global;
-	struct session_config *session;
+	struct bib_config *bib;
 	struct fragdb_config *frag;
 	struct joold_config *joold;
 
 	global = &config->global;
 	global->status = global->enabled && !pools_empty;
 
-	session = &config->session;
-	session->ttl.tcp_est = jiffies_to_msecs(session->ttl.tcp_est);
-	session->ttl.tcp_trans = jiffies_to_msecs(session->ttl.tcp_trans);
-	session->ttl.udp = jiffies_to_msecs(session->ttl.udp);
-	session->ttl.icmp = jiffies_to_msecs(session->ttl.icmp);
+	bib = &config->bib;
+	bib->ttl.tcp_est = jiffies_to_msecs(bib->ttl.tcp_est);
+	bib->ttl.tcp_trans = jiffies_to_msecs(bib->ttl.tcp_trans);
+	bib->ttl.udp = jiffies_to_msecs(bib->ttl.udp);
+	bib->ttl.icmp = jiffies_to_msecs(bib->ttl.icmp);
 
 	frag = &config->frag;
 	frag->ttl = jiffies_to_msecs(frag->ttl);

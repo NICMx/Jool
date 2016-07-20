@@ -13,7 +13,7 @@ jool_common += ../common/rfc6145/6to4.o
 jool_common += ../common/rfc6145/common.o
 jool_common += ../common/rfc6145/core.o
 jool_common += ../common/address.o
-#jool_common += ../common/atomic_config.o
+jool_common += ../common/atomic_config.o
 jool_common += ../common/types.o
 jool_common += ../common/str_utils.o
 jool_common += ../common/packet.o
@@ -49,16 +49,10 @@ jool_common += ../common/nl/session.o
 
 jool += pool4/empty.o
 jool += pool4/db.o
+jool += pool4/rfc6056.o
 
-jool += bib/entry.o
-jool += bib/bib.o
-jool += bib/port_allocator.o
-jool += session/entry.o
-jool += session/table4.o
-jool += session/table6.o
-jool += session/table64.o
-jool += session/db.o
-jool += session/pkt_queue.o
+jool += bib/db.o
+jool += bib/pkt_queue.o
 
 jool += timer.o
 jool += fragment_db.o

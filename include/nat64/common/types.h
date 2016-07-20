@@ -190,11 +190,15 @@ struct ipv4_range {
 	struct port_range ports;
 };
 
+struct pool4_range {
+	struct in_addr addr;
+	struct port_range ports;
+};
+
 struct pool4_sample {
 	__u32 mark;
 	__u8 proto;
-	struct in_addr addr;
-	struct port_range range;
+	struct pool4_range range;
 };
 
 bool port_range_equals(const struct port_range *r1,
@@ -203,7 +207,11 @@ bool port_range_touches(const struct port_range *r1,
 		const struct port_range *r2);
 bool port_range_contains(const struct port_range *range, __u16 port);
 unsigned int port_range_count(const struct port_range *range);
+void port_range_fuse(struct port_range *r1, const struct port_range *r2);
 
+bool pool4_range_equals(struct pool4_range *r1, struct pool4_range *r2);
+bool pool4_range_touches(const struct pool4_range *r1,
+		const struct pool4_range *r2);
 bool range4_contains(struct ipv4_range *range,
 		struct ipv4_transport_addr *addr);
 

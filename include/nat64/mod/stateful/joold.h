@@ -3,7 +3,7 @@
 
 #include "nat64/common/config.h"
 #include "nat64/mod/common/xlator.h"
-#include "nat64/mod/stateful/session/entry.h"
+#include "nat64/mod/stateful/bib/entry.h"
 
 struct joold_queue;
 
@@ -24,7 +24,7 @@ void joold_config_set(struct joold_queue *queue, struct joold_config *config);
 
 int joold_sync(struct xlator *jool, void *data, __u32 size);
 void joold_add(struct joold_queue *queue, struct session_entry *entry,
-		struct sessiondb *sdb);
+		struct bib *bib);
 void joold_update_config(struct joold_queue *queue,
 		struct joold_config *new_config);
 
@@ -32,6 +32,6 @@ int joold_test(struct xlator *jool);
 int joold_advertise(struct xlator *jool);
 void joold_ack(struct xlator *jool);
 
-void joold_clean(struct joold_queue *queue, struct sessiondb *sdb);
+void joold_clean(struct joold_queue *queue, struct bib *bib);
 
 #endif

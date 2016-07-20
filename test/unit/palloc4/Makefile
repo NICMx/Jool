@@ -29,7 +29,6 @@ $(PALLOC)-objs += ../../../mod/stateful/impersonator.o
 $(PALLOC)-objs += ../../../mod/stateful/pool4/db.o
 $(PALLOC)-objs += ../../../mod/stateful/pool4/empty.o
 $(PALLOC)-objs += ../framework/types.o
-$(PALLOC)-objs += ../impersonator/bib.o
 $(PALLOC)-objs += ../impersonator/icmp_wrapper.o
 $(PALLOC)-objs += ../impersonator/route.o
 $(PALLOC)-objs += port_allocator_test.o

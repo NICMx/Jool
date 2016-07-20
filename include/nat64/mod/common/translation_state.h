@@ -3,6 +3,7 @@
 
 #include "nat64/mod/common/xlator.h"
 #include "nat64/mod/common/packet.h"
+#include "nat64/mod/stateful/bib/entry.h"
 
 /**
  * State of the current translation.
@@ -20,14 +21,13 @@ struct xlation {
 	struct packet out;
 
 	/**
-	 * Convenient accesor to the session that corresponds to the packet
-	 * being translated, so you don't have to find it again.
-	 *
-	 * You should never trust this has been set.
+	 * Convenient accesor to the BIB and session entries that correspond
+	 * to the packet being translated, so you don't have to find it again.
 	 */
-	struct session_entry *session;
+	struct bib_session entries;
 };
 
+void xlation_init(struct xlation *state);
 void xlation_put(struct xlation *state);
 
 #endif /* _JOOL_MOD_TRANSLATION_STATE_H */

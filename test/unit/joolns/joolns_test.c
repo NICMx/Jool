@@ -4,8 +4,8 @@
 #include "nat64/common/str_utils.h"
 #include "nat64/mod/common/xlator.h"
 #include "nat64/unit/unit_test.h"
-#include "../mod/common/pool6.c"
 #include "nat64/mod/common/atomic_config.h"
+#include "pool6.c"
 
 /*
  * Er... this doesn't even try to test everything.

@@ -1,4 +1,4 @@
-#include "nat64/mod/stateful/session/pkt_queue.h"
+#include "nat64/mod/stateful/bib/pkt_queue.h"
 
 #include "nat64/common/constants.h"
 #include "nat64/mod/common/config.h"
@@ -21,7 +21,8 @@ struct pktqueue {
  */
 struct pktqueue_node {
 	/** The packet's session entry. */
-	struct session_entry *session;
+	struct pktqueue_session session;
+	unsigned long update_time;
 	/** The packet. */
 	struct packet pkt;
 
@@ -31,9 +32,6 @@ struct pktqueue_node {
 	struct rb_node tree_hook;
 };
 
-/** Protects @nodes_list, @nodes_tree and @node_count. */
-static DEFINE_SPINLOCK(lock);
-
 static unsigned long get_timeout(void)
 {
 	return msecs_to_jiffies(1000 * TCP_INCOMING_SYN);
@@ -42,7 +40,6 @@ static unsigned long get_timeout(void)
 static void send_icmp_error(struct pktqueue_node *node)
 {
 	icmp64_send(&node->pkt, ICMPERR_PORT_UNREACHABLE, 0);
-	session_put(node->session, false);
 	kfree_skb(node->pkt.skb);
 	wkfree(struct pktqueue_node, node);
 }
@@ -83,16 +80,12 @@ void pktqueue_destroy(struct pktqueue *queue)
 void pktqueue_config_copy(struct pktqueue *queue,
 		struct pktqueue_config *config)
 {
-	spin_lock_bh(&lock);
 	config->max_stored_pkts = queue->capacity;
-	spin_unlock_bh(&lock);
 }
 
 void pktqueue_config_set(struct pktqueue *queue, struct pktqueue_config *config)
 {
-	spin_lock_bh(&lock);
 	queue->capacity = config->max_stored_pkts;
-	spin_unlock_bh(&lock);
 }
 
 /**
@@ -103,30 +96,21 @@ void pktqueue_config_set(struct pktqueue *queue, struct pktqueue_config *config)
  * Doesn't care about spinlocks.
  */
 static int compare_fn(const struct pktqueue_node *node,
-		const struct session_entry *session)
+		const struct pktqueue_session *session)
 {
 	int gap;
 
-	gap = ipv4_addr_cmp(&node->session->dst4.l3, &session->dst4.l3);
+	gap = taddr4_compare(&node->session.src4, &session->src4);
 	if (gap)
 		return gap;
 
-	gap = node->session->dst4.l4 - session->dst4.l4;
-	if (gap)
-		return gap;
-
-	gap = ipv4_addr_cmp(&node->session->src4.l3, &session->src4.l3);
-	if (gap)
-		return gap;
-
-	gap = node->session->src4.l4 - session->src4.l4;
-	return gap;
+	return taddr4_compare(&node->session.dst4, &session->dst4);
 }
 
 static struct pktqueue_node *__tree_add(struct pktqueue *queue,
 		struct pktqueue_node *node)
 {
-	return rbtree_add(node, node->session, &queue->node_tree, compare_fn,
+	return rbtree_add(node, &node->session, &queue->node_tree, compare_fn,
 			struct pktqueue_node, tree_hook);
 }
 
@@ -134,77 +118,81 @@ static struct pktqueue_node *__tree_add(struct pktqueue *queue,
  * On success, assumes the caller's reference to @session is being transferred
  * to @queue.
  */
-int pktqueue_add(struct pktqueue *queue, struct session_entry *session,
+int pktqueue_add(struct pktqueue *queue, struct pktqueue_session *session,
 		struct packet *pkt)
 {
 	struct pktqueue_node *node;
+	struct pktqueue_node *collision;
 
-	/* Note: this if assumes ICMP errors don't reach this code. */
-	if (session->l4_proto != L4PROTO_TCP)
-		return 0;
+	if (queue->node_count + 1 >= queue->capacity) {
+		log_debug("Too many IPv4-initiated TCP connections.");
+		/* Fall back to assume there's no Simultaneous Open. */
+		/* TODO ... this is happening in a lock */
+		icmp64_send(pkt, ICMPERR_PORT_UNREACHABLE, 0);
+		return -E2BIG;
+	}
 
 	node = wkmalloc(struct pktqueue_node, GFP_ATOMIC);
 	if (!node) {
 		log_debug("Allocation of packet node failed.");
 		return -ENOMEM;
 	}
-	node->session = session;
+	node->session = *session;
 	node->pkt = *pkt_original_pkt(pkt);
 	node->pkt.original_pkt = &node->pkt;
 	RB_CLEAR_NODE(&node->tree_hook);
 
-	spin_lock_bh(&lock);
-
-	if (queue->node_count + 1 >= queue->capacity) {
-		spin_unlock_bh(&lock);
-		log_debug("Too many IPv4-initiated TCP connections.");
-		/* Fall back to assume there's no Simultaneous Open. */
-		icmp64_send(&node->pkt, ICMPERR_PORT_UNREACHABLE, 0);
+	collision = __tree_add(queue, node);
+	if (collision) {
+		log_debug("Simultaneous Open already exists.");
 		wkfree(struct pktqueue_node, node);
-		return -E2BIG;
-	}
 
-	if (__tree_add(queue, node)) {
-		spin_unlock_bh(&lock);
-		log_debug("Simultaneous Open already exists; ignoring packet.");
-		wkfree(struct pktqueue_node, node);
+		collision->update_time = jiffies;
+		list_del(&collision->list_hook);
+		list_add_tail(&collision->list_hook, &queue->node_list);
+
 		return -EEXIST;
 	}
+
 	list_add_tail(&node->list_hook, &queue->node_list);
 	queue->node_count++;
-
-	spin_unlock_bh(&lock);
 
 	log_debug("Pkt queue - I just stored a packet.");
 	return 0;
 }
 
 static struct pktqueue_node *__tree_find(struct pktqueue *queue,
-		struct session_entry *session)
+		struct pktqueue_session *session)
 {
 	return rbtree_find(session, &queue->node_tree, compare_fn,
 			struct pktqueue_node, tree_hook);
 }
 
-void pktqueue_rm(struct pktqueue *queue, struct session_entry *session)
+/**
+ * Why?
+ * RFC 6146 insists on us storing src6 and dst6 and I can't find any other use
+ * for them.
+ * Also if pool6 changes I don't want the wrong v4 endnode to get the ICMP
+ * error somehow.
+ * Or pool4 changes and @src6 no longer is the owner of @src4.
+ */
+static bool pqsession_equals6(struct pktqueue_session *s1,
+		struct pktqueue_session *s2)
+{
+	if (s1->src6_set && !taddr6_equals(&s1->src6, &s2->src6))
+		return false;
+	return taddr6_equals(&s1->dst6, &s2->dst6);
+}
+
+void pktqueue_rm(struct pktqueue *queue, struct pktqueue_session *session)
 {
 	struct pktqueue_node *node;
 
-	/* Note: this if assumes ICMP errors don't reach this code. */
-	if (session->l4_proto != L4PROTO_TCP)
-		return;
-
-	spin_lock_bh(&lock);
 	node = __tree_find(queue, session);
-	if (!node) {
-		spin_unlock_bh(&lock);
+	if (!node || !pqsession_equals6(&node->session, session))
 		return;
-	}
 
 	rm(queue, node);
-	spin_unlock_bh(&lock);
-
-	session_put(node->session, false);
 	kfree_skb(node->pkt.skb);
 	wkfree(struct pktqueue_node, node);
 
@@ -218,20 +206,18 @@ void pktqueue_clean(struct pktqueue *queue)
 	unsigned long next_timeout;
 	LIST_HEAD(icmps);
 
-	spin_lock_bh(&lock);
 	list_for_each_entry_safe(node, tmp, &queue->node_list, list_hook) {
 		/*
 		 * "list" is sorted by expiration date,
 		 * so stop on the first unexpired session.
 		 */
-		next_timeout = node->session->update_time + TIMEOUT;
+		next_timeout = node->update_time + TIMEOUT;
 		if (time_before(jiffies, next_timeout))
 			break;
 
 		rm(queue, node);
 		list_add(&node->list_hook, &icmps);
 	}
-	spin_unlock_bh(&lock);
 
 	list_for_each_entry_safe(node, tmp, &icmps, list_hook)
 		send_icmp_error(node);

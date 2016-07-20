@@ -9,7 +9,7 @@
 #include "nat64/mod/common/nl/nl_core2.h"
 #include "nat64/mod/stateful/fragment_db.h"
 #include "nat64/mod/stateful/joold.h"
-#include "nat64/mod/stateful/session/db.h"
+#include "nat64/mod/stateful/bib/db.h"
 #include "nat64/mod/stateless/eam.h"
 #include "nat64/usr/global.h"
 
@@ -297,28 +297,28 @@ static int massive_switch(struct full_config *cfg, struct global_value *chunk,
 		return error ? : parse_u8(&cfg->global.nat64.f_args, chunk, size);
 	case UDP_TIMEOUT:
 		error = ensure_nat64(OPTNAME_UDP_TIMEOUT);
-		return error ? : parse_timeout(&cfg->session.ttl.udp, chunk, size, UDP_MIN);
+		return error ? : parse_timeout(&cfg->bib.ttl.udp, chunk, size, UDP_MIN);
 	case ICMP_TIMEOUT:
 		error = ensure_nat64(OPTNAME_ICMP_TIMEOUT);
-		return error ? : parse_timeout(&cfg->session.ttl.icmp, chunk, size, 0);
+		return error ? : parse_timeout(&cfg->bib.ttl.icmp, chunk, size, 0);
 	case TCP_EST_TIMEOUT:
 		error = ensure_nat64(OPTNAME_TCPEST_TIMEOUT);
-		return error ? : parse_timeout(&cfg->session.ttl.tcp_est, chunk, size, TCP_EST);
+		return error ? : parse_timeout(&cfg->bib.ttl.tcp_est, chunk, size, TCP_EST);
 	case TCP_TRANS_TIMEOUT:
 		error = ensure_nat64(OPTNAME_TCPTRANS_TIMEOUT);
-		return error ? : parse_timeout(&cfg->session.ttl.tcp_trans, chunk, size, TCP_TRANS);
+		return error ? : parse_timeout(&cfg->bib.ttl.tcp_trans, chunk, size, TCP_TRANS);
 	case FRAGMENT_TIMEOUT:
 		error = ensure_nat64(OPTNAME_FRAG_TIMEOUT);
 		return error ? : parse_timeout(&cfg->frag.ttl, chunk, size, FRAGMENT_MIN);
 	case BIB_LOGGING:
 		error = ensure_nat64(OPTNAME_BIB_LOGGING);
-		return error ? : parse_bool(&cfg->bib.log_changes, chunk, size);
+		return error ? : parse_bool(&cfg->bib.bib_logging, chunk, size);
 	case SESSION_LOGGING:
 		error = ensure_nat64(OPTNAME_SESSION_LOGGING);
-		return error ? : parse_bool(&cfg->session.log_changes, chunk, size);
+		return error ? : parse_bool(&cfg->bib.session_logging, chunk, size);
 	case MAX_PKTS:
 		error = ensure_nat64(OPTNAME_MAX_SO);
-		return error ? : parse_u32(&cfg->session.pktqueue.max_stored_pkts, chunk, size);
+		return error ? : parse_u32(&cfg->bib.pktqueue.max_stored_pkts, chunk, size);
 	case SYNCH_ENABLE:
 		error = ensure_nat64(OPTNAME_SYNCH_ENABLE);
 		if (!error)
@@ -384,7 +384,7 @@ static int commit_config(struct xlator *jool, struct full_config *config)
 		return error;
 
 	config_copy(&config->global, &jool->global->cfg);
-	sessiondb_config_set(jool->nat64.session, &config->session);
+	bib_config_set(jool->nat64.bib, &config->bib);
 	joold_config_set(jool->nat64.joold, &config->joold);
 	fragdb_config_set(jool->nat64.frag, &config->frag);
 

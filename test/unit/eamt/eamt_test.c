@@ -10,7 +10,7 @@ MODULE_DESCRIPTION("Unit tests for the EAMT module");
 #include "nat64/common/str_utils.h"
 #include "nat64/unit/types.h"
 #include "nat64/unit/unit_test.h"
-#include "../mod/stateless/eam.c"
+#include "eam.c"
 
 static struct eam_table *eamt;
 
