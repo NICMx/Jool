@@ -19,9 +19,3 @@ struct dst_entry *route6(struct net *ns, struct packet *pkt)
 	log_debug("Pretending I'm routing an IPv6 packet.");
 	return NULL;
 }
-
-struct dst_entry *route(struct net *ns, struct packet *pkt)
-{
-	log_debug("Pretending I'm routing a packet.");
-	return NULL;
-}

@@ -114,6 +114,7 @@ void treeslot_commit(struct tree_slot *slot);
 				node = node->rb_left; \
 			} else { \
 				collision = node; \
+				node = NULL; \
 			} \
 		} \
 		\

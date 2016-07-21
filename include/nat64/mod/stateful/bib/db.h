@@ -136,4 +136,6 @@ void bib_flush(struct bib *db);
 int bib_count(struct bib *db, l4_protocol proto, __u64 *count);
 int bib_count_sessions(struct bib *db, l4_protocol proto, __u64 *count);
 
+void bib_print(struct bib *db);
+
 #endif /* _JOOL_MOD_SESSION_DB_H */

@@ -5,6 +5,8 @@
 #include "nat64/mod/stateful/pool4/db.h"
 #include "nat64/mod/stateful/filtering_and_updating.h"
 
+/* TODO looks like nobody's using this anymore. */
+
 bool init_full(void)
 {
 	char *prefixes6[] = { "3::/96" };

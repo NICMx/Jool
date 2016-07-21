@@ -119,6 +119,9 @@ static bool test_foreach(void)
 
 	/* Offset is before first. */
 	args.i = 0;
+	args.offset = 0;
+	offset.l3.s_addr = cpu_to_be32(0xc0000201u);
+	offset.l4 = 50;
 	error = bib_foreach(db, L4PROTO_UDP, &func, &offset);
 	success &= ASSERT_INT(0, error, "call 10 result");
 	success &= ASSERT_UINT(5, args.i, "call 10 counter");
@@ -126,18 +129,22 @@ static bool test_foreach(void)
 	/* Offset is first. */
 	args.i = 0;
 	args.offset = 1;
+	offset.l4 = 100;
 	error = bib_foreach(db, L4PROTO_UDP, &func, &offset);
 	success &= ASSERT_INT(0, error, "call 12 result");
 	success &= ASSERT_UINT(4, args.i, "call 12 counter");
 
 	/* Offset is last, do not include offset. */
 	args.i = 0;
+	offset.l3.s_addr = cpu_to_be32(0xc0000203u);
+	offset.l4 = 100;
 	error = bib_foreach(db, L4PROTO_UDP, &func, &offset);
 	success &= ASSERT_INT(0, error, "call 14 result");
 	success &= ASSERT_UINT(0, args.i, "call 14 counter");
 
 	/* Offset is after last, do not include offset. */
 	args.i = 0;
+	offset.l4 = 150;
 	error = bib_foreach(db, L4PROTO_UDP, &func, &offset);
 	success &= ASSERT_INT(0, error, "call 16 result");
 	success &= ASSERT_UINT(0, args.i, "call 16 counter");

@@ -21,8 +21,7 @@ $(SESSIONTABLE)-objs += ../../../mod/common/config.o
 $(SESSIONTABLE)-objs += ../../../mod/common/rbtree.o
 $(SESSIONTABLE)-objs += ../../../mod/stateful/bib/db.o
 $(SESSIONTABLE)-objs += ../impersonator/icmp_wrapper.o
-$(SESSIONTABLE)-objs += ../impersonator/mask_domain.o
-$(SESSIONTABLE)-objs += ../impersonator/pkt_queue.o
+$(SESSIONTABLE)-objs += ../impersonator/bib.o
 $(SESSIONTABLE)-objs += ../impersonator/route.o
 $(SESSIONTABLE)-objs += sessiontable_test.o
 

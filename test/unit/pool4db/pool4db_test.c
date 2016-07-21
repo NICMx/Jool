@@ -2,7 +2,7 @@
 #include <linux/module.h>
 
 #include "nat64/unit/unit_test.h"
-#include "pool4/db.c"
+#include "stateful/pool4/db.c"
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Ramiro Nava");
@@ -83,7 +83,8 @@ static void init_sample(struct pool4_sample *sample, __u32 addr, __u16 min,
 struct foreach_sample_args {
 	struct pool4_sample *expected;
 	unsigned int expected_len;
-	unsigned int i;
+	unsigned int samples;
+	unsigned int taddrs;
 };
 
 static int validate_sample(struct pool4_sample *sample, void *void_args)
@@ -91,22 +92,23 @@ static int validate_sample(struct pool4_sample *sample, void *void_args)
 	struct foreach_sample_args *args = void_args;
 	bool success = true;
 
-	/* log_debug("foreaching %pI4 %u-%u", &sample->addr, sample->range.min,
-			sample->range.max); */
+	/* log_debug("  foreaching %pI4 %u-%u", &sample->range.addr,
+			sample->range.ports.min, sample->range.ports.max); */
 
-	success &= ASSERT_BOOL(true, args->i < args->expected_len,
-			"overflow (%u %u)", args->i, args->expected_len);
+	success &= ASSERT_BOOL(true, args->samples < args->expected_len,
+			"overflow (%u %u)", args->samples, args->expected_len);
 	if (!success)
 		return -EINVAL;
 
-	success &= __ASSERT_ADDR4(&args->expected[args->i].range.addr,
+	success &= __ASSERT_ADDR4(&args->expected[args->samples].range.addr,
 			&sample->range.addr, "addr");
-	success &= ASSERT_UINT(args->expected[args->i].range.ports.min,
+	success &= ASSERT_UINT(args->expected[args->samples].range.ports.min,
 			sample->range.ports.min, "min");
-	success &= ASSERT_UINT(args->expected[args->i].range.ports.max,
+	success &= ASSERT_UINT(args->expected[args->samples].range.ports.max,
 			sample->range.ports.max, "max");
 
-	args->i++;
+	args->samples++;
+	args->taddrs += port_range_count(&sample->range.ports);
 	return success ? 0 : -EINVAL;
 }
 
@@ -127,11 +129,11 @@ static bool test_foreach_sample(void)
 	init_sample(&expected[i++], 0xc0000201U, 6, 7);
 	init_sample(&expected[i++], 0xc0000210U, 15, 19);
 	init_sample(&expected[i++], 0xc0000210U, 22, 23);
+	init_sample(&expected[i++], 0xc0000211U, 19, 19);
 	init_sample(&expected[i++], 0xc0000220U, 1, 1);
 	init_sample(&expected[i++], 0xc0000221U, 1, 1);
 	init_sample(&expected[i++], 0xc0000222U, 1, 1);
 	init_sample(&expected[i++], 0xc0000223U, 1, 1);
-	init_sample(&expected[i++], 0xc0000211U, 19, 19);
 
 	if (i != COUNT) {
 		log_err("Input mismatch. Unit test is broken: %u %u", i, COUNT);
@@ -140,16 +142,20 @@ static bool test_foreach_sample(void)
 
 	args.expected = &expected[0];
 	args.expected_len = COUNT;
-	args.i = 0;
+	args.samples = 0;
+	args.taddrs = 0;
 	error = pool4db_foreach_sample(pool, L4PROTO_TCP, validate_sample,
 			&args, NULL);
 	success &= ASSERT_INT(0, error, "no-offset call");
+	success &= ASSERT_UINT(9, args.samples, "no-offset samples");
+	success &= ASSERT_UINT(16, args.taddrs, "no-offset taddrs");
 
 	for (i = 0; i < COUNT; i++) {
 		/* foreach sample skips offset. */
 		args.expected = &expected[i + 1];
 		args.expected_len = COUNT - i - 1;
-		args.i = 0;
+		args.samples = 0;
+		args.taddrs = 0;
 		error = pool4db_foreach_sample(pool, L4PROTO_TCP,
 				validate_sample, &args, &expected[i]);
 		success &= ASSERT_INT(0, error, "call %u", i);
@@ -191,7 +197,8 @@ static bool assert_contains_range(__u32 addr_min, __u32 addr_max,
 	return success;
 }
 
-static bool __foreach(struct pool4_sample *expected, unsigned int expected_len)
+static bool __foreach(struct pool4_sample *expected, unsigned int expected_len,
+		unsigned int expected_taddrs)
 {
 	struct foreach_sample_args args;
 	int error;
@@ -199,12 +206,14 @@ static bool __foreach(struct pool4_sample *expected, unsigned int expected_len)
 
 	args.expected = expected;
 	args.expected_len = expected_len;
-	args.i = 0;
+	args.samples = 0;
+	args.taddrs = 0;
 
 	error = pool4db_foreach_sample(pool, L4PROTO_TCP, validate_sample,
 			&args, NULL);
 	success &= ASSERT_INT(0, error, "foreach result");
-	success &= ASSERT_UINT(expected_len, args.i, "foreach count");
+	success &= ASSERT_UINT(expected_len, args.samples, "foreach count");
+	success &= ASSERT_UINT(expected_taddrs, args.taddrs, "foreach taddrs");
 	return success;
 }
 
@@ -226,7 +235,7 @@ static bool test_add(void)
 	success &= assert_contains_range(18, 18, 0, 30, false);
 
 	init_sample(&samples[0], 0xc0000211U, 10, 20);
-	success &= __foreach(samples, 1);
+	success &= __foreach(samples, 1, 11);
 
 	/* ---------------------------------------------------------- */
 
@@ -241,7 +250,7 @@ static bool test_add(void)
 	success &= assert_contains_range(18, 32, 0, 30, false);
 
 	init_sample(&samples[0], 0xc0000211U, 5, 20);
-	success &= __foreach(samples, 1);
+	success &= __foreach(samples, 1, 16);
 
 	/* ---------------------------------------------------------- */
 
@@ -256,7 +265,7 @@ static bool test_add(void)
 	success &= assert_contains_range(18, 32, 0, 30, false);
 
 	init_sample(&samples[0], 0xc0000211U, 5, 25);
-	success &= __foreach(samples, 1);
+	success &= __foreach(samples, 1, 21);
 
 	/* ---------------------------------------------------------- */
 
@@ -274,8 +283,9 @@ static bool test_add(void)
 	success &= assert_contains_range(16, 17, 26, 30, false);
 	success &= assert_contains_range(18, 18, 0, 30, false);
 
-	init_sample(&samples[1], 0xc0000210U, 5, 25);
-	success &= __foreach(samples, 2);
+	init_sample(&samples[0], 0xc0000210U, 5, 25);
+	init_sample(&samples[1], 0xc0000211U, 5, 25);
+	success &= __foreach(samples, 2, 42);
 
 	/* ---------------------------------------------------------- */
 
@@ -292,7 +302,7 @@ static bool test_add(void)
 	success &= assert_contains_range(19, 32, 0, 30, false);
 
 	init_sample(&samples[2], 0xc0000212U, 5, 25);
-	success &= __foreach(samples, 3);
+	success &= __foreach(samples, 3, 63);
 
 	/* ---------------------------------------------------------- */
 
@@ -306,7 +316,7 @@ static bool test_add(void)
 	success &= assert_contains_range(16, 18, 26, 30, false);
 	success &= assert_contains_range(19, 32, 0, 30, false);
 
-	success &= __foreach(samples, 3);
+	success &= __foreach(samples, 3, 63);
 
 	/* ---------------------------------------------------------- */
 
@@ -320,7 +330,7 @@ static bool test_add(void)
 	success &= assert_contains_range(16, 18, 26, 30, false);
 	success &= assert_contains_range(19, 32, 0, 30, false);
 
-	success &= __foreach(samples, 3);
+	success &= __foreach(samples, 3, 63);
 
 	/* ---------------------------------------------------------- */
 
@@ -339,7 +349,7 @@ static bool test_add(void)
 	success &= assert_contains_range(20, 32, 0, 30, false);
 
 	init_sample(&samples[3], 0xc0000213U, 5, 25);
-	success &= __foreach(samples, 4);
+	success &= __foreach(samples, 4, 84);
 
 	/* ---------------------------------------------------------- */
 
@@ -360,7 +370,7 @@ static bool test_add(void)
 	success &= assert_contains_range(21, 32, 0, 30, false);
 
 	init_sample(&samples[4], 0xc0000214U, 5, 25);
-	success &= __foreach(samples, 5);
+	success &= __foreach(samples, 5, 105);
 
 	/* ---------------------------------------------------------- */
 
@@ -380,7 +390,7 @@ static bool test_add(void)
 	init_sample(&samples[5], 0xc0000215U, 5, 25);
 	init_sample(&samples[6], 0xc0000216U, 5, 25);
 	init_sample(&samples[7], 0xc0000217U, 5, 25);
-	success &= __foreach(samples, 8);
+	success &= __foreach(samples, 8, 168);
 
 	return success;
 }
@@ -399,7 +409,7 @@ static bool test_rm(void)
 	/* Remove some outermost ports from multiple addresses. */
 	if (!rm(0xc0000210U, 30, 5, 9)) /* Lower of 192.0.2.16-19 (exact)*/
 		return false;
-	if (!rm(0xc0000214U, 30, 5, 9)) /* Lower of 192.0.2.20-23 (excess) */
+	if (!rm(0xc0000214U, 30, 1, 9)) /* Lower of 192.0.2.20-23 (excess) */
 		return false;
 	if (!rm(0xc0000210U, 30, 21, 25)) /* Upper of 192.0.2.16-19 (exact) */
 		return false;
@@ -414,7 +424,7 @@ static bool test_rm(void)
 
 	for (i = 0; i < 8; i++)
 		init_sample(&samples[i], 0xc0000210U + i, 10, 20);
-	success &= __foreach(samples, 8);
+	success &= __foreach(samples, 8, 88);
 
 	/* ---------------------------------------------------------- */
 
@@ -430,7 +440,7 @@ static bool test_rm(void)
 	success &= assert_contains_range(16, 19, 21, 30, false);
 	success &= assert_contains_range(20, 32, 0, 30, false);
 
-	success &= __foreach(samples, 4);
+	success &= __foreach(samples, 4, 44);
 
 	/* ---------------------------------------------------------- */
 
@@ -453,7 +463,7 @@ static bool test_rm(void)
 	init_sample(&samples[3], 0xc0000212U, 18, 20);
 	init_sample(&samples[4], 0xc0000213U, 10, 12);
 	init_sample(&samples[5], 0xc0000213U, 18, 20);
-	success &= __foreach(samples, 6);
+	success &= __foreach(samples, 6, 34);
 
 	/* ---------------------------------------------------------- */
 
@@ -472,7 +482,7 @@ static bool test_rm(void)
 	success &= assert_contains_range(18, 18, 21, 30, false);
 	success &= assert_contains_range(19, 32, 0, 30, false);
 
-	success &= __foreach(samples, 4);
+	success &= __foreach(samples, 4, 28);
 
 	/* ---------------------------------------------------------- */
 
@@ -481,7 +491,7 @@ static bool test_rm(void)
 		return false;
 
 	success &= assert_contains_range(0, 32, 0, 30, false);
-	success &= __foreach(samples, 0);
+	success &= __foreach(samples, 0, 0);
 
 	return success;
 }
@@ -500,7 +510,7 @@ static bool test_flush(void)
 		return false;
 
 	pool4db_flush(pool);
-	success &= __foreach(NULL, 0);
+	success &= __foreach(NULL, 0, 0);
 	return success;
 }
 
@@ -542,7 +552,7 @@ int init_module(void)
 	INIT_CALL_END(init(), test_foreach_sample(), destroy(), "Sample for");
 	INIT_CALL_END(init(), test_add(), destroy(), "Add");
 	INIT_CALL_END(init(), test_rm(), destroy(), "Rm");
-	INIT_CALL_END(init(), test_flush(), destroy(), "Rm");
+	INIT_CALL_END(init(), test_flush(), destroy(), "Flush");
 
 	END_TESTS;
 }

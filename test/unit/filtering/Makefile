@@ -17,33 +17,23 @@ FILTERING = filtering
 obj-m += $(FILTERING).o
 
 $(FILTERING)-objs += $(MIN_REQS)
-$(FILTERING)-objs += ../../../common/netlink/config.o
-$(FILTERING)-objs += ../../../mod/common/atomic_config.o
 $(FILTERING)-objs += ../../../mod/common/config.o
-$(FILTERING)-objs += ../../../mod/common/ipv6_hdr_iterator.o
 $(FILTERING)-objs += ../../../mod/common/packet.o
 $(FILTERING)-objs += ../../../mod/common/pool6.o
 $(FILTERING)-objs += ../../../mod/common/rbtree.o
 $(FILTERING)-objs += ../../../mod/common/rfc6052.o
 $(FILTERING)-objs += ../../../mod/common/xlator.o
-$(FILTERING)-objs += ../../../mod/common/nl/nl_common.o
-$(FILTERING)-objs += ../../../mod/common/nl/nl_core2.o
-$(FILTERING)-objs += ../../../mod/common/rfc6145/4to6.o
-$(FILTERING)-objs += ../../../mod/common/rfc6145/6to4.o
-$(FILTERING)-objs += ../../../mod/common/rfc6145/common.o
-$(FILTERING)-objs += ../../../mod/stateful/fragment_db.o
 $(FILTERING)-objs += ../../../mod/stateful/impersonator.o
-$(FILTERING)-objs += ../../../mod/stateful/joold.o
 $(FILTERING)-objs += ../../../mod/stateful/pool4/db.o
+$(FILTERING)-objs += ../../../mod/stateful/pool4/empty.o
 $(FILTERING)-objs += ../../../mod/stateful/pool4/rfc6056.o
 $(FILTERING)-objs += ../../../mod/stateful/bib/db.o
 $(FILTERING)-objs += ../../../mod/stateful/bib/pkt_queue.o
 $(FILTERING)-objs += ../framework/skb_generator.o
 $(FILTERING)-objs += ../framework/types.o
 $(FILTERING)-objs += ../impersonator/icmp_wrapper.o
-$(FILTERING)-objs += ../impersonator/nl.o
-$(FILTERING)-objs += ../impersonator/pool4_empty.o
 $(FILTERING)-objs += ../impersonator/route.o
+$(FILTERING)-objs += impersonator.o
 $(FILTERING)-objs += filtering_and_updating_test.o
 
 

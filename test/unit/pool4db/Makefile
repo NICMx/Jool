@@ -19,8 +19,8 @@ obj-m += $(POOL4DB).o
 $(POOL4DB)-objs += $(MIN_REQS)
 $(POOL4DB)-objs += ../../../mod/common/rbtree.o
 $(POOL4DB)-objs += ../../../mod/stateful/pool4/empty.o
-$(POOL4DB)-objs += ../impersonator/rfc6056.o
 $(POOL4DB)-objs += ../impersonator/route.o
+$(POOL4DB)-objs += impersonator.o
 $(POOL4DB)-objs += pool4db_test.o
 
 

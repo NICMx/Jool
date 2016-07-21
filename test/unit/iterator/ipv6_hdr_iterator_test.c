@@ -2,7 +2,7 @@
 #include <linux/printk.h>
 
 #include "nat64/unit/unit_test.h"
-#include "ipv6_hdr_iterator.c"
+#include "common/ipv6_hdr_iterator.c"
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Alberto Leiva Popper");

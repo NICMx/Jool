@@ -11,7 +11,7 @@ MODULE_DESCRIPTION("Unit tests for the Filtering module");
 #include "nat64/unit/unit_test.h"
 #include "nat64/unit/skb_generator.h"
 #include "nat64/mod/stateful/pool4/rfc6056.h"
-#include "filtering_and_updating.c"
+#include "stateful/filtering_and_updating.c"
 
 static struct xlator jool;
 
@@ -73,8 +73,8 @@ static bool assert_session_count(int expected, l4_protocol proto)
 
 	/* TODO maybe also compare the number to bib_count_sessions. */
 
-	success = ASSERT_INT(0, bib_foreach_session(jool.nat64.bib, proto, &cb, NULL), "count");
-	success = ASSERT_INT(expected, count, "Session count");
+	success &= ASSERT_INT(0, bib_foreach_session(jool.nat64.bib, proto, &cb, NULL), "count");
+	success &= ASSERT_INT(expected, count, "Session count");
 
 	return success;
 }
@@ -130,28 +130,20 @@ static bool assert_session_exists(char *remote_addr6, u16 remote_port6,
  * into 5.5.5.5#66->7.7.7.7#77, the "original" IPv6 tuple was 1::1#22->3::3#44,
  * and the corresponding IPv4 tuple is 7.7.7.7#77->5.5.5.5#66.
  */
-static int invert_tuple(struct tuple *tuple)
+static int invert_tuple(struct xlation *state)
 {
-	struct bib_session session;
-
-	if (bib_find(jool.nat64.bib, tuple, &session)) {
-		log_err("Could not find the session from the previous test.");
-		return -EEXIST;
-	}
-
-	if (!session.bib_set) {
+	if (!state->entries.bib_set) {
 		log_err("Session was expected to have a BIB entry.");
 		return -ESRCH;
 	}
-	if (!session.session_set) {
+	if (!state->entries.session_set) {
 		log_err("Session was expected to have a session."); /* Lel */
 		return -ESRCH;
 	}
 
-	tuple->src.addr4 = session.session.dst4;
-	tuple->dst.addr4 = session.session.src4;
-	tuple->l3_proto = L3PROTO_IPV4;
-
+	state->in.tuple.src.addr4 = state->entries.session.dst4;
+	state->in.tuple.dst.addr4 = state->entries.session.src4;
+	state->in.tuple.l3_proto = L3PROTO_IPV4;
 	return 0;
 }
 
@@ -266,7 +258,7 @@ static bool test_filtering_and_updating(void)
 		return false;
 
 	log_debug("Other IPv4 packets should survive validations.");
-	if (invert_tuple(&state.in.tuple))
+	if (invert_tuple(&state))
 		return false;
 	if (create_skb4_udp(&state.in.tuple, &skb, 100, 32))
 		return false;
@@ -320,7 +312,7 @@ static bool test_udp(void)
 	kfree_skb(skb);
 
 	/* Now that there's state, the IPv4 packet manages to traverse. */
-	if (invert_tuple(&state.in.tuple))
+	if (invert_tuple(&state))
 		return false;
 	if (create_skb4_udp(&state.in.tuple, &skb, 16, 32))
 		return false;
@@ -379,7 +371,7 @@ static bool test_icmp(void)
 	kfree_skb(skb);
 
 	/* Now that there's state, the IPv4 packet manages to traverse. */
-	if (invert_tuple(&state.in.tuple))
+	if (invert_tuple(&state))
 		return false;
 	if (create_skb4_icmp_info(&state.in.tuple, &skb, 16, 32))
 		return false;
@@ -429,7 +421,7 @@ static bool test_tcp(void)
 	kfree_skb(skb);
 
 	/* V4 SYN */
-	if (invert_tuple(&state.in.tuple))
+	if (invert_tuple(&state))
 		return false;
 	if (create_tcp_packet(&skb, L3PROTO_IPV4, true, false, false))
 		return false;

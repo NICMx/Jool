@@ -21,8 +21,7 @@ $(BIBTABLE)-objs += ../../../mod/common/config.o
 $(BIBTABLE)-objs += ../../../mod/common/rbtree.o
 $(BIBTABLE)-objs += ../../../mod/stateful/bib/db.o
 $(BIBTABLE)-objs += ../impersonator/icmp_wrapper.o
-$(BIBTABLE)-objs += ../impersonator/mask_domain.o
-$(BIBTABLE)-objs += ../impersonator/pkt_queue.o
+$(BIBTABLE)-objs += ../impersonator/bib.o
 $(BIBTABLE)-objs += ../impersonator/route.o
 $(BIBTABLE)-objs += bibtable_test.o
 

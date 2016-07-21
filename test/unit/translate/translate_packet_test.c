@@ -6,9 +6,9 @@
 #include "nat64/unit/skb_generator.h"
 #include "nat64/unit/validator.h"
 #include "nat64/unit/types.h"
-#include "rfc6145/core.c"
-#include "rfc6145/6to4.c"
-#include "rfc6145/4to6.c"
+#include "common/rfc6145/core.c"
+#include "common/rfc6145/6to4.c"
+#include "common/rfc6145/4to6.c"
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Alberto Leiva Popper");

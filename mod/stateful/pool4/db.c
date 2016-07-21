@@ -24,6 +24,9 @@ struct pool4_table {
 	 */
 };
 
+/**
+ * Assumes @table has at least one entry.
+ */
 #define foreach_table_range(entry, table) \
 	for (entry = first_table_entry(table); \
 			entry < first_table_entry(table) + table->sample_count; \
@@ -59,6 +62,9 @@ struct mask_domain {
 	 */
 };
 
+/**
+ * Assumes @domain has at least one entry.
+ */
 #define foreach_domain_range(entry, domain) \
 	for (entry = first_domain_entry(domain); \
 			entry < first_domain_entry(domain) + domain->range_count; \
@@ -229,9 +235,13 @@ static int compare_range(struct pool4_range *r1, struct pool4_range *r2)
 	if (gap)
 		return gap;
 
-	if (r1->ports.max < r2->ports.min)
+	/*
+	 * Reminder: "+/- 1" converts the number into an int.
+	 * These are not __u16 comparisons.
+	 */
+	if (r1->ports.max < r2->ports.min - 1)
 		return -1;
-	if (r1->ports.min > r2->ports.max)
+	if (r1->ports.min > r2->ports.max + 1)
 		return 1;
 	return 0;
 }
@@ -251,8 +261,8 @@ static void fix_collisions(struct pool4_table *table, struct pool4_range *entry)
 		pool4_range_fuse(entry, entry + 1);
 		table->taddr_count += port_range_count(&entry->ports);
 
-		last -= sizeof(struct pool4_range);
-		memcpy(entry, entry + 1,
+		last--;
+		memmove(entry + 1, entry + 2,
 				(last - entry) * sizeof(struct pool4_range));
 
 		table->sample_count--;
@@ -262,8 +272,8 @@ static void fix_collisions(struct pool4_table *table, struct pool4_range *entry)
 /**
  * IMPORTANT NOTE: @table should not be dereferenced after this!
  *
- * Will enlarge @table's entry array and place @new after @entry. (Which is
- * assumed to be one of @table's entries.)
+ * Will enlarge @table's entry array and place @new before @entry.
+ * (@entry must belong to @table, @new must not.)
  */
 static int slip_in(struct rb_root *tree, struct pool4_table *table,
 		struct pool4_range *entry, struct pool4_range *new)
@@ -289,8 +299,13 @@ static int slip_in(struct rb_root *tree, struct pool4_table *table,
 
 	entry = first_table_entry(new_table) + entry_offset;
 	last = last_table_entry(new_table);
-	memcpy(entry + 1, entry,
-			(last - entry + 1) * sizeof(struct pool4_range));
+	memmove(entry + 1, entry,
+			/*
+			 * "+ 1" is before "- entry" to prevent negatives.
+			 * I'm not actually sure if negatives are a problem
+			 * when it comes to pointers, but whatever.
+			 */
+			(last + 1 - entry) * sizeof(struct pool4_range));
 
 	*entry = *new;
 	new_table->taddr_count += port_range_count(&new->ports);
@@ -304,6 +319,7 @@ static int pool4_add_range(struct rb_root *tree, struct pool4_table *table,
 	struct pool4_range *entry;
 	int comparison;
 
+	/* Reminder: @table cannot be empty when this function kicks in. */
 	foreach_table_range(entry, table) {
 		comparison = compare_range(entry, new);
 		if (comparison == 0) {
@@ -393,6 +409,10 @@ int pool4db_add(struct pool4 *pool, const __u32 mark, l4_protocol proto,
 			&& addend.ports.min == 0)
 		addend.ports.min = 1;
 
+	/* log_debug("Adding range:%pI4/%u %u-%u",
+			&range->prefix.address, range->prefix.len,
+			range->ports.min, range->ports.max); */
+
 	foreach_addr4(addend.addr, tmp, &range->prefix) {
 		spin_lock_bh(&pool->lock);
 		error = add_to_mark_tree(pool, mark, proto, &addend);
@@ -443,7 +463,7 @@ int pool4db_add_str(struct pool4 *pool, char *prefix_strs[], int prefix_count)
 	return 0;
 }
 
-static int remove_taddrs(struct rb_root *tree, struct pool4_table *table,
+static int remove_range(struct rb_root *tree, struct pool4_table *table,
 		struct ipv4_range *rm)
 {
 	struct pool4_range *entry;
@@ -456,6 +476,10 @@ static int remove_taddrs(struct rb_root *tree, struct pool4_table *table,
 	int i;
 	int error = 0;
 
+	/* log_debug("  removing range %pI4/%u %u-%u",
+			&rm->prefix.address, rm->prefix.len,
+			rm->ports.min, rm->ports.max); */
+
 	/*
 	 * Note: The entries are sorted so this could be a binary search, but I
 	 * don't want to risk getting it wrong or complicate the code further.
@@ -465,40 +489,51 @@ static int remove_taddrs(struct rb_root *tree, struct pool4_table *table,
 		entry = first_table_entry(table) + i;
 
 		if (!prefix4_contains(&rm->prefix, &entry->addr))
-			break;
+			continue;
 
 		ports = &entry->ports;
 
 		if (rm->ports.min <= ports->min && ports->max <= rm->ports.max) {
+			/* log_debug("    rm fully contains %pI4 %u-%u.",
+					&entry->addr, ports->min, ports->max);*/
 			table->taddr_count -= port_range_count(ports);
-			memmove(ports, ports + 1, sizeof(struct port_range)
-					* (table->sample_count - i));
+			memmove(entry, entry + 1, sizeof(struct pool4_range)
+					* (table->sample_count - i - 1));
 			table->sample_count--;
 			i--;
 			continue;
 		}
 		if (ports->min < rm->ports.min && rm->ports.max < ports->max) {
+			/* log_debug("    rm is inside %pI4 %u-%u.",
+					&entry->addr, ports->min, ports->max);*/
 			/* Punch a hole in ports. */
 			table->taddr_count -= port_range_count(&rm->ports);
 			tmp.addr = entry->addr;
 			tmp.ports.min = rm->ports.max + 1;
 			tmp.ports.max = ports->max;
 			ports->max = rm->ports.min - 1;
-			error = slip_in(tree, table, entry, &tmp);
+			error = slip_in(tree, table, entry + 1, &tmp);
 			if (error)
 				break;
 			continue;
 		}
 
-		if (rm->ports.max < ports->min || rm->ports.min > ports->max)
+		if (rm->ports.max < ports->min || rm->ports.min > ports->max) {
+			/* log_debug("    rm has nothing to do with %pI4 %u-%u.",
+					&entry->addr, ports->min, ports->max);*/
 			continue;
+		}
 
 		if (ports->min < rm->ports.min) {
+			/* log_debug("    rm touches %pI4 %u-%u's right.",
+					&entry->addr, ports->min, ports->max);*/
 			table->taddr_count -= ports->max - rm->ports.min + 1;
 			ports->max = rm->ports.min - 1;
 			continue;
 		}
 		if (rm->ports.max < ports->max) {
+			/* log_debug("    rm touches %pI4 %u-%u's left.",
+					&entry->addr, ports->min, ports->max);*/
 			table->taddr_count -= rm->ports.max - ports->min + 1;
 			ports->min = rm->ports.max + 1;
 			continue;
@@ -527,7 +562,7 @@ static int rm_from_mark_tree(struct pool4 *pool, const __u32 mark,
 	if (!table)
 		return 0;
 
-	return remove_taddrs(tree, table, range);
+	return remove_range(tree, table, range);
 }
 
 static int rm_from_addr_tree(struct pool4 *pool, l4_protocol proto,
@@ -550,7 +585,7 @@ static int rm_from_addr_tree(struct pool4 *pool, l4_protocol proto,
 	prev = rb_prev(&table->tree_hook);
 	next = rb_next(&table->tree_hook);
 
-	error = remove_taddrs(tree, table, range);
+	error = remove_range(tree, table, range);
 	if (error)
 		return error;
 
@@ -559,7 +594,7 @@ static int rm_from_addr_tree(struct pool4 *pool, l4_protocol proto,
 		if (!prefix4_contains(&range->prefix, &table->addr))
 			break;
 		prev = rb_prev(&table->tree_hook);
-		error = remove_taddrs(tree, table, range);
+		error = remove_range(tree, table, range);
 		if (error)
 			return error;
 	}
@@ -569,7 +604,7 @@ static int rm_from_addr_tree(struct pool4 *pool, l4_protocol proto,
 		if (!prefix4_contains(&range->prefix, &table->addr))
 			break;
 		next = rb_next(&table->tree_hook);
-		error = remove_taddrs(tree, table, range);
+		error = remove_range(tree, table, range);
 		if (error)
 			return error;
 	}
@@ -716,14 +751,11 @@ int pool4db_foreach_sample(struct pool4 *pool, l4_protocol proto,
 
 	if (offset) {
 		table = find_by_mark(tree, offset->mark);
-		if (!table) {
-			log_err("Oops. Pool4 changed while I was iterating so I lost track of where I was. Try again.");
-			error = -EAGAIN;
-			goto end;
-		}
+		if (!table)
+			goto eagain;
 		error = find_offset(table, &offset->range, &entry);
 		if (error)
-			goto end; /* TODO Error msg? */
+			goto eagain;
 		sample.mark = table->mark;
 		goto offset_start;
 	}
@@ -734,11 +766,11 @@ int pool4db_foreach_sample(struct pool4 *pool, l4_protocol proto,
 		sample.mark = table->mark;
 
 		foreach_table_range(entry, table) {
-offset_start:
 			sample.range = *entry;
 			error = cb(&sample, arg);
 			if (error)
 				goto end;
+offset_start:; /* <- The semicolon prevents a pointless compiler error. */
 		}
 
 		node = rb_next(&table->tree_hook);
@@ -747,6 +779,11 @@ offset_start:
 end:
 	spin_unlock_bh(&pool->lock);
 	return error;
+
+eagain:
+	spin_unlock_bh(&pool->lock);
+	log_err("Oops. Pool4 changed while I was iterating so I lost track of where I was. Try again.");
+	return -EAGAIN;
 }
 
 static void print_tree(struct rb_root *tree, bool mark)
@@ -871,7 +908,7 @@ int mask_domain_next(struct mask_domain *masks,
 			masks->current_range = first_domain_entry(masks);
 		masks->current_port = masks->current_range->ports.min;
 	} else {
-		*consecutive = true;
+		*consecutive = (masks->taddr_counter != 1);
 	}
 
 	addr->l3 = masks->current_range->addr;

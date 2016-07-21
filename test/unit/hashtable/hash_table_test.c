@@ -20,7 +20,7 @@ struct table_value {
 #define HASH_TABLE_SIZE (10)
 #define GENERATE_PRINT
 #define GENERATE_FOR_EACH
-#include "hash_table.c"
+#include "common/hash_table.c"
 
 /* These are also kind of part of the table. */
 static bool equals_cb(const struct table_key *k1, const struct table_key *k2)

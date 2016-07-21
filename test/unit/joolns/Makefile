@@ -28,8 +28,8 @@ $(JOOLNS)-objs += ../../../mod/stateless/rfc6791.o
 $(JOOLNS)-objs += ../../../mod/stateless/eam.o
 $(JOOLNS)-objs += ../../../mod/stateless/impersonator.o
 $(JOOLNS)-objs += ../../../mod/common/xlator.o
-$(JOOLNS)-objs += ../impersonator/nl.o
 $(JOOLNS)-objs += ../impersonator/route.o
+$(JOOLNS)-objs += impersonator.o
 $(JOOLNS)-objs += joolns_test.o
 
 

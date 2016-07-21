@@ -10,10 +10,11 @@
 		/* don't want these to be evaluated multiple times. */	\
 		typeof(expected) __expected = expected;			\
 		typeof(expected) __actual = actual;			\
-		if (__expected != __actual)				\
-			log_err("Test '" name "' failed. Expected:"	\
-				specifier " Actual:" specifier,		\
-				##__VA_ARGS__, __expected, __actual);	\
+		if (__expected != __actual) {				\
+			log_err("Test '" name "' failed.", ##__VA_ARGS__); \
+			pr_err("  Expected: " specifier "\n", __expected);  \
+			pr_err("  Actual  : " specifier "\n", __actual); \
+		}							\
 		__expected == __actual;					\
 	})
 
@@ -93,5 +94,6 @@ void end_full(void);
 	log_info("Finished. Runs: %d; Errors: %d", test_counter, failure_counter); \
 	return (failure_counter > 0) ? -EINVAL : 0;
 
+int broken_unit_call(const char *function);
 
 #endif /* _JOOL_UNIT_TEST_H */

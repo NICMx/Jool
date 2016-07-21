@@ -1,6 +1,3 @@
-#include "nat64/common/types.h"
-#include "nat64/common/config.h"
-#include "nat64/mod/common/packet.h"
 #include "nat64/mod/stateful/compute_outgoing_tuple.h"
 #include "nat64/mod/stateful/determine_incoming_tuple.h"
 #include "nat64/mod/stateful/filtering_and_updating.h"
@@ -36,6 +33,79 @@ verdict filtering_and_updating(struct xlation *state)
 }
 
 verdict compute_out_tuple(struct xlation *state)
+{
+	fail(__func__);
+	return VERDICT_DROP;
+}
+
+struct joold_queue *joold_create(struct net *ns)
+{
+	fail(__func__);
+	return NULL;
+}
+
+void joold_get(struct joold_queue *queue)
+{
+	fail(__func__);
+}
+
+void joold_put(struct joold_queue *queue)
+{
+	fail(__func__);
+}
+
+void joold_config_copy(struct joold_queue *queue, struct joold_config *config)
+{
+	/* No code. */
+}
+
+void joold_config_set(struct joold_queue *queue, struct joold_config *config)
+{
+	/* No code. */
+}
+
+int joold_sync(struct xlator *jool, void *data, __u32 size)
+{
+	return fail(__func__);
+}
+
+int joold_test(struct xlator *jool)
+{
+	return fail(__func__);
+}
+
+int joold_advertise(struct xlator *jool)
+{
+	return fail(__func__);
+}
+
+struct fragdb *fragdb_create(void)
+{
+	fail(__func__);
+	return NULL;
+}
+
+void fragdb_get(struct fragdb *db)
+{
+	fail(__func__);
+}
+
+void fragdb_put(struct fragdb *db)
+{
+	fail(__func__);
+}
+
+void fragdb_config_copy(struct fragdb *db, struct fragdb_config *config)
+{
+	/* No code. */
+}
+
+void fragdb_config_set(struct fragdb *db, struct fragdb_config *config)
+{
+	/* No code. */
+}
+
+verdict fragdb_handle(struct fragdb *db, struct packet *pkt)
 {
 	fail(__func__);
 	return VERDICT_DROP;
@@ -85,11 +155,6 @@ bool pool4db_contains(struct pool4 *pool, struct net *ns,
 	return false;
 }
 
-int bib_init(void)
-{
-	return fail(__func__);
-}
-
 struct bib *bib_create(void)
 {
 	fail(__func__);
@@ -130,7 +195,12 @@ int bib_find4(struct bib *db, l4_protocol proto,
 	return fail(__func__);
 }
 
-int bibdb_add(struct bib *db, struct bib_entry *entry, struct bib_entry **old)
+int bib_add_static(struct bib *db, struct bib_entry *new, struct bib_entry *old)
+{
+	return fail(__func__);
+}
+
+int bib_rm(struct bib *db, struct bib_entry *entry)
 {
 	return fail(__func__);
 }
@@ -152,94 +222,19 @@ int bib_foreach(struct bib *db, l4_protocol proto,
 	return fail(__func__);
 }
 
-int bibdb_count(struct bib *db, const l4_protocol proto, __u64 *result)
+int bib_foreach_session(struct bib *db, l4_protocol proto,
+		struct session_foreach_func *collision_cb,
+		struct session_foreach_offset *offset)
 {
 	return fail(__func__);
 }
 
-struct bib_entry *bibentry_create_usr(struct bib_entry_usr *usr)
-{
-	fail(__func__);
-	return NULL;
-}
-
-struct bib_entry *bibentry_create(const struct ipv4_transport_addr *addr4,
-		const struct ipv6_transport_addr *addr6,
-		const bool is_static, const l4_protocol proto)
-{
-	fail(__func__);
-	return NULL;
-}
-
-struct joold_queue *joold_create(struct net *ns)
-{
-	fail(__func__);
-	return NULL;
-}
-
-void joold_get(struct joold_queue *queue)
-{
-	fail(__func__);
-}
-
-void joold_put(struct joold_queue *queue)
-{
-	fail(__func__);
-}
-
-void joold_config_copy(struct joold_queue *queue, struct joold_config *config)
-{
-	/* No code. */
-}
-
-void joold_config_set(struct joold_queue *queue, struct joold_config *config)
-{
-	/* No code. */
-}
-
-struct fragdb *fragdb_create(void)
-{
-	fail(__func__);
-	return NULL;
-}
-
-void fragdb_get(struct fragdb *db)
-{
-	fail(__func__);
-}
-
-void fragdb_put(struct fragdb *db)
-{
-	fail(__func__);
-}
-
-void fragdb_config_copy(struct fragdb *db, struct fragdb_config *config)
-{
-	/* No code. */
-}
-
-void fragdb_config_set(struct fragdb *db, struct fragdb_config *config)
-{
-	/* No code. */
-}
-
-verdict fragdb_handle(struct fragdb *db, struct packet *pkt)
-{
-	fail(__func__);
-	return VERDICT_DROP;
-}
-
-int joold_sync(struct xlator *jool, void *data, __u32 size)
+int bib_count(struct bib *db, const l4_protocol proto, __u64 *result)
 {
 	return fail(__func__);
 }
 
-int joold_test(struct xlator *jool)
-{
-	return fail(__func__);
-}
-
-int joold_advertise(struct xlator *jool)
+int bib_count_sessions(struct bib *db, l4_protocol proto, __u64 *count)
 {
 	return fail(__func__);
 }

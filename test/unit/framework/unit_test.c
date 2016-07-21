@@ -12,8 +12,9 @@ bool __ASSERT_ADDR4(const struct in_addr *expected,
 		return true;
 
 	if (!expected || !actual || expected->s_addr != actual->s_addr) {
-		log_err("Test '%s' failed. Expected:%pI4 Actual:%pI4",
-				test_name, expected, actual);
+		log_err("Test '%s' failed.", test_name);
+		pr_err("  Expected: %pI4\n", expected);
+		pr_err("  Actual  : %pI4\n", actual);
 		return false;
 	}
 
@@ -40,10 +41,9 @@ bool ASSERT_TADDR4(const struct ipv4_transport_addr *expected,
 	if (taddr4_equals(expected, actual))
 		return true;
 
-	log_err("Test '%s' failed. Expected:%pI4#%u Actual:%pI4#%u",
-			test_name,
-			&expected->l3, expected->l4,
-			&actual->l3, actual->l4);
+	log_err("Test '%s' failed.", test_name);
+	pr_err("  Expected: %pI4#%u\n", &expected->l3, expected->l4);
+	pr_err("  Actual  : %pI4#%u\n", &actual->l3, actual->l4);
 	return false;
 }
 
@@ -113,13 +113,13 @@ static bool ASSERT_TUPLE4(struct tuple *expected, struct tuple *actual,
 fail:
 	log_err("Test '%s' failed.", test_name);
 	if (expected)
-		log_err("  Expected:" TUPLE_KEY, TUPLE_PRINT(expected));
+		pr_err("  Expected:" TUPLE_KEY "\n", TUPLE_PRINT(expected));
 	else
-		log_err("  Expected:NULL");
+		pr_err("  Expected:NULL\n");
 	if (actual)
-		log_err("  Actual:  " TUPLE_KEY, TUPLE_PRINT(actual));
+		pr_err("  Actual:  " TUPLE_KEY "\n", TUPLE_PRINT(actual));
 	else
-		log_err("  Actual:  NULL");
+		pr_err("  Actual:  NULL\n");
 	return false;
 }
 
@@ -149,13 +149,13 @@ static bool ASSERT_TUPLE6(struct tuple *expected, struct tuple *actual,
 fail:
 	log_err("Test '%s' failed.", test_name);
 	if (expected)
-		log_err("  Expected:" TUPLE_KEY, TUPLE_PRINT(expected));
+		pr_err("  Expected:" TUPLE_KEY "\n", TUPLE_PRINT(expected));
 	else
-		log_err("  Expected:NULL");
+		pr_err("  Expected:NULL\n");
 	if (actual)
-		log_err("  Actual:  " TUPLE_KEY, TUPLE_PRINT(actual));
+		pr_err("  Actual:  " TUPLE_KEY "\n", TUPLE_PRINT(actual));
 	else
-		log_err("  Actual:  NULL");
+		pr_err("  Actual:  NULL\n");
 	return false;
 }
 
@@ -181,7 +181,7 @@ bool ASSERT_TUPLE(struct tuple *expected, struct tuple *actual, char *test_name)
 	return false;
 }
 
-#define BIB_KEY "BIB [%pI4#%u, %pI6c#%u]"
+#define BIB_KEY "[BIB %pI4#%u %pI6c#%u]"
 #define BIB_PRINT(bib) &bib->ipv4.l3, bib->ipv4.l4, &bib->ipv6.l3, bib->ipv6.l4
 
 bool ASSERT_BIB(struct bib_entry* expected, struct bib_entry* actual,
@@ -191,21 +191,23 @@ bool ASSERT_BIB(struct bib_entry* expected, struct bib_entry* actual,
 		return true;
 
 	if (!expected) {
-		log_err("Test '%s' failed: Expected:NULL Actual:" BIB_KEY,
-				test_name, BIB_PRINT(actual));
+		log_err("Test '%s' failed:", test_name);
+		pr_err("  Expected: NULL\n");
+		pr_err("  Actual  : " BIB_KEY "\n", BIB_PRINT(actual));
 		return false;
 	}
 	if (!actual) {
-		log_err("Test '%s' failed: Expected:" BIB_KEY " Actual:NULL",
-				test_name, BIB_PRINT(expected));
+		log_err("Test '%s' failed:", test_name);
+		pr_err("  Expected: " BIB_KEY "\n", BIB_PRINT(expected));
+		pr_err("  Actual  : NULL\n");
 		return false;
 	}
 
 	if (!taddr4_equals(&expected->ipv4, &actual->ipv4)
 			|| !taddr6_equals(&expected->ipv6, &actual->ipv6)) {
-		log_err("Test '%s' failed: Expected:" BIB_KEY
-				" Actual:" BIB_KEY, test_name,
-				BIB_PRINT(expected), BIB_PRINT(actual));
+		log_err("Test '%s' failed:", test_name);
+		pr_err("  Expected: " BIB_KEY "\n", BIB_PRINT(expected));
+		pr_err("  Actual  : " BIB_KEY "\n", BIB_PRINT(actual));
 		return false;
 	}
 
@@ -247,15 +249,21 @@ bool ASSERT_SESSION(struct session_entry *expected,
 fail:
 	log_err("Test '%s' failed.", test_name);
 	if (expected)
-		log_err("  Expected:" SESSION_KEY, SESSION_PRINT(expected));
+		pr_err("  Expected:" SESSION_KEY "\n", SESSION_PRINT(expected));
 	else
-		log_err("  Expected:NULL");
+		pr_err("  Expected:NULL\n");
 	if (actual)
-		log_err("  Actual:  " SESSION_KEY, SESSION_PRINT(actual));
+		pr_err("  Actual:  " SESSION_KEY "\n", SESSION_PRINT(actual));
 	else
-		log_err("  Actual:  NULL");
+		pr_err("  Actual:  NULL\n");
 	return false;
 }
 
 #undef SESSION_PRINT
 #undef SESSION_KEY
+
+int broken_unit_call(const char *function)
+{
+	WARN(true, "%s() was called! The unit test is broken.", function);
+	return -EINVAL;
+}

@@ -5,7 +5,7 @@
 #include "nat64/unit/unit_test.h"
 #include "nat64/common/types.h"
 #include "nat64/common/str_utils.h"
-#include "rfc6052.c"
+#include "common/rfc6052.c"
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Ramiro Nava");

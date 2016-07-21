@@ -194,21 +194,29 @@ static int init_nat64(struct xlator *jool)
 	if (error)
 		goto pool6_fail;
 	jool->nat64.frag = fragdb_create();
-	if (!jool->nat64.frag)
+	if (!jool->nat64.frag) {
+		error = -ENOMEM;
 		goto fragdb_fail;
+	}
 	error = pool4db_init(&jool->nat64.pool4);
 	if (error)
 		goto pool4_fail;
 	jool->nat64.bib = bib_create();
-	if (!jool->nat64.bib)
+	if (!jool->nat64.bib) {
+		error = -ENOMEM;
 		goto bib_fail;
+	}
 	jool->nat64.joold = joold_create(jool->ns);
-	if (!jool->nat64.joold)
+	if (!jool->nat64.joold) {
+		error = -ENOMEM;
 		goto joold_fail;
+	}
 
 	jool->newcfg = cfgcandidate_create();
-	if (!jool->newcfg)
+	if (!jool->newcfg) {
+		error = -ENOMEM;
 		goto newcfg_fail;
+	}
 
 	return 0;
 

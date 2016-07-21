@@ -11,7 +11,7 @@ MODULE_DESCRIPTION("Unit tests for the log_time_module");
 #include "nat64/common/str_utils.h"
 #include "nat64/unit/types.h"
 #include "nat64/unit/unit_test.h"
-#include "log_time.c"
+#include "common/log_time.c"
 
 static bool init(void)
 {

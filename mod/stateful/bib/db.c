@@ -773,6 +773,7 @@ static int create_bib_session6(struct bib_session_tuple *tuple,
 	tuple->session->dst6 = tuple6->dst.addr6;
 	tuple->session->dst4 = *dst4;
 	tuple->session->state = state;
+	tuple->session->subtree = RB_ROOT;
 	return 0;
 }
 
@@ -788,7 +789,7 @@ static struct tabled_session *create_session4(struct tuple *tuple4,
 	session->dst6 = *dst6;
 	session->dst4 = tuple4->src.addr4;
 	session->state = state;
-
+	session->subtree = RB_ROOT;
 	return session;
 }
 
@@ -809,24 +810,29 @@ static struct tabled_session *find_session_slot(struct tabled_bib *bib,
 		bool *allow,
 		struct tree_slot *slot)
 {
-	struct rb_node *collision;
+	struct rb_node *collision_node;
+	struct tabled_session *collision_session;
 
 	if (!bib)
 		return NULL;
 
-	collision = rbtree_find_slot(&session->tree_hook, &bib->sessions,
+	collision_node = rbtree_find_slot(&session->tree_hook, &bib->sessions,
 			compare_dst4l3_rbnode, slot);
-	if (!collision) {
+	if (!collision_node) {
 		*allow = false;
 		return NULL;
 	}
 
 	*allow = true;
 
-	collision = rbtree_find_slot(&session->tree_hook,
-			&node2session(collision)->subtree,
+	collision_session = node2session(collision_node);
+	if (collision_session->dst4.l4 == session->dst4.l4)
+		return collision_session;
+
+	collision_node = rbtree_find_slot(&session->tree_hook,
+			&collision_session->subtree,
 			compare_dst4l4_rbnode, slot);
-	return collision ? node2session(collision) : NULL;
+	return collision_node ? collision_session : NULL;
 }
 
 static struct tabled_bib *try_next(struct bib_table *table,
@@ -834,15 +840,25 @@ static struct tabled_bib *try_next(struct bib_table *table,
 		struct tabled_bib *bib,
 		struct tree_slot *slot)
 {
+	struct rb_node *next_node;
 	struct tabled_bib *next;
 
-	next = bib4_entry(rb_next(&collision->hook4));
+	next_node = rb_next(&collision->hook4);
+	if (!next_node) {
+		slot->tree = &table->tree4;
+		slot->entry = &bib->hook4;
+		slot->parent = &collision->hook4;
+		slot->rb_link = &slot->parent->rb_right;
+		return NULL;
+	}
+
+	next = bib4_entry(next_node);
 
 	if (taddr4_equals(&next->src4, &bib->src4))
 		return next; /* Next is yet another collision. */
 
 	slot->tree = &table->tree4;
-	slot->entry = &next->hook4;
+	slot->entry = &bib->hook4;
 	if (collision->hook4.rb_right) {
 		slot->parent = &next->hook4;
 		slot->rb_link = &slot->parent->rb_left;
@@ -1060,7 +1076,6 @@ success:
 	table->session_count++;
 
 	spin_unlock_bh(&table->lock);
-
 	return 0;
 }
 
@@ -1258,6 +1273,7 @@ int bib_find(struct bib *db, struct tuple *tuple, struct bib_session *result)
 	if (error)
 		return error;
 
+	/* TODO missing a bib_session_init. */
 	result->bib_set = true;
 	result->session.src6 = tmp.ipv6;
 	result->session.src4 = tmp.ipv4;
@@ -1726,4 +1742,58 @@ int bib_count_sessions(struct bib *db, l4_protocol proto, __u64 *count)
 	*count = table->session_count;
 	spin_unlock_bh(&table->lock);
 	return 0;
+}
+
+static void print_tabs(int tabs)
+{
+	int i;
+	for (i = 0; i < tabs; i++)
+		pr_cont("  ");
+}
+
+static void print_session(struct rb_node *node, int tabs, char *prefix)
+{
+	struct tabled_session *session;
+
+	if (!node)
+		return;
+	pr_info("[Ssn]");
+
+	session = node2session(node);
+	print_tabs(tabs);
+	pr_cont("[%s] %pI4#%u %pI6c#%u\n", prefix,
+			&session->dst4.l3, session->dst4.l4,
+			&session->dst6.l3, session->dst6.l4);
+
+	print_session(node->rb_left, tabs + 1, "L"); /* "Left" */
+	print_session(session->subtree.rb_node, tabs + 1, "C"); /* "Center" */
+	print_session(node->rb_right, tabs + 1, "R"); /* "Right" */
+}
+
+static void print_bib(struct rb_node *node, int tabs)
+{
+	struct tabled_bib *bib;
+
+	if (!node)
+		return;
+	pr_info("[BIB]");
+
+	bib = bib4_entry(node);
+	print_tabs(tabs);
+	pr_cont("%pI4#%u %pI6c#%u\n", &bib->src4.l3, bib->src4.l4,
+			&bib->src6.l3, bib->src6.l4);
+
+	print_session(bib->sessions.rb_node, tabs + 1, "T"); /* "Tree" */
+	print_bib(node->rb_left, tabs + 1);
+	print_bib(node->rb_right, tabs + 1);
+}
+
+void bib_print(struct bib *db)
+{
+	log_debug("TCP:");
+	print_bib(db->tcp.tree4.rb_node, 1);
+	log_debug("UDP:");
+	print_bib(db->udp.tree4.rb_node, 1);
+	log_debug("ICMP:");
+	print_bib(db->icmp.tree4.rb_node, 1);
 }

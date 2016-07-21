@@ -11,7 +11,7 @@
 #if LINUX_VERSION_CODE < KERNEL_VERSION(3, 13, 0)
 #define GENERATE_FOR_EACH true
 #endif
-#include "fragment_db.c"
+#include "stateful/fragment_db.c"
 
 
 MODULE_LICENSE("GPL");

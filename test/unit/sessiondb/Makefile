@@ -20,8 +20,7 @@ $(SESSIONDB)-objs += $(MIN_REQS)
 $(SESSIONDB)-objs += ../../../mod/common/rbtree.o
 $(SESSIONDB)-objs += ../../../mod/stateful/bib/db.o
 $(SESSIONDB)-objs += ../framework/session.o
-$(SESSIONDB)-objs += ../impersonator/mask_domain.o
-$(SESSIONDB)-objs += ../impersonator/pkt_queue.o
+$(SESSIONDB)-objs += ../impersonator/bib.o
 $(SESSIONDB)-objs += ../impersonator/route.o
 $(SESSIONDB)-objs += sessiondb_test.o
 
