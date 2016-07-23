@@ -109,19 +109,19 @@ struct bib {
 static struct kmem_cache *bib_cache;
 static struct kmem_cache *session_cache;
 
-static struct tabled_bib *bib6_entry(struct rb_node *node)
+static struct tabled_bib *bib6_entry(const struct rb_node *node)
 {
-	return rb_entry(node, struct tabled_bib, hook6);
+	return node ? rb_entry(node, struct tabled_bib, hook6) : NULL;
 }
 
-static struct tabled_bib *bib4_entry(struct rb_node *node)
+static struct tabled_bib *bib4_entry(const struct rb_node *node)
 {
-	return rb_entry(node, struct tabled_bib, hook4);
+	return node ? rb_entry(node, struct tabled_bib, hook4) : NULL;
 }
 
-static struct tabled_session *node2session(struct rb_node *node)
+static struct tabled_session *node2session(const struct rb_node *node)
 {
-	return rb_entry(node, struct tabled_session, tree_hook);
+	return node ? rb_entry(node, struct tabled_session, tree_hook) : NULL;
 }
 
 /**
@@ -257,7 +257,7 @@ static void init_table(struct bib_table *table, unsigned long est_timeout,
 }
 
 /* TODO (final) maybe put this in some common header? */
-enum session_fate tcp_expired_cb(struct session_entry *session, void *arg);
+enum session_fate tcp_expired_cb(struct session_entry *new, void *arg);
 
 struct bib *bib_create(void)
 {
@@ -271,7 +271,7 @@ struct bib *bib_create(void)
 	init_table(&db->tcp, TCP_EST, TCP_TRANS, tcp_expired_cb);
 	init_table(&db->icmp, ICMP_DEFAULT, 0, just_die);
 
-	/** Packet storage for simultaneous open of TCP connections. */
+	/* Packet storage for simultaneous open of TCP connections. */
 	db->pkt_queue = pktqueue_create();
 	if (!db->pkt_queue) {
 		wkfree(struct bib, db);
@@ -307,7 +307,7 @@ static void release_bib(struct kref *refs)
 	struct bib *db;
 	db = container_of(refs, struct bib, refs);
 
-	/**
+	/*
 	 * The trees share the entries, so only one tree of each protocol
 	 * needs to be emptied.
 	 */
@@ -712,6 +712,16 @@ static void attach_timer(struct tabled_session *session,
 	session->expirer = expirer;
 }
 
+static int compare_src6(struct tabled_bib *a, struct ipv6_transport_addr *b)
+{
+	return taddr6_compare(&a->src6, b);
+}
+
+static int compare_src6_rbnode(struct rb_node *a, struct rb_node *b)
+{
+	return taddr6_compare(&bib6_entry(a)->src6, &bib6_entry(b)->src6);
+}
+
 static int compare_src4(struct tabled_bib const *a,
 		struct ipv4_transport_addr const *b)
 {
@@ -723,14 +733,30 @@ static int compare_src4_rbnode(struct rb_node *a, struct rb_node *b)
 	return taddr4_compare(&bib4_entry(a)->src4, &bib4_entry(b)->src4);
 }
 
-static int compare_src6_rbnode(struct rb_node *a, struct rb_node *b)
+static int compare_dst4l3_rbnode(struct rb_node *a, struct rb_node *b)
 {
-	return taddr6_compare(&bib6_entry(a)->src6, &bib6_entry(b)->src6);
+	return ipv4_addr_cmp(&node2session(a)->dst4.l3,
+			&node2session(b)->dst4.l3);
 }
 
-static int compare_src6(struct tabled_bib *a, struct ipv6_transport_addr *b)
+static int compare_dst4l4_rbnode(struct rb_node *a, struct rb_node *b)
 {
-	return taddr6_compare(&a->src6, b);
+	return ((int)node2session(a)->dst4.l4)
+			- ((int)node2session(b)->dst4.l4);
+}
+
+static struct tabled_bib *find_bib6(struct bib_table *table,
+		struct ipv6_transport_addr *addr)
+{
+	return rbtree_find(addr, &table->tree6, compare_src6, struct tabled_bib,
+			hook6);
+}
+
+static struct tabled_bib *find_bib4(struct bib_table *table,
+		struct ipv4_transport_addr *addr)
+{
+	return rbtree_find(addr, &table->tree4, compare_src4, struct tabled_bib,
+			hook4);
 }
 
 static struct tabled_bib *find_bibtree6_slot(struct bib_table *table,
@@ -740,7 +766,7 @@ static struct tabled_bib *find_bibtree6_slot(struct bib_table *table,
 	struct rb_node *collision;
 	collision = rbtree_find_slot(&new->hook6, &table->tree6,
 			compare_src6_rbnode, slot);
-	return collision ? bib6_entry(collision) : NULL;
+	return bib6_entry(collision);
 }
 
 static struct tabled_bib *find_bibtree4_slot(struct bib_table *table,
@@ -750,7 +776,28 @@ static struct tabled_bib *find_bibtree4_slot(struct bib_table *table,
 	struct rb_node *collision;
 	collision = rbtree_find_slot(&new->hook4, &table->tree4,
 			compare_src4_rbnode, slot);
-	return collision ? bib4_entry(collision) : NULL;
+	return bib4_entry(collision);
+}
+
+static struct tabled_session *find_sessiontreel1_slot(struct tabled_bib *bib,
+		struct tabled_session *new,
+		struct tree_slot *slot)
+{
+	struct rb_node *collision;
+	collision = rbtree_find_slot(&new->tree_hook, &bib->sessions,
+			compare_dst4l3_rbnode, slot);
+	return node2session(collision);
+}
+
+static struct tabled_session *find_sessiontreel2_slot(
+		struct tabled_session *supersession,
+		struct tabled_session *new,
+		struct tree_slot *slot)
+{
+	struct rb_node *collision;
+	collision = rbtree_find_slot(&new->tree_hook, &supersession->subtree,
+			compare_dst4l4_rbnode, slot);
+	return node2session(collision);
 }
 
 static int create_bib_session6(struct bib_session_tuple *tuple,
@@ -793,46 +840,69 @@ static struct tabled_session *create_session4(struct tuple *tuple4,
 	return session;
 }
 
-static int compare_dst4l3_rbnode(struct rb_node *a, struct rb_node *b)
+static int create_bib_session(struct session_entry *session,
+		struct bib_session_tuple *tuple)
 {
-	return ipv4_addr_cmp(&node2session(a)->dst4.l3,
-			&node2session(b)->dst4.l3);
+	tuple->bib = kmem_cache_alloc(bib_cache, GFP_ATOMIC);
+	if (!tuple->bib)
+		return -ENOMEM;
+	tuple->session = kmem_cache_alloc(session_cache, GFP_ATOMIC);
+	if (!tuple->session) {
+		kmem_cache_free(bib_cache, tuple->bib);
+		return -ENOMEM;
+	}
+
+	tuple->bib->src6 = session->src6;
+	tuple->bib->src4 = session->src4;
+	tuple->bib->proto = session->proto;
+	tuple->bib->is_static = false;
+	tuple->bib->sessions = RB_ROOT;
+	tuple->session->dst6 = session->dst6;
+	tuple->session->dst4 = session->dst4;
+	tuple->session->state = session->state;
+	tuple->session->subtree = RB_ROOT;
+	tuple->session->update_time = session->update_time;
+	/* TODO I'm throwing away established and timeout */
+	return 0;
 }
 
-static int compare_dst4l4_rbnode(struct rb_node *a, struct rb_node *b)
-{
-	return ((int)node2session(a)->dst4.l4)
-			- ((int)node2session(b)->dst4.l4);
-}
-
+/**
+ * Attempts to find the slot where @new would be inserted if you wanted to add
+ * it to @bib's session tree.
+ *
+ * On success:
+ * - Initializes @slots as the place (in @bib's session tree) where @new would
+ *   be inserted if you wanted to do so.
+ * - Returns NULL.
+ *
+ * If @session collides with @bib's session S:
+ * - @slot is undefined.
+ * - S is returned.
+ *
+ * As a side effect, @allow will tell you whether the entry is allowed to be
+ * added to the tree if address-dependent filtering is enabled. Send NULL if you
+ * don't care about that.
+ *
+ * Please notice: This searches via @session's dst4, *not* dst6. @session *must*
+ * carry an initialized dst4.
+ */
 static struct tabled_session *find_session_slot(struct tabled_bib *bib,
-		struct tabled_session *session,
-		bool *allow,
-		struct tree_slot *slot)
+		struct tabled_session *new, bool *allow, struct tree_slot *slot)
 {
-	struct rb_node *collision_node;
-	struct tabled_session *collision_session;
+	struct tabled_session *old;
 
-	if (!bib)
-		return NULL;
-
-	collision_node = rbtree_find_slot(&session->tree_hook, &bib->sessions,
-			compare_dst4l3_rbnode, slot);
-	if (!collision_node) {
-		*allow = false;
+	old = find_sessiontreel1_slot(bib, new, slot);
+	if (!old) {
+		if (allow)
+			*allow = false;
 		return NULL;
 	}
 
-	*allow = true;
-
-	collision_session = node2session(collision_node);
-	if (collision_session->dst4.l4 == session->dst4.l4)
-		return collision_session;
-
-	collision_node = rbtree_find_slot(&session->tree_hook,
-			&collision_session->subtree,
-			compare_dst4l4_rbnode, slot);
-	return collision_node ? collision_session : NULL;
+	if (allow)
+		*allow = true;
+	return (old->dst4.l4 == new->dst4.l4)
+			? old
+			: find_sessiontreel2_slot(old, new, slot);
 }
 
 static struct tabled_bib *try_next(struct bib_table *table,
@@ -840,19 +910,16 @@ static struct tabled_bib *try_next(struct bib_table *table,
 		struct tabled_bib *bib,
 		struct tree_slot *slot)
 {
-	struct rb_node *next_node;
 	struct tabled_bib *next;
 
-	next_node = rb_next(&collision->hook4);
-	if (!next_node) {
+	next = bib4_entry(rb_next(&collision->hook4));
+	if (!next) {
 		slot->tree = &table->tree4;
 		slot->entry = &bib->hook4;
 		slot->parent = &collision->hook4;
 		slot->rb_link = &slot->parent->rb_right;
 		return NULL;
 	}
-
-	next = bib4_entry(next_node);
 
 	if (taddr4_equals(&next->src4, &bib->src4))
 		return next; /* Next is yet another collision. */
@@ -915,6 +982,28 @@ static int find_bib_session6(struct bib_table *table,
 	error = find_available_mask(table, masks, new->bib, &slots->bib4);
 	if (error)
 		return error;
+
+	treeslot_init(&slots->session, &new->bib->sessions,
+			&new->session->tree_hook);
+	old->session = NULL;
+
+	return 0;
+}
+
+static int find_bib_session(struct bib_table *table,
+		struct bib_session_tuple *new,
+		struct bib_session_tuple *old,
+		struct slot_group *slots)
+{
+	old->bib = find_bibtree6_slot(table, new->bib, &slots->bib6);
+	if (old->bib) {
+		old->session = find_session_slot(old->bib, new->session, NULL,
+				&slots->session);
+		return 0;
+	}
+
+	if (find_bibtree4_slot(table, new->bib, &slots->bib4))
+		return -EEXIST;
 
 	treeslot_init(&slots->session, &new->bib->sessions,
 			&new->session->tree_hook);
@@ -999,13 +1088,6 @@ end:
 	return error;
 }
 
-static struct tabled_bib *find_bib4(struct bib_table *table,
-		struct ipv4_transport_addr *addr)
-{
-	return rbtree_find(addr, &table->tree4, compare_src4, struct tabled_bib,
-			hook4);
-}
-
 static void find_bib_session4(struct bib_table *table,
 		struct tuple *tuple4,
 		struct tabled_session *new,
@@ -1014,7 +1096,9 @@ static void find_bib_session4(struct bib_table *table,
 		struct tree_slot *slot)
 {
 	old->bib = find_bib4(table, &tuple4->dst.addr4);
-	old->session = find_session_slot(old->bib, new, allow, slot);
+	old->session = old->bib
+			? find_session_slot(old->bib, new, allow, slot)
+			: NULL;
 }
 
 /**
@@ -1281,17 +1365,12 @@ int bib_find(struct bib *db, struct tuple *tuple, struct bib_session *result)
 	return 0;
 }
 
+/*
+ * TODO there's too much duplicate code here.
+ */
 int bib_add_session(struct bib *db, struct session_entry *session,
 		struct collision_cb *cb)
 {
-	log_err("Not implemented yet");
-	return -EINVAL;
-
-	// The code below needs a few adjustments (the compiler will point them
-	// out) but I want to test the stuff above before investing too much
-	// time in this.
-
-	/*
 	struct bib_table *table;
 	struct bib_session_tuple new;
 	struct bib_session_tuple old;
@@ -1302,35 +1381,38 @@ int bib_add_session(struct bib *db, struct session_entry *session,
 	if (!table)
 		return -EINVAL;
 
-	error = create_bib_session6(&new, tuple6, masks, ESTABLISHED);
+	/* TODO there's too much duplicate code here. */
+	error = create_bib_session(session, &new);
 	if (error)
 		return error;
 
 	spin_lock_bh(&table->lock);
 
-	error = find_bib_session6(table, masks, &new, &old, &slots);
+	/* TODO there's too much duplicate code here. */
+	error = find_bib_session(table, &new, &old, &slots);
 	if (error)
 		goto end;
 
 	if (old.session) {
-		decide_fate(cb, table, &old, NULL);
+		decide_fate(cb, table, old.session, NULL);
 		goto end;
 	}
 
+	new.session->bib = old.bib ? : new.bib;
 	commit_session_add(table, &slots.session);
 	attach_timer(new.session, session->established
 			? &table->est_timer
 			: &table->trans_timer);
 	log_new_session(table, new.session);
-	new.session = NULL; // Do not free!
+	new.session = NULL; /* Do not free! */
 
 	if (!old.bib) {
 		commit_bib_add(table, &slots);
 		log_new_bib(table, new.bib);
-		new.bib = NULL; // Do not free!
+		new.bib = NULL; /* Do not free! */
 	}
 
-	// Fall through
+	/* Fall through */
 
 end:
 	spin_unlock_bh(&table->lock);
@@ -1341,7 +1423,6 @@ end:
 		kmem_cache_free(session_cache, new.session);
 
 	return error;
-	*/
 }
 
 static void __clean(struct expire_timer *expirer,
@@ -1386,7 +1467,7 @@ void bib_clean(struct bib *db, struct net *ns)
 	clean_table(&db->udp, ns);
 	clean_table(&db->tcp, ns);
 	clean_table(&db->icmp, ns);
-//	pktqueue_clean(db->pkt_queue);
+//	pktqueue_clean(db->pkt_queue); /* TODO */
 }
 
 static struct rb_node *find_starting_point(struct bib_table *table,
@@ -1445,13 +1526,149 @@ int bib_foreach(struct bib *db, l4_protocol proto,
 	return error;
 }
 
+struct foreach_pos {
+	struct tabled_bib *bib;
+	struct tabled_session *sessionl1;
+	struct tabled_session *sessionl2;
+};
+
+static struct rb_node *slot_next(struct tree_slot *slot)
+{
+	if (!slot->parent)
+		return NULL;
+	if (&slot->parent->rb_left == slot->rb_link)
+		return slot->parent;
+	/* else if (slot->parent->rb_right == &slot->rb_link) */
+	return rb_next(slot->parent);
+}
+
+static void next_bib(struct rb_node *next, struct foreach_pos *pos)
+{
+	pos->bib = bib4_entry(next);
+}
+
+static void next_sessionl1(struct rb_node *next, struct foreach_pos *pos)
+{
+	pos->sessionl1 = node2session(next);
+	if (!pos->sessionl1) {
+		/* Tree was empty or @previous was the last l1 session. */
+		/* Cascade "next" to the supertree. */
+		next_bib(rb_next(&pos->bib->hook4), pos);
+	}
+}
+
+static void next_sessionl2(struct rb_node *next, struct foreach_pos *pos)
+{
+	pos->sessionl2 = node2session(next);
+	if (!pos->sessionl2) {
+		/* Tree was empty or parent was the last l2 session. */
+		/* Cascade "next" to the supertree. */
+		next_sessionl1(rb_next(&pos->sessionl1->tree_hook), pos);
+	}
+}
+
+static void find_session_offset(struct bib_table *table,
+		struct session_foreach_offset *offset,
+		struct foreach_pos *pos)
+{
+	struct tabled_bib tmp_bib;
+	struct tabled_session tmp_session;
+	struct tree_slot slot;
+
+	memset(pos, 0, sizeof(*pos));
+
+	tmp_bib.src4 = offset->offset.src;
+	pos->bib = find_bibtree4_slot(table, &tmp_bib, &slot);
+	if (!pos->bib) {
+		next_bib(slot_next(&slot), pos);
+		return;
+	}
+
+	tmp_session.dst4 = offset->offset.dst;
+	pos->sessionl1 = find_sessiontreel1_slot(pos->bib, &tmp_session, &slot);
+	if (!pos->sessionl1) {
+		next_sessionl1(slot_next(&slot), pos);
+		return;
+	}
+
+	if (pos->sessionl1->dst4.l4 == tmp_session.dst4.l4) {
+		if (!offset->include_offset) {
+			next_sessionl1(rb_next(&pos->sessionl1->tree_hook), pos);
+		}
+		return;
+	}
+
+	pos->sessionl2 = find_sessiontreel2_slot(pos->sessionl1, &tmp_session,
+			&slot);
+	if (!pos->sessionl2) {
+		next_sessionl2(slot_next(&slot), pos);
+		return;
+	}
+
+	if (!offset->include_offset)
+		next_sessionl2(rb_next(&pos->sessionl2->tree_hook), pos);
+}
+
+#define foreach_bib(table, node) \
+		for (node = bib4_entry(rb_first(&(table)->tree4)); \
+				node; \
+				node = bib4_entry(rb_next(&node->hook4)))
+#define foreach_session(tree, node) \
+		for (node = node2session(rb_first(tree)); \
+				node; \
+				node = node2session(rb_next(&node->tree_hook)))
+
 int bib_foreach_session(struct bib *db, l4_protocol proto,
-		struct session_foreach_func *collision_cb,
+		struct session_foreach_func *func,
 		struct session_foreach_offset *offset)
 {
-	log_err("Not implemented yet."); /* TODO */
-	return -EINVAL;
+	struct bib_table *table;
+	struct foreach_pos pos;
+	struct session_entry tmp;
+	int error = 0;
+
+	table = get_table(db, proto);
+	if (!table)
+		return -EINVAL;
+
+	spin_lock_bh(&table->lock);
+
+	if (offset) {
+		find_session_offset(table, offset, &pos);
+		if (pos.sessionl2) {
+			goto goto_sl2;
+		} else if (pos.sessionl1) {
+			goto goto_sl1;
+		} else if (pos.bib) {
+			goto goto_bib;
+		}
+		goto end;
+	}
+
+	foreach_bib(table, pos.bib) {
+goto_bib:
+		foreach_session(&pos.bib->sessions, pos.sessionl1) {
+goto_sl1:		tstose(pos.sessionl1, &tmp);
+			error = func->cb(&tmp, func->arg);
+			if (error)
+				goto end;
+
+			foreach_session(&pos.sessionl1->subtree, pos.sessionl2) {
+goto_sl2:			tstose(pos.sessionl2, &tmp);
+				error = func->cb(&tmp, func->arg);
+				if (error)
+					goto end;
+			}
+		}
+	}
+
+end:
+	spin_unlock_bh(&table->lock);
+	return error;
 }
+
+#undef foreach_session
+#undef foreach_bib
 
 int bib_find6(struct bib *db, l4_protocol proto,
 		struct ipv6_transport_addr *addr,
@@ -1465,8 +1682,7 @@ int bib_find6(struct bib *db, l4_protocol proto,
 		return -EINVAL;
 
 	spin_lock_bh(&table->lock);
-	bib = rbtree_find(addr, &table->tree6, compare_src6, struct tabled_bib,
-			hook6);
+	bib = find_bib6(table, addr);
 	if (bib)
 		tbtobe(bib, result);
 	spin_unlock_bh(&table->lock);
@@ -1486,8 +1702,7 @@ int bib_find4(struct bib *db, l4_protocol proto,
 		return -EINVAL;
 
 	spin_lock_bh(&table->lock);
-	bib = rbtree_find(addr, &table->tree4, compare_src4, struct tabled_bib,
-			hook4);
+	bib = find_bib4(table, addr);
 	if (bib)
 		tbtobe(bib, result);
 	spin_unlock_bh(&table->lock);
@@ -1614,8 +1829,7 @@ int bib_rm(struct bib *db, struct bib_entry *entry)
 
 	spin_lock_bh(&table->lock);
 
-	bib = rbtree_find(&key.src6, &table->tree6, compare_src6,
-			struct tabled_bib, hook6);
+	bib = find_bib6(table, &key.src6);
 	if (bib && taddr4_equals(&key.src4, &bib->src4)) {
 		detach_bib(table, bib);
 		error = 0;

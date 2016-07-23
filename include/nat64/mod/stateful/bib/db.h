@@ -112,7 +112,7 @@ struct session_foreach_func {
 };
 
 struct session_foreach_offset {
-	struct taddr6_tuple offset;
+	struct taddr4_tuple offset;
 	bool include_offset;
 };
 

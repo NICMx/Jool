@@ -41,6 +41,11 @@ static bool inject(unsigned int index, __u32 src_addr, __u16 src_id,
 	entry->src4.l4 = src_id;
 	entry->dst4.l3.s_addr = cpu_to_be32(0xc0000200u | dst_addr);
 	entry->dst4.l4 = dst_id;
+	entry->proto = L4PROTO_UDP;
+	entry->state = ESTABLISHED;
+	entry->established = true;
+	entry->update_time = jiffies;
+	entry->timeout = UDP_DEFAULT;
 
 	error = bib_add_session(db, entry, NULL);
 	if (error) {
@@ -62,7 +67,7 @@ static bool insert_test_sessions(void)
 	 *
 	 * This should be every combination needed to test sessiontable_add()
 	 * sorts by src transport address, then by dst transport address.
-	 * (Though the test only covers IPv6 order.)
+	 * (Though the test only covers IPv4 order.)
 	 * Also,
 	 * the insertion order is random; it doesn't have any purpose other
 	 * than tentatively messing with the add function.
@@ -89,6 +94,12 @@ static int cb(struct session_entry *session, void *void_args)
 	unsigned int index;
 	bool success = true;
 
+	/* log_debug("Iterating: %pI6c#%u %pI6c#%u %pI4#%u %pI4#%u",
+			&session->src6.l3, session->src6.l4,
+			&session->dst6.l3, session->dst6.l4,
+			&session->src4.l3, session->src4.l4,
+			&session->dst4.l3, session->dst4.l4); */
+
 	index = args->offset + args->i;
 	success &= ASSERT_BOOL(true, index < TEST_SESSION_COUNT, "overflow");
 	if (success)
@@ -106,10 +117,10 @@ static bool test_foreach(void)
 	int error;
 	bool success = true;
 
-	init_src6(&offset.offset.src.l3, 2);
+	offset.offset.src.l3.s_addr = cpu_to_be32(0xcb007102u);/* 203.0.113.2 */
 	offset.offset.src.l4 = 200;
-	init_dst6(&offset.offset.dst.l3, 2);
-	offset.offset.src.l4 = 1200;
+	offset.offset.dst.l3.s_addr = cpu_to_be32(0xc0000202u);/* 192.0.2.2 */
+	offset.offset.dst.l4 = 1200;
 
 	/* Empty table, no offset. */
 	args.i = 0;
@@ -158,7 +169,7 @@ static bool test_foreach(void)
 	args.i = 0;
 	args.offset = 5;
 	offset.include_offset = true;
-	offset.offset.src.l4 = 1250;
+	offset.offset.dst.l4 = 1250;
 	error = bib_foreach_session(db, L4PROTO_UDP, &func, &offset);
 	success &= ASSERT_INT(0, error, "call 6 result");
 	success &= ASSERT_UINT(4, args.i, "call 6 counter");
@@ -167,7 +178,7 @@ static bool test_foreach(void)
 	args.i = 0;
 	args.offset = 5;
 	offset.include_offset = false;
-	offset.offset.src.l4 = 1200;
+	offset.offset.dst.l4 = 1200;
 	error = bib_foreach_session(db, L4PROTO_UDP, &func, &offset);
 	success &= ASSERT_INT(0, error, "call 7 result");
 	success &= ASSERT_UINT(4, args.i, "call 7 counter");
@@ -176,7 +187,7 @@ static bool test_foreach(void)
 	args.i = 0;
 	args.offset = 5;
 	offset.include_offset = false;
-	offset.offset.src.l4 = 1250;
+	offset.offset.dst.l4 = 1250;
 	error = bib_foreach_session(db, L4PROTO_UDP, &func, &offset);
 	success &= ASSERT_INT(0, error, "call 8 result");
 	success &= ASSERT_UINT(4, args.i, "call 8 counter");
@@ -184,10 +195,10 @@ static bool test_foreach(void)
 	/* ----------------------------------- */
 
 	/* Offset is before first, include offset. */
-	init_src6(&offset.offset.src.l3, 1);
+	offset.offset.src.l3.s_addr = cpu_to_be32(0xcb007101u);/* 203.0.113.1 */
 	offset.offset.src.l4 = 300;
-	init_dst6(&offset.offset.dst.l3, 3);
-	offset.offset.src.l4 = 1200;
+	offset.offset.dst.l3.s_addr = cpu_to_be32(0xc0000203u);/* 192.0.2.3 */
+	offset.offset.dst.l4 = 1200;
 
 	args.i = 0;
 	args.offset = 0;
@@ -204,7 +215,7 @@ static bool test_foreach(void)
 	success &= ASSERT_UINT(9, args.i, "call 10 counter");
 
 	/* Offset is first, include offset. */
-	offset.offset.src.l4 = 1300;
+	offset.offset.dst.l4 = 1300;
 
 	args.i = 0;
 	offset.include_offset = true;
@@ -221,10 +232,10 @@ static bool test_foreach(void)
 	success &= ASSERT_UINT(8, args.i, "call 12 counter");
 
 	/* Offset is last, include offset. */
-	init_src6(&offset.offset.src.l3, 3);
+	offset.offset.src.l3.s_addr = cpu_to_be32(0xcb007103u); /* 203.0.113.3 */
 	offset.offset.src.l4 = 100;
-	init_dst6(&offset.offset.dst.l3, 1);
-	offset.offset.src.l4 = 1100;
+	offset.offset.dst.l3.s_addr = cpu_to_be32(0xc0000201u); /* 192.0.2.1 */
+	offset.offset.dst.l4 = 1100;
 
 	args.i = 0;
 	args.offset = 8;

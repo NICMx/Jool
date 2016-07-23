@@ -155,9 +155,15 @@ struct ipv6_transport_addr {
 	__u16 l4;
 };
 
+/* TODO is this still being used? */
 struct taddr6_tuple {
 	struct ipv6_transport_addr src;
 	struct ipv6_transport_addr dst;
+};
+
+struct taddr4_tuple {
+	struct ipv4_transport_addr src;
+	struct ipv4_transport_addr dst;
 };
 
 /**

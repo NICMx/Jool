@@ -770,7 +770,7 @@ int pool4db_foreach_sample(struct pool4 *pool, l4_protocol proto,
 			error = cb(&sample, arg);
 			if (error)
 				goto end;
-offset_start:; /* <- The semicolon prevents a pointless compiler error. */
+offset_start:; /* <- The semicolon prevents a compiler error. */
 		}
 
 		node = rb_next(&table->tree_hook);
