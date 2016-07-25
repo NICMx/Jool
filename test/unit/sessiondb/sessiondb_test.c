@@ -3,6 +3,7 @@
 
 #include "nat64/unit/session.h"
 #include "nat64/unit/unit_test.h"
+#include "nat64/common/constants.h"
 #include "nat64/common/str_utils.h"
 
 MODULE_LICENSE("GPL");
@@ -11,79 +12,74 @@ MODULE_DESCRIPTION("Session DB module test.");
 
 static struct bib *db;
 static const l4_protocol PROTO = L4PROTO_UDP;
-static struct session_entry sessions[16];
-static struct session_entry *sessions4[4][4][4][4];
-static struct session_entry *sessions6[4][4][4][4];
+static struct session_entry session_instances[16];
+static struct session_entry *sessions[4][4][4][4];
 
-static bool assert4(unsigned int la, unsigned int lp,
-		unsigned int ra, unsigned int rp)
+static void init_src6(struct ipv6_transport_addr *addr, __u16 last_byte,
+		__u16 port)
 {
-	struct bib_session result;
-	struct tuple tuple4;
-	bool success = true;
-
-	tuple4.src.addr4.l3.s_addr = cpu_to_be32(0xcb007100u | ra);
-	tuple4.src.addr4.l4 = rp;
-	tuple4.dst.addr4.l3.s_addr = cpu_to_be32(0xc0000200u | la);
-	tuple4.dst.addr4.l4 = lp;
-	tuple4.l3_proto = L3PROTO_IPV4;
-	tuple4.l4_proto = PROTO;
-
-	if (sessions4[la][lp][ra][rp]) {
-		success &= ASSERT_INT(0, bib_find(db, &tuple4, &result),
-				"get4 code - %u %u %u %u", la, lp, ra, rp);
-		success &= ASSERT_BOOL(true, result.bib_set,
-				"get4 bib set");
-		success &= ASSERT_BOOL(true, result.session_set,
-				"get4 session set");
-		success &= ASSERT_SESSION(sessions4[la][lp][ra][rp],
-				&result.session,
-				"get4 session");
-	} else {
-		success &= ASSERT_INT(-ESRCH, bib_find(db, &tuple4, &result),
-				"get4 code - %u %u %u %u", la, lp, ra, rp);
-	}
-
-	return success;
+	addr->l3.s6_addr32[0] = cpu_to_be32(0x20010db8u);
+	addr->l3.s6_addr32[1] = 0;
+	addr->l3.s6_addr32[2] = 0;
+	addr->l3.s6_addr32[3] = cpu_to_be32(last_byte);
+	addr->l4 = port;
 }
 
-static bool assert6(unsigned int la, unsigned int lp,
+static void init_dst6(struct ipv6_transport_addr *addr, __u16 last_byte,
+		__u16 port)
+{
+	addr->l3.s6_addr32[0] = cpu_to_be32(0x0064ff9bu);
+	addr->l3.s6_addr32[1] = 0;
+	addr->l3.s6_addr32[2] = 0;
+	addr->l3.s6_addr32[3] = cpu_to_be32(0xc0000200u | last_byte);
+	addr->l4 = port;
+}
+
+static void init_src4(struct ipv4_transport_addr *addr, __u16 last_byte,
+		__u16 port)
+{
+	addr->l3.s_addr = cpu_to_be32(0xcb007100u | last_byte);
+	addr->l4 = port;
+}
+
+static void init_dst4(struct ipv4_transport_addr *addr, __u16 last_byte,
+		__u16 port)
+{
+	addr->l3.s_addr = cpu_to_be32(0xc0000200u | last_byte);
+	addr->l4 = port;
+}
+
+static int compare_session_foreach_cb(struct session_entry *session, void *arg)
+{
+	return session_equals(session, arg);
+}
+
+static bool session_exists(struct session_entry *session)
+{
+	struct session_foreach_func func = {
+			.cb = compare_session_foreach_cb,
+			.arg = session,
+	};
+
+	/* This is the closest we currently have to a find_session function. */
+	return bib_foreach_session(db, session->proto, &func, NULL);
+}
+
+static bool assert_session(unsigned int la, unsigned int lp,
 		unsigned int ra, unsigned int rp)
 {
-	struct bib_session result;
-	struct tuple tuple6;
-	bool success = true;
+	struct session_entry session;
+	int expected;
 
-	tuple6.src.addr6.l3.s6_addr32[0] = cpu_to_be32(0x20010db8u);
-	tuple6.src.addr6.l3.s6_addr32[1] = 0;
-	tuple6.src.addr6.l3.s6_addr32[2] = 0;
-	tuple6.src.addr6.l3.s6_addr32[3] = cpu_to_be32(ra);
-	tuple6.src.addr6.l4 = rp;
-	tuple6.dst.addr6.l3.s6_addr32[0] = cpu_to_be32(0x00640000u);
-	tuple6.dst.addr6.l3.s6_addr32[1] = 0;
-	tuple6.dst.addr6.l3.s6_addr32[2] = 0;
-	tuple6.dst.addr6.l3.s6_addr32[3] = cpu_to_be32(la);
-	tuple6.dst.addr6.l4 = lp;
-	tuple6.l3_proto = L3PROTO_IPV6;
-	tuple6.l4_proto = PROTO;
+	init_src6(&session.src6, la, lp);
+	init_dst6(&session.dst6, ra, rp);
+	init_src4(&session.src4, la, lp);
+	init_dst4(&session.dst4, ra, rp);
+	session.proto = PROTO;
 
-	if (sessions6[ra][rp][la][lp]) {
-		success &= ASSERT_INT(0, bib_find(db, &tuple6, &result),
-				"get6 code - %u %u %u %u", ra, rp, la, lp);
-		success &= ASSERT_BOOL(true, result.bib_set,
-				"get6 bib set");
-		success &= ASSERT_BOOL(true, result.session_set,
-				"get6 session set");
-		success &= ASSERT_SESSION(sessions6[ra][rp][la][lp],
-				&result.session,
-				"get6 result");
-	} else {
-		success &= ASSERT_INT(-ESRCH,
-				bib_find(db, &tuple6, &result),
-				"get6 code - %u %u %u %u", ra, rp, la, lp);
-	}
-
-	return success;
+	expected = !!sessions[la][lp][ra][rp];
+	return ASSERT_INT(expected, session_exists(db, &session),
+			"session %u %u %u %u lookup", la, lp, ra, rp);
 }
 
 static bool test_db(void)
@@ -98,8 +94,7 @@ static bool test_db(void)
 		for (lp = 0; lp < 4; lp++) {
 			for (ra = 0; ra < 4; ra++) {
 				for (rp = 0; rp < 4; rp++) {
-					success &= assert4(la, lp, ra, rp);
-					success &= assert6(la, lp, ra, rp);
+					success &= assert_session(la, lp, ra, rp);
 				}
 			}
 		}
@@ -108,47 +103,59 @@ static bool test_db(void)
 	return success;
 }
 
+static bool inject(unsigned int index, __u32 src_addr, __u16 src_id,
+		__u32 dst_addr, __u16 dst_id)
+{
+	struct session_entry *entry;
+	int error;
+
+	entry = &session_instances[index];
+	sessions[src_addr][src_id][dst_addr][dst_id] = entry;
+
+	init_src6(&entry->src6, src_addr, src_id);
+	init_dst6(&entry->dst6, dst_addr, dst_id);
+	init_src4(&entry->src4, src_addr, src_id);
+	init_dst4(&entry->dst4, dst_addr, dst_id);
+	entry->proto = L4PROTO_UDP;
+	entry->state = ESTABLISHED;
+	entry->established = true;
+	entry->update_time = jiffies;
+	entry->timeout = UDP_DEFAULT;
+
+	error = bib_add_session(db, entry, NULL);
+	if (error) {
+		log_err("Errcode %d on sessiontable_add.", error);
+		return false;
+	}
+
+	return true;
+}
+
 static bool insert_test_sessions(void)
 {
-	memset(sessions4, 0, sizeof(sessions4));
-	memset(sessions6, 0, sizeof(sessions6));
+	bool success = true;
 
-	/* TODO error? */
-	session_inject(db, "2001:db8::1", 2, "64::2", 2, "192.0.2.2", 1, "203.0.113.2", 1, PROTO, &sessions[ 0]);
-	session_inject(db, "2001:db8::1", 1, "64::2", 1, "192.0.2.2", 2, "203.0.113.2", 2, PROTO, &sessions[ 1]);
-	session_inject(db, "2001:db8::2", 1, "64::2", 1, "192.0.2.2", 2, "203.0.113.1", 2, PROTO, &sessions[ 2]);
-	session_inject(db, "2001:db8::2", 2, "64::2", 2, "192.0.2.2", 2, "203.0.113.1", 1, PROTO, &sessions[ 3]);
-	session_inject(db, "2001:db8::1", 1, "64::2", 2, "192.0.2.1", 2, "203.0.113.2", 2, PROTO, &sessions[ 4]);
-	session_inject(db, "2001:db8::2", 2, "64::1", 1, "192.0.2.2", 1, "203.0.113.1", 1, PROTO, &sessions[ 5]);
-	session_inject(db, "2001:db8::2", 1, "64::1", 1, "192.0.2.1", 1, "203.0.113.2", 2, PROTO, &sessions[ 6]);
-	session_inject(db, "2001:db8::1", 1, "64::1", 1, "192.0.2.2", 1, "203.0.113.2", 2, PROTO, &sessions[ 7]);
-	session_inject(db, "2001:db8::2", 2, "64::1", 2, "192.0.2.1", 2, "203.0.113.1", 1, PROTO, &sessions[ 8]);
-	session_inject(db, "2001:db8::1", 2, "64::1", 1, "192.0.2.2", 2, "203.0.113.2", 1, PROTO, &sessions[ 9]);
-	session_inject(db, "2001:db8::2", 1, "64::1", 2, "192.0.2.2", 1, "203.0.113.1", 2, PROTO, &sessions[10]);
-	session_inject(db, "2001:db8::1", 2, "64::1", 2, "192.0.2.1", 1, "203.0.113.2", 1, PROTO, &sessions[11]);
-	session_inject(db, "2001:db8::2", 1, "64::2", 2, "192.0.2.1", 2, "203.0.113.2", 1, PROTO, &sessions[12]);
-	session_inject(db, "2001:db8::1", 1, "64::1", 2, "192.0.2.1", 2, "203.0.113.1", 2, PROTO, &sessions[13]);
-	session_inject(db, "2001:db8::1", 2, "64::2", 1, "192.0.2.1", 1, "203.0.113.1", 1, PROTO, &sessions[14]);
-	session_inject(db, "2001:db8::2", 2, "64::2", 1, "192.0.2.1", 1, "203.0.113.1", 2, PROTO, &sessions[15]);
+	memset(session_instances, 0, sizeof(session_instances));
+	memset(sessions, 0, sizeof(sessions));
 
-	sessions6[1][2][2][2] = sessions4[2][1][2][1] = &sessions[0];
-	sessions6[1][1][2][1] = sessions4[2][2][2][2] = &sessions[1];
-	sessions6[2][1][2][1] = sessions4[2][2][1][2] = &sessions[2];
-	sessions6[2][2][2][2] = sessions4[2][2][1][1] = &sessions[3];
-	sessions6[1][1][2][2] = sessions4[1][2][2][2] = &sessions[4];
-	sessions6[2][2][1][1] = sessions4[2][1][1][1] = &sessions[5];
-	sessions6[2][1][1][1] = sessions4[1][1][2][2] = &sessions[6];
-	sessions6[1][1][1][1] = sessions4[2][1][2][2] = &sessions[7];
-	sessions6[2][2][1][2] = sessions4[1][2][1][1] = &sessions[8];
-	sessions6[1][2][1][1] = sessions4[2][2][2][1] = &sessions[9];
-	sessions6[2][1][1][2] = sessions4[2][1][1][2] = &sessions[10];
-	sessions6[1][2][1][2] = sessions4[1][1][2][1] = &sessions[11];
-	sessions6[2][1][2][2] = sessions4[1][2][2][1] = &sessions[12];
-	sessions6[1][1][1][2] = sessions4[1][2][1][2] = &sessions[13];
-	sessions6[1][2][2][1] = sessions4[1][1][1][1] = &sessions[14];
-	sessions6[2][2][2][1] = sessions4[1][1][1][2] = &sessions[15];
+	success &= inject(0, 1, 2, 2, 2);
+	success &= inject(1, 1, 1, 2, 1);
+	success &= inject(2, 2, 1, 2, 1);
+	success &= inject(3, 2, 2, 2, 2);
+	success &= inject(4, 1, 1, 2, 2);
+	success &= inject(5, 2, 2, 1, 1);
+	success &= inject(6, 2, 1, 1, 1);
+	success &= inject(7, 1, 1, 1, 1);
+	success &= inject(8, 2, 2, 1, 2);
+	success &= inject(9, 1, 2, 1, 1);
+	success &= inject(10, 2, 1, 1, 2);
+	success &= inject(11, 1, 2, 1, 2);
+	success &= inject(12, 2, 1, 2, 2);
+	success &= inject(13, 1, 1, 1, 2);
+	success &= inject(14, 1, 2, 2, 1);
+	success &= inject(15, 2, 2, 2, 1);
 
-	return test_db();
+	return success ? test_db() : false;
 }
 
 static bool flush(void)
@@ -156,9 +163,8 @@ static bool flush(void)
 	log_debug("Flushing.");
 	bib_flush(db);
 
+	memset(session_instances, 0, sizeof(session_instances));
 	memset(sessions, 0, sizeof(sessions));
-	memset(sessions4, 0, sizeof(sessions4));
-	memset(sessions6, 0, sizeof(sessions6));
 	return test_db();
 }
 
@@ -173,16 +179,16 @@ static bool simple_session(void)
 	/* ---------------------------------------------------------- */
 
 	log_debug("Deleting sessions by BIB.");
-	range.prefix.address.s_addr = cpu_to_be32(0xc0000201u);
+	range.prefix.address.s_addr = cpu_to_be32(0xcb007101u);
 	range.prefix.len = 32;
 	range.ports.min = 1;
 	range.ports.max = 1;
 	bib_rm_range(db, PROTO, &range);
 
-	sessions6[2][1][1][1] = sessions4[1][1][2][2] = NULL;
-	sessions6[1][2][1][2] = sessions4[1][1][2][1] = NULL;
-	sessions6[1][2][2][1] = sessions4[1][1][1][1] = NULL;
-	sessions6[2][2][2][1] = sessions4[1][1][1][2] = NULL;
+	sessions[1][1][2][2] = NULL;
+	sessions[1][1][2][1] = NULL;
+	sessions[1][1][1][1] = NULL;
+	sessions[1][1][1][2] = NULL;
 	success &= test_db();
 
 	/* ---------------------------------------------------------- */
@@ -199,21 +205,21 @@ static bool simple_session(void)
 
 	/* ---------------------------------------------------------- */
 
-	log_debug("Deleting by taddr4s (all addresses, lower ports).");
-	range.prefix.address.s_addr = cpu_to_be32(0xc0000200u);
+	log_debug("Deleting by range (all addresses, lower ports).");
+	range.prefix.address.s_addr = cpu_to_be32(0xcb007100u);
 	range.prefix.len = 30;
 	range.ports.min = 0;
 	range.ports.max = 1;
 	bib_rm_range(db, PROTO, &range);
 
-	sessions6[1][2][2][2] = sessions4[2][1][2][1] = NULL;
-	sessions6[2][2][1][1] = sessions4[2][1][1][1] = NULL;
-	sessions6[2][1][1][1] = sessions4[1][1][2][2] = NULL;
-	sessions6[1][1][1][1] = sessions4[2][1][2][2] = NULL;
-	sessions6[2][1][1][2] = sessions4[2][1][1][2] = NULL;
-	sessions6[1][2][1][2] = sessions4[1][1][2][1] = NULL;
-	sessions6[1][2][2][1] = sessions4[1][1][1][1] = NULL;
-	sessions6[2][2][2][1] = sessions4[1][1][1][2] = NULL;
+	sessions[2][1][2][1] = NULL;
+	sessions[2][1][1][1] = NULL;
+	sessions[1][1][2][2] = NULL;
+	sessions[2][1][2][2] = NULL;
+	sessions[2][1][1][2] = NULL;
+	sessions[1][1][2][1] = NULL;
+	sessions[1][1][1][1] = NULL;
+	sessions[1][1][1][2] = NULL;
 	success &= test_db();
 
 	/* ---------------------------------------------------------- */
@@ -224,21 +230,21 @@ static bool simple_session(void)
 
 	/* ---------------------------------------------------------- */
 
-	log_debug("Deleting by taddr4s (lower addresses, all ports).");
-	range.prefix.address.s_addr = cpu_to_be32(0xc0000200u);
+	log_debug("Deleting by range (lower addresses, all ports).");
+	range.prefix.address.s_addr = cpu_to_be32(0xcb007100u);
 	range.prefix.len = 31;
 	range.ports.min = 0;
 	range.ports.max = 65535;
 	bib_rm_range(db, PROTO, &range);
 
-	sessions6[1][1][2][2] = sessions4[1][2][2][2] = NULL;
-	sessions6[2][1][1][1] = sessions4[1][1][2][2] = NULL;
-	sessions6[2][2][1][2] = sessions4[1][2][1][1] = NULL;
-	sessions6[1][2][1][2] = sessions4[1][1][2][1] = NULL;
-	sessions6[2][1][2][2] = sessions4[1][2][2][1] = NULL;
-	sessions6[1][1][1][2] = sessions4[1][2][1][2] = NULL;
-	sessions6[1][2][2][1] = sessions4[1][1][1][1] = NULL;
-	sessions6[2][2][2][1] = sessions4[1][1][1][2] = NULL;
+	sessions[1][2][2][2] = NULL;
+	sessions[1][1][2][2] = NULL;
+	sessions[1][2][1][1] = NULL;
+	sessions[1][1][2][1] = NULL;
+	sessions[1][2][2][1] = NULL;
+	sessions[1][2][1][2] = NULL;
+	sessions[1][1][1][1] = NULL;
+	sessions[1][1][1][2] = NULL;
 	success &= test_db();
 
 	/* ---------------------------------------------------------- */

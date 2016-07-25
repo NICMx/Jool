@@ -146,8 +146,8 @@ struct joold_node {
 		 * keep track of what is yet to be sent.
 		 */
 		struct {
-			/** IPv6 ID of the session sent in the last packet. */
-			struct taddr6_tuple offset;
+			/** IPv4 ID of the session sent in the last packet. */
+			struct taddr4_tuple offset;
 			/**
 			 * true - @offset above is valid.
 			 * false - @no sessions from this node have been sent.
@@ -556,16 +556,6 @@ struct add_params {
 	struct joold_session *newd;
 	bool success;
 };
-
-static bool session_equals(const struct session_entry *s1,
-		const struct session_entry *s2)
-{
-	return taddr6_equals(&s1->src6, &s2->src6)
-			&& taddr6_equals(&s1->dst6, &s2->dst6)
-			&& taddr4_equals(&s1->src4, &s2->src4)
-			&& taddr4_equals(&s1->dst4, &s2->dst4)
-			&& (s1->proto == s2->proto);
-}
 
 static enum session_fate collision_cb(struct session_entry *old, void *arg)
 {

@@ -82,4 +82,7 @@ struct bib_session {
 	struct session_entry session;
 };
 
+bool session_equals(const struct session_entry *s1,
+		const struct session_entry *s2);
+
 #endif /* _JOOL_MOD_BIB_ENTRY_H */

@@ -65,6 +65,8 @@ bool ASSERT_SESSION(struct session_entry *expected,
 		struct session_entry *actual,
 		char *test_name);
 
+void print_session(struct session_entry *session);
+
 bool init_full(void);
 void end_full(void);
 

@@ -28,6 +28,7 @@ $(FILTERING)-objs += ../../../mod/stateful/pool4/db.o
 $(FILTERING)-objs += ../../../mod/stateful/pool4/empty.o
 $(FILTERING)-objs += ../../../mod/stateful/pool4/rfc6056.o
 $(FILTERING)-objs += ../../../mod/stateful/bib/db.o
+$(FILTERING)-objs += ../../../mod/stateful/bib/entry.o
 $(FILTERING)-objs += ../../../mod/stateful/bib/pkt_queue.o
 $(FILTERING)-objs += ../framework/skb_generator.o
 $(FILTERING)-objs += ../framework/types.o

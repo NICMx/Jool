@@ -361,7 +361,7 @@ struct request_session {
 			 * Connection the userspace app received in the last
 			 * chunk. Iteration should continue from here.
 			 */
-			struct taddr6_tuple offset;
+			struct taddr4_tuple offset;
 		} display;
 		struct {
 			/* Nothing needed here. */

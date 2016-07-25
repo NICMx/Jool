@@ -19,6 +19,7 @@ obj-m += $(SESSIONDB).o
 $(SESSIONDB)-objs += $(MIN_REQS)
 $(SESSIONDB)-objs += ../../../mod/common/rbtree.o
 $(SESSIONDB)-objs += ../../../mod/stateful/bib/db.o
+$(SESSIONDB)-objs += ../../../mod/stateful/bib/entry.o
 $(SESSIONDB)-objs += ../framework/session.o
 $(SESSIONDB)-objs += ../impersonator/bib.o
 $(SESSIONDB)-objs += ../impersonator/route.o
@@ -35,4 +36,4 @@ clean:
 test:
 	sudo dmesg -C
 	-sudo insmod $(SESSIONDB).ko && sudo rmmod $(SESSIONDB)
-	sudo dmesg -c | less
+	sudo dmesg -tc | less

@@ -54,7 +54,7 @@ struct mask_domain {
 
 	unsigned int range_count;
 	struct pool4_range *current_range;
-	unsigned int current_port;
+	int current_port;
 
 	/*
 	 * An array of struct pool4_range hangs off here.
@@ -872,7 +872,7 @@ struct mask_domain *mask_domain_find(struct pool4 *pool, struct tuple *tuple6,
 	foreach_domain_range(entry, masks) {
 		if (offset <= port_range_count(&entry->ports)) {
 			masks->current_range = entry;
-			masks->current_port = offset;
+			masks->current_port = entry->ports.min + offset - 1;
 			return masks; /* Happy path */
 		}
 		offset -= port_range_count(&entry->ports);

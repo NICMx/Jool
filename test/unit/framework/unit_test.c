@@ -259,6 +259,11 @@ fail:
 	return false;
 }
 
+void print_session(struct session_entry *session)
+{
+	pr_cont(SESSION_KEY, SESSION_PRINT(session));
+}
+
 #undef SESSION_PRINT
 #undef SESSION_KEY
 

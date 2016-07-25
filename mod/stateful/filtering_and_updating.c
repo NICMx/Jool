@@ -53,7 +53,7 @@ static void log_entries(struct bib_session *entries)
 	if (entries->bib_set) {
 		log_debug("BIB entry: %pI6c#%u - %pI4#%u (%s)",
 				&session->src6.l3, session->src6.l4,
-				&session->src6.l3, session->src4.l4,
+				&session->src4.l3, session->src4.l4,
 				l4proto_to_string(session->proto));
 	} else {
 		log_debug("BIB entry: None");

@@ -1,27 +1,5 @@
 #include "nat64/unit/session.h"
-
 #include "nat64/common/str_utils.h"
-
-static int session_print_aux(struct session_entry *session, void *arg)
-{
-	log_debug("  [%pI6c#%u, %pI6c#%u, %pI4#%u, %pI4#%u]",
-			&session->src6.l3, session->src6.l4,
-			&session->dst6.l3, session->dst6.l4,
-			&session->src4.l3, session->src4.l4,
-			&session->dst4.l3, session->dst4.l4);
-	return 0;
-}
-
-int session_print(struct bib *db, l4_protocol l4_proto)
-{
-	struct session_foreach_func func = {
-			.cb = session_print_aux,
-			.arg = NULL,
-	};
-
-	log_debug("Sessions:");
-	return bib_foreach_session(db, l4_proto, &func, NULL);
-}
 
 int session_inject(struct bib *db,
 		char *src6_addr, u16 src6_id,

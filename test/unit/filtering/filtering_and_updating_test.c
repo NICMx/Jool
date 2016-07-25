@@ -9,6 +9,7 @@ MODULE_DESCRIPTION("Unit tests for the Filtering module");
 #include "nat64/common/str_utils.h"
 #include "nat64/unit/types.h"
 #include "nat64/unit/unit_test.h"
+#include "nat64/unit/session.h"
 #include "nat64/unit/skb_generator.h"
 #include "nat64/mod/stateful/pool4/rfc6056.h"
 #include "stateful/filtering_and_updating.c"
@@ -79,43 +80,63 @@ static bool assert_session_count(int expected, l4_protocol proto)
 	return success;
 }
 
-static bool assert_session_exists(char *remote_addr6, u16 remote_port6,
-		char *local_addr6, u16 local_port6,
-		char *local_addr4, u16 local_port4,
-		char *remote_addr4, u16 remote_port4,
-		l4_protocol proto, u_int8_t state)
+static int compare_session_foreach_cb(struct session_entry *session, void *arg)
 {
-	struct bib_session result;
-	struct tuple tuple6;
-	int error;
+	struct session_entry *expected = arg;
 	bool success = true;
 
-	error = init_tuple6(&tuple6, remote_addr6, remote_port6, local_addr6, local_port6, proto);
-	if (error)
+	if (!session_equals(expected, session))
+		return 0;
+
+	success &= ASSERT_INT(expected->proto, session->proto, "Session's l4 proto");
+	success &= ASSERT_INT(expected->state, session->state, "Session's state");
+	success &= ASSERT_BOOL(expected->established, session->established, "Session established?");
+	// TODO
+	// success &= ASSERT_INT(state, result.session.timeout, "Session's timeout");
+	return success ? 1 : -EINVAL;
+}
+
+static bool session_exists(struct session_entry *session)
+{
+	struct session_foreach_func func = {
+			.cb = compare_session_foreach_cb,
+			.arg = session,
+	};
+	/* This is the closest we currently have to a find_session function. */
+	return bib_foreach_session(jool.nat64.bib, session->proto, &func, NULL);
+}
+
+static bool assert_session_exists(char *src6_addr, u16 src6_port,
+		char *dst6_addr, u16 dst6_port,
+		char *src4_addr, u16 src4_port,
+		char *dst4_addr, u16 dst4_port,
+		l4_protocol proto, u_int8_t state)
+{
+	struct session_entry expected;
+	int result;
+
+	if (str_to_addr6(src6_addr, &expected.src6.l3))
 		return false;
-
-	success &= ASSERT_INT(0, bib_find(jool.nat64.bib, &tuple6, &result), "Session exists");
-	if (!success)
+	if (str_to_addr6(dst6_addr, &expected.dst6.l3))
 		return false;
+	if (str_to_addr4(src4_addr, &expected.src4.l3))
+		return false;
+	if (str_to_addr4(dst4_addr, &expected.dst4.l3))
+		return false;
+	expected.src6.l4 = src6_port;
+	expected.dst6.l4 = dst6_port;
+	expected.src4.l4 = src4_port;
+	expected.dst4.l4 = dst4_port;
+	expected.proto = proto;
+	expected.state = state;
+	expected.established = true;
 
-	success &= ASSERT_BOOL(true, result.bib_set, "bib set");
-	success &= ASSERT_BOOL(true, result.session_set, "bib set");
-	success &= ASSERT_ADDR6(remote_addr6, &result.session.src6.l3, "remote addr6");
-	success &= ASSERT_UINT(remote_port6, result.session.src6.l4, "remote port6");
-	success &= ASSERT_ADDR6(local_addr6, &result.session.dst6.l3, "local addr6");
-	success &= ASSERT_UINT(local_port6, result.session.dst6.l4, "local port6");
-	success &= ASSERT_ADDR4(local_addr4, &result.session.src4.l3, "local addr4");
-	/* Local port4 is unpredictable. */
-	success &= ASSERT_ADDR4(remote_addr4, &result.session.dst4.l3, "remote addr4");
-	if (proto != L4PROTO_ICMP)
-		success &= ASSERT_UINT(remote_port4, result.session.dst4.l4, "remote port4");
-	success &= ASSERT_INT(proto, result.session.proto, "Session's l4 proto");
-	success &= ASSERT_INT(state, result.session.state, "Session's state");
-	success &= ASSERT_BOOL(true, result.session.established, "Session established?");
-//	TODO
-//	success &= ASSERT_INT(state, result.session.timeout, "Session's timeout");
-
-	return success;
+	result = session_exists(&expected);
+	if (result > 0)
+		return true;
+	else if (result < 0)
+		return false;
+	return ASSERT_BOOL(1, 0, "session search");
 }
 
 /**
@@ -307,7 +328,7 @@ static bool test_udp(void)
 	success &= assert_session_count(1, L4PROTO_UDP);
 	success &= assert_session_exists("1::2", 1212, "3::4", 3434,
 			"192.0.2.128", 1024, "0.0.0.4", 3434,
-			L4PROTO_UDP, 0);
+			L4PROTO_UDP, ESTABLISHED);
 
 	kfree_skb(skb);
 
@@ -325,7 +346,7 @@ static bool test_udp(void)
 	success &= assert_session_count(1, L4PROTO_UDP);
 	success &= assert_session_exists("1::2", 1212, "3::4", 3434,
 			"192.0.2.128", 1024, "0.0.0.4", 3434,
-			L4PROTO_UDP, 0);
+			L4PROTO_UDP, ESTABLISHED);
 
 	kfree_skb(skb);
 
@@ -366,7 +387,7 @@ static bool test_icmp(void)
 	success &= assert_session_count(1, L4PROTO_ICMP);
 	success &= assert_session_exists("1::2", 1212, "3::4", 1212,
 			"192.0.2.128", 1024, "0.0.0.4", 1024,
-			L4PROTO_ICMP, 0);
+			L4PROTO_ICMP, ESTABLISHED);
 
 	kfree_skb(skb);
 
@@ -384,7 +405,7 @@ static bool test_icmp(void)
 	success &= assert_session_count(1, L4PROTO_ICMP);
 	success &= assert_session_exists("1::2", 1212, "3::4", 1212,
 			"192.0.2.128", 1024, "0.0.0.4", 1024,
-			L4PROTO_ICMP, 0);
+			L4PROTO_ICMP, ESTABLISHED);
 
 	kfree_skb(skb);
 
@@ -497,8 +518,8 @@ static bool init(void)
 	if (str_to_addr4("192.0.2.128", &range.prefix.address))
 		goto fail5;
 	range.prefix.len = 32;
-	range.ports.min = 0;
-	range.ports.max = 65535;
+	range.ports.min = 1024;
+	range.ports.max = 1024;
 
 	if (pool4db_add(jool.nat64.pool4, 0, L4PROTO_TCP, &range))
 		goto fail5;
