@@ -33,4 +33,4 @@ clean:
 test:
 	sudo dmesg -C
 	-sudo insmod $(EAMT).ko && sudo rmmod $(EAMT)
-	sudo dmesg -c | less
+	sudo dmesg -tc | less

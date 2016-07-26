@@ -5,15 +5,13 @@ PROJECTS += iterator
 PROJECTS += logtime
 PROJECTS += pkt
 PROJECTS += rbtree
+PROJECTS += rfc6052
+PROJECTS += rfc6056
 
 # Layer 2 tests (tables)
 PROJECTS += bibtable
 PROJECTS += eamt
-PROJECTS += rfc6052
 PROJECTS += sessiontable
-
-# Layer 3 tests (dbutils)
-PROJECTS += palloc4
 
 # Layer 3 tests (dbs)
 PROJECTS += bibdb

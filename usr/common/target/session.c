@@ -104,10 +104,10 @@ static int session_display_response(struct jool_response *response, void *arg)
 	}
 
 	params->row_count += entry_count;
-	params->req_payload->display.connection_set = response->hdr->pending_data;
+	params->req_payload->display.offset_set = response->hdr->pending_data;
 	if (entry_count > 0) {
-		params->req_payload->display.remote4 = entries[entry_count - 1].dst4;
-		params->req_payload->display.local4 = entries[entry_count - 1].src4;
+		params->req_payload->display.offset.src = entries[entry_count - 1].src4;
+		params->req_payload->display.offset.dst = entries[entry_count - 1].dst4;
 	}
 	return 0;
 }
@@ -127,9 +127,9 @@ static bool display_single_table(u_int8_t l4_proto, bool numeric_hostname, bool 
 
 	init_request_hdr(hdr, MODE_SESSION, OP_DISPLAY);
 	payload->l4_proto = l4_proto;
-	payload->display.connection_set = false;
-	memset(&payload->display.remote4, 0, sizeof(payload->display.remote4));
-	memset(&payload->display.local4, 0, sizeof(payload->display.local4));
+	payload->display.offset_set = false;
+	memset(&payload->display.offset.src, 0, sizeof(payload->display.offset.src));
+	memset(&payload->display.offset.dst, 0, sizeof(payload->display.offset.dst));
 
 	params.numeric_hostname = numeric_hostname;
 	params.csv_format = csv_format;
@@ -138,7 +138,7 @@ static bool display_single_table(u_int8_t l4_proto, bool numeric_hostname, bool 
 
 	do {
 		error = netlink_request(request, sizeof(request), session_display_response, &params);
-	} while (!error && params.req_payload->display.connection_set);
+	} while (!error && params.req_payload->display.offset_set);
 
 	if (!csv_format && !error) {
 		if (params.row_count > 0)

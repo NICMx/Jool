@@ -12,7 +12,7 @@
 include $(shell dirname $(realpath $(lastword $(MAKEFILE_LIST))))/../common.mk
 
 
-PALLOC = palloc4
+PALLOC = rfc6056
 
 obj-m += $(PALLOC).o
 
@@ -31,7 +31,7 @@ $(PALLOC)-objs += ../../../mod/stateful/pool4/empty.o
 $(PALLOC)-objs += ../framework/types.o
 $(PALLOC)-objs += ../impersonator/icmp_wrapper.o
 $(PALLOC)-objs += ../impersonator/route.o
-$(PALLOC)-objs += port_allocator_test.o
+$(PALLOC)-objs += rfc6056_test.o
 
 
 all:
@@ -44,4 +44,4 @@ clean:
 test:
 	sudo dmesg -C
 	-sudo insmod $(PALLOC).ko && sudo rmmod $(PALLOC)
-	sudo dmesg -c | less
+	sudo dmesg -tc | less

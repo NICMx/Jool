@@ -48,4 +48,4 @@ clean:
 test:
 	sudo dmesg -C
 	-sudo insmod $(FILTERING).ko && sudo rmmod $(FILTERING)
-	sudo dmesg -c | less
+	sudo dmesg -tc | less

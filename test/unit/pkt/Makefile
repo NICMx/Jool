@@ -35,4 +35,4 @@ clean:
 test:
 	sudo dmesg -C
 	-sudo insmod $(PKT).ko && sudo rmmod $(PKT)
-	sudo dmesg -c | less
+	sudo dmesg -tc | less

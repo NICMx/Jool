@@ -36,4 +36,4 @@ clean:
 test:
 	sudo dmesg -C
 	-sudo insmod $(BIBTABLE).ko && sudo rmmod $(BIBTABLE)
-	sudo dmesg -c | less
+	sudo dmesg -tc | less

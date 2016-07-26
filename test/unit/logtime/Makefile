@@ -30,4 +30,4 @@ clean:
 test:
 	sudo dmesg -C
 	-sudo insmod $(LOGTIME).ko && sudo rmmod $(LOGTIME)
-	sudo dmesg -c | less
+	sudo dmesg -tc | less

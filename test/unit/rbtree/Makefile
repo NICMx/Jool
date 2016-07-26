@@ -30,4 +30,4 @@ clean:
 test:
 	sudo dmesg -C
 	-sudo insmod $(RBTREE).ko && sudo rmmod $(RBTREE)
-	sudo dmesg -c | less
+	sudo dmesg -tc | less

@@ -456,8 +456,7 @@ static int parse_opt(int key, char *str, struct argp_state *state)
 		break;
 
 	case ARGP_QUICK:
-		error = update_state(args, MODE_POOL6 | MODE_POOL4,
-				OP_REMOVE | OP_FLUSH);
+		error = update_state(args, MODE_POOL4, OP_REMOVE | OP_FLUSH);
 		args->db.quick = true;
 		break;
 	case ARGP_MARK:
@@ -665,12 +664,12 @@ static int handle_pool6(struct arguments *args)
 			log_err("The IPv6 prefix is mandatory.");
 			return -EINVAL;
 		}
-		return pool6_remove(&args->db.prefix6, args->db.quick);
+		return pool6_remove(&args->db.prefix6);
 
 	case OP_COUNT:
 		return pool6_count();
 	case OP_FLUSH:
-		return pool6_flush(args->db.quick);
+		return pool6_flush();
 	default:
 		return unknown_op("IPv6 pool", args->op);
 	}

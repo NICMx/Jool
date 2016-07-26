@@ -30,4 +30,4 @@ clean:
 test:
 	sudo dmesg -C
 	-sudo insmod $(HASHTABLE).ko && sudo rmmod $(HASHTABLE)
-	sudo dmesg -c | less
+	sudo dmesg -tc | less

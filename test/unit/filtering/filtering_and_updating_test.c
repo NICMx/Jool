@@ -86,13 +86,17 @@ static int compare_session_foreach_cb(struct session_entry *session, void *arg)
 	bool success = true;
 
 	if (!session_equals(expected, session))
-		return 0;
+		return 0; /* Still not found; keep foreaching. */
 
 	success &= ASSERT_INT(expected->proto, session->proto, "Session's l4 proto");
 	success &= ASSERT_INT(expected->state, session->state, "Session's state");
 	success &= ASSERT_BOOL(expected->established, session->established, "Session established?");
 	// TODO
 	// success &= ASSERT_INT(state, result.session.timeout, "Session's timeout");
+	/*
+	 * Success? Interrupt the foreach positively.
+	 * Failure? Interrupt the foreach negatively.
+	 */
 	return success ? 1 : -EINVAL;
 }
 
@@ -102,7 +106,10 @@ static bool session_exists(struct session_entry *session)
 			.cb = compare_session_foreach_cb,
 			.arg = session,
 	};
-	/* This is the closest we currently have to a find_session function. */
+	/*
+	 * This is the closest we have to a session finding function in the
+	 * current API.
+	 */
 	return bib_foreach_session(jool.nat64.bib, session->proto, &func, NULL);
 }
 
@@ -129,7 +136,7 @@ static bool assert_session_exists(char *src6_addr, u16 src6_port,
 	expected.dst4.l4 = dst4_port;
 	expected.proto = proto;
 	expected.state = state;
-	expected.established = true;
+	expected.established = (state == ESTABLISHED);
 
 	result = session_exists(&expected);
 	if (result > 0)
@@ -175,7 +182,7 @@ static bool test_filtering_and_updating(void)
 	bool success = true;
 
 	log_debug("ICMPv4 errors should succeed but not affect the tables.");
-	if (init_tuple4(&state.in.tuple, "8.7.6.5", 8765, "192.0.2.128", 65000, L4PROTO_TCP))
+	if (init_tuple4(&state.in.tuple, "8.7.6.5", 8765, "192.0.2.128", 1024, L4PROTO_TCP))
 		return false;
 	if (create_skb4_icmp_error(&state.in.tuple, &skb, 100, 32))
 		return false;
@@ -413,8 +420,8 @@ static bool test_icmp(void)
 }
 
 /**
- * We'll just chain a handful of packets, since testing every combination would take forever and
- * the inner functions are tested in session db anyway.
+ * We'll just chain a handful of packets, since testing every combination would
+ * take forever and the inner functions are tested in session db anyway.
  * The chain is V6 SYN --> V4 SYN --> V6 RST --> V6 SYN.
  */
 static bool test_tcp(void)
@@ -423,7 +430,7 @@ static bool test_tcp(void)
 	struct sk_buff *skb;
 	bool success = true;
 
-	/* V6 SYN */
+	log_debug("V6 SYN");
 	if (init_tuple6(&state.in.tuple, "1::2", 1212, "3::4", 3434, L4PROTO_TCP))
 		return false;
 	if (create_tcp_packet(&skb, L3PROTO_IPV6, true, false, false))
@@ -441,7 +448,7 @@ static bool test_tcp(void)
 
 	kfree_skb(skb);
 
-	/* V4 SYN */
+	log_debug("V4 SYN");
 	if (invert_tuple(&state))
 		return false;
 	if (create_tcp_packet(&skb, L3PROTO_IPV4, true, false, false))
@@ -459,7 +466,9 @@ static bool test_tcp(void)
 
 	kfree_skb(skb);
 
-	/* V6 RST */
+	log_debug("V6 RST");
+	if (init_tuple6(&state.in.tuple, "1::2", 1212, "3::4", 3434, L4PROTO_TCP))
+		return false;
 	if (create_tcp_packet(&skb, L3PROTO_IPV6, false, true, false))
 		return false;
 	if (pkt_init_ipv6(&state.in, skb))
@@ -475,7 +484,7 @@ static bool test_tcp(void)
 
 	kfree_skb(skb);
 
-	/* V6 SYN */
+	log_debug("V6 SYN");
 	if (create_tcp_packet(&skb, L3PROTO_IPV6, true, false, false))
 		return false;
 	if (pkt_init_ipv6(&state.in, skb))

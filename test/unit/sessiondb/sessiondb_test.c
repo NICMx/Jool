@@ -78,7 +78,7 @@ static bool assert_session(unsigned int la, unsigned int lp,
 	session.proto = PROTO;
 
 	expected = !!sessions[la][lp][ra][rp];
-	return ASSERT_INT(expected, session_exists(db, &session),
+	return ASSERT_INT(expected, session_exists(&session),
 			"session %u %u %u %u lookup", la, lp, ra, rp);
 }
 
@@ -253,76 +253,6 @@ static bool simple_session(void)
 	return success;
 }
 
-//static bool test_allow_aux(__u32 local_addr, __u16 local_port,
-//		__u32 remote_addr, __u16 remote_port)
-//{
-//	struct tuple tuple4;
-//
-//	tuple4.src.addr4.l3.s_addr = cpu_to_be32(remote_addr);
-//	tuple4.src.addr4.l4 = remote_port;
-//	tuple4.dst.addr4.l3.s_addr = cpu_to_be32(local_addr);
-//	tuple4.dst.addr4.l4 = local_port;
-//	tuple4.l4_proto = L4PROTO_UDP;
-//	tuple4.l3_proto = L3PROTO_IPV4;
-//
-//	log_tuple(&tuple4);
-//	return sessiondb_allow(db, &tuple4);
-//}
-//
-//static bool test_allow(void)
-//{
-//	struct session_entry *session;
-//	bool success = true;
-//
-//	/* Init. */
-//	session = session_inject(db, "2001:db8::2", 20, "64::6", 60,
-//			"192.0.2.1", 10, "203.0.113.2", 20, L4PROTO_UDP, true);
-//	if (!session)
-//		return false;
-//
-//	/* Test admittance when the tuple and session match perfectly. */
-//	success &= ASSERT_BOOL(true,
-//			test_allow_aux(0xc0000201u, 10, 0xcb007102u, 20),
-//			"perfect match");
-//	/* Test a tuple that completely mismatches the session. */
-//	success &= ASSERT_BOOL(false,
-//			test_allow_aux(0x12345678u, 90, 0x90876543u, 21),
-//			"perfect mismatch");
-//	/*
-//	 * Now test tuples that nearly match the session.
-//	 * (The remote port is the only one that doesn't matter.)
-//	 */
-//	success &= ASSERT_BOOL(true,
-//			test_allow_aux(0xc0000201u, 10, 0xcb007102u, 21),
-//			"src port mismatch");
-//	success &= ASSERT_BOOL(false,
-//			test_allow_aux(0xc0000201u, 10, 0x90876543u, 20),
-//			"src addr mismatch");
-//	success &= ASSERT_BOOL(false,
-//			test_allow_aux(0xc0000201u, 90, 0xcb007102u, 20),
-//			"dst port mismatch");
-//	success &= ASSERT_BOOL(false,
-//			test_allow_aux(0x12345678u, 10, 0xcb007102u, 20),
-//			"dst addr mismatch");
-//
-//	sessiondb_flush(db);
-//	session_put(session, true);
-//	session = NULL;
-//
-//	/*
-//	 * Now that the original session is no longer in the DB, the previously
-//	 * positive tests should now fail.
-//	 */
-//	success &= ASSERT_BOOL(false,
-//			test_allow_aux(0xc0000201u, 10, 0xcb007102u, 20),
-//			"perfect match deleted");
-//	success &= ASSERT_BOOL(false,
-//			test_allow_aux(0xc0000201u, 10, 0xcb007102u, 21),
-//			"src port mismatch deleted");
-//
-//	return success;
-//}
-
 enum session_fate tcp_expired_cb(struct session_entry *session, void *arg)
 {
 	return FATE_RM;
@@ -349,7 +279,6 @@ int init_module(void)
 	START_TESTS("Session");
 
 	INIT_CALL_END(init(), simple_session(), end(), "Single Session");
-//	INIT_CALL_END(init(), test_allow(), end(), "Allow function");
 
 	END_TESTS;
 }

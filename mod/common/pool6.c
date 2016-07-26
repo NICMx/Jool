@@ -213,6 +213,8 @@ int pool6_find(struct pool6 *pool, const struct in6_addr *addr,
 			return 0;
 		}
 	}
+
+	log_debug("Could not find a prefix that matches %pI6c.", addr);
 	/* Fall through. */
 
 not_found:
@@ -270,7 +272,7 @@ int pool6_add(struct pool6 *pool, struct ipv6_prefix *prefix)
 	mutex_lock(&lock);
 	list = rcu_dereference_protected(pool->list, lockdep_is_held(&lock));
 
-	if (xlat_is_siit() && !list_empty(list)) {
+	if (!list_empty(list)) {
 		mutex_unlock(&lock);
 		/*
 		 * TODO (4.0.0) remember to turn pool6 into a single global

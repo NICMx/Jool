@@ -31,15 +31,15 @@ static int pool4_display_response(struct jool_response *response, void *arg)
 		if (args->csv)
 			printf("%u,%s,%s,%u,%u\n", samples[i].mark,
 					l4proto_to_string(samples[i].proto),
-					inet_ntoa(samples[i].addr),
-					samples[i].range.min,
-					samples[i].range.max);
+					inet_ntoa(samples[i].range.addr),
+					samples[i].range.ports.min,
+					samples[i].range.ports.max);
 		else
 			printf("%u\t%s\t%s\t%u-%u\n", samples[i].mark,
 					l4proto_to_string(samples[i].proto),
-					inet_ntoa(samples[i].addr),
-					samples[i].range.min,
-					samples[i].range.max);
+					inet_ntoa(samples[i].range.addr),
+					samples[i].range.ports.min,
+					samples[i].range.ports.max);
 	}
 
 	args->row_count += sample_count;
@@ -133,8 +133,8 @@ static int __add(__u32 mark, enum l4_protocol proto,
 	init_request_hdr(hdr, MODE_POOL4, OP_ADD);
 	payload->add.entry.mark = mark;
 	payload->add.entry.proto = proto;
-	payload->add.entry.addrs = *addrs;
-	payload->add.entry.ports = *ports;
+	payload->add.entry.range.prefix = *addrs;
+	payload->add.entry.range.ports = *ports;
 
 	return netlink_request(request, sizeof(request), NULL, NULL);
 }
@@ -168,8 +168,8 @@ static int __rm(__u32 mark, enum l4_protocol proto,
 	init_request_hdr(hdr, MODE_POOL4, OP_REMOVE);
 	payload->rm.entry.mark = mark;
 	payload->rm.entry.proto = proto;
-	payload->rm.entry.addrs = *addrs;
-	payload->rm.entry.ports = *ports;
+	payload->rm.entry.range.prefix = *addrs;
+	payload->rm.entry.range.ports = *ports;
 	payload->rm.quick = quick;
 
 	return netlink_request(request, sizeof(request), NULL, NULL);

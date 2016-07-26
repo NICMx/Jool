@@ -24,7 +24,7 @@ static int handle_pool6_display(struct pool6 *pool, struct genl_info *info,
 	if (error)
 		return nlcore_respond(info, error);
 
-	prefix = request->display.prefix_set ? &request->display.prefix : NULL;
+	prefix = request->prefix_set ? &request->prefix : NULL;
 	error = pool6_foreach(pool, pool6_entry_to_userspace, &buffer, prefix);
 	nlbuffer_set_pending_data(&buffer, error > 0);
 	error = (error >= 0)
@@ -54,7 +54,7 @@ static int handle_pool6_add(struct pool6 *pool, union request_pool6 *request)
 		return -EPERM;
 
 	log_debug("Adding a prefix to pool6.");
-	return pool6_add(pool, &request->add.prefix);
+	return pool6_add(pool, &request->prefix);
 }
 
 static int handle_pool6_rm(struct xlator *jool, union request_pool6 *request)
@@ -65,20 +65,13 @@ static int handle_pool6_rm(struct xlator *jool, union request_pool6 *request)
 		return -EPERM;
 
 	log_debug("Removing a prefix from pool6.");
-	error = pool6_rm(jool->pool6, &request->rm.prefix);
+	error = pool6_rm(jool->pool6, &request->prefix);
 
-	if (xlat_is_nat64() && !request->flush.quick) {
+	if (xlat_is_nat64()) {
 		/*
-		 * This will also clear *previously* orphaned entries, but given
-		 * that "not quick" generally means "please clean up", this is
-		 * more likely what people wants.
-		 *
-		 * Also, very important:
-		 * The BIB/session module currently *assumes* there's only one
-		 * RFC 6052 prefix at play at any given time.
-		 * If you want otherwise, you'll need each BIB to index its
-		 * sessions by means of two trees, not one. (Which'll be
-		 * slower.)
+		 * Sorry; there's no "quick" pool6 rm anymore. This is because
+		 * BIB and session now assume that the prefix won't change for
+		 * significant performance and simplifying reasons.
 		 */
 		bib_flush(jool->nat64.bib);
 	}
@@ -96,11 +89,11 @@ static int handle_pool6_flush(struct xlator *jool, union request_pool6 *request)
 	log_debug("Flushing pool6.");
 	error = pool6_flush(jool->pool6);
 
-	if (xlat_is_nat64() && !request->flush.quick) {
+	if (xlat_is_nat64()) {
 		/*
-		 * This will also clear *previously* orphaned entries, but given
-		 * that "not quick" generally means "please clean up", this is
-		 * more likely what people wants.
+		 * Sorry; there's no "quick" pool6 flush anymore. This is
+		 * because BIB/session now assume that the prefix won't change
+		 * for significant performance and simplifying reasons.
 		 */
 		bib_flush(jool->nat64.bib);
 	}

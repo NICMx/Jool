@@ -40,4 +40,4 @@ clean:
 test:
 	sudo dmesg -C
 	-sudo insmod $(TRANSLATE).ko && sudo rmmod $(TRANSLATE)
-	sudo dmesg -c | less
+	sudo dmesg -tc | less

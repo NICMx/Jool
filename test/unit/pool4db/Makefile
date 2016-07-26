@@ -34,4 +34,4 @@ clean:
 test:
 	sudo dmesg -C
 	-sudo insmod $(POOL4DB).ko && sudo rmmod $(POOL4DB)
-	sudo dmesg -c | less
+	sudo dmesg -tc | less

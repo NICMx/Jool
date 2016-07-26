@@ -52,6 +52,7 @@ jool += pool4/db.o
 jool += pool4/rfc6056.o
 
 jool += bib/db.o
+jool += bib/entry.o
 jool += bib/pkt_queue.o
 
 jool += timer.o

@@ -35,4 +35,4 @@ clean:
 test:
 	sudo dmesg -C
 	-sudo insmod $(FRAGDB).ko && sudo rmmod $(FRAGDB)
-	sudo dmesg -c | less
+	sudo dmesg -tc | less

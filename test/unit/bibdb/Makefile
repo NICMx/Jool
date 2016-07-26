@@ -37,4 +37,4 @@ clean:
 test:
 	sudo dmesg -C
 	-sudo insmod $(BIBDB).ko && sudo rmmod $(BIBDB)
-	sudo dmesg -c | less
+	sudo dmesg -tc | less

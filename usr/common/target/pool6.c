@@ -35,9 +35,9 @@ static int pool6_display_response(struct jool_response *response, void *arg)
 	}
 
 	args->row_count += prefix_count;
-	args->request->display.prefix_set = response->hdr->pending_data;
+	args->request->prefix_set = response->hdr->pending_data;
 	if (prefix_count > 0)
-		args->request->display.prefix = prefixes[prefix_count - 1];
+		args->request->prefix = prefixes[prefix_count - 1];
 	return 0;
 }
 
@@ -50,8 +50,8 @@ int pool6_display(bool csv)
 	int error;
 
 	init_request_hdr(hdr, MODE_POOL6, OP_DISPLAY);
-	payload->display.prefix_set = false;
-	memset(&payload->display.prefix, 0, sizeof(payload->display.prefix));
+	payload->prefix_set = false;
+	memset(&payload->prefix, 0, sizeof(payload->prefix));
 	args.row_count = 0;
 	args.request = payload;
 	args.csv = csv;
@@ -60,7 +60,7 @@ int pool6_display(bool csv)
 		error = netlink_request(&request, sizeof(request), pool6_display_response, &args);
 		if (error)
 			return error;
-	} while (args.request->display.prefix_set);
+	} while (args.request->prefix_set);
 
 	if (!csv) {
 		if (args.row_count > 0)
@@ -113,32 +113,31 @@ int pool6_add(struct ipv6_prefix *prefix, bool force)
 	}
 
 	init_request_hdr(hdr, MODE_POOL6, OP_ADD);
-	payload->add.prefix = *prefix;
+	payload->prefix = *prefix;
 
 	return netlink_request(request, sizeof(request), NULL, NULL);
 }
 
-int pool6_remove(struct ipv6_prefix *prefix, bool quick)
+int pool6_remove(struct ipv6_prefix *prefix)
 {
 	unsigned char request[HDR_LEN + PAYLOAD_LEN];
 	struct request_hdr *hdr = (struct request_hdr *)request;
 	union request_pool6 *payload = (union request_pool6 *)(request + HDR_LEN);
 
 	init_request_hdr(hdr, MODE_POOL6, OP_REMOVE);
-	payload->rm.prefix = *prefix;
-	payload->rm.quick = quick;
+	payload->prefix = *prefix;
 
 	return netlink_request(request, sizeof(request), NULL, NULL);
 }
 
-int pool6_flush(bool quick)
+int pool6_flush(void)
 {
 	unsigned char request[HDR_LEN + PAYLOAD_LEN];
 	struct request_hdr *hdr = (struct request_hdr *)request;
 	union request_pool6 *payload = (union request_pool6 *)(request + HDR_LEN);
 
 	init_request_hdr(hdr, MODE_POOL6, OP_FLUSH);
-	payload->flush.quick = quick;
+	memset(payload, 0, sizeof(*payload));
 
 	return netlink_request(&request, sizeof(request), NULL, NULL);
 }

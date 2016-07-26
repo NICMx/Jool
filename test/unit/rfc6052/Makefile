@@ -31,4 +31,4 @@ clean:
 test:
 	sudo dmesg -C
 	-sudo insmod $(RFC6052).ko && sudo rmmod $(RFC6052)
-	sudo dmesg -c | less
+	sudo dmesg -tc | less

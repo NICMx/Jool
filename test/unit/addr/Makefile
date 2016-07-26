@@ -30,4 +30,4 @@ clean:
 test:
 	sudo dmesg -C
 	-sudo insmod $(ADDR).ko && sudo rmmod $(ADDR)
-	sudo dmesg -c | less
+	sudo dmesg -tc | less

@@ -195,28 +195,10 @@ struct response_hdr {
  * Configuration for the "IPv6 Pool" module.
  */
 union request_pool6 {
-	struct {
-		__u8 prefix_set;
-		struct ipv6_prefix prefix;
-	} display;
-	struct {
-		/** The prefix the user wants to add to the pool. */
-		struct ipv6_prefix prefix;
-	} add;
-	struct {
-		/** The prefix the user wants to update to the pool. */
-		struct ipv6_prefix prefix;
-	} update;
-	struct {
-		/** The prefix the user wants to remove from the pool. */
-		struct ipv6_prefix prefix;
-		/* Whether the prefix's sessions should be cleared too (false) or not (true). */
-		__u8 quick;
-	} rm;
-	struct {
-		/* Whether the sessions tables should also be cleared (false) or not (true). */
-		__u8 quick;
-	} flush;
+	/** This is only relevant in display operations. */
+	__u8 prefix_set;
+	/** The prefix the user wants to display/add/update/remove from. */
+	struct ipv6_prefix prefix;
 };
 
 struct pool4_entry_usr {

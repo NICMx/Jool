@@ -36,4 +36,4 @@ clean:
 test:
 	sudo dmesg -C
 	-sudo insmod $(SESSIONTABLE).ko && sudo rmmod $(SESSIONTABLE)
-	sudo dmesg -c | less
+	sudo dmesg -tc | less

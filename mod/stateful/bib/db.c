@@ -9,7 +9,7 @@
 #include "nat64/mod/stateful/bib/pkt_queue.h"
 
 /*
- * TODO (performance) Pack this?
+ * TODO (performance) Maybe pack this?
  */
 struct tabled_bib {
 	struct ipv6_transport_addr src6;
@@ -24,7 +24,7 @@ struct tabled_bib {
 };
 
 /*
- * TODO (performance) Pack this?
+ * TODO (performance) Maybe pack this?
  */
 struct tabled_session {
 	struct ipv6_transport_addr dst6;
@@ -32,6 +32,31 @@ struct tabled_session {
 	tcp_state state;
 	struct tabled_bib *bib;
 
+	/**
+	 * Sessions only need one tree. The rationale is different for TCP/UDP
+	 * vs ICMP sessions:
+	 *
+	 * In TCP and UDP the dst4 address is just the dst6 address minus the
+	 * pool6 prefix. Therefore, and assuming the pool6 prefix stays still
+	 * (something I'm well willing to enforce), sessions indexed by dst4
+	 * yield exactly the same tree as sessions indexed by dst6.
+	 *
+	 * In ICMP, dst4.l4 is the same as src4.l4 instead of dst6.l4. This
+	 * would normally mean that dst6 sessions would yield a different tree
+	 * than dst4 sessions. Luckily, this is not the case because dst4.l4 is
+	 * not meaningful to the tree search in ICMP sessions; sessions are
+	 * already grouped by BIB entry, which means all of a BIB entry's
+	 * sessions will have different dst4.l3. (Which has more precedence than
+	 * dst4.l4 during searches.)
+	 * (And again, dst4.l3 is just dst6.l3 minus the prefix.)
+	 *
+	 * This might be a little annoying to wrap one's head around, but I
+	 * think it's really nice that we only need to search and rebalance
+	 * three trees (instead of four) whenever we need to add a BIB/session
+	 * couple during translation.
+	 * It's also a very elegant hack; it doesn't result in any special case
+	 * handling in the whole code below.
+	 */
 	struct rb_node tree_hook;
 
 	unsigned long update_time;
@@ -676,9 +701,9 @@ static int compare_src4_rbnode(struct rb_node *a, struct rb_node *b)
 	return taddr4_compare(&bib4_entry(a)->src4, &bib4_entry(b)->src4);
 }
 
-static int compare_dst4_rbnode(struct rb_node *a, struct rb_node *b)
+static int compare_dst4(struct tabled_session *a, struct tabled_session *b)
 {
-	return taddr4_compare(&node2session(a)->dst4, &node2session(b)->dst4);
+	return taddr4_compare(&a->dst4, &b->dst4);
 }
 
 static struct tabled_bib *find_bib6(struct bib_table *table,
@@ -728,19 +753,43 @@ static struct tabled_bib *find_bibtree4_slot(struct bib_table *table,
  * - @slot is undefined.
  * - S is returned.
  *
- * TODO I removed allow from here.
+ * As a side effect, @allow will tell you whether the entry is allowed to be
+ * added to the tree if address-dependent filtering is enabled. Send NULL if you
+ * don't care about that.
  *
- * Please notice: This searches via @session's dst4, *not* dst6. @session *must*
- * carry an initialized dst4.
+ * Please notice: This searches via @new's dst4, *not* dst6. @new *must* carry
+ * an initialized dst4.
  */
 static struct tabled_session *find_session_slot(struct tabled_bib *bib,
-		struct tabled_session *new,
-		struct tree_slot *slot)
+		struct tabled_session *new, bool *allow, struct tree_slot *slot)
 {
-	struct rb_node *collision;
-	collision = rbtree_find_slot(&new->tree_hook, &bib->sessions,
-			compare_dst4_rbnode, slot);
-	return node2session(collision);
+	struct tabled_session *session;
+	struct rb_node *node;
+	int comparison;
+
+	treeslot_init(slot, &bib->sessions, &new->tree_hook);
+	node = bib->sessions.rb_node;
+
+	while (node) {
+		session = node2session(node);
+		comparison = compare_dst4(session, new);
+
+		if (allow && session->dst4.l3.s_addr == new->dst4.l3.s_addr)
+			*allow = true;
+
+		slot->parent = node;
+		if (comparison < 0) {
+			slot->rb_link = &node->rb_right;
+			node = node->rb_right;
+		} else if (comparison > 0) {
+			slot->rb_link = &node->rb_left;
+			node = node->rb_left;
+		} else {
+			return session;
+		}
+	}
+
+	return NULL;
 }
 
 static int create_bib_session6(struct bib_session_tuple *tuple,
@@ -875,7 +924,7 @@ static int find_bib_session6(struct bib_table *table,
 
 	old->bib = find_bibtree6_slot(table, new->bib, &slots->bib6);
 	if (old->bib) {
-		old->session = find_session_slot(old->bib, new->session,
+		old->session = find_session_slot(old->bib, new->session, NULL,
 				&slots->session);
 		return 0;
 	}
@@ -884,6 +933,22 @@ static int find_bib_session6(struct bib_table *table,
 		error = find_available_mask(table, masks, new->bib, &slots->bib4);
 		if (error)
 			return error;
+
+		/*
+		 * Patch 3-tuples.
+		 * dst4.l4 is never (or should never) be used anywhere by
+		 * 3-tuple translation code, but we set the field anyway because
+		 * it improves the database's readability/intuitiveness (such as
+		 * in bib_print() and log_debug()s) and is very cheap.
+		 *
+		 * (Just in case it isn't obvious: 3-tuple sessions have only
+		 * one layer 4 id per layer 3 protocol, instead of the usual 2
+		 * of 5-tuples. We "simulate" this by storing the same value in
+		 * both layer 4 ids.)
+		 */
+		if (new->bib->proto == L4PROTO_ICMP)
+			new->session->dst4.l4 = new->bib->src4.l4;
+
 	} else {
 		/* TODO perhaps the sender's session shold be trusted more. */
 		if (find_bibtree4_slot(table, new->bib, &slots->bib4))
@@ -941,12 +1006,13 @@ int bib_add6(struct bib *db, struct mask_domain *masks, struct tuple *tuple6,
 	if (error)
 		goto end;
 
-	if (old.session) {
+	if (old.session) { /* Session already exists. */
 		handle_fate_timer_est(table, old.session);
 		tstobs(old.session, result);
 		goto end;
 	}
 
+	/* Ok, no issues; add the session. (And maybe the BIB entry as well) */
 	new.session->bib = old.bib ? : new.bib;
 	commit_session_add(table, &slots.session);
 	attach_timer(new.session, &table->est_timer);
@@ -977,10 +1043,13 @@ static void find_bib_session4(struct bib_table *table,
 		struct tuple *tuple4,
 		struct tabled_session *new,
 		struct bib_session_tuple *old,
+		bool *allow,
 		struct tree_slot *slot)
 {
 	old->bib = find_bib4(table, &tuple4->dst.addr4);
-	old->session = old->bib ? find_session_slot(old->bib, new, slot) : NULL;
+	old->session = old->bib
+			? find_session_slot(old->bib, new, allow, slot)
+			: NULL;
 }
 
 /**
@@ -993,6 +1062,7 @@ int bib_add4(struct bib *db, struct ipv6_transport_addr *dst6,
 	struct bib_session_tuple old;
 	struct tabled_session *new;
 	struct tree_slot session_slot;
+	bool allow;
 
 	table = get_table(db, tuple4->l4_proto);
 	if (!table)
@@ -1004,7 +1074,7 @@ int bib_add4(struct bib *db, struct ipv6_transport_addr *dst6,
 
 	spin_lock_bh(&table->lock);
 
-	find_bib_session4(table, tuple4, new, &old, &session_slot);
+	find_bib_session4(table, tuple4, new, &old, &allow, &session_slot);
 
 	if (old.session) {
 		handle_fate_timer_est(table, old.session);
@@ -1012,26 +1082,31 @@ int bib_add4(struct bib *db, struct ipv6_transport_addr *dst6,
 		goto success;
 	}
 
-	if (old.bib) {
-		new->bib = old.bib;
-		commit_session_add(table, &session_slot);
-		attach_timer(new, &table->trans_timer);
-		log_new_session(table, new);
-		tstobs(new, result);
-		new = NULL;
-		goto success;
-	}
+	if (!old.bib)
+		goto failure;
 
+	/* Address-Dependent Filtering. */
+	if (table->drop_by_addr && !allow)
+		goto failure;
+
+	/* Ok, no issues. Add the session. */
+	new->bib = old.bib;
+	commit_session_add(table, &session_slot);
+	attach_timer(new, &table->trans_timer);
+	log_new_session(table, new);
+	tstobs(new, result);
+	new = NULL;
+	table->session_count++;
+	/* Fall through */
+
+success:
+	spin_unlock_bh(&table->lock);
+	return 0;
+
+failure:
 	spin_unlock_bh(&table->lock);
 	kmem_cache_free(session_cache, new);
 	return -ESRCH;
-
-success:
-	attach_timer(new, &table->est_timer);
-	table->session_count++;
-
-	spin_unlock_bh(&table->lock);
-	return 0;
 }
 
 /**
@@ -1159,7 +1234,7 @@ verdict bib_add_tcp4(struct bib *db,
 
 	spin_lock_bh(&table->lock);
 
-	find_bib_session4(table, &pkt->tuple, new, &old, &session_slot);
+	find_bib_session4(table, &pkt->tuple, new, &old, NULL, &session_slot);
 
 	if (old.session) {
 		/* All states except CLOSED. */
@@ -1439,7 +1514,7 @@ static void find_session_offset(struct bib_table *table,
 	}
 
 	tmp_session.dst4 = offset->offset.dst;
-	pos->session = find_session_slot(pos->bib, &tmp_session, &slot);
+	pos->session = find_session_slot(pos->bib, &tmp_session, NULL, &slot);
 	if (!pos->session) {
 		next_session(slot_next(&slot), pos);
 		return;

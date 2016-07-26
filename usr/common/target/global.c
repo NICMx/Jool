@@ -124,7 +124,7 @@ static int handle_display_response(struct jool_response *response, void *arg)
 	if (xlat_is_nat64()) {
 
 		printf("  --%s: %u\n", OPTNAME_MAX_SO,
-				conf->session.pktqueue.max_stored_pkts);
+				conf->bib.pktqueue.max_stored_pkts);
 		printf("  --%s: %s\n", OPTNAME_SRC_ICMP6E_BETTER,
 				print_bool(conf->global.nat64.src_icmp6errs_better));
 
@@ -166,9 +166,9 @@ static int handle_display_response(struct jool_response *response, void *arg)
 	if (xlat_is_nat64()) {
 		printf("  Additional Logging:\n");
 		printf("    --%s: %s\n", OPTNAME_BIB_LOGGING,
-				print_bool(conf->bib.log_changes));
+				print_bool(conf->bib.bib_logging));
 		printf("    --%s: %s\n", OPTNAME_SESSION_LOGGING,
-				print_bool(conf->session.log_changes));
+				print_bool(conf->bib.session_logging));
 		printf("\n");
 
 		printf("  Filtering:\n");
@@ -182,13 +182,13 @@ static int handle_display_response(struct jool_response *response, void *arg)
 
 		printf("  Timeouts:\n");
 		printf("    --%s: ", OPTNAME_UDP_TIMEOUT);
-		print_time_friendly(conf->session.ttl.udp);
+		print_time_friendly(conf->bib.ttl.udp);
 		printf("    --%s: ", OPTNAME_TCPEST_TIMEOUT);
-		print_time_friendly(conf->session.ttl.tcp_est);
+		print_time_friendly(conf->bib.ttl.tcp_est);
 		printf("    --%s: ", OPTNAME_TCPTRANS_TIMEOUT);
-		print_time_friendly(conf->session.ttl.tcp_trans);
+		print_time_friendly(conf->bib.ttl.tcp_trans);
 		printf("    --%s: ", OPTNAME_ICMP_TIMEOUT);
-		print_time_friendly(conf->session.ttl.icmp);
+		print_time_friendly(conf->bib.ttl.icmp);
 		printf("    --%s: ", OPTNAME_FRAG_TIMEOUT);
 		print_time_friendly(conf->frag.ttl);
 		printf("\n");
@@ -266,12 +266,12 @@ static int handle_display_response_csv(struct jool_response *response, void *arg
 		printf("%s,%u\n", OPTNAME_F_ARGS,
 				global->nat64.f_args);
 		printf("%s,%s\n", OPTNAME_BIB_LOGGING,
-				print_csv_bool(conf->bib.log_changes));
+				print_csv_bool(conf->bib.bib_logging));
 		printf("%s,%s\n", OPTNAME_SESSION_LOGGING,
-				print_csv_bool(conf->session.log_changes));
+				print_csv_bool(conf->bib.session_logging));
 
 		printf("%s,%u\n", OPTNAME_MAX_SO,
-				conf->session.pktqueue.max_stored_pkts);
+				conf->bib.pktqueue.max_stored_pkts);
 
 		printf("joold Enabled,%s\n",
 				print_csv_bool(conf->joold.enabled));
@@ -285,13 +285,13 @@ static int handle_display_response_csv(struct jool_response *response, void *arg
 				conf->joold.max_payload);
 
 		printf("%s,", OPTNAME_UDP_TIMEOUT);
-		print_time_csv(conf->session.ttl.udp);
+		print_time_csv(conf->bib.ttl.udp);
 		printf("\n%s,", OPTNAME_TCPEST_TIMEOUT);
-		print_time_csv(conf->session.ttl.tcp_est);
+		print_time_csv(conf->bib.ttl.tcp_est);
 		printf("\n%s,", OPTNAME_TCPTRANS_TIMEOUT);
-		print_time_csv(conf->session.ttl.tcp_trans);
+		print_time_csv(conf->bib.ttl.tcp_trans);
 		printf("\n%s,", OPTNAME_ICMP_TIMEOUT);
-		print_time_csv(conf->session.ttl.icmp);
+		print_time_csv(conf->bib.ttl.icmp);
 		printf("\n%s,", OPTNAME_FRAG_TIMEOUT);
 		print_time_csv(conf->frag.ttl);
 		printf("\n");

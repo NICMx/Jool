@@ -43,4 +43,4 @@ clean:
 test:
 	sudo dmesg -C
 	-sudo insmod $(JOOLNS).ko && sudo rmmod $(JOOLNS)
-	sudo dmesg -c | less
+	sudo dmesg -tc | less

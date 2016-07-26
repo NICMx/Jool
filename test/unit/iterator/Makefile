@@ -30,4 +30,4 @@ clean:
 test:
 	sudo dmesg -C
 	-sudo insmod $(ITERATOR).ko && sudo rmmod $(ITERATOR)
-	sudo dmesg -c | less
+	sudo dmesg -tc | less

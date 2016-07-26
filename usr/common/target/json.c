@@ -601,19 +601,19 @@ static int handle_pool4(cJSON *json)
 			error = -EINVAL;
 			goto end;
 		}
-		error = str_to_prefix4(child->valuestring, &entry.addrs);
+		error = str_to_prefix4(child->valuestring, &entry.range.prefix);
 		if (error)
 			goto end;
 
 		child = cJSON_GetObjectItem(json, "port_range");
 		if (child) {
 			error = str_to_port_range(child->valuestring,
-					&entry.ports);
+					&entry.range.ports);
 			if (error)
 				goto end;
 		} else {
-			entry.ports.min = DEFAULT_POOL4_MIN_PORT;
-			entry.ports.max = DEFAULT_POOL4_MAX_PORT;
+			entry.range.ports.min = DEFAULT_POOL4_MIN_PORT;
+			entry.range.ports.max = DEFAULT_POOL4_MAX_PORT;
 		}
 
 		error = buffer_write(buffer, &entry, sizeof(entry), SEC_POOL4);
