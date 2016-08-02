@@ -54,5 +54,7 @@ void mask_domain_put(struct mask_domain *masks);
 int mask_domain_next(struct mask_domain *masks,
 		struct ipv4_transport_addr *addr,
 		bool *consecutive);
+bool mask_domain_matches(struct mask_domain *masks,
+		struct ipv4_transport_addr *addr);
 
 #endif /* _JOOL_MOD_POOL4_DB_H */

@@ -3,7 +3,8 @@
 
 /**
  * @file
- * General purpose #defines, intended to minimize use of numerical constants elsewhere in the code.
+ * General purpose #defines, intended to minimize use of numerical constants
+ * elsewhere in the code.
  */
 
 
@@ -14,24 +15,28 @@
  */
 #define UDP_MIN (2 * 60)
 /**
- * Defined in the RFC as the minimum allowable default value for the session lifetime of UDP
- * bindings, in seconds. We use it as the actual default value.
+ * Defined in the RFC as the minimum allowable default value for the session
+ * lifetime of UDP bindings, in seconds. We use it as the actual default value.
  */
 #define UDP_DEFAULT (5 * 60)
 /**
  * Established connection idle timeout (in seconds).
  * In other words, the tolerance time for established and healthy TCP sessions.
- * If a connection remains idle for longer than this, then we expect it to terminate soon.
+ * If a connection remains idle for longer than this, then we expect it to
+ * terminate soon.
  */
 #define TCP_EST (2 * 60 * 60)
 /**
  * Transitory connection idle timeout (in seconds).
- * In other words, the timeout of TCP sessions which are expected to terminate soon.
+ * In other words, the timeout of TCP sessions which are expected to terminate
+ * soon.
  */
 #define TCP_TRANS (4 * 60)
 /**
- * Timeout of TCP sessions being initialized (in seconds).
- * It's shorter since these are typical DoS attacks.
+ * Timeout of TCP sessions started from v4 which we're skeptical as to whether
+ * they are going to make it to the established state.
+ * Also the time a user has to manage a hole punch through Jool.
+ * Measured in in seconds.
  * This value cannot be configured from the userspace app (this is on purpose).
  */
 #define TCP_INCOMING_SYN (6)
@@ -42,19 +47,21 @@
 #define FRAGMENT_MIN (2)
 
 /*
- * The timers will never sleep less than this amount of jiffies. This is because I don't think we
- * need to interrupt the kernel too much.
+ * The timers will never sleep less than this amount of jiffies. This is because
+ * I don't think we need to interrupt the kernel too much.
  *
  * 255 stands for TVR_SIZE - 1 (The kernel doesn't export TVR_SIZE).
- * Why that value? It's the maximum we can afford without cascading the timer wheel when
- * CONFIG_BASE_SMALL is false (https://lkml.org/lkml/2005/10/19/46).
+ * Why that value? It's the maximum we can afford without cascading the timer
+ * wheel when CONFIG_BASE_SMALL is false (https://lkml.org/lkml/2005/10/19/46).
  *
- * jiffies can be configured (http://man7.org/linux/man-pages/man7/time.7.html) to be
+ * jiffies can be configured (http://man7.org/linux/man-pages/man7/time.7.html)
+ * to be
  * - 0.01 seconds, which will make this minimum ~2.5 seconds.
  * - 0.004 seconds, which will make this minimum ~1 second.
  * - 0.001 seconds, which will make this minimum ~0.25 seconds.
  *
- * If you think this is dumb, you can always assign some other value, such as zero.
+ * If you think this is dumb, you can always assign some other value, such as
+ * zero.
  */
 #define MIN_TIMER_SLEEP (255)
 
@@ -81,13 +88,14 @@
 #define DEFAULT_RANDOMIZE_RFC6791 true
 #define DEFAULT_USE_RFC6791V6_PREFIX false
 #define DEFAULT_RFC6791V6_PREFIX NULL
-#define DEFAULT_MTU_PLATEAUS { 65535, 32000, 17914, 8166, 4352, 2002, 1492, 1006, 508, 296, 68 }
+#define DEFAULT_MTU_PLATEAUS { 65535, 32000, 17914, 8166, 4352, 2002, 1492, \
+		1006, 508, 296, 68 }
 #define DEFAULT_JOOLD_ENABLED false
 #define DEFAULT_JOOLD_FLUSH_ASAP true
 #define DEFAULT_JOOLD_DEADLINE msecs_to_jiffies(2000)
 #define DEFAULT_JOOLD_CAPACITY 512
 /**
- * 1500 (typical MTU) - max(20, 40) (maximum IP header size) - 8 (UDP header)
+ * typical MTU minus max(20, 40) minus the UDP header. (1500 - 40 - 8)
  * There's a 16-bytes joold header and each session spans 64 bytes currently.
  * This means we can fit 22 sessions per packet. (Regardless of IPv4/IPv6)
  */

@@ -90,9 +90,10 @@ static int compare_session_foreach_cb(struct session_entry *session, void *arg)
 
 	success &= ASSERT_INT(expected->proto, session->proto, "Session's l4 proto");
 	success &= ASSERT_INT(expected->state, session->state, "Session's state");
-	success &= ASSERT_BOOL(expected->established, session->established, "Session established?");
+	success &= ASSERT_BOOL(expected->timer_type, session->timer_type, "Session's timer type");
 	// TODO
 	// success &= ASSERT_INT(state, result.session.timeout, "Session's timeout");
+
 	/*
 	 * Success? Interrupt the foreach positively.
 	 * Failure? Interrupt the foreach negatively.
@@ -136,7 +137,7 @@ static bool assert_session_exists(char *src6_addr, u16 src6_port,
 	expected.dst4.l4 = dst4_port;
 	expected.proto = proto;
 	expected.state = state;
-	expected.established = (state == ESTABLISHED);
+	expected.timer_type = (state == ESTABLISHED);
 
 	result = session_exists(&expected);
 	if (result > 0)

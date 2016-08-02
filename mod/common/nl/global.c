@@ -282,13 +282,13 @@ static int massive_switch(struct full_config *cfg, struct global_value *chunk,
 		return error ? : parse_ipv6_prefix(&cfg->global, chunk, size);
 	case DROP_BY_ADDR:
 		error = ensure_nat64(OPTNAME_DROP_BY_ADDR);
-		return error ? : parse_bool(&cfg->global.nat64.drop_by_addr, chunk, size);
+		return error ? : parse_bool(&cfg->bib.drop_by_addr, chunk, size);
 	case DROP_ICMP6_INFO:
 		error = ensure_nat64(OPTNAME_DROP_ICMP6_INFO);
 		return error ? : parse_bool(&cfg->global.nat64.drop_icmp6_info, chunk, size);
 	case DROP_EXTERNAL_TCP:
 		error = ensure_nat64(OPTNAME_DROP_EXTERNAL_TCP);
-		return error ? : parse_bool(&cfg->global.nat64.drop_external_tcp, chunk, size);
+		return error ? : parse_bool(&cfg->bib.drop_external_tcp, chunk, size);
 	case SRC_ICMP6ERRS_BETTER:
 		error = ensure_nat64(OPTNAME_SRC_ICMP6E_BETTER);
 		return error ? : parse_bool(&cfg->global.nat64.src_icmp6errs_better, chunk, size);
@@ -318,7 +318,7 @@ static int massive_switch(struct full_config *cfg, struct global_value *chunk,
 		return error ? : parse_bool(&cfg->bib.session_logging, chunk, size);
 	case MAX_PKTS:
 		error = ensure_nat64(OPTNAME_MAX_SO);
-		return error ? : parse_u32(&cfg->bib.pktqueue.max_stored_pkts, chunk, size);
+		return error ? : parse_u32(&cfg->bib.max_stored_pkts, chunk, size);
 	case SYNCH_ENABLE:
 		error = ensure_nat64(OPTNAME_SYNCH_ENABLE);
 		if (!error)

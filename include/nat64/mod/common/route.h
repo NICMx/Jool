@@ -33,9 +33,8 @@ struct dst_entry *route6(struct net *ns, struct packet *out);
 struct dst_entry *route(struct net *ns, struct packet *pkt);
 
 /**
- * Used when you want to send an ICMP error, indicates where the original packet
- * came from.
+ * Used when you want to send an ICMP error.
  */
-int route4_input(struct packet *pkt);
+int route4_input(struct sk_buff *skb);
 
 #endif /* _JOOL_MOD_ROUTE_H */

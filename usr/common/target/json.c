@@ -631,6 +631,19 @@ end:
 
 static int handle_bib(cJSON *json)
 {
-	/* TODO (3.5.1) first do the kernel part. */
-	return 0;
+	/*
+	 * xTODO (wontfix) <- The x prevents Eclipse from indexing this to-do.
+	 *
+	 * It seems like it's impossible to support this without slowing
+	 * important BIB/session operations about an order of magnitude down.
+	 * The BIB/session module is already pretty freaking dense already, too.
+	 * It really doesn't want more constraints.
+	 *
+	 * Atomic static BIB entries are also hardly critical so this is going
+	 * to be postponed indefinitely until somebody gets miraculously
+	 * enlightened.
+	 *
+	 * I'm not getting my hopes up.
+	 */
+	return -EINVAL;
 }

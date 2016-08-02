@@ -10,97 +10,108 @@
  * "simultaneous open of TCP connections"), and 30 (look up "stored is sent
  * back") from RFC 6146.
  *
- * The RFC gets a little nonsensical here. These requirements seem to exist to
- * satisfy REQ-4 of RFC 5382
- * (http://ietf.10.n7.nabble.com/Simultaneous-connect-td222455.html), except
- * RFC 5382 wants us to cancel the ICMP error "If during this interval the NAT
- * receives and translates an outbound SYN for the connection", but this is not
- * very explicit in the specification of the V4_INIT state in RFC 6146. I mean
- * it's the only state where the session expiration triggers the ICMP message,
- * but it'd be nice to see confirmation that the stored packet can be forgotten
- * about.
+ * The RFC gets outright nonsensical and insufficient here; an entire 5-page
+ * section explaining the rationale of this cumbersome hack, a bunch of
+ * references towards former RFCs and an appendix exemplifying expected packet
+ * flow would not have felt out of place. There is a huge chunk of this that is
+ * left unspecified (such as semantics regarding finding sessions lacking src6
+ * and what kinds of packets should cancel ICMP errors and which shouldn't), so
+ * this code is the result of a bunch of research, common sense and trial and
+ * error.
+ *
+ * In any case, these requirements seem to exist to comply with REQ-4 of RFC
+ * 5382 (http://ietf.10.n7.nabble.com/Simultaneous-connect-td222455.html),
+ * except RFC 5382 wants us to cancel the ICMP error "If during this interval
+ * the NAT receives and translates an outbound SYN for the connection", but this
+ * is not very explicit in the specification of the V4_INIT state in RFC 6146.
+ * I mean it's the only state where the session expiration triggers the ICMP
+ * message, but it'd be nice to see confirmation that the stored packet can be
+ * forgotten about.
  *
  * However, Marcelo Bagnulo's seemingly final comments really bend me over to
  * RFC 5382's behavior: "well, it may be sent inside an ICMP error message in
  * case the state times out and the V& SYN has not arrived."
  * (http://www.ietf.org/mail-archive/web/behave/current/msg08660.html)
  *
- * So... yeah, "Packet Storage". This is how I understand it:
+ * So yeah, "Packet Storage". This is how I understand it:
  *
  * If a NAT64 receives a IPv4-UDP or a IPv4-ICMP packet for which it has no
  * state, it should reply a ICMP error because it doesn't know which IPv6 node
  * the packet should be forwarded to.
  *
- * If a NAT64 receives a IPv4-TCP packet for which it has no state, it should
- * not immediately reply a ICMP error because the IPv4 endpoint could be
- * attempting a "Simultaneous Open of TCP Connections"
- * (http://tools.ietf.org/html/rfc5128#section-3.4). What
- * happens is the NAT64 stores the packet for 6 seconds; if the IPv6 version of
- * the packet arrives, the NAT64 drops the original packet (the IPv4 node will
- * eventually realize this on its own by means of the handshake), otherwise a
- * ICMP error containing the original IPv4 packet is generated (because there's
- * no Simultaneous Open going on).
+ * On the other hand, if a NAT64 receives a IPv4-TCP packet for which it has no
+ * state, it should not immediately reply the ICMP error because the IPv4
+ * endpoint could be attempting a "Simultaneous Open of TCP Connections"
+ * (http://tools.ietf.org/html/rfc5128#section-3.4). What happens is the NAT64
+ * stores the packet for 6 seconds; if the IPv6 version of the packet arrives,
+ * the NAT64 drops the original packet (the IPv4 node will eventually realize
+ * this on its own by means of the handshake), otherwise a ICMP error containing
+ * the original IPv4 packet is generated (because there's no Simultaneous Open
+ * going on).
+ *
+ * So in summary, this is what needs to be done when a NAT64 receives a v4 SYN
+ * (packet A):
+ *
+ * 1. Store packet A with session [src6,dst6,src4,dst4] = [a,b',c,b]
+ *    (where b' is the pool6 prefix + b)
+ *    Often, src6 is not available (because the BIB entry does not exist),
+ *    so store [*,b',c,b] instead.
+ * 2. If packet B (which is being translated into C) matches A's session***,
+ *        Forget packet A.
+ *        Continue from the V4 INIT state as normal.
+ * 3. If packet B hasn't arrived after 6 seconds (the V4 INIT state times out),
+ *        Wrap A in an ICMP error and send it to the source.
+ *        Forget packet A.
+ *
+ * *** whether this means that B should match [*,b'] or C should match [c,b] is
+ * anyone's guess. I'm going with the former since (given that c is random) it
+ * seems easier to set up from a hole puncher's perspective. Also, the RFC wants
+ * us to store dst6, and there's no use for it otherwise.
+ * It's weird because it means we need a second lookup in the CLOSED state.
+ *
+ * Now, there are two types of stored packets:
+ * 1. Packets stored because there was no BIB entry. ([*,b',c,b] packets)
+ * 2. Packets stored because Address-Dependent Filtering doesn't trust them.
+ *    ([a,b',c,b] packets)
+ *
+ * Both are to be either canceled by a suitable v6 packet or timed out and
+ * encapsulated in an ICMP error.
+ *
+ * We're storing packets type 2 in the core BIB/session database.
+ * Why? Because they are associated with a valid session, which is associated
+ * with a valid BIB entry. And those are supposed to be stored in the core
+ * BIB/session database for the sake of the TCP state machine and stuff. Storing
+ * a redundant session in this module just to free tabled_session objects from
+ * the stored field is the kind of micro-optimization that is nothing but asking
+ * for trouble.
+ *
+ * So why can't we store type 2 packets in the core module as well? Because
+ * BIBless sessions cannot be stored on a two-layered tree whose first and main
+ * layer is BIB entries.
+ *
+ * So even though the RFC wants us to think that the two types of packets are
+ * one and the same thing, we need to treat them quite differently. Again, this
+ * module is the section of the code that deals with type 1 packets.
  */
 
 #include "nat64/common/config.h"
 #include "nat64/mod/common/packet.h"
+#include "nat64/mod/stateful/pool4/db.h"
 
 struct pktqueue;
 
 struct pktqueue_session {
-	struct ipv6_transport_addr src6;
 	struct ipv6_transport_addr dst6;
 	struct ipv4_transport_addr src4;
 	struct ipv4_transport_addr dst4;
 
-	bool src6_set;
+	struct sk_buff *skb;
 
-	/*
-	 * RFC 6146 also wants us to store src6 and dst6.
-	 * I don't know why. They are never used for anything, ever.
-	 *
-	 * I mean, the logic is
-	 *
-	 * 1. Store packet A with session [src6,dst6,src4,dst4] = [a,b',c,b]
-	 *    (where b' is the pool6 prefix + b)
-	 *    Sometimes src6 is not available, so store [*,b',c,b].
-	 * 2. If packet B matches A's session,
-	 *        Forget packet A.
-	 *        Continue from the V4 INIT state as normal.
-	 * 3. If packet B hasn't arrived after 6 seconds,
-	 *        Wrap A in an ICMP error and fetch it.
-	 *        Forget packet A.
-	 *
-	 * The thing is [c,b] is already a primary key so a and b' are not
-	 * needed to look up the session.
-	 * I guess one could argue that b' and possibly a can be used to further
-	 * make sure the correct session is hole punched. But what makes the v6
-	 * addresses inferred during A's translation more valuable than those
-	 * inferred during B's translation?
-	 *
-	 * - dst6 is deterministically mapped to dst4 unless pool6 changes. But
-	 *   even if pool6 changes I don't see any reason why b talking through
-	 *   the new b' should be a problem, so enforcing dst6 matching during
-	 *   the second step seems futile.
-	 * - Doesn't the same apply to src6 and pool4?
-	 *
-	 * It's not like a v4 attacker can use this to hijack a connection;
-	 * We already know that B is directed to b specifically...
-	 *
-	 * Now, the thing about src6 is that it either does not exist (and
-	 * therefore does not matter) or depends on a BIB entry.
-	 * The latter case is hard to wrap one's head around. The RFC implies
-	 * that this session should prevent the BIB entry from dying. By storing
-	 * all SO sessions separately from the BIB, we are violating this.
-	 * What are the consequences?
-	 *
-	 * 1. The BIB entry b1 dies while the SO session s0 is still waiting.
-	 * 2. b1's src4 is reassigned to BIB entry b2 and now s0 contradicts b2.
-	 *    We now have a slightly inconsistent BIB/session DB but since SO
-	 *    sessions are not used during lookups
-	 *
-	 * WRONG. TODO
-	 */
+	unsigned long update_time;
+	/** Links this packet to the list. See @node_list. */
+	struct list_head list_hook;
+	/** Links this packet to the tree. See @node_tree. */
+	struct rb_node tree_hook;
 };
 
 /**
@@ -112,20 +123,31 @@ struct pktqueue *pktqueue_create(void);
  */
 void pktqueue_destroy(struct pktqueue *queue);
 
-void pktqueue_config_copy(struct pktqueue *queue, struct pktqueue_config *config);
-void pktqueue_config_set(struct pktqueue *queue, struct pktqueue_config *config);
+/**
+ * Stores packet @pkt.
+ */
+int pktqueue_add(struct pktqueue *queue, struct packet *pkt,
+		struct ipv6_transport_addr *dst6);
+struct pktqueue_session *pktqueue_find(struct pktqueue *queue,
+		struct ipv6_transport_addr *addr,
+		struct mask_domain *masks);
+void pktqueue_put_node(struct pktqueue_session *node);
 
 /**
- * Stores packet "skb", associating it with "session".
+ * In a perfect world, `prepare_clean` and `clean` would be a single function.
+ * But we don't want to hold a lock while sending ICMP errors so this is not a
+ * perfect world.
+ *
+ * First lock, then call `prepare_clean` (sending in an empty list), then
+ * unlock, then call `clean`. (Using the same list, obviously.)
+ * This keeps the concurrence-sensitive stuff inside the lock and the slow stuff
+ * outside.
  */
-int pktqueue_add(struct pktqueue *queue, struct pktqueue_session *session,
-		struct packet *pkt);
+void pktqueue_prepare_clean(struct pktqueue *queue, struct list_head *probes);
 /**
- * Removes "session"'s skb from the storage. There will be no ICMP error.
+ * Sends the ICMP error "probes" contained in the @probe list.
  */
-void pktqueue_rm(struct pktqueue *queue, struct pktqueue_session *session);
-
-void pktqueue_clean(struct pktqueue *queue);
+void pktqueue_clean(struct list_head *probes);
 
 
 #endif /* _JOOL_MOD_PKT_QUEUE_H */

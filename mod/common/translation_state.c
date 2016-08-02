@@ -3,8 +3,7 @@
 
 void xlation_init(struct xlation *state)
 {
-	state->entries.bib_set = false;
-	state->entries.session_set = false;
+	bib_session_init(&state->entries);
 }
 
 void xlation_put(struct xlation *state)

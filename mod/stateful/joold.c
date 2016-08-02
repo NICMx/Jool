@@ -108,8 +108,8 @@ struct joold_session {
 
 	__u8 l4_proto;
 	__u8 state;
-	/* true: timer is established. false: timer is transitory. */
-	__u8 est;
+	/* See session_timer_type. */
+	__u8 timer_type;
 
 	/* Exactly 59 bytes so far. */
 
@@ -260,7 +260,7 @@ static int foreach_cb(struct session_entry *entry, void *arg)
 
 	session.l4_proto = entry->proto;
 	session.state = entry->state;
-	session.est = entry->established;
+	session.timer_type = entry->timer_type;
 	memset(session.padding, 0, sizeof(session.padding));
 
 	status = nlbuffer_write(adv->buffer, &session, sizeof(session));
@@ -512,7 +512,7 @@ void joold_add(struct joold_queue *queue, struct session_entry *entry,
 	copy->single.dst4_port = cpu_to_be16(entry->dst4.l4);
 	copy->single.l4_proto = entry->proto;
 	copy->single.state = entry->state;
-	copy->single.est = entry->established;
+	copy->single.timer_type = entry->timer_type;
 	memset(copy->single.padding, 0, sizeof(copy->single.padding));
 
 	list_add_tail(&copy->nextprev, &queue->sessions);
@@ -545,7 +545,7 @@ static void init_session_entry(struct joold_session *in,
 	out->dst4.l4 = be16_to_cpu(in->dst4_port);
 	out->proto = in->l4_proto;
 	out->state = in->state;
-	out->established = in->est;
+	out->timer_type = in->timer_type;
 	update_time = be64_to_cpu(in->update_time);
 	update_time = jiffies - msecs_to_jiffies(update_time);
 	out->update_time = update_time;
@@ -574,7 +574,7 @@ static enum session_fate collision_cb(struct session_entry *old, void *arg)
 		old->update_time = update_time;
 		params->success = true;
 
-		return newd->est ? FATE_TIMER_EST_SLOW : FATE_TIMER_TRANS_SLOW;
+		return newd->timer_type ? FATE_TIMER_EST_SLOW : FATE_TIMER_TRANS_SLOW;
 	}
 
 	log_err("We're out of sync: Incoming %s session entry %pI6c#%u|%pI6c#%u|%pI4#%u|%pI4#%u collides with DB entry %pI6c#%u|%pI6c#%u|%pI4#%u|%pI4#%u.",

@@ -43,7 +43,7 @@ static bool inject(unsigned int index, __u32 src_addr, __u16 src_id,
 	entry->dst4.l4 = dst_id;
 	entry->proto = L4PROTO_UDP;
 	entry->state = ESTABLISHED;
-	entry->established = true;
+	entry->timer_type = SESSION_TIMER_EST;
 	entry->update_time = jiffies;
 	entry->timeout = UDP_DEFAULT;
 

@@ -23,19 +23,31 @@ void pktqueue_destroy(struct pktqueue *queue)
 	/* No code. */
 }
 
-void pktqueue_config_copy(struct pktqueue *queue,
-		struct pktqueue_config *config)
-{
-	broken_unit_call(__func__);
-}
-
-void pktqueue_config_set(struct pktqueue *queue, struct pktqueue_config *config)
-{
-	broken_unit_call(__func__);
-}
-
-int pktqueue_add(struct pktqueue *queue, struct pktqueue_session *session,
-		struct packet *pkt)
+int pktqueue_add(struct pktqueue *queue, struct packet *pkt,
+		struct ipv6_transport_addr *dst6)
 {
 	return broken_unit_call(__func__);
+}
+
+struct pktqueue_session *pktqueue_find(struct pktqueue *queue,
+		struct ipv6_transport_addr *addr,
+		struct mask_domain *masks)
+{
+	broken_unit_call(__func__);
+	return NULL;
+}
+
+void pktqueue_put_node(struct pktqueue_session *node)
+{
+	broken_unit_call(__func__);
+}
+
+void pktqueue_prepare_clean(struct pktqueue *queue, struct list_head *probes)
+{
+	broken_unit_call(__func__);
+}
+
+void pktqueue_clean(struct list_head *probes)
+{
+	broken_unit_call(__func__);
 }

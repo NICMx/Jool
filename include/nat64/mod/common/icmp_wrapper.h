@@ -34,10 +34,14 @@ typedef enum icmp_error_code {
  * Wrapper for the icmp_send() and the icmpv6_send() functions.
  */
 void icmp64_send(struct packet *pkt, icmp_error_code code, __u32 info);
+/**
+ * Wrapper for icmp_send().
+ */
+void icmp64_send4(struct sk_buff *skb, icmp_error_code error, __u32 info);
 
 /**
  * Return the numbers of icmp error that was sent, also reset the static counter
- * This is only used in Unit Testing;
+ * This is only used in Unit Testing.
  */
 int icmp64_pop(void);
 

@@ -20,6 +20,12 @@ struct bib_entry {
 	l4_protocol l4_proto;
 };
 
+typedef enum session_timer_type {
+	SESSION_TIMER_EST,
+	SESSION_TIMER_TRANS,
+	SESSION_TIMER_SYN4,
+} session_timer_type;
+
 /**
  * A row, intended to be part of one of the session tables.
  * An IPv6 connection and the IPv4 version of it once translated.
@@ -60,7 +66,8 @@ struct session_entry {
 	l4_protocol proto;
 	/** Current TCP SM state. Only relevant if @l4_proto == L4PROTO_TCP. */
 	tcp_state state;
-	bool established;
+	/* TODO open call hierarchy */
+	session_timer_type timer_type;
 
 	/** Jiffy (from the epoch) this session was last updated/used. */
 	unsigned long update_time;
@@ -81,6 +88,8 @@ struct bib_session {
 	bool session_set;
 	struct session_entry session;
 };
+
+void bib_session_init(struct bib_session *bs);
 
 bool session_equals(const struct session_entry *s1,
 		const struct session_entry *s2);

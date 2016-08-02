@@ -585,15 +585,8 @@ struct global_config {
 
 		} siit;
 		struct {
-			/** Use Address-Dependent Filtering? (boolean) */
-			__u8 drop_by_addr;
 			/** Filter ICMPv6 Informational packets? (boolean) */
 			__u8 drop_icmp6_info;
-			/**
-			 * Drop externally initiated (IPv4) TCP connections?
-			 * (boolean)
-			 */
-			__u8 drop_external_tcp;
 
 			/**
 			 * True = issue #132 behaviour.
@@ -611,10 +604,6 @@ struct global_config {
 	};
 };
 
-struct pktqueue_config {
-	__u32 max_stored_pkts;
-};
-
 struct bib_config {
 	struct {
 		__u64 tcp_est;
@@ -626,7 +615,15 @@ struct bib_config {
 	__u8 bib_logging;
 	__u8 session_logging;
 
-	struct pktqueue_config pktqueue;
+	/** Use Address-Dependent Filtering? (boolean) */
+	__u8 drop_by_addr;
+	/**
+	 * Drop externally initiated (IPv4) TCP connections?
+	 * (boolean)
+	 */
+	__u8 drop_external_tcp;
+
+	__u32 max_stored_pkts;
 };
 
 /* This has to be <= 32. */

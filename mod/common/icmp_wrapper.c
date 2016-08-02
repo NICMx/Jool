@@ -31,9 +31,20 @@ static char *icmp_error_to_string(icmp_error_code error) {
 	return "Unknown";
 }
 
-static void icmp4_send(struct sk_buff *skb, icmp_error_code error, __u32 info)
+void icmp64_send4(struct sk_buff *skb, icmp_error_code error, __u32 info)
 {
 	int type, code;
+	int err;
+
+	/*
+	 * I don't know why the kernel needs this nonsense,
+	 * but it's not my fault.
+	 */
+	err = route4_input(skb);
+	if (err) {
+		log_debug("Can't send an ICMPv4 Error: %d", err);
+		return;
+	}
 
 	switch (error) {
 	case ICMPERR_ADDR_UNREACHABLE:
@@ -68,12 +79,12 @@ static void icmp4_send(struct sk_buff *skb, icmp_error_code error, __u32 info)
 		return; /* Not supported or needed. */
 	}
 
-	log_debug("Sending ICMPv4 error: %s, type: %d, code: %d.", icmp_error_to_string(error), type,
-			code);
+	log_debug("Sending ICMPv4 error: %s, type: %d, code: %d.",
+			icmp_error_to_string(error), type, code);
 	icmp_send(skb, type, code, cpu_to_be32(info));
 }
 
-static void icmp6_send(struct sk_buff *skb, icmp_error_code error, __u32 info)
+static void icmp64_send6(struct sk_buff *skb, icmp_error_code error, __u32 info)
 {
 	int type, code;
 
@@ -83,7 +94,8 @@ static void icmp6_send(struct sk_buff *skb, icmp_error_code error, __u32 info)
 		code = ICMPV6_ADDR_UNREACH;
 		break;
 	case ICMPERR_PORT_UNREACHABLE:
-	case ICMPERR_PROTO_UNREACHABLE: /* See RFC6146, determine incoming tuple step. */
+	case ICMPERR_PROTO_UNREACHABLE:
+		/* See RFC6146, determine incoming tuple step. */
 		type = ICMPV6_DEST_UNREACH;
 		code = ICMPV6_PORT_UNREACH;
 		break;
@@ -114,8 +126,8 @@ static void icmp6_send(struct sk_buff *skb, icmp_error_code error, __u32 info)
 #if defined RHEL_VERSION_CODE \
 		|| LINUX_VERSION_CODE < KERNEL_VERSION(3, 12, 0) \
 		|| LINUX_VERSION_CODE >= KERNEL_VERSION(3, 13, 0)
-	log_debug("Sending ICMPv6 error: %s, type: %d, code: %d", icmp_error_to_string(error), type,
-			code);
+	log_debug("Sending ICMPv6 error: %s, type: %d, code: %d",
+			icmp_error_to_string(error), type, code);
 	icmpv6_send(skb, type, code, info);
 #else
 #warning "You're compiling in kernel 3.12. See https://github.com/NICMx/Jool/issues/90"
@@ -125,7 +137,6 @@ static void icmp6_send(struct sk_buff *skb, icmp_error_code error, __u32 info)
 void icmp64_send(struct packet *pkt, icmp_error_code error, __u32 info)
 {
 	struct sk_buff *skb;
-	int err;
 
 	if (unlikely(!pkt))
 		return;
@@ -139,15 +150,10 @@ void icmp64_send(struct packet *pkt, icmp_error_code error, __u32 info)
 	/* Send the error. */
 	switch (ntohs(skb->protocol)) {
 	case ETH_P_IP:
-		err = route4_input(pkt);
-		if (err) {
-			log_debug("Can't send an ICMPv4 Error: %d", err);
-			return;
-		}
-		icmp4_send(skb, error, info);
+		icmp64_send4(skb, error, info);
 		break;
 	case ETH_P_IPV6:
-		icmp6_send(skb, error, info);
+		icmp64_send6(skb, error, info);
 		break;
 	}
 }

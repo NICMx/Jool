@@ -9,14 +9,14 @@ PROJECTS += rfc6052
 PROJECTS += rfc6056
 
 # Layer 2 tests (tables)
-PROJECTS += bibtable
 PROJECTS += eamt
+PROJECTS += bibtable
 PROJECTS += sessiontable
 
 # Layer 3 tests (dbs)
-PROJECTS += bibdb
 PROJECTS += fragdb
 PROJECTS += pool4db
+PROJECTS += bibdb
 PROJECTS += sessiondb
 
 # Layer 4 tests

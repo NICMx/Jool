@@ -915,3 +915,18 @@ int mask_domain_next(struct mask_domain *masks,
 	addr->l4 = masks->current_port;
 	return 0;
 }
+
+bool mask_domain_matches(struct mask_domain *masks,
+		struct ipv4_transport_addr *addr)
+{
+	struct pool4_range *entry;
+
+	foreach_domain_range(entry, masks) {
+		if (entry->addr.s_addr != addr->l3.s_addr)
+			continue;
+		if (port_range_contains(&entry->ports, addr->l4))
+			return true;
+	}
+
+	return false;
+}
