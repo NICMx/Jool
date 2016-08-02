@@ -239,6 +239,11 @@ int bib_count_sessions(struct bib *db, l4_protocol proto, __u64 *count)
 	return fail(__func__);
 }
 
+void bib_session_init(struct bib_session *bs)
+{
+	/* No code. */
+}
+
 void joold_ack(struct xlator *jool)
 {
 	fail(__func__);

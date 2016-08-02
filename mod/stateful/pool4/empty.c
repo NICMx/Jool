@@ -1,11 +1,11 @@
 #include "nat64/mod/stateful/pool4/empty.h"
+
 #include <linux/inetdevice.h>
 #include <linux/in_route.h>
 #include <linux/netdevice.h>
 #include "nat64/common/constants.h"
 #include "nat64/mod/common/ipv6_hdr_iterator.h"
 #include "nat64/mod/common/xlator.h"
-#include "nat64/mod/common/route.h"
 
 static bool contains_addr(struct net *ns, const struct in_addr *addr)
 {
@@ -50,9 +50,11 @@ bool pool4empty_contains(struct net *ns, const struct ipv4_transport_addr *addr)
  * If there's a primary global address that matches @daddr however, it takes
  * precedence.
  * If everything fails, attempts to use a host address.
+ *
+ * Notice that this code is mostly just a ripoff of inet_select_addr().
  */
-static int __pick_addr(struct net *ns, struct dst_entry *dst,
-		struct in_addr *daddr, struct in_addr *result)
+static int __pick_addr(struct dst_entry *dst, struct route4_args *args,
+		struct in_addr *result)
 {
 	struct in_device *in_dev;
 	__be32 saddr = 0;
@@ -66,7 +68,7 @@ static int __pick_addr(struct net *ns, struct dst_entry *dst,
 	for_primary_ifa(in_dev) {
 		if (ifa->ifa_scope != RT_SCOPE_UNIVERSE)
 			continue;
-		if (inet_ifa_match(daddr->s_addr, ifa)) {
+		if (inet_ifa_match(args->daddr.s_addr, ifa)) {
 			result->s_addr = ifa->ifa_local;
 			return 0;
 		}
@@ -79,8 +81,17 @@ static int __pick_addr(struct net *ns, struct dst_entry *dst,
 		return 0; /* This is the typical happy path. */
 	}
 
-	if (contains_addr(ns, daddr)) {
-		*result = *daddr;
+	/*
+	 * TODO This seems to exist because of hairpinning.
+	 * If the destination is ourselves, set source as ourselves.
+	 * But is it really necessary? I feel like the inet_ifa_match() above
+	 * should have that covered. Please test.
+	 *
+	 * If this does not serve any purpose, consider using inet_select_addr()
+	 * instead of having to maintain this function.
+	 */
+	if (contains_addr(args->ns, &args->daddr)) {
+		*result = args->daddr;
 		return 0;
 	}
 
@@ -88,76 +99,41 @@ static int __pick_addr(struct net *ns, struct dst_entry *dst,
 	return -ESRCH;
 }
 
-static int pick_addr(struct net *ns, struct dst_entry *dst,
-		struct in_addr *daddr, struct in_addr *result)
+static int pick_addr(struct dst_entry *dst, struct route4_args *route_args,
+		struct in_addr *result)
 {
 	int error;
 
 	rcu_read_lock();
-	error = __pick_addr(ns, dst, daddr, result);
+	error = __pick_addr(dst, route_args, result);
 	rcu_read_unlock();
 
 	return error;
 }
 
-static int foreach_port(struct in_addr *addr,
-		int (*cb)(struct ipv4_transport_addr *, void *), void *arg,
-		unsigned int offset)
+int pool4empty_find(struct route4_args *route_args, struct pool4_range *range)
 {
-	const unsigned int MIN = DEFAULT_POOL4_MIN_PORT;
-	const unsigned int MAX = DEFAULT_POOL4_MAX_PORT;
-	unsigned int i;
-	struct ipv4_transport_addr tmp;
-	int error;
-
-	offset = MIN + (offset % (MAX - MIN + 1));
-	tmp.l3 = *addr;
-
-	for (i = offset; i <= MAX; i++) {
-		tmp.l4 = i;
-		error = cb(&tmp, arg);
-		if (error)
-			return error;
-	}
-
-	for (i = DEFAULT_POOL4_MIN_PORT; i < offset; i++) {
-		tmp.l4 = i;
-		error = cb(&tmp, arg);
-		if (error)
-			return error;
-	}
-
-	return 0;
-}
-
-int pool4empty_foreach_taddr4(struct net *ns,
-		struct in_addr *daddr, __u8 tos, __u8 proto, __u32 mark,
-		int (*cb)(struct ipv4_transport_addr *, void *), void *arg,
-		unsigned int offset)
-{
-	struct in_addr saddr;
 	struct dst_entry *dst;
 	int error;
 
-	dst = __route4(ns, daddr->s_addr, tos, proto, mark, NULL);
+	dst = __route4(route_args, NULL);
 	if (!dst)
-		return -EINVAL;
+		return -ENOMEM;
 
 	/* This initialization shuts up old versions of gcc. */
-	saddr.s_addr = 0;
-	error = pick_addr(ns, dst, daddr, &saddr);
-	if (error)
-		goto end;
+	range->addr.s_addr = 0;
+	error = pick_addr(dst, route_args, &range->addr);
+	if (!error) {
+		range->ports.min = DEFAULT_POOL4_MIN_PORT;
+		range->ports.max = DEFAULT_POOL4_MAX_PORT;
+	}
 
-	error = foreach_port(&saddr, cb, arg, offset);
-	/* Fall through. */
-
-end:
 	/*
-	 * The outgoing packet hasn't been allocated yet, so we don't have
-	 * a placeholder for this. We will therefore have to regenerate it
-	 * later.
+	 * The outgoing packet hasn't been allocated yet, so we don't have a
+	 * placeholder for this. We will therefore have to regenerate it later.
 	 * Life sucks :-).
+	 *
+	 * TODO if you can send the xlator in, we would have a placeholder.
 	 */
 	dst_release(dst);
 	return error;

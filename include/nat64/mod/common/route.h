@@ -3,17 +3,24 @@
 
 #include "nat64/mod/common/packet.h"
 
+struct route4_args {
+	struct net *ns;
+	struct in_addr daddr;
+	__u8 tos;
+	__u8 proto;
+	__u32 mark;
+};
+
 /**
  * Routes @skb (assuming @skb is an IPv4 packet).
  *
  * One-liner for filling up a 'flowi' and then calling the kernel's IPv4
  * routing function.
  */
-struct dst_entry *__route4(struct net *ns, __be32 daddr, __u8 tos, __u8 proto,
-		__u32 mark, struct sk_buff *skb);
+struct dst_entry *__route4(struct route4_args *args, struct sk_buff *skb);
 
 /**
- * Use this function instead of __route4() when you know the rest of the
+ * Use this function instead of __route4() when you know most of the
  * args can be extracted safely from @skb (ie. they have been initialized).
  */
 struct dst_entry *route4(struct net *ns, struct packet *out);

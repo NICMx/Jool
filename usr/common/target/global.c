@@ -124,7 +124,7 @@ static int handle_display_response(struct jool_response *response, void *arg)
 	if (xlat_is_nat64()) {
 
 		printf("  --%s: %u\n", OPTNAME_MAX_SO,
-				conf->bib.pktqueue.max_stored_pkts);
+				conf->bib.max_stored_pkts);
 		printf("  --%s: %s\n", OPTNAME_SRC_ICMP6E_BETTER,
 				print_bool(conf->global.nat64.src_icmp6errs_better));
 
@@ -173,11 +173,11 @@ static int handle_display_response(struct jool_response *response, void *arg)
 
 		printf("  Filtering:\n");
 		printf("    --%s: %s\n", OPTNAME_DROP_BY_ADDR,
-				print_bool(conf->global.nat64.drop_by_addr));
+				print_bool(conf->bib.drop_by_addr));
 		printf("    --%s: %s\n", OPTNAME_DROP_ICMP6_INFO,
 				print_bool(conf->global.nat64.drop_icmp6_info));
 		printf("    --%s: %s\n", OPTNAME_DROP_EXTERNAL_TCP,
-				print_bool(conf->global.nat64.drop_external_tcp));
+				print_bool(conf->bib.drop_external_tcp));
 		printf("\n");
 
 		printf("  Timeouts:\n");
@@ -256,11 +256,11 @@ static int handle_display_response_csv(struct jool_response *response, void *arg
 
 	} else {
 		printf("%s,%s\n", OPTNAME_DROP_BY_ADDR,
-				print_csv_bool(global->nat64.drop_by_addr));
+				print_csv_bool(conf->bib.drop_by_addr));
 		printf("%s,%s\n", OPTNAME_DROP_ICMP6_INFO,
 				print_csv_bool(global->nat64.drop_icmp6_info));
 		printf("%s,%s\n", OPTNAME_DROP_EXTERNAL_TCP,
-				print_csv_bool(global->nat64.drop_external_tcp));
+				print_csv_bool(conf->bib.drop_external_tcp));
 		printf("%s,%s\n", OPTNAME_SRC_ICMP6E_BETTER,
 				print_csv_bool(global->nat64.src_icmp6errs_better));
 		printf("%s,%u\n", OPTNAME_F_ARGS,
@@ -271,7 +271,7 @@ static int handle_display_response_csv(struct jool_response *response, void *arg
 				print_csv_bool(conf->bib.session_logging));
 
 		printf("%s,%u\n", OPTNAME_MAX_SO,
-				conf->bib.pktqueue.max_stored_pkts);
+				conf->bib.max_stored_pkts);
 
 		printf("joold Enabled,%s\n",
 				print_csv_bool(conf->joold.enabled));

@@ -213,8 +213,6 @@ int pool6_find(struct pool6 *pool, const struct in6_addr *addr,
 			return 0;
 		}
 	}
-
-	log_debug("Could not find a prefix that matches %pI6c.", addr);
 	/* Fall through. */
 
 not_found:

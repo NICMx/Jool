@@ -1190,8 +1190,9 @@ static struct tabled_bib *try_next(struct bib_table *table,
  * 		if (mask is not taken by an existing BIB entry from @table)
  * 			init the new BIB entry, @bib, using mask
  * 			init @slot as the tree slot where @bib should be added
- * 			return success
- * 	return failure
+ * 			return success (0)
+ * 	return failure (-ENOENT)
+ *
  */
 static int find_available_mask(struct bib_table *table,
 		struct mask_domain *masks,
@@ -1213,6 +1214,7 @@ static int find_available_mask(struct bib_table *table,
 		error = mask_domain_next(masks, &bib->src4, &consecutive);
 		if (error)
 			return error;
+
 		/*
 		 * Just for the sake of clarity:
 		 * @consecutive is never true on the first iteration.
@@ -1337,8 +1339,12 @@ static int find_bib_session6(struct bib_table *table,
 	/* No collisions (find failed); try to find suitable slots (add) */
 	if (masks) {
 		error = find_available_mask(table, masks, new->bib, &slots->bib4);
-		if (error)
+		if (error) {
+			if (WARN(error != -ENOENT, "Unknown error: %d", error))
+				return error;
+			log_warn_once("I ran out of pool4 addresses.");
 			return error;
+		}
 
 		/*
 		 * Patch 3-tuples.
@@ -1462,6 +1468,7 @@ int bib_add4(struct bib *db,
 	struct tabled_session *new;
 	struct tree_slot session_slot;
 	bool allow;
+	int error;
 
 	table = get_table(db, tuple4->l4_proto);
 	if (!table)
@@ -1481,12 +1488,16 @@ int bib_add4(struct bib *db,
 		goto success;
 	}
 
-	if (!old.bib)
+	if (!old.bib) {
+		error = -ESRCH;
 		goto failure;
+	}
 
 	/* Address-Dependent Filtering. */
-	if (table->drop_by_addr && !allow)
+	if (table->drop_by_addr && !allow) {
+		error = -EPERM;
 		goto failure;
+	}
 
 	/* Ok, no issues; add the session. */
 	commit_add4(table, &old, &new, &session_slot, &table->est_timer, result);
@@ -1499,7 +1510,7 @@ success:
 failure:
 	spin_unlock_bh(&table->lock);
 	kmem_cache_free(session_cache, new);
-	return -ESRCH;
+	return error;
 }
 
 /**
@@ -1517,7 +1528,7 @@ verdict bib_add_tcp6(struct bib *db,
 	struct bib_session_tuple new;
 	struct bib_session_tuple old;
 	struct slot_group slots;
-	verdict verdict = VERDICT_CONTINUE;
+	verdict verdict;
 
 	if (WARN(pkt->tuple.l4_proto != L4PROTO_TCP, "Incorrect l4 proto in TCP handler."))
 		return VERDICT_DROP;
@@ -1537,22 +1548,27 @@ verdict bib_add_tcp6(struct bib *db,
 		/* All states except CLOSED. */
 		decide_fate(cb, table, old.session, NULL);
 		tstobs(old.session, result);
+		verdict = VERDICT_CONTINUE;
 		goto end;
 	}
 
 	/* CLOSED state beginning now. */
 
 	if (!pkt_tcp_hdr(pkt)->syn) {
-		if (old.bib)
+		if (old.bib) {
 			tbtobs(old.bib, result);
-		else
+			verdict = VERDICT_CONTINUE;
+		} else {
+			log_debug("Packet is not SYN and lacks state.");
 			verdict = VERDICT_DROP;
+		}
 		goto end;
 	}
 
 	/* All exits up till now require @new.* to be deleted. */
 
 	commit_add6(table, &old, &new, &slots, &table->trans_timer, result);
+	verdict = VERDICT_CONTINUE;
 	/* Fall through */
 
 end:
@@ -1589,7 +1605,7 @@ verdict bib_add_tcp4(struct bib *db,
 	struct tabled_session *new;
 	struct bib_session_tuple old;
 	struct tree_slot session_slot;
-	verdict verdict = VERDICT_CONTINUE;
+	verdict verdict;
 
 	if (WARN(pkt->tuple.l4_proto != L4PROTO_TCP, "Incorrect l4 proto in TCP handler."))
 		return VERDICT_DROP;
@@ -1607,20 +1623,25 @@ verdict bib_add_tcp4(struct bib *db,
 		/* All states except CLOSED. */
 		decide_fate(cb, table, old.session, NULL);
 		tstobs(old.session, result);
+		verdict = VERDICT_CONTINUE;
 		goto end;
 	}
 
 	/* CLOSED state beginning now. */
 
 	if (!pkt_tcp_hdr(pkt)->syn) {
-		if (old.bib)
+		if (old.bib) {
 			tbtobs(old.bib, result);
-		else
+			verdict = VERDICT_CONTINUE;
+		} else {
+			log_debug("Packet is not SYN and lacks state.");
 			verdict = VERDICT_DROP;
+		}
 		goto end;
 	}
 
 	if (table->drop_v4_syn) {
+		log_debug("Externally initiated TCP connections are prohibited.");
 		verdict = VERDICT_DROP;
 		goto end;
 	}
@@ -1656,6 +1677,7 @@ verdict bib_add_tcp4(struct bib *db,
 	commit_add4(table, &old, &new, &session_slot,
 			new->stored ? &table->syn4_timer : &table->trans_timer,
 			result);
+	verdict = VERDICT_CONTINUE;
 	/* Fall through */
 
 end:

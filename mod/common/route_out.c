@@ -12,8 +12,7 @@
  * The @pkt can be NULL. If this happens, make sure the resulting dst is
  * dst_release()d.
  */
-struct dst_entry *__route4(struct net *ns, __be32 daddr, __u8 tos, __u8 proto,
-		__u32 mark, struct sk_buff *skb)
+struct dst_entry *__route4(struct route4_args *args, struct sk_buff *skb)
 {
 	struct flowi4 flow;
 	struct rtable *table;
@@ -38,10 +37,10 @@ struct dst_entry *__route4(struct net *ns, __be32 daddr, __u8 tos, __u8 proto,
 	memset(&flow, 0, sizeof(flow));
 	/* flow.flowi4_oif; */
 	/* flow.flowi4_iif; */
-	flow.flowi4_mark = mark;
-	flow.flowi4_tos = tos;
+	flow.flowi4_mark = args->mark;
+	flow.flowi4_tos = args->tos;
 	flow.flowi4_scope = RT_SCOPE_UNIVERSE;
-	flow.flowi4_proto = proto;
+	flow.flowi4_proto = args->proto;
 	/*
 	 * TODO (help) Don't know if we should set FLOWI_FLAG_PRECOW_METRICS.
 	 * Does the kernel ever create routes on Jool's behalf?
@@ -54,7 +53,7 @@ struct dst_entry *__route4(struct net *ns, __be32 daddr, __u8 tos, __u8 proto,
 	/* flow.flowi4_secid; */
 	/* It appears this one only introduces harmful noise. */
 	/* flow.saddr = saddr; */
-	flow.daddr = daddr;
+	flow.daddr = args->daddr.s_addr;
 
 	/*
 	 * I'm no longer setting fl4_sport, fl4_dport, fl4_icmp_type nor
@@ -67,7 +66,7 @@ struct dst_entry *__route4(struct net *ns, __be32 daddr, __u8 tos, __u8 proto,
 	 * I'm using neither ip_route_output_key() nor ip_route_output_flow()
 	 * because they only add XFRM overhead.
 	 */
-	table = __ip_route_output_key(ns, &flow);
+	table = __ip_route_output_key(args->ns, &flow);
 	if (!table || IS_ERR(table)) {
 		log_debug("__ip_route_output_key() returned %ld. Cannot route packet.",
 				PTR_ERR(table));
@@ -100,8 +99,14 @@ struct dst_entry *__route4(struct net *ns, __be32 daddr, __u8 tos, __u8 proto,
 struct dst_entry *route4(struct net *ns, struct packet *out)
 {
 	struct iphdr *hdr = pkt_ip4_hdr(out);
-	return __route4(ns, hdr->daddr, hdr->tos, hdr->protocol, out->skb->mark,
-			out->skb);
+	struct route4_args args = {
+			.ns = ns,
+			.daddr.s_addr = hdr->daddr,
+			.tos = hdr->tos,
+			.proto = hdr->protocol,
+			.mark = out->skb->mark,
+	};
+	return __route4(&args, out->skb);
 }
 
 struct dst_entry *__route6(struct net *ns, struct sk_buff *skb,

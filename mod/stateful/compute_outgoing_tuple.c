@@ -65,6 +65,9 @@ verdict compute_out_tuple(struct xlation *state)
 		out->src.addr4 = state->entries.session.src4;
 		if (xlat_addr64(state, &out->dst.addr4))
 			return VERDICT_ACCEPT;
+
+		if (is_3_tuple(out))
+			out->dst.addr4.l4 = out->src.addr4.l4;
 		break;
 
 	case L3PROTO_IPV4:
@@ -73,6 +76,9 @@ verdict compute_out_tuple(struct xlation *state)
 		if (xlat_addr46(state, &out->src.addr6))
 			return VERDICT_ACCEPT;
 		out->dst.addr6 = state->entries.session.src6;
+
+		if (is_3_tuple(out))
+			out->src.addr6.l4 = out->dst.addr6.l4;
 		break;
 	}
 

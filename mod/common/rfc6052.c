@@ -132,8 +132,10 @@ int rfc6052_6to4(struct pool6 *pool, const struct in6_addr *addr6,
 	int error;
 
 	error = pool6_find(pool, addr6, &prefix);
-	if (error)
+	if (error) {
+		log_debug("Could not find a prefix that matches %pI6c.", addr6);
 		return error;
+	}
 
 	return addr_6to4(addr6, &prefix, result);
 }

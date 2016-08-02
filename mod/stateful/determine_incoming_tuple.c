@@ -307,7 +307,8 @@ verdict determine_in_tuple(struct xlation *state)
 		break;
 	}
 
-	log_tuple(&pkt->tuple);
+	if (result == VERDICT_CONTINUE)
+		log_tuple(&pkt->tuple);
 	log_debug("Done step 1.");
 	return result;
 

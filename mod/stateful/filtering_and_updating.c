@@ -6,6 +6,7 @@
 #include "nat64/mod/common/pool6.h"
 #include "nat64/mod/common/rfc6052.h"
 #include "nat64/mod/common/stats.h"
+#include "nat64/mod/common/rfc6145/6to4.h"
 #include "nat64/mod/stateful/joold.h"
 #include "nat64/mod/stateful/pool4/db.h"
 #include "nat64/mod/stateful/bib/db.h"
@@ -116,6 +117,7 @@ static int xlat_dst_6to4(struct xlation *state,
 		struct ipv4_transport_addr *dst4)
 {
 	dst4->l4 = state->in.tuple.dst.addr6.l4;
+	/* Error msg already printed. */
 	return rfc6052_6to4(state->jool.pool6, &state->in.tuple.dst.addr6.l3,
 			&dst4->l3);
 }
@@ -123,13 +125,27 @@ static int xlat_dst_6to4(struct xlation *state,
 /**
  * This is just a wrapper. Its sole intent is to minimize mess below.
  */
-static int find_mask_domain(struct xlation *state, struct mask_domain **masks)
+static int find_mask_domain(struct xlation *state,
+		struct ipv4_transport_addr *dst,
+		struct mask_domain **masks)
 {
-	*masks = mask_domain_find(state->jool.nat64.pool4,
-			&state->in.tuple,
-			state->jool.global->cfg.nat64.f_args,
+	struct ipv6hdr *hdr6 = pkt_ip6_hdr(&state->in);
+	struct route4_args args = {
+		.ns = state->jool.ns,
+		.daddr = dst->l3,
+		.tos = ttp64_xlat_tos(state, hdr6),
+		.proto = ttp64_xlat_proto(hdr6),
+		.mark = state->in.skb->mark,
+	};
+
+	*masks = mask_domain_find(state->jool.nat64.pool4, &state->in.tuple,
+			state->jool.global->cfg.nat64.f_args, &args);
+	if (*masks)
+		return 0;
+
+	log_debug("There is no mask domain mapped to mark %u.",
 			state->in.skb->mark);
-	return (*masks) ? 0 : -EINVAL;
+	return -EINVAL;
 }
 
 /**
@@ -149,7 +165,7 @@ static verdict ipv6_simple(struct xlation *state)
 
 	if (xlat_dst_6to4(state, &dst4))
 		return breakdown(state);
-	if (find_mask_domain(state, &masks))
+	if (find_mask_domain(state, &dst4, &masks))
 		return breakdown(state);
 
 	error = bib_add6(state->jool.nat64.bib, masks, &state->in.tuple, &dst4,
@@ -158,9 +174,13 @@ static verdict ipv6_simple(struct xlation *state)
 
 	switch (error) {
 	case 0:
-	case -EEXIST:
 		return succeed(state);
 	default:
+		/*
+		 * Error msg already printed, but since bib_add6() sprawls
+		 * messily, let's leave this here just in case.
+		 */
+		log_debug("bib_add6() threw error code %d.", error);
 		return breakdown(state);
 	}
 }
@@ -183,7 +203,7 @@ static verdict ipv4_simple(struct xlation *state)
 
 	error = rfc6052_4to6(state->jool.pool6, &src4->l3, &dst6.l3);
 	if (error)
-		return breakdown(state); /* TODO error msg? */
+		return breakdown(state); /* Error msg already printed. */
 	dst6.l4 = src4->l4;
 
 	error = bib_add4(state->jool.nat64.bib, &dst6, &state->in.tuple,
@@ -191,21 +211,17 @@ static verdict ipv4_simple(struct xlation *state)
 
 	switch (error) {
 	case 0:
-	case -EEXIST:
 		return succeed(state);
 	case -ESRCH:
-		/* TODO breakdown? */
 		log_debug("There is no BIB entry for the IPv4 packet.");
 		inc_stats(&state->in, IPSTATS_MIB_INNOROUTES);
 		return VERDICT_ACCEPT;
 	case -EPERM:
-		log_debug("Packet was blocked by address-dependent filtering.");
+		log_debug("Packet was blocked by Address-Dependent Filtering.");
 		icmp64_send(&state->in, ICMPERR_FILTER, 0);
-		inc_stats(&state->in, IPSTATS_MIB_INDISCARDS);
-		return VERDICT_DROP;
+		return breakdown(state);
 	default:
 		log_debug("Errcode %d while finding a BIB entry.", error);
-		inc_stats(&state->in, IPSTATS_MIB_INDISCARDS);
 		icmp64_send(&state->in, ICMPERR_ADDR_UNREACHABLE, 0);
 		return breakdown(state);
 	}
@@ -377,7 +393,7 @@ static verdict ipv6_tcp(struct xlation *state)
 
 	if (xlat_dst_6to4(state, &dst4))
 		return breakdown(state);
-	if (find_mask_domain(state, &masks))
+	if (find_mask_domain(state, &dst4, &masks))
 		return breakdown(state);
 
 	cb.cb = tcp_state_machine;
@@ -387,6 +403,7 @@ static verdict ipv6_tcp(struct xlation *state)
 
 	mask_domain_put(masks);
 
+	/* Error msg already printed. We don't have an error code anyway. */
 	switch (verdict) {
 	case VERDICT_CONTINUE:
 		return succeed(state);
@@ -413,7 +430,7 @@ static verdict ipv4_tcp(struct xlation *state)
 
 	error = rfc6052_4to6(state->jool.pool6, &src4->l3, &dst6.l3);
 	if (error)
-		return breakdown(state); /* TODO error msg? */
+		return breakdown(state); /* Error msg already printed. */
 	dst6.l4 = src4->l4;
 
 	cb.cb = tcp_state_machine;
@@ -421,6 +438,7 @@ static verdict ipv4_tcp(struct xlation *state)
 	verdict = bib_add_tcp4(state->jool.nat64.bib, &dst6, &state->in, &cb,
 			&state->entries);
 
+	/* Error msg already printed. We don't have an error code anyway. */
 	switch (verdict) {
 	case VERDICT_CONTINUE:
 		return succeed(state);

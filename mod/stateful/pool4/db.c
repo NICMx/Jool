@@ -690,18 +690,14 @@ bool pool4db_contains(struct pool4 *pool, struct net *ns, l4_protocol proto,
 	spin_lock_bh(&pool->lock);
 
 	if (is_empty(pool)) {
-		found = pool4empty_contains(ns, addr);
-		goto end;
+		spin_unlock_bh(&pool->lock);
+		return pool4empty_contains(ns, addr);
 	}
 
 	table = find_by_addr(get_tree(&pool->tree_addr, proto), &addr->l3);
-	if (!table)
-		goto end;
+	if (table)
+		found = find_port_range(table, addr->l4) != NULL;
 
-	found = find_port_range(table, addr->l4) != NULL;
-	/* Fall through. */
-
-end:
 	spin_unlock_bh(&pool->lock);
 	return found;
 }
@@ -834,22 +830,50 @@ void pool4db_print(struct pool4 *pool)
 	print_tree(&pool->tree_addr.icmp, false);
 }
 
+static struct mask_domain *find_empty(struct route4_args *args,
+		unsigned int offset)
+{
+	struct mask_domain *masks;
+	struct pool4_range *range;
+
+	masks = __wkmalloc("mask_domain",
+			sizeof(struct mask_domain) * sizeof(struct pool4_range),
+			GFP_ATOMIC);
+	if (!masks)
+		return NULL;
+
+	range = (struct pool4_range *)(masks + 1);
+	if (pool4empty_find(args, range))
+		return NULL;
+
+	masks->taddr_count = port_range_count(&range->ports);
+	masks->taddr_counter = 0;
+	masks->range_count = 1;
+	masks->current_range = range;
+	masks->current_port = range->ports.min + offset % masks->taddr_count;
+	return masks;
+}
+
 struct mask_domain *mask_domain_find(struct pool4 *pool, struct tuple *tuple6,
-		__u8 f_args, __u32 mark)
+		__u8 f_args, struct route4_args *route_args)
 {
 	struct pool4_table *table;
 	struct pool4_range *entry;
 	struct mask_domain *masks;
 	unsigned int offset;
 
-	/* TODO missing empty implementation */
-
 	if (rfc6056_f(tuple6, f_args, &offset))
 		return NULL;
 
 	spin_lock_bh(&pool->lock);
 
-	table = find_by_mark(get_tree(&pool->tree_mark, tuple6->l4_proto), mark);
+	if (is_empty(pool)) {
+		spin_unlock_bh(&pool->lock);
+		return find_empty(route_args, offset);
+	}
+
+	table = find_by_mark(get_tree(&pool->tree_mark, tuple6->l4_proto),
+			route_args->mark);
 	if (!table)
 		goto fail;
 

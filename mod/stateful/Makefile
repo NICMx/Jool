@@ -42,3 +42,8 @@ remove:
 	-sudo modprobe -r nf_defrag_ipv6
 	-sudo modprobe -r nf_defrag_ipv4
 	dmesg | tail -1
+again:
+	sudo modprobe -r jool
+	make debug
+	sudo make modules_install
+	sudo modprobe jool pool6=64:ff9b::/96
