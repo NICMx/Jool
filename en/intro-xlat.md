@@ -116,27 +116,3 @@ In this way, _A_ through _E_ are _IPv6-only_ nodes, but they have access to both
 
 Stateful NAT64 is defined by [RFC 6146](http://tools.ietf.org/html/rfc6146) and is most of the time coupled with [DNS64](dns64.html).
 
-### MAP-T
-
-Instead of giving each client an address, you grant them a _portion_ of one. This takes care of optimizing address distribution, freeing the translator from this responsibility.
-
-![Fig.10 - MAP-T core](../images/network/mapt-core.svg)
-
-(BR stands for "Border Relay".)
-
-When an IPv6 node writes a packet, it makes sure to use a port from within a shortened range. Ports are then considered to make routing decisions.
-
-![Fig.11 - MAP-T core flow](../images/flow/mapt-core.svg)
-
-This means you're earning the privilege of masking several nodes behind a few addresses even though the translator is stateless.
-
-How do you grant "portions" of addresses to your clients? By doing NAT.
-
-![Fig.12 - MAP-T complete](../images/network/mapt-complete.svg)
-
-The enclosed networks are IPv4 and private. _CE_ ("Customer Edge") is a NAT44 chained to a translator. The NAT44 condenses its clients' requests into a limited source port range and the translator moves them to IPv6.
-
-> ![Note!](../images/bulb.svg) This means the _CE_'s are stateful, but at least this property is moved away from the core.
-
-MAP-T is defined by [RFC 7599](https://tools.ietf.org/html/rfc7599). Jool does not support MAP-T [yet]({{ site.repository-url }}/issues/193), but [nat46](https://github.com/ayourtch/nat46) does.
-

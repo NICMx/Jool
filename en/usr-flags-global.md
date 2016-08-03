@@ -161,6 +161,8 @@ Turn `--drop-externally-initiated-tcp` ON to wreck any attempts of IPv4 nodes to
 
 Of course, this will not block IPv4 traffic if some IPv6 node first requested it.
 
+The filtering will be completely silent; no ICMP error ("Communication Administratively Prohibited" or otherwise) will be returned to the v4 nodes.
+
 ### `--udp-timeout`
 
 - Type: Integer (seconds)
