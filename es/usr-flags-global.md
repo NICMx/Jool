@@ -171,6 +171,8 @@ Esta regla no afecta mensajes ICMP de tipo error.
 
 Por supuesto, esto no bloqueará el tráfico TCP si algún nodo IPv6 es quien lo solicita.
 
+El filtrado es completamente silencioso; no se regresarán errores de ICMP (ya sea "Comunicación Administrativamente Prohibida" o cualquier otro) a los nodos de IPv4.
+
 ### `--udp-timeout`
 
 - Nombre: ***Tiempo de vida de sesiones UDP***

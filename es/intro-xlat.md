@@ -16,7 +16,6 @@ title: Introducción a los Mecanismos de Transición
     1. [SIIT con EAM](#siit-con-eam)
     2. [SIIT tradicional](#siit-tradicional)
     3. [Stateful NAT64](#stateful-nat64)
-    4. [MAP-T](#map-t)
 3. [Nota Histórica](#nota-histrica)
     
 ## Introducción
@@ -142,34 +141,3 @@ Si gustas conocer el resto de los **escenarios posibles en Stateful NAT64 y SIIT
 
 ![Nota](../images/bulb.svg) Para soportar direccionamiento por nombre se requiere habilitar el [DNS64](dns64.html).
 
-### MAP-T
-
-En lugar de darle a cada cliente una dirección, se les da un _pedazo_ de una. Esto se ocupa del tema de optimizar la distribución de direcciones, liberando al traductor de esta responsabilidad.
-
-![Fig.10 - MAP-T general](../images/network/mapt-core.svg)
-
-(BR es "Border Relay" - el traductor.)
-
-Los nodos de IPv6 se aseguran de solamente usar puertos de un rango único disminuido. Ruteo entonces considera puertos al tomar decisiones.
-
-![Fig.11 - Flujo MAP-T general](../images/flow/mapt-core.svg)
-
-Esto logra que se enmascaren varios nodos detrás de pocas direcciones a pesar de que el traductor no está guardando estado.
-
-¿Cómo asignar rangos de puertos específicos a clientes? Mediante NAT.
-
-![Fig.12 - MAP-T completo](../images/network/mapt-complete.svg)
-
-Las redes encapsuladas son IPv4 y privadas. _CE_ ("Customer Edge") es un NAT44 encadenado a un traductor. El NAT44 condensa el tráfico de sus clientes a un rango de puertos fuente limitado y el traductor las convierte a IPv6.
-
-> ![Nota](../images/bulb.svg) Esto significa que los _CE_'s guardan estado, pero al menos esta propiedad está siendo separada en rincones más controlables.
-
-MAP-T está definido en el [RFC 7599](https://tools.ietf.org/html/rfc7599). Jool no lo soporta [aún]({{ site.repository-url }}/issues/193), pero existen [otras](https://github.com/ayourtch/nat46) [implementaciones](https://github.com/cernet/MAP).
-
-## Nota Histórica
-
-Sobre el orígen y desarrollo de estas metodologías:
-
-* El algoritmo para SIIT fue definido formalmente a inicios del 2000 por Erik Nordmark de SUN Microsystems en el [RFC 2765](https://tools.ietf.org/html/rfc2765). Este ha sido actualizado en varias ocasiones: [(RFC 6145, 2011)](https://tools.ietf.org/html/rfc6145), [(RFC6791, 2012)](https://tools.ietf.org/html/rfc6791) e inclusive [hasta nuestros días](https://tools.ietf.org/id/siit?maxhits=100&key=date&dir=desc). De éstos, ya están incluidos en Jool el [(draft-ietf-v6ops-siit-dc, 2015)]({{ site.draft-siit-dc }}), el [(draft-ietf-v6ops-siit-dc-2xlat, 2015)]({{ site.draft-siit-dc-2xlat }}) y el [(draft-anderson-v6ops-siit-eam, 2015)]({{ site.draft-siit-eam }}). Estas tres adiciones a SIIT han sido propuestas y promovidas por [Tore Anderson](http://www.redpill-linpro.com/tore-anderson#overlay-context=about-us/our-consultants) de la compañía Redpill Linpro en Noruega.
-* El algoritmo de Stateful NAT64 fue uno de los resultados del [**Proyecto Trilogy**](http://trilogy-project.org/trilogy-and-the-ietf.html), organizado por [la Unión Europea](http://europa.eu/rapid/press-release_IP-11-1294_es.htm), con una inversión aprox. de 9 millones de Euros, por un período de 3 años (2008 al 2010) donde participaron 5 Universidades, 4 compañías de telecomunicación y 2 centros de investigación. El estándar para el NAT64 que es el [RFC 6146](https://tools.ietf.org/html/rfc6146) fue publicado en el 2011 por el mismo coordinador del projecto, el [Dr. Marcelo Bagnulo Braun](http://www.it.uc3m.es/marcelo/) de la Universidad Carlos III y otros dos colaboradores del proyecto. 
-* Conoce más trabajos elaborados por la IETF acerca de NAT64 en [TOOLS IETF](https://tools.ietf.org/id/nat64?maxhits=100&key=date&dir=desc) y en [Datatracker](https://datatracker.ietf.org/doc/search/?name=nat64&sort=&rfcs=on&activedrafts=on).
