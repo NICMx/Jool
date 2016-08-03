@@ -117,8 +117,8 @@ static int handle_display_response(struct jool_response *response, void *arg)
 			print_bool(conf->global.reset_tos));
 	printf("  --%s: %u (0x%x)\n", OPTNAME_TOS,
 			conf->global.new_tos, conf->global.new_tos);
-	printf("  --%s:\n     ", OPTNAME_MTU_PLATEAUS);
-	print_plateaus(&conf->global, "\n     ");
+	printf("  --%s: ", OPTNAME_MTU_PLATEAUS);
+	print_plateaus(&conf->global, ",");
 	printf("\n");
 
 	if (xlat_is_nat64()) {

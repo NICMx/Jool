@@ -270,7 +270,7 @@ static bool test_foreach(void)
 	return success;
 }
 
-enum session_fate tcp_expired_cb(struct session_entry *session, void *arg)
+enum session_fate tcp_est_expire_cb(struct session_entry *session, void *arg)
 {
 	return FATE_RM;
 }

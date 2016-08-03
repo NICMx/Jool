@@ -19,7 +19,7 @@
 #include <net/tcp.h>
 #include <net/icmp.h>
 
-enum session_fate tcp_expired_cb(struct session_entry *session, void *arg)
+enum session_fate tcp_est_expire_cb(struct session_entry *session, void *arg)
 {
 	switch (session->state) {
 	case ESTABLISHED:
@@ -27,18 +27,16 @@ enum session_fate tcp_expired_cb(struct session_entry *session, void *arg)
 		session->update_time = jiffies;
 		return FATE_PROBE;
 
-	case V4_INIT:
-	case V6_INIT:
 	case V4_FIN_RCV:
 	case V6_FIN_RCV:
-	case V4_FIN_V6_FIN_RCV:
-	case TRANS:
-		session->state = CLOSED;
 		return FATE_RM;
 
-	case CLOSED:
-		/* Closed sessions must not be stored; this is an error. */
-		WARN(true, "Closed state found; removing session entry.");
+	case V4_INIT:
+	case V6_INIT:
+	case TRANS:
+	case V4_FIN_V6_FIN_RCV:
+		WARN(true, "State %d is never supposed to be linked to the established timeout.",
+				session->state);
 		return FATE_RM;
 	}
 
@@ -359,12 +357,12 @@ static enum session_fate tcp_state_machine(struct session_entry *session,
 		void *arg)
 {
 	switch (session->state) {
+	case ESTABLISHED:
+		return tcp_established_state(session, arg);
 	case V4_INIT:
 		return tcp_v4_init_state(session, arg);
 	case V6_INIT:
 		return tcp_v6_init_state(session, arg);
-	case ESTABLISHED:
-		return tcp_established_state(session, arg);
 	case V4_FIN_RCV:
 		return tcp_v4_fin_rcv_state(session, arg);
 	case V6_FIN_RCV:
@@ -373,8 +371,6 @@ static enum session_fate tcp_state_machine(struct session_entry *session,
 		return tcp_v4_fin_v6_fin_rcv_state();
 	case TRANS:
 		return tcp_trans_state(session, arg);
-	case CLOSED:
-		break; /* Closed sessions are not supposed to be stored. */
 	}
 
 	WARN(true, "Invalid state found: %u.", session->state);

@@ -24,14 +24,12 @@ struct display_params {
 char *tcp_state_to_string(tcp_state state)
 {
 	switch (state) {
-	case CLOSED:
-		return "CLOSED";
+	case ESTABLISHED:
+		return "ESTABLISHED";
 	case V4_INIT:
 		return "V4_INIT";
 	case V6_INIT:
 		return "V6_INIT";
-	case ESTABLISHED:
-		return "ESTABLISHED";
 	case V4_FIN_RCV:
 		return "V4_FIN_RCV";
 	case V6_FIN_RCV:

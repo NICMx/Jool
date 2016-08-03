@@ -124,7 +124,7 @@ struct bib_table {
 	 * =============================================================
 	 * Fields below are only relevant in the TCP table.
 	 * (If you need to know what "type 1" and "type 2" mean, see the
-	 * pkt_queue module.)
+	 * pkt_queue module's .h.)
 	 * =============================================================
 	 */
 
@@ -267,6 +267,7 @@ static void kill_stored_pkt(struct bib_table *table,
 	if (!session->stored)
 		return;
 
+	log_debug("Canceling stored ICMP error.");
 	kfree_skb(session->stored);
 	session->stored = NULL;
 	table->pkt_count--;
@@ -337,7 +338,7 @@ static void init_table(struct bib_table *table,
 }
 
 /* TODO (final) maybe put this in some common header? */
-enum session_fate tcp_expired_cb(struct session_entry *new, void *arg);
+enum session_fate tcp_est_expire_cb(struct session_entry *new, void *arg);
 
 struct bib *bib_create(void)
 {
@@ -348,7 +349,7 @@ struct bib *bib_create(void)
 		return NULL;
 
 	init_table(&db->udp, UDP_DEFAULT, 0, just_die);
-	init_table(&db->tcp, TCP_EST, TCP_TRANS, tcp_expired_cb);
+	init_table(&db->tcp, TCP_EST, TCP_TRANS, tcp_est_expire_cb);
 	init_table(&db->icmp, ICMP_DEFAULT, 0, just_die);
 
 	db->tcp.pkt_limit = DEFAULT_MAX_STORED_PKTS;
@@ -506,12 +507,6 @@ static void log_new_session(struct bib_table *table,
 	return log_session(table, session, "Added session");
 }
 
-/**
- * Removes all of this database's references towards "session", and drops its
- * refcount accordingly.
- *
- * "table"'s spinlock must already be held.
- */
 static void rm(struct bib_table *table, struct tabled_session *session)
 {
 	struct tabled_bib *bib = session->bib;
@@ -582,7 +577,7 @@ static void handle_probe(struct bib_table *table,
 	 * In the case of ICMP errors it's because the fact that a session
 	 * removal can cascade into a BIB entry removal really complicates
 	 * things.
-	 * This way requires a kmalloc but it's otherwise very clean.
+	 * This way requires this malloc but it's otherwise very clean.
 	 */
 	probe = wkmalloc(struct probing_session, GFP_ATOMIC);
 	if (!probe)
@@ -652,13 +647,11 @@ static void decide_fate(struct collision_cb *cb,
 		handle_fate_timer(session, &table->trans_timer);
 		break;
 
-	case FATE_PORT_UNREACHABLE:
-		handle_probe(table, probes, session, &tmp);
-		/* Fall through. */
 	case FATE_RM:
+		if (session->stored)
+			handle_probe(table, probes, session, &tmp);
 		rm(table, session);
 		break;
-
 	case FATE_PRESERVE:
 		break;
 
@@ -1243,6 +1236,7 @@ static int upgrade_pktqueue_session(struct bib_table *table,
 	sos = pktqueue_find(table->pkt_queue, &new->session->dst6, masks);
 	if (!sos)
 		return -ESRCH;
+	table->pkt_count--;
 
 	log_debug("Simultaneous Open!");
 	/*
@@ -1582,13 +1576,62 @@ end:
 	return verdict;
 }
 
-static verdict validate_pkt_count(struct bib_table *table)
+/**
+ * "OMG WHAT IS THIS?!!!!1!1oneone"
+ *
+ * Well, basically, they don't seem to have tested the packet storage thing all
+ * that well while writing the RFC.
+ *
+ * This is a patch that helps type 2 packets work. This is the problem:
+ *
+ * - IPv4 node n4 writes a TCP SYN. Let's call this packet "A".
+ *   A arrives to the NAT64.
+ * - Let's say there is a BIB entry but no session that matches A, and also, ADF
+ *   is active, so the NAT64 decides to store A.
+ *   To this end, it creates and stores session entry [src6=a, dst6=b, src4=c,
+ *   dst4=d, proto=TCP, state=V4 INIT, stored=A].
+ *   A is not translated.
+ *
+ * The intent is that the NAT64 is now waiting for an IPv6 packet "B" that is
+ * the Simultaneous Open counterpart to A. If B arrives within 6 seconds, A is
+ * allowed, and if it doesn't, then A is not allowed and will be ICMP errored.
+ * So far so good, right?
+ *
+ * Wrong.
+ *
+ * The problem is that A created a fully valid session that corresponds to
+ * itself. Because n4 doesn't receive an answer, it retries A. It does so before
+ * the 6-second timeout because sockets are impatient like that. So A2 arrives
+ * at the NAT64 and is translated successfully because there's now a valid
+ * session that matches it. In other words, A authorized itself despite ADF.
+ *
+ * One might argue that this would be a reason to not treat type 1 and 2 packets
+ * differently: Simply store these bogus sessions away from the main database
+ * and the A2 session lookup will fail. This doesn't work either, because the
+ * whole thing is that this session needs to be lookupable in the 6-to-4
+ * direction, otherwise B cannot cancel the ICMP error.
+ *
+ * Also, these sessions are mapped to a valid BIB entry, and as such need to
+ * prevent this entry from dying. This is hard to enforce when storing these
+ * sessions in another database.
+ *
+ * So the core of the issue is that these sessions need to be lookupable in the
+ * 6-to-4 direction, but invisible in the 4-to-6 direction. These sessions can
+ * be identified through the presence of their stored packet. Hence this
+ * function.
+ *
+ * Similar to type 1 packets, we will assume that this retry is not entitled to
+ * a session timeout update. Or any session updates, for that matter. (See
+ * pktqueue_add())
+ */
+static verdict simultaneous_open_hack(struct tabled_session *session)
 {
-	if (table->pkt_count < table->pkt_limit)
-		return VERDICT_CONTINUE;
+	if (session->stored) {
+		log_debug("Simultaneous Open already exists.");
+		return VERDICT_DROP;
+	}
 
-	log_debug("Too many IPv4-initiated TCP connections.");
-	return VERDICT_DROP;
+	return VERDICT_CONTINUE;
 }
 
 /**
@@ -1606,6 +1649,7 @@ verdict bib_add_tcp4(struct bib *db,
 	struct bib_session_tuple old;
 	struct tree_slot session_slot;
 	verdict verdict;
+	int error;
 
 	if (WARN(pkt->tuple.l4_proto != L4PROTO_TCP, "Incorrect l4 proto in TCP handler."))
 		return VERDICT_DROP;
@@ -1620,6 +1664,10 @@ verdict bib_add_tcp4(struct bib *db,
 	find_bib_session4(table, &pkt->tuple, new, &old, NULL, &session_slot);
 
 	if (old.session) {
+		verdict = simultaneous_open_hack(old.session);
+		if (verdict != VERDICT_CONTINUE)
+			goto end;
+
 		/* All states except CLOSED. */
 		decide_fate(cb, table, old.session, NULL);
 		tstobs(old.session, result);
@@ -1647,25 +1695,41 @@ verdict bib_add_tcp4(struct bib *db,
 	}
 
 	if (!old.bib) {
-		verdict = validate_pkt_count(table);
-		if (verdict != VERDICT_CONTINUE)
-			goto too_many_pkts;
+		bool too_many;
 
-		log_debug("Storing BIBless packet. (type 1 packet)");
-		verdict = pktqueue_add(table->pkt_queue, pkt, dst6)
-				? VERDICT_DROP
-				: VERDICT_STOLEN;
+		log_debug("Potential Simultaneous Open; storing type 1 packet.");
+		too_many = table->pkt_count >= table->pkt_limit;
+		error = pktqueue_add(table->pkt_queue, pkt, dst6, too_many);
+		switch (error) {
+		case 0:
+			verdict = VERDICT_STOLEN;
+			table->pkt_count++;
+			goto end;
+		case -EEXIST:
+			log_debug("Simultaneous Open already exists.");
+			break;
+		case -ENOSPC:
+			goto too_many_pkts;
+		case -ENOMEM:
+			break;
+		default:
+			WARN(1, "pktqueue_add() threw unknown error %d", error);
+			break;
+		}
+
+		verdict = VERDICT_DROP;
 		goto end;
 	}
 
+	verdict = VERDICT_CONTINUE;
+
 	if (table->drop_by_addr) {
-		verdict = validate_pkt_count(table);
-		if (verdict != VERDICT_CONTINUE)
+		if (table->pkt_count >= table->pkt_limit)
 			goto too_many_pkts;
 
-		log_debug("Storing full session packet. (type 2 packet)");
-		verdict = VERDICT_STOLEN;
+		log_debug("Potential Simultaneous Open; storing type 2 packet.");
 		new->stored = pkt->original_pkt->skb;
+		verdict = VERDICT_STOLEN;
 		table->pkt_count++;
 		/*
 		 * Yes, fall through. No goto; we need to add this session.
@@ -1677,10 +1741,10 @@ verdict bib_add_tcp4(struct bib *db,
 	commit_add4(table, &old, &new, &session_slot,
 			new->stored ? &table->syn4_timer : &table->trans_timer,
 			result);
-	verdict = VERDICT_CONTINUE;
 	/* Fall through */
 
 end:
+	log_debug("Current stored pkt count is %u.", table->pkt_count); /* TODO delete */
 	spin_unlock_bh(&table->lock);
 
 	if (new)
@@ -1691,9 +1755,10 @@ end:
 too_many_pkts:
 	spin_unlock_bh(&table->lock);
 	kmem_cache_free(session_cache, new);
-	/* Fall back to assume there's no Simultaneous Open. */
+	log_debug("Too many Simultaneous Opens.");
+	/* Fall back to assume there's no SO. */
 	icmp64_send(pkt, ICMPERR_PORT_UNREACHABLE, 0);
-	return verdict;
+	return VERDICT_DROP;
 }
 
 int bib_find(struct bib *db, struct tuple *tuple, struct bib_session *result)
@@ -1797,8 +1862,10 @@ static void clean_table(struct bib_table *table, struct net *ns)
 	__clean(&table->est_timer, table, &probes);
 	__clean(&table->trans_timer, table, &probes);
 	__clean(&table->syn4_timer, table, &probes);
-	if (table->pkt_queue)
-		pktqueue_prepare_clean(table->pkt_queue, &icmps);
+	if (table->pkt_queue) {
+		table->pkt_count -= pktqueue_prepare_clean(table->pkt_queue,
+				&icmps);
+	}
 	spin_unlock_bh(&table->lock);
 
 	post_fate(ns, &probes);
@@ -2100,6 +2167,16 @@ static unsigned int detach_sessions(struct bib_table *table,
 
 	tree_foreach(session, tmp, &bib->sessions, tree_hook) {
 		list_del(&session->list_hook);
+		/*
+		 * Perhaps this should be an ICMP error, not a kill.
+		 * But since we're removing the mapping, we don't know whether
+		 * a port unreachable is the right message. It depends on why
+		 * the user is removing the mapping; the v4 client could very
+		 * well succeed in connecting in its next attempt, but we'll
+		 * foil it if we fetch the ICMP error.
+		 * So let's leave it at silence, which is not much different
+		 * from don't know.
+		 */
 		kill_stored_pkt(table, session);
 		detached++;
 	}

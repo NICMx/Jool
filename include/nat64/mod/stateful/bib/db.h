@@ -39,10 +39,6 @@ enum session_fate {
 	 * Send a probe packet, then reset timer into transitory mode.
 	 */
 	FATE_PROBE,
-	/**
-	 * Send an ICMP error, then RM.
-	 */
-	FATE_PORT_UNREACHABLE,
 
 	/**
 	 * Like FATE_TIMER_EST, except the session's lifetime must not be reset.

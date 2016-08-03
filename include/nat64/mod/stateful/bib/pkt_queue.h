@@ -41,13 +41,12 @@
  *
  * On the other hand, if a NAT64 receives a IPv4-TCP packet for which it has no
  * state, it should not immediately reply the ICMP error because the IPv4
- * endpoint could be attempting a "Simultaneous Open of TCP Connections"
+ * endpoint could be attempting a "Simultaneous Open (SO) of TCP Connections"
  * (http://tools.ietf.org/html/rfc5128#section-3.4). What happens is the NAT64
  * stores the packet for 6 seconds; if the IPv6 version of the packet arrives,
  * the NAT64 drops the original packet (the IPv4 node will eventually realize
  * this on its own by means of the handshake), otherwise a ICMP error containing
- * the original IPv4 packet is generated (because there's no Simultaneous Open
- * going on).
+ * the original IPv4 packet is generated (because there's no SO going on).
  *
  * So in summary, this is what needs to be done when a NAT64 receives a v4 SYN
  * (packet A):
@@ -127,7 +126,7 @@ void pktqueue_destroy(struct pktqueue *queue);
  * Stores packet @pkt.
  */
 int pktqueue_add(struct pktqueue *queue, struct packet *pkt,
-		struct ipv6_transport_addr *dst6);
+		struct ipv6_transport_addr *dst6, bool too_many);
 struct pktqueue_session *pktqueue_find(struct pktqueue *queue,
 		struct ipv6_transport_addr *addr,
 		struct mask_domain *masks);
@@ -143,9 +142,10 @@ void pktqueue_put_node(struct pktqueue_session *node);
  * This keeps the concurrence-sensitive stuff inside the lock and the slow stuff
  * outside.
  */
-void pktqueue_prepare_clean(struct pktqueue *queue, struct list_head *probes);
+unsigned int pktqueue_prepare_clean(struct pktqueue *queue,
+		struct list_head *probes);
 /**
- * Sends the ICMP error "probes" contained in the @probe list.
+ * Sends the ICMP errors contained in the @probe list.
  */
 void pktqueue_clean(struct list_head *probes);
 

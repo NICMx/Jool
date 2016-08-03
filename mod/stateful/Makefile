@@ -47,3 +47,6 @@ again:
 	make debug
 	sudo make modules_install
 	sudo modprobe jool pool6=64:ff9b::/96
+	sudo jool -bat 1::5#65000 192.0.2.1#65000
+	sudo jool --address-dependent-filtering 1
+	sudo dmesg -C

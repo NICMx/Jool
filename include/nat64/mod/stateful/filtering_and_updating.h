@@ -11,6 +11,6 @@
 #include "nat64/mod/stateful/bib/entry.h"
 
 verdict filtering_and_updating(struct xlation *state);
-enum session_fate tcp_expired_cb(struct session_entry *session, void *arg);
+enum session_fate tcp_est_expire_cb(struct session_entry *session, void *arg);
 
 #endif /* _JOOL_MOD_FILTERING_H */
