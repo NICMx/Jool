@@ -27,8 +27,10 @@ typedef enum session_timer_type {
 } session_timer_type;
 
 /**
- * A row, intended to be part of one of the session tables.
  * An IPv6 connection and the IPv4 version of it once translated.
+ *
+ * This is a codensed/public version of the structure that is actually stored in
+ * the database.
  *
  * Please note that modifications to this structure may need to cascade to
  * "struct session_entry_usr".
@@ -66,7 +68,7 @@ struct session_entry {
 	l4_protocol proto;
 	/** Current TCP SM state. Only relevant if @l4_proto == L4PROTO_TCP. */
 	tcp_state state;
-	/* TODO open call hierarchy */
+	/** An indicator of the timer that is going to expire this session. */
 	session_timer_type timer_type;
 
 	/** Jiffy (from the epoch) this session was last updated/used. */

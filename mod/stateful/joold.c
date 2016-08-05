@@ -10,7 +10,7 @@
 #include <linux/inet.h>
 
 struct joold_advertise_struct {
-	struct taddr6_tuple offset;
+	struct taddr4_tuple offset;
 	struct nlcore_buffer *buffer;
 };
 
@@ -265,8 +265,8 @@ static int foreach_cb(struct session_entry *entry, void *arg)
 
 	status = nlbuffer_write(adv->buffer, &session, sizeof(session));
 	if (status) {
-		adv->offset.src = entry->src6;
-		adv->offset.dst = entry->dst6;
+		adv->offset.src = entry->src4;
+		adv->offset.dst = entry->dst4;
 	}
 
 	return status;
@@ -294,7 +294,7 @@ static int write_group_node(struct joold_node *node,
 
 	error = bib_foreach_session(bib, node->group.proto, &func, offset);
 	if (error > 0) {
-		memcpy(&node->group.offset, &arg.offset, sizeof(arg.offset));
+		node->group.offset = arg.offset;
 		node->group.offset_set = true;
 	}
 

@@ -99,17 +99,33 @@ static void drop_test_bibs(void)
 
 static bool insert_test_bibs(void)
 {
+	unsigned int i;
+	int error;
+	struct {
+		char *addr6;
+		int port6;
+		char *addr4;
+		int port4;
+	} tests[] = {
+			{ "2001:db8::2", 18, "192.0.2.3", 20, },
+			{ "2001:db8::0", 10, "192.0.2.1", 21, },
+			{ "2001:db8::0", 20, "192.0.2.2", 12, },
+			{ "2001:db8::3", 10, "192.0.2.3", 10, },
+			{ "2001:db8::3", 20, "192.0.2.2", 22, },
+			{ "2001:db8::1", 19, "192.0.2.0", 20, },
+			{ "2001:db8::2", 8, "192.0.2.0", 10, },
+			{ "2001:db8::1", 9, "192.0.2.1", 11, },
+	};
+
 	drop_test_bibs();
 
-	/* TODO error results? */
-	bib_inject(db, "2001:db8::2", 18, "192.0.2.3", 20, PROTO, &bibs[0]);
-	bib_inject(db, "2001:db8::0", 10, "192.0.2.1", 21, PROTO, &bibs[1]);
-	bib_inject(db, "2001:db8::0", 20, "192.0.2.2", 12, PROTO, &bibs[2]);
-	bib_inject(db, "2001:db8::3", 10, "192.0.2.3", 10, PROTO, &bibs[3]);
-	bib_inject(db, "2001:db8::3", 20, "192.0.2.2", 22, PROTO, &bibs[4]);
-	bib_inject(db, "2001:db8::1", 19, "192.0.2.0", 20, PROTO, &bibs[5]);
-	bib_inject(db, "2001:db8::2", 8, "192.0.2.0", 10, PROTO, &bibs[6]);
-	bib_inject(db, "2001:db8::1", 9, "192.0.2.1", 11, PROTO, &bibs[7]);
+	for (i = 0; i < ARRAY_SIZE(tests); i++) {
+		error = bib_inject(db, tests[i].addr6, tests[i].port6,
+				tests[i].addr4, tests[i].port4,
+				PROTO, &bibs[i]);
+		if (error)
+			return false;
+	}
 
 	bibs6[2][18] = bibs4[3][20] = &bibs[0];
 	bibs6[0][10] = bibs4[1][21] = &bibs[1];
@@ -123,7 +139,6 @@ static bool insert_test_bibs(void)
 	return test_db();
 }
 
-/* TODO update log_debugs */
 static bool test_flow(void)
 {
 	struct ipv4_range range;
@@ -134,7 +149,7 @@ static bool test_flow(void)
 
 	/* ---------------------------------------------------------- */
 
-	log_debug("Delete full addresses using bibdb_delete_taddr4s().");
+	log_debug("Removing all ports from a range.");
 	range.prefix.address.s_addr = cpu_to_be32(0xc0000200);
 	range.prefix.len = 31;
 	range.ports.min = 0;
@@ -149,7 +164,7 @@ static bool test_flow(void)
 
 	/* ---------------------------------------------------------- */
 
-	log_debug("Delete only certain ports using bibdb_delete_taddr4s().");
+	log_debug("Deleting only certain ports from a range.");
 	range.prefix.address.s_addr = cpu_to_be32(0xc0000202);
 	range.prefix.len = 31;
 	range.ports.min = 11;
@@ -162,7 +177,7 @@ static bool test_flow(void)
 
 	/* ---------------------------------------------------------- */
 
-	log_debug("Flush using bibdb_delete_taddr4s().");
+	log_debug("Flushing using bib_rm_range().");
 	range.prefix.address.s_addr = cpu_to_be32(0x00000000);
 	range.prefix.len = 0;
 	range.ports.min = 0;
@@ -178,7 +193,7 @@ static bool test_flow(void)
 	if (!insert_test_bibs())
 		return false;
 
-	log_debug("Flush using bibdb_flush().");
+	log_debug("Flushing using bib_flush().");
 	bib_flush(db);
 	drop_test_bibs();
 	success &= test_db();

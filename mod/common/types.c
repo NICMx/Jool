@@ -36,7 +36,6 @@ bool port_range_equals(const struct port_range *r1,
 bool port_range_touches(const struct port_range *r1,
 		const struct port_range *r2)
 {
-	/* TODO test +1/-1 convert the __u16 into ints */
 	return r1->max >= (r2->min - 1) && r1->min <= (r2->max + 1);
 }
 

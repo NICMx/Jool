@@ -6,10 +6,10 @@ MODULE_AUTHOR("Roberto Aceves");
 MODULE_AUTHOR("Alberto Leiva");
 MODULE_DESCRIPTION("Unit tests for the Filtering module");
 
+#include "nat64/common/constants.h"
 #include "nat64/common/str_utils.h"
 #include "nat64/unit/types.h"
 #include "nat64/unit/unit_test.h"
-#include "nat64/unit/session.h"
 #include "nat64/unit/skb_generator.h"
 #include "nat64/mod/stateful/pool4/rfc6056.h"
 #include "stateful/filtering_and_updating.c"
@@ -25,12 +25,15 @@ static int bib_count_fn(struct bib_entry *bib, bool is_static, void *arg)
 
 static bool assert_bib_count(int expected, l4_protocol proto)
 {
-	int count = 0;
-	struct bib_foreach_func func = { .cb = bib_count_fn, .arg = &count, };
+	int counter = 0;
+	__u64 stored;
+	struct bib_foreach_func func = { .cb = bib_count_fn, .arg = &counter, };
 	bool success = true;
 
-	success &= ASSERT_INT(0, bib_foreach(jool.nat64.bib, proto, &func, NULL), "count");
-	success &= ASSERT_INT(expected, count, "BIB count");
+	success &= ASSERT_INT(0, bib_foreach(jool.nat64.bib, proto, &func, NULL), "foreach result");
+	success &= ASSERT_INT(expected, counter, "computed count");
+	success &= ASSERT_INT(0, bib_count(jool.nat64.bib, proto, &stored), "count result");
+	success &= ASSERT_U64((__u64)expected, stored, "stored count");
 
 	return success;
 }
@@ -68,14 +71,15 @@ static int session_count_fn(struct session_entry *session, void *arg)
 
 static bool assert_session_count(int expected, l4_protocol proto)
 {
-	int count = 0;
-	struct session_foreach_func cb = { .cb = session_count_fn, .arg = &count, };
+	int counter = 0;
+	__u64 stored;
+	struct session_foreach_func cb = { .cb = session_count_fn, .arg = &counter, };
 	bool success = true;
 
-	/* TODO maybe also compare the number to bib_count_sessions. */
-
-	success &= ASSERT_INT(0, bib_foreach_session(jool.nat64.bib, proto, &cb, NULL), "count");
-	success &= ASSERT_INT(expected, count, "Session count");
+	success &= ASSERT_INT(0, bib_foreach_session(jool.nat64.bib, proto, &cb, NULL), "foreach result");
+	success &= ASSERT_INT(expected, counter, "computed count");
+	success &= ASSERT_INT(0, bib_count_sessions(jool.nat64.bib, proto, &stored), "count result");
+	success &= ASSERT_U64((__u64)expected, stored, "stored count");
 
 	return success;
 }
@@ -88,11 +92,12 @@ static int compare_session_foreach_cb(struct session_entry *session, void *arg)
 	if (!session_equals(expected, session))
 		return 0; /* Still not found; keep foreaching. */
 
-	success &= ASSERT_INT(expected->proto, session->proto, "Session's l4 proto");
+	success &= ASSERT_INT(expected->proto, session->proto, "Session's proto");
 	success &= ASSERT_INT(expected->state, session->state, "Session's state");
 	success &= ASSERT_BOOL(expected->timer_type, session->timer_type, "Session's timer type");
-	// TODO
-	// success &= ASSERT_INT(state, result.session.timeout, "Session's timeout");
+	success &= ASSERT_BOOL(true, session->update_time != 0, "Session's update time");
+	success &= ASSERT_ULONG(expected->timeout, session->timeout, "Session's timeout");
+	success &= ASSERT_INT(expected->has_stored, session->has_stored, "Session's stored");
 
 	/*
 	 * Success? Interrupt the foreach positively.
@@ -118,7 +123,8 @@ static bool assert_session_exists(char *src6_addr, u16 src6_port,
 		char *dst6_addr, u16 dst6_port,
 		char *src4_addr, u16 src4_port,
 		char *dst4_addr, u16 dst4_port,
-		l4_protocol proto, u_int8_t state)
+		l4_protocol proto, u_int8_t state,
+		session_timer_type timer_type, unsigned long timeout)
 {
 	struct session_entry expected;
 	int result;
@@ -137,7 +143,9 @@ static bool assert_session_exists(char *src6_addr, u16 src6_port,
 	expected.dst4.l4 = dst4_port;
 	expected.proto = proto;
 	expected.state = state;
-	expected.timer_type = (state == ESTABLISHED);
+	expected.timer_type = timer_type;
+	expected.update_time = 0;
+	expected.timeout = timeout;
 	expected.has_stored = false;
 
 	result = session_exists(&expected);
@@ -337,7 +345,8 @@ static bool test_udp(void)
 	success &= assert_session_count(1, L4PROTO_UDP);
 	success &= assert_session_exists("1::2", 1212, "3::4", 3434,
 			"192.0.2.128", 1024, "0.0.0.4", 3434,
-			L4PROTO_UDP, ESTABLISHED);
+			L4PROTO_UDP, ESTABLISHED,
+			SESSION_TIMER_EST, UDP_DEFAULT);
 
 	kfree_skb(skb);
 
@@ -355,7 +364,8 @@ static bool test_udp(void)
 	success &= assert_session_count(1, L4PROTO_UDP);
 	success &= assert_session_exists("1::2", 1212, "3::4", 3434,
 			"192.0.2.128", 1024, "0.0.0.4", 3434,
-			L4PROTO_UDP, ESTABLISHED);
+			L4PROTO_UDP, ESTABLISHED,
+			SESSION_TIMER_EST, UDP_DEFAULT);
 
 	kfree_skb(skb);
 
@@ -396,7 +406,8 @@ static bool test_icmp(void)
 	success &= assert_session_count(1, L4PROTO_ICMP);
 	success &= assert_session_exists("1::2", 1212, "3::4", 1212,
 			"192.0.2.128", 1024, "0.0.0.4", 1024,
-			L4PROTO_ICMP, ESTABLISHED);
+			L4PROTO_ICMP, ESTABLISHED,
+			SESSION_TIMER_EST, ICMP_DEFAULT);
 
 	kfree_skb(skb);
 
@@ -414,7 +425,8 @@ static bool test_icmp(void)
 	success &= assert_session_count(1, L4PROTO_ICMP);
 	success &= assert_session_exists("1::2", 1212, "3::4", 1212,
 			"192.0.2.128", 1024, "0.0.0.4", 1024,
-			L4PROTO_ICMP, ESTABLISHED);
+			L4PROTO_ICMP, ESTABLISHED,
+			SESSION_TIMER_EST, ICMP_DEFAULT);
 
 	kfree_skb(skb);
 
@@ -446,7 +458,7 @@ static bool test_tcp(void)
 	success &= assert_session_count(1, L4PROTO_TCP);
 	success &= assert_session_exists("1::2", 1212, "3::4", 3434,
 			"192.0.2.128", 1024, "0.0.0.4", 3434,
-			L4PROTO_TCP, V6_INIT);
+			L4PROTO_TCP, V6_INIT, SESSION_TIMER_TRANS, TCP_TRANS);
 
 	kfree_skb(skb);
 
@@ -464,7 +476,7 @@ static bool test_tcp(void)
 	success &= assert_session_count(1, L4PROTO_TCP);
 	success &= assert_session_exists("1::2", 1212, "3::4", 3434,
 			"192.0.2.128", 1024, "0.0.0.4", 3434,
-			L4PROTO_TCP, ESTABLISHED);
+			L4PROTO_TCP, ESTABLISHED, SESSION_TIMER_EST, TCP_EST);
 
 	kfree_skb(skb);
 
@@ -482,7 +494,7 @@ static bool test_tcp(void)
 	success &= assert_session_count(1, L4PROTO_TCP);
 	success &= assert_session_exists("1::2", 1212, "3::4", 3434,
 			"192.0.2.128", 1024, "0.0.0.4", 3434,
-			L4PROTO_TCP, TRANS);
+			L4PROTO_TCP, TRANS, SESSION_TIMER_TRANS, TCP_TRANS);
 
 	kfree_skb(skb);
 
@@ -498,7 +510,7 @@ static bool test_tcp(void)
 	success &= assert_session_count(1, L4PROTO_TCP);
 	success &= assert_session_exists("1::2", 1212, "3::4", 3434,
 			"192.0.2.128", 1024, "0.0.0.4", 3434,
-			L4PROTO_TCP, ESTABLISHED);
+			L4PROTO_TCP, ESTABLISHED, SESSION_TIMER_EST, TCP_EST);
 
 	kfree_skb(skb);
 

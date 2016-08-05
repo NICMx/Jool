@@ -5,7 +5,6 @@
 #include "nat64/mod/common/ipv6_hdr_iterator.h"
 #include "nat64/unit/unit_test.h"
 #include "nat64/unit/skb_generator.h"
-#include "nat64/unit/validator.h"
 #include "nat64/unit/types.h"
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(3, 13, 0)

@@ -131,6 +131,25 @@ int pktqueue_add(struct pktqueue *queue, struct packet *pkt,
 	return 0;
 }
 
+void pktqueue_rm(struct pktqueue *queue, struct ipv4_transport_addr *src4)
+{
+	struct pktqueue_session *node, *tmp;
+
+	/*
+	 * Yes, full traversal. @src4 is not indexed and this is a rare
+	 * operation anyway.
+	 * Not to mention, the pkt queue is not allowed to grow much.
+	 */
+	list_for_each_entry_safe(node, tmp, &queue->node_list, list_hook) {
+		if (taddr4_equals(&node->src4, src4)) {
+			list_del(&node->list_hook);
+			rb_erase(&node->tree_hook, &queue->node_tree);
+			kfree_skb(node->skb);
+			wkfree(struct pktqueue_node, node);
+		}
+	}
+}
+
 /**
  * Returns > 0 if node.session.*4 > session.*4.
  * Returns < 0 if node.session.*4 < session.*4.

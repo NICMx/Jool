@@ -127,6 +127,8 @@ void pktqueue_destroy(struct pktqueue *queue);
  */
 int pktqueue_add(struct pktqueue *queue, struct packet *pkt,
 		struct ipv6_transport_addr *dst6, bool too_many);
+void pktqueue_rm(struct pktqueue *queue, struct ipv4_transport_addr *src4);
+
 struct pktqueue_session *pktqueue_find(struct pktqueue *queue,
 		struct ipv6_transport_addr *addr,
 		struct mask_domain *masks);

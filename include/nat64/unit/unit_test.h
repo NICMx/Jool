@@ -4,8 +4,6 @@
 #include "nat64/mod/common/types.h"
 #include "nat64/mod/stateful/bib/entry.h"
 
-/* TODO (test) The UNIT_TESTING macro is a hack; remove it. */
-
 #define ASSERT_PRIMITIVE(expected, actual, specifier, name, ...) ({	\
 		/* don't want these to be evaluated multiple times. */	\
 		typeof(expected) __expected = expected;			\
@@ -25,6 +23,8 @@
 		ASSERT_PRIMITIVE(expected, actual, "%d", name, ##__VA_ARGS__)
 #define ASSERT_BOOL(expected, actual, name, ...) \
 		ASSERT_PRIMITIVE(expected, actual, "%u", name, ##__VA_ARGS__)
+#define ASSERT_ULONG(expected, actual, name, ...) \
+		ASSERT_PRIMITIVE(expected, actual, "%lu", name, ##__VA_ARGS__)
 #define ASSERT_U64(expected, actual, name, ...) \
 		ASSERT_PRIMITIVE(expected, actual, "%llu", name, ##__VA_ARGS__)
 #define ASSERT_PTR(expected, actual, name, ...) \

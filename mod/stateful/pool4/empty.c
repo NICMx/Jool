@@ -133,7 +133,8 @@ int pool4empty_find(struct route4_args *route_args, struct pool4_range *range)
 	 * placeholder for this. We will therefore have to regenerate it later.
 	 * Life sucks :-).
 	 *
-	 * TODO if you can send the xlator in, we would have a placeholder.
+	 * TODO (performance) if you can send the xlator in, we would have a
+	 * placeholder.
 	 */
 	dst_release(dst);
 	return error;

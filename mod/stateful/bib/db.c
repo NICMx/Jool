@@ -1355,7 +1355,10 @@ static int find_bib_session6(struct bib_table *table,
 			new->session->dst4.l4 = new->bib->src4.l4;
 
 	} else {
-		/* TODO perhaps the sender's session shold be trusted more. */
+		/*
+		 * TODO (issue113) perhaps the sender's session shold be trusted
+		 * more.
+		 */
 		if (find_bibtree4_slot(table, new->bib, &slots->bib4))
 			return -EEXIST;
 	}
@@ -1681,7 +1684,6 @@ verdict bib_add_tcp4(struct bib *db,
 	/* Fall through */
 
 end:
-	log_debug("Current stored pkt count is %u.", table->pkt_count); /* TODO delete */
 	spin_unlock_bh(&table->lock);
 
 	if (new)
@@ -2078,6 +2080,15 @@ int bib_add_static(struct bib *db, struct bib_entry *new,
 
 	treeslot_commit(&slot6);
 	treeslot_commit(&slot4);
+
+	/*
+	 * Since the BIB entry is now available, and assuming ADF is disabled,
+	 * it would make sense to translate the relevant type 1 stored packets.
+	 * That's bound to be a lot of messy code though, and the v4 client is
+	 * going to retry anyway, so let's just forget the packets instead.
+	 */
+	if (new->l4_proto == L4PROTO_TCP)
+		pktqueue_rm(db->tcp.pkt_queue, &new->ipv4);
 
 	spin_unlock_bh(&table->lock);
 	return 0;

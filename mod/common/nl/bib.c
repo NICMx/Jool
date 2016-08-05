@@ -87,7 +87,6 @@ static int handle_bib_add(struct xlator *jool, struct request_bib *request)
 	new.ipv4 = request->add.addr4;
 	new.l4_proto = request->l4_proto;
 
-	/* TODO remember to upgrade if a dynamic entry is found. */
 	error = bib_add_static(jool->nat64.bib, &new, &old);
 	switch (error) {
 	case 0:

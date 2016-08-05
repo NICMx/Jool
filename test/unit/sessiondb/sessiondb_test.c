@@ -1,10 +1,10 @@
 #include <linux/module.h>
 #include <linux/printk.h>
 
-#include "nat64/unit/session.h"
 #include "nat64/unit/unit_test.h"
 #include "nat64/common/constants.h"
 #include "nat64/common/str_utils.h"
+#include "nat64/mod/stateful/bib/db.h"
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Alberto Leiva Popper");

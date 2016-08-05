@@ -4,7 +4,6 @@
 #include "nat64/unit/unit_test.h"
 #include "nat64/common/str_utils.h"
 #include "nat64/unit/skb_generator.h"
-#include "nat64/unit/validator.h"
 #include "nat64/unit/types.h"
 #include "common/rfc6145/core.c"
 #include "common/rfc6145/6to4.c"
