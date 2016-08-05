@@ -549,6 +549,7 @@ static void init_session_entry(struct joold_session *in,
 	update_time = be64_to_cpu(in->update_time);
 	update_time = jiffies - msecs_to_jiffies(update_time);
 	out->update_time = update_time;
+	out->has_stored = false;
 }
 
 struct add_params {

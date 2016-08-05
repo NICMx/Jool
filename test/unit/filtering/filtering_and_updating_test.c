@@ -138,6 +138,7 @@ static bool assert_session_exists(char *src6_addr, u16 src6_port,
 	expected.proto = proto;
 	expected.state = state;
 	expected.timer_type = (state == ESTABLISHED);
+	expected.has_stored = false;
 
 	result = session_exists(&expected);
 	if (result > 0)

@@ -76,6 +76,8 @@ struct session_entry {
 	 * deleted or changed into a transitory state.)
 	 */
 	unsigned long timeout;
+
+	bool has_stored;
 };
 
 struct bib_session {

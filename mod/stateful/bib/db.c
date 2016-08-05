@@ -212,6 +212,7 @@ static void tstose(struct tabled_session *tsession,
 	session->timer_type = tsession->expirer->type;
 	session->update_time = tsession->update_time;
 	session->timeout = tsession->expirer->timeout;
+	session->has_stored = !!tsession->stored;
 }
 
 /**
@@ -267,7 +268,7 @@ static void kill_stored_pkt(struct bib_table *table,
 	if (!session->stored)
 		return;
 
-	log_debug("Canceling stored ICMP error.");
+	log_debug("Deleting stored type 2 packet.");
 	kfree_skb(session->stored);
 	session->stored = NULL;
 	table->pkt_count--;
@@ -507,52 +508,6 @@ static void log_new_session(struct bib_table *table,
 	return log_session(table, session, "Added session");
 }
 
-static void rm(struct bib_table *table, struct tabled_session *session)
-{
-	struct tabled_bib *bib = session->bib;
-
-	rb_erase(&session->tree_hook, &bib->sessions);
-	list_del(&session->list_hook);
-	log_session(table, session, "Forgot session");
-	kmem_cache_free(session_cache, session);
-	table->session_count--;
-
-	if (!bib->is_static && RB_EMPTY_ROOT(&bib->sessions)) {
-		rb_erase(&bib->hook6, &table->tree6);
-		rb_erase(&bib->hook4, &table->tree4);
-		log_bib(table, bib, "Forgot");
-		kmem_cache_free(bib_cache, bib);
-		table->bib_count--;
-	}
-}
-
-static void handle_fate_timer(struct tabled_session *session,
-		struct expire_timer *timer)
-{
-	session->update_time = jiffies;
-	session->expirer = timer;
-	list_del(&session->list_hook);
-	list_add_tail(&session->list_hook, &timer->sessions);
-}
-
-static void queue_unsorted_session(struct expire_timer *timer,
-		struct tabled_session *new)
-{
-	struct list_head *list;
-	struct list_head *cursor;
-	struct tabled_session *old;
-
-	list = &timer->sessions;
-	for (cursor = list->prev; cursor != list; cursor = cursor->prev) {
-		old = list_entry(cursor, struct tabled_session, list_hook);
-		if (old->update_time < new->update_time)
-			break;
-	}
-
-	list_add(&new->list_hook, cursor);
-	new->expirer = timer;
-}
-
 /**
  * This function does not return a result because whatever needs to happen later
  * needs to happen regardless of probe status.
@@ -602,10 +557,62 @@ discard_probe:
 	kill_stored_pkt(table, session);
 }
 
+static void rm(struct bib_table *table,
+		struct list_head *probes,
+		struct tabled_session *session,
+		struct session_entry *tmp)
+{
+	struct tabled_bib *bib = session->bib;
+
+	if (session->stored)
+		handle_probe(table, probes, session, tmp);
+
+	rb_erase(&session->tree_hook, &bib->sessions);
+	list_del(&session->list_hook);
+	log_session(table, session, "Forgot session");
+	kmem_cache_free(session_cache, session);
+	table->session_count--;
+
+	if (!bib->is_static && RB_EMPTY_ROOT(&bib->sessions)) {
+		rb_erase(&bib->hook6, &table->tree6);
+		rb_erase(&bib->hook4, &table->tree4);
+		log_bib(table, bib, "Forgot");
+		kmem_cache_free(bib_cache, bib);
+		table->bib_count--;
+	}
+}
+
+static void handle_fate_timer(struct tabled_session *session,
+		struct expire_timer *timer)
+{
+	session->update_time = jiffies;
+	session->expirer = timer;
+	list_del(&session->list_hook);
+	list_add_tail(&session->list_hook, &timer->sessions);
+}
+
+static void queue_unsorted_session(struct expire_timer *timer,
+		struct tabled_session *new)
+{
+	struct list_head *list;
+	struct list_head *cursor;
+	struct tabled_session *old;
+
+	list = &timer->sessions;
+	for (cursor = list->prev; cursor != list; cursor = cursor->prev) {
+		old = list_entry(cursor, struct tabled_session, list_hook);
+		if (old->update_time < new->update_time)
+			break;
+	}
+
+	list_add(&new->list_hook, cursor);
+	new->expirer = timer;
+}
+
 /**
  * Assumes result->session has been set (result->session_set is true).
  */
-static void decide_fate(struct collision_cb *cb,
+static verdict decide_fate(struct collision_cb *cb,
 		struct bib_table *table,
 		struct tabled_session *session,
 		struct list_head *probes)
@@ -614,26 +621,15 @@ static void decide_fate(struct collision_cb *cb,
 	enum session_fate fate;
 
 	if (!cb)
-		return;
+		return VERDICT_CONTINUE;
 
 	tstose(session, &tmp);
 	fate = cb->cb(&tmp, cb->arg);
 
-	/*
-	 * This is an ugly hack.
-	 * V4_INIT is the only state that can store a packet. And it can only
-	 * hold it until it either times out (timer's responsibility) or the
-	 * state is changed.
-	 * So getting rid of the packet in the latter situation should probably
-	 * be done in the v4 init function (by way of the callback above), but
-	 * on account that it cannot edit the session (since it's working on a
-	 * copy), I'm doing it here.
-	 */
-	if (session->state != tmp.state)
-		kill_stored_pkt(table, session);
-
-	/* This needs to happen regardless of the hack above. */
+	/* The callback above is entitled to tweak these two fields. */
 	session->state = tmp.state;
+	if (!tmp.has_stored)
+		kill_stored_pkt(table, session);
 
 	switch (fate) {
 	case FATE_TIMER_EST:
@@ -648,12 +644,13 @@ static void decide_fate(struct collision_cb *cb,
 		break;
 
 	case FATE_RM:
-		if (session->stored)
-			handle_probe(table, probes, session, &tmp);
-		rm(table, session);
+		rm(table, probes, session, &tmp);
 		break;
+
 	case FATE_PRESERVE:
 		break;
+	case FATE_DROP:
+		return VERDICT_DROP;
 
 	case FATE_TIMER_EST_SLOW:
 		list_del(&session->list_hook);
@@ -664,6 +661,8 @@ static void decide_fate(struct collision_cb *cb,
 		queue_unsorted_session(&table->trans_timer, session);
 		break;
 	}
+
+	return VERDICT_CONTINUE;
 }
 
 /**
@@ -1323,7 +1322,7 @@ static int find_bib_session6(struct bib_table *table,
 
 	/* Note: If old->bib is NULL, then old->session is also NULL. */
 
-	/* Handle Simultaneous Open of TCP connections. */
+	/* No BIB nor session in the main database? Try the SO sub-database. */
 	if (new->bib->proto == L4PROTO_TCP) {
 		error = upgrade_pktqueue_session(table, masks, new, old);
 		if (!error)
@@ -1540,9 +1539,9 @@ verdict bib_add_tcp6(struct bib *db,
 
 	if (old.session) {
 		/* All states except CLOSED. */
-		decide_fate(cb, table, old.session, NULL);
-		tstobs(old.session, result);
-		verdict = VERDICT_CONTINUE;
+		verdict = decide_fate(cb, table, old.session, NULL);
+		if (verdict == VERDICT_CONTINUE)
+			tstobs(old.session, result);
 		goto end;
 	}
 
@@ -1577,64 +1576,6 @@ end:
 }
 
 /**
- * "OMG WHAT IS THIS?!!!!1!1oneone"
- *
- * Well, basically, they don't seem to have tested the packet storage thing all
- * that well while writing the RFC.
- *
- * This is a patch that helps type 2 packets work. This is the problem:
- *
- * - IPv4 node n4 writes a TCP SYN. Let's call this packet "A".
- *   A arrives to the NAT64.
- * - Let's say there is a BIB entry but no session that matches A, and also, ADF
- *   is active, so the NAT64 decides to store A.
- *   To this end, it creates and stores session entry [src6=a, dst6=b, src4=c,
- *   dst4=d, proto=TCP, state=V4 INIT, stored=A].
- *   A is not translated.
- *
- * The intent is that the NAT64 is now waiting for an IPv6 packet "B" that is
- * the Simultaneous Open counterpart to A. If B arrives within 6 seconds, A is
- * allowed, and if it doesn't, then A is not allowed and will be ICMP errored.
- * So far so good, right?
- *
- * Wrong.
- *
- * The problem is that A created a fully valid session that corresponds to
- * itself. Because n4 doesn't receive an answer, it retries A. It does so before
- * the 6-second timeout because sockets are impatient like that. So A2 arrives
- * at the NAT64 and is translated successfully because there's now a valid
- * session that matches it. In other words, A authorized itself despite ADF.
- *
- * One might argue that this would be a reason to not treat type 1 and 2 packets
- * differently: Simply store these bogus sessions away from the main database
- * and the A2 session lookup will fail. This doesn't work either, because the
- * whole thing is that this session needs to be lookupable in the 6-to-4
- * direction, otherwise B cannot cancel the ICMP error.
- *
- * Also, these sessions are mapped to a valid BIB entry, and as such need to
- * prevent this entry from dying. This is hard to enforce when storing these
- * sessions in another database.
- *
- * So the core of the issue is that these sessions need to be lookupable in the
- * 6-to-4 direction, but invisible in the 4-to-6 direction. These sessions can
- * be identified through the presence of their stored packet. Hence this
- * function.
- *
- * Similar to type 1 packets, we will assume that this retry is not entitled to
- * a session timeout update. Or any session updates, for that matter. (See
- * pktqueue_add())
- */
-static verdict simultaneous_open_hack(struct tabled_session *session)
-{
-	if (session->stored) {
-		log_debug("Simultaneous Open already exists.");
-		return VERDICT_DROP;
-	}
-
-	return VERDICT_CONTINUE;
-}
-
-/**
  * Note: This particular incarnation of fate_cb is not prepared to return
  * FATE_PROBE.
  */
@@ -1664,14 +1605,10 @@ verdict bib_add_tcp4(struct bib *db,
 	find_bib_session4(table, &pkt->tuple, new, &old, NULL, &session_slot);
 
 	if (old.session) {
-		verdict = simultaneous_open_hack(old.session);
-		if (verdict != VERDICT_CONTINUE)
-			goto end;
-
 		/* All states except CLOSED. */
-		decide_fate(cb, table, old.session, NULL);
-		tstobs(old.session, result);
-		verdict = VERDICT_CONTINUE;
+		verdict = decide_fate(cb, table, old.session, NULL);
+		if (verdict == VERDICT_CONTINUE)
+			tstobs(old.session, result);
 		goto end;
 	}
 
@@ -1813,6 +1750,7 @@ int bib_add_session(struct bib *db,
 		goto end;
 
 	if (old.session) {
+		/* There's no packet; ignore the verdict. */
 		decide_fate(cb, table, old.session, NULL);
 		goto end;
 	}
@@ -2157,31 +2095,37 @@ eexist:
 	return -EEXIST;
 }
 
-#define tree_foreach rbtree_postorder_for_each_entry_safe /* Geez wtf man */
+struct detach_args {
+	struct bib_table *table;
+	unsigned int detached;
+};
+
+static void detach_session(struct rb_node *node, void *arg)
+{
+	struct tabled_session *session = node2session(node);
+	struct detach_args *args = arg;
+
+	list_del(&session->list_hook);
+	/*
+	 * Perhaps this should be an ICMP error, not a kill.
+	 * But since we're removing the mapping, we don't know whether a port
+	 * unreachable is the right message. It depends on why the user is
+	 * removing the mapping; the v4 client could very well succeed in
+	 * connecting in its next attempt, but we'll foil it if we fetch the
+	 * ICMP error.
+	 * So let's leave it at silence, which is not much different
+	 * from don't know.
+	 */
+	kill_stored_pkt(args->table, session);
+	args->detached++;
+}
 
 static unsigned int detach_sessions(struct bib_table *table,
 		struct tabled_bib *bib)
 {
-	struct tabled_session *session, *tmp;
-	unsigned int detached = 0;
-
-	tree_foreach(session, tmp, &bib->sessions, tree_hook) {
-		list_del(&session->list_hook);
-		/*
-		 * Perhaps this should be an ICMP error, not a kill.
-		 * But since we're removing the mapping, we don't know whether
-		 * a port unreachable is the right message. It depends on why
-		 * the user is removing the mapping; the v4 client could very
-		 * well succeed in connecting in its next attempt, but we'll
-		 * foil it if we fetch the ICMP error.
-		 * So let's leave it at silence, which is not much different
-		 * from don't know.
-		 */
-		kill_stored_pkt(table, session);
-		detached++;
-	}
-
-	return detached;
+	struct detach_args arg = { .table = table, .detached = 0, };
+	rbtree_foreach(&bib->sessions, detach_session, &arg);
+	return arg.detached;
 }
 
 static void detach_bib(struct bib_table *table, struct tabled_bib *bib)
@@ -2192,16 +2136,19 @@ static void detach_bib(struct bib_table *table, struct tabled_bib *bib)
 	table->session_count -= detach_sessions(table, bib);
 }
 
+static void destroy_session(struct rb_node *node, void *arg)
+{
+	struct tabled_session *session = node2session(node);
+	kmem_cache_free(session_cache, session);
+}
+
 static void destroy_bib(struct tabled_bib *bib)
 {
-	struct tabled_session *session, *tmp;
-
 	/*
 	 * kmem_cache_free() is kind of bulky inside; that's the reason
 	 * why I bother with this mess after the spinlock.
 	 */
-	tree_foreach(session, tmp, &bib->sessions, tree_hook)
-		kmem_cache_free(session_cache, session);
+	rbtree_clear(&bib->sessions, destroy_session, NULL);
 	kmem_cache_free(bib_cache, bib);
 }
 

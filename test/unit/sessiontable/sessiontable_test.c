@@ -46,6 +46,7 @@ static bool inject(unsigned int index, __u32 src_addr, __u16 src_id,
 	entry->timer_type = SESSION_TIMER_EST;
 	entry->update_time = jiffies;
 	entry->timeout = UDP_DEFAULT;
+	entry->has_stored = false;
 
 	error = bib_add_session(db, entry, NULL);
 	if (error) {

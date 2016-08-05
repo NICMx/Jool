@@ -1,6 +1,7 @@
 #include "nat64/unit/session.h"
 #include "nat64/common/str_utils.h"
 
+/* TODO this is obsolete. */
 int session_inject(struct bib *db,
 		char *src6_addr, u16 src6_id,
 		char *dst6_addr, u16 dst6_id,

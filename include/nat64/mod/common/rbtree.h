@@ -149,6 +149,10 @@ void treeslot_commit(struct tree_slot *slot);
 		} \
 	})
 
+void rbtree_foreach(struct rb_root *root,
+		void (*cb)(struct rb_node *, void *),
+		void *arg);
+
 /**
  * Destroys all the nodes from "root"'s tree.
  */

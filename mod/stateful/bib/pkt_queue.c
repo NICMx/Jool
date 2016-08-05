@@ -168,6 +168,7 @@ struct pktqueue_session *pktqueue_find(struct pktqueue *queue,
 
 void pktqueue_put_node(struct pktqueue_session *node)
 {
+	log_debug("Deleting stored type 1 packet.");
 	kfree_skb(node->skb);
 	wkfree(struct pktqueue_session, node);
 }

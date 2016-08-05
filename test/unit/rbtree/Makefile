@@ -18,6 +18,7 @@ obj-m += $(RBTREE).o
 
 $(RBTREE)-objs += $(MIN_REQS)
 $(RBTREE)-objs += rbtree_test.o
+$(RBTREE)-objs += ../../../mod/common/rbtree.o
 
 
 all:

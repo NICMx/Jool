@@ -39,6 +39,11 @@ enum session_fate {
 	 * Send a probe packet, then reset timer into transitory mode.
 	 */
 	FATE_PROBE,
+	/**
+	 * Drop the packet (the new packet, not the stored one),
+	 * preserve the session (stored packet included).
+	 */
+	FATE_DROP,
 
 	/**
 	 * Like FATE_TIMER_EST, except the session's lifetime must not be reset.
@@ -72,6 +77,7 @@ typedef enum session_fate (*fate_cb)(struct session_entry *, void *);
 struct collision_cb {
 	/**
 	 * Note: This callback can edit the state of the session,
+	 * and also declare that the stored packet should be removed,
 	 * but any other changes will be rolled back.
 	 */
 	fate_cb cb;

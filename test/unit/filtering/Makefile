@@ -37,6 +37,10 @@ $(FILTERING)-objs += ../impersonator/route.o
 $(FILTERING)-objs += impersonator.o
 $(FILTERING)-objs += filtering_and_updating_test.o
 
+$(FILTERING)-objs += ../../../mod/common/ipv6_hdr_iterator.o
+$(FILTERING)-objs += ../../../mod/common/rfc6145/common.o
+$(FILTERING)-objs += ../../../mod/common/rfc6145/4to6.o
+$(FILTERING)-objs += ../../../mod/common/rfc6145/6to4.o
 
 all:
 	make -C ${KERNEL_DIR} M=$$PWD;

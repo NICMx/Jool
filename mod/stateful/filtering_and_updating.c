@@ -234,9 +234,77 @@ static enum session_fate tcp_v4_init_state(struct session_entry *session,
 {
 	struct packet *pkt = &state->in;
 
-	if (pkt_l3_proto(pkt) == L3PROTO_IPV6 && pkt_tcp_hdr(pkt)->syn) {
-		session->state = ESTABLISHED;
-		return FATE_TIMER_EST;
+	switch (pkt_l3_proto(pkt)) {
+	case L3PROTO_IPV6:
+		if (pkt_tcp_hdr(pkt)->syn) {
+			if (session->has_stored)
+				log_debug("Simultaneous Open!");
+			session->state = ESTABLISHED;
+			session->has_stored = false;
+			return FATE_TIMER_EST;
+		}
+		break;
+
+	/**
+	 * "OMG WHAT IS THIS?!!!!1!1oneone"
+	 *
+	 * Well, basically, they don't seem to have tested the packet storage
+	 * thing all that well while writing the RFC.
+	 *
+	 * This is a patch that helps type 2 packets work. This is the problem:
+	 *
+	 * - IPv4 node n4 writes a TCP SYN. Let's call this packet "A".
+	 *   A arrives to the NAT64.
+	 * - Let's say there is a BIB entry but no session that matches A, and
+	 *   also, ADF is active, so the NAT64 decides to store A.
+	 *   To this end, it creates and stores session entry [src6=a, dst6=b,
+	 *   src4=c, dst4=d, proto=TCP, state=V4 INIT, stored=A].
+	 *   A is not translated.
+	 *
+	 * The intent is that the NAT64 is now waiting for an IPv6 packet "B"
+	 * that is the Simultaneous Open counterpart to A. If B arrives within 6
+	 * seconds, A is allowed, and if it doesn't, then A is not allowed and
+	 * will be ICMP errored.
+	 * So far so good, right?
+	 *
+	 * Wrong.
+	 *
+	 * The problem is that A created a fully valid session that corresponds
+	 * to itself. Because n4 doesn't receive an answer, it retries A. It
+	 * does so before the 6-second timeout because sockets are impatient
+	 * like that. So A2 arrives at the NAT64 and is translated successfully
+	 * because there's now a valid session that matches it. In other words,
+	 * A authorized itself despite ADF.
+	 *
+	 * One might argue that this would be a reason to not treat type 1 and 2
+	 * packets differently: Simply store these bogus sessions away from the
+	 * main database and the A2 session lookup will fail. This doesn't work
+	 * either, because the whole thing is that this session needs to be
+	 * lookupable in the 6-to-4 direction, otherwise B cannot cancel the
+	 * ICMP error.
+	 *
+	 * Also, these sessions are mapped to a valid BIB entry, and as such
+	 * need to prevent this entry from dying. This is hard to enforce when
+	 * storing these sessions in another database.
+	 *
+	 * So the core of the issue is that the V4 INIT state lets v4 packets
+	 * through even when ADF is active. Hence this switch case.
+	 * (Because this only handles type 2 packets, ADF active = packet stored
+	 * in this case.)
+	 *
+	 * Type 1 packets don't suffer from this problem because they aren't
+	 * associated with a valid BIB entry.
+	 *
+	 * Similar to type 1 packets, we will assume that this retry is not
+	 * entitled to a session timeout update. Or any session updates, for
+	 * that matter. (See pktqueue_add())
+	 */
+	case L3PROTO_IPV4:
+		if (session->has_stored) {
+			log_debug("Simultaneous Open already exists.");
+			return FATE_DROP;
+		}
+		break;
 	}
 
 	return FATE_PRESERVE;

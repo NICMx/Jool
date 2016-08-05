@@ -24,7 +24,7 @@ void pktqueue_destroy(struct pktqueue *queue)
 }
 
 int pktqueue_add(struct pktqueue *queue, struct packet *pkt,
-		struct ipv6_transport_addr *dst6)
+		struct ipv6_transport_addr *dst6, bool too_many)
 {
 	return broken_unit_call(__func__);
 }
@@ -42,9 +42,10 @@ void pktqueue_put_node(struct pktqueue_session *node)
 	broken_unit_call(__func__);
 }
 
-void pktqueue_prepare_clean(struct pktqueue *queue, struct list_head *probes)
+unsigned int pktqueue_prepare_clean(struct pktqueue *queue,
+		struct list_head *probes)
 {
-	broken_unit_call(__func__);
+	return broken_unit_call(__func__);
 }
 
 void pktqueue_clean(struct list_head *probes)

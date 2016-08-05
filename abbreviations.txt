@@ -11,6 +11,7 @@ out = outgoing (Not "outer")
 6to4 = translation from IPv6 to IPv4
 alloc = memory allocation
 addr = address
+ADF = Address-Dependent Filtering
 aux = auxiliar function
 cb = callback (synonym for "fn")
 csum = checksum
