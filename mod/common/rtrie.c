@@ -542,7 +542,6 @@ void rtrie_flush(struct rtrie *trie)
 	rcu_assign_pointer(trie->root, NULL);
 	list_replace_init(&trie->list, &tmp_list);
 
-	/* TODO (final) maybe we should be using call_rcu_bh() instead? */
 	synchronize_rcu_bh();
 
 	list_for_each_entry_safe(node, tmp_node, &tmp_list, list_hook) {

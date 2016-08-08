@@ -22,7 +22,7 @@ static int handle_eamt_display(struct eam_table *eamt, struct genl_info *info,
 
 	error = nlbuffer_init_response(&buffer, info, nlbuffer_response_max_size());
 	if (error)
-		 nlcore_respond(info, error);
+		nlcore_respond(info, error);
 
 	prefix4 = request->display.prefix4_set ? &request->display.prefix4 : NULL;
 	error = eamt_foreach(eamt, eam_entry_to_userspace, &buffer, prefix4);

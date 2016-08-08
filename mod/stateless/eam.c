@@ -11,6 +11,23 @@
 #define ADDR_TO_KEY(addr)	INIT_KEY(addr, 8 * sizeof(*addr))
 #define PREFIX_TO_KEY(prefix)	INIT_KEY(&(prefix)->address, (prefix)->len)
 
+/**
+ * Well, it really goes without saying, but I'll say it anyway:
+ *
+ * The fact that @trie6 and @trie4 are protected by RCU means that there will be
+ * small time windows during EAMT updates where an entry will appear in one of
+ * the tries but not in the other.
+ *
+ * This should be fine. It simply means, for example, that when the admin adds
+ * an entry, for a few milliseconds or less, the entry will serve a packet
+ * traveling in the 6-to-4 direction, but not one traveling in the 4-to-6
+ * direction. Since the user just added the entry, this inconsistency should go
+ * unnoticed or chalked up to timing noise.
+ *
+ * Notice that this only applies to updates to running EAMTs. Atomic
+ * configuration does not fall in this category because the full table is
+ * set up before it is actually committed to serve packets.
+ */
 struct eam_table {
 	struct rtrie trie6;
 	struct rtrie trie4;

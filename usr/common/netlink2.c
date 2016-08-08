@@ -20,8 +20,6 @@ static int family;
  * At this point this is the best I can do because there's no other way to tell
  * whether the error returned by nl_recvmsgs_default() is a Netlink error or a
  * Jool error.
- *
- * TODO (final) might need to apply #184 to the new code.
  */
 bool error_handler_called = false;
 

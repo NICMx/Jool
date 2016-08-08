@@ -144,4 +144,7 @@ int bib_count_sessions(struct bib *db, l4_protocol proto, __u64 *count);
 
 void bib_print(struct bib *db);
 
+/* The user of this module has to implement this. */
+enum session_fate tcp_est_expire_cb(struct session_entry *new, void *arg);
+
 #endif /* _JOOL_MOD_SESSION_DB_H */

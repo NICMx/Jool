@@ -9,6 +9,14 @@
 #include "nat64/mod/common/wkmalloc.h"
 #include "nat64/mod/common/nl/nl_common.h"
 
+/*
+ * Note: If you're working on this module, please keep in mind that there should
+ * not be any log_err()s anywhere.
+ *
+ * If a preparation to send something to userspace failed, then trying to send
+ * the error message (via log_err()) to userspace is a fairly lost cause.
+ */
+
 #ifndef GENLMSG_DEFAULT_SIZE
 /* This happens in old kernels. */
 #define GENLMSG_DEFAULT_SIZE (NLMSG_DEFAULT_SIZE - GENL_HDRLEN)
@@ -113,21 +121,15 @@ size_t nlbuffer_response_max_size(void)
 
 static int __nlbuffer_init(struct nlcore_buffer *buffer, size_t capacity)
 {
-	if (WARN(capacity > NLBUFFER_MAX_PAYLOAD, "Message size is too big.")) {
-		log_err("Message size is too big. (%zu > %zu)", capacity,
-				NLBUFFER_MAX_PAYLOAD);
+	if (WARN(capacity > NLBUFFER_MAX_PAYLOAD,
+			"Message size is too big. (%zu > %zu)",
+			capacity, NLBUFFER_MAX_PAYLOAD))
 		return -EINVAL;
-	}
 
 	buffer->len = 0;
 	buffer->capacity = capacity;
 	buffer->data = __wkmalloc("nlcore_buffer.data", capacity, GFP_ATOMIC);
-	if (!buffer->data) {
-		log_err("Could not allocate memory for nl_core_buffer!");
-		return -ENOMEM;
-	}
-
-	return 0;
+	return buffer->data ? 0 : -ENOMEM;
 }
 
 int nlbuffer_init_request(struct nlcore_buffer *buffer, struct request_hdr *hdr,
@@ -176,14 +178,13 @@ int nlbuffer_write(struct nlcore_buffer *buffer, void *data, size_t data_size)
 
 	memcpy(buffer->data + buffer->len, data, data_size);
 	buffer->len += data_size;
-
 	return 0;
 }
 
 int nlbuffer_send(struct genl_info *info, struct nlcore_buffer *buffer)
 {
 	if (buffer->len > NLBUFFER_MAX_PAYLOAD) {
-		log_err("Buffer too long to be sent!");
+		pr_err("The response is too long; cannot send to userspace.\n");
 		return -EINVAL;
 	}
 
@@ -221,7 +222,8 @@ static int respond_error(struct genl_info *info, int error_code)
 
 	error = nlbuffer_init_response(&buffer, info, error_msg_size);
 	if (error) {
-		pr_err("Error while trying to allocate buffer for sending error message!\n");
+		pr_err("Errcode %d while initializing a response to userspace.\n",
+				error);
 		goto end_simple;
 	}
 
@@ -229,7 +231,8 @@ static int respond_error(struct genl_info *info, int error_code)
 
 	error = nlbuffer_write(&buffer, error_msg, error_msg_size);
 	if (error) {
-		pr_err("Error while trying to write to buffer for sending error message!\n");
+		pr_err("Errcode %d while writing on a response to userspace.\n",
+				error);
 		goto end_full;
 	}
 
@@ -254,7 +257,8 @@ static int respond_ack(struct genl_info *info)
 
 	error = nlbuffer_init_response(&buffer, info, 0);
 	if (error) {
-		log_err("Error while trying to allocate buffer for sending acknowledgement!");
+		pr_err("Errcode %d while initializing a response to userspace.\n",
+				error);
 		return error;
 	}
 
@@ -277,12 +281,18 @@ int nlcore_respond_struct(struct genl_info *info, void *content,
 	int error;
 
 	error = nlbuffer_init_response(&buffer, info, content_len);
-	if (error)
+	if (error) {
+		pr_err("Errcode %d while initializing a response to userspace.\n",
+				error);
 		return respond_error(info, error);
+	}
 
 	error = nlbuffer_write(&buffer, content, content_len);
-	if (error < 0)
+	if (error < 0) {
+		pr_err("Errcode %d while writing on a response to userspace.\n",
+				error);
 		return respond_error(info, error);
+	}
 	/*
 	 * @content is supposed to be a statically-defined struct, and as such
 	 * should be several orders smaller than the Netlink packet size limit.
@@ -302,14 +312,12 @@ int nlcore_send_multicast_message(struct net *ns, struct nlcore_buffer *buffer)
 	void *msg_head;
 
 	skb = genlmsg_new(nla_total_size(buffer->len), GFP_ATOMIC);
-	if (!skb) {
-		log_debug("Failed to allocate the multicast message.");
+	if (!skb)
 		return -ENOMEM;
-	}
 
 	msg_head = genlmsg_put(skb, 0, 0, family, 0, 0);
 	if (!msg_head) {
-		log_err("genlmsg_put() returned NULL.");
+		pr_err("genlmsg_put() returned NULL.\n");
 		return -ENOMEM;
 	}
 

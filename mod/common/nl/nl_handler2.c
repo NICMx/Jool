@@ -90,6 +90,7 @@ static int multiplex_request(struct xlator *jool, struct genl_info *info)
 static int __handle_jool_message(struct genl_info *info)
 {
 	struct xlator translator;
+	bool client_is_jool;
 	int error;
 
 	log_debug("===============================================");
@@ -98,9 +99,10 @@ static int __handle_jool_message(struct genl_info *info)
 	error = validate_request(nla_data(info->attrs[ATTR_DATA]),
 			nla_len(info->attrs[ATTR_DATA]),
 			"userspace client",
-			"kernel module");
+			"kernel module",
+			&client_is_jool);
 	if (error)
-		return error; /* client is not Jool, so don't answer. */
+		return client_is_jool ? nlcore_respond(info, error) : error;
 
 	if (be16_to_cpu(get_jool_hdr(info)->mode) == MODE_INSTANCE)
 		return handle_instance_request(info);

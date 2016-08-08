@@ -11,12 +11,12 @@
 static DEFINE_MUTEX(lock);
 
 RCUTAG_USR
-int config_init(struct global_configuration **result)
+int config_init(struct global_config **result)
 {
-	struct global_config *config;
+	struct global_config_usr *config;
 	__u16 plateaus[] = DEFAULT_MTU_PLATEAUS;
 
-	*result = wkmalloc(struct global_configuration, GFP_KERNEL);
+	*result = wkmalloc(struct global_config, GFP_KERNEL);
 	if (!(*result))
 		return -ENOMEM;
 	kref_init(&(*result)->refcounter);
@@ -50,25 +50,25 @@ int config_init(struct global_configuration **result)
 	return 0;
 }
 
-void config_get(struct global_configuration *config)
+void config_get(struct global_config *config)
 {
 	kref_get(&config->refcounter);
 }
 
 static void destroy_config(struct kref *refcounter)
 {
-	struct global_configuration *config;
+	struct global_config *config;
 	config = container_of(refcounter, typeof(*config), refcounter);
-	wkfree(struct global_configuration, config);
+	wkfree(struct global_config, config);
 }
 
-void config_put(struct global_configuration *config)
+void config_put(struct global_config *config)
 {
 	kref_put(&config->refcounter, destroy_config);
 }
 
 RCUTAG_PKT
-void config_copy(struct global_config *from, struct global_config *to)
+void config_copy(struct global_config_usr *from, struct global_config_usr *to)
 {
 	memcpy(to, from, sizeof(*from));
 }
@@ -76,7 +76,7 @@ void config_copy(struct global_config *from, struct global_config *to)
 RCUTAG_FREE
 void prepare_config_for_userspace(struct full_config *config, bool pools_empty)
 {
-	struct global_config *global;
+	struct global_config_usr *global;
 	struct bib_config *bib;
 	struct fragdb_config *frag;
 	struct joold_config *joold;

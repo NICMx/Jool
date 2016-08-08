@@ -131,7 +131,7 @@ static int find_mask_domain(struct xlation *state,
 	struct route4_args args = {
 		.ns = state->jool.ns,
 		.daddr = dst->l3,
-		.tos = ttp64_xlat_tos(state, hdr6),
+		.tos = ttp64_xlat_tos(&state->jool.global->cfg, hdr6),
 		.proto = ttp64_xlat_proto(hdr6),
 		.mark = state->in.skb->mark,
 	};

@@ -6,7 +6,7 @@
 #include "nat64/usr/netlink.h"
 
 
-static char *print_status(struct global_config *conf)
+static char *print_status(struct global_config_usr *conf)
 {
 	return conf->status ? "Enabled" : "Disabled";
 }
@@ -28,7 +28,7 @@ static void print_binary(unsigned int value, unsigned int size)
 		printf("%u", (value >> i) & 0x1);
 }
 
-static void print_plateaus(struct global_config *conf, char *separator)
+static void print_plateaus(struct global_config_usr *conf, char *separator)
 {
 	int i;
 
@@ -53,7 +53,7 @@ static char *int_to_hairpin_mode(enum eam_hairpinning_mode mode)
 	return "unknown";
 }
 
-static char* atomic_frags_to_string(struct global_config *conf)
+static char* atomic_frags_to_string(struct global_config_usr *conf)
 {
 	if (!conf->atomic_frags.df_always_on
 			&& !conf->atomic_frags.build_ipv6_fh
@@ -210,7 +210,7 @@ static int handle_display_response(struct jool_response *response, void *arg)
 static int handle_display_response_csv(struct jool_response *response, void *arg)
 {
 	struct full_config *conf = response->payload;
-	struct global_config *global = &conf->global;
+	struct global_config_usr *global = &conf->global;
 
 	if (response->payload_len != sizeof(struct full_config)) {
 		log_err("Jool's response has a bogus length. (expected %zu, got %zu)",

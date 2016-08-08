@@ -338,9 +338,6 @@ static void init_table(struct bib_table *table,
 	table->pkt_queue = NULL;
 }
 
-/* TODO (final) maybe put this in some common header? */
-enum session_fate tcp_est_expire_cb(struct session_entry *new, void *arg);
-
 struct bib *bib_create(void)
 {
 	struct bib *db;

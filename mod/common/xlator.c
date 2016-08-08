@@ -458,7 +458,6 @@ int xlator_foreach(xlator_foreach_cb cb, void *args)
 	struct jool_instance *instance;
 	int error = 0;
 
-	/* TODO (final) are timers really BH context? */
 	rcu_read_lock_bh();
 
 	list = rcu_dereference_bh(pool);

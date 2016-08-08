@@ -13,7 +13,7 @@ MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Alberto Leiva Popper");
 MODULE_DESCRIPTION("Translating the Packet module test.");
 
-static struct global_configuration *config;
+static struct global_config *config;
 
 static bool test_function_has_unexpired_src_route(void)
 {

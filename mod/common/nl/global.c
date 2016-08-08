@@ -55,9 +55,9 @@ static bool ensure_bytes_ipv6_prefix(size_t actual, size_t expected)
 	return true;
 }
 
-static int parse_ipv6_prefix(struct global_config *config, struct global_value *chunk, size_t size)
+static int parse_ipv6_prefix(struct global_config_usr *config,
+		struct global_value *chunk, size_t size)
 {
-
 	if (!ensure_bytes_ipv6_prefix(size - sizeof(struct global_value), sizeof(struct ipv6_prefix)))
 		return -EINVAL;
 
@@ -157,7 +157,7 @@ static void be16_swap(void *a, void *b, int size)
 	*(__u16 *)b = t;
 }
 
-static int update_plateaus(struct global_config *config,
+static int update_plateaus(struct global_config_usr *config,
 		struct global_value *hdr,
 		size_t max_size)
 {

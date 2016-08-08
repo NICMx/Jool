@@ -81,9 +81,13 @@ static int validate_version(struct request_hdr *hdr,
 	return -EINVAL;
 }
 
-int validate_request(void *data, size_t data_len, char *sender, char *receiver)
+int validate_request(void *data, size_t data_len, char *sender, char *receiver,
+		bool *peer_is_jool)
 {
 	int error;
+
+	if (peer_is_jool)
+		*peer_is_jool = false;
 
 	if (data_len < sizeof(struct request_hdr)) {
 		log_err("Message from the %s is smaller than Jool's header.",
@@ -94,6 +98,9 @@ int validate_request(void *data, size_t data_len, char *sender, char *receiver)
 	error = validate_magic(data, sender);
 	if (error)
 		return error;
+
+	if (peer_is_jool)
+		*peer_is_jool = true;
 
 	error = validate_stateness(data, sender, receiver);
 	if (error)

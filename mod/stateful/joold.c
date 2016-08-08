@@ -631,7 +631,6 @@ static int validate_enabled(struct xlator *jool)
 	struct joold_queue *queue = jool->nat64.joold;
 	int enabled;
 
-	/* TODO (final) Review BH contextness. */
 	spin_lock_bh(&queue->lock);
 	enabled = __validate_enabled(queue);
 	spin_unlock_bh(&queue->lock);

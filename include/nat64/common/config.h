@@ -183,7 +183,8 @@ struct request_hdr {
 
 void init_request_hdr(struct request_hdr *hdr, enum config_mode mode,
 		enum config_operation operation);
-int validate_request(void *data, size_t data_len, char *sender, char *receiver);
+int validate_request(void *data, size_t data_len, char *sender, char *receiver,
+		bool *peer_is_jool);
 
 struct response_hdr {
 	struct request_hdr req;
@@ -465,7 +466,7 @@ enum f_args {
 /**
  * A copy of the entire running configuration, excluding databases.
  */
-struct global_config {
+struct global_config_usr {
 	/**
 	 * Is Jool actually translating?
 	 * This depends on several factors depending on stateness, and is not an
@@ -691,7 +692,7 @@ struct fragdb_config {
 };
 
 struct full_config {
-	struct global_config global;
+	struct global_config_usr global;
 	struct bib_config bib;
 	struct joold_config joold;
 	struct fragdb_config frag;

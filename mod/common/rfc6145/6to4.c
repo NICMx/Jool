@@ -71,11 +71,9 @@ verdict ttp64_create_skb(struct xlation *state)
 	return VERDICT_CONTINUE;
 }
 
-__u8 ttp64_xlat_tos(struct xlation *state, struct ipv6hdr *hdr)
+__u8 ttp64_xlat_tos(struct global_config_usr *config, struct ipv6hdr *hdr)
 {
-	return state->jool.global->cfg.reset_tos
-			? state->jool.global->cfg.new_tos
-			: get_traffic_class(hdr);
+	return config->reset_tos ? config->new_tos : get_traffic_class(hdr);
 }
 
 /**
@@ -317,7 +315,7 @@ verdict ttp64_ipv4(struct xlation *state)
 	 * translate_addrs64_siit->rfc6791_get->get_host_address needs tos
 	 * and protocol, so translate them first.
 	 */
-	hdr4->tos = ttp64_xlat_tos(state, hdr6);
+	hdr4->tos = ttp64_xlat_tos(&state->jool.global->cfg, hdr6);
 	hdr4->protocol = ttp64_xlat_proto(hdr6);
 
 	/* Translate the address before TTL because of issue #167. */

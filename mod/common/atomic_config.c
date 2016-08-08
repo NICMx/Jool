@@ -11,7 +11,7 @@
 #include "nat64/mod/stateful/bib/db.h"
 
 /*
- * TODO (final) this module is missing a timer.
+ * TODO (issue164) this module is missing a timer.
  * If the new configuration hasn't been committed after n milliseconds, newcfg
  * should be cleant.
  */
@@ -101,7 +101,7 @@ static int handle_global(struct xlator *jool, void *payload, __u32 payload_len)
 	}
 
 	/*
-	 * TODO (final) if there's an error in config_parse, this can easily
+	 * TODO (issue164) if there's an error in config_parse, this can easily
 	 * fall into an infinite loop. An attacker could abuse this.
 	 * Maybe add validations?
 	 */
@@ -164,7 +164,7 @@ static int handle_eamt(struct config_candidate *new, void *payload,
 
 	for (i = 0; i < eam_count; i++) {
 		eam = &eams[i];
-		/* TODO (final) force should be variable. */
+		/* TODO (issue164) force should be variable. */
 		error = eamt_add(new->siit.eamt, &eam->prefix6, &eam->prefix4,
 				true);
 		if (error)
@@ -194,7 +194,7 @@ static int handle_addr4_pool(struct addr4_pool **pool, void *payload,
 	}
 
 	for (i = 0; i < prefix_count; i++) {
-		/* TODO (final) force should be variable. */
+		/* TODO (issue164) force should be variable. */
 		error = pool_add(*pool, &prefixes[i], true);
 		if (error)
 			return error;
@@ -258,7 +258,7 @@ static int handle_bib(struct config_candidate *new, void *payload,
 static int commit(struct xlator *jool)
 {
 	struct config_candidate *new = jool->newcfg;
-	struct global_configuration *global;
+	struct global_config *global;
 	struct full_config *remnants = NULL;
 	int error;
 

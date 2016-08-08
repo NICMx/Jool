@@ -4,19 +4,15 @@
 #include <linux/kref.h>
 #include "nat64/common/config.h"
 
-/*
- * TODO (final) maybe this should be called "global_config" and "global_config"
- * should be called "global_config_usr".
- */
-struct global_configuration {
-	struct global_config cfg;
+struct global_config {
+	struct global_config_usr cfg;
 	struct kref refcounter;
 };
 
-int config_init(struct global_configuration **global);
-void config_get(struct global_configuration *global);
-void config_put(struct global_configuration *global);
+int config_init(struct global_config **global);
+void config_get(struct global_config *global);
+void config_put(struct global_config *global);
 
-void config_copy(struct global_config *from, struct global_config *to);
+void config_copy(struct global_config_usr *from, struct global_config_usr *to);
 
 #endif /* _JOOL_MOD_CONFIG_H */

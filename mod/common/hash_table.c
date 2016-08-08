@@ -2,8 +2,12 @@
  * @file
  * A generic hash table implementation. Its design is largely based off Java's
  * java.util.LinkedHashMap.
- * One difference is that the internal array does not resize. One important similarity is that it
- * is not synchronized.
+ * One important similarity is that it is not synchronized.
+ * One difference is that the internal array does not resize.
+ * (Why? the only piece of code that uses this never grows beyond a very small
+ * number of entries. I know that sort of defeats the point of an ellaborate
+ * constant-timed retrieving data structure, but again, this really only exists
+ * for legacy reasons.)
  *
  * Uses the kernel's hlist internally.
  * We're not using hlist directly because it implies a lot of code rewriting (eg. the entry

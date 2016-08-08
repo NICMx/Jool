@@ -13,7 +13,7 @@
 struct xlator {
 	struct net *ns;
 
-	struct global_configuration *global;
+	struct global_config *global;
 	struct pool6 *pool6;
 	union {
 		struct {

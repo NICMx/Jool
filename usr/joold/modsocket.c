@@ -22,7 +22,7 @@ void modsocket_send(void *request, size_t request_len)
 	int error;
 
 	error = validate_request(request, request_len, "joold peer",
-			"local joold");
+			"local joold", NULL);
 	if (error)
 		return;
 
@@ -204,7 +204,7 @@ static int updated_entries_cb(struct nl_msg *msg, void *arg)
 	}
 
 	error = validate_request(data, data_size, "the kernel module",
-			"joold daemon");
+			"joold daemon", NULL);
 	if (error)
 		return error;
 
