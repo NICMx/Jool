@@ -130,74 +130,50 @@ static bool test_function_build_id_field(void)
 	return success;
 }
 
-static void update_config(bool lower_mtu_fail)
-{
-	config->cfg.atomic_frags.lower_mtu_fail = lower_mtu_fail;
-	/*
-	 * I'm assuming the default plateaus list has 3 elements or more.
-	 * (so I don't have to reallocate mtu_plateaus.)
-	 */
-	config->cfg.mtu_plateaus[0] = 1400;
-	config->cfg.mtu_plateaus[1] = 1200;
-	config->cfg.mtu_plateaus[2] = 600;
-	config->cfg.mtu_plateau_count = 3;
-}
-
-#define min_mtu(packet, in, out, len) be32_to_cpu(icmp6_minimum_mtu(&state, packet, in, out, len))
+#define min_mtu(packet, in, out, len) be32_to_cpu(icmp6_minimum_mtu(&state, packet, out, in, len))
 static bool test_function_icmp6_minimum_mtu(void)
 {
 	struct xlation state = { .jool.global = config };
 	int i;
 	bool success = true;
 
-	update_config(false);
+	/*
+	 * I'm assuming the default plateaus list has 3 elements or more.
+	 * (so I don't have to reallocate mtu_plateaus)
+	 */
+	config->cfg.mtu_plateaus[0] = 5000;
+	config->cfg.mtu_plateaus[1] = 4000;
+	config->cfg.mtu_plateaus[2] = 500;
+	config->cfg.mtu_plateau_count = 2;
 
-	/* Test the bare minimum functionality. */
-	success &= ASSERT_UINT(21, min_mtu(1, 100, 100, 0), "No hacks, min is packet");
-	success &= ASSERT_UINT(1, min_mtu(100, 1, 100, 0), "No hacks, min is in");
-	success &= ASSERT_UINT(21, min_mtu(100, 100, 1, 0), "No hacks, min is out");
-
+	/* Simple tests */
+	success &= ASSERT_UINT(1320, min_mtu(1300, 3000, 3000, 2000), "min(1300, 3000, 3000)");
+	success &= ASSERT_UINT(1321, min_mtu(3001, 1301, 3001, 2001), "min(3001, 1301, 3001)");
+	success &= ASSERT_UINT(1302, min_mtu(3002, 3002, 1302, 2002), "min(3002, 3002, 1302)");
 	if (!success)
 		return false;
 
-	/* Test hack 1: MTU is overriden if some router set is as zero. */
-	for (i = 1500; i > 1400 && success; --i)
-		success &= ASSERT_UINT(1420, min_mtu(0, 1600, 1600, i), "Override packet MTU");
-	for (i = 1400; i > 1200 && success; --i)
-		success &= ASSERT_UINT(1220, min_mtu(0, 1600, 1600, i), "Override packet MTU");
-	for (i = 1200; i > 600 && success; --i)
-		success &= ASSERT_UINT(620, min_mtu(0, 1600, 1600, i), "Override packet MTU");
-	for (i = 600; i > 0 && success; --i)
-		success &= ASSERT_UINT(20, min_mtu(0, 1600, 1600, i), "Override packet MTU");
+	/* Lowest MTU is illegal on IPv6. */
+	success &= ASSERT_UINT(1280, min_mtu(100, 200, 200, 150), "min(100, 200, 200)");
+	success &= ASSERT_UINT(1280, min_mtu(200, 100, 200, 150), "min(200, 100, 200)");
+	success &= ASSERT_UINT(1280, min_mtu(200, 200, 100, 150), "min(200, 200, 100)");
 
-	success &= ASSERT_UINT(1, min_mtu(0, 1, 100, 1000), "Override packet MTU, min is in");
-	success &= ASSERT_UINT(21, min_mtu(0, 100, 1, 1000), "Override packet MTU, min is out");
+	/* Test plateaus (pkt is min). */
+	for (i = 5500; i > 5000 && success; --i)
+		success &= ASSERT_UINT(5020, min_mtu(0, 6000, 6000, i), "min(%d, 6000, 6000)", i);
+	for (i = 5000; i > 4000 && success; --i)
+		success &= ASSERT_UINT(4020, min_mtu(0, 6000, 6000, i), "min(%d, 6000, 6000)", i);
+	for (i = 4000; i >= 0 && success; --i)
+		success &= ASSERT_UINT(1280, min_mtu(0, 6000, 6000, i), "min(%d, 6000, 6000)", i);
 
-	if (!success)
-		return false;
+	/* Test plateaus (in/out is min). */
+	success &= ASSERT_UINT(1420, min_mtu(0, 1400, 5500, 4500), "min(4000,1400,5500)");
+	success &= ASSERT_UINT(1400, min_mtu(0, 5500, 1400, 4500), "min(4000,5500,1400)");
 
-	/* Test hack 2: User wants us to try to improve the failure rate. */
-	update_config(true);
-
-	success &= ASSERT_UINT(1280, min_mtu(1, 2, 2, 0), "Improve rate, min is packet");
-	success &= ASSERT_UINT(1280, min_mtu(2, 1, 2, 0), "Improve rate, min is in");
-	success &= ASSERT_UINT(1280, min_mtu(2, 2, 1, 0), "Improve rate, min is out");
-
-	success &= ASSERT_UINT(1420, min_mtu(1400, 1500, 1500, 0), "Fail improve rate, packet");
-	success &= ASSERT_UINT(1400, min_mtu(1500, 1400, 1500, 0), "Fail improve rate, in");
-	success &= ASSERT_UINT(1420, min_mtu(1500, 1500, 1400, 0), "Fail improve rate, out");
-
-	if (!success)
-		return false;
-
-	/* Test both hacks at the same time. */
-	success &= ASSERT_UINT(1280, min_mtu(0, 700, 700, 1000), "2 hacks, override packet");
-	success &= ASSERT_UINT(1280, min_mtu(0, 1, 100, 1000), "2 hacks, override in");
-	success &= ASSERT_UINT(1280, min_mtu(0, 100, 1, 1000), "2 hacks, override out");
-
-	success &= ASSERT_UINT(1420, min_mtu(0, 1500, 1500, 1500), "2 hacks, packet/not 1280");
-	success &= ASSERT_UINT(1400, min_mtu(0, 1400, 1500, 1500), "2 hacks, in/not 1280");
-	success &= ASSERT_UINT(1420, min_mtu(0, 1500, 1400, 1500), "2 hacks, out/not 1280");
+	/* Plateaus and illegal MTU at the same time. */
+	success &= ASSERT_UINT(1280, min_mtu(0, 700, 700, 1000), "min(500, 700, 700)");
+	success &= ASSERT_UINT(1280, min_mtu(0, 1, 700, 1000), "min(500, 1, 700)");
+	success &= ASSERT_UINT(1280, min_mtu(0, 700, 1, 1000), "min(500, 700, 1)");
 
 	return success;
 }
@@ -222,38 +198,28 @@ static bool test_function_icmp4_to_icmp6_param_prob(void)
 	return success;
 }
 
-static bool test_function_generate_ipv4_id_nofrag(void)
+static bool test_function_generate_ipv4_id(void)
 {
-	struct packet pkt;
-	struct sk_buff *skb;
+	struct frag_hdr hdr;
 	__be16 attempt_1, attempt_2, attempt_3;
 	bool success = true;
 
-	skb = alloc_skb(1500, GFP_ATOMIC);
-	if (!skb)
-		return false;
-	pkt.skb = skb;
-
-	skb_put(skb, 1000);
-	attempt_1 = generate_ipv4_id_nofrag(&pkt);
-	attempt_2 = generate_ipv4_id_nofrag(&pkt);
-	attempt_3 = generate_ipv4_id_nofrag(&pkt);
+	attempt_1 = generate_ipv4_id(NULL);
+	attempt_2 = generate_ipv4_id(NULL);
+	attempt_3 = generate_ipv4_id(NULL);
 	/*
 	 * At least one of the attempts should be nonzero,
 	 * otherwise the random would be sucking major ****.
 	 */
-	success &= ASSERT_BOOL(true, (attempt_1 | attempt_2 | attempt_3) != 0, "Len < 1260");
+	success &= ASSERT_BOOL(true, (attempt_1 | attempt_2 | attempt_3) != 0, "No frag");
 
-	skb_put(skb, 260);
-	attempt_1 = generate_ipv4_id_nofrag(&pkt);
-	attempt_2 = generate_ipv4_id_nofrag(&pkt);
-	attempt_3 = generate_ipv4_id_nofrag(&pkt);
-	success &= ASSERT_BOOL(true, (attempt_1 | attempt_2 | attempt_3) != 0, "Len = 1260");
+	hdr.identification = 0;
+	success &= ASSERT_BE16(0, generate_ipv4_id(&hdr), "Simplest id");
+	hdr.identification = cpu_to_be32(0x0000abcdU);
+	success &= ASSERT_BE16(0xabcd, generate_ipv4_id(&hdr), "No overflow");
+	hdr.identification = cpu_to_be32(0x12345678U);
+	success &= ASSERT_BE16(0x5678, generate_ipv4_id(&hdr), "Overflow");
 
-	skb_put(skb, 200);
-	success &= ASSERT_BE16(0, generate_ipv4_id_nofrag(&pkt), "Len > 1260");
-
-	kfree_skb(skb);
 	return success;
 }
 
@@ -397,26 +363,6 @@ end:
 	return success;
 }
 
-static bool test_function_generate_ipv4_id_dofrag(void)
-{
-	struct frag_hdr fragment_hdr;
-	bool success = true;
-
-	fragment_hdr.identification = 0;
-	success &= ASSERT_UINT(0, be16_to_cpu(generate_ipv4_id_dofrag(&fragment_hdr)),
-			"Simplest id");
-
-	fragment_hdr.identification = cpu_to_be32(0x0000abcdU);
-	success &= ASSERT_UINT(0xabcd, be16_to_cpu(generate_ipv4_id_dofrag(&fragment_hdr)),
-			"No overflow");
-
-	fragment_hdr.identification = cpu_to_be32(0x12345678U);
-	success &= ASSERT_UINT(0x5678, be16_to_cpu(generate_ipv4_id_dofrag(&fragment_hdr)),
-			"Overflow");
-
-	return success;
-}
-
 static bool test_function_icmp4_minimum_mtu(void)
 {
 	bool success = true;
@@ -428,230 +374,12 @@ static bool test_function_icmp4_minimum_mtu(void)
 	return success;
 }
 
-static int count_frags(struct sk_buff *skb)
-{
-	int i;
-	for (i = 0; skb; skb = skb->next)
-		i++;
-	return i;
-}
-
-static bool compare_skbs(struct sk_buff *expected, struct sk_buff *actual)
-{
-	unsigned char *expected_ptr, *actual_ptr;
-	unsigned int i, s, min_len;
-	int errors = 0;
-
-	if (!ASSERT_INT(count_frags(expected), count_frags(actual), "Fragment count"))
-		return false;
-
-	s = 0;
-	while (expected && !errors) {
-		log_debug("Reviewing packet %u.", s);
-
-		if (!ASSERT_INT(expected->len, actual->len, "skb length"))
-			errors++;
-
-		expected_ptr = (unsigned char *) skb_network_header(expected);
-		actual_ptr = (unsigned char *) skb_network_header(actual);
-		min_len = (expected->len < actual->len) ? expected->len : actual->len;
-
-		for (i = 0; i < min_len && errors < 6; i++) {
-			if (expected_ptr[i] != actual_ptr[i]) {
-				log_err("Packets differ at byte %u. Expected: 0x%x; actual: 0x%x.",
-						i, expected_ptr[i], actual_ptr[i]);
-				errors++;
-			}
-		}
-
-		expected = expected->next;
-		actual = actual->next;
-		s++;
-	}
-
-	return !errors;
-}
-
-static bool test_4to6(l4_protocol l4_proto,
-		int (*create_skb4_fn)(struct tuple *, struct sk_buff **, u16, u8),
-		int (*create_skb6_fn)(struct tuple *, struct sk_buff **, u16, u8),
-		u16 expected_payload6_len)
-{
-	struct xlation state = { .jool.global = config, .in.skb = NULL, .out.skb = NULL };
-	struct sk_buff *expected = NULL;
-	int error;
-	bool result = false;
-
-	error = init_tuple4(&state.in.tuple, "192.0.2.5", 1234, "192.0.2.2", 80, l4_proto);
-	if (error)
-		goto end;
-	error = create_skb4_fn(&state.in.tuple, &state.out.skb, 100, 32);
-	if (error)
-		goto end;
-	error = pkt_init_ipv4(&state.in, state.out.skb);
-	if (error)
-		goto end;
-
-	error = init_tuple6(&state.out.tuple, "64::192.0.2.5", 51234, "1::1", 50080, l4_proto);
-	if (error)
-		goto end;
-	error = create_skb6_fn(&state.out.tuple, &expected, expected_payload6_len, 31);
-	if (error)
-		goto end;
-
-	if (translating_the_packet(&state) != VERDICT_CONTINUE)
-		goto end;
-
-	result = compare_skbs(expected, state.out.skb);
-	/* Fall through. */
-
-end:
-	kfree_skb(state.in.skb);
-	kfree_skb(state.out.skb);
-	kfree_skb(expected);
-	return result;
-}
-
-static bool test_4to6_udp(void)
-{
-	return test_4to6(L4PROTO_UDP, create_skb4_udp, create_skb6_udp, 100);
-}
-
-static bool test_4to6_tcp(void)
-{
-	return test_4to6(L4PROTO_TCP, create_skb4_tcp, create_skb6_tcp, 100);
-}
-
-static bool test_4to6_icmp_info(void)
-{
-	return test_4to6(L4PROTO_ICMP, create_skb4_icmp_info, create_skb6_icmp_info, 100);
-}
-
-static bool test_4to6_icmp_error(void)
-{
-	return test_4to6(L4PROTO_TCP, create_skb4_icmp_error, create_skb6_icmp_error, 120);
-}
-
-static bool test_6to4(l4_protocol l4_proto,
-		int (*create_skb6_fn)(struct tuple *, struct sk_buff **, u16, u8),
-		int (*create_skb4_fn)(struct tuple *, struct sk_buff **, u16, u8),
-		u16 expected_payload4_len)
-{
-	struct xlation state = { .jool.global = config, .in.skb = NULL, .out.skb = NULL };
-	struct sk_buff *expected = NULL;
-	int error;
-	bool result = false;
-
-	error = init_tuple6(&state.in.tuple, "1::1", 50080, "64::192.0.2.5", 51234, L4PROTO_UDP);
-	if (error)
-		goto end;
-	error = create_skb6_fn(&state.in.tuple, &state.in.skb, 100, 32);
-	if (error)
-		goto end;
-	error = pkt_init_ipv6(&state.in, state.in.skb);
-	if (error)
-		goto end;
-
-	error = init_tuple4(&state.out.tuple, "192.0.2.2", 80, "192.0.2.5", 1234, L4PROTO_UDP);
-	if (error)
-		goto end;
-	error = create_skb4_fn(&state.out.tuple, &expected, expected_payload4_len, 31);
-	if (error)
-		goto end;
-
-	if (translating_the_packet(&state) != VERDICT_CONTINUE)
-		goto end;
-
-	result = compare_skbs(expected, state.out.skb);
-	/* Fall through. */
-
-end:
-	kfree_skb(state.in.skb);
-	kfree_skb(state.out.skb);
-	kfree_skb(expected);
-	return result;
-}
-
-static bool test_6to4_custom_payload(l4_protocol l4_proto,
-		int (*create_skb6_fn)(struct tuple *, struct sk_buff **, u16 *, u16, u8),
-		int (*create_skb4_fn)(struct tuple *, struct sk_buff **, u16 *, u16, u8),
-		u16 expected_payload4_len, u16 *payload_array)
-{
-	struct xlation state = { .jool.global = config, .in.skb = NULL, .out.skb = NULL };
-	struct sk_buff *expected = NULL;
-	int error;
-	bool result = false;
-
-	error = init_tuple6(&state.in.tuple, "1::1", 50080, "64::192.0.2.5", 51234, L4PROTO_UDP);
-	if (error)
-		goto end;
-	error = create_skb6_fn(&state.in.tuple, &state.in.skb, payload_array, 4, 32);
-	if (error)
-		goto end;
-	error = pkt_init_ipv6(&state.in, state.in.skb);
-	if (error)
-		goto end;
-
-	error = init_tuple4(&state.out.tuple, "192.0.2.2", 80, "192.0.2.5", 1234, L4PROTO_UDP);
-	if (error)
-		goto end;
-	error = create_skb4_fn(&state.out.tuple, &expected, payload_array, expected_payload4_len, 31);
-	if (error)
-		goto end;
-
-	if (translating_the_packet(&state) != VERDICT_CONTINUE)
-		goto end;
-
-	result = compare_skbs(expected, state.out.skb);
-	if (!result)
-		goto end;
-
-	result = ASSERT_BE16(0xFFFFU, (__force __be16)pkt_udp_hdr(&state.out)->check, "checksum test");
-	/* Fall through. */
-
-end:
-	kfree_skb(state.in.skb);
-	kfree_skb(state.out.skb);
-	kfree_skb(expected);
-	return result;
-}
-
-static bool test_6to4_udp_custom_payload(void)
-{
-	u16 payload_array[] = {0, 0, 118, 172};
-
-	return test_6to4_custom_payload(L4PROTO_UDP, create_skb6_upd_custom_payload,
-			create_skb4_upd_custom_payload, 4, payload_array);
-}
-
-static bool test_6to4_udp(void)
-{
-	return test_6to4(L4PROTO_UDP, create_skb6_udp, create_skb4_udp, 100);
-}
-
-static bool test_6to4_tcp(void)
-{
-	return test_6to4(L4PROTO_TCP, create_skb6_tcp, create_skb4_tcp, 100);
-}
-
-static bool test_6to4_icmp_info(void)
-{
-	return test_6to4(L4PROTO_ICMP, create_skb6_icmp_info, create_skb4_icmp_info, 100);
-}
-
-static bool test_6to4_icmp_error(void)
-{
-	return test_6to4(L4PROTO_TCP, create_skb6_icmp_error, create_skb4_icmp_error, 80);
-}
-
 int init_module(void)
 {
 	START_TESTS("Translating the Packet");
 
 	if (config_init(&config))
 		return false;
-	config->cfg.atomic_frags.df_always_on = true;
-	config->cfg.atomic_frags.build_ipv4_id = false;
 
 	/* Misc single function tests */
 	CALL_TEST(test_function_has_unexpired_src_route(), "Unexpired source route querier");
@@ -659,25 +387,11 @@ int init_module(void)
 	CALL_TEST(test_function_icmp6_minimum_mtu(), "ICMP6 Minimum MTU function");
 	CALL_TEST(test_function_icmp4_to_icmp6_param_prob(), "Param problem function");
 
-	CALL_TEST(test_function_generate_ipv4_id_nofrag(), "Generate id function (no frag)");
+	CALL_TEST(test_function_generate_ipv4_id(), "Generate id function");
 	CALL_TEST(test_function_generate_df_flag(), "Generate DF flag function");
 	CALL_TEST(test_function_build_protocol_field(), "Build protocol function");
 	CALL_TEST(test_function_has_nonzero_segments_left(), "Segments left indicator function");
-	CALL_TEST(test_function_generate_ipv4_id_dofrag(), "Generate id function (frag)");
 	CALL_TEST(test_function_icmp4_minimum_mtu(), "ICMP4 Minimum MTU function");
-
-	/* Full packet translation tests */
-	CALL_TEST(test_4to6_udp(), "Full translation, 4->6 UDP");
-	CALL_TEST(test_4to6_tcp(), "Full translation, 4->6 TCP");
-	CALL_TEST(test_4to6_icmp_info(), "Full translation, 4->6 ICMP info");
-	CALL_TEST(test_4to6_icmp_error(), "Full translation, 4->6 ICMP error");
-
-	CALL_TEST(test_6to4_udp(), "Full translation, 6->4 UDP");
-	CALL_TEST(test_6to4_tcp(), "Full translation, 6->4 TCP");
-	CALL_TEST(test_6to4_icmp_info(), "Full translation, 6->4 ICMP info");
-	CALL_TEST(test_6to4_icmp_error(), "Full translation, 6->4 ICMP error");
-
-	CALL_TEST(test_6to4_udp_custom_payload(), "zero IPv4-UDP checksums, 6->4 UDP");
 
 	config_put(config);
 

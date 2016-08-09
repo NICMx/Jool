@@ -587,99 +587,6 @@ static const struct argp_option random_pool6791_opt = {
 		.group = 0,
 };
 
-static const struct argp_option deprecated_hdr_opt = {
-		.doc = "Deprecated options:",
-		.group = 7,
-};
-
-static const struct argp_option atomic_frags_opt = {
-		.name = OPTNAME_ALLOW_ATOMIC_FRAGS,
-		.key = ARGP_ATOMIC_FRAGMENTS,
-		.arg = BOOL_FORMAT,
-		.flags = 0,
-		.doc = "Allow atomic fragments?",
-		.group = 0,
-};
-
-static const struct argp_option df_always_on_opt = {
-		.name = OPTNAME_DF_ALWAYS_ON,
-		.key = ARGP_DF,
-		.arg = BOOL_FORMAT,
-		.flags = 0,
-		.doc = "Always set Don't Fragment?",
-		.group = 0,
-};
-
-static const struct argp_option generate_fh_opt = {
-		.name = OPTNAME_GENERATE_FH,
-		.key = ARGP_BUILD_FH,
-		.arg = BOOL_FORMAT,
-		.flags = 0,
-		.doc = "Also include IPv6 Fragment Header when IPv4 Packet DF "
-				"Flag is not set?",
-		.group = 0,
-};
-
-static const struct argp_option generate_id_opt = {
-		.name = OPTNAME_GENERATE_ID4,
-		.key = ARGP_BUILD_ID,
-		.arg = BOOL_FORMAT,
-		.flags = 0,
-		.doc = "Generate IPv4 identification?",
-		.group = 0,
-};
-
-static const struct argp_option fix_illegal_mtus_opt = {
-		.name = OPTNAME_FIX_ILLEGAL_MTUS,
-		.key = ARGP_LOWER_MTU_FAIL,
-		.arg = BOOL_FORMAT,
-		.flags = 0,
-		.doc = "Decrease MTU failure rate?",
-		.group = 0,
-};
-
-static const struct argp_option prefix_opt = {
-		.name = "prefix",
-		.key = ARGP_PREFIX,
-		.arg = PREFIX6_FORMAT,
-		.flags = 0,
-		.doc = "Prefix to be added to or removed from the IPv6 pool. "
-				"You no longer need to name this.",
-		.group = 0,
-};
-
-static const struct argp_option address_opt = {
-		.name = "address",
-		.key = ARGP_ADDRESS,
-		.arg = PREFIX4_FORMAT,
-		.flags = 0,
-		.doc = "Address to be added to or removed from the IPv4 pool. "
-				"You no longer need to name this.",
-		.group = 0,
-};
-
-static const struct argp_option bib6_opt = {
-		.name = "bib6",
-		.key = ARGP_BIB_IPV6,
-		.arg = TRANSPORT6_FORMAT,
-		.flags = 0,
-		.doc = "This is the addres#port of the remote IPv6 node of "
-				"the entry to be added or removed. "
-				"You no longer need to name this.",
-		.group = 0,
-};
-
-static const struct argp_option bib4_opt = {
-		.name = "bib4",
-		.key = ARGP_BIB_IPV4,
-		.arg = TRANSPORT4_FORMAT,
-		.flags = 0,
-		.doc = "This is the local IPv4 addres#port of the entry to be "
-				"added or removed. "
-				"You no longer need to name this.",
-		.group = 0,
-};
-
 static const struct argp_option parse_file_opt = {
 		.name = "file",
 		.key = ARGP_PARSE_FILE,
@@ -791,13 +698,6 @@ static const struct argp_option *opts_siit[] = {
 	&hairpin_mode_opt,
 	&random_pool6791_opt,
 	&rfc6791v6_prefix_opt,
-
-	&deprecated_hdr_opt,
-	&atomic_frags_opt,
-	&df_always_on_opt,
-	&generate_fh_opt,
-	&generate_id_opt,
-	&fix_illegal_mtus_opt,
 };
 
 static const struct argp_option *opts_nat64[] = {
@@ -869,16 +769,6 @@ static const struct argp_option *opts_nat64[] = {
 	&logging_bib_opt,
 	&logging_session_opt,
 
-	&deprecated_hdr_opt,
-	&atomic_frags_opt,
-	&df_always_on_opt,
-	&generate_fh_opt,
-	&generate_id_opt,
-	&fix_illegal_mtus_opt,
-	&prefix_opt,
-	&address_opt,
-	&bib6_opt,
-	&bib4_opt,
 	&synch_enable_opt,
 	&synch_disable_opt,
 	&synch_flush_asap_opt,

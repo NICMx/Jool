@@ -3,12 +3,8 @@
 
 /**
  * @file
- * Elements visible to both the kernel module and the userspace application, and which they use to
- * communicate with each other.
- *
- * If you see a "__u8", keep in mind it might be intended as a boolean. sizeof(bool) is
- * implementation defined, which is unacceptable because these structures define a communication
- * protocol.
+ * Elements visible to both the kernel module and the userspace application, and
+ * which they use to communicate with each other.
  */
 
 #include "nat64/common/types.h"
@@ -21,6 +17,9 @@
 		#include <time.h>
 	#endif
 #endif
+
+/** cuz sizeof(bool) is implementation-defined. */
+typedef __u8 config_bool;
 
 #define GNL_JOOL_FAMILY_NAME (xlat_is_siit() ? "SIIT_Jool" : "NAT64_Jool")
 #define GNL_JOOLD_MULTICAST_GRP_NAME "joold"
@@ -46,13 +45,13 @@ enum config_mode {
 	MODE_POOL6 = (1 << 1),
 	/** The current message is talking about the IPv4 pool. */
 	MODE_POOL4 = (1 << 2),
-	/** The current message is talking about the blacklisted addresses pool. */
+	/** The current message is talking about the blacklisted addr pool. */
 	MODE_BLACKLIST = (1 << 8),
 	/** The current message is talking about the RFC6791 pool. */
 	MODE_RFC6791 = (1 << 7),
 	/** The current message is talking about the EAMT. */
 	MODE_EAMT = (1 << 6),
-	/** The current message is talking about the Binding Information Bases. */
+	/** The current message is talking about the Binding Info Bases. */
 	MODE_BIB = (1 << 3),
 	/** The current message is talking about the session tables. */
 	MODE_SESSION = (1 << 4),
@@ -92,13 +91,22 @@ enum config_mode {
 enum config_operation {
 	/** The userspace app wants to print the stuff being requested. */
 	OP_DISPLAY = (1 << 0),
-	/** The userspace app wants to print the number of records in the table being requested. */
+	/**
+	 * The userspace app wants to print the number of records in the table
+	 * being requested.
+	 */
 	OP_COUNT = (1 << 1),
-	/** The userspace app wants to add an element to the table being requested. */
+	/**
+	 * The userspace app wants to add an element to the table being
+	 * requested.
+	 */
 	OP_ADD = (1 << 2),
 	/** The userspace app wants to edit some value. */
 	OP_UPDATE = (1 << 3),
-	/** The userspace app wants to delete an element from the table being requested. */
+	/**
+	 * The userspace app wants to delete an element from the table being
+	 * requested.
+	 */
 	OP_REMOVE = (1 << 4),
 	/** The userspace app wants to clear some table. */
 	OP_FLUSH = (1 << 5),
@@ -106,7 +114,7 @@ enum config_operation {
 	OP_ADVERTISE = (1 << 6),
 	/** The userspace app wants to test something. */
 	OP_TEST = (1 << 7),
-	/** Somebody is acknowledging a previous message. */
+	/** Somebody is acknowledging reception of a previous message. */
 	OP_ACK = (1 << 8),
 };
 
@@ -189,7 +197,7 @@ int validate_request(void *data, size_t data_len, char *sender, char *receiver,
 struct response_hdr {
 	struct request_hdr req;
 	__u16 error_code;
-	__u8 pending_data;
+	config_bool pending_data;
 };
 
 /**
@@ -197,7 +205,7 @@ struct response_hdr {
  */
 union request_pool6 {
 	/** This is only relevant in display operations. */
-	__u8 prefix_set;
+	config_bool prefix_set;
 	/** The prefix the user wants to display/add/update/remove from. */
 	struct ipv6_prefix prefix;
 };
@@ -214,7 +222,7 @@ struct pool4_entry_usr {
 union request_pool4 {
 	struct {
 		__u8 proto;
-		__u8 offset_set;
+		config_bool offset_set;
 		struct pool4_sample offset;
 	} display;
 	struct {
@@ -222,25 +230,31 @@ union request_pool4 {
 	} add;
 	struct {
 		struct pool4_entry_usr entry;
-		/* Whether the address's BIB entries and sessions should be cleared too (false) or not (true). */
-		__u8 quick;
+		/**
+		 * Whether the address's BIB entries and sessions should be
+		 * cleared too (false) or not (true).
+		 */
+		config_bool quick;
 	} rm;
 	struct {
-		/* Whether the BIB and the sessions tables should also be cleared (false) or not (true). */
-		__u8 quick;
+		/**
+		 * Whether the BIB and the sessions tables should also be
+		 * cleared (false) or not (true).
+		 */
+		config_bool quick;
 	} flush;
 };
 
 union request_pool {
 	struct {
-		__u8 offset_set;
+		config_bool offset_set;
 		struct ipv4_prefix offset;
 	} display;
 	struct {
 		/** The addresses the user wants to add to the pool. */
 		struct ipv4_prefix addrs;
 		/** Add @addrs even if it contains subnet-scoped addresses? */
-		bool force;
+		config_bool force;
 	} add;
 	struct {
 		/** The addresses the user wants to remove from the pool. */
@@ -256,7 +270,7 @@ union request_pool {
  */
 union request_eamt {
 	struct {
-		__u8 prefix4_set;
+		config_bool prefix4_set;
 		struct ipv4_prefix prefix4;
 	} display;
 	struct {
@@ -265,13 +279,12 @@ union request_eamt {
 	struct {
 		struct ipv6_prefix prefix6;
 		struct ipv4_prefix prefix4;
-		/* TODO (usr) this might have been moved over to the userspace app. */
-		__u8 force;
+		config_bool force;
 	} add;
 	struct {
-		__u8 prefix6_set;
+		config_bool prefix6_set;
 		struct ipv6_prefix prefix6;
-		__u8 prefix4_set;
+		config_bool prefix4_set;
 		struct ipv4_prefix prefix4;
 	} rm;
 	struct {
@@ -287,8 +300,11 @@ struct request_logtime {
 	__u8 l4_proto;
 	union {
 		struct {
-			/** If this is false, this is the first chunk the app is requesting. (boolean) */
-			__u8 iterate;
+			/**
+			 * If this is false, this is the first chunk the app is
+			 * requesting.
+			 */
+			config_bool iterate;
 		} display;
 	};
 };
@@ -297,14 +313,17 @@ struct request_logtime {
  * Configuration for the "BIB" module.
  */
 struct request_bib {
-	/** Table the userspace app wants to display or edit. See enum l4_protocol. */
+	/**
+	 * Table the userspace app wants to display or edit. See enum
+	 * l4_protocol.
+	 */
 	__u8 l4_proto;
 	union {
 		struct {
-			__u8 addr4_set;
+			config_bool addr4_set;
 			/**
-			 * Address the userspace app received in the last chunk. Iteration should contiue
-			 * from here.
+			 * Address the userspace app received in the last chunk.
+			 * Iteration should contiue from here.
 			 */
 			struct ipv4_transport_addr addr4;
 		} display;
@@ -312,19 +331,31 @@ struct request_bib {
 			/* Nothing needed here. */
 		} count;
 		struct {
-			/** The IPv6 transport address of the entry the user wants to add. */
+			/**
+			 * The IPv6 transport address of the entry the user
+			 * wants to add.
+			 */
 			struct ipv6_transport_addr addr6;
-			/** The IPv4 transport address of the entry the user wants to add. */
+			/**
+			 * The IPv4 transport address of the entry the user
+			 * wants to add.
+			 */
 			struct ipv4_transport_addr addr4;
 		} add;
 		struct {
-			/* Is the value if "addr6" set? (boolean) */
-			__u8 addr6_set;
-			/** The IPv6 transport address of the entry the user wants to remove. */
+			/* Is the value if "addr6" set? */
+			config_bool addr6_set;
+			/**
+			 * The IPv6 transport address of the entry the user
+			 * wants to remove.
+			 */
 			struct ipv6_transport_addr addr6;
-			/* Is the value if "addr4" set? (boolean) */
-			__u8 addr4_set;
-			/** The IPv4 transport address of the entry the user wants to remove. */
+			/* Is the value if "addr4" set? */
+			config_bool addr4_set;
+			/**
+			 * The IPv4 transport address of the entry the user
+			 * wants to remove.
+			 */
 			struct ipv4_transport_addr addr4;
 		} rm;
 	};
@@ -339,7 +370,7 @@ struct request_session {
 	union {
 		struct {
 			/** Is offset set? */
-			__u8 offset_set;
+			config_bool offset_set;
 			/**
 			 * Connection the userspace app received in the last
 			 * chunk. Iteration should continue from here.
@@ -363,11 +394,6 @@ enum global_type {
 	RESET_TCLASS,
 	RESET_TOS,
 	NEW_TOS,
-	ATOMIC_FRAGMENTS,
-	DF_ALWAYS_ON,
-	BUILD_IPV6_FH,
-	BUILD_IPV4_ID,
-	LOWER_MTU_FAIL,
 	MTU_PLATEAUS,
 
 	/* SIIT */
@@ -403,8 +429,9 @@ enum global_type {
 /**
  * A logtime node entry, from the eyes of userspace.
  *
- * It holds the "struct timespec" which include seconds and nanoseconds, that specific how time
- * the skb need to be translated to IPv6 -> IPv4 or IPv4 -> IPv6.
+ * It holds the "struct timespec" which include seconds and nanoseconds, that
+ * specific how time the skb need to be translated to IPv6 -> IPv4 or
+ * IPv4 -> IPv6.
  */
 struct logtime_entry_usr {
 	struct timespec time;
@@ -415,8 +442,8 @@ struct logtime_entry_usr {
 /**
  * A BIB entry, from the eyes of userspace.
  *
- * It's a stripped version of "struct bib_entry" and only used when BIB entries need to travel to
- * userspace. For anything else, use "struct bib_entry".
+ * It's a stripped version of "struct bib_entry" and only used when BIB entries
+ * need to travel to userspace. For anything else, use "struct bib_entry".
  *
  * See "struct bib_entry" for documentation on the fields.
  */
@@ -424,14 +451,14 @@ struct bib_entry_usr {
 	struct ipv4_transport_addr addr4;
 	struct ipv6_transport_addr addr6;
 	__u8 l4_proto;
-	__u8 is_static;
+	config_bool is_static;
 };
 
 /**
  * A session entry, from the eyes of userspace.
  *
- * It's a stripped version of "struct session_entry" and only used when sessions need to travel to
- * userspace. For anything else, use "struct session_entry".
+ * It's a stripped version of "struct session_entry" and only used when sessions
+ * need to travel to userspace. For anything else, use "struct session_entry".
  *
  * See "struct session_entry" for documentation on the fields.
  */
@@ -471,71 +498,32 @@ struct global_config_usr {
 	 * Is Jool actually translating?
 	 * This depends on several factors depending on stateness, and is not an
 	 * actual variable Jool stores; it is computed as it is requested.
-	 * Boolean.
 	 */
-	__u8 status;
+	config_bool status;
 	/**
 	 * Does the user wants this Jool instance to translate packets?
-	 * Boolean.
 	 */
-	__u8 enabled;
+	config_bool enabled;
 
 	/**
 	 * "true" if the Traffic Class field of translated IPv6 headers should
 	 * always be zeroized.
 	 * Otherwise it will be copied from the IPv4 header's TOS field.
-	 * Boolean.
 	 */
-	__u8 reset_traffic_class;
+	config_bool reset_traffic_class;
 	/**
 	 * "true" if the Type of Service (TOS) field of translated IPv4 headers
 	 * should always be set as "new_tos".
 	 * Otherwise it will be copied from the IPv6 header's Traffic Class
 	 * field.
-	 * Boolean.
 	 */
-	__u8 reset_tos;
+	config_bool reset_tos;
 	/**
 	 * If "reset_tos" is "true", this is the value the translator will
 	 * always write in the TOS field of translated IPv4 headers.
 	 * If "reset_tos" is "false", then this doesn't do anything.
 	 */
 	__u8 new_tos;
-
-	struct {
-		/**
-		 * If "true", the translator will always set translated IPv4
-		 * headers' Don't Fragment (DF) flags as one.
-		 * Otherwise the value of the flag will depend on the packet's
-		 * length.
-		 * Boolean.
-		 */
-		__u8 df_always_on;
-		/**
-		 * If the incoming IPv4 packet is a fragment, Jool will include
-		 * a fragment header in the translated IPv6 packet.
-		 * If this is "true", Jool will also include a Fragment Header
-		 * if DF is false.
-		 * Boolean.
-		 */
-		__u8 build_ipv6_fh;
-		/**
-		 * Whether translated IPv4 headers' Identification fields should
-		 * be computed (Either from the IPv6 fragment header's
-		 * Identification field or deduced from the packet's length).
-		 * Otherwise it will always be set as zero.
-		 * Boolean.
-		 */
-		__u8 build_ipv4_id;
-		/**
-		 * "true" if the value for MTU fields of outgoing ICMPv6
-		 * fragmentation needed packets should be set as no less than
-		 * 1280, regardless of MTU plateaus and whatnot.
-		 * See RFC 6145 section 6, second approach.
-		 * Boolean.
-		 */
-		__u8 lower_mtu_fail;
-	} atomic_frags;
 
 	/**
 	 * If the translator detects the source of the incoming packet does not
@@ -554,17 +542,15 @@ struct global_config_usr {
 			 * Amend the UDP checksum of incoming IPv4-UDP packets
 			 * when it's zero? Otherwise these packets will be
 			 * dropped (because they're illegal in IPv6).
-			 * Boolean.
 			 */
-			__u8 compute_udp_csum_zero;
+			config_bool compute_udp_csum_zero;
 			/**
 			 * Randomize choice of RFC6791 address?
 			 * Otherwise it will be set depending on the incoming
 			 * packet's Hop Limit.
 			 * See https://github.com/NICMx/Jool/issues/130.
-			 * Boolean.
 			 */
-			__u8 randomize_error_addresses;
+			config_bool randomize_error_addresses;
 			/**
 			 * How should hairpinning be handled by EAM-translated
 			 * packets.
@@ -577,7 +563,7 @@ struct global_config_usr {
 			 * attribute has been set. If this flag is true then
 			 * the value of rfc6791_v6_prefix is going to be used
 			 */
-			__u8 use_rfc6791_v6;
+			config_bool use_rfc6791_v6;
 			/**
 			 * Address used to represent a not translatable source
 			 * address of an incoming packet.
@@ -586,15 +572,14 @@ struct global_config_usr {
 
 		} siit;
 		struct {
-			/** Filter ICMPv6 Informational packets? (boolean) */
-			__u8 drop_icmp6_info;
+			/** Filter ICMPv6 Informational packets? */
+			config_bool drop_icmp6_info;
 
 			/**
 			 * True = issue #132 behaviour.
 			 * False = RFC 6146 behaviour.
-			 * (boolean)
 			 */
-			__u8 src_icmp6errs_better;
+			config_bool src_icmp6errs_better;
 			/**
 			 * Fields of the packet that will be sent to the F() function.
 			 * (RFC 6056 algorithm 3.)
@@ -613,16 +598,13 @@ struct bib_config {
 		__u64 icmp;
 	} ttl;
 
-	__u8 bib_logging;
-	__u8 session_logging;
+	config_bool bib_logging;
+	config_bool session_logging;
 
-	/** Use Address-Dependent Filtering? (boolean) */
-	__u8 drop_by_addr;
-	/**
-	 * Drop externally initiated (IPv4) TCP connections?
-	 * (boolean)
-	 */
-	__u8 drop_external_tcp;
+	/** Use Address-Dependent Filtering? */
+	config_bool drop_by_addr;
+	/** Drop externally initiated (IPv4) TCP connections? */
+	config_bool drop_external_tcp;
 
 	__u32 max_stored_pkts;
 };
@@ -632,11 +614,10 @@ struct bib_config {
 #define JOOLD_MAX_PAYLOAD 2048
 
 struct joold_config {
-	/** Is joold enabled on this Jool instance? Boolean. */
-	__u8 enabled;
+	/** Is joold enabled on this Jool instance? */
+	config_bool enabled;
 
 	/**
-	 * Boolean.
 	 * true:  Whenever a session changes, packet it up and send it.
 	 *        (Note: In theory, this might be more often than it seems.
 	 *        It's not whenever a connection is initiated;
@@ -650,7 +631,7 @@ struct joold_config {
 	 *        (ACKs are still required, but expected to arrive faster.)
 	 *        This is the preferred method in passive scenarios.
 	 */
-	__u8 flush_asap;
+	config_bool flush_asap;
 
 	/**
 	 * The timer forcibly flushes the queue if this hasn't happened after

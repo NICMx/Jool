@@ -29,6 +29,11 @@ int pktqueue_add(struct pktqueue *queue, struct packet *pkt,
 	return broken_unit_call(__func__);
 }
 
+void pktqueue_rm(struct pktqueue *queue, struct ipv4_transport_addr *src4)
+{
+	/* No code. */
+}
+
 struct pktqueue_session *pktqueue_find(struct pktqueue *queue,
 		struct ipv6_transport_addr *addr,
 		struct mask_domain *masks)

@@ -112,7 +112,14 @@ static int get_host_address(struct xlation *state, __be32 *result)
 	__be32 saddr;
 	__be32 daddr;
 
-	/* TODO (final) what happens if the packet hairpins? */
+	/*
+	 * TODO (warning) if the ICMP error hairpins, this route4 fails so
+	 * translation is not done.
+	 *
+	 * I'm a little stuck on how to fix it. If I assign any address, will
+	 * that enhance an attacker's ability to ICMP spoof a connection?
+	 * Read RFC 5927 and figure it out.
+	 */
 
 	dst = route4(state->jool.ns, &state->out);
 	if (!dst)
@@ -122,8 +129,8 @@ static int get_host_address(struct xlation *state, __be32 *result)
 	saddr = inet_select_addr(dst->dev, daddr, RT_SCOPE_LINK);
 
 	if (!saddr) {
-		log_warn_once("Can't find a sufficiently scoped primary source "
-				"address to reach %pI4.", &daddr);
+		log_warn_once("Can't find a proper src address to reach %pI4.",
+				&daddr);
 		return -EINVAL;
 	}
 

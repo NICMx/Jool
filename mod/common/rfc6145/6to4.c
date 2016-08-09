@@ -139,18 +139,21 @@ static __be16 build_tot_len(struct packet *in, struct packet *out)
 
 /**
  * One-liner for creating the IPv4 header's Identification field.
- * It assumes that the packet will not contain a fragment header.
  */
-static __be16 generate_ipv4_id_nofrag(struct packet *out)
+static __be16 generate_ipv4_id(struct frag_hdr *hdr_frag)
 {
 	__be16 random;
 
-	if (pkt_len(out) <= 1260) {
-		get_random_bytes(&random, 2);
-		return random;
-	}
+	/*
+	 * get_random_bytes() is a little slow; we don't want to call it
+	 * pointlessly.
+	 * That's the reason why we consider fragmentation prematurely.
+	 */
+	if (hdr_frag)
+		return cpu_to_be16(be32_to_cpu(hdr_frag->identification));
 
-	return 0; /* Because the DF flag will be set. */
+	get_random_bytes(&random, 2);
+	return random;
 }
 
 /**
@@ -286,15 +289,6 @@ static bool has_nonzero_segments_left(struct ipv6hdr *hdr6, __u32 *location)
 }
 
 /**
- * One-liner for creating the IPv4 header's Identification field.
- * It assumes that the packet will contain a fragment header.
- */
-static __be16 generate_ipv4_id_dofrag(struct frag_hdr *hdr_frag)
-{
-	return cpu_to_be16(be32_to_cpu(hdr_frag->identification));
-}
-
-/**
  * Translates @state->in's IPv6 header into @state->out's IPv4 header.
  * This is RFC 6145 sections 5.1 and 5.1.1.
  *
@@ -306,10 +300,8 @@ verdict ttp64_ipv4(struct xlation *state)
 	struct packet *out = &state->out;
 	struct ipv6hdr *hdr6 = pkt_ip6_hdr(in);
 	struct iphdr *hdr4 = pkt_ip4_hdr(out);
-	struct frag_hdr *hdr_frag;
+	struct frag_hdr *hdr_frag = pkt_frag_hdr(in);
 	verdict result;
-
-	__u8 dont_fragment;
 
 	/*
 	 * translate_addrs64_siit->rfc6791_get->get_host_address needs tos
@@ -331,11 +323,8 @@ verdict ttp64_ipv4(struct xlation *state)
 	hdr4->version = 4;
 	hdr4->ihl = 5;
 	hdr4->tot_len = build_tot_len(in, out);
-	hdr4->id = state->jool.global->cfg.atomic_frags.build_ipv4_id
-			? generate_ipv4_id_nofrag(out) : 0;
-	dont_fragment = state->jool.global->cfg.atomic_frags.df_always_on
-			? 1 : generate_df_flag(out);
-	hdr4->frag_off = build_ipv4_frag_off_field(dont_fragment, 0, 0);
+	hdr4->id = generate_ipv4_id(hdr_frag);
+	hdr4->frag_off = build_ipv4_frag_off_field(generate_df_flag(out), 0, 0);
 	if (pkt_is_outer(in)) {
 		if (hdr6->hop_limit <= 1) {
 			icmp64_send(in, ICMPERR_HOP_LIMIT, 0);
@@ -358,14 +347,14 @@ verdict ttp64_ipv4(struct xlation *state)
 		}
 	}
 
-	hdr_frag = pkt_frag_hdr(in);
 	if (hdr_frag) {
-		/* hdr4->tot_len above already includes the frag header. */
-		hdr4->id = generate_ipv4_id_dofrag(hdr_frag);
+		/*
+		 * hdr4->tot_len, id and protocal above already include the
+		 * frag header and don't need further tweaking.
+		 */
 		hdr4->frag_off = build_ipv4_frag_off_field(0,
 				is_mf_set_ipv6(hdr_frag),
 				get_fragment_offset_ipv6(hdr_frag));
-		/* protocol also doesn't need tweaking. */
 	}
 
 	hdr4->check = 0;

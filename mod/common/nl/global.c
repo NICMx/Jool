@@ -228,7 +228,6 @@ static int handle_global_display(struct xlator *jool, struct genl_info *info)
 static int massive_switch(struct full_config *cfg, struct global_value *chunk,
 		size_t size)
 {
-	__u8 tmp8;
 	int error;
 
 	if (!ensure_bytes(size, chunk->len))
@@ -249,23 +248,6 @@ static int massive_switch(struct full_config *cfg, struct global_value *chunk,
 		return parse_bool(&cfg->global.reset_tos, chunk, size);
 	case NEW_TOS:
 		return parse_u8(&cfg->global.new_tos, chunk, size);
-	case ATOMIC_FRAGMENTS:
-		error = parse_bool(&tmp8, chunk, size);
-		if (error)
-			return error;
-		cfg->global.atomic_frags.df_always_on = tmp8;
-		cfg->global.atomic_frags.build_ipv6_fh = tmp8;
-		cfg->global.atomic_frags.build_ipv4_id = !tmp8;
-		cfg->global.atomic_frags.lower_mtu_fail = !tmp8;
-		return 0;
-	case DF_ALWAYS_ON:
-		return parse_bool(&cfg->global.atomic_frags.df_always_on, chunk, size);
-	case BUILD_IPV6_FH:
-		return parse_bool(&cfg->global.atomic_frags.build_ipv6_fh, chunk, size);
-	case BUILD_IPV4_ID:
-		return parse_bool(&cfg->global.atomic_frags.build_ipv4_id, chunk, size);
-	case LOWER_MTU_FAIL:
-		return parse_bool(&cfg->global.atomic_frags.lower_mtu_fail, chunk, size);
 	case MTU_PLATEAUS:
 		return update_plateaus(&cfg->global, chunk, size);
 	case COMPUTE_UDP_CSUM_ZERO:

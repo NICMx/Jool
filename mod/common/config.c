@@ -28,11 +28,6 @@ int config_init(struct global_config **result)
 	config->reset_tos = DEFAULT_RESET_TOS;
 	config->new_tos = DEFAULT_NEW_TOS;
 
-	config->atomic_frags.df_always_on = DEFAULT_DF_ALWAYS_ON;
-	config->atomic_frags.build_ipv6_fh = DEFAULT_BUILD_IPV6_FH;
-	config->atomic_frags.build_ipv4_id = DEFAULT_BUILD_IPV4_ID;
-	config->atomic_frags.lower_mtu_fail = DEFAULT_LOWER_MTU_FAIL;
-
 	if (xlat_is_siit()) {
 		config->siit.compute_udp_csum_zero = DEFAULT_COMPUTE_UDP_CSUM0;
 		config->siit.eam_hairpin_mode = DEFAULT_EAM_HAIRPIN_MODE;

@@ -12,13 +12,6 @@
 #define OPTNAME_TOS			"tos"
 #define OPTNAME_MTU_PLATEAUS		"mtu-plateaus"
 
-/* Atomic fragment flags (deprecated) */
-#define OPTNAME_ALLOW_ATOMIC_FRAGS	"allow-atomic-fragments"
-#define OPTNAME_DF_ALWAYS_ON		"setDF"
-#define OPTNAME_GENERATE_FH		"genFH"
-#define OPTNAME_GENERATE_ID4		"genID"
-#define OPTNAME_FIX_ILLEGAL_MTUS	"boostMTU"
-
 /* SIIT-only flags */
 #define OPTNAME_AMEND_UDP_CSUM		"amend-udp-checksum-zero"
 #define OPTNAME_EAM_HAIRPIN_MODE	"eam-hairpin-mode"
@@ -39,7 +32,6 @@
 #define OPTNAME_F_ARGS			"f-args"
 #define OPTNAME_BIB_LOGGING		"logging-bib"
 #define OPTNAME_SESSION_LOGGING		"logging-session"
-
 
 /* Synchronization flags */
 #define OPTNAME_SYNCH_ENABLE		"synch-enable"

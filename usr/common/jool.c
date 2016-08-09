@@ -477,11 +477,6 @@ static int parse_opt(int key, char *str, struct argp_state *state)
 		break;
 	case ARGP_RESET_TCLASS:
 	case ARGP_RESET_TOS:
-	case ARGP_ATOMIC_FRAGMENTS:
-	case ARGP_DF:
-	case ARGP_BUILD_FH:
-	case ARGP_BUILD_ID:
-	case ARGP_LOWER_MTU_FAIL:
 	case ARGP_COMPUTE_CSUM_ZERO:
 	case ARGP_RANDOMIZE_RFC6791:
 	case ARGP_DROP_ADDR:

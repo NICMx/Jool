@@ -106,7 +106,7 @@ static int compare_session_foreach_cb(struct session_entry *session, void *arg)
 	return success ? 1 : -EINVAL;
 }
 
-static bool session_exists(struct session_entry *session)
+static int session_exists(struct session_entry *session)
 {
 	struct session_foreach_func func = {
 			.cb = compare_session_foreach_cb,
@@ -145,7 +145,7 @@ static bool assert_session_exists(char *src6_addr, u16 src6_port,
 	expected.state = state;
 	expected.timer_type = timer_type;
 	expected.update_time = 0;
-	expected.timeout = timeout;
+	expected.timeout = msecs_to_jiffies(timeout * 1000);
 	expected.has_stored = false;
 
 	result = session_exists(&expected);

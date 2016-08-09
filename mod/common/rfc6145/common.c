@@ -83,24 +83,9 @@ int copy_payload(struct xlation *state)
 	return error;
 }
 
-static bool build_ipv6_frag_hdr(struct xlation *state)
-{
-	if (is_df_set(pkt_ip4_hdr(&state->in)))
-		return false;
-
-	return state->jool.global->cfg.atomic_frags.build_ipv6_fh;
-}
-
 bool will_need_frag_hdr(struct xlation *state)
 {
-	/*
-	 * Note, build_ipv6_frag_hdr(in_hdr) should remain disabled.
-	 * See https://www.jool.mx/en/usr-flags-atomic.html
-	 * (if that's down, try doc/usr/usr-flags-atomic.md in Jool's source.)
-	 */
-	return build_ipv6_frag_hdr(state)
-			|| is_mf_set_ipv4(pkt_ip4_hdr(&state->in))
-			|| get_fragment_offset_ipv4(pkt_ip4_hdr(&state->in));
+	return get_fragment_offset_ipv4(pkt_ip4_hdr(&state->in));
 }
 
 static int move_pointers_in(struct packet *pkt, __u8 protocol,

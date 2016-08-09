@@ -375,7 +375,6 @@ static __be32 icmp6_minimum_mtu(struct xlation *state,
 		unsigned int nexthop4_mtu,
 		__u16 tot_len_field)
 {
-	bool lower_mtu_fail;
 	__u32 result;
 
 	if (packet_mtu == 0) {
@@ -396,21 +395,10 @@ static __be32 icmp6_minimum_mtu(struct xlation *state,
 		}
 	}
 
-	packet_mtu += 20;
-	nexthop4_mtu += 20;
-
-	/* Core comparison to find the minimum value. */
-	result = min(packet_mtu, min(nexthop6_mtu, nexthop4_mtu));
-
-	lower_mtu_fail = state->jool.global->cfg.atomic_frags.lower_mtu_fail;
-	if (lower_mtu_fail && result < IPV6_MIN_MTU) {
-		/*
-		 * Probably some router does not implement RFC 4890, section
-		 * 4.3.1. Gotta override and hope for the best.
-		 * See RFC 6145 section 6, second approach.
-		 */
+	/* Here's the core comparison. */
+	result = min(packet_mtu + 20, min(nexthop6_mtu, nexthop4_mtu + 20));
+	if (result < IPV6_MIN_MTU)
 		result = IPV6_MIN_MTU;
-	}
 
 	return cpu_to_be32(result);
 }

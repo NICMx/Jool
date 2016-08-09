@@ -328,10 +328,12 @@ static void init_table(struct bib_table *table,
 	table->bib_count = 0;
 	table->session_count = 0;
 	spin_lock_init(&table->lock);
-	init_expirer(&table->est_timer, est_timeout, true, est_cb);
+	init_expirer(&table->est_timer, est_timeout, SESSION_TIMER_EST, est_cb);
 
-	init_expirer(&table->trans_timer, trans_timeout, false, just_die);
-	init_expirer(&table->syn4_timer, TCP_INCOMING_SYN, false, just_die);
+	init_expirer(&table->trans_timer, trans_timeout, SESSION_TIMER_TRANS,
+			just_die);
+	init_expirer(&table->syn4_timer, TCP_INCOMING_SYN, SESSION_TIMER_SYN4,
+			just_die);
 	table->pkt_count = 0;
 	table->pkt_limit = 0;
 	table->drop_v4_syn = DEFAULT_DROP_EXTERNAL_CONNECTIONS;
