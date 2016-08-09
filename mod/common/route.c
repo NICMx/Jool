@@ -1,6 +1,7 @@
 #include "nat64/mod/common/route.h"
 
 #include <linux/icmp.h>
+#include <linux/version.h>
 #include <net/ip6_route.h>
 #include <net/route.h>
 
@@ -128,7 +129,14 @@ struct dst_entry *route6(struct packet *pkt)
 	/* flow->flowi6_oif; */
 	/* flow->flowi6_iif; */
 	flow.flowi6_mark = pkt->skb->mark;
+	/*
+	 * BTW: They removed this because nobody was using it.
+	 * https://github.com/torvalds/linux/commit/69716a2b51aeb68fe295c0d09e26c8781eacebde
+	 * Perhaps we don't gain anything from it either.
+	 */
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 6, 0)
 	flow.flowi6_tos = get_traffic_class(hdr_ip);
+#endif
 	flow.flowi6_scope = RT_SCOPE_UNIVERSE;
 	flow.flowi6_proto = iterator.hdr_type;
 	flow.flowi6_flags = 0;

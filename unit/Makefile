@@ -192,6 +192,7 @@ $(PALLOC)-objs += port_allocator_test.o
 all:
 	make -C ${KERNEL_DIR} M=$$PWD;
 test:
+	sudo dmesg -C
 	-sudo insmod $(ADDR).ko && sudo rmmod $(ADDR)
 	-sudo insmod $(ITERATOR).ko && sudo rmmod $(ITERATOR)
 	-sudo insmod $(HASHTABLE).ko && sudo rmmod $(HASHTABLE)
@@ -207,6 +208,7 @@ test:
 	-sudo insmod $(CONFIG_PROTO).ko && sudo rmmod $(CONFIG_PROTO)
 	#-sudo insmod $(LOGTIME).ko && sudo rmmod $(LOGTIME)
 	-sudo insmod $(EAMT).ko && sudo rmmod $(EAMT)
+	-sudo insmod $(PALLOC).ko && sudo rmmod $(PALLOC)
 	dmesg | grep 'Finished.'
 modules:
 	make -C ${KERNEL_DIR} M=$$PWD $@;
