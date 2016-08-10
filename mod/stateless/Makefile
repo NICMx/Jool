@@ -27,3 +27,7 @@ insert:
 remove:
 	-sudo rmmod jool_siit.ko
 	dmesg | tail -1
+again:
+	sudo rmmod jool_siit
+	make
+	sudo insmod jool_siit.ko disabled

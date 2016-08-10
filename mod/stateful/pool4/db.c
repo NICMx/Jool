@@ -56,6 +56,18 @@ struct mask_domain {
 	struct pool4_range *current_range;
 	int current_port;
 
+	/**
+	 * A "dynamic" domain is one that was generated on the fly - that is,
+	 * Jool queried the interface addresses, picked one and used it to
+	 * improvise a domain.
+	 *
+	 * A "static" domain is one the user predefined.
+	 *
+	 * Empty pool4 generates dynamic domains and populated ones generate
+	 * static domains.
+	 */
+	bool dynamic;
+
 	/*
 	 * An array of struct pool4_range hangs off here.
 	 * (The array length is @sample_count.)
@@ -851,6 +863,7 @@ static struct mask_domain *find_empty(struct route4_args *args,
 	masks->range_count = 1;
 	masks->current_range = range;
 	masks->current_port = range->ports.min + offset % masks->taddr_count;
+	masks->dynamic = true;
 	return masks;
 }
 
@@ -891,6 +904,7 @@ struct mask_domain *mask_domain_find(struct pool4 *pool, struct tuple *tuple6,
 	spin_unlock_bh(&pool->lock);
 
 	masks->taddr_counter = 0;
+	masks->dynamic = false;
 	offset %= masks->taddr_count;
 
 	foreach_domain_range(entry, masks) {
@@ -953,4 +967,9 @@ bool mask_domain_matches(struct mask_domain *masks,
 	}
 
 	return false;
+}
+
+bool mask_domain_is_dynamic(struct mask_domain *masks)
+{
+	return masks->dynamic;
 }

@@ -91,7 +91,7 @@ static int handle_bib_add(struct xlator *jool, struct request_bib *request)
 	switch (error) {
 	case 0:
 		break;
-	case -ESRCH:
+	case -EEXIST:
 		log_err("Entry %pI4#%u|%pI6c#%u collides with %pI4#%u|%pI6c#%u.",
 				&new.ipv4.l3, new.ipv4.l4,
 				&new.ipv6.l3, new.ipv6.l4,

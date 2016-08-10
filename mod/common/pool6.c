@@ -276,7 +276,7 @@ int pool6_add(struct pool6 *pool, struct ipv6_prefix *prefix)
 		 * TODO (4.0.0) remember to turn pool6 into a single global
 		 * param. This whole module being a linked list is stupid.
 		 */
-		log_err("SIIT Jool only supports one pool6 prefix at a time.");
+		log_err("Only one pool6 prefix can exist per Jool instance.");
 		return -EINVAL;
 	}
 

@@ -22,30 +22,17 @@ debug:
 # The targets below are meant for quick testing.
 # If you want to install the module, see ../INSTALL.
 
-insert:
-	# Don't need this noise.
-	sudo dmesg -C
-
-	# Insert the dependencies.
-	sudo modprobe nf_defrag_ipv6
-	sudo modprobe nf_defrag_ipv4
-
-	# Insert and configure Jool a little bit.
-	sudo insmod jool.ko pool6=64:ff9b::/96
-	sudo ../../usr/stateful/jool -4a 192.0.2.2 1-3000
-	sudo ../../usr/stateful/jool -batu 192.0.2.2#2000 2001:db8::5#2000
-	sudo ../../usr/stateful/jool -bai 192.0.2.2#1 2001:db8::5#1
-	dmesg
-
-remove:
-	-sudo rmmod jool.ko
-	-sudo modprobe -r nf_defrag_ipv6
-	-sudo modprobe -r nf_defrag_ipv4
-	dmesg | tail -1
 again:
 	sudo modprobe -r jool
 	make debug
 	sudo make modules_install
 	sudo modprobe jool pool6=64:ff9b::/96
-	sudo jool -bat 1::5#65000 192.0.2.1#65000
+	sudo jool -batu 1::5#65000 192.0.2.1#65000
+	#sudo jool --address-dependent-filtering on
+	sudo dmesg -C
+quick:
+	sudo modprobe -r jool
+	sudo modprobe jool pool6=64:ff9b::/96
+	sudo jool -batu 1::5#65000 192.0.2.1#65000
+	#sudo jool --address-dependent-filtering on
 	sudo dmesg -C

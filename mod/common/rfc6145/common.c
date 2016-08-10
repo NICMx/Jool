@@ -85,7 +85,8 @@ int copy_payload(struct xlation *state)
 
 bool will_need_frag_hdr(struct xlation *state)
 {
-	return get_fragment_offset_ipv4(pkt_ip4_hdr(&state->in));
+	return is_mf_set_ipv4(pkt_ip4_hdr(&state->in))
+			|| get_fragment_offset_ipv4(pkt_ip4_hdr(&state->in));
 }
 
 static int move_pointers_in(struct packet *pkt, __u8 protocol,

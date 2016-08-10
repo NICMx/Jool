@@ -141,6 +141,7 @@ static verdict generate_addr6_siit(struct xlation *state,
 	int error;
 
 	if (addr4_is_scope_subnet(addr4)) {
+		/* TODO this might trigger RFC 6791 and end up being successful. */
 		log_debug("Address %pI4 is not supposed to be xlat'd.", &tmp);
 		return VERDICT_ACCEPT;
 	}

@@ -73,9 +73,69 @@ static int validate_prefixes(struct ipv6_prefix *prefix6,
 	return 0;
 }
 
+static void msg_programming_error(void)
+{
+	log_err("(Note: This error should have been caught earlier.");
+	log_err("This looks like a bug; please report.)");
+}
+
+static int collision6(struct ipv6_prefix *prefix6, struct ipv4_prefix *prefix4,
+		struct eamt_entry *old, bool force)
+{
+	if (prefix6->len == old->prefix6.len) {
+		if (prefix4_equals(prefix4, &old->prefix4)) {
+			log_err("The requested entry already exists.");
+			return -EEXIST;
+		}
+		log_err("Existing EAM [%pI6c/%u|%pI4/%u] already contains prefix %pI6c/%u.",
+				&old->prefix6.address, old->prefix6.len,
+				&old->prefix4.address, old->prefix4.len,
+				&prefix6->address, prefix6->len);
+		return -EEXIST;
+	}
+
+	if (force)
+		return 0;
+
+	log_err("Prefix %pI6c/%u overlaps with EAM [%pI6c/%u|%pI4/%u].\n"
+			"(Use --force to override this validation.)",
+			&prefix6->address, prefix6->len,
+			&old->prefix6.address, old->prefix6.len,
+			&old->prefix4.address, old->prefix4.len);
+	return -EEXIST;
+}
+
+static int collision4(struct ipv6_prefix *prefix6, struct ipv4_prefix *prefix4,
+		struct eamt_entry *old, bool force)
+{
+	if (prefix4->len == old->prefix4.len) {
+		if (prefix6_equals(prefix6, &old->prefix6)) {
+			log_err("The requested entry already exists.");
+			msg_programming_error();
+			return -EEXIST;
+		}
+		log_err("Existing EAM [%pI6c/%u|%pI4/%u] already contains prefix %pI4/%u.",
+				&old->prefix6.address, old->prefix6.len,
+				&old->prefix4.address, old->prefix4.len,
+				&prefix4->address, prefix4->len);
+		return -EEXIST;
+	}
+
+	if (force)
+		return 0;
+
+	log_err("Prefix %pI4/%u overlaps with EAM [%pI6c/%u|%pI4/%u].\n"
+			"(Use --force to override this validation.)",
+			&prefix4->address, prefix4->len,
+			&old->prefix6.address, old->prefix6.len,
+			&old->prefix4.address, old->prefix4.len);
+	return -EEXIST;
+}
+
 static int validate_overlapping(struct eam_table *eamt,
 		struct ipv6_prefix *prefix6,
-		struct ipv4_prefix *prefix4)
+		struct ipv4_prefix *prefix4,
+		bool force)
 {
 	struct eamt_entry old;
 	struct rtrie_key key6 = PREFIX_TO_KEY(prefix6);
@@ -89,22 +149,16 @@ static int validate_overlapping(struct eam_table *eamt,
 
 	error = rtrie_get(&eamt->trie6, &key6, &old);
 	if (!error) {
-		log_err("Prefix %pI6c/%u overlaps with EAM [%pI6c/%u|%pI4/%u].\n"
-				"(Use --force to override this validation.)",
-				&prefix6->address, prefix6->len,
-				&old.prefix6.address, old.prefix6.len,
-				&old.prefix4.address, old.prefix4.len);
-		return -EEXIST;
+		error = collision6(prefix6, prefix4, &old, force);
+		if (error)
+			return error;
 	}
 
 	error = rtrie_get(&eamt->trie4, &key4, &old);
 	if (!error) {
-		log_err("Prefix %pI4/%u overlaps with EAM [%pI6c/%u|%pI4/%u].\n"
-				"(Use --force to override this validation.)",
-				&prefix4->address, prefix4->len,
-				&old.prefix6.address, old.prefix6.len,
-				&old.prefix4.address, old.prefix4.len);
-		return -EEXIST;
+		error = collision4(prefix6, prefix4, &old, force);
+		if (error)
+			return error;
 	}
 
 	return 0;
@@ -130,6 +184,7 @@ static int eamt_add6(struct eam_table *eamt, struct eamt_entry *eam)
 	if (error == -EEXIST) {
 		log_err("Prefix %pI6c/%u already exists.",
 				&eam->prefix6.address, eam->prefix6.len);
+		msg_programming_error();
 	}
 	/* rtrie_print("IPv6 trie after add", &eamt->trie6); */
 
@@ -146,6 +201,7 @@ static int eamt_add4(struct eam_table *eamt, struct eamt_entry *eam)
 	if (error == -EEXIST) {
 		log_err("Prefix %pI4/%u already exists.",
 				&eam->prefix4.address, eam->prefix4.len);
+		msg_programming_error();
 	}
 	/* rtrie_print("IPv4 trie after add", &eamt->trie4); */
 
@@ -166,11 +222,9 @@ int eamt_add(struct eam_table *eamt,
 
 	mutex_lock(&lock);
 
-	if (!force) {
-		error = validate_overlapping(eamt, prefix6, prefix4);
-		if (error)
-			goto end;
-	}
+	error = validate_overlapping(eamt, prefix6, prefix4, force);
+	if (error)
+		goto end;
 
 	new.prefix6 = *prefix6;
 	new.prefix4 = *prefix4;

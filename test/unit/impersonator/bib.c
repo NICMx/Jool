@@ -13,6 +13,18 @@ int mask_domain_next(struct mask_domain *masks,
 	return broken_unit_call(__func__);
 }
 
+bool mask_domain_matches(struct mask_domain *masks,
+		struct ipv4_transport_addr *addr)
+{
+	broken_unit_call(__func__);
+	return false;
+}
+
+bool mask_domain_is_dynamic(struct mask_domain *masks)
+{
+	return false;
+}
+
 struct pktqueue *pktqueue_create(void)
 {
 	return (struct pktqueue *)&dummy;

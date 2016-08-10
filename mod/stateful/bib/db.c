@@ -374,15 +374,29 @@ void bib_get(struct bib *db)
 	kref_get(&db->refs);
 }
 
+/**
+ * Potentially includes a laggy packet fetch; please do not hold spinlocks while
+ * calling this function!
+ */
 static void release_session(struct rb_node *node, void *arg)
 {
 	struct tabled_session *session = node2session(node);
+
+	if (session->stored) {
+		icmp64_send4(session->stored, ICMPERR_PORT_UNREACHABLE, 0);
+		kfree_skb(session->stored);
+	}
+
 	kmem_cache_free(session_cache, session);
 }
 
+/**
+ * Potentially includes laggy packet fetches; please do not hold spinlocks while
+ * calling this function!
+ */
 static void release_bib_entry(struct rb_node *node, void *arg)
 {
-	struct tabled_bib *bib = bib6_entry(node);
+	struct tabled_bib *bib = bib4_entry(node);
 	rbtree_clear(&bib->sessions, release_session, NULL);
 	kmem_cache_free(bib_cache, bib);
 }
@@ -396,9 +410,9 @@ static void release_bib(struct kref *refs)
 	 * The trees share the entries, so only one tree of each protocol
 	 * needs to be emptied.
 	 */
-	rbtree_clear(&db->udp.tree6, release_bib_entry, NULL);
-	rbtree_clear(&db->tcp.tree6, release_bib_entry, NULL);
-	rbtree_clear(&db->icmp.tree6, release_bib_entry, NULL);
+	rbtree_clear(&db->udp.tree4, release_bib_entry, NULL);
+	rbtree_clear(&db->tcp.tree4, release_bib_entry, NULL);
+	rbtree_clear(&db->icmp.tree4, release_bib_entry, NULL);
 
 	pktqueue_destroy(db->tcp.pkt_queue);
 
@@ -1126,6 +1140,60 @@ static int commit_add(struct bib_table *table,
 	return 0;
 }
 
+struct detach_args {
+	struct bib_table *table;
+	struct sk_buff *probes;
+	unsigned int detached;
+};
+
+static void detach_session(struct rb_node *node, void *arg)
+{
+	struct tabled_session *session = node2session(node);
+	struct detach_args *args = arg;
+
+	list_del(&session->list_hook);
+	if (session->stored)
+		args->table->pkt_count--;
+	args->detached++;
+}
+
+static unsigned int detach_sessions(struct bib_table *table,
+		struct tabled_bib *bib)
+{
+	struct detach_args arg = { .table = table, .detached = 0, };
+	rbtree_foreach(&bib->sessions, detach_session, &arg);
+	return arg.detached;
+}
+
+static void detach_bib(struct bib_table *table, struct tabled_bib *bib)
+{
+	rb_erase(&bib->hook6, &table->tree6);
+	rb_erase(&bib->hook4, &table->tree4);
+	table->bib_count--;
+	table->session_count -= detach_sessions(table, bib);
+}
+
+struct bib_delete_list {
+	struct rb_node *first;
+};
+
+static void add_to_delete_list(struct bib_delete_list *list, struct rb_node *node)
+{
+	node->rb_right = list->first;
+	list->first = node;
+}
+
+static void commit_delete_list(struct bib_delete_list *list)
+{
+	struct rb_node *node;
+	struct rb_node *next;
+
+	for (node = list->first; node; node = next) {
+		next = node->rb_right;
+		release_bib_entry(node, NULL);
+	}
+}
+
 /**
  * Tests whether @predecessor's immediate succesor tree slot is a suitable
  * placeholder for @bib. Returns the colliding node.
@@ -1231,6 +1299,9 @@ static int upgrade_pktqueue_session(struct bib_table *table,
 	struct tree_slot bib_slot4;
 	int error;
 
+	if (new->bib->proto != L4PROTO_TCP)
+		return -ESRCH;
+
 	sos = pktqueue_find(table->pkt_queue, &new->session->dst6, masks);
 	if (!sos)
 		return -ESRCH;
@@ -1293,6 +1364,13 @@ trainwreck:
 	return -EINVAL;
 }
 
+static bool issue216_needed(struct mask_domain *masks,
+		struct bib_session_tuple *old)
+{
+	return mask_domain_is_dynamic(masks)
+			&& !mask_domain_matches(masks, &old->bib->src4);
+}
+
 /**
  * This is a find and an add at the same time, for both @new->bib and
  * @new->session.
@@ -1308,25 +1386,42 @@ static int find_bib_session6(struct bib_table *table,
 		struct mask_domain *masks,
 		struct bib_session_tuple *new,
 		struct bib_session_tuple *old,
-		struct slot_group *slots)
+		struct slot_group *slots,
+		struct bib_delete_list *rm_list)
 {
 	int error;
 
 	old->bib = find_bibtree6_slot(table, new->bib, &slots->bib6);
 	if (old->bib) {
-		old->session = find_session_slot(old->bib, new->session, NULL,
-				&slots->session);
-		return 0;
-	}
+		if (!issue216_needed(masks, old)) {
+			old->session = find_session_slot(old->bib, new->session,
+					NULL, &slots->session);
+			return 0; /* Typical happy path for existing sessions */
+		}
 
-	/* Note: If old->bib is NULL, then old->session is also NULL. */
+		/*
+		 * Issue #216:
+		 * If pool4 was empty (when @masks was generated) and the BIB
+		 * entry's IPv4 address is no longer a mask candidate, drop the
+		 * BIB entry and recompute it from scratch.
+		 * https://github.com/NICMx/Jool/issues/216
+		 */
+		log_debug("Issue #216.");
+		detach_bib(table, old->bib);
+		add_to_delete_list(rm_list, &old->bib->hook4);
+		old->bib = NULL;
 
-	/* No BIB nor session in the main database? Try the SO sub-database. */
-	if (new->bib->proto == L4PROTO_TCP) {
+	} else {
+		/*
+		 * No BIB nor session in the main database? Try the SO
+		 * sub-database.
+		 */
 		error = upgrade_pktqueue_session(table, masks, new, old);
 		if (!error)
 			return 0;
 	}
+
+	/* Note: If old->bib is NULL, then old->session is also NULL. */
 
 	/* No collisions (find failed); try to find suitable slots (add) */
 	if (masks) {
@@ -1365,7 +1460,7 @@ static int find_bib_session6(struct bib_table *table,
 			&new->session->tree_hook);
 	old->session = NULL;
 
-	return 0;
+	return 0; /* Happy path for new sessions */
 }
 
 /**
@@ -1387,6 +1482,7 @@ int bib_add6(struct bib *db,
 	struct bib_session_tuple new;
 	struct bib_session_tuple old;
 	struct slot_group slots;
+	struct bib_delete_list rm_list = { NULL };
 	int error;
 
 	table = get_table(db, tuple6->l4_proto);
@@ -1412,7 +1508,7 @@ int bib_add6(struct bib *db,
 
 	spin_lock_bh(&table->lock); /* Here goes... */
 
-	error = find_bib_session6(table, masks, &new, &old, &slots);
+	error = find_bib_session6(table, masks, &new, &old, &slots, &rm_list);
 	if (error)
 		goto end;
 
@@ -1433,6 +1529,7 @@ end:
 		kmem_cache_free(bib_cache, new.bib);
 	if (new.session)
 		kmem_cache_free(session_cache, new.session);
+	commit_delete_list(&rm_list);
 
 	return error;
 }
@@ -1523,6 +1620,7 @@ verdict bib_add_tcp6(struct bib *db,
 	struct bib_session_tuple new;
 	struct bib_session_tuple old;
 	struct slot_group slots;
+	struct bib_delete_list rm_list = { NULL };
 	verdict verdict;
 
 	if (WARN(pkt->tuple.l4_proto != L4PROTO_TCP, "Incorrect l4 proto in TCP handler."))
@@ -1534,7 +1632,7 @@ verdict bib_add_tcp6(struct bib *db,
 	table = &db->tcp;
 	spin_lock_bh(&table->lock);
 
-	if (find_bib_session6(table, masks, &new, &old, &slots)) {
+	if (find_bib_session6(table, masks, &new, &old, &slots, &rm_list)) {
 		verdict = VERDICT_DROP;
 		goto end;
 	}
@@ -1573,6 +1671,7 @@ end:
 		kmem_cache_free(bib_cache, new.bib);
 	if (new.session)
 		kmem_cache_free(session_cache, new.session);
+	commit_delete_list(&rm_list);
 
 	return verdict;
 }
@@ -1734,6 +1833,7 @@ int bib_add_session(struct bib *db,
 	struct bib_session_tuple new;
 	struct bib_session_tuple old;
 	struct slot_group slots;
+	struct bib_delete_list rm_list = { NULL };
 	int error;
 
 	table = get_table(db, session->proto);
@@ -1746,7 +1846,7 @@ int bib_add_session(struct bib *db,
 
 	spin_lock_bh(&table->lock);
 
-	error = find_bib_session6(table, NULL, &new, &old, &slots);
+	error = find_bib_session6(table, NULL, &new, &old, &slots, &rm_list);
 	if (error)
 		goto end;
 
@@ -1766,6 +1866,7 @@ end:
 		kmem_cache_free(bib_cache, new.bib);
 	if (new.session)
 		kmem_cache_free(session_cache, new.session);
+	commit_delete_list(&rm_list);
 
 	return error;
 }
@@ -2079,6 +2180,7 @@ int bib_add_static(struct bib *db, struct bib_entry *new,
 
 	treeslot_commit(&slot6);
 	treeslot_commit(&slot4);
+	table->bib_count++;
 
 	/*
 	 * Since the BIB entry is now available, and assuming ADF is disabled,
@@ -2105,63 +2207,6 @@ eexist:
 	return -EEXIST;
 }
 
-struct detach_args {
-	struct bib_table *table;
-	unsigned int detached;
-};
-
-static void detach_session(struct rb_node *node, void *arg)
-{
-	struct tabled_session *session = node2session(node);
-	struct detach_args *args = arg;
-
-	list_del(&session->list_hook);
-	/*
-	 * Perhaps this should be an ICMP error, not a kill.
-	 * But since we're removing the mapping, we don't know whether a port
-	 * unreachable is the right message. It depends on why the user is
-	 * removing the mapping; the v4 client could very well succeed in
-	 * connecting in its next attempt, but we'll foil it if we fetch the
-	 * ICMP error.
-	 * So let's leave it at silence, which is not much different
-	 * from don't know.
-	 */
-	kill_stored_pkt(args->table, session);
-	args->detached++;
-}
-
-static unsigned int detach_sessions(struct bib_table *table,
-		struct tabled_bib *bib)
-{
-	struct detach_args arg = { .table = table, .detached = 0, };
-	rbtree_foreach(&bib->sessions, detach_session, &arg);
-	return arg.detached;
-}
-
-static void detach_bib(struct bib_table *table, struct tabled_bib *bib)
-{
-	rb_erase(&bib->hook6, &table->tree6);
-	rb_erase(&bib->hook4, &table->tree4);
-	table->bib_count--;
-	table->session_count -= detach_sessions(table, bib);
-}
-
-static void destroy_session(struct rb_node *node, void *arg)
-{
-	struct tabled_session *session = node2session(node);
-	kmem_cache_free(session_cache, session);
-}
-
-static void destroy_bib(struct tabled_bib *bib)
-{
-	/*
-	 * kmem_cache_free() is kind of bulky inside; that's the reason
-	 * why I bother with this mess after the spinlock.
-	 */
-	rbtree_clear(&bib->sessions, destroy_session, NULL);
-	kmem_cache_free(bib_cache, bib);
-}
-
 int bib_rm(struct bib *db, struct bib_entry *entry)
 {
 	struct bib_table *table;
@@ -2186,35 +2231,9 @@ int bib_rm(struct bib *db, struct bib_entry *entry)
 	spin_unlock_bh(&table->lock);
 
 	if (!error)
-		destroy_bib(bib);
+		release_bib_entry(&bib->hook4, NULL);
 
 	return error;
-}
-
-struct bib_delete_list {
-	struct rb_node *first;
-	struct rb_node *last;
-};
-
-static void add_to_delete_list(struct bib_delete_list *list, struct rb_node *node)
-{
-	if (list->first)
-		list->last->rb_right = node;
-	else
-		list->first = node;
-	list->last = node;
-	list->last->rb_right = NULL;
-}
-
-static void commit_delete_list(struct bib_delete_list *list)
-{
-	struct rb_node *node;
-	struct rb_node *next;
-
-	for (node = list->first; node; node = next) {
-		next = node->rb_right;
-		destroy_bib(bib4_entry(node));
-	}
 }
 
 void bib_rm_range(struct bib *db, l4_protocol proto, struct ipv4_range *range)
