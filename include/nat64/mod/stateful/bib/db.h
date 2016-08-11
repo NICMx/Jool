@@ -46,20 +46,13 @@ enum session_fate {
 	FATE_DROP,
 
 	/**
-	 * Like FATE_TIMER_EST, except the session's lifetime must not be reset.
+	 * Like FATE_TIMER_EST or FATE_TIMER_TRANS, except the session's
+	 * lifetime must not be reset.
 	 * It's called "slow" because this means the database cannot just add
 	 * the session to the end of the sorted (by expiration date) list and so
 	 * the proper slot has to be found in a sequential search.
 	 */
-	FATE_TIMER_EST_SLOW,
-	/**
-	 * Like FATE_TIMER_TRANS, except the session's lifetime must not be
-	 * reset.
-	 * It's called "slow" because this means the database cannot just add
-	 * the session to the end of the sorted (by expiration date) list and so
-	 * the proper slot has to be found in a sequential search.
-	 */
-	FATE_TIMER_TRANS_SLOW,
+	FATE_TIMER_SLOW,
 };
 
 int bib_init(void);
@@ -76,9 +69,10 @@ typedef enum session_fate (*fate_cb)(struct session_entry *, void *);
 
 struct collision_cb {
 	/**
-	 * Note: This callback can edit the state of the session,
-	 * and also declare that the stored packet should be removed,
-	 * but any other changes will be rolled back.
+	 * Note: This callback can edit the state of the session, the timer type
+	 * of the session, and also declare that the stored packet should be
+	 * removed.
+	 * But any other changes will be rolled back.
 	 */
 	fate_cb cb;
 	void *arg;

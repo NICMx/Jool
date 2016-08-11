@@ -178,7 +178,7 @@ struct pktqueue_session *pktqueue_find(struct pktqueue *queue,
 	if (!node)
 		return NULL;
 
-	if (!mask_domain_matches(masks, &node->src4))
+	if (masks && !mask_domain_matches(masks, &node->src4))
 		return NULL;
 
 	rm(queue, node);

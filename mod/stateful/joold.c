@@ -560,22 +560,15 @@ struct add_params {
 
 static enum session_fate collision_cb(struct session_entry *old, void *arg)
 {
-	__u64 update_time;
 	struct add_params *params = arg;
 	struct session_entry *new = &params->new;
-	struct joold_session *newd;
 
 	if (session_equals(old, new)) { /* It's the same session; update it. */
-		newd = params->newd;
-
-		update_time = be64_to_cpu(newd->update_time);
-		update_time = jiffies - msecs_to_jiffies(update_time);
-
-		old->state = newd->state;
-		old->update_time = update_time;
+		old->state = new->state;
+		old->timer_type = params->newd->timer_type;
+		old->update_time = new->update_time;
 		params->success = true;
-
-		return newd->timer_type ? FATE_TIMER_EST_SLOW : FATE_TIMER_TRANS_SLOW;
+		return FATE_TIMER_SLOW;
 	}
 
 	log_err("We're out of sync: Incoming %s session entry %pI6c#%u|%pI6c#%u|%pI4#%u|%pI4#%u collides with DB entry %pI6c#%u|%pI6c#%u|%pI4#%u|%pI4#%u.",

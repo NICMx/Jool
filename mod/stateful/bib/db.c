@@ -604,22 +604,44 @@ static void handle_fate_timer(struct tabled_session *session,
 	list_add_tail(&session->list_hook, &timer->sessions);
 }
 
-static void queue_unsorted_session(struct expire_timer *timer,
-		struct tabled_session *new)
+static int queue_unsorted_session(struct bib_table *table,
+		struct tabled_session *session,
+		session_timer_type timer_type,
+		bool remove_first)
 {
+	struct expire_timer *expirer;
 	struct list_head *list;
 	struct list_head *cursor;
 	struct tabled_session *old;
 
-	list = &timer->sessions;
+	switch (timer_type) {
+	case SESSION_TIMER_EST:
+		expirer = &table->est_timer;
+		break;
+	case SESSION_TIMER_TRANS:
+		expirer = &table->trans_timer;
+		break;
+	case SESSION_TIMER_SYN4:
+		expirer = &table->syn4_timer;
+		break;
+	default:
+		log_warn_once("incoming joold session's timer (%d) is unknown.",
+				timer_type);
+		return -EINVAL;
+	}
+
+	list = &expirer->sessions;
 	for (cursor = list->prev; cursor != list; cursor = cursor->prev) {
 		old = list_entry(cursor, struct tabled_session, list_hook);
-		if (old->update_time < new->update_time)
+		if (old->update_time < session->update_time)
 			break;
 	}
 
-	list_add(&new->list_hook, cursor);
-	new->expirer = timer;
+	if (remove_first)
+		list_del(&session->list_hook);
+	list_add(&session->list_hook, cursor);
+	session->expirer = expirer;
+	return 0;
 }
 
 /**
@@ -643,6 +665,7 @@ static verdict decide_fate(struct collision_cb *cb,
 	session->state = tmp.state;
 	if (!tmp.has_stored)
 		kill_stored_pkt(table, session);
+	/* Also the expirer, which is down below. */
 
 	switch (fate) {
 	case FATE_TIMER_EST:
@@ -665,13 +688,13 @@ static verdict decide_fate(struct collision_cb *cb,
 	case FATE_DROP:
 		return VERDICT_DROP;
 
-	case FATE_TIMER_EST_SLOW:
-		list_del(&session->list_hook);
-		queue_unsorted_session(&table->est_timer, session);
-		break;
-	case FATE_TIMER_TRANS_SLOW:
-		list_del(&session->list_hook);
-		queue_unsorted_session(&table->trans_timer, session);
+	case FATE_TIMER_SLOW:
+		/*
+		 * Nothing to do with the return value.
+		 * If timer type was invalid, well don't change the expirer.
+		 * We left a warning in the log.
+		 */
+		queue_unsorted_session(table, session, tmp.timer_type, true);
 		break;
 	}
 
@@ -817,32 +840,6 @@ static void attach_timer(struct tabled_session *session,
 	session->update_time = jiffies;
 	session->expirer = expirer;
 	list_add_tail(&session->list_hook, &expirer->sessions);
-}
-
-static int attach_timer_unsorted(struct bib_table *table,
-		struct tabled_session *session,
-		session_timer_type timer_type)
-{
-	struct expire_timer *expirer;
-
-	switch (timer_type) {
-	case SESSION_TIMER_EST:
-		expirer = &table->est_timer;
-		break;
-	case SESSION_TIMER_TRANS:
-		expirer = &table->trans_timer;
-		break;
-	case SESSION_TIMER_SYN4:
-		expirer = &table->syn4_timer;
-		break;
-	default:
-		log_warn_once("incoming joold session's timer (%d) is unknown.",
-				timer_type);
-		return -EINVAL;
-	}
-
-	queue_unsorted_session(expirer, session);
-	return 0;
 }
 
 static int compare_src6(struct tabled_bib *a, struct ipv6_transport_addr *b)
@@ -1122,7 +1119,7 @@ static int commit_add(struct bib_table *table,
 {
 	int error;
 
-	error = attach_timer_unsorted(table, new->session, timer_type);
+	error = queue_unsorted_session(table, new->session, timer_type, false);
 	if (error)
 		return error;
 
@@ -1307,6 +1304,42 @@ static int upgrade_pktqueue_session(struct bib_table *table,
 		return -ESRCH;
 	table->pkt_count--;
 
+	if (!masks) {
+		/*
+		 * This happens during joold adds. It's a lost cause.
+		 *
+		 * The point of SO is that the v4 node decides session [*, dst6,
+		 * src4, dst4] and the first v6 packet needing a new mask that
+		 * matches that session keeps it.
+		 *
+		 * But we're not synchronizing pktqueue sessions, because we
+		 * want to keep joold as simple as possible (which is not simple
+		 * enough), at least so long as it remains a niche thing.
+		 *
+		 * So if one Jool instance gets the v4 SO packet and some other
+		 * instance gets the v6 SO packet, the latter will choose a
+		 * random src4 and mess up the SO. That situation is this if.
+		 * Our reaction is to go like "whatever" and pretend that we
+		 * never received the v4 packet.
+		 *
+		 * One might argue that we should send the ICMP error when this
+		 * happens. But that doesn't yield satisfactory behavior either;
+		 * The SO failed anyway. To fix this properly we would need to
+		 * sync the pktqueue sessions. Combine that with the fact that
+		 * sending the ICMP error would be a pain in the ass (because we
+		 * want to do it outside of the spinlock, and we don't want to
+		 * send it if the random src4 selected happens to match the
+		 * stored session), and the result is a big fat meh. I really
+		 * don't want to do it.
+		 *
+		 * The admin signed a best-effort contract when s/he enabled
+		 * joold anyway. And this is only a problem in active-active
+		 * scenarios.
+		 */
+		pktqueue_put_node(sos);
+		return -ESRCH;
+	}
+
 	log_debug("Simultaneous Open!");
 	/*
 	 * We're going to pretend that @sos has been a valid V4 INIT session all
@@ -1367,6 +1400,8 @@ trainwreck:
 static bool issue216_needed(struct mask_domain *masks,
 		struct bib_session_tuple *old)
 {
+	if (!masks)
+		return false;
 	return mask_domain_is_dynamic(masks)
 			&& !mask_domain_matches(masks, &old->bib->src4);
 }
