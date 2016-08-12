@@ -62,7 +62,7 @@ bool is_multicast4(struct in_addr *addr)
 
 bool is_multicast6(struct in6_addr *addr)
 {
-	return (addr->s6_addr32[0] & htonl(0xFF000000)) == htonl(0xFF000000);
+	return (addr->s6_addr32[0] & htonl(0xff000000)) == htonl(0xff000000);
 }
 
 static int json_to_config(cJSON *json, struct netsocket_config *cfg)
@@ -146,6 +146,7 @@ static int try_address(struct netsocket_config *config)
 
 	/* (Do not reorder this. SO_REUSEADDR needs to happen before bind().) */
 	if (config->reuseaddr_set) {
+		log_info("Setting SO_REUSEADDR as %d...", config->reuseaddr);
 		/* http://stackoverflow.com/questions/14388706 */
 		if (setsockopt(sk, SOL_SOCKET, SO_REUSEADDR, &config->reuseaddr,
 				sizeof(config->reuseaddr))) {

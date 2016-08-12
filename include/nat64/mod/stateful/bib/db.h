@@ -69,10 +69,9 @@ typedef enum session_fate (*fate_cb)(struct session_entry *, void *);
 
 struct collision_cb {
 	/**
-	 * Note: This callback can edit the state of the session, the timer type
-	 * of the session, and also declare that the stored packet should be
-	 * removed.
-	 * But any other changes will be rolled back.
+	 * Note: This callback can edit the session's state, timer_type,
+	 * update_time, and also turn off has_stored.
+	 * Any other changes will be rolled back.
 	 */
 	fate_cb cb;
 	void *arg;

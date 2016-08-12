@@ -661,8 +661,9 @@ static verdict decide_fate(struct collision_cb *cb,
 	tstose(session, &tmp);
 	fate = cb->cb(&tmp, cb->arg);
 
-	/* The callback above is entitled to tweak these two fields. */
+	/* The callback above is entitled to tweak these fields. */
 	session->state = tmp.state;
+	session->update_time = tmp.update_time;
 	if (!tmp.has_stored)
 		kill_stored_pkt(table, session);
 	/* Also the expirer, which is down below. */
@@ -1426,9 +1427,31 @@ static int find_bib_session6(struct bib_table *table,
 {
 	int error;
 
+	/*
+	 * Please be careful around this function. All it wants to do is
+	 * find/add, but it is constrained by several requirements at the same
+	 * time:
+	 *
+	 * 1. If @new->bib->proto is ICMP (ie. 3-tuple), then
+	 *    @new->session->dst4.l4 is invalid and needs to be patched. Though
+	 *    it cannot be patched until we acquire a valid BIB entry.
+	 *    (dst4.l4 is just fat that should not be used in 3-tuple
+	 *    translation code, but a chunk of Jool assumes that
+	 *    dst4.l4 == dst6.l4 in 5-tuples and dst4.l4 == src4.l4 in
+	 *    3-tuples.)
+	 * 2. @masks can be NULL!
+	 *    If this happens, just assume that @old->bib->src4 and
+	 *    (once acquired) @new->bib->src4 are both valid.
+	 *
+	 * See below for more stuff.
+	 */
+
 	old->bib = find_bibtree6_slot(table, new->bib, &slots->bib6);
 	if (old->bib) {
 		if (!issue216_needed(masks, old)) {
+			if (new->bib->proto == L4PROTO_ICMP)
+				new->session->dst4.l4 = old->bib->src4.l4;
+
 			old->session = find_session_slot(old->bib, new->session,
 					NULL, &slots->session);
 			return 0; /* Typical happy path for existing sessions */
@@ -1468,18 +1491,6 @@ static int find_bib_session6(struct bib_table *table,
 			return error;
 		}
 
-		/*
-		 * Patch 3-tuples.
-		 * dst4.l4 is never (or should never) be used anywhere by
-		 * 3-tuple translation code, but we set the field anyway because
-		 * it improves the database's readability/intuitiveness (such as
-		 * in bib_print() and log_debug()s) and is very cheap.
-		 *
-		 * (Just in case it isn't obvious: 3-tuple sessions have only
-		 * one layer 4 id per layer 3 protocol, instead of the usual 2
-		 * of 5-tuples. We "simulate" this by storing the same value in
-		 * both layer 4 ids.)
-		 */
 		if (new->bib->proto == L4PROTO_ICMP)
 			new->session->dst4.l4 = new->bib->src4.l4;
 
