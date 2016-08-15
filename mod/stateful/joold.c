@@ -342,37 +342,71 @@ static int build_buffer(struct nlcore_buffer *buffer, struct joold_queue *queue,
 		kmem_cache_free(node_cache, node);
 	}
 
+	/*
+	 * This can happen when the list only had group nodes and the session
+	 * database was empty.
+	 */
+	if (sizeof(jool_hdr) == buffer->len) {
+		log_debug("There was nothing to send after all.");
+		nlbuffer_free(buffer);
+		return -ENOENT;
+	}
+
 	return 0;
 }
 
-/*
- * Assumes the lock is held.
- *
- * Note: This would probably be 100x better if you could think of a way to move
- * nlcore_send_multicast_message() out of the spinlock. (The main obstacle is
- * last queue->'s.)
- *
- * (nlbuffer_free() also doesn't need the spinlock but shouldn't be that
- * influential.)
- */
-static void send_to_userspace(struct joold_queue *queue, struct bib *bib)
-{
+struct joold_buffer {
 	struct nlcore_buffer buffer;
+	struct net *ns;
+	bool initialized;
+};
 
+#define JOOLD_BUFFER_INIT { .initialized = false }
+
+/**
+ * Assumes the lock is held.
+ * YOU HAVE TO CALL send_to_userspace() AFTER YOU RELEASE THE SPINLOCK!!!
+ */
+static void send_to_userspace_prepare(struct joold_queue *queue,
+		struct bib *bib, struct joold_buffer *buffer)
+{
 	if (!should_send(queue))
 		return;
 
-	if (build_buffer(&buffer, queue, bib))
+	if (build_buffer(&buffer->buffer, queue, bib))
+		return;
+
+	buffer->initialized = true;
+	/*
+	 * Caller has a reference and the buffer is not going to outlive it so
+	 * this should be alright.
+	 */
+	buffer->ns = queue->ns;
+
+	/*
+	 * BTW: This sucks.
+	 * We're assuming that the nlcore_send_multicast_message() during
+	 * send_to_userspace() is going to succeed.
+	 * But the alternative is to do the nlcore_send_multicast_message()
+	 * with the lock held, and I don't have the stomach for that.
+	 */
+	queue->ack_received = false;
+	queue->last_flush_time = jiffies;
+}
+
+static void send_to_userspace(struct joold_buffer *buffer)
+{
+	int error;
+
+	if (!buffer->initialized)
 		return;
 
 	log_debug("Sending multicast message.");
-	if (nlcore_send_multicast_message(queue->ns, &buffer))
-		return;
-	log_debug("Multicast message sent.");
+	error = nlcore_send_multicast_message(buffer->ns, &buffer->buffer);
+	if (!error)
+		log_debug("Multicast message sent.");
 
-	queue->ack_received = false;
-	queue->last_flush_time = jiffies;
-	nlbuffer_free(&buffer);
+	nlbuffer_free(&buffer->buffer);
 }
 
 /**
@@ -482,6 +516,7 @@ void joold_add(struct joold_queue *queue, struct session_entry *entry,
 		struct bib *bib)
 {
 	struct joold_node *copy;
+	struct joold_buffer buffer = JOOLD_BUFFER_INIT;
 
 	spin_lock_bh(&queue->lock);
 
@@ -524,10 +559,12 @@ void joold_add(struct joold_queue *queue, struct session_entry *entry,
 				"Sorry.");
 		purge_sessions(queue);
 	} else {
-		send_to_userspace(queue, bib);
+		send_to_userspace_prepare(queue, bib, &buffer);
 	}
 
 	spin_unlock_bh(&queue->lock);
+
+	send_to_userspace(&buffer);
 }
 
 static void init_session_entry(struct joold_session *in,
@@ -729,6 +766,7 @@ static int prepare_advertisement(struct joold_queue *queue)
 int joold_advertise(struct xlator *jool)
 {
 	struct joold_queue *queue = jool->nat64.joold;
+	struct joold_buffer buffer = JOOLD_BUFFER_INIT;
 	int error;
 
 	spin_lock_bh(&queue->lock);
@@ -741,17 +779,19 @@ int joold_advertise(struct xlator *jool)
 	if (error)
 		goto end;
 
-	send_to_userspace(queue, jool->nat64.bib);
+	send_to_userspace_prepare(queue, jool->nat64.bib, &buffer);
 	/* Fall through */
 
 end:
 	spin_unlock_bh(&queue->lock);
+	send_to_userspace(&buffer);
 	return error;
 }
 
 void joold_ack(struct xlator *jool)
 {
 	struct joold_queue *queue = jool->nat64.joold;
+	struct joold_buffer buffer = JOOLD_BUFFER_INIT;
 
 	spin_lock_bh(&queue->lock);
 
@@ -759,11 +799,12 @@ void joold_ack(struct xlator *jool)
 		goto end;
 
 	queue->ack_received = true;
-	send_to_userspace(queue, jool->nat64.bib);
+	send_to_userspace_prepare(queue, jool->nat64.bib, &buffer);
 	/* Fall through */
 
 end:
 	spin_unlock_bh(&queue->lock);
+	send_to_userspace(&buffer);
 }
 
 /**
@@ -774,14 +815,17 @@ end:
  */
 void joold_clean(struct joold_queue *queue, struct bib *bib)
 {
+	struct joold_buffer buffer = JOOLD_BUFFER_INIT;
+
 	spin_lock_bh(&queue->lock);
 
 	if (!queue->config.enabled)
 		goto end;
 
-	send_to_userspace(queue, bib);
+	send_to_userspace_prepare(queue, bib, &buffer);
 	/* Fall through */
 
 end:
 	spin_unlock_bh(&queue->lock);
+	send_to_userspace(&buffer);
 }
