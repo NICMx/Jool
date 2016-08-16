@@ -61,6 +61,14 @@ See [RFC 6586](https://tools.ietf.org/html/rfc6586) for deployment experiences u
 	3. [`--session`](usr-flags-session.html)
 	4. [`--quick`](usr-flags-quick.html)
 
+## Other Configuration
+
+1. [Atomic Configuration](config-atomic.html)
+2. [`joold`](config-joold.html)
+3. Persistent Configuration
+	1. [SIIT/NAT64](config-persistent-jool.html)
+	2. [`joold`](config-persistent-joold.html)
+
 ## Defined Architectures
 
 1. [SIIT-DC](siit-dc.html)

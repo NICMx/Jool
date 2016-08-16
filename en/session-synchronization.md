@@ -18,18 +18,13 @@ title: Session synchronization
 	2. [Session Synchronization Enabled](#session-synchronization-enabled)
 4. [Architecture](#architecture)
 5. [Basic Tutorial](#basic-tutorial)
-	1. [Daemon](#daemon)
-	2. [Load Balancer](#load-balancer)
-	3. [Kernel Module](#kernel-module)
+	1. [Kernel Module](#kernel-module)
+	2. [Daemon](#daemon)
+	3. [Load Balancer](#load-balancer)
+	4. [Testing](#testing)
 6. [Configuration](#configuration)
 	1. [`jool`](#jool)
-	2. [`netsocket.json`](#netsocketjson)
-		1. [`multicast-address`](#multicast-address)
-		2. [`multicast-port`](#multicast-port)
-		3. [`in interface`](#in-interface)
-		4. [`out interface`](#out-interface)
-		5. [`reuseaddr`](#reuseaddr)
-		6. [`ttl`](#ttl)
+	2. [`joold`](#joold)
 7. [Persistent Daemon](#persistent-daemon)
 
 ## Introduction
@@ -56,31 +51,31 @@ First, let's analyze what happens when you create multiple Jool instances but do
 
 ### Session Synchronization Disabled
 
-IPv6 node `n6` will interact with IPv6 node `n4` via `J`. As is natural of NAT64, `J` will store a mapping (and a session) to service this connection:
+IPv6 node `n6` will interact with IPv6 node `n4` via `J`. As is natural of NAT64, and since the translation is from v6 to v4, `J` has all the information it needs to store a mapping (and a session) to service this connection:
 
-![Figure - joold](../images/flow/ss-basic.svg)
+![Figure - SS disabled](../images/flow/ss-disabled.svg)
 
-During `n4` and `n6`'s conversation, `J` dies. This is what happens when `n4` follows with a packet:
+During `n4` and `n6`'s conversation, `J` dies. `K` then drops a packet written by `n4` since it doesn't have a mask for its destination address:
 
-FigFigFig
+![Figure - SS disabled - n4 sends](../images/flow/ss-disabled-n4.svg)
 
-And `n6` doen't fare much better either:
+And `n6` doesn't fare much better either since `K` will compute a new mask, which risks not being the same `J` chose:
 
-FigFigFigFig
+![Figure - SS disabled - n6 sends](../images/flow/ss-disabled-n6.svg)
 
 The problem lies in the NAT64s not sharing their databases. Let's fix that:
 
 ### Session Synchronization Enabled
 
-When either `n6` or `n4` first opens the connection, `J` generates two packets: One is the translated message and the other is a multicast through the private network, informing everyone interested of the new connection:
+Whenever `J` translates a packet, it generates another one: A multicast through the private network, informing everyone interested of the new connection:
 
-FigFigFigFigFig
+![Figure - SS multicast](../images/flow/ss-enabled-mcast.svg)
 
 So when `J` dies, `K` has everything it needs to impersonate `J` and continue the conversation as uninterrupted as possible:
 
-FigFigFigFigFigFig
+![Figure - SS K](../images/flow/ss-enabled-k.svg)
 
-In reality, _every_ translated packet will fork an SS packet, because ongoing traffic tends to update sessions, and the other NAT64 instances need to also be aware of these changes.
+The reason why almost _every_ translated packet forks SS packets is because ongoing traffic tends to update sessions, and the other NAT64 instances need to also be aware of these changes.
 
 ## Architecture
 
@@ -121,15 +116,15 @@ Both problems can be mitigated if the load balancer can ensure that traffic belo
 
 ## Basic Tutorial
 
-This is a sample of the Active/Passive model.
+This is an example of the Active/Passive model. We will remove `L` from the setup since its configuration is very similar to `K`'s.
 
 ### Network
-
-First, configure the NAT64s:
 
 <div class="distro-menu">
 	<span class="distro-selector" onclick="showDistro(this);">J</span>
 	<span class="distro-selector" onclick="showDistro(this);">K</span>
+	<span class="distro-selector" onclick="showDistro(this);">n6</span>
+	<span class="distro-selector" onclick="showDistro(this);">n4</span>
 </div>
 
 <!-- J -->
@@ -162,7 +157,18 @@ sysctl -w net.ipv6.conf.all.forwarding=1
 modprobe jool pool6=64:ff9b::/96
 {% endhighlight %}
 
-This is generally usual boilerplate Jool mumbo jumbo. All that's special is the lack of address configuration in `K`'s translating interfaces; the load balancer will take care of populating these if `J` dies.
+<!-- n6 -->
+{% highlight bash %}
+ip addr add 2001:db8::8/96 dev eth0
+ip route add 64:ff9b::/96 via 2001:db8::1
+{% endhighlight %}
+
+<!-- n4 -->
+{% highlight bash %}
+ip addr add 192.0.2.8/24 dev eth0
+{% endhighlight %}
+
+This is generally usual boilerplate Jool mumbo jumbo. All that's special is the lack of address configuration in the backup's translating interfaces; the load balancer will take care of populating these if `J` dies.
 
 ### Kernel module
 
@@ -174,7 +180,7 @@ This asks the module to open a channel to userspace and start trading SS session
 
 ### Daemon
 
-`joold` reads the configuration of its network socket from a Json file whose name is `netsocket.json` by default.
+`joold` reads the configuration of its network socket from a Json file I name `netsocket.json`. (The socket to kernelspace does not need any configuration as of now.)
 
 <div class="distro-menu">
 	<span class="distro-selector" onclick="showDistro(this);">J</span>
@@ -183,7 +189,7 @@ This asks the module to open a channel to userspace and start trading SS session
 
 {% highlight json %}
 {
-	"multicast-address": "226.4.6.4",
+	"multicast-address": "239.0.64.64",
 	"multicast-port": "6464",
 	"in interface": "10.0.0.1",
 	"out interface": "10.0.0.1",
@@ -193,7 +199,7 @@ This asks the module to open a channel to userspace and start trading SS session
 
 {% highlight json %}
 {
-	"multicast-address": "226.4.6.4",
+	"multicast-address": "239.0.64.64",
 	"multicast-port": "6464",
 	"in interface": "10.0.0.2",
 	"out interface": "10.0.0.2",
@@ -201,7 +207,7 @@ This asks the module to open a channel to userspace and start trading SS session
 }
 {% endhighlight %}
 
-A description of each field can be found [below](TODO). For now, suffice to say that the nodes will send and receive SS traffic through the multicast address `226.4.6.4` on port `6464`.
+A description of each field can be found [below](#netsocketjson). For now, suffice to say that the nodes will send and receive SS traffic through multicast address `239.0.64.64` on port `6464`.
 
 Start the "daemon" in the foreground so you can see error messages (if any) easily:
 
@@ -214,7 +220,7 @@ If everything looks tidy, send the process to the background (Ctrl+Z then run `b
 	^Z
 	$ bg
 
-Do this on both `J` and `K`.
+Do this in both `J` and `K`.
 
 As far as Jool is concerned, that would be all. If `J` is translating traffic, you should see its sessions being mirrored in `K`:
 
@@ -235,6 +241,8 @@ Download, compile and install Keepalived:
 	# make install
 
 Create `/etc/keepalived/keepalived.conf` and paste something like the following. See `man 5 keepalived.conf` for more information.
+
+TODO missing `K`'s version of this file.
 
 	# Keepalived will monitor this action.
 	# The userspace application `jool` fails when the kernel module is not
@@ -315,107 +323,66 @@ ip addr del 2001:db8::1/96 dev eth0
 ip addr del 192.0.2.1/24 dev eth1
 {% endhighlight %}
 
-Start keepalived in both `J` and `K` using `sudo keepalived -lDn`. If you kill `J` or `J`'s Jool somehow (`sudo modprobe -r jool` for example), `K` should claim the addresses and start receiving `J`'s traffic in its stead. (after a small while.)
+Start keepalived in both `J` and `K` using `sudo keepalived -lDn`. You're done.
 
-Notice that, if you want to modprobe jool back, you need to enable SS and restart joold right away, or the new instance will miss the advertise. You can later issue `jool --joold --advertise` manually (in `K`) if you forgot this.
+### Testing
+
+Start an infinite ping from `n6` to `n4`. These packets should be translated by `J`:
+
+	user@n6:~/$ ping6 64:ff9b::192.0.2.8
+
+Watch the session being cascaded into `K`:
+
+<div class="distro-menu">
+	<span class="distro-selector" onclick="showDistro(this);">J</span>
+	<span class="distro-selector" onclick="showDistro(this);">K</span>
+</div>
+
+<!-- J -->
+{% highlight bash %}
+# jool -sin
+{% endhighlight %}
+
+<!-- K -->
+{% highlight bash %}
+# jool -sin
+{% endhighlight %}
+
+Then disable `J` somehow.
+
+	user@J:~/# modprobe -r jool
+
+The ping should stop and resume after a small while. This while is mostly just n4 realizing that `192.0.2.1` changed owner. Once that's done, you should notice that `K` is impersonating `J`, using the same old session that `J` left hanging:
+
+	user@K:~/# jool -sin
+
+(You can tell because `K` did not have to create a new session to service the ping.)
+
+Restart `J`. The ping should pause again and, after a while, `J` should claim control again (since it has more priority than `K`):
+
+	user@J:~/# modprobe jool pool6=64:ff9b::/96; jool --synch-enable; joold /path/to/netsocket.json
+
+Notice that you need to initialize `J`'s NAT64 in one go; otherwise the new instance will miss `K`'s advertise.
+
+If you forget that for some reason, you can ask `K` to advertise its sessions again manually:
+
+	user@K:~/# jool --joold --advertise
+
+That's all.
 
 ## Configuration
 
 ### `jool`
 
-1. `synch-enable`
-2. `synch-disable`
-3. `synch-flush-asap`
-4. `synch-flush-deadline`
-5. `synch-capacity`
-6. `synch-max-payload`
+1. [`synch-enable`, `synch-disable`](usr-flags-global.html#synch-enable---synch-disable)
+2. [`synch-flush-asap`](usr-flags-global.html#synch-flush-asap)
+3. [`synch-flush-deadline`](usr-flags-global.html#synch-flush-deadline)
+4. [`synch-capacity`](usr-flags-global.html#synch-capacity)
+5. [`synch-max-payload`](usr-flags-global.html#synch-max-payload)
 
-### `netsocket.json`
+### `joold`
 
-This file configures the daemon's SS **network** socket. (The kernel socket does not need configuration for now.)
-
-#### `multicast-address`
-
-- Type: String (IPv4/v6 address)
-- Default: None (Field is mandatory)
-
-Address the SS traffic will be sent to.
-
-You do not want to hinder your future ability to add more NAT64s to the cluster, so it is strongly recommended that you input a multicast address here.
-
-#### `multicast-port`
-
-- Type: String (port number or service name)
-- Default: None (Field is mandatory)
-
-TCP port where the SS traffic will be sent to.
-
-#### `in interface`
-
-- Type: String
-- Default: NULL (kernel chooses an interface and address for you)
-
-Address or interface to bind the socket in.
-
-If `multicast-address` is IPv4, this should be one addresses from the interface where the SS traffic is expected to be received. If `multicast-address` is IPv6, this should be the name of the interface (eg. "eth0").
-
-Though they are optional, it is strongly recommended that you define both `in interface` and `out interface` to ensure the SS traffic does not leak through other interfaces.
-
-#### `out interface`
-
-- Type: String
-- Default: NULL (kernel chooses an interface and address for you)
-
-If `multicast-address` is IPv4, this should be one addresses from the interface where the multicast traffic is expected to be sent. If `multicast-address` is IPv6, this should be the name of the interface (eg. "eth0").
-
-Though they are optional, it is strongly recommended that you define both `in interface` and `out interface` to ensure the SS traffic does not leak through other interfaces.
-
-#### `reuseaddr`
-
-- Type: Integer
-- Default: 0
-
-Same as `SO_REUSEADDR`. From `man 7 socket`:
-
-	SO_REUSEADDR
-		Indicates that the rules used in validating addresses supplied
-		in a bind(2) call should allow reuse of local addresses. For
-		AF_INET sockets this means that a socket may bind, except when
-		there is an active listening socket bound to the address. When
-		the listening socket is bound to INADDR_ANY with a specific port
-		then it is not possible to bind to this port for any local
-		address. Argument is an integer boolean flag.
-
-A rather more humane explanation can be found in [Stack Overflow](http://stackoverflow.com/questions/14388706):
-
-	In other words, for multicast addresses `SO_REUSEADDR` behaves exactly
-	as `SO_REUSEPORT` for unicast addresses.
-
-	...
-
-	Basically, `SO_REUSEPORT` allows you to bind an arbitrary number of
-	sockets to exactly the same source address and port as long as all prior
-	bound sockets also had `SO_REUSEPORT` set before they were bound. If the
-	first socket that is bound to an address and port does not have
-	`SO_REUSEPORT` set, no other socket can be bound to exactly the same
-	address and port, regardless if this other socket has `SO_REUSEPORT` set
-	or not, until the first socket releases its binding again.
-
-You do not want a hanging joold to prevent future joolds from having access to the SS traffic, so there is likely no reason to ever turn this value off. Unless you have a specific reason to change this, you should **always** include this value, and **always** override the default.
-
-#### `ttl`
-
-- Type: Integer
-- Default: 1
-
-Same as `IP_MULTICAST_TTL`. From `man 7 ip`:
-
-	IP_MULTICAST_TTL (since Linux 1.2)
-		Set or read the time-to-live value of outgoing multicast packets
-		for this socket. It is very important for multicast packets to
-		set the smallest TTL possible. The default is 1 which means that
-		multicast packets don't leave the local network unless the user
-		program explicitly requests it. Argument is an integer.
+See the [dedicated page](config-joold.html).
 
 ## Persistent Daemon
 
