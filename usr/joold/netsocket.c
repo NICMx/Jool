@@ -72,16 +72,16 @@ static int json_to_config(cJSON *json, struct netsocket_config *cfg)
 
 	memset(cfg, 0, sizeof(*cfg));
 
-	child = cJSON_GetObjectItem(json, "multicast-address");
+	child = cJSON_GetObjectItem(json, "multicast address");
 	if (!child) {
-		missing = "multicast-address";
+		missing = "multicast address";
 		goto fail;
 	}
 	cfg->mcast_addr = child->valuestring;
 
-	child = cJSON_GetObjectItem(json, "multicast-port");
+	child = cJSON_GetObjectItem(json, "multicast port");
 	if (!child) {
-		missing = "multicast-port";
+		missing = "multicast port";
 		goto fail;
 	}
 	cfg->mcast_port = child->valuestring;

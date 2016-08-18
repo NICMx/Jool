@@ -162,6 +162,8 @@ static bool *create_globals_found_array(void)
 	struct argp_option *opts;
 	size_t i;
 
+	/* TODO memory leak here. */
+
 	opts = get_global_opts();
 	if (!opts)
 		return NULL;
@@ -267,6 +269,7 @@ static int parse_nat64_json(cJSON *json)
 		}
 
 		if (error) {
+			log_info("Error: %d", error);
 			free(globals_found);
 			return error;
 		}
@@ -495,9 +498,9 @@ static int handle_eamt(cJSON *json)
 		return -ENOMEM;
 
 	for (json = json->child; json; json = json->next, i++) {
-		prefix_json = cJSON_GetObjectItem(json, "ipv6_prefix");
+		prefix_json = cJSON_GetObjectItem(json, "ipv6 Prefix");
 		if (!prefix_json) {
-			log_err("EAM entry #%u lacks an ipv6_prefix field.", i);
+			log_err("EAM entry #%u lacks an 'ipv6 prefix' field.", i);
 			error = -EINVAL;
 			goto end;
 		}
@@ -507,9 +510,9 @@ static int handle_eamt(cJSON *json)
 			goto end;
 		}
 
-		prefix_json = cJSON_GetObjectItem(json, "ipv4_prefix");
+		prefix_json = cJSON_GetObjectItem(json, "ipv4 Prefix");
 		if (!prefix_json) {
-			log_err("EAM entry #%u lacks an ipv4_prefix field.", i);
+			log_err("EAM entry #%u lacks an 'ipv4 prefix' field.", i);
 			error = -EINVAL;
 			goto end;
 		}
@@ -605,7 +608,7 @@ static int handle_pool4(cJSON *json)
 		if (error)
 			goto end;
 
-		child = cJSON_GetObjectItem(json, "port_range");
+		child = cJSON_GetObjectItem(json, "port range");
 		if (child) {
 			error = str_to_port_range(child->valuestring,
 					&entry.range.ports);
@@ -645,5 +648,6 @@ static int handle_bib(cJSON *json)
 	 *
 	 * I'm not getting my hopes up.
 	 */
+	log_err("Sorry; BIB atomic configuration is not implemented.");
 	return -EINVAL;
 }

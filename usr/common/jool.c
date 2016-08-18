@@ -471,8 +471,6 @@ static int parse_opt(int key, char *str, struct argp_state *state)
 
 	case ARGP_ENABLE_TRANSLATION:
 	case ARGP_DISABLE_TRANSLATION:
-	case ARGP_SYNCH_ENABLE:
-	case ARGP_SYNCH_DISABLE:
 		error = set_global_bool(args, key, "true");
 		break;
 	case ARGP_RESET_TCLASS:
@@ -485,7 +483,8 @@ static int parse_opt(int key, char *str, struct argp_state *state)
 	case ARGP_SRC_ICMP6ERRS_BETTER:
 	case ARGP_BIB_LOGGING:
 	case ARGP_SESSION_LOGGING:
-	case ARGP_SYNCH_FLUSH_ASAP:
+	case ARGP_SS_ENABLED:
+	case ARGP_SS_FLUSH_ASAP:
 		error = set_global_bool(args, key, str);
 		break;
 	case ARGP_F_ARGS:
@@ -518,13 +517,13 @@ static int parse_opt(int key, char *str, struct argp_state *state)
 	case ARGP_STORED_PKTS:
 		error = set_global_u32(args, key, str, 0, MAX_U32);
 		break;
-	case ARGP_SYNCH_FLUSH_DEADLINE:
+	case ARGP_SS_FLUSH_DEADLINE:
 		error = set_global_u64(args, key, str, 0, MAX_U32, 1);
 		break;
-	case ARGP_SYNCH_CAPACITY:
+	case ARGP_SS_CAPACITY:
 		error = set_global_u32(args, key, str, 0, MAX_U32);
 		break;
-	case ARGP_SYNCH_MAX_PAYLOAD:
+	case ARGP_SS_MAX_PAYLOAD:
 		error = set_global_u16(args, key, str, 0, JOOLD_MAX_PAYLOAD);
 		break;
 	case ARGP_RFC6791V6_PREFIX:

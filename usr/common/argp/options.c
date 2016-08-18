@@ -596,52 +596,45 @@ static const struct argp_option parse_file_opt = {
 		.group = 0,
 };
 
-static const struct argp_option synch_enable_opt = {
-		.name = OPTNAME_SYNCH_ENABLE,
-		.key = ARGP_SYNCH_ENABLE,
+static const struct argp_option ss_enabled_opt = {
+		.name = OPTNAME_SS_ENABLED,
+		.key = ARGP_SS_ENABLED,
+		.arg = BOOL_FORMAT,
 		.flags = 0,
-		.doc = "Enables jool's synchronization mode.",
+		.doc = "Enable Session Synchronization?",
 		.group = 0,
 };
 
-static const struct argp_option synch_disable_opt = {
-		.name = OPTNAME_SYNCH_DISABLE,
-		.key = ARGP_SYNCH_DISABLE,
-		.flags = 0,
-		.doc = "Disables jool's synchronization mode.",
-		.group = 0,
-};
-
-static const struct argp_option synch_flush_asap_opt = {
-		.name = OPTNAME_SYNCH_FLUSH_ASAP,
-		.key = ARGP_SYNCH_FLUSH_ASAP,
+static const struct argp_option ss_flush_asap_opt = {
+		.name = OPTNAME_SS_FLUSH_ASAP,
+		.key = ARGP_SS_FLUSH_ASAP,
 		.arg = BOOL_FORMAT,
 		.flags = 0,
 		.doc = "Try to synchronize sessions as soon as possible?",
 		.group = 0,
 };
 
-static const struct argp_option synch_flush_deadline_opt = {
-		.name = OPTNAME_SYNCH_FLUSH_DEADLINE,
-		.key = ARGP_SYNCH_FLUSH_DEADLINE,
+static const struct argp_option ss_flush_deadline_opt = {
+		.name = OPTNAME_SS_FLUSH_DEADLINE,
+		.key = ARGP_SS_FLUSH_DEADLINE,
 		.arg = NUM_FORMAT,
 		.flags = 0,
 		.doc = "Inactive milliseconds after which to force a session sync.",
 		.group = 0,
 };
 
-static const struct argp_option synch_capacity_opt = {
-		.name = OPTNAME_SYNCH_CAPACITY,
-		.key = ARGP_SYNCH_CAPACITY,
+static const struct argp_option ss_capacity_opt = {
+		.name = OPTNAME_SS_CAPACITY,
+		.key = ARGP_SS_CAPACITY,
 		.arg = NUM_FORMAT,
 		.flags = 0,
 		.doc = "Maximim number of queuable entries.",
 		.group = 0,
 };
 
-static const struct argp_option synch_max_payload_opt = {
-		.name = OPTNAME_SYNCH_MAX_PAYLOAD,
-		.key = ARGP_SYNCH_MAX_PAYLOAD,
+static const struct argp_option ss_max_payload_opt = {
+		.name = OPTNAME_SS_MAX_PAYLOAD,
+		.key = ARGP_SS_MAX_PAYLOAD,
 		.arg = NUM_FORMAT,
 		.flags = 0,
 		.doc = "Maximum amount of bytes joold should send per packet.",
@@ -735,6 +728,7 @@ static const struct argp_option *opts_nat64[] = {
 	&numeric_opt,
 	&csv_opt,
 
+	/* Globals */
 	&globals_hdr_opt,
 	&enable_opt,
 	&disable_opt,
@@ -746,6 +740,12 @@ static const struct argp_option *opts_nat64[] = {
 	&tos_alias_opt,
 	&plateaus_opt,
 	&plateaus_alias_opt,
+	&max_so_opt,
+	&max_so_alias_opt,
+	&icmp_src_opt,
+	&f_args_opt,
+	&logging_bib_opt,
+	&logging_session_opt,
 	&adf_opt,
 	&adf_alias_opt,
 	&icmp_filter_opt,
@@ -754,27 +754,19 @@ static const struct argp_option *opts_nat64[] = {
 	&tcp_filter_alias_opt,
 	&ttl_udp_opt,
 	&ttl_udp_alias_opt,
-	&ttl_icmp_opt,
-	&ttl_icmp_alias_opt,
 	&ttl_tcpest_opt,
 	&ttl_tcpest_alias_opt,
 	&ttl_tcptrans_opt,
 	&ttl_tcptrans_alias_opt,
+	&ttl_icmp_opt,
+	&ttl_icmp_alias_opt,
 	&ttl_frag_opt,
 	&ttl_frag_alias_opt,
-	&max_so_opt,
-	&max_so_alias_opt,
-	&icmp_src_opt,
-	&f_args_opt,
-	&logging_bib_opt,
-	&logging_session_opt,
-
-	&synch_enable_opt,
-	&synch_disable_opt,
-	&synch_flush_asap_opt,
-	&synch_flush_deadline_opt,
-	&synch_capacity_opt,
-	&synch_max_payload_opt,
+	&ss_enabled_opt,
+	&ss_flush_asap_opt,
+	&ss_flush_deadline_opt,
+	&ss_capacity_opt,
+	&ss_max_payload_opt,
 };
 
 struct argp_option *__build_opts(const struct argp_option **template,
@@ -822,24 +814,24 @@ static const struct argp_option *opts_global_nat64[] = {
 	&override_tos_opt,
 	&tos_opt,
 	&plateaus_opt,
+	&max_so_opt,
+	&icmp_src_opt,
+	&f_args_opt,
+	&logging_bib_opt,
+	&logging_session_opt,
 	&adf_opt,
 	&icmp_filter_opt,
 	&tcp_filter_opt,
-	&icmp_src_opt,
 	&ttl_udp_opt,
-	&ttl_icmp_opt,
 	&ttl_tcpest_opt,
 	&ttl_tcptrans_opt,
+	&ttl_icmp_opt,
 	&ttl_frag_opt,
-	&logging_bib_opt,
-	&logging_session_opt,
-	&max_so_opt,
-	&synch_enable_opt,
-	&synch_disable_opt,
-	&synch_flush_asap_opt,
-	&synch_flush_deadline_opt,
-	&synch_capacity_opt,
-	&synch_max_payload_opt,
+	&ss_enabled_opt,
+	&ss_flush_asap_opt,
+	&ss_flush_deadline_opt,
+	&ss_capacity_opt,
+	&ss_max_payload_opt,
 };
 
 struct argp_option *get_global_opts(void)

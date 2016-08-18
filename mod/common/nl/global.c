@@ -301,27 +301,20 @@ static int massive_switch(struct full_config *cfg, struct global_value *chunk,
 	case MAX_PKTS:
 		error = ensure_nat64(OPTNAME_MAX_SO);
 		return error ? : parse_u32(&cfg->bib.max_stored_pkts, chunk, size);
-	case SYNCH_ENABLE:
-		error = ensure_nat64(OPTNAME_SYNCH_ENABLE);
-		if (!error)
-			cfg->joold.enabled = true;
-		return error;
-	case SYNCH_DISABLE:
-		error = ensure_nat64(OPTNAME_SYNCH_DISABLE);
-		if (!error)
-			cfg->joold.enabled = false;
-		return error;
-	case SYNCH_FLUSH_ASAP:
-		error = ensure_nat64(OPTNAME_SYNCH_FLUSH_ASAP);
+	case SS_ENABLED:
+		error = ensure_nat64(OPTNAME_SS_ENABLED);
+		return error ? : parse_bool(&cfg->joold.enabled, chunk, size);
+	case SS_FLUSH_ASAP:
+		error = ensure_nat64(OPTNAME_SS_FLUSH_ASAP);
 		return error ? : parse_bool(&cfg->joold.flush_asap, chunk, size);
-	case SYNCH_FLUSH_DEADLINE:
-		error = ensure_nat64(OPTNAME_SYNCH_FLUSH_DEADLINE);
+	case SS_FLUSH_DEADLINE:
+		error = ensure_nat64(OPTNAME_SS_FLUSH_DEADLINE);
 		return error ? : parse_timeout(&cfg->joold.flush_deadline, chunk, size, 0);
-	case SYNCH_CAPACITY:
-		error = ensure_nat64(OPTNAME_SYNCH_CAPACITY);
+	case SS_CAPACITY:
+		error = ensure_nat64(OPTNAME_SS_CAPACITY);
 		return error ? : parse_u32(&cfg->joold.capacity, chunk, size);
-	case SYNCH_MAX_PAYLOAD:
-		error = ensure_nat64(OPTNAME_SYNCH_MAX_PAYLOAD);
+	case SS_MAX_PAYLOAD:
+		error = ensure_nat64(OPTNAME_SS_MAX_PAYLOAD);
 		return error ? : parse_u16(&cfg->joold.max_payload, chunk, size, JOOLD_MAX_PAYLOAD);
 	}
 

@@ -165,14 +165,12 @@ static int handle_display_response(struct jool_response *response, void *arg)
 		printf("\n");
 
 		printf("  Synchronization:\n");
-		printf("    Enabled (--%s, --%s): %s\n",
-				OPTNAME_SYNCH_ENABLE , OPTNAME_SYNCH_DISABLE,
-				conf->joold.enabled ? "Enabled" : "Disabled");
-		printf("    --%s: %s\n", OPTNAME_SYNCH_FLUSH_ASAP, print_bool(conf->joold.flush_asap));
-		printf("    --%s: ", OPTNAME_SYNCH_FLUSH_DEADLINE);
+		printf("    --%s: %s\n", OPTNAME_SS_ENABLED, print_bool(conf->joold.enabled));
+		printf("    --%s: %s\n", OPTNAME_SS_FLUSH_ASAP, print_bool(conf->joold.flush_asap));
+		printf("    --%s: ", OPTNAME_SS_FLUSH_DEADLINE);
 		print_time_friendly(conf->joold.flush_deadline);
-		printf("    --%s: %u\n", OPTNAME_SYNCH_CAPACITY, conf->joold.capacity);
-		printf("    --%s: %u\n", OPTNAME_SYNCH_MAX_PAYLOAD, conf->joold.max_payload);
+		printf("    --%s: %u\n", OPTNAME_SS_CAPACITY, conf->joold.capacity);
+		printf("    --%s: %u\n", OPTNAME_SS_MAX_PAYLOAD, conf->joold.max_payload);
 	}
 
 	return 0;
@@ -235,13 +233,13 @@ static int handle_display_response_csv(struct jool_response *response, void *arg
 
 		printf("joold Enabled,%s\n",
 				print_csv_bool(conf->joold.enabled));
-		printf("%s,%s\n", OPTNAME_SYNCH_FLUSH_ASAP,
+		printf("%s,%s\n", OPTNAME_SS_FLUSH_ASAP,
 				print_csv_bool(conf->joold.flush_asap));
-		printf("%s,", OPTNAME_SYNCH_FLUSH_DEADLINE);
+		printf("%s,", OPTNAME_SS_FLUSH_DEADLINE);
 		print_time_csv(conf->joold.flush_deadline);
-		printf("\n%s,%u\n", OPTNAME_SYNCH_CAPACITY,
+		printf("\n%s,%u\n", OPTNAME_SS_CAPACITY,
 				conf->joold.capacity);
-		printf("%s,%u\n", OPTNAME_SYNCH_MAX_PAYLOAD,
+		printf("%s,%u\n", OPTNAME_SS_MAX_PAYLOAD,
 				conf->joold.max_payload);
 
 		printf("%s,", OPTNAME_UDP_TIMEOUT);
