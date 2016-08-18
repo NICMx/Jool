@@ -36,16 +36,20 @@ You can also think of it as "file" configuration mode, since that's the means by
 # jool --file /path/to/config
 {% endhighlight %}
 
-The configuration is read from a Json file. Since the options are the same as their userspace application couterparts, I will simply showcase a couple of full Json examples and link to the app documentation.
+The configuration is read from a Json file. Since the options are the same as their userspace application counterparts, I will simply showcase a couple of full Json examples and link to the app documentation.
 
-Any section tags (`global`, `pool6`, `eamt`, etc) and global parameters (`manually-enabled`, `tos`, `f-args`, etc) you skip will be left intact as they used to be. For example, if your RFC6791 pool contains address `192.0.2.32` and you omit the `pool6791` tag in the file, `192.0.2.32` will remain in pool6791 after the new configuration is applied. If, on the other hand, you intend to clear pool6791, you need to explicitly write an empty `pool6791` tag.
+Every tag is optional. Section tags (such as `global`, `pool6` and `eamt`) and global parameters (eg. `manually-enabled`, `tos` and `f-args`) that you skip will be left intact as they used to be. For example, if your RFC6791 pool contains address `192.0.2.32` and you omit the `pool6791` tag in the file, `192.0.2.32` will remain in pool6791 after the new configuration is applied. If, on the other hand, you intend to clear pool6791, you need to explicitly write an empty `pool6791` tag.
+
+Notice that the global configuration tags are all strings. This is an implementation quirk; the code that parses these values is the same as the one that handles them as program arguments, at which point they are all strings.
+
+TODO that's not true; mtu-plateaus is an array. What happened there?
 
 Without further ado:
 
 ## SIIT
 
-<!-- TODO eam-hairpin-mode and rfc6791v6-prefix aren't documented. -->
-<!-- TODO "clear" feels very out of place. -->
+TODO eam-hairpin-mode and rfc6791v6-prefix aren't documented.  
+TODO "clear" feels very out of place.
 
 <pre><code>{
 	"global": {

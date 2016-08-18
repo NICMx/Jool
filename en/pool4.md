@@ -54,9 +54,9 @@ NAT64s are not overly concerned with retaining source ports. In fact, for securi
 
 When defining the addresses and ports that will belong to your pool4, you need to be aware that they must not collide with other services or clients within the same machine. If _T_ tries to open a connection from transport address `192.0.2.1#5000` and at the same time a translation yields source transport address `192.0.2.1#5000`, Jool will end up combining the the information transmitted in both connections.
 
+[You can change Linux's ephemeral port range by tweaking sysctl `sys.net.ipv4.ip_local_port_range`, and pool4's port range by means of `--pool4 --add` userspace application commands](usr-flags-pool4.html#notes).
+
 If you have no elements in pool4 whatsoever, Jool will fall back to mask packets using the primary global addresses configured in its node's interfaces. Because Linux's ephemeral port range defaults to 32768-61000, Jool will only attempt to mask packets using ports 61001-65535 in this case.
 
 On the other hand, if you insert elements to pool4 and do not specify port ranges, Jool will assume it can use the entire port domain of the addresses (1-65535). This is done for backwards compatibility reasons.
-
-[You can change Linux's ephemeral port range by tweaking sysctl `sys.net.ipv4.ip_local_port_range`, and pool4's port range by means of `--pool4 --add` userspace application commands](usr-flags-pool4.html#notes).
 

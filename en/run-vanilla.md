@@ -34,7 +34,7 @@ You don't need all the nodes shown in the diagram to follow along; you can get a
 
 We will pretend I have address block 198.51.100.8/29 to distribute among my IPv6 nodes.
 
-Jool requires _T_ to be Linux. The rest can be anything you want, as long as it implements the network protocol it's connected to. Also, you are free to configure the networks using any manager you want.
+Jool requires _T_ to be Linux. The rest can be anything you want, as long as it implements the network protocol it's connected to. You are also free to configure the networks using any manager you want.
 
 For the sake of simplicity however, the examples below assume every node is Linux and everything is being configured statically using the well-known `ip` command (and friends). Depending on your distro, your mileage might vary on how to get the network manager out of the way (assuming that's what you want). Just to clarify, the point of `service network-manager stop` below is to claim control over your interface addresses and routes (otherwise the `ip` commands might be ineffectual).
 
@@ -158,7 +158,7 @@ Then maybe another one in _C_ and request from _W_:
 
 ## Stopping Jool
 
-To shut down Jool, revert the modprobe using the `-r` flag:
+Revert the modprobe using the `-r` flag to shut down Jool:
 
 {% highlight bash %}
 user@T:~# /sbin/modprobe -r jool_siit

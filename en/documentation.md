@@ -48,9 +48,9 @@ See [RFC 6586](https://tools.ietf.org/html/rfc6586) for deployment experiences u
 1. Common arguments
 	1. [`--help`](usr-flags-help.html)
 	2. [`--global`](usr-flags-global.html)
-		1. [`--plateaus`](usr-flags-plateaus.html)
-		2. [`--allow-atomic-fragments`](usr-flags-atomic.html)
+		1. [`--mtu-plateaus`](usr-flags-plateaus.html)
 	3. [`--pool6`](usr-flags-pool6.html)
+	4. [`--instance`](usr-flags-instance.html)
 2. `jool_siit`-only arguments
 	1. [`--eamt`](usr-flags-eamt.html)
 	2. [`--blacklist`](usr-flags-blacklist.html)
@@ -59,7 +59,7 @@ See [RFC 6586](https://tools.ietf.org/html/rfc6586) for deployment experiences u
 	1. [`--pool4`](usr-flags-pool4.html)
 	2. [`--bib`](usr-flags-bib.html)
 	3. [`--session`](usr-flags-session.html)
-	4. [`--quick`](usr-flags-quick.html)
+	4. [`--joold`](usr-flags-joold.html)
 
 ## Other Configuration
 

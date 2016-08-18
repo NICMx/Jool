@@ -133,10 +133,10 @@ You have two options:
 
 1. Official releases are hosted in the [Download page](download.html).  
 These will prove less convoluted when you install the userspace application.
-2. There's the [Git repository]({{ site.repository-url }}) (Hit the "Download ZIP" button).  
+2. There's the [Git repository]({{ site.repository-url }}) ("Clone or download" > "Download ZIP").  
 This might have slight bugfixes not present in the latest official release, which you can access by sticking to the latest commit of the master branch (we do all the risky development elsewhere).
 
-> ![Note!](../images/bulb.svg) The name of the Git repository was recently renamed from "NAT64" to "Jool". Old "NAT64" content should redirect to "Jool" now, so this shouldn't be too confusing.
+> ![Note!](../images/bulb.svg) The name of the Git repository was recently renamed from "NAT64" to "Jool". Old "NAT64" content should now redirect to "Jool" so this shouldn't be too confusing.
 
 ## Compilation and Installation
 

@@ -32,7 +32,7 @@ A record in this database defines the relationship between the transport address
 
 An IPv4 transport address mask is always one that belongs to Jool. Therefore, the IPv4 transport address of the BIB entries normally belong to [pool4](pool4.html).
 
-> ![Note](../images/bulb.svg) Sometimes you might find BIB entries that hold IPv4 transport addresses that might not belong to pool4. This can happen if you recently removed pool4 entries using [`--quick`](usr-flags-quick.html).
+> ![Note](../images/bulb.svg) Sometimes you might find BIB entries that hold IPv4 transport addresses that might not belong to pool4. This can happen if you recently removed pool4 entries using [`--quick`](usr-flags-pool4.html#quick).
 
 ## Terminology
 
@@ -73,5 +73,4 @@ This entry will not expire automatically, so IPv4 clients can reliably query the
 ## Further Reading
 
 - You can upload static BIB entries via [`--bib`](usr-flags-bib.html).
-- [`--address-dependent-filtering`](usr-flags-global.html#address-dependent-filtering) is a security layer than can limit dynamic entries.
 

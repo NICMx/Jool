@@ -4,7 +4,7 @@ This branch contains the source files of Jool's site and documentation.
 
 Github automatically compiles this, and it's available at https://nicmx.github.io/Jool. Unfortunately, Github is not yet available from IPv6, so a slightly less often updated fallback exists at https://www.jool.mx.
 
-If you want to compile the documentation yourself, run [Jekyll](http://jekyllrb.com/) right here.
+You can compile the documentation yourself by running [Jekyll](http://jekyllrb.com/) right here.
 
 ```bash
 $ jekyll build

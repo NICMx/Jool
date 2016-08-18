@@ -49,7 +49,7 @@ Controls several of Jool's internal variables.
 * Issue an empty `--global` command to display the current values of all of Jool's options.
 * Enter a key and a value to edit the key's variable.
 
-`--global` is the default configuration mode, so you never actually need to input that one flag.
+`--global` is the default configuration mode, so you never actually need to input this one flag.
 
 ## Syntax
 
@@ -93,9 +93,11 @@ Resumes and pauses translation of packets, respectively. This might be useful if
 
 (If you don't want Jool to stop while you reconfigure, don't worry about this. Use it only if it feels right.)
 
-Timers will _not_ be paused. In other words, [BIB](usr-flags-bib.html)/[session](usr-flags-session.html) entries and stored [packets](#maximum-simultaneous-opens) and [fragments](#fragment-arrival-timeout) might die while Jool is idle.
+Timers will _not_ be paused. [BIB](usr-flags-bib.html)/[session](usr-flags-session.html) entries and stored [packets](#maximum-simultaneous-opens) and [fragments](#fragment-arrival-timeout) might die while Jool is idle.
 
 ### `--address-dependent-filtering`
+
+<!-- TODO I think this documentation is somewhat incorrect now. -->
 
 - Type: Boolean
 - Default: OFF
@@ -130,7 +132,7 @@ Then _n4b_ tries to chat _n6_ too:
 
 Because the BIB entry exists, _J_ knows that _n4b_ means "2001:db8::1#10" when he says "192.0.2.1#10", so the packet can technically be translated. However, because of the session tables, _J_ can also tell that _n6_ hasn't been talking to _n4b_ in the past.
 
-If `--address-dependent-filtering` is OFF, _J_ will allow _n4b_'s packet to pass. If `--address-dependent-filtering` is ON, _J_ will drop _n4b_'s packet and respond with a "Communication Administratively Prohibited" ICMP error. This effectively wrecks any IPv4-started communication attempts, even if there are BIB entries (static or otherwise).
+If `--address-dependent-filtering` is OFF, _J_ will allow _n4b_'s packet through. If `--address-dependent-filtering` is ON, _J_ will drop _n4b_'s packet and respond with a "Communication Administratively Prohibited" ICMP error. This effectively wrecks any IPv4-started communication attempts, even if there are BIB entries (static or otherwise).
 
 * If you're using the NAT64 to publish a IPv6-only service to the IPv4 Internet, it makes sense for `--address-dependent-filtering` to be OFF. This is because clients are expected to find out about the IPv6 service on their own, and the server doesn't normally start packet streams.
 * If you're using the NAT64 to allow IPv6 nodes to browse the IPv4 Internet, please consider the recommendation on [RFC6888 REQ-7](https://tools.ietf.org/html/rfc6888#section-3) before setting `--address-dependent-filtering` to ON.  While it's true that  clients choose their ports at random, so it is suspicious for random outsider nodes to guess these ports, `--address-dependent-filtering` ON might break NAT traversal methods like STUN (or at least make some operation modes impossible) or it might impair some games and peer-to-peer applications.
@@ -195,7 +197,7 @@ When you change this value, the lifetimes of all already existing established TC
 - Deprecated name: `--toTCPtrans`
 - Source: [RFC 6146, derivatives of section 3.5.2](http://tools.ietf.org/html/rfc6146#section-3.5.2)
 
-When an unhealthy TCP session has been lying around inactive for this long, its entry will be removed from the database automatically. An "unhealthy" session is one in which the TCP handshake has not yet been completed, it is being terminated by the endpoints, or is technically established but has remained inactive for `--tcp-est-timeout` time.
+When an unhealthy TCP session has been lying around inactive for this long, its entry will be removed from the database automatically. An "unhealthy" session is one in which the TCP handshake has not yet been completed, it is being (or has been) terminated by the endpoints, or is technically established but has remained inactive for `--tcp-est-timeout` time.
 
 When you change this value, the lifetimes of all already existing transitory TCP sessions are updated.
 
@@ -248,6 +250,8 @@ In the case of TCP, the situation is a little more complicated because the IPv4 
 `--maximum-simultaneous-opens` is the maximum amount of packets Jool will store at a time. The default means that you can have up to 10 "simultaneous" simultaneous opens; Jool will fall back to immediately answer the ICMP error message on the eleventh one.
 
 ### `--source-icmpv6-errors-better`
+
+<!-- TODO Let's change the default of this already. -->
 
 - Type: Boolean
 - Default: False
@@ -337,7 +341,7 @@ Here's a sample output:
 	[ 3481.632214] 2015/4/8 17:5:51 (GMT) - Forgot session 1::5#33160|64:ff9b::c000:205#8080|192.0.2.2#15496|192.0.2.5#8080|TCP
 	[ 3481.632342] 2015/4/8 17:5:51 (GMT) - Forgot session 1::5#33161|64:ff9b::c000:205#8080|192.0.2.2#7060|192.0.2.5#8080|TCP
 
-This log is remarcably more voluptuous than [`--logging-bib`](#logging-bib), not only because each message is longer, but because sessions are generated and destroyed more often than BIB entries (each BIB entry can have multiple sessions). Because of REQ-12 from [RFC 6888 section 4](http://tools.ietf.org/html/rfc6888#section-4), chances are you don't even want the extra information sessions grant you.
+This log is remarcably more voluptuous than [`--logging-bib`](#logging-bib), not only because each message is longer, but because sessions are generated and destroyed more often than BIB entries. (Each BIB entry can have multiple sessions.) Because of REQ-12 from [RFC 6888 section 4](http://tools.ietf.org/html/rfc6888#section-4), chances are you don't even want the extra information sessions grant you.
 
 ### `--zeroize-traffic-class`
 
@@ -376,26 +380,6 @@ If you leave this OFF, the Traffic Class value will be copied directly to the TO
 
 Value to set the TOS value of the packets' IPv4 fields during IPv6-to-IPv4 translations. _This only applies when [`--override-tos`](#override-tos) is ON_.
 
-### `--allow-atomic-fragments`
-
-Deprecated. See [Atomic Fragments](usr-flags-atomic.html).
-
-### `--setDF`
-
-Deprecated. See [Atomic Fragments](usr-flags-atomic.html).
-
-### `--genFH`
-
-Deprecated. See [Atomic Fragments](usr-flags-atomic.html).
-
-### `--genID`
-
-Deprecated. See [Atomic Fragments](usr-flags-atomic.html).
-
-### `--boostMTU`
-
-Deprecated. See [Atomic Fragments](usr-flags-atomic.html).
-
 ### `--amend-udp-checksum-zero`
 
 - Type: Boolean
@@ -404,11 +388,11 @@ Deprecated. See [Atomic Fragments](usr-flags-atomic.html).
 - Translation direction: IPv4 to IPv6 (UDP only)
 - Source: [RFC 6145, section 4.5](http://tools.ietf.org/html/rfc6145#section-4.5)
 
-In IPv4, it's legal for UDP packets to contain zero as checksum. This is because the whole thing about UDP is that it's unreliable, and therefore sometimes the value of checksum validation does not justify its overhead.
+It is legal for IPv4/UDP packets to contain zero as checksum. This is because the whole thing about UDP is that it is unreliable, and the value of checksum validation might therefore not justify its overhead.
 
-In IPv6, zero is an invalid checksum value for UDP packets.
+Zero is an invalid checksum value for IPv6/UDP packets.
 
-- If `--amend-udp-checksum-zero` is ON and a zero-checksum IPv4-UDP packet arrives, Jool will compute its checksum before translating it. Note, this might be computationally expensive.
+- If `--amend-udp-checksum-zero` is ON and a zero-checksum IPv4-UDP packet arrives, Jool will compute its checksum before translating it. This can be computationally expensive.
 - If `--amend-udp-checksum-zero` is OFF and a zero-checksum IPv4-UDP packet arrives, Jool will unceremoniously drop the packet and log its addresses (with [Log Level](http://elinux.org/Debugging_by_printing#Log_Levels) KERN_DEBUG).
 
 This does not affect _fragmented_ zero-checksum IPv4-UDP packets. SIIT Jool does not reassemble, which means it _cannot_ compute the checksum. In these cases, the packet will be dropped regardless of `--amend-udp-checksum-zero`.
@@ -443,9 +427,9 @@ When a packet should not be fragmented and doesn't fit into a link it's supposed
 
 Backwards compatibility awards IPv4 emmiters strategies to fall back when they encounter such a situation, but IPv6 has always been designed with the field present in mind. Therefore, if Jool translates a zero-MTU ICMPv4 message into a zero-MTU ICMPv6 message, chaos *might* ensue (actual results will depend mainly on the IPv6 client's implementation).
 
-To address this problem, when Jool finds itself attempting to translate a zero-MTU message, it will replace the MTU with the greatest plateau which is lower than the original packet's Total Length field. Admittedly, this might or might not be the correct MTU, but is a very educated guess. See [this example](usr-flags-plateaus.html) for more details. More in-depth information can be found in <a href="http://tools.ietf.org/html/rfc1191" target="_blank">RFC 1191</a>.
+To address this problem, when Jool finds itself attempting to translate a zero-MTU message, it will replace the MTU with the greatest plateau which is lower than the original packet's Total Length field. Admittedly, this might or might not be the correct MTU, but is a very educated guess. See [this example](usr-flags-plateaus.html) for more details. More in-depth information can be found in [RFC 1191](http://tools.ietf.org/html/rfc1191).
 
-Note that if `--boostMTU` is activated, the MTU will still be 1280 even if the relevant plateau is less than 1280.
+Notice that the minimum IPv6 MTU is 1280. This will override the plateau result if the resulting value is less than 1280.
 
 You don't really need to sort the values as you input them.
 

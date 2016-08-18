@@ -19,12 +19,13 @@ title: --pool4
 4. [Examples](#examples)
 5. [Notes](#notes)
 6. [`--mark`](#mark)
+7. [`--quick`](#quick)
 
 ## Description
 
 Interacts with NAT64 Jool's [IPv4 transport address pool](pool4.html).
 
-The IPv4 pool is the subset of the node's transport addresses which should be used to mask connections sourced from IPv6 nodes.
+The IPv4 pool is the subset of the node's transport addresses which are reserved to mask IPv6 nodes.
 
 If pool4 is empty, Jool will try to mask packets using its own node's assigned IPv4 addresses, and their default unused port ranges. See [Notes](#notes).
 
@@ -32,7 +33,6 @@ If pool4 is empty, Jool will try to mask packets using its own node's assigned I
 
 	jool --pool4 (
 		[--display] [--csv]
-		| --count
 		| --add <PROTOCOLS> <IPv4-prefix> <port-range> [--mark <mark>] [--force]
 		| --remove <PROTOCOLS> <IPv4-prefix> <port-range> [--mark <mark>] [--quick]
 		| --flush [--quick]
@@ -45,23 +45,26 @@ If pool4 is empty, Jool will try to mask packets using its own node's assigned I
 ### Operations
 
 * `--display`: The pool's records are printed in standard output. This is the default operation.
-* `--count`: Prints the number of tables, samples and transport addresses in standard output.
 * `--add`: Uploads entries to the pool. See [notes](#notes).
 * `--remove`: Deletes entries from the pool.
 * `--flush`: Removes all entries from the pool.
+
+> ![Note!](../images/warning.svg) The `--count` operation is no longer available in `--pool4` mode!
+> 
+> The replacement can be found [here](https://github.com/NICMx/pool4-usage-analyzer).
 
 ### Options
 
 | **Flag** | **Default** | **Description** |
 | `--csv` | (absent) | Print the table in [_Comma/Character-Separated Values_ format](http://en.wikipedia.org/wiki/Comma-separated_values). This is intended to be redirected into a .csv file. |
-| `--mark` | 0 | Packets carrying mark _n_ will only be translated using pool4 records with mark _n_. See [below](#mark). |
+| `--mark` | 0 | Defines the mark of the entry being added or removed. Packets carrying mark _n_ will only be translated using pool4 records with mark _n_. See [below](#mark). |
 | `--tcp` | * | If present, the record being added or removed represents TCP transport addresses. |
 | `--udp` | * | If present, the record being added or removed represents UDP transport addresses. |
 | `--icmp` | * | If present, the record being added or removed represents "ICMP transport addresses" (Addresses and ICMP identifiers, not ports). |
 | `<IPv4-prefix>` | - | Group of addresses you're adding or removing to/from the pool. The length defaults to 32, so you typically add and remove addresses instead of prefixes. |
 | `<port-range>` | 1-65535 for TCP/UDP, 0-65535 for ICMP | Subset layer 4 identifiers (or ICMP ids) from the addresses which should be reserved for translation. |
 | `--force` | (absent) | If present, add the elements to the pool even if they're too many.<br />(Will print a warning and quit otherwise.) |
-| `--quick` | (absent) | If present, do not cascade removal to [BIB entries](bib.html).<br />`--quick` present is faster, `--quick` absent leaves a cleaner (and therefore more efficient) BIB database.<br />Leftover BIB entries will still be removed from the database and freed after they expire naturally.<br />See [this](usr-flags-quick.html) for a more verbose explanation. |
+| `--quick` | (absent) | Do not cascade removal to [BIB entries](bib.html).<br />See [below](#quick). |
 
 \* `--tcp`, `--udp` and `--icmp` are not mutually exclusive. If neither of them are present, the records are added or removed to/from all three protocols.
 
@@ -166,4 +169,15 @@ For example:
 	# ip6tables -t mangle -I PREROUTING -s 2001:db8:2::/64 -j MARK --set-mark 20
 
 Recognizing or narrowing down the IPv6 clients behind IPv4 transport addresses helps you create [IPv4-based ACLs]({{ site.repository-url }}/issues/115) and preventing groups of clients from hogging up IPv4 transport addresses (therefore DOSing the NAT64 for other clients).
+
+See [this project](https://github.com/NICMx/mark-src-range) as well.
+
+## `--quick`
+
+If you `--remove` or `--flush` a pool4 entry, the BIB entries that match it become obsolete because the packets they serve are no longer going to be translated. This is because a pool4 match is a prerequisite for translation.
+
+* When `--quick` is absent during a pool4 entry removal, Jool will also get rid of the now obsolete "slaves". This saves memory, keeps the database consistent and optimizes BIB entry lookup during packet translations. The removal operation itself, however, is slower.
+* On the other hand, when you do issue `--quick`, Jool will only purge the pool4 entries, thereby "orphaning" its BIB entries. This can be useful if you know you have too many BIB entries and want the operation to succeed immediately, or more likely you plan to re-add the pool4 entry in the future. Doing so will enable the (still remaining) slaves again.
+
+Orphaned slaves will remain inactive in the database, and will eventually kill themselves once their normal removal conditions are met (ie. once all their sessions expire).
 

@@ -17,13 +17,15 @@ title: Kernel Module Arguments
 	1. [`pool6`](#pool6)
 	2. [`pool4`](#pool4)
 	3. [`disabled`](#disabled)
+	4. [`no_instance`](#noinstance)
 
 ## Syntax
 
 	# /sbin/modprobe jool \
 			[pool6=<IPv6 prefix>] \
 			[pool4=<IPv4 prefixes>] \
-			[disabled]
+			[disabled] \
+			[no_instance]
 
 ## Example
 
@@ -45,11 +47,11 @@ Comma-separated arguments can contain up to 5 entries. If you need more, use the
 - Userspace Application Counterpart: [`--pool6`](usr-flags-pool6.html)
 - Default: -
 
-The RFC 6052 translation prefix. It defines the IPv6 representation of the addresses of the IPv4 nodes. See the [NAT64 introduction](intro-xlat.html#stateful-nat64).
+The RFC 6052 translation prefix of the Jool instance. It defines the IPv6 representation of the addresses of the IPv4 nodes. See the [NAT64 introduction](intro-xlat.html#stateful-nat64).
 
-If this is not present, Jool cannot translate. Therefore, you can use the default to pause translation, just like [`disabled`](#disabled).
+If this is not present, Jool cannot translate. You can therefore use the default to pause translation, just like [`disabled`](#disabled).
 
-As per RFC 6052, the prefix length must be 32, 40, 48, 56, 64 or 96.
+The prefix length must be 32, 40, 48, 56, 64 or 96 as per RFC 6052.
 
 ### `pool4`
 
@@ -58,17 +60,29 @@ As per RFC 6052, the prefix length must be 32, 40, 48, 56, 64 or 96.
 - Userspace Application Counterpart: [`--pool4`](usr-flags-pool4.html)
 - Default: Port range 61001-65535 of whatever addresses the node has in its interfaces.
 
-IPv4 addresses to mask IPv6 nodes with. See [IPv4 Transport Address Pool](pool4.html) for details.
+IPv4 addresses the instance can mask IPv6 nodes with. See [IPv4 Transport Address Pool](pool4.html) for details.
 
-Any address you insert via `pool4` defaults to use mark zero and contain port range 1-65535 and ICMP identifiers 0-65535. You can't change this during the modprobe; the userspace application version of this argument is therefore recommended.
+Any address you insert via `pool4` defaults to use mark zero and contain port range 1-65535 and ICMP identifiers 0-65535. You can't change this during the modprobe; the userspace application version of this argument is therefore recommended instead.
 
 ### `disabled`
 
-- Name: Insert Jool, but do not translate yet.
+- Name: Insert the Jool instance, but do not translate yet.
 - Type: -
 - Userspace Application Counterpart: [`--enable` and `--disable`](usr-flags-global.html#enable---disable)
 
-Starts Jool inactive. If you're using the userspace application, you can use it to ensure you're done configuring before your traffic starts getting translated.
+Hooks the Jool instance inactive. If you're using the userspace application, you can use it to ensure you're done configuring before your traffic starts getting translated.
 
-If not present, Jool starts translating traffic right away.
+If not present, the instance starts translating traffic right away.
+
+### `no_instance`
+
+- Name: Do not create a translator instance
+- Type: -
+- Userspace Application Counterpart: [`--instance --add`](usr-flags-instance.html)
+
+Prevents the modprobe from hooking a translator instance on the current network namespace.
+
+`no_instance` invalidates the rest of the arguments since all of them are intended to configure the default instance.
+
+<!-- TODO the modinfo description of this field is gramatically incorrect. -->
 

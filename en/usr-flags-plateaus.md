@@ -2,16 +2,16 @@
 language: en
 layout: default
 category: Documentation
-title: --plateaus
+title: --mtu-plateaus
 ---
 
-[Documentation](documentation.html) > [Userspace Application Arguments](documentation.html#userspace-application-arguments) > [\--global](usr-flags-global.html) > \--plateaus
+[Documentation](documentation.html) > [Userspace Application Arguments](documentation.html#userspace-application-arguments) > [\--global](usr-flags-global.html) > \--mtu-plateaus
 
 # MTU Plateaus (Example)
 
 ## Introduction
 
-This article explains the purpose of the `--plateaus` flag by example.
+This article explains the purpose of the `--mtu-plateaus` flag by example.
 
 This is the sample network:
 
@@ -33,11 +33,11 @@ _n6_ wants to write a 1500-byte IPv6 packet to _n4_ (Think 100 bytes of headers 
 
 <a href="http://en.wikipedia.org/wiki/Path_MTU_Discovery" target="_blank">Path MTU discovery</a> operates under the assumption that the router who could not forward the packet will report the maximum packet size it can transmit. At this point, the ICMP error would contain the magic number "1007", and so _n6_ would know that he has to slice his packet into according pieces if he's still interested in the arrival of his message.
 
-Unfortunately, the original ICMPv4 specification does not mandate the inclusion of the number; it is an afterthought. If _r4_ is old enough, it will leave the MTU field unset (i. e. zero), and _n6_ will be baffled at the prospect of having to divide its data into chunks of zero bytes each (ICMPv6 does mandate the MTU field, so IPv6 nodes actually rely on it).
+Unfortunately, the inclusion of this number is an afterthought; the original ICMPv4 specification does not mandate it. If _r4_ is old enough, it will leave the MTU field unset (ie. zero), and _n6_ will be baffled at the prospect of having to divide its data into chunks of zero bytes each (ICMPv6 does mandate the MTU field, so IPv6 nodes actually rely on it).
 
 Being the only one who has a grasp of what the problem is, the task of hacking a solution befalls on the NAT64.
 
-_J_ will realize that the problem exists by observing that it's trying to translate a ICMPv4 error with a zero MTU to ICMPv6, where that's illegal. _J_ doesn't have a way to know the MTU of the _r4-n4_ network, so it has to guess. It does know that the rejected packet was 1500 bytes long, so it takes a look at `--plateaus`, whose default value is based on the following table, and picks the first plateau which would reject a 1500-sized packet:
+_J_ will realize that the problem exists by observing that it's trying to translate a ICMPv4 error with a zero MTU to ICMPv6, where that is illegal. _J_ does not have a way to know the MTU of the _r4-n4_ network so it has to guess. It does know that the rejected packet was 1500 bytes long, so it takes a look at `--mtu-plateaus` (whose default value is based on the following table) and picks the first plateau which would reject a 1500-sized packet:
 
 	   Plateau    MTU    Comments                      Reference
 	   ------     ---    --------                      ---------
@@ -75,27 +75,27 @@ _J_ will realize that the problem exists by observing that it's trying to transl
 
 So _J_ suspects the _r4-n4_ network is a IEEE 802.3. It translates the zero-MTU ICMPv4 error into a 1492-MTU ICMPv6 error.
 
-_n6_ slices its message and now tries to send one 1492 long packet (100 bytes of headers and 1392 bytes of data payload), and one 108-byte packet (100 header, 8 payload). _J_ translates it, and then again _r4_ says "no dice" (because a 1492 packet still doesn't fit in a 1007-MTU network).
+_n6_ slices its message and now tries to send one 1492 long packet (100 bytes of headers and 1392 bytes of data payload) and one 108-byte packet (100 header, 8 payload). _r4_ again rejects the attempt because a 1492 packet still does not fit in a 1007-MTU network.
 
 ![Fig.3 - Attempt 2](../images/plateaus-attempt2.svg)
 
-_J_ again realizes it's trying to translate a zero MTU ICMP error, so it again tries to report the first plateau which would object to the rejected packet. This time, the next plateau of 1492 is 1006, so _J_ guesses _r4-n4_ is a SLIP or an ARPANET. As you can see, the guess was correct this time.
+_J_ again realizes that it is trying to translate a zero MTU ICMP error, so it again tries to report the first plateau which would object to the rejected packet. The next plateau of 1492 is 1006 this time, so _J_ guesses _r4-n4_ is a SLIP or an ARPANET. The guess was correct this time, as you can see.
 
-Upon receiving the news, n6 now slices its data into a 1006 (100 + 906) packet and a 594 (100 + 494) packet. This time, the translated versions fit and arrive at their destination.
+Upon receiving the news, n6 now slices its data into a 1006 (100 + 906) packet and a 594 (100 + 494) packet. The translated versions finally fit and arrive at their destination.
 
 ![Fig.4 - Attempt 3](../images/plateaus-attempt3.svg)
 
 ## Wrapping up
 
-The plateaus strategy is the better alternative out of several Path MTU discovery approaches. Because it is aware of existing MTUs, it converges quickly and leaves little room for under-utilization (see <a href="http://tools.ietf.org/html/rfc1191#section-5" target="_blank">section 5 of RFC 1191</a>).
+The plateaus strategy is the better alternative out of several Path MTU discovery approaches. Because it is aware of existing MTUs, it converges quickly and leaves little room for under-utilization. (See <a href="http://tools.ietf.org/html/rfc1191#section-5" target="_blank">section 5 of RFC 1191</a>.)
 
-On the other hand, that argument tends to fall on its butt on the grounds that the MTU table is long overdue. Just by looking at the example you might have gone like "ARPANET was disbanded a long time ago!", and you would be right. Though RFC 1191 says "implementors should use up-to-date references to pick a set of plateaus", none seem to come up.
+You might have noticed, however, that ARPANET was disbanded a long time ago, which speaks poorly of the default plateaus list. And this is true; though RFC 1191 says "implementors should use up-to-date references to pick a set of plateaus", none seem to come up.
 
 It's not that bad, given that some of the protocols in the table are still in use, and having a few redundant plateaus is better than having a few missing ones.
 
 And it doesn't mean the plateaus list is hardcoded into Jool, either. If you want to change your plateaus list, run (after installing the [userspace application](install-usr.html))
 
-	$(jool) --mtu-plateaus <list>
+	(jool_siit | jool) --mtu-plateaus <list>
 
 For example:
 

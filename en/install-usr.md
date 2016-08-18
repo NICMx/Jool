@@ -64,9 +64,9 @@ You only need this if you plan on downloading the Github version of Jool.
 Pick either:
 
 1. The Official Releases' [Download page](download.html).
-2. The [Git repository]({{ site.repository-url }}) (Hit the "Download ZIP" button).
+2. The [Git repository]({{ site.repository-url }}) ("Clone or download" > "Download ZIP").
 
-> ![Note!](../images/bulb.svg) The Git repository is named "NAT64" for historic reasons only. You're actually downloading both the SIIT and the NAT64.
+> ![Note!](../images/bulb.svg) The name of the Git repository was recently renamed from "NAT64" to "Jool". Old "NAT64" content should now redirect to "Jool" so this shouldn't be too confusing.
 
 ## Compilation and Installation
 
@@ -93,5 +93,5 @@ $ make
 # make install
 {% endhighlight %}
 
-> ![Note!](../images/bulb.svg) If you only want to compile the SIIT binary, you can speed things up by running the make commands in the `mod/stateless` folder. Similarly, if you only want the NAT64, do so in `mod/stateful`.
+> ![Note!](../images/bulb.svg) If you only want to compile the SIIT binary, you can speed things up by running the make commands in the `usr/stateless` folder. If you want the NAT64 client instead, do so in `usr/stateful`. If you want the daemon, go to `usr/joold`.
 

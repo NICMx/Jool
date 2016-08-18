@@ -15,7 +15,7 @@ There's one major difference between IPv4 and IPv6 which an IP Translator alone 
 
 The IPv4 header "features" a flag called [_Don't Fragment_](http://en.wikipedia.org/wiki/IPv4#Packet_structure) (DF). It dictates whether the source allows routers to fragment the packet.
 
-In IPv6, packets can never be fragmented by routers. It's as if DF was always on.
+In IPv6, packets can never be fragmented by routers. DF is implicit and always active.
 
 When there's a translator in the middle, an IPv4 packet which can be fragmented becomes an IPv6 packet that must not be fragmented.
 
@@ -25,7 +25,7 @@ So what happens if the packet is too big?
 
 ![Fig.1 - MTU flow fail](../images/flow/mtu-frag-fail-en.svg)
 
-It's implementation defined. If _n4_ is smart, it will try to decrease the lenght of the packet. If it's not, the packet will never reach _n6_.
+It is implementation defined. If _n4_ is smart, it will try to decrease the lenght of the packet. If it is not, the packet will never reach _n6_.
 
 Proper implementations today actually use [Path MTU discovery](http://en.wikipedia.org/wiki/Path_MTU_Discovery) and therefore never unset the DF flag. Still, stubborn or legacy code is not unheard of.
 

@@ -18,6 +18,7 @@ title: Kernel Module Arguments
 	2. [`blacklist`](#blacklist)
 	3. [`pool6791`](#pool6791)
 	4. [`disabled`](#disabled)
+	5. [`no_instance`](#noinstance)
 
 ## Syntax
 
@@ -25,7 +26,8 @@ title: Kernel Module Arguments
 			[pool6=<IPv6 prefix>] \
 			[blacklist=<IPv4 prefixes>] \
 			[pool6791=<IPv4 prefixes>] \
-			[disabled]
+			[disabled] \
+			[no_instance]
 
 ## Example
 
@@ -39,7 +41,7 @@ title: Kernel Module Arguments
 
 IPv4 prefix lengths default to 32 and IPv6 prefix lengths default to 128.
 
-Comma-separated arguments can contain up to 5 entries. If you need more, use the userspace application counterpart.
+Comma-separated arguments can contain up to 5 entries. Please use the userspace application counterpart if you need more.
 
 ### `pool6`
 
@@ -48,9 +50,9 @@ Comma-separated arguments can contain up to 5 entries. If you need more, use the
 - Userspace Application Counterpart: [`--pool6`](usr-flags-pool6.html)
 - Default: -
 
-The RFC 6052 translation prefix. It's the base prefix Jool will be appending and removing from the packets as described in the [stock SIIT introduction](intro-xlat.html#siit-traditional).
+The RFC 6052 translation prefix of the Jool instance being created. It is the base prefix Jool will be appending and removing from the packets as described in the [stock SIIT introduction](intro-xlat.html#siit-traditional).
 
-As per RFC 6052, the prefix length must be 32, 40, 48, 56, 64 or 96.
+The prefix length must be 32, 40, 48, 56, 64 or 96 as per RFC 6052.
 
 ### `blacklist`
 
@@ -59,7 +61,7 @@ As per RFC 6052, the prefix length must be 32, 40, 48, 56, 64 or 96.
 - Userspace Application Counterpart: [`--blacklist`](usr-flags-blacklist.html)
 - Default: None
 
-IPv4 addresses to exclude from [`pool6`](#pool6)-based translation.
+IPv4 addresses the Jool instance should exclude from [`pool6`](#pool6)-based translation.
 
 ### `pool6791`
 
@@ -68,17 +70,28 @@ IPv4 addresses to exclude from [`pool6`](#pool6)-based translation.
 - Userspace Application Counterpart: [`--pool6791`](usr-flags-pool6791.html)
 - Default: None
 
-Addresses to source untranslatably-sourced ICMPv6 errors with. See the [RFC 6791 summary](pool6791.html).
+Addresses the Jool instance can source untranslatably-sourced ICMPv6 errors with. See the [RFC 6791 summary](pool6791.html).
 
-Defaults to the Jool machine's natural source IPv4 address.
+Defaults to the natural source IPv4 address of the namespace.
 
 ### `disabled`
 
-- Name: Insert Jool, but do not translate yet.
+- Name: Insert the Jool instance, but do not translate yet.
 - Type: -
 - Userspace Application Counterpart: [`--enable` and `--disable`](usr-flags-global.html#enable---disable)
 
-Starts Jool inactive. If you're using the userspace application, you can use it to ensure you're done configuring before your traffic starts getting translated.
+Hooks the Jool instance inactive. If you're using the userspace application, you can use it to ensure you're done configuring before your traffic starts getting translated.
 
-If not present, Jool starts translating traffic right away.
+If not present, the instance starts translating traffic right away.
 
+### `no_instance`
+
+- Name: Do not create a translator instance
+- Type: -
+- Userspace Application Counterpart: [`--instance --add`](usr-flags-instance.html)
+
+Prevents the modprobe from hooking a translator instance on the current network namespace.
+
+`no_instance` invalidates the rest of the arguments since all of them are intended to configure the default instance.
+
+<!-- TODO the modinfo description of this field is gramatically incorrect. -->
