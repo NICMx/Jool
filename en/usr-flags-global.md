@@ -36,11 +36,11 @@ title: --global
 	13. [`--mtu-plateaus`](#mtu-plateaus)
 	21. [`--f-args`](#f-args)
 	22. [`--handle-rst-during-fin-rcv`](#handle-rst-during-fin-rcv)
-	23. [`--synch-enable`, `--synch-enable`](#synch-enable---synch-disable)
-	24. [`--synch-flush-asap`](#synch-flush-asap)
-	25. [`--synch-flush-deadline`](#synch-flush-deadline)
-	26. [`--synch-capacity`](#synch-capacity)
-	27. [`--synch-max-payload`](#synch-max-payload)
+	23. [`--ss-enabled`](#ss-enabled)
+	24. [`--ss-flush-asap`](#ss-flush-asap)
+	25. [`--ss-flush-deadline`](#ss-flush-deadline)
+	26. [`--ss-capacity`](#ss-capacity)
+	27. [`--ss-max-payload`](#ss-max-payload)
 
 ## Description
 
@@ -529,16 +529,16 @@ The only known downside to activating `--handle-rst-during-fin-rcv` is that atta
 - Are idle. (more than `--tcp-trans-timeout` seconds between packets)
 - One endpoint has already sent a FIN.
 
-### `--synch-enable`, `--synch-disable`
+### `--ss-enabled`
 
-- Type: -
+- Type: Boolean
 - Default: OFF (TODO there should be a modprobe equivalent)
 - Modes: Stateful NAT64 only
 - Source: [Issue 113]({{ site.repository-url }}/issues/113)
 
 Enable/Disable [Session Synchronization (SS)](session-synchronization.html) on the kernel module.
 
-### `--synch-flush-asap`
+### `--ss-flush-asap`
 
 - Type: Boolean
 - Default: ON
@@ -553,13 +553,13 @@ In the Active/Active scenario in particular, this essentially means that every t
 
 In the Active/Passive model, on the other hand, this level of compulsive replication is rather undesired. Since a single big packet is easier to send than the equivalent many smaller ones, it is preferable to queue the session updates and wrap a bunch of them in a single big multicast, thereby reducing the SS packet-to-translated packet ratio and CPU overhead. This is appropriate in Active/Passive mode because the backup NAT64s are not expected to receive traffic in the near future, and losing a few recent queued session updates on crash is no big deal when the sizeable rest of the database has already been dispatched.
 
-Sessions will be queued until the maximum packet size is reached or a timer expires. The maximum packet size is defined by [`--synch-max-payload`](#synch-max-payload) and the duration of the timer is [`--synch-flush-deadline`](#synch-flush-deadline).
+Sessions will be queued until the maximum packet size is reached or a timer expires. The maximum packet size is defined by [`--ss-max-payload`](#ss-max-payload) and the duration of the timer is [`--ss-flush-deadline`](#ss-flush-deadline).
 
 As a rule of thumb, you might think of this option as an "Active/Active vs Active/Passive" switch; in the former this flag is practically mandatory, while in the latter it is needlessly CPU-taxing. (But still legal, which explains the default.)
 
 In reality, some degree of queuing is still done when this flag is enabled, as otherwise Jool tends to saturate the Netlink (kernel-to-userspace) channel, losing sessions.
 
-### `--synch-flush-deadline`
+### `--ss-flush-deadline`
 
 - Type: Integer
 - Default: 2 seconds
@@ -574,9 +574,9 @@ Whenever the kernel module sends a packet to userspace, `joold` is expected to a
 
 Being that Netlink is not a reliable protocol, the main intent of this option is to prevent lost ACKs from stagnating the SS queue.
 
-It also prevents sessions from staying in the queue for too long regardless of that, particularly when [`--synch-flush-asap`](#synch-flush-asap) is disabled.
+It also prevents sessions from staying in the queue for too long regardless of that, particularly when [`--ss-flush-asap`](#ss-flush-asap) is disabled.
 
-### `--synch-capacity`
+### `--ss-capacity`
 
 - Type: Integer
 - Default: 512
@@ -591,7 +591,7 @@ Watch out for this message in the kernel logs:
 
 	TODO
 
-### `--synch-max-payload`
+### `--ss-max-payload`
 
 - Type: Integer
 - Default: 1452
@@ -608,7 +608,7 @@ The default value is based on 1500, the typical minimum MTU one can be forgiven 
 
 The equation is
 
-	--synch-max-payload = MTU - IP header size - UDP header size
+	--ss-max-payload = MTU - IP header size - UDP header size
 
 Since I don't know whether your network is IPv4 or IPv6, the default value was inferred from the following numbers:
 
@@ -616,5 +616,5 @@ Since I don't know whether your network is IPv4 or IPv6, the default value was i
 
 In Jool 3.5.0, The joold header spans 16 bytes and each session is 64 bytes long, which means Jool will be able to fit 22 sessions per SS packet by default.
 
-Feel free to adjust your MTU to reduce CPU overhead further in Active/Passive setups. (See [`--synch-flush-asap`](#synch-flush-asap).)
+Feel free to adjust your MTU to reduce CPU overhead further in Active/Passive setups. (See [`--ss-flush-asap`](#ss-flush-asap).)
 

@@ -13,8 +13,8 @@ title: Daemon Configuration Options
 
 1. [Introduction](#introduction)
 2. [Network Socket Configuration File](#network-socket-configuration-file)
-	1. [`multicast-address`](#multicast-address)
-	2. [`multicast-port`](#multicast-port)
+	1. [`multicast address`](#multicast-address)
+	2. [`multicast port`](#multicast-port)
 	3. [`in interface`](#in-interface)
 	4. [`out interface`](#out-interface)
 	5. [`reuseaddr`](#reuseaddr)
@@ -42,8 +42,8 @@ This is a Json file that configures the daemon's SS **network** socket. Here are
 <!-- IPv6 -->
 {% highlight json %}
 {
-	"multicast-address": "ff0e::64:64",
-	"multicast-port": "6464",
+	"multicast address": "ff08::db8:64:64",
+	"multicast port": "6464",
 	"in interface": "eth0",
 	"out interface": "eth0",
 	"reuseaddr": 1,
@@ -54,8 +54,8 @@ This is a Json file that configures the daemon's SS **network** socket. Here are
 <!-- IPv4 -->
 {% highlight json %}
 {
-	"multicast-address": "239.0.64.64",
-	"multicast-port": "6464",
+	"multicast address": "233.252.0.64",
+	"multicast port": "6464",
 	"in interface": "192.0.2.1",
 	"out interface": "192.0.2.1",
 	"reuseaddr": 1,
@@ -65,7 +65,7 @@ This is a Json file that configures the daemon's SS **network** socket. Here are
 
 These are the options:
 
-### `multicast-address`
+### `multicast address`
 
 - Type: String (IPv4/v6 address)
 - Default: None (Field is mandatory)
@@ -74,7 +74,7 @@ Address the SS traffic will be sent to and listened from.
 
 You do not want to hinder your future ability to add more NAT64s to the cluster, so it is strongly recommended that you input a multicast address here.
 
-### `multicast-port`
+### `multicast port`
 
 - Type: String (port number or service name)
 - Default: None (Field is mandatory)
@@ -88,7 +88,7 @@ TCP port where the SS traffic will be sent to and listened from.
 
 Address or interface to bind the socket in.
 
-If `multicast-address` is IPv4, this should be one addresses from the interface where the SS traffic is expected to be received. If `multicast-address` is IPv6, this should be the name of the interface (eg. "eth0").
+If `multicast address` is IPv4, this should be one addresses from the interface where the SS traffic is expected to be received. If `multicast address` is IPv6, this should be the name of the interface (eg. "eth0").
 
 Though they are optional, it is strongly recommended that you define both `in interface` and `out interface` to ensure the SS traffic does not leak through other interfaces.
 
@@ -97,7 +97,7 @@ Though they are optional, it is strongly recommended that you define both `in in
 - Type: String
 - Default: NULL (kernel chooses an interface and address for you)
 
-If `multicast-address` is IPv4, this should be one addresses from the interface where the multicast traffic is expected to be sent. If `multicast-address` is IPv6, this should be the name of the interface (eg. "eth0").
+If `multicast address` is IPv4, this should be one addresses from the interface where the multicast traffic is expected to be sent. If `multicast address` is IPv6, this should be the name of the interface (eg. "eth0").
 
 Though they are optional, it is strongly recommended that you define both `in interface` and `out interface` to ensure the SS traffic does not leak through other interfaces.
 

@@ -129,9 +129,9 @@ This is an example of the Active/Passive model. We will remove `L` from the setu
 
 <!-- J -->
 {% highlight bash %}
-ip addr add 2001:db8::1/96 dev eth0
+ip addr add 2001:db8:0001::1/96 dev eth0
 ip addr add 192.0.2.1/24 dev eth1
-ip addr add 10.0.0.2/24 dev eth2
+ip addr add 2001:db8:ff08::1/96 dev eth2
 
 ethtool --offload eth0 gro off
 ethtool --offload eth0 lro off
@@ -146,7 +146,7 @@ modprobe jool pool6=64:ff9b::/96
 {% highlight bash %}
 # X
 # X
-ip addr add 10.0.0.2/24 dev eth2
+ip addr add 2001:db8:ff08::2/96 dev eth2
 
 ethtool --offload eth0 gro off
 ethtool --offload eth0 lro off
@@ -159,8 +159,8 @@ modprobe jool pool6=64:ff9b::/96
 
 <!-- n6 -->
 {% highlight bash %}
-ip addr add 2001:db8::8/96 dev eth0
-ip route add 64:ff9b::/96 via 2001:db8::1
+ip addr add 2001:db8:1:8/96 dev eth0
+ip route add 64:ff9b::/96 via 2001:db8:1::1
 {% endhighlight %}
 
 <!-- n4 -->
@@ -174,7 +174,7 @@ This is generally usual boilerplate Jool mumbo jumbo. All that's special is the 
 
 Because forking SS sessions on every translated packet is not free (performance-wise), the kernel module is not SS-enabled by default. The fact that the module and the daemon are separate binaries enhances the importance of this fact; starting the daemon is not, by itself, enough to get sessions synchronized.
 
-	# jool --synch-enable
+	# jool --ss-enabled true
 
 This asks the module to open a channel to userspace and start trading SS sessions.
 
@@ -189,8 +189,8 @@ This asks the module to open a channel to userspace and start trading SS session
 
 {% highlight json %}
 {
-	"multicast-address": "239.0.64.64",
-	"multicast-port": "6464",
+	"multicast address": "233.252.0.64",
+	"multicast port": "6464",
 	"in interface": "10.0.0.1",
 	"out interface": "10.0.0.1",
 	"reuseaddr": 1
@@ -199,15 +199,17 @@ This asks the module to open a channel to userspace and start trading SS session
 
 {% highlight json %}
 {
-	"multicast-address": "239.0.64.64",
-	"multicast-port": "6464",
+	"multicast address": "233.252.0.64",
+	"multicast port": "6464",
 	"in interface": "10.0.0.2",
 	"out interface": "10.0.0.2",
 	"reuseaddr": 1
 }
 {% endhighlight %}
 
-A description of each field can be found [below](#netsocketjson). For now, suffice to say that the nodes will send and receive SS traffic through multicast address `239.0.64.64` on port `6464`.
+A description of each field can be found [below](#netsocketjson). For now, suffice to say that the nodes will send and receive SS traffic through multicast address `233.252.0.64` on port `6464`.
+
+Please note that `233.252.0.64` is a [documentation address](https://tools.ietf.org/html/rfc6676#section-2) and you should probably change it (along with the others) once you're done experimenting.
 
 Start the "daemon" in the foreground so you can see error messages (if any) easily:
 
@@ -230,6 +232,12 @@ As far as Jool is concerned, that would be all. If `J` is translating traffic, y
 
 This is not a tutorial on Keepalived, but I'll try explaining the important stuff.
 
+> ![Warning!](../images/warning.svg) I have realized that this section is rather unpolished; it doesn't match Keepalived's mentality all that well. (And I don't know if I'll be able to fix it before my deadline.)
+> 
+> Sorry; you can probably come up with something better. Keep in mind the `jool --joold --advertise` when entering the BACKUP state while doing so.
+> 
+> The basic problem is the relationship between interfaces and VRRP instances: it's supposed to be 1-to-1. I'm not clear as to what are the consequences for having one instance for all the interfaces.
+
 Download, compile and install Keepalived:
 
 	$ # Find the latest at http://www.keepalived.org/download.html
@@ -242,54 +250,120 @@ Download, compile and install Keepalived:
 
 Create `/etc/keepalived/keepalived.conf` and paste something like the following. See `man 5 keepalived.conf` for more information.
 
-TODO missing `K`'s version of this file.
+<div class="distro-menu">
+	<span class="distro-selector" onclick="showDistro(this);">J</span>
+	<span class="distro-selector" onclick="showDistro(this);">K</span>
+</div>
 
-	# Keepalived will monitor this action.
-	# The userspace application `jool` fails when the kernel module is not
-	# responding, so we will run it every two seconds to monitor its health.
-	# In reality, you might want to test more than this (such as the state
-	# of the interfaces and whatnot), but for the purposes of this tutorial
-	# this should be enough.
-	vrrp_script check_jool {
-		script "jool"
-		interval 2
+<!-- J -->
+{% highlight bash %}
+# Keepalived will monitor this action.
+# The userspace application `jool` fails when the kernel module is not
+# responding, so we will run it every two seconds to monitor its health.
+# In reality, you might want to test more than this (such as the state
+# of the interfaces and whatnot), but for the purposes of this tutorial
+# this should be enough.
+vrrp_script check_jool {
+	script "jool"
+	interval 2
+}
+
+vrrp_instance VI_1 {
+	# Actually this is wrong. This is supposed to be the interface
+	# where the virtual address is to be located, not the interface
+	# where the VRRP traffic is supposed to be.
+	# (The reason this isn't giving me trouble is because I'm not
+	# entering a virtual address.)
+	# Also the VRRP traffic should probably be in the virtual addr
+	# interface anyway.
+	interface eth2
+	state MASTER
+	# J is our main NAT64, so grant it the most priority.
+	priority 200
+
+	# This is just a random 0-255 id that must be the same for all
+	# the Keepalived instances.
+	virtual_router_id 64
+	# Force Keepalived to use the private interface.
+	# (This is also kind of wrong; it should be one of the other interfaces.
+	# The reason is that this makes the private network a single point
+	# of failure.)
+	unicast_src_ip 10.0.0.1
+
+	# Reference the monitor
+	track_script {
+		check_jool
 	}
 
-	vrrp_instance VI_1 {
-		interface eth2
-		state MASTER
-		# J is our main NAT64, so grant it the most priority.
-		priority 500
+	# Script to run when Keepalived enters the MASTER state.
+	# (ie. when this Jool becomes the active one.)
+	notify_master /etc/keepalived/master.sh
 
-		# This is just a random 0-255 id that must be the same for all
-		# the Keepalived instances.
-		virtual_router_id 64
-		# Force Keepalived to use the prvate interface.
-		unicast_src_ip 10.0.0.1
-		# Addresses of the other peers.
-		# TODO do we really need this?
-		unicast_peer {
-			10.0.0.2
-		}
+	# Script to run when Keepalived enters the BACKUP state.
+	# (ie. when this Jool is no longer the active one, but it's
+	# still alive)
+	notify_backup /etc/keepalived/backup.sh
 
-		# Reference the monitor 
-		track_script {
-			check_jool
-		}
+	# Script to run when Keepalived enters the FAULT state.
+	# (ie. when this Jool is not responding.)
+	notify_fault  /etc/keepalived/fault.sh
+}
+{% endhighlight %}
 
-		# Script to run when Keepalived enters the MASTER state.
-		# (ie. when this Jool becomes the active one.)
-		notify_master /etc/keepalived/master.sh
+<!-- K -->
+{% highlight bash %}
+# Keepalived will monitor this action.
+# The userspace application `jool` fails when the kernel module is not
+# responding, so we will run it every two seconds to monitor its health.
+# In reality, you might want to test more than this (such as the state
+# of the interfaces and whatnot), but for the purposes of this tutorial
+# this should be enough.
+vrrp_script check_jool {
+	script "jool"
+	interval 2
+}
 
-		# Script to run when Keepalived enters the BACKUP state.
-		# (ie. when this Jool is no longer the active one, but it's
-		# still alive)
-		notify_backup /etc/keepalived/backup.sh
+vrrp_instance VI_1 {
+	# Actually this is wrong. This is supposed to be the interface
+	# where the virtual address is to be located, not the interface
+	# where the VRRP traffic is supposed to be.
+	# (The reason this isn't giving me trouble is because I'm not
+	# entering a virtual address.)
+	# Also the VRRP traffic should probably be in the virtual addr
+	# interface anyway.
+	interface eth2
+	state BACKUP
+	# J is our main NAT64, so grant it the most priority.
+	priority 100
 
-		# Script to run when Keepalived enters the FAULT state.
-		# (ie. when this Jool is not responding.)
-		notify_fault  /etc/keepalived/fault.sh
+	# This is just a random 0-255 id that must be the same for all
+	# the Keepalived instances.
+	virtual_router_id 64
+	# Force Keepalived to use the private interface.
+	# (This is also kind of wrong; it should be one of the other interfaces.
+	# The reason is that this makes the private network a single point
+	# of failure.)
+	unicast_src_ip 10.0.0.2
+
+	# Reference the monitor
+	track_script {
+		check_jool
 	}
+
+	# Script to run when Keepalived enters the MASTER state.
+	# (ie. when this Jool becomes the active one.)
+	notify_master /etc/keepalived/master.sh
+
+	# Script to run when Keepalived enters the BACKUP state.
+	# (ie. when this Jool is no longer the active one, but it's
+	# still alive)
+	notify_backup /etc/keepalived/backup.sh
+
+	# Script to run when Keepalived enters the FAULT state.
+	# (ie. when this Jool is not responding.)
+	notify_fault  /etc/keepalived/fault.sh
+}
+{% endhighlight %}
 
 These are the respective referenced scripts:
 
@@ -301,7 +375,7 @@ These are the respective referenced scripts:
 
 <!-- Master -->
 {% highlight bash %}
-ip addr add 2001:db8::1/96 dev eth0
+ip addr add 2001:db8:1::1/96 dev eth0
 ip addr add 192.0.2.1/24 dev eth1
 {% endhighlight %}
 
@@ -313,7 +387,7 @@ ip addr add 192.0.2.1/24 dev eth1
 # its database is empty.
 jool --joold --advertise
 
-ip addr del 2001:db8::1/96 dev eth0
+ip addr del 2001:db8:1::1/96 dev eth0
 ip addr del 192.0.2.1/24 dev eth1
 {% endhighlight %}
 
@@ -360,7 +434,7 @@ The ping should stop and resume after a small while. This while is mostly just n
 
 Restart `J`. The ping should pause again and, after a while, `J` should claim control again (since it has more priority than `K`):
 
-	user@J:~/# modprobe jool pool6=64:ff9b::/96; jool --synch-enable; joold /path/to/netsocket.json
+	user@J:~/# modprobe jool pool6=64:ff9b::/96; jool --ss-enabled true; joold /path/to/netsocket.json
 
 Notice that you need to initialize `J`'s NAT64 in one go; otherwise the new instance will miss `K`'s advertise.
 
@@ -374,15 +448,17 @@ That's all.
 
 ### `jool`
 
-1. [`synch-enable`, `synch-disable`](usr-flags-global.html#synch-enable---synch-disable)
-2. [`synch-flush-asap`](usr-flags-global.html#synch-flush-asap)
-3. [`synch-flush-deadline`](usr-flags-global.html#synch-flush-deadline)
-4. [`synch-capacity`](usr-flags-global.html#synch-capacity)
-5. [`synch-max-payload`](usr-flags-global.html#synch-max-payload)
+1. [`ss-enabled`](usr-flags-global.html#ss-enabled)
+2. [`ss-flush-asap`](usr-flags-global.html#ss-flush-asap)
+3. [`ss-flush-deadline`](usr-flags-global.html#ss-flush-deadline)
+4. [`ss-capacity`](usr-flags-global.html#ss-capacity)
+5. [`ss-max-payload`](usr-flags-global.html#ss-max-payload)
 
 ### `joold`
 
 See the [dedicated page](config-joold.html).
 
 ## Persistent Daemon
+
+TODO
 
