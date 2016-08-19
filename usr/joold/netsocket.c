@@ -1,8 +1,8 @@
 #include "nat64/usr/joold/netsocket.h"
 
+#include <errno.h>
 #include <netdb.h>
 #include <stdbool.h>
-#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
@@ -140,7 +140,7 @@ static int try_address(struct netsocket_config *config)
 	sk = socket(bound_address->ai_family, bound_address->ai_socktype,
 			bound_address->ai_protocol);
 	if (sk < 0) {
-		perror("socket() failed");
+		log_perror("socket() failed", errno);
 		return 1;
 	}
 
@@ -150,13 +150,13 @@ static int try_address(struct netsocket_config *config)
 		/* http://stackoverflow.com/questions/14388706 */
 		if (setsockopt(sk, SOL_SOCKET, SO_REUSEADDR, &config->reuseaddr,
 				sizeof(config->reuseaddr))) {
-			perror("setsockopt(SO_REUSEADDR) failed");
+			log_perror("setsockopt(SO_REUSEADDR) failed", errno);
 			return 1;
 		}
 	}
 
 	if (bind(sk, bound_address->ai_addr, bound_address->ai_addrlen)) {
-		perror("bind() failed");
+		log_perror("bind() failed", errno);
 		return 1;
 	}
 
@@ -209,7 +209,7 @@ static int mcast4opt_add_membership(struct netsocket_config *cfg)
 
 	if (setsockopt(sk, IPPROTO_IP, IP_ADD_MEMBERSHIP, &mreq,
 			sizeof(mreq))) {
-		perror("-> setsockopt(IP_ADD_MEMBERSHIP) failed");
+		log_perror("-> setsockopt(IP_ADD_MEMBERSHIP) failed", errno);
 		return 1;
 	}
 
@@ -223,7 +223,7 @@ static int mcast4opt_disable_loopback(void)
 
 	if (setsockopt(sk, IPPROTO_IP, IP_MULTICAST_LOOP, &loop,
 			sizeof(loop))) {
-		perror("-> setsockopt(IP_MULTICAST_LOOP) failed");
+		log_perror("-> setsockopt(IP_MULTICAST_LOOP) failed", errno);
 		return 1;
 	}
 
@@ -238,7 +238,7 @@ static int mcast4opt_set_ttl(struct netsocket_config *cfg)
 
 	if (setsockopt(sk, IPPROTO_IP, IP_MULTICAST_TTL, &cfg->ttl,
 			sizeof(cfg->ttl))) {
-		perror("-> setsockopt(IP_MULTICAST_TTL) failed");
+		log_perror("-> setsockopt(IP_MULTICAST_TTL) failed", errno);
 		return 1;
 	}
 
@@ -257,7 +257,7 @@ static int mcast4opt_set_out_interface(struct netsocket_config *cfg)
 		return 1;
 
 	if (setsockopt(sk, IPPROTO_IP, IP_MULTICAST_IF, &addr, sizeof(addr))) {
-		perror("-> setsockopt(IP_MULTICAST_IF) failed");
+		log_perror("-> setsockopt(IP_MULTICAST_IF) failed", errno);
 		return 1;
 	}
 
@@ -292,7 +292,8 @@ static int mcast6opt_add_membership(struct netsocket_config *cfg)
 	if (cfg->in_interface) {
 		mreq.ipv6mr_interface = if_nametoindex(cfg->in_interface);
 		if (!mreq.ipv6mr_interface) {
-			perror("The incoming interface name is invalid");
+			log_perror("The incoming interface name is invalid",
+					errno);
 			return 1;
 		}
 	} else {
@@ -301,7 +302,7 @@ static int mcast6opt_add_membership(struct netsocket_config *cfg)
 
 	if (setsockopt(sk, IPPROTO_IPV6, IPV6_ADD_MEMBERSHIP, &mreq,
 			sizeof(mreq))) {
-		perror("setsockopt(IPV6_ADD_MEMBERSHIP) failed");
+		log_perror("setsockopt(IPV6_ADD_MEMBERSHIP) failed", errno);
 		return 1;
 	}
 
@@ -315,7 +316,7 @@ static int mcast6opt_disable_loopback(void)
 
 	if (setsockopt(sk, IPPROTO_IPV6, IPV6_MULTICAST_LOOP, &loop,
 			sizeof(loop))) {
-		perror("setsockopt(IP_MULTICAST_LOOP) failed");
+		log_perror("setsockopt(IP_MULTICAST_LOOP) failed", errno);
 		return 1;
 	}
 
@@ -330,7 +331,7 @@ static int mcast6opt_set_ttl(struct netsocket_config *cfg)
 
 	if (setsockopt(sk, IPPROTO_IPV6, IPV6_MULTICAST_HOPS, &cfg->ttl,
 			sizeof(cfg->ttl))) {
-		perror("setsockopt(IPV6_MULTICAST_HOPS) failed");
+		log_perror("setsockopt(IPV6_MULTICAST_HOPS) failed", errno);
 		return 1;
 	}
 
@@ -347,13 +348,13 @@ static int mcast6opt_set_out_interface(struct netsocket_config *cfg)
 
 	interface = if_nametoindex(cfg->out_interface);
 	if (!interface) {
-		perror("The outgoing interface name is invalid");
+		log_perror("The outgoing interface name is invalid", errno);
 		return 1;
 	}
 
 	if (setsockopt(sk, IPPROTO_IPV6, IPV6_MULTICAST_IF, &interface,
 			sizeof(interface))) {
-		perror("setsockopt(IP_MULTICAST_IF) failed");
+		log_perror("setsockopt(IP_MULTICAST_IF) failed", errno);
 		return 1;
 	}
 
@@ -443,11 +444,12 @@ void *netsocket_listen(void *arg)
 	do {
 		bytes = recv(sk, buffer, sizeof(buffer), 0);
 		if (bytes < 0) {
-			perror("Error receiving packet from the network");
+			log_perror("Error receiving packet from the network",
+					errno);
 			continue;
 		}
 
-		log_info("Received %d bytes from the network.", bytes);
+		log_debug("Received %d bytes from the network.", bytes);
 		modsocket_send(buffer, bytes);
 	} while (true);
 
@@ -458,12 +460,12 @@ void netsocket_send(void *buffer, size_t size)
 {
 	int bytes;
 
-	log_info("Sending %zu bytes to the network...", size);
+	log_debug("Sending %zu bytes to the network...", size);
 	bytes = sendto(sk, buffer, size, 0,
 			bound_address->ai_addr,
 			bound_address->ai_addrlen);
 	if (bytes < 0)
-		perror("Could not send a packet to the network");
+		log_perror("Could not send a packet to the network", errno);
 	else
-		log_info("Sent %d bytes to the network.\n", bytes);
+		log_debug("Sent %d bytes to the network.\n", bytes);
 }

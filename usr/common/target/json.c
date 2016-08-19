@@ -162,14 +162,14 @@ static bool *create_globals_found_array(void)
 	struct argp_option *opts;
 	size_t i;
 
-	/* TODO memory leak here. */
-
 	opts = get_global_opts();
 	if (!opts)
 		return NULL;
 
 	for (i = 0; opts[i].name; i++)
 		/* No code; just counting. */;
+
+	free(opts);
 
 	return calloc(i, sizeof(bool));
 }

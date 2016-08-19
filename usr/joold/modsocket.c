@@ -48,7 +48,7 @@ void modsocket_send(void *request, size_t request_len)
 		return;
 	}
 
-	log_info("Sending %zu bytes to the kernel.", request_len);
+	log_debug("Sending %zu bytes to the kernel.", request_len);
 	error = nl_send_auto(sk, msg);
 	if (error < 0) {
 		log_err("Could not dispatch the request to kernelspace.");
@@ -58,7 +58,7 @@ void modsocket_send(void *request, size_t request_len)
 
 	nlmsg_free(msg);
 
-	log_info("Sent.\n");
+	log_debug("Sent.\n");
 }
 
 static void send_ack(void)
@@ -178,8 +178,7 @@ static int updated_entries_cb(struct nl_msg *msg, void *arg)
 	struct jool_response response;
 	int error;
 
-
-	log_info("Received a packet from kernelspace.");
+	log_debug("Received a packet from kernelspace.");
 
 	error = genlmsg_parse(nlmsg_hdr(msg), 0, attrs, __ATTR_MAX, NULL);
 	if (error) {

@@ -43,7 +43,7 @@ MODULE_PARM_DESC(disabled, "Disable the translation at the beginning of the modu
 
 static bool no_instance;
 module_param(no_instance, bool, 0);
-MODULE_PARM_DESC(no_instance, "Prevent an instance to be added to the current namespace during the modprobe.");
+MODULE_PARM_DESC(no_instance, "Prevent an instance from being added to the current namespace during the modprobe.");
 
 
 static char *banner = "\n"

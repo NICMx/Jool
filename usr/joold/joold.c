@@ -1,6 +1,7 @@
 #include <errno.h>
 #include <pthread.h>
 #include <stdio.h>
+#include "nat64/common/types.h"
 #include "nat64/usr/joold/modsocket.h"
 #include "nat64/usr/joold/netsocket.h"
 
@@ -25,35 +26,41 @@ int main(int argc, char **argv)
 	pthread_t net2mod_thread;
 	int error;
 
+	openlog("joold", 0, LOG_DAEMON);
+
 	error = netsocket_init(argc, argv);
 	if (error)
-		return error;
+		goto end;
 	error = modsocket_init();
 	if (error) {
 		netsocket_destroy();
-		return error;
+		goto end;
 	}
 
 	error = pthread_create(&mod2net_thread, NULL, modsocket_listen, NULL);
 	if (error) {
-		errno = error;
-		perror("Module-to-network thread initialization");
-		goto end;
+		log_perror("Module-to-network thread initialization", error);
+		goto clean;
 	}
 	error = pthread_create(&net2mod_thread, NULL, netsocket_listen, NULL);
 	if (error) {
-		errno = error;
-		perror("Network-to-module thread initialization");
+		log_perror("Network-to-module thread initialization", error);
 		cancel_thread(mod2net_thread);
-		goto end;
+		goto clean;
 	}
 
 	pthread_join(net2mod_thread, NULL);
 	pthread_join(mod2net_thread, NULL);
 	/* Fall through. */
 
-end:
+clean:
 	modsocket_destroy();
 	netsocket_destroy();
+	/* Fall through. */
+
+end:
+	closelog();
+	if (error)
+		fprintf(stderr, "joold error: %d\n", error);
 	return error;
 }

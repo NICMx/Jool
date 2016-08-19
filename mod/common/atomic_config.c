@@ -10,31 +10,14 @@
 #include "nat64/mod/stateful/pool4/db.h"
 #include "nat64/mod/stateful/bib/db.h"
 
-/*
- * TODO (issue164) this module is missing a timer.
- * If the new configuration hasn't been committed after n milliseconds, newcfg
- * should be cleant.
+/**
+ * We'll purge candidates after they've been inactive for this long.
+ * This is because otherwise we depend on userspace sending us a commit at some
+ * point, and we don't trust them.
  */
+#define TIMEOUT msecs_to_jiffies(2000)
 
 static DEFINE_MUTEX(lock);
-
-struct config_candidate *cfgcandidate_create(void)
-{
-	struct config_candidate *candidate;
-
-	candidate = wkmalloc(struct config_candidate, GFP_KERNEL);
-	if (!candidate)
-		return NULL;
-
-	memset(candidate, 0, sizeof(*candidate));
-	kref_init(&candidate->refcount);
-	return candidate;
-}
-
-void cfgcandidate_get(struct config_candidate *candidate)
-{
-	kref_get(&candidate->refcount);
-}
 
 static void candidate_clean(struct config_candidate *candidate)
 {
@@ -65,6 +48,39 @@ static void candidate_clean(struct config_candidate *candidate)
 			candidate->nat64.pool4 = NULL;
 		}
 	}
+
+	candidate->active = false;
+}
+
+static void timer_function(unsigned long arg)
+{
+	mutex_lock(&lock);
+	candidate_clean((struct config_candidate *)arg);
+	mutex_unlock(&lock);
+}
+
+struct config_candidate *cfgcandidate_create(void)
+{
+	struct config_candidate *candidate;
+
+	candidate = wkmalloc(struct config_candidate, GFP_KERNEL);
+	if (!candidate)
+		return NULL;
+
+	memset(candidate, 0, sizeof(*candidate));
+
+	init_timer(&candidate->timer);
+	candidate->timer.function = timer_function;
+	candidate->timer.expires = 0;
+	candidate->timer.data = (unsigned long)candidate;
+
+	kref_init(&candidate->refcount);
+	return candidate;
+}
+
+void cfgcandidate_get(struct config_candidate *candidate)
+{
+	kref_get(&candidate->refcount);
 }
 
 static void candidate_destroy(struct kref *refcount)
@@ -72,6 +88,7 @@ static void candidate_destroy(struct kref *refcount)
 	struct config_candidate *candidate;
 	candidate = container_of(refcount, typeof(*candidate), refcount);
 	candidate_clean(candidate);
+	del_timer_sync(&candidate->timer);
 	wkfree(struct config_candidate, candidate);
 }
 
@@ -318,7 +335,7 @@ static int commit(struct xlator *jool)
 
 	/*
 	 * This the little flaw in the design.
-	 * I can't make full new versions of BIB, session, joold and frag just
+	 * I can't make full new versions of BIB, joold and frag just
 	 * over a few configuration values because the tables can be massive,
 	 * so instead I'm patching values after I know the pointer swap was
 	 * successful.
@@ -332,6 +349,7 @@ static int commit(struct xlator *jool)
 		wkfree(struct full_config, remnants);
 	}
 
+	jool->newcfg->active = false;
 	log_debug("Configuration replaced.");
 	return 0;
 }
@@ -345,6 +363,17 @@ int atomconfig_add(struct xlator *jool, void *config, size_t config_len)
 	config_len -= sizeof(type);
 
 	mutex_lock(&lock);
+
+	if (jool->newcfg->active) {
+		if (jool->newcfg->pid != current->pid) {
+			log_err("There's another atomic configuration underway. Please try again later.");
+			mutex_unlock(&lock);
+			return -EAGAIN;
+		}
+	} else {
+		jool->newcfg->active = true;
+		jool->newcfg->pid = current->pid;
+	}
 
 	switch (type) {
 	case SEC_INIT:
@@ -376,16 +405,17 @@ int atomconfig_add(struct xlator *jool, void *config, size_t config_len)
 		error = commit(jool);
 		break;
 	default:
-		log_err("Unknown configuration mode.") ;
+		log_err("Unknown configuration mode.");
 		error = -EINVAL;
 		break;
 	}
 
 	if (error)
 		rollback(jool);
+	else
+		mod_timer(&jool->newcfg->timer, jiffies + TIMEOUT);
 
 	mutex_unlock(&lock);
-
 	return error;
 }
 

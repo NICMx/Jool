@@ -3,6 +3,7 @@
 
 #include <linux/kref.h>
 #include <linux/types.h>
+#include <linux/timer.h>
 
 /**
  * This represents the new configuration the user wants to apply to a certain
@@ -33,6 +34,25 @@ struct config_candidate {
 			struct pool4 *pool4;
 		} nat64;
 	};
+
+	/**
+	 * Are we currently putting together configuration from userspace?
+	 * timer_pending(@timer) should probably replace this, but the
+	 * effort/profit ratio is not doing it for me right now.
+	 * Perhaps it can be assigned to some intern.
+	 */
+	bool active;
+	/**
+	 * Will expire and clean this candidate if the user forgot to commit or
+	 * something.
+	 * Only runs when @active.
+	 */
+	struct timer_list timer;
+	/**
+	 * Process ID of the client that is populating this candidate.
+	 * Only valid if @active.
+	 */
+	pid_t pid;
 
 	struct kref refcount;
 };
