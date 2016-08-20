@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
 	<meta http-equiv="content-type" content="text/html; charset=utf-8" />
 	<title>{{ page.title }}</title>
@@ -15,27 +15,25 @@
 			<div id="sidebar_navigation" class="sidebar">
 				<div class="left_sidebar_menu">
 					<div class="{% if page.category == 'Home'          %}left_sidebar_menu_selected{% else %}left_sidebar_menu_button{% endif %}">
-						<a href="index.html">{% if page.language == 'en' %}Home{% else %}Inicio{% endif %}</a>
+						<a href="index.html">Home</a>
 					</div>
 					<div class="{% if page.category == 'Documentation' %}left_sidebar_menu_selected{% else %}left_sidebar_menu_button{% endif %}">
-						<a href="documentation.html">{% if page.language == 'en' %}Documentation{% else %}Documentación{% endif %}</a>
+						<a href="documentation.html">Documentation</a>
 					</div>
 					<div class="{% if page.category == 'Download'      %}left_sidebar_menu_selected{% else %}left_sidebar_menu_button{% endif %}">
-						<a href="download.html">{% if page.language == 'en' %}Download{% else %}Descargar{% endif %}</a>
+						<a href="download.html">Download</a>
 					</div>
 					<div class="{% if page.category == 'FAQ'           %}left_sidebar_menu_selected{% else %}left_sidebar_menu_button{% endif %}">
 						<a href="faq.html">FAQ</a>
 					</div>
 					<div class="{% if page.category == 'ReportBug'     %}left_sidebar_menu_selected{% else %}left_sidebar_menu_button{% endif %}">
-						<a href="{{ site.repository-url }}/issues" target="_blank">
-							{% if page.language == 'en' %}Report a Bug{% else %}Reportar un Bug{% endif %}
-						</a>
+						<a href="{{ site.repository-url }}/issues" target="_blank">Report a Bug</a>
 					</div>
 					<div class="{% if page.category == 'About'         %}left_sidebar_menu_selected{% else %}left_sidebar_menu_button{% endif %}">
-						<a href="about.html">{% if page.language == 'en' %}About{% else %}Acerca de...{% endif %}</a>
+						<a href="about.html">About</a>
 					</div>
 					<div class="{% if page.category == 'Contact'       %}left_sidebar_menu_selected{% else %}left_sidebar_menu_button{% endif %}">
-						<a href="contact.html">{% if page.language == 'en' %}Contact{% else %}Contacto{% endif %}</a>
+						<a href="contact.html">Contact</a>
 					</div>
 				</div>
 			</div>
@@ -50,19 +48,6 @@
 
 					</div>
 				</div>
-			</div>
-			<div id="language_selector">
-				{% if page.language == 'en' %}
-					<span class="selected">en</span>
-				{% else %}
-					<a href="{{ page.url | split:'/' | last | prepend:'../en/' }}">en</a>
-				{% endif %}
-				|
-				{% if page.language == 'es' %}
-					<span class="selected">es</span>
-				{% else %}
-					<a href="{{ page.url | split:'/' | last | prepend:'../es/' }}">es</a>
-				{% endif %}
 			</div>
 			<div style="clear: both;">&nbsp;</div>
 		</div>
