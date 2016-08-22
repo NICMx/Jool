@@ -591,10 +591,10 @@ struct global_config_usr {
 
 struct bib_config {
 	struct {
-		__u64 tcp_est;
-		__u64 tcp_trans;
-		__u64 udp;
-		__u64 icmp;
+		__u32 tcp_est;
+		__u32 tcp_trans;
+		__u32 udp;
+		__u32 icmp;
 	} ttl;
 
 	config_bool bib_logging;
@@ -637,7 +637,7 @@ struct joold_config {
 	 * this amount of jiffies, regardless of the ACK and @flush_asap.
 	 * This helps if an ACK is lost for some reason.
 	 */
-	__u64 flush_deadline;
+	__u32 flush_deadline;
 
 	/**
 	 * Maximim number of queuable entries.
@@ -668,7 +668,7 @@ struct joold_config {
 };
 
 struct fragdb_config {
-	__u64 ttl;
+	__u32 ttl;
 };
 
 struct full_config {

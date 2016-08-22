@@ -196,11 +196,7 @@ static bool should_send(struct joold_queue *queue)
 	if (queue->count == 0)
 		return false;
 
-	/*
-	 * This cast is fair; incoming validations prevent this number
-	 * from being higher than 0xFFFFFFFF even on 64-bit machines.
-	 */
-	deadline = (unsigned long)queue->config.flush_deadline;
+	deadline = queue->config.flush_deadline;
 	if (time_before(queue->last_flush_time + deadline, jiffies))
 		return true;
 

@@ -139,6 +139,9 @@ static int buffer_write(struct nl_buffer *buffer,
 	error = nlbuffer_flush(buffer);
 	if (error)
 		return error;
+
+	/* TODO bug; we need to add a jool header here. */
+
 	error = write_section(buffer, section);
 	return error ? : nlbuffer_write(buffer, payload, payload_len);
 }
@@ -286,13 +289,21 @@ static int write_bool(struct nl_buffer *buffer, enum global_type type,
 		struct global_value hdr;
 		__u8 payload;
 	} msg;
-	int error;
 
 	msg.hdr.type = type;
 	msg.hdr.len = sizeof(msg);
-	error = str_to_bool(json->valuestring, &msg.payload);
-	if (error)
-		return error;
+	switch (json->type) {
+	case cJSON_True:
+		msg.payload = true;
+		break;
+	case cJSON_False:
+		msg.payload = false;
+		break;
+	default:
+		log_err("'%s' is not a valid boolean.", json->valuestring);
+		log_err("(Note: Quotation marks might also be the problem.)");
+		return -EINVAL;
+	}
 
 	return buffer_write(buffer, &msg, msg.hdr.len, SEC_GLOBAL);
 }
@@ -302,15 +313,65 @@ static int write_number(struct nl_buffer *buffer, enum global_type type,
 {
 	struct {
 		struct global_value hdr;
-		__u64 payload;
+		/*
+		 * Please note: This assumes there are no __u64 numbers.
+		 * If you want to add a __u64, you will have to pack this,
+		 * otherwise the compiler will add slop and everything will
+		 * stop working.
+		 */
+		union {
+			__u8 payload8;
+			__u16 payload16;
+			__u32 payload32;
+		};
 	} msg;
-	int error;
+
+	if (json->type != cJSON_Number) {
+		log_err("'%s' is not a number.", json->valuestring);
+		log_err("(Note: Quotation marks might also be the problem.)");
+		return -EINVAL;
+	}
+	if (json->valueint < 0) {
+		log_err("'%d' is not positive.", json->valueint);
+		return -EINVAL;
+	}
+
+	/*
+	 * TODO (fine) This is going overboard.
+	 * There's too much to tweak whenever we want to add a global value.
+	 * There should be a central static database of globals (keeping track
+	 * of their types and sizes and whatnot) and everything should just
+	 * query that.
+	 */
 
 	msg.hdr.type = type;
-	msg.hdr.len = sizeof(msg);
-	error = str_to_u64(json->valuestring, &msg.payload, 0, MAX_U64);
-	if (error)
-		return error;
+	msg.hdr.len = sizeof(msg.hdr);
+	switch (type) {
+	case F_ARGS:
+	case NEW_TOS:
+	case EAM_HAIRPINNING_MODE:
+		msg.hdr.len += sizeof(__u8);
+		msg.payload8 = json->valueint;
+		break;
+	case SS_MAX_PAYLOAD:
+		msg.hdr.len += sizeof(__u16);
+		msg.payload16 = json->valueint;
+		break;
+	case MAX_PKTS:
+	case SS_CAPACITY:
+	case UDP_TIMEOUT:
+	case ICMP_TIMEOUT:
+	case TCP_EST_TIMEOUT:
+	case TCP_TRANS_TIMEOUT:
+	case FRAGMENT_TIMEOUT:
+	case SS_FLUSH_DEADLINE:
+		msg.hdr.len += sizeof(__u32);
+		msg.payload32 = json->valueint;
+		break;
+	default:
+		log_err("Unknown global type: %u", type);
+		return -EINVAL;
+	}
 
 	return buffer_write(buffer, &msg, msg.hdr.len, SEC_GLOBAL);
 }
@@ -322,7 +383,8 @@ static int write_plateaus(struct nl_buffer *buffer, cJSON *root)
 	cJSON *json;
 	__u16 *plateaus;
 	__u16 i;
-	int error;
+	/* TODO (later) I found a bug in gcc; remove "= -EINVAL." */
+	int error = -EINVAL;
 
 	i = 0;
 	for (json = root->child; json; json = json->next) {
@@ -346,9 +408,17 @@ static int write_plateaus(struct nl_buffer *buffer, cJSON *root)
 
 	i = 0;
 	for (json = root->child; json; json = json->next) {
-		error = str_to_u16(json->valuestring, &plateaus[i], 0, 0xFFFF);
-		if (error)
+		if (json->type != cJSON_Number) {
+			log_err("'%s' is not a number.", json->valuestring);
+			log_err("(Quotation marks might also be the problem.)");
 			goto end;
+		}
+		if (json->valueint < 0 || 0xFFFF < json->valueint) {
+			log_err("'%d' is out of range (0-65535).",
+					json->valueint);
+			goto end;
+		}
+		plateaus[i] = json->valueint;
 		i++;
 	}
 
@@ -370,7 +440,7 @@ static int write_optional_prefix6(struct nl_buffer *buffer,
 	int error;
 
 	msg.hdr.type = type;
-	if (strcmp(json->valuestring, "clear") != 0) {
+	if (json->type != cJSON_NULL) {
 		msg.hdr.len = sizeof(msg);
 		error = str_to_prefix6(json->valuestring, &msg.payload);
 		if (error)
@@ -571,7 +641,7 @@ static int handle_pool4(cJSON *json)
 	struct cJSON *child;
 	struct pool4_entry_usr entry;
 	unsigned int i = 1;
-	int error = 0;
+	int error;
 
 	if (!json)
 		return 0;
@@ -582,7 +652,18 @@ static int handle_pool4(cJSON *json)
 
 	for (json = json->child; json; json = json->next, i++) {
 		child = cJSON_GetObjectItem(json, "mark");
-		entry.mark = child ? child->valueint : 0;
+		if (child) {
+			if (child->type != cJSON_Number) {
+				log_err("Mark '%s' is not a number.",
+						child->valuestring);
+				log_err("(Quotation marks might also be the problem.)");
+				error = -EINVAL;
+				goto end;
+			}
+			entry.mark = child->valueint;
+		} else {
+			entry.mark = 0;
+		}
 
 		child = cJSON_GetObjectItem(json, "protocol");
 		if (!child) {

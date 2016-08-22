@@ -429,14 +429,14 @@ static void print_num_csv(__u64 num, char *separator)
 		printf("%llu%s", num, separator);
 }
 
-void print_time_csv(__u64 millis)
+void print_time_csv(unsigned int millis)
 {
-	const __u64 MILLIS_PER_SECOND = 1000;
-	const __u64 MILLIS_PER_MIN = 60 * MILLIS_PER_SECOND;
-	const __u64 MILLIS_PER_HOUR = 60 * MILLIS_PER_MIN;
-	__u64 hours;
-	__u64 minutes;
-	__u64 seconds;
+	const unsigned int MILLIS_PER_SECOND = 1000;
+	const unsigned int MILLIS_PER_MIN = 60 * MILLIS_PER_SECOND;
+	const unsigned int MILLIS_PER_HOUR = 60 * MILLIS_PER_MIN;
+	unsigned int hours;
+	unsigned int minutes;
+	unsigned int seconds;
 
 	hours = millis / MILLIS_PER_HOUR;
 	millis -= hours * MILLIS_PER_HOUR;
@@ -450,24 +450,24 @@ void print_time_csv(__u64 millis)
 	print_num_csv(hours, ":");
 	print_num_csv(minutes, ":");
 	print_num_csv(seconds, ".");
-	printf("%llu", millis);
+	printf("%u", millis);
 }
 
-void print_time_friendly(__u64 millis)
+void print_time_friendly(unsigned int millis)
 {
-	__u64 seconds;
-	__u64 minutes;
-	__u64 hours;
+	unsigned int seconds;
+	unsigned int minutes;
+	unsigned int hours;
 
 	if (millis < 1000) {
-		printf("%llu milliseconds\n", millis);
+		printf("%u milliseconds\n", millis);
 		return;
 	}
 
 	seconds = millis / 1000;
 
 	if (seconds < 60) {
-		printf("%llu seconds\n", seconds);
+		printf("%u seconds\n", seconds);
 		return;
 	}
 
@@ -475,12 +475,12 @@ void print_time_friendly(__u64 millis)
 	seconds %= 60;
 
 	if (minutes < 60) {
-		printf("%llu minutes, %llu seconds\n", minutes, seconds);
+		printf("%u minutes, %u seconds\n", minutes, seconds);
 		return;
 	}
 
 	hours = minutes / 60;
 	minutes %= 60;
 
-	printf("%llu hours, %llu minutes\n", hours, minutes);
+	printf("%u hours, %u minutes\n", hours, minutes);
 }

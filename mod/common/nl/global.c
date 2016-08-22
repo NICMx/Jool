@@ -112,36 +112,23 @@ static int parse_bool(__u8 *field, struct global_value *chunk, size_t size)
 	return parse_u8(field, chunk, size);
 }
 
-static int parse_timeout(__u64 *field, struct global_value *chunk, size_t size,
+static int parse_timeout(__u32 *field, struct global_value *chunk, size_t size,
 		unsigned int min)
 {
-	/*
-	 * TODO (fine) this max is somewhat arbitrary. We do have a maximum,
-	 * but I don't recall what or why it was. I do remember it's bigger than
-	 * this.
-	 *
-	 * Update: Except for the joold deadline! That thing needs to be 32-bits
-	 * no matter what.
-	 */
-	const __u32 MAX_U32 = 0xFFFFFFFFU;
-	__u64 value64;
+	__u32 value;
 
-	if (!ensure_bytes(size, 8))
+	if (!ensure_bytes(size, 4))
 		return -EINVAL;
 
-	value64 = *((__u64 *)(chunk + 1));
+	value = *((__u32 *)(chunk + 1));
 
-	if (value64 < 1000 * min) {
-		log_err("The timeout must be at least %u seconds.", min);
-		return -EINVAL;
-	}
-	if (value64 > MAX_U32) {
-		log_err("Expected a timeout less than %u seconds",
-				MAX_U32 / 1000);
+	if (value < 1000 * min) {
+		log_err("The timeout must be at least %u milliseconds (Got %u)",
+				1000 * min, value);
 		return -EINVAL;
 	}
 
-	*field = msecs_to_jiffies(value64);
+	*field = msecs_to_jiffies(value);
 	return 0;
 }
 
