@@ -25,7 +25,6 @@ title: Session synchronization
 6. [Configuration](#configuration)
 	1. [`jool`](#jool)
 	2. [`joold`](#joold)
-7. [Persistent Daemon](#persistent-daemon)
 
 ## Introduction
 
@@ -67,11 +66,11 @@ The problem lies in the NAT64s not sharing their databases. Let's fix that:
 
 ### Session Synchronization Enabled
 
-Whenever `J` translates a packet, it generates another one: A multicast through the private network, informing everyone interested of the new connection:
+Whenever `J` translates a packet, it generates another one: A multicast through the private network that informs anyone interested of the new connection:
 
 ![Figure - SS multicast](../images/flow/ss-enabled-mcast.svg)
 
-So when `J` dies, `K` has everything it needs to impersonate `J` and continue the conversation as uninterrupted as possible:
+When `J` dies, `K` has everything it needs to impersonate `J` and continue the conversation as uninterrupted as possible. Notice that measures might need to be taken to redirect traffic towards `192.0.2.1` to its new owner:
 
 ![Figure - SS K](../images/flow/ss-enabled-k.svg)
 
@@ -83,9 +82,9 @@ Each machine hosting a NAT64 will also hold a daemon that will bridge SS traffic
 
 ![Figure - joold](../images/network/joold.svg)
 
-Why is the daemon necessary? because kernel modules cannot open IP sockets; at least not in a reliable and scalable manner.
+Why are the daemons necessary? because kernel modules cannot open IP sockets; at least not in a reliable and scalable manner.
 
-Synchronizing sessions is _all_ the daemon does; the traffic redirection part is delegated to other protocols (TODO I don't think this redirection thing is explained too well above). [Keepalived](http://www.keepalived.org/) is the implementation that takes care of this in the sample configuration below, but any other load balancer should also get the job done.
+Synchronizing sessions is _all_ the daemons do; the traffic redirection part is delegated to other protocols. [Keepalived](http://www.keepalived.org/) is the implementation that takes care of this in the sample configuration below, but any other load balancer should also get the job done.
 
 In this proposed/inauguratory implementation, SS traffic is distributed through an IPv4 or IPv6 unencrypted TCP connection. You might want to cast votes on the issue tracker or propose code if you favor some other solution.
 
@@ -93,26 +92,12 @@ It is also important to note that SS is relatively resource-intensive; its traff
 
 ![Figure - joold U-turns](../images/network/joold-uturn.svg)
 
-It is possible to configure SS in such a manner that sessions queue themselves as much as possible before being fetched, so they can be wrapped in as few packets as possible. Of course, the price is reliability: Queued sessions will be wasted if their NAT64 dies before sending them.
-
 There are two operation modes in which SS can be used:
 
 1. Active/Passive: One Jool instance serves traffic at any given time, the other ones serve as backup. The load balancer redirects traffic when the current active NAT64 dies.
 2. Active/Active: All Jool instances serve traffic. The load balancer distributes traffic so no NAT64 is too heavily encumbered.
 
-Active/Active is discouraged for two reasons:
-
-First, the Jool instances cannot ensure their session databases will be synchronized at all times before any traffic is translated; this would be prohibitely expensive. If the v4/v6 traffic is faster than the private network traffic, a race can happen:
-
-FigFigFigFigFigFigFigFig
-
-The endnodes will have to retry the connection.
-
-TODO get into TCP state machine details? "There is no recovery from this situation; `J`'s session will override `K`'s session and the knowledge that a SYN packet was issued by `n4` will be lost. This drops the reliability of the TCP state machine,"
-
-The second problem is Simultaneous Open. TODO explain
-
-Both problems can be mitigated if the load balancer can ensure that traffic belonging to a specific connection always traverses the same NAT64. (TODO can load balancers do that? It sounds far-fetched.)
+Active/Active is slightly discouraged because the session synchronization across Jool instances does not lock and is not instantaneous; if the translating traffic is faster, the session tables can end up desynchronized. Users will perceive this mainly as difficulties opening connections through the translators.
 
 ## Basic Tutorial
 
@@ -129,9 +114,12 @@ This is an example of the Active/Passive model. We will remove `L` from the setu
 
 <!-- J -->
 {% highlight bash %}
-ip addr add 2001:db8:0001::1/96 dev eth0
+ip addr add 2001:db8::4/96 dev eth0
+ip addr add 192.0.2.4/24 dev eth1
+ip addr add 2001:db8:ff08::4/96 dev eth2
+
+ip addr add 2001:db8::1/96 dev eth0
 ip addr add 192.0.2.1/24 dev eth1
-ip addr add 2001:db8:ff08::1/96 dev eth2
 
 ethtool --offload eth0 gro off
 ethtool --offload eth0 lro off
@@ -139,14 +127,20 @@ ethtool --offload eth1 gro off
 ethtool --offload eth1 lro off
 sysctl -w net.ipv4.conf.all.forwarding=1
 sysctl -w net.ipv6.conf.all.forwarding=1
+
 modprobe jool pool6=64:ff9b::/96
+jool --pool4 --add --tcp --udp 192.0.2.1 61001-65535
+jool --pool4 --add --icmp 192.0.2.1 0-65535
 {% endhighlight %}
 
 <!-- K -->
 {% highlight bash %}
-# X
-# X
-ip addr add 2001:db8:ff08::2/96 dev eth2
+ip addr add 2001:db8::5/96 dev eth0
+ip addr add 192.0.2.5/24 dev eth1
+ip addr add 2001:db8:ff08::5/96 dev eth2
+
+
+
 
 ethtool --offload eth0 gro off
 ethtool --offload eth0 lro off
@@ -154,13 +148,16 @@ ethtool --offload eth1 gro off
 ethtool --offload eth1 lro off
 sysctl -w net.ipv4.conf.all.forwarding=1
 sysctl -w net.ipv6.conf.all.forwarding=1
+
 modprobe jool pool6=64:ff9b::/96
+jool --pool4 --add --tcp --udp 192.0.2.1 61001-65535
+jool --pool4 --add --icmp 192.0.2.1 0-65535
 {% endhighlight %}
 
 <!-- n6 -->
 {% highlight bash %}
-ip addr add 2001:db8:1:8/96 dev eth0
-ip route add 64:ff9b::/96 via 2001:db8:1::1
+ip addr add 2001:db8::8/96 dev eth0
+ip route add 64:ff9b::/96 via 2001:db8::1
 {% endhighlight %}
 
 <!-- n4 -->
@@ -168,7 +165,9 @@ ip route add 64:ff9b::/96 via 2001:db8:1::1
 ip addr add 192.0.2.8/24 dev eth0
 {% endhighlight %}
 
-This is generally usual boilerplate Jool mumbo jumbo. All that's special is the lack of address configuration in the backup's translating interfaces; the load balancer will take care of populating these if `J` dies.
+This is generally usual boilerplate Jool mumbo jumbo. `2001:db8::4-5` and `192.0.2.4-5` are `J` and `K`'s permanent addresses; `2001:db8::1` and `192.0.2.1` are what Keepalived names "virtual addresses" -- The address the active translator will claim, and through which traffic will be translated. You can have multiple of these.
+
+It is important to note that every translator instance must have the same configuration as the other ones before SS is started. Make sure you've manually synchronized pool6, pool4, static BIB entries, the global variables and any other internal Jool configuration you might have.
 
 ### Kernel module
 
@@ -182,61 +181,50 @@ This asks the module to open a channel to userspace and start trading SS session
 
 `joold` reads the configuration of its network socket from a Json file I name `netsocket.json`. (The socket to kernelspace does not need any configuration as of now.)
 
-<div class="distro-menu">
-	<span class="distro-selector" onclick="showDistro(this);">J</span>
-	<span class="distro-selector" onclick="showDistro(this);">K</span>
-</div>
+	{
+		"multicast address": "ff08::db8:64:64",
+		"multicast port": "6464",
+		"in interface": "eth2",
+		"out interface": "eth2",
+		"reuseaddr": 1
+	}
 
-{% highlight json %}
-{
-	"multicast address": "233.252.0.64",
-	"multicast port": "6464",
-	"in interface": "10.0.0.1",
-	"out interface": "10.0.0.1",
-	"reuseaddr": 1
-}
-{% endhighlight %}
+`J` and `K` happen to use the same file in this setup.
 
-{% highlight json %}
-{
-	"multicast address": "233.252.0.64",
-	"multicast port": "6464",
-	"in interface": "10.0.0.2",
-	"out interface": "10.0.0.2",
-	"reuseaddr": 1
-}
-{% endhighlight %}
+A description of each field can be found [here](config-joold.html). For now, suffice to say that the nodes will send and receive SS traffic through multicast address `ff08::db8:64:64` on port `6464`.
 
-A description of each field can be found [below](#netsocketjson). For now, suffice to say that the nodes will send and receive SS traffic through multicast address `233.252.0.64` on port `6464`.
+Please note that `ff08::db8:64:64` is a [documentation address](https://tools.ietf.org/html/rfc6676#section-3) and you should probably change it (along with the others) once you're done experimenting.
 
-Please note that `233.252.0.64` is a [documentation address](https://tools.ietf.org/html/rfc6676#section-2) and you should probably change it (along with the others) once you're done experimenting.
+Start the daemon and send it to the background:
 
-Start the "daemon" in the foreground so you can see error messages (if any) easily:
+	$ joold /path/to/netsocket.json &
 
-	$ joold /path/to/netsocket.json
+Find any errors by querying syslog; you can probably do this by `tail`ing `/var/log/syslog`.
 
-(TODO don't forget the syslog stuff)
-
-If everything looks tidy, send the process to the background (Ctrl+Z then run `bg`):
-
-	^Z
-	$ bg
-
-Do this in both `J` and `K`.
+Start the daemon both in `J` and `K`.
 
 As far as Jool is concerned, that would be all. If `J` is translating traffic, you should see its sessions being mirrored in `K`:
 
-	user@K:~/# jool -sn
+	user@K:~/# jool --session --numeric
+	TCP:
+	---------------------------------
+	  (empty)
+
+	UDP:
+	---------------------------------
+	  (empty)
+
+	ICMP:
+	---------------------------------
+	Expires in 59 seconds
+	Remote: 192.0.2.8#39214	2001:db8::8#5831
+	Local: 192.0.2.1#39214	64:ff9b::c000:208#5831
+	---------------------------------
+	  (Fetched 1 entries.)
 
 ### Load Balancer
 
-This is not a tutorial on Keepalived, but I'll try explaining the important stuff.
-
-> ![Warning!](../images/warning.svg) I have realized that this section is rather unpolished; it doesn't match Keepalived's mentality all that well. (And I don't know if I'll be able to fix it before my deadline.)
-> 
-> Sorry; you can probably come up with something better. Keep in mind the `jool --joold --advertise` when entering the BACKUP state while doing so.
-> 
-> The basic problem is the relationship between interfaces and VRRP instances: it's supposed to be 1-to-1. I'm not clear as to what are the consequences for having one instance for all the interfaces.
+This is not a tutorial on Keepalived and I'm no guru, but I'll try explaining the important stuff. You might want to build on top of this.
 
 Download, compile and install Keepalived:
 
@@ -269,44 +257,57 @@ vrrp_script check_jool {
 }
 
 vrrp_instance VI_1 {
-	# Actually this is wrong. This is supposed to be the interface
-	# where the virtual address is to be located, not the interface
-	# where the VRRP traffic is supposed to be.
-	# (The reason this isn't giving me trouble is because I'm not
-	# entering a virtual address.)
-	# Also the VRRP traffic should probably be in the virtual addr
-	# interface anyway.
-	interface eth2
+	# The interface this VRRP instance belongs to.
+	interface eth0
+	# This is the address (or addresses) that will be claimed by the
+	# interface if this is the active translator.
+	virtual_ipaddress {
+		fe80::0800:2000:104:02
+		2001:db8::1
+	}
+
+	# J is our main NAT64; start in the "MASTER" state.
 	state MASTER
-	# J is our main NAT64, so grant it the most priority.
+	# "200" is the largest priority in this experiment.
+	# So this node gets to be the active NAT64 whenever it's alive.
 	priority 200
 
-	# This is just a random 0-255 id that must be the same for all
-	# the Keepalived instances.
+	# This is just a random 0-255 id that must be the same for
+	# all the Keepalived instances.
 	virtual_router_id 64
-	# Force Keepalived to use the private interface.
-	# (This is also kind of wrong; it should be one of the other interfaces.
-	# The reason is that this makes the private network a single point
-	# of failure.)
-	unicast_src_ip 10.0.0.1
+	# Address VRRP will bind itself to.
+	# I attach the server to the permanent address of the translating
+	# interface because this way we also end up reacting to interface
+	# failures for free.
+	unicast_src_ip 2001:db8::4
 
-	# Reference the monitor
+	# Reference the monitor.
 	track_script {
 		check_jool
 	}
 
-	# Script to run when Keepalived enters the MASTER state.
-	# (ie. when this Jool becomes the active one.)
-	notify_master /etc/keepalived/master.sh
-
-	# Script to run when Keepalived enters the BACKUP state.
+	# Special script to run when Keepalived enters the BACKUP state.
 	# (ie. when this Jool is no longer the active one, but it's
 	# still alive)
 	notify_backup /etc/keepalived/backup.sh
+}
 
-	# Script to run when Keepalived enters the FAULT state.
-	# (ie. when this Jool is not responding.)
-	notify_fault  /etc/keepalived/fault.sh
+# Ok, now the IPv4 interface.
+vrrp_instance VI_2 {
+	interface eth1
+	virtual_ipaddress {
+		192.0.2.1
+	}
+	state MASTER
+	priority 200
+	virtual_router_id 46
+	unicast_src_ip 192.0.2.4
+
+	track_script {
+		check_jool
+	}
+
+	notify_backup /etc/keepalived/backup.sh
 }
 {% endhighlight %}
 
@@ -324,80 +325,67 @@ vrrp_script check_jool {
 }
 
 vrrp_instance VI_1 {
-	# Actually this is wrong. This is supposed to be the interface
-	# where the virtual address is to be located, not the interface
-	# where the VRRP traffic is supposed to be.
-	# (The reason this isn't giving me trouble is because I'm not
-	# entering a virtual address.)
-	# Also the VRRP traffic should probably be in the virtual addr
-	# interface anyway.
-	interface eth2
+	# The interface this VRRP instance belongs to.
+	interface eth0
+	# This is the address (or addresses) that will be claimed by the
+	# interface if this is the active translator.
+	virtual_ipaddress {
+		fe80::0800:2000:104:02
+		2001:db8::1
+	}
+
+	# J is our secondary NAT64; start in the "BACKUP" state.
 	state BACKUP
-	# J is our main NAT64, so grant it the most priority.
+	# Will only upgrade to master if this is the highest priority node that
+	# is alive.
 	priority 100
 
-	# This is just a random 0-255 id that must be the same for all
-	# the Keepalived instances.
+	# This is just a random 0-255 id that must be the same for
+	# all the Keepalived instances.
 	virtual_router_id 64
-	# Force Keepalived to use the private interface.
-	# (This is also kind of wrong; it should be one of the other interfaces.
-	# The reason is that this makes the private network a single point
-	# of failure.)
-	unicast_src_ip 10.0.0.2
+	# Address VRRP will bind itself to.
+	# I attach the server to the permanent address of the translating
+	# interface because this way we also end up reacting to interface
+	# failures for free.
+	unicast_src_ip 2001:db8::5
 
-	# Reference the monitor
+	# Reference the monitor.
 	track_script {
 		check_jool
 	}
 
-	# Script to run when Keepalived enters the MASTER state.
-	# (ie. when this Jool becomes the active one.)
-	notify_master /etc/keepalived/master.sh
-
-	# Script to run when Keepalived enters the BACKUP state.
+	# Special script to run when Keepalived enters the BACKUP state.
 	# (ie. when this Jool is no longer the active one, but it's
 	# still alive)
 	notify_backup /etc/keepalived/backup.sh
+}
 
-	# Script to run when Keepalived enters the FAULT state.
-	# (ie. when this Jool is not responding.)
-	notify_fault  /etc/keepalived/fault.sh
+# Ok, now the IPv4 interface.
+vrrp_instance VI_2 {
+	interface eth1
+	virtual_ipaddress {
+		192.0.2.1
+	}
+	state BACKUP
+	priority 100
+	virtual_router_id 46
+	unicast_src_ip 192.0.2.5
+
+	track_script {
+		check_jool
+	}
+
+	notify_backup /etc/keepalived/backup.sh
 }
 {% endhighlight %}
 
-These are the respective referenced scripts:
+This is `/etc/keepalived/backup.sh`:
 
-<div class="distro-menu">
-	<span class="distro-selector" onclick="showDistro(this);">master.sh</span>
-	<span class="distro-selector" onclick="showDistro(this);">backup.sh</span>
-	<span class="distro-selector" onclick="showDistro(this);">fault.sh</span>
-</div>
+	jool --joold --advertise
 
-<!-- Master -->
-{% highlight bash %}
-ip addr add 2001:db8:1::1/96 dev eth0
-ip addr add 192.0.2.1/24 dev eth1
-{% endhighlight %}
+See [`--joold`](usr-flags-joold.html).
 
-<!-- Backup -->
-{% highlight bash %}
-# --joold --advertise forces this instance to yell its entire session database
-# in the network.
-# We want this because the new master was likely just modprobed and therefore
-# its database is empty.
-jool --joold --advertise
-
-ip addr del 2001:db8:1::1/96 dev eth0
-ip addr del 192.0.2.1/24 dev eth1
-{% endhighlight %}
-
-<!-- Fault -->
-{% highlight bash %}
-ip addr del 2001:db8::1/96 dev eth0
-ip addr del 192.0.2.1/24 dev eth1
-{% endhighlight %}
-
-Start keepalived in both `J` and `K` using `sudo keepalived -lDn`. You're done.
+Start keepalived in both `J` and `K` using `sudo keepalived`. You're done.
 
 ### Testing
 
@@ -457,8 +445,4 @@ That's all.
 ### `joold`
 
 See the [dedicated page](config-joold.html).
-
-## Persistent Daemon
-
-TODO
 

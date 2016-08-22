@@ -516,7 +516,7 @@ The only known downside to activating `--handle-rst-during-fin-rcv` is that atta
 ### `--ss-enabled`
 
 - Type: Boolean
-- Default: OFF (TODO there should be a modprobe equivalent)
+- Default: OFF
 - Modes: Stateful NAT64 only
 - Source: [Issue 113]({{ site.repository-url }}/issues/113)
 
@@ -552,11 +552,9 @@ In reality, some degree of queuing is still done when this flag is enabled, as o
 
 If there are queued sessions, an SS packet will be forced out after this amount of time has ellapsed since the last.
 
-Whenever the kernel module sends a packet to userspace, `joold` is expected to answer an ACK. Jool accounts this ACK as a green light to send the next SS packet. This is the mechanism that prevents Jool from over-saturating the Netlink channel.
+Whenever the kernel module sends a packet to userspace, `joold` is expected to answer an ACK. Jool accounts this ACK as a green light to send the next SS packet. This prevents Jool from over-saturating the Netlink channel.
 
-> (TODO: That sounds stupid to me now. We're probably being overly-paranoid in thinking that the socket can handle only one packet at a time, though giving the option to go up is admittedly -and silently- dangerous.)
-
-Being that Netlink is not a reliable protocol, the main intent of this option is to prevent lost ACKs from stagnating the SS queue.
+Being that Netlink is not a reliable protocol, the main intent of `--ss-flush-deadline` is to prevent lost ACKs from stagnating the SS queue.
 
 It also prevents sessions from staying in the queue for too long regardless of that, particularly when [`--ss-flush-asap`](#ss-flush-asap) is disabled.
 
@@ -573,7 +571,9 @@ If SS cannot keep up with the amount of traffic it needs to multicast, this maxi
 
 Watch out for this message in the kernel logs:
 
-	TODO
+	Too many sessions are queuing up!
+	Cannot synchronize fast enough; I will have to drop some sessions.
+	Sorry.
 
 ### `--ss-max-payload`
 

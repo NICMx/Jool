@@ -84,5 +84,3 @@ Prevents the modprobe from hooking a translator instance on the current network 
 
 `no_instance` invalidates the rest of the arguments since all of them are intended to configure the default instance.
 
-<!-- TODO the modinfo description of this field is gramatically incorrect. -->
-
