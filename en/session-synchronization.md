@@ -195,13 +195,11 @@ A description of each field can be found [here](config-joold.html). For now, suf
 
 Please note that `ff08::db8:64:64` is a [documentation address](https://tools.ietf.org/html/rfc6676#section-3) and you should probably change it (along with the others) once you're done experimenting.
 
-Start the daemon and send it to the background:
+Start the daemon (both in `J` and `K`) and send it to the background:
 
 	$ joold /path/to/netsocket.json &
 
 Find any errors by querying syslog; you can probably do this by `tail`ing `/var/log/syslog`.
-
-Start the daemon both in `J` and `K`.
 
 As far as Jool is concerned, that would be all. If `J` is translating traffic, you should see its sessions being mirrored in `K`:
 
@@ -262,8 +260,8 @@ vrrp_instance VI_1 {
 	# This is the address (or addresses) that will be claimed by the
 	# interface if this is the active translator.
 	virtual_ipaddress {
-		fe80::0800:2000:104:02
-		2001:db8::1
+		fe80::0800:2000:104:02/64
+		2001:db8::1/96
 	}
 
 	# J is our main NAT64; start in the "MASTER" state.
@@ -296,7 +294,7 @@ vrrp_instance VI_1 {
 vrrp_instance VI_2 {
 	interface eth1
 	virtual_ipaddress {
-		192.0.2.1
+		192.0.2.1/24
 	}
 	state MASTER
 	priority 200
@@ -330,8 +328,8 @@ vrrp_instance VI_1 {
 	# This is the address (or addresses) that will be claimed by the
 	# interface if this is the active translator.
 	virtual_ipaddress {
-		fe80::0800:2000:104:02
-		2001:db8::1
+		fe80::0800:2000:104:02/64
+		2001:db8::1/96
 	}
 
 	# J is our secondary NAT64; start in the "BACKUP" state.
@@ -364,7 +362,7 @@ vrrp_instance VI_1 {
 vrrp_instance VI_2 {
 	interface eth1
 	virtual_ipaddress {
-		192.0.2.1
+		192.0.2.1/24
 	}
 	state BACKUP
 	priority 100
@@ -385,13 +383,22 @@ This is `/etc/keepalived/backup.sh`:
 
 See [`--joold`](usr-flags-joold.html).
 
-Start keepalived in both `J` and `K` using `sudo keepalived`. You're done.
+Start keepalived in both `J` and `K`:
+
+	# keepalived
+
+You're done.
 
 ### Testing
 
 Start an infinite ping from `n6` to `n4`. These packets should be translated by `J`:
 
 	user@n6:~/$ ping6 64:ff9b::192.0.2.8
+	PING 64:ff9b::192.0.2.8(64:ff9b::c000:208) 56 data bytes
+	64 bytes from 64:ff9b::c000:208: icmp_seq=1 ttl=63 time=1.35 ms
+	64 bytes from 64:ff9b::c000:208: icmp_seq=2 ttl=63 time=2.65 ms
+	64 bytes from 64:ff9b::c000:208: icmp_seq=3 ttl=63 time=0.454 ms
+	64 bytes from 64:ff9b::c000:208: icmp_seq=4 ttl=63 time=1.22 ms
 
 Watch the session being cascaded into `K`:
 
@@ -403,11 +410,25 @@ Watch the session being cascaded into `K`:
 <!-- J -->
 {% highlight bash %}
 # jool -sin
+ICMP:
+---------------------------------
+Expires in 59 seconds
+Remote: 192.0.2.8#2168	2001:db8::8#10713
+Local: 192.0.2.1#2168	64:ff9b::c000:208#10713
+---------------------------------
+  (Fetched 1 entries.)
 {% endhighlight %}
 
 <!-- K -->
 {% highlight bash %}
 # jool -sin
+ICMP:
+---------------------------------
+Expires in 59 seconds
+Remote: 192.0.2.8#2168	2001:db8::8#10713
+Local: 192.0.2.1#2168	64:ff9b::c000:208#10713
+---------------------------------
+  (Fetched 1 entries.)
 {% endhighlight %}
 
 Then disable `J` somehow.
@@ -417,12 +438,23 @@ Then disable `J` somehow.
 The ping should stop and resume after a small while. This while is mostly just n4 realizing that `192.0.2.1` changed owner. Once that's done, you should notice that `K` is impersonating `J`, using the same old session that `J` left hanging:
 
 	user@K:~/# jool -sin
+	ICMP:
+	---------------------------------
+	Expires in 59 seconds
+	Remote: 192.0.2.8#2168	2001:db8::8#10713
+	Local: 192.0.2.1#2168	64:ff9b::c000:208#10713
+	---------------------------------
+	  (Fetched 1 entries.)
 
 (You can tell because `K` did not have to create a new session to service the ping.)
 
 Restart `J`. The ping should pause again and, after a while, `J` should claim control again (since it has more priority than `K`):
 
-	user@J:~/# modprobe jool pool6=64:ff9b::/96; jool --ss-enabled true; joold /path/to/netsocket.json
+	user@J:~/# modprobe jool pool6=64:ff9b::/96 \
+			&& jool --pool4 --add --tcp --udp 192.0.2.1 61001-65535 \
+			&& jool --pool4 --add --icmp 192.0.2.1 0-65535 \
+			&& jool --ss-enabled true \
+			&& joold /path/to/netsocket.json &
 
 Notice that you need to initialize `J`'s NAT64 in one go; otherwise the new instance will miss `K`'s advertise.
 
