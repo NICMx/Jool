@@ -489,7 +489,7 @@ void eamt_get(struct eam_table *eamt)
 static void destroy_eamt(struct kref *refcount)
 {
 	struct eam_table *eamt;
-	eamt = container_of(refcount, typeof(*eamt), refcount);
+	eamt = container_of(refcount, struct eam_table, refcount);
 	log_debug("Emptying EAMT...");
 	rtrie_destroy(&eamt->trie6);
 	rtrie_destroy(&eamt->trie4);

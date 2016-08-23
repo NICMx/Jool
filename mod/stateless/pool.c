@@ -113,7 +113,7 @@ RCUTAG_USR
 static void destroy_pool(struct kref *refcounter)
 {
 	struct addr4_pool *pool;
-	pool = container_of(refcounter, typeof(*pool), refcounter);
+	pool = container_of(refcounter, struct addr4_pool, refcounter);
 	__destroy(rcu_dereference_raw(pool->list));
 	wkfree(struct addr4_pool, pool);
 }

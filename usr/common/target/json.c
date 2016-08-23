@@ -84,10 +84,18 @@ static void check_duplicates(bool *found, char *section)
 	*found = true;
 }
 
-static int write_section(struct nl_buffer *buffer, enum parse_section section)
+static int init_buffer(struct nl_buffer *buffer, enum parse_section section)
 {
+	struct request_hdr hdr;
 	__u16 tmp = section;
 	int error;
+
+	init_request_hdr(&hdr, MODE_PARSE_FILE, OP_ADD);
+	error = nlbuffer_write(buffer, &hdr, sizeof(hdr));
+	if (error) {
+		log_err("Writing on an empty buffer yielded error %d.", error);
+		return error;
+	}
 
 	error = nlbuffer_write(buffer, &tmp, sizeof(tmp));
 	if (error)
@@ -99,8 +107,6 @@ static int write_section(struct nl_buffer *buffer, enum parse_section section)
 static struct nl_buffer *buffer_create(enum parse_section section)
 {
 	struct nl_buffer *buffer;
-	struct request_hdr hdr;
-	int error;
 
 	buffer = nlbuffer_create();
 	if (!buffer) {
@@ -108,22 +114,12 @@ static struct nl_buffer *buffer_create(enum parse_section section)
 		return NULL;
 	}
 
-	init_request_hdr(&hdr, MODE_PARSE_FILE, OP_ADD);
-	error = nlbuffer_write(buffer, &hdr, sizeof(hdr));
-	if (error) {
-		log_err("Writing on an empty buffer yielded error %d.", error);
-		goto fail;
+	if (init_buffer(buffer, section)) {
+		nlbuffer_destroy(buffer);
+		return NULL;
 	}
 
-	error = write_section(buffer, section);
-	if (error)
-		goto fail;
-
 	return buffer;
-
-fail:
-	nlbuffer_destroy(buffer);
-	return NULL;
 }
 
 static int buffer_write(struct nl_buffer *buffer,
@@ -140,10 +136,11 @@ static int buffer_write(struct nl_buffer *buffer,
 	if (error)
 		return error;
 
-	/* TODO bug; we need to add a jool header here. */
+	error = init_buffer(buffer, section);
+	if (error)
+		return error;
 
-	error = write_section(buffer, section);
-	return error ? : nlbuffer_write(buffer, payload, payload_len);
+	return nlbuffer_write(buffer, payload, payload_len);
 }
 
 static int send_ctrl_msg(enum parse_section section)
@@ -314,7 +311,7 @@ static int write_number(struct nl_buffer *buffer, enum global_type type,
 	struct {
 		struct global_value hdr;
 		/*
-		 * Please note: This assumes there are no __u64 numbers.
+		 * Please note: This assumes there are no __u64 global numbers.
 		 * If you want to add a __u64, you will have to pack this,
 		 * otherwise the compiler will add slop and everything will
 		 * stop working.
@@ -440,13 +437,12 @@ static int write_optional_prefix6(struct nl_buffer *buffer,
 	int error;
 
 	msg.hdr.type = type;
+	msg.hdr.len = sizeof(msg.hdr);
 	if (json->type != cJSON_NULL) {
-		msg.hdr.len = sizeof(msg);
+		msg.hdr.len += sizeof(msg.payload);
 		error = str_to_prefix6(json->valuestring, &msg.payload);
 		if (error)
 			return error;
-	} else {
-		msg.hdr.len = sizeof(msg.hdr);
 	}
 
 	return buffer_write(buffer, &msg, msg.hdr.len, SEC_GLOBAL);
@@ -722,6 +718,11 @@ static int handle_bib(cJSON *json)
 	 * important BIB/session operations about an order of magnitude down.
 	 * The BIB/session module is already pretty freaking dense already, too.
 	 * It really doesn't want more constraints.
+	 *
+	 * The core of the issue is that, unlike the other databases, BIB is a
+	 * uniform blend between preconfigured stuff (static BIB entries) and
+	 * dynamic stuff (dynamic BIB entries and sessions). There is no atomic
+	 * way to replace *only* the preconfigured stuff.
 	 *
 	 * Atomic static BIB entries are also hardly critical so this is going
 	 * to be postponed indefinitely until somebody gets miraculously

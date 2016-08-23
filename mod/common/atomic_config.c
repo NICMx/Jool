@@ -31,6 +31,12 @@ static void candidate_clean(struct config_candidate *candidate)
 	}
 	if (xlat_is_siit()) {
 		if (candidate->siit.eamt) {
+			/*
+			 * TODO (critical) kernel panic here.
+			 * candidate_clean() is called on a timer, which cannot
+			 * sleep, but eamt_put() calls synchronize_rcu_bh(),
+			 * which is very sleepy.
+			 */
 			eamt_put(candidate->siit.eamt);
 			candidate->siit.eamt = NULL;
 		}
@@ -54,6 +60,12 @@ static void candidate_clean(struct config_candidate *candidate)
 
 static void timer_function(unsigned long arg)
 {
+	/*
+	 * TODO (critical) kernel panic here.
+	 * Timers are not allowed to sleep. mutex_lock() sleeps.
+	 * Note: @lock cannot be a spinlock either because atomconfig_add()
+	 * currently uses GFP_KERNEL.
+	 */
 	mutex_lock(&lock);
 	candidate_clean((struct config_candidate *)arg);
 	mutex_unlock(&lock);
@@ -86,7 +98,7 @@ void cfgcandidate_get(struct config_candidate *candidate)
 static void candidate_destroy(struct kref *refcount)
 {
 	struct config_candidate *candidate;
-	candidate = container_of(refcount, typeof(*candidate), refcount);
+	candidate = container_of(refcount, struct config_candidate, refcount);
 	candidate_clean(candidate);
 	del_timer_sync(&candidate->timer);
 	wkfree(struct config_candidate, candidate);
@@ -124,7 +136,6 @@ static int handle_global(struct xlator *jool, void *payload, __u32 payload_len)
 	 */
 
 	do {
-		log_debug("atomic config flow!");
 		result = config_parse(config, payload, payload_len);
 		if (result < 0)
 			return result;

@@ -446,7 +446,7 @@ static void purge_sessions(struct joold_queue *queue)
 	struct joold_node *node;
 
 	while (!list_empty(&queue->sessions)) {
-		node = list_first_entry(&queue->sessions, typeof(*node),
+		node = list_first_entry(&queue->sessions, struct joold_node,
 				nextprev);
 		list_del(&node->nextprev);
 		kmem_cache_free(node_cache, node);

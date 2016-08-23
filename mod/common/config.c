@@ -53,7 +53,7 @@ void config_get(struct global_config *config)
 static void destroy_config(struct kref *refcounter)
 {
 	struct global_config *config;
-	config = container_of(refcounter, typeof(*config), refcounter);
+	config = container_of(refcounter, struct global_config, refcounter);
 	wkfree(struct global_config, config);
 }
 

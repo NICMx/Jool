@@ -145,7 +145,7 @@ void pool6_get(struct pool6 *pool)
 static void destroy_pool6(struct kref *ref)
 {
 	struct pool6 *pool;
-	pool = container_of(ref, typeof(*pool), refcount);
+	pool = container_of(ref, struct pool6, refcount);
 	destroy_list(rcu_dereference_raw(pool->list));
 	wkfree(struct pool6, pool);
 }
