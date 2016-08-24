@@ -219,18 +219,21 @@ static void destroy_table_by_node(struct rb_node *node, void *arg)
 	destroy_table(table);
 }
 
-static void release(struct kref *refcounter)
+static void clear_trees(struct pool4 *pool)
 {
-	struct pool4 *pool;
-	pool = container_of(refcounter, struct pool4, refcounter);
-
 	rbtree_clear(&pool->tree_mark.tcp, destroy_table_by_node, NULL);
 	rbtree_clear(&pool->tree_mark.udp, destroy_table_by_node, NULL);
 	rbtree_clear(&pool->tree_mark.icmp, destroy_table_by_node, NULL);
 	rbtree_clear(&pool->tree_addr.tcp, destroy_table_by_node, NULL);
 	rbtree_clear(&pool->tree_addr.udp, destroy_table_by_node, NULL);
 	rbtree_clear(&pool->tree_addr.icmp, destroy_table_by_node, NULL);
+}
 
+static void release(struct kref *refcounter)
+{
+	struct pool4 *pool;
+	pool = container_of(refcounter, struct pool4, refcounter);
+	clear_trees(pool);
 	wkfree(struct pool4, pool);
 }
 
@@ -647,22 +650,10 @@ int pool4db_rm_usr(struct pool4 *pool, struct pool4_entry_usr *entry)
 	return pool4db_rm(pool, entry->mark, entry->proto, &entry->range);
 }
 
-static void flush_tree(struct rb_node *node, void *arg)
-{
-	struct pool4_table *table;
-	table = rb_entry(node, struct pool4_table, tree_hook);
-	wkfree(struct pool4_table, table);
-}
-
 void pool4db_flush(struct pool4 *pool)
 {
 	spin_lock_bh(&pool->lock);
-	rbtree_clear(&pool->tree_mark.tcp, flush_tree, NULL);
-	rbtree_clear(&pool->tree_mark.udp, flush_tree, NULL);
-	rbtree_clear(&pool->tree_mark.icmp, flush_tree, NULL);
-	rbtree_clear(&pool->tree_addr.tcp, flush_tree, NULL);
-	rbtree_clear(&pool->tree_addr.udp, flush_tree, NULL);
-	rbtree_clear(&pool->tree_addr.icmp, flush_tree, NULL);
+	clear_trees(pool);
 	spin_unlock_bh(&pool->lock);
 }
 

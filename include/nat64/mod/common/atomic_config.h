@@ -35,19 +35,10 @@ struct config_candidate {
 		} nat64;
 	};
 
-	/**
-	 * Are we currently putting together configuration from userspace?
-	 * timer_pending(@timer) should probably replace this, but the
-	 * effort/profit ratio is not doing it for me right now.
-	 * Perhaps it can be assigned to some intern.
-	 */
+	/** Are we currently putting together configuration from userspace? */
 	bool active;
-	/**
-	 * Will expire and clean this candidate if the user forgot to commit or
-	 * something.
-	 * Only runs when @active.
-	 */
-	struct timer_list timer;
+	/** Last jiffy the user made an edit. */
+	unsigned long update_time;
 	/**
 	 * Process ID of the client that is populating this candidate.
 	 * Only valid if @active.

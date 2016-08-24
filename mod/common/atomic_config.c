@@ -31,12 +31,6 @@ static void candidate_clean(struct config_candidate *candidate)
 	}
 	if (xlat_is_siit()) {
 		if (candidate->siit.eamt) {
-			/*
-			 * TODO (critical) kernel panic here.
-			 * candidate_clean() is called on a timer, which cannot
-			 * sleep, but eamt_put() calls synchronize_rcu_bh(),
-			 * which is very sleepy.
-			 */
 			eamt_put(candidate->siit.eamt);
 			candidate->siit.eamt = NULL;
 		}
@@ -58,19 +52,6 @@ static void candidate_clean(struct config_candidate *candidate)
 	candidate->active = false;
 }
 
-static void timer_function(unsigned long arg)
-{
-	/*
-	 * TODO (critical) kernel panic here.
-	 * Timers are not allowed to sleep. mutex_lock() sleeps.
-	 * Note: @lock cannot be a spinlock either because atomconfig_add()
-	 * currently uses GFP_KERNEL.
-	 */
-	mutex_lock(&lock);
-	candidate_clean((struct config_candidate *)arg);
-	mutex_unlock(&lock);
-}
-
 struct config_candidate *cfgcandidate_create(void)
 {
 	struct config_candidate *candidate;
@@ -80,11 +61,6 @@ struct config_candidate *cfgcandidate_create(void)
 		return NULL;
 
 	memset(candidate, 0, sizeof(*candidate));
-
-	init_timer(&candidate->timer);
-	candidate->timer.function = timer_function;
-	candidate->timer.expires = 0;
-	candidate->timer.data = (unsigned long)candidate;
 
 	kref_init(&candidate->refcount);
 	return candidate;
@@ -100,7 +76,6 @@ static void candidate_destroy(struct kref *refcount)
 	struct config_candidate *candidate;
 	candidate = container_of(refcount, struct config_candidate, refcount);
 	candidate_clean(candidate);
-	del_timer_sync(&candidate->timer);
 	wkfree(struct config_candidate, candidate);
 }
 
@@ -367,6 +342,7 @@ static int commit(struct xlator *jool)
 
 int atomconfig_add(struct xlator *jool, void *config, size_t config_len)
 {
+	struct config_candidate *candidate;
 	__u16 type = *((__u16 *)config);
 	int error;
 
@@ -374,16 +350,53 @@ int atomconfig_add(struct xlator *jool, void *config, size_t config_len)
 	config_len -= sizeof(type);
 
 	mutex_lock(&lock);
+	candidate = jool->newcfg;
 
-	if (jool->newcfg->active) {
-		if (jool->newcfg->pid != current->pid) {
+	/*
+	 * I should explain this if.
+	 *
+	 * The userspace application makes a series of requests which we pile
+	 * up in @candidate. If any of them fails, the @candidate is rolled
+	 * back. When the app finishes, it states so by requesting a commit.
+	 * But we don't trust the app. What happens if it dies before sending
+	 * the commit?
+	 *
+	 * Well, the candidate needs to expire.
+	 *
+	 * The natural solution to that would be a kernel timer, right? So why
+	 * is that nowhere to be found?
+	 * Because a timer would force us to synchronize access to @candidate
+	 * with a spinlock. (Mutexes kill timers.) That would also be incorrect
+	 * because all the handle_* functions below (which the spinlock would
+	 * also need to protect) can sleep for a variety of reasons.
+	 *
+	 * So instead, if the userspace app dies too early to send a commit, we
+	 * will hold the candidate until another atomic configuration request is
+	 * made and this if realizes that the previous one expired.
+	 *
+	 * So what prevents a commitless sequence of requests from claiming
+	 * memory pointlessly (other than another sequence of requests)?
+	 * Nothing. But if they were done out of malice, then the system has
+	 * much more to fear because it means the attacker has sudo. And if they
+	 * were not, the user will follow shortly with another request or kill
+	 * the NAT64 instance. So the @candidate will be released in the end
+	 * despite the fuss. It's not a memory leak, after all.
+	 *
+	 * I'd like to clarify I would rather see a better solution, but I
+	 * genuinely feel like making the handle_*() functions atomic is not it.
+	 */
+	if (candidate->update_time + TIMEOUT < jiffies)
+		candidate_clean(candidate);
+
+	if (candidate->active) {
+		if (candidate->pid != current->pid) {
 			log_err("There's another atomic configuration underway. Please try again later.");
 			mutex_unlock(&lock);
 			return -EAGAIN;
 		}
 	} else {
-		jool->newcfg->active = true;
-		jool->newcfg->pid = current->pid;
+		candidate->active = true;
+		candidate->pid = current->pid;
 	}
 
 	switch (type) {
@@ -395,22 +408,22 @@ int atomconfig_add(struct xlator *jool, void *config, size_t config_len)
 		error = handle_global(jool, config, config_len);
 		break;
 	case SEC_POOL6:
-		error = handle_pool6(jool->newcfg, config, config_len);
+		error = handle_pool6(candidate, config, config_len);
 		break;
 	case SEC_EAMT:
-		error = handle_eamt(jool->newcfg, config, config_len);
+		error = handle_eamt(candidate, config, config_len);
 		break;
 	case SEC_BLACKLIST:
-		error = handle_blacklist(jool->newcfg, config, config_len);
+		error = handle_blacklist(candidate, config, config_len);
 		break;
 	case SEC_POOL6791:
-		error = handle_pool6791(jool->newcfg, config, config_len);
+		error = handle_pool6791(candidate, config, config_len);
 		break;
 	case SEC_POOL4:
-		error = handle_pool4(jool->newcfg, config, config_len);
+		error = handle_pool4(candidate, config, config_len);
 		break;
 	case SEC_BIB:
-		error = handle_bib(jool->newcfg, config, config_len);
+		error = handle_bib(candidate, config, config_len);
 		break;
 	case SEC_COMMIT:
 		error = commit(jool);
@@ -424,7 +437,7 @@ int atomconfig_add(struct xlator *jool, void *config, size_t config_len)
 	if (error)
 		rollback(jool);
 	else
-		mod_timer(&jool->newcfg->timer, jiffies + TIMEOUT);
+		candidate->update_time = jiffies;
 
 	mutex_unlock(&lock);
 	return error;

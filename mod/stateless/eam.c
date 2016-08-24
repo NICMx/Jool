@@ -486,6 +486,9 @@ void eamt_get(struct eam_table *eamt)
 	kref_get(&eamt->refcount);
 }
 
+/**
+ * Please note: this function can sleep.
+ */
 static void destroy_eamt(struct kref *refcount)
 {
 	struct eam_table *eamt;

@@ -4,6 +4,7 @@
 #include "nat64/common/types.h"
 #include "nat64/mod/common/wkmalloc.h"
 
+/* TODO what is trie->lock? I don't think these are doing much. */
 #define deref_reader(node) \
 	rcu_dereference_bh(node)
 #define deref_updater(trie, node) \
@@ -136,7 +137,19 @@ void rtrie_init(struct rtrie *trie, size_t size)
 
 void rtrie_destroy(struct rtrie *trie)
 {
-	rtrie_flush(trie);
+	struct rtrie_node *node;
+	struct rtrie_node *tmp_node;
+	unsigned int i = 0;
+
+	/* rtrie_print("Destroying trie", trie); */
+	list_for_each_entry_safe(node, tmp_node, &trie->list, list_hook) {
+		list_del(&node->list_hook);
+		__wkfree("Rtrie node", node);
+		i++;
+	}
+
+	log_debug("Deleted %u nodes.", i);
+	/* rtrie_print("Trie after", trie); */
 }
 
 /**
