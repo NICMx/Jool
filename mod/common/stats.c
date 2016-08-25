@@ -2,6 +2,7 @@
 
 #include <linux/netdevice.h>
 #include <linux/skbuff.h>
+#include <linux/version.h>
 #include <net/addrconf.h>
 #include <net/ip.h>
 #include <net/ipv6.h>
@@ -32,14 +33,22 @@ static void inc_stats6(struct sk_buff *skb, int field)
 	if (!idev)
 		return;
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 7, 0)
 	IP6_INC_STATS_BH(dev_net(skb->dev), idev, field);
+#else
+	__IP6_INC_STATS(dev_net(skb->dev), idev, field);
+#endif
 
 	in6_dev_put(idev);
 }
 
 static void inc_stats4(struct sk_buff *skb, int field)
 {
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 7, 0)
 	IP_INC_STATS_BH(dev_net(skb->dev), field);
+#else
+	__IP_INC_STATS(dev_net(skb->dev), field);
+#endif
 }
 
 void inc_stats_skb6(struct sk_buff *skb, int field)

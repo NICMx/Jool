@@ -408,6 +408,7 @@ enum global_type {
 	DROP_EXTERNAL_TCP,
 	SRC_ICMP6ERRS_BETTER,
 	F_ARGS,
+	HANDLE_RST_DURING_FIN_RCV,
 	UDP_TIMEOUT,
 	ICMP_TIMEOUT,
 	TCP_EST_TIMEOUT,
@@ -585,6 +586,12 @@ struct global_config_usr {
 			 * See "enum f_args".
 			 */
 			__u8 f_args;
+			/**
+			 * Decrease timer when a FIN packet is received during the
+			 * `V4 FIN RCV` or `V6 FIN RCV` states?
+			 * https://github.com/NICMx/Jool/issues/212
+			 */
+			config_bool handle_rst_during_fin_rcv;
 		} nat64;
 	};
 };

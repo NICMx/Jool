@@ -1,7 +1,7 @@
 .\" Manpage for jool's userspace app.
 .\" Report bugs to jool@nic.mx.
 
-.TH jool 8 2015-11-20 v3.4.2 "NAT64 Jool's Userspace Application"
+.TH jool 8 2016-07-11 v3.4.4 "NAT64 Jool's Userspace Application"
 
 .SH NAME
 jool - Interact with NAT64 Jool (the kernel module).
@@ -195,6 +195,8 @@ Defines the arguments that will be sent to F().
 - Third bit is destination address.
 .br
 - Fourth (rightmost) bit is destination port.
+.IP --handle-rst-during-fin-rcv=BOOL
+Use transitory timer when RST is received during the V6 FIN RCV or V4 FIN RCV states?
 .IP --logging-bib=BOOL
 Log BIBs as they are created and destroyed?
 .IP --logging-session=BOOL

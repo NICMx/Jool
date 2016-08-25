@@ -37,6 +37,7 @@ int config_init(struct global_config **result)
 		config->nat64.src_icmp6errs_better = DEFAULT_SRC_ICMP6ERRS_BETTER;
 		config->nat64.drop_icmp6_info = DEFAULT_FILTER_ICMPV6_INFO;
 		config->nat64.f_args = DEFAULT_F_ARGS;
+		config->nat64.handle_rst_during_fin_rcv = DEFAULT_HANDLE_FIN_RCV_RST;
 	}
 
 	config->mtu_plateau_count = ARRAY_SIZE(plateaus);

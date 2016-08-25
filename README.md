@@ -65,12 +65,14 @@ You might also want to see [contact info](https://www.jool.mx/en/contact.html).
 ### Special Thanks (contributing users)
 
 * [airsnail](https://github.com/airsnail)
+* [Andreas Urke](https://github.com/arurke)
 * Eric Gamess
 * [Hidekazu Tadokoro](https://github.com/tadokoro)
 * [ipclouds](https://github.com/ipclouds)
 * [Masaya YAMAMOTO](https://github.com/pandax381)
 * [Michael Richardson](http://www.sandelman.ca/mcr)
 * [Philar Law] (https://github.com/philar)
+* [Pier Carlo Chiodi](https://pierky.com/)
 * [Stanislav Bogatyrev](https://github.com/realloc)
 * [tbe](https://github.com/tbe)
 * [techmotive](https://github.com/techmotive)

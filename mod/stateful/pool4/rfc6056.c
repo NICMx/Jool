@@ -1,7 +1,6 @@
 #include "nat64/mod/stateful/pool4/rfc6056.h"
 
-/* #include <crypto/md5.h> */
-#include <linux/crypto.h>
+#include <crypto/hash.h>
 #include "nat64/mod/common/wkmalloc.h"
 
 /* TODO (issue175) RFC 6056 wants us to change this from time to time. */
@@ -9,7 +8,7 @@ static unsigned char *secret_key;
 static size_t secret_key_len;
 static atomic_t next_ephemeral;
 
-static struct crypto_hash *tfm;
+struct crypto_shash *shash;
 static DEFINE_SPINLOCK(tfm_lock);
 
 int rfc6056_init(void)
@@ -32,9 +31,9 @@ int rfc6056_init(void)
 	atomic_set(&next_ephemeral, tmp);
 
 	/* TFC stuff */
-	tfm = crypto_alloc_hash("md5", 0, CRYPTO_ALG_ASYNC);
-	if (IS_ERR(tfm)) {
-		error = PTR_ERR(tfm);
+	shash = crypto_alloc_shash("md5", 0, CRYPTO_ALG_ASYNC);
+	if (IS_ERR(shash)) {
+		error = PTR_ERR(shash);
 		log_warn_once("Failed to load transform for MD5; errcode %d",
 				error);
 		__wkfree("Secret key", secret_key);
@@ -46,46 +45,40 @@ int rfc6056_init(void)
 
 void rfc6056_destroy(void)
 {
-	crypto_free_hash(tfm);
+	crypto_free_shash(shash);
 	__wkfree("Secret key", secret_key);
 }
 
-static void build_scatterlist(const struct tuple *tuple6, __u16 f_args,
-		struct scatterlist *sg, unsigned int *sg_len)
+int hash_tuple(struct shash_desc *desc, __u8 fields, const struct tuple *tuple6)
 {
-	unsigned int sg_index;
-	unsigned int field_len;
+	int error;
 
-	*sg_len = 0;
-	sg_index = 0;
-
-	if (f_args & F_ARGS_SRC_ADDR) {
-		field_len = sizeof(tuple6->src.addr6.l3);
-		sg_set_buf(&sg[sg_index], &tuple6->src.addr6.l3, field_len);
-		*sg_len += field_len;
-		sg_index++;
+	if (fields & F_ARGS_SRC_ADDR) {
+		error = crypto_shash_update(desc, (u8 *)&tuple6->src.addr6.l3,
+				sizeof(tuple6->src.addr6.l3));
+		if (error)
+			return error;
 	}
-	if (f_args & F_ARGS_SRC_PORT) {
-		field_len = sizeof(tuple6->src.addr6.l4);
-		sg_set_buf(&sg[sg_index], &tuple6->src.addr6.l4, field_len);
-		*sg_len += field_len;
-		sg_index++;
+	if (fields & F_ARGS_SRC_PORT) {
+		error = crypto_shash_update(desc, (u8 *)&tuple6->src.addr6.l4,
+				sizeof(tuple6->src.addr6.l4));
+		if (error)
+			return error;
 	}
-	if (f_args & F_ARGS_DST_ADDR) {
-		field_len = sizeof(tuple6->dst.addr6.l3);
-		sg_set_buf(&sg[sg_index], &tuple6->dst.addr6.l3, field_len);
-		*sg_len += field_len;
-		sg_index++;
+	if (fields & F_ARGS_DST_ADDR) {
+		error = crypto_shash_update(desc, (u8 *)&tuple6->dst.addr6.l3,
+				sizeof(tuple6->dst.addr6.l3));
+		if (error)
+			return error;
 	}
-	if (f_args & F_ARGS_DST_PORT) {
-		field_len = sizeof(tuple6->dst.addr6.l4);
-		sg_set_buf(&sg[sg_index], &tuple6->dst.addr6.l4, field_len);
-		*sg_len += field_len;
-		sg_index++;
+	if (fields & F_ARGS_DST_PORT) {
+		error = crypto_shash_update(desc, (u8 *)&tuple6->dst.addr6.l4,
+				sizeof(tuple6->dst.addr6.l4));
+		if (error)
+			return error;
 	}
 
-	sg_set_buf(&sg[sg_index], secret_key, secret_key_len);
-	*sg_len += secret_key_len;
+	return crypto_shash_update(desc, secret_key, secret_key_len);
 }
 
 /**
@@ -93,40 +86,46 @@ static void build_scatterlist(const struct tuple *tuple6, __u16 f_args,
  */
 int rfc6056_f(const struct tuple *tuple6, __u8 fields, unsigned int *result)
 {
-	/*
-	 * See http://stackoverflow.com/questions/3869028.
-	 * user502515, nanoship and noaccount are the good ones.
-	 */
-
 	union {
 		__be32 as32[4];
 		__u8 as8[16];
 	} md5_result;
-	struct scatterlist sg[5];
-	unsigned int sg_len;
-	struct hash_desc desc;
-	int error;
+	struct shash_desc *desc;
+	int error = 0;
 
-	sg_init_table(sg, ARRAY_SIZE(sg));
-	build_scatterlist(tuple6, fields, sg, &sg_len);
+	desc = kmalloc(sizeof(struct shash_desc) + crypto_shash_descsize(shash),
+			GFP_ATOMIC);
+	if (!desc)
+		return -ENOMEM;
 
-	desc.tfm = tfm;
-	desc.flags = 0;
+	desc->tfm = shash;
+	desc->flags = 0;
 
+	/*
+	 * TODO it would appear this is a good opportunity to use per-cpu
+	 * variables instead of a spinlock.
+	 */
 	spin_lock_bh(&tfm_lock);
 
-	error = crypto_hash_init(&desc);
+	error = crypto_shash_init(desc);
 	if (error) {
 		log_debug("crypto_hash_init() failed. Errcode: %d", error);
 		goto unlock;
 	}
-	error = crypto_hash_digest(&desc, sg, sg_len, md5_result.as8);
+
+	error = hash_tuple(desc, fields, tuple6);
+	if (error) {
+		log_debug("crypto_hash_update() failed. Errcode: %d", error);
+		goto unlock;
+	}
+
+	error = crypto_shash_final(desc, md5_result.as8);
 	if (error) {
 		log_debug("crypto_hash_digest() failed. Errcode: %d", error);
 		goto unlock;
 	}
 
-	*result = (__force __u32)md5_result.as32[3];
+	*result = md5_result.as32[3];
 	/* Fall through. */
 
 unlock:

@@ -490,6 +490,9 @@ static int parse_opt(int key, char *str, struct argp_state *state)
 	case ARGP_F_ARGS:
 		error = set_global_u8(args, key, str, 0, 0xF);
 		break;
+	case ARGP_HANDLE_RST_DURING_FIN_RCV:
+		error = set_global_bool(args, HANDLE_RST_DURING_FIN_RCV, str);
+		break;
 	case ARGP_NEW_TOS:
 		error = set_global_u8(args, key, str, 0, MAX_U8);
 		break;

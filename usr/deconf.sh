@@ -1,3 +1,4 @@
+make clean
 rm Makefile
 rm Makefile.in
 rm aclocal.m4

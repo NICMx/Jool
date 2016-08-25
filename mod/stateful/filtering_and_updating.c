@@ -360,6 +360,11 @@ static enum session_fate tcp_established_state(struct session_entry *session,
 	return FATE_TIMER_EST;
 }
 
+static bool handle_rst_during_fin_rcv(struct xlation *state)
+{
+	return state->jool.global->cfg.nat64.handle_rst_during_fin_rcv;
+}
+
 /**
  * Filtering and updating during the V4 FIN RCV state of the TCP state machine.
  * Part of RFC 6146 section 3.5.2.2.
@@ -368,10 +373,18 @@ static enum session_fate tcp_v4_fin_rcv_state(struct session_entry *session,
 		struct xlation *state)
 {
 	struct packet *pkt = &state->in;
+	struct tcphdr *hdr;
 
-	if (pkt_l3_proto(pkt) == L3PROTO_IPV6 && pkt_tcp_hdr(pkt)->fin) {
-		session->state = V4_FIN_V6_FIN_RCV;
-		return FATE_TIMER_TRANS;
+	if (pkt_l3_proto(pkt) == L3PROTO_IPV6) {
+		hdr = pkt_tcp_hdr(pkt);
+		if (hdr->fin) {
+			session->state = V4_FIN_V6_FIN_RCV;
+			return FATE_TIMER_TRANS;
+		}
+		if (hdr->rst && handle_rst_during_fin_rcv(state)) {
+			/* https://github.com/NICMx/Jool/issues/212 */
+			return FATE_TIMER_TRANS;
+		}
 	}
 
 	return FATE_TIMER_EST;
@@ -385,10 +398,18 @@ static enum session_fate tcp_v6_fin_rcv_state(struct session_entry *session,
 		struct xlation *state)
 {
 	struct packet *pkt = &state->in;
+	struct tcphdr *hdr;
 
-	if (pkt_l3_proto(pkt) == L3PROTO_IPV4 && pkt_tcp_hdr(pkt)->fin) {
-		session->state = V4_FIN_V6_FIN_RCV;
-		return FATE_TIMER_TRANS;
+	if (pkt_l3_proto(pkt) == L3PROTO_IPV4) {
+		hdr = pkt_tcp_hdr(pkt);
+		if (hdr->fin) {
+			session->state = V4_FIN_V6_FIN_RCV;
+			return FATE_TIMER_TRANS;
+		}
+		if (hdr->rst && handle_rst_during_fin_rcv(state)) {
+			/* https://github.com/NICMx/Jool/issues/212 */
+			return FATE_TIMER_TRANS;
+		}
 	}
 
 	return FATE_TIMER_EST;

@@ -110,6 +110,8 @@ static int handle_display_response(struct jool_response *response, void *arg)
 				conf->bib.max_stored_pkts);
 		printf("  --%s: %s\n", OPTNAME_SRC_ICMP6E_BETTER,
 				print_bool(conf->global.nat64.src_icmp6errs_better));
+		printf("  --%s: %s\n", OPTNAME_HANDLE_FIN_RCV_RST,
+				print_bool(conf->global.nat64.handle_rst_during_fin_rcv));
 
 		printf("  --%s: %u (0b", OPTNAME_F_ARGS, conf->global.nat64.f_args);
 		print_binary(conf->global.nat64.f_args, 4);
@@ -221,6 +223,8 @@ static int handle_display_response_csv(struct jool_response *response, void *arg
 				print_csv_bool(conf->bib.drop_external_tcp));
 		printf("%s,%s\n", OPTNAME_SRC_ICMP6E_BETTER,
 				print_csv_bool(global->nat64.src_icmp6errs_better));
+		printf("%s,%u\n", OPTNAME_HANDLE_FIN_RCV_RST,
+				global->nat64.handle_rst_during_fin_rcv);
 		printf("%s,%u\n", OPTNAME_F_ARGS,
 				global->nat64.f_args);
 		printf("%s,%s\n", OPTNAME_BIB_LOGGING,

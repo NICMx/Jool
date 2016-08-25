@@ -52,7 +52,7 @@ static bool interface_contains(struct net *ns, struct in_addr *addr)
 		in_dev = rcu_dereference(dev->ip_ptr);
 		ifaddr = in_dev->ifa_list;
 		while (ifaddr) {
-			net_addr.s_addr = ifaddr->ifa_address;
+			net_addr.s_addr = ifaddr->ifa_local;
 			if (ipv4_addr_cmp(&net_addr, addr) == 0) {
 				rcu_read_unlock();
 				return true;
