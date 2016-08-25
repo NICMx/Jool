@@ -164,9 +164,8 @@ static bool generate_df_flag(struct packet *out)
 	return pkt_len(out) > 1260;
 }
 
-static verdict generate_addr4_siit(struct xlation *state,
-		struct in6_addr *addr6, __be32 *addr4,
-		bool is_dst, bool *was_6052)
+static addrxlat_verdict generate_addr4_siit(struct xlation *state,
+		struct in6_addr *addr6, __be32 *addr4, bool *was_6052)
 {
 	struct ipv6_prefix prefix;
 	struct in_addr tmp;
@@ -178,37 +177,37 @@ static verdict generate_addr4_siit(struct xlation *state,
 	if (!error)
 		goto success;
 	if (error != -ESRCH)
-		return VERDICT_DROP;
+		return ADDRXLAT_DROP;
 
 	error = pool6_find(state->jool.pool6, addr6, &prefix);
 	if (error == -ESRCH) {
 		log_debug("'%pI6c' lacks both pool6 prefix and EAM.", addr6);
-		return VERDICT_ACCEPT;
+		return ADDRXLAT_TRY_SOMETHING_ELSE;
 	}
 	if (error)
-		return VERDICT_DROP;
+		return ADDRXLAT_DROP;
 
 	error = addr_6to4(addr6, &prefix, &tmp);
 	if (error)
-		return VERDICT_DROP;
+		return ADDRXLAT_DROP;
 
-	if (is_dst && blacklist_contains(state->jool.siit.blacklist,
-			state->jool.ns, tmp.s_addr)) {
+	if (blacklist_contains(state->jool.siit.blacklist, &tmp)) {
 		log_debug("The resulting address (%pI4) is blacklisted.", &tmp);
-		return VERDICT_ACCEPT;
+		return ADDRXLAT_ACCEPT;
 	}
 
 	*was_6052 = true;
 	/* Fall through. */
 
 success:
-	if (addr4_is_scope_subnet(tmp.s_addr)) {
-		log_debug("The resulting address (%pI4) is reserved.", &tmp);
-		return VERDICT_DROP;
+	if (must_not_translate(&tmp, state->jool.ns)) {
+		log_debug("The resulting address (%pI4) is not supposed to be xlat'd.",
+				&tmp);
+		return ADDRXLAT_ACCEPT;
 	}
 
 	*addr4 = tmp.s_addr;
-	return VERDICT_CONTINUE;
+	return ADDRXLAT_CONTINUE;
 }
 
 static verdict translate_addrs64_siit(struct xlation *state)
@@ -217,23 +216,35 @@ static verdict translate_addrs64_siit(struct xlation *state)
 	struct iphdr *hdr4 = pkt_ip4_hdr(&state->out);
 	bool src_was_6052, dst_was_6052;
 	enum eam_hairpinning_mode hairpin_mode;
-	verdict result;
-
+	addrxlat_verdict result;
 
 	/* Dst address. (SRC DEPENDS CON DST, SO WE NEED TO XLAT DST FIRST!) */
-	result = generate_addr4_siit(state, &hdr6->daddr, &hdr4->daddr, true,
+	result = generate_addr4_siit(state, &hdr6->daddr, &hdr4->daddr,
 			&dst_was_6052);
-	if (result != VERDICT_CONTINUE)
-		return result;
+	switch (result) {
+	case ADDRXLAT_CONTINUE:
+		break;
+	case ADDRXLAT_TRY_SOMETHING_ELSE:
+		return VERDICT_ACCEPT;
+	case ADDRXLAT_ACCEPT:
+	case ADDRXLAT_DROP:
+		return (verdict)result;
+	}
 
 	/* Src address. */
-	result = generate_addr4_siit(state, &hdr6->saddr, &hdr4->saddr, false,
+	result = generate_addr4_siit(state, &hdr6->saddr, &hdr4->saddr,
 			&src_was_6052);
-	if (result == VERDICT_ACCEPT && pkt_is_icmp6_error(&state->in)) {
-		if (rfc6791_find(state, &hdr4->saddr) != 0)
-			return VERDICT_ACCEPT;
-	} else if (result != VERDICT_CONTINUE) {
-		return result;
+	switch (result) {
+	case ADDRXLAT_CONTINUE:
+		break;
+	case ADDRXLAT_TRY_SOMETHING_ELSE:
+		if (pkt_is_icmp6_error(&state->in)
+				&& !rfc6791_find(state, &hdr4->saddr))
+			break; /* Ok, success. */
+		return VERDICT_ACCEPT;
+	case ADDRXLAT_ACCEPT:
+	case ADDRXLAT_DROP:
+		return (verdict)result;
 	}
 
 	/*

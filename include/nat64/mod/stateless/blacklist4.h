@@ -16,7 +16,9 @@ void blacklist_put(struct addr4_pool *pool);
 int blacklist_add(struct addr4_pool *pool, struct ipv4_prefix *prefix);
 int blacklist_rm(struct addr4_pool *pool, struct ipv4_prefix *prefix);
 int blacklist_flush(struct addr4_pool *pool);
-bool blacklist_contains(struct addr4_pool *pool, struct net *ns, __be32 addr);
+
+bool interface_contains(struct net *ns, struct in_addr *addr);
+bool blacklist_contains(struct addr4_pool *pool, struct in_addr *addr);
 
 int blacklist_foreach(struct addr4_pool *pool,
 		int (*func)(struct ipv4_prefix *, void *), void *arg,

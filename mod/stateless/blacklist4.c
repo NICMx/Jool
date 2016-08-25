@@ -40,7 +40,7 @@ int blacklist_flush(struct addr4_pool *pool)
 	return pool_flush(pool);
 }
 
-static bool interface_contains(struct net *ns, struct in_addr *addr)
+bool interface_contains(struct net *ns, struct in_addr *addr)
 {
 	struct net_device *dev;
 	struct in_device *in_dev;
@@ -65,10 +65,9 @@ static bool interface_contains(struct net *ns, struct in_addr *addr)
 	return false;
 }
 
-bool blacklist_contains(struct addr4_pool *pool, struct net *ns, __be32 be_addr)
+bool blacklist_contains(struct addr4_pool *pool, struct in_addr *addr)
 {
-	struct in_addr addr = { .s_addr = be_addr };
-	return pool_contains(pool, &addr) ? true : interface_contains(ns, &addr);
+	return pool_contains(pool, addr);
 }
 
 int blacklist_foreach(struct addr4_pool *pool,

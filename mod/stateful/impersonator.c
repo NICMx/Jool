@@ -34,7 +34,13 @@ void blacklist_put(struct addr4_pool *pool)
 	fail(__func__);
 }
 
-bool blacklist_contains(struct addr4_pool *pool, struct net *ns, __be32 addr)
+bool interface_contains(struct net *ns, struct in_addr *addr)
+{
+	fail(__func__);
+	return false;
+}
+
+bool blacklist_contains(struct addr4_pool *pool, struct in_addr *addr)
 {
 	fail(__func__);
 	return false;

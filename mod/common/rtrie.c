@@ -4,7 +4,11 @@
 #include "nat64/common/types.h"
 #include "nat64/mod/common/wkmalloc.h"
 
-/* TODO what is trie->lock? I don't think these are doing much. */
+/*
+ * TODO (test) what is trie->lock? I don't think these are doing much.
+ * (It's kind of hard to fix because the EAMT is the one holding the lock.
+ * I reviewed the code, though. There shouldn't be any problems.)
+ */
 #define deref_reader(node) \
 	rcu_dereference_bh(node)
 #define deref_updater(trie, node) \

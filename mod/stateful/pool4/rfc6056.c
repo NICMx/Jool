@@ -8,7 +8,7 @@ static unsigned char *secret_key;
 static size_t secret_key_len;
 static atomic_t next_ephemeral;
 
-struct crypto_shash *shash;
+static struct crypto_shash *shash;
 static DEFINE_SPINLOCK(tfm_lock);
 
 int rfc6056_init(void)
@@ -49,7 +49,8 @@ void rfc6056_destroy(void)
 	__wkfree("Secret key", secret_key);
 }
 
-int hash_tuple(struct shash_desc *desc, __u8 fields, const struct tuple *tuple6)
+static int hash_tuple(struct shash_desc *desc, __u8 fields,
+		const struct tuple *tuple6)
 {
 	int error;
 
@@ -102,8 +103,8 @@ int rfc6056_f(const struct tuple *tuple6, __u8 fields, unsigned int *result)
 	desc->flags = 0;
 
 	/*
-	 * TODO it would appear this is a good opportunity to use per-cpu
-	 * variables instead of a spinlock.
+	 * TODO (performance) it would appear this is a good opportunity to use
+	 * per-cpu variables instead of a spinlock.
 	 */
 	spin_lock_bh(&tfm_lock);
 
@@ -125,7 +126,7 @@ int rfc6056_f(const struct tuple *tuple6, __u8 fields, unsigned int *result)
 		goto unlock;
 	}
 
-	*result = md5_result.as32[3];
+	*result = (__force __u32)md5_result.as32[3];
 	/* Fall through. */
 
 unlock:
