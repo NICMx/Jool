@@ -1,22 +1,20 @@
 #!/bin/bash
-ITF0=eth0
-ITF1=eth1
 
-sudo service network-manager stop
+# Parameters:
+# $1: Interface where the IPv6 traffic will be seen.
+# $2: Interface where the IPv4 traffic will be seen.
 
-sudo ip addr flush dev $ITF0 scope global
-sudo ip addr flush dev $ITF1 scope global
-
-sudo ip link set $ITF0 up
-sudo ip link set $ITF1 up
-
-# H4's config (http://tools.ietf.org/html/rfc6145#appendix-A)
-sudo ip addr add 198.51.100.2/24 dev $ITF0
-sudo ip route add 192.0.2.0/24 via 198.51.100.1
+ip addr flush dev $1 scope global
+ip addr flush dev $2 scope global
+ip link set $1 up
+ip link set $2 up
 
 # H6's config
-sudo ip addr add 2001:db8:1c0:2:21::/64 dev $ITF1
-sudo ip route add default via 2001:db8:1c0:2:1::
+ip addr add 2001:db8:1c0:2:21::/64 dev $1
+ip -6 route add default via 2001:db8:1c0:2:1::
 
-sudo modprobe graybox
+# H4's config (http://tools.ietf.org/html/rfc6145#appendix-A)
+ip addr add 198.51.100.2/24 dev $2
+ip route add 192.0.2.0/24 via 198.51.100.1
 
+insmod `dirname $0`/../../../mod/graybox.ko

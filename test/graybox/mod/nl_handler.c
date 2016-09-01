@@ -56,10 +56,23 @@ static struct genl_family family = {
 	.netnsok = true,
 };
 
+int verify_superpriv(void)
+{
+	if (!capable(CAP_NET_ADMIN)) {
+		log_err("Administrative privileges required.");
+		return -EPERM;
+	}
+
+	return 0;
+}
+
 static int handle_expect_add(struct genl_info *info)
 {
 	struct expected_packet pkt;
 	struct nlattr *attr;
+
+	if (verify_superpriv())
+		return -EPERM;
 
 	attr = info->attrs[ATTR_FILENAME];
 	if (!attr) {
@@ -89,6 +102,9 @@ static int handle_send(struct genl_info *info)
 	struct nlattr *attr;
 	int error;
 
+	if (verify_superpriv())
+		return -EPERM;
+
 	attr = info->attrs[ATTR_FILENAME];
 	if (!attr) {
 		log_err("Request lacks a file name.");
@@ -108,6 +124,9 @@ static int handle_send(struct genl_info *info)
 
 static int handle_expect_flush(struct genl_info *info)
 {
+	if (verify_superpriv())
+		return -EPERM;
+
 	expecter_flush();
 	return genl_respond(info, 0);
 }

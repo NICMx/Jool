@@ -50,8 +50,14 @@ static struct net *find_current_namespace(void)
 static struct dst_entry *route_ipv4(struct net *ns, struct sk_buff *skb)
 {
 	struct iphdr *hdr = ip_hdr(skb);
-	return __route4(ns, hdr->daddr, hdr->tos, hdr->protocol,
-			skb->mark, skb);
+	struct route4_args args = {
+			.ns = ns,
+			.daddr.s_addr = hdr->daddr,
+			.tos = hdr->tos,
+			.proto = hdr->protocol,
+			.mark = skb->mark,
+	};
+	return __route4(&args, skb);
 }
 
 static l4_protocol nexthdr_to_l4proto(__u8 nexthdr)

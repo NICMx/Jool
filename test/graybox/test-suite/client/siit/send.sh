@@ -1,31 +1,44 @@
 #!/bin/bash
 
+GRAYBOX=`dirname $0`/../../../usr/graybox
+PREFIX=`dirname $0`/pktgen
+# When there's no fragmentation, Jool is supposed to randomize the
+# fragment ID (bytes 4 and 5) so we can't validate it.
+# The ID's randomization cascades to the checksum. (Bytes 10 and
+# 11.)
+NOFRAG_IGNORE=4,5,10,11
 
 function test-single {
-	graybox expect add pktgen/receiver/$2.pkt $3
-	graybox send pktgen/sender/$1.pkt
+	$GRAYBOX expect add $PREFIX/receiver/$2.pkt $3
+	$GRAYBOX send $PREFIX/sender/$1.pkt
 	sleep 0.1
-	graybox expect flush
+	$GRAYBOX expect flush
 }
 
 function test-frag {
-	graybox expect add pktgen/receiver/$2.pkt
-	graybox expect add pktgen/receiver/$3.pkt
-	graybox send pktgen/sender/$1.pkt
+	$GRAYBOX expect add $PREFIX/receiver/$2.pkt
+	$GRAYBOX expect add $PREFIX/receiver/$3.pkt
+	$GRAYBOX send $PREFIX/sender/$1.pkt
 	sleep 0.1
-	graybox expect flush
+	$GRAYBOX expect flush
 }
+
+
+`dirname $0`/../wait.sh 2001:db8:1c6:3364:2::
+if [ $? -ne 0 ]; then
+	exit 1
+fi
 
 
 # UDP, 6 -> 4
 if [[ -z $1 || $1 = *udp64* ]]; then
-	test-single 6-udp-csumok-df-nofrag 4-udp-csumok-df-nofrag
+	test-single 6-udp-csumok-df-nofrag 4-udp-csumok-df-nofrag $NOFRAG_IGNORE
 	test-single 6-udp-csumok-nodf-nofrag 4-udp-csumok-nodf-nofrag
 	test-single 6-udp-csumok-nodf-frag0 4-udp-csumok-nodf-frag0
 	test-single 6-udp-csumok-nodf-frag1 4-udp-csumok-nodf-frag1
 	test-single 6-udp-csumok-nodf-frag2 4-udp-csumok-nodf-frag2
 
-	test-single 6-udp-csumfail-df-nofrag 4-udp-csumfail-df-nofrag
+	test-single 6-udp-csumfail-df-nofrag 4-udp-csumfail-df-nofrag $NOFRAG_IGNORE
 	test-single 6-udp-csumfail-nodf-nofrag 4-udp-csumfail-nodf-nofrag
 	test-single 6-udp-csumfail-nodf-frag0 4-udp-csumfail-nodf-frag0
 	test-single 6-udp-csumfail-nodf-frag1 4-udp-csumfail-nodf-frag1
@@ -49,13 +62,13 @@ fi
 
 # TCP, 6 -> 4
 if [[ -z $1 || $1 = *tcp64* ]]; then
-	test-single 6-tcp-csumok-df-nofrag 4-tcp-csumok-df-nofrag
+	test-single 6-tcp-csumok-df-nofrag 4-tcp-csumok-df-nofrag $NOFRAG_IGNORE
 	test-single 6-tcp-csumok-nodf-nofrag 4-tcp-csumok-nodf-nofrag
 	test-single 6-tcp-csumok-nodf-frag0 4-tcp-csumok-nodf-frag0
 	test-single 6-tcp-csumok-nodf-frag1 4-tcp-csumok-nodf-frag1
 	test-single 6-tcp-csumok-nodf-frag2 4-tcp-csumok-nodf-frag2
 
-	test-single 6-tcp-csumfail-df-nofrag 4-tcp-csumfail-df-nofrag
+	test-single 6-tcp-csumfail-df-nofrag 4-tcp-csumfail-df-nofrag $NOFRAG_IGNORE
 	test-single 6-tcp-csumfail-nodf-nofrag 4-tcp-csumfail-nodf-nofrag
 	test-single 6-tcp-csumfail-nodf-frag0 4-tcp-csumfail-nodf-frag0
 	test-single 6-tcp-csumfail-nodf-frag1 4-tcp-csumfail-nodf-frag1
@@ -64,10 +77,10 @@ fi
 
 # ICMP info, 6 -> 4
 if [[ -z $1 || $1 = *icmpi64* ]]; then
-	test-single 6-icmp6info-csumok-df-nofrag 4-icmp4info-csumok-df-nofrag
+	test-single 6-icmp6info-csumok-df-nofrag 4-icmp4info-csumok-df-nofrag $NOFRAG_IGNORE
 	test-single 6-icmp6info-csumok-nodf-nofrag 4-icmp4info-csumok-nodf-nofrag
 
-	test-single 6-icmp6info-csumfail-df-nofrag 4-icmp4info-csumfail-df-nofrag
+	test-single 6-icmp6info-csumfail-df-nofrag 4-icmp4info-csumfail-df-nofrag $NOFRAG_IGNORE
 	test-single 6-icmp6info-csumfail-nodf-nofrag 4-icmp4info-csumfail-nodf-nofrag
 fi
 
@@ -107,6 +120,8 @@ fi
 	#test-single frag-minmtu6-big frag-minmtu6-big0 frag-minmtu6-big1
 #fi
 
-graybox stats display
-graybox stats flush
+$GRAYBOX stats display
+result=$?
+$GRAYBOX stats flush
 
+exit $result

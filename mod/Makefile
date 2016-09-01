@@ -7,7 +7,7 @@ all: $(PROJECTS)
 $(PROJECTS):
 	$(MAKE) -C $@
 $(OTHER_TARGETS):
-	$(foreach dir, $(PROJECTS), make -C $(dir) $@;)
+	$(foreach dir, $(PROJECTS), $(MAKE) -C $(dir) $@;)
 
 
 .PHONY: $(PROJECTS) $(OTHER_TARGETS)

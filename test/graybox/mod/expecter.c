@@ -25,7 +25,7 @@ void expecter_destroy(void)
 	expecter_flush();
 }
 
-void free_node(struct expecter_node *node)
+static void free_node(struct expecter_node *node)
 {
 	if (!node)
 		return;
@@ -151,7 +151,7 @@ static bool has_same_addr4(struct iphdr *hdr1, struct iphdr *hdr2)
 	return hdr1->daddr == hdr2->daddr && hdr1->saddr == hdr2->saddr;
 }
 
-bool has_same_address(struct expected_packet *expected, struct sk_buff *actual)
+static bool has_same_address(struct expected_packet *expected, struct sk_buff *actual)
 {
 	int expected_proto = get_l3_proto(expected->bytes);
 	int actual_proto = get_l3_proto(skb_network_header(actual));

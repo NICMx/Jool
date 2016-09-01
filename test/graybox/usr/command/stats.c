@@ -42,5 +42,9 @@ int stats_response_handle(struct nlattr **attrs, void *arg)
 	log_info("	Failures:  %u", stats->ipv4.failures);
 	log_info("	Queued:    %u", stats->ipv4.queued);
 
+	if (stats->ipv6.failures > 0 || stats->ipv6.queued > 0)
+		return -EIO;
+	if (stats->ipv4.failures > 0 || stats->ipv4.queued > 0)
+		return -EIO;
 	return 0;
 }

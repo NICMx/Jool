@@ -1,0 +1,5 @@
+NS=joolns
+CLIENT_V6_INTERFACE=to_jool_v6
+CLIENT_V4_INTERFACE=to_jool_v4
+XLAT_V6_INTERFACE=to_world_v6
+XLAT_V4_INTERFACE=to_world_v4
