@@ -206,7 +206,7 @@ static int set_global_rfc6791_prefix(struct arguments *args, __u16 type, char *v
 
 	struct ipv6_prefix tmp;
 
-	if (strcmp(value, "clear") != 0) {
+	if (strcmp(value, "null") != 0) {
 		error = str_to_prefix6(value, &tmp);
 		if (error)
 			return error;

@@ -827,6 +827,7 @@ static const struct argp_option *opts_global_nat64[] = {
 	&max_so_opt,
 	&icmp_src_opt,
 	&f_args_opt,
+	&rst_during_fin_rcv_opt,
 	&logging_bib_opt,
 	&logging_session_opt,
 	&adf_opt,

@@ -171,10 +171,12 @@ static bool has_same_address(struct expected_packet *expected, struct sk_buff *a
 	return false;
 }
 
-static void print_error_table_hdr(int errors)
+static void print_error_table_hdr(struct expected_packet *expected, int errors)
 {
-	if (!errors)
-		log_debug("    Value\tExpected    Actual");
+	if (!errors) {
+		log_info("%s", expected->filename);
+		log_info("    Value\tExpected    Actual");
+	}
 }
 
 static bool pkt_equals(struct expected_packet *expected, struct sk_buff *actual)
@@ -187,8 +189,8 @@ static bool pkt_equals(struct expected_packet *expected, struct sk_buff *actual)
 	int errors = 0;
 
 	if (expected->bytes_len != actual->len) {
-		print_error_table_hdr(errors);
-		log_debug("    Length\t%zu\t    %d", expected->bytes_len, actual->len);
+		print_error_table_hdr(expected, errors);
+		log_info("    Length\t%zu\t    %d", expected->bytes_len, actual->len);
 		errors++;
 	}
 
@@ -205,8 +207,8 @@ static bool pkt_equals(struct expected_packet *expected, struct sk_buff *actual)
 		}
 
 		if (expected_ptr[i] != actual_ptr[i]) {
-			print_error_table_hdr(errors);
-			log_debug("    byte %u\t0x%x\t    0x%x", i,
+			print_error_table_hdr(expected, errors);
+			log_info("    byte %u\t0x%x\t    0x%x", i,
 					expected_ptr[i], actual_ptr[i]);
 			errors++;
 			if (errors >= 8)

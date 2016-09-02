@@ -264,6 +264,9 @@ static int massive_switch(struct full_config *cfg, struct global_value *chunk,
 	case F_ARGS:
 		error = ensure_nat64(OPTNAME_F_ARGS);
 		return error ? : parse_u8(&cfg->global.nat64.f_args, chunk, size);
+	case HANDLE_RST_DURING_FIN_RCV:
+		error = ensure_nat64(OPTNAME_F_ARGS);
+		return error ? : parse_bool(&cfg->global.nat64.handle_rst_during_fin_rcv, chunk, size);
 	case UDP_TIMEOUT:
 		error = ensure_nat64(OPTNAME_UDP_TIMEOUT);
 		return error ? : parse_timeout(&cfg->bib.ttl.udp, chunk, size, UDP_MIN);

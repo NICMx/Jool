@@ -1,5 +1,5 @@
 ccflags-y := -I$(src)/../common -I$(src)/../../../include
-EXTRA_CFLAGS += -DDEBUG
+#EXTRA_CFLAGS += -DDEBUG
 
 obj-m += graybox.o
 
