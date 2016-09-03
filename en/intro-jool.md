@@ -42,22 +42,23 @@ Please [let us know]({{ site.repository-url }}/issues) if you find additional co
 
 ## Compatibility
 
-> TODO this is prehistorically outdated.
+Jool supports Linux kernels 3.2.0 and above. While most of the development time has been spent experimenting on Ubuntu 14.04 using current kernels, we've performed a healthy amount of formal testing ([unit](https://github.com/NICMx/Jool/tree/test/test/unit) and [graybox](https://github.com/NICMx/Jool/tree/test/test/graybox)) on Jool 3.5.0 in the following variants:
 
-We're supposed to support Linux kernels 3.2.0 and up. While most of the development time has been spent experimenting on Ubuntu 12.04 and 14.04 using current kernels, we've performed a healthy amount of formal testing on Jool 3.1.5 and 3.2.2 in the following variants:
+> TODO those links above will need to be updated once the release is committed and the test branch dropped.
 
-| Distribution | Kernels |
-| -------------|---------|
-| CentOS 7 | 3.10.0-123.el7.x86_64 |
-| Debian 7.5 | 3.2.0-4-amd64 |
-| Red Hat Enterprise Linux 7 | 3.10.0-123.4.4.el7.x86_64 |
-| SuSE Linux Enterprise Desktop 11 SP3 | 3.0.101-0.31-default |
-| Ubuntu 12.04 | 3.1.10-030110-generic, 3.2.60-030260-generic |
-| Ubuntu 12.10 | 3.3.8-030308-generic, 3.4.94-030494-generic, 3.5.7-03050733-generic |
-| Ubuntu 13.04 | 3.6.11-030611-generic, 3.7.10-030710-generic, 3.8.13-03081323-generic |
-| Ubuntu 13.10 | 3.9.11-030911-generic, 3.10.44-031044-generic, 3.11.10-03111011-generic |
-| Ubuntu 14.04 | 3.12.22-031222-generic, 3.13.11-03131103-generic |
-| Ubuntu 14.10 | 3.14.8-031408-generic, 3.15.1-031501-generic |
+- 3.2.0-23-generic-pae
+- 3.10.96-031096-generic
+- 3.13.0-85-generic
+- 3.14.60-031460-generic
+- 3.16.0-77-generic
+- 3.19.0-68-generic
+- 4.0.9-040009-generic
+- 4.1.31-040131-generic
+- 4.2.0-42-generic
+- 4.3.5-040305-generic
+- 4.4.1-040401-generic
+- 4.5.0-040500-generic
+- 4.7.0-040700-generic
 
 ## Design
 

@@ -44,8 +44,6 @@ Without further ado:
 
 ## SIIT
 
-> TODO eam-hairpin-mode and rfc6791v6-prefix aren't documented.
-
 <pre><code>{
 	"global": {
 		"<a href="usr-flags-global.html#enable---disable">manually-enabled</a>": false,

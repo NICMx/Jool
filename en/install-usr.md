@@ -27,19 +27,10 @@ This document explains how to obtain the binaries of the userspace application.
 
 ## Requirements
 
-### libnl-3
-
-<div class="distro-menu">
-	<span class="distro-selector" onclick="showDistro(this);">Ubuntu</span>
-	<span class="distro-selector" onclick="showDistro(this);">CentOS</span>
-</div>
+### libnl-genl-3
 
 {% highlight bash %}
-# apt-get install libnl-3-dev
-{% endhighlight %}
-
-{% highlight bash %}
-# yum install libnl3*
+# apt-get install libnl-genl-3-dev
 {% endhighlight %}
 
 ### Autoconf

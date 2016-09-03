@@ -20,7 +20,7 @@ title: --pool6791
 
 ## Description
 
-Interacts with Jool's [RFC 6791 pool](pool6791.html). The pool defines addresses for untranslatable sources in ICMP errors.
+Interacts with Jool's [RFC 6791 pool](pool6791.html). The pool defines addresses for ICMPv6 errors (being translated to ICMPv4) carrying untranslatable sources.
 
 If this pool is empty, Jool will fall back to use its node's addresses for these cases.
 

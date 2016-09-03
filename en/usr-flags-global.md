@@ -34,6 +34,8 @@ title: --global
 	13. [`--amend-udp-checksum-zero`](#amend-udp-checksum-zero)
 	14. [`--randomize-rfc6791-addresses`](#randomize-rfc6791-addresses)
 	13. [`--mtu-plateaus`](#mtu-plateaus)
+	15. [`--eam-hairpin-mode`](#eam-hairpin-mode)
+	16. [`--rfc6791v6-prefix`](#rfc6791v6-prefix)
 	21. [`--f-args`](#f-args)
 	22. [`--handle-rst-during-fin-rcv`](#handle-rst-during-fin-rcv)
 	23. [`--ss-enabled`](#ss-enabled)
@@ -432,6 +434,40 @@ To address this problem, when Jool finds itself attempting to translate a zero-M
 Notice that the minimum IPv6 MTU is 1280. This will override the plateau result if the resulting value is less than 1280.
 
 You don't really need to sort the values as you input them.
+
+### `--eam-hairpin-mode`
+
+- Type: Integer
+- Default: 2 (intrinsic)
+- Modes: SIIT only
+- Translation direction: Both (mainly v6 to v4)
+- Source: [RFC 7757, section 4](http://tools.ietf.org/html/rfc7757#section-4)
+
+Defines how is hairpinning handled in EAMT-translated traffic. "Hairpinning" is when an IPv6-to-IPv4 translation has to be immediately followed by a IPv4-to-IPv6 translation for the same packet. (This can happen because, according to the EAMT, the [destination of the IPv4 packet represents a node in the IPv6 network](https://tools.ietf.org/html/rfc7757#appendix-B.1).) See [section 4](https://tools.ietf.org/html/rfc7757#section-4) for a complete explanation.
+
+`--eam-hairpin-mode` is an integer but it's intended to reference one of three operation modes:
+
+- 0: None
+- 1: [Simple](https://tools.ietf.org/html/rfc7757#section-4.2.1)
+- 2: [Intrinsic](https://tools.ietf.org/html/rfc7757#section-4.2.2)
+
+### `--rfc6791v6-prefix`
+
+- Type: IPv6 prefix
+- Default: null
+- Modes: SIIT only
+- Translation direction: Both
+- Source: [Issue 176]({{ site.repository-url }}/issues/176)
+
+The IPv6-equivalent of [`--pool6791`](usr-flags-pool6791.html).
+
+Untranslatable sources in ICMPv4 errors can happen when `pool6` is empty and the EAMT does not span all the IPv4 routers between the SIIT and the clients.
+
+If this prefix is unset, the SIIT will fall back to use its own addresses, just like `--pool6791`. Use the keyword `null` to unset:
+
+	jool_siit --rfc6791v6-prefix null
+
+This is a single prefix (as opossed to a prefix table like `--pool6791`) simply for the sake of ease of implementation.
 
 ### `--f-args`
 

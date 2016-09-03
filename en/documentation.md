@@ -65,9 +65,6 @@ See [RFC 6586](https://tools.ietf.org/html/rfc6586) for deployment experiences u
 
 1. [Atomic Configuration](config-atomic.html)
 2. [`joold`](config-joold.html)
-3. Persistent Configuration
-	1. [SIIT/NAT64](config-persistent-jool.html)
-	2. [`joold`](config-persistent-joold.html)
 
 ## Defined Architectures
 
