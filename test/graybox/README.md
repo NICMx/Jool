@@ -29,6 +29,8 @@ cd test-suite
 
 See the content of `run-simple.sh` for more versatility.
 
+Please [report](https://github.com/NICMx/Jool/issues) any errors or queued packets you find. Please include your distro, kernel version (`uname -r`) and the tail of `dmesg` (after the "SIIT/NAT64 Jool vX.Y.Z.W module inserted" caption).
+
 ## Creating more tests
 
 You need to provide:
