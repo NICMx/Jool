@@ -28,5 +28,5 @@ jool_SOURCES = \
 jool_LDADD = ${LIBNLGENL3_LIBS}
 jool_CFLAGS = -Wall -O2
 jool_CFLAGS += -I${srcdir}/../../include
-jool_CFLAGS += ${LIBNLGENL3_CFLAGS} ${LIBNL3_CFLAGS} ${JOOL_FLAGS}
+jool_CFLAGS += ${LIBNLGENL3_CFLAGS} ${JOOL_FLAGS}
 man_MANS = jool.8
