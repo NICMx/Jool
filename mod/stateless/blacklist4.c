@@ -40,29 +40,41 @@ int blacklist_flush(struct addr4_pool *pool)
 	return pool_flush(pool);
 }
 
+/**
+ * Is @addr present in one of @ns's interfaces?
+ * Will also return true of @addr is the broadcast address of one of @ns's
+ * interfaces.
+ */
 bool interface_contains(struct net *ns, struct in_addr *addr)
 {
 	struct net_device *dev;
 	struct in_device *in_dev;
-	struct in_ifaddr *ifaddr;
-	struct in_addr net_addr;
+	struct in_ifaddr *ifa;
+	struct in_addr ifaddr;
 
 	rcu_read_lock();
 	for_each_netdev_rcu(ns, dev) {
 		in_dev = rcu_dereference(dev->ip_ptr);
-		ifaddr = in_dev->ifa_list;
-		while (ifaddr) {
-			net_addr.s_addr = ifaddr->ifa_local;
-			if (ipv4_addr_cmp(&net_addr, addr) == 0) {
-				rcu_read_unlock();
-				return true;
-			}
-			ifaddr = ifaddr->ifa_next;
+		ifa = in_dev->ifa_list;
+		while (ifa) {
+			ifaddr.s_addr = ifa->ifa_local;
+			if (ipv4_addr_cmp(&ifaddr, addr) == 0)
+				goto found;
+
+			ifaddr.s_addr = ifa->ifa_local | ~ifa->ifa_mask;
+			if (ipv4_addr_cmp(&ifaddr, addr) == 0)
+				goto found;
+
+			ifa = ifa->ifa_next;
 		}
 	}
 	rcu_read_unlock();
 
 	return false;
+
+found:
+	rcu_read_unlock();
+	return true;
 }
 
 bool blacklist_contains(struct addr4_pool *pool, struct in_addr *addr)
