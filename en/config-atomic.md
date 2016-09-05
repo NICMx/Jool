@@ -2,7 +2,7 @@
 language: en
 layout: default
 category: Documentation
-title: Session synchronization
+title: Atomic Configuration
 ---
 
 [Documentation](documentation.html) > [Other Configuration](documentation.html#other-configuration) > Atomic Configuration
