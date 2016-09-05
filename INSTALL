@@ -1,17 +1,17 @@
 ***********************************************************************
 
 	Before you continue, perhaps you want to have a look at
-	https://nicmx.github.io/Jool/en/documentation.html, where
-	you should find a newcomer-friendlier version of this file.
-	Alternatively, see doc/README.md and doc/usr/en/documentation.md.
+	the newcomer-friendlier version of this file:
+	https://jool.mx/en/index.html
+	https://nicmx.github.io/Jool/en/index.html
 
 ***********************************************************************
 
 Install the requirements:
-	1. Your kernel headers (version 3.0.0+)
+	1. Your kernel headers (version 3.2.0+)
 		# apt-get install linux-headers-$(uname -r)
-	2. libnl-3-dev (Only if you need the userspace application):
-		# apt-get install libnl-3-dev
+	2. libnl-genl-3-dev (Only if you need the userspace applications):
+		# apt-get install libnl-genl-3-dev
 		(Site: http://www.carisma.slowglass.com/~tgr/libnl)
 
 Installing the modules using Dynamic Kernel Module Support (DKMS):
@@ -38,7 +38,7 @@ Insert the module:
 	Turn offloads off (do this for every relevant interface).
 		# ethtool --offload <interface> gro off
 		# ethtool --offload <interface> lro off
-	
+
 	Actually insert the module.
 		# modprobe jool_siit pool6=64:ff9b::/96
 		or
@@ -75,7 +75,6 @@ Configure the module:
 
 		Interact with the IPv4 pool:
 			$ jool --pool4 --display
-			$ jool --pool4 --count
 			# jool --pool4 --add 192.0.2.0/30
 			# jool --pool4 --remove 192.0.2.0/30
 			# jool --pool4 --flush
@@ -121,4 +120,3 @@ Remove the module:
 	# modprobe -r jool_siit
 	or
 	# modprobe -r jool
-

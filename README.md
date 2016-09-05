@@ -82,7 +82,7 @@ You might also want to see [contact info](https://www.jool.mx/en/contact.html).
 
 ## Legal stuff
 
-	Copyright (C) 2012-2015  NIC-Mx - ITESM
+	Copyright (C) 2012-2016  NIC-Mx - ITESM
 
 	This program is free software: you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
