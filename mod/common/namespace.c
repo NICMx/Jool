@@ -3,7 +3,7 @@
 #include <linux/err.h>
 #include "nat64/mod/common/types.h"
 
-struct net *jool_net;
+static struct net *jool_net;
 
 int joolns_init(void)
 {

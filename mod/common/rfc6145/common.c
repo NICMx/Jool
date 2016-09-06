@@ -5,6 +5,7 @@
 #include "nat64/mod/common/stats.h"
 #include "nat64/mod/common/rfc6145/4to6.h"
 #include "nat64/mod/common/rfc6145/6to4.h"
+#include "nat64/mod/stateless/blacklist4.h"
 #include <linux/icmp.h>
 
 struct backup_skb {
@@ -284,11 +285,16 @@ struct translation_steps *ttpcomm_get_steps(enum l3_protocol l3_proto, enum l4_p
  * into a translated-partial (pseudoheader-only) checksum, and set up some skb
  * fields so the NIC can do its thing.
  *
- * This functions handles the skb fields setting part.
+ * This function handles the skb fields setting part.
  */
 void partialize_skb(struct sk_buff *out_skb, unsigned int csum_offset)
 {
 	out_skb->ip_summed = CHECKSUM_PARTIAL;
 	out_skb->csum_start = skb_transport_header(out_skb) - out_skb->head;
 	out_skb->csum_offset = csum_offset;
+}
+
+bool must_not_translate(struct in_addr *addr)
+{
+	return addr4_is_scope_subnet(addr->s_addr) || interface_contains(addr);
 }

@@ -12,7 +12,7 @@ static unsigned char *secret_key;
 static size_t secret_key_len;
 static atomic_t next_ephemeral;
 
-struct crypto_shash *shash;
+static struct crypto_shash *shash;
 static DEFINE_SPINLOCK(tfm_lock);
 
 int palloc_init(void)
@@ -53,7 +53,7 @@ void palloc_destroy(void)
 	kfree(secret_key);
 }
 
-int hash_tuple(struct shash_desc *desc, const struct tuple *tuple6)
+static int hash_tuple(struct shash_desc *desc, const struct tuple *tuple6)
 {
 	unsigned int f_args;
 	int error;
@@ -99,6 +99,8 @@ static int f(const struct tuple *tuple6, unsigned int *result)
 
 	desc = kmalloc(sizeof(struct shash_desc) + crypto_shash_descsize(shash),
 			GFP_ATOMIC);
+	if (!desc)
+		return -ENOMEM;
 
 	desc->tfm = shash;
 	desc->flags = 0;
@@ -127,7 +129,7 @@ static int f(const struct tuple *tuple6, unsigned int *result)
 		goto unlock;
 	}
 
-	*result = md5_result.as32[3];
+	*result = (__force __u32)md5_result.as32[3];
 	/* Fall through. */
 
 unlock:

@@ -33,7 +33,13 @@ int blacklist_flush(void)
 	return fail(__func__);
 }
 
-bool blacklist_contains(__be32 addr)
+bool interface_contains(struct in_addr *addr)
+{
+	fail(__func__);
+	return false;
+}
+
+bool blacklist_contains(struct in_addr *addr)
 {
 	fail(__func__);
 	return false;

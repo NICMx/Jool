@@ -157,8 +157,8 @@ __u8 ttp64_xlat_proto(struct ipv6hdr *hdr6)
 	return (iterator.hdr_type == NEXTHDR_ICMP) ? IPPROTO_ICMP : iterator.hdr_type;
 }
 
-static verdict generate_addr4_siit(struct in6_addr *addr6, __be32 *addr4,
-		bool is_dst, bool *was_6052)
+static addrxlat_verdict generate_addr4_siit(struct in6_addr *addr6,
+		__be32 *addr4, bool *was_6052)
 {
 	struct ipv6_prefix prefix;
 	struct in_addr tmp;
@@ -170,36 +170,38 @@ static verdict generate_addr4_siit(struct in6_addr *addr6, __be32 *addr4,
 	if (!error)
 		goto success;
 	if (error != -ESRCH)
-		return VERDICT_DROP;
+		return ADDRXLAT_DROP;
 
 	error = pool6_get(addr6, &prefix);
 	if (error == -ESRCH) {
-		log_debug("Address %pI6c lacks the NAT64 prefix and an EAMT entry.", addr6);
-		return VERDICT_ACCEPT;
+		log_debug("Address %pI6c lacks the NAT64 prefix and an EAMT entry.",
+				addr6);
+		return ADDRXLAT_TRY_SOMETHING_ELSE;
 	}
 	if (error)
-		return VERDICT_DROP;
+		return ADDRXLAT_DROP;
 
 	error = addr_6to4(addr6, &prefix, &tmp);
 	if (error)
-		return VERDICT_DROP;
+		return ADDRXLAT_DROP;
 
-	if (is_dst && blacklist_contains(tmp.s_addr)) {
+	if (blacklist_contains(&tmp)) {
 		log_debug("The resulting address (%pI4) is blacklisted.", &tmp);
-		return VERDICT_ACCEPT;
+		return ADDRXLAT_ACCEPT;
 	}
 
 	*was_6052 = true;
 	/* Fall through. */
 
 success:
-	if (addr4_is_scope_subnet(tmp.s_addr)) {
-		log_debug("The resulting address (%pI4) is reserved.", &tmp);
-		return VERDICT_DROP;
+	if (must_not_translate(&tmp)) {
+		log_debug("The resulting address (%pI4) is not supposed to be xlat'd.",
+				&tmp);
+		return ADDRXLAT_ACCEPT;
 	}
 
 	*addr4 = tmp.s_addr;
-	return VERDICT_CONTINUE;
+	return ADDRXLAT_CONTINUE;
 }
 
 static verdict translate_addrs64_siit(struct packet *in, struct packet *out)
@@ -207,23 +209,34 @@ static verdict translate_addrs64_siit(struct packet *in, struct packet *out)
 	struct ipv6hdr *hdr6 = pkt_ip6_hdr(in);
 	struct iphdr *hdr4 = pkt_ip4_hdr(out);
 	bool src_was_6052, dst_was_6052;
-	verdict result;
+	addrxlat_verdict result;
 
 	/* Dst address. (SRC DEPENDS CON DST, SO WE NEED TO XLAT DST FIRST!) */
-	result = generate_addr4_siit(&hdr6->daddr, &hdr4->daddr, true,
-			&dst_was_6052);
-	if (result != VERDICT_CONTINUE)
-		return result;
+	result = generate_addr4_siit(&hdr6->daddr, &hdr4->daddr, &dst_was_6052);
+	switch (result) {
+	case ADDRXLAT_CONTINUE:
+		break;
+	case ADDRXLAT_TRY_SOMETHING_ELSE:
+		return VERDICT_ACCEPT;
+	case ADDRXLAT_ACCEPT:
+	case ADDRXLAT_DROP:
+		return (verdict)result;
+	}
 
 	/* Src address. */
-	result = generate_addr4_siit(&hdr6->saddr, &hdr4->saddr, false,
-			&src_was_6052);
-	if (result == VERDICT_ACCEPT && pkt_is_icmp6_error(in)) {
-		if (rfc6791_get(in, out, &hdr4->saddr) != 0)
-			return VERDICT_ACCEPT;
-	} else if (result != VERDICT_CONTINUE) {
-		return result;
-	}
+	result = generate_addr4_siit(&hdr6->saddr, &hdr4->saddr, &src_was_6052);
+	switch (result) {
+	case ADDRXLAT_CONTINUE:
+		break;
+	case ADDRXLAT_TRY_SOMETHING_ELSE:
+		if (pkt_is_icmp6_error(in)
+				&& !rfc6791_get(in, out, &hdr4->saddr))
+			break; /* Ok, success. */
+		return VERDICT_ACCEPT;
+	case ADDRXLAT_ACCEPT:
+	case ADDRXLAT_DROP:
+		return (verdict)result;
+ 	}
 
 	/*
 	 * Mark intrinsic hairpinning if it's going to be needed.
