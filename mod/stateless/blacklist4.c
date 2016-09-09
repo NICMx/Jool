@@ -41,9 +41,12 @@ int blacklist_flush(struct addr4_pool *pool)
 }
 
 /**
- * Is @addr present in one of @ns's interfaces?
- * Will also return true of @addr is the broadcast address of one of @ns's
- * interfaces.
+ * Is @addr *NOT* translatable, according to the interfaces?
+ *
+ * The name comes from the fact that interface addresses are usually
+ * non-translatable (ie. the traffic is meant for the translator box).
+ *
+ * Recognizable directed broadcast is also not translatable.
  */
 bool interface_contains(struct net *ns, struct in_addr *addr)
 {
@@ -58,21 +61,31 @@ bool interface_contains(struct net *ns, struct in_addr *addr)
 		ifa = in_dev->ifa_list;
 		while (ifa) {
 			ifaddr.s_addr = ifa->ifa_local;
-			if (ipv4_addr_cmp(&ifaddr, addr) == 0)
-				goto found;
+			if (ipv4_addr_cmp(&ifaddr, addr) == 0) {
+				/* https://github.com/NICMx/Jool/issues/223 */
+				if (ifa->ifa_prefixlen == 32)
+					goto do_translate;
+				else
+					goto dont_translate;
+			}
 
-			ifaddr.s_addr = ifa->ifa_local | ~ifa->ifa_mask;
-			if (ipv4_addr_cmp(&ifaddr, addr) == 0)
-				goto found;
+			/* RFC3021: /31 (and /32) networks lack broadcast. */
+			if (ifa->ifa_prefixlen < 31) {
+				ifaddr.s_addr = ifa->ifa_local | ~ifa->ifa_mask;
+				if (ipv4_addr_cmp(&ifaddr, addr) == 0)
+					goto dont_translate;
+			}
 
 			ifa = ifa->ifa_next;
 		}
 	}
-	rcu_read_unlock();
+	/* Fall through */
 
+do_translate:
+	rcu_read_unlock();
 	return false;
 
-found:
+dont_translate:
 	rcu_read_unlock();
 	return true;
 }
