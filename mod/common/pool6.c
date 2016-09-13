@@ -177,7 +177,7 @@ int pool6_get(const struct in6_addr *addr, struct ipv6_prefix *result)
 
 	if (list_empty(list)) {
 		rcu_read_unlock_bh();
-		log_warn_once("The IPv6 pool is empty.");
+		log_debug("pool6 is empty.");
 		return -ESRCH;
 	}
 
@@ -203,10 +203,9 @@ int pool6_peek(struct ipv6_prefix *result)
 	rcu_read_lock_bh();
 
 	list = rcu_dereference_bh(pool);
-
 	if (list_empty(list)) {
 		rcu_read_unlock_bh();
-		log_warn_once("The IPv6 pool is empty.");
+		log_debug("pool6 is empty.");
 		return -ESRCH;
 	}
 

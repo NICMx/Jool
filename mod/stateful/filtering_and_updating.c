@@ -421,8 +421,10 @@ static verdict tcp_closed_v4_syn(struct packet *pkt, struct tuple *tuple4)
 
 	error = bibdb_get(tuple4, &bib);
 	if (error) {
-		if (error != -ESRCH)
+		if (error != -ESRCH) {
+			log_debug("BIB entry not found.");
 			return VERDICT_DROP;
+		}
 		bib = NULL;
 	}
 	log_bib(bib);
