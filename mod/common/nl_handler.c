@@ -1249,26 +1249,23 @@ static int __nlhandler_init(int family)
 	nl_socket = netlink_kernel_create(joolns_get(), family, &nl_cfg);
 #endif
 
-	if (nl_socket) {
-		log_debug("Netlink socket created.");
-	} else {
+	if (!nl_socket) {
 		log_err("Creation of netlink socket failed.\n"
 				"(This usually happens because you already "
 				"have a Jool instance running.)\n"
-				"I will ignore this error. However, you will "
-				"not be able to configure Jool via the "
-				"userspace application.");
+				"Try tweaking the 'nl_family' modprobe argument.");
+		return -EINVAL;
 	}
 
+	log_debug("Netlink socket created.");
 	error_pool_init();
-
 	return 0;
 }
 
 int nlhandler_init(int family)
 {
-	if (family < 0 || 32 < family) {
-		log_err("The netlink family is out of bounds. (0-32)");
+	if (family < 0 || 31 < family) {
+		log_err("The netlink family is out of bounds. (0-31)");
 		return -EINVAL;
 	}
 

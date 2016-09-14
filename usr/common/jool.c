@@ -311,7 +311,7 @@ int parse_nl_family(char *str)
 	__u8 tmp;
 	int error;
 
-	error = str_to_u8(str, &tmp, 0, 32);
+	error = str_to_u8(str, &tmp, 0, 31);
 	if (!error)
 		set_netlink_family(tmp);
 

@@ -51,7 +51,7 @@ static int str_to_ull(const char *str, char **endptr,
 	unsigned long long int parsed;
 
 	if (*str < '0' || '9' < *str) {
-		log_err("'%s' is not a number.", str);
+		log_err("'%s' is not an unsigned integer.", str);
 		return -EINVAL;
 	}
 
