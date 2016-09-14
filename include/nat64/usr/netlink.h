@@ -23,6 +23,6 @@
 
 int netlink_request(void *request, __u16 request_len, int (*cb)(struct nl_msg *, void *),
 		void *cb_arg);
-
+void set_netlink_family(int family);
 
 #endif /* _JOOL_USR_NETLINK_H_ */

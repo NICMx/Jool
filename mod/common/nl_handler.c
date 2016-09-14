@@ -1229,7 +1229,7 @@ static void receive_from_userspace(struct sk_buff *skb)
 	mutex_unlock(&config_mutex);
 }
 
-int nlhandler_init(void)
+static int __nlhandler_init(int family)
 {
 	/*
 	 * The function changed between Linux 3.5.7 and 3.6, and then again from 3.6.11 to 3.7.
@@ -1239,14 +1239,14 @@ int nlhandler_init(void)
 	 * 9f00d9776bc5beb92e8bfc884a7e96ddc5589e2e (v3.7-rc1~145^2~194).
 	 */
 #if LINUX_VERSION_CODE < KERNEL_VERSION(3, 6, 0)
-	nl_socket = netlink_kernel_create(joolns_get(), NETLINK_USERSOCK, 0, receive_from_userspace,
+	nl_socket = netlink_kernel_create(joolns_get(), family, 0, receive_from_userspace,
 			NULL, THIS_MODULE);
 #elif LINUX_VERSION_CODE < KERNEL_VERSION(3, 7, 0)
 	struct netlink_kernel_cfg nl_cfg = { .input  = receive_from_userspace };
-	nl_socket = netlink_kernel_create(joolns_get(), NETLINK_USERSOCK, THIS_MODULE, &nl_cfg);
+	nl_socket = netlink_kernel_create(joolns_get(), family, THIS_MODULE, &nl_cfg);
 #else
 	struct netlink_kernel_cfg nl_cfg = { .input  = receive_from_userspace };
-	nl_socket = netlink_kernel_create(joolns_get(), NETLINK_USERSOCK, &nl_cfg);
+	nl_socket = netlink_kernel_create(joolns_get(), family, &nl_cfg);
 #endif
 
 	if (nl_socket) {
@@ -1263,6 +1263,16 @@ int nlhandler_init(void)
 	error_pool_init();
 
 	return 0;
+}
+
+int nlhandler_init(int family)
+{
+	if (family < 0 || 32 < family) {
+		log_err("The netlink family is out of bounds. (0-32)");
+		return -EINVAL;
+	}
+
+	return __nlhandler_init(family);
 }
 
 void nlhandler_destroy(void)

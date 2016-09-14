@@ -34,6 +34,9 @@ MODULE_PARM_DESC(pool6791, "The RFC6791 pool's addresses.");
 static bool disabled;
 module_param(disabled, bool, 0);
 MODULE_PARM_DESC(disabled, "Disable the translation at the beginning of the module insertion.");
+static int nl_family = NETLINK_USERSOCK;
+module_param(nl_family, int, 0);
+MODULE_PARM_DESC(nl_family, "Netlink family to bind the socket to.");
 
 static NF_CALLBACK(hook_ipv4, skb)
 {
@@ -81,7 +84,7 @@ static int __init nat64_init(void)
 	if (error)
 		goto log_time_failure;
 #endif
-	error = nlhandler_init();
+	error = nlhandler_init(nl_family);
 	if (error)
 		goto nlhandler_failure;
 	error = pool6_init(&pool6, pool6 ? 1 : 0);

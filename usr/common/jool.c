@@ -22,6 +22,7 @@
 #include "nat64/usr/pool6.h"
 #include "nat64/usr/pool4.h"
 #include "nat64/usr/bib.h"
+#include "nat64/usr/netlink.h"
 #include "nat64/usr/session.h"
 #include "nat64/usr/eam.h"
 #include "nat64/usr/global.h"
@@ -305,6 +306,18 @@ static int set_ip_args(struct arguments *args, char *str)
 	return error;
 }
 
+int parse_nl_family(char *str)
+{
+	__u8 tmp;
+	int error;
+
+	error = str_to_u8(str, &tmp, 0, 32);
+	if (!error)
+		set_netlink_family(tmp);
+
+	return error;
+}
+
 /*
  * PARSER. Field 2 in ARGP.
  */
@@ -314,6 +327,10 @@ static int parse_opt(int key, char *str, struct argp_state *state)
 	int error = 0;
 
 	switch (key) {
+	case ARGP_NL_FAMILY:
+		error = parse_nl_family(str);
+		break;
+
 	case ARGP_GLOBAL:
 		error = update_state(args, MODE_GLOBAL, GLOBAL_OPS);
 		break;

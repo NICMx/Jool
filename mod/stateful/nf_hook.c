@@ -40,6 +40,10 @@ static bool disabled;
 module_param(disabled, bool, 0);
 MODULE_PARM_DESC(disabled, "Disable the translation at the beginning of the module insertion.");
 
+static int nl_family = NETLINK_USERSOCK;
+module_param(nl_family, int, 0);
+MODULE_PARM_DESC(nl_family, "Netlink family to bind the socket to.");
+
 
 static char *banner = "\n"
 	"                                   ,----,                       \n"
@@ -101,7 +105,7 @@ static int __init nat64_init(void)
 	error = config_init(disabled);
 	if (error)
 		goto config_failure;
-	error = nlhandler_init();
+	error = nlhandler_init(nl_family);
 	if (error)
 		goto nlhandler_failure;
 	error = pool6_init(pool6, pool6_len);

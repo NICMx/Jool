@@ -14,6 +14,7 @@
  * Jool error.
  */
 bool error_handler_called = false;
+int nl_family = NETLINK_USERSOCK;
 
 static int error_handler(struct sockaddr_nl *nla, struct nlmsgerr *nlerr, void *arg)
 {
@@ -62,7 +63,7 @@ int netlink_request(void *request, __u16 request_len, int (*cb)(struct nl_msg *,
 	}
 
 
-	error = nl_connect(sk, NETLINK_USERSOCK);
+	error = nl_connect(sk, nl_family);
 	if (error < 0) {
 		log_err("Could not bind the socket to Jool.\n"
 				"Netlink error message: %s (Code %d)", nl_geterror(error), error);
@@ -94,4 +95,9 @@ fail_close:
 fail_free:
 	nl_socket_free(sk);
 	return -EINVAL;
+}
+
+void set_netlink_family(int family)
+{
+	nl_family = family;
 }

@@ -10,6 +10,9 @@
  * The flags the user can write as program parameters.
  */
 enum argp_flags {
+	/* Global (userspace scope) */
+	ARGP_NL_FAMILY = 8000,
+
 	/* Modes */
 	ARGP_POOL6 = '6',
 	ARGP_POOL4 = '4',
@@ -46,7 +49,7 @@ enum argp_flags {
 	ARGP_BIB_IPV6 = 2020,
 	ARGP_BIB_IPV4 = 2021,
 
-	/* General */
+	/* Global (kernel module scope) */
 	ARGP_DROP_ADDR = 3000,
 	ARGP_DROP_INFO = 3001,
 	ARGP_DROP_TCP = 3002,

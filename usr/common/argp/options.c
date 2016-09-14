@@ -10,6 +10,15 @@
 #define TRANSPORT6_FORMAT "ADDR6#NUM"
 #define TRANSPORT4_FORMAT "ADDR4#NUM"
 
+static const struct argp_option nl_family_opt = {
+		.name = "nl-family",
+		.key = ARGP_NL_FAMILY,
+		.arg = NUM_FORMAT,
+		.flags = 0,
+		.doc = "Netlink family to bind the socket to.",
+		.group = 0,
+};
+
 static const struct argp_option targets_hdr_opt = {
 		.doc = "Configuration targets/modes:",
 		.group = 2,
@@ -659,6 +668,8 @@ static const struct argp_option bib4_opt = {
 };
 
 static const struct argp_option *options_siit[] = {
+	&nl_family_opt,
+
 	&targets_hdr_opt,
 	&pool6_opt,
 	&eamt_opt,
@@ -707,6 +718,8 @@ static const struct argp_option *options_siit[] = {
 };
 
 static const struct argp_option *options_nat64[] = {
+	&nl_family_opt,
+
 	&targets_hdr_opt,
 	&pool6_opt,
 	&pool4_opt,
