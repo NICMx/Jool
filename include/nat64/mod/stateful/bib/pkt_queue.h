@@ -63,10 +63,11 @@
  *        Forget packet A.
  *
  * *** whether this means that B should match [*,b'] or C should match [c,b] is
- * anyone's guess. I'm going with the former since (given that c is random) it
- * seems easier to set up from a hole puncher's perspective. Also, the RFC wants
- * us to store dst6, and there's no use for it otherwise.
- * It's weird because it means we need a second lookup in the CLOSED state.
+ * anyone's guess. I'm going with the former since (given that c is random in
+ * 6 to 4) it seems easier to set up from a hole puncher's perspective. Also,
+ * the RFC wants us to store dst6, and there's no use for it otherwise.
+ * It's weird because it means that we need a second lookup (almost always
+ * guaranteed to fail) in the CLOSED state.
  *
  * Now, there are two types of stored packets:
  * 1. Packets stored because there was no BIB entry. ([*,b',c,b] packets)
@@ -76,7 +77,7 @@
  * Both are to be either canceled by a suitable v6 packet or timed out and
  * encapsulated in an ICMP error.
  *
- * We're storing packets type 2 in the core BIB/session database.
+ * We're storing packets type 2 in the core BIB/session database, not here.
  * Why? Because they are associated with a valid session, which is associated
  * with a valid BIB entry. And those are supposed to be stored in the core
  * BIB/session database for the sake of the TCP state machine and stuff. Storing

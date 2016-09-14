@@ -17,10 +17,7 @@ int rfc6056_init(void)
 	int error;
 
 	/* Secret key stuff */
-	secret_key_len = PAGE_SIZE;
-	if (secret_key_len > 128)
-		secret_key_len = 128;
-
+	secret_key_len = (PAGE_SIZE < 128) ? PAGE_SIZE : 128;
 	secret_key = __wkmalloc("Secret key", secret_key_len, GFP_KERNEL);
 	if (!secret_key)
 		return -ENOMEM;

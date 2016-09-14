@@ -31,7 +31,7 @@ static char *icmp_error_to_string(icmp_error_code error) {
 	return "Unknown";
 }
 
-void icmp64_send4(struct sk_buff *skb, icmp_error_code error, __u32 info)
+static void icmp64_send4(struct sk_buff *skb, icmp_error_code error, __u32 info)
 {
 	int type, code;
 	int err;
@@ -136,18 +136,20 @@ static void icmp64_send6(struct sk_buff *skb, icmp_error_code error, __u32 info)
 
 void icmp64_send(struct packet *pkt, icmp_error_code error, __u32 info)
 {
-	struct sk_buff *skb;
-
 	if (unlikely(!pkt))
 		return;
 	pkt = pkt_original_pkt(pkt);
 	if (unlikely(!pkt))
 		return;
-	skb = pkt->skb;
+
+	icmp64_send_skb(pkt->skb, error, info);
+}
+
+void icmp64_send_skb(struct sk_buff *skb, icmp_error_code error, __u32 info)
+{
 	if (unlikely(!skb) || !skb->dev)
 		return;
 
-	/* Send the error. */
 	switch (ntohs(skb->protocol)) {
 	case ETH_P_IP:
 		icmp64_send4(skb, error, info);

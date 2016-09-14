@@ -197,11 +197,11 @@ int pool6_find(struct pool6 *pool, const struct in6_addr *addr,
 	list = rcu_dereference_bh(pool->list);
 
 	/*
-	 * This seems redundant, but needs to exist because of the enhanced log
-	 * priority.
+	 * This seems redundant, but if you want to remove it mind that you need
+	 * to debug on callers.
 	 */
 	if (list_empty(list)) {
-		log_warn_once("The IPv6 pool is empty.");
+		log_debug("pool6 is empty.");
 		goto not_found;
 	}
 
@@ -235,7 +235,7 @@ int pool6_peek(struct pool6 *pool, struct ipv6_prefix *result)
 
 	if (list_empty(list)) {
 		rcu_read_unlock_bh();
-		log_warn_once("The IPv6 pool is empty.");
+		log_debug("pool6 is empty.");
 		return -ESRCH;
 	}
 

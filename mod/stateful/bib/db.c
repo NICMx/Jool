@@ -36,6 +36,7 @@ struct tabled_session {
 	struct ipv6_transport_addr dst6;
 	struct ipv4_transport_addr dst4;
 	tcp_state state;
+	/** MUST NOT be NULL. */
 	struct tabled_bib *bib;
 
 	/**
@@ -66,9 +67,11 @@ struct tabled_session {
 	struct rb_node tree_hook;
 
 	unsigned long update_time;
+	/** MUST NOT be NULL. */
 	struct expire_timer *expirer;
 	struct list_head list_hook;
 
+	/** See pke_queue.h for some thoughts on stored packets. */
 	struct sk_buff *stored;
 };
 
@@ -77,6 +80,16 @@ struct bib_session_tuple {
 	struct tabled_session *session;
 };
 
+/**
+ * A session that is about to cause Jool to create and send a new packet.
+ *
+ * This can happen in two situations:
+ * - An established TCP session has been hanging for too long and Jool wants to
+ *   query the endpoints for status.
+ *   This is done by sending an empty TCP packet that should simply be ACK'd.
+ * - What initially seemed like a potential TCP SO ended up expiring after a 6-
+ *   second wait so it has to be ICMP errored. See pkt_queue.h.
+ */
 struct probing_session {
 	struct session_entry session;
 	struct sk_buff *skb;
@@ -90,10 +103,6 @@ struct expire_timer {
 	fate_cb decide_fate_cb;
 };
 
-/**
- * BIB table definition.
- * Holds two red-black trees, one for each indexing need (IPv4 and IPv6).
- */
 struct bib_table {
 	/** Indexes the entries using their IPv6 identifiers. */
 	struct rb_root tree6;
@@ -332,6 +341,7 @@ static void init_table(struct bib_table *table,
 
 	init_expirer(&table->trans_timer, trans_timeout, SESSION_TIMER_TRANS,
 			just_die);
+	/* TODO "just_die"? what about the stored packet? */
 	init_expirer(&table->syn4_timer, TCP_INCOMING_SYN, SESSION_TIMER_SYN4,
 			just_die);
 	table->pkt_count = 0;
@@ -383,7 +393,7 @@ static void release_session(struct rb_node *node, void *arg)
 	struct tabled_session *session = node2session(node);
 
 	if (session->stored) {
-		icmp64_send4(session->stored, ICMPERR_PORT_UNREACHABLE, 0);
+		icmp64_send_skb(session->stored, ICMPERR_PORT_UNREACHABLE, 0);
 		kfree_skb(session->stored);
 	}
 
@@ -806,7 +816,7 @@ static void post_fate(struct net *ns, struct list_head *probes)
 	list_for_each_entry_safe(probe, tmp, probes, list_hook) {
 		if (probe->skb) {
 			/* The "probe" is not a probe; it's an ICMP error. */
-			icmp64_send4(probe->skb, ICMPERR_PORT_UNREACHABLE, 0);
+			icmp64_send_skb(probe->skb, ICMPERR_PORT_UNREACHABLE, 0);
 			kfree_skb(probe->skb);
 		} else {
 			/* Actual TCP probe. */
@@ -1812,7 +1822,7 @@ verdict bib_add_tcp4(struct bib *db,
 			goto too_many_pkts;
 
 		log_debug("Potential Simultaneous Open; storing type 2 packet.");
-		new->stored = pkt->original_pkt->skb;
+		new->stored = pkt_original_pkt(pkt)->skb;
 		verdict = VERDICT_STOLEN;
 		table->pkt_count++;
 		/*

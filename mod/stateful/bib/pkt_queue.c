@@ -20,7 +20,7 @@ static unsigned long get_timeout(void)
 
 static void send_icmp_error(struct pktqueue_session *node)
 {
-	icmp64_send4(node->skb, ICMPERR_PORT_UNREACHABLE, 0);
+	icmp64_send_skb(node->skb, ICMPERR_PORT_UNREACHABLE, 0);
 	kfree_skb(node->skb);
 	wkfree(struct pktqueue_node, node);
 }
