@@ -6,7 +6,8 @@
 #include "nat64/common/types.h"
 #include "nat64/mod/common/route.h"
 
-static char *icmp_error_to_string(icmp_error_code error) {
+static char *icmp_error_to_string(icmp_error_code error)
+{
 	switch (error) {
 	case ICMPERR_SILENT:
 		return "ICMPERR_SILENT";

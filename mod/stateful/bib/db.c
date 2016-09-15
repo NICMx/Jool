@@ -566,6 +566,8 @@ static void handle_probe(struct bib_table *table,
 		probe->skb = session->stored;
 		session->stored = NULL;
 		table->pkt_count--;
+	} else {
+		probe->skb = NULL;
 	}
 	list_add(&probe->list_hook, probes);
 	return;
