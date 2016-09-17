@@ -1479,7 +1479,16 @@ static int find_bib_session6(struct bib_table *table,
 		log_debug("Issue #216.");
 		detach_bib(table, old->bib);
 		add_to_delete_list(rm_list, &old->bib->hook4);
-		old->bib = NULL;
+
+		/*
+		 * The detaching above might have involved a rebalance.
+		 * I believe that completely invalidates the bib6 slot.
+		 * Tough luck; we'll need another lookup.
+		 * At least this only happens on empty pool4s. (Low traffic.)
+		 */
+		old->bib = find_bibtree6_slot(table, new->bib, &slots->bib6);
+		if (WARN(old->bib, "Found a BIB entry I just removed!"))
+			return -EINVAL;
 
 	} else {
 		/*
@@ -1488,12 +1497,18 @@ static int find_bib_session6(struct bib_table *table,
 		 */
 		error = upgrade_pktqueue_session(table, masks, new, old);
 		if (!error)
-			return 0;
+			return 0; /* Unusual happy path for existing sessions */
 	}
 
-	/* Note: If old->bib is NULL, then old->session is also NULL. */
-
-	/* No collisions (find failed); try to find suitable slots (add) */
+	/*
+	 * In case you're tweaking this function: By this point, old->bib has to
+	 * be NULL and slots->bib6 has to be a valid potential tree slot. We're
+	 * now in create-new-BIB-and-session mode.
+	 * Time to worry about slots->bib4.
+	 *
+	 * (BTW: If old->bib is NULL, then old->session is also supposed to be
+	 * NULL.)
+	 */
 	if (masks) {
 		error = find_available_mask(table, masks, new->bib, &slots->bib4);
 		if (error) {
@@ -1514,6 +1529,9 @@ static int find_bib_session6(struct bib_table *table,
 		if (find_bibtree4_slot(table, new->bib, &slots->bib4))
 			return -EEXIST;
 	}
+
+	/* Ok, time to worry about slots->session now. */
+
 	treeslot_init(&slots->session, &new->bib->sessions,
 			&new->session->tree_hook);
 	old->session = NULL;
