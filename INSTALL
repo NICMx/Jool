@@ -8,7 +8,7 @@
 ***********************************************************************
 
 Install the requirements:
-	1. Your kernel headers (version 3.0.0+)
+	1. Your kernel headers (version 3.2.0+)
 		# apt-get install linux-headers-$(uname -r)
 	2. libnl-3-dev (Only if you need the userspace application):
 		# apt-get install libnl-3-dev
