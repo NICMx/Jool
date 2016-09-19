@@ -28,11 +28,23 @@ Jool es un SIIT y NAT64 [razonablemente apegado a estándares](intro-jool.html#c
 
 A veces interpolamos versiones intermedias dependiendo de cómo evoluciona el [bug tracker]({{ site.repository-url }}/issues).
 
-La versión más reciente es la [3.4.4]({{ site.repository-url }}/milestone/34).
+La versión más reciente es la [3.4.5]({{ site.repository-url }}/milestone/35).
 
 -------------------
 
 ## Noticias
+
+### 2016-09-19
+
+Liberado Jool 3.4.5. Hubieron varias modificaciones:
+
+1. Agregado soporte para [kernels 4.6 y 4.7](https://github.com/NICMx/Jool/issues/219).
+2. Eliminado warning constante causado por pool6 vacía.
+3. [Mejorada](https://github.com/NICMx/Jool/issues/223) la lista negra implícita:
+	- Agregado broadcast directo.
+	- Aplicada lista negra a traducción por medio de la EAMT.  
+	  (Entre otras cosas, esto previene que una EAMT demasiado intrusiva prohiba acceso a IPv4 por el propio traductor.)
+4. `jool` y `jool_siit` pueden ahora insertarse en un mismo namespace [sin que sus sockets de Netlink colisionen](https://github.com/NICMx/Jool/issues/224).
 
 ### 2016-07-11
 
