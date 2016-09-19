@@ -103,12 +103,6 @@ static const struct argp_option global_opt = {
 		.group = 0,
 };
 
-static const struct argp_option global_alias_opt = {
-		.name = "general",
-		.flags = OPTION_ALIAS,
-		.doc = "",
-};
-
 static const struct argp_option operations_hdr_opt = {
 		.doc = "Operations:",
 		.group = 3,
@@ -320,12 +314,6 @@ static const struct argp_option zeroize_tc_opt = {
 		.group = 0,
 };
 
-static const struct argp_option zeroize_tc_alias_opt = {
-		.name = "setTC",
-		.flags = OPTION_ALIAS,
-		.doc = "",
-};
-
 static const struct argp_option override_tos_opt = {
 		.name = OPTNAME_OVERRIDE_TOS,
 		.key = ARGP_RESET_TOS,
@@ -335,12 +323,6 @@ static const struct argp_option override_tos_opt = {
 				"Otherwise copy from IPv6 header's "
 				"'Traffic Class'.\n",
 		.group = 0,
-};
-
-static const struct argp_option override_tos_alias_opt = {
-		.name = "setTOS",
-		.flags = OPTION_ALIAS,
-		.doc = "",
 };
 
 static const struct argp_option tos_opt = {
@@ -353,12 +335,6 @@ static const struct argp_option tos_opt = {
 		.group = 0,
 };
 
-static const struct argp_option tos_alias_opt = {
-		.name = "TOS",
-		.flags = OPTION_ALIAS,
-		.doc = "",
-};
-
 static const struct argp_option plateaus_opt = {
 		.name = OPTNAME_MTU_PLATEAUS,
 		.key = ARGP_PLATEAUS,
@@ -367,12 +343,6 @@ static const struct argp_option plateaus_opt = {
 		.doc = "Set the list of plateaus for ICMPv4 Fragmentation "
 				"Neededs with MTU unset.\n",
 		.group = 0,
-};
-
-static const struct argp_option plateaus_alias_opt = {
-		.name = "plateaus",
-		.flags = OPTION_ALIAS,
-		.doc = "",
 };
 
 static const struct argp_option adf_opt = {
@@ -386,12 +356,6 @@ static const struct argp_option adf_opt = {
 		.group = 0,
 };
 
-static const struct argp_option adf_alias_opt = {
-		.name = "dropAddr",
-		.flags = OPTION_ALIAS,
-		.doc = "",
-};
-
 static const struct argp_option icmp_filter_opt = {
 		.name = OPTNAME_DROP_ICMP6_INFO,
 		.key = ARGP_DROP_INFO,
@@ -399,12 +363,6 @@ static const struct argp_option icmp_filter_opt = {
 		.flags = 0,
 		.doc = "Filter ICMPv6 Informational packets?\n",
 		.group = 0,
-};
-
-static const struct argp_option icmp_filter_alias_opt = {
-		.name = "dropInfo",
-		.flags = OPTION_ALIAS,
-		.doc = "",
 };
 
 static const struct argp_option tcp_filter_opt = {
@@ -416,12 +374,6 @@ static const struct argp_option tcp_filter_opt = {
 		.group = 0,
 };
 
-static const struct argp_option tcp_filter_alias_opt = {
-		.name = "dropTCP",
-		.flags = OPTION_ALIAS,
-		.doc = "",
-};
-
 static const struct argp_option ttl_udp_opt = {
 		.name = OPTNAME_UDP_TIMEOUT,
 		.key = ARGP_UDP_TO,
@@ -431,12 +383,6 @@ static const struct argp_option ttl_udp_opt = {
 		.group = 0,
 };
 
-static const struct argp_option ttl_udp_alias_opt = {
-		.name = "toUDP",
-		.flags = OPTION_ALIAS,
-		.doc = "",
-};
-
 static const struct argp_option ttl_icmp_opt = {
 		.name = OPTNAME_ICMP_TIMEOUT,
 		.key = ARGP_ICMP_TO,
@@ -444,12 +390,6 @@ static const struct argp_option ttl_icmp_opt = {
 		.flags = 0,
 		.doc = "Set the timeout for ICMP sessions.\n",
 		.group = 0,
-};
-
-static const struct argp_option ttl_icmp_alias_opt = {
-		.name = "toICMP",
-		.flags = OPTION_ALIAS,
-		.doc = "",
 };
 
 static const struct argp_option ttl_tcpest_opt = {
@@ -462,12 +402,6 @@ static const struct argp_option ttl_tcpest_opt = {
 		.group = 0,
 };
 
-static const struct argp_option ttl_tcpest_alias_opt = {
-		.name = "toTCPest",
-		.flags = OPTION_ALIAS,
-		.doc = "",
-};
-
 static const struct argp_option ttl_tcptrans_opt = {
 		.name = OPTNAME_TCPTRANS_TIMEOUT,
 		.key = ARGP_TCP_TRANS_TO,
@@ -476,12 +410,6 @@ static const struct argp_option ttl_tcptrans_opt = {
 		.doc = "Set the TCP transitory session lifetime "
 				"(in seconds).\n",
 		.group = 0,
-};
-
-static const struct argp_option ttl_tcptrans_alias_opt = {
-		.name = "toTCPtrans",
-		.flags = OPTION_ALIAS,
-		.doc = "",
 };
 
 static const struct argp_option ttl_frag_opt = {
@@ -493,12 +421,6 @@ static const struct argp_option ttl_frag_opt = {
 		.group = 0,
 };
 
-static const struct argp_option ttl_frag_alias_opt = {
-		.name = "toFrag",
-		.flags = OPTION_ALIAS,
-		.doc = "",
-};
-
 static const struct argp_option max_so_opt = {
 		.name = OPTNAME_MAX_SO,
 		.key = ARGP_STORED_PKTS,
@@ -507,12 +429,6 @@ static const struct argp_option max_so_opt = {
 		.doc = "Set the maximum allowable 'simultaneous' Simultaneos "
 				"Opens of TCP connections.\n",
 		.group = 0,
-};
-
-static const struct argp_option max_so_alias_opt = {
-		.name = "maxStoredPkts",
-		.flags = OPTION_ALIAS,
-		.doc = "",
 };
 
 static const struct argp_option icmp_src_opt = {
@@ -666,7 +582,6 @@ static const struct argp_option *opts_siit[] = {
 	&blacklist_opt,
 	&pool6791_opt,
 	&global_opt,
-	&global_alias_opt,
 #ifdef BENCHMARK
 	&benchmark_opt,
 #endif
@@ -689,13 +604,9 @@ static const struct argp_option *opts_siit[] = {
 	&enable_opt,
 	&disable_opt,
 	&zeroize_tc_opt,
-	&zeroize_tc_alias_opt,
 	&override_tos_opt,
-	&override_tos_alias_opt,
 	&tos_opt,
-	&tos_alias_opt,
 	&plateaus_opt,
-	&plateaus_alias_opt,
 	&csum_fix_opt,
 	&hairpin_mode_opt,
 	&random_pool6791_opt,
@@ -710,7 +621,6 @@ static const struct argp_option *opts_nat64[] = {
 	&session_opt,
 	&joold_opt,
 	&global_opt,
-	&global_alias_opt,
 #ifdef BENCHMARK
 	&benchmark_opt,
 #endif
@@ -742,36 +652,23 @@ static const struct argp_option *opts_nat64[] = {
 	&enable_opt,
 	&disable_opt,
 	&zeroize_tc_opt,
-	&zeroize_tc_alias_opt,
 	&override_tos_opt,
-	&override_tos_alias_opt,
 	&tos_opt,
-	&tos_alias_opt,
 	&plateaus_opt,
-	&plateaus_alias_opt,
 	&max_so_opt,
-	&max_so_alias_opt,
 	&icmp_src_opt,
 	&f_args_opt,
 	&rst_during_fin_rcv_opt,
 	&logging_bib_opt,
 	&logging_session_opt,
 	&adf_opt,
-	&adf_alias_opt,
 	&icmp_filter_opt,
-	&icmp_filter_alias_opt,
 	&tcp_filter_opt,
-	&tcp_filter_alias_opt,
 	&ttl_udp_opt,
-	&ttl_udp_alias_opt,
 	&ttl_tcpest_opt,
-	&ttl_tcpest_alias_opt,
 	&ttl_tcptrans_opt,
-	&ttl_tcptrans_alias_opt,
 	&ttl_icmp_opt,
-	&ttl_icmp_alias_opt,
 	&ttl_frag_opt,
-	&ttl_frag_alias_opt,
 	&ss_enabled_opt,
 	&ss_flush_asap_opt,
 	&ss_flush_deadline_opt,

@@ -11,7 +11,7 @@
 #define TRANSPORT4_FORMAT "ADDR4#NUM"
 #define PREFIX6_FORMAT "ADDR6/NUM"
 #define PREFIX4_FORMAT "ADDR4/NUM"
-#define OPTIONAL_PREFIX6_FORMAT "(ADDR6/NUM|clear)"
+#define OPTIONAL_PREFIX6_FORMAT "(ADDR6/NUM|null)"
 
 /**
  * The flags the user can write as program parameters.

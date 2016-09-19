@@ -78,6 +78,44 @@
 		collision; \
 	})
 
+/**
+ * A "tree slot" is a temporal memorization of where in a red-black tree might
+ * an node be added.
+ *
+ * This:
+ *
+ *	node = tree_find(a);
+ *	if (!node) {
+ *		error = do_other_things();
+ *		if (error)
+ *			return error;
+ *		tree_add(a);
+ *	}
+ *
+ * Is needlessly slow because, since an add implies a find, there are two
+ * identical tree searches where one would have sufficed.
+ *
+ * Unfortunately, Jool is full of do_other_things() constructs so a simultaneous
+ * find and/or add function is rarely useful.
+ *
+ * Tree slots can be used instead. The slot is found and initialized during the
+ * find, and the add only commits it. If there is a reason to cancel the add,
+ * the slot structure is simply abandoned. Their fairly small size makes them
+ * natural stack citizens.
+ *
+ *	struct tree_slot slot;
+ *
+ *	node = tree_find(a, &slot);
+ *	if (!node) {
+ *		error = do_other_things();
+ *		if (error)
+ *			return error;
+ *		tree_add(&slot);
+ *	}
+ *
+ * You need to make sure the tree does not change while you hold an initialized
+ * slot you're planning to commit.
+ */
 struct tree_slot {
 	struct rb_root *tree;
 	struct rb_node *entry;
@@ -85,9 +123,11 @@ struct tree_slot {
 	struct rb_node **rb_link;
 };
 
+/** Prepares @slot for tree traversal. */
 void treeslot_init(struct tree_slot *slot,
 		struct rb_root *tree,
 		struct rb_node *entry);
+/** Adds @slot's node to the tree. Also rebalances while it's at it. */
 void treeslot_commit(struct tree_slot *slot);
 
 /**
