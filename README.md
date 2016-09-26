@@ -15,13 +15,6 @@ An [SIIT and a NAT64](https://www.jool.mx/en/intro-xlat.html) for Linux.
 
 You might also want to see [contact info](https://www.jool.mx/en/contact.html).
 
-## Directories
-
-* `/include` : The entire system's header files.
-* `/mod` : The kernel module's implementation code.
-* `/unit` : Unit tests.
-* `/usr` : The userspace application's implementation code.
-
 ## Credits
 
 ### NIC-Mx
