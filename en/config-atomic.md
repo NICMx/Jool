@@ -89,7 +89,9 @@ Without further ado:
 
 ## NAT64
 
-There is one major caveat here: atomic modification of static BIB entries is [not supported](https://github.com/NICMx/Jool/blob/eef858e5a3998b6739e13201dbd4b36f014e30d3/usr/common/target/json.c#L635). This is because the current implementation of BIB/session is not suitable to guarantee the atomicity of multiple modifications.
+There is one major caveat here: atomic modification of static BIB entries is [not supported](https://github.com/NICMx/Jool/blob/v3.5.0/usr/common/target/json.c#L715). This is because the current implementation of BIB/session is not suitable to guarantee the atomicity of multiple modifications.
+
+<!-- TODO check the link above after the release. -->
 
 Sorry. This does not necessarily mean it will never be implemented, but there are no plans for now.
 
@@ -103,8 +105,9 @@ Sorry. This does not necessarily mean it will never be implemented, but there ar
 		"<a href="usr-flags-global.html#mtu-plateaus">mtu-plateaus</a>": [1, 2, 3, 4, 5, 6],
 		"<a href="usr-flags-global.html#maximum-simultaneous-opens">maximum-simultaneous-opens</a>": 16,
 		"<a href="usr-flags-global.html#source-icmpv6-errors-better">source-icmpv6-errors-better</a>": true,
+		"<a href="usr-flags-global.html#handle-rst-during-fin-rcv">handle-rst-during-fin-rcv</a>": true,
 		"<a href="usr-flags-global.html#f-args">f-args</a>": 10,
-		
+
 		"<a href="usr-flags-global.html#logging-bib">logging-bib</a>": true,
 		"<a href="usr-flags-global.html#logging-session">logging-session</a>": true,
 

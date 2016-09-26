@@ -351,7 +351,7 @@ This log is remarcably more voluptuous than [`--logging-bib`](#logging-bib), not
 - Default: OFF
 - Modes: Both (SIIT and Stateful NAT64)
 - Translation direction: IPv4 to IPv6
-- Source: [RFC 6145, section 4.1](http://tools.ietf.org/html/rfc6145#section-4.1)
+- Source: [RFC 7915, section 4.1]({{ site.rfc-siit }}#section-4.1)
 - Deprecated name: `--setTC`
 
 The <a href="http://en.wikipedia.org/wiki/IPv6_packet#Fixed_header" target="_blank">IPv6 header</a>'s Traffic Class field is very similar to <a href="http://en.wikipedia.org/wiki/IPv4#Header" target="_blank">IPv4</a>'s Type of Service (TOS).
@@ -364,7 +364,7 @@ If you leave this OFF, the TOS value will be copied directly to the Traffic Clas
 - Default: OFF
 - Modes: Both (SIIT and Stateful NAT64)
 - Translation direction: IPv6 to IPv4
-- Source: [RFC 6145, section 5.1](http://tools.ietf.org/html/rfc6145#section-5.1)
+- Source: [RFC 7915, section 5.1]({{ site.rfc-siit }}#section-5.1)
 - Deprecated name: `--setTOS`
 
 The <a href="http://en.wikipedia.org/wiki/IPv6_packet#Fixed_header" target="_blank">IPv6 header</a>'s Traffic Class field is very similar to <a href="http://en.wikipedia.org/wiki/IPv4#Header" target="_blank">IPv4</a>'s Type of Service (TOS).
@@ -377,7 +377,7 @@ If you leave this OFF, the Traffic Class value will be copied directly to the TO
 - Default: 0
 - Modes: Both (SIIT and Stateful NAT64)
 - Translation direction: IPv6 to IPv4
-- Source: [RFC 6145, section 5.1](http://tools.ietf.org/html/rfc6145#section-5.1)
+- Source: [RFC 7915, section 5.1]({{ site.rfc-siit }}#section-5.1)
 - Deprecated name: `--TOS`
 
 Value to set the TOS value of the packets' IPv4 fields during IPv6-to-IPv4 translations. _This only applies when [`--override-tos`](#override-tos) is ON_.
@@ -388,7 +388,7 @@ Value to set the TOS value of the packets' IPv4 fields during IPv6-to-IPv4 trans
 - Default: OFF
 - Modes: SIIT only
 - Translation direction: IPv4 to IPv6 (UDP only)
-- Source: [RFC 6145, section 4.5](http://tools.ietf.org/html/rfc6145#section-4.5)
+- Source: [RFC 7915, section 4.5]({{ site.rfc-siit }}#section-4.5)
 
 It is legal for IPv4/UDP packets to contain zero as checksum. This is because the whole thing about UDP is that it is unreliable, and the value of checksum validation might therefore not justify its overhead.
 
@@ -422,7 +422,7 @@ Why? [It can be argued that `hop limit`th is better]({{ site.repository-url }}/i
 - Default: "65535, 32000, 17914, 8166, 4352, 2002, 1492, 1006, 508, 296, 68"
 - Modes: Both (SIIT and Stateful NAT64)
 - Translation direction: IPv4 to IPv6 (ICMP errors only)
-- Source: [RFC 6145, section 4.2](http://tools.ietf.org/html/rfc6145#section-4.2)
+- Source: [RFC 7915, section 4.2]({{ site.rfc-siit }}#section-4.2)
 - Deprecated name: `--plateaus`
 
 When a packet should not be fragmented and doesn't fit into a link it's supposed to traverse, the troubled router is supposed to respond an error message indicating _Fragmentation Needed_. Ideally, this error message would contain the MTU of the link so the original emitter would be aware of the ideal packet size and avoid fragmentation. However, the original ICMPv4 specification did not require routers to include this information, so old ware might tend to omit it.

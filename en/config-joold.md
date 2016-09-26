@@ -72,10 +72,6 @@ These are the options:
 
 Address the SS traffic will be sent to and listened from.
 
-You do not want to hinder your future ability to add more NAT64s to the cluster, so it is strongly recommended that you input a multicast address here.
-
-> TODO I haven't actually tested a unicast address in this field.
-
 ### `multicast port`
 
 - Type: String (port number or service name)

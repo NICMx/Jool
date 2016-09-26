@@ -20,19 +20,35 @@ Jool is an Open Source [SIIT and NAT64](intro-xlat.html) for Linux.
 
 ## Status
 
-As far as we know, Jool is a [fairly compliant](intro-jool.html#compliance) SIIT and Stateful NAT64. This is the roadmap as of 2016-07-11:
+As far as we know, Jool is a [compliant](intro-jool.html#compliance) SIIT and Stateful NAT64. This is the roadmap as of 2016-09-26:
 
-1. [Milestone 3.5.0]({{ site.repository-url }}/issues?q=milestone%3A3.5.0) will add several new features.
 2. [Milestone 4.0.0]({{ site.repository-url }}/issues?q=milestone%3A4.0.0) will be an [internal refactor]({{ site.repository-url }}/issues/140) which should enhance Jool's config versatility.
 3. [Milestone 4.1.0]({{ site.repository-url }}/issues?q=milestone%3A4.1.0) will add several more features.
 
 New bug reports might interpolate other milestones in-between. Feedback from users can persuade us to change priorities. See [Contact](contact.html) for options on this.
 
-Our latest release is version [3.4.5]({{ site.repository-url }}/milestone/35).
+Our latest release is version [3.5.0]({{ site.repository-url }}/milestone/36).
+
+<!-- TODO validate that link after the release. -->
 
 -------------------
 
 ## News
+
+### 2016-09-26
+
+Version 3.5.0 has been released! The new features are
+
+- [Atomic Configuration](config-atomic.html)
+- [Session Synchronization](session-synchronization.html)
+- [Namespace Instances](usr-flags-instance.html)
+- [A v6 RFC6791 prefix](usr-flags-global.html#rfc6791v6-prefix)
+- Documented Testing Framework ([unit](https://github.com/NICMx/Jool/tree/master/test/unit) and [graybox](https://github.com/NICMx/Jool/tree/master/test/graybox))
+
+Some functionality was dropped:
+
+- Atomic fragment support was [purged](https://github.com/NICMx/Jool/issues/221)
+- [`--pool6`](usr-flags-pool6.html) can no longer be [`--quick`](usr-flags-pool4.html#quick)-removed.
 
 ### 2016-09-19
 
