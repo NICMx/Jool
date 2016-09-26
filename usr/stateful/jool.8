@@ -1,7 +1,7 @@
 .\" Manpage for jool's userspace app.
 .\" Report bugs to jool@nic.mx.
 
-.TH jool 8 2016-07-11 v3.4.4 "NAT64 Jool's Userspace Application"
+.TH jool 8 2016-09-26 v3.5.0 "NAT64 Jool's Userspace Application"
 
 .SH NAME
 jool - Interact with NAT64 Jool (the kernel module).
@@ -17,6 +17,14 @@ Linux is the only OS in which this program makes sense.
 Kernels 3.2.0 and up.
 
 .SH SYNTAX
+jool_siit --instance (
+.br
+	[--add]
+.br
+	| --remove
+.br
+)
+.P
 jool --pool6 (
 .br
 	[--display] [--csv]
@@ -25,9 +33,9 @@ jool --pool6 (
 .br
 .RI "	| --add " <IPv6-prefix> " [--force]"
 .br
-.RI "	| --remove " <IPv6-prefix> " [--quick]"
+.RI "	| --remove " <IPv6-prefix>
 .br
-.RI "	| --flush [--quick]
+.RI "	| --flush"
 .br
 )
 .P
@@ -70,6 +78,12 @@ jool --pool4 (
 	[--display]
 .br
 .RI "	| [--update] " FLAG_KEY = FLAG_VALUE
+.br
+)
+.P
+.RI "jool [--file] (
+.br
+	/path/to/json/file
 .br
 )
 
@@ -161,6 +175,28 @@ Otherwise copy from IPv6 header's 'Traffic Class'.
 Value to override TOS as (only when --override-tos is ON)
 .IP --mtu-plateaus=INT[,INT]*
 Set the list of plateaus for ICMPv4 Fragmentation Neededs with MTU unset.
+.IP --maximum-simultaneous-opens=INT
+Set the maximum allowable 'simultaneous' Simultaneos Opens of TCP connections.
+.IP --source-icmpv6-errors-better=BOOL
+Translate source addresses directly on 4-to-6 ICMP errors?
+.IP --handle-rst-during-fin-rcv=BOOL
+Use transitory timer when RST is received during the V6 FIN RCV or V4 FIN RCV states?
+.IP --f-args=INT
+Defines the arguments that will be sent to F().
+.br
+(F() is defined by algorithm 3 of RFC 6056.)
+.br
+- First (leftmost) bit is source address.
+.br
+- Second bit is source port.
+.br
+- Third bit is destination address.
+.br
+- Fourth (rightmost) bit is destination port.
+.IP --logging-bib=BOOL
+Log BIBs as they are created and destroyed?
+.IP --logging-session=BOOL
+Log sessions as they are created and destroyed?
 .IP --address-dependent-filtering=BOOL
 Use Address-Dependent Filtering?
 .br
@@ -179,44 +215,16 @@ Set the TCP transitory session lifetime (in seconds).
 Set the ICMP session lifetime (in seconds).
 .IP --fragment-arrival-timeout=INT
 Set the timeout for arrival of fragments.
-.IP --maximum-simultaneous-opens=INT
-Set the maximum allowable 'simultaneous' Simultaneos Opens of TCP connections.
-.IP --source-icmpv6-errors-better=BOOL
-Translate source addresses directly on 4-to-6 ICMP errors?
-.IP --f-args=INT
-Defines the arguments that will be sent to F().
-.br
-(F() is defined by algorithm 3 of RFC 6056.)
-.br
-- First (leftmost) bit is source address.
-.br
-- Second bit is source port.
-.br
-- Third bit is destination address.
-.br
-- Fourth (rightmost) bit is destination port.
-.IP --handle-rst-during-fin-rcv=BOOL
-Use transitory timer when RST is received during the V6 FIN RCV or V4 FIN RCV states?
-.IP --logging-bib=BOOL
-Log BIBs as they are created and destroyed?
-.IP --logging-session=BOOL
-Log sessions as they are created and destroyed?
-
-.SS "--global's FLAG_KEYs - Deprecated!"
-.IP --allow-atomic-fragments=BOOL
-Allow Atomic Fragments?
-.br
-(Warning - dangerous. See www.jool.mx/en/usr-flags-atomic.html)
-.IP --setDF=BOOL
-DF flag always on?
-.IP --genFH=BOOL
-Generate Fragment Header when incoming DF is false?
-.br
-(Warning - dangerous. See www.jool.mx/en/usr-flags-atomic.html)
-.IP --genID=BOOL
-Generate IPv4 identification?
-.IP --boostMTU=BOOL
-Decrease MTU failure rate?
+.IP --ss-enabled=BOOL
+Enable Session Synchronization?
+.IP --ss-flush-asap=BOOL
+Try to synchronize sessions as soon as possible?
+.IP --ss-flush-deadline=NUM
+Inactive milliseconds after which to force a session sync.
+.IP --ss-capacity=NUM
+Maximim number of queuable entries.
+.IP --ss-max-payload=NUM
+Maximum amount of bytes joold should send per packet.
 
 .SH EXAMPLES
 Print the IPv6 pool:
@@ -281,7 +289,7 @@ Our issue tracker is https://github.com/NICMx/Jool/issues.
 If you want to mail us instead, use jool@nic.mx.
 
 .SH COPYRIGHT
-Copyright 2015 NIC Mexico.
+Copyright 2016 NIC Mexico.
 .br
 License: GPLv3+ (GNU GPL version 3 or later)
 .br
@@ -291,5 +299,5 @@ There is NO WARRANTY, to the extent permitted by law.
 .SH SEE ALSO
 https://www.jool.mx
 .br
-https://www.jool.mx/en/documentation.html#userspace-application-arguments
+https://www.jool.mx/en/documentation.html
 

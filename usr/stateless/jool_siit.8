@@ -1,7 +1,7 @@
 .\" Manpage for jool's userspace app.
 .\" Report bugs to jool@nic.mx.
 
-.TH jool_siit 8 2016-07-11 v3.4.4 "SIIT Jool's Userspace Application"
+.TH jool_siit 8 2016-09-26 v3.5.0 "SIIT Jool's Userspace Application"
 
 .SH NAME
 jool_siit - Interact with SIIT Jool (the kernel module).
@@ -17,6 +17,14 @@ Linux is the only OS in which this program makes sense.
 Kernels 3.2.0 and up.
 
 .SH SYNTAX
+jool_siit --instance (
+.br
+	[--add]
+.br
+	| --remove
+.br
+)
+.P
 jool_siit --pool6 (
 .br
 	[--display] [--csv]
@@ -27,7 +35,7 @@ jool_siit --pool6 (
 .br
 .RI "	| --remove " <IPv6-prefix>
 .br
-.RI "	| --flush
+.RI "	| --flush"
 .br
 )
 .P
@@ -78,6 +86,12 @@ jool_siit --pool6791 (
 	[--display] [--csv]
 .br
 .RI "	| [--update] " FLAG_KEY = FLAG_VALUE
+.br
+)
+.P
+.RI "jool_siit [--file] (
+.br
+	/path/to/json/file
 .br
 )
 
@@ -132,32 +146,24 @@ Override the IPv4 header's 'TOS' field as --tos?
 Otherwise copy from IPv6 header's 'Traffic Class'.
 .IP --tos=INT
 Value to override TOS as (only when --override-tos is ON).
+.IP --mtu-plateaus=INT[,INT]*
+Set the list of plateaus for ICMPv4 Fragmentation Neededs with MTU unset.
 .IP --amend-udp-checksum-zero=BOOL
 Compute the UDP checksum of IPv4-UDP packets whose value is zero?
 .br
 Otherwise drop the packet.
-.IP --randomize-rfc6791-addresses
+.IP --eam-hairpin-mode=NUM
+Defines how EAM+hairpinning is handled.
+.br
+(0 = Disabled; 1 = Simple; 2 = Intrinsic)
+.IP --randomize-rfc6791-addresses=BOOL
 Randomize selection of address from the RFC6791 pool?
 .br
 Otherwise choose the 'Hop Limit'th address.
-.IP --mtu-plateaus=INT[,INT]*
-Set the list of plateaus for ICMPv4 Fragmentation Neededs with MTU unset.
-
-.SS "--global's FLAG_KEYs - Deprecated!"
-.IP --allow-atomic-fragments=BOOL
-Allow Atomic Fragments?
+.IP --rfc6791v6-prefix=(ADDR6/NUM|null)
+IPv6 prefix to generate RFC6791v6 addresses from.
 .br
-(Warning - dangerous. See www.jool.mx/en/usr-flags-atomic.html)
-.IP --setDF=BOOL
-Always set Don't Fragment?
-.IP --genFH=BOOL
-Also include IPv6 Fragment Header when IPv4 Packet DF Flag is not set?
-.br
-(Warning - dangerous. See www.jool.mx/en/usr-flags-atomic.html)
-.IP --genID=BOOL
-Generate IPv4 identification?
-.IP --boostMTU=BOOL
-Decrease MTU failure rate?
+Use null to clear.
 
 .SH EXAMPLES
 Print the IPv6 pool:
@@ -231,7 +237,7 @@ Our issue tracker is https://github.com/NICMx/Jool/issues.
 If you want to mail us instead, use jool@nic.mx.
 
 .SH COPYRIGHT
-Copyright 2015 NIC Mexico.
+Copyright 2016 NIC Mexico.
 .br
 License: GPLv3+ (GNU GPL version 3 or later)
 .br
@@ -241,5 +247,5 @@ There is NO WARRANTY, to the extent permitted by law.
 .SH SEE ALSO
 https://www.jool.mx
 .br
-https://www.jool.mx/en/documentation.html#userspace-application-arguments
+https://www.jool.mx/en/documentation.html
 

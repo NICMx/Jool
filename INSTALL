@@ -65,6 +65,10 @@ Configure the module:
 			$ jool --help
 			$ man jool
 
+		Add/Remove translator instances on the current namespace:
+			# jool --instance add
+			# jool --instance remove
+
 		Interact with the IPv6 pool:
 			$ jool --pool6 --display
 			$ jool --pool6 --count
@@ -115,6 +119,9 @@ Configure the module:
 			# jool_siit --update --amend-udp-checksum-zero true
 			$ jool --display
 			# jool --update --address-dependent-filtering false
+
+		Load configuration atomically from a file:
+			# jool_siit --file /path/to/json/file
 
 Remove the module:
 	# modprobe -r jool_siit
