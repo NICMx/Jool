@@ -27,10 +27,10 @@ This document explains how to obtain the binaries of the userspace application.
 
 ## Requirements
 
-### libnl-genl-3
+### libnl-genl-3 and pkg-config
 
 {% highlight bash %}
-# apt-get install libnl-genl-3-dev
+# apt-get install libnl-genl-3-dev pkg-config
 {% endhighlight %}
 
 ### Autoconf
