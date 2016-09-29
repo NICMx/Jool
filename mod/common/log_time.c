@@ -27,7 +27,7 @@ static int logtime_create_node(struct log_node **node)
 {
 	struct log_node *tmp_node;
 
-	tmp_node = kmem_cache_alloc(entry_cache, GFP_ATOMIC);
+	tmp_node = wkmem_cache_alloc("logging node", entry_cache, GFP_ATOMIC);
 	if (!tmp_node) {
 		log_err("Allocation of IPv6 pool node failed.");
 		return -ENOMEM;
@@ -43,7 +43,7 @@ static int logtime_create_node(struct log_node **node)
  */
 static void logtime_delete_node(struct log_node *node) {
 	list_del(&node->list_hook);
-	kmem_cache_free(entry_cache, node);
+	wkmem_cache_free("logging node", entry_cache, node);
 }
 
 static void logtime_get_db(struct log_time_db **log_db, l3_protocol l3_proto, l4_protocol l4_proto)

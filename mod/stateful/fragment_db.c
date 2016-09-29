@@ -163,7 +163,7 @@ void fragdb_get(struct fragdb *db)
 static void buffer_dealloc(struct reassembly_buffer *buffer)
 {
 	kfree_skb(buffer->pkt.skb);
-	kmem_cache_free(buffer_cache, buffer);
+	wkmem_cache_free("reassembly buffer", buffer_cache, buffer);
 }
 
 static void fragdb_release(struct kref *ref)
@@ -252,7 +252,7 @@ static struct reassembly_buffer *add_pkt(struct fragdb *db, struct packet *pkt)
 	}
 
 	/* Create buffer, add the packet to it, index */
-	buffer = kmem_cache_alloc(buffer_cache, GFP_ATOMIC);
+	buffer = wkmem_cache_alloc("reassembly buffer", buffer_cache, GFP_ATOMIC);
 	if (!buffer)
 		return NULL;
 
@@ -262,7 +262,7 @@ static struct reassembly_buffer *add_pkt(struct fragdb *db, struct packet *pkt)
 	buffer->dying_time = jiffies + db->timeout;
 
 	if (fragdb_table_put(&db->table, pkt, buffer)) {
-		kmem_cache_free(buffer_cache, buffer);
+		wkmem_cache_free("reassembly buffer", buffer_cache, buffer);
 		return NULL;
 	}
 

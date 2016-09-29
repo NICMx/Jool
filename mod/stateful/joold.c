@@ -335,7 +335,7 @@ static int build_buffer(struct nlcore_buffer *buffer, struct joold_queue *queue,
 			queue->advertisement_count--;
 
 		list_del(&node->nextprev);
-		kmem_cache_free(node_cache, node);
+		wkmem_cache_free("joold node", node_cache, node);
 	}
 
 	/*
@@ -449,7 +449,7 @@ static void purge_sessions(struct joold_queue *queue)
 		node = list_first_entry(&queue->sessions, struct joold_node,
 				nextprev);
 		list_del(&node->nextprev);
-		kmem_cache_free(node_cache, node);
+		wkmem_cache_free("joold node", node_cache, node);
 	}
 
 	queue->count = 0;
@@ -521,7 +521,7 @@ void joold_add(struct joold_queue *queue, struct session_entry *entry,
 		return;
 	}
 
-	copy = kmem_cache_alloc(node_cache, GFP_ATOMIC);
+	copy = wkmem_cache_alloc("joold node", node_cache, GFP_ATOMIC);
 	if (!copy) {
 		spin_unlock_bh(&queue->lock);
 		return;
@@ -726,7 +726,7 @@ static int add_advertise_node(struct joold_queue *queue, l4_protocol proto)
 {
 	struct joold_node *node;
 
-	node = kmem_cache_alloc(node_cache, GFP_ATOMIC);
+	node = wkmem_cache_alloc("joold node", node_cache, GFP_ATOMIC);
 	if (!node) {
 		log_err("Out of memory.");
 		return -ENOMEM;

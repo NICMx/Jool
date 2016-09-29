@@ -178,6 +178,11 @@ struct bib {
 static struct kmem_cache *bib_cache;
 static struct kmem_cache *session_cache;
 
+#define alloc_bib(flags) wkmem_cache_alloc("bib entry", bib_cache, flags)
+#define alloc_session(flags) wkmem_cache_alloc("session", session_cache, flags)
+#define free_bib(bib) wkmem_cache_free("bib entry", bib_cache, bib)
+#define free_session(session) wkmem_cache_free("session", session_cache, session)
+
 static struct tabled_bib *bib6_entry(const struct rb_node *node)
 {
 	return node ? rb_entry(node, struct tabled_bib, hook6) : NULL;
@@ -397,7 +402,7 @@ static void release_session(struct rb_node *node, void *arg)
 		kfree_skb(session->stored);
 	}
 
-	kmem_cache_free(session_cache, session);
+	free_session(session);
 }
 
 /**
@@ -408,7 +413,7 @@ static void release_bib_entry(struct rb_node *node, void *arg)
 {
 	struct tabled_bib *bib = bib4_entry(node);
 	rbtree_clear(&bib->sessions, release_session, NULL);
-	kmem_cache_free(bib_cache, bib);
+	free_bib(bib);
 }
 
 static void release_bib(struct kref *refs)
@@ -595,14 +600,14 @@ static void rm(struct bib_table *table,
 	rb_erase(&session->tree_hook, &bib->sessions);
 	list_del(&session->list_hook);
 	log_session(table, session, "Forgot session");
-	kmem_cache_free(session_cache, session);
+	free_session(session);
 	table->session_count--;
 
 	if (!bib->is_static && RB_EMPTY_ROOT(&bib->sessions)) {
 		rb_erase(&bib->hook6, &table->tree6);
 		rb_erase(&bib->hook4, &table->tree4);
 		log_bib(table, bib, "Forgot");
-		kmem_cache_free(bib_cache, bib);
+		free_bib(bib);
 		table->bib_count--;
 	}
 }
@@ -973,13 +978,13 @@ static struct tabled_session *find_session_slot(struct tabled_bib *bib,
 
 static int alloc_bib_session(struct bib_session_tuple *tuple)
 {
-	tuple->bib = kmem_cache_alloc(bib_cache, GFP_ATOMIC);
+	tuple->bib = alloc_bib(GFP_ATOMIC);
 	if (!tuple->bib)
 		return -ENOMEM;
 
-	tuple->session = kmem_cache_alloc(session_cache, GFP_ATOMIC);
+	tuple->session = alloc_session(GFP_ATOMIC);
 	if (!tuple->session) {
-		kmem_cache_free(bib_cache, tuple->bib);
+		free_bib(tuple->bib);
 		return -ENOMEM;
 	}
 
@@ -1024,7 +1029,7 @@ static struct tabled_session *create_session4(struct tuple *tuple4,
 {
 	struct tabled_session *session;
 
-	session = kmem_cache_alloc(session_cache, GFP_ATOMIC);
+	session = alloc_session(GFP_ATOMIC);
 	if (!session)
 		return NULL;
 
@@ -1405,8 +1410,8 @@ static int upgrade_pktqueue_session(struct bib_table *table,
 
 trainwreck:
 	pktqueue_put_node(sos);
-	kmem_cache_free(bib_cache, bib);
-	kmem_cache_free(session_cache, session);
+	free_bib(bib);
+	free_session(session);
 	return -EINVAL;
 }
 
@@ -1602,9 +1607,9 @@ end:
 	spin_unlock_bh(&table->lock);
 
 	if (new.bib)
-		kmem_cache_free(bib_cache, new.bib);
+		free_bib(new.bib);
 	if (new.session)
-		kmem_cache_free(session_cache, new.session);
+		free_session(new.session);
 	commit_delete_list(&rm_list);
 
 	return error;
@@ -1677,7 +1682,7 @@ success:
 
 failure:
 	spin_unlock_bh(&table->lock);
-	kmem_cache_free(session_cache, new);
+	free_session(new);
 	return error;
 }
 
@@ -1744,9 +1749,9 @@ end:
 	spin_unlock_bh(&table->lock);
 
 	if (new.bib)
-		kmem_cache_free(bib_cache, new.bib);
+		free_bib(new.bib);
 	if (new.session)
-		kmem_cache_free(session_cache, new.session);
+		free_session(new.session);
 	commit_delete_list(&rm_list);
 
 	return verdict;
@@ -1861,13 +1866,13 @@ end:
 	spin_unlock_bh(&table->lock);
 
 	if (new)
-		kmem_cache_free(session_cache, new);
+		free_session(new);
 
 	return verdict;
 
 too_many_pkts:
 	spin_unlock_bh(&table->lock);
-	kmem_cache_free(session_cache, new);
+	free_session(new);
 	log_debug("Too many Simultaneous Opens.");
 	/* Fall back to assume there's no SO. */
 	icmp64_send(pkt, ICMPERR_PORT_UNREACHABLE, 0);
@@ -1939,9 +1944,9 @@ end:
 	spin_unlock_bh(&table->lock);
 
 	if (new.bib)
-		kmem_cache_free(bib_cache, new.bib);
+		free_bib(new.bib);
 	if (new.session)
-		kmem_cache_free(session_cache, new.session);
+		free_session(new.session);
 	commit_delete_list(&rm_list);
 
 	return error;
@@ -2236,7 +2241,7 @@ int bib_add_static(struct bib *db, struct bib_entry *new,
 	if (!table)
 		return -EINVAL;
 
-	bib = kmem_cache_alloc(bib_cache, GFP_ATOMIC);
+	bib = alloc_bib(GFP_ATOMIC);
 	if (!bib)
 		return -ENOMEM;
 	bib2tabled(new, bib);
@@ -2273,13 +2278,13 @@ int bib_add_static(struct bib *db, struct bib_entry *new,
 upgrade:
 	collision->is_static = true;
 	spin_unlock_bh(&table->lock);
-	kmem_cache_free(bib_cache, bib);
+	free_bib(bib);
 	return 0;
 
 eexist:
 	tbtobe(collision, old);
 	spin_unlock_bh(&table->lock);
-	kmem_cache_free(bib_cache, bib);
+	free_bib(bib);
 	return -EEXIST;
 }
 
