@@ -91,8 +91,8 @@ int rfc6056_f(const struct tuple *tuple6, __u8 fields, unsigned int *result)
 	struct shash_desc *desc;
 	int error = 0;
 
-	desc = kmalloc(sizeof(struct shash_desc) + crypto_shash_descsize(shash),
-			GFP_ATOMIC);
+	desc = __wkmalloc("shash desc", sizeof(struct shash_desc)
+			+ crypto_shash_descsize(shash), GFP_ATOMIC);
 	if (!desc)
 		return -ENOMEM;
 
@@ -108,25 +108,26 @@ int rfc6056_f(const struct tuple *tuple6, __u8 fields, unsigned int *result)
 	error = crypto_shash_init(desc);
 	if (error) {
 		log_debug("crypto_hash_init() failed. Errcode: %d", error);
-		goto unlock;
+		goto end;
 	}
 
 	error = hash_tuple(desc, fields, tuple6);
 	if (error) {
 		log_debug("crypto_hash_update() failed. Errcode: %d", error);
-		goto unlock;
+		goto end;
 	}
 
 	error = crypto_shash_final(desc, md5_result.as8);
 	if (error) {
 		log_debug("crypto_hash_digest() failed. Errcode: %d", error);
-		goto unlock;
+		goto end;
 	}
 
 	*result = (__force __u32)md5_result.as32[3];
 	/* Fall through. */
 
-unlock:
+end:
 	spin_unlock_bh(&tfm_lock);
+	__wkfree("shash desc", desc);
 	return error;
 }
