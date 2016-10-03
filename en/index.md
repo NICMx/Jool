@@ -27,9 +27,7 @@ As far as we know, Jool is a [compliant](intro-jool.html#compliance) SIIT and St
 
 New bug reports might interpolate other milestones in-between. Feedback from users can persuade us to change priorities. See [Contact](contact.html) for options on this.
 
-Our latest release is version [3.5.0]({{ site.repository-url }}/milestone/36).
-
-<!-- TODO validate that link after the release. -->
+Our latest release is version [3.5.0]({{ site.repository-url }}/milestone/32).
 
 -------------------
 

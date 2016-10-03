@@ -91,8 +91,6 @@ Without further ado:
 
 There is one major caveat here: atomic modification of static BIB entries is [not supported](https://github.com/NICMx/Jool/blob/v3.5.0/usr/common/target/json.c#L715). This is because the current implementation of BIB/session is not suitable to guarantee the atomicity of multiple modifications.
 
-<!-- TODO check the link above after the release. -->
-
 Sorry. This does not necessarily mean it will never be implemented, but there are no plans for now.
 
 <pre><code>{

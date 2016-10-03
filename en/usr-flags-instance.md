@@ -62,7 +62,25 @@ Incidentally, you can skip the second step by running the following version of t
 
 (See [`no_instance`](modprobe-siit.html#noinstance).)
 
-And you can use `--instance` to hook and unhook translators any/elsewhere. (Regardless of `no_instance`.)
+Only one `jool` module, and also one `jool_siit` module, can be modprobed per kernel. Any modprobes after the first do nothing:
+
+	# ip netns exec red   modprobe jool_siit # success
+	# ip netns exec red   modprobe jool      # success
+	# ip netns exec green modprobe jool_siit # failure
+	# ip netns exec green modprobe jool      # failure
+	# ip netns exec blue  modprobe jool_siit # failure
+	# ip netns exec blue  modprobe jool      # failure
+
+So, if you want more translators, you can use `--instance` to hook and unhook translators anywhere after a modprobe. (Regardless of `no_instance`.)
+
+	# modprobe jool_siit no_instance                 # success
+	# modprobe jool      no_instance                 # success
+	# ip netns exec red   jool_siit --instance --add # success
+	# ip netns exec red   jool      --instance --add # success
+	# ip netns exec green jool_siit --instance --add # success
+	# ip netns exec green jool      --instance --add # success
+	# ip netns exec blue  jool_siit --instance --add # success
+	# ip netns exec blue  jool      --instance --add # success
 
 ## Syntax
 

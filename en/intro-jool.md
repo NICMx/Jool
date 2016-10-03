@@ -45,8 +45,6 @@ Please [let us know]({{ site.repository-url }}/issues) if you find additional co
 
 Jool supports Linux kernels 3.2.0 and above. While most of the development time has been spent experimenting on Ubuntu 14.04 using current kernels, we've performed a healthy amount of formal testing ([unit](https://github.com/NICMx/Jool/tree/master/test/unit) and [graybox](https://github.com/NICMx/Jool/tree/master/test/graybox)) on Jool 3.5.0 in the following variants:
 
-<!-- TODO Review those links after the release. -->
-
 - 3.2.0-23-generic-pae
 - 3.10.96-031096-generic
 - 3.13.0-85-generic
