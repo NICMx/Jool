@@ -15,6 +15,9 @@
  *
  * If you want to read a cleaner version of it, see
  * https://www.kernel.org/doc/Documentation/rbtree.txt
+ *
+ * @expected is a key (has the key's type).
+ * @compare_fn takes a @type and the key's type as arguments.
  */
 #define rbtree_find(expected, root, compare_fn, type, hook_name) \
 	({ \
@@ -134,6 +137,9 @@ void treeslot_commit(struct tree_slot *slot);
  * rbtree_find_node - Similar to rbtree_find(), except if it doesn't find the
  * node it returns the slot where it'd be placed so you can insert something in
  * there.
+ *
+ * @expected has to be a rb_node,
+ * @compare_cb takes rb_nodes as arguments.
  */
 #define rbtree_find_slot(expected, root, compare_cb, slot) \
 	({ \

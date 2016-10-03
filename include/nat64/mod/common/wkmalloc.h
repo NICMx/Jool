@@ -4,14 +4,19 @@
 #include <linux/slab.h>
 #include "nat64/common/types.h"
 
-static inline void *__wkmalloc(char *name, size_t size, gfp_t flags)
+void wkmalloc_add(const char *name);
+void wkmalloc_rm(const char *name);
+void wkmalloc_print_leaks(void);
+void wkmalloc_destroy(void);
+
+static inline void *__wkmalloc(const char *name, size_t size, gfp_t flags)
 {
 	void *result;
 
 	result = kmalloc(size, flags);
-#ifdef KREF_ANALYZER
+#ifdef KMEMLEAK
 	if (result)
-		log_info("Created object '%s'.", name);
+		wkmalloc_add(name);
 #endif
 
 	return result;
@@ -22,36 +27,36 @@ static inline void *__wkmalloc(char *name, size_t size, gfp_t flags)
  */
 #define wkmalloc(type, flags) __wkmalloc(#type, sizeof(type), flags)
 
-static inline void __wkfree(char *name, void *obj)
+static inline void __wkfree(const char *name, void *obj)
 {
 	kfree(obj);
-#ifdef KREF_ANALYZER
-	log_info("Destroyed object '%s'.", name);
+#ifdef KMEMLEAK
+	wkmalloc_rm(name);
 #endif
 }
 
 #define wkfree(type, obj) __wkfree(#type, obj)
 
-static inline void *wkmem_cache_alloc(char *name, struct kmem_cache *cache,
-		gfp_t flags)
+static inline void *wkmem_cache_alloc(const char *name,
+		struct kmem_cache *cache, gfp_t flags)
 {
 	void *result;
 
 	result = kmem_cache_alloc(cache, flags);
-#ifdef KREF_ANALYZER
+#ifdef KMEMLEAK
 	if (result)
-		log_info("Created object '%s'.", name);
+		wkmalloc_add(name);
 #endif
 
 	return result;
 }
 
-static inline void wkmem_cache_free(char *name, struct kmem_cache *cache,
+static inline void wkmem_cache_free(const char *name, struct kmem_cache *cache,
 		void *obj)
 {
 	kmem_cache_free(cache, obj);
-#ifdef KREF_ANALYZER
-	log_info("Destroyed object '%s'.", name);
+#ifdef KMEMLEAK
+	wkmalloc_rm(name);
 #endif
 }
 

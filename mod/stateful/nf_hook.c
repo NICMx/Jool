@@ -2,13 +2,13 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/version.h>
-
 #include "nat64/common/constants.h"
 #include "nat64/common/xlat.h"
 #include "nat64/mod/common/core.h"
 #include "nat64/mod/common/log_time.h"
 #include "nat64/mod/common/nf_wrapper.h"
 #include "nat64/mod/common/pool6.h"
+#include "nat64/mod/common/wkmalloc.h"
 #include "nat64/mod/common/xlator.h"
 #include "nat64/mod/common/nl/nl_handler.h"
 #include "nat64/mod/stateful/fragment_db.h"
@@ -194,6 +194,11 @@ static void __exit jool_exit(void)
 	joold_terminate();
 	fragdb_destroy();
 	bib_destroy();
+
+#ifdef KMEMLEAK
+	wkmalloc_print_leaks();
+	wkmalloc_destroy();
+#endif
 
 	log_info("%s v" JOOL_VERSION_STR " module removed.", xlat_get_name());
 }

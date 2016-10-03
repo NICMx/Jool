@@ -691,6 +691,7 @@ static verdict decide_fate(struct collision_cb *cb,
 		break;
 
 	case FATE_PROBE:
+		/* TODO ICMP errors aren't supposed to drop down to TRANS. */
 		handle_probe(table, probes, session, &tmp);
 		/* Fall through. */
 	case FATE_TIMER_TRANS:
@@ -1641,7 +1642,7 @@ int bib_add4(struct bib *db,
 	struct tabled_session *new;
 	struct tree_slot session_slot;
 	bool allow;
-	int error;
+	int error = 0;
 
 	table = get_table(db, tuple4->l4_proto);
 	if (!table)
@@ -1658,31 +1659,28 @@ int bib_add4(struct bib *db,
 	if (old.session) {
 		handle_fate_timer(old.session, &table->est_timer);
 		tstobs(old.session, result);
-		goto success;
+		goto end;
 	}
 
 	if (!old.bib) {
 		error = -ESRCH;
-		goto failure;
+		goto end;
 	}
 
 	/* Address-Dependent Filtering. */
 	if (table->drop_by_addr && !allow) {
 		error = -EPERM;
-		goto failure;
+		goto end;
 	}
 
 	/* Ok, no issues; add the session. */
 	commit_add4(table, &old, &new, &session_slot, &table->est_timer, result);
 	/* Fall through */
 
-success:
+end:
 	spin_unlock_bh(&table->lock);
-	return 0;
-
-failure:
-	spin_unlock_bh(&table->lock);
-	free_session(new);
+	if (new)
+		free_session(new);
 	return error;
 }
 

@@ -8,6 +8,7 @@
 #include "nat64/mod/common/log_time.h"
 #include "nat64/mod/common/nf_wrapper.h"
 #include "nat64/mod/common/pool6.h"
+#include "nat64/mod/common/wkmalloc.h"
 #include "nat64/mod/common/xlator.h"
 #include "nat64/mod/common/nl/nl_handler.h"
 #include "nat64/mod/stateless/pool.h"
@@ -137,6 +138,11 @@ static void __exit jool_exit(void)
 	nlhandler_destroy();
 	logtime_destroy();
 	xlator_destroy();
+
+#ifdef KMEMLEAK
+	wkmalloc_print_leaks();
+	wkmalloc_destroy();
+#endif
 
 	log_info("%s v" JOOL_VERSION_STR " module removed.", xlat_get_name());
 }
