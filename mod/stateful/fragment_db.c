@@ -362,7 +362,7 @@ verdict fragdb_handle(struct fragdb *db, struct packet *pkt)
 	 * pretending there's no fragmentation.)
 	 */
 #if LINUX_VERSION_AT_LEAST(3, 13, 0, 7, 0)
-	WARN(true, "This code is supposed to be unreachable in kernels 3.13+! Please report.");
+	log_debug("This code is supposed to be unreachable in kernels 3.13+!");
 	return VERDICT_DROP;
 #endif
 
