@@ -21,11 +21,12 @@ title: Download
 
 Jool 3.5 is a [compliant SIIT and Stateful NAT64](intro-jool.html#compliance).
 
-3.5.0 is the latest version.
+3.5.1 is the latest version.
 
 | Download | SHA512 | MD5| Git commit |
 |----------|--------|----|------------|
-| **[3.5.0]({{ site.downloads-url }}/Jool-3.5.0.zip)** | [SHA512]({{ site.downloads-url }}/Jool-3.5.0.sha) | [MD5]({{ site.downloads-url }}/Jool-3.5.0.md5) | <a href="{{ site.repository-url }}/tree/v3.5.0" target="_blank">Link</a> |
+| **[3.5.1]({{ site.downloads-url }}/Jool-3.5.1.zip)** | [SHA512]({{ site.downloads-url }}/Jool-3.5.1.sha) | [MD5]({{ site.downloads-url }}/Jool-3.5.1.md5) | <a href="{{ site.repository-url }}/tree/v3.5.1" target="_blank">Link</a> |
+| <del>[3.5.0]({{ site.downloads-url }}/Jool-3.5.0.zip)</del> | [SHA512]({{ site.downloads-url }}/Jool-3.5.0.sha) | [MD5]({{ site.downloads-url }}/Jool-3.5.0.md5) | <a href="{{ site.repository-url }}/tree/v3.5.0" target="_blank">Link</a> |
 
 ## 3.4.x
 

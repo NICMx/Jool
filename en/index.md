@@ -20,18 +20,25 @@ Jool is an Open Source [SIIT and NAT64](intro-xlat.html) for Linux.
 
 ## Status
 
-As far as we know, Jool is a [compliant](intro-jool.html#compliance) SIIT and Stateful NAT64. This is the roadmap as of 2016-09-26:
+As far as we know, Jool is a [compliant](intro-jool.html#compliance) SIIT and Stateful NAT64. This is the roadmap as of 2016-10-07:
 
 2. [Milestone 4.0.0]({{ site.repository-url }}/issues?q=milestone%3A4.0.0) will be an [internal refactor]({{ site.repository-url }}/issues/140) which should enhance Jool's config versatility.
 3. [Milestone 4.1.0]({{ site.repository-url }}/issues?q=milestone%3A4.1.0) will add several more features.
 
 New bug reports might interpolate other milestones in-between. Feedback from users can persuade us to change priorities. See [Contact](contact.html) for options on this.
 
-Our latest release is version [3.5.0]({{ site.repository-url }}/milestone/32).
+Our latest release is version [3.5.1]({{ site.repository-url }}/milestone/32).
 
 -------------------
 
 ## News
+
+### 2016-10-07
+
+Version 3.5.1 has been released. Both apply to NAT64:
+
+1. [Fixed two memory leaks](https://github.com/NICMx/Jool/issues/229).
+2. [Silenced fragmentation warning](https://github.com/NICMx/Jool/issues/231).
 
 ### 2016-09-26
 
