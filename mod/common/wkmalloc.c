@@ -4,14 +4,14 @@
  * I didn't want to recompile the kernel yet again so I made this.
  * It's nowhere near as good but it took much less time. Sorry.
  *
- * Include in the compilation by adding KMEMLEAK to Jool's variables.
+ * Include in the compilation by adding JKMEMLEAK to Jool's variables.
  *
- * 	make JOOL_FLAGS=-DKMEMLEAK
+ * 	make JOOL_FLAGS=-DJKMEMLEAK
  *
  * Will print a report when you modprobe -r.
  */
 
-#ifdef KMEMLEAK
+#ifdef JKMEMLEAK
 
 #include "nat64/mod/common/wkmalloc.h"
 #include "nat64/mod/common/rbtree.h"
@@ -117,4 +117,4 @@ void wkmalloc_destroy(void)
 	rbtree_clear(&tree, destroy_node, NULL);
 }
 
-#endif /* KMEMLEAK */
+#endif /* JKMEMLEAK */

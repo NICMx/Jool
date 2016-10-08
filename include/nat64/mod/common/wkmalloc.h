@@ -14,7 +14,7 @@ static inline void *__wkmalloc(const char *name, size_t size, gfp_t flags)
 	void *result;
 
 	result = kmalloc(size, flags);
-#ifdef KMEMLEAK
+#ifdef JKMEMLEAK
 	if (result)
 		wkmalloc_add(name);
 #endif
@@ -30,7 +30,7 @@ static inline void *__wkmalloc(const char *name, size_t size, gfp_t flags)
 static inline void __wkfree(const char *name, void *obj)
 {
 	kfree(obj);
-#ifdef KMEMLEAK
+#ifdef JKMEMLEAK
 	wkmalloc_rm(name);
 #endif
 }
@@ -43,7 +43,7 @@ static inline void *wkmem_cache_alloc(const char *name,
 	void *result;
 
 	result = kmem_cache_alloc(cache, flags);
-#ifdef KMEMLEAK
+#ifdef JKMEMLEAK
 	if (result)
 		wkmalloc_add(name);
 #endif
@@ -55,7 +55,7 @@ static inline void wkmem_cache_free(const char *name, struct kmem_cache *cache,
 		void *obj)
 {
 	kmem_cache_free(cache, obj);
-#ifdef KMEMLEAK
+#ifdef JKMEMLEAK
 	wkmalloc_rm(name);
 #endif
 }

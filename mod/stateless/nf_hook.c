@@ -139,7 +139,7 @@ static void __exit jool_exit(void)
 	logtime_destroy();
 	xlator_destroy();
 
-#ifdef KMEMLEAK
+#ifdef JKMEMLEAK
 	wkmalloc_print_leaks();
 	wkmalloc_destroy();
 #endif

@@ -195,7 +195,7 @@ static void __exit jool_exit(void)
 	fragdb_destroy();
 	bib_destroy();
 
-#ifdef KMEMLEAK
+#ifdef JKMEMLEAK
 	wkmalloc_print_leaks();
 	wkmalloc_destroy();
 #endif
