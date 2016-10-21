@@ -5,7 +5,7 @@ category: Documentation
 title: EAM Run
 ---
 
-[Documentation](documentation.html) > [Runs](documentation.html#runs) > SIIT + EAM
+[Documentation](documentation.html) > [Basic Tutorials](documentation.html#basic-tutorials) > SIIT + EAM
 
 # EAM Run
 

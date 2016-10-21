@@ -5,7 +5,7 @@ category: Documentation
 title: Stateful NAT64 Run
 ---
 
-[Documentation](documentation.html) > [Runs](documentation.html#runs) > Stateful NAT64
+[Documentation](documentation.html) > [Basic Tutorials](documentation.html#basic-tutorials) > Stateful NAT64
 
 # Stateful NAT64 Run
 

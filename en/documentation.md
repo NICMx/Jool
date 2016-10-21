@@ -21,7 +21,7 @@ See [RFC 6586](https://tools.ietf.org/html/rfc6586) for deployment experiences u
 1. [Kernel modules](install-mod.html)
 2. [Userspace applications](install-usr.html)
 
-## Runs
+## Basic Tutorials
 
 1. [SIIT](run-vanilla.html)
 2. [SIIT + EAM](run-eam.html)

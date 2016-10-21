@@ -58,6 +58,8 @@ Jool supports Linux kernels 3.2.0 and above. While most of the development time 
 - 4.4.1-040401-generic
 - 4.5.0-040500-generic
 - 4.7.0-040700-generic
+- 4.8.0-040800-generic
+- 4.8.2-040802-generic
 
 ## Design
 

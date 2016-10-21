@@ -5,7 +5,7 @@ category: Documentation
 title: DNS64
 ---
 
-[Documentation](documentation.html) > [Runs](documentation.html#runs) > DNS64
+[Documentation](documentation.html) > [Basic Tutorials](documentation.html#basic-tutorials) > DNS64
 
 # DNS64 Tutorial
 
