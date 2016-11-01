@@ -22,7 +22,7 @@ static void send_icmp_error(struct pktqueue_session *node)
 {
 	icmp64_send_skb(node->skb, ICMPERR_PORT_UNREACHABLE, 0);
 	kfree_skb(node->skb);
-	wkfree(struct pktqueue_node, node);
+	wkfree(struct pktqueue_session, node);
 }
 
 static void rm(struct pktqueue *queue, struct pktqueue_session *node)
@@ -91,7 +91,7 @@ int pktqueue_add(struct pktqueue *queue, struct packet *pkt,
 	collision = rbtree_find_slot(&new->tree_hook, &queue->node_tree,
 			compare_rbnode, &slot);
 	if (collision) {
-		wkfree(struct pktqueue_node, new);
+		wkfree(struct pktqueue_session, new);
 		/*
 		 * Should we reset the timer of the existing session?
 		 * Don't know; the RFC is silent on this.
@@ -118,7 +118,7 @@ int pktqueue_add(struct pktqueue *queue, struct packet *pkt,
 	 * misplaced ICMP errors.
 	 */
 	if (too_many) {
-		wkfree(struct pktqueue_node, new);
+		wkfree(struct pktqueue_session, new);
 		return -ENOSPC;
 	}
 
@@ -145,7 +145,7 @@ void pktqueue_rm(struct pktqueue *queue, struct ipv4_transport_addr *src4)
 			list_del(&node->list_hook);
 			rb_erase(&node->tree_hook, &queue->node_tree);
 			kfree_skb(node->skb);
-			wkfree(struct pktqueue_node, node);
+			wkfree(struct pktqueue_session, node);
 		}
 	}
 }
