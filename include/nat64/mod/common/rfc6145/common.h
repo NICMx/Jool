@@ -13,6 +13,10 @@
 #define icmp4_unused un.gateway
 
 struct translation_steps {
+	/**
+	 * When translating a fragment chain, this only creates the first
+	 * packet. Subsequent fragments are allocated by translate_subsequent().
+	 */
 	verdict (*skb_create_fn)(struct xlation *state);
 	/**
 	 * The function that will translate the layer-3 header.
@@ -54,7 +58,7 @@ struct translation_steps *ttpcomm_get_steps(struct packet *in);
 
 void partialize_skb(struct sk_buff *skb, unsigned int csum_offset);
 int copy_payload(struct xlation *state);
-bool will_need_frag_hdr(struct xlation *state);
+bool will_need_frag_hdr(const struct iphdr *hdr);
 verdict ttpcomm_translate_inner_packet(struct xlation *state);
 
 bool must_not_translate(struct in_addr *addr, struct net *ns);
