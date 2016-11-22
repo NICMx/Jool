@@ -52,8 +52,9 @@
  *    pages as they are and the kernel should automatically turn them into
  *    fragments if they won't fit through the MTU. I don't think this is as
  *    deterministic as it should be, since the kernel might not be aware of the
- *    path MTU, but there is nothing else we can do because there is nothing
- *    that will tell us whether a ->frags member is a fragment or a page.
+ *    path MTU (and therefore linearize fragment pages), but there is nothing
+ *    else we can do because there is nothing that will tell us whether a
+ *    ->frags member is a fragment or a page.
  *
  * TODO copy pages "as they are". We're currently linearizing them...
  *
