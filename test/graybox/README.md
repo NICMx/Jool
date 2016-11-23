@@ -18,7 +18,7 @@ cd ../usr
 
 Do not install them; it's not necessary.
 
-## Running the tests
+## Running the test suite
 
 You might need to stop the network manager beforehand.
 
@@ -31,7 +31,56 @@ See the content of `run.sh` for more versatility.
 
 Please [report](https://github.com/NICMx/Jool/issues) any errors or queued packets you find. Please include your distro, kernel version (`uname -r`) and the tail of `dmesg` (after the "SIIT/NAT64 Jool vX.Y.Z.W module inserted" caption).
 
-## Creating more tests
+That's everything most users need to know. See below if you want to add tests to the suite.
+
+## Preparing tests
+
+This is what you need to know:
+
+Adding tests to the suite right away is cumbersome; you don't want to run the entire suite when you're testing your *test*. To speed things up, you can run improvised standalone packet exchanges with the suite's translators by interacting with the following scripts (attached):
+
+	test-suite/namespace-create.sh
+		Creates a network namespace where the translator will be
+		enclosed and the relevant virtual interfaces.
+	test-suite/namespace-destroy.sh
+		Cleans up whatever namespace-crete.sh did.
+	test-suite/network-create.sh <translator>
+		Prepares the test network for the relevant translator.
+		<translator> can be either "siit" or "nat64".
+	test-suite/network-destroy.sh <translator>
+		Cleans up whatever network-crete.sh did.
+
+So, for example, to prepare an environment to send some improvised packets to the SIIT translator, run
+
+```bash
+test-suite/namespace-create.sh
+test-suite/network-create.sh siit
+```
+
+A description of the network we just created can be found in `test-suite/siit network.txt`. (TODO we need a NAT64 version too.)
+
+You can run `ip address` here to see your channels to your "improvised" translator.
+
+Then send some packets and see how Jool behaves (via `tcpdump`, `dmesg` and stuff):
+
+```bash
+usr/graybox send some-packet-1.pkt
+usr/graybox send some-packet-2.pkt
+usr/graybox send some-packet-3.pkt
+```
+
+See `man usr/graybox.7` for more documentation on what `usr/graybox` can do.
+
+Finally, when you're done, issue the following commands to clean up:
+
+```bash
+test-suite/network-destroy.sh siit
+test-suite/namespace-destroy.sh
+```
+
+## Adding improvised tests to the suite
+
+(TODO now that I added the previous section, this is kind of obsolete and should become "how to add your improvised test to the suite.")
 
 You need to provide:
 
@@ -66,7 +115,7 @@ usr/graybox stats display
 rmmod graybox
 ```
 
-Some notes:
+## Some notes
 
 - I don't know if the graybox kernel module is a very elegant way to do this. Perhaps raw sockets would get the job done just fine.
 - The graybox userspace app has a man page; run `man ./usr/graybox.7`.
