@@ -1,5 +1,5 @@
-MODULES_DIR := /lib/modules/$(shell uname -r)
-KERNEL_DIR := ${MODULES_DIR}/build
+MODULES_DIR ?= /lib/modules/$(shell uname -r)
+KERNEL_DIR ?= ${MODULES_DIR}/build
 
 all:
 	make -C ${KERNEL_DIR} M=$$PWD JOOL_FLAGS="${JOOL_FLAGS}"
