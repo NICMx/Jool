@@ -22,6 +22,7 @@ AC_CHECK_HEADER_STDBOOL
 AC_CHECK_FUNCS([inet_ntoa memset strcasecmp strtol pow])
 AC_SEARCH_LIBS([pow], [m])
 AC_SEARCH_LIBS([pthread_create], [pthread])
+AC_SEARCH_LIBS([argp_parse], [argp])
 
 # Checks for dependencies.
 PKG_CHECK_MODULES(LIBNLGENL3, libnl-genl-3.0 >= 3.1)
