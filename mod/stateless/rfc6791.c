@@ -95,7 +95,7 @@ static int get_rfc6791_address(struct xlation *state, unsigned int count,
 		done = pool_foreach(state->jool.siit.pool6791, find_nth_addr,
 				&args, NULL);
 		if (done)
-			return done;
+			return 0;
 
 		if (args.flushed)
 			return -ESRCH;

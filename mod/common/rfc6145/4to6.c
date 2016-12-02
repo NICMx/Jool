@@ -36,10 +36,12 @@ verdict ttp46_create_skb(struct xlation *state)
 	 * The subpayload might get truncated to maximize delivery probability.
 	 */
 	l3_hdr_len = sizeof(struct ipv6hdr);
-	if (will_need_frag_hdr(pkt_ip4_hdr(in)))
+	if (will_need_frag_hdr(pkt_ip4_hdr(in))) {
 		l3_hdr_len += sizeof(struct frag_hdr);
-	else
+	} else {
+		/* The kernel might want to fragment this so leave room.*/
 		reserve += sizeof(struct frag_hdr);
+	}
 
 	total_len = l3_hdr_len + pkt_l3payload_len(in);
 	if (is_first_frag4(pkt_ip4_hdr(in)) && pkt_is_icmp4_error(in)) {

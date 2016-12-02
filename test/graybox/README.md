@@ -31,42 +31,46 @@ See the content of `run.sh` for more versatility.
 
 Please [report](https://github.com/NICMx/Jool/issues) any errors or queued packets you find. Please include your distro, kernel version (`uname -r`) and the tail of `dmesg` (after the "SIIT/NAT64 Jool vX.Y.Z.W module inserted" caption).
 
-That's everything most users need to know. See below if you want to add tests to the suite.
+That's everything you need to know if you just want to run the tests. See below if you'd like to add tests to the suite.
 
 ## Preparing tests
 
 This is what you need to know:
 
-Adding tests to the suite right away is cumbersome; you don't want to run the entire suite when you're testing your *test*. To speed things up, you can run improvised standalone packet exchanges with the suite's translators by interacting with the following scripts (attached):
+Adding tests to the suite right away is cumbersome; you don't want to run the entire thing when you're just testing your *test*. To speed things up, you can run improvised standalone packet exchanges with the suite's translators by interacting with the following scripts (in the `test-suite` folder):
 
-	test-suite/namespace-create.sh
+	namespace-create.sh
 		Creates a network namespace where the translator will be
 		enclosed and the relevant virtual interfaces.
-	test-suite/namespace-destroy.sh
-		Cleans up whatever namespace-crete.sh did.
-	test-suite/network-create.sh <translator>
+		See the output of `ip netns` and `ip link` to take a peek
+		to the results.
+	namespace-destroy.sh
+		Reverts whatever namespace-create.sh did.
+	network-create.sh <translator>
 		Prepares the test network for the relevant translator.
 		<translator> can be either "siit" or "nat64".
-	test-suite/network-destroy.sh <translator>
-		Cleans up whatever network-crete.sh did.
+		See the output of `ip addr` to take a peek to the
+		results.
+	network-destroy.sh <translator>
+		Reverts whatever network-create.sh did.
 
 So, for example, to prepare an environment to send some improvised packets to the SIIT translator, run
 
 ```bash
-test-suite/namespace-create.sh
-test-suite/network-create.sh siit
+cd test-suite
+sudo ./namespace-create.sh
+sudo ./network-create.sh siit
+cd ..
 ```
 
-A description of the network we just created can be found in `test-suite/siit network.txt`. (TODO we need a NAT64 version too.)
+A description of the network you just created can be found in `test-suite/siit network.txt`. (TODO we need a NAT64 version too.) See `ip address` too.
 
-You can run `ip address` here to see your channels to your "improvised" translator.
-
-Then send some packets and see how Jool behaves (via `tcpdump`, `dmesg` and stuff):
+Then send some test packets. Evaluate results via tools such as `dmesg` (if you enabled [debug](https://github.com/NICMx/Jool/wiki/Jool's-Compilation-Options#-ddebug)) and `tcpdump`. Graybox expects test packets to be contained verbatim (from layer 3 header onwards) in a file. See examples in `test-suite/client/siit/manual`.
 
 ```bash
-usr/graybox send some-packet-1.pkt
-usr/graybox send some-packet-2.pkt
-usr/graybox send some-packet-3.pkt
+usr/graybox send /path/to/some-packet-1.pkt
+usr/graybox send /path/to/some-packet-2.pkt
+usr/graybox send /path/to/some-packet-3.pkt
 ```
 
 See `man usr/graybox.7` for more documentation on what `usr/graybox` can do.
@@ -74,34 +78,28 @@ See `man usr/graybox.7` for more documentation on what `usr/graybox` can do.
 Finally, when you're done, issue the following commands to clean up:
 
 ```bash
-test-suite/network-destroy.sh siit
-test-suite/namespace-destroy.sh
+cd test-suite
+sudo ./network-destroy.sh siit
+sudo ./namespace-destroy.sh
+cd ..
 ```
 
-## Adding improvised tests to the suite
+## Adding your "improvised" test to the suite
 
-(TODO now that I added the previous section, this is kind of obsolete and should become "how to add your improvised test to the suite.")
+For every test, you need to provide:
 
-You need to provide:
-
-- A "test" packet. (A packet that is sent to the translator.)
+- A "test" packet. (A packet that is sent to the translator. It's the one you generated during the previous step.)
 - An "expected" packet. (The packet that we expect the translator to turn the "test" packet into.)
 
-The framework expects each packet to be found verbatim (layer 3 header, layer 4 header, payload) in a dedicated file. See examples in `test-suite/client/siit/manual`.
-
-Assuming that there is a translator available, and the packets' addresses will be routed towards and back from it, a standalone test can be pulled off as follows:
+Test "expected" by doing something like (assuming the namespace and the network are set)
 
 ```bash
-# Start graybox.
-insmod mod/graybox.ko
 # Tell graybox to "expect" packet foo.pkt
-usr/graybox expect add foo.pkt
-# Tell graybox to send "test" packet bar.pkt
-usr/graybox send bar.pkt
+usr/graybox expect add /path/to/foo.pkt
+# Ask graybox to send "test" packet bar.pkt
+usr/graybox send /path/to/bar.pkt
 # Wait. Jool translates bar.pkt and graybox validates the response.
 # Hopefully this should happen in less than a tenth of a second.
-# I wish I had a more bulletproff and less wasteful way to do this.
-# Maybe later.
 # This is only for scripts. If you're typing this, you obviously don't need this
 # unless you can type faster than the kernel can send packets.
 sleep 0.1
@@ -111,9 +109,11 @@ sleep 0.1
 usr/graybox expect flush
 # Print the results.
 usr/graybox stats display
-# Stop graybox.
-rmmod graybox
 ```
+
+Place both the expected and test packets in `test-suite/client/<translator>/manual` and register them in `test-suite/client/<translator>/manual.sh`.
+
+Test the full suite and you're done. Might want to commit and upload your work to the repository.
 
 ## Some notes
 

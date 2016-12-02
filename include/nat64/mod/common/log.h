@@ -15,12 +15,12 @@
  * (bad checksums, bogus addresses, etc) and some failed memory allocations
  * (because the kernel already prints those).
  */
-#define log_debug(text, ...) pr_debug(text "\n", ##__VA_ARGS__)
+#define log_debug(text, ...) pr_debug("%s: " text "\n", xlat_get_name(), ##__VA_ARGS__)
 /**
  * Responses to events triggered by the user, which might not show signs of life
  * elsehow.
  */
-#define log_info(text, ...) pr_info(text "\n", ##__VA_ARGS__)
+#define log_info(text, ...) pr_info("%s: " text "\n", xlat_get_name(), ##__VA_ARGS__)
 /**
  * "I'm not going to translate this because the config's not right."
  * These rate limit themselves so the log doesn't get too flooded.
