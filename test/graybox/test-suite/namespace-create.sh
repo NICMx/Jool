@@ -1,9 +1,11 @@
 #!/bin/bash
 
-# Prepares the namespace environment where Jool will be enclosed.
-# Run ./end.sh to undo these commands.
+# Prepares the namespace environment where the translators of the test suite
+# will be enclosed.
 
 . config
+
+echo "Preparing the $NS namespace..."
 
 ip netns add $NS
 

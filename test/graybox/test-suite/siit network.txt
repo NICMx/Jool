@@ -4,6 +4,9 @@
 	     (EAMT)                (pool6)                  (pool6)
 	(IPv4: 1.0.0/24)     (IPv4: 192.0.2/24)    (IPv6: 2001:db8:01__/40)
 
+n6 and n4 are actually the same machine (ie. the current namespace). j is
+enclosed in the joolns namespace.
+
 n6
 	2001:0db8:01c0:0002:0021::/64
 	default via j

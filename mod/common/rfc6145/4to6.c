@@ -36,15 +36,17 @@ verdict ttp46_create_skb(struct xlation *state)
 	 * The subpayload might get truncated to maximize delivery probability.
 	 */
 	l3_hdr_len = sizeof(struct ipv6hdr);
-	if (will_need_frag_hdr(state))
+	if (will_need_frag_hdr(pkt_ip4_hdr(in)))
 		l3_hdr_len += sizeof(struct frag_hdr);
 	else
 		reserve += sizeof(struct frag_hdr);
 
 	total_len = l3_hdr_len + pkt_l3payload_len(in);
 	if (is_first_frag4(pkt_ip4_hdr(in)) && pkt_is_icmp4_error(in)) {
-		total_len += sizeof(struct ipv6hdr) - sizeof(struct iphdr);
-		if (will_need_frag_hdr(state))
+		struct iphdr *hdr4_inner = pkt_payload(in);
+
+		total_len += sizeof(struct ipv6hdr) - (hdr4_inner->ihl << 2);
+		if (will_need_frag_hdr(hdr4_inner))
 			total_len += sizeof(struct frag_hdr);
 
 		/* All errors from RFC 4443 share this. */
@@ -64,7 +66,7 @@ verdict ttp46_create_skb(struct xlation *state)
 	skb_reset_network_header(skb);
 	skb_set_transport_header(skb, l3_hdr_len);
 
-	if (will_need_frag_hdr(state))
+	if (will_need_frag_hdr(pkt_ip4_hdr(in)))
 		hdr_frag = (struct frag_hdr *)(ipv6_hdr(skb) + 1);
 
 	pkt_fill(&state->out, skb, L3PROTO_IPV6, pkt_l4_proto(in),
@@ -83,11 +85,14 @@ static __be16 build_payload_len(struct packet *in, struct packet *out)
 
 	__u16 total_len;
 
-	if (pkt_is_inner(out)) { /* Inner packet. */
+	if (pkt_is_inner(out)) { /* Internal packets */
 		total_len = be16_to_cpu(pkt_ip4_hdr(in)->tot_len)
 				- pkt_hdrs_len(in) + pkt_hdrs_len(out);
 
-	} else if (!pkt_is_fragment(out)) { /* Not fragment. */
+	} else if (skb_shinfo(in->skb)->frag_list) { /* Fake full packets */
+		total_len = in->skb->len - pkt_hdrs_len(in) + pkt_hdrs_len(out);
+
+	} else { /* Real full packets and fragmented packets */
 		total_len = out->skb->len;
 		/*
 		 * Though ICMPv4 errors are supposed to be max 576 bytes long,
@@ -99,10 +104,7 @@ static __be16 build_payload_len(struct packet *in, struct packet *out)
 		if (pkt_is_icmp6_error(out) && total_len > IPV6_MIN_MTU)
 			total_len = IPV6_MIN_MTU;
 
-	} else if (skb_shinfo(out->skb)->frag_list) { /* First fragment. */
-		total_len = in->skb->len - pkt_hdrs_len(in) + pkt_hdrs_len(out);
-
-	} /* (subsequent fragments don't reach this code.) */
+	} /* (Subsequent fragments don't reach this function) */
 
 	return cpu_to_be16(total_len - sizeof(struct ipv6hdr));
 }
@@ -359,7 +361,7 @@ verdict ttp46_ipv6(struct xlation *state)
 		return VERDICT_DROP;
 	}
 
-	if (will_need_frag_hdr(state)) {
+	if (will_need_frag_hdr(hdr4)) {
 		struct frag_hdr *frag_header = (struct frag_hdr *)(hdr6 + 1);
 
 		/* Override some fixed header fields... */

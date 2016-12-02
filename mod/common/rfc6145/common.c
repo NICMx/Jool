@@ -77,6 +77,12 @@ int copy_payload(struct xlation *state)
 
 	error = skb_copy_bits(state->in.skb, pkt_payload_offset(&state->in),
 			pkt_payload(&state->out),
+			/*
+			 * Note: There's an important reason why the payload
+			 * length must be extracted from the outgoing packet:
+			 * the outgoing packet might be truncated. See
+			 * ttp46_create_skb() and ttp64_create_skb().
+			 */
 			pkt_payload_len_frag(&state->out));
 	if (error)
 		log_debug("The payload copy threw errcode %d.", error);
@@ -84,10 +90,9 @@ int copy_payload(struct xlation *state)
 	return error;
 }
 
-bool will_need_frag_hdr(struct xlation *state)
+bool will_need_frag_hdr(const struct iphdr *hdr)
 {
-	return is_mf_set_ipv4(pkt_ip4_hdr(&state->in))
-			|| get_fragment_offset_ipv4(pkt_ip4_hdr(&state->in));
+	return is_mf_set_ipv4(hdr) || get_fragment_offset_ipv4(hdr);
 }
 
 static int move_pointers_in(struct packet *pkt, __u8 protocol,
@@ -118,7 +123,7 @@ static int move_pointers_in(struct packet *pkt, __u8 protocol,
 		l4hdr_len = 0;
 		break;
 	}
-	pkt->is_inner = 1;
+	pkt->is_inner = true;
 	pkt->payload = skb_transport_header(pkt->skb) + l4hdr_len;
 
 	return 0;
@@ -132,7 +137,7 @@ static int move_pointers_out(struct packet *in, struct packet *out,
 	skb_set_transport_header(out->skb, l3hdr_len);
 
 	out->l4_proto = pkt_l4_proto(in);
-	out->is_inner = 1;
+	out->is_inner = true;
 	out->payload = skb_transport_header(out->skb) + pkt_l4hdr_len(in);
 
 	return 0;
@@ -150,7 +155,7 @@ static int move_pointers4(struct xlation *state)
 		return error;
 
 	l3hdr_len = sizeof(struct ipv6hdr);
-	if (will_need_frag_hdr(state))
+	if (will_need_frag_hdr(hdr4))
 		l3hdr_len += sizeof(struct frag_hdr);
 	return move_pointers_out(&state->in, &state->out, l3hdr_len);
 }
@@ -178,7 +183,8 @@ static void backup(struct packet *pkt, struct backup_skb *bkp)
 	bkp->offset.l4 = skb_transport_offset(pkt->skb);
 	bkp->payload = pkt_payload(pkt);
 	bkp->l4_proto = pkt_l4_proto(pkt);
-	bkp->tuple = pkt->tuple;
+	if (xlat_is_nat64())
+		bkp->tuple = pkt->tuple;
 }
 
 static void restore(struct packet *pkt, struct backup_skb *bkp)
@@ -189,7 +195,8 @@ static void restore(struct packet *pkt, struct backup_skb *bkp)
 	pkt->payload = bkp->payload;
 	pkt->l4_proto = bkp->l4_proto;
 	pkt->is_inner = 0;
-	pkt->tuple = bkp->tuple;
+	if (xlat_is_nat64())
+		pkt->tuple = bkp->tuple;
 }
 
 verdict ttpcomm_translate_inner_packet(struct xlation *state)

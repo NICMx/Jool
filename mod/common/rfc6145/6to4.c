@@ -116,23 +116,23 @@ static __be16 build_tot_len(struct packet *in, struct packet *out)
 
 	__u16 total_len;
 
-	if (pkt_is_inner(out)) { /* Inner packet. */
+	if (pkt_is_inner(out)) { /* Internal packets */
 		total_len = get_tot_len_ipv6(in->skb) - pkt_hdrs_len(in)
 				+ pkt_hdrs_len(out);
 
-	} else if (!pkt_is_fragment(out)) { /* Not fragment. */
+	} else if (skb_shinfo(in->skb)->frag_list) { /* Fake full packets */
+		/*
+		 * This would also normally be "total_len = out->skb->len", but
+		 * out->skb->len is incomplete right now.
+		 */
+		total_len = in->skb->len - pkt_hdrs_len(in) + pkt_hdrs_len(out);
+
+	} else { /* Real full packets and fragmented packets */
 		total_len = out->skb->len;
 		if (pkt_is_icmp4_error(out) && total_len > 576)
 			total_len = 576;
 
-	} else if (skb_shinfo(out->skb)->frag_list) { /* First fragment. */
-		/*
-		 * This would also normally be "result = out->len", but out->len
-		 * is incomplete right now.
-		 */
-		total_len = in->skb->len - pkt_hdrs_len(in) + pkt_hdrs_len(out);
-
-	} /* (subsequent fragments don't reach this code.) */
+	} /* (Subsequent fragments don't reach this function.) */
 
 	return cpu_to_be16(total_len);
 }

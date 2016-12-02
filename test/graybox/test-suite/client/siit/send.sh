@@ -1,5 +1,20 @@
 #!/bin/bash
 
+
+# Arguments:
+# $1: List of test names you want to run, separated by any character.
+#     Example: "udp64, tcp46, icmpe64"
+#     If this argument is unspecified, the script will run all the tests.
+#     The current test names are:
+#     udp64: IPv6->IPv4 UDP tests
+#     udp46: IPv4->IPv6 UDP tests
+#     tcp64: IPv6->IPv4 TCP tests
+#     icmpi64: IPv6->IPv4 ICMP ping tests
+#     icmpi46: IPv4->IPv6 ICMP ping tests
+#     icmpe64: IPv6->IPv4 ICMP error tests
+#     icmpe46: IPv4->IPv6 ICMP error tests
+
+
 GRAYBOX=`dirname $0`/../../../usr/graybox
 PREFIX=`dirname $0`/pktgen
 # When there's no fragmentation, Jool is supposed to randomize the
@@ -28,6 +43,8 @@ function test-frag {
 if [ $? -ne 0 ]; then
 	exit 1
 fi
+
+echo "Testing! Please wait..."
 
 
 # UDP, 6 -> 4
