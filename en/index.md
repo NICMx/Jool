@@ -27,11 +27,19 @@ As far as we know, Jool is a [compliant](intro-jool.html#compliance) SIIT and St
 
 New bug reports might interpolate other milestones in-between. Feedback from users can persuade us to change priorities. See [Contact](contact.html) for options on this.
 
-Our latest release is version [3.5.1]({{ site.repository-url }}/milestone/32).
+Our latest release is version [3.5.2]({{ site.repository-url }}/milestone/37).
 
 -------------------
 
 ## News
+
+### 2016-12-02
+
+Version 3.5.2 has been released.
+
+1. [Fixed a kernel panic](https://github.com/NICMx/Jool/issues/232). (Both SIIT and NAT64.)
+2. Improved the build system: [#233](https://github.com/NICMx/Jool/issues/233) and [#234](https://github.com/NICMx/Jool/issues/234)
+3. [Fixed the RFC6791 pool](https://github.com/NICMx/Jool/issues/235).
 
 ### 2016-10-07
 
