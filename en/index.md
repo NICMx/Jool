@@ -27,11 +27,17 @@ As far as we know, Jool is a [compliant](intro-jool.html#compliance) SIIT and St
 
 New bug reports might interpolate other milestones in-between. Feedback from users can persuade us to change priorities. See [Contact](contact.html) for options on this.
 
-Our latest release is version [3.5.2]({{ site.repository-url }}/milestone/37).
+Our latest important release is version [3.5.2]({{ site.repository-url }}/milestone/37).
 
 -------------------
 
 ## News
+
+### 2016-12-06
+
+Version 3.4.6 has been released.
+
+3.4.6 simply mirrors the [#232](https://github.com/NICMx/Jool/issues/232) fix (already in 3.5.2) into the 3.4 series. You don't need to downgrade if you're using Jool 3.5.
 
 ### 2016-12-02
 
