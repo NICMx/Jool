@@ -133,3 +133,6 @@ user@T:~# /sbin/modprobe -r jool
 
 More complex setups might require you to consider the [MTU notes](mtu.html).
 
+Please note that none of what was done in this tutorial survives reboots! Documentation on persistence will be released in the future.
+
+The [next tutorial](dns64.html) explains DNS64.

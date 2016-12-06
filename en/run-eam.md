@@ -141,3 +141,7 @@ user@T:~# /sbin/modprobe -r jool_siit
 
 More complex setups might require you to consider the [MTU notes](mtu.html).
 
+Please note that none of what was done in this tutorial survives reboots! Documentation on persistence will be released in the future.
+
+The [next tutorial](run-nat64.html) is a [Stateful NAT64](intro-xlat.html#stateful-nat64) run.
+

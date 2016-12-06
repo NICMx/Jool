@@ -164,7 +164,11 @@ Revert the modprobe using the `-r` flag to shut down Jool:
 user@T:~# /sbin/modprobe -r jool_siit
 {% endhighlight %}
 
-## Further reading
+## Afterwords
 
 More complex setups might require you to consider the [MTU notes](mtu.html).
+
+Please note that none of what was done in this tutorial survives reboots! Documentation on persistence will be released in the future.
+
+The [next tutorial](run-eam.html) covers [EAMT SIIT](intro-xlat.html#siit-with-eam). It is also recommended because it introduces usage to Jool's userspace applications.
 

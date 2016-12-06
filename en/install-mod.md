@@ -20,20 +20,21 @@ title: Kernel Modules Installation
 
 ## Introduction
 
-Jool is four binaries:
+Jool is five binaries:
 
-1. Two [kernel modules](https://en.wikipedia.org/wiki/Loadable_kernel_module) you can hook up to Linux. One of them is the SIIT implementation and the other is the Stateful NAT64. They are the translating components and all you need to get started; this document explains how to install them.
+1. Two [kernel modules](https://en.wikipedia.org/wiki/Loadable_kernel_module) you can hook up to Linux. One of them is the SIIT implementation and the other one is the Stateful NAT64. They are the translating components and all you need to get started; this document explains how to install them.
 2. Two [userspace](https://en.wikipedia.org/wiki/User_space) applications which can be used to configure each module. They have their own [installation document](install-usr.html).
+3. One userspace daemon used to synchronize sessions between different Jool kernel modules.
 
 ## Requirements
 
-Because The are so many different Linux versions out there, distributing the modules' binaries is not feasible; you need to compile them yourself.
+Because there are so many different Linux versions out there, distributing the modules' binaries is not feasible; you need to compile them yourself.
 
 (In following console segments, `$` indicates the command can be executed freely; `#` means it requites admin privileges.)
 
 ### Valid kernels
 
-Jool supports kernels starting from Linux 3.2. Use `uname -r` to know your kernel version.
+Jool supports kernels starting from Linux 3.2. `uname -r` will print your kernel version.
 
 {% highlight bash %}
 $ /bin/uname -r
@@ -50,6 +51,7 @@ Several distributions already include them; omit this step in those cases.
 	<span class="distro-selector" onclick="showDistro(this);">CentOS</span>
 	<span class="distro-selector" onclick="showDistro(this);">Arch Linux</span>
 	<span class="distro-selector" onclick="showDistro(this);">openSUSE</span>
+	<span class="distro-selector" onclick="showDistro(this);">Ubuntu Server</span>
 </div>
 
 <!-- Debian -->
@@ -70,6 +72,11 @@ Several distributions already include them; omit this step in those cases.
 <!-- openSUSE -->
 {% highlight bash %}
 # zypper install gcc make
+{% endhighlight %}
+
+<!-- Ubuntu Server -->
+{% highlight bash %}
+# apt-get install gcc make
 {% endhighlight %}
 
 ### Kernel headers
@@ -108,7 +115,7 @@ $ # See {{ site.repository-url }}/issues/158
 
 [Translating packets using only one interface is possible](single-interface.html), but two (one for IPv4, one for IPv6) is more intuitive.
 
-Therefore, if you're using these documents for educational purposes, two interfaces are recommended:
+Therefore, if you're using these documents for learning purposes, two interfaces are recommended:
 
 {% highlight bash %}
 $ /sbin/ip link show
@@ -121,7 +128,7 @@ $ /sbin/ip link show
 
 ### DKMS
 
-DKMS is a framework for kernel module management. It is optional but recommended (reasons at [Compilation and Installation](#compilation-and-installation)).
+DKMS is a framework for kernel module management. It is optional but recommended (reasons [below](#compilation-and-installation)).
 
 {% highlight bash %}
 # apt-get install dkms
@@ -132,11 +139,12 @@ DKMS is a framework for kernel module management. It is optional but recommended
 You have two options:
 
 1. Official releases are hosted in the [Download page](download.html).  
-These will prove less convoluted when you install the userspace application.
+These will prove less convoluted when you install the userspace applications.
 2. There's the [Git repository]({{ site.repository-url }}) ("Clone or download" > "Download ZIP").  
-This might have slight bugfixes not present in the latest official release, which you can access by sticking to the latest commit of the master branch (we do all the risky development elsewhere).
+If you know your git, you can also clone it: `git clone https://github.com/NICMx/Jool.git`  
+The repository version might include slight bugfixes not present in the latest official release, which you can access by sticking to the latest commit of the master branch (we do all the risky development elsewhere).
 
-> ![Note!](../images/bulb.svg) The name of the Git repository was recently renamed from "NAT64" to "Jool". Old "NAT64" content should now redirect to "Jool" so this shouldn't be too confusing.
+> ![Note!](../images/bulb.svg) The Git repository was recently renamed from "NAT64" to "Jool". Links to the old name should be automatically redirected to the new one so this shouldn’t be too confusing.
 
 ## Compilation and Installation
 
