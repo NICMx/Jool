@@ -338,7 +338,7 @@ static int validate_inner4(struct sk_buff *skb, struct pkt_metadata *meta)
 	if (!ptr.ip4)
 		return truncated4(skb, "inner IPv4 header");
 
-	ihl = 4 * ptr.ip4->ihl;
+	ihl = ptr.ip4->ihl << 2;
 	if (ptr.ip4->version != 4)
 		return inhdr4(skb, "Inner packet is not IPv4.");
 	if (ihl < 20)
@@ -348,7 +348,7 @@ static int validate_inner4(struct sk_buff *skb, struct pkt_metadata *meta)
 	if (!is_first_frag4(ptr.ip4))
 		return inhdr4(skb, "Inner packet is not first fragment.");
 
-	offset += ptr.ip4->ihl << 2;
+	offset += ihl;
 
 	switch (ptr.ip4->protocol) {
 	case IPPROTO_TCP:
@@ -468,7 +468,7 @@ int pkt_init_ipv4(struct packet *pkt, struct sk_buff *skb)
 	pkt->skb = skb;
 	pkt->l3_proto = L3PROTO_IPV4;
 	pkt->l4_proto = meta.l4_proto;
-	pkt->is_inner = 0;
+	pkt->is_inner = false;
 	pkt->is_hairpin = false;
 	pkt->hdr_frag = NULL;
 	skb_set_transport_header(skb, meta.l4_offset);

@@ -128,7 +128,7 @@ static int move_pointers_in(struct packet *pkt, __u8 protocol, unsigned int l3hd
 		l4hdr_len = 0;
 		break;
 	}
-	pkt->is_inner = 1;
+	pkt->is_inner = true;
 	pkt->payload = skb_transport_header(pkt->skb) + l4hdr_len;
 
 	return 0;
@@ -141,7 +141,7 @@ static int move_pointers_out(struct packet *in, struct packet *out, unsigned int
 	skb_set_transport_header(out->skb, l3hdr_len);
 
 	out->l4_proto = pkt_l4_proto(in);
-	out->is_inner = 1;
+	out->is_inner = true;
 	out->payload = skb_transport_header(out->skb) + pkt_l4hdr_len(in);
 
 	return 0;

@@ -42,8 +42,10 @@ verdict ttp46_create_skb(struct packet *in, struct packet *out)
 
 	total_len = l3_hdr_len + pkt_l3payload_len(in);
 	if (is_first && pkt_is_icmp4_error(in)) {
-		total_len += sizeof(struct ipv6hdr) - sizeof(struct iphdr);
-		if (will_need_frag_hdr(pkt_payload(in)))
+		struct iphdr *hdr4_inner = pkt_payload(in);
+
+		total_len += sizeof(struct ipv6hdr) - (hdr4_inner->ihl << 2);
+		if (will_need_frag_hdr(hdr4_inner))
 			total_len += sizeof(struct frag_hdr);
 
 		/* All errors from RFC 4443 share this. */
@@ -80,10 +82,13 @@ static __be16 build_payload_len(struct packet *in, struct packet *out)
 
 	__u16 total_len;
 
-	if (pkt_is_inner(out)) { /* Inner packet. */
+	if (pkt_is_inner(out)) {
 		total_len = be16_to_cpu(pkt_ip4_hdr(in)->tot_len) - pkt_hdrs_len(in) + pkt_hdrs_len(out);
 
-	} else if (!pkt_is_fragment(out)) { /* Not fragment. */
+	} else if (pkt_is_fragment(out)) {
+		total_len = in->skb->len - pkt_hdrs_len(in) + pkt_hdrs_len(out);
+
+	} else {
 		total_len = out->skb->len;
 		/*
 		 * Though ICMPv4 errors are supposed to be max 576 bytes long, a good portion of the
@@ -94,10 +99,7 @@ static __be16 build_payload_len(struct packet *in, struct packet *out)
 		if (pkt_is_icmp6_error(out) && total_len > IPV6_MIN_MTU)
 			total_len = IPV6_MIN_MTU;
 
-	} else if (skb_shinfo(out->skb)->frag_list) { /* First fragment. */
-		total_len = in->skb->len - pkt_hdrs_len(in) + pkt_hdrs_len(out);
-
-	} /* (subsequent fragments don't reach this code.) */
+	}
 
 	return cpu_to_be16(total_len - sizeof(struct ipv6hdr));
 }
