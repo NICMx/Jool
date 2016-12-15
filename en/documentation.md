@@ -76,6 +76,7 @@ See [RFC 6586](https://tools.ietf.org/html/rfc6586) for deployment experiences u
 
 1. [Single Interface](single-interface.html)
 2. [Node-Based Translation](node-based-translation.html)
+3. [Session Synchronization](session-synchronization.html)
 
 ## Miscellaneous
 
