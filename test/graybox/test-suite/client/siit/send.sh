@@ -2,21 +2,23 @@
 
 
 # Arguments:
-# $1: List of test names you want to run, separated by any character.
+# $1: List of the names of the test groups you want to run, separated by any
+#     character.
 #     Example: "udp64, tcp46, icmpe64"
 #     If this argument is unspecified, the script will run all the tests.
-#     The current test names are:
-#     udp64: IPv6->IPv4 UDP tests
-#     udp46: IPv4->IPv6 UDP tests
-#     tcp64: IPv6->IPv4 TCP tests
-#     icmpi64: IPv6->IPv4 ICMP ping tests
-#     icmpi46: IPv4->IPv6 ICMP ping tests
-#     icmpe64: IPv6->IPv4 ICMP error tests
-#     icmpe46: IPv4->IPv6 ICMP error tests
+#     The current groups are:
+#     - udp64: IPv6->IPv4 UDP tests
+#     - udp46: IPv4->IPv6 UDP tests
+#     - tcp64: IPv6->IPv4 TCP tests
+#     - icmpi64: IPv6->IPv4 ICMP ping tests
+#     - icmpi46: IPv4->IPv6 ICMP ping tests
+#     - icmpe64: IPv6->IPv4 ICMP error tests
+#     - icmpe46: IPv4->IPv6 ICMP error tests
+#     - misc: random tests we've designed later.
+#     (Feel free to add new groups if you want.)
 
 
 GRAYBOX=`dirname $0`/../../../usr/graybox
-PREFIX=`dirname $0`/pktgen
 # When there's no fragmentation, Jool is supposed to randomize the
 # fragment ID (bytes 4 and 5) so we can't validate it.
 # The ID's randomization cascades to the checksum. (Bytes 10 and
@@ -24,16 +26,23 @@ PREFIX=`dirname $0`/pktgen
 NOFRAG_IGNORE=4,5,10,11
 
 function test-single {
-	$GRAYBOX expect add $PREFIX/receiver/$2.pkt $3
-	$GRAYBOX send $PREFIX/sender/$1.pkt
+	$GRAYBOX expect add `dirname $0`/pktgen/receiver/$2.pkt $3
+	$GRAYBOX send `dirname $0`/pktgen/sender/$1.pkt
 	sleep 0.1
 	$GRAYBOX expect flush
 }
 
 function test-frag {
-	$GRAYBOX expect add $PREFIX/receiver/$2.pkt
-	$GRAYBOX expect add $PREFIX/receiver/$3.pkt
-	$GRAYBOX send $PREFIX/sender/$1.pkt
+	$GRAYBOX expect add `dirname $0`/pktgen/receiver/$2.pkt
+	$GRAYBOX expect add `dirname $0`/pktgen/receiver/$3.pkt
+	$GRAYBOX send `dirname $0`/pktgen/sender/$1.pkt
+	sleep 0.1
+	$GRAYBOX expect flush
+}
+
+function test-manual {
+	$GRAYBOX expect add `dirname $0`/manual/$1-expected.pkt $2
+	$GRAYBOX send `dirname $0`/manual/$1-test.pkt
 	sleep 0.1
 	$GRAYBOX expect flush
 }
@@ -129,13 +138,16 @@ if [[ -z $1 || $1 = *icmpe46* ]]; then
 	test-single 4-icmp4err-csumok-nodf-nofrag 6-icmp6err-csumok-nodf-nofrag
 fi
 
-# Others
-#if [[ -z $1 || $1 = *other* ]]; then
+# Miscellaneous tests
+if [[ -z $1 || $1 = *misc* ]]; then
+	test-manual igmp64 4,5,10,11
+	test-manual igmp46
+	test-manual 6791 4,5,10,11,32,33,38,39
 	# TODO mangle the packet size so this doesn't have so many exceptions.
 	#test-single frag-icmp6 frag-icmp6 4,5,6,10,11,22,23,32,33,34,38,39,54,55
 	#test-single frag-icmp4 frag-icmp4
 	#test-single frag-minmtu6-big frag-minmtu6-big0 frag-minmtu6-big1
-#fi
+fi
 
 $GRAYBOX stats display
 result=$?

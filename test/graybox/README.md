@@ -111,7 +111,7 @@ usr/graybox expect flush
 usr/graybox stats display
 ```
 
-Place both the expected and test packets in `test-suite/client/<translator>/manual` and register them in `test-suite/client/<translator>/manual.sh`.
+Place both the expected and test packets in `test-suite/client/<translator>/manual` and register them in `test-suite/client/<translator>/send.sh` ("misc" section, or make a new one).
 
 Test the full suite and you're done. Might want to commit and upload your work to the repository.
 
