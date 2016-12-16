@@ -1,5 +1,7 @@
 #include "nat64/mod/common/rfc6145/6to4.h"
 
+#include <net/ip6_checksum.h>
+
 #include "nat64/mod/common/config.h"
 #include "nat64/mod/common/icmp_wrapper.h"
 #include "nat64/mod/common/ipv6_hdr_iterator.h"

@@ -1,5 +1,7 @@
 #include "nat64/mod/stateful/bib/db.h"
 
+#include <net/ip6_checksum.h>
+
 #include "nat64/common/constants.h"
 #include "nat64/common/str_utils.h"
 #include "nat64/mod/common/icmp_wrapper.h"
