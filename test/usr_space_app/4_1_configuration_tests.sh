@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Initialize testing framework
-source library.sh
+source framework.sh
 sudo modprobe jool disabled
 COMMAND=jool
 

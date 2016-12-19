@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Initialize testing framework
-source library.sh
+source framework.sh
 
 
 ### NAT64 not running
