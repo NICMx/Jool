@@ -1,14 +1,10 @@
-In order to test the user-space app's configuration, first make sure the app
-is compiled:
+# Userspace Application Tests
 
-../../usr$ make
+Unit tests for the userspace applications.
 
-Also insert the NAT64:
+1. Compile and install Jool (kernel modules and userspace applications)
+3. Run each one of the scripts inside this directory.
 
-../../mod$ make
-../../mod$ make insert
+	$ for nn in `ls 4_*.sh`; do ./$nn; done
 
-And then run each one of the scripts inside this directory. That is, from
-4_1_*.sh to 4_6_*.sh.
-
-$ reset; for nn in `seq 1 6`; do ./4_$nn*.sh ; done
+The tests assume that Jool hasn't been modprobed. They will also remove Jool once they are done.
