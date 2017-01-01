@@ -9,9 +9,9 @@ If you're not using git, install using `./configure && make && make install` as
 the INSTALL file says.
 
 The configure script will typically trip while looking for the Netlink
-dependency. If you're using Ubuntu, run `apt-get install libnl-3-dev` to fix
-that. Alternatively or otherwise, get it from
-http://www.infradead.org/~tgr/libnl/.
+or the pkg-config dependency. If you're using Ubuntu, run
+`apt install libnl-3-dev pkg-config` to fix that. Alternatively or otherwise,
+get Netlink from http://www.infradead.org/~tgr/libnl/.
 
 If you cloned the code using git, keep in mind that we do not upload the
 autotools generated files to the repository, so you have two options:
