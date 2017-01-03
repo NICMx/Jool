@@ -11,6 +11,9 @@
 #include "nat64/mod/stateful/fragment_db.h"
 #include "nat64/mod/common/send_packet.h"
 
+#include <net/netfilter/ipv4/nf_defrag_ipv4.h>
+#include <net/netfilter/ipv6/nf_defrag_ipv6.h>
+
 
 static verdict core_common(struct xlation *state)
 {

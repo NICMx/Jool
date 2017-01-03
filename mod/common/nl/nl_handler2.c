@@ -2,7 +2,7 @@
 
 #include <linux/mutex.h>
 #include <linux/version.h>
-#include <net/genetlink.h>
+#include <linux/genetlink.h>
 #include "nat64/common/types.h"
 #include "nat64/mod/common/config.h"
 #include "nat64/mod/common/linux_version.h"
@@ -42,12 +42,16 @@ static struct genl_ops ops[] = {
 };
 
 static struct genl_family jool_family = {
-	.id = GENL_ID_GENERATE,
 	.hdrsize = 0,
 	/* .name = GNL_JOOL_FAMILY_NAME, */
 	.version = 1,
 	.maxattr = __ATTR_MAX,
 	.netnsok = true,
+       .module = THIS_MODULE,
+       .ops = ops,
+       .n_ops = ARRAY_SIZE(ops),
+       .mcgrps = mc_groups,
+       .n_mcgrps = ARRAY_SIZE(mc_groups),
 };
 
 static DEFINE_MUTEX(config_mutex);
@@ -147,7 +151,7 @@ static int register_family(void)
 
 #if LINUX_VERSION_LOWER_THAN(3, 13, 0, 7, 1)
 
-	error = genl_register_family_with_ops(&jool_family, ops, ARRAY_SIZE(ops));
+	error = genl_register_family(&jool_family);
 	if (error) {
 		log_err("Couldn't register family!");
 		return error;
@@ -160,8 +164,8 @@ static int register_family(void)
 	}
 
 #else
-	error = genl_register_family_with_ops_groups(&jool_family, ops, mc_groups);
-	if (error) {
+	error = genl_register_family(&jool_family);
+       if (error) {
 		log_err("Family registration failed: %d", error);
 		return error;
 	}
