@@ -476,12 +476,14 @@ void bib_config_set(struct bib *db, struct bib_config *config)
 
 	spin_lock_bh(&db->udp.lock);
 	db->udp.log_bibs = config->bib_logging;
+	db->udp.log_sessions = config->session_logging;
 	db->udp.drop_by_addr = config->drop_by_addr;
 	db->udp.est_timer.timeout = config->ttl.udp;
 	spin_unlock_bh(&db->udp.lock);
 
 	spin_lock_bh(&db->icmp.lock);
 	db->icmp.log_bibs = config->bib_logging;
+	db->icmp.log_sessions = config->session_logging;
 	db->icmp.est_timer.timeout = config->ttl.icmp;
 	spin_unlock_bh(&db->icmp.lock);
 }
