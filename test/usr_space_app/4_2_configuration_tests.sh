@@ -1,79 +1,141 @@
 #!/bin/bash
 
-# Load environment configuration
-source environment.sh
-
-POSTFIX=`date +%F_%T`
-OUTPUT="$LOGS_DIR/`basename $0`_$POSTFIX.log" # Un-comment this
-#OUTPUT="/dev/null" # Debug
-
-# Clear the system messages 
-sudo dmesg -c > /dev/null  # Un-comment this
-#echo	sudo dmesg -c > /dev/null # Debug
-
-TEST_FAIL=0
-TEST_PASS=0
-TEST_COUNT=0
-
-# Load testing code
-source library.sh
-
-# Insert module
-nat64_mod_remove
-nat64_mod_insert
+# Initialize testing framework
+source framework.sh
+sudo modprobe jool disabled
+COMMAND=jool
 
 
 ### Pool IPv4
-SECTION="--pool4"
-OPTS="--add --addr"
+OPTS="--pool4 --add"
 VALUES=( 1.1.a.1 1.1.1. 1.1.1.1 )
 RETURNS=( ERR1010 ERR1010 success )
 test_options
 
-
 ### Pool IPv6
-SECTION="--pool6"
-OPTS="--add --prefix"
+OPTS="--pool6 --add"
 VALUES=( 1::#3 1::/3a 1::/1 1::/32 )
 RETURNS=( ERR1011 ERR1019 ERR1019 success )
 test_options
 
-
-### Session local 4
-SECTION="--session"
-OPTS="--add --local4"
+### BIB add (testing v4)
+OPTS="--bib --add 1::1#1"
 VALUES=( 1#.1.1.1 9b.a.a.a 1.1.1.1 2.2.2.2#22)
 RETURNS=( ERR1010 ERR1010 ERR1012 ERR1017 )
 test_options
 
-
-### Session local 6
-SECTION="--session"
-OPTS="--add --local6"
+### BIB add (testing v6)
+OPTS="--bib --add 1.1.1.1#1"
 VALUES=( kk::#2 2:#2 2::1 2::#2 )
 RETURNS=( ERR1011 ERR1011 ERR1013 ERR1017 )
 test_options
 
-### Session remote 4
-SECTION="--session"
-OPTS="--add --remote4"
-VALUES=( 55.55 0 5.5.5.5 5.5.5.5#6 )
-RETURNS=( ERR1010 ERR1010 ERR1012 ERR1017 )
-test_options
-
-### Session remote 6
-SECTION="--session"
-OPTS="--add --remote6"
-VALUES=( 8/:#8 m.n::#0 9::1 9::#9 )
-RETURNS=( ERR1011 ERR1011 ERR1013 ERR1017 )
-test_options
-
-
-### Add a static session
-SECTION="--session"
-OPTS="--add --remote6=9::#9 --remote4=5.5.5.5#6 --local6=2::#2 --local4"
-VALUES=( 2.2.2.2#22 )
+### BIB add (success?)
+OPTS="--bib --add"
+VALUES=( "9::#9 2.2.2.2#22" )
 RETURNS=( success )
 test_options
 
-print_resume
+### Debug:
+EXPECTED_OUT=( "ERR1017: Something failed :(" )
+
+### Pool IPv4
+OPTS="--pool4 --add"
+VALUES=( '' )
+RETURNS=( ERR1017 )
+test_options 
+
+OPTS="--pool4 --remove"
+VALUES=( '' )
+RETURNS=( ERR1017 )
+test_options
+
+### Debug:
+EXPECTED_OUT=( "Command received successfully."  )
+
+OPTS="--pool4 --add"
+VALUES=( 1.1.1.1 )
+RETURNS=( success )
+test_options
+
+OPTS="--pool4 --remove"
+VALUES=( 1.1.1.1 )
+RETURNS=( success )
+test_options
+
+### Debug:
+EXPECTED_OUT=( "ERR1017: Something failed :(" )
+
+### Pool IPv6
+OPTS="--pool6 --add"
+VALUES=( '' )
+RETURNS=( ERR1017 )
+test_options
+
+OPTS="--pool6 --remove"
+VALUES=( '' )
+RETURNS=( ERR1017 )
+test_options
+
+### Debug:
+EXPECTED_OUT=( "Command received successfully."  )
+
+OPTS="--pool6 --add"
+VALUES=( 2::/64 )
+RETURNS=( success )
+test_options
+
+OPTS="--pool6 --remove"
+VALUES=( 2::/64 )
+RETURNS=( success )
+test_options
+
+### Debug:
+EXPECTED_OUT=( "ERR1018: Something failed :(" )
+
+# Test empty call to user space app
+OPTS=""
+VALUES=( '' )
+RETURNS=( ERR1018 )
+test_options
+
+### Remove nonexistent pool4 address
+OPTS="--pool4 --remove"
+VALUES=( '4.4.4.4' )
+RETURNS=( ERR1000 )
+KERNMSG=( ERR1021 )
+test_options
+
+### Remove nonexistent pool6 prefix
+OPTS="--pool6 --remove" 
+VALUES=( '4::/40' )
+RETURNS=( ERR1000 )
+KERNMSG=( ERR1020 )
+test_options
+
+### Remove nonexistent session by IPv6
+OPTS="--bib --remove" 
+VALUES=( '3::#3' )
+RETURNS=( ERR1000 )
+KERNMSG=( ERR2500 )
+test_options
+
+### Remove nonexistent session by IPv4
+SECTION=""
+OPTS="--bib --remove" 
+VALUES=( '9.9.9.9#56' )
+RETURNS=( ERR1000 )
+KERNMSG=( ERR2500 )
+test_options
+
+### Add an existent pool4 address.
+SECTION="--pool4"
+OPTS="--add --addr"
+VALUES=( '4.4.4.4' '4.4.4.4' )
+RETURNS=( success ERR1000 )
+KERNMSG=( NOERR ERR1022 )
+test_options
+
+
+sudo modprobe -r jool
+print_summary

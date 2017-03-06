@@ -1,141 +1,97 @@
 #!/bin/bash
 
-# Load environment configuration
-source environment.sh
+# Initialize testing framework
+source framework.sh
+sudo modprobe jool disabled
+COMMAND=jool
 
-POSTFIX=`date +%F_%T`
-OUTPUT="$LOGS_DIR/`basename $0`_$POSTFIX.log" # Un-comment this
-#OUTPUT="/dev/null" # Debug
 
-# Clear the system messages 
-sudo dmesg -c > /dev/null  # Un-comment this
-#echo	sudo dmesg -c > /dev/null # Debug
-
-TEST_FAIL=0
-TEST_PASS=0
-TEST_COUNT=0
-
-# Load testing code
-source library.sh
-
-# Insert module
-nat64_mod_remove
-nat64_mod_insert
-
+# Aquí hay un ejemplo completo de una prueba (aunque le faltan test cases
+# extremos).
+# Por cada VALUES, test_options va a correr Jool usando una concatenación
+# entre OPTS y VALUES[i]. Por cada VALUES va a esperar que el programa regrese
+# el código de error RETURNS[i] y que imprima en standard output o standard
+# error OUTPUTS[i]. Tanto RETURNS como OUTPUTS son opcionales
+# (pero obviamente necesitas al menos uno para hacer una prueba).
 
 ### Filtering UDP
-SECTION="--filtering"
-OPTS="--toUDP"
+OPTS="--udp-timeout"
 VALUES=( -1 abc 120 )
-RETURNS=( ERR1008 ERR1007 success )
+RETURNS=( 0 0 1 )
+# Cadena vacía significa que no va validar nada.
+OUTPUTS=( "is not a number" "is not a number" "" )
 test_options
+
+# Todas las pruebas listadas abajo y en los otros archivos están
+# desactualizadas.
+# Hay que actualizarlas, quitar las que ya no apliquen y agregar cosas si
+# faltan.
 
 ### Filtering TCP
-SECTION="--filtering"
-OPTS="--toTCPest"
+OPTS="--tcp-est-timeout"
 VALUES=( 500 abc 7200 )
-RETURNS=( ERR1008 ERR1007 success )
+RETURNS=( 234 1 244 )
 test_options
 
-SECTION="--filtering"
-OPTS="--toTCPtrans"
+OPTS="--tcp-trans-timeout"
 VALUES=( 100 gfh 1000 )
 RETURNS=( ERR1008 ERR1007 success )
 test_options
 
 ### Filtering ICMP
-SECTION="--filtering"
-OPTS="--toICMP"
+OPTS="--icmp-timeout"
 VALUES=( 66000 abc 1000 )
 RETURNS=( ERR1008 ERR1007 success )
 test_options
 
 ### Filtering TOS
-SECTION="--filtering"
-OPTS="--TOS"
+OPTS="--tos"
 VALUES=( -1 abc 100 )
 RETURNS=( ERR1008 ERR1007 success )
 test_options
 
-#~ ### Filtering MTU
-#~ SECTION="--filtering"
-#~ OPTS="--nextMTU6"
-#~ VALUES=( 70000 abc 1000 )
-#~ RETURNS=( ERR1008 ERR1007 success )
-#~ test_options
-#~ 
-#~ SECTION="--filtering"
-#~ OPTS="--nextMTU4"
-#~ VALUES=( -1 aaa 1000 )
-#~ RETURNS=( ERR1008 ERR1007 success )
-#~ test_options
-
-### Filtering head & tail
-SECTION="--filtering"
-OPTS="--head"
-VALUES=( -1 aaa 1000 )
-RETURNS=( ERR1008 ERR1007 success )
-test_options
-
-SECTION="--filtering"
-OPTS="--tail"
-VALUES=( -1 abc 1000 )
-RETURNS=( ERR1008 ERR1007 success )
-test_options
-
-
 ## Filtering filter
-SECTION="--filtering"
-OPTS="--dropAddr"
+OPTS="--address-dependent-filtering"
 VALUES=( abc 10 0 )
 RETURNS=( ERR1006 ERR1006 success )
 test_options
 
-SECTION="--filtering"
-OPTS="--dropInfo"
+OPTS="--drop-icmpv6-info"
 VALUES=( ' ' 10 "false" )
 RETURNS=( ERR1006 ERR1006 success )
 test_options
 
-SECTION="--filtering"
-OPTS="--dropTCP"
+OPTS="--drop-externally-initiated-tcp"
 VALUES=( 22 10 on )
 RETURNS=( ERR1006 ERR1006 success )
 test_options
 
 ### Translate TC 
-SECTION="--translate"
-OPTS="--setTC"
+OPTS="--zeroize-traffic-class"
 VALUES=( null 10 off )
 RETURNS=( ERR1006 ERR1006 success )
 test_options
 
 ### Translate TOS 
-SECTION="--translate"
-OPTS="--setTOS"
+OPTS="--override-tos"
 VALUES=( null 10 "true" )
 RETURNS=( ERR1006 ERR1006 success )
 test_options
 
-### Translate genID 
-SECTION="--translate"
-OPTS="--genID"
-VALUES=( abc 10 "true" )
-RETURNS=( ERR1006 ERR1006 success )
+### Reject empty MTU lists
+OPTS="--mty-plateaus"
+VALUES=( '' )
+RETURNS=( ERR1009 )
+KERNMSG=( NOERR )
 test_options
 
-### Translate setDF
-SECTION="--translate"
-OPTS="--setDF"
-VALUES=( "--" 10 1 )
-RETURNS=( ERR1006 ERR1006 success )
+### Reject zeroes in MTU values
+OPTS="--mtu-plateaus"
+VALUES=( '0' )
+RETURNS=( ERR1000 )
+KERNMSG=( ERR1002 )
 test_options
 
-### Translate boostMTU
-SECTION="--translate"
-OPTS="--boostMTU"
-VALUES=( "." 10 0 )
-RETURNS=( ERR1006 ERR1006 success )
-test_options
 
-print_resume
+sudo modprobe -r jool
+print_summary
