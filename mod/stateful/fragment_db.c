@@ -111,8 +111,9 @@ static unsigned int hash_function(const struct packet *key)
 int fragdb_init(void)
 {
 #ifndef UNIT_TESTING
-	nf_defrag_ipv6_enable();
-	nf_defrag_ipv4_enable();
+       struct net *ns = get_net_ns_by_pid(task_pid_nr(current));
+       nf_defrag_ipv4_enable(ns);
+       nf_defrag_ipv6_enable(ns);
 #endif
 
 	buffer_cache = kmem_cache_create("jool_reassembly_buffers",
