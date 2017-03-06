@@ -59,18 +59,25 @@ for i in $VERSIONS; do
 
 	echo "Checking out $i."
 	git checkout $i
+	RESULT=$?
+	if [[ $RESULT -ne 0 ]]; then
+		echo "git checkout failed. Skipping kernel."
+		continue
+	fi
 
 	echo "Configuring $i."
 	yes "" | make oldconfig > /dev/null 2>&1
-	if [[ $? -ne 0 ]]; then
-		echo "Kernel $i config spew error code $?. Skipping."
+	RESULT=$?
+	if [[ $RESULT -ne 0 ]]; then
+		echo "Kernel $i config spew error code $RESULT. Skipping."
 		continue
 	fi
 
 	echo "Preparing $i."
 	make modules_prepare > /dev/null 2>&1
-	if [[ $? -ne 0 ]]; then
-		echo "Kernel $i prepare spew error code $?. Skipping."
+	RESULT=$?
+	if [[ $RESULT -ne 0 ]]; then
+		echo "Kernel $i prepare spew error code $RESULT. Skipping."
 		continue
 	fi
 

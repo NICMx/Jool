@@ -23,6 +23,10 @@ function die() {
 }
 
 
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+NC='\033[0m' # No Color
+
 ORIGINAL_DIR=$(pwd)
 
 # Parse $1
@@ -65,9 +69,9 @@ for i in $KERNELS; do
 	echo "-----------------------" >> $LOGFILE
 	make KERNEL_DIR=$KERNELS_DIR/$i >> $LOGFILE 2>&1
 	if [[ $? -eq 0 ]]; then
-		echo "Success."
+		echo -e "${GREEN}Success.${NC}"
 	else
-		echo "Failure."
+		echo -e "${RED}Failure.${NC}"
 	fi
 done
 
