@@ -23,7 +23,7 @@ struct fragdb;
 int fragdb_init(void);
 void fragdb_destroy(void);
 
-struct fragdb *fragdb_create(void);
+struct fragdb *fragdb_create(struct net *ns);
 void fragdb_get(struct fragdb *db);
 void fragdb_put(struct fragdb *db);
 

@@ -340,7 +340,7 @@ int init_module(void)
 
 	if (fragdb_init())
 		return -EINVAL;
-	db = fragdb_create();
+	db = fragdb_create(NULL);
 	if (!db) {
 		fragdb_destroy();
 		return -EINVAL;

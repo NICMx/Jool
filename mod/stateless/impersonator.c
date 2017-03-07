@@ -79,7 +79,7 @@ int joold_advertise(struct xlator *jool)
 	return fail(__func__);
 }
 
-struct fragdb *fragdb_create(void)
+struct fragdb *fragdb_create(struct net *ns)
 {
 	fail(__func__);
 	return NULL;

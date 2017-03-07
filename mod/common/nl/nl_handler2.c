@@ -42,16 +42,49 @@ static struct genl_ops ops[] = {
 };
 
 static struct genl_family jool_family = {
+#if LINUX_VERSION_LOWER_THAN(4, 10, 0, 9999, 0)
+	/* This variable became "private" on kernel 4.10. */
+	.id = GENL_ID_GENERATE,
+#endif
 	.hdrsize = 0,
+	/* This is initialized below. See register_family(). */
 	/* .name = GNL_JOOL_FAMILY_NAME, */
 	.version = 1,
 	.maxattr = __ATTR_MAX,
 	.netnsok = true,
-       .module = THIS_MODULE,
-       .ops = ops,
-       .n_ops = ARRAY_SIZE(ops),
-       .mcgrps = mc_groups,
-       .n_mcgrps = ARRAY_SIZE(mc_groups),
+	/*
+	 * In kernel 3.10, they added a variable here called "parallel_ops".
+	 * Documentation about it can be found in Linux's commit
+	 * def3117493eafd9dfa1f809d861e0031b2cc8a07.
+	 * It appears to be an attempt to free genetlink users from the task of
+	 * locking.
+	 * We need to support older kernels, so we need to lock anyway, so this
+	 * feature is of no use to us.
+	 */
+	/*
+	 * "pre_doit" and "post_doit" are a pain in the ass; there is no doit
+	 * function so I have no idea. Whatever; they can be null. Fuck 'em.
+	 */
+
+#if LINUX_VERSION_AT_LEAST(4, 10, 0, 9999, 0)
+	/*
+	 * "module" was added in Linux 3.11 (commit
+	 * 33c6b1f6b154894321f5734e50c66621e9134e7e). However, it seems to be
+	 * supposed to be private; it is set automatically during the
+	 * genl_register* functions. It is also sorta grouped with the other
+	 * private members.
+	 * "module" becomes our responsibility during commit
+	 * 489111e5c25b93be80340c3113d71903d7c82136, which is headed towards
+	 * Linux 4.10.
+	 * The same can be said about the remaining fields, though they are more
+	 * clearly private until 4.10.
+	 */
+	.module = THIS_MODULE,
+	.ops = ops,
+	.n_ops = ARRAY_SIZE(ops),
+	.mcgrps = mc_groups,
+	.n_mcgrps = ARRAY_SIZE(mc_groups),
+#endif
 };
 
 static DEFINE_MUTEX(config_mutex);
@@ -151,7 +184,8 @@ static int register_family(void)
 
 #if LINUX_VERSION_LOWER_THAN(3, 13, 0, 7, 1)
 
-	error = genl_register_family(&jool_family);
+	error = genl_register_family_with_ops(&jool_family, ops,
+			ARRAY_SIZE(ops));
 	if (error) {
 		log_err("Couldn't register family!");
 		return error;
@@ -163,9 +197,16 @@ static int register_family(void)
 		return error;
 	}
 
+#elif LINUX_VERSION_LOWER_THAN(4, 10, 0, 9999, 0)
+	error = genl_register_family_with_ops_groups(&jool_family, ops,
+			mc_groups);
+	if (error) {
+		log_err("Family registration failed: %d", error);
+		return error;
+	}
 #else
 	error = genl_register_family(&jool_family);
-       if (error) {
+	if (error) {
 		log_err("Family registration failed: %d", error);
 		return error;
 	}

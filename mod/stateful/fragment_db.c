@@ -110,17 +110,6 @@ static unsigned int hash_function(const struct packet *key)
 
 int fragdb_init(void)
 {
-#ifndef UNIT_TESTING
-#if LINUX_VERSION_AT_LEAST(4, 10, 0, 9999, 0)
-       struct net *ns = get_net_ns_by_pid(task_pid_nr(current));
-       nf_defrag_ipv4_enable(ns);
-       nf_defrag_ipv6_enable(ns);
-#else
-	nf_defrag_ipv4_enable();
-	nf_defrag_ipv6_enable();
-#endif
-#endif
-
 	buffer_cache = kmem_cache_create("jool_reassembly_buffers",
 			sizeof(struct reassembly_buffer), 0, 0, NULL);
 	if (!buffer_cache) {
@@ -138,7 +127,7 @@ void fragdb_destroy(void)
 	kmem_cache_destroy(buffer_cache);
 }
 
-struct fragdb *fragdb_create(void)
+struct fragdb *fragdb_create(struct net *ns)
 {
 	struct fragdb *db;
 	int error;
@@ -157,6 +146,16 @@ struct fragdb *fragdb_create(void)
 	db->timeout = msecs_to_jiffies(1000 * FRAGMENT_MIN);
 	spin_lock_init(&db->lock);
 	kref_init(&db->ref);
+
+#ifndef UNIT_TESTING
+#if LINUX_VERSION_AT_LEAST(4, 10, 0, 9999, 0)
+	nf_defrag_ipv4_enable(ns);
+	nf_defrag_ipv6_enable(ns);
+#else
+	nf_defrag_ipv4_enable();
+	nf_defrag_ipv6_enable();
+#endif
+#endif
 
 	return db;
 }
@@ -178,6 +177,10 @@ static void fragdb_release(struct kref *ref)
 	db = container_of(ref, struct fragdb, ref);
 	fragdb_table_empty(&db->table, buffer_dealloc);
 	wkfree(struct fragdb, db);
+	/*
+	 * Welp. There is no nf_defrag_ipv*_disable(). Guess we'll just have to
+	 * leave those modules around.
+	 */
 }
 
 void fragdb_put(struct fragdb *db)

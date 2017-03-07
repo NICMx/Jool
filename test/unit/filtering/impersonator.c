@@ -25,7 +25,7 @@ void fragdb_config_copy(struct fragdb *db, struct fragdb_config *config)
 	broken_unit_call(__func__);
 }
 
-struct fragdb *fragdb_create(void)
+struct fragdb *fragdb_create(struct net *ns)
 {
 	return (struct fragdb *)&dummy;
 }

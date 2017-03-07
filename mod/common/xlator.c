@@ -193,7 +193,7 @@ static int init_nat64(struct xlator *jool)
 	error = pool6_init(&jool->pool6);
 	if (error)
 		goto pool6_fail;
-	jool->nat64.frag = fragdb_create();
+	jool->nat64.frag = fragdb_create(jool->ns);
 	if (!jool->nat64.frag) {
 		error = -ENOMEM;
 		goto fragdb_fail;
