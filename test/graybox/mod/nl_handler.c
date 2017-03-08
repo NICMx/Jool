@@ -5,56 +5,9 @@
 #include "genetlink.h"
 #include "sender.h"
 #include "nat64/common/types.h"
+#include "nat64/mod/common/linux_version.h"
 
 static DEFINE_MUTEX(config_mutex);
-
-/*
-static void print_pkt(void *skb)
-{
-	struct iphdr *hdr4;
-	struct ipv6hdr *hdr6;
-
-	switch (get_l3_proto(skb)) {
-	case 6:
-		hdr6 = skb;
-		log_debug("Version: %u", hdr6->version);
-		log_debug("Priority: %u", hdr6->priority);
-		// __u8 flow_lbl[3];
-		log_debug("Payload length: %u", ntohs(hdr6->payload_len));
-		log_debug("Nexthdr: %u", hdr6->nexthdr);
-		log_debug("Hop limit: %u", hdr6->hop_limit);
-		log_debug("Saddr: %pI6c", &hdr6->saddr);
-		log_debug("Daddr: %pI6c", &hdr6->daddr);
-		break;
-	case 4:
-		hdr4 = skb;
-		log_debug("Version: %u", hdr4->version);
-		log_debug("IHL: %u", hdr4->ihl);
-		log_debug("TOS: %u", hdr4->tos);
-		log_debug("Total length: %u", ntohs(hdr4->tot_len));
-		log_debug("ID: %u", hdr4->id);
-		log_debug("Fragment offset: %u", hdr4->frag_off);
-		log_debug("TTL: %u", hdr4->ttl);
-		log_debug("Proto: %u", hdr4->protocol);
-		// log_debug("Check: %u", hdr4->);
-		log_debug("Saddr: %pI4", &hdr4->saddr);
-		log_debug("Daddr: %pI4", &hdr4->daddr);
-		break;
-	default:
-		log_err("Invalid protocol: %u", get_l3_proto(skb));
-		break;
-	}
-}
-*/
-
-static struct genl_family family = {
-	.id = GENL_ID_GENERATE,
-	.hdrsize = 0,
-	.name = "graybox",
-	.version = 1,
-	.maxattr = __ATTR_MAX,
-	.netnsok = true,
-};
 
 int verify_superpriv(void)
 {
@@ -202,14 +155,32 @@ static struct genl_ops ops[] = {
 	},
 };
 
+static struct genl_family family = {
+#if LINUX_VERSION_LOWER_THAN(4, 10, 0, 9999, 0)
+	.id = GENL_ID_GENERATE,
+#endif
+	.hdrsize = 0,
+	.name = "graybox",
+	.version = 1,
+	.maxattr = __ATTR_MAX,
+	.netnsok = true,
+#if LINUX_VERSION_AT_LEAST(4, 10, 0, 9999, 0)
+	.module = THIS_MODULE,
+	.ops = ops,
+	.n_ops = ARRAY_SIZE(ops),
+#endif
+};
+
 int nlhandler_init(void)
 {
 	int error;
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 13, 0)
+#if LINUX_VERSION_LOWER_THAN(3, 13, 0, 7, 1)
 	error = genl_register_family_with_ops(&family, ops, ARRAY_SIZE(ops));
-#else
+#elif LINUX_VERSION_LOWER_THAN(4, 10, 0, 9999, 0)
 	error = genl_register_family_with_ops(&family, ops);
+#else
+	error = genl_register_family(&family);
 #endif
 	if (error) {
 		log_err("Errcode %d registering the Genetlink family.", error);

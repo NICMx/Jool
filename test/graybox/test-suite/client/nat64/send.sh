@@ -152,4 +152,16 @@ $GRAYBOX stats display
 result=$?
 $GRAYBOX stats flush
 
+
+echo "---------------"
+echo "Strictly speaking, I'm done testing, but I'll wait 5:05 minutes."
+echo "This is intended to test session timer timeout."
+echo "You can see the status by running 'ip netns exec joolns jool -sn' in a separate terminal."
+for i in {305..1}; do
+	echo -en "Cleaning up in $i seconds.  \r"
+	sleep 1
+done
+echo "--------------------------"
+
+
 exit $result
