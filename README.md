@@ -59,6 +59,7 @@ You might also want to see [contact info](https://www.jool.mx/en/contact.html).
 
 * [airsnail](https://github.com/airsnail)
 * [Andreas Urke](https://github.com/arurke)
+* Andreas Rammhold
 * [Dan Lüdtke](https://www.danrl.com)
 * Eric Gamess
 * [Hidekazu Tadokoro](https://github.com/tadokoro)
@@ -67,6 +68,7 @@ You might also want to see [contact info](https://www.jool.mx/en/contact.html).
 * [Michael Richardson](http://www.sandelman.ca/mcr)
 * [Philar Law] (https://github.com/philar)
 * [Pier Carlo Chiodi](https://pierky.com/)
+* [Sander Steffann](https://github.com/steffann) - sander@steffann.nl
 * [Stanislav Bogatyrev](https://github.com/realloc)
 * [tbe](https://github.com/tbe)
 * [techmotive](https://github.com/techmotive)
