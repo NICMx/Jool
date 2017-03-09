@@ -94,6 +94,8 @@ The following commands assume _App_'s packet is `192.0.2.1 -> 203.0.113.2` and t
 	# ip netns exec joolns jool_siit --eamt --add 192.0.2.1   2001:db8:1::3
 	# ip netns exec joolns jool_siit --eamt --add 203.0.113.2 2001:db8:2::4
 
+> ![Warning](../images/warning.svg) Remember: The [`sysctl` and `ethtool` commands](run-vanilla.html#sample-network) have been skipped here for the sake of reducing clutter. Please add them in any serviceable environments. In this case, all three interfaces (`to_jool`, `to_world` and `eth0`) would need to be rid of offloads.
+
 ### 6: Confirm that it works
 
 	# ping -c1 203.0.113.2

@@ -14,7 +14,9 @@ title: 464XLAT
 1. [Introduction](#introduction)
 2. [Problem Statement](#problem-statement)
 2. [Sample Network](#sample-network)
-3. [Expected Packet Flow](#expected-packet-flow)
+3. [Sample Translator Configuration](#sample-translator-configuration)
+3. [Expected Packet Flows](#expected-packet-flows)
+4. [Actual Configuration](#actual-configuration)
 4. [Testing](#testing)
 5. [Closing words](#closing-words)
 
@@ -56,9 +58,19 @@ If _n6_ is a lone case and you want to isolate the mirror hack as much as possib
 
 I also removed the clouds to simplify routing in the example. The dual translation idea has really nothing to do with routing, so this is unimportant.
 
-## Expected Packet Flow
+## Sample Translator Configuration
 
-This is the normal flow an IPv6-sourced packet would traverse. It is a typical Stateful NAT64 flow and the Dual Translation presented in this configuration will not interfere with it: Notice we've chosen 64:ff9b::/96 as _PLAT_'s NAT64 prefix:
+Both translators will hold the same `pool6` prefix: `64:ff9b::/96`. R will, additionally, keep the following [EAM table](eamt.html):
+
+| IPv4        | IPv6         |
+|-------------|--------------|
+| 192.168.0.8 | 2001:db8:2:: |
+
+With this configuration, we intend to achieve the following packet flows:
+
+## Expected Packet Flows
+
+This is the normal flow an IPv6-sourced packet would traverse. It is a typical Stateful NAT64 flow and the Dual Translation presented in this configuration will not interfere with it:
 
 ![Figure 3 - Normal Stateful Flow](../images/flow/464-normal-en.svg)
 
@@ -66,7 +78,7 @@ The 464XLAT flow we want to achieve follows. _n6_ will use its IPv4 address to t
 
 ![Figure 4 - Literal](../images/flow/464-literal-en.svg)
 
-_R_ will SIIT the packet into IPv6 so it can traverse the IPv6-only chunk. Address 192.168.0.8 will be translated using the EAMT, and 203.0.113.24 will receive the `pool6` prefix treatment to mirror _PLAT_'s.
+_R_ will SIIT the packet into IPv6 so it can traverse the IPv6-only chunk. Address `192.168.0.8` will be translated using the EAMT, and 203.0.113.24 will receive the `pool6` prefix treatment to mirror _PLAT_'s.
 
 ![Figure 5 - SIIT'd packet](../images/flow/464-sless-en.svg)
 
@@ -78,9 +90,9 @@ And the mangling will be mirrored for the response:
 
 ![Figure 7 - Mirror](../images/flow/464-mirror-en.svg)
 
-## Configuration
+## Actual Configuration
 
-_n6_ doesn't know it kind of owns another IPv6 address in the 2001:db8:2::/96 network. It never sees this traffic, because _R_ always translates it towards 192.0.2.0/24.
+_n6_ doesn't know it kind of owns another IPv6 address in the 2001:db8:2::/96 network. It never sees this traffic, because _R_ always translates it as 192.168.0.0/24.
 
 	service network-manager stop
 
@@ -110,9 +122,13 @@ This is _R_:
 	# Traffic towards the Internet is to be appended PLAT's prefix.
 	# Recall that the EAMT has higher precedence than the prefix.
 	modprobe jool_siit pool6=64:ff9b::/96
-	jool_siit --eamt --add 192.168.0.8/29 2001:db8:2::/125
+	jool_siit --eamt --add 192.168.0.8 2001:db8:2::
 
-_n6_'s packet will have addresses `192.168.0.8` and `203.0.113.24`. The former will be translated using the EAMT entry (since it matches `192.168.0.8/29`) and the latter will use the `pool6` prefix (because it doesn't match).
+> ![Warning](../images/warning.svg) Remember: The [`sysctl` and `ethtool` commands](run-vanilla.html#sample-network) have been skipped here for the sake of reducing clutter. Please add them in any serviceable environments.
+
+Perhaps an easy way to understand the latter lines of this configuration is that the EAMT will be used to translate the addresses of the nodes at the left of _CLAT_, while the pool6 prefix will be used to translate the addresses of the nodes at the right of _PLAT_.
+
+Again, _n6_'s packet will have addresses `192.168.0.8` (its assigned IPv4 address) and `203.0.113.24` (the random Internet address). The former will be translated using the EAMT entry and the latter will use the `pool6` prefix. Notice that, since every EAMT entry masks one node in this example, you will need one EAMT entry for every "_n6_" in your setup. In real life though, you can aggregate EAMT entries; see [EAMT](eamt.html).
 
 Also note that _R_ is an average SIIT implementation and you shouldn't think of this installation of Jool as anything other than that.
 
@@ -131,6 +147,8 @@ For completeness sake, here's _PLAT_'s network configuration:
 	ip addr add 203.0.113.2/24 dev eth1
 
 	modprobe jool pool6=64:ff9b::/96 pool4=203.0.113.2
+
+> ![Warning](../images/warning.svg) Remember: The [`sysctl` and `ethtool` commands](run-vanilla.html#sample-network) have been skipped here for the sake of reducing clutter. Please add them in any serviceable environments.
 
 And _n4_ is thoroughly boring:
 

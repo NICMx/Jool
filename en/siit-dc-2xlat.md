@@ -44,6 +44,8 @@ modprobe jool_siit pool6=2001:db8:46::/96
 jool_siit --eamt --add 198.51.100.0/24 2001:db8:3333::464:0/120
 {% endhighlight %}
 
+> ![Warning](../images/warning.svg) Remember: The [`sysctl` and `ethtool` commands](run-vanilla.html#sample-network) have been skipped here for the sake of reducing clutter. Please add them in any serviceable environments.
+
 And the new server record on _BR_:
 
 {% highlight bash %}

@@ -65,5 +65,7 @@ Obviating networking commands, this is Jool on _BR_:
 # jool_siit --eamt --add 192.0.2.1 2001:db8:12:34::1
 {% endhighlight %}
 
+> ![Warning](../images/warning.svg) Remember: The [`sysctl` and `ethtool` commands](run-vanilla.html#sample-network) have been skipped here for the sake of reducing clutter. Please add them in any serviceable environments.
+
 For every server you want to publish on IPv4, you add one EAMT entry (as done above for _s6_) and appropriate DNS records.
 
