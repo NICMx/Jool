@@ -20,18 +20,26 @@ Jool is an Open Source [SIIT and NAT64](intro-xlat.html) for Linux.
 
 ## Status
 
-As far as we know, Jool is a [compliant](intro-jool.html#compliance) SIIT and Stateful NAT64. This is the roadmap as of 2016-10-07:
+As far as we know, Jool is a [compliant](intro-jool.html#compliance) SIIT and Stateful NAT64. This is the roadmap as of 2017-03-09:
 
 2. [Milestone 4.0.0]({{ site.repository-url }}/issues?q=milestone%3A4.0.0) will be an [internal refactor]({{ site.repository-url }}/issues/140) which should enhance Jool's config versatility.
 3. [Milestone 4.1.0]({{ site.repository-url }}/issues?q=milestone%3A4.1.0) will add several more features.
 
 New bug reports might interpolate other milestones in-between. Feedback from users can persuade us to change priorities. See [Contact](contact.html) for options on this.
 
-Our latest important release is version [3.5.2]({{ site.repository-url }}/milestone/37).
+Our latest important release is version [3.5.3]({{ site.repository-url }}/milestone/38).
 
 -------------------
 
 ## News
+
+### 2017-03-09
+
+Version 3.5.3 has been released.
+
+1. Bugfix: [`--logging-bib`](usr-flags-global.html#--logging-bib) and [`--logging-session`](usr-flags-global.html#--logging-session) weren't logging [UDP and ICMP traffic](https://github.com/NICMx/Jool/issues/241).
+2. Added support for [Linux 4.9](https://github.com/NICMx/Jool/issues/236) and [4.10](https://github.com/NICMx/Jool/issues/239).
+3. Fixed [build errors on some platforms](https://github.com/NICMx/Jool/pull/237).
 
 ### 2016-12-06
 
