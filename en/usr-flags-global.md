@@ -15,34 +15,34 @@ title: --global
 2. [Syntax](#syntax)
 3. [Examples](#examples)
 4. [Keys](#keys)
-	1. [`--enable`, `--disable`](#enable---disable)
-	1. [`--address-dependent-filtering`](#address-dependent-filtering)
-	2. [`--drop-icmpv6-info`](#drop-icmpv6-info)
-	3. [`--drop-externally-initiated-tcp`](#drop-externally-initiated-tcp)
-	4. [`--udp-timeout`](#udp-timeout)
-	5. [`--tcp-est-timeout`](#tcp-est-timeout)
-	6. [`--tcp-trans-timeout`](#tcp-trans-timeout)
-	7. [`--icmp-timeout`](#icmp-timeout)
-	8. [`--fragment-arrival-timeout`](#fragment-arrival-timeout)
-	8. [`--maximum-simultaneous-opens`](#maximum-simultaneous-opens)
-	8. [`--source-icmpv6-errors-better`](#source-icmpv6-errors-better)
-	8. [`--logging-bib`](#logging-bib)
-	8. [`--logging-session`](#logging-session)
-	9. [`--zeroize-traffic-class`](#zeroize-traffic-class)
-	10. [`--override-tos`](#override-tos)
-	11. [`--tos`](#tos)
-	13. [`--amend-udp-checksum-zero`](#amend-udp-checksum-zero)
-	14. [`--randomize-rfc6791-addresses`](#randomize-rfc6791-addresses)
-	13. [`--mtu-plateaus`](#mtu-plateaus)
-	15. [`--eam-hairpin-mode`](#eam-hairpin-mode)
-	16. [`--rfc6791v6-prefix`](#rfc6791v6-prefix)
-	21. [`--f-args`](#f-args)
-	22. [`--handle-rst-during-fin-rcv`](#handle-rst-during-fin-rcv)
-	23. [`--ss-enabled`](#ss-enabled)
-	24. [`--ss-flush-asap`](#ss-flush-asap)
-	25. [`--ss-flush-deadline`](#ss-flush-deadline)
-	26. [`--ss-capacity`](#ss-capacity)
-	27. [`--ss-max-payload`](#ss-max-payload)
+	1. [`--enable`, `--disable`](#--enable---disable)
+	1. [`--address-dependent-filtering`](#--address-dependent-filtering)
+	2. [`--drop-icmpv6-info`](#--drop-icmpv6-info)
+	3. [`--drop-externally-initiated-tcp`](#--drop-externally-initiated-tcp)
+	4. [`--udp-timeout`](#--udp-timeout)
+	5. [`--tcp-est-timeout`](#--tcp-est-timeout)
+	6. [`--tcp-trans-timeout`](#--tcp-trans-timeout)
+	7. [`--icmp-timeout`](#--icmp-timeout)
+	8. [`--fragment-arrival-timeout`](#--fragment-arrival-timeout)
+	8. [`--maximum-simultaneous-opens`](#--maximum-simultaneous-opens)
+	8. [`--source-icmpv6-errors-better`](#--source-icmpv6-errors-better)
+	8. [`--logging-bib`](#--logging-bib)
+	8. [`--logging-session`](#--logging-session)
+	9. [`--zeroize-traffic-class`](#--zeroize-traffic-class)
+	10. [`--override-tos`](#--override-tos)
+	11. [`--tos`](#--tos)
+	13. [`--amend-udp-checksum-zero`](#--amend-udp-checksum-zero)
+	14. [`--randomize-rfc6791-addresses`](#--randomize-rfc6791-addresses)
+	13. [`--mtu-plateaus`](#--mtu-plateaus)
+	15. [`--eam-hairpin-mode`](#--eam-hairpin-mode)
+	16. [`--rfc6791v6-prefix`](#--rfc6791v6-prefix)
+	21. [`--f-args`](#--f-args)
+	22. [`--handle-rst-during-fin-rcv`](#--handle-rst-during-fin-rcv)
+	23. [`--ss-enabled`](#--ss-enabled)
+	24. [`--ss-flush-asap`](#--ss-flush-asap)
+	25. [`--ss-flush-deadline`](#--ss-flush-deadline)
+	26. [`--ss-capacity`](#--ss-capacity)
+	27. [`--ss-max-payload`](#--ss-max-payload)
 
 ## Description
 
@@ -95,7 +95,7 @@ Resumes and pauses translation of packets, respectively. This might be useful if
 
 (If you don't want Jool to stop while you reconfigure, don't worry about this. Use it only if it feels right.)
 
-Timers will _not_ be paused. [BIB](usr-flags-bib.html)/[session](usr-flags-session.html) entries and stored [packets](#maximum-simultaneous-opens) and [fragments](#fragment-arrival-timeout) might die while Jool is idle.
+Timers will _not_ be paused. [BIB](usr-flags-bib.html)/[session](usr-flags-session.html) entries and stored [packets](#--maximum-simultaneous-opens) and [fragments](#--fragment-arrival-timeout) might die while Jool is idle.
 
 ### `--address-dependent-filtering`
 
@@ -301,7 +301,7 @@ In this example,
 
 1. `2001:db8::5` used (its own) port 19945 to speak to someone using the UDP protocol. This someone thought `2001:db8::5`'s address was `192.0.2.2`, and that it was using port 8208. 
 2. Roughly a minute later, `2001:db8::8` (on port 46516) started speaking to somebody using TCP. It's being masked as `192.0.2.2`#12592. This connection has not yet ended.
-3. Some time later, Jool forgot the UDP mapping (because of inactivity, not because the last packet happened at 16:15:38. "How much inactivity" is controlled by the timeouts - in this case, the [UDP one](#udp-timeout)). At this point, `192.0.2.2`#8208 is free from `2001:db8::5` and Jool can reassign it.
+3. Some time later, Jool forgot the UDP mapping (because of inactivity, not because the last packet happened at 16:15:38. "How much inactivity" is controlled by the timeouts - in this case, the [UDP one](#--udp-timeout)). At this point, `192.0.2.2`#8208 is free from `2001:db8::5` and Jool can reassign it.
 
 So, if your government comes and says "I detected somebody named `192.0.2.2`#8208 did something illegal at 4:14 pm via UDP", you can report the culprit is `2001:db8::5`#19945 and free yourself from the blame.
 
@@ -343,7 +343,7 @@ Here's a sample output:
 	[ 3481.632214] 2015/4/8 17:5:51 (GMT) - Forgot session 1::5#33160|64:ff9b::c000:205#8080|192.0.2.2#15496|192.0.2.5#8080|TCP
 	[ 3481.632342] 2015/4/8 17:5:51 (GMT) - Forgot session 1::5#33161|64:ff9b::c000:205#8080|192.0.2.2#7060|192.0.2.5#8080|TCP
 
-This log is remarcably more voluptuous than [`--logging-bib`](#logging-bib), not only because each message is longer, but because sessions are generated and destroyed more often than BIB entries. (Each BIB entry can have multiple sessions.) Because of REQ-12 from [RFC 6888 section 4](http://tools.ietf.org/html/rfc6888#section-4), chances are you don't even want the extra information sessions grant you.
+This log is remarcably more voluptuous than [`--logging-bib`](#--logging-bib), not only because each message is longer, but because sessions are generated and destroyed more often than BIB entries. (Each BIB entry can have multiple sessions.) Because of REQ-12 from [RFC 6888 section 4](http://tools.ietf.org/html/rfc6888#section-4), chances are you don't even want the extra information sessions grant you.
 
 ### `--zeroize-traffic-class`
 
@@ -369,7 +369,7 @@ If you leave this OFF, the TOS value will be copied directly to the Traffic Clas
 
 The <a href="http://en.wikipedia.org/wiki/IPv6_packet#Fixed_header" target="_blank">IPv6 header</a>'s Traffic Class field is very similar to <a href="http://en.wikipedia.org/wiki/IPv4#Header" target="_blank">IPv4</a>'s Type of Service (TOS).
 
-If you leave this OFF, the Traffic Class value will be copied directly to the TOS field during IPv6-to-IPv4 translations. If you turn this ON, Jool will always set TOS as [`--tos`](#tos) instead.
+If you leave this OFF, the Traffic Class value will be copied directly to the TOS field during IPv6-to-IPv4 translations. If you turn this ON, Jool will always set TOS as [`--tos`](#--tos) instead.
 
 ### `--tos`
 
@@ -380,7 +380,7 @@ If you leave this OFF, the Traffic Class value will be copied directly to the TO
 - Source: [RFC 7915, section 5.1]({{ site.rfc-siit }}#section-5.1)
 - Deprecated name: `--TOS`
 
-Value to set the TOS value of the packets' IPv4 fields during IPv6-to-IPv4 translations. _This only applies when [`--override-tos`](#override-tos) is ON_.
+Value to set the TOS value of the packets' IPv4 fields during IPv6-to-IPv4 translations. _This only applies when [`--override-tos`](#--override-tos) is ON_.
 
 ### `--amend-udp-checksum-zero`
 
@@ -573,7 +573,7 @@ In the Active/Active scenario in particular, this essentially means that every t
 
 In the Active/Passive model, on the other hand, this level of compulsive replication is rather undesired. Since a single big packet is easier to send than the equivalent many smaller ones, it is preferable to queue the session updates and wrap a bunch of them in a single big multicast, thereby reducing the SS packet-to-translated packet ratio and CPU overhead. This is appropriate in Active/Passive mode because the backup NAT64s are not expected to receive traffic in the near future, and losing a few recent queued session updates on crash is no big deal when the sizeable rest of the database has already been dispatched.
 
-Sessions will be queued until the maximum packet size is reached or a timer expires. The maximum packet size is defined by [`--ss-max-payload`](#ss-max-payload) and the duration of the timer is [`--ss-flush-deadline`](#ss-flush-deadline).
+Sessions will be queued until the maximum packet size is reached or a timer expires. The maximum packet size is defined by [`--ss-max-payload`](#--ss-max-payload) and the duration of the timer is [`--ss-flush-deadline`](#--ss-flush-deadline).
 
 As a rule of thumb, you might think of this option as an "Active/Active vs Active/Passive" switch; in the former this flag is practically mandatory, while in the latter it is needlessly CPU-taxing. (But still legal, which explains the default.)
 
@@ -592,7 +592,7 @@ Whenever the kernel module sends a packet to userspace, `joold` is expected to a
 
 Being that Netlink is not a reliable protocol, the main intent of `--ss-flush-deadline` is to prevent lost ACKs from stagnating the SS queue.
 
-It also prevents sessions from staying in the queue for too long regardless of that, particularly when [`--ss-flush-asap`](#ss-flush-asap) is disabled.
+It also prevents sessions from staying in the queue for too long regardless of that, particularly when [`--ss-flush-asap`](#--ss-flush-asap) is disabled.
 
 ### `--ss-capacity`
 
@@ -636,5 +636,5 @@ Since I don't know whether your network is IPv4 or IPv6, the default value was i
 
 In Jool 3.5.0, The joold header spans 16 bytes and each session is 64 bytes long, which means Jool will be able to fit 22 sessions per SS packet by default.
 
-Feel free to adjust your MTU to reduce CPU overhead further in Active/Passive setups. (See [`--ss-flush-asap`](#ss-flush-asap).)
+Feel free to adjust your MTU to reduce CPU overhead further in Active/Passive setups. (See [`--ss-flush-asap`](#--ss-flush-asap).)
 

@@ -68,7 +68,7 @@ Any address you insert via `pool4` defaults to use mark zero and contain port ra
 
 - Name: Insert the Jool instance, but do not translate yet.
 - Type: -
-- Userspace Application Counterpart: [`--enable` and `--disable`](usr-flags-global.html#enable---disable)
+- Userspace Application Counterpart: [`--enable` and `--disable`](usr-flags-global.html#--enable---disable)
 
 Hooks the Jool instance inactive. If you're using the userspace application, you can use it to ensure you're done configuring before your traffic starts getting translated.
 

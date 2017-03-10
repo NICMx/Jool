@@ -69,13 +69,13 @@ Version 3.5.0 has been released! The new features are
 - [Atomic Configuration](config-atomic.html)
 - [Session Synchronization](session-synchronization.html)
 - [Namespace Instances](usr-flags-instance.html)
-- [A v6 RFC6791 prefix](usr-flags-global.html#rfc6791v6-prefix)
+- [A v6 RFC6791 prefix](usr-flags-global.html#--rfc6791v6-prefix)
 - Documented Testing Framework ([unit](https://github.com/NICMx/Jool/tree/master/test/unit) and [graybox](https://github.com/NICMx/Jool/tree/master/test/graybox))
 
 Some functionality was dropped:
 
 - Atomic fragment support was [purged](https://github.com/NICMx/Jool/issues/221)
-- [`--pool6`](usr-flags-pool6.html) can no longer be [`--quick`](usr-flags-pool4.html#quick)-removed.
+- [`--pool6`](usr-flags-pool6.html) can no longer be [`--quick`](usr-flags-pool4.html#--quick)-removed.
 
 ### 2016-09-19
 
@@ -100,8 +100,8 @@ Version 3.4.4 released. One bug was found:
 Version 3.4.3 released.
 
 1. Added support for a wider range of kernels. Support is now from Linux 3.2 to 4.4, and also RHEL 7.0 to 7.2.
-2. New configuration flag for NAT64: [`--f-args`](usr-flags-global.html#f-args)
-3. New configuration flag for NAT64: [`--handle-rst-during-fin-rcv`](usr-flags-global.html#handle-rst-during-fin-rcv)
+2. New configuration flag for NAT64: [`--f-args`](usr-flags-global.html#--f-args)
+3. New configuration flag for NAT64: [`--handle-rst-during-fin-rcv`](usr-flags-global.html#--handle-rst-during-fin-rcv)
 
 ### 2015-11-20
 
@@ -125,7 +125,7 @@ Version 3.4.1 released. There are three bugfixes:
 
 Version 3.4.0 released. This is a fat one.
 
-1. Refactors to pool4 add [mark-dependent sourcing](usr-flags-pool4.html#mark) and [port ranges](usr-flags-pool4.html#examples) (which in turn removes [the need for a second IPv4 address](run-nat64.html#sample-network)), and fixes the [excessive memory usage]({{ site.repository-url }}/issues/36).
+1. Refactors to pool4 add [mark-dependent sourcing](usr-flags-pool4.html#--mark) and [port ranges](usr-flags-pool4.html#examples) (which in turn removes [the need for a second IPv4 address](run-nat64.html#sample-network)), and fixes the [excessive memory usage]({{ site.repository-url }}/issues/36).
 2. The EAMT now implements [Hairpinning]({{ site.repository-url }}/issues/162) and [overlapping entries]({{ site.repository-url }}/issues/160), which are newer updates to the EAM draft.
 3. Minimal namespace features, which allow Host-Based Edge Translation (now called [Node-Based Translation](node-based-translation.html)) and (subjectively) [better filtering]({{ site.repository-url }}/issues/41).
 4. The userspace application now [prints the friendlier error messages]({{ site.repository-url }}/issues/169) that used to be dumped in the kernel log only.
@@ -134,7 +134,7 @@ Version 3.4.0 released. This is a fat one.
 7. [A spanish version of this site](../es/index.html).
 8. `--csv` can now be used on [all configuration targets]({{ site.repository-url }}/issues/164#issuecomment-126093571).
 
-> ![Warning](../images/warning.svg) If you want to upgrade, please keep in mind pool4 is not completely backwards-compatible. In Jool 3.3, any packet would be masked using any available pool4 entry. In Jool 3.4, every pool4 entry only masks packets wielding specific marks (which defaults to zero). See [`--mark`](usr-flags-pool4.html#mark) for more details.
+> ![Warning](../images/warning.svg) If you want to upgrade, please keep in mind pool4 is not completely backwards-compatible. In Jool 3.3, any packet would be masked using any available pool4 entry. In Jool 3.4, every pool4 entry only masks packets wielding specific marks (which defaults to zero). See [`--mark`](usr-flags-pool4.html#--mark) for more details.
 
 ### 2015-10-15
 
@@ -174,8 +174,8 @@ Version 3.3.2 released.
 This is the summary:
 
 - There are new configuration flags:
-	- [`--source-icmpv6-errors-better`](usr-flags-global.html#source-icmpv6-errors-better)
-	- [`--logging-bib`](usr-flags-global.html#logging-bib) and [`--logging-session`](usr-flags-global.html#logging-session)
+	- [`--source-icmpv6-errors-better`](usr-flags-global.html#--source-icmpv6-errors-better)
+	- [`--logging-bib`](usr-flags-global.html#--logging-bib) and [`--logging-session`](usr-flags-global.html#--logging-session)
 - The userspace app was misbehaving in several ways. While all of its bugs had workarounds, it was a pain to use.
 
 Also, unrelated to the code, we now have two mailing lists:
@@ -215,7 +215,7 @@ An <a href="{{ site.repository-url }}/issues/112" target="_blank">important bug<
 
 ### 2014-10-17
 
-The documentation of `--plateaus` proved to be lacking, so there's now a [full article](usr-flags-plateaus.html) dedicated to it. The [original definition](usr-flags-global.html#mtu-plateaus) also received improvements.
+The documentation of `--plateaus` proved to be lacking, so there's now a [full article](usr-flags-plateaus.html) dedicated to it. The [original definition](usr-flags-global.html#--mtu-plateaus) also received improvements.
 
 It has come to our attention that <a href="{{ site.repository-url }}/issues/111" target="_blank">we are also lacking an explanation of IP literals</a>, so there should be another codeless update like this in the near future.
 
@@ -241,7 +241,7 @@ It took it a really long time to overcome testing, but version 3.2.0 is finally 
 We changed the minor version number this time, because the userspace application has a slightly different interface; the single-value configuration parameters have been joined: [`--general`](usr-flags-global.html) replaced `--filtering`, `--translate` and `--fragmentation`. The application also has three new features:
 
 1. The <a href="{{ site.repository-url }}/pull/97" target="_blank">ability to flush the pools</a>.
-2. The addition of [`--quick`](usr-flags-quick.html).
+2. The addition of [`--quick`](usr-flags-pool4.html#--quick).
 3. The addition of `--svg`, in [BIB](usr-flags-bib.html#csv) and [session](usr-flags-session.html#csv).
 
 The second main novelty is the finally correct implementation of <a href="{{ site.repository-url }}/issues/58" target="_blank">Simultaneous Open of TCP Connections</a>. The translation pipeline should now be completely quirkless.

@@ -468,11 +468,11 @@ That's all.
 
 ### `jool`
 
-1. [`ss-enabled`](usr-flags-global.html#ss-enabled)
-2. [`ss-flush-asap`](usr-flags-global.html#ss-flush-asap)
-3. [`ss-flush-deadline`](usr-flags-global.html#ss-flush-deadline)
-4. [`ss-capacity`](usr-flags-global.html#ss-capacity)
-5. [`ss-max-payload`](usr-flags-global.html#ss-max-payload)
+1. [`ss-enabled`](usr-flags-global.html#--ss-enabled)
+2. [`ss-flush-asap`](usr-flags-global.html#--ss-flush-asap)
+3. [`ss-flush-deadline`](usr-flags-global.html#--ss-flush-deadline)
+4. [`ss-capacity`](usr-flags-global.html#--ss-capacity)
+5. [`ss-max-payload`](usr-flags-global.html#--ss-max-payload)
 
 ### `joold`
 

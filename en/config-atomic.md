@@ -46,15 +46,15 @@ Without further ado:
 
 <pre><code>{
 	"global": {
-		"<a href="usr-flags-global.html#enable---disable">manually-enabled</a>": false,
-		"<a href="usr-flags-global.html#zeroize-traffic-class">zeroize-traffic-class</a>": true,
-		"<a href="usr-flags-global.html#override-tos">override-tos</a>": false,
-		"<a href="usr-flags-global.html#tos">tos</a>": 254,
-		"<a href="usr-flags-global.html#mtu-plateaus">mtu-plateaus</a>": [1, 2, 3, 4, 5, 6],
-		"<a href="usr-flags-global.html#amend-udp-checksum-zero">amend-udp-checksum-zero</a>": true,
-		"<a href="usr-flags-global.html#eam-hairpin-mode">eam-hairpin-mode</a>": 1,
-		"<a href="usr-flags-global.html#randomize-rfc6791-addresses">randomize-rfc6791-addresses</a>": false,
-		"<a href="usr-flags-global.html#rfc6791v6-prefix">rfc6791v6-prefix</a>": null
+		"<a href="usr-flags-global.html#--enable---disable">manually-enabled</a>": false,
+		"<a href="usr-flags-global.html#--zeroize-traffic-class">zeroize-traffic-class</a>": true,
+		"<a href="usr-flags-global.html#--override-tos">override-tos</a>": false,
+		"<a href="usr-flags-global.html#--tos">tos</a>": 254,
+		"<a href="usr-flags-global.html#--mtu-plateaus">mtu-plateaus</a>": [1, 2, 3, 4, 5, 6],
+		"<a href="usr-flags-global.html#--amend-udp-checksum-zero">amend-udp-checksum-zero</a>": true,
+		"<a href="usr-flags-global.html#--eam-hairpin-mode">eam-hairpin-mode</a>": 1,
+		"<a href="usr-flags-global.html#--randomize-rfc6791-addresses">randomize-rfc6791-addresses</a>": false,
+		"<a href="usr-flags-global.html#--rfc6791v6-prefix">rfc6791v6-prefix</a>": null
 	},
 
 	"<a href="usr-flags-pool6.html">pool6</a>": "64:ff9b::/96",
@@ -95,35 +95,35 @@ Sorry. This does not necessarily mean it will never be implemented, but there ar
 
 <pre><code>{
 	"global": {
-		"<a href="usr-flags-global.html#enable---disable">manually-enabled</a>": false,
+		"<a href="usr-flags-global.html#--enable---disable">manually-enabled</a>": false,
 
-		"<a href="usr-flags-global.html#zeroize-traffic-class">zeroize-traffic-class</a>": true,
-		"<a href="usr-flags-global.html#override-tos">override-tos</a>": false,
-		"<a href="usr-flags-global.html#tos">tos</a>": 254,
-		"<a href="usr-flags-global.html#mtu-plateaus">mtu-plateaus</a>": [1, 2, 3, 4, 5, 6],
-		"<a href="usr-flags-global.html#maximum-simultaneous-opens">maximum-simultaneous-opens</a>": 16,
-		"<a href="usr-flags-global.html#source-icmpv6-errors-better">source-icmpv6-errors-better</a>": true,
-		"<a href="usr-flags-global.html#handle-rst-during-fin-rcv">handle-rst-during-fin-rcv</a>": true,
-		"<a href="usr-flags-global.html#f-args">f-args</a>": 10,
+		"<a href="usr-flags-global.html#--zeroize-traffic-class">zeroize-traffic-class</a>": true,
+		"<a href="usr-flags-global.html#--override-tos">override-tos</a>": false,
+		"<a href="usr-flags-global.html#--tos">tos</a>": 254,
+		"<a href="usr-flags-global.html#--mtu-plateaus">mtu-plateaus</a>": [1, 2, 3, 4, 5, 6],
+		"<a href="usr-flags-global.html#--maximum-simultaneous-opens">maximum-simultaneous-opens</a>": 16,
+		"<a href="usr-flags-global.html#--source-icmpv6-errors-better">source-icmpv6-errors-better</a>": true,
+		"<a href="usr-flags-global.html#--handle-rst-during-fin-rcv">handle-rst-during-fin-rcv</a>": true,
+		"<a href="usr-flags-global.html#--f-args">f-args</a>": 10,
 
-		"<a href="usr-flags-global.html#logging-bib">logging-bib</a>": true,
-		"<a href="usr-flags-global.html#logging-session">logging-session</a>": true,
+		"<a href="usr-flags-global.html#--logging-bib">logging-bib</a>": true,
+		"<a href="usr-flags-global.html#--logging-session">logging-session</a>": true,
 
-		"<a href="usr-flags-global.html#address-dependent-filtering">address-dependent-filtering</a>": true,
-		"<a href="usr-flags-global.html#drop-icmpv6-info">drop-icmpv6-info</a>": true,
-		"<a href="usr-flags-global.html#drop-externally-initiated-tcp">drop-externally-initiated-tcp</a>": true,
+		"<a href="usr-flags-global.html#--address-dependent-filtering">address-dependent-filtering</a>": true,
+		"<a href="usr-flags-global.html#--drop-icmpv6-info">drop-icmpv6-info</a>": true,
+		"<a href="usr-flags-global.html#--drop-externally-initiated-tcp">drop-externally-initiated-tcp</a>": true,
 
-		"<a href="usr-flags-global.html#udp-timeout">udp-timeout</a>": 213897,
-		"<a href="usr-flags-global.html#tcp-est-timeout">tcp-est-timeout</a>": 218937891,
-		"<a href="usr-flags-global.html#tcp-trans-timeout">tcp-trans-timeout</a>": 289013021,
-		"<a href="usr-flags-global.html#icmp-timeout">icmp-timeout</a>": 129038,
-		"<a href="usr-flags-global.html#fragment-arrival-timeout">fragment-arrival-timeout</a>": 190238,
+		"<a href="usr-flags-global.html#--udp-timeout">udp-timeout</a>": 213897,
+		"<a href="usr-flags-global.html#--tcp-est-timeout">tcp-est-timeout</a>": 218937891,
+		"<a href="usr-flags-global.html#--tcp-trans-timeout">tcp-trans-timeout</a>": 289013021,
+		"<a href="usr-flags-global.html#--icmp-timeout">icmp-timeout</a>": 129038,
+		"<a href="usr-flags-global.html#--fragment-arrival-timeout">fragment-arrival-timeout</a>": 190238,
 
-		"<a href="usr-flags-global.html#ss-enabled">ss-enabled</a>": true,
-		"<a href="usr-flags-global.html#ss-flush-asap">ss-flush-asap</a>": false,
-		"<a href="usr-flags-global.html#ss-flush-deadline">ss-flush-deadline</a>": 1000,
-		"<a href="usr-flags-global.html#ss-capacity">ss-capacity</a>": 256,
-		"<a href="usr-flags-global.html#ss-max-payload">ss-max-payload</a>": 600
+		"<a href="usr-flags-global.html#--ss-enabled">ss-enabled</a>": true,
+		"<a href="usr-flags-global.html#--ss-flush-asap">ss-flush-asap</a>": false,
+		"<a href="usr-flags-global.html#--ss-flush-deadline">ss-flush-deadline</a>": 1000,
+		"<a href="usr-flags-global.html#--ss-capacity">ss-capacity</a>": 256,
+		"<a href="usr-flags-global.html#--ss-max-payload">ss-max-payload</a>": 600
 	},
 
 	"<a href="usr-flags-pool6.html">pool6</a>": "64:ff9b::/96",

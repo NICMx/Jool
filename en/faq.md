@@ -30,12 +30,12 @@ $ jool --global
 SIIT Jool's minimum configuration requirements are
 
 - A prefix in the [IPv6 pool](usr-flags-pool6.html) **or** at least one entry in the [EAM table](usr-flags-eamt.html).
-- You must have not [manually disabled](usr-flags-global.html#enable---disable) it.
+- You must have not [manually disabled](usr-flags-global.html#--enable---disable) it.
 
 NAT64 Jool's minimum configuration requirements are
 
 - At least one prefix in the [IPv6 pool](usr-flags-pool6.html).
-- You must have not [manually disabled](usr-flags-global.html#enable---disable) it.
+- You must have not [manually disabled](usr-flags-global.html#--enable---disable) it.
 
 If that doesn't seem to be the problem, try the [logs](logging.html).
 

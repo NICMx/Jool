@@ -18,8 +18,8 @@ title: --pool4
    2. [Options](#options)
 4. [Examples](#examples)
 5. [Notes](#notes)
-6. [`--mark`](#mark)
-7. [`--quick`](#quick)
+6. [`--mark`](#--mark)
+7. [`--quick`](#--quick)
 
 ## Description
 
@@ -57,14 +57,14 @@ If pool4 is empty, Jool will try to mask packets using its own node's assigned I
 
 | **Flag** | **Default** | **Description** |
 | `--csv` | (absent) | Print the table in [_Comma/Character-Separated Values_ format](http://en.wikipedia.org/wiki/Comma-separated_values). This is intended to be redirected into a .csv file. |
-| `--mark` | 0 | Defines the mark of the entry being added or removed. Packets carrying mark _n_ will only be translated using pool4 records with mark _n_. See [below](#mark). |
+| `--mark` | 0 | Defines the mark of the entry being added or removed. Packets carrying mark _n_ will only be translated using pool4 records with mark _n_. See [below](#--mark). |
 | `--tcp` | * | If present, the record being added or removed represents TCP transport addresses. |
 | `--udp` | * | If present, the record being added or removed represents UDP transport addresses. |
 | `--icmp` | * | If present, the record being added or removed represents "ICMP transport addresses" (Addresses and ICMP identifiers, not ports). |
 | `<IPv4-prefix>` | - | Group of addresses you're adding or removing to/from the pool. The length defaults to 32, so you typically add and remove addresses instead of prefixes. |
 | `<port-range>` | 1-65535 for TCP/UDP, 0-65535 for ICMP | Subset layer 4 identifiers (or ICMP ids) from the addresses which should be reserved for translation. |
 | `--force` | (absent) | If present, add the elements to the pool even if they're too many.<br />(Will print a warning and quit otherwise.) |
-| `--quick` | (absent) | Do not cascade removal to [BIB entries](bib.html).<br />See [below](#quick). |
+| `--quick` | (absent) | Do not cascade removal to [BIB entries](bib.html).<br />See [below](#--quick). |
 
 \* `--tcp`, `--udp` and `--icmp` are not mutually exclusive. If neither of them are present, the records are added or removed to/from all three protocols.
 

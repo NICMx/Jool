@@ -21,7 +21,7 @@ Jool uses four levels in the severity spectrum (see `dmesg --help`):
 
 1. err: "Your configuration cannot be applied, user". This only happens during module insertion/removal and as a response of userspace application requests. These messages are also sent over to the userspace application so it can print them in stderr.
 2. warn: "Are you sure this configuration is sane? I'm going to keep doing this, but it doesn't look like it's going places". Only happens during packet translations.
-3. info: "The kernel module was inserted", "the kernel module was removed". Also [`--logging-bib`](usr-flags-global.html#logging-bib) and [`--logging-session`](usr-flags-global.html#logging-session)'s exploits.
+3. info: "The kernel module was inserted", "the kernel module was removed". Also [`--logging-bib`](usr-flags-global.html#--logging-bib) and [`--logging-session`](usr-flags-global.html#--logging-session)'s exploits.
 4. debug: "And now I'm doing this". "I couldn't translate this packet because X, and I think it's normal".
 
 Debug messages are normally compiled out of Jool's binaries because they are lots and can slow things down. If you are testing or troubleshooting however, they can be of help.

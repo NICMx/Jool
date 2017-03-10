@@ -78,7 +78,7 @@ Defaults to the natural source IPv4 address of the namespace.
 
 - Name: Insert the Jool instance, but do not translate yet.
 - Type: -
-- Userspace Application Counterpart: [`--enable` and `--disable`](usr-flags-global.html#enable---disable)
+- Userspace Application Counterpart: [`--enable` and `--disable`](usr-flags-global.html#--enable---disable)
 
 Hooks the Jool instance inactive. If you're using the userspace application, you can use it to ensure you're done configuring before your traffic starts getting translated.
 
