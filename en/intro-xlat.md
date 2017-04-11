@@ -16,7 +16,6 @@ title: Introduction to IPv4/IPv6 Translation
    1. [SIIT with EAM](#siit-with-eam)
    2. [SIIT (traditional)](#siit-traditional)
    3. [Stateful NAT64](#stateful-nat64)
-   4. [MAP-T](#map-t)
 
 ## Introduction
 
