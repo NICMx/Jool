@@ -104,7 +104,7 @@ Test by sending requests from the IPv6 network:
 
 {% highlight bash %}
 user@C:~$ ping6 64:ff9b::203.0.113.16
-PING 64:ff9b::192.0.2.16(64:ff9b::c000:210) 56 data bytes
+PING 64:ff9b::203.0.113.16(64:ff9b::cb00:7110) 56 data bytes
 64 bytes from 64:ff9b::cb00:7110: icmp_seq=1 ttl=63 time=1.13 ms
 64 bytes from 64:ff9b::cb00:7110: icmp_seq=2 ttl=63 time=4.48 ms
 64 bytes from 64:ff9b::cb00:7110: icmp_seq=3 ttl=63 time=15.6 ms
