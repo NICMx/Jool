@@ -1,0 +1,25 @@
+The "dkms-packaging" folder includes all the files required by dkms in order to create jool packages for some of the most popular linux distributions, that could be used as a template, helping users to create rpm and debian packages for others distros.
+
+-------------------------------------------------------------------
+
+HOW TO BUILD DSC/DEB/RPM PACKAGES USING DKMS:
+
+ 1. Download official release .ZIP file (from http://jool.mx/en/download.html or https://github.com/NICMx/Jool/) and extract the Jool directories.
+
+ 2. Install all the requirements for Jool (including DKMS)
+
+ 3. If you want to build a RPM package, copy the centos/jool-dkms-mkrpm.spec file into Jool directory. If you want to build a deb/dsc debian package, copy the jool-dkms-mkdeb/jool-dkms-mkdsc directories from debian/ubuntu (according to the linux distribution) into Jool.
+
+ 4. Copy the Jool directory into /usr/src/
+
+ 5. Add Jool to dkms tree (dkms add -m jool - v <jool_version>)
+
+ 6. Build Jool (dkms build -m jool -v <jool_version>)
+
+ 7. Create the package rpm/deb/dsb package:
+
+        RPM:    dkms mkrpm -m jool -v <jool_version>) --source-only
+        DEB:    dkms mkdeb -m jool -v <jool_version>) --source-only
+        DSC:    dkms mkdsc -m jool -v <jool_version>) --source-only
+
+
