@@ -503,8 +503,3 @@ void eamt_put(struct eam_table *eamt)
 {
 	kref_put(&eamt->refcount, destroy_eamt);
 }
-
-void eamt_print_refcount(struct eam_table *eamt)
-{
-	log_info("eamt: %d", atomic_read(&eamt->refcount.refcount));
-}

@@ -409,8 +409,3 @@ bool pool6_is_empty(struct pool6 *pool)
 	rcu_read_unlock_bh();
 	return result;
 }
-
-void pool6_print_refcount(struct pool6 *pool)
-{
-	log_info("pool6: %d", atomic_read(&pool->refcount.refcount));
-}

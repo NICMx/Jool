@@ -2,6 +2,7 @@
 #include <linux/module.h>
 #include <linux/sched.h>
 #include "nat64/common/str_utils.h"
+#include "nat64/mod/common/linux_version.h"
 #include "nat64/mod/common/xlator.h"
 #include "nat64/unit/unit_test.h"
 #include "nat64/mod/common/atomic_config.h"
@@ -122,7 +123,13 @@ static bool krefs_test(int ns_kref)
 	/* @ns_kref + the one we just took. */
 	success &= ASSERT_INT(ns_kref + 1, atomic_read(&jool.ns->count), "ns kref");
 	/* xlator DB's kref + the one we just took. */
-	success &= ASSERT_INT(2, atomic_read(&jool.pool6->refcount.refcount), "pool6 kref");
+	success &= ASSERT_INT(2,
+#if LINUX_VERSION_AT_LEAST(4, 11, 0, 9999, 0)
+			kref_read(&jool.pool6->refcount),
+#else
+			atomic_read(&jool.pool6->refcount.refcount),
+#endif
+			"pool6 kref");
 
 	xlator_put(&jool);
 	return success;

@@ -442,8 +442,3 @@ int atomconfig_add(struct xlator *jool, void *config, size_t config_len)
 	mutex_unlock(&lock);
 	return error;
 }
-
-void cfgcandidate_print_refcount(struct config_candidate *candidate)
-{
-	log_info("cfg candidate: %d", atomic_read(&candidate->refcount.refcount));
-}

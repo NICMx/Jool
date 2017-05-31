@@ -333,9 +333,3 @@ bool pool_is_empty(struct addr4_pool *pool)
 
 	return result;
 }
-
-/* TODO (later) delete this */
-void pool_print_refcount(struct addr4_pool *pool)
-{
-	log_info("addr4pool: %d", atomic_read(&pool->refcounter.refcount));
-}
