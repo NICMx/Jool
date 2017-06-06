@@ -1,8 +1,5 @@
 %{?!module_name: %{error: You did not specify a module name (%%module_name)}}
 %{?!version: %{error: You did not specify a module version (%%version)}}
-%{?!kernel_versions: %{error: You did not specify kernel versions (%%kernel_version)}}
-%{?!packager: %define packager DKMS <dkms-devel@lists.us.dell.com>}
-%{?!license: %define license Unknown}
 %{?!_dkmsdir: %define _dkmsdir /var/lib/dkms}
 %{?!_srcdir: %define _srcdir %_prefix/src}
 %{?!_datarootdir: %define _datarootdir %{_datadir}}
@@ -33,7 +30,7 @@ BuildRequires:	pkgconfig
 BuildRoot: 	%{_tmppath}/%{name}-%{version}-%{release}-root/
 
 %description
-Kernel modules for %{module_name} %{version} in a DKMS wrapper.
+Kernel modules and userspace apps for %{module_name} %{version} in a DKMS wrapper.
 
 %prep
 if [ "%mktarball_line" != "none" ]; then
