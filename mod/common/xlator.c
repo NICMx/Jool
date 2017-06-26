@@ -374,7 +374,7 @@ int xlator_replace(struct xlator *jool)
  * IT IS EXTREMELY IMPORTANT THAT YOU NEVER KREF_GET ANY OF @result'S MEMBERS!!!
  * (You are not meant to fork pointers to them.)
  *
- * If @result is NULL, it can be used to know whether the instance exists.
+ * If @result is NULL, it's because the namespace has no instance.
  */
 int xlator_find(struct net *ns, struct xlator *result)
 {

@@ -183,7 +183,7 @@ static int init_icmp6_hdr_info(void *l4_hdr, int l3_hdr_type, u16 datagram_len,
 	return 0;
 }
 
-static int init_icmp6_hdr_error(void *l4_hdr, int l3_hdr_type, u16 datagram_len,
+int init_icmp6_hdr_error(void *l4_hdr, int l3_hdr_type, u16 datagram_len,
 		struct tuple *tuple6)
 {
 	struct icmp6hdr *hdr = l4_hdr;
