@@ -211,6 +211,15 @@ static inline unsigned int tcp_hdr_len(const struct tcphdr *hdr)
 	return hdr->doff << 2;
 }
 
+#define SNAPSHOT_FRAGS_SIZE 5
+
+struct pkt_snapshot {
+	unsigned int len;
+	unsigned int data_len;
+	unsigned char nr_frags;
+	unsigned int frags[SNAPSHOT_FRAGS_SIZE];
+};
+
 /**
  * We need to store packet metadata, so we encapsulate sk_buffs into this.
  *
@@ -277,6 +286,11 @@ struct packet {
 	 * packet, not the one being translated. Also relevant to pkt_queue.
 	 */
 	struct packet *original_pkt;
+
+	struct {
+		struct pkt_snapshot shot1;
+		struct pkt_snapshot shot2;
+	} debug;
 
 #ifdef BENCHMARK
 	/**
@@ -532,5 +546,8 @@ int pkt_init_ipv4(struct packet *pkt, struct sk_buff *skb);
  * Outputs @pkt in the log.
  */
 void pkt_print(struct packet *pkt);
+
+void snapshot_record(struct pkt_snapshot *shot, struct sk_buff *skb);
+void snapshot_report(struct pkt_snapshot *shot, char *prefix);
 
 #endif /* _JOOL_MOD_PACKET_H */

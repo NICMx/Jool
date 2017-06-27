@@ -95,10 +95,40 @@ bool will_need_frag_hdr(const struct iphdr *hdr)
 	return is_mf_set_ipv4(hdr) || get_fragment_offset_ipv4(hdr);
 }
 
+static int report_bug247(struct packet *pkt, __u8 proto)
+{
+	struct sk_buff *skb = pkt->skb;
+	struct skb_shared_info *shinfo = skb_shinfo(skb);
+	unsigned int i;
+
+	pr_err("Bug #247 happened!\n");
+
+	pr_err("Page size: %lu\n", PAGE_SIZE);
+	pr_err("Page shift: %u\n", PAGE_SHIFT);
+	pr_err("Inner packet l4-protocol: %u\n", proto);
+
+	snapshot_report(&pkt->debug.shot1, "initial");
+	snapshot_report(&pkt->debug.shot2, "mid");
+
+	pr_err("current len: %u\n", skb->len);
+	pr_err("current data_len: %u\n", skb->data_len);
+	pr_err("current nr_frags: %u\n", shinfo->nr_frags);
+	for (i = 0; i < shinfo->nr_frags; i++) {
+		pr_err("    current frag %u: %u\n", i,
+				skb_frag_size(&shinfo->frags[i]));
+	}
+
+	pr_err("Dropping packet.\n");
+	return -EINVAL;
+}
+
 static int move_pointers_in(struct packet *pkt, __u8 protocol,
 		unsigned int l3hdr_len)
 {
 	unsigned int l4hdr_len;
+
+	if (unlikely(pkt->skb->len < pkt->skb->data_len))
+		return report_bug247(pkt, protocol);
 
 	skb_pull(pkt->skb, pkt_hdrs_len(pkt));
 	skb_reset_network_header(pkt->skb);
