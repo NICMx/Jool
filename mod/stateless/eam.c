@@ -472,8 +472,8 @@ int eamt_init(struct eam_table **eamt)
 	if (!result)
 		return -ENOMEM;
 
-	rtrie_init(&result->trie6, sizeof(struct eamt_entry));
-	rtrie_init(&result->trie4, sizeof(struct eamt_entry));
+	rtrie_init(&result->trie6, sizeof(struct eamt_entry), &lock);
+	rtrie_init(&result->trie4, sizeof(struct eamt_entry), &lock);
 	result->count = 0;
 	kref_init(&result->refcount);
 

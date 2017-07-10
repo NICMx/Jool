@@ -71,9 +71,16 @@ struct rtrie {
 	struct list_head list;
 	/** Size of the values being stored (in bytes). */
 	size_t value_size;
+
+	/**
+	 * Notice that this is a pointer.
+	 * Locking is actually the caller's responsibility; the only reason why
+	 * the trie keeps track of it is for the sake of RCU validation.
+	 */
+	struct mutex *lock;
 };
 
-void rtrie_init(struct rtrie *trie, size_t size);
+void rtrie_init(struct rtrie *trie, size_t size, struct mutex *lock);
 void rtrie_destroy(struct rtrie *trie);
 
 /* Safe-to-use-during-packet-translation functions */

@@ -1,8 +1,10 @@
 #include "nat64/mod/common/rtrie.h"
 
 #include <linux/rcupdate.h>
+
 #include "nat64/common/types.h"
 #include "nat64/mod/common/wkmalloc.h"
+
 
 /*
  * TODO (test) what is trie->lock? I don't think these are doing much.
@@ -12,10 +14,15 @@
 #define deref_reader(node) \
 	rcu_dereference_bh(node)
 #define deref_updater(trie, node) \
-	rcu_dereference_protected(node, lockdep_is_held(&trie->lock))
+	rcu_dereference_protected(node, lockdep_is_held(trie->potatolock))
 #define deref_both(trie, node) \
-	rcu_dereference_bh_check(node, lockdep_is_held(&trie->lock))
+	rcu_dereference_bh_check(node, lockdep_is_held(trie->lock))
 
+/**
+ * Returns the number of bytes you need to be able to store @bits bits.
+ *
+ * Basically `ceiling(bits / 8)`.
+ */
 static __u8 bits_to_bytes(__u8 bits)
 {
 	return (bits != 0u) ? (((bits - 1u) >> 3) + 1u) : 0u;
@@ -66,6 +73,9 @@ static struct rtrie_node *create_leaf(void *content, size_t content_len,
 	return leaf;
 }
 
+/**
+ * Zero-based, left to right. Eg. get_bit(0b00100000, 2) returns 1.
+ */
 static unsigned int get_bit(__u8 byte, unsigned int pos)
 {
 	return (byte >> (7u - pos)) & 1u;
@@ -79,8 +89,8 @@ static unsigned int __key_match(struct rtrie_key *key1, struct rtrie_key *key2,
 	unsigned int bytes;
 	unsigned int bit1, bit2;
 
-	bytes = bits >> 3; /* >> 3 = / 8*/
-	bits &= 7; /* & 7 = % 8 */
+	bytes = bits >> 3; /* ">> 3" = "/ 8" */
+	bits &= 7; /* "& 7" = "% 8" */
 
 	for (y = 0; y < bytes; y++) {
 		if (key1->bytes[y] != key2->bytes[y]) {
@@ -132,11 +142,12 @@ static bool key_equals(struct rtrie_key *key1, struct rtrie_key *key2)
 			: false;
 }
 
-void rtrie_init(struct rtrie *trie, size_t size)
+void rtrie_init(struct rtrie *trie, size_t size, struct mutex *lock)
 {
 	trie->root = NULL;
 	INIT_LIST_HEAD(&trie->list);
 	trie->value_size = size;
+	trie->lock = lock;
 }
 
 void rtrie_destroy(struct rtrie *trie)
