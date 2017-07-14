@@ -6,15 +6,10 @@
 #include "nat64/mod/common/wkmalloc.h"
 
 
-/*
- * TODO (test) what is trie->lock? I don't think these are doing much.
- * (It's kind of hard to fix because the EAMT is the one holding the lock.
- * I reviewed the code, though. There shouldn't be any problems.)
- */
 #define deref_reader(node) \
 	rcu_dereference_bh(node)
 #define deref_updater(trie, node) \
-	rcu_dereference_protected(node, lockdep_is_held(trie->potatolock))
+	rcu_dereference_protected(node, lockdep_is_held(trie->lock))
 #define deref_both(trie, node) \
 	rcu_dereference_bh_check(node, lockdep_is_held(trie->lock))
 
