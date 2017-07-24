@@ -1,7 +1,7 @@
 #include "nat64/mod/common/translation_state.h"
 #include "nat64/mod/common/types.h"
 
-struct fake {
+static struct fake {
 	int junk;
 } dummy;
 

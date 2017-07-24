@@ -2,7 +2,7 @@
 #include "nat64/mod/stateful/bib/pkt_queue.h"
 #include "nat64/unit/unit_test.h"
 
-struct fake_pktqueue {
+static struct fake_pktqueue {
 	int junk;
 } dummy;
 

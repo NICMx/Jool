@@ -17,20 +17,7 @@ PALLOC = rfc6056
 obj-m += $(PALLOC).o
 
 $(PALLOC)-objs += $(MIN_REQS)
-$(PALLOC)-objs += ../../../mod/common/config.o
-$(PALLOC)-objs += ../../../mod/common/ipv6_hdr_iterator.o
-$(PALLOC)-objs += ../../../mod/common/pool6.o
-$(PALLOC)-objs += ../../../mod/common/rbtree.o
-$(PALLOC)-objs += ../../../mod/common/rfc6052.o
-$(PALLOC)-objs += ../../../mod/common/rfc6145/common.o
-$(PALLOC)-objs += ../../../mod/common/rfc6145/4to6.o
-$(PALLOC)-objs += ../../../mod/common/rfc6145/6to4.o
-$(PALLOC)-objs += ../../../mod/stateful/impersonator.o
-$(PALLOC)-objs += ../../../mod/stateful/pool4/db.o
-$(PALLOC)-objs += ../../../mod/stateful/pool4/empty.o
 $(PALLOC)-objs += ../framework/types.o
-$(PALLOC)-objs += ../impersonator/icmp_wrapper.o
-$(PALLOC)-objs += ../impersonator/route.o
 $(PALLOC)-objs += rfc6056_test.o
 
 

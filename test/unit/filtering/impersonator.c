@@ -1,7 +1,7 @@
 #include "nat64/mod/stateful/joold.h"
 #include "nat64/unit/unit_test.h"
 
-struct fake {
+static struct fake {
 	int junk;
 } dummy;
 
