@@ -124,6 +124,17 @@ fi
 
 # Miscellaneous tests
 if [[ -z $1 || $1 = *misc* ]]; then
+	# Issue #132 tests explanation: We're sending a packet from N6 in hopes that
+	# N4 will bounce back an ICMP error due to nonexistant route 203.0.113.
+	# We're mainly testing the address Jool uses to source the translated ICMP
+	# error behaves in accordance with #132's agreed upon rules.
+	# This test is the reason why N4 has v4 forwarding active (otherwise N4
+	# drops the packet silently), and the translator has a bogus route to
+	# 200.0.113. (Though there might be other tests that exploit this
+	# configuration; I don't remember.)
+	# If these tests queue, check whether N4 has a default route. If it does, it
+	# will not answer the ICMP error we need.
+	
 	ip netns exec joolns jool --source-icmpv6-errors-better on
 	# TODO The IPv4 node is returning DSCP 0x30. I don't know why.
 	test-manual issue132-test issue132-expected-on 0

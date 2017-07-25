@@ -101,11 +101,13 @@ static int report_bug247(struct packet *pkt, __u8 proto)
 	struct skb_shared_info *shinfo = skb_shinfo(skb);
 	unsigned int i;
 
+	pr_err("----- JOOL OUTPUT -----\n");
 	pr_err("Bug #247 happened!\n");
 
+	pr_err("xlator: %u " JOOL_VERSION_STR, xlat_is_siit());
 	pr_err("Page size: %lu\n", PAGE_SIZE);
 	pr_err("Page shift: %u\n", PAGE_SHIFT);
-	pr_err("Inner packet l4-protocol: %u\n", proto);
+	pr_err("protocols: %u %u %u\n", pkt->l3_proto, pkt->l4_proto, proto);
 
 	snapshot_report(&pkt->debug.shot1, "initial");
 	snapshot_report(&pkt->debug.shot2, "mid");
@@ -119,6 +121,7 @@ static int report_bug247(struct packet *pkt, __u8 proto)
 	}
 
 	pr_err("Dropping packet.\n");
+	pr_err("-----------------------\n");
 	return -EINVAL;
 }
 
