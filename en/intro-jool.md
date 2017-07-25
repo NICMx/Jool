@@ -61,6 +61,18 @@ Jool supports Linux kernels 3.2.0 and above. While most of the development time 
 - 4.8.0-040800-generic
 - 4.8.2-040802-generic
 
+Jool 3.5.4 was tested in the following variants:
+
+- 3.10.107-0310107-generic
+- 3.16.46-031646-generic
+- 3.18.62-031862-generic
+- 4.1.22-040122-generic
+- 4.4.0-87-generic
+- 4.9.0-040900-generic
+- 4.10.0-27-generic
+- 4.11.0-041100-generic
+- 4.12.0-041200-generic
+
 ## Design
 
 Jool is a Netfilter module that hooks itself to the prerouting chain (See [Netfilter Architecture](http://www.netfilter.org/documentation/HOWTO//netfilter-hacking-HOWTO-3.html)). Because Netfilter isn't comfortable with packets changing layer-3 protocols, Jool has its own forwarding pipeline, which only translating packets traverse.

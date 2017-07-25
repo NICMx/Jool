@@ -27,11 +27,20 @@ As far as we know, Jool is a [compliant](intro-jool.html#compliance) SIIT and St
 
 New bug reports might interpolate other milestones in-between. Feedback from users can persuade us to change priorities. See [Contact](contact.html) for options on this.
 
-Our latest important release is version [3.5.3]({{ site.repository-url }}/milestone/38).
+Our latest release is version [3.5.4]({{ site.repository-url }}/milestone/38).
 
 -------------------
 
 ## News
+
+### 2017-07-25
+
+Version 3.5.4 has been released. The improvements are
+
+1. Added support for kernels [4.11](https://github.com/NICMx/Jool/issues/244) and [4.12](https://github.com/NICMx/Jool/issues/248).
+2. [Fixed compilation](https://github.com/NICMx/Jool/issues/245) on debugging-enabled kernels.
+3. [Improved `make clean`](https://github.com/NICMx/Jool/issues/246) slightly.
+4. Added error handling for [#247](https://github.com/NICMx/Jool/issues/247). (The core problem hasn't been found yet, but what used to be a kernel crash has been upgraded to a packet drop and debugging messages.)
 
 ### 2017-03-09
 
