@@ -440,9 +440,6 @@ int eamt_foreach(struct eam_table *eamt,
 	struct rtrie_key *offset_key_ptr = NULL;
 	int error;
 
-	args.cb = cb;
-	args.arg = arg;
-
 	if (offset) {
 		offset_key.bytes = (__u8 *) &offset->address;
 		offset_key.len = offset->len;
@@ -450,7 +447,7 @@ int eamt_foreach(struct eam_table *eamt,
 	}
 
 	mutex_lock(&lock);
-	error = rtrie_foreach(&eamt->trie6, foreach_cb, &args, offset_key_ptr);
+	error = rtrie_foreach(&eamt->trie4, foreach_cb, &args, offset_key_ptr);
 	mutex_unlock(&lock);
 	return error;
 }
