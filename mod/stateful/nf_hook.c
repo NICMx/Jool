@@ -33,10 +33,6 @@ static int pool4_len;
 module_param_array(pool4, charp, &pool4_len, 0);
 MODULE_PARM_DESC(pool4, "The IPv4 pool's addresses.");
 
-static unsigned int pool4_size;
-module_param(pool4_size, uint, 0);
-MODULE_PARM_DESC(pool4_size, "Size of pool4 DB's hashtable.");
-
 static bool disabled;
 module_param(disabled, bool, 0);
 MODULE_PARM_DESC(disabled, "Disable the translation at the beginning of the module insertion.");
