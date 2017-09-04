@@ -249,7 +249,7 @@ int xlator_add(struct xlator *result)
 	struct net *ns;
 	int error;
 
-	ns = get_net_ns_by_pid(task_pid_nr(current));
+	ns = get_net_ns_by_pid(task_pid_vnr(current));
 	if (IS_ERR(ns)) {
 		log_err("Could not retrieve the current namespace.");
 		return PTR_ERR(ns);
@@ -312,7 +312,7 @@ int xlator_rm(void)
 	struct net *ns;
 	int error;
 
-	ns = get_net_ns_by_pid(task_pid_nr(current));
+	ns = get_net_ns_by_pid(task_pid_vnr(current));
 	if (IS_ERR(ns)) {
 		log_err("Could not retrieve the current namespace.");
 		return PTR_ERR(ns);
@@ -411,7 +411,7 @@ int xlator_find_current(struct xlator *result)
 	struct net *ns;
 	int error;
 
-	ns = get_net_ns_by_pid(task_pid_nr(current)); /* +1 to ns. */
+	ns = get_net_ns_by_pid(task_pid_vnr(current)); /* +1 to ns. */
 	if (IS_ERR(ns)) {
 		log_err("Could not retrieve the current namespace.");
 		return PTR_ERR(ns);

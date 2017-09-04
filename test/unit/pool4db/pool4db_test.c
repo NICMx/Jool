@@ -524,7 +524,7 @@ static bool init(void)
 		return false;
 	}
 
-	ns = get_net_ns_by_pid(task_pid_nr(current));
+	ns = get_net_ns_by_pid(task_pid_vnr(current));
 	if (IS_ERR(ns)) {
 		log_err("Could not retrieve the current namespace.");
 		pool4db_put(pool);

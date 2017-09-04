@@ -209,7 +209,7 @@ int init_module(void)
 	 */
 	ssleep(2);
 
-	ns = get_net_ns_by_pid(task_pid_nr(current));
+	ns = get_net_ns_by_pid(task_pid_vnr(current));
 	if (IS_ERR(ns)) {
 		log_err("Could not retrieve the current namespace.");
 		return PTR_ERR(ns);

@@ -38,7 +38,7 @@ static struct net *find_current_namespace(void)
 {
 	struct net *ns;
 
-	ns = get_net_ns_by_pid(task_pid_nr(current));
+	ns = get_net_ns_by_pid(task_pid_vnr(current));
 	if (IS_ERR(ns)) {
 		log_err("Could not retrieve the current namespace. Errcode is %ld.", PTR_ERR(ns));
 		return NULL;
