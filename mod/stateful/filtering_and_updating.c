@@ -49,6 +49,7 @@ static void log_entries(struct bib_session *entries)
 {
 	struct session_entry *session = &entries->session;
 
+	/*
 	if (entries->bib_set) {
 		log_debug("BIB entry: %pI6c#%u - %pI4#%u (%s)",
 				&session->src6.l3, session->src6.l4,
@@ -57,6 +58,7 @@ static void log_entries(struct bib_session *entries)
 	} else {
 		log_debug("BIB entry: None");
 	}
+	*/
 
 	if (entries->session_set) {
 		log_debug("Session entry: %pI6c#%u - %pI6c#%u | %pI4#%u - %pI4#%u (%s)",

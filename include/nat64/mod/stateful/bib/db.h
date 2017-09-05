@@ -115,9 +115,9 @@ struct session_foreach_offset {
 	bool include_offset;
 };
 
-int bib_foreach(struct bib *db, l4_protocol proto,
-		struct bib_foreach_func *func,
-		const struct ipv4_transport_addr *offset);
+//int bib_foreach(struct bib *db, l4_protocol proto,
+//		struct bib_foreach_func *func,
+//		const struct ipv4_transport_addr *offset);
 int bib_foreach_session(struct bib *db, l4_protocol proto,
 		struct session_foreach_func *collision_cb,
 		struct session_foreach_offset *offset);
@@ -125,14 +125,14 @@ int bib_find6(struct bib *db, l4_protocol proto,
 		struct ipv6_transport_addr *addr,
 		struct bib_entry *result);
 int bib_find4(struct bib *db, l4_protocol proto,
-		struct ipv4_transport_addr *addr,
+		struct tuple *tuple4,
 		struct bib_entry *result);
-int bib_add_static(struct bib *db, struct bib_entry *new,
-		struct bib_entry *old);
-int bib_rm(struct bib *db, struct bib_entry *entry);
+//int bib_add_static(struct bib *db, struct bib_entry *new,
+//		struct bib_entry *old);
+//int bib_rm(struct bib *db, struct bib_entry *entry);
 void bib_rm_range(struct bib *db, l4_protocol proto, struct ipv4_range *range);
 void bib_flush(struct bib *db);
-int bib_count(struct bib *db, l4_protocol proto, __u64 *count);
+//int bib_count(struct bib *db, l4_protocol proto, __u64 *count);
 int bib_count_sessions(struct bib *db, l4_protocol proto, __u64 *count);
 
 void bib_print(struct bib *db);

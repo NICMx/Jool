@@ -5,6 +5,7 @@
 #include "nat64/mod/stateful/pool4/db.h"
 #include "nat64/mod/stateful/bib/db.h"
 
+/*
 static int bib_entry_to_userspace(struct bib_entry *entry, bool is_static,
 		void *arg)
 {
@@ -18,10 +19,15 @@ static int bib_entry_to_userspace(struct bib_entry *entry, bool is_static,
 
 	return nlbuffer_write(buffer, &entry_usr, sizeof(entry_usr));
 }
+*/
 
 static int handle_bib_display(struct bib *db, struct genl_info *info,
 		struct request_bib *request)
 {
+	log_err("Not implemented.");
+	return nlcore_respond(info, -ENOENT);
+
+	/*
 	struct nlcore_buffer buffer;
 	struct bib_foreach_func func = {
 			.cb = bib_entry_to_userspace,
@@ -48,11 +54,16 @@ static int handle_bib_display(struct bib *db, struct genl_info *info,
 
 	nlbuffer_free(&buffer);
 	return error;
+	*/
 }
 
 static int handle_bib_count(struct bib *db, struct genl_info *info,
 		struct request_bib *request)
 {
+	log_err("Not implemented.");
+	return nlcore_respond(info, -ENOENT);
+
+	/*
 	int error;
 	__u64 count;
 
@@ -62,10 +73,15 @@ static int handle_bib_count(struct bib *db, struct genl_info *info,
 		return nlcore_respond(info, error);
 
 	return nlcore_respond_struct(info, &count, sizeof(count));
+	*/
 }
 
 static int handle_bib_add(struct xlator *jool, struct request_bib *request)
 {
+	log_err("Not implemented.");
+	return -ENOENT;
+
+	/*
 	struct bib_entry new;
 	struct bib_entry old;
 	int error;
@@ -104,10 +120,15 @@ static int handle_bib_add(struct xlator *jool, struct request_bib *request)
 	}
 
 	return error;
+	*/
 }
 
 static int handle_bib_rm(struct xlator *jool, struct request_bib *request)
 {
+	log_err("Not implemented.");
+	return -ENOENT;
+
+	/*
 	struct bib_entry bib;
 	int error;
 
@@ -141,7 +162,7 @@ static int handle_bib_rm(struct xlator *jool, struct request_bib *request)
 	if (error == -ESRCH) {
 		if (request->rm.addr6_set && request->rm.addr4_set)
 			goto esrch;
-		/* It died on its own between the find and the rm. */
+		/ It died on its own between the find and the rm. /
 		return 0;
 	}
 
@@ -150,6 +171,7 @@ static int handle_bib_rm(struct xlator *jool, struct request_bib *request)
 esrch:
 	log_err("The entry wasn't in the database.");
 	return -ESRCH;
+	*/
 }
 
 int handle_bib_config(struct xlator *jool, struct genl_info *info)

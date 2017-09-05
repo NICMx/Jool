@@ -59,8 +59,6 @@ static int session_display_response(struct jool_response *response, void *arg)
 			print_addr6(&entry->src6, params->numeric_hostname, ",",
 					params->req_payload->l4_proto);
 			printf(",");
-			print_addr6(&entry->dst6, true, ",", params->req_payload->l4_proto);
-			printf(",");
 			print_addr4(&entry->src4, true, ",", params->req_payload->l4_proto);
 			printf(",");
 			print_addr4(&entry->dst4, params->numeric_hostname, ",",
@@ -93,8 +91,6 @@ static int session_display_response(struct jool_response *response, void *arg)
 			printf("Local: ");
 			print_addr4(&entry->src4, true, "#", params->req_payload->l4_proto);
 
-			printf("\t");
-			print_addr6(&entry->dst6, true, "#", params->req_payload->l4_proto);
 			printf("\n");
 
 			printf("---------------------------------\n");
@@ -157,7 +153,7 @@ int session_display(bool use_tcp, bool use_udp, bool use_icmp, bool numeric_host
 
 	if (csv_format) {
 		printf("Protocol,");
-		printf("IPv6 Remote Address,IPv6 Remote L4-ID,IPv6 Local Address,IPv6 Local L4-ID,");
+		printf("IPv6 Remote Address,IPv6 Remote L4-ID,");
 		printf("IPv4 Local Address,IPv4 Local L4-ID,IPv4 Remote Address,IPv4 Remote L4-ID,");
 		printf("Expires in,State");
 		printf("\n");
