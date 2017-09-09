@@ -61,9 +61,8 @@ static void log_entries(struct bib_session *entries)
 	*/
 
 	if (entries->session_set) {
-		log_debug("Session entry: %pI6c#%u - %pI6c#%u | %pI4#%u - %pI4#%u (%s)",
+		log_debug("Session entry: %pI6c#%u | %pI4#%u | %pI4#%u (%s)",
 				&session->src6.l3, session->src6.l4,
-				&session->dst6.l3, session->dst6.l4,
 				&session->src4.l3, session->src4.l4,
 				&session->dst4.l3, session->dst4.l4,
 				l4proto_to_string(session->proto));

@@ -933,7 +933,7 @@ int mask_domain_next(struct mask_domain *masks,
 	if (masks->current_port > masks->current_range->ports.max) {
 		*consecutive = false;
 		masks->current_range++;
-		if (masks->current_range > first_domain_entry(masks) + masks->range_count)
+		if (masks->current_range >= first_domain_entry(masks) + masks->range_count)
 			masks->current_range = first_domain_entry(masks);
 		masks->current_port = masks->current_range->ports.min;
 	} else {

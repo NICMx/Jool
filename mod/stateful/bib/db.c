@@ -1,6 +1,6 @@
 #include "nat64/mod/stateful/bib/db.h"
 
-#include <net/ip6_checksum.h>
+#include <net/tcp.h>
 
 #include "nat64/common/constants.h"
 #include "nat64/common/str_utils.h"
@@ -89,13 +89,6 @@ struct session_table {
 	 * become no-ops.
 	 */
 	struct expire_timer syn4_timer;
-
-	/** Current number of packets (of both types) in the table. */
-	int pkt_count;
-	/** Maximum storable packets (of both types) in the table. */
-	unsigned int pkt_limit;
-	/** Drop externally initiated TCP connections? */
-	bool drop_v4_syn;
 };
 
 struct bib {
@@ -111,9 +104,7 @@ struct bib {
 
 static struct kmem_cache *session_cache;
 
-#define alloc_bib(flags) wkmem_cache_alloc("bib entry", bib_cache, flags)
 #define alloc_session(flags) wkmem_cache_alloc("session", session_cache, flags)
-#define free_bib(bib) wkmem_cache_free("bib entry", bib_cache, bib)
 #define free_session(session) wkmem_cache_free("session", session_cache, session)
 
 static struct tabled_session *session6_entry(const struct rb_node *node)
@@ -146,7 +137,22 @@ static void tstose(struct tabled_session *tsession,
 		struct session_entry *session)
 {
 	session->src6 = tsession->src6;
-//	session->dst6 = *dst6; // TODO
+
+	/*
+	 * This field is only being used in unit tests (which are outside of the
+	 * scope of the prototype) and joold (which simply carries it around).
+	 * Might as well leave it alone.
+	 *
+	 * I don't want to remove the field from struct session_entry because,
+	 * if fake NAT64 proves to be a worthy operation mode, it will have to
+	 * coexist with real NAT64, and real NAT64 does kind of need the field.
+	 * On the other hand, dst6 is always just dst4 plus the pool6 prefix, so
+	 * its existence has always been questionable.
+	 *
+	 * I'll decide on the final destiny of dst6 later.
+	 */
+	memset(&session->dst6, 0, sizeof(session->dst6));
+
 	session->src4 = tsession->src4;
 	session->dst4 = tsession->dst4;
 	session->proto = tsession->proto;
@@ -237,12 +243,8 @@ static void init_table(struct session_table *table,
 
 	init_expirer(&table->trans_timer, trans_timeout, SESSION_TIMER_TRANS,
 			just_die);
-	/* TODO "just_die"? what about the stored packet? */
 	init_expirer(&table->syn4_timer, TCP_INCOMING_SYN, SESSION_TIMER_SYN4,
 			just_die);
-	table->pkt_count = 0;
-	table->pkt_limit = 0;
-	table->drop_v4_syn = DEFAULT_DROP_EXTERNAL_CONNECTIONS;
 }
 
 struct bib *bib_create(void)
@@ -256,8 +258,6 @@ struct bib *bib_create(void)
 	init_table(&db->udp, UDP_DEFAULT, 0, just_die);
 	init_table(&db->tcp, TCP_EST, TCP_TRANS, tcp_est_expire_cb);
 	init_table(&db->icmp, ICMP_DEFAULT, 0, just_die);
-
-	db->tcp.pkt_limit = DEFAULT_MAX_STORED_PKTS;
 
 	kref_init(&db->refs);
 
@@ -307,8 +307,8 @@ void bib_config_copy(struct bib *db, struct bib_config *config)
 	config->drop_by_addr = false;
 	config->ttl.tcp_est = db->tcp.est_timer.timeout;
 	config->ttl.tcp_trans = db->tcp.trans_timer.timeout;
-	config->max_stored_pkts = db->tcp.pkt_limit;
-	config->drop_external_tcp = db->tcp.drop_v4_syn;
+	config->max_stored_pkts = 0;
+	config->drop_external_tcp = true;
 	spin_unlock_bh(&db->tcp.lock);
 
 	spin_lock_bh(&db->udp.lock);
@@ -326,8 +326,6 @@ void bib_config_set(struct bib *db, struct bib_config *config)
 	db->tcp.log_sessions = config->session_logging;
 	db->tcp.est_timer.timeout = config->ttl.tcp_est;
 	db->tcp.trans_timer.timeout = config->ttl.tcp_trans;
-	db->tcp.pkt_limit = config->max_stored_pkts;
-	db->tcp.drop_v4_syn = config->drop_external_tcp;
 	spin_unlock_bh(&db->tcp.lock);
 
 	spin_lock_bh(&db->udp.lock);
@@ -402,10 +400,7 @@ static void handle_probe(struct session_table *table,
 	list_add(&probe->list_hook, probes);
 }
 
-static void rm(struct session_table *table,
-		struct list_head *probes,
-		struct tabled_session *session,
-		struct session_entry *tmp)
+static void rm(struct session_table *table, struct tabled_session *session)
 {
 	rb_erase(&session->hook6, &table->tree6);
 	rb_erase(&session->hook4, &table->tree4);
@@ -500,7 +495,7 @@ static verdict decide_fate(struct collision_cb *cb,
 		break;
 
 	case FATE_RM:
-		rm(table, probes, session, &tmp);
+		rm(table, session);
 		break;
 
 	case FATE_PRESERVE:
@@ -535,7 +530,7 @@ static void send_probe_packet(struct net *ns, struct session_entry *session)
 {
 	struct packet pkt;
 	struct sk_buff *skb;
-	struct ipv6hdr *iph;
+	struct iphdr *iph;
 	struct tcphdr *th;
 	int error;
 
@@ -554,21 +549,24 @@ static void send_probe_packet(struct net *ns, struct session_entry *session)
 	skb_reset_network_header(skb);
 	skb_set_transport_header(skb, l3_hdr_len);
 
-	iph = ipv6_hdr(skb);
-	iph->version = 6;
-	iph->priority = 0;
-	iph->flow_lbl[0] = 0;
-	iph->flow_lbl[1] = 0;
-	iph->flow_lbl[2] = 0;
-	iph->payload_len = cpu_to_be16(l4_hdr_len);
-	iph->nexthdr = NEXTHDR_TCP;
-	iph->hop_limit = 255;
-	iph->saddr = session->dst6.l3;
-	iph->daddr = session->src6.l3;
+	iph = ip_hdr(skb);
+	iph->version = 4;
+	iph->ihl = 5;
+	iph->tos = 0;
+	iph->tot_len = cpu_to_be16(l3_hdr_len + l4_hdr_len);
+	iph->id = 0;
+	iph->frag_off = build_ipv4_frag_off_field(1, 0, 0);
+	iph->ttl = 255;
+	iph->protocol = IPPROTO_TCP;
+	iph->saddr = session->src4.l3.s_addr;
+	iph->daddr = session->dst4.l3.s_addr;
+
+	iph->check = 0;
+	iph->check = ip_fast_csum(iph, iph->ihl);
 
 	th = tcp_hdr(skb);
-	th->source = cpu_to_be16(session->dst6.l4);
-	th->dest = cpu_to_be16(session->src6.l4);
+	th->source = cpu_to_be16(session->src4.l4);
+	th->dest = cpu_to_be16(session->dst4.l4);
 	th->seq = htonl(0);
 	th->ack_seq = htonl(0);
 	th->res1 = 0;
@@ -586,13 +584,13 @@ static void send_probe_packet(struct net *ns, struct session_entry *session)
 	th->urg_ptr = 0;
 
 	/* TODO (performance) can't we just defer this to somebody else? */
-	th->check = csum_ipv6_magic(&iph->saddr, &iph->daddr, l4_hdr_len,
-			IPPROTO_TCP, csum_partial(th, l4_hdr_len, 0));
+	th->check = tcp_v4_check(l4_hdr_len, iph->saddr, iph->daddr,
+			csum_partial(th, l4_hdr_len, 0));
 	skb->ip_summed = CHECKSUM_UNNECESSARY;
 
-	pkt_fill(&pkt, skb, L3PROTO_IPV6, L4PROTO_TCP, NULL, th + 1, NULL);
+	pkt_fill(&pkt, skb, L3PROTO_IPV4, L4PROTO_TCP, NULL, th + 1, NULL);
 
-	if (!route6(ns, &pkt)) {
+	if (!route4(ns, &pkt)) {
 		kfree_skb(skb);
 		goto fail;
 	}
@@ -660,11 +658,11 @@ static int compare4_rbnode(const struct rb_node *a, const struct rb_node *b)
 	struct tabled_session *sb = session4_entry(b);
 	int delta;
 
-	delta = taddr4_compare(&sa->src4, &sb->src4);
+	delta = taddr4_compare(&sa->dst4, &sb->dst4);
 	if (delta)
 		return delta;
 
-	return taddr4_compare(&sa->dst4, &sb->dst4);
+	return taddr4_compare(&sa->src4, &sb->src4);
 }
 
 static int compare6(const struct tabled_session *session,
@@ -678,11 +676,11 @@ static int compare4(const struct tabled_session *session,
 {
 	int delta;
 
-	delta = taddr4_compare(&session->src4, &tuple4->dst.addr4);
+	delta = taddr4_compare(&session->dst4, &tuple4->src.addr4);
 	if (delta)
 		return delta;
 
-	return taddr4_compare(&session->dst4, &tuple4->src.addr4);
+	return taddr4_compare(&session->src4, &tuple4->dst.addr4);
 }
 
 static struct tabled_session *find_slot6(struct session_table *table,
@@ -848,7 +846,8 @@ static struct tabled_session *try_next(struct session_table *table,
 		return NULL;
 	}
 
-	if (taddr4_equals(&next->src4, &session->src4))
+	if (taddr4_equals(&next->src4, &session->src4)
+			&& taddr4_equals(&next->dst4, &session->dst4))
 		return next; /* Next is yet another collision. */
 
 	slot->tree = &table->tree4;
@@ -895,6 +894,9 @@ static int find_available_mask(struct session_table *table,
 		error = mask_domain_next(masks, &session->src4, &consecutive);
 		if (error)
 			return error;
+
+		if (session->proto == L4PROTO_ICMP)
+			session->dst4.l4 = session->src4.l4;
 
 		/*
 		 * Just for the sake of clarity:
@@ -995,9 +997,6 @@ static int find_bib_session6(struct session_table *table,
 			log_warn_once("I ran out of pool4 addresses.");
 			return error;
 		}
-
-		if (new->proto == L4PROTO_ICMP)
-			new->dst4.l4 = new->src4.l4;
 
 	} else {
 		/*
@@ -1548,6 +1547,7 @@ int bib_count_sessions(struct bib *db, l4_protocol proto, __u64 *count)
 static void print_tabs(int tabs)
 {
 	int i;
+	pr_info("");
 	for (i = 0; i < tabs; i++)
 		pr_cont("  ");
 }
@@ -1572,10 +1572,10 @@ static void print_session(struct rb_node *node, int tabs, char *prefix)
 
 void bib_print(struct bib *db)
 {
-	log_debug("TCP:");
+	log_info("TCP:");
 	print_session(db->tcp.tree4.rb_node, 1, "Tree");
-	log_debug("UDP:");
+	log_info("UDP:");
 	print_session(db->udp.tree4.rb_node, 1, "Tree");
-	log_debug("ICMP:");
+	log_info("ICMP:");
 	print_session(db->icmp.tree4.rb_node, 1, "Tree");
 }
