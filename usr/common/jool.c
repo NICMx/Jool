@@ -518,6 +518,7 @@ static int parse_opt(int key, char *str, struct argp_state *state)
 		error = set_global_u64(args, key, str, FRAGMENT_MIN, MAX_U32/1000, 1000);
 		break;
 	case ARGP_STORED_PKTS:
+	case ARGP_MAX_MASK_ITERATIONS:
 		error = set_global_u32(args, key, str, 0, MAX_U32);
 		break;
 	case ARGP_SS_FLUSH_DEADLINE:

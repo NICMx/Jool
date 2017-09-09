@@ -431,6 +431,17 @@ static const struct argp_option max_so_opt = {
 		.group = 0,
 };
 
+static const struct argp_option max_mask_iterations = {
+		.name = OPTNAME_MAX_MASK_ITERATIONS,
+		.key = ARGP_MAX_MASK_ITERATIONS,
+		.arg = NUM_FORMAT,
+		.flags = 0,
+		.doc = "Set the iteration limit at which a mask allocation "
+				"should give up and assume the relevant pool4 "
+				"has been exhausted.",
+		.group = 0,
+};
+
 static const struct argp_option icmp_src_opt = {
 		.name = OPTNAME_SRC_ICMP6E_BETTER,
 		.key = ARGP_SRC_ICMP6ERRS_BETTER,
@@ -656,6 +667,7 @@ static const struct argp_option *opts_nat64[] = {
 	&tos_opt,
 	&plateaus_opt,
 	&max_so_opt,
+	&max_mask_iterations,
 	&icmp_src_opt,
 	&f_args_opt,
 	&rst_during_fin_rcv_opt,

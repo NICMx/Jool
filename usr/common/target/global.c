@@ -108,6 +108,8 @@ static int handle_display_response(struct jool_response *response, void *arg)
 
 		printf("  --%s: %u\n", OPTNAME_MAX_SO,
 				conf->bib.max_stored_pkts);
+		printf("  --%s: %u\n", OPTNAME_MAX_MASK_ITERATIONS,
+				conf->bib.max_mask_iterations);
 		printf("  --%s: %s\n", OPTNAME_SRC_ICMP6E_BETTER,
 				print_bool(conf->global.nat64.src_icmp6errs_better));
 		printf("  --%s: %s\n", OPTNAME_HANDLE_FIN_RCV_RST,
@@ -234,6 +236,8 @@ static int handle_display_response_csv(struct jool_response *response, void *arg
 
 		printf("%s,%u\n", OPTNAME_MAX_SO,
 				conf->bib.max_stored_pkts);
+		printf("%s,%u\n", OPTNAME_MAX_MASK_ITERATIONS,
+				conf->bib.max_mask_iterations);
 
 		printf("joold Enabled,%s\n",
 				print_csv_bool(conf->joold.enabled));

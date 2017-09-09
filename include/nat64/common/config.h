@@ -417,6 +417,7 @@ enum global_type {
 	BIB_LOGGING,
 	SESSION_LOGGING,
 	MAX_PKTS,
+	MAX_MASK_ITERATIONS,
 	SS_ENABLED,
 	SS_FLUSH_ASAP,
 	SS_FLUSH_DEADLINE,
@@ -613,6 +614,7 @@ struct bib_config {
 	config_bool drop_external_tcp;
 
 	__u32 max_stored_pkts;
+	__u32 max_mask_iterations;
 };
 
 /* This has to be <= 32. */
