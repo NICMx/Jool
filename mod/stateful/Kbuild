@@ -32,6 +32,7 @@ jool_common += ../common/send_packet.o
 jool_common += ../common/core.o
 jool_common += ../common/error_pool.o
 jool_common += ../common/wkmalloc.o
+jool_common += ../common/timestamp.o
 jool_common += ../common/xlator.o
 jool_common += ../common/nl/atomic_config.o
 jool_common += ../common/nl/nl_handler2.o
@@ -47,6 +48,7 @@ jool_common += ../common/nl/nl_common.o
 jool_common += ../common/nl/pool4.o
 jool_common += ../common/nl/pool6.o
 jool_common += ../common/nl/session.o
+jool_common += ../common/nl/timestamp.o
 
 jool += pool4/empty.o
 jool += pool4/db.o

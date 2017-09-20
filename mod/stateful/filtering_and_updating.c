@@ -7,6 +7,7 @@
 #include "nat64/mod/common/rfc6052.h"
 #include "nat64/mod/common/stats.h"
 #include "nat64/mod/common/rfc6145/6to4.h"
+#include "nat64/mod/common/timestamp.h"
 #include "nat64/mod/stateful/joold.h"
 #include "nat64/mod/stateful/pool4/db.h"
 #include "nat64/mod/stateful/bib/db.h"
@@ -137,8 +138,11 @@ static int find_mask_domain(struct xlation *state,
 		.mark = state->in.skb->mark,
 	};
 
+	TIMESTAMP_CREATE(timer);
 	*masks = mask_domain_find(state->jool.nat64.pool4, &state->in.tuple,
 			state->jool.global->cfg.nat64.f_args, &args);
+	TIMESTAMP_END(timer, TST_FAU64_MDS, masks);
+
 	if (*masks)
 		return 0;
 
@@ -546,43 +550,57 @@ verdict filtering_and_updating(struct xlation *state)
 {
 	struct packet *in = &state->in;
 	struct ipv6hdr *hdr_ip6;
+	timestamp timer;
 	verdict result = VERDICT_CONTINUE;
 
 	log_debug("Step 2: Filtering and Updating");
 
 	switch (pkt_l3_proto(in)) {
 	case L3PROTO_IPV6:
+		TIMESTAMP_START(timer);
+
 		/* Get rid of hairpinning loops and unwanted packets. */
 		hdr_ip6 = pkt_ip6_hdr(in);
 		if (pool6_contains(state->jool.pool6, &hdr_ip6->saddr)) {
 			log_debug("Hairpinning loop. Dropping...");
 			inc_stats(in, IPSTATS_MIB_INADDRERRORS);
+			TIMESTAMP_END(timer, TST_FAU64_VALIDATIONS, false);
 			return VERDICT_DROP;
 		}
 		if (!pool6_contains(state->jool.pool6, &hdr_ip6->daddr)) {
 			log_debug("Packet does not belong to pool6.");
+			TIMESTAMP_END(timer, TST_FAU64_VALIDATIONS, false);
 			return VERDICT_ACCEPT;
 		}
 
 		/* ICMP errors should not be filtered or affect the tables. */
 		if (pkt_is_icmp6_error(in)) {
 			log_debug("Packet is ICMPv6 error; skipping step...");
+			TIMESTAMP_END(timer, TST_FAU64_VALIDATIONS, true);
 			return VERDICT_CONTINUE;
 		}
+
+		TIMESTAMP_END(timer, TST_FAU64_VALIDATIONS, true);
 		break;
 	case L3PROTO_IPV4:
+		TIMESTAMP_START(timer);
+
 		/* Get rid of unexpected packets */
 		if (!pool4db_contains(state->jool.nat64.pool4, state->jool.ns,
 				in->tuple.l4_proto, &in->tuple.dst.addr4)) {
 			log_debug("Packet does not belong to pool4.");
+			TIMESTAMP_END(timer, TST_FAU46_VALIDATIONS, false);
 			return VERDICT_ACCEPT;
 		}
 
 		/* ICMP errors should not be filtered or affect the tables. */
 		if (pkt_is_icmp4_error(in)) {
 			log_debug("Packet is ICMPv4 error; skipping step...");
+			TIMESTAMP_END(timer, TST_FAU46_VALIDATIONS, true);
 			return VERDICT_CONTINUE;
 		}
+
+		TIMESTAMP_END(timer, TST_FAU46_VALIDATIONS, true);
 		break;
 	}
 

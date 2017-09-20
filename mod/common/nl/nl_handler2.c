@@ -3,6 +3,7 @@
 #include <linux/mutex.h>
 #include <linux/version.h>
 #include <linux/genetlink.h>
+
 #include "nat64/common/types.h"
 #include "nat64/mod/common/config.h"
 #include "nat64/mod/common/linux_version.h"
@@ -20,6 +21,7 @@
 #include "nat64/mod/common/nl/pool4.h"
 #include "nat64/mod/common/nl/pool6.h"
 #include "nat64/mod/common/nl/session.h"
+#include "nat64/mod/common/nl/timestamp.h"
 
 static struct genl_multicast_group mc_groups[1] = {
 	{
@@ -110,6 +112,8 @@ static int multiplex_request(struct xlator *jool, struct genl_info *info)
 		return handle_blacklist_config(jool, info);
 	case MODE_LOGTIME:
 		return handle_logtime_config(info);
+	case MODE_TIMESTAMPS:
+		return handle_timestamp(info);
 	case MODE_GLOBAL:
 		return handle_global_config(jool, info);
 	case MODE_PARSE_FILE:

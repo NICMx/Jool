@@ -5,6 +5,7 @@
 #include <net/icmp.h>
 #include "nat64/common/types.h"
 #include "nat64/mod/common/route.h"
+#include "nat64/mod/common/timestamp.h"
 
 static char *icmp_error_to_string(icmp_error_code error)
 {
@@ -36,6 +37,7 @@ static void icmp64_send4(struct sk_buff *skb, icmp_error_code error, __u32 info)
 {
 	int type, code;
 	int err;
+	TIMESTAMP_CREATE(timer);
 
 	/*
 	 * I don't know why the kernel needs this nonsense,
@@ -44,6 +46,7 @@ static void icmp64_send4(struct sk_buff *skb, icmp_error_code error, __u32 info)
 	err = route4_input(skb);
 	if (err) {
 		log_debug("Can't send an ICMPv4 Error: %d", err);
+		TIMESTAMP_END(timer, TST_ICMP4, false);
 		return;
 	}
 
@@ -77,17 +80,20 @@ static void icmp64_send4(struct sk_buff *skb, icmp_error_code error, __u32 info)
 		code = ICMP_SR_FAILED;
 		break;
 	default:
+		TIMESTAMP_END(timer, TST_ICMP4, false);
 		return; /* Not supported or needed. */
 	}
 
 	log_debug("Sending ICMPv4 error: %s, type: %d, code: %d.",
 			icmp_error_to_string(error), type, code);
 	icmp_send(skb, type, code, cpu_to_be32(info));
+	TIMESTAMP_END(timer, TST_ICMP4, true);
 }
 
 static void icmp64_send6(struct sk_buff *skb, icmp_error_code error, __u32 info)
 {
 	int type, code;
+	TIMESTAMP_CREATE(timer);
 
 	switch (error) {
 	case ICMPERR_ADDR_UNREACHABLE:
@@ -117,6 +123,7 @@ static void icmp64_send6(struct sk_buff *skb, icmp_error_code error, __u32 info)
 		code = 0; /* No code. */
 		break;
 	default:
+		TIMESTAMP_END(timer, TST_ICMP6, false);
 		return; /* Not supported or needed. */
 	}
 
@@ -133,6 +140,7 @@ static void icmp64_send6(struct sk_buff *skb, icmp_error_code error, __u32 info)
 #else
 #warning "You're compiling in kernel 3.12. See https://github.com/NICMx/Jool/issues/90"
 #endif
+	TIMESTAMP_END(timer, TST_ICMP6, true);
 }
 
 void icmp64_send(struct packet *pkt, icmp_error_code error, __u32 info)

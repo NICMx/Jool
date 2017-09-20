@@ -57,6 +57,8 @@ enum config_mode {
 	MODE_SESSION = (1 << 4),
 	/** The current message is talking about log times for benchmark. */
 	MODE_LOGTIME = (1 << 5),
+	/** The user requested performance status. */
+	MODE_TIMESTAMPS = (1 << 12),
 	/** The current message is talking about the JSON configuration file */
 	MODE_PARSE_FILE = (1 << 9),
 	/** The current message is talking about synchronization entries.*/
@@ -83,6 +85,7 @@ enum config_mode {
 #define SESSION_OPS (OP_DISPLAY | OP_COUNT)
 #define JOOLD_OPS (OP_ADVERTISE | OP_TEST)
 #define LOGTIME_OPS (OP_DISPLAY)
+#define TIMESTAMPS_OPS (OP_DISPLAY)
 #define INSTANCE_OPS (OP_ADD | OP_REMOVE)
 /**
  * @}
@@ -147,10 +150,11 @@ enum parse_section {
 #define UPDATE_MODES (MODE_GLOBAL | MODE_PARSE_FILE)
 
 #define SIIT_MODES (MODE_GLOBAL | MODE_POOL6 | MODE_BLACKLIST | MODE_RFC6791 \
-		| MODE_EAMT | MODE_LOGTIME | MODE_PARSE_FILE | MODE_INSTANCE)
+		| MODE_EAMT | MODE_LOGTIME | MODE_PARSE_FILE | MODE_INSTANCE \
+		| MODE_TIMESTAMPS)
 #define NAT64_MODES (MODE_GLOBAL | MODE_POOL6 | MODE_POOL4 | MODE_BIB \
 		| MODE_SESSION | MODE_LOGTIME | MODE_PARSE_FILE \
-		| MODE_INSTANCE | MODE_JOOLD)
+		| MODE_INSTANCE | MODE_JOOLD | MODE_TIMESTAMPS)
 /**
  * @}
  */
@@ -438,6 +442,54 @@ struct logtime_entry_usr {
 };
 
 #endif
+
+typedef enum timestamp_type {
+	TST64_FULL_TRANSLATION,
+	TST_PKT6_INIT,
+
+	TST46_FULL_TRANSLATION,
+	TST_PKT4_INIT,
+
+	TST_DIT, /* determine incoming tuple */
+	TST_FAU, /* filtering and updating */
+	TST_COT, /* compute outgoing tuple */
+	TST_TTP, /* translating the packet */
+	TST_HH, /* handling hairpinning */
+	TST_SP, /* send packet */
+
+	TST_FAU64_VALIDATIONS,
+	TST_FAU46_VALIDATIONS,
+	TST_FAU64_MDS, /* Mask domain search */
+
+	TST64_SESSION_GENERIC_OLD,
+	TST64_SESSION_GENERIC_NEW,
+	TST46_SESSION_GENERIC,
+	TST64_SESSION_TCP_OLD,
+	TST64_SESSION_TCP_NEW,
+	TST46_SESSION_TCP,
+	TST_SESSION_OLD,
+	TST_SESSION_NEW,
+	TST_SESSION_TIMER,
+	TST_SESSION_PROBE,
+	TST_SESSION_MASK,
+
+	TST_ICMP6,
+	TST_ICMP4,
+
+	TST_LENGTH,
+} timestamp_type;
+
+struct timestamps_entry_usr {
+	__u32 success_count;
+	__u32 success_min;
+	__u32 success_avg;
+	__u32 success_max;
+
+	__u32 failure_count;
+	__u32 failure_min;
+	__u32 failure_avg;
+	__u32 failure_max;
+};
 
 /**
  * A BIB entry, from the eyes of userspace.

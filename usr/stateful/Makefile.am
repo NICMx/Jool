@@ -23,7 +23,8 @@ jool_SOURCES = \
 	../common/target/pool.c \
 	../common/target/pool4.c \
 	../common/target/pool6.c \
-	../common/target/session.c
+	../common/target/session.c \
+	../common/target/timestamp.c
 
 jool_LDADD = ${LIBNLGENL3_LIBS}
 jool_CFLAGS = -Wall -O2
