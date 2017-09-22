@@ -25,7 +25,12 @@ static int handle_global_display(struct genl_info *info)
 
 	log_debug("Sending timestamps to userspace.");
 
-	msg_size = TST_LENGTH * sizeof(struct timestamps_entry_usr);
+	log_info("Note: Our maximum NL message size is %zu bytes.",
+			nlbuffer_response_max_size());
+	log_info("Each timestamp group is %zu bytes long.",
+			TST_LENGTH * sizeof(struct timestamps_entry_usr));
+
+	msg_size = TS_BATCH_COUNT * TST_LENGTH * sizeof(struct timestamps_entry_usr);
 	if (msg_size > nlbuffer_response_max_size()) {
 		log_err("The timestamps do not fit in a netlink message. More programming is required.");
 		return nlcore_respond(info, -EINVAL);

@@ -3,6 +3,12 @@
 
 #include "nat64/common/config.h"
 
+/*
+ * Ehh... this should be private. Feel free to ignore it if you're reading the
+ * API... --U
+ */
+#define TS_BATCH_COUNT 4
+
 typedef unsigned long timestamp;
 
 #define TIMESTAMP_START(name) name = jiffies;
