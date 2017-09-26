@@ -18,15 +18,15 @@
 #define EXECUTE(action, tst) ({\
 		TIMESTAMP_START(timer); \
 		result = action; \
-		TIMESTAMP_END(timer, tst, result == VERDICT_CONTINUE); \
+		TIMESTAMP_STOP(timer, tst, result == VERDICT_CONTINUE); \
 		result; \
 	})
 
 
 static verdict core_common(struct xlation *state, bool *success)
 {
-	timestamp timer;
 	verdict result;
+	TIMESTAMP_DECLARE(timer);
 
 	if (xlat_is_nat64()) {
 		result = EXECUTE(determine_in_tuple(state), TST_DIT);
@@ -78,11 +78,11 @@ end:
 static int init_pkt4(struct packet *pkt, struct sk_buff *skb)
 {
 	int error;
-	TIMESTAMP_CREATE(timer);
+	TIMESTAMP_DECLARE_START(timer);
 
 	error = pkt_init_ipv4(pkt, skb);
 
-	TIMESTAMP_END(timer, TST_PKT4_INIT, !error);
+	TIMESTAMP_STOP(timer, TST_PKT4_INIT, !error);
 	return error;
 }
 
@@ -92,7 +92,7 @@ unsigned int core_4to6(struct sk_buff *skb, const struct net_device *dev)
 	struct iphdr *hdr = ip_hdr(skb);
 	bool success = false;
 	verdict result;
-	TIMESTAMP_CREATE(timer);
+	TIMESTAMP_DECLARE_START(timer);
 
 	xlation_init(&state);
 
@@ -115,18 +115,18 @@ unsigned int core_4to6(struct sk_buff *skb, const struct net_device *dev)
 	result = core_common(&state, &success);
 
 	xlation_put(&state);
-	TIMESTAMP_END(timer, TST46_FULL_TRANSLATION, success);
+	TIMESTAMP_STOP(timer, TST46_FULL_TRANSLATION, success);
 	return result;
 }
 
 static int init_pkt6(struct packet *pkt, struct sk_buff *skb)
 {
 	int error;
-	TIMESTAMP_CREATE(timer);
+	TIMESTAMP_DECLARE_START(timer);
 
 	error = pkt_init_ipv6(pkt, skb);
 
-	TIMESTAMP_END(timer, TST_PKT6_INIT, !error);
+	TIMESTAMP_STOP(timer, TST_PKT6_INIT, !error);
 	return error;
 }
 
@@ -136,7 +136,7 @@ unsigned int core_6to4(struct sk_buff *skb, const struct net_device *dev)
 	struct ipv6hdr *hdr = ipv6_hdr(skb);
 	bool success = false;
 	verdict result;
-	TIMESTAMP_CREATE(timer);
+	TIMESTAMP_DECLARE_START(timer);
 
 	xlation_init(&state);
 
@@ -172,6 +172,6 @@ unsigned int core_6to4(struct sk_buff *skb, const struct net_device *dev)
 	result = core_common(&state, &success);
 
 	xlation_put(&state);
-	TIMESTAMP_END(timer, TST64_FULL_TRANSLATION, success);
+	TIMESTAMP_STOP(timer, TST64_FULL_TRANSLATION, success);
 	return result;
 }

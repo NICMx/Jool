@@ -535,10 +535,10 @@ static void send_probe_packet(struct net *ns, struct session_entry *session)
 	struct tcphdr *th;
 	int error;
 
-	unsigned int l3_hdr_len = sizeof(*iph);
-	unsigned int l4_hdr_len = sizeof(*th);
+	const unsigned int l3_hdr_len = sizeof(*iph);
+	const unsigned int l4_hdr_len = sizeof(*th);
 
-	TIMESTAMP_CREATE(timer);
+	TIMESTAMP_DECLARE_START(timer);
 
 	skb = alloc_skb(LL_MAX_HEADER + l3_hdr_len + l4_hdr_len, GFP_ATOMIC);
 	if (!skb) {
@@ -609,11 +609,11 @@ static void send_probe_packet(struct net *ns, struct session_entry *session)
 		goto fail;
 	}
 
-	TIMESTAMP_END(timer, TST_SESSION_PROBE, true);
+	TIMESTAMP_STOP(timer, TST_SESSION_PROBE, true);
 	return;
 
 fail:
-	TIMESTAMP_END(timer, TST_SESSION_PROBE, false);
+	TIMESTAMP_STOP(timer, TST_SESSION_PROBE, false);
 	log_debug("A TCP connection will probably break.");
 }
 
@@ -995,9 +995,9 @@ static int find_bib_session6(struct session_table *table,
 	 * Time to worry about slots->tree4.
 	 */
 	if (masks) {
-		TIMESTAMP_CREATE(timer);
+		TIMESTAMP_DECLARE_START(timer);
 		error = find_available_mask(table, masks, new, &slots->tree4);
-		TIMESTAMP_END(timer, TST_SESSION_MASK, !error);
+		TIMESTAMP_STOP(timer, TST_SESSION_MASK, !error);
 		if (error) {
 			if (WARN(error != -ENOENT, "Unknown error: %d", error))
 				return error;
@@ -1037,7 +1037,7 @@ int bib_add6(struct bib *db,
 	struct tabled_session *old;
 	struct slot_group slots;
 	int error;
-	TIMESTAMP_CREATE(timer);
+	TIMESTAMP_DECLARE_START(timer);
 
 	table = get_table(db, tuple6->l4_proto);
 	if (!table)
@@ -1076,9 +1076,9 @@ end:
 
 	if (new) {
 		free_session(new);
-		TIMESTAMP_END(timer, TST64_SESSION_GENERIC_OLD, !error);
+		TIMESTAMP_STOP(timer, TST64_SESSION_GENERIC_OLD, !error);
 	} else {
-		TIMESTAMP_END(timer, TST64_SESSION_GENERIC_NEW, !error);
+		TIMESTAMP_STOP(timer, TST64_SESSION_GENERIC_NEW, !error);
 	}
 
 	return error;
@@ -1095,7 +1095,7 @@ int bib_add4(struct bib *db,
 	struct session_table *table;
 	struct tabled_session *session;
 	int error;
-	TIMESTAMP_CREATE(timer);
+	TIMESTAMP_DECLARE_START(timer);
 
 	table = get_table(db, tuple4->l4_proto);
 	if (!table)
@@ -1116,7 +1116,7 @@ int bib_add4(struct bib *db,
 
 end:
 	spin_unlock_bh(&table->lock);
-	TIMESTAMP_END(timer, TST46_SESSION_GENERIC, !error);
+	TIMESTAMP_STOP(timer, TST46_SESSION_GENERIC, !error);
 	return error;
 }
 
@@ -1136,7 +1136,7 @@ verdict bib_add_tcp6(struct bib *db,
 	struct tabled_session *old;
 	struct slot_group slots;
 	verdict verdict;
-	TIMESTAMP_CREATE(timer);
+	TIMESTAMP_DECLARE_START(timer);
 
 	if (WARN(pkt->tuple.l4_proto != L4PROTO_TCP, "Incorrect l4 proto in TCP handler."))
 		return VERDICT_DROP;
@@ -1179,10 +1179,10 @@ end:
 
 	if (new) {
 		free_session(new);
-		TIMESTAMP_END(timer, TST64_SESSION_TCP_OLD,
+		TIMESTAMP_STOP(timer, TST64_SESSION_TCP_OLD,
 				verdict == VERDICT_CONTINUE);
 	} else {
-		TIMESTAMP_END(timer, TST64_SESSION_TCP_NEW,
+		TIMESTAMP_STOP(timer, TST64_SESSION_TCP_NEW,
 				verdict == VERDICT_CONTINUE);
 	}
 
@@ -1202,7 +1202,7 @@ verdict bib_add_tcp4(struct bib *db,
 	struct session_table *table;
 	struct tabled_session *session;
 	verdict verdict;
-	TIMESTAMP_CREATE(timer);
+	TIMESTAMP_DECLARE_START(timer);
 
 	if (WARN(pkt->tuple.l4_proto != L4PROTO_TCP, "Incorrect l4 proto in TCP handler."))
 		return VERDICT_DROP;
@@ -1227,7 +1227,7 @@ verdict bib_add_tcp4(struct bib *db,
 
 end:
 	spin_unlock_bh(&table->lock);
-	TIMESTAMP_END(timer, TST46_SESSION_TCP, verdict == VERDICT_CONTINUE);
+	TIMESTAMP_STOP(timer, TST46_SESSION_TCP, verdict == VERDICT_CONTINUE);
 	return verdict;
 }
 
@@ -1270,7 +1270,7 @@ int bib_add_session(struct bib *db,
 	struct tabled_session *old;
 	struct slot_group slots;
 	int error;
-	TIMESTAMP_CREATE(timer);
+	TIMESTAMP_DECLARE_START(timer);
 
 	table = get_table(db, session->proto);
 	if (!table)
@@ -1301,9 +1301,9 @@ end:
 
 	if (new) {
 		free_session(new);
-		TIMESTAMP_END(timer, TST_SESSION_OLD, !error);
+		TIMESTAMP_STOP(timer, TST_SESSION_OLD, !error);
 	} else {
-		TIMESTAMP_END(timer, TST_SESSION_NEW, !error);
+		TIMESTAMP_STOP(timer, TST_SESSION_NEW, !error);
 	}
 
 	return error;
@@ -1334,7 +1334,7 @@ static void __clean(struct expire_timer *expirer,
 static void clean_table(struct session_table *table, struct net *ns)
 {
 	LIST_HEAD(probes);
-	TIMESTAMP_CREATE(timer);
+	TIMESTAMP_DECLARE_START(timer);
 
 	spin_lock_bh(&table->lock);
 	__clean(&table->est_timer, table, &probes);
@@ -1344,7 +1344,7 @@ static void clean_table(struct session_table *table, struct net *ns)
 
 	post_fate(ns, &probes);
 
-	TIMESTAMP_END(timer, TST_SESSION_TIMER, true);
+	TIMESTAMP_STOP(timer, TST_SESSION_TIMER, true);
 }
 
 /**

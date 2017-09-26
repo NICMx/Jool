@@ -25,7 +25,7 @@ struct timestamp_stat_group {
 };
 
 
-#define PERIOD_DURATION (60 * 1000) /** 60k msecs, aka 1 min. */
+#define BATCH_PERIOD (60) /* In seconds. */
 
 /**
  * Keep in mind that this whole thing needs to fit in a single netlink message,
@@ -50,12 +50,22 @@ static unsigned long epoch;
 static DEFINE_SPINLOCK(lock);
 
 
+static bool timestamps_enabled(void)
+{
+#if defined(TIMESTAMP_JIFFIES) || defined(TIMESTAMP_TIMESPEC)
+	return true;
+#else
+	return false;
+#endif
+}
+
 static bool need_new_batch(void)
 {
 	if (b == -1)
 		return true;
 
-	return time_after(jiffies, epoch + msecs_to_jiffies(PERIOD_DURATION));
+	return time_after(jiffies,
+			epoch + msecs_to_jiffies(BATCH_PERIOD * 1000));
 }
 
 static int wrap(int batch)
@@ -67,11 +77,73 @@ static int wrap(int batch)
 	return batch % TS_BATCH_COUNT;
 }
 
-void TIMESTAMP_END(timestamp beginning, timestamp_type type, bool success)
+#if defined(TIMESTAMP_JIFFIES)
+
+/**
+ * Returns the time difference between now and beginning.
+ */
+static timestamp compute_delta(timestamp beginning)
+{
+	return jiffies - beginning;
+}
+
+/*
+ * lhs < rhs:  return <0
+ * lhs == rhs: return 0
+ * lhs > rhs:  return >0
+ */
+static int timestamp_compare(timestamp *lhs, timestamp *rhs)
+{
+	return (*lhs) - (*rhs);
+}
+
+static timestamp timestamp_add(timestamp t1, timestamp t2)
+{
+	return t1 + t2;
+}
+
+#elif defined(TIMESTAMP_TIMESPEC)
+
+static timestamp compute_delta(timestamp beginning)
+{
+	timestamp now;
+	getnstimeofday64(&now);
+	return timespec64_sub(now, beginning);
+}
+
+static int timestamp_compare(timestamp *lhs, timestamp *rhs)
+{
+	return timespec_compare(lhs, rhs);
+}
+
+static timestamp timestamp_add(timestamp lhs, timestamp rhs)
+{
+	return timespec_add(lhs, rhs);
+}
+
+#else
+
+#define compute_delta(a) 0
+#define timestamp_compare(a, b) 0
+#define timestamp_add(a, b) 0
+
+#endif
+
+/**
+ * The reason why the first argument is a struct and not a pointer is because
+ * I'm following along with the timespec's API's idiosyncrasies. It's weird.
+ */
+void timestamp_stop(timestamp beginning, timestamp_type type, bool success)
 {
 	struct timestamp_stats *stat;
-	timestamp delta = jiffies - beginning;
-	int wb = wrap(b);
+	timestamp delta;
+	int wb;
+
+	if (WARN(!timestamps_enabled(), "Timestamps feature disabled but someone called a timestamps function."))
+		return;
+
+	delta = compute_delta(beginning);
+	wb = wrap(b);
 
 	spin_lock_bh(&lock);
 
@@ -94,19 +166,79 @@ void TIMESTAMP_END(timestamp beginning, timestamp_type type, bool success)
 		return;
 	}
 
-	if (time_before(delta, stat->min))
+	if (timestamp_compare(&delta, &stat->min) < 0)
 		stat->min = delta;
-	else if (time_after(delta, stat->max))
+	else if (timestamp_compare(&delta, &stat->max) > 0)
 		stat->max = delta;
-	stat->total += delta;
+	stat->total = timestamp_add(stat->total, delta);
 	stat->count++;
 	spin_unlock_bh(&lock);
 }
 
+#if defined(TIMESTAMP_JIFFIES)
+
+/**
+ * Not sure if this name is self-explanatory. Think of "cap" as in like a Fire
+ * Emblem stat "cap".
+ */
+static __u32 cap_u32(unsigned int number)
+{
+	return (number > U32_MAX) ? U32_MAX : number;
+}
+
+static __u32 tstou32(timestamp *ts)
+{
+	return cap_u32(jiffies_to_msecs(*ts));
+}
+
 static __u32 compute_avg(struct timestamp_stats *stat)
 {
-	return (stat->count != 0) ? (stat->total / stat->count) : 0;
+	if (stat->count == 0)
+		return 0;
+	return cap_u32(jiffies_to_msecs(stat->total / stat->count));
 }
+
+#elif defined(TIMESTAMP_TIMESPEC)
+
+static __u32 cap_u32(__u64 number)
+{
+	return (number > U32_MAX) ? U32_MAX : number;
+}
+
+static __u64 get_total_microseconds(timestamp *ts)
+{
+	__u64 micros = 0;
+
+	micros += ((__u64)1000000) * (__u64)ts->tv_sec;
+	micros += ts->tv_nsec / 1000;
+
+	return micros;
+}
+
+/**
+ * AFAIK, even though timespecs have a nanosecond field, the precision is far
+ * lower than that due to both hardware and software constraints.
+ * Also, we don't have all that much room in a __u32, so I'm going to convert
+ * them to microseconds.
+ */
+static __u32 tstou32(timestamp *ts)
+{
+	return cap_u32(get_total_microseconds(ts));
+}
+
+static __u32 compute_avg(struct timestamp_stats *stat)
+{
+	if (stat->count == 0)
+		return 0;
+	return cap_u32(get_total_microseconds(&stat->total) / stat->count);
+}
+
+#else
+
+#define tstou32(a) 0
+#define compute_avg(a) 0
+
+#endif
 
 int timestamp_foreach(struct timestamp_foreach_func *func, void *args)
 {
@@ -122,6 +254,11 @@ int timestamp_foreach(struct timestamp_foreach_func *func, void *args)
 	unsigned int s; /* Stat group counter. */
 	int result = 0;
 
+	if (!timestamps_enabled()) {
+		log_err("This binary was not compiled to support timestamps.");
+		return -EINVAL;
+	}
+
 	/*
 	 * Rrrrg. This sucks pretty hard. It risks increasing the experiment's
 	 * averages and max's. I dunno. Try not requesting the stats too often.
@@ -133,14 +270,14 @@ int timestamp_foreach(struct timestamp_foreach_func *func, void *args)
 		for (s = 0; s < TST_LENGTH; s++) {
 			stat = &stats[wbb][s].successes;
 			usr.success_count = stat->count;
-			usr.success_min = jiffies_to_msecs(stat->min);
-			usr.success_avg = jiffies_to_msecs(compute_avg(stat));
-			usr.success_max = jiffies_to_msecs(stat->max);
+			usr.success_min = tstou32(&stat->min);
+			usr.success_avg = compute_avg(stat);
+			usr.success_max = tstou32(&stat->max);
 			stat = &stats[wbb][s].failures;
 			usr.failure_count = stat->count;
-			usr.failure_min = jiffies_to_msecs(stat->min);
-			usr.failure_avg = jiffies_to_msecs(compute_avg(stat));
-			usr.failure_max = jiffies_to_msecs(stat->max);
+			usr.failure_min = tstou32(&stat->min);
+			usr.failure_avg = compute_avg(stat);
+			usr.failure_max = tstou32(&stat->max);
 
 			result = func->cb(&usr, args);
 			if (result)

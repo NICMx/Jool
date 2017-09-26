@@ -9,12 +9,37 @@
  */
 #define TS_BATCH_COUNT 4
 
+#if defined(TIMESTAMP_JIFFIES)
+
 typedef unsigned long timestamp;
+#define TIMESTAMP_DECLARE_START(name) timestamp name = jiffies
+#define TIMESTAMP_DECLARE(name) timestamp name
+#define TIMESTAMP_START(name) name = jiffies
+#define TIMESTAMP_STOP(a, b, c) timestamp_stop(a, b, c)
 
-#define TIMESTAMP_START(name) name = jiffies;
-#define TIMESTAMP_CREATE(name) timestamp name = jiffies;
+#elif defined(TIMESTAMP_TIMESPEC)
 
-void TIMESTAMP_END(timestamp beginning, timestamp_type type, bool success);
+#include <linux/time.h>
+#include <linux/time64.h>
+#include <linux/ktime.h>
+#include <linux/timekeeping.h>
+typedef struct timespec64 timestamp;
+#define TIMESTAMP_DECLARE_START(name) timestamp name; getnstimeofday64(&name)
+#define TIMESTAMP_DECLARE(name) timestamp name
+#define TIMESTAMP_START(name) getnstimeofday64(&name)
+#define TIMESTAMP_STOP(a, b, c) timestamp_stop(a, b, c)
+
+#else
+
+#define timestamp int /* Whatevs */
+#define TIMESTAMP_DECLARE_START(name) /* Empty */
+#define TIMESTAMP_DECLARE(name) /* Empty */
+#define TIMESTAMP_START(name) /* Empty */
+#define TIMESTAMP_STOP(a, b, c) /* Empty */
+
+#endif
+
+void timestamp_stop(timestamp ts, timestamp_type type, bool success);
 
 struct timestamp_foreach_func {
 	int (*cb)(struct timestamps_entry_usr *, void *);
