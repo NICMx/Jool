@@ -1548,7 +1548,20 @@ static int find_bib_session6(struct bib_table *table,
 		if (error) {
 			if (WARN(error != -ENOENT, "Unknown error: %d", error))
 				return error;
-			log_warn_once("I ran out of pool4 addresses.");
+			/*
+			 * TODO the rate limit might be a bit of a problem.
+			 * If both mark 0 and mark 1 are running out of
+			 * addresses, only one of them will be logged.
+			 * The problem is that remembering which marks have been
+			 * logged might get pretty ridiculous.
+			 * I don't think it's too bad because there will still
+			 * be at least one message every minute.
+			 * Also, it's better than what we had before. (Not
+			 * logging the offending mark.)
+			 * Might not be worth fixing since #175 is in the radar.
+			 */
+			log_warn_once("I'm running out of pool4 addresses for mark %u.",
+					mask_domain_get_mark(masks));
 			return error;
 		}
 

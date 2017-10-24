@@ -45,6 +45,10 @@ bool pool4empty_contains(struct net *ns, const struct ipv4_transport_addr *addr)
 	return found;
 }
 
+/**
+ * Initializes @range with the address candidates that could source a packet
+ * routed with @route_args.
+ */
 int pool4empty_find(struct route4_args *route_args, struct pool4_range *range)
 {
 	struct dst_entry *dst;

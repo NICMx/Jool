@@ -1,7 +1,7 @@
 #!/bin/bash
 
-modprobe -r jool_siit
-modprobe -r jool
+modprobe -rq jool_siit
+modprobe -rq jool
 ip addr flush dev $1 scope global
 ip addr flush dev $2 scope global
 ip link set $1 up

@@ -49,6 +49,8 @@ struct pool4 {
 };
 
 struct mask_domain {
+	__u32 pool_mark;
+
 	unsigned int taddr_count;
 	unsigned int taddr_counter;
 
@@ -846,9 +848,12 @@ static struct mask_domain *find_empty(struct route4_args *args,
 		return NULL;
 
 	range = (struct pool4_range *)(masks + 1);
-	if (pool4empty_find(args, range))
+	if (pool4empty_find(args, range)) {
+		__wkfree("mask_domain", masks);
 		return NULL;
+	}
 
+	masks->pool_mark = 0;
 	masks->taddr_count = port_range_count(&range->ports);
 	masks->taddr_counter = 0;
 	masks->range_count = 1;
@@ -894,6 +899,7 @@ struct mask_domain *mask_domain_find(struct pool4 *pool, struct tuple *tuple6,
 
 	spin_unlock_bh(&pool->lock);
 
+	masks->pool_mark = route_args->mark;
 	masks->taddr_counter = 0;
 	masks->dynamic = false;
 	offset %= masks->taddr_count;
@@ -963,4 +969,9 @@ bool mask_domain_matches(struct mask_domain *masks,
 bool mask_domain_is_dynamic(struct mask_domain *masks)
 {
 	return masks->dynamic;
+}
+
+__u32 mask_domain_get_mark(struct mask_domain *masks)
+{
+	return masks->pool_mark;
 }

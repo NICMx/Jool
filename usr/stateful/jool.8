@@ -177,6 +177,8 @@ Value to override TOS as (only when --override-tos is ON)
 Set the list of plateaus for ICMPv4 Fragmentation Neededs with MTU unset.
 .IP --maximum-simultaneous-opens=INT
 Set the maximum allowable 'simultaneous' Simultaneos Opens of TCP connections.
+.IP --maximum-mask-iterations=INT
+Set the iteration limit at which a mask allocation should give up and assume the relevant pool4 has been exhausted.
 .IP --source-icmpv6-errors-better=BOOL
 Translate source addresses directly on 4-to-6 ICMP errors?
 .IP --handle-rst-during-fin-rcv=BOOL

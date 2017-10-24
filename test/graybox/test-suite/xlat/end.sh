@@ -1,4 +1,4 @@
 #!/bin/bash
 
-modprobe -r jool
-modprobe -r jool_siit
+modprobe -rq jool
+modprobe -rq jool_siit

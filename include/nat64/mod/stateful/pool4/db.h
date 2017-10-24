@@ -52,6 +52,7 @@ int mask_domain_next(struct mask_domain *masks,
 bool mask_domain_matches(struct mask_domain *masks,
 		struct ipv4_transport_addr *addr);
 bool mask_domain_is_dynamic(struct mask_domain *masks);
+__u32 mask_domain_get_mark(struct mask_domain *masks);
 
 /*
  * Test functions (Illegal in production code)
