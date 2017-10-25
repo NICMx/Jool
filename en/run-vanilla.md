@@ -16,7 +16,7 @@ title: Basic SIIT Run
 3. [Jool](#jool)
 4. [Testing](#testing)
 5. [Stopping Jool](#stopping-jool)
-6. [Further reading](#further-reading)
+6. [Afterwords](#afterwords)
 
 ## Introduction
 
@@ -102,7 +102,7 @@ user@T:~# ethtool --offload eth1 lro off
 
 This is the insertion syntax:
 
-	user@T:~# /sbin/modprobe jool_siit \
+	user@T:~# /sbin/modprobe [--first-time] jool_siit \
 			[pool6=<IPv6 prefix>] \
 			[blacklist=<IPv4 prefixes>] \
 			[pool6791=<IPv4 prefixes>] \
@@ -110,7 +110,7 @@ This is the insertion syntax:
 
 See [Kernel Module Options](modprobe-siit.html) for a description of each argument. The following suffices for our sample network:
 
-	user@T:~# /sbin/modprobe jool_siit pool6=2001:db8::/96
+	user@T:~# /sbin/modprobe --first-time jool_siit pool6=2001:db8::/96
 
 That means the IPv6 representation of any IPv4 address is going to be `2001:db8::<IPv4 address>`. See below for examples.
 
@@ -166,9 +166,9 @@ user@T:~# /sbin/modprobe -r jool_siit
 
 ## Afterwords
 
-More complex setups might require you to consider the [MTU notes](mtu.html).
-
-Please note that none of what was done in this tutorial survives reboots! Documentation on persistence will be released in the future.
+1. More complex setups might require you to consider the [MTU notes](mtu.html).
+2. The `modprobe` insertion and removal mechanism is fine if all you need is a simple single SIIT, but if you want to enclose it in a network namespace, or need multiple Jool instances in a single machine, check out [`--instance`](usr-flags-instance.html).
+3. Please note that none of what was done in this tutorial survives reboots! Documentation on persistence will be released in the future.
 
 The [next tutorial](run-eam.html) covers [EAMT SIIT](intro-xlat.html#siit-with-eam). It is also recommended because it introduces usage to Jool's userspace applications.
 

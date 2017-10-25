@@ -28,14 +28,19 @@ Debug messages are normally compiled out of Jool's binaries because they are lot
 
 If you want Jool to print debug messages, go back to the kernel module's compilation step and include the `-DDEBUG` flag. After reinstalling and remodprobing normally, you should see a lot of mumbling as a result of network traffic translation, which should give you ideas as to what might be wrong:
 
+	$ # Recompile and reinstall Jool with the flag enabled.
 	$ cd Jool/mod
-	$ make JOOL_FLAGS=-DDEBUG # -- This is the key --
-	$ sudo make modules_install
+	$ make JOOL_FLAGS=-DDEBUG       # <==== This is the key!
+	$ sudo make install
 	$ sudo depmod
 	$
+	$ # Disable the old Jool, add the new one.
+	$ # Please note that this is a rough example; you need to adjust these commands
+	$ # depending on your original configuration.
 	$ sudo modprobe -r jool_siit
 	$ sudo modprobe jool_siit pool6=...
 	$
+	$ # Read the logs.
 	$ dmesg | tail -5
 	[ 3465.639622] ===============================================
 	[ 3465.639655] Catching IPv4 packet: 192.0.2.16->198.51.100.8

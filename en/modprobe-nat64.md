@@ -14,6 +14,7 @@ title: Kernel Module Arguments
 1. [Syntax](#syntax)
 2. [Example](#example)
 3. [Arguments](#arguments)
+	1. [`--first-time`](#--first-time)
 	1. [`pool6`](#pool6)
 	2. [`pool4`](#pool4)
 	3. [`disabled`](#disabled)
@@ -39,6 +40,16 @@ title: Kernel Module Arguments
 IPv4 prefix lengths default to 32 and IPv6 prefix lengths default to 128.
 
 Comma-separated arguments can contain up to 5 entries. If you need more, use the userspace application counterpart.
+
+### `--first-time`
+
+I'm only including this for the sake of clarification: `--first-time` is not a Jool flag; it's a `modprobe` flag.
+
+From [`man modprobe`](https://linux.die.net/man/8/modprobe):
+
+> Normally, **modprobe** will succeed (and do nothing) if told to insert a module which is already present or to remove a module which isn't present. This is ideal for simple scripts; however, more complicated scripts often want to know whether **modprobe** really did something: this option makes modprobe fail for that case. 
+
+Particularly when inserting modules, usage of this flag is strongly recommended; its absence tends to confuse users because of the silenced errors.
 
 ### `pool6`
 

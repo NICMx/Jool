@@ -16,7 +16,7 @@ title: Stateful NAT64 Run
 3. [Jool](#jool)
 4. [Testing](#testing)
 5. [Stopping Jool](#stopping-jool)
-6. [Further reading](#further-reading)
+6. [Afterwords](#afterwords)
 
 ## Introduction
 
@@ -79,16 +79,16 @@ Remember you might want to cross-ping _T_ vs everything before continuing.
 
 This is the insertion syntax:
 
-	user@T:~# /sbin/modprobe jool \
+	user@T:~# /sbin/modprobe [--first-time] jool \
 			[pool6=<IPv6 prefix>] \
 			[pool4=<IPv4 prefixes>] \
 			[disabled]
 
-See [Kernel Module Options](mod-flags.html#nat64-jool) for a description of each argument.
+See [Kernel Module Options](modprobe-nat64.html) for a description of each argument.
 
 The result looks like this:
 
-	user@T:~# /sbin/modprobe jool pool6=64:ff9b::/96
+	user@T:~# /sbin/modprobe --first-time jool pool6=64:ff9b::/96
 
 Jool will append and remove prefix `64:ff9b::/96`.
 
@@ -129,10 +129,10 @@ To shut down Jool, revert the modprobe using the `-r` flag:
 user@T:~# /sbin/modprobe -r jool
 {% endhighlight %}
 
-## Further Reading
+## Afterwords
 
-More complex setups might require you to consider the [MTU notes](mtu.html).
-
-Please note that none of what was done in this tutorial survives reboots! Documentation on persistence will be released in the future.
+1. More complex setups might require you to consider the [MTU notes](mtu.html).
+2. The `modprobe` insertion and removal mechanism is fine if all you need is a simple single NAT64, but if you want to enclose it in a network namespace, or need multiple Jool instances in a single machine, check out [`--instance`](usr-flags-instance.html).
+3. Please note that none of what was done in this tutorial survives reboots! Documentation on persistence will be released in the future.
 
 The [next tutorial](dns64.html) explains DNS64.

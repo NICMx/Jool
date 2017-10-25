@@ -16,7 +16,7 @@ title: EAM Run
 3. [Jool](#jool)
 4. [Testing](#testing)
 5. [Stopping Jool](#stopping-jool)
-6. [Further reading](#further-reading)
+6. [Afterwords](#afterwords)
 
 ## Introduction
 
@@ -75,7 +75,7 @@ Remember you might want to cross-ping _T_ vs everything before continuing.
 ## Jool
 
 {% highlight bash %}
-user@T:~# /sbin/modprobe jool_siit disabled
+user@T:~# /sbin/modprobe --first-time jool_siit disabled
 user@T:~# jool_siit --eamt --add 2001:db8:6::/120 198.51.100.0/24
 user@T:~# jool_siit --eamt --add 2001:db8:4::/120 192.0.2.0/24
 user@T:~# jool_siit --enable
@@ -137,11 +137,11 @@ Same as in the previous walkthrough.
 user@T:~# /sbin/modprobe -r jool_siit
 {% endhighlight %}
 
-## Further reading
+## Afterwords
 
-More complex setups might require you to consider the [MTU notes](mtu.html).
-
-Please note that none of what was done in this tutorial survives reboots! Documentation on persistence will be released in the future.
+1. More complex setups might require you to consider the [MTU notes](mtu.html).
+2. The `modprobe` insertion and removal mechanism is fine if all you need is a simple single SIIT, but if you want to enclose it in a network namespace, or need multiple Jool instances in a single machine, check out [`--instance`](usr-flags-instance.html).
+3. Please note that none of what was done in this tutorial survives reboots! Documentation on persistence will be released in the future.
 
 The [next tutorial](run-nat64.html) is a [Stateful NAT64](intro-xlat.html#stateful-nat64) run.
 
