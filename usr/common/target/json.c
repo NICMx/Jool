@@ -696,6 +696,22 @@ static int handle_pool4(cJSON *json)
 			entry.range.ports.max = DEFAULT_POOL4_MAX_PORT;
 		}
 
+		child = cJSON_GetObjectItem(json, "max-iterations");
+		if (child) {
+			if (child->type != cJSON_Number) {
+				log_err("max-iterations '%s' is not a number.",
+						child->valuestring);
+				log_err("(Quotation marks might also be the problem.)");
+				error = -EINVAL;
+				goto end;
+			}
+			entry.iterations = child->valueint;
+			entry.iterations_set = true;
+		} else {
+			entry.iterations = 0;
+			entry.iterations_set = false;
+		}
+
 		error = buffer_write(buffer, &entry, sizeof(entry), SEC_POOL4);
 		if (error)
 			goto end;

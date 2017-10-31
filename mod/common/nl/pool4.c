@@ -40,15 +40,21 @@ static int handle_pool4_display(struct pool4 *pool, struct genl_info *info,
 static int handle_pool4_add(struct pool4 *pool, struct genl_info *info,
 		union request_pool4 *request)
 {
-	int error;
-
 	if (verify_superpriv())
 		return nlcore_respond(info, -EPERM);
 
 	log_debug("Adding elements to pool4.");
+	return nlcore_respond(info, pool4db_add(pool, &request->add));
+}
 
-	error = pool4db_add(pool, &request->add);
-	return nlcore_respond(info, error);
+static int handle_pool4_update(struct pool4 *pool, struct genl_info *info,
+		union request_pool4 *request)
+{
+	if (verify_superpriv())
+		return nlcore_respond(info, -EPERM);
+
+	log_debug("Updating pool4 table.");
+	return nlcore_respond(info, pool4db_update(pool, &request->update));
 }
 
 static int handle_pool4_rm(struct xlator *jool, struct genl_info *info,
@@ -112,6 +118,8 @@ int handle_pool4_config(struct xlator *jool, struct genl_info *info)
 		return handle_pool4_display(jool->nat64.pool4, info, request);
 	case OP_ADD:
 		return handle_pool4_add(jool->nat64.pool4, info, request);
+	case OP_UPDATE:
+		return handle_pool4_update(jool->nat64.pool4, info, request);
 	case OP_REMOVE:
 		return handle_pool4_rm(jool, info, request);
 	case OP_FLUSH:

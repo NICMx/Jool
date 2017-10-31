@@ -4,12 +4,36 @@
 #include "nat64/common/config.h"
 #include "nat64/usr/types.h"
 
+/* Modes */
+#define OPTNAME_GLOBAL			"global"
+#define OPTNAME_POOL6			"pool6"
+#define OPTNAME_POOL4			"pool4"
+#define OPTNAME_BLACKLIST		"blacklist"
+#define OPTNAME_RFC6791			"rfc6791"
+#define OPTNAME_EAMT			"eamt"
+#define OPTNAME_BIB			"bib"
+#define OPTNAME_SESSION			"session"
+#define OPTNAME_LOGTIME			"logTime"
+#define OPTNAME_PARSE_FILE		"file"
+#define OPTNAME_JOOLD			"joold"
+#define OPTNAME_INSTANCE		"instance"
+
+/* Operations */
+#define OPTNAME_DISPLAY			"display"
+#define OPTNAME_COUNT			"count"
+#define OPTNAME_ADD			"add"
+#define OPTNAME_UPDATE			"update"
+#define OPTNAME_REMOVE			"remove"
+#define OPTNAME_FLUSH			"flush"
+#define OPTNAME_ADVERTISE		"advertise"
+#define OPTNAME_TEST			"test"
+#define OPTNAME_ACK			"ack"
+
 /* Normal flags */
 #define OPTNAME_ENABLE			"enable"
 #define OPTNAME_DISABLE			"disable"
 #define OPTNAME_ZEROIZE_TC		"zeroize-traffic-class"
 #define OPTNAME_OVERRIDE_TOS		"override-tos"
-#define OPTNAME_PARSE_FILE		"parse-file"
 #define OPTNAME_TOS			"tos"
 #define OPTNAME_MTU_PLATEAUS		"mtu-plateaus"
 

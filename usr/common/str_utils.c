@@ -8,6 +8,7 @@
 #include <regex.h>
 #include "nat64/common/constants.h"
 #include "nat64/common/types.h"
+#include "nat64/usr/global.h"
 
 
 #define MAX_PORT 0xFFFF
@@ -54,6 +55,64 @@ l4_protocol str_to_l4proto(char *str)
 	if (strcasecmp("ICMP", str) == 0)
 		return L4PROTO_ICMP;
 	return L4PROTO_OTHER;
+}
+
+char *configmode_to_string(enum config_mode mode)
+{
+	switch (mode) {
+	case MODE_GLOBAL:
+		return OPTNAME_GLOBAL;
+	case MODE_POOL6:
+		return OPTNAME_POOL6;
+	case MODE_POOL4:
+		return OPTNAME_POOL4;
+	case MODE_BLACKLIST:
+		return OPTNAME_BLACKLIST;
+	case MODE_RFC6791:
+		return OPTNAME_RFC6791;
+	case MODE_EAMT:
+		return OPTNAME_EAMT;
+	case MODE_BIB:
+		return OPTNAME_BIB;
+	case MODE_SESSION:
+		return OPTNAME_SESSION;
+	case MODE_LOGTIME:
+		return OPTNAME_LOGTIME;
+	case MODE_PARSE_FILE:
+		return OPTNAME_PARSE_FILE;
+	case MODE_JOOLD:
+		return OPTNAME_JOOLD;
+	case MODE_INSTANCE:
+		return OPTNAME_INSTANCE;
+	}
+
+	return "unknown";
+}
+
+char *configop_to_string(enum config_operation op)
+{
+	switch (op) {
+	case OP_DISPLAY:
+		return OPTNAME_DISPLAY;
+	case OP_COUNT:
+		return OPTNAME_COUNT;
+	case OP_ADD:
+		return OPTNAME_ADD;
+	case OP_UPDATE:
+		return OPTNAME_UPDATE;
+	case OP_REMOVE:
+		return OPTNAME_REMOVE;
+	case OP_FLUSH:
+		return OPTNAME_FLUSH;
+	case OP_ADVERTISE:
+		return OPTNAME_ADVERTISE;
+	case OP_TEST:
+		return OPTNAME_TEST;
+	case OP_ACK:
+		return OPTNAME_ACK;
+	}
+
+	return "unknown";
 }
 
 int validate_int(const char *str)

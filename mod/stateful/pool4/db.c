@@ -3,6 +3,7 @@
 #include <linux/hash.h>
 #include <linux/list.h>
 #include <linux/slab.h>
+#include "nat64/common/str_utils.h"
 #include "nat64/common/types.h"
 #include "nat64/mod/common/rbtree.h"
 #include "nat64/mod/common/wkmalloc.h"
@@ -55,14 +56,12 @@ struct pool4_table {
 	 */
 	unsigned int max_iterations_allowed;
 	/**
-	 * Must max_iterations_allowed be computed automatically?
+	 * Did the user override the default value?
 	 * When the table changes, an auto table needs to update the value,
 	 * otherwise keep the old value set by the user.
 	 * Also, only relevant in mark-based tables.
-	 *
-	 * TODO rename as "manual" so you don't have to keep negating it?
 	 */
-	bool max_iterations_auto;
+	bool max_iterations_manual;
 
 	/*
 	 * An array of struct pool4_range hangs off here.
@@ -224,7 +223,7 @@ static struct pool4_table *create_table(struct pool4_range *range)
 	table->taddr_count = port_range_count(&range->ports);
 	table->sample_count = 1;
 	table->max_iterations_allowed = 0;
-	table->max_iterations_auto = true;
+	table->max_iterations_manual = false;
 
 	entry = first_table_entry(table);
 	*entry = *range;
@@ -420,7 +419,7 @@ static int add_to_mark_tree(struct pool4 *pool,
 			return error;
 
 		if (entry->iterations_set) {
-			table->max_iterations_auto = false;
+			table->max_iterations_manual = true;
 			table->max_iterations_allowed = entry->iterations;
 		}
 
@@ -431,7 +430,7 @@ static int add_to_mark_tree(struct pool4 *pool,
 	if (!table)
 		return -ENOMEM;
 	table->mark = entry->mark;
-	table->max_iterations_auto = !entry->iterations_set;
+	table->max_iterations_manual = entry->iterations_set;
 	table->max_iterations_allowed = entry->iterations_set
 			? entry->iterations : 0;
 
@@ -466,7 +465,7 @@ static int add_to_addr_tree(struct pool4 *pool,
 	if (!table)
 		return -ENOMEM;
 	table->addr = new->addr;
-	table->max_iterations_auto = true;
+	table->max_iterations_manual = false;
 	table->max_iterations_allowed = 0;
 
 	collision = rbtree_add(table, &table->addr, tree, cmp_addr,
@@ -486,6 +485,9 @@ int pool4db_add(struct pool4 *pool, const struct pool4_entry_usr *entry)
 	u64 tmp;
 	int error;
 
+	error = prefix4_validate(&entry->range.prefix);
+	if (error)
+		return error;
 	if (addend.ports.min > addend.ports.max)
 		swap(addend.ports.min, addend.ports.max);
 	if (entry->proto == L4PROTO_TCP || entry->proto == L4PROTO_UDP)
@@ -562,6 +564,33 @@ int pool4db_add_str(struct pool4 *pool, char *prefix_strs[], int prefix_count)
 			return error;
 	}
 
+	return 0;
+}
+
+int pool4db_update(struct pool4 *pool, const struct pool4_update *update)
+{
+	struct rb_root *tree;
+	struct pool4_table *table;
+
+	spin_lock_bh(&pool->lock);
+
+	tree = get_tree(&pool->tree_mark, update->l4_proto);
+	if (!tree) {
+		spin_unlock_bh(&pool->lock);
+		return -EINVAL;
+	}
+
+	table = find_by_mark(tree, update->mark);
+	if (!table) {
+		spin_unlock_bh(&pool->lock);
+		log_err("No entries match mark %u (protocol %s).", update->mark,
+				l4proto_to_string(update->l4_proto));
+		return -ESRCH;
+	}
+
+	table->max_iterations_manual = update->iterations_set;
+	table->max_iterations_allowed = update->iterations;
+	spin_unlock_bh(&pool->lock);
 	return 0;
 }
 
@@ -719,6 +748,9 @@ int pool4db_rm(struct pool4 *pool, const __u32 mark, l4_protocol proto,
 {
 	int error;
 
+	error = prefix4_validate(&range->prefix);
+	if (error)
+		return error;
 	if (range->ports.min > range->ports.max)
 		swap(range->ports.min, range->ports.max);
 
@@ -807,6 +839,45 @@ static int find_offset(struct pool4_table *table, struct pool4_range *offset,
 	return -ESRCH;
 }
 
+static unsigned int compute_max_iterations(const struct pool4_table *table)
+{
+	unsigned int result;
+
+	if (table->max_iterations_manual)
+		return table->max_iterations_allowed;
+
+	/*
+	 * right shift 6 is the same as division by 64. Why 64?
+	 * Because I want roughly 1-2% of the original value, and also I don't
+	 * want to do any floating point arithmetic.
+	 * integer division by 50 or 100 would be acceptable, but this is
+	 * faster. (Recall that we have a spinlock held.)
+	 */
+	result = table->taddr_count >> 6;
+	/*
+	 * These numbers are fairly arbitrary. They don't need to be perfect;
+	 * they define the default value, not something we're imposing on the
+	 * user.
+	 * They also don't need to be powers of 2. I've just been thinking a lot
+	 * in terms of perfect squares lately.
+	 */
+	if (result < 128)
+		return 128;
+	if (result > 2048)
+		return 2048;
+	return result;
+}
+
+static void __update_sample(struct pool4_sample *sample,
+		const struct pool4_table *table)
+{
+	sample->mark = table->mark;
+	sample->iterations_set = table->max_iterations_manual;
+	sample->iterations = sample->iterations_set
+			? table->max_iterations_allowed
+			: compute_max_iterations(table);
+}
+
 /**
  * As a contract, this function will return:
  *
@@ -842,18 +913,14 @@ int pool4db_foreach_sample(struct pool4 *pool, l4_protocol proto,
 		error = find_offset(table, &offset->range, &entry);
 		if (error)
 			goto eagain;
-		sample.mark = table->mark;
-		sample.iterations_set = !table->max_iterations_auto;
-		sample.iterations = table->max_iterations_allowed;
+		__update_sample(&sample, table);
 		goto offset_start;
 	}
 
 	node = rb_first(tree);
 	while (node) {
 		table = rb_entry(node, struct pool4_table, tree_hook);
-		sample.mark = table->mark;
-		sample.iterations_set = !table->max_iterations_auto;
-		sample.iterations = table->max_iterations_allowed;
+		__update_sample(&sample, table);
 
 		foreach_table_range(entry, table) {
 			sample.range = *entry;
@@ -951,35 +1018,6 @@ static struct mask_domain *find_empty(struct route4_args *args,
 	masks->current_port = range->ports.min + offset % masks->taddr_count;
 	masks->dynamic = true;
 	return masks;
-}
-
-static unsigned int compute_max_iterations(struct pool4_table *table)
-{
-	unsigned int result;
-
-	if (!table->max_iterations_auto)
-		return table->max_iterations_allowed;
-
-	/*
-	 * right shift 6 is the same as division by 64. Why 64?
-	 * Because I want roughly 1-2% of the original value, and also I don't
-	 * want to do any floating point arithmetic.
-	 * integer division by 50 or 100 would be acceptable, but this is
-	 * faster. (Recall that we have a spinlock held.)
-	 */
-	result = table->taddr_count >> 6;
-	/*
-	 * These numbers are fairly arbitrary. They don't need to be perfect;
-	 * they define the default value, not something we're imposing on the
-	 * user.
-	 * They also don't need to be powers of 2. I've just been thinking a lot
-	 * in terms of perfect squares lately.
-	 */
-	if (result < 128)
-		return 128;
-	if (result > 2048)
-		return 2048;
-	return result;
 }
 
 struct mask_domain *mask_domain_find(struct pool4 *pool, struct tuple *tuple6,

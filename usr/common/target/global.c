@@ -267,7 +267,7 @@ int global_display(display_flags flags)
 	struct request_hdr request;
 	jool_response_cb cb;
 
-	if (flags & (DF_CSV_FORMAT | DF_SHOW_HEADERS))
+	if ((flags & DF_CSV_FORMAT) && (flags & DF_SHOW_HEADERS))
 		printf("Field,Value\n");
 
 	init_request_hdr(&request, MODE_GLOBAL, OP_DISPLAY);

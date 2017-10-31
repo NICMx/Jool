@@ -10,7 +10,7 @@ static const struct argp_option targets_hdr_opt = {
 };
 
 static const struct argp_option pool6_opt = {
-		.name = "pool6",
+		.name = OPTNAME_POOL6,
 		.key = ARGP_POOL6,
 		.arg = NULL,
 		.flags = 0,
@@ -19,7 +19,7 @@ static const struct argp_option pool6_opt = {
 };
 
 static const struct argp_option pool4_opt = {
-		.name = "pool4",
+		.name = OPTNAME_POOL4,
 		.key = ARGP_POOL4,
 		.arg = NULL,
 		.flags = 0,
@@ -28,7 +28,7 @@ static const struct argp_option pool4_opt = {
 };
 
 static const struct argp_option bib_opt = {
-		.name = "bib",
+		.name = OPTNAME_BIB,
 		.key = ARGP_BIB,
 		.arg = NULL,
 		.flags = 0,
@@ -37,7 +37,7 @@ static const struct argp_option bib_opt = {
 };
 
 static const struct argp_option session_opt = {
-		.name = "session",
+		.name = OPTNAME_SESSION,
 		.key = ARGP_SESSION,
 		.arg = NULL,
 		.flags = 0,
@@ -46,7 +46,7 @@ static const struct argp_option session_opt = {
 };
 
 static const struct argp_option joold_opt = {
-		.name = "joold",
+		.name = OPTNAME_JOOLD,
 		.key = ARGP_JOOLD,
 		.arg = NULL,
 		.flags = 0,
@@ -55,7 +55,7 @@ static const struct argp_option joold_opt = {
 };
 
 static const struct argp_option eamt_opt = {
-		.name = "eamt",
+		.name = OPTNAME_EAMT,
 		.key = ARGP_EAMT,
 		.arg = NULL,
 		.flags = 0,
@@ -64,7 +64,7 @@ static const struct argp_option eamt_opt = {
 };
 
 static const struct argp_option blacklist_opt = {
-		.name = "blacklist",
+		.name = OPTNAME_BLACKLIST,
 		.key = ARGP_BLACKLIST,
 		.arg = NULL,
 		.flags = 0,
@@ -73,7 +73,7 @@ static const struct argp_option blacklist_opt = {
 };
 
 static const struct argp_option pool6791_opt = {
-		.name = "pool6791",
+		.name = OPTNAME_RFC6791,
 		.key = ARGP_RFC6791,
 		.arg = NULL,
 		.flags = 0,
@@ -84,7 +84,7 @@ static const struct argp_option pool6791_opt = {
 
 #ifdef BENCHMARK
 static const struct argp_option benchmark_opt = {
-		.name = "logTime",
+		.name = OPTNAME_LOGTIME,
 		.key = ARGP_LOGTIME,
 		.arg = NULL,
 		.flags = 0,
@@ -94,7 +94,7 @@ static const struct argp_option benchmark_opt = {
 #endif
 
 static const struct argp_option global_opt = {
-		.name = "global",
+		.name = OPTNAME_GLOBAL,
 		.key = ARGP_GLOBAL,
 		.arg = NULL,
 		.flags = 0,
@@ -109,7 +109,7 @@ static const struct argp_option operations_hdr_opt = {
 };
 
 static const struct argp_option instance_opt = {
-		.name = "instance",
+		.name = OPTNAME_INSTANCE,
 		.key = ARGP_INSTANCE,
 		.arg = NULL,
 		.flags = 0,
@@ -118,7 +118,7 @@ static const struct argp_option instance_opt = {
 };
 
 static const struct argp_option display_opt = {
-		.name = "display",
+		.name = OPTNAME_DISPLAY,
 		.key = ARGP_DISPLAY,
 		.arg = NULL,
 		.flags = 0,
@@ -127,7 +127,7 @@ static const struct argp_option display_opt = {
 };
 
 static const struct argp_option count_opt = {
-		.name = "count",
+		.name = OPTNAME_COUNT,
 		.key = ARGP_COUNT,
 		.arg = NULL,
 		.flags = 0,
@@ -136,7 +136,7 @@ static const struct argp_option count_opt = {
 };
 
 static const struct argp_option add_opt = {
-		.name = "add",
+		.name = OPTNAME_ADD,
 		.key = ARGP_ADD,
 		.arg = NULL,
 		.flags = 0,
@@ -145,7 +145,7 @@ static const struct argp_option add_opt = {
 };
 
 static const struct argp_option update_opt = {
-		.name = "update",
+		.name = OPTNAME_UPDATE,
 		.key = ARGP_UPDATE,
 		.arg = NULL,
 		.flags = 0,
@@ -154,7 +154,7 @@ static const struct argp_option update_opt = {
 };
 
 static const struct argp_option rm_opt = {
-		.name = "remove",
+		.name = OPTNAME_REMOVE,
 		.key = ARGP_REMOVE,
 		.arg = NULL,
 		.flags = 0,
@@ -163,7 +163,7 @@ static const struct argp_option rm_opt = {
 };
 
 static const struct argp_option flush_opt = {
-		.name = "flush",
+		.name = OPTNAME_FLUSH,
 		.key = ARGP_FLUSH,
 		.arg = NULL,
 		.flags = 0,
@@ -172,7 +172,7 @@ static const struct argp_option flush_opt = {
 };
 
 static const struct argp_option advertise_opt = {
-		.name = "advertise",
+		.name = OPTNAME_ADVERTISE,
 		.key = ARGP_ADVERTISE,
 		.arg = NULL,
 		.flags = 0,
@@ -181,7 +181,7 @@ static const struct argp_option advertise_opt = {
 };
 
 static const struct argp_option test_opt = {
-		.name = "test",
+		.name = OPTNAME_TEST,
 		.key = ARGP_TEST,
 		.arg = NULL,
 		.flags = 0,

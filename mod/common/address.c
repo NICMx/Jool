@@ -91,7 +91,7 @@ bool prefix6_contains(const struct ipv6_prefix *prefix, const struct in6_addr *a
 	return ipv6_prefix_equal(&prefix->address, addr, prefix->len);
 }
 
-int prefix4_validate(struct ipv4_prefix *prefix)
+int prefix4_validate(const struct ipv4_prefix *prefix)
 {
 	__u32 suffix_mask;
 
@@ -114,7 +114,7 @@ int prefix4_validate(struct ipv4_prefix *prefix)
 	return 0;
 }
 
-int prefix6_validate(struct ipv6_prefix *prefix)
+int prefix6_validate(const struct ipv6_prefix *prefix)
 {
 	unsigned int i;
 
@@ -139,7 +139,7 @@ int prefix6_validate(struct ipv6_prefix *prefix)
 	return 0;
 }
 
-__u32 addr4_get_bit(struct in_addr *addr, unsigned int pos)
+__u32 addr4_get_bit(const struct in_addr *addr, unsigned int pos)
 {
 	__u32 mask = 1U << (31 - pos);
 	return be32_to_cpu(addr->s_addr) & mask;
@@ -155,7 +155,7 @@ void addr4_set_bit(struct in_addr *addr, unsigned int pos, bool value)
 		addr->s_addr &= cpu_to_be32(~mask);
 }
 
-__u32 addr6_get_bit(struct in6_addr *addr, unsigned int pos)
+__u32 addr6_get_bit(const struct in6_addr *addr, unsigned int pos)
 {
 	__u32 quadrant; /* As in, an IPv6 address has 4 "quadrants" of 32 bits each. */
 	__u32 mask;

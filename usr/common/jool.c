@@ -1019,6 +1019,13 @@ static int main_wrapped(struct arguments *args)
 	return -EINVAL;
 }
 
+static void print_assumed_command(struct arguments *args)
+{
+	log_err("(Note: Assuming configuration mode '--%s' and operation '--%s'.)",
+			configmode_to_string(args->mode),
+			configop_to_string(args->op));
+}
+
 int main(int argc, char **argv)
 {
 	struct arguments args;
@@ -1035,6 +1042,9 @@ int main(int argc, char **argv)
 	}
 
 	error = main_wrapped(&args);
+	if (error)
+		print_assumed_command(&args);
+
 	netlink_destroy();
 	destroy_args(&args);
 	return error;

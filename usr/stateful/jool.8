@@ -120,7 +120,7 @@ Apply the operation on the ICMP table.
 .br
 .RI "PREFIX_LENGTH defaults to 128."
 .br
-Exampĺe: 64:ff9b::/96
+Example: 64:ff9b::/96
 .IP <IPv4-prefix>
 .RI "IPv4 addresses to add to or remove from Jool's IPv4 pool."
 .br
@@ -128,7 +128,7 @@ Exampĺe: 64:ff9b::/96
 .br
 .RI "PREFIX_LENGTH defaults to 32."
 .br
-Exampĺe: 1.2.3.4/30 (Means 1.2.3.4, 1.2.3.5, 1.2.3.6 and 1.2.3.7)
+Example: 1.2.3.4/30 (Means 1.2.3.4, 1.2.3.5, 1.2.3.6 and 1.2.3.7)
 .IP <port-range>
 .RI "Range of ports (or ICMP ids) of the " <IPv4-prefix> " addresses which are being added or removed from Jool's IPv4 pool."
 .br
@@ -138,19 +138,19 @@ Exampĺe: 1.2.3.4/30 (Means 1.2.3.4, 1.2.3.5, 1.2.3.6 and 1.2.3.7)
 .br
 If you omit this argument entirely, Jool will insert or remove all existing ports/ids.
 .br
-Exampĺe: 61001-65535
+Example: 61001-65535
 .IP <IPv4-transport-address>
 .RI "IPv4 field of the BIB entry being added or removed.
 .br
 .RI "The format is " IPV4_ADDRESS # PORT "."
 .br
-Exampĺe: 10.20.30.40#5000
+Example: 10.20.30.40#5000
 .IP <IPv6-transport-address>
 .RI "IPv6 field of the BIB entry being added or removed.
 .br
 .RI "The format is " IPV6_ADDRESS # PORT "."
 .br
-Exampĺe: 1::2#5000
+Example: 1::2#5000
 .IP --quick
 Do not remove orphaned BIB and session entries.
 .IP --numeric

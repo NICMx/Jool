@@ -13,8 +13,73 @@
 struct display_args {
 	unsigned int row_count;
 	union request_pool4 *request;
-	bool csv;
+	display_flags flags;
+
+	struct {
+		bool initialized;
+		__u32 mark;
+		__u8 proto;
+	} last;
 };
+
+static void display_sample_csv(struct pool4_sample *sample,
+		struct display_args *args)
+{
+	printf("%u,%s,%s,%u,%u,%u,%u\n", sample->mark,
+			l4proto_to_string(sample->proto),
+			inet_ntoa(sample->range.addr),
+			sample->range.ports.min,
+			sample->range.ports.max,
+			sample->iterations,
+			sample->iterations_set);
+}
+
+static bool print_common_values(struct pool4_sample *sample,
+		struct display_args *args)
+{
+	if (!args->last.initialized)
+		return true;
+	return sample->mark != args->last.mark
+			|| sample->proto != args->last.proto;
+}
+
+static void print_table_divisor(void)
+{
+	/*
+	 * Lol, dude. Maybe there's some console table manager library out there
+	 * that we should be using.
+	 */
+	printf("+------------+-------+--------------------+-----------------+----------+----------+\n");
+}
+
+static void display_sample_normal(struct pool4_sample *sample,
+		struct display_args *args)
+{
+	if (print_common_values(sample, args)) {
+		print_table_divisor();
+		printf("| %10u | %5s | %10u (%5s) | %15s | %8u | %8u |\n",
+				sample->mark,
+				l4proto_to_string(sample->proto),
+				sample->iterations,
+				sample->iterations_set ? "fixed" : "auto",
+				inet_ntoa(sample->range.addr),
+				sample->range.ports.min,
+				sample->range.ports.max);
+	} else {
+		printf("| %10s | %5s | %10s  %5s  | %15s | %8u | %8u |\n",
+				"",
+				"",
+				"",
+				"",
+				inet_ntoa(sample->range.addr),
+				sample->range.ports.min,
+				sample->range.ports.max);
+	}
+
+	args->last.initialized = true;
+	args->last.mark = sample->mark;
+	args->last.proto = sample->proto;
+}
 
 static int pool4_display_response(struct jool_response *response, void *arg)
 {
@@ -25,23 +90,10 @@ static int pool4_display_response(struct jool_response *response, void *arg)
 	sample_count = response->payload_len / sizeof(*samples);
 
 	for (i = 0; i < sample_count; i++) {
-		if (args->csv)
-			printf("%u,%s,%s,%u,%u,%u,%u\n", samples[i].mark,
-					l4proto_to_string(samples[i].proto),
-					inet_ntoa(samples[i].range.addr),
-					samples[i].range.ports.min,
-					samples[i].range.ports.max,
-					samples[i].iterations,
-					samples[i].iterations_set);
+		if (args->flags & DF_CSV_FORMAT)
+			display_sample_csv(&samples[i], args);
 		else
-			printf("%10u  %5s  %15s  %8u  %8u  %10u  %16s\n",
-					samples[i].mark,
-					l4proto_to_string(samples[i].proto),
-					inet_ntoa(samples[i].range.addr),
-					samples[i].range.ports.min,
-					samples[i].range.ports.max,
-					samples[i].iterations,
-					samples[i].iterations_set ? "true" : "false");
+			display_sample_normal(&samples[i], args);
 	}
 
 	args->row_count += sample_count;
@@ -52,11 +104,11 @@ static int pool4_display_response(struct jool_response *response, void *arg)
 	return 0;
 }
 
-int pool4_display_proto(bool csv, l4_protocol proto, unsigned int *count)
+int pool4_display_proto(display_flags flags, l4_protocol proto, unsigned int *count)
 {
 	unsigned char request[HDR_LEN + PAYLOAD_LEN];
-	struct request_hdr *hdr = (struct request_hdr *) request;
-	union request_pool4 *payload = (union request_pool4 *) (request + HDR_LEN);
+	struct request_hdr *hdr = (struct request_hdr *)request;
+	union request_pool4 *payload = (union request_pool4 *)(request + HDR_LEN);
 	struct display_args args;
 	int error;
 
@@ -66,7 +118,10 @@ int pool4_display_proto(bool csv, l4_protocol proto, unsigned int *count)
 	memset(&payload->display.offset, 0, sizeof(payload->display.offset));
 	args.row_count = 0;
 	args.request = payload;
-	args.csv = csv;
+	args.flags = flags;
+	args.last.initialized = false;
+	args.last.mark = 0;
+	args.last.proto = 0;
 
 	do {
 		error = netlink_request(&request, sizeof(request),
@@ -81,26 +136,30 @@ int pool4_display_proto(bool csv, l4_protocol proto, unsigned int *count)
 
 int pool4_display(display_flags flags)
 {
-	bool csv = flags & DF_CSV_FORMAT;
-	int error;
 	unsigned int count = 0;
+	int error;
 
 	if (flags & DF_SHOW_HEADERS) {
-		if (csv)
+		if (flags & DF_CSV_FORMAT)
 			printf("Mark,Protocol,Address,Min port,Max port,Iterations,Iterations fixed\n");
-		else
-			printf("      Mark  Proto          Address  Port min  Port max  Iterations  Iterations fixed\n");
+		else {
+			print_table_divisor();
+			printf("|       Mark | Proto |     Max iterations |         Address | Port min | Port max |\n");
+		}
 	}
 
-	error = pool4_display_proto(csv, L4PROTO_TCP, &count);
+	error = pool4_display_proto(flags, L4PROTO_TCP, &count);
 	if (error)
 		return error;
-	error = pool4_display_proto(csv, L4PROTO_UDP, &count);
+	error = pool4_display_proto(flags, L4PROTO_UDP, &count);
 	if (error)
 		return error;
-	error = pool4_display_proto(csv, L4PROTO_ICMP, &count);
+	error = pool4_display_proto(flags, L4PROTO_ICMP, &count);
 	if (error)
 		return error;
+
+	if (!(flags & DF_CSV_FORMAT))
+		print_table_divisor();
 
 	if (show_footer(flags)) {
 		if (count > 0)
@@ -122,8 +181,8 @@ int pool4_count(void)
 int pool4_add(struct pool4_entry_usr *entry, bool force)
 {
 	unsigned char request[HDR_LEN + PAYLOAD_LEN];
-	struct request_hdr *hdr = (struct request_hdr *) request;
-	union request_pool4 *payload = (union request_pool4 *) (request + HDR_LEN);
+	struct request_hdr *hdr = (struct request_hdr *)request;
+	union request_pool4 *payload = (union request_pool4 *)(request + HDR_LEN);
 
 	if (entry->range.prefix.len < 24 && !force) {
 		printf("Warning: You're adding lots of addresses, which "
@@ -147,8 +206,8 @@ int pool4_add(struct pool4_entry_usr *entry, bool force)
 int pool4_update(struct pool4_update *args)
 {
 	unsigned char request[HDR_LEN + PAYLOAD_LEN];
-	struct request_hdr *hdr = (struct request_hdr *) request;
-	union request_pool4 *payload = (union request_pool4 *) (request + HDR_LEN);
+	struct request_hdr *hdr = (struct request_hdr *)request;
+	union request_pool4 *payload = (union request_pool4 *)(request + HDR_LEN);
 
 	init_request_hdr(hdr, MODE_POOL4, OP_UPDATE);
 	payload->update = *args;
@@ -159,8 +218,8 @@ int pool4_update(struct pool4_update *args)
 int pool4_rm(struct pool4_entry_usr *entry, bool quick)
 {
 	unsigned char request[HDR_LEN + PAYLOAD_LEN];
-	struct request_hdr *hdr = (struct request_hdr *) request;
-	union request_pool4 *payload = (union request_pool4 *) (request + HDR_LEN);
+	struct request_hdr *hdr = (struct request_hdr *)request;
+	union request_pool4 *payload = (union request_pool4 *)(request + HDR_LEN);
 
 	init_request_hdr(hdr, MODE_POOL4, OP_REMOVE);
 	payload->rm.entry = *entry;
@@ -172,8 +231,8 @@ int pool4_rm(struct pool4_entry_usr *entry, bool quick)
 int pool4_flush(bool quick)
 {
 	unsigned char request[HDR_LEN + PAYLOAD_LEN];
-	struct request_hdr *hdr = (struct request_hdr *) request;
-	union request_pool4 *payload = (union request_pool4 *) (request + HDR_LEN);
+	struct request_hdr *hdr = (struct request_hdr *)request;
+	union request_pool4 *payload = (union request_pool4 *)(request + HDR_LEN);
 
 	init_request_hdr(hdr, MODE_POOL4, OP_FLUSH);
 	payload->flush.quick = quick;

@@ -65,6 +65,8 @@ enum config_mode {
 	MODE_INSTANCE = (1 << 11),
 };
 
+char *configmode_to_string(enum config_mode mode);
+
 /**
  * @{
  * Allowed operations for the mode mentioned in the name.
@@ -100,9 +102,9 @@ enum config_operation {
 	 * The userspace app wants to add an element to the table being
 	 * requested.
 	 */
-	OP_ADD = (1 << 2),
+	OP_ADD = (1 << 3),
 	/** The userspace app wants to edit some value. */
-	OP_UPDATE = (1 << 3),
+	OP_UPDATE = (1 << 2),
 	/**
 	 * The userspace app wants to delete an element from the table being
 	 * requested.
@@ -117,6 +119,8 @@ enum config_operation {
 	/** Somebody is acknowledging reception of a previous message. */
 	OP_ACK = (1 << 8),
 };
+
+char *configop_to_string(enum config_operation op);
 
 enum parse_section {
 	SEC_GLOBAL = 1,
@@ -210,7 +214,6 @@ union request_pool6 {
 	struct ipv6_prefix prefix;
 };
 
-/* XXX all users need to be updated to iterations. */
 struct pool4_entry_usr {
 	__u32 mark;
 	__u32 iterations;
