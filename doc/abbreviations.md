@@ -15,6 +15,7 @@ Some shortcuts used while naming variables and functions through the code or doc
 - ADF = Address-Dependent Filtering
 - aux = auxiliar function
 - cb = callback (synonym for "fn")
+- cmp = compare (Inherited from the kernel)
 - csum = checksum
 - comm = common
 - daddr = destination address

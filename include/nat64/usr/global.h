@@ -2,6 +2,7 @@
 #define _JOOL_USR_GLOBAL_H
 
 #include "nat64/common/config.h"
+#include "nat64/usr/types.h"
 
 /* Normal flags */
 #define OPTNAME_ENABLE			"enable"
@@ -28,7 +29,6 @@
 #define OPTNAME_TCPTRANS_TIMEOUT	"tcp-trans-timeout"
 #define OPTNAME_FRAG_TIMEOUT		"fragment-arrival-timeout"
 #define OPTNAME_MAX_SO			"maximum-simultaneous-opens"
-#define OPTNAME_MAX_MASK_ITERATIONS	"maximum-mask-iterations"
 #define OPTNAME_SRC_ICMP6E_BETTER	"source-icmpv6-errors-better"
 #define OPTNAME_HANDLE_FIN_RCV_RST	"handle-rst-during-fin-rcv"
 #define OPTNAME_F_ARGS			"f-args"
@@ -42,7 +42,7 @@
 #define OPTNAME_SS_CAPACITY		"ss-capacity"
 #define OPTNAME_SS_MAX_PAYLOAD		"ss-max-payload"
 
-int global_display(bool csv);
+int global_display(display_flags flags);
 int global_update(__u16 type, size_t size, void *data);
 
 

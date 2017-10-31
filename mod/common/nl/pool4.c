@@ -47,7 +47,7 @@ static int handle_pool4_add(struct pool4 *pool, struct genl_info *info,
 
 	log_debug("Adding elements to pool4.");
 
-	error = pool4db_add_usr(pool, &request->add.entry);
+	error = pool4db_add(pool, &request->add);
 	return nlcore_respond(info, error);
 }
 

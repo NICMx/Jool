@@ -291,9 +291,6 @@ static int massive_switch(struct full_config *cfg, struct global_value *chunk,
 	case MAX_PKTS:
 		error = ensure_nat64(OPTNAME_MAX_SO);
 		return error ? : parse_u32(&cfg->bib.max_stored_pkts, chunk, size);
-	case MAX_MASK_ITERATIONS:
-		error = ensure_nat64(OPTNAME_MAX_MASK_ITERATIONS);
-		return error ? : parse_u32(&cfg->bib.max_mask_iterations, chunk, size);
 	case SS_ENABLED:
 		error = ensure_nat64(OPTNAME_SS_ENABLED);
 		return error ? : parse_bool(&cfg->joold.enabled, chunk, size);

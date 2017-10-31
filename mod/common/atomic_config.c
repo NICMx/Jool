@@ -238,7 +238,7 @@ static int handle_pool4(struct config_candidate *new, void *payload,
 	}
 
 	for (i = 0; i < entry_count; i++) {
-		error = pool4db_add_usr(new->nat64.pool4, &entries[i]);
+		error = pool4db_add(new->nat64.pool4, &entries[i]);
 		if (error)
 			return error;
 	}

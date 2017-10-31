@@ -215,6 +215,16 @@ static const struct argp_option mark_opt = {
 				"only.",
 		.group = 0,
 };
+
+static const struct argp_option max_iterations_opt = {
+		.name = "max-iterations",
+		.key = ARGP_MAX_ITERATIONS,
+		.arg = NUM_FORMAT,
+		.flags = 0,
+		.doc = "",
+		.group = 0,
+};
+
 static const struct argp_option force_opt = {
 		.name = "force",
 		.key = ARGP_FORCE,
@@ -268,6 +278,15 @@ static const struct argp_option csv_opt = {
 		.flags = 0,
 		.doc = "Print in CSV format. Available on display operation "
 				"only.",
+		.group = 0,
+};
+
+static const struct argp_option no_hdr_opt = {
+		.name = "no-headers",
+		.key = ARGP_NO_HEADERS,
+		.arg = NULL,
+		.flags = 0,
+		.doc = "Do not print table headers.",
 		.group = 0,
 };
 
@@ -428,17 +447,6 @@ static const struct argp_option max_so_opt = {
 		.flags = 0,
 		.doc = "Set the maximum allowable 'simultaneous' Simultaneos "
 				"Opens of TCP connections.\n",
-		.group = 0,
-};
-
-static const struct argp_option max_mask_iterations = {
-		.name = OPTNAME_MAX_MASK_ITERATIONS,
-		.key = ARGP_MAX_MASK_ITERATIONS,
-		.arg = NUM_FORMAT,
-		.flags = 0,
-		.doc = "Set the iteration limit at which a mask allocation "
-				"should give up and assume the relevant pool4 "
-				"has been exhausted.",
 		.group = 0,
 };
 
@@ -609,6 +617,7 @@ static const struct argp_option *opts_siit[] = {
 
 	&db_hdr_opt,
 	&csv_opt,
+	&no_hdr_opt,
 	&force_opt,
 
 	&globals_hdr_opt,
@@ -649,14 +658,16 @@ static const struct argp_option *opts_nat64[] = {
 	&test_opt,
 
 	&db_hdr_opt,
+	&csv_opt,
+	&no_hdr_opt,
 	&quick_opt,
 	&mark_opt,
+	&max_iterations_opt,
 	&force_opt,
 	&icmp_opt,
 	&tcp_opt,
 	&udp_opt,
 	&numeric_opt,
-	&csv_opt,
 
 	/* Globals */
 	&globals_hdr_opt,
@@ -667,7 +678,6 @@ static const struct argp_option *opts_nat64[] = {
 	&tos_opt,
 	&plateaus_opt,
 	&max_so_opt,
-	&max_mask_iterations,
 	&icmp_src_opt,
 	&f_args_opt,
 	&rst_during_fin_rcv_opt,

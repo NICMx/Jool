@@ -81,7 +81,7 @@ bool prefix4_intersects(const struct ipv4_prefix *p1, const struct ipv4_prefix *
 	return prefix4_contains(p1, &p2->address) || prefix4_contains(p2, &p1->address);
 }
 
-__u64 prefix4_get_addr_count(struct ipv4_prefix *prefix)
+__u64 prefix4_get_addr_count(const struct ipv4_prefix *prefix)
 {
 	return ((__u64) 1U) << (32 - prefix->len);
 }
@@ -182,7 +182,7 @@ void addr6_set_bit(struct in6_addr *addr, unsigned int pos, bool value)
 		*quadrant &= cpu_to_be32(~mask);
 }
 
-__u64 prefix4_next(struct ipv4_prefix *prefix)
+__u64 prefix4_next(const struct ipv4_prefix *prefix)
 {
 	return prefix4_get_addr_count(prefix)
 			+ (__u64) be32_to_cpu(prefix->address.s_addr);

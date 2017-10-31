@@ -47,8 +47,6 @@ struct arguments {
 	struct {
 		bool quick;
 		bool force;
-		bool tcp, udp, icmp;
-		bool numeric;
 
 		struct ipv6_prefix prefix6;
 		bool prefix6_set;
@@ -58,6 +56,8 @@ struct arguments {
 
 		struct {
 			__u32 mark;
+			__u32 max_iterations;
+			bool max_iterations_set;
 			struct port_range ports;
 			bool force;
 		} pool4;
@@ -78,7 +78,7 @@ struct arguments {
 
 	char *json_filename;
 
-	bool csv_format;
+	display_flags flags;
 };
 
 static int update_state(struct arguments *args, enum config_mode valid_modes,
@@ -433,26 +433,30 @@ static int parse_opt(int key, char *str, struct argp_state *state)
 	case ARGP_UDP:
 		error = update_state(args, MODE_POOL4 | MODE_BIB | MODE_SESSION,
 				POOL4_OPS | BIB_OPS | SESSION_OPS);
-		args->db.udp = true;
+		args->flags |= DF_UDP;
 		break;
 	case ARGP_TCP:
 		error = update_state(args, MODE_POOL4 | MODE_BIB | MODE_SESSION,
 				POOL4_OPS | BIB_OPS | SESSION_OPS);
-		args->db.tcp = true;
+		args->flags |= DF_TCP;
 		break;
 	case ARGP_ICMP:
 		error = update_state(args, MODE_POOL4 | MODE_BIB | MODE_SESSION,
 				POOL4_OPS | BIB_OPS | SESSION_OPS);
-		args->db.icmp = true;
+		args->flags |= DF_ICMP;
 		break;
 	case ARGP_NUMERIC_HOSTNAME:
 		error = update_state(args, MODE_BIB | MODE_SESSION, OP_DISPLAY);
-		args->db.numeric = true;
+		args->flags |= DF_NUMERIC_HOSTNAME;
 		break;
 	case ARGP_CSV:
 		error = update_state(args, POOL_MODES | TABLE_MODES
 				| MODE_GLOBAL, OP_DISPLAY);
-		args->csv_format = true;
+		args->flags |= DF_CSV_FORMAT;
+		break;
+	case ARGP_NO_HEADERS:
+		error = update_state(args, ANY_MODE, OP_DISPLAY);
+		args->flags &= ~DF_SHOW_HEADERS;
 		break;
 
 	case ARGP_QUICK:
@@ -460,9 +464,23 @@ static int parse_opt(int key, char *str, struct argp_state *state)
 		args->db.quick = true;
 		break;
 	case ARGP_MARK:
-		error = update_state(args, MODE_POOL4, OP_ADD | OP_REMOVE);
+		error = update_state(args, MODE_POOL4, OP_ADD | OP_UPDATE | OP_REMOVE);
 		if (!error)
 			error = str_to_u32(str, &args->db.pool4.mark, 0, MAX_U32);
+		break;
+	case ARGP_MAX_ITERATIONS:
+		error = update_state(args, MODE_POOL4, OP_ADD | OP_UPDATE);
+		if (!error) {
+			if (strcmp(str, "null") != 0) {
+				args->db.pool4.max_iterations_set = true;
+				error = str_to_u32(str,
+						&args->db.pool4.max_iterations,
+						0, MAX_U32);
+			} else {
+				args->db.pool4.max_iterations_set = false;
+				args->db.pool4.max_iterations = 0;
+			}
+		}
 		break;
 	case ARGP_FORCE:
 		error = update_state(args, ANY_MODE, ANY_OP);
@@ -518,7 +536,6 @@ static int parse_opt(int key, char *str, struct argp_state *state)
 		error = set_global_u64(args, key, str, FRAGMENT_MIN, MAX_U32/1000, 1000);
 		break;
 	case ARGP_STORED_PKTS:
-	case ARGP_MAX_MASK_ITERATIONS:
 		error = set_global_u32(args, key, str, 0, MAX_U32);
 		break;
 	case ARGP_SS_FLUSH_DEADLINE:
@@ -607,12 +624,12 @@ static int parse_args(int argc, char **argv, struct arguments *result)
 	struct argp_option *options = build_opts();
 	struct argp argp = { options, parse_opt, args_doc, doc };
 
-
 	memset(result, 0, sizeof(*result));
 	result->mode = ANY_MODE;
 	result->op = ANY_OP;
 	result->db.pool4.ports.min = 0;
 	result->db.pool4.ports.max = 65535U;
+	result->flags |= DF_SHOW_HEADERS;
 
 	error = argp_parse(&argp, argc, argv, 0, NULL, result);
 	free(options);
@@ -622,11 +639,8 @@ static int parse_args(int argc, char **argv, struct arguments *result)
 	result->mode = zeroize_upper_bits(result->mode);
 	result->op = zeroize_upper_bits(result->op);
 
-	if (!result->db.tcp && !result->db.udp && !result->db.icmp) {
-		result->db.tcp = true;
-		result->db.udp = true;
-		result->db.icmp = true;
-	}
+	if ((result->flags & (DF_TCP | DF_UDP | DF_ICMP)) == 0)
+		result->flags |= DF_TCP | DF_UDP | DF_ICMP;
 
 	return 0;
 }
@@ -647,7 +661,7 @@ static int handle_pool6(struct arguments *args)
 {
 	switch (args->op) {
 	case OP_DISPLAY:
-		return pool6_display(args->csv_format);
+		return pool6_display(args->flags);
 
 	case OP_ADD:
 	case OP_UPDATE:
@@ -673,6 +687,101 @@ static int handle_pool6(struct arguments *args)
 	}
 }
 
+static int __pool4_add(struct arguments *args)
+{
+	struct pool4_entry_usr entry;
+	int tcp_error = 0;
+	int udp_error = 0;
+	int icmp_error = 0;
+
+	if (!args->db.prefix4_set) {
+		log_err("The address/prefix argument is mandatory.");
+		return -EINVAL;
+	}
+
+	entry.mark = args->db.pool4.mark;
+	entry.iterations = args->db.pool4.max_iterations;
+	entry.iterations_set = args->db.pool4.max_iterations_set;
+	entry.range.prefix = args->db.prefix4;
+	entry.range.ports = args->db.pool4.ports;
+
+	if (args->flags & DF_TCP) {
+		entry.proto = L4PROTO_TCP;
+		tcp_error = pool4_add(&entry, args->db.force);
+	}
+	if (args->flags & DF_UDP) {
+		entry.proto = L4PROTO_UDP;
+		udp_error = pool4_add(&entry, args->db.force);
+	}
+	if (args->flags & DF_ICMP) {
+		entry.proto = L4PROTO_ICMP;
+		icmp_error = pool4_add(&entry, args->db.force);
+	}
+
+	return (tcp_error | udp_error | icmp_error) ? -EINVAL : 0;
+}
+
+static int __pool4_update(struct arguments *args)
+{
+	struct pool4_update update;
+	int tcp_error = 0;
+	int udp_error = 0;
+	int icmp_error = 0;
+
+	update.mark = args->db.pool4.mark;
+	update.iterations_set = args->db.pool4.max_iterations_set;
+	update.iterations = args->db.pool4.max_iterations;
+
+	if (args->flags & DF_TCP) {
+		update.l4_proto = L4PROTO_TCP;
+		tcp_error = pool4_update(&update);
+	}
+	if (args->flags & DF_UDP) {
+		update.l4_proto = L4PROTO_UDP;
+		udp_error = pool4_update(&update);
+	}
+	if (args->flags & DF_ICMP) {
+		update.l4_proto = L4PROTO_ICMP;
+		icmp_error = pool4_update(&update);
+	}
+
+	return (tcp_error | udp_error | icmp_error) ? -EINVAL : 0;
+}
+
+static int __pool4_rm(struct arguments *args)
+{
+	struct pool4_entry_usr entry;
+	int tcp_error = 0;
+	int udp_error = 0;
+	int icmp_error = 0;
+
+	if (!args->db.prefix4_set) {
+		log_err("The address/prefix argument is mandatory.");
+		return -EINVAL;
+	}
+
+	entry.mark = args->db.pool4.mark;
+	entry.iterations = 0;
+	entry.iterations_set = false;
+	entry.range.prefix = args->db.prefix4;
+	entry.range.ports = args->db.pool4.ports;
+
+	if (args->flags & DF_TCP) {
+		entry.proto = L4PROTO_TCP;
+		tcp_error = pool4_rm(&entry, args->db.quick);
+	}
+	if (args->flags & DF_UDP) {
+		entry.proto = L4PROTO_UDP;
+		udp_error = pool4_rm(&entry, args->db.quick);
+	}
+	if (args->flags & DF_ICMP) {
+		entry.proto = L4PROTO_ICMP;
+		icmp_error = pool4_rm(&entry, args->db.quick);
+	}
+
+	return (tcp_error | udp_error | icmp_error) ? -EINVAL : 0;
+}
+
 static int handle_pool4(struct arguments *args)
 {
 	if (xlat_is_siit()) {
@@ -682,30 +791,15 @@ static int handle_pool4(struct arguments *args)
 
 	switch (args->op) {
 	case OP_DISPLAY:
-		return pool4_display(args->csv_format);
+		return pool4_display(args->flags);
 	case OP_COUNT:
 		return pool4_count();
-
 	case OP_ADD:
-		if (!args->db.prefix4_set) {
-			log_err("The address/prefix argument is mandatory.");
-			return -EINVAL;
-		}
-		return pool4_add(args->db.pool4.mark,
-				args->db.tcp, args->db.udp, args->db.icmp,
-				&args->db.prefix4, &args->db.pool4.ports,
-				args->db.force);
-
+		return __pool4_add(args);
+	case OP_UPDATE:
+		return __pool4_update(args);
 	case OP_REMOVE:
-		if (!args->db.prefix4_set) {
-			log_err("The address/prefix argument is mandatory.");
-			return -EINVAL;
-		}
-		return pool4_rm(args->db.pool4.mark,
-				args->db.tcp, args->db.udp, args->db.icmp,
-				&args->db.prefix4, &args->db.pool4.ports,
-				args->db.quick);
-
+		return __pool4_rm(args);
 	case OP_FLUSH:
 		return pool4_flush(args->db.quick);
 	default:
@@ -728,26 +822,23 @@ static int handle_bib(struct arguments *args)
 
 	switch (args->op) {
 	case OP_DISPLAY:
-		return bib_display(args->db.tcp, args->db.udp, args->db.icmp,
-				args->db.numeric, args->csv_format);
+		return bib_display(args->flags);
 	case OP_COUNT:
-		return bib_count(args->db.tcp, args->db.udp, args->db.icmp);
+		return bib_count(args->flags);
 
 	case OP_ADD:
 		if (!addr6 || !addr4) {
 			log_err("The transport address arguments are mandatory during adds.");
 			return -EINVAL;
 		}
-		return bib_add(args->db.tcp, args->db.udp, args->db.icmp,
-				addr6, addr4);
+		return bib_add(args->flags, addr6, addr4);
 
 	case OP_REMOVE:
 		if (!addr6 && !addr4) {
 			log_err("A remove requires an IPv4 and/or v6 transport address.");
 			return -EINVAL;
 		}
-		return bib_remove(args->db.tcp, args->db.udp, args->db.icmp,
-				addr6, addr4);
+		return bib_remove(args->flags, addr6, addr4);
 
 	default:
 		return unknown_op("BIB", args->op);
@@ -763,10 +854,9 @@ static int handle_session(struct arguments *args)
 
 	switch (args->op) {
 	case OP_DISPLAY:
-		return session_display(args->db.tcp, args->db.udp, args->db.icmp,
-				args->db.numeric, args->csv_format);
+		return session_display(args->flags);
 	case OP_COUNT:
-		return session_count(args->db.tcp, args->db.udp, args->db.icmp);
+		return session_count(args->flags);
 	default:
 		return unknown_op("session", args->op);
 	}
@@ -787,7 +877,7 @@ static int handle_eamt(struct arguments *args)
 
 	switch (args->op) {
 	case OP_DISPLAY:
-		return eam_display(args->csv_format);
+		return eam_display(args->flags);
 	case OP_COUNT:
 		return eam_count();
 
@@ -821,7 +911,7 @@ static int handle_addr4_pool(struct arguments *args)
 
 	switch (args->op) {
 	case OP_DISPLAY:
-		return pool_display(args->mode, args->csv_format);
+		return pool_display(args->mode, args->flags);
 	case OP_COUNT:
 		return pool_count(args->mode);
 
@@ -851,7 +941,7 @@ static int handle_logtime(struct arguments *args)
 #ifdef BENCHMARK
 	switch (args->op) {
 	case OP_DISPLAY:
-		return logtime_display();
+		return logtime_display(args->db.no_headers);
 	default:
 		log_err("Unknown operation for logtime mode: %u.", args->op);
 		break;
@@ -866,7 +956,7 @@ static int handle_global(struct arguments *args)
 {
 	switch (args->op) {
 	case OP_DISPLAY:
-		return global_display(args->csv_format);
+		return global_display(args->flags);
 	case OP_UPDATE:
 		return global_update(args->global.type, args->global.size,
 				args->global.data);

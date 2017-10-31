@@ -5,15 +5,15 @@
 #include <string.h>
 #include "nat64/common/types.h"
 
-void print_addr6(struct ipv6_transport_addr *addr6, bool numeric_hostname, char *separator,
-		__u8 l4_proto)
+void print_addr6(struct ipv6_transport_addr *addr6, display_flags flags,
+		char *separator, __u8 l4_proto)
 {
 	char hostname[NI_MAXHOST], service[NI_MAXSERV];
 	char hostaddr[INET6_ADDRSTRLEN];
 	struct sockaddr_in6 sa6;
 	int err;
 
-	if (numeric_hostname)
+	if (flags & DF_NUMERIC_HOSTNAME)
 		goto print_numeric;
 
 	memset(&sa6, 0, sizeof(struct sockaddr_in6));
@@ -41,15 +41,15 @@ print_numeric:
 	printf("%s%s%u", hostaddr, separator, addr6->l4);
 }
 
-void print_addr4(struct ipv4_transport_addr *addr4, bool numeric_hostname, char *separator,
-		__u8 l4_proto)
+void print_addr4(struct ipv4_transport_addr *addr4, display_flags flags,
+		char *separator, __u8 l4_proto)
 {
 	char hostname[NI_MAXHOST], service[NI_MAXSERV];
 	char *hostaddr;
 	struct sockaddr_in sa;
 	int err;
 
-	if (numeric_hostname)
+	if (flags & DF_NUMERIC_HOSTNAME)
 		goto print_numeric;
 
 	memset(&sa, 0, sizeof(struct sockaddr_in));

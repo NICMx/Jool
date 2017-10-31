@@ -75,7 +75,7 @@ enum config_mode {
 
 #define GLOBAL_OPS (OP_DISPLAY | OP_UPDATE)
 #define POOL6_OPS (DATABASE_OPS)
-#define POOL4_OPS (DATABASE_OPS)
+#define POOL4_OPS (DATABASE_OPS | OP_UPDATE)
 #define BLACKLIST_OPS (DATABASE_OPS)
 #define RFC6791_OPS (DATABASE_OPS)
 #define EAMT_OPS (DATABASE_OPS)
@@ -144,7 +144,7 @@ enum parse_section {
 #define ADD_MODES (POOL_MODES | MODE_EAMT | MODE_BIB | MODE_INSTANCE)
 #define REMOVE_MODES (POOL_MODES | MODE_EAMT | MODE_BIB | MODE_INSTANCE)
 #define FLUSH_MODES (POOL_MODES | MODE_EAMT)
-#define UPDATE_MODES (MODE_GLOBAL | MODE_PARSE_FILE)
+#define UPDATE_MODES (MODE_GLOBAL | MODE_POOL4 | MODE_PARSE_FILE)
 
 #define SIIT_MODES (MODE_GLOBAL | MODE_POOL6 | MODE_BLACKLIST | MODE_RFC6791 \
 		| MODE_EAMT | MODE_LOGTIME | MODE_PARSE_FILE | MODE_INSTANCE)
@@ -210,10 +210,20 @@ union request_pool6 {
 	struct ipv6_prefix prefix;
 };
 
+/* XXX all users need to be updated to iterations. */
 struct pool4_entry_usr {
 	__u32 mark;
+	__u32 iterations;
+	__u8 iterations_set;
 	__u8 proto;
 	struct ipv4_range range;
+};
+
+struct pool4_update {
+	__u32 mark;
+	__u32 iterations;
+	config_bool iterations_set;
+	__u8 l4_proto;
 };
 
 /**
@@ -225,9 +235,8 @@ union request_pool4 {
 		config_bool offset_set;
 		struct pool4_sample offset;
 	} display;
-	struct {
-		struct pool4_entry_usr entry;
-	} add;
+	struct pool4_entry_usr add;
+	struct pool4_update update;
 	struct {
 		struct pool4_entry_usr entry;
 		/**
@@ -417,7 +426,6 @@ enum global_type {
 	BIB_LOGGING,
 	SESSION_LOGGING,
 	MAX_PKTS,
-	MAX_MASK_ITERATIONS,
 	SS_ENABLED,
 	SS_FLUSH_ASAP,
 	SS_FLUSH_DEADLINE,
@@ -614,7 +622,6 @@ struct bib_config {
 	config_bool drop_external_tcp;
 
 	__u32 max_stored_pkts;
-	__u32 max_mask_iterations;
 };
 
 /* This has to be <= 32. */

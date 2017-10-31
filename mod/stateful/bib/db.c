@@ -121,8 +121,6 @@ struct bib_table {
 	 * ICMP.
 	 */
 	bool drop_by_addr;
-	/** TODO document me. */
-	unsigned int max_mask_iterations;
 
 	/* Number of entries in this table. */
 	u64 bib_count;
@@ -343,7 +341,6 @@ static void init_table(struct bib_table *table,
 	table->log_bibs = DEFAULT_BIB_LOGGING;
 	table->log_sessions = DEFAULT_SESSION_LOGGING;
 	table->drop_by_addr = DEFAULT_ADDR_DEPENDENT_FILTERING;
-	table->max_mask_iterations = DEFAULT_MAX_MASK_ITERATIONS;
 	table->bib_count = 0;
 	table->session_count = 0;
 	spin_lock_init(&table->lock);
@@ -454,7 +451,6 @@ void bib_config_copy(struct bib *db, struct bib_config *config)
 	config->ttl.tcp_trans = db->tcp.trans_timer.timeout;
 	config->max_stored_pkts = db->tcp.pkt_limit;
 	config->drop_external_tcp = db->tcp.drop_v4_syn;
-	config->max_mask_iterations = db->tcp.max_mask_iterations;
 	spin_unlock_bh(&db->tcp.lock);
 
 	spin_lock_bh(&db->udp.lock);
@@ -476,7 +472,6 @@ void bib_config_set(struct bib *db, struct bib_config *config)
 	db->tcp.trans_timer.timeout = config->ttl.tcp_trans;
 	db->tcp.pkt_limit = config->max_stored_pkts;
 	db->tcp.drop_v4_syn = config->drop_external_tcp;
-	db->tcp.max_mask_iterations = config->max_mask_iterations;
 	spin_unlock_bh(&db->tcp.lock);
 
 	spin_lock_bh(&db->udp.lock);
@@ -484,14 +479,12 @@ void bib_config_set(struct bib *db, struct bib_config *config)
 	db->udp.log_sessions = config->session_logging;
 	db->udp.drop_by_addr = config->drop_by_addr;
 	db->udp.est_timer.timeout = config->ttl.udp;
-	db->udp.max_mask_iterations = config->max_mask_iterations;
 	spin_unlock_bh(&db->udp.lock);
 
 	spin_lock_bh(&db->icmp.lock);
 	db->icmp.log_bibs = config->bib_logging;
 	db->icmp.log_sessions = config->session_logging;
 	db->icmp.est_timer.timeout = config->ttl.icmp;
-	db->icmp.max_mask_iterations = config->max_mask_iterations;
 	spin_unlock_bh(&db->icmp.lock);
 }
 
@@ -1289,8 +1282,6 @@ static int find_available_mask(struct bib_table *table,
 {
 	struct tabled_bib *collision = NULL;
 	bool consecutive;
-	unsigned int iterations = 0;
-	unsigned int max_iterations = table->max_mask_iterations;
 	int error;
 
 	/*
@@ -1312,18 +1303,6 @@ static int find_available_mask(struct bib_table *table,
 		collision = consecutive
 				? try_next(table, collision, bib, slot)
 				: find_bibtree4_slot(table, bib, slot);
-
-		if (max_iterations != 0) {
-			iterations++;
-			/*
-			 * Issue #251: Avoid the giant RFC 6056 algorithm 3
-			 * spike by quitting early. If this function iterates
-			 * too much, it's because pool4 is, or is about to be,
-			 * exhausted.
-			 */
-			if (iterations > max_iterations)
-				return -ENOENT;
-		}
 
 	} while (collision);
 

@@ -108,8 +108,6 @@ static int handle_display_response(struct jool_response *response, void *arg)
 
 		printf("  --%s: %u\n", OPTNAME_MAX_SO,
 				conf->bib.max_stored_pkts);
-		printf("  --%s: %u\n", OPTNAME_MAX_MASK_ITERATIONS,
-				conf->bib.max_mask_iterations);
 		printf("  --%s: %s\n", OPTNAME_SRC_ICMP6E_BETTER,
 				print_bool(conf->global.nat64.src_icmp6errs_better));
 		printf("  --%s: %s\n", OPTNAME_HANDLE_FIN_RCV_RST,
@@ -217,12 +215,8 @@ static int handle_display_response_csv(struct jool_response *response, void *arg
 		print_rfc6791v6_prefix(conf, true);
 
 	} else {
-		printf("%s,%s\n", OPTNAME_DROP_BY_ADDR,
-				print_csv_bool(conf->bib.drop_by_addr));
-		printf("%s,%s\n", OPTNAME_DROP_ICMP6_INFO,
-				print_csv_bool(global->nat64.drop_icmp6_info));
-		printf("%s,%s\n", OPTNAME_DROP_EXTERNAL_TCP,
-				print_csv_bool(conf->bib.drop_external_tcp));
+		printf("%s,%u\n", OPTNAME_MAX_SO,
+				conf->bib.max_stored_pkts);
 		printf("%s,%s\n", OPTNAME_SRC_ICMP6E_BETTER,
 				print_csv_bool(global->nat64.src_icmp6errs_better));
 		printf("%s,%u\n", OPTNAME_HANDLE_FIN_RCV_RST,
@@ -234,21 +228,12 @@ static int handle_display_response_csv(struct jool_response *response, void *arg
 		printf("%s,%s\n", OPTNAME_SESSION_LOGGING,
 				print_csv_bool(conf->bib.session_logging));
 
-		printf("%s,%u\n", OPTNAME_MAX_SO,
-				conf->bib.max_stored_pkts);
-		printf("%s,%u\n", OPTNAME_MAX_MASK_ITERATIONS,
-				conf->bib.max_mask_iterations);
-
-		printf("joold Enabled,%s\n",
-				print_csv_bool(conf->joold.enabled));
-		printf("%s,%s\n", OPTNAME_SS_FLUSH_ASAP,
-				print_csv_bool(conf->joold.flush_asap));
-		printf("%s,", OPTNAME_SS_FLUSH_DEADLINE);
-		print_time_csv(conf->joold.flush_deadline);
-		printf("\n%s,%u\n", OPTNAME_SS_CAPACITY,
-				conf->joold.capacity);
-		printf("%s,%u\n", OPTNAME_SS_MAX_PAYLOAD,
-				conf->joold.max_payload);
+		printf("%s,%s\n", OPTNAME_DROP_BY_ADDR,
+				print_csv_bool(conf->bib.drop_by_addr));
+		printf("%s,%s\n", OPTNAME_DROP_ICMP6_INFO,
+				print_csv_bool(global->nat64.drop_icmp6_info));
+		printf("%s,%s\n", OPTNAME_DROP_EXTERNAL_TCP,
+				print_csv_bool(conf->bib.drop_external_tcp));
 
 		printf("%s,", OPTNAME_UDP_TIMEOUT);
 		print_time_csv(conf->bib.ttl.udp);
@@ -261,18 +246,34 @@ static int handle_display_response_csv(struct jool_response *response, void *arg
 		printf("\n%s,", OPTNAME_FRAG_TIMEOUT);
 		print_time_csv(conf->frag.ttl);
 		printf("\n");
+
+		printf("joold Enabled,%s\n",
+				print_csv_bool(conf->joold.enabled));
+		printf("%s,%s\n", OPTNAME_SS_FLUSH_ASAP,
+				print_csv_bool(conf->joold.flush_asap));
+		printf("%s,", OPTNAME_SS_FLUSH_DEADLINE);
+		print_time_csv(conf->joold.flush_deadline);
+		printf("\n%s,%u\n", OPTNAME_SS_CAPACITY,
+				conf->joold.capacity);
+		printf("%s,%u\n", OPTNAME_SS_MAX_PAYLOAD,
+				conf->joold.max_payload);
 	}
 
 	return 0;
 }
 
-int global_display(bool csv)
+int global_display(display_flags flags)
 {
 	struct request_hdr request;
 	jool_response_cb cb;
 
+	if (flags & (DF_CSV_FORMAT | DF_SHOW_HEADERS))
+		printf("Field,Value\n");
+
 	init_request_hdr(&request, MODE_GLOBAL, OP_DISPLAY);
-	cb = csv ? handle_display_response_csv : handle_display_response;
+	cb = (flags & DF_CSV_FORMAT)
+			? handle_display_response_csv
+			: handle_display_response;
 
 	return netlink_request(&request, sizeof(request), cb, NULL);
 }

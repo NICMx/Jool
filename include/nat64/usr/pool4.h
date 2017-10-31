@@ -2,16 +2,14 @@
 #define _JOOL_USR_POOL4_H
 
 #include "nat64/common/config.h"
+#include "nat64/usr/types.h"
 
 
-int pool4_display(bool csv);
+int pool4_display(display_flags flags);
 int pool4_count(void);
-int pool4_add(__u32 mark, bool tcp, bool udp, bool icmp,
-		struct ipv4_prefix *addrs, struct port_range *ports,
-		bool force);
-int pool4_rm(__u32 mark, bool tcp, bool udp, bool icmp,
-		struct ipv4_prefix *addrs, struct port_range *ports,
-		bool quick);
+int pool4_add(struct pool4_entry_usr *entry, bool force);
+int pool4_update(struct pool4_update *args);
+int pool4_rm(struct pool4_entry_usr *entry, bool quick);
 int pool4_flush(bool quick);
 
 

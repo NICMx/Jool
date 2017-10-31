@@ -10,10 +10,10 @@
 #define HDR_LEN sizeof(struct request_hdr)
 #define PAYLOAD_LEN sizeof(union request_eamt)
 
-struct display_params {
-	bool csv_format;
+struct display_args {
+	display_flags flags;
 	unsigned int row_count;
-	union request_eamt *req_payload;
+	union request_eamt *request;
 };
 
 static void print_eamt_entry(struct eamt_entry *entry, char *separator)
@@ -32,12 +32,12 @@ static void print_eamt_entry(struct eamt_entry *entry, char *separator)
 static int eam_display_response(struct jool_response *response, void *arg)
 {
 	struct eamt_entry *entries = response->payload;
-	struct display_params *params = arg;
+	struct display_args *args = arg;
 	__u16 entry_count, i;
 
 	entry_count = response->payload_len / sizeof(*entries);
 
-	if (params->csv_format) {
+	if (args->flags & DF_CSV_FORMAT) {
 		for (i = 0; i < entry_count; i++)
 			print_eamt_entry(&entries[i], ",");
 	} else {
@@ -45,40 +45,43 @@ static int eam_display_response(struct jool_response *response, void *arg)
 			print_eamt_entry(&entries[i], " - ");
 	}
 
-	params->row_count += entry_count;
-	params->req_payload->display.prefix4_set = response->hdr->pending_data;
-	if (entry_count > 0)
-		params->req_payload->display.prefix4 = entries[entry_count - 1].prefix4;
+	args->row_count += entry_count;
+	args->request->display.prefix4_set = response->hdr->pending_data;
+	if (entry_count > 0) {
+		struct eamt_entry *last = &entries[entry_count - 1];
+		args->request->display.prefix4 = last->prefix4;
+	}
 	return 0;
 }
 
-int eam_display(bool csv)
+int eam_display(display_flags flags)
 {
 	unsigned char request[HDR_LEN + PAYLOAD_LEN];
-	struct request_hdr *hdr = (struct request_hdr *) request;
-	union request_eamt *payload = (union request_eamt *) (request + HDR_LEN);
-	struct display_params params;
+	struct request_hdr *hdr = (struct request_hdr *)request;
+	union request_eamt *payload = (union request_eamt *)(request + HDR_LEN);
+	struct display_args args;
 	int error;
 
 	init_request_hdr(hdr, MODE_EAMT, OP_DISPLAY);
 	payload->display.prefix4_set = false;
 	memset(&payload->display.prefix4, 0, sizeof(payload->display.prefix4));
-	params.csv_format = csv;
-	params.row_count = 0;
-	params.req_payload = payload;
+	args.flags = flags;
+	args.row_count = 0;
+	args.request = payload;
 
-	if (csv)
+	if ((flags & DF_SHOW_HEADERS) && (flags & DF_CSV_FORMAT))
 		printf("IPv6 Prefix,IPv4 Prefix\n");
 
 	do {
-		error = netlink_request(request, sizeof(request), eam_display_response, &params);
+		error = netlink_request(request, sizeof(request),
+				eam_display_response, &args);
 		if (error)
 			return error;
 	} while (payload->display.prefix4_set);
 
-	if (!csv) {
-		if (params.row_count > 0)
-			log_info("  (Fetched %u entries.)", params.row_count);
+	if (show_footer(flags)) {
+		if (args.row_count > 0)
+			log_info("  (Fetched %u entries.)", args.row_count);
 		else
 			log_info("  (empty)");
 	}
@@ -106,14 +109,16 @@ int eam_count(void)
 	init_request_hdr(hdr, MODE_EAMT, OP_COUNT);
 	memset(payload, 0, sizeof(*payload));
 
-	return netlink_request(&request, sizeof(request), eam_count_response, NULL);
+	return netlink_request(&request, sizeof(request), eam_count_response,
+			NULL);
 }
 
-int eam_add(struct ipv6_prefix *prefix6, struct ipv4_prefix *prefix4, bool force)
+int eam_add(struct ipv6_prefix *prefix6, struct ipv4_prefix *prefix4,
+		bool force)
 {
 	unsigned char request[HDR_LEN + PAYLOAD_LEN];
-	struct request_hdr *hdr = (struct request_hdr *) request;
-	union request_eamt *payload = (union request_eamt *) (request + HDR_LEN);
+	struct request_hdr *hdr = (struct request_hdr *)request;
+	union request_eamt *payload = (union request_eamt *)(request + HDR_LEN);
 
 	init_request_hdr(hdr, MODE_EAMT, OP_ADD);
 	payload->add.prefix4 = *prefix4;

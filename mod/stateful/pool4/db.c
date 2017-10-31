@@ -9,14 +9,60 @@
 #include "nat64/mod/stateful/pool4/empty.h"
 #include "nat64/mod/stateful/pool4/rfc6056.h"
 
+/*
+ * pool4 (struct pool4) is made out of two tree groups (struct pool4_trees).
+ * (One group for mark indexes (6->4), one for address indexes (4->6).)
+ * Each tree group is made out of three red-black trees. (One RB-tree per
+ * transport protocol.)
+ * Each tree is made out of nodes. Each node is a *table* (struct pool4_table).
+ * Each table is made out of entries (struct pool4_range).
+ * Entries are roughly what the user --pool4 --added.
+ *
+ * There's also struct mask_domain, which is a copy of a table, and with
+ * the ability to iterate through its entries' transport addresses easily.
+ * So tables are the compact version meant for storage and need locking, domains
+ * are more versatile, disposable, meant for outside use and don't need locking.
+ *
+ * Only pool4 and mask_domain are public, and only in declaration form.
+ *
+ * Unlike the BIB, these terms haven't been documented in the user manual so
+ * they can be changed. (I'm not so sure about "table" in particular. Other
+ * modules treat trees as tables, so it can be a bit confusing.)
+ *
+ * Also unlike the BIB, nodes are not shared between trees. This is because
+ * entries that share a mark do not necessarily share addresses and vice-versa.
+ */
+
 struct pool4_table {
 	union {
 		__u32 mark;
 		struct in_addr addr;
 	};
+
 	unsigned int taddr_count;
 	unsigned int sample_count;
 	struct rb_node tree_hook;
+
+	/**
+	 * Number of times the caller is allowed to iterate on mask_domains
+	 * inferred from this table.
+	 *
+	 * This is only relevant
+	 * - in mark-based tables, as the NAT64 doesn't need to allocate
+	 *   arbitrary addresses in the 4->6 direction.
+	 * - if max_iterations_auto is false. This is because when it's true it
+	 *   can be computed on the fly, which is way easier.
+	 */
+	unsigned int max_iterations_allowed;
+	/**
+	 * Must max_iterations_allowed be computed automatically?
+	 * When the table changes, an auto table needs to update the value,
+	 * otherwise keep the old value set by the user.
+	 * Also, only relevant in mark-based tables.
+	 *
+	 * TODO rename as "manual" so you don't have to keep negating it?
+	 */
+	bool max_iterations_auto;
 
 	/*
 	 * An array of struct pool4_range hangs off here.
@@ -53,6 +99,7 @@ struct mask_domain {
 
 	unsigned int taddr_count;
 	unsigned int taddr_counter;
+	unsigned int max_iterations;
 
 	unsigned int range_count;
 	struct pool4_range *current_range;
@@ -176,6 +223,8 @@ static struct pool4_table *create_table(struct pool4_range *range)
 
 	table->taddr_count = port_range_count(&range->ports);
 	table->sample_count = 1;
+	table->max_iterations_allowed = 0;
+	table->max_iterations_auto = true;
 
 	entry = first_table_entry(table);
 	*entry = *range;
@@ -351,28 +400,43 @@ static int pool4_add_range(struct rb_root *tree, struct pool4_table *table,
 	return slip_in(tree, table, entry, new);
 }
 
-static int add_to_mark_tree(struct pool4 *pool, const __u32 mark,
-		l4_protocol proto, struct pool4_range *new)
+static int add_to_mark_tree(struct pool4 *pool,
+		const struct pool4_entry_usr *entry,
+		struct pool4_range *new)
 {
 	struct pool4_table *table;
 	struct pool4_table *collision;
 	struct rb_root *tree;
+	int error;
 
-	tree = get_tree(&pool->tree_mark, proto);
+	tree = get_tree(&pool->tree_mark, entry->proto);
 	if (!tree)
 		return -EINVAL;
 
-	table = find_by_mark(tree, mark);
-	if (table)
-		return pool4_add_range(tree, table, new);
+	table = find_by_mark(tree, entry->mark);
+	if (table) {
+		error = pool4_add_range(tree, table, new);
+		if (error)
+			return error;
+
+		if (entry->iterations_set) {
+			table->max_iterations_auto = false;
+			table->max_iterations_allowed = entry->iterations;
+		}
+
+		return 0;
+	}
 
 	table = create_table(new);
 	if (!table)
 		return -ENOMEM;
-	table->mark = mark;
+	table->mark = entry->mark;
+	table->max_iterations_auto = !entry->iterations_set;
+	table->max_iterations_allowed = entry->iterations_set
+			? entry->iterations : 0;
 
-	collision = rbtree_add(table, mark, tree, cmp_mark, struct pool4_table,
-			tree_hook);
+	collision = rbtree_add(table, entry->mark, tree, cmp_mark,
+			struct pool4_table, tree_hook);
 	/* The spinlock is held, so this is critical. */
 	if (WARN(collision, "Table wasn't and then was in the tree.")) {
 		destroy_table(table);
@@ -382,14 +446,15 @@ static int add_to_mark_tree(struct pool4 *pool, const __u32 mark,
 	return 0;
 }
 
-static int add_to_addr_tree(struct pool4 *pool, l4_protocol proto,
+static int add_to_addr_tree(struct pool4 *pool,
+		const struct pool4_entry_usr *entry,
 		struct pool4_range *new)
 {
 	struct rb_root *tree;
 	struct pool4_table *table;
 	struct pool4_table *collision;
 
-	tree = get_tree(&pool->tree_addr, proto);
+	tree = get_tree(&pool->tree_addr, entry->proto);
 	if (!tree)
 		return -EINVAL;
 
@@ -401,6 +466,8 @@ static int add_to_addr_tree(struct pool4 *pool, l4_protocol proto,
 	if (!table)
 		return -ENOMEM;
 	table->addr = new->addr;
+	table->max_iterations_auto = true;
+	table->max_iterations_allowed = 0;
 
 	collision = rbtree_add(table, &table->addr, tree, cmp_addr,
 			struct pool4_table, tree_hook);
@@ -413,66 +480,84 @@ static int add_to_addr_tree(struct pool4 *pool, l4_protocol proto,
 	return 0;
 }
 
-int pool4db_add(struct pool4 *pool, const __u32 mark, l4_protocol proto,
-		struct ipv4_range *range)
+int pool4db_add(struct pool4 *pool, const struct pool4_entry_usr *entry)
 {
-	struct pool4_range addend = { .ports = range->ports };
+	struct pool4_range addend = { .ports = entry->range.ports };
 	u64 tmp;
 	int error;
 
 	if (addend.ports.min > addend.ports.max)
 		swap(addend.ports.min, addend.ports.max);
-	if ((proto == L4PROTO_TCP || proto == L4PROTO_UDP)
-			&& addend.ports.min == 0)
-		addend.ports.min = 1;
+	if (entry->proto == L4PROTO_TCP || entry->proto == L4PROTO_UDP)
+		if (addend.ports.min == 0)
+			addend.ports.min = 1;
 
 	/* log_debug("Adding range:%pI4/%u %u-%u",
 			&range->prefix.address, range->prefix.len,
 			range->ports.min, range->ports.max); */
 
-	foreach_addr4(addend.addr, tmp, &range->prefix) {
+	foreach_addr4(addend.addr, tmp, &entry->range.prefix) {
 		spin_lock_bh(&pool->lock);
-		error = add_to_mark_tree(pool, mark, proto, &addend);
-		if (!error)
-			error = add_to_addr_tree(pool, proto, &addend);
+		error = add_to_mark_tree(pool, entry, &addend);
+		if (!error) {
+			error = add_to_addr_tree(pool, entry, &addend);
+			if (error)
+				goto trainwreck;
+		}
 		spin_unlock_bh(&pool->lock);
 		if (error)
 			return error;
 	}
 
 	return 0;
-}
 
-int pool4db_add_usr(struct pool4 *pool, struct pool4_entry_usr *entry)
-{
-	return pool4db_add(pool, entry->mark, entry->proto, &entry->range);
+trainwreck:
+	spin_unlock_bh(&pool->lock);
+	/*
+	 * We're in a serious conundrum.
+	 * We cannot revert the add_to_mark_tree() because of port range fusing;
+	 * we don't know the state before we locked unless we rebuild the entire
+	 * mark tree based on the address tree, but since this error was caused
+	 * either by a memory allocation failure or a bug, we can't do that.
+	 * (Also laziness. It sounds like a million lines of code.)
+	 * So let's just let the user know that the database was left in an
+	 * inconsistent state and have them restart from scratch.
+	 */
+	log_err("pool4 was probably left in an inconsistent state because of a memory allocation failure or a bug. Please remove NAT64 Jool from your kernel.");
+	return error;
 }
 
 int pool4db_add_str(struct pool4 *pool, char *prefix_strs[], int prefix_count)
 {
-	struct ipv4_range range;
+	struct pool4_entry_usr new;
 	unsigned int i;
 	int error;
 
+	new.mark = 0;
+	new.iterations = 0;
+	new.iterations_set = false;
 	/*
 	 * We're not using DEFAULT_POOL4_* here because those are defaults for
 	 * empty pool4 (otherwise it looks confusing from userspace).
 	 */
-	range.ports.min = 0;
-	range.ports.max = 65535;
+	new.range.ports.min = 0;
+	new.range.ports.max = 65535;
 
 	for (i = 0; i < prefix_count; i++) {
-		error = prefix4_parse(prefix_strs[i], &range.prefix);
+		error = prefix4_parse(prefix_strs[i], &new.range.prefix);
 		if (error)
 			return error;
 
-		error = pool4db_add(pool, 0, L4PROTO_TCP, &range);
+		new.proto = L4PROTO_TCP;
+		error = pool4db_add(pool, &new);
 		if (error)
 			return error;
-		error = pool4db_add(pool, 0, L4PROTO_UDP, &range);
+		new.proto = L4PROTO_UDP;
+		error = pool4db_add(pool, &new);
 		if (error)
 			return error;
-		error = pool4db_add(pool, 0, L4PROTO_ICMP, &range);
+		new.proto = L4PROTO_ICMP;
+		error = pool4db_add(pool, &new);
 		if (error)
 			return error;
 	}
@@ -500,7 +585,7 @@ static int remove_range(struct rb_root *tree, struct pool4_table *table,
 	/*
 	 * Note: The entries are sorted so this could be a binary search, but I
 	 * don't want to risk getting it wrong or complicate the code further.
-	 * This is a very rare operation anyway.
+	 * This is a very rare operation on usually very small arrays anyway.
 	 */
 	for (i = 0; i < table->sample_count; i++) {
 		entry = first_table_entry(table) + i;
@@ -758,6 +843,8 @@ int pool4db_foreach_sample(struct pool4 *pool, l4_protocol proto,
 		if (error)
 			goto eagain;
 		sample.mark = table->mark;
+		sample.iterations_set = !table->max_iterations_auto;
+		sample.iterations = table->max_iterations_allowed;
 		goto offset_start;
 	}
 
@@ -765,6 +852,8 @@ int pool4db_foreach_sample(struct pool4 *pool, l4_protocol proto,
 	while (node) {
 		table = rb_entry(node, struct pool4_table, tree_hook);
 		sample.mark = table->mark;
+		sample.iterations_set = !table->max_iterations_auto;
+		sample.iterations = table->max_iterations_allowed;
 
 		foreach_table_range(entry, table) {
 			sample.range = *entry;
@@ -856,11 +945,41 @@ static struct mask_domain *find_empty(struct route4_args *args,
 	masks->pool_mark = 0;
 	masks->taddr_count = port_range_count(&range->ports);
 	masks->taddr_counter = 0;
+	masks->max_iterations = 0;
 	masks->range_count = 1;
 	masks->current_range = range;
 	masks->current_port = range->ports.min + offset % masks->taddr_count;
 	masks->dynamic = true;
 	return masks;
+}
+
+static unsigned int compute_max_iterations(struct pool4_table *table)
+{
+	unsigned int result;
+
+	if (!table->max_iterations_auto)
+		return table->max_iterations_allowed;
+
+	/*
+	 * right shift 6 is the same as division by 64. Why 64?
+	 * Because I want roughly 1-2% of the original value, and also I don't
+	 * want to do any floating point arithmetic.
+	 * integer division by 50 or 100 would be acceptable, but this is
+	 * faster. (Recall that we have a spinlock held.)
+	 */
+	result = table->taddr_count >> 6;
+	/*
+	 * These numbers are fairly arbitrary. They don't need to be perfect;
+	 * they define the default value, not something we're imposing on the
+	 * user.
+	 * They also don't need to be powers of 2. I've just been thinking a lot
+	 * in terms of perfect squares lately.
+	 */
+	if (result < 128)
+		return 128;
+	if (result > 2048)
+		return 2048;
+	return result;
 }
 
 struct mask_domain *mask_domain_find(struct pool4 *pool, struct tuple *tuple6,
@@ -895,6 +1014,7 @@ struct mask_domain *mask_domain_find(struct pool4 *pool, struct tuple *tuple6,
 	memcpy(masks + 1, table + 1,
 			table->sample_count * sizeof(struct pool4_range));
 	masks->taddr_count = table->taddr_count;
+	masks->max_iterations = compute_max_iterations(table);
 	masks->range_count = table->sample_count;
 
 	spin_unlock_bh(&pool->lock);
@@ -934,6 +1054,9 @@ int mask_domain_next(struct mask_domain *masks,
 	masks->taddr_counter++;
 	if (masks->taddr_counter > masks->taddr_count)
 		return -ENOENT;
+	if (masks->max_iterations)
+		if (masks->taddr_counter > masks->max_iterations)
+			return -ENOENT;
 
 	masks->current_port++;
 	if (masks->current_port > masks->current_range->ports.max) {

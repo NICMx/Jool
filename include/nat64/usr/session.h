@@ -1,12 +1,10 @@
 #ifndef _JOOL_USR_SESSION_H
 #define _JOOL_USR_SESSION_H
 
-#include <stdbool.h>
+#include "nat64/usr/types.h"
 
-
-int session_display(bool use_tcp, bool use_udp, bool use_icmpm, bool numeric_hostname,
-		bool csv_format);
-int session_count(bool use_tcp, bool use_udp, bool use_icmp);
+int session_display(display_flags flags);
+int session_count(display_flags flags);
 
 
 #endif /* _JOOL_USR_SESSION_H */

@@ -22,9 +22,16 @@ int pool4db_init(struct pool4 **pool);
 void pool4db_get(struct pool4 *pool);
 void pool4db_put(struct pool4 *pool);
 
-int pool4db_add(struct pool4 *pool, const __u32 mark, enum l4_protocol proto,
-		struct ipv4_range *range);
-int pool4db_add_usr(struct pool4 *pool, struct pool4_entry_usr *entry);
+struct pool4_add_args {
+	int max_iterations_set:1, ports_set:1;
+
+	__u32 mark;
+	unsigned int max_iterations;
+	l4_protocol proto;
+	struct ipv4_range range;
+};
+
+int pool4db_add(struct pool4 *pool, const struct pool4_entry_usr *entry);
 int pool4db_add_str(struct pool4 *pool, char *prefix_strs[], int prefix_count);
 int pool4db_rm(struct pool4 *pool, const __u32 mark, enum l4_protocol proto,
 		struct ipv4_range *range);

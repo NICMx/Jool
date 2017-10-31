@@ -12,6 +12,7 @@
 
 
 struct display_args {
+	display_flags flags;
 	unsigned int row_count;
 	union request_pool6 *request;
 	bool csv;
@@ -26,7 +27,7 @@ static int pool6_display_response(struct jool_response *response, void *arg)
 
 	prefix_count = response->payload_len / sizeof(*prefixes);
 
-	if (args->row_count == 0 && args->csv)
+	if ((args->flags & DF_SHOW_HEADERS) && args->row_count == 0)
 		printf("Prefix\n");
 
 	for (i = 0; i < prefix_count; i++) {
@@ -41,7 +42,7 @@ static int pool6_display_response(struct jool_response *response, void *arg)
 	return 0;
 }
 
-int pool6_display(bool csv)
+int pool6_display(display_flags flags)
 {
 	unsigned char request[HDR_LEN + PAYLOAD_LEN];
 	struct request_hdr *hdr = (struct request_hdr *)request;
@@ -52,9 +53,9 @@ int pool6_display(bool csv)
 	init_request_hdr(hdr, MODE_POOL6, OP_DISPLAY);
 	payload->prefix_set = false;
 	memset(&payload->prefix, 0, sizeof(payload->prefix));
+	args.flags = flags;
 	args.row_count = 0;
 	args.request = payload;
-	args.csv = csv;
 
 	do {
 		error = netlink_request(&request, sizeof(request), pool6_display_response, &args);
@@ -62,7 +63,7 @@ int pool6_display(bool csv)
 			return error;
 	} while (args.request->prefix_set);
 
-	if (!csv) {
+	if (show_footer(flags)) {
 		if (args.row_count > 0)
 			log_info("  (Fetched %u entries.)", args.row_count);
 		else

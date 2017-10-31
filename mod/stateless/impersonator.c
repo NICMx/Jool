@@ -126,7 +126,7 @@ void pool4db_put(struct pool4 *pool)
 	fail(__func__);
 }
 
-int pool4db_add_usr(struct pool4 *pool, struct pool4_entry_usr *entry)
+int pool4db_add(struct pool4 *pool, const struct pool4_entry_usr *entry)
 {
 	return fail(__func__);
 }

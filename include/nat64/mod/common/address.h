@@ -38,7 +38,7 @@ bool prefix6_contains(const struct ipv6_prefix *prefix, const struct in6_addr *a
 
 bool prefix4_intersects(const struct ipv4_prefix *p1, const struct ipv4_prefix *p2);
 
-__u64 prefix4_get_addr_count(struct ipv4_prefix *prefix);
+__u64 prefix4_get_addr_count(const struct ipv4_prefix *prefix);
 
 int prefix4_validate(struct ipv4_prefix *prefix);
 int prefix6_validate(struct ipv6_prefix *prefix);
@@ -60,7 +60,7 @@ void addr6_set_bit(struct in6_addr *addr, unsigned int pos, bool value);
 	    cursor < prefix4_next(prefix);				\
 	    cursor++, (addr).s_addr = cpu_to_be32(cursor))
 
-__u64 prefix4_next(struct ipv4_prefix *prefix);
+__u64 prefix4_next(const struct ipv4_prefix *prefix);
 
 /**
  * The kernel has a ipv6_addr_cmp(), but not a ipv4_addr_cmp().
