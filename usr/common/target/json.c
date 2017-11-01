@@ -59,6 +59,72 @@ static int validate_file_type(cJSON *json_structure)
 	return 0;
 }
 
+static int print_datatype_error(const char *field, cJSON *json, char *expected)
+{
+	switch (json->type) {
+	case cJSON_False:
+		log_err("%s 'false' is not a valid %s.", field, expected);
+		break;
+	case cJSON_True:
+		log_err("%s 'true' is not a valid %s.", field, expected);
+		break;
+	case cJSON_NULL:
+		log_err("%s 'null' is not a valid %s.", field, expected);
+		break;
+	case cJSON_Number:
+		log_err("%s '%d' is not a valid %s.", field, json->valueint,
+				expected);
+		break;
+	case cJSON_String:
+		log_err("%s '%s' is not a valid %s.", field, json->valuestring,
+				expected);
+		break;
+	case cJSON_Array:
+		log_err("%s appears to be an array, not a %s.", field,
+				expected);
+		break;
+	case cJSON_Object:
+		log_err("%s appears to be an object, not a %s.", field,
+				expected);
+		break;
+	}
+
+	if (strcmp(expected, "boolean") == 0 || strcmp(expected, "int") == 0)
+		log_err("(Note: Quotation marks might also be the problem.)");
+
+	return -EINVAL;
+}
+
+static int validate_json_uint(const char *field, struct cJSON *node,
+		unsigned int min, unsigned int max)
+{
+	if (node->type != cJSON_Number)
+		return print_datatype_error(field, node, "number");
+
+	if (node->valueint < min || max < node->valueint) {
+		log_err("%s %d is out of range (%u-%u).", field, node->valueint,
+				min, max);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static int validate_u32(const char *field, struct cJSON *node)
+{
+	return validate_json_uint(field, node, 0, MAX_U32);
+}
+
+static int validate_u16(const char *field, struct cJSON *node)
+{
+	return validate_json_uint(field, node, 0, MAX_U16);
+}
+
+static int validate_u8(const char *field, struct cJSON *node)
+{
+	return validate_json_uint(field, node, 0, MAX_U8);
+}
+
 static int do_parsing(char *buffer)
 {
 	int error;
@@ -195,20 +261,20 @@ static int parse_siit_json(cJSON *json)
 	}
 
 	for (json = json->child; json; json = json->next) {
-		if (strcasecmp("global", json->string) == 0) {
-			check_duplicates(&global_found, "global");
+		if (strcasecmp(OPTNAME_GLOBAL, json->string) == 0) {
+			check_duplicates(&global_found, OPTNAME_GLOBAL);
 			error = handle_global(json, globals_found);
-		} else if (strcasecmp("pool6", json->string) == 0) {
-			check_duplicates(&pool6_found, "pool6");
+		} else if (strcasecmp(OPTNAME_POOL6, json->string) == 0) {
+			check_duplicates(&pool6_found, OPTNAME_POOL6);
 			error = handle_pool6(json);
-		} else if (strcasecmp("eamt", json->string) == 0) {
-			check_duplicates(&eamt_found, "eamt");
+		} else if (strcasecmp(OPTNAME_EAMT, json->string) == 0) {
+			check_duplicates(&eamt_found, OPTNAME_EAMT);
 			error = handle_eamt(json);
-		} else if (strcasecmp("blacklist", json->string) == 0) {
-			check_duplicates(&blacklist_found, "blacklist");
+		} else if (strcasecmp(OPTNAME_BLACKLIST, json->string) == 0) {
+			check_duplicates(&blacklist_found, OPTNAME_BLACKLIST);
 			error = handle_addr4_pool(json, SEC_BLACKLIST);
-		} else if (strcasecmp("pool6791", json->string) == 0) {
-			check_duplicates(&pool6791_found, "pool6791");
+		} else if (strcasecmp(OPTNAME_RFC6791, json->string) == 0) {
+			check_duplicates(&pool6791_found, OPTNAME_RFC6791);
 			error = handle_addr4_pool(json, SEC_POOL6791);
 		} else if (strcasecmp("file_type", json->string) == 0) {
 			/* No code. */
@@ -248,17 +314,17 @@ static int parse_nat64_json(cJSON *json)
 	}
 
 	for (json = json->child; json; json = json->next) {
-		if (strcasecmp("global", json->string) == 0) {
-			check_duplicates(&global_found, "global");
+		if (strcasecmp(OPTNAME_GLOBAL, json->string) == 0) {
+			check_duplicates(&global_found, OPTNAME_GLOBAL);
 			error = handle_global(json, globals_found);
-		} else if (strcasecmp("pool6", json->string) == 0) {
-			check_duplicates(&pool6_found, "pool6");
+		} else if (strcasecmp(OPTNAME_POOL6, json->string) == 0) {
+			check_duplicates(&pool6_found, OPTNAME_POOL6);
 			error = handle_pool6(json);
-		} else if (strcasecmp("pool4", json->string) == 0) {
-			check_duplicates(&pool4_found, "pool4");
+		} else if (strcasecmp(OPTNAME_POOL4, json->string) == 0) {
+			check_duplicates(&pool4_found, OPTNAME_POOL4);
 			error = handle_pool4(json);
-		} else if (strcasecmp("bib", json->string) == 0) {
-			check_duplicates(&bib_found, "bib");
+		} else if (strcasecmp(OPTNAME_BIB, json->string) == 0) {
+			check_duplicates(&bib_found, OPTNAME_BIB);
 			error = handle_bib(json);
 		} else if (strcasecmp("file_type", json->string) == 0) {
 			/* No code. */
@@ -269,7 +335,7 @@ static int parse_nat64_json(cJSON *json)
 		}
 
 		if (error) {
-			log_info("Error: %d", error);
+			log_info("Error code: %d", error);
 			free(globals_found);
 			return error;
 		}
@@ -279,7 +345,7 @@ static int parse_nat64_json(cJSON *json)
 	return send_ctrl_msg(SEC_COMMIT);
 }
 
-static int write_bool(struct nl_buffer *buffer, enum global_type type,
+static int write_bool(struct nl_buffer *buffer, struct argp_option *opt,
 		cJSON *json)
 {
 	struct {
@@ -287,7 +353,7 @@ static int write_bool(struct nl_buffer *buffer, enum global_type type,
 		__u8 payload;
 	} msg;
 
-	msg.hdr.type = type;
+	msg.hdr.type = opt->key;
 	msg.hdr.len = sizeof(msg);
 	switch (json->type) {
 	case cJSON_True:
@@ -297,15 +363,13 @@ static int write_bool(struct nl_buffer *buffer, enum global_type type,
 		msg.payload = false;
 		break;
 	default:
-		log_err("'%s' is not a valid boolean.", json->valuestring);
-		log_err("(Note: Quotation marks might also be the problem.)");
-		return -EINVAL;
+		return print_datatype_error(opt->name, json, "boolean");
 	}
 
 	return buffer_write(buffer, &msg, msg.hdr.len, SEC_GLOBAL);
 }
 
-static int write_number(struct nl_buffer *buffer, enum global_type type,
+static int write_number(struct nl_buffer *buffer, struct argp_option *opt,
 		cJSON *json)
 {
 	struct {
@@ -313,25 +377,16 @@ static int write_number(struct nl_buffer *buffer, enum global_type type,
 		/*
 		 * Please note: This assumes there are no __u64 global numbers.
 		 * If you want to add a __u64, you will have to pack this,
-		 * otherwise the compiler will add slop and everything will
-		 * stop working.
+		 * otherwise the compiler will add slop (because sizeof(hdr) is
+		 * 32) and everything will stop working.
 		 */
 		union {
-			__u8 payload8;
-			__u16 payload16;
+			__u8 payload8[4];
+			__u16 payload16[2];
 			__u32 payload32;
 		};
 	} msg;
-
-	if (json->type != cJSON_Number) {
-		log_err("'%s' is not a number.", json->valuestring);
-		log_err("(Note: Quotation marks might also be the problem.)");
-		return -EINVAL;
-	}
-	if (json->valueint < 0) {
-		log_err("'%d' is not positive.", json->valueint);
-		return -EINVAL;
-	}
+	int error;
 
 	/*
 	 * TODO (fine) This is going overboard.
@@ -341,18 +396,24 @@ static int write_number(struct nl_buffer *buffer, enum global_type type,
 	 * query that.
 	 */
 
-	msg.hdr.type = type;
+	msg.hdr.type = opt->key;
 	msg.hdr.len = sizeof(msg.hdr);
-	switch (type) {
+	switch (opt->key) {
 	case F_ARGS:
 	case NEW_TOS:
 	case EAM_HAIRPINNING_MODE:
+		error = validate_u8(opt->name, json);
+		if (error)
+			return error;
 		msg.hdr.len += sizeof(__u8);
-		msg.payload8 = json->valueint;
+		msg.payload8[0] = json->valueint;
 		break;
 	case SS_MAX_PAYLOAD:
+		error = validate_u16(opt->name, json);
+		if (error)
+			return error;
 		msg.hdr.len += sizeof(__u16);
-		msg.payload16 = json->valueint;
+		msg.payload16[0] = json->valueint;
 		break;
 	case MAX_PKTS:
 	case SS_CAPACITY:
@@ -362,11 +423,14 @@ static int write_number(struct nl_buffer *buffer, enum global_type type,
 	case TCP_TRANS_TIMEOUT:
 	case FRAGMENT_TIMEOUT:
 	case SS_FLUSH_DEADLINE:
+		error = validate_u32(opt->name, json);
+		if (error)
+			return error;
 		msg.hdr.len += sizeof(__u32);
 		msg.payload32 = json->valueint;
 		break;
 	default:
-		log_err("Unknown global type: %u", type);
+		log_err("Unknown global type: %u", opt->key);
 		return -EINVAL;
 	}
 
@@ -405,16 +469,9 @@ static int write_plateaus(struct nl_buffer *buffer, cJSON *root)
 
 	i = 0;
 	for (json = root->child; json; json = json->next) {
-		if (json->type != cJSON_Number) {
-			log_err("'%s' is not a number.", json->valuestring);
-			log_err("(Quotation marks might also be the problem.)");
+		error = validate_u16(OPTNAME_MTU_PLATEAUS, json);
+		if (error)
 			goto end;
-		}
-		if (json->valueint < 0 || 0xFFFF < json->valueint) {
-			log_err("'%d' is out of range (0-65535).",
-					json->valueint);
-			goto end;
-		}
 		plateaus[i] = json->valueint;
 		i++;
 	}
@@ -452,9 +509,9 @@ static int write_field(cJSON *json, struct argp_option *opt,
 		struct nl_buffer *buffer)
 {
 	if (strcmp(opt->arg, BOOL_FORMAT) == 0) {
-		return write_bool(buffer, opt->key, json);
+		return write_bool(buffer, opt, json);
 	} else if (strcmp(opt->arg, NUM_FORMAT) == 0) {
-		return write_number(buffer, opt->key, json);
+		return write_number(buffer, opt, json);
 	} else if (strcmp(opt->arg, NUM_ARRAY_FORMAT) == 0) {
 		return write_plateaus(buffer, json);
 	} else if (strcmp(opt->arg, OPTIONAL_PREFIX6_FORMAT) == 0) {
@@ -647,15 +704,11 @@ static int handle_pool4(cJSON *json)
 		return -ENOMEM;
 
 	for (json = json->child; json; json = json->next, i++) {
-		child = cJSON_GetObjectItem(json, "mark");
+		child = cJSON_GetObjectItem(json, OPTNAME_MARK);
 		if (child) {
-			if (child->type != cJSON_Number) {
-				log_err("Mark '%s' is not a number.",
-						child->valuestring);
-				log_err("(Quotation marks might also be the problem.)");
-				error = -EINVAL;
+			error = validate_u32(OPTNAME_MARK, child);
+			if (error)
 				goto end;
-			}
 			entry.mark = child->valueint;
 		} else {
 			entry.mark = 0;
@@ -696,15 +749,11 @@ static int handle_pool4(cJSON *json)
 			entry.range.ports.max = DEFAULT_POOL4_MAX_PORT;
 		}
 
-		child = cJSON_GetObjectItem(json, "max-iterations");
+		child = cJSON_GetObjectItem(json, OPTNAME_MAX_ITERATIONS);
 		if (child) {
-			if (child->type != cJSON_Number) {
-				log_err("max-iterations '%s' is not a number.",
-						child->valuestring);
-				log_err("(Quotation marks might also be the problem.)");
-				error = -EINVAL;
+			error = validate_u32(OPTNAME_MAX_ITERATIONS, child);
+			if (error)
 				goto end;
-			}
 			entry.iterations = child->valueint;
 			entry.iterations_set = true;
 		} else {

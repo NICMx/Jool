@@ -59,6 +59,10 @@
 #define OPTNAME_BIB_LOGGING		"logging-bib"
 #define OPTNAME_SESSION_LOGGING		"logging-session"
 
+/* pool4 flags */
+#define OPTNAME_MARK			"mark"
+#define OPTNAME_MAX_ITERATIONS		"max-iterations"
+
 /* Synchronization flags */
 #define OPTNAME_SS_ENABLED		"ss-enabled"
 #define OPTNAME_SS_FLUSH_ASAP		"ss-flush-asap"

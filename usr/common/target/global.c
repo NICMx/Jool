@@ -116,10 +116,10 @@ static int handle_display_response(struct jool_response *response, void *arg)
 		printf("  --%s: %u (0b", OPTNAME_F_ARGS, conf->global.nat64.f_args);
 		print_binary(conf->global.nat64.f_args, 4);
 		printf(")\n");
-		printf("    Src addr: %s\n", print_bool(conf->global.nat64.f_args & F_ARGS_SRC_ADDR));
-		printf("    Src port: %s\n", print_bool(conf->global.nat64.f_args & F_ARGS_SRC_PORT));
-		printf("    Dst addr: %s\n", print_bool(conf->global.nat64.f_args & F_ARGS_DST_ADDR));
-		printf("    Dst port: %s\n", print_bool(conf->global.nat64.f_args & F_ARGS_DST_PORT));
+		printf("    SrcAddr:%s", print_bool(conf->global.nat64.f_args & F_ARGS_SRC_ADDR));
+		printf("  SrcPort:%s", print_bool(conf->global.nat64.f_args & F_ARGS_SRC_PORT));
+		printf("  DstAddr:%s", print_bool(conf->global.nat64.f_args & F_ARGS_DST_ADDR));
+		printf("  DstPort:%s\n", print_bool(conf->global.nat64.f_args & F_ARGS_DST_PORT));
 
 	} else {
 

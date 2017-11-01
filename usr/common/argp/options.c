@@ -206,7 +206,7 @@ static const struct argp_option quick_opt = {
 };
 
 static const struct argp_option mark_opt = {
-		.name = "mark",
+		.name = OPTNAME_MARK,
 		.key = ARGP_MARK,
 		.arg = NUM_FORMAT,
 		.flags = 0,
@@ -217,7 +217,7 @@ static const struct argp_option mark_opt = {
 };
 
 static const struct argp_option max_iterations_opt = {
-		.name = "max-iterations",
+		.name = OPTNAME_MAX_ITERATIONS,
 		.key = ARGP_MAX_ITERATIONS,
 		.arg = NUM_FORMAT,
 		.flags = 0,
