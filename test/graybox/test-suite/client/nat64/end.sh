@@ -6,5 +6,5 @@
 
 rmmod graybox
 
-ip addr del 192.0.2.5/24 dev $2
-ip addr del 2001:db8::5/96 dev $1
+ip addr flush dev $1 scope global
+ip addr flush dev $2 scope global
