@@ -131,6 +131,11 @@ int pool4db_add(struct pool4 *pool, const struct pool4_entry_usr *entry)
 	return fail(__func__);
 }
 
+int pool4db_update(struct pool4 *pool, const struct pool4_update *update)
+{
+	return fail(__func__);
+}
+
 int pool4db_rm_usr(struct pool4 *pool, struct pool4_entry_usr *entry)
 {
 	return fail(__func__);

@@ -227,19 +227,26 @@ static void test(void)
 		new_connection(request);
 }
 
+/*
+ * The first column is just a dumb counter.
+ * The second column is average iterations. (Because the iterations are grouped
+ * into at most 512 groups.)
+ * The third column is maximum iterations.
+ * The fourth column is error count.
+ */
 static void print_results(void)
 {
 	unsigned int i, j;
 	unsigned int slot;
-	unsigned int maximum;
-	bool had_error;
+	unsigned int maximum, total, error_count;
 	const unsigned int TADDRS_PER_GROUP = TADDR_COUNT / 512;
 	const unsigned int GROUPS = TADDR_COUNT / TADDRS_PER_GROUP;
 
 	/* If pool4 is small, just print all the values normally. */
 	if (TADDR_COUNT <= 512) {
 		for (i = 0; i < (TADDR_COUNT + 1); i++)
-			pr_info("%u %u %u\n", i, iterations[i], errors[i]);
+			pr_info("%u %u %u %u\n", i, iterations[i],
+					iterations[i], errors[i]);
 		return;
 	}
 
@@ -256,23 +263,27 @@ static void print_results(void)
 	 */
 	for (i = 0; i < GROUPS; i++) {
 		maximum = 0;
-		had_error = false;
+		total = 0;
+		error_count = 0;
 
 		for (j = 0; j < TADDRS_PER_GROUP; j++) {
 			slot = TADDRS_PER_GROUP * i + j;
 			maximum = max(maximum, iterations[slot]);
+			total += iterations[slot];
 			if (errors[slot])
-				had_error = true;
+				error_count++;
 		}
 
-		pr_info("%u %u %d\n", i, maximum, had_error);
+		pr_info("%u %u %u %u\n", i, total / TADDRS_PER_GROUP, maximum,
+				error_count);
 	}
 
 	/*
 	 * Last one: should fail because pool4 was exhausted.
 	 * Just printing to confirm that everything's normal.
 	 */
-	pr_info("512 %u %u\n", iterations[TADDR_COUNT], errors[TADDR_COUNT]);
+	pr_info("512 %u %u %u\n", iterations[TADDR_COUNT],
+			iterations[TADDR_COUNT], errors[TADDR_COUNT]);
 }
 
 static void cleanup(void)

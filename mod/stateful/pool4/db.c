@@ -847,24 +847,65 @@ static unsigned int compute_max_iterations(const struct pool4_table *table)
 		return table->max_iterations_allowed;
 
 	/*
-	 * right shift 6 is the same as division by 64. Why 64?
-	 * Because I want roughly 1-2% of the original value, and also I don't
-	 * want to do any floating point arithmetic.
-	 * integer division by 50 or 100 would be acceptable, but this is
-	 * faster. (Recall that we have a spinlock held.)
+	 * The following heuristics are based on a few tests I ran. Keep in mind
+	 * that none of them are imposed on the user; they only define the
+	 * default value.
+	 *
+	 * The tests were as follows:
+	 *
+	 * For every one of the following pool4 sizes (in transport addresses),
+	 * I exhausted the corresponding pool4 16 times and kept track of how
+	 * many iterations I needed to allocate a connection in every step.
+	 *
+	 * The sizes were 512, 1024, 2048, 4096, 8192, 16384, 32768, 65536,
+	 * 131072, 196608, 262144, 327680, 393216, 458752, 524288, 1048576 and
+	 * 2097152.
+	 *
+	 * I did not test larger pool4s because I feel like more than 32 full
+	 * addresses is rather pushing it and would all the likely require
+	 * manual intervention anyway.
 	 */
-	result = table->taddr_count >> 6;
+
 	/*
-	 * These numbers are fairly arbitrary. They don't need to be perfect;
-	 * they define the default value, not something we're imposing on the
-	 * user.
-	 * They also don't need to be powers of 2. I've just been thinking a lot
-	 * in terms of perfect squares lately.
+	 * Right shift 7 is the same as division by 128. Why 128?
+	 * Because I want roughly 1% of the total size, and also don't want any
+	 * floating point arithmetic.
+	 * Integer division by 100 would be acceptable, but this is faster.
+	 * (Recall that we have a spinlock held.)
 	 */
-	if (result < 128)
-		return 128;
-	if (result > 2048)
-		return 2048;
+	result = table->taddr_count >> 7;
+
+	/*
+	 * If the limit is too big, the NAT64 will iterate too much.
+	 * If the limit is too small, the NAT64 will start losing connections
+	 * early.
+	 *
+	 * So first of all, prevent the algorithm from iterating too little.
+	 *
+	 * (The values don't have to be powers or multiples of anything; I just
+	 * really like base 8.)
+	 *
+	 * A result lower than 1024 will be yielded when pool4 is 128k ports
+	 * large or smaller, so the following paragraph (and conditional) only
+	 * applies to this range:
+	 *
+	 * In all of the tests I ran, a max iterations of 1024 would have been a
+	 * reasonable limit that would have completely prevented the NAT64 from
+	 * dropping *any* connections, at least until pool4 was about 91%
+	 * exhausted. (Connections can be technically dropped regardless, but
+	 * it's very unlikely.) Also, on average, most connections would have
+	 * kept succeeding until pool4 reached 98% utilization.
+	 */
+	if (result < 1024)
+		return 1024;
+	/*
+	 * And finally: Prevent the algorithm from iterating too much.
+	 *
+	 * 8k will begin dropping connections at 95% utilization and most
+	 * connections will remain on the success side until 99% exhaustion.
+	 */
+	if (result > 8192)
+		return 8192;
 	return result;
 }
 

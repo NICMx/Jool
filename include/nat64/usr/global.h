@@ -9,7 +9,7 @@
 #define OPTNAME_POOL6			"pool6"
 #define OPTNAME_POOL4			"pool4"
 #define OPTNAME_BLACKLIST		"blacklist"
-#define OPTNAME_RFC6791			"rfc6791"
+#define OPTNAME_RFC6791			"pool6791"
 #define OPTNAME_EAMT			"eamt"
 #define OPTNAME_BIB			"bib"
 #define OPTNAME_SESSION			"session"

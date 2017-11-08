@@ -5,10 +5,15 @@ echo "If this freezes, please wait a few minutes; it should come back."
 
 function test() {
 	echo "Testing $1 addresses with $2 ports each."
-	sudo insmod pool4-iterations.ko RANGE_COUNT=$1 TADDRS_PER_RANGE=$2
-	sudo rmmod pool4-iterations
+	for i in {1..16}; do
+		echo "Test $i"
+		sudo insmod pool4-iterations.ko RANGE_COUNT=$1 TADDRS_PER_RANGE=$2
+		sudo rmmod pool4-iterations
+		sudo dmesg -ct >> results-$1-$2.txt
+	done
 }
 
+rm -f results*
 sudo dmesg -C
 
 test 1 512
@@ -29,5 +34,4 @@ test 8 65536
 test 16 65536
 test 32 65536
 
-sudo dmesg -ct > results.txt
-echo "Test results written to results.txt"
+echo "Test results written to result*.txt files."
