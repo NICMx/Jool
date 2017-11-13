@@ -25,7 +25,6 @@ title: --global
 	7. [`--icmp-timeout`](#--icmp-timeout)
 	8. [`--fragment-arrival-timeout`](#--fragment-arrival-timeout)
 	8. [`--maximum-simultaneous-opens`](#--maximum-simultaneous-opens)
-	8. [`--maximum-mask-iterations`](#--maximum-mask-iterations)
 	8. [`--source-icmpv6-errors-better`](#--source-icmpv6-errors-better)
 	8. [`--logging-bib`](#--logging-bib)
 	8. [`--logging-session`](#--logging-session)
@@ -251,67 +250,6 @@ When an external (IPv4) node first attempts to open a connection and there's no 
 In the case of TCP, the situation is a little more complicated because the IPv4 node might be attempting a <a href="{{ site.repository-url }}/issues/58#issuecomment-43537094" target="_blank">Simultaneous Open of TCP Connections</a>. To really know what's going on, Jool has to store the packet for 6 seconds.
 
 `--maximum-simultaneous-opens` is the maximum amount of packets Jool will store at a time. The default means that you can have up to 10 "simultaneous" simultaneous opens; Jool will fall back to immediately answer the ICMP error message on the eleventh one.
-
-### `--maximum-mask-iterations`
-
-- Type: Integer
-- Default: 256
-- Modes: Stateful NAT64 only
-- Translation direction: IPv6 to IPv4
-
-Limits the amount of iterations Jool will spend trying to find a mask for an IPv6 client. Significately speeds up Jool when pool4 is nearly (or has been) exhausted.
-
-A more thorough explanation follows. It is assumed that the reader is acquainted with the [BIB](bib.html).
-
-The most likely bottleneck of any Stateful NAT64 is the BIB/session management. In particular, the allocation of a BIB entry is potentially particularly slow due to the requirements of the "IPv4 transport address" field.
-
-To compute this address, Jool uses [Algorithm 3 of RFC 6056](https://tools.ietf.org/html/rfc6056#page-14). In its purest form, this algorithm is extremely fast until most of pool4's addresses have been "borrowed" by the BIB/session database. The following performance degradation graph was computed from a real test:
-
-![Fig.6 - Natural algorighm 3 performance degradation](../images/global-max-iterations-0.png)
-
-> ![Note!](../images/bulb.svg) I should probably explain the graph more. Here it goes:
-> 
-> Only one BIB entry can hold a particular pool4 transport address at a time, so it follows that you can only have as many BIB entries as pool4 transport address. For example, if your pool4 has the following contents:
-> 
->	$ jool --pool4 --display
->	0    TCP    192.0.2.1    1-4
->	0    TCP    192.0.2.2    1-2
-> 
-> Then your NAT64 can at most have 6 BIB entries. (ie. one for each of 192.0.2.1:1, 192.0.2.1:2, 192.0.2.1:3, 192.0.2.1:4, 192.0.2.2:1 and 192.0.2.2:2.)
-> 
-> The horizontal axis represents the number of pool4 addresses that are "taken" by some BIB/session entry.
-> 
-> The vertical axis can be thought as the "slowness" of the algorithm. You want this number to be as low as possible.
-> 
-> It is important to highlight that the horizontal axis does *not* represent time. Sessions *time out* over time, which means that "Number of BIB entries" goes up and down depending on how many simultaneous connections are being translated by the NAT64 at a time. New connections push the graph towards the right, while closing connections push it towards the left. This means that, if your pool4 size is somewhat larger than your connection population, you will remain comfortably on the left side on the graph. Meaning, the algorithm will never become slow.
-> 
-> Just for a bit of context, most of the connections I see while analyzing traffic are HTTP. While those are many, they are also very short-lived. Most of these connections are initiated and then closed instantly, and then they time out after [4 minutes by default](#--tcp-trans-timeout).
-
-With this in mind, an attacker might try to overwhelm Jool by flooding traffic specifically designed to yield a large number of BIB entries.
-
-`--maximum-mask-iterations` is an artificial limit to the amount of times Jool will iterate before deeming the transport address infeasible to compute. This will effectively prevent the graph from spiking, at the cost of being unable to compute some BIB entries when pool4 is about to be exhausted. This is deemed an acceptable tradeoff because BIB entries cannot be created when pool4 is completely exhausted anyway, so at this level of traffic some packets are expected to be dropped in the first place.
-
-The following graph is a result of the same experiment as the previous one, except `--maximum-mask-iterations` limits the algorithm to only 64 iterations:
-
-![Fig.7 - Capped algorighm 3 performance degradation](../images/global-max-iterations-64.png)
-
-> ![Note!](../images/bulb.svg) `--maximum-mask-iterations` does not prevent an attacker from exhausting pool4; it only prevents the NAT64 from hogging up the entire CPU when it's being attacked.
-
-If `--maximum-mask-iterations` is zero, Jool will not impose an iteration limit, and will degrade as in the first graph. You can do this to maximize BIB entry creation success rate, assuming you're willing to risk the performance spike, or have other means to suppress it.
-
-> One way to minimize the effects of the spike (alternative to `--maximum-mask-iterations`) would be to keep pool4 very small. If your pool4 has 16 addresses, and almost 64k ports per address, then on the peak of the graph the local v4 address computation takes almost 16 times 64k iterations per new connection. If you only had, say, 1 address, that'd be 64k iterations. And so on. Of course, this solution is hardly viable if you need to serve a large amount of v6 clients.
-> 
-> The solution will be somewhat more viable if you throw [`--mark`](usr-flags-pool4.html#--mark) into the mix. The reason for this is that pool4 entries wearing different marks are basically members of different pools, so if you have this pool4, for example (Note the first column, which represents the mark):
-> 
->	$ jool --pool4 --display
->	0    TCP    192.0.2.1    1-65535
->	1    TCP    192.0.2.2    1-65535
->	2    TCP    192.0.2.3    1-65535
->	3    TCP    192.0.2.4    1-65535
-> 
-> Then the peak of the graph will be 65535 for any connection (as opposed to 4 times 65535). This would have the added benefit that, if one of your users is attacking you, he or she will only mess up their own pool4 and not affect everyone else.
-> 
-> Ironically, another solution would be to keep pool4 *as big as possible*. This is because, again, if your pool4 size is somewhat larger than your connection population, you will remain comfortably on the left side on the graph. I suppose that, if you fear an attack, you could always filter users that are opening abnormal numbers of connections.
 
 ### `--source-icmpv6-errors-better`
 
