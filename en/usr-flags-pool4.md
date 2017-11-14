@@ -17,9 +17,11 @@ title: --pool4
    1. [Operations](#operations)
    2. [Options](#options)
 4. [Examples](#examples)
-5. [Notes](#notes)
-6. [`--mark`](#--mark)
-7. [`--quick`](#--quick)
+5. [Empty pool4](#empty-pool4)
+6. [Argument Details](#argument-details)
+	1. [`<port-range>`](#port-range)
+	2. [`--max-iterations`](#--max-iterations)
+	3. [`--quick`](#--quick)
 
 ## Description
 
@@ -27,13 +29,15 @@ Interacts with NAT64 Jool's [IPv4 transport address pool](pool4.html).
 
 The IPv4 pool is the subset of the node's transport addresses which are reserved to mask IPv6 nodes.
 
-If pool4 is empty, Jool will try to mask packets using its own node's assigned IPv4 addresses, and their default unused port ranges. See [Notes](#notes).
-
 ## Syntax
 
 	jool --pool4 (
 		[--display] [--csv]
-		| --add <PROTOCOLS> <IPv4-prefix> <port-range> [--mark <mark>] [--force]
+		| --add <PROTOCOLS> <IPv4-prefix> <port-range>
+				[--mark <mark>]
+				[--max-iterations <iterations>]
+				[--force]
+		| --update <PROTOCOLS> --mark <mark> --max-iterations <iterations>
 		| --remove <PROTOCOLS> <IPv4-prefix> <port-range> [--mark <mark>] [--quick]
 		| --flush [--quick]
 	)
@@ -44,9 +48,11 @@ If pool4 is empty, Jool will try to mask packets using its own node's assigned I
 
 ### Operations
 
-* `--display`: The pool's records are printed in standard output. This is the default operation.
-* `--add`: Uploads entries to the pool. See [notes](#notes).
-* `--remove`: Deletes entries from the pool.
+* `--display`: The pool4 table is printed in standard output. This is the default operation.
+* `--add`: Uploads entries to the pool.  
+  (Sets are created indirectly as a result.)
+* `--update`: Modifies the Max Iterations field of a set.
+* `--remove`: Deletes the entries from the pool that match the given criteria.
 * `--flush`: Removes all entries from the pool.
 
 > ![Note!](../images/warning.svg) The `--count` operation is no longer available in `--pool4` mode!
@@ -57,70 +63,138 @@ If pool4 is empty, Jool will try to mask packets using its own node's assigned I
 
 | **Flag** | **Default** | **Description** |
 | `--csv` | (absent) | Print the table in [_Comma/Character-Separated Values_ format](http://en.wikipedia.org/wiki/Comma-separated_values). This is intended to be redirected into a .csv file. |
-| `--mark` | 0 | Defines the mark of the entry being added or removed. Packets carrying mark _n_ will only be translated using pool4 records with mark _n_. See [below](#--mark). |
-| `--tcp` | * | If present, the record being added or removed represents TCP transport addresses. |
-| `--udp` | * | If present, the record being added or removed represents UDP transport addresses. |
-| `--icmp` | * | If present, the record being added or removed represents "ICMP transport addresses" (Addresses and ICMP identifiers, not ports). |
-| `<IPv4-prefix>` | - | Group of addresses you're adding or removing to/from the pool. The length defaults to 32, so you typically add and remove addresses instead of prefixes. |
-| `<port-range>` | 1-65535 for TCP/UDP, 0-65535 for ICMP | Subset layer 4 identifiers (or ICMP ids) from the addresses which should be reserved for translation. |
+| `--mark` | 0 | Specifies the Mark value of the entry being added, removed or updated.<br>The minimum value is zero, the maximum is 4294967295. |
+| `--tcp` | * | Apply operation on TCP entries (that also match `<mark>`). |
+| `--udp` | * | Apply operation on UDP entries (that also match `<mark>`). |
+| `--icmp` | * | Apply operation on ICMP entries (that also match `<mark>`). |
+| [`--max-iterations`](#--max-iterations) | null | Specifies the Max Iterations value of the set being modified. |
+| `<IPv4-prefix>` | - | Group of addresses you are adding or removing to/from the pool. The length is optional and defaults to 32. |
+| [`<port-range>`](#port-range) | 1-65535 for TCP/UDP, 0-65535 for ICMP | Ports from `<IPv4-prefix>` you're adding or removing to/from the pool. |
 | `--force` | (absent) | If present, add the elements to the pool even if they're too many.<br />(Will print a warning and quit otherwise.) |
-| `--quick` | (absent) | Do not cascade removal to [BIB entries](bib.html).<br />See [below](#--quick). |
+| [`--quick`](#--quick) | (absent) | Do not cascade removal to [BIB entries](bib.html). |
 
 \* `--tcp`, `--udp` and `--icmp` are not mutually exclusive. If neither of them are present, the records are added or removed to/from all three protocols.
 
 ## Examples
 
-Display the current addreses:
+Display the current table:
 
-	$ jool --pool4 --display 
+	$ jool --pool4 --display
+	+------------+-------+--------------------+-----------------+----------+----------+
+	|       Mark | Proto |     Max iterations |         Address | Port min | Port max |
+	+------------+-------+--------------------+-----------------+----------+----------+
 	  (empty)
 
 Add several entries:
 
-	# jool --pool4 --add 192.0.2.1
+	# jool --pool4 --add --tcp 192.0.2.1 1000-2500
+	# jool --pool4 --add --tcp 192.0.2.1 1500-3000
 	$ jool --pool4 --display
-	0	ICMP	192.0.2.1	0-65535
-	0	UDP	192.0.2.1	1-65535
-	0	TCP	192.0.2.1	1-65535
-	  (Fetched 3 entries.)
-	# jool --pool4 --add          --tcp 192.0.2.2 7000-7999
-	# jool --pool4 --add --mark 1 --tcp 192.0.2.2 8000-8999
-	# jool --pool4 --add          --tcp 192.0.2.4/31
+	+------------+-------+--------------------+-----------------+----------+----------+
+	|       Mark | Proto |     Max iterations |         Address | Port min | Port max |
+	+------------+-------+--------------------+-----------------+----------+----------+
+	|          0 |   TCP |       1024 ( auto) |       192.0.2.1 |     1000 |     3000 |
+	+------------+-------+--------------------+-----------------+----------+----------+
+	  (Fetched 1 samples.)
+	# jool --pool4 --add --mark 1 --tcp 192.0.2.1 1500-2500
+	# jool --pool4 --add          --tcp 192.0.2.8/30
+	# jool --pool4 --add          --udp 192.0.2.100         --max-iterations 5000
 	$ jool --pool4 --display
-	0	ICMP	192.0.2.1	0-65535
-	0	UDP	192.0.2.1	1-65535
-	0	TCP	192.0.2.1	1-65535
-	0	TCP	192.0.2.2	7000-7999
-	0	TCP	192.0.2.4	1-65535
-	0	TCP	192.0.2.5	1-65535
-	1	TCP	192.0.2.2	8000-8999
-	  (Fetched 7 entries.)
+	+------------+-------+--------------------+-----------------+----------+----------+
+	|       Mark | Proto |     Max iterations |         Address | Port min | Port max |
+	+------------+-------+--------------------+-----------------+----------+----------+
+	|          1 |   TCP |       1024 ( auto) |       192.0.2.1 |     1500 |     2500 |
+	+------------+-------+--------------------+-----------------+----------+----------+
+	|          0 |   TCP |       2059 ( auto) |       192.0.2.1 |     1000 |     3000 |
+	|            |       |                    |       192.0.2.8 |        1 |    65535 |
+	|            |       |                    |       192.0.2.9 |        1 |    65535 |
+	|            |       |                    |      192.0.2.10 |        1 |    65535 |
+	|            |       |                    |      192.0.2.11 |        1 |    65535 |
+	+------------+-------+--------------------+-----------------+----------+----------+
+	|          0 |   UDP |       5000 (fixed) |     192.0.2.100 |        1 |    65535 |
+	+------------+-------+--------------------+-----------------+----------+----------+
+	  (Fetched 7 samples.)
 
 Remove some entries:
 
 	# jool --pool4 --remove --mark 0 192.0.2.0/24 0-65535
 	$ jool --pool4 --display
-	1	TCP	192.0.2.2	8000-8999
-	  (Fetched 1 entries.)
+	+------------+-------+--------------------+-----------------+----------+----------+
+	|       Mark | Proto |     Max iterations |         Address | Port min | Port max |
+	+------------+-------+--------------------+-----------------+----------+----------+
+	|          1 |   TCP |       1024 ( auto) |       192.0.2.1 |     1500 |     2500 |
+	+------------+-------+--------------------+-----------------+----------+----------+
+	  (Fetched 1 samples.)
+
+Update the iteration cap of the remaining set:
+
+	# jool --pool4 --update --mark 1 --tcp --max-iterations 9999
+	$ jool --pool4 --display
+	+------------+-------+--------------------+-----------------+----------+----------+
+	|       Mark | Proto |     Max iterations |         Address | Port min | Port max |
+	+------------+-------+--------------------+-----------------+----------+----------+
+	|          1 |   TCP |       9999 (fixed) |       192.0.2.1 |     1500 |     2500 |
+	+------------+-------+--------------------+-----------------+----------+----------+
+	  (Fetched 1 samples.)
 
 Clear the table:
 
 	# jool --pool4 --flush
 	$ jool --pool4 --display
+	+------------+-------+--------------------+-----------------+----------+----------+
+	|       Mark | Proto |     Max iterations |         Address | Port min | Port max |
+	+------------+-------+--------------------+-----------------+----------+----------+
 	  (empty)
 
-## Notes
+## Empty pool4
 
-You need to be aware that your NAT64 machine needs to reserve transport addresses for translation purposes. If something within it tries to open a connection from transport address `192.0.2.1#5000` and at the same time a translation yields source transport address `192.0.2.1#5000`, evil things will happen.
+You might notice that Jool manages to translate successfully even when pool4 is empty. This is because, for the sake of ease of basic use, an empty pool4 behaves differently from a populated pool4.
 
-In other words, you don't want pool4's domain to intersect with other port ranges (just like you don't want other port ranges intersecting with other port ranges).
+Empty pool4 defaults to use ports 61001-65535 of whatever universe-scoped IPv4 addresses the node's interfaces have.
+
+So, for example, if you see this,
+
+	$ ip addr
+	2: eth0: <NO-CARRIER,BROADCAST,MULTICAST,UP> mtu 1500 qdisc pfifo_fast state UP group blah blah blah
+	    link/ether 1c:1b:0d:62:7a:42 brd ff:ff:ff:ff:ff:ff
+	    inet 192.0.2.1/24 brd 192.0.2.255 scope global dynamic eth0
+
+	$ jool --pool4 --display
+	+------------+-------+--------------------+-----------------+----------+----------+
+	|       Mark | Proto |     Max iterations |         Address | Port min | Port max |
+	+------------+-------+--------------------+-----------------+----------+----------+
+	  (empty)
+
+Then Jool is behaving as if pool4 were configured as follows:
+
+	+------------+-------+--------------------+-----------------+----------+----------+
+	|       Mark | Proto |     Max iterations |         Address | Port min | Port max |
+	+------------+-------+--------------------+-----------------+----------+----------+
+	|          0 |   TCP |       1024 ( auto) |       192.0.2.1 |    61001 |    65535 |
+	+------------+-------+--------------------+-----------------+----------+----------+
+	|          0 |   UDP |       1024 ( auto) |       192.0.2.1 |    61001 |    65535 |
+	+------------+-------+--------------------+-----------------+----------+----------+
+	|          0 |  ICMP |       1024 ( auto) |       192.0.2.1 |    61001 |    65535 |
+	+------------+-------+--------------------+-----------------+----------+----------+
+
+These default values are reasonable until you need the NAT64 to service anything other than a small IPv6 client population (as you only get 4535 available masks per protocol).
+
+The reason why empty pool4 uses such a reduced port range can be found in the next section.
+
+## Argument details
+
+### `<port-range>`
+
+You need to be aware that your NAT64 machine needs to **reserve** transport addresses for translation purposes. This is no different than port reservation during socket binding; if an server reserves port 80, no other application should be able to bind anything else to port 80, because then the data streams would get mixed. Conversely, if some program in the NAT64 machine binds socket `192.0.2.1#5000`, and at the same time one of Jool's translations successfully extracts transport address `192.0.2.1#5000` from pool4, evil things will happen.
+
+_Jool is incapable of ensuring pool4 does not intersect with other defined port ranges; this validation is the operator's responsibility._
 
 You already know the ports owned by any servers parked in your NAT64, if any. The other one you need to keep in mind is the [ephemeral range](https://en.wikipedia.org/wiki/Ephemeral_port):
 
 	$ sysctl net.ipv4.ip_local_port_range 
 	net.ipv4.ip_local_port_range = 32768	61000
 
-Linux's ephemeral port range defaults to 32768-61000. Therefore, Jool falls back to use ports 61001-65535 (of whatever primary global addresses its node is wearing) when pool4 is empty. You can change the former by tweaking sysctl `sys.net.ipv4.ip_local_port_range`, and the latter by means of `--pool4 --add` and `--pool4 --remove`.
+As you can see, Linux's ephemeral port range defaults to 32768-61000, and this is the reason why Jool falls back to use ports 61001-65535 (of whatever primary global addresses its node is wearing) when pool4 is empty. You can change the former by tweaking sysctl `sys.net.ipv4.ip_local_port_range`, and the latter by means of `--pool4 --add` and `--pool4 --remove`.
 
 Say your NAT64's machine has address 192.0.2.1 and pool4 is empty.
 
@@ -130,49 +204,67 @@ Say your NAT64's machine has address 192.0.2.1 and pool4 is empty.
 This means Jool is using ports and ICMP ids 61001-65535 of address 192.0.2.1. Let's add them explicitely:
 
 	# jool --pool4 --add 192.0.2.1 61001-65535
-	# jool --pool4 --display
-	0	ICMP	192.0.2.1	61001-65535
-	0	UDP	192.0.2.1	61001-65535
-	0	TCP	192.0.2.1	61001-65535
-	  (Fetched 3 samples.)
 
-So, for example, if you only have this one address, but want to reserve more ports for translation, you have to substract them from elsewhere. The ephemeral range is a good candidate:
+So, for example, if you only have this one address, but want to reserve more ports for translation, you have to subtract them from elsewhere. The ephemeral range is a good candidate:
 
 	# sysctl -w net.ipv4.ip_local_port_range="32768 40000"
 	# jool --pool4 --add 192.0.2.1 40001-61000
 	$ sysctl net.ipv4.ip_local_port_range 
 	net.ipv4.ip_local_port_range = 32768	40000
 	$ jool --pool4 --display
-	0	ICMP	192.0.2.1	40001-65535
-	0	UDP	192.0.2.1	40001-65535
-	0	TCP	192.0.2.1	40001-65535
+	+------------+-------+--------------------+-----------------+----------+----------+
+	|       Mark | Proto |     Max iterations |         Address | Port min | Port max |
+	+------------+-------+--------------------+-----------------+----------+----------+
+	|          0 |   TCP |       1024 ( auto) |       192.0.2.1 |    40001 |    65535 |
+	+------------+-------+--------------------+-----------------+----------+----------+
+	|          0 |   UDP |       1024 ( auto) |       192.0.2.1 |    40001 |    65535 |
+	+------------+-------+--------------------+-----------------+----------+----------+
+	|          0 |  ICMP |       1024 ( auto) |       192.0.2.1 |    40001 |    65535 |
+	+------------+-------+--------------------+-----------------+----------+----------+
 	  (Fetched 3 samples.)
 
-> ![Warning](../images/warning.svg) Jool is incapable of ensuring pool4 does not intersect with other port ranges; this validation is the operator's responsibility.
+### `--max-iterations`
 
-## `--mark`
+Max Iterations is explained [here](pool4.html#algorithm-performance).
 
-Mark allows you to assign different IPv4 transport address ranges to different IPv6 clients.
+Its default is a reasonable generic value that attempts to find a reasonable balance between packet drops and runtime performance. It is computed as follows:
 
-Pool4 entries carrying mark _n_ will only affect packets marked _n_. You can mark packets any way you want using standard iptables matching done in IPv6 prerouting.
+- If the set has less than 128k transport addresses, Max Iterations defaults to 1024 (ie. `128k / 128`).
+- If the set has something between 128k and 1024k transport addresses, Max Iterations defaults to `number of transport addresses / 128`.
+- If the set has more than 1024k transport addresses, Max Iterations defaults to 8192 (ie. `1024k / 128`).
 
-For example:
+The rationale for all of this can be found in the [source code](https://github.com/NICMx/Jool/blob/16957569f134939d914d82489f23c7b33970bb3b/mod/stateful/pool4/db.c#L850).
 
-![Fig. 1 - Mark diagram](../images/network/pool4-mark.svg)
+To return a fixed Max Iterations to a default value, use the `auto` keyword:
 
-	$ # Packets from network 2001:db8:1::/64 will be masked using ports 10000-19999.
-	# jool --pool4 --add 192.0.2.1 10000-19999 --mark 10
-	# ip6tables -t mangle -I PREROUTING -s 2001:db8:1::/64 -j MARK --set-mark 10
-	$
-	$ # Packets from network 2001:db8:2::/64 will be masked using ports 20000-29999.
-	# jool --pool4 --add 192.0.2.1 20000-29999 --mark 20
-	# ip6tables -t mangle -I PREROUTING -s 2001:db8:2::/64 -j MARK --set-mark 20
+	$ jool --pool4 --display
+	+------------+-------+--------------------+-----------------+----------+----------+
+	|       Mark | Proto |     Max iterations |         Address | Port min | Port max |
+	+------------+-------+--------------------+-----------------+----------+----------+
+	|          0 |   TCP |       9999 (fixed) |       192.0.2.1 |        1 |    65535 |
+	+------------+-------+--------------------+-----------------+----------+----------+
+	  (Fetched 1 samples.)
+	# jool --pool4 --update --tcp --max-iterations auto
+	$ jool --pool4 --display
+	+------------+-------+--------------------+-----------------+----------+----------+
+	|       Mark | Proto |     Max iterations |         Address | Port min | Port max |
+	+------------+-------+--------------------+-----------------+----------+----------+
+	|          0 |   TCP |       1024 ( auto) |       192.0.2.1 |        1 |    65535 |
+	+------------+-------+--------------------+-----------------+----------+----------+
+	  (Fetched 1 samples.)
 
-Recognizing or narrowing down the IPv6 clients behind IPv4 transport addresses helps you create [IPv4-based ACLs]({{ site.repository-url }}/issues/115) and preventing groups of clients from hogging up IPv4 transport addresses (therefore DOSing the NAT64 for other clients).
+On the other hand, you can use the keyword `infinity` to remove the iteration limit. This yields the same behavior as Jool 3.5.4 and below. (Careful with exhausted pool4s!)
 
-See [this project](https://github.com/NICMx/mark-src-range) as well.
+	# jool --pool4 --update --tcp --max-iterations infinity
+	$ jool --pool4 --display
+	+------------+-------+--------------------+-----------------+----------+----------+
+	|       Mark | Proto |     Max iterations |         Address | Port min | Port max |
+	+------------+-------+--------------------+-----------------+----------+----------+
+	|          0 |   TCP |   Infinity (fixed) |       192.0.2.1 |        1 |    65535 |
+	+------------+-------+--------------------+-----------------+----------+----------+
+	  (Fetched 1 samples.)
 
-## `--quick`
+### `--quick`
 
 If you `--remove` or `--flush` a pool4 entry, the BIB entries that match it become obsolete because the packets they serve are no longer going to be translated. This is because a pool4 match is a prerequisite for translation.
 

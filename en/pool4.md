@@ -12,6 +12,7 @@ title: IPv4 Transport Address Pool
 ## Index
 
 1. [Introduction to pool4](#introduction-to-pool4)
+2. [Terminology](#terminology)
 2. [Matching arguments](#matching-arguments)
 3. [Mask Selection Algorithm](#mask-selection-algorithm)
 	1. ["Packet attributes" argument rationale](#packet-attributes-argument-rationale)
@@ -23,9 +24,9 @@ Just like a NAPT, a Stateful NAT64 allows an indeterminate amount of clients to 
 
 In the context of NAT64, this subset of reserved address-port tuples are referred to as the "IPv4 transport address pool". You upload addresses to this pool to allow the NAT64 to mask packets (ie. replace their source address) with them.
 
-In the context of Jool, "IPv4 transport address pool" can be shortened as "IPv4 address pool", "IPv4 pool", or, more commonly, as the name it is usually referred to in the code: "pool4". It is represented as a table that simply groups a handful of transport addresses with a few supportive attributes. Here's an example of what could be considered a populated pool4. You may choose to ignore the columns `Mark` and `Max iterations` for the purposes of the discussion in the immediate future:
+In the context of Jool, "IPv4 transport address pool" can be shortened as "IPv4 address pool", "IPv4 pool", or, more commonly, as the name it is usually referred as in the code: "pool4". It is represented as a table that simply groups a handful of transport addresses with a few supportive attributes. Here's an example of what could be considered a populated pool4. You may choose to ignore the columns `Mark` and `Max Iterations` for the purposes of the discussion in the immediate future:
 
-Mark | Protocol | Max iterations | Transport Addresses
+Mark | Protocol | Max Iterations | Transport Addresses
 -----|----------|----------------|---------------------|
    0 | TCP      | 1024<br>(auto) | 192.0.2.1#5000<br>192.0.2.1#5001<br>192.0.2.1#5002<br>192.0.2.1#5003<br>...<br>192.0.2.1#5999<br>192.0.2.1#6000 |
    0 | UDP      | 1024<br>(auto) | 192.0.2.1#10000<br>192.0.2.1#10001<br>192.0.2.1#10002<br>192.0.2.1#10003<br>...<br>192.0.2.1#10999<br>192.0.2.1#11000 |
@@ -53,22 +54,31 @@ While it might make sense for the NAT64 to attempt to retain the source port whi
 
 > ![Note](../images/bulb.svg) Pool4 is currently undergoing deep refactors in order to support [per-customer granularity](https://tools.ietf.org/html/draft-ietf-sunset4-nat64-port-allocation-02). Some information in this article might be obsoleted in the future.
 
+The pool4 table can be edited on a running NAT64 Jool by means of [`--pool4`](usr-flags-pool4.html) userspace application commands.
+
+## Terminology
+
+- Pool4 is a table. It is composed out of "pool4 sets".
+- Pool4 sets are collections of transport addresses that share [matching arguments](pool4.html#matching-arguments) (Mark and Protocol). They also have an additional field: Max Iterations.  
+  You can think of sets as "rows", as this is how they are often represented in this documentation.  
+- A pool4 entry is an address/port range tuple. Sets are made out of them.
+
 ## Matching arguments
 
-`Mark` and `Protocol` are considered "matching arguments" in that, for a pool4 row to be a candidate for packet masking, these two fields need to match the packet.
+`Mark` and `Protocol` are considered "matching arguments" in that, for a pool4 set to be a candidate for packet masking, these two fields need to match the packet.
 
-Packets that do not match _both_ the mark _and_ the protocol of any pool4 rows will not be translated.
+Packets that do not match _both_ the mark _and_ the protocol of any pool4 sets will not be translated.
 
 "Mark" is an integer (32-bit) field the kernel can label the packet with. [It belongs to the structure that holds the packet](http://elixir.free-electrons.com/linux/v4.13.12/source/include/linux/skbuff.h#L736) (ie. it is not some IPv4 field or otherwise written in the packet itself), so it is only meaningful until the packet leaves the kernel. It defaults to zero.
 
 You can mark packets using the [MARK](http://www.linuxtopia.org/Linux_Firewall_iptables/x4368.html) target:
 
-	ip6tables -t mangle -A PREROUTING --source 2001:db8::/28 -j MARK --set-mark 2
+	ip6tables -t mangle -A PREROUTING --source 2001:db8::/28   -j MARK --set-mark 2
 	ip6tables -t mangle -A PREROUTING --source 2001:db8::16/28 -j MARK --set-mark 3
 
 The intent is so you can reserve different pool4 ranges for different customers. For example, with the following pool4 configuration,
 
-Mark | Protocol | Max iterations | Transport Addresses
+Mark | Protocol | Max Iterations | Transport Addresses
 -----|----------|----------------|---------------------|
    2 | TCP      | 1024<br>(auto) | 192.0.2.1#(1-65535) |
    3 | TCP      | 1024<br>(auto) | 192.0.2.2#(1-65535) |
@@ -91,7 +101,7 @@ Simply put, a pseudorandom and valid (ie. belongs to the table) address/mask is 
 
 The reason why the address is the result of a blend of the original packet's fields (as opposed to a complete random) is because you want connections involving the same addresses to be masked similarly for the sake of application protocols that expect so. For example, assume that you have the following pool4:
 
-Mark | Protocol | Max iterations | Transport Addresses
+Mark | Protocol | Max Iterations | Transport Addresses
 -----|----------|----------------|---------------------|
    0 | TCP      | 1024<br>(auto) | 192.0.2.1#(5000-6000)<br>192.0.2.2#(5000-6000) |
 
@@ -107,11 +117,11 @@ One weakness of algorithm 3 of RFC 6056 is that its iterative phase and the fact
 
 As an example, assume the following pool4 configuration:
 
-Mark | Protocol | Max iterations | Transport Addresses
+Mark | Protocol | Max Iterations | Transport Addresses
 -----|----------|----------------|--------------------------|
-   0 | TCP      | Infinite       | (192.0.2.0/28)#(1-65535) |
+   0 | ICMP     | Infinite       | (192.0.2.0/29)#(0-65535) |
 
-This pool has 16 IPv4 addresses (192.0.2.0 through 192.0.2.15), and each address has 65535 ports. This means that an IPv4/TCP packet will need to iterate 1048560 times (and fail) when the BIB has completely exhausted pool4.
+This pool has 8 IPv4 addresses (192.0.2.0 through 192.0.2.7), and each address has 65536 ports. This means that an IPv4/TCP packet will need to iterate 524288 times (and fail) when the BIB has completely exhausted pool4.
 
 The following graph was taken from a real experiment and shows how stock mask computation tends to degrade as pool4 reaches exhaustion:
 
@@ -131,19 +141,19 @@ As pool4 reaches exhaustion, the number of collision rapidly increases until it 
 
 With this in mind, an attacker might try to overwhelm Jool by flooding traffic specifically designed to yield a large number of BIB entries.
 
-The `Max iterations` column is an artificial limit to the amount of times Jool will iterate before deeming the transport address infeasible to compute. This will effectively prevent the graph from spiking, at the cost of being unable to compute some BIB entries when pool4 is about to be exhausted. This is deemed an acceptable tradeoff because BIB entries cannot be created when pool4 is completely exhausted anyway, so at this level of traffic some connections are expected to be dropped in the first place.
+The `Max Iterations` column is an artificial limit to the amount of times Jool will iterate before deeming the transport address infeasible to compute. This will effectively prevent the graph from spiking, at the cost of being unable to compute some BIB entries when pool4 is about to be exhausted. This is deemed an acceptable tradeoff because BIB entries cannot be created when pool4 is completely exhausted anyway, so at this level of traffic some connections are expected to be dropped in the first place.
 
-The following graph is a result of the same experiment as the previous one, except the iteration limit has been capped at 8192:
+The following graph is a result of the same experiment as the previous one, except the iteration limit has been capped at 4096: (Notice the scale of the Y axis)
 
-![Fig.7 - Capped algorighm 3 performance degradation](../images/global-max-iterations-64.png)
+![Fig.7 - Capped algorighm 3 performance degradation](../images/global-max-iterations-4096.png)
 
-> ![Note!](../images/bulb.svg) `Max iterations` does not prevent an attacker from exhausting pool4; it only prevents the NAT64 from hogging up the entire CPU when it's being attacked.
+> ![Note!](../images/bulb.svg) `Max Iterations` does not prevent an attacker from exhausting pool4; it only prevents the NAT64 from hogging up the entire CPU when it's being attacked.
 
-If the drawbacks of `Max iterations` to not seem reasonable to you, another way to minimize the effects of the spike would be to keep pool4 very small. If your pool4 has 16 addresses, and almost 64k ports per address, then on the peak of the graph the local v4 address computation takes almost 16 times 64k iterations per new connection. If you only had, say, 1 address, that'd be 64k iterations. And so on. Of course, this solution is hardly viable if you need to serve a large amount of v6 clients.
+If the drawbacks of `Max Iterations` to not seem reasonable to you, another way to minimize the effects of the spike would be to keep pool4 very small. If your pool4 has 16 addresses, and almost 64k ports per address, then on the peak of the graph the local v4 address computation takes almost 16 times 64k iterations per new connection. If you only had, say, 1 address, that'd be 64k iterations. And so on. Of course, this solution is hardly viable if you need to serve a large amount of v6 clients.
 
-The solution will be somewhat more viable if you throw [`--mark`](usr-flags-pool4.html#--mark) into the mix. The reason for this is that pool4 entries wearing different marks are basically members of different pools (implementation-wise), so if you have this pool4, for example:
+The solution will be somewhat more viable if you throw [Mark](#matching-arguments) into the mix. The reason for this is that pool4 entries wearing different marks are basically members of different pools (implementation-wise), so if you have this pool4, for example:
  
-Mark | Protocol | Max iterations | Transport Addresses
+Mark | Protocol | Max Iterations | Transport Addresses
 -----|----------|----------------|--------------------------|
 0    | TCP      | 1024 (auto)    | 192.0.2.1#(1-65535)
 1    | TCP      | 1024 (auto)    | 192.0.2.2#(1-65535)
@@ -153,14 +163,4 @@ Mark | Protocol | Max iterations | Transport Addresses
 Then the peak of the graph will be 65535 for any connection (as opposed to 4 times 65535). This would have the added benefit that, if one of your users is attacking you, he or she will only mess up their own pool4 and not affect everyone else.
 
 Ironically, another solution would be to keep pool4 *as big as possible*. This is because, again, if your pool4 size is somewhat larger than your connection population, you will remain comfortably on the left side on the graph. I suppose that, if you fear an attack, you could always filter users that are opening abnormal numbers of connections.
-
-## Port Range Collision
-
-When defining the addresses and ports that will belong to your pool4, you need to be aware that they must not collide with other services or clients within the same machine. If _T_ tries to open a connection from transport address `192.0.2.1#5000` and at the same time a translation yields source transport address `192.0.2.1#5000`, Jool will end up combining the the information transmitted in both connections.
-
-[You can change Linux's ephemeral port range by tweaking sysctl `sys.net.ipv4.ip_local_port_range`, and pool4's port range by means of `--pool4 --add` userspace application commands](usr-flags-pool4.html#notes).
-
-If you have no elements in pool4 whatsoever, Jool will fall back to mask packets using the primary global addresses configured in its node's interfaces. Because Linux's ephemeral port range defaults to 32768-61000, Jool will only attempt to mask packets using ports 61001-65535 in this case.
-
-On the other hand, if you insert elements to pool4 and do not specify port ranges, Jool will assume it can use the entire port domain of the addresses (1-65535). This is done for backwards compatibility reasons.
 
