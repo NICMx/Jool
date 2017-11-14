@@ -22,16 +22,19 @@ static struct net *ns;
  */
 static bool add(__u32 addr, __u8 prefix_len, __u16 min, __u16 max)
 {
-	struct ipv4_range range;
+	struct pool4_entry_usr entry;
 
-	range.prefix.address.s_addr = cpu_to_be32(addr);
-	range.prefix.len = prefix_len;
-	range.ports.min = min;
-	range.ports.max = max;
+	entry.mark = 1;
+	entry.iterations = 0;
+	entry.flags = ITERATIONS_SET | ITERATIONS_INFINITE;
+	entry.proto = L4PROTO_TCP;
+	entry.range.prefix.address.s_addr = cpu_to_be32(addr);
+	entry.range.prefix.len = prefix_len;
+	entry.range.ports.min = min;
+	entry.range.ports.max = max;
 
-	return ASSERT_INT(0, pool4db_add(pool, 1, L4PROTO_TCP, &range),
-			"add of %pI4/%u (%u-%u)",
-			&range.prefix.address, prefix_len, min, max);
+	return ASSERT_INT(0, pool4db_add(pool, &entry), "add %pI4/%u (%u-%u)",
+			&entry.range.prefix.address, prefix_len, min, max);
 }
 
 static bool rm(__u32 addr, __u8 prefix_len, __u16 min, __u16 max)

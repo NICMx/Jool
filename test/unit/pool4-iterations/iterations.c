@@ -21,6 +21,11 @@ MODULE_PARM_DESC(TADDRS_PER_RANGE, "Number of ports per pool4 address. Min 1, ma
 		"If RANGE_COUNT times TADDRS_PER_RANGE is higher than 512, "
 		"then RANGE_COUNT times TADDRS_PER_RANGE has to be a multiple of 512.");
 
+static unsigned int MAX_ITERATIONS = 0;
+module_param(MAX_ITERATIONS, uint, 0);
+MODULE_PARM_DESC(MAX_ITERATIONS, "Iteration limit. Same as in Jool's pool4. "
+		"Zero stands for infinity. Default is zero.");
+
 
 /**
  * This is just RANGE_COUNT times TADDRS_PER_RANGE.
@@ -121,7 +126,7 @@ static int init(void)
 
 	/* Add the testing addresses to pool4 */
 	entry.mark = 0;
-	entry.iterations = 0;
+	entry.iterations = MAX_ITERATIONS;
 	entry.iterations_set = true;
 	/*
 	 * The reason why I'm using ICMP instead of TCP is because TCP and UDP
@@ -157,6 +162,33 @@ destroy_iterations_onwards:
 	/* Fall thorugh */
 just_quit:
 	return error;
+}
+
+static int compute_slot(struct ipv4_transport_addr *addr)
+{
+	return (be32_to_cpu(addr->l3.s_addr) & 0xFF) * TADDRS_PER_RANGE
+			+ addr->l4;
+}
+
+static void claim_slot_anyway(const unsigned int slot)
+{
+	unsigned int s;
+
+	for (s = slot; s < TADDR_COUNT; s++) {
+		if (!taken[s]) {
+			taken[s] = true;
+			return;
+		}
+	}
+
+	for (s = 0; s < slot; s++) {
+		if (!taken[s]) {
+			taken[s] = true;
+			return;
+		}
+	}
+
+	/* pool4 is exhausted; do nothing. */
 }
 
 /**
@@ -200,11 +232,15 @@ static void new_connection(unsigned int request)
 		if (mask_domain_next(masks, &addr, &consecutive)) {
 			iterations[request] = attempts;
 			errors[request] = true;
+			/*
+			 * Needed for the next iteration if mdn() failed because
+			 * of MAX_ITERATIONS.
+			 */
+			claim_slot_anyway(compute_slot(&addr));
 			break;
 		}
 		attempts++;
-		slot = (be32_to_cpu(addr.l3.s_addr) & 0xFF) * TADDRS_PER_RANGE
-				+ addr.l4;
+		slot = compute_slot(&addr);
 		if (!taken[slot]) {
 			taken[slot] = true;
 			iterations[request] = attempts;

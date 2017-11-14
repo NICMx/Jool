@@ -25,6 +25,11 @@ bool mask_domain_is_dynamic(struct mask_domain *masks)
 	return false;
 }
 
+__u32 mask_domain_get_mark(struct mask_domain *masks)
+{
+	return 0;
+}
+
 struct pktqueue *pktqueue_create(void)
 {
 	return (struct pktqueue *)&dummy;

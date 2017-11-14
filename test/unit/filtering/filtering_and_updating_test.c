@@ -520,7 +520,7 @@ static bool test_tcp(void)
 static bool init(void)
 {
 	struct ipv6_prefix prefix6;
-	struct ipv4_range range;
+	struct pool4_entry_usr entry;
 
 	if (bib_init())
 		return false;
@@ -538,17 +538,23 @@ static bool init(void)
 	if (pool6_add(jool.pool6, &prefix6))
 		goto fail5;
 
-	if (str_to_addr4("192.0.2.128", &range.prefix.address))
+	entry.mark = 0;
+	entry.iterations = 0;
+	entry.flags = ITERATIONS_SET | ITERATIONS_INFINITE;
+	if (str_to_addr4("192.0.2.128", &entry.range.prefix.address))
 		goto fail5;
-	range.prefix.len = 32;
-	range.ports.min = 1024;
-	range.ports.max = 1024;
+	entry.range.prefix.len = 32;
+	entry.range.ports.min = 1024;
+	entry.range.ports.max = 1024;
 
-	if (pool4db_add(jool.nat64.pool4, 0, L4PROTO_TCP, &range))
+	entry.proto = L4PROTO_TCP;
+	if (pool4db_add(jool.nat64.pool4, &entry))
 		goto fail5;
-	if (pool4db_add(jool.nat64.pool4, 0, L4PROTO_UDP, &range))
+	entry.proto = L4PROTO_UDP;
+	if (pool4db_add(jool.nat64.pool4, &entry))
 		goto fail5;
-	if (pool4db_add(jool.nat64.pool4, 0, L4PROTO_ICMP, &range))
+	entry.proto = L4PROTO_ICMP;
+	if (pool4db_add(jool.nat64.pool4, &entry))
 		goto fail5;
 
 	return true;

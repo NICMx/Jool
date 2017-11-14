@@ -688,6 +688,42 @@ end:
 	return error;
 }
 
+static int parse_max_iterations(struct cJSON *node,
+		struct pool4_entry_usr *entry)
+{
+	int error = 0;
+
+	switch (node->type) {
+	case cJSON_Number:
+		error = validate_json_uint(OPTNAME_MAX_ITERATIONS, node, 1,
+				MAX_U32);
+		if (error)
+			return error;
+		entry->flags = ITERATIONS_SET;
+		entry->iterations = node->valueint;
+		break;
+	case cJSON_String:
+		if (strcmp(node->valuestring, "auto") == 0) {
+			entry->flags = ITERATIONS_SET | ITERATIONS_AUTO;
+			entry->iterations = 0;
+		} else if (strcmp(node->valuestring, "infinity") == 0) {
+			entry->flags = ITERATIONS_SET | ITERATIONS_INFINITE;
+			entry->iterations = 0;
+			return 0;
+		} else {
+			log_err("Unrecognized string: '%s'", node->valuestring);
+			error = -EINVAL;
+		}
+		break;
+	default:
+		print_datatype_error(OPTNAME_MAX_ITERATIONS, node,
+				"string or number");
+		error = -EINVAL;
+	}
+
+	return error;
+}
+
 static int handle_pool4(cJSON *json)
 {
 	struct nl_buffer *buffer;
@@ -751,14 +787,12 @@ static int handle_pool4(cJSON *json)
 
 		child = cJSON_GetObjectItem(json, OPTNAME_MAX_ITERATIONS);
 		if (child) {
-			error = validate_u32(OPTNAME_MAX_ITERATIONS, child);
+			error = parse_max_iterations(child, &entry);
 			if (error)
 				goto end;
-			entry.iterations = child->valueint;
-			entry.iterations_set = true;
 		} else {
 			entry.iterations = 0;
-			entry.iterations_set = false;
+			entry.flags = 0;
 		}
 
 		error = buffer_write(buffer, &entry, sizeof(entry), SEC_POOL4);

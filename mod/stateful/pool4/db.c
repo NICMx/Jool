@@ -60,8 +60,10 @@ struct pool4_table {
 	 * When the table changes, an auto table needs to update the value,
 	 * otherwise keep the old value set by the user.
 	 * Also, only relevant in mark-based tables.
+	 *
+	 * ITERATIONS_SET is not relevant here.
 	 */
-	bool max_iterations_manual;
+	enum iteration_flags max_iterations_flags;
 
 	/*
 	 * An array of struct pool4_range hangs off here.
@@ -98,6 +100,7 @@ struct mask_domain {
 
 	unsigned int taddr_count;
 	unsigned int taddr_counter;
+	/* ITERATIONS_INFINITE is represented by this being zero. */
 	unsigned int max_iterations;
 
 	unsigned int range_count;
@@ -223,7 +226,7 @@ static struct pool4_table *create_table(struct pool4_range *range)
 	table->taddr_count = port_range_count(&range->ports);
 	table->sample_count = 1;
 	table->max_iterations_allowed = 0;
-	table->max_iterations_manual = false;
+	table->max_iterations_flags = ITERATIONS_AUTO;
 
 	entry = first_table_entry(table);
 	*entry = *range;
@@ -290,6 +293,27 @@ static void release(struct kref *refcounter)
 void pool4db_put(struct pool4 *pool)
 {
 	kref_put(&pool->refcounter, release);
+}
+
+static int max_iterations_validate(__u8 flags, __u32 iterations)
+{
+	bool automatic = flags & ITERATIONS_AUTO;
+	bool infinite = flags & ITERATIONS_INFINITE;
+
+	if (!(flags & ITERATIONS_SET))
+		return 0;
+
+	if (automatic && infinite) {
+		log_err("Max Iterations cannot be automatic and infinite at the same time.");
+		return -EINVAL;
+	}
+
+	if (iterations == 0 && !automatic && !infinite) {
+		log_err("Zero is not a legal Max Iterations value.");
+		return -EINVAL;
+	}
+
+	return 0;
 }
 
 static int compare_range(struct pool4_range *r1, struct pool4_range *r2)
@@ -418,8 +442,8 @@ static int add_to_mark_tree(struct pool4 *pool,
 		if (error)
 			return error;
 
-		if (entry->iterations_set) {
-			table->max_iterations_manual = true;
+		if (entry->flags & ITERATIONS_SET) {
+			table->max_iterations_flags = entry->flags;
 			table->max_iterations_allowed = entry->iterations;
 		}
 
@@ -430,9 +454,10 @@ static int add_to_mark_tree(struct pool4 *pool,
 	if (!table)
 		return -ENOMEM;
 	table->mark = entry->mark;
-	table->max_iterations_manual = entry->iterations_set;
-	table->max_iterations_allowed = entry->iterations_set
-			? entry->iterations : 0;
+	if (entry->flags & ITERATIONS_SET) {
+		table->max_iterations_flags = entry->flags;
+		table->max_iterations_allowed = entry->iterations;
+	}
 
 	collision = rbtree_add(table, entry->mark, tree, cmp_mark,
 			struct pool4_table, tree_hook);
@@ -465,7 +490,7 @@ static int add_to_addr_tree(struct pool4 *pool,
 	if (!table)
 		return -ENOMEM;
 	table->addr = new->addr;
-	table->max_iterations_manual = false;
+	table->max_iterations_flags = ITERATIONS_AUTO;
 	table->max_iterations_allowed = 0;
 
 	collision = rbtree_add(table, &table->addr, tree, cmp_addr,
@@ -488,6 +513,10 @@ int pool4db_add(struct pool4 *pool, const struct pool4_entry_usr *entry)
 	error = prefix4_validate(&entry->range.prefix);
 	if (error)
 		return error;
+	error = max_iterations_validate(entry->flags, entry->iterations);
+	if (error)
+		return error;
+
 	if (addend.ports.min > addend.ports.max)
 		swap(addend.ports.min, addend.ports.max);
 	if (entry->proto == L4PROTO_TCP || entry->proto == L4PROTO_UDP)
@@ -537,7 +566,7 @@ int pool4db_add_str(struct pool4 *pool, char *prefix_strs[], int prefix_count)
 
 	new.mark = 0;
 	new.iterations = 0;
-	new.iterations_set = false;
+	new.flags = ITERATIONS_AUTO;
 	/*
 	 * We're not using DEFAULT_POOL4_* here because those are defaults for
 	 * empty pool4 (otherwise it looks confusing from userspace).
@@ -571,6 +600,11 @@ int pool4db_update(struct pool4 *pool, const struct pool4_update *update)
 {
 	struct rb_root *tree;
 	struct pool4_table *table;
+	int error;
+
+	error = max_iterations_validate(update->flags, update->iterations);
+	if (error)
+		return error;
 
 	spin_lock_bh(&pool->lock);
 
@@ -588,8 +622,11 @@ int pool4db_update(struct pool4 *pool, const struct pool4_update *update)
 		return -ESRCH;
 	}
 
-	table->max_iterations_manual = update->iterations_set;
-	table->max_iterations_allowed = update->iterations;
+	if (update->flags & ITERATIONS_SET) {
+		table->max_iterations_flags = update->flags;
+		table->max_iterations_allowed = update->iterations;
+	}
+
 	spin_unlock_bh(&pool->lock);
 	return 0;
 }
@@ -843,7 +880,9 @@ static unsigned int compute_max_iterations(const struct pool4_table *table)
 {
 	unsigned int result;
 
-	if (table->max_iterations_manual)
+	if (table->max_iterations_flags & ITERATIONS_INFINITE)
+		return 0;
+	if (!(table->max_iterations_flags & ITERATIONS_AUTO))
 		return table->max_iterations_allowed;
 
 	/*
@@ -913,10 +952,8 @@ static void __update_sample(struct pool4_sample *sample,
 		const struct pool4_table *table)
 {
 	sample->mark = table->mark;
-	sample->iterations_set = table->max_iterations_manual;
-	sample->iterations = sample->iterations_set
-			? table->max_iterations_allowed
-			: compute_max_iterations(table);
+	sample->iterations_flags = table->max_iterations_flags;
+	sample->iterations = compute_max_iterations(table);
 }
 
 /**

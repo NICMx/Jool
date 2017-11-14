@@ -57,7 +57,7 @@ struct arguments {
 		struct {
 			__u32 mark;
 			__u32 max_iterations;
-			bool max_iterations_set;
+			enum iteration_flags flags;
 			struct port_range ports;
 			bool force;
 		} pool4;
@@ -198,6 +198,22 @@ static int set_global_u64(struct arguments *args, __u16 type, char *value,
 	tmp *= multiplier;
 
 	return set_global_arg(args, type, sizeof(tmp), &tmp);
+}
+
+static int set_max_iterations(struct arguments *args, char *value)
+{
+	if (strcmp(value, "auto") == 0) {
+		args->db.pool4.flags = ITERATIONS_SET | ITERATIONS_AUTO;
+		args->db.pool4.max_iterations = 0;
+		return 0;
+	} else if (strcmp(value, "infinity") == 0) {
+		args->db.pool4.flags = ITERATIONS_SET | ITERATIONS_INFINITE;
+		args->db.pool4.max_iterations = 0;
+		return 0;
+	}
+
+	args->db.pool4.flags = ITERATIONS_SET;
+	return str_to_u32(value, &args->db.pool4.max_iterations, 1, MAX_U32);
 }
 
 static int set_global_rfc6791_prefix(struct arguments *args, __u16 type, char *value)
@@ -470,17 +486,8 @@ static int parse_opt(int key, char *str, struct argp_state *state)
 		break;
 	case ARGP_MAX_ITERATIONS:
 		error = update_state(args, MODE_POOL4, OP_ADD | OP_UPDATE);
-		if (!error) {
-			if (strcmp(str, "null") != 0) {
-				args->db.pool4.max_iterations_set = true;
-				error = str_to_u32(str,
-						&args->db.pool4.max_iterations,
-						0, MAX_U32);
-			} else {
-				args->db.pool4.max_iterations_set = false;
-				args->db.pool4.max_iterations = 0;
-			}
-		}
+		if (!error)
+			error = set_max_iterations(args, str);
 		break;
 	case ARGP_FORCE:
 		error = update_state(args, ANY_MODE, ANY_OP);
@@ -701,7 +708,7 @@ static int __pool4_add(struct arguments *args)
 
 	entry.mark = args->db.pool4.mark;
 	entry.iterations = args->db.pool4.max_iterations;
-	entry.iterations_set = args->db.pool4.max_iterations_set;
+	entry.flags = args->db.pool4.flags;
 	entry.range.prefix = args->db.prefix4;
 	entry.range.ports = args->db.pool4.ports;
 
@@ -729,7 +736,7 @@ static int __pool4_update(struct arguments *args)
 	int icmp_error = 0;
 
 	update.mark = args->db.pool4.mark;
-	update.iterations_set = args->db.pool4.max_iterations_set;
+	update.flags = args->db.pool4.flags;
 	update.iterations = args->db.pool4.max_iterations;
 
 	if (args->flags & DF_TCP) {
@@ -762,7 +769,7 @@ static int __pool4_rm(struct arguments *args)
 
 	entry.mark = args->db.pool4.mark;
 	entry.iterations = 0;
-	entry.iterations_set = false;
+	entry.flags = 0;
 	entry.range.prefix = args->db.prefix4;
 	entry.range.ports = args->db.pool4.ports;
 

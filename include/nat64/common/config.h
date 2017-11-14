@@ -214,10 +214,26 @@ union request_pool6 {
 	struct ipv6_prefix prefix;
 };
 
+enum iteration_flags {
+	/**
+	 * Is the iterations field relevant?
+	 * (Irrelevant = "Ignore this; keep the old value.")
+	 */
+	ITERATIONS_SET = (1 << 0),
+	/** Should Jool compute the iterations field automatically? */
+	ITERATIONS_AUTO = (1 << 1),
+	/** Remove iteration cap? */
+	ITERATIONS_INFINITE = (1 << 2),
+};
+
 struct pool4_entry_usr {
 	__u32 mark;
+	/**
+	 * BTW: This field is only meaningful if flags has ITERATIONS_SET,
+	 * !ITERATIONS_AUTO and !ITERATIONS_INFINITE.
+	 */
 	__u32 iterations;
-	__u8 iterations_set;
+	__u8 flags;
 	__u8 proto;
 	struct ipv4_range range;
 };
@@ -225,7 +241,7 @@ struct pool4_entry_usr {
 struct pool4_update {
 	__u32 mark;
 	__u32 iterations;
-	config_bool iterations_set;
+	__u8 flags;
 	__u8 l4_proto;
 };
 

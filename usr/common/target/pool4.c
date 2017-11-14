@@ -25,13 +25,19 @@ struct display_args {
 static void display_sample_csv(struct pool4_sample *sample,
 		struct display_args *args)
 {
-	printf("%u,%s,%s,%u,%u,%u,%u\n", sample->mark,
+	printf("%u,%s,%s,%u,%u,", sample->mark,
 			l4proto_to_string(sample->proto),
 			inet_ntoa(sample->range.addr),
 			sample->range.ports.min,
-			sample->range.ports.max,
-			sample->iterations,
-			sample->iterations_set);
+			sample->range.ports.max);
+
+	if (sample->iterations_flags & ITERATIONS_INFINITE) {
+		printf("infinite,");
+	} else {
+		printf("%u,", sample->iterations);
+	}
+
+	printf("%u\n", !(sample->iterations_flags & ITERATIONS_AUTO));
 }
 
 static bool print_common_values(struct pool4_sample *sample,
@@ -57,11 +63,18 @@ static void display_sample_normal(struct pool4_sample *sample,
 {
 	if (print_common_values(sample, args)) {
 		print_table_divisor();
-		printf("| %10u | %5s | %10u (%5s) | %15s | %8u | %8u |\n",
+
+		printf("| %10u | %5s | ",
 				sample->mark,
-				l4proto_to_string(sample->proto),
-				sample->iterations,
-				sample->iterations_set ? "fixed" : "auto",
+				l4proto_to_string(sample->proto));
+		if (sample->iterations_flags & ITERATIONS_INFINITE)
+			printf("%10s", "Infinite");
+		else
+			printf("%10u", sample->iterations);
+		printf(" (%5s) | %15s | %8u | %8u |\n",
+				(sample->iterations_flags & ITERATIONS_AUTO)
+						? "auto"
+						: "fixed",
 				inet_ntoa(sample->range.addr),
 				sample->range.ports.min,
 				sample->range.ports.max);
