@@ -92,7 +92,7 @@ then the entirety of the `192.0.2.1` address will mask the `2001:db8::/28` netwo
 To choose the transport address that will mask the source address of the original packet, Jool uses [algorithm 3 of RFC 6056](https://tools.ietf.org/html/rfc6056#page-14). Here's a simplified pseudocode version of it:
 
 	mask = F(packet attributes)
-	while mask has already been reserved:
+	while "mask + 1" is possible and mask has already been reserved:
 		mask = mask + 1
 
 Simply put, a pseudorandom and valid (ie. belongs to the table) address/mask is computed by hashing [a few packet attributes](usr-flags-global.html#--f-args). (The hashing function is `F()`.) The code then keeps iterating through the available masks until it finds one that hasn't been reserved by a BIB entry.
@@ -133,7 +133,7 @@ The following graph was taken from a real experiment and shows how stock mask co
 > 
 > It is important to highlight that the horizontal axis does *not* represent time. Sessions (and therefore BIB entries) *time out* over time, which means that "Number of transport addresses already borrowed from pool4" goes up and down depending on how many simultaneous connections are being translated by the NAT64 at a time. New connections push the graph towards the right, while closing connections push it towards the left. This means that, if your pool4 size is somewhat larger than your connection population, you will remain comfortably on the left side on the graph. Meaning, the algorithm will never become slow.
 > 
-> Just for a bit of context, most of the connections I see while analyzing traffic are HTTP. While those are many, they are also very short-lived. Most of these connections are initiated and then closed instantly, and then they time out after [4 minutes by default](#--tcp-trans-timeout).
+> Just for a bit of context, most of the connections I see while analyzing traffic are HTTP. While those are many, they are also very short-lived. Most of these connections are initiated and then closed instantly, and then they time out after [4 minutes by default](usr-flags-global.html#--tcp-trans-timeout).
 
 Through most of the run, and due to the random nature of `F()`, masks tend to be allocated uniformly across the pool4 domain and collision (which causes the algorithm to iterate) is therefore unlikely. The algorithm rarely needs to iterate more than very few times.
 

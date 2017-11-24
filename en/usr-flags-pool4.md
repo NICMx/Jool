@@ -33,13 +33,10 @@ The IPv4 pool is the subset of the node's transport addresses which are reserved
 
 	jool --pool4 (
 		[--display] [--csv]
-		| --add <PROTOCOLS> <IPv4-prefix> <port-range>
-				[--mark <mark>]
-				[--max-iterations <iterations>]
-				[--force]
-		| --update <PROTOCOLS> --mark <mark> --max-iterations <iterations>
-		| --remove <PROTOCOLS> <IPv4-prefix> <port-range> [--mark <mark>] [--quick]
-		| --flush [--quick]
+		| --add    [--mark <mark>] [<PROTOCOLS>] <IPv4-prefix> [<port-range>] [--max-iterations <iterations>] [--force]
+		| --remove [--mark <mark>] [<PROTOCOLS>] <IPv4-prefix> [<port-range>] [--quick]
+		| --update  --mark <mark>  [<PROTOCOLS>] --max-iterations <iterations>
+		| --flush [--quick ]
 	)
 
 	<PROTOCOLS> := [--tcp] [--udp] [--icmp]
@@ -67,7 +64,7 @@ The IPv4 pool is the subset of the node's transport addresses which are reserved
 | `--tcp` | * | Apply operation on TCP entries (that also match `<mark>`). |
 | `--udp` | * | Apply operation on UDP entries (that also match `<mark>`). |
 | `--icmp` | * | Apply operation on ICMP entries (that also match `<mark>`). |
-| [`--max-iterations`](#--max-iterations) | null | Specifies the Max Iterations value of the set being modified. |
+| [`--max-iterations`](#--max-iterations) | `auto` | Specifies the Max Iterations value of the set being modified. |
 | `<IPv4-prefix>` | - | Group of addresses you are adding or removing to/from the pool. The length is optional and defaults to 32. |
 | [`<port-range>`](#port-range) | 1-65535 for TCP/UDP, 0-65535 for ICMP | Ports from `<IPv4-prefix>` you're adding or removing to/from the pool. |
 | `--force` | (absent) | If present, add the elements to the pool even if they're too many.<br />(Will print a warning and quit otherwise.) |
