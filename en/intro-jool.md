@@ -35,7 +35,7 @@ As far as we know, this is the compliance status of Jool 3.4:
 | [RFC 6877](http://tools.ietf.org/html/rfc6877) | 464XLAT | Rather implemented as SIIT-DC-DTM; see below. |
 | [RFC 7755]({{ site.draft-siit-dc }}) | SIIT-DC | Fully compliant. |
 | [RFC 7756]({{ site.draft-siit-dc-2xlat }}) | SIIT-DC: Dual Translation Mode | Fully compliant. |
-| [draft-ietf-6man-deprecate-atomfrag-generation]({{ site.draft-deprecate-atomfrag-generation }}) | Atomic Fragment Deprecation | Fully compliant. |
+| [RFC 8021]({{ site.draft-deprecate-atomfrag-generation }}) | Atomic Fragment Deprecation | Fully compliant. |
 | [RFC 7757]({{ site.draft-siit-eam }}) | EAM | Fully compliant. |
 | [RFC 7422](https://tools.ietf.org/html/rfc7422) | Deterministic port allocations | Deterministic port allocations (sequential algorithm only) can be obtained using the pool4's `--mark` argument ([mark-src-range](https://github.com/NICMx/mark-src-range) ip6tables plugin suggested). |
 

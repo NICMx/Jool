@@ -20,18 +20,54 @@ Jool is an Open Source [SIIT and NAT64](intro-xlat.html) for Linux.
 
 ## Status
 
-As far as we know, Jool is a [compliant](intro-jool.html#compliance) SIIT and Stateful NAT64. This is the roadmap as of 2017-03-09:
+As far as we know, Jool is a [compliant](intro-jool.html#compliance) SIIT and Stateful NAT64. This is the roadmap as of 2017-11-23:
 
 2. [Milestone 4.0.0]({{ site.repository-url }}/issues?q=milestone%3A4.0.0) will be an [internal refactor]({{ site.repository-url }}/issues/140) which should enhance Jool's config versatility.
 3. [Milestone 4.1.0]({{ site.repository-url }}/issues?q=milestone%3A4.1.0) will add several more features.
 
 New bug reports might interpolate other milestones in-between. Feedback from users can persuade us to change priorities. See [Contact](contact.html) for options on this.
 
-Our latest release is version [3.5.4]({{ site.repository-url }}/milestone/38).
+Our latest release is version [3.5.5]({{ site.repository-url }}/milestone/40).
 
 -------------------
 
 ## News
+
+## 2017-11-23
+
+Version 3.5.5 has been released.
+
+Bugfixes:
+
+1. [#249](https://github.com/NICMx/Jool/issues/249): Fix missing entries from `--eamt --display` output.
+2. [#253](https://github.com/NICMx/Jool/issues/253): Fix namespace code for usage of Jool in a container.
+3. [Fix random broken connections due to mischosen masking ports](https://github.com/NICMx/Jool/commit/3de64b8e694131893c9a59fa506c02265bb31bf0).
+4. `--pool4 --add` and `--pool4 --remove` weren't validating that the given prefix didn't contain suffix bits active. They reacted in different ways no this situation, both of which were wrong.
+
+Performance patches:
+
+1. Improve mask selection algorithm's performance. [Please read this](pool4.html). The default value of Max Iterations is not backwards compatible!
+
+Also, just a heads up: If you monitored the logging message
+
+	I ran out of pool4 addresses.
+
+Then you probably want to know that it changed slightly:
+
+	I'm running out of pool4 addresses for mark <mark>.
+
+If the relevant Max Iterations is `infinity`, then the message triggers when pool4 is exhausted (as it used to). If it isn't, it triggers whenever pool4 failed to find a suitable mark. (Though the message rate-limits itself.)
+
+Misc tweaks:
+
+1. The userspace app now displays assumed mode and operation on most errors.
+
+This should help users troubleshoot problems, particularly when these fields are implicit:
+
+	# jool --pool4 --tcp 192.0.2.1/30
+	Jool Error: '192.0.2.1/30' seems to have a suffix; please fix.
+	(Error code: 22)
+	(Note: Assuming configuration mode '--pool4' and operation '--add'.)
 
 ### 2017-07-25
 

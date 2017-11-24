@@ -119,7 +119,7 @@ As an example, assume the following pool4 configuration:
 
 Mark | Protocol | Max Iterations | Transport Addresses
 -----|----------|----------------|--------------------------|
-   0 | ICMP     | Infinite       | (192.0.2.0/29)#(0-65535) |
+   0 | ICMP     | Infinity       | (192.0.2.0/29)#(0-65535) |
 
 This pool has 8 IPv4 addresses (192.0.2.0 through 192.0.2.7), and each address has 65536 ports. This means that an IPv4/TCP packet will need to iterate 524288 times (and fail) when the BIB has completely exhausted pool4.
 
@@ -147,7 +147,7 @@ The following graph is a result of the same experiment as the previous one, exce
 
 ![Fig.7 - Capped algorighm 3 performance degradation](../images/global-max-iterations-4096.png)
 
-> ![Note!](../images/bulb.svg) `Max Iterations` does not prevent an attacker from exhausting pool4; it only prevents the NAT64 from hogging up the entire CPU when it's being attacked.
+> ![Note!](../images/bulb.svg) `Max Iterations` does not prevent an attacker from exhausting pool4; it only prevents the NAT64 from hogging up the entire CPU when it's being attacked or exhausted.
 
 If the drawbacks of `Max Iterations` to not seem reasonable to you, another way to minimize the effects of the spike would be to keep pool4 very small. If your pool4 has 16 addresses, and almost 64k ports per address, then on the peak of the graph the local v4 address computation takes almost 16 times 64k iterations per new connection. If you only had, say, 1 address, that'd be 64k iterations. And so on. Of course, this solution is hardly viable if you need to serve a large amount of v6 clients.
 
