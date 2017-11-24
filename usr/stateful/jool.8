@@ -1,7 +1,7 @@
 .\" Manpage for jool's userspace app.
 .\" Report bugs to jool@nic.mx.
 
-.TH jool 8 2017-07-25 v3.5.4 "NAT64 Jool's Userspace Application"
+.TH jool 8 2017-11-24 v3.5.5 "NAT64 Jool's Userspace Application"
 
 .SH NAME
 jool - Interact with NAT64 Jool (the kernel module).
@@ -25,13 +25,21 @@ jool_siit --instance (
 .br
 )
 .P
+.RI "jool [--global] (
+.br
+	[--display]
+.br
+.RI "	| [--update] " FLAG_KEY =FLAG_VALUE
+.br
+)
+.P
 jool --pool6 (
 .br
-	[--display] [--csv]
+.RI "	[--display] [" --csv ]
 .br
 	| --count
 .br
-.RI "	| --add " <IPv6-prefix> " [--force]"
+.RI "	| --add " <IPv6-prefix> " [" --force ]
 .br
 .RI "	| --remove " <IPv6-prefix>
 .br
@@ -41,21 +49,21 @@ jool --pool6 (
 .P
 jool --pool4 (
 .br
-	[--display] [--csv]
+.RI "	[--display] [" --csv ]
 .br
-	| --count
+.RI "	| --add    [--mark " <mark> "] [" <PROTOCOLS> "] " <IPv4-prefix> " [" <port-range> "] [--max-iterations " <iterations> "] [" --force ]
 .br
-.RI "	| --add [" <PROTOCOLS> "] " "<IPv4-prefix> <port-range>" " [--mark " <mark> "] [--force]"
+.RI "	| --remove [--mark " <mark> "] [" <PROTOCOLS> "] " <IPv4-prefix> " [" <port-range> "] [" --quick ]
 .br
-.RI "	| --remove [" <PROTOCOLS> "] " "<IPv4-prefix> <port-range>" " [--mark " <mark> "] [--quick]"
+.RI "	| --update [--mark " <mark> "] [" <PROTOCOLS> "] --max-iterations " <iterations>
 .br
-	| --flush [--quick]
+.RI "	| --flush ["--quick ]
 .br
 )
 .P
 .RI "jool --bib [" <PROTOCOLS> "] (
 .br
-	[--display] [--numeric] [--csv]
+.RI "	[--display] [" --numeric "] [" --csv ]
 .br
 	| --count
 .br
@@ -67,21 +75,13 @@ jool --pool4 (
 .P
 .RI "jool --session [" <PROTOCOLS> "] (
 .br
-	[--display] [--numeric] [--csv]
+.RI "	[--display] [" --numeric "] [" --csv ]
 .br
 	| --count
 .br
 )
 .P
-.RI "jool [--global] (
-.br
-	[--display]
-.br
-.RI "	| [--update] " FLAG_KEY = FLAG_VALUE
-.br
-)
-.P
-.RI "jool [--file] (
+.RI "jool --file (
 .br
 	/path/to/json/file
 .br
@@ -153,10 +153,16 @@ Example: 10.20.30.40#5000
 Example: 1::2#5000
 .IP --quick
 Do not remove orphaned BIB and session entries.
+.IP --force
+Apply operation even if certain validations fail.
 .IP --numeric
 Do not try to resolve hostnames.
 .IP --csv
 Output the table in Comma/Character-Separated Values (.csv) format.
+.IP <mark>
+Mark (column) value of the entry being added, removed or updated.
+.IP <iterations>
+Max Iterations (column) value of the entry being added or updated.
 
 .SS "--global's FLAG_KEYs"
 .IP --disable
@@ -177,8 +183,6 @@ Value to override TOS as (only when --override-tos is ON)
 Set the list of plateaus for ICMPv4 Fragmentation Neededs with MTU unset.
 .IP --maximum-simultaneous-opens=INT
 Set the maximum allowable 'simultaneous' Simultaneos Opens of TCP connections.
-.IP --maximum-mask-iterations=INT
-Set the iteration limit at which a mask allocation should give up and assume the relevant pool4 has been exhausted.
 .IP --source-icmpv6-errors-better=BOOL
 Translate source addresses directly on 4-to-6 ICMP errors?
 .IP --handle-rst-during-fin-rcv=BOOL
@@ -241,9 +245,6 @@ Remove prefix 2001:db8::/96 from the IPv6 pool:
 .br
 	jool --pool6 --remove 2001:db8::/96
 .P
-Print the number of IPv4 addresses in the pool:
-.br
-	jool --pool4 --count
 .br
 Add address 192.0.2.10 to the IPv4 pool:
 .br

@@ -221,7 +221,7 @@ static const struct argp_option max_iterations_opt = {
 		.key = ARGP_MAX_ITERATIONS,
 		.arg = NUM_FORMAT,
 		.flags = 0,
-		.doc = "",
+		.doc = "Max Iterations (column) value of the entry being added or updated.",
 		.group = 0,
 };
 
