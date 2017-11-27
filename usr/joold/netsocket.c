@@ -65,10 +65,20 @@ bool is_multicast6(struct in6_addr *addr)
 	return (addr->s6_addr32[0] & htonl(0xff000000)) == htonl(0xff000000);
 }
 
+static int validate_valueint(cJSON *json, char *field)
+{
+	if (json->numflags & VALUENUM_INT)
+		return 0;
+
+	log_err("%s '%s' is not a valid integer.", field, json->valuestring);
+	return -EINVAL;
+}
+
 static int json_to_config(cJSON *json, struct netsocket_config *cfg)
 {
 	char *missing;
 	cJSON *child;
+	int error;
 
 	memset(cfg, 0, sizeof(*cfg));
 
@@ -93,12 +103,22 @@ static int json_to_config(cJSON *json, struct netsocket_config *cfg)
 	cfg->out_interface = child ? child->valuestring : NULL;
 
 	child = cJSON_GetObjectItem(json, "reuseaddr");
-	cfg->reuseaddr_set = !!child;
-	cfg->reuseaddr = child ? child->valueint : 0;
+	if (child) {
+		error = validate_valueint(child, "reuseaddr");
+		if (error)
+			return error;
+		cfg->reuseaddr_set = true;
+		cfg->reuseaddr = child->valueint;
+	}
 
 	child = cJSON_GetObjectItem(json, "ttl");
-	cfg->ttl_set = !!child;
-	cfg->ttl = child ? child->valueint : 0;
+	if (child) {
+		error = validate_valueint(child, "ttl");
+		if (error)
+			return error;
+		cfg->ttl_set = true;
+		cfg->ttl = child->valueint;
+	}
 
 	return 0;
 

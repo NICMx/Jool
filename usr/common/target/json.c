@@ -72,8 +72,15 @@ static int print_datatype_error(const char *field, cJSON *json, char *expected)
 		log_err("%s 'null' is not a valid %s.", field, expected);
 		break;
 	case cJSON_Number:
-		log_err("%s '%d' is not a valid %s.", field, json->valueint,
-				expected);
+		if (json->numflags & VALUENUM_UINT)
+			log_err("%s '%u' is not a valid %s.", field,
+					json->valueuint, expected);
+		else if (json->numflags & VALUENUM_INT)
+			log_err("%s '%d' is not a valid %s.", field,
+					json->valueint, expected);
+		else
+			log_err("%s '%f' is not a valid %s.", field,
+					json->valuedouble, expected);
 		break;
 	case cJSON_String:
 		log_err("%s '%s' is not a valid %s.", field, json->valuestring,
@@ -98,12 +105,12 @@ static int print_datatype_error(const char *field, cJSON *json, char *expected)
 static int validate_json_uint(const char *field, struct cJSON *node,
 		unsigned int min, unsigned int max)
 {
-	if (node->type != cJSON_Number)
-		return print_datatype_error(field, node, "number");
+	if (node->type != cJSON_Number || !(node->numflags & VALUENUM_UINT))
+		return print_datatype_error(field, node, "unsigned integer");
 
-	if (node->valueint < min || max < node->valueint) {
-		log_err("%s %d is out of range (%u-%u).", field, node->valueint,
-				min, max);
+	if (node->valueuint < min || max < node->valueuint) {
+		log_err("%s %u is out of range (%u-%u).", field,
+				node->valueuint, min, max);
 		return -EINVAL;
 	}
 
@@ -406,14 +413,14 @@ static int write_number(struct nl_buffer *buffer, struct argp_option *opt,
 		if (error)
 			return error;
 		msg.hdr.len += sizeof(__u8);
-		msg.payload8[0] = json->valueint;
+		msg.payload8[0] = json->valueuint;
 		break;
 	case SS_MAX_PAYLOAD:
 		error = validate_u16(opt->name, json);
 		if (error)
 			return error;
 		msg.hdr.len += sizeof(__u16);
-		msg.payload16[0] = json->valueint;
+		msg.payload16[0] = json->valueuint;
 		break;
 	case MAX_PKTS:
 	case SS_CAPACITY:
@@ -427,7 +434,7 @@ static int write_number(struct nl_buffer *buffer, struct argp_option *opt,
 		if (error)
 			return error;
 		msg.hdr.len += sizeof(__u32);
-		msg.payload32 = json->valueint;
+		msg.payload32 = json->valueuint;
 		break;
 	default:
 		log_err("Unknown global type: %u", opt->key);
@@ -472,7 +479,7 @@ static int write_plateaus(struct nl_buffer *buffer, cJSON *root)
 		error = validate_u16(OPTNAME_MTU_PLATEAUS, json);
 		if (error)
 			goto end;
-		plateaus[i] = json->valueint;
+		plateaus[i] = json->valueuint;
 		i++;
 	}
 
@@ -700,7 +707,7 @@ static int parse_max_iterations(struct cJSON *node,
 		if (error)
 			return error;
 		entry->flags = ITERATIONS_SET;
-		entry->iterations = node->valueint;
+		entry->iterations = node->valueuint;
 		break;
 	case cJSON_String:
 		if (strcmp(node->valuestring, "auto") == 0) {
@@ -745,7 +752,7 @@ static int handle_pool4(cJSON *json)
 			error = validate_u32(OPTNAME_MARK, child);
 			if (error)
 				goto end;
-			entry.mark = child->valueint;
+			entry.mark = child->valueuint;
 		} else {
 			entry.mark = 0;
 		}
