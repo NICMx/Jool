@@ -1972,14 +1972,20 @@ end:
 
 static void __clean(struct expire_timer *expirer,
 		struct bib_table *table,
-		struct list_head *probes)
+		struct list_head *probes,
+		u64 *max_session_rm,
+		u64 *sessions_rm,
+		bool *pending_rm)
 {
 	struct tabled_session *session;
 	struct tabled_session *tmp;
 	struct collision_cb cb;
+	u64 session_cnt;
 
 	cb.cb = expirer->decide_fate_cb;
 	cb.arg = NULL;
+
+	log_debug("++ TOTAL Session count = %llu", table->session_count);
 
 	list_for_each_entry_safe(session, tmp, &expirer->sessions, list_hook) {
 		/*
@@ -1988,22 +1994,41 @@ static void __clean(struct expire_timer *expirer,
 		 */
 		if (time_before(jiffies, session->update_time + expirer->timeout))
 			break;
+
+		if (*pending_rm || *sessions_rm >= *max_session_rm) {
+			*pending_rm = 1;
+			log_debug("++ Session pending to rem");
+			break;
+		}
+		session_cnt = table->session_count;
 		decide_fate(&cb, table, session, probes);
-	}
+		*sessions_rm += session_cnt - table->session_count;
+	};
 }
 
-static void clean_table(struct bib_table *table, struct net *ns)
+static void clean_table(struct bib_table *table,
+		struct net *ns,
+		u64 *max_session_rm,
+		u64 *sessions_rm,
+		bool *pending_rm)
 {
 	LIST_HEAD(probes);
 	LIST_HEAD(icmps);
 
+	if (*pending_rm)
+		return;
+
 	spin_lock_bh(&table->lock);
-	__clean(&table->est_timer, table, &probes);
-	__clean(&table->trans_timer, table, &probes);
-	__clean(&table->syn4_timer, table, &probes);
+	__clean(&table->est_timer, table, &probes, max_session_rm, sessions_rm,
+			pending_rm);
+	__clean(&table->trans_timer, table, &probes, max_session_rm, sessions_rm,
+			pending_rm);
+	__clean(&table->syn4_timer, table, &probes, max_session_rm, sessions_rm,
+			pending_rm);
+
 	if (table->pkt_queue) {
-		table->pkt_count -= pktqueue_prepare_clean(table->pkt_queue,
-				&icmps);
+		table->pkt_count -= pktqueue_prepare_clean(table->pkt_queue, &icmps,
+				max_session_rm, sessions_rm, pending_rm);
 	}
 	spin_unlock_bh(&table->lock);
 
@@ -2014,11 +2039,16 @@ static void clean_table(struct bib_table *table, struct net *ns)
 /**
  * Forgets or downgrades (from EST to TRANS) old sessions.
  */
-void bib_clean(struct bib *db, struct net *ns)
+void bib_clean(struct bib *db,
+		struct net *ns,
+		u64 *max_session_rm,
+		bool *pending_rm)
 {
-	clean_table(&db->udp, ns);
-	clean_table(&db->tcp, ns);
-	clean_table(&db->icmp, ns);
+	u64 sessions_rm = 0;
+	clean_table(&db->udp, ns, max_session_rm, &sessions_rm, pending_rm);
+	clean_table(&db->tcp, ns, max_session_rm, &sessions_rm, pending_rm);
+	clean_table(&db->icmp, ns, max_session_rm, &sessions_rm, pending_rm);
+	log_debug("+ Session total removed: %llu", sessions_rm);
 }
 
 static struct rb_node *find_starting_point(struct bib_table *table,

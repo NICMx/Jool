@@ -12,8 +12,9 @@
 #include "nat64/mod/common/xlator.h"
 #include "nat64/mod/common/nl/nl_handler.h"
 #include "nat64/mod/stateful/fragment_db.h"
+#include "nat64/mod/stateful/global_timer.h"
 #include "nat64/mod/stateful/joold.h"
-#include "nat64/mod/stateful/timer.h"
+#include "nat64/mod/stateful/session_timer.h"
 #include "nat64/mod/stateful/pool4/db.h"
 #include "nat64/mod/stateful/pool4/rfc6056.h"
 #include "nat64/mod/stateful/bib/db.h"
@@ -135,9 +136,12 @@ static int __init jool_init(void)
 	error = nlhandler_init();
 	if (error)
 		goto nlhandler_fail;
-	error = timer_init();
+	error = global_timer_init();
 	if (error)
-		goto timer_fail;
+		goto global_timer_fail;
+	error = session_timer_init();
+	if (error)
+		goto session_timer_fail;
 	error = logtime_init();
 	if (error)
 		goto logtime_fail;
@@ -161,8 +165,10 @@ nf_register_hooks_fail:
 instance_fail:
 	logtime_destroy();
 logtime_fail:
-	timer_destroy();
-timer_fail:
+	session_timer_destroy();
+session_timer_fail:
+	global_timer_destroy();
+global_timer_fail:
 	nlhandler_destroy();
 nlhandler_fail:
 	xlator_destroy();
@@ -183,7 +189,8 @@ static void __exit jool_exit(void)
 	nf_unregister_hooks(nfho, ARRAY_SIZE(nfho));
 
 	logtime_destroy();
-	timer_destroy();
+	session_timer_destroy();
+	global_timer_destroy();
 	nlhandler_destroy();
 	xlator_destroy();
 	rfc6056_destroy();

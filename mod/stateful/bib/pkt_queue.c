@@ -197,7 +197,10 @@ void pktqueue_put_node(struct pktqueue_session *node)
  * @probes.
  */
 unsigned int pktqueue_prepare_clean(struct pktqueue *queue,
-		struct list_head *probes)
+		struct list_head *probes,
+		u64 *max_session_rm,
+		u64 *sessions_rm,
+		bool *pending_rm)
 {
 	struct pktqueue_session *node, *tmp;
 	const unsigned long TIMEOUT = get_timeout();
@@ -211,9 +214,15 @@ unsigned int pktqueue_prepare_clean(struct pktqueue *queue,
 		if (time_before(jiffies, node->update_time + TIMEOUT))
 			break;
 
+		if (*pending_rm || *sessions_rm >= *max_session_rm) {
+			*pending_rm = 1;
+			log_debug("++ Session pending to rem in pktqueue");
+			break;
+		}
 		rm(queue, node);
 		list_add(&node->list_hook, probes);
 		removed++;
+		(*sessions_rm)++;
 	}
 
 	return removed;
