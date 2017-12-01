@@ -28,14 +28,9 @@ static void update_params(unsigned long arg)
 	if (sess_params.pend_rm) {
 		timer.data = msecs_to_jiffies(jiffies_to_msecs(arg) / 2);
 		sess_params.max_session_rm <<= 1;
-		log_debug("+ Session timer NEW msecs and max_sess_rm: %u - %llu",
-				(jiffies_to_msecs(arg) / 2), sess_params.max_session_rm);
 	} else {
 		timer.data = INITIAL_TIMER_PERIOD;
 		sess_params.max_session_rm = MAX_SESSIONS_RM;
-		log_debug("+ Session timer RESET msecs and max_sess_rm: %u - %llu",
-				jiffies_to_msecs(INITIAL_TIMER_PERIOD),
-				sess_params.max_session_rm);
 	}
 	sess_params.pend_rm = 0;
 }

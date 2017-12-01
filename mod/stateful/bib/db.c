@@ -1985,8 +1985,6 @@ static void __clean(struct expire_timer *expirer,
 	cb.cb = expirer->decide_fate_cb;
 	cb.arg = NULL;
 
-	log_debug("++ TOTAL Session count = %llu", table->session_count);
-
 	list_for_each_entry_safe(session, tmp, &expirer->sessions, list_hook) {
 		/*
 		 * "list" is sorted by expiration date,
@@ -1997,7 +1995,6 @@ static void __clean(struct expire_timer *expirer,
 
 		if (*pending_rm || *sessions_rm >= *max_session_rm) {
 			*pending_rm = 1;
-			log_debug("++ Session pending to rem");
 			break;
 		}
 		session_cnt = table->session_count;
@@ -2048,7 +2045,6 @@ void bib_clean(struct bib *db,
 	clean_table(&db->udp, ns, max_session_rm, &sessions_rm, pending_rm);
 	clean_table(&db->tcp, ns, max_session_rm, &sessions_rm, pending_rm);
 	clean_table(&db->icmp, ns, max_session_rm, &sessions_rm, pending_rm);
-	log_debug("+ Session total removed: %llu", sessions_rm);
 }
 
 static struct rb_node *find_starting_point(struct bib_table *table,

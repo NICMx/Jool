@@ -216,7 +216,6 @@ unsigned int pktqueue_prepare_clean(struct pktqueue *queue,
 
 		if (*pending_rm || *sessions_rm >= *max_session_rm) {
 			*pending_rm = 1;
-			log_debug("++ Session pending to rem in pktqueue");
 			break;
 		}
 		rm(queue, node);
