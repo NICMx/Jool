@@ -20,6 +20,7 @@ obj-m += $(PAGE).o
 
 $(PAGE)-objs += $(MIN_REQS)
 $(PAGE)-objs += ../impersonator/icmp_wrapper.o
+$(PAGE)-objs += ../impersonator/nf_hook.o
 $(PAGE)-objs += ../impersonator/route.o
 $(PAGE)-objs += ../framework/skb_generator.o
 $(PAGE)-objs += ../framework/types.o

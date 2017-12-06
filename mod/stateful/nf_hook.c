@@ -5,6 +5,7 @@
 #include "nat64/common/constants.h"
 #include "nat64/common/xlat.h"
 #include "nat64/mod/common/core.h"
+#include "nat64/mod/common/linux_version.h"
 #include "nat64/mod/common/log_time.h"
 #include "nat64/mod/common/nf_wrapper.h"
 #include "nat64/mod/common/pool6.h"
@@ -85,6 +86,16 @@ static struct nf_hook_ops nfho[] = {
 	},
 };
 
+void init_nf_hook_op6(struct nf_hook_ops *ops)
+{
+	memcpy(ops, &nfho[0], sizeof(nfho[0]));
+}
+
+void init_nf_hook_op4(struct nf_hook_ops *ops)
+{
+	memcpy(ops, &nfho[1], sizeof(nfho[1]));
+}
+
 static int add_instance(void)
 {
 	struct xlator jool;
@@ -147,17 +158,21 @@ static int __init jool_init(void)
 	if (error)
 		goto instance_fail;
 
+#if LINUX_VERSION_LOWER_THAN(4, 13, 0, 9999, 0)
 	/* Hook Jool to Netfilter. */
 	error = nf_register_hooks(nfho, ARRAY_SIZE(nfho));
 	if (error)
 		goto nf_register_hooks_fail;
+#endif
 
 	/* Yay */
 	log_info("%s v" JOOL_VERSION_STR " module inserted.", xlat_get_name());
 	return error;
 
+#if LINUX_VERSION_LOWER_THAN(4, 13, 0, 9999, 0)
 nf_register_hooks_fail:
 	xlator_rm();
+#endif
 instance_fail:
 	logtime_destroy();
 logtime_fail:
@@ -180,7 +195,9 @@ bib_fail:
 
 static void __exit jool_exit(void)
 {
+#if LINUX_VERSION_LOWER_THAN(4, 13, 0, 9999, 0)
 	nf_unregister_hooks(nfho, ARRAY_SIZE(nfho));
+#endif
 
 	logtime_destroy();
 	timer_destroy();

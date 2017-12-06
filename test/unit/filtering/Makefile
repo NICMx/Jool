@@ -33,6 +33,7 @@ $(FILTERING)-objs += ../../../mod/stateful/bib/pkt_queue.o
 $(FILTERING)-objs += ../framework/skb_generator.o
 $(FILTERING)-objs += ../framework/types.o
 $(FILTERING)-objs += ../impersonator/icmp_wrapper.o
+$(FILTERING)-objs += ../impersonator/nf_hook.o
 $(FILTERING)-objs += ../impersonator/route.o
 $(FILTERING)-objs += impersonator.o
 $(FILTERING)-objs += filtering_and_updating_test.o

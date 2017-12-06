@@ -28,6 +28,7 @@ $(JOOLNS)-objs += ../../../mod/stateless/pool.o
 $(JOOLNS)-objs += ../../../mod/stateless/rfc6791.o
 $(JOOLNS)-objs += ../../../mod/stateless/eam.o
 $(JOOLNS)-objs += ../../../mod/stateless/impersonator.o
+$(JOOLNS)-objs += ../impersonator/nf_hook.o
 $(JOOLNS)-objs += ../impersonator/route.o
 $(JOOLNS)-objs += impersonator.o
 $(JOOLNS)-objs += joolns_test.o

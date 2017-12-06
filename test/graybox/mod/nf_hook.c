@@ -4,6 +4,7 @@
 #include <linux/netfilter_ipv6.h>
 
 #include "nat64/common/types.h"
+#include "nat64/mod/common/linux_version.h"
 #include "nat64/mod/common/nf_wrapper.h"
 
 #include "expecter.h"
@@ -33,8 +34,7 @@ static struct nf_hook_ops nfho[] = {
 	}
 };
 
-static int __init
-graybox_init(void)
+static int __init graybox_init(void)
 {
 	int error;
 
@@ -46,7 +46,11 @@ graybox_init(void)
 	error_pool_init();
 	expecter_init();
 
+#if LINUX_VERSION_AT_LEAST(4, 13, 0, 9999, 0)
+	error = nf_register_net_hooks(&init_net, nfho, ARRAY_SIZE(nfho));
+#else
 	error = nf_register_hooks(nfho, ARRAY_SIZE(nfho));
+#endif
 	if (error) {
 		expecter_destroy();
 		error_pool_destroy();
@@ -58,10 +62,13 @@ graybox_init(void)
 	return error;
 }
 
-static void __exit
-graybox_exit(void)
+static void __exit graybox_exit(void)
 {
+#if LINUX_VERSION_AT_LEAST(4, 13, 0, 9999, 0)
+	nf_unregister_net_hooks(&init_net, nfho, ARRAY_SIZE(nfho));
+#else
 	nf_unregister_hooks(nfho, ARRAY_SIZE(nfho));
+#endif
 
 	expecter_destroy();
 	error_pool_destroy();

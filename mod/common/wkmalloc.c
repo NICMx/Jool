@@ -73,9 +73,12 @@ static int cmp_kmn(struct kmalloc_entry *entry, const char *str)
 	return strcmp(kmn_name(entry), str);
 }
 
-void wkmalloc_rm(const char *name)
+void wkmalloc_rm(const char *name, void *obj)
 {
 	struct kmalloc_entry *entry;
+
+	if (!obj)
+		return;
 
 	spin_lock_bh(&lock);
 

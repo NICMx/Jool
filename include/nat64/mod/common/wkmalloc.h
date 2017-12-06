@@ -5,7 +5,7 @@
 #include "nat64/common/types.h"
 
 void wkmalloc_add(const char *name);
-void wkmalloc_rm(const char *name);
+void wkmalloc_rm(const char *name, void *obj);
 void wkmalloc_print_leaks(void);
 void wkmalloc_destroy(void);
 
@@ -31,7 +31,7 @@ static inline void __wkfree(const char *name, void *obj)
 {
 	kfree(obj);
 #ifdef JKMEMLEAK
-	wkmalloc_rm(name);
+	wkmalloc_rm(name, obj);
 #endif
 }
 
@@ -56,7 +56,7 @@ static inline void wkmem_cache_free(const char *name, struct kmem_cache *cache,
 {
 	kmem_cache_free(cache, obj);
 #ifdef JKMEMLEAK
-	wkmalloc_rm(name);
+	wkmalloc_rm(name, obj);
 #endif
 }
 

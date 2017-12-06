@@ -4,6 +4,8 @@
 #include "nat64/common/types.h"
 #include "nat64/common/xlat.h"
 #include "nat64/mod/common/atomic_config.h"
+#include "nat64/mod/common/linux_version.h"
+#include "nat64/mod/common/nf_hook.h"
 #include "nat64/mod/common/pool6.h"
 #include "nat64/mod/common/wkmalloc.h"
 #include "nat64/mod/stateless/blacklist4.h"
@@ -23,13 +25,34 @@ struct jool_instance {
 
 	/*
 	 * I want to turn this into a hash table, but it doesn't seem like
-	 * @ns holds anything reminiscent of an identifier...
+	 * @jool.ns holds anything reminiscent of an identifier...
 	 */
 	struct list_head list_hook;
+
+#if LINUX_VERSION_AT_LEAST(4, 13, 0, 9999, 0)
+	/**
+	 * This points to a 2-sized array for nf_register_net_hooks().
+	 * The 2 is currently hardcoded in code below.
+	 *
+	 * It needs to be a pointer to an array and not an array because the
+	 * ops needs to survive atomic configuration; the jool_instance needs to
+	 * be replaced but the ops needs to survive.
+	 */
+	struct nf_hook_ops *nf_ops;
+#endif
 };
 
 static struct list_head __rcu *pool;
 static DEFINE_MUTEX(lock);
+
+static void destroy_jool_instance(struct jool_instance *instance)
+{
+#if LINUX_VERSION_AT_LEAST(4, 13, 0, 9999, 0)
+	__wkfree("nf_hook_ops", instance->nf_ops);
+#endif
+	xlator_put(&instance->jool);
+	wkfree(struct jool_instance, instance);
+}
 
 static void xlator_get(struct xlator *jool)
 {
@@ -65,6 +88,10 @@ static int exit_net(struct net *ns)
 	list = rcu_dereference_protected(pool, lockdep_is_held(&lock));
 	list_for_each_entry(instance, list, list_hook) {
 		if (instance->jool.ns == ns) {
+#if LINUX_VERSION_AT_LEAST(4, 13, 0, 9999, 0)
+			nf_unregister_net_hooks(ns, instance->nf_ops, 2);
+#endif
+
 			/* Remove the instance from the list FIRST. */
 			list_del_rcu(&instance->list_hook);
 			mutex_unlock(&lock);
@@ -81,8 +108,7 @@ static int exit_net(struct net *ns)
 			 * because the instance is no longer listed.
 			 * So finally return everything.
 			 */
-			xlator_put(&instance->jool);
-			wkfree(struct jool_instance, instance);
+			destroy_jool_instance(instance);
 			return 0;
 		}
 	}
@@ -130,18 +156,8 @@ int xlator_init(void)
  */
 void xlator_destroy(void)
 {
-	struct list_head *list;
-	struct jool_instance *instance;
-	struct jool_instance *tmp;
-
 	unregister_pernet_subsys(&joolns_ops);
-
-	list = rcu_dereference_raw(pool);
-	list_for_each_entry_safe(instance, tmp, list, list_hook) {
-		xlator_put(&instance->jool);
-		wkfree(struct jool_instance, instance);
-	}
-	__wkfree("xlator DB", list);
+	__wkfree("xlator DB", rcu_dereference_raw(pool));
 }
 
 static int init_siit(struct xlator *jool)
@@ -271,6 +287,25 @@ int xlator_add(struct xlator *result)
 		return error;
 	}
 
+#if LINUX_VERSION_AT_LEAST(4, 13, 0, 9999, 0)
+	instance->nf_ops = __wkmalloc("nf_hook_ops",
+			2 * sizeof(struct nf_hook_ops),
+			GFP_KERNEL);
+	if (!instance->nf_ops) {
+		destroy_jool_instance(instance);
+		return -ENOMEM;
+	}
+
+	init_nf_hook_op6(&instance->nf_ops[0]);
+	init_nf_hook_op4(&instance->nf_ops[1]);
+
+	error = nf_register_net_hooks(ns, instance->nf_ops, 2);
+	if (error) {
+		destroy_jool_instance(instance);
+		return error;
+	}
+#endif
+
 	mutex_lock(&lock);
 	error = xlator_find(ns, NULL);
 	switch (error) {
@@ -298,8 +333,7 @@ int xlator_add(struct xlator *result)
 
 mutex_fail:
 	mutex_unlock(&lock);
-	xlator_put(&instance->jool);
-	wkfree(struct jool_instance, instance);
+	destroy_jool_instance(instance);
 	return error;
 }
 
@@ -352,13 +386,18 @@ int xlator_replace(struct xlator *jool)
 	list_for_each_entry_rcu(old, list, list_hook) {
 		if (old->jool.ns == new->jool.ns) {
 			/* The comments at exit_net() also apply here. */
+#if LINUX_VERSION_AT_LEAST(4, 13, 0, 9999, 0)
+			new->nf_ops = old->nf_ops;
+#endif
 			list_replace_rcu(&old->list_hook, &new->list_hook);
 			mutex_unlock(&lock);
 
 			synchronize_rcu_bh();
 
-			xlator_put(&old->jool);
-			wkfree(struct jool_instance, old);
+#if LINUX_VERSION_AT_LEAST(4, 13, 0, 9999, 0)
+			old->nf_ops = NULL;
+#endif
+			destroy_jool_instance(old);
 			return 0;
 		}
 	}
