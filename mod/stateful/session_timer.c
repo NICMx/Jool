@@ -32,7 +32,7 @@ static void update_params(unsigned long arg)
 		timer.data = INITIAL_TIMER_PERIOD;
 		sess_params.max_session_rm = MAX_SESSIONS_RM;
 	}
-	sess_params.pend_rm = 0;
+	sess_params.pend_rm = false;
 }
 
 static void timer_function(unsigned long arg)
@@ -51,7 +51,7 @@ int session_timer_init(void)
 	timer.function = timer_function;
 	timer.expires = 0;
 	timer.data = 0;
-	sess_params.pend_rm = 0;
+	sess_params.pend_rm = false;
 	sess_params.max_session_rm = MAX_SESSIONS_RM;
 	mod_timer(&timer, jiffies + INITIAL_TIMER_PERIOD);
 	return 0;

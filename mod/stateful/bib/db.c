@@ -1994,7 +1994,7 @@ static void __clean(struct expire_timer *expirer,
 			break;
 
 		if (*pending_rm || *sessions_rm >= *max_session_rm) {
-			*pending_rm = 1;
+			*pending_rm = true;
 			break;
 		}
 		session_cnt = table->session_count;

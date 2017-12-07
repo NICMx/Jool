@@ -215,7 +215,7 @@ unsigned int pktqueue_prepare_clean(struct pktqueue *queue,
 			break;
 
 		if (*pending_rm || *sessions_rm >= *max_session_rm) {
-			*pending_rm = 1;
+			*pending_rm = true;
 			break;
 		}
 		rm(queue, node);
