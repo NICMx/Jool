@@ -55,7 +55,7 @@ static void print_table_divisor(void)
 	 * Lol, dude. Maybe there's some console table manager library out there
 	 * that we should be using.
 	 */
-	printf("+------------+-------+--------------------+-----------------+----------+----------+\n");
+	printf("+------------+-------+--------------------+-----------------+-------------+\n");
 }
 
 static void display_sample_normal(struct pool4_sample *sample,
@@ -71,7 +71,7 @@ static void display_sample_normal(struct pool4_sample *sample,
 			printf("%10s", "Infinite");
 		else
 			printf("%10u", sample->iterations);
-		printf(" (%5s) | %15s | %8u | %8u |\n",
+		printf(" (%5s) | %15s | %5u-%5u |\n",
 				(sample->iterations_flags & ITERATIONS_AUTO)
 						? "auto"
 						: "fixed",
@@ -79,7 +79,7 @@ static void display_sample_normal(struct pool4_sample *sample,
 				sample->range.ports.min,
 				sample->range.ports.max);
 	} else {
-		printf("| %10s | %5s | %10s  %5s  | %15s | %8u | %8u |\n",
+		printf("| %10s | %5s | %10s  %5s  | %15s | %5u-%5u |\n",
 				"",
 				"",
 				"",
@@ -157,7 +157,7 @@ int pool4_display(display_flags flags)
 			printf("Mark,Protocol,Address,Min port,Max port,Iterations,Iterations fixed\n");
 		else {
 			print_table_divisor();
-			printf("|       Mark | Proto |     Max iterations |         Address | Port min | Port max |\n");
+			printf("|       Mark | Proto |     Max iterations |         Address |       Ports |\n");
 		}
 	}
 
