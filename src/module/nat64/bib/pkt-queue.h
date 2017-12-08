@@ -94,9 +94,9 @@
  * module is the section of the code that deals with type 1 packets.
  */
 
-#include "nat64/common/config.h"
-#include "nat64/mod/common/packet.h"
-#include "nat64/mod/stateful/pool4/db.h"
+#include "config.h"
+#include "packet.h"
+#include "nat64/pool4/db.h"
 
 struct pktqueue;
 

@@ -12,7 +12,7 @@
 
 #include <linux/ip.h>
 #include <linux/skbuff.h>
-#include "nat64/mod/common/translation_state.h"
+#include "translation-state.h"
 
 verdict translating_the_packet(struct xlation *state);
 

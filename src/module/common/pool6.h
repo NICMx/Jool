@@ -6,7 +6,7 @@
  * The pool of IPv6 prefixes.
  */
 
-#include "nat64/common/types.h"
+#include "types.h"
 
 struct pool6;
 

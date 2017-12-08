@@ -7,8 +7,8 @@
  */
 #include <linux/kernel.h>
 #include <linux/printk.h>
-#include "nat64/common/xlat.h"
-#include "nat64/mod/common/error_pool.h"
+#include "xlat.h"
+#include "error-pool.h"
 
 /**
  * Messages to help us walk through a run. Also covers normal packet drops

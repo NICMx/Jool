@@ -1,12 +1,12 @@
-#include "nat64/mod/common/config.h"
+#include "config.h"
 
 #include <linux/ipv6.h>
 #include <linux/jiffies.h>
-#include "nat64/common/config.h"
-#include "nat64/common/constants.h"
-#include "nat64/common/types.h"
-#include "nat64/mod/common/tags.h"
-#include "nat64/mod/common/wkmalloc.h"
+#include "config.h"
+#include "constants.h"
+#include "types.h"
+#include "tags.h"
+#include "wkmalloc.h"
 
 static DEFINE_MUTEX(lock);
 

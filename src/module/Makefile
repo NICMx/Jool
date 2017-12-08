@@ -1,13 +1,15 @@
-PROJECTS = stateless stateful
-OTHER_TARGETS = modules modules_install install clean debug
+MODULES_DIR ?= /lib/modules/$(shell uname -r)
+KERNEL_DIR ?= ${MODULES_DIR}/build
 
-
-all: $(PROJECTS)
-	# Running the dependencies is enough.
-$(PROJECTS):
-	$(MAKE) -C $@
-$(OTHER_TARGETS):
-	$(foreach dir, $(PROJECTS), $(MAKE) -C $(dir) $@;)
-
-
-.PHONY: $(PROJECTS) $(OTHER_TARGETS)
+all:
+	make -C ${KERNEL_DIR} M=$$PWD JOOL_FLAGS="${JOOL_FLAGS}"
+modules:
+	make -C ${KERNEL_DIR} M=$$PWD $@
+modules_install:
+	make -C ${KERNEL_DIR} M=$$PWD $@
+install: modules_install
+	depmod
+clean:
+	make -C ${KERNEL_DIR} M=$$PWD $@
+debug:
+	make all JOOL_FLAGS+=-DDEBUG

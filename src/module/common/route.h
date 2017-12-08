@@ -1,7 +1,7 @@
 #ifndef _JOOL_MOD_ROUTE_H
 #define _JOOL_MOD_ROUTE_H
 
-#include "nat64/mod/common/packet.h"
+#include "packet.h"
 
 struct route4_args {
 	struct net *ns;

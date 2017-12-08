@@ -18,7 +18,7 @@
  * please.
  */
 
-#include "nat64/mod/common/packet.h"
+#include "packet.h"
 
 typedef enum icmp_error_code {
 	ICMPERR_SILENT,

@@ -6,12 +6,12 @@
  * Kernel-specific core data types and routines.
  */
 
-#include "nat64/common/types.h"
+#include "types.h"
 #include <linux/netfilter.h>
 #include <linux/kernel.h>
-#include "nat64/common/xlat.h"
-#include "nat64/mod/common/address.h"
-#include "nat64/mod/common/error_pool.h"
+#include "xlat.h"
+#include "address.h"
+#include "error-pool.h"
 
 /**
  * An indicator of what a function expects its caller to do with the packet being translated.

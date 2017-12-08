@@ -1,10 +1,10 @@
-#include "nat64/mod/stateful/bib/pkt_queue.h"
+#include "nat64/bib/pkt-queue.h"
 
-#include "nat64/common/constants.h"
-#include "nat64/mod/common/config.h"
-#include "nat64/mod/common/icmp_wrapper.h"
-#include "nat64/mod/common/rbtree.h"
-#include "nat64/mod/common/wkmalloc.h"
+#include "constants.h"
+#include "config.h"
+#include "icmp-wrapper.h"
+#include "rbtree.h"
+#include "wkmalloc.h"
 
 struct pktqueue {
 	/** The stored packets, sorted by expiration date. (oldest to newest) */

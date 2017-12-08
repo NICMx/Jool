@@ -1,4 +1,4 @@
-#include "nat64/mod/common/ipv6_hdr_iterator.h"
+#include "ipv6-hdr-iterator.h"
 #include <net/ipv6.h>
 
 void hdr_iterator_init(struct hdr_iterator *iterator, struct ipv6hdr *main_hdr)

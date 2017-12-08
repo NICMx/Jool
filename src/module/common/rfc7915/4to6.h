@@ -8,7 +8,7 @@
  * This is RFC 6145 sections 4.1, 4.2 and 4.3.
  */
 
-#include "nat64/mod/common/rfc6145/common.h"
+#include "rfc7915/common.h"
 
 /**
  * Creates in "state->out.skb" a packet which other functions will fill with the

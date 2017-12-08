@@ -1,8 +1,8 @@
 #ifndef _JOOL_MOD_BIB_ENTRY_H
 #define _JOOL_MOD_BIB_ENTRY_H
 
-#include "nat64/common/session.h"
-#include "nat64/common/types.h"
+#include "session.h"
+#include "types.h"
 
 /**
  * A mask that dictates which IPv4 transport address is being used to mask a

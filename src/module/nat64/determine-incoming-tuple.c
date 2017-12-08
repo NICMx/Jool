@@ -1,9 +1,9 @@
-#include "nat64/mod/stateful/determine_incoming_tuple.h"
+#include "nat64/determine-incoming-tuple.h"
 
-#include "nat64/mod/common/icmp_wrapper.h"
-#include "nat64/mod/common/ipv6_hdr_iterator.h"
-#include "nat64/mod/common/pool6.h"
-#include "nat64/mod/common/stats.h"
+#include "icmp-wrapper.h"
+#include "ipv6-hdr-iterator.h"
+#include "pool6.h"
+#include "stats.h"
 
 /*
  * There are several points in this module where the RFC says "drop the packet",

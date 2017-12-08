@@ -1,4 +1,4 @@
-#include "nat64/mod/stateless/rfc6791.h"
+#include "siit/rfc6791.h"
 
 #include <linux/rculist.h>
 #include <linux/inet.h>
@@ -7,11 +7,11 @@
 #include <linux/inetdevice.h>
 #include <net/ip_fib.h>
 
-#include "nat64/mod/common/config.h"
-#include "nat64/mod/common/packet.h"
-#include "nat64/mod/common/rcu.h"
-#include "nat64/mod/common/route.h"
-#include "nat64/mod/common/tags.h"
+#include "config.h"
+#include "packet.h"
+#include "rcu.h"
+#include "route.h"
+#include "tags.h"
 
 int rfc6791_init(struct addr4_pool **pool)
 {

@@ -2,7 +2,7 @@
 #define _JOOL_MOD_CONFIG_H
 
 #include <linux/kref.h>
-#include "nat64/common/config.h"
+#include "nl-protocol.h"
 
 struct global_config {
 	struct global_config_usr cfg;

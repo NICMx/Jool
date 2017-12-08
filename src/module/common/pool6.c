@@ -1,13 +1,14 @@
-#include "nat64/mod/common/pool6.h"
+#include "pool6.h"
 
 #include <net/ipv6.h>
-#include "nat64/common/constants.h"
-#include "nat64/common/str_utils.h"
-#include "nat64/common/types.h"
-#include "nat64/mod/common/address.h"
-#include "nat64/mod/common/rcu.h"
-#include "nat64/mod/common/tags.h"
-#include "nat64/mod/common/wkmalloc.h"
+
+#include "constants.h"
+#include "str-utils.h"
+#include "types.h"
+#include "address.h"
+#include "rcu.h"
+#include "tags.h"
+#include "wkmalloc.h"
 
 struct pool6 {
 	struct list_head __rcu *list;

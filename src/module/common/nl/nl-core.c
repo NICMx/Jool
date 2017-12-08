@@ -1,13 +1,13 @@
-#include "nat64/mod/common/nl/nl_core2.h"
+#include "nl/nl-core.h"
 
 #include <linux/stddef.h>
 #include <linux/types.h>
 #include <linux/version.h>
-#include "nat64/common/config.h"
-#include "nat64/common/types.h"
-#include "nat64/mod/common/linux_version.h"
-#include "nat64/mod/common/wkmalloc.h"
-#include "nat64/mod/common/nl/nl_common.h"
+#include "config.h"
+#include "types.h"
+#include "linux-version.h"
+#include "wkmalloc.h"
+#include "nl/nl-common.h"
 
 /*
  * Note: If you're working on this module, please keep in mind that there should

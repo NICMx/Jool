@@ -8,7 +8,7 @@
  * Infers a tuple (summary) of the outgoing packet, yet to be created.
  */
 
-#include "nat64/mod/common/translation_state.h"
+#include "translation-state.h"
 
 verdict compute_out_tuple(struct xlation *state);
 

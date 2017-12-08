@@ -1,8 +1,8 @@
-#include "nat64/mod/common/nl/atomic_config.h"
+#include "atomic-config.h"
 
-#include "nat64/mod/common/nl/nl_common.h"
-#include "nat64/mod/common/nl/nl_core2.h"
-#include "nat64/mod/common/atomic_config.h"
+#include "nl/nl-common.h"
+#include "nl/nl-core.h"
+#include "common/atomic-config.h"
 
 int handle_atomconfig_request(struct xlator *jool, struct genl_info *info)
 {

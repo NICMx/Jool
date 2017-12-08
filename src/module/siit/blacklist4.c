@@ -1,14 +1,14 @@
-#include "nat64/mod/stateless/blacklist4.h"
+#include "siit/blacklist4.h"
 
 #include <linux/rculist.h>
 #include <linux/inet.h>
 #include <linux/netdevice.h>
 #include <linux/inetdevice.h>
 
-#include "nat64/common/str_utils.h"
-#include "nat64/mod/common/address.h"
-#include "nat64/mod/common/xlator.h"
-#include "nat64/mod/common/rcu.h"
+#include "str-utils.h"
+#include "address.h"
+#include "xlator.h"
+#include "rcu.h"
 
 int blacklist_init(struct addr4_pool **pool)
 {

@@ -6,7 +6,7 @@
  * This is a handler for pool of IPv4 addresses.
  */
 
-#include "nat64/common/types.h"
+#include "types.h"
 
 struct addr4_pool;
 

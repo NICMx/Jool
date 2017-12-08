@@ -1,5 +1,5 @@
-#include "nat64/mod/common/translation_state.h"
-#include "nat64/mod/stateful/bib/entry.h"
+#include "translation-state.h"
+#include "nat64/bib/entry.h"
 
 void xlation_init(struct xlation *state)
 {

@@ -71,7 +71,7 @@
 #include <linux/tcp.h>
 #include <linux/icmp.h>
 
-#include "nat64/mod/common/types.h"
+#include "module-types.h"
 
 
 /** Returns a hack-free version of the 'Traffic class' field from @hdr. */

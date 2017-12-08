@@ -7,7 +7,7 @@
  */
 
 #include <net/net_namespace.h>
-#include "nat64/mod/stateless/pool.h"
+#include "siit/pool.h"
 
 int blacklist_init(struct addr4_pool **pool);
 void blacklist_get(struct addr4_pool *pool);

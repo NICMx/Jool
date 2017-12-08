@@ -1,9 +1,10 @@
-#include "nat64/mod/common/types.h"
+#include "module-types.h"
 
 #include <linux/icmp.h>
 #include <linux/icmpv6.h>
 #include <net/ipv6.h>
-#include "nat64/common/str_utils.h"
+
+#include "str-utils.h"
 
 __u8 l4_proto_to_nexthdr(l4_protocol proto)
 {

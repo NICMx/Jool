@@ -1,6 +1,6 @@
 #ifdef BENCHMARK
-#include "nat64/mod/common/log_time.h"
-#include "nat64/mod/common/wkmalloc.h"
+#include "log-time.h"
+#include "wkmalloc.h"
 
 struct log_time_db {
 	struct list_head list;

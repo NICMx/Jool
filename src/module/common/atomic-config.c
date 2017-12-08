@@ -1,14 +1,14 @@
-#include "nat64/mod/common/atomic_config.h"
+#include "atomic-config.h"
 
-#include "nat64/mod/common/nl/global.h"
-#include "nat64/mod/common/pool6.h"
-#include "nat64/mod/common/wkmalloc.h"
-#include "nat64/mod/stateless/eam.h"
-#include "nat64/mod/stateless/pool.h"
-#include "nat64/mod/stateful/fragment_db.h"
-#include "nat64/mod/stateful/joold.h"
-#include "nat64/mod/stateful/pool4/db.h"
-#include "nat64/mod/stateful/bib/db.h"
+#include "nl/nl-global.h"
+#include "pool6.h"
+#include "wkmalloc.h"
+#include "siit/eam.h"
+#include "siit/pool.h"
+#include "nat64/fragment-db.h"
+#include "nat64/joold.h"
+#include "nat64/pool4/db.h"
+#include "nat64/bib/db.h"
 
 /**
  * We'll purge candidates after they've been inactive for this long.

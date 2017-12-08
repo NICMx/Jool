@@ -2,9 +2,9 @@
 #define _JOOL_MOD_RFC6145_COMMON_H
 
 #include <linux/ip.h>
-#include "nat64/common/types.h"
-#include "nat64/mod/common/packet.h"
-#include "nat64/mod/common/translation_state.h"
+#include "types.h"
+#include "packet.h"
+#include "translation-state.h"
 
 /**
  * An accesor for the full unused portion of the ICMP header, which I feel is

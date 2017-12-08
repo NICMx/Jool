@@ -1,9 +1,9 @@
-#include "nat64/mod/common/nl/pool4.h"
+#include "nl/nl-pool4.h"
 
-#include "nat64/mod/common/nl/nl_common.h"
-#include "nat64/mod/common/nl/nl_core2.h"
-#include "nat64/mod/stateful/pool4/db.h"
-#include "nat64/mod/stateful/bib/db.h"
+#include "nl/nl-common.h"
+#include "nl/nl-core.h"
+#include "nat64/pool4/db.h"
+#include "nat64/bib/db.h"
 
 static int pool4_to_usr(struct pool4_sample *sample, void *arg)
 {

@@ -9,7 +9,7 @@
  * those functions lacking argument validations.
  */
 
-#include "nat64/mod/common/packet.h"
+#include "packet.h"
 
 /**
  * Wrapper for both IP6_INC_STATS_BH() and IP_INC_STATS_BH().

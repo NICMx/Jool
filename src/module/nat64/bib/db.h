@@ -7,10 +7,10 @@
  * Formally defined in RFC 6146 section 3.2.
  */
 
-#include "nat64/mod/common/config.h"
-#include "nat64/mod/common/packet.h"
-#include "nat64/mod/stateful/pool4/db.h"
-#include "nat64/mod/stateful/bib/entry.h"
+#include "config.h"
+#include "packet.h"
+#include "nat64/pool4/db.h"
+#include "nat64/bib/entry.h"
 
 struct bib;
 

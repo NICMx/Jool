@@ -1,7 +1,7 @@
-#include "nat64/mod/stateful/compute_outgoing_tuple.h"
+#include "nat64/compute-outgoing-tuple.h"
 
-#include "nat64/mod/common/rfc6052.h"
-#include "nat64/mod/stateful/bib/db.h"
+#include "rfc6052.h"
+#include "nat64/bib/db.h"
 
 /**
  * Ensures @state->entries->bib is computed and valid.

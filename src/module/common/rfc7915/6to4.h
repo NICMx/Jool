@@ -9,7 +9,7 @@
  * the technology called "6to4", which is RFC 3056.
  */
 
-#include "nat64/mod/common/translation_state.h"
+#include "translation-state.h"
 
 /**
  * Creates in "state->out.skb" a packet which other functions will fill with the

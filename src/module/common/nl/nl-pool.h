@@ -2,7 +2,7 @@
 #define __NL_POOL_H__
 
 #include <net/genetlink.h>
-#include "nat64/mod/common/xlator.h"
+#include "xlator.h"
 
 int handle_blacklist_config(struct xlator *jool, struct genl_info *info);
 int handle_pool6791_config(struct xlator *jool, struct genl_info *info);

@@ -1,14 +1,15 @@
-#include "nat64/mod/common/packet.h"
+#include "packet.h"
 
 #include <linux/version.h>
 #include <linux/icmp.h>
 #include <net/route.h>
-#include "nat64/common/types.h"
-#include "nat64/common/constants.h"
-#include "nat64/common/str_utils.h"
-#include "nat64/mod/common/config.h"
-#include "nat64/mod/common/icmp_wrapper.h"
-#include "nat64/mod/common/stats.h"
+
+#include "types.h"
+#include "constants.h"
+#include "str-utils.h"
+#include "config.h"
+#include "icmp-wrapper.h"
+#include "stats.h"
 
 struct pkt_metadata {
 	bool has_frag_hdr;

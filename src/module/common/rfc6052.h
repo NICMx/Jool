@@ -9,8 +9,8 @@
 #include <linux/types.h>
 #include <linux/in.h>
 #include <linux/in6.h>
-#include "nat64/common/types.h"
-#include "nat64/mod/common/pool6.h"
+#include "types.h"
+#include "pool6.h"
 
 
 /**

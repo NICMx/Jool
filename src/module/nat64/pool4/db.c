@@ -1,14 +1,15 @@
-#include "nat64/mod/stateful/pool4/db.h"
+#include "nat64/pool4/db.h"
 
 #include <linux/hash.h>
 #include <linux/list.h>
 #include <linux/slab.h>
-#include "nat64/common/str_utils.h"
-#include "nat64/common/types.h"
-#include "nat64/mod/common/rbtree.h"
-#include "nat64/mod/common/wkmalloc.h"
-#include "nat64/mod/stateful/pool4/empty.h"
-#include "nat64/mod/stateful/pool4/rfc6056.h"
+
+#include "str-utils.h"
+#include "types.h"
+#include "rbtree.h"
+#include "wkmalloc.h"
+#include "nat64/pool4/empty.h"
+#include "nat64/pool4/rfc6056.h"
 
 /*
  * pool4 (struct pool4) is made out of two tree groups (struct pool4_trees).

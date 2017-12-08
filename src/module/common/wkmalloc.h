@@ -2,7 +2,7 @@
 #define _JOOL_MOD_KREF_ANALYZER_H
 
 #include <linux/slab.h>
-#include "nat64/common/types.h"
+#include "types.h"
 
 void wkmalloc_add(const char *name);
 void wkmalloc_rm(const char *name, void *obj);

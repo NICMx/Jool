@@ -8,9 +8,9 @@
  */
 
 #include <linux/net.h>
-#include "nat64/mod/common/types.h"
-#include "nat64/mod/common/config.h"
-#include "nat64/mod/common/route.h"
+#include "types.h"
+#include "config.h"
+#include "route.h"
 
 struct pool4;
 

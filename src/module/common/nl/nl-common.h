@@ -2,7 +2,7 @@
 #define __NL_COMMON_H__
 
 #include <net/genetlink.h>
-#include "nat64/common/config.h"
+#include "config.h"
 
 int verify_superpriv(void);
 struct request_hdr *get_jool_hdr(struct genl_info *info);

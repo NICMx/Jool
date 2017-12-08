@@ -1,9 +1,9 @@
-#include "nat64/mod/common/rtrie.h"
+#include "rtrie.h"
 
 #include <linux/rcupdate.h>
 
-#include "nat64/common/types.h"
-#include "nat64/mod/common/wkmalloc.h"
+#include "types.h"
+#include "wkmalloc.h"
 
 
 #define deref_reader(node) \

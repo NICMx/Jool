@@ -1,20 +1,20 @@
-#include "nat64/mod/common/xlator.h"
+#include "xlator.h"
 
 #include <linux/sched.h>
-#include "nat64/common/types.h"
-#include "nat64/common/xlat.h"
-#include "nat64/mod/common/atomic_config.h"
-#include "nat64/mod/common/linux_version.h"
-#include "nat64/mod/common/nf_hook.h"
-#include "nat64/mod/common/pool6.h"
-#include "nat64/mod/common/wkmalloc.h"
-#include "nat64/mod/stateless/blacklist4.h"
-#include "nat64/mod/stateless/eam.h"
-#include "nat64/mod/stateless/rfc6791.h"
-#include "nat64/mod/stateful/fragment_db.h"
-#include "nat64/mod/stateful/joold.h"
-#include "nat64/mod/stateful/pool4/db.h"
-#include "nat64/mod/stateful/bib/db.h"
+
+#include "types.h"
+#include "xlat.h"
+#include "atomic-config.h"
+#include "linux-version.h"
+#include "pool6.h"
+#include "wkmalloc.h"
+#include "siit/blacklist4.h"
+#include "siit/eam.h"
+#include "siit/rfc6791.h"
+#include "nat64/fragment-db.h"
+#include "nat64/joold.h"
+#include "nat64/pool4/db.h"
+#include "nat64/bib/db.h"
 
 /**
  * All the configuration and state of the Jool instance in the given network

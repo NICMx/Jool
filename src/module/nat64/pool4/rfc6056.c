@@ -1,7 +1,7 @@
-#include "nat64/mod/stateful/pool4/rfc6056.h"
+#include "nat64/pool4/rfc6056.h"
 
 #include <crypto/hash.h>
-#include "nat64/mod/common/wkmalloc.h"
+#include "wkmalloc.h"
 
 /* TODO (issue175) RFC 6056 wants us to change this from time to time. */
 static unsigned char *secret_key;

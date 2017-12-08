@@ -9,7 +9,7 @@
  * want to measure stuff.
  */
 
-#include "nat64/mod/common/packet.h"
+#include "packet.h"
 #include <linux/spinlock.h>
 #include <linux/time.h>
 

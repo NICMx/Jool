@@ -13,7 +13,7 @@
  * The ICMP extension thing has not been implemented yet.
  */
 
-#include "nat64/mod/common/translation_state.h"
+#include "translation-state.h"
 
 int rfc6791_find_v6(struct xlation *state, struct in6_addr *result);
 

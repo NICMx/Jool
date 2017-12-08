@@ -1,9 +1,9 @@
-#include "nat64/mod/common/nl/bib.h"
+#include "nl/nl-bib.h"
 
-#include "nat64/mod/common/nl/nl_common.h"
-#include "nat64/mod/common/nl/nl_core2.h"
-#include "nat64/mod/stateful/pool4/db.h"
-#include "nat64/mod/stateful/bib/db.h"
+#include "nl/nl-common.h"
+#include "nl/nl-core.h"
+#include "nat64/pool4/db.h"
+#include "nat64/bib/db.h"
 
 static int bib_entry_to_userspace(struct bib_entry *entry, bool is_static,
 		void *arg)

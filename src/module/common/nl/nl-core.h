@@ -3,7 +3,9 @@
 
 #include <net/netlink.h>
 #include <net/genetlink.h>
-#include "nat64/common/config.h"
+
+#include "config.h"
+#include "nl-protocol.h"
 
 /**
  * Caller writes on the buffer. Once the buffer is full or the caller finishes

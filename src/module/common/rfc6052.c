@@ -1,9 +1,10 @@
-#include "nat64/mod/common/rfc6052.h"
+#include "rfc6052.h"
 
 #include <linux/module.h>
 #include <linux/printk.h>
-#include "nat64/common/types.h"
-#include "nat64/mod/common/pool6.h"
+
+#include "types.h"
+#include "pool6.h"
 
 union ipv4_address {
 	__be32 as32;

@@ -12,11 +12,11 @@
 #ifdef __KERNEL__
 	#include <linux/in.h>
 	#include <linux/in6.h>
-	#include "nat64/mod/common/log.h"
+	#include "log.h"
 #else
 	#include <stdbool.h>
 	#include <arpa/inet.h>
-	#include "nat64/usr/log.h"
+	#include "log.h"
 #endif
 
 /**

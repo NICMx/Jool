@@ -1,5 +1,5 @@
-#include "nat64/mod/stateful/bib/entry.h"
-#include "nat64/mod/common/address.h"
+#include "nat64/bib/entry.h"
+#include "address.h"
 
 void bib_session_init(struct bib_session *bs)
 {

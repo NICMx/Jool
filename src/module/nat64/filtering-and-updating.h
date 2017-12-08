@@ -7,8 +7,8 @@
  * Session Information", as defined in RFC6146 section 3.5.
  */
 
-#include "nat64/mod/common/translation_state.h"
-#include "nat64/mod/stateful/bib/entry.h"
+#include "translation-state.h"
+#include "nat64/bib/entry.h"
 
 verdict filtering_and_updating(struct xlation *state);
 enum session_fate tcp_est_expire_cb(struct session_entry *session, void *arg);

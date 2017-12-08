@@ -1,25 +1,25 @@
-#include "nat64/mod/common/nl/nl_handler.h"
+#include "nl/nl-handler.h"
 
 #include <linux/mutex.h>
 #include <linux/version.h>
 #include <linux/genetlink.h>
-#include "nat64/common/types.h"
-#include "nat64/mod/common/config.h"
-#include "nat64/mod/common/linux_version.h"
-#include "nat64/mod/common/xlator.h"
-#include "nat64/mod/common/nl/atomic_config.h"
-#include "nat64/mod/common/nl/bib.h"
-#include "nat64/mod/common/nl/eam.h"
-#include "nat64/mod/common/nl/global.h"
-#include "nat64/mod/common/nl/instance.h"
-#include "nat64/mod/common/nl/joold.h"
-#include "nat64/mod/common/nl/logtime.h"
-#include "nat64/mod/common/nl/nl_common.h"
-#include "nat64/mod/common/nl/nl_core2.h"
-#include "nat64/mod/common/nl/pool.h"
-#include "nat64/mod/common/nl/pool4.h"
-#include "nat64/mod/common/nl/pool6.h"
-#include "nat64/mod/common/nl/session.h"
+#include "types.h"
+#include "config.h"
+#include "linux-version.h"
+#include "xlator.h"
+#include "nl/nl-atomic-config.h"
+#include "nl/nl-bib.h"
+#include "nl/nl-eam.h"
+#include "nl/nl-global.h"
+#include "nl/nl-instance.h"
+#include "nl/nl-joold.h"
+#include "nl/nl-logtime.h"
+#include "nl/nl-common.h"
+#include "nl/nl-core.h"
+#include "nl/nl-pool.h"
+#include "nl/nl-pool4.h"
+#include "nl/nl-pool6.h"
+#include "nl/nl-session.h"
 
 static struct genl_multicast_group mc_groups[1] = {
 	{

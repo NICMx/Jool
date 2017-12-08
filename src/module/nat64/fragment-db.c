@@ -1,9 +1,4 @@
-#include "nat64/mod/stateful/fragment_db.h"
-#include "nat64/common/constants.h"
-#include "nat64/mod/common/config.h"
-#include "nat64/mod/common/linux_version.h"
-#include "nat64/mod/common/stats.h"
-#include "nat64/mod/common/packet.h"
+#include "fragment-db.h"
 
 #include <linux/version.h>
 #include <linux/ip.h>
@@ -11,6 +6,12 @@
 #include <net/ipv6.h>
 #include <net/netfilter/ipv4/nf_defrag_ipv4.h>
 #include <net/netfilter/ipv6/nf_defrag_ipv6.h>
+
+#include "constants.h"
+#include "config.h"
+#include "linux-version.h"
+#include "stats.h"
+#include "packet.h"
 
 struct reassembly_buffer {
 	/** first fragment (fragment offset zero) of the packet. */
@@ -30,7 +31,7 @@ static struct kmem_cache *buffer_cache;
 #define KEY_TYPE struct packet
 #define VALUE_TYPE struct reassembly_buffer
 #define HASH_TABLE_SIZE 256
-#include "../common/hash_table.c"
+#include "hash-table.c"
 
 /**
  * Just a random number, initialized at startup.

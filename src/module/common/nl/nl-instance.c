@@ -1,9 +1,9 @@
-#include "nat64/mod/common/nl/instance.h"
+#include "nl/nl-instance.h"
 
-#include "nat64/common/types.h"
-#include "nat64/mod/common/xlator.h"
-#include "nat64/mod/common/nl/nl_common.h"
-#include "nat64/mod/common/nl/nl_core2.h"
+#include "types.h"
+#include "xlator.h"
+#include "nl/nl-common.h"
+#include "nl/nl-core.h"
 
 static int handle_instance_add(struct genl_info *info)
 {

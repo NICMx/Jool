@@ -1,17 +1,17 @@
-#include "nat64/mod/common/rfc6145/4to6.h"
+#include "rfc7915/4to6.h"
 
 #include <net/ip6_checksum.h>
 
-#include "nat64/common/constants.h"
-#include "nat64/mod/common/config.h"
-#include "nat64/mod/common/icmp_wrapper.h"
-#include "nat64/mod/common/pool6.h"
-#include "nat64/mod/common/rfc6052.h"
-#include "nat64/mod/common/route.h"
-#include "nat64/mod/common/stats.h"
-#include "nat64/mod/stateless/blacklist4.h"
-#include "nat64/mod/stateless/eam.h"
-#include "nat64/mod/stateless/rfc6791v6.h"
+#include "constants.h"
+#include "config.h"
+#include "icmp-wrapper.h"
+#include "pool6.h"
+#include "rfc6052.h"
+#include "route.h"
+#include "stats.h"
+#include "siit/blacklist4.h"
+#include "siit/eam.h"
+#include "siit/rfc6791v6.h"
 
 verdict ttp46_create_skb(struct xlation *state)
 {

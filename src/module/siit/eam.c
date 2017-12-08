@@ -1,8 +1,8 @@
-#include "nat64/mod/stateless/eam.h"
+#include "siit/eam.h"
 
-#include "nat64/common/types.h"
-#include "nat64/mod/common/address.h"
-#include "nat64/mod/common/wkmalloc.h"
+#include "types.h"
+#include "address.h"
+#include "wkmalloc.h"
 
 #define ADDR6_BITS		128
 #define ADDR4_BITS		32

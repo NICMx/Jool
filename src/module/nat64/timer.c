@@ -1,9 +1,9 @@
-#include "nat64/mod/stateful/timer.h"
+#include "nat64/timer.h"
 
-#include "nat64/mod/common/xlator.h"
-#include "nat64/mod/stateful/fragment_db.h"
-#include "nat64/mod/stateful/joold.h"
-#include "nat64/mod/stateful/bib/db.h"
+#include "xlator.h"
+#include "nat64/fragment-db.h"
+#include "nat64/joold.h"
+#include "nat64/bib/db.h"
 
 #define TIMER_PERIOD msecs_to_jiffies(2000)
 

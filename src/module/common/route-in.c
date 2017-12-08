@@ -1,8 +1,9 @@
-#include "nat64/mod/common/route.h"
+#include "route.h"
 
 #include <linux/ip.h>
 #include <net/route.h>
-#include "nat64/mod/common/stats.h"
+
+#include "stats.h"
 
 int route4_input(struct sk_buff *skb)
 {

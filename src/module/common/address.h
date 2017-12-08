@@ -3,7 +3,7 @@
 
 #include <linux/string.h>
 #include <net/ipv6.h>
-#include "nat64/common/types.h"
+#include "types.h"
 
 
 union transport_addr {

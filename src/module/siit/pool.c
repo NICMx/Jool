@@ -1,14 +1,15 @@
-#include "nat64/mod/stateless/pool.h"
+#include "siit/pool.h"
 
 #include <linux/inet.h>
 #include <linux/kref.h>
 #include <linux/rculist.h>
-#include "nat64/common/str_utils.h"
-#include "nat64/common/types.h"
-#include "nat64/mod/common/address.h"
-#include "nat64/mod/common/rcu.h"
-#include "nat64/mod/common/tags.h"
-#include "nat64/mod/common/wkmalloc.h"
+
+#include "str-utils.h"
+#include "types.h"
+#include "address.h"
+#include "rcu.h"
+#include "tags.h"
+#include "wkmalloc.h"
 
 struct pool_entry {
 	struct ipv4_prefix prefix;

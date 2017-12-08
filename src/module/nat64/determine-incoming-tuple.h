@@ -8,7 +8,7 @@
  * Creates a tuple (summary) of the incoming packet.
  */
 
-#include "nat64/mod/common/translation_state.h"
+#include "translation-state.h"
 
 verdict determine_in_tuple(struct xlation *state);
 

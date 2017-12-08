@@ -1,4 +1,4 @@
-#include "nat64/mod/common/rbtree.h"
+#include "rbtree.h"
 #include <linux/module.h>
 
 void treeslot_init(struct tree_slot *slot,

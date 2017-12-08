@@ -3,9 +3,9 @@
 
 #include <linux/kref.h>
 #include <linux/rbtree.h>
-#include "nat64/common/config.h"
-#include "nat64/common/types.h"
-#include "nat64/mod/common/rtrie.h"
+#include "config.h"
+#include "types.h"
+#include "rtrie.h"
 
 struct eam_table;
 

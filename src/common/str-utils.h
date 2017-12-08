@@ -6,7 +6,7 @@
  * String-to-address conversion, intended to unify the API for both kernel and userspace.
  */
 
-#include "nat64/common/types.h"
+#include "types.h"
 
 /**
  * Converts "str" to a IPv4 address. Stores the result in "result".

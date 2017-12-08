@@ -1,15 +1,15 @@
-#include "nat64/mod/stateful/bib/db.h"
+#include "nat64/bib/db.h"
 
 #include <net/ip6_checksum.h>
 
-#include "nat64/common/constants.h"
-#include "nat64/common/str_utils.h"
-#include "nat64/mod/common/icmp_wrapper.h"
-#include "nat64/mod/common/linux_version.h"
-#include "nat64/mod/common/rbtree.h"
-#include "nat64/mod/common/route.h"
-#include "nat64/mod/common/wkmalloc.h"
-#include "nat64/mod/stateful/bib/pkt_queue.h"
+#include "constants.h"
+#include "str-utils.h"
+#include "icmp-wrapper.h"
+#include "linux-version.h"
+#include "rbtree.h"
+#include "route.h"
+#include "wkmalloc.h"
+#include "nat64/bib/pkt-queue.h"
 
 /*
  * TODO (performance) Maybe pack this?

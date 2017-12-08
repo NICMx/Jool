@@ -13,8 +13,8 @@
  * The ICMP extension thing has not been implemented yet.
  */
 
-#include "nat64/mod/common/translation_state.h"
-#include "nat64/mod/stateless/pool.h"
+#include "translation-state.h"
+#include "siit/pool.h"
 
 int rfc6791_init(struct addr4_pool **pool);
 void rfc6791_get(struct addr4_pool *pool);

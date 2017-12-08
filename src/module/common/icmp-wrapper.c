@@ -1,10 +1,10 @@
-#include "nat64/mod/common/icmp_wrapper.h"
+#include "icmp-wrapper.h"
 
 #include <linux/icmpv6.h>
 #include <linux/version.h>
 #include <net/icmp.h>
-#include "nat64/common/types.h"
-#include "nat64/mod/common/route.h"
+#include "types.h"
+#include "route.h"
 
 static char *icmp_error_to_string(icmp_error_code error)
 {

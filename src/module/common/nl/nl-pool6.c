@@ -1,10 +1,10 @@
-#include "nat64/mod/common/nl/pool6.h"
+#include "nl/nl-pool6.h"
 
-#include "nat64/common/types.h"
-#include "nat64/mod/common/nl/nl_common.h"
-#include "nat64/mod/common/nl/nl_core2.h"
-#include "nat64/mod/common/pool6.h"
-#include "nat64/mod/stateful/bib/db.h"
+#include "types.h"
+#include "nl/nl-common.h"
+#include "nl/nl-core.h"
+#include "pool6.h"
+#include "nat64/bib/db.h"
 
 static int pool6_entry_to_userspace(struct ipv6_prefix *prefix, void *arg)
 {

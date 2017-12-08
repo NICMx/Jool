@@ -1,9 +1,9 @@
 #ifndef _JOOL_MOD_JOOLD_H
 #define _JOOL_MOD_JOOLD_H
 
-#include "nat64/common/config.h"
-#include "nat64/mod/common/xlator.h"
-#include "nat64/mod/stateful/bib/entry.h"
+#include "config.h"
+#include "xlator.h"
+#include "nat64/bib/entry.h"
 
 struct joold_queue;
 

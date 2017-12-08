@@ -1,11 +1,11 @@
-#include "nat64/mod/common/error_pool.h"
+#include "error-pool.h"
 
 #include <stdarg.h>
 #include <linux/string.h>
 #include <linux/slab.h>
 #include <linux/printk.h>
-#include "nat64/common/types.h"
-#include "nat64/mod/common/wkmalloc.h"
+#include "types.h"
+#include "wkmalloc.h"
 
 /*
  * @file

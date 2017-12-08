@@ -1,9 +1,9 @@
 #ifndef _JOOL_MOD_TRANSLATION_STATE_H
 #define _JOOL_MOD_TRANSLATION_STATE_H
 
-#include "nat64/mod/common/xlator.h"
-#include "nat64/mod/common/packet.h"
-#include "nat64/mod/stateful/bib/entry.h"
+#include "xlator.h"
+#include "packet.h"
+#include "nat64/bib/entry.h"
 
 /**
  * State of the current translation.

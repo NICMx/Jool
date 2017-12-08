@@ -1,13 +1,13 @@
-#include "nat64/mod/stateful/joold.h"
-
-#include "nat64/common/constants.h"
-#include "nat64/common/str_utils.h"
-#include "nat64/mod/common/wkmalloc.h"
-#include "nat64/mod/common/xlator.h"
-#include "nat64/mod/common/nl/nl_core2.h"
-#include "nat64/mod/stateful/bib/db.h"
+#include "joold.h"
 
 #include <linux/inet.h>
+
+#include "constants.h"
+#include "str-utils.h"
+#include "wkmalloc.h"
+#include "xlator.h"
+#include "nl/nl-core.h"
+#include "nat64/bib/db.h"
 
 struct joold_advertise_struct {
 	struct taddr4_tuple offset;

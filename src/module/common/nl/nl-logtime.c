@@ -1,9 +1,9 @@
-#include "nat64/mod/common/nl/logtime.h"
+#include "nl/nl-logtime.h"
 
-#include "nat64/common/types.h"
-#include "nat64/mod/common/nl/nl_core2.h"
+#include "types.h"
+#include "nl/nl-core.h"
 #ifdef BENCHMARK
-#include "nat64/mod/common/log_time.h"
+#include "log-time.h"
 
 static struct log_time_db logs_ipv6_tcp;
 static struct log_time_db logs_ipv6_udp;

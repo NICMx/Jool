@@ -15,8 +15,8 @@
  * on kernel version.
  */
 
-#include "nat64/common/config.h"
-#include "nat64/mod/common/packet.h"
+#include "config.h"
+#include "packet.h"
 
 struct fragdb;
 

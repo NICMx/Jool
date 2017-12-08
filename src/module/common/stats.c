@@ -1,4 +1,4 @@
-#include "nat64/mod/common/stats.h"
+#include "stats.h"
 
 #include <linux/netdevice.h>
 #include <linux/skbuff.h>
@@ -6,8 +6,9 @@
 #include <net/addrconf.h>
 #include <net/ip.h>
 #include <net/ipv6.h>
-#include "nat64/common/types.h"
-#include "nat64/mod/common/packet.h"
+
+#include "types.h"
+#include "packet.h"
 
 
 static int validate_skb(struct sk_buff *skb)

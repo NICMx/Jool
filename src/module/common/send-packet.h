@@ -13,7 +13,7 @@
  * kernel to drop the original packets and send new ones on our own.
  */
 
-#include "nat64/mod/common/translation_state.h"
+#include "translation-state.h"
 
 /**
  * Puts @state's outgoing skb on the network.

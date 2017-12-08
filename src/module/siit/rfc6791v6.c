@@ -1,12 +1,12 @@
-#include "nat64/mod/stateless/rfc6791v6.h"
+#include "siit/rfc6791v6.h"
 
 #include <linux/random.h>
 #include <net/addrconf.h>
-#include "nat64/mod/common/config.h"
-#include "nat64/mod/common/packet.h"
-#include "nat64/mod/common/rcu.h"
-#include "nat64/mod/common/route.h"
-#include "nat64/mod/common/tags.h"
+#include "config.h"
+#include "packet.h"
+#include "rcu.h"
+#include "route.h"
+#include "tags.h"
 
 /**
  * Assuming RFC6791v6 has been populated, returns an IPv6 address an ICMP

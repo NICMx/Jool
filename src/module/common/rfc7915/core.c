@@ -1,7 +1,8 @@
-#include "nat64/mod/common/icmp_wrapper.h"
-#include "nat64/mod/common/stats.h"
-#include "nat64/mod/common/rfc6145/core.h"
-#include "nat64/mod/common/rfc6145/common.h"
+#include "rfc7915/core.h"
+
+#include "icmp-wrapper.h"
+#include "stats.h"
+#include "rfc7915/common.h"
 
 static verdict translate_first(struct xlation *state)
 {

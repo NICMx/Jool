@@ -1,6 +1,6 @@
-#include "nat64/mod/common/nl/nl_common.h"
+#include "nl/nl-common.h"
 
-#include "nat64/common/types.h"
+#include "types.h"
 
 int verify_superpriv(void)
 {

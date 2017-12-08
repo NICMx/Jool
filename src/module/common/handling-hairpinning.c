@@ -1,11 +1,10 @@
-#include "nat64/mod/common/handling_hairpinning.h"
+#include "handling-hairpinning.h"
 
-#include "nat64/mod/common/rfc6145/core.h"
-#include "nat64/mod/common/send_packet.h"
-#include "nat64/mod/stateful/compute_outgoing_tuple.h"
-#include "nat64/mod/stateful/filtering_and_updating.h"
-#include "nat64/mod/stateful/pool4/db.h"
-
+#include "rfc7915/core.h"
+#include "send-packet.h"
+#include "nat64/compute-outgoing-tuple.h"
+#include "nat64/filtering-and-updating.h"
+#include "nat64/pool4/db.h"
 
 /**
  * Checks whether "pkt" is a hairpin packet.
@@ -13,7 +12,7 @@
  * @param pkt outgoing packet the NAT64 would send if it's not a hairpin.
  * @return whether pkt is a hairpin packet.
  */
-bool is_hairpin(struct xlation *state)
+static bool is_hairpin_nat64(struct xlation *state)
 {
 	if (state->out.tuple.l3_proto == L3PROTO_IPV6)
 		return false;
@@ -39,7 +38,7 @@ bool is_hairpin(struct xlation *state)
  * @param tuple_in skb_in's tuple.
  * @return whether we managed to U-turn the packet successfully.
  */
-verdict handling_hairpinning(struct xlation *old)
+static verdict handling_hairpinning_nat64(struct xlation *old)
 {
 	struct xlation new;
 	verdict result;
@@ -65,4 +64,44 @@ verdict handling_hairpinning(struct xlation *old)
 
 	log_debug("Done step 5.");
 	return VERDICT_CONTINUE;
+}
+
+static bool is_hairpin_siit(struct xlation *state)
+{
+	return pkt_is_intrinsic_hairpin(&state->out);
+}
+
+static verdict handling_hairpinning_siit(struct xlation *old)
+{
+	struct xlation new;
+	verdict result;
+
+	log_debug("Packet is a hairpin. U-turning...");
+
+	new.jool = old->jool;
+	new.in = old->out;
+
+	result = translating_the_packet(&new);
+	if (result != VERDICT_CONTINUE)
+		return result;
+	result = sendpkt_send(&new);
+	if (result != VERDICT_CONTINUE)
+		return result;
+
+	log_debug("Done hairpinning.");
+	return VERDICT_CONTINUE;
+}
+
+bool is_hairpin(struct xlation *state)
+{
+	return xlat_is_siit()
+			? is_hairpin_siit(state)
+			: is_hairpin_nat64(state);
+}
+
+verdict handling_hairpinning(struct xlation *old)
+{
+	return xlat_is_siit()
+			? handling_hairpinning_siit(old)
+			: handling_hairpinning_nat64(old);
 }

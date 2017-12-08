@@ -1,7 +1,7 @@
 #ifndef _JOOL_MOD_NAMESPACE_H
 #define _JOOL_MOD_NAMESPACE_H
 
-#include "nat64/mod/common/config.h"
+#include "config.h"
 
 /**
  * A Jool translator "instance". The point is that each network namespace has
