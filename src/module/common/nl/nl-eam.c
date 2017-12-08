@@ -89,7 +89,7 @@ int handle_eamt_config(struct xlator *jool, struct genl_info *info)
 	union request_eamt *request;
 	int error;
 
-	if (xlat_is_nat64()) {
+	if (jool->type == XLATOR_NAT64) {
 		log_err("Stateful NAT64 doesn't have an EAMT.");
 		return nlcore_respond(info, -EINVAL);
 	}

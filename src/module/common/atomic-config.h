@@ -5,6 +5,8 @@
 #include <linux/types.h>
 #include <linux/timer.h>
 
+#include "types.h"
+
 /**
  * This represents the new configuration the user wants to apply to a certain
  * Jool instance.
@@ -35,6 +37,8 @@ struct config_candidate {
 		} nat64;
 	};
 
+	xlator_type type;
+
 	/** Are we currently putting together configuration from userspace? */
 	bool active;
 	/** Last jiffy the user made an edit. */
@@ -50,7 +54,7 @@ struct config_candidate {
 
 struct xlator;
 
-struct config_candidate *cfgcandidate_create(void);
+struct config_candidate *cfgcandidate_create(xlator_type type);
 void cfgcandidate_get(struct config_candidate *candidate);
 void cfgcandidate_put(struct config_candidate *candidate);
 

@@ -28,7 +28,7 @@ int config_init(struct global_config **result)
 	config->reset_tos = DEFAULT_RESET_TOS;
 	config->new_tos = DEFAULT_NEW_TOS;
 
-	if (xlat_is_siit()) {
+	if (!config->is_stateful) {
 		config->siit.compute_udp_csum_zero = DEFAULT_COMPUTE_UDP_CSUM0;
 		config->siit.eam_hairpin_mode = DEFAULT_EAM_HAIRPIN_MODE;
 		config->siit.randomize_error_addresses = DEFAULT_RANDOMIZE_RFC6791;

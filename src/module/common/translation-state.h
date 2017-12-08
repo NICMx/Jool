@@ -27,7 +27,7 @@ struct xlation {
 	struct bib_session entries;
 };
 
-void xlation_init(struct xlation *state);
+void xlation_init(struct xlation *state, struct xlator *jool);
 void xlation_put(struct xlation *state);
 
 #endif /* _JOOL_MOD_TRANSLATION_STATE_H */

@@ -144,6 +144,10 @@ static int __handle_jool_message(struct genl_info *info)
 	if (be16_to_cpu(get_jool_hdr(info)->mode) == MODE_INSTANCE)
 		return handle_instance_request(info);
 
+	log_err("Not implemented yet.");
+	return nlcore_respond(info, -EINVAL);
+	/* TODO depends on instance.
+
 	error = xlator_find_current(&translator);
 	if (error == -ESRCH) {
 		log_err("This namespace lacks a Jool instance.");
@@ -153,6 +157,8 @@ static int __handle_jool_message(struct genl_info *info)
 		log_err("Unknown error %d; Jool instance not found.", error);
 		return nlcore_respond(info, error);
 	}
+
+	*/
 
 	error = multiplex_request(&translator, info);
 	xlator_put(&translator);

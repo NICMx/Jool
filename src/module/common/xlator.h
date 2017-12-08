@@ -29,18 +29,21 @@ struct xlator {
 		} nat64;
 	};
 
+	xlator_type type;
+
 	struct config_candidate *newcfg;
 };
 
 int xlator_init(void);
 void xlator_destroy(void);
 
-int xlator_add(struct xlator *result);
-int xlator_rm(void);
+int xlator_add(xlator_type type, struct xlator *result);
 int xlator_replace(struct xlator *instance);
 
 int xlator_find(struct net *ns, struct xlator *result);
 int xlator_find_current(struct xlator *result);
+
+void xlator_get(struct xlator *instance);
 void xlator_put(struct xlator *instance);
 
 typedef int (*xlator_foreach_cb)(struct xlator *, void *);

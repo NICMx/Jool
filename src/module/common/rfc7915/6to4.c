@@ -324,13 +324,19 @@ verdict ttp64_ipv4(struct xlation *state)
 	hdr4->protocol = ttp64_xlat_proto(hdr6);
 
 	/* Translate the address before TTL because of issue #167. */
-	if (xlat_is_nat64()) {
+	switch (state->jool.type) {
+	case XLATOR_NAT64:
 		hdr4->saddr = out->tuple.src.addr4.l3.s_addr;
 		hdr4->daddr = out->tuple.dst.addr4.l3.s_addr;
-	} else {
+		break;
+	case XLATOR_SIIT:
 		result = translate_addrs64_siit(state);
 		if (result != VERDICT_CONTINUE)
 			return result;
+		break;
+	default:
+		BUG();
+		return VERDICT_DROP;
 	}
 
 	hdr4->version = 4;
@@ -547,6 +553,19 @@ static int icmp6_to_icmp4_param_prob(struct icmp6hdr *icmpv6_hdr,
 	return 0;
 }
 
+static __be16 compute_echo_id(struct xlation *state)
+{
+	switch (state->jool.type) {
+	case XLATOR_SIIT:
+		return pkt_icmp6_hdr(&state->in)->icmp6_identifier;
+	case XLATOR_NAT64:
+		return cpu_to_be16(state->out.tuple.icmp4_id);
+	}
+
+	BUG();
+	return 0;
+}
+
 /*
  * Use this when only the ICMP header changed, so all there is to do is subtract
  * the old data from the checksum and add the new one.
@@ -675,9 +694,7 @@ verdict ttp64_icmp(struct xlation *state)
 	case ICMPV6_ECHO_REQUEST:
 		icmpv4_hdr->type = ICMP_ECHO;
 		icmpv4_hdr->code = 0;
-		icmpv4_hdr->un.echo.id = xlat_is_nat64()
-				? cpu_to_be16(state->out.tuple.icmp4_id)
-				: icmpv6_hdr->icmp6_identifier;
+		icmpv4_hdr->un.echo.id = compute_echo_id(state);
 		icmpv4_hdr->un.echo.sequence = icmpv6_hdr->icmp6_sequence;
 		error = post_icmp4info(state);
 		break;
@@ -685,9 +702,7 @@ verdict ttp64_icmp(struct xlation *state)
 	case ICMPV6_ECHO_REPLY:
 		icmpv4_hdr->type = ICMP_ECHOREPLY;
 		icmpv4_hdr->code = 0;
-		icmpv4_hdr->un.echo.id = xlat_is_nat64()
-				? cpu_to_be16(state->out.tuple.icmp4_id)
-				: icmpv6_hdr->icmp6_identifier;
+		icmpv4_hdr->un.echo.id = compute_echo_id(state);
 		icmpv4_hdr->un.echo.sequence = icmpv6_hdr->icmp6_sequence;
 		error = post_icmp4info(state);
 		break;
@@ -800,7 +815,7 @@ verdict ttp64_tcp(struct xlation *state)
 
 	/* Header */
 	memcpy(tcp_out, tcp_in, pkt_l4hdr_len(in));
-	if (xlat_is_nat64()) {
+	if (state->jool.type == XLATOR_NAT64) {
 		tcp_out->source = cpu_to_be16(out->tuple.src.addr4.l4);
 		tcp_out->dest = cpu_to_be16(out->tuple.dst.addr4.l4);
 	}
@@ -835,7 +850,7 @@ verdict ttp64_udp(struct xlation *state)
 
 	/* Header */
 	memcpy(udp_out, udp_in, pkt_l4hdr_len(in));
-	if (xlat_is_nat64()) {
+	if (state->jool.type == XLATOR_NAT64) {
 		udp_out->source = cpu_to_be16(out->tuple.src.addr4.l4);
 		udp_out->dest = cpu_to_be16(out->tuple.dst.addr4.l4);
 	}

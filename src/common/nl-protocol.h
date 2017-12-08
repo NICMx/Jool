@@ -87,7 +87,7 @@
 /** cuz sizeof(bool) is implementation-defined. */
 typedef __u8 config_bool;
 
-#define GNL_JOOL_FAMILY_NAME (xlat_is_siit() ? "SIIT_Jool" : "NAT64_Jool")
+#define GNL_JOOL_FAMILY_NAME "Jool"
 #define GNL_JOOLD_MULTICAST_GRP_NAME "joold"
 
 enum genl_mc_group_ids {
@@ -232,8 +232,6 @@ enum parse_section {
 struct request_hdr {
 	/** Protocol magic header (always "jool"). */
 	__u8 magic[4];
-	/** Translation type (SIIT or NAT64) */
-	__u8 type;
 	/**
 	 * 'u'nicast or 'm'ulticast. Only userspace joold needs it, so most of
 	 * the time this field is ignored.
@@ -249,7 +247,7 @@ struct request_hdr {
 	 * Explicit unused space for future functionality and to ensure
 	 * sizeof(struct request_hdr) is a power of 2.
 	 */
-	__be16 slop;
+	__u8 slop[3];
 
 	/** Jool's version. */
 	__be32 version;
@@ -268,6 +266,12 @@ struct response_hdr {
 	struct request_hdr req;
 	__u16 error_code;
 	config_bool pending_data;
+};
+
+union request_instance {
+	struct {
+		__u8 type;
+	} add;
 };
 
 /**
@@ -588,6 +592,8 @@ enum f_args {
  * A copy of the entire running configuration, excluding databases.
  */
 struct global_config_usr {
+	config_bool is_stateful;
+
 	/**
 	 * Is Jool actually translating?
 	 * This depends on several factors depending on stateness, and is not an
@@ -777,6 +783,7 @@ struct full_config {
 	struct bib_config bib;
 	struct joold_config joold;
 	struct fragdb_config frag;
+	xlator_type type;
 };
 
 struct global_value {

@@ -12,9 +12,9 @@
 #include "nat64/bib/db.h"
 #include "siit/eam.h"
 
-static int ensure_siit(char *field)
+static int ensure_siit(struct full_config *config, char *field)
 {
-	if (!xlat_is_siit()) {
+	if (config->type != XLATOR_SIIT) {
 		log_err("Field '%s' is SIIT-only.", field);
 		return -EINVAL;
 	}
@@ -22,9 +22,9 @@ static int ensure_siit(char *field)
 	return 0;
 }
 
-static int ensure_nat64(char *field)
+static int ensure_nat64(struct full_config *config, char *field)
 {
-	if (!xlat_is_nat64()) {
+	if (config->type != XLATOR_NAT64) {
 		log_err("Field '%s' is NAT64-only.", field);
 		return -EINVAL;
 	}
@@ -203,7 +203,7 @@ static int handle_global_display(struct xlator *jool, struct genl_info *info)
 	xlator_copy_config(jool, &config);
 
 	pools_empty = pool6_is_empty(jool->pool6);
-	if (xlat_is_siit())
+	if (jool->type == XLATOR_SIIT)
 		pools_empty &= eamt_is_empty(jool->siit.eamt);
 	prepare_config_for_userspace(&config, pools_empty);
 
@@ -236,73 +236,73 @@ static int massive_switch(struct full_config *cfg, struct global_value *chunk,
 	case MTU_PLATEAUS:
 		return update_plateaus(&cfg->global, chunk, size);
 	case COMPUTE_UDP_CSUM_ZERO:
-		error = ensure_siit(OPTNAME_AMEND_UDP_CSUM);
+		error = ensure_siit(cfg, OPTNAME_AMEND_UDP_CSUM);
 		return error ? : parse_bool(&cfg->global.siit.compute_udp_csum_zero, chunk, size);
 	case RANDOMIZE_RFC6791:
-		error = ensure_siit(OPTNAME_RANDOMIZE_RFC6791);
+		error = ensure_siit(cfg, OPTNAME_RANDOMIZE_RFC6791);
 		return error ? : parse_bool(&cfg->global.siit.randomize_error_addresses, chunk, size);
 	case EAM_HAIRPINNING_MODE:
-		error = ensure_siit(OPTNAME_EAM_HAIRPIN_MODE);
+		error = ensure_siit(cfg, OPTNAME_EAM_HAIRPIN_MODE);
 		return error ? : parse_bool(&cfg->global.siit.eam_hairpin_mode, chunk, size);
 	case RFC6791V6_PREFIX:
-		error = ensure_siit(OPTNAME_RFC6791V6_PREFIX);
+		error = ensure_siit(cfg, OPTNAME_RFC6791V6_PREFIX);
 		return error ? : parse_ipv6_prefix(&cfg->global, chunk, size);
 	case DROP_BY_ADDR:
-		error = ensure_nat64(OPTNAME_DROP_BY_ADDR);
+		error = ensure_nat64(cfg, OPTNAME_DROP_BY_ADDR);
 		return error ? : parse_bool(&cfg->bib.drop_by_addr, chunk, size);
 	case DROP_ICMP6_INFO:
-		error = ensure_nat64(OPTNAME_DROP_ICMP6_INFO);
+		error = ensure_nat64(cfg, OPTNAME_DROP_ICMP6_INFO);
 		return error ? : parse_bool(&cfg->global.nat64.drop_icmp6_info, chunk, size);
 	case DROP_EXTERNAL_TCP:
-		error = ensure_nat64(OPTNAME_DROP_EXTERNAL_TCP);
+		error = ensure_nat64(cfg, OPTNAME_DROP_EXTERNAL_TCP);
 		return error ? : parse_bool(&cfg->bib.drop_external_tcp, chunk, size);
 	case SRC_ICMP6ERRS_BETTER:
-		error = ensure_nat64(OPTNAME_SRC_ICMP6E_BETTER);
+		error = ensure_nat64(cfg, OPTNAME_SRC_ICMP6E_BETTER);
 		return error ? : parse_bool(&cfg->global.nat64.src_icmp6errs_better, chunk, size);
 	case F_ARGS:
-		error = ensure_nat64(OPTNAME_F_ARGS);
+		error = ensure_nat64(cfg, OPTNAME_F_ARGS);
 		return error ? : parse_u8(&cfg->global.nat64.f_args, chunk, size);
 	case HANDLE_RST_DURING_FIN_RCV:
-		error = ensure_nat64(OPTNAME_F_ARGS);
+		error = ensure_nat64(cfg, OPTNAME_F_ARGS);
 		return error ? : parse_bool(&cfg->global.nat64.handle_rst_during_fin_rcv, chunk, size);
 	case UDP_TIMEOUT:
-		error = ensure_nat64(OPTNAME_UDP_TIMEOUT);
+		error = ensure_nat64(cfg, OPTNAME_UDP_TIMEOUT);
 		return error ? : parse_timeout(&cfg->bib.ttl.udp, chunk, size, UDP_MIN);
 	case ICMP_TIMEOUT:
-		error = ensure_nat64(OPTNAME_ICMP_TIMEOUT);
+		error = ensure_nat64(cfg, OPTNAME_ICMP_TIMEOUT);
 		return error ? : parse_timeout(&cfg->bib.ttl.icmp, chunk, size, 0);
 	case TCP_EST_TIMEOUT:
-		error = ensure_nat64(OPTNAME_TCPEST_TIMEOUT);
+		error = ensure_nat64(cfg, OPTNAME_TCPEST_TIMEOUT);
 		return error ? : parse_timeout(&cfg->bib.ttl.tcp_est, chunk, size, TCP_EST);
 	case TCP_TRANS_TIMEOUT:
-		error = ensure_nat64(OPTNAME_TCPTRANS_TIMEOUT);
+		error = ensure_nat64(cfg, OPTNAME_TCPTRANS_TIMEOUT);
 		return error ? : parse_timeout(&cfg->bib.ttl.tcp_trans, chunk, size, TCP_TRANS);
 	case FRAGMENT_TIMEOUT:
-		error = ensure_nat64(OPTNAME_FRAG_TIMEOUT);
+		error = ensure_nat64(cfg, OPTNAME_FRAG_TIMEOUT);
 		return error ? : parse_timeout(&cfg->frag.ttl, chunk, size, FRAGMENT_MIN);
 	case BIB_LOGGING:
-		error = ensure_nat64(OPTNAME_BIB_LOGGING);
+		error = ensure_nat64(cfg, OPTNAME_BIB_LOGGING);
 		return error ? : parse_bool(&cfg->bib.bib_logging, chunk, size);
 	case SESSION_LOGGING:
-		error = ensure_nat64(OPTNAME_SESSION_LOGGING);
+		error = ensure_nat64(cfg, OPTNAME_SESSION_LOGGING);
 		return error ? : parse_bool(&cfg->bib.session_logging, chunk, size);
 	case MAX_PKTS:
-		error = ensure_nat64(OPTNAME_MAX_SO);
+		error = ensure_nat64(cfg, OPTNAME_MAX_SO);
 		return error ? : parse_u32(&cfg->bib.max_stored_pkts, chunk, size);
 	case SS_ENABLED:
-		error = ensure_nat64(OPTNAME_SS_ENABLED);
+		error = ensure_nat64(cfg, OPTNAME_SS_ENABLED);
 		return error ? : parse_bool(&cfg->joold.enabled, chunk, size);
 	case SS_FLUSH_ASAP:
-		error = ensure_nat64(OPTNAME_SS_FLUSH_ASAP);
+		error = ensure_nat64(cfg, OPTNAME_SS_FLUSH_ASAP);
 		return error ? : parse_bool(&cfg->joold.flush_asap, chunk, size);
 	case SS_FLUSH_DEADLINE:
-		error = ensure_nat64(OPTNAME_SS_FLUSH_DEADLINE);
+		error = ensure_nat64(cfg, OPTNAME_SS_FLUSH_DEADLINE);
 		return error ? : parse_timeout(&cfg->joold.flush_deadline, chunk, size, 0);
 	case SS_CAPACITY:
-		error = ensure_nat64(OPTNAME_SS_CAPACITY);
+		error = ensure_nat64(cfg, OPTNAME_SS_CAPACITY);
 		return error ? : parse_u32(&cfg->joold.capacity, chunk, size);
 	case SS_MAX_PAYLOAD:
-		error = ensure_nat64(OPTNAME_SS_MAX_PAYLOAD);
+		error = ensure_nat64(cfg, OPTNAME_SS_MAX_PAYLOAD);
 		return error ? : parse_u16(&cfg->joold.max_payload, chunk, size, JOOLD_MAX_PAYLOAD);
 	}
 

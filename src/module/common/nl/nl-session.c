@@ -82,7 +82,7 @@ int handle_session_config(struct xlator *jool, struct genl_info *info)
 	struct request_session *request;
 	int error;
 
-	if (xlat_is_siit()) {
+	if (jool->type == XLATOR_SIIT) {
 		log_err("SIIT doesn't have session tables.");
 		return nlcore_respond(info, -EINVAL);
 	}

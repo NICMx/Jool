@@ -45,24 +45,27 @@ static verdict handling_hairpinning_nat64(struct xlation *old)
 
 	log_debug("Step 5: Handling Hairpinning...");
 
-	xlation_init(&new);
+	xlation_init(&new, &old->jool);
 	new.jool = old->jool;
 	new.in = old->out;
 
 	result = filtering_and_updating(&new);
 	if (result != VERDICT_CONTINUE)
-		return result;
+		goto end;
 	result = compute_out_tuple(&new);
 	if (result != VERDICT_CONTINUE)
-		return result;
+		goto end;
 	result = translating_the_packet(&new);
 	if (result != VERDICT_CONTINUE)
-		return result;
+		goto end;
 	result = sendpkt_send(&new);
 	if (result != VERDICT_CONTINUE)
-		return result;
+		goto end;
 
 	log_debug("Done step 5.");
+
+end:
+	xlation_put(&new);
 	return VERDICT_CONTINUE;
 }
 
@@ -94,14 +97,26 @@ static verdict handling_hairpinning_siit(struct xlation *old)
 
 bool is_hairpin(struct xlation *state)
 {
-	return xlat_is_siit()
-			? is_hairpin_siit(state)
-			: is_hairpin_nat64(state);
+	switch (state->jool.type) {
+	case XLATOR_SIIT:
+		return is_hairpin_siit(state);
+	case XLATOR_NAT64:
+		return is_hairpin_nat64(state);
+	}
+
+	BUG();
+	return false;
 }
 
-verdict handling_hairpinning(struct xlation *old)
+verdict handling_hairpinning(struct xlation *state)
 {
-	return xlat_is_siit()
-			? handling_hairpinning_siit(old)
-			: handling_hairpinning_nat64(old);
+	switch (state->jool.type) {
+	case XLATOR_SIIT:
+		return handling_hairpinning_siit(state);
+	case XLATOR_NAT64:
+		return handling_hairpinning_nat64(state);
+	}
+
+	BUG();
+	return VERDICT_DROP;
 }

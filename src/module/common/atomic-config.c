@@ -29,7 +29,9 @@ static void candidate_clean(struct config_candidate *candidate)
 		pool6_put(candidate->pool6);
 		candidate->pool6 = NULL;
 	}
-	if (xlat_is_siit()) {
+
+	switch (candidate->type) {
+	case XLATOR_SIIT:
 		if (candidate->siit.eamt) {
 			eamt_put(candidate->siit.eamt);
 			candidate->siit.eamt = NULL;
@@ -42,17 +44,21 @@ static void candidate_clean(struct config_candidate *candidate)
 			pool_put(candidate->siit.pool6791);
 			candidate->siit.pool6791 = NULL;
 		}
-	} else {
+		break;
+	case XLATOR_NAT64:
 		if (candidate->nat64.pool4) {
 			pool4db_put(candidate->nat64.pool4);
 			candidate->nat64.pool4 = NULL;
 		}
+		break;
+	default:
+		BUG();
 	}
 
 	candidate->active = false;
 }
 
-struct config_candidate *cfgcandidate_create(void)
+struct config_candidate *cfgcandidate_create(xlator_type type)
 {
 	struct config_candidate *candidate;
 
@@ -63,6 +69,7 @@ struct config_candidate *cfgcandidate_create(void)
 	memset(candidate, 0, sizeof(*candidate));
 
 	kref_init(&candidate->refcount);
+	candidate->type = type;
 	return candidate;
 }
 
@@ -154,7 +161,7 @@ static int handle_eamt(struct config_candidate *new, void *payload,
 	unsigned int i;
 	int error;
 
-	if (xlat_is_nat64()) {
+	if (new->type == XLATOR_NAT64) {
 		log_err("Stateful NAT64 doesn't have an EAMT.");
 		return -EINVAL;
 	}
@@ -185,11 +192,6 @@ static int handle_addr4_pool(struct addr4_pool **pool, void *payload,
 	unsigned int i;
 	int error;
 
-	if (xlat_is_nat64()) {
-		log_err("Stateful NAT64 doesn't have IPv4 address pools.");
-		return -EINVAL;
-	}
-
 	if (!(*pool)) {
 		error = pool_init(pool);
 		if (error)
@@ -209,12 +211,22 @@ static int handle_addr4_pool(struct addr4_pool **pool, void *payload,
 static int handle_blacklist(struct config_candidate *new, void *payload,
 		__u32 payload_len)
 {
+	if (new->type == XLATOR_NAT64) {
+		log_err("Stateful NAT64 doesn't have a blacklist.");
+		return -EINVAL;
+	}
+
 	return handle_addr4_pool(&new->siit.blacklist, payload, payload_len);
 }
 
 static int handle_pool6791(struct config_candidate *new, void *payload,
 		__u32 payload_len)
 {
+	if (new->type == XLATOR_NAT64) {
+		log_err("Stateful NAT64 doesn't have an RFC 6791 pool.");
+		return -EINVAL;
+	}
+
 	return handle_addr4_pool(&new->siit.pool6791, payload, payload_len);
 }
 
@@ -226,7 +238,7 @@ static int handle_pool4(struct config_candidate *new, void *payload,
 	unsigned int i;
 	int error;
 
-	if (xlat_is_siit()) {
+	if (new->type == XLATOR_SIIT) {
 		log_err("SIIT doesn't have pool4.");
 		return -EINVAL;
 	}
@@ -249,7 +261,7 @@ static int handle_pool4(struct config_candidate *new, void *payload,
 static int handle_bib(struct config_candidate *new, void *payload,
 		__u32 payload_len)
 {
-	if (xlat_is_siit()) {
+	if (new->type == XLATOR_SIIT) {
 		log_err("SIIT doesn't have BIBs.");
 		return -EINVAL;
 	}
@@ -289,7 +301,8 @@ static int commit(struct xlator *jool)
 		new->pool6 = NULL;
 	}
 
-	if (xlat_is_siit()) {
+	switch (jool->type) {
+	case XLATOR_SIIT:
 		if (new->siit.eamt) {
 			eamt_put(jool->siit.eamt);
 			jool->siit.eamt = new->siit.eamt;
@@ -305,12 +318,16 @@ static int commit(struct xlator *jool)
 			jool->siit.pool6791 = new->siit.pool6791;
 			new->siit.pool6791 = NULL;
 		}
-	} else {
+		break;
+	case XLATOR_NAT64:
 		if (new->nat64.pool4) {
 			pool4db_put(jool->nat64.pool4);
 			jool->nat64.pool4 = new->nat64.pool4;
 			new->nat64.pool4 = NULL;
 		}
+		break;
+	default:
+		BUG();
 	}
 
 	error = xlator_replace(jool);

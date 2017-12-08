@@ -158,7 +158,7 @@ int handle_bib_config(struct xlator *jool, struct genl_info *info)
 	struct request_bib *request = (struct request_bib *)(hdr + 1);
 	int error;
 
-	if (xlat_is_siit()) {
+	if (jool->type == XLATOR_SIIT) {
 		log_err("SIIT doesn't have BIBs.");
 		return nlcore_respond(info, -EINVAL);
 	}

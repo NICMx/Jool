@@ -536,8 +536,8 @@ static inline bool pkt_is_icmp4_error(const struct packet *pkt)
  * to skb_network_header(skb), you will need to assign it again (by calling
  * skb_network_header() again).
  */
-int pkt_init_ipv6(struct packet *pkt, struct sk_buff *skb);
-int pkt_init_ipv4(struct packet *pkt, struct sk_buff *skb);
+int pkt_init_ipv6(struct packet *pkt, struct sk_buff *skb, xlator_type type);
+int pkt_init_ipv4(struct packet *pkt, struct sk_buff *skb, xlator_type type);
 /**
  * @}
  */

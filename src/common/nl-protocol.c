@@ -1,6 +1,7 @@
 #include "nl-protocol.h"
 #ifdef __KERNEL__
 #include <linux/kernel.h>
+#include <linux/string.h>
 #else
 #include <errno.h>
 #endif
@@ -12,9 +13,8 @@ void init_request_hdr(struct request_hdr *hdr, enum config_mode mode,
 	hdr->magic[1] = 'o';
 	hdr->magic[2] = 'o';
 	hdr->magic[3] = 'l';
-	hdr->type = xlat_is_nat64() ? 'n' : 's'; /* 'n'at64 or 's'iit. */
 	hdr->castness = 'u';
-	hdr->slop = 0;
+	memset(hdr->slop, 0, sizeof(hdr->slop));
 	hdr->version = htonl(xlat_version());
 	hdr->mode = htons(mode);
 	hdr->operation = htons(operation);
@@ -32,31 +32,6 @@ fail:
 	/* Well, the sender does not understand the protocol. */
 	log_err("The %s sent a message that lacks the Jool magic text.",
 			sender);
-	return -EINVAL;
-}
-
-static int validate_stateness(struct request_hdr *hdr,
-		char *sender, char *receiver)
-{
-	switch (hdr->type) {
-	case 's':
-		if (xlat_is_siit())
-			return 0;
-
-		log_err("The %s is SIIT but the %s is NAT64. Please match us correctly.",
-				sender, receiver);
-		return -EINVAL;
-	case 'n':
-		if (xlat_is_nat64())
-			return 0;
-
-		log_err("The %s is NAT64 but the %s is SIIT. Please match us correctly.",
-				sender, receiver);
-		return -EINVAL;
-	}
-
-	log_err("The %s sent a packet with an unknown stateness: '%c'",
-			sender, hdr->type);
 	return -EINVAL;
 }
 
@@ -101,10 +76,6 @@ int validate_request(void *data, size_t data_len, char *sender, char *receiver,
 
 	if (peer_is_jool)
 		*peer_is_jool = true;
-
-	error = validate_stateness(data, sender, receiver);
-	if (error)
-		return error;
 
 	return validate_version(data, sender, receiver);
 }

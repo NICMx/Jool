@@ -316,15 +316,21 @@ verdict ttp46_ipv6(struct xlation *state)
 	verdict result;
 
 	/* Translate the address first because of issue #167. */
-	if (xlat_is_nat64()) {
+	switch (state->jool.type) {
+	case XLATOR_SIIT:
 		error = generate_saddr6_nat64(state);
 		if (error)
 			return VERDICT_DROP;
 		hdr6->daddr = out->tuple.dst.addr6.l3;
-	} else {
+		break;
+	case XLATOR_NAT64:
 		result = translate_addrs46_siit(state);
 		if (result != VERDICT_CONTINUE)
 			return result;
+		break;
+	default:
+		BUG();
+		return VERDICT_DROP;
 	}
 
 	hdr6->version = 6;
@@ -571,6 +577,19 @@ static int icmp4_to_icmp6_param_prob(struct icmphdr *icmp4_hdr,
 	return 0;
 }
 
+static __be16 compute_echo_id(struct xlation *state)
+{
+	switch (state->jool.type) {
+	case XLATOR_SIIT:
+		return pkt_icmp4_hdr(&state->in)->un.echo.id;
+	case XLATOR_NAT64:
+		return cpu_to_be16(state->out.tuple.icmp6_id);
+	}
+
+	BUG();
+	return 0;
+}
+
 static int update_icmp6_csum(struct xlation *state)
 {
 	struct ipv6hdr *out_ip6 = pkt_ip6_hdr(&state->out);
@@ -685,9 +704,7 @@ verdict ttp46_icmp(struct xlation *state)
 	case ICMP_ECHO:
 		icmpv6_hdr->icmp6_type = ICMPV6_ECHO_REQUEST;
 		icmpv6_hdr->icmp6_code = 0;
-		icmpv6_hdr->icmp6_dataun.u_echo.identifier = xlat_is_nat64()
-				? cpu_to_be16(state->out.tuple.icmp6_id)
-				: icmpv4_hdr->un.echo.id;
+		icmpv6_hdr->icmp6_identifier = compute_echo_id(state);
 		icmpv6_hdr->icmp6_sequence = icmpv4_hdr->un.echo.sequence;
 		error = post_icmp6info(state);
 		break;
@@ -695,9 +712,7 @@ verdict ttp46_icmp(struct xlation *state)
 	case ICMP_ECHOREPLY:
 		icmpv6_hdr->icmp6_type = ICMPV6_ECHO_REPLY;
 		icmpv6_hdr->icmp6_code = 0;
-		icmpv6_hdr->icmp6_dataun.u_echo.identifier = xlat_is_nat64()
-				? cpu_to_be16(state->out.tuple.icmp6_id)
-				: icmpv4_hdr->un.echo.id;
+		icmpv6_hdr->icmp6_identifier = compute_echo_id(state);
 		icmpv6_hdr->icmp6_sequence = icmpv4_hdr->un.echo.sequence;
 		error = post_icmp6info(state);
 		break;
@@ -787,7 +802,7 @@ static bool can_compute_csum(struct xlation *state)
 	struct udphdr *hdr_udp;
 	bool amend_csum0;
 
-	if (xlat_is_nat64())
+	if (state->jool.type == XLATOR_NAT64)
 		return true;
 
 	/*
@@ -867,7 +882,7 @@ verdict ttp46_tcp(struct xlation *state)
 
 	/* Header */
 	memcpy(tcp_out, tcp_in, pkt_l4hdr_len(in));
-	if (xlat_is_nat64()) {
+	if (state->jool.type == XLATOR_NAT64) {
 		tcp_out->source = cpu_to_be16(out->tuple.src.addr6.l4);
 		tcp_out->dest = cpu_to_be16(out->tuple.dst.addr6.l4);
 	}
@@ -902,7 +917,7 @@ verdict ttp46_udp(struct xlation *state)
 
 	/* Header */
 	memcpy(udp_out, udp_in, pkt_l4hdr_len(in));
-	if (xlat_is_nat64()) {
+	if (state->jool.type == XLATOR_NAT64) {
 		udp_out->source = cpu_to_be16(out->tuple.src.addr6.l4);
 		udp_out->dest = cpu_to_be16(out->tuple.dst.addr6.l4);
 	}

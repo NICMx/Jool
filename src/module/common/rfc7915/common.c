@@ -106,7 +106,8 @@ static int report_bug247(struct packet *pkt, __u8 proto)
 	pr_err("----- JOOL OUTPUT -----\n");
 	pr_err("Bug #247 happened!\n");
 
-	pr_err("xlator: %u " JOOL_VERSION_STR, xlat_is_siit());
+	/* FIXME */
+	pr_err("xlator: %u " JOOL_VERSION_STR, /* xlat_is_siit() */ 1);
 	pr_err("Page size: %lu\n", PAGE_SIZE);
 	pr_err("Page shift: %u\n", PAGE_SHIFT);
 	pr_err("protocols: %u %u %u\n", pkt->l3_proto, pkt->l4_proto, proto);
@@ -211,18 +212,20 @@ static int move_pointers6(struct packet *in, struct packet *out)
 	return move_pointers_out(in, out, sizeof(struct iphdr));
 }
 
-static void backup(struct packet *pkt, struct backup_skb *bkp)
+static void backup(struct xlation *state, struct packet *pkt,
+		struct backup_skb *bkp)
 {
 	bkp->pulled = pkt_hdrs_len(pkt);
 	bkp->offset.l3 = skb_network_offset(pkt->skb);
 	bkp->offset.l4 = skb_transport_offset(pkt->skb);
 	bkp->payload = pkt_payload(pkt);
 	bkp->l4_proto = pkt_l4_proto(pkt);
-	if (xlat_is_nat64())
+	if (state->jool.type == XLATOR_NAT64)
 		bkp->tuple = pkt->tuple;
 }
 
-static void restore(struct packet *pkt, struct backup_skb *bkp)
+static void restore(struct xlation *state, struct packet *pkt,
+		struct backup_skb *bkp)
 {
 	skb_push(pkt->skb, bkp->pulled);
 	skb_set_network_header(pkt->skb, bkp->offset.l3);
@@ -230,7 +233,7 @@ static void restore(struct packet *pkt, struct backup_skb *bkp)
 	pkt->payload = bkp->payload;
 	pkt->l4_proto = bkp->l4_proto;
 	pkt->is_inner = 0;
-	if (xlat_is_nat64())
+	if (state->jool.type == XLATOR_NAT64)
 		pkt->tuple = bkp->tuple;
 }
 
@@ -242,8 +245,8 @@ verdict ttpcomm_translate_inner_packet(struct xlation *state)
 	struct translation_steps *current_steps;
 	verdict result;
 
-	backup(in, &bkp_in);
-	backup(out, &bkp_out);
+	backup(state, in, &bkp_in);
+	backup(state, out, &bkp_out);
 
 	switch (pkt_l3_proto(in)) {
 	case L3PROTO_IPV4:
@@ -259,7 +262,7 @@ verdict ttpcomm_translate_inner_packet(struct xlation *state)
 		return VERDICT_DROP;
 	}
 
-	if (xlat_is_nat64()) {
+	if (state->jool.type == XLATOR_NAT64) {
 		in->tuple.src = bkp_in.tuple.dst;
 		in->tuple.dst = bkp_in.tuple.src;
 		out->tuple.src = bkp_out.tuple.dst;
@@ -285,8 +288,8 @@ verdict ttpcomm_translate_inner_packet(struct xlation *state)
 	if (result != VERDICT_CONTINUE)
 		return result;
 
-	restore(in, &bkp_in);
-	restore(out, &bkp_out);
+	restore(state, in, &bkp_in);
+	restore(state, out, &bkp_out);
 
 	return VERDICT_CONTINUE;
 }

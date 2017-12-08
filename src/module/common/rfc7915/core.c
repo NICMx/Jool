@@ -75,7 +75,7 @@ verdict translating_the_packet(struct xlation *state)
 	struct sk_buff *skb_prev = NULL;
 	verdict result;
 
-	if (xlat_is_nat64())
+	if (state->jool.type == XLATOR_NAT64)
 		log_debug("Step 4: Translating the Packet");
 	else
 		log_debug("Translating the Packet.");
@@ -104,7 +104,7 @@ verdict translating_the_packet(struct xlation *state)
 		skb_prev = skb_out;
 	}
 
-	if (xlat_is_nat64())
+	if (state->jool.type == XLATOR_NAT64)
 		log_debug("Done step 4.");
 	return VERDICT_CONTINUE;
 }

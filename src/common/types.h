@@ -19,6 +19,11 @@
 	#include "log.h"
 #endif
 
+typedef enum xlator_type {
+	XLATOR_SIIT,
+	XLATOR_NAT64,
+} xlator_type;
+
 /**
  * Network (layer 3) protocols Jool is supposed to support.
  * We do not use PF_INET, PF_INET6, AF_INET or AF_INET6 because I want the

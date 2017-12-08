@@ -12,7 +12,7 @@ int handle_joold_request(struct xlator *jool, struct genl_info *info)
 
 	log_debug("Received a joold request.");
 
-	if (xlat_is_siit()) {
+	if (jool->type == XLATOR_SIIT) {
 		log_err("SIIT Jool doesn't need a synchronization daemon.");
 		return nlcore_respond(info, -EINVAL);
 	}

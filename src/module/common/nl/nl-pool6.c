@@ -67,7 +67,7 @@ static int handle_pool6_rm(struct xlator *jool, union request_pool6 *request)
 	log_debug("Removing a prefix from pool6.");
 	error = pool6_rm(jool->pool6, &request->prefix);
 
-	if (xlat_is_nat64()) {
+	if (jool->type == XLATOR_NAT64) {
 		/*
 		 * Sorry; there's no "quick" pool6 rm anymore. This is because
 		 * BIB and session now assume that the prefix won't change for
@@ -89,7 +89,7 @@ static int handle_pool6_flush(struct xlator *jool, union request_pool6 *request)
 	log_debug("Flushing pool6.");
 	error = pool6_flush(jool->pool6);
 
-	if (xlat_is_nat64()) {
+	if (jool->type == XLATOR_NAT64) {
 		/*
 		 * Sorry; there's no "quick" pool6 flush anymore. This is
 		 * because BIB/session now assume that the prefix won't change

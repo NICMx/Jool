@@ -32,21 +32,6 @@ static inline unsigned int xlat_version(void)
 			| JOOL_VERSION_DEV;
 }
 
-/**
- * xlat_is_siit - Is this translator a Stateless IP/ICMP Translator?
- * Otherwise it's a NAT64.
- */
-bool xlat_is_siit(void);
-
-/**
- * xlat_is_nat64 - Is this translator a Stateful NAT64 Translator?
- * Otherwise it's a SIIT.
- */
-static inline bool xlat_is_nat64(void)
-{
-	return !xlat_is_siit();
-}
-
 const char *xlat_get_name(void);
 
 #endif /* _JOOL_COMMON_XLAT_H */

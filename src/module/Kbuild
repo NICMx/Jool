@@ -11,6 +11,8 @@ obj-m += jool.o
 
 jool-objs += initialization.o
 
+jool-objs += ../common/nl-protocol.o
+
 jool-objs += common/address.o
 jool-objs += common/atomic-config.o
 jool-objs += common/config.o
