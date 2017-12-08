@@ -13,6 +13,3 @@ missing
 Makefile
 autom4te.cache
 
-# output programs
-######################
-graybox
