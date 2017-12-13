@@ -13,7 +13,7 @@
  * The ICMP extension thing has not been implemented yet.
  */
 
-#include "translation-state.h"
+#include "xlation.h"
 #include "siit/pool.h"
 
 int rfc6791_init(struct addr4_pool **pool);

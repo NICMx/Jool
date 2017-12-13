@@ -8,8 +8,6 @@
 #include "constants.h"
 #include "str-utils.h"
 #include "config.h"
-#include "icmp-wrapper.h"
-#include "stats.h"
 
 struct pkt_metadata {
 	bool has_frag_hdr;
@@ -22,7 +20,8 @@ struct pkt_metadata {
 	unsigned int payload_offset;
 };
 
-#define skb_hdr_ptr(skb, offset, buffer) skb_header_pointer(skb, offset, sizeof(buffer), &buffer)
+#define skb_hdr_ptr(skb, offset, buffer) \
+	skb_header_pointer(skb, offset, sizeof(buffer), &buffer)
 
 static bool has_inner_pkt4(__u8 icmp_type)
 {
@@ -37,45 +36,45 @@ static bool has_inner_pkt6(__u8 icmp6_type)
 static int truncated6(struct sk_buff *skb, const char *what)
 {
 	log_debug("The %s seems truncated.", what);
-	inc_stats_skb6(skb, IPSTATS_MIB_INTRUNCATEDPKTS);
 	return -EINVAL;
 }
 
 static int truncated4(struct sk_buff *skb, const char *what)
 {
 	log_debug("The %s seems truncated.", what);
-	inc_stats_skb4(skb, IPSTATS_MIB_INTRUNCATEDPKTS);
 	return -EINVAL;
 }
 
 static int inhdr6(struct sk_buff *skb, const char *msg)
 {
 	log_debug("%s", msg);
-	inc_stats_skb6(skb, IPSTATS_MIB_INHDRERRORS);
 	return -EINVAL;
 }
 
 static int inhdr4(struct sk_buff *skb, const char *msg)
 {
 	log_debug("%s", msg);
-	inc_stats_skb4(skb, IPSTATS_MIB_INHDRERRORS);
 	return -EINVAL;
 }
 
 static void *offset_to_ptr(struct sk_buff *skb, unsigned int offset)
 {
-	return ((void *) skb->data) + offset;
+	return ((void *)skb->data) + offset;
 }
 
 /**
- * Apparently, as of 2007, Netfilter modules can assume they are the sole owners of their
- * skbs (http://lists.openwall.net/netdev/2007/10/14/13).
- * I can sort of confirm it by noticing that if it's not the case, editing the sk_buff
- * structs themselves would be overly cumbersome (since they'd have to operate on a clone,
- * and bouncing the clone back to Netfilter is kind of outside Netfilter's design).
- * This is relevant because we need to call pskb_may_pull(), which might eventually call
- * pskb_expand_head(), and that panics if the packet is shared.
+ * Apparently, as of 2007, Netfilter modules can assume they are the sole owners
+ * of their skbs (http://lists.openwall.net/netdev/2007/10/14/13).
+ * I can sort of confirm it by noticing that if it's not the case, editing the
+ * sk_buff structs themselves would be overly cumbersome (since they'd have to
+ * operate on a clone, and bouncing the clone back to Netfilter is kind of
+ * outside Netfilter's design).
+ * This is relevant because we need to call pskb_may_pull(), which might
+ * eventually call pskb_expand_head(), and that panics if the packet is shared.
  * Therefore, I think this validation (with messy WARN included) is fair.
+ *
+ * TODO this no longer applies and drivers can receive shared packets.
+ * Copy the headers to a temporal buffer I guess.
  */
 static int fail_if_shared(struct sk_buff *skb)
 {
@@ -84,8 +83,8 @@ static int fail_if_shared(struct sk_buff *skb)
 
 	/*
 	 * Keep in mind... "shared" and "cloned" are different concepts.
-	 * We know the sk_buff struct is unique, but somebody else might have an active pointer towards
-	 * the data area.
+	 * We know the sk_buff struct is unique, but somebody else might have an
+	 * active pointer towards the data area.
 	 */
 	return 0;
 }
@@ -93,11 +92,12 @@ static int fail_if_shared(struct sk_buff *skb)
 /**
  * Walks through @skb's headers, collecting data and adding it to @meta.
  *
- * @hdr6_offset number of bytes between skb_network_header(skb) and the IPv6 header.
+ * @hdr6_offset number of bytes between skb_network_header(skb) and the v6 hdr.
  *
  * BTW: You might want to read summarize_skb4() first, since it's a lot simpler.
  */
-static int summarize_skb6(struct sk_buff *skb, unsigned int hdr6_offset, struct pkt_metadata *meta)
+static int summarize_skb6(struct sk_buff *skb, unsigned int hdr6_offset,
+		struct pkt_metadata *meta)
 {
 	union {
 		struct ipv6_opt_hdr opt;
@@ -114,7 +114,7 @@ static int summarize_skb6(struct sk_buff *skb, unsigned int hdr6_offset, struct 
 	unsigned int offset;
 	bool is_first = true;
 
-	nexthdr = ((struct ipv6hdr *) (skb_network_header(skb) + hdr6_offset))->nexthdr;
+	nexthdr = ((struct ipv6hdr *)(skb_network_header(skb) + hdr6_offset))->nexthdr;
 	offset = hdr6_offset + sizeof(struct ipv6hdr);
 
 	meta->has_frag_hdr = false;
@@ -138,13 +138,17 @@ static int summarize_skb6(struct sk_buff *skb, unsigned int hdr6_offset, struct 
 		case NEXTHDR_UDP:
 			meta->l4_proto = L4PROTO_UDP;
 			meta->l4_offset = offset;
-			meta->payload_offset = is_first ? (offset + sizeof(struct udphdr)) : offset;
+			meta->payload_offset = is_first
+					? (offset + sizeof(struct udphdr))
+					: offset;
 			return 0;
 
 		case NEXTHDR_ICMP:
 			meta->l4_proto = L4PROTO_ICMP;
 			meta->l4_offset = offset;
-			meta->payload_offset = is_first ? (offset + sizeof(struct icmp6hdr)) : offset;
+			meta->payload_offset = is_first
+					? (offset + sizeof(struct icmp6hdr))
+					: offset;
 			return 0;
 
 		case NEXTHDR_FRAGMENT:
@@ -255,7 +259,8 @@ static int handle_icmp6(struct sk_buff *skb, struct pkt_metadata *meta,
 			return error;
 	}
 
-	if (type == XLATOR_SIIT && meta->has_frag_hdr && is_icmp6_info(ptr.icmp->icmp6_type)) {
+	if (type == XLATOR_SIIT && meta->has_frag_hdr
+			&& is_icmp6_info(ptr.icmp->icmp6_type)) {
 		ptr.frag = skb_hdr_ptr(skb, meta->frag_offset, buffer.frag);
 		if (!ptr.frag)
 			return truncated6(skb, "fragment header");
@@ -281,10 +286,6 @@ int pkt_init_ipv6(struct packet *pkt, struct sk_buff *skb, xlator_type type)
 	 * Careful in this function and subfunctions. pskb_may_pull() might
 	 * change pointers, so you generally don't want to store them.
 	 */
-
-#ifdef BENCHMARK
-	getnstimeofday(&pkt->start_time);
-#endif
 
 	error = fail_if_shared(skb);
 	if (error)
@@ -390,7 +391,8 @@ static int handle_icmp4(struct sk_buff *skb, struct pkt_metadata *meta,
 			return error;
 	}
 
-	if (type == XLATOR_SIIT && is_icmp4_info(ptr->type) && is_fragmented_ipv4(ip_hdr(skb))) {
+	if (type == XLATOR_SIIT && is_icmp4_info(ptr->type)
+			&& is_fragmented_ipv4(ip_hdr(skb))) {
 		log_debug("Packet is a fragmented ping; its checksum cannot be translated.");
 		return -EINVAL;
 	}
@@ -450,10 +452,6 @@ int pkt_init_ipv4(struct packet *pkt, struct sk_buff *skb, xlator_type type)
 	 * Careful in this function and subfunctions. pskb_may_pull() might
 	 * change pointers, so you generally don't want to store them.
 	 */
-
-#ifdef BENCHMARK
-	getnstimeofday(&pkt->start_time);
-#endif
 
 	error = fail_if_shared(skb);
 	if (error)

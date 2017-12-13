@@ -2,7 +2,6 @@
 #define _JOOL_MOD_SEND_PACKET_H
 
 /**
- * @file
  * Functions to artificially send homemade packets through the interfaces.
  * Basically, you initialize sk_buffs and this worries about putting them on the
  * network.
@@ -13,7 +12,7 @@
  * kernel to drop the original packets and send new ones on our own.
  */
 
-#include "translation-state.h"
+#include "xlation.h"
 
 /**
  * Puts @state's outgoing skb on the network.
@@ -21,6 +20,6 @@
  * Note that this function inherits from ip_local_out() and ip6_local_out() the
  * annoying side effect of freeing "out_skb", EVEN IF IT COULD NOT BE SENT.
  */
-verdict sendpkt_send(struct xlation *state);
+int sendpkt_send(struct xlation *state);
 
 #endif /* _JOOL_MOD_SEND_PACKET_H */

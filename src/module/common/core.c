@@ -3,71 +3,54 @@
 #include "config.h"
 #include "handling-hairpinning.h"
 #include "xlator.h"
-#include "translation-state.h"
 #include "rfc7915/core.h"
 #include "nat64/compute-outgoing-tuple.h"
 #include "nat64/determine-incoming-tuple.h"
 #include "nat64/filtering-and-updating.h"
-#include "nat64/fragment-db.h"
 #include "send-packet.h"
+#include "xlation.h"
 
-static verdict core_common(struct xlation *state)
+static void core_common(struct xlation *state)
 {
-	verdict result;
-
 	if (state->jool.type == XLATOR_NAT64) {
-		result = determine_in_tuple(state);
-		if (result != VERDICT_CONTINUE)
-			return result;
-		result = filtering_and_updating(state);
-		if (result != VERDICT_CONTINUE)
-			return result;
-		result = compute_out_tuple(state);
-		if (result != VERDICT_CONTINUE)
-			return result;
+		if (determine_in_tuple(state))
+			return;
+//		result = filtering_and_updating(state);
+//		if (result != VERDICT_CONTINUE)
+//			return result;
+//		result = compute_out_tuple(state);
+//		if (result != VERDICT_CONTINUE)
+//			return result;
 	}
-	result = translating_the_packet(state);
-	if (result != VERDICT_CONTINUE)
-		return result;
-
-	if (is_hairpin(state)) {
-		result = handling_hairpinning(state);
-		kfree_skb(state->out.skb); /* Put this inside of hh()? */
-	} else {
-		result = sendpkt_send(state);
-		/* sendpkt_send() releases out's skb regardless of verdict. */
-	}
-
-	if (result != VERDICT_CONTINUE)
-		return result;
-
+//	result = translating_the_packet(state);
+//	if (result != VERDICT_CONTINUE)
+//		return result;
+//
+//	if (is_hairpin(state)) {
+//		result = handling_hairpinning(state);
+//		kfree_skb(state->out.skb); /* Put this inside of hh()? */
+//	} else {
+//		result = sendpkt_send(state);
+//		/* sendpkt_send() releases out's skb regardless of verdict. */
+//	}
+//
+//	if (result != VERDICT_CONTINUE)
+//		return result;
+//
 	log_debug("Success.");
-	/*
-	 * The new packet was sent, so the original one can die; drop it.
-	 *
-	 * NF_DROP translates into an error (see nf_hook_slow()).
-	 * Sending a replacing & translated version of the packet should not
-	 * count as an error, so we free the incoming packet ourselves and
-	 * return NF_STOLEN on success.
-	 */
-	kfree_skb(state->in.skb);
-	return VERDICT_STOLEN;
+	dev_kfree_skb(state->in.skb);
 }
 
-verdict core_4to6(struct xlation *state, struct sk_buff *skb)
+void core_4to6(struct xlation *state, struct sk_buff *skb)
 {
 	struct iphdr *hdr = ip_hdr(skb);
-
-	/* TODO this field is prolly redundant (ip link set jool0 down). */
-	if (!state->jool.global->cfg.enabled)
-		return VERDICT_DROP;
 
 	log_debug("===============================================");
 	log_debug("Got IPv4 packet: %pI4->%pI4", &hdr->saddr, &hdr->daddr);
 
 	/* Reminder: This function might change pointers. */
-	if (pkt_init_ipv4(&state->in, skb, state->jool.type) != 0)
-		return VERDICT_DROP;
+	if (pkt_init_ipv4(&state->in, skb, state->jool.type))
+		return;
 
 	/*
 	if (xlat_is_nat64(&state)) {
@@ -76,24 +59,21 @@ verdict core_4to6(struct xlation *state, struct sk_buff *skb)
 	}
 	*/
 
-	return core_common(state);
+	core_common(state);
 }
 
-verdict core_6to4(struct xlation *state, struct sk_buff *skb)
+void core_6to4(struct xlation *state, struct sk_buff *skb)
 {
 	struct ipv6hdr *hdr = ipv6_hdr(skb);
 
 	snapshot_record(&state->in.debug.shot1, skb);
 
-	if (!state->jool.global->cfg.enabled)
-		return VERDICT_DROP;
-
 	log_debug("===============================================");
 	log_debug("Got IPv6 packet: %pI6c->%pI6c", &hdr->saddr, &hdr->daddr);
 
 	/* Reminder: This function might change pointers. */
-	if (pkt_init_ipv6(&state->in, skb, state->jool.type) != 0)
-		return VERDICT_DROP;
+	if (pkt_init_ipv6(&state->in, skb, state->jool.type))
+		return;
 
 	snapshot_record(&state->in.debug.shot2, skb);
 
@@ -140,5 +120,5 @@ verdict core_6to4(struct xlation *state, struct sk_buff *skb)
 	}
 	*/
 
-	return core_common(state);
+	core_common(state);
 }

@@ -287,18 +287,13 @@ struct packet {
 	 */
 	struct packet *original_pkt;
 
+	/**
+	 * https://github.com/NICMx/Jool/issues/247
+	 */
 	struct {
 		struct pkt_snapshot shot1;
 		struct pkt_snapshot shot2;
 	} debug;
-
-#ifdef BENCHMARK
-	/**
-	 * Log the time in epoch when this skb arrives to jool.
-	 * For benchmark purposes.
-	 */
-	struct timespec start_time;
-#endif
 };
 
 /**
@@ -317,9 +312,6 @@ static inline void pkt_fill(struct packet *pkt, struct sk_buff *skb,
 	pkt->hdr_frag = hdr_frag;
 	pkt->payload = payload;
 	pkt->original_pkt = original_pkt;
-#ifdef BENCHMARK
-	pkt->start_time = original_pkt->start_time;
-#endif
 }
 
 /**

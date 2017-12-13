@@ -11,6 +11,7 @@ int str_to_addr6(const char *str, struct in6_addr *result)
 	return in6_pton(str, -1, (u8 *) result, '\0', NULL) ? 0 : -EINVAL;
 }
 
+/* TODO the userspace app duplicates this code. */
 const char *l3proto_to_string(l3_protocol l3_proto)
 {
 	switch (l3_proto) {
@@ -23,6 +24,7 @@ const char *l3proto_to_string(l3_protocol l3_proto)
 	return NULL;
 }
 
+/* TODO the userspace app duplicates this code. */
 const char *l4proto_to_string(l4_protocol l4_proto)
 {
 	switch (l4_proto) {

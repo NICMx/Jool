@@ -8,8 +8,8 @@
  * Infers a tuple (summary) of the outgoing packet, yet to be created.
  */
 
-#include "translation-state.h"
+#include "xlation.h"
 
-verdict compute_out_tuple(struct xlation *state);
+int compute_out_tuple(struct xlation *state);
 
 #endif /* _JOOL_MOD_OUTGOING_H */

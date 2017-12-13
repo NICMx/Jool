@@ -7,7 +7,6 @@
 #include "pool6.h"
 #include "nl/nl-common.h"
 #include "nl/nl-core.h"
-#include "nat64/fragment-db.h"
 #include "nat64/joold.h"
 #include "nat64/bib/db.h"
 #include "siit/eam.h"
@@ -277,9 +276,6 @@ static int massive_switch(struct full_config *cfg, struct global_value *chunk,
 	case TCP_TRANS_TIMEOUT:
 		error = ensure_nat64(cfg, OPTNAME_TCPTRANS_TIMEOUT);
 		return error ? : parse_timeout(&cfg->bib.ttl.tcp_trans, chunk, size, TCP_TRANS);
-	case FRAGMENT_TIMEOUT:
-		error = ensure_nat64(cfg, OPTNAME_FRAG_TIMEOUT);
-		return error ? : parse_timeout(&cfg->frag.ttl, chunk, size, FRAGMENT_MIN);
 	case BIB_LOGGING:
 		error = ensure_nat64(cfg, OPTNAME_BIB_LOGGING);
 		return error ? : parse_bool(&cfg->bib.bib_logging, chunk, size);
@@ -349,7 +345,6 @@ static int commit_config(struct xlator *jool, struct full_config *config)
 	config_copy(&config->global, &jool->global->cfg);
 	bib_config_set(jool->nat64.bib, &config->bib);
 	joold_config_set(jool->nat64.joold, &config->joold);
-	fragdb_config_set(jool->nat64.frag, &config->frag);
 
 	return xlator_replace(jool);
 }

@@ -57,6 +57,7 @@ int error_pool_add_message(char *msg)
 {
 	struct error_node *node;
 
+	/* TODO race condition here. */
 	if (!activated)
 		return 0;
 

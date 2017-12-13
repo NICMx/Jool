@@ -8,9 +8,9 @@
  * Creates a tuple (summary) of the incoming packet.
  */
 
-#include "translation-state.h"
+#include "xlation.h"
 
-verdict determine_in_tuple(struct xlation *state);
+int determine_in_tuple(struct xlation *state);
 
 
 #endif /* _JOOL_MOD_INCOMING_H */

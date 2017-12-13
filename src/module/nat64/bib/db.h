@@ -2,7 +2,6 @@
 #define _JOOL_MOD_SESSION_DB_H
 
 /**
- * @file
  * The BIB and session tables.
  * Formally defined in RFC 6146 section 3.2.
  */
@@ -83,10 +82,10 @@ int bib_add6(struct bib *db, struct mask_domain *masks, struct tuple *tuple6,
 		struct ipv4_transport_addr *dst4, struct bib_session *result);
 int bib_add4(struct bib *db, struct ipv6_transport_addr *dst6,
 		struct tuple *tuple4, struct bib_session *result);
-verdict bib_add_tcp6(struct bib *db, struct mask_domain *masks,
+int bib_add_tcp6(struct bib *db, struct mask_domain *masks,
 		struct ipv4_transport_addr *dst4, struct packet *pkt,
 		struct collision_cb *cb, struct bib_session *result);
-verdict bib_add_tcp4(struct bib *db, struct ipv6_transport_addr *dst6,
+int bib_add_tcp4(struct bib *db, struct ipv6_transport_addr *dst6,
 		struct packet *pkt, struct collision_cb *cb,
 		struct bib_session *result);
 

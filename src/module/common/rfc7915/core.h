@@ -10,10 +10,8 @@
  * of NAT64 (RFC6146 section 3.7).
  */
 
-#include <linux/ip.h>
-#include <linux/skbuff.h>
-#include "translation-state.h"
+#include "xlation.h"
 
-verdict translating_the_packet(struct xlation *state);
+int translating_the_packet(struct xlation *state);
 
 #endif /* _JOOL_MOD_RFC6145_CORE_H */

@@ -1,7 +1,6 @@
 #include "nat64/timer.h"
 
 #include "xlator.h"
-#include "nat64/fragment-db.h"
 #include "nat64/joold.h"
 #include "nat64/bib/db.h"
 
@@ -12,7 +11,6 @@ static struct timer_list timer;
 
 static int clean_state(struct xlator *jool, void *args)
 {
-	fragdb_clean(jool->nat64.frag);
 	bib_clean(jool->nat64.bib, jool->ns);
 	joold_clean(jool->nat64.joold, jool->nat64.bib);
 	return 0;

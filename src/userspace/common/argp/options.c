@@ -81,18 +81,6 @@ static const struct argp_option pool6791_opt = {
 		.group = 0,
 };
 
-
-#ifdef BENCHMARK
-static const struct argp_option benchmark_opt = {
-		.name = OPTNAME_LOGTIME,
-		.key = ARGP_LOGTIME,
-		.arg = NULL,
-		.flags = 0,
-		.doc = "The command will operate on the logs times database.",
-		.group = 0,
-};
-#endif
-
 static const struct argp_option global_opt = {
 		.name = OPTNAME_GLOBAL,
 		.key = ARGP_GLOBAL,
@@ -601,9 +589,6 @@ static const struct argp_option *opts_siit[] = {
 	&blacklist_opt,
 	&pool6791_opt,
 	&global_opt,
-#ifdef BENCHMARK
-	&benchmark_opt,
-#endif
 	&parse_file_opt,
 	&instance_opt,
 
@@ -641,9 +626,6 @@ static const struct argp_option *opts_nat64[] = {
 	&session_opt,
 	&joold_opt,
 	&global_opt,
-#ifdef BENCHMARK
-	&benchmark_opt,
-#endif
 	&parse_file_opt,
 	&instance_opt,
 

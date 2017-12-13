@@ -1,11 +1,8 @@
-#include "translation-state.h"
-
-#include "xlator.h"
-#include "nat64/bib/entry.h"
+#include "xlation.h"
 
 void xlation_init(struct xlation *state, struct xlator *jool)
 {
-	xlator_get(jool); /* TODO move the memcpy below to this function? */
+	xlator_get(jool);
 	memcpy(&state->jool, jool, sizeof(*jool));
 
 	memset(&state->in.debug, 0, sizeof(state->in.debug));

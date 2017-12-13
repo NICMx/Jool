@@ -1,19 +1,14 @@
 #ifndef _JOOL_COMMON_XLAT_H
 #define _JOOL_COMMON_XLAT_H
 
-#include <linux/types.h>
-#ifndef __KERNEL__
-	#include <stdbool.h>
-#endif
-
 /**
  * These defines are read in from dkms.conf. If you change their syntax or
  * relocate them, please make sure to also update dkms.conf accordingly.
  */
 #define JOOL_VERSION_MAJOR 3
 #define JOOL_VERSION_MINOR 5
-#define JOOL_VERSION_REV 5
-#define JOOL_VERSION_DEV 1
+#define JOOL_VERSION_REV 255
+#define JOOL_VERSION_DEV 0
 
 /** See http://stackoverflow.com/questions/195975 */
 #define STR_VALUE(arg) #arg

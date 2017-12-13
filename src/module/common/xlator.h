@@ -11,27 +11,26 @@
  * should use to handle a packet in the respective namespace.
  */
 struct xlator {
-	struct net *ns;
-
-	struct global_config *global;
-	struct pool6 *pool6;
-	union {
-		struct {
-			struct eam_table *eamt;
-			struct addr4_pool *blacklist;
-			struct addr4_pool *pool6791;
-		} siit;
-		struct {
-			struct fragdb *frag;
-			struct pool4 *pool4;
-			struct bib *bib;
-			struct joold_queue *joold;
-		} nat64;
-	};
+//	struct net *ns;
+//
+//	struct global_config *global;
+//	struct pool6 *pool6;
+//	union {
+//		struct {
+//			struct eam_table *eamt;
+//			struct addr4_pool *blacklist;
+//			struct addr4_pool *pool6791;
+//		} siit;
+//		struct {
+//			struct pool4 *pool4;
+//			struct bib *bib;
+//			struct joold_queue *joold;
+//		} nat64;
+//	};
 
 	xlator_type type;
 
-	struct config_candidate *newcfg;
+//	struct config_candidate *newcfg;
 };
 
 int xlator_init(void);
@@ -40,8 +39,8 @@ void xlator_destroy(void);
 int xlator_add(xlator_type type, struct xlator *result);
 int xlator_replace(struct xlator *instance);
 
-int xlator_find(struct net *ns, struct xlator *result);
-int xlator_find_current(struct xlator *result);
+//int xlator_find(struct net *ns, struct xlator *result);
+//int xlator_find_current(struct xlator *result);
 
 void xlator_get(struct xlator *instance);
 void xlator_put(struct xlator *instance);

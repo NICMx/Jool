@@ -1,12 +1,12 @@
-#ifndef _JOOL_MOD_TRANSLATION_STATE_H
-#define _JOOL_MOD_TRANSLATION_STATE_H
+#ifndef _JOOL_MOD_XLATION_H
+#define _JOOL_MOD_XLATION_H
 
 #include "xlator.h"
 #include "packet.h"
 #include "nat64/bib/entry.h"
 
 /**
- * State of the current translation.
+ * The state of the current translation.
  */
 struct xlation {
 	/**
@@ -30,4 +30,4 @@ struct xlation {
 void xlation_init(struct xlation *state, struct xlator *jool);
 void xlation_put(struct xlation *state);
 
-#endif /* _JOOL_MOD_TRANSLATION_STATE_H */
+#endif /* _JOOL_MOD_XLATION_H */

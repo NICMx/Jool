@@ -5,7 +5,6 @@
 #include "wkmalloc.h"
 #include "siit/eam.h"
 #include "siit/pool.h"
-#include "nat64/fragment-db.h"
 #include "nat64/joold.h"
 #include "nat64/pool4/db.h"
 #include "nat64/bib/db.h"
@@ -338,7 +337,7 @@ static int commit(struct xlator *jool)
 
 	/*
 	 * This the little flaw in the design.
-	 * I can't make full new versions of BIB, joold and frag just
+	 * I can't make full new versions of BIB and joold just
 	 * over a few configuration values because the tables can be massive,
 	 * so instead I'm patching values after I know the pointer swap was
 	 * successful.
@@ -348,7 +347,6 @@ static int commit(struct xlator *jool)
 	if (remnants) {
 		bib_config_set(jool->nat64.bib, &remnants->bib);
 		joold_config_set(jool->nat64.joold, &remnants->joold);
-		fragdb_config_set(jool->nat64.frag, &remnants->frag);
 		wkfree(struct full_config, remnants);
 	}
 

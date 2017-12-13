@@ -19,6 +19,8 @@
 	#include "log.h"
 #endif
 
+#define EUNSUPPORTED 0x6400
+
 typedef enum xlator_type {
 	XLATOR_SIIT,
 	XLATOR_NAT64,

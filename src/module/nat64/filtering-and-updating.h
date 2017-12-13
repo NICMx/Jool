@@ -7,10 +7,10 @@
  * Session Information", as defined in RFC6146 section 3.5.
  */
 
-#include "translation-state.h"
+#include "xlation.h"
 #include "nat64/bib/entry.h"
 
-verdict filtering_and_updating(struct xlation *state);
+int filtering_and_updating(struct xlation *state);
 enum session_fate tcp_est_expire_cb(struct session_entry *session, void *arg);
 
 #endif /* _JOOL_MOD_FILTERING_H */

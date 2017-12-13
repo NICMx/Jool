@@ -2,21 +2,12 @@
 #define _JOOL_COMMON_CONFIG_H
 
 /**
- * @file
  * Elements visible to both the kernel module and the userspace application, and
  * which they use to communicate with each other.
  */
 
 #include "types.h"
 #include "xlat.h"
-/* TODO (usr) really necessary? */
-#ifdef BENCHMARK
-	#ifdef __KERNEL__
-		#include <linux/time.h>
-	#else
-		#include <time.h>
-	#endif
-#endif
 
 /* Modes */
 #define OPTNAME_GLOBAL			"global"
@@ -121,8 +112,6 @@ enum config_mode {
 	MODE_BIB = (1 << 3),
 	/** The current message is talking about the session tables. */
 	MODE_SESSION = (1 << 4),
-	/** The current message is talking about log times for benchmark. */
-	MODE_LOGTIME = (1 << 5),
 	/** The current message is talking about the JSON configuration file */
 	MODE_PARSE_FILE = (1 << 9),
 	/** The current message is talking about synchronization entries.*/
@@ -511,7 +500,6 @@ enum global_type {
 	ICMP_TIMEOUT,
 	TCP_EST_TIMEOUT,
 	TCP_TRANS_TIMEOUT,
-	FRAGMENT_TIMEOUT,
 	BIB_LOGGING,
 	SESSION_LOGGING,
 	MAX_PKTS,
@@ -521,21 +509,6 @@ enum global_type {
 	SS_CAPACITY,
 	SS_MAX_PAYLOAD,
 };
-
-#ifdef BENCHMARK
-
-/**
- * A logtime node entry, from the eyes of userspace.
- *
- * It holds the "struct timespec" which include seconds and nanoseconds, that
- * specific how time the skb need to be translated to IPv6 -> IPv4 or
- * IPv4 -> IPv6.
- */
-struct logtime_entry_usr {
-	struct timespec time;
-};
-
-#endif
 
 /**
  * A BIB entry, from the eyes of userspace.
@@ -600,10 +573,6 @@ struct global_config_usr {
 	 * actual variable Jool stores; it is computed as it is requested.
 	 */
 	config_bool status;
-	/**
-	 * Does the user wants this Jool instance to translate packets?
-	 */
-	config_bool enabled;
 
 	/**
 	 * "true" if the Traffic Class field of translated IPv6 headers should

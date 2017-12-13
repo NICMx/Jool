@@ -11,7 +11,6 @@
 
 #include "core.h"
 #include "log.h"
-#include "translation-state.h"
 #include "xlat.h"
 #include "xlator.h"
 
@@ -63,56 +62,55 @@ static int jool_netdev_stop(struct net_device *dev)
 static int jool_netdev_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct jool_netdev_priv *priv = netdev_priv(dev);
+	struct ethhdr *hdr;
 	struct xlation state;
-	verdict result;
-
-	log_info("Received a packet from the kernel. Translating...");
-
-	xlation_init(&state, &priv->jool);
 
 	// Save the timestamp TODO what for?
 	dev->trans_start = jiffies;
 
-	/* snull_rx(skb, dev); TODO */
-	switch (ntohs(skb->protocol)) {
-	case ETH_P_IP:
-		result = core_4to6(&state, skb);
-		break;
+	log_info("Received a packet from the kernel. Translating...");
+
+	if (!pskb_may_pull(skb, ETH_HLEN)) {
+		log_info("Packet is too short to even contain an Ethernet header.");
+		kfree_skb(skb);
+		return NETDEV_TX_OK;
+	}
+
+	hdr = eth_hdr(skb);
+	switch (be16_to_cpu(hdr->h_proto)) {
 	case ETH_P_IPV6:
-		result = core_6to4(&state, skb);
+		log_info("Ethernet header says IPv6.");
+		break;
+	case ETH_P_IP:
+		log_info("Ethernet header says IPv4.");
+		break;
+	default:
+		log_info("Unknown proto in Ethernet header: %u", be16_to_cpu(hdr->h_proto));
+		kfree_skb(skb);
+		return NETDEV_TX_OK;
+	}
+
+	/* Don't need the ethernet header for anything. */
+	skb_pull(skb, ETH_HLEN);
+
+	xlation_init(&state, &priv->jool);
+
+	switch (ntohs(skb->protocol)) {
+	case ETH_P_IPV6:
+		log_info("skb->proto says IPv6.");
+		core_6to4(&state, skb);
+		break;
+	case ETH_P_IP:
+		log_info("skb->proto says IPv4.");
+		core_4to6(&state, skb);
 		break;
 	default:
 		log_info("Packet is not IPv4 nor IPv6; don't know what to do.");
-		goto end; /* TODO am I supposed to return something else? */
+		kfree_skb(skb);
 	}
 
-	// TODO
-	switch (result) {
-	case VERDICT_CONTINUE:
-		log_debug("Continue.");
-		break;
-	case VERDICT_DROP:
-		log_debug("Drop.");
-		break;
-	case VERDICT_ACCEPT:
-		log_debug("Accept.");
-		break;
-	case VERDICT_STOLEN:
-		log_debug("Stolen.");
-		break;
-	default:
-		log_debug("Unknown verdict.");
-		break;
-	}
-
-	priv->stats.tx_packets++;
-	priv->stats.tx_bytes += skb->len;
-	/* Fall through. */
-
-end:
-	dev_kfree_skb(skb);
 	xlation_put(&state);
-	return 0;
+	return NETDEV_TX_OK;
 }
 
 /**
@@ -161,7 +159,7 @@ int jool_netdev_init_module(void)
 	struct jool_netdev_priv *priv;
 	int error;
 
-	log_debug("Inserting %s...", xlat_get_name());
+	log_info("Inserting %s...", xlat_get_name());
 
 	jool_dev = alloc_netdev(sizeof(struct jool_netdev_priv), "jool%d",
 			NET_NAME_UNKNOWN, jool_netdev_init);

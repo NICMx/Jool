@@ -44,7 +44,11 @@
  * errors while processing user requests.
  * I the code found a **programming** error, use WARN() or its variations
  * instead.
+ *
+ * TODO revert
  */
+#define log_err pr_err
+/*
 #define log_err(text, ...) \
 	do { \
 		char __error_message[512]; \
@@ -53,6 +57,7 @@
 		sprintf(__error_message, text "\n", ##__VA_ARGS__); \
 		error_pool_add_message(__error_message); \
 	} while (0)
+*/
 
 #ifdef UNIT_TESTING
 #undef log_err

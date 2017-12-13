@@ -943,22 +943,6 @@ static int handle_addr4_pool(struct arguments *args)
 	}
 }
 
-static int handle_logtime(struct arguments *args)
-{
-#ifdef BENCHMARK
-	switch (args->op) {
-	case OP_DISPLAY:
-		return logtime_display(args->db.no_headers);
-	default:
-		log_err("Unknown operation for logtime mode: %u.", args->op);
-		break;
-	}
-#else
-	log_err("Benchmark mode was disabled during compilation.");
-	return -EINVAL;
-#endif
-}
-
 static int handle_global(struct arguments *args)
 {
 	switch (args->op) {
@@ -1010,8 +994,6 @@ static int main_wrapped(struct arguments *args)
 	case MODE_RFC6791:
 	case MODE_BLACKLIST:
 		return handle_addr4_pool(args);
-	case MODE_LOGTIME:
-		return handle_logtime(args);
 	case MODE_GLOBAL:
 		return handle_global(args);
 	case MODE_PARSE_FILE:

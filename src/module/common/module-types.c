@@ -1,9 +1,6 @@
 #include "module-types.h"
 
 #include <linux/icmp.h>
-#include <linux/icmpv6.h>
-#include <net/ipv6.h>
-
 #include "str-utils.h"
 
 __u8 l4_proto_to_nexthdr(l4_protocol proto)
@@ -77,8 +74,8 @@ bool is_icmp6_info(__u8 type)
 bool is_icmp6_error(__u8 type)
 {
 	/*
-	 * We do not return !is_icmp6_info(type) because unknown codes should be considered
-	 * untranslatable.
+	 * We do not return !is_icmp6_info(type) because unknown codes should be
+	 * considered untranslatable.
 	 */
 	return (type == ICMPV6_DEST_UNREACH)
 			|| (type == ICMPV6_PKT_TOOBIG)
@@ -101,10 +98,7 @@ bool is_icmp4_error(__u8 type)
 }
 
 /**
-* log_tuple() - Prints the "tuple" tuple in the kernel ring buffer.
-* @tuple: Structure to be dumped on logging.
-*
-* It's a ripoff of nf_ct_dump_tuple(), adjusted to comply to this project's logging requirements.
+* Prints the @tuple tuple in the kernel ring buffer.
 */
 void log_tuple(struct tuple *tuple)
 {

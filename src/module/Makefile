@@ -13,3 +13,11 @@ clean:
 	make -C ${KERNEL_DIR} M=$$PWD $@
 debug:
 	make all JOOL_FLAGS+=-DDEBUG
+
+# Debug targets
+insert:
+	sudo insmod jool.ko
+	sudo ip link set jool0 up
+	sudo ip addr add 2001:db8::1/96 dev jool0
+remove:
+	sudo rmmod jool

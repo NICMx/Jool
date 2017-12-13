@@ -6,7 +6,7 @@ int prefix6_parse(char *str, struct ipv6_prefix *result)
 {
 	const char *slash_pos;
 
-	if (in6_pton(str, -1, (u8 *) &result->address.in6_u.u6_addr8, '/', &slash_pos) != 1)
+	if (in6_pton(str, -1, (u8 *)&result->address.in6_u.u6_addr8, '/', &slash_pos) != 1)
 		goto fail;
 	if (kstrtou8(slash_pos + 1, 0, &result->len) != 0)
 		goto fail;
@@ -23,12 +23,12 @@ int prefix4_parse(char *str, struct ipv4_prefix *result)
 	const char *slash_pos;
 
 	if (strchr(str, '/') != NULL) {
-		if (in4_pton(str, -1, (u8 *) &result->address, '/', &slash_pos) != 1)
+		if (in4_pton(str, -1, (u8 *)&result->address, '/', &slash_pos) != 1)
 			goto fail;
 		if (kstrtou8(slash_pos + 1, 0, &result->len) != 0)
 			goto fail;
 	} else {
-		if (in4_pton(str, -1, (u8 *) &result->address, '\0', NULL) != 1)
+		if (in4_pton(str, -1, (u8 *)&result->address, '\0', NULL) != 1)
 			goto fail;
 		result->len = 32;
 	}
@@ -64,10 +64,11 @@ bool prefix4_equals(const struct ipv4_prefix *a, const struct ipv4_prefix *b)
 
 static __u32 get_prefix4_mask(const struct ipv4_prefix *prefix)
 {
-	return ((__u64) 0xffffffffU) << (32 - prefix->len);
+	return ((__u64)0xffffffffU) << (32 - prefix->len);
 }
 
-bool prefix4_contains(const struct ipv4_prefix *prefix, const struct in_addr *addr)
+bool prefix4_contains(const struct ipv4_prefix *prefix,
+		const struct in_addr *addr)
 {
 	__u32 maskbits = get_prefix4_mask(prefix);
 	__u32 prefixbits = be32_to_cpu(prefix->address.s_addr) & maskbits;
@@ -75,17 +76,20 @@ bool prefix4_contains(const struct ipv4_prefix *prefix, const struct in_addr *ad
 	return prefixbits == addrbits;
 }
 
-bool prefix4_intersects(const struct ipv4_prefix *p1, const struct ipv4_prefix *p2)
+bool prefix4_intersects(const struct ipv4_prefix *p1,
+		const struct ipv4_prefix *p2)
 {
-	return prefix4_contains(p1, &p2->address) || prefix4_contains(p2, &p1->address);
+	return prefix4_contains(p1, &p2->address)
+			|| prefix4_contains(p2, &p1->address);
 }
 
 __u64 prefix4_get_addr_count(const struct ipv4_prefix *prefix)
 {
-	return ((__u64) 1U) << (32 - prefix->len);
+	return ((__u64)1U) << (32 - prefix->len);
 }
 
-bool prefix6_contains(const struct ipv6_prefix *prefix, const struct in6_addr *addr)
+bool prefix6_contains(const struct ipv6_prefix *prefix,
+		const struct in6_addr *addr)
 {
 	return ipv6_prefix_equal(&prefix->address, addr, prefix->len);
 }
@@ -106,7 +110,8 @@ int prefix4_validate(const struct ipv4_prefix *prefix)
 
 	suffix_mask = ~get_prefix4_mask(prefix);
 	if ((be32_to_cpu(prefix->address.s_addr) & suffix_mask) != 0) {
-		log_err("'%pI4/%u' seems to have a suffix; please fix.", &prefix->address, prefix->len);
+		log_err("'%pI4/%u' seems to have a suffix; please fix.",
+				&prefix->address, prefix->len);
 		return -EINVAL;
 	}
 
@@ -156,7 +161,8 @@ void addr4_set_bit(struct in_addr *addr, unsigned int pos, bool value)
 
 __u32 addr6_get_bit(const struct in6_addr *addr, unsigned int pos)
 {
-	__u32 quadrant; /* As in, an IPv6 address has 4 "quadrants" of 32 bits each. */
+	/* As in, an IPv6 address has 4 "quadrants" of 32 bits each. */
+	__u32 quadrant;
 	__u32 mask;
 
 	/* "pos >> 5" is a more efficient version of "pos / 32". */
@@ -184,7 +190,7 @@ void addr6_set_bit(struct in6_addr *addr, unsigned int pos, bool value)
 __u64 prefix4_next(const struct ipv4_prefix *prefix)
 {
 	return prefix4_get_addr_count(prefix)
-			+ (__u64) be32_to_cpu(prefix->address.s_addr);
+			+ (__u64)be32_to_cpu(prefix->address.s_addr);
 }
 
 /**
