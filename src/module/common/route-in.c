@@ -3,7 +3,7 @@
 #include <linux/ip.h>
 #include <net/route.h>
 
-#include "stats.h"
+#include "module-stats.h"
 
 int route4_input(struct sk_buff *skb)
 {

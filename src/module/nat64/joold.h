@@ -3,7 +3,7 @@
 
 #include "config.h"
 #include "xlator.h"
-#include "nat64/bib/entry.h"
+#include "nat64/bib/db.h"
 
 struct joold_queue;
 
@@ -15,7 +15,7 @@ struct joold_queue;
 int joold_init(void);
 void joold_terminate(void);
 
-struct joold_queue *joold_create(struct net *ns);
+struct joold_queue *joold_create(void);
 void joold_get(struct joold_queue *queue);
 void joold_put(struct joold_queue *queue);
 

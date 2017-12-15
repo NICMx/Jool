@@ -43,13 +43,13 @@ static void core_common(struct xlation *state)
 
 void core_4to6(struct xlation *state, struct sk_buff *skb)
 {
-	struct iphdr *hdr = ip_hdr(skb);
-
 	log_debug("===============================================");
-	log_debug("Got IPv4 packet: %pI4->%pI4", &hdr->saddr, &hdr->daddr);
+	log_debug("Got IPv4 packet: %pI4->%pI4",
+			&ip_hdr(skb)->saddr,
+			&ip_hdr(skb)->daddr);
 
 	/* Reminder: This function might change pointers. */
-	if (pkt_init_ipv4(&state->in, skb, state->jool.type))
+	if (pkt_init_ipv4(state, skb))
 		return;
 
 	/*
@@ -64,15 +64,15 @@ void core_4to6(struct xlation *state, struct sk_buff *skb)
 
 void core_6to4(struct xlation *state, struct sk_buff *skb)
 {
-	struct ipv6hdr *hdr = ipv6_hdr(skb);
-
 	snapshot_record(&state->in.debug.shot1, skb);
 
 	log_debug("===============================================");
-	log_debug("Got IPv6 packet: %pI6c->%pI6c", &hdr->saddr, &hdr->daddr);
+	log_debug("Got IPv6 packet: %pI6c->%pI6c",
+			&ipv6_hdr(skb)->saddr,
+			&ipv6_hdr(skb)->daddr);
 
 	/* Reminder: This function might change pointers. */
-	if (pkt_init_ipv6(&state->in, skb, state->jool.type))
+	if (pkt_init_ipv6(state, skb))
 		return;
 
 	snapshot_record(&state->in.debug.shot2, skb);

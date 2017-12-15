@@ -3,6 +3,7 @@
 
 #include "xlator.h"
 #include "packet.h"
+#include "stats.h"
 #include "nat64/bib/entry.h"
 
 /**
@@ -29,5 +30,7 @@ struct xlation {
 
 void xlation_init(struct xlation *state, struct xlator *jool);
 void xlation_put(struct xlation *state);
+
+int breakdown(struct xlation *state, jstat_type stat, int result);
 
 #endif /* _JOOL_MOD_XLATION_H */

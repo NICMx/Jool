@@ -1,4 +1,5 @@
 #include "xlation.h"
+#include "module-stats.h"
 
 void xlation_init(struct xlation *state, struct xlator *jool)
 {
@@ -14,4 +15,16 @@ void xlation_init(struct xlation *state, struct xlator *jool)
 void xlation_put(struct xlation *state)
 {
 	xlator_put(&state->jool);
+}
+
+/**
+ * This is just a convenience wrapper for the paperwork that needs to be done
+ * whenever some sort of error forces us to cancel translation, sans debug log
+ * message.
+ */
+int breakdown(struct xlation *state, jstat_type stat, int result)
+{
+	kfree_skb(state->in.skb);
+	jstat_inc(state->jool.stats, stat);
+	return result;
 }

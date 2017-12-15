@@ -841,18 +841,13 @@ static struct pool4_range *find_port_range(struct pool4_table *entry, __u16 port
  * inherently 4-to-6 function (it doesn't make sense otherwise).
  * Mark is only used in the 6-to-4 direction.
  */
-bool pool4db_contains(struct pool4 *pool, struct net *ns, l4_protocol proto,
+bool pool4db_contains(struct pool4 *pool, l4_protocol proto,
 		struct ipv4_transport_addr *addr)
 {
 	struct pool4_table *table;
 	bool found = false;
 
 	spin_lock_bh(&pool->lock);
-
-	if (is_empty(pool)) {
-		spin_unlock_bh(&pool->lock);
-		return pool4empty_contains(ns, addr);
-	}
 
 	table = find_by_addr(get_tree(&pool->tree_addr, proto), &addr->l3);
 	if (table)
@@ -1100,7 +1095,7 @@ static struct mask_domain *find_empty(struct route4_args *args,
 }
 
 struct mask_domain *mask_domain_find(struct pool4 *pool, struct tuple *tuple6,
-		__u8 f_args, struct route4_args *route_args)
+		__u8 f_args)
 {
 	struct pool4_table *table;
 	struct pool4_range *entry;
@@ -1112,13 +1107,7 @@ struct mask_domain *mask_domain_find(struct pool4 *pool, struct tuple *tuple6,
 
 	spin_lock_bh(&pool->lock);
 
-	if (is_empty(pool)) {
-		spin_unlock_bh(&pool->lock);
-		return find_empty(route_args, offset);
-	}
-
-	table = find_by_mark(get_tree(&pool->tree_mark, tuple6->l4_proto),
-			route_args->mark);
+	table = find_by_mark(get_tree(&pool->tree_mark, tuple6->l4_proto));
 	if (!table)
 		goto fail;
 

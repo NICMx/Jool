@@ -2,17 +2,6 @@
 
 #include "ipv6-hdr-iterator.h"
 
-/**
- * ipv4_extract_l4_hdr - Assumes that @hdr_ipv4 is part of a packet, and returns
- * a pointer to the chunk of data after it.
- *
- * Skips IPv4 options if any.
- */
-static void *ipv4_extract_l4_hdr(struct iphdr *hdr_ipv4)
-{
-	return ((void *)hdr_ipv4) + (hdr_ipv4->ihl << 2);
-}
-
 static void ipv4_udp(struct packet *pkt, struct tuple *tuple4)
 {
 	pkt->tuple.src.addr4.l3.s_addr = pkt_ip4_hdr(pkt)->saddr;
@@ -33,7 +22,7 @@ static void ipv4_tcp(struct packet *pkt, struct tuple *tuple4)
 	tuple4->l4_proto = L4PROTO_TCP;
 }
 
-static int ipv4_icmp_info(struct packet *pkt, struct tuple *tuple4)
+static void ipv4_icmp_info(struct packet *pkt, struct tuple *tuple4)
 {
 	tuple4->src.addr4.l3.s_addr = pkt_ip4_hdr(pkt)->saddr;
 	tuple4->src.addr4.l4 = be16_to_cpu(pkt_icmp4_hdr(pkt)->un.echo.id);
@@ -41,12 +30,22 @@ static int ipv4_icmp_info(struct packet *pkt, struct tuple *tuple4)
 	tuple4->dst.addr4.l4 = tuple4->src.addr4.l4;
 	tuple4->l3_proto = L3PROTO_IPV4;
 	tuple4->l4_proto = L4PROTO_ICMP;
-	return 0;
 }
 
-static int ipv4_icmp_err(struct packet *pkt, struct tuple *tuple4)
+/**
+ * ipv4_extract_l4_hdr - Assumes that @hdr_ipv4 is part of a packet, and returns
+ * a pointer to the chunk of data after it.
+ *
+ * Skips IPv4 options if any.
+ */
+static void *ipv4_extract_l4_hdr(struct iphdr *hdr_ipv4)
 {
-	struct iphdr *inner_ipv4 = (struct iphdr *) (pkt_icmp4_hdr(pkt) + 1);
+	return ((void *)hdr_ipv4) + (hdr_ipv4->ihl << 2);
+}
+
+static int ipv4_icmp_err(struct xlation *state, struct tuple *tuple4)
+{
+	struct iphdr *inner_ipv4 = (struct iphdr *)(pkt_icmp4_hdr(&state->in) + 1);
 	union {
 		struct udphdr *udp;
 		struct tcphdr *tcp;
@@ -77,8 +76,7 @@ static int ipv4_icmp_err(struct packet *pkt, struct tuple *tuple4)
 
 		if (is_icmp4_error(inner.icmp->type)) {
 			log_debug("Bogus pkt: ICMP error inside ICMP error.");
-			kfree_skb(pkt->skb);
-			return -EINVAL;
+			return breakdown(state, JOOL_MIB_2X_INNER4, -EINVAL);
 		}
 
 		tuple4->src.addr4.l4 = be16_to_cpu(inner.icmp->un.echo.id);
@@ -87,27 +85,29 @@ static int ipv4_icmp_err(struct packet *pkt, struct tuple *tuple4)
 		break;
 
 	default:
-		log_debug("Packet's inner packet is not UDP, TCP or ICMP (%u).",
+		log_debug("Inner packet is not UDP, TCP nor ICMP (%u).",
 				inner_ipv4->protocol);
-		kfree_skb(pkt->skb);
-		return -EUNSUPPORTED;
+		return breakdown(state, JOOL_MIB_V4_UNKNOWN_INNER_L4,
+				-EUNSUPPORTED);
 	}
 
 	return 0;
 }
 
-static int ipv4_icmp(struct packet *pkt, struct tuple *tuple4)
+static int ipv4_icmp(struct xlation *state, struct tuple *tuple4)
 {
-	__u8 type = pkt_icmp4_hdr(pkt)->type;
+	__u8 type = pkt_icmp4_hdr(&state->in)->type;
 
-	if (is_icmp4_info(type))
-		return ipv4_icmp_info(pkt, tuple4);
+	if (is_icmp4_info(type)) {
+		ipv4_icmp_info(&state->in, tuple4);
+		return 0;
+	}
+
 	if (is_icmp4_error(type))
-		return ipv4_icmp_err(pkt, tuple4);
+		return ipv4_icmp_err(state, tuple4);
 
 	log_debug("Unknown ICMPv4 type: %u", type);
-	kfree_skb(pkt->skb);
-	return -EINVAL;
+	return breakdown(state, JOOL_MIB_V4_UNKNOWN_ICMP, -EINVAL);
 }
 
 static void ipv6_udp(struct packet *pkt, struct tuple *tuple6)
@@ -130,7 +130,7 @@ static void ipv6_tcp(struct packet *pkt, struct tuple *tuple6)
 	tuple6->l4_proto = L4PROTO_TCP;
 }
 
-static int ipv6_icmp_info(struct packet *pkt, struct tuple *tuple6)
+static void ipv6_icmp_info(struct packet *pkt, struct tuple *tuple6)
 {
 	__u16 id = be16_to_cpu(pkt_icmp6_hdr(pkt)->icmp6_identifier);
 
@@ -140,13 +140,11 @@ static int ipv6_icmp_info(struct packet *pkt, struct tuple *tuple6)
 	tuple6->dst.addr6.l4 = id;
 	tuple6->l3_proto = L3PROTO_IPV6;
 	tuple6->l4_proto = L4PROTO_ICMP;
-
-	return 0;
 }
 
-static int ipv6_icmp_err(struct packet *pkt, struct tuple *tuple6)
+static int ipv6_icmp_err(struct xlation *state, struct tuple *tuple6)
 {
-	struct ipv6hdr *inner_ip6 = (struct ipv6hdr *) (pkt_icmp6_hdr(pkt) + 1);
+	struct ipv6hdr *inner_ip6 = (struct ipv6hdr *)(pkt_icmp6_hdr(&state->in) + 1);
 	struct hdr_iterator iterator = HDR_ITERATOR_INIT(inner_ip6);
 	union {
 		struct udphdr *udp;
@@ -180,8 +178,7 @@ static int ipv6_icmp_err(struct packet *pkt, struct tuple *tuple6)
 
 		if (is_icmp6_error(inner.icmp->icmp6_type)) {
 			log_debug("Bogus pkt: ICMP error inside ICMP error.");
-			kfree_skb(pkt->skb);
-			return -EINVAL;
+			return breakdown(state, JOOL_MIB_2X_INNER6, -EINVAL);
 		}
 
 		id = be16_to_cpu(inner.icmp->icmp6_identifier);
@@ -191,27 +188,29 @@ static int ipv6_icmp_err(struct packet *pkt, struct tuple *tuple6)
 		break;
 
 	default:
-		log_debug("Packet's inner packet is not UDP, TCP or ICMP (%u).",
+		log_debug("Inner packet is not UDP, TCP or ICMP (%u).",
 				iterator.hdr_type);
-		kfree_skb(pkt->skb);
-		return -EUNSUPPORTED;
+		return breakdown(state, JOOL_MIB_V6_UNKNOWN_INNER_L4,
+				-EUNSUPPORTED);
 	}
 
 	return 0;
 }
 
-static int ipv6_icmp(struct packet *pkt, struct tuple *tuple6)
+static int ipv6_icmp(struct xlation *state, struct tuple *tuple6)
 {
-	__u8 type = pkt_icmp6_hdr(pkt)->icmp6_type;
+	__u8 type = pkt_icmp6_hdr(&state->in)->icmp6_type;
 
-	if (is_icmp6_info(type))
-		return ipv6_icmp_info(pkt, tuple6);
+	if (is_icmp6_info(type)) {
+		ipv6_icmp_info(&state->in, tuple6);
+		return 0;
+	}
+
 	if (is_icmp6_error(type))
-		return ipv6_icmp_err(pkt, tuple6);
+		return ipv6_icmp_err(state, tuple6);
 
 	log_debug("Unknown ICMPv6 type: %u.", type);
-	kfree_skb(pkt->skb);
-	return -EINVAL;
+	return breakdown(state, JOOL_MIB_V6_UNKNOWN_ICMP, -EINVAL);
 }
 
 /**
@@ -238,12 +237,12 @@ int determine_in_tuple(struct xlation *state)
 			ipv4_tcp(pkt, &pkt->tuple);
 			break;
 		case L4PROTO_ICMP:
-			error = ipv4_icmp(pkt, &pkt->tuple);
+			error = ipv4_icmp(state, &pkt->tuple);
 			break;
 		case L4PROTO_OTHER:
 			log_debug("NAT64 doesn't support unknown transport protocols.");
-			kfree_skb(pkt->skb);
-			return -EUNSUPPORTED;
+			return breakdown(state, JOOL_MIB_V4_UNKNOWN_L4,
+					-EUNSUPPORTED);
 		}
 		break;
 
@@ -256,12 +255,12 @@ int determine_in_tuple(struct xlation *state)
 			ipv6_tcp(pkt, &pkt->tuple);
 			break;
 		case L4PROTO_ICMP:
-			error = ipv6_icmp(pkt, &pkt->tuple);
+			error = ipv6_icmp(state, &pkt->tuple);
 			break;
 		case L4PROTO_OTHER:
 			log_debug("NAT64 doesn't support unknown transport protocols.");
-			kfree_skb(pkt->skb);
-			return -EUNSUPPORTED;
+			return breakdown(state, JOOL_MIB_V6_UNKNOWN_L4,
+					-EUNSUPPORTED);
 		}
 		break;
 	}

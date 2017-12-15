@@ -11,6 +11,7 @@
 
 #include "core.h"
 #include "log.h"
+#include "module-stats.h"
 #include "xlat.h"
 #include "xlator.h"
 
@@ -62,7 +63,6 @@ static int jool_netdev_stop(struct net_device *dev)
 static int jool_netdev_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct jool_netdev_priv *priv = netdev_priv(dev);
-	struct ethhdr *hdr;
 	struct xlation state;
 
 	// Save the timestamp TODO what for?
@@ -72,20 +72,7 @@ static int jool_netdev_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	if (!pskb_may_pull(skb, ETH_HLEN)) {
 		log_info("Packet is too short to even contain an Ethernet header.");
-		kfree_skb(skb);
-		return NETDEV_TX_OK;
-	}
-
-	hdr = eth_hdr(skb);
-	switch (be16_to_cpu(hdr->h_proto)) {
-	case ETH_P_IPV6:
-		log_info("Ethernet header says IPv6.");
-		break;
-	case ETH_P_IP:
-		log_info("Ethernet header says IPv4.");
-		break;
-	default:
-		log_info("Unknown proto in Ethernet header: %u", be16_to_cpu(hdr->h_proto));
+		jstat_inc(priv->jool.stats, JOOL_MIB_TRUNCATED);
 		kfree_skb(skb);
 		return NETDEV_TX_OK;
 	}
@@ -106,6 +93,7 @@ static int jool_netdev_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		break;
 	default:
 		log_info("Packet is not IPv4 nor IPv6; don't know what to do.");
+		jstat_inc(state.jool.stats, JOOL_MIB_UNKNOWN_L3);
 		kfree_skb(skb);
 	}
 

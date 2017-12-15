@@ -4,8 +4,8 @@
 
 #include "config.h"
 #include "ipv6-hdr-iterator.h"
+#include "module-stats.h"
 #include "packet.h"
-#include "stats.h"
 #include "rfc7915/4to6.h"
 #include "rfc7915/6to4.h"
 #include "siit/blacklist4.h"

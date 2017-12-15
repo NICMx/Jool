@@ -19,7 +19,8 @@
 	#include "log.h"
 #endif
 
-#define EUNSUPPORTED 0x6400
+#define EUNSUPPORTED	0x6400
+#define ESTOLEN		0x6401
 
 typedef enum xlator_type {
 	XLATOR_SIIT,

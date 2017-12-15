@@ -7,10 +7,8 @@
  * which packets should be translated.
  */
 
-#include <linux/net.h>
 #include "types.h"
 #include "config.h"
-#include "route.h"
 
 struct pool4;
 
@@ -34,8 +32,8 @@ void pool4db_flush(struct pool4 *pool);
  * Read functions (Legal to use anywhere)
  */
 
-bool pool4db_contains(struct pool4 *pool, struct net *ns,
-		enum l4_protocol proto, struct ipv4_transport_addr *addr);
+bool pool4db_contains(struct pool4 *pool, enum l4_protocol proto,
+		struct ipv4_transport_addr *addr);
 int pool4db_foreach_sample(struct pool4 *pool, l4_protocol proto,
 		int (*cb)(struct pool4_sample *, void *), void *arg,
 		struct pool4_sample *offset);
@@ -43,7 +41,7 @@ int pool4db_foreach_sample(struct pool4 *pool, l4_protocol proto,
 struct mask_domain;
 
 struct mask_domain *mask_domain_find(struct pool4 *pool, struct tuple *tuple6,
-		__u8 f_args, struct route4_args *route_args);
+		__u8 f_args);
 void mask_domain_put(struct mask_domain *masks);
 int mask_domain_next(struct mask_domain *masks,
 		struct ipv4_transport_addr *addr,
