@@ -36,9 +36,25 @@ static void core_common(struct xlation *state)
 //
 //	if (result != VERDICT_CONTINUE)
 //		return result;
-//
+
 	log_debug("Success.");
 	dev_kfree_skb(state->in.skb);
+	state->in.skb = NULL; /* For check_skb_leak(). */
+}
+
+static void check_skb_leak(struct xlation *state, jstat_type type)
+{
+	if (unlikely(state->in.skb)) {
+		log_warn_once("Memory leak detected. Please report at https://github.com/NICMx/Jool.");
+		jstat_inc(state->jool.stats, type);
+		/*
+		 * I don't want to try to free the packet because there's always
+		 * the chance that we might have actually remembered to
+		 * deallocate but forgot to assign NULL.
+		 * The kernel will die horribly if that happens. Rather have the
+		 * memory leak.
+		 */
+	}
 }
 
 void core_4to6(struct xlation *state, struct sk_buff *skb)
@@ -60,6 +76,7 @@ void core_4to6(struct xlation *state, struct sk_buff *skb)
 	*/
 
 	core_common(state);
+	check_skb_leak(state, JOOL_MIB_MEMLEAK46);
 }
 
 void core_6to4(struct xlation *state, struct sk_buff *skb)
@@ -121,4 +138,5 @@ void core_6to4(struct xlation *state, struct sk_buff *skb)
 	*/
 
 	core_common(state);
+	check_skb_leak(state, JOOL_MIB_MEMLEAK64);
 }

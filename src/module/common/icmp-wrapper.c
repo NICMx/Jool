@@ -96,7 +96,21 @@ static void icmp64_send6(struct sk_buff *skb, icmp_error_code error, __u32 info)
 		break;
 	case ICMPERR_PORT_UNREACHABLE:
 	case ICMPERR_PROTO_UNREACHABLE:
-		/* See RFC6146, determine incoming tuple step. */
+		/*
+		 * "If the incoming packet is an IPv6 packet that contains a
+		 * protocol other than TCP, UDP, or ICMPv6 in the last Next
+		 * Header, then the packet SHOULD be discarded and, if the
+		 * security policy permits, the NAT64 SHOULD send an ICMPv6
+		 * Destination Unreachable error message with Code 4 (Port
+		 * Unreachable) to the source address of the received packet."
+		 * - RFC 6146
+		 *
+		 * Yes, it's strange that we're complaining about ports when the
+		 * problem was the protocol, but on the other hand, RFC 2463
+		 * does not reserve "Protocol Unreachable" like RFC 792. On top
+		 * of that, RFC 6146 even states the code (4). It doesn't seem
+		 * to be a typo.
+		 */
 		type = ICMPV6_DEST_UNREACH;
 		code = ICMPV6_PORT_UNREACH;
 		break;
@@ -135,6 +149,7 @@ static void icmp64_send6(struct sk_buff *skb, icmp_error_code error, __u32 info)
 #endif
 }
 
+/* TODO maybe receive state instead of pkt? */
 void icmp64_send(struct packet *pkt, icmp_error_code error, __u32 info)
 {
 	if (unlikely(!pkt))

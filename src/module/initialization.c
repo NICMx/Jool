@@ -72,6 +72,7 @@ static int jool_netdev_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	if (!pskb_may_pull(skb, ETH_HLEN)) {
 		log_info("Packet is too short to even contain an Ethernet header.");
+		/* There's not enough info to send an ICMP error. */
 		jstat_inc(priv->jool.stats, JOOL_MIB_TRUNCATED);
 		kfree_skb(skb);
 		return NETDEV_TX_OK;
@@ -93,6 +94,7 @@ static int jool_netdev_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		break;
 	default:
 		log_info("Packet is not IPv4 nor IPv6; don't know what to do.");
+		/* ICMP errors not available due to unknown protocol. */
 		jstat_inc(state.jool.stats, JOOL_MIB_UNKNOWN_L3);
 		kfree_skb(skb);
 	}

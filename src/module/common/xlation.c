@@ -25,6 +25,22 @@ void xlation_put(struct xlation *state)
 int breakdown(struct xlation *state, jstat_type stat, int result)
 {
 	kfree_skb(state->in.skb);
+	state->in.skb = NULL; /* For check_skb_leak(). */
 	jstat_inc(state->jool.stats, stat);
 	return result;
+}
+
+int einval(struct xlation *state, jstat_type stat)
+{
+	return breakdown(state, stat, -EINVAL);
+}
+
+int eunsupported(struct xlation *state, jstat_type stat)
+{
+	return breakdown(state, stat, -EUNSUPPORTED);
+}
+
+int enomem(struct xlation *state, jstat_type stat)
+{
+	return breakdown(state, stat, -ENOMEM);
 }

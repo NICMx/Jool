@@ -1,28 +1,63 @@
 #include "module-stats.h"
+
+#include <linux/kref.h>
 #include <net/snmp.h>
-#include <net/ip.h> /* snmp_get_cpu_field_batch */
+#include <net/ip.h> /* snmp_get_cpu_field */
 
-struct jool_mib __percpu *jstat_alloc(void)
+#include "wkmalloc.h"
+
+struct jool_stats {
+	DEFINE_SNMP_STAT(struct jool_mib, mib);
+	struct kref refcounter;
+};
+
+struct jool_stats *jstat_alloc(void)
 {
-	return alloc_percpu(struct jool_mib);
+	struct jool_stats *result;
+
+	result = wkmalloc(struct jool_stats, GFP_KERNEL);
+	if (!result)
+		return NULL;
+
+	result->mib = alloc_percpu(struct jool_mib);
+	if (!result->mib) {
+		wkfree(struct jool_stats, result);
+		return NULL;
+	}
+
+	kref_init(&result->refcounter);
+	return result;
 }
 
-void jstat_free(struct jool_mib __percpu *stats)
+void jstat_get(struct jool_stats *stats)
 {
-	free_percpu(stats);
+	kref_get(&stats->refcounter);
 }
 
-void jstat_add(struct jool_mib __percpu *stats, jstat_type type, jstat addend)
+static void release(struct kref *refcounter)
 {
-	SNMP_ADD_STATS64(stats, type, addend);
+	struct jool_stats *stats;
+	stats = container_of(refcounter, struct jool_stats, refcounter);
+	free_percpu(stats->mib);
+	wkfree(struct jool_stats, stats);
 }
 
-void jstat_inc(struct jool_mib __percpu *stats, jstat_type type)
+void jstat_put(struct jool_stats *stats)
 {
-	SNMP_INC_STATS64(stats, type);
+	kref_put(&stats->refcounter, release);
 }
 
-void jstat_query(struct jool_mib __percpu *stats, struct jool_mib *result)
+void jstat_add(struct jool_stats *stats, jstat_type type, jstat addend)
+{
+	SNMP_ADD_STATS64(stats->mib, type, addend);
+}
+
+void jstat_inc(struct jool_stats *stats, jstat_type type)
+{
+	SNMP_INC_STATS64(stats->mib, type);
+}
+
+void jstat_query(struct jool_stats *stats, struct jool_mib *result)
 {
 	unsigned int cpu, i;
 

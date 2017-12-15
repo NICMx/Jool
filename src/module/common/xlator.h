@@ -2,7 +2,6 @@
 #define _JOOL_MOD_NAMESPACE_H
 
 #include "config.h"
-#include <net/snmp.h>
 
 /**
  * A Jool translator "instance". The point is that each network namespace has
@@ -14,7 +13,7 @@
 struct xlator {
 //	struct net *ns;
 //
-	DEFINE_SNMP_STAT(struct jool_mib, stats);
+	struct jool_stats *stats;
 //	struct global_config *global;
 //	struct pool6 *pool6;
 //	union {

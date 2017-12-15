@@ -6,6 +6,7 @@
 //#include "xlat.h"
 //#include "atomic-config.h"
 //#include "linux-version.h"
+#include "module-stats.h"
 //#include "pool6.h"
 //#include "wkmalloc.h"
 //#include "siit/blacklist4.h"
@@ -18,7 +19,8 @@
 void xlator_get(struct xlator *jool)
 {
 //	get_net(jool->ns);
-//
+
+	jstat_get(jool->stats);
 //	config_get(jool->global);
 //	pool6_get(jool->pool6);
 //
@@ -43,7 +45,10 @@ void xlator_get(struct xlator *jool)
 static int init_siit(struct xlator *jool)
 {
 //	int error;
-//
+
+	jool->stats = jstat_alloc();
+	if (!jool->stats)
+		return -ENOMEM;
 //	error = config_init(&jool->global);
 //	if (error)
 //		goto config_fail;
@@ -77,13 +82,17 @@ static int init_siit(struct xlator *jool)
 //pool6_fail:
 //	config_put(jool->global);
 //config_fail:
+//	jstat_free(jool->stats);
 //	return error;
 }
 
 static int init_nat64(struct xlator *jool)
 {
 //	int error;
-//
+
+	jool->stats = jstat_alloc();
+	if (!jool->stats)
+		return -ENOMEM;
 //	error = config_init(&jool->global);
 //	if (error)
 //		goto config_fail;
@@ -210,7 +219,8 @@ int xlator_add(xlator_type type, struct xlator *result)
 void xlator_put(struct xlator *jool)
 {
 //	put_net(jool->ns);
-//
+
+	jstat_put(jool->stats);
 //	config_put(jool->global);
 //	pool6_put(jool->pool6);
 //
