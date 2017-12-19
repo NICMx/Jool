@@ -57,7 +57,6 @@ jool += bib/entry.o
 jool += bib/pkt_queue.o
 
 jool += global_timer.o
-jool += session_timer.o
 jool += fragment_db.o
 jool += determine_incoming_tuple.o
 jool += filtering_and_updating.o
