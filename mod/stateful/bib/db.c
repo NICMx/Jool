@@ -9,6 +9,7 @@
 #include "nat64/mod/common/rbtree.h"
 #include "nat64/mod/common/route.h"
 #include "nat64/mod/common/wkmalloc.h"
+#include "nat64/mod/common/xlator.h"
 #include "nat64/mod/stateful/bib/pkt_queue.h"
 
 /*
@@ -105,6 +106,20 @@ struct expire_timer {
 	fate_cb decide_fate_cb;
 };
 
+struct curr_inst {
+	struct bib *db;
+	struct net *ns;
+};
+
+struct session_timer {
+	struct timer_list timer;
+	struct curr_inst instance_ref;
+	unsigned long run_period_jiff;
+	bool pend_rm;
+	u64 max_session_rm;
+	l4_protocol proto;
+};
+
 struct bib_table {
 	/** Indexes the entries using their IPv6 identifiers. */
 	struct rb_root tree6;
@@ -164,6 +179,9 @@ struct bib_table {
 	 * This is NULL in UDP/ICMP.
 	 */
 	struct pktqueue *pkt_queue;
+
+	/** Drops expired sessions */
+	struct session_timer sess_timer;
 };
 
 struct bib {
@@ -184,6 +202,9 @@ static struct kmem_cache *session_cache;
 #define alloc_session(flags) wkmem_cache_alloc("session", session_cache, flags)
 #define free_bib(bib) wkmem_cache_free("bib entry", bib_cache, bib)
 #define free_session(session) wkmem_cache_free("session", session_cache, session)
+
+#define RM_SESSION_TIMER_INIT msecs_to_jiffies(2000)
+#define RM_SESSION_MAX_INIT 1024
 
 static struct tabled_bib *bib6_entry(const struct rb_node *node)
 {
@@ -290,6 +311,11 @@ static void kill_stored_pkt(struct bib_table *table,
 	table->pkt_count--;
 }
 
+static void destroy_session_timer(struct timer_list *timer)
+{
+	del_timer_sync(timer);
+}
+
 int bib_init(void)
 {
 	bib_cache = kmem_cache_create("bib_nodes",
@@ -315,6 +341,19 @@ void bib_destroy(void)
 	kmem_cache_destroy(session_cache);
 }
 
+void bib_timers_destroy(void)
+{
+	struct xlator jool;
+	int error;
+	error = xlator_find_current(&jool);
+	if (!error) {
+		destroy_session_timer(&jool.nat64.bib->udp.sess_timer.timer);
+		destroy_session_timer(&jool.nat64.bib->tcp.sess_timer.timer);
+		destroy_session_timer(&jool.nat64.bib->icmp.sess_timer.timer);
+		xlator_put(&jool);
+	}
+}
+
 static enum session_fate just_die(struct session_entry *session, void *arg)
 {
 	return FATE_RM;
@@ -329,6 +368,59 @@ static void init_expirer(struct expire_timer *expirer,
 	expirer->timeout = msecs_to_jiffies(1000 * timeout);
 	expirer->type = type;
 	expirer->decide_fate_cb = fate_cb;
+}
+
+static void clean_state(struct session_timer *sess_timer)
+{
+	bib_clean(sess_timer->instance_ref.db, sess_timer->proto,
+			sess_timer->instance_ref.ns, &sess_timer->max_session_rm,
+			&sess_timer->pend_rm);
+}
+
+static void update_timer(struct session_timer *sess_timer)
+{
+	if (sess_timer->pend_rm) {
+		sess_timer->run_period_jiff = msecs_to_jiffies(
+				jiffies_to_msecs(sess_timer->run_period_jiff) >> 1);
+		sess_timer->max_session_rm <<= 1;
+	} else {
+		sess_timer->run_period_jiff = RM_SESSION_TIMER_INIT;
+		sess_timer->max_session_rm = RM_SESSION_MAX_INIT;
+	}
+	sess_timer->pend_rm = false;
+	sess_timer->timer.data = (unsigned long)(sess_timer);
+}
+
+static void timer_function(unsigned long arg)
+{
+	struct session_timer *sess_timer = (struct session_timer *)arg;
+	clean_state(sess_timer);
+	update_timer(sess_timer);
+	mod_timer(&sess_timer->timer, jiffies + sess_timer->run_period_jiff);
+}
+
+static void init_session_timer(struct bib *db,
+		struct net *ns,
+		struct bib_table *table,
+		l4_protocol proto)
+{
+	struct session_timer *sess_timer = &table->sess_timer;
+	struct timer_list *timer = &sess_timer->timer;
+	struct curr_inst inst_data;
+	inst_data.db = db;
+	inst_data.ns = ns;
+
+	init_timer(timer);
+	timer->function = timer_function;
+	timer->expires = 0;
+	timer->data = (unsigned long)(sess_timer);
+
+	sess_timer->pend_rm = false;
+	sess_timer->max_session_rm = RM_SESSION_MAX_INIT;
+	sess_timer->run_period_jiff = RM_SESSION_TIMER_INIT;
+	sess_timer->proto = proto;
+	sess_timer->instance_ref = inst_data;
+	mod_timer(timer, jiffies + RM_SESSION_TIMER_INIT);
 }
 
 static void init_table(struct bib_table *table,
@@ -357,7 +449,7 @@ static void init_table(struct bib_table *table,
 	table->pkt_queue = NULL;
 }
 
-struct bib *bib_create(void)
+struct bib *bib_create(struct net *ns)
 {
 	struct bib *db;
 
@@ -380,6 +472,10 @@ struct bib *bib_create(void)
 	 * THERE IS NO ADRESS-DEPENDENT FILTERING ON ICMP; the RFC is wrong.
 	 */
 	db->icmp.drop_by_addr = false;
+
+	init_session_timer(db, ns, &db->udp, L4PROTO_UDP);
+	init_session_timer(db, ns, &db->tcp, L4PROTO_TCP);
+	init_session_timer(db, ns, &db->icmp, L4PROTO_ICMP);
 
 	kref_init(&db->refs);
 
@@ -2037,14 +2133,14 @@ static void clean_table(struct bib_table *table,
  * Forgets or downgrades (from EST to TRANS) old sessions.
  */
 void bib_clean(struct bib *db,
+		l4_protocol proto,
 		struct net *ns,
 		u64 *max_session_rm,
 		bool *pending_rm)
 {
 	u64 sessions_rm = 0;
-	clean_table(&db->udp, ns, max_session_rm, &sessions_rm, pending_rm);
-	clean_table(&db->tcp, ns, max_session_rm, &sessions_rm, pending_rm);
-	clean_table(&db->icmp, ns, max_session_rm, &sessions_rm, pending_rm);
+	struct bib_table *table = get_table(db, proto);
+	clean_table(table, ns, max_session_rm, &sessions_rm, pending_rm);
 }
 
 static struct rb_node *find_starting_point(struct bib_table *table,

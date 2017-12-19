@@ -183,6 +183,7 @@ static void __exit jool_exit(void)
 	nf_unregister_hooks(nfho, ARRAY_SIZE(nfho));
 
 	logtime_destroy();
+	bib_timers_destroy();
 	global_timer_destroy();
 	nlhandler_destroy();
 	xlator_destroy();

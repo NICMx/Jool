@@ -57,8 +57,9 @@ enum session_fate {
 
 int bib_init(void);
 void bib_destroy(void);
+void bib_timers_destroy(void);
 
-struct bib *bib_create(void);
+struct bib *bib_create(struct net *ns);
 void bib_get(struct bib *db);
 void bib_put(struct bib *db);
 
@@ -96,8 +97,8 @@ int bib_find(struct bib *db, struct tuple *tuple,
 		struct bib_session *result);
 int bib_add_session(struct bib *db, struct session_entry *new,
 		struct collision_cb *cb);
-void bib_clean(struct bib *db, struct net *ns, u64 *max_session_rm,
-		bool *pending_rm);
+void bib_clean(struct bib *db, l4_protocol proto, struct net *ns,
+		u64 *max_session_rm, bool *pending_rm);
 
 /* These are used by userspace request handling. */
 
