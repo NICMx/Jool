@@ -373,8 +373,7 @@ static void init_expirer(struct expire_timer *expirer,
 static void clean_state(struct session_timer *sess_timer)
 {
 	bib_clean(sess_timer->instance_ref.db, sess_timer->proto,
-			sess_timer->instance_ref.ns, &sess_timer->max_session_rm,
-			&sess_timer->pend_rm);
+			sess_timer->instance_ref.ns);
 }
 
 static void update_timer(struct session_timer *sess_timer)
@@ -2069,9 +2068,7 @@ end:
 static void __clean(struct expire_timer *expirer,
 		struct bib_table *table,
 		struct list_head *probes,
-		u64 *max_session_rm,
-		u64 *sessions_rm,
-		bool *pending_rm)
+		u64 *sessions_rm)
 {
 	struct tabled_session *session;
 	struct tabled_session *tmp;
@@ -2089,8 +2086,9 @@ static void __clean(struct expire_timer *expirer,
 		if (time_before(jiffies, session->update_time + expirer->timeout))
 			break;
 
-		if (*pending_rm || *sessions_rm >= *max_session_rm) {
-			*pending_rm = true;
+		if (table->sess_timer.pend_rm
+				|| *sessions_rm >= table->sess_timer.max_session_rm) {
+			table->sess_timer.pend_rm = true;
 			break;
 		}
 		session_cnt = table->session_count;
@@ -2099,29 +2097,21 @@ static void __clean(struct expire_timer *expirer,
 	};
 }
 
-static void clean_table(struct bib_table *table,
-		struct net *ns,
-		u64 *max_session_rm,
-		u64 *sessions_rm,
-		bool *pending_rm)
+static void clean_table(struct bib_table *table, struct net *ns)
 {
 	LIST_HEAD(probes);
 	LIST_HEAD(icmps);
-
-	if (*pending_rm)
-		return;
+	u64 sessions_rm = 0;
 
 	spin_lock_bh(&table->lock);
-	__clean(&table->est_timer, table, &probes, max_session_rm, sessions_rm,
-			pending_rm);
-	__clean(&table->trans_timer, table, &probes, max_session_rm, sessions_rm,
-			pending_rm);
-	__clean(&table->syn4_timer, table, &probes, max_session_rm, sessions_rm,
-			pending_rm);
+	__clean(&table->est_timer, table, &probes, &sessions_rm);
+	__clean(&table->trans_timer, table, &probes, &sessions_rm);
+	__clean(&table->syn4_timer, table, &probes, &sessions_rm);
 
 	if (table->pkt_queue) {
 		table->pkt_count -= pktqueue_prepare_clean(table->pkt_queue, &icmps,
-				max_session_rm, sessions_rm, pending_rm);
+				&table->sess_timer.max_session_rm, &sessions_rm,
+				&table->sess_timer.pend_rm);
 	}
 	spin_unlock_bh(&table->lock);
 
@@ -2134,13 +2124,10 @@ static void clean_table(struct bib_table *table,
  */
 void bib_clean(struct bib *db,
 		l4_protocol proto,
-		struct net *ns,
-		u64 *max_session_rm,
-		bool *pending_rm)
+		struct net *ns)
 {
-	u64 sessions_rm = 0;
 	struct bib_table *table = get_table(db, proto);
-	clean_table(table, ns, max_session_rm, &sessions_rm, pending_rm);
+	clean_table(table, ns);
 }
 
 static struct rb_node *find_starting_point(struct bib_table *table,
