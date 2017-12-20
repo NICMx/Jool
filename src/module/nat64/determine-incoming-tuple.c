@@ -1,5 +1,6 @@
 #include "nat64/determine-incoming-tuple.h"
 
+#include "icmp-wrapper.h"
 #include "ipv6-hdr-iterator.h"
 
 static void ipv4_udp(struct packet *pkt, struct tuple *tuple4)

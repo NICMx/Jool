@@ -78,16 +78,18 @@ struct collision_cb {
 
 /* These are used by Filtering. */
 
-int bib_add6(struct bib *db, struct mask_domain *masks, struct tuple *tuple6,
-		struct ipv4_transport_addr *dst4, struct bib_session *result);
-int bib_add4(struct bib *db, struct ipv6_transport_addr *dst6,
-		struct tuple *tuple4, struct bib_session *result);
-int bib_add_tcp6(struct bib *db, struct mask_domain *masks,
-		struct ipv4_transport_addr *dst4, struct packet *pkt,
-		struct collision_cb *cb, struct bib_session *result);
-int bib_add_tcp4(struct bib *db, struct ipv6_transport_addr *dst6,
-		struct packet *pkt, struct collision_cb *cb,
-		struct bib_session *result);
+int bib_add6(struct xlation *state,
+		struct mask_domain *masks,
+		struct ipv4_transport_addr *dst4);
+int bib_add4(struct xlation *state,
+		struct ipv6_transport_addr *dst6);
+int bib_add_tcp6(struct xlation *state,
+		struct mask_domain *masks,
+		struct ipv4_transport_addr *dst4,
+		struct collision_cb *cb);
+int bib_add_tcp4(struct xlation *state,
+		struct ipv6_transport_addr *dst6,
+		struct collision_cb *cb);
 
 /* These are used by other kernel submodules. */
 

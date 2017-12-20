@@ -1,18 +1,9 @@
 #include "nat64/filtering-and-updating.h"
 
-#include <linux/skbuff.h>
-#include <linux/ip.h>
-#include <linux/ipv6.h>
-#include <linux/tcp.h>
-#include <linux/icmpv6.h>
-#include <net/tcp.h>
-#include <net/icmp.h>
-
-#include "str-utils.h"
+#include "icmp-wrapper.h"
 #include "config.h"
-#include "pool6.h"
 #include "rfc6052.h"
-#include "rfc7915/6to4.h"
+#include "str-utils.h"
 #include "nat64/joold.h"
 #include "nat64/pool4/db.h"
 #include "nat64/bib/db.h"
@@ -93,25 +84,11 @@ static int succeed(struct xlation *state)
 	 *
 	 * So let's simplify everything by just joold_add()ing here.
 	 */
-	if (state->entries.session_set) {
-		joold_add(state->jool.nat64.joold, &state->entries.session,
-				state->jool.nat64.bib);
-	}
+	if (state->entries.session_set)
+		joold_add(state);
 
+	log_debug("Done: Step 2.");
 	return 0;
-}
-
-static int breakdown(struct xlation *state)
-{
-	kfree_skb(state->in.skb);
-	/* inc_stats(&state->in, IPSTATS_MIB_INDISCARDS); */
-	/*
-	 * TODO
-	 * Notice that I'm suppressing the original error.
-	 * For now this is fine because nobody really uses the specific code for
-	 * anything.
-	 */
-	return -EINVAL;
 }
 
 /**
@@ -122,22 +99,7 @@ static int xlat_dst_6to4(struct xlation *state,
 {
 	dst4->l4 = state->in.tuple.dst.addr6.l4;
 	/* Error msg already printed. */
-	return rfc6052_6to4(state->jool.pool6, &state->in.tuple.dst.addr6.l3,
-			&dst4->l3);
-}
-
-/**
- * This is just a wrapper. Its sole intent is to minimize mess below.
- */
-static int find_mask_domain(struct xlation *state, struct mask_domain **masks)
-{
-	*masks = mask_domain_find(state->jool.nat64.pool4, &state->in.tuple,
-			state->jool.global->cfg.nat64.f_args);
-	if (*masks)
-		return 0;
-
-	log_debug("Pool4 seems to be empty.");
-	return -EINVAL;
+	return rfc6052_6to4(state, &state->in.tuple.dst.addr6.l3, &dst4->l3);
 }
 
 /**
@@ -151,18 +113,19 @@ static int ipv6_simple(struct xlation *state)
 	struct mask_domain *masks;
 	int error;
 
-	if (xlat_dst_6to4(state, &dst4))
-		return breakdown(state);
-	if (find_mask_domain(state, &masks))
-		return breakdown(state);
+	error = xlat_dst_6to4(state, &dst4);
+	if (error)
+		return error;
+	masks = mask_domain_find(state);
+	if (!masks)
+		return -ESRCH;
 
-	error = bib_add6(state->jool.nat64.bib, masks, &state->in.tuple, &dst4,
-			&state->entries);
+	error = bib_add6(state, masks, &dst4);
 
 	mask_domain_put(masks);
 
 	/* Error msg already printed. */
-	return error ? breakdown(state) : succeed(state);
+	return error ? : succeed(state);
 }
 
 /**
@@ -176,33 +139,27 @@ static int ipv4_simple(struct xlation *state)
 	struct ipv6_transport_addr dst6;
 	int error;
 
-	error = rfc6052_4to6(state->jool.pool6, &src4->l3, &dst6.l3);
+	error = rfc6052_4to6(state, &src4->l3, &dst6.l3);
 	if (error)
-		return breakdown(state); /* Error msg already printed. */
+		return error;
 	dst6.l4 = src4->l4;
 
-	error = bib_add4(state->jool.nat64.bib, &dst6, &state->in.tuple,
-			&state->entries);
-
-	/* TODO do the others have interesting things to say as well? */
+	error = bib_add4(state, &dst6);
 	switch (error) {
 	case 0:
 		return succeed(state);
 	case -ESRCH:
 		log_debug("There is no BIB entry for the IPv4 packet.");
-		/* inc_stats(&state->in, IPSTATS_MIB_INNOROUTES); */
-		break;
+		icmp64_send(&state->in, ICMPERR_ADDR_UNREACHABLE, 0);
+		return error;
 	case -EPERM:
 		log_debug("Packet was blocked by Address-Dependent Filtering.");
-		/* icmp64_send(&state->in, ICMPERR_FILTER, 0); */
-		break;
-	default:
-		log_debug("Errcode %d while finding a BIB entry.", error);
-		/* icmp64_send(&state->in, ICMPERR_ADDR_UNREACHABLE, 0); */
-		break;
+		icmp64_send(&state->in, ICMPERR_FILTER, 0);
+		return error;
 	}
 
-	return breakdown(state);
+	log_debug("Unknown error code (%d) while finding a BIB entry.", error);
+	return einval(state, JOOL_MIB_UNKNOWN4);
 }
 
 /**
@@ -342,7 +299,7 @@ static enum session_fate tcp_established_state(struct session_entry *session,
 
 static bool handle_rst_during_fin_rcv(struct xlation *state)
 {
-	return state->jool.global->cfg.nat64.handle_rst_during_fin_rcv;
+	return state->GLOBAL.nat64.handle_rst_during_fin_rcv;
 }
 
 /**
@@ -456,20 +413,20 @@ static int ipv6_tcp(struct xlation *state)
 	struct mask_domain *masks;
 	int error;
 
-	if (xlat_dst_6to4(state, &dst4))
-		return breakdown(state);
-	if (find_mask_domain(state, &masks))
-		return breakdown(state);
+	error = xlat_dst_6to4(state, &dst4);
+	if (error)
+		return error;
+	masks = mask_domain_find(state);
+	if (!masks)
+		return -ESRCH;
 
 	cb.cb = tcp_state_machine;
 	cb.arg = state;
-	error = bib_add_tcp6(state->jool.nat64.bib, masks, &dst4, &state->in,
-			&cb, &state->entries);
+	error = bib_add_tcp6(state, masks, &dst4, &cb);
 
 	mask_domain_put(masks);
 
-	/* Error msg already printed. */
-	return error ? breakdown(state) : succeed(state);
+	return error ? : succeed(state);
 }
 
 /**
@@ -482,114 +439,116 @@ static int ipv4_tcp(struct xlation *state)
 	struct collision_cb cb;
 	int error;
 
-	error = rfc6052_4to6(state->jool.pool6, &src4->l3, &dst6.l3);
+	error = rfc6052_4to6(state, &src4->l3, &dst6.l3);
 	if (error)
-		return breakdown(state); /* Error msg already printed. */
+		return error;
 	dst6.l4 = src4->l4;
 
 	cb.cb = tcp_state_machine;
 	cb.arg = state;
-	error = bib_add_tcp4(state->jool.nat64.bib, &dst6, &state->in, &cb,
-			&state->entries);
+	error = bib_add_tcp4(state, &dst6, &cb);
 
-	/* Error msg already printed. */
-	return error ? breakdown(state) : succeed(state);
+	return error ? : succeed(state);
+}
+
+static int handle_ipv6(struct xlation *state)
+{
+	switch (pkt_l4_proto(&state->in)) {
+	case L4PROTO_TCP:
+		return ipv6_tcp(state);
+
+	case L4PROTO_ICMP:
+		if (state->jool.global->cfg.nat64.drop_icmp6_info) {
+			log_debug("Packet is ICMPv6 info (ping); dropping due to policy.");
+			return eperm(state, JOOL_MIB_PING_PROHIBITED);
+		}
+		/* Fall through */
+
+	case L4PROTO_UDP:
+		return ipv6_simple(state);
+
+	case L4PROTO_OTHER:
+		break;
+	}
+
+	WARN(true, "Unknown layer 4 protocol: %d", pkt_l4_proto(&state->in));
+	return einval(state, JOOL_MIB_V6_UNKNOWN_L4);
+}
+
+static int handle_ipv4(struct xlation *state)
+{
+	switch (pkt_l4_proto(&state->in)) {
+	case L4PROTO_TCP:
+		return ipv4_tcp(state);
+	case L4PROTO_UDP:
+	case L4PROTO_ICMP:
+		return ipv4_simple(state);
+	case L4PROTO_OTHER:
+		break;
+	}
+
+	WARN(true, "Unknown layer 4 protocol: %d", pkt_l4_proto(&state->in));
+	return einval(state, JOOL_MIB_V4_UNKNOWN_L4);
 }
 
 /**
- * filtering_and_updating - Main F&U routine. Decides if @state->in should be
- * processed, updating binding and session information.
+ * Main F&U routine. Decides if @state->in should be processed, updating binding
+ * and session information.
  */
 int filtering_and_updating(struct xlation *state)
 {
 	struct packet *in = &state->in;
-	struct ipv6hdr *hdr_ip6;
-	int error = -EINVAL;
+	struct ipv6_prefix *pool6;
+	struct ipv6hdr *hdr6;
 
 	log_debug("Step 2: Filtering and Updating");
 
+	/*
+	 * The RFC is not clear on whether several of these validations should
+	 * trigger ICMP errors or not. Probably not.
+	 */
 	switch (pkt_l3_proto(in)) {
 	case L3PROTO_IPV6:
 		/* Get rid of hairpinning loops and unwanted packets. */
-		hdr_ip6 = pkt_ip6_hdr(in);
-		if (pool6_contains(state->jool.pool6, &hdr_ip6->saddr)) {
-			log_debug("Hairpinning loop. Dropping...");
-			/* inc_stats(in, IPSTATS_MIB_INADDRERRORS); */
-			return breakdown(state);
+		pool6 = &state->GLOBAL.pool6;
+		hdr6 = pkt_ip6_hdr(in);
+		if (prefix6_contains(pool6, &hdr6->saddr)) {
+			log_debug("Hairpinning loop. Dropping packet...");
+			return einval(state, JOOL_MIB_HAIRPIN_LOOP);
 		}
-		if (!pool6_contains(state->jool.pool6, &hdr_ip6->daddr)) {
-			log_debug("Packet does not belong to pool6.");
-			return breakdown(state);
+		if (!prefix6_contains(pool6, &hdr6->daddr)) {
+			log_debug("Packet destination does not belong to pool6.");
+			return einval(state, JOOL_MIB_DST6);
 		}
 
-		/* ICMP errors should not be filtered or affect the tables. */
+		/* ICMP errors should not be filtered nor affect the tables. */
 		if (pkt_is_icmp6_error(in)) {
 			log_debug("Packet is ICMPv6 error; skipping step...");
-			return 0;
+			return 0; /* Happy path for ICMPv6 errors. */
 		}
 		break;
 	case L3PROTO_IPV4:
 		/* Get rid of unexpected packets */
-		if (!pool4db_contains(state->jool.nat64.pool4,
-				in->tuple.l4_proto, &in->tuple.dst.addr4)) {
-			log_debug("Packet does not belong to pool4.");
-			return breakdown(state);
+		if (!pool4db_contains(state->jool.nat64.pool4, &in->tuple)) {
+			log_debug("Packet destination does not belong to pool4.");
+			return einval(state, JOOL_MIB_DST4);
 		}
 
 		/* ICMP errors should not be filtered or affect the tables. */
 		if (pkt_is_icmp4_error(in)) {
 			log_debug("Packet is ICMPv4 error; skipping step...");
-			return 0;
+			return 0; /* Happy path for ICMPv4 errors. */
 		}
 		break;
 	}
 
-	switch (pkt_l4_proto(in)) {
-	case L4PROTO_UDP:
-		switch (pkt_l3_proto(in)) {
-		case L3PROTO_IPV6:
-			error = ipv6_simple(state);
-			break;
-		case L3PROTO_IPV4:
-			error = ipv4_simple(state);
-			break;
-		}
-		break;
-
-	case L4PROTO_TCP:
-		switch (pkt_l3_proto(in)) {
-		case L3PROTO_IPV6:
-			error = ipv6_tcp(state);
-			break;
-		case L3PROTO_IPV4:
-			error = ipv4_tcp(state);
-			break;
-		}
-		break;
-
-	case L4PROTO_ICMP:
-		switch (pkt_l3_proto(in)) {
-		case L3PROTO_IPV6:
-			if (state->jool.global->cfg.nat64.drop_icmp6_info) {
-				log_debug("Packet is ICMPv6 info (ping); dropping due to policy.");
-				/* inc_stats(in, IPSTATS_MIB_INDISCARDS); */
-				kfree_skb(state->in.skb);
-				return -EPERM;
-			}
-
-			error = ipv6_simple(state);
-			break;
-		case L3PROTO_IPV4:
-			error = ipv4_simple(state);
-			break;
-		}
-		break;
-
-	case L4PROTO_OTHER:
-		WARN(true, "Unknown layer 4 protocol: %d", pkt_l4_proto(in));
-		return breakdown(state);
+	switch (pkt_l3_proto(in)) {
+	case L3PROTO_IPV6:
+		return handle_ipv6(state);
+	case L3PROTO_IPV4:
+		return handle_ipv4(state);
 	}
 
-	log_debug("Done: Step 2.");
-	return error;
+	WARN(true, "Unknown layer 3 protocol: %d", pkt_l3_proto(in));
+	return einval(state, JOOL_MIB_UNKNOWN_L3);
 }

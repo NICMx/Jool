@@ -26,8 +26,7 @@ static bool is_hairpin_nat64(struct xlation *state)
 	 * for its node. It might take a miracle for these packets to exist,
 	 * but hey, why the hell not.
 	 */
-	return pool4db_contains(state->jool.nat64.pool4, state->jool.ns,
-			state->out.tuple.l4_proto, &state->out.tuple.dst.addr4);
+	return pool4db_contains(state->jool.nat64.pool4, &state->out);
 }
 
 /**

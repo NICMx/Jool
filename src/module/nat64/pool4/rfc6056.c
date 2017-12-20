@@ -82,7 +82,7 @@ static int hash_tuple(struct shash_desc *desc, __u8 fields,
 /**
  * RFC 6056, Algorithm 3.
  */
-int rfc6056_f(const struct tuple *tuple6, __u8 fields, unsigned int *result)
+int rfc6056_f(const struct xlation *state, unsigned int *result)
 {
 	union {
 		__be32 as32[4];
@@ -94,7 +94,7 @@ int rfc6056_f(const struct tuple *tuple6, __u8 fields, unsigned int *result)
 	desc = __wkmalloc("shash desc", sizeof(struct shash_desc)
 			+ crypto_shash_descsize(shash), GFP_ATOMIC);
 	if (!desc)
-		return -ENOMEM;
+		return enomem(state);
 
 	desc->tfm = shash;
 	desc->flags = 0;
@@ -108,18 +108,21 @@ int rfc6056_f(const struct tuple *tuple6, __u8 fields, unsigned int *result)
 	error = crypto_shash_init(desc);
 	if (error) {
 		log_debug("crypto_hash_init() failed. Errcode: %d", error);
+		breakdown(state, JOOL_MIB_SHASH_INIT, error);
 		goto end;
 	}
 
-	error = hash_tuple(desc, fields, tuple6);
+	error = hash_tuple(desc, state->jool.global->cfg.nat64.f_args, tuple6);
 	if (error) {
 		log_debug("crypto_hash_update() failed. Errcode: %d", error);
+		breakdown(state, JOOL_MIB_SHASH_UPDATE, error);
 		goto end;
 	}
 
 	error = crypto_shash_final(desc, md5_result.as8);
 	if (error) {
 		log_debug("crypto_hash_digest() failed. Errcode: %d", error);
+		breakdown(state, JOOL_MIB_SHASH_DIGEST, error);
 		goto end;
 	}
 

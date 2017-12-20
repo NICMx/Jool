@@ -12,21 +12,20 @@
  */
 struct xlator {
 //	struct net *ns;
-//
+
 	struct jool_stats *stats;
-//	struct global_config *global;
-//	struct pool6 *pool6;
+	struct global_config *global;
 //	union {
 //		struct {
 //			struct eam_table *eamt;
 //			struct addr4_pool *blacklist;
 //			struct addr4_pool *pool6791;
 //		} siit;
-//		struct {
-//			struct pool4 *pool4;
-//			struct bib *bib;
-//			struct joold_queue *joold;
-//		} nat64;
+		struct {
+			struct pool4 *pool4;
+			struct bib *bib;
+			struct joold_queue *joold;
+		} nat64;
 //	};
 
 	xlator_type type;

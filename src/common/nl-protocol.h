@@ -574,6 +574,9 @@ struct global_config_usr {
 	 */
 	config_bool status;
 
+	/** Pref64/n. In NAT64, this is the one that's usually 64:ff9b::/96. */
+	struct ipv6_prefix pool6;
+
 	/**
 	 * "true" if the Traffic Class field of translated IPv6 headers should
 	 * always be zeroized.

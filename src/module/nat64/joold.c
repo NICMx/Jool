@@ -508,9 +508,10 @@ void joold_update_config(struct joold_queue *queue,
  * successfully triggers the creation of a session entry. @entry will be sent
  * to the joold daemon.
  */
-void joold_add(struct joold_queue *queue, struct session_entry *entry,
-		struct bib *bib)
+void joold_add(struct xlation *state)
 {
+	struct joold_queue *queue = state->jool.nat64.joold;
+	struct session_entry *entry = &state->entries.session;
 	struct joold_node *copy;
 	struct joold_buffer buffer = JOOLD_BUFFER_INIT;
 
@@ -555,7 +556,7 @@ void joold_add(struct joold_queue *queue, struct session_entry *entry,
 				"Sorry.");
 		purge_sessions(queue);
 	} else {
-		send_to_userspace_prepare(queue, bib, &buffer);
+		send_to_userspace_prepare(queue, state->jool.nat64.bib, &buffer);
 	}
 
 	spin_unlock_bh(&queue->lock);

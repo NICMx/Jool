@@ -2,6 +2,8 @@
 
 #include "config.h"
 #include "handling-hairpinning.h"
+#include "module-stats.h"
+#include "packet-init.h"
 #include "xlator.h"
 #include "rfc7915/core.h"
 #include "nat64/compute-outgoing-tuple.h"

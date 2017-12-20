@@ -7,7 +7,7 @@
  * which packets should be translated.
  */
 
-#include "types.h"
+#include "xlation.h"
 #include "config.h"
 
 struct pool4;
@@ -32,16 +32,14 @@ void pool4db_flush(struct pool4 *pool);
  * Read functions (Legal to use anywhere)
  */
 
-bool pool4db_contains(struct pool4 *pool, enum l4_protocol proto,
-		struct ipv4_transport_addr *addr);
+bool pool4db_contains(struct pool4 *pool, struct tuple *tuple4);
 int pool4db_foreach_sample(struct pool4 *pool, l4_protocol proto,
 		int (*cb)(struct pool4_sample *, void *), void *arg,
 		struct pool4_sample *offset);
 
 struct mask_domain;
 
-struct mask_domain *mask_domain_find(struct pool4 *pool, struct tuple *tuple6,
-		__u8 f_args);
+struct mask_domain *mask_domain_find(struct xlation *state);
 void mask_domain_put(struct mask_domain *masks);
 int mask_domain_next(struct mask_domain *masks,
 		struct ipv4_transport_addr *addr,

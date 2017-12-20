@@ -25,8 +25,8 @@ jool-objs += common/ipv6-hdr-iterator.o
 jool-objs += common/module-stats.o
 jool-objs += common/module-types.o
 jool-objs += common/packet.o
-#jool-objs += common/pool6.o
-#jool-objs += common/rfc6052.o
+jool-objs += common/packet-init.o
+jool-objs += common/rfc6052.o
 #jool-objs += common/rbtree.o
 #jool-objs += common/route-in.o
 #jool-objs += common/route-out.o
@@ -66,11 +66,11 @@ jool-objs += common/xlator.o
 
 #jool-objs += nat64/compute-outgoing-tuple.o
 jool-objs += nat64/determine-incoming-tuple.o
-#jool-objs += nat64/filtering-and-updating.o
+jool-objs += nat64/filtering-and-updating.o
 #jool-objs += nat64/joold.o
 #jool-objs += nat64/timer.o
 
-#jool-objs += nat64/bib/db.o
+jool-objs += nat64/bib/db.o
 jool-objs += nat64/bib/entry.o
 #jool-objs += nat64/bib/pkt-queue.o
 
