@@ -210,7 +210,7 @@ static bool init(void)
 {
 	if (bib_init())
 		return false;
-	db = bib_create();
+	db = bib_create(NULL);
 	if (!db)
 		bib_destroy();
 	return db;
