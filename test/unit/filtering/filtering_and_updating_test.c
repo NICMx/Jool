@@ -574,6 +574,7 @@ static void end(void)
 {
 	icmp64_pop();
 	xlator_put(&jool);
+	bib_timers_destroy();
 	xlator_destroy();
 	rfc6056_destroy();
 	bib_destroy();
