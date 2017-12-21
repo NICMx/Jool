@@ -16,15 +16,20 @@ static int find_bib(struct xlation *state)
 
 	error = bib_find(state->jool.nat64.bib, &state->in.tuple,
 			&state->entries);
-	if (error) {
+	switch (error) {
+	case 0:
+		return 0;
+	case -ESRCH:
 		/*
 		 * Bogus ICMP errors might cause this because Filtering skips
-		 * them, so it's not critical.
+		 * them, so it's by no means critical.
 		 */
-		log_debug("Session not found. Error code is %d.", error);
-	}
+		log_debug("Session not found.");
+		return breakdown(state, JOOL_MIB_ICMP_ERROR_NO_BIB, error);
+	} /* EINVAL can fall through. */
 
-	return error;
+	log_debug("bib_find() spew unexpected error code %d.", error);
+	return breakdown(state, JOOL_MIB_UNKNOWN, error);
 }
 
 static int xlat_addr64(struct xlation *state, struct ipv4_transport_addr *addr4)
@@ -33,7 +38,7 @@ static int xlat_addr64(struct xlation *state, struct ipv4_transport_addr *addr4)
 	struct ipv6_transport_addr *d = &state->in.tuple.dst.addr6;
 
 	addr4->l4 = d->l4;
-	return rfc6052_6to4(state->jool.pool6, &d->l3, &addr4->l3);
+	return rfc6052_6to4(state, &d->l3, &addr4->l3);
 }
 
 static int xlat_addr46(struct xlation *state, struct ipv6_transport_addr *addr6)
@@ -42,18 +47,20 @@ static int xlat_addr46(struct xlation *state, struct ipv6_transport_addr *addr6)
 	struct ipv4_transport_addr *s = &state->in.tuple.src.addr4;
 
 	addr6->l4 = s->l4;
-	return rfc6052_4to6(state->jool.pool6, &s->l3, &addr6->l3);
+	return rfc6052_4to6(state, &s->l3, &addr6->l3);
 }
 
-verdict compute_out_tuple(struct xlation *state)
+int compute_out_tuple(struct xlation *state)
 {
 	struct tuple *in;
 	struct tuple *out;
+	int error;
 
 	log_debug("Step 3: Computing the Outgoing Tuple");
 
-	if (find_bib(state))
-		return VERDICT_ACCEPT;
+	error = find_bib(state);
+	if (error)
+		return error;
 
 	in = &state->in.tuple;
 	out = &state->out.tuple;
@@ -63,9 +70,9 @@ verdict compute_out_tuple(struct xlation *state)
 		out->l3_proto = L3PROTO_IPV4;
 		out->l4_proto = in->l4_proto;
 		out->src.addr4 = state->entries.session.src4;
-		if (xlat_addr64(state, &out->dst.addr4))
-			return VERDICT_ACCEPT;
-
+		error = xlat_addr64(state, &out->dst.addr4);
+		if (error)
+			return error;
 		if (is_3_tuple(out))
 			out->dst.addr4.l4 = out->src.addr4.l4;
 		break;
@@ -73,10 +80,10 @@ verdict compute_out_tuple(struct xlation *state)
 	case L3PROTO_IPV4:
 		out->l3_proto = L3PROTO_IPV6;
 		out->l4_proto = in->l4_proto;
-		if (xlat_addr46(state, &out->src.addr6))
-			return VERDICT_ACCEPT;
+		error = xlat_addr46(state, &out->src.addr6);
+		if (error)
+			return error;
 		out->dst.addr6 = state->entries.session.src6;
-
 		if (is_3_tuple(out))
 			out->src.addr6.l4 = out->dst.addr6.l4;
 		break;
@@ -84,5 +91,5 @@ verdict compute_out_tuple(struct xlation *state)
 
 	log_tuple(out);
 	log_debug("Done step 3.");
-	return VERDICT_CONTINUE;
+	return 0;
 }

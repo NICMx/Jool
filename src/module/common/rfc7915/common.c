@@ -21,9 +21,9 @@ struct backup_skb {
 	struct tuple tuple;
 };
 
-static verdict handle_unknown_l4(struct xlation *state)
+static int handle_unknown_l4(struct xlation *state)
 {
-	return copy_payload(state) ? VERDICT_DROP : VERDICT_CONTINUE;
+	return copy_payload(state);
 }
 
 static struct translation_steps steps[][L4_PROTO_COUNT] = {
@@ -86,10 +86,12 @@ int copy_payload(struct xlation *state)
 			 * ttp46_create_skb() and ttp64_create_skb().
 			 */
 			pkt_payload_len_frag(&state->out));
-	if (error)
+	if (error) {
 		log_debug("The payload copy threw errcode %d.", error);
+		return breakdown(state, JOOL_MIB_SKB_COPY_BITS);
+	}
 
-	return error;
+	return 0;
 }
 
 bool will_need_frag_hdr(const struct iphdr *hdr)
@@ -331,7 +333,7 @@ void partialize_skb(struct sk_buff *out_skb, unsigned int csum_offset)
 	out_skb->csum_offset = csum_offset;
 }
 
-bool must_not_translate(struct in_addr *addr, struct net *ns)
+bool must_not_translate(struct in_addr *addr)
 {
 	return addr4_is_scope_subnet(addr->s_addr)
 			|| interface_contains(ns, addr);

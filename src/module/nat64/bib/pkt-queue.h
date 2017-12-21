@@ -2,7 +2,6 @@
 #define _JOOL_MOD_PKT_QUEUE_H
 
 /**
- * @file
  * As the name implies, this is just a small database of packets. These packets
  * are meant to be replied (in the form of an ICMP error) in the future.
  *
@@ -35,8 +34,8 @@
  *
  * So yeah, "Packet Storage". This is how I understand it:
  *
- * If a NAT64 receives a IPv4-UDP or a IPv4-ICMP packet for which it has no
- * state, it should reply a ICMP error because it doesn't know which IPv6 node
+ * If a NAT64 receives an IPv4-UDP or an IPv4-ICMP packet for which it has no
+ * state, it should reply an ICMP error because it doesn't know which IPv6 node
  * the packet should be forwarded to.
  *
  * On the other hand, if a NAT64 receives a IPv4-TCP packet for which it has no

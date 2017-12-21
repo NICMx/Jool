@@ -27,10 +27,10 @@ jool-objs += common/module-types.o
 jool-objs += common/packet.o
 jool-objs += common/packet-init.o
 jool-objs += common/rfc6052.o
-#jool-objs += common/rbtree.o
+jool-objs += common/rbtree.o
 #jool-objs += common/route-in.o
 #jool-objs += common/route-out.o
-#jool-objs += common/rtrie.o
+jool-objs += common/rtrie.o
 #jool-objs += common/send-packet.o
 jool-objs += common/str-utils.o
 #jool-objs += common/wkmalloc.o
@@ -53,18 +53,17 @@ jool-objs += common/xlator.o
 #jool-objs += common/nl/nl-pool6.o
 #jool-objs += common/nl/nl-session.o
 
-#jool-objs += common/rfc7915/4to6.o
-#jool-objs += common/rfc7915/6to4.o
+jool-objs += common/rfc7915/4to6.o
+jool-objs += common/rfc7915/6to4.o
 #jool-objs += common/rfc7915/common.o
-#jool-objs += common/rfc7915/core.o
+jool-objs += common/rfc7915/core.o
 
-#jool-objs += siit/blacklist4.o
-#jool-objs += siit/eam.o
+jool-objs += siit/eam.o
 #jool-objs += siit/pool.o
 #jool-objs += siit/rfc6791.o
 #jool-objs += siit/rfc6791v6.o
 
-#jool-objs += nat64/compute-outgoing-tuple.o
+jool-objs += nat64/compute-outgoing-tuple.o
 jool-objs += nat64/determine-incoming-tuple.o
 jool-objs += nat64/filtering-and-updating.o
 #jool-objs += nat64/joold.o
@@ -72,7 +71,7 @@ jool-objs += nat64/filtering-and-updating.o
 
 jool-objs += nat64/bib/db.o
 jool-objs += nat64/bib/entry.o
-#jool-objs += nat64/bib/pkt-queue.o
+jool-objs += nat64/bib/pkt-queue.o
 
 #jool-objs += nat64/pool4/db.o
 #jool-objs += nat64/pool4/empty.o

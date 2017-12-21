@@ -6,14 +6,13 @@
 #include "config.h"
 #include "icmp-wrapper.h"
 #include "module-stats.h"
-#include "pool6.h"
 #include "rfc6052.h"
 #include "route.h"
-#include "siit/blacklist4.h"
+#include "rfc7915/common.h"
 #include "siit/eam.h"
 #include "siit/rfc6791v6.h"
 
-verdict ttp46_create_skb(struct xlation *state)
+int ttp46_create_skb(struct xlation *state)
 {
 	struct packet *in = &state->in;
 	size_t l3_hdr_len;
@@ -59,10 +58,8 @@ verdict ttp46_create_skb(struct xlation *state)
 	}
 
 	skb = alloc_skb(reserve + total_len, GFP_ATOMIC);
-	if (!skb) {
-		inc_stats(in, IPSTATS_MIB_INDISCARDS);
-		return VERDICT_DROP;
-	}
+	if (!skb)
+		return enomem(state);
 
 	skb_reserve(skb, reserve);
 	skb_put(skb, total_len);
@@ -80,7 +77,7 @@ verdict ttp46_create_skb(struct xlation *state)
 	skb->mark = in->skb->mark;
 	skb->protocol = htons(ETH_P_IPV6);
 
-	return VERDICT_CONTINUE;
+	return 0;
 }
 
 static __be16 build_payload_len(struct packet *in, struct packet *out)
@@ -113,24 +110,16 @@ static __be16 build_payload_len(struct packet *in, struct packet *out)
 	return cpu_to_be16(total_len - sizeof(struct ipv6hdr));
 }
 
-static int generate_saddr6_nat64(struct xlation *state)
+static int xlat_saddr6_nat64(struct xlation *state)
 {
 	struct packet *out = &state->out;
-	bool src_better;
-	struct ipv6_prefix prefix6;
 	struct in_addr tmp;
-	int error;
 
-	src_better = state->jool.global->cfg.nat64.src_icmp6errs_better;
-
-	if (src_better && pkt_is_icmp4_error(&state->in)) {
+	if (state->GLOBAL.nat64.src_icmp6errs_better
+			&& pkt_is_icmp4_error(&state->in)) {
 		/* Issue #132 behaviour. */
-		error = pool6_find(state->jool.pool6, &out->tuple.src.addr6.l3,
-				&prefix6);
-		if (error)
-			return error;
 		tmp.s_addr = pkt_ip4_hdr(&state->in)->saddr;
-		return addr_4to6(&tmp, &prefix6, &pkt_ip6_hdr(out)->saddr);
+		return rfc6052_4to6(state, &tmp, &pkt_ip6_hdr(out)->saddr);
 	}
 
 	/* RFC 6146 behaviour. */
@@ -138,48 +127,43 @@ static int generate_saddr6_nat64(struct xlation *state)
 	return 0;
 }
 
-static addrxlat_verdict generate_addr6_siit(struct xlation *state,
+/**
+ * Attempts to translate @addr4 based on pool6 and the EAMT.
+ *
+ * Regarding the return value:
+ * - 0 means success as usual.
+ * - -ESRCH is a "soft error". It means that the relevant address translation
+ *   databases could not translate @addr4, but there's nothing preventing the
+ *   caller to try something else.
+ * - Any other error code is a "hard error"; it means that something is busted
+ *   and the packet should be dropped.
+ */
+static int xlat_addr46_siit(struct xlation *state,
 		__be32 addr4, struct in6_addr *addr6, bool enable_eam)
 {
-	struct ipv6_prefix prefix;
 	struct in_addr tmp = { .s_addr = addr4 };
 	int error;
 
-	if (must_not_translate(&tmp, state->jool.ns)) {
+	if (must_not_translate(&tmp)) {
 		log_debug("Address %pI4 is not supposed to be xlat'd.", &tmp);
-		return ADDRXLAT_ACCEPT;
+		return einval(state, JOOL_MIB_SUBNET_ADDR_SRC);
 	}
 
 	if (enable_eam) {
 		error = eamt_xlat_4to6(state->jool.siit.eamt, &tmp, addr6);
-		if (!error)
-			return ADDRXLAT_CONTINUE;
-		if (error != -ESRCH)
-			return ADDRXLAT_DROP;
+		switch (error) {
+		case 0:
+			return 0;
+		case -ESRCH:
+			break;
+		default:
+			log_debug("eamt_xlat_4to6() spew unexpected error code %d.",
+					error);
+			return eunknown4(state, error);
+		}
 	}
 
-	if (blacklist_contains(state->jool.siit.blacklist, &tmp)) {
-		log_debug("Address %pI4 lacks EAMT entry and is blacklisted.",
-				&tmp);
-		return ADDRXLAT_ACCEPT;
-	}
-
-	error = pool6_peek(state->jool.pool6, &prefix);
-	if (error) {
-		log_debug("Address %pI4 lacks EAMT entry and there's no pool6 prefix.",
-				&tmp);
-		return ADDRXLAT_TRY_SOMETHING_ELSE;
-	}
-	error = addr_4to6(&tmp, &prefix, addr6);
-	if (error) {
-		/*
-		 * This is not TRY_SOMETHING_ELSE because addr_4to6() can only
-		 * fail on criticals, currently.
-		 */
-		return ADDRXLAT_DROP;
-	}
-
-	return ADDRXLAT_CONTINUE;
+	return rfc6052_4to6(state, &tmp, addr6);
 }
 
 static bool disable_src_eam(struct packet *in, bool hairpin)
@@ -200,50 +184,43 @@ static bool disable_dst_eam(struct packet *in, bool hairpin)
 	return hairpin && pkt_is_inner(in);
 }
 
-static verdict translate_addrs46_siit(struct xlation *state)
+static int xlat_addrs46_siit(struct xlation *state)
 {
 	struct packet *in = &state->in;
 	struct iphdr *hdr4 = pkt_ip4_hdr(in);
 	struct ipv6hdr *hdr6 = pkt_ip6_hdr(&state->out);
-	enum eam_hairpinning_mode hairpin_mode;
 	bool hairpin;
-	addrxlat_verdict result;
+	int error;
 
-	hairpin_mode = state->jool.global->cfg.siit.eam_hairpin_mode;
-	hairpin = (hairpin_mode == EAM_HAIRPIN_SIMPLE)
+	hairpin = (state->GLOBAL.siit.eam_hairpin_mode == EAM_HAIRPIN_SIMPLE)
 			|| pkt_is_intrinsic_hairpin(in);
 
 	/* Src address. */
-	result = generate_addr6_siit(state, hdr4->saddr, &hdr6->saddr,
+	error = xlat_addr46_siit(state, hdr4->saddr, &hdr6->saddr,
 			!disable_src_eam(in, hairpin));
-	switch (result) {
-	case ADDRXLAT_CONTINUE:
+	switch (error) {
+	case 0:
 		break;
-	case ADDRXLAT_TRY_SOMETHING_ELSE:
-		if (pkt_is_icmp4_error(in)
-				&& !rfc6791_find_v6(state, &hdr6->saddr))
-			break; /* Ok, success. */
-		return VERDICT_ACCEPT;
-	case ADDRXLAT_ACCEPT:
-	case ADDRXLAT_DROP:
-		return (verdict)result;
+	case -ESRCH:
+		if (pkt_is_icmp4_error(in)) {
+			/* TODO worry about this. */
+			error = rfc6791_find_v6(state, &hdr6->saddr);
+			if (error)
+				return error;
+		}
+		break; /* Ok, success. */
+	default:
+		return error;
 	}
 
 	/* Dst address. */
-	result = generate_addr6_siit(state, hdr4->daddr, &hdr6->daddr,
+	error = xlat_addr46_siit(state, hdr4->daddr, &hdr6->daddr,
 			!disable_dst_eam(in, hairpin));
-	switch (result) {
-	case ADDRXLAT_CONTINUE:
-		break;
-	case ADDRXLAT_TRY_SOMETHING_ELSE:
-		return VERDICT_ACCEPT;
-	case ADDRXLAT_ACCEPT:
-	case ADDRXLAT_DROP:
-		return (verdict)result;
-	}
+	if (error)
+		return error;
 
 	log_debug("Result: %pI6c->%pI6c", &hdr6->saddr, &hdr6->daddr);
-	return VERDICT_CONTINUE;
+	return 0;
 }
 
 /**
@@ -306,31 +283,29 @@ static inline __be32 build_id_field(struct iphdr *hdr4)
  *
  * This is used to translate both outer and inner headers.
  */
-verdict ttp46_ipv6(struct xlation *state)
+int ttp46_ipv6(struct xlation *state)
 {
 	struct packet *in = &state->in;
 	struct packet *out = &state->out;
 	struct iphdr *hdr4 = pkt_ip4_hdr(in);
 	struct ipv6hdr *hdr6 = pkt_ip6_hdr(out);
 	int error;
-	verdict result;
 
 	/* Translate the address first because of issue #167. */
 	switch (state->jool.type) {
 	case XLATOR_SIIT:
-		error = generate_saddr6_nat64(state);
+		error = xlat_saddr6_nat64(state);
 		if (error)
-			return VERDICT_DROP;
+			return error;
 		hdr6->daddr = out->tuple.dst.addr6.l3;
 		break;
 	case XLATOR_NAT64:
-		result = translate_addrs46_siit(state);
-		if (result != VERDICT_CONTINUE)
-			return result;
+		error = xlat_addrs46_siit(state);
+		if (error)
+			return error;
 		break;
 	default:
-		BUG();
-		return VERDICT_DROP;
+		return einval(state, JOOL_MIB_UNKNOWN_XLATOR);
 	}
 
 	hdr6->version = 6;
@@ -349,9 +324,9 @@ verdict ttp46_ipv6(struct xlation *state)
 			: hdr4->protocol;
 	if (pkt_is_outer(in) && !pkt_is_intrinsic_hairpin(in)) {
 		if (hdr4->ttl <= 1) {
+			log_debug("TTL <= 1.");
 			icmp64_send(in, ICMPERR_HOP_LIMIT, 0);
-			inc_stats(in, IPSTATS_MIB_INHDRERRORS);
-			return VERDICT_DROP;
+			return einval(state, JOOL_MIB_TTL);
 		}
 		hdr6->hop_limit = hdr4->ttl - 1;
 	} else {
@@ -367,8 +342,7 @@ verdict ttp46_ipv6(struct xlation *state)
 	if (pkt_is_outer(in) && has_unexpired_src_route(hdr4)) {
 		log_debug("Packet has an unexpired source route.");
 		icmp64_send(in, ICMPERR_SRC_ROUTE, 0);
-		inc_stats(in, IPSTATS_MIB_INHDRERRORS);
-		return VERDICT_DROP;
+		return einval(state, JOOL_MIB_UNEXPIRED_SRC_ROUTE);
 	}
 
 	if (will_need_frag_hdr(hdr4)) {
@@ -388,23 +362,24 @@ verdict ttp46_ipv6(struct xlation *state)
 		frag_header->identification = build_id_field(hdr4);
 	}
 
-	return VERDICT_CONTINUE;
+	return 0;
 }
 
 /**
  * One liner for creating the ICMPv6 header's MTU field.
- * Returns the smallest out of the three first parameters. It also handles some
- * quirks. See comments inside for more info.
+ *
+ * TODO Recall that Hairpinning might be a thing. (After you've considered
+ * jooldev MTU.)
  */
-static __be32 icmp6_minimum_mtu(struct xlation *state,
-		unsigned int packet_mtu,
-		unsigned int nexthop6_mtu,
-		unsigned int nexthop4_mtu,
-		__u16 tot_len_field)
+static void compute_mtu6(struct xlation *state)
 {
-	__u32 result;
+	struct icmphdr *in = pkt_icmp4_hdr(&state->in);
+	struct icmp6hdr *out = pkt_icmp6_hdr(&state->out);
+	unsigned int result;
 
-	if (packet_mtu == 0) {
+	result = be16_to_cpu(in->un.frag.mtu);
+
+	if (result == 0) {
 		/*
 		 * Some router does not implement RFC 1191.
 		 * Got to determine a likely path MTU.
@@ -412,63 +387,30 @@ static __be32 icmp6_minimum_mtu(struct xlation *state,
 		 */
 		__u16 *plateaus = state->jool.global->cfg.mtu_plateaus;
 		__u16 count = state->jool.global->cfg.mtu_plateau_count;
+		struct iphdr *hdr4;
+		unsigned int tot_len_field;
 		int i;
 
+		hdr4 = pkt_payload(&state->in);
+		/*
+		 * We want the length of the packet that couldn't get through,
+		 * not the truncated one.
+		 */
+		tot_len_field = be16_to_cpu(hdr4->tot_len);
 		for (i = 0; i < count; i++) {
 			if (plateaus[i] < tot_len_field) {
-				packet_mtu = plateaus[i];
+				result = plateaus[i];
 				break;
 			}
 		}
 	}
 
-	/* Here's the core comparison. */
-	result = min(packet_mtu + 20, min(nexthop6_mtu, nexthop4_mtu + 20));
+	result += 20;
 	if (result < IPV6_MIN_MTU)
 		result = IPV6_MIN_MTU;
 
-	return cpu_to_be32(result);
-}
-
-static int compute_mtu6(struct xlation *state)
-{
-	struct icmp6hdr *out_icmp = pkt_icmp6_hdr(&state->out);
-#ifndef UNIT_TESTING
-	struct dst_entry *out_dst;
-	struct iphdr *hdr4;
-	struct icmphdr *in_icmp = pkt_icmp4_hdr(&state->in);
-	unsigned int in_mtu;
-
-	out_dst = route6(state->jool.ns, &state->out);
-	if (!out_dst)
-		return -EINVAL;
-	/*
-	 * 0xfffffff is intended for hairpinning (there's no IPv4 device on
-	 * hairpinning).
-	 */
-	in_mtu = state->in.skb->dev ? state->in.skb->dev->mtu : 0xfffffff;
-
-	log_debug("Packet MTU: %u", be16_to_cpu(in_icmp->un.frag.mtu));
-	log_debug("In dev MTU: %u", in_mtu);
-	log_debug("Out dev MTU: %u", out_dst->dev->mtu);
-
-	/*
-	 * We want the length of the packet that couldn't get through,
-	 * not the truncated one.
-	 */
-	hdr4 = pkt_payload(&state->in);
-	out_icmp->icmp6_mtu = icmp6_minimum_mtu(state,
-			be16_to_cpu(in_icmp->un.frag.mtu),
-			out_dst->dev->mtu,
-			in_mtu,
-			be16_to_cpu(hdr4->tot_len));
-	log_debug("Resulting MTU: %u", be32_to_cpu(out_icmp->icmp6_mtu));
-
-#else
-	out_icmp->icmp6_mtu = icmp6_minimum_mtu(state, 9999, 1500, 9999, 100);
-#endif
-
-	return 0;
+	out->icmp6_mtu = cpu_to_be32(result);
+	log_debug("Resulting MTU: %u", be32_to_cpu(out->icmp6_mtu));
 }
 
 /**
@@ -479,7 +421,6 @@ static int icmp4_to_icmp6_dest_unreach(struct xlation *state)
 {
 	struct icmphdr *icmp4_hdr = pkt_icmp4_hdr(&state->in);
 	struct icmp6hdr *icmp6_hdr = pkt_icmp6_hdr(&state->out);
-	int error;
 
 	icmp6_hdr->icmp6_type = ICMPV6_DEST_UNREACH;
 	icmp6_hdr->icmp6_unused = 0;
@@ -494,87 +435,80 @@ static int icmp4_to_icmp6_dest_unreach(struct xlation *state)
 	case ICMP_NET_UNR_TOS:
 	case ICMP_HOST_UNR_TOS:
 		icmp6_hdr->icmp6_code = ICMPV6_NOROUTE;
-		break;
+		return 0;
 
 	case ICMP_PROT_UNREACH:
 		icmp6_hdr->icmp6_type = ICMPV6_PARAMPROB;
 		icmp6_hdr->icmp6_code = ICMPV6_UNK_NEXTHDR;
 		icmp6_hdr->icmp6_pointer = cpu_to_be32(offsetof(struct ipv6hdr,
 				nexthdr));
-		break;
+		return 0;
 
 	case ICMP_PORT_UNREACH:
 		icmp6_hdr->icmp6_code = ICMPV6_PORT_UNREACH;
-		break;
+		return 0;
 
 	case ICMP_FRAG_NEEDED:
 		icmp6_hdr->icmp6_type = ICMPV6_PKT_TOOBIG;
 		icmp6_hdr->icmp6_code = 0;
-		error = compute_mtu6(state);
-		if (error)
-			return error;
-		break;
+		compute_mtu6(state);
+		return 0;
 
 	case ICMP_NET_ANO:
 	case ICMP_HOST_ANO:
 	case ICMP_PKT_FILTERED:
 	case ICMP_PREC_CUTOFF:
 		icmp6_hdr->icmp6_code = ICMPV6_ADM_PROHIBITED;
-		break;
-
-	default:
-		/*
-		 * hostPrecedenceViolation (14) is known to fall through here.
-		 */
-		log_debug("ICMPv4 messages type %u code %u lack an ICMPv6 counterpart.",
-				icmp4_hdr->type, icmp4_hdr->code);
-		inc_stats(&state->in, IPSTATS_MIB_INHDRERRORS);
-		return -EINVAL; /* No ICMP error. */
+		return 0;
 	}
 
-	return 0;
+	/*
+	 * hostPrecedenceViolation (14) is known to fall through here.
+	 */
+	log_debug("ICMPv4 messages type %u code %u lack an ICMPv6 counterpart.",
+			icmp4_hdr->type, icmp4_hdr->code);
+	return einval(state, JOOL_MIB_ICMP46_DU_CODE); /* No ICMP error. */
 }
 
 /**
  * One-liner for translating "Parameter Problem" messages from ICMPv4 to ICMPv6.
  */
-static int icmp4_to_icmp6_param_prob(struct icmphdr *icmp4_hdr,
+static int icmp4_to_icmp6_param_prob(struct xlation *state,
+		struct icmphdr *icmp4_hdr,
 		struct icmp6hdr *icmp6_hdr)
 {
+	const __u8 DROP = 255;
+	const __u8 ptrs[] = { 0, 1, 4, 4,
+			DROP, DROP, DROP, DROP,
+			7, 6, DROP, DROP,
+			8, 8, 8, 8,
+			24, 24, 24, 24
+	};
 	__u8 ptr;
 
 	icmp6_hdr->icmp6_type = ICMPV6_PARAMPROB;
 
 	switch (icmp4_hdr->code) {
 	case ICMP_PTR_INDICATES_ERROR:
-	case ICMP_BAD_LENGTH: {
-		const __u8 DROP = 255;
-		__u8 ptrs[] = { 0, 1, 4, 4,
-				DROP, DROP, DROP, DROP,
-				7, 6, DROP, DROP,
-				8, 8, 8, 8,
-				24, 24, 24, 24
-		};
-
+	case ICMP_BAD_LENGTH:
 		ptr = be32_to_cpu(icmp4_hdr->icmp4_unused) >> 24;
 
 		if (ptr < 0 || 19 < ptr || ptrs[ptr] == DROP) {
 			log_debug("ICMPv4 messages type %u code %u pointer %u lack an ICMPv6 counterpart.",
 					icmp4_hdr->type, icmp4_hdr->code, ptr);
-			return -EINVAL;
+			return einval(state, JOOL_MIB_ICMP46_PP_PTR);
 		}
 
 		icmp6_hdr->icmp6_code = ICMPV6_HDR_FIELD;
 		icmp6_hdr->icmp6_pointer = cpu_to_be32(ptrs[ptr]);
-		break;
-	}
-	default: /* missingARequiredOption (1) is known to fall through here. */
-		log_debug("ICMPv4 messages type %u code %u lack an ICMPv6 counterpart.",
-				icmp4_hdr->type, icmp4_hdr->code);
-		return -EINVAL; /* No ICMP error. */
+		return 0;
 	}
 
-	return 0;
+	/* missingARequiredOption (1) is known to fall through here. */
+	log_debug("ICMPv4 messages type %u code %u lack an ICMPv6 counterpart.",
+			icmp4_hdr->type, icmp4_hdr->code);
+	/* No ICMP error. */
+	return einval(state, JOOL_MIB_ICMP46_PP_CODE);
 }
 
 static __be16 compute_echo_id(struct xlation *state)
@@ -615,7 +549,7 @@ static int update_icmp6_csum(struct xlation *state)
 	return 0;
 }
 
-static int compute_icmp6_csum(struct packet *out)
+static void compute_icmp6_csum(struct packet *out)
 {
 	struct ipv6hdr *out_ip6 = pkt_ip6_hdr(out);
 	struct icmp6hdr *out_icmp = pkt_icmp6_hdr(out);
@@ -632,26 +566,22 @@ static int compute_icmp6_csum(struct packet *out)
 			&out_ip6->daddr, pkt_datagram_len(out), IPPROTO_ICMPV6,
 			csum);
 	out->skb->ip_summed = CHECKSUM_NONE;
-
-	return 0;
 }
 
-static verdict validate_icmp4_csum(struct packet *in)
+static int validate_icmp4_csum(struct packet *in)
 {
 	__sum16 csum;
 
 	if (in->skb->ip_summed != CHECKSUM_NONE)
-		return VERDICT_CONTINUE;
+		return 0;
 
 	csum = csum_fold(skb_checksum(in->skb, skb_transport_offset(in->skb),
 			pkt_datagram_len(in), 0));
-	if (csum != 0) {
-		log_debug("Checksum doesn't match.");
-		inc_stats(in, IPSTATS_MIB_INHDRERRORS);
-		return VERDICT_DROP;
-	}
+	if (csum != 0)
+		return -EINVAL;
 
-	return VERDICT_CONTINUE;
+
+	return 0;
 }
 
 static int post_icmp6info(struct xlation *state)
@@ -665,9 +595,9 @@ static int post_icmp6info(struct xlation *state)
 	return update_icmp6_csum(state);
 }
 
-static verdict post_icmp6error(struct xlation *state)
+static int post_icmp6error(struct xlation *state)
 {
-	verdict result;
+	int error;
 
 	log_debug("Translating the inner packet (4->6)...");
 
@@ -676,22 +606,25 @@ static verdict post_icmp6error(struct xlation *state)
 	 * translate a corrupted ICMPv4 error into an OK-csum ICMPv6 one,
 	 * so validate first.
 	 */
-	result = validate_icmp4_csum(&state->in);
-	if (result != VERDICT_CONTINUE)
-		return result;
+	error = validate_icmp4_csum(&state->in);
+	if (error) {
+		log_debug("Checksum doesn't match.");
+		return breakdown(state, JOOL_MIB_INVALID_CSUM4, error);
+	}
 
-	result = ttpcomm_translate_inner_packet(state);
-	if (result != VERDICT_CONTINUE)
-		return result;
+	error = ttpcomm_translate_inner_packet(state);
+	if (error)
+		return error;
 
-	return compute_icmp6_csum(&state->out) ? VERDICT_DROP : VERDICT_CONTINUE;
+	compute_icmp6_csum(&state->out);
+	return 0;
 }
 
 /**
  * Translates in's icmp4 header and payload into out's icmp6 header and payload.
  * This is the RFC 6145 sections 4.2 and 4.3, except checksum (See post_icmp6()).
  */
-verdict ttp46_icmp(struct xlation *state)
+int ttp46_icmp(struct xlation *state)
 {
 	struct icmphdr *icmpv4_hdr = pkt_icmp4_hdr(&state->in);
 	struct icmp6hdr *icmpv6_hdr = pkt_icmp6_hdr(&state->out);
@@ -706,21 +639,19 @@ verdict ttp46_icmp(struct xlation *state)
 		icmpv6_hdr->icmp6_code = 0;
 		icmpv6_hdr->icmp6_identifier = compute_echo_id(state);
 		icmpv6_hdr->icmp6_sequence = icmpv4_hdr->un.echo.sequence;
-		error = post_icmp6info(state);
-		break;
+		return post_icmp6info(state);
 
 	case ICMP_ECHOREPLY:
 		icmpv6_hdr->icmp6_type = ICMPV6_ECHO_REPLY;
 		icmpv6_hdr->icmp6_code = 0;
 		icmpv6_hdr->icmp6_identifier = compute_echo_id(state);
 		icmpv6_hdr->icmp6_sequence = icmpv4_hdr->un.echo.sequence;
-		error = post_icmp6info(state);
-		break;
+		return post_icmp6info(state);
 
 	case ICMP_DEST_UNREACH:
 		error = icmp4_to_icmp6_dest_unreach(state);
 		if (error)
-			return VERDICT_DROP;
+			return error;
 		return post_icmp6error(state);
 
 	case ICMP_TIME_EXCEEDED:
@@ -730,29 +661,23 @@ verdict ttp46_icmp(struct xlation *state)
 		return post_icmp6error(state);
 
 	case ICMP_PARAMETERPROB:
-		error = icmp4_to_icmp6_param_prob(icmpv4_hdr, icmpv6_hdr);
-		if (error) {
-			inc_stats(&state->in, IPSTATS_MIB_INHDRERRORS);
-			return VERDICT_DROP;
-		}
+		error = icmp4_to_icmp6_param_prob(state, icmpv4_hdr, icmpv6_hdr);
+		if (error)
+			return error;
 		return post_icmp6error(state);
-
-	default:
-		/*
-		 * The following codes are known to fall through here:
-		 * Information Request/Reply (15, 16), Timestamp and Timestamp
-		 * Reply (13, 14), Address Mask Request/Reply (17, 18), Router
-		 * Advertisement (9), Router Solicitation (10), Source Quench
-		 * (4), Redirect (5), Alternative Host Address (6).
-		 * This time there's no ICMP error.
-		 */
-		log_debug("ICMPv4 messages type %u lack an ICMPv6 counterpart.",
-				icmpv4_hdr->type);
-		inc_stats(&state->in, IPSTATS_MIB_INHDRERRORS);
-		return VERDICT_DROP;
 	}
 
-	return error ? VERDICT_DROP : VERDICT_CONTINUE;
+	/*
+	 * The following codes are known to fall through here:
+	 * Information Request/Reply (15, 16), Timestamp and Timestamp
+	 * Reply (13, 14), Address Mask Request/Reply (17, 18), Router
+	 * Advertisement (9), Router Solicitation (10), Source Quench
+	 * (4), Redirect (5), Alternative Host Address (6).
+	 * This time there's no ICMP error.
+	 */
+	log_debug("ICMPv4 messages type %u lack an ICMPv6 counterpart.",
+			icmpv4_hdr->type);
+	return einval(state, JOOL_MIB_ICMP46_TYPE);
 }
 
 static __sum16 update_csum_4to6(__sum16 csum16,
@@ -842,7 +767,7 @@ static int handle_zero_csum(struct xlation *state)
 	__wsum csum;
 
 	if (!can_compute_csum(state))
-		return -EINVAL;
+		return einval(state, JOOL_MIB_CSUM_NOT_COMPUTABLE);
 
 	/*
 	 * Here's the deal:
@@ -860,7 +785,7 @@ static int handle_zero_csum(struct xlation *state)
 	 * - out's UDP header.
 	 * - in's payload.
 	 *
-	 * That's the reason why we needed in as an argument.
+	 * That's the reason why we needed @in as an argument.
 	 */
 
 	csum = csum_partial(hdr_udp, sizeof(*hdr_udp), 0);
@@ -872,7 +797,7 @@ static int handle_zero_csum(struct xlation *state)
 	return 0;
 }
 
-verdict ttp46_tcp(struct xlation *state)
+int ttp46_tcp(struct xlation *state)
 {
 	struct packet *in = &state->in;
 	struct packet *out = &state->out;
@@ -904,10 +829,10 @@ verdict ttp46_tcp(struct xlation *state)
 	}
 
 	/* Payload */
-	return copy_payload(state) ? VERDICT_DROP : VERDICT_CONTINUE;
+	return copy_payload(state);
 }
 
-verdict ttp46_udp(struct xlation *state)
+int ttp46_udp(struct xlation *state)
 {
 	struct packet *in = &state->in;
 	struct packet *out = &state->out;
@@ -943,10 +868,11 @@ verdict ttp46_udp(struct xlation *state)
 		 * TODO (performance) handling this as partial might work just
 		 * as well, or better.
 		 */
-		if (handle_zero_csum(state))
-			return VERDICT_DROP;
+		int error = handle_zero_csum(state);
+		if (error)
+			return error;
 	}
 
 	/* Payload */
-	return copy_payload(state) ? VERDICT_DROP : VERDICT_CONTINUE;
+	return copy_payload(state);
 }

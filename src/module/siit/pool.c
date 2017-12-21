@@ -1,5 +1,9 @@
 #include "siit/pool.h"
 
+/*
+ * TODO fuse this with RFC6791?
+ */
+
 #include <linux/inet.h>
 #include <linux/kref.h>
 #include <linux/rculist.h>

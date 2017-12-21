@@ -1780,7 +1780,9 @@ int bib_add_tcp6(struct xlation *state,
 	if (args.old.session) {
 		/* All states except CLOSED. */
 		error = decide_fate(cb, args.table, args.old.session, NULL);
-		if (!error) /* TODO free packet & stuff */
+		if (error)
+			einval(state, JOOL_MIB_TCP_SM);
+		else
 			tstobs(args.old.session, &state->entries);
 		goto end;
 	}
@@ -1841,7 +1843,9 @@ int bib_add_tcp4(struct xlation *state,
 	if (args.old.session) {
 		/* All states except CLOSED. */
 		error = decide_fate(cb, args.table, args.old.session, NULL);
-		if (!error) /* TODO free packet & stuff */
+		if (error)
+			einval(state, JOOL_MIB_TCP_SM);
+		else
 			tstobs(args.old.session, &state->entries);
 		goto end;
 	}

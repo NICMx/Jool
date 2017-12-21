@@ -17,17 +17,14 @@ static void core_common(struct xlation *state)
 	if (state->jool.type == XLATOR_NAT64) {
 		if (determine_in_tuple(state))
 			return;
-//		result = filtering_and_updating(state);
-//		if (result != VERDICT_CONTINUE)
-//			return result;
-//		result = compute_out_tuple(state);
-//		if (result != VERDICT_CONTINUE)
-//			return result;
+		if (filtering_and_updating(state))
+			return;
+		if (compute_out_tuple(state))
+			return;
 	}
-//	result = translating_the_packet(state);
-//	if (result != VERDICT_CONTINUE)
-//		return result;
-//
+	if (translating_the_packet(state))
+		return;
+
 //	if (is_hairpin(state)) {
 //		result = handling_hairpinning(state);
 //		kfree_skb(state->out.skb); /* Put this inside of hh()? */
