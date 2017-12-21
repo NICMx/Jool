@@ -401,9 +401,7 @@ static void timer_function(unsigned long arg)
 static void init_session_timer(struct bib *db,
 		struct net *ns,
 		struct bib_table *table,
-		l4_protocol proto,
-		u64 max_sessions_rm,
-		unsigned long run_period_jiffies)
+		l4_protocol proto)
 {
 	struct session_timer *sess_timer = &table->sess_timer;
 	struct timer_list *timer = &sess_timer->timer;
@@ -417,11 +415,11 @@ static void init_session_timer(struct bib *db,
 	timer->data = (unsigned long)(sess_timer);
 
 	sess_timer->pend_rm = false;
-	sess_timer->max_session_rm = max_sessions_rm;
-	sess_timer->run_period_jiff = run_period_jiffies;
+	sess_timer->max_session_rm = RM_SESSION_MAX_INIT;
+	sess_timer->run_period_jiff = RM_SESSION_TIMER_INIT;
 	sess_timer->proto = proto;
 	sess_timer->instance_ref = inst_data;
-	mod_timer(timer, jiffies + run_period_jiffies);
+	mod_timer(timer, jiffies + RM_SESSION_TIMER_INIT);
 }
 
 static void init_table(struct bib_table *table,
@@ -474,12 +472,9 @@ struct bib *bib_create(struct net *ns)
 	 */
 	db->icmp.drop_by_addr = false;
 
-	init_session_timer(db, ns, &db->udp, L4PROTO_UDP, RM_SESSION_MAX_INIT,
-			RM_SESSION_TIMER_INIT);
-	init_session_timer(db, ns, &db->tcp, L4PROTO_TCP, RM_SESSION_MAX_INIT,
-			RM_SESSION_TIMER_INIT);
-	init_session_timer(db, ns, &db->icmp, L4PROTO_ICMP, RM_SESSION_MAX_INIT,
-			RM_SESSION_TIMER_INIT);
+	init_session_timer(db, ns, &db->udp, L4PROTO_UDP);
+	init_session_timer(db, ns, &db->tcp, L4PROTO_TCP);
+	init_session_timer(db, ns, &db->icmp, L4PROTO_ICMP);
 
 	kref_init(&db->refs);
 
