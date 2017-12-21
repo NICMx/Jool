@@ -97,7 +97,6 @@ int bib_find(struct bib *db, struct tuple *tuple,
 		struct bib_session *result);
 int bib_add_session(struct bib *db, struct session_entry *new,
 		struct collision_cb *cb);
-void bib_clean(struct bib *db, l4_protocol proto, struct net *ns);
 
 /* These are used by userspace request handling. */
 

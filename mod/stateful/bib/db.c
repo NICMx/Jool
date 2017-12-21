@@ -370,117 +370,6 @@ static void init_expirer(struct expire_timer *expirer,
 	expirer->decide_fate_cb = fate_cb;
 }
 
-static void clean_state(struct session_timer *sess_timer)
-{
-	bib_clean(sess_timer->instance_ref.db, sess_timer->proto,
-			sess_timer->instance_ref.ns);
-}
-
-static void update_timer(struct session_timer *sess_timer)
-{
-	if (sess_timer->pend_rm) {
-		sess_timer->run_period_jiff = msecs_to_jiffies(
-				jiffies_to_msecs(sess_timer->run_period_jiff) >> 1);
-		sess_timer->max_session_rm <<= 1;
-	} else {
-		sess_timer->run_period_jiff = RM_SESSION_TIMER_INIT;
-		sess_timer->max_session_rm = RM_SESSION_MAX_INIT;
-	}
-	sess_timer->pend_rm = false;
-	sess_timer->timer.data = (unsigned long)(sess_timer);
-}
-
-static void timer_function(unsigned long arg)
-{
-	struct session_timer *sess_timer = (struct session_timer *)arg;
-	clean_state(sess_timer);
-	update_timer(sess_timer);
-	mod_timer(&sess_timer->timer, jiffies + sess_timer->run_period_jiff);
-}
-
-static void init_session_timer(struct bib *db,
-		struct net *ns,
-		struct bib_table *table,
-		l4_protocol proto)
-{
-	struct session_timer *sess_timer = &table->sess_timer;
-	struct timer_list *timer = &sess_timer->timer;
-	struct curr_inst inst_data;
-	inst_data.db = db;
-	inst_data.ns = ns;
-
-	init_timer(timer);
-	timer->function = timer_function;
-	timer->expires = 0;
-	timer->data = (unsigned long)(sess_timer);
-
-	sess_timer->pend_rm = false;
-	sess_timer->max_session_rm = RM_SESSION_MAX_INIT;
-	sess_timer->run_period_jiff = RM_SESSION_TIMER_INIT;
-	sess_timer->proto = proto;
-	sess_timer->instance_ref = inst_data;
-	mod_timer(timer, jiffies + RM_SESSION_TIMER_INIT);
-}
-
-static void init_table(struct bib_table *table,
-		unsigned long est_timeout,
-		unsigned long trans_timeout,
-		fate_cb est_cb)
-{
-	table->tree6 = RB_ROOT;
-	table->tree4 = RB_ROOT;
-	table->log_bibs = DEFAULT_BIB_LOGGING;
-	table->log_sessions = DEFAULT_SESSION_LOGGING;
-	table->drop_by_addr = DEFAULT_ADDR_DEPENDENT_FILTERING;
-	table->bib_count = 0;
-	table->session_count = 0;
-	spin_lock_init(&table->lock);
-	init_expirer(&table->est_timer, est_timeout, SESSION_TIMER_EST, est_cb);
-
-	init_expirer(&table->trans_timer, trans_timeout, SESSION_TIMER_TRANS,
-			just_die);
-	/* TODO "just_die"? what about the stored packet? */
-	init_expirer(&table->syn4_timer, TCP_INCOMING_SYN, SESSION_TIMER_SYN4,
-			just_die);
-	table->pkt_count = 0;
-	table->pkt_limit = 0;
-	table->drop_v4_syn = DEFAULT_DROP_EXTERNAL_CONNECTIONS;
-	table->pkt_queue = NULL;
-}
-
-struct bib *bib_create(struct net *ns)
-{
-	struct bib *db;
-
-	db = wkmalloc(struct bib, GFP_KERNEL);
-	if (!db)
-		return NULL;
-
-	init_table(&db->udp, UDP_DEFAULT, 0, just_die);
-	init_table(&db->tcp, TCP_EST, TCP_TRANS, tcp_est_expire_cb);
-	init_table(&db->icmp, ICMP_DEFAULT, 0, just_die);
-
-	db->tcp.pkt_limit = DEFAULT_MAX_STORED_PKTS;
-	db->tcp.pkt_queue = pktqueue_create();
-	if (!db->tcp.pkt_queue) {
-		wkfree(struct bib, db);
-		return NULL;
-	}
-	/*
-	 * Just in case some crazy psycho decides to change the default.
-	 * THERE IS NO ADRESS-DEPENDENT FILTERING ON ICMP; the RFC is wrong.
-	 */
-	db->icmp.drop_by_addr = false;
-
-	init_session_timer(db, ns, &db->udp, L4PROTO_UDP);
-	init_session_timer(db, ns, &db->tcp, L4PROTO_TCP);
-	init_session_timer(db, ns, &db->icmp, L4PROTO_ICMP);
-
-	kref_init(&db->refs);
-
-	return db;
-}
-
 void bib_get(struct bib *db)
 {
 	kref_get(&db->refs);
@@ -2122,12 +2011,118 @@ static void clean_table(struct bib_table *table, struct net *ns)
 /**
  * Forgets or downgrades (from EST to TRANS) old sessions.
  */
-void bib_clean(struct bib *db,
+static void bib_clean(struct bib *db,
 		l4_protocol proto,
 		struct net *ns)
 {
 	struct bib_table *table = get_table(db, proto);
 	clean_table(table, ns);
+}
+
+static void update_timer(struct session_timer *sess_timer)
+{
+	if (sess_timer->pend_rm) {
+		sess_timer->run_period_jiff = msecs_to_jiffies(
+				jiffies_to_msecs(sess_timer->run_period_jiff) >> 1);
+		sess_timer->max_session_rm <<= 1;
+	} else {
+		sess_timer->run_period_jiff = RM_SESSION_TIMER_INIT;
+		sess_timer->max_session_rm = RM_SESSION_MAX_INIT;
+	}
+	sess_timer->pend_rm = false;
+	sess_timer->timer.data = (unsigned long)(sess_timer);
+}
+
+static void timer_function(unsigned long arg)
+{
+	struct session_timer *sess_timer = (struct session_timer *)arg;
+	bib_clean(sess_timer->instance_ref.db, sess_timer->proto,
+				sess_timer->instance_ref.ns);
+	update_timer(sess_timer);
+	mod_timer(&sess_timer->timer, jiffies + sess_timer->run_period_jiff);
+}
+
+static void init_session_timer(struct bib *db,
+		struct net *ns,
+		struct bib_table *table,
+		l4_protocol proto)
+{
+	struct session_timer *sess_timer = &table->sess_timer;
+	struct timer_list *timer = &sess_timer->timer;
+	struct curr_inst inst_data;
+	inst_data.db = db;
+	inst_data.ns = ns;
+
+	init_timer(timer);
+	timer->function = timer_function;
+	timer->expires = 0;
+	timer->data = (unsigned long)(sess_timer);
+
+	sess_timer->pend_rm = false;
+	sess_timer->max_session_rm = RM_SESSION_MAX_INIT;
+	sess_timer->run_period_jiff = RM_SESSION_TIMER_INIT;
+	sess_timer->proto = proto;
+	sess_timer->instance_ref = inst_data;
+	mod_timer(timer, jiffies + RM_SESSION_TIMER_INIT);
+}
+
+static void init_table(struct bib_table *table,
+		unsigned long est_timeout,
+		unsigned long trans_timeout,
+		fate_cb est_cb)
+{
+	table->tree6 = RB_ROOT;
+	table->tree4 = RB_ROOT;
+	table->log_bibs = DEFAULT_BIB_LOGGING;
+	table->log_sessions = DEFAULT_SESSION_LOGGING;
+	table->drop_by_addr = DEFAULT_ADDR_DEPENDENT_FILTERING;
+	table->bib_count = 0;
+	table->session_count = 0;
+	spin_lock_init(&table->lock);
+	init_expirer(&table->est_timer, est_timeout, SESSION_TIMER_EST, est_cb);
+
+	init_expirer(&table->trans_timer, trans_timeout, SESSION_TIMER_TRANS,
+			just_die);
+	/* TODO "just_die"? what about the stored packet? */
+	init_expirer(&table->syn4_timer, TCP_INCOMING_SYN, SESSION_TIMER_SYN4,
+			just_die);
+	table->pkt_count = 0;
+	table->pkt_limit = 0;
+	table->drop_v4_syn = DEFAULT_DROP_EXTERNAL_CONNECTIONS;
+	table->pkt_queue = NULL;
+}
+
+struct bib *bib_create(struct net *ns)
+{
+	struct bib *db;
+
+	db = wkmalloc(struct bib, GFP_KERNEL);
+	if (!db)
+		return NULL;
+
+	init_table(&db->udp, UDP_DEFAULT, 0, just_die);
+	init_table(&db->tcp, TCP_EST, TCP_TRANS, tcp_est_expire_cb);
+	init_table(&db->icmp, ICMP_DEFAULT, 0, just_die);
+
+	db->tcp.pkt_limit = DEFAULT_MAX_STORED_PKTS;
+	db->tcp.pkt_queue = pktqueue_create();
+	if (!db->tcp.pkt_queue) {
+		wkfree(struct bib, db);
+		return NULL;
+	}
+	/*
+	 * Just in case some crazy psycho decides to change the default.
+	 * THERE IS NO ADRESS-DEPENDENT FILTERING ON ICMP; the RFC is wrong.
+	 */
+	db->icmp.drop_by_addr = false;
+
+	init_session_timer(db, ns, &db->udp, L4PROTO_UDP);
+	init_session_timer(db, ns, &db->tcp, L4PROTO_TCP);
+	init_session_timer(db, ns, &db->icmp, L4PROTO_ICMP);
+
+	kref_init(&db->refs);
+
+	return db;
 }
 
 static struct rb_node *find_starting_point(struct bib_table *table,
