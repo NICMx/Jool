@@ -7,10 +7,7 @@
 #include "nat64/pool4/db.h"
 
 /**
- * Checks whether "pkt" is a hairpin packet.
- *
- * @param pkt outgoing packet the NAT64 would send if it's not a hairpin.
- * @return whether pkt is a hairpin packet.
+ * Checks whether @state->out is a hairpin packet.
  */
 static bool is_hairpin_nat64(struct xlation *state)
 {
@@ -25,22 +22,19 @@ static bool is_hairpin_nat64(struct xlation *state)
 	 * Otherwise Jool would hairpin ICMP errors that were actually intended
 	 * for its node. It might take a miracle for these packets to exist,
 	 * but hey, why the hell not.
+	 * TODO this probably doesn't apply anymore.
 	 */
-	return pool4db_contains(state->jool.nat64.pool4, &state->out);
+	return pool4db_contains(state->jool.nat64.pool4, &state->out.tuple);
 }
 
 /**
- * Mirrors the core's behavior by processing skb_in as if it was the incoming packet.
- *
- * @param skb_in the outgoing packet. Except because it's a hairpin, here it's treated as if it was
- *		the one received from the network.
- * @param tuple_in skb_in's tuple.
- * @return whether we managed to U-turn the packet successfully.
+ * Mirrors the core's behavior by processing @state->out as if it was the
+ * incoming packet.
  */
-static verdict handling_hairpinning_nat64(struct xlation *old)
+static int handling_hairpinning_nat64(struct xlation *old)
 {
 	struct xlation new;
-	verdict result;
+	int error;
 
 	log_debug("Step 5: Handling Hairpinning...");
 
@@ -48,24 +42,25 @@ static verdict handling_hairpinning_nat64(struct xlation *old)
 	new.jool = old->jool;
 	new.in = old->out;
 
-	result = filtering_and_updating(&new);
-	if (result != VERDICT_CONTINUE)
+	error = filtering_and_updating(&new);
+	if (error)
 		goto end;
-	result = compute_out_tuple(&new);
-	if (result != VERDICT_CONTINUE)
+	error = compute_out_tuple(&new);
+	if (error)
 		goto end;
-	result = translating_the_packet(&new);
-	if (result != VERDICT_CONTINUE)
+	error = translating_the_packet(&new);
+	if (error)
 		goto end;
-	result = sendpkt_send(&new);
-	if (result != VERDICT_CONTINUE)
+	error = sendpkt_send(&new);
+	if (error)
 		goto end;
 
 	log_debug("Done step 5.");
+	/* Fall through */
 
 end:
 	xlation_put(&new);
-	return VERDICT_CONTINUE;
+	return error;
 }
 
 static bool is_hairpin_siit(struct xlation *state)
@@ -73,25 +68,30 @@ static bool is_hairpin_siit(struct xlation *state)
 	return pkt_is_intrinsic_hairpin(&state->out);
 }
 
-static verdict handling_hairpinning_siit(struct xlation *old)
+static int handling_hairpinning_siit(struct xlation *old)
 {
 	struct xlation new;
-	verdict result;
+	int error;
 
 	log_debug("Packet is a hairpin. U-turning...");
 
+	xlation_init(&new, &old->jool);
 	new.jool = old->jool;
 	new.in = old->out;
 
-	result = translating_the_packet(&new);
-	if (result != VERDICT_CONTINUE)
-		return result;
-	result = sendpkt_send(&new);
-	if (result != VERDICT_CONTINUE)
-		return result;
+	error = translating_the_packet(&new);
+	if (error)
+		goto end;
+	error = sendpkt_send(&new);
+	if (error)
+		goto end;
 
 	log_debug("Done hairpinning.");
-	return VERDICT_CONTINUE;
+	/* Fall through */
+
+end:
+	xlation_put(&new);
+	return error;
 }
 
 bool is_hairpin(struct xlation *state)
@@ -103,19 +103,47 @@ bool is_hairpin(struct xlation *state)
 		return is_hairpin_nat64(state);
 	}
 
-	BUG();
+	BUG(); /* TODO Hmmmmmmmmmmmmmmmmm. */
 	return false;
 }
 
-verdict handling_hairpinning(struct xlation *state)
+/**
+ * Regarding the incoming packet:
+ *
+ * - If this function succeeds, the incoming packet is left alone.
+ *   (Just like everywhere else.)
+ * - If this function errors, the incoming packet is freed.
+ *   (Just like everywhere else.)
+ *
+ * Regarding the outgoing packet:
+ * - This function frees it regardless of result status.
+ *   (So you can think of this function as an alternate sendpkt_send().
+ */
+int handling_hairpinning(struct xlation *state)
 {
+	int error;
+
 	switch (state->jool.type) {
 	case XLATOR_SIIT:
-		return handling_hairpinning_siit(state);
+		error = handling_hairpinning_siit(state);
+		break;
 	case XLATOR_NAT64:
-		return handling_hairpinning_nat64(state);
+		error = handling_hairpinning_nat64(state);
+		break;
+	default:
+		einval(state, JOOL_MIB_UNKNOWN_XLATOR);
+		kfree_skb(state->out.skb);
+		state->out.skb = NULL;
+		return -EINVAL;
 	}
 
-	BUG();
-	return VERDICT_DROP;
+	if (error) {
+		kfree_skb(state->in.skb);
+		state->in.skb = NULL;
+	} else {
+		dev_kfree_skb(state->out.skb);
+		state->out.skb = NULL;
+	}
+
+	return error;
 }

@@ -14,6 +14,8 @@
 
 static void core_common(struct xlation *state)
 {
+	int error;
+
 	if (state->jool.type == XLATOR_NAT64) {
 		if (determine_in_tuple(state))
 			return;
@@ -25,16 +27,12 @@ static void core_common(struct xlation *state)
 	if (translating_the_packet(state))
 		return;
 
-//	if (is_hairpin(state)) {
-//		result = handling_hairpinning(state);
-//		kfree_skb(state->out.skb); /* Put this inside of hh()? */
-//	} else {
-//		result = sendpkt_send(state);
-//		/* sendpkt_send() releases out's skb regardless of verdict. */
-//	}
-//
-//	if (result != VERDICT_CONTINUE)
-//		return result;
+	/* Both hh() and ss() release @state->out.skb regardless of error. */
+	error = is_hairpin(state)
+			? handling_hairpinning(state)
+			: sendpkt_send(state);
+	if (error)
+		return;
 
 	log_debug("Success.");
 	dev_kfree_skb(state->in.skb);

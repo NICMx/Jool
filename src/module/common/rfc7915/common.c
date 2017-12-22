@@ -8,7 +8,6 @@
 #include "packet.h"
 #include "rfc7915/4to6.h"
 #include "rfc7915/6to4.h"
-#include "siit/blacklist4.h"
 
 struct backup_skb {
 	unsigned int pulled;
@@ -88,7 +87,7 @@ int copy_payload(struct xlation *state)
 			pkt_payload_len_frag(&state->out));
 	if (error) {
 		log_debug("The payload copy threw errcode %d.", error);
-		return breakdown(state, JOOL_MIB_SKB_COPY_BITS);
+		return breakdown(state, JOOL_MIB_SKB_COPY_BITS, error);
 	}
 
 	return 0;
@@ -130,13 +129,16 @@ static int report_bug247(struct packet *pkt, __u8 proto)
 	return -EINVAL;
 }
 
-static int move_pointers_in(struct packet *pkt, __u8 protocol,
+static int move_pointers_in(struct xlation *state, __u8 protocol,
 		unsigned int l3hdr_len)
 {
+	struct packet *pkt = &state->in;
 	unsigned int l4hdr_len;
 
-	if (unlikely(pkt->skb->len < pkt->skb->data_len))
-		return report_bug247(pkt, protocol);
+	if (unlikely(pkt->skb->len < pkt->skb->data_len)) {
+		return breakdown(state, JOOL_MIB_ISSUE247,
+				report_bug247(pkt, protocol));
+	}
 
 	skb_pull(pkt->skb, pkt_hdrs_len(pkt));
 	skb_reset_network_header(pkt->skb);
@@ -167,7 +169,7 @@ static int move_pointers_in(struct packet *pkt, __u8 protocol,
 	return 0;
 }
 
-static int move_pointers_out(struct packet *in, struct packet *out,
+static void move_pointers_out(struct packet *in, struct packet *out,
 		unsigned int l3hdr_len)
 {
 	skb_pull(out->skb, pkt_hdrs_len(out));
@@ -177,8 +179,6 @@ static int move_pointers_out(struct packet *in, struct packet *out,
 	out->l4_proto = pkt_l4_proto(in);
 	out->is_inner = true;
 	out->payload = skb_transport_header(out->skb) + pkt_l4hdr_len(in);
-
-	return 0;
 }
 
 static int move_pointers4(struct xlation *state)
@@ -188,30 +188,32 @@ static int move_pointers4(struct xlation *state)
 	int error;
 
 	hdr4 = pkt_payload(&state->in);
-	error = move_pointers_in(&state->in, hdr4->protocol, 4 * hdr4->ihl);
+	error = move_pointers_in(state, hdr4->protocol, 4 * hdr4->ihl);
 	if (error)
 		return error;
 
 	l3hdr_len = sizeof(struct ipv6hdr);
 	if (will_need_frag_hdr(hdr4))
 		l3hdr_len += sizeof(struct frag_hdr);
-	return move_pointers_out(&state->in, &state->out, l3hdr_len);
+	move_pointers_out(&state->in, &state->out, l3hdr_len);
+	return 0;
 }
 
-static int move_pointers6(struct packet *in, struct packet *out)
+static int move_pointers6(struct xlation *state)
 {
-	struct ipv6hdr *hdr6 = pkt_payload(in);
+	struct ipv6hdr *hdr6 = pkt_payload(&state->in);
 	struct hdr_iterator iterator = HDR_ITERATOR_INIT(hdr6);
 	int error;
 
 	hdr_iterator_last(&iterator);
 
-	error = move_pointers_in(in, iterator.hdr_type,
+	error = move_pointers_in(state, iterator.hdr_type,
 			iterator.data - (void *)hdr6);
 	if (error)
 		return error;
 
-	return move_pointers_out(in, out, sizeof(struct iphdr));
+	move_pointers_out(&state->in, &state->out, sizeof(struct iphdr));
+	return 0;
 }
 
 static void backup(struct xlation *state, struct packet *pkt,
@@ -239,30 +241,29 @@ static void restore(struct xlation *state, struct packet *pkt,
 		pkt->tuple = bkp->tuple;
 }
 
-verdict ttpcomm_translate_inner_packet(struct xlation *state)
+int ttpcomm_translate_inner_packet(struct xlation *state)
 {
 	struct packet *in = &state->in;
 	struct packet *out = &state->out;
 	struct backup_skb bkp_in, bkp_out;
 	struct translation_steps *current_steps;
-	verdict result;
+	int error;
 
 	backup(state, in, &bkp_in);
 	backup(state, out, &bkp_out);
 
 	switch (pkt_l3_proto(in)) {
 	case L3PROTO_IPV4:
-		if (move_pointers4(state))
-			return VERDICT_DROP;
+		error = move_pointers4(state);
 		break;
 	case L3PROTO_IPV6:
-		if (move_pointers6(in, out))
-			return VERDICT_DROP;
+		error = move_pointers6(state);
 		break;
 	default:
-		inc_stats(in, IPSTATS_MIB_INUNKNOWNPROTOS);
-		return VERDICT_DROP;
+		return einval(state, JOOL_MIB_UNKNOWN_L3);
 	}
+	if (error)
+		return error;
 
 	if (state->jool.type == XLATOR_NAT64) {
 		in->tuple.src = bkp_in.tuple.dst;
@@ -272,28 +273,17 @@ verdict ttpcomm_translate_inner_packet(struct xlation *state)
 	}
 
 	current_steps = &steps[pkt_l3_proto(in)][pkt_l4_proto(in)];
-
-	result = current_steps->l3_hdr_fn(state);
-	if (result == VERDICT_ACCEPT) {
-		/*
-		 * Accepting because of an inner packet doesn't make sense.
-		 * Also we couldn't have translated this inner packet.
-		 */
-		return VERDICT_DROP;
-	}
-	if (result != VERDICT_CONTINUE)
-		return result;
-
-	result = current_steps->l3_payload_fn(state);
-	if (result == VERDICT_ACCEPT)
-		return VERDICT_DROP;
-	if (result != VERDICT_CONTINUE)
-		return result;
+	error = current_steps->l3_hdr_fn(state);
+	if (error)
+		return error;
+	error = current_steps->l3_payload_fn(state);
+	if (error)
+		return error;
 
 	restore(state, in, &bkp_in);
 	restore(state, out, &bkp_out);
 
-	return VERDICT_CONTINUE;
+	return 0;
 }
 
 struct translation_steps *ttpcomm_get_steps(struct packet *in)
@@ -331,10 +321,4 @@ void partialize_skb(struct sk_buff *out_skb, unsigned int csum_offset)
 	out_skb->ip_summed = CHECKSUM_PARTIAL;
 	out_skb->csum_start = skb_transport_header(out_skb) - out_skb->head;
 	out_skb->csum_offset = csum_offset;
-}
-
-bool must_not_translate(struct in_addr *addr)
-{
-	return addr4_is_scope_subnet(addr->s_addr)
-			|| interface_contains(ns, addr);
 }

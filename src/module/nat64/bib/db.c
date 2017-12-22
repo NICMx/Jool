@@ -7,7 +7,6 @@
 #include "icmp-wrapper.h"
 #include "module-stats.h"
 #include "rbtree.h"
-#include "route.h"
 #include "str-utils.h"
 #include "wkmalloc.h"
 #include "nat64/bib/pkt-queue.h"

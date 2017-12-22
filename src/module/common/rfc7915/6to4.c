@@ -7,7 +7,6 @@
 #include "ipv6-hdr-iterator.h"
 #include "module-stats.h"
 #include "rfc6052.h"
-#include "route.h"
 #include "rfc7915/common.h"
 #include "siit/eam.h"
 #include "siit/rfc6791.h"
@@ -198,7 +197,7 @@ static int xlat_addr64_siit(struct xlation *state,
 		return eunknown6(state, error);
 	}
 
-	if (must_not_translate(&tmp)) {
+	if (addr4_is_scope_subnet(tmp.s_addr)) {
 		log_debug("The resulting address (%pI4) is not supposed to be xlat'd.",
 				&tmp);
 		return einval(state, JOOL_MIB_SUBNET_ADDR_DST);

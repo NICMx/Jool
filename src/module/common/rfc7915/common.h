@@ -66,6 +66,4 @@ int copy_payload(struct xlation *state);
 bool will_need_frag_hdr(const struct iphdr *hdr);
 int ttpcomm_translate_inner_packet(struct xlation *state);
 
-bool must_not_translate(struct in_addr *addr);
-
 #endif /* _JOOL_MOD_TTP_COMMON_H */

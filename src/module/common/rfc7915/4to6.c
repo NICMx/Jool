@@ -7,7 +7,6 @@
 #include "icmp-wrapper.h"
 #include "module-stats.h"
 #include "rfc6052.h"
-#include "route.h"
 #include "rfc7915/common.h"
 #include "siit/eam.h"
 #include "siit/rfc6791v6.h"
@@ -144,7 +143,7 @@ static int xlat_addr46_siit(struct xlation *state,
 	struct in_addr tmp = { .s_addr = addr4 };
 	int error;
 
-	if (must_not_translate(&tmp)) {
+	if (addr4_is_scope_subnet(addr4)) {
 		log_debug("Address %pI4 is not supposed to be xlat'd.", &tmp);
 		return einval(state, JOOL_MIB_SUBNET_ADDR_SRC);
 	}

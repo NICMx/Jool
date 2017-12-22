@@ -1,12 +1,6 @@
 #include "send-packet.h"
 
-#include <linux/version.h>
-
-#include "linux-version.h"
 #include "icmp-wrapper.h"
-#include "packet.h"
-#include "route.h"
-#include "log-time.h"
 
 static unsigned int get_nexthop_mtu(struct packet *pkt)
 {
@@ -17,8 +11,10 @@ static unsigned int get_nexthop_mtu(struct packet *pkt)
 #endif
 }
 
-static int whine_if_too_big(struct packet *in, struct packet *out)
+static int whine_if_too_big(struct xlation *state)
 {
+	struct packet *in = &state->in;
+	struct packet *out = &state->out;
 	unsigned int len;
 	unsigned int mtu;
 
@@ -42,56 +38,55 @@ static int whine_if_too_big(struct packet *in, struct packet *out)
 			mtu += 20;
 			break;
 		}
-		icmp64_send(out, ICMPERR_FRAG_NEEDED, mtu);
 
-		return -EINVAL;
+		icmp64_send(out, ICMPERR_FRAG_NEEDED, mtu);
+		return einval(state, JOOL_MIB_FRAG_NEEDED);
 	}
 
 	return 0;
 }
 
-verdict sendpkt_send(struct xlation *state)
+static int add_eth_hdr(struct xlation *state)
 {
-	struct packet *out = &state->out;
+	struct ethhdr *hdr;
+
+	hdr = (struct ethhdr *)skb_push(state->out.skb, ETH_HLEN);
+	memset(hdr->h_dest, 0x64, ETH_ALEN);
+	memset(hdr->h_source, 0x46, ETH_ALEN);
+	switch (pkt_l3_proto(&state->out)) {
+	case L3PROTO_IPV6:
+		hdr->h_proto = cpu_to_be16(ETH_P_IPV6);
+		return 0;
+	case L3PROTO_IPV4:
+		hdr->h_proto = cpu_to_be16(ETH_P_IP);
+		return 0;
+	}
+
+	log_debug("Unknown l3 proto: %d", pkt_l3_proto(&state->out));
+	return einval(state, JOOL_MIB_UNKNOWN_L3);
+}
+
+/* TODO maybe missing a whole bunch of locking according to snull. */
+int sendpkt_send(struct xlation *state)
+{
 	int error;
 
-	logtime(out);
-
-	if (!route(state->jool.ns, out)) {
-		kfree_skb(out->skb);
-		return VERDICT_ACCEPT;
-	}
-
-	out->skb->dev = skb_dst(out->skb)->dev;
 	log_debug("Sending skb.");
 
-	error = whine_if_too_big(&state->in, out);
-	if (error) {
-		kfree_skb(out->skb);
-		return VERDICT_DROP;
-	}
+	error = whine_if_too_big(state);
+	if (error)
+		goto fail;
 
-#if LINUX_VERSION_AT_LEAST(3, 16, 0, 7, 2)
-	out->skb->ignore_df = true; /* FFS, kernel. */
-#else
-	out->skb->local_df = true; /* FFS, kernel. */
-#endif
+	error = add_eth_hdr(state);
+	if (error)
+		goto fail;
 
-	/*
-	 * Implicit kfree_skb(out->skb) here.
-	 *
-	 * At time of writing, RHEL hasn't yet upgraded to the messy version of
-	 * dst_output().
-	 */
-#if LINUX_VERSION_AT_LEAST(4, 4, 0, 9999, 0)
-	error = dst_output(state->jool.ns, NULL, out->skb);
-#else
-	error = dst_output(out->skb);
-#endif
-	if (error) {
-		log_debug("dst_output() returned errcode %d.", error);
-		return VERDICT_DROP;
-	}
+	netif_rx(state->out.skb);
+	state->out.skb = NULL;
+	return 0;
 
-	return VERDICT_CONTINUE;
+fail:
+	kfree_skb(state->out.skb);
+	state->out.skb = NULL;
+	return error;
 }

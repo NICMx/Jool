@@ -82,6 +82,10 @@ typedef enum jstat_type {
 	JOOL_MIB_ICMP46_PP_PTR,
 	JOOL_MIB_INVALID_CSUM6,
 	JOOL_MIB_INVALID_CSUM4,
+	JOOL_MIB_ISSUE247,
+
+	/* Send packet */
+	JOOL_MIB_FRAG_NEEDED,
 
 	/* Others */
 	JOOL_MIB_MALLOC_FAIL,
