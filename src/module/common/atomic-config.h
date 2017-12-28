@@ -25,19 +25,8 @@
  */
 struct config_candidate {
 	struct full_config *global;
-	struct pool6 *pool6;
-	union {
-		struct {
-			struct eam_table *eamt;
-			struct addr4_pool *blacklist;
-			struct addr4_pool *pool6791;
-		} siit;
-		struct {
-			struct pool4 *pool4;
-		} nat64;
-	};
-
-	xlator_type type;
+	struct eam_table *eamt;
+	struct pool4 *pool4;
 
 	/** Are we currently putting together configuration from userspace? */
 	bool active;
@@ -54,7 +43,7 @@ struct config_candidate {
 
 struct xlator;
 
-struct config_candidate *cfgcandidate_create(xlator_type type);
+struct config_candidate *cfgcandidate_create(void);
 void cfgcandidate_get(struct config_candidate *candidate);
 void cfgcandidate_put(struct config_candidate *candidate);
 

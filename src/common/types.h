@@ -104,7 +104,7 @@ struct taddr4_tuple {
  */
 struct ipv4_prefix {
 	/** IPv4 prefix. */
-	struct in_addr address;
+	struct in_addr addr;
 	/** Number of bits from "address" which represent the network. */
 	__u8 len;
 };
@@ -114,7 +114,7 @@ struct ipv4_prefix {
  */
 struct ipv6_prefix {
 	/** IPv6 prefix. The suffix is most of the time assumed to be zero. */
-	struct in6_addr address;
+	struct in6_addr addr;
 	/** Number of bits from "address" which represent the network. */
 	__u8 len;
 };

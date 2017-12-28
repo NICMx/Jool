@@ -12,6 +12,7 @@ struct joold_queue;
  * is emptied as a result.
  */
 
+/* TODO
 int joold_init(void);
 void joold_terminate(void);
 
@@ -32,5 +33,27 @@ int joold_advertise(struct xlator *jool);
 void joold_ack(struct xlator *jool);
 
 void joold_clean(struct joold_queue *queue, struct bib *bib);
+*/
+
+#define joold_init() 0
+#define joold_terminate()
+
+struct joold_queue *joold_create(void);
+#define joold_get(queue)
+#define joold_put(queue)
+
+#define joold_config_copy(queue, config);
+#define joold_config_set(queue, config);
+
+#define joold_sync(jool, data, size) -EINVAL
+#define joold_add(state)
+#define joold_update_config(queue, new_config)
+
+#define joold_test(jool) -EINVAL
+#define joold_advertise(jool) -EINVAL
+#define joold_ack(jool)
+
+#define joold_clean(queue, bib);
+
 
 #endif

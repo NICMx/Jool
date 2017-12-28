@@ -6,7 +6,7 @@ int prefix6_parse(char *str, struct ipv6_prefix *result)
 {
 	const char *slash_pos;
 
-	if (in6_pton(str, -1, (u8 *)&result->address.in6_u.u6_addr8, '/', &slash_pos) != 1)
+	if (in6_pton(str, -1, (u8 *)&result->addr.in6_u.u6_addr8, '/', &slash_pos) != 1)
 		goto fail;
 	if (kstrtou8(slash_pos + 1, 0, &result->len) != 0)
 		goto fail;
@@ -23,12 +23,12 @@ int prefix4_parse(char *str, struct ipv4_prefix *result)
 	const char *slash_pos;
 
 	if (strchr(str, '/') != NULL) {
-		if (in4_pton(str, -1, (u8 *)&result->address, '/', &slash_pos) != 1)
+		if (in4_pton(str, -1, (u8 *)&result->addr, '/', &slash_pos) != 1)
 			goto fail;
 		if (kstrtou8(slash_pos + 1, 0, &result->len) != 0)
 			goto fail;
 	} else {
-		if (in4_pton(str, -1, (u8 *)&result->address, '\0', NULL) != 1)
+		if (in4_pton(str, -1, (u8 *)&result->addr, '\0', NULL) != 1)
 			goto fail;
 		result->len = 32;
 	}
@@ -54,12 +54,12 @@ bool taddr4_equals(const struct ipv4_transport_addr *a,
 
 bool prefix6_equals(const struct ipv6_prefix *a, const struct ipv6_prefix *b)
 {
-	return addr6_equals(&a->address, &b->address) && (a->len == b->len);
+	return addr6_equals(&a->addr, &b->addr) && (a->len == b->len);
 }
 
 bool prefix4_equals(const struct ipv4_prefix *a, const struct ipv4_prefix *b)
 {
-	return addr4_equals(&a->address, &b->address) && (a->len == b->len);
+	return addr4_equals(&a->addr, &b->addr) && (a->len == b->len);
 }
 
 static __u32 get_prefix4_mask(const struct ipv4_prefix *prefix)
@@ -71,7 +71,7 @@ bool prefix4_contains(const struct ipv4_prefix *prefix,
 		const struct in_addr *addr)
 {
 	__u32 maskbits = get_prefix4_mask(prefix);
-	__u32 prefixbits = be32_to_cpu(prefix->address.s_addr) & maskbits;
+	__u32 prefixbits = be32_to_cpu(prefix->addr.s_addr) & maskbits;
 	__u32 addrbits = be32_to_cpu(addr->s_addr) & maskbits;
 	return prefixbits == addrbits;
 }
@@ -79,8 +79,8 @@ bool prefix4_contains(const struct ipv4_prefix *prefix,
 bool prefix4_intersects(const struct ipv4_prefix *p1,
 		const struct ipv4_prefix *p2)
 {
-	return prefix4_contains(p1, &p2->address)
-			|| prefix4_contains(p2, &p1->address);
+	return prefix4_contains(p1, &p2->addr)
+			|| prefix4_contains(p2, &p1->addr);
 }
 
 __u64 prefix4_get_addr_count(const struct ipv4_prefix *prefix)
@@ -91,7 +91,7 @@ __u64 prefix4_get_addr_count(const struct ipv4_prefix *prefix)
 bool prefix6_contains(const struct ipv6_prefix *prefix,
 		const struct in6_addr *addr)
 {
-	return ipv6_prefix_equal(&prefix->address, addr, prefix->len);
+	return ipv6_prefix_equal(&prefix->addr, addr, prefix->len);
 }
 
 int prefix4_validate(const struct ipv4_prefix *prefix)
@@ -109,9 +109,9 @@ int prefix4_validate(const struct ipv4_prefix *prefix)
 	}
 
 	suffix_mask = ~get_prefix4_mask(prefix);
-	if ((be32_to_cpu(prefix->address.s_addr) & suffix_mask) != 0) {
+	if ((be32_to_cpu(prefix->addr.s_addr) & suffix_mask) != 0) {
 		log_err("'%pI4/%u' seems to have a suffix; please fix.",
-				&prefix->address, prefix->len);
+				&prefix->addr, prefix->len);
 		return -EINVAL;
 	}
 
@@ -133,9 +133,9 @@ int prefix6_validate(const struct ipv6_prefix *prefix)
 	}
 
 	for (i = prefix->len; i < 128; i++) {
-		if (addr6_get_bit(&prefix->address, i)) {
+		if (addr6_get_bit(&prefix->addr, i)) {
 			log_err("'%pI6c/%u' seems to have a suffix; please fix.",
-					&prefix->address, prefix->len);
+					&prefix->addr, prefix->len);
 			return -EINVAL;
 		}
 	}
@@ -190,7 +190,7 @@ void addr6_set_bit(struct in6_addr *addr, unsigned int pos, bool value)
 __u64 prefix4_next(const struct ipv4_prefix *prefix)
 {
 	return prefix4_get_addr_count(prefix)
-			+ (__u64)be32_to_cpu(prefix->address.s_addr);
+			+ (__u64)be32_to_cpu(prefix->addr.s_addr);
 }
 
 /**
@@ -220,11 +220,11 @@ bool prefix4_has_subnet_scope(struct ipv4_prefix *prefix,
 		struct ipv4_prefix *subnet)
 {
 	struct ipv4_prefix subnets[] = {
-			{ .address.s_addr = cpu_to_be32(0x00000000), .len = 8 },
-			{ .address.s_addr = cpu_to_be32(0x7f000000), .len = 8 },
-			{ .address.s_addr = cpu_to_be32(0xa9fe0000), .len = 16 },
-			{ .address.s_addr = cpu_to_be32(0xe0000000), .len = 4 },
-			{ .address.s_addr = cpu_to_be32(0xffffffff), .len = 32 },
+			{ .addr.s_addr = cpu_to_be32(0x00000000), .len = 8 },
+			{ .addr.s_addr = cpu_to_be32(0x7f000000), .len = 8 },
+			{ .addr.s_addr = cpu_to_be32(0xa9fe0000), .len = 16 },
+			{ .addr.s_addr = cpu_to_be32(0xe0000000), .len = 4 },
+			{ .addr.s_addr = cpu_to_be32(0xffffffff), .len = 32 },
 	};
 	unsigned int i;
 

@@ -161,35 +161,32 @@ static bool generate_df_flag(struct packet *out)
 	return pkt_len(out) > 1260;
 }
 
-/**
- * Attempts to translate @addr6 based on pool6 and the EAMT.
- *
- * Regarding the return value:
- * - 0 means success as usual.
- * - -ESRCH is a "soft error". It means that the relevant address translation
- *   databases could not translate @addr6, but there's nothing preventing the
- *   caller to try something else.
- * - Any other error code is a "hard error"; it means that something is busted
- *   and the packet should be dropped.
- */
+static bool validate_addr(struct xlation *state, struct in_addr *addr)
+{
+	if (!addr4_is_scope_subnet(addr->s_addr))
+		return 0;
+
+	log_debug("The resulting address (%pI4) is not supposed to be xlat'd.",
+			addr);
+	return einval(state, JOOL_MIB_SUBNET_ADDR_DST);
+}
+
 static int xlat_addr64_siit(struct xlation *state,
-		struct in6_addr *addr6, __be32 *addr4, bool *was_6052)
+		struct in6_addr *addr6, __be32 *addr4,
+		bool *was_6052, bool enable_6791)
 {
 	struct in_addr tmp;
 	int error;
 
+	*was_6052 = false;
+
 	/* Try the EAMT first, as per RFC 7757. */
-	error = eamt_xlat_6to4(state->jool.siit.eamt, addr6, &tmp);
+	error = eamt_xlat_6to4(state->jool.eamt, addr6, &tmp);
 	switch (error) {
 	case 0:
-		*was_6052 = false;
-		break;
+		*addr4 = tmp.s_addr;
+		return validate_addr(state, &tmp);
 	case -ESRCH:
-		/* Fall back to try the pool6 prefix. */
-		error = rfc6052_6to4(state, addr6, &tmp);
-		if (error)
-			return error;
-		*was_6052 = true;
 		break;
 	default:
 		log_debug("eamt_xlat_6to4() spew unexpected error code %d.",
@@ -197,14 +194,32 @@ static int xlat_addr64_siit(struct xlation *state,
 		return eunknown6(state, error);
 	}
 
-	if (addr4_is_scope_subnet(tmp.s_addr)) {
-		log_debug("The resulting address (%pI4) is not supposed to be xlat'd.",
-				&tmp);
-		return einval(state, JOOL_MIB_SUBNET_ADDR_DST);
+	/* Fall back to try the pool6 prefix. */
+	error = rfc6052_6to4(state, addr6, &tmp);
+	switch (error) {
+	case 0:
+		*was_6052 = true;
+		*addr4 = tmp.s_addr;
+		return validate_addr(state, &tmp);
+	case -ESRCH:
+		break;
+	default:
+		log_debug("rfc6052_6to4() spew unexpected error code %d.",
+				error);
+		return eunknown6(state, error);
 	}
 
-	*addr4 = tmp.s_addr;
-	return 0;
+	/* Fall back to try the RFC 6791 prefix. */
+	if (enable_6791 && pkt_is_icmp6_error(&state->in)) {
+		error = rfc6791_find4(state, addr4);
+		if (error)
+			return error;
+		/* TODO Awkward. Can it be improved? */
+		tmp.s_addr = *addr4;
+		return validate_addr(state, &tmp);
+	}
+
+	return esrch(state, JOOL_MIB_ADDR6_XLAT);
 }
 
 static int xlat_addrs64_siit(struct xlation *state)
@@ -215,26 +230,16 @@ static int xlat_addrs64_siit(struct xlation *state)
 	int error;
 
 	/* Dst address. (SRC DEPENDS ON DST, SO WE NEED TO XLAT DST FIRST!) */
-	error = xlat_addr64_siit(state, &hdr6->daddr, &hdr4->daddr, &dst_was_6052);
+	error = xlat_addr64_siit(state, &hdr6->daddr, &hdr4->daddr,
+			&dst_was_6052, false);
 	if (error)
 		return error;
 
 	/* Src address. */
-	error = xlat_addr64_siit(state, &hdr6->saddr, &hdr4->saddr, &src_was_6052);
-	switch (error) {
-	case 0:
-		break;
-	case -ESRCH:
-		if (pkt_is_icmp6_error(&state->in)) {
-			/* TODO redo RFC6791. */
-			error = rfc6791_find(state, &hdr4->saddr);
-			if (error)
-				return error;
-		}
-		break;
-	default:
+	error = xlat_addr64_siit(state, &hdr6->saddr, &hdr4->saddr,
+			&src_was_6052, true);
+	if (error)
 		return error;
-	}
 
 	/*
 	 * Mark intrinsic hairpinning if it's going to be needed.
@@ -242,8 +247,8 @@ static int xlat_addrs64_siit(struct xlation *state)
 	 * involved.
 	 * See the EAM draft.
 	 */
-	if (state->GLOBAL.siit.eam_hairpin_mode == EAM_HAIRPIN_INTRINSIC) {
-		struct eam_table *eamt = state->jool.siit.eamt;
+	if (state->GLOBAL.eam_hairpin_mode == EAM_HAIRPIN_INTRINSIC) {
+		struct eam_table *eamt = state->jool.eamt;
 		/* Condition set A */
 		if (pkt_is_outer(&state->in) && !pkt_is_icmp6_error(&state->in)
 				&& dst_was_6052
@@ -306,11 +311,11 @@ int ttp64_ipv4(struct xlation *state)
 	 * translate_addrs64_siit->rfc6791_get->get_host_address needs tos
 	 * and protocol, so translate them first.
 	 */
-	hdr4->tos = ttp64_xlat_tos(&state->jool.global->cfg, hdr6);
+	hdr4->tos = ttp64_xlat_tos(&state->GLOBAL, hdr6);
 	hdr4->protocol = ttp64_xlat_proto(hdr6);
 
 	/* Translate the address before TTL because of issue #167. */
-	switch (state->jool.type) {
+	switch (XLATOR_TYPE(state)) {
 	case XLATOR_NAT64:
 		hdr4->saddr = out->tuple.src.addr4.l3.s_addr;
 		hdr4->daddr = out->tuple.dst.addr4.l3.s_addr;
@@ -505,7 +510,7 @@ static int icmp6_to_icmp4_param_prob(struct xlation *state,
 
 static __be16 compute_echo_id(struct xlation *state)
 {
-	switch (state->jool.type) {
+	switch (XLATOR_TYPE(state)) {
 	case XLATOR_SIIT:
 		return pkt_icmp6_hdr(&state->in)->icmp6_identifier;
 	case XLATOR_NAT64:
@@ -750,7 +755,7 @@ int ttp64_tcp(struct xlation *state)
 
 	/* Header */
 	memcpy(tcp_out, tcp_in, pkt_l4hdr_len(in));
-	if (state->jool.type == XLATOR_NAT64) {
+	if (XLATOR_TYPE(state) == XLATOR_NAT64) {
 		tcp_out->source = cpu_to_be16(out->tuple.src.addr4.l4);
 		tcp_out->dest = cpu_to_be16(out->tuple.dst.addr4.l4);
 	}
@@ -785,7 +790,7 @@ int ttp64_udp(struct xlation *state)
 
 	/* Header */
 	memcpy(udp_out, udp_in, pkt_l4hdr_len(in));
-	if (state->jool.type == XLATOR_NAT64) {
+	if (XLATOR_TYPE(state) == XLATOR_NAT64) {
 		udp_out->source = cpu_to_be16(out->tuple.src.addr4.l4);
 		udp_out->dest = cpu_to_be16(out->tuple.dst.addr4.l4);
 	}

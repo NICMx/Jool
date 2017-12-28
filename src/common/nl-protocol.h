@@ -178,15 +178,13 @@ enum config_operation {
 char *configop_to_string(enum config_operation op);
 
 enum parse_section {
-	SEC_GLOBAL = 1,
-	SEC_POOL6 = 2,
-	SEC_POOL4 = 4,
-	SEC_BIB = 8,
-	SEC_COMMIT = 16,
-	SEC_EAMT = 32,
-	SEC_BLACKLIST = 64,
-	SEC_POOL6791 = 128,
-	SEC_INIT = 256
+	SEC_GLOBAL = (1 << 0),
+	SEC_POOL4 = (1 << 1),
+	SEC_BIB = (1 << 2),
+	SEC_COMMIT = (1 << 3),
+	SEC_EAMT = (1 << 4),
+	/* TODO change the datatype to __u8? */
+	SEC_INIT = (1 << 8),
 };
 
 /**
@@ -565,7 +563,7 @@ enum f_args {
  * A copy of the entire running configuration, excluding databases.
  */
 struct global_config_usr {
-	config_bool is_stateful;
+	__u8 xlator_type;
 
 	/**
 	 * Is Jool actually translating?
@@ -608,64 +606,61 @@ struct global_config_usr {
 	/** Length of the mtu_plateaus array. */
 	__u16 mtu_plateau_count;
 
-	union {
-		struct {
-			/**
-			 * Amend the UDP checksum of incoming IPv4-UDP packets
-			 * when it's zero? Otherwise these packets will be
-			 * dropped (because they're illegal in IPv6).
-			 */
-			config_bool compute_udp_csum_zero;
-			/**
-			 * Randomize choice of RFC6791 address?
-			 * Otherwise it will be set depending on the incoming
-			 * packet's Hop Limit.
-			 * See https://github.com/NICMx/Jool/issues/130.
-			 */
-			config_bool randomize_error_addresses;
-			/**
-			 * How should hairpinning be handled by EAM-translated
-			 * packets.
-			 * See @eam_hairpinning_mode.
-			 */
-			__u8 eam_hairpin_mode;
+	/******* SIIT *******/
 
-			/**
-			 * States if the rfc6791_v6_prefix configuration
-			 * attribute has been set. If this flag is true then
-			 * the value of rfc6791_v6_prefix is going to be used
-			 */
-			config_bool use_rfc6791_v6;
-			/**
-			 * Address used to represent a not translatable source
-			 * address of an incoming packet.
-			 */
-			struct ipv6_prefix rfc6791_v6_prefix;
+	/**
+	 * Amend the UDP checksum of incoming IPv4-UDP packets when it's zero?
+	 * Otherwise these packets will be dropped (because they're illegal in
+	 * IPv6).
+	 */
+	config_bool compute_udp_csum_zero;
+	/**
+	 * Randomize choice of RFC6791 address?
+	 * Otherwise it will be set depending on the incoming packet's Hop
+	 * Limit.
+	 * See https://github.com/NICMx/Jool/issues/130.
+	 */
+	config_bool randomize_error_addresses;
+	/**
+	 * How should hairpinning be handled by EAM-translated packets.
+	 * See @eam_hairpinning_mode.
+	 */
+	__u8 eam_hairpin_mode;
+	/**
+	 * States if the rfc6791_v6_prefix configuration attribute has been set.
+	 * If this flag is true then the value of rfc6791_v6_prefix is going to
+	 * be used.
+	 */
+	config_bool use_rfc6791_v6;
+	/**
+	 * Address used to represent a not translatable source address of an
+	 * incoming packet.
+	 */
+	struct ipv6_prefix rfc6791_prefix6;
+	config_bool use_rfc6791_v4;
+	struct ipv4_prefix rfc6791_prefix4;
 
-		} siit;
-		struct {
-			/** Filter ICMPv6 Informational packets? */
-			config_bool drop_icmp6_info;
+	/******* NAT64 *******/
 
-			/**
-			 * True = issue #132 behaviour.
-			 * False = RFC 6146 behaviour.
-			 */
-			config_bool src_icmp6errs_better;
-			/**
-			 * Fields of the packet that will be sent to the F() function.
-			 * (RFC 6056 algorithm 3.)
-			 * See "enum f_args".
-			 */
-			__u8 f_args;
-			/**
-			 * Decrease timer when a FIN packet is received during the
-			 * `V4 FIN RCV` or `V6 FIN RCV` states?
-			 * https://github.com/NICMx/Jool/issues/212
-			 */
-			config_bool handle_rst_during_fin_rcv;
-		} nat64;
-	};
+	/** Filter ICMPv6 Informational packets? */
+	config_bool drop_icmp6_info;
+	/**
+	 * True = issue #132 behaviour.
+	 * False = RFC 6146 behaviour.
+	 */
+	config_bool src_icmp6errs_better;
+	/**
+	 * Fields of the packet that will be sent to the F() function.
+	 * (RFC 6056 algorithm 3.)
+	 * See "enum f_args".
+	 */
+	__u8 f_args;
+	/**
+	 * Decrease timer when a FIN packet is received during the `V4 FIN RCV`
+	 * or `V6 FIN RCV` states?
+	 * https://github.com/NICMx/Jool/issues/212
+	 */
+	config_bool handle_rst_during_fin_rcv;
 };
 
 struct bib_config {

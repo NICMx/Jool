@@ -82,7 +82,7 @@ static int hash_tuple(struct shash_desc *desc, __u8 fields,
 /**
  * RFC 6056, Algorithm 3.
  */
-int rfc6056_f(const struct xlation *state, unsigned int *result)
+int rfc6056_f(struct xlation *state, unsigned int *result)
 {
 	union {
 		__be32 as32[4];
@@ -112,7 +112,7 @@ int rfc6056_f(const struct xlation *state, unsigned int *result)
 		goto end;
 	}
 
-	error = hash_tuple(desc, state->jool.global->cfg.nat64.f_args, tuple6);
+	error = hash_tuple(desc, state->GLOBAL.f_args, &state->in.tuple);
 	if (error) {
 		log_debug("crypto_hash_update() failed. Errcode: %d", error);
 		breakdown(state, JOOL_MIB_SHASH_UPDATE, error);

@@ -28,6 +28,7 @@ struct xlation {
 	struct bib_session entries;
 
 #define GLOBAL jool.global->cfg
+#define XLATOR_TYPE(xlation) ((xlator_type)(xlation)->GLOBAL.xlator_type)
 };
 
 void xlation_init(struct xlation *state, struct xlator *jool);

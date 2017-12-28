@@ -16,7 +16,7 @@ struct pool4;
  * Write functions (Caller must prevent concurrence)
  */
 
-int pool4db_init(struct pool4 **pool);
+struct pool4 *pool4db_init(void);
 void pool4db_get(struct pool4 *pool);
 void pool4db_put(struct pool4 *pool);
 

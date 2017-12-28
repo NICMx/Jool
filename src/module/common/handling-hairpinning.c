@@ -24,7 +24,7 @@ static bool is_hairpin_nat64(struct xlation *state)
 	 * but hey, why the hell not.
 	 * TODO this probably doesn't apply anymore.
 	 */
-	return pool4db_contains(state->jool.nat64.pool4, &state->out.tuple);
+	return pool4db_contains(state->jool.pool4, &state->out.tuple);
 }
 
 /**
@@ -96,7 +96,7 @@ end:
 
 bool is_hairpin(struct xlation *state)
 {
-	switch (state->jool.type) {
+	switch (XLATOR_TYPE(state)) {
 	case XLATOR_SIIT:
 		return is_hairpin_siit(state);
 	case XLATOR_NAT64:
@@ -123,7 +123,7 @@ int handling_hairpinning(struct xlation *state)
 {
 	int error;
 
-	switch (state->jool.type) {
+	switch (XLATOR_TYPE(state)) {
 	case XLATOR_SIIT:
 		error = handling_hairpinning_siit(state);
 		break;

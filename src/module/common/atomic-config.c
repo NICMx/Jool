@@ -1,10 +1,8 @@
 #include "atomic-config.h"
 
 #include "nl/nl-global.h"
-#include "pool6.h"
 #include "wkmalloc.h"
 #include "siit/eam.h"
-#include "siit/pool.h"
 #include "nat64/joold.h"
 #include "nat64/pool4/db.h"
 #include "nat64/bib/db.h"
@@ -24,40 +22,19 @@ static void candidate_clean(struct config_candidate *candidate)
 		wkfree(struct full_config, candidate->global);
 		candidate->global = NULL;
 	}
-	if (candidate->pool6) {
-		pool6_put(candidate->pool6);
-		candidate->pool6 = NULL;
+	if (candidate->eamt) {
+		eamt_put(candidate->eamt);
+		candidate->eamt = NULL;
 	}
-
-	switch (candidate->type) {
-	case XLATOR_SIIT:
-		if (candidate->siit.eamt) {
-			eamt_put(candidate->siit.eamt);
-			candidate->siit.eamt = NULL;
-		}
-		if (candidate->siit.blacklist) {
-			pool_put(candidate->siit.blacklist);
-			candidate->siit.blacklist = NULL;
-		}
-		if (candidate->siit.pool6791) {
-			pool_put(candidate->siit.pool6791);
-			candidate->siit.pool6791 = NULL;
-		}
-		break;
-	case XLATOR_NAT64:
-		if (candidate->nat64.pool4) {
-			pool4db_put(candidate->nat64.pool4);
-			candidate->nat64.pool4 = NULL;
-		}
-		break;
-	default:
-		BUG();
+	if (candidate->pool4) {
+		pool4db_put(candidate->pool4);
+		candidate->pool4 = NULL;
 	}
 
 	candidate->active = false;
 }
 
-struct config_candidate *cfgcandidate_create(xlator_type type)
+struct config_candidate *cfgcandidate_create(void)
 {
 	struct config_candidate *candidate;
 
@@ -66,9 +43,7 @@ struct config_candidate *cfgcandidate_create(xlator_type type)
 		return NULL;
 
 	memset(candidate, 0, sizeof(*candidate));
-
 	kref_init(&candidate->refcount);
-	candidate->type = type;
 	return candidate;
 }
 
@@ -128,29 +103,6 @@ static int handle_global(struct xlator *jool, void *payload, __u32 payload_len)
 	return 0;
 }
 
-static int handle_pool6(struct config_candidate *new, void *payload,
-		__u32 payload_len)
-{
-	struct ipv6_prefix *prefixes = payload;
-	unsigned int prefix_count = payload_len / sizeof(*prefixes);
-	unsigned int i;
-	int error;
-
-	if (!new->pool6) {
-		error = pool6_init(&new->pool6);
-		if (error)
-			return error;
-	}
-
-	for (i = 0; i < prefix_count; i++) {
-		error = pool6_add(new->pool6, &prefixes[i]);
-		if (error)
-			return error;
-	}
-
-	return 0;
-}
-
 static int handle_eamt(struct config_candidate *new, void *payload,
 		__u32 payload_len)
 {
@@ -160,73 +112,21 @@ static int handle_eamt(struct config_candidate *new, void *payload,
 	unsigned int i;
 	int error;
 
-	if (new->type == XLATOR_NAT64) {
-		log_err("Stateful NAT64 doesn't have an EAMT.");
-		return -EINVAL;
-	}
-
-	if (!new->siit.eamt) {
-		error = eamt_init(&new->siit.eamt);
-		if (error)
-			return error;
+	if (!new->eamt) {
+		new->eamt = eamt_init();
+		if (!new->eamt)
+			return -ENOMEM;
 	}
 
 	for (i = 0; i < eam_count; i++) {
 		eam = &eams[i];
 		/* TODO (issue164) force should be variable. */
-		error = eamt_add(new->siit.eamt, &eam->prefix6, &eam->prefix4,
-				true);
+		error = eamt_add(new->eamt, &eam->prefix6, &eam->prefix4, true);
 		if (error)
 			return error;
 	}
 
 	return 0;
-}
-
-static int handle_addr4_pool(struct addr4_pool **pool, void *payload,
-		__u32 payload_len)
-{
-	struct ipv4_prefix *prefixes = payload;
-	unsigned int prefix_count = payload_len / sizeof(*prefixes);
-	unsigned int i;
-	int error;
-
-	if (!(*pool)) {
-		error = pool_init(pool);
-		if (error)
-			return error;
-	}
-
-	for (i = 0; i < prefix_count; i++) {
-		/* TODO (issue164) force should be variable. */
-		error = pool_add(*pool, &prefixes[i], true);
-		if (error)
-			return error;
-	}
-
-	return 0;
-}
-
-static int handle_blacklist(struct config_candidate *new, void *payload,
-		__u32 payload_len)
-{
-	if (new->type == XLATOR_NAT64) {
-		log_err("Stateful NAT64 doesn't have a blacklist.");
-		return -EINVAL;
-	}
-
-	return handle_addr4_pool(&new->siit.blacklist, payload, payload_len);
-}
-
-static int handle_pool6791(struct config_candidate *new, void *payload,
-		__u32 payload_len)
-{
-	if (new->type == XLATOR_NAT64) {
-		log_err("Stateful NAT64 doesn't have an RFC 6791 pool.");
-		return -EINVAL;
-	}
-
-	return handle_addr4_pool(&new->siit.pool6791, payload, payload_len);
 }
 
 static int handle_pool4(struct config_candidate *new, void *payload,
@@ -237,19 +137,14 @@ static int handle_pool4(struct config_candidate *new, void *payload,
 	unsigned int i;
 	int error;
 
-	if (new->type == XLATOR_SIIT) {
-		log_err("SIIT doesn't have pool4.");
-		return -EINVAL;
-	}
-
-	if (!new->nat64.pool4) {
-		error = pool4db_init(&new->nat64.pool4);
-		if (error)
-			return error;
+	if (!new->pool4) {
+		new->pool4 = pool4db_init();
+		if (!new->pool4)
+			return -ENOMEM;
 	}
 
 	for (i = 0; i < entry_count; i++) {
-		error = pool4db_add(new->nat64.pool4, &entries[i]);
+		error = pool4db_add(new->pool4, &entries[i]);
 		if (error)
 			return error;
 	}
@@ -260,11 +155,6 @@ static int handle_pool4(struct config_candidate *new, void *payload,
 static int handle_bib(struct config_candidate *new, void *payload,
 		__u32 payload_len)
 {
-	if (new->type == XLATOR_SIIT) {
-		log_err("SIIT doesn't have BIBs.");
-		return -EINVAL;
-	}
-
 	log_err("Atomic configuration of the BIB is not implemented.");
 	return -EINVAL;
 }
@@ -283,9 +173,9 @@ static int commit(struct xlator *jool)
 	 */
 
 	if (new->global) {
-		error = config_init(&global);
-		if (error)
-			return error;
+		global = config_init();
+		if (!global)
+			return -ENOMEM;
 		config_copy(&new->global->global, &global->cfg);
 
 		remnants = new->global;
@@ -294,39 +184,15 @@ static int commit(struct xlator *jool)
 		jool->global = global;
 		new->global = NULL;
 	}
-	if (new->pool6) {
-		pool6_put(jool->pool6);
-		jool->pool6 = new->pool6;
-		new->pool6 = NULL;
+	if (new->eamt) {
+		eamt_put(jool->eamt);
+		jool->eamt = new->eamt;
+		new->eamt = NULL;
 	}
-
-	switch (jool->type) {
-	case XLATOR_SIIT:
-		if (new->siit.eamt) {
-			eamt_put(jool->siit.eamt);
-			jool->siit.eamt = new->siit.eamt;
-			new->siit.eamt = NULL;
-		}
-		if (new->siit.blacklist) {
-			pool_put(jool->siit.blacklist);
-			jool->siit.blacklist = new->siit.blacklist;
-			new->siit.blacklist = NULL;
-		}
-		if (new->siit.pool6791) {
-			pool_put(jool->siit.pool6791);
-			jool->siit.pool6791 = new->siit.pool6791;
-			new->siit.pool6791 = NULL;
-		}
-		break;
-	case XLATOR_NAT64:
-		if (new->nat64.pool4) {
-			pool4db_put(jool->nat64.pool4);
-			jool->nat64.pool4 = new->nat64.pool4;
-			new->nat64.pool4 = NULL;
-		}
-		break;
-	default:
-		BUG();
+	if (new->pool4) {
+		pool4db_put(jool->pool4);
+		jool->pool4 = new->pool4;
+		new->pool4 = NULL;
 	}
 
 	error = xlator_replace(jool);
@@ -345,8 +211,8 @@ static int commit(struct xlator *jool)
 	 * These look a little out of place.
 	 */
 	if (remnants) {
-		bib_config_set(jool->nat64.bib, &remnants->bib);
-		joold_config_set(jool->nat64.joold, &remnants->joold);
+		bib_config_set(jool->bib, &remnants->bib);
+		joold_config_set(jool->joold, &remnants->joold);
 		wkfree(struct full_config, remnants);
 	}
 
@@ -422,17 +288,8 @@ int atomconfig_add(struct xlator *jool, void *config, size_t config_len)
 	case SEC_GLOBAL:
 		error = handle_global(jool, config, config_len);
 		break;
-	case SEC_POOL6:
-		error = handle_pool6(candidate, config, config_len);
-		break;
 	case SEC_EAMT:
 		error = handle_eamt(candidate, config, config_len);
-		break;
-	case SEC_BLACKLIST:
-		error = handle_blacklist(candidate, config, config_len);
-		break;
-	case SEC_POOL6791:
-		error = handle_pool6791(candidate, config, config_len);
 		break;
 	case SEC_POOL4:
 		error = handle_pool4(candidate, config, config_len);

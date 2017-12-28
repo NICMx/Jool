@@ -1,183 +1,77 @@
 #include "siit/rfc6791.h"
 
-#include <linux/rculist.h>
-#include <linux/inet.h>
-#include <linux/in_route.h>
-#include <linux/netdevice.h>
-#include <linux/inetdevice.h>
-#include <net/ip_fib.h>
-
-#include "config.h"
-#include "packet.h"
-#include "rcu.h"
-#include "route.h"
-#include "tags.h"
-
-int rfc6791_init(struct addr4_pool **pool)
+static void randomize_host(__u8 *prefix_addr, unsigned int prefix_len,
+		int addr_len, __u8 *result)
 {
-	return pool_init(pool);
-}
+	/** Number of *full* network-side "quadrants" (8-bit segments). */
+	unsigned int segment_bytes_num;
+	unsigned int modulus;
+	unsigned int offset;
+	/** Number of quadrants that have at least one host bit. */
+	size_t host_bytes_num;
+	__u8 randomized_byte;
 
-void rfc6791_get(struct addr4_pool *pool)
-{
-	return pool_get(pool);
-}
+	segment_bytes_num = prefix_len >> 3; /* >> 3 = / 8 */
+	modulus = prefix_len & 7; /* & 7 = % 8 */
+	offset = segment_bytes_num;
+	host_bytes_num = addr_len - segment_bytes_num;
 
-void rfc6791_put(struct addr4_pool *pool)
-{
-	return pool_put(pool);
-}
+	memcpy(result, prefix_addr, prefix_len);
 
-int rfc6791_add(struct addr4_pool *pool, struct ipv4_prefix *prefix, bool force)
-{
-	return pool_add(pool, prefix, force);
-}
-
-int rfc6791_rm(struct addr4_pool *pool, struct ipv4_prefix *prefix)
-{
-	return pool_rm(pool, prefix);
-}
-
-int rfc6791_flush(struct addr4_pool *pool)
-{
-	return pool_flush(pool);
-}
-
-struct foreach_args {
-	unsigned int n;
-	__be32 *result;
-	bool flushed;
-};
-
-static int find_nth_addr(struct ipv4_prefix *prefix, void *void_args)
-{
-	struct foreach_args *args = void_args;
-	unsigned int count;
-
-	args->flushed = false;
-
-	count = prefix4_get_addr_count(prefix);
-	if (count < args->n) {
-		args->n -= count;
-		return 0; /* Keep iterating. */
+	if (modulus == 0) {
+		get_random_bytes(((__u8*)result) + offset, host_bytes_num);
+		return;
 	}
 
-	*args->result = htonl(ntohl(prefix->address.s_addr) | args->n);
-	return 1; /* Success. */
+	get_random_bytes(((__u8*)result) + offset + 1, host_bytes_num - 1);
+	get_random_bytes(&randomized_byte, sizeof(randomized_byte));
+
+	randomized_byte &= (1 << (8 - modulus)) - 1;
+	result[segment_bytes_num] |= randomized_byte;
+}
+
+static void pop_addr4(struct ipv4_prefix *prefix, __be32 *result)
+{
+	return randomize_host((__u8 *)&prefix->addr, prefix->len, 4,
+			(__u8 *)result);
+}
+
+int rfc6791_find4(struct xlation *state, __be32 *result)
+{
+	if (state->GLOBAL.use_rfc6791_v4) {
+		pop_addr4(&state->GLOBAL.rfc6791_prefix4, result);
+		return 0;
+	}
+
+	return einval(state, JOOL_MIB_6791V4_EMPTY); /* TODO pick host addr */
 }
 
 /**
- * Returns in "result" the IPv4 address an ICMP error towards "out"'s
- * destination should be sourced with.
+ * Assuming RFC6791v6 has been populated, returns an IPv6 address an ICMP
+ * error should be sourced with, assuming its source is untranslatable.
  */
-static int get_rfc6791_address(struct xlation *state, unsigned int count,
-		__be32 *result)
+static void pop_addr6(struct ipv6_prefix *prefix, struct in6_addr *result)
 {
-	struct foreach_args args;
-	int done;
-
-	if (state->jool.global->cfg.siit.randomize_error_addresses)
-		get_random_bytes(&args.n, sizeof(args.n));
-	else
-		args.n = pkt_ip6_hdr(&state->in)->hop_limit;
-	args.n %= count;
-	args.result = result;
-
-	/*
-	 * The list can change between the last loop (the pool_count()) and the
-	 * following one. So use @count and @addr_index only as a hint. That's
-	 * the rationale for the do while true.
-	 * Just ensure @args.n keeps decreasing.
-	 */
-	do {
-		args.flushed = true;
-
-		done = pool_foreach(state->jool.siit.pool6791, find_nth_addr,
-				&args, NULL);
-		if (done)
-			return 0;
-
-		if (args.flushed)
-			return -ESRCH;
-	} while (true);
+	return randomize_host(&prefix->addr.s6_addr[0], prefix->len, 16,
+			(__u8 *)result);
 }
 
 /**
- * Returns in "result" the IPv4 address an ICMP error towards "out"'s
- * destination should be sourced with, assuming the RFC6791 pool is empty.
+ * Returns an IPv6 address an ICMP error should be sourced with, assuming its
+ * source is untranslatable.
  */
-static int get_host_address(struct xlation *state, __be32 *result)
+int rfc6791_find6(struct xlation *state, struct in6_addr *result)
 {
-	struct dst_entry *dst;
-	__be32 saddr;
-	__be32 daddr;
-
-	/*
-	 * TODO (warning) if the ICMP error hairpins, this route4 fails so
-	 * translation is not done.
-	 *
-	 * I'm a little stuck on how to fix it. If I assign any address, will
-	 * that enhance an attacker's ability to ICMP spoof a connection?
-	 * Read RFC 5927 and figure it out.
-	 */
-
-	dst = route4(state->jool.ns, &state->out);
-	if (!dst)
-		return -EINVAL;
-
-	daddr = pkt_ip4_hdr(&state->out)->daddr;
-	saddr = inet_select_addr(dst->dev, daddr, RT_SCOPE_LINK);
-
-	if (!saddr) {
-		log_warn_once("Can't find a proper src address to reach %pI4.",
-				&daddr);
-		return -EINVAL;
+	if (state->GLOBAL.use_rfc6791_v6) {
+		pop_addr6(&state->GLOBAL.rfc6791_prefix6, result);
+		return 0;
 	}
 
-	*result = saddr;
+	return einval(state, JOOL_MIB_6791V6_EMPTY); /* TODO pick host addr */
+
+/* TODO
+success:
+	log_debug("Chose %pI6c as RFC6791v6 address.", result);
 	return 0;
-}
-
-int rfc6791_find(struct xlation *state, __be32 *result)
-{
-	__u64 count;
-	int error;
-
-	/*
-	 * I'm counting the list elements instead of using an algorithm like
-	 * reservoir sampling (http://stackoverflow.com/questions/54059) because
-	 * the random function can be really expensive. Reservoir sampling
-	 * requires one random per iteration, this way requires one random
-	 * period.
-	 */
-	error = pool_count(state->jool.siit.pool6791, &count);
-	if (error) {
-		log_debug("pool_count failed with errcode %d.", error);
-		return error;
-	}
-
-	if (count != 0) {
-		error = get_rfc6791_address(state, count, result);
-		if (!error)
-			return 0;
-	}
-
-	return get_host_address(state, result);
-}
-
-int rfc6791_for_each(struct addr4_pool *pool,
-		int (*func)(struct ipv4_prefix *, void *), void *arg,
-		struct ipv4_prefix *offset)
-{
-	return pool_foreach(pool, func, arg, offset);
-}
-
-int rfc6791_count(struct addr4_pool *pool, __u64 *result)
-{
-	return pool_count(pool, result);
-}
-
-bool rfc6791_is_empty(struct addr4_pool *pool)
-{
-	return pool_is_empty(pool);
+*/
 }

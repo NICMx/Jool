@@ -16,7 +16,7 @@ static void core_common(struct xlation *state)
 {
 	int error;
 
-	if (state->jool.type == XLATOR_NAT64) {
+	if (XLATOR_TYPE(state) == XLATOR_NAT64) {
 		if (determine_in_tuple(state))
 			return;
 		if (filtering_and_updating(state))

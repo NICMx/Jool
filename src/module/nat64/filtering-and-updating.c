@@ -299,7 +299,7 @@ static enum session_fate tcp_established_state(struct session_entry *session,
 
 static bool handle_rst_during_fin_rcv(struct xlation *state)
 {
-	return state->GLOBAL.nat64.handle_rst_during_fin_rcv;
+	return state->GLOBAL.handle_rst_during_fin_rcv;
 }
 
 /**
@@ -458,7 +458,7 @@ static int handle_ipv6(struct xlation *state)
 		return ipv6_tcp(state);
 
 	case L4PROTO_ICMP:
-		if (state->jool.global->cfg.nat64.drop_icmp6_info) {
+		if (state->GLOBAL.drop_icmp6_info) {
 			log_debug("Packet is ICMPv6 info (ping); dropping due to policy.");
 			return eperm(state, JOOL_MIB_PING_PROHIBITED);
 		}
@@ -529,7 +529,7 @@ int filtering_and_updating(struct xlation *state)
 		break;
 	case L3PROTO_IPV4:
 		/* Get rid of unexpected packets */
-		if (!pool4db_contains(state->jool.nat64.pool4, &in->tuple)) {
+		if (!pool4db_contains(state->jool.pool4, &in->tuple)) {
 			log_debug("Packet destination does not belong to pool4.");
 			return einval(state, JOOL_MIB_DST4);
 		}

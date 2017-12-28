@@ -1,49 +1,42 @@
 #include "config.h"
 
-#include <linux/ipv6.h>
-#include <linux/jiffies.h>
-#include "config.h"
 #include "constants.h"
-#include "types.h"
-#include "tags.h"
 #include "wkmalloc.h"
 
-static DEFINE_MUTEX(lock);
-
-RCUTAG_USR
-int config_init(struct global_config **result)
+struct global_config *config_init(void)
 {
+	struct global_config *result;
 	struct global_config_usr *config;
 	__u16 plateaus[] = DEFAULT_MTU_PLATEAUS;
 
-	*result = wkmalloc(struct global_config, GFP_KERNEL);
-	if (!(*result))
-		return -ENOMEM;
-	kref_init(&(*result)->refcounter);
-	config = &(*result)->cfg;
+	result = wkmalloc(struct global_config, GFP_KERNEL);
+	if (!result)
+		return NULL;
+	kref_init(&result->refcounter);
+	config = &result->cfg;
 
+	config->xlator_type = DEFAULT_XLATOR_TYPE;
 	config->status = 0; /* This is never read, but whatever. */
-	config->enabled = DEFAULT_INSTANCE_ENABLED;
 	config->reset_traffic_class = DEFAULT_RESET_TRAFFIC_CLASS;
 	config->reset_tos = DEFAULT_RESET_TOS;
 	config->new_tos = DEFAULT_NEW_TOS;
-
-	if (!config->is_stateful) {
-		config->siit.compute_udp_csum_zero = DEFAULT_COMPUTE_UDP_CSUM0;
-		config->siit.eam_hairpin_mode = DEFAULT_EAM_HAIRPIN_MODE;
-		config->siit.randomize_error_addresses = DEFAULT_RANDOMIZE_RFC6791;
-		config->siit.use_rfc6791_v6 = DEFAULT_USE_RFC6791V6_PREFIX;
-	} else {
-		config->nat64.src_icmp6errs_better = DEFAULT_SRC_ICMP6ERRS_BETTER;
-		config->nat64.drop_icmp6_info = DEFAULT_FILTER_ICMPV6_INFO;
-		config->nat64.f_args = DEFAULT_F_ARGS;
-		config->nat64.handle_rst_during_fin_rcv = DEFAULT_HANDLE_FIN_RCV_RST;
-	}
-
-	config->mtu_plateau_count = ARRAY_SIZE(plateaus);
 	memcpy(config->mtu_plateaus, &plateaus, sizeof(plateaus));
+	config->mtu_plateau_count = ARRAY_SIZE(plateaus);
 
-	return 0;
+	config->compute_udp_csum_zero = DEFAULT_COMPUTE_UDP_CSUM0;
+	config->randomize_error_addresses = DEFAULT_RANDOMIZE_RFC6791;
+	config->eam_hairpin_mode = DEFAULT_EAM_HAIRPIN_MODE;
+	config->use_rfc6791_v6 = false;
+	memset(&config->rfc6791_prefix6, 0, sizeof(config->rfc6791_prefix6));
+	config->use_rfc6791_v4 = false;
+	memset(&config->rfc6791_prefix4, 0, sizeof(config->rfc6791_prefix4));
+
+	config->drop_icmp6_info = DEFAULT_FILTER_ICMPV6_INFO;
+	config->src_icmp6errs_better = DEFAULT_SRC_ICMP6ERRS_BETTER;
+	config->f_args = DEFAULT_F_ARGS;
+	config->handle_rst_during_fin_rcv = DEFAULT_HANDLE_FIN_RCV_RST;
+
+	return result;
 }
 
 void config_get(struct global_config *config)
@@ -63,22 +56,18 @@ void config_put(struct global_config *config)
 	kref_put(&config->refcounter, destroy_config);
 }
 
-RCUTAG_PKT
 void config_copy(struct global_config_usr *from, struct global_config_usr *to)
 {
 	memcpy(to, from, sizeof(*from));
 }
 
-RCUTAG_FREE
 void prepare_config_for_userspace(struct full_config *config, bool pools_empty)
 {
-	struct global_config_usr *global;
 	struct bib_config *bib;
 	struct fragdb_config *frag;
 	struct joold_config *joold;
 
-	global = &config->global;
-	global->status = global->enabled && !pools_empty;
+	config->global.status = !pools_empty;
 
 	bib = &config->bib;
 	bib->ttl.tcp_est = jiffies_to_msecs(bib->ttl.tcp_est);

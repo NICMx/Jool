@@ -224,7 +224,7 @@ static void backup(struct xlation *state, struct packet *pkt,
 	bkp->offset.l4 = skb_transport_offset(pkt->skb);
 	bkp->payload = pkt_payload(pkt);
 	bkp->l4_proto = pkt_l4_proto(pkt);
-	if (state->jool.type == XLATOR_NAT64)
+	if (XLATOR_TYPE(state) == XLATOR_NAT64)
 		bkp->tuple = pkt->tuple;
 }
 
@@ -237,7 +237,7 @@ static void restore(struct xlation *state, struct packet *pkt,
 	pkt->payload = bkp->payload;
 	pkt->l4_proto = bkp->l4_proto;
 	pkt->is_inner = 0;
-	if (state->jool.type == XLATOR_NAT64)
+	if (XLATOR_TYPE(state) == XLATOR_NAT64)
 		pkt->tuple = bkp->tuple;
 }
 
@@ -265,7 +265,7 @@ int ttpcomm_translate_inner_packet(struct xlation *state)
 	if (error)
 		return error;
 
-	if (state->jool.type == XLATOR_NAT64) {
+	if (XLATOR_TYPE(state) == XLATOR_NAT64) {
 		in->tuple.src = bkp_in.tuple.dst;
 		in->tuple.dst = bkp_in.tuple.src;
 		out->tuple.src = bkp_out.tuple.dst;

@@ -15,7 +15,7 @@ int rfc6052_6to4(struct xlation *state,
 {
 	struct ipv6_prefix *prefix;
 
-	prefix = &state->jool.global->cfg.pool6;
+	prefix = &state->GLOBAL.pool6;
 	if (!prefix) {
 		log_debug("pool6 hasn't been configured.");
 		return esrch(state, JOOL_MIB_POOL6_NULL);
@@ -67,13 +67,13 @@ int rfc6052_4to6(struct xlation *state,
 {
 	struct ipv6_prefix *prefix;
 
-	prefix = &state->jool.global->cfg.pool6;
+	prefix = &state->GLOBAL.pool6;
 	if (!prefix) {
 		log_debug("pool6 hasn't been configured.");
 		return esrch(state, JOOL_MIB_POOL6_NULL);
 	}
 
-	memcpy(dst, &prefix->address, sizeof(*dst));
+	memcpy(dst, &prefix->addr, sizeof(*dst));
 
 	switch (prefix->len) {
 	case 96:  /* First because it's the most common one, I guess. */

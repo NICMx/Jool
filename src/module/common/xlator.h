@@ -11,32 +11,24 @@
  * should use to handle a packet in the respective namespace.
  */
 struct xlator {
-//	struct net *ns;
-
+	/* Shared */
 	struct jool_stats *stats;
 	struct global_config *global;
-	union {
-		struct {
-			struct eam_table *eamt;
-//			struct addr4_pool *blacklist;
-//			struct addr4_pool *pool6791;
-		} siit;
-		struct {
-			struct pool4 *pool4;
-			struct bib *bib;
-			struct joold_queue *joold;
-		} nat64;
-	};
+	struct config_candidate *newcfg;
 
-	xlator_type type;
+	/* SIIT */
+	struct eam_table *eamt;
 
-//	struct config_candidate *newcfg;
+	/* NAT64 */
+	struct pool4 *pool4;
+	struct bib *bib;
+	struct joold_queue *joold;
 };
 
 int xlator_init(void);
 void xlator_destroy(void);
 
-int xlator_add(xlator_type type, struct xlator *result);
+int xlator_add(struct xlator *jool);
 int xlator_replace(struct xlator *instance);
 
 //int xlator_find(struct net *ns, struct xlator *result);

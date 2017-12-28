@@ -25,7 +25,7 @@ MODULE_VERSION(JOOL_VERSION_STR);
  * There's only one device right now, but of course Jool will need to be able to
  * manage any number of them.
  */
-struct net_device *jool_dev;
+static struct net_device *jool_dev;
 
 /**
  * Private data each device will store.
@@ -144,7 +144,7 @@ static void jool_netdev_init(struct net_device *dev)
 	spin_lock_init(&priv->lock);
 }
 
-int jool_netdev_init_module(void)
+static int jool_netdev_init_module(void)
 {
 	struct jool_netdev_priv *priv;
 	int error;
@@ -157,7 +157,7 @@ int jool_netdev_init_module(void)
 		return -ENOMEM;
 
 	priv = netdev_priv(jool_dev);
-	error = xlator_add(XLATOR_NAT64, &priv->jool);
+	error = xlator_add(&priv->jool);
 	if (error) {
 		free_netdev(jool_dev);
 		return error;
@@ -175,7 +175,7 @@ int jool_netdev_init_module(void)
 	return 0;
 }
 
-void jool_netdev_cleanup_module(void)
+static void jool_netdev_cleanup_module(void)
 {
 	struct jool_netdev_priv *priv = netdev_priv(jool_dev);
 

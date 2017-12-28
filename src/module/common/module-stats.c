@@ -66,6 +66,6 @@ void jstat_query(struct jool_stats *stats, struct jool_mib *result)
 	/* Reference: snmp_get_cpu_field_batch() */
 	for_each_possible_cpu(cpu) {
 		for (i = 0; i < __JOOL_MIB_MAX; i++)
-			result->mibs[i] += snmp_get_cpu_field(stats, cpu, i);
+			result->mibs[i] += snmp_get_cpu_field(stats->mib, cpu, i);
 	}
 }

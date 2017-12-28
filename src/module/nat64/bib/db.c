@@ -437,6 +437,7 @@ struct bib *bib_create(void)
 	/*
 	 * Just in case some crazy psycho decides to change the default.
 	 * THERE IS NO ADRESS-DEPENDENT FILTERING ON ICMP; the RFC is wrong.
+	 * (I uploaded errata in case you want to see why.)
 	 */
 	db->icmp.drop_by_addr = false;
 
@@ -1634,7 +1635,7 @@ int bib_add6(struct xlation *state,
 	struct bib_add6_args args;
 	int error;
 
-	args.table = get_table(state->jool.nat64.bib, state->in.tuple.l4_proto);
+	args.table = get_table(state->jool.bib, state->in.tuple.l4_proto);
 	if (!args.table)
 		return einval(state, JOOL_MIB_UNKNOWN6);
 	args.masks = masks;
@@ -1707,7 +1708,7 @@ int bib_add4(struct xlation *state, struct ipv6_transport_addr *dst6)
 	bool allow;
 	int error = 0;
 
-	args.table = get_table(state->jool.nat64.bib, state->in.tuple.l4_proto);
+	args.table = get_table(state->jool.bib, state->in.tuple.l4_proto);
 	if (!args.table)
 		return eunknown4(state, -EINVAL);
 
@@ -1766,7 +1767,7 @@ int bib_add_tcp6(struct xlation *state,
 	if (error)
 		return error;
 
-	args.table = &state->jool.nat64.bib->tcp;
+	args.table = &state->jool.bib->tcp;
 	args.masks = masks;
 	args.rm_list.first = NULL;
 
@@ -1833,7 +1834,7 @@ int bib_add_tcp4(struct xlation *state,
 	args.new = create_session4(&state->in.tuple, dst6, V4_INIT);
 	if (!args.new)
 		return enomem(state);
-	args.table = &state->jool.nat64.bib->tcp;
+	args.table = &state->jool.bib->tcp;
 
 	spin_lock_bh(&args.table->lock);
 
@@ -2392,7 +2393,7 @@ void bib_rm_range(struct bib *db, l4_protocol proto, struct ipv4_range *range)
 	if (!table)
 		return;
 
-	offset.l3 = range->prefix.address;
+	offset.l3 = range->prefix.addr;
 	offset.l4 = range->ports.min;
 
 	spin_lock_bh(&table->lock);

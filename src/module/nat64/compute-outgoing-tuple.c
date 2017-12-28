@@ -14,8 +14,7 @@ static int find_bib(struct xlation *state)
 	if (state->entries.bib_set)
 		return 0;
 
-	error = bib_find(state->jool.nat64.bib, &state->in.tuple,
-			&state->entries);
+	error = bib_find(state->jool.bib, &state->in.tuple, &state->entries);
 	switch (error) {
 	case 0:
 		return 0;

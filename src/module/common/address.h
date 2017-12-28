@@ -56,11 +56,11 @@ void addr6_set_bit(struct in6_addr *addr, unsigned int pos, bool value);
  * @cursor: temporary u64 needed to handle overflow.
  * @prefix: pointer to the address collection you want to iterate.
  */
-#define foreach_addr4(addr, cursor, prefix)				\
-	for (cursor = be32_to_cpu((prefix)->address.s_addr),		\
-		addr = (prefix)->address;				\
+#define foreach_addr4(address, cursor, prefix)				\
+	for (cursor = be32_to_cpu((prefix)->addr.s_addr),		\
+		address = (prefix)->addr;				\
 	    cursor < prefix4_next(prefix);				\
-	    cursor++, (addr).s_addr = cpu_to_be32(cursor))
+	    cursor++, (address).s_addr = cpu_to_be32(cursor))
 
 __u64 prefix4_next(const struct ipv4_prefix *prefix);
 

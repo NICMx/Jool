@@ -9,7 +9,7 @@
 #include "rfc6052.h"
 #include "rfc7915/common.h"
 #include "siit/eam.h"
-#include "siit/rfc6791v6.h"
+#include "siit/rfc6791.h"
 
 int ttp46_create_skb(struct xlation *state)
 {
@@ -114,7 +114,7 @@ static int xlat_saddr6_nat64(struct xlation *state)
 	struct packet *out = &state->out;
 	struct in_addr tmp;
 
-	if (state->GLOBAL.nat64.src_icmp6errs_better
+	if (state->GLOBAL.src_icmp6errs_better
 			&& pkt_is_icmp4_error(&state->in)) {
 		/* Issue #132 behaviour. */
 		tmp.s_addr = pkt_ip4_hdr(&state->in)->saddr;
@@ -126,19 +126,9 @@ static int xlat_saddr6_nat64(struct xlation *state)
 	return 0;
 }
 
-/**
- * Attempts to translate @addr4 based on pool6 and the EAMT.
- *
- * Regarding the return value:
- * - 0 means success as usual.
- * - -ESRCH is a "soft error". It means that the relevant address translation
- *   databases could not translate @addr4, but there's nothing preventing the
- *   caller to try something else.
- * - Any other error code is a "hard error"; it means that something is busted
- *   and the packet should be dropped.
- */
 static int xlat_addr46_siit(struct xlation *state,
-		__be32 addr4, struct in6_addr *addr6, bool enable_eam)
+		__be32 addr4, struct in6_addr *addr6,
+		bool enable_eam, bool enable_rfc6791)
 {
 	struct in_addr tmp = { .s_addr = addr4 };
 	int error;
@@ -149,7 +139,7 @@ static int xlat_addr46_siit(struct xlation *state,
 	}
 
 	if (enable_eam) {
-		error = eamt_xlat_4to6(state->jool.siit.eamt, &tmp, addr6);
+		error = eamt_xlat_4to6(state->jool.eamt, &tmp, addr6);
 		switch (error) {
 		case 0:
 			return 0;
@@ -162,7 +152,22 @@ static int xlat_addr46_siit(struct xlation *state,
 		}
 	}
 
-	return rfc6052_4to6(state, &tmp, addr6);
+	error = rfc6052_4to6(state, &tmp, addr6);
+	switch (error) {
+	case 0:
+		return 0;
+	case ESRCH:
+		break;
+	default:
+		log_debug("rfc6052_4to6() spew unexpected error code %d.",
+				error);
+		return eunknown4(state, error);
+	}
+
+	if (enable_rfc6791 && pkt_is_icmp4_error(&state->in))
+		return rfc6791_find6(state, addr6);
+
+	return esrch(state, JOOL_MIB_ADDR4_XLAT);
 }
 
 static bool disable_src_eam(struct packet *in, bool hairpin)
@@ -191,30 +196,18 @@ static int xlat_addrs46_siit(struct xlation *state)
 	bool hairpin;
 	int error;
 
-	hairpin = (state->GLOBAL.siit.eam_hairpin_mode == EAM_HAIRPIN_SIMPLE)
+	hairpin = (state->GLOBAL.eam_hairpin_mode == EAM_HAIRPIN_SIMPLE)
 			|| pkt_is_intrinsic_hairpin(in);
 
 	/* Src address. */
 	error = xlat_addr46_siit(state, hdr4->saddr, &hdr6->saddr,
-			!disable_src_eam(in, hairpin));
-	switch (error) {
-	case 0:
-		break;
-	case -ESRCH:
-		if (pkt_is_icmp4_error(in)) {
-			/* TODO worry about this. */
-			error = rfc6791_find_v6(state, &hdr6->saddr);
-			if (error)
-				return error;
-		}
-		break; /* Ok, success. */
-	default:
+			!disable_src_eam(in, hairpin), true);
+	if (error)
 		return error;
-	}
 
 	/* Dst address. */
 	error = xlat_addr46_siit(state, hdr4->daddr, &hdr6->daddr,
-			!disable_dst_eam(in, hairpin));
+			!disable_dst_eam(in, hairpin), false);
 	if (error)
 		return error;
 
@@ -291,7 +284,7 @@ int ttp46_ipv6(struct xlation *state)
 	int error;
 
 	/* Translate the address first because of issue #167. */
-	switch (state->jool.type) {
+	switch (XLATOR_TYPE(state)) {
 	case XLATOR_SIIT:
 		error = xlat_saddr6_nat64(state);
 		if (error)
@@ -308,7 +301,7 @@ int ttp46_ipv6(struct xlation *state)
 	}
 
 	hdr6->version = 6;
-	if (state->jool.global->cfg.reset_traffic_class) {
+	if (state->GLOBAL.reset_traffic_class) {
 		hdr6->priority = 0;
 		hdr6->flow_lbl[0] = 0;
 	} else {
@@ -384,8 +377,8 @@ static void compute_mtu6(struct xlation *state)
 		 * Got to determine a likely path MTU.
 		 * See RFC 1191 sections 5, 7 and 7.1.
 		 */
-		__u16 *plateaus = state->jool.global->cfg.mtu_plateaus;
-		__u16 count = state->jool.global->cfg.mtu_plateau_count;
+		__u16 *plateaus = state->GLOBAL.mtu_plateaus;
+		__u16 count = state->GLOBAL.mtu_plateau_count;
 		struct iphdr *hdr4;
 		unsigned int tot_len_field;
 		int i;
@@ -512,7 +505,7 @@ static int icmp4_to_icmp6_param_prob(struct xlation *state,
 
 static __be16 compute_echo_id(struct xlation *state)
 {
-	switch (state->jool.type) {
+	switch (XLATOR_TYPE(state)) {
 	case XLATOR_SIIT:
 		return pkt_icmp4_hdr(&state->in)->un.echo.id;
 	case XLATOR_NAT64:
@@ -724,9 +717,8 @@ static bool can_compute_csum(struct xlation *state)
 {
 	struct iphdr *hdr4;
 	struct udphdr *hdr_udp;
-	bool amend_csum0;
 
-	if (state->jool.type == XLATOR_NAT64)
+	if (XLATOR_TYPE(state) == XLATOR_NAT64)
 		return true;
 
 	/*
@@ -739,8 +731,7 @@ static bool can_compute_csum(struct xlation *state)
 	 * addresses and port numbers in the packet.
 	 */
 	hdr4 = pkt_ip4_hdr(&state->in);
-	amend_csum0 = state->jool.global->cfg.siit.compute_udp_csum_zero;
-	if (is_mf_set_ipv4(hdr4) || !amend_csum0) {
+	if (is_mf_set_ipv4(hdr4) || !state->GLOBAL.compute_udp_csum_zero) {
 		hdr_udp = pkt_udp_hdr(&state->in);
 		log_debug("Dropping zero-checksum UDP packet: %pI4#%u->%pI4#%u",
 				&hdr4->saddr, ntohs(hdr_udp->source),
@@ -806,7 +797,7 @@ int ttp46_tcp(struct xlation *state)
 
 	/* Header */
 	memcpy(tcp_out, tcp_in, pkt_l4hdr_len(in));
-	if (state->jool.type == XLATOR_NAT64) {
+	if (XLATOR_TYPE(state) == XLATOR_NAT64) {
 		tcp_out->source = cpu_to_be16(out->tuple.src.addr6.l4);
 		tcp_out->dest = cpu_to_be16(out->tuple.dst.addr6.l4);
 	}
@@ -841,7 +832,7 @@ int ttp46_udp(struct xlation *state)
 
 	/* Header */
 	memcpy(udp_out, udp_in, pkt_l4hdr_len(in));
-	if (state->jool.type == XLATOR_NAT64) {
+	if (XLATOR_TYPE(state) == XLATOR_NAT64) {
 		udp_out->source = cpu_to_be16(out->tuple.src.addr6.l4);
 		udp_out->dest = cpu_to_be16(out->tuple.dst.addr6.l4);
 	}
