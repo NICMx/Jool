@@ -3,8 +3,6 @@
 #include <linux/icmpv6.h>
 #include <linux/version.h>
 #include <net/icmp.h>
-#include "types.h"
-#include "route.h"
 
 static char *icmp_error_to_string(icmp_error_code error)
 {
@@ -35,17 +33,34 @@ static char *icmp_error_to_string(icmp_error_code error)
 static void icmp64_send4(struct sk_buff *skb, icmp_error_code error, __u32 info)
 {
 	int type, code;
-	int err;
 
 	/*
-	 * I don't know why the kernel needs this nonsense,
-	 * but it's not my fault.
+	 * Just going to leave this here:
+	 *
+	 * icmp_send() *NEEDS* the skb to contain some sort of valid dst.
+	 * I don't know why. We're trying to answer to a misdirected packet.
+	 * Why would an established destination be mandatory for that?
+	 *
+	 * The rationale for this has been lost to time. The quirk is already
+	 * present in the first git commit of Linux and I can't find the old
+	 * BitKeeper repository.
+	 *
+	 * If the packet doesn't have a dst, icmp_send() bails immediately
+	 * and that turns the whole thing into a no-op. It's fucking bullshit.
+	 *
+	 * Now, ever since Jool became a device driver this hasn't been a
+	 * problem, probably. By the time the skb reaches the device it already
+	 * has a destination, and it's probably perfect for icmp_send()'s
+	 * purposes.
+	 *
+	 * But if you commit to the generic framework project, this might once
+	 * again become a topic.
+	 *
+	 * Old Netfilter Jool used to solve this by "in-routing" the packet.
+	 * (A call to ip_route_input().) Other frameworks might require other
+	 * kinds of magic, such as a call to rt_dst_alloc() or something like
+	 * that.
 	 */
-	err = route4_input(skb);
-	if (err) {
-		log_debug("Can't send an ICMPv4 Error: %d", err);
-		return;
-	}
 
 	switch (error) {
 	case ICMPERR_ADDR_UNREACHABLE:
@@ -149,21 +164,14 @@ static void icmp64_send6(struct sk_buff *skb, icmp_error_code error, __u32 info)
 #endif
 }
 
-/* TODO maybe receive state instead of pkt? */
 void icmp64_send(struct packet *pkt, icmp_error_code error, __u32 info)
 {
-	if (unlikely(!pkt))
-		return;
-	pkt = pkt_original_pkt(pkt);
-	if (unlikely(!pkt))
-		return;
-
-	icmp64_send_skb(pkt->skb, error, info);
+	icmp64_send_skb(pkt_original_pkt(pkt)->skb, error, info);
 }
 
 void icmp64_send_skb(struct sk_buff *skb, icmp_error_code error, __u32 info)
 {
-	if (unlikely(!skb) || !skb->dev)
+	if (unlikely(!skb))
 		return;
 
 	switch (ntohs(skb->protocol)) {

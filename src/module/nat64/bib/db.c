@@ -797,7 +797,7 @@ static int decide_fate(struct collision_cb *cb,
  *
  * Best if not called with spinlocks held.
  */
-static void send_probe_packet(struct net *ns, struct session_entry *session)
+static void send_probe_packet(struct session_entry *session)
 {
 	/* TODO
 	struct packet pkt;
@@ -885,7 +885,7 @@ fail:
 /**
  * Sends all the probes and ICMP errors listed in @probes.
  */
-static void post_fate(struct net *ns, struct list_head *probes)
+static void post_fate(struct list_head *probes)
 {
 	struct probing_session *probe;
 	struct probing_session *tmp;
@@ -897,7 +897,7 @@ static void post_fate(struct net *ns, struct list_head *probes)
 			kfree_skb(probe->skb);
 		} else {
 			/* Actual TCP probe. */
-			send_probe_packet(ns, &probe->session);
+			send_probe_packet(&probe->session);
 		}
 		wkfree(struct probing_session, probe);
 	}
@@ -2037,7 +2037,7 @@ static void __clean(struct expire_timer *expirer,
 	}
 }
 
-static void clean_table(struct bib_table *table, struct net *ns)
+static void clean_table(struct bib_table *table)
 {
 	LIST_HEAD(probes);
 	LIST_HEAD(icmps);
@@ -2052,18 +2052,18 @@ static void clean_table(struct bib_table *table, struct net *ns)
 	}
 	spin_unlock_bh(&table->lock);
 
-	post_fate(ns, &probes);
+	post_fate(&probes);
 	pktqueue_clean(&icmps);
 }
 
 /**
  * Forgets or downgrades (from EST to TRANS) old sessions.
  */
-void bib_clean(struct bib *db, struct net *ns)
+void bib_clean(struct bib *db)
 {
-	clean_table(&db->udp, ns);
-	clean_table(&db->tcp, ns);
-	clean_table(&db->icmp, ns);
+	clean_table(&db->udp);
+	clean_table(&db->tcp);
+	clean_table(&db->icmp);
 }
 
 static struct rb_node *find_starting_point(struct bib_table *table,

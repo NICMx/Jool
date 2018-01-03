@@ -11,7 +11,9 @@ void xlator_get(struct xlator *jool)
 {
 	jstat_get(jool->stats);
 	config_get(jool->global);
+	/* TODO
 	cfgcandidate_get(jool->newcfg);
+	*/
 	eamt_get(jool->eamt);
 	pool4db_get(jool->pool4);
 	bib_get(jool->bib);
@@ -26,9 +28,11 @@ int xlator_add(struct xlator *jool)
 	jool->global = config_init();
 	if (!jool->global)
 		goto config_fail;
+	/*
 	jool->newcfg = cfgcandidate_create();
 	if (!jool->newcfg)
 		goto newcfg_fail;
+	*/
 	jool->eamt = eamt_init();
 	if (!jool->eamt)
 		goto eamt_fail;
@@ -51,8 +55,10 @@ bib_fail:
 pool4_fail:
 	eamt_put(jool->eamt);
 eamt_fail:
+	/* TODO
 	cfgcandidate_put(jool->newcfg);
 newcfg_fail:
+	*/
 	config_put(jool->global);
 config_fail:
 	jstat_put(jool->stats);
@@ -115,11 +121,19 @@ void xlator_put(struct xlator *jool)
 {
 	jstat_put(jool->stats);
 	config_put(jool->global);
+	/* TODO
 	cfgcandidate_put(jool->newcfg);
+	*/
 	eamt_put(jool->eamt);
 	pool4db_put(jool->pool4);
 	bib_put(jool->bib);
 	joold_put(jool->joold);
+}
+
+int xlator_foreach(xlator_foreach_cb cb, void *args)
+{
+	/* TODO fix when you merge #257. */
+	return 0;
 }
 
 //void xlator_copy_config(struct xlator *jool, struct full_config *copy)

@@ -2,7 +2,6 @@
 #define _JOOL_MOD_ICMP_WRAPPER_H
 
 /**
- * @file
  * Direct use of the icmp_send() and icmpv6_send() functions after the determine
  * incoming tuple step is bound to become a bug nest. That's because steps
  * filtering through translate are reused in hairpinning, so when an error
@@ -35,7 +34,7 @@ typedef enum icmp_error_code {
 /**
  * Wrappers for icmp_send() and icmpv6_send().
  */
-void icmp64_send(struct packet *pkt, icmp_error_code code, __u32 info);
+void icmp64_send(struct packet *pkt, icmp_error_code error, __u32 info);
 void icmp64_send_skb(struct sk_buff *skb, icmp_error_code error, __u32 info);
 
 /**

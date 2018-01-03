@@ -14,12 +14,12 @@ jool-objs += initialization.o
 #jool-objs += ../common/nl-protocol.o
 
 jool-objs += common/address.o
-jool-objs += common/atomic-config.o
+#jool-objs += common/atomic-config.o
 jool-objs += common/config.o
 jool-objs += common/core.o
 #jool-objs += common/error-pool.o
 jool-objs += common/handling-hairpinning.o
-#jool-objs += common/icmp-wrapper.o
+jool-objs += common/icmp-wrapper.o
 jool-objs += common/ipv6-hdr-iterator.o
 jool-objs += common/module-stats.o
 jool-objs += common/module-types.o
@@ -62,7 +62,7 @@ jool-objs += nat64/compute-outgoing-tuple.o
 jool-objs += nat64/determine-incoming-tuple.o
 jool-objs += nat64/filtering-and-updating.o
 jool-objs += nat64/joold2.o
-#jool-objs += nat64/timer.o
+jool-objs += nat64/timer.o
 
 jool-objs += nat64/bib/db.o
 jool-objs += nat64/bib/entry.o
