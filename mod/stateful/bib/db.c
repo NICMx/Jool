@@ -9,7 +9,6 @@
 #include "nat64/mod/common/rbtree.h"
 #include "nat64/mod/common/route.h"
 #include "nat64/mod/common/wkmalloc.h"
-#include "nat64/mod/common/xlator.h"
 #include "nat64/mod/stateful/bib/pkt_queue.h"
 
 /*
@@ -341,19 +340,6 @@ void bib_destroy(void)
 	kmem_cache_destroy(session_cache);
 }
 
-void bib_timers_destroy(void)
-{
-	struct xlator jool;
-	int error;
-	error = xlator_find_current(&jool);
-	if (!error) {
-		destroy_session_timer(&jool.nat64.bib->udp.sess_timer.timer);
-		destroy_session_timer(&jool.nat64.bib->tcp.sess_timer.timer);
-		destroy_session_timer(&jool.nat64.bib->icmp.sess_timer.timer);
-		xlator_put(&jool);
-	}
-}
-
 static enum session_fate just_die(struct session_entry *session, void *arg)
 {
 	return FATE_RM;
@@ -416,6 +402,10 @@ static void release_bib(struct kref *refs)
 	rbtree_clear(&db->icmp.tree4, release_bib_entry, NULL);
 
 	pktqueue_destroy(db->tcp.pkt_queue);
+
+	destroy_session_timer(&db->udp.sess_timer.timer);
+	destroy_session_timer(&db->tcp.sess_timer.timer);
+	destroy_session_timer(&db->icmp.sess_timer.timer);
 
 	wkfree(struct bib, db);
 }

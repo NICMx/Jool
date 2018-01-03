@@ -57,7 +57,6 @@ enum session_fate {
 
 int bib_init(void);
 void bib_destroy(void);
-void bib_timers_destroy(void);
 
 struct bib *bib_create(struct net *ns);
 void bib_get(struct bib *db);
