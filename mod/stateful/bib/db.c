@@ -105,18 +105,12 @@ struct expire_timer {
 	fate_cb decide_fate_cb;
 };
 
-struct curr_inst {
-	struct bib *db;
-	struct net *ns;
-};
-
 struct session_timer {
 	struct timer_list timer;
-	struct curr_inst instance_ref;
+	struct net *ns;
 	unsigned long run_period_jiff;
 	bool pend_rm;
 	u64 max_session_rm;
-	l4_protocol proto;
 };
 
 struct bib_table {
@@ -1998,19 +1992,9 @@ static void clean_table(struct bib_table *table, struct net *ns)
 	pktqueue_clean(&icmps);
 }
 
-/**
- * Forgets or downgrades (from EST to TRANS) old sessions.
- */
-static void bib_clean(struct bib *db,
-		l4_protocol proto,
-		struct net *ns)
+static void update_timer(struct bib_table *table)
 {
-	struct bib_table *table = get_table(db, proto);
-	clean_table(table, ns);
-}
-
-static void update_timer(struct session_timer *sess_timer)
-{
+	struct session_timer *sess_timer = &table->sess_timer;
 	if (sess_timer->pend_rm) {
 		sess_timer->run_period_jiff = msecs_to_jiffies(
 				jiffies_to_msecs(sess_timer->run_period_jiff) >> 1);
@@ -2020,39 +2004,32 @@ static void update_timer(struct session_timer *sess_timer)
 		sess_timer->max_session_rm = RM_SESSION_MAX_INIT;
 	}
 	sess_timer->pend_rm = false;
-	sess_timer->timer.data = (unsigned long)(sess_timer);
+	sess_timer->timer.data = (unsigned long)(table);
 }
 
 static void timer_function(unsigned long arg)
 {
-	struct session_timer *sess_timer = (struct session_timer *)arg;
-	bib_clean(sess_timer->instance_ref.db, sess_timer->proto,
-				sess_timer->instance_ref.ns);
-	update_timer(sess_timer);
-	mod_timer(&sess_timer->timer, jiffies + sess_timer->run_period_jiff);
+	struct bib_table *table = (struct bib_table *)arg;
+	clean_table(table, table->sess_timer.ns);
+	update_timer(table);
+	mod_timer(&table->sess_timer.timer,
+			jiffies + table->sess_timer.run_period_jiff);
 }
 
-static void init_session_timer(struct bib *db,
-		struct net *ns,
-		struct bib_table *table,
-		l4_protocol proto)
+static void init_session_timer(struct net *ns, struct bib_table *table)
 {
 	struct session_timer *sess_timer = &table->sess_timer;
 	struct timer_list *timer = &sess_timer->timer;
-	struct curr_inst inst_data;
-	inst_data.db = db;
-	inst_data.ns = ns;
 
 	init_timer(timer);
 	timer->function = timer_function;
 	timer->expires = 0;
-	timer->data = (unsigned long)(sess_timer);
+	timer->data = (unsigned long)(table);
 
 	sess_timer->pend_rm = false;
 	sess_timer->max_session_rm = RM_SESSION_MAX_INIT;
 	sess_timer->run_period_jiff = RM_SESSION_TIMER_INIT;
-	sess_timer->proto = proto;
-	sess_timer->instance_ref = inst_data;
+	sess_timer->ns = ns;
 	mod_timer(timer, jiffies + RM_SESSION_TIMER_INIT);
 }
 
@@ -2106,9 +2083,9 @@ struct bib *bib_create(struct net *ns)
 	 */
 	db->icmp.drop_by_addr = false;
 
-	init_session_timer(db, ns, &db->udp, L4PROTO_UDP);
-	init_session_timer(db, ns, &db->tcp, L4PROTO_TCP);
-	init_session_timer(db, ns, &db->icmp, L4PROTO_ICMP);
+	init_session_timer(ns, &db->udp);
+	init_session_timer(ns, &db->tcp);
+	init_session_timer(ns, &db->icmp);
 
 	kref_init(&db->refs);
 
