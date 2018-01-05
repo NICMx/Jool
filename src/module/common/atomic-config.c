@@ -1,6 +1,5 @@
 #include "atomic-config.h"
 
-#include "nl/nl-global.h"
 #include "wkmalloc.h"
 #include "siit/eam.h"
 #include "nat64/joold.h"

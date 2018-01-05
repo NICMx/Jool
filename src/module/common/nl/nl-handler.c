@@ -13,12 +13,9 @@
 #include "nl/nl-global.h"
 #include "nl/nl-instance.h"
 #include "nl/nl-joold.h"
-#include "nl/nl-logtime.h"
 #include "nl/nl-common.h"
 #include "nl/nl-core.h"
-#include "nl/nl-pool.h"
 #include "nl/nl-pool4.h"
-#include "nl/nl-pool6.h"
 #include "nl/nl-session.h"
 
 static struct genl_multicast_group mc_groups[1] = {

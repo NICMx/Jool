@@ -10,7 +10,7 @@
  * Specifically intended for the config module's convenience.
  */
 
-#include "linux/netlink.h"
+#include <linux/netlink.h>
 
 #define NLBUFFER_SIZE NLMSG_DEFAULT_SIZE
 

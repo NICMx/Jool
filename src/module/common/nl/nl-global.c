@@ -1,10 +1,10 @@
 #include "nl/nl-global.h"
 
 #include <linux/sort.h>
+
 #include "constants.h"
 #include "types.h"
 #include "config.h"
-#include "pool6.h"
 #include "nl/nl-common.h"
 #include "nl/nl-core.h"
 #include "nat64/joold.h"

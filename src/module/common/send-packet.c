@@ -1,7 +1,6 @@
 #include "send-packet.h"
 
-#include "icmp-wrapper.h"
-
+/* TODO move this. It no longer belongs to send-packet.
 static unsigned int get_nexthop_mtu(struct packet *pkt)
 {
 #ifndef UNIT_TESTING
@@ -24,10 +23,12 @@ static int whine_if_too_big(struct xlation *state)
 	len = pkt_len(out);
 	mtu = get_nexthop_mtu(out);
 	if (len > mtu) {
+*/
 		/*
 		 * We don't have to worry about ICMP errors causing this because
 		 * the translate code already truncates them.
 		 */
+/*
 		log_debug("Packet is too big (len: %u, mtu: %u).", len, mtu);
 
 		switch (pkt_l3_proto(out)) {
@@ -45,48 +46,26 @@ static int whine_if_too_big(struct xlation *state)
 
 	return 0;
 }
+*/
 
-static int add_eth_hdr(struct xlation *state)
+static void add_ethernet_header(struct packet *pkt)
 {
-	struct ethhdr *hdr;
-
-	hdr = (struct ethhdr *)skb_push(state->out.skb, ETH_HLEN);
+	struct ethhdr *hdr = (struct ethhdr *)skb_push(pkt->skb, ETH_HLEN);
 	memset(hdr->h_dest, 0x64, ETH_ALEN);
 	memset(hdr->h_source, 0x46, ETH_ALEN);
-	switch (pkt_l3_proto(&state->out)) {
-	case L3PROTO_IPV6:
-		hdr->h_proto = cpu_to_be16(ETH_P_IPV6);
-		return 0;
-	case L3PROTO_IPV4:
-		hdr->h_proto = cpu_to_be16(ETH_P_IP);
-		return 0;
-	}
-
-	log_debug("Unknown l3 proto: %d", pkt_l3_proto(&state->out));
-	return einval(state, JOOL_MIB_UNKNOWN_L3);
+	hdr->h_proto = pkt->skb->protocol;
 }
 
-/* TODO maybe missing a whole bunch of locking according to snull. */
-int sendpkt_send(struct xlation *state)
+/**
+ * BTW: You @pkt->skb->protocol needs to be set.
+ */
+int sendpkt_send(struct packet *pkt)
 {
-	int error;
-
+	/* TODO maybe missing a whole bunch of locking according to snull. */
 	log_debug("Sending skb.");
 
-	error = whine_if_too_big(state);
-	if (error)
-		goto fail;
-
-	error = add_eth_hdr(state);
-	if (error)
-		goto fail;
-
-	netif_rx(state->out.skb);
-	state->out.skb = NULL;
+	add_ethernet_header(pkt);
+	netif_rx(pkt->skb);
+	pkt->skb = NULL;
 	return 0;
-
-fail:
-	kfree_skb(state->out.skb);
-	state->out.skb = NULL;
-	return error;
 }
