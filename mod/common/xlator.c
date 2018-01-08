@@ -217,7 +217,7 @@ static int init_nat64(struct xlator *jool)
 	error = pool4db_init(&jool->nat64.pool4);
 	if (error)
 		goto pool4_fail;
-	jool->nat64.bib = bib_create();
+	jool->nat64.bib = bib_create(jool->ns);
 	if (!jool->nat64.bib) {
 		error = -ENOMEM;
 		goto bib_fail;

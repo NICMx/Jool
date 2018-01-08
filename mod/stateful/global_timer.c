@@ -1,4 +1,4 @@
-#include "nat64/mod/stateful/timer.h"
+#include "nat64/mod/stateful/global_timer.h"
 
 #include "nat64/mod/common/xlator.h"
 #include "nat64/mod/stateful/fragment_db.h"
@@ -12,7 +12,6 @@ static struct timer_list timer;
 static int clean_state(struct xlator *jool, void *args)
 {
 	fragdb_clean(jool->nat64.frag);
-	bib_clean(jool->nat64.bib, jool->ns);
 	joold_clean(jool->nat64.joold, jool->nat64.bib);
 	return 0;
 }
@@ -26,7 +25,7 @@ static void timer_function(unsigned long arg)
 /**
  * This function should be always called *after* other init()s.
  */
-int timer_init(void)
+int global_timer_init(void)
 {
 	init_timer(&timer);
 	timer.function = timer_function;
@@ -39,7 +38,7 @@ int timer_init(void)
 /**
  * This function should be always called *before* other destroy()s.
  */
-void timer_destroy(void)
+void global_timer_destroy(void)
 {
 	del_timer_sync(&timer);
 }

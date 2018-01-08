@@ -160,7 +160,7 @@ bool pool4db_contains(struct pool4 *pool, struct net *ns,
 	return false;
 }
 
-struct bib *bib_create(void)
+struct bib *bib_create(struct net *ns)
 {
 	fail(__func__);
 	return NULL;

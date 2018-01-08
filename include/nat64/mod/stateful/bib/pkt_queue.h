@@ -146,7 +146,8 @@ void pktqueue_put_node(struct pktqueue_session *node);
  * outside.
  */
 unsigned int pktqueue_prepare_clean(struct pktqueue *queue,
-		struct list_head *probes);
+		struct list_head *probes, u64 *max_session_rm, u64 *sessions_rm,
+		bool *pending_rm);
 /**
  * Sends the ICMP errors contained in the @probe list.
  */

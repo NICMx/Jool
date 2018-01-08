@@ -65,7 +65,8 @@ void pktqueue_put_node(struct pktqueue_session *node)
 }
 
 unsigned int pktqueue_prepare_clean(struct pktqueue *queue,
-		struct list_head *probes)
+		struct list_head *probes, u64 *max_session_rm, u64 *sessions_rm,
+		bool *pending_rm)
 {
 	return broken_unit_call(__func__);
 }
