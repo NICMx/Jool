@@ -387,6 +387,10 @@ static void release_bib(struct kref *refs)
 	struct bib *db;
 	db = container_of(refs, struct bib, refs);
 
+	destroy_session_timer(&db->udp.sess_timer.timer);
+	destroy_session_timer(&db->tcp.sess_timer.timer);
+	destroy_session_timer(&db->icmp.sess_timer.timer);
+
 	/*
 	 * The trees share the entries, so only one tree of each protocol
 	 * needs to be emptied.
@@ -396,10 +400,6 @@ static void release_bib(struct kref *refs)
 	rbtree_clear(&db->icmp.tree4, release_bib_entry, NULL);
 
 	pktqueue_destroy(db->tcp.pkt_queue);
-
-	destroy_session_timer(&db->udp.sess_timer.timer);
-	destroy_session_timer(&db->tcp.sess_timer.timer);
-	destroy_session_timer(&db->icmp.sess_timer.timer);
 
 	wkfree(struct bib, db);
 }
