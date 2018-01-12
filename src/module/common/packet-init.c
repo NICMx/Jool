@@ -62,8 +62,8 @@ static void *offset_to_ptr(struct sk_buff *skb, unsigned int offset)
  * eventually call pskb_expand_head(), and that panics if the packet is shared.
  * Therefore, I think this validation (with messy WARN included) is fair.
  *
- * TODO this no longer applies and drivers can receive shared packets.
- * Copy the headers to a temporal buffer I guess.
+ * TODO (140-important) this no longer applies and drivers can receive shared
+ * packets. Copy the headers to a temporal buffer I guess.
  */
 static int fail_if_shared(struct sk_buff *skb)
 {

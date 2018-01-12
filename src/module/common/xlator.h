@@ -25,9 +25,6 @@ struct xlator {
 	struct joold_queue *joold;
 };
 
-int xlator_init(void);
-void xlator_destroy(void);
-
 int xlator_add(struct xlator *jool);
 int xlator_replace(struct xlator *instance);
 

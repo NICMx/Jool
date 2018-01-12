@@ -51,13 +51,26 @@ static int whine_if_too_big(struct xlation *state)
 static void add_ethernet_header(struct packet *pkt)
 {
 	struct ethhdr *hdr = (struct ethhdr *)skb_push(pkt->skb, ETH_HLEN);
+
+	skb_reset_mac_header(pkt->skb);
 	memset(hdr->h_dest, 0x64, ETH_ALEN);
 	memset(hdr->h_source, 0x46, ETH_ALEN);
 	hdr->h_proto = pkt->skb->protocol;
+
+	/*
+	 * Ughhhhhhhhhhhhhhhhhhh.
+	 * The incoming packet is supposed to contain an Ethernet header,
+	 * but the outgoing packet is not.
+	 * Why the fuck. It took me so freaking long to figure this out.
+	 *
+	 * We still generate a dummy ethernet header above for the sake of
+	 * tcpdump and Wireshark.
+	 */
+	skb_pull(pkt->skb, ETH_HLEN);
 }
 
 /**
- * BTW: You @pkt->skb->protocol needs to be set.
+ * BTW: @pkt->skb->protocol needs to be set.
  */
 int sendpkt_send(struct packet *pkt)
 {

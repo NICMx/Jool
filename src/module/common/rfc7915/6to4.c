@@ -48,7 +48,7 @@ int ttp64_create_skb(struct xlation *state)
 			total_len = 576;
 	}
 
-	skb = alloc_skb(LL_MAX_HEADER + total_len, GFP_ATOMIC);
+	skb = netdev_alloc_skb(in->skb->dev, LL_MAX_HEADER + total_len);
 	if (!skb)
 		return enomem(state);
 

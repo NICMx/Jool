@@ -230,6 +230,7 @@ static struct pool4_table *create_table(struct pool4_range *range)
 struct pool4 *pool4db_init(void)
 {
 	struct pool4 *result;
+	struct pool4_entry_usr entry;
 
 	result = wkmalloc(struct pool4, GFP_KERNEL);
 	if (!result)
@@ -243,6 +244,20 @@ struct pool4 *pool4db_init(void)
 	result->tree_addr.icmp = RB_ROOT;
 	spin_lock_init(&result->lock);
 	kref_init(&result->refcounter);
+
+	/* TODO testing values. Remove. */
+	entry.range.prefix.addr.s_addr = cpu_to_be32(0xc0000201);
+	entry.range.prefix.len = 32;
+	entry.range.ports.min = 1001;
+	entry.range.ports.max = 2000;
+	entry.proto = L4PROTO_ICMP;
+	entry.flags = ITERATIONS_AUTO;
+	entry.iterations = 0;
+	entry.mark = 0;
+	if (pool4db_add(result, &entry)) {
+		wkfree(struct pool4, result);
+		return NULL;
+	}
 
 	return result;
 }
@@ -1056,29 +1071,37 @@ void pool4db_print(struct pool4 *pool)
 	print_tree(&pool->tree_addr.icmp, false);
 }
 
-struct mask_domain *mask_domain_find(struct xlation *state)
+int mask_domain_find(struct xlation *state, struct mask_domain **result)
 {
 	struct pool4 *pool = state->jool.pool4;
 	struct pool4_table *table;
 	struct pool4_range *entry;
 	struct mask_domain *masks;
 	unsigned int offset;
+	int error;
 
-	if (rfc6056_f(state, &offset))
-		return NULL;
+	error = rfc6056_f(state, &offset);
+	if (error)
+		return error;
 
 	spin_lock_bh(&pool->lock);
 
 	table = find_by_mark(get_tree(&pool->tree_mark, state->in.tuple.l4_proto),
 			state->in.skb->mark);
-	if (!table)
+	if (!table) {
+		log_debug("There are no pool4 entries mapped to mark %u.",
+				state->in.skb->mark);
+		error = esrch(state, JOOL_MIB_UNKNOWN_MARK);
 		goto fail;
+	}
 
 	masks = __wkmalloc("mask_domain", sizeof(struct mask_domain)
 			+ table->sample_count * sizeof(struct pool4_range),
 			GFP_ATOMIC);
-	if (!masks)
+	if (!masks) {
+		error = enomem(state);
 		goto fail;
+	}
 
 	memcpy(masks + 1, table + 1,
 			table->sample_count * sizeof(struct pool4_range));
@@ -1097,18 +1120,19 @@ struct mask_domain *mask_domain_find(struct xlation *state)
 		if (offset <= port_range_count(&entry->ports)) {
 			masks->current_range = entry;
 			masks->current_port = entry->ports.min + offset - 1;
-			return masks; /* Happy path */
+			*result = masks;
+			return 0; /* Happy path */
 		}
 		offset -= port_range_count(&entry->ports);
 	}
 
 	WARN(true, "Bug: pool4 entry counter does not match entry count.");
 	__wkfree("mask_domain", masks);
-	return NULL;
+	return eunknown6(state, -EINVAL);
 
 fail:
 	spin_unlock_bh(&pool->lock);
-	return NULL;
+	return error;
 }
 
 void mask_domain_put(struct mask_domain *masks)

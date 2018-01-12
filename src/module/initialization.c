@@ -13,7 +13,13 @@
 #include "log.h"
 #include "module-stats.h"
 #include "xlat.h"
+#include "xlation.h"
 #include "xlator.h"
+
+#include "nat64/joold.h"
+#include "nat64/timer.h"
+#include "nat64/bib/db.h"
+#include "nat64/pool4/rfc6056.h"
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("NIC-ITESM");
@@ -42,6 +48,7 @@ struct jool_netdev_priv {
  */
 static int jool_netdev_open(struct net_device *dev)
 {
+	memset(dev->dev_addr, 0x64, ETH_ALEN);
 	netif_start_queue(dev);
 	log_info("Opened packet queue.");
 	return 0;
@@ -68,6 +75,7 @@ static int jool_netdev_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	// Save the timestamp TODO what for?
 	dev->trans_start = jiffies;
 
+	log_debug("===============================================");
 	log_info("Received a packet from the kernel. Translating...");
 
 	if (!pskb_may_pull(skb, ETH_HLEN)) {
@@ -128,23 +136,18 @@ static const struct net_device_ops jool_netdev_ops = {
 static void jool_netdev_init(struct net_device *dev)
 {
 	struct jool_netdev_priv *priv;
-	unsigned int i;
 
 	ether_setup(dev);
 	dev->netdev_ops = &jool_netdev_ops;
 	dev->flags |= IFF_NOARP;
-	// dev->features |= NETIF_F_HW_CSUM;
-
-	for (i = 0; i < ETH_ALEN; i++)
-		dev->dev_addr[i] = 0x64;
+	dev->features |= NETIF_F_HW_CSUM;
 
 	priv = netdev_priv(dev);
-	memset(&priv->jool, 0, sizeof(priv->jool));
-	memset(&priv->stats, 0, sizeof(priv->stats));
+	memset(priv, 0, sizeof(*priv));
 	spin_lock_init(&priv->lock);
 }
 
-static int jool_netdev_init_module(void)
+static int init_netdev(void)
 {
 	struct jool_netdev_priv *priv;
 	int error;
@@ -165,14 +168,53 @@ static int jool_netdev_init_module(void)
 
 	error = register_netdev(jool_dev);
 	if (error) {
-		log_info("register_netdev(%s) error: %i", jool_dev->name,
-				error);
+		log_info("register_netdev(%s) error: %i", jool_dev->name, error);
 		free_netdev(jool_dev);
 		return error;
 	}
 
+	return 0;
+}
+
+static int jool_netdev_init_module(void)
+{
+	int error;
+
+//	error = nlhandler_init();
+//	if (error)
+//		return error;
+
+	error = rfc6056_init();
+	if (error)
+		goto rfc6056_fail;
+	error = bib_init();
+	if (error)
+		goto bib_fail;
+	error = joold_init();
+	if (error)
+		goto joold_fail;
+	// TODO this should happen last. Or not happen at all really.
+	error = timer_init();
+	if (error)
+		goto timer_fail;
+
+	error = init_netdev();
+	if (error)
+		goto netdev_fail;
+
 	log_info("%s v" JOOL_VERSION_STR " module inserted.", xlat_get_name());
 	return 0;
+
+netdev_fail:
+	timer_destroy();
+timer_fail:
+	joold_terminate();
+joold_fail:
+	bib_destroy();
+bib_fail:
+	rfc6056_destroy();
+rfc6056_fail:
+	return error;
 }
 
 static void jool_netdev_cleanup_module(void)
@@ -182,6 +224,11 @@ static void jool_netdev_cleanup_module(void)
 	unregister_netdev(jool_dev);
 	xlator_put(&priv->jool);
 	free_netdev(jool_dev);
+
+	timer_destroy();
+	joold_terminate();
+	bib_destroy();
+	rfc6056_destroy();
 
 	log_info("%s v" JOOL_VERSION_STR " module removed.", xlat_get_name());
 }

@@ -277,9 +277,16 @@ enum iteration_flags {
 	 * (Irrelevant = "Ignore this; keep the old value.")
 	 */
 	ITERATIONS_SET = (1 << 0),
-	/** Should Jool compute the iterations field automatically? */
+	/**
+	 * Should Jool compute the iterations field automatically?
+	 * TODO since flag 0 should be the default, this should probably be
+	 * MANUAL, not AUTO.
+	 */
 	ITERATIONS_AUTO = (1 << 1),
-	/** Remove iteration cap? */
+	/**
+	 * Remove iteration cap?
+	 * TODO same here.
+	 */
 	ITERATIONS_INFINITE = (1 << 2),
 };
 

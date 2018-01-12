@@ -17,6 +17,7 @@ struct global_config *config_init(void)
 
 	config->xlator_type = DEFAULT_XLATOR_TYPE;
 	config->status = 0; /* This is never read, but whatever. */
+	memset(&config->pool6, 0, sizeof(config->pool6));
 	config->reset_traffic_class = DEFAULT_RESET_TRAFFIC_CLASS;
 	config->reset_tos = DEFAULT_RESET_TOS;
 	config->new_tos = DEFAULT_NEW_TOS;
@@ -35,6 +36,13 @@ struct global_config *config_init(void)
 	config->src_icmp6errs_better = DEFAULT_SRC_ICMP6ERRS_BETTER;
 	config->f_args = DEFAULT_F_ARGS;
 	config->handle_rst_during_fin_rcv = DEFAULT_HANDLE_FIN_RCV_RST;
+
+	/* TODO testing defaults. Remove. */
+	config->xlator_type = XLATOR_NAT64;
+	config->pool6.addr.s6_addr[1] = 0x64;
+	config->pool6.addr.s6_addr[2] = 0xff;
+	config->pool6.addr.s6_addr[3] = 0x9b;
+	config->pool6.len = 96;
 
 	return result;
 }

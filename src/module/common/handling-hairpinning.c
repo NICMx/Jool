@@ -51,7 +51,7 @@ static int handling_hairpinning_nat64(struct xlation *old)
 	error = translating_the_packet(&new);
 	if (error)
 		goto end;
-	error = sendpkt_send(&new);
+	error = sendpkt_send(&new.out);
 	if (error)
 		goto end;
 
@@ -82,7 +82,7 @@ static int handling_hairpinning_siit(struct xlation *old)
 	error = translating_the_packet(&new);
 	if (error)
 		goto end;
-	error = sendpkt_send(&new);
+	error = sendpkt_send(&new.out);
 	if (error)
 		goto end;
 

@@ -56,7 +56,7 @@ int ttp46_create_skb(struct xlation *state)
 			total_len = IPV6_MIN_MTU;
 	}
 
-	skb = alloc_skb(reserve + total_len, GFP_ATOMIC);
+	skb = netdev_alloc_skb(in->skb->dev, reserve + total_len);
 	if (!skb)
 		return enomem(state);
 
@@ -286,19 +286,18 @@ int ttp46_ipv6(struct xlation *state)
 	/* Translate the address first because of issue #167. */
 	switch (XLATOR_TYPE(state)) {
 	case XLATOR_SIIT:
-		error = xlat_saddr6_nat64(state);
-		if (error)
-			return error;
-		hdr6->daddr = out->tuple.dst.addr6.l3;
+		error = xlat_addrs46_siit(state);
 		break;
 	case XLATOR_NAT64:
-		error = xlat_addrs46_siit(state);
-		if (error)
-			return error;
+		hdr6->daddr = out->tuple.dst.addr6.l3;
+		error = xlat_saddr6_nat64(state);
 		break;
 	default:
 		return einval(state, JOOL_MIB_UNKNOWN_XLATOR);
 	}
+
+	if (error)
+		return error;
 
 	hdr6->version = 6;
 	if (state->GLOBAL.reset_traffic_class) {

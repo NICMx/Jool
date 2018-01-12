@@ -116,9 +116,9 @@ static int ipv6_simple(struct xlation *state)
 	error = xlat_dst_6to4(state, &dst4);
 	if (error)
 		return error;
-	masks = mask_domain_find(state);
-	if (!masks)
-		return -ESRCH;
+	error = mask_domain_find(state, &masks);
+	if (error)
+		return error;
 
 	error = bib_add6(state, masks, &dst4);
 
@@ -416,9 +416,9 @@ static int ipv6_tcp(struct xlation *state)
 	error = xlat_dst_6to4(state, &dst4);
 	if (error)
 		return error;
-	masks = mask_domain_find(state);
-	if (!masks)
-		return -ESRCH;
+	error = mask_domain_find(state, &masks);
+	if (error)
+		return error;
 
 	cb.cb = tcp_state_machine;
 	cb.arg = state;
@@ -509,8 +509,12 @@ int filtering_and_updating(struct xlation *state)
 	 */
 	switch (pkt_l3_proto(in)) {
 	case L3PROTO_IPV6:
-		/* Get rid of hairpinning loops and unwanted packets. */
 		pool6 = &state->GLOBAL.pool6;
+		if (pool6->len == 0) {
+			log_debug("pool6 hasn't been configured.");
+			return esrch(state, JOOL_MIB_POOL6_NULL);
+		}
+		/* Get rid of hairpinning loops and unwanted packets. */
 		hdr6 = pkt_ip6_hdr(in);
 		if (prefix6_contains(pool6, &hdr6->saddr)) {
 			log_debug("Hairpinning loop. Dropping packet...");

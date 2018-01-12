@@ -1,16 +1,17 @@
 #include "core.h"
 
 #include "config.h"
-#include "handling-hairpinning.h"
 #include "module-stats.h"
-#include "packet-init.h"
-#include "xlator.h"
-#include "rfc7915/core.h"
-#include "nat64/compute-outgoing-tuple.h"
-#include "nat64/determine-incoming-tuple.h"
-#include "nat64/filtering-and-updating.h"
 #include "send-packet.h"
 #include "xlation.h"
+#include "xlator.h"
+
+#include "packet-init.h"
+#include "nat64/determine-incoming-tuple.h"
+#include "nat64/filtering-and-updating.h"
+#include "nat64/compute-outgoing-tuple.h"
+#include "rfc7915/core.h"
+#include "handling-hairpinning.h"
 
 static void core_common(struct xlation *state)
 {
@@ -30,7 +31,7 @@ static void core_common(struct xlation *state)
 	/* Both hh() and ss() release @state->out.skb regardless of error. */
 	error = is_hairpin(state)
 			? handling_hairpinning(state)
-			: sendpkt_send(state);
+			: sendpkt_send(&state->out);
 	if (error)
 		return;
 
@@ -56,7 +57,6 @@ static void check_skb_leak(struct xlation *state, jstat_type type)
 
 void core_4to6(struct xlation *state, struct sk_buff *skb)
 {
-	log_debug("===============================================");
 	log_debug("Got IPv4 packet: %pI4->%pI4",
 			&ip_hdr(skb)->saddr,
 			&ip_hdr(skb)->daddr);
@@ -80,7 +80,6 @@ void core_6to4(struct xlation *state, struct sk_buff *skb)
 {
 	snapshot_record(&state->in.debug.shot1, skb);
 
-	log_debug("===============================================");
 	log_debug("Got IPv6 packet: %pI6c->%pI6c",
 			&ipv6_hdr(skb)->saddr,
 			&ipv6_hdr(skb)->daddr);

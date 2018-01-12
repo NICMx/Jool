@@ -4,6 +4,7 @@
 void xlation_init(struct xlation *state, struct xlator *jool)
 {
 	xlator_get(jool);
+	/* TODO doesn't this need locking? */
 	memcpy(&state->jool, jool, sizeof(*jool));
 
 	memset(&state->in.debug, 0, sizeof(state->in.debug));
