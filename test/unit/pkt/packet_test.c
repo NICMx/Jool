@@ -6,7 +6,7 @@
 #include "nat64/unit/types.h"
 #include "nat64/unit/skb_generator.h"
 
-MODULE_LICENSE("GPL");
+MODULE_LICENSE(JOOL_LICENSE);
 MODULE_AUTHOR("Alberto Leiva");
 MODULE_DESCRIPTION("Packet test");
 

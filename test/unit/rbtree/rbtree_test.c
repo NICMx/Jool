@@ -10,7 +10,7 @@
 #include "nat64/mod/common/rbtree.h"
 
 
-MODULE_LICENSE("GPL");
+MODULE_LICENSE(JOOL_LICENSE);
 MODULE_AUTHOR("Alberto Leiva");
 MODULE_DESCRIPTION("RB Tree module test");
 

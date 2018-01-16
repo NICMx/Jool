@@ -7,7 +7,7 @@
 Summary:	%{module_name} %{version} dkms package
 Name:		%{module_name}
 Version:	%{version}
-License:	GPLv3+
+License:	GPLv2
 Release:	1dkms
 BuildArch:	noarch
 Group:		System/Kernel

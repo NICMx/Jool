@@ -1,11 +1,6 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 
-MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Roberto Aceves");
-MODULE_AUTHOR("Alberto Leiva");
-MODULE_DESCRIPTION("Unit tests for the Filtering module");
-
 #include "nat64/common/constants.h"
 #include "nat64/common/str_utils.h"
 #include "nat64/unit/types.h"
@@ -13,6 +8,11 @@ MODULE_DESCRIPTION("Unit tests for the Filtering module");
 #include "nat64/unit/skb_generator.h"
 #include "nat64/mod/stateful/pool4/rfc6056.h"
 #include "stateful/filtering_and_updating.c"
+
+MODULE_LICENSE(JOOL_LICENSE);
+MODULE_AUTHOR("Roberto Aceves");
+MODULE_AUTHOR("Alberto Leiva");
+MODULE_DESCRIPTION("Unit tests for the Filtering module");
 
 static struct xlator jool;
 

@@ -2,15 +2,15 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 
-MODULE_LICENSE("GPL");
-MODULE_AUTHOR("dhernandez");
-MODULE_AUTHOR("aleiva");
-MODULE_DESCRIPTION("Unit tests for the EAMT module");
-
 #include "nat64/common/str_utils.h"
 #include "nat64/unit/types.h"
 #include "nat64/unit/unit_test.h"
 #include "stateless/eam.c"
+
+MODULE_LICENSE(JOOL_LICENSE);
+MODULE_AUTHOR("dhernandez");
+MODULE_AUTHOR("aleiva");
+MODULE_DESCRIPTION("Unit tests for the EAMT module");
 
 static struct eam_table *eamt;
 

@@ -7,7 +7,7 @@
 #include "nat64/common/str_utils.h"
 #include "common/rfc6052.c"
 
-MODULE_LICENSE("GPL");
+MODULE_LICENSE(JOOL_LICENSE);
 MODULE_AUTHOR("Ramiro Nava");
 MODULE_DESCRIPTION("RFC 6052 module test.");
 

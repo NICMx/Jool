@@ -14,7 +14,7 @@
  * usable APIs and reference counts at the moment.
  */
 
-MODULE_LICENSE("GPL");
+MODULE_LICENSE(JOOL_LICENSE);
 MODULE_AUTHOR("Alberto Leiva");
 MODULE_DESCRIPTION("Xlator test.");
 

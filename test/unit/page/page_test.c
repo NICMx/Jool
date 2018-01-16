@@ -9,7 +9,7 @@
 #include "nat64/mod/common/pool6.h"
 #include "nat64/mod/common/xlator.h"
 
-MODULE_LICENSE("GPL");
+MODULE_LICENSE(JOOL_LICENSE);
 MODULE_AUTHOR("Alberto Leiva");
 MODULE_DESCRIPTION("Pages test");
 

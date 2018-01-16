@@ -2,7 +2,7 @@
 
 #include "nat64/unit/unit_test.h"
 
-MODULE_LICENSE("GPL");
+MODULE_LICENSE(JOOL_LICENSE);
 MODULE_AUTHOR("Alberto Leiva Popper");
 MODULE_DESCRIPTION("Types test.");
 

@@ -10,7 +10,7 @@
 #include "expecter.h"
 #include "nl_handler.h"
 
-MODULE_LICENSE("GPL");
+MODULE_LICENSE(JOOL_LICENSE);
 MODULE_AUTHOR("NIC-ITESM");
 MODULE_DESCRIPTION("Graybox test gimmic for Jool.");
 

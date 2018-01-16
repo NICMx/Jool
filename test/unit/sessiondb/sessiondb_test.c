@@ -6,7 +6,7 @@
 #include "nat64/common/str_utils.h"
 #include "nat64/mod/stateful/bib/db.h"
 
-MODULE_LICENSE("GPL");
+MODULE_LICENSE(JOOL_LICENSE);
 MODULE_AUTHOR("Alberto Leiva Popper");
 MODULE_DESCRIPTION("Session DB module test.");
 

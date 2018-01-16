@@ -3,7 +3,7 @@
 #include "nat64/common/str_utils.h"
 #include "nat64/mod/stateful/bib/db.h"
 
-MODULE_LICENSE("GPL");
+MODULE_LICENSE(JOOL_LICENSE);
 MODULE_AUTHOR("Alberto Leiva");
 MODULE_DESCRIPTION("BIB table module test.");
 

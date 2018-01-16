@@ -13,7 +13,7 @@
 #include "stateful/fragment_db.c"
 
 
-MODULE_LICENSE("GPL");
+MODULE_LICENSE(JOOL_LICENSE);
 MODULE_AUTHOR("Roberto Aceves");
 MODULE_AUTHOR("Alberto Leiva");
 MODULE_DESCRIPTION("Fragment database test");

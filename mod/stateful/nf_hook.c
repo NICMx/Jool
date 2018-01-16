@@ -19,7 +19,7 @@
 #include "nat64/mod/stateful/pool4/rfc6056.h"
 #include "nat64/mod/stateful/bib/db.h"
 
-MODULE_LICENSE("GPL");
+MODULE_LICENSE(JOOL_LICENSE);
 MODULE_AUTHOR("NIC-ITESM");
 MODULE_DESCRIPTION("Stateful NAT64 (RFC 6146)");
 MODULE_VERSION(JOOL_VERSION_STR);

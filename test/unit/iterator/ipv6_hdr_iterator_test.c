@@ -4,7 +4,7 @@
 #include "nat64/unit/unit_test.h"
 #include "common/ipv6_hdr_iterator.c"
 
-MODULE_LICENSE("GPL");
+MODULE_LICENSE(JOOL_LICENSE);
 MODULE_AUTHOR("Alberto Leiva Popper");
 MODULE_DESCRIPTION("Header iterator test.");
 

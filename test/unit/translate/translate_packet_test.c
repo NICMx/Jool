@@ -9,7 +9,7 @@
 #include "common/rfc6145/6to4.c"
 #include "common/rfc6145/4to6.c"
 
-MODULE_LICENSE("GPL");
+MODULE_LICENSE(JOOL_LICENSE);
 MODULE_AUTHOR("Alberto Leiva Popper");
 MODULE_DESCRIPTION("Translating the Packet module test.");
 

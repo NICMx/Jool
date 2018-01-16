@@ -4,14 +4,14 @@
 #include <linux/printk.h> /* pr_* */
 #include <linux/time.h>
 
-MODULE_LICENSE("GPL");
-MODULE_AUTHOR("dhernandez");
-MODULE_DESCRIPTION("Unit tests for the log_time_module");
-
 #include "nat64/common/str_utils.h"
 #include "nat64/unit/types.h"
 #include "nat64/unit/unit_test.h"
 #include "common/log_time.c"
+
+MODULE_LICENSE(JOOL_LICENSE);
+MODULE_AUTHOR("dhernandez");
+MODULE_DESCRIPTION("Unit tests for the log_time_module");
 
 static bool init(void)
 {

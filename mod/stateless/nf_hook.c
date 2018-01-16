@@ -14,7 +14,7 @@
 #include "nat64/mod/common/nl/nl_handler.h"
 #include "nat64/mod/stateless/pool.h"
 
-MODULE_LICENSE("GPL");
+MODULE_LICENSE(JOOL_LICENSE);
 MODULE_AUTHOR("NIC-ITESM");
 MODULE_DESCRIPTION("Stateless IP/ICMP Translation (RFC 6145)");
 MODULE_VERSION(JOOL_VERSION_STR);

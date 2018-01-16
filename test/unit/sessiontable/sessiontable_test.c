@@ -3,7 +3,7 @@
 #include "nat64/common/constants.h"
 #include "nat64/mod/stateful/bib/db.h"
 
-MODULE_LICENSE("GPL");
+MODULE_LICENSE(JOOL_LICENSE);
 MODULE_AUTHOR("Alberto Leiva");
 MODULE_DESCRIPTION("Session table module test.");
 

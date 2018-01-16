@@ -6,6 +6,8 @@
 	#include <stdbool.h>
 #endif
 
+#define JOOL_LICENSE "GPL v2"
+
 /**
  * These defines are read in from dkms.conf. If you change their syntax or
  * relocate them, please make sure to also update dkms.conf accordingly.

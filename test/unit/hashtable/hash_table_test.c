@@ -235,6 +235,6 @@ void cleanup_module(void)
 	/* No code. */
 }
 
-MODULE_LICENSE("GPL");
+MODULE_LICENSE(JOOL_LICENSE);
 MODULE_AUTHOR("Alberto Leiva");
 MODULE_DESCRIPTION("Hash table module test.");

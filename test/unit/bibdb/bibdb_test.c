@@ -3,7 +3,7 @@
 #include "nat64/unit/unit_test.h"
 #include "nat64/unit/bib.h"
 
-MODULE_LICENSE("GPL");
+MODULE_LICENSE(JOOL_LICENSE);
 MODULE_AUTHOR("Alberto Leiva");
 MODULE_DESCRIPTION("BIB DB module test.");
 
