@@ -22,7 +22,7 @@ Jool is an Open Source implementation of [IPv4/IPv6 Translation](intro-xlat.html
 
 ## Compliance
 
-As far as we know, this is the compliance status of Jool 3.4:
+As far as we know, this is the compliance status of Jool 3.5:
 
 | RFC/draft | Reminder name | Status |
 |-----------|---------|--------|
@@ -43,7 +43,7 @@ Please [let us know]({{ site.repository-url }}/issues) if you find additional co
 
 ## Compatibility
 
-Jool supports Linux kernels 3.2.0 and above. While most of the development time has been spent experimenting on Ubuntu 14.04 using current kernels, we've performed a healthy amount of formal testing ([unit](https://github.com/NICMx/Jool/tree/master/test/unit) and [graybox](https://github.com/NICMx/Jool/tree/master/test/graybox)) on Jool 3.5.0 in the following variants:
+Jool supports Linux kernels 3.2.0 and above. While most of the development time has been spent experimenting on Ubuntu 16.04 using current kernels, we've performed a healthy amount of formal testing ([unit](https://github.com/NICMx/Jool/tree/master/test/unit) and [graybox](https://github.com/NICMx/Jool/tree/master/test/graybox)) on Jool 3.5.0 in the following variants:
 
 - 3.2.0-23-generic-pae
 - 3.10.96-031096-generic

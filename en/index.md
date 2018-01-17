@@ -27,11 +27,25 @@ As far as we know, Jool is a [compliant](intro-jool.html#compliance) SIIT and St
 
 New bug reports might interpolate other milestones in-between. Feedback from users can persuade us to change priorities. See [Contact](contact.html) for options on this.
 
-Our latest release is version [3.5.5]({{ site.repository-url }}/milestone/40).
+Our latest release is version [3.5.6]({{ site.repository-url }}/milestone/41).
 
 -------------------
 
 ## News
+
+## 2018-01-16
+
+Version 3.5.6 has been released!
+
+The main update is a change of license. Originally released under the GPLv3+, Jool 3.5.6 and onwards will now operate under the General Public License version 2. This change was prompted due to GPLv3's incompatibilities with the Linux kernel's own license.
+
+Because of this issue, though the remaining patches might be of little interest to you, you are strongly encouraged to update to the newer version. There will be no further official development nor support for older versions.
+
+Other changes include:
+
+- [#255](https://github.com/NICMx/Jool/issues/255): Improved parsing of configuration from JSON files.
+- [#256](https://github.com/NICMx/Jool/issues/256): Added support for kernels 4.13 and 4.14.
+- Fit the `--pool4 --display` table in 80-column terminals for ease of view.
 
 ## 2017-11-23
 
