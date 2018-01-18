@@ -47,8 +47,10 @@ jool_common += ../common/nl/nl_common.o
 jool_common += ../common/nl/pool4.o
 jool_common += ../common/nl/pool6.o
 jool_common += ../common/nl/session.o
+jool_common += ../common/nl/customer.o
 
 jool += pool4/empty.o
+jool += pool4/customer.o
 jool += pool4/db.o
 jool += pool4/rfc6056.o
 

@@ -27,6 +27,15 @@ static const struct argp_option pool4_opt = {
 		.group = 0,
 };
 
+static const struct argp_option customer_opt = {
+		.name = OPTNAME_CUSTOMER,
+		.key = ARGP_CUSTOMER,
+		.arg = NULL,
+		.flags = 0,
+		.doc = "The command will operate on the customer table.",
+		.group = 0,
+};
+
 static const struct argp_option bib_opt = {
 		.name = OPTNAME_BIB,
 		.key = ARGP_BIB,
@@ -637,6 +646,7 @@ static const struct argp_option *opts_nat64[] = {
 	&targets_hdr_opt,
 	&pool6_opt,
 	&pool4_opt,
+	&customer_opt,
 	&bib_opt,
 	&session_opt,
 	&joold_opt,

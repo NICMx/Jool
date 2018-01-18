@@ -24,6 +24,7 @@
 #include "nat64/usr/pool.h"
 #include "nat64/usr/pool6.h"
 #include "nat64/usr/pool4.h"
+#include "nat64/usr/customer.h"
 #include "nat64/usr/bib.h"
 #include "nat64/usr/session.h"
 #include "nat64/usr/eam.h"
@@ -53,6 +54,13 @@ struct arguments {
 
 		struct ipv4_prefix prefix4;
 		bool prefix4_set;
+
+		struct {
+			__u8 groups6_size_len;
+			__u8 ports_division_len;
+			struct port_range ports;
+			bool ports_set;
+		} customer;
 
 		struct {
 			__u32 mark;
@@ -248,9 +256,31 @@ static int set_global_u16_array(struct arguments *args, __u16 type, char *value)
 	return error;
 }
 
+static int set_ipv4_customer_prefix(struct arguments *args, char *str)
+{
+	int error;
+	error = update_state(args, MODE_CUSTOMER, OP_ADD);
+	if (error)
+		return error;
+
+	if (args->db.prefix4_set) {
+		log_err("Only one IPv4 prefix can be added at a time.");
+		return -EINVAL;
+	}
+
+	args->db.prefix4_set = true;
+	return str_to_customer_prefix4(str, &args->db.prefix4,
+			&args->db.customer.ports_division_len);
+}
+
 static int set_ipv4_prefix(struct arguments *args, char *str)
 {
 	int error;
+	char *slash_pos;
+	slash_pos = strchr(str, '/');
+	if (slash_pos && strchr(slash_pos + 1, '/')) {
+		return set_ipv4_customer_prefix(args, str);
+	}
 
 	error = update_state(args, MODE_POOL4 | MODE_BLACKLIST | MODE_RFC6791
 			| MODE_EAMT, OP_ADD | OP_REMOVE);
@@ -266,9 +296,31 @@ static int set_ipv4_prefix(struct arguments *args, char *str)
 	return str_to_prefix4(str, &args->db.prefix4);
 }
 
+static int set_ipv6_customer_prefix(struct arguments *args, char *str)
+{
+	int error;
+	error = update_state(args, MODE_CUSTOMER , OP_ADD);
+	if (error)
+		return error;
+
+	if (args->db.prefix6_set) {
+		log_err("Only one IPv6 prefix can be added at a time.");
+		return -EINVAL;
+	}
+
+	args->db.prefix6_set = true;
+	return str_to_customer_prefix6(str, &args->db.prefix6,
+			&args->db.customer.groups6_size_len);
+}
+
 static int set_ipv6_prefix(struct arguments *args, char *str)
 {
 	int error;
+	char *slash_pos;
+	slash_pos = strchr(str, '/');
+	if (slash_pos && strchr(slash_pos + 1, '/')) {
+		return set_ipv6_customer_prefix(args, str);
+	}
 
 	error = update_state(args, MODE_POOL6 | MODE_EAMT, OP_ADD | OP_UPDATE
 			| OP_REMOVE);
@@ -339,11 +391,18 @@ static int set_port_range(struct arguments *args, char *str)
 		return -EINVAL;
 	}
 
-	error = update_state(args, MODE_POOL4, OP_ADD | OP_REMOVE);
+	error = update_state(args, MODE_POOL4 | MODE_CUSTOMER, OP_ADD | OP_REMOVE);
 	if (error)
 		return error;
 
-	return str_to_port_range(str, &args->db.pool4.ports);
+	error = str_to_port_range(str, &args->db.pool4.ports);
+	if (error)
+		return error;
+
+	args->db.customer.ports = args->db.pool4.ports;
+	args->db.customer.ports_set = true;
+
+	return error;
 }
 
 static int set_ip_args(struct arguments *args, char *str)
@@ -394,6 +453,9 @@ static int parse_opt(int key, char *str, struct argp_state *state)
 		break;
 	case ARGP_POOL4:
 		error = update_state(args, MODE_POOL4, POOL4_OPS);
+		break;
+	case ARGP_CUSTOMER:
+		error = update_state(args, MODE_CUSTOMER, CUSTOMER_OPS);
 		break;
 	case ARGP_BLACKLIST:
 		error = update_state(args, MODE_BLACKLIST, BLACKLIST_OPS);
@@ -814,6 +876,54 @@ static int handle_pool4(struct arguments *args)
 	}
 }
 
+static int __customer_add(struct arguments *args)
+{
+	struct customer_entry_usr entry;
+
+	if (!args->db.prefix6_set) {
+		log_err("The address/prefix6 argument is mandatory.");
+		return -EINVAL;
+	}
+
+	if (!args->db.prefix4_set) {
+		log_err("The address/prefix4 argument is mandatory.");
+		return -EINVAL;
+	}
+
+	if (!args->db.customer.ports_set) {
+		log_err("Port range argument is mandatory.");
+	}
+
+	entry.prefix6 = args->db.prefix6;
+	entry.prefix4 = args->db.prefix4;
+	entry.groups6_size_len = args->db.customer.groups6_size_len;
+	entry.ports_division_len = args->db.customer.ports_division_len;
+	entry.ports = args->db.customer.ports;
+
+	return customer_add(&entry);
+}
+
+static int handle_customer(struct arguments *args)
+{
+	if (xlat_is_siit()) {
+		log_err("SIIT doesn't have customer pool.");
+		return -EINVAL;
+	}
+
+	switch (args->op) {
+	case OP_DISPLAY:
+		return customer_display(args->flags);
+	case OP_ADD:
+		return __customer_add(args);
+	case OP_REMOVE:
+		return customer_rm(args->db.quick);
+	case OP_FLUSH:
+		return customer_flush(args->db.quick);
+	default:
+		return unknown_op("Customer", args->op);
+	}
+}
+
 static int handle_bib(struct arguments *args)
 {
 	struct ipv6_transport_addr *addr6;
@@ -1020,6 +1130,8 @@ static int main_wrapped(struct arguments *args)
 		return handle_joold(args);
 	case MODE_INSTANCE:
 		return handle_instance(args);
+	case MODE_CUSTOMER:
+		return handle_customer(args);
 	}
 
 	log_err("Unknown configuration mode: %u", args->mode);

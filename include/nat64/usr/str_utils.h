@@ -60,6 +60,9 @@ int str_to_addr6_port(const char *str, struct ipv6_transport_addr *out);
 int str_to_prefix6(const char *str, struct ipv6_prefix *out);
 int str_to_prefix4(const char *str, struct ipv4_prefix *out);
 
+int str_to_customer_prefix6(const char *str, struct ipv6_prefix *prefix_out, __u8 *group_size_len);
+int str_to_customer_prefix4(const char *str, struct ipv4_prefix *prefix_out, __u8 *port_len);
+
 /**
  * Prints the @millis amount of milliseconds as spreadsheet-friendly format in
  * the console.

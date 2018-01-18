@@ -20,6 +20,7 @@
 #include "nat64/mod/common/nl/pool4.h"
 #include "nat64/mod/common/nl/pool6.h"
 #include "nat64/mod/common/nl/session.h"
+#include "nat64/mod/common/nl/customer.h"
 
 static struct genl_multicast_group mc_groups[1] = {
 	{
@@ -118,6 +119,8 @@ static int multiplex_request(struct xlator *jool, struct genl_info *info)
 		return handle_joold_request(jool, info);
 	case MODE_INSTANCE:
 		return handle_instance_request(info);
+	case MODE_CUSTOMER:
+		return handle_customer_config(jool, info);
 	}
 
 	log_err("Unknown configuration mode: %d", be16_to_cpu(hdr->mode));

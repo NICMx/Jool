@@ -66,6 +66,8 @@ char *configmode_to_string(enum config_mode mode)
 		return OPTNAME_POOL6;
 	case MODE_POOL4:
 		return OPTNAME_POOL4;
+	case MODE_CUSTOMER:
+		return OPTNAME_CUSTOMER;
 	case MODE_BLACKLIST:
 		return OPTNAME_BLACKLIST;
 	case MODE_RFC6791:
@@ -478,6 +480,94 @@ int str_to_prefix6(const char *str, struct ipv6_prefix *prefix_out)
 		return 0;
 	}
 	return str_to_u8(token, &prefix_out->len, 0, 128); /* Error msg already printed. */
+}
+
+#undef STR_MAX_LEN
+#define STR_MAX_LEN (INET_ADDRSTRLEN + 1 + 2 + 1 + 2) /* [addr + null chara] + / + mask */
+int str_to_customer_prefix4(const char *str, struct ipv4_prefix *prefix_out, __u8 *port_len)
+{
+	const char *FORMAT = "<IPv4 address>/<mask>/<port_len_mask> (eg. 192.0.2.0/24/30)";
+	/* strtok corrupts the string, so we'll be using this copy instead. */
+	char str_copy[STR_MAX_LEN];
+	char *token;
+	int error;
+
+	if (strlen(str) + 1 > STR_MAX_LEN) {
+		log_err("'%s' is too long for this poor, limited parser...", str);
+		return -EINVAL;
+	}
+	strcpy(str_copy, str);
+
+	token = strtok(str_copy, "/");
+	if (!token) {
+		log_err("Cannot parse '%s' as a %s.", str, FORMAT);
+		return -EINVAL;
+	}
+
+	error = str_to_addr4(token, &prefix_out->address);
+	if (error)
+		return error;
+
+	token = strtok(NULL, "/");
+	if (!token) {
+		log_err("Cannot parse '%s' as a %s.", str, FORMAT);
+		return -EINVAL;
+	}
+	error = str_to_u8(token, &prefix_out->len, 0, 32); /* Error msg already printed. */
+	if (error)
+		return error;
+
+	token = strtok(NULL, "/");
+	if (!token) {
+		log_err("Cannot parse '%s' as a %s.", str, FORMAT);
+		return -EINVAL;
+	}
+	return str_to_u8(token, port_len, 0, 32); /* Error msg already printed. */
+}
+
+#undef STR_MAX_LEN
+#define STR_MAX_LEN (INET6_ADDRSTRLEN + 1 + 3 + 1 + 3) /* [addr + null chara] + / + pref len + / + group size len*/
+int str_to_customer_prefix6(const char *str, struct ipv6_prefix *prefix_out, __u8 *group_size_len)
+{
+	const char *FORMAT = "<IPv6 address>/<length>/<length> (eg. 64:ff9b::/96/97)";
+	/* strtok corrupts the string, so we'll be using this copy instead. */
+	char str_copy[STR_MAX_LEN];
+	char *token;
+	int error;
+
+	if (strlen(str) + 1 > STR_MAX_LEN) {
+		log_err("'%s' is too long for this poor, limited parser...", str);
+		return -EINVAL;
+	}
+	strcpy(str_copy, str);
+
+	token = strtok(str_copy, "/");
+	if (!token) {
+		log_err("Cannot parse '%s' as a %s.", str, FORMAT);
+		return -EINVAL;
+	}
+
+	error = str_to_addr6(token, &prefix_out->address);
+	if (error)
+		return error;
+
+	token = strtok(NULL, "/");
+	if (!token) {
+		log_err("Cannot parse '%s' as a %s.", str, FORMAT);
+		return -EINVAL;
+	}
+
+	error = str_to_u8(token, &prefix_out->len, 0, 128); /* Error msg already printed. */
+	if (error)
+		return error;
+
+	token = strtok(NULL, "/");
+	if (!token) {
+		log_err("Cannot parse '%s' as a %s.", str, FORMAT);
+		return -EINVAL;
+	}
+
+	return str_to_u8(token, group_size_len, 0, 128); /* Error msg already printed. */
 }
 
 static void print_num_csv(__u64 num, char *separator)

@@ -63,6 +63,8 @@ enum config_mode {
 	MODE_JOOLD = (1 << 10),
 
 	MODE_INSTANCE = (1 << 11),
+	/** The current message is talking about customer pool. */
+	MODE_CUSTOMER = (1 << 12),
 };
 
 char *configmode_to_string(enum config_mode mode);
@@ -86,6 +88,7 @@ char *configmode_to_string(enum config_mode mode);
 #define JOOLD_OPS (OP_ADVERTISE | OP_TEST)
 #define LOGTIME_OPS (OP_DISPLAY)
 #define INSTANCE_OPS (OP_ADD | OP_REMOVE)
+#define CUSTOMER_OPS (OP_DISPLAY | OP_ADD | OP_REMOVE | OP_FLUSH )
 /**
  * @}
  */
@@ -131,7 +134,8 @@ enum parse_section {
 	SEC_EAMT = 32,
 	SEC_BLACKLIST = 64,
 	SEC_POOL6791 = 128,
-	SEC_INIT = 256
+	SEC_INIT = 256,
+	SEC_CUSTOMER = 512
 };
 
 /**
@@ -139,7 +143,8 @@ enum parse_section {
  * Allowed modes for the operation mentioned in the name.
  * eg. DISPLAY_MODES = Allowed modes for display operations.
  */
-#define POOL_MODES (MODE_POOL6 | MODE_POOL4 | MODE_BLACKLIST | MODE_RFC6791)
+#define POOL_MODES (MODE_POOL6 | MODE_POOL4 | MODE_BLACKLIST | MODE_RFC6791 \
+		| MODE_CUSTOMER)
 #define TABLE_MODES (MODE_EAMT | MODE_BIB | MODE_SESSION)
 #define ANY_MODE 0xFFFF
 
@@ -154,7 +159,7 @@ enum parse_section {
 		| MODE_EAMT | MODE_LOGTIME | MODE_PARSE_FILE | MODE_INSTANCE)
 #define NAT64_MODES (MODE_GLOBAL | MODE_POOL6 | MODE_POOL4 | MODE_BIB \
 		| MODE_SESSION | MODE_LOGTIME | MODE_PARSE_FILE \
-		| MODE_INSTANCE | MODE_JOOLD)
+		| MODE_INSTANCE | MODE_JOOLD | MODE_CUSTOMER)
 /**
  * @}
  */
@@ -319,6 +324,39 @@ union request_eamt {
 		/* Nothing needed here ATM. */
 	} flush;
 };
+
+struct customer_entry_usr {
+	struct ipv6_prefix prefix6;
+	__u8 groups6_size_len;
+	struct ipv4_prefix prefix4;
+	__u8 ports_division_len;
+	struct port_range ports;
+};
+
+/**
+ * Configuration for the "customer" module.
+ */
+union request_customer {
+	struct {
+		/* Nothing needed here. */
+	} display;
+	struct customer_entry_usr add;
+	struct {
+		/**
+		 * Whether the BIB and the sessions tables should also be
+		 * cleared (false) or not (true).
+		 */
+		config_bool quick;
+	} rm;
+	struct {
+		/**
+		 * Whether the BIB and the sessions tables should also be
+		 * cleared (false) or not (true).
+		 */
+		config_bool quick;
+	} flush;
+};
+
 
 /**
  * Configuration for the "Log time" module.

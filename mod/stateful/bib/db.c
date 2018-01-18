@@ -1089,7 +1089,8 @@ static void commit_add6(struct bib_table *table,
 		struct bib_session_tuple *new,
 		struct slot_group *slots,
 		struct expire_timer *expirer,
-		struct bib_session *result)
+		struct bib_session *result,
+		bool is_customer)
 {
 	new->session->bib = old->bib ? : new->bib;
 	commit_session_add(table, &slots->session);
@@ -1100,7 +1101,8 @@ static void commit_add6(struct bib_table *table,
 
 	if (!old->bib) {
 		commit_bib_add(table, slots);
-		log_new_bib(table, new->bib);
+		if (!is_customer)
+			log_new_bib(table, new->bib);
 		new->bib = NULL; /* Do not free! */
 	}
 }
@@ -1284,6 +1286,7 @@ static int find_available_mask(struct bib_table *table,
 	bool consecutive;
 	int error;
 
+	bib->src4.l3.s_addr = 0U;
 	/*
 	 * We're going to assume the masks are generally consecutive.
 	 * I think it's a fair assumption until someone requests otherwise as a
@@ -1412,7 +1415,8 @@ static int upgrade_pktqueue_session(struct bib_table *table,
 
 	pktqueue_put_node(sos);
 
-	log_new_bib(table, bib);
+	if (!mask_domain_is_customer(masks))
+		log_new_bib(table, bib);
 	log_new_session(table, session);
 	return 0;
 
@@ -1527,6 +1531,12 @@ static int find_bib_session6(struct bib_table *table,
 		if (error) {
 			if (WARN(error != -ENOENT, "Unknown error: %d", error))
 				return error;
+
+			if (mask_domain_is_customer(masks)) {
+				log_warn_once("I'm running out of pool4 addresses for customer.");
+				return error;
+			}
+
 			/*
 			 * TODO the rate limit might be a bit of a problem.
 			 * If both mark 0 and mark 1 are running out of
@@ -1621,7 +1631,8 @@ int bib_add6(struct bib *db,
 	}
 
 	/* New connection; add the session. (And maybe the BIB entry as well) */
-	commit_add6(table, &old, &new, &slots, &table->est_timer, result);
+	commit_add6(table, &old, &new, &slots, &table->est_timer, result,
+			mask_domain_is_customer(masks));
 	/* Fall through */
 
 end:
@@ -1759,7 +1770,8 @@ verdict bib_add_tcp6(struct bib *db,
 
 	/* All exits up till now require @new.* to be deleted. */
 
-	commit_add6(table, &old, &new, &slots, &table->trans_timer, result);
+	commit_add6(table, &old, &new, &slots, &table->trans_timer, result,
+			mask_domain_is_customer(masks));
 	verdict = VERDICT_CONTINUE;
 	/* Fall through */
 

@@ -30,6 +30,7 @@ enum argp_flags {
 	ARGP_GLOBAL = 'g',
 	ARGP_PARSE_FILE = 'p',
 	ARGP_INSTANCE = 7001,
+	ARGP_CUSTOMER = 7003,
 
 	/* Operations */
 	ARGP_DISPLAY = 'd',

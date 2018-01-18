@@ -8,6 +8,7 @@
 #define OPTNAME_GLOBAL			"global"
 #define OPTNAME_POOL6			"pool6"
 #define OPTNAME_POOL4			"pool4"
+#define OPTNAME_CUSTOMER		"customer"
 #define OPTNAME_BLACKLIST		"blacklist"
 #define OPTNAME_RFC6791			"pool6791"
 #define OPTNAME_EAMT			"eamt"

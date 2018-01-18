@@ -9,6 +9,7 @@
 #include "nat64/mod/common/wkmalloc.h"
 #include "nat64/mod/stateful/pool4/empty.h"
 #include "nat64/mod/stateful/pool4/rfc6056.h"
+#include "nat64/mod/stateful/pool4/customer.h"
 
 /*
  * pool4 (struct pool4) is made out of two tree groups (struct pool4_trees).
@@ -91,17 +92,17 @@ struct pool4 {
 	/** Entries indexed via address. (Normally used in 4->6) */
 	struct pool4_trees tree_addr;
 
+	struct customer_table *customer;
+
 	spinlock_t lock;
 	struct kref refcounter;
 };
 
-struct mask_domain {
+struct mask_args {
 	__u32 pool_mark;
 
 	unsigned int taddr_count;
 	unsigned int taddr_counter;
-	/* ITERATIONS_INFINITE is represented by this being zero. */
-	unsigned int max_iterations;
 
 	unsigned int range_count;
 	struct pool4_range *current_range;
@@ -125,6 +126,51 @@ struct mask_domain {
 	 */
 };
 
+struct customer_args {
+	/** Pool4. */
+	struct ipv4_prefix prefix4;
+	struct port_range ports;
+
+	/**
+	 * The sum of all the ports of each IPv4 in this customer.
+	 */
+	__u32 total_table_taddr;
+	/**
+	 * Current port within the sum of all available ports.
+	 */
+	__u32 current_taddr;
+
+	__u32 taddr_counter;
+	/**
+	 * Number of ports available for this mask_domain.
+	 */
+	__u32 taddr_count;
+
+	__u16 block_port_range_counter;
+	/**
+	 * Number of ports of the current port range.
+	 */
+	__u16 block_port_range_count;
+
+	/**
+	 * Ports hop size if the current port range has reached its limit.
+	 */
+	__u32 port_hop;
+
+	/**
+	 * IPv6 group number that requested this mask domain.
+	 */
+	__u16 group;
+
+	/**
+	 * Port range size "ports" in CIDR format.
+	 *
+	 * mainly used as the port_range_count(ports) but
+	 * for bitwise operations (1 << port_mask).
+	 */
+	unsigned short port_mask;
+};
+
 /**
  * Assumes @domain has at least one entry.
  */
@@ -132,6 +178,31 @@ struct mask_domain {
 	for (entry = first_domain_entry(domain); \
 			entry < first_domain_entry(domain) + domain->range_count; \
 			entry++)
+
+struct mask_domain {
+	/* ITERATIONS_INFINITE is represented by this being zero. */
+	unsigned int max_iterations;
+
+	/**
+	 * true if this mask is a copy of a customer table, otherwise this mask
+	 * represents a copy of pool4 table.
+	 */
+	bool is_customer;
+
+	/*
+	 * An array of struct mask_args or customer_args hangs off here.
+	 */
+};
+
+static struct customer_args *get_customer_args(struct mask_domain *mask)
+{
+	return (struct customer_args *)(mask + 1);
+}
+
+static struct mask_args *get_mask_args(struct mask_domain *mask)
+{
+	return (struct mask_args *)(mask + 1);
+}
 
 static struct rb_root *get_tree(struct pool4_trees *trees, l4_protocol proto)
 {
@@ -206,7 +277,7 @@ static struct pool4_range *last_table_entry(struct pool4_table *table)
 	return first_table_entry(table) + table->sample_count - 1;
 }
 
-static struct pool4_range *first_domain_entry(struct mask_domain *domain)
+static struct pool4_range *first_domain_entry(struct mask_args *domain)
 {
 	return (struct pool4_range *)(domain + 1);
 }
@@ -251,6 +322,7 @@ int pool4db_init(struct pool4 **pool)
 	spin_lock_init(&result->lock);
 	kref_init(&result->refcounter);
 
+	result->customer = NULL;
 	*pool = result;
 	return 0;
 }
@@ -287,6 +359,10 @@ static void release(struct kref *refcounter)
 	struct pool4 *pool;
 	pool = container_of(refcounter, struct pool4, refcounter);
 	clear_trees(pool);
+	if (pool->customer){
+		customer_table_put(pool->customer);
+		pool->customer = NULL;
+	}
 	wkfree(struct pool4, pool);
 }
 
@@ -504,6 +580,12 @@ static int add_to_addr_tree(struct pool4 *pool,
 	return 0;
 }
 
+static bool port_range_intersects(const struct port_range *r1,
+		const struct port_range *r2)
+{
+	return r1->max >= (r2->min) && r1->min <= (r2->max);
+}
+
 int pool4db_add(struct pool4 *pool, const struct pool4_entry_usr *entry)
 {
 	struct pool4_range addend = { .ports = entry->range.ports };
@@ -522,6 +604,21 @@ int pool4db_add(struct pool4 *pool, const struct pool4_entry_usr *entry)
 	if (entry->proto == L4PROTO_TCP || entry->proto == L4PROTO_UDP)
 		if (addend.ports.min == 0)
 			addend.ports.min = 1;
+
+	spin_lock_bh(&pool->lock);
+	if (pool->customer
+			&& prefix4_intersects(&entry->range.prefix, &pool->customer->prefix4)
+			&& port_range_intersects(&addend.ports, &pool->customer->ports)) {
+		log_err("Pool4 '%pI4 %u-%u' intersects with Customer: '%pI4/%u %u-%u'",
+				&entry->range.prefix.address, addend.ports.min, addend.ports.max,
+				&pool->customer->prefix4.address, pool->customer->prefix4.len,
+				pool->customer->ports.min, pool->customer->ports.max);
+		error = -EEXIST;
+	}
+
+	spin_unlock_bh(&pool->lock);
+	if (error)
+		return error;
 
 	/* log_debug("Adding range:%pI4/%u %u-%u",
 			&range->prefix.address, range->prefix.len,
@@ -843,10 +940,19 @@ static struct pool4_range *find_port_range(struct pool4_table *entry, __u16 port
 bool pool4db_contains(struct pool4 *pool, struct net *ns, l4_protocol proto,
 		struct ipv4_transport_addr *addr)
 {
+	struct customer_table *customer;
 	struct pool4_table *table;
 	bool found = false;
 
 	spin_lock_bh(&pool->lock);
+
+	customer = pool->customer;
+	if (customer)
+		found = prefix4_contains(&customer->prefix4, &addr->l3)
+				&& port_range_contains(&customer->ports, addr->l4);
+
+	if (found)
+		goto end;
 
 	if (is_empty(pool)) {
 		spin_unlock_bh(&pool->lock);
@@ -857,6 +963,7 @@ bool pool4db_contains(struct pool4 *pool, struct net *ns, l4_protocol proto,
 	if (table)
 		found = find_port_range(table, addr->l4) != NULL;
 
+end:
 	spin_unlock_bh(&pool->lock);
 	return found;
 }
@@ -1073,28 +1180,142 @@ static struct mask_domain *find_empty(struct route4_args *args,
 		unsigned int offset)
 {
 	struct mask_domain *masks;
+	struct mask_args *margs;
 	struct pool4_range *range;
 
 	masks = __wkmalloc("mask_domain",
-			sizeof(struct mask_domain) * sizeof(struct pool4_range),
-			GFP_ATOMIC);
+			sizeof(struct mask_domain) + sizeof(struct mask_args)
+			+ sizeof(struct pool4_range), GFP_ATOMIC);
 	if (!masks)
 		return NULL;
 
-	range = (struct pool4_range *)(masks + 1);
+	margs = get_mask_args(masks);
+
+	range = (struct pool4_range *)(margs + 1);
 	if (pool4empty_find(args, range)) {
 		__wkfree("mask_domain", masks);
 		return NULL;
 	}
 
-	masks->pool_mark = 0;
-	masks->taddr_count = port_range_count(&range->ports);
-	masks->taddr_counter = 0;
 	masks->max_iterations = 0;
-	masks->range_count = 1;
-	masks->current_range = range;
-	masks->current_port = range->ports.min + offset % masks->taddr_count;
-	masks->dynamic = true;
+	masks->is_customer = false;
+
+	margs->pool_mark = 0;
+	margs->taddr_count = port_range_count(&range->ports);
+	margs->taddr_counter = 0;
+	margs->range_count = 1;
+	margs->current_range = range;
+	margs->current_port = range->ports.min + offset % margs->taddr_count;
+	margs->dynamic = true;
+	return masks;
+}
+
+
+
+
+static unsigned int compute_max_iterations_for_customer(struct customer_args *customer)
+{
+	unsigned int result;
+
+	/*
+	 * The following heuristics are based on a few tests I ran. Keep in mind
+	 * that none of them are imposed on the user; they only define the
+	 * default value.
+	 *
+	 * The tests were as follows:
+	 *
+	 * For every one of the following pool4 sizes (in transport addresses),
+	 * I exhausted the corresponding pool4 16 times and kept track of how
+	 * many iterations I needed to allocate a connection in every step.
+	 *
+	 * The sizes were 512, 1024, 2048, 4096, 8192, 16384, 32768, 65536,
+	 * 131072, 196608, 262144, 327680, 393216, 458752, 524288, 1048576 and
+	 * 2097152.
+	 *
+	 * I did not test larger pool4s because I feel like more than 32 full
+	 * addresses is rather pushing it and would all the likely require
+	 * manual intervention anyway.
+	 */
+
+	/*
+	 * Right shift 7 is the same as division by 128. Why 128?
+	 * Because I want roughly 1% of the total size, and also don't want any
+	 * floating point arithmetic.
+	 * Integer division by 100 would be acceptable, but this is faster.
+	 * (Recall that we have a spinlock held.)
+	 */
+	result = customer->taddr_count >> 7;
+
+	/*
+	 * If the limit is too big, the NAT64 will iterate too much.
+	 * If the limit is too small, the NAT64 will start losing connections
+	 * early.
+	 *
+	 * So first of all, prevent the algorithm from iterating too little.
+	 *
+	 * (The values don't have to be powers or multiples of anything; I just
+	 * really like base 8.)
+	 *
+	 * A result lower than 1024 will be yielded when pool4 is 128k ports
+	 * large or smaller, so the following paragraph (and conditional) only
+	 * applies to this range:
+	 *
+	 * In all of the tests I ran, a max iterations of 1024 would have been a
+	 * reasonable limit that would have completely prevented the NAT64 from
+	 * dropping *any* connections, at least until pool4 was about 91%
+	 * exhausted. (Connections can be technically dropped regardless, but
+	 * it's very unlikely.) Also, on average, most connections would have
+	 * kept succeeding until pool4 reached 98% utilization.
+	 */
+	if (result < 1024)
+		return 1024;
+	/*
+	 * And finally: Prevent the algorithm from iterating too much.
+	 *
+	 * 8k will begin dropping connections at 95% utilization and most
+	 * connections will remain on the success side until 99% exhaustion.
+	 */
+	if (result > 8192)
+		return 8192;
+	return result;
+
+
+}
+
+static struct mask_domain *create_customer_mask(struct customer_table *customer,
+		unsigned int offset, struct in6_addr *src)
+{
+	struct mask_domain *masks;
+	struct customer_args *args;
+
+	masks = __wkmalloc("mask_domain", sizeof(struct mask_domain)
+				+ sizeof(struct customer_args), GFP_ATOMIC);
+	if (!masks)
+		return NULL;
+
+	args = (struct customer_args *)(masks + 1);
+
+	args->prefix4 = customer->prefix4;
+	args->ports = customer->ports;
+
+	args->total_table_taddr = customer_table_get_total_ports_size(customer);
+	args->group = customer_table_get_group_by_addr(customer, src);
+	args->taddr_counter = 0U;
+	args->taddr_count = customer_table_get_group_ports_size(customer);
+
+	args->block_port_range_counter = 0U;
+	args->block_port_range_count = customer_table_get_port_range_hop(customer);
+
+	args->port_hop = customer_table_get_group_ports_hop(customer);
+
+	args->port_mask = customer->ports_size_len;
+	args->current_taddr = customer_get_group_first_port(customer, offset,
+			args->group, args->port_hop);
+
+
+	masks->max_iterations = compute_max_iterations_for_customer(args);
+	masks->is_customer = true;
+
 	return masks;
 }
 
@@ -1104,12 +1325,19 @@ struct mask_domain *mask_domain_find(struct pool4 *pool, struct tuple *tuple6,
 	struct pool4_table *table;
 	struct pool4_range *entry;
 	struct mask_domain *masks;
+	struct mask_args *margs;
 	unsigned int offset;
 
 	if (rfc6056_f(tuple6, f_args, &offset))
 		return NULL;
 
 	spin_lock_bh(&pool->lock);
+
+	if (pool->customer && customer_table_contains(pool->customer, &tuple6->src.addr6.l3)) {
+		masks = create_customer_mask(pool->customer, offset, &tuple6->src.addr6.l3);
+		spin_unlock_bh(&pool->lock);
+		return masks;
+	}
 
 	if (is_empty(pool)) {
 		spin_unlock_bh(&pool->lock);
@@ -1122,28 +1350,32 @@ struct mask_domain *mask_domain_find(struct pool4 *pool, struct tuple *tuple6,
 		goto fail;
 
 	masks = __wkmalloc("mask_domain", sizeof(struct mask_domain)
+			+ sizeof(struct mask_args)
 			+ table->sample_count * sizeof(struct pool4_range),
 			GFP_ATOMIC);
 	if (!masks)
 		goto fail;
 
-	memcpy(masks + 1, table + 1,
+	margs = get_mask_args(masks);
+
+	memcpy(margs + 1, table + 1,
 			table->sample_count * sizeof(struct pool4_range));
-	masks->taddr_count = table->taddr_count;
 	masks->max_iterations = compute_max_iterations(table);
-	masks->range_count = table->sample_count;
+	margs->taddr_count = table->taddr_count;
+	margs->range_count = table->sample_count;
 
 	spin_unlock_bh(&pool->lock);
 
-	masks->pool_mark = route_args->mark;
-	masks->taddr_counter = 0;
-	masks->dynamic = false;
-	offset %= masks->taddr_count;
+	margs->pool_mark = route_args->mark;
+	margs->taddr_counter = 0;
+	margs->dynamic = false;
+	masks->is_customer = false;
+	offset %= margs->taddr_count;
 
-	foreach_domain_range(entry, masks) {
+	foreach_domain_range(entry, margs) {
 		if (offset <= port_range_count(&entry->ports)) {
-			masks->current_range = entry;
-			masks->current_port = entry->ports.min + offset - 1;
+			margs->current_range = entry;
+			margs->current_port = entry->ports.min + offset - 1;
 			return masks; /* Happy path */
 		}
 		offset -= port_range_count(&entry->ports);
@@ -1163,39 +1395,102 @@ void mask_domain_put(struct mask_domain *masks)
 	__wkfree("mask_domain", masks);
 }
 
+static int customer_mask_next(struct mask_domain *masks,
+		struct ipv4_transport_addr *addr, bool *consecutive)
+{
+	struct customer_args *args = get_customer_args(masks);
+	__u32 ip_hop;
+	__u32 port;
+	__be32 old_addr;
+
+	args->taddr_counter++;
+	args->block_port_range_counter++;
+	if (args->taddr_counter > args->taddr_count)
+		return -ENOENT;
+	if (masks->max_iterations)
+		if (args->taddr_counter > masks->max_iterations)
+			return -ENOENT;
+
+	if (args->block_port_range_counter >= args->block_port_range_count) {
+		args->block_port_range_counter = 0U;
+		args->current_taddr += args->port_hop;
+		if (args->current_taddr >= args->total_table_taddr)
+			args->current_taddr = args->group * args->block_port_range_count;
+	}
+
+	ip_hop = (args->current_taddr + args->block_port_range_counter)
+			>> args->port_mask;
+	port = ((args->current_taddr + args->block_port_range_counter)
+			% ((__u32)1U << args->port_mask)) + args->ports.min;
+
+	old_addr = addr->l3.s_addr;
+	addr->l3 = args->prefix4.address;
+	addr->l4 = (__u16) port;
+
+	if (ip_hop)
+		be32_add_cpu(&addr->l3.s_addr, ip_hop);
+
+	*consecutive = addr->l3.s_addr == old_addr;
+
+	return 0;
+}
+
 int mask_domain_next(struct mask_domain *masks,
 		struct ipv4_transport_addr *addr,
 		bool *consecutive)
 {
-	masks->taddr_counter++;
-	if (masks->taddr_counter > masks->taddr_count)
+	struct mask_args *margs;
+
+	if (mask_domain_is_customer(masks))
+		return customer_mask_next(masks, addr, consecutive);
+
+	margs = get_mask_args(masks);
+
+	margs->taddr_counter++;
+	if (margs->taddr_counter > margs->taddr_count)
 		return -ENOENT;
 	if (masks->max_iterations)
-		if (masks->taddr_counter > masks->max_iterations)
+		if (margs->taddr_counter > masks->max_iterations)
 			return -ENOENT;
 
-	masks->current_port++;
-	if (masks->current_port > masks->current_range->ports.max) {
+	margs->current_port++;
+	if (margs->current_port > margs->current_range->ports.max) {
 		*consecutive = false;
-		masks->current_range++;
-		if (masks->current_range >= first_domain_entry(masks) + masks->range_count)
-			masks->current_range = first_domain_entry(masks);
-		masks->current_port = masks->current_range->ports.min;
+		margs->current_range++;
+		if (margs->current_range >= first_domain_entry(margs) + margs->range_count)
+			margs->current_range = first_domain_entry(margs);
+		margs->current_port = margs->current_range->ports.min;
 	} else {
-		*consecutive = (masks->taddr_counter != 1);
+		*consecutive = (margs->taddr_counter != 1);
 	}
 
-	addr->l3 = masks->current_range->addr;
-	addr->l4 = masks->current_port;
+	addr->l3 = margs->current_range->addr;
+	addr->l4 = margs->current_port;
 	return 0;
+}
+
+
+static bool customer_mask_matches(struct mask_domain *masks,
+		struct ipv4_transport_addr *addr)
+{
+	struct customer_args* customer = get_customer_args(masks);
+
+	return prefix4_contains(&customer->prefix4, &addr->l3)
+			&& port_range_contains(&customer->ports, addr->l4);
 }
 
 bool mask_domain_matches(struct mask_domain *masks,
 		struct ipv4_transport_addr *addr)
 {
+	struct mask_args *margs;
 	struct pool4_range *entry;
 
-	foreach_domain_range(entry, masks) {
+	if (mask_domain_is_customer(masks))
+		return customer_mask_matches(masks, addr);
+
+	margs = get_mask_args(masks);
+
+	foreach_domain_range(entry, margs) {
 		if (entry->addr.s_addr != addr->l3.s_addr)
 			continue;
 		if (port_range_contains(&entry->ports, addr->l4))
@@ -1205,12 +1500,222 @@ bool mask_domain_matches(struct mask_domain *masks,
 	return false;
 }
 
+bool mask_domain_is_customer(struct mask_domain *masks)
+{
+	return masks->is_customer;
+}
+
 bool mask_domain_is_dynamic(struct mask_domain *masks)
 {
-	return masks->dynamic;
+	return !mask_domain_is_customer(masks) && get_mask_args(masks)->dynamic;
 }
 
 __u32 mask_domain_get_mark(struct mask_domain *masks)
 {
-	return masks->pool_mark;
+	return get_mask_args(masks)->pool_mark;
+}
+
+int customerdb_foreach(struct pool4 *pool,
+		int (*cb)(struct customer_table *, void *), void *arg)
+{
+	struct customer_table table;
+	int error = 0;
+	bool is_table_set = false;
+
+	spin_lock_bh(&pool->lock);
+	if (pool->customer) {
+		table = *(pool->customer);
+		is_table_set = true;
+	}
+	spin_unlock_bh(&pool->lock);
+
+	if (is_table_set)
+		error = cb(&table, arg);
+
+	return error;
+}
+
+static int validate_customer_entry_usr(const struct customer_entry_usr *entry)
+{
+	int error;
+	__u32 port_count;
+	error = prefix4_validate(&entry->prefix4);
+	if (error)
+		return error;
+
+	error = prefix6_validate(&entry->prefix6);
+	if (error)
+		return error;
+
+	if (entry->groups6_size_len > 128) {
+		log_err("Second IPv6 prefix length %u is too high.", entry->groups6_size_len);
+		return -EINVAL;
+	}
+
+	if (entry->prefix6.len > entry->groups6_size_len) {
+		log_err("Second Prefix (/%u) of IPv6 Prefix can't be lower than first prefix (/%u)",
+				entry->groups6_size_len, entry->prefix6.len );
+		return -EINVAL;
+	}
+
+	if (entry->ports_division_len > 32) {
+		log_err("Second IPv4 prefix length %u is too high.", entry->ports_division_len);
+		return -EINVAL;
+	}
+
+	port_count = port_range_count(&entry->ports);
+	if (port_count > (1U << 15)) {
+		log_err("Port range size must be less or equals than %u ports",
+				(1U << 15));
+		return -EINVAL;
+	}
+
+	if (((__u64)(1 << (entry->groups6_size_len - entry->prefix6.len)))
+			>= (prefix4_get_addr_count(&entry->prefix4) * port_count)) {
+		log_err("There are not enough ports for each ipv6 group.");
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static bool pool4_range_intersects_customer(struct pool4_range *range,
+		const struct customer_table *customer)
+{
+	return prefix4_contains(&customer->prefix4, &range->addr)
+			&& port_range_intersects(&customer->ports, &range->ports);
+}
+
+static bool pooltable_and_customer_intersects(struct rb_root *tree,
+		const struct customer_table *customer)
+{
+	struct rb_node *node = rb_first(tree);
+	struct pool4_table *table;
+	struct pool4_range *entry;
+
+	if (!node) {
+		return false;
+	}
+
+	while (node) {
+		table = rb_entry(node, struct pool4_table, tree_hook);
+
+		foreach_table_range(entry, table) {
+
+			if (pool4_range_intersects_customer(entry, customer)) {
+				log_err("Pool4 '%pI4 %u-%u' intersects with Customer: '%pI4/%u %u-%u'",
+						&entry->addr, entry->ports.min, entry->ports.max,
+						&customer->prefix4.address, customer->prefix4.len,
+						customer->ports.min, customer->ports.max);
+				return true;
+			}
+
+		}
+
+		node = rb_next(node);
+	}
+
+	return false;
+}
+
+static int pool_and_customer_intersects(struct pool4 *pool,
+		struct customer_table *table)
+{
+	if (pooltable_and_customer_intersects(&pool->tree_addr.icmp, table))
+		return -EEXIST; // error msg already printed.
+
+	if (pooltable_and_customer_intersects(&pool->tree_addr.tcp, table))
+		return -EEXIST; // error msg already printed.
+
+	if (pooltable_and_customer_intersects(&pool->tree_addr.udp, table))
+		return -EEXIST; // error msg already printed.
+
+	return 0;
+}
+
+int customerdb_add(struct pool4 *pool, const struct customer_entry_usr *entry)
+{
+	struct customer_table *table;
+	int error = 0;
+
+	spin_lock_bh(&pool->lock);
+	if (pool->customer)
+		error = -EEXIST;
+	spin_unlock_bh(&pool->lock);
+
+	if (error) {
+		log_err("A customer table already exists, remove it before inserting a new one.");
+		return error;
+	}
+
+	validate_customer_entry_usr(entry);
+
+	table = __wkmalloc("customer_table", sizeof(struct customer_table)
+			, GFP_ATOMIC);
+	table->prefix6 = entry->prefix6;
+	table->groups6_size_len = entry->groups6_size_len;
+	table->prefix4 = entry->prefix4;
+	table->ports_division_len = entry->ports_division_len;
+	if (table->ports.min > table->ports.max)
+		swap(table->ports.min, table->ports.max);
+	if (table->ports.min == 0)
+		table->ports.min = 1U;
+
+	table->ports = entry->ports;
+	table->ports_size_len = customer_table_get_ports_mask(table);
+
+	if (((unsigned int)(1 << table->ports_size_len))
+			!= port_range_count(&table->ports)) {
+		log_err("Ports range size must be a result of two to the nth.");
+		customer_table_put(table);
+		return -EINVAL;
+	}
+
+	if (customer_table_get_group_size(table) >
+			(customer_table_get_total_ports_size(table)
+					>> (32U - table->ports_division_len))) {
+		log_err("Invalid second IPv4 Prefix /%u, contiguous port range size is too big",
+				table->ports_division_len);
+		return -EINVAL;
+	}
+
+	spin_lock_bh(&pool->lock);
+	error = pool_and_customer_intersects(pool, table);
+	if (!error)
+		pool->customer = table;
+
+	spin_unlock_bh(&pool->lock);
+	return error;
+}
+void customerdb_flush(struct pool4 *pool, struct ipv4_range *range_removed,
+		int *error)
+{
+	*error = customerdb_rm(pool, range_removed);
+}
+
+int customerdb_rm(struct pool4 *pool, struct ipv4_range *range_removed)
+{
+	struct customer_table *table;
+	int error = 0;
+
+	spin_lock_bh(&pool->lock);
+	if (!pool->customer)
+		error = -ENOENT;
+
+	if (error) {
+		spin_unlock_bh(&pool->lock);
+		log_err("There is no customer table to remove.");
+		return error;
+	}
+
+	table = pool->customer;
+	pool->customer = NULL;
+	spin_unlock_bh(&pool->lock);
+
+	range_removed->prefix = table->prefix4;
+	range_removed->ports = table->ports;
+
+	customer_table_put(table);
+
+	return error;
 }

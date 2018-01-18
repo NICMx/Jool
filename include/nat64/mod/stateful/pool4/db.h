@@ -11,6 +11,7 @@
 #include "nat64/mod/common/types.h"
 #include "nat64/mod/common/config.h"
 #include "nat64/mod/common/route.h"
+#include "nat64/mod/stateful/pool4/customer.h"
 
 struct pool4;
 
@@ -29,6 +30,13 @@ int pool4db_rm(struct pool4 *pool, const __u32 mark, enum l4_protocol proto,
 		struct ipv4_range *range);
 int pool4db_rm_usr(struct pool4 *pool, struct pool4_entry_usr *entry);
 void pool4db_flush(struct pool4 *pool);
+
+int customerdb_foreach(struct pool4 *pool,
+		int (*cb)(struct customer_table *, void *), void *arg);
+int customerdb_add(struct pool4 *pool, const struct customer_entry_usr *entry);
+void customerdb_flush(struct pool4 *pool, struct ipv4_range *range_removed,
+		int *error);
+int customerdb_rm(struct pool4 *pool, struct ipv4_range *range_removed);
 
 /*
  * Read functions (Legal to use anywhere)
@@ -50,6 +58,7 @@ int mask_domain_next(struct mask_domain *masks,
 		bool *consecutive);
 bool mask_domain_matches(struct mask_domain *masks,
 		struct ipv4_transport_addr *addr);
+bool mask_domain_is_customer(struct mask_domain *masks);
 bool mask_domain_is_dynamic(struct mask_domain *masks);
 __u32 mask_domain_get_mark(struct mask_domain *masks);
 
