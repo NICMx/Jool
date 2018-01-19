@@ -1,0 +1,14 @@
+# autoconf files
+######################
+*.in
+*.m4
+.deps
+.dirstamp
+compile
+config.status
+configure
+depcomp
+install-sh
+missing
+Makefile
+autom4te.cache

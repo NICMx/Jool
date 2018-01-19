@@ -90,7 +90,7 @@ static bool test_address(struct pool4 *pool, char *addr_str)
 	struct tuple tuple6;
 	struct mask_domain *masks;
 	struct ipv4_transport_addr addr;
-	bool consecutive; /* TODO I found a bug with this value. Report. */
+	bool consecutive;
 
 	memset(&actual, 0, sizeof(actual));
 	memset(&tuple6, 0, sizeof(tuple6));
@@ -107,6 +107,10 @@ static bool test_address(struct pool4 *pool, char *addr_str)
 	return compare_expected_vs_actual(addr_str);
 }
 
+/**
+ * Validates @addr6 is masked by all the ports of 192.0.2.@addr4_1 and
+ * 192.0.2.@addr4_2.
+ */
 static bool test_simple(struct pool4 *pool, char *addr6,
 		int addr4_1, int addr4_2)
 {
@@ -121,6 +125,7 @@ static bool test_sequential(void)
 	struct pool4 *pool;
 	bool success = true;
 
+	/* Sequential is Round Robin with e = f. */
 	pool = init_pool(125, 127, 29, 29);
 	if (!pool)
 		return false;
@@ -160,6 +165,43 @@ static bool test_round_robin(void)
 	return success;
 }
 
+/**
+ * Validates @addr6 is masked by port @port of every available IPv4 address.
+ */
+static bool test_interlaced(struct pool4 *pool, char *addr6, int port)
+{
+	unsigned int a ;
+
+	memset(expected, 0, sizeof(expected));
+	for (a = 0; a < ARRAY_SIZE(expected); a++)
+		expected[a][port - 1] = true;
+
+	return test_address(pool, addr6);
+}
+
+static bool test_interlaced_horizontally(void)
+{
+	struct pool4 *pool;
+	bool success = true;
+
+	/* IH is Round Robin with f = 32. */
+	pool = init_pool(125, 127, 29, 32);
+	if (!pool)
+		return false;
+
+	success &= test_interlaced(pool, "2001:db8::", 1);
+	success &= test_interlaced(pool, "2001:db8::1", 1);
+	success &= test_interlaced(pool, "2001:db8::2", 2);
+	success &= test_interlaced(pool, "2001:db8::3", 2);
+	success &= test_interlaced(pool, "2001:db8::4", 3);
+	success &= test_interlaced(pool, "2001:db8::5", 3);
+	success &= test_interlaced(pool, "2001:db8::6", 4);
+	success &= test_interlaced(pool, "2001:db8::7", 4);
+
+	pool4db_put(pool);
+	return success;
+}
+
 int init_module(void)
 {
 	START_TESTS("Customer");
@@ -169,7 +211,7 @@ int init_module(void)
 
 	CALL_TEST(test_sequential(), "Sequential");
 	CALL_TEST(test_round_robin(), "Round Robin");
-	/* CALL_TEST(test(), "Interlaced Horizontally"); */
+	CALL_TEST(test_interlaced_horizontally(), "Interlaced Horizontally");
 
 	rfc6056_destroy();
 
