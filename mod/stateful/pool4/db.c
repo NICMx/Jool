@@ -983,14 +983,9 @@ static int find_offset(struct pool4_table *table, struct pool4_range *offset,
 	return -ESRCH;
 }
 
-static unsigned int compute_max_iterations(const struct pool4_table *table)
+static unsigned int __compute_max_iterations(__u32 taddr_count)
 {
 	unsigned int result;
-
-	if (table->max_iterations_flags & ITERATIONS_INFINITE)
-		return 0;
-	if (!(table->max_iterations_flags & ITERATIONS_AUTO))
-		return table->max_iterations_allowed;
 
 	/*
 	 * The following heuristics are based on a few tests I ran. Keep in mind
@@ -1019,7 +1014,7 @@ static unsigned int compute_max_iterations(const struct pool4_table *table)
 	 * Integer division by 100 would be acceptable, but this is faster.
 	 * (Recall that we have a spinlock held.)
 	 */
-	result = table->taddr_count >> 7;
+	result = taddr_count >> 7;
 
 	/*
 	 * If the limit is too big, the NAT64 will iterate too much.
@@ -1053,6 +1048,16 @@ static unsigned int compute_max_iterations(const struct pool4_table *table)
 	if (result > 8192)
 		return 8192;
 	return result;
+}
+
+static unsigned int compute_max_iterations(const struct pool4_table *table)
+{
+	if (table->max_iterations_flags & ITERATIONS_INFINITE)
+		return 0;
+	if (!(table->max_iterations_flags & ITERATIONS_AUTO))
+		return table->max_iterations_allowed;
+
+	return __compute_max_iterations(table->taddr_count);
 }
 
 static void __update_sample(struct pool4_sample *sample,
@@ -1210,78 +1215,6 @@ static struct mask_domain *find_empty(struct route4_args *args,
 	return masks;
 }
 
-
-
-
-static unsigned int compute_max_iterations_for_customer(struct customer_args *customer)
-{
-	unsigned int result;
-
-	/*
-	 * The following heuristics are based on a few tests I ran. Keep in mind
-	 * that none of them are imposed on the user; they only define the
-	 * default value.
-	 *
-	 * The tests were as follows:
-	 *
-	 * For every one of the following pool4 sizes (in transport addresses),
-	 * I exhausted the corresponding pool4 16 times and kept track of how
-	 * many iterations I needed to allocate a connection in every step.
-	 *
-	 * The sizes were 512, 1024, 2048, 4096, 8192, 16384, 32768, 65536,
-	 * 131072, 196608, 262144, 327680, 393216, 458752, 524288, 1048576 and
-	 * 2097152.
-	 *
-	 * I did not test larger pool4s because I feel like more than 32 full
-	 * addresses is rather pushing it and would all the likely require
-	 * manual intervention anyway.
-	 */
-
-	/*
-	 * Right shift 7 is the same as division by 128. Why 128?
-	 * Because I want roughly 1% of the total size, and also don't want any
-	 * floating point arithmetic.
-	 * Integer division by 100 would be acceptable, but this is faster.
-	 * (Recall that we have a spinlock held.)
-	 */
-	result = customer->taddr_count >> 7;
-
-	/*
-	 * If the limit is too big, the NAT64 will iterate too much.
-	 * If the limit is too small, the NAT64 will start losing connections
-	 * early.
-	 *
-	 * So first of all, prevent the algorithm from iterating too little.
-	 *
-	 * (The values don't have to be powers or multiples of anything; I just
-	 * really like base 8.)
-	 *
-	 * A result lower than 1024 will be yielded when pool4 is 128k ports
-	 * large or smaller, so the following paragraph (and conditional) only
-	 * applies to this range:
-	 *
-	 * In all of the tests I ran, a max iterations of 1024 would have been a
-	 * reasonable limit that would have completely prevented the NAT64 from
-	 * dropping *any* connections, at least until pool4 was about 91%
-	 * exhausted. (Connections can be technically dropped regardless, but
-	 * it's very unlikely.) Also, on average, most connections would have
-	 * kept succeeding until pool4 reached 98% utilization.
-	 */
-	if (result < 1024)
-		return 1024;
-	/*
-	 * And finally: Prevent the algorithm from iterating too much.
-	 *
-	 * 8k will begin dropping connections at 95% utilization and most
-	 * connections will remain on the success side until 99% exhaustion.
-	 */
-	if (result > 8192)
-		return 8192;
-	return result;
-
-
-}
-
 static struct mask_domain *create_customer_mask(struct customer_table *customer,
 		unsigned int offset, struct in6_addr *src)
 {
@@ -1313,7 +1246,7 @@ static struct mask_domain *create_customer_mask(struct customer_table *customer,
 			args->group, args->port_hop);
 
 
-	masks->max_iterations = compute_max_iterations_for_customer(args);
+	masks->max_iterations = __compute_max_iterations(args->taddr_count);
 	masks->is_customer = true;
 
 	return masks;
@@ -1535,50 +1468,6 @@ int customerdb_foreach(struct pool4 *pool,
 	return error;
 }
 
-static int validate_customer_entry_usr(const struct customer_entry_usr *entry)
-{
-	int error;
-	__u32 port_count;
-	error = prefix4_validate(&entry->prefix4);
-	if (error)
-		return error;
-
-	error = prefix6_validate(&entry->prefix6);
-	if (error)
-		return error;
-
-	if (entry->groups6_size_len > 128) {
-		log_err("Second IPv6 prefix length %u is too high.", entry->groups6_size_len);
-		return -EINVAL;
-	}
-
-	if (entry->prefix6.len > entry->groups6_size_len) {
-		log_err("Second Prefix (/%u) of IPv6 Prefix can't be lower than first prefix (/%u)",
-				entry->groups6_size_len, entry->prefix6.len );
-		return -EINVAL;
-	}
-
-	if (entry->ports_division_len > 32) {
-		log_err("Second IPv4 prefix length %u is too high.", entry->ports_division_len);
-		return -EINVAL;
-	}
-
-	port_count = port_range_count(&entry->ports);
-	if (port_count > (1U << 15)) {
-		log_err("Port range size must be less or equals than %u ports",
-				(1U << 15));
-		return -EINVAL;
-	}
-
-	if (((__u64)(1 << (entry->groups6_size_len - entry->prefix6.len)))
-			>= (prefix4_get_addr_count(&entry->prefix4) * port_count)) {
-		log_err("There are not enough ports for each ipv6 group.");
-		return -EINVAL;
-	}
-
-	return 0;
-}
-
 static bool pool4_range_intersects_customer(struct pool4_range *range,
 		const struct customer_table *customer)
 {
@@ -1638,74 +1527,41 @@ int customerdb_add(struct pool4 *pool, const struct customer_entry_usr *entry)
 	struct customer_table *table;
 	int error = 0;
 
-	spin_lock_bh(&pool->lock);
-	if (pool->customer)
-		error = -EEXIST;
-	spin_unlock_bh(&pool->lock);
+	table = customer_table_create(entry, &error);
+	if (error)
+		return error;
 
-	if (error) {
+	spin_lock_bh(&pool->lock);
+	if (pool->customer) {
 		log_err("A customer table already exists, remove it before inserting a new one.");
+		spin_unlock_bh(&pool->lock);
+		customer_table_put(table);
+		return -EEXIST;
+	}
+
+	error = pool_and_customer_intersects(pool, table);
+	if (error) {
+		spin_unlock_bh(&pool->lock);
+		// error message already printed.
+		customer_table_put(table);
 		return error;
 	}
 
-	validate_customer_entry_usr(entry);
-
-	table = __wkmalloc("customer_table", sizeof(struct customer_table)
-			, GFP_ATOMIC);
-	table->prefix6 = entry->prefix6;
-	table->groups6_size_len = entry->groups6_size_len;
-	table->prefix4 = entry->prefix4;
-	table->ports_division_len = entry->ports_division_len;
-	if (table->ports.min > table->ports.max)
-		swap(table->ports.min, table->ports.max);
-	if (table->ports.min == 0)
-		table->ports.min = 1U;
-
-	table->ports = entry->ports;
-	table->ports_size_len = customer_table_get_ports_mask(table);
-
-	if (((unsigned int)(1 << table->ports_size_len))
-			!= port_range_count(&table->ports)) {
-		log_err("Ports range size must be a result of two to the nth.");
-		customer_table_put(table);
-		return -EINVAL;
-	}
-
-	if (customer_table_get_group_size(table) >
-			(customer_table_get_total_ports_size(table)
-					>> (32U - table->ports_division_len))) {
-		log_err("Invalid second IPv4 Prefix /%u, contiguous port range size is too big",
-				table->ports_division_len);
-		return -EINVAL;
-	}
-
-	spin_lock_bh(&pool->lock);
-	error = pool_and_customer_intersects(pool, table);
-	if (!error)
-		pool->customer = table;
+	pool->customer = table;
 
 	spin_unlock_bh(&pool->lock);
 	return error;
-}
-void customerdb_flush(struct pool4 *pool, struct ipv4_range *range_removed,
-		int *error)
-{
-	*error = customerdb_rm(pool, range_removed);
 }
 
 int customerdb_rm(struct pool4 *pool, struct ipv4_range *range_removed)
 {
 	struct customer_table *table;
-	int error = 0;
 
 	spin_lock_bh(&pool->lock);
-	if (!pool->customer)
-		error = -ENOENT;
-
-	if (error) {
+	if (!pool->customer) {
 		spin_unlock_bh(&pool->lock);
 		log_err("There is no customer table to remove.");
-		return error;
+		return -ENOENT;
 	}
 
 	table = pool->customer;
@@ -1717,5 +1573,5 @@ int customerdb_rm(struct pool4 *pool, struct ipv4_range *range_removed)
 
 	customer_table_put(table);
 
-	return error;
+	return 0;
 }

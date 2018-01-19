@@ -43,20 +43,14 @@ static int handle_customer_add(struct pool4 *pool, struct genl_info *info,
 	return nlcore_respond(info, customerdb_add(pool, &request->add));
 }
 
-static int handle_customer_rm(struct xlator *jool, struct genl_info *info,
-		union request_customer *request)
+static int __handle_customer_rm(struct xlator *jool, struct genl_info *info, bool quick)
 {
 	struct ipv4_range range;
 	int error;
 
-	if (verify_superpriv())
-		return nlcore_respond(info, -EPERM);
-
-	log_debug("Removing elements from customer table.");
-
 	error = customerdb_rm(jool->nat64.pool4, &range);
 
-	if (!error && xlat_is_nat64() && !request->rm.quick) {
+	if (!error && !quick) {
 		bib_rm_range(jool->nat64.bib, L4PROTO_TCP, &range);
 		bib_rm_range(jool->nat64.bib, L4PROTO_ICMP, &range);
 		bib_rm_range(jool->nat64.bib, L4PROTO_UDP, &range);
@@ -65,25 +59,26 @@ static int handle_customer_rm(struct xlator *jool, struct genl_info *info,
 	return nlcore_respond(info, error);
 }
 
+static int handle_customer_rm(struct xlator *jool, struct genl_info *info,
+		union request_customer *request)
+{
+	if (verify_superpriv())
+		return nlcore_respond(info, -EPERM);
+
+	log_debug("Removing elements from customer table.");
+
+	return __handle_customer_rm(jool, info, request->rm.quick);
+}
+
 static int handle_customer_flush(struct xlator *jool, struct genl_info *info,
 		union request_customer *request)
 {
-	struct ipv4_range range;
-	int error;
-
 	if (verify_superpriv())
 		return nlcore_respond(info, -EPERM);
 
 	log_debug("Flushing customer table.");
 
-	customerdb_flush(jool->nat64.pool4, &range, &error);
-	if (!error && xlat_is_nat64() && !request->flush.quick) {
-		bib_rm_range(jool->nat64.bib, L4PROTO_TCP, &range);
-		bib_rm_range(jool->nat64.bib, L4PROTO_ICMP, &range);
-		bib_rm_range(jool->nat64.bib, L4PROTO_UDP, &range);
-	}
-
-	return nlcore_respond(info, 0);
+	return __handle_customer_rm(jool, info, request->flush.quick);
 }
 
 int handle_customer_config(struct xlator *jool, struct genl_info *info)

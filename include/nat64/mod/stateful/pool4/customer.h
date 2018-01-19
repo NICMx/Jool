@@ -26,6 +26,9 @@ struct customer_table {
 
 bool customer_table_contains(struct customer_table *table, struct in6_addr *src6);
 
+struct customer_table *customer_table_create(const struct customer_entry_usr *entry,
+		int *error);
+
 /**
  * Obtain the total count of ports from this customer.
  * (i.e. IPv4 prefix count * port range count )

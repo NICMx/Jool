@@ -90,26 +90,27 @@ int customer_add(struct customer_entry_usr *entry)
 	return netlink_request(request, sizeof(request), NULL, NULL);
 }
 
-int customer_rm(bool quick)
+static int __customer_flush(bool quick, enum config_operation operation)
 {
 	unsigned char request[HDR_LEN + PAYLOAD_LEN];
 	struct request_hdr *hdr = (struct request_hdr *)request;
 	union request_customer *payload = (union request_customer *)(request + HDR_LEN);
 
-	init_request_hdr(hdr, MODE_CUSTOMER, OP_REMOVE);
-	payload->rm.quick = quick;
+	init_request_hdr(hdr, MODE_CUSTOMER, operation);
+	if (operation == OP_REMOVE)
+		payload->rm.quick = quick;
+	else if(operation == OP_FLUSH)
+		payload->flush.quick = quick;
 
 	return netlink_request(request, sizeof(request), NULL, NULL);
 }
 
+int customer_rm(bool quick)
+{
+	return __customer_flush(quick, OP_REMOVE);
+}
+
 int customer_flush(bool quick)
 {
-	unsigned char request[HDR_LEN + PAYLOAD_LEN];
-	struct request_hdr *hdr = (struct request_hdr *)request;
-	union request_customer *payload = (union request_customer *)(request + HDR_LEN);
-
-	init_request_hdr(hdr, MODE_CUSTOMER, OP_FLUSH);
-	payload->flush.quick = quick;
-
-	return netlink_request(&request, sizeof(request), NULL, NULL);
+	return __customer_flush(quick, OP_FLUSH);
 }

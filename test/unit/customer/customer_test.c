@@ -121,18 +121,18 @@ static bool test_sequential(void)
 	struct pool4 *pool;
 	bool success = true;
 
-	pool = init_pool(125, 127, 30, 30);
+	pool = init_pool(125, 127, 29, 29);
 	if (!pool)
 		return false;
 
-	success &= test_simple(pool, "2001:db8::", 0, 0);
-	success &= test_simple(pool, "2001:db8::1", 1, 1);
-	success &= test_simple(pool, "2001:db8::2", 2, 2);
-	success &= test_simple(pool, "2001:db8::3", 3, 3);
-	success &= test_simple(pool, "2001:db8::4", 4, 4);
-	success &= test_simple(pool, "2001:db8::5", 5, 5);
-	success &= test_simple(pool, "2001:db8::6", 6, 6);
-	success &= test_simple(pool, "2001:db8::7", 7, 7);
+	success &= test_simple(pool, "2001:db8::", 0, 1);
+	success &= test_simple(pool, "2001:db8::1", 0, 1);
+	success &= test_simple(pool, "2001:db8::2", 2, 3);
+	success &= test_simple(pool, "2001:db8::3", 2, 3);
+	success &= test_simple(pool, "2001:db8::4", 4, 5);
+	success &= test_simple(pool, "2001:db8::5", 4, 5);
+	success &= test_simple(pool, "2001:db8::6", 6, 7);
+	success &= test_simple(pool, "2001:db8::7", 6, 7);
 
 	pool4db_put(pool);
 	return success;
@@ -143,17 +143,17 @@ static bool test_round_robin(void)
 	struct pool4 *pool;
 	bool success = true;
 
-	pool = init_pool(125, 127, 29, 29);
+	pool = init_pool(125, 127, 29, 30);
 	if (!pool)
 		return false;
 
 	success &= test_simple(pool, "2001:db8::", 0, 4);
-	success &= test_simple(pool, "2001:db8::1", 1, 5);
-	success &= test_simple(pool, "2001:db8::2", 2, 6);
-	success &= test_simple(pool, "2001:db8::3", 3, 7);
-	success &= test_simple(pool, "2001:db8::4", 0, 4);
-	success &= test_simple(pool, "2001:db8::5", 1, 5);
-	success &= test_simple(pool, "2001:db8::6", 2, 6);
+	success &= test_simple(pool, "2001:db8::1", 0, 4);
+	success &= test_simple(pool, "2001:db8::2", 1, 5);
+	success &= test_simple(pool, "2001:db8::3", 1, 5);
+	success &= test_simple(pool, "2001:db8::4", 2, 6);
+	success &= test_simple(pool, "2001:db8::5", 2, 6);
+	success &= test_simple(pool, "2001:db8::6", 3, 7);
 	success &= test_simple(pool, "2001:db8::7", 3, 7);
 
 	pool4db_put(pool);
