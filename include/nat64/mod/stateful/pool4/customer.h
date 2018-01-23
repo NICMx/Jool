@@ -5,24 +5,7 @@
 #include "nat64/mod/common/types.h"
 #include "nat64/mod/common/config.h"
 
-struct customer_table {
-	/** IPv6 addresses that use this customer table. */
-	struct ipv6_prefix prefix6;
-	/** Number of bits of 'prefix6' which represent the subnetwork. */
-	__u8 groups6_size_len;
-
-	/** Pool4 for this table. */
-	struct ipv4_prefix prefix4;
-	/** Hop size that divide the ports range for every IPv6 subnetwork
-	 * in CIDR format. */
-	__u8 ports_division_len;
-
-	struct port_range ports;
-
-	/** Port range size "ports" in CIDR format, for bitwise operations. */
-	unsigned short ports_size_len;
-};
-
+struct customer_table;
 
 bool customer_table_contains(struct customer_table *table, struct in6_addr *src6);
 
@@ -76,7 +59,16 @@ __u32 customer_table_get_group_size(struct customer_table *table);
  *
  * @return port_mask
  */
-unsigned short customer_table_get_ports_mask(struct customer_table *table);
+unsigned short customer_table_get_port_mask(struct customer_table *table);
+
+void customer_table_get_prefix4(const struct customer_table *table,
+		struct ipv4_prefix *result);
+
+void customer_table_get_ports(const struct customer_table *table,
+		struct port_range *result);
+
+void customer_table_clone(const struct customer_table *table,
+		struct customer_entry_usr *result);
 
 void customer_table_put(struct customer_table *customer);
 #endif /* __JOOL_MOD_POOL4_CUSTOMER_H_ */

@@ -4,6 +4,24 @@
 #include "nat64/mod/common/wkmalloc.h"
 #include "nat64/mod/common/address.h"
 
+struct customer_table {
+	/** IPv6 addresses that use this customer table. */
+	struct ipv6_prefix prefix6;
+	/** Number of bits of 'prefix6' which represent the subnetwork. */
+	__u8 groups6_size_len;
+
+	/** Pool4 for this table. */
+	struct ipv4_prefix prefix4;
+	/** Hop size that divide the ports range for every IPv6 subnetwork
+	 * in CIDR format. */
+	__u8 ports_division_len;
+
+	struct port_range ports;
+
+	/** Port range size "ports" in CIDR format, for bitwise operations. */
+	unsigned short ports_size_len;
+};
+
 bool customer_table_contains(struct customer_table *table, struct in6_addr *src6)
 {
 	return prefix6_contains(&table->prefix6, src6);
@@ -53,6 +71,19 @@ static int validate_customer_entry_usr(const struct customer_entry_usr *entry)
 	return 0;
 }
 
+static unsigned short customer_table_calculate_ports_mask(struct customer_table *table)
+{
+	unsigned short result;
+	unsigned int range_count;
+	range_count = port_range_count(&table->ports);
+	for (result = 1; result < 16; result ++) {
+		if ((range_count >> result) == 1)
+			break;
+	}
+
+	return result;
+}
+
 struct customer_table *customer_table_create(const struct customer_entry_usr *entry,
 		int *error)
 {
@@ -78,7 +109,7 @@ struct customer_table *customer_table_create(const struct customer_entry_usr *en
 		table->ports.min = 1U;
 
 	table->ports = entry->ports;
-	table->ports_size_len = customer_table_get_ports_mask(table);
+	table->ports_size_len = customer_table_calculate_ports_mask(table);
 
 	if (((unsigned int)(1 << table->ports_size_len))
 			!= port_range_count(&table->ports)) {
@@ -144,7 +175,7 @@ __u32 customer_get_group_first_port(struct customer_table *table,
 	total_ports_size = customer_table_get_total_ports_size(table);
 
 	if (offset >= total_ports_size) {
-		offset = offset % total_ports_size;
+		offset = offset & ((1U << table->ports_size_len) - 1U);
 	}
 
 	if (offset < port_hop) {
@@ -177,18 +208,33 @@ __u32 customer_table_get_group_size(struct customer_table *table)
 	return ((__u32) 1U) << (table->groups6_size_len - table->prefix6.len);
 }
 
-unsigned short customer_table_get_ports_mask(struct customer_table *table)
+unsigned short customer_table_get_port_mask(struct customer_table *table)
 {
-	unsigned short result;
-	unsigned int range_count;
-	range_count = port_range_count(&table->ports);
-	for (result = 1; result < 16; result ++) {
-		if ((range_count >> result) == 1)
-			break;
-	}
+	return table->ports_size_len;
+}
 
-	return result;
+void customer_table_get_prefix4(const struct customer_table *table,
+		struct ipv4_prefix *result)
+{
+	result->address = table->prefix4.address;
+	result->len = table->prefix4.len;
+}
 
+void customer_table_get_ports(const struct customer_table *table,
+		struct port_range *result)
+{
+	result->max = table->ports.max;
+	result->min = table->ports.min;
+}
+
+void customer_table_clone(const struct customer_table *table,
+		struct customer_entry_usr *result)
+{
+	result->prefix6 = table->prefix6;
+	result->prefix4 = table->prefix4;
+	result->ports = table->ports;
+	result->ports_division_len = table->ports_division_len;
+	result->groups6_size_len = table->groups6_size_len;
 }
 
 void customer_table_put(struct customer_table *customer)

@@ -32,7 +32,7 @@ int pool4db_rm_usr(struct pool4 *pool, struct pool4_entry_usr *entry);
 void pool4db_flush(struct pool4 *pool);
 
 int customerdb_foreach(struct pool4 *pool,
-		int (*cb)(struct customer_table *, void *), void *arg);
+		int (*cb)(struct customer_entry_usr *, void *), void *arg);
 int customerdb_add(struct pool4 *pool, const struct customer_entry_usr *entry);
 int customerdb_rm(struct pool4 *pool, struct ipv4_range *range_removed);
 

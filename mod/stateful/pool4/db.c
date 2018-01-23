@@ -589,6 +589,8 @@ static bool port_range_intersects(const struct port_range *r1,
 int pool4db_add(struct pool4 *pool, const struct pool4_entry_usr *entry)
 {
 	struct pool4_range addend = { .ports = entry->range.ports };
+	struct ipv4_prefix customer_prefix;
+	struct port_range customer_ports;
 	u64 tmp;
 	int error;
 
@@ -606,14 +608,17 @@ int pool4db_add(struct pool4 *pool, const struct pool4_entry_usr *entry)
 			addend.ports.min = 1;
 
 	spin_lock_bh(&pool->lock);
-	if (pool->customer
-			&& prefix4_intersects(&entry->range.prefix, &pool->customer->prefix4)
-			&& port_range_intersects(&addend.ports, &pool->customer->ports)) {
-		log_err("Pool4 '%pI4 %u-%u' intersects with Customer: '%pI4/%u %u-%u'",
-				&entry->range.prefix.address, addend.ports.min, addend.ports.max,
-				&pool->customer->prefix4.address, pool->customer->prefix4.len,
-				pool->customer->ports.min, pool->customer->ports.max);
-		error = -EEXIST;
+	if (pool->customer) {
+		customer_table_get_prefix4(pool->customer, &customer_prefix);
+		customer_table_get_ports(pool->customer, &customer_ports);
+		if(prefix4_intersects(&entry->range.prefix, &customer_prefix)
+				&& port_range_intersects(&addend.ports, &customer_ports)) {
+			log_err("Pool4 '%pI4 %u-%u' intersects with Customer: '%pI4/%u %u-%u'",
+					&entry->range.prefix.address, addend.ports.min,
+					addend.ports.max, &customer_prefix.address,
+					customer_prefix.len, customer_ports.min, customer_ports.max);
+			error = -EEXIST;
+		}
 	}
 
 	spin_unlock_bh(&pool->lock);
@@ -942,14 +947,19 @@ bool pool4db_contains(struct pool4 *pool, struct net *ns, l4_protocol proto,
 {
 	struct customer_table *customer;
 	struct pool4_table *table;
+	struct ipv4_prefix customer_prefix;
+	struct port_range customer_ports;
 	bool found = false;
 
 	spin_lock_bh(&pool->lock);
 
 	customer = pool->customer;
-	if (customer)
-		found = prefix4_contains(&customer->prefix4, &addr->l3)
-				&& port_range_contains(&customer->ports, addr->l4);
+	if (customer) {
+		customer_table_get_prefix4(pool->customer, &customer_prefix);
+		customer_table_get_ports(pool->customer, &customer_ports);
+		found = prefix4_contains(&customer_prefix, &addr->l3)
+				&& port_range_contains(&customer_ports, addr->l4);
+	}
 
 	if (found)
 		goto end;
@@ -1228,8 +1238,8 @@ static struct mask_domain *create_customer_mask(struct customer_table *customer,
 
 	args = (struct customer_args *)(masks + 1);
 
-	args->prefix4 = customer->prefix4;
-	args->ports = customer->ports;
+	customer_table_get_prefix4(customer, &args->prefix4);
+	customer_table_get_ports(customer, &args->ports);
 
 	args->total_table_taddr = customer_table_get_total_ports_size(customer);
 	args->group = customer_table_get_group_by_addr(customer, src);
@@ -1241,7 +1251,7 @@ static struct mask_domain *create_customer_mask(struct customer_table *customer,
 
 	args->port_hop = customer_table_get_group_ports_hop(customer);
 
-	args->port_mask = customer->ports_size_len;
+	args->port_mask = customer_table_get_port_mask(customer);
 	args->current_taddr = customer_get_group_first_port(customer, offset,
 			args->group, args->port_hop);
 
@@ -1266,8 +1276,10 @@ struct mask_domain *mask_domain_find(struct pool4 *pool, struct tuple *tuple6,
 
 	spin_lock_bh(&pool->lock);
 
-	if (pool->customer && customer_table_contains(pool->customer, &tuple6->src.addr6.l3)) {
-		masks = create_customer_mask(pool->customer, offset, &tuple6->src.addr6.l3);
+	if (pool->customer
+			&& customer_table_contains(pool->customer, &tuple6->src.addr6.l3)) {
+		masks = create_customer_mask(pool->customer, offset,
+				&tuple6->src.addr6.l3);
 		spin_unlock_bh(&pool->lock);
 		return masks;
 	}
@@ -1334,7 +1346,6 @@ static int customer_mask_next(struct mask_domain *masks,
 	struct customer_args *args = get_customer_args(masks);
 	__u32 ip_hop;
 	__u32 port;
-	__be32 old_addr;
 
 	args->taddr_counter++;
 	args->block_port_range_counter++;
@@ -1345,25 +1356,25 @@ static int customer_mask_next(struct mask_domain *masks,
 			return -ENOENT;
 
 	if (args->block_port_range_counter >= args->block_port_range_count) {
+		*consecutive = false;
 		args->block_port_range_counter = 0U;
 		args->current_taddr += args->port_hop;
 		if (args->current_taddr >= args->total_table_taddr)
 			args->current_taddr = args->group * args->block_port_range_count;
+	} else {
+		*consecutive = (args->taddr_counter != 1U);
 	}
 
 	ip_hop = (args->current_taddr + args->block_port_range_counter)
 			>> args->port_mask;
 	port = ((args->current_taddr + args->block_port_range_counter)
-			% ((__u32)1U << args->port_mask)) + args->ports.min;
+			& (((__u32)1U << args->port_mask) - 1U)) + args->ports.min;
 
-	old_addr = addr->l3.s_addr;
 	addr->l3 = args->prefix4.address;
 	addr->l4 = (__u16) port;
 
 	if (ip_hop)
 		be32_add_cpu(&addr->l3.s_addr, ip_hop);
-
-	*consecutive = addr->l3.s_addr == old_addr;
 
 	return 0;
 }
@@ -1449,15 +1460,15 @@ __u32 mask_domain_get_mark(struct mask_domain *masks)
 }
 
 int customerdb_foreach(struct pool4 *pool,
-		int (*cb)(struct customer_table *, void *), void *arg)
+		int (*cb)(struct customer_entry_usr *, void *), void *arg)
 {
-	struct customer_table table;
+	struct customer_entry_usr table;
 	int error = 0;
 	bool is_table_set = false;
 
 	spin_lock_bh(&pool->lock);
 	if (pool->customer) {
-		table = *(pool->customer);
+		customer_table_clone(pool->customer, &table);
 		is_table_set = true;
 	}
 	spin_unlock_bh(&pool->lock);
@@ -1469,10 +1480,10 @@ int customerdb_foreach(struct pool4 *pool,
 }
 
 static bool pool4_range_intersects_customer(struct pool4_range *range,
-		const struct customer_table *customer)
+		struct ipv4_prefix *customer_prefix, struct port_range *customer_ports)
 {
-	return prefix4_contains(&customer->prefix4, &range->addr)
-			&& port_range_intersects(&customer->ports, &range->ports);
+	return prefix4_contains(customer_prefix, &range->addr)
+			&& port_range_intersects(customer_ports, &range->ports);
 }
 
 static bool pooltable_and_customer_intersects(struct rb_root *tree,
@@ -1481,21 +1492,27 @@ static bool pooltable_and_customer_intersects(struct rb_root *tree,
 	struct rb_node *node = rb_first(tree);
 	struct pool4_table *table;
 	struct pool4_range *entry;
+	struct ipv4_prefix customer_prefix;
+	struct port_range customer_ports;
 
 	if (!node) {
 		return false;
 	}
+
+	customer_table_get_prefix4(customer, &customer_prefix);
+	customer_table_get_ports(customer, &customer_ports);
 
 	while (node) {
 		table = rb_entry(node, struct pool4_table, tree_hook);
 
 		foreach_table_range(entry, table) {
 
-			if (pool4_range_intersects_customer(entry, customer)) {
+			if (pool4_range_intersects_customer(entry, &customer_prefix,
+					&customer_ports)) {
 				log_err("Pool4 '%pI4 %u-%u' intersects with Customer: '%pI4/%u %u-%u'",
 						&entry->addr, entry->ports.min, entry->ports.max,
-						&customer->prefix4.address, customer->prefix4.len,
-						customer->ports.min, customer->ports.max);
+						&customer_prefix.address, customer_prefix.len,
+						customer_ports.min, customer_ports.max);
 				return true;
 			}
 
@@ -1568,8 +1585,8 @@ int customerdb_rm(struct pool4 *pool, struct ipv4_range *range_removed)
 	pool->customer = NULL;
 	spin_unlock_bh(&pool->lock);
 
-	range_removed->prefix = table->prefix4;
-	range_removed->ports = table->ports;
+	customer_table_get_prefix4(table, &range_removed->prefix);
+	customer_table_get_ports(table, &range_removed->ports);
 
 	customer_table_put(table);
 

@@ -6,7 +6,7 @@
 #include "nat64/mod/stateful/pool4/db.h"
 #include "nat64/mod/stateful/bib/db.h"
 
-static int customer_table_to_usr(struct customer_table *table, void *arg)
+static int customer_table_to_usr(struct customer_entry_usr *table, void *arg)
 {
 	return nlbuffer_write(arg, table, sizeof(*table));
 }
