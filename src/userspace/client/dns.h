@@ -2,8 +2,8 @@
 #define _JOOL_USR_DNS_H
 
 
-#include "nat64/common/types.h"
-#include "nat64/usr/types.h"
+#include "types.h"
+#include "userspace-types.h"
 
 void print_addr6(struct ipv6_transport_addr *addr6, display_flags flags,
 		char *separator, __u8 l4_proto);

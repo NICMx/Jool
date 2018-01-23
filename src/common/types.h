@@ -19,6 +19,7 @@
 	#include "log.h"
 #endif
 
+/* TODO print somewhere? */
 #define EUNSUPPORTED	0x6400
 #define ESTOLEN		0x6401
 

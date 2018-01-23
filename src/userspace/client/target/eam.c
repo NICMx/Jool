@@ -1,10 +1,12 @@
-#include "nat64/usr/eam.h"
+#include "eam.h"
 
 #include <errno.h>
-#include "nat64/common/config.h"
-#include "nat64/common/str_utils.h"
-#include "nat64/common/types.h"
-#include "nat64/usr/netlink.h"
+#include <string.h>
+
+#include "netlink.h"
+#include "nl-protocol.h"
+#include "str-utils.h"
+#include "types.h"
 
 
 #define HDR_LEN sizeof(struct request_hdr)
@@ -21,8 +23,8 @@ static void print_eamt_entry(struct eamt_entry *entry, char *separator)
 	char ipv6_str[INET6_ADDRSTRLEN];
 	char *ipv4_str;
 
-	inet_ntop(AF_INET6, &entry->prefix6.address, ipv6_str, sizeof(ipv6_str));
-	ipv4_str = inet_ntoa(entry->prefix4.address);
+	inet_ntop(AF_INET6, &entry->prefix6.addr, ipv6_str, sizeof(ipv6_str));
+	ipv4_str = inet_ntoa(entry->prefix4.addr);
 	printf("%s/%u", ipv6_str, entry->prefix6.len);
 	printf("%s", separator);
 	printf("%s/%u", ipv4_str, entry->prefix4.len);
@@ -87,30 +89,6 @@ int eam_display(display_flags flags)
 	}
 
 	return 0;
-}
-
-static int eam_count_response(struct jool_response *response, void *arg)
-{
-	if (response->payload_len != sizeof(__u64)) {
-		log_err("Jool's response is not the expected integer.");
-		return -EINVAL;
-	}
-
-	printf("%llu\n", *((__u64 *)response->payload));
-	return 0;
-}
-
-int eam_count(void)
-{
-	unsigned char request[HDR_LEN + PAYLOAD_LEN];
-	struct request_hdr *hdr = (struct request_hdr *)request;
-	union request_eamt *payload = (union request_eamt *)(request + HDR_LEN);
-
-	init_request_hdr(hdr, MODE_EAMT, OP_COUNT);
-	memset(payload, 0, sizeof(*payload));
-
-	return netlink_request(&request, sizeof(request), eam_count_response,
-			NULL);
 }
 
 int eam_add(struct ipv6_prefix *prefix6, struct ipv4_prefix *prefix4,

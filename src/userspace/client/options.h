@@ -2,7 +2,7 @@
 #define _JOOL_USR_ARGP_OPTIONS_H
 
 #include <argp.h>
-#include "nat64/common/config.h"
+#include "nl-protocol.h"
 
 #define BOOL_FORMAT "BOOL"
 #define NUM_FORMAT "NUM"
@@ -18,22 +18,17 @@
  */
 enum argp_flags {
 	/* Modes */
-	ARGP_POOL6 = '6',
 	ARGP_POOL4 = '4',
 	ARGP_BIB = 'b',
 	ARGP_SESSION = 's',
 	ARGP_JOOLD = 7002,
 	ARGP_EAMT = 'e',
-	ARGP_BLACKLIST = 7000,
-	ARGP_RFC6791 = 6791,
-	ARGP_LOGTIME = 'l',
 	ARGP_GLOBAL = 'g',
 	ARGP_PARSE_FILE = 'p',
 	ARGP_INSTANCE = 7001,
 
 	/* Operations */
 	ARGP_DISPLAY = 'd',
-	ARGP_COUNT = 'c',
 	ARGP_ADD = 'a',
 	ARGP_UPDATE = 5000,
 	ARGP_REMOVE = 'r',
@@ -60,9 +55,6 @@ enum argp_flags {
 	ARGP_BIB_IPV4 = 2021,
 
 	/* Global */
-	ARGP_ENABLE_TRANSLATION = ENABLE,
-	ARGP_DISABLE_TRANSLATION = DISABLE,
-	ARGP_MANUAL_ENABLE = ENABLE_BOOL,
 	ARGP_RESET_TCLASS = RESET_TCLASS,
 	ARGP_RESET_TOS = RESET_TOS,
 	ARGP_NEW_TOS = NEW_TOS,
@@ -80,7 +72,6 @@ enum argp_flags {
 	ARGP_ICMP_TO = ICMP_TIMEOUT,
 	ARGP_TCP_TO = TCP_EST_TIMEOUT,
 	ARGP_TCP_TRANS_TO = TCP_TRANS_TIMEOUT,
-	ARGP_FRAG_TO = FRAGMENT_TIMEOUT,
 	ARGP_BIB_LOGGING = BIB_LOGGING,
 	ARGP_SESSION_LOGGING = SESSION_LOGGING,
 	ARGP_STORED_PKTS = MAX_PKTS,
@@ -92,7 +83,7 @@ enum argp_flags {
 	ARGP_RFC6791V6_PREFIX = RFC6791V6_PREFIX,
 };
 
-struct argp_option *build_opts(void);
-struct argp_option *get_global_opts(void);
+struct argp_option *get_options(void);
+struct argp_option *get_global_options(void);
 
 #endif /* _JOOL_USR_ARGP_OPTIONS_H */

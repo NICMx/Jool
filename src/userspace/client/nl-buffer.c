@@ -1,11 +1,11 @@
-#include "nat64/usr/nl/buffer.h"
+#include "nl-buffer.h"
 
 #include <errno.h>
 #include <stdlib.h>
 #include <string.h>
-#include "nat64/common/config.h"
-#include "nat64/common/types.h"
-#include "nat64/usr/netlink.h"
+
+#include "log.h"
+#include "netlink.h"
 
 #define BUFFER_MAX 256
 

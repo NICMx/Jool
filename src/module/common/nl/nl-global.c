@@ -195,17 +195,11 @@ static int update_plateaus(struct global_config_usr *config,
 static int handle_global_display(struct xlator *jool, struct genl_info *info)
 {
 	struct full_config config;
-	bool pools_empty;
 
 	log_debug("Returning 'Global' options.");
 
 	xlator_copy_config(jool, &config);
-
-	pools_empty = pool6_is_empty(jool->pool6);
-	if (jool->type == XLATOR_SIIT)
-		pools_empty &= eamt_is_empty(jool->siit.eamt);
-	prepare_config_for_userspace(&config, pools_empty);
-
+	prepare_config_for_userspace(&config);
 	return nlcore_respond_struct(info, &config, sizeof(config));
 }
 
@@ -356,7 +350,7 @@ static int handle_global_update(struct xlator *jool, struct genl_info *info)
 	struct full_config config;
 	int error;
 
-	if (verify_superpriv())
+	if (verify_privileges())
 		return nlcore_respond(info, -EPERM);
 
 	log_debug("Updating 'Global' options.");

@@ -1,4 +1,4 @@
-#include "nat64/usr/joold/netsocket.h"
+#include "netsocket.h"
 
 #include <errno.h>
 #include <netdb.h>
@@ -9,12 +9,13 @@
 #include <arpa/inet.h>
 #include <net/if.h>
 #include <netinet/in.h>
-#include "nat64/common/config.h"
-#include "nat64/common/str_utils.h"
-#include "nat64/common/types.h"
-#include "nat64/usr/cJSON.h"
-#include "nat64/usr/file.h"
-#include "nat64/usr/joold/modsocket.h"
+
+#include "nl-protocol.h"
+#include "str-utils.h"
+#include "types.h"
+#include "cJSON.h"
+#include "file.h"
+#include "modsocket.h"
 
 struct netsocket_config {
 	/** Address where the sessions will be advertised. Lacks a default. */

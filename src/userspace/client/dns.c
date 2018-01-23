@@ -1,9 +1,8 @@
-#include "nat64/usr/dns.h"
+#include "dns.h"
 
 #include <netdb.h>
 #include <stdio.h>
 #include <string.h>
-#include "nat64/common/types.h"
 
 void print_addr6(struct ipv6_transport_addr *addr6, display_flags flags,
 		char *separator, __u8 l4_proto)

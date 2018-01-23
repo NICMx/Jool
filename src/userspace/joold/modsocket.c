@@ -1,14 +1,15 @@
-#include "nat64/usr/joold/modsocket.h"
+#include "modsocket.h"
 
 #include <errno.h>
 #include <string.h>
 #include <netlink/genl/ctrl.h>
 #include <netlink/genl/genl.h>
 #include <sys/types.h>
-#include "nat64/common/config.h"
-#include "nat64/common/types.h"
-#include "nat64/usr/netlink.h"
-#include "nat64/usr/joold/netsocket.h"
+
+#include "nl-protocol.h"
+#include "types.h"
+#include "netlink.h"
+#include "netsocket.h"
 
 /** Receives Generic Netlink packets from the kernel module. */
 static struct nl_sock *sk;
@@ -89,17 +90,8 @@ static void print_pkt_meta(struct request_hdr *hdr)
 	case MODE_GLOBAL:
 		printf("global");
 		break;
-	case MODE_POOL6:
-		printf("pool6");
-		break;
 	case MODE_POOL4:
 		printf("pool4");
-		break;
-	case MODE_BLACKLIST:
-		printf("blacklist");
-		break;
-	case MODE_RFC6791:
-		printf("rfc6791");
 		break;
 	case MODE_EAMT:
 		printf("eamt");
@@ -109,9 +101,6 @@ static void print_pkt_meta(struct request_hdr *hdr)
 		break;
 	case MODE_SESSION:
 		printf("session");
-		break;
-	case MODE_LOGTIME:
-		printf("log");
 		break;
 	case MODE_PARSE_FILE:
 		printf("file");
@@ -131,9 +120,6 @@ static void print_pkt_meta(struct request_hdr *hdr)
 	switch (ntohs(hdr->operation)) {
 	case OP_DISPLAY:
 		printf("display");
-		break;
-	case OP_COUNT:
-		printf("count");
 		break;
 	case OP_ADD:
 		printf("add");

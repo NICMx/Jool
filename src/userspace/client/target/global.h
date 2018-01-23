@@ -1,7 +1,7 @@
 #ifndef _JOOL_USR_GLOBAL_H
 #define _JOOL_USR_GLOBAL_H
 
-#include "config.h"
+#include "types.h"
 #include "userspace-types.h"
 
 int global_display(display_flags flags);

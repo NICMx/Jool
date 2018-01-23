@@ -2,7 +2,7 @@
 
 #include "types.h"
 
-int verify_superpriv(void)
+int verify_privileges(void)
 {
 	if (!capable(CAP_NET_ADMIN)) {
 		log_err("Administrative privileges required.");

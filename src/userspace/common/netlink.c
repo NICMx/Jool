@@ -1,10 +1,9 @@
-#include "nat64/usr/netlink.h"
+#include "netlink.h"
 
 #include <netlink/genl/genl.h>
 #include <netlink/genl/ctrl.h>
 #include <errno.h>
-#include "nat64/common/config.h"
-#include "nat64/common/types.h"
+#include "nl-protocol.h"
 
 struct response_cb {
 	jool_response_cb cb;

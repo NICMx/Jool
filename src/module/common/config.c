@@ -3,7 +3,7 @@
 #include "constants.h"
 #include "wkmalloc.h"
 
-struct global_config *config_init(void)
+struct global_config *config_init(xlator_type type)
 {
 	struct global_config *result;
 	struct global_config_usr *config;
@@ -15,8 +15,7 @@ struct global_config *config_init(void)
 	kref_init(&result->refcounter);
 	config = &result->cfg;
 
-	config->xlator_type = DEFAULT_XLATOR_TYPE;
-	config->status = 0; /* This is never read, but whatever. */
+	config->xlator_type = type;
 	memset(&config->pool6, 0, sizeof(config->pool6));
 	config->reset_traffic_class = DEFAULT_RESET_TRAFFIC_CLASS;
 	config->reset_tos = DEFAULT_RESET_TOS;
@@ -69,13 +68,11 @@ void config_copy(struct global_config_usr *from, struct global_config_usr *to)
 	memcpy(to, from, sizeof(*from));
 }
 
-void prepare_config_for_userspace(struct full_config *config, bool pools_empty)
+void prepare_config_for_userspace(struct full_config *config)
 {
 	struct bib_config *bib;
 	struct fragdb_config *frag;
 	struct joold_config *joold;
-
-	config->global.status = !pools_empty;
 
 	bib = &config->bib;
 	bib->ttl.tcp_est = jiffies_to_msecs(bib->ttl.tcp_est);

@@ -30,7 +30,7 @@ static int handle_bib_display(struct bib *db, struct genl_info *info,
 	struct ipv4_transport_addr *offset;
 	int error;
 
-	if (verify_superpriv())
+	if (verify_privileges())
 		return nlcore_respond(info, -EPERM);
 
 	log_debug("Sending BIB to userspace.");
@@ -70,7 +70,7 @@ static int handle_bib_add(struct xlator *jool, struct request_bib *request)
 	struct bib_entry old;
 	int error;
 
-	if (verify_superpriv())
+	if (verify_privileges())
 		return -EPERM;
 
 	log_debug("Adding BIB entry.");
@@ -111,7 +111,7 @@ static int handle_bib_rm(struct xlator *jool, struct request_bib *request)
 	struct bib_entry bib;
 	int error;
 
-	if (verify_superpriv())
+	if (verify_privileges())
 		return -EPERM;
 
 	log_debug("Removing BIB entry.");

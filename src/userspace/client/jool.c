@@ -11,25 +11,21 @@
 #include <linux/types.h>
 #include <string.h>
 
-#include "nat64/common/config.h"
-#include "nat64/common/constants.h"
-#include "nat64/common/types.h"
-#include "nat64/common/xlat.h"
-#include "nat64/usr/str_utils.h"
-#include "nat64/usr/instance.h"
-#include "nat64/usr/file.h"
-#include "nat64/usr/joold.h"
-#include "nat64/usr/json.h"
-#include "nat64/usr/netlink.h"
-#include "nat64/usr/pool.h"
-#include "nat64/usr/pool6.h"
-#include "nat64/usr/pool4.h"
-#include "nat64/usr/bib.h"
-#include "nat64/usr/session.h"
-#include "nat64/usr/eam.h"
-#include "nat64/usr/global.h"
-#include "nat64/usr/log_time.h"
-#include "nat64/usr/argp/options.h"
+#include "constants.h"
+#include "file.h"
+#include "netlink.h"
+#include "options.h"
+#include "types.h"
+#include "usr-str-utils.h"
+#include "xlat.h"
+#include "target/bib.h"
+#include "target/eam.h"
+#include "target/instance.h"
+#include "target/global.h"
+#include "target/joold.h"
+#include "target/json.h"
+#include "target/pool4.h"
+#include "target/session.h"
 
 
 
@@ -86,8 +82,6 @@ static int update_state(struct arguments *args, enum config_mode valid_modes,
 {
 	enum config_mode common_modes;
 	enum config_operation common_ops;
-
-	valid_modes &= xlat_is_nat64() ? NAT64_MODES : SIIT_MODES;
 
 	common_modes = args->mode & valid_modes;
 	if (!common_modes || (common_modes | valid_modes) != valid_modes)
@@ -252,8 +246,7 @@ static int set_ipv4_prefix(struct arguments *args, char *str)
 {
 	int error;
 
-	error = update_state(args, MODE_POOL4 | MODE_BLACKLIST | MODE_RFC6791
-			| MODE_EAMT, OP_ADD | OP_REMOVE);
+	error = update_state(args, MODE_POOL4 | MODE_EAMT, OP_ADD | OP_REMOVE);
 	if (error)
 		return error;
 
@@ -270,8 +263,7 @@ static int set_ipv6_prefix(struct arguments *args, char *str)
 {
 	int error;
 
-	error = update_state(args, MODE_POOL6 | MODE_EAMT, OP_ADD | OP_UPDATE
-			| OP_REMOVE);
+	error = update_state(args, MODE_EAMT, OP_ADD | OP_UPDATE | OP_REMOVE);
 	if (error)
 		return error;
 
@@ -287,11 +279,6 @@ static int set_ipv6_prefix(struct arguments *args, char *str)
 static int set_bib6(struct arguments *args, char *str)
 {
 	int error;
-
-	if (xlat_is_siit()) {
-		log_err("You entered an IPv6 transport address. SIIT doesn't have BIBs...");
-		return -EINVAL;
-	}
 
 	error = update_state(args, MODE_BIB, OP_ADD | OP_REMOVE);
 	if (error)
@@ -311,11 +298,6 @@ static int set_bib4(struct arguments *args, char *str)
 {
 	int error;
 
-	if (xlat_is_siit()) {
-		log_err("You entered an IPv4 transport address. SIIT doesn't have BIBs...");
-		return -EINVAL;
-	}
-
 	error = update_state(args, MODE_BIB, OP_ADD | OP_REMOVE);
 	if (error)
 		return error;
@@ -333,11 +315,6 @@ static int set_bib4(struct arguments *args, char *str)
 static int set_port_range(struct arguments *args, char *str)
 {
 	int error;
-
-	if (xlat_is_siit()) {
-		log_err("You seem to have entered a port range. SIIT doesn't need them...");
-		return -EINVAL;
-	}
 
 	error = update_state(args, MODE_POOL4, OP_ADD | OP_REMOVE);
 	if (error)
@@ -389,17 +366,8 @@ static int parse_opt(int key, char *str, struct argp_state *state)
 	case ARGP_GLOBAL:
 		error = update_state(args, MODE_GLOBAL, GLOBAL_OPS);
 		break;
-	case ARGP_POOL6:
-		error = update_state(args, MODE_POOL6, POOL6_OPS);
-		break;
 	case ARGP_POOL4:
 		error = update_state(args, MODE_POOL4, POOL4_OPS);
-		break;
-	case ARGP_BLACKLIST:
-		error = update_state(args, MODE_BLACKLIST, BLACKLIST_OPS);
-		break;
-	case ARGP_RFC6791:
-		error = update_state(args, MODE_RFC6791, RFC6791_OPS);
 		break;
 	case ARGP_EAMT:
 		error = update_state(args, MODE_EAMT, EAMT_OPS);
@@ -414,18 +382,12 @@ static int parse_opt(int key, char *str, struct argp_state *state)
 		error = update_state(args, MODE_JOOLD, JOOLD_OPS);
 		break;
 
-	case ARGP_LOGTIME:
-		error = update_state(args, MODE_LOGTIME, LOGTIME_OPS);
-		break;
 	case ARGP_INSTANCE:
 		error = update_state(args, MODE_INSTANCE, INSTANCE_OPS);
 		break;
 
 	case ARGP_DISPLAY:
 		error = update_state(args, DISPLAY_MODES, OP_DISPLAY);
-		break;
-	case ARGP_COUNT:
-		error = update_state(args, COUNT_MODES, OP_COUNT);
 		break;
 	case ARGP_ADD:
 		error = update_state(args, ADD_MODES, OP_ADD);
@@ -466,8 +428,7 @@ static int parse_opt(int key, char *str, struct argp_state *state)
 		args->flags |= DF_NUMERIC_HOSTNAME;
 		break;
 	case ARGP_CSV:
-		error = update_state(args, POOL_MODES | TABLE_MODES
-				| MODE_GLOBAL, OP_DISPLAY);
+		error = update_state(args, DISPLAY_MODES, OP_DISPLAY);
 		args->flags |= DF_CSV_FORMAT;
 		break;
 	case ARGP_NO_HEADERS:
@@ -494,10 +455,6 @@ static int parse_opt(int key, char *str, struct argp_state *state)
 		args->db.force = true;
 		break;
 
-	case ARGP_ENABLE_TRANSLATION:
-	case ARGP_DISABLE_TRANSLATION:
-		error = set_global_bool(args, key, "true");
-		break;
 	case ARGP_RESET_TCLASS:
 	case ARGP_RESET_TOS:
 	case ARGP_COMPUTE_CSUM_ZERO:
@@ -538,9 +495,6 @@ static int parse_opt(int key, char *str, struct argp_state *state)
 		break;
 	case ARGP_TCP_TRANS_TO:
 		error = set_global_u64(args, key, str, TCP_TRANS, MAX_U32/1000, 1000);
-		break;
-	case ARGP_FRAG_TO:
-		error = set_global_u64(args, key, str, FRAGMENT_MIN, MAX_U32/1000, 1000);
 		break;
 	case ARGP_STORED_PKTS:
 		error = set_global_u32(args, key, str, 0, MAX_U32);
@@ -628,7 +582,7 @@ static unsigned int zeroize_upper_bits(__u16 num)
 static int parse_args(int argc, char **argv, struct arguments *result)
 {
 	int error;
-	struct argp_option *options = build_opts();
+	struct argp_option *options = get_options();
 	struct argp argp = { options, parse_opt, args_doc, doc };
 
 	memset(result, 0, sizeof(*result));
@@ -662,36 +616,6 @@ static int unknown_op(char *mode, enum config_operation op)
 {
 	log_err("Unknown operation for %s mode: %u.", mode, op);
 	return -EINVAL;
-}
-
-static int handle_pool6(struct arguments *args)
-{
-	switch (args->op) {
-	case OP_DISPLAY:
-		return pool6_display(args->flags);
-
-	case OP_ADD:
-	case OP_UPDATE:
-		if (!args->db.prefix6_set) {
-			log_err("The IPv6 prefix is mandatory.");
-			return -EINVAL;
-		}
-		return pool6_add(&args->db.prefix6, args->db.force);
-
-	case OP_REMOVE:
-		if (!args->db.prefix6_set) {
-			log_err("The IPv6 prefix is mandatory.");
-			return -EINVAL;
-		}
-		return pool6_remove(&args->db.prefix6);
-
-	case OP_COUNT:
-		return pool6_count();
-	case OP_FLUSH:
-		return pool6_flush();
-	default:
-		return unknown_op("IPv6 pool", args->op);
-	}
 }
 
 static int __pool4_add(struct arguments *args)
@@ -791,16 +715,9 @@ static int __pool4_rm(struct arguments *args)
 
 static int handle_pool4(struct arguments *args)
 {
-	if (xlat_is_siit()) {
-		log_err("SIIT doesn't have pool4.");
-		return -EINVAL;
-	}
-
 	switch (args->op) {
 	case OP_DISPLAY:
 		return pool4_display(args->flags);
-	case OP_COUNT:
-		return pool4_count();
 	case OP_ADD:
 		return __pool4_add(args);
 	case OP_UPDATE:
@@ -819,19 +736,12 @@ static int handle_bib(struct arguments *args)
 	struct ipv6_transport_addr *addr6;
 	struct ipv4_transport_addr *addr4;
 
-	if (xlat_is_siit()) {
-		log_err("SIIT doesn't have BIBs.");
-		return -EINVAL;
-	}
-
 	addr6 = args->db.bib.addr6_set ? &args->db.bib.addr6 : NULL;
 	addr4 = args->db.bib.addr4_set ? &args->db.bib.addr4 : NULL;
 
 	switch (args->op) {
 	case OP_DISPLAY:
 		return bib_display(args->flags);
-	case OP_COUNT:
-		return bib_count(args->flags);
 
 	case OP_ADD:
 		if (!addr6 || !addr4) {
@@ -854,16 +764,9 @@ static int handle_bib(struct arguments *args)
 
 static int handle_session(struct arguments *args)
 {
-	if (xlat_is_siit()) {
-		log_err("SIIT doesn't have sessions.");
-		return -EINVAL;
-	}
-
 	switch (args->op) {
 	case OP_DISPLAY:
 		return session_display(args->flags);
-	case OP_COUNT:
-		return session_count(args->flags);
 	default:
 		return unknown_op("session", args->op);
 	}
@@ -874,19 +777,12 @@ static int handle_eamt(struct arguments *args)
 	struct ipv6_prefix *prefix6;
 	struct ipv4_prefix *prefix4;
 
-	if (xlat_is_nat64()) {
-		log_err("Stateful NAT64 doesn't have EAMTs.");
-		return -EINVAL;
-	}
-
 	prefix6 = args->db.prefix6_set ? &args->db.prefix6 : NULL;
 	prefix4 = args->db.prefix4_set ? &args->db.prefix4 : NULL;
 
 	switch (args->op) {
 	case OP_DISPLAY:
 		return eam_display(args->flags);
-	case OP_COUNT:
-		return eam_count();
 
 	case OP_ADD:
 		if (!prefix6 || !prefix4) {
@@ -906,40 +802,6 @@ static int handle_eamt(struct arguments *args)
 		return eam_flush();
 	default:
 		return unknown_op("EAMT", args->op);
-	}
-}
-
-static int handle_addr4_pool(struct arguments *args)
-{
-	if (xlat_is_nat64()) {
-		log_err("blacklist/RFC6791 don't apply to Stateful NAT64.");
-		return -EINVAL;
-	}
-
-	switch (args->op) {
-	case OP_DISPLAY:
-		return pool_display(args->mode, args->flags);
-	case OP_COUNT:
-		return pool_count(args->mode);
-
-	case OP_ADD:
-		if (!args->db.prefix4_set) {
-			log_err("The address/prefix argument is mandatory.");
-			return -EINVAL;
-		}
-		return pool_add(args->mode, &args->db.prefix4, args->db.force);
-
-	case OP_REMOVE:
-		if (!args->db.prefix4_set) {
-			log_err("The address/prefix argument is mandatory.");
-			return -EINVAL;
-		}
-		return pool_rm(args->mode, &args->db.prefix4);
-
-	case OP_FLUSH:
-		return pool_flush(args->mode);
-	default:
-		return unknown_op("rfc6791", args->op);
 	}
 }
 
@@ -981,8 +843,6 @@ static int handle_instance(struct arguments *args)
 static int main_wrapped(struct arguments *args)
 {
 	switch (args->mode) {
-	case MODE_POOL6:
-		return handle_pool6(args);
 	case MODE_POOL4:
 		return handle_pool4(args);
 	case MODE_BIB:
@@ -991,9 +851,6 @@ static int main_wrapped(struct arguments *args)
 		return handle_session(args);
 	case MODE_EAMT:
 		return handle_eamt(args);
-	case MODE_RFC6791:
-	case MODE_BLACKLIST:
-		return handle_addr4_pool(args);
 	case MODE_GLOBAL:
 		return handle_global(args);
 	case MODE_PARSE_FILE:

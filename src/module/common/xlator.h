@@ -1,6 +1,7 @@
 #ifndef _JOOL_MOD_NAMESPACE_H
 #define _JOOL_MOD_NAMESPACE_H
 
+#include <linux/skbuff.h>
 #include "config.h"
 
 /**
@@ -25,7 +26,8 @@ struct xlator {
 	struct joold_queue *joold;
 };
 
-int xlator_add(struct xlator *jool);
+int xlator_add(struct xlator *result, xlator_type type, char *name);
+int xlator_rm(char *name);
 int xlator_replace(struct xlator *instance);
 
 //int xlator_find(struct net *ns, struct xlator *result);
@@ -38,5 +40,8 @@ typedef int (*xlator_foreach_cb)(struct xlator *, void *);
 int xlator_foreach(xlator_foreach_cb cb, void *args);
 
 void xlator_copy_config(struct xlator *instance, struct full_config *copy);
+
+void core_6to4(struct xlator *jool, struct sk_buff *skb);
+void core_4to6(struct xlator *jool, struct sk_buff *skb);
 
 #endif /* _JOOL_MOD_NAMESPACE_H */

@@ -123,7 +123,6 @@ struct bib_table {
 	bool drop_by_addr;
 
 	/* Number of entries in this table. */
-	u64 bib_count;
 	u64 session_count;
 
 	spinlock_t lock;
@@ -400,7 +399,6 @@ static void init_table(struct bib_table *table,
 	table->log_bibs = DEFAULT_BIB_LOGGING;
 	table->log_sessions = DEFAULT_SESSION_LOGGING;
 	table->drop_by_addr = DEFAULT_ADDR_DEPENDENT_FILTERING;
-	table->bib_count = 0;
 	table->session_count = 0;
 	spin_lock_init(&table->lock);
 	init_expirer(&table->est_timer, est_timeout, SESSION_TIMER_EST, est_cb);
@@ -677,7 +675,6 @@ static void rm(struct bib_table *table,
 		rb_erase(&bib->hook4, &table->tree4);
 		log_bib(table, bib, "Forgot");
 		free_bib(bib);
-		table->bib_count--;
 	}
 }
 
@@ -907,7 +904,6 @@ static void commit_bib_add(struct bib_table *table, struct slot_group *slots)
 {
 	treeslot_commit(&slots->bib6);
 	treeslot_commit(&slots->bib4);
-	table->bib_count++;
 }
 
 static void commit_session_add(struct bib_table *table, struct tree_slot *slot)
@@ -1246,7 +1242,6 @@ static void detach_bib(struct bib_table *table, struct tabled_bib *bib)
 {
 	rb_erase(&bib->hook6, &table->tree6);
 	rb_erase(&bib->hook4, &table->tree4);
-	table->bib_count--;
 	table->session_count -= detach_sessions(table, bib);
 }
 
@@ -2324,7 +2319,6 @@ int bib_add_static(struct bib *db, struct bib_entry *new,
 
 	treeslot_commit(&slot6);
 	treeslot_commit(&slot4);
-	table->bib_count++;
 
 	/*
 	 * Since the BIB entry is now available, and assuming ADF is disabled,
@@ -2440,20 +2434,6 @@ void bib_flush(struct bib *db)
 	flush_table(&db->tcp);
 	flush_table(&db->udp);
 	flush_table(&db->icmp);
-}
-
-int bib_count(struct bib *db, l4_protocol proto, __u64 *count)
-{
-	struct bib_table *table;
-
-	table = get_table(db, proto);
-	if (!table)
-		return -EINVAL;
-
-	spin_lock_bh(&table->lock);
-	*count = table->bib_count;
-	spin_unlock_bh(&table->lock);
-	return 0;
 }
 
 int bib_count_sessions(struct bib *db, l4_protocol proto, __u64 *count)

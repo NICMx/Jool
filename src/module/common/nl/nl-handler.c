@@ -91,8 +91,6 @@ static int multiplex_request(struct xlator *jool, struct genl_info *info)
 	struct request_hdr *hdr = get_jool_hdr(info);
 
 	switch (be16_to_cpu(hdr->mode)) {
-	case MODE_POOL6:
-		return handle_pool6_config(jool, info);
 	case MODE_POOL4:
 		return handle_pool4_config(jool, info);
 	case MODE_BIB:
@@ -101,12 +99,6 @@ static int multiplex_request(struct xlator *jool, struct genl_info *info)
 		return handle_session_config(jool, info);
 	case MODE_EAMT:
 		return handle_eamt_config(jool, info);
-	case MODE_RFC6791:
-		return handle_pool6791_config(jool, info);
-	case MODE_BLACKLIST:
-		return handle_blacklist_config(jool, info);
-	case MODE_LOGTIME:
-		return handle_logtime_config(info);
 	case MODE_GLOBAL:
 		return handle_global_config(jool, info);
 	case MODE_PARSE_FILE:
@@ -114,7 +106,8 @@ static int multiplex_request(struct xlator *jool, struct genl_info *info)
 	case MODE_JOOLD:
 		return handle_joold_request(jool, info);
 	case MODE_INSTANCE:
-		return handle_instance_request(info);
+		log_err("Bug: MODE_INSTANCE was supposed to be already handled.");
+		return nlcore_respond(info, -EINVAL);
 	}
 
 	log_err("Unknown configuration mode: %d", be16_to_cpu(hdr->mode));

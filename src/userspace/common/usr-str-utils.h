@@ -1,6 +1,8 @@
 #ifndef _JOOL_USR_STR_UTILS_H
 #define _JOOL_USR_STR_UTILS_H
 
+#include "types.h"
+
 /**
  * @file
  * Two-liners (since you need to check the return value) for string-to-something
@@ -8,8 +10,6 @@
  * This is very noisy on the console on purpose because it is only used by the
  * parser of the userspace app's arguments.
  */
-
-#include "nat64/common/str_utils.h"
 
 /** Maximum storable value on a __u8. */
 #define MAX_U8 0xFFU

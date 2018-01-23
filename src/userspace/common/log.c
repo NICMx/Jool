@@ -1,4 +1,4 @@
-#include "nat64/usr/log.h"
+#include "log.h"
 #include <string.h>
 
 void log_perror(char *prefix, int error)

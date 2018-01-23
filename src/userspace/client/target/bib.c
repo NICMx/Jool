@@ -1,11 +1,12 @@
-#include "nat64/usr/bib.h"
+#include "bib.h"
 
 #include <errno.h>
-#include "nat64/common/config.h"
-#include "nat64/common/str_utils.h"
-#include "nat64/common/types.h"
-#include "nat64/usr/netlink.h"
-#include "nat64/usr/dns.h"
+
+#include "dns.h"
+#include "netlink.h"
+#include "nl-protocol.h"
+#include "str-utils.h"
+#include "types.h"
 
 
 #define HDR_LEN sizeof(struct request_hdr)
@@ -112,48 +113,6 @@ int bib_display(display_flags flags)
 		udp_error = display_table(L4PROTO_UDP, flags);
 	if (flags & DF_ICMP)
 		icmp_error = display_table(L4PROTO_ICMP, flags);
-
-	return (tcp_error || udp_error || icmp_error) ? -EINVAL : 0;
-}
-
-static int bib_count_response(struct jool_response *response, void *arg)
-{
-	if (response->payload_len != sizeof(__u64)) {
-		log_err("Jool's response is not the expected integer.");
-		return -EINVAL;
-	}
-
-	printf("%llu\n", *((__u64 *)response->payload));
-	return 0;
-}
-
-static bool display_single_count(char *count_name, u_int8_t l4_proto)
-{
-	unsigned char request[HDR_LEN + PAYLOAD_LEN];
-	struct request_hdr *hdr = (struct request_hdr *)request;
-	struct request_bib *payload = (struct request_bib *)(request + HDR_LEN);
-
-	printf("%s: ", count_name);
-
-	init_request_hdr(hdr, MODE_BIB, OP_COUNT);
-	payload->l4_proto = l4_proto;
-
-	return netlink_request(request, sizeof(request), bib_count_response,
-			NULL);
-}
-
-int bib_count(display_flags flags)
-{
-	int tcp_error = 0;
-	int udp_error = 0;
-	int icmp_error = 0;
-
-	if (flags & DF_TCP)
-		tcp_error = display_single_count("TCP", L4PROTO_TCP);
-	if (flags & DF_UDP)
-		udp_error = display_single_count("UDP", L4PROTO_UDP);
-	if (flags & DF_ICMP)
-		icmp_error = display_single_count("ICMP", L4PROTO_ICMP);
 
 	return (tcp_error || udp_error || icmp_error) ? -EINVAL : 0;
 }

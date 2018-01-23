@@ -32,7 +32,7 @@
 #include <float.h>
 #include <limits.h>
 #include <ctype.h>
-#include "nat64/usr/cJSON.h"
+#include "cJSON.h"
 
 static const char *ep;
 

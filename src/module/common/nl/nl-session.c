@@ -36,7 +36,7 @@ static int handle_session_display(struct bib *db, struct genl_info *info,
 	struct session_foreach_offset *offset = NULL;
 	int error;
 
-	if (verify_superpriv())
+	if (verify_privileges())
 		return nlcore_respond(info, -EPERM);
 
 	log_debug("Sending session table to userspace.");

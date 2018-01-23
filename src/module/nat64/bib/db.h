@@ -133,7 +133,6 @@ int bib_add_static(struct bib *db, struct bib_entry *new,
 int bib_rm(struct bib *db, struct bib_entry *entry);
 void bib_rm_range(struct bib *db, l4_protocol proto, struct ipv4_range *range);
 void bib_flush(struct bib *db);
-int bib_count(struct bib *db, l4_protocol proto, __u64 *count);
 int bib_count_sessions(struct bib *db, l4_protocol proto, __u64 *count);
 
 void bib_print(struct bib *db);

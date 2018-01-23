@@ -6,26 +6,30 @@
  * which they use to communicate with each other.
  */
 
+#ifdef __KERNEL__
+#include <linux/string.h>
+#include <uapi/linux/if.h>
+#else
+#include <errno.h>
+#include <net/if.h>
+#include <string.h>
+#endif
+
 #include "types.h"
 #include "xlat.h"
 
 /* Modes */
 #define OPTNAME_GLOBAL			"global"
-#define OPTNAME_POOL6			"pool6"
 #define OPTNAME_POOL4			"pool4"
-#define OPTNAME_BLACKLIST		"blacklist"
-#define OPTNAME_RFC6791			"pool6791"
 #define OPTNAME_EAMT			"eamt"
 #define OPTNAME_BIB			"bib"
 #define OPTNAME_SESSION			"session"
-#define OPTNAME_LOGTIME			"logTime"
 #define OPTNAME_PARSE_FILE		"file"
 #define OPTNAME_JOOLD			"joold"
 #define OPTNAME_INSTANCE		"instance"
 
 /* Operations */
 #define OPTNAME_DISPLAY			"display"
-#define OPTNAME_COUNT			"count"
 #define OPTNAME_ADD			"add"
 #define OPTNAME_UPDATE			"update"
 #define OPTNAME_REMOVE			"remove"
@@ -35,8 +39,6 @@
 #define OPTNAME_ACK			"ack"
 
 /* Normal flags */
-#define OPTNAME_ENABLE			"enable"
-#define OPTNAME_DISABLE			"disable"
 #define OPTNAME_ZEROIZE_TC		"zeroize-traffic-class"
 #define OPTNAME_OVERRIDE_TOS		"override-tos"
 #define OPTNAME_TOS			"tos"
@@ -98,14 +100,8 @@ enum attributes {
 enum config_mode {
 	/** The current message is talking about global configuration values. */
 	MODE_GLOBAL = (1 << 0),
-	/** The current message is talking about the IPv6 pool. */
-	MODE_POOL6 = (1 << 1),
 	/** The current message is talking about the IPv4 pool. */
 	MODE_POOL4 = (1 << 2),
-	/** The current message is talking about the blacklisted addr pool. */
-	MODE_BLACKLIST = (1 << 8),
-	/** The current message is talking about the RFC6791 pool. */
-	MODE_RFC6791 = (1 << 7),
 	/** The current message is talking about the EAMT. */
 	MODE_EAMT = (1 << 6),
 	/** The current message is talking about the Binding Info Bases. */
@@ -123,36 +119,23 @@ enum config_mode {
 char *configmode_to_string(enum config_mode mode);
 
 /**
- * @{
- * Allowed operations for the mode mentioned in the name.
+ * Allowed operations for the corresponding mode.
  * eg. BIB_OPS = Allowed operations for BIB requests.
  */
-#define DATABASE_OPS (OP_DISPLAY | OP_COUNT | OP_ADD | OP_REMOVE | OP_FLUSH)
+#define DATABASE_OPS (OP_DISPLAY | OP_ADD | OP_REMOVE | OP_FLUSH)
 #define ANY_OP 0xFFFF
 
 #define GLOBAL_OPS (OP_DISPLAY | OP_UPDATE)
-#define POOL6_OPS (DATABASE_OPS)
 #define POOL4_OPS (DATABASE_OPS | OP_UPDATE)
-#define BLACKLIST_OPS (DATABASE_OPS)
-#define RFC6791_OPS (DATABASE_OPS)
 #define EAMT_OPS (DATABASE_OPS)
 #define BIB_OPS (DATABASE_OPS & ~OP_FLUSH)
-#define SESSION_OPS (OP_DISPLAY | OP_COUNT)
+#define SESSION_OPS (OP_DISPLAY)
 #define JOOLD_OPS (OP_ADVERTISE | OP_TEST)
-#define LOGTIME_OPS (OP_DISPLAY)
 #define INSTANCE_OPS (OP_ADD | OP_REMOVE)
-/**
- * @}
- */
 
 enum config_operation {
 	/** The userspace app wants to print the stuff being requested. */
 	OP_DISPLAY = (1 << 0),
-	/**
-	 * The userspace app wants to print the number of records in the table
-	 * being requested.
-	 */
-	OP_COUNT = (1 << 1),
 	/**
 	 * The userspace app wants to add an element to the table being
 	 * requested.
@@ -188,29 +171,15 @@ enum parse_section {
 };
 
 /**
- * @{
- * Allowed modes for the operation mentioned in the name.
+ * Allowed modes for the corresponding operation.
  * eg. DISPLAY_MODES = Allowed modes for display operations.
  */
-#define POOL_MODES (MODE_POOL6 | MODE_POOL4 | MODE_BLACKLIST | MODE_RFC6791)
-#define TABLE_MODES (MODE_EAMT | MODE_BIB | MODE_SESSION)
-#define ANY_MODE 0xFFFF
-
-#define DISPLAY_MODES (MODE_GLOBAL | POOL_MODES | TABLE_MODES | MODE_LOGTIME)
-#define COUNT_MODES (POOL_MODES | TABLE_MODES)
-#define ADD_MODES (POOL_MODES | MODE_EAMT | MODE_BIB | MODE_INSTANCE)
-#define REMOVE_MODES (POOL_MODES | MODE_EAMT | MODE_BIB | MODE_INSTANCE)
-#define FLUSH_MODES (POOL_MODES | MODE_EAMT)
+#define DISPLAY_MODES (MODE_GLOBAL | MODE_POOL4 | MODE_EAMT | MODE_BIB | MODE_SESSION)
+#define ADD_MODES (MODE_POOL4 | MODE_EAMT | MODE_BIB | MODE_INSTANCE)
+#define REMOVE_MODES (MODE_POOL4 | MODE_EAMT | MODE_BIB | MODE_INSTANCE)
+#define FLUSH_MODES (MODE_POOL4 | MODE_EAMT)
 #define UPDATE_MODES (MODE_GLOBAL | MODE_POOL4 | MODE_PARSE_FILE)
-
-#define SIIT_MODES (MODE_GLOBAL | MODE_POOL6 | MODE_BLACKLIST | MODE_RFC6791 \
-		| MODE_EAMT | MODE_LOGTIME | MODE_PARSE_FILE | MODE_INSTANCE)
-#define NAT64_MODES (MODE_GLOBAL | MODE_POOL6 | MODE_POOL4 | MODE_BIB \
-		| MODE_SESSION | MODE_LOGTIME | MODE_PARSE_FILE \
-		| MODE_INSTANCE | MODE_JOOLD)
-/**
- * @}
- */
+#define ANY_MODE 0xFFFF
 
 /**
  * Prefix to all user-to-kernel messages.
@@ -244,10 +213,84 @@ struct request_hdr {
 	__be16 operation;
 };
 
-void init_request_hdr(struct request_hdr *hdr, enum config_mode mode,
-		enum config_operation operation);
-int validate_request(void *data, size_t data_len, char *sender, char *receiver,
-		bool *peer_is_jool);
+static inline void init_request_hdr(struct request_hdr *hdr,
+		enum config_mode mode,
+		enum config_operation operation)
+{
+	hdr->magic[0] = 'j';
+	hdr->magic[1] = 'o';
+	hdr->magic[2] = 'o';
+	hdr->magic[3] = 'l';
+	hdr->castness = 'u';
+	memset(hdr->slop, 0, sizeof(hdr->slop));
+	hdr->version = htonl(xlat_version());
+	hdr->mode = htons(mode);
+	hdr->operation = htons(operation);
+}
+
+static inline int validate_magic(struct request_hdr *hdr, char *sender)
+{
+	if (hdr->magic[0] != 'j' || hdr->magic[1] != 'o')
+		goto fail;
+	if (hdr->magic[2] != 'o' || hdr->magic[3] != 'l')
+		goto fail;
+	return 0;
+
+fail:
+	/* Well, the sender does not understand the protocol. */
+	log_err("The %s sent a message that lacks the Jool magic text.",
+			sender);
+	return -EINVAL;
+}
+
+static inline int validate_version(struct request_hdr *hdr,
+		char *sender, char *receiver)
+{
+	__u32 hdr_version = ntohl(hdr->version);
+
+	if (xlat_version() == hdr_version)
+		return 0;
+
+	log_err("Version mismatch. The %s's version is %u.%u.%u.%u,\n"
+			"but the %s is %u.%u.%u.%u.\n"
+			"Please update the %s.",
+			sender,
+			hdr_version >> 24, (hdr_version >> 16) & 0xFFU,
+			(hdr_version >> 8) & 0xFFU, hdr_version & 0xFFU,
+			receiver,
+			JOOL_VERSION_MAJOR, JOOL_VERSION_MINOR,
+			JOOL_VERSION_REV, JOOL_VERSION_DEV,
+			(xlat_version() > hdr_version) ? sender : receiver);
+	return -EINVAL;
+}
+
+/**
+ * TODO this is a little excessive for an inline function.
+ */
+static inline int validate_request(void *data, size_t data_len,
+		char *sender, char *receiver,
+		bool *peer_is_jool)
+{
+	int error;
+
+	if (peer_is_jool)
+		*peer_is_jool = false;
+
+	if (data_len < sizeof(struct request_hdr)) {
+		log_err("Message from the %s is smaller than Jool's header.",
+				sender);
+		return -EINVAL;
+	}
+
+	error = validate_magic(data, sender);
+	if (error)
+		return error;
+
+	if (peer_is_jool)
+		*peer_is_jool = true;
+
+	return validate_version(data, sender, receiver);
+}
 
 struct response_hdr {
 	struct request_hdr req;
@@ -256,6 +299,7 @@ struct response_hdr {
 };
 
 union request_instance {
+	char name[IFNAMSIZ];
 	struct {
 		__u8 type;
 	} add;
@@ -480,10 +524,7 @@ struct request_session {
  */
 enum global_type {
 	/* Common */
-	ENABLE = 1024,
-	DISABLE,
-	ENABLE_BOOL,
-	RESET_TCLASS,
+	RESET_TCLASS = 1024,
 	RESET_TOS,
 	NEW_TOS,
 	MTU_PLATEAUS,
@@ -571,13 +612,6 @@ enum f_args {
  */
 struct global_config_usr {
 	__u8 xlator_type;
-
-	/**
-	 * Is Jool actually translating?
-	 * This depends on several factors depending on stateness, and is not an
-	 * actual variable Jool stores; it is computed as it is requested.
-	 */
-	config_bool status;
 
 	/** Pref64/n. In NAT64, this is the one that's usually 64:ff9b::/96. */
 	struct ipv6_prefix pool6;
@@ -780,7 +814,7 @@ enum eam_hairpinning_mode {
 /**
  * Converts config's fields to userspace friendly units.
  */
-void prepare_config_for_userspace(struct full_config *config, bool pools_empty);
+void prepare_config_for_userspace(struct full_config *config);
 
 
 #endif /* _JOOL_COMMON_CONFIG_H */

@@ -40,7 +40,7 @@ static int handle_pool4_display(struct pool4 *pool, struct genl_info *info,
 static int handle_pool4_add(struct pool4 *pool, struct genl_info *info,
 		union request_pool4 *request)
 {
-	if (verify_superpriv())
+	if (verify_privileges())
 		return nlcore_respond(info, -EPERM);
 
 	log_debug("Adding elements to pool4.");
@@ -50,7 +50,7 @@ static int handle_pool4_add(struct pool4 *pool, struct genl_info *info,
 static int handle_pool4_update(struct pool4 *pool, struct genl_info *info,
 		union request_pool4 *request)
 {
-	if (verify_superpriv())
+	if (verify_privileges())
 		return nlcore_respond(info, -EPERM);
 
 	log_debug("Updating pool4 table.");
@@ -62,7 +62,7 @@ static int handle_pool4_rm(struct xlator *jool, struct genl_info *info,
 {
 	int error;
 
-	if (verify_superpriv())
+	if (verify_privileges())
 		return nlcore_respond(info, -EPERM);
 
 	log_debug("Removing elements from pool4.");
@@ -80,7 +80,7 @@ static int handle_pool4_rm(struct xlator *jool, struct genl_info *info,
 static int handle_pool4_flush(struct xlator *jool, struct genl_info *info,
 		union request_pool4 *request)
 {
-	if (verify_superpriv())
+	if (verify_privileges())
 		return nlcore_respond(info, -EPERM);
 
 	log_debug("Flushing pool4.");

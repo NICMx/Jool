@@ -1,7 +1,7 @@
 #ifndef _JOOL_MOD_BIB_ENTRY_H
 #define _JOOL_MOD_BIB_ENTRY_H
 
-#include "session.h"
+#include "constants.h"
 #include "types.h"
 
 /**

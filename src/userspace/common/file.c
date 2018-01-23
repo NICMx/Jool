@@ -1,9 +1,9 @@
-#include "nat64/usr/file.h"
+#include "file.h"
 
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include "nat64/common/types.h"
+#include "types.h"
 
 /**
  * Remember to free @result when you're done.

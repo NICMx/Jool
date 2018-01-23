@@ -1,4 +1,4 @@
-#include "nat64/usr/str_utils.h"
+#include "usr-str-utils.h"
 
 #include <string.h>
 #include <stdlib.h>
@@ -6,9 +6,9 @@
 #include <stdio.h>
 #include <arpa/inet.h>
 #include <regex.h>
-#include "nat64/common/constants.h"
-#include "nat64/common/types.h"
-#include "nat64/usr/global.h"
+#include "constants.h"
+#include "types.h"
+#include "nl-protocol.h"
 
 
 #define MAX_PORT 0xFFFF
@@ -62,22 +62,14 @@ char *configmode_to_string(enum config_mode mode)
 	switch (mode) {
 	case MODE_GLOBAL:
 		return OPTNAME_GLOBAL;
-	case MODE_POOL6:
-		return OPTNAME_POOL6;
 	case MODE_POOL4:
 		return OPTNAME_POOL4;
-	case MODE_BLACKLIST:
-		return OPTNAME_BLACKLIST;
-	case MODE_RFC6791:
-		return OPTNAME_RFC6791;
 	case MODE_EAMT:
 		return OPTNAME_EAMT;
 	case MODE_BIB:
 		return OPTNAME_BIB;
 	case MODE_SESSION:
 		return OPTNAME_SESSION;
-	case MODE_LOGTIME:
-		return OPTNAME_LOGTIME;
 	case MODE_PARSE_FILE:
 		return OPTNAME_PARSE_FILE;
 	case MODE_JOOLD:
@@ -94,8 +86,6 @@ char *configop_to_string(enum config_operation op)
 	switch (op) {
 	case OP_DISPLAY:
 		return OPTNAME_DISPLAY;
-	case OP_COUNT:
-		return OPTNAME_COUNT;
 	case OP_ADD:
 		return OPTNAME_ADD;
 	case OP_UPDATE:
@@ -434,7 +424,7 @@ int str_to_prefix4(const char *str, struct ipv4_prefix *prefix_out)
 		return -EINVAL;
 	}
 
-	error = str_to_addr4(token, &prefix_out->address);
+	error = str_to_addr4(token, &prefix_out->addr);
 	if (error)
 		return error;
 
@@ -468,7 +458,7 @@ int str_to_prefix6(const char *str, struct ipv6_prefix *prefix_out)
 		return -EINVAL;
 	}
 
-	error = str_to_addr6(token, &prefix_out->address);
+	error = str_to_addr6(token, &prefix_out->addr);
 	if (error)
 		return error;
 

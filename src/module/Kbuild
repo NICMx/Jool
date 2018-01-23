@@ -11,13 +11,11 @@ obj-m += jool.o
 
 jool-objs += initialization.o
 
-#jool-objs += ../common/nl-protocol.o
-
 jool-objs += common/address.o
 #jool-objs += common/atomic-config.o
 jool-objs += common/config.o
 jool-objs += common/core.o
-#jool-objs += common/error-pool.o
+jool-objs += common/error-pool.o
 jool-objs += common/handling-hairpinning.o
 jool-objs += common/icmp-wrapper.o
 jool-objs += common/ipv6-hdr-iterator.o
@@ -37,12 +35,12 @@ jool-objs += common/xlator.o
 
 #jool-objs += common/nl/nl-atomic-config.o
 #jool-objs += common/nl/nl-bib.o
-#jool-objs += common/nl/nl-common.o
-#jool-objs += common/nl/nl-core.o
+jool-objs += common/nl/nl-common.o
+jool-objs += common/nl/nl-core.o
 #jool-objs += common/nl/nl-eam.o
 #jool-objs += common/nl/nl-global.o
-#jool-objs += common/nl/nl-handler.o
-#jool-objs += common/nl/nl-instance.o
+jool-objs += common/nl/nl-handler.o
+jool-objs += common/nl/nl-instance.o
 #jool-objs += common/nl/nl-joold.o
 #jool-objs += common/nl/nl-logtime.o
 #jool-objs += common/nl/nl-pool.o

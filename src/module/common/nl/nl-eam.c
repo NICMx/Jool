@@ -51,7 +51,7 @@ static int handle_eamt_count(struct eam_table *eamt, struct genl_info *info)
 
 static int handle_eamt_add(struct eam_table *eamt, union request_eamt *request)
 {
-	if (verify_superpriv())
+	if (verify_privileges())
 		return -EPERM;
 
 	log_debug("Adding EAMT entry.");
@@ -64,7 +64,7 @@ static int handle_eamt_rm(struct eam_table *eamt, union request_eamt *request)
 	struct ipv6_prefix *prefix6;
 	struct ipv4_prefix *prefix4;
 
-	if (verify_superpriv())
+	if (verify_privileges())
 		return -EPERM;
 
 	log_debug("Removing EAMT entry.");
@@ -76,7 +76,7 @@ static int handle_eamt_rm(struct eam_table *eamt, union request_eamt *request)
 
 static int handle_eamt_flush(struct eam_table *eamt)
 {
-	if (verify_superpriv())
+	if (verify_privileges())
 		return -EPERM;
 
 	eamt_flush(eamt);

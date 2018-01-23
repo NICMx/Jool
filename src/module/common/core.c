@@ -1,5 +1,3 @@
-#include "core.h"
-
 #include "config.h"
 #include "module-stats.h"
 #include "send-packet.h"
@@ -55,15 +53,18 @@ static void check_skb_leak(struct xlation *state, jstat_type type)
 	}
 }
 
-void core_4to6(struct xlation *state, struct sk_buff *skb)
+void core_4to6(struct xlator *jool, struct sk_buff *skb)
 {
+	struct xlation state;
+	xlation_init(&state, jool);
+
 	log_debug("Got IPv4 packet: %pI4->%pI4",
 			&ip_hdr(skb)->saddr,
 			&ip_hdr(skb)->daddr);
 
 	/* Reminder: This function might change pointers. */
-	if (pkt_init_ipv4(state, skb))
-		return;
+	if (pkt_init_ipv4(&state, skb))
+		goto end;
 
 	/*
 	if (xlat_is_nat64(&state)) {
@@ -72,23 +73,30 @@ void core_4to6(struct xlation *state, struct sk_buff *skb)
 	}
 	*/
 
-	core_common(state);
-	check_skb_leak(state, JOOL_MIB_MEMLEAK46);
+	core_common(&state);
+	/* Fall through */
+
+end:
+	check_skb_leak(&state, JOOL_MIB_MEMLEAK46);
+	xlation_put(&state);
 }
 
-void core_6to4(struct xlation *state, struct sk_buff *skb)
+void core_6to4(struct xlator *jool, struct sk_buff *skb)
 {
-	snapshot_record(&state->in.debug.shot1, skb);
+	struct xlation state;
+	xlation_init(&state, jool);
+
+	snapshot_record(&state.in.debug.shot1, skb);
 
 	log_debug("Got IPv6 packet: %pI6c->%pI6c",
 			&ipv6_hdr(skb)->saddr,
 			&ipv6_hdr(skb)->daddr);
 
 	/* Reminder: This function might change pointers. */
-	if (pkt_init_ipv6(state, skb))
-		return;
+	if (pkt_init_ipv6(&state, skb))
+		goto end;
 
-	snapshot_record(&state->in.debug.shot2, skb);
+	snapshot_record(&state.in.debug.shot2, skb);
 
 	/*
 	 * TODO this is going to be a project.
@@ -133,6 +141,10 @@ void core_6to4(struct xlation *state, struct sk_buff *skb)
 	}
 	*/
 
-	core_common(state);
-	check_skb_leak(state, JOOL_MIB_MEMLEAK64);
+	core_common(&state);
+	/* Fall through */
+
+end:
+	check_skb_leak(&state, JOOL_MIB_MEMLEAK64);
+	xlation_put(&state);
 }

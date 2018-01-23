@@ -1,26 +1,24 @@
-#include "nat64/usr/json.h"
+#include "json.h"
 
 #include <errno.h>
 #include <stdlib.h>
 #include <string.h>
-#include "nat64/common/config.h"
-#include "nat64/common/constants.h"
-#include "nat64/common/types.h"
-#include "nat64/usr/cJSON.h"
-#include "nat64/usr/file.h"
-#include "nat64/usr/global.h"
-#include "nat64/usr/netlink.h"
-#include "nat64/usr/nl/buffer.h"
-#include "nat64/usr/str_utils.h"
-#include "nat64/usr/argp/options.h"
+
+#include "cJSON.h"
+#include "constants.h"
+#include "file.h"
+#include "global.h"
+#include "netlink.h"
+#include "nl-buffer.h"
+#include "nl-protocol.h"
+#include "options.h"
+#include "types.h"
+#include "usr-str-utils.h"
 
 static int do_parsing(char *buffer);
-static int parse_siit_json(cJSON *json);
-static int parse_nat64_json(cJSON *json);
+static int parse_json(cJSON *json);
 static int handle_global(cJSON *json, bool *globals_found);
-static int handle_pool6(cJSON *pool6_json);
 static int handle_eamt(cJSON *json);
-static int handle_addr4_pool(cJSON *json, enum parse_section section);
 static int handle_pool4(cJSON *pool4);
 static int handle_bib(cJSON *bib);
 
@@ -36,27 +34,6 @@ int parse_file(char *file_name)
 	error = do_parsing(buffer);
 	free(buffer);
 	return error;
-}
-
-static int validate_file_type(cJSON *json_structure)
-{
-	char *siit = "SIIT";
-	char *nat64 = "NAT64";
-	char *expected;
-
-	cJSON *file_type = cJSON_GetObjectItem(json_structure, "File_Type");
-	if (!file_type)
-		return 0; /* The user doesn't care. */
-
-	expected = xlat_is_siit() ? siit : nat64;
-
-	if (strcasecmp(file_type->valuestring, expected) != 0) {
-		log_err("File_Type is supposed to be '%s' (got '%s').",
-				expected, file_type->valuestring);
-		return -EINVAL;
-	}
-
-	return 0;
 }
 
 static int print_datatype_error(const char *field, cJSON *json, char *expected)
@@ -134,8 +111,6 @@ static int validate_u8(const char *field, struct cJSON *node)
 
 static int do_parsing(char *buffer)
 {
-	int error;
-
 	cJSON *json = cJSON_Parse(buffer);
 	if (!json) {
 		log_err("The JSON parser got confused around about here:");
@@ -143,11 +118,7 @@ static int do_parsing(char *buffer)
 		return -EINVAL;
 	}
 
-	error = validate_file_type(json);
-	if (error)
-		return error;
-
-	return xlat_is_siit() ? parse_siit_json(json) : parse_nat64_json(json);
+	return parse_json(json);
 }
 
 static void check_duplicates(bool *found, char *section)
@@ -235,76 +206,20 @@ static bool *create_globals_found_array(void)
 	struct argp_option *opts;
 	size_t i;
 
-	opts = get_global_opts();
+	opts = get_global_options();
 	if (!opts)
 		return NULL;
 
 	for (i = 0; opts[i].name; i++)
 		/* No code; just counting. */;
 
-	free(opts);
-
 	return calloc(i, sizeof(bool));
 }
 
-static int parse_siit_json(cJSON *json)
+static int parse_json(cJSON *json)
 {
 	bool global_found = false;
-	bool pool6_found = false;
 	bool eamt_found = false;
-	bool blacklist_found = false;
-	bool pool6791_found = false;
-	bool *globals_found;
-	int error;
-
-	error = send_ctrl_msg(SEC_INIT);
-	if (error)
-		return error;
-
-	globals_found = create_globals_found_array();
-	if (!globals_found) {
-		log_err("Out of memory.");
-		return -ENOMEM;
-	}
-
-	for (json = json->child; json; json = json->next) {
-		if (strcasecmp(OPTNAME_GLOBAL, json->string) == 0) {
-			check_duplicates(&global_found, OPTNAME_GLOBAL);
-			error = handle_global(json, globals_found);
-		} else if (strcasecmp(OPTNAME_POOL6, json->string) == 0) {
-			check_duplicates(&pool6_found, OPTNAME_POOL6);
-			error = handle_pool6(json);
-		} else if (strcasecmp(OPTNAME_EAMT, json->string) == 0) {
-			check_duplicates(&eamt_found, OPTNAME_EAMT);
-			error = handle_eamt(json);
-		} else if (strcasecmp(OPTNAME_BLACKLIST, json->string) == 0) {
-			check_duplicates(&blacklist_found, OPTNAME_BLACKLIST);
-			error = handle_addr4_pool(json, SEC_BLACKLIST);
-		} else if (strcasecmp(OPTNAME_RFC6791, json->string) == 0) {
-			check_duplicates(&pool6791_found, OPTNAME_RFC6791);
-			error = handle_addr4_pool(json, SEC_POOL6791);
-		} else if (strcasecmp("file_type", json->string) == 0) {
-			/* No code. */
-		} else {
-			log_err("I don't know what '%s' is; Canceling.",
-					json->string);
-			error = -EINVAL;
-		}
-
-		if (error) {
-			free(globals_found);
-			return error;
-		}
-	}
-	free(globals_found);
-
-	return send_ctrl_msg(SEC_COMMIT);
-}
-
-static int parse_nat64_json(cJSON *json)
-{
-	bool global_found = false;
-	bool pool6_found = false;
 	bool pool4_found = false;
 	bool bib_found = false;
 	bool *globals_found;
@@ -324,9 +239,9 @@ static int parse_nat64_json(cJSON *json)
 		if (strcasecmp(OPTNAME_GLOBAL, json->string) == 0) {
 			check_duplicates(&global_found, OPTNAME_GLOBAL);
 			error = handle_global(json, globals_found);
-		} else if (strcasecmp(OPTNAME_POOL6, json->string) == 0) {
-			check_duplicates(&pool6_found, OPTNAME_POOL6);
-			error = handle_pool6(json);
+		} else if (strcasecmp(OPTNAME_EAMT, json->string) == 0) {
+			check_duplicates(&eamt_found, OPTNAME_EAMT);
+			error = handle_eamt(json);
 		} else if (strcasecmp(OPTNAME_POOL4, json->string) == 0) {
 			check_duplicates(&pool4_found, OPTNAME_POOL4);
 			error = handle_pool4(json);
@@ -428,7 +343,6 @@ static int write_number(struct nl_buffer *buffer, struct argp_option *opt,
 	case ICMP_TIMEOUT:
 	case TCP_EST_TIMEOUT:
 	case TCP_TRANS_TIMEOUT:
-	case FRAGMENT_TIMEOUT:
 	case SS_FLUSH_DEADLINE:
 		error = validate_u32(opt->name, json);
 		if (error)
@@ -536,9 +450,9 @@ static int handle_global_field(cJSON *json, struct nl_buffer *buffer,
 	unsigned int i;
 	int error;
 
-	opts = get_global_opts();
+	opts = get_global_options();
 	if (!opts)
-		return -ENOMEM;
+		return -EINVAL;
 
 	for (i = 0; opts[i].name && opts[i].key; i++) {
 		if (strcasecmp(json->string, opts[i].name) == 0) {
@@ -553,7 +467,6 @@ static int handle_global_field(cJSON *json, struct nl_buffer *buffer,
 	}
 
 	log_err("Unknown global configuration field: %s", json->string);
-	free(opts);
 	return -EINVAL;
 }
 
@@ -574,35 +487,6 @@ static int handle_global(cJSON *json, bool *globals_found)
 		if (error)
 			goto end;
 	}
-
-	error = nlbuffer_flush(buffer);
-	/* Fall through. */
-
-end:
-	nlbuffer_destroy(buffer);
-	return error;
-}
-
-static int handle_pool6(cJSON *pool6_json)
-{
-	struct nl_buffer *buffer;
-	struct ipv6_prefix prefix;
-	int error;
-
-	if (!pool6_json)
-		return 0;
-
-	buffer = buffer_create(SEC_POOL6);
-	if (!buffer)
-		return -ENOMEM;
-
-	error = str_to_prefix6(pool6_json->valuestring, &prefix);
-	if (error)
-		goto end;
-
-	error = buffer_write(buffer, &prefix, sizeof(prefix), SEC_POOL6);
-	if (error)
-		goto end;
 
 	error = nlbuffer_flush(buffer);
 	/* Fall through. */
@@ -653,36 +537,6 @@ static int handle_eamt(cJSON *json)
 		}
 
 		error = buffer_write(buffer, &eam, sizeof(eam), SEC_EAMT);
-		if (error)
-			goto end;
-	}
-
-	error = nlbuffer_flush(buffer);
-	/* Fall through. */
-
-end:
-	nlbuffer_destroy(buffer);
-	return error;
-}
-
-static int handle_addr4_pool(cJSON *json, enum parse_section section)
-{
-	struct nl_buffer *buffer;
-	struct ipv4_prefix prefix;
-	int error;
-
-	if (!json)
-		return 0;
-
-	buffer = buffer_create(section);
-	if (!buffer)
-		return -ENOMEM;
-
-	for (json = json->child; json; json = json->next) {
-		error = str_to_prefix4(json->valuestring, &prefix);
-		if (error)
-			goto end;
-		error = buffer_write(buffer, &prefix, sizeof(prefix), section);
 		if (error)
 			goto end;
 	}

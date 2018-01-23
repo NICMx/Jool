@@ -1,9 +1,9 @@
-#include "nat64/usr/pool4.h"
+#include "pool4.h"
 
 #include <errno.h>
-#include "nat64/common/str_utils.h"
-#include "nat64/common/types.h"
-#include "nat64/usr/netlink.h"
+#include "str-utils.h"
+#include "types.h"
+#include "netlink.h"
 
 
 #define HDR_LEN sizeof(struct request_hdr)
@@ -182,13 +182,6 @@ int pool4_display(display_flags flags)
 	}
 
 	return 0;
-}
-
-int pool4_count(void)
-{
-	log_err("Sorry; --pool4 --count is not implemented anymore.");
-	log_err("See https://github.com/NICMx/pool4-usage-analyzer");
-	return -EINVAL;
 }
 
 int pool4_add(struct pool4_entry_usr *entry, bool force)

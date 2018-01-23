@@ -2,14 +2,15 @@
 # Process this file with autoconf to produce a configure script.
 
 AC_PREREQ([2.68])
-AC_INIT([Jool], [3.5.5], [jool@nic.mx])
-AC_CONFIG_SRCDIR([common/jool.c])
+AC_INIT([Jool], [3.99.99], [jool@nic.mx])
+AC_CONFIG_SRCDIR([client/jool.c])
 AM_INIT_AUTOMAKE([subdir-objects])
 
 # Checks for programs.
 AC_PROG_CC
 
-# It's been added because automake requires it, since automake 1.14 it is no longer required.
+# It's been added because automake requires it, since automake 1.14 it is no
+# longer required.
 AM_PROG_CC_C_O
 
 # Checks for header files.
@@ -28,4 +29,4 @@ AC_SEARCH_LIBS([argp_parse], [argp])
 PKG_CHECK_MODULES(LIBNLGENL3, libnl-genl-3.0 >= 3.1)
 
 # Spit out the makefiles.
-AC_OUTPUT(Makefile stateless/Makefile stateful/Makefile joold/Makefile)
+AC_OUTPUT(Makefile client/Makefile joold/Makefile)

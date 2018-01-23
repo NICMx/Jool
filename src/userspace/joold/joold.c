@@ -1,9 +1,10 @@
 #include <errno.h>
 #include <pthread.h>
 #include <stdio.h>
-#include "nat64/common/types.h"
-#include "nat64/usr/joold/modsocket.h"
-#include "nat64/usr/joold/netsocket.h"
+
+#include "types.h"
+#include "modsocket.h"
+#include "netsocket.h"
 
 static void cancel_thread(pthread_t thread)
 {
