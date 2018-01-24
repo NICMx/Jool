@@ -8,6 +8,7 @@
 #include "nat64/mod/common/linux_version.h"
 #include "nat64/mod/common/rbtree.h"
 #include "nat64/mod/common/route.h"
+#include "nat64/mod/common/timestamp.h"
 #include "nat64/mod/common/wkmalloc.h"
 #include "nat64/mod/stateful/bib/pkt_queue.h"
 
@@ -715,6 +716,8 @@ static void send_probe_packet(struct net *ns, struct session_entry *session)
 	unsigned int l3_hdr_len = sizeof(*iph);
 	unsigned int l4_hdr_len = sizeof(*th);
 
+	TIMESTAMP_DECLARE_START(timer);
+
 	skb = alloc_skb(LL_MAX_HEADER + l3_hdr_len + l4_hdr_len, GFP_ATOMIC);
 	if (!skb) {
 		log_debug("Could now allocate a probe packet.");
@@ -781,9 +784,11 @@ static void send_probe_packet(struct net *ns, struct session_entry *session)
 		goto fail;
 	}
 
+	TIMESTAMP_STOP(timer, TST_SESSION_PROBE, true);
 	return;
 
 fail:
+	TIMESTAMP_STOP(timer, TST_SESSION_PROBE, false);
 	log_debug("A TCP connection will probably break.");
 }
 
@@ -1554,6 +1559,7 @@ int bib_add6(struct bib *db,
 	struct slot_group slots;
 	struct bib_delete_list rm_list = { NULL };
 	int error;
+	TIMESTAMP_DECLARE_START(timer);
 
 	table = get_table(db, tuple6->l4_proto);
 	if (!table)
@@ -1595,10 +1601,14 @@ int bib_add6(struct bib *db,
 end:
 	spin_unlock_bh(&table->lock);
 
-	if (new.bib)
+	if (new.bib) {
 		free_bib(new.bib);
-	if (new.session)
+		TIMESTAMP_STOP(timer, TST64_SESSION_GENERIC_OLD, !error);
+	}
+	if (new.session) {
 		free_session(new.session);
+		TIMESTAMP_STOP(timer, TST64_SESSION_GENERIC_NEW, !error);
+	}
 	commit_delete_list(&rm_list);
 
 	return error;
@@ -1631,6 +1641,7 @@ int bib_add4(struct bib *db,
 	struct tree_slot session_slot;
 	bool allow;
 	int error = 0;
+	TIMESTAMP_DECLARE_START(timer);
 
 	table = get_table(db, tuple4->l4_proto);
 	if (!table)
@@ -1669,6 +1680,7 @@ end:
 	spin_unlock_bh(&table->lock);
 	if (new)
 		free_session(new);
+	TIMESTAMP_STOP(timer, TST46_SESSION_GENERIC, !error);
 	return error;
 }
 
@@ -1689,6 +1701,7 @@ verdict bib_add_tcp6(struct bib *db,
 	struct slot_group slots;
 	struct bib_delete_list rm_list = { NULL };
 	verdict verdict;
+	TIMESTAMP_DECLARE_START(timer);
 
 	if (WARN(pkt->tuple.l4_proto != L4PROTO_TCP, "Incorrect l4 proto in TCP handler."))
 		return VERDICT_DROP;
@@ -1734,10 +1747,16 @@ verdict bib_add_tcp6(struct bib *db,
 end:
 	spin_unlock_bh(&table->lock);
 
-	if (new.bib)
+	if (new.bib) {
 		free_bib(new.bib);
-	if (new.session)
+		TIMESTAMP_STOP(timer, TST64_SESSION_TCP_OLD,
+				verdict == VERDICT_CONTINUE);
+	}
+	if (new.session) {
 		free_session(new.session);
+		TIMESTAMP_STOP(timer, TST64_SESSION_TCP_NEW,
+				verdict == VERDICT_CONTINUE);
+	}
 	commit_delete_list(&rm_list);
 
 	return verdict;
@@ -1759,6 +1778,7 @@ verdict bib_add_tcp4(struct bib *db,
 	struct tree_slot session_slot;
 	verdict verdict;
 	int error;
+	TIMESTAMP_DECLARE_START(timer);
 
 	if (WARN(pkt->tuple.l4_proto != L4PROTO_TCP, "Incorrect l4 proto in TCP handler."))
 		return VERDICT_DROP;
@@ -1853,7 +1873,7 @@ end:
 
 	if (new)
 		free_session(new);
-
+	TIMESTAMP_STOP(timer, TST46_SESSION_TCP, verdict == VERDICT_CONTINUE);
 	return verdict;
 
 too_many_pkts:
@@ -1902,6 +1922,7 @@ int bib_add_session(struct bib *db,
 	struct slot_group slots;
 	struct bib_delete_list rm_list = { NULL };
 	int error;
+	TIMESTAMP_DECLARE_START(timer);
 
 	table = get_table(db, session->proto);
 	if (!table)
@@ -1929,10 +1950,14 @@ int bib_add_session(struct bib *db,
 end:
 	spin_unlock_bh(&table->lock);
 
-	if (new.bib)
+	if (new.bib) {
 		free_bib(new.bib);
-	if (new.session)
+		TIMESTAMP_STOP(timer, TST_SESSION_OLD, !error);
+	}
+	if (new.session) {
 		free_session(new.session);
+		TIMESTAMP_STOP(timer, TST_SESSION_NEW, !error);
+	}
 	commit_delete_list(&rm_list);
 
 	return error;
@@ -1975,6 +2000,7 @@ static void clean_table(struct bib_table *table, struct net *ns)
 	LIST_HEAD(probes);
 	LIST_HEAD(icmps);
 	u64 sessions_rm = 0;
+	TIMESTAMP_DECLARE_START(timer);
 
 	spin_lock_bh(&table->lock);
 	__clean(&table->est_timer, table, &probes, &sessions_rm);
@@ -1990,6 +2016,8 @@ static void clean_table(struct bib_table *table, struct net *ns)
 
 	post_fate(ns, &probes);
 	pktqueue_clean(&icmps);
+
+	TIMESTAMP_STOP(timer, TST_SESSION_TIMER, true);
 }
 
 static void update_timer(struct bib_table *table)

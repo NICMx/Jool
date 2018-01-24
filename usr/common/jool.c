@@ -26,6 +26,7 @@
 #include "nat64/usr/pool4.h"
 #include "nat64/usr/bib.h"
 #include "nat64/usr/session.h"
+#include "nat64/usr/timestamp.h"
 #include "nat64/usr/eam.h"
 #include "nat64/usr/global.h"
 #include "nat64/usr/log_time.h"
@@ -416,6 +417,9 @@ static int parse_opt(int key, char *str, struct argp_state *state)
 
 	case ARGP_LOGTIME:
 		error = update_state(args, MODE_LOGTIME, LOGTIME_OPS);
+		break;
+	case ARGP_TIMESTAMPS:
+		error = update_state(args, MODE_TIMESTAMPS, TIMESTAMPS_OPS);
 		break;
 	case ARGP_INSTANCE:
 		error = update_state(args, MODE_INSTANCE, INSTANCE_OPS);
@@ -994,6 +998,16 @@ static int handle_instance(struct arguments *args)
 	}
 }
 
+static int handle_timestamps(struct arguments *args)
+{
+	switch (args->op) {
+	case OP_DISPLAY:
+		return timestamp_display();
+	default:
+		return unknown_op("timestamps", args->op);
+	}
+}
+
 static int main_wrapped(struct arguments *args)
 {
 	switch (args->mode) {
@@ -1020,6 +1034,8 @@ static int main_wrapped(struct arguments *args)
 		return handle_joold(args);
 	case MODE_INSTANCE:
 		return handle_instance(args);
+	case MODE_TIMESTAMPS:
+		return handle_timestamps(args);
 	}
 
 	log_err("Unknown configuration mode: %u", args->mode);

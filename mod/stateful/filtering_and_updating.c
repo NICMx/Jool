@@ -7,6 +7,7 @@
 #include "nat64/mod/common/rfc6052.h"
 #include "nat64/mod/common/stats.h"
 #include "nat64/mod/common/rfc6145/6to4.h"
+#include "nat64/mod/common/timestamp.h"
 #include "nat64/mod/stateful/joold.h"
 #include "nat64/mod/stateful/pool4/db.h"
 #include "nat64/mod/stateful/bib/db.h"
@@ -49,6 +50,7 @@ static void log_entries(struct bib_session *entries)
 {
 	struct session_entry *session = &entries->session;
 
+	/*
 	if (entries->bib_set) {
 		log_debug("BIB entry: %pI6c#%u - %pI4#%u (%s)",
 				&session->src6.l3, session->src6.l4,
@@ -57,11 +59,11 @@ static void log_entries(struct bib_session *entries)
 	} else {
 		log_debug("BIB entry: None");
 	}
+	*/
 
 	if (entries->session_set) {
-		log_debug("Session entry: %pI6c#%u - %pI6c#%u | %pI4#%u - %pI4#%u (%s)",
+		log_debug("Session entry: %pI6c#%u | %pI4#%u | %pI4#%u (%s)",
 				&session->src6.l3, session->src6.l4,
-				&session->dst6.l3, session->dst6.l4,
 				&session->src4.l3, session->src4.l4,
 				&session->dst4.l3, session->dst4.l4,
 				l4proto_to_string(session->proto));
@@ -136,8 +138,11 @@ static int find_mask_domain(struct xlation *state,
 		.mark = state->in.skb->mark,
 	};
 
+	TIMESTAMP_DECLARE_START(timer);
 	*masks = mask_domain_find(state->jool.nat64.pool4, &state->in.tuple,
 			state->jool.global->cfg.nat64.f_args, &args);
+	TIMESTAMP_STOP(timer, TST_FAU64_MDS, masks);
+
 	if (*masks)
 		return 0;
 
@@ -546,42 +551,56 @@ verdict filtering_and_updating(struct xlation *state)
 	struct packet *in = &state->in;
 	struct ipv6hdr *hdr_ip6;
 	verdict result = VERDICT_CONTINUE;
+	TIMESTAMP_DECLARE(timer);
 
 	log_debug("Step 2: Filtering and Updating");
 
 	switch (pkt_l3_proto(in)) {
 	case L3PROTO_IPV6:
+		TIMESTAMP_START(timer);
+
 		/* Get rid of hairpinning loops and unwanted packets. */
 		hdr_ip6 = pkt_ip6_hdr(in);
 		if (pool6_contains(state->jool.pool6, &hdr_ip6->saddr)) {
 			log_debug("Hairpinning loop. Dropping...");
 			inc_stats(in, IPSTATS_MIB_INADDRERRORS);
+			TIMESTAMP_STOP(timer, TST_FAU64_VALIDATIONS, false);
 			return VERDICT_DROP;
 		}
 		if (!pool6_contains(state->jool.pool6, &hdr_ip6->daddr)) {
 			log_debug("Packet does not belong to pool6.");
+			TIMESTAMP_STOP(timer, TST_FAU64_VALIDATIONS, false);
 			return VERDICT_ACCEPT;
 		}
 
 		/* ICMP errors should not be filtered or affect the tables. */
 		if (pkt_is_icmp6_error(in)) {
 			log_debug("Packet is ICMPv6 error; skipping step...");
+			TIMESTAMP_STOP(timer, TST_FAU64_VALIDATIONS, true);
 			return VERDICT_CONTINUE;
 		}
+
+		TIMESTAMP_STOP(timer, TST_FAU64_VALIDATIONS, true);
 		break;
 	case L3PROTO_IPV4:
+		TIMESTAMP_START(timer);
+
 		/* Get rid of unexpected packets */
 		if (!pool4db_contains(state->jool.nat64.pool4, state->jool.ns,
 				in->tuple.l4_proto, &in->tuple.dst.addr4)) {
 			log_debug("Packet does not belong to pool4.");
+			TIMESTAMP_STOP(timer, TST_FAU46_VALIDATIONS, false);
 			return VERDICT_ACCEPT;
 		}
 
 		/* ICMP errors should not be filtered or affect the tables. */
 		if (pkt_is_icmp4_error(in)) {
 			log_debug("Packet is ICMPv4 error; skipping step...");
+			TIMESTAMP_STOP(timer, TST_FAU46_VALIDATIONS, true);
 			return VERDICT_CONTINUE;
 		}
+
+		TIMESTAMP_STOP(timer, TST_FAU46_VALIDATIONS, true);
 		break;
 	}
 

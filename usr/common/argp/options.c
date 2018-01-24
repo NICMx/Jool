@@ -93,6 +93,15 @@ static const struct argp_option benchmark_opt = {
 };
 #endif
 
+static const struct argp_option timestamps_opt = {
+		.name = "timestamps",
+		.key = ARGP_TIMESTAMPS,
+		.arg = NULL,
+		.flags = 0,
+		.doc = "Report performance numbers.",
+		.group = 0,
+};
+
 static const struct argp_option global_opt = {
 		.name = OPTNAME_GLOBAL,
 		.key = ARGP_GLOBAL,
@@ -601,6 +610,7 @@ static const struct argp_option *opts_siit[] = {
 	&blacklist_opt,
 	&pool6791_opt,
 	&global_opt,
+	&timestamps_opt,
 #ifdef BENCHMARK
 	&benchmark_opt,
 #endif
@@ -644,6 +654,7 @@ static const struct argp_option *opts_nat64[] = {
 #ifdef BENCHMARK
 	&benchmark_opt,
 #endif
+	&timestamps_opt,
 	&parse_file_opt,
 	&instance_opt,
 
