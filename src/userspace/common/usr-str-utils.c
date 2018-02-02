@@ -57,54 +57,6 @@ l4_protocol str_to_l4proto(char *str)
 	return L4PROTO_OTHER;
 }
 
-char *configmode_to_string(enum config_mode mode)
-{
-	switch (mode) {
-	case MODE_GLOBAL:
-		return OPTNAME_GLOBAL;
-	case MODE_POOL4:
-		return OPTNAME_POOL4;
-	case MODE_EAMT:
-		return OPTNAME_EAMT;
-	case MODE_BIB:
-		return OPTNAME_BIB;
-	case MODE_SESSION:
-		return OPTNAME_SESSION;
-	case MODE_PARSE_FILE:
-		return OPTNAME_PARSE_FILE;
-	case MODE_JOOLD:
-		return OPTNAME_JOOLD;
-	case MODE_INSTANCE:
-		return OPTNAME_INSTANCE;
-	}
-
-	return "unknown";
-}
-
-char *configop_to_string(enum config_operation op)
-{
-	switch (op) {
-	case OP_DISPLAY:
-		return OPTNAME_DISPLAY;
-	case OP_ADD:
-		return OPTNAME_ADD;
-	case OP_UPDATE:
-		return OPTNAME_UPDATE;
-	case OP_REMOVE:
-		return OPTNAME_REMOVE;
-	case OP_FLUSH:
-		return OPTNAME_FLUSH;
-	case OP_ADVERTISE:
-		return OPTNAME_ADVERTISE;
-	case OP_TEST:
-		return OPTNAME_TEST;
-	case OP_ACK:
-		return OPTNAME_ACK;
-	}
-
-	return "unknown";
-}
-
 int validate_int(const char *str)
 {
 	regex_t integer_regex;
@@ -257,23 +209,28 @@ int str_to_port_range(char *str, struct port_range *range)
 	return error;
 }
 
-#define STR_MAX_LEN 2048
-int str_to_u16_array(const char *str, __u16 **array_out, size_t *array_len_out)
+/**
+ * @result is assumed to length PLATEAUS_MAX elements.
+ * It is going to be zero-terminated.
+ */
+int str_to_plateaus_array(const char *str, __u16 *result)
 {
 	/* strtok corrupts the string, so we'll be using this copy instead. */
-	char str_copy[STR_MAX_LEN];
+	char *str_copy;
 	char *token;
-	__u16 *array;
 	size_t array_len;
+	int error;
 
 	/* Validate str and copy it to the temp buffer. */
-	if (strlen(str) + 1 > STR_MAX_LEN) {
-		log_err("'%s' is too long for this poor, limited parser...", str);
-		return -EINVAL;
+	str_copy = malloc(strlen(str) + 1);
+	if (!str_copy) {
+		log_err("I ran out of memory.");
+		return -ENOMEM;
 	}
+
 	strcpy(str_copy, str);
 
-	/* Count the number of ints in the string. */
+	/* Count the number of elements in the string. */
 	array_len = 0;
 	token = strtok(str_copy, ",");
 	while (token) {
@@ -282,38 +239,38 @@ int str_to_u16_array(const char *str, __u16 **array_out, size_t *array_len_out)
 	}
 
 	if (array_len == 0) {
-		log_err("'%s' seems to be an empty list, which is not supported.", str);
-		return -EINVAL;
+		log_err("The plateaus string seems to be an empty list, which is not supported.");
+		error = -EINVAL;
+		goto end;
+	}
+	if (array_len > PLATEAUS_MAX) {
+		log_err("Too many plateaus. The current max is %u.", PLATEAUS_MAX);
+		error = -EINVAL;
+		goto end;
 	}
 
 	/* Build the result. */
-	array = malloc(array_len * sizeof(*array));
-	if (!array) {
-		log_err("Memory allocation failed. Cannot parse the input...");
-		return -ENOMEM;
-	}
-
 	strcpy(str_copy, str);
 
 	array_len = 0;
 	token = strtok(str_copy, ",");
 	while (token) {
-		int error;
-
-		error = str_to_u16(token, &array[array_len], 0, 0xFFFF);
-		if (error) {
-			free(array);
-			return error; /* Error msg already printed. */
-		}
+		error = str_to_u16(token, &result[array_len], 0, 0xFFFF);
+		if (error)
+			goto end; /* Error msg already printed. */
 
 		array_len++;
 		token = strtok(NULL, ",");
 	}
 
 	/* Finish. */
-	*array_out = array;
-	*array_len_out = array_len;
-	return 0;
+	result[array_len] = 0;
+	error = 0;
+	/* Fall through */
+
+end:
+	free(str_copy);
+	return error;
 }
 
 int str_to_addr4(const char *str, struct in_addr *result)

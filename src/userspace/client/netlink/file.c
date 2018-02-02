@@ -1,4 +1,4 @@
-#include "json.h"
+#include "file.h"
 
 #include <errno.h>
 #include <stdlib.h>
@@ -11,7 +11,6 @@
 #include "netlink.h"
 #include "nl-buffer.h"
 #include "nl-protocol.h"
-#include "options.h"
 #include "types.h"
 #include "usr-str-utils.h"
 
@@ -22,7 +21,7 @@ static int handle_eamt(cJSON *json);
 static int handle_pool4(cJSON *pool4);
 static int handle_bib(cJSON *bib);
 
-int parse_file(char *file_name)
+int file_update(char *file_name)
 {
 	char *buffer;
 	int error;

@@ -10,11 +10,11 @@
 #include <net/if.h>
 #include <netinet/in.h>
 
+#include "common-file.h"
 #include "nl-protocol.h"
 #include "str-utils.h"
 #include "types.h"
 #include "cJSON.h"
-#include "file.h"
 #include "modsocket.h"
 
 struct netsocket_config {

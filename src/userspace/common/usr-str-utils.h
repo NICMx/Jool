@@ -11,15 +11,6 @@
  * parser of the userspace app's arguments.
  */
 
-/** Maximum storable value on a __u8. */
-#define MAX_U8 0xFFU
-/** Maximum storable value on a __u16. */
-#define MAX_U16 0xFFFFU
-/** Maximum storable value on a __u32. */
-#define MAX_U32 0xFFFFFFFFU
-/** Maximum storable value on a __u64. */
-#define MAX_U64 0xFFFFFFFFFFFFFFFFU
-
 /**
  * Parses @str as a boolean value, which it then copies to @out.
  */
@@ -43,7 +34,7 @@ int str_to_port_range(char *str, struct port_range *range);
  * @out.
  * It sets @out_len as @out's length in elements (not bytes).
  */
-int str_to_u16_array(const char *str, __u16 **out, size_t *out_len);
+int str_to_plateaus_array(const char *str, __u16 *out);
 
 /**
  * Parses @str as a '#' separated l3-address and l4-identifier, which it then

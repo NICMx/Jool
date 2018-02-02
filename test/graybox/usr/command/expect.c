@@ -10,7 +10,7 @@ int parse_exceptions(char *exceptions, struct expect_add_request *req)
 	size_t len;
 	int error;
 
-	error = str_to_u16_array(exceptions, &req->exceptions, &len);
+	error = str_to_plateaus_array(exceptions, &req->exceptions, &len);
 	if (!error)
 		req->exceptions_len = len;
 	return error;

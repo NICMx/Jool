@@ -154,9 +154,9 @@ static int update_plateaus(struct global_config_usr *config,
 		log_err("The MTU list received from userspace is empty.");
 		return -EINVAL;
 	}
-	if (list_length > ARRAY_SIZE(config->mtu_plateaus)) {
+	if (list_length > PLATEAUS_MAX) {
 		log_err("Too many plateau values; there's only room for %zu.",
-				ARRAY_SIZE(config->mtu_plateaus));
+				PLATEAUS_MAX);
 		return -EINVAL;
 	}
 

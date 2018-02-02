@@ -161,7 +161,7 @@ static int updated_entries_cb(struct nl_msg *msg, void *arg)
 
 	size_t data_size;
 	char castness;
-	struct jool_response response;
+	struct jnl_response response;
 	int error;
 
 	log_debug("Received a packet from kernelspace.");

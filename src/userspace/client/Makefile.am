@@ -2,23 +2,26 @@
 # "jool" is a "target".
 
 bin_PROGRAMS = jool
+# nl-buffer.c
 jool_SOURCES = \
+	../../common/common-global.c \
 	dns.c \
 	jool.c \
-	nl-buffer.c \
-	options.c \
 	../common/cJSON.c \
-	../common/file.c \
 	../common/netlink.c \
 	../common/usr-str-utils.c \
-	target/bib.c \
-	target/eam.c \
-	target/global.c \
-	target/instance.c \
-	target/joold.c \
-	target/json.c \
-	target/pool4.c \
-	target/session.c
+	argp/bib.c \
+	argp/eamt.c \
+	argp/global.c \
+	argp/instance.c \
+	argp/pool4.c \
+	argp/session.c \
+	netlink/bib.c \
+	netlink/eamt.c \
+	netlink/global.c \
+	netlink/instance.c \
+	netlink/pool4.c \
+	netlink/session.c
 
 jool_LDADD = ${LIBNLGENL3_LIBS}
 jool_CFLAGS = -Wall -O2

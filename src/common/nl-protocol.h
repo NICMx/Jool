@@ -18,71 +18,13 @@
 #include "types.h"
 #include "xlat.h"
 
-/* Modes */
-#define OPTNAME_GLOBAL			"global"
-#define OPTNAME_POOL4			"pool4"
-#define OPTNAME_EAMT			"eamt"
-#define OPTNAME_BIB			"bib"
-#define OPTNAME_SESSION			"session"
-#define OPTNAME_PARSE_FILE		"file"
-#define OPTNAME_JOOLD			"joold"
-#define OPTNAME_INSTANCE		"instance"
-
-/* Operations */
-#define OPTNAME_DISPLAY			"display"
-#define OPTNAME_ADD			"add"
-#define OPTNAME_UPDATE			"update"
-#define OPTNAME_REMOVE			"remove"
-#define OPTNAME_FLUSH			"flush"
-#define OPTNAME_ADVERTISE		"advertise"
-#define OPTNAME_TEST			"test"
-#define OPTNAME_ACK			"ack"
-
-/* Normal flags */
-#define OPTNAME_ZEROIZE_TC		"zeroize-traffic-class"
-#define OPTNAME_OVERRIDE_TOS		"override-tos"
-#define OPTNAME_TOS			"tos"
-#define OPTNAME_MTU_PLATEAUS		"mtu-plateaus"
-
-/* SIIT-only flags */
-#define OPTNAME_AMEND_UDP_CSUM		"amend-udp-checksum-zero"
-#define OPTNAME_EAM_HAIRPIN_MODE	"eam-hairpin-mode"
-#define OPTNAME_RANDOMIZE_RFC6791	"randomize-rfc6791-addresses"
-#define OPTNAME_RFC6791V6_PREFIX	"rfc6791v6-prefix"
-
-/* NAT64-only flags */
-#define OPTNAME_DROP_BY_ADDR		"address-dependent-filtering"
-#define OPTNAME_DROP_ICMP6_INFO		"drop-icmpv6-info"
-#define OPTNAME_DROP_EXTERNAL_TCP	"drop-externally-initiated-tcp"
-#define OPTNAME_UDP_TIMEOUT		"udp-timeout"
-#define OPTNAME_ICMP_TIMEOUT		"icmp-timeout"
-#define OPTNAME_TCPEST_TIMEOUT		"tcp-est-timeout"
-#define OPTNAME_TCPTRANS_TIMEOUT	"tcp-trans-timeout"
-#define OPTNAME_FRAG_TIMEOUT		"fragment-arrival-timeout"
-#define OPTNAME_MAX_SO			"maximum-simultaneous-opens"
-#define OPTNAME_SRC_ICMP6E_BETTER	"source-icmpv6-errors-better"
-#define OPTNAME_HANDLE_FIN_RCV_RST	"handle-rst-during-fin-rcv"
-#define OPTNAME_F_ARGS			"f-args"
-#define OPTNAME_BIB_LOGGING		"logging-bib"
-#define OPTNAME_SESSION_LOGGING		"logging-session"
-
-/* pool4 flags */
-#define OPTNAME_MARK			"mark"
-#define OPTNAME_MAX_ITERATIONS		"max-iterations"
-
-/* Synchronization flags */
-#define OPTNAME_SS_ENABLED		"ss-enabled"
-#define OPTNAME_SS_FLUSH_ASAP		"ss-flush-asap"
-#define OPTNAME_SS_FLUSH_DEADLINE	"ss-flush-deadline"
-#define OPTNAME_SS_CAPACITY		"ss-capacity"
-#define OPTNAME_SS_MAX_PAYLOAD		"ss-max-payload"
-
 /** cuz sizeof(bool) is implementation-defined. */
 typedef __u8 config_bool;
 
 #define GNL_JOOL_FAMILY_NAME "Jool"
 #define GNL_JOOLD_MULTICAST_GRP_NAME "joold"
 
+/* TODO not being used in userspace. Why? */
 enum genl_mc_group_ids {
 	JOOLD_MC_ID = (1 << 0),
 };
@@ -112,26 +54,9 @@ enum config_mode {
 	MODE_PARSE_FILE = (1 << 9),
 	/** The current message is talking about synchronization entries.*/
 	MODE_JOOLD = (1 << 10),
-
+	/** The current message is talking about Jool translation instances.*/
 	MODE_INSTANCE = (1 << 11),
 };
-
-char *configmode_to_string(enum config_mode mode);
-
-/**
- * Allowed operations for the corresponding mode.
- * eg. BIB_OPS = Allowed operations for BIB requests.
- */
-#define DATABASE_OPS (OP_DISPLAY | OP_ADD | OP_REMOVE | OP_FLUSH)
-#define ANY_OP 0xFFFF
-
-#define GLOBAL_OPS (OP_DISPLAY | OP_UPDATE)
-#define POOL4_OPS (DATABASE_OPS | OP_UPDATE)
-#define EAMT_OPS (DATABASE_OPS)
-#define BIB_OPS (DATABASE_OPS & ~OP_FLUSH)
-#define SESSION_OPS (OP_DISPLAY)
-#define JOOLD_OPS (OP_ADVERTISE | OP_TEST)
-#define INSTANCE_OPS (OP_ADD | OP_REMOVE)
 
 enum config_operation {
 	/** The userspace app wants to print the stuff being requested. */
@@ -158,8 +83,6 @@ enum config_operation {
 	OP_ACK = (1 << 8),
 };
 
-char *configop_to_string(enum config_operation op);
-
 enum parse_section {
 	SEC_GLOBAL = (1 << 0),
 	SEC_POOL4 = (1 << 1),
@@ -169,17 +92,6 @@ enum parse_section {
 	/* TODO change the datatype to __u8? */
 	SEC_INIT = (1 << 8),
 };
-
-/**
- * Allowed modes for the corresponding operation.
- * eg. DISPLAY_MODES = Allowed modes for display operations.
- */
-#define DISPLAY_MODES (MODE_GLOBAL | MODE_POOL4 | MODE_EAMT | MODE_BIB | MODE_SESSION)
-#define ADD_MODES (MODE_POOL4 | MODE_EAMT | MODE_BIB | MODE_INSTANCE)
-#define REMOVE_MODES (MODE_POOL4 | MODE_EAMT | MODE_BIB | MODE_INSTANCE)
-#define FLUSH_MODES (MODE_POOL4 | MODE_EAMT)
-#define UPDATE_MODES (MODE_GLOBAL | MODE_POOL4 | MODE_PARSE_FILE)
-#define ANY_MODE 0xFFFF
 
 /**
  * Prefix to all user-to-kernel messages.
@@ -213,6 +125,7 @@ struct request_hdr {
 	__be16 operation;
 };
 
+/** TODO eventually merge this with the jnl_* functions? */
 static inline void init_request_hdr(struct request_hdr *hdr,
 		enum config_mode mode,
 		enum config_operation operation)
@@ -265,7 +178,7 @@ static inline int validate_version(struct request_hdr *hdr,
 }
 
 /**
- * TODO this is a little excessive for an inline function.
+ * TODO this is pretty excessive for an inline function.
  */
 static inline int validate_request(void *data, size_t data_len,
 		char *sender, char *receiver,
@@ -293,26 +206,18 @@ static inline int validate_request(void *data, size_t data_len,
 }
 
 struct response_hdr {
-	struct request_hdr req;
+	struct request_hdr request;
 	__u16 error_code;
 	config_bool pending_data;
 };
 
-union request_instance {
+struct request_instance_add {
+	__u8 type;
 	char name[IFNAMSIZ];
-	struct {
-		__u8 type;
-	} add;
 };
 
-/**
- * Configuration for the "IPv6 Pool" module.
- */
-union request_pool6 {
-	/** This is only relevant in display operations. */
-	config_bool prefix_set;
-	/** The prefix the user wants to display/add/update/remove from. */
-	struct ipv6_prefix prefix;
+struct request_instance_rm {
+	char name[IFNAMSIZ];
 };
 
 enum iteration_flags {
@@ -346,214 +251,113 @@ struct pool4_entry_usr {
 	struct ipv4_range range;
 };
 
-struct pool4_update {
+struct request_pool4_foreach {
+	__u8 proto;
+	config_bool offset_set;
+	struct pool4_sample offset;
+};
+
+struct request_pool4_add {
+	struct pool4_entry_usr entry;
+};
+
+struct request_pool4_update {
 	__u32 mark;
 	__u32 iterations;
 	__u8 flags;
 	__u8 l4_proto;
 };
 
-/**
- * Configuration for the "IPv4 Pool" module.
- */
-union request_pool4 {
-	struct {
-		__u8 proto;
-		config_bool offset_set;
-		struct pool4_sample offset;
-	} display;
-	struct pool4_entry_usr add;
-	struct pool4_update update;
-	struct {
-		struct pool4_entry_usr entry;
-		/**
-		 * Whether the address's BIB entries and sessions should be
-		 * cleared too (false) or not (true).
-		 */
-		config_bool quick;
-	} rm;
-	struct {
-		/**
-		 * Whether the BIB and the sessions tables should also be
-		 * cleared (false) or not (true).
-		 */
-		config_bool quick;
-	} flush;
-};
-
-union request_pool {
-	struct {
-		config_bool offset_set;
-		struct ipv4_prefix offset;
-	} display;
-	struct {
-		/** The addresses the user wants to add to the pool. */
-		struct ipv4_prefix addrs;
-		/** Add @addrs even if it contains subnet-scoped addresses? */
-		config_bool force;
-	} add;
-	struct {
-		/** The addresses the user wants to remove from the pool. */
-		struct ipv4_prefix addrs;
-	} rm;
-	struct {
-		/* Nothing needed here. */
-	} flush;
-};
-
-/**
- * Configuration for the "EAM" module.
- */
-union request_eamt {
-	struct {
-		config_bool prefix4_set;
-		struct ipv4_prefix prefix4;
-	} display;
-	struct {
-		/* Nothing needed here. */
-	} count;
-	struct {
-		struct ipv6_prefix prefix6;
-		struct ipv4_prefix prefix4;
-		config_bool force;
-	} add;
-	struct {
-		config_bool prefix6_set;
-		struct ipv6_prefix prefix6;
-		config_bool prefix4_set;
-		struct ipv4_prefix prefix4;
-	} rm;
-	struct {
-		/* Nothing needed here ATM. */
-	} flush;
-};
-
-/**
- * Configuration for the "Log time" module.
- */
-struct request_logtime {
-	__u8 l3_proto;
-	__u8 l4_proto;
-	union {
-		struct {
-			/**
-			 * If this is false, this is the first chunk the app is
-			 * requesting.
-			 */
-			config_bool iterate;
-		} display;
-	};
-};
-
-/**
- * Configuration for the "BIB" module.
- */
-struct request_bib {
+struct request_pool4_rm {
+	struct pool4_entry_usr entry;
 	/**
-	 * Table the userspace app wants to display or edit. See enum
-	 * l4_protocol.
+	 * Whether the address's BIB entries and sessions should be
+	 * cleared too (false) or not (true).
 	 */
-	__u8 l4_proto;
-	union {
-		struct {
-			config_bool addr4_set;
-			/**
-			 * Address the userspace app received in the last chunk.
-			 * Iteration should contiue from here.
-			 */
-			struct ipv4_transport_addr addr4;
-		} display;
-		struct {
-			/* Nothing needed here. */
-		} count;
-		struct {
-			/**
-			 * The IPv6 transport address of the entry the user
-			 * wants to add.
-			 */
-			struct ipv6_transport_addr addr6;
-			/**
-			 * The IPv4 transport address of the entry the user
-			 * wants to add.
-			 */
-			struct ipv4_transport_addr addr4;
-		} add;
-		struct {
-			/* Is the value if "addr6" set? */
-			config_bool addr6_set;
-			/**
-			 * The IPv6 transport address of the entry the user
-			 * wants to remove.
-			 */
-			struct ipv6_transport_addr addr6;
-			/* Is the value if "addr4" set? */
-			config_bool addr4_set;
-			/**
-			 * The IPv4 transport address of the entry the user
-			 * wants to remove.
-			 */
-			struct ipv4_transport_addr addr4;
-		} rm;
-	};
+	config_bool quick;
 };
 
-/**
- * Configuration for the "Session DB"'s tables.
- */
-struct request_session {
+struct request_pool4_flush {
+	/**
+	 * Whether the BIB and the sessions tables should also be
+	 * cleared (false) or not (true).
+	 */
+	config_bool quick;
+};
+
+struct request_eamt_display {
+	config_bool prefix4_set;
+	struct ipv4_prefix prefix4;
+};
+
+struct request_eamt_add {
+	struct ipv6_prefix prefix6;
+	struct ipv4_prefix prefix4;
+	config_bool force;
+};
+
+struct request_eamt_rm {
+	config_bool prefix6_set;
+	struct ipv6_prefix prefix6;
+	config_bool prefix4_set;
+	struct ipv4_prefix prefix4;
+};
+
+struct request_bib_foreach {
 	/** Table the userspace app wants to display. See enum l4_protocol. */
 	__u8 l4_proto;
-	union {
-		struct {
-			/** Is offset set? */
-			config_bool offset_set;
-			/**
-			 * Connection the userspace app received in the last
-			 * chunk. Iteration should continue from here.
-			 */
-			struct taddr4_tuple offset;
-		} display;
-		struct {
-			/* Nothing needed here. */
-		} count;
-	};
+	config_bool addr4_set;
+	/**
+	 * Address the userspace app received in the last chunk.
+	 * Iteration should contiue from here.
+	 */
+	struct ipv4_transport_addr addr4;
 };
 
-/**
- * Indicators of the respective fields in the sessiondb_config structure.
- */
-enum global_type {
-	/* Common */
-	RESET_TCLASS = 1024,
-	RESET_TOS,
-	NEW_TOS,
-	MTU_PLATEAUS,
+struct request_bib_add {
+	/** Table the userspace app wants to edit. See enum l4_protocol. */
+	__u8 l4_proto;
+	/**
+	 * The IPv6 transport address of the entry the user
+	 * wants to add.
+	 */
+	struct ipv6_transport_addr addr6;
+	/**
+	 * The IPv4 transport address of the entry the user
+	 * wants to add.
+	 */
+	struct ipv4_transport_addr addr4;
+};
 
-	/* SIIT */
-	COMPUTE_UDP_CSUM_ZERO,
-	RANDOMIZE_RFC6791,
-	EAM_HAIRPINNING_MODE,
-	RFC6791V6_PREFIX,
+struct request_bib_rm {
+	/** Table the userspace app wants to edit. See enum l4_protocol. */
+	__u8 l4_proto;
+	/* Is the value if "addr6" set? */
+	config_bool addr6_set;
+	/**
+	 * The IPv6 transport address of the entry the user
+	 * wants to remove.
+	 */
+	struct ipv6_transport_addr addr6;
+	/* Is the value if "addr4" set? */
+	config_bool addr4_set;
+	/**
+	 * The IPv4 transport address of the entry the user
+	 * wants to remove.
+	 */
+	struct ipv4_transport_addr addr4;
+};
 
-	/* NAT64 */
-	DROP_BY_ADDR,
-	DROP_ICMP6_INFO,
-	DROP_EXTERNAL_TCP,
-	SRC_ICMP6ERRS_BETTER,
-	F_ARGS,
-	HANDLE_RST_DURING_FIN_RCV,
-	UDP_TIMEOUT,
-	ICMP_TIMEOUT,
-	TCP_EST_TIMEOUT,
-	TCP_TRANS_TIMEOUT,
-	BIB_LOGGING,
-	SESSION_LOGGING,
-	MAX_PKTS,
-	SS_ENABLED,
-	SS_FLUSH_ASAP,
-	SS_FLUSH_DEADLINE,
-	SS_CAPACITY,
-	SS_MAX_PAYLOAD,
+struct request_session_display {
+	/** Table the userspace app wants to display. See enum l4_protocol. */
+	__u8 l4_proto;
+	/** Is offset set? */
+	config_bool offset_set;
+	/**
+	 * Connection the userspace app received in the last
+	 * chunk. Iteration should continue from here.
+	 */
+	struct taddr4_tuple offset;
 };
 
 /**
@@ -605,7 +409,21 @@ enum f_args {
 	F_ARGS_DST_PORT = (1 << 0),
 };
 
-#define PLATEAUS_MAX 64
+struct config_prefix6 {
+	/** Meat. */
+	struct ipv6_prefix prefix;
+	/** Is @prefix set? */
+	config_bool set;
+};
+
+struct config_prefix4 {
+	/** Meat. */
+	struct ipv4_prefix prefix;
+	/** Is @prefix set? */
+	config_bool set;
+};
+
+#define PLATEAUS_MAX 63
 
 /**
  * A copy of the entire running configuration, excluding databases.
@@ -642,10 +460,10 @@ struct global_config_usr {
 	 * likely path MTU for outgoing ICMPv6 fragmentation needed packets.
 	 * The translator is supposed to pick the greatest plateau value that is
 	 * less than the incoming packet's Total Length field.
+	 *
+	 * The array is zero-terminated.
 	 */
-	__u16 mtu_plateaus[PLATEAUS_MAX];
-	/** Length of the mtu_plateaus array. */
-	__u16 mtu_plateau_count;
+	__u16 mtu_plateaus[PLATEAUS_MAX + 1];
 
 	/******* SIIT *******/
 
@@ -667,19 +485,10 @@ struct global_config_usr {
 	 * See @eam_hairpinning_mode.
 	 */
 	__u8 eam_hairpin_mode;
-	/**
-	 * States if the rfc6791_v6_prefix configuration attribute has been set.
-	 * If this flag is true then the value of rfc6791_v6_prefix is going to
-	 * be used.
-	 */
-	config_bool use_rfc6791_v6;
-	/**
-	 * Address used to represent a not translatable source address of an
-	 * incoming packet.
-	 */
-	struct ipv6_prefix rfc6791_prefix6;
-	config_bool use_rfc6791_v4;
-	struct ipv4_prefix rfc6791_prefix4;
+
+	/** Addresses for sourcing ICMP errors with untranslatable addresses. */
+	struct config_prefix6 rfc6791_prefix6;
+	struct config_prefix4 rfc6791_prefix4;
 
 	/******* NAT64 *******/
 
@@ -724,8 +533,8 @@ struct bib_config {
 };
 
 /* This has to be <= 32. */
-#define JOOLD_MULTICAST_GROUP 30
-#define JOOLD_MAX_PAYLOAD 2048
+#define JOOLD_MULTICAST_GROUP 30 /* TODO not used */
+#define JOOLD_MAX_PAYLOAD 2048 /* TODO doc */
 
 struct joold_config {
 	/** Is joold enabled on this Jool instance? */
@@ -794,10 +603,9 @@ struct full_config {
 	xlator_type type;
 };
 
-struct global_value {
+struct request_global_update {
 	__u16 type;
-	/** Includes header (this) and payload. */
-	__u16 len;
+	/* Value hangs-off here. */
 };
 
 /**

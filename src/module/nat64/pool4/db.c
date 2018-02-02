@@ -603,6 +603,7 @@ int pool4db_add_str(struct pool4 *pool, char *prefix_strs[], int prefix_count)
 	return 0;
 }
 
+/*
 int pool4db_update(struct pool4 *pool, const struct pool4_update *update)
 {
 	struct rb_root *tree;
@@ -637,6 +638,7 @@ int pool4db_update(struct pool4 *pool, const struct pool4_update *update)
 	spin_unlock_bh(&pool->lock);
 	return 0;
 }
+*/
 
 static int remove_range(struct rb_root *tree, struct pool4_table *table,
 		struct ipv4_range *rm)

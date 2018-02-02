@@ -1,898 +1,242 @@
 /**
- * @file
- * Main for the `jool_siit` and `jool` userspace applications.
- * Parses parameters from the user and hands the real work to the other .c's.
+ * Main for the `jool` userspace application.
+ * Handles the first arguments (often "mode" and "operation") and multiplexes
+ * the rest of the work to the corresponding .c's.
  */
 
-#include <stdio.h>
-#include <stdlib.h>
 #include <argp.h>
-#include <arpa/inet.h>
-#include <linux/types.h>
+#include <errno.h>
 #include <string.h>
 
-#include "constants.h"
-#include "file.h"
-#include "netlink.h"
-#include "options.h"
-#include "types.h"
-#include "usr-str-utils.h"
-#include "xlat.h"
-#include "target/bib.h"
-#include "target/eam.h"
-#include "target/instance.h"
-#include "target/global.h"
-#include "target/joold.h"
-#include "target/json.h"
-#include "target/pool4.h"
-#include "target/session.h"
+#include "log.h"
+#include "argp/bib.h"
+#include "argp/eamt.h"
+#include "argp/file.h"
+#include "argp/instance.h"
+#include "argp/pool4.h"
+#include "argp/global.h"
+#include "argp/session.h"
 
+#define DISPLAY "display"
+#define ADD "add"
+#define UPDATE "update"
+#define RM "remove"
+#define FLUSH "flush"
 
+// TODO Improve this and give it some use. */
+//const char *argp_program_version = JOOL_VERSION_STR;
+//const char *argp_program_bug_address = "jool@nic.mx";
 
-const char *argp_program_version = JOOL_VERSION_STR;
-const char *argp_program_bug_address = "jool@nic.mx";
+struct thingy {
+	/**
+	 * Name this node is known by the userspace application interface.
+	 * This being NULL signals the end of the array.
+	 */
+	char *label;
+	/** handler is only valid if children is NULL. */
+	struct thingy *children;
+	int (*handler)(int argc, char **argv);
 
-/**
- * The program arguments received from the user,
- * formatted and ready to be read in any order.
- */
-struct arguments {
-	enum config_mode mode;
-	enum config_operation op;
-
-	struct {
-		bool quick;
-		bool force;
-
-		struct ipv6_prefix prefix6;
-		bool prefix6_set;
-
-		struct ipv4_prefix prefix4;
-		bool prefix4_set;
-
-		struct {
-			__u32 mark;
-			__u32 max_iterations;
-			enum iteration_flags flags;
-			struct port_range ports;
-			bool force;
-		} pool4;
-
-		struct {
-			struct ipv6_transport_addr addr6;
-			bool addr6_set;
-			struct ipv4_transport_addr addr4;
-			bool addr4_set;
-		} bib;
-	} db;
-
-	struct {
-		__u16 type;
-		size_t size;
-		void *data;
-	} global;
-
-	char *json_filename;
-
-	display_flags flags;
+	/** Used by the code to chain temporarily correlated nodes at times. */
+	struct thingy *next;
 };
 
-static int update_state(struct arguments *args, enum config_mode valid_modes,
-		enum config_operation valid_ops)
-{
-	enum config_mode common_modes;
-	enum config_operation common_ops;
+static int handle_autocomplete(int argc, char **argv);
 
-	common_modes = args->mode & valid_modes;
-	if (!common_modes || (common_modes | valid_modes) != valid_modes)
-		goto fail;
-	args->mode = common_modes;
+struct thingy instance_ops[] = {
+		{ .label = ADD,     .handler = handle_instance_add, },
+		{ .label = RM,      .handler = handle_instance_rm, },
+		{ 0 },
+};
 
-	common_ops = args->op & valid_ops;
-	if (!common_ops || (common_ops | valid_ops) != valid_ops)
-		goto fail;
-	args->op = common_ops;
+struct thingy global_ops[] = {
+		{ .label = DISPLAY, .handler = handle_global_display, },
+		{ .label = UPDATE,  .handler = handle_global_update, },
+		{ 0 },
+};
 
-	return 0;
+struct thingy eamt_ops[] = {
+		{ .label = DISPLAY, .handler = handle_eamt_display, },
+		{ .label = ADD,     .handler = handle_eamt_add, },
+		{ .label = RM,      .handler = handle_eamt_remove, },
+		{ .label = FLUSH,   .handler = handle_eamt_flush, },
+		{ 0 },
+};
 
-fail:
-	log_err("Illegal arguments combination. See the manpage for grammar.");
-	return -EINVAL;
-}
+struct thingy pool4_ops[] = {
+		{ .label = DISPLAY, .handler = handle_pool4_display, },
+		{ .label = ADD,     .handler = handle_pool4_add, },
+		{ .label = RM,      .handler = handle_pool4_rm, },
+		{ .label = FLUSH,   .handler = handle_pool4_flush, },
+		{ 0 },
+};
 
-static int set_global_arg(struct arguments *args, __u16 type, size_t size,
-		void *value)
-{
-	int error = update_state(args, MODE_GLOBAL, OP_UPDATE);
-	if (error)
-		return error;
+struct thingy bib_ops[] = {
+		{ .label = DISPLAY, .handler = handle_bib_display, },
+		{ .label = ADD,     .handler = handle_bib_add, },
+		{ .label = RM,      .handler = handle_bib_remove, },
+		{ 0 },
+};
 
-	if (args->global.data) {
-		log_err("You can only edit one global config value at a time.");
-		return -EINVAL;
-	}
-
-	args->global.type = type;
-	args->global.size = size;
-	args->global.data = NULL;
-
-	if (size != 0) {
-		args->global.data = malloc(size);
-		if (!args->global.data)
-			return -ENOMEM;
-
-		memcpy(args->global.data, value, size);
-	}
-
-
-	return 0;
-}
-
-static int set_global_bool(struct arguments *args, __u16 type, char *value)
-{
-	__u8 tmp;
-	int error;
-
-	error = str_to_bool(value, &tmp);
-	if (error)
-		return error;
-
-	return set_global_arg(args, type, sizeof(tmp), &tmp);
-}
-
-static int set_global_u8(struct arguments *args, __u16 type, char *value,
-		__u8 min, __u8 max)
-{
-	__u8 tmp;
-	int error;
-
-	error = str_to_u8(value, &tmp, min, max);
-	if (error)
-		return error;
-
-	return set_global_arg(args, type, sizeof(tmp), &tmp);
-}
-
-static int set_global_u16(struct arguments *args, __u16 type, char *value,
-		__u16 min, __u16 max)
-{
-	__u16 tmp;
-	int error;
-
-	error = str_to_u16(value, &tmp, min, max);
-	if (error)
-		return error;
-
-	return set_global_arg(args, type, sizeof(tmp), &tmp);
-}
-
-static int set_global_u32(struct arguments *args, __u16 type, char *value,
-		__u32 min, __u32 max)
-{
-	__u32 tmp;
-	int error;
-
-	error = str_to_u32(value, &tmp, min, max);
-	if (error)
-		return error;
-
-	return set_global_arg(args, type, sizeof(tmp), &tmp);
-}
-
-static int set_global_u64(struct arguments *args, __u16 type, char *value,
-		__u64 min, __u64 max,
-		__u64 multiplier)
-{
-	__u64 tmp;
-	int error;
-
-	error = str_to_u64(value, &tmp, min, max);
-	if (error)
-		return error;
-	tmp *= multiplier;
-
-	return set_global_arg(args, type, sizeof(tmp), &tmp);
-}
-
-static int set_max_iterations(struct arguments *args, char *value)
-{
-	if (strcmp(value, "auto") == 0) {
-		args->db.pool4.flags = ITERATIONS_SET | ITERATIONS_AUTO;
-		args->db.pool4.max_iterations = 0;
-		return 0;
-	} else if (strcmp(value, "infinity") == 0) {
-		args->db.pool4.flags = ITERATIONS_SET | ITERATIONS_INFINITE;
-		args->db.pool4.max_iterations = 0;
-		return 0;
-	}
-
-	args->db.pool4.flags = ITERATIONS_SET;
-	return str_to_u32(value, &args->db.pool4.max_iterations, 1, MAX_U32);
-}
-
-static int set_global_rfc6791_prefix(struct arguments *args, __u16 type, char *value)
-{
-	int error;
-
-	struct ipv6_prefix tmp;
-
-	if (strcmp(value, "null") != 0) {
-		error = str_to_prefix6(value, &tmp);
-		if (error)
-			return error;
-
-		return set_global_arg(args, type, sizeof(tmp), &tmp);
-	}
-
-	return set_global_arg(args, type, 0, 0);
-}
-
-static int set_global_u16_array(struct arguments *args, __u16 type, char *value)
-{
-	__u16* array;
-	size_t array_len;
-	int error;
-
-	error = str_to_u16_array(value, &array, &array_len);
-	if (error)
-		return error;
-
-	error = set_global_arg(args, type, array_len * sizeof(*array), array);
-	free(array);
-	return error;
-}
-
-static int set_ipv4_prefix(struct arguments *args, char *str)
-{
-	int error;
-
-	error = update_state(args, MODE_POOL4 | MODE_EAMT, OP_ADD | OP_REMOVE);
-	if (error)
-		return error;
-
-	if (args->db.prefix4_set) {
-		log_err("Only one IPv4 prefix can be added/removed at a time.");
-		return -EINVAL;
-	}
-
-	args->db.prefix4_set = true;
-	return str_to_prefix4(str, &args->db.prefix4);
-}
-
-static int set_ipv6_prefix(struct arguments *args, char *str)
-{
-	int error;
-
-	error = update_state(args, MODE_EAMT, OP_ADD | OP_UPDATE | OP_REMOVE);
-	if (error)
-		return error;
-
-	if (args->db.prefix6_set) {
-		log_err("Only one IPv6 prefix can be added/removed at a time.");
-		return -EINVAL;
-	}
-
-	args->db.prefix6_set = true;
-	return str_to_prefix6(str, &args->db.prefix6);
-}
-
-static int set_bib6(struct arguments *args, char *str)
-{
-	int error;
-
-	error = update_state(args, MODE_BIB, OP_ADD | OP_REMOVE);
-	if (error)
-		return error;
-
-	if (args->db.bib.addr6_set) {
-		log_err("You entered more than one IPv6 transport address.");
-		log_err("Only one BIB entry can be added/removed at a time.");
-		return -EINVAL;
-	}
-
-	args->db.bib.addr6_set = true;
-	return str_to_addr6_port(str, &args->db.bib.addr6);
-}
-
-static int set_bib4(struct arguments *args, char *str)
-{
-	int error;
-
-	error = update_state(args, MODE_BIB, OP_ADD | OP_REMOVE);
-	if (error)
-		return error;
-
-	if (args->db.bib.addr4_set) {
-		log_err("You entered more than one IPv4 transport address.");
-		log_err("Only one BIB entry can be added/removed at a time.");
-		return -EINVAL;
-	}
-
-	args->db.bib.addr4_set = true;
-	return str_to_addr4_port(str, &args->db.bib.addr4);
-}
-
-static int set_port_range(struct arguments *args, char *str)
-{
-	int error;
-
-	error = update_state(args, MODE_POOL4, OP_ADD | OP_REMOVE);
-	if (error)
-		return error;
-
-	return str_to_port_range(str, &args->db.pool4.ports);
-}
-
-static int set_ip_args(struct arguments *args, char *str)
-{
-	int error;
-
-	if (!str)
-		return 0;
-
-	if (strlen(str) == 0)
-		return 0;
-
-	if (strchr(str, ':')) { /* Token is an IPv6 thingy. */
-		if (strchr(str, '#')) { /* Token is a BIB entry. */
-			error = set_bib6(args, str);
-		} else { /* Just an IPv6 Prefix. */
-			error = set_ipv6_prefix(args, str);
-		}
-
-	} else if (strchr(str, '.')) { /* Token is an IPv4 thingy. */
-		if (strchr(str, '#')) { /* Token is a BIB entry. */
-			error = set_bib4(args, str);
-		} else { /* Just an IPv4 Prefix */
-			error = set_ipv4_prefix(args, str);
-		}
-
-	} else { /* Token is a port range. */
-		error = set_port_range(args, str);
-	}
-
-	return error;
-}
+struct thingy session_ops[] = {
+		{ .label = DISPLAY, .handler = handle_session_display, },
+		{ 0 },
+};
 
 /*
- * PARSER. Field 2 in ARGP.
+struct thingy file_ops[] = {
+		{ .label = UPDATE,  .handler = handle_file_update, },
+		{ 0 },
+};
+*/
+
+struct thingy tree[] = {
+		{ .label = "instance",     .children = instance_ops, },
+		{ .label = "global",       .children = global_ops, },
+		{ .label = "eamt",         .children = eamt_ops, },
+		{ .label = "pool4",        .children = pool4_ops, },
+		{ .label = "bib",          .children = bib_ops, },
+		{ .label = "session",      .children = session_ops, },
+		/* { .label = "file",         .children = file_ops, }, */
+		{ .label = "autocomplete", .handler  = handle_autocomplete, },
+		{ 0 },
+};
+
+/**
+ * Returns the nodes from @iterator whose label start with @prefix.
+ * (They will be chained via result->next.)
+ * However, if there is a node whose entire label is @prefix, it returns that
+ * one only.
  */
-static int parse_opt(int key, char *str, struct argp_state *state)
+static struct thingy *find_matches(struct thingy *iterator, char *prefix)
 {
-	struct arguments *args = state->input;
-	int error;
+	struct thingy *first = NULL;
+	struct thingy *last = NULL;
 
-	switch (key) {
-	case ARGP_GLOBAL:
-		error = update_state(args, MODE_GLOBAL, GLOBAL_OPS);
-		break;
-	case ARGP_POOL4:
-		error = update_state(args, MODE_POOL4, POOL4_OPS);
-		break;
-	case ARGP_EAMT:
-		error = update_state(args, MODE_EAMT, EAMT_OPS);
-		break;
-	case ARGP_BIB:
-		error = update_state(args, MODE_BIB, BIB_OPS);
-		break;
-	case ARGP_SESSION:
-		error = update_state(args, MODE_SESSION, SESSION_OPS);
-		break;
-	case ARGP_JOOLD:
-		error = update_state(args, MODE_JOOLD, JOOLD_OPS);
-		break;
+	if (!iterator)
+		return NULL;
 
-	case ARGP_INSTANCE:
-		error = update_state(args, MODE_INSTANCE, INSTANCE_OPS);
-		break;
+	for (; iterator->label; iterator++) {
+		if (memcmp(iterator->label, prefix, strlen(prefix)) == 0) {
+			/*
+			 * The labels never overlap like this so this isn't
+			 * really useful right now.
+			 * I'm including this only for the sake of correctness.
+			 */
+			if (strcmp(iterator->label, prefix) == 0)
+				return iterator;
 
-	case ARGP_DISPLAY:
-		error = update_state(args, DISPLAY_MODES, OP_DISPLAY);
-		break;
-	case ARGP_ADD:
-		error = update_state(args, ADD_MODES, OP_ADD);
-		break;
-	case ARGP_UPDATE:
-		error = update_state(args, UPDATE_MODES, OP_UPDATE);
-		break;
-	case ARGP_REMOVE:
-		error = update_state(args, REMOVE_MODES, OP_REMOVE);
-		break;
-	case ARGP_FLUSH:
-		error = update_state(args, FLUSH_MODES, OP_FLUSH);
-		break;
-	case ARGP_ADVERTISE:
-		error = update_state(args, MODE_JOOLD, OP_ADVERTISE);
-		break;
-	case ARGP_TEST:
-		error = update_state(args, MODE_JOOLD, OP_TEST);
-		break;
-
-	case ARGP_UDP:
-		error = update_state(args, MODE_POOL4 | MODE_BIB | MODE_SESSION,
-				POOL4_OPS | BIB_OPS | SESSION_OPS);
-		args->flags |= DF_UDP;
-		break;
-	case ARGP_TCP:
-		error = update_state(args, MODE_POOL4 | MODE_BIB | MODE_SESSION,
-				POOL4_OPS | BIB_OPS | SESSION_OPS);
-		args->flags |= DF_TCP;
-		break;
-	case ARGP_ICMP:
-		error = update_state(args, MODE_POOL4 | MODE_BIB | MODE_SESSION,
-				POOL4_OPS | BIB_OPS | SESSION_OPS);
-		args->flags |= DF_ICMP;
-		break;
-	case ARGP_NUMERIC_HOSTNAME:
-		error = update_state(args, MODE_BIB | MODE_SESSION, OP_DISPLAY);
-		args->flags |= DF_NUMERIC_HOSTNAME;
-		break;
-	case ARGP_CSV:
-		error = update_state(args, DISPLAY_MODES, OP_DISPLAY);
-		args->flags |= DF_CSV_FORMAT;
-		break;
-	case ARGP_NO_HEADERS:
-		error = update_state(args, ANY_MODE, OP_DISPLAY);
-		args->flags &= ~DF_SHOW_HEADERS;
-		break;
-
-	case ARGP_QUICK:
-		error = update_state(args, MODE_POOL4, OP_REMOVE | OP_FLUSH);
-		args->db.quick = true;
-		break;
-	case ARGP_MARK:
-		error = update_state(args, MODE_POOL4, OP_ADD | OP_UPDATE | OP_REMOVE);
-		if (!error)
-			error = str_to_u32(str, &args->db.pool4.mark, 0, MAX_U32);
-		break;
-	case ARGP_MAX_ITERATIONS:
-		error = update_state(args, MODE_POOL4, OP_ADD | OP_UPDATE);
-		if (!error)
-			error = set_max_iterations(args, str);
-		break;
-	case ARGP_FORCE:
-		error = update_state(args, ANY_MODE, ANY_OP);
-		args->db.force = true;
-		break;
-
-	case ARGP_RESET_TCLASS:
-	case ARGP_RESET_TOS:
-	case ARGP_COMPUTE_CSUM_ZERO:
-	case ARGP_RANDOMIZE_RFC6791:
-	case ARGP_DROP_ADDR:
-	case ARGP_DROP_INFO:
-	case ARGP_DROP_TCP:
-	case ARGP_SRC_ICMP6ERRS_BETTER:
-	case ARGP_BIB_LOGGING:
-	case ARGP_SESSION_LOGGING:
-	case ARGP_SS_ENABLED:
-	case ARGP_SS_FLUSH_ASAP:
-		error = set_global_bool(args, key, str);
-		break;
-	case ARGP_F_ARGS:
-		error = set_global_u8(args, key, str, 0, 0xF);
-		break;
-	case ARGP_HANDLE_RST_DURING_FIN_RCV:
-		error = set_global_bool(args, HANDLE_RST_DURING_FIN_RCV, str);
-		break;
-	case ARGP_NEW_TOS:
-		error = set_global_u8(args, key, str, 0, MAX_U8);
-		break;
-	case ARGP_PLATEAUS:
-		error = set_global_u16_array(args, key, str);
-		break;
-	case ARGP_EAM_HAIRPIN_MODE:
-		error = set_global_u8(args, key, str, 0, EAM_HAIRPIN_MODE_COUNT - 1);
-		break;
-	case ARGP_UDP_TO:
-		error = set_global_u64(args, key, str, UDP_MIN, MAX_U32/1000, 1000);
-		break;
-	case ARGP_ICMP_TO:
-		error = set_global_u64(args, key, str, 0, MAX_U32/1000, 1000);
-		break;
-	case ARGP_TCP_TO:
-		error = set_global_u64(args, key, str, TCP_EST, MAX_U32/1000, 1000);
-		break;
-	case ARGP_TCP_TRANS_TO:
-		error = set_global_u64(args, key, str, TCP_TRANS, MAX_U32/1000, 1000);
-		break;
-	case ARGP_STORED_PKTS:
-		error = set_global_u32(args, key, str, 0, MAX_U32);
-		break;
-	case ARGP_SS_FLUSH_DEADLINE:
-		error = set_global_u64(args, key, str, 0, MAX_U32, 1);
-		break;
-	case ARGP_SS_CAPACITY:
-		error = set_global_u32(args, key, str, 0, MAX_U32);
-		break;
-	case ARGP_SS_MAX_PAYLOAD:
-		error = set_global_u16(args, key, str, 0, JOOLD_MAX_PAYLOAD);
-		break;
-	case ARGP_RFC6791V6_PREFIX:
-		error = set_global_rfc6791_prefix(args, key, str);
-		break;
-	case ARGP_PREFIX:
-		error = set_ipv6_prefix(args, str);
-		break;
-	case ARGP_ADDRESS:
-		error = set_ipv4_prefix(args, str);
-		break;
-	case ARGP_BIB_IPV6:
-		error = set_bib6(args, str);
-		break;
-	case ARGP_BIB_IPV4:
-		error = set_bib4(args, str);
-		break;
-
-	case ARGP_KEY_ARG:
-		error = set_ip_args(args, str);
-		break;
-	case ARGP_PARSE_FILE:
-		error = update_state(args, MODE_PARSE_FILE, OP_UPDATE);
-
-		args->json_filename = malloc(sizeof(char) * (strlen(str) + 1));
-		if (!args->json_filename) {
-			error = -ENOMEM;
-			log_err("Unable to allocate memory!.");
-			break;
+			if (first)
+				last->next = iterator;
+			else
+				first = iterator;
+			last = iterator;
+			last->next = NULL;
 		}
-
-		strcpy(args->json_filename, str);
-		break;
-
-	default:
-		error = ARGP_ERR_UNKNOWN;
 	}
 
-	return error;
+	return first;
+}
+
+static int unexpected_token(struct thingy *nodes, char *token)
+{
+	fprintf(stderr, "Unexpected token: '%s'\n", token);
+	fprintf(stderr, "Available options: ");
+	for (; nodes->label; nodes++) {
+		fprintf(stderr, "%s", nodes->label);
+		if ((nodes + 1)->label)
+			fprintf(stderr, ", ");
+	}
+	fprintf(stderr, "\n");
+	return -EINVAL;
+}
+
+static int ambiguous_token(struct thingy *nodes, char *token)
+{
+	fprintf(stderr, "Ambiguous token: '%s'\n", token);
+	fprintf(stderr, "Available options: ");
+	for (; nodes; nodes = nodes->next) {
+		fprintf(stderr, "%s", nodes->label);
+		if (nodes->next)
+			fprintf(stderr, ", ");
+	}
+	fprintf(stderr, "\n");
+	return -EINVAL;
+}
+
+static int more_args_expected(struct thingy *nodes)
+{
+	fprintf(stderr, "More arguments expected.\n");
+	fprintf(stderr, "Possible follow-ups: ");
+	for (; nodes->label; nodes++) {
+		fprintf(stderr, "%s", nodes->label);
+		if ((nodes + 1)->label)
+			fprintf(stderr, ", ");
+	}
+	fprintf(stderr, "\n");
+	return -EINVAL;
+}
+
+int handle(int argc, char **argv)
+{
+	struct thingy *nodes = &tree[0];
+	struct thingy *node = NULL;
+	int i;
+
+	if (argc == 0)
+		return more_args_expected(nodes);
+
+	for (i = 0; i < argc; i++) {
+		node = find_matches(nodes, argv[i]);
+		if (!node)
+			return unexpected_token(nodes, argv[i]);
+		if (node->next)
+			return ambiguous_token(node, argv[i]);
+
+		if (node->handler)
+			return node->handler(argc - i, &argv[i]);
+		nodes = node->children;
+	}
+
+	if (!node->handler)
+		return more_args_expected(node->children);
+
+	log_info("Calling handler 2");
+	return node->handler(argc - i, &argv[i]);
 }
 
 /**
- * Third ARGP field.
- * A description of the non-option command-line arguments we accept.
+ * Never fails because there's no point yet.
  */
-static char args_doc[] = "{address specification}";
-
-/*
- * Fourth ARGP field.
- * Program documentation.
- */
-static char doc[] = "See the manpage for prettier grammar.\v";
-
-/**
- * Zeroizes all of "num"'s bits, except the last one. Returns the result.
- */
-static unsigned int zeroize_upper_bits(__u16 num)
+static int handle_autocomplete(int argc, char **argv)
 {
-	__u16 mask = 0x01;
+	struct thingy *node = &tree[0];
+	char *current_token = "";
+	int i;
 
-	do {
-		if ((num & mask) != 0)
-			return num & mask;
-		mask <<= 1;
-	} while (mask);
+	if (argc != 0) {
+		for (i = 0; i < argc - 1; i++) {
+			node = find_matches(node, argv[i]);
+			if (!node)
+				return 0; /* Prefix does not exist. */
+			if (node->next)
+				return 0; /* Ambiguous prefix. */
+			node = node->children;
+		}
+		current_token = argv[i];
+	}
 
-	return num;
-}
-
-/**
- * Uses argp.h to read the parameters from the user, validates them,
- * translates them to a structure and returns the result.
- */
-static int parse_args(int argc, char **argv, struct arguments *result)
-{
-	int error;
-	struct argp_option *options = get_options();
-	struct argp argp = { options, parse_opt, args_doc, doc };
-
-	memset(result, 0, sizeof(*result));
-	result->mode = ANY_MODE;
-	result->op = ANY_OP;
-	result->db.pool4.ports.min = 0;
-	result->db.pool4.ports.max = 65535U;
-	result->flags |= DF_SHOW_HEADERS;
-
-	error = argp_parse(&argp, argc, argv, 0, NULL, result);
-	free(options);
-	if (error)
-		return error;
-
-	result->mode = zeroize_upper_bits(result->mode);
-	result->op = zeroize_upper_bits(result->op);
-
-	if ((result->flags & (DF_TCP | DF_UDP | DF_ICMP)) == 0)
-		result->flags |= DF_TCP | DF_UDP | DF_ICMP;
+	for (node = find_matches(node, current_token); node; node = node->next)
+		log_info("%s", node->label);
 
 	return 0;
-}
-
-static void destroy_args(struct arguments *args)
-{
-	free(args->json_filename);
-	free(args->global.data);
-}
-
-static int unknown_op(char *mode, enum config_operation op)
-{
-	log_err("Unknown operation for %s mode: %u.", mode, op);
-	return -EINVAL;
-}
-
-static int __pool4_add(struct arguments *args)
-{
-	struct pool4_entry_usr entry;
-	int tcp_error = 0;
-	int udp_error = 0;
-	int icmp_error = 0;
-
-	if (!args->db.prefix4_set) {
-		log_err("The address/prefix argument is mandatory.");
-		return -EINVAL;
-	}
-
-	entry.mark = args->db.pool4.mark;
-	entry.iterations = args->db.pool4.max_iterations;
-	entry.flags = args->db.pool4.flags;
-	entry.range.prefix = args->db.prefix4;
-	entry.range.ports = args->db.pool4.ports;
-
-	if (args->flags & DF_TCP) {
-		entry.proto = L4PROTO_TCP;
-		tcp_error = pool4_add(&entry, args->db.force);
-	}
-	if (args->flags & DF_UDP) {
-		entry.proto = L4PROTO_UDP;
-		udp_error = pool4_add(&entry, args->db.force);
-	}
-	if (args->flags & DF_ICMP) {
-		entry.proto = L4PROTO_ICMP;
-		icmp_error = pool4_add(&entry, args->db.force);
-	}
-
-	return (tcp_error | udp_error | icmp_error) ? -EINVAL : 0;
-}
-
-static int __pool4_update(struct arguments *args)
-{
-	struct pool4_update update;
-	int tcp_error = 0;
-	int udp_error = 0;
-	int icmp_error = 0;
-
-	update.mark = args->db.pool4.mark;
-	update.flags = args->db.pool4.flags;
-	update.iterations = args->db.pool4.max_iterations;
-
-	if (args->flags & DF_TCP) {
-		update.l4_proto = L4PROTO_TCP;
-		tcp_error = pool4_update(&update);
-	}
-	if (args->flags & DF_UDP) {
-		update.l4_proto = L4PROTO_UDP;
-		udp_error = pool4_update(&update);
-	}
-	if (args->flags & DF_ICMP) {
-		update.l4_proto = L4PROTO_ICMP;
-		icmp_error = pool4_update(&update);
-	}
-
-	return (tcp_error | udp_error | icmp_error) ? -EINVAL : 0;
-}
-
-static int __pool4_rm(struct arguments *args)
-{
-	struct pool4_entry_usr entry;
-	int tcp_error = 0;
-	int udp_error = 0;
-	int icmp_error = 0;
-
-	if (!args->db.prefix4_set) {
-		log_err("The address/prefix argument is mandatory.");
-		return -EINVAL;
-	}
-
-	entry.mark = args->db.pool4.mark;
-	entry.iterations = 0;
-	entry.flags = 0;
-	entry.range.prefix = args->db.prefix4;
-	entry.range.ports = args->db.pool4.ports;
-
-	if (args->flags & DF_TCP) {
-		entry.proto = L4PROTO_TCP;
-		tcp_error = pool4_rm(&entry, args->db.quick);
-	}
-	if (args->flags & DF_UDP) {
-		entry.proto = L4PROTO_UDP;
-		udp_error = pool4_rm(&entry, args->db.quick);
-	}
-	if (args->flags & DF_ICMP) {
-		entry.proto = L4PROTO_ICMP;
-		icmp_error = pool4_rm(&entry, args->db.quick);
-	}
-
-	return (tcp_error | udp_error | icmp_error) ? -EINVAL : 0;
-}
-
-static int handle_pool4(struct arguments *args)
-{
-	switch (args->op) {
-	case OP_DISPLAY:
-		return pool4_display(args->flags);
-	case OP_ADD:
-		return __pool4_add(args);
-	case OP_UPDATE:
-		return __pool4_update(args);
-	case OP_REMOVE:
-		return __pool4_rm(args);
-	case OP_FLUSH:
-		return pool4_flush(args->db.quick);
-	default:
-		return unknown_op("IPv4 pool", args->op);
-	}
-}
-
-static int handle_bib(struct arguments *args)
-{
-	struct ipv6_transport_addr *addr6;
-	struct ipv4_transport_addr *addr4;
-
-	addr6 = args->db.bib.addr6_set ? &args->db.bib.addr6 : NULL;
-	addr4 = args->db.bib.addr4_set ? &args->db.bib.addr4 : NULL;
-
-	switch (args->op) {
-	case OP_DISPLAY:
-		return bib_display(args->flags);
-
-	case OP_ADD:
-		if (!addr6 || !addr4) {
-			log_err("The transport address arguments are mandatory during adds.");
-			return -EINVAL;
-		}
-		return bib_add(args->flags, addr6, addr4);
-
-	case OP_REMOVE:
-		if (!addr6 && !addr4) {
-			log_err("A remove requires an IPv4 and/or v6 transport address.");
-			return -EINVAL;
-		}
-		return bib_remove(args->flags, addr6, addr4);
-
-	default:
-		return unknown_op("BIB", args->op);
-	}
-}
-
-static int handle_session(struct arguments *args)
-{
-	switch (args->op) {
-	case OP_DISPLAY:
-		return session_display(args->flags);
-	default:
-		return unknown_op("session", args->op);
-	}
-}
-
-static int handle_eamt(struct arguments *args)
-{
-	struct ipv6_prefix *prefix6;
-	struct ipv4_prefix *prefix4;
-
-	prefix6 = args->db.prefix6_set ? &args->db.prefix6 : NULL;
-	prefix4 = args->db.prefix4_set ? &args->db.prefix4 : NULL;
-
-	switch (args->op) {
-	case OP_DISPLAY:
-		return eam_display(args->flags);
-
-	case OP_ADD:
-		if (!prefix6 || !prefix4) {
-			log_err("Both EAM prefixes are mandatory during adds.");
-			return -EINVAL;
-		}
-		return eam_add(prefix6, prefix4, args->db.force);
-
-	case OP_REMOVE:
-		if (!prefix6 && !prefix4) {
-			log_err("A remove requires an IPv4 and/or v6 prefix.");
-			return -EINVAL;
-		}
-		return eam_remove(prefix6, prefix4);
-
-	case OP_FLUSH:
-		return eam_flush();
-	default:
-		return unknown_op("EAMT", args->op);
-	}
-}
-
-static int handle_global(struct arguments *args)
-{
-	switch (args->op) {
-	case OP_DISPLAY:
-		return global_display(args->flags);
-	case OP_UPDATE:
-		return global_update(args->global.type, args->global.size,
-				args->global.data);
-	default:
-		return unknown_op("global", args->op);
-	}
-}
-static int handle_joold(struct arguments *args)
-{
-	switch (args->op) {
-	case OP_ADVERTISE:
-		return joold_advertise();
-	case OP_TEST:
-		return joold_test();
-	default:
-		return unknown_op("joold", args->op);
-	}
-}
-static int handle_instance(struct arguments *args)
-{
-	switch (args->op) {
-	case OP_ADD:
-		return instance_add();
-	case OP_REMOVE:
-		return instance_rm();
-	default:
-		return unknown_op("instance", args->op);
-	}
-}
-
-static int main_wrapped(struct arguments *args)
-{
-	switch (args->mode) {
-	case MODE_POOL4:
-		return handle_pool4(args);
-	case MODE_BIB:
-		return handle_bib(args);
-	case MODE_SESSION:
-		return handle_session(args);
-	case MODE_EAMT:
-		return handle_eamt(args);
-	case MODE_GLOBAL:
-		return handle_global(args);
-	case MODE_PARSE_FILE:
-		return parse_file(args->json_filename);
-	case MODE_JOOLD:
-		return handle_joold(args);
-	case MODE_INSTANCE:
-		return handle_instance(args);
-	}
-
-	log_err("Unknown configuration mode: %u", args->mode);
-	return -EINVAL;
-}
-
-static void print_assumed_command(struct arguments *args)
-{
-	log_err("(Note: Assuming configuration mode '--%s' and operation '--%s'.)",
-			configmode_to_string(args->mode),
-			configop_to_string(args->op));
 }
 
 int main(int argc, char **argv)
 {
-	struct arguments args;
-	int error;
-
-	error = parse_args(argc, argv, &args);
-	if (error)
-		return error;
-
-	error = netlink_init();
-	if (error) {
-		destroy_args(&args);
-		return error;
-	}
-
-	error = main_wrapped(&args);
-	if (error)
-		print_assumed_command(&args);
-
-	netlink_destroy();
-	destroy_args(&args);
-	return error;
-
+	/*
+	 * `argc - 1` and `argv + 1` remove the first argument, which is the
+	 * program name.
+	 */
+	return handle(argc - 1, argv + 1);
 }

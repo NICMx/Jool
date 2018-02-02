@@ -20,15 +20,13 @@ struct global_config *config_init(xlator_type type)
 	config->reset_traffic_class = DEFAULT_RESET_TRAFFIC_CLASS;
 	config->reset_tos = DEFAULT_RESET_TOS;
 	config->new_tos = DEFAULT_NEW_TOS;
+	memset(config->mtu_plateaus, 0, sizeof(config->mtu_plateaus));
 	memcpy(config->mtu_plateaus, &plateaus, sizeof(plateaus));
-	config->mtu_plateau_count = ARRAY_SIZE(plateaus);
 
 	config->compute_udp_csum_zero = DEFAULT_COMPUTE_UDP_CSUM0;
 	config->randomize_error_addresses = DEFAULT_RANDOMIZE_RFC6791;
 	config->eam_hairpin_mode = DEFAULT_EAM_HAIRPIN_MODE;
-	config->use_rfc6791_v6 = false;
 	memset(&config->rfc6791_prefix6, 0, sizeof(config->rfc6791_prefix6));
-	config->use_rfc6791_v4 = false;
 	memset(&config->rfc6791_prefix4, 0, sizeof(config->rfc6791_prefix4));
 
 	config->drop_icmp6_info = DEFAULT_FILTER_ICMPV6_INFO;

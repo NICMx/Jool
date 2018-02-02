@@ -1,0 +1,6 @@
+#ifndef SRC_USERSPACE_CLIENT_NETLINK_FILE_H_
+#define SRC_USERSPACE_CLIENT_NETLINK_FILE_H_
+
+int file_update(char *file_name);
+
+#endif /* SRC_USERSPACE_CLIENT_NETLINK_FILE_H_ */

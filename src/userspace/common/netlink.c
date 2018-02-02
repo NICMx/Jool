@@ -6,12 +6,9 @@
 #include "nl-protocol.h"
 
 struct response_cb {
-	jool_response_cb cb;
+	jnl_response_cb cb;
 	void *arg;
 };
-
-static struct nl_sock *sk;
-static int family;
 
 /*
  * This will need to be refactored if some day we need multiple request calls
@@ -21,6 +18,59 @@ static int family;
  * Jool error.
  */
 bool error_handler_called = false;
+
+int jnl_init_socket(struct jnl_socket *socket)
+{
+	int error;
+
+	socket->sk = nl_socket_alloc();
+	if (!socket->sk) {
+		log_err("Could not allocate the socket to kernelspace; it seems we're out of memory.");
+		return -ENOMEM;
+	}
+
+	/*
+	 * We handle ACKs ourselves. The reason is that Netlink ACK errors do
+	 * not contain the friendly error string, so they're useless to us.
+	 * https://github.com/NICMx/Jool/issues/169
+	 */
+	nl_socket_disable_auto_ack(socket->sk);
+
+	error = genl_connect(socket->sk);
+	if (error) {
+		log_err("Could not open the socket to kernelspace.");
+		goto fail;
+	}
+
+	socket->family = genl_ctrl_resolve(socket->sk, GNL_JOOL_FAMILY_NAME);
+	if (socket->family < 0) {
+		log_err("Jool's socket family doesn't seem to exist.");
+		log_err("(This probably means Jool hasn't been modprobed.)");
+		error = socket->family;
+		goto fail;
+	}
+
+	/*
+	error = nl_socket_modify_err_cb(sk, NL_CB_CUSTOM, error_handler, NULL);
+	if (error) {
+		log_err("Could not register the error handler function.");
+		log_err("This means the socket to kernelspace cannot be used.");
+		goto fail;
+	}
+	*/
+
+	return 0;
+
+fail:
+	nl_socket_free(socket->sk);
+	return netlink_print_error(error);
+}
+
+void jnl_destroy_socket(struct jnl_socket *socket)
+{
+	nl_close(socket->sk);
+	nl_socket_free(socket->sk);
+}
 
 int netlink_print_error(int error)
 {
@@ -40,7 +90,7 @@ static int error_handler(struct sockaddr_nl *nla, struct nlmsgerr *nlerr,
 }
 */
 
-static int print_error_msg(struct jool_response *response)
+static int print_error_msg(struct jnl_response *response)
 {
 	char *msg;
 
@@ -65,7 +115,7 @@ end:
 	return response->hdr->error_code;
 }
 
-int netlink_parse_response(void *data, size_t data_len, struct jool_response *result)
+int netlink_parse_response(void *data, size_t data_len, struct jnl_response *result)
 {
 	if (data_len < sizeof(struct response_hdr)) {
 		log_err("The module's response is too small to contain a response header.");
@@ -88,7 +138,7 @@ int netlink_parse_response(void *data, size_t data_len, struct jool_response *re
  */
 static int response_handler(struct nl_msg *msg, void *void_arg)
 {
-	struct jool_response response;
+	struct jnl_response response;
 	struct nlattr *attrs[__ATTR_MAX + 1];
 	struct response_cb *arg;
 	int error;
@@ -113,145 +163,100 @@ static int response_handler(struct nl_msg *msg, void *void_arg)
 	return (arg && arg->cb) ? (-abs(arg->cb(&response, arg->arg))) : 0;
 }
 
-int netlink_request(void *request, __u32 request_len,
-		jool_response_cb cb, void *cb_arg)
+static int build_request(struct jnl_socket *socket,
+		enum config_mode mode, enum config_operation op,
+		void *data, int data_len,
+		struct nl_msg **result)
+{
+	struct request_hdr *hdr;
+	struct nl_msg *msg;
+	int error;
+
+	msg = nlmsg_alloc();
+	if (!msg) {
+		log_err("Out of memory.");
+		return -ENOMEM;
+	}
+
+	hdr = genlmsg_put(msg, NL_AUTO_PORT, NL_AUTO_SEQ, socket->family,
+			sizeof(struct request_hdr), 0, JOOL_COMMAND, 1);
+	if (!hdr) {
+		log_err("Unknown error building the packet to the kernel.");
+		nlmsg_free(msg);
+		return -EINVAL;
+	}
+
+	init_request_hdr(hdr, mode, op);
+	error = nla_put(msg, ATTR_DATA, data_len, data);
+	if (error) {
+		log_err("Could not write on the packet to kernelspace.");
+		nlmsg_free(msg);
+		netlink_print_error(error);
+		return error;
+	}
+
+	*result = msg;
+	return 0;
+}
+
+int jnl_request(struct jnl_socket *socket,
+		enum config_mode mode, enum config_operation op,
+		void *data, int data_len,
+		jnl_response_cb cb, void *cb_arg)
 {
 	struct nl_msg *msg;
 	struct response_cb callback = { .cb = cb, .arg = cb_arg };
 	int error;
 
-	error = nl_socket_modify_cb(sk, NL_CB_MSG_IN, NL_CB_CUSTOM,
-			response_handler, &callback);
-	if (error < 0) {
-		log_err("Could not register response handler.");
-		log_err("I will not be able to parse Jool's response, so I won't send the request.");
-		return netlink_print_error(error);
-	}
-
-	msg = nlmsg_alloc();
-	if (!msg) {
-		log_err("Could not allocate the message to the kernel; it seems we're out of memory.");
-		return -ENOMEM;
-	}
-
-	if (!genlmsg_put(msg, NL_AUTO_PORT, NL_AUTO_SEQ, family, 0, 0,
-			JOOL_COMMAND, 1)) {
-		log_err("Unknown error building the packet to the kernel.");
-		nlmsg_free(msg);
-		return -EINVAL;
-	}
-
-	error = nla_put(msg, ATTR_DATA, request_len, request);
-	if (error) {
-		log_err("Could not write on the packet to kernelspace.");
-		nlmsg_free(msg);
-		return netlink_print_error(error);
-	}
-
-	error = nl_send_auto(sk, msg);
-	nlmsg_free(msg);
-	if (error < 0) {
-		log_err("Could not dispatch the request to kernelspace.");
-		return netlink_print_error(error);
-	}
-
-	error = nl_recvmsgs_default(sk);
-	if (error < 0) {
-		if (error_handler_called) {
-			error_handler_called = false;
-			return error;
+	if (cb) {
+		error = nl_socket_modify_cb(socket->sk,
+				NL_CB_MSG_IN, NL_CB_CUSTOM,
+				response_handler, &callback);
+		if (error < 0) {
+			log_err("Could not register response handler.");
+			log_err("I will not be able to parse Jool's response, so I won't send the request.");
+			return netlink_print_error(error);
 		}
-		log_err("Error receiving the kernel module's response.");
-		return netlink_print_error(error);
 	}
 
-	return 0;
-}
-
-int netlink_request_simple(void *request, __u32 request_len)
-{
-	struct nl_msg *msg;
-	int error;
-
-	msg = nlmsg_alloc();
-	if (!msg) {
-		log_err("Could not allocate the request; it seems we're out of memory.");
-		return -ENOMEM;
-	}
-
-	if (!genlmsg_put(msg, NL_AUTO_PORT, NL_AUTO_SEQ, family, 0, 0,
-			JOOL_COMMAND, 1)) {
-		log_err("Unknown error building the packet to the kernel.");
-		nlmsg_free(msg);
-		return -EINVAL;
-	}
-
-	error = nla_put(msg, ATTR_DATA, request_len, request);
-	if (error) {
-		log_err("Could not write on the packet to kernelspace.");
-		nlmsg_free(msg);
-		return netlink_print_error(error);
-	}
-
-	error = nl_send_auto(sk, msg);
+	error = build_request(socket, mode, op, data, data_len, &msg);
+	if (error)
+		return error;
+	error = nl_send_auto(socket->sk, msg);
 	nlmsg_free(msg);
 	if (error < 0) {
 		log_err("Could not dispatch the request to kernelspace.");
 		return netlink_print_error(error);
 	}
 
+	if (cb) {
+		error = nl_recvmsgs_default(socket->sk);
+		if (error < 0) {
+			if (error_handler_called) {
+				error_handler_called = false;
+				return error;
+			}
+			log_err("Error receiving the kernel module's response.");
+			return netlink_print_error(error);
+		}
+	}
+
 	return 0;
 }
 
-int netlink_init(void)
+int jnl_single_request(enum config_mode mode, enum config_operation op,
+		void *data, int data_len,
+		jnl_response_cb cb, void *cb_arg)
 {
+	struct jnl_socket socket;
 	int error;
 
-	sk = nl_socket_alloc();
-	if (!sk) {
-		log_err("Could not allocate the socket to kernelspace; it seems we're out of memory.");
-		return -ENOMEM;
-	}
+	error = jnl_init_socket(&socket);
+	if (error)
+		return error;
 
-	/*
-	 * We handle ACKs ourselves. The reason is that Netlink ACK errors do
-	 * not contain the friendly error string, so they're useless to us.
-	 * https://github.com/NICMx/Jool/issues/169
-	 */
-	nl_socket_disable_auto_ack(sk);
+	error = jnl_request(&socket, mode, op, data, data_len, cb, cb_arg);
 
-	error = genl_connect(sk);
-	if (error) {
-		log_err("Could not open the socket to kernelspace.");
-		goto fail;
-	}
-
-	family = genl_ctrl_resolve(sk, GNL_JOOL_FAMILY_NAME);
-	if (family < 0) {
-		log_err("Jool's socket family doesn't seem to exist.");
-		log_err("(This probably means Jool hasn't been modprobed.)");
-		error = family;
-		goto fail;
-	}
-
-	/*
-	error = nl_socket_modify_err_cb(sk, NL_CB_CUSTOM, error_handler, NULL);
-	if (error) {
-		log_err("Could not register the error handler function.");
-		log_err("This means the socket to kernelspace cannot be used.");
-		goto fail;
-	}
-	*/
-
-	return 0;
-
-fail:
-	nl_socket_free(sk);
-	return netlink_print_error(error);
-}
-
-void netlink_destroy(void)
-{
-	nl_close(sk);
-	nl_socket_free(sk);
+	jnl_destroy_socket(&socket);
+	return error;
 }

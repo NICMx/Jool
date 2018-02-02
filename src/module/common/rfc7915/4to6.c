@@ -376,11 +376,9 @@ static void compute_mtu6(struct xlation *state)
 		 * Got to determine a likely path MTU.
 		 * See RFC 1191 sections 5, 7 and 7.1.
 		 */
-		__u16 *plateaus = state->GLOBAL.mtu_plateaus;
-		__u16 count = state->GLOBAL.mtu_plateau_count;
+		__u16 *plateau = state->GLOBAL.mtu_plateaus;
 		struct iphdr *hdr4;
 		unsigned int tot_len_field;
-		int i;
 
 		hdr4 = pkt_payload(&state->in);
 		/*
@@ -388,9 +386,9 @@ static void compute_mtu6(struct xlation *state)
 		 * not the truncated one.
 		 */
 		tot_len_field = be16_to_cpu(hdr4->tot_len);
-		for (i = 0; i < count; i++) {
-			if (plateaus[i] < tot_len_field) {
-				result = plateaus[i];
+		for (; plateau; plateau++) {
+			if (*plateau < tot_len_field) {
+				result = *plateau;
 				break;
 			}
 		}

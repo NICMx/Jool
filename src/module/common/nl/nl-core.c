@@ -155,8 +155,8 @@ int nlbuffer_init_response(struct nlcore_buffer *buffer, struct genl_info *info,
 	if (error)
 		return error;
 
-	memcpy(&response.req, get_jool_hdr(info), sizeof(response.req));
-	response.req.castness = 'u';
+	memcpy(&response.request, get_jool_hdr(info), sizeof(response.request));
+	response.request.castness = 'u';
 	response.error_code = 0;
 	response.pending_data = false;
 	return nlbuffer_write(buffer, &response, sizeof(response));

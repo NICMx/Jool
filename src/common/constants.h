@@ -7,6 +7,12 @@
  * elsewhere in the code.
  */
 
+/** Maximum storable value on a __u8. */
+#define MAX_U8 0xFFU
+/** Maximum storable value on a __u16. */
+#define MAX_U16 0xFFFFU
+/** Maximum storable value on a __u32. */
+#define MAX_U32 0xFFFFFFFFU
 
 /* -- Timeouts, defined by RFC 6146, section 4. */
 
@@ -120,6 +126,7 @@ typedef enum tcp_state {
 #define DEFAULT_EAM_HAIRPIN_MODE EAM_HAIRPIN_INTRINSIC
 #define DEFAULT_RANDOMIZE_RFC6791 true
 #define DEFAULT_RFC6791V6_PREFIX NULL
+/* Note: total size must be <= PLATEAUS_MAX. */
 #define DEFAULT_MTU_PLATEAUS { 65535, 32000, 17914, 8166, 4352, 2002, 1492, \
 		1006, 508, 296, 68 }
 #define DEFAULT_JOOLD_ENABLED false

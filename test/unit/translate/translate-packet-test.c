@@ -144,7 +144,7 @@ static bool test_function_icmp6_minimum_mtu(void)
 	config->cfg.mtu_plateaus[0] = 5000;
 	config->cfg.mtu_plateaus[1] = 4000;
 	config->cfg.mtu_plateaus[2] = 500;
-	config->cfg.mtu_plateau_count = 2;
+	config->cfg.mtu_plateaus[3] = 0;
 
 	/* Simple tests */
 	success &= ASSERT_UINT(1320, min_mtu(1300, 3000, 3000, 2000), "min(1300, 3000, 3000)");
