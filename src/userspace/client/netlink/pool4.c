@@ -54,7 +54,7 @@ int pool4_foreach(l4_protocol proto, pool4_foreach_cb cb, void *args)
 	return error;
 }
 
-int pool4_add(struct pool4_entry_usr *entry, bool force)
+int pool4_add(struct pool4_entry_usr *entry)
 {
 	struct request_pool4_add request;
 	request.entry = *entry;

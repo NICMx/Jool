@@ -177,34 +177,6 @@ static inline int validate_version(struct request_hdr *hdr,
 	return -EINVAL;
 }
 
-/**
- * TODO this is pretty excessive for an inline function.
- */
-static inline int validate_request(void *data, size_t data_len,
-		char *sender, char *receiver,
-		bool *peer_is_jool)
-{
-	int error;
-
-	if (peer_is_jool)
-		*peer_is_jool = false;
-
-	if (data_len < sizeof(struct request_hdr)) {
-		log_err("Message from the %s is smaller than Jool's header.",
-				sender);
-		return -EINVAL;
-	}
-
-	error = validate_magic(data, sender);
-	if (error)
-		return error;
-
-	if (peer_is_jool)
-		*peer_is_jool = true;
-
-	return validate_version(data, sender, receiver);
-}
-
 struct response_hdr {
 	struct request_hdr request;
 	__u16 error_code;

@@ -48,6 +48,8 @@ rfc6056_fail:
 
 static void jool_netdev_cleanup_module(void)
 {
+	/* TODO destroy all instances */
+
 	timer_destroy();
 	nlhandler_destroy();
 	joold_terminate();

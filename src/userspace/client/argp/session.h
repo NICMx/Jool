@@ -3,4 +3,6 @@
 
 int handle_session_display(int argc, char **argv);
 
+void print_session_display_opts(char *prefix);
+
 #endif /* SRC_USERSPACE_CLIENT_ARGP_SESSION_H_ */

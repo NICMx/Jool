@@ -5,8 +5,7 @@
 #include "config.h"
 
 /**
- * A Jool translator "instance". The point is that each network namespace has
- * a separate instance (if Jool has been loaded there).
+ * A Jool translator "instance".
  *
  * The instance holds all the databases and configuration the translating code
  * should use to handle a packet in the respective namespace.

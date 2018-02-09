@@ -3,20 +3,14 @@
 
 #include <stdbool.h>
 
-typedef enum display_flags {
-	DF_CSV_FORMAT = 1 << 4,
-	DF_NO_HEADERS = 1 << 5,
-	DF_NUMERIC_HOSTNAME = 1 << 6,
-} display_flags;
-
-static inline bool show_csv_header(display_flags flags)
+static inline bool show_csv_header(bool no_headers, bool csv)
 {
-	return !(flags & DF_NO_HEADERS) && (flags & DF_CSV_FORMAT);
+	return !no_headers && csv;
 }
 
-static inline bool show_footer(display_flags flags)
+static inline bool show_footer(bool no_headers, bool csv)
 {
-	return !(flags & DF_NO_HEADERS) && !(flags & DF_CSV_FORMAT);
+	return !no_headers && !csv;
 }
 
 #endif /* INCLUDE_NAT64_USR_TYPES_H_ */

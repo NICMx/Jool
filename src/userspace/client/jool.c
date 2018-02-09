@@ -11,7 +11,6 @@
 #include "log.h"
 #include "argp/bib.h"
 #include "argp/eamt.h"
-#include "argp/file.h"
 #include "argp/instance.h"
 #include "argp/pool4.h"
 #include "argp/global.h"
@@ -20,66 +19,131 @@
 #define DISPLAY "display"
 #define ADD "add"
 #define UPDATE "update"
-#define RM "remove"
+#define REMOVE "remove"
 #define FLUSH "flush"
 
 // TODO Improve this and give it some use. */
 //const char *argp_program_version = JOOL_VERSION_STR;
 //const char *argp_program_bug_address = "jool@nic.mx";
 
-struct thingy {
+/**
+ * BTW: "cmd" (command) refers to the "jool" command. Eg.
+ * `jool pool4 add 192.0.2.1`.
+ */
+struct cmd_option {
 	/**
 	 * Name this node is known by the userspace application interface.
 	 * This being NULL signals the end of the array.
 	 */
 	char *label;
-	/** handler is only valid if children is NULL. */
-	struct thingy *children;
+
+	/*
+	 * if @children is not null, @handler and @print_opts should be null.
+	 * if @children is null, @handler and @print_opts should not be null.
+	 */
+
+	struct cmd_option *children;
+
 	int (*handler)(int argc, char **argv);
+	void (*print_opts)(char *prefix);
 
 	/** Used by the code to chain temporarily correlated nodes at times. */
-	struct thingy *next;
+	struct cmd_option *next;
 };
 
 static int handle_autocomplete(int argc, char **argv);
 
-struct thingy instance_ops[] = {
-		{ .label = ADD,     .handler = handle_instance_add, },
-		{ .label = RM,      .handler = handle_instance_rm, },
+struct cmd_option instance_ops[] = {
+		{
+			.label = ADD,
+			.handler = handle_instance_add,
+			.print_opts = print_instance_add_opts,
+		}, {
+			.label = REMOVE,
+			.handler = handle_instance_remove,
+			.print_opts = print_instance_remove_opts,
+		},
 		{ 0 },
 };
 
-struct thingy global_ops[] = {
-		{ .label = DISPLAY, .handler = handle_global_display, },
-		{ .label = UPDATE,  .handler = handle_global_update, },
+struct cmd_option global_ops[] = {
+		{
+			.label = DISPLAY,
+			.handler = handle_global_display,
+			.print_opts = print_global_display_opts,
+		}, {
+			.label = UPDATE,
+			.handler = handle_global_update,
+			.print_opts = print_global_update_opts,
+		},
 		{ 0 },
 };
 
-struct thingy eamt_ops[] = {
-		{ .label = DISPLAY, .handler = handle_eamt_display, },
-		{ .label = ADD,     .handler = handle_eamt_add, },
-		{ .label = RM,      .handler = handle_eamt_remove, },
-		{ .label = FLUSH,   .handler = handle_eamt_flush, },
+struct cmd_option eamt_ops[] = {
+		{
+			.label = DISPLAY,
+			.handler = handle_eamt_display,
+			.print_opts = print_eamt_display_opts,
+		}, {
+			.label = ADD,
+			.handler = handle_eamt_add,
+			.print_opts = print_eamt_add_opts,
+		}, {
+			.label = REMOVE,
+			.handler = handle_eamt_remove,
+			.print_opts = print_eamt_remove_opts,
+		}, {
+			.label = FLUSH,
+			.handler = handle_eamt_flush,
+			.print_opts = print_eamt_flush_opts,
+		},
 		{ 0 },
 };
 
-struct thingy pool4_ops[] = {
-		{ .label = DISPLAY, .handler = handle_pool4_display, },
-		{ .label = ADD,     .handler = handle_pool4_add, },
-		{ .label = RM,      .handler = handle_pool4_rm, },
-		{ .label = FLUSH,   .handler = handle_pool4_flush, },
+struct cmd_option pool4_ops[] = {
+		{
+			.label = DISPLAY,
+			.handler = handle_pool4_display,
+			.print_opts = print_pool4_display_opts,
+		}, {
+			.label = ADD,
+			.handler = handle_pool4_add,
+			.print_opts = print_pool4_add_opts,
+		}, {
+			.label = REMOVE,
+			.handler = handle_pool4_remove,
+			.print_opts = print_pool4_remove_opts,
+		}, {
+			.label = FLUSH,
+			.handler = handle_pool4_flush,
+			.print_opts = print_pool4_flush_opts,
+		},
 		{ 0 },
 };
 
-struct thingy bib_ops[] = {
-		{ .label = DISPLAY, .handler = handle_bib_display, },
-		{ .label = ADD,     .handler = handle_bib_add, },
-		{ .label = RM,      .handler = handle_bib_remove, },
+struct cmd_option bib_ops[] = {
+		{
+			.label = DISPLAY,
+			.handler = handle_bib_display,
+			.print_opts = print_bib_display_opts,
+		}, {
+			.label = ADD,
+			.handler = handle_bib_add,
+			.print_opts = print_bib_add_opts,
+		}, {
+			.label = REMOVE,
+			.handler = handle_bib_remove,
+			.print_opts = print_bib_remove_opts,
+		},
 		{ 0 },
 };
 
-struct thingy session_ops[] = {
-		{ .label = DISPLAY, .handler = handle_session_display, },
+struct cmd_option session_ops[] = {
+		{
+			.label = DISPLAY,
+			.handler = handle_session_display,
+			.print_opts = print_session_display_opts,
+		},
 		{ 0 },
 };
 
@@ -90,7 +154,7 @@ struct thingy file_ops[] = {
 };
 */
 
-struct thingy tree[] = {
+struct cmd_option tree[] = {
 		{ .label = "instance",     .children = instance_ops, },
 		{ .label = "global",       .children = global_ops, },
 		{ .label = "eamt",         .children = eamt_ops, },
@@ -98,6 +162,7 @@ struct thingy tree[] = {
 		{ .label = "bib",          .children = bib_ops, },
 		{ .label = "session",      .children = session_ops, },
 		/* { .label = "file",         .children = file_ops, }, */
+		/* TODO autocomplete autocomplete? */
 		{ .label = "autocomplete", .handler  = handle_autocomplete, },
 		{ 0 },
 };
@@ -108,10 +173,10 @@ struct thingy tree[] = {
  * However, if there is a node whose entire label is @prefix, it returns that
  * one only.
  */
-static struct thingy *find_matches(struct thingy *iterator, char *prefix)
+static struct cmd_option *find_matches(struct cmd_option *iterator, char *prefix)
 {
-	struct thingy *first = NULL;
-	struct thingy *last = NULL;
+	struct cmd_option *first = NULL;
+	struct cmd_option *last = NULL;
 
 	if (!iterator)
 		return NULL;
@@ -138,7 +203,7 @@ static struct thingy *find_matches(struct thingy *iterator, char *prefix)
 	return first;
 }
 
-static int unexpected_token(struct thingy *nodes, char *token)
+static int unexpected_token(struct cmd_option *nodes, char *token)
 {
 	fprintf(stderr, "Unexpected token: '%s'\n", token);
 	fprintf(stderr, "Available options: ");
@@ -151,7 +216,7 @@ static int unexpected_token(struct thingy *nodes, char *token)
 	return -EINVAL;
 }
 
-static int ambiguous_token(struct thingy *nodes, char *token)
+static int ambiguous_token(struct cmd_option *nodes, char *token)
 {
 	fprintf(stderr, "Ambiguous token: '%s'\n", token);
 	fprintf(stderr, "Available options: ");
@@ -164,7 +229,7 @@ static int ambiguous_token(struct thingy *nodes, char *token)
 	return -EINVAL;
 }
 
-static int more_args_expected(struct thingy *nodes)
+static int more_args_expected(struct cmd_option *nodes)
 {
 	fprintf(stderr, "More arguments expected.\n");
 	fprintf(stderr, "Possible follow-ups: ");
@@ -179,8 +244,8 @@ static int more_args_expected(struct thingy *nodes)
 
 int handle(int argc, char **argv)
 {
-	struct thingy *nodes = &tree[0];
-	struct thingy *node = NULL;
+	struct cmd_option *nodes = &tree[0];
+	struct cmd_option *node = NULL;
 	int i;
 
 	if (argc == 0)
@@ -205,14 +270,27 @@ int handle(int argc, char **argv)
 	return node->handler(argc - i, &argv[i]);
 }
 
+static int print_opts(struct cmd_option *node, char *token)
+{
+	/* Does the token start with "--"? */
+	if (strncmp("--", token, strlen("--")))
+		return 0; /* Token is not a flag so there are no candidates. */
+
+	node->print_opts(token + 2);
+	return 0;
+}
+
 /**
  * Never fails because there's no point yet.
  */
 static int handle_autocomplete(int argc, char **argv)
 {
-	struct thingy *node = &tree[0];
+	struct cmd_option *node = &tree[0];
 	char *current_token = "";
 	int i;
+
+	argc--;
+	argv++;
 
 	if (argc != 0) {
 		for (i = 0; i < argc - 1; i++) {
@@ -221,6 +299,10 @@ static int handle_autocomplete(int argc, char **argv)
 				return 0; /* Prefix does not exist. */
 			if (node->next)
 				return 0; /* Ambiguous prefix. */
+
+			if (!node->children)
+				return print_opts(node, argv[argc - 1]);
+
 			node = node->children;
 		}
 		current_token = argv[i];

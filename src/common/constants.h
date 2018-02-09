@@ -12,6 +12,7 @@
 /** Maximum storable value on a __u16. */
 #define MAX_U16 0xFFFFU
 /** Maximum storable value on a __u32. */
+/* TODO shouldn't this belong to usr-string-utils? */
 #define MAX_U32 0xFFFFFFFFU
 
 /* -- Timeouts, defined by RFC 6146, section 4. */
@@ -159,11 +160,6 @@ typedef enum tcp_state {
 #define ICMP_PTR_INDICATES_ERROR 0
 /** Code 2 for ICMP messages of type ICMP_PARAMETERPROB. */
 #define ICMP_BAD_LENGTH 2
-
-
-/* -- Netlink -- */
-
-#define NETLINK_MULTICAST_FAMILY 22
 
 
 #endif /* _JOOL_COMMON_CONSTANTS_H */

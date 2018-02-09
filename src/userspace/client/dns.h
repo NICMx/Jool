@@ -5,9 +5,9 @@
 #include "types.h"
 #include "userspace-types.h"
 
-void print_addr6(struct ipv6_transport_addr *addr6, display_flags flags,
+void print_addr6(struct ipv6_transport_addr *addr6, bool numeric,
 		char *separator, __u8 l4_proto);
-void print_addr4(struct ipv4_transport_addr *addr4, display_flags flags,
+void print_addr4(struct ipv4_transport_addr *addr4, bool numeric,
 		char *separator, __u8 l4_proto);
 
 

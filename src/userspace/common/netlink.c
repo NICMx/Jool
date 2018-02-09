@@ -185,8 +185,8 @@ static int build_request(struct jnl_socket *socket,
 		nlmsg_free(msg);
 		return -EINVAL;
 	}
-
 	init_request_hdr(hdr, mode, op);
+
 	error = nla_put(msg, ATTR_DATA, data_len, data);
 	if (error) {
 		log_err("Could not write on the packet to kernelspace.");

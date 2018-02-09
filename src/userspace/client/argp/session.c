@@ -1,91 +1,32 @@
 #include "session.h"
 
-#include <argp.h>
-
 #include "constants.h"
 #include "dns.h"
-#include "nl-protocol.h"
 #include "str-utils.h"
 #include "userspace-types.h"
 #include "usr-str-utils.h"
+#include "wargp.h"
 #include "netlink/session.h"
 
-#define ARGP_TCP 't'
-#define ARGP_UDP 'u'
-#define ARGP_ICMP 'i'
-#define ARGP_CSV 2003
-#define ARGP_NO_HEADERS 2004
-
 struct display_args {
-	bool proto_set;
-	l4_protocol proto;
-	display_flags flags;
+	struct wargp_bool no_headers;
+	struct wargp_bool csv;
+	struct wargp_bool numeric;
+	struct wargp_l4proto proto;
 	unsigned int sample_count;
 };
 
-static struct argp_option argp_display_opts[] = {
-	{
-		.name = "no-headers",
-		.key = ARGP_NO_HEADERS,
-		.doc = "Do not print table headers.",
-	},
-	{
-		.name = "csv",
-		.key = ARGP_CSV,
-		.doc = "Print in CSV format.",
-	},
-	{
-		.name = "tcp",
-		.key = ARGP_TCP,
-		.doc = "Print the TCP table.",
-	},
-	{
-		.name = "udp",
-		.key = ARGP_UDP,
-		.doc = "Print the UDP table.",
-	},
-	{
-		.name = "icmp",
-		.key = ARGP_ICMP,
-		.doc = "Print the ICMP table.",
-	},
+static struct wargp_option display_opts[] = {
+	WARGP_TCP(struct display_args, proto, "Print the TCP table"),
+	WARGP_UDP(struct display_args, proto, "Print the UDP table"),
+	WARGP_ICMP(struct display_args, proto, "Print the ICMP table"),
+	WARGP_NO_HEADERS(struct display_args, no_headers),
+	WARGP_CSV(struct display_args, csv),
+	WARGP_NUMERIC(struct display_args, numeric),
 	{ 0 },
 };
 
-static int parse_proto(struct display_args *args, l4_protocol proto)
-{
-	if (args->proto_set && args->proto != proto) {
-		log_err("Only one protocol is allowed per request.");
-		return -EINVAL;
-	}
-
-	args->proto_set = true;
-	args->proto = proto;
-	return 0;
-}
-
-static int parse_display_opts(int key, char *str, struct argp_state *state)
-{
-	struct display_args *args = state->input;
-
-	switch (key) {
-	case ARGP_TCP:
-		return parse_proto(args, L4PROTO_TCP);
-	case ARGP_UDP:
-		return parse_proto(args, L4PROTO_UDP);
-	case ARGP_ICMP:
-		return parse_proto(args, L4PROTO_ICMP);
-	case ARGP_CSV:
-		args->flags |= DF_CSV_FORMAT;
-		return 0;
-	case ARGP_NO_HEADERS:
-		args->flags |= DF_NO_HEADERS;
-	}
-
-	return ARGP_ERR_UNKNOWN;
-}
-
-char *tcp_state_to_string(tcp_state state)
+static char *tcp_state_to_string(tcp_state state)
 {
 	switch (state) {
 	case ESTABLISHED:
@@ -110,17 +51,17 @@ char *tcp_state_to_string(tcp_state state)
 static int handle_display_response(struct session_entry_usr *entry, void *args)
 {
 	struct display_args *dargs = args;
-	l4_protocol proto = dargs->proto;
+	l4_protocol proto = dargs->proto.proto;
 
-	if (dargs->flags & DF_CSV_FORMAT) {
+	if (dargs->csv.value) {
 		printf("%s,", l4proto_to_string(proto));
-		print_addr6(&entry->src6, dargs->flags, ",", proto);
+		print_addr6(&entry->src6, dargs->numeric.value, ",", proto);
 		printf(",");
-		print_addr6(&entry->dst6, DF_NUMERIC_HOSTNAME, ",", proto);
+		print_addr6(&entry->dst6, true, ",", proto);
 		printf(",");
-		print_addr4(&entry->src4, DF_NUMERIC_HOSTNAME, ",", proto);
+		print_addr4(&entry->src4, true, ",", proto);
 		printf(",");
-		print_addr4(&entry->dst4, dargs->flags, ",", proto);
+		print_addr4(&entry->dst4, dargs->numeric.value, ",", proto);
 		printf(",");
 		print_time_csv(entry->dying_time);
 		if (proto == L4PROTO_TCP)
@@ -134,15 +75,15 @@ static int handle_display_response(struct session_entry_usr *entry, void *args)
 		print_time_friendly(entry->dying_time);
 
 		printf("Remote: ");
-		print_addr4(&entry->dst4, dargs->flags, "#", proto);
+		print_addr4(&entry->dst4, dargs->numeric.value, "#", proto);
 		printf("\t");
-		print_addr6(&entry->src6, dargs->flags, "#", proto);
+		print_addr6(&entry->src6, dargs->numeric.value, "#", proto);
 		printf("\n");
 
 		printf("Local: ");
-		print_addr4(&entry->src4, DF_NUMERIC_HOSTNAME, "#", proto);
+		print_addr4(&entry->src4, true, "#", proto);
 		printf("\t");
-		print_addr6(&entry->dst6, DF_NUMERIC_HOSTNAME, "#", proto);
+		print_addr6(&entry->dst6, true, "#", proto);
 		printf("\n");
 
 		printf("---------------------------------\n");
@@ -153,19 +94,17 @@ static int handle_display_response(struct session_entry_usr *entry, void *args)
 
 int handle_session_display(int argc, char **argv)
 {
-	static struct argp argp = { argp_display_opts, parse_display_opts, NULL, NULL };
-	struct display_args dargs;
+	struct display_args dargs = { 0 };
 	int error;
 
-	memset(&dargs, 0, sizeof(dargs));
-	error = argp_parse(&argp, argc, argv, 0, NULL, &dargs);
+	error = wargp_parse(display_opts, argc, argv, &dargs);
 	if (error)
 		return error;
 
-	if (!(dargs.flags & DF_CSV_FORMAT)) {
-		printf("%s:\n", l4proto_to_string(dargs.proto));
+	if (!dargs.csv.value) {
+		printf("%s:\n", l4proto_to_string(dargs.proto.proto));
 		printf("---------------------------------\n");
-	} else if (show_csv_header(dargs.flags)) {
+	} else if (show_csv_header(dargs.no_headers.value, dargs.csv.value)) {
 		printf("Protocol,");
 		printf("IPv6 Remote Address,IPv6 Remote L4-ID,");
 		printf("IPv6 Local Address,IPv6 Local L4-ID,");
@@ -174,9 +113,10 @@ int handle_session_display(int argc, char **argv)
 		printf("Expires in,State\n");
 	}
 
-	error = session_foreach(dargs.proto, handle_display_response, &dargs);
+	error = session_foreach(dargs.proto.proto, handle_display_response,
+			&dargs);
 
-	if (show_footer(dargs.flags) && !error) {
+	if (!error && show_footer(dargs.no_headers.value, dargs.csv.value)) {
 		if (dargs.sample_count > 0)
 			log_info("  (Fetched %u entries.)\n", dargs.sample_count);
 		else
@@ -184,4 +124,9 @@ int handle_session_display(int argc, char **argv)
 	}
 
 	return error;
+}
+
+void print_session_display_opts(char *prefix)
+{
+	print_wargp_opts(display_opts, prefix);
 }

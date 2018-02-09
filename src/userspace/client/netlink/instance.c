@@ -2,13 +2,10 @@
 
 #include "netlink.h"
 
-/* TODO should be some other number. */
-static const unsigned int MAX_NAME_LEN = 10;
-
 static int validate_instance_name(char *name)
 {
-	if (strlen(name) > MAX_NAME_LEN) {
-		log_err("Instance name is too long. (Max:%u)", MAX_NAME_LEN);
+	if (strlen(name) > IFNAMSIZ - 1) {
+		log_err("Instance name is too long. (Max:%u)", IFNAMSIZ - 1);
 		return -EINVAL;
 	}
 
@@ -38,5 +35,6 @@ int instance_rm(char *name)
 	if (error)
 		return error;
 
-	return JNL_SIMPLE_REQUEST(MODE_INSTANCE, OP_ADD, request);
+	strcpy(request.name, name);
+	return JNL_SIMPLE_REQUEST(MODE_INSTANCE, OP_REMOVE, request);
 }

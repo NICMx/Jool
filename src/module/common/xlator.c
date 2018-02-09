@@ -137,6 +137,8 @@ int xlator_add(struct xlator *result, xlator_type type, char *name)
 	if (!dev)
 		return error;
 
+	/* At this point, this_cpu_read(*dev->pcpu_refcnt) = 0. I dunno why. */
+
 	jool = &((struct jool_netdev_priv *)netdev_priv(dev))->jool;
 
 	jool->stats = jstat_alloc();
@@ -163,11 +165,15 @@ int xlator_add(struct xlator *result, xlator_type type, char *name)
 	if (!jool->joold)
 		goto joold_fail;
 
+	/* this_cpu_read(*dev->pcpu_refcnt) = 0 */
+
 	error = register_netdev(dev);
 	if (error) {
 		log_err("register_netdev(%s) error: %i", dev->name, error);
 		goto register_fail;
 	}
+
+	/* this_cpu_read(*dev->pcpu_refcnt) = 7 */
 
 	if (result) {
 		xlator_get(jool);
@@ -175,6 +181,12 @@ int xlator_add(struct xlator *result, xlator_type type, char *name)
 	}
 
 	log_info("'%s' device created and registered.", dev->name);
+	dev_put(dev);
+	/*
+	 * this_cpu_read(*dev->pcpu_refcnt) = 6
+	 * TODO this smells pretty fishy. Other kernel citizens do not seem to
+	 * call dev_put(dev) after they register the device. Figure it out.
+	 */
 	return 0;
 
 register_fail:
@@ -219,8 +231,9 @@ int xlator_rm(char *name)
 		return -ESRCH;
 	}
 
-	unregister_netdevice(dev);
-	log_debug("CHECK 1 = %u", atomic_read(&dev->dev.kobj.kref.refcount));
+	/* this_cpu_read(*dev->pcpu_refcnt) = 7 */
+	unregister_netdev(dev);
+	/* this_cpu_read(*dev->pcpu_refcnt) = 0 */
 	free_netdev(dev);
 	put_net(ns);
 	return 0;

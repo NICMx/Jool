@@ -7,6 +7,8 @@ jool_SOURCES = \
 	../../common/common-global.c \
 	dns.c \
 	jool.c \
+	requirements.c \
+	wargp.c \
 	../common/cJSON.c \
 	../common/netlink.c \
 	../common/usr-str-utils.c \

@@ -190,7 +190,7 @@ struct global_type gt_bool = {
 	.parse = global_parse_bool,
 };
 
-struct global_type gt_num8 = {
+struct global_type gt_uint8 = {
 	.id = GTI_NUM8,
 	.name = "8-bit unsigned integer",
 	.size = sizeof(__u8),
@@ -198,7 +198,7 @@ struct global_type gt_num8 = {
 	.parse = global_parse_u8,
 };
 
-struct global_type gt_num16 = {
+struct global_type gt_uint16 = {
 	.id = GTI_NUM16,
 	.name = "16-bit unsigned integer",
 	.size = sizeof(__u16),
@@ -206,7 +206,7 @@ struct global_type gt_num16 = {
 	.parse = global_parse_u16,
 };
 
-struct global_type gt_num32 = {
+struct global_type gt_uint32 = {
 	.id = GTI_NUM32,
 	.name = "32-bit unsigned integer",
 	.size = sizeof(__u32),
@@ -218,7 +218,7 @@ struct global_type gt_plateaus = {
 	.id = GTI_PLATEAUS,
 	.name = "List of 16-bit unsigned integers separated by commas",
 	/* +1 because null-terminated. */
-	.size = PLATEAUS_MAX * sizeof(__u16) + 1,
+	.size = (PLATEAUS_MAX + 1) * sizeof(__u16),
 	.print = global_print_plateaus,
 	.parse = global_parse_plateaus,
 };
@@ -252,7 +252,7 @@ struct global_field global_fields[] = {
 		.offset = offsetof(struct full_config, global.reset_tos),
 	}, {
 		.name = "tos",
-		.type = &gt_num8,
+		.type = &gt_uint8,
 		.doc = "Value to override TOS as (only when --override-tos is ON).",
 		.offset = offsetof(struct full_config, global.new_tos),
 		.min = 0,
@@ -279,42 +279,42 @@ struct global_field global_fields[] = {
 		.offset = offsetof(struct full_config, bib.drop_external_tcp),
 	}, {
 		.name = "udp-timeout",
-		.type = &gt_num32,
+		.type = &gt_uint32,
 		.doc = "Set the UDP session lifetime (in seconds).",
 		.offset = offsetof(struct full_config, bib.ttl.udp),
 		.min = UDP_MIN,
 		.max = MAX_U32 / 1000,
 	}, {
 		.name = "icmp-timeout",
-		.type = &gt_num32,
+		.type = &gt_uint32,
 		.doc = "Set the timeout for ICMP sessions (in seconds).",
 		.offset = offsetof(struct full_config, bib.ttl.icmp),
 		.min = 0,
 		.max = MAX_U32 / 1000,
 	}, {
 		.name = "tcp-est-timeout",
-		.type = &gt_num32,
+		.type = &gt_uint32,
 		.doc = "Set the TCP established session lifetime (in seconds).",
 		.offset = offsetof(struct full_config, bib.ttl.tcp_est),
 		.min = TCP_EST,
 		.max = MAX_U32 / 1000,
 	}, {
 		.name = "tcp-trans-timeout",
-		.type = &gt_num32,
+		.type = &gt_uint32,
 		.doc = "Set the TCP transitory session lifetime (in seconds).",
 		.offset = offsetof(struct full_config, bib.ttl.tcp_trans),
 		.min = TCP_TRANS,
 		.max = MAX_U32 / 1000,
 	}, {
 		.name = "fragment-arrival-timeout",
-		.type = &gt_num32,
+		.type = &gt_uint32,
 		.doc = "Set the timeout for arrival of fragments.",
 		.offset = offsetof(struct full_config, frag.ttl),
 		.min = FRAGMENT_MIN,
 		.max = MAX_U32 / 1000,
 	}, {
 		.name = "maximum-simultaneous-opens",
-		.type = &gt_num32,
+		.type = &gt_uint32,
 		.doc = "Set the maximum allowable 'simultaneous' Simultaneos Opens of TCP connections.",
 		.offset = offsetof(struct full_config, bib.max_stored_pkts),
 		.min = 0,
@@ -326,7 +326,7 @@ struct global_field global_fields[] = {
 		.offset = offsetof(struct full_config, global.src_icmp6errs_better),
 	}, {
 		.name = "f-args",
-		.type = &gt_num8,
+		.type = &gt_uint8,
 		.doc = "Defines the arguments that will be sent to F().\n"
 			"(F() is defined by algorithm 3 of RFC 6056.)\n"
 			"- First (leftmost) bit is source address.\n"
@@ -359,7 +359,7 @@ struct global_field global_fields[] = {
 		.offset = offsetof(struct full_config, global.compute_udp_csum_zero),
 	}, {
 		.name = "eam-hairpin-mode",
-		.type = &gt_num8,
+		.type = &gt_uint8,
 		.doc = "Defines how EAM+hairpinning is handled.\n"
 				"(0 = Disabled; 1 = Simple; 2 = Intrinsic)",
 		.offset = offsetof(struct full_config, global.eam_hairpin_mode),
@@ -383,21 +383,21 @@ struct global_field global_fields[] = {
 		.offset = offsetof(struct full_config, joold.flush_asap),
 	}, {
 		.name = "ss-flush-deadline",
-		.type = &gt_num32,
+		.type = &gt_uint32,
 		.doc = "Inactive milliseconds after which to force a session sync.",
 		.offset = offsetof(struct full_config, joold.flush_deadline),
 		.min = 0,
 		.max = MAX_U32,
 	}, {
 		.name = "ss-capacity",
-		.type = &gt_num32,
+		.type = &gt_uint32,
 		.doc = "Maximim number of queuable entries.",
 		.offset = offsetof(struct full_config, joold.capacity),
 		.min = 0,
 		.max = MAX_U32,
 	}, {
 		.name = "ss-max-payload",
-		.type = &gt_num16,
+		.type = &gt_uint16,
 		.doc = "Maximum amount of bytes joold should send per packet.",
 		.offset = offsetof(struct full_config, joold.max_payload),
 		.min = 0,
@@ -413,6 +413,7 @@ struct global_field global_fields[] = {
 		.doc = "IPv4 prefix to generate RFC6791 addresses from.",
 		.offset = offsetof(struct full_config, global.rfc6791_prefix4),
 	},
+	{ 0 },
 };
 
 void get_global_fields(struct global_field **fields, unsigned int *len)

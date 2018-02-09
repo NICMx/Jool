@@ -4,62 +4,36 @@
 #include <stdlib.h>
 
 #include "common-global.h"
-#include "nl-protocol.h"
 #include "userspace-types.h"
-#include "usr-str-utils.h"
+#include "wargp.h"
 #include "netlink/global.h"
 
-#define ARGP_CSV 2003
-#define ARGP_NO_HEADERS 2004
-
-struct query_args {
-	display_flags flags;
+struct display_args {
+	struct wargp_bool no_headers;
+	struct wargp_bool csv;
 };
 
-static struct argp_option argp_query_opts[] = {
-	{
-		.name = "no-headers",
-		.key = ARGP_NO_HEADERS,
-		.doc = "Do not print table headers.",
-	},
-	{
-		.name = "csv",
-		.key = ARGP_CSV,
-		.doc = "Print in CSV format.",
-	},
+static struct wargp_option display_opts[] = {
+	WARGP_NO_HEADERS(struct display_args, no_headers),
+	WARGP_CSV(struct display_args, csv),
 	{ 0 },
 };
 
-static int parse_query_opts(int key, char *str, struct argp_state *state)
-{
-	struct query_args *args = state->input;
-
-	switch (key) {
-	case ARGP_CSV:
-		args->flags |= DF_CSV_FORMAT;
-		return 0;
-	case ARGP_NO_HEADERS:
-		args->flags |= DF_NO_HEADERS;
-	}
-
-	return ARGP_ERR_UNKNOWN;
-}
-
 #define get_field(config, field) ((void *)config + field->offset)
 
-static int handle_display_response(struct full_config *conf,
-		display_flags flags, bool csv)
+static int handle_display_response(struct display_args *qargs,
+		struct full_config *conf)
 {
 	struct global_field *field;
 	print_function print;
 
-	if (show_csv_header(flags))
+	if (show_csv_header(qargs->no_headers.value, qargs->csv.value))
 		printf("Field,Value\n");
 
 	get_global_fields(&field, NULL);
 
 	for (; field->name; field++) {
-		printf("%s%s", field->name, csv ? "," : ": ");
+		printf("%s%s", field->name, qargs->csv.value ? "," : ": ");
 		print = field->print ? : field->type->print;
 		print(get_field(conf, field));
 		printf("\n");
@@ -70,13 +44,11 @@ static int handle_display_response(struct full_config *conf,
 
 int handle_global_display(int argc, char **argv)
 {
-	static struct argp argp = { argp_query_opts, parse_query_opts, NULL, NULL };
-	struct query_args qargs;
+	struct display_args dargs = { 0 };
 	struct full_config config;
 	int error;
 
-	memset(&qargs, 0, sizeof(qargs));
-	error = argp_parse(&argp, argc, argv, 0, NULL, &qargs);
+	error = wargp_parse(display_opts, argc, argv, &dargs);
 	if (error)
 		return error;
 
@@ -84,9 +56,12 @@ int handle_global_display(int argc, char **argv)
 	if (error)
 		return error;
 
-	return (qargs.flags & DF_CSV_FORMAT)
-			? handle_display_response(&config, qargs.flags, true)
-			: handle_display_response(&config, qargs.flags, false);
+	return handle_display_response(&dargs, &config);
+}
+
+void print_global_display_opts(char *prefix)
+{
+	print_wargp_opts(display_opts, prefix);
 }
 
 struct update_args {
@@ -130,7 +105,7 @@ int handle_global_update(int argc, char **argv)
 
 	if (argc == 1) {
 		log_err("Expected at least one global configuration keyvalue.");
-		log_err("(See `update --help')");
+		log_err("(See `%s --help')", argv[0]);
 		return -EINVAL;
 	}
 
@@ -149,7 +124,7 @@ int handle_global_update(int argc, char **argv)
 	}
 
 	error = argp_parse(&argp, argc, argv, 0, NULL, &uargs);
-	free(opts);
+	free(opts); /* TODO --help and --usage skip this. */
 	if (error)
 		return error;
 
@@ -159,4 +134,14 @@ int handle_global_update(int argc, char **argv)
 	}
 
 	return error;
+}
+
+void print_global_update_opts(char *prefix)
+{
+	struct global_field *field;
+	get_global_fields(&field, NULL);
+
+	for (; field->name; field++)
+		if (strncmp(prefix, field->name, strlen(prefix)) == 0)
+			printf("--%s\n", field->name);
 }

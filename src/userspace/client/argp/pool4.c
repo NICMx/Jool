@@ -1,37 +1,23 @@
 #include "pool4.h"
 
-#include <argp.h>
-
-#include "nl-protocol.h"
+#include "requirements.h"
 #include "str-utils.h"
 #include "usr-str-utils.h"
 #include "userspace-types.h"
+#include "wargp.h"
 #include "netlink/pool4.h"
 
-#define ARGP_TCP 't'
-#define ARGP_UDP 'u'
-#define ARGP_ICMP 'i'
-#define ARGP_CSV 2003
-#define ARGP_NO_HEADERS 2004
+#define ARGP_MARK 3000
+#define ARGP_MAX_ITERATIONS 3001
+#define ARGP_QUICK 'q'
+#define ARGP_FORCE 'f'
 
-#define ARGP_MARK 2000
-#define ARGP_MAX_ITERATIONS 2001
-#define ARGP_QUICK 2002
-#define ARGP_FORCE 2002
-
-struct parsing_entry {
-	bool prefix4_set;
-	struct pool4_entry_usr meat;
-};
-
-struct pool4_display_argp_args {
-	bool proto_set;
-	l4_protocol proto;
-
-	display_flags flags;
+struct display_args {
+	struct wargp_l4proto proto;
+	struct wargp_bool no_headers;
+	struct wargp_bool csv;
 
 	unsigned int sample_count;
-
 	struct {
 		bool initialized;
 		__u32 mark;
@@ -39,70 +25,17 @@ struct pool4_display_argp_args {
 	} last;
 };
 
-static struct argp_option argp_display_opts[] = {
-	{
-		.name = "no-headers",
-		.key = ARGP_NO_HEADERS,
-		.doc = "Do not print table headers.",
-	},
-	{
-		.name = "csv",
-		.key = ARGP_CSV,
-		.doc = "Print in CSV format.",
-	},
-	{
-		.name = "tcp",
-		.key = ARGP_TCP,
-		.doc = "Print the TCP table.",
-	},
-	{
-		.name = "udp",
-		.key = ARGP_UDP,
-		.doc = "Print the UDP table.",
-	},
-	{
-		.name = "icmp",
-		.key = ARGP_ICMP,
-		.doc = "Print the ICMP table.",
-	},
+static struct wargp_option display_opts[] = {
+	WARGP_TCP(struct display_args, proto, "Print the TCP table"),
+	WARGP_UDP(struct display_args, proto, "Print the UDP table"),
+	WARGP_ICMP(struct display_args, proto, "Print the ICMP table"),
+	WARGP_NO_HEADERS(struct display_args, no_headers),
+	WARGP_CSV(struct display_args, csv),
 	{ 0 },
 };
 
-static int parse_proto(struct pool4_display_argp_args *args, l4_protocol proto)
-{
-	if (args->proto_set && args->proto != proto) {
-		log_err("Only one protocol is allowed per request.");
-		return -EINVAL;
-	}
-
-	args->proto_set = true;
-	args->proto = proto;
-	return 0;
-}
-
-static int parse_display_opts(int key, char *str, struct argp_state *state)
-{
-	struct pool4_display_argp_args *args = state->input;
-
-	switch (key) {
-	case ARGP_TCP:
-		return parse_proto(args, L4PROTO_TCP);
-	case ARGP_UDP:
-		return parse_proto(args, L4PROTO_UDP);
-	case ARGP_ICMP:
-		return parse_proto(args, L4PROTO_ICMP);
-	case ARGP_CSV:
-		args->flags |= DF_CSV_FORMAT;
-		return 0;
-	case ARGP_NO_HEADERS:
-		args->flags |= DF_NO_HEADERS;
-	}
-
-	return ARGP_ERR_UNKNOWN;
-}
-
 static void display_sample_csv(struct pool4_sample *sample,
-		struct pool4_display_argp_args *args)
+		struct display_args *args)
 {
 	printf("%u,%s,%s,%u,%u,", sample->mark,
 			l4proto_to_string(sample->proto),
@@ -120,7 +53,7 @@ static void display_sample_csv(struct pool4_sample *sample,
 }
 
 static bool print_common_values(struct pool4_sample *sample,
-		struct pool4_display_argp_args *args)
+		struct display_args *args)
 {
 	if (!args->last.initialized)
 		return true;
@@ -138,7 +71,7 @@ static void print_table_divisor(void)
 }
 
 static void display_sample_normal(struct pool4_sample *sample,
-		struct pool4_display_argp_args *args)
+		struct display_args *args)
 {
 	if (print_common_values(sample, args)) {
 		print_table_divisor();
@@ -175,9 +108,9 @@ static void display_sample_normal(struct pool4_sample *sample,
 
 static int handle_display_response(struct pool4_sample *sample, void *args)
 {
-	struct pool4_display_argp_args *dargs = args;
+	struct display_args *dargs = args;
 
-	if (dargs->flags & DF_CSV_FORMAT)
+	if (dargs->csv.value)
 		display_sample_csv(sample, args);
 	else
 		display_sample_normal(sample, args);
@@ -188,17 +121,15 @@ static int handle_display_response(struct pool4_sample *sample, void *args)
 
 int handle_pool4_display(int argc, char **argv)
 {
-	static struct argp argp = { argp_display_opts, parse_display_opts, NULL, NULL };
-	struct pool4_display_argp_args dargs;
+	struct display_args dargs = { 0 };
 	int error;
 
-	memset(&dargs, 0, sizeof(dargs));
-	error = argp_parse(&argp, argc, argv, 0, NULL, &dargs);
+	error = wargp_parse(display_opts, argc, argv, &dargs);
 	if (error)
 		return error;
 
-	if (!(dargs.flags & DF_NO_HEADERS)) {
-		if (dargs.flags & DF_CSV_FORMAT)
+	if (!dargs.no_headers.value) {
+		if (dargs.csv.value)
 			printf("Mark,Protocol,Address,Min port,Max port,Iterations,Iterations fixed\n");
 		else {
 			print_table_divisor();
@@ -206,14 +137,14 @@ int handle_pool4_display(int argc, char **argv)
 		}
 	}
 
-	error = pool4_foreach(dargs.proto, handle_display_response, &dargs);
+	error = pool4_foreach(dargs.proto.proto, handle_display_response, &dargs);
 	if (error)
 		return error;
 
-	if (!(dargs.flags & DF_CSV_FORMAT))
+	if (!dargs.csv.value)
 		print_table_divisor();
 
-	if (show_footer(dargs.flags)) {
+	if (show_footer(dargs.no_headers.value, dargs.csv.value)) {
 		if (dargs.sample_count > 0)
 			log_info("  (Fetched %u samples.)", dargs.sample_count);
 		else
@@ -223,79 +154,91 @@ int handle_pool4_display(int argc, char **argv)
 	return 0;
 }
 
-static int parse_pool4_entry(struct parsing_entry *entry, char *str)
+void print_pool4_display_opts(char *prefix)
 {
-	if (!str || strlen(str) == 0) /* TODO */
-		return 0;
-
-	if (strchr(str, '.')) { /* Token is an IPv4 thingy. */
-		entry->prefix4_set = true;
-		return str_to_prefix4(str, &entry->meat.range.prefix);
-	}
-
-	/* Token is a port range. */
-	return str_to_port_range(str, &entry->meat.range.ports);
+	print_wargp_opts(display_opts, prefix);
 }
 
-static struct argp_option argp_add_opts[] = {
-	{
-		.name = "mark",
-		.key = ARGP_MARK,
-		.doc = "", /* TODO */
-	},
-	{
-		.name = "max-iterations",
-		.key = ARGP_MAX_ITERATIONS,
-		.doc = "", /* TODO */
-	},
-	{
-		.name = "force",
-		.key = ARGP_FORCE,
-		.doc = "", /* TODO */
-	},
-	{ 0 },
+struct parsing_entry {
+	bool prefix4_set;
+	struct pool4_entry_usr meat;
 };
 
-struct pool4_add_argp_args {
+struct add_args {
 	struct parsing_entry entry;
 	bool force;
 };
 
-static int parse_add_opts(int key, char *str, struct argp_state *state)
+static int parse_pool4_entry(void *void_field, int key, char *str)
 {
-	struct pool4_add_argp_args *args = state->input;
+	struct add_args *field = void_field;
 
-	switch (key) {
-	case ARGP_MARK:
-		return str_to_u32(str, &args->entry.meat.mark, 0, 0xFFFFFFFF);
-	case ARGP_MAX_ITERATIONS:
-		return str_to_u32(str, &args->entry.meat.iterations, 0, 0xFFFFFFFF);
-	case ARGP_FORCE:
-		args->force = true;
-		return 0;
-	case ARGP_KEY_ARG:
-		return parse_pool4_entry(&args->entry, str);
+	if (strchr(str, '.')) { /* Token is an IPv4 thingy. */
+		field->entry.prefix4_set = true;
+		return str_to_prefix4(str, &field->entry.meat.range.prefix);
 	}
 
-	return ARGP_ERR_UNKNOWN;
+	/* Token is a port range. */
+	return str_to_port_range(str, &field->entry.meat.range.ports);
 }
+
+struct wargp_type wt_pool4_entry = {
+	.doc = "<IPv4 prefix> [<port range>]",
+	.parse = parse_pool4_entry,
+};
+
+static struct wargp_option add_opts[] = {
+	WARGP_TCP(struct add_args, entry.meat.proto,
+			"Add the entry to the TCP table"),
+	WARGP_UDP(struct add_args, entry.meat.proto,
+			"Add the entry to the UDP table"),
+	WARGP_ICMP(struct add_args, entry.meat.proto,
+			"Add the entry to the ICMP table"),
+	{
+		.name = "mark",
+		.key = ARGP_MARK,
+		.doc = "", /* TODO */
+		.offset = offsetof(struct add_args, entry.meat.mark),
+		.type = &wt_u32,
+	}, {
+		.name = "max-iterations",
+		.key = ARGP_MAX_ITERATIONS,
+		.doc = "", /* TODO */
+		.offset = offsetof(struct add_args, entry.meat.iterations),
+		.type = &wt_u32,
+	}, {
+		.name = "force",
+		.key = ARGP_FORCE,
+		.doc = "", /* TODO */
+		.offset = offsetof(struct add_args, force),
+		.type = &wt_bool,
+	}, {
+		.name = "pool4 entry",
+		.key = ARGP_KEY_ARG,
+		.doc = "", /* TODO */
+		.offset = offsetof(struct add_args, entry),
+		.type = &wt_pool4_entry,
+	},
+	{ 0 },
+};
 
 int handle_pool4_add(int argc, char **argv)
 {
-	static struct argp argp = { argp_add_opts, parse_add_opts, NULL, NULL };
-	struct pool4_add_argp_args args = { 0 };
+	struct add_args aargs = { 0 };
 	int error;
 
-	error = argp_parse(&argp, argc, argv, 0, NULL, &args);
+	error = wargp_parse(add_opts, argc, argv, &aargs);
 	if (error)
 		return error;
 
-	if (!args.entry.prefix4_set) {
-		log_err("Expected an IPv4 address or prefix.");
-		return -EINVAL;
+	if (!aargs.entry.prefix4_set) {
+		struct requirement reqs[] = {
+			{ aargs.entry.prefix4_set, "an IPv4 prefix or address" },
+		};
+		return requirement_print(reqs);
 	}
 
-	if (args.entry.meat.range.prefix.len < 24 && !args.force) {
+	if (aargs.entry.meat.range.prefix.len < 24 && !aargs.force) {
 		printf("Warning: You're adding lots of addresses, which "
 				"might defeat the whole point of NAT64 over "
 				"SIIT.\n");
@@ -308,7 +251,12 @@ int handle_pool4_add(int argc, char **argv)
 		return -E2BIG;
 	}
 
-	return pool4_add(&args.entry.meat, args.force);
+	return pool4_add(&aargs.entry.meat);
+}
+
+void print_pool4_add_opts(char *prefix)
+{
+	print_wargp_opts(add_opts, prefix);
 }
 
 //int handle_pool4_update(int argc, char **argv)
@@ -316,85 +264,92 @@ int handle_pool4_add(int argc, char **argv)
 //
 //}
 
-static struct argp_option argp_rm_opts[] = {
-	{
-		.name = "quick",
-		.key = ARGP_QUICK,
-		.doc = "Do not cascade removal to BIB entries.",
-	},
-	{ 0 },
-};
-
-struct pool4_rm_argp_args {
+struct rm_args {
 	struct parsing_entry entry;
 	bool quick;
 };
 
-static int parse_rm_opts(int key, char *str, struct argp_state *state)
-{
-	struct pool4_rm_argp_args *args = state->input;
-
-	switch (key) {
-	case ARGP_MARK:
-		return str_to_u32(str, &args->entry.meat.mark, 0, 0xFFFFFFFF);
-	case ARGP_QUICK:
-		args->quick = true;
-		return 0;
-	case ARGP_KEY_ARG:
-		return parse_pool4_entry(&args->entry, str);
-	}
-
-	return ARGP_ERR_UNKNOWN;
-}
-
-int handle_pool4_rm(int argc, char **argv)
-{
-	static struct argp argp = { argp_rm_opts, parse_rm_opts, NULL, NULL };
-	struct pool4_rm_argp_args args = { 0 };
-	int error;
-
-	error = argp_parse(&argp, argc, argv, 0, NULL, &args);
-	if (error)
-		return error;
-
-	return pool4_rm(&args.entry.meat, args.quick);
-}
-
-static struct argp_option argp_flush_opts[] = {
+static struct wargp_option remove_opts[] = {
+	WARGP_TCP(struct add_args, entry.meat.proto,
+			"Remove the entry from the TCP table"),
+	WARGP_UDP(struct add_args, entry.meat.proto,
+			"Remove the entry from the UDP table"),
+	WARGP_ICMP(struct add_args, entry.meat.proto,
+			"Remove the entry from the ICMP table"),
 	{
+		.name = "mark",
+		.key = ARGP_MARK,
+		.doc = "", /* TODO */
+		.offset = offsetof(struct rm_args, entry.meat.mark),
+		.type = &wt_u32,
+	}, {
 		.name = "quick",
 		.key = ARGP_QUICK,
-		.doc = "Do not cascade removal to BIB entries.",
+		.doc = "Do not cascade removal to BIB entries",
+		.offset = offsetof(struct rm_args, quick),
+		.type = &wt_bool,
+	}, {
+		.name = "pool4 entry",
+		.key = ARGP_KEY_ARG,
+		.doc = "", /* TODO */
+		.offset = offsetof(struct rm_args, entry),
+		.type = &wt_pool4_entry,
 	},
 	{ 0 },
 };
 
-struct pool4_flush_argp_args {
-	bool quick;
-};
-
-static int parse_flush_opts(int key, char *str, struct argp_state *state)
+int handle_pool4_remove(int argc, char **argv)
 {
-	struct pool4_flush_argp_args *args = state->input;
-
-	switch (key) {
-	case ARGP_QUICK:
-		args->quick = true;
-		return 0;
-	}
-
-	return ARGP_ERR_UNKNOWN;
-}
-
-int handle_pool4_flush(int argc, char **argv)
-{
-	static struct argp argp = { argp_flush_opts, parse_flush_opts, NULL, NULL };
-	struct pool4_flush_argp_args args = { 0 };
+	struct rm_args rargs = { 0 };
 	int error;
 
-	error = argp_parse(&argp, argc, argv, 0, NULL, &args);
+	error = wargp_parse(remove_opts, argc, argv, &rargs);
 	if (error)
 		return error;
 
-	return pool4_flush(args.quick);
+	if (!rargs.entry.prefix4_set) {
+		struct requirement reqs[] = {
+			{ rargs.entry.prefix4_set, "an IPv4 prefix or address" },
+		};
+		return requirement_print(reqs);
+	}
+
+	return pool4_rm(&rargs.entry.meat, rargs.quick);
+}
+
+void print_pool4_remove_opts(char *prefix)
+{
+	print_wargp_opts(remove_opts, prefix);
+}
+
+struct flush_args {
+	bool quick;
+};
+
+static struct wargp_option flush_opts[] = {
+	{
+		.name = "quick",
+		.key = ARGP_QUICK,
+		.doc = "Do not cascade removal to BIB entries",
+		.offset = offsetof(struct flush_args, quick),
+		.type = &wt_bool,
+	},
+	{ 0 },
+};
+
+int handle_pool4_flush(int argc, char **argv)
+{
+	struct flush_args fargs = { 0 };
+	int error;
+
+	error = wargp_parse(flush_opts, argc, argv, &fargs);
+	if (error)
+		return error;
+
+	return pool4_flush(fargs.quick);
+}
+
+void print_pool4_flush_opts(char *prefix)
+{
+	print_wargp_opts(flush_opts, prefix);
 }

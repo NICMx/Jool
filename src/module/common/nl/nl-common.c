@@ -14,9 +14,11 @@ int verify_privileges(void)
 
 struct request_hdr *get_jool_hdr(struct genl_info *info)
 {
-	return nla_data(info->attrs[ATTR_DATA]);
+	return info->userhdr;
 }
 
+// TODO
+/*
 int validate_request_size(struct genl_info *info, size_t min_expected)
 {
 	size_t request_size = nla_len(info->attrs[ATTR_DATA]);
@@ -30,3 +32,4 @@ int validate_request_size(struct genl_info *info, size_t min_expected)
 
 	return 0;
 }
+*/

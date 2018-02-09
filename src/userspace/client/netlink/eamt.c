@@ -58,11 +58,17 @@ int eamt_foreach(eamt_foreach_cb cb, void *args)
 
 int eamt_add(struct ipv6_prefix *p6, struct ipv4_prefix *p4, bool force)
 {
-	struct request_eamt_add request = {
-			.prefix6 = *p6,
-			.prefix4 = *p4,
-			.force = force,
-	};
+	struct request_eamt_add request;
+
+	if (!p6 || !p4) {
+		log_err("Both prefixes are mandatory arguments for EAMT add.");
+		return -EINVAL;
+	}
+
+	request.prefix6 = *p6;
+	request.prefix4 = *p4;
+	request.force = force;
+
 	return JNL_SIMPLE_REQUEST(MODE_EAMT, OP_ADD, request);
 }
 

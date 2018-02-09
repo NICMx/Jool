@@ -43,7 +43,7 @@ static struct genl_family jool_family = {
 	/* This variable became "private" on kernel 4.10. */
 	.id = GENL_ID_GENERATE,
 #endif
-	.hdrsize = 0,
+	.hdrsize = sizeof(struct request_hdr),
 	/* This is initialized below. See register_family(). */
 	/* .name = GNL_JOOL_FAMILY_NAME, */
 	.version = 1,
@@ -116,22 +116,22 @@ static int multiplex_request(struct xlator *jool, struct genl_info *info)
 
 static int __handle_jool_message(struct genl_info *info)
 {
+	struct request_hdr *hdr = get_jool_hdr(info);
 	struct xlator translator;
-	bool client_is_jool;
 	int error;
 
 	log_debug("===============================================");
 	log_debug("Received a request from userspace.");
 
-	error = validate_request(nla_data(info->attrs[ATTR_DATA]),
-			nla_len(info->attrs[ATTR_DATA]),
-			"userspace client",
-			"kernel module",
-			&client_is_jool);
+	error = validate_magic(hdr, "userspace client");
 	if (error)
-		return client_is_jool ? nlcore_respond(info, error) : error;
+		return error; /* Protocol unknown; can't respond. */
 
-	if (be16_to_cpu(get_jool_hdr(info)->mode) == MODE_INSTANCE)
+	error = validate_version(hdr, "userspace client", "kernel module");
+	if (error)
+		return nlcore_respond(info, error);
+
+	if (be16_to_cpu(hdr->mode) == MODE_INSTANCE)
 		return handle_instance_request(info);
 
 	log_err("Not implemented yet.");
