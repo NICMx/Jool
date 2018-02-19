@@ -26,9 +26,6 @@ struct xlation {
 	 * to the packet being translated, so you don't have to find it again.
 	 */
 	struct bib_session entries;
-
-#define GLOBAL jool.global->cfg
-#define XLATOR_TYPE(xlation) ((xlator_type)(xlation)->GLOBAL.xlator_type)
 };
 
 void xlation_init(struct xlation *state, struct xlator *jool);
@@ -44,5 +41,14 @@ int esrch(struct xlation *state, jstat_type stat);
 int eunknown4(struct xlation *state, int error);
 int eunknown6(struct xlation *state, int error);
 int eunsupported(struct xlation *state, jstat_type stat);
+
+/* Anti-clutters for global config values */
+
+#define GLOBAL_GET(state, field) state->jool.global->cfg.field
+
+static inline xlator_type XLATOR_TYPE(struct xlation *state)
+{
+	return GLOBAL_GET(state, xlator_type);
+}
 
 #endif /* _JOOL_MOD_XLATION_H */

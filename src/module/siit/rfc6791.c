@@ -38,8 +38,10 @@ static void pop_addr4(struct ipv4_prefix *prefix, __be32 *result)
 
 int rfc6791_find4(struct xlation *state, __be32 *result)
 {
-	if (state->GLOBAL.rfc6791_prefix4.set) {
-		pop_addr4(&state->GLOBAL.rfc6791_prefix4.prefix, result);
+	struct config_prefix4 *prefix = &GLOBAL_GET(state, rfc6791_prefix4);
+
+	if (prefix->set) {
+		pop_addr4(&prefix->prefix, result);
 		return 0;
 	}
 
@@ -62,8 +64,10 @@ static void pop_addr6(struct ipv6_prefix *prefix, struct in6_addr *result)
  */
 int rfc6791_find6(struct xlation *state, struct in6_addr *result)
 {
-	if (state->GLOBAL.rfc6791_prefix6.set) {
-		pop_addr6(&state->GLOBAL.rfc6791_prefix6.prefix, result);
+	struct config_prefix6 *prefix = &GLOBAL_GET(state, rfc6791_prefix6);
+
+	if (prefix->set) {
+		pop_addr6(&prefix->prefix, result);
 		return 0;
 	}
 

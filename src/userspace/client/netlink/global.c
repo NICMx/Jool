@@ -5,7 +5,7 @@
 
 static int handle_query_response(struct jnl_response *response, void *arg)
 {
-	struct full_config *config = response->payload;
+	struct globals *config = response->payload;
 
 	if (response->payload_len != sizeof(*config)) {
 		log_err("Jool's response has a bogus length. (expected %zu, got %zu)",
@@ -17,13 +17,13 @@ static int handle_query_response(struct jnl_response *response, void *arg)
 	return 0;
 }
 
-int global_query(struct full_config *result)
+int global_query(char *instance, struct globals *result)
 {
-	return jnl_single_request(MODE_GLOBAL, OP_DISPLAY, NULL, 0,
+	return jnl_single_request(instance, MODE_GLOBAL, OP_DISPLAY, NULL, 0,
 			handle_query_response, result);
 }
 
-int global_update(unsigned int field_index, void *value)
+int global_update(char *instance, unsigned int field_index, void *value)
 {
 	struct global_field *fields;
 	size_t field_size;
@@ -41,8 +41,8 @@ int global_update(unsigned int field_index, void *value)
 	request->type = field_index;
 	memcpy(request + 1, value, field_size);
 
-	error = jnl_single_request(MODE_GLOBAL, OP_UPDATE, request, total_size,
-			NULL, NULL);
+	error = jnl_single_request(instance, MODE_GLOBAL, OP_UPDATE, request,
+			total_size, NULL, NULL);
 
 	free(request);
 	return error;

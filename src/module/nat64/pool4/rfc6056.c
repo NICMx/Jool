@@ -112,7 +112,7 @@ int rfc6056_f(struct xlation *state, unsigned int *result)
 		goto end;
 	}
 
-	error = hash_tuple(desc, state->GLOBAL.f_args, &state->in.tuple);
+	error = hash_tuple(desc, GLOBAL_GET(state, f_args), &state->in.tuple);
 	if (error) {
 		log_debug("crypto_hash_update() failed. Errcode: %d", error);
 		breakdown(state, JOOL_MIB_SHASH_UPDATE, error);

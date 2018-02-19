@@ -30,7 +30,8 @@ static int handle_foreach_response(struct jnl_response *response, void *args)
 	return 0;
 }
 
-int bib_foreach(l4_protocol proto, bib_foreach_cb cb, void *args)
+int bib_foreach(char *instance, l4_protocol proto,
+		bib_foreach_cb cb, void *args)
 {
 	struct jnl_socket jsocket;
 	struct foreach_args dargs;
@@ -47,7 +48,7 @@ int bib_foreach(l4_protocol proto, bib_foreach_cb cb, void *args)
 		return error;
 
 	do {
-		error = jnl_request(&jsocket, MODE_BIB, OP_DISPLAY,
+		error = jnl_request(&jsocket, instance, MODE_BIB, OP_DISPLAY,
 				&dargs.request, sizeof(dargs.request),
 				handle_foreach_response, &dargs);
 	} while (!error && dargs.request.addr4_set);
@@ -56,7 +57,8 @@ int bib_foreach(l4_protocol proto, bib_foreach_cb cb, void *args)
 	return error;
 }
 
-int bib_add(struct ipv6_transport_addr *a6,
+int bib_add(char *instance,
+		struct ipv6_transport_addr *a6,
 		struct ipv4_transport_addr *a4,
 		l4_protocol proto)
 {
@@ -65,10 +67,11 @@ int bib_add(struct ipv6_transport_addr *a6,
 		.addr6 = *a6,
 		.addr4 = *a4,
 	};
-	return JNL_SIMPLE_REQUEST(MODE_BIB, OP_ADD, request);
+	return JNL_SIMPLE_REQUEST(instance, MODE_BIB, OP_ADD, request);
 }
 
-int bib_rm(struct ipv6_transport_addr *a6,
+int bib_rm(char *instance,
+		struct ipv6_transport_addr *a6,
 		struct ipv4_transport_addr *a4,
 		l4_protocol proto)
 {
@@ -83,5 +86,5 @@ int bib_rm(struct ipv6_transport_addr *a6,
 	if (a4)
 		request.addr4 = *a4;
 
-	return JNL_SIMPLE_REQUEST(MODE_BIB, OP_REMOVE, request);
+	return JNL_SIMPLE_REQUEST(instance, MODE_BIB, OP_REMOVE, request);
 }

@@ -23,7 +23,7 @@ int instance_add(xlator_type type, char *name)
 
 	request.type = type;
 	strcpy(request.name, name);
-	return JNL_SIMPLE_REQUEST(MODE_INSTANCE, OP_ADD, request);
+	return JNL_SIMPLE_REQUEST(NULL, MODE_INSTANCE, OP_ADD, request);
 }
 
 int instance_rm(char *name)
@@ -36,5 +36,5 @@ int instance_rm(char *name)
 		return error;
 
 	strcpy(request.name, name);
-	return JNL_SIMPLE_REQUEST(MODE_INSTANCE, OP_REMOVE, request);
+	return JNL_SIMPLE_REQUEST(NULL, MODE_INSTANCE, OP_REMOVE, request);
 }

@@ -8,12 +8,13 @@
 #include "wkmalloc.h"
 
 /*
- * @file
  * Gathers human-friendly error messages during userspace request handling
  * so they can be sent to userspace.
  *
  * This whole module assumes outside locking.
  * (see the caller of error_pool_activate() and error_pool_deactivate().
+ *
+ * TODO this whole module is race condition incarnate. Redesign it.
  */
 
 struct error_node {
@@ -53,30 +54,37 @@ void error_pool_activate(void)
 	msg_size = 0;
 }
 
-int error_pool_add_message(char *msg)
+/**
+ * len - length of message
+ * fmt - template that, once filled with ..., will result in the message
+ * ... - arguments to format fmt with.
+ *
+ * This function is not inteded to be used directly. Use log_err() instead.
+ */
+int error_pool_add_message(int len, const char *fmt, ...)
 {
 	struct error_node *node;
+	va_list args;
 
-	/* TODO race condition here. */
 	if (!activated)
 		return 0;
 
 	node = wkmalloc(struct error_node, GFP_ATOMIC);
-	if (!node) {
-		pr_err("Could not allocate memory to store an error pool node!\n") ;
+	if (!node)
 		return -ENOMEM;
-	}
 
-	node->msg = __wkmalloc("error_code.msg", strlen(msg) + 1, GFP_ATOMIC);
+	node->msg = __wkmalloc("error_code.msg", len + 1, GFP_ATOMIC);
 	if (!node->msg) {
-		pr_err("Could not allocate memory to store an error pool message!\n") ;
 		wkfree(struct error_node, node);
 		return -ENOMEM;
 	}
 
-	strcpy(node->msg, msg);
-	list_add_tail(&node->prev_next, &db) ;
-	msg_size += strlen(msg);
+	va_start(args, fmt);
+	vsprintf(node->msg, fmt, args);
+	va_end(args);
+
+	list_add_tail(&node->prev_next, &db);
+	msg_size += strlen(node->msg);
 	return 0;
 }
 

@@ -19,8 +19,8 @@ static int bib_entry_to_userspace(struct bib_entry *entry, bool is_static,
 	return nlbuffer_write(buffer, &entry_usr, sizeof(entry_usr));
 }
 
-static int handle_bib_display(struct bib *db, struct genl_info *info,
-		struct request_bib *request)
+static int handle_bib_foreach(struct bib *db, struct genl_info *info,
+		struct request_bib_foreach *request)
 {
 	struct nlcore_buffer buffer;
 	struct bib_foreach_func func = {
@@ -39,7 +39,7 @@ static int handle_bib_display(struct bib *db, struct genl_info *info,
 	if (error)
 		return nlcore_respond(info, error);
 
-	offset = request->display.addr4_set ? &request->display.addr4 : NULL;
+	offset = request->addr4_set ? &request->addr4 : NULL;
 	error = bib_foreach(db, request->l4_proto, &func, offset);
 	nlbuffer_set_pending_data(&buffer, error > 0);
 	error = (error >= 0)
@@ -50,21 +50,7 @@ static int handle_bib_display(struct bib *db, struct genl_info *info,
 	return error;
 }
 
-static int handle_bib_count(struct bib *db, struct genl_info *info,
-		struct request_bib *request)
-{
-	int error;
-	__u64 count;
-
-	log_debug("Returning BIB count.");
-	error = bib_count(db, request->l4_proto, &count);
-	if (error)
-		return nlcore_respond(info, error);
-
-	return nlcore_respond_struct(info, &count, sizeof(count));
-}
-
-static int handle_bib_add(struct xlator *jool, struct request_bib *request)
+static int handle_bib_add(struct xlator *jool, struct request_bib_add *request)
 {
 	struct bib_entry new;
 	struct bib_entry old;
@@ -75,19 +61,19 @@ static int handle_bib_add(struct xlator *jool, struct request_bib *request)
 
 	log_debug("Adding BIB entry.");
 
-	if (!pool4db_contains(jool->nat64.pool4, jool->ns, request->l4_proto,
-			&request->add.addr4)) {
+	if (!pool4db_contains(jool->pool4, request->l4_proto,
+			&request->addr4)) {
 		log_err("The transport address '%pI4#%u' does not belong to pool4.\n"
 				"Please add it there first.",
-				&request->add.addr4.l3, request->add.addr4.l4);
+				&request->addr4.l3, request->addr4.l4);
 		return -EINVAL;
 	}
 
-	new.ipv6 = request->add.addr6;
-	new.ipv4 = request->add.addr4;
+	new.ipv6 = request->addr6;
+	new.ipv4 = request->addr4;
 	new.l4_proto = request->l4_proto;
 
-	error = bib_add_static(jool->nat64.bib, &new, &old);
+	error = bib_add_static(jool->bib, &new, &old);
 	switch (error) {
 	case 0:
 		break;
@@ -106,7 +92,7 @@ static int handle_bib_add(struct xlator *jool, struct request_bib *request)
 	return error;
 }
 
-static int handle_bib_rm(struct xlator *jool, struct request_bib *request)
+static int handle_bib_rm(struct xlator *jool, struct request_bib_rm *request)
 {
 	struct bib_entry bib;
 	int error;
@@ -116,17 +102,17 @@ static int handle_bib_rm(struct xlator *jool, struct request_bib *request)
 
 	log_debug("Removing BIB entry.");
 
-	if (request->rm.addr6_set && request->rm.addr4_set) {
-		bib.ipv6 = request->rm.addr6;
-		bib.ipv4 = request->rm.addr4;
+	if (request->addr6_set && request->addr4_set) {
+		bib.ipv6 = request->addr6;
+		bib.ipv4 = request->addr4;
 		bib.l4_proto = request->l4_proto;
 		error = 0;
-	} else if (request->rm.addr6_set) {
-		error = bib_find6(jool->nat64.bib, request->l4_proto,
-				&request->rm.addr6, &bib);
-	} else if (request->rm.addr4_set) {
-		error = bib_find4(jool->nat64.bib, request->l4_proto,
-				&request->rm.addr4, &bib);
+	} else if (request->addr6_set) {
+		error = bib_find6(jool->bib, request->l4_proto,
+				&request->addr6, &bib);
+	} else if (request->addr4_set) {
+		error = bib_find4(jool->bib, request->l4_proto,
+				&request->addr4, &bib);
 	} else {
 		log_err("You need to provide an address so I can find the entry you want to remove.");
 		return -EINVAL;
@@ -137,9 +123,9 @@ static int handle_bib_rm(struct xlator *jool, struct request_bib *request)
 	if (error)
 		return error;
 
-	error = bib_rm(jool->nat64.bib, &bib);
+	error = bib_rm(jool->bib, &bib);
 	if (error == -ESRCH) {
-		if (request->rm.addr6_set && request->rm.addr4_set)
+		if (request->addr6_set && request->addr4_set)
 			goto esrch;
 		/* It died on its own between the find and the rm. */
 		return 0;
@@ -155,28 +141,17 @@ esrch:
 int handle_bib_config(struct xlator *jool, struct genl_info *info)
 {
 	struct request_hdr *hdr = get_jool_hdr(info);
-	struct request_bib *request = (struct request_bib *)(hdr + 1);
+	void *payload = get_jool_payload(info);
 	int error;
-
-	if (jool->type == XLATOR_SIIT) {
-		log_err("SIIT doesn't have BIBs.");
-		return nlcore_respond(info, -EINVAL);
-	}
-
-	error = validate_request_size(info, sizeof(*request));
-	if (error)
-		return nlcore_respond(info, error);
 
 	switch (be16_to_cpu(hdr->operation)) {
 	case OP_DISPLAY:
-		return handle_bib_display(jool->nat64.bib, info, request);
-	case OP_COUNT:
-		return handle_bib_count(jool->nat64.bib, info, request);
+		return handle_bib_foreach(jool->bib, info, payload);
 	case OP_ADD:
-		error = handle_bib_add(jool, request);
+		error = handle_bib_add(jool, payload);
 		break;
 	case OP_REMOVE:
-		error = handle_bib_rm(jool, request);
+		error = handle_bib_rm(jool, payload);
 		break;
 	default:
 		log_err("Unknown operation: %u", be16_to_cpu(hdr->operation));

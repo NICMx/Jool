@@ -13,7 +13,7 @@ int rfc6052_6to4(struct xlation *state,
 		const struct in6_addr *src,
 		struct in_addr *dst)
 {
-	struct ipv6_prefix *prefix = &state->GLOBAL.pool6;
+	struct ipv6_prefix *prefix = &GLOBAL_GET(state, pool6);
 
 	switch (prefix->len) {
 	case 96: /* First because it's the most common one, I guess. */
@@ -62,7 +62,7 @@ int rfc6052_4to6(struct xlation *state,
 		const struct in_addr *src,
 		struct in6_addr *dst)
 {
-	struct ipv6_prefix *prefix = &state->GLOBAL.pool6;
+	struct ipv6_prefix *prefix = &GLOBAL_GET(state, pool6);
 
 	memcpy(dst, &prefix->addr, sizeof(*dst));
 

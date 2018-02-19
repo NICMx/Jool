@@ -473,7 +473,7 @@ void joold_put(struct joold_queue *queue)
 	kref_put(&queue->refs, joold_release);
 }
 
-void joold_config_copy(struct joold_queue *queue, struct joold_config *config)
+void joold_get_globals(struct joold_queue *queue, struct joold_config *config)
 {
 	spin_lock_bh(&queue->lock);
 	memcpy(config, &queue->config, sizeof(queue->config));

@@ -5,6 +5,7 @@
 #include "xlator.h"
 
 #include "packet-init.h"
+#include "nat64/fragment_db.h"
 #include "nat64/determine-incoming-tuple.h"
 #include "nat64/filtering-and-updating.h"
 #include "nat64/compute-outgoing-tuple.h"
@@ -133,13 +134,9 @@ void core_6to4(struct xlator *jool, struct sk_buff *skb)
 	 * my own defrag and call it a day. It would certainly be easier, but I
 	 * would lose the official defrags' maturity.
 	 */
-	/*
-	if (xlat_is_nat64(&state)) {
-		result = fragdb_handle(state.jool.nat64.frag, &state.in);
-		if (result != VERDICT_CONTINUE)
+	if (XLATOR_TYPE(&state) == XLATOR_NAT64)
+		if (fragdb_handle(state.jool.fragdb, &state.in))
 			goto end;
-	}
-	*/
 
 	core_common(&state);
 	/* Fall through */

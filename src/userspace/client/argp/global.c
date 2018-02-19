@@ -22,7 +22,7 @@ static struct wargp_option display_opts[] = {
 #define get_field(config, field) ((void *)config + field->offset)
 
 static int handle_display_response(struct display_args *qargs,
-		struct full_config *conf)
+		struct globals *conf)
 {
 	struct global_field *field;
 	print_function print;
@@ -42,17 +42,17 @@ static int handle_display_response(struct display_args *qargs,
 	return 0;
 }
 
-int handle_global_display(int argc, char **argv)
+int handle_global_display(char *instance, int argc, char **argv)
 {
 	struct display_args dargs = { 0 };
-	struct full_config config;
+	struct globals config;
 	int error;
 
 	error = wargp_parse(display_opts, argc, argv, &dargs);
 	if (error)
 		return error;
 
-	error = global_query(&config);
+	error = global_query(instance, &config);
 	if (error)
 		return error;
 
@@ -93,7 +93,7 @@ static int parse_update_opts(int key, char *str, struct argp_state *state)
 	return error;
 }
 
-int handle_global_update(int argc, char **argv)
+int handle_global_update(char *instance, int argc, char **argv)
 {
 	struct global_field *global_fields;
 	unsigned int field_count;
@@ -129,7 +129,7 @@ int handle_global_update(int argc, char **argv)
 		return error;
 
 	if (uargs.value) {
-		error = global_update(uargs.field, uargs.value);
+		error = global_update(instance, uargs.field, uargs.value);
 		free(uargs.value);
 	}
 

@@ -48,14 +48,14 @@ static int whine_if_too_big(struct xlation *state)
 }
 */
 
-static void add_ethernet_header(struct packet *pkt)
+static void add_ethernet_header(struct sk_buff *skb)
 {
-	struct ethhdr *hdr = (struct ethhdr *)skb_push(pkt->skb, ETH_HLEN);
+	struct ethhdr *hdr = (struct ethhdr *)skb_push(skb, ETH_HLEN);
 
-	skb_reset_mac_header(pkt->skb);
+	skb_reset_mac_header(skb);
 	memset(hdr->h_dest, 0x64, ETH_ALEN);
 	memset(hdr->h_source, 0x46, ETH_ALEN);
-	hdr->h_proto = pkt->skb->protocol;
+	hdr->h_proto = skb->protocol;
 
 	/*
 	 * Ughhhhhhhhhhhhhhhhhhh.
@@ -66,7 +66,15 @@ static void add_ethernet_header(struct packet *pkt)
 	 * We still generate a dummy ethernet header above for the sake of
 	 * tcpdump and Wireshark.
 	 */
-	skb_pull(pkt->skb, ETH_HLEN);
+	skb_pull(skb, ETH_HLEN);
+}
+
+void sendpkt_send_skb(struct sk_buff *skb)
+{
+	/* TODO maybe missing a whole bunch of locking according to snull. */
+	log_debug("Sending skb.");
+	add_ethernet_header(skb);
+	netif_rx(skb);
 }
 
 /**
@@ -74,11 +82,7 @@ static void add_ethernet_header(struct packet *pkt)
  */
 int sendpkt_send(struct packet *pkt)
 {
-	/* TODO maybe missing a whole bunch of locking according to snull. */
-	log_debug("Sending skb.");
-
-	add_ethernet_header(pkt);
-	netif_rx(pkt->skb);
+	sendpkt_send_skb(pkt->skb);
 	pkt->skb = NULL;
 	return 0;
 }

@@ -22,7 +22,7 @@ static int handle_instance_rm(struct genl_info *info,
 int handle_instance_request(struct genl_info *info)
 {
 	struct request_hdr *hdr = get_jool_hdr(info);
-	void *payload = nla_data(info->attrs[ATTR_DATA]);
+	void *payload = get_jool_payload(info);
 
 	if (verify_privileges())
 		return nlcore_respond(info, -EPERM);

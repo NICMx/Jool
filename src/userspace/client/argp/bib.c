@@ -50,7 +50,7 @@ static int print_entry(struct bib_entry_usr *entry, void *args)
  * BTW: This thing is not thread-safe because of the address-to-string v4
  * function.
  */
-int handle_bib_display(int argc, char **argv)
+int handle_bib_display(char *instance, int argc, char **argv)
 {
 	struct display_args dargs = { 0 };
 	int error;
@@ -62,7 +62,7 @@ int handle_bib_display(int argc, char **argv)
 	if (show_csv_header(dargs.no_headers.value, dargs.csv.value))
 		printf("Protocol,IPv6 Address,IPv6 L4-ID,IPv4 Address,IPv4 L4-ID,Static?\n");
 
-	return bib_foreach(dargs.proto.proto, print_entry, &dargs);
+	return bib_foreach(instance, dargs.proto.proto, print_entry, &dargs);
 }
 
 void print_bib_display_opts(char *prefix)
@@ -117,7 +117,7 @@ static struct wargp_option add_opts[] = {
 	{ 0 },
 };
 
-int handle_bib_add(int argc, char **argv)
+int handle_bib_add(char *instance, int argc, char **argv)
 {
 	struct add_args aargs = { 0 };
 	int error;
@@ -137,7 +137,7 @@ int handle_bib_add(int argc, char **argv)
 		return requirement_print(reqs);
 	}
 
-	return bib_add(&aargs.taddrs.addr6, &aargs.taddrs.addr4,
+	return bib_add(instance, &aargs.taddrs.addr6, &aargs.taddrs.addr4,
 			aargs.proto.proto);
 }
 
@@ -165,7 +165,7 @@ static struct wargp_option remove_opts[] = {
 	{ 0 },
 };
 
-int handle_bib_remove(int argc, char **argv)
+int handle_bib_remove(char *instance, int argc, char **argv)
 {
 	struct rm_args rargs = { 0 };
 	int error;
@@ -185,7 +185,7 @@ int handle_bib_remove(int argc, char **argv)
 		return requirement_print(reqs);
 	}
 
-	return bib_rm(&rargs.taddrs.addr6, &rargs.taddrs.addr4,
+	return bib_rm(instance, &rargs.taddrs.addr6, &rargs.taddrs.addr4,
 			rargs.proto.proto);
 }
 

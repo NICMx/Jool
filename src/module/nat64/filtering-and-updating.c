@@ -297,11 +297,6 @@ static enum session_fate tcp_established_state(struct session_entry *session,
 	return FATE_TIMER_EST;
 }
 
-static bool handle_rst_during_fin_rcv(struct xlation *state)
-{
-	return state->GLOBAL.handle_rst_during_fin_rcv;
-}
-
 /**
  * Filtering and updating during the V4 FIN RCV state of the TCP state machine.
  * Part of RFC 6146 section 3.5.2.2.
@@ -318,7 +313,7 @@ static enum session_fate tcp_v4_fin_rcv_state(struct session_entry *session,
 			session->state = V4_FIN_V6_FIN_RCV;
 			return FATE_TIMER_TRANS;
 		}
-		if (hdr->rst && handle_rst_during_fin_rcv(state)) {
+		if (hdr->rst && GLOBAL_GET(state, handle_rst_during_fin_rcv)) {
 			/* https://github.com/NICMx/Jool/issues/212 */
 			return FATE_TIMER_TRANS;
 		}
@@ -343,7 +338,7 @@ static enum session_fate tcp_v6_fin_rcv_state(struct session_entry *session,
 			session->state = V4_FIN_V6_FIN_RCV;
 			return FATE_TIMER_TRANS;
 		}
-		if (hdr->rst && handle_rst_during_fin_rcv(state)) {
+		if (hdr->rst && GLOBAL_GET(state, handle_rst_during_fin_rcv)) {
 			/* https://github.com/NICMx/Jool/issues/212 */
 			return FATE_TIMER_TRANS;
 		}
@@ -458,7 +453,7 @@ static int handle_ipv6(struct xlation *state)
 		return ipv6_tcp(state);
 
 	case L4PROTO_ICMP:
-		if (state->GLOBAL.drop_icmp6_info) {
+		if (GLOBAL_GET(state, drop_icmp6_info)) {
 			log_debug("Packet is ICMPv6 info (ping); dropping due to policy.");
 			return eperm(state, JOOL_MIB_PING_PROHIBITED);
 		}
@@ -509,7 +504,7 @@ int filtering_and_updating(struct xlation *state)
 	 */
 	switch (pkt_l3_proto(in)) {
 	case L3PROTO_IPV6:
-		pool6 = &state->GLOBAL.pool6;
+		pool6 = &GLOBAL_GET(state, pool6);
 		if (pool6->len == 0) {
 			log_debug("pool6 hasn't been configured.");
 			return esrch(state, JOOL_MIB_POOL6_NULL);
@@ -533,7 +528,8 @@ int filtering_and_updating(struct xlation *state)
 		break;
 	case L3PROTO_IPV4:
 		/* Get rid of unexpected packets */
-		if (!pool4db_contains(state->jool.pool4, &in->tuple)) {
+		if (!pool4db_contains(state->jool.pool4, in->tuple.l4_proto,
+				&in->tuple.dst.addr4)) {
 			log_debug("Packet destination does not belong to pool4.");
 			return einval(state, JOOL_MIB_DST4);
 		}

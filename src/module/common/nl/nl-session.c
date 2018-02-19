@@ -24,8 +24,10 @@ static int session_entry_to_userspace(struct session_entry *entry, void *arg)
 	return nlbuffer_write(buffer, &entry_usr, sizeof(entry_usr));
 }
 
-static int handle_session_display(struct bib *db, struct genl_info *info,
-		struct request_session *request)
+static int handle_session_display(struct bib *db,
+		struct globals *globals,
+		struct genl_info *info,
+		struct request_session_display *request)
 {
 	struct nlcore_buffer buffer;
 	struct session_foreach_func func = {
@@ -45,13 +47,13 @@ static int handle_session_display(struct bib *db, struct genl_info *info,
 	if (error)
 		return nlcore_respond(info, error);
 
-	if (request->display.offset_set) {
-		offset_struct.offset = request->display.offset;
+	if (request->offset_set) {
+		offset_struct.offset = request->offset;
 		offset_struct.include_offset = false;
 		offset = &offset_struct;
 	}
 
-	error = bib_foreach_session(db, request->l4_proto, &func, offset);
+	error = bib_foreach_session(db, globals, request->l4_proto, &func, offset);
 	nlbuffer_set_pending_data(&buffer, error > 0);
 	error = (error >= 0)
 			? nlbuffer_send(info, &buffer)
@@ -61,44 +63,15 @@ static int handle_session_display(struct bib *db, struct genl_info *info,
 	return error;
 }
 
-static int handle_session_count(struct bib *db, struct genl_info *info,
-		struct request_session *request)
-{
-	int error;
-	__u64 count;
-
-	log_debug("Returning session count.");
-
-	error = bib_count_sessions(db, request->l4_proto, &count);
-	if (error)
-		return nlcore_respond(info, error);
-
-	return nlcore_respond_struct(info, &count, sizeof(count));
-}
-
 int handle_session_config(struct xlator *jool, struct genl_info *info)
 {
-	struct request_hdr *hdr;
-	struct request_session *request;
-	int error;
-
-	if (jool->type == XLATOR_SIIT) {
-		log_err("SIIT doesn't have session tables.");
-		return nlcore_respond(info, -EINVAL);
-	}
-
-	hdr = get_jool_hdr(info);
-	request = (struct request_session *)(hdr + 1);
-
-	error = validate_request_size(info, sizeof(*request));
-	if (error)
-		return nlcore_respond(info, error);
+	struct request_hdr *hdr = get_jool_hdr(info);
+	void *payload = get_jool_payload(info);
 
 	switch (be16_to_cpu(hdr->operation)) {
 	case OP_DISPLAY:
-		return handle_session_display(jool->nat64.bib, info, request);
-	case OP_COUNT:
-		return handle_session_count(jool->nat64.bib, info, request);
+		return handle_session_display(jool->bib, &jool->global->cfg,
+				info, payload);
 	}
 
 	log_err("Unknown operation: %u", be16_to_cpu(hdr->operation));

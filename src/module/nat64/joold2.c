@@ -1,6 +1,6 @@
 #include "joold.h"
 
-struct joold_queue {
+static struct joold_queue {
 	int trash;
 } throwaway;
 

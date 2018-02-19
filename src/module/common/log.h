@@ -44,20 +44,13 @@
  * errors while processing user requests.
  * I the code found a **programming** error, use WARN() or its variations
  * instead.
- *
- * TODO revert
  */
-#define log_err pr_err
-/*
 #define log_err(text, ...) \
 	do { \
-		char __error_message[512]; \
-		pr_err("%s ERROR (%s): " text "\n", xlat_get_name(), __func__, \
-				##__VA_ARGS__); \
-		sprintf(__error_message, text "\n", ##__VA_ARGS__); \
-		error_pool_add_message(__error_message); \
+		pr_err("%s ERROR (%s): ", xlat_get_name(), __func__); \
+		error_pool_add_message(pr_err(text "\n", ##__VA_ARGS__), \
+				text "\n", ##__VA_ARGS__); \
 	} while (0)
-*/
 
 #ifdef UNIT_TESTING
 #undef log_err

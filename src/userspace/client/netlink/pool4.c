@@ -28,7 +28,8 @@ static int handle_foreach_response(struct jnl_response *response, void *arg)
 	return 0;
 }
 
-int pool4_foreach(l4_protocol proto, pool4_foreach_cb cb, void *args)
+int pool4_foreach(char *instance, l4_protocol proto, pool4_foreach_cb cb,
+		void *args)
 {
 	struct jnl_socket jsocket;
 	struct foreach_args fargs;
@@ -45,7 +46,7 @@ int pool4_foreach(l4_protocol proto, pool4_foreach_cb cb, void *args)
 		return error;
 
 	do {
-		error = jnl_request(&jsocket, MODE_POOL4, OP_DISPLAY,
+		error = jnl_request(&jsocket, instance, MODE_POOL4, OP_DISPLAY,
 				&fargs.request, sizeof(fargs.request),
 				handle_foreach_response, &fargs);
 	} while (!error && fargs.request.offset_set);
@@ -54,11 +55,11 @@ int pool4_foreach(l4_protocol proto, pool4_foreach_cb cb, void *args)
 	return error;
 }
 
-int pool4_add(struct pool4_entry_usr *entry)
+int pool4_add(char *instance, struct pool4_entry_usr *entry)
 {
 	struct request_pool4_add request;
 	request.entry = *entry;
-	return JNL_SIMPLE_REQUEST(MODE_POOL4, OP_ADD, request);
+	return JNL_SIMPLE_REQUEST(instance, MODE_POOL4, OP_ADD, request);
 }
 
 //int pool4_update(struct pool4_update *args)
@@ -71,17 +72,17 @@ int pool4_add(struct pool4_entry_usr *entry)
 //	return netlink_request(request, sizeof(request), NULL, NULL);
 //}
 
-int pool4_rm(struct pool4_entry_usr *entry, bool quick)
+int pool4_rm(char *instance, struct pool4_entry_usr *entry, bool quick)
 {
 	struct request_pool4_rm request = {
 			.entry = *entry,
 			.quick = quick,
 	};
-	return JNL_SIMPLE_REQUEST(MODE_POOL4, OP_REMOVE, request);
+	return JNL_SIMPLE_REQUEST(instance, MODE_POOL4, OP_REMOVE, request);
 }
 
-int pool4_flush(bool quick)
+int pool4_flush(char *instance, bool quick)
 {
 	struct request_pool4_flush request = { .quick = quick, };
-	return JNL_SIMPLE_REQUEST(MODE_POOL4, OP_FLUSH, request);
+	return JNL_SIMPLE_REQUEST(instance, MODE_POOL4, OP_FLUSH, request);
 }

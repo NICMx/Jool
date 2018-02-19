@@ -102,9 +102,9 @@ static int multiplex_request(struct xlator *jool, struct genl_info *info)
 	case MODE_GLOBAL:
 		return handle_global_config(jool, info);
 	case MODE_PARSE_FILE:
-		return handle_atomconfig_request(jool, info);
-	case MODE_JOOLD:
-		return handle_joold_request(jool, info);
+		log_err("Not implemented yet.");
+		/* return handle_atomconfig_request(jool, info); */
+		return nlcore_respond(info, -EINVAL);
 	case MODE_INSTANCE:
 		log_err("Bug: MODE_INSTANCE was supposed to be already handled.");
 		return nlcore_respond(info, -EINVAL);
@@ -112,6 +112,30 @@ static int multiplex_request(struct xlator *jool, struct genl_info *info)
 
 	log_err("Unknown configuration mode: %d", be16_to_cpu(hdr->mode));
 	return nlcore_respond(info, -EINVAL);
+}
+
+static int find_instance(struct genl_info *info, struct xlator *instance)
+{
+	struct nlattr *name_attr;
+	int error;
+
+	name_attr = info->attrs[ATTR_INSTANCE_NAME];
+	if (!name_attr) {
+		log_err("The request lacks an instance name attribute.");
+		return -EINVAL;
+	}
+
+	error = xlator_find(nla_data(name_attr), instance);
+	if (error == -ESRCH) {
+		log_err("This namespace lacks a Jool instance.");
+		return -ESRCH;
+	}
+	if (error) {
+		log_err("Unknown error %d; Jool instance not found.", error);
+		return error;
+	}
+
+	return 0;
 }
 
 static int __handle_jool_message(struct genl_info *info)
@@ -134,21 +158,9 @@ static int __handle_jool_message(struct genl_info *info)
 	if (be16_to_cpu(hdr->mode) == MODE_INSTANCE)
 		return handle_instance_request(info);
 
-	log_err("Not implemented yet.");
-	return nlcore_respond(info, -EINVAL);
-	/* TODO depends on instance.
-
-	error = xlator_find_current(&translator);
-	if (error == -ESRCH) {
-		log_err("This namespace lacks a Jool instance.");
-		return nlcore_respond(info, -ESRCH);
-	}
-	if (error) {
-		log_err("Unknown error %d; Jool instance not found.", error);
+	error = find_instance(info, &translator);
+	if (error)
 		return nlcore_respond(info, error);
-	}
-
-	*/
 
 	error = multiplex_request(&translator, info);
 	xlator_put(&translator);

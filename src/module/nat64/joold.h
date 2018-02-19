@@ -42,9 +42,6 @@ struct joold_queue *joold_create(void);
 #define joold_get(queue)
 #define joold_put(queue)
 
-#define joold_config_copy(queue, config);
-#define joold_config_set(queue, config);
-
 #define joold_sync(jool, data, size) -EINVAL
 #define joold_add(state)
 #define joold_update_config(queue, new_config)

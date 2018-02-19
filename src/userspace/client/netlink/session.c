@@ -36,7 +36,8 @@ static int handle_foreach_response(struct jnl_response *response, void *arg)
 	return 0;
 }
 
-int session_foreach(l4_protocol proto, session_foreach_cb cb, void *args)
+int session_foreach(char *instance, l4_protocol proto, session_foreach_cb cb,
+		void *args)
 {
 	struct jnl_socket jsocket;
 	struct foreach_args dargs;
@@ -55,7 +56,7 @@ int session_foreach(l4_protocol proto, session_foreach_cb cb, void *args)
 		return error;
 
 	do {
-		error = jnl_request(&jsocket, MODE_SESSION, OP_DISPLAY,
+		error = jnl_request(&jsocket, instance, MODE_SESSION, OP_DISPLAY,
 				&dargs.request, sizeof(dargs.request),
 				handle_foreach_response, &dargs);
 	} while (!error && dargs.request.offset_set);

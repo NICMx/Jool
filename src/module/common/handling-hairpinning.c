@@ -24,7 +24,8 @@ static bool is_hairpin_nat64(struct xlation *state)
 	 * but hey, why the hell not.
 	 * TODO this probably doesn't apply anymore.
 	 */
-	return pool4db_contains(state->jool.pool4, &state->out.tuple);
+	return pool4db_contains(state->jool.pool4, state->out.tuple.l4_proto,
+			&state->out.tuple.dst.addr4);
 }
 
 /**

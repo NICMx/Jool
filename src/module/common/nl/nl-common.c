@@ -14,22 +14,11 @@ int verify_privileges(void)
 
 struct request_hdr *get_jool_hdr(struct genl_info *info)
 {
+	/* TODO validate length? */
 	return info->userhdr;
 }
 
-// TODO
-/*
-int validate_request_size(struct genl_info *info, size_t min_expected)
+void *get_jool_payload(struct genl_info *info)
 {
-	size_t request_size = nla_len(info->attrs[ATTR_DATA]);
-
-	min_expected += sizeof(struct request_hdr);
-	if (request_size < min_expected) {
-		log_err("The minimum expected request size was %zu bytes; got %zu instead.",
-				min_expected, request_size);
-		return -EINVAL;
-	}
-
-	return 0;
+	return nla_data(info->attrs[ATTR_DATA]);
 }
-*/

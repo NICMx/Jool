@@ -44,14 +44,14 @@ struct cmd_option {
 
 	struct cmd_option *children;
 
-	int (*handler)(int argc, char **argv);
+	int (*handler)(char *instance, int argc, char **argv);
 	void (*print_opts)(char *prefix);
 
 	/** Used by the code to chain temporarily correlated nodes at times. */
 	struct cmd_option *next;
 };
 
-static int handle_autocomplete(int argc, char **argv);
+static int handle_autocomplete(char *junk, int argc, char **argv);
 
 struct cmd_option instance_ops[] = {
 		{
@@ -242,7 +242,7 @@ static int more_args_expected(struct cmd_option *nodes)
 	return -EINVAL;
 }
 
-int handle(int argc, char **argv)
+static int handle(char *instance, int argc, char **argv)
 {
 	struct cmd_option *nodes = &tree[0];
 	struct cmd_option *node = NULL;
@@ -259,15 +259,15 @@ int handle(int argc, char **argv)
 			return ambiguous_token(node, argv[i]);
 
 		if (node->handler)
-			return node->handler(argc - i, &argv[i]);
+			return node->handler(instance, argc - i, &argv[i]);
 		nodes = node->children;
 	}
 
 	if (!node->handler)
 		return more_args_expected(node->children);
 
-	log_info("Calling handler 2");
-	return node->handler(argc - i, &argv[i]);
+	log_info("Calling handler 2"); /* TODO */
+	return node->handler(instance, argc - i, &argv[i]);
 }
 
 static int print_opts(struct cmd_option *node, char *token)
@@ -283,14 +283,14 @@ static int print_opts(struct cmd_option *node, char *token)
 /**
  * Never fails because there's no point yet.
  */
-static int handle_autocomplete(int argc, char **argv)
+static int handle_autocomplete(char *junk, int argc, char **argv)
 {
 	struct cmd_option *node = &tree[0];
 	char *current_token = "";
 	int i;
 
-	argc--;
-	argv++;
+	argc -= 2;
+	argv += 2;
 
 	if (argc != 0) {
 		for (i = 0; i < argc - 1; i++) {
@@ -316,9 +316,18 @@ static int handle_autocomplete(int argc, char **argv)
 
 int main(int argc, char **argv)
 {
-	/*
-	 * `argc - 1` and `argv + 1` remove the first argument, which is the
-	 * program name.
-	 */
-	return handle(argc - 1, argv + 1);
+	if (argc == 1) {
+		log_err("Expected instance name or 'instance' keyword as first argument.");
+		return -EINVAL;
+	}
+
+	if (strcmp(argv[1], "instance") == 0) {
+		/*
+		 * `argc - 1` and `argv + 1` remove the first argument, which is
+		 * the program name.
+		 */
+		return handle(NULL, argc - 1, argv + 1);
+	}
+
+	return handle(argv[1], argc - 2, argv + 2);
 }

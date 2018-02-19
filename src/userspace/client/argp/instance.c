@@ -56,7 +56,7 @@ static struct wargp_option add_opts[] = {
 	{ 0 },
 };
 
-int handle_instance_add(int argc, char **argv)
+int handle_instance_add(char *junk, int argc, char **argv)
 {
 	struct add_args aargs = { 0 };
 	int error;
@@ -101,7 +101,7 @@ static struct wargp_option remove_opts[] = {
 	{ 0 },
 };
 
-int handle_instance_remove(int argc, char **argv)
+int handle_instance_remove(char *junk, int argc, char **argv)
 {
 	struct rm_args rargs = { 0 };
 	int error;

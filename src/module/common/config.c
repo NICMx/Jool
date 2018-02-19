@@ -6,7 +6,7 @@
 struct global_config *config_init(xlator_type type)
 {
 	struct global_config *result;
-	struct global_config_usr *config;
+	struct globals *config;
 	__u16 plateaus[] = DEFAULT_MTU_PLATEAUS;
 
 	result = wkmalloc(struct global_config, GFP_KERNEL);
@@ -61,26 +61,12 @@ void config_put(struct global_config *config)
 	kref_put(&config->refcounter, destroy_config);
 }
 
-void config_copy(struct global_config_usr *from, struct global_config_usr *to)
+void prepare_config_for_userspace(struct globals *cfg)
 {
-	memcpy(to, from, sizeof(*from));
-}
-
-void prepare_config_for_userspace(struct full_config *config)
-{
-	struct bib_config *bib;
-	struct fragdb_config *frag;
-	struct joold_config *joold;
-
-	bib = &config->bib;
-	bib->ttl.tcp_est = jiffies_to_msecs(bib->ttl.tcp_est);
-	bib->ttl.tcp_trans = jiffies_to_msecs(bib->ttl.tcp_trans);
-	bib->ttl.udp = jiffies_to_msecs(bib->ttl.udp);
-	bib->ttl.icmp = jiffies_to_msecs(bib->ttl.icmp);
-
-	frag = &config->frag;
-	frag->ttl = jiffies_to_msecs(frag->ttl);
-
-	joold = &config->joold;
-	joold->flush_deadline = jiffies_to_msecs(joold->flush_deadline);
+	cfg->bib.ttl.tcp_est = jiffies_to_msecs(cfg->bib.ttl.tcp_est);
+	cfg->bib.ttl.tcp_trans = jiffies_to_msecs(cfg->bib.ttl.tcp_trans);
+	cfg->bib.ttl.udp = jiffies_to_msecs(cfg->bib.ttl.udp);
+	cfg->bib.ttl.icmp = jiffies_to_msecs(cfg->bib.ttl.icmp);
+	cfg->frag.ttl = jiffies_to_msecs(cfg->frag.ttl);
+	cfg->joold.flush_deadline = jiffies_to_msecs(cfg->joold.flush_deadline);
 }

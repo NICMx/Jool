@@ -10,11 +10,12 @@
 #include "packet.h"
 
 /**
- * Puts @pkt on the network.
+ * Puts the packet on the network.
  *
- * Note that this function inherits from ip_local_out() and ip6_local_out() the
- * annoying side effect of freeing @pkt->skb, EVEN IF IT COULD NOT BE SENT.
+ * Note that these functions inherit from ip_local_out() and ip6_local_out() the
+ * annoying side effect of freeing the skb, EVEN IF IT COULD NOT BE SENT.
  */
+void sendpkt_send_skb(struct sk_buff *skb);
 int sendpkt_send(struct packet *pkt);
 
 #endif /* _JOOL_MOD_SEND_PACKET_H */

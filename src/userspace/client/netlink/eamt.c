@@ -31,7 +31,7 @@ static int handle_foreach_response(struct jnl_response *response, void *args)
 	return 0;
 }
 
-int eamt_foreach(eamt_foreach_cb cb, void *args)
+int eamt_foreach(char *instance, eamt_foreach_cb cb, void *args)
 {
 	struct jnl_socket jsocket;
 	struct foreach_args eargs;
@@ -47,7 +47,7 @@ int eamt_foreach(eamt_foreach_cb cb, void *args)
 		return error;
 
 	do {
-		error = jnl_request(&jsocket, MODE_EAMT, OP_DISPLAY,
+		error = jnl_request(&jsocket, instance, MODE_EAMT, OP_DISPLAY,
 				&eargs.request, sizeof(eargs.request),
 				handle_foreach_response, &eargs);
 	} while (!error && eargs.request.prefix4_set);
@@ -56,7 +56,8 @@ int eamt_foreach(eamt_foreach_cb cb, void *args)
 	return error;
 }
 
-int eamt_add(struct ipv6_prefix *p6, struct ipv4_prefix *p4, bool force)
+int eamt_add(char *instance, struct ipv6_prefix *p6, struct ipv4_prefix *p4,
+		bool force)
 {
 	struct request_eamt_add request;
 
@@ -69,10 +70,10 @@ int eamt_add(struct ipv6_prefix *p6, struct ipv4_prefix *p4, bool force)
 	request.prefix4 = *p4;
 	request.force = force;
 
-	return JNL_SIMPLE_REQUEST(MODE_EAMT, OP_ADD, request);
+	return JNL_SIMPLE_REQUEST(instance, MODE_EAMT, OP_ADD, request);
 }
 
-int eamt_rm(struct ipv6_prefix *p6, struct ipv4_prefix *p4)
+int eamt_rm(char *instance, struct ipv6_prefix *p6, struct ipv4_prefix *p4)
 {
 	struct request_eamt_rm request;
 	memset(&request, 0, sizeof(request));
@@ -84,10 +85,10 @@ int eamt_rm(struct ipv6_prefix *p6, struct ipv4_prefix *p4)
 	if (p4)
 		request.prefix4 = *p4;
 
-	return JNL_SIMPLE_REQUEST(MODE_EAMT, OP_REMOVE, request);
+	return JNL_SIMPLE_REQUEST(instance, MODE_EAMT, OP_REMOVE, request);
 }
 
-int eamt_flush(void)
+int eamt_flush(char *instance)
 {
-	return JNL_HDR_REQUEST(MODE_EAMT, OP_FLUSH);
+	return JNL_HDR_REQUEST(instance, MODE_EAMT, OP_FLUSH);
 }

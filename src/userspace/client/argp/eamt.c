@@ -38,7 +38,7 @@ static int print_entry(struct eamt_entry *entry, void *args)
 	return 0;
 }
 
-int handle_eamt_display(int argc, char **argv)
+int handle_eamt_display(char *instance, int argc, char **argv)
 {
 	struct display_args eargs = { 0 };
 	int error;
@@ -50,7 +50,7 @@ int handle_eamt_display(int argc, char **argv)
 	if (show_csv_header(eargs.no_headers.value, eargs.csv.value))
 		printf("IPv6 Prefix,IPv4 Prefix\n");
 
-	error = eamt_foreach(print_entry, &eargs);
+	error = eamt_foreach(instance, print_entry, &eargs);
 	if (error)
 		return error;
 
@@ -118,7 +118,7 @@ static struct wargp_option add_opts[] = {
 	{ 0 },
 };
 
-int handle_eamt_add(int argc, char **argv)
+int handle_eamt_add(char *instance, int argc, char **argv)
 {
 	struct add_args aargs = { 0 };
 	int error;
@@ -136,7 +136,9 @@ int handle_eamt_add(int argc, char **argv)
 		return requirement_print(reqs);
 	}
 
-	return eamt_add(&aargs.entry.value.prefix6, &aargs.entry.value.prefix4,
+	return eamt_add(instance,
+			&aargs.entry.value.prefix6,
+			&aargs.entry.value.prefix4,
 			aargs.force);
 }
 
@@ -160,7 +162,7 @@ static struct wargp_option remove_opts[] = {
 	{ 0 },
 };
 
-int handle_eamt_remove(int argc, char **argv)
+int handle_eamt_remove(char *instance, int argc, char **argv)
 {
 	struct rm_args rargs = { 0 };
 	int error;
@@ -177,7 +179,9 @@ int handle_eamt_remove(int argc, char **argv)
 		return requirement_print(reqs);
 	}
 
-	return eamt_rm(&rargs.entry.value.prefix6, &rargs.entry.value.prefix4);
+	return eamt_rm(instance,
+			&rargs.entry.value.prefix6,
+			&rargs.entry.value.prefix4);
 }
 
 void print_eamt_remove_opts(char *prefix)
@@ -185,7 +189,7 @@ void print_eamt_remove_opts(char *prefix)
 	print_wargp_opts(remove_opts, prefix);
 }
 
-int handle_eamt_flush(int argc, char **argv)
+int handle_eamt_flush(char *instance, int argc, char **argv)
 {
 	int error;
 
@@ -197,7 +201,7 @@ int handle_eamt_flush(int argc, char **argv)
 	if (error)
 		return error;
 
-	return eamt_flush();
+	return eamt_flush(instance);
 }
 
 void print_eamt_flush_opts(char *prefix)

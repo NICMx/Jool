@@ -849,17 +849,17 @@ static struct pool4_range *find_port_range(struct pool4_table *entry, __u16 port
  * inherently 4-to-6 function (it doesn't make sense otherwise).
  * Mark is only used in the 6-to-4 direction.
  */
-bool pool4db_contains(struct pool4 *pool, struct tuple *tuple4)
+bool pool4db_contains(struct pool4 *pool, l4_protocol proto,
+		struct ipv4_transport_addr *addr)
 {
 	struct pool4_table *table;
 	bool found = false;
 
 	spin_lock_bh(&pool->lock);
 
-	table = find_by_addr(get_tree(&pool->tree_addr, tuple4->l4_proto),
-			&tuple4->dst.addr4.l3);
+	table = find_by_addr(get_tree(&pool->tree_addr, proto), &addr->l3);
 	if (table)
-		found = find_port_range(table, tuple4->dst.addr4.l4) != NULL;
+		found = find_port_range(table, addr->l4) != NULL;
 
 	spin_unlock_bh(&pool->lock);
 	return found;

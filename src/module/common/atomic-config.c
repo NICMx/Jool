@@ -79,7 +79,7 @@ static int handle_global(struct xlator *jool, void *payload, __u32 payload_len)
 		config = wkmalloc(struct full_config, GFP_KERNEL);
 		if (!config)
 			return -ENOMEM;
-		xlator_copy_config(jool, config);
+		memcpy(config, &jool->global->cfg, sizeof(*config));
 
 		jool->newcfg->global = config;
 	}

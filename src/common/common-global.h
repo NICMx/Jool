@@ -1,8 +1,11 @@
 #ifndef SRC_COMMON_GLOBAL_H_
 #define SRC_COMMON_GLOBAL_H_
 
+#ifdef __KERNEL__
+#include <linux/types.h>
+#else
 #include <stddef.h>
-#include "constants.h"
+#endif
 #include "nl-protocol.h"
 
 typedef enum global_type_id {

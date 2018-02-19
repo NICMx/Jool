@@ -114,7 +114,7 @@ static int xlat_saddr6_nat64(struct xlation *state)
 	struct packet *out = &state->out;
 	struct in_addr tmp;
 
-	if (state->GLOBAL.src_icmp6errs_better
+	if (GLOBAL_GET(state, src_icmp6errs_better)
 			&& pkt_is_icmp4_error(&state->in)) {
 		/* Issue #132 behaviour. */
 		tmp.s_addr = pkt_ip4_hdr(&state->in)->saddr;
@@ -196,7 +196,7 @@ static int xlat_addrs46_siit(struct xlation *state)
 	bool hairpin;
 	int error;
 
-	hairpin = (state->GLOBAL.eam_hairpin_mode == EAM_HAIRPIN_SIMPLE)
+	hairpin = (GLOBAL_GET(state, eam_hairpin_mode) == EHM_SIMPLE)
 			|| pkt_is_intrinsic_hairpin(in);
 
 	/* Src address. */
@@ -300,7 +300,7 @@ int ttp46_ipv6(struct xlation *state)
 		return error;
 
 	hdr6->version = 6;
-	if (state->GLOBAL.reset_traffic_class) {
+	if (GLOBAL_GET(state, reset_traffic_class)) {
 		hdr6->priority = 0;
 		hdr6->flow_lbl[0] = 0;
 	} else {
@@ -376,7 +376,7 @@ static void compute_mtu6(struct xlation *state)
 		 * Got to determine a likely path MTU.
 		 * See RFC 1191 sections 5, 7 and 7.1.
 		 */
-		__u16 *plateau = state->GLOBAL.mtu_plateaus;
+		__u16 *plateaus = GLOBAL_GET(state, mtu_plateaus);
 		struct iphdr *hdr4;
 		unsigned int tot_len_field;
 
@@ -386,9 +386,9 @@ static void compute_mtu6(struct xlation *state)
 		 * not the truncated one.
 		 */
 		tot_len_field = be16_to_cpu(hdr4->tot_len);
-		for (; plateau; plateau++) {
-			if (*plateau < tot_len_field) {
-				result = *plateau;
+		for (; plateaus; plateaus++) {
+			if (*plateaus < tot_len_field) {
+				result = *plateaus;
 				break;
 			}
 		}
@@ -728,7 +728,7 @@ static bool can_compute_csum(struct xlation *state)
 	 * addresses and port numbers in the packet.
 	 */
 	hdr4 = pkt_ip4_hdr(&state->in);
-	if (is_mf_set_ipv4(hdr4) || !state->GLOBAL.compute_udp_csum_zero) {
+	if (is_mf_set_ipv4(hdr4) || !GLOBAL_GET(state, compute_udp_csum_zero)) {
 		hdr_udp = pkt_udp_hdr(&state->in);
 		log_debug("Dropping zero-checksum UDP packet: %pI4#%u->%pI4#%u",
 				&hdr4->saddr, ntohs(hdr_udp->source),

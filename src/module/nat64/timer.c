@@ -10,7 +10,7 @@ static struct timer_list timer;
 
 static int clean_state(struct xlator *jool, void *args)
 {
-	bib_clean(jool->bib);
+	bib_clean(jool->bib, &jool->global->cfg);
 	joold_clean(jool->joold, jool->bib);
 	return 0;
 }

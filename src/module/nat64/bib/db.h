@@ -61,9 +61,6 @@ struct bib *bib_create(void);
 void bib_get(struct bib *db);
 void bib_put(struct bib *db);
 
-void bib_config_copy(struct bib *db, struct bib_config *config);
-void bib_config_set(struct bib *db, struct bib_config *config);
-
 typedef enum session_fate (*fate_cb)(struct session_entry *, void *);
 
 struct collision_cb {
@@ -95,9 +92,7 @@ int bib_add_tcp4(struct xlation *state,
 
 int bib_find(struct bib *db, struct tuple *tuple,
 		struct bib_session *result);
-int bib_add_session(struct bib *db, struct session_entry *new,
-		struct collision_cb *cb);
-void bib_clean(struct bib *db);
+void bib_clean(struct bib *db, struct globals *globals);
 
 /* These are used by userspace request handling. */
 
@@ -119,7 +114,9 @@ struct session_foreach_offset {
 int bib_foreach(struct bib *db, l4_protocol proto,
 		struct bib_foreach_func *func,
 		const struct ipv4_transport_addr *offset);
-int bib_foreach_session(struct bib *db, l4_protocol proto,
+int bib_foreach_session(struct bib *db,
+		struct globals *globals,
+		l4_protocol proto,
 		struct session_foreach_func *collision_cb,
 		struct session_foreach_offset *offset);
 int bib_find6(struct bib *db, l4_protocol proto,

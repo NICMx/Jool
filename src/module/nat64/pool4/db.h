@@ -31,8 +31,8 @@ void pool4db_flush(struct pool4 *pool);
 /*
  * Read functions (Legal to use anywhere)
  */
-
-bool pool4db_contains(struct pool4 *pool, struct tuple *tuple4);
+bool pool4db_contains(struct pool4 *pool, l4_protocol proto,
+		struct ipv4_transport_addr *addr);
 int pool4db_foreach_sample(struct pool4 *pool, l4_protocol proto,
 		int (*cb)(struct pool4_sample *, void *), void *arg,
 		struct pool4_sample *offset);

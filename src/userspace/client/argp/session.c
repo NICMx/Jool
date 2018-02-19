@@ -92,7 +92,7 @@ static int handle_display_response(struct session_entry_usr *entry, void *args)
 	return 0;
 }
 
-int handle_session_display(int argc, char **argv)
+int handle_session_display(char *instance, int argc, char **argv)
 {
 	struct display_args dargs = { 0 };
 	int error;
@@ -113,8 +113,8 @@ int handle_session_display(int argc, char **argv)
 		printf("Expires in,State\n");
 	}
 
-	error = session_foreach(dargs.proto.proto, handle_display_response,
-			&dargs);
+	error = session_foreach(instance, dargs.proto.proto,
+			handle_display_response, &dargs);
 
 	if (!error && show_footer(dargs.no_headers.value, dargs.csv.value)) {
 		if (dargs.sample_count > 0)

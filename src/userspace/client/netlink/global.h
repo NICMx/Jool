@@ -9,7 +9,7 @@ struct global_update_field {
 	void *data;
 };
 
-int global_query(struct full_config *result);
-int global_update(unsigned int field_index, void *value);
+int global_query(char *instance, struct globals *result);
+int global_update(char *instance, unsigned int field_index, void *value);
 
 #endif /* SRC_USERSPACE_CLIENT_NETLINK_GLOBAL_H_ */

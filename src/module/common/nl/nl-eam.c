@@ -12,7 +12,7 @@ static int eam_entry_to_userspace(struct eamt_entry *entry, void *arg)
 }
 
 static int handle_eamt_display(struct eam_table *eamt, struct genl_info *info,
-		union request_eamt *request)
+		struct request_eamt_display *request)
 {
 	struct nlcore_buffer buffer;
 	struct ipv4_prefix *prefix4;
@@ -24,7 +24,7 @@ static int handle_eamt_display(struct eam_table *eamt, struct genl_info *info,
 	if (error)
 		nlcore_respond(info, error);
 
-	prefix4 = request->display.prefix4_set ? &request->display.prefix4 : NULL;
+	prefix4 = request->prefix4_set ? &request->prefix4 : NULL;
 	error = eamt_foreach(eamt, eam_entry_to_userspace, &buffer, prefix4);
 	nlbuffer_set_pending_data(&buffer, error > 0);
 	error = (error >= 0)
@@ -35,31 +35,19 @@ static int handle_eamt_display(struct eam_table *eamt, struct genl_info *info,
 	return error;
 }
 
-static int handle_eamt_count(struct eam_table *eamt, struct genl_info *info)
-{
-	__u64 count;
-	int error;
-
-	log_debug("Returning EAMT count.");
-
-	error = eamt_count(eamt, &count);
-	if (error)
-		return nlcore_respond(info, error);
-
-	return nlcore_respond_struct(info, &count, sizeof(count));
-}
-
-static int handle_eamt_add(struct eam_table *eamt, union request_eamt *request)
+static int handle_eamt_add(struct eam_table *eamt,
+		struct request_eamt_add *request)
 {
 	if (verify_privileges())
 		return -EPERM;
 
 	log_debug("Adding EAMT entry.");
-	return eamt_add(eamt, &request->add.prefix6, &request->add.prefix4,
-			request->add.force);
+	return eamt_add(eamt, &request->prefix6, &request->prefix4,
+			request->force);
 }
 
-static int handle_eamt_rm(struct eam_table *eamt, union request_eamt *request)
+static int handle_eamt_rm(struct eam_table *eamt,
+		struct request_eamt_rm *request)
 {
 	struct ipv6_prefix *prefix6;
 	struct ipv4_prefix *prefix4;
@@ -69,8 +57,8 @@ static int handle_eamt_rm(struct eam_table *eamt, union request_eamt *request)
 
 	log_debug("Removing EAMT entry.");
 
-	prefix6 = request->rm.prefix6_set ? &request->rm.prefix6 : NULL;
-	prefix4 = request->rm.prefix4_set ? &request->rm.prefix4 : NULL;
+	prefix6 = request->prefix6_set ? &request->prefix6 : NULL;
+	prefix4 = request->prefix4_set ? &request->prefix4 : NULL;
 	return eamt_rm(eamt, prefix6, prefix4);
 }
 
@@ -85,35 +73,21 @@ static int handle_eamt_flush(struct eam_table *eamt)
 
 int handle_eamt_config(struct xlator *jool, struct genl_info *info)
 {
-	struct request_hdr *hdr;
-	union request_eamt *request;
+	struct request_hdr *hdr = get_jool_hdr(info);
+	void *payload = get_jool_payload(info);
 	int error;
-
-	if (jool->type == XLATOR_NAT64) {
-		log_err("Stateful NAT64 doesn't have an EAMT.");
-		return nlcore_respond(info, -EINVAL);
-	}
-
-	hdr = get_jool_hdr(info);
-	request = (union request_eamt *)(hdr + 1);
-
-	error = validate_request_size(info, sizeof(*request));
-	if (error)
-		return nlcore_respond(info, error);
 
 	switch (be16_to_cpu(hdr->operation)) {
 	case OP_DISPLAY:
-		return handle_eamt_display(jool->siit.eamt, info, request);
-	case OP_COUNT:
-		return handle_eamt_count(jool->siit.eamt, info);
+		return handle_eamt_display(jool->eamt, info, payload);
 	case OP_ADD:
-		error = handle_eamt_add(jool->siit.eamt, request);
+		error = handle_eamt_add(jool->eamt, payload);
 		break;
 	case OP_REMOVE:
-		error = handle_eamt_rm(jool->siit.eamt, request);
+		error = handle_eamt_rm(jool->eamt, payload);
 		break;
 	case OP_FLUSH:
-		error = handle_eamt_flush(jool->siit.eamt);
+		error = handle_eamt_flush(jool->eamt);
 		break;
 	default:
 		log_err("Unknown operation: %u", be16_to_cpu(hdr->operation));

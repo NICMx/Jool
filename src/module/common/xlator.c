@@ -9,7 +9,9 @@
 
 #include "atomic-config.h"
 #include "module-stats.h"
+#include "wkmalloc.h"
 #include "siit/eam.h"
+#include "nat64/fragment_db.h"
 #include "nat64/joold.h"
 #include "nat64/pool4/db.h"
 #include "nat64/bib/db.h"
@@ -18,11 +20,55 @@
  * Private data each device will store.
  */
 struct jool_netdev_priv {
-	/* TODO remember to lock. */
-	struct xlator jool;
+	/**
+	 * This instance is meat to be shallow-cloned for every translation.
+	 *
+	 * The reason why we need to clone it is because of Atomic
+	 * Configuration. AC might change the device's xlator at any point.
+	 * But this change should only affect new translations; ongoing
+	 * translations should still keep the old config or they might bork
+	 * things (eg. if they queried the old pool4 database, then they
+	 * query the new database later).
+	 *
+	 * This is also sort of the reason why the xlator has to be allocated
+	 * separately and managed via RCU. Every device must keep its
+	 * netdev_priv until it dies, but the translator might change.
+	 */
+	struct xlator __rcu *jool;
+
 	struct net_device_stats stats;
+
+	/* TODO remember to lock. */
+	/* TODO if @jool is all this needs to protect, this should be a mutex. */
 	spinlock_t lock;
 };
+
+static struct jool_netdev_priv *get_priv(struct net_device *dev)
+{
+	return netdev_priv(dev);
+}
+
+static int find_device(char *name, struct net_device **result)
+{
+	struct net *ns;
+	struct net_device *dev;
+
+	ns = get_net_ns_by_pid(task_pid_vnr(current));
+	if (IS_ERR(ns)) {
+		log_err("Could not retrieve the current namespace.");
+		return PTR_ERR(ns);
+	}
+
+	dev = dev_get_by_name(ns, name);
+	put_net(ns);
+	if (!dev) {
+		log_err("Device '%s' was not found in this namespace.", name);
+		return -ESRCH;
+	}
+
+	*result = dev;
+	return 0;
+}
 
 /**
  * AFAIK, executed when the user runs `ip link set <name> up`.
@@ -45,12 +91,20 @@ static int jool_netdev_stop(struct net_device *dev)
 	return 0;
 }
 
+static void clone_xlator(struct net_device *dev, struct xlator *jool)
+{
+	rcu_read_lock_bh();
+	memcpy(jool, rcu_dereference_bh(get_priv(dev)->jool), sizeof(*jool));
+	xlator_get(jool);
+	rcu_read_unlock_bh();
+}
+
 /*
  * Called by the kernel whenever it wants to send a packet via Jool's device.
  */
 static int jool_netdev_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
-	struct jool_netdev_priv *priv = netdev_priv(dev);
+	struct xlator jool;
 
 	// Save the timestamp TODO what for?
 	dev->trans_start = jiffies;
@@ -58,12 +112,19 @@ static int jool_netdev_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	log_debug("===============================================");
 	log_info("Received a packet from the kernel. Translating...");
 
+	clone_xlator(dev, &jool);
+
+	/*
+	 * TODO if NETDEV_TX_BUSY doesn't do anything aside from stat tracking,
+	 * maybe we're meat to return that on error.
+	 */
+
 	if (!pskb_may_pull(skb, ETH_HLEN)) {
 		log_info("Packet is too short to even contain an Ethernet header.");
 		/* There's not enough info to send an ICMP error. */
-		jstat_inc(priv->jool.stats, JOOL_MIB_TRUNCATED);
+		jstat_inc(jool.stats, JOOL_MIB_TRUNCATED);
 		kfree_skb(skb);
-		return NETDEV_TX_OK;
+		goto end;
 	}
 
 	/* Don't need the ethernet header for anything. */
@@ -72,19 +133,22 @@ static int jool_netdev_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	switch (ntohs(skb->protocol)) {
 	case ETH_P_IPV6:
 		log_info("skb->proto says IPv6.");
-		core_6to4(&priv->jool, skb);
+		core_6to4(&jool, skb);
 		break;
 	case ETH_P_IP:
 		log_info("skb->proto says IPv4.");
-		core_4to6(&priv->jool, skb);
+		core_4to6(&jool, skb);
 		break;
 	default:
 		log_info("Packet is not IPv4 nor IPv6; don't know what to do.");
 		/* ICMP errors not available due to unknown protocol. */
-		jstat_inc(priv->jool.stats, JOOL_MIB_UNKNOWN_L3);
+		jstat_inc(jool.stats, JOOL_MIB_UNKNOWN_L3);
 		kfree_skb(skb);
 	}
+	/* Fall through */
 
+end:
+	xlator_put(&jool);
 	return NETDEV_TX_OK;
 }
 
@@ -139,7 +203,10 @@ int xlator_add(struct xlator *result, xlator_type type, char *name)
 
 	/* At this point, this_cpu_read(*dev->pcpu_refcnt) = 0. I dunno why. */
 
-	jool = &((struct jool_netdev_priv *)netdev_priv(dev))->jool;
+	jool = wkmalloc(struct xlator, GFP_KERNEL);
+	if (!jool)
+		goto xlator_fail;
+	RCU_INIT_POINTER(get_priv(dev)->jool, jool);
 
 	jool->stats = jstat_alloc();
 	if (!jool->stats)
@@ -206,79 +273,87 @@ newcfg_fail:
 config_fail:
 	jstat_put(jool->stats);
 stats_fail:
+	wkfree(struct xlator, jool);
+xlator_fail:
 	free_netdev(dev);
 	return error;
 }
 
-/* TODO delete */
-#include <linux/atomic.h>
-
 int xlator_rm(char *name)
 {
-	struct net *ns;
 	struct net_device *dev;
+	struct xlator *jool;
+	int error;
 
-	ns = get_net_ns_by_pid(task_pid_vnr(current));
-	if (IS_ERR(ns)) {
-		log_err("Could not retrieve the current namespace.");
-		return PTR_ERR(ns);
-	}
-
-	dev = dev_get_by_name(ns, name);
-	if (!dev) {
-		log_err("Device '%s' was not found in this namespace.", name);
-		put_net(ns);
-		return -ESRCH;
-	}
+	error = find_device(name, &dev);
+	if (error)
+		return error;
 
 	/* this_cpu_read(*dev->pcpu_refcnt) = 7 */
 	unregister_netdev(dev);
 	/* this_cpu_read(*dev->pcpu_refcnt) = 0 */
+
+	/*
+	 * It doesn't appear that unregister_netdev()'s contract prevents
+	 * packets from being in transit after the call, but looking at its
+	 * code, it does appear that it is intended to be the case.
+	 * (unlist_netdevice() then synchronize_net(), and also lots of
+	 * per-protocol cleanup later, then synchronize_net() again. I'm reading
+	 * kernel 4.15.)
+	 *
+	 * So throw caution to the wind, I guess.
+	 */
+
+	jool = rcu_dereference_protected(get_priv(dev)->jool, true);
+	xlator_put(jool);
+	wkfree(struct xlator, jool);
 	free_netdev(dev);
-	put_net(ns);
 	return 0;
 }
 
-//int xlator_replace(struct xlator *jool)
-//{
-//	return -EINVAL;
-//	/* TODO fix thins when you have the userspace app figured out.
-//	struct list_head *list;
-//	struct jool_instance *old;
-//	struct jool_instance *new;
-//
-//	new = wkmalloc(struct jool_instance, GFP_KERNEL);
-//	if (!new)
-//		return -ENOMEM;
-//	memcpy(&new->jool, jool, sizeof(*jool));
-//	xlator_get(&new->jool);
-//
-//	mutex_lock(&lock);
-//
-//	list = rcu_dereference_protected(pool, lockdep_is_held(&lock));
-//	list_for_each_entry_rcu(old, list, list_hook) {
-//		if (old->jool.ns == new->jool.ns) {
-//			/ The comments at exit_net() also apply here. /
-//#if LINUX_VERSION_AT_LEAST(4, 13, 0, 9999, 0)
-//			new->nf_ops = old->nf_ops;
-//#endif
-//			list_replace_rcu(&old->list_hook, &new->list_hook);
-//			mutex_unlock(&lock);
-//
-//			synchronize_rcu_bh();
-//
-//#if LINUX_VERSION_AT_LEAST(4, 13, 0, 9999, 0)
-//			old->nf_ops = NULL;
-//#endif
-//			destroy_jool_instance(old);
-//			return 0;
-//		}
-//	}
-//
-//	mutex_unlock(&lock);
-//	return -ESRCH;
-//	*/
-//}
+int xlator_replace(char *name, struct xlator *new)
+{
+	struct net_device *dev;
+	struct jool_netdev_priv *priv;
+	struct xlator *old;
+	int error;
+
+	error = find_device(name, &dev);
+	if (error)
+		return error;
+
+	priv = get_priv(dev);
+	spin_lock(&priv->lock);
+	old = rcu_dereference_protected(priv->jool, spin_is_locked(&priv->lock));
+	rcu_assign_pointer(priv->jool, new);
+	spin_unlock(&priv->lock);
+
+	dev_put(dev);
+
+	synchronize_rcu_bh();
+
+	xlator_put(old);
+	wkfree(struct xlator, old);
+	return 0;
+}
+
+/**
+ * Call xlator_put() on the result when you're done.
+ */
+int xlator_find(char *name, struct xlator *result)
+{
+	struct net_device *dev;
+	int error;
+
+	error = find_device(name, &dev);
+	if (error)
+		return error;
+
+	clone_xlator(dev, result);
+
+	dev_put(dev);
+	return 0;
+}
 
 void xlator_get(struct xlator *jool)
 {
@@ -320,11 +395,3 @@ int xlator_foreach(xlator_foreach_cb cb, void *args)
 	/* TODO fix when you merge #257. */
 	return 0;
 }
-
-//void xlator_copy_config(struct xlator *jool, struct full_config *copy)
-//{
-//	config_copy(&jool->global->cfg, &copy->global);
-//	bib_config_copy(jool->nat64.bib, &copy->bib);
-//	joold_config_copy(jool->nat64.joold, &copy->joold);
-//	copy->type = jool->type;
-//}

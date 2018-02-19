@@ -105,9 +105,6 @@ static void print_pkt_meta(struct request_hdr *hdr)
 	case MODE_PARSE_FILE:
 		printf("file");
 		break;
-	case MODE_JOOLD:
-		printf("joold");
-		break;
 	case MODE_INSTANCE:
 		printf("instance");
 		break;

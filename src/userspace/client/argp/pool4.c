@@ -119,7 +119,7 @@ static int handle_display_response(struct pool4_sample *sample, void *args)
 	return 0;
 }
 
-int handle_pool4_display(int argc, char **argv)
+int handle_pool4_display(char *instance, int argc, char **argv)
 {
 	struct display_args dargs = { 0 };
 	int error;
@@ -137,7 +137,8 @@ int handle_pool4_display(int argc, char **argv)
 		}
 	}
 
-	error = pool4_foreach(dargs.proto.proto, handle_display_response, &dargs);
+	error = pool4_foreach(instance, dargs.proto.proto,
+			handle_display_response, &dargs);
 	if (error)
 		return error;
 
@@ -222,7 +223,7 @@ static struct wargp_option add_opts[] = {
 	{ 0 },
 };
 
-int handle_pool4_add(int argc, char **argv)
+int handle_pool4_add(char *instance, int argc, char **argv)
 {
 	struct add_args aargs = { 0 };
 	int error;
@@ -251,7 +252,7 @@ int handle_pool4_add(int argc, char **argv)
 		return -E2BIG;
 	}
 
-	return pool4_add(&aargs.entry.meat);
+	return pool4_add(instance, &aargs.entry.meat);
 }
 
 void print_pool4_add_opts(char *prefix)
@@ -298,7 +299,7 @@ static struct wargp_option remove_opts[] = {
 	{ 0 },
 };
 
-int handle_pool4_remove(int argc, char **argv)
+int handle_pool4_remove(char *instance, int argc, char **argv)
 {
 	struct rm_args rargs = { 0 };
 	int error;
@@ -314,7 +315,7 @@ int handle_pool4_remove(int argc, char **argv)
 		return requirement_print(reqs);
 	}
 
-	return pool4_rm(&rargs.entry.meat, rargs.quick);
+	return pool4_rm(instance, &rargs.entry.meat, rargs.quick);
 }
 
 void print_pool4_remove_opts(char *prefix)
@@ -337,7 +338,7 @@ static struct wargp_option flush_opts[] = {
 	{ 0 },
 };
 
-int handle_pool4_flush(int argc, char **argv)
+int handle_pool4_flush(char *instance, int argc, char **argv)
 {
 	struct flush_args fargs = { 0 };
 	int error;
@@ -346,7 +347,7 @@ int handle_pool4_flush(int argc, char **argv)
 	if (error)
 		return error;
 
-	return pool4_flush(fargs.quick);
+	return pool4_flush(instance, fargs.quick);
 }
 
 void print_pool4_flush_opts(char *prefix)

@@ -163,7 +163,7 @@ static int response_handler(struct nl_msg *msg, void *void_arg)
 	return (arg && arg->cb) ? (-abs(arg->cb(&response, arg->arg))) : 0;
 }
 
-static int build_request(struct jnl_socket *socket,
+static int build_request(struct jnl_socket *socket, char *instance,
 		enum config_mode mode, enum config_operation op,
 		void *data, int data_len,
 		struct nl_msg **result)
@@ -187,9 +187,19 @@ static int build_request(struct jnl_socket *socket,
 	}
 	init_request_hdr(hdr, mode, op);
 
+	if (instance) {
+		error = nla_put_string(msg, ATTR_INSTANCE_NAME, instance);
+		if (error) {
+			log_err("Could not write the instance name attribute on the packet.");
+			nlmsg_free(msg);
+			netlink_print_error(error);
+			return error;
+		}
+	}
+
 	error = nla_put(msg, ATTR_DATA, data_len, data);
 	if (error) {
-		log_err("Could not write on the packet to kernelspace.");
+		log_err("Could not write the payload of the packet.");
 		nlmsg_free(msg);
 		netlink_print_error(error);
 		return error;
@@ -199,7 +209,7 @@ static int build_request(struct jnl_socket *socket,
 	return 0;
 }
 
-int jnl_request(struct jnl_socket *socket,
+int jnl_request(struct jnl_socket *socket, char *instance,
 		enum config_mode mode, enum config_operation op,
 		void *data, int data_len,
 		jnl_response_cb cb, void *cb_arg)
@@ -219,7 +229,7 @@ int jnl_request(struct jnl_socket *socket,
 		}
 	}
 
-	error = build_request(socket, mode, op, data, data_len, &msg);
+	error = build_request(socket, instance, mode, op, data, data_len, &msg);
 	if (error)
 		return error;
 	error = nl_send_auto(socket->sk, msg);
@@ -244,7 +254,8 @@ int jnl_request(struct jnl_socket *socket,
 	return 0;
 }
 
-int jnl_single_request(enum config_mode mode, enum config_operation op,
+int jnl_single_request(char *instance,
+		enum config_mode mode, enum config_operation op,
 		void *data, int data_len,
 		jnl_response_cb cb, void *cb_arg)
 {
@@ -255,7 +266,8 @@ int jnl_single_request(enum config_mode mode, enum config_operation op,
 	if (error)
 		return error;
 
-	error = jnl_request(&socket, mode, op, data, data_len, cb, cb_arg);
+	error = jnl_request(&socket, instance, mode, op, data, data_len,
+			cb, cb_arg);
 
 	jnl_destroy_socket(&socket);
 	return error;
