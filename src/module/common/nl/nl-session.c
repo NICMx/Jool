@@ -24,10 +24,10 @@ static int session_entry_to_userspace(struct session_entry *entry, void *arg)
 	return nlbuffer_write(buffer, &entry_usr, sizeof(entry_usr));
 }
 
-static int handle_session_display(struct bib *db,
+static int handle_session_foreach(struct bib *db,
 		struct globals *globals,
 		struct genl_info *info,
-		struct request_session_display *request)
+		struct request_session_foreach *request)
 {
 	struct nlcore_buffer buffer;
 	struct session_foreach_func func = {
@@ -69,8 +69,8 @@ int handle_session_config(struct xlator *jool, struct genl_info *info)
 	void *payload = get_jool_payload(info);
 
 	switch (be16_to_cpu(hdr->operation)) {
-	case OP_DISPLAY:
-		return handle_session_display(jool->bib, &jool->global->cfg,
+	case OP_FOREACH:
+		return handle_session_foreach(jool->bib, &jool->global->cfg,
 				info, payload);
 	}
 

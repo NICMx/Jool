@@ -48,7 +48,7 @@ int bib_foreach(char *instance, l4_protocol proto,
 		return error;
 
 	do {
-		error = jnl_request(&jsocket, instance, MODE_BIB, OP_DISPLAY,
+		error = jnl_request(&jsocket, instance, MODE_BIB, OP_FOREACH,
 				&dargs.request, sizeof(dargs.request),
 				handle_foreach_response, &dargs);
 	} while (!error && dargs.request.addr4_set);

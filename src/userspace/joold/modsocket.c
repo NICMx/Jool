@@ -115,7 +115,7 @@ static void print_pkt_meta(struct request_hdr *hdr)
 	printf("/");
 
 	switch (ntohs(hdr->operation)) {
-	case OP_DISPLAY:
+	case OP_FOREACH:
 		printf("display");
 		break;
 	case OP_ADD:

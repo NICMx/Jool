@@ -5,7 +5,7 @@
 struct foreach_args {
 	eamt_foreach_cb cb;
 	void *args;
-	struct request_eamt_display request;
+	struct request_eamt_foreach request;
 };
 
 static int handle_foreach_response(struct jnl_response *response, void *args)
@@ -47,7 +47,7 @@ int eamt_foreach(char *instance, eamt_foreach_cb cb, void *args)
 		return error;
 
 	do {
-		error = jnl_request(&jsocket, instance, MODE_EAMT, OP_DISPLAY,
+		error = jnl_request(&jsocket, instance, MODE_EAMT, OP_FOREACH,
 				&eargs.request, sizeof(eargs.request),
 				handle_foreach_response, &eargs);
 	} while (!error && eargs.request.prefix4_set);

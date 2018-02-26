@@ -1,57 +1,23 @@
 #include "error-pool.h"
 
-#include <stdarg.h>
-#include <linux/string.h>
-#include <linux/slab.h>
-#include <linux/printk.h>
-#include "types.h"
 #include "wkmalloc.h"
 
 /*
  * Gathers human-friendly error messages during userspace request handling
  * so they can be sent to userspace.
- *
- * This whole module assumes outside locking.
- * (see the caller of error_pool_activate() and error_pool_deactivate().
- *
- * TODO this whole module is race condition incarnate. Redesign it.
  */
 
 struct error_node {
-	char * msg;
+	char *msg;
 	struct list_head prev_next;
 };
 
-static __u8 activated = 0;
-static size_t msg_size = 0;
-static struct list_head db;
+static DEFINE_MUTEX(lock);
+static LIST_HEAD(db);
 
-void error_pool_init(void)
+void errormsg_enable(void)
 {
-	INIT_LIST_HEAD(&db);
-}
-
-static void flush_list(void)
-{
-	struct error_node *node;
-
-	while (!list_empty(&db)) {
-		node = list_first_entry(&db, struct error_node, prev_next);
-		list_del(&node->prev_next);
-		__wkfree("error_code.msg", node->msg);
-		wkfree(struct error_node, node);
-	}
-}
-
-void error_pool_destroy(void)
-{
-	flush_list();
-}
-
-void error_pool_activate(void)
-{
-	activated = 1;
-	msg_size = 0;
+	mutex_lock(&lock);
 }
 
 /**
@@ -61,74 +27,128 @@ void error_pool_activate(void)
  *
  * This function is not inteded to be used directly. Use log_err() instead.
  */
-int error_pool_add_message(int len, const char *fmt, ...)
+void errormsg_add(int len, const char *fmt, ...)
 {
 	struct error_node *node;
 	va_list args;
+	/* int new_len; */
 
-	if (!activated)
-		return 0;
+	/*
+	 * If the mutex is not locked, this function was called outside of a
+	 * valid "context" (ie. between errormsg_enable() and
+	 * errormsg_disable()). Which is fine; log_err() still prints the error
+	 * message in the those cases, and that is exactly what we want.
+	 */
+	if (!mutex_is_locked(&lock))
+		return;
 
-	node = wkmalloc(struct error_node, GFP_ATOMIC);
+	node = wkmalloc(struct error_node, GFP_KERNEL);
 	if (!node)
-		return -ENOMEM;
+		return;
 
-	node->msg = __wkmalloc("error_code.msg", len + 1, GFP_ATOMIC);
+	/*
+	 * I don't know if this happens with every kernel, but when I do
+	 * `i = pr_something(whatever "\n")` in 4.4, the result of i does not
+	 * include the last newline:
+	 *
+	 *     i = pr_err("la");       // i = 2
+	 *     i = pr_err("la\n");     // i = 2
+	 *     i = pr_err("la\n\n");   // i = 3
+	 *     i = pr_err("la\n\n\n"); // i = 4
+	 *
+	 * I think this is due to some bullshit hack they have going on,
+	 * probably in vkdb_printf().
+	 * All errormsg_add() calls are expected to contain a newline, so...
+	 * include it in the allocation.
+	 *
+	 * TODO I think this is a bug in printk() and maybe should be reported.
+	 */
+	len++;
+
+	/* This + 1 is the terminating character. */
+	node->msg = __wkmalloc("error_code.msg", len + 1, GFP_KERNEL);
 	if (!node->msg) {
 		wkfree(struct error_node, node);
-		return -ENOMEM;
+		return;
 	}
 
 	va_start(args, fmt);
-	vsprintf(node->msg, fmt, args);
+	/* Do not trust the result of the print functions for anything else. */
+	/* new_len = */ vsprintf(node->msg, fmt, args);
 	va_end(args);
 
+	/*
+	if (WARN(len != new_len, "Bug: errormsg_add(len) was wrong. Expected %d, got %d.",
+			len, new_len)) {
+		__wkfree("error_code.msg", node->msg);
+		wkfree(struct error_node, node);
+		return;
+	}
+	*/
+
 	list_add_tail(&node->prev_next, &db);
-	msg_size += strlen(node->msg);
-	return 0;
 }
 
 /**
- * Note: @msg_len includes the NULL chara.
+ * Note: @result_len includes the NULL chara.
+ *
+ * This function destroys the stored strings; it can only be called once per
+ * full error message.
  */
-int error_pool_get_message(char **out_message, size_t *msg_len)
+int errormsg_get(char **result, size_t *result_len)
 {
 	struct error_node *node;
-	char *buffer_pointer;
+	size_t total_len;
+	char *msg;
 
-	if (!activated) {
+	if (!mutex_is_locked(&lock)) {
 		pr_err("error_pool_get_message() seems to have been called ouside of an userspace request handler.\n");
 		return -EINVAL;
 	}
 
-	(*out_message) = __wkmalloc("Error msg out", msg_size + 1, GFP_KERNEL);
-	if (!(*out_message)) {
+	total_len = 1; /* Null chara */
+	list_for_each_entry(node, &db, prev_next)
+		total_len += strlen(node->msg);
+
+	msg = __wkmalloc("Error msg out", total_len, GFP_KERNEL);
+	if (!msg) {
 		pr_err("Could not allocate the error pool message!\n") ;
 		return -ENOMEM;
 	}
 
-	buffer_pointer = (*out_message);
+	*result = msg;
+	*result_len = total_len;
+
 	while (!list_empty(&db)) {
 		node = list_first_entry(&db, struct error_node, prev_next);
 
-		strcpy(buffer_pointer, node->msg);
-		buffer_pointer += strlen(node->msg);
-		list_del(&(node->prev_next));
+		strcpy(msg, node->msg);
+		msg += strlen(node->msg);
+		list_del(&node->prev_next);
 		__wkfree("error_code.msg", node->msg);
 		wkfree(struct error_node, node);
 	}
 
-	buffer_pointer[0] = '\0';
-
-	(*msg_len) = msg_size + 1;
-	msg_size = 0;
-
 	return 0;
 }
 
-void error_pool_deactivate(void)
+static void flush_list(void)
 {
-	flush_list();
-	msg_size = 0;
-	activated = 0;
+	struct error_node *node;
+
+	do {
+		node = list_first_entry(&db, struct error_node, prev_next);
+		pr_warn("Message not sent to userspace: '%s'\n", node->msg);
+		list_del(&node->prev_next);
+		__wkfree("error_code.msg", node->msg);
+		wkfree(struct error_node, node);
+	} while (!list_empty(&db));
+}
+
+void errormsg_disable(void)
+{
+	if (WARN(!list_empty(&db), "Error message pool isn't empty."))
+		flush_list();
+
+	mutex_unlock(&lock);
 }

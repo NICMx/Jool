@@ -13,8 +13,8 @@
 
 #ifdef JKMEMLEAK
 
-#include "nat64/mod/common/wkmalloc.h"
-#include "nat64/mod/common/rbtree.h"
+#include "wkmalloc.h"
+#include "rbtree.h"
 
 struct kmalloc_entry {
 	unsigned int count;

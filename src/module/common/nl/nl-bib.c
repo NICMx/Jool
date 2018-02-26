@@ -145,7 +145,7 @@ int handle_bib_config(struct xlator *jool, struct genl_info *info)
 	int error;
 
 	switch (be16_to_cpu(hdr->operation)) {
-	case OP_DISPLAY:
+	case OP_FOREACH:
 		return handle_bib_foreach(jool->bib, info, payload);
 	case OP_ADD:
 		error = handle_bib_add(jool, payload);

@@ -79,17 +79,6 @@ int netlink_print_error(int error)
 	return error;
 }
 
-/*
-static int error_handler(struct sockaddr_nl *nla, struct nlmsgerr *nlerr,
-		void *arg)
-{
-	log_err("Error: %s", ((char *)nlerr) + sizeof(*nlerr));
-	log_err("(Error code: %d)", nlerr->error);
-	error_handler_called = true;
-	return -abs(nlerr->error);
-}
-*/
-
 static int print_error_msg(struct jnl_response *response)
 {
 	char *msg;
@@ -97,13 +86,16 @@ static int print_error_msg(struct jnl_response *response)
 	error_handler_called = true;
 
 	if (response->payload_len <= 0) {
-		log_err("Error (The kernel's response is empty so the cause is unknown.)");
+		log_err("Error. The kernel's response is empty so the cause is unknown.");
+		log_err("Try the kernel ring buffer. (Usually just run `dmesg | tail`.)");
+		log_err("This is probably a bug. Please report it at https://github.com/NICMx/Jool/issues.");
 		goto end;
 	}
 
 	msg = response->payload;
 	if (msg[response->payload_len - 1] != '\0') {
 		log_err("Error (The kernel's response is not a string so the cause is unknown.)");
+		log_err("This is probably a bug. Please report it at https://github.com/NICMx/Jool/issues.");
 		goto end;
 	}
 
@@ -115,20 +107,6 @@ end:
 	return response->hdr->error_code;
 }
 
-int netlink_parse_response(void *data, size_t data_len, struct jnl_response *result)
-{
-	if (data_len < sizeof(struct response_hdr)) {
-		log_err("The module's response is too small to contain a response header.");
-		return -EINVAL;
-	}
-
-	result->hdr = data;
-	result->payload = result->hdr + 1;
-	result->payload_len = data_len - sizeof(struct response_hdr);
-
-	return result->hdr->error_code ? print_error_msg(result) : 0;
-}
-
 /*
  * Heads up:
  * Netlink wants this function to return either a negative error code or an enum
@@ -138,12 +116,14 @@ int netlink_parse_response(void *data, size_t data_len, struct jnl_response *res
  */
 static int response_handler(struct nl_msg *msg, void *void_arg)
 {
-	struct jnl_response response;
+	struct nlmsghdr *nlh = nlmsg_hdr(msg);
 	struct nlattr *attrs[__ATTR_MAX + 1];
+	struct jnl_response response;
 	struct response_cb *arg;
 	int error;
 
-	error = genlmsg_parse(nlmsg_hdr(msg), 0, attrs, __ATTR_MAX, NULL);
+	error = genlmsg_parse(nlh, sizeof(struct request_hdr), attrs,
+			__ATTR_MAX, NULL);
 	if (error) {
 		log_err("%s (error code %d)", nl_geterror(error), error);
 		return -abs(error);
@@ -153,11 +133,15 @@ static int response_handler(struct nl_msg *msg, void *void_arg)
 		log_err("The module's response seems to be empty.");
 		return -EINVAL;
 	}
-	error = netlink_parse_response(nla_data(attrs[ATTR_DATA]),
-			nla_len(attrs[ATTR_DATA]),
-			&response);
-	if (error)
+
+	response.hdr = genlmsg_user_hdr(genlmsg_hdr(nlh));
+	response.payload = nla_data(attrs[ATTR_DATA]);
+	response.payload_len = nla_len(attrs[ATTR_DATA]);
+
+	if (response.hdr->error_code) {
+		error = print_error_msg(&response);
 		return -abs(error);
+	}
 
 	arg = void_arg;
 	return (arg && arg->cb) ? (-abs(arg->cb(&response, arg->arg))) : 0;
@@ -218,15 +202,13 @@ int jnl_request(struct jnl_socket *socket, char *instance,
 	struct response_cb callback = { .cb = cb, .arg = cb_arg };
 	int error;
 
-	if (cb) {
-		error = nl_socket_modify_cb(socket->sk,
-				NL_CB_MSG_IN, NL_CB_CUSTOM,
-				response_handler, &callback);
-		if (error < 0) {
-			log_err("Could not register response handler.");
-			log_err("I will not be able to parse Jool's response, so I won't send the request.");
-			return netlink_print_error(error);
-		}
+	error = nl_socket_modify_cb(socket->sk,
+			NL_CB_MSG_IN, NL_CB_CUSTOM,
+			response_handler, &callback);
+	if (error < 0) {
+		log_err("Could not register response handler.");
+		log_err("I will not be able to parse Jool's response, so I won't send the request.");
+		return netlink_print_error(error);
 	}
 
 	error = build_request(socket, instance, mode, op, data, data_len, &msg);
@@ -239,16 +221,14 @@ int jnl_request(struct jnl_socket *socket, char *instance,
 		return netlink_print_error(error);
 	}
 
-	if (cb) {
-		error = nl_recvmsgs_default(socket->sk);
-		if (error < 0) {
-			if (error_handler_called) {
-				error_handler_called = false;
-				return error;
-			}
-			log_err("Error receiving the kernel module's response.");
-			return netlink_print_error(error);
+	error = nl_recvmsgs_default(socket->sk);
+	if (error < 0) {
+		if (error_handler_called) {
+			error_handler_called = false;
+			return error;
 		}
+		log_err("Error receiving the kernel module's response.");
+		return netlink_print_error(error);
 	}
 
 	return 0;

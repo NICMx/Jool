@@ -84,8 +84,6 @@ static struct genl_family jool_family = {
 #endif
 };
 
-static DEFINE_MUTEX(config_mutex);
-
 static int multiplex_request(struct xlator *jool, struct genl_info *info)
 {
 	struct request_hdr *hdr = get_jool_hdr(info);
@@ -171,13 +169,9 @@ int handle_jool_message(struct sk_buff *skb, struct genl_info *info)
 {
 	int error;
 
-	mutex_lock(&config_mutex);
-
-	error_pool_activate();
+	errormsg_enable(); /* Mutex lock */
 	error = __handle_jool_message(info);
-	error_pool_deactivate();
-
-	mutex_unlock(&config_mutex);
+	errormsg_disable(); /* Mutex unlock */
 
 	return error;
 }
@@ -226,12 +220,10 @@ static int register_family(void)
 
 int nlhandler_init(void)
 {
-	error_pool_init();
 	return register_family();
 }
 
 void nlhandler_destroy(void)
 {
 	genl_unregister_family(&jool_family);
-	error_pool_destroy();
 }

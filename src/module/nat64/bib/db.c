@@ -2044,7 +2044,7 @@ int bib_foreach_session(struct bib *db,
 	struct bib_state state;
 	struct bib_session_tuple pos;
 	struct session_entry tmp;
-	int error;
+	int error = 0;
 
 	state.table = get_table(db, proto);
 	if (!state.table)

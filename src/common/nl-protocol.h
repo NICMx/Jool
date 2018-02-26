@@ -59,7 +59,7 @@ enum config_mode {
 
 enum config_operation {
 	/** The userspace app wants to print the stuff being requested. */
-	OP_DISPLAY = (1 << 0),
+	OP_FOREACH = (1 << 0),
 	/**
 	 * The userspace app wants to add an element to the table being
 	 * requested.
@@ -177,7 +177,6 @@ static inline int validate_version(struct request_hdr *hdr,
 }
 
 struct response_hdr {
-	struct request_hdr request;
 	__u16 error_code;
 	config_bool pending_data;
 };
@@ -256,7 +255,7 @@ struct request_pool4_flush {
 	config_bool quick;
 };
 
-struct request_eamt_display {
+struct request_eamt_foreach {
 	config_bool prefix4_set;
 	struct ipv4_prefix prefix4;
 };
@@ -319,7 +318,7 @@ struct request_bib_rm {
 	struct ipv4_transport_addr addr4;
 };
 
-struct request_session_display {
+struct request_session_foreach {
 	/** Table the userspace app wants to display. See enum l4_protocol. */
 	__u8 l4_proto;
 	/** Is offset set? */

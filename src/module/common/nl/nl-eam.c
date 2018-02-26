@@ -11,8 +11,8 @@ static int eam_entry_to_userspace(struct eamt_entry *entry, void *arg)
 	return nlbuffer_write(buffer, entry, sizeof(*entry));
 }
 
-static int handle_eamt_display(struct eam_table *eamt, struct genl_info *info,
-		struct request_eamt_display *request)
+static int handle_eamt_foreach(struct eam_table *eamt, struct genl_info *info,
+		struct request_eamt_foreach *request)
 {
 	struct nlcore_buffer buffer;
 	struct ipv4_prefix *prefix4;
@@ -78,8 +78,8 @@ int handle_eamt_config(struct xlator *jool, struct genl_info *info)
 	int error;
 
 	switch (be16_to_cpu(hdr->operation)) {
-	case OP_DISPLAY:
-		return handle_eamt_display(jool->eamt, info, payload);
+	case OP_FOREACH:
+		return handle_eamt_foreach(jool->eamt, info, payload);
 	case OP_ADD:
 		error = handle_eamt_add(jool->eamt, payload);
 		break;

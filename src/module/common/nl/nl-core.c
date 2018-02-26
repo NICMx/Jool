@@ -37,7 +37,7 @@
  * rationale; there can be any number of attributes, and each will need a
  * header, so predicting payload room using a constant seems asinine to me.
  *
- * Thankfully, we only have one attribute, so if the logic is wrong they should
+ * Thankfully, we only have two attributes, so if the logic is wrong they should
  * crash long before us. Ha!
  *
  * In any case, GENLMSG_DEFAULT_SIZE is 3756 in the 4096-PAGE_SIZE machine I'm
@@ -83,6 +83,7 @@ static int respond_single_msg(struct genl_info *info, struct nlcore_buffer *buff
 		pr_err("genlmsg_new() failed.\n");
 		return -ENOMEM;
 	}
+
 #if LINUX_VERSION_LOWER_THAN(3, 7, 0, 7, 0)
 	portid = info->snd_pid;
 #else
@@ -155,8 +156,6 @@ int nlbuffer_init_response(struct nlcore_buffer *buffer, struct genl_info *info,
 	if (error)
 		return error;
 
-	memcpy(&response.request, get_jool_hdr(info), sizeof(response.request));
-	response.request.castness = 'u';
 	response.error_code = 0;
 	response.pending_data = false;
 	return nlbuffer_write(buffer, &response, sizeof(response));
@@ -212,7 +211,7 @@ static int respond_error(struct genl_info *info, int error_code)
 	char *error_msg;
 	size_t error_msg_size;
 
-	error = error_pool_get_message(&error_msg, &error_msg_size);
+	error = errormsg_get(&error_msg, &error_msg_size);
 	if (error)
 		return error; /* Error msg already printed. */
 

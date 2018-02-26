@@ -48,8 +48,8 @@
 #define log_err(text, ...) \
 	do { \
 		pr_err("%s ERROR (%s): ", xlat_get_name(), __func__); \
-		error_pool_add_message(pr_err(text "\n", ##__VA_ARGS__), \
-				text "\n", ##__VA_ARGS__); \
+		errormsg_add(pr_cont(text "\n", ##__VA_ARGS__), text "\n", \
+				##__VA_ARGS__); \
 	} while (0)
 
 #ifdef UNIT_TESTING

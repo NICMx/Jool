@@ -51,7 +51,5 @@ int jnl_single_request(char *instance,
 
 /* TODO ? */
 int netlink_print_error(int error);
-int netlink_parse_response(void *data, size_t data_len,
-		struct jnl_response *result);
 
 #endif /* _JOOL_USR_NETLINK_H_ */

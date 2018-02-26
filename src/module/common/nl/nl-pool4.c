@@ -106,7 +106,7 @@ int handle_pool4_config(struct xlator *jool, struct genl_info *info)
 	void *payload = get_jool_payload(info);
 
 	switch (be16_to_cpu(hdr->operation)) {
-	case OP_DISPLAY:
+	case OP_FOREACH:
 		return handle_pool4_foreach(jool->pool4, info, payload);
 	case OP_ADD:
 		return handle_pool4_add(jool->pool4, info, payload);

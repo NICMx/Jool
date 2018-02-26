@@ -46,7 +46,7 @@ int pool4_foreach(char *instance, l4_protocol proto, pool4_foreach_cb cb,
 		return error;
 
 	do {
-		error = jnl_request(&jsocket, instance, MODE_POOL4, OP_DISPLAY,
+		error = jnl_request(&jsocket, instance, MODE_POOL4, OP_FOREACH,
 				&fargs.request, sizeof(fargs.request),
 				handle_foreach_response, &fargs);
 	} while (!error && fargs.request.offset_set);

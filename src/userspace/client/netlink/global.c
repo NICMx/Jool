@@ -19,7 +19,7 @@ static int handle_query_response(struct jnl_response *response, void *arg)
 
 int global_query(char *instance, struct globals *result)
 {
-	return jnl_single_request(instance, MODE_GLOBAL, OP_DISPLAY, NULL, 0,
+	return jnl_single_request(instance, MODE_GLOBAL, OP_FOREACH, NULL, 0,
 			handle_query_response, result);
 }
 

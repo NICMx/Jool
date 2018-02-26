@@ -137,7 +137,7 @@ int handle_global_config(struct xlator *jool, struct genl_info *info)
 	struct request_hdr *hdr = get_jool_hdr(info);
 
 	switch (be16_to_cpu(hdr->operation)) {
-	case OP_DISPLAY:
+	case OP_FOREACH:
 		return handle_global_display(jool, info);
 	case OP_UPDATE:
 		return handle_global_update(jool, info);

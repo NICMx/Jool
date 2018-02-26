@@ -8,7 +8,7 @@ struct foreach_args {
 	void *args;
 
 	unsigned int row_count;
-	struct request_session_display request;
+	struct request_session_foreach request;
 };
 
 static int handle_foreach_response(struct jnl_response *response, void *arg)
@@ -56,7 +56,7 @@ int session_foreach(char *instance, l4_protocol proto, session_foreach_cb cb,
 		return error;
 
 	do {
-		error = jnl_request(&jsocket, instance, MODE_SESSION, OP_DISPLAY,
+		error = jnl_request(&jsocket, instance, MODE_SESSION, OP_FOREACH,
 				&dargs.request, sizeof(dargs.request),
 				handle_foreach_response, &dargs);
 	} while (!error && dargs.request.offset_set);
