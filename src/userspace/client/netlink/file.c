@@ -134,13 +134,13 @@ static int init_buffer(struct nl_buffer *buffer, enum parse_section section)
 	int error;
 
 	init_request_hdr(&hdr, MODE_PARSE_FILE, OP_ADD);
-	error = nlbuffer_write(buffer, &hdr, sizeof(hdr));
+	error = jnlbuffer_write(buffer, &hdr, sizeof(hdr));
 	if (error) {
 		log_err("Writing on an empty buffer yielded error %d.", error);
 		return error;
 	}
 
-	error = nlbuffer_write(buffer, &tmp, sizeof(tmp));
+	error = jnlbuffer_write(buffer, &tmp, sizeof(tmp));
 	if (error)
 		log_err("Writing on an empty buffer yielded error %d.", error);
 
@@ -171,7 +171,7 @@ static int buffer_write(struct nl_buffer *buffer,
 {
 	int error;
 
-	error = nlbuffer_write(buffer, payload, payload_len);
+	error = jnlbuffer_write(buffer, payload, payload_len);
 	if (!error || error != -ENOSPC)
 		return error;
 
@@ -183,7 +183,7 @@ static int buffer_write(struct nl_buffer *buffer,
 	if (error)
 		return error;
 
-	return nlbuffer_write(buffer, payload, payload_len);
+	return jnlbuffer_write(buffer, payload, payload_len);
 }
 
 static int send_ctrl_msg(enum parse_section section)

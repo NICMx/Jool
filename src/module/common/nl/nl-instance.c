@@ -8,7 +8,7 @@ static int handle_instance_add(struct genl_info *info,
 		struct request_instance_add *request)
 {
 	log_debug("Adding Jool instance.");
-	return nlcore_respond(info, xlator_add(NULL, request->type,
+	return jnl_respond(info, xlator_add(NULL, request->type,
 			request->name));
 }
 
@@ -16,7 +16,7 @@ static int handle_instance_rm(struct genl_info *info,
 		struct request_instance_rm *request)
 {
 	log_debug("Removing Jool instance.");
-	return nlcore_respond(info, xlator_rm(request->name));
+	return jnl_respond(info, xlator_rm(request->name));
 }
 
 int handle_instance_request(struct genl_info *info)
@@ -25,7 +25,7 @@ int handle_instance_request(struct genl_info *info)
 	void *payload = get_jool_payload(info);
 
 	if (verify_privileges())
-		return nlcore_respond(info, -EPERM);
+		return jnl_respond(info, -EPERM);
 
 	switch (be16_to_cpu(hdr->operation)) {
 	case OP_ADD:
@@ -35,5 +35,5 @@ int handle_instance_request(struct genl_info *info)
 	}
 
 	log_err("Unknown operation: %u", be16_to_cpu(hdr->operation));
-	return nlcore_respond(info, -EINVAL);
+	return jnl_respond(info, -EINVAL);
 }

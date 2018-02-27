@@ -8,7 +8,7 @@
 static int bib_entry_to_userspace(struct bib_entry *entry, bool is_static,
 		void *arg)
 {
-	struct nlcore_buffer *buffer = (struct nlcore_buffer *)arg;
+	struct jnl_buffer *buffer = (struct jnl_buffer *)arg;
 	struct bib_entry_usr entry_usr;
 
 	entry_usr.addr4 = entry->ipv4;
@@ -16,13 +16,13 @@ static int bib_entry_to_userspace(struct bib_entry *entry, bool is_static,
 	entry_usr.l4_proto = entry->l4_proto;
 	entry_usr.is_static = is_static;
 
-	return nlbuffer_write(buffer, &entry_usr, sizeof(entry_usr));
+	return jnlbuffer_write(buffer, &entry_usr, sizeof(entry_usr));
 }
 
 static int handle_bib_foreach(struct bib *db, struct genl_info *info,
 		struct request_bib_foreach *request)
 {
-	struct nlcore_buffer buffer;
+	struct jnl_buffer buffer;
 	struct bib_foreach_func func = {
 			.cb = bib_entry_to_userspace,
 			.arg = &buffer,
@@ -31,22 +31,22 @@ static int handle_bib_foreach(struct bib *db, struct genl_info *info,
 	int error;
 
 	if (verify_privileges())
-		return nlcore_respond(info, -EPERM);
+		return jnl_respond(info, -EPERM);
 
 	log_debug("Sending BIB to userspace.");
 
-	error = nlbuffer_init_response(&buffer, info, nlbuffer_response_max_size());
+	error = jnlbuffer_init(&buffer, info, nlbuffer_response_max_size());
 	if (error)
-		return nlcore_respond(info, error);
+		return jnl_respond(info, error);
 
 	offset = request->addr4_set ? &request->addr4 : NULL;
 	error = bib_foreach(db, request->l4_proto, &func, offset);
-	nlbuffer_set_pending_data(&buffer, error > 0);
+	jnlbuffer_set_pending_data(&buffer, error > 0);
 	error = (error >= 0)
-			? nlbuffer_send(info, &buffer)
-			: nlcore_respond(info, error);
+			? jnlbuffer_send(&buffer, info)
+			: jnl_respond(info, error);
 
-	nlbuffer_free(&buffer);
+	jnlbuffer_free(&buffer);
 	return error;
 }
 
@@ -158,5 +158,5 @@ int handle_bib_config(struct xlator *jool, struct genl_info *info)
 		error = -EINVAL;
 	}
 
-	return nlcore_respond(info, error);
+	return jnl_respond(info, error);
 }

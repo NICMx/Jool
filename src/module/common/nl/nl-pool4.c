@@ -7,33 +7,33 @@
 
 static int pool4_to_usr(struct pool4_sample *sample, void *arg)
 {
-	return nlbuffer_write(arg, sample, sizeof(*sample));
+	return jnlbuffer_write(arg, sample, sizeof(*sample));
 }
 
 static int handle_pool4_foreach(struct pool4 *pool, struct genl_info *info,
 		struct request_pool4_foreach *request)
 {
-	struct nlcore_buffer buffer;
+	struct jnl_buffer buffer;
 	struct pool4_sample *offset = NULL;
 	int error;
 
 	log_debug("Sending pool4 to userspace.");
 
-	error = nlbuffer_init_response(&buffer, info, nlbuffer_response_max_size());
+	error = jnlbuffer_init(&buffer, info, nlbuffer_response_max_size());
 	if (error)
-		return nlcore_respond(info, error);
+		return jnl_respond(info, error);
 
 	if (request->offset_set)
 		offset = &request->offset;
 
 	error = pool4db_foreach_sample(pool, request->proto,
 			pool4_to_usr, &buffer, offset);
-	nlbuffer_set_pending_data(&buffer, error > 0);
+	jnlbuffer_set_pending_data(&buffer, error > 0);
 	error = (error >= 0)
-			? nlbuffer_send(info, &buffer)
-			: nlcore_respond(info, error);
+			? jnlbuffer_send(&buffer, info)
+			: jnl_respond(info, error);
 
-	nlbuffer_free(&buffer);
+	jnlbuffer_free(&buffer);
 	return error;
 }
 
@@ -41,10 +41,10 @@ static int handle_pool4_add(struct pool4 *pool, struct genl_info *info,
 		struct request_pool4_add *request)
 {
 	if (verify_privileges())
-		return nlcore_respond(info, -EPERM);
+		return jnl_respond(info, -EPERM);
 
 	log_debug("Adding elements to pool4.");
-	return nlcore_respond(info, pool4db_add(pool, &request->entry));
+	return jnl_respond(info, pool4db_add(pool, &request->entry));
 }
 
 /*
@@ -65,7 +65,7 @@ static int handle_pool4_rm(struct xlator *jool, struct genl_info *info,
 	int error;
 
 	if (verify_privileges())
-		return nlcore_respond(info, -EPERM);
+		return jnl_respond(info, -EPERM);
 
 	log_debug("Removing elements from pool4.");
 
@@ -76,14 +76,14 @@ static int handle_pool4_rm(struct xlator *jool, struct genl_info *info,
 				&request->entry.range);
 	}
 
-	return nlcore_respond(info, error);
+	return jnl_respond(info, error);
 }
 
 static int handle_pool4_flush(struct xlator *jool, struct genl_info *info,
 		struct request_pool4_flush *request)
 {
 	if (verify_privileges())
-		return nlcore_respond(info, -EPERM);
+		return jnl_respond(info, -EPERM);
 
 	log_debug("Flushing pool4.");
 
@@ -97,7 +97,7 @@ static int handle_pool4_flush(struct xlator *jool, struct genl_info *info,
 		bib_flush(jool->bib);
 	}
 
-	return nlcore_respond(info, 0);
+	return jnl_respond(info, 0);
 }
 
 int handle_pool4_config(struct xlator *jool, struct genl_info *info)
@@ -121,5 +121,5 @@ int handle_pool4_config(struct xlator *jool, struct genl_info *info)
 	}
 
 	log_err("Unknown operation: %u", be16_to_cpu(hdr->operation));
-	return nlcore_respond(info, -EINVAL);
+	return jnl_respond(info, -EINVAL);
 }

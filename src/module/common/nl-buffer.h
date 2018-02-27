@@ -33,7 +33,7 @@ struct nl_buffer *nlbuffer_create(struct sock *nl_socket, struct nlmsghdr *nl_hd
  *
  * By "flush and try again" I mean "stop writing and call nlbuffer_close_continue()" :p.
  */
-int nlbuffer_write(struct nl_buffer *buffer, void *data, int len);
+int jnlbuffer_write(struct nl_buffer *buffer, void *data, int len);
 /**
  * Turns "buffer" into a Netlink message and sends it to userspace.
  * If multi is nonzero, the userspace app will be notified that there's remaining data that didn't

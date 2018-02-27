@@ -11,7 +11,7 @@
 
 struct joold_advertise_struct {
 	struct taddr4_tuple offset;
-	struct nlcore_buffer *buffer;
+	struct jnl_buffer *buffer;
 };
 
 /*
@@ -214,7 +214,7 @@ static bool should_send(struct joold_queue *queue)
 }
 
 static int write_single_node(struct joold_node *node,
-		struct nlcore_buffer *buffer)
+		struct jnl_buffer *buffer)
 {
 	__be64 old;
 	__u64 time;
@@ -226,7 +226,7 @@ static int write_single_node(struct joold_node *node,
 	time = jiffies_to_msecs(jiffies - time);
 	node->single.update_time = cpu_to_be64(time);
 
-	full = nlbuffer_write(buffer, &node->single, sizeof(node->single));
+	full = jnlbuffer_write(buffer, &node->single, sizeof(node->single));
 	if (full) {
 		/* We'll convert the time again in the next flush, so revert. */
 		node->single.update_time = old;
@@ -259,7 +259,7 @@ static int foreach_cb(struct session_entry *entry, void *arg)
 	session.timer_type = entry->timer_type;
 	memset(session.padding, 0, sizeof(session.padding));
 
-	status = nlbuffer_write(adv->buffer, &session, sizeof(session));
+	status = jnlbuffer_write(adv->buffer, &session, sizeof(session));
 	if (status) {
 		adv->offset.src = entry->src4;
 		adv->offset.dst = entry->dst4;
@@ -269,7 +269,7 @@ static int foreach_cb(struct session_entry *entry, void *arg)
 }
 
 static int write_group_node(struct joold_node *node,
-		struct nlcore_buffer *buffer,
+		struct jnl_buffer *buffer,
 		struct bib *bib)
 {
 	struct joold_advertise_struct arg;
@@ -300,7 +300,7 @@ static int write_group_node(struct joold_node *node,
 /**
  * Builds an nl-core-compatible buffer out of @sessions.
  */
-static int build_buffer(struct nlcore_buffer *buffer, struct joold_queue *queue,
+static int build_buffer(struct jnl_buffer *buffer, struct joold_queue *queue,
 		struct bib *bib)
 {
 	struct request_hdr jool_hdr;
@@ -326,7 +326,7 @@ static int build_buffer(struct nlcore_buffer *buffer, struct joold_queue *queue,
 		if (error > 0) {
 			return 0;
 		} else if (error) {
-			nlbuffer_free(buffer);
+			jnlbuffer_free(buffer);
 			return error;
 		}
 
@@ -344,7 +344,7 @@ static int build_buffer(struct nlcore_buffer *buffer, struct joold_queue *queue,
 	 */
 	if (sizeof(jool_hdr) == buffer->len) {
 		log_debug("There was nothing to send after all.");
-		nlbuffer_free(buffer);
+		jnlbuffer_free(buffer);
 		return -ENOENT;
 	}
 
@@ -352,7 +352,7 @@ static int build_buffer(struct nlcore_buffer *buffer, struct joold_queue *queue,
 }
 
 struct joold_buffer {
-	struct nlcore_buffer buffer;
+	struct jnl_buffer buffer;
 	struct net *ns;
 	bool initialized;
 };
@@ -402,7 +402,7 @@ static void send_to_userspace(struct joold_buffer *buffer)
 	if (!error)
 		log_debug("Multicast message sent.");
 
-	nlbuffer_free(&buffer->buffer);
+	jnlbuffer_free(&buffer->buffer);
 }
 
 /**
@@ -702,7 +702,7 @@ int joold_sync(struct xlator *jool, void *data, __u32 data_len)
 
 int joold_test(struct xlator *jool)
 {
-	struct nlcore_buffer buffer;
+	struct jnl_buffer buffer;
 	struct request_hdr hdr;
 	int error;
 
@@ -718,7 +718,7 @@ int joold_test(struct xlator *jool)
 		return error;
 
 	error = nlcore_send_multicast_message(jool->ns, &buffer);
-	nlbuffer_free(&buffer);
+	jnlbuffer_free(&buffer);
 	return error;
 }
 

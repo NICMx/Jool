@@ -14,7 +14,7 @@ int handle_joold_request(struct xlator *jool, struct genl_info *info)
 
 	if (jool->type == XLATOR_SIIT) {
 		log_err("SIIT Jool doesn't need a synchronization daemon.");
-		return nlcore_respond(info, -EINVAL);
+		return jnl_respond(info, -EINVAL);
 	}
 
 	hdr = get_jool_hdr(info);
@@ -45,5 +45,5 @@ int handle_joold_request(struct xlator *jool, struct genl_info *info)
 		error = -EINVAL;
 	}
 
-	return nlcore_respond(info, error);
+	return jnl_respond(info, error);
 }

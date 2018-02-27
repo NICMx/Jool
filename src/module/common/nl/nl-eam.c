@@ -7,31 +7,31 @@
 
 static int eam_entry_to_userspace(struct eamt_entry *entry, void *arg)
 {
-	struct nlcore_buffer *buffer = (struct nlcore_buffer *)arg;
-	return nlbuffer_write(buffer, entry, sizeof(*entry));
+	struct jnl_buffer *buffer = (struct jnl_buffer *)arg;
+	return jnlbuffer_write(buffer, entry, sizeof(*entry));
 }
 
 static int handle_eamt_foreach(struct eam_table *eamt, struct genl_info *info,
 		struct request_eamt_foreach *request)
 {
-	struct nlcore_buffer buffer;
+	struct jnl_buffer buffer;
 	struct ipv4_prefix *prefix4;
 	int error;
 
 	log_debug("Sending EAMT to userspace.");
 
-	error = nlbuffer_init_response(&buffer, info, nlbuffer_response_max_size());
+	error = jnlbuffer_init(&buffer, info, nlbuffer_response_max_size());
 	if (error)
-		nlcore_respond(info, error);
+		jnl_respond(info, error);
 
 	prefix4 = request->prefix4_set ? &request->prefix4 : NULL;
 	error = eamt_foreach(eamt, eam_entry_to_userspace, &buffer, prefix4);
-	nlbuffer_set_pending_data(&buffer, error > 0);
+	jnlbuffer_set_pending_data(&buffer, error > 0);
 	error = (error >= 0)
-			? nlbuffer_send(info, &buffer)
-			: nlcore_respond(info, error);
+			? jnlbuffer_send(&buffer, info)
+			: jnl_respond(info, error);
 
-	nlbuffer_free(&buffer);
+	jnlbuffer_free(&buffer);
 	return error;
 }
 
@@ -94,5 +94,5 @@ int handle_eamt_config(struct xlator *jool, struct genl_info *info)
 		error = -EINVAL;
 	}
 
-	return nlcore_respond(info, error);
+	return jnl_respond(info, error);
 }

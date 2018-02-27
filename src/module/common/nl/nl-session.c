@@ -6,7 +6,7 @@
 
 static int session_entry_to_userspace(struct session_entry *entry, void *arg)
 {
-	struct nlcore_buffer *buffer = (struct nlcore_buffer *) arg;
+	struct jnl_buffer *buffer = (struct jnl_buffer *) arg;
 	struct session_entry_usr entry_usr;
 	unsigned long dying_time;
 
@@ -21,7 +21,7 @@ static int session_entry_to_userspace(struct session_entry *entry, void *arg)
 			? jiffies_to_msecs(dying_time - jiffies)
 			: 0;
 
-	return nlbuffer_write(buffer, &entry_usr, sizeof(entry_usr));
+	return jnlbuffer_write(buffer, &entry_usr, sizeof(entry_usr));
 }
 
 static int handle_session_foreach(struct bib *db,
@@ -29,7 +29,7 @@ static int handle_session_foreach(struct bib *db,
 		struct genl_info *info,
 		struct request_session_foreach *request)
 {
-	struct nlcore_buffer buffer;
+	struct jnl_buffer buffer;
 	struct session_foreach_func func = {
 			.cb = session_entry_to_userspace,
 			.arg = &buffer,
@@ -39,13 +39,13 @@ static int handle_session_foreach(struct bib *db,
 	int error;
 
 	if (verify_privileges())
-		return nlcore_respond(info, -EPERM);
+		return jnl_respond(info, -EPERM);
 
 	log_debug("Sending session table to userspace.");
 
-	error = nlbuffer_init_response(&buffer, info, nlbuffer_response_max_size());
+	error = jnlbuffer_init(&buffer, info, nlbuffer_response_max_size());
 	if (error)
-		return nlcore_respond(info, error);
+		return jnl_respond(info, error);
 
 	if (request->offset_set) {
 		offset_struct.offset = request->offset;
@@ -54,12 +54,12 @@ static int handle_session_foreach(struct bib *db,
 	}
 
 	error = bib_foreach_session(db, globals, request->l4_proto, &func, offset);
-	nlbuffer_set_pending_data(&buffer, error > 0);
+	jnlbuffer_set_pending_data(&buffer, error > 0);
 	error = (error >= 0)
-			? nlbuffer_send(info, &buffer)
-			: nlcore_respond(info, error);
+			? jnlbuffer_send(&buffer, info)
+			: jnl_respond(info, error);
 
-	nlbuffer_free(&buffer);
+	jnlbuffer_free(&buffer);
 	return error;
 }
 
@@ -75,5 +75,5 @@ int handle_session_config(struct xlator *jool, struct genl_info *info)
 	}
 
 	log_err("Unknown operation: %u", be16_to_cpu(hdr->operation));
-	return nlcore_respond(info, -EINVAL);
+	return jnl_respond(info, -EINVAL);
 }

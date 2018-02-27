@@ -32,7 +32,7 @@ void nlbuffer_destroy(struct nl_buffer *buffer)
 	free(buffer);
 }
 
-int nlbuffer_write(struct nl_buffer *buffer, void *payload, size_t payload_len)
+int jnlbuffer_write(struct nl_buffer *buffer, void *payload, size_t payload_len)
 {
 	if (payload_len > BUFFER_MAX) {
 		log_err("Packet content is larger than packet limit.");

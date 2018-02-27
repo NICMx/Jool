@@ -13,7 +13,7 @@
 /**
  * See nl_core#NLBUFFER_MAX_PAYLOAD.
  */
-#define NLBUFFER_MAX_PAYLOAD ((size_t)(GENLMSG_DEFAULT_SIZE - 256))
+#define JNLBUFFER_MAX_PAYLOAD ((size_t)(GENLMSG_DEFAULT_SIZE - 256))
 
 static struct genl_family *family;
 
@@ -88,9 +88,9 @@ int genl_respond(struct genl_info *info, int error_code)
 	if (error)
 		return error; /* Error msg already printed. */
 
-	if (error_msg_size > NLBUFFER_MAX_PAYLOAD) {
-		error_msg[NLBUFFER_MAX_PAYLOAD - 1] = '\0';
-		error_msg_size = NLBUFFER_MAX_PAYLOAD;
+	if (error_msg_size > JNLBUFFER_MAX_PAYLOAD) {
+		error_msg[JNLBUFFER_MAX_PAYLOAD - 1] = '\0';
+		error_msg_size = JNLBUFFER_MAX_PAYLOAD;
 	}
 
 	error = respond(info, error_code, ATTR_ERROR_STRING, error_msg,

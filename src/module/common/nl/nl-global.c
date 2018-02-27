@@ -18,7 +18,7 @@ static int handle_global_display(struct xlator *jool, struct genl_info *info)
 
 	memcpy(&clone, &jool->global->cfg, sizeof(clone));
 	prepare_config_for_userspace(&clone);
-	return nlcore_respond_struct(info, &clone, sizeof(clone));
+	return jnl_respond_struct(info, &clone, sizeof(clone));
 }
 
 static char *get_instance_name(struct genl_info *info)
@@ -41,7 +41,7 @@ static int handle_global_update(struct xlator *jool, struct genl_info *info)
 	char *name;
 
 	if (verify_privileges())
-		return nlcore_respond(info, -EPERM);
+		return jnl_respond(info, -EPERM);
 
 	log_debug("Updating 'Global' options.");
 
@@ -90,7 +90,7 @@ static int handle_global_update(struct xlator *jool, struct genl_info *info)
 	/* Get a clone of the current config. */
 	cfg = config_init(jool->global->cfg.xlator_type);
 	if (!cfg)
-		return nlcore_respond(info, -ENOMEM);
+		return jnl_respond(info, -ENOMEM);
 	memcpy(&cfg, &jool->global->cfg, sizeof(cfg));
 
 	/* Get the current metadata for the field we want to edit. */
@@ -98,7 +98,7 @@ static int handle_global_update(struct xlator *jool, struct genl_info *info)
 
 	if (request->type >= field_count) {
 		log_err("Request type index %u is out of bounds.", request->type);
-		return nlcore_respond(info, -EINVAL);
+		return jnl_respond(info, -EINVAL);
 	}
 
 	field = &field[request->type];
@@ -107,7 +107,7 @@ static int handle_global_update(struct xlator *jool, struct genl_info *info)
 		log_err("Invalid field size. Field %s (type %s) expects %zu bytes, %zu received.",
 				field->name, field->type->name, field->type->size,
 				nla_len(info->attrs[ATTR_DATA]) - sizeof(*request));
-		return nlcore_respond(info, -EINVAL);
+		return jnl_respond(info, -EINVAL);
 	}
 
 	/*
@@ -128,8 +128,8 @@ static int handle_global_update(struct xlator *jool, struct genl_info *info)
 	/* Replace the device's official translator with the "jool" clone. */
 	name = get_instance_name(info);
 	if (!name)
-		return nlcore_respond(info, -EINVAL);
-	return nlcore_respond(info, xlator_replace(name, jool));
+		return jnl_respond(info, -EINVAL);
+	return jnl_respond(info, xlator_replace(name, jool));
 }
 
 int handle_global_config(struct xlator *jool, struct genl_info *info)
@@ -144,5 +144,5 @@ int handle_global_config(struct xlator *jool, struct genl_info *info)
 	}
 
 	log_err("Unknown operation: %u", be16_to_cpu(hdr->operation));
-	return nlcore_respond(info, -EINVAL);
+	return jnl_respond(info, -EINVAL);
 }
