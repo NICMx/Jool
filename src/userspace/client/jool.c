@@ -66,6 +66,7 @@ struct cmd_option instance_ops[] = {
 		{ 0 },
 };
 
+/*
 struct cmd_option global_ops[] = {
 		{
 			.label = DISPLAY,
@@ -120,6 +121,7 @@ struct cmd_option pool4_ops[] = {
 		},
 		{ 0 },
 };
+*/
 
 struct cmd_option bib_ops[] = {
 		{
@@ -138,6 +140,7 @@ struct cmd_option bib_ops[] = {
 		{ 0 },
 };
 
+/*
 struct cmd_option session_ops[] = {
 		{
 			.label = DISPLAY,
@@ -146,6 +149,7 @@ struct cmd_option session_ops[] = {
 		},
 		{ 0 },
 };
+*/
 
 /*
 struct thingy file_ops[] = {
@@ -156,11 +160,11 @@ struct thingy file_ops[] = {
 
 struct cmd_option tree[] = {
 		{ .label = "instance",     .children = instance_ops, },
-		{ .label = "global",       .children = global_ops, },
+/*		{ .label = "global",       .children = global_ops, },
 		{ .label = "eamt",         .children = eamt_ops, },
 		{ .label = "pool4",        .children = pool4_ops, },
-		{ .label = "bib",          .children = bib_ops, },
-		{ .label = "session",      .children = session_ops, },
+*/		{ .label = "bib",          .children = bib_ops, },
+/*		{ .label = "session",      .children = session_ops, }, */
 		/* { .label = "file",         .children = file_ops, }, */
 		/* TODO autocomplete autocomplete? */
 		{ .label = "autocomplete", .handler  = handle_autocomplete, },

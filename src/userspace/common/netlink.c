@@ -6,7 +6,7 @@
 #include "nl-protocol.h"
 
 struct response_cb {
-	jnl_response_cb cb;
+	nl_recvmsg_msg_cb_t cb;
 	void *arg;
 };
 
@@ -79,80 +79,60 @@ int netlink_print_error(int error)
 	return error;
 }
 
-static int print_error_msg(struct jnl_response *response)
+static int handle_jool_error(struct nl_msg *msg)
 {
-	char *msg;
+	struct genlmsghdr *ghdr;
+	struct jnlmsghdr *jhdr;
+	struct nlattr *attr;
 
 	error_handler_called = true;
 
-	if (response->payload_len <= 0) {
-		log_err("Error. The kernel's response is empty so the cause is unknown.");
-		log_err("Try the kernel ring buffer. (Usually just run `dmesg | tail`.)");
-		log_err("This is probably a bug. Please report it at https://github.com/NICMx/Jool/issues.");
-		goto end;
-	}
+	ghdr = genlmsg_hdr(nlmsg_hdr(msg));
+	jhdr = genlmsg_user_hdr(ghdr);
 
-	msg = response->payload;
-	if (msg[response->payload_len - 1] != '\0') {
-		log_err("Error (The kernel's response is not a string so the cause is unknown.)");
-		log_err("This is probably a bug. Please report it at https://github.com/NICMx/Jool/issues.");
-		goto end;
-	}
+	attr = genlmsg_attrdata(ghdr, JNL_HDR_LEN);
+	if (!nla_ok(attr, genlmsg_attrlen(ghdr, JNL_HDR_LEN)))
+		goto no_msg;
 
-	log_err("Jool Error: %s", msg);
-	/* Fall through. */
+	if (attr->nla_type != JNLA_ERROR_MSG)
+		goto no_msg;
+	/* TODO check that the last character is NULL? */
 
-end:
-	log_err("(Error code: %u)", response->hdr->error_code);
-	return response->hdr->error_code;
+	log_err("Error: %s", nla_get_string(attr));
+	return -jhdr->error;
+
+no_msg:
+	log_err("Error. The kernel's response is empty so the cause is unknown.");
+	log_err("Try the kernel ring buffer. (Usually just run `dmesg | tail`.)");
+	log_err("This is probably a bug. Please report it at https://github.com/NICMx/Jool/issues.");
+	return -jhdr->error;
 }
 
 /*
  * Heads up:
  * Netlink wants this function to return either a negative error code or an enum
  * nl_cb_action.
- * Because NL_SKIP == EPERM and NL_STOP == ENOENT, you should mind the sign of
- * the result HARD.
+ * Because NL_SKIP == EPERM and NL_STOP == ENOENT, do mind the sign of the
+ * result and don't make assumptions.
  */
 static int response_handler(struct nl_msg *msg, void *void_arg)
 {
-	struct nlmsghdr *nlh = nlmsg_hdr(msg);
-	struct nlattr *attrs[__ATTR_MAX + 1];
-	struct jnl_response response;
+	struct jnlmsghdr *jhdr;
 	struct response_cb *arg;
-	int error;
 
-	error = genlmsg_parse(nlh, sizeof(struct request_hdr), attrs,
-			__ATTR_MAX, NULL);
-	if (error) {
-		log_err("%s (error code %d)", nl_geterror(error), error);
-		return -abs(error);
-	}
-
-	if (!attrs[ATTR_DATA]) {
-		log_err("The module's response seems to be empty.");
-		return -EINVAL;
-	}
-
-	response.hdr = genlmsg_user_hdr(genlmsg_hdr(nlh));
-	response.payload = nla_data(attrs[ATTR_DATA]);
-	response.payload_len = nla_len(attrs[ATTR_DATA]);
-
-	if (response.hdr->error_code) {
-		error = print_error_msg(&response);
-		return -abs(error);
-	}
+	jhdr = genlmsg_user_hdr(genlmsg_hdr(nlmsg_hdr(msg)));
+	if (jhdr->error)
+		return handle_jool_error(msg);
 
 	arg = void_arg;
-	return (arg && arg->cb) ? (-abs(arg->cb(&response, arg->arg))) : 0;
+	if (!arg->cb)
+		return 0;
+
+	return -abs(arg->cb(msg, arg->arg));
 }
 
-static int build_request(struct jnl_socket *socket, char *instance,
-		enum config_mode mode, enum config_operation op,
-		void *data, int data_len,
-		struct nl_msg **result)
+int jnl_create_request(char *instance, jool_genl_cmd cmd, struct nl_msg **result)
 {
-	struct request_hdr *hdr;
 	struct nl_msg *msg;
 	int error;
 
@@ -162,28 +142,17 @@ static int build_request(struct jnl_socket *socket, char *instance,
 		return -ENOMEM;
 	}
 
-	hdr = genlmsg_put(msg, NL_AUTO_PORT, NL_AUTO_SEQ, socket->family,
-			sizeof(struct request_hdr), 0, JOOL_COMMAND, 1);
-	if (!hdr) {
+	/* Family will be patched later at jnl_request(). */
+	if (!genlmsg_put(msg, NL_AUTO_PORT, NL_AUTO_SEQ, 0, JNL_HDR_LEN, 0,
+			cmd, JOOL_VERSION_MAJOR)) {
 		log_err("Unknown error building the packet to the kernel.");
 		nlmsg_free(msg);
 		return -EINVAL;
 	}
-	init_request_hdr(hdr, mode, op);
 
-	if (instance) {
-		error = nla_put_string(msg, ATTR_INSTANCE_NAME, instance);
-		if (error) {
-			log_err("Could not write the instance name attribute on the packet.");
-			nlmsg_free(msg);
-			netlink_print_error(error);
-			return error;
-		}
-	}
-
-	error = nla_put(msg, ATTR_DATA, data_len, data);
+	error = nla_put_string(msg, JNLA_INSTANCE_NAME, instance);
 	if (error) {
-		log_err("Could not write the payload of the packet.");
+		log_err("Could not write the instance name attribute on the packet.");
 		nlmsg_free(msg);
 		netlink_print_error(error);
 		return error;
@@ -193,29 +162,29 @@ static int build_request(struct jnl_socket *socket, char *instance,
 	return 0;
 }
 
-int jnl_request(struct jnl_socket *socket, char *instance,
-		enum config_mode mode, enum config_operation op,
-		void *data, int data_len,
-		jnl_response_cb cb, void *cb_arg)
+/**
+ * Swallows @request.
+ */
+int jnl_request(struct jnl_socket *socket, struct nl_msg *request,
+		nl_recvmsg_msg_cb_t cb, void *cb_arg)
 {
-	struct nl_msg *msg;
-	struct response_cb callback = { .cb = cb, .arg = cb_arg };
+	struct response_cb rcb = { .cb = cb, .arg = cb_arg };
 	int error;
 
-	error = nl_socket_modify_cb(socket->sk,
-			NL_CB_MSG_IN, NL_CB_CUSTOM,
-			response_handler, &callback);
+	error = nl_socket_modify_cb(socket->sk, NL_CB_MSG_IN, NL_CB_CUSTOM,
+			response_handler, &rcb);
 	if (error < 0) {
 		log_err("Could not register response handler.");
 		log_err("I will not be able to parse Jool's response, so I won't send the request.");
+		nlmsg_free(request);
 		return netlink_print_error(error);
 	}
 
-	error = build_request(socket, instance, mode, op, data, data_len, &msg);
-	if (error)
-		return error;
-	error = nl_send_auto(socket->sk, msg);
-	nlmsg_free(msg);
+	/* Patch family. */
+	nlmsg_hdr(request)->nlmsg_type = socket->family;
+
+	error = nl_send_auto(socket->sk, request);
+	nlmsg_free(request);
 	if (error < 0) {
 		log_err("Could not dispatch the request to kernelspace.");
 		return netlink_print_error(error);
@@ -234,20 +203,21 @@ int jnl_request(struct jnl_socket *socket, char *instance,
 	return 0;
 }
 
-int jnl_single_request(char *instance,
-		enum config_mode mode, enum config_operation op,
-		void *data, int data_len,
-		jnl_response_cb cb, void *cb_arg)
+/**
+ * Swallows @request.
+ */
+int jnl_single_request(struct nl_msg *request)
 {
 	struct jnl_socket socket;
 	int error;
 
 	error = jnl_init_socket(&socket);
-	if (error)
+	if (error) {
+		nlmsg_free(request);
 		return error;
+	}
 
-	error = jnl_request(&socket, instance, mode, op, data, data_len,
-			cb, cb_arg);
+	error = jnl_request(&socket, request, NULL, NULL);
 
 	jnl_destroy_socket(&socket);
 	return error;

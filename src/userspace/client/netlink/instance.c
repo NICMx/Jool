@@ -1,5 +1,7 @@
 #include "instance.h"
 
+#include <netlink/attr.h>
+#include <netlink/msg.h>
 #include "netlink.h"
 
 static int validate_instance_name(char *name)
@@ -14,27 +16,38 @@ static int validate_instance_name(char *name)
 
 int instance_add(xlator_type type, char *name)
 {
-	struct request_instance_add request;
+	struct nl_msg *request;
 	int error;
 
 	error = validate_instance_name(name);
 	if (error)
 		return error;
 
-	request.type = type;
-	strcpy(request.name, name);
-	return JNL_SIMPLE_REQUEST(NULL, MODE_INSTANCE, OP_ADD, request);
+	error = jnl_create_request(name, JGNC_INSTANCE_ADD, &request);
+	if (error)
+		return error;
+
+	error = nla_put_u8(request, JNLA_L4PROTO, type);
+	if (error) {
+		nlmsg_free(request);
+		return error;
+	}
+
+	return jnl_single_request(request);
 }
 
 int instance_rm(char *name)
 {
-	struct request_instance_rm request;
+	struct nl_msg *request;
 	int error;
 
 	error = validate_instance_name(name);
 	if (error)
 		return error;
 
-	strcpy(request.name, name);
-	return JNL_SIMPLE_REQUEST(NULL, MODE_INSTANCE, OP_REMOVE, request);
+	error = jnl_create_request(name, JGNC_INSTANCE_RM, &request);
+	if (error)
+		return error;
+
+	return jnl_single_request(request);
 }

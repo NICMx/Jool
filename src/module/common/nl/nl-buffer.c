@@ -153,11 +153,3 @@ int jnlbuffer_send(struct jnl_buffer *buffer, struct genl_info *info)
 
 	return 0;
 }
-
-/* TODO delete */
-void jnlbuffer_set_errcode(struct jnl_buffer *buffer, int error)
-{
-	struct response_hdr *hdr = buffer->data;
-	error = abs(error);
-	hdr->error_code = (error > 0xFFFFu) ? 0xFFFFu : error;
-}

@@ -22,7 +22,7 @@ struct kmalloc_entry {
 };
 
 static DEFINE_SPINLOCK(lock);
-struct rb_root tree = RB_ROOT;
+static struct rb_root tree = RB_ROOT;
 
 static struct kmalloc_entry *kmn_entry(struct rb_node *hook)
 {
@@ -110,7 +110,7 @@ void wkmalloc_print_leaks(void)
 		log_info("None.");
 }
 
-void destroy_node(struct rb_node *node, void *arg)
+static void destroy_node(struct rb_node *node, void *arg)
 {
 	kfree(kmn_entry(node));
 }

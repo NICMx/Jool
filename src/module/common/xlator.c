@@ -308,6 +308,8 @@ int xlator_rm(char *name)
 	xlator_put(jool);
 	wkfree(struct xlator, jool);
 	free_netdev(dev);
+	log_info("Device '%s' removed.", name);
+
 	return 0;
 }
 

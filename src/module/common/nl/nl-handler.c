@@ -1,12 +1,8 @@
 #include "nl/nl-handler.h"
 
-#include <linux/mutex.h>
-#include <linux/version.h>
-#include <linux/genetlink.h>
-#include "types.h"
-#include "config.h"
+#include <net/genetlink.h>
 #include "linux-version.h"
-#include "xlator.h"
+#include "nl-protocol.h"
 #include "nl/nl-atomic-config.h"
 #include "nl/nl-bib.h"
 #include "nl/nl-eam.h"
@@ -18,36 +14,225 @@
 #include "nl/nl-pool4.h"
 #include "nl/nl-session.h"
 
-static struct genl_multicast_group mc_groups[1] = {
-	{
-		.name = GNL_JOOLD_MULTICAST_GRP_NAME,
-#if LINUX_VERSION_LOWER_THAN(3, 13, 0, 7, 1)
-		.id = JOOLD_MC_ID,
-#endif
-	},
+/* Common nla_policy predicates */
+#define NPP_ADDR6 { .type = NLA_BINARY, .len = 16 }
+#define NPP_ADDR4 { .type = NLA_BINARY, .len = 4 }
+#define NPP_PORT { .type = NLA_U16 }
+#define NPP_PREFIXLEN { .type = NLA_U8 }
+#define NPP_BOOL { .type = NLA_U8 }
+
+/* Common nla_policy definitions */
+/* TODO null chara included in IF_NAMSIZ? */
+#define NPD_INSTANCE_NAME [JNLA_INSTANCE_NAME] = { .type = NLA_STRING, .len = IFNAMSIZ }
+#define NPD_INSTANCE_TYPE [JNLA_INSTANCE_TYPE] = { .type = NLA_U8 }
+
+#define NPD_L4PROTO [JNLA_L4PROTO] = { .type = NLA_U8 }
+#define NPD_SADDR6 [JNLA_SADDR6] = NPP_ADDR6
+#define NPD_SADDR4 [JNLA_SADDR4] = NPP_ADDR4
+#define NPD_SPORT6 [JNLA_SPORT6] = NPP_PORT
+#define NPD_SPORT4 [JNLA_SPORT4] = NPP_PORT
+
+#define NPD_PREFIXADDR6 [JNLA_PREFIXADDR6] = NPP_ADDR6
+#define NPD_PREFIXLEN6 [JNLA_PREFIXLEN6] = NPP_PREFIXLEN
+#define NPD_PREFIXADDR4 [JNLA_PREFIXADDR4] = NPP_ADDR4
+#define NPD_PREFIXLEN4 [JNLA_PREFIXLEN4] = NPP_PREFIXLEN
+
+#define NPD_MARK [JNLA_MARK] = { .type = NLA_U32 }
+#define NPD_FORCE [JNLA_FORCE] = NPP_BOOL
+#define NPD_QUICK [JNLA_QUICK] = NPP_BOOL
+#define NPD_ITERATIONS [JNLA_ITERATIONS] = { .type = NLA_U32 }
+#define NPD_ITERATION_FLAGS [JNLA_ITERATION_FLAGS] = { .type = NLA_U8 }
+
+/* Common nla_policy groups */
+
+#define NPG_SRCT6 NPD_SADDR6, NPD_SPORT6 /* "SouRCe Transport address ipv6" */
+#define NPG_SRCT4 NPD_SADDR4, NPD_SPORT4 /* "SouRCe Transport address ipv4" */
+#define NPG_BIB_ENTRY NPD_L4PROTO, NPG_SRCT6, NPG_SRCT4
+#define NPG_POOL4_ENTRY NPD_L4PROTO, NPG_SRCT4
+
+static struct nla_policy policy_instance_add[__JNLA_MAX] = {
+	NPD_INSTANCE_NAME,
+	NPD_INSTANCE_TYPE,
 };
 
-/**
- * Actual message type definition.
- */
-static struct genl_ops ops[] = {
-	{
-		.cmd = JOOL_COMMAND,
-		.doit = handle_jool_message,
-		.dumpit = NULL,
-	},
+static struct nla_policy policy_instance_rm[__JNLA_MAX] = {
+	NPD_INSTANCE_NAME,
 };
+/*
+static struct nla_policy policy_eamt_foreach[__JNLA_MAX] = {
+	INSTANCE_NAME,
+	ADDR4,
+	PREFIXLEN,
+};
+
+static struct nla_policy policy_eamt_add[__JNLA_MAX] = {
+	INSTANCE_NAME,
+	ADDR6,
+	ADDR4,
+	PREFIXLEN,
+	FORCE,
+};
+
+static struct nla_policy policy_eamt_rm[__JNLA_MAX] = {
+	INSTANCE_NAME,
+	ADDR6,
+	ADDR4,
+	PREFIXLEN,
+};
+
+static struct nla_policy policy_eamt_flush[__JNLA_MAX] = {
+	INSTANCE_NAME,
+};
+
+static struct nla_policy policy_pool4_foreach[__JNLA_MAX] = {
+	INSTANCE_NAME,
+	MARK,
+	L4PROTO,
+	ADDR4,
+	PORT,
+};
+
+static struct nla_policy policy_pool4_add[__JNLA_MAX] = {
+	INSTANCE_NAME,
+	MARK,
+	ITERATIONS,
+	ITERATION_FLAGS,
+	L4PROTO,
+	ADDR4,
+	PREFIXLEN,
+	PORT,
+};
+
+static struct nla_policy policy_pool4_rm[__JNLA_MAX] = {
+	INSTANCE_NAME,
+	MARK,
+	L4PROTO,
+	ADDR4,
+	PREFIXLEN,
+	PORT,
+	QUICK,
+};
+
+static struct nla_policy policy_pool4_flush[__JNLA_MAX] = {
+	INSTANCE_NAME,
+	QUICK,
+};
+*/
+static struct nla_policy policy_bib_foreach[__JNLA_MAX] = {
+	NPD_INSTANCE_NAME,
+	NPD_L4PROTO,
+	NPG_SRCT4,
+};
+
+static struct nla_policy policy_bib_add[__JNLA_MAX] = {
+	NPD_INSTANCE_NAME,
+	NPG_BIB_ENTRY,
+};
+
+static struct nla_policy policy_bib_rm[__JNLA_MAX] = {
+	NPD_INSTANCE_NAME,
+	NPG_BIB_ENTRY,
+};
+/*
+static struct nla_policy policy_session_foreach[__JNLA_MAX] = {
+	INSTANCE_NAME,
+	L4PROTO,
+	ADDR4,
+	PORT,
+};
+*/
+static struct genl_ops jool_genl_ops[] = {
+	{
+		.cmd = JGNC_INSTANCE_ADD,
+		.policy = policy_instance_add,
+		.doit = handle_instance_add,
+	}, {
+		.cmd = JGNC_INSTANCE_RM,
+		.policy = policy_instance_rm,
+		.doit = handle_instance_rm,
+	}, {
+	/*	.cmd = JGNC_EAMT_FOREACH,
+		.policy = policy_eamt_foreach,
+		.doit = handle_eamt_foreach,
+	}, {
+		.cmd = JGNC_EAMT_ADD,
+		.policy = policy_eamt_add,
+		.doit = handle_eamt_add,
+	}, {
+		.cmd = JGNC_EAMT_RM,
+		.policy = policy_eamt_rm,
+		.doit = handle_eamt_rm,
+	}, {
+		.cmd = JGNC_EAMT_FLUSH,
+		.policy = policy_eamt_flush,
+		.doit = handle_eamt_flush,
+	}, {
+		.cmd = JGNC_POOL4_FOREACH,
+		.policy = policy_pool4_foreach,
+		.doit = handle_pool4_foreach,
+	}, {
+		.cmd = JGNC_POOL4_ADD,
+		.policy = policy_pool4_add,
+		.doit = handle_pool4_add,
+	}, {
+		.cmd = JGNC_POOL4_RM,
+		.policy = policy_pool4_rm,
+		.doit = handle_pool4_rm,
+	}, {
+		.cmd = JGNC_POOL4_FLUSH,
+		.policy = policy_pool4_flush,
+		.doit = handle_pool4_flush,
+	}, {*/
+		.cmd = JGNC_BIB_FOREACH,
+		.policy = policy_bib_foreach,
+		.doit = handle_bib_foreach,
+	}, {
+		.cmd = JGNC_BIB_ADD,
+		.policy = policy_bib_add,
+		.doit = handle_bib_add,
+	}, {
+		.cmd = JGNC_BIB_RM,
+		.policy = policy_bib_rm,
+		.doit = handle_bib_rm,
+	/*}, {
+		.cmd = JGNC_SESSION_FOREACH,
+		.policy = policy_session_foreach,
+		.doit = handle_session_foreach,*/
+	}
+};
+
+static int jnl_pre_doit(const struct genl_ops *ops, struct sk_buff *skb,
+		struct genl_info *info)
+{
+	log_debug("===============================================");
+	log_debug("Received a request from userspace.");
+
+	errormsg_enable(); /* Mutex lock */
+	return 0;
+}
+
+static void jnl_post_doit(const struct genl_ops *ops, struct sk_buff *skb,
+		struct genl_info *info)
+{
+	errormsg_disable(); /* Mutex unlock */
+}
 
 static struct genl_family jool_family = {
 #if LINUX_VERSION_LOWER_THAN(4, 10, 0, 9999, 0)
 	/* This variable became "private" on kernel 4.10. */
 	.id = GENL_ID_GENERATE,
 #endif
-	.hdrsize = sizeof(struct request_hdr),
+	.hdrsize = JNL_HDR_LEN,
 	/* This is initialized below. See register_family(). */
 	/* .name = GNL_JOOL_FAMILY_NAME, */
-	.version = 1,
-	.maxattr = __ATTR_MAX,
+	/**
+	 * TODO heads up: Even though version is declared as an unsigned int
+	 * in this structure, it is actually meant to be 8-bits.
+	 * This is far from enough for us, so the real version number is going
+	 * to have to be included as an attribute.
+	 */
+	.version = JOOL_VERSION_MAJOR,
+	.maxattr = __JNLA_MAX,
 	.netnsok = true,
 	/*
 	 * In kernel 3.10, they added a variable here called "parallel_ops".
@@ -58,10 +243,8 @@ static struct genl_family jool_family = {
 	 * We need to support older kernels, so we need to lock anyway, so this
 	 * feature is of no use to us.
 	 */
-	/*
-	 * "pre_doit" and "post_doit" are a pain in the ass; there is no doit
-	 * function so I have no idea. Whatever; they can be null. Fuck 'em.
-	 */
+	.pre_doit = jnl_pre_doit,
+	.post_doit = jnl_post_doit,
 
 #if LINUX_VERSION_AT_LEAST(4, 10, 0, 9999, 0)
 	/*
@@ -83,98 +266,6 @@ static struct genl_family jool_family = {
 	.n_mcgrps = ARRAY_SIZE(mc_groups),
 #endif
 };
-
-static int multiplex_request(struct xlator *jool, struct genl_info *info)
-{
-	struct request_hdr *hdr = get_jool_hdr(info);
-
-	switch (be16_to_cpu(hdr->mode)) {
-	case MODE_POOL4:
-		return handle_pool4_config(jool, info);
-	case MODE_BIB:
-		return handle_bib_config(jool, info);
-	case MODE_SESSION:
-		return handle_session_config(jool, info);
-	case MODE_EAMT:
-		return handle_eamt_config(jool, info);
-	case MODE_GLOBAL:
-		return handle_global_config(jool, info);
-	case MODE_PARSE_FILE:
-		log_err("Not implemented yet.");
-		/* return handle_atomconfig_request(jool, info); */
-		return jnl_respond(info, -EINVAL);
-	case MODE_INSTANCE:
-		log_err("Bug: MODE_INSTANCE was supposed to be already handled.");
-		return jnl_respond(info, -EINVAL);
-	}
-
-	log_err("Unknown configuration mode: %d", be16_to_cpu(hdr->mode));
-	return jnl_respond(info, -EINVAL);
-}
-
-static int find_instance(struct genl_info *info, struct xlator *instance)
-{
-	struct nlattr *name_attr;
-	int error;
-
-	name_attr = info->attrs[ATTR_INSTANCE_NAME];
-	if (!name_attr) {
-		log_err("The request lacks an instance name attribute.");
-		return -EINVAL;
-	}
-
-	error = xlator_find(nla_data(name_attr), instance);
-	if (error == -ESRCH) {
-		log_err("This namespace lacks a Jool instance.");
-		return -ESRCH;
-	}
-	if (error) {
-		log_err("Unknown error %d; Jool instance not found.", error);
-		return error;
-	}
-
-	return 0;
-}
-
-static int __handle_jool_message(struct genl_info *info)
-{
-	struct request_hdr *hdr = get_jool_hdr(info);
-	struct xlator translator;
-	int error;
-
-	log_debug("===============================================");
-	log_debug("Received a request from userspace.");
-
-	error = validate_magic(hdr, "userspace client");
-	if (error)
-		return error; /* Protocol unknown; can't respond. */
-
-	error = validate_version(hdr, "userspace client", "kernel module");
-	if (error)
-		return jnl_respond(info, error);
-
-	if (be16_to_cpu(hdr->mode) == MODE_INSTANCE)
-		return handle_instance_request(info);
-
-	error = find_instance(info, &translator);
-	if (error)
-		return jnl_respond(info, error);
-
-	error = multiplex_request(&translator, info);
-	xlator_put(&translator);
-	return error;
-}
-
-int handle_jool_message(struct sk_buff *skb, struct genl_info *info)
-{
-	int error;
-
-	errormsg_enable(); /* Mutex lock */
-	error = __handle_jool_message(info);
-	errormsg_disable(); /* Mutex unlock */
-
-	return error;
-}
 
 static int register_family(void)
 {
@@ -200,8 +291,7 @@ static int register_family(void)
 	}
 
 #elif LINUX_VERSION_LOWER_THAN(4, 10, 0, 9999, 0)
-	error = genl_register_family_with_ops_groups(&jool_family, ops,
-			mc_groups);
+	error = genl_register_family_with_ops(&jool_family, jool_genl_ops);
 	if (error) {
 		log_err("Family registration failed: %d", error);
 		return error;
@@ -214,7 +304,7 @@ static int register_family(void)
 	}
 #endif
 
-	nlcore_init(&jool_family, &mc_groups[0]);
+	nlcore_init(&jool_family);
 	return 0;
 }
 

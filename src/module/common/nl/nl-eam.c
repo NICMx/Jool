@@ -5,38 +5,47 @@
 #include "nl/nl-core.h"
 #include "siit/eam.h"
 
-static int eam_entry_to_userspace(struct eamt_entry *entry, void *arg)
+static int eam_entry_to_userspace(struct eamt_entry *entry, void *skb)
 {
-	struct jnl_buffer *buffer = (struct jnl_buffer *)arg;
-	return jnlbuffer_write(buffer, entry, sizeof(*entry));
+	struct nlattr *eam_attr;
+
+	eam_attr = nla_nest_start(skb, JNLA_EAM);
+	if (!eam_attr)
+		return 1;
+
+	if (jnla_put_prefix6(skb, &entry->prefix6)
+			|| jnla_put_prefix4(skb, &entry->prefix4)) {
+		nla_nest_cancel(skb, eam_attr);
+		return 1;
+	}
+
+	nla_nest_end(skb, eam_attr);
+	return 0;
 }
 
-static int handle_eamt_foreach(struct eam_table *eamt, struct genl_info *info,
+int handle_eamt_foreach(struct eam_table *eamt, struct genl_info *info,
 		struct request_eamt_foreach *request)
 {
-	struct jnl_buffer buffer;
-	struct ipv4_prefix *prefix4;
+	struct jnl_packet pkt;
 	int error;
 
 	log_debug("Sending EAMT to userspace.");
 
-	error = jnlbuffer_init(&buffer, info, nlbuffer_response_max_size());
+	error = jnl_init_pkt(info, JNL_MAX_PAYLOAD, &pkt);
 	if (error)
-		jnl_respond(info, error);
+		return jnl_respond_error(info, error);
 
-	prefix4 = request->prefix4_set ? &request->prefix4 : NULL;
-	error = eamt_foreach(eamt, eam_entry_to_userspace, &buffer, prefix4);
-	jnlbuffer_set_pending_data(&buffer, error > 0);
-	error = (error >= 0)
-			? jnlbuffer_send(&buffer, info)
-			: jnl_respond(info, error);
+	error = eamt_foreach(eamt, eam_entry_to_userspace, pkt.skb,
+			request->prefix4_set ? &request->prefix4 : NULL);
+	if (error < 0) {
+		jnl_destroy_pkt(&pkt);
+		return jnl_respond_error(info, error);
+	}
 
-	jnlbuffer_free(&buffer);
-	return error;
+	return jnl_respond_pkt(info, &pkt);
 }
 
-static int handle_eamt_add(struct eam_table *eamt,
-		struct request_eamt_add *request)
+int handle_eamt_add(struct eam_table *eamt, struct request_eamt_add *request)
 {
 	if (verify_privileges())
 		return -EPERM;
@@ -46,8 +55,7 @@ static int handle_eamt_add(struct eam_table *eamt,
 			request->force);
 }
 
-static int handle_eamt_rm(struct eam_table *eamt,
-		struct request_eamt_rm *request)
+int handle_eamt_rm(struct eam_table *eamt, struct request_eamt_rm *request)
 {
 	struct ipv6_prefix *prefix6;
 	struct ipv4_prefix *prefix4;
@@ -62,37 +70,11 @@ static int handle_eamt_rm(struct eam_table *eamt,
 	return eamt_rm(eamt, prefix6, prefix4);
 }
 
-static int handle_eamt_flush(struct eam_table *eamt)
+int handle_eamt_flush(struct eam_table *eamt)
 {
 	if (verify_privileges())
 		return -EPERM;
 
 	eamt_flush(eamt);
 	return 0;
-}
-
-int handle_eamt_config(struct xlator *jool, struct genl_info *info)
-{
-	struct request_hdr *hdr = get_jool_hdr(info);
-	void *payload = get_jool_payload(info);
-	int error;
-
-	switch (be16_to_cpu(hdr->operation)) {
-	case OP_FOREACH:
-		return handle_eamt_foreach(jool->eamt, info, payload);
-	case OP_ADD:
-		error = handle_eamt_add(jool->eamt, payload);
-		break;
-	case OP_REMOVE:
-		error = handle_eamt_rm(jool->eamt, payload);
-		break;
-	case OP_FLUSH:
-		error = handle_eamt_flush(jool->eamt);
-		break;
-	default:
-		log_err("Unknown operation: %u", be16_to_cpu(hdr->operation));
-		error = -EINVAL;
-	}
-
-	return jnl_respond(info, error);
 }

@@ -25,7 +25,6 @@ struct jnl_socket {
 };
 
 struct jnl_response {
-	struct response_hdr *hdr;
 	void *payload;
 	size_t payload_len;
 };
@@ -33,21 +32,11 @@ struct jnl_response {
 int jnl_init_socket(struct jnl_socket *socket);
 void jnl_destroy_socket(struct jnl_socket *socket);
 
-typedef int (*jnl_response_cb)(struct jnl_response *, void *);
+int jnl_request(struct jnl_socket *socket, struct nl_msg *request,
+		nl_recvmsg_msg_cb_t cb, void *cb_arg);
+int jnl_single_request(struct nl_msg *request);
 
-int jnl_request(struct jnl_socket *socket, char *instance,
-		enum config_mode mode, enum config_operation op,
-		void *data, int data_len,
-		jnl_response_cb cb, void *cb_arg);
-int jnl_single_request(char *instance,
-		enum config_mode mode, enum config_operation op,
-		void *data, int data_len,
-		jnl_response_cb cb, void *cb_arg);
-
-#define JNL_SIMPLE_REQUEST(instance, mode, op, request) \
-	jnl_single_request(instance, mode, op, &request, sizeof(request), NULL, NULL)
-#define JNL_HDR_REQUEST(instance, mode, op) \
-	jnl_single_request(instance, mode, op, NULL, 0, NULL, NULL)
+int jnl_create_request(char *instance, jool_genl_cmd cmd, struct nl_msg **result);
 
 /* TODO ? */
 int netlink_print_error(int error);

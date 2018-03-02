@@ -30,6 +30,7 @@ Some shortcuts used while naming variables and functions through the code or doc
 - init = initialize
 - inode = internal node (https://en.wikipedia.org/wiki/Tree_%28data_structure%29)
 - jnl = Jool (Generic) Netlink (A wrapper on top of the Generic Netlink API)
+- jnla = Jool's Netlink attribute
 - l2 = layer 2 (link)
 - l3 = layer 3 (network; IPv4 or IPv6.)
 - l4 = layer 4 (transport; TCP, UDP. Also ICMP and ICMPv6 for convenience.)

@@ -4,36 +4,41 @@
 #include "nl/nl-common.h"
 #include "nl/nl-core.h"
 
-static int handle_instance_add(struct genl_info *info,
-		struct request_instance_add *request)
+int handle_instance_add(struct sk_buff *skb, struct genl_info *info)
 {
-	log_debug("Adding Jool instance.");
-	return jnl_respond(info, xlator_add(NULL, request->type,
-			request->name));
-}
-
-static int handle_instance_rm(struct genl_info *info,
-		struct request_instance_rm *request)
-{
-	log_debug("Removing Jool instance.");
-	return jnl_respond(info, xlator_rm(request->name));
-}
-
-int handle_instance_request(struct genl_info *info)
-{
-	struct request_hdr *hdr = get_jool_hdr(info);
-	void *payload = get_jool_payload(info);
+	struct nlattr *attr;
+	char *name;
+	xlator_type type;
 
 	if (verify_privileges())
-		return jnl_respond(info, -EPERM);
+		return jnl_respond_error(info, -EPERM);
 
-	switch (be16_to_cpu(hdr->operation)) {
-	case OP_ADD:
-		return handle_instance_add(info, payload);
-	case OP_REMOVE:
-		return handle_instance_rm(info, payload);
+	log_debug("Adding Jool instance.");
+
+	if (!jnla_get_instance_name(info, &name)) {
+		log_err("The instance name argument is mandatory.");
+		return jnl_respond_error(info, -EINVAL);
 	}
 
-	log_err("Unknown operation: %u", be16_to_cpu(hdr->operation));
-	return jnl_respond(info, -EINVAL);
+	attr = info->attrs[JNLA_INSTANCE_TYPE];
+	type = attr ? nla_get_u8(attr) : XLATOR_SIIT;
+
+	return jnl_respond_error(info, xlator_add(NULL, type, name));
+}
+
+int handle_instance_rm(struct sk_buff *skb, struct genl_info *info)
+{
+	char *name;
+
+	if (verify_privileges())
+		return jnl_respond_error(info, -EPERM);
+
+	log_debug("Removing Jool instance.");
+
+	if (!jnla_get_instance_name(info, &name)) {
+		log_err("The instance name argument is mandatory.");
+		return jnl_respond_error(info, -EINVAL);
+	}
+
+	return jnl_respond_error(info, xlator_rm(name));
 }

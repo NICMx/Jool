@@ -1,6 +1,8 @@
 #include "nl/nl-common.h"
 
-#include "types.h"
+#include <linux/capability.h>
+#include <linux/module.h>
+#include "log.h"
 
 int verify_privileges(void)
 {
@@ -10,15 +12,4 @@ int verify_privileges(void)
 	}
 
 	return 0;
-}
-
-struct request_hdr *get_jool_hdr(struct genl_info *info)
-{
-	/* TODO validate length? */
-	return info->userhdr;
-}
-
-void *get_jool_payload(struct genl_info *info)
-{
-	return nla_data(info->attrs[ATTR_DATA]);
 }

@@ -1,9 +1,12 @@
 #ifndef __NL_EAM_H__
 #define __NL_EAM_H__
 
+#include <linux/skbuff.h>
 #include <net/genetlink.h>
-#include "xlator.h"
 
-int handle_eamt_config(struct xlator *jool, struct genl_info *info);
+int handle_eamt_foreach(struct sk_buff *skb, struct genl_info *info);
+int handle_eamt_add(struct sk_buff *skb, struct genl_info *info);
+int handle_eamt_rm(struct sk_buff *skb, struct genl_info *info);
+int handle_eamt_flush(struct sk_buff *skb, struct genl_info *info);
 
 #endif

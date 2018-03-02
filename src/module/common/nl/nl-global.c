@@ -10,29 +10,42 @@
 #include "nat64/bib/db.h"
 #include "siit/eam.h"
 
-static int handle_global_display(struct xlator *jool, struct genl_info *info)
+int handle_global_display(struct xlator *jool, struct genl_info *info)
 {
+	struct jnl_packet pkt;
 	struct globals clone;
+	int error;
 
 	log_debug("Returning 'Global' options.");
 
 	memcpy(&clone, &jool->global->cfg, sizeof(clone));
 	prepare_config_for_userspace(&clone);
-	return jnl_respond_struct(info, &clone, sizeof(clone));
+
+	error = jnl_init_pkt(info, nla_total_size(sizeof(clone)), &pkt);
+	if (error)
+		return error;
+
+	error = nla_put(pkt.skb, JNLA_GLOBALS, sizeof(clone), &clone);
+	if (WARN(error, "Bug: Reserved room for globals struct was not enough")) {
+		jnl_destroy_pkt(&pkt);
+		return jnl_respond_error(info, error);
+	}
+
+	return jnl_respond_pkt(info, &pkt);
 }
 
 static char *get_instance_name(struct genl_info *info)
 {
 	struct nlattr *name;
 
-	name = info->attrs[ATTR_INSTANCE_NAME];
+	name = info->attrs[JNLA_INSTANCE_NAME];
 	if (WARN(!name, "The request lacks an instance name attribute despite validations."))
 		return NULL;
 
 	return nla_data(name);
 }
 
-static int handle_global_update(struct xlator *jool, struct genl_info *info)
+int handle_global_update(struct xlator *jool, struct genl_info *info)
 {
 	struct request_global_update *request = get_jool_payload(info);
 	struct global_field *field;
@@ -41,7 +54,7 @@ static int handle_global_update(struct xlator *jool, struct genl_info *info)
 	char *name;
 
 	if (verify_privileges())
-		return jnl_respond(info, -EPERM);
+		return jnl_respond_error(info, -EPERM);
 
 	log_debug("Updating 'Global' options.");
 
@@ -90,7 +103,7 @@ static int handle_global_update(struct xlator *jool, struct genl_info *info)
 	/* Get a clone of the current config. */
 	cfg = config_init(jool->global->cfg.xlator_type);
 	if (!cfg)
-		return jnl_respond(info, -ENOMEM);
+		return jnl_respond_error(info, -ENOMEM);
 	memcpy(&cfg, &jool->global->cfg, sizeof(cfg));
 
 	/* Get the current metadata for the field we want to edit. */
@@ -98,16 +111,16 @@ static int handle_global_update(struct xlator *jool, struct genl_info *info)
 
 	if (request->type >= field_count) {
 		log_err("Request type index %u is out of bounds.", request->type);
-		return jnl_respond(info, -EINVAL);
+		return jnl_respond_error(info, -EINVAL);
 	}
 
 	field = &field[request->type];
 
-	if (nla_len(info->attrs[ATTR_DATA]) != sizeof(*request) + field->type->size) {
+	if (nla_len(info->attrs[JNLA_GLOBALS]) != sizeof(*request) + field->type->size) {
 		log_err("Invalid field size. Field %s (type %s) expects %zu bytes, %zu received.",
 				field->name, field->type->name, field->type->size,
 				nla_len(info->attrs[ATTR_DATA]) - sizeof(*request));
-		return jnl_respond(info, -EINVAL);
+		return jnl_respond_error(info, -EINVAL);
 	}
 
 	/*
@@ -128,21 +141,6 @@ static int handle_global_update(struct xlator *jool, struct genl_info *info)
 	/* Replace the device's official translator with the "jool" clone. */
 	name = get_instance_name(info);
 	if (!name)
-		return jnl_respond(info, -EINVAL);
-	return jnl_respond(info, xlator_replace(name, jool));
-}
-
-int handle_global_config(struct xlator *jool, struct genl_info *info)
-{
-	struct request_hdr *hdr = get_jool_hdr(info);
-
-	switch (be16_to_cpu(hdr->operation)) {
-	case OP_FOREACH:
-		return handle_global_display(jool, info);
-	case OP_UPDATE:
-		return handle_global_update(jool, info);
-	}
-
-	log_err("Unknown operation: %u", be16_to_cpu(hdr->operation));
-	return jnl_respond(info, -EINVAL);
+		return jnl_respond_error(info, -EINVAL);
+	return jnl_respond_error(info, xlator_replace(name, jool));
 }

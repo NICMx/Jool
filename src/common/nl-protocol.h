@@ -15,72 +15,65 @@
 #include <string.h>
 #endif
 
+#include "constants.h"
 #include "types.h"
 #include "xlat.h"
 
-/** cuz sizeof(bool) is implementation-defined. */
-typedef __u8 config_bool;
-
 #define GNL_JOOL_FAMILY_NAME "Jool"
-#define GNL_JOOLD_MULTICAST_GRP_NAME "joold"
 
-/* TODO not being used in userspace. Why? */
-enum genl_mc_group_ids {
-	JOOLD_MC_ID = (1 << 0),
-};
+typedef enum jool_genl_cmd {
+	JGNC_INSTANCE_ADD,
+	JGNC_INSTANCE_RM,
 
-enum genl_commands {
-	JOOL_COMMAND,
-};
+	JGNC_EAMT_FOREACH,
+	JGNC_EAMT_ADD,
+	JGNC_EAMT_RM,
+	JGNC_EAMT_FLUSH,
 
-enum attributes {
-	ATTR_DUMMY,
-	ATTR_INSTANCE_NAME,
-	ATTR_DATA,
-	__ATTR_MAX,
-};
+	JGNC_POOL4_FOREACH,
+	JGNC_POOL4_ADD,
+	JGNC_POOL4_RM,
+	JGNC_POOL4_FLUSH,
 
-enum config_mode {
-	/** The current message is talking about global configuration values. */
-	MODE_GLOBAL = (1 << 0),
-	/** The current message is talking about the IPv4 pool. */
-	MODE_POOL4 = (1 << 2),
-	/** The current message is talking about the EAMT. */
-	MODE_EAMT = (1 << 6),
-	/** The current message is talking about the Binding Info Bases. */
-	MODE_BIB = (1 << 3),
-	/** The current message is talking about the session tables. */
-	MODE_SESSION = (1 << 4),
-	/** The current message is talking about the JSON configuration file */
-	MODE_PARSE_FILE = (1 << 9),
-	/** The current message is talking about Jool translation instances.*/
-	MODE_INSTANCE = (1 << 10),
-};
+	JGNC_BIB_FOREACH,
+	JGNC_BIB_ADD,
+	JGNC_BIB_RM,
 
-enum config_operation {
-	/** The userspace app wants to print the stuff being requested. */
-	OP_FOREACH = (1 << 0),
-	/**
-	 * The userspace app wants to add an element to the table being
-	 * requested.
-	 */
-	OP_ADD = (1 << 3),
-	/** The userspace app wants to edit some value. */
-	OP_UPDATE = (1 << 2),
-	/**
-	 * The userspace app wants to delete an element from the table being
-	 * requested.
-	 */
-	OP_REMOVE = (1 << 4),
-	/** The userspace app wants to clear some table. */
-	OP_FLUSH = (1 << 5),
-	/** The userspace app wants us to shout something somewhere. */
-	OP_ADVERTISE = (1 << 6),
-	/** The userspace app wants to test something. */
-	OP_TEST = (1 << 7),
-	/** Somebody is acknowledging reception of a previous message. */
-	OP_ACK = (1 << 8),
-};
+	JGNC_SESSION_FOREACH,
+} jool_genl_cmd;
+
+typedef enum jool_nlattr {
+	JNLA_DUMMY,
+
+	JNLA_ERROR_MSG,
+
+	JNLA_EAM,
+	JNLA_POOL4_ENTRY,
+	JNLA_BIB_ENTRY,
+	JNLA_SESSION_ENTRY,
+
+	JNLA_SADDR4, /* "Source ipv4 ADDRess" */
+	JNLA_SADDR6, /* "Source ipv6 ADDRess" */
+	JNLA_SPORT4, /* "Source ipv4 PORT" */
+	JNLA_SPORT6, /* "Source ipv6 PORT" */
+	JNLA_PREFIX6ADDR,
+	JNLA_PREFIX6LEN,
+	JNLA_PREFIX4ADDR,
+	JNLA_PREFIX4LEN,
+	JNLA_L4PROTO,
+	JNLA_STATIC,
+	JNLA_MARK,
+	JNLA_ITERATIONS,
+	JNLA_ITERATION_FLAGS,
+	JNLA_QUICK,
+	JNLA_FORCE,
+	JNLA_TCP_STATE,
+	JNLA_DYING_TIME,
+	JNLA_INSTANCE_NAME,
+	JNLA_INSTANCE_TYPE,
+
+	__JNLA_MAX,
+} jool_nlattr;
 
 enum parse_section {
 	SEC_GLOBAL = (1 << 0),
@@ -90,104 +83,6 @@ enum parse_section {
 	SEC_EAMT = (1 << 4),
 	/* TODO change the datatype to __u8? */
 	SEC_INIT = (1 << 8),
-};
-
-/**
- * Prefix to all user-to-kernel messages.
- * Indicates what the rest of the message contains.
- */
-struct request_hdr {
-	/** Protocol magic header (always "jool"). */
-	__u8 magic[4];
-	/**
-	 * 'u'nicast or 'm'ulticast. Only userspace joold needs it, so most of
-	 * the time this field is ignored.
-	 *
-	 * This exists because I haven't found a way for joold to tell whether a
-	 * kernel packet is a multicast request or a unicast response.
-	 * TODO (fine) Find a way to do that?
-	 */
-	__u8 castness;
-
-	/**
-	 * http://www.catb.org/esr/structure-packing/
-	 * Explicit unused space for future functionality and to ensure
-	 * sizeof(struct request_hdr) is a power of 2.
-	 */
-	__u8 slop[3];
-
-	/** Jool's version. */
-	__be32 version;
-	/** See "enum config_mode". */
-	__be16 mode;
-	/** See "enum config_operation". */
-	__be16 operation;
-};
-
-/** TODO eventually merge this with the jnl_* functions? */
-static inline void init_request_hdr(struct request_hdr *hdr,
-		enum config_mode mode,
-		enum config_operation operation)
-{
-	hdr->magic[0] = 'j';
-	hdr->magic[1] = 'o';
-	hdr->magic[2] = 'o';
-	hdr->magic[3] = 'l';
-	hdr->castness = 'u';
-	memset(hdr->slop, 0, sizeof(hdr->slop));
-	hdr->version = htonl(xlat_version());
-	hdr->mode = htons(mode);
-	hdr->operation = htons(operation);
-}
-
-static inline int validate_magic(struct request_hdr *hdr, char *sender)
-{
-	if (hdr->magic[0] != 'j' || hdr->magic[1] != 'o')
-		goto fail;
-	if (hdr->magic[2] != 'o' || hdr->magic[3] != 'l')
-		goto fail;
-	return 0;
-
-fail:
-	/* Well, the sender does not understand the protocol. */
-	log_err("The %s sent a message that lacks the Jool magic text.",
-			sender);
-	return -EINVAL;
-}
-
-static inline int validate_version(struct request_hdr *hdr,
-		char *sender, char *receiver)
-{
-	__u32 hdr_version = ntohl(hdr->version);
-
-	if (xlat_version() == hdr_version)
-		return 0;
-
-	log_err("Version mismatch. The %s's version is %u.%u.%u.%u,\n"
-			"but the %s is %u.%u.%u.%u.\n"
-			"Please update the %s.",
-			sender,
-			hdr_version >> 24, (hdr_version >> 16) & 0xFFU,
-			(hdr_version >> 8) & 0xFFU, hdr_version & 0xFFU,
-			receiver,
-			JOOL_VERSION_MAJOR, JOOL_VERSION_MINOR,
-			JOOL_VERSION_REV, JOOL_VERSION_DEV,
-			(xlat_version() > hdr_version) ? sender : receiver);
-	return -EINVAL;
-}
-
-struct response_hdr {
-	__u16 error_code;
-	config_bool pending_data;
-};
-
-struct request_instance_add {
-	__u8 type;
-	char name[IFNAMSIZ];
-};
-
-struct request_instance_rm {
-	char name[IFNAMSIZ];
 };
 
 enum iteration_flags {
@@ -209,6 +104,24 @@ enum iteration_flags {
 	ITERATIONS_INFINITE = (1 << 2),
 };
 
+typedef enum jnlmsghdr_flags {
+	MF = (1 << 0),
+} jnlmsghdr_flags;
+
+/**
+ * Note: This name is kind of cluttery, but it follows common kernel
+ * nomenclature: iphdr, tcphdr, nlmsghdr, genlmsghdr, etc.
+ */
+struct jnlmsghdr {
+	/** Always zero on requests, response status on responses */
+	__u32 error;
+	/** See jnlmsghdr_flags */
+	__u32 flags;
+};
+
+/** Please always use this instead of sizeof(struct jnlmsghdr). */
+#define JNL_HDR_LEN NLMSG_ALIGN(sizeof(struct jnlmsghdr))
+
 struct pool4_entry_usr {
 	__u32 mark;
 	/**
@@ -217,117 +130,8 @@ struct pool4_entry_usr {
 	 */
 	__u32 iterations;
 	__u8 flags;
-	__u8 proto;
+	l4_protocol proto;
 	struct ipv4_range range;
-};
-
-struct request_pool4_foreach {
-	__u8 proto;
-	config_bool offset_set;
-	struct pool4_sample offset;
-};
-
-struct request_pool4_add {
-	struct pool4_entry_usr entry;
-};
-
-struct request_pool4_update {
-	__u32 mark;
-	__u32 iterations;
-	__u8 flags;
-	__u8 l4_proto;
-};
-
-struct request_pool4_rm {
-	struct pool4_entry_usr entry;
-	/**
-	 * Whether the address's BIB entries and sessions should be
-	 * cleared too (false) or not (true).
-	 */
-	config_bool quick;
-};
-
-struct request_pool4_flush {
-	/**
-	 * Whether the BIB and the sessions tables should also be
-	 * cleared (false) or not (true).
-	 */
-	config_bool quick;
-};
-
-struct request_eamt_foreach {
-	config_bool prefix4_set;
-	struct ipv4_prefix prefix4;
-};
-
-struct request_eamt_add {
-	struct ipv6_prefix prefix6;
-	struct ipv4_prefix prefix4;
-	config_bool force;
-};
-
-struct request_eamt_rm {
-	config_bool prefix6_set;
-	struct ipv6_prefix prefix6;
-	config_bool prefix4_set;
-	struct ipv4_prefix prefix4;
-};
-
-struct request_bib_foreach {
-	/** Table the userspace app wants to display. See enum l4_protocol. */
-	__u8 l4_proto;
-	config_bool addr4_set;
-	/**
-	 * Address the userspace app received in the last chunk.
-	 * Iteration should contiue from here.
-	 */
-	struct ipv4_transport_addr addr4;
-};
-
-struct request_bib_add {
-	/** Table the userspace app wants to edit. See enum l4_protocol. */
-	__u8 l4_proto;
-	/**
-	 * The IPv6 transport address of the entry the user
-	 * wants to add.
-	 */
-	struct ipv6_transport_addr addr6;
-	/**
-	 * The IPv4 transport address of the entry the user
-	 * wants to add.
-	 */
-	struct ipv4_transport_addr addr4;
-};
-
-struct request_bib_rm {
-	/** Table the userspace app wants to edit. See enum l4_protocol. */
-	__u8 l4_proto;
-	/* Is the value if "addr6" set? */
-	config_bool addr6_set;
-	/**
-	 * The IPv6 transport address of the entry the user
-	 * wants to remove.
-	 */
-	struct ipv6_transport_addr addr6;
-	/* Is the value if "addr4" set? */
-	config_bool addr4_set;
-	/**
-	 * The IPv4 transport address of the entry the user
-	 * wants to remove.
-	 */
-	struct ipv4_transport_addr addr4;
-};
-
-struct request_session_foreach {
-	/** Table the userspace app wants to display. See enum l4_protocol. */
-	__u8 l4_proto;
-	/** Is offset set? */
-	config_bool offset_set;
-	/**
-	 * Connection the userspace app received in the last
-	 * chunk. Iteration should continue from here.
-	 */
-	struct taddr4_tuple offset;
 };
 
 /**
@@ -341,8 +145,8 @@ struct request_session_foreach {
 struct bib_entry_usr {
 	struct ipv4_transport_addr addr4;
 	struct ipv6_transport_addr addr6;
-	__u8 l4_proto;
-	config_bool is_static;
+	l4_protocol proto;
+	bool is_static;
 };
 
 /**
@@ -359,7 +163,7 @@ struct session_entry_usr {
 	struct ipv4_transport_addr src4;
 	struct ipv4_transport_addr dst4;
 	__u64 dying_time;
-	__u8 state;
+	tcp_state state;
 };
 
 /**
@@ -378,6 +182,8 @@ enum f_args {
 	F_ARGS_DST_ADDR = (1 << 1),
 	F_ARGS_DST_PORT = (1 << 0),
 };
+
+typedef __u8 config_bool;
 
 struct config_prefix6 {
 	/** Meat. */

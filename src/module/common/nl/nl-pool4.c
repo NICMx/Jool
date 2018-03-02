@@ -5,46 +5,63 @@
 #include "nat64/pool4/db.h"
 #include "nat64/bib/db.h"
 
-static int pool4_to_usr(struct pool4_sample *sample, void *arg)
+static int pool4_entry_to_userspace(struct pool4_sample *sample, void *skb)
 {
-	return jnlbuffer_write(arg, sample, sizeof(*sample));
+	struct nlattr *pool4_attr;
+
+	pool4_attr = nla_nest_start(skb, JNLA_POOL4_ENTRY);
+	if (!pool4_attr)
+		return 1;
+
+	/*
+	 * No need to waste room with the L4 protocol;
+	 * all the entries of the packet share the same protocol.
+	 */
+	if (nla_put_be32(skb, JNLA_MARK, cpu_to_be32(sample->mark))
+			|| nla_put_be32(skb, JNLA_ITERATIONS, cpu_to_be32(sample->iterations))
+			|| nla_put_u8(skb, JNLA_ITERATION_FLAGS, sample->iterations_flags)
+			|| jnla_put_addr4(skb, &sample->range.addr)
+			|| jnla_put_port(skb, sample->range.ports.min)
+			|| jnla_put_port(skb, sample->range.ports.max)) {
+		nla_nest_cancel(skb, pool4_attr);
+		return 1;
+	}
+
+	nla_nest_end(skb, pool4_attr);
+	return 0;
 }
 
-static int handle_pool4_foreach(struct pool4 *pool, struct genl_info *info,
+int handle_pool4_foreach(struct pool4 *pool, struct genl_info *info,
 		struct request_pool4_foreach *request)
 {
-	struct jnl_buffer buffer;
-	struct pool4_sample *offset = NULL;
+	struct jnl_packet pkt;
 	int error;
 
 	log_debug("Sending pool4 to userspace.");
 
-	error = jnlbuffer_init(&buffer, info, nlbuffer_response_max_size());
+	error = jnl_init_pkt(info, JNL_MAX_PAYLOAD, &pkt);
 	if (error)
-		return jnl_respond(info, error);
-
-	if (request->offset_set)
-		offset = &request->offset;
+		return jnl_respond_error(info, error);
 
 	error = pool4db_foreach_sample(pool, request->proto,
-			pool4_to_usr, &buffer, offset);
-	jnlbuffer_set_pending_data(&buffer, error > 0);
-	error = (error >= 0)
-			? jnlbuffer_send(&buffer, info)
-			: jnl_respond(info, error);
+			pool4_entry_to_userspace, pkt.skb,
+			request->offset_set ? &request->offset : NULL);
+	if (error < 0) {
+		jnl_destroy_pkt(&pkt);
+		return jnl_respond_error(info, error);
+	}
 
-	jnlbuffer_free(&buffer);
-	return error;
+	return jnl_respond_pkt(info, &pkt);
 }
 
-static int handle_pool4_add(struct pool4 *pool, struct genl_info *info,
+int handle_pool4_add(struct pool4 *pool, struct genl_info *info,
 		struct request_pool4_add *request)
 {
 	if (verify_privileges())
-		return jnl_respond(info, -EPERM);
+		return jnl_respond_error(info, -EPERM);
 
 	log_debug("Adding elements to pool4.");
-	return jnl_respond(info, pool4db_add(pool, &request->entry));
+	return jnl_respond_error(info, pool4db_add(pool, &request->entry));
 }
 
 /*
@@ -59,13 +76,13 @@ static int handle_pool4_update(struct pool4 *pool, struct genl_info *info,
 }
 */
 
-static int handle_pool4_rm(struct xlator *jool, struct genl_info *info,
+int handle_pool4_rm(struct xlator *jool, struct genl_info *info,
 		struct request_pool4_rm *request)
 {
 	int error;
 
 	if (verify_privileges())
-		return jnl_respond(info, -EPERM);
+		return jnl_respond_error(info, -EPERM);
 
 	log_debug("Removing elements from pool4.");
 
@@ -76,14 +93,14 @@ static int handle_pool4_rm(struct xlator *jool, struct genl_info *info,
 				&request->entry.range);
 	}
 
-	return jnl_respond(info, error);
+	return jnl_respond_error(info, error);
 }
 
-static int handle_pool4_flush(struct xlator *jool, struct genl_info *info,
+int handle_pool4_flush(struct xlator *jool, struct genl_info *info,
 		struct request_pool4_flush *request)
 {
 	if (verify_privileges())
-		return jnl_respond(info, -EPERM);
+		return jnl_respond_error(info, -EPERM);
 
 	log_debug("Flushing pool4.");
 
@@ -97,29 +114,5 @@ static int handle_pool4_flush(struct xlator *jool, struct genl_info *info,
 		bib_flush(jool->bib);
 	}
 
-	return jnl_respond(info, 0);
-}
-
-int handle_pool4_config(struct xlator *jool, struct genl_info *info)
-{
-	struct request_hdr *hdr = get_jool_hdr(info);
-	void *payload = get_jool_payload(info);
-
-	switch (be16_to_cpu(hdr->operation)) {
-	case OP_FOREACH:
-		return handle_pool4_foreach(jool->pool4, info, payload);
-	case OP_ADD:
-		return handle_pool4_add(jool->pool4, info, payload);
-	/*
-	case OP_UPDATE:
-		return handle_pool4_update(jool->pool4, info, payload);
-	 */
-	case OP_REMOVE:
-		return handle_pool4_rm(jool, info, payload);
-	case OP_FLUSH:
-		return handle_pool4_flush(jool, info, payload);
-	}
-
-	log_err("Unknown operation: %u", be16_to_cpu(hdr->operation));
-	return jnl_respond(info, -EINVAL);
+	return jnl_respond_error(info, 0);
 }

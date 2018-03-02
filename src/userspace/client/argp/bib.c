@@ -27,7 +27,7 @@ static struct wargp_option display_opts[] = {
 static int print_entry(struct bib_entry_usr *entry, void *args)
 {
 	struct display_args *dargs = args;
-	l4_protocol proto = entry->l4_proto;
+	l4_protocol proto = entry->proto;
 
 	if (dargs->csv.value) {
 		printf("%s,", l4proto_to_string(proto));
