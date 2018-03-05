@@ -32,10 +32,13 @@
 #define NPD_SPORT6 [JNLA_SPORT6] = NPP_PORT
 #define NPD_SPORT4 [JNLA_SPORT4] = NPP_PORT
 
-#define NPD_PREFIXADDR6 [JNLA_PREFIXADDR6] = NPP_ADDR6
-#define NPD_PREFIXLEN6 [JNLA_PREFIXLEN6] = NPP_PREFIXLEN
-#define NPD_PREFIXADDR4 [JNLA_PREFIXADDR4] = NPP_ADDR4
-#define NPD_PREFIXLEN4 [JNLA_PREFIXLEN4] = NPP_PREFIXLEN
+#define NPD_MINPORT [JNLA_MINPORT] = NPP_PORT
+#define NPD_MAXPORT [JNLA_MAXPORT] = NPP_PORT
+
+#define NPD_PREFIXADDR6 [JNLA_PREFIX6ADDR] = NPP_ADDR6
+#define NPD_PREFIXLEN6 [JNLA_PREFIX6LEN] = NPP_PREFIXLEN
+#define NPD_PREFIXADDR4 [JNLA_PREFIX4ADDR] = NPP_ADDR4
+#define NPD_PREFIXLEN4 [JNLA_PREFIX4LEN] = NPP_PREFIXLEN
 
 #define NPD_MARK [JNLA_MARK] = { .type = NLA_U32 }
 #define NPD_FORCE [JNLA_FORCE] = NPP_BOOL
@@ -45,10 +48,15 @@
 
 /* Common nla_policy groups */
 
+#define NPG_PREFIX6 NPD_PREFIXADDR6, NPD_PREFIXLEN6
+#define NPG_PREFIX4 NPD_PREFIXADDR4, NPD_PREFIXLEN4
 #define NPG_SRCT6 NPD_SADDR6, NPD_SPORT6 /* "SouRCe Transport address ipv6" */
 #define NPG_SRCT4 NPD_SADDR4, NPD_SPORT4 /* "SouRCe Transport address ipv4" */
+
+#define NPG_EAMT_ENTRY NPG_PREFIX6, NPG_PREFIX4
 #define NPG_BIB_ENTRY NPD_L4PROTO, NPG_SRCT6, NPG_SRCT4
-#define NPG_POOL4_ENTRY NPD_L4PROTO, NPG_SRCT4
+#define NPG_POOL4_ENTRY NPD_MARK, NPD_ITERATIONS, NPD_ITERATION_FLAGS, \
+		NPD_L4PROTO, NPG_PREFIX4, NPD_MINPORT, NPD_MAXPORT
 
 static struct nla_policy policy_instance_add[__JNLA_MAX] = {
 	NPD_INSTANCE_NAME,
@@ -58,66 +66,48 @@ static struct nla_policy policy_instance_add[__JNLA_MAX] = {
 static struct nla_policy policy_instance_rm[__JNLA_MAX] = {
 	NPD_INSTANCE_NAME,
 };
-/*
+
 static struct nla_policy policy_eamt_foreach[__JNLA_MAX] = {
-	INSTANCE_NAME,
-	ADDR4,
-	PREFIXLEN,
+	NPD_INSTANCE_NAME,
+	NPG_PREFIX4,
 };
 
 static struct nla_policy policy_eamt_add[__JNLA_MAX] = {
-	INSTANCE_NAME,
-	ADDR6,
-	ADDR4,
-	PREFIXLEN,
-	FORCE,
+	NPD_INSTANCE_NAME,
+	NPG_EAMT_ENTRY,
+	NPD_FORCE,
 };
 
 static struct nla_policy policy_eamt_rm[__JNLA_MAX] = {
-	INSTANCE_NAME,
-	ADDR6,
-	ADDR4,
-	PREFIXLEN,
+	NPD_INSTANCE_NAME,
+	NPG_EAMT_ENTRY,
 };
 
 static struct nla_policy policy_eamt_flush[__JNLA_MAX] = {
-	INSTANCE_NAME,
+	NPD_INSTANCE_NAME,
 };
 
 static struct nla_policy policy_pool4_foreach[__JNLA_MAX] = {
-	INSTANCE_NAME,
-	MARK,
-	L4PROTO,
-	ADDR4,
-	PORT,
+	NPD_INSTANCE_NAME,
+	NPD_L4PROTO,
 };
 
 static struct nla_policy policy_pool4_add[__JNLA_MAX] = {
-	INSTANCE_NAME,
-	MARK,
-	ITERATIONS,
-	ITERATION_FLAGS,
-	L4PROTO,
-	ADDR4,
-	PREFIXLEN,
-	PORT,
+	NPD_INSTANCE_NAME,
+	NPG_POOL4_ENTRY,
 };
 
 static struct nla_policy policy_pool4_rm[__JNLA_MAX] = {
-	INSTANCE_NAME,
-	MARK,
-	L4PROTO,
-	ADDR4,
-	PREFIXLEN,
-	PORT,
-	QUICK,
+	NPD_INSTANCE_NAME,
+	NPG_POOL4_ENTRY,
+	NPD_QUICK,
 };
 
 static struct nla_policy policy_pool4_flush[__JNLA_MAX] = {
-	INSTANCE_NAME,
-	QUICK,
+	NPD_INSTANCE_NAME,
+	NPD_QUICK,
 };
-*/
+
 static struct nla_policy policy_bib_foreach[__JNLA_MAX] = {
 	NPD_INSTANCE_NAME,
 	NPD_L4PROTO,
@@ -133,14 +123,12 @@ static struct nla_policy policy_bib_rm[__JNLA_MAX] = {
 	NPD_INSTANCE_NAME,
 	NPG_BIB_ENTRY,
 };
-/*
+
 static struct nla_policy policy_session_foreach[__JNLA_MAX] = {
-	INSTANCE_NAME,
-	L4PROTO,
-	ADDR4,
-	PORT,
+	NPD_INSTANCE_NAME,
+	NPD_L4PROTO,
 };
-*/
+
 static struct genl_ops jool_genl_ops[] = {
 	{
 		.cmd = JGNC_INSTANCE_ADD,
@@ -151,7 +139,7 @@ static struct genl_ops jool_genl_ops[] = {
 		.policy = policy_instance_rm,
 		.doit = handle_instance_rm,
 	}, {
-	/*	.cmd = JGNC_EAMT_FOREACH,
+		.cmd = JGNC_EAMT_FOREACH,
 		.policy = policy_eamt_foreach,
 		.doit = handle_eamt_foreach,
 	}, {
@@ -182,7 +170,7 @@ static struct genl_ops jool_genl_ops[] = {
 		.cmd = JGNC_POOL4_FLUSH,
 		.policy = policy_pool4_flush,
 		.doit = handle_pool4_flush,
-	}, {*/
+	}, {
 		.cmd = JGNC_BIB_FOREACH,
 		.policy = policy_bib_foreach,
 		.doit = handle_bib_foreach,
@@ -194,10 +182,10 @@ static struct genl_ops jool_genl_ops[] = {
 		.cmd = JGNC_BIB_RM,
 		.policy = policy_bib_rm,
 		.doit = handle_bib_rm,
-	/*}, {
+	}, {
 		.cmd = JGNC_SESSION_FOREACH,
 		.policy = policy_session_foreach,
-		.doit = handle_session_foreach,*/
+		.doit = handle_session_foreach,
 	}
 };
 

@@ -92,6 +92,8 @@ void errormsg_add(int len, const char *fmt, ...)
 /**
  * Note: @result_len includes the NULL chara.
  *
+ * If there is no message, will return success and @result will be unmodified.
+ *
  * This function destroys the stored strings; it can only be called once per
  * full error message.
  */
@@ -109,6 +111,9 @@ int errormsg_get(char **result, size_t *result_len)
 	total_len = 1; /* Null chara */
 	list_for_each_entry(node, &db, prev_next)
 		total_len += strlen(node->msg);
+
+	if (total_len == 1)
+		return 0;
 
 	msg = __wkmalloc("Error msg out", total_len, GFP_KERNEL);
 	if (!msg) {

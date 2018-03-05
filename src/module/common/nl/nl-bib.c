@@ -20,6 +20,7 @@ static int bib_entry_to_userspace(struct bib_entry *entry, bool is_static,
 	 */
 	if (jnla_put_src_taddr6(skb, &entry->ipv6)
 			|| jnla_put_src_taddr4(skb, &entry->ipv4)
+			|| jnla_put_l4proto(skb, entry->l4_proto)
 			|| jnla_put_bool(skb, JNLA_STATIC, is_static)) {
 		nla_nest_cancel(skb, bib_attr);
 		return 1;
@@ -50,12 +51,11 @@ static int __handle_bib_foreach(struct xlator *jool, struct genl_info *info)
 
 	offset_ptr = jnla_get_src_taddr4(info, &offset) ? &offset : NULL;
 
-	/* Create response packet */
+	/* Create and populate response packet */
 	error = jnl_init_pkt(info, JNL_MAX_PAYLOAD, &pkt);
 	if (error)
 		return jnl_respond_error(info, error);
 
-	/* Populate response packet with BIB entries */
 	func.cb = bib_entry_to_userspace;
 	func.arg = pkt.skb;
 	error = bib_foreach(jool->bib, proto, &func, offset_ptr);
@@ -85,10 +85,8 @@ static int __handle_bib_add(struct xlator *jool, struct genl_info *info)
 	log_debug("Adding BIB entry.");
 
 	/* Get request params */
-	if (!jnla_get_l4proto(info, &new.l4_proto)) {
-		log_err("The l4-protocol argument is mandatory.");
-		return jnl_respond_error(info, -EINVAL);
-	}
+	if (!jnla_get_l4proto(info, &new.l4_proto))
+		new.l4_proto = L4PROTO_TCP;
 	if (!jnla_get_src_taddr4(info, &new.ipv4)) {
 		log_err("The IPv4 transport address argument is mandatory.");
 		return jnl_respond_error(info, -EINVAL);
@@ -99,14 +97,12 @@ static int __handle_bib_add(struct xlator *jool, struct genl_info *info)
 	}
 
 	/* Add entry */
-	/*
 	if (!pool4db_contains(jool->pool4, new.l4_proto, &new.ipv4)) {
 		log_err("The transport address '%pI4#%u' does not belong to pool4.",
 				&new.ipv4.l3, new.ipv4.l4);
 		log_err("Please add it there first.");
 		return jnl_respond_error(info, -EINVAL);
 	}
-	*/
 
 	error = bib_add_static(jool->bib, &new, &old);
 	switch (error) {

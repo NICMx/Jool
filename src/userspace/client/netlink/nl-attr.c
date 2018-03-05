@@ -41,9 +41,45 @@ int jnla_get_addr4(struct nlattr *attr, jool_nlattr type, struct in_addr *addr)
 	return 0;
 }
 
+int jnla_get_u64(struct nlattr *attr, jool_nlattr type, __u64 *result)
+{
+	if (validate_attr(attr, type, sizeof(*result)))
+		return -EINVAL;
+
+	*result = nla_get_u64(attr);
+	return 0;
+}
+
+int jnla_get_u32(struct nlattr *attr, jool_nlattr type, __u32 *result)
+{
+	if (validate_attr(attr, type, sizeof(*result)))
+		return -EINVAL;
+
+	*result = nla_get_u32(attr);
+	return 0;
+}
+
+int jnla_get_u8(struct nlattr *attr, jool_nlattr type, __u8 *result)
+{
+	if (validate_attr(attr, type, sizeof(*result)))
+		return -EINVAL;
+
+	*result = nla_get_u8(attr);
+	return 0;
+}
+
+int jnla_get_l4proto(struct nlattr *attr, l4_protocol *result)
+{
+	if (validate_attr(attr, JNLA_L4PROTO, sizeof(__u8)))
+		return -EINVAL;
+
+	*result = nla_get_u8(attr);
+	return 0;
+}
+
 int jnla_get_port(struct nlattr *attr, jool_nlattr type, __u16 *result)
 {
-	if (validate_attr(attr, type, sizeof(__u16)))
+	if (validate_attr(attr, type, sizeof(*result)))
 		return -EINVAL;
 
 	*result = nla_get_u16(attr);
@@ -56,6 +92,17 @@ int jnla_get_bool(struct nlattr *attr, jool_nlattr type, bool *result)
 		return -EINVAL;
 
 	*result = !!nla_get_u8(attr);
+	return 0;
+}
+
+int jnla_get_tcp_state(struct nlattr *attr, tcp_state *result)
+{
+	__u8 tmp;
+
+	if (validate_attr(attr, JNLA_TCP_STATE, sizeof(tmp)))
+		return -EINVAL;
+
+	*result = nla_get_u8(attr);
 	return 0;
 }
 
@@ -113,7 +160,24 @@ int jnla_put_src_taddr4(struct nl_msg *msg, struct ipv4_transport_addr *addr)
 			|| jnla_put_port(msg, JNLA_SPORT4, addr->l4);
 }
 
-int jnla_put_proto(struct nl_msg *request, l4_protocol proto)
+int jnla_put_prefix6(struct nl_msg *msg, struct ipv6_prefix *prefix)
+{
+	return jnla_put_addr6(msg, JNLA_PREFIX6ADDR, &prefix->addr)
+			|| nla_put_u8(msg, JNLA_PREFIX6LEN, prefix->len);
+}
+
+int jnla_put_prefix4(struct nl_msg *msg, struct ipv4_prefix *prefix)
+{
+	return jnla_put_addr4(msg, JNLA_PREFIX4ADDR, &prefix->addr)
+			|| nla_put_u8(msg, JNLA_PREFIX4LEN, prefix->len);
+}
+
+int jnla_put_l4proto(struct nl_msg *request, l4_protocol proto)
 {
 	return nla_put_u8(request, JNLA_L4PROTO, proto);
+}
+
+int jnla_put_bool(struct nl_msg *request, jool_nlattr type, bool value)
+{
+	return nla_put_u8(request, type, value);
 }

@@ -43,13 +43,13 @@ static void display_sample_csv(struct pool4_sample *sample,
 			sample->range.ports.min,
 			sample->range.ports.max);
 
-	if (sample->iterations_flags & ITERATIONS_INFINITE) {
+	if (sample->iteration_flags & ITERATIONS_INFINITE) {
 		printf("infinite,");
 	} else {
 		printf("%u,", sample->iterations);
 	}
 
-	printf("%u\n", !(sample->iterations_flags & ITERATIONS_AUTO));
+	printf("%u\n", !(sample->iteration_flags & ITERATIONS_AUTO));
 }
 
 static bool print_common_values(struct pool4_sample *sample,
@@ -79,12 +79,12 @@ static void display_sample_normal(struct pool4_sample *sample,
 		printf("| %10u | %5s | ",
 				sample->mark,
 				l4proto_to_string(sample->proto));
-		if (sample->iterations_flags & ITERATIONS_INFINITE)
+		if (sample->iteration_flags & ITERATIONS_INFINITE)
 			printf("%10s", "Infinite");
 		else
 			printf("%10u", sample->iterations);
 		printf(" (%5s) | %15s | %5u-%5u |\n",
-				(sample->iterations_flags & ITERATIONS_AUTO)
+				(sample->iteration_flags & ITERATIONS_AUTO)
 						? "auto"
 						: "fixed",
 				inet_ntoa(sample->range.addr),
@@ -167,6 +167,7 @@ struct parsing_entry {
 
 struct add_args {
 	struct parsing_entry entry;
+	struct wargp_l4proto proto;
 	bool force;
 };
 
@@ -189,12 +190,9 @@ struct wargp_type wt_pool4_entry = {
 };
 
 static struct wargp_option add_opts[] = {
-	WARGP_TCP(struct add_args, entry.meat.proto,
-			"Add the entry to the TCP table"),
-	WARGP_UDP(struct add_args, entry.meat.proto,
-			"Add the entry to the UDP table"),
-	WARGP_ICMP(struct add_args, entry.meat.proto,
-			"Add the entry to the ICMP table"),
+	WARGP_TCP(struct add_args, proto, "Add the entry to the TCP table"),
+	WARGP_UDP(struct add_args, proto, "Add the entry to the UDP table"),
+	WARGP_ICMP(struct add_args, proto, "Add the entry to the ICMP table"),
 	{
 		.name = "mark",
 		.key = ARGP_MARK,
@@ -235,6 +233,7 @@ int handle_pool4_add(char *instance, int argc, char **argv)
 	if (!aargs.entry.prefix4_set) {
 		struct requirement reqs[] = {
 			{ aargs.entry.prefix4_set, "an IPv4 prefix or address" },
+			{ 0 },
 		};
 		return requirement_print(reqs);
 	}
@@ -252,6 +251,7 @@ int handle_pool4_add(char *instance, int argc, char **argv)
 		return -E2BIG;
 	}
 
+	aargs.entry.meat.proto = aargs.proto.proto;
 	return pool4_add(instance, &aargs.entry.meat);
 }
 
@@ -260,22 +260,18 @@ void print_pool4_add_opts(char *prefix)
 	print_wargp_opts(add_opts, prefix);
 }
 
-//int handle_pool4_update(int argc, char **argv)
-//{
-//
-//}
-
 struct rm_args {
 	struct parsing_entry entry;
+	struct wargp_l4proto proto;
 	bool quick;
 };
 
 static struct wargp_option remove_opts[] = {
-	WARGP_TCP(struct add_args, entry.meat.proto,
+	WARGP_TCP(struct add_args, proto,
 			"Remove the entry from the TCP table"),
-	WARGP_UDP(struct add_args, entry.meat.proto,
+	WARGP_UDP(struct add_args, proto,
 			"Remove the entry from the UDP table"),
-	WARGP_ICMP(struct add_args, entry.meat.proto,
+	WARGP_ICMP(struct add_args, proto,
 			"Remove the entry from the ICMP table"),
 	{
 		.name = "mark",
@@ -311,10 +307,12 @@ int handle_pool4_remove(char *instance, int argc, char **argv)
 	if (!rargs.entry.prefix4_set) {
 		struct requirement reqs[] = {
 			{ rargs.entry.prefix4_set, "an IPv4 prefix or address" },
+			{ 0 },
 		};
 		return requirement_print(reqs);
 	}
 
+	rargs.entry.meat.proto = rargs.proto.proto;
 	return pool4_rm(instance, &rargs.entry.meat, rargs.quick);
 }
 

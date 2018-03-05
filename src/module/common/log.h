@@ -17,6 +17,11 @@
  */
 #define log_debug(text, ...) pr_debug("%s: " text "\n", xlat_get_name(), ##__VA_ARGS__)
 /**
+ * Debug messages that I don't want to keep in the long run.
+ * This only exists so they are easy to find and delete.
+ */
+#define log_tmp(text, ...) log_debug(text, ##__VA_ARGS__)
+/**
  * Responses to events triggered by the user, which might not show signs of life
  * elsehow.
  */

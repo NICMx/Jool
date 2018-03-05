@@ -230,7 +230,6 @@ static struct pool4_table *create_table(struct pool4_range *range)
 struct pool4 *pool4db_init(void)
 {
 	struct pool4 *result;
-	struct pool4_entry_usr entry;
 
 	result = wkmalloc(struct pool4, GFP_KERNEL);
 	if (!result)
@@ -244,20 +243,6 @@ struct pool4 *pool4db_init(void)
 	result->tree_addr.icmp = RB_ROOT;
 	spin_lock_init(&result->lock);
 	kref_init(&result->refcounter);
-
-	/* TODO testing values. Remove. */
-	entry.range.prefix.addr.s_addr = cpu_to_be32(0xc0000201);
-	entry.range.prefix.len = 32;
-	entry.range.ports.min = 1001;
-	entry.range.ports.max = 2000;
-	entry.proto = L4PROTO_ICMP;
-	entry.flags = ITERATIONS_AUTO;
-	entry.iterations = 0;
-	entry.mark = 0;
-	if (pool4db_add(result, &entry)) {
-		wkfree(struct pool4, result);
-		return NULL;
-	}
 
 	return result;
 }
@@ -561,7 +546,7 @@ trainwreck:
 	 * So let's just let the user know that the database was left in an
 	 * inconsistent state and have them restart from scratch.
 	 */
-	log_err("pool4 was probably left in an inconsistent state because of a memory allocation failure or a bug. Please remove NAT64 Jool from your kernel.");
+	log_err("pool4 was probably left in an inconsistent state because of a memory allocation failure or a bug. Please remove Jool from your kernel.");
 	return error;
 }
 
@@ -719,7 +704,7 @@ static int remove_range(struct rb_root *tree, struct pool4_table *table,
 
 	if (table->sample_count == 0) {
 		rb_erase(&table->tree_hook, tree);
-		wkfree(struct pool4_table, table);
+		__wkfree("pool4table", table);
 	}
 
 	return error;
@@ -956,7 +941,7 @@ static void __update_sample(struct pool4_sample *sample,
 		const struct pool4_table *table)
 {
 	sample->mark = table->mark;
-	sample->iterations_flags = table->max_iterations_flags;
+	sample->iteration_flags = table->max_iterations_flags;
 	sample->iterations = compute_max_iterations(table);
 }
 

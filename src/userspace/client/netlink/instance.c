@@ -7,7 +7,8 @@
 static int validate_instance_name(char *name)
 {
 	if (strlen(name) > IFNAMSIZ - 1) {
-		log_err("Instance name is too long. (Max:%u)", IFNAMSIZ - 1);
+		log_err("Instance name '%s' is too long. (Max:%u)", name,
+				IFNAMSIZ - 1);
 		return -EINVAL;
 	}
 

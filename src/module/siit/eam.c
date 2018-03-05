@@ -251,10 +251,22 @@ static int get_exact6(struct eam_table *eamt, struct ipv6_prefix *prefix,
 	int error;
 
 	error = rtrie_get(&eamt->trie6, &key, eam);
-	if (error)
+	if (error == -ESRCH)
+		goto not_found;
+	if (error) {
+		log_err("Bug: rtrie_get() threw unknown error code %d.", error);
 		return error;
+	}
 
-	return (eam->prefix6.len == prefix->len) ? 0 : -ESRCH;
+	if (eam->prefix6.len != prefix->len)
+		goto not_found;
+
+	return 0;
+
+not_found:
+	log_err("There's no entry that matches %pI6c/%u.", &prefix->addr,
+			prefix->len);
+	return -ESRCH;
 }
 
 static int get_exact4(struct eam_table *eamt, struct ipv4_prefix *prefix,
@@ -264,10 +276,22 @@ static int get_exact4(struct eam_table *eamt, struct ipv4_prefix *prefix,
 	int error;
 
 	error = rtrie_get(&eamt->trie4, &key, eam);
-	if (error)
+	if (error == -ESRCH)
+		goto not_found;
+	if (error) {
+		log_err("Bug: rtrie_get() threw unknown error code %d.", error);
 		return error;
+	}
 
-	return (eam->prefix4.len == prefix->len) ? 0 : -ESRCH;
+	if (eam->prefix4.len != prefix->len)
+		goto not_found;
+
+	return 0;
+
+not_found:
+	log_err("There's no entry that matches %pI4/%u.", &prefix->addr,
+			prefix->len);
+	return -ESRCH;
 }
 
 static int __rm(struct eam_table *eamt,
@@ -332,8 +356,10 @@ int eamt_rm(struct eam_table *eamt,
 {
 	int error;
 
-	if (WARN(!prefix6 && !prefix4, "Prefixes can't both be NULL"))
+	if (!prefix6 && !prefix4) {
+		log_err("An EAMT remove requires at least one prefix.");
 		return -EINVAL;
+	}
 
 	mutex_lock(&lock);
 	error = eamt_rm_lockless(eamt, prefix6, prefix4);

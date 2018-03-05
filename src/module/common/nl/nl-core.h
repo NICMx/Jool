@@ -13,10 +13,13 @@ typedef int (*jnl_handler)(struct xlator *jool, struct genl_info *info);
 int jnl_wrap_instance(struct genl_info *info, jnl_handler handler);
 
 
+int jnla_put_l4proto(struct sk_buff *skb, l4_protocol proto);
 int jnla_put_addr6(struct sk_buff *skb, jool_nlattr type, struct in6_addr *addr);
 int jnla_put_addr4(struct sk_buff *skb, jool_nlattr type, struct in_addr *addr);
 int jnla_put_src_taddr6(struct sk_buff *skb, struct ipv6_transport_addr *addr);
 int jnla_put_src_taddr4(struct sk_buff *skb, struct ipv4_transport_addr *addr);
+int jnla_put_dst_taddr6(struct sk_buff *skb, struct ipv6_transport_addr *addr);
+int jnla_put_dst_taddr4(struct sk_buff *skb, struct ipv4_transport_addr *addr);
 int jnla_put_port(struct sk_buff *skb, jool_nlattr type, __u16 port);
 int jnla_put_prefix6(struct sk_buff *skb, struct ipv6_prefix *addr);
 int jnla_put_prefix4(struct sk_buff *skb, struct ipv4_prefix *addr);
@@ -28,6 +31,16 @@ bool jnla_get_src_taddr6(struct genl_info *info,
 		struct ipv6_transport_addr *result);
 bool jnla_get_src_taddr4(struct genl_info *info,
 		struct ipv4_transport_addr *result);
+bool jnla_get_dst_taddr6(struct genl_info *info,
+		struct ipv6_transport_addr *result);
+bool jnla_get_dst_taddr4(struct genl_info *info,
+		struct ipv4_transport_addr *result);
+bool jnla_get_port(struct genl_info *info, jool_nlattr type, __u16 *result);
+bool jnla_get_prefix6(struct genl_info *info, struct ipv6_prefix *result);
+bool jnla_get_prefix4(struct genl_info *info, struct ipv4_prefix *result);
+bool jnla_get_u32(struct genl_info *info, jool_nlattr type, __u32 *result);
+bool jnla_get_u8(struct genl_info *info, jool_nlattr type, __u8 *result);
+bool jnla_get_bool(struct genl_info *info, jool_nlattr type, bool *result);
 
 
 struct jnl_packet {

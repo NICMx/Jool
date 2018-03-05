@@ -56,10 +56,19 @@ typedef enum jool_nlattr {
 	JNLA_SADDR6, /* "Source ipv6 ADDRess" */
 	JNLA_SPORT4, /* "Source ipv4 PORT" */
 	JNLA_SPORT6, /* "Source ipv6 PORT" */
+	JNLA_DADDR4, /* "Destination ipv4 ADDRess" */
+	JNLA_DADDR6, /* "Destination ipv6 ADDRess" */
+	JNLA_DPORT4, /* "Destination ipv4 PORT" */
+	JNLA_DPORT6, /* "Destination ipv6 PORT" */
+
+	JNLA_MINPORT,
+	JNLA_MAXPORT,
+
 	JNLA_PREFIX6ADDR,
 	JNLA_PREFIX6LEN,
 	JNLA_PREFIX4ADDR,
 	JNLA_PREFIX4LEN,
+
 	JNLA_L4PROTO,
 	JNLA_STATIC,
 	JNLA_MARK,
@@ -162,6 +171,7 @@ struct session_entry_usr {
 	struct ipv6_transport_addr dst6;
 	struct ipv4_transport_addr src4;
 	struct ipv4_transport_addr dst4;
+	l4_protocol proto;
 	__u64 dying_time;
 	tcp_state state;
 };

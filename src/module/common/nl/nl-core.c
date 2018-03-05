@@ -41,6 +41,11 @@ int jnl_wrap_instance(struct genl_info *info, jnl_handler handler)
 	return error;
 }
 
+int jnla_put_l4proto(struct sk_buff *skb, l4_protocol proto)
+{
+	return nla_put_u8(skb, JNLA_L4PROTO, proto);
+}
+
 int jnla_put_addr6(struct sk_buff *skb, jool_nlattr type, struct in6_addr *addr)
 {
 	return nla_put(skb, type, sizeof(*addr), addr);
@@ -51,31 +56,57 @@ int jnla_put_addr4(struct sk_buff *skb, jool_nlattr type, struct in_addr *addr)
 	return nla_put(skb, type, sizeof(*addr), addr);
 }
 
-int jnla_put_src_taddr6(struct sk_buff *skb, struct ipv6_transport_addr *addr)
+static int jnla_put_taddr6(struct sk_buff *skb,
+		struct ipv6_transport_addr *addr,
+		jool_nlattr addrtype,
+		jool_nlattr porttype)
 {
 	int error;
 
-	error = jnla_put_addr6(skb, JNLA_SADDR6, &addr->l3);
+	error = jnla_put_addr6(skb, addrtype, &addr->l3);
 	if (error)
 		return error;
 
-	return jnla_put_port(skb, JNLA_SPORT6, addr->l4);
+	return jnla_put_port(skb, porttype, addr->l4);
+}
+
+static int jnla_put_taddr4(struct sk_buff *skb,
+		struct ipv4_transport_addr *addr,
+		jool_nlattr addrtype,
+		jool_nlattr porttype)
+{
+	int error;
+
+	error = jnla_put_addr4(skb, addrtype, &addr->l3);
+	if (error)
+		return error;
+
+	return jnla_put_port(skb, porttype, addr->l4);
+}
+
+int jnla_put_src_taddr6(struct sk_buff *skb, struct ipv6_transport_addr *addr)
+{
+	return jnla_put_taddr6(skb, addr, JNLA_SADDR6, JNLA_SPORT6);
 }
 
 int jnla_put_src_taddr4(struct sk_buff *skb, struct ipv4_transport_addr *addr)
 {
-	int error;
+	return jnla_put_taddr4(skb, addr, JNLA_SADDR4, JNLA_SPORT4);
+}
 
-	error = jnla_put_addr4(skb, JNLA_SADDR4, &addr->l3);
-	if (error)
-		return error;
+int jnla_put_dst_taddr6(struct sk_buff *skb, struct ipv6_transport_addr *addr)
+{
+	return jnla_put_taddr6(skb, addr, JNLA_DADDR6, JNLA_DPORT6);
+}
 
-	return jnla_put_port(skb, JNLA_SPORT4, addr->l4);
+int jnla_put_dst_taddr4(struct sk_buff *skb, struct ipv4_transport_addr *addr)
+{
+	return jnla_put_taddr4(skb, addr, JNLA_DADDR4, JNLA_DPORT4);
 }
 
 int jnla_put_port(struct sk_buff *skb, jool_nlattr type, __u16 port)
 {
-	return nla_put_be16(skb, type, cpu_to_be16(port));
+	return nla_put_u16(skb, type, port);
 }
 
 static int nla_put_prefixlen(struct sk_buff *skb, jool_nlattr type, __u8 len)
@@ -124,13 +155,12 @@ bool jnla_get_instance_name(struct genl_info *info, char **result)
 
 bool jnla_get_l4proto(struct genl_info *info, l4_protocol *result)
 {
-	struct nlattr *attr;
+	__u8 tmp;
 
-	attr = info->attrs[JNLA_L4PROTO];
-	if (!attr)
+	if (!jnla_get_u8(info, JNLA_L4PROTO, &tmp))
 		return false;
 
-	*result = nla_get_u8(attr);
+	*result = tmp;
 	return true;
 }
 
@@ -161,8 +191,43 @@ static bool nla_get_addr4(struct genl_info *info, jool_nlattr type,
 	return true;
 }
 
-static bool nla_get_port(struct genl_info *info, jool_nlattr type,
-		__u16 *result)
+bool jnla_get_src_taddr6(struct genl_info *info,
+		struct ipv6_transport_addr *result)
+{
+	if (!nla_get_addr6(info, JNLA_SADDR6, &result->l3))
+		return false;
+
+	return jnla_get_port(info, JNLA_SPORT6, &result->l4);
+}
+
+bool jnla_get_src_taddr4(struct genl_info *info,
+		struct ipv4_transport_addr *result)
+{
+	if (!nla_get_addr4(info, JNLA_SADDR4, &result->l3))
+		return false;
+
+	return jnla_get_port(info, JNLA_SPORT4, &result->l4);
+}
+
+bool jnla_get_dst_taddr6(struct genl_info *info,
+		struct ipv6_transport_addr *result)
+{
+	if (!nla_get_addr6(info, JNLA_DADDR6, &result->l3))
+		return false;
+
+	return jnla_get_port(info, JNLA_DPORT6, &result->l4);
+}
+
+bool jnla_get_dst_taddr4(struct genl_info *info,
+		struct ipv4_transport_addr *result)
+{
+	if (!nla_get_addr4(info, JNLA_DADDR4, &result->l3))
+		return false;
+
+	return jnla_get_port(info, JNLA_DPORT4, &result->l4);
+}
+
+bool jnla_get_port(struct genl_info *info, jool_nlattr type, __u16 *result)
 {
 	struct nlattr *attr;
 
@@ -174,22 +239,68 @@ static bool nla_get_port(struct genl_info *info, jool_nlattr type,
 	return true;
 }
 
-bool jnla_get_src_taddr6(struct genl_info *info,
-		struct ipv6_transport_addr *result)
+static bool jnla_get_prefixlen(struct genl_info *info, jool_nlattr type,
+		__u8 *result)
 {
-	if (!nla_get_addr6(info, JNLA_SADDR6, &result->l3))
+	struct nlattr *attr;
+
+	attr = info->attrs[type];
+	if (!attr)
 		return false;
 
-	return nla_get_port(info, JNLA_SPORT6, &result->l4);
+	*result = nla_get_u8(attr);
+	return true;
 }
 
-bool jnla_get_src_taddr4(struct genl_info *info,
-		struct ipv4_transport_addr *result)
+bool jnla_get_prefix6(struct genl_info *info, struct ipv6_prefix *result)
 {
-	if (!nla_get_addr4(info, JNLA_SADDR4, &result->l3))
+	if (!nla_get_addr6(info, JNLA_PREFIX6ADDR, &result->addr))
 		return false;
 
-	return nla_get_port(info, JNLA_SPORT4, &result->l4);
+	return jnla_get_prefixlen(info, JNLA_PREFIX6LEN, &result->len);
+}
+
+bool jnla_get_prefix4(struct genl_info *info, struct ipv4_prefix *result)
+{
+	if (!nla_get_addr4(info, JNLA_PREFIX4ADDR, &result->addr))
+		return false;
+
+	return jnla_get_prefixlen(info, JNLA_PREFIX4LEN, &result->len);
+}
+
+bool jnla_get_u32(struct genl_info *info, jool_nlattr type, __u32 *result)
+{
+	struct nlattr *attr;
+
+	attr = info->attrs[type];
+	if (!attr)
+		return false;
+
+	*result = nla_get_u32(attr);
+	return true;
+}
+
+bool jnla_get_u8(struct genl_info *info, jool_nlattr type, __u8 *result)
+{
+	struct nlattr *attr;
+
+	attr = info->attrs[type];
+	if (!attr)
+		return false;
+
+	*result = nla_get_u8(attr);
+	return true;
+}
+
+bool jnla_get_bool(struct genl_info *info, jool_nlattr type, bool *result)
+{
+	__u8 tmp;
+
+	if (!jnla_get_u8(info, type, &tmp))
+		return false;
+
+	*result = !!tmp;
+	return true;
 }
 
 int jnl_init_pkt(struct genl_info *info, size_t len, struct jnl_packet *pkt)

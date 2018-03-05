@@ -83,7 +83,7 @@ void wkmalloc_rm(const char *name, void *obj)
 	spin_lock_bh(&lock);
 
 	entry = rbtree_find(name, &tree, cmp_kmn, struct kmalloc_entry, hook);
-	if (!WARN(!entry, "Freeing out-of-tree object.")) {
+	if (!WARN(!entry, "Freeing out-of-tree object '%s'.", name)) {
 		if (!WARN(entry->count == 0, "Freeing unallocated object."))
 			entry->count--;
 	}

@@ -54,7 +54,7 @@ struct wargp_l4proto {
 	{ \
 		.name = "tcp", \
 		.key = ARGP_TCP, \
-		.doc = description, \
+		.doc = description " (default)", \
 		.offset = offsetof(container, field), \
 		.type = &wt_l4proto, \
 	}

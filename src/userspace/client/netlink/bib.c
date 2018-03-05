@@ -1,21 +1,15 @@
 #include "bib.h"
 
-#include <netlink/attr.h>
-#include <netlink/msg.h>
-#include <netlink/genl/genl.h>
 #include "netlink.h"
 #include "netlink/nl-attr.h"
 
 struct foreach_args {
 	bib_foreach_cb cb;
 	void *args;
-
-	bool addr4_set;
-	struct ipv4_transport_addr addr4;
 };
 
 static int build_foreach_request(struct nl_msg **request, char *instance,
-		l4_protocol proto, struct foreach_args *args)
+		l4_protocol proto, struct foreach_args *fargs)
 {
 	struct nl_msg *msg;
 	int error;
@@ -24,32 +18,23 @@ static int build_foreach_request(struct nl_msg **request, char *instance,
 	if (error)
 		return error;
 
-	error = jnla_put_proto(msg, proto);
-	if (error)
-		goto fail;
-	if (args->addr4_set) {
-		error = jnla_put_src_taddr4(msg, &args->addr4);
-		if (error)
-			goto fail;
+	error = jnla_put_l4proto(msg, proto);
+	if (error) {
+		nlmsg_free(msg);
+		return error;
 	}
 
 	*request = msg;
 	return 0;
-
-fail:
-	nlmsg_free(msg);
-	return error;
 }
 
 static int handle_foreach_response(struct nl_msg *msg, void *args)
 {
 	struct nlattr *attr, *subattr;
 	int rem, subrem;
-	struct foreach_args *dargs = args;
+	struct foreach_args *fargs = args;
 	struct bib_entry_usr entry;
 	int error;
-
-	/* TODO missing protocol */
 
 	jnla_foreach_attr(attr, msg, rem) {
 		if (attr->nla_type != JNLA_BIB_ENTRY) {
@@ -71,10 +56,13 @@ static int handle_foreach_response(struct nl_msg *msg, void *args)
 		if (jnla_get_port(subattr, JNLA_SPORT4, &entry.addr4.l4))
 			continue;
 		subattr = jnla_next(subattr, &subrem);
+		if (jnla_get_l4proto(subattr, &entry.proto))
+			continue;
+		subattr = jnla_next(subattr, &subrem);
 		if (jnla_get_bool(subattr, JNLA_STATIC, &entry.is_static))
 			continue;
 
-		error = dargs->cb(&entry, dargs->args);
+		error = fargs->cb(&entry, fargs->args);
 		if (error)
 			return error;
 	}
@@ -87,7 +75,7 @@ int bib_foreach(char *instance, l4_protocol proto,
 		bib_foreach_cb cb, void *args)
 {
 	struct jnl_socket jsocket;
-	struct foreach_args dargs;
+	struct foreach_args fargs;
 	struct nl_msg *request;
 	int error;
 
@@ -95,20 +83,18 @@ int bib_foreach(char *instance, l4_protocol proto,
 	if (error)
 		return error;
 
-	dargs.cb = cb;
-	dargs.args = args;
-	dargs.addr4_set = false;
-	memset(&dargs.addr4, 0, sizeof(dargs.addr4));
+	fargs.cb = cb;
+	fargs.args = args;
 
 	do {
-		error = build_foreach_request(&request, instance, proto, &dargs);
+		error = build_foreach_request(&request, instance, proto, &fargs);
 		if (error)
 			break;
 
 		error = jnl_request(&jsocket, request, handle_foreach_response,
-				&dargs);
+				&fargs);
 
-	} while (!error && dargs.addr4_set);
+	} while (0);
 
 	jnl_destroy_socket(&jsocket);
 	return error;
@@ -126,7 +112,7 @@ int bib_add(char *instance,
 	if (error)
 		return error;
 
-	error = jnla_put_proto(request, proto)
+	error = jnla_put_l4proto(request, proto)
 			|| jnla_put_src_taddr6(request, a6)
 			|| jnla_put_src_taddr4(request, a4);
 	if (error) {
@@ -154,7 +140,7 @@ int bib_rm(char *instance,
 	if (error)
 		return error;
 
-	error = jnla_put_proto(request, proto)
+	error = jnla_put_l4proto(request, proto)
 			|| (a6 && jnla_put_src_taddr6(request, a6))
 			|| (a4 && jnla_put_src_taddr4(request, a4));
 	if (error) {

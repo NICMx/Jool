@@ -105,7 +105,7 @@ static struct wargp_option add_opts[] = {
 	{
 		.name = "force",
 		.key = ARGP_FORCE,
-		.doc = "Ignore warnings.",
+		.doc = "Ignore warnings",
 		.offset = offsetof(struct add_args, force),
 		.type = &wt_bool,
 	}, {
@@ -180,8 +180,8 @@ int handle_eamt_remove(char *instance, int argc, char **argv)
 	}
 
 	return eamt_rm(instance,
-			&rargs.entry.value.prefix6,
-			&rargs.entry.value.prefix4);
+			rargs.entry.prefix6_set ? &rargs.entry.value.prefix6 : NULL,
+			rargs.entry.prefix4_set ? &rargs.entry.value.prefix4 : NULL);
 }
 
 void print_eamt_remove_opts(char *prefix)

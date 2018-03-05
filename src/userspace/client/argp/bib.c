@@ -36,7 +36,8 @@ static int print_entry(struct bib_entry_usr *entry, void *args)
 		print_addr4(&entry->addr4, true, ",", proto);
 		printf(",%u\n", entry->is_static);
 	} else {
-		printf("[%s] ", entry->is_static ? "Static" : "Dynamic");
+		printf("[%s %s] ", entry->is_static ? "Static" : "Dynamic",
+				l4proto_to_string(proto));
 		print_addr4(&entry->addr4, true, "#", proto);
 		printf(" - ");
 		print_addr6(&entry->addr6, dargs->numeric.value, "#", proto);
@@ -126,10 +127,8 @@ int handle_bib_add(char *instance, int argc, char **argv)
 	if (error)
 		return error;
 
-	if (!aargs.taddrs.addr6_set || !aargs.taddrs.addr4_set
-			|| !aargs.proto.set) {
+	if (!aargs.taddrs.addr6_set || !aargs.taddrs.addr4_set) {
 		struct requirement reqs[] = {
-			{ aargs.proto.set, "a protocol" },
 			{ aargs.taddrs.addr6_set, "an IPv6 transport address" },
 			{ aargs.taddrs.addr4_set, "an IPv4 transport address" },
 			{ 0 },
@@ -174,10 +173,8 @@ int handle_bib_remove(char *instance, int argc, char **argv)
 	if (error)
 		return error;
 
-	if ((!rargs.taddrs.addr6_set && !rargs.taddrs.addr4_set)
-			|| !rargs.proto.set) {
+	if (!rargs.taddrs.addr6_set && !rargs.taddrs.addr4_set) {
 		struct requirement reqs[] = {
-			{ rargs.proto.set, "a protocol" },
 			{ rargs.taddrs.addr6_set || rargs.taddrs.addr4_set,
 					"at least one transport address" },
 			{ 0 },
@@ -185,7 +182,9 @@ int handle_bib_remove(char *instance, int argc, char **argv)
 		return requirement_print(reqs);
 	}
 
-	return bib_rm(instance, &rargs.taddrs.addr6, &rargs.taddrs.addr4,
+	return bib_rm(instance,
+			rargs.taddrs.addr6_set ? &rargs.taddrs.addr6 : NULL,
+			rargs.taddrs.addr4_set ? &rargs.taddrs.addr4 : NULL,
 			rargs.proto.proto);
 }
 

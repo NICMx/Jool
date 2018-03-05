@@ -28,7 +28,7 @@
 
 /**
  * BTW: "cmd" (command) refers to the "jool" command. Eg.
- * `jool pool4 add 192.0.2.1`.
+ * `jool jool0 pool4 add 192.0.2.1`.
  */
 struct cmd_option {
 	/**
@@ -79,6 +79,7 @@ struct cmd_option global_ops[] = {
 		},
 		{ 0 },
 };
+*/
 
 struct cmd_option eamt_ops[] = {
 		{
@@ -121,7 +122,6 @@ struct cmd_option pool4_ops[] = {
 		},
 		{ 0 },
 };
-*/
 
 struct cmd_option bib_ops[] = {
 		{
@@ -140,7 +140,6 @@ struct cmd_option bib_ops[] = {
 		{ 0 },
 };
 
-/*
 struct cmd_option session_ops[] = {
 		{
 			.label = DISPLAY,
@@ -149,7 +148,6 @@ struct cmd_option session_ops[] = {
 		},
 		{ 0 },
 };
-*/
 
 /*
 struct thingy file_ops[] = {
@@ -160,11 +158,11 @@ struct thingy file_ops[] = {
 
 struct cmd_option tree[] = {
 		{ .label = "instance",     .children = instance_ops, },
-/*		{ .label = "global",       .children = global_ops, },
+/*		{ .label = "global",       .children = global_ops, }, */
 		{ .label = "eamt",         .children = eamt_ops, },
 		{ .label = "pool4",        .children = pool4_ops, },
-*/		{ .label = "bib",          .children = bib_ops, },
-/*		{ .label = "session",      .children = session_ops, }, */
+		{ .label = "bib",          .children = bib_ops, },
+		{ .label = "session",      .children = session_ops, },
 		/* { .label = "file",         .children = file_ops, }, */
 		/* TODO autocomplete autocomplete? */
 		{ .label = "autocomplete", .handler  = handle_autocomplete, },
@@ -321,16 +319,8 @@ static int handle_autocomplete(char *junk, int argc, char **argv)
 int main(int argc, char **argv)
 {
 	if (argc == 1) {
-		log_err("Expected instance name or 'instance' keyword as first argument.");
+		log_err("Expected instance name as first argument.");
 		return -EINVAL;
-	}
-
-	if (strcmp(argv[1], "instance") == 0) {
-		/*
-		 * `argc - 1` and `argv + 1` remove the first argument, which is
-		 * the program name.
-		 */
-		return handle(NULL, argc - 1, argv + 1);
 	}
 
 	return handle(argv[1], argc - 2, argv + 2);

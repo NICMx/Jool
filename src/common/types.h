@@ -138,8 +138,8 @@ struct pool4_range {
 struct pool4_sample {
 	__u32 mark;
 	__u32 iterations;
-	__u8 iterations_flags;
-	__u8 proto;
+	__u8 iteration_flags;
+	l4_protocol proto;
 	struct pool4_range range;
 };
 
