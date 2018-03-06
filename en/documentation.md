@@ -18,6 +18,8 @@ See [RFC 6586](https://tools.ietf.org/html/rfc6586) for deployment experiences u
 
 ## Installation
 
+> Note: If you're running OpenWRT/LEDE, ignore the installation links below completely and read [this](openwrt.html) instead.
+
 1. [Kernel modules](install-mod.html)
 2. [Userspace applications](install-usr.html)
 
