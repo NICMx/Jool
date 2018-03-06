@@ -102,15 +102,45 @@ user@T:~# ethtool --offload eth1 lro off
 
 This is the insertion syntax:
 
-	user@T:~# /sbin/modprobe [--first-time] jool_siit \
-			[pool6=<IPv6 prefix>] \
-			[blacklist=<IPv4 prefixes>] \
-			[pool6791=<IPv4 prefixes>] \
-			[disabled]
+<div class="distro-menu">
+	<span class="distro-selector" onclick="showDistro(this);">Most Distros</span>
+	<span class="distro-selector" onclick="showDistro(this);">OpenWRT</span>
+</div>
+
+<!-- Most Distros -->
+{% highlight bash %}
+user@T:~# /sbin/modprobe [--first-time] jool_siit \
+		[pool6=<IPv6 prefix>] \
+		[blacklist=<IPv4 prefixes>] \
+		[pool6791=<IPv4 prefixes>] \
+		[disabled]
+{% endhighlight %}
+
+<!-- OpenWRT -->
+{% highlight bash %}
+user@T:~# insmod jool_siit \
+		[pool6=<IPv6 prefix>] \
+		[blacklist=<IPv4 prefixes>] \
+		[pool6791=<IPv4 prefixes>] \
+		[disabled]
+{% endhighlight %}
 
 See [Kernel Module Options](modprobe-siit.html) for a description of each argument. The following suffices for our sample network:
 
-	user@T:~# /sbin/modprobe --first-time jool_siit pool6=2001:db8::/96
+<div class="distro-menu">
+	<span class="distro-selector" onclick="showDistro(this);">Most Distros</span>
+	<span class="distro-selector" onclick="showDistro(this);">OpenWRT</span>
+</div>
+
+<!-- Most Distros -->
+{% highlight bash %}
+user@T:~# /sbin/modprobe --first-time jool_siit pool6=2001:db8::/96
+{% endhighlight %}
+
+<!-- OpenWRT -->
+{% highlight bash %}
+user@T:~# insmod jool_siit pool6=2001:db8::/96
+{% endhighlight %}
 
 That means the IPv6 representation of any IPv4 address is going to be `2001:db8::<IPv4 address>`. See below for examples.
 
@@ -160,8 +190,19 @@ Then maybe another one in _C_ and request from _W_:
 
 Revert the modprobe using the `-r` flag to shut down Jool:
 
+<div class="distro-menu">
+	<span class="distro-selector" onclick="showDistro(this);">Most Distros</span>
+	<span class="distro-selector" onclick="showDistro(this);">OpenWRT</span>
+</div>
+
+<!-- Most Distros -->
 {% highlight bash %}
 user@T:~# /sbin/modprobe -r jool_siit
+{% endhighlight %}
+
+<!-- OpenWRT -->
+{% highlight bash %}
+user@T:~# rmmod jool_siit
 {% endhighlight %}
 
 ## Afterwords

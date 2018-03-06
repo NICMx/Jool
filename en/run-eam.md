@@ -74,8 +74,22 @@ Remember you might want to cross-ping _T_ vs everything before continuing.
 
 ## Jool
 
+<div class="distro-menu">
+	<span class="distro-selector" onclick="showDistro(this);">Most Distros</span>
+	<span class="distro-selector" onclick="showDistro(this);">OpenWRT</span>
+</div>
+
+<!-- Most Distros -->
 {% highlight bash %}
 user@T:~# /sbin/modprobe --first-time jool_siit disabled
+user@T:~# jool_siit --eamt --add 2001:db8:6::/120 198.51.100.0/24
+user@T:~# jool_siit --eamt --add 2001:db8:4::/120 192.0.2.0/24
+user@T:~# jool_siit --enable
+{% endhighlight %}
+
+<!-- OpenWRT -->
+{% highlight bash %}
+user@T:~# insmod jool_siit disabled
 user@T:~# jool_siit --eamt --add 2001:db8:6::/120 198.51.100.0/24
 user@T:~# jool_siit --eamt --add 2001:db8:4::/120 192.0.2.0/24
 user@T:~# jool_siit --enable
@@ -133,8 +147,19 @@ Then maybe another one in _B_ and request from _X_:
 
 Same as in the previous walkthrough.
 
+<div class="distro-menu">
+	<span class="distro-selector" onclick="showDistro(this);">Most Distros</span>
+	<span class="distro-selector" onclick="showDistro(this);">OpenWRT</span>
+</div>
+
+<!-- Most Distros -->
 {% highlight bash %}
 user@T:~# /sbin/modprobe -r jool_siit
+{% endhighlight %}
+
+<!-- OpenWRT -->
+{% highlight bash %}
+user@T:~# rmmod jool_siit
 {% endhighlight %}
 
 ## Afterwords

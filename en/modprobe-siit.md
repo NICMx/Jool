@@ -23,20 +23,55 @@ title: Kernel Module Arguments
 
 ## Syntax
 
-	# /sbin/modprobe jool_siit \
-			[pool6=<IPv6 prefix>] \
-			[blacklist=<IPv4 prefixes>] \
-			[pool6791=<IPv4 prefixes>] \
-			[disabled] \
-			[no_instance]
+<div class="distro-menu">
+	<span class="distro-selector" onclick="showDistro(this);">Most Distros</span>
+	<span class="distro-selector" onclick="showDistro(this);">OpenWRT</span>
+</div>
+
+<!-- Most Distros -->
+{% highlight bash %}
+# /sbin/modprobe [--first-time] jool_siit \
+		[pool6=<IPv6 prefix>] \
+		[blacklist=<IPv4 prefixes>] \
+		[pool6791=<IPv4 prefixes>] \
+		[disabled] \
+		[no_instance]
+{% endhighlight %}
+
+<!-- OpenWRT -->
+{% highlight bash %}
+# insmod jool_siit \
+		[pool6=<IPv6 prefix>] \
+		[blacklist=<IPv4 prefixes>] \
+		[pool6791=<IPv4 prefixes>] \
+		[disabled] \
+		[no_instance]
+{% endhighlight %}
 
 ## Example
 
-	# /sbin/modprobe jool_siit \
-			pool6=64:ff9b::/96 \
-			blacklist=192.0.2.0,192.0.2.1/32,192.0.2.4/30,192.0.2.16/28,192.0.2.64/26 \
-			pool6791="203.0.113.0/24, 198.51.100.0/24" \
-			disabled
+<div class="distro-menu">
+	<span class="distro-selector" onclick="showDistro(this);">Most Distros</span>
+	<span class="distro-selector" onclick="showDistro(this);">OpenWRT</span>
+</div>
+
+<!-- Most Distros -->
+{% highlight bash %}
+# /sbin/modprobe [--first-time] jool_siit \
+		pool6=64:ff9b::/96 \
+		blacklist=192.0.2.0,192.0.2.1/32,192.0.2.4/30,192.0.2.16/28,192.0.2.64/26 \
+		pool6791="203.0.113.0/24, 198.51.100.0/24" \
+		disabled
+{% endhighlight %}
+
+<!-- OpenWRT -->
+{% highlight bash %}
+# insmod jool_siit \
+		pool6=64:ff9b::/96 \
+		blacklist=192.0.2.0,192.0.2.1/32,192.0.2.4/30,192.0.2.16/28,192.0.2.64/26 \
+		pool6791="203.0.113.0/24, 198.51.100.0/24" \
+		disabled
+{% endhighlight %}
 
 ## Arguments
 

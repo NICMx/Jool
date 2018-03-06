@@ -79,16 +79,45 @@ Remember you might want to cross-ping _T_ vs everything before continuing.
 
 This is the insertion syntax:
 
-	user@T:~# /sbin/modprobe [--first-time] jool \
-			[pool6=<IPv6 prefix>] \
-			[pool4=<IPv4 prefixes>] \
-			[disabled]
+<div class="distro-menu">
+	<span class="distro-selector" onclick="showDistro(this);">Most Distros</span>
+	<span class="distro-selector" onclick="showDistro(this);">OpenWRT</span>
+</div>
+
+<!-- Most Distros -->
+{% highlight bash %}
+user@T:~# /sbin/modprobe [--first-time] jool \
+		[pool6=<IPv6 prefix>] \
+		[pool4=<IPv4 prefixes>] \
+		[disabled]
+{% endhighlight %}
+
+<!-- OpenWRT -->
+{% highlight bash %}
+user@T:~# insmod jool \
+		[pool6=<IPv6 prefix>] \
+		[pool4=<IPv4 prefixes>] \
+		[disabled]
+{% endhighlight %}
 
 See [Kernel Module Options](modprobe-nat64.html) for a description of each argument.
 
 The result looks like this:
 
-	user@T:~# /sbin/modprobe --first-time jool pool6=64:ff9b::/96
+<div class="distro-menu">
+	<span class="distro-selector" onclick="showDistro(this);">Most Distros</span>
+	<span class="distro-selector" onclick="showDistro(this);">OpenWRT</span>
+</div>
+
+<!-- Most Distros -->
+{% highlight bash %}
+user@T:~# /sbin/modprobe --first-time jool pool6=64:ff9b::/96
+{% endhighlight %}
+
+<!-- OpenWRT -->
+{% highlight bash %}
+user@T:~# insmod jool pool6=64:ff9b::/96
+{% endhighlight %}
 
 Jool will append and remove prefix `64:ff9b::/96`.
 
@@ -125,8 +154,19 @@ rtt min/avg/max/mdev = 1.136/6.528/15.603/5.438 ms
 
 To shut down Jool, revert the modprobe using the `-r` flag:
 
+<div class="distro-menu">
+	<span class="distro-selector" onclick="showDistro(this);">Most Distros</span>
+	<span class="distro-selector" onclick="showDistro(this);">OpenWRT</span>
+</div>
+
+<!-- Most Distros -->
 {% highlight bash %}
 user@T:~# /sbin/modprobe -r jool
+{% endhighlight %}
+
+<!-- OpenWRT -->
+{% highlight bash %}
+user@T:~# rmmod jool
 {% endhighlight %}
 
 ## Afterwords

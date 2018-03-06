@@ -22,18 +22,51 @@ title: Kernel Module Arguments
 
 ## Syntax
 
-	# /sbin/modprobe jool \
-			[pool6=<IPv6 prefix>] \
-			[pool4=<IPv4 prefixes>] \
-			[disabled] \
-			[no_instance]
+<div class="distro-menu">
+	<span class="distro-selector" onclick="showDistro(this);">Most Distros</span>
+	<span class="distro-selector" onclick="showDistro(this);">OpenWRT</span>
+</div>
+
+<!-- Most Distros -->
+{% highlight bash %}
+# /sbin/modprobe [--first-time] jool \
+		[pool6=<IPv6 prefix>] \
+		[pool4=<IPv4 prefixes>] \
+		[disabled] \
+		[no_instance]
+{% endhighlight %}
+
+<!-- OpenWRT -->
+{% highlight bash %}
+# insmod jool \
+		[pool6=<IPv6 prefix>] \
+		[pool4=<IPv4 prefixes>] \
+		[disabled] \
+		[no_instance]
+{% endhighlight %}
 
 ## Example
 
-	# /sbin/modprobe jool \
-			pool6=64:ff9b::/96 \
-			pool4="198.51.100.1, 203.0.113.0/28" \
-			disabled
+<div class="distro-menu">
+	<span class="distro-selector" onclick="showDistro(this);">Most Distros</span>
+	<span class="distro-selector" onclick="showDistro(this);">OpenWRT</span>
+</div>
+
+<!-- Most Distros -->
+{% highlight bash %}
+# /sbin/modprobe [--first-time] jool \
+		pool6=64:ff9b::/96 \
+		pool4="198.51.100.1, 203.0.113.0/28" \
+		disabled
+{% endhighlight %}
+
+<!-- Most Distros -->
+{% highlight bash %}
+# insmod jool \
+		pool6=64:ff9b::/96 \
+		pool4="198.51.100.1, 203.0.113.0/28" \
+		disabled
+{% endhighlight %}
 
 ## Arguments
 
