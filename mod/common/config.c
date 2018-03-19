@@ -1,5 +1,14 @@
 #include "nat64/mod/common/config.h"
 
+#include <linux/version.h>  // linux version code
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 6, 0)
+#if LINUX_VERSION_CODE > KERNEL_VERSION(4, 4, 0)
+
+#include <uapi/linux/pkt_cls.h>
+
+#endif
+#endif
+
 #include <linux/ipv6.h>
 #include <linux/jiffies.h>
 #include "nat64/common/config.h"

@@ -65,6 +65,15 @@
  * @see https://github.com/NICMx/Jool/wiki/nf_defrag_ipv4-and-nf_defrag_ipv6
  */
 
+#include <linux/version.h> // linux version code
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 6, 0)
+#if LINUX_VERSION_CODE > KERNEL_VERSION(4, 4, 0)
+
+#include <uapi/linux/pkt_cls.h>
+
+#endif
+#endif
+
 #include <linux/skbuff.h>
 #include <net/ip.h>
 #include <net/ipv6.h>

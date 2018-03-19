@@ -1,6 +1,15 @@
 #ifndef _JOOL_MOD_ADDRESS_H
 #define _JOOL_MOD_ADDRESS_H
 
+#include <linux/version.h> // linux version code
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 6, 0)
+#if LINUX_VERSION_CODE > KERNEL_VERSION(4, 4, 0)
+
+#include <uapi/linux/pkt_cls.h>
+
+#endif
+#endif
+
 #include <linux/string.h>
 #include <net/ipv6.h>
 #include "nat64/common/types.h"

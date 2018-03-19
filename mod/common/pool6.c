@@ -1,5 +1,14 @@
 #include "nat64/mod/common/pool6.h"
 
+#include <linux/version.h> // linux version code
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 6, 0)
+#if LINUX_VERSION_CODE > KERNEL_VERSION(4, 4, 0)
+
+#include <uapi/linux/pkt_cls.h>
+
+#endif
+#endif
+
 #include <net/ipv6.h>
 #include "nat64/common/constants.h"
 #include "nat64/common/str_utils.h"
