@@ -42,6 +42,7 @@
  * (typically in include/linux/netfilter.h) and add your version of the
  * NF_CALLBACK macro here.
  * Also, kernel headers per version can be found here: http://vault.centos.org/
+ * (http://vault.centos.org/7.x.xxxx/updates/x86_64/Packages/)
  */
 #error "Sorry; this version of RHEL is not supported because it's kind of old."
 
