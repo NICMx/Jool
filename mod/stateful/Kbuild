@@ -1,4 +1,5 @@
-#CC=cgcc
+#CC=cgcc    # More healthy warnings.
+#CC=gcc-4.9 # Needed to cross-compile Jool for an older machine.
 
 ccflags-y := -I$(src)/../../include $(JOOL_FLAGS)
 #ccflags-y += -Wfatal-errors

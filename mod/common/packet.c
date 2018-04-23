@@ -10,6 +10,10 @@
 #include "nat64/mod/common/icmp_wrapper.h"
 #include "nat64/mod/common/stats.h"
 
+/*
+ * Note: Offsets need to be relative to skb->data because that's how
+ * skb_header_pointer() works.
+ */
 struct pkt_metadata {
 	bool has_frag_hdr;
 	/* Offset is from skb->data. Do not use if has_frag_hdr is false. */
@@ -89,10 +93,47 @@ static int fail_if_shared(struct sk_buff *skb)
 	return 0;
 }
 
+/*
+ * Jool doesn't like making assumptions, but it certainly needs to make a few.
+ * One of them is that the skb_network_offset() offset is meant to be relative
+ * to skb->data. Thing is, this should be part of the contract of the function,
+ * but I don't see it set in stone anywhere. (Not even in the "How skbs work"
+ * guide.)
+ *
+ * Now, it's pretty obvious that this is the case for all such skbuff.h
+ * non-paged offsets at present, but I'm keeping my buttcheeks tight in case
+ * they are meant to be relative to a common pivot rather than a specific one.
+ */
+static int fail_if_broken_offset(struct sk_buff *skb)
+{
+	if (WARN(skb_network_offset(skb) != (skb_network_header(skb) - skb->data),
+			"The packet's network header offset is not relative to skb->data.\n"
+			"Translating this packet would break Jool, so dropping."))
+		return -EINVAL;
+
+	return 0;
+}
+
+static int paranoid_validations(struct sk_buff *skb, size_t basic_hdr_size)
+{
+	int error;
+
+	error = fail_if_shared(skb);
+	if (error)
+		return error;
+	error = fail_if_broken_offset(skb);
+	if (error)
+		return error;
+	if (!pskb_may_pull(skb, basic_hdr_size))
+		return -EINVAL;
+
+	return 0;
+}
+
 /**
  * Walks through @skb's headers, collecting data and adding it to @meta.
  *
- * @hdr6_offset number of bytes between skb_network_header(skb) and the IPv6 header.
+ * @hdr6_offset number of bytes between skb->data and the IPv6 header.
  *
  * BTW: You might want to read summarize_skb4() first, since it's a lot simpler.
  */
@@ -113,7 +154,7 @@ static int summarize_skb6(struct sk_buff *skb, unsigned int hdr6_offset, struct 
 	unsigned int offset;
 	bool is_first = true;
 
-	nexthdr = ((struct ipv6hdr *) (skb_network_header(skb) + hdr6_offset))->nexthdr;
+	nexthdr = ((struct ipv6hdr *)(skb->data + hdr6_offset))->nexthdr;
 	offset = hdr6_offset + sizeof(struct ipv6hdr);
 
 	meta->has_frag_hdr = false;
@@ -284,7 +325,7 @@ int pkt_init_ipv6(struct packet *pkt, struct sk_buff *skb)
 	getnstimeofday(&pkt->start_time);
 #endif
 
-	error = fail_if_shared(skb);
+	error = paranoid_validations(skb, sizeof(struct ipv6hdr));
 	if (error)
 		return error;
 
@@ -451,7 +492,7 @@ int pkt_init_ipv4(struct packet *pkt, struct sk_buff *skb)
 	getnstimeofday(&pkt->start_time);
 #endif
 
-	error = fail_if_shared(skb);
+	error = paranoid_validations(skb, sizeof(struct iphdr));
 	if (error)
 		return error;
 
