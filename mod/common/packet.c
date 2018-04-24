@@ -15,9 +15,14 @@
  * skb_header_pointer() works.
  */
 struct pkt_metadata {
+	/*
+	 * Note: The fact that a packet has a fragment header does not imply
+	 * that it is fragmented.
+	 */
 	bool has_frag_hdr;
 	/* Offset is from skb->data. Do not use if has_frag_hdr is false. */
 	unsigned int frag_offset;
+	/* Actual packet protocol; not tuple protocol. */
 	enum l4_protocol l4_proto;
 	/* Offset is from skb->data. */
 	unsigned int l4_offset;
@@ -124,8 +129,10 @@ static int paranoid_validations(struct sk_buff *skb, size_t basic_hdr_size)
 	error = fail_if_broken_offset(skb);
 	if (error)
 		return error;
-	if (!pskb_may_pull(skb, basic_hdr_size))
+	if (!pskb_may_pull(skb, basic_hdr_size)) {
+		log_debug("Could not 'pull' a basic IP header out of the skb.");
 		return -EINVAL;
+	}
 
 	return 0;
 }
@@ -148,13 +155,17 @@ static int summarize_skb6(struct sk_buff *skb, unsigned int hdr6_offset, struct 
 		struct ipv6_opt_hdr *opt;
 		struct frag_hdr *frag;
 		struct tcphdr *tcp;
+		u8 *nexthdr;
 	} ptr;
 
 	u8 nexthdr;
 	unsigned int offset;
 	bool is_first = true;
 
-	nexthdr = ((struct ipv6hdr *)(skb->data + hdr6_offset))->nexthdr;
+	ptr.nexthdr = skb_hdr_ptr(skb, hdr6_offset + offsetof(struct ipv6hdr, nexthdr), nexthdr);
+	if (!ptr.nexthdr)
+		return truncated6(skb, "IPv6 header");
+	nexthdr = *ptr.nexthdr;
 	offset = hdr6_offset + sizeof(struct ipv6hdr);
 
 	meta->has_frag_hdr = false;
@@ -207,7 +218,7 @@ static int summarize_skb6(struct sk_buff *skb, unsigned int hdr6_offset, struct 
 			if (!ptr.opt)
 				return truncated6(skb, "extension header");
 
-			offset += 8 + 8 * ptr.opt->hdrlen;
+			offset += ipv6_optlen(ptr.opt);
 			nexthdr = ptr.opt->nexthdr;
 			break;
 
@@ -222,7 +233,8 @@ static int summarize_skb6(struct sk_buff *skb, unsigned int hdr6_offset, struct 
 	return 0; /* whatever. */
 }
 
-static int validate_inner6(struct sk_buff *skb, struct pkt_metadata *outer_meta)
+static int validate_inner6(struct sk_buff *skb,
+		struct pkt_metadata const *outer_meta)
 {
 	union {
 		struct ipv6hdr ip6;
@@ -272,7 +284,7 @@ static int validate_inner6(struct sk_buff *skb, struct pkt_metadata *outer_meta)
 	return 0;
 }
 
-static int handle_icmp6(struct sk_buff *skb, struct pkt_metadata *meta)
+static int handle_icmp6(struct sk_buff *skb, struct pkt_metadata const *meta)
 {
 	union {
 		struct icmp6hdr icmp;
@@ -307,27 +319,34 @@ static int handle_icmp6(struct sk_buff *skb, struct pkt_metadata *meta)
 	return 0;
 }
 
-/**
- * As a contract, pkt_destroy() doesn't need to be called if this fails.
- * (Just like other init functions.)
- */
 int pkt_init_ipv6(struct packet *pkt, struct sk_buff *skb)
 {
 	struct pkt_metadata meta;
 	int error;
 
 	/*
-	 * Careful in this function and subfunctions. pskb_may_pull() might
-	 * change pointers, so you generally don't want to store them.
+	 * DO NOT, UNDER ANY CIRCUMSTANCES, EXTRACT ANY BYTES FROM THE SKB'S
+	 * DATA AREA DIRECTLY (ie. without using skb_hdr_ptr()) UNTIL YOU KNOW
+	 * IT HAS ALREADY BEEN pskb_may_pull()ED. ASSUME THAT EVEN THE MAIN
+	 * LAYER 3 HEADER CAN BE PAGED.
+	 *
+	 * Also, careful in this function and subfunctions. pskb_may_pull()
+	 * might change pointers, so you generally don't want to store them.
 	 */
 
 #ifdef BENCHMARK
 	getnstimeofday(&pkt->start_time);
 #endif
 
+	log_debug("===============================================");
+
 	error = paranoid_validations(skb, sizeof(struct ipv6hdr));
 	if (error)
 		return error;
+
+	log_debug("Catching IPv6 packet: %pI6c->%pI6c",
+			&ipv6_hdr(skb)->saddr,
+			&ipv6_hdr(skb)->daddr);
 
 	if (skb->len != get_tot_len_ipv6(skb))
 		return inhdr6(skb, "Packet size doesn't match the IPv6 header's payload length field.");
@@ -474,27 +493,34 @@ static int summarize_skb4(struct sk_buff *skb, struct pkt_metadata *meta)
 	return 0;
 }
 
-/**
- * As a contract, pkt_destroy() doesn't need to be called if this fails.
- * (Just like other init functions.)
- */
 int pkt_init_ipv4(struct packet *pkt, struct sk_buff *skb)
 {
 	struct pkt_metadata meta;
 	int error;
 
 	/*
-	 * Careful in this function and subfunctions. pskb_may_pull() might
-	 * change pointers, so you generally don't want to store them.
+	 * DO NOT, UNDER ANY CIRCUMSTANCES, EXTRACT ANY BYTES FROM THE SKB'S
+	 * DATA AREA DIRECTLY (ie. without using skb_hdr_ptr()) UNTIL YOU KNOW
+	 * IT HAS ALREADY BEEN pskb_may_pull()ED. ASSUME THAT EVEN THE MAIN
+	 * LAYER 3 HEADER CAN BE PAGED.
+	 *
+	 * Also, careful in this function and subfunctions. pskb_may_pull()
+	 * might change pointers, so you generally don't want to store them.
 	 */
 
 #ifdef BENCHMARK
 	getnstimeofday(&pkt->start_time);
 #endif
 
+	log_debug("===============================================");
+
 	error = paranoid_validations(skb, sizeof(struct iphdr));
 	if (error)
 		return error;
+
+	log_debug("Catching IPv4 packet: %pI4->%pI4",
+			&ip_hdr(skb)->saddr,
+			&ip_hdr(skb)->daddr);
 
 	error = summarize_skb4(skb, &meta);
 	if (error)
