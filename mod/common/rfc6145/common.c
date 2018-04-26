@@ -148,7 +148,8 @@ static int move_pointers_in(struct packet *pkt, __u8 protocol,
 	if (unlikely(pkt->skb->len - pkt_hdrs_len(pkt) < pkt->skb->data_len))
 		return report_bug247(pkt, protocol);
 
-	skb_pull(pkt->skb, pkt_hdrs_len(pkt));
+	if (!jskb_pull(pkt->skb, pkt_hdrs_len(pkt)))
+		return -EINVAL;
 	skb_reset_network_header(pkt->skb);
 	skb_set_transport_header(pkt->skb, l3hdr_len);
 
@@ -180,7 +181,8 @@ static int move_pointers_in(struct packet *pkt, __u8 protocol,
 static int move_pointers_out(struct packet *in, struct packet *out,
 		unsigned int l3hdr_len)
 {
-	skb_pull(out->skb, pkt_hdrs_len(out));
+	if (!jskb_pull(out->skb, pkt_hdrs_len(out)))
+		return -EINVAL;
 	skb_reset_network_header(out->skb);
 	skb_set_transport_header(out->skb, l3hdr_len);
 
@@ -235,9 +237,10 @@ static void backup(struct packet *pkt, struct backup_skb *bkp)
 		bkp->tuple = pkt->tuple;
 }
 
-static void restore(struct packet *pkt, struct backup_skb *bkp)
+static int restore(struct packet *pkt, struct backup_skb *bkp)
 {
-	skb_push(pkt->skb, bkp->pulled);
+	if (!jskb_push(pkt->skb, bkp->pulled))
+		return -EINVAL;
 	skb_set_network_header(pkt->skb, bkp->offset.l3);
 	skb_set_transport_header(pkt->skb, bkp->offset.l4);
 	pkt->payload = bkp->payload;
@@ -245,6 +248,7 @@ static void restore(struct packet *pkt, struct backup_skb *bkp)
 	pkt->is_inner = 0;
 	if (xlat_is_nat64())
 		pkt->tuple = bkp->tuple;
+	return 0;
 }
 
 verdict ttpcomm_translate_inner_packet(struct xlation *state)
@@ -298,8 +302,10 @@ verdict ttpcomm_translate_inner_packet(struct xlation *state)
 	if (result != VERDICT_CONTINUE)
 		return result;
 
-	restore(in, &bkp_in);
-	restore(out, &bkp_out);
+	if (restore(in, &bkp_in))
+		return VERDICT_DROP;
+	if (restore(out, &bkp_out))
+		return VERDICT_DROP;
 
 	return VERDICT_CONTINUE;
 }

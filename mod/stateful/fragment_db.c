@@ -209,6 +209,7 @@ static struct reassembly_buffer *add_pkt(struct fragdb *db, struct packet *pkt)
 	struct reassembly_buffer *buffer;
 	struct frag_hdr *hdr_frag = pkt_frag_hdr(pkt);
 	unsigned int payload_len;
+	unsigned int truesize;
 
 	/* Does it already exist? If so, add to and return existing buffer */
 	buffer = fragdb_table_get(&db->table, pkt);
@@ -216,6 +217,11 @@ static struct reassembly_buffer *add_pkt(struct fragdb *db, struct packet *pkt)
 		if (WARN(is_first_frag6(hdr_frag),
 				"Non-first fragment's offset is zero."
 				COMMON_MSG))
+			return NULL; /* The timer will destroy @buffer later. */
+
+		payload_len = pkt_payload_len_pkt(pkt);
+		truesize = pkt->skb->truesize;
+		if (!jskb_pull(pkt->skb, pkt_hdrs_len(pkt)))
 			return NULL;
 
 		*buffer->next_slot = pkt->skb;
@@ -232,11 +238,9 @@ static struct reassembly_buffer *add_pkt(struct fragdb *db, struct packet *pkt)
 		 * represents a subsequent fragment. Be careful with the
 		 * calculation of this length.
 		 */
-		payload_len = pkt_payload_len_pkt(pkt);
 		buffer->pkt.skb->len += payload_len;
 		buffer->pkt.skb->data_len += payload_len;
-		buffer->pkt.skb->truesize += pkt->skb->truesize;
-		skb_pull(pkt->skb, pkt_hdrs_len(pkt));
+		buffer->pkt.skb->truesize += truesize;
 
 		return buffer;
 	}

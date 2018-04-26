@@ -62,7 +62,20 @@
  * Subsequent packets, freaks of nature as they are, are thankfully often
  * transparent to us.
  *
- * @see https://github.com/NICMx/Jool/wiki/nf_defrag_ipv4-and-nf_defrag_ipv6
+ * Also consider the following while reading this documentation:
+ *
+ * - "data payload area" refers to the bytes that lie in an skb between
+ *   skb->head and skb->tail, excluding headers.
+ * - "paged area" refers to the bytes that the skb stores in
+ *   skb_shinfo(skb)->frags. (Though sometimes these represent IP fragments,
+ *   they *never* feature headers.)
+ * - "frag_list area" refers to the bytes that the skb stores in
+ *   skb_shinfo(skb)->frag_list, and *also* the bytes that these fragments store
+ *   in their own paged area. Though these are valid skbs, the kernel wants us
+ *   to believe that they don't have headers, and Jool should not attempt to
+ *   read them.
+ *   (The fragments in theory should never contain sub-frag_lists, but maybe
+ *   Jool should consider this now that I think about it.)
  */
 
 #include <linux/skbuff.h>
@@ -417,6 +430,9 @@ static inline struct packet *pkt_original_pkt(const struct packet *pkt)
  * It is supposed to replace @pkt->skb->len in certain situations. This is
  * because @pkt->skb->len also counts bytes present in subsequent fragments, and
  * that is not always what a translator wants.
+ *
+ * Includes l3 header, l4 header, data payload area and paged area.
+ * Does not include frag_list area.
  */
 static inline unsigned int pkt_len(const struct packet *pkt)
 {
@@ -429,6 +445,9 @@ static inline unsigned int pkt_len(const struct packet *pkt)
  * Only counts bytes actually present within @pkt. In other words, headers of
  * any subsequent fragments linked to @pkt are ignored.
  * Also, it doesn't count inner l3 headers (from ICMP errors).
+ *
+ * Includes l3 header.
+ * Does not include l4 header, data payload area, paged area nor frag_list area.
  */
 static inline unsigned int pkt_l3hdr_len(const struct packet *pkt)
 {
@@ -439,6 +458,9 @@ static inline unsigned int pkt_l3hdr_len(const struct packet *pkt)
  * Returns the length of @pkt's layer-4 header, including options.
  * Returns zero if @pkt has no transport headers.
  * It doesn't count inner l4 headers (from ICMP errors).
+ *
+ * Includes l4 header.
+ * Does not include l3 header, data payload area, paged area nor frag_list area.
  */
 static inline unsigned int pkt_l4hdr_len(const struct packet *pkt)
 {
@@ -450,6 +472,9 @@ static inline unsigned int pkt_l4hdr_len(const struct packet *pkt)
  * Only counts bytes actually present within @pkt. In other words, headers of
  * any subsequent fragments linked to @pkt are ignored.
  * Also, it doesn't count inner headers (from ICMP errors).
+ *
+ * Includes l3 header and l4 header.
+ * Does not include data payload area, paged area nor frag_list area.
  */
 static inline unsigned int pkt_hdrs_len(const struct packet *pkt)
 {
@@ -460,6 +485,9 @@ static inline unsigned int pkt_hdrs_len(const struct packet *pkt)
  * Returns the length of @pkt's layer-4 payload.
  * Only counts bytes actually present within @pkt. In other words, payload of
  * any subsequent fragments linked to @pkt is ignored.
+ *
+ * Includes data payload area and paged area.
+ * Does not include l3 header, l4 header nor frag_list area.
  */
 static inline unsigned int pkt_payload_len_frag(const struct packet *pkt)
 {
@@ -474,6 +502,9 @@ static inline unsigned int pkt_payload_len_frag(const struct packet *pkt)
  * This function is compatible with full and internal packets. Technically, it
  * might also be used with fragmented packets depending on context, but
  * pkt_payload_len_frag() would likely make more sense.
+ *
+ * Includes data payload area, paged area and frag_list area.
+ * Does not include l3 header nor l4 header.
  */
 static inline unsigned int pkt_payload_len_pkt(const struct packet *pkt)
 {
@@ -484,6 +515,9 @@ static inline unsigned int pkt_payload_len_pkt(const struct packet *pkt)
  * Returns the length of @pkt's layer-3 payload.
  * Only counts bytes actually present within @pkt. In other words, payload of
  * any subsequent fragments linked to @pkt is ignored.
+ *
+ * Includes l4 header, data payload area and paged area.
+ * Does not include l3 header nor frag_list area.
  */
 static inline unsigned int pkt_l3payload_len(const struct packet *pkt)
 {
@@ -497,6 +531,9 @@ static inline unsigned int pkt_l3payload_len(const struct packet *pkt)
  *
  * This function is only compatible with full packets; the result is otherwise
  * undefined.
+ *
+ * Includes l4 header, data payload area, paged area and frag_list area.
+ * Does not include l3 header.
  */
 static inline unsigned int pkt_datagram_len(const struct packet *pkt)
 {
@@ -546,6 +583,9 @@ int pkt_init_ipv4(struct packet *pkt, struct sk_buff *skb);
  * Outputs @pkt in the log.
  */
 void pkt_print(struct packet *pkt);
+
+unsigned char *jskb_pull(struct sk_buff *skb, unsigned int len);
+unsigned char *jskb_push(struct sk_buff *skb, unsigned int len);
 
 void snapshot_record(struct pkt_snapshot *shot, struct sk_buff *skb);
 void snapshot_report(struct pkt_snapshot *shot, char *prefix);

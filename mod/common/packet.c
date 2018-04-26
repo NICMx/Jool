@@ -544,6 +544,41 @@ int pkt_init_ipv4(struct packet *pkt, struct sk_buff *skb)
 	return 0;
 }
 
+/**
+ * skb_pull() is oddly special in that it can return NULL in a situation where
+ * most skb functions would just panic. Which is actually great for skb_pull();
+ * the kernel good practices thingy rightfully states that we should always
+ * respond to such situations gracefully instead of BUG()ging out like a bunch
+ * of wusses.
+ *
+ * These situations should not arise, however, so we should treat them as
+ * programming errors. (WARN, cancel the packet's translation and then continue
+ * normally.)
+ *
+ * This function takes care of the WARN clutter. "j" stands for "Jool", as
+ * usual.
+ *
+ * Never use skb_pull() directly.
+ */
+unsigned char *jskb_pull(struct sk_buff *skb, unsigned int len)
+{
+	unsigned char *result = skb_pull(skb, len);
+	WARN(!result, "Bug: We tried to pull %u bytes out of a %u-length skb.",
+			len, skb->len);
+	return result;
+}
+
+/**
+ * skb_push() cannot return NULL at present, but maybe someday will.
+ */
+unsigned char *jskb_push(struct sk_buff *skb, unsigned int len)
+{
+	unsigned char *result = skb_push(skb, len);
+	WARN(!result, "Bug: skb_push() returned NULL (skblen:%u len:%u).",
+			skb->len, len);
+	return result;
+}
+
 #define SIMPLE_MIN(a, b) ((a < b) ? a : b)
 
 void snapshot_record(struct pkt_snapshot *shot, struct sk_buff *skb)
