@@ -2,7 +2,7 @@
 # Process this file with autoconf to produce a configure script.
 
 AC_PREREQ([2.68])
-AC_INIT([Jool], [3.5.6], [jool@nic.mx])
+AC_INIT([Jool], [3.5.7], [jool@nic.mx])
 AC_CONFIG_SRCDIR([common/jool.c])
 AM_INIT_AUTOMAKE([subdir-objects])
 
