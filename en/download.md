@@ -15,11 +15,12 @@ title: Download
 
 Jool 3.5 is a [compliant SIIT and Stateful NAT64](intro-jool.html#compliance).
 
-3.5.6 is the latest version. It is also considered the most mature version of Jool.
+3.5.7 is the latest version. It is also considered the most mature version of Jool.
 
 | Download | SHA512 | MD5| Git commit |
 |----------|--------|----|------------|
-| **[3.5.6]({{ site.downloads-url }}/Jool-3.5.6.zip)** | [SHA512]({{ site.downloads-url }}/Jool-3.5.6.sha) | [MD5]({{ site.downloads-url }}/Jool-3.5.6.md5) | <a href="{{ site.repository-url }}/tree/v3.5.6" target="_blank">Link</a> |
+| **[3.5.7]({{ site.downloads-url }}/Jool-3.5.7.zip)** | [SHA512]({{ site.downloads-url }}/Jool-3.5.7.sha) | [MD5]({{ site.downloads-url }}/Jool-3.5.7.md5) | <a href="{{ site.repository-url }}/tree/v3.5.7" target="_blank">Link</a> |
+| <del>[3.5.6]({{ site.downloads-url }}/Jool-3.5.6.zip)</del> | [SHA512]({{ site.downloads-url }}/Jool-3.5.6.sha) | [MD5]({{ site.downloads-url }}/Jool-3.5.6.md5) | <a href="{{ site.repository-url }}/tree/v3.5.6" target="_blank">Link</a> |
 | <del>[3.5.5]({{ site.downloads-url }}/Jool-3.5.5.zip)</del> | [SHA512]({{ site.downloads-url }}/Jool-3.5.5.sha) | [MD5]({{ site.downloads-url }}/Jool-3.5.5.md5) | <a href="{{ site.repository-url }}/tree/v3.5.5" target="_blank">Link</a> |
 | <del>[3.5.4]({{ site.downloads-url }}/Jool-3.5.4.zip)</del> | [SHA512]({{ site.downloads-url }}/Jool-3.5.4.sha) | [MD5]({{ site.downloads-url }}/Jool-3.5.4.md5) | <a href="{{ site.repository-url }}/tree/v3.5.4" target="_blank">Link</a> |
 | <del>[3.5.3]({{ site.downloads-url }}/Jool-3.5.3.zip)</del> | [SHA512]({{ site.downloads-url }}/Jool-3.5.3.sha) | [MD5]({{ site.downloads-url }}/Jool-3.5.3.md5) | <a href="{{ site.repository-url }}/tree/v3.5.3" target="_blank">Link</a> |
