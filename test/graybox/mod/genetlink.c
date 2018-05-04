@@ -17,7 +17,7 @@
 
 static struct genl_family *family;
 
-void genl_init(struct genl_family *new_family)
+void genl_setup(struct genl_family *new_family)
 {
 	family = new_family;
 }

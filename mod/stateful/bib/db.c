@@ -290,7 +290,7 @@ static void kill_stored_pkt(struct bib_table *table,
 	table->pkt_count--;
 }
 
-int bib_init(void)
+int bib_setup(void)
 {
 	bib_cache = kmem_cache_create("bib_nodes",
 			sizeof(struct tabled_bib),
@@ -309,7 +309,7 @@ int bib_init(void)
 	return 0;
 }
 
-void bib_destroy(void)
+void bib_teardown(void)
 {
 	kmem_cache_destroy(bib_cache);
 	kmem_cache_destroy(session_cache);
@@ -357,7 +357,7 @@ static void init_table(struct bib_table *table,
 	table->pkt_queue = NULL;
 }
 
-struct bib *bib_create(void)
+struct bib *bib_alloc(void)
 {
 	struct bib *db;
 
@@ -370,7 +370,7 @@ struct bib *bib_create(void)
 	init_table(&db->icmp, ICMP_DEFAULT, 0, just_die);
 
 	db->tcp.pkt_limit = DEFAULT_MAX_STORED_PKTS;
-	db->tcp.pkt_queue = pktqueue_create();
+	db->tcp.pkt_queue = pktqueue_alloc();
 	if (!db->tcp.pkt_queue) {
 		wkfree(struct bib, db);
 		return NULL;
@@ -418,7 +418,7 @@ static void release_bib_entry(struct rb_node *node, void *arg)
 	free_bib(bib);
 }
 
-static void release_bib(struct kref *refs)
+static void bib_release(struct kref *refs)
 {
 	struct bib *db;
 	db = container_of(refs, struct bib, refs);
@@ -431,14 +431,14 @@ static void release_bib(struct kref *refs)
 	rbtree_clear(&db->tcp.tree4, release_bib_entry, NULL);
 	rbtree_clear(&db->icmp.tree4, release_bib_entry, NULL);
 
-	pktqueue_destroy(db->tcp.pkt_queue);
+	pktqueue_release(db->tcp.pkt_queue);
 
 	wkfree(struct bib, db);
 }
 
 void bib_put(struct bib *db)
 {
-	kref_put(&db->refs, release_bib);
+	kref_put(&db->refs, bib_release);
 }
 
 void bib_config_copy(struct bib *db, struct bib_config *config)

@@ -9,7 +9,7 @@
 
 struct eam_table;
 
-int eamt_init(struct eam_table **eamt);
+struct eam_table *eamt_alloc(void);
 void eamt_get(struct eam_table *eamt);
 void eamt_put(struct eam_table *eamt);
 

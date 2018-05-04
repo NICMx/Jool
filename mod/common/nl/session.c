@@ -57,7 +57,7 @@ static int handle_session_display(struct bib *db, struct genl_info *info,
 			? nlbuffer_send(info, &buffer)
 			: nlcore_respond(info, error);
 
-	nlbuffer_free(&buffer);
+	nlbuffer_clean(&buffer);
 	return error;
 }
 

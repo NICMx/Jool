@@ -16,7 +16,7 @@ struct expect_add_request {
 
 int expect_init_request(int argc, char **argv, enum graybox_command *cmd,
 		struct expect_add_request *req);
-void expect_add_destroy(struct expect_add_request *req);
+void expect_add_clean(struct expect_add_request *req);
 int expect_add_build_pkt(struct expect_add_request *req, struct nl_msg *pkt);
 
 #endif

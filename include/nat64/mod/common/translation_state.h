@@ -28,6 +28,6 @@ struct xlation {
 };
 
 void xlation_init(struct xlation *state);
-void xlation_put(struct xlation *state);
+void xlation_clean(struct xlation *state);
 
 #endif /* _JOOL_MOD_TRANSLATION_STATE_H */

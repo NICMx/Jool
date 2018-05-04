@@ -147,14 +147,14 @@ static int validate_overlapping(struct eam_table *eamt,
 
 	/* TODO (final) review pr_err vs log_err in Rob's code. */
 
-	error = rtrie_get(&eamt->trie6, &key6, &old);
+	error = rtrie_find(&eamt->trie6, &key6, &old);
 	if (!error) {
 		error = collision6(prefix6, prefix4, &old, force);
 		if (error)
 			return error;
 	}
 
-	error = rtrie_get(&eamt->trie4, &key4, &old);
+	error = rtrie_find(&eamt->trie4, &key4, &old);
 	if (!error) {
 		error = collision4(prefix6, prefix4, &old, force);
 		if (error)
@@ -250,7 +250,7 @@ static int get_exact6(struct eam_table *eamt, struct ipv6_prefix *prefix,
 	struct rtrie_key key = PREFIX_TO_KEY(prefix);
 	int error;
 
-	error = rtrie_get(&eamt->trie6, &key, eam);
+	error = rtrie_find(&eamt->trie6, &key, eam);
 	if (error)
 		return error;
 
@@ -263,7 +263,7 @@ static int get_exact4(struct eam_table *eamt, struct ipv4_prefix *prefix,
 	struct rtrie_key key = PREFIX_TO_KEY(prefix);
 	int error;
 
-	error = rtrie_get(&eamt->trie4, &key, eam);
+	error = rtrie_find(&eamt->trie4, &key, eam);
 	if (error)
 		return error;
 
@@ -364,7 +364,7 @@ int eamt_xlat_6to4(struct eam_table *eamt, struct in6_addr *addr6,
 	int error;
 
 	/* Find the entry. */
-	error = rtrie_get(&eamt->trie6, &key, &eam);
+	error = rtrie_find(&eamt->trie6, &key, &eam);
 	if (error)
 		return error;
 
@@ -390,7 +390,7 @@ int eamt_xlat_4to6(struct eam_table *eamt, struct in_addr *addr4,
 	int error;
 
 	/* Find the entry. */
-	error = rtrie_get(&eamt->trie4, &key, &eam);
+	error = rtrie_find(&eamt->trie4, &key, &eam);
 	if (error)
 		return error;
 
@@ -461,21 +461,20 @@ void eamt_flush(struct eam_table *eamt)
 	mutex_unlock(&lock);
 }
 
-int eamt_init(struct eam_table **eamt)
+struct eam_table *eamt_alloc(void)
 {
 	struct eam_table *result;
 
 	result = wkmalloc(struct eam_table, GFP_KERNEL);
 	if (!result)
-		return -ENOMEM;
+		return NULL;
 
 	rtrie_init(&result->trie6, sizeof(struct eamt_entry), &lock);
 	rtrie_init(&result->trie4, sizeof(struct eamt_entry), &lock);
 	result->count = 0;
 	kref_init(&result->refcount);
 
-	*eamt = result;
-	return 0;
+	return result;
 }
 
 void eamt_get(struct eam_table *eamt)
@@ -486,17 +485,17 @@ void eamt_get(struct eam_table *eamt)
 /**
  * Please note: this function can sleep.
  */
-static void destroy_eamt(struct kref *refcount)
+static void eamt_release(struct kref *refcount)
 {
 	struct eam_table *eamt;
 	eamt = container_of(refcount, struct eam_table, refcount);
 	log_debug("Emptying EAMT...");
-	rtrie_destroy(&eamt->trie6);
-	rtrie_destroy(&eamt->trie4);
+	rtrie_clean(&eamt->trie6);
+	rtrie_clean(&eamt->trie4);
 	wkfree(struct eam_table, eamt);
 }
 
 void eamt_put(struct eam_table *eamt)
 {
-	kref_put(&eamt->refcount, destroy_eamt);
+	kref_put(&eamt->refcount, eamt_release);
 }

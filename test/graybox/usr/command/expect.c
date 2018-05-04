@@ -49,7 +49,7 @@ int expect_init_request(int argc, char **argv, enum graybox_command *cmd,
 	return -EINVAL;
 }
 
-void expect_add_destroy(struct expect_add_request *req)
+void expect_add_clean(struct expect_add_request *req)
 {
 	if (req->pkt)
 		free(req->pkt);

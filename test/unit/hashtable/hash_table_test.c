@@ -80,7 +80,7 @@ static bool assert_table_content(struct test_table *table,
  * The functions are really interdependent, so most functions are tested in this
  * single unit. Sorry.
  */
-static bool test(void)
+static bool most_stuff(void)
 {
 	struct test_table table;
 	/*
@@ -222,12 +222,17 @@ static bool test_for_each_function(void)
 
 int init_module(void)
 {
-	START_TESTS("Hash table");
+	struct test_group test = {
+		.name = "Hash table",
+	};
 
-	CALL_TEST(test(), "Everything, except for_each");
-	CALL_TEST(test_for_each_function(), "for_each function");
+	if (test_group_begin(&test))
+		return -EINVAL;
 
-	END_TESTS;
+	test_group_test(&test, most_stuff, "Everything, except for_each");
+	test_group_test(&test, test_for_each_function, "for_each function");
+
+	return test_group_end(&test);
 }
 
 void cleanup_module(void)

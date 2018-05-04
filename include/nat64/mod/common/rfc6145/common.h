@@ -50,7 +50,7 @@ struct translation_steps {
 	 * When translating a fragment chain, this only creates the first
 	 * packet. Subsequent fragments are allocated by translate_subsequent().
 	 */
-	verdict (*skb_create_fn)(struct xlation *state);
+	verdict (*skb_alloc_fn)(struct xlation *state);
 	/**
 	 * The function that will translate the layer-3 header.
 	 */

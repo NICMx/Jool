@@ -82,26 +82,25 @@ static struct list_head *alloc_list(void)
 }
 
 RCUTAG_USR
-int pool_init(struct addr4_pool **pool)
+struct addr4_pool *pool_alloc(void)
 {
 	struct addr4_pool *result;
 	struct list_head *list;
 
 	result = wkmalloc(struct addr4_pool, GFP_KERNEL);
 	if (!result)
-		return -ENOMEM;
+		return NULL;
 
 	list = alloc_list();
 	if (!list) {
 		wkfree(struct addr4_pool, result);
-		return -ENOMEM;
+		return NULL;
 	}
 
 	RCU_INIT_POINTER(result->list, list);
 	kref_init(&result->refcounter);
 
-	*pool = result;
-	return 0;
+	return result;
 }
 
 void pool_get(struct addr4_pool *pool)
@@ -110,7 +109,7 @@ void pool_get(struct addr4_pool *pool)
 }
 
 RCUTAG_USR
-static void destroy_pool(struct kref *refcounter)
+static void pool_release(struct kref *refcounter)
 {
 	struct addr4_pool *pool;
 	pool = container_of(refcounter, struct addr4_pool, refcounter);
@@ -120,7 +119,7 @@ static void destroy_pool(struct kref *refcounter)
 
 void pool_put(struct addr4_pool *pool)
 {
-	kref_put(&pool->refcounter, destroy_pool);
+	kref_put(&pool->refcounter, pool_release);
 }
 
 static int validate_scope(struct ipv4_prefix *prefix, bool force)

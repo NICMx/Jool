@@ -13,8 +13,8 @@ struct expected_packet {
 	size_t exceptions_len;
 };
 
-void expecter_init(void);
-void expecter_destroy(void);
+void expecter_setup(void);
+void expecter_teardown(void);
 
 int expecter_add(struct expected_packet *pkt);
 void expecter_flush(void);

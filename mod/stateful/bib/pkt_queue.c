@@ -31,7 +31,7 @@ static void rm(struct pktqueue *queue, struct pktqueue_session *node)
 	rb_erase(&node->tree_hook, &queue->node_tree);
 }
 
-struct pktqueue *pktqueue_create(void)
+struct pktqueue *pktqueue_alloc(void)
 {
 	struct pktqueue *result;
 
@@ -45,7 +45,7 @@ struct pktqueue *pktqueue_create(void)
 	return result;
 }
 
-void pktqueue_destroy(struct pktqueue *queue)
+void pktqueue_release(struct pktqueue *queue)
 {
 	struct pktqueue_session *node;
 	struct pktqueue_session *tmp;

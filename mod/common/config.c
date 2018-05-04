@@ -11,16 +11,17 @@
 static DEFINE_MUTEX(lock);
 
 RCUTAG_USR
-int config_init(struct global_config **result)
+struct global_config *config_alloc(void)
 {
+	struct global_config *result;
 	struct global_config_usr *config;
 	__u16 plateaus[] = DEFAULT_MTU_PLATEAUS;
 
-	*result = wkmalloc(struct global_config, GFP_KERNEL);
-	if (!(*result))
-		return -ENOMEM;
-	kref_init(&(*result)->refcounter);
-	config = &(*result)->cfg;
+	result = wkmalloc(struct global_config, GFP_KERNEL);
+	if (!result)
+		return NULL;
+	kref_init(&result->refcounter);
+	config = &result->cfg;
 
 	config->status = 0; /* This is never read, but whatever. */
 	config->enabled = DEFAULT_INSTANCE_ENABLED;
@@ -43,7 +44,7 @@ int config_init(struct global_config **result)
 	config->mtu_plateau_count = ARRAY_SIZE(plateaus);
 	memcpy(config->mtu_plateaus, &plateaus, sizeof(plateaus));
 
-	return 0;
+	return result;
 }
 
 void config_get(struct global_config *config)
@@ -51,7 +52,7 @@ void config_get(struct global_config *config)
 	kref_get(&config->refcounter);
 }
 
-static void destroy_config(struct kref *refcounter)
+static void config_release(struct kref *refcounter)
 {
 	struct global_config *config;
 	config = container_of(refcounter, struct global_config, refcounter);
@@ -60,7 +61,7 @@ static void destroy_config(struct kref *refcounter)
 
 void config_put(struct global_config *config)
 {
-	kref_put(&config->refcounter, destroy_config);
+	kref_put(&config->refcounter, config_release);
 }
 
 RCUTAG_PKT

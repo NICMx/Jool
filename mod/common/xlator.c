@@ -127,10 +127,10 @@ static struct pernet_operations joolns_ops = {
 };
 
 /**
- * xlator_init - Initializes this module. Do not call other functions before
+ * xlator_setup - Initializes this module. Do not call other functions before
  * this one.
  */
-int xlator_init(void)
+int xlator_setup(void)
 {
 	struct list_head *list;
 	int error;
@@ -151,10 +151,10 @@ int xlator_init(void)
 }
 
 /**
- * xlator_destroy - Graceful termination of this module. Reverts xlator_init().
+ * xlator_teardown - Graceful termination of this module. Reverts xlator_setup().
  * Will clean up any allocated memory.
  */
-void xlator_destroy(void)
+void xlator_teardown(void)
 {
 	unregister_pernet_subsys(&joolns_ops);
 	__wkfree("xlator DB", rcu_dereference_raw(pool));
@@ -162,24 +162,22 @@ void xlator_destroy(void)
 
 static int init_siit(struct xlator *jool)
 {
-	int error;
-
-	error = config_init(&jool->global);
-	if (error)
+	jool->global = config_alloc();
+	if (!jool->global)
 		goto config_fail;
-	error = pool6_init(&jool->pool6);
-	if (error)
+	jool->pool6 = pool6_alloc();
+	if (!jool->pool6)
 		goto pool6_fail;
-	error = eamt_init(&jool->siit.eamt);
-	if (error)
+	jool->siit.eamt = eamt_alloc();
+	if (!jool->siit.eamt)
 		goto eamt_fail;
-	error = blacklist_init(&jool->siit.blacklist);
-	if (error)
+	jool->siit.blacklist = blacklist_alloc();
+	if (!jool->siit.blacklist)
 		goto blacklist_fail;
-	error = rfc6791_init(&jool->siit.pool6791);
-	if (error)
+	jool->siit.pool6791 = rfc6791_alloc();
+	if (!jool->siit.pool6791)
 		goto rfc6791_fail;
-	jool->newcfg = cfgcandidate_create();
+	jool->newcfg = cfgcandidate_alloc();
 	if (!jool->newcfg)
 		goto newcfg_fail;
 
@@ -196,43 +194,32 @@ eamt_fail:
 pool6_fail:
 	config_put(jool->global);
 config_fail:
-	return error;
+	return -ENOMEM;
 }
 
 static int init_nat64(struct xlator *jool)
 {
-	int error;
-
-	error = config_init(&jool->global);
-	if (error)
+	jool->global = config_alloc();
+	if (!jool->global)
 		goto config_fail;
-	error = pool6_init(&jool->pool6);
-	if (error)
+	jool->pool6 = pool6_alloc();
+	if (!jool->pool6)
 		goto pool6_fail;
-	jool->nat64.frag = fragdb_create(jool->ns);
-	if (!jool->nat64.frag) {
-		error = -ENOMEM;
+	jool->nat64.frag = fragdb_alloc(jool->ns);
+	if (!jool->nat64.frag)
 		goto fragdb_fail;
-	}
-	error = pool4db_init(&jool->nat64.pool4);
-	if (error)
+	jool->nat64.pool4 = pool4db_alloc();
+	if (!jool->nat64.pool4)
 		goto pool4_fail;
-	jool->nat64.bib = bib_create();
-	if (!jool->nat64.bib) {
-		error = -ENOMEM;
+	jool->nat64.bib = bib_alloc();
+	if (!jool->nat64.bib)
 		goto bib_fail;
-	}
-	jool->nat64.joold = joold_create(jool->ns);
-	if (!jool->nat64.joold) {
-		error = -ENOMEM;
+	jool->nat64.joold = joold_alloc(jool->ns);
+	if (!jool->nat64.joold)
 		goto joold_fail;
-	}
-
-	jool->newcfg = cfgcandidate_create();
-	if (!jool->newcfg) {
-		error = -ENOMEM;
+	jool->newcfg = cfgcandidate_alloc();
+	if (!jool->newcfg)
 		goto newcfg_fail;
-	}
 
 	return 0;
 
@@ -249,7 +236,7 @@ fragdb_fail:
 pool6_fail:
 	config_put(jool->global);
 config_fail:
-	return error;
+	return -ENOMEM;
 }
 
 /**

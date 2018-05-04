@@ -2,11 +2,11 @@
 PROJECTS += addr
 PROJECTS += hashtable
 PROJECTS += iterator
-PROJECTS += logtime
 PROJECTS += pkt
 PROJECTS += rbtree
 PROJECTS += rfc6052
 PROJECTS += rfc6056
+PROJECTS += types
 
 # Layer 2 tests (tables)
 PROJECTS += eamt

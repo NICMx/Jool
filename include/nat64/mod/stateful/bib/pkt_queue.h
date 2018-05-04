@@ -117,11 +117,11 @@ struct pktqueue_session {
 /**
  * Call during initialization for the remaining functions to work properly.
  */
-struct pktqueue *pktqueue_create(void);
+struct pktqueue *pktqueue_alloc(void);
 /**
  * Call during destruction to avoid memory leaks.
  */
-void pktqueue_destroy(struct pktqueue *queue);
+void pktqueue_release(struct pktqueue *queue);
 
 /**
  * Stores packet @pkt.

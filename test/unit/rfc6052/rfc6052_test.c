@@ -71,11 +71,16 @@ static bool test_rfc6052_table(void)
 
 int init_module(void)
 {
-	START_TESTS("rfc6052.c");
+	struct test_group test = {
+		.name = "rfc6052.c",
+	};
 
-	CALL_TEST(test_rfc6052_table(), "Translation tests");
+	if (test_group_begin(&test))
+		return -EINVAL;
 
-	END_TESTS;
+	test_group_test(&test, test_rfc6052_table, "Translation tests");
+
+	return test_group_end(&test);
 }
 
 void cleanup_module(void)

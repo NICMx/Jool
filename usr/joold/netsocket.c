@@ -417,7 +417,7 @@ static int adjust_mcast_opts(struct netsocket_config *cfg)
 	return 1;
 }
 
-int netsocket_init(int argc, char **argv)
+int netsocket_setup(int argc, char **argv)
 {
 	cJSON *json;
 	struct netsocket_config cfg;
@@ -448,7 +448,7 @@ end:
 	return error;
 }
 
-void netsocket_destroy(void)
+void netsocket_teardown(void)
 {
 	close(sk);
 	freeaddrinfo(addr_candidates);

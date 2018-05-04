@@ -30,12 +30,12 @@ __u32 mask_domain_get_mark(struct mask_domain *masks)
 	return 0;
 }
 
-struct pktqueue *pktqueue_create(void)
+struct pktqueue *pktqueue_alloc(void)
 {
 	return (struct pktqueue *)&dummy;
 }
 
-void pktqueue_destroy(struct pktqueue *queue)
+void pktqueue_release(struct pktqueue *queue)
 {
 	/* No code. */
 }

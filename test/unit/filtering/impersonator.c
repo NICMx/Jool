@@ -5,7 +5,7 @@ static struct fake {
 	int junk;
 } dummy;
 
-struct config_candidate *cfgcandidate_create(void)
+struct config_candidate *cfgcandidate_alloc(void)
 {
 	return (struct config_candidate *)&dummy;
 }
@@ -25,7 +25,7 @@ void fragdb_config_copy(struct fragdb *db, struct fragdb_config *config)
 	broken_unit_call(__func__);
 }
 
-struct fragdb *fragdb_create(struct net *ns)
+struct fragdb *fragdb_alloc(struct net *ns)
 {
 	return (struct fragdb *)&dummy;
 }
@@ -51,7 +51,7 @@ void joold_config_copy(struct joold_queue *queue, struct joold_config *config)
 	broken_unit_call(__func__);
 }
 
-struct joold_queue *joold_create(struct net *ns)
+struct joold_queue *joold_alloc(struct net *ns)
 {
 	return (struct joold_queue *)&dummy;
 }

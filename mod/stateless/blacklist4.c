@@ -10,9 +10,9 @@
 #include "nat64/mod/common/xlator.h"
 #include "nat64/mod/common/rcu.h"
 
-int blacklist_init(struct addr4_pool **pool)
+struct addr4_pool *blacklist_alloc(void)
 {
-	return pool_init(pool);
+	return pool_alloc();
 }
 
 void blacklist_get(struct addr4_pool *pool)

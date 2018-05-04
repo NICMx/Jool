@@ -11,7 +11,7 @@
  * Because that's more code and I don't see how it would improve anything.
  */
 
-int timer_init(void);
-void timer_destroy(void);
+int jtimer_setup(void);
+void jtimer_teardown(void);
 
 #endif /* _JOOL_MOD_TIMER_H */

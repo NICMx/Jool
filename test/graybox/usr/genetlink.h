@@ -3,8 +3,8 @@
 
 #include <netlink/msg.h>
 
-int nlsocket_init(char *family);
-void nlsocket_destroy();
+int nlsocket_setup(char *family);
+void nlsocket_teardown();
 
 int nlsocket_create_msg(int cmd, struct nl_msg **msg);
 typedef int (*jool_response_cb)(struct nlattr **attrs, void *);

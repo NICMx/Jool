@@ -81,11 +81,11 @@ struct rtrie {
 };
 
 void rtrie_init(struct rtrie *trie, size_t size, struct mutex *lock);
-void rtrie_destroy(struct rtrie *trie);
+void rtrie_clean(struct rtrie *trie);
 
 /* Safe-to-use-during-packet-translation functions */
 
-int rtrie_get(struct rtrie *trie, struct rtrie_key *key, void *result);
+int rtrie_find(struct rtrie *trie, struct rtrie_key *key, void *result);
 bool rtrie_contains(struct rtrie *trie, struct rtrie_key *key);
 bool rtrie_is_empty(struct rtrie *trie);
 void rtrie_print(char *prefix, struct rtrie *trie);

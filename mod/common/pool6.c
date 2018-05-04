@@ -107,34 +107,25 @@ static void destroy_list(struct list_head *list)
 	__wkfree("pool6 list", list);
 }
 
-/**
- * pool6_init - Readies @pool for future use.
- * @prefix_strings: Array of strings denoting the prefixes the pool should start
- * with.
- * @prefix_count size of the "pref_strs" array.
- */
 RCUTAG_USR
-int pool6_init(struct pool6 **pool)
+struct pool6 *pool6_alloc(void)
 {
 	struct pool6 *result;
 	struct list_head *list;
-	int error;
 
 	result = wkmalloc(struct pool6, GFP_KERNEL);
 	if (!result)
-		return -ENOMEM;
+		return NULL;
 
-	error = create_list(&list);
-	if (error) {
+	if (create_list(&list)) {
 		wkfree(struct pool6, result);
-		return error;
+		return NULL;
 	}
 
 	RCU_INIT_POINTER(result->list, list);
 	kref_init(&result->refcount);
 
-	*pool = result;
-	return 0;
+	return result;
 }
 
 void pool6_get(struct pool6 *pool)
@@ -142,7 +133,7 @@ void pool6_get(struct pool6 *pool)
 	kref_get(&pool->refcount);
 }
 
-static void destroy_pool6(struct kref *ref)
+static void pool6_release(struct kref *ref)
 {
 	struct pool6 *pool;
 	pool = container_of(ref, struct pool6, refcount);
@@ -152,7 +143,7 @@ static void destroy_pool6(struct kref *ref)
 
 void pool6_put(struct pool6 *pool)
 {
-	kref_put(&pool->refcount, destroy_pool6);
+	kref_put(&pool->refcount, pool6_release);
 }
 
 /**

@@ -28,7 +28,6 @@
 #include "nat64/usr/session.h"
 #include "nat64/usr/eam.h"
 #include "nat64/usr/global.h"
-#include "nat64/usr/log_time.h"
 #include "nat64/usr/argp/options.h"
 
 
@@ -414,9 +413,6 @@ static int parse_opt(int key, char *str, struct argp_state *state)
 		error = update_state(args, MODE_JOOLD, JOOLD_OPS);
 		break;
 
-	case ARGP_LOGTIME:
-		error = update_state(args, MODE_LOGTIME, LOGTIME_OPS);
-		break;
 	case ARGP_INSTANCE:
 		error = update_state(args, MODE_INSTANCE, INSTANCE_OPS);
 		break;
@@ -943,22 +939,6 @@ static int handle_addr4_pool(struct arguments *args)
 	}
 }
 
-static int handle_logtime(struct arguments *args)
-{
-#ifdef BENCHMARK
-	switch (args->op) {
-	case OP_DISPLAY:
-		return logtime_display(args->db.no_headers);
-	default:
-		log_err("Unknown operation for logtime mode: %u.", args->op);
-		break;
-	}
-#else
-	log_err("Benchmark mode was disabled during compilation.");
-	return -EINVAL;
-#endif
-}
-
 static int handle_global(struct arguments *args)
 {
 	switch (args->op) {
@@ -1010,8 +990,6 @@ static int main_wrapped(struct arguments *args)
 	case MODE_RFC6791:
 	case MODE_BLACKLIST:
 		return handle_addr4_pool(args);
-	case MODE_LOGTIME:
-		return handle_logtime(args);
 	case MODE_GLOBAL:
 		return handle_global(args);
 	case MODE_PARSE_FILE:
@@ -1042,7 +1020,7 @@ int main(int argc, char **argv)
 	if (error)
 		return error;
 
-	error = netlink_init();
+	error = netlink_setup();
 	if (error) {
 		destroy_args(&args);
 		return error;
@@ -1052,7 +1030,7 @@ int main(int argc, char **argv)
 	if (error)
 		print_assumed_command(&args);
 
-	netlink_destroy();
+	netlink_teardown();
 	destroy_args(&args);
 	return error;
 

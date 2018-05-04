@@ -12,7 +12,7 @@ struct addr4_pool;
 
 /* Do-not-use-when-you-can't-sleep-functions */
 
-int pool_init(struct addr4_pool **pool);
+struct addr4_pool *pool_alloc(void);
 void pool_get(struct addr4_pool *pool);
 void pool_put(struct addr4_pool *pool);
 

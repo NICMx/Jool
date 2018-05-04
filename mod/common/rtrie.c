@@ -145,7 +145,7 @@ void rtrie_init(struct rtrie *trie, size_t size, struct mutex *lock)
 	trie->lock = lock;
 }
 
-void rtrie_destroy(struct rtrie *trie)
+void rtrie_clean(struct rtrie *trie)
 {
 	struct rtrie_node *node;
 	struct rtrie_node *tmp_node;
@@ -439,9 +439,9 @@ simple_success:
 }
 
 /**
- * rtrie_get - Finds the node keyed @key, and copies its value to @result.
+ * rtrie_find - Finds the node keyed @key, and copies its value to @result.
  */
-int rtrie_get(struct rtrie *trie, struct rtrie_key *key, void *result)
+int rtrie_find(struct rtrie *trie, struct rtrie_key *key, void *result)
 {
 	struct rtrie_node *node;
 

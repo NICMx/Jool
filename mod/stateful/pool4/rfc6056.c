@@ -11,7 +11,7 @@ static atomic_t next_ephemeral;
 static struct crypto_shash *shash;
 static DEFINE_SPINLOCK(tfm_lock);
 
-int rfc6056_init(void)
+int rfc6056_setup(void)
 {
 	unsigned int tmp;
 	int error;
@@ -40,7 +40,7 @@ int rfc6056_init(void)
 	return 0;
 }
 
-void rfc6056_destroy(void)
+void rfc6056_teardown(void)
 {
 	crypto_free_shash(shash);
 	__wkfree("Secret key", secret_key);

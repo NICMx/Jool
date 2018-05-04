@@ -28,12 +28,12 @@ int main(int argc, char **argv)
 
 	openlog("joold", 0, LOG_DAEMON);
 
-	error = netsocket_init(argc, argv);
+	error = netsocket_setup(argc, argv);
 	if (error)
 		goto end;
-	error = modsocket_init();
+	error = modsocket_setup();
 	if (error) {
-		netsocket_destroy();
+		netsocket_teardown();
 		goto end;
 	}
 
@@ -54,8 +54,8 @@ int main(int argc, char **argv)
 	/* Fall through. */
 
 clean:
-	modsocket_destroy();
-	netsocket_destroy();
+	modsocket_teardown();
+	netsocket_teardown();
 	/* Fall through. */
 
 end:

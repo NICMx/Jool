@@ -334,10 +334,6 @@ int pkt_init_ipv6(struct packet *pkt, struct sk_buff *skb)
 	 * might change pointers, so you generally don't want to store them.
 	 */
 
-#ifdef BENCHMARK
-	getnstimeofday(&pkt->start_time);
-#endif
-
 	log_debug("===============================================");
 
 	error = paranoid_validations(skb, sizeof(struct ipv6hdr));
@@ -507,10 +503,6 @@ int pkt_init_ipv4(struct packet *pkt, struct sk_buff *skb)
 	 * Also, careful in this function and subfunctions. pskb_may_pull()
 	 * might change pointers, so you generally don't want to store them.
 	 */
-
-#ifdef BENCHMARK
-	getnstimeofday(&pkt->start_time);
-#endif
 
 	log_debug("===============================================");
 

@@ -55,10 +55,10 @@ enum session_fate {
 	FATE_TIMER_SLOW,
 };
 
-int bib_init(void);
-void bib_destroy(void);
+int bib_setup(void);
+void bib_teardown(void);
 
-struct bib *bib_create(void);
+struct bib *bib_alloc(void);
 void bib_get(struct bib *db);
 void bib_put(struct bib *db);
 

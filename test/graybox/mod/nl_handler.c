@@ -171,7 +171,7 @@ static struct genl_family family = {
 #endif
 };
 
-int nlhandler_init(void)
+int nlhandler_setup(void)
 {
 	int error;
 
@@ -187,11 +187,11 @@ int nlhandler_init(void)
 		return error;
 	}
 
-	genl_init(&family);
+	genl_setup(&family);
 	return 0;
 }
 
-void nlhandler_destroy(void)
+void nlhandler_teardown(void)
 {
 	genl_unregister_family(&family);
 }

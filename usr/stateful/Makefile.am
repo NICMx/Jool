@@ -19,7 +19,6 @@ jool_SOURCES = \
 	../common/target/instance.c \
 	../common/target/joold.c \
 	../common/target/json.c \
-	../common/target/log_time.c \
 	../common/target/pool.c \
 	../common/target/pool4.c \
 	../common/target/pool6.c \

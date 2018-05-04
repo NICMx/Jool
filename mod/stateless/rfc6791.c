@@ -13,9 +13,9 @@
 #include "nat64/mod/common/route.h"
 #include "nat64/mod/common/tags.h"
 
-int rfc6791_init(struct addr4_pool **pool)
+struct addr4_pool *rfc6791_alloc(void)
 {
-	return pool_init(pool);
+	return pool_alloc();
 }
 
 void rfc6791_get(struct addr4_pool *pool)

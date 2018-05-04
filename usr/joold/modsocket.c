@@ -110,9 +110,6 @@ static void print_pkt_meta(struct request_hdr *hdr)
 	case MODE_SESSION:
 		printf("session");
 		break;
-	case MODE_LOGTIME:
-		printf("log");
-		break;
 	case MODE_PARSE_FILE:
 		printf("file");
 		break;
@@ -224,7 +221,7 @@ static int updated_entries_cb(struct nl_msg *msg, void *arg)
 	return -EINVAL;
 }
 
-int modsocket_init(void)
+int modsocket_setup(void)
 {
 	int family_mc_grp;
 	int error;
@@ -285,7 +282,7 @@ fail:
 	return netlink_print_error(error);
 }
 
-void modsocket_destroy(void)
+void modsocket_teardown(void)
 {
 	nl_socket_free(sk);
 }

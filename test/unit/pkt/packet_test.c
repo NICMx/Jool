@@ -154,16 +154,21 @@ static bool test_inner_validation6(void)
 
 int init_module(void)
 {
-	START_TESTS("Packet");
+	struct test_group test = {
+		.name = "Packet",
+	};
 
-	CALL_TEST(test_function_is_df_set(), "DF getter");
-	CALL_TEST(test_function_is_mf_set(), "MF getter");
-	CALL_TEST(test_function_build_ipv4_frag_off_field(), "Generate frag offset + flags function");
+	if (test_group_begin(&test))
+		return -EINVAL;
 
-	CALL_TEST(test_inner_validation4(), "Inner IPv4 pkt validation");
-	CALL_TEST(test_inner_validation6(), "Inner IPv6 pkt validation");
+	test_group_test(&test, test_function_is_df_set, "DF getter");
+	test_group_test(&test, test_function_is_mf_set, "MF getter");
+	test_group_test(&test, test_function_build_ipv4_frag_off_field, "Generate frag offset + flags function");
 
-	END_TESTS;
+	test_group_test(&test, test_inner_validation4, "Inner IPv4 pkt validation");
+	test_group_test(&test, test_inner_validation6, "Inner IPv6 pkt validation");
+
+	return test_group_end(&test);
 }
 
 void cleanup_module(void)

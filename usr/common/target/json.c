@@ -177,11 +177,11 @@ static int init_buffer(struct nl_buffer *buffer, enum parse_section section)
 	return error;
 }
 
-static struct nl_buffer *buffer_create(enum parse_section section)
+static struct nl_buffer *buffer_alloc(enum parse_section section)
 {
 	struct nl_buffer *buffer;
 
-	buffer = nlbuffer_create();
+	buffer = nlbuffer_alloc();
 	if (!buffer) {
 		log_err("Out of memory.");
 		return NULL;
@@ -221,7 +221,7 @@ static int send_ctrl_msg(enum parse_section section)
 	struct nl_buffer *buffer;
 	int error;
 
-	buffer = buffer_create(section);
+	buffer = buffer_alloc(section);
 	if (!buffer)
 		return -ENOMEM;
 
@@ -565,7 +565,7 @@ static int handle_global(cJSON *json, bool *globals_found)
 	if (!json)
 		return 0;
 
-	buffer = buffer_create(SEC_GLOBAL);
+	buffer = buffer_alloc(SEC_GLOBAL);
 	if (!buffer)
 		return -ENOMEM;
 
@@ -592,7 +592,7 @@ static int handle_pool6(cJSON *pool6_json)
 	if (!pool6_json)
 		return 0;
 
-	buffer = buffer_create(SEC_POOL6);
+	buffer = buffer_alloc(SEC_POOL6);
 	if (!buffer)
 		return -ENOMEM;
 
@@ -623,7 +623,7 @@ static int handle_eamt(cJSON *json)
 	if (!json)
 		return 0;
 
-	buffer = buffer_create(SEC_EAMT);
+	buffer = buffer_alloc(SEC_EAMT);
 	if (!buffer)
 		return -ENOMEM;
 
@@ -674,7 +674,7 @@ static int handle_addr4_pool(cJSON *json, enum parse_section section)
 	if (!json)
 		return 0;
 
-	buffer = buffer_create(section);
+	buffer = buffer_alloc(section);
 	if (!buffer)
 		return -ENOMEM;
 
@@ -742,7 +742,7 @@ static int handle_pool4(cJSON *json)
 	if (!json)
 		return 0;
 
-	buffer = buffer_create(SEC_POOL4);
+	buffer = buffer_alloc(SEC_POOL4);
 	if (!buffer)
 		return -ENOMEM;
 

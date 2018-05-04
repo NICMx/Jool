@@ -10,8 +10,8 @@
 #include <linux/skbuff.h>
 #include <net/genetlink.h>
 
-int nlhandler_init(void);
-void nlhandler_destroy(void);
+int nlhandler_setup(void);
+void nlhandler_teardown(void);
 
 int handle_jool_message(struct sk_buff *skb, struct genl_info *info);
 

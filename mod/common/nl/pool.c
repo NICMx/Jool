@@ -30,7 +30,7 @@ static int handle_addr4pool_display(struct addr4_pool *pool,
 			? nlbuffer_send(info, &buffer)
 			: nlcore_respond(info, error);
 
-	nlbuffer_free(&buffer);
+	nlbuffer_clean(&buffer);
 	return error;
 }
 

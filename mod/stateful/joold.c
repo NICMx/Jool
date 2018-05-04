@@ -165,10 +165,10 @@ struct joold_node {
 static struct kmem_cache *node_cache;
 
 /**
- * joold_init - Initializes this module. Make sure you call this before other
+ * joold_setup - Initializes this module. Make sure you call this before other
  * joold_ functions.
  */
-int joold_init(void)
+int joold_setup(void)
 {
 	node_cache = kmem_cache_create("jool_joold_nodes",
 			sizeof(struct joold_node), 0, 0, NULL);
@@ -181,9 +181,9 @@ int joold_init(void)
 }
 
 /**
- * joold_terminate - Reverts joold_init().
+ * joold_teardown - Reverts joold_setup().
  */
-void joold_terminate(void)
+void joold_teardown(void)
 {
 	kmem_cache_destroy(node_cache);
 }
@@ -326,7 +326,7 @@ static int build_buffer(struct nlcore_buffer *buffer, struct joold_queue *queue,
 		if (error > 0) {
 			return 0;
 		} else if (error) {
-			nlbuffer_free(buffer);
+			nlbuffer_clean(buffer);
 			return error;
 		}
 
@@ -344,7 +344,7 @@ static int build_buffer(struct nlcore_buffer *buffer, struct joold_queue *queue,
 	 */
 	if (sizeof(jool_hdr) == buffer->len) {
 		log_debug("There was nothing to send after all.");
-		nlbuffer_free(buffer);
+		nlbuffer_clean(buffer);
 		return -ENOENT;
 	}
 
@@ -402,13 +402,13 @@ static void send_to_userspace(struct joold_buffer *buffer)
 	if (!error)
 		log_debug("Multicast message sent.");
 
-	nlbuffer_free(&buffer->buffer);
+	nlbuffer_clean(&buffer->buffer);
 }
 
 /**
  * joold_create - Constructor for joold_queue structs.
  */
-struct joold_queue *joold_create(struct net *ns)
+struct joold_queue *joold_alloc(struct net *ns)
 {
 	struct joold_queue *queue;
 
@@ -717,7 +717,7 @@ int joold_test(struct xlator *jool)
 		return error;
 
 	error = nlcore_send_multicast_message(jool->ns, &buffer);
-	nlbuffer_free(&buffer);
+	nlbuffer_clean(&buffer);
 	return error;
 }
 

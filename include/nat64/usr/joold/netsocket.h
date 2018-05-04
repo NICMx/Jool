@@ -7,8 +7,8 @@
 
 #include <stddef.h>
 
-int netsocket_init(int argc, char **argv);
-void netsocket_destroy(void);
+int netsocket_setup(int argc, char **argv);
+void netsocket_teardown(void);
 
 void *netsocket_listen(void *arg);
 void netsocket_send(void *buffer, size_t size);

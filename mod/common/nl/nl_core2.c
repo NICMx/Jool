@@ -49,14 +49,14 @@
  * not want to tempt the devil.
  *
  * IF YOU PLAN ON TWEAKING THIS MACRO, YOU HAVE TO CASCADE YOUR CHANGES TO THE
- * BUILD_BUG_ON() AT nlcore_init()!!!
+ * BUILD_BUG_ON() AT nlcore_setup()!!!
  */
 #define NLBUFFER_MAX_PAYLOAD ((size_t)(GENLMSG_DEFAULT_SIZE - 256))
 
 static struct genl_family *family;
 static struct genl_multicast_group *group;
 
-void nlcore_init(struct genl_family *new_family,
+void nlcore_setup(struct genl_family *new_family,
 		struct genl_multicast_group *new_group)
 {
 	/*
@@ -161,7 +161,7 @@ int nlbuffer_init_response(struct nlcore_buffer *buffer, struct genl_info *info,
 	return nlbuffer_write(buffer, &response, sizeof(response));
 }
 
-void nlbuffer_free(struct nlcore_buffer *buffer)
+void nlbuffer_clean(struct nlcore_buffer *buffer)
 {
 	__wkfree("nlcore_buffer.data", buffer->data);
 }
@@ -244,7 +244,7 @@ static int respond_error(struct genl_info *info, int error_code)
 	/* Fall through. */
 
 end_full:
-	nlbuffer_free(&buffer);
+	nlbuffer_clean(&buffer);
 end_simple:
 	__wkfree("Error msg out", error_msg);
 	return error;
@@ -264,7 +264,7 @@ static int respond_ack(struct genl_info *info)
 
 	error = respond_single_msg(info, &buffer);
 
-	nlbuffer_free(&buffer);
+	nlbuffer_clean(&buffer);
 	return error;
 }
 
@@ -301,7 +301,7 @@ int nlcore_respond_struct(struct genl_info *info, void *content,
 		return respond_error(info, -E2BIG);
 
 	error = nlbuffer_send(info, &buffer);
-	nlbuffer_free(&buffer);
+	nlbuffer_clean(&buffer);
 	return error;
 }
 

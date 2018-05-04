@@ -374,28 +374,41 @@ static bool test_function_icmp4_minimum_mtu(void)
 	return success;
 }
 
+static int setup(void)
+{
+	config = config_alloc();
+	return config ? 0 : -ENOMEM;
+}
+
+static void teardown(void)
+{
+	config_put(config);
+}
+
 int init_module(void)
 {
-	START_TESTS("Translating the Packet");
+	struct test_group test = {
+		.name = "Translating the Packet",
+		.setup_fn = setup,
+		.teardown_fn = teardown,
+	};
 
-	if (config_init(&config))
-		return false;
+	if (test_group_begin(&test))
+		return -EINVAL;
 
 	/* Misc single function tests */
-	CALL_TEST(test_function_has_unexpired_src_route(), "Unexpired source route querier");
-	CALL_TEST(test_function_build_id_field(), "Identification builder");
-	CALL_TEST(test_function_icmp6_minimum_mtu(), "ICMP6 Minimum MTU function");
-	CALL_TEST(test_function_icmp4_to_icmp6_param_prob(), "Param problem function");
+	test_group_test(&test, test_function_has_unexpired_src_route, "Unexpired source route querier");
+	test_group_test(&test, test_function_build_id_field, "Identification builder");
+	test_group_test(&test, test_function_icmp6_minimum_mtu, "ICMP6 Minimum MTU function");
+	test_group_test(&test, test_function_icmp4_to_icmp6_param_prob, "Param problem function");
 
-	CALL_TEST(test_function_generate_ipv4_id(), "Generate id function");
-	CALL_TEST(test_function_generate_df_flag(), "Generate DF flag function");
-	CALL_TEST(test_function_build_protocol_field(), "Build protocol function");
-	CALL_TEST(test_function_has_nonzero_segments_left(), "Segments left indicator function");
-	CALL_TEST(test_function_icmp4_minimum_mtu(), "ICMP4 Minimum MTU function");
+	test_group_test(&test, test_function_generate_ipv4_id, "Generate id function");
+	test_group_test(&test, test_function_generate_df_flag, "Generate DF flag function");
+	test_group_test(&test, test_function_build_protocol_field, "Build protocol function");
+	test_group_test(&test, test_function_has_nonzero_segments_left, "Segments left indicator function");
+	test_group_test(&test, test_function_icmp4_minimum_mtu, "ICMP4 Minimum MTU function");
 
-	config_put(config);
-
-	END_TESTS;
+	return test_group_end(&test);
 }
 
 void cleanup_module(void)

@@ -13,7 +13,7 @@ struct send_request {
 
 int send_init_request(int argc, char **argv, enum graybox_command *cmd,
 		struct send_request *req);
-void send_destroy(struct send_request *req);
+void send_clean(struct send_request *req);
 int send_build_pkt(struct send_request *req, struct nl_msg *pkt);
 
 #endif

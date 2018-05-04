@@ -116,13 +116,15 @@ static int init(void)
 		goto destroy_errors_onwards;
 
 	/* Initialize F() */
-	error = rfc6056_init();
+	error = rfc6056_setup();
 	if (error)
 		goto destroy_taken_onwards;
 	/* Initialize pool4 */
-	error = pool4db_init(&pool);
-	if (error)
+	pool = pool4db_alloc();
+	if (!pool) {
+		error = -ENOMEM;
 		goto destroy_rfc6056_onwards;
+	}
 
 	/* Add the testing addresses to pool4 */
 	entry.mark = 0;
@@ -149,7 +151,7 @@ destroy_pool4_onwards:
 	pool4db_put(pool);
 	/* Fall through */
 destroy_rfc6056_onwards:
-	rfc6056_destroy();
+	rfc6056_teardown();
 	/* Fall through */
 destroy_taken_onwards:
 	vfree(taken);
@@ -325,7 +327,7 @@ static void print_results(void)
 static void cleanup(void)
 {
 	pool4db_put(pool);
-	rfc6056_destroy();
+	rfc6056_teardown();
 	vfree(taken);
 	vfree(errors);
 	vfree(iterations);

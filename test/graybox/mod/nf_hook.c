@@ -34,17 +34,17 @@ static struct nf_hook_ops nfho[] = {
 	}
 };
 
-static int __init graybox_init(void)
+static int graybox_init(void)
 {
 	int error;
 
 	log_debug("Inserting the module...");
 
-	error = nlhandler_init();
+	error = nlhandler_setup();
 	if (error)
 		return error;
-	error_pool_init();
-	expecter_init();
+	error_pool_setup();
+	expecter_setup();
 
 #if LINUX_VERSION_AT_LEAST(4, 13, 0, 9999, 0)
 	error = nf_register_net_hooks(&init_net, nfho, ARRAY_SIZE(nfho));
@@ -52,9 +52,9 @@ static int __init graybox_init(void)
 	error = nf_register_hooks(nfho, ARRAY_SIZE(nfho));
 #endif
 	if (error) {
-		expecter_destroy();
-		error_pool_destroy();
-		nlhandler_destroy();
+		expecter_teardown();
+		error_pool_teardown();
+		nlhandler_teardown();
 		return error;
 	}
 
@@ -62,7 +62,7 @@ static int __init graybox_init(void)
 	return error;
 }
 
-static void __exit graybox_exit(void)
+static void graybox_exit(void)
 {
 #if LINUX_VERSION_AT_LEAST(4, 13, 0, 9999, 0)
 	nf_unregister_net_hooks(&init_net, nfho, ARRAY_SIZE(nfho));
@@ -70,9 +70,9 @@ static void __exit graybox_exit(void)
 	nf_unregister_hooks(nfho, ARRAY_SIZE(nfho));
 #endif
 
-	expecter_destroy();
-	error_pool_destroy();
-	nlhandler_destroy();
+	expecter_teardown();
+	error_pool_teardown();
+	nlhandler_teardown();
 
 	log_info("%s module removed.", xlat_get_name());
 }

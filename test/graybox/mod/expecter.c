@@ -15,12 +15,12 @@ struct expecter_node {
 static LIST_HEAD(list);
 static struct graybox_stats stats;
 
-void expecter_init(void)
+void expecter_setup(void)
 {
 	memset(&stats, 0, sizeof(stats));
 }
 
-void expecter_destroy(void)
+void expecter_teardown(void)
 {
 	expecter_flush();
 }

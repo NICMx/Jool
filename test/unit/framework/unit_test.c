@@ -267,6 +267,47 @@ void print_session(struct session_entry *session)
 #undef SESSION_PRINT
 #undef SESSION_KEY
 
+int test_group_begin(struct test_group *group)
+{
+	log_info("Module '%s': Starting tests...", group->name);
+	return group->setup_fn ? group->setup_fn() : 0;
+}
+
+void test_group_test(struct test_group *group, bool (*test)(void),
+		char *name)
+{
+	bool success;
+
+	log_info("Test '%s': Starting...", name);
+	group->test_counter++;
+
+	if (group->init_fn && group->init_fn()) {
+		group->failure_counter++;
+		return;
+	}
+
+	success = test();
+	if (!success)
+		group->failure_counter++;
+
+	if (group->clean_fn)
+		group->clean_fn();
+
+	log_info("Test '%s': %s.\n", name, success ? "Success" : "Failure");
+}
+
+int test_group_end(struct test_group *group)
+{
+	if (group->teardown_fn)
+		group->teardown_fn();
+
+	log_info("Finished. Runs: %d; Errors: %d",
+			group->test_counter,
+			group->failure_counter);
+
+	return (group->failure_counter > 0) ? -EINVAL : 0;
+}
+
 int broken_unit_call(const char *function)
 {
 	WARN(true, "%s() was called! The unit test is broken.", function);

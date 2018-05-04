@@ -9,7 +9,7 @@
 #include <net/net_namespace.h>
 #include "nat64/mod/stateless/pool.h"
 
-int blacklist_init(struct addr4_pool **pool);
+struct addr4_pool *blacklist_alloc(void);
 void blacklist_get(struct addr4_pool *pool);
 void blacklist_put(struct addr4_pool *pool);
 

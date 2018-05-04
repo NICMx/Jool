@@ -13,7 +13,7 @@
 #include "nat64/mod/stateless/eam.h"
 #include "nat64/mod/stateless/rfc6791v6.h"
 
-verdict ttp46_create_skb(struct xlation *state)
+verdict ttp46_alloc_skb(struct xlation *state)
 {
 	struct packet *in = &state->in;
 	size_t l3_hdr_len;

@@ -38,7 +38,7 @@ verdict compute_out_tuple(struct xlation *state)
 	return VERDICT_DROP;
 }
 
-struct joold_queue *joold_create(struct net *ns)
+struct joold_queue *joold_alloc(struct net *ns)
 {
 	fail(__func__);
 	return NULL;
@@ -79,7 +79,7 @@ int joold_advertise(struct xlator *jool)
 	return fail(__func__);
 }
 
-struct fragdb *fragdb_create(struct net *ns)
+struct fragdb *fragdb_alloc(struct net *ns)
 {
 	fail(__func__);
 	return NULL;
@@ -111,9 +111,10 @@ verdict fragdb_handle(struct fragdb *db, struct packet *pkt)
 	return VERDICT_DROP;
 }
 
-int pool4db_init(struct pool4 **pool)
+struct pool4 *pool4db_alloc(void)
 {
-	return fail(__func__);
+	fail(__func__);
+	return NULL;
 }
 
 void pool4db_get(struct pool4 *pool)
@@ -160,7 +161,7 @@ bool pool4db_contains(struct pool4 *pool, struct net *ns,
 	return false;
 }
 
-struct bib *bib_create(void)
+struct bib *bib_alloc(void)
 {
 	fail(__func__);
 	return NULL;

@@ -234,13 +234,13 @@ static struct pool4_table *create_table(struct pool4_range *range)
 	return table;
 }
 
-int pool4db_init(struct pool4 **pool)
+struct pool4 *pool4db_alloc(void)
 {
 	struct pool4 *result;
 
 	result = wkmalloc(struct pool4, GFP_KERNEL);
 	if (!result)
-		return -ENOMEM;
+		return NULL;
 
 	result->tree_mark.tcp = RB_ROOT;
 	result->tree_mark.udp = RB_ROOT;
@@ -251,8 +251,7 @@ int pool4db_init(struct pool4 **pool)
 	spin_lock_init(&result->lock);
 	kref_init(&result->refcounter);
 
-	*pool = result;
-	return 0;
+	return result;
 }
 
 void pool4db_get(struct pool4 *pool)
@@ -282,7 +281,7 @@ static void clear_trees(struct pool4 *pool)
 	rbtree_clear(&pool->tree_addr.icmp, destroy_table_by_node, NULL);
 }
 
-static void release(struct kref *refcounter)
+static void pool4db_release(struct kref *refcounter)
 {
 	struct pool4 *pool;
 	pool = container_of(refcounter, struct pool4, refcounter);
@@ -292,7 +291,7 @@ static void release(struct kref *refcounter)
 
 void pool4db_put(struct pool4 *pool)
 {
-	kref_put(&pool->refcounter, release);
+	kref_put(&pool->refcounter, pool4db_release);
 }
 
 static int max_iterations_validate(__u8 flags, __u32 iterations)

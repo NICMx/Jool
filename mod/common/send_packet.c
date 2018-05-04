@@ -6,7 +6,6 @@
 #include "nat64/mod/common/icmp_wrapper.h"
 #include "nat64/mod/common/packet.h"
 #include "nat64/mod/common/route.h"
-#include "nat64/mod/common/log_time.h"
 
 static unsigned int get_nexthop_mtu(struct packet *pkt)
 {
@@ -54,8 +53,6 @@ verdict sendpkt_send(struct xlation *state)
 {
 	struct packet *out = &state->out;
 	int error;
-
-	logtime(out);
 
 	if (!route(state->jool.ns, out)) {
 		kfree_skb(out->skb);

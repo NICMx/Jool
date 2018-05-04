@@ -108,7 +108,7 @@ static unsigned int hash_function(const struct packet *key)
 			&hdr->saddr, &hdr->daddr, rnd);
 }
 
-int fragdb_init(void)
+int fragdb_setup(void)
 {
 	buffer_cache = kmem_cache_create("jool_reassembly_buffers",
 			sizeof(struct reassembly_buffer), 0, 0, NULL);
@@ -122,12 +122,12 @@ int fragdb_init(void)
 	return 0;
 }
 
-void fragdb_destroy(void)
+void fragdb_teardown(void)
 {
 	kmem_cache_destroy(buffer_cache);
 }
 
-struct fragdb *fragdb_create(struct net *ns)
+struct fragdb *fragdb_alloc(struct net *ns)
 {
 	struct fragdb *db;
 	int error;

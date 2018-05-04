@@ -23,9 +23,9 @@ struct nl_buffer {
 };
 
 /**
- * Allocates a buffer and readies it so data can be written in it.
+ * Creates a buffer and readies it so data can be written in it.
  */
-struct nl_buffer *nlbuffer_create(struct sock *nl_socket, struct nlmsghdr *nl_hdr);
+struct nl_buffer *nlbuffer_alloc(struct sock *nl_socket, struct nlmsghdr *nl_hdr);
 /**
  * Writes "len" bytes from "data" into "buffer". Watch out for the return values.
  *

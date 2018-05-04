@@ -46,7 +46,7 @@ static void timer_function(
 /**
  * This function should be always called *after* other init()s.
  */
-int timer_init(void)
+int jtimer_setup(void)
 {
 #if LINUX_VERSION_AT_LEAST(4, 15, 0, 9999, 0)
 	timer_setup(&timer, timer_function, 0);
@@ -63,7 +63,7 @@ int timer_init(void)
 /**
  * This function should be always called *before* other destroy()s.
  */
-void timer_destroy(void)
+void jtimer_teardown(void)
 {
 	del_timer_sync(&timer);
 }

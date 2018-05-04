@@ -18,6 +18,20 @@ MODULE_LICENSE(JOOL_LICENSE);
 MODULE_AUTHOR("Alberto Leiva");
 MODULE_DESCRIPTION("Xlator test.");
 
+/** The network namespace where the test is being run. */
+static struct net *ns;
+/** Number of references that @ns had at the beginning of the test. */
+static int old_refs;
+
+static int ns_refcount(struct net *ns)
+{
+#if LINUX_VERSION_AT_LEAST(4, 16, 0, 9999, 0)
+	return refcount_read(&ns->count);
+#else
+	return atomic_read(&ns->count);
+#endif
+}
+
 static bool validate(char *expected_addr, __u8 expected_len)
 {
 	struct xlator jool;
@@ -104,11 +118,9 @@ end:
 }
 
 /**
- * Test the previous test handled krefs correctly.
- *
- * @ns_kref expected references towards the current context's struct net.
+ * Test the previous test handled krefs correctly.Siege on Bowser's Castle
  */
-static bool krefs_test(int ns_kref)
+static bool krefs_test(void)
 {
 	struct xlator jool;
 	int error;
@@ -120,8 +132,8 @@ static bool krefs_test(int ns_kref)
 		return false;
 	}
 
-	/* @ns_kref + the one we just took. */
-	success &= ASSERT_INT(ns_kref + 1, atomic_read(&jool.ns->count), "ns kref");
+	/* @old + database's ref + the one we just took. */
+	success &= ASSERT_INT(old_refs + 2, ns_refcount(jool.ns), "ns kref");
 	/* xlator DB's kref + the one we just took. */
 	success &= ASSERT_INT(2,
 #if LINUX_VERSION_AT_LEAST(4, 11, 0, 9999, 0)
@@ -139,65 +151,13 @@ static bool krefs_test(int ns_kref)
  * Test the previous test handled krefs correctly. Assumes the xlator has been
  * deinitialized.
  */
-static bool ns_only_krefs_test(int ns_kref, struct net *ns)
+static bool ns_only_krefs_test(void)
 {
-	return ASSERT_INT(ns_kref, atomic_read(&ns->count), "ns kref");
+	return ASSERT_INT(old_refs, ns_refcount(ns), "ns kref");
 }
 
-static int init(void)
+static int setup(void)
 {
-	struct xlator jool;
-	struct ipv6_prefix prefix;
-	int error;
-
-	error = xlator_init();
-	if (error) {
-		log_info("xlator_init() threw %d", error);
-		return error;
-	}
-	error = xlator_add(&jool);
-	if (error) {
-		log_info("xlator_add() threw %d", error);
-		goto fail;
-	}
-
-	error = str_to_addr6("2001:db8::", &prefix.address);
-	if (error)
-		goto fail;
-	prefix.len = 96;
-
-	error = pool6_add(jool.pool6, &prefix);
-	if (error) {
-		log_info("pool6_add() threw %d", error);
-		goto fail;
-	}
-
-	xlator_put(&jool);
-	return 0;
-
-fail:
-	xlator_destroy();
-	return error;
-}
-
-/**
- * This is not a test, but since it can fail, might as well declare it as one.
- */
-static bool destroy(void)
-{
-	bool success;
-	success = ASSERT_INT(0, xlator_rm(), "xlator_rm");
-	xlator_destroy();
-	return success;
-}
-
-int init_module(void)
-{
-	struct net *ns;
-	int old;
-	int error;
-	START_TESTS("Xlator");
-
 	/*
 	 * This whole test assumes nothing else will grab or return references
 	 * towards @ns, but some kernels seem to spawn threads during module
@@ -214,23 +174,91 @@ int init_module(void)
 		log_err("Could not retrieve the current namespace.");
 		return PTR_ERR(ns);
 	}
-	old = atomic_read(&ns->count);
+	old_refs = ns_refcount(ns);
+
+	return 0;
+}
+
+static void teardown(void)
+{
+	put_net(ns);
+}
+
+static int init(void)
+{
+	struct xlator jool;
+	struct ipv6_prefix prefix;
+	int error;
+
+	error = xlator_setup();
+	if (error) {
+		log_info("xlator_setup() threw %d", error);
+		return error;
+	}
+	error = xlator_add(&jool);
+	if (error) {
+		log_info("xlator_add() threw %d", error);
+		goto fail1;
+	}
+
+	error = str_to_addr6("2001:db8::", &prefix.address);
+	if (error)
+		goto fail2;
+	prefix.len = 96;
+
+	error = pool6_add(jool.pool6, &prefix);
+	if (error) {
+		log_info("pool6_add() threw %d", error);
+		goto fail2;
+	}
+
+	xlator_put(&jool);
+	return 0;
+
+fail2:
+	xlator_rm();
+fail1:
+	xlator_put(&jool);
+	xlator_teardown();
+	return error;
+}
+
+/**
+ * This is not a test, but since it can fail, might as well declare it as one.
+ */
+static bool clean(void)
+{
+	bool success;
+	success = ASSERT_INT(0, xlator_rm(), "xlator_rm");
+	xlator_teardown();
+	return success;
+}
+
+int init_module(void)
+{
+	struct test_group test = {
+		.name = "Xlator",
+		.setup_fn = setup,
+		.teardown_fn = teardown,
+	};
+	int error;
+
+	test_group_begin(&test);
 
 	error = init();
 	if (error) {
-		put_net(ns);
+		teardown();
 		return error;
 	}
 
-	CALL_TEST(simple_test(), "xlator API");
-	CALL_TEST(krefs_test(old + 1), "kfref checks 1");
-	CALL_TEST(atomic_test(), "atomic config API");
-	CALL_TEST(krefs_test(old + 1), "kfref checks 2");
-	CALL_TEST(destroy(), "destroy");
-	CALL_TEST(ns_only_krefs_test(old, ns), "kfref checks 3");
+	test_group_test(&test, simple_test, "xlator API");
+	test_group_test(&test, krefs_test, "kfref checks 1");
+	test_group_test(&test, atomic_test, "atomic config API");
+	test_group_test(&test, krefs_test, "kfref checks 2");
+	test_group_test(&test, clean, "clean");
+	test_group_test(&test, ns_only_krefs_test, "kfref checks 3");
 
-	put_net(ns);
-	END_TESTS;
+	return test_group_end(&test);
 }
 
 void cleanup_module(void)

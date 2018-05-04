@@ -6,7 +6,6 @@
 #include "nat64/common/xlat.h"
 #include "nat64/mod/common/core.h"
 #include "nat64/mod/common/linux_version.h"
-#include "nat64/mod/common/log_time.h"
 #include "nat64/mod/common/nf_wrapper.h"
 #include "nat64/mod/common/pool6.h"
 #include "nat64/mod/common/wkmalloc.h"
@@ -128,30 +127,27 @@ static int __init jool_init(void)
 	log_debug("Inserting %s...", xlat_get_name());
 
 	/* Init Jool's submodules. */
-	error = bib_init();
+	error = bib_setup();
 	if (error)
 		goto bib_fail;
-	error = fragdb_init();
+	error = fragdb_setup();
 	if (error)
 		goto fragdb_fail;
-	error = joold_init();
+	error = joold_setup();
 	if (error)
 		goto joold_fail;
-	error = rfc6056_init();
+	error = rfc6056_setup();
 	if (error)
 		goto rfc6056_fail;
-	error = xlator_init();
+	error = xlator_setup();
 	if (error)
 		goto xlator_fail;
-	error = nlhandler_init();
+	error = nlhandler_setup();
 	if (error)
 		goto nlhandler_fail;
-	error = timer_init();
+	error = jtimer_setup();
 	if (error)
-		goto timer_fail;
-	error = logtime_init();
-	if (error)
-		goto logtime_fail;
+		goto jtimer_fail;
 
 	/* This needs to be last! (except for the hook registering.) */
 	error = add_instance();
@@ -174,21 +170,19 @@ nf_register_hooks_fail:
 	xlator_rm();
 #endif
 instance_fail:
-	logtime_destroy();
-logtime_fail:
-	timer_destroy();
-timer_fail:
-	nlhandler_destroy();
+	jtimer_teardown();
+jtimer_fail:
+	nlhandler_teardown();
 nlhandler_fail:
-	xlator_destroy();
+	xlator_teardown();
 xlator_fail:
-	rfc6056_destroy();
+	rfc6056_teardown();
 rfc6056_fail:
-	joold_terminate();
+	joold_teardown();
 joold_fail:
-	fragdb_destroy();
+	fragdb_teardown();
 fragdb_fail:
-	bib_destroy();
+	bib_teardown();
 bib_fail:
 	return error;
 }
@@ -199,18 +193,17 @@ static void __exit jool_exit(void)
 	nf_unregister_hooks(nfho, ARRAY_SIZE(nfho));
 #endif
 
-	logtime_destroy();
-	timer_destroy();
-	nlhandler_destroy();
-	xlator_destroy();
-	rfc6056_destroy();
-	joold_terminate();
-	fragdb_destroy();
-	bib_destroy();
+	jtimer_teardown();
+	nlhandler_teardown();
+	xlator_teardown();
+	rfc6056_teardown();
+	joold_teardown();
+	fragdb_teardown();
+	bib_teardown();
 
 #ifdef JKMEMLEAK
 	wkmalloc_print_leaks();
-	wkmalloc_destroy();
+	wkmalloc_teardown();
 #endif
 
 	log_info("%s v" JOOL_VERSION_STR " module removed.", xlat_get_name());

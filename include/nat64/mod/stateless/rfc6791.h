@@ -16,7 +16,7 @@
 #include "nat64/mod/common/translation_state.h"
 #include "nat64/mod/stateless/pool.h"
 
-int rfc6791_init(struct addr4_pool **pool);
+struct addr4_pool *rfc6791_alloc(void);
 void rfc6791_get(struct addr4_pool *pool);
 void rfc6791_put(struct addr4_pool *pool);
 

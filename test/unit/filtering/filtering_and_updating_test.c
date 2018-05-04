@@ -517,78 +517,112 @@ static bool test_tcp(void)
 	return success;
 }
 
-static bool init(void)
+static int setup(void)
+{
+	int error;
+
+	error = bib_setup();
+	if (error)
+		goto fail1;
+	error = rfc6056_setup();
+	if (error)
+		goto fail2;
+	error = xlator_setup();
+	if (error)
+		goto fail3;
+
+	return 0;
+
+fail3:
+	rfc6056_teardown();
+fail2:
+	bib_teardown();
+fail1:
+	return error;
+}
+
+static void teardown(void)
+{
+	xlator_teardown();
+	rfc6056_teardown();
+	bib_teardown();
+}
+
+static int init(void)
 {
 	struct ipv6_prefix prefix6;
 	struct pool4_entry_usr entry;
+	int error;
 
-	if (bib_init())
-		return false;
-	if (rfc6056_init())
-		goto fail2;
+	error = xlator_add(&jool);
+	if (error)
+		return error;
 
-	if (xlator_init())
-		goto fail3;
-	if (xlator_add(&jool))
-		goto fail4;
-
-	if (str_to_addr6("3::", &prefix6.address))
-		goto fail5;
+	error = str_to_addr6("3::", &prefix6.address);
+	if (error)
+		goto fail;
 	prefix6.len = 96;
-	if (pool6_add(jool.pool6, &prefix6))
-		goto fail5;
+	error = pool6_add(jool.pool6, &prefix6);
+	if (error)
+		goto fail;
 
 	entry.mark = 0;
 	entry.iterations = 0;
 	entry.flags = ITERATIONS_SET | ITERATIONS_INFINITE;
-	if (str_to_addr4("192.0.2.128", &entry.range.prefix.address))
-		goto fail5;
+	error = str_to_addr4("192.0.2.128", &entry.range.prefix.address);
+	if (error)
+		goto fail;
 	entry.range.prefix.len = 32;
 	entry.range.ports.min = 1024;
 	entry.range.ports.max = 1024;
 
 	entry.proto = L4PROTO_TCP;
-	if (pool4db_add(jool.nat64.pool4, &entry))
-		goto fail5;
+	error = pool4db_add(jool.nat64.pool4, &entry);
+	if (error)
+		goto fail;
 	entry.proto = L4PROTO_UDP;
-	if (pool4db_add(jool.nat64.pool4, &entry))
-		goto fail5;
+	error = pool4db_add(jool.nat64.pool4, &entry);
+	if (error)
+		goto fail;
 	entry.proto = L4PROTO_ICMP;
-	if (pool4db_add(jool.nat64.pool4, &entry))
-		goto fail5;
+	error = pool4db_add(jool.nat64.pool4, &entry);
+	if (error)
+		goto fail;
 
-	return true;
+	return 0;
 
-fail5:
+fail:
 	xlator_put(&jool);
-fail4:
-	xlator_destroy();
-fail3:
-	rfc6056_destroy();
-fail2:
-	bib_destroy();
-	return false;
+	xlator_rm();
+	return error;
 }
 
-static void end(void)
+static void clean(void)
 {
 	icmp64_pop();
 	xlator_put(&jool);
-	xlator_destroy();
-	rfc6056_destroy();
-	bib_destroy();
+	xlator_rm();
 }
 
 static int filtering_test_init(void)
 {
-	START_TESTS("Filtering and Updating");
+	struct test_group test = {
+		.name = "Filtering and Updating",
+		.setup_fn = setup,
+		.teardown_fn = teardown,
+		.init_fn = init,
+		.clean_fn = clean,
+	};
 
-	INIT_CALL_END(init(), test_filtering_and_updating(), end(), "core function");
-	INIT_CALL_END(init(), test_udp(), end(), "UDP");
-	INIT_CALL_END(init(), test_icmp(), end(), "ICMP");
-	INIT_CALL_END(init(), test_tcp(), end(), "test_tcp");
+	if (test_group_begin(&test))
+		return -EINVAL;
 
-	END_TESTS;
+	test_group_test(&test, test_filtering_and_updating, "core function");
+	test_group_test(&test, test_udp, "UDP");
+	test_group_test(&test, test_icmp, "ICMP");
+	test_group_test(&test, test_tcp, "test_tcp");
+
+	return test_group_end(&test);
 }
 
 static void filtering_test_exit(void)

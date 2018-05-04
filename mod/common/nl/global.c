@@ -341,12 +341,10 @@ int config_parse(struct full_config *config, void *payload, size_t payload_len)
 
 static int commit_config(struct xlator *jool, struct full_config *config)
 {
-	int error;
-
 	config_put(jool->global);
-	error = config_init(&jool->global);
-	if (error)
-		return error;
+	jool->global = config_alloc();
+	if (!jool->global)
+		return -ENOMEM;
 
 	config_copy(&config->global, &jool->global->cfg);
 	bib_config_set(jool->nat64.bib, &config->bib);

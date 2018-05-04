@@ -19,9 +19,10 @@ static int fail(const char *function_name)
 	return -EINVAL;
 }
 
-int blacklist_init(struct addr4_pool **pool)
+struct addr4_pool *blacklist_alloc(void)
 {
-	return fail(__func__);
+	fail(__func__);
+	return NULL;
 }
 
 void blacklist_get(struct addr4_pool *pool)
@@ -46,9 +47,10 @@ bool blacklist_contains(struct addr4_pool *pool, struct in_addr *addr)
 	return false;
 }
 
-int rfc6791_init(struct addr4_pool **pool)
+struct addr4_pool *rfc6791_alloc(void)
 {
-	return fail(__func__);
+	fail(__func__);
+	return NULL;
 }
 
 void rfc6791_get(struct addr4_pool *pool)
@@ -71,9 +73,10 @@ int rfc6791_find_v6(struct xlation *state, struct in6_addr *result)
 	return fail(__func__);
 }
 
-int eamt_init(struct eam_table **eamt)
+struct eam_table *eamt_alloc(void)
 {
-	return fail(__func__);
+	fail(__func__);
+	return NULL;
 }
 
 void eamt_get(struct eam_table *eamt)
@@ -139,9 +142,10 @@ bool eamt_is_empty(struct eam_table *eamt)
 	return true;
 }
 
-int pool_init(struct addr4_pool **pool)
+struct addr4_pool *pool_alloc(void)
 {
-	return fail(__func__);
+	fail(__func__);
+	return NULL;
 }
 
 void pool_put(struct addr4_pool *pool)

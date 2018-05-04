@@ -26,7 +26,6 @@ enum argp_flags {
 	ARGP_EAMT = 'e',
 	ARGP_BLACKLIST = 7000,
 	ARGP_RFC6791 = 6791,
-	ARGP_LOGTIME = 'l',
 	ARGP_GLOBAL = 'g',
 	ARGP_PARSE_FILE = 'p',
 	ARGP_INSTANCE = 7001,

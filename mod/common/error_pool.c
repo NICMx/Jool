@@ -25,7 +25,7 @@ static __u8 activated = 0;
 static size_t msg_size = 0;
 static struct list_head db;
 
-void error_pool_init(void)
+void error_pool_setup(void)
 {
 	INIT_LIST_HEAD(&db);
 }
@@ -42,7 +42,7 @@ static void flush_list(void)
 	}
 }
 
-void error_pool_destroy(void)
+void error_pool_teardown(void)
 {
 	flush_list();
 }

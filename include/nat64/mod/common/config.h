@@ -9,7 +9,7 @@ struct global_config {
 	struct kref refcounter;
 };
 
-int config_init(struct global_config **global);
+struct global_config *config_alloc(void);
 void config_get(struct global_config *global);
 void config_put(struct global_config *global);
 

@@ -14,7 +14,7 @@ struct nl_buffer {
 	size_t len;
 };
 
-struct nl_buffer *nlbuffer_create(void)
+struct nl_buffer *nlbuffer_alloc(void)
 {
 	struct nl_buffer *buffer;
 

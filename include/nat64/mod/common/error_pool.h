@@ -3,8 +3,8 @@
 
 #include <linux/types.h>
 
-void error_pool_init(void);
-void error_pool_destroy(void);
+void error_pool_setup(void);
+void error_pool_teardown(void);
 
 void error_pool_activate(void);
 int error_pool_add_message(char * msg);

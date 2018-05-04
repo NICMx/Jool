@@ -7,8 +7,8 @@
 
 #include <stddef.h>
 
-int modsocket_init(void);
-void modsocket_destroy(void);
+int modsocket_setup(void);
+void modsocket_teardown(void);
 
 void *modsocket_listen(void *arg);
 void modsocket_send(void *buffer, size_t size);

@@ -7,7 +7,7 @@
 void wkmalloc_add(const char *name);
 void wkmalloc_rm(const char *name, void *obj);
 void wkmalloc_print_leaks(void);
-void wkmalloc_destroy(void);
+void wkmalloc_teardown(void);
 
 static inline void *__wkmalloc(const char *name, size_t size, gfp_t flags)
 {

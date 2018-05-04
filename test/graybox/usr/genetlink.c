@@ -36,7 +36,7 @@ static int set_socket_timeouts(void)
 	return 0;
 }
 
-int nlsocket_init(char *family_name)
+int nlsocket_setup(char *family_name)
 {
 	int error;
 
@@ -81,7 +81,7 @@ genl_fail:
 	return netlink_print_error(error);
 }
 
-void nlsocket_destroy()
+void nlsocket_teardown()
 {
 	nl_socket_free(sk);
 }

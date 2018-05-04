@@ -67,34 +67,25 @@ bool ASSERT_SESSION(struct session_entry *expected,
 
 void print_session(struct session_entry *session);
 
-bool init_full(void);
-void end_full(void);
+struct test_group {
+	char *name;
 
-/**
- * Macros to be used by the main test function.
- */
-#define START_TESTS(module_name)	\
-	int test_counter = 0;			\
-	int failure_counter = 0;		\
-	log_info("Module '%s': Starting tests...", module_name)
+	/** To be run once per test group. */
+	int (*setup_fn)(void);
+	/** Reverts @setup_fn. */
+	void (*teardown_fn)(void);
+	/** To be run once per test. */
+	int (*init_fn)(void);
+	/** Reverts @init_fn. */
+	void (*clean_fn)(void);
 
-#define CALL_TEST(test, test_name, ...)								\
-	log_info("Test '" test_name "': Starting...", ##__VA_ARGS__);	\
-	test_counter++;													\
-	if (test) {														\
-		log_info("Test '" test_name "': Success.\n", ##__VA_ARGS__);	\
-	} else {														\
-		log_info("Test '" test_name "': Failure.\n", ##__VA_ARGS__);	\
-		failure_counter++;											\
-	}
-#define INIT_CALL_END(init_function, test_function, end_function, test_name)	\
-	if (!init_function)															\
-		return -EINVAL;															\
-	CALL_TEST(test_function, test_name)											\
-	end_function
-#define END_TESTS \
-	log_info("Finished. Runs: %d; Errors: %d", test_counter, failure_counter); \
-	return (failure_counter > 0) ? -EINVAL : 0;
+	unsigned int test_counter;
+	unsigned int failure_counter;
+};
+
+int test_group_begin(struct test_group *group);
+void test_group_test(struct test_group *group, bool (*test)(void), char *name);
+int test_group_end(struct test_group *group);
 
 int broken_unit_call(const char *function);
 

@@ -400,21 +400,26 @@ static bool test_find_unsupported(void)
 
 int init_module(void)
 {
-	START_TESTS("IPv6 header iterator");
+	struct test_group test = {
+		.name = "IPv6 header iterator",
+	};
 
-	CALL_TEST(test_next_no_subheaders(), "next function, no subheaders");
-	CALL_TEST(test_next_subheaders(), "next function, subheaders");
-	CALL_TEST(test_next_unsupported(), "next function, unsupported hdrs");
+	if (test_group_begin(&test))
+		return -EINVAL;
 
-	CALL_TEST(test_last_no_subheaders(), "last function, no subheaders");
-	CALL_TEST(test_last_subheaders(), "last function, subheaders");
-	CALL_TEST(test_last_unsupported(), "last function, unsupported hdrs");
+	test_group_test(&test, test_next_no_subheaders, "next function, no subheaders");
+	test_group_test(&test, test_next_subheaders, "next function, subheaders");
+	test_group_test(&test, test_next_unsupported, "next function, unsupported hdrs");
 
-	CALL_TEST(test_find_no_subheaders(), "find function, no subheaders");
-	CALL_TEST(test_find_subheaders(), "find function, subheaders");
-	CALL_TEST(test_find_unsupported(), "find function, unsupported hdrs");
+	test_group_test(&test, test_last_no_subheaders, "last function, no subheaders");
+	test_group_test(&test, test_last_subheaders, "last function, subheaders");
+	test_group_test(&test, test_last_unsupported, "last function, unsupported hdrs");
 
-	END_TESTS;
+	test_group_test(&test, test_find_no_subheaders, "find function, no subheaders");
+	test_group_test(&test, test_find_subheaders, "find function, subheaders");
+	test_group_test(&test, test_find_unsupported, "find function, unsupported hdrs");
+
+	return test_group_end(&test);
 }
 
 void cleanup_module(void)

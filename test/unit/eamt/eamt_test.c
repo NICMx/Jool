@@ -14,12 +14,13 @@ MODULE_DESCRIPTION("Unit tests for the EAMT module");
 
 static struct eam_table *eamt;
 
-static bool init(void)
+static int init(void)
 {
-	return eamt_init(&eamt) ? false : true;
+	eamt = eamt_alloc();
+	return eamt ? 0 : -ENOMEM;
 }
 
-static void end(void)
+static void clean(void)
 {
 	eamt_put(eamt);
 }
@@ -454,16 +455,23 @@ static bool remove_test(void)
 
 static int address_mapping_test_init(void)
 {
-	START_TESTS("Address Mapping test");
+	struct test_group test = {
+		.name = "Address Mapping test",
+		.init_fn = init,
+		.clean_fn = clean,
+	};
 
-	INIT_CALL_END(init(), add_test(), end(), "add function");
-	INIT_CALL_END(init(), daniel_test(), end(), "Daniel's xlat tests");
-	INIT_CALL_END(init(), rfc7757_examples_test(), end(), "RFC 7757 Appendix B");
-	INIT_CALL_END(init(), rfc7757_overlapping_test(), end(), "RFC 7757 Section 5, 1st half");
-	INIT_CALL_END(init(), rfc7757_identical_test(), end(), "RFC 7757 Section 5, 2nd half");
-	INIT_CALL_END(init(), remove_test(), end(), "remove function");
+	if (test_group_begin(&test))
+		return -EINVAL;
 
-	END_TESTS;
+	test_group_test(&test, add_test, "add function");
+	test_group_test(&test, daniel_test, "Daniel's xlat tests");
+	test_group_test(&test, rfc7757_examples_test, "RFC 7757 Appendix B");
+	test_group_test(&test, rfc7757_overlapping_test, "RFC 7757 Section 5, 1st half");
+	test_group_test(&test, rfc7757_identical_test, "RFC 7757 Section 5, 2nd half");
+	test_group_test(&test, remove_test, "remove function");
+
+	return test_group_end(&test);
 }
 
 static void address_mapping_test_exit(void)

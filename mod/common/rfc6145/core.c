@@ -8,7 +8,7 @@ static verdict translate_first(struct xlation *state)
 	struct translation_steps *steps = ttpcomm_get_steps(&state->in);
 	verdict result;
 
-	result = steps->skb_create_fn(state);
+	result = steps->skb_alloc_fn(state);
 	if (result != VERDICT_CONTINUE)
 		return result;
 	result = steps->l3_hdr_fn(state);

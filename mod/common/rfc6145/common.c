@@ -27,44 +27,44 @@ static verdict handle_unknown_l4(struct xlation *state)
 static struct translation_steps steps[][L4_PROTO_COUNT] = {
 	{ /* IPv6 */
 		{
-			.skb_create_fn = ttp64_create_skb,
+			.skb_alloc_fn = ttp64_alloc_skb,
 			.l3_hdr_fn = ttp64_ipv4,
 			.l3_payload_fn = ttp64_tcp,
 		},
 		{
-			.skb_create_fn = ttp64_create_skb,
+			.skb_alloc_fn = ttp64_alloc_skb,
 			.l3_hdr_fn = ttp64_ipv4,
 			.l3_payload_fn = ttp64_udp,
 		},
 		{
-			.skb_create_fn = ttp64_create_skb,
+			.skb_alloc_fn = ttp64_alloc_skb,
 			.l3_hdr_fn = ttp64_ipv4,
 			.l3_payload_fn = ttp64_icmp,
 		},
 		{
-			.skb_create_fn = ttp64_create_skb,
+			.skb_alloc_fn = ttp64_alloc_skb,
 			.l3_hdr_fn = ttp64_ipv4,
 			.l3_payload_fn = handle_unknown_l4,
 		}
 	},
 	{ /* IPv4 */
 		{
-			.skb_create_fn = ttp46_create_skb,
+			.skb_alloc_fn = ttp46_alloc_skb,
 			.l3_hdr_fn = ttp46_ipv6,
 			.l3_payload_fn = ttp46_tcp,
 		},
 		{
-			.skb_create_fn = ttp46_create_skb,
+			.skb_alloc_fn = ttp46_alloc_skb,
 			.l3_hdr_fn = ttp46_ipv6,
 			.l3_payload_fn = ttp46_udp,
 		},
 		{
-			.skb_create_fn = ttp46_create_skb,
+			.skb_alloc_fn = ttp46_alloc_skb,
 			.l3_hdr_fn = ttp46_ipv6,
 			.l3_payload_fn = ttp46_icmp,
 		},
 		{
-			.skb_create_fn = ttp46_create_skb,
+			.skb_alloc_fn = ttp46_alloc_skb,
 			.l3_hdr_fn = ttp46_ipv6,
 			.l3_payload_fn = handle_unknown_l4,
 		}

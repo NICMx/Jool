@@ -7,7 +7,7 @@ static struct fake {
 
 struct sk_buff *skb_out = NULL;
 
-struct config_candidate *cfgcandidate_create(void)
+struct config_candidate *cfgcandidate_alloc(void)
 {
 	return (struct config_candidate *)&dummy;
 }

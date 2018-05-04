@@ -35,11 +35,16 @@ static bool test_port_range_touches(void)
 
 int init_module(void)
 {
-	START_TESTS("Types");
+	struct test_group test = {
+		.name = "Types",
+	};
 
-	CALL_TEST(test_port_range_touches(), "port range touches function");
+	if (test_group_begin(&test))
+		return -EINVAL;
 
-	END_TESTS;
+	test_group_test(&test, test_port_range_touches, "port range touches function");
+
+	return test_group_end(&test);
 }
 
 void cleanup_module(void)

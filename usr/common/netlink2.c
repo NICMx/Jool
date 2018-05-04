@@ -204,7 +204,7 @@ int netlink_request_simple(void *request, __u32 request_len)
 	return 0;
 }
 
-int netlink_init(void)
+int netlink_setup(void)
 {
 	int error;
 
@@ -251,7 +251,7 @@ fail:
 	return netlink_print_error(error);
 }
 
-void netlink_destroy(void)
+void netlink_teardown(void)
 {
 	nl_close(sk);
 	nl_socket_free(sk);

@@ -17,7 +17,7 @@ struct request {
 	};
 };
 
-static int request_create(int argc, char **argv, struct request *request)
+static int request_init(int argc, char **argv, struct request *request)
 {
 	char *type;
 
@@ -42,14 +42,14 @@ static int request_create(int argc, char **argv, struct request *request)
 	return -EINVAL;
 }
 
-void request_destroy(struct request *req)
+void request_clean(struct request *req)
 {
 	switch (req->cmd) {
 	case COMMAND_EXPECT_ADD:
-		expect_add_destroy(&req->expect_add);
+		expect_add_clean(&req->expect_add);
 		break;
 	case COMMAND_SEND:
-		send_destroy(&req->send);
+		send_clean(&req->send);
 		break;
 	case COMMAND_EXPECT_FLUSH:
 	case COMMAND_STATS_DISPLAY:
@@ -112,11 +112,11 @@ int main(int argc, char *argv[])
 	struct nl_msg *msg = NULL;
 	int error;
 
-	error = request_create(argc - 1, argv + 1, &req);
+	error = request_init(argc - 1, argv + 1, &req);
 	if (error)
 		goto end1;
 
-	error = nlsocket_init("graybox");
+	error = nlsocket_setup("graybox");
 	if (error)
 		goto end1;
 
@@ -128,8 +128,8 @@ int main(int argc, char *argv[])
 
 	nlmsg_free(msg);
 end2:
-	nlsocket_destroy();
+	nlsocket_teardown();
 end1:
-	request_destroy(&req);
+	request_clean(&req);
 	return error;
 }

@@ -13,7 +13,6 @@
 #define OPTNAME_EAMT			"eamt"
 #define OPTNAME_BIB			"bib"
 #define OPTNAME_SESSION			"session"
-#define OPTNAME_LOGTIME			"logTime"
 #define OPTNAME_PARSE_FILE		"file"
 #define OPTNAME_JOOLD			"joold"
 #define OPTNAME_INSTANCE		"instance"

@@ -224,16 +224,21 @@ static bool test_foreach(void)
 
 int init_module(void)
 {
-	START_TESTS("RB Tree");
+	struct test_group test = {
+		.name = "RB Tree",
+	};
 
-	CALL_TEST(test_add_and_remove(), "Add/Remove Test");
-	CALL_TEST(test_foreach(), "Foreach Test");
+	if (test_group_begin(&test))
+		return -EINVAL;
+
+	test_group_test(&test, test_add_and_remove, "Add/Remove Test");
+	test_group_test(&test, test_foreach, "Foreach Test");
 	/*
 	 * I'm lazy. The BIB and session modules already test the get functions
 	 * and whatnot.
 	 */
 
-	END_TESTS;
+	return test_group_end(&test);
 }
 
 void cleanup_module(void)

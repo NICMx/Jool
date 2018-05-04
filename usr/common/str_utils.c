@@ -76,8 +76,6 @@ char *configmode_to_string(enum config_mode mode)
 		return OPTNAME_BIB;
 	case MODE_SESSION:
 		return OPTNAME_SESSION;
-	case MODE_LOGTIME:
-		return OPTNAME_LOGTIME;
 	case MODE_PARSE_FILE:
 		return OPTNAME_PARSE_FILE;
 	case MODE_JOOLD:

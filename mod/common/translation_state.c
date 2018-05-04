@@ -8,7 +8,7 @@ void xlation_init(struct xlation *state)
 	memset(&state->out.debug, 0, sizeof(state->out.debug));
 }
 
-void xlation_put(struct xlation *state)
+void xlation_clean(struct xlation *state)
 {
 	xlator_put(&state->jool);
 }

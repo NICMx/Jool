@@ -12,10 +12,10 @@ struct joold_queue;
  * is emptied as a result.
  */
 
-int joold_init(void);
-void joold_terminate(void);
+int joold_setup(void);
+void joold_teardown(void);
 
-struct joold_queue *joold_create(struct net *ns);
+struct joold_queue *joold_alloc(struct net *ns);
 void joold_get(struct joold_queue *queue);
 void joold_put(struct joold_queue *queue);
 

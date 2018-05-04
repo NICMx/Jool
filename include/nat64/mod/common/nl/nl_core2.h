@@ -35,16 +35,17 @@ struct nlcore_buffer {
 	void *data;
 };
 
-void nlcore_init(struct genl_family *new_family,
+void nlcore_setup(struct genl_family *new_family,
 		struct genl_multicast_group *new_group);
-/* There's no nlcore_destroy; just destroy the family yourself. */
+/* There's no nlcore_teardown; just destroy the family yourself. */
 
 size_t nlbuffer_response_max_size(void);
 int nlbuffer_init_request(struct nlcore_buffer *buffer, struct request_hdr *hdr,
 		size_t capacity);
 int nlbuffer_init_response(struct nlcore_buffer *buffer, struct genl_info *info,
 		size_t capacity);
-void nlbuffer_free(struct nlcore_buffer *buffer);
+void nlbuffer_clean(struct nlcore_buffer *buffer);
+
 int nlbuffer_write(struct nlcore_buffer *buffer, void *data, size_t data_size);
 int nlbuffer_send(struct genl_info *info, struct nlcore_buffer *buffer);
 

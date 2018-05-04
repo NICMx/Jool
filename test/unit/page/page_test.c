@@ -18,29 +18,31 @@ struct net_device *dev;
 u8 buffer[PAGE_SIZE];
 extern struct sk_buff *skb_out;
 
-static bool init(void)
+static int init(void)
 {
 	struct xlator jool;
 	struct ipv6_prefix prefix6;
+	int error;
 
-	/* Used modules */
-	if (xlator_init())
-		return false;
-	if (xlator_add(&jool))
-		goto destroy_xlator;
+	error = xlator_add(&jool);
+	if (error)
+		return error;
 
-	if (str_to_addr6("2001:db8::", &prefix6.address))
-		goto destroy_xlator;
+	error = str_to_addr6("2001:db8::", &prefix6.address);
+	if (error)
+		return error;
 	prefix6.len = 96;
-	if (pool6_add(jool.pool6, &prefix6))
-		goto destroy_xlator;
+	error = pool6_add(jool.pool6, &prefix6);
+	if (error)
+		return error;
 
 	/* Test's global variables */
-	if (init_tuple6(&tuple6,
+	error = init_tuple6(&tuple6,
 			"2001:db8::192.0.2.1", 5000,
 			"2001:db8::203.0.113.2", 6000,
-			L4PROTO_TCP))
-		goto destroy_xlator;
+			L4PROTO_TCP);
+	if (error)
+		return error;
 	/*
 	 * Yes, this is sort of a hack. I just need a valid device in the
 	 * current namespace.
@@ -48,16 +50,12 @@ static bool init(void)
 	dev = init_net.loopback_dev;
 
 	xlator_put(&jool);
-	return true;
-
-destroy_xlator:
-	xlator_destroy();
-	return false;
+	return 0;
 }
 
-static void destroy(void)
+static void clean(void)
 {
-	xlator_destroy();
+	xlator_rm();
 }
 
 static void print_some_bytes(void *buffer, unsigned int size)
@@ -368,11 +366,20 @@ static bool basic(void)
 
 int init_module(void)
 {
-	START_TESTS("Pages");
+	struct test_group test = {
+		.name = "Pages",
+		.setup_fn = xlator_setup,
+		.teardown_fn = xlator_teardown,
+		.init_fn = init,
+		.clean_fn = clean,
+	};
 
-	INIT_CALL_END(init(), basic(), destroy(), "Basic test");
+	if (test_group_begin(&test))
+		return -EINVAL;
 
-	END_TESTS;
+	test_group_test(&test, basic, "Basic test");
+
+	return test_group_end(&test);
 }
 
 void cleanup_module(void)

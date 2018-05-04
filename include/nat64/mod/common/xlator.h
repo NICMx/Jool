@@ -32,8 +32,8 @@ struct xlator {
 	struct config_candidate *newcfg;
 };
 
-int xlator_init(void);
-void xlator_destroy(void);
+int xlator_setup(void);
+void xlator_teardown(void);
 
 int xlator_add(struct xlator *result);
 int xlator_rm(void);

@@ -4,7 +4,6 @@ endif
 
 EXTRA_CFLAGS += -DDEBUG
 EXTRA_CFLAGS += -DUNIT_TESTING
-EXTRA_CFLAGS += -DBENCHMARK
 
 ccflags-y := -I$(src)/../../../include
 # Some tests benefit from being able to validate inner variables.

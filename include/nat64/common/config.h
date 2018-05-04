@@ -9,14 +9,6 @@
 
 #include "nat64/common/types.h"
 #include "nat64/common/xlat.h"
-/* TODO (usr) really necessary? */
-#ifdef BENCHMARK
-	#ifdef __KERNEL__
-		#include <linux/time.h>
-	#else
-		#include <time.h>
-	#endif
-#endif
 
 /** cuz sizeof(bool) is implementation-defined. */
 typedef __u8 config_bool;
@@ -55,8 +47,6 @@ enum config_mode {
 	MODE_BIB = (1 << 3),
 	/** The current message is talking about the session tables. */
 	MODE_SESSION = (1 << 4),
-	/** The current message is talking about log times for benchmark. */
-	MODE_LOGTIME = (1 << 5),
 	/** The current message is talking about the JSON configuration file */
 	MODE_PARSE_FILE = (1 << 9),
 	/** The current message is talking about synchronization entries.*/
@@ -84,7 +74,6 @@ char *configmode_to_string(enum config_mode mode);
 #define BIB_OPS (DATABASE_OPS & ~OP_FLUSH)
 #define SESSION_OPS (OP_DISPLAY | OP_COUNT)
 #define JOOLD_OPS (OP_ADVERTISE | OP_TEST)
-#define LOGTIME_OPS (OP_DISPLAY)
 #define INSTANCE_OPS (OP_ADD | OP_REMOVE)
 /**
  * @}
@@ -143,7 +132,7 @@ enum parse_section {
 #define TABLE_MODES (MODE_EAMT | MODE_BIB | MODE_SESSION)
 #define ANY_MODE 0xFFFF
 
-#define DISPLAY_MODES (MODE_GLOBAL | POOL_MODES | TABLE_MODES | MODE_LOGTIME)
+#define DISPLAY_MODES (MODE_GLOBAL | POOL_MODES | TABLE_MODES)
 #define COUNT_MODES (POOL_MODES | TABLE_MODES)
 #define ADD_MODES (POOL_MODES | MODE_EAMT | MODE_BIB | MODE_INSTANCE)
 #define REMOVE_MODES (POOL_MODES | MODE_EAMT | MODE_BIB | MODE_INSTANCE)
@@ -151,10 +140,9 @@ enum parse_section {
 #define UPDATE_MODES (MODE_GLOBAL | MODE_POOL4 | MODE_PARSE_FILE)
 
 #define SIIT_MODES (MODE_GLOBAL | MODE_POOL6 | MODE_BLACKLIST | MODE_RFC6791 \
-		| MODE_EAMT | MODE_LOGTIME | MODE_PARSE_FILE | MODE_INSTANCE)
+		| MODE_EAMT | MODE_PARSE_FILE | MODE_INSTANCE)
 #define NAT64_MODES (MODE_GLOBAL | MODE_POOL6 | MODE_POOL4 | MODE_BIB \
-		| MODE_SESSION | MODE_LOGTIME | MODE_PARSE_FILE \
-		| MODE_INSTANCE | MODE_JOOLD)
+		| MODE_SESSION | MODE_PARSE_FILE | MODE_INSTANCE | MODE_JOOLD)
 /**
  * @}
  */
@@ -321,23 +309,6 @@ union request_eamt {
 };
 
 /**
- * Configuration for the "Log time" module.
- */
-struct request_logtime {
-	__u8 l3_proto;
-	__u8 l4_proto;
-	union {
-		struct {
-			/**
-			 * If this is false, this is the first chunk the app is
-			 * requesting.
-			 */
-			config_bool iterate;
-		} display;
-	};
-};
-
-/**
  * Configuration for the "BIB" module.
  */
 struct request_bib {
@@ -451,21 +422,6 @@ enum global_type {
 	SS_CAPACITY,
 	SS_MAX_PAYLOAD,
 };
-
-#ifdef BENCHMARK
-
-/**
- * A logtime node entry, from the eyes of userspace.
- *
- * It holds the "struct timespec" which include seconds and nanoseconds, that
- * specific how time the skb need to be translated to IPv6 -> IPv4 or
- * IPv4 -> IPv6.
- */
-struct logtime_entry_usr {
-	struct timespec time;
-};
-
-#endif
 
 /**
  * A BIB entry, from the eyes of userspace.

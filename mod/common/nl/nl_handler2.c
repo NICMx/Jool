@@ -13,7 +13,6 @@
 #include "nat64/mod/common/nl/global.h"
 #include "nat64/mod/common/nl/instance.h"
 #include "nat64/mod/common/nl/joold.h"
-#include "nat64/mod/common/nl/logtime.h"
 #include "nat64/mod/common/nl/nl_common.h"
 #include "nat64/mod/common/nl/nl_core2.h"
 #include "nat64/mod/common/nl/pool.h"
@@ -108,8 +107,6 @@ static int multiplex_request(struct xlator *jool, struct genl_info *info)
 		return handle_pool6791_config(jool, info);
 	case MODE_BLACKLIST:
 		return handle_blacklist_config(jool, info);
-	case MODE_LOGTIME:
-		return handle_logtime_config(info);
 	case MODE_GLOBAL:
 		return handle_global_config(jool, info);
 	case MODE_PARSE_FILE:
@@ -212,18 +209,18 @@ static int register_family(void)
 	}
 #endif
 
-	nlcore_init(&jool_family, &mc_groups[0]);
+	nlcore_setup(&jool_family, &mc_groups[0]);
 	return 0;
 }
 
-int nlhandler_init(void)
+int nlhandler_setup(void)
 {
-	error_pool_init();
+	error_pool_setup();
 	return register_family();
 }
 
-void nlhandler_destroy(void)
+void nlhandler_teardown(void)
 {
 	genl_unregister_family(&jool_family);
-	error_pool_destroy();
+	error_pool_teardown();
 }

@@ -50,7 +50,7 @@ struct config_candidate {
 
 struct xlator;
 
-struct config_candidate *cfgcandidate_create(void);
+struct config_candidate *cfgcandidate_alloc(void);
 void cfgcandidate_get(struct config_candidate *candidate);
 void cfgcandidate_put(struct config_candidate *candidate);
 

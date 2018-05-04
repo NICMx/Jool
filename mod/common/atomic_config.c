@@ -52,7 +52,7 @@ static void candidate_clean(struct config_candidate *candidate)
 	candidate->active = false;
 }
 
-struct config_candidate *cfgcandidate_create(void)
+struct config_candidate *cfgcandidate_alloc(void)
 {
 	struct config_candidate *candidate;
 
@@ -71,7 +71,7 @@ void cfgcandidate_get(struct config_candidate *candidate)
 	kref_get(&candidate->refcount);
 }
 
-static void candidate_destroy(struct kref *refcount)
+static void candidate_release(struct kref *refcount)
 {
 	struct config_candidate *candidate;
 	candidate = container_of(refcount, struct config_candidate, refcount);
@@ -81,7 +81,7 @@ static void candidate_destroy(struct kref *refcount)
 
 void cfgcandidate_put(struct config_candidate *candidate)
 {
-	kref_put(&candidate->refcount, candidate_destroy);
+	kref_put(&candidate->refcount, candidate_release);
 }
 
 static void rollback(struct xlator *jool)
@@ -131,9 +131,9 @@ static int handle_pool6(struct config_candidate *new, void *payload,
 	int error;
 
 	if (!new->pool6) {
-		error = pool6_init(&new->pool6);
-		if (error)
-			return error;
+		new->pool6 = pool6_alloc();
+		if (!new->pool6)
+			return -ENOMEM;
 	}
 
 	for (i = 0; i < prefix_count; i++) {
@@ -160,9 +160,9 @@ static int handle_eamt(struct config_candidate *new, void *payload,
 	}
 
 	if (!new->siit.eamt) {
-		error = eamt_init(&new->siit.eamt);
-		if (error)
-			return error;
+		new->siit.eamt = eamt_alloc();
+		if (!new->siit.eamt)
+			return -ENOMEM;
 	}
 
 	for (i = 0; i < eam_count; i++) {
@@ -191,9 +191,9 @@ static int handle_addr4_pool(struct addr4_pool **pool, void *payload,
 	}
 
 	if (!(*pool)) {
-		error = pool_init(pool);
-		if (error)
-			return error;
+		*pool = pool_alloc();
+		if (!(*pool))
+			return -ENOMEM;
 	}
 
 	for (i = 0; i < prefix_count; i++) {
@@ -232,9 +232,9 @@ static int handle_pool4(struct config_candidate *new, void *payload,
 	}
 
 	if (!new->nat64.pool4) {
-		error = pool4db_init(&new->nat64.pool4);
-		if (error)
-			return error;
+		new->nat64.pool4 = pool4db_alloc();
+		if (!new->nat64.pool4)
+			return -ENOMEM;
 	}
 
 	for (i = 0; i < entry_count; i++) {
@@ -272,9 +272,9 @@ static int commit(struct xlator *jool)
 	 */
 
 	if (new->global) {
-		error = config_init(&global);
-		if (error)
-			return error;
+		global = config_alloc();
+		if (!global)
+			return -ENOMEM;
 		config_copy(&new->global->global, &global->cfg);
 
 		remnants = new->global;

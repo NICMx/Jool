@@ -113,19 +113,19 @@ static bool f_args_test(void)
 
 int init_module(void)
 {
-	int error;
-	START_TESTS("Port Allocator");
+	struct test_group test = {
+		.name = "Port Allocator",
+		.setup_fn = rfc6056_setup,
+		.teardown_fn = rfc6056_teardown,
+	};
 
-	error = rfc6056_init();
-	if (error)
-		return error;
+	if (test_group_begin(&test))
+		return -EINVAL;
 
-	CALL_TEST(test_md5(), "MD5 Test");
-	CALL_TEST(f_args_test(), "F() arguments test");
+	test_group_test(&test, test_md5, "MD5 Test");
+	test_group_test(&test, f_args_test, "F() arguments test");
 
-	rfc6056_destroy();
-
-	END_TESTS;
+	return test_group_end(&test);
 }
 
 void cleanup_module(void)

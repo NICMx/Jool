@@ -31,7 +31,7 @@ static int handle_pool6_display(struct pool6 *pool, struct genl_info *info,
 			? nlbuffer_send(info, &buffer)
 			: nlcore_respond(info, error);
 
-	nlbuffer_free(&buffer);
+	nlbuffer_clean(&buffer);
 	return error;
 }
 

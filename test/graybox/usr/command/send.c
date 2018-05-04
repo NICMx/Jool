@@ -29,7 +29,7 @@ int send_build_pkt(struct send_request *req, struct nl_msg *pkt)
 	return nla_put(pkt, ATTR_PKT, req->pkt_len, req->pkt);
 }
 
-void send_destroy(struct send_request *req)
+void send_clean(struct send_request *req)
 {
 	if (req->pkt)
 		free(req->pkt);

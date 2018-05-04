@@ -517,15 +517,11 @@ static bool test_flush(void)
 	return success;
 }
 
-static bool init(void)
+static int init(void)
 {
-	int error;
-
-	error = pool4db_init(&pool);
-	if (error) {
-		log_err("Errcode on pool4 init: %d", error);
-		return false;
-	}
+	pool = pool4db_alloc();
+	if (!pool)
+		return -ENOMEM;
 
 	ns = get_net_ns_by_pid(task_pid_vnr(current));
 	if (IS_ERR(ns)) {
@@ -534,10 +530,10 @@ static bool init(void)
 		return PTR_ERR(ns);
 	}
 
-	return true;
+	return 0;
 }
 
-static void destroy(void)
+static void clean(void)
 {
 	put_net(ns);
 	pool4db_put(pool);
@@ -545,19 +541,25 @@ static void destroy(void)
 
 int init_module(void)
 {
-	START_TESTS("IPv4 Pool DB");
+	struct test_group test = {
+		.name = "IPv4 Pool DB",
+		.init_fn = init,
+		.clean_fn = clean,
+	};
+
+	if (test_group_begin(&test))
+		return -EINVAL;
 
 	/*
 	 * TODO (test) This is missing a multiple-tables test.
 	 * (it always does mark = 1.)
 	 */
+	test_group_test(&test, test_foreach_sample, "Sample for");
+	test_group_test(&test, test_add, "Add");
+	test_group_test(&test, test_rm, "Rm");
+	test_group_test(&test, test_flush, "Flush");
 
-	INIT_CALL_END(init(), test_foreach_sample(), destroy(), "Sample for");
-	INIT_CALL_END(init(), test_add(), destroy(), "Add");
-	INIT_CALL_END(init(), test_rm(), destroy(), "Rm");
-	INIT_CALL_END(init(), test_flush(), destroy(), "Flush");
-
-	END_TESTS;
+	return test_group_end(&test);
 }
 
 void cleanup_module(void)

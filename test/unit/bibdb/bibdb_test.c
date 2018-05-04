@@ -206,29 +206,33 @@ enum session_fate tcp_est_expire_cb(struct session_entry *session, void *arg)
 	return FATE_RM;
 }
 
-static bool init(void)
+static int init(void)
 {
-	if (bib_init())
-		return false;
-	db = bib_create();
-	if (!db)
-		bib_destroy();
-	return db;
+	db = bib_alloc();
+	return db ? 0 : -ENOMEM;
 }
 
-static void end(void)
+static void clean(void)
 {
 	bib_put(db);
-	bib_destroy();
 }
 
 int init_module(void)
 {
-	START_TESTS("BIB");
+	struct test_group test = {
+		.name = "Filtering and Updating",
+		.setup_fn = bib_setup,
+		.teardown_fn = bib_teardown,
+		.init_fn = init,
+		.clean_fn = clean,
+	};
 
-	INIT_CALL_END(init(), test_flow(), end(), "Flow");
+	if (test_group_begin(&test))
+		return -EINVAL;
 
-	END_TESTS;
+	test_group_test(&test, test_flow, "Flow");
+
+	return test_group_end(&test);
 }
 
 void cleanup_module(void)

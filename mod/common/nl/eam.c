@@ -31,7 +31,7 @@ static int handle_eamt_display(struct eam_table *eamt, struct genl_info *info,
 			? nlbuffer_send(info, &buffer)
 			: nlcore_respond(info, error);
 
-	nlbuffer_free(&buffer);
+	nlbuffer_clean(&buffer);
 	return error;
 }
 

@@ -14,7 +14,7 @@
 #include "nat64/mod/stateless/rfc6791.h"
 #include "nat64/mod/stateless/eam.h"
 
-verdict ttp64_create_skb(struct xlation *state)
+verdict ttp64_alloc_skb(struct xlation *state)
 {
 	struct packet *in = &state->in;
 	size_t total_len;

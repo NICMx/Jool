@@ -15,7 +15,7 @@
  * Creates in "state->out.skb" a packet which other functions will fill with the
  * IPv4 version of the IPv6 packet "state->in.skb".
  */
-verdict ttp64_create_skb(struct xlation *state);
+verdict ttp64_alloc_skb(struct xlation *state);
 /**
  * Translates "state->in"'s IPv6 header into IPv4 and places the result in
  * "state->out".

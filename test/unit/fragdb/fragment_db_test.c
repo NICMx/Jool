@@ -334,28 +334,37 @@ static bool test_timer(void)
 
 #endif
 
+static int init(void)
+{
+	db = fragdb_alloc(NULL);
+	return db ? 0 : -ENOMEM;
+}
+
+static void clean(void)
+{
+	fragdb_put(db);
+}
+
 int init_module(void)
 {
-	START_TESTS("Fragment database");
+	struct test_group test = {
+		.name = "Fragment database",
+		.setup_fn = fragdb_setup,
+		.teardown_fn = fragdb_teardown,
+		.init_fn = init,
+		.clean_fn = clean,
+	};
 
-	if (fragdb_init())
+	if (test_group_begin(&test))
 		return -EINVAL;
-	db = fragdb_create(NULL);
-	if (!db) {
-		fragdb_destroy();
-		return -EINVAL;
-	}
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(3, 13, 0)
-	CALL_TEST(test_no_frags(), "Unfragmented IPv6 packet arrives");
-	CALL_TEST(test_happy_path(), "Happy defragmentation.");
-	CALL_TEST(test_timer(), "Timer test.");
+	test_group_test(&test, test_no_frags, "Unfragmented IPv6 packet arrives");
+	test_group_test(&test, test_happy_path, "Happy defragmentation.");
+	test_group_test(&test, test_timer, "Timer test.");
 #endif
 
-	fragdb_put(db);
-	fragdb_destroy();
-
-	END_TESTS;
+	return test_group_end(&test);
 }
 
 void cleanup_module(void)

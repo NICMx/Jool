@@ -79,12 +79,17 @@ static bool contains_test(void)
 
 int init_module(void)
 {
-	START_TESTS("Addr");
+	struct test_group test = {
+		.name = "Addr",
+	};
 
-	CALL_TEST(addr_count_test(), "Addr count");
-	CALL_TEST(contains_test(), "Prefix contains");
+	if (test_group_begin(&test))
+		return -EINVAL;
 
-	END_TESTS;
+	test_group_test(&test, addr_count_test, "Addr count");
+	test_group_test(&test, contains_test, "Prefix contains");
+
+	return test_group_end(&test);
 }
 
 void cleanup_module(void)

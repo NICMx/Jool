@@ -20,10 +20,10 @@
 
 struct fragdb;
 
-int fragdb_init(void);
-void fragdb_destroy(void);
+int fragdb_setup(void);
+void fragdb_teardown(void);
 
-struct fragdb *fragdb_create(struct net *ns);
+struct fragdb *fragdb_alloc(struct net *ns);
 void fragdb_get(struct fragdb *db);
 void fragdb_put(struct fragdb *db);
 

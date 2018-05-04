@@ -10,7 +10,7 @@
 
 struct pool6;
 
-int pool6_init(struct pool6 **pool);
+struct pool6 *pool6_alloc(void);
 void pool6_get(struct pool6 *pool);
 void pool6_put(struct pool6 *pool);
 

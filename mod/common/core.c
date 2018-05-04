@@ -79,18 +79,18 @@ unsigned int core_4to6(struct sk_buff *skb, const struct net_device *dev)
 	if (xlator_find(dev_net(dev), &state.jool))
 		return NF_ACCEPT;
 	if (!state.jool.global->cfg.enabled) {
-		xlation_put(&state);
+		xlation_clean(&state);
 		return NF_ACCEPT;
 	}
 
 	/* Reminder: This function might change pointers. */
 	if (pkt_init_ipv4(&state.in, skb) != 0) {
-		xlation_put(&state);
+		xlation_clean(&state);
 		return NF_DROP;
 	}
 
 	result = core_common(&state);
-	xlation_put(&state);
+	xlation_clean(&state);
 	return result;
 }
 
@@ -111,13 +111,13 @@ unsigned int core_6to4(struct sk_buff *skb, const struct net_device *dev)
 	if (xlator_find(dev_net(dev), &state.jool))
 		return NF_ACCEPT;
 	if (!state.jool.global->cfg.enabled) {
-		xlation_put(&state);
+		xlation_clean(&state);
 		return NF_ACCEPT;
 	}
 
 	/* Reminder: This function might change pointers. */
 	if (pkt_init_ipv6(&state.in, skb) != 0) {
-		xlation_put(&state);
+		xlation_clean(&state);
 		return NF_DROP;
 	}
 
@@ -132,6 +132,6 @@ unsigned int core_6to4(struct sk_buff *skb, const struct net_device *dev)
 	result = core_common(&state);
 	/* Fall through. */
 end:
-	xlation_put(&state);
+	xlation_clean(&state);
 	return result;
 }

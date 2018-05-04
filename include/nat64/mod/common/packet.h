@@ -304,14 +304,6 @@ struct packet {
 		struct pkt_snapshot shot1;
 		struct pkt_snapshot shot2;
 	} debug;
-
-#ifdef BENCHMARK
-	/**
-	 * Log the time in epoch when this skb arrives to jool.
-	 * For benchmark purposes.
-	 */
-	struct timespec start_time;
-#endif
 };
 
 /**
@@ -330,9 +322,6 @@ static inline void pkt_fill(struct packet *pkt, struct sk_buff *skb,
 	pkt->hdr_frag = hdr_frag;
 	pkt->payload = payload;
 	pkt->original_pkt = original_pkt;
-#ifdef BENCHMARK
-	pkt->start_time = original_pkt->start_time;
-#endif
 }
 
 /**
@@ -557,10 +546,12 @@ static inline bool pkt_is_icmp4_error(const struct packet *pkt)
  *
  * After this function, code can assume:
  * - @skb contains full l3 and l4 headers (including inner ones), their order
- *   seems to make sense, and they are all within the head room of skb.
+ *   seems to make sense, and they are all within the data area of @skb. (ie.
+ *   they are not paged.)
  * - @skb's payload isn't truncated (though inner packet payload might).
  * - The pkt_* functions above can now be used on @pkt.
- * - The length fields in the l3 headers can be relied upon.
+ * - The length fields in the l3 headers can be relied upon. (But not the ones
+ *   contained in inner packets.)
  *
  * Healthy layer 4 checksums and lengths are not guaranteed, but that's not an
  * issue since this kind of corruption should be translated along (see
