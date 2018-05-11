@@ -115,7 +115,7 @@ void destroy_node(struct rb_node *node, void *arg)
 	kfree(kmn_entry(node));
 }
 
-void wkmalloc_destroy(void)
+void wkmalloc_teardown(void)
 {
 	rbtree_clear(&tree, destroy_node, NULL);
 }
