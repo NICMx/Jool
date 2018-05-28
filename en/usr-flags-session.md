@@ -49,7 +49,7 @@ You can use this command to get information on each of these connections.
 | `--numeric` | By default, the application will attempt to resolve the names of the remote nodes talking in each session. _If your nameservers aren't answering, this will slow the output down_.<br />Use `--numeric` to turn this behavior off. |
 | `--csv` | Print the table in [_Comma/Character-Separated Values_ format](http://en.wikipedia.org/wiki/Comma-separated_values). This is intended to be redirected into a .csv file.<br />Because every record is printed in a single line, CSV is also better for grepping. |
 
-`--tcp`, `--udp` and `--icmp` are not mutually exclusive. If neither of them are present, the records are added or removed to/from all three protocols.
+`--tcp`, `--udp` and `--icmp` are not mutually exclusive. If neither of them are present, all of the tables are displayed.
 
 ## Examples
 
