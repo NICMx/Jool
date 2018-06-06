@@ -156,7 +156,7 @@ static struct genl_ops ops[] = {
 };
 
 static struct genl_family family = {
-#if LINUX_VERSION_LOWER_THAN(4, 10, 0, 9999, 0)
+#if LINUX_VERSION_LOWER_THAN(4, 10, 0, 7, 5)
 	.id = GENL_ID_GENERATE,
 #endif
 	.hdrsize = 0,
@@ -164,7 +164,7 @@ static struct genl_family family = {
 	.version = 1,
 	.maxattr = __ATTR_MAX,
 	.netnsok = true,
-#if LINUX_VERSION_AT_LEAST(4, 10, 0, 9999, 0)
+#if LINUX_VERSION_AT_LEAST(4, 10, 0, 7, 5)
 	.module = THIS_MODULE,
 	.ops = ops,
 	.n_ops = ARRAY_SIZE(ops),
@@ -177,7 +177,7 @@ int nlhandler_setup(void)
 
 #if LINUX_VERSION_LOWER_THAN(3, 13, 0, 7, 1)
 	error = genl_register_family_with_ops(&family, ops, ARRAY_SIZE(ops));
-#elif LINUX_VERSION_LOWER_THAN(4, 10, 0, 9999, 0)
+#elif LINUX_VERSION_LOWER_THAN(4, 10, 0, 7, 5)
 	error = genl_register_family_with_ops(&family, ops);
 #else
 	error = genl_register_family(&family);

@@ -41,7 +41,7 @@ static struct genl_ops ops[] = {
 };
 
 static struct genl_family jool_family = {
-#if LINUX_VERSION_LOWER_THAN(4, 10, 0, 9999, 0)
+#if LINUX_VERSION_LOWER_THAN(4, 10, 0, 7, 5)
 	/* This variable became "private" on kernel 4.10. */
 	.id = GENL_ID_GENERATE,
 #endif
@@ -65,7 +65,7 @@ static struct genl_family jool_family = {
 	 * function so I have no idea. Whatever; they can be null. Fuck 'em.
 	 */
 
-#if LINUX_VERSION_AT_LEAST(4, 10, 0, 9999, 0)
+#if LINUX_VERSION_AT_LEAST(4, 10, 0, 7, 5)
 	/*
 	 * "module" was added in Linux 3.11 (commit
 	 * 33c6b1f6b154894321f5734e50c66621e9134e7e). However, it seems to be
@@ -194,7 +194,7 @@ static int register_family(void)
 		return error;
 	}
 
-#elif LINUX_VERSION_LOWER_THAN(4, 10, 0, 9999, 0)
+#elif LINUX_VERSION_LOWER_THAN(4, 10, 0, 7, 5)
 	error = genl_register_family_with_ops_groups(&jool_family, ops,
 			mc_groups);
 	if (error) {
