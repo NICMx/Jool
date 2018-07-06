@@ -23,8 +23,7 @@
  * @macro HTABLE_NAME name of the hash table structure to generate. Optional; Default: hash_table.
  * @macro KEY_TYPE data type of the table's keys.
  * @macro VALUE_TYPE data type of the table's values.
- * @macro HASH_TABLE_SIZE The size of the internal array, in slots. Optional;
- *		Default = Max = 64k - 1.
+ * @macro HASH_TABLE_SIZE The size of the internal array, in slots. MUST be a power of 2.
  * @macro GENERATE_PRINT just define it if you want the print function; otherwise it will not be
  *		generated.
  * @macro GENERATE_FOR_EACH just define it if you want the for_each function; otherwise it will not
@@ -42,13 +41,6 @@
 
 #ifndef HTABLE_NAME
 #define HTABLE_NAME hash_table
-#endif
-
-#ifndef HASH_TABLE_SIZE
-/**
- * This number should not exceed unsigned int's maximum.
- */
-#define HASH_TABLE_SIZE (64 * 1024 - 1)
 #endif
 
 /** Creates a token name by concatenating prefix and suffix. */
@@ -131,7 +123,7 @@ static struct KEY_VALUE_PAIR *GET_AUX(struct HTABLE_NAME *table, const KEY_TYPE 
 	if (WARN(!table, "The table is NULL."))
 		return NULL;
 
-	hash_code = table->hash_function(key) % HASH_TABLE_SIZE;
+	hash_code = table->hash_function(key) & (HASH_TABLE_SIZE - 1);
 	hlist_for_each(current_node, &table->table[hash_code]) {
 		current_pair = hlist_entry(current_node, struct KEY_VALUE_PAIR, hlist_hook);
 		if (table->equals_function(key, &current_pair->key))
@@ -210,7 +202,7 @@ static int PUT(struct HTABLE_NAME *table, KEY_TYPE *key, VALUE_TYPE *value)
 	key_value->value = value;
 
 	/* Insert the key-value to the table. */
-	hash_code = table->hash_function(key) % HASH_TABLE_SIZE;
+	hash_code = table->hash_function(key) & (HASH_TABLE_SIZE - 1);
 	hlist_add_head(&key_value->hlist_hook, &table->table[hash_code]);
 	list_add_tail(&key_value->list_hook, &table->list);
 
