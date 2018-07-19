@@ -16,11 +16,127 @@ static unsigned int get_nexthop_mtu(struct packet *pkt)
 #endif
 }
 
+/*
+ * Returns true if GSO fixed everything and MTU is no longer an issue.
+ * Returns false if GSO did nothing and MTU needs to be addressed still.
+ * No other outcomes.
+ */
+static bool handle_gso(struct packet *pkt_in, struct packet *pkt_out)
+{
+	/*
+	 * This is how I understand GSO:
+	 *
+	 * If gso_size > 0, then the skb is meant to be somehow "divided" (IP
+	 * fragmented or TCP segmented) at some point regardless of DF and
+	 * skb->ignore_df due to local reasons.
+	 *
+	 * (For example, one such reason might be that the packet was generated
+	 * locally, made to length massively because of a large write() buffer,
+	 * and meant to be divided as late as possible. Though Jool does not
+	 * translate its own namespace's traffic, this can happen when
+	 * forwarding traffic from some other namespace, because virtual
+	 * interfaces do not respect MTU. Again, packets are meant to be divided
+	 * as late as possible, which usually means "in the outgoing physical
+	 * interface". If the packet is only traveling through namespaces, it
+	 * can very well never be divided despite violating every MTU along the
+	 * way.)
+	 *
+	 * Therefore, if GSO is intended to happen, Jool should usually not
+	 * bounce Fragmentation Neededs back.
+	 *
+	 * The details on how this should be implemented, however, are a little
+	 * dodgy to me. Should I pay attention to type flags other than
+	 * SKB_GSO_TCPV4 and SKB_GSO_TCPV6? Why does SKB_GSO_UDP not care about
+	 * the network layer's protocol? What if gso_size does not exceed the
+	 * MTU of the next interface, but does exceed the MTU of some future
+	 * interface? This code will probably need to evolve depending on future
+	 * experience, and this first version tries to be as conservative as
+	 * possible.
+	 *
+	 * For reference, this code works correctly on TCP packets traveling
+	 * through only veth pair interfaces, and was prompted by this bug
+	 * report:
+	 * https://mail-lists.nic.mx/pipermail/jool-list/2018-July/000198.html
+	 * Anything else might or might not work.
+	 *
+	 * Handle this code with care. Offloading is a very awkwardly convoluted
+	 * topic.
+	 *
+	 * TODO https://www.kernel.org/doc/Documentation/networking/segmentation-offloads.txt
+	 * This documentations talks about some SCTP quirk. I'm not yet sure if
+	 * it affects us.
+	 */
+
+	struct skb_shared_info *in;
+	struct skb_shared_info *out;
+	unsigned short type;
+	unsigned short size;
+
+	if (!skb_is_gso(pkt_in->skb))
+		return false;
+
+	in = skb_shinfo(pkt_in->skb);
+	out = skb_shinfo(pkt_out->skb);
+
+	/* -- Copy the type, except swap TCPV4 and TCPV6 -- */
+	type = in->gso_type;
+
+	if ((type & SKB_GSO_TCPV4) && (type & SKB_GSO_TCPV6)) {
+		/*
+		 * This is not supposed to happen,
+		 * but I don't see why would it be considered a problem.
+		 */
+	} else if (type & SKB_GSO_TCPV4) {
+		type &= ~SKB_GSO_TCPV4;
+		type |= SKB_GSO_TCPV6;
+	} else if (type & SKB_GSO_TCPV6) {
+		type &= ~SKB_GSO_TCPV6;
+		type |= SKB_GSO_TCPV4;
+	}
+
+	out->gso_type = type;
+
+	/* -- Copy the size -- */
+	size = in->gso_size;
+
+	/*
+	 * From my reading of the kernel code, gso_size appears to be supposed
+	 * to account for layer 4 payload only*.
+	 * Therefore, if header changes are going to eat up packet space,
+	 * adjust.
+	 *
+	 * Unlike the whine_if_too_big() switch, fragment headers CAN introduce
+	 * noise in this situation.
+	 *
+	 * * Unfortunately, I can't be 100% sure of this claim. gso_size tends
+	 *   to equal TCP MSS, but who knows if this changes obscurely depending
+	 *   on layer.
+	 */
+	switch (pkt_l3_proto(pkt_out)) {
+	case L3PROTO_IPV6:
+		/*
+		 * We don't know if the kernel will add a fragment header,
+		 * so reserve it anyway.
+		 */
+		size -= 28;
+		break;
+	case L3PROTO_IPV4:
+		size += 20 + (pkt_frag_hdr(pkt_in) ? 8 : 0);
+		break;
+	}
+
+	out->gso_size = size;
+
+	return true;
+}
+
 static int whine_if_too_big(struct packet *in, struct packet *out)
 {
 	unsigned int len;
 	unsigned int mtu;
 
+	if (handle_gso(in, out))
+		return 0;
 	if (pkt_l3_proto(in) == L3PROTO_IPV4 && !is_df_set(pkt_ip4_hdr(in)))
 		return 0;
 
