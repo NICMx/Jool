@@ -17,58 +17,78 @@
 verdict ttp64_alloc_skb(struct xlation *state)
 {
 	struct packet *in = &state->in;
-	size_t total_len;
-	struct sk_buff *skb;
+	struct sk_buff *out;
+	struct skb_shared_info *shinfo;
 
 	/*
-	 * These are my assumptions to compute total_len:
+	 * Note: For the purposes of this comment, remember that the reserved
+	 * area of a packet (bytes between head and data) is called "headroom"
+	 * (example: skb_headroom()), while the non-paged active area (bytes
+	 * between data and tail) is called "head" (eg: skb_headlen()). This is
+	 * a kernel quirk; don't blame me for it.
 	 *
-	 * Any L3 headers will be replaced by an IPv4 header.
-	 * The L4 header will never change in size
-	 *     (in particular, ICMPv4 hdr len == ICMPv6 hdr len).
-	 * The payload will not change in TCP, UDP and ICMP infos.
+	 * I'm going to use __pskb_copy() (via pskb_copy()) because I need the
+	 * incoming and outgoing packets to share the same paged data. This is
+	 * not only for the sake of performance (prevents lots of data copying
+	 * and large contiguous skbs in memory) but also because the pages need
+	 * to survive the translation for GSO to work.
 	 *
-	 * As for ICMP errors:
-	 * Any sub-L3 headers will be replaced by an IPv4 header.
-	 * The sub-L4 header will never change in size.
-	 * The subpayload might get truncated to maximize delivery probability.
+	 * Since the IPv4 version of the packet is going to be invariably
+	 * smaller than its IPv6 counterpart, you'd think we should reserve less
+	 * memory for it. But there's a problem: __pskb_copy() only allows us to
+	 * shrink the headroom; not the head. If we try to shrink the head
+	 * through the headroom and the v6 packet happens to have one too many
+	 * extension headers, the `headroom` we'll send to __pskb_copy() will be
+	 * negative, and then skb_copy_from_linear_data() will write onto the
+	 * tail area without knowing it. (I'm reading the Linux 4.4 code.)
+	 *
+	 * We will therefore *not* attempt to allocate less.
 	 */
-	total_len = sizeof(struct iphdr) + pkt_l3payload_len(in);
+
+	out = pskb_copy(in->skb, GFP_ATOMIC);
+	if (!out) {
+		inc_stats(in, IPSTATS_MIB_INDISCARDS);
+		return VERDICT_DROP;
+	}
+
+	/* Remove outer l3 and l4 headers from the copy. */
+	skb_pull(out, pkt_hdrs_len(in));
+
 	if (is_first_frag6(pkt_frag_hdr(in)) && pkt_is_icmp6_error(in)) {
 		struct ipv6hdr *hdr = pkt_payload(in);
 		struct hdr_iterator iterator = HDR_ITERATOR_INIT(hdr);
 		hdr_iterator_last(&iterator);
 
-		/* Add the IPv4 subheader, remove the IPv6 subheaders. */
-		total_len += sizeof(struct iphdr) - (iterator.data
-				- pkt_payload(in));
+		/* Remove inner l3 headers from the copy. */
+		skb_pull(out, iterator.data - (void *)hdr);
 
-		/*
-		 * RFC1812 section 4.3.2.3.
-		 * I'm using a literal because the RFC does.
-		 */
-		if (total_len > 576)
-			total_len = 576;
+		/* Add inner l3 headers to the copy. */
+		skb_push(out, sizeof(struct iphdr));
 	}
 
-	skb = alloc_skb(LL_MAX_HEADER + total_len, GFP_ATOMIC);
-	if (!skb) {
-		inc_stats(in, IPSTATS_MIB_INDISCARDS);
-		return VERDICT_DROP;
-	}
+	/* Add outer l4 headers to the copy. */
+	skb_push(out, pkt_l4hdr_len(in));
+	skb_reset_transport_header(out);
 
-	skb_reserve(skb, LL_MAX_HEADER);
-	skb_put(skb, total_len);
-	skb_reset_mac_header(skb);
-	skb_reset_network_header(skb);
-	skb_set_transport_header(skb, sizeof(struct iphdr));
+	/* Add outer l3 headers to the copy. */
+	skb_push(out, sizeof(struct iphdr));
+	skb_reset_network_header(out);
+	skb_reset_mac_header(out);
 
-	pkt_fill(&state->out, skb, L3PROTO_IPV4, pkt_l4_proto(in),
-			NULL, skb_transport_header(skb) + pkt_l4hdr_len(in),
+	/* Wrap up. */
+	pkt_fill(&state->out, out, L3PROTO_IPV4, pkt_l4_proto(in),
+			NULL, skb_transport_header(out) + pkt_l4hdr_len(in),
 			pkt_original_pkt(in));
 
-	skb->mark = in->skb->mark;
-	skb->protocol = htons(ETH_P_IP);
+	memset(out->cb, 0, sizeof(out->cb));
+	out->mark = in->skb->mark;
+	out->protocol = htons(ETH_P_IP);
+
+	shinfo = skb_shinfo(out);
+	if (shinfo->gso_type & SKB_GSO_TCPV6) {
+		shinfo->gso_type &= ~SKB_GSO_TCPV6;
+		shinfo->gso_type |= SKB_GSO_TCPV4;
+	}
 
 	return VERDICT_CONTINUE;
 }
@@ -630,17 +650,6 @@ static verdict validate_icmp6_csum(struct packet *in)
 	return VERDICT_CONTINUE;
 }
 
-static int post_icmp4info(struct xlation *state)
-{
-	int error;
-
-	error = copy_payload(state);
-	if (error)
-		return error;
-
-	return update_icmp4_csum(state);
-}
-
 static verdict post_icmp4error(struct xlation *state)
 {
 	verdict result;
@@ -679,7 +688,7 @@ verdict ttp64_icmp(struct xlation *state)
 				? cpu_to_be16(state->out.tuple.icmp4_id)
 				: icmpv6_hdr->icmp6_identifier;
 		icmpv4_hdr->un.echo.sequence = icmpv6_hdr->icmp6_sequence;
-		error = post_icmp4info(state);
+		error = update_icmp4_csum(state);
 		break;
 
 	case ICMPV6_ECHO_REPLY:
@@ -689,7 +698,7 @@ verdict ttp64_icmp(struct xlation *state)
 				? cpu_to_be16(state->out.tuple.icmp4_id)
 				: icmpv6_hdr->icmp6_identifier;
 		icmpv4_hdr->un.echo.sequence = icmpv6_hdr->icmp6_sequence;
-		error = post_icmp4info(state);
+		error = update_icmp4_csum(state);
 		break;
 
 	case ICMPV6_DEST_UNREACH:
@@ -821,8 +830,7 @@ verdict ttp64_tcp(struct xlation *state)
 		partialize_skb(out->skb, offsetof(struct tcphdr, check));
 	}
 
-	/* Payload */
-	return copy_payload(state) ? VERDICT_DROP : VERDICT_CONTINUE;
+	return VERDICT_CONTINUE;
 }
 
 verdict ttp64_udp(struct xlation *state)
@@ -858,6 +866,5 @@ verdict ttp64_udp(struct xlation *state)
 		partialize_skb(out->skb, offsetof(struct udphdr, check));
 	}
 
-	/* Payload */
-	return copy_payload(state) ? VERDICT_DROP : VERDICT_CONTINUE;
+	return VERDICT_CONTINUE;
 }

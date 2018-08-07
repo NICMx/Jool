@@ -21,7 +21,7 @@ struct backup_skb {
 
 static verdict handle_unknown_l4(struct xlation *state)
 {
-	return copy_payload(state) ? VERDICT_DROP : VERDICT_CONTINUE;
+	return VERDICT_CONTINUE;
 }
 
 static struct translation_steps steps[][L4_PROTO_COUNT] = {
@@ -70,25 +70,6 @@ static struct translation_steps steps[][L4_PROTO_COUNT] = {
 		}
 	}
 };
-
-int copy_payload(struct xlation *state)
-{
-	int error;
-
-	error = skb_copy_bits(state->in.skb, pkt_payload_offset(&state->in),
-			pkt_payload(&state->out),
-			/*
-			 * Note: There's an important reason why the payload
-			 * length must be extracted from the outgoing packet:
-			 * the outgoing packet might be truncated. See
-			 * ttp46_create_skb() and ttp64_create_skb().
-			 */
-			pkt_payload_len_frag(&state->out));
-	if (error)
-		log_debug("The payload copy threw errcode %d.", error);
-
-	return error;
-}
 
 bool will_need_frag_hdr(const struct iphdr *hdr)
 {

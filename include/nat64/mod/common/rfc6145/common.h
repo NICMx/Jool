@@ -90,7 +90,6 @@ typedef enum addrxlat_verdict {
 struct translation_steps *ttpcomm_get_steps(struct packet *in);
 
 void partialize_skb(struct sk_buff *skb, unsigned int csum_offset);
-int copy_payload(struct xlation *state);
 bool will_need_frag_hdr(const struct iphdr *hdr);
 verdict ttpcomm_translate_inner_packet(struct xlation *state);
 

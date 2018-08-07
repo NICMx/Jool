@@ -16,17 +16,19 @@
 verdict ttp46_alloc_skb(struct xlation *state)
 {
 	struct packet *in = &state->in;
-	size_t l3_hdr_len;
-	size_t total_len;
-	size_t reserve = LL_MAX_HEADER;
-	struct sk_buff *skb;
+	int delta;
+	struct sk_buff *out;
+	struct iphdr *hdr4_inner;
 	struct frag_hdr *hdr_frag = NULL;
+	struct skb_shared_info *shinfo;
 
 	/*
 	 * These are my assumptions to compute total_len:
 	 *
 	 * The IPv4 header will be replaced by a IPv6 header and possibly a
 	 * fragment header.
+	 *    (we will reserve room for this fragment header just in case the
+	 *    kernel wants to do something with it later.)
 	 * The L4 header will never change in size
 	 *    (in particular, ICMPv4 hdr len == ICMPv6 hdr len).
 	 * The payload will not change in TCP, UDP and ICMP infos.
@@ -35,50 +37,73 @@ verdict ttp46_alloc_skb(struct xlation *state)
 	 * The IPv4 header will be replaced by a IPv6 header and possibly a
 	 * fragment header.
 	 * The sub-L4 header will never change in size.
-	 * The subpayload might get truncated to maximize delivery probability.
+	 * The subpayload will never change in size (by us).
 	 */
-	l3_hdr_len = sizeof(struct ipv6hdr);
-	if (will_need_frag_hdr(pkt_ip4_hdr(in))) {
-		l3_hdr_len += sizeof(struct frag_hdr);
-	} else {
-		/* The kernel might want to fragment this so leave room.*/
-		reserve += sizeof(struct frag_hdr);
-	}
 
-	total_len = l3_hdr_len + pkt_l3payload_len(in);
+	/* Calculate the "delta" - the amount the packet might grow in size. */
+	delta = sizeof(struct ipv6hdr) - pkt_l3hdr_len(in)
+			+ sizeof(struct frag_hdr);
 	if (is_first_frag4(pkt_ip4_hdr(in)) && pkt_is_icmp4_error(in)) {
-		struct iphdr *hdr4_inner = pkt_payload(in);
-
-		total_len += sizeof(struct ipv6hdr) - (hdr4_inner->ihl << 2);
+		hdr4_inner = pkt_payload(in);
+		delta += sizeof(struct ipv6hdr) - (hdr4_inner->ihl << 2);
 		if (will_need_frag_hdr(hdr4_inner))
-			total_len += sizeof(struct frag_hdr);
-
-		/* All errors from RFC 4443 share this. */
-		if (total_len > IPV6_MIN_MTU)
-			total_len = IPV6_MIN_MTU;
+			delta += sizeof(struct frag_hdr);
 	}
 
-	skb = alloc_skb(reserve + total_len, GFP_ATOMIC);
-	if (!skb) {
+	/*
+	 * Do not shrink under any circumstances because I'm not sure what
+	 * happens when headroom is negative.
+	 */
+	if (delta < 0)
+		delta = 0;
+
+	/* Allocate the outgoing packet as a copy of @in with shared pages. */
+	out = __pskb_copy(in->skb, delta + skb_headroom(in->skb), GFP_ATOMIC);
+	if (!out) {
 		inc_stats(in, IPSTATS_MIB_INDISCARDS);
 		return VERDICT_DROP;
 	}
 
-	skb_reserve(skb, reserve);
-	skb_put(skb, total_len);
-	skb_reset_mac_header(skb);
-	skb_reset_network_header(skb);
-	skb_set_transport_header(skb, l3_hdr_len);
+	/* Remove outer l3 and l4 headers from the copy. */
+	skb_pull(out, pkt_hdrs_len(in));
 
+	if (is_first_frag4(pkt_ip4_hdr(in)) && pkt_is_icmp4_error(in)) {
+		hdr4_inner = pkt_payload(in);
+
+		/* Remove inner l3 headers from the copy. */
+		skb_pull(out, hdr4_inner->ihl << 2);
+
+		/* Add inner l3 headers to the copy. */
+		if (will_need_frag_hdr(hdr4_inner))
+			skb_push(out, sizeof(struct frag_hdr));
+		skb_push(out, sizeof(struct ipv6hdr));
+	}
+
+	/* Add outer l4 headers to the copy. */
+	skb_push(out, pkt_l4hdr_len(in));
+	skb_reset_transport_header(out);
+
+	/* Add outer l3 headers to the copy. */
 	if (will_need_frag_hdr(pkt_ip4_hdr(in)))
-		hdr_frag = (struct frag_hdr *)(ipv6_hdr(skb) + 1);
+		hdr_frag = (struct frag_hdr *)skb_push(out, sizeof(struct frag_hdr));
+	skb_push(out, sizeof(struct ipv6hdr));
+	skb_reset_network_header(out);
+	skb_reset_mac_header(out);
 
-	pkt_fill(&state->out, skb, L3PROTO_IPV6, pkt_l4_proto(in),
-			hdr_frag, skb_transport_header(skb) + pkt_l4hdr_len(in),
+	/* Wrap up. */
+	pkt_fill(&state->out, out, L3PROTO_IPV6, pkt_l4_proto(in),
+			hdr_frag, skb_transport_header(out) + pkt_l4hdr_len(in),
 			pkt_original_pkt(in));
 
-	skb->mark = in->skb->mark;
-	skb->protocol = htons(ETH_P_IPV6);
+	memset(out->cb, 0, sizeof(out->cb));
+	out->mark = in->skb->mark;
+	out->protocol = htons(ETH_P_IPV6);
+
+	shinfo = skb_shinfo(out);
+	if (shinfo->gso_type & SKB_GSO_TCPV4) {
+		shinfo->gso_type &= ~SKB_GSO_TCPV4;
+		shinfo->gso_type |= SKB_GSO_TCPV6;
+	}
 
 	return VERDICT_CONTINUE;
 }
@@ -635,17 +660,6 @@ static verdict validate_icmp4_csum(struct packet *in)
 	return VERDICT_CONTINUE;
 }
 
-static int post_icmp6info(struct xlation *state)
-{
-	int error;
-
-	error = copy_payload(state);
-	if (error)
-		return error;
-
-	return update_icmp6_csum(state);
-}
-
 static verdict post_icmp6error(struct xlation *state)
 {
 	verdict result;
@@ -689,7 +703,7 @@ verdict ttp46_icmp(struct xlation *state)
 				? cpu_to_be16(state->out.tuple.icmp6_id)
 				: icmpv4_hdr->un.echo.id;
 		icmpv6_hdr->icmp6_sequence = icmpv4_hdr->un.echo.sequence;
-		error = post_icmp6info(state);
+		error = update_icmp6_csum(state);
 		break;
 
 	case ICMP_ECHOREPLY:
@@ -699,7 +713,7 @@ verdict ttp46_icmp(struct xlation *state)
 				? cpu_to_be16(state->out.tuple.icmp6_id)
 				: icmpv4_hdr->un.echo.id;
 		icmpv6_hdr->icmp6_sequence = icmpv4_hdr->un.echo.sequence;
-		error = post_icmp6info(state);
+		error = update_icmp6_csum(state);
 		break;
 
 	case ICMP_DEST_UNREACH:
@@ -888,8 +902,7 @@ verdict ttp46_tcp(struct xlation *state)
 		partialize_skb(out->skb, offsetof(struct tcphdr, check));
 	}
 
-	/* Payload */
-	return copy_payload(state) ? VERDICT_DROP : VERDICT_CONTINUE;
+	return VERDICT_CONTINUE;
 }
 
 verdict ttp46_udp(struct xlation *state)
@@ -932,6 +945,5 @@ verdict ttp46_udp(struct xlation *state)
 			return VERDICT_DROP;
 	}
 
-	/* Payload */
-	return copy_payload(state) ? VERDICT_DROP : VERDICT_CONTINUE;
+	return VERDICT_CONTINUE;
 }

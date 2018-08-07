@@ -21,7 +21,7 @@ static unsigned int get_nexthop_mtu(struct packet *pkt)
  * Returns false if GSO did nothing and MTU needs to be addressed still.
  * No other outcomes.
  */
-static bool handle_gso(struct packet *pkt_in, struct packet *pkt_out)
+static bool handle_gso(struct packet *in)
 {
 	/*
 	 * This is how I understand GSO:
@@ -66,68 +66,7 @@ static bool handle_gso(struct packet *pkt_in, struct packet *pkt_out)
 	 * This documentations talks about some SCTP quirk. I'm not yet sure if
 	 * it affects us.
 	 */
-
-	struct skb_shared_info *in;
-	struct skb_shared_info *out;
-	unsigned short type;
-	unsigned short size;
-
-	if (!skb_is_gso(pkt_in->skb))
-		return false;
-
-	in = skb_shinfo(pkt_in->skb);
-	out = skb_shinfo(pkt_out->skb);
-
-	/* -- Copy the type, except swap TCPV4 and TCPV6 -- */
-	type = in->gso_type;
-
-	if ((type & SKB_GSO_TCPV4) && (type & SKB_GSO_TCPV6)) {
-		/*
-		 * This is not supposed to happen,
-		 * but I don't see why would it be considered a problem.
-		 */
-	} else if (type & SKB_GSO_TCPV4) {
-		type &= ~SKB_GSO_TCPV4;
-		type |= SKB_GSO_TCPV6;
-	} else if (type & SKB_GSO_TCPV6) {
-		type &= ~SKB_GSO_TCPV6;
-		type |= SKB_GSO_TCPV4;
-	}
-
-	out->gso_type = type;
-
-	/* -- Copy the size -- */
-	size = in->gso_size;
-
-	/*
-	 * From my reading of the kernel code, gso_size appears to be supposed
-	 * to account for layer 4 payload only*.
-	 * Therefore, if header changes are going to eat up packet space,
-	 * adjust.
-	 *
-	 * Unlike the whine_if_too_big() switch, fragment headers CAN introduce
-	 * noise in this situation.
-	 *
-	 * * Unfortunately, I can't be 100% sure of this claim. gso_size tends
-	 *   to equal TCP MSS, but who knows if this changes obscurely depending
-	 *   on layer.
-	 */
-	switch (pkt_l3_proto(pkt_out)) {
-	case L3PROTO_IPV6:
-		/*
-		 * We don't know if the kernel will add a fragment header,
-		 * so reserve it anyway.
-		 */
-		size -= 28;
-		break;
-	case L3PROTO_IPV4:
-		size += 20 + (pkt_frag_hdr(pkt_in) ? 8 : 0);
-		break;
-	}
-
-	out->gso_size = size;
-
-	return true;
+	return skb_is_gso(in->skb);
 }
 
 static int whine_if_too_big(struct packet *in, struct packet *out)
@@ -135,7 +74,7 @@ static int whine_if_too_big(struct packet *in, struct packet *out)
 	unsigned int len;
 	unsigned int mtu;
 
-	if (handle_gso(in, out))
+	if (handle_gso(in))
 		return 0;
 	if (pkt_l3_proto(in) == L3PROTO_IPV4 && !is_df_set(pkt_ip4_hdr(in)))
 		return 0;
