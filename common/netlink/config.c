@@ -127,3 +127,28 @@ int iname_validate(const char *iname)
 			INAME_MAX_LEN - 1);
 	return -EINVAL;
 }
+
+static unsigned int count_bits(int num)
+{
+	unsigned int i = 0;
+	unsigned int result = 0;
+
+	for (; i < 8 * sizeof(int); i++) {
+		if (num & 1)
+			result++;
+		num >>= 1;
+	}
+
+	return result;
+}
+
+int fw_validate(int fw)
+{
+	if (count_bits(fw) != 1) {
+		log_err("Only one instance can be added at a time.");
+		return -EINVAL;
+	}
+
+	return 0;
+
+}

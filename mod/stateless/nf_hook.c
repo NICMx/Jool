@@ -1,5 +1,7 @@
 #include "nat64/mod/common/nf_hook.h"
 
+#include <linux/module.h>
+
 #include "nat64/mod/common/linux_version.h"
 #include "nat64/mod/common/pool6.h"
 #include "nat64/mod/common/xlator.h"
@@ -90,7 +92,7 @@ static int add_instance(void)
 	if (no_instance)
 		return 0;
 
-	error = xlator_add(IT_NETFILTER, INAME_DEFAULT, &jool);
+	error = xlator_add(FW_NETFILTER, INAME_DEFAULT, &jool);
 	if (error)
 		return error;
 
@@ -151,7 +153,7 @@ static int __init jool_init(void)
 
 #if LINUX_VERSION_LOWER_THAN(4, 13, 0, 9999, 0)
 nf_register_hooks_fail:
-	xlator_rm(IT_NETFILTER, INAME_DEFAULT);
+	xlator_rm(FW_NETFILTER, INAME_DEFAULT);
 #endif
 instance_fail:
 	nlhandler_teardown();

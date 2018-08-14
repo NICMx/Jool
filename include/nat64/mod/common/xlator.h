@@ -12,8 +12,8 @@
  */
 struct xlator {
 	struct net *ns;
-	/* One of the single-bit IT_* flags from nat64/common/config.h. */
-	int type;
+	/* One of the single-bit FW_* flags from nat64/common/config.h. */
+	int fw;
 	char iname[INAME_MAX_LEN];
 
 	struct global_config *global;
@@ -38,13 +38,13 @@ struct xlator {
 int xlator_setup(void);
 void xlator_teardown(void);
 
-int xlator_add(int type, char *iname, struct xlator *result);
-int xlator_rm(int type, char *iname);
+int xlator_add(int fw, char *iname, struct xlator *result);
+int xlator_rm(int fw, char *iname);
 int xlator_replace(struct xlator *instance);
 
-int xlator_find(struct net *ns, int type, const char *iname,
+int xlator_find(struct net *ns, int fw, const char *iname,
 		struct xlator *result);
-int xlator_find_current(int type, const char *iname, struct xlator *result);
+int xlator_find_current(int fw, const char *iname, struct xlator *result);
 void xlator_put(struct xlator *instance);
 
 typedef int (*xlator_foreach_cb)(struct xlator *, void *);
@@ -53,7 +53,7 @@ int xlator_foreach(xlator_foreach_cb cb, void *args,
 
 void xlator_copy_config(struct xlator *instance, struct full_config *copy);
 
-bool xlator_matches(struct xlator *jool, struct net *ns, int type,
+bool xlator_matches(struct xlator *jool, struct net *ns, int fw,
 		const char *iname);
 
 #endif /* _JOOL_MOD_NAMESPACE_H */

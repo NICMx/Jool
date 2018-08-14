@@ -26,6 +26,8 @@ Some shortcuts used while naming variables and functions through the code or doc
 - est = established session (inherited from RFC 6146.)
 - fn = function ("this parameter is a pointer to a function.")
 - frag = fragment
+- fw = framework
+  (Usually refers to the framework Jool is hooked to; netfilter or iptables.)
 - hdr = header
 - init = initialize
 - iname = instance name

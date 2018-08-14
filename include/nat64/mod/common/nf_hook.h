@@ -23,4 +23,7 @@ unsigned int target_ipv6(struct sk_buff *skb,
 unsigned int target_ipv4(struct sk_buff *skb,
 		const struct xt_action_param *param);
 
+void init_nf_hook_op6(struct nf_hook_ops *ops);
+void init_nf_hook_op4(struct nf_hook_ops *ops);
+
 #endif /* _JOOL_MOD_NF_HOOK_H */

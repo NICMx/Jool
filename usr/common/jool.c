@@ -40,11 +40,11 @@ const char *argp_program_bug_address = "jool@nic.mx";
  * formatted and ready to be read in any order.
  */
 struct arguments {
-	char iname[INAME_MAX_LEN];
+	char iname[INAME_MAX_LEN]; /* "Instance name" */
+	int ifw; /* "Instance framework" */
+
 	enum config_mode mode;
 	enum config_operation op;
-
-	int instance_type;
 
 	struct {
 		bool quick;
@@ -205,10 +205,10 @@ static int set_global_u64(struct arguments *args, __u16 type, char *value,
 static int set_instance_type(struct arguments *args, char *value)
 {
 	if (strcmp(value, "netfilter") == 0) {
-		args->instance_type = IT_NETFILTER;
+		args->ifw = FW_NETFILTER;
 		return 0;
 	} else if (strcmp(value, "iptables") == 0) {
-		args->instance_type = IT_IPTABLES;
+		args->ifw = FW_IPTABLES;
 		return 0;
 	}
 
@@ -464,8 +464,8 @@ static int parse_opt(int key, char *str, struct argp_state *state)
 		error = update_state(args, MODE_JOOLD, OP_TEST);
 		break;
 
-	case ARGP_INSTANCE_TYPE:
-		error = update_state(args, MODE_INSTANCE, OP_ADD);
+	case ARGP_INSTANCE_FW:
+		error = update_state(args, MODE_INSTANCE, OP_ADD | OP_REMOVE);
 		if (!error)
 			error = set_instance_type(args, str);
 		break;
@@ -655,10 +655,10 @@ static int parse_args(int argc, char **argv, struct arguments *result)
 	struct argp argp = { options, parse_opt, args_doc, doc };
 
 	memset(result, 0, sizeof(*result));
-	result->iname[0] = '\0';
+	strcpy(result->iname, INAME_DEFAULT);
+	result->ifw = FW_NETFILTER; /* For backwards compatibiliricinity. */
 	result->mode = ANY_MODE;
 	result->op = ANY_OP;
-	result->instance_type = IT_NETFILTER;
 	result->db.pool4.ports.min = 0;
 	result->db.pool4.ports.max = 65535U;
 	result->flags |= DF_SHOW_HEADERS;
@@ -998,9 +998,9 @@ static int handle_instance(struct arguments *args)
 	case OP_DISPLAY:
 		return instance_display(args->flags);
 	case OP_ADD:
-		return instance_add(args->instance_type, args->iname);
+		return instance_add(args->ifw, args->iname);
 	case OP_REMOVE:
-		return instance_rm(args->instance_type, args->iname);
+		return instance_rm(args->ifw, args->iname);
 	default:
 		return unknown_op("instance", args->op);
 	}

@@ -2,7 +2,7 @@
 #CC=gcc-4.9 # Needed to cross-compile Jool for an older machine.
 
 ccflags-y := -I$(src)/../../include $(JOOL_FLAGS)
-#ccflags-y += -Wfatal-errors
+#ccflags-y += -Wfatal-errors -Werror
 
 obj-m += jool_siit.o
 

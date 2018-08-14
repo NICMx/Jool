@@ -206,16 +206,17 @@ struct response_hdr {
 	config_bool pending_data;
 };
 
-/* "IT" stands for "instance type". */
-#define IT_NETFILTER (1 << 0)
-#define IT_IPTABLES (1 << 1)
-#define IT_ANY (IT_NETFILTER | IT_IPTABLES)
+#define FW_NETFILTER (1 << 0)
+#define FW_IPTABLES (1 << 1)
+#define FW_ANY (FW_NETFILTER | FW_IPTABLES)
+
+int fw_validate(int fw);
 
 struct instance_entry_usr {
 	void *ns;
-	/* This is one of the IT_* constants above. */
-	int it;
-	char name[INAME_MAX_LEN];
+	/* This is one of the FW_* constants above. */
+	int fw;
+	char iname[INAME_MAX_LEN];
 };
 
 union request_instance {
@@ -224,12 +225,12 @@ union request_instance {
 		struct instance_entry_usr offset;
 	} display;
 	struct {
-		__u8 it;
-		char name[INAME_MAX_LEN];
+		__u8 fw;
+		char iname[INAME_MAX_LEN];
 	} add;
 	struct {
-		__u8 it;
-		char name[INAME_MAX_LEN];
+		__u8 fw;
+		char iname[INAME_MAX_LEN];
 	} rm;
 };
 

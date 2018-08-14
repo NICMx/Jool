@@ -7,6 +7,7 @@
 #define log_debug(text, ...) syslog(LOG_DEBUG, text, ##__VA_ARGS__)
 #define log_info(text, ...) syslog(LOG_INFO, text, ##__VA_ARGS__)
 #define log_err(text, ...) syslog(LOG_ERR, text, ##__VA_ARGS__)
+#define log_delete(text, ...) log_info(text, ##__VA_ARGS__)
 
 #else
 
@@ -14,6 +15,7 @@
 #define log_debug(text, ...) printf(text "\n", ##__VA_ARGS__)
 #define log_info(text, ...) log_debug(text, ##__VA_ARGS__)
 #define log_err(text, ...) fprintf(stderr, text "\n", ##__VA_ARGS__)
+#define log_delete(text, ...) log_debug(text, ##__VA_ARGS__)
 
 #endif
 

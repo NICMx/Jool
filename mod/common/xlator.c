@@ -38,7 +38,7 @@ struct jool_instance {
 	 * ops needs to survive atomic configuration; the jool_instance needs to
 	 * be replaced but the ops needs to survive.
 	 *
-	 * This is only set if jool.type matches XT_NETFILTER.
+	 * This is only set if jool.fw matches FW_NETFILTER.
 	 */
 	struct nf_hook_ops *nf_ops;
 #endif
@@ -50,7 +50,7 @@ static DEFINE_MUTEX(lock);
 static void destroy_jool_instance(struct jool_instance *instance)
 {
 #if LINUX_VERSION_AT_LEAST(4, 13, 0, 9999, 0)
-	if (instance->jool.type & XT_NETFILTER)
+	if (instance->jool.fw & FW_NETFILTER)
 		__wkfree("nf_hook_ops", instance->nf_ops);
 #endif
 	xlator_put(&instance->jool);
@@ -78,7 +78,18 @@ static void xlator_get(struct xlator *jool)
 	cfgcandidate_get(jool->newcfg);
 }
 
-/* TODO (NOW) probably missing hook unregistering? */
+/**
+ * Called whenever the user deletes a namespace. Supposed to deletes all the
+ * instances inserted in that namespace.
+ *
+ * TODO (NOW) this might need some testing.
+ * 1. Add instances to a namespace.
+ * 2. Delete the namespace. Does it crash?
+ *    -> If it doesn't crash, try unregistening the hooks during this function
+ *       and try again. Does it crash?
+ *    NOTE THAT destroy_jool_instance IS CALLED FROM GRAY CODE.
+ * 3. Document the results.
+ */
 static void __net_exit flush_net(struct net *ns)
 {
 	struct list_head *list;
@@ -225,14 +236,16 @@ config_fail:
  * @result: Will be initialized with a reference to the new translator. Send
  *     NULL if you're not interested.
  */
-int xlator_add(int type, char *iname, struct xlator *result)
+int xlator_add(int fw, char *iname, struct xlator *result)
 {
 	struct list_head *list;
 	struct jool_instance *instance;
 	struct net *ns;
 	int error;
 
-	/* TODO (NOW) validate bit count in types */
+	error = fw_validate(fw);
+	if (error)
+		return error;
 	error = iname_validate(iname);
 	if (error)
 		return error;
@@ -243,30 +256,42 @@ int xlator_add(int type, char *iname, struct xlator *result)
 		return PTR_ERR(ns);
 	}
 
+	/* All error roads from now need to put @ns. */
+
 	instance = wkmalloc(struct jool_instance, GFP_KERNEL);
 	if (!instance) {
 		put_net(ns);
 		return -ENOMEM;
 	}
 
+	/* All error roads from now need to free @instance. */
+
 	strcpy(instance->jool.iname, iname);
-	instance->jool.type = type;
-	instance->jool.ns = ns;
+	instance->jool.fw = fw;
+	instance->jool.ns = ns; /* Transfers ownership */
 	error = xlat_is_siit()
 			? init_siit(&instance->jool)
 			: init_nat64(&instance->jool);
 	if (error) {
-		put_net(ns);
 		wkfree(struct jool_instance, instance);
+		put_net(ns);
 		return error;
 	}
+#if LINUX_VERSION_AT_LEAST(4, 13, 0, 9999, 0)
+	instance->nf_ops = NULL;
+#endif
+
+	/* Error roads from now on don't need to put @ns. */
+	/* Error roads from now on don't need to free @instance. */
+	/* All error roads from now need to properly destroy @instance. */
 
 #if LINUX_VERSION_AT_LEAST(4, 13, 0, 9999, 0)
-	if (type & IT_NETFILTER) {
-		instance->nf_ops = __wkmalloc("nf_hook_ops",
-				2 * sizeof(struct nf_hook_ops),
+	if (fw & FW_NETFILTER) {
+		struct nf_hook_ops *ops;
+
+		ops = __wkmalloc("nf_hook_ops", 2 * sizeof(struct nf_hook_ops),
 				GFP_KERNEL);
-		if (!instance->nf_ops) {
+		if (!ops) {
 			destroy_jool_instance(instance);
 			return -ENOMEM;
 		}
@@ -275,22 +300,23 @@ int xlator_add(int type, char *iname, struct xlator *result)
 		init_nf_hook_op4(&instance->nf_ops[1]);
 
 		/* TODO (NOW) WTF? Why is this not being reverted below? */
-		error = nf_register_net_hooks(ns, instance->nf_ops, 2);
+		error = nf_register_net_hooks(ns, ops, 2);
 		if (error) {
+			__wkfree("nf_hook_ops", ops);
 			destroy_jool_instance(instance);
 			return error;
 		}
-	} else {
-		instance->nf_ops = NULL;
+
+		instance->nf_ops = ops;
 	}
 #endif
 
 	mutex_lock(&lock);
-	error = xlator_find(ns, type, iname, NULL);
+	error = xlator_find(ns, fw, iname, NULL);
 	switch (error) {
 	case 0:
 		log_err("This namespace already has a Jool instance named '%s'.",
-				iname ? : "");
+				iname);
 		error = -EEXIST;
 		goto mutex_fail;
 	case -ESRCH: /* Happy path. */
@@ -317,7 +343,12 @@ mutex_fail:
 	return error;
 }
 
-static int __xlator_rm(struct net *ns, int type, char *iname)
+/**
+ * Will actually delete the FIRST instance that matches [ns, fw, iname].
+ * (Since fw is a bit flag, more than one instance can match.)
+ * This is fine for now.
+ */
+static int __xlator_rm(struct net *ns, int fw, char *iname)
 {
 	struct list_head *list;
 	struct jool_instance *instance;
@@ -326,17 +357,16 @@ static int __xlator_rm(struct net *ns, int type, char *iname)
 
 	list = rcu_dereference_protected(pool, lockdep_is_held(&lock));
 	list_for_each_entry(instance, list, list_hook) {
-		if (xlator_matches(&instance->jool, ns, type, iname)) {
-#if LINUX_VERSION_AT_LEAST(4, 13, 0, 9999, 0)
-			if (instance->jool.type & XT_NETFILTER)
-				nf_unregister_net_hooks(ns, instance->nf_ops, 2);
-#endif
-
-			/* Remove the instance from the list FIRST. */
+		if (xlator_matches(&instance->jool, ns, fw, iname)) {
 			list_del_rcu(&instance->list_hook);
 			mutex_unlock(&lock);
 
-			/* Then wait for the grace period. */
+			/* (The placement of this block doesn't matter much.) */
+#if LINUX_VERSION_AT_LEAST(4, 13, 0, 9999, 0)
+			if (instance->jool.fw & FW_NETFILTER)
+				nf_unregister_net_hooks(ns, instance->nf_ops, 2);
+#endif
+
 			synchronize_rcu_bh();
 
 			/*
@@ -361,7 +391,7 @@ static int __xlator_rm(struct net *ns, int type, char *iname)
  * xlator_rm - Whenever called, stops translation of packets traveling through
  * the namespace running in the caller's context.
  */
-int xlator_rm(int type, char *iname)
+int xlator_rm(int fw, char *iname)
 {
 	struct net *ns;
 	int error;
@@ -376,16 +406,15 @@ int xlator_rm(int type, char *iname)
 		return PTR_ERR(ns);
 	}
 
-	error = __xlator_rm(ns, type, iname);
+	error = __xlator_rm(ns, fw, iname);
 	switch (error) {
 	case 0:
 		break;
 	case -ESRCH:
-		log_err("This namespace doesn't have a Jool instance named '%s'.",
-				iname);
+		log_err("The requested instance does not exist.");
 		break;
 	default:
-		log_err("Unknown error code: %d.", error);
+		log_err("Unknown error: %d.", error);
 		break;
 	}
 
@@ -410,7 +439,6 @@ int xlator_replace(struct xlator *jool)
 	list = rcu_dereference_protected(pool, lockdep_is_held(&lock));
 	list_for_each_entry_rcu(old, list, list_hook) {
 		if (old->jool.ns == new->jool.ns) {
-			/* The comments at exit_net() also apply here. */
 #if LINUX_VERSION_AT_LEAST(4, 13, 0, 9999, 0)
 			new->nf_ops = old->nf_ops;
 #endif
@@ -443,12 +471,11 @@ int xlator_replace(struct xlator *jool)
  * IT IS EXTREMELY IMPORTANT THAT YOU NEVER KREF_GET ANY OF @result'S MEMBERS!!!
  * (You are not meant to fork pointers to them.)
  */
-int xlator_find(struct net *ns, int type, const char *iname,
+int xlator_find(struct net *ns, int fw, const char *iname,
 		struct xlator *result)
 {
 	struct list_head *list;
 	struct jool_instance *instance;
-	struct xlator *jool;
 	int error;
 
 	error = iname_validate(iname);
@@ -459,10 +486,10 @@ int xlator_find(struct net *ns, int type, const char *iname,
 
 	list = rcu_dereference_bh(pool);
 	list_for_each_entry_rcu(instance, list, list_hook) {
-		if (xlator_matches(&instance->jool, ns, type, iname)) {
+		if (xlator_matches(&instance->jool, ns, fw, iname)) {
 			if (result) {
-				xlator_get(jool);
-				memcpy(result, jool, sizeof(*jool));
+				xlator_get(&instance->jool);
+				memcpy(result, &instance->jool, sizeof(*result));
 			}
 			rcu_read_unlock_bh();
 			return 0;
@@ -479,7 +506,7 @@ int xlator_find(struct net *ns, int type, const char *iname,
  *
  * Please xlator_put() the instance when you're done using it.
  */
-int xlator_find_current(int type, const char *iname, struct xlator *result)
+int xlator_find_current(int fw, const char *iname, struct xlator *result)
 {
 	struct net *ns;
 	int error;
@@ -491,7 +518,7 @@ int xlator_find_current(int type, const char *iname, struct xlator *result)
 	}
 
 	/* +1 to result's DBs, including ns. */
-	error = xlator_find(ns, type, iname, result);
+	error = xlator_find(ns, fw, iname, result);
 	/* -1 to ns. */
 	put_net(ns);
 	return error;
@@ -531,8 +558,8 @@ static bool offset_equals(struct instance_entry_usr *offset,
 		struct jool_instance *instance)
 {
 	return (offset->ns == instance->jool.ns)
-			&& (offset->it == instance->jool.type)
-			&& (strcmp(offset->name, instance->jool.iname) == 0);
+			&& (offset->fw == instance->jool.fw)
+			&& (strcmp(offset->iname, instance->jool.iname) == 0);
 }
 
 int xlator_foreach(xlator_foreach_cb cb, void *args,
@@ -573,10 +600,10 @@ void xlator_copy_config(struct xlator *jool, struct full_config *copy)
 	fragdb_config_copy(jool->nat64.frag, &copy->frag);
 }
 
-bool xlator_matches(struct xlator *jool, struct net *ns, int type,
+bool xlator_matches(struct xlator *jool, struct net *ns, int fw,
 		const char *iname)
 {
 	return (jool->ns == ns)
-			&& (jool->type & type)
+			&& (jool->fw & fw)
 			&& (strcmp(jool->iname, iname) == 0);
 }

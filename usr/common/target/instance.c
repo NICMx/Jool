@@ -16,25 +16,36 @@ struct display_args {
 static void print_entry_csv(struct instance_entry_usr *entry)
 {
 	printf("%p,", entry->ns);
-	if (entry->it == IT_NETFILTER)
+	if (entry->fw == FW_NETFILTER)
 		printf("netfilter,");
-	else if (entry->it == IT_IPTABLES)
+	else if (entry->fw == FW_IPTABLES)
 		printf("iptables,");
 	else
 		printf("unknown,");
-	printf("%s\n", entry->name);
+	printf("%s\n", entry->iname);
+}
+
+static void print_table_divisor(void)
+{
+	printf("+--------------------+-----------+-----------------+\n");
 }
 
 static void print_entry_normal(struct instance_entry_usr *entry)
 {
-	printf("| %p |", entry->ns);
-	if (entry->it == IT_NETFILTER)
+	/*
+	 * 18 is "0x" plus 16 hexadecimal digits.
+	 * Why is it necessary? Because the table headers and stuff assume 18
+	 * characters and I'm assuming that 32-bit machines would print smaller
+	 * pointers.
+	 */
+	printf("| %18p | ", entry->ns);
+	if (entry->fw == FW_NETFILTER)
 		printf("netfilter");
-	else if (entry->it == IT_IPTABLES)
+	else if (entry->fw == FW_IPTABLES)
 		printf(" iptables");
 	else
 		printf("  unknown");
-	printf("| %15s |\n", entry->name);
+	printf(" | %15s |\n", entry->iname);
 }
 
 static int instance_display_response(struct jool_response *response, void *arg)
@@ -76,8 +87,17 @@ int instance_display(display_flags flags)
 	args.row_count = 0;
 	args.request = payload;
 
-	if ((flags & DF_SHOW_HEADERS) && (flags & DF_CSV_FORMAT))
-		printf("Namespace,Type,Name\n");
+	if (flags & DF_SHOW_HEADERS) {
+		if (flags & DF_CSV_FORMAT) {
+			printf("Namespace,Framework,Name\n");
+		} else {
+			print_table_divisor();
+			printf("|          Namespace | Framework |            Name |\n");
+		}
+	}
+
+	if (!(flags & DF_CSV_FORMAT))
+		print_table_divisor();
 
 	do {
 		error = netlink_request(NULL, request, sizeof(request),
@@ -85,6 +105,9 @@ int instance_display(display_flags flags)
 		if (error)
 			return error;
 	} while (payload->display.offset_set);
+
+	if (args.row_count > 0 && !(flags & DF_CSV_FORMAT))
+		print_table_divisor();
 
 	if (show_footer(flags)) {
 		if (args.row_count > 0)
@@ -96,21 +119,7 @@ int instance_display(display_flags flags)
 	return 0;
 }
 
-static unsigned int count_bits(int type)
-{
-	unsigned int i = 0;
-	unsigned int result = 0;
-
-	for (; i < 8 * sizeof(int); i++) {
-		if (type & 1)
-			result++;
-		type >>= 1;
-	}
-
-	return result;
-}
-
-int instance_add(int type, char *iname)
+int instance_add(int fw, char *iname)
 {
 	unsigned char request[HDR_LEN + PAYLOAD_LEN];
 	struct request_hdr *hdr = (struct request_hdr *)request;
@@ -118,22 +127,21 @@ int instance_add(int type, char *iname)
 			(request + HDR_LEN);
 	int error;
 
-	if (count_bits(type) != 1) {
-		log_err("Only one instance type can be added at a time.");
-		return -EINVAL;
-	}
+	error = fw_validate(fw);
+	if (error)
+		return error;
 	error = iname_validate(iname);
 	if (error)
 		return error;
 
 	init_request_hdr(hdr, MODE_INSTANCE, OP_ADD);
-	payload->add.it = type;
-	strcpy(payload->add.name, iname);
+	payload->add.fw = fw;
+	strcpy(payload->add.iname, iname);
 
 	return netlink_request(NULL, request, sizeof(request), NULL, NULL);
 }
 
-int instance_rm(int type, char *iname)
+int instance_rm(int fw, char *iname)
 {
 	unsigned char request[HDR_LEN + PAYLOAD_LEN];
 	struct request_hdr *hdr = (struct request_hdr *)request;
@@ -146,8 +154,8 @@ int instance_rm(int type, char *iname)
 		return error;
 
 	init_request_hdr(hdr, MODE_INSTANCE, OP_REMOVE);
-	payload->rm.it = type;
-	strcpy(payload->rm.name, iname);
+	payload->rm.fw = fw;
+	strcpy(payload->rm.iname, iname);
 
 	return netlink_request(NULL, request, sizeof(request), NULL, NULL);
 }

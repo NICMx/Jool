@@ -60,6 +60,16 @@
 		sprintf(__error_message, text "\n", ##__VA_ARGS__); \
 		error_pool_add_message(__error_message); \
 	} while (0)
+/**
+ * Used when a developer wants to print a debug message, but this message would
+ * not be useful after the bug is fixed. These are separated from `log_debug`
+ * and `log_info` so you can spot them through simple greps and delete them
+ * guilt-free.
+ *
+ * These should not be committed, so if you see one in uploaded code, delete it.
+ */
+#define log_delete(text, ...) \
+	pr_err("%s: " text "\n", xlat_get_name(), ##__VA_ARGS__)
 
 #ifdef UNIT_TESTING
 #undef log_err

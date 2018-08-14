@@ -334,13 +334,11 @@ int pkt_init_ipv6(struct packet *pkt, struct sk_buff *skb)
 	 * might change pointers, so you generally don't want to store them.
 	 */
 
-	log_debug("===============================================");
-
 	error = paranoid_validations(skb, sizeof(struct ipv6hdr));
 	if (error)
 		return error;
 
-	log_debug("Catching IPv6 packet: %pI6c->%pI6c",
+	log_debug("Packet addresses: %pI6c->%pI6c",
 			&ipv6_hdr(skb)->saddr,
 			&ipv6_hdr(skb)->daddr);
 
@@ -504,13 +502,11 @@ int pkt_init_ipv4(struct packet *pkt, struct sk_buff *skb)
 	 * might change pointers, so you generally don't want to store them.
 	 */
 
-	log_debug("===============================================");
-
 	error = paranoid_validations(skb, sizeof(struct iphdr));
 	if (error)
 		return error;
 
-	log_debug("Catching IPv4 packet: %pI4->%pI4",
+	log_debug("Packet addresses: %pI4->%pI4",
 			&ip_hdr(skb)->saddr,
 			&ip_hdr(skb)->daddr);
 

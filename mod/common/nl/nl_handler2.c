@@ -141,7 +141,7 @@ static int __handle_jool_message(struct genl_info *info)
 	if (be16_to_cpu(get_jool_hdr(info)->mode) == MODE_INSTANCE)
 		return handle_instance_request(info);
 
-	error = xlator_find_current(IT_ANY, get_iname(info), &jool);
+	error = xlator_find_current(FW_ANY, get_iname(info), &jool);
 	if (error == -ESRCH) {
 		log_err("This namespace lacks a Jool instance.");
 		return nlcore_respond(info, -ESRCH);

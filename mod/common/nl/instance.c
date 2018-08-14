@@ -11,8 +11,8 @@ static int xlator_entry_to_userspace(struct xlator *entry, void *arg)
 	struct instance_entry_usr entry_usr;
 
 	entry_usr.ns = entry->ns;
-	entry_usr.it = entry->type;
-	strcpy(entry_usr.name, entry->iname);
+	entry_usr.fw = entry->fw;
+	strcpy(entry_usr.iname, entry->iname);
 
 	return nlbuffer_write(buffer, &entry_usr, sizeof(entry_usr));
 }
@@ -47,8 +47,8 @@ static int handle_instance_add(struct genl_info *info,
 	log_debug("Adding Jool instance.");
 
 	return nlcore_respond(info, xlator_add(
-			request->add.it,
-			request->add.name,
+			request->add.fw,
+			request->add.iname,
 			NULL
 	));
 }
@@ -59,8 +59,8 @@ static int handle_instance_rm(struct genl_info *info,
 	log_debug("Removing Jool instance.");
 
 	return nlcore_respond(info, xlator_rm(
-			request->rm.it,
-			request->rm.name
+			request->rm.fw,
+			request->rm.iname
 	));
 }
 

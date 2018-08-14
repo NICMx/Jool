@@ -197,8 +197,8 @@ static const struct argp_option db_hdr_opt = {
 };
 
 static const struct argp_option instance_type_opt = {
-		.name = "instance-type",
-		.key = ARGP_INSTANCE_TYPE,
+		.name = "instance-framework",
+		.key = ARGP_INSTANCE_FW,
 		.arg = STRING_FORMAT,
 		.flags = 0,
 		.doc = "'netfilter' or 'iptables'.",

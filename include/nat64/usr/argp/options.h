@@ -44,7 +44,7 @@ enum argp_flags {
 	ARGP_TEST = 5001,
 
 	/* Instance */
-	ARGP_INSTANCE_TYPE = 8000,
+	ARGP_INSTANCE_FW = 8000,
 
 	/* Pools */
 	ARGP_PREFIX = 3000,

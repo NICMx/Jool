@@ -1,6 +1,7 @@
 #include "nat64/mod/common/nf_hook.h"
 
 #include "nat64/mod/common/core.h"
+#include "nat64/mod/common/linux_version.h"
 
 /**
  * This is the function that the kernel calls whenever a packet reaches Jool's
@@ -11,7 +12,8 @@ NF_CALLBACK(hook_ipv6, skb)
 	struct xlator jool;
 	int error;
 
-	error = xlator_find(dev_net(skb->dev), IT_NETFILTER, NULL, &jool);
+	error = xlator_find(dev_net(skb->dev), FW_NETFILTER, INAME_DEFAULT,
+			&jool);
 	if (error) {
 		/*
 		 * hook_ipv6() is called on every packet of every namespace,
@@ -35,7 +37,8 @@ NF_CALLBACK(hook_ipv4, skb)
 	struct xlator jool;
 	int error;
 
-	error = xlator_find(dev_net(skb->dev), IT_NETFILTER, NULL, &jool);
+	error = xlator_find(dev_net(skb->dev), FW_NETFILTER, INAME_DEFAULT,
+			&jool);
 	if (error) {
 		/*
 		 * hook_ipv4() is called on every packet of every namespace,
@@ -55,7 +58,7 @@ static int find_instance(struct net *ns, const struct target_info *info,
 {
 	int error;
 
-	error = xlator_find(ns, IT_IPTABLES, info->iname, result);
+	error = xlator_find(ns, FW_IPTABLES, info->iname, result);
 	switch (error) {
 	case 0:
 		break;
@@ -90,6 +93,17 @@ int target_checkentry(const struct xt_tgchk_param *param)
 	return find_instance(param->net, param->targinfo, NULL);
 }
 
+struct net *action_param_net(const struct xt_action_param *param)
+{
+#if LINUX_VERSION_AT_LEAST(4, 10, 0, 9999, 0)
+	return param->state->net;
+#elif LINUX_VERSION_AT_LEAST(4, 4, 0, 9999, 0)
+	return param->net;
+#else
+	return dev_net(param->in);
+#endif
+}
+
 /**
  * This is the function that the kernel calls whenever a packet reaches one of
  * Jool's ip6tables rules.
@@ -100,7 +114,7 @@ unsigned int target_ipv6(struct sk_buff *skb,
 	struct xlator jool;
 	int error;
 
-	error = find_instance(param->net, param->targinfo, &jool);
+	error = find_instance(action_param_net(param), param->targinfo, &jool);
 	if (error)
 		return error;
 
@@ -117,7 +131,7 @@ unsigned int target_ipv4(struct sk_buff *skb,
 	struct xlator jool;
 	int error;
 
-	error = find_instance(param->net, param->targinfo, &jool);
+	error = find_instance(action_param_net(param), param->targinfo, &jool);
 	if (error)
 		return error;
 

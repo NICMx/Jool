@@ -81,6 +81,9 @@ unsigned int core_4to6(struct sk_buff *skb, struct xlator *instance)
 		return NF_ACCEPT;
 	}
 
+	log_debug("===============================================");
+	log_debug("Jool instance '%s': Received a v4 packet.", instance->iname);
+
 	/* Reminder: This function might change pointers. */
 	if (pkt_init_ipv4(&state.in, skb) != 0) {
 		xlation_clean(&state);
@@ -110,6 +113,9 @@ unsigned int core_6to4(struct sk_buff *skb, struct xlator *instance)
 		xlation_clean(&state);
 		return NF_ACCEPT;
 	}
+
+	log_debug("===============================================");
+	log_debug("Jool instance '%s': Received a v6 packet.", instance->iname);
 
 	/* Reminder: This function might change pointers. */
 	if (pkt_init_ipv6(&state.in, skb) != 0) {
