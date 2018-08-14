@@ -39,7 +39,7 @@ static void timer_function(
 #endif
 		)
 {
-	xlator_foreach(clean_state, NULL);
+	xlator_foreach(clean_state, NULL, NULL);
 	mod_timer(&timer, jiffies + TIMER_PERIOD);
 }
 

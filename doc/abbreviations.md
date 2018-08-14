@@ -28,6 +28,8 @@ Some shortcuts used while naming variables and functions through the code or doc
 - frag = fragment
 - hdr = header
 - init = initialize
+- iname = instance name
+  (Sorry. I don't like this one either, but "instance_name" would break too many lines.)
 - inode = internal node (https://en.wikipedia.org/wiki/Tree_%28data_structure%29)
 - l2 = layer 2 (link)
 - l3 = layer 3 (network; IPv4 or IPv6.)

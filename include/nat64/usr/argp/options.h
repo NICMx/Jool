@@ -12,12 +12,16 @@
 #define PREFIX6_FORMAT "ADDR6/NUM"
 #define PREFIX4_FORMAT "ADDR4/NUM"
 #define OPTIONAL_PREFIX6_FORMAT "(ADDR6/NUM|null)"
+#define STRING_FORMAT "STRING"
 
 /**
  * The flags the user can write as program parameters.
  */
 enum argp_flags {
+	ARGP_INAME = 4000,
+
 	/* Modes */
+	ARGP_INSTANCE = 7001,
 	ARGP_POOL6 = '6',
 	ARGP_POOL4 = '4',
 	ARGP_BIB = 'b',
@@ -28,7 +32,6 @@ enum argp_flags {
 	ARGP_RFC6791 = 6791,
 	ARGP_GLOBAL = 'g',
 	ARGP_PARSE_FILE = 'p',
-	ARGP_INSTANCE = 7001,
 
 	/* Operations */
 	ARGP_DISPLAY = 'd',
@@ -39,6 +42,9 @@ enum argp_flags {
 	ARGP_FLUSH = 'f',
 	ARGP_ADVERTISE = 5002,
 	ARGP_TEST = 5001,
+
+	/* Instance */
+	ARGP_INSTANCE_TYPE = 8000,
 
 	/* Pools */
 	ARGP_PREFIX = 3000,

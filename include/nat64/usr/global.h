@@ -4,6 +4,9 @@
 #include "nat64/common/config.h"
 #include "nat64/usr/types.h"
 
+/* Mega global */
+#define OPTNAME_INAME			"instance-name"
+
 /* Modes */
 #define OPTNAME_GLOBAL			"global"
 #define OPTNAME_POOL6			"pool6"
@@ -69,8 +72,8 @@
 #define OPTNAME_SS_CAPACITY		"ss-capacity"
 #define OPTNAME_SS_MAX_PAYLOAD		"ss-max-payload"
 
-int global_display(display_flags flags);
-int global_update(__u16 type, size_t size, void *data);
+int global_display(char *iname, display_flags flags);
+int global_update(char *iname, __u16 type, size_t size, void *data);
 
 
 #endif /* _JOOL_USR_GLOBAL_H */

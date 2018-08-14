@@ -26,7 +26,7 @@ struct jool_response {
 };
 
 typedef int (*jool_response_cb)(struct jool_response *, void *);
-int netlink_request(void *request, __u32 request_len,
+int netlink_request(char *iname, void *request, __u32 request_len,
 		jool_response_cb cb, void *cb_arg);
 int netlink_request_simple(void *request, __u32 request_len);
 

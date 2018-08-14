@@ -1,7 +1,7 @@
 #ifndef _JOOL_USR_TARGET_JOOLD_H
 #define _JOOL_USR_TARGET_JOOLD_H
 
-int joold_advertise(void);
-int joold_test(void);
+int joold_advertise(char *iname);
+int joold_test(char *iname);
 
 #endif

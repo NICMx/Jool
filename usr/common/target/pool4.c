@@ -117,7 +117,8 @@ static int pool4_display_response(struct jool_response *response, void *arg)
 	return 0;
 }
 
-int pool4_display_proto(display_flags flags, l4_protocol proto, unsigned int *count)
+int pool4_display_proto(char *iname, display_flags flags, l4_protocol proto,
+		unsigned int *count)
 {
 	unsigned char request[HDR_LEN + PAYLOAD_LEN];
 	struct request_hdr *hdr = (struct request_hdr *)request;
@@ -137,7 +138,7 @@ int pool4_display_proto(display_flags flags, l4_protocol proto, unsigned int *co
 	args.last.proto = 0;
 
 	do {
-		error = netlink_request(&request, sizeof(request),
+		error = netlink_request(iname, &request, sizeof(request),
 				pool4_display_response, &args);
 		if (error)
 			return error;
@@ -147,7 +148,7 @@ int pool4_display_proto(display_flags flags, l4_protocol proto, unsigned int *co
 	return 0;
 }
 
-int pool4_display(display_flags flags)
+int pool4_display(char *iname, display_flags flags)
 {
 	unsigned int count = 0;
 	int error;
@@ -161,13 +162,13 @@ int pool4_display(display_flags flags)
 		}
 	}
 
-	error = pool4_display_proto(flags, L4PROTO_TCP, &count);
+	error = pool4_display_proto(iname, flags, L4PROTO_TCP, &count);
 	if (error)
 		return error;
-	error = pool4_display_proto(flags, L4PROTO_UDP, &count);
+	error = pool4_display_proto(iname, flags, L4PROTO_UDP, &count);
 	if (error)
 		return error;
-	error = pool4_display_proto(flags, L4PROTO_ICMP, &count);
+	error = pool4_display_proto(iname, flags, L4PROTO_ICMP, &count);
 	if (error)
 		return error;
 
@@ -184,14 +185,14 @@ int pool4_display(display_flags flags)
 	return 0;
 }
 
-int pool4_count(void)
+int pool4_count(char *iname)
 {
 	log_err("Sorry; --pool4 --count is not implemented anymore.");
 	log_err("See https://github.com/NICMx/pool4-usage-analyzer");
 	return -EINVAL;
 }
 
-int pool4_add(struct pool4_entry_usr *entry, bool force)
+int pool4_add(char *iname, struct pool4_entry_usr *entry, bool force)
 {
 	unsigned char request[HDR_LEN + PAYLOAD_LEN];
 	struct request_hdr *hdr = (struct request_hdr *)request;
@@ -213,10 +214,10 @@ int pool4_add(struct pool4_entry_usr *entry, bool force)
 	init_request_hdr(hdr, MODE_POOL4, OP_ADD);
 	payload->add = *entry;
 
-	return netlink_request(request, sizeof(request), NULL, NULL);
+	return netlink_request(iname, request, sizeof(request), NULL, NULL);
 }
 
-int pool4_update(struct pool4_update *args)
+int pool4_update(char *iname, struct pool4_update *args)
 {
 	unsigned char request[HDR_LEN + PAYLOAD_LEN];
 	struct request_hdr *hdr = (struct request_hdr *)request;
@@ -225,10 +226,10 @@ int pool4_update(struct pool4_update *args)
 	init_request_hdr(hdr, MODE_POOL4, OP_UPDATE);
 	payload->update = *args;
 
-	return netlink_request(request, sizeof(request), NULL, NULL);
+	return netlink_request(iname, request, sizeof(request), NULL, NULL);
 }
 
-int pool4_rm(struct pool4_entry_usr *entry, bool quick)
+int pool4_rm(char *iname, struct pool4_entry_usr *entry, bool quick)
 {
 	unsigned char request[HDR_LEN + PAYLOAD_LEN];
 	struct request_hdr *hdr = (struct request_hdr *)request;
@@ -238,10 +239,10 @@ int pool4_rm(struct pool4_entry_usr *entry, bool quick)
 	payload->rm.entry = *entry;
 	payload->rm.quick = quick;
 
-	return netlink_request(request, sizeof(request), NULL, NULL);
+	return netlink_request(iname, request, sizeof(request), NULL, NULL);
 }
 
-int pool4_flush(bool quick)
+int pool4_flush(char *iname, bool quick)
 {
 	unsigned char request[HDR_LEN + PAYLOAD_LEN];
 	struct request_hdr *hdr = (struct request_hdr *)request;
@@ -250,5 +251,5 @@ int pool4_flush(bool quick)
 	init_request_hdr(hdr, MODE_POOL4, OP_FLUSH);
 	payload->flush.quick = quick;
 
-	return netlink_request(&request, sizeof(request), NULL, NULL);
+	return netlink_request(iname, &request, sizeof(request), NULL, NULL);
 }

@@ -4,9 +4,32 @@
 #include <string.h>
 #include "nat64/usr/global.h"
 
+static const struct argp_option meta_hdr_opt = {
+		.doc = "Meta-arguments:",
+		.group = 1,
+};
+
+static const struct argp_option iname_opt = {
+		.name = OPTNAME_INAME,
+		.key = ARGP_INAME,
+		.arg = STRING_FORMAT,
+		.flags = 0,
+		.doc = "Name of the Jool instance the command will operate on.\n",
+		.group = 0,
+};
+
 static const struct argp_option targets_hdr_opt = {
 		.doc = "Configuration targets/modes:",
 		.group = 2,
+};
+
+static const struct argp_option instance_opt = {
+		.name = OPTNAME_INSTANCE,
+		.key = ARGP_INSTANCE,
+		.arg = NULL,
+		.flags = 0,
+		.doc = "The command will operate on per-namespace Jool instances.",
+		.group = 0,
 };
 
 static const struct argp_option pool6_opt = {
@@ -96,15 +119,6 @@ static const struct argp_option operations_hdr_opt = {
 		.group = 3,
 };
 
-static const struct argp_option instance_opt = {
-		.name = OPTNAME_INSTANCE,
-		.key = ARGP_INSTANCE,
-		.arg = NULL,
-		.flags = 0,
-		.doc = "The command will operate on per-namespace Jool instances.",
-		.group = 0,
-};
-
 static const struct argp_option display_opt = {
 		.name = OPTNAME_DISPLAY,
 		.key = ARGP_DISPLAY,
@@ -180,6 +194,15 @@ static const struct argp_option test_opt = {
 static const struct argp_option db_hdr_opt = {
 		.doc = "Database miscellaneous options:",
 		.group = 4,
+};
+
+static const struct argp_option instance_type_opt = {
+		.name = "instance-type",
+		.key = ARGP_INSTANCE_TYPE,
+		.arg = STRING_FORMAT,
+		.flags = 0,
+		.doc = "'netfilter' or 'iptables'.",
+		.group = 0,
 };
 
 static const struct argp_option quick_opt = {
@@ -583,14 +606,17 @@ static const struct argp_option rfc6791v6_prefix_opt = {
 };
 
 static const struct argp_option *opts_siit[] = {
+	&meta_hdr_opt,
+	&iname_opt,
+
 	&targets_hdr_opt,
+	&instance_opt,
 	&pool6_opt,
 	&eamt_opt,
 	&blacklist_opt,
 	&pool6791_opt,
 	&global_opt,
 	&parse_file_opt,
-	&instance_opt,
 
 	&operations_hdr_opt,
 	&display_opt,
@@ -601,6 +627,7 @@ static const struct argp_option *opts_siit[] = {
 	&flush_opt,
 
 	&db_hdr_opt,
+	&instance_type_opt,
 	&csv_opt,
 	&no_hdr_opt,
 	&force_opt,
@@ -619,7 +646,11 @@ static const struct argp_option *opts_siit[] = {
 };
 
 static const struct argp_option *opts_nat64[] = {
+	&meta_hdr_opt,
+	&iname_opt,
+
 	&targets_hdr_opt,
+	&instance_opt,
 	&pool6_opt,
 	&pool4_opt,
 	&bib_opt,
@@ -627,7 +658,6 @@ static const struct argp_option *opts_nat64[] = {
 	&joold_opt,
 	&global_opt,
 	&parse_file_opt,
-	&instance_opt,
 
 	&operations_hdr_opt,
 	&display_opt,
@@ -640,6 +670,7 @@ static const struct argp_option *opts_nat64[] = {
 	&test_opt,
 
 	&db_hdr_opt,
+	&instance_type_opt,
 	&csv_opt,
 	&no_hdr_opt,
 	&quick_opt,
@@ -651,7 +682,6 @@ static const struct argp_option *opts_nat64[] = {
 	&udp_opt,
 	&numeric_opt,
 
-	/* Globals */
 	&globals_hdr_opt,
 	&enable_opt,
 	&disable_opt,

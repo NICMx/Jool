@@ -262,7 +262,7 @@ static int handle_display_response_csv(struct jool_response *response, void *arg
 	return 0;
 }
 
-int global_display(display_flags flags)
+int global_display(char *iname, display_flags flags)
 {
 	struct request_hdr request;
 	jool_response_cb cb;
@@ -275,10 +275,10 @@ int global_display(display_flags flags)
 			? handle_display_response_csv
 			: handle_display_response;
 
-	return netlink_request(&request, sizeof(request), cb, NULL);
+	return netlink_request(iname, &request, sizeof(request), cb, NULL);
 }
 
-int global_update(__u16 type, size_t size, void *data)
+int global_update(char *iname, __u16 type, size_t size, void *data)
 {
 	struct request_hdr *hdr;
 	struct global_value *chunk;
@@ -298,7 +298,7 @@ int global_update(__u16 type, size_t size, void *data)
 	chunk->len = sizeof(struct global_value) + size;
 	memcpy(payload, data, size);
 
-	result = netlink_request(hdr, len, NULL, NULL);
+	result = netlink_request(iname, hdr, len, NULL, NULL);
 	free(hdr);
 	return result;
 }

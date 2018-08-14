@@ -10,11 +10,12 @@
 #define BUFFER_MAX 256
 
 struct nl_buffer {
+	char iname[INAME_MAX_LEN];
 	unsigned char chars[BUFFER_MAX];
 	size_t len;
 };
 
-struct nl_buffer *nlbuffer_alloc(void)
+struct nl_buffer *nlbuffer_alloc(char *iname)
 {
 	struct nl_buffer *buffer;
 
@@ -22,6 +23,7 @@ struct nl_buffer *nlbuffer_alloc(void)
 	if (!buffer)
 		return NULL;
 
+	strcpy(buffer->iname, iname);
 	buffer->len = 0;
 
 	return buffer;
@@ -51,7 +53,8 @@ int nlbuffer_flush(struct nl_buffer *buffer)
 {
 	int error;
 
-	error = netlink_request(&buffer->chars[0], buffer->len, NULL, NULL);
+	error = netlink_request(buffer->iname, &buffer->chars[0], buffer->len,
+			NULL, NULL);
 	buffer->len = 0;
 
 	return error;

@@ -114,7 +114,11 @@ static int response_handler(struct nl_msg *msg, void *void_arg)
 	return (arg && arg->cb) ? (-abs(arg->cb(&response, arg->arg))) : 0;
 }
 
-int netlink_request(void *request, __u32 request_len,
+/**
+ * @iname can be NULL. The kernel module will assume that the instance name is
+ * "" (empty string).
+ */
+int netlink_request(char *iname, void *request, __u32 request_len,
 		jool_response_cb cb, void *cb_arg)
 {
 	struct nl_msg *msg;
@@ -142,9 +146,18 @@ int netlink_request(void *request, __u32 request_len,
 		return -EINVAL;
 	}
 
+	if (iname) {
+		error = nla_put_string(msg, ATTR_INAME, iname);
+		if (error) {
+			log_err("Could not write the instance name on the packet to kernelspace.");
+			nlmsg_free(msg);
+			return netlink_print_error(error);
+		}
+	}
+
 	error = nla_put(msg, ATTR_DATA, request_len, request);
 	if (error) {
-		log_err("Could not write on the packet to kernelspace.");
+		log_err("Could not write the request data on the packet to kernelspace.");
 		nlmsg_free(msg);
 		return netlink_print_error(error);
 	}

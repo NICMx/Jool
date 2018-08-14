@@ -5,12 +5,12 @@
 #include "nat64/usr/types.h"
 
 
-int pool6_display(display_flags flags);
-int pool6_count(void);
-int pool6_add(struct ipv6_prefix *prefix, bool force);
-int pool6_update(struct ipv6_prefix *prefix);
-int pool6_remove(struct ipv6_prefix *prefix);
-int pool6_flush(void);
+int pool6_display(char *iname, display_flags flags);
+int pool6_count(char *iname);
+int pool6_add(char *iname, struct ipv6_prefix *prefix, bool force);
+int pool6_update(char *iname, struct ipv6_prefix *prefix);
+int pool6_remove(char *iname, struct ipv6_prefix *prefix);
+int pool6_flush(char *iname);
 
 
 #endif /* _JOOL_USR_POOL6_H */

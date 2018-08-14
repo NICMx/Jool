@@ -40,8 +40,11 @@ const char *argp_program_bug_address = "jool@nic.mx";
  * formatted and ready to be read in any order.
  */
 struct arguments {
+	char iname[INAME_MAX_LEN];
 	enum config_mode mode;
 	enum config_operation op;
+
+	int instance_type;
 
 	struct {
 		bool quick;
@@ -197,6 +200,20 @@ static int set_global_u64(struct arguments *args, __u16 type, char *value,
 	tmp *= multiplier;
 
 	return set_global_arg(args, type, sizeof(tmp), &tmp);
+}
+
+static int set_instance_type(struct arguments *args, char *value)
+{
+	if (strcmp(value, "netfilter") == 0) {
+		args->instance_type = IT_NETFILTER;
+		return 0;
+	} else if (strcmp(value, "iptables") == 0) {
+		args->instance_type = IT_IPTABLES;
+		return 0;
+	}
+
+	log_err("Instance type is supposed to be either 'netfilter' or 'iptables'.");
+	return -EINVAL;
 }
 
 static int set_max_iterations(struct arguments *args, char *value)
@@ -385,6 +402,15 @@ static int parse_opt(int key, char *str, struct argp_state *state)
 	int error;
 
 	switch (key) {
+	case ARGP_INAME:
+		error = iname_validate(str);
+		if (!error)
+			strcpy(args->iname, str);
+		break;
+
+	case ARGP_INSTANCE:
+		error = update_state(args, MODE_INSTANCE, INSTANCE_OPS);
+		break;
 	case ARGP_GLOBAL:
 		error = update_state(args, MODE_GLOBAL, GLOBAL_OPS);
 		break;
@@ -413,10 +439,6 @@ static int parse_opt(int key, char *str, struct argp_state *state)
 		error = update_state(args, MODE_JOOLD, JOOLD_OPS);
 		break;
 
-	case ARGP_INSTANCE:
-		error = update_state(args, MODE_INSTANCE, INSTANCE_OPS);
-		break;
-
 	case ARGP_DISPLAY:
 		error = update_state(args, DISPLAY_MODES, OP_DISPLAY);
 		break;
@@ -442,6 +464,11 @@ static int parse_opt(int key, char *str, struct argp_state *state)
 		error = update_state(args, MODE_JOOLD, OP_TEST);
 		break;
 
+	case ARGP_INSTANCE_TYPE:
+		error = update_state(args, MODE_INSTANCE, OP_ADD);
+		if (!error)
+			error = set_instance_type(args, str);
+		break;
 	case ARGP_UDP:
 		error = update_state(args, MODE_POOL4 | MODE_BIB | MODE_SESSION,
 				POOL4_OPS | BIB_OPS | SESSION_OPS);
@@ -462,8 +489,8 @@ static int parse_opt(int key, char *str, struct argp_state *state)
 		args->flags |= DF_NUMERIC_HOSTNAME;
 		break;
 	case ARGP_CSV:
-		error = update_state(args, POOL_MODES | TABLE_MODES
-				| MODE_GLOBAL, OP_DISPLAY);
+		error = update_state(args, MODE_INSTANCE | POOL_MODES
+				| TABLE_MODES | MODE_GLOBAL, OP_DISPLAY);
 		args->flags |= DF_CSV_FORMAT;
 		break;
 	case ARGP_NO_HEADERS:
@@ -628,8 +655,10 @@ static int parse_args(int argc, char **argv, struct arguments *result)
 	struct argp argp = { options, parse_opt, args_doc, doc };
 
 	memset(result, 0, sizeof(*result));
+	result->iname[0] = '\0';
 	result->mode = ANY_MODE;
 	result->op = ANY_OP;
+	result->instance_type = IT_NETFILTER;
 	result->db.pool4.ports.min = 0;
 	result->db.pool4.ports.max = 65535U;
 	result->flags |= DF_SHOW_HEADERS;
@@ -664,7 +693,7 @@ static int handle_pool6(struct arguments *args)
 {
 	switch (args->op) {
 	case OP_DISPLAY:
-		return pool6_display(args->flags);
+		return pool6_display(args->iname, args->flags);
 
 	case OP_ADD:
 	case OP_UPDATE:
@@ -672,19 +701,19 @@ static int handle_pool6(struct arguments *args)
 			log_err("The IPv6 prefix is mandatory.");
 			return -EINVAL;
 		}
-		return pool6_add(&args->db.prefix6, args->db.force);
+		return pool6_add(args->iname, &args->db.prefix6, args->db.force);
 
 	case OP_REMOVE:
 		if (!args->db.prefix6_set) {
 			log_err("The IPv6 prefix is mandatory.");
 			return -EINVAL;
 		}
-		return pool6_remove(&args->db.prefix6);
+		return pool6_remove(args->iname, &args->db.prefix6);
 
 	case OP_COUNT:
-		return pool6_count();
+		return pool6_count(args->iname);
 	case OP_FLUSH:
-		return pool6_flush();
+		return pool6_flush(args->iname);
 	default:
 		return unknown_op("IPv6 pool", args->op);
 	}
@@ -710,15 +739,15 @@ static int __pool4_add(struct arguments *args)
 
 	if (args->flags & DF_TCP) {
 		entry.proto = L4PROTO_TCP;
-		tcp_error = pool4_add(&entry, args->db.force);
+		tcp_error = pool4_add(args->iname, &entry, args->db.force);
 	}
 	if (args->flags & DF_UDP) {
 		entry.proto = L4PROTO_UDP;
-		udp_error = pool4_add(&entry, args->db.force);
+		udp_error = pool4_add(args->iname, &entry, args->db.force);
 	}
 	if (args->flags & DF_ICMP) {
 		entry.proto = L4PROTO_ICMP;
-		icmp_error = pool4_add(&entry, args->db.force);
+		icmp_error = pool4_add(args->iname, &entry, args->db.force);
 	}
 
 	return (tcp_error | udp_error | icmp_error) ? -EINVAL : 0;
@@ -737,15 +766,15 @@ static int __pool4_update(struct arguments *args)
 
 	if (args->flags & DF_TCP) {
 		update.l4_proto = L4PROTO_TCP;
-		tcp_error = pool4_update(&update);
+		tcp_error = pool4_update(args->iname, &update);
 	}
 	if (args->flags & DF_UDP) {
 		update.l4_proto = L4PROTO_UDP;
-		udp_error = pool4_update(&update);
+		udp_error = pool4_update(args->iname, &update);
 	}
 	if (args->flags & DF_ICMP) {
 		update.l4_proto = L4PROTO_ICMP;
-		icmp_error = pool4_update(&update);
+		icmp_error = pool4_update(args->iname, &update);
 	}
 
 	return (tcp_error | udp_error | icmp_error) ? -EINVAL : 0;
@@ -771,15 +800,15 @@ static int __pool4_rm(struct arguments *args)
 
 	if (args->flags & DF_TCP) {
 		entry.proto = L4PROTO_TCP;
-		tcp_error = pool4_rm(&entry, args->db.quick);
+		tcp_error = pool4_rm(args->iname, &entry, args->db.quick);
 	}
 	if (args->flags & DF_UDP) {
 		entry.proto = L4PROTO_UDP;
-		udp_error = pool4_rm(&entry, args->db.quick);
+		udp_error = pool4_rm(args->iname, &entry, args->db.quick);
 	}
 	if (args->flags & DF_ICMP) {
 		entry.proto = L4PROTO_ICMP;
-		icmp_error = pool4_rm(&entry, args->db.quick);
+		icmp_error = pool4_rm(args->iname, &entry, args->db.quick);
 	}
 
 	return (tcp_error | udp_error | icmp_error) ? -EINVAL : 0;
@@ -794,9 +823,9 @@ static int handle_pool4(struct arguments *args)
 
 	switch (args->op) {
 	case OP_DISPLAY:
-		return pool4_display(args->flags);
+		return pool4_display(args->iname, args->flags);
 	case OP_COUNT:
-		return pool4_count();
+		return pool4_count(args->iname);
 	case OP_ADD:
 		return __pool4_add(args);
 	case OP_UPDATE:
@@ -804,7 +833,7 @@ static int handle_pool4(struct arguments *args)
 	case OP_REMOVE:
 		return __pool4_rm(args);
 	case OP_FLUSH:
-		return pool4_flush(args->db.quick);
+		return pool4_flush(args->iname, args->db.quick);
 	default:
 		return unknown_op("IPv4 pool", args->op);
 	}
@@ -825,23 +854,23 @@ static int handle_bib(struct arguments *args)
 
 	switch (args->op) {
 	case OP_DISPLAY:
-		return bib_display(args->flags);
+		return bib_display(args->iname, args->flags);
 	case OP_COUNT:
-		return bib_count(args->flags);
+		return bib_count(args->iname, args->flags);
 
 	case OP_ADD:
 		if (!addr6 || !addr4) {
 			log_err("The transport address arguments are mandatory during adds.");
 			return -EINVAL;
 		}
-		return bib_add(args->flags, addr6, addr4);
+		return bib_add(args->iname, args->flags, addr6, addr4);
 
 	case OP_REMOVE:
 		if (!addr6 && !addr4) {
 			log_err("A remove requires an IPv4 and/or v6 transport address.");
 			return -EINVAL;
 		}
-		return bib_remove(args->flags, addr6, addr4);
+		return bib_remove(args->iname, args->flags, addr6, addr4);
 
 	default:
 		return unknown_op("BIB", args->op);
@@ -857,9 +886,9 @@ static int handle_session(struct arguments *args)
 
 	switch (args->op) {
 	case OP_DISPLAY:
-		return session_display(args->flags);
+		return session_display(args->iname, args->flags);
 	case OP_COUNT:
-		return session_count(args->flags);
+		return session_count(args->iname, args->flags);
 	default:
 		return unknown_op("session", args->op);
 	}
@@ -880,26 +909,26 @@ static int handle_eamt(struct arguments *args)
 
 	switch (args->op) {
 	case OP_DISPLAY:
-		return eam_display(args->flags);
+		return eam_display(args->iname, args->flags);
 	case OP_COUNT:
-		return eam_count();
+		return eam_count(args->iname);
 
 	case OP_ADD:
 		if (!prefix6 || !prefix4) {
 			log_err("Both EAM prefixes are mandatory during adds.");
 			return -EINVAL;
 		}
-		return eam_add(prefix6, prefix4, args->db.force);
+		return eam_add(args->iname, prefix6, prefix4, args->db.force);
 
 	case OP_REMOVE:
 		if (!prefix6 && !prefix4) {
 			log_err("A remove requires an IPv4 and/or v6 prefix.");
 			return -EINVAL;
 		}
-		return eam_remove(prefix6, prefix4);
+		return eam_remove(args->iname, prefix6, prefix4);
 
 	case OP_FLUSH:
-		return eam_flush();
+		return eam_flush(args->iname);
 	default:
 		return unknown_op("EAMT", args->op);
 	}
@@ -914,26 +943,27 @@ static int handle_addr4_pool(struct arguments *args)
 
 	switch (args->op) {
 	case OP_DISPLAY:
-		return pool_display(args->mode, args->flags);
+		return pool_display(args->iname, args->mode, args->flags);
 	case OP_COUNT:
-		return pool_count(args->mode);
+		return pool_count(args->iname, args->mode);
 
 	case OP_ADD:
 		if (!args->db.prefix4_set) {
 			log_err("The address/prefix argument is mandatory.");
 			return -EINVAL;
 		}
-		return pool_add(args->mode, &args->db.prefix4, args->db.force);
+		return pool_add(args->iname, args->mode, &args->db.prefix4,
+				args->db.force);
 
 	case OP_REMOVE:
 		if (!args->db.prefix4_set) {
 			log_err("The address/prefix argument is mandatory.");
 			return -EINVAL;
 		}
-		return pool_rm(args->mode, &args->db.prefix4);
+		return pool_rm(args->iname, args->mode, &args->db.prefix4);
 
 	case OP_FLUSH:
-		return pool_flush(args->mode);
+		return pool_flush(args->iname, args->mode);
 	default:
 		return unknown_op("rfc6791", args->op);
 	}
@@ -943,10 +973,10 @@ static int handle_global(struct arguments *args)
 {
 	switch (args->op) {
 	case OP_DISPLAY:
-		return global_display(args->flags);
+		return global_display(args->iname, args->flags);
 	case OP_UPDATE:
-		return global_update(args->global.type, args->global.size,
-				args->global.data);
+		return global_update(args->iname, args->global.type,
+				args->global.size, args->global.data);
 	default:
 		return unknown_op("global", args->op);
 	}
@@ -955,9 +985,9 @@ static int handle_joold(struct arguments *args)
 {
 	switch (args->op) {
 	case OP_ADVERTISE:
-		return joold_advertise();
+		return joold_advertise(args->iname);
 	case OP_TEST:
-		return joold_test();
+		return joold_test(args->iname);
 	default:
 		return unknown_op("joold", args->op);
 	}
@@ -965,10 +995,12 @@ static int handle_joold(struct arguments *args)
 static int handle_instance(struct arguments *args)
 {
 	switch (args->op) {
+	case OP_DISPLAY:
+		return instance_display(args->flags);
 	case OP_ADD:
-		return instance_add();
+		return instance_add(args->instance_type, args->iname);
 	case OP_REMOVE:
-		return instance_rm();
+		return instance_rm(args->instance_type, args->iname);
 	default:
 		return unknown_op("instance", args->op);
 	}
@@ -1033,5 +1065,4 @@ int main(int argc, char **argv)
 	netlink_teardown();
 	destroy_args(&args);
 	return error;
-
 }

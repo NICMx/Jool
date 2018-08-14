@@ -30,3 +30,8 @@ int validate_request_size(struct genl_info *info, size_t min_expected)
 
 	return 0;
 }
+
+char *get_iname(struct genl_info *info)
+{
+	return nla_data(info->attrs[ATTR_INAME]) ? : INAME_DEFAULT;
+}

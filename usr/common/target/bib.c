@@ -58,7 +58,8 @@ static int bib_display_response(struct jool_response *response, void *arg)
 	return 0;
 }
 
-static bool display_table(l4_protocol l4_proto, display_flags flags)
+static bool display_table(char *iname, l4_protocol l4_proto,
+		display_flags flags)
 {
 	unsigned char request[HDR_LEN + PAYLOAD_LEN];
 	struct request_hdr *hdr = (struct request_hdr *)request;
@@ -79,7 +80,7 @@ static bool display_table(l4_protocol l4_proto, display_flags flags)
 	args.request = payload;
 
 	do {
-		error = netlink_request(request, sizeof(request),
+		error = netlink_request(iname, request, sizeof(request),
 				bib_display_response, &args);
 	} while (!error && payload->display.addr4_set);
 
@@ -97,7 +98,7 @@ static bool display_table(l4_protocol l4_proto, display_flags flags)
  * BTW: This thing is not thread-safe because of the address-to-string v4
  * function.
  */
-int bib_display(display_flags flags)
+int bib_display(char *iname, display_flags flags)
 {
 	int tcp_error = 0;
 	int udp_error = 0;
@@ -107,11 +108,11 @@ int bib_display(display_flags flags)
 		printf("Protocol,IPv6 Address,IPv6 L4-ID,IPv4 Address,IPv4 L4-ID,Static?\n");
 
 	if (flags & DF_TCP)
-		tcp_error = display_table(L4PROTO_TCP, flags);
+		tcp_error = display_table(iname, L4PROTO_TCP, flags);
 	if (flags & DF_UDP)
-		udp_error = display_table(L4PROTO_UDP, flags);
+		udp_error = display_table(iname, L4PROTO_UDP, flags);
 	if (flags & DF_ICMP)
-		icmp_error = display_table(L4PROTO_ICMP, flags);
+		icmp_error = display_table(iname, L4PROTO_ICMP, flags);
 
 	return (tcp_error || udp_error || icmp_error) ? -EINVAL : 0;
 }
@@ -127,7 +128,8 @@ static int bib_count_response(struct jool_response *response, void *arg)
 	return 0;
 }
 
-static bool display_single_count(char *count_name, u_int8_t l4_proto)
+static bool display_single_count(char *iname, char *count_name,
+		u_int8_t l4_proto)
 {
 	unsigned char request[HDR_LEN + PAYLOAD_LEN];
 	struct request_hdr *hdr = (struct request_hdr *)request;
@@ -138,29 +140,29 @@ static bool display_single_count(char *count_name, u_int8_t l4_proto)
 	init_request_hdr(hdr, MODE_BIB, OP_COUNT);
 	payload->l4_proto = l4_proto;
 
-	return netlink_request(request, sizeof(request), bib_count_response,
-			NULL);
+	return netlink_request(iname, request, sizeof(request),
+			bib_count_response, NULL);
 }
 
-int bib_count(display_flags flags)
+int bib_count(char *iname, display_flags flags)
 {
 	int tcp_error = 0;
 	int udp_error = 0;
 	int icmp_error = 0;
 
 	if (flags & DF_TCP)
-		tcp_error = display_single_count("TCP", L4PROTO_TCP);
+		tcp_error = display_single_count(iname, "TCP", L4PROTO_TCP);
 	if (flags & DF_UDP)
-		udp_error = display_single_count("UDP", L4PROTO_UDP);
+		udp_error = display_single_count(iname, "UDP", L4PROTO_UDP);
 	if (flags & DF_ICMP)
-		icmp_error = display_single_count("ICMP", L4PROTO_ICMP);
+		icmp_error = display_single_count(iname, "ICMP", L4PROTO_ICMP);
 
 	return (tcp_error || udp_error || icmp_error) ? -EINVAL : 0;
 }
 
-static int exec_request(display_flags flags,
+static int exec_request(char *iname, display_flags flags,
 		struct request_hdr *hdr, size_t request_len,
-		struct request_bib *payload, jool_response_cb callback)
+		struct request_bib *payload, jool_response_cb cb)
 {
 	int tcp_error = 0;
 	int udp_error = 0;
@@ -169,17 +171,17 @@ static int exec_request(display_flags flags,
 	if (flags & DF_TCP) {
 		printf("TCP:\n");
 		payload->l4_proto = L4PROTO_TCP;
-		tcp_error = netlink_request(hdr, request_len, callback, NULL);
+		tcp_error = netlink_request(iname, hdr, request_len, cb, NULL);
 	}
 	if (flags & DF_UDP) {
 		printf("UDP:\n");
 		payload->l4_proto = L4PROTO_UDP;
-		udp_error = netlink_request(hdr, request_len, callback, NULL);
+		udp_error = netlink_request(iname, hdr, request_len, cb, NULL);
 	}
 	if (flags & DF_ICMP) {
 		printf("ICMP:\n");
 		payload->l4_proto = L4PROTO_ICMP;
-		icmp_error = netlink_request(hdr, request_len, callback, NULL);
+		icmp_error = netlink_request(iname, hdr, request_len, cb, NULL);
 	}
 
 	return (tcp_error || udp_error || icmp_error) ? -EINVAL : 0;
@@ -191,7 +193,7 @@ static int bib_add_response(struct jool_response *response, void *arg)
 	return 0;
 }
 
-int bib_add(display_flags flags,
+int bib_add(char *iname, display_flags flags,
 		struct ipv6_transport_addr *addr6,
 		struct ipv4_transport_addr *addr4)
 {
@@ -203,7 +205,7 @@ int bib_add(display_flags flags,
 	payload->add.addr6 = *addr6;
 	payload->add.addr4 = *addr4;
 
-	return exec_request(flags, hdr, sizeof(request), payload,
+	return exec_request(iname, flags, hdr, sizeof(request), payload,
 			bib_add_response);
 }
 
@@ -213,7 +215,7 @@ static int bib_remove_response(struct jool_response *response, void *arg)
 	return 0;
 }
 
-int bib_remove(display_flags flags,
+int bib_remove(char *iname, display_flags flags,
 		struct ipv6_transport_addr *addr6,
 		struct ipv4_transport_addr *addr4)
 {
@@ -237,6 +239,6 @@ int bib_remove(display_flags flags,
 		memset(&payload->rm.addr4, 0, sizeof(payload->rm.addr4));
 	}
 
-	return exec_request(flags, hdr, sizeof(request), payload,
+	return exec_request(iname, flags, hdr, sizeof(request), payload,
 			bib_remove_response);
 }

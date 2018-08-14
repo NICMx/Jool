@@ -3,6 +3,7 @@
 #include <linux/kernel.h>
 #else
 #include <errno.h>
+#include <string.h>
 #endif
 
 void init_request_hdr(struct request_hdr *hdr, enum config_mode mode,
@@ -107,4 +108,22 @@ int validate_request(void *data, size_t data_len, char *sender, char *receiver,
 		return error;
 
 	return validate_version(data, sender, receiver);
+}
+
+int iname_validate(const char *iname)
+{
+	unsigned int i;
+
+	if (iname) {
+		for (i = 0; i < INAME_MAX_LEN; i++) {
+			if (iname[i] == '\0')
+				return 0;
+			if (iname[i] < 32) /* "if not printable" */
+				break;
+		}
+	}
+
+	log_err("The instance name must be a null-terminated ascii string, %u characters max.",
+			INAME_MAX_LEN - 1);
+	return -EINVAL;
 }

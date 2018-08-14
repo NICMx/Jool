@@ -26,11 +26,14 @@ enum genl_commands {
 
 enum attributes {
 	ATTR_DUMMY,
+	ATTR_INAME,
 	ATTR_DATA,
 	__ATTR_MAX,
 };
 
 enum config_mode {
+
+	MODE_INSTANCE = (1 << 11),
 	/** The current message is talking about global configuration values. */
 	MODE_GLOBAL = (1 << 0),
 	/** The current message is talking about the IPv6 pool. */
@@ -51,8 +54,6 @@ enum config_mode {
 	MODE_PARSE_FILE = (1 << 9),
 	/** The current message is talking about synchronization entries.*/
 	MODE_JOOLD = (1 << 10),
-
-	MODE_INSTANCE = (1 << 11),
 };
 
 char *configmode_to_string(enum config_mode mode);
@@ -74,7 +75,7 @@ char *configmode_to_string(enum config_mode mode);
 #define BIB_OPS (DATABASE_OPS & ~OP_FLUSH)
 #define SESSION_OPS (OP_DISPLAY | OP_COUNT)
 #define JOOLD_OPS (OP_ADVERTISE | OP_TEST)
-#define INSTANCE_OPS (OP_ADD | OP_REMOVE)
+#define INSTANCE_OPS (OP_DISPLAY | OP_ADD | OP_REMOVE)
 /**
  * @}
  */
@@ -132,7 +133,7 @@ enum parse_section {
 #define TABLE_MODES (MODE_EAMT | MODE_BIB | MODE_SESSION)
 #define ANY_MODE 0xFFFF
 
-#define DISPLAY_MODES (MODE_GLOBAL | POOL_MODES | TABLE_MODES)
+#define DISPLAY_MODES (MODE_INSTANCE | MODE_GLOBAL | POOL_MODES | TABLE_MODES)
 #define COUNT_MODES (POOL_MODES | TABLE_MODES)
 #define ADD_MODES (POOL_MODES | MODE_EAMT | MODE_BIB | MODE_INSTANCE)
 #define REMOVE_MODES (POOL_MODES | MODE_EAMT | MODE_BIB | MODE_INSTANCE)
@@ -186,10 +187,50 @@ void init_request_hdr(struct request_hdr *hdr, enum config_mode mode,
 int validate_request(void *data, size_t data_len, char *sender, char *receiver,
 		bool *peer_is_jool);
 
+/*
+ * This includes the null chara; the practical maximum is 15.
+ * 15 looks pallatable for decimal-thinking users :p
+ */
+#define INAME_MAX_LEN 16u
+#define INAME_DEFAULT "default"
+
+/**
+ * Be aware that a NULL iname is considered valid.
+ * (It should behave like an empty string.)
+ */
+int iname_validate(const char *iname);
+
 struct response_hdr {
 	struct request_hdr req;
 	__u16 error_code;
 	config_bool pending_data;
+};
+
+/* "IT" stands for "instance type". */
+#define IT_NETFILTER (1 << 0)
+#define IT_IPTABLES (1 << 1)
+#define IT_ANY (IT_NETFILTER | IT_IPTABLES)
+
+struct instance_entry_usr {
+	void *ns;
+	/* This is one of the IT_* constants above. */
+	int it;
+	char name[INAME_MAX_LEN];
+};
+
+union request_instance {
+	struct {
+		config_bool offset_set;
+		struct instance_entry_usr offset;
+	} display;
+	struct {
+		__u8 it;
+		char name[INAME_MAX_LEN];
+	} add;
+	struct {
+		__u8 it;
+		char name[INAME_MAX_LEN];
+	} rm;
 };
 
 /**

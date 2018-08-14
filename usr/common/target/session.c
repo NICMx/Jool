@@ -106,7 +106,7 @@ static int session_display_response(struct jool_response *response, void *arg)
 	return 0;
 }
 
-static bool display_table(u_int8_t l4_proto, display_flags flags)
+static bool display_table(char *iname, u_int8_t l4_proto, display_flags flags)
 {
 	unsigned char request[HDR_LEN + PAYLOAD_LEN];
 	struct request_hdr *hdr = (struct request_hdr *)request;
@@ -133,7 +133,7 @@ static bool display_table(u_int8_t l4_proto, display_flags flags)
 	args.request = payload;
 
 	do {
-		error = netlink_request(request, sizeof(request),
+		error = netlink_request(iname, request, sizeof(request),
 				session_display_response, &args);
 	} while (!error && args.request->display.offset_set);
 
@@ -147,7 +147,7 @@ static bool display_table(u_int8_t l4_proto, display_flags flags)
 	return error;
 }
 
-int session_display(display_flags flags)
+int session_display(char *iname, display_flags flags)
 {
 	int tcp_error = 0;
 	int udp_error = 0;
@@ -163,11 +163,11 @@ int session_display(display_flags flags)
 	}
 
 	if (flags & DF_TCP)
-		tcp_error = display_table(L4PROTO_TCP, flags);
+		tcp_error = display_table(iname, L4PROTO_TCP, flags);
 	if (flags & DF_UDP)
-		udp_error = display_table(L4PROTO_UDP, flags);
+		udp_error = display_table(iname, L4PROTO_UDP, flags);
 	if (flags & DF_ICMP)
-		icmp_error = display_table(L4PROTO_ICMP, flags);
+		icmp_error = display_table(iname, L4PROTO_ICMP, flags);
 
 	return (tcp_error || udp_error || icmp_error) ? -EINVAL : 0;
 }
@@ -183,7 +183,8 @@ static int session_count_response(struct jool_response *response, void *arg)
 	return 0;
 }
 
-static bool display_single_count(char *count_name, u_int8_t l4_proto)
+static bool display_single_count(char *iname, char *count_name,
+		u_int8_t l4_proto)
 {
 	unsigned char request[HDR_LEN + PAYLOAD_LEN];
 	struct request_hdr *hdr = (struct request_hdr *)request;
@@ -193,22 +194,22 @@ static bool display_single_count(char *count_name, u_int8_t l4_proto)
 	init_request_hdr(hdr, MODE_SESSION, OP_COUNT);
 	payload->l4_proto = l4_proto;
 
-	return netlink_request(request, sizeof(request), session_count_response,
-			count_name);
+	return netlink_request(iname, request, sizeof(request),
+			session_count_response, count_name);
 }
 
-int session_count(display_flags flags)
+int session_count(char *iname, display_flags flags)
 {
 	int tcp_error = 0;
 	int udp_error = 0;
 	int icmp_error = 0;
 
 	if (flags & DF_TCP)
-		tcp_error = display_single_count("TCP", L4PROTO_TCP);
+		tcp_error = display_single_count(iname, "TCP", L4PROTO_TCP);
 	if (flags & DF_UDP)
-		udp_error = display_single_count("UDP", L4PROTO_UDP);
+		udp_error = display_single_count(iname, "UDP", L4PROTO_UDP);
 	if (flags & DF_ICMP)
-		icmp_error = display_single_count("ICMP", L4PROTO_ICMP);
+		icmp_error = display_single_count(iname, "ICMP", L4PROTO_ICMP);
 
 	return (tcp_error || udp_error || icmp_error) ? -EINVAL : 0;
 }

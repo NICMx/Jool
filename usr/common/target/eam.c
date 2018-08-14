@@ -54,7 +54,7 @@ static int eam_display_response(struct jool_response *response, void *arg)
 	return 0;
 }
 
-int eam_display(display_flags flags)
+int eam_display(char *iname, display_flags flags)
 {
 	unsigned char request[HDR_LEN + PAYLOAD_LEN];
 	struct request_hdr *hdr = (struct request_hdr *)request;
@@ -73,7 +73,7 @@ int eam_display(display_flags flags)
 		printf("IPv6 Prefix,IPv4 Prefix\n");
 
 	do {
-		error = netlink_request(request, sizeof(request),
+		error = netlink_request(iname, request, sizeof(request),
 				eam_display_response, &args);
 		if (error)
 			return error;
@@ -100,7 +100,7 @@ static int eam_count_response(struct jool_response *response, void *arg)
 	return 0;
 }
 
-int eam_count(void)
+int eam_count(char *iname)
 {
 	unsigned char request[HDR_LEN + PAYLOAD_LEN];
 	struct request_hdr *hdr = (struct request_hdr *)request;
@@ -109,12 +109,12 @@ int eam_count(void)
 	init_request_hdr(hdr, MODE_EAMT, OP_COUNT);
 	memset(payload, 0, sizeof(*payload));
 
-	return netlink_request(&request, sizeof(request), eam_count_response,
-			NULL);
+	return netlink_request(iname, &request, sizeof(request),
+			eam_count_response, NULL);
 }
 
-int eam_add(struct ipv6_prefix *prefix6, struct ipv4_prefix *prefix4,
-		bool force)
+int eam_add(char *iname, struct ipv6_prefix *prefix6,
+		struct ipv4_prefix *prefix4, bool force)
 {
 	unsigned char request[HDR_LEN + PAYLOAD_LEN];
 	struct request_hdr *hdr = (struct request_hdr *)request;
@@ -125,10 +125,11 @@ int eam_add(struct ipv6_prefix *prefix6, struct ipv4_prefix *prefix4,
 	payload->add.prefix6 = *prefix6;
 	payload->add.force = force;
 
-	return netlink_request(request, sizeof(request), NULL, NULL);
+	return netlink_request(iname, request, sizeof(request), NULL, NULL);
 }
 
-int eam_remove(struct ipv6_prefix *prefix6, struct ipv4_prefix *prefix4)
+int eam_remove(char *iname, struct ipv6_prefix *prefix6,
+		struct ipv4_prefix *prefix4)
 {
 	unsigned char request[HDR_LEN + PAYLOAD_LEN];
 	struct request_hdr *hdr = (struct request_hdr *)request;
@@ -150,10 +151,10 @@ int eam_remove(struct ipv6_prefix *prefix6, struct ipv4_prefix *prefix4)
 		memset(&payload->rm.prefix4, 0, sizeof(payload->rm.prefix4));
 	}
 
-	return netlink_request(request, sizeof(request), NULL, NULL);
+	return netlink_request(iname, request, sizeof(request), NULL, NULL);
 }
 
-int eam_flush(void)
+int eam_flush(char *iname)
 {
 	unsigned char request[HDR_LEN + PAYLOAD_LEN];
 	struct request_hdr *hdr = (struct request_hdr *)request;
@@ -162,5 +163,5 @@ int eam_flush(void)
 	init_request_hdr(hdr, MODE_EAMT, OP_FLUSH);
 	memset(payload, 0, sizeof(*payload));
 
-	return netlink_request(&request, sizeof(request), NULL, NULL);
+	return netlink_request(iname, &request, sizeof(request), NULL, NULL);
 }

@@ -64,7 +64,7 @@ end:
 	return result;
 }
 
-unsigned int core_4to6(struct sk_buff *skb, const struct net_device *dev)
+unsigned int core_4to6(struct sk_buff *skb, struct xlator *instance)
 {
 	struct xlation state;
 	verdict result;
@@ -74,10 +74,8 @@ unsigned int core_4to6(struct sk_buff *skb, const struct net_device *dev)
 	 * pkt_init_ipv4() HAS pskb_may_pull()ED THEM.
 	 */
 
-	xlation_init(&state);
+	xlation_init(&state, instance);
 
-	if (xlator_find(dev_net(dev), &state.jool))
-		return NF_ACCEPT;
 	if (!state.jool.global->cfg.enabled) {
 		xlation_clean(&state);
 		return NF_ACCEPT;
@@ -94,7 +92,7 @@ unsigned int core_4to6(struct sk_buff *skb, const struct net_device *dev)
 	return result;
 }
 
-unsigned int core_6to4(struct sk_buff *skb, const struct net_device *dev)
+unsigned int core_6to4(struct sk_buff *skb, struct xlator *instance)
 {
 	struct xlation state;
 	verdict result;
@@ -104,12 +102,10 @@ unsigned int core_6to4(struct sk_buff *skb, const struct net_device *dev)
 	 * pkt_init_ipv6() HAS pskb_may_pull()ED THEM.
 	 */
 
-	xlation_init(&state);
+	xlation_init(&state, instance);
 
 	snapshot_record(&state.in.debug.shot1, skb);
 
-	if (xlator_find(dev_net(dev), &state.jool))
-		return NF_ACCEPT;
 	if (!state.jool.global->cfg.enabled) {
 		xlation_clean(&state);
 		return NF_ACCEPT;

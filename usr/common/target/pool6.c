@@ -42,7 +42,7 @@ static int pool6_display_response(struct jool_response *response, void *arg)
 	return 0;
 }
 
-int pool6_display(display_flags flags)
+int pool6_display(char *iname, display_flags flags)
 {
 	unsigned char request[HDR_LEN + PAYLOAD_LEN];
 	struct request_hdr *hdr = (struct request_hdr *)request;
@@ -58,7 +58,8 @@ int pool6_display(display_flags flags)
 	args.request = payload;
 
 	do {
-		error = netlink_request(&request, sizeof(request), pool6_display_response, &args);
+		error = netlink_request(iname, &request, sizeof(request),
+				pool6_display_response, &args);
 		if (error)
 			return error;
 	} while (args.request->prefix_set);
@@ -84,7 +85,7 @@ static int pool6_count_response(struct jool_response *response, void *arg)
 	return 0;
 }
 
-int pool6_count(void)
+int pool6_count(char *iname)
 {
 	unsigned char request[HDR_LEN + PAYLOAD_LEN];
 	struct request_hdr *hdr = (struct request_hdr *)request;
@@ -93,7 +94,8 @@ int pool6_count(void)
 	init_request_hdr(hdr, MODE_POOL6, OP_COUNT);
 	memset(payload, 0, sizeof(*payload));
 
-	return netlink_request(&request, sizeof(request), pool6_count_response, NULL);
+	return netlink_request(iname, &request, sizeof(request),
+			pool6_count_response, NULL);
 }
 
 static bool get_ubit(struct ipv6_prefix *prefix)
@@ -101,7 +103,7 @@ static bool get_ubit(struct ipv6_prefix *prefix)
 	return prefix->address.s6_addr[8];
 }
 
-int pool6_add(struct ipv6_prefix *prefix, bool force)
+int pool6_add(char *iname, struct ipv6_prefix *prefix, bool force)
 {
 	unsigned char request[HDR_LEN + PAYLOAD_LEN];
 	struct request_hdr *hdr = (struct request_hdr *)request;
@@ -116,10 +118,10 @@ int pool6_add(struct ipv6_prefix *prefix, bool force)
 	init_request_hdr(hdr, MODE_POOL6, OP_ADD);
 	payload->prefix = *prefix;
 
-	return netlink_request(request, sizeof(request), NULL, NULL);
+	return netlink_request(iname, request, sizeof(request), NULL, NULL);
 }
 
-int pool6_remove(struct ipv6_prefix *prefix)
+int pool6_remove(char *iname, struct ipv6_prefix *prefix)
 {
 	unsigned char request[HDR_LEN + PAYLOAD_LEN];
 	struct request_hdr *hdr = (struct request_hdr *)request;
@@ -128,10 +130,10 @@ int pool6_remove(struct ipv6_prefix *prefix)
 	init_request_hdr(hdr, MODE_POOL6, OP_REMOVE);
 	payload->prefix = *prefix;
 
-	return netlink_request(request, sizeof(request), NULL, NULL);
+	return netlink_request(iname, request, sizeof(request), NULL, NULL);
 }
 
-int pool6_flush(void)
+int pool6_flush(char *iname)
 {
 	unsigned char request[HDR_LEN + PAYLOAD_LEN];
 	struct request_hdr *hdr = (struct request_hdr *)request;
@@ -140,5 +142,5 @@ int pool6_flush(void)
 	init_request_hdr(hdr, MODE_POOL6, OP_FLUSH);
 	memset(payload, 0, sizeof(*payload));
 
-	return netlink_request(&request, sizeof(request), NULL, NULL);
+	return netlink_request(iname, &request, sizeof(request), NULL, NULL);
 }

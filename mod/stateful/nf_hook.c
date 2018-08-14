@@ -1,14 +1,7 @@
 #include "nat64/mod/common/nf_hook.h"
-#include <linux/kernel.h>
-#include <linux/module.h>
-#include <linux/version.h>
-#include "nat64/common/constants.h"
-#include "nat64/common/xlat.h"
-#include "nat64/mod/common/core.h"
+
 #include "nat64/mod/common/linux_version.h"
-#include "nat64/mod/common/nf_wrapper.h"
 #include "nat64/mod/common/pool6.h"
-#include "nat64/mod/common/wkmalloc.h"
 #include "nat64/mod/common/xlator.h"
 #include "nat64/mod/common/nl/nl_handler.h"
 #include "nat64/mod/stateful/fragment_db.h"
@@ -58,18 +51,12 @@ static char *banner = "\n"
 	"'   :*|      |  |*,'           '---'   |   :##';##:     |  :#;  \n"
 	";   |.'      `--''                      \\   \\####/      '  ,/   \n"
 	"'---'                                    `---`--`       '--'    \n";
+static bool iptables_error;
 
 
-static NF_CALLBACK(hook_ipv6, skb)
-{
-	return core_6to4(skb, skb->dev);
-}
-
-static NF_CALLBACK(hook_ipv4, skb)
-{
-	return core_4to6(skb, skb->dev);
-}
-
+/**
+ * These are the objects we use to register the Netfilter hooks.
+ */
 static struct nf_hook_ops nfho[] = {
 	{
 		.hook = hook_ipv6,
@@ -82,6 +69,29 @@ static struct nf_hook_ops nfho[] = {
 		.pf = PF_INET,
 		.hooknum = NF_INET_PRE_ROUTING,
 		.priority = NF_IP_PRI_JOOL,
+	},
+};
+
+/**
+ * These are the objects we use to register the iptables targets.
+ */
+static struct xt_target targets[] = {
+	{
+		.name       = "jool",
+		.revision   = 0,
+		.family     = NFPROTO_IPV6,
+		.target     = target_ipv6,
+		.checkentry = target_checkentry,
+		.targetsize = XT_ALIGN(sizeof(struct target_info)),
+		.me         = THIS_MODULE,
+	}, {
+		.name       = "jool",
+		.revision   = 0,
+		.family     = NFPROTO_IPV4,
+		.target     = target_ipv4,
+		.checkentry = target_checkentry,
+		.targetsize = XT_ALIGN(sizeof(struct target_info)),
+		.me         = THIS_MODULE,
 	},
 };
 
@@ -103,7 +113,7 @@ static int add_instance(void)
 	if (no_instance)
 		return 0;
 
-	error = xlator_add(&jool);
+	error = xlator_add(IT_NETFILTER, INAME_DEFAULT, &jool);
 	if (error)
 		return error;
 
@@ -161,13 +171,20 @@ static int __init jool_init(void)
 		goto nf_register_hooks_fail;
 #endif
 
+	iptables_error = xt_register_targets(targets, ARRAY_SIZE(targets));
+	if (iptables_error) {
+		log_warn("Error code %d while trying to register the iptables targets.\n"
+				"iptables NAT64 Jool will not be available.",
+				iptables_error);
+	}
+
 	/* Yay */
 	log_info("%s v" JOOL_VERSION_STR " module inserted.", xlat_get_name());
 	return error;
 
 #if LINUX_VERSION_LOWER_THAN(4, 13, 0, 9999, 0)
 nf_register_hooks_fail:
-	xlator_rm();
+	xlator_rm(IT_NETFILTER, INAME_DEFAULT);
 #endif
 instance_fail:
 	jtimer_teardown();
@@ -189,6 +206,9 @@ bib_fail:
 
 static void __exit jool_exit(void)
 {
+	if (!iptables_error)
+		xt_unregister_targets(targets, ARRAY_SIZE(targets));
+
 #if LINUX_VERSION_LOWER_THAN(4, 13, 0, 9999, 0)
 	nf_unregister_hooks(nfho, ARRAY_SIZE(nfho));
 #endif

@@ -14,6 +14,12 @@
 #include "nat64/usr/str_utils.h"
 #include "nat64/usr/argp/options.h"
 
+/*
+ * Note: This variable prevents this module from being thread-safe.
+ * This is fine for now.
+ */
+static char *iname = NULL;
+
 static int do_parsing(char *buffer);
 static int parse_siit_json(cJSON *json);
 static int parse_nat64_json(cJSON *json);
@@ -57,6 +63,39 @@ static int validate_file_type(cJSON *json_structure)
 	}
 
 	return 0;
+}
+
+/*
+ * Sets the @iname global variable according to the contents of @json.
+ */
+static int prepare_iname(cJSON *json)
+{
+	int error;
+
+	iname = NULL;
+
+	for (json = json->child; json; json = json->next) {
+		if (strcasecmp(OPTNAME_INAME, json->string) != 0)
+			continue;
+
+		if (iname)
+			goto eexist;
+		error = iname_validate(json->valuestring);
+		if (error)
+			return error;
+
+		iname = json->valuestring;
+		/*
+		 * Keep iterating; we want to error if the user defined
+		 * it twice.
+		 */
+	}
+
+	return 0;
+
+eexist:
+	log_err("Multiple '%s' sections found; Aborting.", OPTNAME_INAME);
+	return -EEXIST;
 }
 
 static int print_datatype_error(const char *field, cJSON *json, char *expected)
@@ -132,6 +171,13 @@ static int validate_u8(const char *field, struct cJSON *node)
 	return validate_json_uint(field, node, 0, MAX_U8);
 }
 
+static void check_duplicates(bool *found, char *section)
+{
+	if (*found)
+		log_info("Note: I found multiple '%s' sections.", section);
+	*found = true;
+}
+
 static int do_parsing(char *buffer)
 {
 	int error;
@@ -147,14 +193,11 @@ static int do_parsing(char *buffer)
 	if (error)
 		return error;
 
-	return xlat_is_siit() ? parse_siit_json(json) : parse_nat64_json(json);
-}
+	error = prepare_iname(json);
+	if (error)
+		return error;
 
-static void check_duplicates(bool *found, char *section)
-{
-	if (*found)
-		log_info("Note: I found multiple '%s' sections.", section);
-	*found = true;
+	return xlat_is_siit() ? parse_siit_json(json) : parse_nat64_json(json);
 }
 
 static int init_buffer(struct nl_buffer *buffer, enum parse_section section)
@@ -181,7 +224,7 @@ static struct nl_buffer *buffer_alloc(enum parse_section section)
 {
 	struct nl_buffer *buffer;
 
-	buffer = nlbuffer_alloc();
+	buffer = nlbuffer_alloc(iname);
 	if (!buffer) {
 		log_err("Out of memory.");
 		return NULL;
@@ -195,9 +238,8 @@ static struct nl_buffer *buffer_alloc(enum parse_section section)
 	return buffer;
 }
 
-static int buffer_write(struct nl_buffer *buffer,
-		void *payload, size_t payload_len,
-		enum parse_section section)
+static int buffer_write(struct nl_buffer *buffer, enum parse_section section,
+		void *payload, size_t payload_len)
 {
 	int error;
 
@@ -373,7 +415,7 @@ static int write_bool(struct nl_buffer *buffer, struct argp_option *opt,
 		return print_datatype_error(opt->name, json, "boolean");
 	}
 
-	return buffer_write(buffer, &msg, msg.hdr.len, SEC_GLOBAL);
+	return buffer_write(buffer, SEC_GLOBAL, &msg, msg.hdr.len);
 }
 
 static int write_number(struct nl_buffer *buffer, struct argp_option *opt,
@@ -441,7 +483,7 @@ static int write_number(struct nl_buffer *buffer, struct argp_option *opt,
 		return -EINVAL;
 	}
 
-	return buffer_write(buffer, &msg, msg.hdr.len, SEC_GLOBAL);
+	return buffer_write(buffer, SEC_GLOBAL, &msg, msg.hdr.len);
 }
 
 static int write_plateaus(struct nl_buffer *buffer, cJSON *root)
@@ -483,7 +525,7 @@ static int write_plateaus(struct nl_buffer *buffer, cJSON *root)
 		i++;
 	}
 
-	error = buffer_write(buffer, chunk, size, SEC_GLOBAL);
+	error = buffer_write(buffer, SEC_GLOBAL, chunk, size);
 	/* Fall through. */
 
 end:
@@ -509,7 +551,7 @@ static int write_optional_prefix6(struct nl_buffer *buffer,
 			return error;
 	}
 
-	return buffer_write(buffer, &msg, msg.hdr.len, SEC_GLOBAL);
+	return buffer_write(buffer, SEC_GLOBAL, &msg, msg.hdr.len);
 }
 
 static int write_field(cJSON *json, struct argp_option *opt,
@@ -600,7 +642,7 @@ static int handle_pool6(cJSON *pool6_json)
 	if (error)
 		goto end;
 
-	error = buffer_write(buffer, &prefix, sizeof(prefix), SEC_POOL6);
+	error = buffer_write(buffer, SEC_POOL6, &prefix, sizeof(prefix));
 	if (error)
 		goto end;
 
@@ -652,7 +694,7 @@ static int handle_eamt(cJSON *json)
 			goto end;
 		}
 
-		error = buffer_write(buffer, &eam, sizeof(eam), SEC_EAMT);
+		error = buffer_write(buffer, SEC_EAMT, &eam, sizeof(eam));
 		if (error)
 			goto end;
 	}
@@ -682,7 +724,7 @@ static int handle_addr4_pool(cJSON *json, enum parse_section section)
 		error = str_to_prefix4(json->valuestring, &prefix);
 		if (error)
 			goto end;
-		error = buffer_write(buffer, &prefix, sizeof(prefix), section);
+		error = buffer_write(buffer, section, &prefix, sizeof(prefix));
 		if (error)
 			goto end;
 	}
@@ -802,7 +844,7 @@ static int handle_pool4(cJSON *json)
 			entry.flags = 0;
 		}
 
-		error = buffer_write(buffer, &entry, sizeof(entry), SEC_POOL4);
+		error = buffer_write(buffer, SEC_POOL4, &entry, sizeof(entry));
 		if (error)
 			goto end;
 	}

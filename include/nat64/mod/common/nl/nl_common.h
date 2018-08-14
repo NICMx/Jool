@@ -7,5 +7,6 @@
 int verify_superpriv(void);
 struct request_hdr *get_jool_hdr(struct genl_info *info);
 int validate_request_size(struct genl_info *info, size_t min_expected);
+char *get_iname(struct genl_info *info);
 
 #endif
