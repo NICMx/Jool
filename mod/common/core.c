@@ -2,8 +2,8 @@
 
 #include "nat64/mod/common/config.h"
 #include "nat64/mod/common/handling_hairpinning.h"
-#include "nat64/mod/common/xlator.h"
 #include "nat64/mod/common/translation_state.h"
+#include "nat64/mod/common/xlator.h"
 #include "nat64/mod/common/rfc6145/core.h"
 #include "nat64/mod/stateful/compute_outgoing_tuple.h"
 #include "nat64/mod/stateful/determine_incoming_tuple.h"
