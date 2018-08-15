@@ -31,6 +31,7 @@ jool_common += ../common/config.o
 jool_common += ../common/route_in.o
 jool_common += ../common/route_out.o
 jool_common += ../common/send_packet.o
+#jool_common += ../common/skbuff.o
 jool_common += ../common/core.o
 jool_common += ../common/error_pool.o
 jool_common += ../common/wkmalloc.o
