@@ -125,7 +125,7 @@ int eamt_xlat_6to4(struct eam_table *eamt, struct in6_addr *addr6,
 }
 
 int eamt_foreach(struct eam_table *eamt,
-		int (*cb)(struct eamt_entry *, void *), void *arg,
+		eamt_foreach_cb cb, void *arg,
 		struct ipv4_prefix *offset)
 {
 	return fail(__func__);

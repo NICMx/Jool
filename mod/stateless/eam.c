@@ -421,18 +421,18 @@ bool eamt_is_empty(struct eam_table *eamt)
 }
 
 struct foreach_args {
-	int (*cb)(struct eamt_entry *, void *);
+	int (*cb)(struct eamt_entry const *, void *);
 	void *arg;
 };
 
-static int foreach_cb(void *eam, void *arg)
+static int foreach_cb(void const *eam, void *arg)
 {
 	struct foreach_args *args = arg;
 	return args->cb(eam, args->arg);
 }
 
 int eamt_foreach(struct eam_table *eamt,
-		int (*cb)(struct eamt_entry *, void *), void *arg,
+		eamt_foreach_cb cb, void *arg,
 		struct ipv4_prefix *offset)
 {
 	struct foreach_args args = { .cb = cb, .arg = arg };

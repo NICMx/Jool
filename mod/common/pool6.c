@@ -345,7 +345,7 @@ int pool6_rm(struct pool6 *pool, struct ipv6_prefix *prefix)
  */
 RCUTAG_PKT
 int pool6_foreach(struct pool6 *pool,
-		int (*cb)(struct ipv6_prefix *, void *), void *arg,
+		pool6_foreach_cb cb, void *arg,
 		struct ipv6_prefix *offset)
 {
 	struct list_head *list;

@@ -5,7 +5,7 @@
 #include "nat64/mod/stateful/pool4/db.h"
 #include "nat64/mod/stateful/bib/db.h"
 
-static int bib_entry_to_userspace(struct bib_entry *entry, bool is_static,
+static int bib_entry_to_userspace(struct bib_entry const *entry, bool is_static,
 		void *arg)
 {
 	struct nlcore_buffer *buffer = (struct nlcore_buffer *)arg;

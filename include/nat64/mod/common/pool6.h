@@ -24,8 +24,9 @@ int pool6_add_str(struct pool6 *pool, char *prefix_strings[], int prefix_count);
 int pool6_rm(struct pool6 *pool, struct ipv6_prefix *prefix);
 int pool6_flush(struct pool6 *pool);
 
+typedef int (*pool6_foreach_cb)(struct ipv6_prefix const *, void *);
 int pool6_foreach(struct pool6 *pool,
-		int (*func)(struct ipv6_prefix *, void *), void *arg,
+		pool6_foreach_cb cb, void *arg,
 		struct ipv6_prefix *offset);
 int pool6_count(struct pool6 *pool, __u64 *result);
 bool pool6_is_empty(struct pool6 *pool);

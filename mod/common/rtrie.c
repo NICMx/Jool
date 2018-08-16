@@ -582,7 +582,7 @@ end:
  * TODO (performance) find offset using a normal trie find.
  */
 int rtrie_foreach(struct rtrie *trie,
-		int (*cb)(void *, void *), void *arg,
+		rtrie_foreach_cb cb, void *arg,
 		struct rtrie_key *offset)
 {
 	struct rtrie_node *node;

@@ -33,11 +33,7 @@ int validate_request_size(struct genl_info *info, size_t min_expected)
 
 char *get_iname(struct genl_info *info)
 {
-	if (info->attrs[ATTR_INAME]) {
-		log_delete("Note: found iname: %s", (char *)nla_data(info->attrs[ATTR_INAME]));
-		return nla_data(info->attrs[ATTR_INAME]);
-	} else {
-		log_delete("Note: returning default iname.");
-		return INAME_DEFAULT;
-	}
+	return (info->attrs[ATTR_INAME])
+			? nla_data(info->attrs[ATTR_INAME])
+			: INAME_DEFAULT;
 }

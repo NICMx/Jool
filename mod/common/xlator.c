@@ -93,13 +93,13 @@ static void xlator_get(struct xlator *jool)
 static void __net_exit flush_net(struct net *ns)
 {
 	struct list_head *list;
-	struct jool_instance *instance;
+	struct jool_instance *instance, *tmp;
 	LIST_HEAD(destroy_list);
 
 	mutex_lock(&lock);
 
 	list = rcu_dereference_protected(pool, lockdep_is_held(&lock));
-	list_for_each_entry(instance, list, list_hook) {
+	list_for_each_entry_safe(instance, tmp, list, list_hook) {
 		if (instance->jool.ns == ns) {
 			list_del_rcu(&instance->list_hook);
 			list_add(&instance->list_hook, &destroy_list);
@@ -422,11 +422,20 @@ int xlator_rm(int fw, char *iname)
 	return error;
 }
 
+static bool xlator_equals(struct xlator *x1, struct xlator *x2)
+{
+	return (x1->ns == x2->ns)
+			&& (x1->fw == x2->fw)
+			&& (strcmp(x1->iname, x2->iname) == 0);
+}
+
 int xlator_replace(struct xlator *jool)
 {
 	struct list_head *list;
 	struct jool_instance *old;
 	struct jool_instance *new;
+
+	/* TODO (NOW) maybe validate iname & fw. */
 
 	new = wkmalloc(struct jool_instance, GFP_KERNEL);
 	if (!new)
@@ -438,7 +447,7 @@ int xlator_replace(struct xlator *jool)
 
 	list = rcu_dereference_protected(pool, lockdep_is_held(&lock));
 	list_for_each_entry_rcu(old, list, list_hook) {
-		if (old->jool.ns == new->jool.ns) {
+		if (xlator_equals(&old->jool, &new->jool)) {
 #if LINUX_VERSION_AT_LEAST(4, 13, 0, 9999, 0)
 			new->nf_ops = old->nf_ops;
 #endif

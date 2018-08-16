@@ -6,6 +6,7 @@
 #include "nat64/mod/common/icmp_wrapper.h"
 #include "nat64/mod/common/packet.h"
 #include "nat64/mod/common/route.h"
+#include "nat64/mod/common/skbuff.h"
 
 static unsigned int get_nexthop_mtu(struct packet *pkt)
 {
@@ -128,6 +129,8 @@ verdict sendpkt_send(struct xlation *state)
 #else
 	out->skb->local_df = true; /* FFS, kernel. */
 #endif
+
+	/* skb_log(out->skb, "Translated packet"); */
 
 	/*
 	 * Implicit kfree_skb(out->skb) here.

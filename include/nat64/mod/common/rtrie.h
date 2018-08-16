@@ -95,8 +95,10 @@ void rtrie_print(char *prefix, struct rtrie *trie);
 int rtrie_add(struct rtrie *trie, void *value, size_t key_offset, __u8 key_len);
 int rtrie_rm(struct rtrie *trie, struct rtrie_key *key);
 void rtrie_flush(struct rtrie *trie);
+
+typedef int (*rtrie_foreach_cb)(void const *, void *);
 int rtrie_foreach(struct rtrie *trie,
-		int (*cb)(void *, void *), void *arg,
+		rtrie_foreach_cb cb, void *arg,
 		struct rtrie_key *offset);
 
 #endif /* _JOOL_MOD_RTRIE_H */

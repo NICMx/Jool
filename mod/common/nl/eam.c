@@ -5,7 +5,7 @@
 #include "nat64/mod/common/nl/nl_core2.h"
 #include "nat64/mod/stateless/eam.h"
 
-static int eam_entry_to_userspace(struct eamt_entry *entry, void *arg)
+static int eam_entry_to_userspace(struct eamt_entry const *entry, void *arg)
 {
 	struct nlcore_buffer *buffer = (struct nlcore_buffer *)arg;
 	return nlbuffer_write(buffer, entry, sizeof(*entry));

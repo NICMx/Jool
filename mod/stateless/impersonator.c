@@ -148,7 +148,7 @@ void pool4db_flush(struct pool4 *pool)
 }
 
 int pool4db_foreach_sample(struct pool4 *pool, l4_protocol proto,
-		int (*cb)(struct pool4_sample *, void *), void *arg,
+		pool4db_foreach_sample_cb cb, void *arg,
 		struct pool4_sample *offset)
 {
 	return fail(__func__);

@@ -101,12 +101,12 @@ void bib_clean(struct bib *db, struct net *ns);
 /* These are used by userspace request handling. */
 
 struct bib_foreach_func {
-	int (*cb)(struct bib_entry *, bool, void *);
+	int (*cb)(struct bib_entry const *, bool, void *);
 	void *arg;
 };
 
 struct session_foreach_func {
-	int (*cb)(struct session_entry *, void *);
+	int (*cb)(struct session_entry const *, void *);
 	void *arg;
 };
 

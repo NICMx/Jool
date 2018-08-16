@@ -4,7 +4,8 @@
 #include "nat64/mod/common/nl/nl_core2.h"
 #include "nat64/mod/stateful/bib/db.h"
 
-static int session_entry_to_userspace(struct session_entry *entry, void *arg)
+static int session_entry_to_userspace(struct session_entry const *entry,
+		void *arg)
 {
 	struct nlcore_buffer *buffer = (struct nlcore_buffer *) arg;
 	struct session_entry_usr entry_usr;

@@ -82,15 +82,14 @@ static int find_instance(struct net *ns, const struct target_info *info,
 int target_checkentry(const struct xt_tgchk_param *param)
 {
 	struct target_info *info = param->targinfo;
-	int error;
+	return iname_validate(info->iname);
 
-	/* We might need to print the instance name, so validate it. */
-	error = iname_validate(info->iname);
-	if (error)
-		return error;
-
-	/* No initialization needed; just check if the instance exists. */
-	return find_instance(param->net, param->targinfo, NULL);
+	/*
+	 * Probably don't need to check if the instance exists;
+	 * it would just annoy the user.
+	 * Also, I don't think that we can prevent a user from removing an
+	 * instance while the rule exists so it would be pointless anyway.
+	 */
 }
 
 struct net *action_param_net(const struct xt_action_param *param)

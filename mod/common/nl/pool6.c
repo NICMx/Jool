@@ -6,7 +6,7 @@
 #include "nat64/mod/common/pool6.h"
 #include "nat64/mod/stateful/bib/db.h"
 
-static int pool6_entry_to_userspace(struct ipv6_prefix *prefix, void *arg)
+static int pool6_entry_to_userspace(struct ipv6_prefix const *prefix, void *arg)
 {
 	return nlbuffer_write(arg, prefix, sizeof(*prefix));
 }

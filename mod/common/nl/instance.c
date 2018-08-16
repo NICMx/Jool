@@ -5,7 +5,7 @@
 #include "nat64/mod/common/nl/nl_common.h"
 #include "nat64/mod/common/nl/nl_core2.h"
 
-static int xlator_entry_to_userspace(struct xlator *entry, void *arg)
+static int xlator_entry_to_userspace(struct xlator const *entry, void *arg)
 {
 	struct nlcore_buffer *buffer = (struct nlcore_buffer *)arg;
 	struct instance_entry_usr entry_usr;

@@ -2,6 +2,7 @@
 
 #include "nat64/mod/common/config.h"
 #include "nat64/mod/common/handling_hairpinning.h"
+#include "nat64/mod/common/skbuff.h"
 #include "nat64/mod/common/translation_state.h"
 #include "nat64/mod/common/xlator.h"
 #include "nat64/mod/common/rfc6145/core.h"
@@ -90,6 +91,8 @@ unsigned int core_4to6(struct sk_buff *skb, struct xlator *instance)
 		return NF_DROP;
 	}
 
+	/* skb_log(skb, "Incoming IPv4 packet"); */
+
 	result = core_common(&state);
 	xlation_clean(&state);
 	return result;
@@ -122,6 +125,8 @@ unsigned int core_6to4(struct sk_buff *skb, struct xlator *instance)
 		xlation_clean(&state);
 		return NF_DROP;
 	}
+
+	/* skb_log(skb, "Incoming IPv6 packet"); */
 
 	snapshot_record(&state.in.debug.shot2, skb);
 

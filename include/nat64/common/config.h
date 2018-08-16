@@ -13,6 +13,9 @@
 /** cuz sizeof(bool) is implementation-defined. */
 typedef __u8 config_bool;
 
+#define IPTABLES_SIIT_MODULE_NAME "JOOL_SIIT"
+#define IPTABLES_NAT64_MODULE_NAME "JOOL"
+
 #define GNL_JOOL_FAMILY_NAME (xlat_is_siit() ? "SIIT_Jool" : "NAT64_Jool")
 #define GNL_JOOLD_MULTICAST_GRP_NAME "joold"
 
@@ -733,5 +736,9 @@ enum eam_hairpinning_mode {
  */
 void prepare_config_for_userspace(struct full_config *config, bool pools_empty);
 
+/* For iptables usage. */
+struct target_info {
+	char iname[INAME_MAX_LEN];
+};
 
 #endif /* _JOOL_COMMON_CONFIG_H */

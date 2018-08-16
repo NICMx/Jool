@@ -5,7 +5,7 @@
 #include "nat64/mod/stateful/pool4/db.h"
 #include "nat64/mod/stateful/bib/db.h"
 
-static int pool4_to_usr(struct pool4_sample *sample, void *arg)
+static int pool4_to_usr(struct pool4_sample const *sample, void *arg)
 {
 	return nlbuffer_write(arg, sample, sizeof(*sample));
 }

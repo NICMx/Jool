@@ -151,16 +151,12 @@ int netlink_request(char *iname, void *request, __u32 request_len,
 	 * INAME_DEFAULT.
 	 */
 	if (iname && strcmp(iname, INAME_DEFAULT) != 0) {
-		log_delete("Note: Writing instance name.");
-
 		error = nla_put_string(msg, ATTR_INAME, iname);
 		if (error) {
 			log_err("Could not write the instance name on the packet to kernelspace.");
 			nlmsg_free(msg);
 			return netlink_print_error(error);
 		}
-	} else {
-		log_delete("Note: Not writing instance name.");
 	}
 
 	error = nla_put(msg, ATTR_DATA, request_len, request);

@@ -166,7 +166,8 @@ void nlbuffer_clean(struct nlcore_buffer *buffer)
 	__wkfree("nlcore_buffer.data", buffer->data);
 }
 
-int nlbuffer_write(struct nlcore_buffer *buffer, void *data, size_t data_size)
+int nlbuffer_write(struct nlcore_buffer *buffer, void const *data,
+		size_t data_size)
 {
 	if (buffer->len + data_size > buffer->capacity) {
 		log_debug("The buffer's storage capacity has been surpassed.");

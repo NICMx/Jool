@@ -235,7 +235,7 @@ static int write_single_node(struct joold_node *node,
 	return full;
 }
 
-static int foreach_cb(struct session_entry *entry, void *arg)
+static int foreach_cb(struct session_entry const *entry, void *arg)
 {
 	int status;
 	struct joold_advertise_struct *adv = arg;

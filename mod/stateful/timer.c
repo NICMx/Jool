@@ -23,7 +23,7 @@
 
 static struct timer_list timer;
 
-static int clean_state(struct xlator *jool, void *args)
+static int clean_state(struct xlator const *jool, void *args)
 {
 	fragdb_clean(jool->nat64.frag);
 	bib_clean(jool->nat64.bib, jool->ns);

@@ -29,44 +29,44 @@ static struct translation_steps steps[][L4_PROTO_COUNT] = {
 		{
 			.skb_alloc_fn = ttp64_alloc_skb,
 			.l3_hdr_fn = ttp64_ipv4,
-			.l3_payload_fn = ttp64_tcp,
+			.l4_hdr_fn = ttp64_tcp,
 		},
 		{
 			.skb_alloc_fn = ttp64_alloc_skb,
 			.l3_hdr_fn = ttp64_ipv4,
-			.l3_payload_fn = ttp64_udp,
+			.l4_hdr_fn = ttp64_udp,
 		},
 		{
 			.skb_alloc_fn = ttp64_alloc_skb,
 			.l3_hdr_fn = ttp64_ipv4,
-			.l3_payload_fn = ttp64_icmp,
+			.l4_hdr_fn = ttp64_icmp,
 		},
 		{
 			.skb_alloc_fn = ttp64_alloc_skb,
 			.l3_hdr_fn = ttp64_ipv4,
-			.l3_payload_fn = handle_unknown_l4,
+			.l4_hdr_fn = handle_unknown_l4,
 		}
 	},
 	{ /* IPv4 */
 		{
 			.skb_alloc_fn = ttp46_alloc_skb,
 			.l3_hdr_fn = ttp46_ipv6,
-			.l3_payload_fn = ttp46_tcp,
+			.l4_hdr_fn = ttp46_tcp,
 		},
 		{
 			.skb_alloc_fn = ttp46_alloc_skb,
 			.l3_hdr_fn = ttp46_ipv6,
-			.l3_payload_fn = ttp46_udp,
+			.l4_hdr_fn = ttp46_udp,
 		},
 		{
 			.skb_alloc_fn = ttp46_alloc_skb,
 			.l3_hdr_fn = ttp46_ipv6,
-			.l3_payload_fn = ttp46_icmp,
+			.l4_hdr_fn = ttp46_icmp,
 		},
 		{
 			.skb_alloc_fn = ttp46_alloc_skb,
 			.l3_hdr_fn = ttp46_ipv6,
-			.l3_payload_fn = handle_unknown_l4,
+			.l4_hdr_fn = handle_unknown_l4,
 		}
 	}
 };
@@ -277,7 +277,7 @@ verdict ttpcomm_translate_inner_packet(struct xlation *state)
 	if (result != VERDICT_CONTINUE)
 		return result;
 
-	result = current_steps->l3_payload_fn(state);
+	result = current_steps->l4_hdr_fn(state);
 	if (result == VERDICT_ACCEPT)
 		return VERDICT_DROP;
 	if (result != VERDICT_CONTINUE)

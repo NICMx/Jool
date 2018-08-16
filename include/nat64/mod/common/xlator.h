@@ -47,7 +47,7 @@ int xlator_find(struct net *ns, int fw, const char *iname,
 int xlator_find_current(int fw, const char *iname, struct xlator *result);
 void xlator_put(struct xlator *instance);
 
-typedef int (*xlator_foreach_cb)(struct xlator *, void *);
+typedef int (*xlator_foreach_cb)(struct xlator const *, void *);
 int xlator_foreach(xlator_foreach_cb cb, void *args,
 		struct instance_entry_usr *offset);
 

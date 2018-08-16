@@ -79,7 +79,7 @@ static struct nf_hook_ops nfho[] = {
  */
 static struct xt_target targets[] = {
 	{
-		.name       = "jool",
+		.name       = IPTABLES_NAT64_MODULE_NAME,
 		.revision   = 0,
 		.family     = NFPROTO_IPV6,
 		.target     = target_ipv6,
@@ -87,7 +87,7 @@ static struct xt_target targets[] = {
 		.targetsize = XT_ALIGN(sizeof(struct target_info)),
 		.me         = THIS_MODULE,
 	}, {
-		.name       = "jool",
+		.name       = IPTABLES_NAT64_MODULE_NAME,
 		.revision   = 0,
 		.family     = NFPROTO_IPV4,
 		.target     = target_ipv4,

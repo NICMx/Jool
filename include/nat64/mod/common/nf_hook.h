@@ -13,10 +13,6 @@
 NF_CALLBACK(hook_ipv6, skb);
 NF_CALLBACK(hook_ipv4, skb);
 
-struct target_info {
-	char iname[INAME_MAX_LEN];
-};
-
 int target_checkentry(const struct xt_tgchk_param *param);
 unsigned int target_ipv6(struct sk_buff *skb,
 		const struct xt_action_param *param);
