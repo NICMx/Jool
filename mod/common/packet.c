@@ -70,7 +70,7 @@ static int inhdr4(struct sk_buff *skb, const char *msg)
 	return -EINVAL;
 }
 
-static void *offset_to_ptr(struct sk_buff *skb, unsigned int offset)
+static void *skb_offset_to_ptr(struct sk_buff *skb, unsigned int offset)
 {
 	return ((void *) skb->data) + offset;
 }
@@ -368,9 +368,9 @@ int pkt_init_ipv6(struct packet *pkt, struct sk_buff *skb)
 	pkt->l4_proto = meta.l4_proto;
 	pkt->is_inner = 0;
 	pkt->is_hairpin = false;
-	pkt->hdr_frag = meta.has_frag_hdr ? offset_to_ptr(skb, meta.frag_offset) : NULL;
+	pkt->hdr_frag = meta.has_frag_hdr ? skb_offset_to_ptr(skb, meta.frag_offset) : NULL;
 	skb_set_transport_header(skb, meta.l4_offset);
-	pkt->payload = offset_to_ptr(skb, meta.payload_offset);
+	pkt->payload = skb_offset_to_ptr(skb, meta.payload_offset);
 	pkt->original_pkt = pkt;
 
 	return 0;
@@ -530,7 +530,7 @@ int pkt_init_ipv4(struct packet *pkt, struct sk_buff *skb)
 	pkt->is_hairpin = false;
 	pkt->hdr_frag = NULL;
 	skb_set_transport_header(skb, meta.l4_offset);
-	pkt->payload = offset_to_ptr(skb, meta.payload_offset);
+	pkt->payload = skb_offset_to_ptr(skb, meta.payload_offset);
 	pkt->original_pkt = pkt;
 
 	return 0;
