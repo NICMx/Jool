@@ -27,7 +27,7 @@ static int clean_state(struct xlator const *jool, void *args)
 {
 	fragdb_clean(jool->nat64.frag);
 	bib_clean(jool->nat64.bib, jool->ns);
-	joold_clean(jool->nat64.joold, jool->nat64.bib);
+	joold_clean(jool->nat64.joold, jool->nat64.bib, jool->ns);
 	return 0;
 }
 

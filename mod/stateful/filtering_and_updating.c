@@ -97,7 +97,7 @@ static verdict succeed(struct xlation *state)
 	 */
 	if (state->entries.session_set) {
 		joold_add(state->jool.nat64.joold, &state->entries.session,
-				state->jool.nat64.bib);
+				state->jool.nat64.bib, state->jool.ns);
 	}
 	return VERDICT_CONTINUE;
 }

@@ -64,6 +64,13 @@ static int handle_instance_rm(struct genl_info *info,
 	));
 }
 
+static int handle_instance_flush(struct genl_info *info,
+		union request_instance *request)
+{
+	log_debug("Flushing all instances from this namespace.");
+	return nlcore_respond(info, xlator_flush());
+}
+
 int handle_instance_request(struct genl_info *info)
 {
 	struct request_hdr *hdr = get_jool_hdr(info);
@@ -79,6 +86,8 @@ int handle_instance_request(struct genl_info *info)
 		return handle_instance_add(info, request);
 	case OP_REMOVE:
 		return handle_instance_rm(info, request);
+	case OP_FLUSH:
+		return handle_instance_flush(info, request);
 	}
 
 	log_err("Unknown operation: %u", be16_to_cpu(hdr->operation));

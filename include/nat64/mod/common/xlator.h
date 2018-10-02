@@ -11,6 +11,17 @@
  * should use to handle a packet in the respective namespace.
  */
 struct xlator {
+	/*
+	 * Note: This xlator must not increase @ns's kref counter.
+	 * Quite the opposite: The @ns has to reference count the xlator.
+	 * (The kernel does this somewhere in the register_pernet_subsys() API.)
+	 * Otherwise the Jool instance would prevent the namespace from dying,
+	 * and in turn the namespace would prevent the Jool instance from dying.
+	 *
+	 * As a matter of fact, I'll say it here because there's no better place
+	 * for it: whenever Jool acquires a reference to a namespace, it should
+	 * *ALWAYS* return it, preferably during the same function.
+	 */
 	struct net *ns;
 	/* One of the single-bit FW_* flags from nat64/common/config.h. */
 	int fw;
@@ -41,6 +52,7 @@ void xlator_teardown(void);
 int xlator_add(int fw, char *iname, struct xlator *result);
 int xlator_rm(int fw, char *iname);
 int xlator_replace(struct xlator *instance);
+int xlator_flush(void);
 
 int xlator_find(struct net *ns, int fw, const char *iname,
 		struct xlator *result);
@@ -52,8 +64,5 @@ int xlator_foreach(xlator_foreach_cb cb, void *args,
 		struct instance_entry_usr *offset);
 
 void xlator_copy_config(struct xlator *instance, struct full_config *copy);
-
-bool xlator_matches(struct xlator *jool, struct net *ns, int fw,
-		const char *iname);
 
 #endif /* _JOOL_MOD_NAMESPACE_H */

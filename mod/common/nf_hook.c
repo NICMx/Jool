@@ -92,7 +92,7 @@ int target_checkentry(const struct xt_tgchk_param *param)
 	 */
 }
 
-struct net *action_param_net(const struct xt_action_param *param)
+static struct net *action_param_net(const struct xt_action_param *param)
 {
 #if LINUX_VERSION_AT_LEAST(4, 10, 0, 9999, 0)
 	return param->state->net;

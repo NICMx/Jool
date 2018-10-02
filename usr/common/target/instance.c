@@ -159,3 +159,10 @@ int instance_rm(int fw, char *iname)
 
 	return netlink_request(NULL, request, sizeof(request), NULL, NULL);
 }
+
+int instance_flush(void)
+{
+	struct request_hdr request;
+	init_request_hdr(&request, MODE_INSTANCE, OP_FLUSH);
+	return netlink_request(NULL, &request, sizeof(request), NULL, NULL);
+}

@@ -1001,6 +1001,8 @@ static int handle_instance(struct arguments *args)
 		return instance_add(args->ifw, args->iname);
 	case OP_REMOVE:
 		return instance_rm(args->ifw, args->iname);
+	case OP_FLUSH:
+		return instance_flush();
 	default:
 		return unknown_op("instance", args->op);
 	}

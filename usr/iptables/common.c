@@ -25,7 +25,7 @@ static void jool_tg_init(struct xt_entry_target *target)
 	strcpy(info->iname, INAME_DEFAULT);
 }
 
-/* TODO duplicate code; see config.h */
+/* TODO (duplicate code) See config.h */
 int iname_validate(const char *iname)
 {
 	unsigned int i;

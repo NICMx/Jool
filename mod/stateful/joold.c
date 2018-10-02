@@ -353,7 +353,6 @@ static int build_buffer(struct nlcore_buffer *buffer, struct joold_queue *queue,
 
 struct joold_buffer {
 	struct nlcore_buffer buffer;
-	struct net *ns;
 	bool initialized;
 };
 
@@ -373,11 +372,6 @@ static void send_to_userspace_prepare(struct joold_queue *queue,
 		return;
 
 	buffer->initialized = true;
-	/*
-	 * Caller has a reference and the buffer is not going to outlive it so
-	 * this should be alright.
-	 */
-	buffer->ns = queue->ns;
 
 	/*
 	 * BTW: This sucks.
@@ -390,7 +384,7 @@ static void send_to_userspace_prepare(struct joold_queue *queue,
 	queue->last_flush_time = jiffies;
 }
 
-static void send_to_userspace(struct joold_buffer *buffer)
+static void send_to_userspace(struct joold_buffer *buffer, struct net *ns)
 {
 	int error;
 
@@ -398,7 +392,7 @@ static void send_to_userspace(struct joold_buffer *buffer)
 		return;
 
 	log_debug("Sending multicast message.");
-	error = nlcore_send_multicast_message(buffer->ns, &buffer->buffer);
+	error = nlcore_send_multicast_message(ns, &buffer->buffer);
 	if (!error)
 		log_debug("Multicast message sent.");
 
@@ -428,7 +422,6 @@ struct joold_queue *joold_alloc(struct net *ns)
 	queue->config.max_payload = DEFAULT_JOOLD_MAX_PAYLOAD;
 
 	queue->ns = ns;
-	get_net(ns);
 
 	spin_lock_init(&queue->lock);
 	kref_init(&queue->refs);
@@ -463,7 +456,6 @@ static void joold_release(struct kref *refs)
 	struct joold_queue *queue;
 	queue = container_of(refs, struct joold_queue, refs);
 
-	put_net(queue->ns);
 	purge_sessions(queue);
 	wkfree(struct joold_queue, queue);
 }
@@ -509,7 +501,7 @@ void joold_update_config(struct joold_queue *queue,
  * to the joold daemon.
  */
 void joold_add(struct joold_queue *queue, struct session_entry *entry,
-		struct bib *bib)
+		struct bib *bib, struct net *ns)
 {
 	struct joold_node *copy;
 	struct joold_buffer buffer = JOOLD_BUFFER_INIT;
@@ -560,7 +552,7 @@ void joold_add(struct joold_queue *queue, struct session_entry *entry,
 
 	spin_unlock_bh(&queue->lock);
 
-	send_to_userspace(&buffer);
+	send_to_userspace(&buffer, ns);
 }
 
 static void init_session_entry(struct joold_session *in,
@@ -780,7 +772,7 @@ int joold_advertise(struct xlator *jool)
 
 end:
 	spin_unlock_bh(&queue->lock);
-	send_to_userspace(&buffer);
+	send_to_userspace(&buffer, jool->ns);
 	return error;
 }
 
@@ -800,7 +792,7 @@ void joold_ack(struct xlator *jool)
 
 end:
 	spin_unlock_bh(&queue->lock);
-	send_to_userspace(&buffer);
+	send_to_userspace(&buffer, jool->ns);
 }
 
 /**
@@ -809,7 +801,7 @@ end:
  * It's just a last-resort attempt to prevent nodes from lingering here for too
  * long that's generally only useful in non-flush-asap mode.
  */
-void joold_clean(struct joold_queue *queue, struct bib *bib)
+void joold_clean(struct joold_queue *queue, struct bib *bib, struct net *ns)
 {
 	struct joold_buffer buffer = JOOLD_BUFFER_INIT;
 
@@ -823,5 +815,5 @@ void joold_clean(struct joold_queue *queue, struct bib *bib)
 
 end:
 	spin_unlock_bh(&queue->lock);
-	send_to_userspace(&buffer);
+	send_to_userspace(&buffer, ns);
 }

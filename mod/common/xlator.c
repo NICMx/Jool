@@ -47,11 +47,16 @@ struct jool_instance {
 static struct list_head __rcu *pool;
 static DEFINE_MUTEX(lock);
 
-static void destroy_jool_instance(struct jool_instance *instance)
+static void destroy_jool_instance(struct jool_instance *instance, bool unhook)
 {
 #if LINUX_VERSION_AT_LEAST(4, 13, 0, 9999, 0)
-	if (instance->jool.fw & FW_NETFILTER)
+	if (instance->jool.fw & FW_NETFILTER) {
+		if (unhook) {
+			nf_unregister_net_hooks(instance->jool.ns,
+					instance->nf_ops, 2);
+		}
 		__wkfree("nf_hook_ops", instance->nf_ops);
+	}
 #endif
 	xlator_put(&instance->jool);
 	wkfree(struct jool_instance, instance);
@@ -59,8 +64,6 @@ static void destroy_jool_instance(struct jool_instance *instance)
 
 static void xlator_get(struct xlator *jool)
 {
-	get_net(jool->ns);
-
 	config_get(jool->global);
 	pool6_get(jool->pool6);
 
@@ -78,43 +81,72 @@ static void xlator_get(struct xlator *jool)
 	cfgcandidate_get(jool->newcfg);
 }
 
-/**
- * Called whenever the user deletes a namespace. Supposed to deletes all the
- * instances inserted in that namespace.
- *
- * TODO (NOW) this might need some testing.
- * 1. Add instances to a namespace.
- * 2. Delete the namespace. Does it crash?
- *    -> If it doesn't crash, try unregistening the hooks during this function
- *       and try again. Does it crash?
- *    NOTE THAT destroy_jool_instance IS CALLED FROM GRAY CODE.
- * 3. Document the results.
- */
-static void __net_exit flush_net(struct net *ns)
+static void __flush_detach(struct net *ns, struct list_head *detached)
 {
 	struct list_head *list;
 	struct jool_instance *instance, *tmp;
-	LIST_HEAD(destroy_list);
-
-	mutex_lock(&lock);
 
 	list = rcu_dereference_protected(pool, lockdep_is_held(&lock));
 	list_for_each_entry_safe(instance, tmp, list, list_hook) {
 		if (instance->jool.ns == ns) {
 			list_del_rcu(&instance->list_hook);
-			list_add(&instance->list_hook, &destroy_list);
+			list_add(&instance->list_hook, detached);
 		}
 	}
+}
 
-	mutex_unlock(&lock);
+static void __flush_delete(struct list_head *detached)
+{
+	struct jool_instance *instance, *tmp;
+
+	if (list_empty(detached))
+		return; /* Calling synchronize_rcu_bh() for no reason is bad. */
+
 	synchronize_rcu_bh();
 
-	list_for_each_entry(instance, &destroy_list, list_hook)
-		destroy_jool_instance(instance);
+	list_for_each_entry_safe(instance, tmp, detached, list_hook)
+		destroy_jool_instance(instance, true);
+}
+
+/**
+ * Called whenever the user deletes a namespace. Supposed to delete all the
+ * instances inserted in that namespace.
+ */
+static void flush_net(struct net *ns)
+{
+	LIST_HEAD(detached);
+
+	mutex_lock(&lock);
+	__flush_detach(ns, &detached);
+	mutex_unlock(&lock);
+
+	__flush_delete(&detached);
+}
+
+/**
+ * Called whenever the user deletes... several namespaces? I'm not really sure.
+ * The idea seems to be to minimize the net amount of synchronize_rcu_bh()
+ * calls, but the kernel seems to always call flush_net() first and
+ * flush_batch() next. It seems self-defeating to me.
+ *
+ * Maybe delete flush_net(); I guess it's redundant.
+ */
+static void flush_batch(struct list_head *net_exit_list)
+{
+	struct net *ns;
+	LIST_HEAD(detached);
+
+	mutex_lock(&lock);
+	list_for_each_entry(ns, net_exit_list, exit_list)
+		__flush_detach(ns, &detached);
+	mutex_unlock(&lock);
+
+	__flush_delete(&detached);
 }
 
 static struct pernet_operations joolns_ops = {
 	.exit = flush_net,
+	.exit_batch = flush_batch,
 };
 
 /**
@@ -133,12 +165,9 @@ int xlator_setup(void)
 	RCU_INIT_POINTER(pool, list);
 
 	error = register_pernet_subsys(&joolns_ops);
-	if (error) {
+	if (error)
 		__wkfree("xlator DB", list);
-		return error;
-	}
-
-	return 0;
+	return error;
 }
 
 /**
@@ -230,6 +259,54 @@ config_fail:
 	return -ENOMEM;
 }
 
+static bool xlator_matches(struct xlator *jool, struct net *ns, int fw,
+		const char *iname)
+{
+	return (jool->ns == ns)
+			&& (jool->fw & fw)
+			&& (strcmp(jool->iname, iname) == 0);
+}
+
+/**
+ * Checks whether an instance (whose namespace is @ns, its framework is @fw,
+ * and its name is @iname) can be added to the database without breaking its
+ * rules.
+ *
+ * Assumes the DB mutex is locked.
+ */
+static int validate_collision(struct net *ns, int fw, char *iname)
+{
+	struct list_head *list;
+	struct jool_instance *instance;
+
+	/* Shuts up the RCU police. Not actually needed because of the mutex. */
+	rcu_read_lock_bh();
+
+	list = rcu_dereference_bh(pool);
+	list_for_each_entry_rcu(instance, list, list_hook) {
+		if (instance->jool.ns != ns)
+			continue;
+
+		if (strcmp(instance->jool.iname, iname) == 0) {
+			log_err("This namespace already has a Jool instance named '%s'.",
+					iname);
+			goto eexist;
+		}
+
+		if ((fw & FW_NETFILTER) && (instance->jool.fw & FW_NETFILTER)) {
+			log_err("This namespace already has a Netfilter Jool instance.");
+			goto eexist;
+		}
+	}
+
+	rcu_read_unlock_bh();
+	return 0;
+
+eexist:
+	rcu_read_unlock_bh();
+	return -EEXIST;
+}
+
 /**
  * xlator_add - Whenever called, starts translation of packets traveling through
  * the namespace running in the caller's context.
@@ -256,7 +333,7 @@ int xlator_add(int fw, char *iname, struct xlator *result)
 		return PTR_ERR(ns);
 	}
 
-	/* All error roads from now need to put @ns. */
+	/* All roads from now need to put @ns. */
 
 	instance = wkmalloc(struct jool_instance, GFP_KERNEL);
 	if (!instance) {
@@ -264,11 +341,11 @@ int xlator_add(int fw, char *iname, struct xlator *result)
 		return -ENOMEM;
 	}
 
-	/* All error roads from now need to free @instance. */
+	/* All *error* roads from now need to free @instance. */
 
 	strcpy(instance->jool.iname, iname);
 	instance->jool.fw = fw;
-	instance->jool.ns = ns; /* Transfers ownership */
+	instance->jool.ns = ns;
 	error = xlat_is_siit()
 			? init_siit(&instance->jool)
 			: init_nat64(&instance->jool);
@@ -281,50 +358,48 @@ int xlator_add(int fw, char *iname, struct xlator *result)
 	instance->nf_ops = NULL;
 #endif
 
-	/* Error roads from now on don't need to put @ns. */
 	/* Error roads from now on don't need to free @instance. */
 	/* All error roads from now need to properly destroy @instance. */
 
+	mutex_lock(&lock);
+
+	/* All roads from now on must unlock the mutex. */
+
+	error = validate_collision(ns, fw, iname);
+	if (error)
+		goto mutex_fail;
+
 #if LINUX_VERSION_AT_LEAST(4, 13, 0, 9999, 0)
+	/*
+	 * I decided to let this happen in-mutex because this block feels more
+	 * at home at this step, and also because I don't want to revert the
+	 * nf_register_net_hooks() right after a validate_collision() failure.
+	 * The kernel API scares me sometimes.
+	 */
 	if (fw & FW_NETFILTER) {
 		struct nf_hook_ops *ops;
 
 		ops = __wkmalloc("nf_hook_ops", 2 * sizeof(struct nf_hook_ops),
 				GFP_KERNEL);
 		if (!ops) {
-			destroy_jool_instance(instance);
-			return -ENOMEM;
+			error = -ENOMEM;
+			goto mutex_fail;
 		}
+
+		/* All error roads from now need to free @ops. */
 
 		init_nf_hook_op6(&instance->nf_ops[0]);
 		init_nf_hook_op4(&instance->nf_ops[1]);
 
-		/* TODO (NOW) WTF? Why is this not being reverted below? */
 		error = nf_register_net_hooks(ns, ops, 2);
 		if (error) {
 			__wkfree("nf_hook_ops", ops);
-			destroy_jool_instance(instance);
-			return error;
+			goto mutex_fail;
 		}
 
 		instance->nf_ops = ops;
 	}
 #endif
-
-	mutex_lock(&lock);
-	error = xlator_find(ns, fw, iname, NULL);
-	switch (error) {
-	case 0:
-		log_err("This namespace already has a Jool instance named '%s'.",
-				iname);
-		error = -EEXIST;
-		goto mutex_fail;
-	case -ESRCH: /* Happy path. */
-		break;
-	default:
-		log_err("Unknown error code: %d.", error);
-		goto mutex_fail;
-	}
 
 	list = rcu_dereference_protected(pool, lockdep_is_held(&lock));
 	list_add_tail_rcu(&instance->list_hook, list);
@@ -335,11 +410,13 @@ int xlator_add(int fw, char *iname, struct xlator *result)
 	}
 
 	mutex_unlock(&lock);
+	put_net(ns);
 	return 0;
 
 mutex_fail:
 	mutex_unlock(&lock);
-	destroy_jool_instance(instance);
+	destroy_jool_instance(instance, false);
+	put_net(ns);
 	return error;
 }
 
@@ -361,12 +438,6 @@ static int __xlator_rm(struct net *ns, int fw, char *iname)
 			list_del_rcu(&instance->list_hook);
 			mutex_unlock(&lock);
 
-			/* (The placement of this block doesn't matter much.) */
-#if LINUX_VERSION_AT_LEAST(4, 13, 0, 9999, 0)
-			if (instance->jool.fw & FW_NETFILTER)
-				nf_unregister_net_hooks(ns, instance->nf_ops, 2);
-#endif
-
 			synchronize_rcu_bh();
 
 			/*
@@ -378,7 +449,7 @@ static int __xlator_rm(struct net *ns, int fw, char *iname)
 			 * because the instance is no longer listed.
 			 * So finally return everything.
 			 */
-			destroy_jool_instance(instance);
+			destroy_jool_instance(instance, true);
 			return 0;
 		}
 	}
@@ -434,8 +505,14 @@ int xlator_replace(struct xlator *jool)
 	struct list_head *list;
 	struct jool_instance *old;
 	struct jool_instance *new;
+	int error;
 
-	/* TODO (NOW) maybe validate iname & fw. */
+	error = fw_validate(jool->fw);
+	if (error)
+		return error;
+	error = iname_validate(jool->iname);
+	if (error)
+		return error;
 
 	new = wkmalloc(struct jool_instance, GFP_KERNEL);
 	if (!new)
@@ -459,13 +536,29 @@ int xlator_replace(struct xlator *jool)
 #if LINUX_VERSION_AT_LEAST(4, 13, 0, 9999, 0)
 			old->nf_ops = NULL;
 #endif
-			destroy_jool_instance(old);
+			destroy_jool_instance(old, false);
 			return 0;
 		}
 	}
 
 	mutex_unlock(&lock);
 	return -ESRCH;
+}
+
+int xlator_flush(void)
+{
+	struct net *ns;
+
+	ns = get_net_ns_by_pid(task_pid_vnr(current));
+	if (IS_ERR(ns)) {
+		log_err("Could not retrieve the current namespace.");
+		return PTR_ERR(ns);
+	}
+
+	flush_net(ns);
+
+	put_net(ns);
+	return 0;
 }
 
 /**
@@ -520,15 +613,14 @@ int xlator_find_current(int fw, const char *iname, struct xlator *result)
 	struct net *ns;
 	int error;
 
-	ns = get_net_ns_by_pid(task_pid_vnr(current)); /* +1 to ns. */
+	ns = get_net_ns_by_pid(task_pid_vnr(current));
 	if (IS_ERR(ns)) {
 		log_err("Could not retrieve the current namespace.");
 		return PTR_ERR(ns);
 	}
 
-	/* +1 to result's DBs, including ns. */
 	error = xlator_find(ns, fw, iname, result);
-	/* -1 to ns. */
+
 	put_net(ns);
 	return error;
 }
@@ -544,8 +636,6 @@ int xlator_find_current(int fw, const char *iname, struct xlator *result)
  */
 void xlator_put(struct xlator *jool)
 {
-	put_net(jool->ns);
-
 	config_put(jool->global);
 	pool6_put(jool->pool6);
 
@@ -607,12 +697,4 @@ void xlator_copy_config(struct xlator *jool, struct full_config *copy)
 	bib_config_copy(jool->nat64.bib, &copy->bib);
 	joold_config_copy(jool->nat64.joold, &copy->joold);
 	fragdb_config_copy(jool->nat64.frag, &copy->frag);
-}
-
-bool xlator_matches(struct xlator *jool, struct net *ns, int fw,
-		const char *iname)
-{
-	return (jool->ns == ns)
-			&& (jool->fw & fw)
-			&& (strcmp(jool->iname, iname) == 0);
 }
