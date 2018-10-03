@@ -41,7 +41,7 @@ void fragdb_put(struct fragdb *db)
 }
 
 void joold_add(struct joold_queue *queue, struct session_entry *entry,
-		struct bib *bib)
+		struct bib *bib, struct net *ns)
 {
 	/* No code. */
 }

@@ -16,7 +16,7 @@ MODULE_DESCRIPTION("Unit tests for the Filtering module");
 
 static struct xlator jool;
 
-static int bib_count_fn(struct bib_entry *bib, bool is_static, void *arg)
+static int bib_count_fn(struct bib_entry const *bib, bool is_static, void *arg)
 {
 	int *count = arg;
 	(*count)++;
@@ -62,7 +62,7 @@ static bool assert_bib_exists(char *addr6, u16 port6, char *addr4, u16 port4,
 	return success;
 }
 
-static int session_count_fn(struct session_entry *session, void *arg)
+static int session_count_fn(struct session_entry const *session, void *arg)
 {
 	int *count = arg;
 	(*count)++;
@@ -84,7 +84,8 @@ static bool assert_session_count(int expected, l4_protocol proto)
 	return success;
 }
 
-static int compare_session_foreach_cb(struct session_entry *session, void *arg)
+static int compare_session_foreach_cb(struct session_entry const *session,
+		void *arg)
 {
 	struct session_entry *expected = arg;
 	bool success = true;
@@ -554,7 +555,7 @@ static int init(void)
 	struct pool4_entry_usr entry;
 	int error;
 
-	error = xlator_add(&jool);
+	error = xlator_add(FW_NETFILTER, INAME_DEFAULT, &jool);
 	if (error)
 		return error;
 
@@ -593,7 +594,7 @@ static int init(void)
 
 fail:
 	xlator_put(&jool);
-	xlator_rm();
+	xlator_rm(FW_NETFILTER, INAME_DEFAULT);
 	return error;
 }
 
@@ -601,7 +602,7 @@ static void clean(void)
 {
 	icmp64_pop();
 	xlator_put(&jool);
-	xlator_rm();
+	xlator_rm(FW_NETFILTER, INAME_DEFAULT);
 }
 
 static int filtering_test_init(void)

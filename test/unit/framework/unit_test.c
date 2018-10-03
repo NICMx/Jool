@@ -21,8 +21,8 @@ bool __ASSERT_ADDR4(const struct in_addr *expected,
 	return true;
 }
 
-bool ASSERT_ADDR4(const char *expected_str, const struct in_addr *actual,
-		const char *test_name)
+bool ASSERT_ADDR4(char const *expected_str, struct in_addr const *actual,
+		char const *test_name)
 {
 	struct in_addr expected;
 
@@ -34,9 +34,9 @@ bool ASSERT_ADDR4(const char *expected_str, const struct in_addr *actual,
 			: __ASSERT_ADDR4(&expected, actual, test_name);
 }
 
-bool ASSERT_TADDR4(const struct ipv4_transport_addr *expected,
-		const struct ipv4_transport_addr *actual,
-		const char *test_name)
+bool ASSERT_TADDR4(struct ipv4_transport_addr const *expected,
+		struct ipv4_transport_addr const *actual,
+		char const *test_name)
 {
 	if (taddr4_equals(expected, actual))
 		return true;
@@ -47,9 +47,9 @@ bool ASSERT_TADDR4(const struct ipv4_transport_addr *expected,
 	return false;
 }
 
-bool __ASSERT_ADDR6(const struct in6_addr *expected,
-		const struct in6_addr *actual,
-		const char *test_name)
+bool __ASSERT_ADDR6(struct in6_addr const *expected,
+		struct in6_addr const *actual,
+		char const *test_name)
 {
 	if (expected == actual)
 		return true;
@@ -63,8 +63,9 @@ bool __ASSERT_ADDR6(const struct in6_addr *expected,
 	return true;
 }
 
-bool ASSERT_ADDR6(const char *expected_str, const struct in6_addr *actual,
-		const char *test_name)
+bool ASSERT_ADDR6(char const *expected_str,
+		struct in6_addr const *actual,
+		char const *test_name)
 {
 	struct in6_addr expected;
 
@@ -76,9 +77,9 @@ bool ASSERT_ADDR6(const char *expected_str, const struct in6_addr *actual,
 			: __ASSERT_ADDR6(&expected, actual, test_name);
 }
 
-bool ASSERT_TADDR6(const struct ipv6_transport_addr *expected,
-		const struct ipv6_transport_addr *actual,
-		const char *test_name)
+bool ASSERT_TADDR6(struct ipv6_transport_addr const *expected,
+		struct ipv6_transport_addr const *actual,
+		char const *test_name)
 {
 	if (taddr6_equals(expected, actual))
 		return true;
@@ -94,8 +95,9 @@ bool ASSERT_TADDR6(const struct ipv6_transport_addr *expected,
 #define TUPLE_PRINT(tuple) &tuple->src.addr4.l3, tuple->src.addr4.l4, \
 	&tuple->dst.addr4.l3, tuple->dst.addr4.l4, tuple->l4_proto
 
-static bool ASSERT_TUPLE4(struct tuple *expected, struct tuple *actual,
-		char *test_name)
+static bool ASSERT_TUPLE4(struct tuple const *expected,
+		struct tuple const *actual,
+		char const *test_name)
 {
 	if (expected->l4_proto != actual->l4_proto)
 		goto fail;
@@ -130,8 +132,9 @@ fail:
 #define TUPLE_PRINT(tuple) &tuple->src.addr6.l3, tuple->src.addr6.l4, \
 	&tuple->dst.addr6.l3, tuple->dst.addr6.l4, tuple->l4_proto
 
-static bool ASSERT_TUPLE6(struct tuple *expected, struct tuple *actual,
-		char *test_name)
+static bool ASSERT_TUPLE6(struct tuple const *expected,
+		struct tuple const *actual,
+		char const *test_name)
 {
 	if (expected->l4_proto != actual->l4_proto)
 		goto fail;
@@ -162,7 +165,9 @@ fail:
 #undef TUPLE_KEY
 #undef TUPLE_PRINT
 
-bool ASSERT_TUPLE(struct tuple *expected, struct tuple *actual, char *test_name)
+bool ASSERT_TUPLE(struct tuple const *expected,
+		struct tuple const *actual,
+		char const *test_name)
 {
 	if (expected->l3_proto != actual->l3_proto) {
 		log_err("Test '%s' failed; Expected:%u Actual:%u", test_name,
@@ -184,8 +189,9 @@ bool ASSERT_TUPLE(struct tuple *expected, struct tuple *actual, char *test_name)
 #define BIB_KEY "[BIB %pI4#%u %pI6c#%u]"
 #define BIB_PRINT(bib) &bib->ipv4.l3, bib->ipv4.l4, &bib->ipv6.l3, bib->ipv6.l4
 
-bool ASSERT_BIB(struct bib_entry* expected, struct bib_entry* actual,
-		char *test_name)
+bool ASSERT_BIB(struct bib_entry const* expected,
+		struct bib_entry const* actual,
+		char const *test_name)
 {
 	if (expected == actual)
 		return true;
@@ -224,9 +230,9 @@ bool ASSERT_BIB(struct bib_entry* expected, struct bib_entry* actual,
 	&session->src4.l3, session->src4.l4, \
 	&session->dst4.l3, session->dst4.l4 \
 
-bool ASSERT_SESSION(struct session_entry *expected,
-		struct session_entry *actual,
-		char *test_name)
+bool ASSERT_SESSION(struct session_entry const *expected,
+		struct session_entry const *actual,
+		char const *test_name)
 {
 	if (expected == actual)
 		return true;

@@ -49,7 +49,8 @@ static void init_dst4(struct ipv4_transport_addr *addr, __u16 last_byte,
 	addr->l4 = port;
 }
 
-static int compare_session_foreach_cb(struct session_entry *session, void *arg)
+static int compare_session_foreach_cb(struct session_entry const *session,
+		void *arg)
 {
 	return session_equals(session, arg);
 }

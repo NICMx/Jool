@@ -47,7 +47,7 @@ struct unit_iteration_args {
 	unsigned int offset;
 };
 
-static int cb(struct bib_entry *bib, bool is_static, void *void_args)
+static int cb(struct bib_entry const *bib, bool is_static, void *void_args)
 {
 	struct unit_iteration_args *args = void_args;
 	unsigned int index;

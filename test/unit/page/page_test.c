@@ -13,28 +13,27 @@ MODULE_LICENSE(JOOL_LICENSE);
 MODULE_AUTHOR("Alberto Leiva");
 MODULE_DESCRIPTION("Pages test");
 
+struct xlator jool;
 struct tuple tuple6;
-struct net_device *dev;
 u8 buffer[PAGE_SIZE];
 extern struct sk_buff *skb_out;
 
 static int init(void)
 {
-	struct xlator jool;
 	struct ipv6_prefix prefix6;
 	int error;
 
-	error = xlator_add(&jool);
+	error = xlator_add(FW_NETFILTER, INAME_DEFAULT, &jool);
 	if (error)
 		return error;
 
 	error = str_to_addr6("2001:db8::", &prefix6.address);
 	if (error)
-		return error;
+		goto fail;
 	prefix6.len = 96;
 	error = pool6_add(jool.pool6, &prefix6);
 	if (error)
-		return error;
+		goto fail;
 
 	/* Test's global variables */
 	error = init_tuple6(&tuple6,
@@ -42,20 +41,19 @@ static int init(void)
 			"2001:db8::203.0.113.2", 6000,
 			L4PROTO_TCP);
 	if (error)
-		return error;
-	/*
-	 * Yes, this is sort of a hack. I just need a valid device in the
-	 * current namespace.
-	 */
-	dev = init_net.loopback_dev;
+		goto fail;
 
-	xlator_put(&jool);
 	return 0;
+
+fail:
+	xlator_put(&jool);
+	return error;
 }
 
 static void clean(void)
 {
-	xlator_rm();
+	xlator_put(&jool);
+	xlator_rm(FW_NETFILTER, INAME_DEFAULT);
 }
 
 static void print_some_bytes(void *buffer, unsigned int size)
@@ -276,7 +274,7 @@ static bool basic_single_test(unsigned int head_len, unsigned int data_len)
 	if (!skb_in)
 		return false;
 
-	verdict = core_6to4(skb_in, dev);
+	verdict = core_6to4(skb_in, &jool);
 	if (verdict != NF_STOLEN)
 		kfree_skb(skb_in);
 

@@ -25,6 +25,7 @@ $(PAGE)-objs += ../impersonator/route.o
 $(PAGE)-objs += ../framework/skb_generator.o
 $(PAGE)-objs += ../framework/types.o
 
+$(PAGE)-objs += ../../../common/netlink/config.o
 $(PAGE)-objs += ../../../mod/common/config.o
 $(PAGE)-objs += ../../../mod/common/ipv6_hdr_iterator.o
 $(PAGE)-objs += ../../../mod/common/packet.o

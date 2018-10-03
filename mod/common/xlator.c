@@ -388,8 +388,8 @@ int xlator_add(int fw, char *iname, struct xlator *result)
 
 		/* All error roads from now need to free @ops. */
 
-		init_nf_hook_op6(&instance->nf_ops[0]);
-		init_nf_hook_op4(&instance->nf_ops[1]);
+		init_nf_hook_op6(&ops[0]);
+		init_nf_hook_op4(&ops[1]);
 
 		error = nf_register_net_hooks(ns, ops, 2);
 		if (error) {

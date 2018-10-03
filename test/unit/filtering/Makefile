@@ -17,6 +17,7 @@ FILTERING = filtering
 obj-m += $(FILTERING).o
 
 $(FILTERING)-objs += $(MIN_REQS)
+$(FILTERING)-objs += ../../../common/netlink/config.o
 $(FILTERING)-objs += ../../../mod/common/config.o
 $(FILTERING)-objs += ../../../mod/common/packet.o
 $(FILTERING)-objs += ../../../mod/common/pool6.o

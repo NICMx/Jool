@@ -90,7 +90,7 @@ struct foreach_sample_args {
 	unsigned int taddrs;
 };
 
-static int validate_sample(struct pool4_sample *sample, void *void_args)
+static int validate_sample(struct pool4_sample const *sample, void *void_args)
 {
 	struct foreach_sample_args *args = void_args;
 	bool success = true;

@@ -41,29 +41,33 @@
  * easier to recognize.
  */
 
-bool ASSERT_ADDR4(const char *expected, const struct in_addr *actual,
-		const char *test_name);
-bool __ASSERT_ADDR4(const struct in_addr *expected,
-		const struct in_addr *actual,
-		const char *test_name);
-bool ASSERT_TADDR4(const struct ipv4_transport_addr *expected,
-		const struct ipv4_transport_addr *actual,
-		const char *test_name);
-bool ASSERT_ADDR6(const char *expected, const struct in6_addr *actual,
-		const char *test_name);
-bool __ASSERT_ADDR6(const struct in6_addr *expected,
-		const struct in6_addr *actual,
-		const char *test_name);
-bool ASSERT_TADDR6(const struct ipv6_transport_addr *expected,
-		const struct ipv6_transport_addr *actual,
-		const char *test_name);
-bool ASSERT_TUPLE(struct tuple *expected, struct tuple *actual,
-		char *test_name);
-bool ASSERT_BIB(struct bib_entry *expected, struct bib_entry *actual,
-		char *test_name);
-bool ASSERT_SESSION(struct session_entry *expected,
-		struct session_entry *actual,
-		char *test_name);
+bool ASSERT_ADDR4(char const *expected,
+		struct in_addr const *actual,
+		char const *test_name);
+bool __ASSERT_ADDR4(struct in_addr const *expected,
+		struct in_addr const *actual,
+		char const *test_name);
+bool ASSERT_TADDR4(struct ipv4_transport_addr const *expected,
+		struct ipv4_transport_addr const *actual,
+		char const *test_name);
+bool ASSERT_ADDR6(char const *expected,
+		struct in6_addr const *actual,
+		char const *test_name);
+bool __ASSERT_ADDR6(struct in6_addr const *expected,
+		struct in6_addr const *actual,
+		char const *test_name);
+bool ASSERT_TADDR6(struct ipv6_transport_addr const *expected,
+		struct ipv6_transport_addr const *actual,
+		char const *test_name);
+bool ASSERT_TUPLE(struct tuple const *expected,
+		struct tuple const *actual,
+		char const *test_name);
+bool ASSERT_BIB(struct bib_entry const *expected,
+		struct bib_entry const *actual,
+		char const *test_name);
+bool ASSERT_SESSION(struct session_entry const *expected,
+		struct session_entry const *actual,
+		char const *test_name);
 
 void print_session(struct session_entry *session);
 

@@ -89,7 +89,7 @@ struct unit_iteration_args {
 	unsigned int offset;
 };
 
-static int cb(struct session_entry *session, void *void_args)
+static int cb(struct session_entry const *session, void *void_args)
 {
 	struct unit_iteration_args *args = void_args;
 	unsigned int index;

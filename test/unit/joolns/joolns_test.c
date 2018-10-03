@@ -39,7 +39,7 @@ static bool validate(char *expected_addr, __u8 expected_len)
 	int error;
 	bool success = true;
 
-	error = xlator_find_current(&jool);
+	error = xlator_find_current(FW_NETFILTER, INAME_DEFAULT, &jool);
 	if (error) {
 		log_info("xlator_find_current() threw %d", error);
 		return false;
@@ -80,7 +80,7 @@ static bool atomic_test(void)
 	int error;
 	bool success = false;
 
-	error = xlator_find_current(&new);
+	error = xlator_find_current(FW_NETFILTER, INAME_DEFAULT, &new);
 	if (error) {
 		log_info("jparser_init() threw %d", error);
 		return false;
@@ -118,7 +118,7 @@ end:
 }
 
 /**
- * Test the previous test handled krefs correctly.Siege on Bowser's Castle
+ * Test the previous test handled krefs correctly.
  */
 static bool krefs_test(void)
 {
@@ -126,14 +126,14 @@ static bool krefs_test(void)
 	int error;
 	bool success = true;
 
-	error = xlator_find_current(&jool);
+	error = xlator_find_current(FW_NETFILTER, INAME_DEFAULT, &jool);
 	if (error) {
 		log_info("xlator_find_current() threw %d", error);
 		return false;
 	}
 
-	/* @old + database's ref + the one we just took. */
-	success &= ASSERT_INT(old_refs + 2, ns_refcount(jool.ns), "ns kref");
+	/* The database does not claim references to ns. */
+	success &= ASSERT_INT(old_refs, ns_refcount(jool.ns), "ns kref");
 	/* xlator DB's kref + the one we just took. */
 	success &= ASSERT_INT(2,
 #if LINUX_VERSION_AT_LEAST(4, 11, 0, 9999, 0)
@@ -195,7 +195,7 @@ static int init(void)
 		log_info("xlator_setup() threw %d", error);
 		return error;
 	}
-	error = xlator_add(&jool);
+	error = xlator_add(FW_NETFILTER, INAME_DEFAULT, &jool);
 	if (error) {
 		log_info("xlator_add() threw %d", error);
 		goto fail1;
@@ -216,7 +216,7 @@ static int init(void)
 	return 0;
 
 fail2:
-	xlator_rm();
+	xlator_rm(FW_NETFILTER, INAME_DEFAULT);
 fail1:
 	xlator_put(&jool);
 	xlator_teardown();
@@ -229,7 +229,8 @@ fail1:
 static bool clean(void)
 {
 	bool success;
-	success = ASSERT_INT(0, xlator_rm(), "xlator_rm");
+	success = ASSERT_INT(0, xlator_rm(FW_NETFILTER, INAME_DEFAULT),
+			"xlator_rm");
 	xlator_teardown();
 	return success;
 }

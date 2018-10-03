@@ -19,6 +19,7 @@ JOOLNS = joolns
 obj-m += $(JOOLNS).o
 
 $(JOOLNS)-objs += $(MIN_REQS)
+$(JOOLNS)-objs += ../../../common/netlink/config.o
 $(JOOLNS)-objs += ../../../mod/common/atomic_config.o
 $(JOOLNS)-objs += ../../../mod/common/config.o
 $(JOOLNS)-objs += ../../../mod/common/rtrie.o

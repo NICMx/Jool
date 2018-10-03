@@ -19,7 +19,7 @@ PROJECTS += pool4db
 PROJECTS += bibdb
 PROJECTS += sessiondb
 
-# Layer 4 tests
+# Layer 4 tests (utils that depend on the dbs)
 PROJECTS += joolns
 
 # Layer 5 tests (translation steps)
