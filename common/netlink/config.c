@@ -110,19 +110,25 @@ int validate_request(void *data, size_t data_len, char *sender, char *receiver,
 	return validate_version(data, sender, receiver);
 }
 
-int iname_validate(const char *iname)
+int iname_validate(const char *iname, bool allow_null)
 {
 	unsigned int i;
 
-	if (iname) {
-		for (i = 0; i < INAME_MAX_LEN; i++) {
-			if (iname[i] == '\0')
-				return 0;
-			if (iname[i] < 32) /* "if not printable" */
-				break;
-		}
+	if (!iname) {
+		if (allow_null)
+			return 0;
+		goto fail;
 	}
 
+	for (i = 0; i < INAME_MAX_LEN; i++) {
+		if (iname[i] == '\0')
+			return 0;
+		if (iname[i] < 32) /* "if not printable" */
+			break;
+	}
+	/* Fall through. */
+
+fail:
 	log_err("The instance name must be a null-terminated ascii string, %u characters max.",
 			INAME_MAX_LEN - 1);
 	return -EINVAL;

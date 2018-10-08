@@ -19,6 +19,7 @@ obj-m += $(BIBDB).o
 $(BIBDB)-objs += $(MIN_REQS)
 $(BIBDB)-objs += ../../../mod/common/config.o
 $(BIBDB)-objs += ../../../mod/common/rbtree.o
+$(BIBDB)-objs += ../../../mod/common/translation_state.o
 $(BIBDB)-objs += ../../../mod/stateful/bib/db.o
 $(BIBDB)-objs += ../framework/bib.o
 $(BIBDB)-objs += ../impersonator/icmp_wrapper.o

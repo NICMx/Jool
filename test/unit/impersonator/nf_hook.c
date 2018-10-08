@@ -1,4 +1,4 @@
-#include "nat64/mod/common/nf_hook.h"
+#include "nat64/mod/common/kernel_hook.h"
 #include "nat64/mod/common/nf_wrapper.h"
 
 static NF_CALLBACK(hook_thingy, skb)

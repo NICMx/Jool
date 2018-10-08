@@ -2,9 +2,7 @@
 #include <linux/slab.h>
 
 #include "nat64/mod/common/linux_version.h"
-#if LINUX_VERSION_AT_LEAST(3, 7, 0, 0, 0)
 #include <linux/rbtree_augmented.h>
-#endif
 
 #include "nat64/unit/unit_test.h"
 #include "nat64/mod/common/rbtree.h"

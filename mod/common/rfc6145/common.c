@@ -246,15 +246,12 @@ verdict ttpcomm_translate_inner_packet(struct xlation *state)
 	switch (pkt_l3_proto(in)) {
 	case L3PROTO_IPV4:
 		if (move_pointers4(state))
-			return VERDICT_DROP;
+			return drop(state, JSTAT_UNKNOWN);
 		break;
 	case L3PROTO_IPV6:
 		if (move_pointers6(in, out))
-			return VERDICT_DROP;
+			return drop(state, JSTAT_UNKNOWN);
 		break;
-	default:
-		inc_stats(in, IPSTATS_MIB_INUNKNOWNPROTOS);
-		return VERDICT_DROP;
 	}
 
 	if (xlat_is_nat64()) {
@@ -267,7 +264,7 @@ verdict ttpcomm_translate_inner_packet(struct xlation *state)
 	current_steps = &steps[pkt_l3_proto(in)][pkt_l4_proto(in)];
 
 	result = current_steps->l3_hdr_fn(state);
-	if (result == VERDICT_ACCEPT) {
+	if (result == VERDICT_UNTRANSLATABLE) {
 		/*
 		 * Accepting because of an inner packet doesn't make sense.
 		 * Also we couldn't have translated this inner packet.
@@ -278,15 +275,15 @@ verdict ttpcomm_translate_inner_packet(struct xlation *state)
 		return result;
 
 	result = current_steps->l4_hdr_fn(state);
-	if (result == VERDICT_ACCEPT)
+	if (result == VERDICT_UNTRANSLATABLE)
 		return VERDICT_DROP;
 	if (result != VERDICT_CONTINUE)
 		return result;
 
 	if (restore(in, &bkp_in))
-		return VERDICT_DROP;
+		return drop(state, JSTAT_UNKNOWN);
 	if (restore(out, &bkp_out))
-		return VERDICT_DROP;
+		return drop(state, JSTAT_UNKNOWN);
 
 	return VERDICT_CONTINUE;
 }

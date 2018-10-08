@@ -1,17 +1,17 @@
 #include "nat64/mod/common/xlator.h"
 
 #include <linux/sched.h>
+
 #include "nat64/common/types.h"
 #include "nat64/common/xlat.h"
 #include "nat64/mod/common/atomic_config.h"
+#include "nat64/mod/common/kernel_hook.h"
 #include "nat64/mod/common/linux_version.h"
-#include "nat64/mod/common/nf_hook.h"
 #include "nat64/mod/common/pool6.h"
 #include "nat64/mod/common/wkmalloc.h"
 #include "nat64/mod/stateless/blacklist4.h"
 #include "nat64/mod/stateless/eam.h"
 #include "nat64/mod/stateless/rfc6791.h"
-#include "nat64/mod/stateful/fragment_db.h"
 #include "nat64/mod/stateful/joold.h"
 #include "nat64/mod/stateful/pool4/db.h"
 #include "nat64/mod/stateful/bib/db.h"
@@ -58,7 +58,9 @@ static void destroy_jool_instance(struct jool_instance *instance, bool unhook)
 		__wkfree("nf_hook_ops", instance->nf_ops);
 	}
 #endif
+
 	xlator_put(&instance->jool);
+	log_info("Deleting instance '%s'.", instance->jool.iname);
 	wkfree(struct jool_instance, instance);
 }
 
@@ -72,7 +74,6 @@ static void xlator_get(struct xlator *jool)
 		blacklist_get(jool->siit.blacklist);
 		rfc6791_get(jool->siit.pool6791);
 	} else {
-		fragdb_get(jool->nat64.frag);
 		pool4db_get(jool->nat64.pool4);
 		bib_get(jool->nat64.bib);
 		joold_get(jool->nat64.joold);
@@ -225,9 +226,6 @@ static int init_nat64(struct xlator *jool)
 	jool->pool6 = pool6_alloc();
 	if (!jool->pool6)
 		goto pool6_fail;
-	jool->nat64.frag = fragdb_alloc(jool->ns);
-	if (!jool->nat64.frag)
-		goto fragdb_fail;
 	jool->nat64.pool4 = pool4db_alloc();
 	if (!jool->nat64.pool4)
 		goto pool4_fail;
@@ -250,8 +248,6 @@ joold_fail:
 bib_fail:
 	pool4db_put(jool->nat64.pool4);
 pool4_fail:
-	fragdb_put(jool->nat64.frag);
-fragdb_fail:
 	pool6_put(jool->pool6);
 pool6_fail:
 	config_put(jool->global);
@@ -264,7 +260,7 @@ static bool xlator_matches(struct xlator *jool, struct net *ns, int fw,
 {
 	return (jool->ns == ns)
 			&& (jool->fw & fw)
-			&& (strcmp(jool->iname, iname) == 0);
+			&& (!iname || strcmp(jool->iname, iname) == 0);
 }
 
 /**
@@ -323,7 +319,7 @@ int xlator_add(int fw, char *iname, struct xlator *result)
 	error = fw_validate(fw);
 	if (error)
 		return error;
-	error = iname_validate(iname);
+	error = iname_validate(iname, false);
 	if (error)
 		return error;
 
@@ -411,6 +407,7 @@ int xlator_add(int fw, char *iname, struct xlator *result)
 
 	mutex_unlock(&lock);
 	put_net(ns);
+	log_info("Created instance '%s'.", iname);
 	return 0;
 
 mutex_fail:
@@ -420,12 +417,7 @@ mutex_fail:
 	return error;
 }
 
-/**
- * Will actually delete the FIRST instance that matches [ns, fw, iname].
- * (Since fw is a bit flag, more than one instance can match.)
- * This is fine for now.
- */
-static int __xlator_rm(struct net *ns, int fw, char *iname)
+static int __xlator_rm(struct net *ns, char *iname)
 {
 	struct list_head *list;
 	struct jool_instance *instance;
@@ -434,7 +426,7 @@ static int __xlator_rm(struct net *ns, int fw, char *iname)
 
 	list = rcu_dereference_protected(pool, lockdep_is_held(&lock));
 	list_for_each_entry(instance, list, list_hook) {
-		if (xlator_matches(&instance->jool, ns, fw, iname)) {
+		if (xlator_matches(&instance->jool, ns, FW_ANY, iname)) {
 			list_del_rcu(&instance->list_hook);
 			mutex_unlock(&lock);
 
@@ -458,16 +450,12 @@ static int __xlator_rm(struct net *ns, int fw, char *iname)
 	return -ESRCH;
 }
 
-/**
- * xlator_rm - Whenever called, stops translation of packets traveling through
- * the namespace running in the caller's context.
- */
-int xlator_rm(int fw, char *iname)
+int xlator_rm(char *iname)
 {
 	struct net *ns;
 	int error;
 
-	error = iname_validate(iname);
+	error = iname_validate(iname, false);
 	if (error)
 		return error;
 
@@ -477,7 +465,7 @@ int xlator_rm(int fw, char *iname)
 		return PTR_ERR(ns);
 	}
 
-	error = __xlator_rm(ns, fw, iname);
+	error = __xlator_rm(ns, iname);
 	switch (error) {
 	case 0:
 		break;
@@ -510,7 +498,7 @@ int xlator_replace(struct xlator *jool)
 	error = fw_validate(jool->fw);
 	if (error)
 		return error;
-	error = iname_validate(jool->iname);
+	error = iname_validate(jool->iname, false);
 	if (error)
 		return error;
 
@@ -562,14 +550,18 @@ int xlator_flush(void)
 }
 
 /**
- * xlator_find - Retrieves the Jool instance currently loaded in namespace @ns.
+ * xlator_find - Returns the first instance in the database that matches @ns,
+ * @fw and @iname.
  *
  * A result value of 0 means success, -ESRCH means that this namespace has no
- * instance.
- * @result will be populated with the instance. Send NULL if you're not
- * interested.
+ * instance, -EINVAL means that @iname is not a valid instance name.
+ * @result will be populated with the instance. Send NULL if all you want is to
+ * test whether it exists or not.
+ * If not NULL, please xlator_put() @result when you're done using it.
  *
- * Please xlator_put() the instance when you're done using it.
+ * @iname is allowed to be NULL. Do this when you don't care about the instace's
+ * name; you just want one that matches both @ns and @fw.
+ *
  * IT IS EXTREMELY IMPORTANT THAT YOU NEVER KREF_GET ANY OF @result'S MEMBERS!!!
  * (You are not meant to fork pointers to them.)
  */
@@ -580,7 +572,12 @@ int xlator_find(struct net *ns, int fw, const char *iname,
 	struct jool_instance *instance;
 	int error;
 
-	error = iname_validate(iname);
+	/*
+	 * There is at least one caller to this function which cares about error
+	 * code. You need to review it if you want to add or reuse error codes.
+	 */
+
+	error = iname_validate(iname, true);
 	if (error)
 		return error;
 
@@ -644,7 +641,6 @@ void xlator_put(struct xlator *jool)
 		blacklist_put(jool->siit.blacklist);
 		rfc6791_put(jool->siit.pool6791);
 	} else {
-		fragdb_put(jool->nat64.frag);
 		pool4db_put(jool->nat64.pool4);
 		bib_put(jool->nat64.bib);
 		joold_put(jool->nat64.joold);
@@ -696,5 +692,4 @@ void xlator_copy_config(struct xlator *jool, struct full_config *copy)
 	config_copy(&jool->global->cfg, &copy->global);
 	bib_config_copy(jool->nat64.bib, &copy->bib);
 	joold_config_copy(jool->nat64.joold, &copy->joold);
-	fragdb_config_copy(jool->nat64.frag, &copy->frag);
 }

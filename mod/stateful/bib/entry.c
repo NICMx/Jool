@@ -1,12 +1,6 @@
 #include "nat64/mod/stateful/bib/entry.h"
 #include "nat64/mod/common/address.h"
 
-void bib_session_init(struct bib_session *bs)
-{
-	bs->bib_set = false;
-	bs->session_set = false;
-}
-
 bool session_equals(const struct session_entry *s1,
 		const struct session_entry *s2)
 {

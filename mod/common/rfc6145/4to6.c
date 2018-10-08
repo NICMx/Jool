@@ -60,8 +60,8 @@ verdict ttp46_alloc_skb(struct xlation *state)
 	/* Allocate the outgoing packet as a copy of @in with shared pages. */
 	out = __pskb_copy(in->skb, delta + skb_headroom(in->skb), GFP_ATOMIC);
 	if (!out) {
-		inc_stats(in, IPSTATS_MIB_INDISCARDS);
-		return VERDICT_DROP;
+		log_debug("__pskb_copy() returned NULL.");
+		return drop(state, JSTAT46_PSKB_COPY);
 	}
 
 	/* Remove outer l3 and l4 headers from the copy. */
@@ -248,10 +248,11 @@ static verdict translate_addrs46_siit(struct xlation *state)
 		if (pkt_is_icmp4_error(in)
 				&& !rfc6791_find_v6(state, &hdr6->saddr))
 			break; /* Ok, success. */
-		return VERDICT_ACCEPT;
+		return untranslatable(state, JSTAT46_SRC);
 	case ADDRXLAT_ACCEPT:
+		return untranslatable(state, JSTAT46_SRC);
 	case ADDRXLAT_DROP:
-		return (verdict)result;
+		return drop(state, JSTAT_UNKNOWN);
 	}
 
 	/* Dst address. */
@@ -261,10 +262,11 @@ static verdict translate_addrs46_siit(struct xlation *state)
 	case ADDRXLAT_CONTINUE:
 		break;
 	case ADDRXLAT_TRY_SOMETHING_ELSE:
-		return VERDICT_ACCEPT;
+		return untranslatable(state, JSTAT46_DST);
 	case ADDRXLAT_ACCEPT:
+		return untranslatable(state, JSTAT46_DST);
 	case ADDRXLAT_DROP:
-		return (verdict)result;
+		return drop(state, JSTAT_UNKNOWN);
 	}
 
 	log_debug("Result: %pI6c->%pI6c", &hdr6->saddr, &hdr6->daddr);
@@ -337,14 +339,12 @@ verdict ttp46_ipv6(struct xlation *state)
 	struct packet *out = &state->out;
 	struct iphdr *hdr4 = pkt_ip4_hdr(in);
 	struct ipv6hdr *hdr6 = pkt_ip6_hdr(out);
-	int error;
 	verdict result;
 
 	/* Translate the address first because of issue #167. */
 	if (xlat_is_nat64()) {
-		error = generate_saddr6_nat64(state);
-		if (error)
-			return VERDICT_DROP;
+		if (generate_saddr6_nat64(state))
+			return drop(state, JSTAT46_SRC);
 		hdr6->daddr = out->tuple.dst.addr6.l3;
 	} else {
 		result = translate_addrs46_siit(state);
@@ -368,9 +368,8 @@ verdict ttp46_ipv6(struct xlation *state)
 			: hdr4->protocol;
 	if (pkt_is_outer(in) && !pkt_is_intrinsic_hairpin(in)) {
 		if (hdr4->ttl <= 1) {
-			icmp64_send(in, ICMPERR_HOP_LIMIT, 0);
-			inc_stats(in, IPSTATS_MIB_INHDRERRORS);
-			return VERDICT_DROP;
+			log_debug("Packet's TTL <= 1.");
+			return drop_icmp(state, JSTAT46_TTL, ICMPERR_TTL, 0);
 		}
 		hdr6->hop_limit = hdr4->ttl - 1;
 	} else {
@@ -385,9 +384,7 @@ verdict ttp46_ipv6(struct xlation *state)
 
 	if (pkt_is_outer(in) && has_unexpired_src_route(hdr4)) {
 		log_debug("Packet has an unexpired source route.");
-		icmp64_send(in, ICMPERR_SRC_ROUTE, 0);
-		inc_stats(in, IPSTATS_MIB_INHDRERRORS);
-		return VERDICT_DROP;
+		return drop_icmp(state, JSTAT46_SRC_ROUTE, ICMPERR_SRC_ROUTE, 0);
 	}
 
 	if (will_need_frag_hdr(hdr4)) {
@@ -449,7 +446,7 @@ static __be32 icmp6_minimum_mtu(struct xlation *state,
 	return cpu_to_be32(result);
 }
 
-static int compute_mtu6(struct xlation *state)
+static verdict compute_mtu6(struct xlation *state)
 {
 	struct icmp6hdr *out_icmp = pkt_icmp6_hdr(&state->out);
 #ifndef UNIT_TESTING
@@ -460,7 +457,7 @@ static int compute_mtu6(struct xlation *state)
 
 	out_dst = route6(state->jool.ns, &state->out);
 	if (!out_dst)
-		return -EINVAL;
+		return drop(state, JSTAT_FAILED_ROUTES);
 	/*
 	 * 0xfffffff is intended for hairpinning (there's no IPv4 device on
 	 * hairpinning).
@@ -487,18 +484,17 @@ static int compute_mtu6(struct xlation *state)
 	out_icmp->icmp6_mtu = icmp6_minimum_mtu(state, 9999, 1500, 9999, 100);
 #endif
 
-	return 0;
+	return VERDICT_CONTINUE;
 }
 
 /**
  * One-liner for translating "Destination Unreachable" messages from ICMPv4 to
  * ICMPv6.
  */
-static int icmp4_to_icmp6_dest_unreach(struct xlation *state)
+static verdict icmp4_to_icmp6_dest_unreach(struct xlation *state)
 {
 	struct icmphdr *icmp4_hdr = pkt_icmp4_hdr(&state->in);
 	struct icmp6hdr *icmp6_hdr = pkt_icmp6_hdr(&state->out);
-	int error;
 
 	icmp6_hdr->icmp6_type = ICMPV6_DEST_UNREACH;
 	icmp6_hdr->icmp6_unused = 0;
@@ -513,53 +509,46 @@ static int icmp4_to_icmp6_dest_unreach(struct xlation *state)
 	case ICMP_NET_UNR_TOS:
 	case ICMP_HOST_UNR_TOS:
 		icmp6_hdr->icmp6_code = ICMPV6_NOROUTE;
-		break;
+		return VERDICT_CONTINUE;
 
 	case ICMP_PROT_UNREACH:
 		icmp6_hdr->icmp6_type = ICMPV6_PARAMPROB;
 		icmp6_hdr->icmp6_code = ICMPV6_UNK_NEXTHDR;
 		icmp6_hdr->icmp6_pointer = cpu_to_be32(offsetof(struct ipv6hdr,
 				nexthdr));
-		break;
+		return VERDICT_CONTINUE;
 
 	case ICMP_PORT_UNREACH:
 		icmp6_hdr->icmp6_code = ICMPV6_PORT_UNREACH;
-		break;
+		return VERDICT_CONTINUE;
 
 	case ICMP_FRAG_NEEDED:
 		icmp6_hdr->icmp6_type = ICMPV6_PKT_TOOBIG;
 		icmp6_hdr->icmp6_code = 0;
-		error = compute_mtu6(state);
-		if (error)
-			return error;
-		break;
+		return compute_mtu6(state);
 
 	case ICMP_NET_ANO:
 	case ICMP_HOST_ANO:
 	case ICMP_PKT_FILTERED:
 	case ICMP_PREC_CUTOFF:
 		icmp6_hdr->icmp6_code = ICMPV6_ADM_PROHIBITED;
-		break;
-
-	default:
-		/*
-		 * hostPrecedenceViolation (14) is known to fall through here.
-		 */
-		log_debug("ICMPv4 messages type %u code %u lack an ICMPv6 counterpart.",
-				icmp4_hdr->type, icmp4_hdr->code);
-		inc_stats(&state->in, IPSTATS_MIB_INHDRERRORS);
-		return -EINVAL; /* No ICMP error. */
+		return VERDICT_CONTINUE;
 	}
 
-	return 0;
+	/* hostPrecedenceViolation (14) is known to fall through here. */
+	log_debug("ICMPv4 messages type %u code %u lack an ICMPv6 counterpart.",
+			icmp4_hdr->type, icmp4_hdr->code);
+	/* No ICMP error. */
+	return drop(state, JSTAT46_UNTRANSLATABLE_DEST_UNREACH);
 }
 
 /**
  * One-liner for translating "Parameter Problem" messages from ICMPv4 to ICMPv6.
  */
-static int icmp4_to_icmp6_param_prob(struct icmphdr *icmp4_hdr,
-		struct icmp6hdr *icmp6_hdr)
+static verdict icmp4_to_icmp6_param_prob(struct xlation *state)
 {
+	struct icmphdr *icmp4_hdr = pkt_icmp4_hdr(&state->in);
+	struct icmp6hdr *icmp6_hdr = pkt_icmp6_hdr(&state->out);
 	__u8 ptr;
 
 	icmp6_hdr->icmp6_type = ICMPV6_PARAMPROB;
@@ -568,11 +557,12 @@ static int icmp4_to_icmp6_param_prob(struct icmphdr *icmp4_hdr,
 	case ICMP_PTR_INDICATES_ERROR:
 	case ICMP_BAD_LENGTH: {
 		const __u8 DROP = 255;
-		__u8 ptrs[] = { 0, 1, 4, 4,
+		__u8 ptrs[] = {
+				0,    1,    4,    4,
 				DROP, DROP, DROP, DROP,
-				7, 6, DROP, DROP,
-				8, 8, 8, 8,
-				24, 24, 24, 24
+				7,    6,    DROP, DROP,
+				8,    8,    8,    8,
+				24,   24,   24,   24
 		};
 
 		ptr = be32_to_cpu(icmp4_hdr->icmp4_unused) >> 24;
@@ -580,23 +570,23 @@ static int icmp4_to_icmp6_param_prob(struct icmphdr *icmp4_hdr,
 		if (ptr < 0 || 19 < ptr || ptrs[ptr] == DROP) {
 			log_debug("ICMPv4 messages type %u code %u pointer %u lack an ICMPv6 counterpart.",
 					icmp4_hdr->type, icmp4_hdr->code, ptr);
-			return -EINVAL;
+			return drop(state, JSTAT46_ICMP_PTR);
 		}
 
 		icmp6_hdr->icmp6_code = ICMPV6_HDR_FIELD;
 		icmp6_hdr->icmp6_pointer = cpu_to_be32(ptrs[ptr]);
-		break;
+		return VERDICT_CONTINUE;
 	}
-	default: /* missingARequiredOption (1) is known to fall through here. */
-		log_debug("ICMPv4 messages type %u code %u lack an ICMPv6 counterpart.",
-				icmp4_hdr->type, icmp4_hdr->code);
-		return -EINVAL; /* No ICMP error. */
 	}
 
-	return 0;
+	/* missingARequiredOption (1) is known to fall through here. */
+	log_debug("ICMPv4 messages type %u code %u lack an ICMPv6 counterpart.",
+			icmp4_hdr->type, icmp4_hdr->code);
+	/* No ICMP error. */
+	return drop(state, JSTAT46_UNTRANSLATABLE_PARAM_PROB);
 }
 
-static int update_icmp6_csum(struct xlation *state)
+static void update_icmp6_csum(struct xlation *state)
 {
 	struct ipv6hdr *out_ip6 = pkt_ip6_hdr(&state->out);
 	struct icmphdr *in_icmp = pkt_icmp4_hdr(&state->in);
@@ -617,11 +607,9 @@ static int update_icmp6_csum(struct xlation *state)
 	out_icmp->icmp6_cksum = csum_ipv6_magic(&out_ip6->saddr,
 			&out_ip6->daddr, pkt_datagram_len(&state->in),
 			IPPROTO_ICMPV6, csum);
-
-	return 0;
 }
 
-static int compute_icmp6_csum(struct packet *out)
+static void compute_icmp6_csum(struct packet *out)
 {
 	struct ipv6hdr *out_ip6 = pkt_ip6_hdr(out);
 	struct icmp6hdr *out_icmp = pkt_icmp6_hdr(out);
@@ -638,12 +626,11 @@ static int compute_icmp6_csum(struct packet *out)
 			&out_ip6->daddr, pkt_datagram_len(out), IPPROTO_ICMPV6,
 			csum);
 	out->skb->ip_summed = CHECKSUM_NONE;
-
-	return 0;
 }
 
-static verdict validate_icmp4_csum(struct packet *in)
+static verdict validate_icmp4_csum(struct xlation *state)
 {
+	struct packet *in = &state->in;
 	__sum16 csum;
 
 	if (in->skb->ip_summed != CHECKSUM_NONE)
@@ -653,8 +640,7 @@ static verdict validate_icmp4_csum(struct packet *in)
 			pkt_datagram_len(in), 0));
 	if (csum != 0) {
 		log_debug("Checksum doesn't match.");
-		inc_stats(in, IPSTATS_MIB_INHDRERRORS);
-		return VERDICT_DROP;
+		return drop(state, JSTAT46_ICMP_CSUM);
 	}
 
 	return VERDICT_CONTINUE;
@@ -671,7 +657,7 @@ static verdict post_icmp6error(struct xlation *state)
 	 * translate a corrupted ICMPv4 error into an OK-csum ICMPv6 one,
 	 * so validate first.
 	 */
-	result = validate_icmp4_csum(&state->in);
+	result = validate_icmp4_csum(state);
 	if (result != VERDICT_CONTINUE)
 		return result;
 
@@ -679,7 +665,8 @@ static verdict post_icmp6error(struct xlation *state)
 	if (result != VERDICT_CONTINUE)
 		return result;
 
-	return compute_icmp6_csum(&state->out) ? VERDICT_DROP : VERDICT_CONTINUE;
+	compute_icmp6_csum(&state->out);
+	return VERDICT_CONTINUE;
 }
 
 /**
@@ -690,7 +677,7 @@ verdict ttp46_icmp(struct xlation *state)
 {
 	struct icmphdr *icmpv4_hdr = pkt_icmp4_hdr(&state->in);
 	struct icmp6hdr *icmpv6_hdr = pkt_icmp6_hdr(&state->out);
-	int error = 0;
+	verdict result;
 
 	icmpv6_hdr->icmp6_cksum = icmpv4_hdr->checksum; /* default. */
 
@@ -703,8 +690,8 @@ verdict ttp46_icmp(struct xlation *state)
 				? cpu_to_be16(state->out.tuple.icmp6_id)
 				: icmpv4_hdr->un.echo.id;
 		icmpv6_hdr->icmp6_sequence = icmpv4_hdr->un.echo.sequence;
-		error = update_icmp6_csum(state);
-		break;
+		update_icmp6_csum(state);
+		return VERDICT_CONTINUE;
 
 	case ICMP_ECHOREPLY:
 		icmpv6_hdr->icmp6_type = ICMPV6_ECHO_REPLY;
@@ -713,13 +700,13 @@ verdict ttp46_icmp(struct xlation *state)
 				? cpu_to_be16(state->out.tuple.icmp6_id)
 				: icmpv4_hdr->un.echo.id;
 		icmpv6_hdr->icmp6_sequence = icmpv4_hdr->un.echo.sequence;
-		error = update_icmp6_csum(state);
-		break;
+		update_icmp6_csum(state);
+		return VERDICT_CONTINUE;
 
 	case ICMP_DEST_UNREACH:
-		error = icmp4_to_icmp6_dest_unreach(state);
-		if (error)
-			return VERDICT_DROP;
+		result = icmp4_to_icmp6_dest_unreach(state);
+		if (result != VERDICT_CONTINUE)
+			return result;
 		return post_icmp6error(state);
 
 	case ICMP_TIME_EXCEEDED:
@@ -729,29 +716,23 @@ verdict ttp46_icmp(struct xlation *state)
 		return post_icmp6error(state);
 
 	case ICMP_PARAMETERPROB:
-		error = icmp4_to_icmp6_param_prob(icmpv4_hdr, icmpv6_hdr);
-		if (error) {
-			inc_stats(&state->in, IPSTATS_MIB_INHDRERRORS);
-			return VERDICT_DROP;
-		}
+		result = icmp4_to_icmp6_param_prob(state);
+		if (result != VERDICT_CONTINUE)
+			return result;
 		return post_icmp6error(state);
-
-	default:
-		/*
-		 * The following codes are known to fall through here:
-		 * Information Request/Reply (15, 16), Timestamp and Timestamp
-		 * Reply (13, 14), Address Mask Request/Reply (17, 18), Router
-		 * Advertisement (9), Router Solicitation (10), Source Quench
-		 * (4), Redirect (5), Alternative Host Address (6).
-		 * This time there's no ICMP error.
-		 */
-		log_debug("ICMPv4 messages type %u lack an ICMPv6 counterpart.",
-				icmpv4_hdr->type);
-		inc_stats(&state->in, IPSTATS_MIB_INHDRERRORS);
-		return VERDICT_DROP;
 	}
 
-	return error ? VERDICT_DROP : VERDICT_CONTINUE;
+	/*
+	 * The following codes are known to fall through here:
+	 * Information Request/Reply (15, 16), Timestamp and Timestamp Reply
+	 * (13, 14), Address Mask Request/Reply (17, 18), Router Advertisement
+	 * (9), Router Solicitation (10), Source Quench (4), Redirect (5),
+	 * Alternative Host Address (6).
+	 * This time there's no ICMP error.
+	 */
+	log_debug("ICMPv4 messages type %u lack an ICMPv6 counterpart.",
+			icmpv4_hdr->type);
+	return drop(state, JSTAT46_ICMP_TYPE);
 }
 
 static __sum16 update_csum_4to6(__sum16 csum16,
@@ -859,7 +840,8 @@ static int handle_zero_csum(struct xlation *state)
 	 * - out's UDP header.
 	 * - in's payload.
 	 *
-	 * That's the reason why we needed in as an argument.
+	 * That's the reason why we needed more than just the outgoing packet
+	 * as argument.
 	 */
 
 	csum = csum_partial(hdr_udp, sizeof(*hdr_udp), 0);
@@ -942,7 +924,7 @@ verdict ttp46_udp(struct xlation *state)
 		 * as well, or better.
 		 */
 		if (handle_zero_csum(state))
-			return VERDICT_DROP;
+			return drop(state, JSTAT46_FRAGMENTED_ZERO_CSUM);
 	}
 
 	return VERDICT_CONTINUE;

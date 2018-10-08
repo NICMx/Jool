@@ -23,6 +23,7 @@ $(FILTERING)-objs += ../../../mod/common/packet.o
 $(FILTERING)-objs += ../../../mod/common/pool6.o
 $(FILTERING)-objs += ../../../mod/common/rbtree.o
 $(FILTERING)-objs += ../../../mod/common/rfc6052.o
+$(FILTERING)-objs += ../../../mod/common/translation_state.o
 $(FILTERING)-objs += ../../../mod/common/xlator.o
 $(FILTERING)-objs += ../../../mod/stateful/impersonator.o
 $(FILTERING)-objs += ../../../mod/stateful/pool4/db.o

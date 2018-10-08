@@ -22,6 +22,7 @@ $(TRANSLATE)-objs += ../../../mod/common/ipv6_hdr_iterator.o
 $(TRANSLATE)-objs += ../../../mod/common/packet.o
 $(TRANSLATE)-objs += ../../../mod/common/pool6.o
 $(TRANSLATE)-objs += ../../../mod/common/rfc6052.o
+$(TRANSLATE)-objs += ../../../mod/common/translation_state.o
 $(TRANSLATE)-objs += ../../../mod/common/rfc6145/common.o
 $(TRANSLATE)-objs += ../../../mod/stateful/impersonator.o
 $(TRANSLATE)-objs += ../framework/skb_generator.o

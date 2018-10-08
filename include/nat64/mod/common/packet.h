@@ -295,8 +295,7 @@ struct packet {
 	 * to the same packet (pkt->original_pkt = pkt). Otherwise (which
 	 * includes hairpin packets), this points to the original (incoming)
 	 * packet.
-	 * Used by the ICMP wrapper because it needs to reply the original
-	 * packet, not the one being translated. Also relevant to pkt_queue.
+	 * Used by the pkt queue.
 	 */
 	struct packet *original_pkt;
 
@@ -541,15 +540,17 @@ static inline bool pkt_is_icmp4_error(const struct packet *pkt)
 			&& is_icmp4_error(pkt_icmp4_hdr(pkt)->type);
 }
 
+struct xlation;
+
 /**
- * Ensures @skb isn't corrupted and initializes @pkt out of it.
+ * Ensures @skb isn't corrupted and initializes @state->in out of it.
  *
  * After this function, code can assume:
  * - @skb contains full l3 and l4 headers (including inner ones), their order
  *   seems to make sense, and they are all within the data area of @skb. (ie.
  *   they are not paged.)
  * - @skb's payload isn't truncated (though inner packet payload might).
- * - The pkt_* functions above can now be used on @pkt.
+ * - The pkt_* functions above can now be used on @state->in.
  * - The length fields in the l3 headers can be relied upon. (But not the ones
  *   contained in inner packets.)
  *
@@ -564,8 +565,8 @@ static inline bool pkt_is_icmp4_error(const struct packet *pkt)
  * to skb_network_header(skb), you will need to assign it again (by calling
  * skb_network_header() again).
  */
-int pkt_init_ipv6(struct packet *pkt, struct sk_buff *skb);
-int pkt_init_ipv4(struct packet *pkt, struct sk_buff *skb);
+verdict pkt_init_ipv6(struct xlation *state, struct sk_buff *skb);
+verdict pkt_init_ipv4(struct xlation *state, struct sk_buff *skb);
 /**
  * @}
  */

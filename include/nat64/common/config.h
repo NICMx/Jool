@@ -197,11 +197,7 @@ int validate_request(void *data, size_t data_len, char *sender, char *receiver,
 #define INAME_MAX_LEN 16u
 #define INAME_DEFAULT "default"
 
-/**
- * Be aware that a NULL iname is considered valid.
- * (It should behave like an empty string.)
- */
-int iname_validate(const char *iname);
+int iname_validate(const char *iname, bool allow_null);
 
 struct response_hdr {
 	struct request_hdr req;
@@ -232,7 +228,6 @@ union request_instance {
 		char iname[INAME_MAX_LEN];
 	} add;
 	struct {
-		__u8 fw;
 		char iname[INAME_MAX_LEN];
 	} rm;
 };
@@ -457,7 +452,6 @@ enum global_type {
 	ICMP_TIMEOUT,
 	TCP_EST_TIMEOUT,
 	TCP_TRANS_TIMEOUT,
-	FRAGMENT_TIMEOUT,
 	BIB_LOGGING,
 	SESSION_LOGGING,
 	MAX_PKTS,
@@ -703,15 +697,10 @@ struct joold_config {
 	__u16 max_payload;
 };
 
-struct fragdb_config {
-	__u32 ttl;
-};
-
 struct full_config {
 	struct global_config_usr global;
 	struct bib_config bib;
 	struct joold_config joold;
-	struct fragdb_config frag;
 };
 
 struct global_value {

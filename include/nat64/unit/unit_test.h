@@ -35,6 +35,8 @@
 #define ASSERT_BE32(expected, actual, name, ...) \
 		ASSERT_PRIMITIVE(expected, be32_to_cpu(actual), "%u", name, \
 				##__VA_ARGS__)
+#define ASSERT_VERDICT(expected, actual, name, ...) \
+	ASSERT_PRIMITIVE(VERDICT_ ## expected, actual, "%d", name, ##__VA_ARGS__)
 
 /*
  * Ehh... there aren't macros, but they're still all caps so they're even

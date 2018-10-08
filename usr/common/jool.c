@@ -202,20 +202,6 @@ static int set_global_u64(struct arguments *args, __u16 type, char *value,
 	return set_global_arg(args, type, sizeof(tmp), &tmp);
 }
 
-static int set_instance_type(struct arguments *args, char *value)
-{
-	if (strcmp(value, "netfilter") == 0) {
-		args->ifw = FW_NETFILTER;
-		return 0;
-	} else if (strcmp(value, "iptables") == 0) {
-		args->ifw = FW_IPTABLES;
-		return 0;
-	}
-
-	log_err("Instance type is supposed to be either 'netfilter' or 'iptables'.");
-	return -EINVAL;
-}
-
 static int set_max_iterations(struct arguments *args, char *value)
 {
 	if (strcmp(value, "auto") == 0) {
@@ -403,7 +389,7 @@ static int parse_opt(int key, char *str, struct argp_state *state)
 
 	switch (key) {
 	case ARGP_INAME:
-		error = iname_validate(str);
+		error = iname_validate(str, false);
 		if (!error)
 			strcpy(args->iname, str);
 		break;
@@ -464,10 +450,15 @@ static int parse_opt(int key, char *str, struct argp_state *state)
 		error = update_state(args, MODE_JOOLD, OP_TEST);
 		break;
 
-	case ARGP_INSTANCE_FW:
-		error = update_state(args, MODE_INSTANCE, OP_ADD | OP_REMOVE);
+	case ARGP_NETFILTER:
+		error = update_state(args, MODE_INSTANCE, OP_ADD);
 		if (!error)
-			error = set_instance_type(args, str);
+			args->ifw |= FW_NETFILTER;
+		break;
+	case ARGP_IPTABLES:
+		error = update_state(args, MODE_INSTANCE, OP_ADD);
+		if (!error)
+			args->ifw |= FW_IPTABLES;
 		break;
 	case ARGP_UDP:
 		error = update_state(args, MODE_POOL4 | MODE_BIB | MODE_SESSION,
@@ -562,9 +553,6 @@ static int parse_opt(int key, char *str, struct argp_state *state)
 	case ARGP_TCP_TRANS_TO:
 		error = set_global_u64(args, key, str, TCP_TRANS, MAX_U32/1000, 1000);
 		break;
-	case ARGP_FRAG_TO:
-		error = set_global_u64(args, key, str, FRAGMENT_MIN, MAX_U32/1000, 1000);
-		break;
 	case ARGP_STORED_PKTS:
 		error = set_global_u32(args, key, str, 0, MAX_U32);
 		break;
@@ -656,7 +644,6 @@ static int parse_args(int argc, char **argv, struct arguments *result)
 
 	memset(result, 0, sizeof(*result));
 	strcpy(result->iname, INAME_DEFAULT);
-	result->ifw = FW_NETFILTER; /* For backwards compatibiliricinity. */
 	result->mode = ANY_MODE;
 	result->op = ANY_OP;
 	result->db.pool4.ports.min = 0;
@@ -1000,7 +987,7 @@ static int handle_instance(struct arguments *args)
 	case OP_ADD:
 		return instance_add(args->ifw, args->iname);
 	case OP_REMOVE:
-		return instance_rm(args->ifw, args->iname);
+		return instance_rm(args->iname);
 	case OP_FLUSH:
 		return instance_flush();
 	default:

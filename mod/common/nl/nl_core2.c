@@ -82,11 +82,7 @@ static int respond_single_msg(struct genl_info *info, struct nlcore_buffer *buff
 		pr_err("genlmsg_new() failed.\n");
 		return -ENOMEM;
 	}
-#if LINUX_VERSION_LOWER_THAN(3, 7, 0, 7, 0)
-	portid = info->snd_pid;
-#else
 	portid = info->snd_portid;
-#endif
 
 	msg_head = genlmsg_put(skb, portid, info->nlhdr->nlmsg_seq, family, 0,
 			be16_to_cpu(get_jool_hdr(info)->mode));

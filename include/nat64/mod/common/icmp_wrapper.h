@@ -20,12 +20,12 @@
 
 #include "nat64/mod/common/packet.h"
 
-typedef enum icmp_error_code {
-	ICMPERR_SILENT,
+typedef enum icmp_errcode {
+	ICMPERR_NONE,
 	ICMPERR_ADDR_UNREACHABLE,
 	ICMPERR_PORT_UNREACHABLE,
 	ICMPERR_PROTO_UNREACHABLE,
-	ICMPERR_HOP_LIMIT,
+	ICMPERR_TTL,
 	ICMPERR_FRAG_NEEDED,
 	ICMPERR_HDR_FIELD,
 	ICMPERR_SRC_ROUTE,
@@ -35,8 +35,9 @@ typedef enum icmp_error_code {
 /**
  * Wrappers for icmp_send() and icmpv6_send().
  */
-void icmp64_send(struct packet *pkt, icmp_error_code code, __u32 info);
-void icmp64_send_skb(struct sk_buff *skb, icmp_error_code error, __u32 info);
+bool icmp64_send6(struct sk_buff *skb, icmp_error_code error, __u32 info);
+bool icmp64_send4(struct sk_buff *skb, icmp_error_code error, __u32 info);
+bool icmp64_send(struct sk_buff *skb, icmp_error_code error, __u32 info);
 
 /**
  * Return the numbers of icmp error that was sent, also reset the static counter

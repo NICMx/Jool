@@ -130,18 +130,18 @@ int instance_add(int fw, char *iname)
 	error = fw_validate(fw);
 	if (error)
 		return error;
-	error = iname_validate(iname);
+	error = iname_validate(iname, true);
 	if (error)
 		return error;
 
 	init_request_hdr(hdr, MODE_INSTANCE, OP_ADD);
 	payload->add.fw = fw;
-	strcpy(payload->add.iname, iname);
+	strcpy(payload->add.iname, iname ?: INAME_DEFAULT);
 
 	return netlink_request(NULL, request, sizeof(request), NULL, NULL);
 }
 
-int instance_rm(int fw, char *iname)
+int instance_rm(char *iname)
 {
 	unsigned char request[HDR_LEN + PAYLOAD_LEN];
 	struct request_hdr *hdr = (struct request_hdr *)request;
@@ -149,13 +149,12 @@ int instance_rm(int fw, char *iname)
 			(request + HDR_LEN);
 	int error;
 
-	error = iname_validate(iname);
+	error = iname_validate(iname, true);
 	if (error)
 		return error;
 
 	init_request_hdr(hdr, MODE_INSTANCE, OP_REMOVE);
-	payload->rm.fw = fw;
-	strcpy(payload->rm.iname, iname);
+	strcpy(payload->rm.iname, iname ?: INAME_DEFAULT);
 
 	return netlink_request(NULL, request, sizeof(request), NULL, NULL);
 }

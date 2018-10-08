@@ -20,26 +20,6 @@ void cfgcandidate_put(struct config_candidate *candidate)
 	/* No code. */
 }
 
-void fragdb_config_copy(struct fragdb *db, struct fragdb_config *config)
-{
-	broken_unit_call(__func__);
-}
-
-struct fragdb *fragdb_alloc(struct net *ns)
-{
-	return (struct fragdb *)&dummy;
-}
-
-void fragdb_get(struct fragdb *db)
-{
-	/* No code. */
-}
-
-void fragdb_put(struct fragdb *db)
-{
-	/* No code. */
-}
-
 void joold_add(struct joold_queue *queue, struct session_entry *entry,
 		struct bib *bib, struct net *ns)
 {

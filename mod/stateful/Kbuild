@@ -9,11 +9,8 @@ obj-m += jool.o
 jool_common += ../../common/stateful/xlat.o
 jool_common += ../../common/netlink/config.o
 
-jool_common += ../common/rfc6145/4to6.o
-jool_common += ../common/rfc6145/6to4.o
-jool_common += ../common/rfc6145/common.o
-jool_common += ../common/rfc6145/core.o
-jool_common += ../common/nf_hook.o
+jool_common += ../common/kernel_hook_netfilter.o
+jool_common += ../common/kernel_hook_iptables.o
 jool_common += ../common/address.o
 jool_common += ../common/atomic_config.o
 jool_common += ../common/types.o
@@ -35,6 +32,7 @@ jool_common += ../common/core.o
 jool_common += ../common/error_pool.o
 jool_common += ../common/wkmalloc.o
 jool_common += ../common/xlator.o
+
 jool_common += ../common/nl/atomic_config.o
 jool_common += ../common/nl/nl_handler2.o
 jool_common += ../common/nl/nl_core2.o
@@ -49,6 +47,20 @@ jool_common += ../common/nl/pool4.o
 jool_common += ../common/nl/pool6.o
 jool_common += ../common/nl/session.o
 
+jool_common += ../common/rfc6145/4to6.o
+jool_common += ../common/rfc6145/6to4.o
+jool_common += ../common/rfc6145/common.o
+jool_common += ../common/rfc6145/core.o
+
+jool += timer.o
+jool += determine_incoming_tuple.o
+jool += filtering_and_updating.o
+jool += compute_outgoing_tuple.o
+jool += handling_hairpinning.o
+jool += kernel_hook.o
+jool += impersonator.o
+jool += joold.o
+
 jool += pool4/empty.o
 jool += pool4/db.o
 jool += pool4/rfc6056.o
@@ -56,15 +68,5 @@ jool += pool4/rfc6056.o
 jool += bib/db.o
 jool += bib/entry.o
 jool += bib/pkt_queue.o
-
-jool += timer.o
-jool += fragment_db.o
-jool += determine_incoming_tuple.o
-jool += filtering_and_updating.o
-jool += compute_outgoing_tuple.o
-jool += handling_hairpinning.o
-jool += nf_hook.o
-jool += impersonator.o
-jool += joold.o
 
 jool-objs += ${jool} ${jool_common}

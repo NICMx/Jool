@@ -7,12 +7,12 @@
  * Ensures @state->entries->bib is computed and valid.
  * (Assuming @state really maps to a databased session, that is.)
  */
-static int find_bib(struct xlation *state)
+static verdict find_bib(struct xlation *state)
 {
 	int error;
 
 	if (state->entries.bib_set)
-		return 0;
+		return VERDICT_CONTINUE;
 
 	error = bib_find(state->jool.nat64.bib, &state->in.tuple,
 			&state->entries);
@@ -22,9 +22,10 @@ static int find_bib(struct xlation *state)
 		 * them, so it's not critical.
 		 */
 		log_debug("Session not found. Error code is %d.", error);
+		return untranslatable(state, JSTAT_BIB_NOT_FOUND);
 	}
 
-	return error;
+	return VERDICT_CONTINUE;
 }
 
 static int xlat_addr64(struct xlation *state, struct ipv4_transport_addr *addr4)
@@ -49,11 +50,13 @@ verdict compute_out_tuple(struct xlation *state)
 {
 	struct tuple *in;
 	struct tuple *out;
+	verdict result;
 
 	log_debug("Step 3: Computing the Outgoing Tuple");
 
-	if (find_bib(state))
-		return VERDICT_ACCEPT;
+	result = find_bib(state);
+	if (result != VERDICT_CONTINUE)
+		return result;
 
 	in = &state->in.tuple;
 	out = &state->out.tuple;
@@ -64,7 +67,7 @@ verdict compute_out_tuple(struct xlation *state)
 		out->l4_proto = in->l4_proto;
 		out->src.addr4 = state->entries.session.src4;
 		if (xlat_addr64(state, &out->dst.addr4))
-			return VERDICT_ACCEPT;
+			return untranslatable(state, JSTAT_UNTRANSLATABLE_DST6);
 
 		if (is_3_tuple(out))
 			out->dst.addr4.l4 = out->src.addr4.l4;
@@ -74,7 +77,7 @@ verdict compute_out_tuple(struct xlation *state)
 		out->l3_proto = L3PROTO_IPV6;
 		out->l4_proto = in->l4_proto;
 		if (xlat_addr46(state, &out->src.addr6))
-			return VERDICT_ACCEPT;
+			return untranslatable(state, JSTAT_UNTRANSLATABLE_DST4);
 		out->dst.addr6 = state->entries.session.src6;
 
 		if (is_3_tuple(out))

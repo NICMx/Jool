@@ -80,7 +80,7 @@ static int prepare_iname(cJSON *json)
 
 		if (iname)
 			goto eexist;
-		error = iname_validate(json->valuestring);
+		error = iname_validate(json->valuestring, false);
 		if (error)
 			return error;
 
@@ -470,7 +470,6 @@ static int write_number(struct nl_buffer *buffer, struct argp_option *opt,
 	case ICMP_TIMEOUT:
 	case TCP_EST_TIMEOUT:
 	case TCP_TRANS_TIMEOUT:
-	case FRAGMENT_TIMEOUT:
 	case SS_FLUSH_DEADLINE:
 		error = validate_u32(opt->name, json);
 		if (error)

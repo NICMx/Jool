@@ -27,6 +27,7 @@ struct xlator {
 	int fw;
 	char iname[INAME_MAX_LEN];
 
+	struct jool_stats *stats;
 	struct global_config *global;
 	struct pool6 *pool6;
 	union {
@@ -36,7 +37,6 @@ struct xlator {
 			struct addr4_pool *pool6791;
 		} siit;
 		struct {
-			struct fragdb *frag;
 			struct pool4 *pool4;
 			struct bib *bib;
 			struct joold_queue *joold;
@@ -50,7 +50,7 @@ int xlator_setup(void);
 void xlator_teardown(void);
 
 int xlator_add(int fw, char *iname, struct xlator *result);
-int xlator_rm(int fw, char *iname);
+int xlator_rm(char *iname);
 int xlator_replace(struct xlator *instance);
 int xlator_flush(void);
 

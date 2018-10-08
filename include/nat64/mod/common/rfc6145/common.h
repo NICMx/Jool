@@ -14,9 +14,16 @@
 
 struct translation_steps {
 	/**
-	 * Allocates the translated version of the incoming packet. Predicts
-	 * packet size, allocates skb and initializes a basic skb fields. Packet
-	 * content translation is deferred to other functions.
+	 * Note: For the purposes of this comment, remember that the reserved
+	 * area of a packet (bytes between head and data) is called "headroom"
+	 * (example: skb_headroom()), while the non-paged active area (bytes
+	 * between data and tail) is called "head" (eg: skb_headlen()). This is
+	 * a kernel quirk; don't blame me for it.
+	 *
+	 * Performs a pskb_copy()-style clone (ie. different sk_buff, different
+	 * head, same pages) of @state->in.skb and places it in @state->out.skb.
+	 * Ensures there's enough headroom for translated headers. Packet
+	 * content translation is deferred to the other functions below.
 	 *
 	 * "Why do we need this? Why don't we simply override the headers of the
 	 * incoming packet? This would avoid lots of allocation and copying."
@@ -25,11 +32,6 @@ struct translation_steps {
 	 * we've fetched the translated packet successfully. Even after the
 	 * RFC6145 code ends, there is still stuff we might need the original
 	 * packet for, such as replying an ICMP error or NF_ACCEPTing.
-	 *
-	 * -----------------------------
-	 *
-	 * When translating a fragment chain, this only creates the first
-	 * packet. Subsequent fragments are allocated by translate_subsequent().
 	 */
 	verdict (*skb_alloc_fn)(struct xlation *state);
 	/**
@@ -58,13 +60,13 @@ struct translation_steps {
  */
 typedef enum addrxlat_verdict {
 	/** "Ok, address translated. Do something else now." */
-	ADDRXLAT_CONTINUE = VERDICT_CONTINUE,
+	ADDRXLAT_CONTINUE,
 	/** "Translation failed but caller might use a fallback method." */
-	ADDRXLAT_TRY_SOMETHING_ELSE = 512,
+	ADDRXLAT_TRY_SOMETHING_ELSE,
 	/** "Translation prohibited. Return VERDICT_ACCEPT and forget it." */
-	ADDRXLAT_ACCEPT = VERDICT_ACCEPT,
+	ADDRXLAT_ACCEPT,
 	/** "Translation prohibited. Return VERDICT_DROP and forget it." */
-	ADDRXLAT_DROP = VERDICT_DROP,
+	ADDRXLAT_DROP,
 } addrxlat_verdict;
 
 struct translation_steps *ttpcomm_get_steps(struct packet *in);

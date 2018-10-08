@@ -216,7 +216,7 @@ static int init(void)
 	return 0;
 
 fail2:
-	xlator_rm(FW_NETFILTER, INAME_DEFAULT);
+	xlator_rm(INAME_DEFAULT);
 fail1:
 	xlator_put(&jool);
 	xlator_teardown();
@@ -229,8 +229,7 @@ fail1:
 static bool clean(void)
 {
 	bool success;
-	success = ASSERT_INT(0, xlator_rm(FW_NETFILTER, INAME_DEFAULT),
-			"xlator_rm");
+	success = ASSERT_INT(0, xlator_rm(INAME_DEFAULT), "xlator_rm");
 	xlator_teardown();
 	return success;
 }

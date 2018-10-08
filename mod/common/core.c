@@ -9,12 +9,7 @@
 #include "nat64/mod/stateful/compute_outgoing_tuple.h"
 #include "nat64/mod/stateful/determine_incoming_tuple.h"
 #include "nat64/mod/stateful/filtering_and_updating.h"
-#include "nat64/mod/stateful/fragment_db.h"
 #include "nat64/mod/common/send_packet.h"
-
-#include <net/netfilter/ipv4/nf_defrag_ipv4.h>
-#include <net/netfilter/ipv6/nf_defrag_ipv6.h>
-
 
 static verdict core_common(struct xlation *state)
 {
@@ -23,17 +18,17 @@ static verdict core_common(struct xlation *state)
 	if (xlat_is_nat64()) {
 		result = determine_in_tuple(state);
 		if (result != VERDICT_CONTINUE)
-			goto end;
+			return result;
 		result = filtering_and_updating(state);
 		if (result != VERDICT_CONTINUE)
-			goto end;
+			return result;
 		result = compute_out_tuple(state);
 		if (result != VERDICT_CONTINUE)
-			goto end;
+			return result;
 	}
 	result = translating_the_packet(state);
 	if (result != VERDICT_CONTINUE)
-		goto end;
+		return result;
 
 	if (is_hairpin(state)) {
 		result = handling_hairpinning(state);
@@ -42,9 +37,8 @@ static verdict core_common(struct xlation *state)
 		result = sendpkt_send(state);
 		/* sendpkt_send() releases out's skb regardless of verdict. */
 	}
-
 	if (result != VERDICT_CONTINUE)
-		goto end;
+		return result;
 
 	log_debug("Success.");
 	/*
@@ -56,16 +50,25 @@ static verdict core_common(struct xlation *state)
 	 * return NF_STOLEN on success.
 	 */
 	kfree_skb(state->in.skb);
-	result = VERDICT_STOLEN;
-	/* Fall through. */
-
-end:
-	if (result == VERDICT_ACCEPT)
-		log_debug("Returning the packet to the kernel.");
-	return result;
+	return stolen(state, JSTAT_SUCCESS);
 }
 
-unsigned int core_4to6(struct sk_buff *skb, struct xlator *instance)
+static void send_icmp4_error(struct xlation *state)
+{
+	bool success;
+
+	if (state->result.icmp == ICMPERR_NONE)
+		return;
+
+	success = icmp64_send4(state->in.skb,
+			state->result.icmp,
+			state->result.info);
+	jstat_inc(state->jool.stats, success
+			? JSTAT_ICMP4ERR_SUCCESS
+			: JSTAT_ICMP4ERR_FAILURE);
+}
+
+verdict core_4to6(struct sk_buff *skb, struct xlator *instance)
 {
 	struct xlation state;
 	verdict result;
@@ -78,27 +81,44 @@ unsigned int core_4to6(struct sk_buff *skb, struct xlator *instance)
 	xlation_init(&state, instance);
 
 	if (!state.jool.global->cfg.enabled) {
-		xlation_clean(&state);
-		return NF_ACCEPT;
+		result = untranslatable(&state, JSTAT_XLATOR_DISABLED);
+		goto end;
 	}
 
 	log_debug("===============================================");
 	log_debug("Jool instance '%s': Received a v4 packet.", instance->iname);
 
 	/* Reminder: This function might change pointers. */
-	if (pkt_init_ipv4(&state.in, skb) != 0) {
-		xlation_clean(&state);
-		return NF_DROP;
-	}
+	result = pkt_init_ipv4(&state, skb);
+	if (result != VERDICT_CONTINUE)
+		goto end;
 
 	/* skb_log(skb, "Incoming IPv4 packet"); */
 
 	result = core_common(&state);
-	xlation_clean(&state);
+	/* Fall through */
+
+end:
+	send_icmp4_error(&state);
 	return result;
 }
 
-unsigned int core_6to4(struct sk_buff *skb, struct xlator *instance)
+static void send_icmp6_error(struct xlation *state)
+{
+	bool success;
+
+	if (state->result.icmp == ICMPERR_NONE)
+		return;
+
+	success = icmp64_send6(state->in.skb,
+			state->result.icmp,
+			state->result.info);
+	jstat_inc(state->jool.stats, success
+			? JSTAT_ICMP6ERR_SUCCESS
+			: JSTAT_ICMP6ERR_FAILURE);
+}
+
+verdict core_6to4(struct sk_buff *skb, struct xlator *instance)
 {
 	struct xlation state;
 	verdict result;
@@ -113,32 +133,25 @@ unsigned int core_6to4(struct sk_buff *skb, struct xlator *instance)
 	snapshot_record(&state.in.debug.shot1, skb);
 
 	if (!state.jool.global->cfg.enabled) {
-		xlation_clean(&state);
-		return NF_ACCEPT;
+		result = untranslatable(&state, JSTAT_XLATOR_DISABLED);
+		goto end;
 	}
 
 	log_debug("===============================================");
 	log_debug("Jool instance '%s': Received a v6 packet.", instance->iname);
 
 	/* Reminder: This function might change pointers. */
-	if (pkt_init_ipv6(&state.in, skb) != 0) {
-		xlation_clean(&state);
-		return NF_DROP;
-	}
+	result = pkt_init_ipv6(&state, skb);
+	if (result != VERDICT_CONTINUE)
+		goto end;
 
 	/* skb_log(skb, "Incoming IPv6 packet"); */
-
 	snapshot_record(&state.in.debug.shot2, skb);
 
-	if (xlat_is_nat64()) {
-		result = fragdb_handle(state.jool.nat64.frag, &state.in);
-		if (result != VERDICT_CONTINUE)
-			goto end;
-	}
-
 	result = core_common(&state);
-	/* Fall through. */
+	/* Fall through */
+
 end:
-	xlation_clean(&state);
+	send_icmp6_error(&state);
 	return result;
 }

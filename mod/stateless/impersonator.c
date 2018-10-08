@@ -1,7 +1,6 @@
 #include "nat64/mod/stateful/compute_outgoing_tuple.h"
 #include "nat64/mod/stateful/determine_incoming_tuple.h"
 #include "nat64/mod/stateful/filtering_and_updating.h"
-#include "nat64/mod/stateful/fragment_db.h"
 #include "nat64/mod/stateful/joold.h"
 #include "nat64/mod/stateful/pool4/db.h"
 #include "nat64/mod/stateful/bib/db.h"
@@ -23,19 +22,19 @@ static int fail(const char *function_name)
 verdict determine_in_tuple(struct xlation *state)
 {
 	fail(__func__);
-	return VERDICT_DROP;
+	return VERDICT_INVALID;
 }
 
 verdict filtering_and_updating(struct xlation *state)
 {
 	fail(__func__);
-	return VERDICT_DROP;
+	return VERDICT_INVALID;
 }
 
 verdict compute_out_tuple(struct xlation *state)
 {
 	fail(__func__);
-	return VERDICT_DROP;
+	return VERDICT_INVALID;
 }
 
 struct joold_queue *joold_alloc(struct net *ns)
@@ -77,38 +76,6 @@ int joold_test(struct xlator *jool)
 int joold_advertise(struct xlator *jool)
 {
 	return fail(__func__);
-}
-
-struct fragdb *fragdb_alloc(struct net *ns)
-{
-	fail(__func__);
-	return NULL;
-}
-
-void fragdb_get(struct fragdb *db)
-{
-	fail(__func__);
-}
-
-void fragdb_put(struct fragdb *db)
-{
-	fail(__func__);
-}
-
-void fragdb_config_copy(struct fragdb *db, struct fragdb_config *config)
-{
-	/* No code. */
-}
-
-void fragdb_config_set(struct fragdb *db, struct fragdb_config *config)
-{
-	/* No code. */
-}
-
-verdict fragdb_handle(struct fragdb *db, struct packet *pkt)
-{
-	fail(__func__);
-	return VERDICT_DROP;
 }
 
 struct pool4 *pool4db_alloc(void)
@@ -243,11 +210,6 @@ int bib_count(struct bib *db, const l4_protocol proto, __u64 *result)
 int bib_count_sessions(struct bib *db, l4_protocol proto, __u64 *count)
 {
 	return fail(__func__);
-}
-
-void bib_session_init(struct bib_session *bs)
-{
-	/* No code. */
 }
 
 void joold_ack(struct xlator *jool)

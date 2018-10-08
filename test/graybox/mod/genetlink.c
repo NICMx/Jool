@@ -38,11 +38,7 @@ static int respond(struct genl_info *info, int error_code,
 		pr_err("genlmsg_new() failed.\n");
 		return -ENOMEM;
 	}
-#if LINUX_VERSION_LOWER_THAN(3, 7, 0, 7, 0)
-	pid = info->snd_pid;
-#else
 	pid = info->snd_portid;
-#endif
 
 	msg_head = genlmsg_put(skb, pid, info->nlhdr->nlmsg_seq, family, 0, 0);
 	if (!msg_head) {

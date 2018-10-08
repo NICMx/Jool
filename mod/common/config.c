@@ -75,7 +75,6 @@ void prepare_config_for_userspace(struct full_config *config, bool pools_empty)
 {
 	struct global_config_usr *global;
 	struct bib_config *bib;
-	struct fragdb_config *frag;
 	struct joold_config *joold;
 
 	global = &config->global;
@@ -86,9 +85,6 @@ void prepare_config_for_userspace(struct full_config *config, bool pools_empty)
 	bib->ttl.tcp_trans = jiffies_to_msecs(bib->ttl.tcp_trans);
 	bib->ttl.udp = jiffies_to_msecs(bib->ttl.udp);
 	bib->ttl.icmp = jiffies_to_msecs(bib->ttl.icmp);
-
-	frag = &config->frag;
-	frag->ttl = jiffies_to_msecs(frag->ttl);
 
 	joold = &config->joold;
 	joold->flush_deadline = jiffies_to_msecs(joold->flush_deadline);

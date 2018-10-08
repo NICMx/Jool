@@ -14,7 +14,6 @@ PROJECTS += bibtable
 PROJECTS += sessiontable
 
 # Layer 3 tests (dbs)
-PROJECTS += fragdb
 PROJECTS += pool4db
 PROJECTS += bibdb
 PROJECTS += sessiondb

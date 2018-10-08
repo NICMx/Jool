@@ -400,7 +400,7 @@ static void release_session(struct rb_node *node, void *arg)
 	struct tabled_session *session = node2session(node);
 
 	if (session->stored) {
-		icmp64_send_skb(session->stored, ICMPERR_PORT_UNREACHABLE, 0);
+		icmp64_send(session->stored, ICMPERR_PORT_UNREACHABLE, 0);
 		kfree_skb(session->stored);
 	}
 
@@ -668,9 +668,13 @@ static int queue_unsorted_session(struct bib_table *table,
 }
 
 /**
+ * Decides what should happen to @session via @cb, and carries the verdict out.
+ * Returns true if the packet should be translated, false if the packet should
+ * be dropped. (Assuming that the caller has a packet linked to @session.)
+ *
  * Assumes result->session has been set (result->session_set is true).
  */
-static verdict decide_fate(struct collision_cb *cb,
+static bool decide_fate(struct collision_cb *cb,
 		struct bib_table *table,
 		struct tabled_session *session,
 		struct list_head *probes)
@@ -679,7 +683,7 @@ static verdict decide_fate(struct collision_cb *cb,
 	enum session_fate fate;
 
 	if (!cb)
-		return VERDICT_CONTINUE;
+		return true;
 
 	tstose(session, &tmp);
 	fate = cb->cb(&tmp, cb->arg);
@@ -711,7 +715,7 @@ static verdict decide_fate(struct collision_cb *cb,
 	case FATE_PRESERVE:
 		break;
 	case FATE_DROP:
-		return VERDICT_DROP;
+		return false;
 
 	case FATE_TIMER_SLOW:
 		/*
@@ -723,7 +727,7 @@ static verdict decide_fate(struct collision_cb *cb,
 		break;
 	}
 
-	return VERDICT_CONTINUE;
+	return true;
 }
 
 /**
@@ -830,7 +834,7 @@ static void post_fate(struct net *ns, struct list_head *probes)
 	list_for_each_entry_safe(probe, tmp, probes, list_hook) {
 		if (probe->skb) {
 			/* The "probe" is not a probe; it's an ICMP error. */
-			icmp64_send_skb(probe->skb, ICMPERR_PORT_UNREACHABLE, 0);
+			icmp64_send(probe->skb, ICMPERR_PORT_UNREACHABLE, 0);
 			kfree_skb(probe->skb);
 		} else {
 			/* Actual TCP probe. */
@@ -1708,39 +1712,43 @@ end:
  * Note: This particular incarnation of fate_cb is not prepared to return
  * FATE_PROBE.
  */
-verdict bib_add_tcp6(struct bib *db,
+verdict bib_add_tcp6(struct xlation *state,
 		struct mask_domain *masks,
 		struct ipv4_transport_addr *dst4,
-		struct packet *pkt,
-		struct collision_cb *cb,
-		struct bib_session *result)
+		struct collision_cb *cb)
 {
+	struct packet *pkt;
 	struct bib_table *table;
 	struct bib_session_tuple new;
 	struct bib_session_tuple old;
 	struct slot_group slots;
 	struct bib_delete_list rm_list = { NULL };
-	verdict verdict;
+	verdict result;
 
+	pkt = &state->in;
 	if (WARN(pkt->tuple.l4_proto != L4PROTO_TCP, "Incorrect l4 proto in TCP handler."))
-		return VERDICT_DROP;
+		return drop(state, JSTAT_UNKNOWN);
 
 	if (create_bib_session6(&new, &pkt->tuple, dst4, V6_INIT))
-		return VERDICT_DROP;
+		return drop(state, JSTAT_ENOMEM);
 
-	table = &db->tcp;
+	table = &state->jool.nat64.bib->tcp;
 	spin_lock_bh(&table->lock);
 
 	if (find_bib_session6(table, masks, &new, &old, &slots, &rm_list)) {
-		verdict = VERDICT_DROP;
+		result = drop(state, JSTAT_UNKNOWN);
 		goto end;
 	}
 
 	if (old.session) {
 		/* All states except CLOSED. */
-		verdict = decide_fate(cb, table, old.session, NULL);
-		if (verdict == VERDICT_CONTINUE)
-			tstobs(old.session, result);
+		if (decide_fate(cb, table, old.session, NULL)) {
+			tstobs(old.session, &state->entries);
+			result = VERDICT_CONTINUE;
+		} else {
+			/* TODO shitty hack; we're assuming SO_EXISTS. */
+			result = drop(state, JSTATS_SO_EXISTS);
+		}
 		goto end;
 	}
 
@@ -1748,19 +1756,20 @@ verdict bib_add_tcp6(struct bib *db,
 
 	if (!pkt_tcp_hdr(pkt)->syn) {
 		if (old.bib) {
-			tbtobs(old.bib, result);
-			verdict = VERDICT_CONTINUE;
+			tbtobs(old.bib, &state->entries);
+			result = VERDICT_CONTINUE;
 		} else {
 			log_debug("Packet is not SYN and lacks state.");
-			verdict = VERDICT_DROP;
+			result = drop(state, JSTAT_SYN6_EXPECTED);
 		}
 		goto end;
 	}
 
 	/* All exits up till now require @new.* to be deleted. */
 
-	commit_add6(table, &old, &new, &slots, &table->trans_timer, result);
-	verdict = VERDICT_CONTINUE;
+	commit_add6(table, &old, &new, &slots, &table->trans_timer,
+			&state->entries);
+	result = VERDICT_CONTINUE;
 	/* Fall through */
 
 end:
@@ -1772,43 +1781,47 @@ end:
 		free_session(new.session);
 	commit_delete_list(&rm_list);
 
-	return verdict;
+	return result;
 }
 
 /**
  * Note: This particular incarnation of fate_cb is not prepared to return
  * FATE_PROBE.
  */
-verdict bib_add_tcp4(struct bib *db,
+verdict bib_add_tcp4(struct xlation *state,
 		struct ipv6_transport_addr *dst6,
-		struct packet *pkt,
-		struct collision_cb *cb,
-		struct bib_session *result)
+		struct collision_cb *cb)
 {
+	struct packet *pkt;
 	struct bib_table *table;
 	struct tabled_session *new;
 	struct bib_session_tuple old;
 	struct tree_slot session_slot;
-	verdict verdict;
+	verdict result;
 	int error;
 
+	pkt = &state->in;
 	if (WARN(pkt->tuple.l4_proto != L4PROTO_TCP, "Incorrect l4 proto in TCP handler."))
-		return VERDICT_DROP;
+		return drop(state, JSTAT_UNKNOWN);
 
 	new = create_session4(&pkt->tuple, dst6, V4_INIT);
 	if (!new)
-		return VERDICT_DROP;
+		return drop(state, JSTAT_ENOMEM);
 
-	table = &db->tcp;
+	table = &state->jool.nat64.bib->tcp;
 	spin_lock_bh(&table->lock);
 
 	find_bib_session4(table, &pkt->tuple, new, &old, NULL, &session_slot);
 
 	if (old.session) {
 		/* All states except CLOSED. */
-		verdict = decide_fate(cb, table, old.session, NULL);
-		if (verdict == VERDICT_CONTINUE)
-			tstobs(old.session, result);
+		if (decide_fate(cb, table, old.session, NULL)) {
+			tstobs(old.session, &state->entries);
+			result = VERDICT_CONTINUE;
+		} else {
+			/* TODO shitty hack; we're assuming SO_EXISTS. */
+			result = drop(state, JSTAT_SO_EXISTS);
+		}
 		goto end;
 	}
 
@@ -1816,18 +1829,18 @@ verdict bib_add_tcp4(struct bib *db,
 
 	if (!pkt_tcp_hdr(pkt)->syn) {
 		if (old.bib) {
-			tbtobs(old.bib, result);
-			verdict = VERDICT_CONTINUE;
+			tbtobs(old.bib, &state->entries);
+			result = VERDICT_CONTINUE;
 		} else {
 			log_debug("Packet is not SYN and lacks state.");
-			verdict = VERDICT_DROP;
+			result = drop(state, JSTAT_SYN4_EXPECTED);
 		}
 		goto end;
 	}
 
 	if (table->drop_v4_syn) {
 		log_debug("Externally initiated TCP connections are prohibited.");
-		verdict = VERDICT_DROP;
+		result = drop(state, JSTAT_V4_SYN);
 		goto end;
 	}
 
@@ -1839,26 +1852,26 @@ verdict bib_add_tcp4(struct bib *db,
 		error = pktqueue_add(table->pkt_queue, pkt, dst6, too_many);
 		switch (error) {
 		case 0:
-			verdict = VERDICT_STOLEN;
+			result = stolen(state, JSTAT_TYPE1PKT);
 			table->pkt_count++;
 			goto end;
 		case -EEXIST:
 			log_debug("Simultaneous Open already exists.");
-			break;
+			result = drop(state, JSTAT_SO_EXISTS);
+			goto end;
 		case -ENOSPC:
 			goto too_many_pkts;
 		case -ENOMEM:
-			break;
-		default:
-			WARN(1, "pktqueue_add() threw unknown error %d", error);
-			break;
+			result = drop(state, JSTAT_ENOMEM);
+			goto end;
 		}
 
-		verdict = VERDICT_DROP;
+		WARN(1, "pktqueue_add() threw unknown error %d", error);
+		result = drop(state, JSTAT_UNKNOWN);
 		goto end;
 	}
 
-	verdict = VERDICT_CONTINUE;
+	result = VERDICT_CONTINUE;
 
 	if (table->drop_by_addr) {
 		if (table->pkt_count >= table->pkt_limit)
@@ -1866,7 +1879,7 @@ verdict bib_add_tcp4(struct bib *db,
 
 		log_debug("Potential Simultaneous Open; storing type 2 packet.");
 		new->stored = pkt_original_pkt(pkt)->skb;
-		verdict = VERDICT_STOLEN;
+		result = stolen(state, JSTAT_TYPE2PKT);
 		table->pkt_count++;
 		/*
 		 * Yes, fall through. No goto; we need to add this session.
@@ -1877,7 +1890,7 @@ verdict bib_add_tcp4(struct bib *db,
 
 	commit_add4(table, &old, &new, &session_slot,
 			new->stored ? &table->syn4_timer : &table->trans_timer,
-			result);
+			&state->entries);
 	/* Fall through */
 
 end:
@@ -1886,15 +1899,14 @@ end:
 	if (new)
 		free_session(new);
 
-	return verdict;
+	return result;
 
 too_many_pkts:
 	spin_unlock_bh(&table->lock);
 	free_session(new);
 	log_debug("Too many Simultaneous Opens.");
 	/* Fall back to assume there's no SO. */
-	icmp64_send(pkt, ICMPERR_PORT_UNREACHABLE, 0);
-	return VERDICT_DROP;
+	return drop_icmp(state, JSTAT_SO_FULL, ICMPERR_PORT_UNREACHABLE, 0);
 }
 
 int bib_find(struct bib *db, struct tuple *tuple, struct bib_session *result)

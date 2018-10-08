@@ -19,9 +19,9 @@ obj-m += $(PKT).o
 $(PKT)-objs += $(MIN_REQS)
 $(PKT)-objs += ../../../mod/common/ipv6_hdr_iterator.o
 $(PKT)-objs += ../../../mod/common/packet.o
+$(PKT)-objs += ../../../mod/common/translation_state.o
 $(PKT)-objs += ../framework/skb_generator.o
 $(PKT)-objs += ../framework/types.o
-$(PKT)-objs += ../impersonator/icmp_wrapper.o
 $(PKT)-objs += packet_test.o
 
 

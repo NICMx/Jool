@@ -26,36 +26,43 @@ static void jool_tg_init(struct xt_entry_target *target)
 }
 
 /* TODO (duplicate code) See config.h */
-int iname_validate(const char *iname)
+int iname_validate(const char *iname, bool allow_null)
 {
 	unsigned int i;
 
-	if (iname) {
-		for (i = 0; i < INAME_MAX_LEN; i++) {
-			if (iname[i] == '\0')
-				return 0;
-			if (iname[i] < 32) /* "if not printable" */
-				break;
-		}
+	if (!iname) {
+		if (allow_null)
+			return 0;
+		goto fail;
 	}
 
+	for (i = 0; i < INAME_MAX_LEN; i++) {
+		if (iname[i] == '\0')
+			return 0;
+		if (iname[i] < 32) /* "if not printable" */
+			break;
+	}
+	/* Fall through. */
+
+fail:
 	log_err("The instance name must be a null-terminated ascii string, %u characters max.",
 			INAME_MAX_LEN - 1);
 	return -EINVAL;
 }
 
+/*
+ * Called once for every argument the user sends the rule upon creation.
+ */
 static int jool_tg_parse(int c, char **argv, int invert, unsigned int *flags,
 		const void *entry, struct xt_entry_target **target)
 {
 	struct target_info *info = (struct target_info *)(*target)->data;
 	int error;
 
-	printf("optarg: %s", optarg);
-
 	if (c != 'i')
 		return false;
 
-	error = iname_validate(optarg);
+	error = iname_validate(optarg, false);
 	if (error)
 		return error;
 	strcpy(info->iname, optarg);

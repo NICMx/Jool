@@ -53,7 +53,6 @@
 #define OPTNAME_ICMP_TIMEOUT		"icmp-timeout"
 #define OPTNAME_TCPEST_TIMEOUT		"tcp-est-timeout"
 #define OPTNAME_TCPTRANS_TIMEOUT	"tcp-trans-timeout"
-#define OPTNAME_FRAG_TIMEOUT		"fragment-arrival-timeout"
 #define OPTNAME_MAX_SO			"maximum-simultaneous-opens"
 #define OPTNAME_SRC_ICMP6E_BETTER	"source-icmpv6-errors-better"
 #define OPTNAME_HANDLE_FIN_RCV_RST	"handle-rst-during-fin-rcv"

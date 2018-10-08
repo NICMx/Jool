@@ -5,7 +5,6 @@
 #include "nat64/mod/common/wkmalloc.h"
 #include "nat64/mod/stateless/eam.h"
 #include "nat64/mod/stateless/pool.h"
-#include "nat64/mod/stateful/fragment_db.h"
 #include "nat64/mod/stateful/joold.h"
 #include "nat64/mod/stateful/pool4/db.h"
 #include "nat64/mod/stateful/bib/db.h"
@@ -331,7 +330,6 @@ static int commit(struct xlator *jool)
 	if (remnants) {
 		bib_config_set(jool->nat64.bib, &remnants->bib);
 		joold_config_set(jool->nat64.joold, &remnants->joold);
-		fragdb_config_set(jool->nat64.frag, &remnants->frag);
 		wkfree(struct full_config, remnants);
 	}
 

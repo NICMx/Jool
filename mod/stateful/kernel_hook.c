@@ -1,4 +1,4 @@
-#include "nat64/mod/common/nf_hook.h"
+#include "nat64/mod/common/kernel_hook.h"
 
 #include <linux/module.h>
 
@@ -6,7 +6,6 @@
 #include "nat64/mod/common/pool6.h"
 #include "nat64/mod/common/xlator.h"
 #include "nat64/mod/common/nl/nl_handler.h"
-#include "nat64/mod/stateful/fragment_db.h"
 #include "nat64/mod/stateful/joold.h"
 #include "nat64/mod/stateful/timer.h"
 #include "nat64/mod/stateful/pool4/db.h"
@@ -142,9 +141,6 @@ static int __init jool_init(void)
 	error = bib_setup();
 	if (error)
 		goto bib_fail;
-	error = fragdb_setup();
-	if (error)
-		goto fragdb_fail;
 	error = joold_setup();
 	if (error)
 		goto joold_fail;
@@ -199,8 +195,6 @@ xlator_fail:
 rfc6056_fail:
 	joold_teardown();
 joold_fail:
-	fragdb_teardown();
-fragdb_fail:
 	bib_teardown();
 bib_fail:
 	return error;
@@ -220,7 +214,6 @@ static void __exit jool_exit(void)
 	xlator_teardown();
 	rfc6056_teardown();
 	joold_teardown();
-	fragdb_teardown();
 	bib_teardown();
 
 #ifdef JKMEMLEAK

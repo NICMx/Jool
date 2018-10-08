@@ -58,10 +58,7 @@ static int handle_instance_rm(struct genl_info *info,
 {
 	log_debug("Removing Jool instance.");
 
-	return nlcore_respond(info, xlator_rm(
-			request->rm.fw,
-			request->rm.iname
-	));
+	return nlcore_respond(info, xlator_rm(request->rm.iname));
 }
 
 static int handle_instance_flush(struct genl_info *info,

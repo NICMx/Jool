@@ -102,12 +102,6 @@ static verdict succeed(struct xlation *state)
 	return VERDICT_CONTINUE;
 }
 
-static verdict breakdown(struct xlation *state)
-{
-	inc_stats(&state->in, IPSTATS_MIB_INDISCARDS);
-	return VERDICT_DROP;
-}
-
 /**
  * This is just a wrapper. Its sole intent is to minimize mess below.
  */
@@ -162,12 +156,13 @@ static verdict ipv6_simple(struct xlation *state)
 	int error;
 
 	if (xlat_dst_6to4(state, &dst4))
-		return breakdown(state);
+		return drop(state, JSTAT_UNTRANSLATABLE_DST6);
 	if (find_mask_domain(state, &dst4, &masks))
-		return breakdown(state);
+		return drop(state, JSTAT_MASK_DOMAIN_NOT_FOUND);
 
 	error = bib_add6(state->jool.nat64.bib, masks, &state->in.tuple, &dst4,
 			&state->entries);
+
 	mask_domain_put(masks);
 
 	switch (error) {
@@ -179,7 +174,7 @@ static verdict ipv6_simple(struct xlation *state)
 		 * messily, let's leave this here just in case.
 		 */
 		log_debug("bib_add6() threw error code %d.", error);
-		return breakdown(state);
+		return drop(state, JSTAT_BIB6_NOT_FOUND);
 	}
 }
 
@@ -195,14 +190,18 @@ static verdict ipv6_simple(struct xlation *state)
  */
 static verdict ipv4_simple(struct xlation *state)
 {
-	struct ipv4_transport_addr *src4 = &state->in.tuple.src.addr4;
+	/*
+	 * Because this is the IPv4->IPv6 direction, what the tuple labels
+	 * "source" is what the BIB entry labels "destination."
+	 * We're inheriting this naming quirk from the RFC.
+	 */
+	struct ipv4_transport_addr *dst4 = &state->in.tuple.src.addr4;
 	struct ipv6_transport_addr dst6;
 	int error;
 
-	error = rfc6052_4to6(state->jool.pool6, &src4->l3, &dst6.l3);
-	if (error)
-		return breakdown(state); /* Error msg already printed. */
-	dst6.l4 = src4->l4;
+	if (rfc6052_4to6(state->jool.pool6, &dst4->l3, &dst6.l3))
+		return drop(state, JSTAT_UNTRANSLATABLE_DST4);
+	dst6.l4 = dst4->l4;
 
 	error = bib_add4(state->jool.nat64.bib, &dst6, &state->in.tuple,
 			&state->entries);
@@ -212,16 +211,14 @@ static verdict ipv4_simple(struct xlation *state)
 		return succeed(state);
 	case -ESRCH:
 		log_debug("There is no BIB entry for the IPv4 packet.");
-		inc_stats(&state->in, IPSTATS_MIB_INNOROUTES);
-		return VERDICT_ACCEPT;
+		return untranslatable(state, JSTAT_BIB4_NOT_FOUND);
 	case -EPERM:
 		log_debug("Packet was blocked by Address-Dependent Filtering.");
-		icmp64_send(&state->in, ICMPERR_FILTER, 0);
-		return breakdown(state);
+		return drop_icmp(state, JSTAT_ADF, ICMPERR_FILTER, 0);
 	default:
 		log_debug("Errcode %d while finding a BIB entry.", error);
-		icmp64_send(&state->in, ICMPERR_ADDR_UNREACHABLE, 0);
-		return breakdown(state);
+		/* TODO (NOW) there used to be an ICMP error here. How come? */
+		return drop(state, JSTAT_UNKNOWN);
 	}
 }
 
@@ -474,32 +471,20 @@ static verdict ipv6_tcp(struct xlation *state)
 	struct ipv4_transport_addr dst4;
 	struct collision_cb cb;
 	struct mask_domain *masks;
-	verdict verdict;
+	verdict result;
 
 	if (xlat_dst_6to4(state, &dst4))
-		return breakdown(state);
+		return drop(state, JSTAT_UNTRANSLATABLE_DST6);
 	if (find_mask_domain(state, &dst4, &masks))
-		return breakdown(state);
+		return drop(state, JSTAT_MASK_DOMAIN_NOT_FOUND);
 
 	cb.cb = tcp_state_machine;
 	cb.arg = state;
-	verdict = bib_add_tcp6(state->jool.nat64.bib, masks, &dst4, &state->in,
-			&cb, &state->entries);
+	result = bib_add_tcp6(state, masks, &dst4, &cb);
 
 	mask_domain_put(masks);
 
-	/* Error msg already printed. We don't have an error code anyway. */
-	switch (verdict) {
-	case VERDICT_CONTINUE:
-		return succeed(state);
-	case VERDICT_DROP:
-		return breakdown(state);
-	case VERDICT_STOLEN:
-	case VERDICT_ACCEPT:
-		break;
-	}
-
-	return verdict;
+	return (result == VERDICT_CONTINUE) ? succeed(state) : result;
 }
 
 /**
@@ -507,34 +492,20 @@ static verdict ipv6_tcp(struct xlation *state)
  */
 static verdict ipv4_tcp(struct xlation *state)
 {
-	struct ipv4_transport_addr *src4 = &state->in.tuple.src.addr4;
+	struct ipv4_transport_addr *dst4 = &state->in.tuple.src.addr4;
 	struct ipv6_transport_addr dst6;
 	struct collision_cb cb;
-	verdict verdict;
-	int error;
+	verdict result;
 
-	error = rfc6052_4to6(state->jool.pool6, &src4->l3, &dst6.l3);
-	if (error)
-		return breakdown(state); /* Error msg already printed. */
-	dst6.l4 = src4->l4;
+	if (rfc6052_4to6(state->jool.pool6, &dst4->l3, &dst6.l3))
+		return drop(state, JSTAT_UNTRANSLATABLE_DST4);
+	dst6.l4 = dst4->l4;
 
 	cb.cb = tcp_state_machine;
 	cb.arg = state;
-	verdict = bib_add_tcp4(state->jool.nat64.bib, &dst6, &state->in, &cb,
-			&state->entries);
+	result = bib_add_tcp4(state, &dst6, &cb);
 
-	/* Error msg already printed. We don't have an error code anyway. */
-	switch (verdict) {
-	case VERDICT_CONTINUE:
-		return succeed(state);
-	case VERDICT_DROP:
-		return breakdown(state);
-	case VERDICT_STOLEN:
-	case VERDICT_ACCEPT:
-		break;
-	}
-
-	return verdict;
+	return (result == VERDICT_CONTINUE) ? succeed(state) : result;
 }
 
 /**
@@ -555,12 +526,11 @@ verdict filtering_and_updating(struct xlation *state)
 		hdr_ip6 = pkt_ip6_hdr(in);
 		if (pool6_contains(state->jool.pool6, &hdr_ip6->saddr)) {
 			log_debug("Hairpinning loop. Dropping...");
-			inc_stats(in, IPSTATS_MIB_INADDRERRORS);
-			return VERDICT_DROP;
+			return drop(state, JSTAT_HAIRPIN_LOOP);
 		}
 		if (!pool6_contains(state->jool.pool6, &hdr_ip6->daddr)) {
 			log_debug("Packet does not belong to pool6.");
-			return VERDICT_ACCEPT;
+			return untranslatable(state, JSTAT_POOL6_MISMATCH);
 		}
 
 		/* ICMP errors should not be filtered or affect the tables. */
@@ -574,7 +544,7 @@ verdict filtering_and_updating(struct xlation *state)
 		if (!pool4db_contains(state->jool.nat64.pool4, state->jool.ns,
 				in->tuple.l4_proto, &in->tuple.dst.addr4)) {
 			log_debug("Packet does not belong to pool4.");
-			return VERDICT_ACCEPT;
+			return untranslatable(state, JSTAT_POOL4_MISMATCH);
 		}
 
 		/* ICMP errors should not be filtered or affect the tables. */
@@ -584,6 +554,13 @@ verdict filtering_and_updating(struct xlation *state)
 		}
 		break;
 	}
+
+	/*
+	 * Note: I'm sorry, but the remainder of the Filtering and Updating step
+	 * is not going to be done in the order in which the RFC explains it.
+	 * This is because the BIB has a critical spinlock, and we need to
+	 * take out as much work from it as possible.
+	 */
 
 	switch (pkt_l4_proto(in)) {
 	case L4PROTO_UDP:
@@ -613,8 +590,7 @@ verdict filtering_and_updating(struct xlation *state)
 		case L3PROTO_IPV6:
 			if (state->jool.global->cfg.nat64.drop_icmp6_info) {
 				log_debug("Packet is ICMPv6 info (ping); dropping due to policy.");
-				inc_stats(in, IPSTATS_MIB_INDISCARDS);
-				return VERDICT_DROP;
+				return drop(state, JSTAT_ICMP6_FILTER);
 			}
 
 			result = ipv6_simple(state);
@@ -627,8 +603,7 @@ verdict filtering_and_updating(struct xlation *state)
 
 	case L4PROTO_OTHER:
 		WARN(true, "Unknown layer 4 protocol: %d", pkt_l4_proto(in));
-		result = VERDICT_DROP;
-		break;
+		return drop(state, JSTAT_UNKNOWN_L4_PROTO);
 	}
 
 	log_debug("Done: Step 2.");

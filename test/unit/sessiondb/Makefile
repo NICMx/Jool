@@ -18,6 +18,7 @@ obj-m += $(SESSIONDB).o
 
 $(SESSIONDB)-objs += $(MIN_REQS)
 $(SESSIONDB)-objs += ../../../mod/common/rbtree.o
+$(SESSIONDB)-objs += ../../../mod/common/translation_state.o
 $(SESSIONDB)-objs += ../../../mod/stateful/bib/db.o
 $(SESSIONDB)-objs += ../../../mod/stateful/bib/entry.o
 $(SESSIONDB)-objs += ../impersonator/bib.o

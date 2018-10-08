@@ -14,79 +14,120 @@
 #include "nat64/mod/common/error_pool.h"
 
 /**
- * An indicator of what a function expects its caller to do with the packet being translated.
+ * An indicator of what a function expects its caller to do with the packet
+ * being translated.
  */
 typedef enum verdict {
 	/** "No problems thus far, processing of the packet can continue." */
-	VERDICT_CONTINUE = -1,
+	VERDICT_CONTINUE,
 	/**
-	 * "Packet is invalid and should be silently dropped."
-	 * (Or "packet is invalid and I already sent a ICMP error, so just kill it".)
+	 * "The packet should be dropped, no matter what."
+	 * Typically, this is because it's corrupted.
+	 *
+	 * Code should rarely use this constant directly. Use drop() or
+	 * drop_icmp() instead.
 	 */
-	VERDICT_DROP = NF_DROP,
+	VERDICT_DROP,
 	/**
-	 * "Packet is not supposed to be NAT64'd. Return it to Netfilter so the kernel does something
-	 * else with it."
+	 * If the Jool instance is Netfilter, this leads to NF_ACCEPT.
+	 * If the Jool instance is iptables, it leads to NF_DROP.
+	 * Used when the packet cannot be translated, but maybe it was intended
+	 * for the kernel.
+	 *
+	 * Code should rarely use this constant directly. Use untranlatable()
+	 * instead.
 	 */
-	VERDICT_ACCEPT = NF_ACCEPT,
+	VERDICT_UNTRANSLATABLE,
 	/**
-	 * "I need to keep the packet for a while. Do not free, access or modify it."
+	 * "I need to keep the packet for a while. Do not free, access or modify
+	 * it."
 	 *
 	 * The packet being stored is THE ORIGINAL PACKET.
-	 * The "original packet" will be different from the "incoming packet" in hairpinning.
-	 * Therefore, if your stealing/storing code doesn't include skb_original_skb(), then YOU HAVE
-	 * A KERNEL PANIC.
+	 * The "original packet" will be different from the "incoming packet" in
+	 * hairpinning.
+	 * Therefore, if your stealing/storing code doesn't include
+	 * skb_original_skb(), then YOU HAVE A KERNEL PANIC.
+	 *
+	 * Code should rarely use this constant directly. Use stolen() instead.
 	 */
-	VERDICT_STOLEN = NF_STOLEN,
+	VERDICT_STOLEN,
 } verdict;
 
-/**
- * A tuple is sort of a summary of a packet; it is a quick accesor for several of its key elements.
+/*
+ * To test that you're not mixing up verdicts and int errors:
  *
- * Keep in mind that the tuple's values do not always come from places you'd normally expect.
- * Unless you know ICMP errors are not involved, if the RFC says "the tuple's source address",
- * then you *MUST* extract the address from the tuple, not from the packet.
- * Conversely, if it says "the packet's source address", then *DO NOT* extract it from the tuple
- * for convenience. See comments inside for more info.
+ * 1. Comment the verdict typedef above out.
+ * 2. Uncomment the one below.
+ * 3. Compile.
+ */
+/*
+typedef int *verdict;
+
+static int vercontinue = 0;
+static int verinvalid = 1;
+static int veruntranslatable = 2;
+static int verstolen = 3;
+
+const static verdict VERDICT_CONTINUE = &vercontinue;
+const static verdict VERDICT_INVALID = &verinvalid;
+const static verdict VERDICT_UNTRANSLATABLE = &veruntranslatable;
+const static verdict VERDICT_STOLEN = &verstolen;
+*/
+
+/**
+ * A tuple is sort of a summary of a packet; it is a quick accesor for several
+ * of its key elements.
+ *
+ * Keep in mind that the tuple's values do not always come from places you'd
+ * normally expect. Unless you know ICMP errors are not involved, if the RFC
+ * says "the tuple's source address", then you *MUST* extract the address from
+ * the tuple, not from the packet. Conversely, if it says "the packet's source
+ * address", then *DO NOT* extract it from the tuple for convenience. See
+ * comments inside for more info.
  */
 struct tuple {
 	/**
-	 * Most of the time, this is the packet's _source_ address and layer-4 identifier. When the
-	 * packet contains a inner packet, this is the inner packet's _destination_ address and l4 id.
+	 * Most of the time, this is the packet's _source_ address and layer-4
+	 * identifier. When the packet contains a inner packet, this is the
+	 * inner packet's _destination_ address and l4 id.
 	 */
 	union transport_addr src;
 
 	/**
-	 * Most of the time, this is the packet's _destination_ address and layer-4 identifier. When
-	 * the packet contains a inner packet, this is the inner packet's _source_ address and l4 id.
+	 * Most of the time, this is the packet's _destination_ address and
+	 * layer-4 identifier. When the packet contains a inner packet, this is
+	 * the inner packet's _source_ address and l4 id.
 	 */
 	union transport_addr dst;
 
 	/**
-	 * The packet's network protocol. This is the sure way to know which of the above union
-	 * elements should be used.
+	 * The packet's network protocol. This is the sure way to know which of
+	 * the above union elements should be used.
 	 */
 	l3_protocol l3_proto;
 	/**
 	 * The packet's transport protocol that counts.
 	 *
-	 * Most of the time, this is the packet's simple l4-protocol. When the packet contains a inner
-	 * packet, this is the inner packet's l4-protocol.
+	 * Most of the time, this is the packet's simple l4-protocol. When the
+	 * packet contains a inner packet, this is the inner packet's
+	 * l4-protocol.
 	 *
-	 * This dictates whether this is a 5-tuple or a 3-tuple (see is_3_tuple()/is_5_tuple()).
+	 * This dictates whether this is a 5-tuple or a 3-tuple
+	 * (see is_3_tuple()/is_5_tuple()).
 	 */
 	l4_protocol l4_proto;
 
 /**
- * By the way: There's code that depends on src.<x>.l4_id containing the same value as
- * dst.<x>.l4_id when l4_proto == L4PROTO_ICMP (i. e. 3-tuples).
+ * By the way: There's code that depends on src.<x>.l4_id containing the same
+ * value as dst.<x>.l4_id when l4_proto == L4PROTO_ICMP (i. e. 3-tuples).
  */
 #define icmp4_id src.addr4.l4
 #define icmp6_id src.addr6.l4
 };
 
 /**
- * Returns true if "tuple" represents a '3-tuple' (address-address-ICMP id), as defined by the RFC.
+ * Returns true if @tuple represents a '3-tuple' (address-address-ICMP id), as
+ * defined by RFC 6146.
  */
 static inline bool is_3_tuple(struct tuple *tuple)
 {
@@ -94,8 +135,8 @@ static inline bool is_3_tuple(struct tuple *tuple)
 }
 
 /**
- * Returns true if "tuple" represents a '5-tuple' (address-port-address-port-transport protocol),
- * as defined by the RFC.
+ * Returns true if @tuple represents a '5-tuple'
+ * (address-port-address-port-transport protocol), as defined by RFC 6146.
  */
 static inline bool is_5_tuple(struct tuple *tuple)
 {
@@ -103,30 +144,22 @@ static inline bool is_5_tuple(struct tuple *tuple)
 }
 
 /**
- * Prints "tuple" pretty in the log.
+ * Prints @tuple pretty in the log.
  */
 void log_tuple(struct tuple *tuple);
 
 /**
- * @{
- * Returns true if "type" (which is assumed to have been extracted from a ICMP header) represents
- * a packet involved in a ping.
+ * Returns true if @type (which is assumed to have been extracted from a ICMP
+ * header) represents a packet involved in a ping.
  */
 bool is_icmp6_info(__u8 type);
 bool is_icmp4_info(__u8 type);
-/**
- * @}
- */
 
 /**
- * @{
- * Returns true if "type" (which is assumed to have been extracted from a ICMP header) represents
- * a packet which is an error response.
+ * Returns true if @type (which is assumed to have been extracted from a ICMP
+ * header) represents a packet which is an error response.
  */
 bool is_icmp6_error(__u8 type);
 bool is_icmp4_error(__u8 type);
-/**
- * @}
- */
 
 #endif /* _JOOL_MOD_TYPES_H */

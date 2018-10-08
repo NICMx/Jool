@@ -2,7 +2,6 @@
 
 #include "nat64/mod/common/linux_version.h"
 #include "nat64/mod/common/xlator.h"
-#include "nat64/mod/stateful/fragment_db.h"
 #include "nat64/mod/stateful/joold.h"
 #include "nat64/mod/stateful/bib/db.h"
 
@@ -25,7 +24,6 @@ static struct timer_list timer;
 
 static int clean_state(struct xlator const *jool, void *args)
 {
-	fragdb_clean(jool->nat64.frag);
 	bib_clean(jool->nat64.bib, jool->ns);
 	joold_clean(jool->nat64.joold, jool->nat64.bib, jool->ns);
 	return 0;

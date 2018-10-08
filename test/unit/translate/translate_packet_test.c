@@ -181,19 +181,35 @@ static bool test_function_icmp6_minimum_mtu(void)
 
 static bool test_function_icmp4_to_icmp6_param_prob(void)
 {
-	struct icmphdr hdr4;
-	struct icmp6hdr hdr6;
+	struct xlator jool;
+	struct xlation state;
+
+	struct icmphdr *hdr4;
+	struct icmp6hdr *hdr6;
 	bool success = true;
 
-	hdr4.type = ICMP_PARAMETERPROB;
-	hdr4.code = ICMP_PTR_INDICATES_ERROR;
-	hdr4.icmp4_unused = cpu_to_be32(0x08000000U);
-	success &= ASSERT_INT(0, icmp4_to_icmp6_param_prob(&hdr4, &hdr6), "func result 1");
-	success &= ASSERT_UINT(ICMPV6_HDR_FIELD, hdr6.icmp6_code, "code");
-	success &= ASSERT_UINT(7, be32_to_cpu(hdr6.icmp6_pointer), "pointer");
+	/* Annoying preparations */
 
-	hdr4.icmp4_unused = cpu_to_be32(0x05000000U);
-	success &= ASSERT_INT(-EINVAL, icmp4_to_icmp6_param_prob(&hdr4, &hdr6), "func result 2");
+	memset(&jool, 0, sizeof(jool));
+	xlation_init(&state, &jool);
+	if (create_skb4_icmp_error(&state.in.tuple, &state.in.skb, 10, 10))
+		return false;
+	if (create_skb6_icmp_error(&state.out.tuple, &state.out.skb, 10, 10))
+		return false;
+	hdr4 = pkt_icmp4_hdr(&state.in);
+	hdr6 = pkt_icmp6_hdr(&state.out);
+
+	/* Actual test */
+
+	hdr4->type = ICMP_PARAMETERPROB;
+	hdr4->code = ICMP_PTR_INDICATES_ERROR;
+	hdr4->icmp4_unused = cpu_to_be32(0x08000000U);
+	success &= ASSERT_VERDICT(CONTINUE, icmp4_to_icmp6_param_prob(&state), "func result 1");
+	success &= ASSERT_UINT(ICMPV6_HDR_FIELD, hdr6->icmp6_code, "code");
+	success &= ASSERT_UINT(7, be32_to_cpu(hdr6->icmp6_pointer), "pointer");
+
+	hdr4->icmp4_unused = cpu_to_be32(0x05000000U);
+	success &= ASSERT_VERDICT(INVALID, icmp4_to_icmp6_param_prob(&state), "func result 2");
 
 	return success;
 }

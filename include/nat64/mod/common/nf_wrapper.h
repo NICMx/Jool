@@ -36,12 +36,7 @@
 #else
 
 /*
- * Sorry, I don't have headers for RHEL 6 and below because I'm in a bit of a
- * deadline right now.
- * If this is causing you trouble, find `nf_hookfn` in your kernel headers
- * (typically in include/linux/netfilter.h) and add your version of the
- * NF_CALLBACK macro here.
- * Also, kernel headers per version can be found here: http://vault.centos.org/
+ * Note: kernel headers per version can be found here: http://vault.centos.org/
  * (http://vault.centos.org/7.x.xxxx/updates/x86_64/Packages/)
  */
 #error "Sorry; this version of RHEL is not supported because it's kind of old."
@@ -72,16 +67,8 @@
 		const struct net_device *out, \
 		int (*okfn)(struct sk_buff *))
 
-#elif LINUX_VERSION_CODE >= KERNEL_VERSION(3, 0, 0)
-#define NF_CALLBACK(name, skb) unsigned int name( \
-		unsigned int hooknum, \
-		struct sk_buff *skb, \
-		const struct net_device *in, \
-		const struct net_device *out, \
-		int (*okfn)(struct sk_buff *))
-
 #else
-#error "Linux < 3.0 isn't supported at all."
+#error "Linux < 3.13 isn't supported at all."
 
 #endif /* LINUX_VERSION_CODE > n */
 

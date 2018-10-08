@@ -53,7 +53,7 @@ fail:
 static void clean(void)
 {
 	xlator_put(&jool);
-	xlator_rm(FW_NETFILTER, INAME_DEFAULT);
+	xlator_rm(INAME_DEFAULT);
 }
 
 static void print_some_bytes(void *buffer, unsigned int size)
@@ -264,7 +264,7 @@ struct sk_buff *create_paged_skb(unsigned int head_len, unsigned int data_len)
 static bool basic_single_test(unsigned int head_len, unsigned int data_len)
 {
 	struct sk_buff *skb_in;
-	unsigned int verdict;
+	verdict result;
 	bool success = true;
 
 	if (head_len + data_len < 108) /* IPv6 + ICMP + IPv6 + TCP */
@@ -274,11 +274,11 @@ static bool basic_single_test(unsigned int head_len, unsigned int data_len)
 	if (!skb_in)
 		return false;
 
-	verdict = core_6to4(skb_in, &jool);
-	if (verdict != NF_STOLEN)
+	result = core_6to4(skb_in, &jool);
+	if (result != VERDICT_STOLEN)
 		kfree_skb(skb_in);
 
-	success &= ASSERT_INT(NF_STOLEN, verdict, "full xlat");
+	success &= ASSERT_VERDICT(STOLEN, result, "full xlat");
 
 	if (skb_out == NULL) {
 		log_err("skb_out is null.");

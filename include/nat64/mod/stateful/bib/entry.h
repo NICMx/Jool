@@ -93,8 +93,6 @@ struct bib_session {
 	struct session_entry session;
 };
 
-void bib_session_init(struct bib_session *bs);
-
 bool session_equals(const struct session_entry *s1,
 		const struct session_entry *s2);
 

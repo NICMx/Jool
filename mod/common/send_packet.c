@@ -70,15 +70,17 @@ static bool handle_gso(struct packet *in)
 	return skb_is_gso(in->skb);
 }
 
-static int whine_if_too_big(struct packet *in, struct packet *out)
+static verdict whine_if_too_big(struct xlation *state)
 {
+	struct packet *in = &state->in;
+	struct packet *out = &state->out;
 	unsigned int len;
 	unsigned int mtu;
 
 	if (handle_gso(in))
-		return 0;
+		return VERDICT_CONTINUE;
 	if (pkt_l3_proto(in) == L3PROTO_IPV4 && !is_df_set(pkt_ip4_hdr(in)))
-		return 0;
+		return VERDICT_CONTINUE;
 
 	len = pkt_len(out);
 	mtu = get_nexthop_mtu(out);
@@ -97,31 +99,32 @@ static int whine_if_too_big(struct packet *in, struct packet *out)
 			mtu += 20;
 			break;
 		}
-		icmp64_send(out, ICMPERR_FRAG_NEEDED, mtu);
 
-		return -EINVAL;
+		return drop_icmp(state, JSTAT_PKT_TOO_BIG,
+				ICMPERR_FRAG_NEEDED, mtu);
 	}
 
-	return 0;
+	return VERDICT_CONTINUE;
 }
 
 verdict sendpkt_send(struct xlation *state)
 {
 	struct packet *out = &state->out;
+	verdict result;
 	int error;
 
 	if (!route(state->jool.ns, out)) {
 		kfree_skb(out->skb);
-		return VERDICT_ACCEPT;
+		return untranslatable(state, JSTAT_FAILED_ROUTES);
 	}
 
 	out->skb->dev = skb_dst(out->skb)->dev;
 	log_debug("Sending skb.");
 
-	error = whine_if_too_big(&state->in, out);
-	if (error) {
+	result = whine_if_too_big(state);
+	if (result != VERDICT_CONTINUE) {
 		kfree_skb(out->skb);
-		return VERDICT_DROP;
+		return result;
 	}
 
 #if LINUX_VERSION_AT_LEAST(3, 16, 0, 7, 2)
@@ -145,7 +148,7 @@ verdict sendpkt_send(struct xlation *state)
 #endif
 	if (error) {
 		log_debug("dst_output() returned errcode %d.", error);
-		return VERDICT_DROP;
+		return drop(state, JSTAT_DST_OUTPUT);
 	}
 
 	return VERDICT_CONTINUE;

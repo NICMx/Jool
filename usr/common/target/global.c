@@ -162,8 +162,6 @@ static int handle_display_response(struct jool_response *response, void *arg)
 		print_time_friendly(conf->bib.ttl.tcp_trans);
 		printf("    --%s: ", OPTNAME_ICMP_TIMEOUT);
 		print_time_friendly(conf->bib.ttl.icmp);
-		printf("    --%s: ", OPTNAME_FRAG_TIMEOUT);
-		print_time_friendly(conf->frag.ttl);
 		printf("\n");
 
 		printf("  Synchronization:\n");
@@ -243,8 +241,6 @@ static int handle_display_response_csv(struct jool_response *response, void *arg
 		print_time_csv(conf->bib.ttl.tcp_trans);
 		printf("\n%s,", OPTNAME_ICMP_TIMEOUT);
 		print_time_csv(conf->bib.ttl.icmp);
-		printf("\n%s,", OPTNAME_FRAG_TIMEOUT);
-		print_time_csv(conf->frag.ttl);
 		printf("\n");
 
 		printf("joold Enabled,%s\n",

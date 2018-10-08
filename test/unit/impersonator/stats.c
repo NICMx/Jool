@@ -1,16 +1,25 @@
 #include "nat64/mod/common/stats.h"
 
-void inc_stats(struct packet *pkt, int field)
+struct jool_stats {
+	int junk;
+};
+
+struct jool_stats *jstat_alloc(void)
+{
+	return NULL;
+}
+
+void jstat_get(struct jool_stats *stats)
 {
 	/* No code. */
 }
 
-void inc_stats_skb6(struct sk_buff *skb, int field)
+void jstat_put(struct jool_stats *stats)
 {
 	/* No code. */
 }
 
-void inc_stats_skb4(struct sk_buff *skb, int field)
+void jstat_inc(struct jool_stats *stats, int field)
 {
 	/* No code. */
 }

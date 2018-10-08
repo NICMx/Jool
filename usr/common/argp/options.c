@@ -196,12 +196,21 @@ static const struct argp_option db_hdr_opt = {
 		.group = 4,
 };
 
-static const struct argp_option instance_type_opt = {
-		.name = "instance-framework",
-		.key = ARGP_INSTANCE_FW,
-		.arg = STRING_FORMAT,
+static const struct argp_option netfilter_opt = {
+		.name = "netfilter",
+		.key = ARGP_NETFILTER,
+		.arg = NULL,
 		.flags = 0,
-		.doc = "'netfilter' or 'iptables'.",
+		.doc = "Sit the instance on top of the Netfilter framework.",
+		.group = 0,
+};
+
+static const struct argp_option iptables_opt = {
+		.name = "iptables",
+		.key = ARGP_IPTABLES,
+		.arg = NULL,
+		.flags = 0,
+		.doc = "Sit the instance on top of the iptables framework.",
 		.group = 0,
 };
 
@@ -442,15 +451,6 @@ static const struct argp_option ttl_tcptrans_opt = {
 		.group = 0,
 };
 
-static const struct argp_option ttl_frag_opt = {
-		.name = OPTNAME_FRAG_TIMEOUT,
-		.key = ARGP_FRAG_TO,
-		.arg = NUM_FORMAT,
-		.flags = 0,
-		.doc = "Set the timeout for arrival of fragments.\n",
-		.group = 0,
-};
-
 static const struct argp_option max_so_opt = {
 		.name = OPTNAME_MAX_SO,
 		.key = ARGP_STORED_PKTS,
@@ -627,7 +627,8 @@ static const struct argp_option *opts_siit[] = {
 	&flush_opt,
 
 	&db_hdr_opt,
-	&instance_type_opt,
+	&netfilter_opt,
+	&iptables_opt,
 	&csv_opt,
 	&no_hdr_opt,
 	&force_opt,
@@ -670,7 +671,8 @@ static const struct argp_option *opts_nat64[] = {
 	&test_opt,
 
 	&db_hdr_opt,
-	&instance_type_opt,
+	&netfilter_opt,
+	&iptables_opt,
 	&csv_opt,
 	&no_hdr_opt,
 	&quick_opt,
@@ -702,7 +704,6 @@ static const struct argp_option *opts_nat64[] = {
 	&ttl_tcpest_opt,
 	&ttl_tcptrans_opt,
 	&ttl_icmp_opt,
-	&ttl_frag_opt,
 	&ss_enabled_opt,
 	&ss_flush_asap_opt,
 	&ss_flush_deadline_opt,
@@ -768,7 +769,6 @@ static const struct argp_option *opts_global_nat64[] = {
 	&ttl_tcpest_opt,
 	&ttl_tcptrans_opt,
 	&ttl_icmp_opt,
-	&ttl_frag_opt,
 	&ss_enabled_opt,
 	&ss_flush_asap_opt,
 	&ss_flush_deadline_opt,

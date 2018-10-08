@@ -9,16 +9,16 @@
 static char *icmp_error_to_string(icmp_error_code error)
 {
 	switch (error) {
-	case ICMPERR_SILENT:
-		return "ICMPERR_SILENT";
+	case ICMPERR_NONE:
+		return "ICMPERR_NONE";
 	case ICMPERR_ADDR_UNREACHABLE:
 		return "ICMPERR_ADDR_UNREACHABLE";
 	case ICMPERR_PORT_UNREACHABLE:
 		return "ICMPERR_PORT_UNREACHABLE";
 	case ICMPERR_PROTO_UNREACHABLE:
 		return "ICMPERR_PROTO_UNREACHABLE";
-	case ICMPERR_HOP_LIMIT:
-		return "ICMPERR_HOP_LIMIT";
+	case ICMPERR_TTL:
+		return "ICMPERR_TTL";
 	case ICMPERR_FRAG_NEEDED:
 		return "ICMPERR_FRAG_NEEDED";
 	case ICMPERR_HDR_FIELD:
@@ -32,20 +32,20 @@ static char *icmp_error_to_string(icmp_error_code error)
 	return "Unknown";
 }
 
-static void icmp64_send4(struct sk_buff *skb, icmp_error_code error, __u32 info)
+/* TODO (NOW) sync with stats */
+bool icmp64_send4(struct sk_buff *skb, icmp_error_code error, __u32 info)
 {
 	int type, code;
-	int err;
+
+	if (unlikely(!skb) || !skb->dev)
+		return false;
 
 	/*
 	 * I don't know why the kernel needs this nonsense,
 	 * but it's not my fault.
 	 */
-	err = route4_input(skb);
-	if (err) {
-		log_debug("Can't send an ICMPv4 Error: %d", err);
-		return;
-	}
+	if (route4_input(skb))
+		return false;
 
 	switch (error) {
 	case ICMPERR_ADDR_UNREACHABLE:
@@ -60,7 +60,7 @@ static void icmp64_send4(struct sk_buff *skb, icmp_error_code error, __u32 info)
 		type = ICMP_DEST_UNREACH;
 		code = ICMP_PROT_UNREACH;
 		break;
-	case ICMPERR_HOP_LIMIT:
+	case ICMPERR_TTL:
 		type = ICMP_TIME_EXCEEDED;
 		code = ICMP_EXC_TTL;
 		break;
@@ -77,17 +77,21 @@ static void icmp64_send4(struct sk_buff *skb, icmp_error_code error, __u32 info)
 		code = ICMP_SR_FAILED;
 		break;
 	default:
-		return; /* Not supported or needed. */
+		return false; /* Not supported or needed. */
 	}
 
 	log_debug("Sending ICMPv4 error: %s, type: %d, code: %d.",
 			icmp_error_to_string(error), type, code);
 	icmp_send(skb, type, code, cpu_to_be32(info));
+	return true;
 }
 
-static void icmp64_send6(struct sk_buff *skb, icmp_error_code error, __u32 info)
+bool icmp64_send6(struct sk_buff *skb, icmp_error_code error, __u32 info)
 {
 	int type, code;
+
+	if (unlikely(!skb) || !skb->dev)
+		return false;
 
 	switch (error) {
 	case ICMPERR_ADDR_UNREACHABLE:
@@ -100,7 +104,7 @@ static void icmp64_send6(struct sk_buff *skb, icmp_error_code error, __u32 info)
 		type = ICMPV6_DEST_UNREACH;
 		code = ICMPV6_PORT_UNREACH;
 		break;
-	case ICMPERR_HOP_LIMIT:
+	case ICMPERR_TTL:
 		type = ICMPV6_TIME_EXCEED;
 		code = ICMPV6_EXC_HOPLIMIT;
 		break;
@@ -117,46 +121,26 @@ static void icmp64_send6(struct sk_buff *skb, icmp_error_code error, __u32 info)
 		code = 0; /* No code. */
 		break;
 	default:
-		return; /* Not supported or needed. */
+		return false; /* Not supported or needed. */
 	}
 
-	/*
-	 * RHELs 7.0 and 7.1 behave just like kernel 3.11, while 7.2 behaves
-	 * like 3.13. Lucky us ;p
-	 */
-#if defined RHEL_VERSION_CODE \
-		|| LINUX_VERSION_CODE < KERNEL_VERSION(3, 12, 0) \
-		|| LINUX_VERSION_CODE >= KERNEL_VERSION(3, 13, 0)
 	log_debug("Sending ICMPv6 error: %s, type: %d, code: %d",
 			icmp_error_to_string(error), type, code);
 	icmpv6_send(skb, type, code, info);
-#else
-#warning "You're compiling in kernel 3.12. See https://github.com/NICMx/Jool/issues/90"
-#endif
+	return true;
 }
 
-void icmp64_send(struct packet *pkt, icmp_error_code error, __u32 info)
+bool icmp64_send(struct sk_buff *skb, icmp_error_code error, __u32 info)
 {
-	if (unlikely(!pkt))
-		return;
-	pkt = pkt_original_pkt(pkt);
-	if (unlikely(!pkt))
-		return;
-
-	icmp64_send_skb(pkt->skb, error, info);
-}
-
-void icmp64_send_skb(struct sk_buff *skb, icmp_error_code error, __u32 info)
-{
-	if (unlikely(!skb) || !skb->dev)
-		return;
+	if (unlikely(!skb))
+		return false;
 
 	switch (ntohs(skb->protocol)) {
 	case ETH_P_IP:
-		icmp64_send4(skb, error, info);
-		break;
+		return icmp64_send4(skb, error, info);
 	case ETH_P_IPV6:
-		icmp64_send6(skb, error, info);
-		break;
+		return icmp64_send6(skb, error, info);
 	}
+
+	return false;
 }
