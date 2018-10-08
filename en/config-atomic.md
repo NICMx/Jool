@@ -117,7 +117,6 @@ Sorry. This does not necessarily mean it will never be implemented, but there ar
 		"<a href="usr-flags-global.html#--tcp-est-timeout">tcp-est-timeout</a>": 218937891,
 		"<a href="usr-flags-global.html#--tcp-trans-timeout">tcp-trans-timeout</a>": 289013021,
 		"<a href="usr-flags-global.html#--icmp-timeout">icmp-timeout</a>": 129038,
-		"<a href="usr-flags-global.html#--fragment-arrival-timeout">fragment-arrival-timeout</a>": 190238,
 
 		"<a href="usr-flags-global.html#--ss-enabled">ss-enabled</a>": true,
 		"<a href="usr-flags-global.html#--ss-flush-asap">ss-flush-asap</a>": false,

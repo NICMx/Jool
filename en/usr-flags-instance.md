@@ -15,11 +15,13 @@ title: --instance
 2. [Syntax](#syntax)
 3. [Arguments](#arguments)
    1. [Operations](#operations)
+   2. [Options](#options)
 4. [Examples](#examples)
+   1. [General Examples](#general-examples)
+   1. [Netfilter Examples](#netfilter-examples)
+   2. [iptables Examples](#iptables-examples)
 
 ## Description
-
-You can squeeze one SIIT and one NAT64 Jool translators per namespace.
 
 The following command actually does two things:
 
@@ -40,7 +42,7 @@ The following command actually does two things:
 
 1. Attach the kernel module to the kernel.  
    (In other words, it teaches the kernel about SIIT or NAT64.)
-2. Adds a translator instance to the network namespace the command is executed in.  
+2. Adds a **Netfilter** translator instance to the network namespace the command is executed in.  
    (In other words, it actually hooks a translator to the current network stack.)
 
 Incidentally, you can skip the second step by running the following version of the command:
@@ -71,7 +73,7 @@ Only one `jool` module, and also one `jool_siit` module, can be modprobed per ke
 	# ip netns exec blue  modprobe jool_siit   # no effect
 	# ip netns exec blue  modprobe jool        # no effect
 
-So, if you want more translators, you can use `--instance` to hook and unhook translators anywhere after a modprobe. (Regardless of `no_instance`.)
+So, if you want more Netfilter translators, you can use `--instance` to hook and unhook translators anywhere after a modprobe. (Regardless of `no_instance`.)
 
 	# modprobe jool_siit no_instance                   # success
 	# modprobe jool      no_instance                   # success
@@ -85,18 +87,56 @@ So, if you want more translators, you can use `--instance` to hook and unhook tr
 ## Syntax
 
 	(jool_siit | jool) --instance (
-		[--add]
-		| --remove
+		[--display]
+		| --add [--instance-name <name>] [--netfilter|--iptables]
+		| --remove [--instance-name <name>]
+		| --flush
 	)
 
 ## Arguments
 
 ### Operations
 
+* `--display`: Print a table listing all the instances known by Jool. (From all network namespaces.)
 * `--add`: Creates and hooks an instance to the current network namespace.
 * `--remove`: Unhooks and deletes the instance of the current network namespace.
+* `--flush`: Unhooks and deletes all the instances in the current namespace.
+
+### Options
+
+| Flag              | Default   | Description                                                                        |
+|-------------------|-----------|------------------------------------------------------------------------------------|
+| `--instance-name` | "default" | Name of the instance to add or remove. Can be up to 15 printable ASCII characters. |
+| `--netfilter`     | enabled   | Sit the instance on top of the Netfilter framework.                                |
+| `--iptables`      | disabled  | Sit the instance on top of the iptables framework.                                 |
 
 ## Examples
+
+### General Examples
+
+	# jool --instance --add
+	# jool --instance --add --instance-name alpha --netfilter
+	# jool --instance --add --instance-name beta  --iptables
+	#
+	# ip netns add blue
+	# ip netns exec blue jool --instance --add --instance-name alpha --netfilter
+	#
+	# jool --instance --display
+	TODO
+
+Notice that the namespace identifier is fairly nonsensical garbage. This is expected behavior for now, because namespace names do not exist in the kernel (in fact, some of them have no name), and so Jool has no concept of them.
+
+	# jool --instance --remove --instance-name alpha
+	# jool --instance --display
+	TODO
+	# jool --instance --flush
+	# jool --instance --display
+	TODO
+	# ip netns exec blue jool --instance --flush
+	# jool --instance --display
+	TODO
+
+### Netfilter Examples
 
 Insert the module but do not attach an instance to the default namespace:
 
@@ -205,3 +245,29 @@ Check out each NAT64's [state](usr-flags-session.html):
 	  (Fetched 1 entries.)
 
 <!-- TODO add a tcpdump... dump? -->
+
+### iptables Examples
+
+It's important to note that the rule and the instance need separate configurations because they are independent components. First, let's create and configure the instance:
+
+	# modprobe jool no_instance
+	# jool --instance --add --instance-name alpha --iptables
+	# jool --instance-name alpha --pool6 --add 64:ff9b::/96
+	# jool --instance-name alpha --pool4 --add 192.0.2.1
+
+It's also important to note that you need at least two rules per instance. This is because they are the entry point for packets that will reach the instance, and so you need one for each of the IP protocols:
+
+	# ip6tables -t mangle -A PREROUTING --destination 64:ff9b::/96 -j JOOL --instance-name alpha
+	# iptables  -t mangle -A PREROUTING --destination 192.0.2.1    -j JOOL --instance-name alpha
+
+Convince yourself that this is fairly standard iptables fare:
+
+	# ip6tables -t mangle -L
+	TODO output
+	# iptables  -t mangle -L
+	TODO output
+
+And try performing some translation (in this case, from some other IPv6 node):
+
+	$ ping6 64:ff9b::8.8.8.8
+	TODO output

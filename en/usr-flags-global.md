@@ -23,7 +23,6 @@ title: --global
 	5. [`--tcp-est-timeout`](#--tcp-est-timeout)
 	6. [`--tcp-trans-timeout`](#--tcp-trans-timeout)
 	7. [`--icmp-timeout`](#--icmp-timeout)
-	8. [`--fragment-arrival-timeout`](#--fragment-arrival-timeout)
 	8. [`--maximum-simultaneous-opens`](#--maximum-simultaneous-opens)
 	8. [`--source-icmpv6-errors-better`](#--source-icmpv6-errors-better)
 	8. [`--logging-bib`](#--logging-bib)
@@ -95,7 +94,7 @@ Resumes and pauses translation of packets, respectively. This might be useful if
 
 (If you don't want Jool to stop while you reconfigure, don't worry about this. Use it only if it feels right.)
 
-Timers will _not_ be paused. [BIB](usr-flags-bib.html)/[session](usr-flags-session.html) entries and stored [packets](#--maximum-simultaneous-opens) and [fragments](#--fragment-arrival-timeout) might die while Jool is idle.
+Timers will _not_ be paused. [BIB](usr-flags-bib.html)/[session](usr-flags-session.html) entries and stored [packets](#--maximum-simultaneous-opens) might die while Jool is idle.
 
 ### `--address-dependent-filtering`
 
@@ -214,28 +213,6 @@ When you change this value, the lifetimes of all already existing transitory TCP
 When a ICMP session has been lying around inactive for this long, its entry will be removed from the database automatically.
 
 When you change this value, the lifetimes of all already existing ICMP sessions are updated.
-
-### `--fragment-arrival-timeout`
-
-- Type: Integer (seconds)
-- Default: 2 seconds
-- Modes: Stateful NAT64 only
-- Deprecated name: `--toFrag`
-- Source: None (the flag addresses a [Linux quirk]({{ site.repository-url }}/wiki/nf_defrag_ipv4-and-nf_defrag_ipv6#nf_defrag_ipv6---kernels-312-)).
-
-Stateful Jool requires fragment reassembly.
-
-In kernels 3.13 and above, `--fragment-arrival-timeout` does nothing whatsoever.
-
-In kernels 3.12 and below, the kernel's IPv6 fragment reassembly module (`nf_defrag_ipv6`) is a little tricky. It collects the fragments, and instead of reassembling, it fetches them all to the rest of the kernel in ascending order and really quickly. Because Jool has to process all the fragments of a single packet at the same time, it has to wait until `nf_defrag_ipv6` has handed them all.
-
-`--fragment-arrival-timeout` is the time Jool will wait for `nf_defrag_ipv6` to fetch all the fragments of a common packet. _It has nothing to do with waiting for fragments to arrive at the node_.
-
-Because `nf_defrag_ipv6` already waited for all the fragments to arrive, it should fetch them in nanoseconds. Therefore, `--fragment-arrival-timeout`'s default value of 2 seconds is probably overly high. On the other hand, unless there is a random module dropping packets in between, all of the fragments should always arrive immediately, hence the timer should actually never run out (even if you're being attacked).
-
-SIIT Jool does not need fragment reassembly at all.
-
-This behavior changed from Jool 3.2, where `--toFrag` used to actually be the time Jool would wait for fragments to arrive at the node.
 
 ### `--maximum-simultaneous-opens`
 

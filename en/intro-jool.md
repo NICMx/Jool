@@ -43,47 +43,62 @@ Please [let us know]({{ site.repository-url }}/issues) if you find additional co
 
 ## Compatibility
 
-Jool supports Linux kernels 3.2.0 and above. While most of the development time has been spent experimenting on Ubuntu 16.04 using current kernels, we've performed a healthy amount of formal testing ([unit](https://github.com/NICMx/Jool/tree/master/test/unit) and [graybox](https://github.com/NICMx/Jool/tree/master/test/graybox)) on Jool 3.5.0 in the following variants:
+| Jool version                        | Supported Linux kernels (mainline) | Supported Linux kernels (RHEL) |
+|-------------------------------------|------------------------------------|--------------------------------|
+| [master]({{ site.repository-url }}) | 3.13 - 3.19, 4.0 - 4.18            | RHEL 7.0 - RHEL 7.5            |
+| [3.6.0](download.html#36x)          | 3.13 - 3.19, 4.0 - 4.18            | RHEL 7.0 - RHEL 7.5            |
+| [3.5.7](download.html#35x)          | 3.2 - 3.19, 4.0 - 4.16             | TODO                           |
 
-- 3.2.0-23-generic-pae
-- 3.10.96-031096-generic
-- 3.13.0-85-generic
-- 3.14.60-031460-generic
-- 3.16.0-77-generic
-- 3.19.0-68-generic
-- 4.0.9-040009-generic
-- 4.1.31-040131-generic
-- 4.2.0-42-generic
-- 4.3.5-040305-generic
-- 4.4.1-040401-generic
-- 4.5.0-040500-generic
-- 4.7.0-040700-generic
-- 4.8.0-040800-generic
-- 4.8.2-040802-generic
+If you're using a non-RHEL distribution (eg. Debian derivatives), execute `uname -r` to print the kernel version you're running. Suffixes rarely matter.
 
-Jool 3.5.4 was tested in the following variants:
-
-- 3.10.107-0310107-generic
-- 3.16.46-031646-generic
-- 3.18.62-031862-generic
-- 4.1.22-040122-generic
-- 4.4.0-87-generic
-- 4.9.0-040900-generic
-- 4.10.0-27-generic
-- 4.11.0-041100-generic
-- 4.12.0-041200-generic
+RHEL-based distributions (such as Red Hat and CentOS) do not follow the normal kernel versioning conventions; use the third column instead.
 
 ## Design
 
-Jool is a Netfilter module that hooks itself to the prerouting chain (See [Netfilter Architecture](http://www.netfilter.org/documentation/HOWTO//netfilter-hacking-HOWTO-3.html)). Because Netfilter isn't comfortable with packets changing layer-3 protocols, Jool has its own forwarding pipeline, which only translating packets traverse.
+A Jool instance can be attached to one of two different traffic-intercepting, plugin-enabling, kernel-based frameworks: _Netfilter_ and _iptables_. Despite some documentation out there, these two are not the same thing; at least not from Jool's point of view.
+
+### Netfilter
+
+_Netfilter_ is a bunch of [hooks](http://www.netfilter.org/documentation/HOWTO/netfilter-hacking-HOWTO-3.html) (`PREROUTING`, `LOCALIN`, `FORWARD`, `LOCALOUT` and `POSTROUTING`) in the Linux kernel where modules can inject code. Whenever a packet reaches a hook, the kernel runs it through all the corresponding registered modules. Netfilter Jool instances hook themselves to `PREROUTING` and as such intercept all incoming traffic ("pre"vious to "routing") with the intent of translating it.
+
+Netfilter Jool instances are simple to configure. However, they are also _greedy_. This is, since there is no _matching_ conditional (other than "packets need to _match_ the network namespace the instance exists in"), translation has overwhelming priority. Only packets that meet failure during translation are left untouched by a Netfilter instance. _Jool attempts to translate everything, and the rest of the network subsystem gets the leftovers_. Because of this, a careless Netfilter Jool configuration could deprive its own namespace of external network traffic.
+
+There can only be **one** Netfilter SIIT Jool instance and **one** Netfilter NAT64 instance per network namespace.
+
+Netfilter Jool instances start packet translation as soon as they are created (unless manually [`disabled`](https://jool.mx/en/modprobe-nat64.html#disabled)). They drop packets deemed corrupted, translate packets which _can_ be translated according to their configuration and return everything else to the kernel.
+
+Netfilter plugins are not allowed to change the network protocol of their packets. Additionally, the kernel API does not export a means to post packets in the `FORWARD` chain. For these reasons, successfully translated packets skip `FORWARD`, going straight to `POSTROUTING`:
 
 ![Fig.1 - Jool within Netfilter](../images/netfilter.svg)
 
-You can hook one instance of SIIT Jool and one instance of NAT64 Jool per network namespace.
+Be aware that this means that, because filtering normally happens during `FORWARD`, if you want to firewall forwarding traffic, you should probably enclose Jool in a network namespace and filter during the `FORWARD` boxes outside of it:
 
-> ![Note](../images/bulb.svg) Notice all filtering iptables modules skip Jool. For this reason, if you need to filter, you need to insert Jool in a namespace so iptables can do its job during FORWARD.
-> 
-> ![Fig.2 - Jool and Filtering](../images/netfilter-filter.svg)
-> 
-> Alternatively, if you know what you're doing, you can [filter on mangle]({{ site.repository-url }}/issues/41#issuecomment-77951288).
+![Fig.2 - Jool and Filtering](../images/netfilter-filter.svg)
 
+Alternatively, if you know what you're doing, you can [filter on mangle]({{ site.repository-url }}/issues/41#issuecomment-77951288).
+
+Until Jool 3.5, Netfilter used to be the only available operation mode, and partly because of this, it is also the default one today.
+
+### iptables
+
+_iptables_ is another packet-handling framework. It is built on top of Netfiter, and is mostly known for its NAT'ing and firewalling capabilities. In regards to this discussion, its most relevant feature is its _match_ system--A means to specify which packets are handled by some "target" plugin.
+
+If you're familiar with the `iptables` utility, you might be accustomed to the following syntax:
+
+	# iptables -t filter -A PREROUTING --destination 192.0.2.0/24 -j DROP
+
+For anyone not in the knowing, that command adds a _rule_ to iptables' _filter_ table, which "DROP"s all packets headed towards the `192.0.2` network. This happens during `PREROUTING`. (Which is the same concept from Netfilter.)
+
+iptables Jool is implemented as an ordinary iptables target. Thus,
+
+	# iptables -t mangle -A PREROUTING --destination 192.0.2.0/24 -j JOOL --instance-name potato
+
+adds a _rule_ to iptables's _mangle_ table, which "Jools" all packets headed towards the `192.0.2` network. This happens during `PREROUTING`. Of all the Jool instances available in the current namespace, the translation is done by the one whose name is `potato`.
+
+There can be any number of iptables Jool instances in any namespace, and any number of iptables rules can reference them.
+
+iptables Jool instances sit idle until some iptables rule sends packets to them. (Of course, only packets that [match the rule's conditions](https://www.netfilter.org/documentation/HOWTO/packet-filtering-HOWTO-7.html#ss7.3) are sent.) They translate packets that _can_ be translated according to their configuration, and drop everything else.
+
+iptables Jool has a quirk similar to Netfilter Jool that you should be aware of: iptables rules are also not allowed to change the network protocol of their packets, so iptables Jool rules also send their matched and successfully translated packets straight to `POSTROUTING`. Packets which do not match the rule continue through the chain normally.
+
+iptables Jool first became available in Jool 3.6.0.

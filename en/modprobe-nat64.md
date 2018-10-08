@@ -54,7 +54,7 @@ title: Kernel Module Arguments
 
 <!-- Most Distros -->
 {% highlight bash %}
-# /sbin/modprobe [--first-time] jool \
+# /sbin/modprobe --first-time jool \
 		pool6=64:ff9b::/96 \
 		pool4="198.51.100.1, 203.0.113.0/28" \
 		disabled

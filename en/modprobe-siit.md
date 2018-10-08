@@ -57,7 +57,7 @@ title: Kernel Module Arguments
 
 <!-- Most Distros -->
 {% highlight bash %}
-# /sbin/modprobe [--first-time] jool_siit \
+# /sbin/modprobe --first-time jool_siit \
 		pool6=64:ff9b::/96 \
 		blacklist=192.0.2.0,192.0.2.1/32,192.0.2.4/30,192.0.2.16/28,192.0.2.64/26 \
 		pool6791="203.0.113.0/24, 198.51.100.0/24" \
