@@ -26,6 +26,7 @@ AC_SEARCH_LIBS([argp_parse], [argp])
 
 # Checks for dependencies.
 PKG_CHECK_MODULES(LIBNLGENL3, libnl-genl-3.0 >= 3.1)
+PKG_CHECK_MODULES(XTABLES, xtables)
 
 # Spit out the makefiles.
 AC_OUTPUT(Makefile stateless/Makefile stateful/Makefile joold/Makefile)

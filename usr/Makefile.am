@@ -6,4 +6,4 @@
 # And I don't even know if it's possible to mix autotools and kbuild.
 AUTOMAKE_OPTIONS = foreign
 
-SUBDIRS = stateful stateless joold
+SUBDIRS = stateful stateless joold iptables
