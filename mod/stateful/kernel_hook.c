@@ -182,7 +182,7 @@ static int __init jool_init(void)
 
 #if LINUX_VERSION_LOWER_THAN(4, 13, 0, 9999, 0)
 nf_register_hooks_fail:
-	xlator_rm(FW_NETFILTER, INAME_DEFAULT);
+	xlator_rm(INAME_DEFAULT);
 #endif
 instance_fail:
 	jtimer_teardown();

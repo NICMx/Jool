@@ -22,19 +22,19 @@ static int fail(const char *function_name)
 verdict determine_in_tuple(struct xlation *state)
 {
 	fail(__func__);
-	return VERDICT_INVALID;
+	return VERDICT_DROP;
 }
 
 verdict filtering_and_updating(struct xlation *state)
 {
 	fail(__func__);
-	return VERDICT_INVALID;
+	return VERDICT_DROP;
 }
 
 verdict compute_out_tuple(struct xlation *state)
 {
 	fail(__func__);
-	return VERDICT_INVALID;
+	return VERDICT_DROP;
 }
 
 struct joold_queue *joold_alloc(struct net *ns)

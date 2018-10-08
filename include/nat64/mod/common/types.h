@@ -64,12 +64,12 @@ typedef enum verdict {
 typedef int *verdict;
 
 static int vercontinue = 0;
-static int verinvalid = 1;
+static int verdrop = 1;
 static int veruntranslatable = 2;
 static int verstolen = 3;
 
 const static verdict VERDICT_CONTINUE = &vercontinue;
-const static verdict VERDICT_INVALID = &verinvalid;
+const static verdict VERDICT_DROP = &verdrop;
 const static verdict VERDICT_UNTRANSLATABLE = &veruntranslatable;
 const static verdict VERDICT_STOLEN = &verstolen;
 */
