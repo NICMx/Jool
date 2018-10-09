@@ -1,11 +1,11 @@
 #include <linux/module.h>
-#include "nat64/mod/common/packet.h"
+#include "mod/common/packet.h"
 
-#include "nat64/common/str_utils.h"
-#include "nat64/mod/common/translation_state.h"
-#include "nat64/unit/unit_test.h"
-#include "nat64/unit/types.h"
-#include "nat64/unit/skb_generator.h"
+#include "common/str_utils.h"
+#include "mod/common/translation_state.h"
+#include "framework/unit_test.h"
+#include "framework/types.h"
+#include "framework/skb_generator.h"
 
 MODULE_LICENSE(JOOL_LICENSE);
 MODULE_AUTHOR("Alberto Leiva");
@@ -119,13 +119,13 @@ static bool test_inner_validation4(void)
 	skb = create_skb4(30, create_skb4_icmp_error);
 	if (!skb)
 		return false;
-	result &= ASSERT_VERDICT(INVALID, pkt_init_ipv4(&state, skb), "incomplete inner tcp");
+	result &= ASSERT_VERDICT(DROP, pkt_init_ipv4(&state, skb), "incomplete inner tcp");
 	kfree_skb(skb);
 
 	skb = create_skb4(15, create_skb4_icmp_error);
 	if (!skb)
 		return false;
-	result &= ASSERT_VERDICT(INVALID, pkt_init_ipv4(&state, skb), "incomplete inner ipv4");
+	result &= ASSERT_VERDICT(DROP, pkt_init_ipv4(&state, skb), "incomplete inner ipv4");
 	kfree_skb(skb);
 
 	return result;
@@ -151,13 +151,13 @@ static bool test_inner_validation6(void)
 	skb = create_skb6(50, create_skb6_icmp_error); /* 40 + 8 + 40 + 20 */
 	if (!skb)
 		return false;
-	result &= ASSERT_VERDICT(INVALID, pkt_init_ipv6(&state, skb), "incomplete inner tcp");
+	result &= ASSERT_VERDICT(DROP, pkt_init_ipv6(&state, skb), "incomplete inner tcp");
 	kfree_skb(skb);
 
 	skb = create_skb6(30, create_skb6_icmp_error);
 	if (!skb)
 		return false;
-	result &= ASSERT_VERDICT(INVALID, pkt_init_ipv6(&state, skb), "incomplete inner ipv6hdr");
+	result &= ASSERT_VERDICT(DROP, pkt_init_ipv6(&state, skb), "incomplete inner ipv6hdr");
 	kfree_skb(skb);
 
 	return result;

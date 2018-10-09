@@ -1,4 +1,4 @@
-#include "nat64/common/xlat.h"
+#include "common/xlat.h"
 
 bool xlat_is_siit(void)
 {

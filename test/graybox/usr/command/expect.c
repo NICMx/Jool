@@ -2,8 +2,8 @@
 
 #include <errno.h>
 #include "common.h"
-#include "nat64/common/types.h"
-#include "nat64/usr/str_utils.h"
+#include "common/types.h"
+#include "usr/common/str_utils.h"
 
 int parse_exceptions(char *exceptions, struct expect_add_request *req)
 {

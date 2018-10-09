@@ -3,9 +3,9 @@
 #include <linux/netfilter_ipv4.h>
 #include <linux/netfilter_ipv6.h>
 
-#include "nat64/common/types.h"
-#include "nat64/mod/common/linux_version.h"
-#include "nat64/mod/common/nf_wrapper.h"
+#include "common/types.h"
+#include "mod/common/linux_version.h"
+#include "mod/common/nf_wrapper.h"
 
 #include "expecter.h"
 #include "nl_handler.h"

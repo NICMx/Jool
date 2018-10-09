@@ -4,8 +4,8 @@
 #include "expecter.h"
 #include "genetlink.h"
 #include "sender.h"
-#include "nat64/common/types.h"
-#include "nat64/mod/common/linux_version.h"
+#include "common/types.h"
+#include "mod/common/linux_version.h"
 
 static DEFINE_MUTEX(config_mutex);
 

@@ -1,12 +1,12 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/sched.h>
-#include "nat64/common/str_utils.h"
-#include "nat64/mod/common/linux_version.h"
-#include "nat64/mod/common/xlator.h"
-#include "nat64/unit/unit_test.h"
-#include "nat64/mod/common/atomic_config.h"
-#include "common/pool6.c"
+#include "common/str_utils.h"
+#include "mod/common/linux_version.h"
+#include "mod/common/xlator.h"
+#include "framework/unit_test.h"
+#include "mod/common/atomic_config.h"
+#include "mod/common/pool6.c"
 
 /*
  * Er... this doesn't even try to test everything.

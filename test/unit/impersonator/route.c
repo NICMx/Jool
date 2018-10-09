@@ -1,5 +1,5 @@
-#include "nat64/mod/common/route.h"
-#include "nat64/common/types.h"
+#include "mod/common/route.h"
+#include "common/types.h"
 
 struct dst_entry *__route4(struct route4_args *args, struct sk_buff *skb)
 {

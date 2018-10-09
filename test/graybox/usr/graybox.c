@@ -7,7 +7,7 @@
 #include "command/expect.h"
 #include "command/send.h"
 #include "command/stats.h"
-#include "nat64/common/types.h"
+#include "common/types.h"
 
 struct request {
 	enum graybox_command cmd;

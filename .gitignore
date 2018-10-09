@@ -19,6 +19,11 @@
 *.o.d
 *.c.orig
 *.h.orig
+#
+/src/usr/siit/jool_siit
+/src/usr/nat64/jool
+/src/usr/joold/joold
+/test/graybox/usr/graybox
 # documentation
 _site
 
@@ -77,6 +82,15 @@ depcomp
 install-sh
 missing
 autom4te.cache
+
+# Makefiles need to be gitignore'd on an individual basis, because there
+# are plenty of manually generated ones that need to be uploaded.
+/Makefile
+/src/usr/Makefile
+/src/usr/siit/Makefile
+/src/usr/nat64/Makefile
+/src/usr/joold/Makefile
+/test/graybox/usr/Makefile
 
 # DKMS version cache
 ######################

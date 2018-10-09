@@ -1,6 +1,5 @@
 # Layer 1 tests (utils)
 PROJECTS += addr
-PROJECTS += hashtable
 PROJECTS += iterator
 PROJECTS += pkt
 PROJECTS += rbtree

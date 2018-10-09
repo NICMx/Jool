@@ -1,8 +1,8 @@
 #include <linux/module.h>
 #include <linux/printk.h>
 
-#include "nat64/unit/unit_test.h"
-#include "common/ipv6_hdr_iterator.c"
+#include "framework/unit_test.h"
+#include "mod/common/ipv6_hdr_iterator.c"
 
 MODULE_LICENSE(JOOL_LICENSE);
 MODULE_AUTHOR("Alberto Leiva Popper");

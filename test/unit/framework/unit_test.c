@@ -1,8 +1,8 @@
-#include "nat64/unit/unit_test.h"
+#include "framework/unit_test.h"
 
 #include <linux/kernel.h>
 #include <net/ipv6.h>
-#include "nat64/common/str_utils.h"
+#include "common/str_utils.h"
 
 bool __ASSERT_ADDR4(const struct in_addr *expected,
 		const struct in_addr *actual,

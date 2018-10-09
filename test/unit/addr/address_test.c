@@ -1,6 +1,6 @@
 #include <linux/module.h>
 #include <linux/printk.h>
-#include "nat64/unit/unit_test.h"
+#include "framework/unit_test.h"
 
 
 MODULE_LICENSE(JOOL_LICENSE);

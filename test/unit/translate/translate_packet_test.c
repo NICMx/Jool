@@ -1,13 +1,13 @@
 #include <linux/module.h>
 #include <linux/printk.h>
 
-#include "nat64/unit/unit_test.h"
-#include "nat64/common/str_utils.h"
-#include "nat64/unit/skb_generator.h"
-#include "nat64/unit/types.h"
-#include "common/rfc6145/core.c"
-#include "common/rfc6145/6to4.c"
-#include "common/rfc6145/4to6.c"
+#include "framework/unit_test.h"
+#include "common/str_utils.h"
+#include "framework/skb_generator.h"
+#include "framework/types.h"
+#include "mod/common/rfc6145/core.c"
+#include "mod/common/rfc6145/6to4.c"
+#include "mod/common/rfc6145/4to6.c"
 
 MODULE_LICENSE(JOOL_LICENSE);
 MODULE_AUTHOR("Alberto Leiva Popper");
@@ -209,7 +209,7 @@ static bool test_function_icmp4_to_icmp6_param_prob(void)
 	success &= ASSERT_UINT(7, be32_to_cpu(hdr6->icmp6_pointer), "pointer");
 
 	hdr4->icmp4_unused = cpu_to_be32(0x05000000U);
-	success &= ASSERT_VERDICT(INVALID, icmp4_to_icmp6_param_prob(&state), "func result 2");
+	success &= ASSERT_VERDICT(DROP, icmp4_to_icmp6_param_prob(&state), "func result 2");
 
 	return success;
 }

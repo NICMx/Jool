@@ -2,10 +2,10 @@
 #include <linux/printk.h>
 #include <linux/inet.h>
 
-#include "nat64/unit/unit_test.h"
-#include "nat64/common/types.h"
-#include "nat64/common/str_utils.h"
-#include "common/rfc6052.c"
+#include "framework/unit_test.h"
+#include "common/types.h"
+#include "common/str_utils.h"
+#include "mod/common/rfc6052.c"
 
 MODULE_LICENSE(JOOL_LICENSE);
 MODULE_AUTHOR("Ramiro Nava");

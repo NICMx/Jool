@@ -1,13 +1,13 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 
-#include "nat64/common/constants.h"
-#include "nat64/common/str_utils.h"
-#include "nat64/unit/types.h"
-#include "nat64/unit/unit_test.h"
-#include "nat64/unit/skb_generator.h"
-#include "nat64/mod/stateful/pool4/rfc6056.h"
-#include "stateful/filtering_and_updating.c"
+#include "common/constants.h"
+#include "common/str_utils.h"
+#include "framework/types.h"
+#include "framework/unit_test.h"
+#include "framework/skb_generator.h"
+#include "mod/nat64/pool4/rfc6056.h"
+#include "mod/nat64/filtering_and_updating.c"
 
 MODULE_LICENSE(JOOL_LICENSE);
 MODULE_AUTHOR("Roberto Aceves");
@@ -242,7 +242,7 @@ static bool test_filtering_and_updating(void)
 	if (pkt_init_ipv6(&state, skb))
 		return false;
 
-	success &= ASSERT_VERDICT(INVALID, filtering_and_updating(&state), "Hairpinning");
+	success &= ASSERT_VERDICT(DROP, filtering_and_updating(&state), "Hairpinning");
 	success &= assert_bib_count(0, L4PROTO_UDP);
 	success &= assert_session_count(0, L4PROTO_UDP);
 

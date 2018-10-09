@@ -1,8 +1,8 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 
-#include "nat64/unit/unit_test.h"
-#include "stateful/pool4/db.c"
+#include "framework/unit_test.h"
+#include "mod/nat64/pool4/db.c"
 
 MODULE_LICENSE(JOOL_LICENSE);
 MODULE_AUTHOR("Ramiro Nava");

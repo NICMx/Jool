@@ -1,5 +1,5 @@
-#include "nat64/mod/common/translation_state.h"
-#include "nat64/mod/common/types.h"
+#include "mod/common/translation_state.h"
+#include "mod/common/types.h"
 
 static struct fake {
 	int junk;

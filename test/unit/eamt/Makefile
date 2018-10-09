@@ -19,7 +19,7 @@ EAMT = eamt
 obj-m += $(EAMT).o
 
 $(EAMT)-objs += $(MIN_REQS)
-$(EAMT)-objs += ../../../mod/common/rtrie.o
+$(EAMT)-objs += ../../../src/mod/common/rtrie.o
 $(EAMT)-objs += eamt_test.o
 
 

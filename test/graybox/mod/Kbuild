@@ -1,4 +1,4 @@
-ccflags-y := -I$(src)/../common -I$(src)/../../../include
+ccflags-y := -I$(src)/../common -I$(src)/../../../src
 #EXTRA_CFLAGS += -DDEBUG
 
 obj-m += graybox.o
@@ -9,6 +9,6 @@ graybox-objs += genetlink.o
 graybox-objs += sender.o
 graybox-objs += nl_handler.o
 graybox-objs += ../common/types.o
-graybox-objs += ../../../mod/common/error_pool.o
-graybox-objs += ../../../mod/common/ipv6_hdr_iterator.o
-graybox-objs += ../../../mod/common/route_out.o
+graybox-objs += ../../../src/mod/common/error_pool.o
+graybox-objs += ../../../src/mod/common/ipv6_hdr_iterator.o
+graybox-objs += ../../../src/mod/common/route_out.o

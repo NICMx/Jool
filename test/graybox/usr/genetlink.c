@@ -3,7 +3,7 @@
 #include <errno.h>
 #include <netlink/genl/ctrl.h>
 #include <netlink/genl/genl.h>
-#include "nat64/common/types.h"
+#include "common/types.h"
 #include "types.h"
 
 static struct nl_sock *sk;

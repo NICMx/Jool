@@ -1,6 +1,6 @@
 #include <linux/module.h>
 
-#include "nat64/unit/unit_test.h"
+#include "framework/unit_test.h"
 
 MODULE_LICENSE(JOOL_LICENSE);
 MODULE_AUTHOR("Alberto Leiva Popper");

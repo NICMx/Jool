@@ -3,8 +3,8 @@
 #include <linux/ip.h>
 #include <linux/ipv6.h>
 #include <linux/sort.h>
-#include "nat64/common/types.h"
-#include "nat64/mod/common/address.h"
+#include "common/types.h"
+#include "mod/common/address.h"
 #include "util.h"
 
 struct expecter_node {

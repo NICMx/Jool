@@ -1,13 +1,13 @@
 #include <linux/module.h>
 
-#include "nat64/unit/unit_test.h"
-#include "nat64/unit/skb_generator.h"
-#include "nat64/unit/types.h"
+#include "framework/unit_test.h"
+#include "framework/skb_generator.h"
+#include "framework/types.h"
 
-#include "nat64/common/str_utils.h"
-#include "nat64/mod/common/core.h"
-#include "nat64/mod/common/pool6.h"
-#include "nat64/mod/common/xlator.h"
+#include "common/str_utils.h"
+#include "mod/common/core.h"
+#include "mod/common/pool6.h"
+#include "mod/common/xlator.h"
 
 MODULE_LICENSE(JOOL_LICENSE);
 MODULE_AUTHOR("Alberto Leiva");

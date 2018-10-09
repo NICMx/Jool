@@ -1,4 +1,4 @@
-#include "nat64/mod/common/stats.h"
+#include "mod/common/stats.h"
 
 struct jool_stats {
 	int junk;

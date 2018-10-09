@@ -2,9 +2,9 @@
 #include <linux/module.h>
 #include <linux/vmalloc.h>
 
-#include "nat64/unit/unit_test.h"
-#include "nat64/usr/str_utils.h"
-#include "stateful/pool4/db.c"
+#include "framework/unit_test.h"
+#include "usr/common/str_utils.h"
+#include "nat64/pool4/db.c"
 
 MODULE_LICENSE(JOOL_LICENSE);
 MODULE_AUTHOR("Alberto Leiva");

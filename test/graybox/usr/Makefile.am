@@ -11,11 +11,11 @@ graybox_SOURCES = \
 	command/send.c \
 	command/stats.c \
 	command/common.c \
-	../../../usr/common/str_utils.c
+	../../../src/usr/common/str_utils.c
 
 graybox_LDADD = ${LIBNLGENL3_LIBS}
 graybox_CFLAGS = -Wall -O2
 graybox_CFLAGS += -I${srcdir}/../common
-graybox_CFLAGS += -I${srcdir}/../../../include
+graybox_CFLAGS += -I${srcdir}/../../../src
 graybox_CFLAGS += ${LIBNLGENL3_CFLAGS}
 man_MANS = graybox.7

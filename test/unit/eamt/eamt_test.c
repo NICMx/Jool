@@ -2,10 +2,10 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 
-#include "nat64/common/str_utils.h"
-#include "nat64/unit/types.h"
-#include "nat64/unit/unit_test.h"
-#include "stateless/eam.c"
+#include "common/str_utils.h"
+#include "framework/types.h"
+#include "framework/unit_test.h"
+#include "mod/siit/eam.c"
 
 MODULE_LICENSE(JOOL_LICENSE);
 MODULE_AUTHOR("dhernandez");

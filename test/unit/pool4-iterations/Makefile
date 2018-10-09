@@ -17,9 +17,9 @@ ITERATIONS = pool4-iterations
 obj-m += $(ITERATIONS).o
 
 $(ITERATIONS)-objs += $(MIN_REQS)
-$(ITERATIONS)-objs += ../../../mod/common/rbtree.o
-$(ITERATIONS)-objs += ../../../mod/stateful/pool4/empty.o
-$(ITERATIONS)-objs += ../../../mod/stateful/pool4/rfc6056.o
+$(ITERATIONS)-objs += ../../../src/mod/common/rbtree.o
+$(ITERATIONS)-objs += ../../../src/mod/nat64/pool4/empty.o
+$(ITERATIONS)-objs += ../../../src/mod/nat64/pool4/rfc6056.o
 $(ITERATIONS)-objs += ../impersonator/route.o
 $(ITERATIONS)-objs += iterations.o
 

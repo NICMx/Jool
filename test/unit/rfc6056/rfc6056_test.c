@@ -1,7 +1,7 @@
 #include <linux/module.h>
-#include "stateful/pool4/rfc6056.c"
-#include "nat64/unit/types.h"
-#include "nat64/unit/unit_test.h"
+#include "mod/nat64/pool4/rfc6056.c"
+#include "framework/types.h"
+#include "framework/unit_test.h"
 
 MODULE_LICENSE(JOOL_LICENSE);
 MODULE_AUTHOR("Alberto Leiva");

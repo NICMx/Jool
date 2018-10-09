@@ -17,7 +17,7 @@ RFC6052 = rfc6052
 obj-m += $(RFC6052).o
 
 $(RFC6052)-objs += $(MIN_REQS)
-$(RFC6052)-objs += ../../../mod/common/pool6.o
+$(RFC6052)-objs += ../../../src/mod/common/pool6.o
 $(RFC6052)-objs += rfc6052_test.o
 
 

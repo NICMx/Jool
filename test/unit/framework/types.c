@@ -1,5 +1,5 @@
-#include "nat64/unit/types.h"
-#include "nat64/common/str_utils.h"
+#include "framework/types.h"
+#include "common/str_utils.h"
 
 int init_tuple4(struct tuple *tuple4, char *src_addr, u16 src_port,
 		char *dst_addr, u16 dst_port, l4_protocol l4_proto)

@@ -3,7 +3,7 @@
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include "nat64/common/types.h"
+#include "common/types.h"
 
 int load_pkt(char *filename, unsigned char **result, size_t *result_len)
 {

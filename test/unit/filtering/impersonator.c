@@ -1,5 +1,5 @@
-#include "nat64/mod/stateful/joold.h"
-#include "nat64/unit/unit_test.h"
+#include "mod/nat64/joold.h"
+#include "framework/unit_test.h"
 
 static struct fake {
 	int junk;

@@ -4,10 +4,10 @@
 #include <linux/netdevice.h>
 #include <linux/skbuff.h>
 #include <linux/version.h>
-#include "nat64/common/types.h"
-#include "nat64/mod/common/ipv6_hdr_iterator.h"
-#include "nat64/mod/common/route.h"
-#include "nat64/mod/common/send_packet.h"
+#include "common/types.h"
+#include "mod/common/ipv6_hdr_iterator.h"
+#include "mod/common/route.h"
+#include "mod/common/send_packet.h"
 #include "util.h"
 
 /*
