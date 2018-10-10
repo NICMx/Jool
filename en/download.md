@@ -5,7 +5,7 @@ category: Download
 title: Download
 ---
 
-# Download
+# Downloads
 
 - **Bold** marks the most recommended version(s).
 - Normal font signals recommended fallback versions in case the previous option fails you ([bug reports welcomed]({{ site.repository-url }}/issues)).

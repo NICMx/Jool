@@ -294,8 +294,14 @@ code {
 	padding-right: 0.3em;
 }
 
-.bash .c {
-	color: #058;
+.language-bash > .c {
+	color: green;
+}
+.language-bash > .nt {
+	color: purple;
+}
+.language-bash > .s2 {
+	color: blue;
 }
 
 table {

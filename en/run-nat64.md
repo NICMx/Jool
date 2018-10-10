@@ -22,8 +22,6 @@ title: Stateful NAT64 Run
 
 This document explains how to run Jool in [Stateful NAT64 mode](intro-xlat.html#stateful-nat64).
 
-Software-wise, only a [successful install of the kernel module](install-mod.html) is required. The userspace application is not needed in this basic run.
-
 ## Sample Network
 
 ![Figure 1 - Sample Network](../images/network/stateful.svg)
@@ -99,8 +97,6 @@ user@T:~# insmod jool \
 		[pool4=<IPv4 prefixes>] \
 		[disabled]
 {% endhighlight %}
-
-See [Kernel Module Options](modprobe-nat64.html) for a description of each argument.
 
 The result looks like this:
 

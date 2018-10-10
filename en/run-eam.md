@@ -22,7 +22,7 @@ title: EAM Run
 
 This document explains how to run Jool in [EAM mode](intro-xlat.html#siit-with-eam) (which actually more than a "mode" is simply stock SIIT with records in the EAM table). Follow the link for more details on what to expect. See also [the EAMT RFC summary](eamt.html) for more details on how the EAMT works.
 
-[Stock mode](run-vanilla.html) is faster to configure and you're encouraged to learn it before, particularly because I will not ellaborate here on the steps which both modes have in common. Software-wise, you need a successful installation of both the [kernel module](install-mod.html) **and** the [userspace application](install-usr.html) for EAM.
+[Stock mode](run-vanilla.html) is faster to configure and you're encouraged to learn it before, particularly because I will not ellaborate here on the steps which both modes have in common.
 
 ## Sample Network
 
@@ -63,11 +63,6 @@ user@T:~# /sbin/ip addr add 192.0.2.1/24 dev eth1
 user@T:~# 
 user@T:~# sysctl -w net.ipv4.conf.all.forwarding=1
 user@T:~# sysctl -w net.ipv6.conf.all.forwarding=1
-user@T:~# 
-user@T:~# ethtool --offload eth0 gro off
-user@T:~# ethtool --offload eth0 lro off
-user@T:~# ethtool --offload eth1 gro off
-user@T:~# ethtool --offload eth1 lro off
 {% endhighlight %}
 
 Remember you might want to cross-ping _T_ vs everything before continuing.

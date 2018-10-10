@@ -49,7 +49,10 @@ Please [let us know]({{ site.repository-url }}/issues) if you find additional co
 | [3.6.0](download.html#36x)          | 3.13 - 3.19, 4.0 - 4.18            | RHEL 7.0 - RHEL 7.5            |
 | [3.5.7](download.html#35x)          | 3.2 - 3.19, 4.0 - 4.16             | TODO                           |
 
-If you're using a non-RHEL distribution (eg. Debian derivatives), execute `uname -r` to print the kernel version you're running. Suffixes rarely matter.
+If you're using a non-RHEL distribution (eg. Debian derivatives), execute `uname -r` to print the kernel version you're running. Suffixes rarely matter. Here's an example from my running machine, which states that my running kernel is 4.15:
+
+	ydahhrk@Zero:~$ /bin/uname -r
+	4.15.0-36-generic
 
 RHEL-based distributions (such as Red Hat and CentOS) do not follow the normal kernel versioning conventions; use the third column instead.
 
@@ -65,7 +68,7 @@ Netfilter Jool instances are simple to configure. However, they are also _greedy
 
 There can only be **one** Netfilter SIIT Jool instance and **one** Netfilter NAT64 instance per network namespace.
 
-Netfilter Jool instances start packet translation as soon as they are created (unless manually [`disabled`](https://jool.mx/en/modprobe-nat64.html#disabled)). They drop packets deemed corrupted, translate packets which _can_ be translated according to their configuration and return everything else to the kernel.
+Netfilter Jool instances start packet translation as soon as they are created. They drop packets deemed corrupted, translate packets which _can_ be translated (according to their configuration) and return everything else to the kernel.
 
 Netfilter plugins are not allowed to change the network protocol of their packets. Additionally, the kernel API does not export a means to post packets in the `FORWARD` chain. For these reasons, successfully translated packets skip `FORWARD`, going straight to `POSTROUTING`:
 

@@ -18,10 +18,8 @@ See [RFC 6586](https://tools.ietf.org/html/rfc6586) for deployment experiences u
 
 ## Installation
 
-> Note: If you're running OpenWRT/LEDE, ignore the installation links below completely and read [this](openwrt.html) instead.
-
-1. [Kernel modules](install-mod.html)
-2. [Userspace applications](install-usr.html)
+1. [Installation on OpenWRT](openwrt.html)
+2. [Installation on most other distros](install.html)
 
 ## Basic Tutorials
 
@@ -40,19 +38,14 @@ See [RFC 6586](https://tools.ietf.org/html/rfc6586) for deployment experiences u
 1. [The IPv4 Transport Address Pool](pool4.html)
 2. [BIB](bib.html)
 
-## Kernel Module Arguments
-
-1. [`jool_siit`](modprobe-siit.html)
-2. [`jool`](modprobe-nat64.html)
-
 ## Userspace Application Arguments
 
 1. Common arguments
 	1. [`--help`](usr-flags-help.html)
+	4. [`--instance`](usr-flags-instance.html)
 	2. [`--global`](usr-flags-global.html)
 		1. [`--mtu-plateaus`](usr-flags-plateaus.html)
 	3. [`--pool6`](usr-flags-pool6.html)
-	4. [`--instance`](usr-flags-instance.html)
 2. `jool_siit`-only arguments
 	1. [`--eamt`](usr-flags-eamt.html)
 	2. [`--blacklist`](usr-flags-blacklist.html)

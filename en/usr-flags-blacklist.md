@@ -33,6 +33,8 @@ There are some addresses Jool will refuse to translate, regardless of `blacklist
 - Multicast addresses (224.0.0.0/4).
 - Limited broadcast (255.255.255.255/32).
 
+The blacklist is mostly only relevant in Netfilter Jool, because iptables Jool already has matching conditionals by nature.
+
 ## Syntax
 
 	jool_siit --blacklist (

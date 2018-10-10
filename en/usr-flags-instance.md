@@ -23,73 +23,18 @@ title: --instance
 
 ## Description
 
-The following command actually does two things:
+While `modprobe jool` and `modprobe jool_siit` can respectively be used to teach NAT64 and SIIT to a kernel, they no longer immediately change the kernel's behavior in any way, as of Jool 3.6.0.
 
-<div class="distro-menu">
-	<span class="distro-selector" onclick="showDistro(this);">SIIT</span>
-	<span class="distro-selector" onclick="showDistro(this);">NAT64</span>
-</div>
+To actually start packet translation, an SIIT or NAT64 instance has to be created and attached somewhere in the network stack. That's where `--instance` comes in.
 
-<!-- SIIT -->
-{% highlight bash %}
-# modprobe jool_siit
-{% endhighlight %}
-
-<!-- NAT64 -->
-{% highlight bash %}
-# modprobe jool
-{% endhighlight %}
-
-1. Attach the kernel module to the kernel.  
-   (In other words, it teaches the kernel about SIIT or NAT64.)
-2. Adds a **Netfilter** translator instance to the network namespace the command is executed in.  
-   (In other words, it actually hooks a translator to the current network stack.)
-
-Incidentally, you can skip the second step by running the following version of the command:
-
-<div class="distro-menu">
-	<span class="distro-selector" onclick="showDistro(this);">SIIT</span>
-	<span class="distro-selector" onclick="showDistro(this);">NAT64</span>
-</div>
-
-<!-- SIIT -->
-{% highlight bash %}
-# modprobe jool_siit no_instance
-{% endhighlight %}
-
-<!-- NAT64 -->
-{% highlight bash %}
-# modprobe jool no_instance
-{% endhighlight %}
-
-(See [`no_instance`](modprobe-siit.html#noinstance).)
-
-Only one `jool` module, and also one `jool_siit` module, can be modprobed per kernel. Any modprobes after the first do nothing:
-
-	# ip netns exec red   modprobe jool_siit   # success
-	# ip netns exec red   modprobe jool        # success
-	# ip netns exec green modprobe jool_siit   # no effect
-	# ip netns exec green modprobe jool        # no effect
-	# ip netns exec blue  modprobe jool_siit   # no effect
-	# ip netns exec blue  modprobe jool        # no effect
-
-So, if you want more Netfilter translators, you can use `--instance` to hook and unhook translators anywhere after a modprobe. (Regardless of `no_instance`.)
-
-	# modprobe jool_siit no_instance                   # success
-	# modprobe jool      no_instance                   # success
-	# ip netns exec red   jool_siit --instance --add   # success
-	# ip netns exec red   jool      --instance --add   # success
-	# ip netns exec green jool_siit --instance --add   # success
-	# ip netns exec green jool      --instance --add   # success
-	# ip netns exec blue  jool_siit --instance --add   # success
-	# ip netns exec blue  jool      --instance --add   # success
+As of now, Jool supports two instance types: _Netfilter_ instances and _iptables_ instances. See the [introduction to Jool](intro-jool.html#design) to read upon the differences between the two.
 
 ## Syntax
 
 	(jool_siit | jool) --instance (
 		[--display]
-		| --add [--instance-name <name>] [--netfilter|--iptables]
-		| --remove [--instance-name <name>]
+		| --add [--netfilter|--iptables] [<name>]
+		| --remove [<name>]
 		| --flush
 	)
 
@@ -104,29 +49,34 @@ So, if you want more Netfilter translators, you can use `--instance` to hook and
 
 ### Options
 
-| Flag              | Default   | Description                                                                        |
-|-------------------|-----------|------------------------------------------------------------------------------------|
-| `--instance-name` | "default" | Name of the instance to add or remove. Can be up to 15 printable ASCII characters. |
-| `--netfilter`     | enabled   | Sit the instance on top of the Netfilter framework.                                |
-| `--iptables`      | disabled  | Sit the instance on top of the iptables framework.                                 |
+| Flag              | Default   | Description                                         |
+|-------------------|-----------|-----------------------------------------------------|
+| `--netfilter`     | enabled   | Sit the instance on top of the Netfilter framework. |
+| `--iptables`      | disabled  | Sit the instance on top of the iptables framework.  |
+
+### Payload
+
+`<name>`, the name of the instance to add or remove, exists to differentiate separate instances loaded in the same network namespace. You will need it later to configure other aspects of the instance.
+
+It can be up to 15 printable ASCII characters, and defaults to "default".
 
 ## Examples
 
 ### General Examples
 
 	# jool --instance --add
-	# jool --instance --add --instance-name alpha --netfilter
-	# jool --instance --add --instance-name beta  --iptables
+	# jool --instance --add --netfilter alpha
+	# jool --instance --add --iptables  beta
 	#
 	# ip netns add blue
-	# ip netns exec blue jool --instance --add --instance-name alpha --netfilter
+	# ip netns exec blue jool --instance --add --netfilter alpha
 	#
 	# jool --instance --display
 	TODO
 
-Notice that the namespace identifier is fairly nonsensical garbage. This is expected behavior for now, because namespace names do not exist in the kernel (in fact, some of them have no name), and so Jool has no concept of them.
+Notice that the namespace identifier is fairly nonsensical garbage. Unfortunately, this is expected behavior for now, because namespace names do not exist in the kernel (in fact, some of them have no name), and so Jool has no concept of them.
 
-	# jool --instance --remove --instance-name alpha
+	# jool --instance --remove alpha
 	# jool --instance --display
 	TODO
 	# jool --instance --flush
@@ -138,9 +88,9 @@ Notice that the namespace identifier is fairly nonsensical garbage. This is expe
 
 ### Netfilter Examples
 
-Insert the module but do not attach an instance to the default namespace:
+Remember to load the module first:
 
-	# modprobe jool no_instance
+	# modprobe jool
 
 Create two namespaces with two _local_ networks each:
 
@@ -191,7 +141,7 @@ Add a NAT64 to each namespace:
 	# ip route add 2001:db8:64::/96 via 2001:db8:1::1
 	# ip route add 2001:db8:46::/96 via 2001:db8:2::1
 
-(I'm skipping the `sysctl` and `ethtool` commands to reduce clutter. Please add them in any serviceable environments.)
+(I'm skipping the `sysctl` commands to reduce clutter. Please add them in any serviceable environments.)
 
 Ensure the NAT64s are different:
 
@@ -250,8 +200,8 @@ Check out each NAT64's [state](usr-flags-session.html):
 
 It's important to note that the rule and the instance need separate configurations because they are independent components. First, let's create and configure the instance:
 
-	# modprobe jool no_instance
-	# jool --instance --add --instance-name alpha --iptables
+	# modprobe jool
+	# jool --instance --add --iptables alpha
 	# jool --instance-name alpha --pool6 --add 64:ff9b::/96
 	# jool --instance-name alpha --pool4 --add 192.0.2.1
 

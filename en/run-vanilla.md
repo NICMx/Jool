@@ -22,9 +22,9 @@ title: Basic SIIT Run
 
 This document explains how to run Jool in [stock SIIT mode](intro-xlat.html#siit-traditional). Follow the link for more details on what to expect.
 
-Software-wise, only a [successful install of Jool’s kernel module](install-mod.html) is required. The userspace application is out of the scope of this document on purpose.
-
 In case you're wondering, you can follow along these tutorials using virtual machines or alternate interface types just fine (Jool is not married to physical "_ethX_" interfaces).
+
+If you intend on using iptables Jool, some familiarity with iptables is recommended.
 
 ## Sample Network
 
@@ -74,33 +74,16 @@ user@T:~# /sbin/ip addr add 192.0.2.1/24 dev eth1
 
 Because we haven't turned _T_ into a translator yet, nodes _A_ through _E_ still cannot interact with _V_ through _Z_, but you might want to make sure _T_ can ping everyone before continuing.
 
-Next, enable forwarding on _T_.
+Also, enable forwarding on _T_.
 
 {% highlight bash %}
 user@T:~# sysctl -w net.ipv4.conf.all.forwarding=1
 user@T:~# sysctl -w net.ipv6.conf.all.forwarding=1
 {% endhighlight %}
 
-> ![Note!](../images/bulb.svg) These sysctls make sense conceptually, but Jool doesn't actually depend on them, currently.
-> 
-> What happens is, if you omit them in kernels 3.5 and below, everything will seem to work, but Linux will drop some important ICMP traffic. Skipping them in kernels 3.6 and above doesn’t actually yield known adverse consequences.
-> 
-> Whether this inconsistency is a bug in older or newer kernels [is a rather philosophical topic]({{ site.repository-url }}/issues/170#issuecomment-141507174). On the other hand, Jool 4.0 will almost certainly require forwarding, so you might as well start preparing your scripts.
-
-The only caveat you need to keep in mind before inserting Jool is that you need to [get rid of receive offloads in the translating machine](offloads.html). Do that by means of `ethtool`:
-
-{% highlight bash %}
-user@T:~# ethtool --offload eth0 gro off
-user@T:~# ethtool --offload eth0 lro off
-user@T:~# ethtool --offload eth1 gro off
-user@T:~# ethtool --offload eth1 lro off
-{% endhighlight %}
-
-(If it complains it cannot change something, keep in mind it can already be off; run `sudo ethtool --show-offload [interface]` to figure it out.)
-
 ## Jool
 
-This is the insertion syntax:
+First, teach your kernel what SIIT is by attaching the `jool_siit` module to your kernel:
 
 <div class="distro-menu">
 	<span class="distro-selector" onclick="showDistro(this);">Most Distros</span>
@@ -109,44 +92,54 @@ This is the insertion syntax:
 
 <!-- Most Distros -->
 {% highlight bash %}
-user@T:~# /sbin/modprobe [--first-time] jool_siit \
-		[pool6=<IPv6 prefix>] \
-		[blacklist=<IPv4 prefixes>] \
-		[pool6791=<IPv4 prefixes>] \
-		[disabled]
+user@T:~# /sbin/modprobe --first-time jool_siit
 {% endhighlight %}
 
 <!-- OpenWRT -->
 {% highlight bash %}
-user@T:~# insmod jool_siit \
-		[pool6=<IPv6 prefix>] \
-		[blacklist=<IPv4 prefixes>] \
-		[pool6791=<IPv4 prefixes>] \
-		[disabled]
+user@T:~# insmod jool_siit
 {% endhighlight %}
 
-See [Kernel Module Options](modprobe-siit.html) for a description of each argument. The following suffices for our sample network:
+Then, create a SIIT instance and perform the bare minimum configuration:
 
 <div class="distro-menu">
-	<span class="distro-selector" onclick="showDistro(this);">Most Distros</span>
-	<span class="distro-selector" onclick="showDistro(this);">OpenWRT</span>
+	<span class="distro-selector" onclick="showDistro(this);">iptables Jool</span>
+	<span class="distro-selector" onclick="showDistro(this);">Netfilter Jool</span>
 </div>
 
-<!-- Most Distros -->
+<!-- iptables Jool -->
 {% highlight bash %}
-user@T:~# /sbin/modprobe --first-time jool_siit pool6=2001:db8::/96
+user@T:~# # Create a Jool iptables instance named "example."
+user@T:~# jool_siit --instance --add "example" --iptables
+user@T:~# # Tell it that the IPv6 representation of any IPv4 address should be
+user@T:~# # `2001:db8::<IPv4 address>`. See sections below for examples.
+user@T:~# jool_siit --pool6 --add 2001:db8::/96 --instance-name "example"
+user@T:~# 
+user@T:~# # Tell iptables that any incoming traffic headed towards the 64:ff9b::/96 and
+user@T:~# # 198.51.100.8/29 networks should be handled by our newly-created instance.
+user@T:~# ip6tables -t mangle -A PREROUTING -d 64:ff9b::/96    -j JOOL_SIIT --instance-name "example"
+user@T:~# iptables  -t mangle -A PREROUTING -d 198.51.100.8/29 -j JOOL_SIIT --instance-name "example"
 {% endhighlight %}
 
-<!-- OpenWRT -->
+<!-- Netfilter Jool -->
 {% highlight bash %}
-user@T:~# insmod jool_siit pool6=2001:db8::/96
+user@T:~# # Create a Jool iptables instance named "example."
+user@T:~# jool_siit --instance --add "example" --netfilter
+user@T:~# # Tell it that the IPv6 representation of any IPv4 address should be
+user@T:~# # `2001:db8::<IPv4 address>`. See sections below for examples.
+user@T:~# jool_siit --pool6 --add 2001:db8::/96 --instance-name "example"
+ 
+ 
+ 
+ 
+ 
 {% endhighlight %}
 
-That means the IPv6 representation of any IPv4 address is going to be `2001:db8::<IPv4 address>`. See below for examples.
+Here's Jool documentation on [`--instance`](usr-flags-instance.html) and [`--pool6`](usr-flags-pool6.html).
 
 ## Testing
 
-If something doesn't work, try the [FAQ](faq.html).
+If something doesn't work, try the [FAQ](faq.html). In particular, if you face noticeably low performance, try [disabling offloads](offloads.html).
 
 Try to ping _A_ from _V_ like this:
 
@@ -188,7 +181,28 @@ Then maybe another one in _C_ and request from _W_:
 
 ## Stopping Jool
 
-Revert the modprobe using the `-r` flag to shut down Jool:
+Destroy your instance by reverting the `--instance --add`:
+
+<div class="distro-menu">
+	<span class="distro-selector" onclick="showDistro(this);">iptables Jool</span>
+	<span class="distro-selector" onclick="showDistro(this);">Netfilter Jool</span>
+</div>
+
+<!-- iptables Jool -->
+{% highlight bash %}
+user@T:~# ip6tables -t mangle -D PREROUTING -d 64:ff9b::/96    -j JOOL_SIIT --instance-name "example"
+user@T:~# iptables  -t mangle -D PREROUTING -d 198.51.100.8/29 -j JOOL_SIIT --instance-name "example"
+user@T:~# jool_siit --instance --remove "example"
+{% endhighlight %}
+
+<!-- Netfilter Jool -->
+{% highlight bash %}
+ 
+ 
+user@T:~# jool_siit --instance --remove "example"
+{% endhighlight %}
+
+And unteach SIIT from your kernel by reverting the `modprobe` if you want:
 
 <div class="distro-menu">
 	<span class="distro-selector" onclick="showDistro(this);">Most Distros</span>
@@ -208,8 +222,7 @@ user@T:~# rmmod jool_siit
 ## Afterwords
 
 1. More complex setups might require you to consider the [MTU notes](mtu.html).
-2. The `modprobe` insertion and removal mechanism is fine if all you need is a simple single SIIT, but if you want to enclose it in a network namespace, or need multiple Jool instances in a single machine, check out [`--instance`](usr-flags-instance.html).
 3. Please note that none of what was done in this tutorial survives reboots! Documentation on persistence will be released in the future.
 
-The [next tutorial](run-eam.html) covers [EAMT SIIT](intro-xlat.html#siit-with-eam). It is also recommended because it introduces usage to Jool's userspace applications.
+The [next tutorial](run-eam.html) covers [EAMT SIIT](intro-xlat.html#siit-with-eam).
 
