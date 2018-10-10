@@ -65,8 +65,8 @@ if [[ -z $1 || $1 = *udp64* ]]; then
 	test-single 6-udp-csumfail-df 4-udp-csumfail-df $NOFRAG_IGNORE
 	test-single 6-udp-csumok-nodf 4-udp-csumok-nodf $NOFRAG_IGNORE
 	test-single 6-udp-csumfail-nodf 4-udp-csumfail-nodf $NOFRAG_IGNORE
-	test-frags 6-udp-csumok 4-udp-csumok $NOFRAG_IGNORE
-	test-frags 6-udp-csumfail 4-udp-csumfail $NOFRAG_IGNORE
+	#test-frags 6-udp-csumok 4-udp-csumok $NOFRAG_IGNORE
+	#test-frags 6-udp-csumfail 4-udp-csumfail $NOFRAG_IGNORE
 fi
 
 # UDP, 4 -> 6
@@ -75,8 +75,8 @@ if [[ -z $1 || $1 = *udp46* ]]; then
 	test-single 4-udp-csumfail-df 6-udp-csumfail-df
 	test-single 4-udp-csumok-nodf 6-udp-csumok-nodf
 	test-single 4-udp-csumfail-nodf 6-udp-csumfail-nodf
-	test-frags 4-udp-csumok 6-udp-csumok 44,45,46,47
-	test-frags 4-udp-csumfail 6-udp-csumfail 44,45,46,47
+	#test-frags 4-udp-csumok 6-udp-csumok 44,45,46,47
+	#test-frags 4-udp-csumfail 6-udp-csumfail 44,45,46,47
 fi
 
 # TCP
@@ -85,8 +85,8 @@ if [[ -z $1 || $1 = *tcp64* ]]; then
 	test-single 6-tcp-csumfail-df 4-tcp-csumfail-df $NOFRAG_IGNORE
 	test-single 6-tcp-csumok-nodf 4-tcp-csumok-nodf $NOFRAG_IGNORE
 	test-single 6-tcp-csumfail-nodf 4-tcp-csumfail-nodf $NOFRAG_IGNORE
-	test-frags 6-tcp-csumok 4-tcp-csumok $NOFRAG_IGNORE
-	test-frags 6-tcp-csumfail 4-tcp-csumfail $NOFRAG_IGNORE
+	#test-frags 6-tcp-csumok 4-tcp-csumok $NOFRAG_IGNORE
+	#test-frags 6-tcp-csumfail 4-tcp-csumfail $NOFRAG_IGNORE
 fi
 
 # ICMP info, 6 -> 4
@@ -95,8 +95,8 @@ if [[ -z $1 || $1 = *icmpi64* ]]; then
 	test-single 6-icmp6info-csumfail-df 4-icmp4info-csumfail-df $NOFRAG_IGNORE
 	test-single 6-icmp6info-csumok-nodf 4-icmp4info-csumok-nodf $NOFRAG_IGNORE
 	test-single 6-icmp6info-csumfail-nodf 4-icmp4info-csumfail-nodf $NOFRAG_IGNORE
-	test-frags 6-icmp6info-csumok 4-icmp4info-csumok $NOFRAG_IGNORE
-	test-frags 6-icmp6info-csumfail 4-icmp4info-csumfail $NOFRAG_IGNORE
+	#test-frags 6-icmp6info-csumok 4-icmp4info-csumok $NOFRAG_IGNORE
+	#test-frags 6-icmp6info-csumfail 4-icmp4info-csumfail $NOFRAG_IGNORE
 fi
 
 # ICMP info, 4 -> 6
@@ -105,21 +105,23 @@ if [[ -z $1 || $1 = *icmpi46* ]]; then
 	test-single 4-icmp4info-csumfail-df 6-icmp6info-csumfail-df
 	test-single 4-icmp4info-csumok-nodf 6-icmp6info-csumok-nodf
 	test-single 4-icmp4info-csumfail-nodf 6-icmp6info-csumfail-nodf
-	test-frags 4-icmp4info-csumok 6-icmp6info-csumok 44,45,46,47
-	test-frags 4-icmp4info-csumfail 6-icmp6info-csumfail 44,45,46,47
+	#test-frags 4-icmp4info-csumok 6-icmp6info-csumok 44,45,46,47
+	#test-frags 4-icmp4info-csumfail 6-icmp6info-csumfail 44,45,46,47
 fi
 
 # ICMP error, 6 -> 4
 if [[ -z $1 || $1 = *icmpe64* ]]; then
 	# 32, 33, 38 and 39 are inner IDs and checksums.
-	test-single 6-icmp6err-csumok-df 4-icmp4err-csumok-df 4,5,10,11,32,33,38,39
-	test-single 6-icmp6err-csumok-nodf 4-icmp4err-csumok-nodf $NOFRAG_IGNORE,32,33,38,39
+	#test-single 6-icmp6err-csumok-df 4-icmp4err-csumok-df 4,5,10,11,32,33,38,39
+	#test-single 6-icmp6err-csumok-nodf 4-icmp4err-csumok-nodf $NOFRAG_IGNORE,32,33,38,39
+	echo "temporarily disabled"
 fi
 
 # ICMP error, 4 -> 6
 if [[ -z $1 || $1 = *icmpe46* ]]; then
-	test-single 4-icmp4err-csumok-df 6-icmp6err-csumok-df
-	test-single 4-icmp4err-csumok-nodf 6-icmp6err-csumok-nodf
+	#test-single 4-icmp4err-csumok-df 6-icmp6err-csumok-df
+	#test-single 4-icmp4err-csumok-nodf 6-icmp6err-csumok-nodf
+	echo "temporarily disabled"
 fi
 
 # Miscellaneous tests
@@ -134,7 +136,10 @@ if [[ -z $1 || $1 = *misc* ]]; then
 	# configuration; I don't remember.)
 	# If these tests queue, check whether N4 has a default route. If it does, it
 	# will not answer the ICMP error we need.
-	
+
+	# 2018-10-10: These tests appear to be affected by ICMP error rate-limits.
+	# It'd probably be a good idea to redesign them so N4 were not needed.
+
 	ip netns exec joolns jool --source-icmpv6-errors-better on
 	# TODO The IPv4 node is returning DSCP 0x30. I don't know why.
 	test-manual issue132-test issue132-expected-on 0

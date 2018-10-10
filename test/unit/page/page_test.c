@@ -6,7 +6,6 @@
 
 #include "common/str_utils.h"
 #include "mod/common/core.h"
-#include "mod/common/pool6.h"
 #include "mod/common/xlator.h"
 
 MODULE_LICENSE(JOOL_LICENSE);
@@ -20,20 +19,19 @@ extern struct sk_buff *skb_out;
 
 static int init(void)
 {
-	struct ipv6_prefix prefix6;
+	struct optional_prefix6 *prefix6;
 	int error;
 
 	error = xlator_add(FW_NETFILTER, INAME_DEFAULT, &jool);
 	if (error)
 		return error;
 
-	error = str_to_addr6("2001:db8::", &prefix6.address);
+	prefix6 = &jool.global->cfg.pool6;
+	prefix6->set = true;
+	error = str_to_addr6("2001:db8::", &prefix6->prefix.address);
 	if (error)
 		goto fail;
-	prefix6.len = 96;
-	error = pool6_add(jool.pool6, &prefix6);
-	if (error)
-		goto fail;
+	prefix6->prefix.len = 96;
 
 	/* Test's global variables */
 	error = init_tuple6(&tuple6,

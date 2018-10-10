@@ -24,7 +24,6 @@ jool_common += ../common/stats.o
 jool_common += ../common/icmp_wrapper.o
 jool_common += ../common/rtrie.o
 jool_common += ../common/ipv6_hdr_iterator.o
-jool_common += ../common/pool6.o
 jool_common += ../common/rfc6052.o
 jool_common += ../common/translation_state.o
 jool_common += ../common/rbtree.o
@@ -48,7 +47,6 @@ jool_common += ../common/nl/instance.o
 jool_common += ../common/nl/joold.o
 jool_common += ../common/nl/nl_common.o
 jool_common += ../common/nl/pool4.o
-jool_common += ../common/nl/pool6.o
 jool_common += ../common/nl/session.o
 
 

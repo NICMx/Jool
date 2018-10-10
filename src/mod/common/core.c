@@ -11,6 +11,20 @@
 #include "mod/nat64/filtering_and_updating.h"
 #include "mod/common/send_packet.h"
 
+static verdict validate_xlator(struct xlation *state)
+{
+	struct global_config_usr *cfg = &state->jool.global->cfg;
+
+	if (!cfg->enabled)
+		return untranslatable(state, JSTAT_XLATOR_DISABLED);
+	if (xlat_is_nat64() && !cfg->pool6.set) {
+		log_warn_once("Cannot translate; pool6 is unset.");
+		return untranslatable(state, JSTAT_POOL6_UNSET);
+	}
+
+	return VERDICT_CONTINUE;
+}
+
 static verdict core_common(struct xlation *state)
 {
 	verdict result;
@@ -53,11 +67,17 @@ static verdict core_common(struct xlation *state)
 	return stolen(state, JSTAT_SUCCESS);
 }
 
-static void send_icmp4_error(struct xlation *state)
+static void send_icmp4_error(struct xlation *state, verdict result)
 {
 	bool success;
 
 	if (state->result.icmp == ICMPERR_NONE)
+		return;
+	/*
+	 * Netfilter Jool NF_ACCEPTs the packet on UNTRANSLATABLE, so cancel the
+	 * ICMP error. Linux will decide what to do.
+	 */
+	if ((state->jool.fw & FW_NETFILTER) && result == VERDICT_UNTRANSLATABLE)
 		return;
 
 	success = icmp64_send4(state->in.skb,
@@ -80,10 +100,9 @@ verdict core_4to6(struct sk_buff *skb, struct xlator *instance)
 
 	xlation_init(&state, instance);
 
-	if (!state.jool.global->cfg.enabled) {
-		result = untranslatable(&state, JSTAT_XLATOR_DISABLED);
+	result = validate_xlator(&state);
+	if (result != VERDICT_CONTINUE)
 		goto end;
-	}
 
 	log_debug("===============================================");
 	log_debug("Jool instance '%s': Received a v4 packet.", instance->iname);
@@ -99,15 +118,17 @@ verdict core_4to6(struct sk_buff *skb, struct xlator *instance)
 	/* Fall through */
 
 end:
-	send_icmp4_error(&state);
+	send_icmp4_error(&state, result);
 	return result;
 }
 
-static void send_icmp6_error(struct xlation *state)
+static void send_icmp6_error(struct xlation *state, verdict result)
 {
 	bool success;
 
 	if (state->result.icmp == ICMPERR_NONE)
+		return;
+	if ((state->jool.fw & FW_NETFILTER) && result == VERDICT_UNTRANSLATABLE)
 		return;
 
 	success = icmp64_send6(state->in.skb,
@@ -132,10 +153,9 @@ verdict core_6to4(struct sk_buff *skb, struct xlator *instance)
 
 	snapshot_record(&state.in.debug.shot1, skb);
 
-	if (!state.jool.global->cfg.enabled) {
-		result = untranslatable(&state, JSTAT_XLATOR_DISABLED);
+	result = validate_xlator(&state);
+	if (result != VERDICT_CONTINUE)
 		goto end;
-	}
 
 	log_debug("===============================================");
 	log_debug("Jool instance '%s': Received a v6 packet.", instance->iname);
@@ -152,6 +172,6 @@ verdict core_6to4(struct sk_buff *skb, struct xlator *instance)
 	/* Fall through */
 
 end:
-	send_icmp6_error(&state);
+	send_icmp6_error(&state, result);
 	return result;
 }

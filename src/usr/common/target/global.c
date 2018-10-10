@@ -53,18 +53,16 @@ static char *int_to_hairpin_mode(enum eam_hairpinning_mode mode)
 	return "unknown";
 }
 
-static void print_rfc6791v6_prefix(struct full_config *config, bool csv)
+static void print_prefix6(struct optional_prefix6 *prefix, bool csv)
 {
-	struct ipv6_prefix *prefix;
 	const char *str;
 	char buffer[INET6_ADDRSTRLEN];
 
-	if (config->global.siit.use_rfc6791_v6) {
-		prefix = &config->global.siit.rfc6791_v6_prefix;
-		str = inet_ntop(AF_INET6, &prefix->address, buffer,
+	if (prefix->set) {
+		str = inet_ntop(AF_INET6, &prefix->prefix.address, buffer,
 				sizeof(buffer));
 		if (str)
-			printf("%s/%u", str, prefix->len);
+			printf("%s/%u", str, prefix->prefix.len);
 		else
 			perror("inet_ntop");
 
@@ -94,6 +92,8 @@ static int handle_display_response(struct jool_response *response, void *arg)
 			print_bool(conf->global.enabled));
 	printf("\n");
 
+	printf("  --%s: ", OPTNAME_POOL6);
+			print_prefix6(&conf->global.pool6, false);
 	printf("  --%s: %s\n", OPTNAME_ZEROIZE_TC,
 			print_bool(conf->global.reset_traffic_class));
 	printf("  --%s: %s\n", OPTNAME_OVERRIDE_TOS,
@@ -131,7 +131,7 @@ static int handle_display_response(struct jool_response *response, void *arg)
 		printf("  --%s: %s\n", OPTNAME_RANDOMIZE_RFC6791,
 				print_bool(conf->global.siit.randomize_error_addresses));
 		printf("  --%s: ", OPTNAME_RFC6791V6_PREFIX);
-		print_rfc6791v6_prefix(conf, false);
+		print_prefix6(&conf->global.siit.rfc6791v6_prefix, false);
 
 	}
 	printf("\n");
@@ -191,6 +191,8 @@ static int handle_display_response_csv(struct jool_response *response, void *arg
 	printf("Status,%s\n", print_status(global));
 	printf("Manually enabled,%s\n", print_csv_bool(global->enabled));
 
+	printf("%s,", OPTNAME_POOL6);
+	print_prefix6(&conf->global.pool6, true);
 	printf("%s,%s\n", OPTNAME_ZEROIZE_TC,
 			print_csv_bool(global->reset_traffic_class));
 	printf("%s,%s\n", OPTNAME_OVERRIDE_TOS,
@@ -210,7 +212,7 @@ static int handle_display_response_csv(struct jool_response *response, void *arg
 		printf("%s,%s\n", OPTNAME_RANDOMIZE_RFC6791,
 				print_csv_bool(global->siit.randomize_error_addresses));
 		printf("%s,", OPTNAME_RFC6791V6_PREFIX);
-		print_rfc6791v6_prefix(conf, true);
+		print_prefix6(&conf->global.siit.rfc6791v6_prefix, true);
 
 	} else {
 		printf("%s,%u\n", OPTNAME_MAX_SO,
@@ -274,7 +276,7 @@ int global_display(char *iname, display_flags flags)
 	return netlink_request(iname, &request, sizeof(request), cb, NULL);
 }
 
-int global_update(char *iname, __u16 type, size_t size, void *data)
+int global_update(char *iname, __u16 type, size_t size, void *data, bool force)
 {
 	struct request_hdr *hdr;
 	struct global_value *chunk;
@@ -292,6 +294,7 @@ int global_update(char *iname, __u16 type, size_t size, void *data)
 	init_request_hdr(hdr, MODE_GLOBAL, OP_UPDATE);
 	chunk->type = type;
 	chunk->len = sizeof(struct global_value) + size;
+	chunk->force = force;
 	memcpy(payload, data, size);
 
 	result = netlink_request(iname, hdr, len, NULL, NULL);

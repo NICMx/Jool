@@ -15,19 +15,19 @@ struct display_args {
 
 static void print_entry_csv(struct instance_entry_usr *entry)
 {
-	printf("%p,", entry->ns);
+	printf("%p,%s,", entry->ns, entry->iname);
 	if (entry->fw == FW_NETFILTER)
-		printf("netfilter,");
+		printf("netfilter");
 	else if (entry->fw == FW_IPTABLES)
-		printf("iptables,");
+		printf("iptables");
 	else
-		printf("unknown,");
-	printf("%s\n", entry->iname);
+		printf("unknown");
+	printf("\n");
 }
 
 static void print_table_divisor(void)
 {
-	printf("+--------------------+-----------+-----------------+\n");
+	printf("+--------------------+-----------------+-----------+\n");
 }
 
 static void print_entry_normal(struct instance_entry_usr *entry)
@@ -38,14 +38,14 @@ static void print_entry_normal(struct instance_entry_usr *entry)
 	 * characters and I'm assuming that 32-bit machines would print smaller
 	 * pointers.
 	 */
-	printf("| %18p | ", entry->ns);
+	printf("| %18p | %15s | ", entry->ns, entry->iname);
 	if (entry->fw == FW_NETFILTER)
 		printf("netfilter");
 	else if (entry->fw == FW_IPTABLES)
 		printf(" iptables");
 	else
 		printf("  unknown");
-	printf(" | %15s |\n", entry->iname);
+	printf(" |\n");
 }
 
 static int instance_display_response(struct jool_response *response, void *arg)
@@ -89,10 +89,10 @@ int instance_display(display_flags flags)
 
 	if (flags & DF_SHOW_HEADERS) {
 		if (flags & DF_CSV_FORMAT) {
-			printf("Namespace,Framework,Name\n");
+			printf("Namespace,Name,Framework\n");
 		} else {
 			print_table_divisor();
-			printf("|          Namespace | Framework |            Name |\n");
+			printf("|          Namespace |            Name | Framework |\n");
 		}
 	}
 

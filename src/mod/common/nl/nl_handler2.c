@@ -17,7 +17,6 @@
 #include "mod/common/nl/nl_core2.h"
 #include "mod/common/nl/pool.h"
 #include "mod/common/nl/pool4.h"
-#include "mod/common/nl/pool6.h"
 #include "mod/common/nl/session.h"
 
 static struct genl_multicast_group mc_groups[1] = {
@@ -93,8 +92,6 @@ static int multiplex_request(struct xlator *jool, struct genl_info *info)
 	struct request_hdr *hdr = get_jool_hdr(info);
 
 	switch (be16_to_cpu(hdr->mode)) {
-	case MODE_POOL6:
-		return handle_pool6_config(jool, info);
 	case MODE_POOL4:
 		return handle_pool4_config(jool, info);
 	case MODE_BIB:

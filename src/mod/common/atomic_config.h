@@ -23,7 +23,6 @@
  */
 struct config_candidate {
 	struct full_config *global;
-	struct pool6 *pool6;
 	union {
 		struct {
 			struct eam_table *eamt;

@@ -24,7 +24,6 @@ static int do_parsing(char *buffer);
 static int parse_siit_json(cJSON *json);
 static int parse_nat64_json(cJSON *json);
 static int handle_global(cJSON *json, bool *globals_found);
-static int handle_pool6(cJSON *pool6_json);
 static int handle_eamt(cJSON *json);
 static int handle_addr4_pool(cJSON *json, enum parse_section section);
 static int handle_pool4(cJSON *pool4);
@@ -292,7 +291,6 @@ static bool *create_globals_found_array(void)
 static int parse_siit_json(cJSON *json)
 {
 	bool global_found = false;
-	bool pool6_found = false;
 	bool eamt_found = false;
 	bool blacklist_found = false;
 	bool pool6791_found = false;
@@ -313,9 +311,6 @@ static int parse_siit_json(cJSON *json)
 		if (strcasecmp(OPTNAME_GLOBAL, json->string) == 0) {
 			check_duplicates(&global_found, OPTNAME_GLOBAL);
 			error = handle_global(json, globals_found);
-		} else if (strcasecmp(OPTNAME_POOL6, json->string) == 0) {
-			check_duplicates(&pool6_found, OPTNAME_POOL6);
-			error = handle_pool6(json);
 		} else if (strcasecmp(OPTNAME_EAMT, json->string) == 0) {
 			check_duplicates(&eamt_found, OPTNAME_EAMT);
 			error = handle_eamt(json);
@@ -346,7 +341,6 @@ static int parse_siit_json(cJSON *json)
 static int parse_nat64_json(cJSON *json)
 {
 	bool global_found = false;
-	bool pool6_found = false;
 	bool pool4_found = false;
 	bool bib_found = false;
 	bool *globals_found;
@@ -366,9 +360,6 @@ static int parse_nat64_json(cJSON *json)
 		if (strcasecmp(OPTNAME_GLOBAL, json->string) == 0) {
 			check_duplicates(&global_found, OPTNAME_GLOBAL);
 			error = handle_global(json, globals_found);
-		} else if (strcasecmp(OPTNAME_POOL6, json->string) == 0) {
-			check_duplicates(&pool6_found, OPTNAME_POOL6);
-			error = handle_pool6(json);
 		} else if (strcasecmp(OPTNAME_POOL4, json->string) == 0) {
 			check_duplicates(&pool4_found, OPTNAME_POOL4);
 			error = handle_pool4(json);
@@ -448,29 +439,29 @@ static int write_number(struct nl_buffer *buffer, struct argp_option *opt,
 	msg.hdr.type = opt->key;
 	msg.hdr.len = sizeof(msg.hdr);
 	switch (opt->key) {
-	case F_ARGS:
-	case NEW_TOS:
-	case EAM_HAIRPINNING_MODE:
+	case GT_F_ARGS:
+	case GT_NEW_TOS:
+	case GT_EAM_HAIRPINNING_MODE:
 		error = validate_u8(opt->name, json);
 		if (error)
 			return error;
 		msg.hdr.len += sizeof(__u8);
 		msg.payload8[0] = json->valueuint;
 		break;
-	case SS_MAX_PAYLOAD:
+	case GT_SS_MAX_PAYLOAD:
 		error = validate_u16(opt->name, json);
 		if (error)
 			return error;
 		msg.hdr.len += sizeof(__u16);
 		msg.payload16[0] = json->valueuint;
 		break;
-	case MAX_PKTS:
-	case SS_CAPACITY:
-	case UDP_TIMEOUT:
-	case ICMP_TIMEOUT:
-	case TCP_EST_TIMEOUT:
-	case TCP_TRANS_TIMEOUT:
-	case SS_FLUSH_DEADLINE:
+	case GT_MAX_PKTS:
+	case GT_SS_CAPACITY:
+	case GT_UDP_TIMEOUT:
+	case GT_ICMP_TIMEOUT:
+	case GT_TCP_EST_TIMEOUT:
+	case GT_TCP_TRANS_TIMEOUT:
+	case GT_SS_FLUSH_DEADLINE:
 		error = validate_u32(opt->name, json);
 		if (error)
 			return error;
@@ -511,7 +502,7 @@ static int write_plateaus(struct nl_buffer *buffer, cJSON *root)
 		return -ENOMEM;
 	}
 
-	chunk->type = MTU_PLATEAUS;
+	chunk->type = GT_MTU_PLATEAUS;
 	chunk->len = size;
 	plateaus = (__u16 *)(chunk + 1);
 
@@ -532,8 +523,8 @@ end:
 	return error;
 }
 
-static int write_optional_prefix6(struct nl_buffer *buffer,
-		enum global_type type, cJSON *json)
+static int write_prefix6(struct nl_buffer *buffer, enum global_type type,
+		cJSON *json)
 {
 	struct {
 		struct global_value hdr;
@@ -562,8 +553,9 @@ static int write_field(cJSON *json, struct argp_option *opt,
 		return write_number(buffer, opt, json);
 	} else if (strcmp(opt->arg, NUM_ARRAY_FORMAT) == 0) {
 		return write_plateaus(buffer, json);
-	} else if (strcmp(opt->arg, OPTIONAL_PREFIX6_FORMAT) == 0) {
-		return write_optional_prefix6(buffer, opt->key, json);
+	} else if (strcmp(opt->arg, PREFIX6_FORMAT) == 0
+			|| strcmp(opt->arg, OPTIONAL_PREFIX6_FORMAT) == 0) {
+		return write_prefix6(buffer, opt->key, json);
 	}
 
 	log_err("Unimplemented data type: %s", opt->arg);
@@ -615,35 +607,6 @@ static int handle_global(cJSON *json, bool *globals_found)
 		if (error)
 			goto end;
 	}
-
-	error = nlbuffer_flush(buffer);
-	/* Fall through. */
-
-end:
-	nlbuffer_destroy(buffer);
-	return error;
-}
-
-static int handle_pool6(cJSON *pool6_json)
-{
-	struct nl_buffer *buffer;
-	struct ipv6_prefix prefix;
-	int error;
-
-	if (!pool6_json)
-		return 0;
-
-	buffer = buffer_alloc(SEC_POOL6);
-	if (!buffer)
-		return -ENOMEM;
-
-	error = str_to_prefix6(pool6_json->valuestring, &prefix);
-	if (error)
-		goto end;
-
-	error = buffer_write(buffer, SEC_POOL6, &prefix, sizeof(prefix));
-	if (error)
-		goto end;
 
 	error = nlbuffer_flush(buffer);
 	/* Fall through. */

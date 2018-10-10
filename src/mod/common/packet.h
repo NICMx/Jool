@@ -571,11 +571,6 @@ verdict pkt_init_ipv4(struct xlation *state, struct sk_buff *skb);
  * @}
  */
 
-/**
- * Outputs @pkt in the log.
- */
-void pkt_print(struct packet *pkt);
-
 unsigned char *jskb_pull(struct sk_buff *skb, unsigned int len);
 unsigned char *jskb_push(struct sk_buff *skb, unsigned int len);
 

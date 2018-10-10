@@ -2,11 +2,11 @@
 #include <linux/module.h>
 #include <linux/sched.h>
 #include "common/str_utils.h"
+#include "mod/common/atomic_config.h"
 #include "mod/common/linux_version.h"
 #include "mod/common/xlator.h"
+#include "mod/siit/eam.h"
 #include "framework/unit_test.h"
-#include "mod/common/atomic_config.h"
-#include "mod/common/pool6.c"
 
 /*
  * Er... this doesn't even try to test everything.
@@ -32,10 +32,34 @@ static int ns_refcount(struct net *ns)
 #endif
 }
 
-static bool validate(char *expected_addr, __u8 expected_len)
+struct validate_args {
+	char *addr6;
+	__u8 len6;
+	char *addr4;
+	__u8 len4;
+	unsigned int count;
+};
+
+static int __validate(struct eamt_entry const *eam, void *__args)
+{
+	struct validate_args *args = __args;
+	bool success = true;
+
+	success &= ASSERT_UINT(0, args->count, "eam count");
+	success &= ASSERT_ADDR6(args->addr6, &eam->prefix6.address, "addr6");
+	success &= ASSERT_UINT(args->len6, eam->prefix6.len, "len6");
+	success &= ASSERT_ADDR4(args->addr4, &eam->prefix4.address, "addr4");
+	success &= ASSERT_UINT(args->len4, eam->prefix4.len, "len4");
+	args->count++;
+
+	return success ? 0 : -EINVAL;
+}
+
+static bool validate(char *expected_addr6, __u8 expected_len6,
+		char *expected_addr4, __u8 expected_len4)
 {
 	struct xlator jool;
-	struct ipv6_prefix prefix;
+	struct validate_args args;
 	int error;
 	bool success = true;
 
@@ -45,16 +69,16 @@ static bool validate(char *expected_addr, __u8 expected_len)
 		return false;
 	}
 
-	error = pool6_peek(jool.pool6, &prefix);
+	args.addr6 = expected_addr6;
+	args.len6 = expected_len6;
+	args.addr4 = expected_addr4;
+	args.len4 = expected_len4;
+	args.count = 0;
+
+	if (eamt_foreach(jool.siit.eamt, __validate, &args, NULL))
+		success = false;
+
 	xlator_put(&jool);
-	if (error) {
-		log_info("pool6_peek() threw %d", error);
-		return false;
-	}
-
-	success &= ASSERT_ADDR6(expected_addr, &prefix.address, "addr");
-	success &= ASSERT_UINT(expected_len, prefix.len, "len");
-
 	return success;
 }
 
@@ -64,7 +88,7 @@ static bool validate(char *expected_addr, __u8 expected_len)
  */
 static bool simple_test(void)
 {
-	return validate("2001:db8::", 96);
+	return validate("2001:db8::", 120, "192.0.2.0", 24);
 }
 
 /**
@@ -74,9 +98,9 @@ static bool simple_test(void)
 static bool atomic_test(void)
 {
 	struct xlator new;
-	unsigned char request[sizeof(__u16) + sizeof(struct ipv6_prefix)];
-	__u16 type;
-	struct ipv6_prefix prefix;
+	unsigned char request[sizeof(__u16) + sizeof(struct eamt_entry)];
+	__u16 *type;
+	struct eamt_entry *eam;
 	int error;
 	bool success = false;
 
@@ -86,31 +110,34 @@ static bool atomic_test(void)
 		return false;
 	}
 
-	error = str_to_addr6("2001:db8:bbbb::", &prefix.address);
+	type = (__u16 *)request;
+	eam = (struct eamt_entry *)(type + 1);
+
+	*type = SEC_EAMT;
+	error = str_to_addr6("2001:db8:bbbb::", &eam->prefix6.address);
 	if (error)
 		goto end;
-	prefix.len = 56;
+	eam->prefix6.len = 121;
+	error = str_to_addr4("198.51.100.0", &eam->prefix4.address);
+	if (error)
+		goto end;
+	eam->prefix4.len = 25;
 
-	type = SEC_POOL6;
-	memcpy(&request[0], &type, sizeof(type));
-	memcpy(&request[2], &prefix, sizeof(prefix));
-
-	error = atomconfig_add(&new, request, sizeof(type) + sizeof(prefix));
+	error = atomconfig_add(&new, request, sizeof(request));
 	if (error) {
 		log_info("jparser_handle() 1 threw %d", error);
 		goto end;
 	}
 
-	type = SEC_COMMIT;
-	memcpy(&request[0], &type, sizeof(type));
+	*type = SEC_COMMIT;
 
-	error = atomconfig_add(&new, request, sizeof(type));
+	error = atomconfig_add(&new, request, sizeof(*type));
 	if (error) {
 		log_info("jparser_handle() 2 threw %d", error);
 		goto end;
 	}
 
-	success = validate("2001:db8:bbbb::", 56);
+	success = validate("2001:db8:bbbb::", 121, "198.51.100.0", 25);
 
 end:
 	xlator_put(&new);
@@ -137,9 +164,9 @@ static bool krefs_test(void)
 	/* xlator DB's kref + the one we just took. */
 	success &= ASSERT_INT(2,
 #if LINUX_VERSION_AT_LEAST(4, 11, 0, 9999, 0)
-			kref_read(&jool.pool6->refcount),
+			kref_read(&jool.global->refcounter),
 #else
-			atomic_read(&jool.pool6->refcount.refcount),
+			atomic_read(&jool.global->refcounter.refcount),
 #endif
 			"pool6 kref");
 
@@ -187,7 +214,7 @@ static void teardown(void)
 static int init(void)
 {
 	struct xlator jool;
-	struct ipv6_prefix prefix;
+	struct eamt_entry eam;
 	int error;
 
 	error = xlator_setup();
@@ -201,14 +228,17 @@ static int init(void)
 		goto fail1;
 	}
 
-	error = str_to_addr6("2001:db8::", &prefix.address);
+	error = str_to_addr6("2001:db8::", &eam.prefix6.address);
 	if (error)
 		goto fail2;
-	prefix.len = 96;
-
-	error = pool6_add(jool.pool6, &prefix);
+	eam.prefix6.len = 120;
+	error = str_to_addr4("192.0.2.0", &eam.prefix4.address);
+	if (error)
+		goto fail2;
+	eam.prefix4.len = 24;
+	error = eamt_add(jool.siit.eamt, &eam.prefix6, &eam.prefix4, true);
 	if (error) {
-		log_info("pool6_add() threw %d", error);
+		log_info("eamt_add() threw %d", error);
 		goto fail2;
 	}
 

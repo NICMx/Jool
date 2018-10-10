@@ -15,4 +15,7 @@ void config_put(struct global_config *global);
 
 void config_copy(struct global_config_usr *from, struct global_config_usr *to);
 
+#define pool6_contains(state, addr) \
+	prefix6_contains(&(state)->jool.global->cfg.pool6.prefix, addr)
+
 #endif /* _JOOL_MOD_CONFIG_H */

@@ -30,7 +30,6 @@ modules:
 	make -C ${KERNEL_DIR} M=$$PWD $@;
 clean:
 	make -C ${KERNEL_DIR} M=$$PWD $@;
-	rm -f  *.ko  *.o
 test:
 	sudo dmesg -C
 	-sudo insmod $(POOL4DB).ko && sudo rmmod $(POOL4DB)

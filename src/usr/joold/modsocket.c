@@ -89,9 +89,6 @@ static void print_pkt_meta(struct request_hdr *hdr)
 	case MODE_GLOBAL:
 		printf("global");
 		break;
-	case MODE_POOL6:
-		printf("pool6");
-		break;
 	case MODE_POOL4:
 		printf("pool4");
 		break;

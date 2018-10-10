@@ -39,8 +39,6 @@ enum config_mode {
 	MODE_INSTANCE = (1 << 11),
 	/** The current message is talking about global configuration values. */
 	MODE_GLOBAL = (1 << 0),
-	/** The current message is talking about the IPv6 pool. */
-	MODE_POOL6 = (1 << 1),
 	/** The current message is talking about the IPv4 pool. */
 	MODE_POOL4 = (1 << 2),
 	/** The current message is talking about the blacklisted addr pool. */
@@ -70,7 +68,6 @@ char *configmode_to_string(enum config_mode mode);
 #define ANY_OP 0xFFFF
 
 #define GLOBAL_OPS (OP_DISPLAY | OP_UPDATE)
-#define POOL6_OPS (DATABASE_OPS)
 #define POOL4_OPS (DATABASE_OPS | OP_UPDATE)
 #define BLACKLIST_OPS (DATABASE_OPS)
 #define RFC6791_OPS (DATABASE_OPS)
@@ -117,7 +114,6 @@ char *configop_to_string(enum config_operation op);
 
 enum parse_section {
 	SEC_GLOBAL = 1,
-	SEC_POOL6 = 2,
 	SEC_POOL4 = 4,
 	SEC_BIB = 8,
 	SEC_COMMIT = 16,
@@ -132,7 +128,7 @@ enum parse_section {
  * Allowed modes for the operation mentioned in the name.
  * eg. DISPLAY_MODES = Allowed modes for display operations.
  */
-#define POOL_MODES (MODE_POOL6 | MODE_POOL4 | MODE_BLACKLIST | MODE_RFC6791)
+#define POOL_MODES (MODE_POOL4 | MODE_BLACKLIST | MODE_RFC6791)
 #define TABLE_MODES (MODE_EAMT | MODE_BIB | MODE_SESSION)
 #define ANY_MODE 0xFFFF
 
@@ -143,10 +139,10 @@ enum parse_section {
 #define FLUSH_MODES (POOL_MODES | MODE_EAMT | MODE_INSTANCE)
 #define UPDATE_MODES (MODE_GLOBAL | MODE_POOL4 | MODE_PARSE_FILE)
 
-#define SIIT_MODES (MODE_GLOBAL | MODE_POOL6 | MODE_BLACKLIST | MODE_RFC6791 \
-		| MODE_EAMT | MODE_PARSE_FILE | MODE_INSTANCE)
-#define NAT64_MODES (MODE_GLOBAL | MODE_POOL6 | MODE_POOL4 | MODE_BIB \
-		| MODE_SESSION | MODE_PARSE_FILE | MODE_INSTANCE | MODE_JOOLD)
+#define SIIT_MODES (MODE_GLOBAL | MODE_BLACKLIST | MODE_RFC6791 | MODE_EAMT \
+		| MODE_PARSE_FILE | MODE_INSTANCE)
+#define NAT64_MODES (MODE_GLOBAL | MODE_POOL4 | MODE_BIB | MODE_SESSION \
+		| MODE_PARSE_FILE | MODE_INSTANCE | MODE_JOOLD)
 /**
  * @}
  */
@@ -230,16 +226,6 @@ union request_instance {
 	struct {
 		char iname[INAME_MAX_LEN];
 	} rm;
-};
-
-/**
- * Configuration for the "IPv6 Pool" module.
- */
-union request_pool6 {
-	/** This is only relevant in display operations. */
-	config_bool prefix_set;
-	/** The prefix the user wants to display/add/update/remove from. */
-	struct ipv6_prefix prefix;
 };
 
 enum iteration_flags {
@@ -427,39 +413,40 @@ struct request_session {
  */
 enum global_type {
 	/* Common */
-	ENABLE = 1024,
-	DISABLE,
-	ENABLE_BOOL,
-	RESET_TCLASS,
-	RESET_TOS,
-	NEW_TOS,
-	MTU_PLATEAUS,
+	GT_ENABLE = 1024,
+	GT_DISABLE,
+	GT_POOL6 = '6',
+	GT_ENABLE_BOOL = 1026,
+	GT_RESET_TCLASS,
+	GT_RESET_TOS,
+	GT_NEW_TOS,
+	GT_MTU_PLATEAUS,
 
 	/* SIIT */
-	COMPUTE_UDP_CSUM_ZERO,
-	RANDOMIZE_RFC6791,
-	EAM_HAIRPINNING_MODE,
-	RFC6791V6_PREFIX,
+	GT_COMPUTE_UDP_CSUM_ZERO,
+	GT_RANDOMIZE_RFC6791,
+	GT_EAM_HAIRPINNING_MODE,
+	GT_RFC6791V6_PREFIX,
 
 	/* NAT64 */
-	DROP_BY_ADDR,
-	DROP_ICMP6_INFO,
-	DROP_EXTERNAL_TCP,
-	SRC_ICMP6ERRS_BETTER,
-	F_ARGS,
-	HANDLE_RST_DURING_FIN_RCV,
-	UDP_TIMEOUT,
-	ICMP_TIMEOUT,
-	TCP_EST_TIMEOUT,
-	TCP_TRANS_TIMEOUT,
-	BIB_LOGGING,
-	SESSION_LOGGING,
-	MAX_PKTS,
-	SS_ENABLED,
-	SS_FLUSH_ASAP,
-	SS_FLUSH_DEADLINE,
-	SS_CAPACITY,
-	SS_MAX_PAYLOAD,
+	GT_DROP_BY_ADDR,
+	GT_DROP_ICMP6_INFO,
+	GT_DROP_EXTERNAL_TCP,
+	GT_SRC_ICMP6ERRS_BETTER,
+	GT_F_ARGS,
+	GT_HANDLE_RST_DURING_FIN_RCV,
+	GT_UDP_TIMEOUT,
+	GT_ICMP_TIMEOUT,
+	GT_TCP_EST_TIMEOUT,
+	GT_TCP_TRANS_TIMEOUT,
+	GT_BIB_LOGGING,
+	GT_SESSION_LOGGING,
+	GT_MAX_PKTS,
+	GT_SS_ENABLED,
+	GT_SS_FLUSH_ASAP,
+	GT_SS_FLUSH_DEADLINE,
+	GT_SS_CAPACITY,
+	GT_SS_MAX_PAYLOAD,
 };
 
 /**
@@ -513,6 +500,12 @@ enum f_args {
 
 #define PLATEAUS_MAX 64
 
+struct optional_prefix6 {
+	config_bool set;
+	/** Please note that this could be garbage; see above. */
+	struct ipv6_prefix prefix;
+};
+
 /**
  * A copy of the entire running configuration, excluding databases.
  */
@@ -559,6 +552,13 @@ struct global_config_usr {
 	/** Length of the mtu_plateaus array. */
 	__u16 mtu_plateau_count;
 
+	/**
+	 * BTW: NAT64 Jool can't do anything without pool6, so it validates that
+	 * this is this set very early. Most NAT64-exclusive code should just
+	 * assume that pool6.set is true.
+	 */
+	struct optional_prefix6 pool6;
+
 	union {
 		struct {
 			/**
@@ -582,16 +582,10 @@ struct global_config_usr {
 			__u8 eam_hairpin_mode;
 
 			/**
-			 * States if the rfc6791_v6_prefix configuration
-			 * attribute has been set. If this flag is true then
-			 * the value of rfc6791_v6_prefix is going to be used
-			 */
-			config_bool use_rfc6791_v6;
-			/**
 			 * Address used to represent a not translatable source
 			 * address of an incoming packet.
 			 */
-			struct ipv6_prefix rfc6791_v6_prefix;
+			struct optional_prefix6 rfc6791v6_prefix;
 
 		} siit;
 		struct {
@@ -707,6 +701,7 @@ struct global_value {
 	__u16 type;
 	/** Includes header (this) and payload. */
 	__u16 len;
+	config_bool force;
 };
 
 /**

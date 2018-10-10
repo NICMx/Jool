@@ -3,7 +3,6 @@
 #include <linux/module.h>
 
 #include "mod/common/linux_version.h"
-#include "mod/common/pool6.h"
 #include "mod/common/xlator.h"
 #include "mod/common/nl/nl_handler.h"
 #include "mod/nat64/joold.h"
@@ -16,25 +15,6 @@ MODULE_LICENSE(JOOL_LICENSE);
 MODULE_AUTHOR("NIC-ITESM");
 MODULE_DESCRIPTION("Stateful NAT64 (RFC 6146)");
 MODULE_VERSION(JOOL_VERSION_STR);
-
-static char *pool6[5];
-static int pool6_len;
-module_param_array(pool6, charp, &pool6_len, 0);
-MODULE_PARM_DESC(pool6, "The IPv6 pool's prefixes.");
-
-static char *pool4[5];
-static int pool4_len;
-module_param_array(pool4, charp, &pool4_len, 0);
-MODULE_PARM_DESC(pool4, "The IPv4 pool's addresses.");
-
-static bool disabled;
-module_param(disabled, bool, 0);
-MODULE_PARM_DESC(disabled, "Disable the translation at the beginning of the module insertion.");
-
-static bool no_instance;
-module_param(no_instance, bool, 0);
-MODULE_PARM_DESC(no_instance, "Prevent an instance from being added to the current namespace during the modprobe.");
-
 
 static char *banner = "\n"
 	"                                   ,----,                       \n"
@@ -106,30 +86,6 @@ void init_nf_hook_op4(struct nf_hook_ops *ops)
 	memcpy(ops, &nfho[1], sizeof(nfho[1]));
 }
 
-static int add_instance(void)
-{
-	struct xlator jool;
-	int error;
-
-	if (no_instance)
-		return 0;
-
-	error = xlator_add(FW_NETFILTER, INAME_DEFAULT, &jool);
-	if (error)
-		return error;
-
-	jool.global->cfg.enabled = !disabled;
-	error = pool6_add_str(jool.pool6, pool6, pool6_len);
-	if (error)
-		goto end;
-	error = pool4db_add_str(jool.nat64.pool4, pool4, pool4_len);
-	/* Fall through. */
-
-end:
-	xlator_put(&jool);
-	return error;
-}
-
 static int __init jool_init(void)
 {
 	int error;
@@ -157,11 +113,6 @@ static int __init jool_init(void)
 	if (error)
 		goto jtimer_fail;
 
-	/* This needs to be last! (except for the hook registering.) */
-	error = add_instance();
-	if (error)
-		goto instance_fail;
-
 #if LINUX_VERSION_LOWER_THAN(4, 13, 0, 9999, 0)
 	/* Hook Jool to Netfilter. */
 	error = nf_register_hooks(nfho, ARRAY_SIZE(nfho));
@@ -182,10 +133,8 @@ static int __init jool_init(void)
 
 #if LINUX_VERSION_LOWER_THAN(4, 13, 0, 9999, 0)
 nf_register_hooks_fail:
-	xlator_rm(INAME_DEFAULT);
-#endif
-instance_fail:
 	jtimer_teardown();
+#endif
 jtimer_fail:
 	nlhandler_teardown();
 nlhandler_fail:

@@ -29,28 +29,6 @@ static struct pool_entry *get_entry(struct list_head *node)
 	return list_entry(node, struct pool_entry, list_hook);
 }
 
-RCUTAG_FREE
-static int parse_prefix4(const char *str, struct ipv4_prefix *prefix)
-{
-	const char *slash_pos;
-	int error = 0;
-
-	if (strchr(str, '/') != NULL) {
-		if (in4_pton(str, -1, (u8 *) &prefix->address, '/', &slash_pos) != 1)
-			error = -EINVAL;
-		if (kstrtou8(slash_pos + 1, 0, &prefix->len) != 0)
-			error = -EINVAL;
-	} else {
-		error = str_to_addr4(str, &prefix->address);
-		prefix->len = 32;
-	}
-
-	if (error)
-		log_err("IPv4 address or prefix is malformed: %s.", str);
-
-	return error;
-}
-
 /**
  * Assumes it has exclusive access to @list.
  */
@@ -182,26 +160,6 @@ int pool_add(struct addr4_pool *pool, struct ipv4_prefix *prefix, bool force)
 end:
 	mutex_unlock(&lock);
 	return error;
-}
-
-int pool_add_str(struct addr4_pool *pool, char *pref_strs[], int pref_count)
-{
-	struct ipv4_prefix prefix;
-	unsigned int i;
-	int error;
-
-	for (i = 0; i < pref_count; i++) {
-		log_debug("Inserting address or prefix to the IPv4 pool: %s.",
-				pref_strs[i]);
-		error = parse_prefix4(pref_strs[i], &prefix);
-		if (error)
-			return error;
-		error = pool_add(pool, &prefix, false);
-		if (error)
-			return error;
-	}
-
-	return 0;
 }
 
 RCUTAG_USR

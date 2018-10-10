@@ -17,7 +17,6 @@ void pool_get(struct addr4_pool *pool);
 void pool_put(struct addr4_pool *pool);
 
 int pool_add(struct addr4_pool *pool, struct ipv4_prefix *prefix, bool force);
-int pool_add_str(struct addr4_pool *pool, char *pref_strs[], int pref_count);
 int pool_rm(struct addr4_pool *pool, struct ipv4_prefix *prefix);
 int pool_flush(struct addr4_pool *pool);
 

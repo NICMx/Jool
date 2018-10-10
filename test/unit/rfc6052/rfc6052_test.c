@@ -28,7 +28,7 @@ static bool test(const char *prefix6_str, const unsigned int prefix6_len,
 		return false;
 	memset(&addr4, 0, sizeof(addr4));
 
-	success &= ASSERT_INT(0, addr_6to4(&addr6, &prefix, &addr4),
+	success &= ASSERT_INT(0, rfc6052_6to4(&prefix, &addr6, &addr4),
 			"result code of %pI6c - %pI6c/%u = %s",
 			&addr6, &prefix.address, prefix.len, addr4_str);
 	success &= ASSERT_ADDR4(addr4_str, &addr4, "6to4 address result");
@@ -38,7 +38,7 @@ static bool test(const char *prefix6_str, const unsigned int prefix6_len,
 		return false;
 	memset(&addr6, 0, sizeof(addr6));
 
-	success &= ASSERT_INT(0, addr_4to6(&addr4, &prefix, &addr6),
+	success &= ASSERT_INT(0, rfc6052_4to6(&prefix, &addr4, &addr6),
 			"result code of %pI4c + %pI6c/%u = %s",
 			&addr4, &prefix.address, prefix.len, addr6_str);
 	success &= ASSERT_ADDR6(addr6_str, &addr6, "4to6 address result");

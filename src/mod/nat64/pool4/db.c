@@ -557,44 +557,6 @@ trainwreck:
 	return error;
 }
 
-int pool4db_add_str(struct pool4 *pool, char *prefix_strs[], int prefix_count)
-{
-	struct pool4_entry_usr new;
-	unsigned int i;
-	int error;
-
-	new.mark = 0;
-	new.iterations = 0;
-	new.flags = ITERATIONS_AUTO;
-	/*
-	 * We're not using DEFAULT_POOL4_* here because those are defaults for
-	 * empty pool4 (otherwise it looks confusing from userspace).
-	 */
-	new.range.ports.min = 0;
-	new.range.ports.max = 65535;
-
-	for (i = 0; i < prefix_count; i++) {
-		error = prefix4_parse(prefix_strs[i], &new.range.prefix);
-		if (error)
-			return error;
-
-		new.proto = L4PROTO_TCP;
-		error = pool4db_add(pool, &new);
-		if (error)
-			return error;
-		new.proto = L4PROTO_UDP;
-		error = pool4db_add(pool, &new);
-		if (error)
-			return error;
-		new.proto = L4PROTO_ICMP;
-		error = pool4db_add(pool, &new);
-		if (error)
-			return error;
-	}
-
-	return 0;
-}
-
 int pool4db_update(struct pool4 *pool, const struct pool4_update *update)
 {
 	struct rb_root *tree;

@@ -35,7 +35,7 @@ typedef enum verdict {
 	 * for the kernel.
 	 *
 	 * Code should rarely use this constant directly. Use untranlatable()
-	 * instead.
+	 * or untranslatable_icmp() instead.
 	 */
 	VERDICT_UNTRANSLATABLE,
 	/**

@@ -40,6 +40,8 @@ void xlation_init(struct xlation *state, struct xlator *jool);
 /* xlation_clean() is not needed for now. */
 
 verdict untranslatable(struct xlation *state, enum jool_stat stat);
+verdict untranslatable_icmp(struct xlation *state, enum jool_stat stat,
+		enum icmp_errcode icmp, __u32 info);
 verdict drop(struct xlation *state, enum jool_stat stat);
 verdict drop_icmp(struct xlation *state, enum jool_stat stat,
 		enum icmp_errcode icmp, __u32 info);

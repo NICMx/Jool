@@ -20,7 +20,6 @@ $(FILTERING)-objs += $(MIN_REQS)
 $(FILTERING)-objs += ../../../src/common/netlink/config.o
 $(FILTERING)-objs += ../../../src/mod/common/config.o
 $(FILTERING)-objs += ../../../src/mod/common/packet.o
-$(FILTERING)-objs += ../../../src/mod/common/pool6.o
 $(FILTERING)-objs += ../../../src/mod/common/rbtree.o
 $(FILTERING)-objs += ../../../src/mod/common/rfc6052.o
 $(FILTERING)-objs += ../../../src/mod/common/translation_state.o
@@ -51,7 +50,6 @@ modules:
 	make -C ${KERNEL_DIR} M=$$PWD $@;
 clean:
 	make -C ${KERNEL_DIR} M=$$PWD $@;
-	rm -f  *.ko  *.o
 test:
 	sudo dmesg -C
 	-sudo insmod $(FILTERING).ko && sudo rmmod $(FILTERING)

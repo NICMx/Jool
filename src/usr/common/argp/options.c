@@ -32,15 +32,6 @@ static const struct argp_option instance_opt = {
 		.group = 0,
 };
 
-static const struct argp_option pool6_opt = {
-		.name = OPTNAME_POOL6,
-		.key = ARGP_POOL6,
-		.arg = NULL,
-		.flags = 0,
-		.doc = "The command will operate on the IPv6 prefix pool.",
-		.group = 0,
-};
-
 static const struct argp_option pool4_opt = {
 		.name = OPTNAME_POOL4,
 		.key = ARGP_POOL4,
@@ -342,6 +333,15 @@ static const struct argp_option manual_enable_opt = {
 		.group = 0,
 };
 
+static const struct argp_option pool6_opt = {
+		.name = OPTNAME_POOL6,
+		.key = ARGP_POOL6,
+		.arg = PREFIX6_FORMAT,
+		.flags = 0,
+		.doc = "Set the IPv6 pool prefix.\n",
+		.group = 0,
+};
+
 static const struct argp_option zeroize_tc_opt = {
 		.name = OPTNAME_ZEROIZE_TC,
 		.key = ARGP_RESET_TCLASS,
@@ -611,7 +611,6 @@ static const struct argp_option *opts_siit[] = {
 
 	&targets_hdr_opt,
 	&instance_opt,
-	&pool6_opt,
 	&eamt_opt,
 	&blacklist_opt,
 	&pool6791_opt,
@@ -636,6 +635,7 @@ static const struct argp_option *opts_siit[] = {
 	&globals_hdr_opt,
 	&enable_opt,
 	&disable_opt,
+	&pool6_opt,
 	&zeroize_tc_opt,
 	&override_tos_opt,
 	&tos_opt,
@@ -652,7 +652,6 @@ static const struct argp_option *opts_nat64[] = {
 
 	&targets_hdr_opt,
 	&instance_opt,
-	&pool6_opt,
 	&pool4_opt,
 	&bib_opt,
 	&session_opt,
@@ -687,6 +686,7 @@ static const struct argp_option *opts_nat64[] = {
 	&globals_hdr_opt,
 	&enable_opt,
 	&disable_opt,
+	&pool6_opt,
 	&zeroize_tc_opt,
 	&override_tos_opt,
 	&tos_opt,
@@ -740,6 +740,7 @@ struct argp_option *build_opts(void)
 
 static const struct argp_option *opts_global_siit[] = {
 	&manual_enable_opt,
+	&pool6_opt,
 	&zeroize_tc_opt,
 	&override_tos_opt,
 	&tos_opt,
@@ -752,6 +753,7 @@ static const struct argp_option *opts_global_siit[] = {
 
 static const struct argp_option *opts_global_nat64[] = {
 	&manual_enable_opt,
+	&pool6_opt,
 	&zeroize_tc_opt,
 	&override_tos_opt,
 	&tos_opt,

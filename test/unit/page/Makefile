@@ -29,7 +29,6 @@ $(PAGE)-objs += ../../../src/common/netlink/config.o
 $(PAGE)-objs += ../../../src/mod/common/config.o
 $(PAGE)-objs += ../../../src/mod/common/ipv6_hdr_iterator.o
 $(PAGE)-objs += ../../../src/mod/common/packet.o
-$(PAGE)-objs += ../../../src/mod/common/pool6.o
 $(PAGE)-objs += ../../../src/mod/common/rfc6052.o
 $(PAGE)-objs += ../../../src/mod/common/rtrie.o
 $(PAGE)-objs += ../../../src/mod/common/translation_state.o
@@ -58,7 +57,6 @@ modules:
 	make -C ${KERNEL_DIR} M=$$PWD $@;
 clean:
 	make -C ${KERNEL_DIR} M=$$PWD $@;
-	rm -f  *.ko  *.o
 test:
 	sudo dmesg -C
 	-sudo insmod $(PAGE).ko && sudo rmmod $(PAGE)

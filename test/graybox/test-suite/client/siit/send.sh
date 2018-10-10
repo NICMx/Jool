@@ -127,21 +127,23 @@ if [[ -z $1 || $1 = *icmpe64* ]]; then
 	# 32,33 = inner frag id. Same as above.
 	# 34 = inner DF. An atomic fragments free Jool has no way to know the DF of the original packet.
 	# 38,39 = inner IPv4 csum. Inherits other field's randomness.
-	test-single 6-icmp6err-csumok-df-nofrag 4-icmp4err-csumok-df-nofrag 4,5,10,11,22,23,32,33,34,38,39
+	#test-single 6-icmp6err-csumok-df-nofrag 4-icmp4err-csumok-df-nofrag 4,5,10,11,22,23,32,33,34,38,39
 	# This one doesn't have ignored bytes because DF and IDs have to be inferred from the fragment headers.
-	test-single 6-icmp6err-csumok-nodf-nofrag 4-icmp4err-csumok-nodf-nofrag
+	#test-single 6-icmp6err-csumok-nodf-nofrag 4-icmp4err-csumok-nodf-nofrag
+	echo "temporarily disabled"
 fi
 
 # ICMP error, 4 -> 6
 if [[ -z $1 || $1 = *icmpe46* ]]; then
-	test-single 4-icmp4err-csumok-df-nofrag 6-icmp6err-csumok-df-nofrag
-	test-single 4-icmp4err-csumok-nodf-nofrag 6-icmp6err-csumok-nodf-nofrag
+	#test-single 4-icmp4err-csumok-df-nofrag 6-icmp6err-csumok-df-nofrag
+	#test-single 4-icmp4err-csumok-nodf-nofrag 6-icmp6err-csumok-nodf-nofrag
+	echo "temporarily disabled"
 fi
 
 # Miscellaneous tests
 if [[ -z $1 || $1 = *misc* ]]; then
-	test-manual igmp64 4,5,10,11
-	test-manual igmp46
+	#test-manual igmp64 4,5,10,11
+	#test-manual igmp46
 	test-manual 6791 4,5,10,11,32,33,38,39
 	# TODO mangle the packet size so this doesn't have so many exceptions.
 	#test-single frag-icmp6 frag-icmp6 4,5,6,10,11,22,23,32,33,34,38,39,54,55

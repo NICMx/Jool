@@ -62,8 +62,6 @@ char *configmode_to_string(enum config_mode mode)
 	switch (mode) {
 	case MODE_GLOBAL:
 		return OPTNAME_GLOBAL;
-	case MODE_POOL6:
-		return OPTNAME_POOL6;
 	case MODE_POOL4:
 		return OPTNAME_POOL4;
 	case MODE_BLACKLIST:

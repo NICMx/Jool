@@ -17,7 +17,6 @@ RFC6052 = rfc6052
 obj-m += $(RFC6052).o
 
 $(RFC6052)-objs += $(MIN_REQS)
-$(RFC6052)-objs += ../../../src/mod/common/pool6.o
 $(RFC6052)-objs += rfc6052_test.o
 
 
@@ -27,7 +26,6 @@ modules:
 	make -C ${KERNEL_DIR} M=$$PWD $@;
 clean:
 	make -C ${KERNEL_DIR} M=$$PWD $@;
-	rm -f  *.ko  *.o
 test:
 	sudo dmesg -C
 	-sudo insmod $(RFC6052).ko && sudo rmmod $(RFC6052)

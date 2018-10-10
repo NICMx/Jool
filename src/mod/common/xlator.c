@@ -7,7 +7,6 @@
 #include "mod/common/atomic_config.h"
 #include "mod/common/kernel_hook.h"
 #include "mod/common/linux_version.h"
-#include "mod/common/pool6.h"
 #include "mod/common/wkmalloc.h"
 #include "mod/siit/blacklist4.h"
 #include "mod/siit/eam.h"
@@ -15,6 +14,10 @@
 #include "mod/nat64/joold.h"
 #include "mod/nat64/pool4/db.h"
 #include "mod/nat64/bib/db.h"
+
+#include <net/netfilter/ipv4/nf_defrag_ipv4.h>
+/* This one is not self-contained. That's why these two are included last. */
+#include <net/netfilter/ipv6/nf_defrag_ipv6.h>
 
 /**
  * All the configuration and state of the Jool instance in the given network
@@ -66,8 +69,8 @@ static void destroy_jool_instance(struct jool_instance *instance, bool unhook)
 
 static void xlator_get(struct xlator *jool)
 {
+	jstat_get(jool->stats);
 	config_get(jool->global);
-	pool6_get(jool->pool6);
 
 	if (xlat_is_siit()) {
 		eamt_get(jool->siit.eamt);
@@ -186,9 +189,6 @@ static int init_siit(struct xlator *jool)
 	jool->global = config_alloc();
 	if (!jool->global)
 		goto config_fail;
-	jool->pool6 = pool6_alloc();
-	if (!jool->pool6)
-		goto pool6_fail;
 	jool->siit.eamt = eamt_alloc();
 	if (!jool->siit.eamt)
 		goto eamt_fail;
@@ -211,8 +211,6 @@ rfc6791_fail:
 blacklist_fail:
 	eamt_put(jool->siit.eamt);
 eamt_fail:
-	pool6_put(jool->pool6);
-pool6_fail:
 	config_put(jool->global);
 config_fail:
 	return -ENOMEM;
@@ -223,9 +221,6 @@ static int init_nat64(struct xlator *jool)
 	jool->global = config_alloc();
 	if (!jool->global)
 		goto config_fail;
-	jool->pool6 = pool6_alloc();
-	if (!jool->pool6)
-		goto pool6_fail;
 	jool->nat64.pool4 = pool4db_alloc();
 	if (!jool->nat64.pool4)
 		goto pool4_fail;
@@ -239,6 +234,16 @@ static int init_nat64(struct xlator *jool)
 	if (!jool->newcfg)
 		goto newcfg_fail;
 
+#ifndef UNIT_TESTING
+#if LINUX_VERSION_AT_LEAST(4, 10, 0, 9999, 0)
+	nf_defrag_ipv4_enable(jool->ns);
+	nf_defrag_ipv6_enable(jool->ns);
+#else
+	nf_defrag_ipv4_enable();
+	nf_defrag_ipv6_enable();
+#endif
+#endif
+
 	return 0;
 
 newcfg_fail:
@@ -248,8 +253,6 @@ joold_fail:
 bib_fail:
 	pool4db_put(jool->nat64.pool4);
 pool4_fail:
-	pool6_put(jool->pool6);
-pool6_fail:
 	config_put(jool->global);
 config_fail:
 	return -ENOMEM;
@@ -524,6 +527,7 @@ int xlator_replace(struct xlator *jool)
 #if LINUX_VERSION_AT_LEAST(4, 13, 0, 9999, 0)
 			old->nf_ops = NULL;
 #endif
+			log_info("Created instance '%s'.", jool->iname);
 			destroy_jool_instance(old, false);
 			return 0;
 		}
@@ -633,14 +637,18 @@ int xlator_find_current(int fw, const char *iname, struct xlator *result)
  */
 void xlator_put(struct xlator *jool)
 {
+	jstat_put(jool->stats);
 	config_put(jool->global);
-	pool6_put(jool->pool6);
 
 	if (xlat_is_siit()) {
 		eamt_put(jool->siit.eamt);
 		blacklist_put(jool->siit.blacklist);
 		rfc6791_put(jool->siit.pool6791);
 	} else {
+		/*
+		 * Welp. There is no nf_defrag_ipv*_disable(). Guess we'll just
+		 * have to leave those modules around.
+		 */
 		pool4db_put(jool->nat64.pool4);
 		bib_put(jool->nat64.bib);
 		joold_put(jool->nat64.joold);

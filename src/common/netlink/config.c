@@ -150,7 +150,13 @@ static unsigned int count_bits(int num)
 
 int fw_validate(int fw)
 {
-	if (count_bits(fw) != 1) {
+	unsigned int bits = count_bits(fw);
+
+	if (bits == 0) {
+		log_err("Instance framework was not specified.");
+		return -EINVAL;
+	}
+	if (bits > 1) {
 		log_err("Only one instance can be added at a time.");
 		return -EINVAL;
 	}

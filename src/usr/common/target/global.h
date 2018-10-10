@@ -9,7 +9,6 @@
 
 /* Modes */
 #define OPTNAME_GLOBAL			"global"
-#define OPTNAME_POOL6			"pool6"
 #define OPTNAME_POOL4			"pool4"
 #define OPTNAME_BLACKLIST		"blacklist"
 #define OPTNAME_RFC6791			"pool6791"
@@ -38,6 +37,7 @@
 #define OPTNAME_OVERRIDE_TOS		"override-tos"
 #define OPTNAME_TOS			"tos"
 #define OPTNAME_MTU_PLATEAUS		"mtu-plateaus"
+#define OPTNAME_POOL6			"pool6"
 
 /* SIIT-only flags */
 #define OPTNAME_AMEND_UDP_CSUM		"amend-udp-checksum-zero"
@@ -72,7 +72,7 @@
 #define OPTNAME_SS_MAX_PAYLOAD		"ss-max-payload"
 
 int global_display(char *iname, display_flags flags);
-int global_update(char *iname, __u16 type, size_t size, void *data);
+int global_update(char *iname, __u16 type, size_t size, void *data, bool force);
 
 
 #endif /* _JOOL_USR_GLOBAL_H */

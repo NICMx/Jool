@@ -17,6 +17,15 @@ verdict untranslatable(struct xlation *state, enum jool_stat stat)
 	return VERDICT_UNTRANSLATABLE;
 }
 
+verdict untranslatable_icmp(struct xlation *state, enum jool_stat stat,
+		enum icmp_errcode icmp, __u32 info)
+{
+	jstat_inc(state->jool.stats, stat);
+	state->result.icmp = icmp;
+	state->result.info = info;
+	return VERDICT_UNTRANSLATABLE;
+}
+
 verdict drop(struct xlation *state, enum jool_stat stat)
 {
 	jstat_inc(state->jool.stats, stat);

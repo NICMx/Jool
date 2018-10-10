@@ -3,17 +3,20 @@
 #include <linux/module.h>
 #include <linux/printk.h>
 #include "common/types.h"
-#include "mod/common/pool6.h"
+#include "mod/common/address.h"
 
 union ipv4_address {
 	__be32 as32;
 	__u8 as8[4];
 };
 
-int addr_6to4(const struct in6_addr *src, struct ipv6_prefix *prefix,
+int rfc6052_6to4(struct ipv6_prefix const *prefix, struct in6_addr const *src,
 		struct in_addr *dst)
 {
 	union ipv4_address dst_aux;
+
+	if (!prefix6_contains(prefix, src))
+		return -EINVAL;
 
 	switch (prefix->len) {
 	case 32:
@@ -59,7 +62,7 @@ int addr_6to4(const struct in6_addr *src, struct ipv6_prefix *prefix,
 	return 0;
 }
 
-int addr_4to6(struct in_addr *src, struct ipv6_prefix *prefix,
+int rfc6052_4to6(struct ipv6_prefix const *prefix, struct in_addr const *src,
 		struct in6_addr *dst)
 {
 	union ipv4_address src_aux;
@@ -124,32 +127,3 @@ int addr_4to6(struct in_addr *src, struct ipv6_prefix *prefix,
 
 	return 0;
 }
-
-int rfc6052_6to4(struct pool6 *pool, const struct in6_addr *addr6,
-		struct in_addr *result)
-{
-	struct ipv6_prefix prefix;
-	int error;
-
-	error = pool6_find(pool, addr6, &prefix);
-	if (error) {
-		log_debug("Could not find a prefix that matches %pI6c.", addr6);
-		return error;
-	}
-
-	return addr_6to4(addr6, &prefix, result);
-}
-
-int rfc6052_4to6(struct pool6 *pool, struct in_addr *addr4,
-		struct in6_addr *result)
-{
-	struct ipv6_prefix prefix;
-	int error;
-
-	error = pool6_peek(pool, &prefix);
-	if (error)
-		return error;
-
-	return addr_4to6(addr4, &prefix, result);
-}
-

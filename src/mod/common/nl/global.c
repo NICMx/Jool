@@ -4,7 +4,6 @@
 #include "common/constants.h"
 #include "common/types.h"
 #include "mod/common/config.h"
-#include "mod/common/pool6.h"
 #include "mod/common/nl/nl_common.h"
 #include "mod/common/nl/nl_core2.h"
 #include "mod/nat64/joold.h"
@@ -43,33 +42,64 @@ static bool ensure_bytes(size_t actual, size_t expected)
 	return true;
 }
 
-
-static bool ensure_bytes_ipv6_prefix(size_t actual, size_t expected)
-{
-	if (actual < expected && actual != 0) {
-		log_err("Expected a %zu-byte or 0-byte value, got %zu bytes.",
-				expected, actual);
-		return false;
-	}
-	return true;
-}
-
-static int parse_ipv6_prefix(struct global_config_usr *config,
+static int parse_ipv6_prefix(struct optional_prefix6 *dst,
 		struct global_value *chunk, size_t size)
 {
-	if (!ensure_bytes_ipv6_prefix(size - sizeof(struct global_value), sizeof(struct ipv6_prefix)))
-		return -EINVAL;
+	ssize_t actual = size - sizeof(struct global_value);
 
-	if (size - sizeof(struct global_value) != 0) {
-
-		memcpy(&config->siit.rfc6791_v6_prefix, (struct ipv6_prefix*)(chunk+1), sizeof(struct ipv6_prefix));
-		config->siit.use_rfc6791_v6 = 1;
-
-	} else {
-		config->siit.use_rfc6791_v6 = 0;
+	/* If the chunk lacks payload, the user is trying to unset the value. */
+	if (actual <= 0) {
+		dst->set = false;
+		return 0;
 	}
 
-	return 0;
+	if (actual >= sizeof(struct ipv6_prefix)) {
+		memcpy(&dst->prefix, chunk + 1, sizeof(dst->prefix));
+		dst->set = true;
+		return 0;
+	}
+
+	log_err("Expected an optional IPv6 prefix, got %zu bytes.", actual);
+	return -EINVAL;
+}
+
+static int validate_pool6_len(__u8 len)
+{
+	if (len == 32 || len == 40 || len == 48)
+		return 0;
+	if (len == 56 || len == 64 || len == 96)
+		return 0;
+
+	log_err("%u is not a valid prefix length (32, 40, 48, 56, 64, 96).", len);
+	return -EINVAL;
+}
+
+static int validate_ubit(struct ipv6_prefix *prefix, config_bool force)
+{
+	if (force || !prefix->address.s6_addr[8])
+		return 0;
+
+	log_err("The u-bit is nonzero; see https://github.com/NICMx/Jool/issues/174.\n"
+			"Will cancel the operation. Use --force to override this.");
+	return -EINVAL;
+}
+
+static int validate_pool6(struct optional_prefix6 *prefix, config_bool force)
+{
+	int error;
+
+	if (!prefix->set)
+		return 0;
+
+	error = validate_pool6_len(prefix->prefix.len);
+	if (error)
+		return error;
+
+	error = prefix6_validate(&prefix->prefix);
+	if (error)
+		return error;
+
+	return validate_ubit(&prefix->prefix, force);
 }
 
 static int parse_u32(__u32 *field, struct global_value *chunk, size_t size)
@@ -203,7 +233,7 @@ static int handle_global_display(struct xlator *jool, struct genl_info *info)
 
 	xlator_copy_config(jool, &config);
 
-	pools_empty = pool6_is_empty(jool->pool6);
+	pools_empty = !jool->global->cfg.pool6.set;
 	if (xlat_is_siit())
 		pools_empty &= eamt_is_empty(jool->siit.eamt);
 	prepare_config_for_userspace(&config, pools_empty);
@@ -220,86 +250,91 @@ static int massive_switch(struct full_config *cfg, struct global_value *chunk,
 		return -EINVAL;
 
 	switch (chunk->type) {
-	case ENABLE:
+	case GT_ENABLE:
 		cfg->global.enabled = true;
 		return 0;
-	case DISABLE:
+	case GT_DISABLE:
 		cfg->global.enabled = false;
 		return 0;
-	case ENABLE_BOOL:
+	case GT_ENABLE_BOOL:
 		return parse_bool(&cfg->global.enabled, chunk, size);
-	case RESET_TCLASS:
+	case GT_POOL6:
+		error = parse_ipv6_prefix(&cfg->global.pool6, chunk, size);
+		if (error)
+			return error;
+		return validate_pool6(&cfg->global.pool6, chunk->force);
+	case GT_RESET_TCLASS:
 		return parse_bool(&cfg->global.reset_traffic_class, chunk, size);
-	case RESET_TOS:
+	case GT_RESET_TOS:
 		return parse_bool(&cfg->global.reset_tos, chunk, size);
-	case NEW_TOS:
+	case GT_NEW_TOS:
 		return parse_u8(&cfg->global.new_tos, chunk, size);
-	case MTU_PLATEAUS:
+	case GT_MTU_PLATEAUS:
 		return update_plateaus(&cfg->global, chunk, size);
-	case COMPUTE_UDP_CSUM_ZERO:
+	case GT_COMPUTE_UDP_CSUM_ZERO:
 		error = ensure_siit(OPTNAME_AMEND_UDP_CSUM);
 		return error ? : parse_bool(&cfg->global.siit.compute_udp_csum_zero, chunk, size);
-	case RANDOMIZE_RFC6791:
+	case GT_RANDOMIZE_RFC6791:
 		error = ensure_siit(OPTNAME_RANDOMIZE_RFC6791);
 		return error ? : parse_bool(&cfg->global.siit.randomize_error_addresses, chunk, size);
-	case EAM_HAIRPINNING_MODE:
+	case GT_EAM_HAIRPINNING_MODE:
 		error = ensure_siit(OPTNAME_EAM_HAIRPIN_MODE);
 		return error ? : parse_bool(&cfg->global.siit.eam_hairpin_mode, chunk, size);
-	case RFC6791V6_PREFIX:
+	case GT_RFC6791V6_PREFIX:
 		error = ensure_siit(OPTNAME_RFC6791V6_PREFIX);
-		return error ? : parse_ipv6_prefix(&cfg->global, chunk, size);
-	case DROP_BY_ADDR:
+		return error ? : parse_ipv6_prefix(&cfg->global.siit.rfc6791v6_prefix, chunk, size);
+	case GT_DROP_BY_ADDR:
 		error = ensure_nat64(OPTNAME_DROP_BY_ADDR);
 		return error ? : parse_bool(&cfg->bib.drop_by_addr, chunk, size);
-	case DROP_ICMP6_INFO:
+	case GT_DROP_ICMP6_INFO:
 		error = ensure_nat64(OPTNAME_DROP_ICMP6_INFO);
 		return error ? : parse_bool(&cfg->global.nat64.drop_icmp6_info, chunk, size);
-	case DROP_EXTERNAL_TCP:
+	case GT_DROP_EXTERNAL_TCP:
 		error = ensure_nat64(OPTNAME_DROP_EXTERNAL_TCP);
 		return error ? : parse_bool(&cfg->bib.drop_external_tcp, chunk, size);
-	case SRC_ICMP6ERRS_BETTER:
+	case GT_SRC_ICMP6ERRS_BETTER:
 		error = ensure_nat64(OPTNAME_SRC_ICMP6E_BETTER);
 		return error ? : parse_bool(&cfg->global.nat64.src_icmp6errs_better, chunk, size);
-	case F_ARGS:
+	case GT_F_ARGS:
 		error = ensure_nat64(OPTNAME_F_ARGS);
 		return error ? : parse_u8(&cfg->global.nat64.f_args, chunk, size);
-	case HANDLE_RST_DURING_FIN_RCV:
+	case GT_HANDLE_RST_DURING_FIN_RCV:
 		error = ensure_nat64(OPTNAME_F_ARGS);
 		return error ? : parse_bool(&cfg->global.nat64.handle_rst_during_fin_rcv, chunk, size);
-	case UDP_TIMEOUT:
+	case GT_UDP_TIMEOUT:
 		error = ensure_nat64(OPTNAME_UDP_TIMEOUT);
 		return error ? : parse_timeout(&cfg->bib.ttl.udp, chunk, size, UDP_MIN);
-	case ICMP_TIMEOUT:
+	case GT_ICMP_TIMEOUT:
 		error = ensure_nat64(OPTNAME_ICMP_TIMEOUT);
 		return error ? : parse_timeout(&cfg->bib.ttl.icmp, chunk, size, 0);
-	case TCP_EST_TIMEOUT:
+	case GT_TCP_EST_TIMEOUT:
 		error = ensure_nat64(OPTNAME_TCPEST_TIMEOUT);
 		return error ? : parse_timeout(&cfg->bib.ttl.tcp_est, chunk, size, TCP_EST);
-	case TCP_TRANS_TIMEOUT:
+	case GT_TCP_TRANS_TIMEOUT:
 		error = ensure_nat64(OPTNAME_TCPTRANS_TIMEOUT);
 		return error ? : parse_timeout(&cfg->bib.ttl.tcp_trans, chunk, size, TCP_TRANS);
-	case BIB_LOGGING:
+	case GT_BIB_LOGGING:
 		error = ensure_nat64(OPTNAME_BIB_LOGGING);
 		return error ? : parse_bool(&cfg->bib.bib_logging, chunk, size);
-	case SESSION_LOGGING:
+	case GT_SESSION_LOGGING:
 		error = ensure_nat64(OPTNAME_SESSION_LOGGING);
 		return error ? : parse_bool(&cfg->bib.session_logging, chunk, size);
-	case MAX_PKTS:
+	case GT_MAX_PKTS:
 		error = ensure_nat64(OPTNAME_MAX_SO);
 		return error ? : parse_u32(&cfg->bib.max_stored_pkts, chunk, size);
-	case SS_ENABLED:
+	case GT_SS_ENABLED:
 		error = ensure_nat64(OPTNAME_SS_ENABLED);
 		return error ? : parse_bool(&cfg->joold.enabled, chunk, size);
-	case SS_FLUSH_ASAP:
+	case GT_SS_FLUSH_ASAP:
 		error = ensure_nat64(OPTNAME_SS_FLUSH_ASAP);
 		return error ? : parse_bool(&cfg->joold.flush_asap, chunk, size);
-	case SS_FLUSH_DEADLINE:
+	case GT_SS_FLUSH_DEADLINE:
 		error = ensure_nat64(OPTNAME_SS_FLUSH_DEADLINE);
 		return error ? : parse_timeout(&cfg->joold.flush_deadline, chunk, size, 0);
-	case SS_CAPACITY:
+	case GT_SS_CAPACITY:
 		error = ensure_nat64(OPTNAME_SS_CAPACITY);
 		return error ? : parse_u32(&cfg->joold.capacity, chunk, size);
-	case SS_MAX_PAYLOAD:
+	case GT_SS_MAX_PAYLOAD:
 		error = ensure_nat64(OPTNAME_SS_MAX_PAYLOAD);
 		return error ? : parse_u16(&cfg->joold.max_payload, chunk, size, JOOLD_MAX_PAYLOAD);
 	}

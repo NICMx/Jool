@@ -21,7 +21,6 @@ jool_siit_SOURCES = \
 	../common/target/json.c \
 	../common/target/pool.c \
 	../common/target/pool4.c \
-	../common/target/pool6.c \
 	../common/target/session.c
 
 jool_siit_LDADD = ${LIBNLGENL3_LIBS}

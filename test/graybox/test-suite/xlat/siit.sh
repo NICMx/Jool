@@ -12,7 +12,9 @@ ip addr add 198.51.100.1/24 dev $2
 
 sysctl -w net.ipv4.conf.all.forwarding=1 > /dev/null
 sysctl -w net.ipv6.conf.all.forwarding=1 > /dev/null
-modprobe jool_siit pool6=2001:db8:100::/40
+modprobe jool_siit
+jool_siit --instance --add
+jool_siit -6 2001:db8:100::/40           > /dev/null
 
 # pool6791 test
 jool_siit -ea 2001:db8:3::/120 1.0.0.0/24

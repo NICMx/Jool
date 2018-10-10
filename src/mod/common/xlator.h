@@ -29,7 +29,6 @@ struct xlator {
 
 	struct jool_stats *stats;
 	struct global_config *global;
-	struct pool6 *pool6;
 	union {
 		struct {
 			struct eam_table *eamt;

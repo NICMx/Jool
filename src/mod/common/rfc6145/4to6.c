@@ -5,7 +5,6 @@
 #include "common/constants.h"
 #include "mod/common/config.h"
 #include "mod/common/icmp_wrapper.h"
-#include "mod/common/pool6.h"
 #include "mod/common/rfc6052.h"
 #include "mod/common/route.h"
 #include "mod/common/stats.h"
@@ -140,22 +139,16 @@ static __be16 build_payload_len(struct packet *in, struct packet *out)
 
 static int generate_saddr6_nat64(struct xlation *state)
 {
+	struct global_config_usr *cfg;
 	struct packet *out = &state->out;
-	bool src_better;
-	struct ipv6_prefix prefix6;
 	struct in_addr tmp;
-	int error;
 
-	src_better = state->jool.global->cfg.nat64.src_icmp6errs_better;
+	cfg = &state->jool.global->cfg;
 
-	if (src_better && pkt_is_icmp4_error(&state->in)) {
+	if (cfg->nat64.src_icmp6errs_better && pkt_is_icmp4_error(&state->in)) {
 		/* Issue #132 behaviour. */
-		error = pool6_find(state->jool.pool6, &out->tuple.src.addr6.l3,
-				&prefix6);
-		if (error)
-			return error;
 		tmp.s_addr = pkt_ip4_hdr(&state->in)->saddr;
-		return addr_4to6(&tmp, &prefix6, &pkt_ip6_hdr(out)->saddr);
+		return RFC6052_4TO6(state, &tmp, &pkt_ip6_hdr(out)->saddr);
 	}
 
 	/* RFC 6146 behaviour. */
@@ -166,7 +159,6 @@ static int generate_saddr6_nat64(struct xlation *state)
 static addrxlat_verdict generate_addr6_siit(struct xlation *state,
 		__be32 addr4, struct in6_addr *addr6, bool enable_eam)
 {
-	struct ipv6_prefix prefix;
 	struct in_addr tmp = { .s_addr = addr4 };
 	int error;
 
@@ -189,22 +181,17 @@ static addrxlat_verdict generate_addr6_siit(struct xlation *state,
 		return ADDRXLAT_ACCEPT;
 	}
 
-	error = pool6_peek(state->jool.pool6, &prefix);
-	if (error) {
+	if (!state->jool.global->cfg.pool6.set) {
 		log_debug("Address %pI4 lacks EAMT entry and there's no pool6 prefix.",
 				&tmp);
 		return ADDRXLAT_TRY_SOMETHING_ELSE;
 	}
-	error = addr_4to6(&tmp, &prefix, addr6);
-	if (error) {
-		/*
-		 * This is not TRY_SOMETHING_ELSE because addr_4to6() can only
-		 * fail on criticals, currently.
-		 */
-		return ADDRXLAT_DROP;
-	}
-
-	return ADDRXLAT_CONTINUE;
+	error = RFC6052_4TO6(state, &tmp, addr6);
+	/*
+	 * This DROP is not TRY_SOMETHING_ELSE because addr_4to6() can only fail
+	 * on criticals, currently.
+	 */
+	return error ? ADDRXLAT_DROP : ADDRXLAT_CONTINUE;
 }
 
 static bool disable_src_eam(struct packet *in, bool hairpin)

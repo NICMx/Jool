@@ -30,4 +30,4 @@ modules:
 	make -C ${KERNEL_DIR} M=$$PWD $@;
 clean:
 	make -C ${KERNEL_DIR} M=$$PWD $@;
-	rm -f  *.ko  *.o
+

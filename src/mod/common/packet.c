@@ -44,6 +44,7 @@ static bool has_inner_pkt6(__u8 icmp6_type)
 	return is_icmp6_error(icmp6_type);
 }
 
+/* It seems that this should never trigger ICMP errors. */
 static verdict truncated(struct xlation *state, const char *what)
 {
 	log_debug("The %s seems truncated.", what);

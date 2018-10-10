@@ -557,7 +557,7 @@ static void teardown(void)
 
 static int init(void)
 {
-	struct ipv6_prefix prefix6;
+	struct optional_prefix6 *prefix6;
 	struct pool4_entry_usr entry;
 	int error;
 
@@ -565,13 +565,12 @@ static int init(void)
 	if (error)
 		return error;
 
-	error = str_to_addr6("3::", &prefix6.address);
+	prefix6 = &jool.global->cfg.pool6;
+	prefix6->set = true;
+	error = str_to_addr6("3::", &prefix6->prefix.address);
 	if (error)
 		goto fail;
-	prefix6.len = 96;
-	error = pool6_add(jool.pool6, &prefix6);
-	if (error)
-		goto fail;
+	prefix6->prefix.len = 96;
 
 	entry.mark = 0;
 	entry.iterations = 0;

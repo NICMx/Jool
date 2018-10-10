@@ -5,7 +5,6 @@
 #include "mod/common/config.h"
 #include "mod/common/icmp_wrapper.h"
 #include "mod/common/ipv6_hdr_iterator.h"
-#include "mod/common/pool6.h"
 #include "mod/common/rfc6052.h"
 #include "mod/common/stats.h"
 #include "mod/common/route.h"
@@ -183,7 +182,6 @@ static bool generate_df_flag(struct packet *out)
 static addrxlat_verdict generate_addr4_siit(struct xlation *state,
 		struct in6_addr *addr6, __be32 *addr4, bool *was_6052)
 {
-	struct ipv6_prefix prefix;
 	struct in_addr tmp;
 	int error;
 
@@ -195,17 +193,10 @@ static addrxlat_verdict generate_addr4_siit(struct xlation *state,
 	if (error != -ESRCH)
 		return ADDRXLAT_DROP;
 
-	error = pool6_find(state->jool.pool6, addr6, &prefix);
-	if (error == -ESRCH) {
+	if (!state->jool.global->cfg.pool6.set || RFC6052_6TO4(state, addr6, &tmp)) {
 		log_debug("'%pI6c' lacks both pool6 prefix and EAM.", addr6);
 		return ADDRXLAT_TRY_SOMETHING_ELSE;
 	}
-	if (error)
-		return ADDRXLAT_DROP;
-
-	error = addr_6to4(addr6, &prefix, &tmp);
-	if (error)
-		return ADDRXLAT_DROP;
 
 	if (blacklist_contains(state->jool.siit.blacklist, &tmp)) {
 		log_debug("The resulting address (%pI4) is blacklisted.", &tmp);

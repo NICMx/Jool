@@ -3,7 +3,7 @@
 #include <string.h>
 #include <xtables.h>
 
-#include "usr/common/global.h"
+#include "usr/common/target/global.h"
 
 static const struct option jool_tg_opts[] = {
 	{ .name = OPTNAME_INAME, .has_arg = true, .val = 'i'},

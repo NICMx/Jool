@@ -23,14 +23,11 @@
 #include "usr/common/target/joold.h"
 #include "usr/common/target/json.h"
 #include "usr/common/target/pool.h"
-#include "usr/common/target/pool6.h"
 #include "usr/common/target/pool4.h"
 #include "usr/common/target/bib.h"
 #include "usr/common/target/session.h"
 #include "usr/common/target/eam.h"
 #include "usr/common/target/global.h"
-
-
 
 const char *argp_program_version = JOOL_VERSION_STR;
 const char *argp_program_bug_address = "jool@nic.mx";
@@ -45,10 +42,10 @@ struct arguments {
 
 	enum config_mode mode;
 	enum config_operation op;
+	bool force;
 
 	struct {
 		bool quick;
-		bool force;
 
 		struct ipv6_prefix prefix6;
 		bool prefix6_set;
@@ -61,7 +58,6 @@ struct arguments {
 			__u32 max_iterations;
 			enum iteration_flags flags;
 			struct port_range ports;
-			bool force;
 		} pool4;
 
 		struct {
@@ -218,17 +214,15 @@ static int set_max_iterations(struct arguments *args, char *value)
 	return str_to_u32(value, &args->db.pool4.max_iterations, 1, MAX_U32);
 }
 
-static int set_global_rfc6791_prefix(struct arguments *args, __u16 type, char *value)
+static int set_global_prefix6(struct arguments *args, __u16 type, char *value)
 {
-	int error;
-
 	struct ipv6_prefix tmp;
+	int error;
 
 	if (strcmp(value, "null") != 0) {
 		error = str_to_prefix6(value, &tmp);
 		if (error)
 			return error;
-
 		return set_global_arg(args, type, sizeof(tmp), &tmp);
 	}
 
@@ -272,8 +266,8 @@ static int set_ipv6_prefix(struct arguments *args, char *str)
 {
 	int error;
 
-	error = update_state(args, MODE_POOL6 | MODE_EAMT, OP_ADD | OP_UPDATE
-			| OP_REMOVE);
+	error = update_state(args, MODE_GLOBAL | MODE_EAMT,
+			OP_ADD | OP_UPDATE | OP_REMOVE);
 	if (error)
 		return error;
 
@@ -352,11 +346,16 @@ static int set_ip_args(struct arguments *args, char *str)
 {
 	int error;
 
-	if (!str)
+	if (!str || (strlen(str) == 0))
 		return 0;
 
-	if (strlen(str) == 0)
+	if (args->mode == MODE_INSTANCE) {
+		error = iname_validate(str, false);
+		if (error)
+			return error;
+		strcpy(args->iname, str);
 		return 0;
+	}
 
 	if (strchr(str, ':')) { /* Token is an IPv6 thingy. */
 		if (strchr(str, '#')) { /* Token is a BIB entry. */
@@ -399,9 +398,6 @@ static int parse_opt(int key, char *str, struct argp_state *state)
 		break;
 	case ARGP_GLOBAL:
 		error = update_state(args, MODE_GLOBAL, GLOBAL_OPS);
-		break;
-	case ARGP_POOL6:
-		error = update_state(args, MODE_POOL6, POOL6_OPS);
 		break;
 	case ARGP_POOL4:
 		error = update_state(args, MODE_POOL4, POOL4_OPS);
@@ -505,7 +501,7 @@ static int parse_opt(int key, char *str, struct argp_state *state)
 		break;
 	case ARGP_FORCE:
 		error = update_state(args, ANY_MODE, ANY_OP);
-		args->db.force = true;
+		args->force = true;
 		break;
 
 	case ARGP_ENABLE_TRANSLATION:
@@ -530,7 +526,7 @@ static int parse_opt(int key, char *str, struct argp_state *state)
 		error = set_global_u8(args, key, str, 0, 0xF);
 		break;
 	case ARGP_HANDLE_RST_DURING_FIN_RCV:
-		error = set_global_bool(args, HANDLE_RST_DURING_FIN_RCV, str);
+		error = set_global_bool(args, GT_HANDLE_RST_DURING_FIN_RCV, str);
 		break;
 	case ARGP_NEW_TOS:
 		error = set_global_u8(args, key, str, 0, MAX_U8);
@@ -565,20 +561,9 @@ static int parse_opt(int key, char *str, struct argp_state *state)
 	case ARGP_SS_MAX_PAYLOAD:
 		error = set_global_u16(args, key, str, 0, JOOLD_MAX_PAYLOAD);
 		break;
+	case ARGP_POOL6:
 	case ARGP_RFC6791V6_PREFIX:
-		error = set_global_rfc6791_prefix(args, key, str);
-		break;
-	case ARGP_PREFIX:
-		error = set_ipv6_prefix(args, str);
-		break;
-	case ARGP_ADDRESS:
-		error = set_ipv4_prefix(args, str);
-		break;
-	case ARGP_BIB_IPV6:
-		error = set_bib6(args, str);
-		break;
-	case ARGP_BIB_IPV4:
-		error = set_bib4(args, str);
+		error = set_global_prefix6(args, key, str);
 		break;
 
 	case ARGP_KEY_ARG:
@@ -658,6 +643,8 @@ static int parse_args(int argc, char **argv, struct arguments *result)
 	result->mode = zeroize_upper_bits(result->mode);
 	result->op = zeroize_upper_bits(result->op);
 
+	if (result->ifw == 0)
+		result->ifw |= FW_NETFILTER;
 	if ((result->flags & (DF_TCP | DF_UDP | DF_ICMP)) == 0)
 		result->flags |= DF_TCP | DF_UDP | DF_ICMP;
 
@@ -674,36 +661,6 @@ static int unknown_op(char *mode, enum config_operation op)
 {
 	log_err("Unknown operation for %s mode: %u.", mode, op);
 	return -EINVAL;
-}
-
-static int handle_pool6(struct arguments *args)
-{
-	switch (args->op) {
-	case OP_DISPLAY:
-		return pool6_display(args->iname, args->flags);
-
-	case OP_ADD:
-	case OP_UPDATE:
-		if (!args->db.prefix6_set) {
-			log_err("The IPv6 prefix is mandatory.");
-			return -EINVAL;
-		}
-		return pool6_add(args->iname, &args->db.prefix6, args->db.force);
-
-	case OP_REMOVE:
-		if (!args->db.prefix6_set) {
-			log_err("The IPv6 prefix is mandatory.");
-			return -EINVAL;
-		}
-		return pool6_remove(args->iname, &args->db.prefix6);
-
-	case OP_COUNT:
-		return pool6_count(args->iname);
-	case OP_FLUSH:
-		return pool6_flush(args->iname);
-	default:
-		return unknown_op("IPv6 pool", args->op);
-	}
 }
 
 static int __pool4_add(struct arguments *args)
@@ -726,15 +683,15 @@ static int __pool4_add(struct arguments *args)
 
 	if (args->flags & DF_TCP) {
 		entry.proto = L4PROTO_TCP;
-		tcp_error = pool4_add(args->iname, &entry, args->db.force);
+		tcp_error = pool4_add(args->iname, &entry, args->force);
 	}
 	if (args->flags & DF_UDP) {
 		entry.proto = L4PROTO_UDP;
-		udp_error = pool4_add(args->iname, &entry, args->db.force);
+		udp_error = pool4_add(args->iname, &entry, args->force);
 	}
 	if (args->flags & DF_ICMP) {
 		entry.proto = L4PROTO_ICMP;
-		icmp_error = pool4_add(args->iname, &entry, args->db.force);
+		icmp_error = pool4_add(args->iname, &entry, args->force);
 	}
 
 	return (tcp_error | udp_error | icmp_error) ? -EINVAL : 0;
@@ -905,7 +862,7 @@ static int handle_eamt(struct arguments *args)
 			log_err("Both EAM prefixes are mandatory during adds.");
 			return -EINVAL;
 		}
-		return eam_add(args->iname, prefix6, prefix4, args->db.force);
+		return eam_add(args->iname, prefix6, prefix4, args->force);
 
 	case OP_REMOVE:
 		if (!prefix6 && !prefix4) {
@@ -940,7 +897,7 @@ static int handle_addr4_pool(struct arguments *args)
 			return -EINVAL;
 		}
 		return pool_add(args->iname, args->mode, &args->db.prefix4,
-				args->db.force);
+				args->force);
 
 	case OP_REMOVE:
 		if (!args->db.prefix4_set) {
@@ -963,7 +920,8 @@ static int handle_global(struct arguments *args)
 		return global_display(args->iname, args->flags);
 	case OP_UPDATE:
 		return global_update(args->iname, args->global.type,
-				args->global.size, args->global.data);
+				args->global.size, args->global.data,
+				args->force);
 	default:
 		return unknown_op("global", args->op);
 	}
@@ -998,8 +956,6 @@ static int handle_instance(struct arguments *args)
 static int main_wrapped(struct arguments *args)
 {
 	switch (args->mode) {
-	case MODE_POOL6:
-		return handle_pool6(args);
 	case MODE_POOL4:
 		return handle_pool4(args);
 	case MODE_BIB:

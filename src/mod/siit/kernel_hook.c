@@ -3,7 +3,6 @@
 #include <linux/module.h>
 
 #include "mod/common/linux_version.h"
-#include "mod/common/pool6.h"
 #include "mod/common/xlator.h"
 #include "mod/common/nl/nl_handler.h"
 #include "mod/siit/pool.h"
@@ -12,24 +11,6 @@ MODULE_LICENSE(JOOL_LICENSE);
 MODULE_AUTHOR("NIC-ITESM");
 MODULE_DESCRIPTION("Stateless IP/ICMP Translation (RFC 7915)");
 MODULE_VERSION(JOOL_VERSION_STR);
-
-static char *pool6;
-module_param(pool6, charp, 0);
-MODULE_PARM_DESC(pool6, "The IPv6 prefix.");
-static char *blacklist[5];
-static int blacklist_size;
-module_param_array(blacklist, charp, &blacklist_size, 0);
-MODULE_PARM_DESC(blacklist, "IPv4 addresses that will not be translated.");
-static char *pool6791[5];
-static int pool6791_size;
-module_param_array(pool6791, charp, &pool6791_size, 0);
-MODULE_PARM_DESC(pool6791, "The RFC6791 pool's addresses.");
-static bool disabled;
-module_param(disabled, bool, 0);
-MODULE_PARM_DESC(disabled, "Disable the translation at the beginning of the module insertion.");
-static bool no_instance;
-module_param(no_instance, bool, 0);
-MODULE_PARM_DESC(no_instance, "Prevent an instance from being added to the current namespace during the modprobe.");
 
 static bool iptables_error;
 
@@ -84,33 +65,6 @@ void init_nf_hook_op4(struct nf_hook_ops *ops)
 	memcpy(ops, &nfho[1], sizeof(nfho[1]));
 }
 
-static int add_instance(void)
-{
-	struct xlator jool;
-	int error;
-
-	if (no_instance)
-		return 0;
-
-	error = xlator_add(FW_NETFILTER, INAME_DEFAULT, &jool);
-	if (error)
-		return error;
-
-	jool.global->cfg.enabled = !disabled;
-	error = pool6_add_str(jool.pool6, &pool6, pool6 ? 1 : 0);
-	if (error)
-		goto end;
-	error = pool_add_str(jool.siit.blacklist, blacklist, blacklist_size);
-	if (error)
-		goto end;
-	error = pool_add_str(jool.siit.pool6791, pool6791, pool6791_size);
-	/* Fall through. */
-
-end:
-	xlator_put(&jool);
-	return error;
-}
-
 static int __init jool_init(void)
 {
 	int error;
@@ -124,11 +78,6 @@ static int __init jool_init(void)
 	error = nlhandler_setup();
 	if (error)
 		goto nlhandler_fail;
-
-	/* This needs to be last! (except for the hook registering.) */
-	error = add_instance();
-	if (error)
-		goto instance_fail;
 
 #if LINUX_VERSION_LOWER_THAN(4, 13, 0, 9999, 0)
 	/*
@@ -153,10 +102,8 @@ static int __init jool_init(void)
 
 #if LINUX_VERSION_LOWER_THAN(4, 13, 0, 9999, 0)
 nf_register_hooks_fail:
-	xlator_rm(INAME_DEFAULT);
-#endif
-instance_fail:
 	nlhandler_teardown();
+#endif
 nlhandler_fail:
 	xlator_teardown();
 xlator_fail:

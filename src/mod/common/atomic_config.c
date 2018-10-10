@@ -1,7 +1,6 @@
 #include "mod/common/atomic_config.h"
 
 #include "mod/common/nl/global.h"
-#include "mod/common/pool6.h"
 #include "mod/common/wkmalloc.h"
 #include "mod/siit/eam.h"
 #include "mod/siit/pool.h"
@@ -23,10 +22,6 @@ static void candidate_clean(struct config_candidate *candidate)
 	if (candidate->global) {
 		wkfree(struct full_config, candidate->global);
 		candidate->global = NULL;
-	}
-	if (candidate->pool6) {
-		pool6_put(candidate->pool6);
-		candidate->pool6 = NULL;
 	}
 	if (xlat_is_siit()) {
 		if (candidate->siit.eamt) {
@@ -117,29 +112,6 @@ static int handle_global(struct xlator *jool, void *payload, __u32 payload_len)
 		payload += result;
 		payload_len -= result;
 	} while (payload_len > 0);
-
-	return 0;
-}
-
-static int handle_pool6(struct config_candidate *new, void *payload,
-		__u32 payload_len)
-{
-	struct ipv6_prefix *prefixes = payload;
-	unsigned int prefix_count = payload_len / sizeof(*prefixes);
-	unsigned int i;
-	int error;
-
-	if (!new->pool6) {
-		new->pool6 = pool6_alloc();
-		if (!new->pool6)
-			return -ENOMEM;
-	}
-
-	for (i = 0; i < prefix_count; i++) {
-		error = pool6_add(new->pool6, &prefixes[i]);
-		if (error)
-			return error;
-	}
 
 	return 0;
 }
@@ -282,11 +254,6 @@ static int commit(struct xlator *jool)
 		jool->global = global;
 		new->global = NULL;
 	}
-	if (new->pool6) {
-		pool6_put(jool->pool6);
-		jool->pool6 = new->pool6;
-		new->pool6 = NULL;
-	}
 
 	if (xlat_is_siit()) {
 		if (new->siit.eamt) {
@@ -404,9 +371,6 @@ int atomconfig_add(struct xlator *jool, void *config, size_t config_len)
 		break;
 	case SEC_GLOBAL:
 		error = handle_global(jool, config, config_len);
-		break;
-	case SEC_POOL6:
-		error = handle_pool6(candidate, config, config_len);
 		break;
 	case SEC_EAMT:
 		error = handle_eamt(candidate, config, config_len);

@@ -3,7 +3,6 @@
 #include "common/str_utils.h"
 #include "mod/common/config.h"
 #include "mod/common/icmp_wrapper.h"
-#include "mod/common/pool6.h"
 #include "mod/common/rfc6052.h"
 #include "mod/common/stats.h"
 #include "mod/common/rfc6145/6to4.h"
@@ -109,9 +108,7 @@ static int xlat_dst_6to4(struct xlation *state,
 		struct ipv4_transport_addr *dst4)
 {
 	dst4->l4 = state->in.tuple.dst.addr6.l4;
-	/* Error msg already printed. */
-	return rfc6052_6to4(state->jool.pool6, &state->in.tuple.dst.addr6.l3,
-			&dst4->l3);
+	return RFC6052_6TO4(state, &state->in.tuple.dst.addr6.l3, &dst4->l3);
 }
 
 /**
@@ -199,7 +196,7 @@ static verdict ipv4_simple(struct xlation *state)
 	struct ipv6_transport_addr dst6;
 	int error;
 
-	if (rfc6052_4to6(state->jool.pool6, &dst4->l3, &dst6.l3))
+	if (RFC6052_4TO6(state, &dst4->l3, &dst6.l3))
 		return drop(state, JSTAT_UNTRANSLATABLE_DST4);
 	dst6.l4 = dst4->l4;
 
@@ -497,7 +494,7 @@ static verdict ipv4_tcp(struct xlation *state)
 	struct collision_cb cb;
 	verdict result;
 
-	if (rfc6052_4to6(state->jool.pool6, &dst4->l3, &dst6.l3))
+	if (RFC6052_4TO6(state, &dst4->l3, &dst6.l3))
 		return drop(state, JSTAT_UNTRANSLATABLE_DST4);
 	dst6.l4 = dst4->l4;
 
@@ -524,11 +521,11 @@ verdict filtering_and_updating(struct xlation *state)
 	case L3PROTO_IPV6:
 		/* Get rid of hairpinning loops and unwanted packets. */
 		hdr_ip6 = pkt_ip6_hdr(in);
-		if (pool6_contains(state->jool.pool6, &hdr_ip6->saddr)) {
+		if (pool6_contains(state, &hdr_ip6->saddr)) {
 			log_debug("Hairpinning loop. Dropping...");
 			return drop(state, JSTAT_HAIRPIN_LOOP);
 		}
-		if (!pool6_contains(state->jool.pool6, &hdr_ip6->daddr)) {
+		if (!pool6_contains(state, &hdr_ip6->daddr)) {
 			log_debug("Packet does not belong to pool6.");
 			return untranslatable(state, JSTAT_POOL6_MISMATCH);
 		}

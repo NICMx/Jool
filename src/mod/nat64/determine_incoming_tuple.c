@@ -2,7 +2,6 @@
 
 #include "mod/common/icmp_wrapper.h"
 #include "mod/common/ipv6_hdr_iterator.h"
-#include "mod/common/pool6.h"
 #include "mod/common/stats.h"
 
 /*
@@ -258,7 +257,7 @@ static verdict ipv6_icmp(struct xlation *state)
 
 	log_debug("Unknown ICMPv6 type: %u.", type);
 	/*
-	 * We return VERDICT_ACCEPT instead of _DROP because the neighbor
+	 * Netfilter Jool returns ACCEPT instead of DROP because the neighbor
 	 * discovery code happens after Jool, apparently (even though it's
 	 * layer 2 man, wtf).
 	 * This message, which is likely single-hop, might actually be intended
@@ -293,7 +292,7 @@ verdict determine_in_tuple(struct xlation *state)
 			result = ipv4_icmp(state);
 			break;
 		case L4PROTO_OTHER:
-			goto unknown_proto_ipv4;
+			goto unknown_proto;
 		}
 		break;
 
@@ -309,7 +308,7 @@ verdict determine_in_tuple(struct xlation *state)
 			result = ipv6_icmp(state);
 			break;
 		case L4PROTO_OTHER:
-			goto unknown_proto_ipv6;
+			goto unknown_proto;
 		}
 		break;
 	}
@@ -319,26 +318,8 @@ verdict determine_in_tuple(struct xlation *state)
 	log_debug("Done step 1.");
 	return result;
 
-unknown_proto_ipv4:
+unknown_proto:
 	log_debug("NAT64 doesn't support unknown transport protocols.");
-	return untranslatable(state, JSTAT_UNKNOWN_L4_PROTO);
-
-unknown_proto_ipv6:
-	/**
-	 * pool6_contains() doesn't need a transport address, so in IPv6's case
-	 * whether an unknown protocol packet was meant to be translated or not
-	 * is slightly more involved.
-	 */
-	log_debug("NAT64 doesn't support unknown transport protocols.");
-
-	if ((state->jool.fw & FW_NETFILTER)
-			&& !pool6_contains(state->jool.pool6,
-					&pkt_ip6_hdr(&state->in)->daddr)) {
-		/* Not meant to be translated. unknown_proto_ipv4 logic. */
-		return untranslatable(state, JSTAT_UNKNOWN_L4_PROTO);
-	}
-
-	/* RFC6146 logic. */
-	return drop_icmp(state, JSTAT_UNKNOWN_L4_PROTO,
+	return untranslatable_icmp(state, JSTAT_UNKNOWN_L4_PROTO,
 			ICMPERR_PROTO_UNREACHABLE, 0);
 }

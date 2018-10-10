@@ -20,7 +20,6 @@ $(TRANSLATE)-objs += $(MIN_REQS)
 $(TRANSLATE)-objs += ../../../src/mod/common/config.o
 $(TRANSLATE)-objs += ../../../src/mod/common/ipv6_hdr_iterator.o
 $(TRANSLATE)-objs += ../../../src/mod/common/packet.o
-$(TRANSLATE)-objs += ../../../src/mod/common/pool6.o
 $(TRANSLATE)-objs += ../../../src/mod/common/rfc6052.o
 $(TRANSLATE)-objs += ../../../src/mod/common/translation_state.o
 $(TRANSLATE)-objs += ../../../src/mod/common/rfc6145/common.o
@@ -37,7 +36,6 @@ modules:
 	make -C ${KERNEL_DIR} M=$$PWD $@;
 clean:
 	make -C ${KERNEL_DIR} M=$$PWD $@;
-	rm -f  *.ko  *.o
 test:
 	sudo dmesg -C
 	-sudo insmod $(TRANSLATE).ko && sudo rmmod $(TRANSLATE)

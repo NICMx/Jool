@@ -28,12 +28,13 @@ struct global_config *config_alloc(void)
 	config->reset_traffic_class = DEFAULT_RESET_TRAFFIC_CLASS;
 	config->reset_tos = DEFAULT_RESET_TOS;
 	config->new_tos = DEFAULT_NEW_TOS;
+	config->pool6.set = false;
 
 	if (xlat_is_siit()) {
 		config->siit.compute_udp_csum_zero = DEFAULT_COMPUTE_UDP_CSUM0;
 		config->siit.eam_hairpin_mode = DEFAULT_EAM_HAIRPIN_MODE;
 		config->siit.randomize_error_addresses = DEFAULT_RANDOMIZE_RFC6791;
-		config->siit.use_rfc6791_v6 = DEFAULT_USE_RFC6791V6_PREFIX;
+		config->siit.rfc6791v6_prefix.set = DEFAULT_USE_RFC6791V6_PREFIX;
 	} else {
 		config->nat64.src_icmp6errs_better = DEFAULT_SRC_ICMP6ERRS_BETTER;
 		config->nat64.drop_icmp6_info = DEFAULT_FILTER_ICMPV6_INFO;

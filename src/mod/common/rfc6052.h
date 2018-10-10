@@ -10,34 +10,28 @@
 #include <linux/in.h>
 #include <linux/in6.h>
 #include "common/types.h"
-#include "mod/common/pool6.h"
 
 
 /**
- * Translates "src" into a IPv4 address and returns it as "dst".
+ * Translates @src into an IPv4 address and returns it as @dst.
  *
- * In other words, removes "prefix" from "src". The result will be 32 bits of address.
- * You want to extract "prefix" from the IPv6 pool somehow.
- *
- * @return error status.
+ * In other words, removes @prefix from @src. The result will be 32 bits of
+ * address.
  */
-int addr_6to4(const struct in6_addr *src, struct ipv6_prefix *prefix,
+int rfc6052_6to4(struct ipv6_prefix const *prefix, struct in6_addr const *src,
 		struct in_addr *dst);
 
 /**
- * Translates "src" into a IPv6 address and returns it as "dst.
+ * Translates @src into an IPv6 address and returns it as @dst.
  *
- * In other words, adds "prefix" to "src". The result will be 128 bits of address.
- * You want to extract "prefix" from the IPv6 pool somehow.
- *
- * @return error status.
+ * In other words, adds @prefix to @src. The result will be 128 bits of address.
  */
-int addr_4to6(struct in_addr *src, struct ipv6_prefix *prefix,
+int rfc6052_4to6(struct ipv6_prefix const *prefix, struct in_addr const *src,
 		struct in6_addr *dst);
 
-int rfc6052_6to4(struct pool6 *pool, const struct in6_addr *addr6,
-		struct in_addr *result);
-int rfc6052_4to6(struct pool6 *pool, struct in_addr *addr4,
-		struct in6_addr *result);
+#define RFC6052_6TO4(state, src, dst) \
+	rfc6052_6to4(&(state)->jool.global->cfg.pool6.prefix, src, dst)
+#define RFC6052_4TO6(state, src, dst) \
+	rfc6052_4to6(&(state)->jool.global->cfg.pool6.prefix, src, dst)
 
 #endif /* _JOOL_MOD_RFC6052_H */
