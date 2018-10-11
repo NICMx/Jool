@@ -63,7 +63,7 @@ static verdict inhdr4(struct xlation *state, const char *msg)
 	return drop(state, JSTAT_HDR4);
 }
 
-static void *offset_to_ptr(struct sk_buff *skb, unsigned int offset)
+static void *skb_offset_to_ptr(struct sk_buff *skb, unsigned int offset)
 {
 	return ((void *) skb->data) + offset;
 }
@@ -372,10 +372,10 @@ verdict pkt_init_ipv6(struct xlation *state, struct sk_buff *skb)
 	state->in.is_inner = 0;
 	state->in.is_hairpin = false;
 	state->in.hdr_frag = meta.has_frag_hdr
-			? offset_to_ptr(skb, meta.frag_offset)
+			? skb_offset_to_ptr(skb, meta.frag_offset)
 			: NULL;
 	skb_set_transport_header(skb, meta.l4_offset);
-	state->in.payload = offset_to_ptr(skb, meta.payload_offset);
+	state->in.payload = skb_offset_to_ptr(skb, meta.payload_offset);
 	state->in.original_pkt = &state->in;
 
 	return VERDICT_CONTINUE;
@@ -535,7 +535,7 @@ verdict pkt_init_ipv4(struct xlation *state, struct sk_buff *skb)
 	state->in.is_hairpin = false;
 	state->in.hdr_frag = NULL;
 	skb_set_transport_header(skb, meta.l4_offset);
-	state->in.payload = offset_to_ptr(skb, meta.payload_offset);
+	state->in.payload = skb_offset_to_ptr(skb, meta.payload_offset);
 	state->in.original_pkt = &state->in;
 
 	return VERDICT_CONTINUE;

@@ -66,8 +66,9 @@ You might also want to see [contact info](https://www.jool.mx/en/contact.html).
 * [ipclouds](https://github.com/ipclouds)
 * [Masaya YAMAMOTO](https://github.com/pandax381)
 * [Michael Richardson](http://www.sandelman.ca/mcr)
-* [Philar Law] (https://github.com/philar)
+* [Philar Law](https://github.com/philar)
 * [Pier Carlo Chiodi](https://pierky.com/)
+* [Ricardo Salveti](https://github.com/rsalveti) - ricardo@foundries.io
 * [Sander Steffann](https://github.com/steffann) - sander@steffann.nl
 * [Stanislav Bogatyrev](https://github.com/realloc)
 * [tbe](https://github.com/tbe)
