@@ -16,6 +16,7 @@ title: --global
 3. [Examples](#examples)
 4. [Keys](#keys)
 	1. [`--enable`, `--disable`](#--enable---disable)
+	1. [`--pool6`](#--pool6)
 	1. [`--address-dependent-filtering`](#--address-dependent-filtering)
 	2. [`--drop-icmpv6-info`](#--drop-icmpv6-info)
 	3. [`--drop-externally-initiated-tcp`](#--drop-externally-initiated-tcp)
@@ -96,6 +97,24 @@ Resumes and pauses translation of packets, respectively. This might be useful if
 
 Timers will _not_ be paused. [BIB](usr-flags-bib.html)/[session](usr-flags-session.html) entries and stored [packets](#--maximum-simultaneous-opens) might die while Jool is idle.
 
+### `--pool6`
+
+- Type: IPv6 prefix
+- Default: null
+- Modes: SIIT only
+- Translation direction: Both
+- Source: [RFC 6052](https://tools.ietf.org/html/rfc6052)
+
+Updates the [IPv6 Address Pool prefix](pool6.html).
+
+**This flag is SIIT-only**. It is no longer possible for NAT64 instaces to change the prefix that was set during the instance add due to race conditions.
+
+If you want, the prefix can unset through the `null` keyword:
+
+{% highlight bash %}
+user@T:~# jool_siit --pool6 null
+{% endhighlight %}
+
 ### `--address-dependent-filtering`
 
 <!-- TODO I think this documentation is somewhat incorrect now. -->
@@ -103,7 +122,6 @@ Timers will _not_ be paused. [BIB](usr-flags-bib.html)/[session](usr-flags-sessi
 - Type: Boolean
 - Default: OFF
 - Modes: Stateful NAT64 only
-- Deprecated name: `--dropAddr`
 - Source: Scattered at RFC 6146. One summary is at the end of [section 1.2.3](http://tools.ietf.org/html/rfc6146#section-1.2.3).
 
 Long story short:
@@ -143,7 +161,6 @@ If `--address-dependent-filtering` is OFF, _J_ will allow _n4b_'s packet through
 - Type: Boolean
 - Default: OFF
 - Modes: Stateful NAT64 only
-- Deprecated name: `--dropInfo`
 - Source: [RFC 6146, section 3.5.3](http://tools.ietf.org/html/rfc6146#section-3.5.3)
 
 If you turn this on, pings (both requests and responses) will be blocked while being translated from ICMPv6 to ICMPv4.
@@ -157,7 +174,6 @@ This rule will not affect Error ICMP messages.
 - Type: Boolean
 - Default: OFF
 - Modes: Stateful NAT64 only
-- Deprecated name: `--dropTCP`
 - Source: [RFC 6146, section 3.5.2.2](http://tools.ietf.org/html/rfc6146#section-3.5.2.2)
 
 Turn `--drop-externally-initiated-tcp` ON to wreck any attempts of IPv4 nodes to initiate TCP communication to IPv6 nodes.
@@ -171,7 +187,6 @@ The filtering will be completely silent; no ICMP error ("Communication Administr
 - Type: Integer (seconds)
 - Default: 5 minutes
 - Modes: Stateful NAT64 only
-- Deprecated name: `--toUDP`
 - Source: [RFC 6146, section 3.5.1](http://tools.ietf.org/html/rfc6146#section-3.5.1)
 
 When a UDP session has been lying around inactive for this long, its entry will be removed from the database automatically.
@@ -183,7 +198,6 @@ When you change this value, the lifetimes of all already existing UDP sessions a
 - Type: Integer (seconds)
 - Default: 2 hours
 - Modes: Stateful NAT64 only
-- Deprecated name: `--toTCPest`
 - Source: [RFC 6146, section 3.5.2.2](http://tools.ietf.org/html/rfc6146#section-3.5.2.2)
 
 When an established TCP connection has remained inactive for this long, its existence will be questioned. Jool will send a probe packet to one of the endpoints and kill the session if a response is not received before the `--tcp-trans-timeout` timeout.
@@ -195,7 +209,6 @@ When you change this value, the lifetimes of all already existing established TC
 - Type: Integer (seconds)
 - Default: 4 minutes
 - Modes: Stateful NAT64 only
-- Deprecated name: `--toTCPtrans`
 - Source: [RFC 6146, derivatives of section 3.5.2](http://tools.ietf.org/html/rfc6146#section-3.5.2)
 
 When an unhealthy TCP session has been lying around inactive for this long, its entry will be removed from the database automatically. An "unhealthy" session is one in which the TCP handshake has not yet been completed, it is being (or has been) terminated by the endpoints, or is technically established but has remained inactive for `--tcp-est-timeout` time.
@@ -207,7 +220,6 @@ When you change this value, the lifetimes of all already existing transitory TCP
 - Type: Integer (seconds)
 - Default: 1 minute
 - Modes: Stateful NAT64 only
-- Deprecated name: `--toICMP`
 - Source: [RFC 6146, section 3.5.3](http://tools.ietf.org/html/rfc6146#section-3.5.3)
 
 When a ICMP session has been lying around inactive for this long, its entry will be removed from the database automatically.
@@ -219,7 +231,6 @@ When you change this value, the lifetimes of all already existing ICMP sessions 
 - Type: Integer
 - Default: 10
 - Modes: Stateful NAT64 only
-- Deprecated name: `--maxStoredPkts`
 - Source: [RFC 6146, section 5.3](http://tools.ietf.org/html/rfc6146#section-5.3) (indirectly)
 
 When an external (IPv4) node first attempts to open a connection and there's no [BIB entry](bib.html) for it, Jool normally answers with an Address Unreachable (type 3, code 1) ICMP error message, since it cannot know which IPv6 node the packet is heading.
@@ -230,10 +241,8 @@ In the case of TCP, the situation is a little more complicated because the IPv4 
 
 ### `--source-icmpv6-errors-better`
 
-<!-- TODO Let's change the default of this already. -->
-
 - Type: Boolean
-- Default: False
+- Default: True
 - Modes: Stateful NAT64 only
 - Translation direction: IPv4 to IPv6 (ICMP errors only)
 - Source: [Issue 132]({{ site.repository-url }}/issues/132)
@@ -253,8 +262,6 @@ Say the link between _R_ and _n4_ collapses.
 
 - `--source-icmpv6-errors-better` OFF will make Jool obey RFC 6146 (and break traceroutes).
 - `--source-icmpv6-errors-better` ON will translate the outer source address directly, simply appending the prefix to the source address of the original (step 3) packet.
-
-Despite the default, we recommend that you turn this value on.
 
 ### `--logging-bib`
 
@@ -329,7 +336,6 @@ This log is remarcably more voluptuous than [`--logging-bib`](#--logging-bib), n
 - Modes: Both (SIIT and Stateful NAT64)
 - Translation direction: IPv4 to IPv6
 - Source: [RFC 7915, section 4.1]({{ site.rfc-siit }}#section-4.1)
-- Deprecated name: `--setTC`
 
 The <a href="http://en.wikipedia.org/wiki/IPv6_packet#Fixed_header" target="_blank">IPv6 header</a>'s Traffic Class field is very similar to <a href="http://en.wikipedia.org/wiki/IPv4#Header" target="_blank">IPv4</a>'s Type of Service (TOS).
 
@@ -342,7 +348,6 @@ If you leave this OFF, the TOS value will be copied directly to the Traffic Clas
 - Modes: Both (SIIT and Stateful NAT64)
 - Translation direction: IPv6 to IPv4
 - Source: [RFC 7915, section 5.1]({{ site.rfc-siit }}#section-5.1)
-- Deprecated name: `--setTOS`
 
 The <a href="http://en.wikipedia.org/wiki/IPv6_packet#Fixed_header" target="_blank">IPv6 header</a>'s Traffic Class field is very similar to <a href="http://en.wikipedia.org/wiki/IPv4#Header" target="_blank">IPv4</a>'s Type of Service (TOS).
 
@@ -355,7 +360,6 @@ If you leave this OFF, the Traffic Class value will be copied directly to the TO
 - Modes: Both (SIIT and Stateful NAT64)
 - Translation direction: IPv6 to IPv4
 - Source: [RFC 7915, section 5.1]({{ site.rfc-siit }}#section-5.1)
-- Deprecated name: `--TOS`
 
 Value to set the TOS value of the packets' IPv4 fields during IPv6-to-IPv4 translations. _This only applies when [`--override-tos`](#--override-tos) is ON_.
 
@@ -400,7 +404,6 @@ Why? [It can be argued that `hop limit`th is better]({{ site.repository-url }}/i
 - Modes: Both (SIIT and Stateful NAT64)
 - Translation direction: IPv4 to IPv6 (ICMP errors only)
 - Source: [RFC 7915, section 4.2]({{ site.rfc-siit }}#section-4.2)
-- Deprecated name: `--plateaus`
 
 When a packet should not be fragmented and doesn't fit into a link it's supposed to traverse, the troubled router is supposed to respond an error message indicating _Fragmentation Needed_. Ideally, this error message would contain the MTU of the link so the original emitter would be aware of the ideal packet size and avoid fragmentation. However, the original ICMPv4 specification did not require routers to include this information, so old ware might tend to omit it.
 

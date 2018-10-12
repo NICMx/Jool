@@ -22,9 +22,9 @@ title: Basic SIIT Run
 
 This document explains how to run Jool in [stock SIIT mode](intro-xlat.html#siit-traditional). Follow the link for more details on what to expect.
 
-In case you're wondering, you can follow along these tutorials using virtual machines or alternate interface types just fine (Jool is not married to physical "_ethX_" interfaces).
+In case you're wondering, you can follow along these tutorials using virtual machines or alternate interface types just fine. Jool is _not_ married to physical "_ethX_" interfaces).
 
-If you intend on using iptables Jool, some familiarity with iptables is recommended.
+If you intend on using iptables Jool, basic familiarity with iptables is recommended.
 
 ## Sample Network
 

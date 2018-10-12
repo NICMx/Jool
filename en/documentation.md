@@ -28,6 +28,10 @@ See [RFC 6586](https://tools.ietf.org/html/rfc6586) for deployment experiences u
 3. [Stateful NAT64](run-nat64.html)
 4. [DNS64](dns64.html)
 
+## IP/ICMP Translation in Detail
+
+1. [The IPv6 Address Pool](pool6.html)
+
 ## SIIT in Detail
 
 1. [The EAMT](eamt.html)
@@ -45,7 +49,6 @@ See [RFC 6586](https://tools.ietf.org/html/rfc6586) for deployment experiences u
 	4. [`--instance`](usr-flags-instance.html)
 	2. [`--global`](usr-flags-global.html)
 		1. [`--mtu-plateaus`](usr-flags-plateaus.html)
-	3. [`--pool6`](usr-flags-pool6.html)
 2. `jool_siit`-only arguments
 	1. [`--eamt`](usr-flags-eamt.html)
 	2. [`--blacklist`](usr-flags-blacklist.html)
