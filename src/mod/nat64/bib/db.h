@@ -63,7 +63,6 @@ struct bib *bib_alloc(void);
 void bib_get(struct bib *db);
 void bib_put(struct bib *db);
 
-void bib_config_copy(struct bib *db, struct bib_config *config);
 void bib_config_set(struct bib *db, struct bib_config *config);
 
 typedef enum session_fate (*fate_cb)(struct session_entry *, void *);
@@ -134,7 +133,6 @@ int bib_add_static(struct bib *db, struct bib_entry *new,
 int bib_rm(struct bib *db, struct bib_entry *entry);
 void bib_rm_range(struct bib *db, l4_protocol proto, struct ipv4_range *range);
 void bib_flush(struct bib *db);
-int bib_count(struct bib *db, l4_protocol proto, __u64 *count);
 int bib_count_sessions(struct bib *db, l4_protocol proto, __u64 *count);
 
 void bib_print(struct bib *db);

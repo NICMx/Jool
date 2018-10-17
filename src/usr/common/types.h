@@ -12,9 +12,4 @@ typedef enum display_flags {
 	DF_NUMERIC_HOSTNAME = 1 << 6,
 } display_flags;
 
-static inline bool show_footer(display_flags flags)
-{
-	return (flags & DF_SHOW_HEADERS) && !(flags & DF_CSV_FORMAT);
-}
-
 #endif /* INCLUDE_NAT64_USR_TYPES_H_ */

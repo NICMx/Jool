@@ -34,45 +34,22 @@ static int handle_addr4pool_display(struct addr4_pool *pool,
 	return error;
 }
 
-static int handle_addr4pool_count(struct addr4_pool *pool,
-		struct genl_info *info)
-{
-	__u64 count;
-	int error;
-
-	log_debug("Returning address count.");
-	error = pool_count(pool, &count);
-	if (error)
-		return nlcore_respond(info, error);
-
-	return nlcore_respond_struct(info, &count, sizeof(count));
-}
-
 static int handle_addr4pool_add(struct addr4_pool *pool,
-		union request_pool *request)
+		union request_pool *request, bool force)
 {
-	if (verify_superpriv())
-		return -EPERM;
-
 	log_debug("Adding an address to an IPv4 address pool.");
-	return pool_add(pool, &request->add.addrs, request->add.force);
+	return pool_add(pool, &request->add.addrs, force);
 }
 
 static int handle_addr4pool_rm(struct addr4_pool *pool,
 		union request_pool *request)
 {
-	if (verify_superpriv())
-		return -EPERM;
-
 	log_debug("Removing an address from an IPv4 address pool.");
 	return pool_rm(pool, &request->rm.addrs);
 }
 
 static int handle_addr4pool_flush(struct addr4_pool *pool)
 {
-	if (verify_superpriv())
-		return -EPERM;
-
 	log_debug("Flushing an IPv4 address pool...");
 	return pool_flush(pool);
 }
@@ -93,12 +70,10 @@ static int handle_addr4pool(struct addr4_pool *pool, struct genl_info *info)
 		return nlcore_respond(info, error);
 
 	switch (be16_to_cpu(hdr->operation)) {
-	case OP_DISPLAY:
+	case OP_FOREACH:
 		return handle_addr4pool_display(pool, info, request);
-	case OP_COUNT:
-		return handle_addr4pool_count(pool, info);
 	case OP_ADD:
-		error = handle_addr4pool_add(pool, request);
+		error = handle_addr4pool_add(pool, request, hdr->force);
 		break;
 	case OP_REMOVE:
 		error = handle_addr4pool_rm(pool, request);

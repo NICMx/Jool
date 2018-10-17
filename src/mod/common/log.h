@@ -68,8 +68,8 @@
  *
  * These should not be committed, so if you see one in uploaded code, delete it.
  */
-#define log_delete(text, ...) \
-	pr_err("%s: " text "\n", xlat_get_name(), ##__VA_ARGS__)
+#define log_delete(text, ...) pr_err("DELETE ME! %s(%d): " text "\n", \
+		__func__, __LINE__, ##__VA_ARGS__)
 
 #ifdef UNIT_TESTING
 #undef log_err

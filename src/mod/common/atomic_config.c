@@ -1,5 +1,7 @@
 #include "mod/common/atomic_config.h"
 
+#include <linux/kref.h>
+#include <linux/timer.h>
 #include "mod/common/nl/global.h"
 #include "mod/common/wkmalloc.h"
 #include "mod/siit/eam.h"
@@ -9,317 +11,54 @@
 #include "mod/nat64/bib/db.h"
 
 /**
+ * This represents the new configuration the user wants to apply to a certain
+ * Jool instance.
+ *
+ * On account that the tables can hold any amount of entries, the configuration
+ * can be quite big, so it is quite plausible it might not entirely fit in a
+ * single Netlink message. So, in order to guarantee a configuration file is
+ * loaded atomically, the values are stored in a separate container (a
+ * "configuration candidate") as Netlink messages arrive. The running
+ * configuration is then only replaced when the candidate has been completed and
+ * validated.
+ *
+ * In an ideal world, a configuration candidate would be a plain struct xlator,
+ * but because of the way basic data types and the kref are handled, the
+ * candidate needs a slightly different layout.
+ */
+struct config_candidate {
+	struct xlator xlator;
+
+	/** Last jiffy the user made an edit. */
+	unsigned long update_time;
+	/** Process ID of the client that is populating this candidate. */
+	pid_t pid;
+
+	struct list_head list_hook;
+};
+
+/**
  * We'll purge candidates after they've been inactive for this long.
  * This is because otherwise we depend on userspace sending us a commit at some
  * point, and we don't trust them.
  */
 #define TIMEOUT msecs_to_jiffies(2000)
 
+static LIST_HEAD(db);
 static DEFINE_MUTEX(lock);
 
-static void candidate_clean(struct config_candidate *candidate)
+static void candidate_destroy(struct config_candidate *candidate)
 {
-	if (candidate->global) {
-		wkfree(struct full_config, candidate->global);
-		candidate->global = NULL;
-	}
-	if (xlat_is_siit()) {
-		if (candidate->siit.eamt) {
-			eamt_put(candidate->siit.eamt);
-			candidate->siit.eamt = NULL;
-		}
-		if (candidate->siit.blacklist) {
-			pool_put(candidate->siit.blacklist);
-			candidate->siit.blacklist = NULL;
-		}
-		if (candidate->siit.pool6791) {
-			pool_put(candidate->siit.pool6791);
-			candidate->siit.pool6791 = NULL;
-		}
-	} else {
-		if (candidate->nat64.pool4) {
-			pool4db_put(candidate->nat64.pool4);
-			candidate->nat64.pool4 = NULL;
-		}
-	}
-
-	candidate->active = false;
-}
-
-struct config_candidate *cfgcandidate_alloc(void)
-{
-	struct config_candidate *candidate;
-
-	candidate = wkmalloc(struct config_candidate, GFP_KERNEL);
-	if (!candidate)
-		return NULL;
-
-	memset(candidate, 0, sizeof(*candidate));
-
-	kref_init(&candidate->refcount);
-	return candidate;
-}
-
-void cfgcandidate_get(struct config_candidate *candidate)
-{
-	kref_get(&candidate->refcount);
-}
-
-static void candidate_release(struct kref *refcount)
-{
-	struct config_candidate *candidate;
-	candidate = container_of(refcount, struct config_candidate, refcount);
-	candidate_clean(candidate);
+	log_debug("Destroying atomic configuration candidate '%s'.",
+			candidate->xlator.iname);
+	xlator_put(&candidate->xlator);
+	list_del(&candidate->list_hook);
 	wkfree(struct config_candidate, candidate);
 }
 
-void cfgcandidate_put(struct config_candidate *candidate)
+static void candidate_expire_maybe(struct config_candidate *candidate)
 {
-	kref_put(&candidate->refcount, candidate_release);
-}
-
-static void rollback(struct xlator *jool)
-{
-	candidate_clean(jool->newcfg);
-}
-
-static int handle_global(struct xlator *jool, void *payload, __u32 payload_len)
-{
-	struct full_config *config;
-	int result;
-
-	config = jool->newcfg->global;
-	if (!config) {
-		config = wkmalloc(struct full_config, GFP_KERNEL);
-		if (!config)
-			return -ENOMEM;
-		xlator_copy_config(jool, config);
-
-		jool->newcfg->global = config;
-	}
-
 	/*
-	 * TODO (issue164) if there's an error in config_parse, this can easily
-	 * fall into an infinite loop. An attacker could abuse this.
-	 * Maybe add validations?
-	 */
-
-	do {
-		result = config_parse(config, payload, payload_len);
-		if (result < 0)
-			return result;
-
-		payload += result;
-		payload_len -= result;
-	} while (payload_len > 0);
-
-	return 0;
-}
-
-static int handle_eamt(struct config_candidate *new, void *payload,
-		__u32 payload_len)
-{
-	struct eamt_entry *eams = payload;
-	unsigned int eam_count = payload_len / sizeof(*eams);
-	struct eamt_entry *eam;
-	unsigned int i;
-	int error;
-
-	if (xlat_is_nat64()) {
-		log_err("Stateful NAT64 doesn't have an EAMT.");
-		return -EINVAL;
-	}
-
-	if (!new->siit.eamt) {
-		new->siit.eamt = eamt_alloc();
-		if (!new->siit.eamt)
-			return -ENOMEM;
-	}
-
-	for (i = 0; i < eam_count; i++) {
-		eam = &eams[i];
-		/* TODO (issue164) force should be variable. */
-		error = eamt_add(new->siit.eamt, &eam->prefix6, &eam->prefix4,
-				true);
-		if (error)
-			return error;
-	}
-
-	return 0;
-}
-
-static int handle_addr4_pool(struct addr4_pool **pool, void *payload,
-		__u32 payload_len)
-{
-	struct ipv4_prefix *prefixes = payload;
-	unsigned int prefix_count = payload_len / sizeof(*prefixes);
-	unsigned int i;
-	int error;
-
-	if (xlat_is_nat64()) {
-		log_err("Stateful NAT64 doesn't have IPv4 address pools.");
-		return -EINVAL;
-	}
-
-	if (!(*pool)) {
-		*pool = pool_alloc();
-		if (!(*pool))
-			return -ENOMEM;
-	}
-
-	for (i = 0; i < prefix_count; i++) {
-		/* TODO (issue164) force should be variable. */
-		error = pool_add(*pool, &prefixes[i], true);
-		if (error)
-			return error;
-	}
-
-	return 0;
-}
-
-static int handle_blacklist(struct config_candidate *new, void *payload,
-		__u32 payload_len)
-{
-	return handle_addr4_pool(&new->siit.blacklist, payload, payload_len);
-}
-
-static int handle_pool6791(struct config_candidate *new, void *payload,
-		__u32 payload_len)
-{
-	return handle_addr4_pool(&new->siit.pool6791, payload, payload_len);
-}
-
-static int handle_pool4(struct config_candidate *new, void *payload,
-		__u32 payload_len)
-{
-	struct pool4_entry_usr *entries = payload;
-	unsigned int entry_count = payload_len / sizeof(*entries);
-	unsigned int i;
-	int error;
-
-	if (xlat_is_siit()) {
-		log_err("SIIT doesn't have pool4.");
-		return -EINVAL;
-	}
-
-	if (!new->nat64.pool4) {
-		new->nat64.pool4 = pool4db_alloc();
-		if (!new->nat64.pool4)
-			return -ENOMEM;
-	}
-
-	for (i = 0; i < entry_count; i++) {
-		error = pool4db_add(new->nat64.pool4, &entries[i]);
-		if (error)
-			return error;
-	}
-
-	return 0;
-}
-
-static int handle_bib(struct config_candidate *new, void *payload,
-		__u32 payload_len)
-{
-	if (xlat_is_siit()) {
-		log_err("SIIT doesn't have BIBs.");
-		return -EINVAL;
-	}
-
-	log_err("Atomic configuration of the BIB is not implemented.");
-	return -EINVAL;
-}
-
-static int commit(struct xlator *jool)
-{
-	struct config_candidate *new = jool->newcfg;
-	struct global_config *global;
-	struct full_config *remnants = NULL;
-	int error;
-
-	/*
-	 * Reminder: Our @jool is a copy of the one stored in the xlator DB.
-	 * Nobody else is refencing it.
-	 * (But the objects pointed by @jool's members can be shared.)
-	 */
-
-	if (new->global) {
-		global = config_alloc();
-		if (!global)
-			return -ENOMEM;
-		config_copy(&new->global->global, &global->cfg);
-
-		remnants = new->global;
-
-		config_put(jool->global);
-		jool->global = global;
-		new->global = NULL;
-	}
-
-	if (xlat_is_siit()) {
-		if (new->siit.eamt) {
-			eamt_put(jool->siit.eamt);
-			jool->siit.eamt = new->siit.eamt;
-			new->siit.eamt = NULL;
-		}
-		if (new->siit.blacklist) {
-			pool_put(jool->siit.blacklist);
-			jool->siit.blacklist = new->siit.blacklist;
-			new->siit.blacklist = NULL;
-		}
-		if (new->siit.pool6791) {
-			pool_put(jool->siit.pool6791);
-			jool->siit.pool6791 = new->siit.pool6791;
-			new->siit.pool6791 = NULL;
-		}
-	} else {
-		if (new->nat64.pool4) {
-			pool4db_put(jool->nat64.pool4);
-			jool->nat64.pool4 = new->nat64.pool4;
-			new->nat64.pool4 = NULL;
-		}
-	}
-
-	error = xlator_replace(jool);
-	if (error) {
-		log_err("xlator_replace() failed. Errcode %d", error);
-		return error;
-	}
-
-	/*
-	 * This the little flaw in the design.
-	 * I can't make full new versions of BIB, joold and frag just
-	 * over a few configuration values because the tables can be massive,
-	 * so instead I'm patching values after I know the pointer swap was
-	 * successful.
-	 * Because they can't fail there are no dire consequences, but you know.
-	 * These look a little out of place.
-	 */
-	if (remnants) {
-		bib_config_set(jool->nat64.bib, &remnants->bib);
-		joold_config_set(jool->nat64.joold, &remnants->joold);
-		wkfree(struct full_config, remnants);
-	}
-
-	jool->newcfg->active = false;
-	log_debug("Configuration replaced.");
-	return 0;
-}
-
-int atomconfig_add(struct xlator *jool, void *config, size_t config_len)
-{
-	struct config_candidate *candidate;
-	__u16 type = *((__u16 *)config);
-	int error;
-
-	config += sizeof(type);
-	config_len -= sizeof(type);
-
-	mutex_lock(&lock);
-	candidate = jool->newcfg;
-
-	/*
-	 * I should explain this if.
-	 *
 	 * The userspace application makes a series of requests which we pile
 	 * up in @candidate. If any of them fails, the @candidate is rolled
 	 * back. When the app finishes, it states so by requesting a commit.
@@ -350,36 +89,245 @@ int atomconfig_add(struct xlator *jool, void *config, size_t config_len)
 	 * I'd like to clarify I would rather see a better solution, but I
 	 * genuinely feel like making the handle_*() functions atomic is not it.
 	 */
-	if (candidate->update_time + TIMEOUT < jiffies)
-		candidate_clean(candidate);
+	if (time_after(jiffies, candidate->update_time + TIMEOUT))
+		candidate_destroy(candidate);
+}
 
-	if (candidate->active) {
-		if (candidate->pid != current->pid) {
-			log_err("There's another atomic configuration underway. Please try again later.");
-			mutex_unlock(&lock);
-			return -EAGAIN;
-		}
-	} else {
-		candidate->active = true;
-		candidate->pid = current->pid;
+/**
+ * Returns the instance candidate whose namespace is the current one and whose
+ * name is @iname, creating it if necessary.
+ */
+static int get_candidate(char *iname, struct config_candidate **result)
+{
+	struct net *ns;
+	struct config_candidate *candidate;
+	struct config_candidate *tmp;
+	int error;
+
+	ns = get_net_ns_by_pid(task_pid_vnr(current));
+	if (IS_ERR(ns)) {
+		log_err("Could not retrieve the current namespace.");
+		return PTR_ERR(ns);
+	}
+
+	list_for_each_entry_safe(candidate, tmp, &db, list_hook) {
+		if ((candidate->xlator.ns == ns)
+				&& (strcmp(candidate->xlator.iname, iname) == 0)
+				&& (candidate->pid == task_pid_nr(current)))
+			goto success;
+
+		candidate_expire_maybe(candidate);
+	}
+
+	candidate = wkmalloc(struct config_candidate, GFP_KERNEL);
+	if (!candidate) {
+		put_net(ns);
+		return -ENOMEM;
+	}
+
+	/*
+	 * fw and pool6 are basic configuration that we can't populate yet.
+	 * Those must be handled later.
+	 */
+
+	candidate->xlator.ns = ns;
+	strcpy(candidate->xlator.iname, iname);
+	candidate->xlator.fw = 0;
+	error = xlator_init(&candidate->xlator, NULL);
+	if (error) {
+		wkfree(struct config_candidate, candidate);
+		put_net(ns);
+		return error;
+	}
+	candidate->update_time = jiffies;
+	candidate->pid = task_pid_nr(current);
+	list_add(&candidate->list_hook, &db);
+	/* Fall through */
+
+success:
+	*result = candidate;
+	put_net(ns);
+	return 0;
+}
+
+static int handle_init(struct config_candidate *new, void *payload,
+		__u32 payload_len)
+{
+	struct request_init *request = payload;
+	int error;
+
+	error = fw_validate(new->xlator.fw);
+	if (error)
+		return error;
+
+	new->xlator.fw = request->fw;
+	return 0;
+}
+
+static int handle_global(struct config_candidate *new, void *payload,
+		__u32 payload_len, bool force)
+{
+	int result;
+
+	do {
+		result = global_update(new->xlator.global, force,
+				payload, payload_len);
+		if (result < 0)
+			return result;
+
+		payload += result;
+		payload_len -= result;
+	} while (payload_len > 0);
+
+	return 0;
+}
+
+static int handle_eamt(struct config_candidate *new, void *payload,
+		__u32 payload_len, bool force)
+{
+	struct eamt_entry *eams = payload;
+	unsigned int eam_count = payload_len / sizeof(*eams);
+	struct eamt_entry *eam;
+	unsigned int i;
+	int error;
+
+	if (xlat_is_nat64()) {
+		log_err("Stateful NAT64 doesn't have an EAMT.");
+		return -EINVAL;
+	}
+
+	for (i = 0; i < eam_count; i++) {
+		eam = &eams[i];
+		error = eamt_add(new->xlator.siit.eamt, &eam->prefix6,
+				&eam->prefix4, force);
+		if (error)
+			return error;
+	}
+
+	return 0;
+}
+
+static int handle_addr4_pool(struct addr4_pool **pool, void *payload,
+		__u32 payload_len, bool force)
+{
+	struct ipv4_prefix *prefixes = payload;
+	unsigned int prefix_count = payload_len / sizeof(*prefixes);
+	unsigned int i;
+	int error;
+
+	if (xlat_is_nat64()) {
+		log_err("Stateful NAT64 doesn't have IPv4 address pools.");
+		return -EINVAL;
+	}
+
+	for (i = 0; i < prefix_count; i++) {
+		error = pool_add(*pool, &prefixes[i], force);
+		if (error)
+			return error;
+	}
+
+	return 0;
+}
+
+static int handle_blacklist(struct config_candidate *new, void *payload,
+		__u32 payload_len, bool force)
+{
+	return handle_addr4_pool(&new->xlator.siit.blacklist,
+			payload, payload_len, force);
+}
+
+static int handle_pool6791(struct config_candidate *new, void *payload,
+		__u32 payload_len, bool force)
+{
+	return handle_addr4_pool(&new->xlator.siit.pool6791,
+			payload, payload_len, force);
+}
+
+static int handle_pool4(struct config_candidate *new, void *payload,
+		__u32 payload_len)
+{
+	struct pool4_entry_usr *entries = payload;
+	unsigned int entry_count = payload_len / sizeof(*entries);
+	unsigned int i;
+	int error;
+
+	if (xlat_is_siit()) {
+		log_err("SIIT doesn't have pool4.");
+		return -EINVAL;
+	}
+
+	for (i = 0; i < entry_count; i++) {
+		error = pool4db_add(new->xlator.nat64.pool4, &entries[i]);
+		if (error)
+			return error;
+	}
+
+	return 0;
+}
+
+static int handle_bib(struct config_candidate *new, void *payload,
+		__u32 payload_len)
+{
+	if (xlat_is_siit()) {
+		log_err("SIIT doesn't have BIBs.");
+		return -EINVAL;
+	}
+
+	log_err("Atomic configuration of the BIB is not implemented.");
+	return -EINVAL;
+}
+
+static int commit(struct config_candidate *candidate)
+{
+	int error;
+
+	error = xlator_replace(&candidate->xlator);
+	if (error) {
+		log_err("xlator_replace() failed. Errcode %d", error);
+		return error;
+	}
+
+	candidate_destroy(candidate);
+	log_debug("The atomic configuration transaction was a success.");
+	return 0;
+}
+
+int atomconfig_add(char *iname, void *config, size_t config_len, bool force)
+{
+	struct config_candidate *candidate;
+	__u16 type = *((__u16 *)config);
+	int error;
+
+	error = iname_validate(iname, false);
+	if (error)
+		return error;
+
+	config += sizeof(type);
+	config_len -= sizeof(type);
+
+	mutex_lock(&lock);
+
+	error = get_candidate(iname, &candidate);
+	if (error) {
+		mutex_unlock(&lock);
+		return error;
 	}
 
 	switch (type) {
 	case SEC_INIT:
-		rollback(jool);
-		error = 0;
+		error = handle_init(candidate, config, config_len);
 		break;
 	case SEC_GLOBAL:
-		error = handle_global(jool, config, config_len);
+		error = handle_global(candidate, config, config_len, force);
 		break;
 	case SEC_EAMT:
-		error = handle_eamt(candidate, config, config_len);
+		error = handle_eamt(candidate, config, config_len, force);
 		break;
 	case SEC_BLACKLIST:
-		error = handle_blacklist(candidate, config, config_len);
+		error = handle_blacklist(candidate, config, config_len, force);
 		break;
 	case SEC_POOL6791:
-		error = handle_pool6791(candidate, config, config_len);
+		error = handle_pool6791(candidate, config, config_len, force);
 		break;
 	case SEC_POOL4:
 		error = handle_pool4(candidate, config, config_len);
@@ -388,7 +336,7 @@ int atomconfig_add(struct xlator *jool, void *config, size_t config_len)
 		error = handle_bib(candidate, config, config_len);
 		break;
 	case SEC_COMMIT:
-		error = commit(jool);
+		error = commit(candidate);
 		break;
 	default:
 		log_err("Unknown configuration mode.");
@@ -397,7 +345,7 @@ int atomconfig_add(struct xlator *jool, void *config, size_t config_len)
 	}
 
 	if (error)
-		rollback(jool);
+		candidate_destroy(candidate);
 	else
 		candidate->update_time = jiffies;
 

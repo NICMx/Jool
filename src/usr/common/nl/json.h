@@ -1,6 +1,8 @@
 #ifndef JSONREADER_H_
 #define JSONREADER_H_
 
-int parse_file(char *fileName);
+#include <stdbool.h>
+
+int parse_file(char *fileName, bool force);
 
 #endif /* JSONREADER_H_ */

@@ -62,7 +62,7 @@ static int find_nth_addr(struct ipv4_prefix *prefix, void *void_args)
 		return 0; /* Keep iterating. */
 	}
 
-	*args->result = htonl(ntohl(prefix->address.s_addr) | args->n);
+	*args->result = htonl(ntohl(prefix->addr.s_addr) | args->n);
 	return 1; /* Success. */
 }
 

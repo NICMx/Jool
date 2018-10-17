@@ -55,9 +55,6 @@ static int handle_send(struct genl_info *info)
 	struct nlattr *attr;
 	int error;
 
-	if (verify_superpriv())
-		return -EPERM;
-
 	attr = info->attrs[ATTR_FILENAME];
 	if (!attr) {
 		log_err("Request lacks a file name.");

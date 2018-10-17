@@ -1,4 +1,4 @@
-#include "usr/common/target/json.h"
+#include "usr/common/nl/json.h"
 
 #include <errno.h>
 #include <stdlib.h>
@@ -10,15 +10,16 @@
 #include "usr/common/file.h"
 #include "usr/common/netlink.h"
 #include "usr/common/str_utils.h"
-#include "usr/common/argp/options.h"
 #include "usr/common/nl/buffer.h"
-#include "usr/common/target/global.h"
+#include "usr/common/nl/global.h"
 
 /*
- * Note: This variable prevents this module from being thread-safe.
+ * Note: These variables prevent this module from being thread-safe.
  * This is fine for now.
  */
-static char *iname = NULL;
+static char *iname;
+static unsigned int framework;
+static bool force;
 
 static int do_parsing(char *buffer);
 static int parse_siit_json(cJSON *json);
@@ -29,10 +30,12 @@ static int handle_addr4_pool(cJSON *json, enum parse_section section);
 static int handle_pool4(cJSON *pool4);
 static int handle_bib(cJSON *bib);
 
-int parse_file(char *file_name)
+int parse_file(char *file_name, bool _force)
 {
 	char *buffer;
 	int error;
+
+	force = _force;
 
 	error = file_to_string(file_name, &buffer);
 	if (error)
@@ -43,61 +46,61 @@ int parse_file(char *file_name)
 	return error;
 }
 
-static int validate_file_type(cJSON *json_structure)
-{
-	char *siit = "SIIT";
-	char *nat64 = "NAT64";
-	char *expected;
-
-	cJSON *file_type = cJSON_GetObjectItem(json_structure, "File_Type");
-	if (!file_type)
-		return 0; /* The user doesn't care. */
-
-	expected = xlat_is_siit() ? siit : nat64;
-
-	if (strcasecmp(file_type->valuestring, expected) != 0) {
-		log_err("File_Type is supposed to be '%s' (got '%s').",
-				expected, file_type->valuestring);
-		return -EINVAL;
-	}
-
-	return 0;
-}
-
 /*
  * Sets the @iname global variable according to the contents of @json.
  */
-static int prepare_iname(cJSON *json)
+static int prepare_instance(cJSON *json)
 {
 	int error;
 
 	iname = NULL;
+	framework = 0;
 
 	for (json = json->child; json; json = json->next) {
-		if (strcasecmp(OPTNAME_INAME, json->string) != 0)
-			continue;
+		if (strcasecmp(OPTNAME_INAME, json->string) == 0) {
+			if (iname)
+				goto iname_exists;
+			error = iname_validate(json->valuestring, false);
+			if (error)
+				return error;
 
-		if (iname)
-			goto eexist;
-		error = iname_validate(json->valuestring, false);
-		if (error)
-			return error;
+			iname = json->valuestring;
+		}
 
-		iname = json->valuestring;
+		if (strcasecmp(OPTNAME_FW, json->string) == 0) {
+			if (framework)
+				goto fw_exists;
+			if (STR_EQUAL(json->valuestring, "netfilter"))
+				framework |= FW_NETFILTER;
+			else if (STR_EQUAL(json->valuestring, "iptables"))
+				framework |= FW_IPTABLES;
+			else
+				goto unknown_fw;
+		}
+
 		/*
 		 * Keep iterating; we want to error if the user defined
-		 * it twice.
+		 * something twice.
 		 */
 	}
 
+	/* TODO (NOW) default iname and framework */
+
 	return 0;
 
-eexist:
-	log_err("Multiple '%s' sections found; Aborting.", OPTNAME_INAME);
+iname_exists:
+	log_err("Multiple '%s's found; Aborting.", OPTNAME_INAME);
 	return -EEXIST;
+fw_exists:
+	log_err("Multiple '%s's found; Aborting.", OPTNAME_FW);
+	return -EEXIST;
+unknown_fw:
+	log_err("");
+	return -EINVAL;
 }
 
-static int print_datatype_error(const char *field, cJSON *json, char *expected)
+static int print_type_error(char const *field, cJSON *json,
+		char const *expected)
 {
 	switch (json->type) {
 	case cJSON_False:
@@ -140,34 +143,19 @@ static int print_datatype_error(const char *field, cJSON *json, char *expected)
 	return -EINVAL;
 }
 
-static int validate_json_uint(const char *field, struct cJSON *node,
-		unsigned int min, unsigned int max)
+static int validate_uint(char *field_name, cJSON *node,
+		__u64 min, __u64 max)
 {
 	if (node->type != cJSON_Number || !(node->numflags & VALUENUM_UINT))
-		return print_datatype_error(field, node, "unsigned integer");
+		return print_type_error(field_name, node, "unsigned integer");
 
 	if (node->valueuint < min || max < node->valueuint) {
-		log_err("%s %u is out of range (%u-%u).", field,
+		log_err("%s %u is out of range (%llu-%llu).", field_name,
 				node->valueuint, min, max);
 		return -EINVAL;
 	}
 
 	return 0;
-}
-
-static int validate_u32(const char *field, struct cJSON *node)
-{
-	return validate_json_uint(field, node, 0, MAX_U32);
-}
-
-static int validate_u16(const char *field, struct cJSON *node)
-{
-	return validate_json_uint(field, node, 0, MAX_U16);
-}
-
-static int validate_u8(const char *field, struct cJSON *node)
-{
-	return validate_json_uint(field, node, 0, MAX_U8);
 }
 
 static void check_duplicates(bool *found, char *section)
@@ -188,11 +176,7 @@ static int do_parsing(char *buffer)
 		return -EINVAL;
 	}
 
-	error = validate_file_type(json);
-	if (error)
-		return error;
-
-	error = prepare_iname(json);
+	error = prepare_instance(json);
 	if (error)
 		return error;
 
@@ -205,7 +189,7 @@ static int init_buffer(struct nl_buffer *buffer, enum parse_section section)
 	__u16 tmp = section;
 	int error;
 
-	init_request_hdr(&hdr, MODE_PARSE_FILE, OP_ADD);
+	init_request_hdr(&hdr, MODE_PARSE_FILE, OP_ADD, force);
 	error = nlbuffer_write(buffer, &hdr, sizeof(hdr));
 	if (error) {
 		log_err("Writing on an empty buffer yielded error %d.", error);
@@ -260,32 +244,33 @@ static int buffer_write(struct nl_buffer *buffer, enum parse_section section,
 static int send_ctrl_msg(enum parse_section section)
 {
 	struct nl_buffer *buffer;
+	struct request_init request;
 	int error;
 
 	buffer = buffer_alloc(section);
 	if (!buffer)
 		return -ENOMEM;
 
+	if (section == SEC_INIT) {
+		request.fw = framework;
+		error = buffer_write(buffer, section, &request, sizeof(request));
+		if (error)
+			goto end;
+	}
+
 	error = nlbuffer_flush(buffer);
+	/* Fall through */
+
+end:
 	nlbuffer_destroy(buffer);
 	return error;
 }
 
 static bool *create_globals_found_array(void)
 {
-	struct argp_option *opts;
-	size_t i;
-
-	opts = get_global_opts();
-	if (!opts)
-		return NULL;
-
-	for (i = 0; opts[i].name; i++)
-		/* No code; just counting. */;
-
-	free(opts);
-
-	return calloc(i, sizeof(bool));
+	unsigned int field_count;
+	get_global_fields(NULL, &field_count);
+	return calloc(field_count, sizeof(bool));
 }
 
 static int parse_siit_json(cJSON *json)
@@ -320,7 +305,9 @@ static int parse_siit_json(cJSON *json)
 		} else if (strcasecmp(OPTNAME_RFC6791, json->string) == 0) {
 			check_duplicates(&pool6791_found, OPTNAME_RFC6791);
 			error = handle_addr4_pool(json, SEC_POOL6791);
-		} else if (strcasecmp("file_type", json->string) == 0) {
+		} else if (strcasecmp(OPTNAME_INAME, json->string) == 0) {
+			/* No code. */
+		} else if (strcasecmp(OPTNAME_FW, json->string) == 0) {
 			/* No code. */
 		} else {
 			log_err("I don't know what '%s' is; Canceling.",
@@ -366,7 +353,9 @@ static int parse_nat64_json(cJSON *json)
 		} else if (strcasecmp(OPTNAME_BIB, json->string) == 0) {
 			check_duplicates(&bib_found, OPTNAME_BIB);
 			error = handle_bib(json);
-		} else if (strcasecmp("file_type", json->string) == 0) {
+		} else if (strcasecmp(OPTNAME_INAME, json->string) == 0) {
+			/* No code. */
+		} else if (strcasecmp(OPTNAME_FW, json->string) == 0) {
 			/* No code. */
 		} else {
 			log_err("I don't know what '%s' is; Canceling.",
@@ -385,208 +374,153 @@ static int parse_nat64_json(cJSON *json)
 	return send_ctrl_msg(SEC_COMMIT);
 }
 
-static int write_bool(struct nl_buffer *buffer, struct argp_option *opt,
-		cJSON *json)
+static int write_bool(struct global_field *field, cJSON *json, void *payload)
 {
-	struct {
-		struct global_value hdr;
-		__u8 payload;
-	} msg;
+	config_bool cb_true = true;
+	config_bool cb_false = false;
 
-	msg.hdr.type = opt->key;
-	msg.hdr.len = sizeof(msg);
 	switch (json->type) {
 	case cJSON_True:
-		msg.payload = true;
-		break;
+		memcpy(payload, &cb_true, sizeof(cb_true));
+		return 0;
 	case cJSON_False:
-		msg.payload = false;
-		break;
-	default:
-		return print_datatype_error(opt->name, json, "boolean");
+		memcpy(payload, &cb_false, sizeof(cb_false));
+		return 0;
 	}
 
-	return buffer_write(buffer, SEC_GLOBAL, &msg, msg.hdr.len);
+	return print_type_error(field->name, json, "boolean");
 }
 
-static int write_number(struct nl_buffer *buffer, struct argp_option *opt,
-		cJSON *json)
+static int write_u8(struct global_field *field, cJSON *json, void *payload)
 {
-	struct {
-		struct global_value hdr;
-		/*
-		 * Please note: This assumes there are no __u64 global numbers.
-		 * If you want to add a __u64, you will have to pack this,
-		 * otherwise the compiler will add slop (because sizeof(hdr) is
-		 * 32) and everything will stop working.
-		 */
-		union {
-			__u8 payload8[4];
-			__u16 payload16[2];
-			__u32 payload32;
-		};
-	} msg;
+	__u8 value;
 	int error;
 
-	/*
-	 * TODO (fine) This is going overboard.
-	 * There's too much to tweak whenever we want to add a global value.
-	 * There should be a central static database of globals (keeping track
-	 * of their types and sizes and whatnot) and everything should just
-	 * query that.
-	 */
+	error = validate_uint(field->name, json, field->min, field->max);
+	if (error)
+		return error;
 
-	msg.hdr.type = opt->key;
-	msg.hdr.len = sizeof(msg.hdr);
-	switch (opt->key) {
-	case GT_F_ARGS:
-	case GT_NEW_TOS:
-	case GT_EAM_HAIRPINNING_MODE:
-		error = validate_u8(opt->name, json);
-		if (error)
-			return error;
-		msg.hdr.len += sizeof(__u8);
-		msg.payload8[0] = json->valueuint;
-		break;
-	case GT_SS_MAX_PAYLOAD:
-		error = validate_u16(opt->name, json);
-		if (error)
-			return error;
-		msg.hdr.len += sizeof(__u16);
-		msg.payload16[0] = json->valueuint;
-		break;
-	case GT_MAX_PKTS:
-	case GT_SS_CAPACITY:
-	case GT_UDP_TIMEOUT:
-	case GT_ICMP_TIMEOUT:
-	case GT_TCP_EST_TIMEOUT:
-	case GT_TCP_TRANS_TIMEOUT:
-	case GT_SS_FLUSH_DEADLINE:
-		error = validate_u32(opt->name, json);
-		if (error)
-			return error;
-		msg.hdr.len += sizeof(__u32);
-		msg.payload32 = json->valueuint;
-		break;
-	default:
-		log_err("Unknown global type: %u", opt->key);
-		return -EINVAL;
-	}
-
-	return buffer_write(buffer, SEC_GLOBAL, &msg, msg.hdr.len);
+	value = json->valueuint;
+	memcpy(payload, &value, sizeof(value));
+	return 0;
 }
 
-static int write_plateaus(struct nl_buffer *buffer, cJSON *root)
+static int write_u32(struct global_field *field, cJSON *json, void *payload)
 {
-	struct global_value *chunk;
-	size_t size;
-	cJSON *json;
-	__u16 *plateaus;
-	__u16 i;
-	/* TODO (later) I found a bug in gcc; remove "= -EINVAL." */
-	int error = -EINVAL;
+	__u32 value;
+	int error;
 
-	i = 0;
-	for (json = root->child; json; json = json->next) {
+	error = validate_uint(field->name, json, field->min, field->max);
+	if (error)
+		return error;
+
+	value = json->valueuint;
+	memcpy(payload, &value, sizeof(value));
+	return 0;
+}
+
+static int write_others(struct global_field *field, cJSON *json, void *payload)
+{
+	if (json->type == cJSON_NULL)
+		return field->type->parse(field, "null", payload);
+	if (json->type == cJSON_String)
+		return field->type->parse(field, json->valuestring, payload);
+
+	return print_type_error(field->name, json, field->type->name);
+}
+
+static int write_plateaus(struct global_field *field, cJSON *node, void *payload)
+{
+	__u16 *plateaus = payload;
+	unsigned int i = 0;
+	int error;
+
+	for (node = node->child; node; node = node->next) {
 		if (i > PLATEAUS_MAX) {
 			log_err("Too many plateaus. (max is %u)", PLATEAUS_MAX);
 			return -EINVAL;
 		}
-		i++;
-	}
 
-	size = sizeof(struct global_value) + i * sizeof(__u16);
-	chunk = malloc(size);
-	if (!chunk) {
-		log_err("Out of memory.");
-		return -ENOMEM;
-	}
-
-	chunk->type = GT_MTU_PLATEAUS;
-	chunk->len = size;
-	plateaus = (__u16 *)(chunk + 1);
-
-	i = 0;
-	for (json = root->child; json; json = json->next) {
-		error = validate_u16(OPTNAME_MTU_PLATEAUS, json);
-		if (error)
-			goto end;
-		plateaus[i] = json->valueuint;
-		i++;
-	}
-
-	error = buffer_write(buffer, SEC_GLOBAL, chunk, size);
-	/* Fall through. */
-
-end:
-	free(chunk);
-	return error;
-}
-
-static int write_prefix6(struct nl_buffer *buffer, enum global_type type,
-		cJSON *json)
-{
-	struct {
-		struct global_value hdr;
-		struct ipv6_prefix payload;
-	} msg;
-	int error;
-
-	msg.hdr.type = type;
-	msg.hdr.len = sizeof(msg.hdr);
-	if (json->type != cJSON_NULL) {
-		msg.hdr.len += sizeof(msg.payload);
-		error = str_to_prefix6(json->valuestring, &msg.payload);
+		error = validate_uint(field->name, node, 0, MAX_U16);
 		if (error)
 			return error;
+
+		plateaus[i] = node->valueuint;
+		i++;
 	}
 
-	return buffer_write(buffer, SEC_GLOBAL, &msg, msg.hdr.len);
+	return 0;
 }
 
-static int write_field(cJSON *json, struct argp_option *opt,
+static int write_field(cJSON *json, struct global_field *field,
 		struct nl_buffer *buffer)
 {
-	if (strcmp(opt->arg, BOOL_FORMAT) == 0) {
-		return write_bool(buffer, opt, json);
-	} else if (strcmp(opt->arg, NUM_FORMAT) == 0) {
-		return write_number(buffer, opt, json);
-	} else if (strcmp(opt->arg, NUM_ARRAY_FORMAT) == 0) {
-		return write_plateaus(buffer, json);
-	} else if (strcmp(opt->arg, PREFIX6_FORMAT) == 0
-			|| strcmp(opt->arg, OPTIONAL_PREFIX6_FORMAT) == 0) {
-		return write_prefix6(buffer, opt->key, json);
+	size_t size;
+	struct global_value *hdr;
+	void *payload;
+	int error = -EINVAL;
+
+	size = sizeof(struct global_value) + field->type->size;
+	hdr = malloc(size);
+	if (!hdr)
+		return -ENOMEM;
+	payload = hdr + 1;
+
+	hdr->type = global_field_index(field);
+	hdr->len = field->type->size;
+
+	/*
+	 * TODO This does not scale well. We'll need a big refactor of the json
+	 * module or use some other library.
+	 */
+	switch (field->type->id) {
+	case GTI_BOOL:
+		error = write_bool(field, json, payload);
+		break;
+	case GTI_NUM8:
+	case GTI_HAIRPIN_MODE:
+		error = write_u8(field, json, payload);
+		break;
+	case GTI_NUM32:
+		error = write_u32(field, json, payload);
+		break;
+	case GTI_PLATEAUS:
+		error = write_plateaus(field, json, payload);
+		break;
+	case GTI_PREFIX6:
+	case GTI_PREFIX4:
+		error = write_others(field, json, payload);
+		break;
 	}
 
-	log_err("Unimplemented data type: %s", opt->arg);
-	return -EINVAL;
+	if (!error)
+		error = buffer_write(buffer, SEC_GLOBAL, hdr, size);
+
+	free(hdr);
+	return error;
 }
 
 static int handle_global_field(cJSON *json, struct nl_buffer *buffer,
 		bool *globals_found)
 {
-	struct argp_option *opts;
+	struct global_field *fields;
 	unsigned int i;
 	int error;
 
-	opts = get_global_opts();
-	if (!opts)
-		return -ENOMEM;
+	get_global_fields(&fields, NULL);
 
-	for (i = 0; opts[i].name && opts[i].key; i++) {
-		if (strcasecmp(json->string, opts[i].name) == 0) {
-			error = write_field(json, &opts[i], buffer);
+	for (i = 0; fields[i].name; i++) {
+		if (STR_EQUAL(json->string, fields[i].name)) {
+			error = write_field(json, &fields[i], buffer);
 			if (globals_found[i])
 				log_info("Note: I found multiple '%s' definitions.",
-						opts[i].name);
+						fields[i].name);
 			globals_found[i] = true;
-			free(opts);
 			return error;
 		}
 	}
 
 	log_err("Unknown global configuration field: %s", json->string);
-	free(opts);
 	return -EINVAL;
 }
 
@@ -706,8 +640,7 @@ static int parse_max_iterations(struct cJSON *node,
 
 	switch (node->type) {
 	case cJSON_Number:
-		error = validate_json_uint(OPTNAME_MAX_ITERATIONS, node, 1,
-				MAX_U32);
+		error = validate_uint(OPTNAME_MAX_ITERATIONS, node, 1, MAX_U32);
 		if (error)
 			return error;
 		entry->flags = ITERATIONS_SET;
@@ -727,7 +660,7 @@ static int parse_max_iterations(struct cJSON *node,
 		}
 		break;
 	default:
-		print_datatype_error(OPTNAME_MAX_ITERATIONS, node,
+		print_type_error(OPTNAME_MAX_ITERATIONS, node,
 				"string or number");
 		error = -EINVAL;
 	}
@@ -753,7 +686,7 @@ static int handle_pool4(cJSON *json)
 	for (json = json->child; json; json = json->next, i++) {
 		child = cJSON_GetObjectItem(json, OPTNAME_MARK);
 		if (child) {
-			error = validate_u32(OPTNAME_MARK, child);
+			error = validate_uint(OPTNAME_MARK, child, 0, MAX_U32);
 			if (error)
 				goto end;
 			entry.mark = child->valueuint;

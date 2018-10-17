@@ -1,4 +1,4 @@
-#include "usr/common/target/joold.h"
+#include "usr/common/nl/joold.h"
 
 #include <stddef.h>
 #include "common/config.h"
@@ -9,7 +9,7 @@ int joold_advertise(char *iname)
 	int error = 0;
 	struct request_hdr request;
 
-	init_request_hdr(&request, MODE_JOOLD, OP_ADVERTISE);
+	init_request_hdr(&request, MODE_JOOLD, OP_ADVERTISE, false);
 	error = netlink_request(iname, &request, sizeof(request), NULL, NULL);
 
 	return error;
@@ -18,6 +18,6 @@ int joold_advertise(char *iname)
 int joold_test(char *iname)
 {
 	struct request_hdr hdr;
-	init_request_hdr(&hdr, MODE_JOOLD, OP_TEST);
+	init_request_hdr(&hdr, MODE_JOOLD, OP_TEST, false);
 	return netlink_request(iname, &hdr, sizeof(hdr), NULL, NULL);
 }

@@ -6,6 +6,7 @@ ccflags-y := -I$(src)/../.. $(JOOL_FLAGS)
 
 obj-m += jool.o
 
+jool_common += ../../common/common-global.o
 jool_common += ../../common/nat64/xlat.o
 jool_common += ../../common/netlink/config.o
 
@@ -13,6 +14,7 @@ jool_common += ../common/kernel_hook_netfilter.o
 jool_common += ../common/kernel_hook_iptables.o
 jool_common += ../common/address.o
 jool_common += ../common/atomic_config.o
+jool_common += ../common/common-global.o
 jool_common += ../common/types.o
 jool_common += ../common/str_utils.o
 jool_common += ../common/packet.o

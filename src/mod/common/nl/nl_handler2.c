@@ -106,16 +106,12 @@ static int multiplex_request(struct xlator *jool, struct genl_info *info)
 		return handle_blacklist_config(jool, info);
 	case MODE_GLOBAL:
 		return handle_global_config(jool, info);
-	case MODE_PARSE_FILE:
-		return handle_atomconfig_request(jool, info);
 	case MODE_JOOLD:
 		return handle_joold_request(jool, info);
-	case MODE_INSTANCE:
-		return handle_instance_request(info);
+	default:
+		log_err("Unknown configuration mode: %d", be16_to_cpu(hdr->mode));
+		return nlcore_respond(info, -EINVAL);
 	}
-
-	log_err("Unknown configuration mode: %d", be16_to_cpu(hdr->mode));
-	return nlcore_respond(info, -EINVAL);
 }
 
 static int __handle_jool_message(struct genl_info *info)
@@ -123,6 +119,9 @@ static int __handle_jool_message(struct genl_info *info)
 	struct xlator jool;
 	bool client_is_jool;
 	int error;
+
+	if (verify_superpriv())
+		return nlcore_respond(info, -EPERM);
 
 	log_debug("===============================================");
 	log_debug("Received a request from userspace.");
@@ -135,12 +134,19 @@ static int __handle_jool_message(struct genl_info *info)
 	if (error)
 		return client_is_jool ? nlcore_respond(info, error) : error;
 
-	if (be16_to_cpu(get_jool_hdr(info)->mode) == MODE_INSTANCE)
+	switch (be16_to_cpu(get_jool_hdr(info)->mode)) {
+	case MODE_INSTANCE:
 		return handle_instance_request(info);
+	case MODE_PARSE_FILE:
+		return handle_atomconfig_request(info);
+	default:
+		break;
+	}
 
 	error = xlator_find_current(FW_ANY, get_iname(info), &jool);
 	if (error == -ESRCH) {
-		log_err("This namespace lacks a Jool instance.");
+		log_err("This namespace lacks an instance named '%s'.",
+				get_iname(info));
 		return nlcore_respond(info, -ESRCH);
 	}
 	if (error) {

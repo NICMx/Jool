@@ -1,6 +1,7 @@
 #include "common/config.h"
 
-int config_parse(struct full_config *config, void *payload, size_t payload_len)
+/* TODO (NOW) delete this? */
+int config_parse(struct globals *config, void *payload, size_t payload_len)
 {
 	return -EINVAL;
 }

@@ -3,25 +3,38 @@
 
 bin_PROGRAMS = jool_siit
 jool_siit_SOURCES = \
+	../../common/common-global.c \
 	../../common/netlink/config.c \
 	../../common/siit/xlat.c \
 	../common/cJSON.c \
+	../common/common-global.c \
 	../common/dns.c \
 	../common/file.c \
-	../common/jool.c \
 	../common/netlink2.c \
+	../common/requirements.c \
 	../common/str_utils.c \
-	../common/argp/options.c \
+	../common/wargp.c \
+	\
+	../common/argp/bib.c \
+	../common/argp/eamt.c \
+	../common/argp/file.c \
+	../common/argp/global.c \
+	../common/argp/instance.c \
+	../common/argp/pool4.c \
+	../common/argp/session.c \
+	\
 	../common/nl/buffer.c \
-	../common/target/bib.c \
-	../common/target/eam.c \
-	../common/target/global.c \
-	../common/target/instance.c \
-	../common/target/joold.c \
-	../common/target/json.c \
-	../common/target/pool.c \
-	../common/target/pool4.c \
-	../common/target/session.c
+	../common/nl/bib.c \
+	../common/nl/eamt.c \
+	../common/nl/global.c \
+	../common/nl/instance.c \
+	../common/nl/joold.c \
+	../common/nl/json.c \
+	../common/nl/pool.c \
+	../common/nl/pool4.c \
+	../common/nl/session.c \
+	\
+	../common/jool.c
 
 jool_siit_LDADD = ${LIBNLGENL3_LIBS}
 jool_siit_CFLAGS = -Wall -O2

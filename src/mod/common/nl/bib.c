@@ -30,9 +30,6 @@ static int handle_bib_display(struct bib *db, struct genl_info *info,
 	struct ipv4_transport_addr *offset;
 	int error;
 
-	if (verify_superpriv())
-		return nlcore_respond(info, -EPERM);
-
 	log_debug("Sending BIB to userspace.");
 
 	error = nlbuffer_init_response(&buffer, info, nlbuffer_response_max_size());
@@ -50,28 +47,11 @@ static int handle_bib_display(struct bib *db, struct genl_info *info,
 	return error;
 }
 
-static int handle_bib_count(struct bib *db, struct genl_info *info,
-		struct request_bib *request)
-{
-	int error;
-	__u64 count;
-
-	log_debug("Returning BIB count.");
-	error = bib_count(db, request->l4_proto, &count);
-	if (error)
-		return nlcore_respond(info, error);
-
-	return nlcore_respond_struct(info, &count, sizeof(count));
-}
-
 static int handle_bib_add(struct xlator *jool, struct request_bib *request)
 {
 	struct bib_entry new;
 	struct bib_entry old;
 	int error;
-
-	if (verify_superpriv())
-		return -EPERM;
 
 	log_debug("Adding BIB entry.");
 
@@ -110,9 +90,6 @@ static int handle_bib_rm(struct xlator *jool, struct request_bib *request)
 {
 	struct bib_entry bib;
 	int error;
-
-	if (verify_superpriv())
-		return -EPERM;
 
 	log_debug("Removing BIB entry.");
 
@@ -168,10 +145,8 @@ int handle_bib_config(struct xlator *jool, struct genl_info *info)
 		return nlcore_respond(info, error);
 
 	switch (be16_to_cpu(hdr->operation)) {
-	case OP_DISPLAY:
+	case OP_FOREACH:
 		return handle_bib_display(jool->nat64.bib, info, request);
-	case OP_COUNT:
-		return handle_bib_count(jool->nat64.bib, info, request);
 	case OP_ADD:
 		error = handle_bib_add(jool, request);
 		break;

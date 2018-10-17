@@ -22,17 +22,17 @@ static int get_rfc6791_address_v6(struct xlation *state,
 	size_t host_bytes_num;
 	__u8 randomized_byte;
 
-	if (!state->jool.global->cfg.siit.rfc6791v6_prefix.set)
+	if (!state->jool.global->cfg.siit.rfc6791_prefix6.set)
 		return -EINVAL;
 
-	prefix = &state->jool.global->cfg.siit.rfc6791v6_prefix.prefix;
+	prefix = &state->jool.global->cfg.siit.rfc6791_prefix6.prefix;
 
 	segment_bytes_num = prefix->len >> 3; /* >> 3 = / 8 */
 	modulus = prefix->len & 7; /* & 7 = % 8 */
 	offset = segment_bytes_num;
 	host_bytes_num = 16 - segment_bytes_num;
 
-	(*result) = prefix->address;
+	(*result) = prefix->addr;
 
 	if (modulus == 0) {
 		get_random_bytes(((__u8*)result) + offset, host_bytes_num);

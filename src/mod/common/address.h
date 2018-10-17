@@ -33,10 +33,13 @@ bool taddr6_equals(const struct ipv6_transport_addr *a,
 bool prefix6_equals(const struct ipv6_prefix *a, const struct ipv6_prefix *b);
 bool prefix4_equals(const struct ipv4_prefix *a, const struct ipv4_prefix *b);
 
-bool prefix4_contains(const struct ipv4_prefix *prefix, const struct in_addr *addr);
-bool prefix6_contains(const struct ipv6_prefix *prefix, const struct in6_addr *addr);
+bool prefix4_contains(const struct ipv4_prefix *prefix,
+		const struct in_addr *addr);
+bool prefix6_contains(const struct ipv6_prefix *prefix,
+		const struct in6_addr *addr);
 
-bool prefix4_intersects(const struct ipv4_prefix *p1, const struct ipv4_prefix *p2);
+bool prefix4_intersects(const struct ipv4_prefix *p1,
+		const struct ipv4_prefix *p2);
 
 __u64 prefix4_get_addr_count(const struct ipv4_prefix *prefix);
 
@@ -50,27 +53,30 @@ void addr6_set_bit(struct in6_addr *addr, unsigned int pos, bool value);
 
 /**
  * foreach_addr4 - iterate over prefix's addresses.
- * @addr: struct in_addr cursor.
+ * @address: struct in_addr cursor.
  * @cursor: temporary u64 needed to handle overflow.
  * @prefix: pointer to the address collection you want to iterate.
  */
-#define foreach_addr4(addr, cursor, prefix)				\
-	for (cursor = be32_to_cpu((prefix)->address.s_addr),		\
-		addr = (prefix)->address;				\
+#define foreach_addr4(address, cursor, prefix)				\
+	for (cursor = be32_to_cpu((prefix)->addr.s_addr),		\
+		address = (prefix)->addr;				\
 	    cursor < prefix4_next(prefix);				\
-	    cursor++, (addr).s_addr = cpu_to_be32(cursor))
+	    cursor++, (address).s_addr = cpu_to_be32(cursor))
 
 __u64 prefix4_next(const struct ipv4_prefix *prefix);
 
 /**
  * The kernel has a ipv6_addr_cmp(), but not a ipv4_addr_cmp().
- * Of course, that is because in_addrs are, to most intents and purposes, 32-bit integer values.
+ * Of course, that is because in_addrs are, to most intents and purposes, 32-bit
+ * integer values.
  * But the absence of ipv4_addr_cmp() does makes things look asymmetric.
  * So, booya.
  *
- * @return positive if a2 is bigger, negative if a1 is bigger, zero it they're equal.
+ * @return positive if a2 is bigger, negative if a1 is bigger, zero it they're
+ * equal.
  */
-static inline int ipv4_addr_cmp(const struct in_addr *a1, const struct in_addr *a2)
+static inline int ipv4_addr_cmp(const struct in_addr *a1,
+		const struct in_addr *a2)
 {
 	return memcmp(a1, a2, sizeof(struct in_addr));
 }

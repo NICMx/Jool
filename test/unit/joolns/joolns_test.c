@@ -114,11 +114,11 @@ static bool atomic_test(void)
 	eam = (struct eamt_entry *)(type + 1);
 
 	*type = SEC_EAMT;
-	error = str_to_addr6("2001:db8:bbbb::", &eam->prefix6.address);
+	error = str_to_addr6("2001:db8:bbbb::", &eam->prefix6.addr);
 	if (error)
 		goto end;
 	eam->prefix6.len = 121;
-	error = str_to_addr4("198.51.100.0", &eam->prefix4.address);
+	error = str_to_addr4("198.51.100.0", &eam->prefix4.addr);
 	if (error)
 		goto end;
 	eam->prefix4.len = 25;

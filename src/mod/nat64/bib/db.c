@@ -441,27 +441,6 @@ void bib_put(struct bib *db)
 	kref_put(&db->refs, bib_release);
 }
 
-void bib_config_copy(struct bib *db, struct bib_config *config)
-{
-	spin_lock_bh(&db->tcp.lock);
-	config->bib_logging = db->tcp.log_bibs;
-	config->session_logging = db->tcp.log_sessions;
-	config->drop_by_addr = db->tcp.drop_by_addr;
-	config->ttl.tcp_est = db->tcp.est_timer.timeout;
-	config->ttl.tcp_trans = db->tcp.trans_timer.timeout;
-	config->max_stored_pkts = db->tcp.pkt_limit;
-	config->drop_external_tcp = db->tcp.drop_v4_syn;
-	spin_unlock_bh(&db->tcp.lock);
-
-	spin_lock_bh(&db->udp.lock);
-	config->ttl.udp = db->udp.est_timer.timeout;
-	spin_unlock_bh(&db->udp.lock);
-
-	spin_lock_bh(&db->icmp.lock);
-	config->ttl.icmp = db->icmp.est_timer.timeout;
-	spin_unlock_bh(&db->icmp.lock);
-}
-
 void bib_config_set(struct bib *db, struct bib_config *config)
 {
 	spin_lock_bh(&db->tcp.lock);
@@ -2360,7 +2339,7 @@ void bib_rm_range(struct bib *db, l4_protocol proto, struct ipv4_range *range)
 	if (!table)
 		return;
 
-	offset.l3 = range->prefix.address;
+	offset.l3 = range->prefix.addr;
 	offset.l4 = range->ports.min;
 
 	spin_lock_bh(&table->lock);
@@ -2407,34 +2386,6 @@ void bib_flush(struct bib *db)
 	flush_table(&db->tcp);
 	flush_table(&db->udp);
 	flush_table(&db->icmp);
-}
-
-int bib_count(struct bib *db, l4_protocol proto, __u64 *count)
-{
-	struct bib_table *table;
-
-	table = get_table(db, proto);
-	if (!table)
-		return -EINVAL;
-
-	spin_lock_bh(&table->lock);
-	*count = table->bib_count;
-	spin_unlock_bh(&table->lock);
-	return 0;
-}
-
-int bib_count_sessions(struct bib *db, l4_protocol proto, __u64 *count)
-{
-	struct bib_table *table;
-
-	table = get_table(db, proto);
-	if (!table)
-		return -EINVAL;
-
-	spin_lock_bh(&table->lock);
-	*count = table->session_count;
-	spin_unlock_bh(&table->lock);
-	return 0;
 }
 
 static void print_tabs(int tabs)

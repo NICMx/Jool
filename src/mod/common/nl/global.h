@@ -5,6 +5,9 @@
 #include "mod/common/xlator.h"
 
 int handle_global_config(struct xlator *jool, struct genl_info *info);
-int config_parse(struct full_config *config, void *payload, size_t payload_len);
+
+/* Helper for atomic configuration. */
+int global_update(struct global_config *cfg, bool force,
+		struct global_value *request, size_t request_size);
 
 #endif

@@ -53,11 +53,6 @@ void joold_put(struct joold_queue *queue)
 	fail(__func__);
 }
 
-void joold_config_copy(struct joold_queue *queue, struct joold_config *config)
-{
-	/* No code. */
-}
-
 void joold_config_set(struct joold_queue *queue, struct joold_config *config)
 {
 	/* No code. */
@@ -144,11 +139,6 @@ void bib_put(struct bib *db)
 	fail(__func__);
 }
 
-void bib_config_copy(struct bib *db, struct bib_config *config)
-{
-	/* No code. */
-}
-
 void bib_config_set(struct bib *db, struct bib_config *config)
 {
 	/* No code. */
@@ -198,16 +188,6 @@ int bib_foreach(struct bib *db, l4_protocol proto,
 int bib_foreach_session(struct bib *db, l4_protocol proto,
 		struct session_foreach_func *collision_cb,
 		struct session_foreach_offset *offset)
-{
-	return fail(__func__);
-}
-
-int bib_count(struct bib *db, const l4_protocol proto, __u64 *result)
-{
-	return fail(__func__);
-}
-
-int bib_count_sessions(struct bib *db, l4_protocol proto, __u64 *count)
 {
 	return fail(__func__);
 }

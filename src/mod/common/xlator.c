@@ -24,6 +24,7 @@
  * namespace (@ns).
  */
 struct jool_instance {
+	/* TODO (later) maybe turn this into a const. */
 	struct xlator jool;
 
 	/*
@@ -81,8 +82,6 @@ static void xlator_get(struct xlator *jool)
 		bib_get(jool->nat64.bib);
 		joold_get(jool->nat64.joold);
 	}
-
-	cfgcandidate_get(jool->newcfg);
 }
 
 static void __flush_detach(struct net *ns, struct list_head *detached)
@@ -184,9 +183,9 @@ void xlator_teardown(void)
 	__wkfree("xlator DB", rcu_dereference_raw(pool));
 }
 
-static int init_siit(struct xlator *jool)
+static int init_siit(struct xlator *jool, struct config_prefix6 *pool6)
 {
-	jool->global = config_alloc();
+	jool->global = config_alloc(pool6);
 	if (!jool->global)
 		goto config_fail;
 	jool->siit.eamt = eamt_alloc();
@@ -198,14 +197,9 @@ static int init_siit(struct xlator *jool)
 	jool->siit.pool6791 = rfc6791_alloc();
 	if (!jool->siit.pool6791)
 		goto rfc6791_fail;
-	jool->newcfg = cfgcandidate_alloc();
-	if (!jool->newcfg)
-		goto newcfg_fail;
 
 	return 0;
 
-newcfg_fail:
-	rfc6791_put(jool->siit.pool6791);
 rfc6791_fail:
 	blacklist_put(jool->siit.blacklist);
 blacklist_fail:
@@ -216,9 +210,15 @@ config_fail:
 	return -ENOMEM;
 }
 
-static int init_nat64(struct xlator *jool)
+static int init_nat64(struct xlator *jool, struct config_prefix6 *pool6)
 {
-	jool->global = config_alloc();
+	/* TODO (NOW) */
+//	if (!pool6->set) {
+//		log_err("The pool6 prefix is mandatory in Stateful NAT64.");
+//		return -EINVAL;
+//	}
+
+	jool->global = config_alloc(pool6);
 	if (!jool->global)
 		goto config_fail;
 	jool->nat64.pool4 = pool4db_alloc();
@@ -230,10 +230,11 @@ static int init_nat64(struct xlator *jool)
 	jool->nat64.joold = joold_alloc(jool->ns);
 	if (!jool->nat64.joold)
 		goto joold_fail;
-	jool->newcfg = cfgcandidate_alloc();
-	if (!jool->newcfg)
-		goto newcfg_fail;
 
+	/*
+	 * TODO (NOW) in lower kernels, this is probably enabling defrag on
+	 * SIIT.
+	 */
 #ifndef UNIT_TESTING
 #if LINUX_VERSION_AT_LEAST(4, 10, 0, 9999, 0)
 	nf_defrag_ipv4_enable(jool->ns);
@@ -246,8 +247,6 @@ static int init_nat64(struct xlator *jool)
 
 	return 0;
 
-newcfg_fail:
-	joold_put(jool->nat64.joold);
 joold_fail:
 	bib_put(jool->nat64.bib);
 bib_fail:
@@ -258,12 +257,45 @@ config_fail:
 	return -ENOMEM;
 }
 
+/**
+ * This only inits the databases for now.
+ * ns, fw and iname are the caller's responsibility.
+ */
+int xlator_init(struct xlator *jool, struct config_prefix6 *pool6)
+{
+	return xlat_is_siit()
+			? init_siit(jool, pool6)
+			: init_nat64(jool, pool6);
+}
+
 static bool xlator_matches(struct xlator *jool, struct net *ns, int fw,
 		const char *iname)
 {
 	return (jool->ns == ns)
 			&& (jool->fw & fw)
 			&& (!iname || strcmp(jool->iname, iname) == 0);
+}
+
+/**
+ * Basic validations when adding an xlator to the DB.
+ */
+static int basic_add_validations(int fw, char *iname,
+		struct config_prefix6 *pool6)
+{
+	int error;
+
+	error = iname_validate(iname, false);
+	if (error)
+		return error;
+	error = fw_validate(fw);
+	if (error)
+		return error;
+	if (xlat_is_nat64() && (!pool6 || !pool6->set)) {
+		log_err("pool6 is mandatory in NAT64 instances.");
+		return -EINVAL;
+	}
+
+	return 0;
 }
 
 /**
@@ -307,22 +339,62 @@ eexist:
 }
 
 /**
+ * Requires the mutex to be locked.
+ */
+int __xlator_add(struct jool_instance *new, struct xlator *result)
+{
+	struct list_head *list;
+
+#if LINUX_VERSION_AT_LEAST(4, 13, 0, 9999, 0)
+	if (new->jool.fw & FW_NETFILTER) {
+		struct nf_hook_ops *ops;
+		int error;
+
+		ops = __wkmalloc("nf_hook_ops", 2 * sizeof(struct nf_hook_ops),
+				GFP_KERNEL);
+		if (!ops)
+			return -ENOMEM;
+
+		/* All error roads from now need to free @ops. */
+
+		init_nf_hook_op6(&ops[0]);
+		init_nf_hook_op4(&ops[1]);
+
+		error = nf_register_net_hooks(new->jool.ns, ops, 2);
+		if (error) {
+			__wkfree("nf_hook_ops", ops);
+			return error;
+		}
+
+		new->nf_ops = ops;
+	}
+#endif
+
+	list = rcu_dereference_protected(pool, lockdep_is_held(&lock));
+	list_add_tail_rcu(&new->list_hook, list);
+
+	if (result) {
+		xlator_get(&new->jool);
+		memcpy(result, &new->jool, sizeof(new->jool));
+	}
+
+	return 0;
+}
+
+/**
  * xlator_add - Whenever called, starts translation of packets traveling through
  * the namespace running in the caller's context.
  * @result: Will be initialized with a reference to the new translator. Send
  *     NULL if you're not interested.
  */
-int xlator_add(int fw, char *iname, struct xlator *result)
+int xlator_add(int fw, char *iname, struct config_prefix6 *pool6,
+		struct xlator *result)
 {
-	struct list_head *list;
 	struct jool_instance *instance;
 	struct net *ns;
 	int error;
 
-	error = fw_validate(fw);
-	if (error)
-		return error;
-	error = iname_validate(iname, false);
+	error = basic_add_validations(fw, iname, pool6);
 	if (error)
 		return error;
 
@@ -345,9 +417,7 @@ int xlator_add(int fw, char *iname, struct xlator *result)
 	strcpy(instance->jool.iname, iname);
 	instance->jool.fw = fw;
 	instance->jool.ns = ns;
-	error = xlat_is_siit()
-			? init_siit(&instance->jool)
-			: init_nat64(&instance->jool);
+	error = xlator_init(&instance->jool, pool6);
 	if (error) {
 		wkfree(struct jool_instance, instance);
 		put_net(ns);
@@ -357,8 +427,8 @@ int xlator_add(int fw, char *iname, struct xlator *result)
 	instance->nf_ops = NULL;
 #endif
 
-	/* Error roads from now on don't need to free @instance. */
-	/* All error roads from now need to properly destroy @instance. */
+	/* Error roads from now no longer need to free @instance. */
+	/* Error roads from now need to properly destroy @instance. */
 
 	mutex_lock(&lock);
 
@@ -368,45 +438,9 @@ int xlator_add(int fw, char *iname, struct xlator *result)
 	if (error)
 		goto mutex_fail;
 
-#if LINUX_VERSION_AT_LEAST(4, 13, 0, 9999, 0)
-	/*
-	 * I decided to let this happen in-mutex because this block feels more
-	 * at home at this step, and also because I don't want to revert the
-	 * nf_register_net_hooks() right after a validate_collision() failure.
-	 * The kernel API scares me sometimes.
-	 */
-	if (fw & FW_NETFILTER) {
-		struct nf_hook_ops *ops;
-
-		ops = __wkmalloc("nf_hook_ops", 2 * sizeof(struct nf_hook_ops),
-				GFP_KERNEL);
-		if (!ops) {
-			error = -ENOMEM;
-			goto mutex_fail;
-		}
-
-		/* All error roads from now need to free @ops. */
-
-		init_nf_hook_op6(&ops[0]);
-		init_nf_hook_op4(&ops[1]);
-
-		error = nf_register_net_hooks(ns, ops, 2);
-		if (error) {
-			__wkfree("nf_hook_ops", ops);
-			goto mutex_fail;
-		}
-
-		instance->nf_ops = ops;
-	}
-#endif
-
-	list = rcu_dereference_protected(pool, lockdep_is_held(&lock));
-	list_add_tail_rcu(&instance->list_hook, list);
-
-	if (result) {
-		xlator_get(&instance->jool);
-		memcpy(result, &instance->jool, sizeof(instance->jool));
-	}
+	error = __xlator_add(instance, result);
+	if (error)
+		goto mutex_fail;
 
 	mutex_unlock(&lock);
 	put_net(ns);
@@ -498,10 +532,8 @@ int xlator_replace(struct xlator *jool)
 	struct jool_instance *new;
 	int error;
 
-	error = fw_validate(jool->fw);
-	if (error)
-		return error;
-	error = iname_validate(jool->iname, false);
+	error = basic_add_validations(jool->fw, jool->iname,
+			&jool->global->cfg.pool6);
 	if (error)
 		return error;
 
@@ -510,6 +542,7 @@ int xlator_replace(struct xlator *jool)
 		return -ENOMEM;
 	memcpy(&new->jool, jool, sizeof(*jool));
 	xlator_get(&new->jool);
+	new->nf_ops = NULL;
 
 	mutex_lock(&lock);
 
@@ -519,6 +552,17 @@ int xlator_replace(struct xlator *jool)
 #if LINUX_VERSION_AT_LEAST(4, 13, 0, 9999, 0)
 			new->nf_ops = old->nf_ops;
 #endif
+			/*
+			 * The old BIB and joold must survive, because they
+			 * shouldn't be reset by atomic configuration.
+			 */
+			if (xlat_is_nat64()) {
+				bib_put(new->jool.nat64.bib);
+				joold_put(new->jool.nat64.joold);
+				new->jool.nat64.bib = old->jool.nat64.bib;
+				new->jool.nat64.joold = old->jool.nat64.joold;
+			}
+
 			list_replace_rcu(&old->list_hook, &new->list_hook);
 			mutex_unlock(&lock);
 
@@ -527,14 +571,24 @@ int xlator_replace(struct xlator *jool)
 #if LINUX_VERSION_AT_LEAST(4, 13, 0, 9999, 0)
 			old->nf_ops = NULL;
 #endif
+			if (xlat_is_nat64()) {
+				old->jool.nat64.bib = NULL;
+				old->jool.nat64.joold = NULL;
+			}
+
 			log_info("Created instance '%s'.", jool->iname);
 			destroy_jool_instance(old, false);
 			return 0;
 		}
 	}
 
+	/* Not found, hence not replacing. Add it instead. */
+	error = __xlator_add(new, NULL);
+	if (error)
+		destroy_jool_instance(new, false);
+
 	mutex_unlock(&lock);
-	return -ESRCH;
+	return error;
 }
 
 int xlator_flush(void)
@@ -650,11 +704,11 @@ void xlator_put(struct xlator *jool)
 		 * have to leave those modules around.
 		 */
 		pool4db_put(jool->nat64.pool4);
-		bib_put(jool->nat64.bib);
-		joold_put(jool->nat64.joold);
+		if (jool->nat64.bib)
+			bib_put(jool->nat64.bib);
+		if (jool->nat64.joold)
+			joold_put(jool->nat64.joold);
 	}
-
-	cfgcandidate_put(jool->newcfg);
 }
 
 static bool offset_equals(struct instance_entry_usr *offset,
@@ -693,11 +747,4 @@ int xlator_foreach(xlator_foreach_cb cb, void *args,
 	if (offset)
 		return -ESRCH;
 	return 0;
-}
-
-void xlator_copy_config(struct xlator *jool, struct full_config *copy)
-{
-	config_copy(&jool->global->cfg, &copy->global);
-	bib_config_copy(jool->nat64.bib, &copy->bib);
-	joold_config_copy(jool->nat64.joold, &copy->joold);
 }

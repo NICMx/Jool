@@ -1,11 +1,13 @@
 #ifndef _JOOL_USR_GLOBAL_H
 #define _JOOL_USR_GLOBAL_H
 
+#include "common/common-global.h"
 #include "common/config.h"
 #include "usr/common/types.h"
 
 /* Mega global */
-#define OPTNAME_INAME			"instance-name"
+#define OPTNAME_INAME			"name"
+#define OPTNAME_FW			"framework"
 
 /* Modes */
 #define OPTNAME_GLOBAL			"global"
@@ -21,7 +23,6 @@
 
 /* Operations */
 #define OPTNAME_DISPLAY			"display"
-#define OPTNAME_COUNT			"count"
 #define OPTNAME_ADD			"add"
 #define OPTNAME_UPDATE			"update"
 #define OPTNAME_REMOVE			"remove"
@@ -71,8 +72,9 @@
 #define OPTNAME_SS_CAPACITY		"ss-capacity"
 #define OPTNAME_SS_MAX_PAYLOAD		"ss-max-payload"
 
-int global_display(char *iname, display_flags flags);
-int global_update(char *iname, __u16 type, size_t size, void *data, bool force);
+int global_query(char *iname, struct globals *result);
+int global_update(char *iname, struct global_field *field, void *value,
+		bool force);
 
 
 #endif /* _JOOL_USR_GLOBAL_H */

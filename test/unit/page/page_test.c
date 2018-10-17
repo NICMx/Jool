@@ -19,7 +19,7 @@ extern struct sk_buff *skb_out;
 
 static int init(void)
 {
-	struct optional_prefix6 *prefix6;
+	struct config_prefix6 *prefix6;
 	int error;
 
 	error = xlator_add(FW_NETFILTER, INAME_DEFAULT, &jool);

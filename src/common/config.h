@@ -80,21 +80,17 @@ char *configmode_to_string(enum config_mode mode);
  * @}
  */
 
+/* TODO (NOW) Do these still need to be bits? */
 enum config_operation {
 	/** The userspace app wants to print the stuff being requested. */
-	OP_DISPLAY = (1 << 0),
-	/**
-	 * The userspace app wants to print the number of records in the table
-	 * being requested.
-	 */
-	OP_COUNT = (1 << 1),
+	OP_FOREACH = (1 << 0),
 	/**
 	 * The userspace app wants to add an element to the table being
 	 * requested.
 	 */
-	OP_ADD = (1 << 3),
+	OP_ADD = (1 << 2),
 	/** The userspace app wants to edit some value. */
-	OP_UPDATE = (1 << 2),
+	OP_UPDATE = (1 << 3),
 	/**
 	 * The userspace app wants to delete an element from the table being
 	 * requested.
@@ -110,8 +106,6 @@ enum config_operation {
 	OP_ACK = (1 << 8),
 };
 
-char *configop_to_string(enum config_operation op);
-
 enum parse_section {
 	SEC_GLOBAL = 1,
 	SEC_POOL4 = 4,
@@ -122,30 +116,6 @@ enum parse_section {
 	SEC_POOL6791 = 128,
 	SEC_INIT = 256
 };
-
-/**
- * @{
- * Allowed modes for the operation mentioned in the name.
- * eg. DISPLAY_MODES = Allowed modes for display operations.
- */
-#define POOL_MODES (MODE_POOL4 | MODE_BLACKLIST | MODE_RFC6791)
-#define TABLE_MODES (MODE_EAMT | MODE_BIB | MODE_SESSION)
-#define ANY_MODE 0xFFFF
-
-#define DISPLAY_MODES (MODE_INSTANCE | MODE_GLOBAL | POOL_MODES | TABLE_MODES)
-#define COUNT_MODES (POOL_MODES | TABLE_MODES)
-#define ADD_MODES (POOL_MODES | MODE_EAMT | MODE_BIB | MODE_INSTANCE)
-#define REMOVE_MODES (POOL_MODES | MODE_EAMT | MODE_BIB | MODE_INSTANCE)
-#define FLUSH_MODES (POOL_MODES | MODE_EAMT | MODE_INSTANCE)
-#define UPDATE_MODES (MODE_GLOBAL | MODE_POOL4 | MODE_PARSE_FILE)
-
-#define SIIT_MODES (MODE_GLOBAL | MODE_BLACKLIST | MODE_RFC6791 | MODE_EAMT \
-		| MODE_PARSE_FILE | MODE_INSTANCE)
-#define NAT64_MODES (MODE_GLOBAL | MODE_POOL4 | MODE_BIB | MODE_SESSION \
-		| MODE_PARSE_FILE | MODE_INSTANCE | MODE_JOOLD)
-/**
- * @}
- */
 
 /**
  * Prefix to all user-to-kernel messages.
@@ -165,13 +135,15 @@ struct request_hdr {
 	 * TODO (fine) Find a way to do that?
 	 */
 	__u8 castness;
+	/** Ignore certain validations? */
+	__u8 force;
 
 	/**
 	 * http://www.catb.org/esr/structure-packing/
 	 * Explicit unused space for future functionality and to ensure
 	 * sizeof(struct request_hdr) is a power of 2.
 	 */
-	__be16 slop;
+	__u8 slop;
 
 	/** Jool's version. */
 	__be32 version;
@@ -182,7 +154,7 @@ struct request_hdr {
 };
 
 void init_request_hdr(struct request_hdr *hdr, enum config_mode mode,
-		enum config_operation operation);
+		enum config_operation operation, bool force);
 int validate_request(void *data, size_t data_len, char *sender, char *receiver,
 		bool *peer_is_jool);
 
@@ -195,6 +167,18 @@ int validate_request(void *data, size_t data_len, char *sender, char *receiver,
 
 int iname_validate(const char *iname, bool allow_null);
 
+struct config_prefix6 {
+	config_bool set;
+	/** Please note that this could be garbage; see above. */
+	struct ipv6_prefix prefix;
+};
+
+struct config_prefix4 {
+	config_bool set;
+	/** Please note that this could be garbage; see above. */
+	struct ipv4_prefix prefix;
+};
+
 struct response_hdr {
 	struct request_hdr req;
 	__u16 error_code;
@@ -206,6 +190,13 @@ struct response_hdr {
 #define FW_ANY (FW_NETFILTER | FW_IPTABLES)
 
 int fw_validate(int fw);
+
+/**
+ * Issued during atomic configuration initialization.
+ */
+struct request_init {
+	__u8 fw;
+};
 
 struct instance_entry_usr {
 	void *ns;
@@ -222,6 +213,7 @@ union request_instance {
 	struct {
 		__u8 fw;
 		char iname[INAME_MAX_LEN];
+		struct config_prefix6 pool6;
 	} add;
 	struct {
 		char iname[INAME_MAX_LEN];
@@ -295,16 +287,11 @@ union request_pool {
 	struct {
 		/** The addresses the user wants to add to the pool. */
 		struct ipv4_prefix addrs;
-		/** Add @addrs even if it contains subnet-scoped addresses? */
-		config_bool force;
 	} add;
 	struct {
 		/** The addresses the user wants to remove from the pool. */
 		struct ipv4_prefix addrs;
 	} rm;
-	struct {
-		/* Nothing needed here. */
-	} flush;
 };
 
 /**
@@ -316,12 +303,8 @@ union request_eamt {
 		struct ipv4_prefix prefix4;
 	} display;
 	struct {
-		/* Nothing needed here. */
-	} count;
-	struct {
 		struct ipv6_prefix prefix6;
 		struct ipv4_prefix prefix4;
-		config_bool force;
 	} add;
 	struct {
 		config_bool prefix6_set;
@@ -329,9 +312,6 @@ union request_eamt {
 		config_bool prefix4_set;
 		struct ipv4_prefix prefix4;
 	} rm;
-	struct {
-		/* Nothing needed here ATM. */
-	} flush;
 };
 
 /**
@@ -352,9 +332,6 @@ struct request_bib {
 			 */
 			struct ipv4_transport_addr addr4;
 		} display;
-		struct {
-			/* Nothing needed here. */
-		} count;
 		struct {
 			/**
 			 * The IPv6 transport address of the entry the user
@@ -402,51 +379,7 @@ struct request_session {
 			 */
 			struct taddr4_tuple offset;
 		} display;
-		struct {
-			/* Nothing needed here. */
-		} count;
 	};
-};
-
-/**
- * Indicators of the respective fields in the sessiondb_config structure.
- */
-enum global_type {
-	/* Common */
-	GT_ENABLE = 1024,
-	GT_DISABLE,
-	GT_POOL6 = '6',
-	GT_ENABLE_BOOL = 1026,
-	GT_RESET_TCLASS,
-	GT_RESET_TOS,
-	GT_NEW_TOS,
-	GT_MTU_PLATEAUS,
-
-	/* SIIT */
-	GT_COMPUTE_UDP_CSUM_ZERO,
-	GT_RANDOMIZE_RFC6791,
-	GT_EAM_HAIRPINNING_MODE,
-	GT_RFC6791V6_PREFIX,
-
-	/* NAT64 */
-	GT_DROP_BY_ADDR,
-	GT_DROP_ICMP6_INFO,
-	GT_DROP_EXTERNAL_TCP,
-	GT_SRC_ICMP6ERRS_BETTER,
-	GT_F_ARGS,
-	GT_HANDLE_RST_DURING_FIN_RCV,
-	GT_UDP_TIMEOUT,
-	GT_ICMP_TIMEOUT,
-	GT_TCP_EST_TIMEOUT,
-	GT_TCP_TRANS_TIMEOUT,
-	GT_BIB_LOGGING,
-	GT_SESSION_LOGGING,
-	GT_MAX_PKTS,
-	GT_SS_ENABLED,
-	GT_SS_FLUSH_ASAP,
-	GT_SS_FLUSH_DEADLINE,
-	GT_SS_CAPACITY,
-	GT_SS_MAX_PAYLOAD,
 };
 
 /**
@@ -500,117 +433,10 @@ enum f_args {
 
 #define PLATEAUS_MAX 64
 
-struct optional_prefix6 {
-	config_bool set;
-	/** Please note that this could be garbage; see above. */
-	struct ipv6_prefix prefix;
-};
-
-/**
- * A copy of the entire running configuration, excluding databases.
- */
-struct global_config_usr {
-	/**
-	 * Is Jool actually translating?
-	 * This depends on several factors depending on stateness, and is not an
-	 * actual variable Jool stores; it is computed as it is requested.
-	 */
-	config_bool status;
-	/**
-	 * Does the user wants this Jool instance to translate packets?
-	 */
-	config_bool enabled;
-
-	/**
-	 * "true" if the Traffic Class field of translated IPv6 headers should
-	 * always be zeroized.
-	 * Otherwise it will be copied from the IPv4 header's TOS field.
-	 */
-	config_bool reset_traffic_class;
-	/**
-	 * "true" if the Type of Service (TOS) field of translated IPv4 headers
-	 * should always be set as "new_tos".
-	 * Otherwise it will be copied from the IPv6 header's Traffic Class
-	 * field.
-	 */
-	config_bool reset_tos;
-	/**
-	 * If "reset_tos" is "true", this is the value the translator will
-	 * always write in the TOS field of translated IPv4 headers.
-	 * If "reset_tos" is "false", then this doesn't do anything.
-	 */
-	__u8 new_tos;
-
-	/**
-	 * If the translator detects the source of the incoming packet does not
-	 * implement RFC 1191, these are the plateau values used to determine a
-	 * likely path MTU for outgoing ICMPv6 fragmentation needed packets.
-	 * The translator is supposed to pick the greatest plateau value that is
-	 * less than the incoming packet's Total Length field.
-	 */
-	__u16 mtu_plateaus[PLATEAUS_MAX];
-	/** Length of the mtu_plateaus array. */
-	__u16 mtu_plateau_count;
-
-	/**
-	 * BTW: NAT64 Jool can't do anything without pool6, so it validates that
-	 * this is this set very early. Most NAT64-exclusive code should just
-	 * assume that pool6.set is true.
-	 */
-	struct optional_prefix6 pool6;
-
-	union {
-		struct {
-			/**
-			 * Amend the UDP checksum of incoming IPv4-UDP packets
-			 * when it's zero? Otherwise these packets will be
-			 * dropped (because they're illegal in IPv6).
-			 */
-			config_bool compute_udp_csum_zero;
-			/**
-			 * Randomize choice of RFC6791 address?
-			 * Otherwise it will be set depending on the incoming
-			 * packet's Hop Limit.
-			 * See https://github.com/NICMx/Jool/issues/130.
-			 */
-			config_bool randomize_error_addresses;
-			/**
-			 * How should hairpinning be handled by EAM-translated
-			 * packets.
-			 * See @eam_hairpinning_mode.
-			 */
-			__u8 eam_hairpin_mode;
-
-			/**
-			 * Address used to represent a not translatable source
-			 * address of an incoming packet.
-			 */
-			struct optional_prefix6 rfc6791v6_prefix;
-
-		} siit;
-		struct {
-			/** Filter ICMPv6 Informational packets? */
-			config_bool drop_icmp6_info;
-
-			/**
-			 * True = issue #132 behaviour.
-			 * False = RFC 6146 behaviour.
-			 */
-			config_bool src_icmp6errs_better;
-			/**
-			 * Fields of the packet that will be sent to the F() function.
-			 * (RFC 6056 algorithm 3.)
-			 * See "enum f_args".
-			 */
-			__u8 f_args;
-			/**
-			 * Decrease timer when a FIN packet is received during the
-			 * `V4 FIN RCV` or `V6 FIN RCV` states?
-			 * https://github.com/NICMx/Jool/issues/212
-			 */
-			config_bool handle_rst_during_fin_rcv;
-		} nat64;
-	};
+struct mtu_plateaus {
+	__u16 values[PLATEAUS_MAX];
+	/** Actual length of the values array. */
+	__u16 count;
 };
 
 struct bib_config {
@@ -691,34 +517,139 @@ struct joold_config {
 	__u16 max_payload;
 };
 
-struct full_config {
-	struct global_config_usr global;
-	struct bib_config bib;
-	struct joold_config joold;
+/**
+ * A copy of the entire running configuration, excluding databases.
+ */
+struct globals {
+	/**
+	 * Is Jool actually translating?
+	 * This depends on several factors depending on stateness, and is not an
+	 * actual variable Jool stores; it is computed as it is requested.
+	 */
+	config_bool status;
+	/**
+	 * Does the user wants this Jool instance to translate packets?
+	 */
+	config_bool enabled;
+
+	/**
+	 * BTW: NAT64 Jool can't do anything without pool6, so it validates that
+	 * this is this set very early. Most NAT64-exclusive code should just
+	 * assume that pool6.set is true.
+	 */
+	struct config_prefix6 pool6;
+
+	/**
+	 * "true" if the Traffic Class field of translated IPv6 headers should
+	 * always be zeroized.
+	 * Otherwise it will be copied from the IPv4 header's TOS field.
+	 */
+	config_bool reset_traffic_class;
+	/**
+	 * "true" if the Type of Service (TOS) field of translated IPv4 headers
+	 * should always be set as "new_tos".
+	 * Otherwise it will be copied from the IPv6 header's Traffic Class
+	 * field.
+	 */
+	config_bool reset_tos;
+	/**
+	 * If "reset_tos" is "true", this is the value the translator will
+	 * always write in the TOS field of translated IPv4 headers.
+	 * If "reset_tos" is "false", then this doesn't do anything.
+	 */
+	__u8 new_tos;
+
+	/**
+	 * If the translator detects the source of the incoming packet does not
+	 * implement RFC 1191, these are the plateau values used to determine a
+	 * likely path MTU for outgoing ICMPv6 fragmentation needed packets.
+	 * The translator is supposed to pick the greatest plateau value that is
+	 * less than the incoming packet's Total Length field.
+	 */
+	struct mtu_plateaus plateaus;
+
+	union {
+		struct {
+			/**
+			 * Amend the UDP checksum of incoming IPv4-UDP packets
+			 * when it's zero? Otherwise these packets will be
+			 * dropped (because they're illegal in IPv6).
+			 */
+			config_bool compute_udp_csum_zero;
+			/**
+			 * How should hairpinning be handled by EAM-translated
+			 * packets.
+			 * See @eam_hairpinning_mode.
+			 */
+			__u8 eam_hairpin_mode;
+			/**
+			 * Randomize choice of RFC6791 address?
+			 * Otherwise it will be set depending on the incoming
+			 * packet's Hop Limit.
+			 * See https://github.com/NICMx/Jool/issues/130.
+			 */
+			config_bool randomize_error_addresses;
+
+			/**
+			 * Address used to represent a not translatable source
+			 * address of an incoming packet.
+			 */
+			struct config_prefix6 rfc6791_prefix6;
+			/**
+			 * Address used to represent a not translatable source
+			 * address of an incoming packet.
+			 * TODO (NOW) keep this?
+			 */
+			struct config_prefix4 rfc6791_prefix4;
+
+		} siit;
+		struct {
+			/** Filter ICMPv6 Informational packets? */
+			config_bool drop_icmp6_info;
+
+			/**
+			 * True = issue #132 behaviour.
+			 * False = RFC 6146 behaviour.
+			 */
+			config_bool src_icmp6errs_better;
+			/**
+			 * Fields of the packet that will be sent to the F() function.
+			 * (RFC 6056 algorithm 3.)
+			 * See "enum f_args".
+			 */
+			__u8 f_args;
+			/**
+			 * Decrease timer when a FIN packet is received during the
+			 * `V4 FIN RCV` or `V6 FIN RCV` states?
+			 * https://github.com/NICMx/Jool/issues/212
+			 */
+			config_bool handle_rst_during_fin_rcv;
+
+			struct bib_config bib;
+			struct joold_config joold;
+		} nat64;
+	};
 };
 
 struct global_value {
 	__u16 type;
-	/** Includes header (this) and payload. */
+	/* Payload length; does not include this header. */
 	__u16 len;
-	config_bool force;
 };
 
 /**
  * The modes are defined by the latest version of the EAM draft.
  */
 enum eam_hairpinning_mode {
-	EAM_HAIRPIN_OFF = 0,
-	EAM_HAIRPIN_SIMPLE = 1,
-	EAM_HAIRPIN_INTRINSIC = 2,
-
-#define EAM_HAIRPIN_MODE_COUNT 3
+	EHM_OFF = 0,
+	EHM_SIMPLE = 1,
+	EHM_INTRINSIC = 2,
 };
 
 /**
  * Converts config's fields to userspace friendly units.
  */
-void prepare_config_for_userspace(struct full_config *config, bool pools_empty);
+void prepare_config_for_userspace(struct globals *config, bool pools_empty);
 
 /* For iptables usage. */
 struct target_info {

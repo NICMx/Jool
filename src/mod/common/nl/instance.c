@@ -49,6 +49,7 @@ static int handle_instance_add(struct genl_info *info,
 	return nlcore_respond(info, xlator_add(
 			request->add.fw,
 			request->add.iname,
+			&request->add.pool6,
 			NULL
 	));
 }
@@ -73,11 +74,8 @@ int handle_instance_request(struct genl_info *info)
 	struct request_hdr *hdr = get_jool_hdr(info);
 	union request_instance *request = (union request_instance *)(hdr + 1);
 
-	if (verify_superpriv())
-		return nlcore_respond(info, -EPERM);
-
 	switch (be16_to_cpu(hdr->operation)) {
-	case OP_DISPLAY:
+	case OP_FOREACH:
 		return handle_instance_display(info, request);
 	case OP_ADD:
 		return handle_instance_add(info, request);

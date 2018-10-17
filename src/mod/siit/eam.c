@@ -9,7 +9,7 @@
 
 #define INIT_KEY(ptr, length)	{ .bytes = (__u8 *)(ptr), .len = length }
 #define ADDR_TO_KEY(addr)	INIT_KEY(addr, 8 * sizeof(*addr))
-#define PREFIX_TO_KEY(prefix)	INIT_KEY(&(prefix)->address, (prefix)->len)
+#define PREFIX_TO_KEY(prefix)	INIT_KEY(&(prefix)->addr, (prefix)->len)
 
 /**
  * Well, it really goes without saying, but I'll say it anyway:
@@ -88,9 +88,9 @@ static int collision6(struct ipv6_prefix *prefix6, struct ipv4_prefix *prefix4,
 			return -EEXIST;
 		}
 		log_err("Existing EAM [%pI6c/%u|%pI4/%u] already contains prefix %pI6c/%u.",
-				&old->prefix6.address, old->prefix6.len,
-				&old->prefix4.address, old->prefix4.len,
-				&prefix6->address, prefix6->len);
+				&old->prefix6.addr, old->prefix6.len,
+				&old->prefix4.addr, old->prefix4.len,
+				&prefix6->addr, prefix6->len);
 		return -EEXIST;
 	}
 
@@ -99,9 +99,9 @@ static int collision6(struct ipv6_prefix *prefix6, struct ipv4_prefix *prefix4,
 
 	log_err("Prefix %pI6c/%u overlaps with EAM [%pI6c/%u|%pI4/%u].\n"
 			"(Use --force to override this validation.)",
-			&prefix6->address, prefix6->len,
-			&old->prefix6.address, old->prefix6.len,
-			&old->prefix4.address, old->prefix4.len);
+			&prefix6->addr, prefix6->len,
+			&old->prefix6.addr, old->prefix6.len,
+			&old->prefix4.addr, old->prefix4.len);
 	return -EEXIST;
 }
 
@@ -115,9 +115,9 @@ static int collision4(struct ipv6_prefix *prefix6, struct ipv4_prefix *prefix4,
 			return -EEXIST;
 		}
 		log_err("Existing EAM [%pI6c/%u|%pI4/%u] already contains prefix %pI4/%u.",
-				&old->prefix6.address, old->prefix6.len,
-				&old->prefix4.address, old->prefix4.len,
-				&prefix4->address, prefix4->len);
+				&old->prefix6.addr, old->prefix6.len,
+				&old->prefix4.addr, old->prefix4.len,
+				&prefix4->addr, prefix4->len);
 		return -EEXIST;
 	}
 
@@ -126,9 +126,9 @@ static int collision4(struct ipv6_prefix *prefix6, struct ipv4_prefix *prefix4,
 
 	log_err("Prefix %pI4/%u overlaps with EAM [%pI6c/%u|%pI4/%u].\n"
 			"(Use --force to override this validation.)",
-			&prefix4->address, prefix4->len,
-			&old->prefix6.address, old->prefix6.len,
-			&old->prefix4.address, old->prefix4.len);
+			&prefix4->addr, prefix4->len,
+			&old->prefix6.addr, old->prefix6.len,
+			&old->prefix4.addr, old->prefix4.len);
 	return -EEXIST;
 }
 
@@ -179,11 +179,11 @@ static int eamt_add6(struct eam_table *eamt, struct eamt_entry *eam)
 	size_t addr_offset;
 	int error;
 
-	addr_offset = offsetof(typeof(*eam), prefix6.address);
+	addr_offset = offsetof(typeof(*eam), prefix6.addr);
 	error = rtrie_add(&eamt->trie6, eam, addr_offset, eam->prefix6.len);
 	if (error == -EEXIST) {
 		log_err("Prefix %pI6c/%u already exists.",
-				&eam->prefix6.address, eam->prefix6.len);
+				&eam->prefix6.addr, eam->prefix6.len);
 		msg_programming_error();
 	}
 	/* rtrie_print("IPv6 trie after add", &eamt->trie6); */
@@ -196,11 +196,11 @@ static int eamt_add4(struct eam_table *eamt, struct eamt_entry *eam)
 	size_t addr_offset;
 	int error;
 
-	addr_offset = offsetof(typeof(*eam), prefix4.address);
+	addr_offset = offsetof(typeof(*eam), prefix4.addr);
 	error = rtrie_add(&eamt->trie4, eam, addr_offset, eam->prefix4.len);
 	if (error == -EEXIST) {
 		log_err("Prefix %pI4/%u already exists.",
-				&eam->prefix4.address, eam->prefix4.len);
+				&eam->prefix4.addr, eam->prefix4.len);
 		msg_programming_error();
 	}
 	/* rtrie_print("IPv4 trie after add", &eamt->trie4); */
@@ -372,12 +372,12 @@ int eamt_xlat_6to4(struct eam_table *eamt, struct in6_addr *addr6,
 	for (i = 0; i < ADDR4_BITS - eam.prefix4.len; i++) {
 		unsigned int offset4 = eam.prefix4.len + i;
 		unsigned int offset6 = eam.prefix6.len + i;
-		addr4_set_bit(&eam.prefix4.address, offset4,
+		addr4_set_bit(&eam.prefix4.addr, offset4,
 				addr6_get_bit(addr6, offset6));
 	}
 
 	/* I'm assuming the prefix address is already zero-trimmed. */
-	*result = eam.prefix4.address;
+	*result = eam.prefix4.addr;
 	return 0;
 }
 
@@ -398,20 +398,12 @@ int eamt_xlat_4to6(struct eam_table *eamt, struct in_addr *addr4,
 	for (i = 0; i < ADDR4_BITS - eam.prefix4.len; i++) {
 		unsigned int offset4 = eam.prefix4.len + i;
 		unsigned int offset6 = eam.prefix6.len + i;
-		addr6_set_bit(&eam.prefix6.address, offset6,
+		addr6_set_bit(&eam.prefix6.addr, offset6,
 				addr4_get_bit(addr4, offset4));
 	}
 
 	/* I'm assuming the prefix address is already zero-trimmed. */
-	*result = eam.prefix6.address;
-	return 0;
-}
-
-int eamt_count(struct eam_table *eamt, __u64 *count)
-{
-	mutex_lock(&lock);
-	*count = eamt->count;
-	mutex_unlock(&lock);
+	*result = eam.prefix6.addr;
 	return 0;
 }
 
@@ -441,7 +433,7 @@ int eamt_foreach(struct eam_table *eamt,
 	int error;
 
 	if (offset) {
-		offset_key.bytes = (__u8 *) &offset->address;
+		offset_key.bytes = (__u8 *) &offset->addr;
 		offset_key.len = offset->len;
 		offset_key_ptr = &offset_key;
 	}

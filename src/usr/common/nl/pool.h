@@ -4,9 +4,10 @@
 #include "common/config.h"
 #include "usr/common/types.h"
 
+typedef int (*pool_foreach_cb)(struct ipv4_prefix *entry, void *args);
 
-int pool_display(char *iname, enum config_mode mode, display_flags flags);
-int pool_count(char *iname, enum config_mode mode);
+int pool_foreach(char *iname, enum config_mode mode,
+		pool_foreach_cb cb, void *_args);
 int pool_add(char *iname, enum config_mode mode, struct ipv4_prefix *addrs,
 		bool force);
 int pool_rm(char *iname, enum config_mode mode, struct ipv4_prefix *addrs);

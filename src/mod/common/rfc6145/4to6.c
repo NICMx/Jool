@@ -139,7 +139,7 @@ static __be16 build_payload_len(struct packet *in, struct packet *out)
 
 static int generate_saddr6_nat64(struct xlation *state)
 {
-	struct global_config_usr *cfg;
+	struct globals *cfg;
 	struct packet *out = &state->out;
 	struct in_addr tmp;
 
@@ -222,7 +222,7 @@ static verdict translate_addrs46_siit(struct xlation *state)
 	addrxlat_verdict result;
 
 	hairpin_mode = state->jool.global->cfg.siit.eam_hairpin_mode;
-	hairpin = (hairpin_mode == EAM_HAIRPIN_SIMPLE)
+	hairpin = (hairpin_mode == EHM_SIMPLE)
 			|| pkt_is_intrinsic_hairpin(in);
 
 	/* Src address. */
@@ -413,8 +413,8 @@ static __be32 icmp6_minimum_mtu(struct xlation *state,
 		 * Got to determine a likely path MTU.
 		 * See RFC 1191 sections 5, 7 and 7.1.
 		 */
-		__u16 *plateaus = state->jool.global->cfg.mtu_plateaus;
-		__u16 count = state->jool.global->cfg.mtu_plateau_count;
+		__u16 *plateaus = state->jool.global->cfg.plateaus.values;
+		__u16 count = state->jool.global->cfg.plateaus.count;
 		int i;
 
 		for (i = 0; i < count; i++) {

@@ -37,9 +37,6 @@ static int handle_session_display(struct bib *db, struct genl_info *info,
 	struct session_foreach_offset *offset = NULL;
 	int error;
 
-	if (verify_superpriv())
-		return nlcore_respond(info, -EPERM);
-
 	log_debug("Sending session table to userspace.");
 
 	error = nlbuffer_init_response(&buffer, info, nlbuffer_response_max_size());
@@ -62,21 +59,6 @@ static int handle_session_display(struct bib *db, struct genl_info *info,
 	return error;
 }
 
-static int handle_session_count(struct bib *db, struct genl_info *info,
-		struct request_session *request)
-{
-	int error;
-	__u64 count;
-
-	log_debug("Returning session count.");
-
-	error = bib_count_sessions(db, request->l4_proto, &count);
-	if (error)
-		return nlcore_respond(info, error);
-
-	return nlcore_respond_struct(info, &count, sizeof(count));
-}
-
 int handle_session_config(struct xlator *jool, struct genl_info *info)
 {
 	struct request_hdr *hdr;
@@ -96,10 +78,8 @@ int handle_session_config(struct xlator *jool, struct genl_info *info)
 		return nlcore_respond(info, error);
 
 	switch (be16_to_cpu(hdr->operation)) {
-	case OP_DISPLAY:
+	case OP_FOREACH:
 		return handle_session_display(jool->nat64.bib, info, request);
-	case OP_COUNT:
-		return handle_session_count(jool->nat64.bib, info, request);
 	}
 
 	log_err("Unknown operation: %u", be16_to_cpu(hdr->operation));

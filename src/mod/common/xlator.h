@@ -21,6 +21,9 @@ struct xlator {
 	 * As a matter of fact, I'll say it here because there's no better place
 	 * for it: whenever Jool acquires a reference to a namespace, it should
 	 * *ALWAYS* return it, preferably during the same function.
+	 *
+	 * TODO (NOW) what about older kernels? What about the atomic config
+	 * instances?
 	 */
 	struct net *ns;
 	/* One of the single-bit FW_* flags from nat64/common/config.h. */
@@ -41,17 +44,18 @@ struct xlator {
 			struct joold_queue *joold;
 		} nat64;
 	};
-
-	struct config_candidate *newcfg;
 };
 
 int xlator_setup(void);
 void xlator_teardown(void);
 
-int xlator_add(int fw, char *iname, struct xlator *result);
+int xlator_add(int fw, char *iname, struct config_prefix6 *pool6,
+		struct xlator *result);
 int xlator_rm(char *iname);
-int xlator_replace(struct xlator *instance);
 int xlator_flush(void);
+
+int xlator_init(struct xlator *instance, struct config_prefix6 *pool6);
+int xlator_replace(struct xlator *instance);
 
 int xlator_find(struct net *ns, int fw, const char *iname,
 		struct xlator *result);
@@ -61,7 +65,5 @@ void xlator_put(struct xlator *instance);
 typedef int (*xlator_foreach_cb)(struct xlator const *, void *);
 int xlator_foreach(xlator_foreach_cb cb, void *args,
 		struct instance_entry_usr *offset);
-
-void xlator_copy_config(struct xlator *instance, struct full_config *copy);
 
 #endif /* _JOOL_MOD_NAMESPACE_H */

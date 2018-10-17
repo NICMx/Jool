@@ -86,7 +86,7 @@ verdict ttp64_alloc_skb(struct xlation *state)
 	return VERDICT_CONTINUE;
 }
 
-__u8 ttp64_xlat_tos(struct global_config_usr *config, struct ipv6hdr *hdr)
+__u8 ttp64_xlat_tos(struct globals *config, struct ipv6hdr *hdr)
 {
 	return config->reset_tos ? config->new_tos : get_traffic_class(hdr);
 }
@@ -263,7 +263,7 @@ static verdict translate_addrs64_siit(struct xlation *state)
 	 * See the EAM draft.
 	 */
 	hairpin_mode = state->jool.global->cfg.siit.eam_hairpin_mode;
-	if (hairpin_mode == EAM_HAIRPIN_INTRINSIC) {
+	if (hairpin_mode == EHM_INTRINSIC) {
 		struct eam_table *eamt = state->jool.siit.eamt;
 		/* Condition set A */
 		if (pkt_is_outer(&state->in) && !pkt_is_icmp6_error(&state->in)

@@ -40,9 +40,6 @@ static int handle_pool4_display(struct pool4 *pool, struct genl_info *info,
 static int handle_pool4_add(struct pool4 *pool, struct genl_info *info,
 		union request_pool4 *request)
 {
-	if (verify_superpriv())
-		return nlcore_respond(info, -EPERM);
-
 	log_debug("Adding elements to pool4.");
 	return nlcore_respond(info, pool4db_add(pool, &request->add));
 }
@@ -50,9 +47,6 @@ static int handle_pool4_add(struct pool4 *pool, struct genl_info *info,
 static int handle_pool4_update(struct pool4 *pool, struct genl_info *info,
 		union request_pool4 *request)
 {
-	if (verify_superpriv())
-		return nlcore_respond(info, -EPERM);
-
 	log_debug("Updating pool4 table.");
 	return nlcore_respond(info, pool4db_update(pool, &request->update));
 }
@@ -61,9 +55,6 @@ static int handle_pool4_rm(struct xlator *jool, struct genl_info *info,
 		union request_pool4 *request)
 {
 	int error;
-
-	if (verify_superpriv())
-		return nlcore_respond(info, -EPERM);
 
 	log_debug("Removing elements from pool4.");
 
@@ -80,9 +71,6 @@ static int handle_pool4_rm(struct xlator *jool, struct genl_info *info,
 static int handle_pool4_flush(struct xlator *jool, struct genl_info *info,
 		union request_pool4 *request)
 {
-	if (verify_superpriv())
-		return nlcore_respond(info, -EPERM);
-
 	log_debug("Flushing pool4.");
 
 	pool4db_flush(jool->nat64.pool4);
@@ -114,7 +102,7 @@ int handle_pool4_config(struct xlator *jool, struct genl_info *info)
 		return nlcore_respond(info, error);
 
 	switch (be16_to_cpu(hdr->operation)) {
-	case OP_DISPLAY:
+	case OP_FOREACH:
 		return handle_pool4_display(jool->nat64.pool4, info, request);
 	case OP_ADD:
 		return handle_pool4_add(jool->nat64.pool4, info, request);

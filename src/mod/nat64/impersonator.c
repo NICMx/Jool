@@ -131,11 +131,6 @@ int eamt_foreach(struct eam_table *eamt,
 	return fail(__func__);
 }
 
-int eamt_count(struct eam_table *eamt, __u64 *count)
-{
-	return fail(__func__);
-}
-
 bool eamt_is_empty(struct eam_table *eamt)
 {
 	fail(__func__);
@@ -171,11 +166,6 @@ int pool_flush(struct addr4_pool *pool)
 int pool_foreach(struct addr4_pool *pool,
 		int (*func)(struct ipv4_prefix *, void *), void *arg,
 		struct ipv4_prefix *offset)
-{
-	return fail(__func__);
-}
-
-int pool_count(struct addr4_pool *pool, __u64 *result)
 {
 	return fail(__func__);
 }

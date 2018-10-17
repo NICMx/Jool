@@ -26,11 +26,6 @@ void joold_add(struct joold_queue *queue, struct session_entry *entry,
 	/* No code. */
 }
 
-void joold_config_copy(struct joold_queue *queue, struct joold_config *config)
-{
-	broken_unit_call(__func__);
-}
-
 struct joold_queue *joold_alloc(struct net *ns)
 {
 	return (struct joold_queue *)&dummy;

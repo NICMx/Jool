@@ -7,7 +7,7 @@
 #endif
 
 void init_request_hdr(struct request_hdr *hdr, enum config_mode mode,
-		enum config_operation operation)
+		enum config_operation operation, bool force)
 {
 	hdr->magic[0] = 'j';
 	hdr->magic[1] = 'o';
@@ -15,6 +15,7 @@ void init_request_hdr(struct request_hdr *hdr, enum config_mode mode,
 	hdr->magic[3] = 'l';
 	hdr->type = xlat_is_nat64() ? 'n' : 's'; /* 'n'at64 or 's'iit. */
 	hdr->castness = 'u';
+	hdr->force = force;
 	hdr->slop = 0;
 	hdr->version = htonl(xlat_version());
 	hdr->mode = htons(mode);
@@ -134,33 +135,11 @@ fail:
 	return -EINVAL;
 }
 
-static unsigned int count_bits(int num)
-{
-	unsigned int i = 0;
-	unsigned int result = 0;
-
-	for (; i < 8 * sizeof(int); i++) {
-		if (num & 1)
-			result++;
-		num >>= 1;
-	}
-
-	return result;
-}
-
 int fw_validate(int fw)
 {
-	unsigned int bits = count_bits(fw);
+	if (fw == FW_NETFILTER || fw == FW_IPTABLES)
+		return 0;
 
-	if (bits == 0) {
-		log_err("Instance framework was not specified.");
-		return -EINVAL;
-	}
-	if (bits > 1) {
-		log_err("Only one instance can be added at a time.");
-		return -EINVAL;
-	}
-
-	return 0;
-
+	log_err("The instance framework must be either Netfilter or iptables.");
+	return -EINVAL;
 }

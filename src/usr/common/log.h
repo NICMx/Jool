@@ -7,7 +7,6 @@
 #define log_debug(text, ...) syslog(LOG_DEBUG, text, ##__VA_ARGS__)
 #define log_info(text, ...) syslog(LOG_INFO, text, ##__VA_ARGS__)
 #define log_err(text, ...) syslog(LOG_ERR, text, ##__VA_ARGS__)
-#define log_delete(text, ...) log_info(text, ##__VA_ARGS__)
 
 #else
 
@@ -15,9 +14,11 @@
 #define log_debug(text, ...) printf(text "\n", ##__VA_ARGS__)
 #define log_info(text, ...) log_debug(text, ##__VA_ARGS__)
 #define log_err(text, ...) fprintf(stderr, text "\n", ##__VA_ARGS__)
-#define log_delete(text, ...) log_debug(text, ##__VA_ARGS__)
 
 #endif
+
+#define log_delete(text, ...) log_err("DELETE ME! %s(%s:%d): " text, \
+		__func__, __FILE__, __LINE__, ##__VA_ARGS__)
 
 /**
  * perror() writes into stderror. joold doesn't want that so here's the

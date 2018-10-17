@@ -179,7 +179,7 @@ static int cmp_prefix(struct pool4_table *table, struct ipv4_prefix *prefix)
 {
 	if (prefix4_contains(prefix, &table->addr))
 		return 0;
-	return ipv4_addr_cmp(&table->addr, &prefix->address);
+	return ipv4_addr_cmp(&table->addr, &prefix->addr);
 }
 
 static struct pool4_table *find_by_prefix(struct rb_root *tree,

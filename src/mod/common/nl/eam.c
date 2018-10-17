@@ -35,37 +35,18 @@ static int handle_eamt_display(struct eam_table *eamt, struct genl_info *info,
 	return error;
 }
 
-static int handle_eamt_count(struct eam_table *eamt, struct genl_info *info)
+static int handle_eamt_add(struct eam_table *eamt, union request_eamt *request,
+		bool force)
 {
-	__u64 count;
-	int error;
-
-	log_debug("Returning EAMT count.");
-
-	error = eamt_count(eamt, &count);
-	if (error)
-		return nlcore_respond(info, error);
-
-	return nlcore_respond_struct(info, &count, sizeof(count));
-}
-
-static int handle_eamt_add(struct eam_table *eamt, union request_eamt *request)
-{
-	if (verify_superpriv())
-		return -EPERM;
-
 	log_debug("Adding EAMT entry.");
 	return eamt_add(eamt, &request->add.prefix6, &request->add.prefix4,
-			request->add.force);
+			force);
 }
 
 static int handle_eamt_rm(struct eam_table *eamt, union request_eamt *request)
 {
 	struct ipv6_prefix *prefix6;
 	struct ipv4_prefix *prefix4;
-
-	if (verify_superpriv())
-		return -EPERM;
 
 	log_debug("Removing EAMT entry.");
 
@@ -76,9 +57,6 @@ static int handle_eamt_rm(struct eam_table *eamt, union request_eamt *request)
 
 static int handle_eamt_flush(struct eam_table *eamt)
 {
-	if (verify_superpriv())
-		return -EPERM;
-
 	eamt_flush(eamt);
 	return 0;
 }
@@ -102,12 +80,10 @@ int handle_eamt_config(struct xlator *jool, struct genl_info *info)
 		return nlcore_respond(info, error);
 
 	switch (be16_to_cpu(hdr->operation)) {
-	case OP_DISPLAY:
+	case OP_FOREACH:
 		return handle_eamt_display(jool->siit.eamt, info, request);
-	case OP_COUNT:
-		return handle_eamt_count(jool->siit.eamt, info);
 	case OP_ADD:
-		error = handle_eamt_add(jool->siit.eamt, request);
+		error = handle_eamt_add(jool->siit.eamt, request, hdr->force);
 		break;
 	case OP_REMOVE:
 		error = handle_eamt_rm(jool->siit.eamt, request);

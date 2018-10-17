@@ -106,8 +106,8 @@ static int validate_scope(struct ipv4_prefix *prefix, bool force)
 
 	if (!force && prefix4_has_subnet_scope(prefix, &subnet)) {
 		log_err("Prefix %pI4/%u intersects with subnet scoped network %pI4/%u.",
-				&prefix->address, prefix->len,
-				&subnet.address, subnet.len);
+				&prefix->addr, prefix->len,
+				&subnet.addr, subnet.len);
 		log_err("Will cancel the operation. Use --force to ignore this validation.");
 		return -EINVAL;
 	}

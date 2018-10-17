@@ -557,7 +557,7 @@ static void teardown(void)
 
 static int init(void)
 {
-	struct optional_prefix6 *prefix6;
+	struct config_prefix6 *prefix6;
 	struct pool4_entry_usr entry;
 	int error;
 

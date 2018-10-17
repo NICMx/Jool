@@ -11,15 +11,6 @@
 
 #include "common/str_utils.h"
 
-/** Maximum storable value on a __u8. */
-#define MAX_U8 0xFFU
-/** Maximum storable value on a __u16. */
-#define MAX_U16 0xFFFFU
-/** Maximum storable value on a __u32. */
-#define MAX_U32 0xFFFFFFFFU
-/** Maximum storable value on a __u64. */
-#define MAX_U64 0xFFFFFFFFFFFFFFFFU
-
 /**
  * Parses @str as a boolean value, which it then copies to @out.
  */
@@ -40,10 +31,12 @@ int str_to_port_range(char *str, struct port_range *range);
 
 /**
  * Parses @str as a comma-separated array of __u16s, which it then copies to
- * @out.
- * It sets @out_len as @out's length in elements (not bytes).
+ * @result.
+ *
+ * @result is assumed to length PLATEAUS_MAX elements. The actual length is
+ * going to be copied to @count.
  */
-int str_to_u16_array(const char *str, __u16 **out, size_t *out_len);
+int str_to_plateaus_array(const char *str, __u16 *result, __u16 *count);
 
 /**
  * Parses @str as a '#' separated l3-address and l4-identifier, which it then
@@ -70,5 +63,7 @@ void print_time_csv(unsigned int millis);
  * in the console.
  */
 void print_time_friendly(unsigned int millis);
+
+#define STR_EQUAL(s1, s2) (strcmp(s1, s2) == 0)
 
 #endif /* _JOOL_COMM_STR_UTILS_H */
