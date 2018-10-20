@@ -65,7 +65,7 @@ static void send_ack(void)
 {
 	struct request_hdr hdr;
 
-	init_request_hdr(&hdr, MODE_JOOLD, OP_ACK);
+	init_request_hdr(&hdr, MODE_JOOLD, OP_ACK, false);
 
 	modsocket_send(&hdr, sizeof(hdr));
 }
@@ -85,21 +85,24 @@ static void print_pkt_meta(struct request_hdr *hdr)
 
 	printf("/");
 
-	switch (ntohs(hdr->mode)) {
+	switch (hdr->mode) {
+	case MODE_INSTANCE:
+		printf("instance");
+		break;
+	case MODE_STATS:
+		printf("stats");
+		break;
 	case MODE_GLOBAL:
 		printf("global");
 		break;
-	case MODE_POOL4:
-		printf("pool4");
+	case MODE_EAMT:
+		printf("eamt");
 		break;
 	case MODE_BLACKLIST:
 		printf("blacklist");
 		break;
-	case MODE_RFC6791:
-		printf("rfc6791");
-		break;
-	case MODE_EAMT:
-		printf("eamt");
+	case MODE_POOL4:
+		printf("pool4");
 		break;
 	case MODE_BIB:
 		printf("bib");
@@ -107,22 +110,19 @@ static void print_pkt_meta(struct request_hdr *hdr)
 	case MODE_SESSION:
 		printf("session");
 		break;
-	case MODE_PARSE_FILE:
-		printf("file");
-		break;
 	case MODE_JOOLD:
 		printf("joold");
 		break;
-	case MODE_INSTANCE:
-		printf("instance");
+	case MODE_PARSE_FILE:
+		printf("file");
 		break;
 	default:
-		printf("unknown (%u)", ntohs(hdr->mode));
+		printf("unknown (%u)", hdr->mode);
 	}
 
 	printf("/");
 
-	switch (ntohs(hdr->operation)) {
+	switch (hdr->operation) {
 	case OP_FOREACH:
 		printf("display");
 		break;
@@ -148,7 +148,7 @@ static void print_pkt_meta(struct request_hdr *hdr)
 		printf("ack");
 		break;
 	default:
-		printf("unknown (%u)", ntohs(hdr->operation));
+		printf("unknown (%u)", hdr->operation);
 	}
 
 	printf(".\n");

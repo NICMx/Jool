@@ -12,7 +12,6 @@
 struct display_args {
 	struct wargp_bool no_headers;
 	struct wargp_bool csv;
-	unsigned int row_count;
 };
 
 static struct wargp_option display_opts[] = {
@@ -35,11 +34,10 @@ static int print_entry(struct eamt_entry *entry, void *args)
 	printf("%s/%u", ipv4_str, entry->prefix4.len);
 	printf("\n");
 
-	eargs->row_count++;
 	return 0;
 }
 
-int handle_eamt_display(char *instance, int argc, char **argv, void *arg)
+int handle_eamt_display(char *iname, int argc, char **argv, void *arg)
 {
 	struct display_args eargs = { 0 };
 	int error;
@@ -55,19 +53,12 @@ int handle_eamt_display(char *instance, int argc, char **argv, void *arg)
 	if (show_csv_header(eargs.no_headers.value, eargs.csv.value))
 		printf("IPv6 Prefix,IPv4 Prefix\n");
 
-	error = eamt_foreach(instance, print_entry, &eargs);
+	error = eamt_foreach(iname, print_entry, &eargs);
 
 	netlink_teardown();
 
 	if (error)
 		return error;
-
-	if (show_footer(eargs.no_headers.value, eargs.csv.value)) {
-		if (eargs.row_count > 0)
-			log_info("  (Fetched %u entries.)", eargs.row_count);
-		else
-			log_info("  (empty)");
-	}
 
 	return 0;
 }
@@ -105,7 +96,7 @@ static int parse_eamt_column(void *void_field, int key, char *str)
 }
 
 struct wargp_type wt_prefixes = {
-	.doc = "<IPv6 prefix> <IPv4 prefix>",
+	.argument = "<IPv6 prefix> <IPv4 prefix>",
 	.parse = parse_eamt_column,
 };
 
@@ -116,12 +107,12 @@ static struct wargp_option add_opts[] = {
 		.key = ARGP_KEY_ARG,
 		.doc = "Prefixes (or addresses) that will shape the new EAMT entry",
 		.offset = offsetof(struct add_args, entry),
-		.type = &wt_prefix6,
+		.type = &wt_prefixes,
 	},
 	{ 0 },
 };
 
-int handle_eamt_add(char *instance, int argc, char **argv, void *arg)
+int handle_eamt_add(char *iname, int argc, char **argv, void *arg)
 {
 	struct add_args aargs = { 0 };
 	int error;
@@ -143,7 +134,7 @@ int handle_eamt_add(char *instance, int argc, char **argv, void *arg)
 	if (error)
 		return error;
 
-	error = eamt_add(instance,
+	error = eamt_add(iname,
 			&aargs.entry.value.prefix6,
 			&aargs.entry.value.prefix4,
 			aargs.force);
@@ -172,7 +163,7 @@ static struct wargp_option remove_opts[] = {
 	{ 0 },
 };
 
-int handle_eamt_remove(char *instance, int argc, char **argv, void *arg)
+int handle_eamt_remove(char *iname, int argc, char **argv, void *arg)
 {
 	struct rm_args rargs = { 0 };
 	int error;
@@ -193,7 +184,7 @@ int handle_eamt_remove(char *instance, int argc, char **argv, void *arg)
 	if (error)
 		return error;
 
-	error = eamt_rm(instance,
+	error = eamt_rm(iname,
 			rargs.entry.prefix6_set ? &rargs.entry.value.prefix6 : NULL,
 			rargs.entry.prefix4_set ? &rargs.entry.value.prefix4 : NULL);
 
@@ -206,7 +197,7 @@ void print_eamt_remove_opts(char *prefix)
 	print_wargp_opts(remove_opts, prefix);
 }
 
-int handle_eamt_flush(char *instance, int argc, char **argv, void *arg)
+int handle_eamt_flush(char *iname, int argc, char **argv, void *arg)
 {
 	int error;
 
@@ -222,7 +213,7 @@ int handle_eamt_flush(char *instance, int argc, char **argv, void *arg)
 	if (error)
 		return error;
 
-	error = eamt_flush(instance);
+	error = eamt_flush(iname);
 
 	netlink_teardown();
 	return error;

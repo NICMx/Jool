@@ -26,14 +26,11 @@ static int bib_count_fn(struct bib_entry const *bib, bool is_static, void *arg)
 static bool assert_bib_count(int expected, l4_protocol proto)
 {
 	int counter = 0;
-	__u64 stored;
 	struct bib_foreach_func func = { .cb = bib_count_fn, .arg = &counter, };
 	bool success = true;
 
 	success &= ASSERT_INT(0, bib_foreach(jool.nat64.bib, proto, &func, NULL), "foreach result");
 	success &= ASSERT_INT(expected, counter, "computed count");
-	success &= ASSERT_INT(0, bib_count(jool.nat64.bib, proto, &stored), "count result");
-	success &= ASSERT_U64((__u64)expected, stored, "stored count");
 
 	return success;
 }
@@ -72,14 +69,11 @@ static int session_count_fn(struct session_entry const *session, void *arg)
 static bool assert_session_count(int expected, l4_protocol proto)
 {
 	int counter = 0;
-	__u64 stored;
 	struct session_foreach_func cb = { .cb = session_count_fn, .arg = &counter, };
 	bool success = true;
 
-	success &= ASSERT_INT(0, bib_foreach_session(jool.nat64.bib, proto, &cb, NULL), "foreach result");
+	success &= ASSERT_INT(0, bib_foreach_session(&jool, proto, &cb, NULL), "foreach result");
 	success &= ASSERT_INT(expected, counter, "computed count");
-	success &= ASSERT_INT(0, bib_count_sessions(jool.nat64.bib, proto, &stored), "count result");
-	success &= ASSERT_U64((__u64)expected, stored, "stored count");
 
 	return success;
 }
@@ -117,7 +111,7 @@ static int session_exists(struct session_entry *session)
 	 * This is the closest we have to a session finding function in the
 	 * current API.
 	 */
-	return bib_foreach_session(jool.nat64.bib, session->proto, &func, NULL);
+	return bib_foreach_session(&jool, session->proto, &func, NULL);
 }
 
 static bool assert_session_exists(char *src6_addr, u16 src6_port,
@@ -557,25 +551,24 @@ static void teardown(void)
 
 static int init(void)
 {
-	struct config_prefix6 *prefix6;
+	struct config_prefix6 pool6;
 	struct pool4_entry_usr entry;
 	int error;
 
-	error = xlator_add(FW_NETFILTER, INAME_DEFAULT, &jool);
+	pool6.set = true;
+	pool6.prefix.len = 96;
+	error = str_to_addr6("3::", &pool6.prefix.addr);
 	if (error)
 		return error;
 
-	prefix6 = &jool.global->cfg.pool6;
-	prefix6->set = true;
-	error = str_to_addr6("3::", &prefix6->prefix.address);
+	error = xlator_add(FW_NETFILTER, INAME_DEFAULT, &pool6, &jool);
 	if (error)
-		goto fail;
-	prefix6->prefix.len = 96;
+		return error;
 
 	entry.mark = 0;
 	entry.iterations = 0;
 	entry.flags = ITERATIONS_SET | ITERATIONS_INFINITE;
-	error = str_to_addr4("192.0.2.128", &entry.range.prefix.address);
+	error = str_to_addr4("192.0.2.128", &entry.range.prefix.addr);
 	if (error)
 		goto fail;
 	entry.range.prefix.len = 32;

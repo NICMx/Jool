@@ -10,7 +10,7 @@
 #include "mod/common/route.h"
 #include "mod/common/rfc6145/common.h"
 #include "mod/siit/blacklist4.h"
-#include "mod/siit/rfc6791.h"
+#include "mod/siit/rfc6791v4.h"
 #include "mod/siit/eam.h"
 
 verdict ttp64_alloc_skb(struct xlation *state)
@@ -247,7 +247,7 @@ static verdict translate_addrs64_siit(struct xlation *state)
 		break;
 	case ADDRXLAT_TRY_SOMETHING_ELSE:
 		if (pkt_is_icmp6_error(&state->in)
-				&& !rfc6791_find(state, &hdr4->saddr))
+				&& !rfc6791v4_find(state, &hdr4->saddr))
 			break; /* Ok, success. */
 		return untranslatable(state, JSTAT64_DST);
 	case ADDRXLAT_ACCEPT:
@@ -324,7 +324,7 @@ verdict ttp64_ipv4(struct xlation *state)
 	verdict result;
 
 	/*
-	 * translate_addrs64_siit->rfc6791_get->get_host_address needs tos
+	 * translate_addrs64_siit->rfc6791v4_find->get_host_address needs tos
 	 * and protocol, so translate them first.
 	 */
 	hdr4->tos = ttp64_xlat_tos(&state->jool.global->cfg, hdr6);
@@ -399,7 +399,7 @@ static __be16 minimum(unsigned int mtu1, unsigned int mtu2, unsigned int mtu3)
 	return cpu_to_be16(min(mtu1, min(mtu2, mtu3)));
 }
 
-static int compute_mtu4(struct xlation *state)
+static verdict compute_mtu4(struct xlation *state)
 {
 	struct icmphdr *out_icmp = pkt_icmp4_hdr(&state->out);
 #ifndef UNIT_TESTING
@@ -408,9 +408,9 @@ static int compute_mtu4(struct xlation *state)
 
 	out_dst = route4(state->jool.ns, &state->out);
 	if (!out_dst)
-		return -EINVAL;
+		return drop(state, JSTAT_FAILED_ROUTES);
 	if (!state->in.skb->dev)
-		return -EINVAL;
+		return drop(state, JSTAT_FAILED_ROUTES);
 
 	log_debug("Packet MTU: %u", be32_to_cpu(in_icmp->icmp6_mtu));
 	log_debug("In dev MTU: %u", state->in.skb->dev->mtu);
@@ -425,7 +425,7 @@ static int compute_mtu4(struct xlation *state)
 	out_icmp->un.frag.mtu = minimum(1500, 9999, 9999);
 #endif
 
-	return 0;
+	return VERDICT_CONTINUE;
 }
 
 /**
@@ -694,8 +694,9 @@ verdict ttp64_icmp(struct xlation *state)
 		icmpv4_hdr->type = ICMP_DEST_UNREACH;
 		icmpv4_hdr->code = ICMP_FRAG_NEEDED;
 		icmpv4_hdr->un.frag.__unused = htons(0);
-		if (compute_mtu4(state))
-			return drop(state, JSTAT64_PKT_TOO_BIG);
+		result = compute_mtu4(state);
+		if (result != VERDICT_CONTINUE)
+			return result;
 		return post_icmp4error(state);
 
 	case ICMPV6_TIME_EXCEED:
@@ -718,7 +719,7 @@ verdict ttp64_icmp(struct xlation *state)
 	 */
 	log_debug("ICMPv6 messages type %u lack an ICMPv4 counterpart.",
 			icmpv6_hdr->icmp6_type);
-	return drop(state, JSTAT64_ICMP_TYPE);
+	return drop(state, JSTAT_UNKNOWN_ICMP6_TYPE);
 }
 
 static __wsum pseudohdr6_csum(struct ipv6hdr *hdr)

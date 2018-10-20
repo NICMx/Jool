@@ -46,9 +46,9 @@ static int __validate(struct eamt_entry const *eam, void *__args)
 	bool success = true;
 
 	success &= ASSERT_UINT(0, args->count, "eam count");
-	success &= ASSERT_ADDR6(args->addr6, &eam->prefix6.address, "addr6");
+	success &= ASSERT_ADDR6(args->addr6, &eam->prefix6.addr, "addr6");
 	success &= ASSERT_UINT(args->len6, eam->prefix6.len, "len6");
-	success &= ASSERT_ADDR4(args->addr4, &eam->prefix4.address, "addr4");
+	success &= ASSERT_ADDR4(args->addr4, &eam->prefix4.addr, "addr4");
 	success &= ASSERT_UINT(args->len4, eam->prefix4.len, "len4");
 	args->count++;
 
@@ -97,51 +97,48 @@ static bool simple_test(void)
  */
 static bool atomic_test(void)
 {
-	struct xlator new;
 	unsigned char request[sizeof(__u16) + sizeof(struct eamt_entry)];
 	__u16 *type;
+	struct request_init *init;
 	struct eamt_entry *eam;
 	int error;
-	bool success = false;
-
-	error = xlator_find_current(FW_NETFILTER, INAME_DEFAULT, &new);
-	if (error) {
-		log_info("jparser_init() threw %d", error);
-		return false;
-	}
 
 	type = (__u16 *)request;
+
+	*type = SEC_INIT;
+	init = (struct request_init *)(type + 1);
+	init->fw = FW_NETFILTER;
+	error = atomconfig_add(INAME_DEFAULT, request, sizeof(request), false);
+	if (error)
+		return false;
+
 	eam = (struct eamt_entry *)(type + 1);
 
 	*type = SEC_EAMT;
 	error = str_to_addr6("2001:db8:bbbb::", &eam->prefix6.addr);
 	if (error)
-		goto end;
+		return false;
 	eam->prefix6.len = 121;
 	error = str_to_addr4("198.51.100.0", &eam->prefix4.addr);
 	if (error)
-		goto end;
+		return false;
 	eam->prefix4.len = 25;
 
-	error = atomconfig_add(&new, request, sizeof(request));
+	error = atomconfig_add(INAME_DEFAULT, request, sizeof(request), false);
 	if (error) {
-		log_info("jparser_handle() 1 threw %d", error);
-		goto end;
+		log_info("atomconfig_add() 1 threw %d", error);
+		return false;
 	}
 
 	*type = SEC_COMMIT;
 
-	error = atomconfig_add(&new, request, sizeof(*type));
+	error = atomconfig_add(INAME_DEFAULT, request, sizeof(*type), false);
 	if (error) {
-		log_info("jparser_handle() 2 threw %d", error);
-		goto end;
+		log_info("atomconfig_add() 2 threw %d", error);
+		return false;
 	}
 
-	success = validate("2001:db8:bbbb::", 121, "198.51.100.0", 25);
-
-end:
-	xlator_put(&new);
-	return success;
+	return validate("2001:db8:bbbb::", 121, "198.51.100.0", 25);
 }
 
 /**
@@ -222,17 +219,17 @@ static int init(void)
 		log_info("xlator_setup() threw %d", error);
 		return error;
 	}
-	error = xlator_add(FW_NETFILTER, INAME_DEFAULT, &jool);
+	error = xlator_add(FW_NETFILTER, INAME_DEFAULT, NULL, &jool);
 	if (error) {
 		log_info("xlator_add() threw %d", error);
 		goto fail1;
 	}
 
-	error = str_to_addr6("2001:db8::", &eam.prefix6.address);
+	error = str_to_addr6("2001:db8::", &eam.prefix6.addr);
 	if (error)
 		goto fail2;
 	eam.prefix6.len = 120;
-	error = str_to_addr4("192.0.2.0", &eam.prefix4.address);
+	error = str_to_addr4("192.0.2.0", &eam.prefix4.addr);
 	if (error)
 		goto fail2;
 	eam.prefix4.len = 24;
@@ -246,9 +243,8 @@ static int init(void)
 	return 0;
 
 fail2:
-	xlator_rm(INAME_DEFAULT);
-fail1:
 	xlator_put(&jool);
+fail1:
 	xlator_teardown();
 	return error;
 }

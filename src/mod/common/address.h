@@ -33,6 +33,8 @@ bool taddr6_equals(const struct ipv6_transport_addr *a,
 bool prefix6_equals(const struct ipv6_prefix *a, const struct ipv6_prefix *b);
 bool prefix4_equals(const struct ipv4_prefix *a, const struct ipv4_prefix *b);
 
+__u32 get_prefix4_mask(const struct ipv4_prefix *prefix);
+
 bool prefix4_contains(const struct ipv4_prefix *prefix,
 		const struct in_addr *addr);
 bool prefix6_contains(const struct ipv6_prefix *prefix,
@@ -45,6 +47,7 @@ __u64 prefix4_get_addr_count(const struct ipv4_prefix *prefix);
 
 int prefix4_validate(const struct ipv4_prefix *prefix);
 int prefix6_validate(const struct ipv6_prefix *prefix);
+int prefix4_validate_scope(struct ipv4_prefix *prefix, bool force);
 
 __u32 addr4_get_bit(const struct in_addr *addr, unsigned int pos);
 void addr4_set_bit(struct in_addr *addr, unsigned int pos, bool value);

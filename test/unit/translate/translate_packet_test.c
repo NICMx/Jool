@@ -141,10 +141,10 @@ static bool test_function_icmp6_minimum_mtu(void)
 	 * I'm assuming the default plateaus list has 3 elements or more.
 	 * (so I don't have to reallocate mtu_plateaus)
 	 */
-	config->cfg.mtu_plateaus[0] = 5000;
-	config->cfg.mtu_plateaus[1] = 4000;
-	config->cfg.mtu_plateaus[2] = 500;
-	config->cfg.mtu_plateau_count = 2;
+	config->cfg.plateaus.values[0] = 5000;
+	config->cfg.plateaus.values[1] = 4000;
+	config->cfg.plateaus.values[2] = 500;
+	config->cfg.plateaus.count = 2;
 
 	/* Simple tests */
 	success &= ASSERT_UINT(1320, min_mtu(1300, 3000, 3000, 2000), "min(1300, 3000, 3000)");
@@ -392,7 +392,7 @@ static bool test_function_icmp4_minimum_mtu(void)
 
 static int setup(void)
 {
-	config = config_alloc();
+	config = config_alloc(NULL);
 	return config ? 0 : -ENOMEM;
 }
 

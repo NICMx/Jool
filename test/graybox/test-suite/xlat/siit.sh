@@ -13,11 +13,10 @@ ip addr add 198.51.100.1/24 dev $2
 sysctl -w net.ipv4.conf.all.forwarding=1 > /dev/null
 sysctl -w net.ipv6.conf.all.forwarding=1 > /dev/null
 modprobe jool_siit
-jool_siit --instance --add
-jool_siit -6 2001:db8:100::/40           > /dev/null
+jool_siit instance add --netfilter -6 2001:db8:100::/40
 
 # pool6791 test
-jool_siit -ea 2001:db8:3::/120 1.0.0.0/24
-jool_siit -ea 2001:db8:2::/120 10.0.0.0/24
-jool_siit --pool6791 --add 203.0.113.8
+jool_siit eamt add 2001:db8:3::/120 1.0.0.0/24
+jool_siit eamt add 2001:db8:2::/120 10.0.0.0/24
+jool_siit global update pool6791v4 203.0.113.8
 ip route add 2001:db8:3::/120 via 2001:db8:1c0:2:21::

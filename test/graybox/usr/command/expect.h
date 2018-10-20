@@ -5,13 +5,20 @@
 #include <netlink/msg.h>
 #include "types.h"
 
+#define PLATEAUS_MAX 64
+
 struct expect_add_request {
 	char *file_name;
 	unsigned char *pkt;
 	size_t pkt_len;
-	__u16 *exceptions;
+	/*
+	 * This is not a plateaus array. PLATEAUS_MAX is a dumb hack, obviously.
+	 * This is fine for now because no sane test would reach the
+	 * PLATEAUS_MAX exceptions limit.
+	 */
+	__u16 exceptions[PLATEAUS_MAX];
 	/* Number of exceptions; not number of bytes. */
-	size_t exceptions_len;
+	__u16 exceptions_len;
 };
 
 int expect_init_request(int argc, char **argv, enum graybox_command *cmd,

@@ -47,6 +47,10 @@ struct global_config *config_alloc(struct config_prefix6 *pool6)
 		config->nat64.f_args = DEFAULT_F_ARGS;
 		config->nat64.handle_rst_during_fin_rcv = DEFAULT_HANDLE_FIN_RCV_RST;
 
+		config->nat64.bib.ttl.tcp_est = TCP_EST;
+		config->nat64.bib.ttl.tcp_trans = TCP_TRANS;
+		config->nat64.bib.ttl.udp = UDP_DEFAULT;
+		config->nat64.bib.ttl.icmp = ICMP_DEFAULT;
 		config->nat64.bib.bib_logging = DEFAULT_BIB_LOGGING;
 		config->nat64.bib.session_logging = DEFAULT_SESSION_LOGGING;
 		config->nat64.bib.drop_by_addr = DEFAULT_ADDR_DEPENDENT_FILTERING;
@@ -93,6 +97,9 @@ void prepare_config_for_userspace(struct globals *config, bool pools_empty)
 	struct joold_config *joold;
 
 	config->status = config->enabled && !pools_empty;
+
+	if (xlat_is_siit())
+		return;
 
 	bib = &config->nat64.bib;
 	bib->ttl.tcp_est = jiffies_to_msecs(bib->ttl.tcp_est);

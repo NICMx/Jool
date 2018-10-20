@@ -112,6 +112,33 @@ int validate_plateaus(struct global_field *field, void *value, bool force)
 	return 0;
 }
 
+int validate_prefix6(struct global_field *field, void *value, bool force)
+{
+	struct config_prefix6 *prefix = value;
+	return prefix->set ? prefix6_validate(&prefix->prefix) : 0;
+}
+
+int validate_prefix4(struct global_field *field, void *value, bool force)
+{
+	struct config_prefix4 *prefix = value;
+	return prefix->set ? prefix4_validate(&prefix->prefix) : 0;
+}
+
+int validate_prefix6791v4(struct global_field *field, void *value, bool force)
+{
+	struct config_prefix4 *prefix = value;
+	int error;
+
+	if (!prefix->set)
+		return 0;
+
+	error = prefix4_validate(&prefix->prefix);
+	if (error)
+		return error;
+
+	return prefix4_validate_scope(&prefix->prefix, force);
+}
+
 int validate_hairpin_mode(struct global_field *field, void *_value, bool force)
 {
 	__u8 value = *((__u8 *)_value);

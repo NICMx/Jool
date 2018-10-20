@@ -43,8 +43,12 @@ static int handle_expect_add(struct genl_info *info)
 	pkt.bytes_len = nla_len(attr);
 
 	attr = info->attrs[ATTR_EXCEPTIONS];
-	pkt.exceptions = attr ? nla_data(attr) : NULL;
-	pkt.exceptions_len = attr ? (nla_len(attr) / sizeof(*pkt.exceptions)) : 0;
+	if (attr) {
+		memcpy(pkt.exceptions, nla_data(attr), nla_len(attr));
+		pkt.exceptions_len = nla_len(attr) / sizeof(*pkt.exceptions);
+	} else {
+		pkt.exceptions_len = 0;
+	}
 
 	return genl_respond(info, expecter_add(&pkt));
 }

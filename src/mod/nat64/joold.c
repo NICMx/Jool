@@ -9,6 +9,8 @@
 
 #include <linux/inet.h>
 
+#define GLOBALS(xlator) (xlator->global->cfg.nat64.joold)
+
 struct joold_advertise_struct {
 	struct taddr4_tuple offset;
 	struct nlcore_buffer *buffer;
@@ -54,9 +56,6 @@ struct joold_queue {
 	 * track.
 	 */
 	unsigned long last_flush_time;
-
-	/* User-defined values (--global). */
-	struct joold_config config;
 
 	/** Namespace where the sessions will be multicasted. */
 	struct net *ns;
@@ -188,28 +187,29 @@ void joold_teardown(void)
 	kmem_cache_destroy(node_cache);
 }
 
-static bool should_send(struct joold_queue *queue)
+static bool should_send(struct xlator *jool)
 {
+	struct joold_queue *queue = jool->nat64.joold;
 	unsigned long deadline;
 	unsigned int max_sessions;
 
 	if (queue->count == 0)
 		return false;
 
-	deadline = queue->config.flush_deadline;
+	deadline = GLOBALS(jool).flush_deadline;
 	if (time_before(queue->last_flush_time + deadline, jiffies))
 		return true;
 
 	if (!queue->ack_received)
 		return false;
 
-	if (queue->config.flush_asap)
+	if (GLOBALS(jool).flush_asap)
 		return true;
 
 	if (queue->advertisement_count > 0)
 		return true;
 
-	max_sessions = queue->config.max_payload / sizeof(struct joold_session);
+	max_sessions = GLOBALS(jool).max_payload / sizeof(struct joold_session);
 	return queue->count >= max_sessions;
 }
 
@@ -268,9 +268,8 @@ static int foreach_cb(struct session_entry const *entry, void *arg)
 	return status;
 }
 
-static int write_group_node(struct joold_node *node,
-		struct nlcore_buffer *buffer,
-		struct bib *bib)
+static int write_group_node(struct xlator *jool, struct joold_node *node,
+		struct nlcore_buffer *buffer)
 {
 	struct joold_advertise_struct arg;
 	struct session_foreach_func func = {
@@ -288,7 +287,7 @@ static int write_group_node(struct joold_node *node,
 		offset = &offset_struct;
 	}
 
-	error = bib_foreach_session(bib, node->group.proto, &func, offset);
+	error = bib_foreach_session(jool, node->group.proto, &func, offset);
 	if (error > 0) {
 		node->group.offset = arg.offset;
 		node->group.offset_set = true;
@@ -300,18 +299,18 @@ static int write_group_node(struct joold_node *node,
 /**
  * Builds an nl-core-compatible buffer out of @sessions.
  */
-static int build_buffer(struct nlcore_buffer *buffer, struct joold_queue *queue,
-		struct bib *bib)
+static int build_buffer(struct nlcore_buffer *buffer, struct xlator *jool)
 {
+	struct joold_queue *queue = jool->nat64.joold;
 	struct request_hdr jool_hdr;
 	struct joold_node *node;
 	int error;
 
-	init_request_hdr(&jool_hdr, MODE_JOOLD, OP_ADD);
+	init_request_hdr(&jool_hdr, MODE_JOOLD, OP_ADD, false);
 	jool_hdr.castness = 'm';
 
 	error = nlbuffer_init_request(buffer, &jool_hdr,
-			queue->config.max_payload - sizeof(jool_hdr));
+			GLOBALS(jool).max_payload - sizeof(jool_hdr));
 	if (error) {
 		log_debug("nlbuffer_init_request() threw error %d.", error);
 		return error;
@@ -321,7 +320,7 @@ static int build_buffer(struct nlcore_buffer *buffer, struct joold_queue *queue,
 		node = list_first_entry(&queue->sessions, struct joold_node,
 				nextprev);
 		error = (node->is_group)
-				? write_group_node(node, buffer, bib)
+				? write_group_node(jool, node, buffer)
 				: write_single_node(node, buffer);
 		if (error > 0) {
 			return 0;
@@ -362,13 +361,13 @@ struct joold_buffer {
  * Assumes the lock is held.
  * YOU HAVE TO CALL send_to_userspace() AFTER YOU RELEASE THE SPINLOCK!!!
  */
-static void send_to_userspace_prepare(struct joold_queue *queue,
-		struct bib *bib, struct joold_buffer *buffer)
+static void send_to_userspace_prepare(struct xlator *jool,
+		struct joold_buffer *buffer)
 {
-	if (!should_send(queue))
+	if (!should_send(jool))
 		return;
 
-	if (build_buffer(&buffer->buffer, queue, bib))
+	if (build_buffer(&buffer->buffer, jool))
 		return;
 
 	buffer->initialized = true;
@@ -380,8 +379,8 @@ static void send_to_userspace_prepare(struct joold_queue *queue,
 	 * But the alternative is to do the nlcore_send_multicast_message()
 	 * with the lock held, and I don't have the stomach for that.
 	 */
-	queue->ack_received = false;
-	queue->last_flush_time = jiffies;
+	jool->nat64.joold->ack_received = false;
+	jool->nat64.joold->last_flush_time = jiffies;
 }
 
 static void send_to_userspace(struct joold_buffer *buffer, struct net *ns)
@@ -415,12 +414,6 @@ struct joold_queue *joold_alloc(struct net *ns)
 	queue->advertisement_count = 0;
 	queue->ack_received = true;
 	queue->last_flush_time = jiffies;
-	queue->config.enabled = DEFAULT_JOOLD_ENABLED;
-	queue->config.flush_asap = DEFAULT_JOOLD_FLUSH_ASAP;
-	queue->config.flush_deadline = DEFAULT_JOOLD_DEADLINE;
-	queue->config.capacity = DEFAULT_JOOLD_CAPACITY;
-	queue->config.max_payload = DEFAULT_JOOLD_MAX_PAYLOAD;
-
 	queue->ns = ns;
 
 	spin_lock_init(&queue->lock);
@@ -465,27 +458,6 @@ void joold_put(struct joold_queue *queue)
 	kref_put(&queue->refs, joold_release);
 }
 
-void joold_config_set(struct joold_queue *queue, struct joold_config *config)
-{
-	spin_lock_bh(&queue->lock);
-	memcpy(&queue->config, config, sizeof(*config));
-	spin_unlock_bh(&queue->lock);
-}
-
-/**
- * joold_update_config - Override @queue's configuration.
- *
- * Gets called whenever the user tweaks this module's configuration by means of
- * --global userspace application commands.
- */
-void joold_update_config(struct joold_queue *queue,
-		struct joold_config *new_config)
-{
-	spin_lock_bh(&queue->lock);
-	memcpy(&queue->config, new_config, sizeof(*new_config));
-	spin_unlock_bh(&queue->lock);
-}
-
 /**
  * joold_add - Add the @entry session to @queue.
  *
@@ -493,15 +465,15 @@ void joold_update_config(struct joold_queue *queue,
  * successfully triggers the creation of a session entry. @entry will be sent
  * to the joold daemon.
  */
-void joold_add(struct joold_queue *queue, struct session_entry *entry,
-		struct bib *bib, struct net *ns)
+void joold_add(struct xlator *jool, struct session_entry *entry)
 {
+	struct joold_queue *queue = jool->nat64.joold;
 	struct joold_node *copy;
 	struct joold_buffer buffer = JOOLD_BUFFER_INIT;
 
 	spin_lock_bh(&queue->lock);
 
-	if (!queue->config.enabled) {
+	if (!GLOBALS(jool).enabled) {
 		spin_unlock_bh(&queue->lock);
 		return;
 	}
@@ -534,18 +506,18 @@ void joold_add(struct joold_queue *queue, struct session_entry *entry,
 	list_add_tail(&copy->nextprev, &queue->sessions);
 	queue->count++;
 
-	if (queue->count > queue->config.capacity) {
+	if (queue->count > GLOBALS(jool).capacity) {
 		log_warn_once("Too many sessions are queuing up!\n"
 				"Cannot synchronize fast enough; I will have to drop some sessions.\n"
 				"Sorry.");
 		purge_sessions(queue);
 	} else {
-		send_to_userspace_prepare(queue, bib, &buffer);
+		send_to_userspace_prepare(jool, &buffer);
 	}
 
 	spin_unlock_bh(&queue->lock);
 
-	send_to_userspace(&buffer, ns);
+	send_to_userspace(&buffer, jool->ns);
 }
 
 static void init_session_entry(struct joold_session *in,
@@ -616,7 +588,7 @@ static bool add_new_session(struct xlator *jool, struct joold_session *in)
 
 	init_session_entry(in, &params.new);
 	params.newd = in;
-	error = bib_add_session(jool->nat64.bib, &params.new, &cb);
+	error = bib_add_session(jool, &params.new, &cb);
 	if (error == -EEXIST)
 		return params.success;
 	if (error) {
@@ -627,9 +599,9 @@ static bool add_new_session(struct xlator *jool, struct joold_session *in)
 	return true;
 }
 
-static int __validate_enabled(struct joold_queue *queue)
+static int __validate_enabled(struct xlator *jool)
 {
-	if (!queue->config.enabled) {
+	if (!GLOBALS(jool).enabled) {
 		log_err("Session sync is disabled on this instance.");
 		return -EINVAL;
 	}
@@ -639,12 +611,12 @@ static int __validate_enabled(struct joold_queue *queue)
 
 static int validate_enabled(struct xlator *jool)
 {
-	struct joold_queue *queue = jool->nat64.joold;
+	spinlock_t *lock = &jool->nat64.joold->lock;
 	int enabled;
 
-	spin_lock_bh(&queue->lock);
-	enabled = __validate_enabled(queue);
-	spin_unlock_bh(&queue->lock);
+	spin_lock_bh(lock);
+	enabled = __validate_enabled(jool);
+	spin_unlock_bh(lock);
 
 	return enabled;
 }
@@ -694,7 +666,7 @@ int joold_test(struct xlator *jool)
 	if (error)
 		return error;
 
-	init_request_hdr(&hdr, MODE_JOOLD, OP_ADD);
+	init_request_hdr(&hdr, MODE_JOOLD, OP_ADD, false);
 	hdr.castness = 'm';
 
 	error = nlbuffer_init_request(&buffer, &hdr, 0);
@@ -752,7 +724,7 @@ int joold_advertise(struct xlator *jool)
 
 	spin_lock_bh(&queue->lock);
 
-	error = __validate_enabled(queue);
+	error = __validate_enabled(jool);
 	if (error)
 		goto end;
 
@@ -760,7 +732,7 @@ int joold_advertise(struct xlator *jool)
 	if (error)
 		goto end;
 
-	send_to_userspace_prepare(queue, jool->nat64.bib, &buffer);
+	send_to_userspace_prepare(jool, &buffer);
 	/* Fall through */
 
 end:
@@ -776,11 +748,11 @@ void joold_ack(struct xlator *jool)
 
 	spin_lock_bh(&queue->lock);
 
-	if (__validate_enabled(queue))
+	if (__validate_enabled(jool))
 		goto end;
 
 	queue->ack_received = true;
-	send_to_userspace_prepare(queue, jool->nat64.bib, &buffer);
+	send_to_userspace_prepare(jool, &buffer);
 	/* Fall through */
 
 end:
@@ -794,19 +766,20 @@ end:
  * It's just a last-resort attempt to prevent nodes from lingering here for too
  * long that's generally only useful in non-flush-asap mode.
  */
-void joold_clean(struct joold_queue *queue, struct bib *bib, struct net *ns)
+void joold_clean(struct xlator *jool)
 {
+	spinlock_t *lock = &jool->nat64.joold->lock;
 	struct joold_buffer buffer = JOOLD_BUFFER_INIT;
 
-	spin_lock_bh(&queue->lock);
+	spin_lock_bh(lock);
 
-	if (!queue->config.enabled)
+	if (!GLOBALS(jool).enabled)
 		goto end;
 
-	send_to_userspace_prepare(queue, bib, &buffer);
+	send_to_userspace_prepare(jool, &buffer);
 	/* Fall through */
 
 end:
-	spin_unlock_bh(&queue->lock);
-	send_to_userspace(&buffer, ns);
+	spin_unlock_bh(lock);
+	send_to_userspace(&buffer, jool->ns);
 }

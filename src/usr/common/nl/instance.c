@@ -64,7 +64,7 @@ int instance_foreach(char *iname, instance_foreach_entry cb, void *_args)
 	return 0;
 }
 
-int instance_add(int fw, char *iname, struct ipv6_prefix *pool6)
+int instance_add(jframework fw, char *iname, struct ipv6_prefix *pool6)
 {
 	unsigned char request[HDR_LEN + PAYLOAD_LEN];
 	struct request_hdr *hdr;

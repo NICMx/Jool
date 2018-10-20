@@ -125,6 +125,12 @@ int netlink_request(char *iname, void *request, __u32 request_len,
 	struct response_cb callback = { .cb = cb, .arg = cb_arg };
 	int error;
 
+	if (!sk) {
+		log_err("Programming error: The Netlink module has not been initialized.");
+		log_err("Please report this.");
+		return -EINVAL;
+	}
+
 	error = nl_socket_modify_cb(sk, NL_CB_MSG_IN, NL_CB_CUSTOM,
 			response_handler, &callback);
 	if (error < 0) {
@@ -272,4 +278,5 @@ void netlink_teardown(void)
 {
 	nl_close(sk);
 	nl_socket_free(sk);
+	sk = NULL;
 }

@@ -11,6 +11,9 @@
 #include "mod/common/wkmalloc.h"
 #include "mod/nat64/bib/pkt_queue.h"
 
+#define XGLOBALS(xlator) (xlator->global->cfg.nat64.bib)
+#define GLOBALS(state) (state->jool.global->cfg.nat64.bib)
+
 /*
  * TODO (performance) Maybe pack this?
  */
@@ -100,7 +103,6 @@ struct probing_session {
 
 struct expire_timer {
 	struct list_head sessions;
-	unsigned long timeout;
 	session_timer_type type;
 	fate_cb decide_fate_cb;
 };
@@ -110,21 +112,6 @@ struct bib_table {
 	struct rb_root tree6;
 	/** Indexes the entries using their IPv4 identifiers. */
 	struct rb_root tree4;
-
-	/* Write BIB entries on the log as they are created and destroyed? */
-	bool log_bibs;
-	/* Write sessions on the log as they are created and destroyed? */
-	bool log_sessions;
-	/**
-	 * Is Address-Dependent Filtering active?
-	 * This is only relevant in TCP and UDP; ADF does not make sense on
-	 * ICMP.
-	 */
-	bool drop_by_addr;
-
-	/* Number of entries in this table. */
-	u64 bib_count;
-	u64 session_count;
 
 	spinlock_t lock;
 
@@ -154,10 +141,6 @@ struct bib_table {
 
 	/** Current number of packets (of both types) in the table. */
 	int pkt_count;
-	/** Maximum storable packets (of both types) in the table. */
-	unsigned int pkt_limit;
-	/** Drop externally initiated TCP connections? */
-	bool drop_v4_syn;
 
 	/**
 	 * Packet storage for type 1 packets.
@@ -213,22 +196,49 @@ static void tbtobe(struct tabled_bib *tabled, struct bib_entry *bib)
 	bib->l4_proto = tabled->proto;
 }
 
+static unsigned long get_timeout(struct xlator *jool,
+		struct expire_timer *expirer)
+{
+	struct bib *db = jool->nat64.bib;
+	unsigned int secs;
+
+	if (&db->tcp.est_timer == expirer)
+		secs = XGLOBALS(jool).ttl.tcp_est;
+	else if (&db->tcp.trans_timer == expirer)
+		secs = XGLOBALS(jool).ttl.tcp_trans;
+	else if (&db->udp.est_timer == expirer)
+		secs = XGLOBALS(jool).ttl.udp;
+	else if (&db->icmp.est_timer == expirer)
+		secs = XGLOBALS(jool).ttl.icmp;
+	else if (&db->udp.trans_timer == expirer)
+		secs = 0;
+	else if (&db->icmp.trans_timer == expirer)
+		secs = 0;
+	else {
+		WARN(1, "Programming error: xlator does not reference querying expirer");
+		secs = 0;
+	}
+
+	return msecs_to_jiffies(1000 * secs);
+}
+
 /**
  * "[Convert] tabled session to session entry"
  */
-static void tstose(struct tabled_session *tsession,
-		struct session_entry *session)
+static void tstose(struct xlator *jool,
+		struct tabled_session *ts,
+		struct session_entry *se)
 {
-	session->src6 = tsession->bib->src6;
-	session->dst6 = tsession->dst6;
-	session->src4 = tsession->bib->src4;
-	session->dst4 = tsession->dst4;
-	session->proto = tsession->bib->proto;
-	session->state = tsession->state;
-	session->timer_type = tsession->expirer->type;
-	session->update_time = tsession->update_time;
-	session->timeout = tsession->expirer->timeout;
-	session->has_stored = !!tsession->stored;
+	se->src6 = ts->bib->src6;
+	se->dst6 = ts->dst6;
+	se->src4 = ts->bib->src4;
+	se->dst4 = ts->dst4;
+	se->proto = ts->bib->proto;
+	se->state = ts->state;
+	se->timer_type = ts->expirer->type;
+	se->update_time = ts->update_time;
+	se->timeout = get_timeout(jool, ts->expirer);
+	se->has_stored = !!ts->stored;
 }
 
 /**
@@ -248,14 +258,11 @@ static void tbtobs(struct tabled_bib *tabled, struct bib_session *bs)
 /**
  * [Convert] tabled session to bib_session"
  */
-static void tstobs(struct tabled_session *session, struct bib_session *bs)
+static void tstobs(struct xlation *state, struct tabled_session *ts)
 {
-	if (!bs)
-		return;
-
-	bs->bib_set = true;
-	bs->session_set = true;
-	tstose(session, &bs->session);
+	state->entries.bib_set = true;
+	state->entries.session_set = true;
+	tstose(&state->jool, ts, &state->entries.session);
 }
 
 /**
@@ -326,7 +333,6 @@ static void init_expirer(struct expire_timer *expirer,
 		fate_cb fate_cb)
 {
 	INIT_LIST_HEAD(&expirer->sessions);
-	expirer->timeout = msecs_to_jiffies(1000 * timeout);
 	expirer->type = type;
 	expirer->decide_fate_cb = fate_cb;
 }
@@ -338,11 +344,6 @@ static void init_table(struct bib_table *table,
 {
 	table->tree6 = RB_ROOT;
 	table->tree4 = RB_ROOT;
-	table->log_bibs = DEFAULT_BIB_LOGGING;
-	table->log_sessions = DEFAULT_SESSION_LOGGING;
-	table->drop_by_addr = DEFAULT_ADDR_DEPENDENT_FILTERING;
-	table->bib_count = 0;
-	table->session_count = 0;
 	spin_lock_init(&table->lock);
 	init_expirer(&table->est_timer, est_timeout, SESSION_TIMER_EST, est_cb);
 
@@ -352,8 +353,6 @@ static void init_table(struct bib_table *table,
 	init_expirer(&table->syn4_timer, TCP_INCOMING_SYN, SESSION_TIMER_SYN4,
 			just_die);
 	table->pkt_count = 0;
-	table->pkt_limit = 0;
-	table->drop_v4_syn = DEFAULT_DROP_EXTERNAL_CONNECTIONS;
 	table->pkt_queue = NULL;
 }
 
@@ -369,17 +368,11 @@ struct bib *bib_alloc(void)
 	init_table(&db->tcp, TCP_EST, TCP_TRANS, tcp_est_expire_cb);
 	init_table(&db->icmp, ICMP_DEFAULT, 0, just_die);
 
-	db->tcp.pkt_limit = DEFAULT_MAX_STORED_PKTS;
 	db->tcp.pkt_queue = pktqueue_alloc();
 	if (!db->tcp.pkt_queue) {
 		wkfree(struct bib, db);
 		return NULL;
 	}
-	/*
-	 * Just in case some crazy psycho decides to change the default.
-	 * THERE IS NO ADRESS-DEPENDENT FILTERING ON ICMP; the RFC is wrong.
-	 */
-	db->icmp.drop_by_addr = false;
 
 	kref_init(&db->refs);
 
@@ -441,73 +434,46 @@ void bib_put(struct bib *db)
 	kref_put(&db->refs, bib_release);
 }
 
-void bib_config_set(struct bib *db, struct bib_config *config)
-{
-	spin_lock_bh(&db->tcp.lock);
-	db->tcp.log_bibs = config->bib_logging;
-	db->tcp.log_sessions = config->session_logging;
-	db->tcp.drop_by_addr = config->drop_by_addr;
-	db->tcp.est_timer.timeout = config->ttl.tcp_est;
-	db->tcp.trans_timer.timeout = config->ttl.tcp_trans;
-	db->tcp.pkt_limit = config->max_stored_pkts;
-	db->tcp.drop_v4_syn = config->drop_external_tcp;
-	spin_unlock_bh(&db->tcp.lock);
-
-	spin_lock_bh(&db->udp.lock);
-	db->udp.log_bibs = config->bib_logging;
-	db->udp.log_sessions = config->session_logging;
-	db->udp.drop_by_addr = config->drop_by_addr;
-	db->udp.est_timer.timeout = config->ttl.udp;
-	spin_unlock_bh(&db->udp.lock);
-
-	spin_lock_bh(&db->icmp.lock);
-	db->icmp.log_bibs = config->bib_logging;
-	db->icmp.log_sessions = config->session_logging;
-	db->icmp.est_timer.timeout = config->ttl.icmp;
-	spin_unlock_bh(&db->icmp.lock);
-}
-
-static void log_bib(struct bib_table *table,
-		struct tabled_bib *bib,
-		char *action)
+static void log_bib(struct xlator *jool, struct tabled_bib *bib, char *action)
 {
 	struct timeval tval;
-	struct tm t;
+	struct tm time;
 
-	if (!table->log_bibs)
+	if (!jool->global->cfg.nat64.bib.bib_logging)
 		return;
 
 	do_gettimeofday(&tval);
-	time_to_tm(tval.tv_sec, 0, &t);
-	log_info("%ld/%d/%d %d:%d:%d (GMT) - %s %pI6c#%u to %pI4#%u (%s)",
-			1900 + t.tm_year, t.tm_mon + 1, t.tm_mday,
-			t.tm_hour, t.tm_min, t.tm_sec, action,
+	time_to_tm(tval.tv_sec, 0, &time);
+	log_info("%s %ld/%d/%d %d:%d:%d (GMT) - %s %pI6c#%u to %pI4#%u (%s)",
+			jool->iname,
+			1900 + time.tm_year, time.tm_mon + 1, time.tm_mday,
+			time.tm_hour, time.tm_min, time.tm_sec, action,
 			&bib->src6.l3, bib->src6.l4,
 			&bib->src4.l3, bib->src4.l4,
 			l4proto_to_string(bib->proto));
 }
 
-static void log_new_bib(struct bib_table *table, struct tabled_bib *bib)
+static void log_new_bib(struct xlator *jool, struct tabled_bib *bib)
 {
-	return log_bib(table, bib, "Mapped");
+	return log_bib(jool, bib, "Mapped");
 }
 
-static void log_session(struct bib_table *table,
+static void log_session(struct xlator *jool,
 		struct tabled_session *session,
 		char *action)
 {
 	struct timeval tval;
-	struct tm t;
+	struct tm time;
 
-	if (!table->log_sessions)
+	if (!jool->global->cfg.nat64.bib.session_logging)
 		return;
 
 	do_gettimeofday(&tval);
-	time_to_tm(tval.tv_sec, 0, &t);
-	log_info("%ld/%d/%d %d:%d:%d (GMT) - %s %pI6c#%u|%pI6c#%u|"
-			"%pI4#%u|%pI4#%u|%s",
-			1900 + t.tm_year, t.tm_mon + 1, t.tm_mday,
-			t.tm_hour, t.tm_min, t.tm_sec, action,
+	time_to_tm(tval.tv_sec, 0, &time);
+	log_info("%s %ld/%d/%d %d:%d:%d (GMT) - %s %pI6c#%u|%pI6c#%u|"
+			"%pI4#%u|%pI4#%u|%s", jool->iname,
+			1900 + time.tm_year, time.tm_mon + 1, time.tm_mday,
+			time.tm_hour, time.tm_min, time.tm_sec, action,
 			&session->bib->src6.l3, session->bib->src6.l4,
 			&session->dst6.l3, session->dst6.l4,
 			&session->bib->src4.l3, session->bib->src4.l4,
@@ -515,10 +481,9 @@ static void log_session(struct bib_table *table,
 			l4proto_to_string(session->bib->proto));
 }
 
-static void log_new_session(struct bib_table *table,
-		struct tabled_session *session)
+static void log_new_session(struct xlator *jool, struct tabled_session *session)
 {
-	return log_session(table, session, "Added session");
+	return log_session(jool, session, "Added session");
 }
 
 /**
@@ -572,7 +537,8 @@ discard_probe:
 	kill_stored_pkt(table, session);
 }
 
-static void rm(struct bib_table *table,
+static void rm(struct xlator *jool,
+		struct bib_table *table,
 		struct list_head *probes,
 		struct tabled_session *session,
 		struct session_entry *tmp)
@@ -584,16 +550,16 @@ static void rm(struct bib_table *table,
 
 	rb_erase(&session->tree_hook, &bib->sessions);
 	list_del(&session->list_hook);
-	log_session(table, session, "Forgot session");
+	log_session(jool, session, "Forgot session");
 	free_session(session);
-	table->session_count--;
+	jstat_dec(jool->stats, JSTAT_SESSIONS);
 
 	if (!bib->is_static && RB_EMPTY_ROOT(&bib->sessions)) {
 		rb_erase(&bib->hook6, &table->tree6);
 		rb_erase(&bib->hook4, &table->tree4);
-		log_bib(table, bib, "Forgot");
+		log_bib(jool, bib, "Forgot");
 		free_bib(bib);
-		table->bib_count--;
+		jstat_dec(jool->stats, JSTAT_BIB_ENTRIES);
 	}
 }
 
@@ -653,7 +619,8 @@ static int queue_unsorted_session(struct bib_table *table,
  *
  * Assumes result->session has been set (result->session_set is true).
  */
-static bool decide_fate(struct collision_cb *cb,
+static bool decide_fate(struct xlator *jool,
+		struct collision_cb *cb,
 		struct bib_table *table,
 		struct tabled_session *session,
 		struct list_head *probes)
@@ -664,7 +631,7 @@ static bool decide_fate(struct collision_cb *cb,
 	if (!cb)
 		return true;
 
-	tstose(session, &tmp);
+	tstose(jool, session, &tmp);
 	fate = cb->cb(&tmp, cb->arg);
 
 	/* The callback above is entitled to tweak these fields. */
@@ -688,7 +655,7 @@ static bool decide_fate(struct collision_cb *cb,
 		break;
 
 	case FATE_RM:
-		rm(table, probes, session, &tmp);
+		rm(jool, table, probes, session, &tmp);
 		break;
 
 	case FATE_PRESERVE:
@@ -829,17 +796,17 @@ struct slot_group {
 	struct tree_slot session;
 };
 
-static void commit_bib_add(struct bib_table *table, struct slot_group *slots)
+static void commit_bib_add(struct xlator *jool, struct slot_group *slots)
 {
 	treeslot_commit(&slots->bib6);
 	treeslot_commit(&slots->bib4);
-	table->bib_count++;
+	jstat_inc(jool->stats, JSTAT_BIB_ENTRIES);
 }
 
-static void commit_session_add(struct bib_table *table, struct tree_slot *slot)
+static void commit_session_add(struct xlator *jool, struct tree_slot *slot)
 {
 	treeslot_commit(slot);
-	table->session_count++;
+	jstat_inc(jool->stats, JSTAT_SESSIONS);
 }
 
 static void attach_timer(struct tabled_session *session,
@@ -1067,23 +1034,22 @@ static int create_bib_session(struct session_entry *session,
  * It assumes @slots already describes the tree containers where the entries are
  * supposed to be added.
  */
-static void commit_add6(struct bib_table *table,
+static void commit_add6(struct xlation *state,
 		struct bib_session_tuple *old,
 		struct bib_session_tuple *new,
 		struct slot_group *slots,
-		struct expire_timer *expirer,
-		struct bib_session *result)
+		struct expire_timer *expirer)
 {
 	new->session->bib = old->bib ? : new->bib;
-	commit_session_add(table, &slots->session);
+	commit_session_add(&state->jool, &slots->session);
 	attach_timer(new->session, expirer);
-	log_new_session(table, new->session);
-	tstobs(new->session, result);
+	log_new_session(&state->jool, new->session);
+	tstobs(state, new->session);
 	new->session = NULL; /* Do not free! */
 
 	if (!old->bib) {
-		commit_bib_add(table, slots);
-		log_new_bib(table, new->bib);
+		commit_bib_add(&state->jool, slots);
+		log_new_bib(&state->jool, new->bib);
 		new->bib = NULL; /* Do not free! */
 	}
 }
@@ -1095,20 +1061,19 @@ static void commit_add6(struct bib_table *table,
  * It assumes @slot already describes the tree container where the session is
  * supposed to be added.
  */
-static void commit_add4(struct bib_table *table,
+static void commit_add4(struct xlation *state,
 		struct bib_session_tuple *old,
 		struct tabled_session **new,
 		struct tree_slot *slot,
-		struct expire_timer *expirer,
-		struct bib_session *result)
+		struct expire_timer *expirer)
 {
 	struct tabled_session *session = *new;
 
 	session->bib = old->bib;
-	commit_session_add(table, slot);
+	commit_session_add(&state->jool, slot);
 	attach_timer(session, expirer);
-	log_new_session(table, session);
-	tstobs(session, result);
+	log_new_session(&state->jool, session);
+	tstobs(state, session);
 	*new = NULL; /* Do not free! */
 }
 
@@ -1119,7 +1084,8 @@ static void commit_add4(struct bib_table *table,
  * It assumes @slots already describes the tree containers where the entries are
  * supposed to be added.
  */
-static int commit_add(struct bib_table *table,
+static int commit_add(struct xlator *jool,
+		struct bib_table *table,
 		struct bib_session_tuple *old,
 		struct bib_session_tuple *new,
 		struct slot_group *slots,
@@ -1132,13 +1098,13 @@ static int commit_add(struct bib_table *table,
 		return error;
 
 	new->session->bib = old->bib ? : new->bib;
-	commit_session_add(table, &slots->session);
-	log_new_session(table, new->session);
+	commit_session_add(jool, &slots->session);
+	log_new_session(jool, new->session);
 	new->session = NULL; /* Do not free! */
 
 	if (!old->bib) {
-		commit_bib_add(table, slots);
-		log_new_bib(table, new->bib);
+		commit_bib_add(jool, slots);
+		log_new_bib(jool, new->bib);
 		new->bib = NULL; /* Do not free! */
 	}
 
@@ -1148,7 +1114,7 @@ static int commit_add(struct bib_table *table,
 struct detach_args {
 	struct bib_table *table;
 	struct sk_buff *probes;
-	unsigned int detached;
+	int detached;
 };
 
 static void detach_session(struct rb_node *node, void *arg)
@@ -1159,33 +1125,34 @@ static void detach_session(struct rb_node *node, void *arg)
 	list_del(&session->list_hook);
 	if (session->stored)
 		args->table->pkt_count--;
-	args->detached++;
+	args->detached--;
 }
 
-static unsigned int detach_sessions(struct bib_table *table,
-		struct tabled_bib *bib)
+static int detach_sessions(struct bib_table *table, struct tabled_bib *bib)
 {
 	struct detach_args arg = { .table = table, .detached = 0, };
 	rbtree_foreach(&bib->sessions, detach_session, &arg);
 	return arg.detached;
 }
 
-static void detach_bib(struct bib_table *table, struct tabled_bib *bib)
+static void detach_bib(struct xlator *jool, struct bib_table *table,
+		struct tabled_bib *bib)
 {
 	rb_erase(&bib->hook6, &table->tree6);
 	rb_erase(&bib->hook4, &table->tree4);
-	table->bib_count--;
-	table->session_count -= detach_sessions(table, bib);
+	jstat_dec(jool->stats, JSTAT_BIB_ENTRIES);
+	jstat_add(jool->stats, JSTAT_SESSIONS, detach_sessions(table, bib));
 }
 
 struct bib_delete_list {
 	struct rb_node *first;
 };
 
-static void add_to_delete_list(struct bib_delete_list *list, struct rb_node *node)
+static void add_to_delete_list(struct bib_delete_list *bdl,
+		struct rb_node *node)
 {
-	node->rb_right = list->first;
-	list->first = node;
+	node->rb_right = bdl->first;
+	bdl->first = node;
 }
 
 static void commit_delete_list(struct bib_delete_list *list)
@@ -1292,7 +1259,8 @@ static int find_available_mask(struct bib_table *table,
 	return 0;
 }
 
-static int upgrade_pktqueue_session(struct bib_table *table,
+static int upgrade_pktqueue_session(struct xlator *jool,
+		struct bib_table *table,
 		struct mask_domain *masks,
 		struct bib_session_tuple *new,
 		struct bib_session_tuple *old)
@@ -1395,8 +1363,8 @@ static int upgrade_pktqueue_session(struct bib_table *table,
 
 	pktqueue_put_node(sos);
 
-	log_new_bib(table, bib);
-	log_new_session(table, session);
+	log_new_bib(jool, bib);
+	log_new_session(jool, session);
 	return 0;
 
 trainwreck:
@@ -1426,12 +1394,13 @@ static bool issue216_needed(struct mask_domain *masks,
  *
  * @masks will be used to init @new->bib.src4 if applies.
  */
-static int find_bib_session6(struct bib_table *table,
+static int find_bib_session6(struct xlator *jool,
+		struct bib_table *table,
 		struct mask_domain *masks,
 		struct bib_session_tuple *new,
 		struct bib_session_tuple *old,
 		struct slot_group *slots,
-		struct bib_delete_list *rm_list)
+		struct bib_delete_list *bdl)
 {
 	int error;
 
@@ -1473,8 +1442,8 @@ static int find_bib_session6(struct bib_table *table,
 		 * https://github.com/NICMx/Jool/issues/216
 		 */
 		log_debug("Issue #216.");
-		detach_bib(table, old->bib);
-		add_to_delete_list(rm_list, &old->bib->hook4);
+		detach_bib(jool, table, old->bib);
+		add_to_delete_list(bdl, &old->bib->hook4);
 
 		/*
 		 * The detaching above might have involved a rebalance.
@@ -1491,7 +1460,7 @@ static int find_bib_session6(struct bib_table *table,
 		 * No BIB nor session in the main database? Try the SO
 		 * sub-database.
 		 */
-		error = upgrade_pktqueue_session(table, masks, new, old);
+		error = upgrade_pktqueue_session(jool, table, masks, new, old);
 		if (!error)
 			return 0; /* Unusual happy path for existing sessions */
 	}
@@ -1556,21 +1525,22 @@ static int find_bib_session6(struct bib_table *table,
  * @dst4 translated version of @tuple.dst.addr6.
  * @result A copy of the resulting BIB entry and session from the database will
  *     be placed here. (if not NULL)
+ *
+ * TODO (NOW) return verdict
  */
-int bib_add6(struct bib *db,
+int bib_add6(struct xlation *state,
 		struct mask_domain *masks,
 		struct tuple *tuple6,
-		struct ipv4_transport_addr *dst4,
-		struct bib_session *result)
+		struct ipv4_transport_addr *dst4)
 {
 	struct bib_table *table;
 	struct bib_session_tuple new;
 	struct bib_session_tuple old;
 	struct slot_group slots;
-	struct bib_delete_list rm_list = { NULL };
+	struct bib_delete_list bdl = { NULL };
 	int error;
 
-	table = get_table(db, tuple6->l4_proto);
+	table = get_table(state->jool.nat64.bib, tuple6->l4_proto);
 	if (!table)
 		return -EINVAL;
 
@@ -1593,18 +1563,18 @@ int bib_add6(struct bib *db,
 
 	spin_lock_bh(&table->lock); /* Here goes... */
 
-	error = find_bib_session6(table, masks, &new, &old, &slots, &rm_list);
+	error = find_bib_session6(&state->jool, table, masks, &new, &old, &slots, &bdl);
 	if (error)
 		goto end;
 
 	if (old.session) { /* Session already exists. */
 		handle_fate_timer(old.session, &table->est_timer);
-		tstobs(old.session, result);
+		tstobs(state, old.session);
 		goto end;
 	}
 
 	/* New connection; add the session. (And maybe the BIB entry as well) */
-	commit_add6(table, &old, &new, &slots, &table->est_timer, result);
+	commit_add6(state, &old, &new, &slots, &table->est_timer);
 	/* Fall through */
 
 end:
@@ -1614,7 +1584,7 @@ end:
 		free_bib(new.bib);
 	if (new.session)
 		free_session(new.session);
-	commit_delete_list(&rm_list);
+	commit_delete_list(&bdl);
 
 	return error;
 }
@@ -1634,11 +1604,12 @@ static void find_bib_session4(struct bib_table *table,
 
 /**
  * See @bib_add6.
+ *
+ * TODO (NOW) return verdict
  */
-int bib_add4(struct bib *db,
+int bib_add4(struct xlation *state,
 		struct ipv6_transport_addr *dst6,
-		struct tuple *tuple4,
-		struct bib_session *result)
+		struct tuple *tuple4)
 {
 	struct bib_table *table;
 	struct bib_session_tuple old;
@@ -1647,7 +1618,7 @@ int bib_add4(struct bib *db,
 	bool allow;
 	int error = 0;
 
-	table = get_table(db, tuple4->l4_proto);
+	table = get_table(state->jool.nat64.bib, tuple4->l4_proto);
 	if (!table)
 		return -EINVAL;
 
@@ -1661,7 +1632,7 @@ int bib_add4(struct bib *db,
 
 	if (old.session) {
 		handle_fate_timer(old.session, &table->est_timer);
-		tstobs(old.session, result);
+		tstobs(state, old.session);
 		goto end;
 	}
 
@@ -1671,13 +1642,13 @@ int bib_add4(struct bib *db,
 	}
 
 	/* Address-Dependent Filtering. */
-	if (table->drop_by_addr && !allow) {
+	if (GLOBALS(state).drop_by_addr && !allow) {
 		error = -EPERM;
 		goto end;
 	}
 
 	/* Ok, no issues; add the session. */
-	commit_add4(table, &old, &new, &session_slot, &table->est_timer, result);
+	commit_add4(state, &old, &new, &session_slot, &table->est_timer);
 	/* Fall through */
 
 end:
@@ -1701,7 +1672,7 @@ verdict bib_add_tcp6(struct xlation *state,
 	struct bib_session_tuple new;
 	struct bib_session_tuple old;
 	struct slot_group slots;
-	struct bib_delete_list rm_list = { NULL };
+	struct bib_delete_list bdl = { NULL };
 	verdict result;
 
 	pkt = &state->in;
@@ -1714,19 +1685,19 @@ verdict bib_add_tcp6(struct xlation *state,
 	table = &state->jool.nat64.bib->tcp;
 	spin_lock_bh(&table->lock);
 
-	if (find_bib_session6(table, masks, &new, &old, &slots, &rm_list)) {
+	if (find_bib_session6(&state->jool, table, masks, &new, &old, &slots, &bdl)) {
 		result = drop(state, JSTAT_UNKNOWN);
 		goto end;
 	}
 
 	if (old.session) {
 		/* All states except CLOSED. */
-		if (decide_fate(cb, table, old.session, NULL)) {
-			tstobs(old.session, &state->entries);
+		if (decide_fate(&state->jool, cb, table, old.session, NULL)) {
+			tstobs(state, old.session);
 			result = VERDICT_CONTINUE;
 		} else {
 			/* TODO shitty hack; we're assuming SO_EXISTS. */
-			result = drop(state, JSTATS_SO_EXISTS);
+			result = drop(state, JSTAT_SO_EXISTS);
 		}
 		goto end;
 	}
@@ -1746,8 +1717,7 @@ verdict bib_add_tcp6(struct xlation *state,
 
 	/* All exits up till now require @new.* to be deleted. */
 
-	commit_add6(table, &old, &new, &slots, &table->trans_timer,
-			&state->entries);
+	commit_add6(state, &old, &new, &slots, &table->trans_timer);
 	result = VERDICT_CONTINUE;
 	/* Fall through */
 
@@ -1758,7 +1728,7 @@ end:
 		free_bib(new.bib);
 	if (new.session)
 		free_session(new.session);
-	commit_delete_list(&rm_list);
+	commit_delete_list(&bdl);
 
 	return result;
 }
@@ -1794,8 +1764,8 @@ verdict bib_add_tcp4(struct xlation *state,
 
 	if (old.session) {
 		/* All states except CLOSED. */
-		if (decide_fate(cb, table, old.session, NULL)) {
-			tstobs(old.session, &state->entries);
+		if (decide_fate(&state->jool, cb, table, old.session, NULL)) {
+			tstobs(state, old.session);
 			result = VERDICT_CONTINUE;
 		} else {
 			/* TODO shitty hack; we're assuming SO_EXISTS. */
@@ -1817,7 +1787,7 @@ verdict bib_add_tcp4(struct xlation *state,
 		goto end;
 	}
 
-	if (table->drop_v4_syn) {
+	if (GLOBALS(state).drop_external_tcp) {
 		log_debug("Externally initiated TCP connections are prohibited.");
 		result = drop(state, JSTAT_V4_SYN);
 		goto end;
@@ -1827,7 +1797,7 @@ verdict bib_add_tcp4(struct xlation *state,
 		bool too_many;
 
 		log_debug("Potential Simultaneous Open; storing type 1 packet.");
-		too_many = table->pkt_count >= table->pkt_limit;
+		too_many = table->pkt_count >= GLOBALS(state).max_stored_pkts;
 		error = pktqueue_add(table->pkt_queue, pkt, dst6, too_many);
 		switch (error) {
 		case 0:
@@ -1852,8 +1822,8 @@ verdict bib_add_tcp4(struct xlation *state,
 
 	result = VERDICT_CONTINUE;
 
-	if (table->drop_by_addr) {
-		if (table->pkt_count >= table->pkt_limit)
+	if (GLOBALS(state).drop_by_addr) {
+		if (table->pkt_count >= GLOBALS(state).max_stored_pkts)
 			goto too_many_pkts;
 
 		log_debug("Potential Simultaneous Open; storing type 2 packet.");
@@ -1867,9 +1837,8 @@ verdict bib_add_tcp4(struct xlation *state,
 		 */
 	}
 
-	commit_add4(table, &old, &new, &session_slot,
-			new->stored ? &table->syn4_timer : &table->trans_timer,
-			&state->entries);
+	commit_add4(state, &old, &new, &session_slot,
+			new->stored ? &table->syn4_timer : &table->trans_timer);
 	/* Fall through */
 
 end:
@@ -1915,7 +1884,7 @@ int bib_find(struct bib *db, struct tuple *tuple, struct bib_session *result)
 	return 0;
 }
 
-int bib_add_session(struct bib *db,
+int bib_add_session(struct xlator *jool,
 		struct session_entry *session,
 		struct collision_cb *cb)
 {
@@ -1923,10 +1892,10 @@ int bib_add_session(struct bib *db,
 	struct bib_session_tuple new;
 	struct bib_session_tuple old;
 	struct slot_group slots;
-	struct bib_delete_list rm_list = { NULL };
+	struct bib_delete_list bdl = { NULL };
 	int error;
 
-	table = get_table(db, session->proto);
+	table = get_table(jool->nat64.bib, session->proto);
 	if (!table)
 		return -EINVAL;
 
@@ -1936,17 +1905,17 @@ int bib_add_session(struct bib *db,
 
 	spin_lock_bh(&table->lock);
 
-	error = find_bib_session6(table, NULL, &new, &old, &slots, &rm_list);
+	error = find_bib_session6(jool, table, NULL, &new, &old, &slots, &bdl);
 	if (error)
 		goto end;
 
 	if (old.session) {
 		/* There's no packet; ignore the verdict. */
-		decide_fate(cb, table, old.session, NULL);
+		decide_fate(jool, cb, table, old.session, NULL);
 		goto end;
 	}
 
-	error = commit_add(table, &old, &new, &slots, session->timer_type);
+	error = commit_add(jool, table, &old, &new, &slots, session->timer_type);
 	/* Fall through */
 
 end:
@@ -1956,60 +1925,64 @@ end:
 		free_bib(new.bib);
 	if (new.session)
 		free_session(new.session);
-	commit_delete_list(&rm_list);
+	commit_delete_list(&bdl);
 
 	return error;
 }
 
-static void __clean(struct expire_timer *expirer,
+static void __clean(struct xlator *jool,
+		struct expire_timer *expirer,
 		struct bib_table *table,
 		struct list_head *probes)
 {
 	struct tabled_session *session;
 	struct tabled_session *tmp;
 	struct collision_cb cb;
+	unsigned long timeout;
 
 	cb.cb = expirer->decide_fate_cb;
 	cb.arg = NULL;
+	timeout = get_timeout(jool, expirer);
 
 	list_for_each_entry_safe(session, tmp, &expirer->sessions, list_hook) {
 		/*
 		 * "list" is sorted by expiration date,
 		 * so stop on the first unexpired session.
 		 */
-		if (time_before(jiffies, session->update_time + expirer->timeout))
+		if (time_before(jiffies, session->update_time + timeout))
 			break;
-		decide_fate(&cb, table, session, probes);
+		decide_fate(jool, &cb, table, session, probes);
 	}
 }
 
-static void clean_table(struct bib_table *table, struct net *ns)
+static void clean_table(struct xlator *jool, struct bib_table *table)
 {
 	LIST_HEAD(probes);
 	LIST_HEAD(icmps);
 
 	spin_lock_bh(&table->lock);
-	__clean(&table->est_timer, table, &probes);
-	__clean(&table->trans_timer, table, &probes);
-	__clean(&table->syn4_timer, table, &probes);
+	__clean(jool, &table->est_timer, table, &probes);
+	__clean(jool, &table->trans_timer, table, &probes);
+	__clean(jool, &table->syn4_timer, table, &probes);
 	if (table->pkt_queue) {
 		table->pkt_count -= pktqueue_prepare_clean(table->pkt_queue,
 				&icmps);
 	}
 	spin_unlock_bh(&table->lock);
 
-	post_fate(ns, &probes);
+	post_fate(jool->ns, &probes);
 	pktqueue_clean(&icmps);
 }
 
 /**
  * Forgets or downgrades (from EST to TRANS) old sessions.
  */
-void bib_clean(struct bib *db, struct net *ns)
+void bib_clean(struct xlator *jool)
 {
-	clean_table(&db->udp, ns);
-	clean_table(&db->tcp, ns);
-	clean_table(&db->icmp, ns);
+	struct bib *db = jool->nat64.bib;
+	clean_table(jool, &db->udp);
+	clean_table(jool, &db->tcp);
+	clean_table(jool, &db->icmp);
 }
 
 static struct rb_node *find_starting_point(struct bib_table *table,
@@ -2146,7 +2119,7 @@ static void find_session_offset(struct bib_table *table,
 				node; \
 				node = node2session(rb_next(&node->tree_hook)))
 
-int bib_foreach_session(struct bib *db, l4_protocol proto,
+int bib_foreach_session(struct xlator *jool, l4_protocol proto,
 		struct session_foreach_func *func,
 		struct session_foreach_offset *offset)
 {
@@ -2155,7 +2128,7 @@ int bib_foreach_session(struct bib *db, l4_protocol proto,
 	struct session_entry tmp;
 	int error = 0;
 
-	table = get_table(db, proto);
+	table = get_table(jool->nat64.bib, proto);
 	if (!table)
 		return -EINVAL;
 
@@ -2173,7 +2146,7 @@ int bib_foreach_session(struct bib *db, l4_protocol proto,
 
 	foreach_bib(table, pos.bib) {
 goto_bib:	foreach_session(&pos.bib->sessions, pos.session) {
-goto_session:		tstose(pos.session, &tmp);
+goto_session:		tstose(jool, pos.session, &tmp);
 			error = func->cb(&tmp, func->arg);
 			if (error)
 				goto end;
@@ -2237,7 +2210,7 @@ static void bib2tabled(struct bib_entry *bib, struct tabled_bib *tabled)
 	tabled->sessions = RB_ROOT;
 }
 
-int bib_add_static(struct bib *db, struct bib_entry *new,
+int bib_add_static(struct xlator *jool, struct bib_entry *new,
 		struct bib_entry *old)
 {
 	struct bib_table *table;
@@ -2246,7 +2219,7 @@ int bib_add_static(struct bib *db, struct bib_entry *new,
 	struct tree_slot slot6;
 	struct tree_slot slot4;
 
-	table = get_table(db, new->l4_proto);
+	table = get_table(jool->nat64.bib, new->l4_proto);
 	if (!table)
 		return -EINVAL;
 
@@ -2270,7 +2243,7 @@ int bib_add_static(struct bib *db, struct bib_entry *new,
 
 	treeslot_commit(&slot6);
 	treeslot_commit(&slot4);
-	table->bib_count++;
+	jstat_inc(jool->stats, JSTAT_BIB_ENTRIES);
 
 	/*
 	 * Since the BIB entry is now available, and assuming ADF is disabled,
@@ -2279,7 +2252,7 @@ int bib_add_static(struct bib *db, struct bib_entry *new,
 	 * going to retry anyway, so let's just forget the packets instead.
 	 */
 	if (new->l4_proto == L4PROTO_TCP)
-		pktqueue_rm(db->tcp.pkt_queue, &new->ipv4);
+		pktqueue_rm(jool->nat64.bib->tcp.pkt_queue, &new->ipv4);
 
 	spin_unlock_bh(&table->lock);
 	return 0;
@@ -2297,14 +2270,14 @@ eexist:
 	return -EEXIST;
 }
 
-int bib_rm(struct bib *db, struct bib_entry *entry)
+int bib_rm(struct xlator *jool, struct bib_entry *entry)
 {
 	struct bib_table *table;
 	struct tabled_bib key;
 	struct tabled_bib *bib;
 	int error = -ESRCH;
 
-	table = get_table(db, entry->l4_proto);
+	table = get_table(jool->nat64.bib, entry->l4_proto);
 	if (!table)
 		return -EINVAL;
 
@@ -2314,7 +2287,7 @@ int bib_rm(struct bib *db, struct bib_entry *entry)
 
 	bib = find_bib6(table, &key.src6);
 	if (bib && taddr4_equals(&key.src4, &bib->src4)) {
-		detach_bib(table, bib);
+		detach_bib(jool, table, bib);
 		error = 0;
 	}
 
@@ -2326,7 +2299,8 @@ int bib_rm(struct bib *db, struct bib_entry *entry)
 	return error;
 }
 
-void bib_rm_range(struct bib *db, l4_protocol proto, struct ipv4_range *range)
+void bib_rm_range(struct xlator *jool, l4_protocol proto,
+		struct ipv4_range *range)
 {
 	struct bib_table *table;
 	struct ipv4_transport_addr offset;
@@ -2335,7 +2309,7 @@ void bib_rm_range(struct bib *db, l4_protocol proto, struct ipv4_range *range)
 	struct tabled_bib *bib;
 	struct bib_delete_list delete_list = { NULL };
 
-	table = get_table(db, proto);
+	table = get_table(jool->nat64.bib, proto);
 	if (!table)
 		return;
 
@@ -2352,7 +2326,7 @@ void bib_rm_range(struct bib *db, l4_protocol proto, struct ipv4_range *range)
 		if (!prefix4_contains(&range->prefix, &bib->src4.l3))
 			break;
 		if (port_range_contains(&range->ports, bib->src4.l4)) {
-			detach_bib(table, bib);
+			detach_bib(jool, table, bib);
 			add_to_delete_list(&delete_list, node);
 		}
 	}
@@ -2362,7 +2336,7 @@ void bib_rm_range(struct bib *db, l4_protocol proto, struct ipv4_range *range)
 	commit_delete_list(&delete_list);
 }
 
-static void flush_table(struct bib_table *table)
+static void flush_table(struct xlator *jool, struct bib_table *table)
 {
 	struct rb_node *node;
 	struct rb_node *next;
@@ -2372,7 +2346,7 @@ static void flush_table(struct bib_table *table)
 
 	for (node = rb_first(&table->tree4); node; node = next) {
 		next = rb_next(node);
-		detach_bib(table, bib4_entry(node));
+		detach_bib(jool, table, bib4_entry(node));
 		add_to_delete_list(&delete_list, node);
 	}
 
@@ -2381,11 +2355,12 @@ static void flush_table(struct bib_table *table)
 	commit_delete_list(&delete_list);
 }
 
-void bib_flush(struct bib *db)
+void bib_flush(struct xlator *jool)
 {
-	flush_table(&db->tcp);
-	flush_table(&db->udp);
-	flush_table(&db->icmp);
+	struct bib *db = jool->nat64.bib;
+	flush_table(jool, &db->tcp);
+	flush_table(jool, &db->udp);
+	flush_table(jool, &db->icmp);
 }
 
 static void print_tabs(int tabs)

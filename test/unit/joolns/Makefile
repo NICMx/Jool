@@ -24,6 +24,7 @@ $(JOOLNS)-objs += ../../../src/mod/common/atomic_config.o
 $(JOOLNS)-objs += ../../../src/mod/common/config.o
 $(JOOLNS)-objs += ../../../src/mod/common/rtrie.o
 $(JOOLNS)-objs += ../../../src/mod/common/xlator.o
+$(JOOLNS)-objs += ../../../src/mod/siit/defrag.o
 $(JOOLNS)-objs += ../../../src/mod/siit/blacklist4.o
 $(JOOLNS)-objs += ../../../src/mod/siit/pool.o
 $(JOOLNS)-objs += ../../../src/mod/siit/rfc6791.o

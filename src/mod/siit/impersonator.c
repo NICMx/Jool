@@ -53,11 +53,6 @@ void joold_put(struct joold_queue *queue)
 	fail(__func__);
 }
 
-void joold_config_set(struct joold_queue *queue, struct joold_config *config)
-{
-	/* No code. */
-}
-
 int joold_sync(struct xlator *jool, void *data, __u32 size)
 {
 	return fail(__func__);
@@ -139,11 +134,6 @@ void bib_put(struct bib *db)
 	fail(__func__);
 }
 
-void bib_config_set(struct bib *db, struct bib_config *config)
-{
-	/* No code. */
-}
-
 int bib_find6(struct bib *db, l4_protocol proto,
 		struct ipv6_transport_addr *addr,
 		struct bib_entry *result)
@@ -158,22 +148,24 @@ int bib_find4(struct bib *db, l4_protocol proto,
 	return fail(__func__);
 }
 
-int bib_add_static(struct bib *db, struct bib_entry *new, struct bib_entry *old)
+int bib_add_static(struct xlator *jool, struct bib_entry *new,
+		struct bib_entry *old)
 {
 	return fail(__func__);
 }
 
-int bib_rm(struct bib *db, struct bib_entry *entry)
+int bib_rm(struct xlator *jool, struct bib_entry *entry)
 {
 	return fail(__func__);
 }
 
-void bib_rm_range(struct bib *db, l4_protocol proto, struct ipv4_range *range)
+void bib_rm_range(struct xlator *jool, l4_protocol proto,
+		struct ipv4_range *range)
 {
 	fail(__func__);
 }
 
-void bib_flush(struct bib *db)
+void bib_flush(struct xlator *jool)
 {
 	fail(__func__);
 }
@@ -185,7 +177,7 @@ int bib_foreach(struct bib *db, l4_protocol proto,
 	return fail(__func__);
 }
 
-int bib_foreach_session(struct bib *db, l4_protocol proto,
+int bib_foreach_session(struct xlator *jool, l4_protocol proto,
 		struct session_foreach_func *collision_cb,
 		struct session_foreach_offset *offset)
 {

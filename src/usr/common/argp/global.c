@@ -36,11 +36,11 @@ static int handle_display_response(struct display_args *qargs,
 	get_global_fields(&field, NULL);
 
 	for (; field->name; field++) {
-		if (xlat_is_siit() && (field->xlator_type & XT_SIIT) == 0)
-			continue;
-		if (xlat_is_nat64() && (field->xlator_type & XT_NAT64) == 0)
+		if ((xlat_type() & field->xt) == 0)
 			continue;
 
+		if (!qargs->csv.value)
+			printf("  ");
 		printf("%s%s", field->name, qargs->csv.value ? "," : ": ");
 		print = field->print ? : field->type->print;
 		print(get_field(conf, field), qargs->csv.value);
@@ -50,7 +50,7 @@ static int handle_display_response(struct display_args *qargs,
 	return 0;
 }
 
-int handle_global_display(char *instance, int argc, char **argv, void *arg)
+int handle_global_display(char *iname, int argc, char **argv, void *arg)
 {
 	struct display_args dargs = { 0 };
 	struct globals config;
@@ -64,7 +64,7 @@ int handle_global_display(char *instance, int argc, char **argv, void *arg)
 	if (error)
 		return error;
 
-	error = global_query(instance, &config);
+	error = global_query(iname, &config);
 
 	netlink_teardown();
 
@@ -93,7 +93,7 @@ static struct wargp_option update_opts[] = {
 	{ 0 },
 };
 
-int handle_global(char *instance, int argc, char **argv, void *arg)
+static int handle_global_update(char *iname, int argc, char **argv, void *arg)
 {
 	struct update_args uargs = { 0 };
 	struct global_field *field = arg;
@@ -120,13 +120,18 @@ int handle_global(char *instance, int argc, char **argv, void *arg)
 	error = netlink_setup();
 	if (error)
 		goto end;
-	error = global_update(instance, field, value, uargs.force.value);
+	error = global_update(iname, field, value, uargs.force.value);
 	netlink_teardown();
 	/* Fall through */
 
 end:
 	free(value);
 	return error;
+}
+
+void print_global_update_opts(char *prefix)
+{
+	print_wargp_opts(update_opts, prefix);
 }
 
 struct cmd_option *build_global_update_children(void)
@@ -144,9 +149,10 @@ struct cmd_option *build_global_update_children(void)
 
 	for (i = 0; i < field_count; i++) {
 		opts[i].label = global_fields[i].name;
-		opts[i].handler = handle_global;
+		opts[i].xt = global_fields[i].xt;
+		opts[i].handler = handle_global_update;
 		opts[i].args = &global_fields[i];
-		/* TODO (NOW) what was print_opts for? */
+		opts[i].print_opts = print_global_update_opts;
 	}
 
 	return opts;

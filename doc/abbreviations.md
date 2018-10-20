@@ -60,11 +60,13 @@ Some shortcuts used while naming variables and functions through the code or doc
 - trans = transitory session (inherited from RFC 6146.)
 - ttp = Translating the Packet (Fourth core step of the NAT64 translation algorithm; see RFC 6146)
 - usr = user[space]
+- xt = xlator type
 - x<n> (where x is anything and n is 4 or 6) = x has something to do with IPv<n>. Examples:
 	- pool4 = IPv4 pool
 	- addr6 = IPv6 address  
 	In particular, the "tuple<n>" names intend to remind you of the correct type of addresses you're supposed to extract from their tuples' inner unions. 
 - xlat = translation
+- xlator = translator
 
 When we say "payload", we mean the layer-4 payload. When we want to say layer-3 payload, we should
 prefix it ("l3_payload").

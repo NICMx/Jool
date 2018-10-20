@@ -30,8 +30,6 @@ static void free_node(struct expecter_node *node)
 	if (!node)
 		return;
 
-	if (node->pkt.exceptions)
-		kfree(node->pkt.exceptions);
 	if (node->pkt.bytes)
 		kfree(node->pkt.bytes);
 	if (node->pkt.filename)
@@ -99,9 +97,6 @@ int expecter_add(struct expected_packet *pkt)
 
 	if (pkt->exceptions && pkt->exceptions_len) {
 		exceptions_size = pkt->exceptions_len * sizeof(*pkt->exceptions);
-		node->pkt.exceptions = kmalloc(exceptions_size, GFP_KERNEL);
-		if (!node->pkt.exceptions)
-			goto enomem;
 		memcpy(node->pkt.exceptions, pkt->exceptions, exceptions_size);
 		node->pkt.exceptions_len = pkt->exceptions_len;
 		sort_exceptions(&node->pkt);

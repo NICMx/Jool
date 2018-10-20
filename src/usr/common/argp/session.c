@@ -4,6 +4,7 @@
 #include "common/constants.h"
 #include "common/session.h"
 #include "usr/common/dns.h"
+#include "usr/common/netlink.h"
 #include "usr/common/str_utils.h"
 #include "usr/common/userspace-types.h"
 #include "usr/common/wargp.h"
@@ -14,7 +15,6 @@ struct display_args {
 	struct wargp_bool csv;
 	struct wargp_bool numeric;
 	struct wargp_l4proto proto;
-	unsigned int sample_count;
 };
 
 static struct wargp_option display_opts[] = {
@@ -93,12 +93,16 @@ static int handle_display_response(struct session_entry_usr *entry, void *args)
 	return 0;
 }
 
-int handle_session_display(char *instance, int argc, char **argv, void *arg)
+int handle_session_display(char *iname, int argc, char **argv, void *arg)
 {
 	struct display_args dargs = { 0 };
 	int error;
 
 	error = wargp_parse(display_opts, argc, argv, &dargs);
+	if (error)
+		return error;
+
+	error = netlink_setup();
 	if (error)
 		return error;
 
@@ -114,15 +118,10 @@ int handle_session_display(char *instance, int argc, char **argv, void *arg)
 		printf("Expires in,State\n");
 	}
 
-	error = session_foreach(instance, dargs.proto.proto,
+	error = session_foreach(iname, dargs.proto.proto,
 			handle_display_response, &dargs);
 
-	if (!error && show_footer(dargs.no_headers.value, dargs.csv.value)) {
-		if (dargs.sample_count > 0)
-			log_info("  (Fetched %u entries.)\n", dargs.sample_count);
-		else
-			log_info("  (empty)\n");
-	}
+	netlink_teardown();
 
 	return error;
 }

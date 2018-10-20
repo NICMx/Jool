@@ -9,15 +9,16 @@
 #include "mod/common/xlator.h"
 #include "mod/common/nl/atomic_config.h"
 #include "mod/common/nl/bib.h"
+#include "mod/common/nl/blacklist.h"
 #include "mod/common/nl/eam.h"
 #include "mod/common/nl/global.h"
 #include "mod/common/nl/instance.h"
 #include "mod/common/nl/joold.h"
 #include "mod/common/nl/nl_common.h"
 #include "mod/common/nl/nl_core2.h"
-#include "mod/common/nl/pool.h"
 #include "mod/common/nl/pool4.h"
 #include "mod/common/nl/session.h"
+#include "mod/common/nl/stats.h"
 
 static struct genl_multicast_group mc_groups[1] = {
 	{
@@ -91,25 +92,25 @@ static int multiplex_request(struct xlator *jool, struct genl_info *info)
 {
 	struct request_hdr *hdr = get_jool_hdr(info);
 
-	switch (be16_to_cpu(hdr->mode)) {
+	switch (hdr->mode) {
+	case MODE_STATS:
+		return handle_stats_config(jool, info);
+	case MODE_GLOBAL:
+		return handle_global_config(jool, info);
+	case MODE_EAMT:
+		return handle_eamt_config(jool, info);
+	case MODE_BLACKLIST:
+		return handle_blacklist_config(jool, info);
 	case MODE_POOL4:
 		return handle_pool4_config(jool, info);
 	case MODE_BIB:
 		return handle_bib_config(jool, info);
 	case MODE_SESSION:
 		return handle_session_config(jool, info);
-	case MODE_EAMT:
-		return handle_eamt_config(jool, info);
-	case MODE_RFC6791:
-		return handle_pool6791_config(jool, info);
-	case MODE_BLACKLIST:
-		return handle_blacklist_config(jool, info);
-	case MODE_GLOBAL:
-		return handle_global_config(jool, info);
 	case MODE_JOOLD:
 		return handle_joold_request(jool, info);
 	default:
-		log_err("Unknown configuration mode: %d", be16_to_cpu(hdr->mode));
+		log_err("Unknown configuration mode: %d", hdr->mode);
 		return nlcore_respond(info, -EINVAL);
 	}
 }
@@ -134,7 +135,7 @@ static int __handle_jool_message(struct genl_info *info)
 	if (error)
 		return client_is_jool ? nlcore_respond(info, error) : error;
 
-	switch (be16_to_cpu(get_jool_hdr(info)->mode)) {
+	switch (get_jool_hdr(info)->mode) {
 	case MODE_INSTANCE:
 		return handle_instance_request(info);
 	case MODE_PARSE_FILE:

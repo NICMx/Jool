@@ -7,10 +7,10 @@
 
 int parse_exceptions(char *exceptions, struct expect_add_request *req)
 {
-	size_t len;
+	__u16 len;
 	int error;
 
-	error = str_to_u16_array(exceptions, &req->exceptions, &len);
+	error = str_to_plateaus_array(exceptions, req->exceptions, &len);
 	if (!error)
 		req->exceptions_len = len;
 	return error;
@@ -53,8 +53,6 @@ void expect_add_clean(struct expect_add_request *req)
 {
 	if (req->pkt)
 		free(req->pkt);
-	if (req->exceptions)
-		free(req->exceptions);
 }
 
 int expect_add_build_pkt(struct expect_add_request *req, struct nl_msg *pkt)
@@ -69,7 +67,7 @@ int expect_add_build_pkt(struct expect_add_request *req, struct nl_msg *pkt)
 	if (error)
 		return error;
 
-	if (req->exceptions)
+	if (req->exceptions_len)
 		error = nla_put(pkt, ATTR_EXCEPTIONS,
 				sizeof(*req->exceptions) * req->exceptions_len,
 				req->exceptions);

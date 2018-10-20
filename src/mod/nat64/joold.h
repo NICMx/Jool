@@ -19,19 +19,13 @@ struct joold_queue *joold_alloc(struct net *ns);
 void joold_get(struct joold_queue *queue);
 void joold_put(struct joold_queue *queue);
 
-void joold_config_copy(struct joold_queue *queue, struct joold_config *config);
-void joold_config_set(struct joold_queue *queue, struct joold_config *config);
-
 int joold_sync(struct xlator *jool, void *data, __u32 size);
-void joold_add(struct joold_queue *queue, struct session_entry *entry,
-		struct bib *bib, struct net *ns);
-void joold_update_config(struct joold_queue *queue,
-		struct joold_config *new_config);
+void joold_add(struct xlator *jool, struct session_entry *entry);
 
 int joold_test(struct xlator *jool);
 int joold_advertise(struct xlator *jool);
 void joold_ack(struct xlator *jool);
 
-void joold_clean(struct joold_queue *queue, struct bib *bib, struct net *ns);
+void joold_clean(struct xlator *jool);
 
 #endif

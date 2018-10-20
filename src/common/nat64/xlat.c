@@ -1,8 +1,8 @@
 #include "common/xlat.h"
 
-bool xlat_is_siit(void)
+int xlat_type(void)
 {
-	return false;
+	return XT_NAT64;
 }
 
 const char *xlat_get_name(void)

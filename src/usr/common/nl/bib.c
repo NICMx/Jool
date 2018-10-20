@@ -40,7 +40,7 @@ static int bib_foreach_response(struct jool_response *response, void *arg)
 	return 0;
 }
 
-int bib_foreach(char *instance, l4_protocol proto,
+int bib_foreach(char *iname, l4_protocol proto,
 		bib_foreach_cb cb, void *_args)
 {
 	unsigned char request[HDR_LEN + PAYLOAD_LEN];
@@ -59,14 +59,14 @@ int bib_foreach(char *instance, l4_protocol proto,
 	args.request = payload;
 
 	do {
-		error = netlink_request(instance, request, sizeof(request),
+		error = netlink_request(iname, request, sizeof(request),
 				bib_foreach_response, &args);
 	} while (!error && payload->display.addr4_set);
 
 	return error;
 }
 
-int bib_add(char *instance,
+int bib_add(char *iname,
 		struct ipv6_transport_addr *a6,
 		struct ipv4_transport_addr *a4,
 		l4_protocol proto)
@@ -80,10 +80,10 @@ int bib_add(char *instance,
 	payload->add.addr6 = *a6;
 	payload->add.addr4 = *a4;
 
-	return netlink_request(instance, request, sizeof(request), NULL, NULL);
+	return netlink_request(iname, request, sizeof(request), NULL, NULL);
 }
 
-int bib_rm(char *instance,
+int bib_rm(char *iname,
 		struct ipv6_transport_addr *a6,
 		struct ipv4_transport_addr *a4,
 		l4_protocol proto)
@@ -109,5 +109,5 @@ int bib_rm(char *instance,
 		memset(&payload->rm.addr4, 0, sizeof(payload->rm.addr4));
 	}
 
-	return netlink_request(instance, request, sizeof(request), NULL, NULL);
+	return netlink_request(iname, request, sizeof(request), NULL, NULL);
 }

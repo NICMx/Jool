@@ -38,7 +38,7 @@ jool_common += ../common/nl/atomic_config.o
 jool_common += ../common/nl/nl_handler2.o
 jool_common += ../common/nl/nl_core2.o
 jool_common += ../common/nl/bib.o
-jool_common += ../common/nl/pool.o
+jool_common += ../common/nl/blacklist.o
 jool_common += ../common/nl/eam.o
 jool_common += ../common/nl/global.o
 jool_common += ../common/nl/instance.o
@@ -46,12 +46,14 @@ jool_common += ../common/nl/joold.o
 jool_common += ../common/nl/nl_common.o
 jool_common += ../common/nl/pool4.o
 jool_common += ../common/nl/session.o
+jool_common += ../common/nl/stats.o
 
 jool_common += ../common/rfc6145/4to6.o
 jool_common += ../common/rfc6145/6to4.o
 jool_common += ../common/rfc6145/common.o
 jool_common += ../common/rfc6145/core.o
 
+jool += defrag.o
 jool += timer.o
 jool += determine_incoming_tuple.o
 jool += filtering_and_updating.o

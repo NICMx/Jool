@@ -19,7 +19,7 @@ struct nl_buffer *nlbuffer_alloc(char *iname)
 {
 	struct nl_buffer *buffer;
 
-	buffer = malloc(sizeof(*buffer));
+	buffer = malloc(sizeof(struct nl_buffer));
 	if (!buffer)
 		return NULL;
 

@@ -88,6 +88,7 @@ static verdict whine_if_too_big(struct xlation *state)
 		/*
 		 * We don't have to worry about ICMP errors causing this because
 		 * the translate code already truncates them.
+		 * TODO (NOW) Not anymore.
 		 */
 		log_debug("Packet is too big (len: %u, mtu: %u).", len, mtu);
 

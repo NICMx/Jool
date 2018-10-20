@@ -20,8 +20,7 @@ void cfgcandidate_put(struct config_candidate *candidate)
 	/* No code. */
 }
 
-void joold_add(struct joold_queue *queue, struct session_entry *entry,
-		struct bib *bib, struct net *ns)
+void joold_add(struct xlator *jool, struct session_entry *entry)
 {
 	/* No code. */
 }

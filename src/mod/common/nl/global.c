@@ -66,11 +66,11 @@ int global_update(struct global_config *cfg, bool force,
 
 	field = &field[request->type];
 
-	if (xlat_is_siit() && !(field->xlator_type & XT_SIIT)) {
+	if (xlat_is_siit() && !(field->xt & XT_SIIT)) {
 		log_err("Field %s is not available in SIIT.", field->name);
 		return -EINVAL;
 	}
-	if (xlat_is_nat64() && !(field->xlator_type & XT_NAT64)) {
+	if (xlat_is_nat64() && !(field->xt & XT_NAT64)) {
 		log_err("Field %s is not available in NAT64.", field->name);
 		return -EINVAL;
 	}
@@ -178,13 +178,13 @@ int handle_global_config(struct xlator *jool, struct genl_info *info)
 {
 	struct request_hdr *hdr = get_jool_hdr(info);
 
-	switch (be16_to_cpu(hdr->operation)) {
+	switch (hdr->operation) {
 	case OP_FOREACH:
 		return handle_global_display(jool, info);
 	case OP_UPDATE:
 		return handle_global_update(jool, info, hdr);
 	}
 
-	log_err("Unknown operation: %u", be16_to_cpu(hdr->operation));
+	log_err("Unknown operation: %u", hdr->operation);
 	return nlcore_respond(info, -EINVAL);
 }

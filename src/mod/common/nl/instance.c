@@ -5,7 +5,7 @@
 #include "mod/common/nl/nl_common.h"
 #include "mod/common/nl/nl_core2.h"
 
-static int xlator_entry_to_userspace(struct xlator const *entry, void *arg)
+static int xlator_entry_to_userspace(struct xlator *entry, void *arg)
 {
 	struct nlcore_buffer *buffer = (struct nlcore_buffer *)arg;
 	struct instance_entry_usr entry_usr;
@@ -74,7 +74,7 @@ int handle_instance_request(struct genl_info *info)
 	struct request_hdr *hdr = get_jool_hdr(info);
 	union request_instance *request = (union request_instance *)(hdr + 1);
 
-	switch (be16_to_cpu(hdr->operation)) {
+	switch (hdr->operation) {
 	case OP_FOREACH:
 		return handle_instance_display(info, request);
 	case OP_ADD:
@@ -85,6 +85,6 @@ int handle_instance_request(struct genl_info *info)
 		return handle_instance_flush(info, request);
 	}
 
-	log_err("Unknown operation: %u", be16_to_cpu(hdr->operation));
+	log_err("Unknown operation: %u", hdr->operation);
 	return nlcore_respond(info, -EINVAL);
 }

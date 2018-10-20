@@ -19,19 +19,18 @@ extern struct sk_buff *skb_out;
 
 static int init(void)
 {
-	struct config_prefix6 *prefix6;
+	struct config_prefix6 pool6;
 	int error;
 
-	error = xlator_add(FW_NETFILTER, INAME_DEFAULT, &jool);
+	pool6.set = true;
+	pool6.prefix.len = 96;
+	error = str_to_addr6("2001:db8::", &pool6.prefix.addr);
 	if (error)
 		return error;
 
-	prefix6 = &jool.global->cfg.pool6;
-	prefix6->set = true;
-	error = str_to_addr6("2001:db8::", &prefix6->prefix.address);
+	error = xlator_add(FW_NETFILTER, INAME_DEFAULT, &pool6, &jool);
 	if (error)
-		goto fail;
-	prefix6->prefix.len = 96;
+		return error;
 
 	/* Test's global variables */
 	error = init_tuple6(&tuple6,
@@ -39,12 +38,8 @@ static int init(void)
 			"2001:db8::203.0.113.2", 6000,
 			L4PROTO_TCP);
 	if (error)
-		goto fail;
+		xlator_put(&jool);
 
-	return 0;
-
-fail:
-	xlator_put(&jool);
 	return error;
 }
 

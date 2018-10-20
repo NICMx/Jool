@@ -63,8 +63,6 @@ struct bib *bib_alloc(void);
 void bib_get(struct bib *db);
 void bib_put(struct bib *db);
 
-void bib_config_set(struct bib *db, struct bib_config *config);
-
 typedef enum session_fate (*fate_cb)(struct session_entry *, void *);
 
 struct collision_cb {
@@ -79,10 +77,13 @@ struct collision_cb {
 
 /* These are used by Filtering. */
 
-int bib_add6(struct bib *db, struct mask_domain *masks, struct tuple *tuple6,
-		struct ipv4_transport_addr *dst4, struct bib_session *result);
-int bib_add4(struct bib *db, struct ipv6_transport_addr *dst6,
-		struct tuple *tuple4, struct bib_session *result);
+int bib_add6(struct xlation *state,
+		struct mask_domain *masks,
+		struct tuple *tuple6,
+		struct ipv4_transport_addr *dst4);
+int bib_add4(struct xlation *state,
+		struct ipv6_transport_addr *dst6,
+		struct tuple *tuple4);
 verdict bib_add_tcp6(struct xlation *xstate,
 		struct mask_domain *masks,
 		struct ipv4_transport_addr *dst4,
@@ -95,9 +96,9 @@ verdict bib_add_tcp4(struct xlation *xstate,
 
 int bib_find(struct bib *db, struct tuple *tuple,
 		struct bib_session *result);
-int bib_add_session(struct bib *db, struct session_entry *new,
+int bib_add_session(struct xlator *jool, struct session_entry *new,
 		struct collision_cb *cb);
-void bib_clean(struct bib *db, struct net *ns);
+void bib_clean(struct xlator *jool);
 
 /* These are used by userspace request handling. */
 
@@ -119,7 +120,7 @@ struct session_foreach_offset {
 int bib_foreach(struct bib *db, l4_protocol proto,
 		struct bib_foreach_func *func,
 		const struct ipv4_transport_addr *offset);
-int bib_foreach_session(struct bib *db, l4_protocol proto,
+int bib_foreach_session(struct xlator *jool, l4_protocol proto,
 		struct session_foreach_func *collision_cb,
 		struct session_foreach_offset *offset);
 int bib_find6(struct bib *db, l4_protocol proto,
@@ -128,12 +129,12 @@ int bib_find6(struct bib *db, l4_protocol proto,
 int bib_find4(struct bib *db, l4_protocol proto,
 		struct ipv4_transport_addr *addr,
 		struct bib_entry *result);
-int bib_add_static(struct bib *db, struct bib_entry *new,
+int bib_add_static(struct xlator *jool, struct bib_entry *new,
 		struct bib_entry *old);
-int bib_rm(struct bib *db, struct bib_entry *entry);
-void bib_rm_range(struct bib *db, l4_protocol proto, struct ipv4_range *range);
-void bib_flush(struct bib *db);
-int bib_count_sessions(struct bib *db, l4_protocol proto, __u64 *count);
+int bib_rm(struct xlator *jool, struct bib_entry *entry);
+void bib_rm_range(struct xlator *jool, l4_protocol proto,
+		struct ipv4_range *range);
+void bib_flush(struct xlator *jool);
 
 void bib_print(struct bib *db);
 

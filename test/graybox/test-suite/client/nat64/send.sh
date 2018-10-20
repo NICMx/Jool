@@ -140,10 +140,10 @@ if [[ -z $1 || $1 = *misc* ]]; then
 	# 2018-10-10: These tests appear to be affected by ICMP error rate-limits.
 	# It'd probably be a good idea to redesign them so N4 were not needed.
 
-	ip netns exec joolns jool --source-icmpv6-errors-better on
+	ip netns exec joolns jool g u source-icmpv6-errors-better on
 	# TODO The IPv4 node is returning DSCP 0x30. I don't know why.
 	test-manual issue132-test issue132-expected-on 0
-	ip netns exec joolns jool --source-icmpv6-errors-better off
+	ip netns exec joolns jool g u source-icmpv6-errors-better off
 	# TODO The IPv4 node is returning DSCP 0x30. I don't know why.
 	test-manual issue132-test issue132-expected-off 0
 
@@ -172,7 +172,7 @@ $GRAYBOX stats flush
 echo "---------------"
 echo "Strictly speaking, I'm done testing, but I'll wait 5:05 minutes."
 echo "This is intended to test session timer timeout."
-echo "You can see the status by running 'ip netns exec joolns jool -sn' in a separate terminal."
+echo "You can see the status by running 'ip netns exec joolns jool se d --numeric' in a separate terminal."
 for i in {305..1}; do
 	echo -en "Cleaning up in $i seconds.  \r"
 	sleep 1

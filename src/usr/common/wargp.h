@@ -18,7 +18,14 @@
 typedef int (*wargp_parse_type)(void *input, int key, char *str);
 
 struct wargp_type {
-	char *doc;
+	/**
+	 * This is the same as argp_option.arg.
+	 * It's the name of the "argument" of the option.
+	 * For example, if you have a `--foo` flag, and you declare its
+	 * `argument` to be "<bar>", then argp will print this on `--help`:
+	 *     `--foo=<bar>`
+	 */
+	char *argument;
 	wargp_parse_type parse;
 };
 
@@ -27,6 +34,7 @@ extern struct wargp_type wt_u32;
 extern struct wargp_type wt_l4proto;
 extern struct wargp_type wt_string;
 extern struct wargp_type wt_prefix6;
+extern struct wargp_type wt_prefix4;
 
 struct wargp_option {
 	const char *name;
@@ -52,6 +60,11 @@ struct wargp_string {
 struct wargp_prefix6 {
 	bool set;
 	struct ipv6_prefix prefix;
+};
+
+struct wargp_prefix4 {
+	bool set;
+	struct ipv4_prefix prefix;
 };
 
 #define ARGP_TCP 't'

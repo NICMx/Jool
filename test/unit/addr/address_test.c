@@ -11,7 +11,7 @@ static bool test_count(__u8 prefix_len, __u64 expected)
 {
 	struct ipv4_prefix prefix;
 
-	get_random_bytes(&prefix.address, sizeof(prefix.address));
+	get_random_bytes(&prefix.addr, sizeof(prefix.addr));
 	prefix.len = prefix_len;
 
 	return ASSERT_U64(expected, prefix4_get_addr_count(&prefix),
@@ -41,13 +41,13 @@ static bool test_contains(__u32 prefix_addr, __u8 prefix_len, __u32 addr,
 	struct ipv4_prefix prefix;
 	struct in_addr inaddr;
 
-	prefix.address.s_addr = cpu_to_be32(prefix_addr);
+	prefix.addr.s_addr = cpu_to_be32(prefix_addr);
 	prefix.len = prefix_len;
 	inaddr.s_addr = cpu_to_be32(addr);
 
 	return ASSERT_BOOL(expected, prefix4_contains(&prefix, &inaddr),
 			"%pI4/%u contains %pI4",
-			&prefix.address, prefix.len, &inaddr);
+			&prefix.addr, prefix.len, &inaddr);
 }
 
 static bool contains_test(void)

@@ -2,7 +2,7 @@
 #include "mod/common/packet.h"
 #include "mod/siit/blacklist4.h"
 #include "mod/siit/eam.h"
-#include "mod/siit/rfc6791.h"
+#include "mod/siit/rfc6791v4.h"
 #include "mod/siit/rfc6791v6.h"
 
 /**
@@ -47,28 +47,12 @@ bool blacklist_contains(struct addr4_pool *pool, struct in_addr *addr)
 	return false;
 }
 
-struct addr4_pool *rfc6791_alloc(void)
-{
-	fail(__func__);
-	return NULL;
-}
-
-void rfc6791_get(struct addr4_pool *pool)
-{
-	fail(__func__);
-}
-
-void rfc6791_put(struct addr4_pool *pool)
-{
-	fail(__func__);
-}
-
-int rfc6791_find(struct xlation *state, __be32 *result)
+int rfc6791v4_find(struct xlation *state, __be32 *result)
 {
 	return fail(__func__);
 }
 
-int rfc6791_find_v6(struct xlation *state, struct in6_addr *result)
+int rfc6791v6_find(struct xlation *state, struct in6_addr *result)
 {
 	return fail(__func__);
 }

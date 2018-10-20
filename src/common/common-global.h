@@ -18,9 +18,6 @@ typedef enum global_type_id {
 	GTI_HAIRPIN_MODE,
 } global_type_id;
 
-#define XT_SIIT (1 << 0)
-#define XT_NAT64 (1 << 1)
-
 struct global_field;
 
 typedef void (*print_function)(void *value, bool csv);
@@ -44,7 +41,7 @@ struct global_field {
 	struct global_type *type;
 	const char *doc;
 	size_t offset;
-	unsigned int xlator_type; /* Bitwise or'd XT_* constants above. */
+	xlator_type xt;
 	__u64 min;
 	__u64 max;
 	print_function print; /* Overrides type->print. */

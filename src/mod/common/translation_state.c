@@ -11,13 +11,13 @@ void xlation_init(struct xlation *state, struct xlator *jool)
 	state->result.info = 0;
 }
 
-verdict untranslatable(struct xlation *state, enum jool_stat stat)
+verdict untranslatable(struct xlation *state, enum jool_stat_id stat)
 {
 	jstat_inc(state->jool.stats, stat);
 	return VERDICT_UNTRANSLATABLE;
 }
 
-verdict untranslatable_icmp(struct xlation *state, enum jool_stat stat,
+verdict untranslatable_icmp(struct xlation *state, enum jool_stat_id stat,
 		enum icmp_errcode icmp, __u32 info)
 {
 	jstat_inc(state->jool.stats, stat);
@@ -26,13 +26,13 @@ verdict untranslatable_icmp(struct xlation *state, enum jool_stat stat,
 	return VERDICT_UNTRANSLATABLE;
 }
 
-verdict drop(struct xlation *state, enum jool_stat stat)
+verdict drop(struct xlation *state, enum jool_stat_id stat)
 {
 	jstat_inc(state->jool.stats, stat);
 	return VERDICT_DROP;
 }
 
-verdict drop_icmp(struct xlation *state, enum jool_stat stat,
+verdict drop_icmp(struct xlation *state, enum jool_stat_id stat,
 		enum icmp_errcode icmp, __u32 info)
 {
 	jstat_inc(state->jool.stats, stat);
@@ -41,7 +41,7 @@ verdict drop_icmp(struct xlation *state, enum jool_stat stat,
 	return VERDICT_DROP;
 }
 
-verdict stolen(struct xlation *state, enum jool_stat stat)
+verdict stolen(struct xlation *state, enum jool_stat_id stat)
 {
 	jstat_inc(state->jool.stats, stat);
 	return VERDICT_STOLEN;

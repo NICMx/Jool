@@ -38,7 +38,7 @@ static int pool4_display_response(struct jool_response *response, void *arg)
 	return 0;
 }
 
-int pool4_foreach(char *instance, l4_protocol proto,
+int pool4_foreach(char *iname, l4_protocol proto,
 		pool4_foreach_cb cb, void *_args)
 {
 	unsigned char request[HDR_LEN + PAYLOAD_LEN];
@@ -57,7 +57,7 @@ int pool4_foreach(char *instance, l4_protocol proto,
 	args.request = payload;
 
 	do {
-		error = netlink_request(instance, &request, sizeof(request),
+		error = netlink_request(iname, &request, sizeof(request),
 				pool4_display_response, &args);
 		if (error)
 			return error;

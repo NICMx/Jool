@@ -18,7 +18,7 @@
  * This is fine for now.
  */
 static char *iname;
-static unsigned int framework;
+static jframework fw;
 static bool force;
 
 static int do_parsing(char *buffer);
@@ -26,7 +26,7 @@ static int parse_siit_json(cJSON *json);
 static int parse_nat64_json(cJSON *json);
 static int handle_global(cJSON *json, bool *globals_found);
 static int handle_eamt(cJSON *json);
-static int handle_addr4_pool(cJSON *json, enum parse_section section);
+static int handle_blacklist(cJSON *json);
 static int handle_pool4(cJSON *pool4);
 static int handle_bib(cJSON *bib);
 
@@ -54,7 +54,7 @@ static int prepare_instance(cJSON *json)
 	int error;
 
 	iname = NULL;
-	framework = 0;
+	fw = 0;
 
 	for (json = json->child; json; json = json->next) {
 		if (strcasecmp(OPTNAME_INAME, json->string) == 0) {
@@ -68,12 +68,12 @@ static int prepare_instance(cJSON *json)
 		}
 
 		if (strcasecmp(OPTNAME_FW, json->string) == 0) {
-			if (framework)
+			if (fw)
 				goto fw_exists;
 			if (STR_EQUAL(json->valuestring, "netfilter"))
-				framework |= FW_NETFILTER;
+				fw |= FW_NETFILTER;
 			else if (STR_EQUAL(json->valuestring, "iptables"))
-				framework |= FW_IPTABLES;
+				fw |= FW_IPTABLES;
 			else
 				goto unknown_fw;
 		}
@@ -84,7 +84,14 @@ static int prepare_instance(cJSON *json)
 		 */
 	}
 
-	/* TODO (NOW) default iname and framework */
+	if (!iname) {
+		log_err("The file is missing the '%s' tag.", OPTNAME_INAME);
+		return -EINVAL;
+	}
+	if (!fw) {
+		log_err("The file is missing the '%s' tag.", OPTNAME_FW);
+		return -EINVAL;
+	}
 
 	return 0;
 
@@ -95,7 +102,7 @@ fw_exists:
 	log_err("Multiple '%s's found; Aborting.", OPTNAME_FW);
 	return -EEXIST;
 unknown_fw:
-	log_err("");
+	log_err("Unknown framework: '%s'", json->valuestring);
 	return -EINVAL;
 }
 
@@ -252,7 +259,7 @@ static int send_ctrl_msg(enum parse_section section)
 		return -ENOMEM;
 
 	if (section == SEC_INIT) {
-		request.fw = framework;
+		request.fw = fw;
 		error = buffer_write(buffer, section, &request, sizeof(request));
 		if (error)
 			goto end;
@@ -278,7 +285,6 @@ static int parse_siit_json(cJSON *json)
 	bool global_found = false;
 	bool eamt_found = false;
 	bool blacklist_found = false;
-	bool pool6791_found = false;
 	bool *globals_found;
 	int error;
 
@@ -301,10 +307,7 @@ static int parse_siit_json(cJSON *json)
 			error = handle_eamt(json);
 		} else if (strcasecmp(OPTNAME_BLACKLIST, json->string) == 0) {
 			check_duplicates(&blacklist_found, OPTNAME_BLACKLIST);
-			error = handle_addr4_pool(json, SEC_BLACKLIST);
-		} else if (strcasecmp(OPTNAME_RFC6791, json->string) == 0) {
-			check_duplicates(&pool6791_found, OPTNAME_RFC6791);
-			error = handle_addr4_pool(json, SEC_POOL6791);
+			error = handle_blacklist(json);
 		} else if (strcasecmp(OPTNAME_INAME, json->string) == 0) {
 			/* No code. */
 		} else if (strcasecmp(OPTNAME_FW, json->string) == 0) {
@@ -431,7 +434,7 @@ static int write_others(struct global_field *field, cJSON *json, void *payload)
 
 static int write_plateaus(struct global_field *field, cJSON *node, void *payload)
 {
-	__u16 *plateaus = payload;
+	struct mtu_plateaus *plateaus = payload;
 	unsigned int i = 0;
 	int error;
 
@@ -445,10 +448,11 @@ static int write_plateaus(struct global_field *field, cJSON *node, void *payload
 		if (error)
 			return error;
 
-		plateaus[i] = node->valueuint;
+		plateaus->values[i] = node->valueuint;
 		i++;
 	}
 
+	plateaus->count = i;
 	return 0;
 }
 
@@ -478,7 +482,6 @@ static int write_field(cJSON *json, struct global_field *field,
 		error = write_bool(field, json, payload);
 		break;
 	case GTI_NUM8:
-	case GTI_HAIRPIN_MODE:
 		error = write_u8(field, json, payload);
 		break;
 	case GTI_NUM32:
@@ -489,6 +492,7 @@ static int write_field(cJSON *json, struct global_field *field,
 		break;
 	case GTI_PREFIX6:
 	case GTI_PREFIX4:
+	case GTI_HAIRPIN_MODE:
 		error = write_others(field, json, payload);
 		break;
 	}
@@ -603,7 +607,7 @@ end:
 	return error;
 }
 
-static int handle_addr4_pool(cJSON *json, enum parse_section section)
+static int handle_blacklist(cJSON *json)
 {
 	struct nl_buffer *buffer;
 	struct ipv4_prefix prefix;
@@ -612,7 +616,7 @@ static int handle_addr4_pool(cJSON *json, enum parse_section section)
 	if (!json)
 		return 0;
 
-	buffer = buffer_alloc(section);
+	buffer = buffer_alloc(SEC_BLACKLIST);
 	if (!buffer)
 		return -ENOMEM;
 
@@ -620,7 +624,8 @@ static int handle_addr4_pool(cJSON *json, enum parse_section section)
 		error = str_to_prefix4(json->valuestring, &prefix);
 		if (error)
 			goto end;
-		error = buffer_write(buffer, section, &prefix, sizeof(prefix));
+		error = buffer_write(buffer, SEC_BLACKLIST,
+				&prefix, sizeof(prefix));
 		if (error)
 			goto end;
 	}

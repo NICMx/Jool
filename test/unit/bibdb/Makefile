@@ -25,6 +25,7 @@ $(BIBDB)-objs += ../framework/bib.o
 $(BIBDB)-objs += ../impersonator/icmp_wrapper.o
 $(BIBDB)-objs += ../impersonator/bib.o
 $(BIBDB)-objs += ../impersonator/route.o
+$(BIBDB)-objs += ../impersonator/xlator.o
 $(BIBDB)-objs += bibdb_test.o
 
 

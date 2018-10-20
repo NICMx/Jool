@@ -38,7 +38,7 @@ static int eam_display_response(struct jool_response *response, void *arg)
 	return 0;
 }
 
-int eamt_foreach(char *instance, eamt_foreach_cb cb, void *_args)
+int eamt_foreach(char *iname, eamt_foreach_cb cb, void *_args)
 {
 	unsigned char request[HDR_LEN + PAYLOAD_LEN];
 	struct request_hdr *hdr = (struct request_hdr *)request;
@@ -55,7 +55,7 @@ int eamt_foreach(char *instance, eamt_foreach_cb cb, void *_args)
 	args.request = payload;
 
 	do {
-		error = netlink_request(instance, request, sizeof(request),
+		error = netlink_request(iname, request, sizeof(request),
 				eam_display_response, &args);
 		if (error)
 			return error;
@@ -64,7 +64,7 @@ int eamt_foreach(char *instance, eamt_foreach_cb cb, void *_args)
 	return 0;
 }
 
-int eamt_add(char *instance, struct ipv6_prefix *p6, struct ipv4_prefix *p4,
+int eamt_add(char *iname, struct ipv6_prefix *p6, struct ipv4_prefix *p4,
 		bool force)
 {
 	unsigned char request[HDR_LEN + PAYLOAD_LEN];
@@ -75,10 +75,10 @@ int eamt_add(char *instance, struct ipv6_prefix *p6, struct ipv4_prefix *p4,
 	payload->add.prefix6 = *p6;
 	payload->add.prefix4 = *p4;
 
-	return netlink_request(instance, request, sizeof(request), NULL, NULL);
+	return netlink_request(iname, request, sizeof(request), NULL, NULL);
 }
 
-int eamt_rm(char *instance, struct ipv6_prefix *p6, struct ipv4_prefix *p4)
+int eamt_rm(char *iname, struct ipv6_prefix *p6, struct ipv4_prefix *p4)
 {
 	unsigned char request[HDR_LEN + PAYLOAD_LEN];
 	struct request_hdr *hdr = (struct request_hdr *)request;
@@ -100,7 +100,7 @@ int eamt_rm(char *instance, struct ipv6_prefix *p6, struct ipv4_prefix *p4)
 		memset(&payload->rm.prefix4, 0, sizeof(payload->rm.prefix4));
 	}
 
-	return netlink_request(instance, request, sizeof(request), NULL, NULL);
+	return netlink_request(iname, request, sizeof(request), NULL, NULL);
 }
 
 int eamt_flush(char *iname)

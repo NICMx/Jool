@@ -22,10 +22,10 @@
 
 static struct timer_list timer;
 
-static int clean_state(struct xlator const *jool, void *args)
+static int clean_state(struct xlator *jool, void *args)
 {
-	bib_clean(jool->nat64.bib, jool->ns);
-	joold_clean(jool->nat64.joold, jool->nat64.bib, jool->ns);
+	bib_clean(jool);
+	joold_clean(jool);
 	return 0;
 }
 

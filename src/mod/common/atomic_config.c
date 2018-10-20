@@ -156,7 +156,7 @@ static int handle_init(struct config_candidate *new, void *payload,
 	struct request_init *request = payload;
 	int error;
 
-	error = fw_validate(new->xlator.fw);
+	error = fw_validate(request->fw);
 	if (error)
 		return error;
 
@@ -207,7 +207,7 @@ static int handle_eamt(struct config_candidate *new, void *payload,
 	return 0;
 }
 
-static int handle_addr4_pool(struct addr4_pool **pool, void *payload,
+static int handle_blacklist(struct config_candidate *new, void *payload,
 		__u32 payload_len, bool force)
 {
 	struct ipv4_prefix *prefixes = payload;
@@ -221,26 +221,13 @@ static int handle_addr4_pool(struct addr4_pool **pool, void *payload,
 	}
 
 	for (i = 0; i < prefix_count; i++) {
-		error = pool_add(*pool, &prefixes[i], force);
+		error = pool_add(new->xlator.siit.blacklist, &prefixes[i],
+				force);
 		if (error)
 			return error;
 	}
 
 	return 0;
-}
-
-static int handle_blacklist(struct config_candidate *new, void *payload,
-		__u32 payload_len, bool force)
-{
-	return handle_addr4_pool(&new->xlator.siit.blacklist,
-			payload, payload_len, force);
-}
-
-static int handle_pool6791(struct config_candidate *new, void *payload,
-		__u32 payload_len, bool force)
-{
-	return handle_addr4_pool(&new->xlator.siit.pool6791,
-			payload, payload_len, force);
 }
 
 static int handle_pool4(struct config_candidate *new, void *payload,
@@ -294,7 +281,7 @@ static int commit(struct config_candidate *candidate)
 
 int atomconfig_add(char *iname, void *config, size_t config_len, bool force)
 {
-	struct config_candidate *candidate;
+	struct config_candidate *candidate = NULL;
 	__u16 type = *((__u16 *)config);
 	int error;
 
@@ -325,9 +312,6 @@ int atomconfig_add(char *iname, void *config, size_t config_len, bool force)
 		break;
 	case SEC_BLACKLIST:
 		error = handle_blacklist(candidate, config, config_len, force);
-		break;
-	case SEC_POOL6791:
-		error = handle_pool6791(candidate, config, config_len, force);
 		break;
 	case SEC_POOL4:
 		error = handle_pool4(candidate, config, config_len);

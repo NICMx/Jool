@@ -39,12 +39,12 @@ struct xlation {
 void xlation_init(struct xlation *state, struct xlator *jool);
 /* xlation_clean() is not needed for now. */
 
-verdict untranslatable(struct xlation *state, enum jool_stat stat);
-verdict untranslatable_icmp(struct xlation *state, enum jool_stat stat,
+verdict untranslatable(struct xlation *state, enum jool_stat_id stat);
+verdict untranslatable_icmp(struct xlation *state, enum jool_stat_id stat,
 		enum icmp_errcode icmp, __u32 info);
-verdict drop(struct xlation *state, enum jool_stat stat);
-verdict drop_icmp(struct xlation *state, enum jool_stat stat,
+verdict drop(struct xlation *state, enum jool_stat_id stat);
+verdict drop_icmp(struct xlation *state, enum jool_stat_id stat,
 		enum icmp_errcode icmp, __u32 info);
-verdict stolen(struct xlation *state, enum jool_stat stat);
+verdict stolen(struct xlation *state, enum jool_stat_id stat);
 
 #endif /* _JOOL_MOD_TRANSLATION_STATE_H */

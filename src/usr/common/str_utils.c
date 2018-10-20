@@ -60,26 +60,26 @@ l4_protocol str_to_l4proto(char *str)
 char *configmode_to_string(enum config_mode mode)
 {
 	switch (mode) {
+	case MODE_INSTANCE:
+		return OPTNAME_INSTANCE;
+	case MODE_STATS:
+		return OPTNAME_STATS;
 	case MODE_GLOBAL:
 		return OPTNAME_GLOBAL;
-	case MODE_POOL4:
-		return OPTNAME_POOL4;
-	case MODE_BLACKLIST:
-		return OPTNAME_BLACKLIST;
-	case MODE_RFC6791:
-		return OPTNAME_RFC6791;
 	case MODE_EAMT:
 		return OPTNAME_EAMT;
+	case MODE_BLACKLIST:
+		return OPTNAME_BLACKLIST;
+	case MODE_POOL4:
+		return OPTNAME_POOL4;
 	case MODE_BIB:
 		return OPTNAME_BIB;
 	case MODE_SESSION:
 		return OPTNAME_SESSION;
-	case MODE_PARSE_FILE:
-		return OPTNAME_PARSE_FILE;
 	case MODE_JOOLD:
 		return OPTNAME_JOOLD;
-	case MODE_INSTANCE:
-		return OPTNAME_INSTANCE;
+	case MODE_PARSE_FILE:
+		return OPTNAME_PARSE_FILE;
 	}
 
 	return "unknown";

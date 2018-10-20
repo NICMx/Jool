@@ -233,7 +233,7 @@ static verdict translate_addrs46_siit(struct xlation *state)
 		break;
 	case ADDRXLAT_TRY_SOMETHING_ELSE:
 		if (pkt_is_icmp4_error(in)
-				&& !rfc6791_find_v6(state, &hdr6->saddr))
+				&& !rfc6791v6_find(state, &hdr6->saddr))
 			break; /* Ok, success. */
 		return untranslatable(state, JSTAT46_SRC);
 	case ADDRXLAT_ACCEPT:
@@ -557,7 +557,7 @@ static verdict icmp4_to_icmp6_param_prob(struct xlation *state)
 		if (ptr < 0 || 19 < ptr || ptrs[ptr] == DROP) {
 			log_debug("ICMPv4 messages type %u code %u pointer %u lack an ICMPv6 counterpart.",
 					icmp4_hdr->type, icmp4_hdr->code, ptr);
-			return drop(state, JSTAT46_ICMP_PTR);
+			return drop(state, JSTAT46_UNTRANSLATABLE_PARAM_PROBLEM_PTR);
 		}
 
 		icmp6_hdr->icmp6_code = ICMPV6_HDR_FIELD;
@@ -719,7 +719,7 @@ verdict ttp46_icmp(struct xlation *state)
 	 */
 	log_debug("ICMPv4 messages type %u lack an ICMPv6 counterpart.",
 			icmpv4_hdr->type);
-	return drop(state, JSTAT46_ICMP_TYPE);
+	return drop(state, JSTAT_UNKNOWN_ICMP4_TYPE);
 }
 
 static __sum16 update_csum_4to6(__sum16 csum16,

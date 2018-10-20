@@ -24,6 +24,7 @@ $(BIBTABLE)-objs += ../../../src/mod/nat64/bib/db.o
 $(BIBTABLE)-objs += ../impersonator/icmp_wrapper.o
 $(BIBTABLE)-objs += ../impersonator/bib.o
 $(BIBTABLE)-objs += ../impersonator/route.o
+$(BIBTABLE)-objs += ../impersonator/xlator.o
 $(BIBTABLE)-objs += bibtable_test.o
 
 

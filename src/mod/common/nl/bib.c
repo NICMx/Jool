@@ -67,7 +67,7 @@ static int handle_bib_add(struct xlator *jool, struct request_bib *request)
 	new.ipv4 = request->add.addr4;
 	new.l4_proto = request->l4_proto;
 
-	error = bib_add_static(jool->nat64.bib, &new, &old);
+	error = bib_add_static(jool, &new, &old);
 	switch (error) {
 	case 0:
 		break;
@@ -114,7 +114,7 @@ static int handle_bib_rm(struct xlator *jool, struct request_bib *request)
 	if (error)
 		return error;
 
-	error = bib_rm(jool->nat64.bib, &bib);
+	error = bib_rm(jool, &bib);
 	if (error == -ESRCH) {
 		if (request->rm.addr6_set && request->rm.addr4_set)
 			goto esrch;
@@ -144,7 +144,7 @@ int handle_bib_config(struct xlator *jool, struct genl_info *info)
 	if (error)
 		return nlcore_respond(info, error);
 
-	switch (be16_to_cpu(hdr->operation)) {
+	switch (hdr->operation) {
 	case OP_FOREACH:
 		return handle_bib_display(jool->nat64.bib, info, request);
 	case OP_ADD:
@@ -154,7 +154,7 @@ int handle_bib_config(struct xlator *jool, struct genl_info *info)
 		error = handle_bib_rm(jool, request);
 		break;
 	default:
-		log_err("Unknown operation: %u", be16_to_cpu(hdr->operation));
+		log_err("Unknown operation: %u", hdr->operation);
 		error = -EINVAL;
 	}
 

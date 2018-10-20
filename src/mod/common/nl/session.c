@@ -25,7 +25,7 @@ static int session_entry_to_userspace(struct session_entry const *entry,
 	return nlbuffer_write(buffer, &entry_usr, sizeof(entry_usr));
 }
 
-static int handle_session_display(struct bib *db, struct genl_info *info,
+static int handle_session_display(struct xlator *jool, struct genl_info *info,
 		struct request_session *request)
 {
 	struct nlcore_buffer buffer;
@@ -49,7 +49,7 @@ static int handle_session_display(struct bib *db, struct genl_info *info,
 		offset = &offset_struct;
 	}
 
-	error = bib_foreach_session(db, request->l4_proto, &func, offset);
+	error = bib_foreach_session(jool, request->l4_proto, &func, offset);
 	nlbuffer_set_pending_data(&buffer, error > 0);
 	error = (error >= 0)
 			? nlbuffer_send(info, &buffer)
@@ -77,11 +77,11 @@ int handle_session_config(struct xlator *jool, struct genl_info *info)
 	if (error)
 		return nlcore_respond(info, error);
 
-	switch (be16_to_cpu(hdr->operation)) {
+	switch (hdr->operation) {
 	case OP_FOREACH:
-		return handle_session_display(jool->nat64.bib, info, request);
+		return handle_session_display(jool, info, request);
 	}
 
-	log_err("Unknown operation: %u", be16_to_cpu(hdr->operation));
+	log_err("Unknown operation: %u", hdr->operation);
 	return nlcore_respond(info, -EINVAL);
 }

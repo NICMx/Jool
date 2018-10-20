@@ -19,6 +19,77 @@ typedef __u8 config_bool;
 #define GNL_JOOL_FAMILY_NAME (xlat_is_siit() ? "SIIT_Jool" : "NAT64_Jool")
 #define GNL_JOOLD_MULTICAST_GRP_NAME "joold"
 
+/* TODO these values are not always used. */
+
+/* Instance */
+#define OPTNAME_INAME			"instance-name"
+#define OPTNAME_FW			"framework"
+#define OPTNAME_NETFILTER		"netfilter"
+#define OPTNAME_IPTABLES		"iptables"
+
+/* Modes */
+#define OPTNAME_INSTANCE		"instance"
+#define OPTNAME_STATS			"stats"
+#define OPTNAME_GLOBAL			"global"
+#define OPTNAME_EAMT			"eamt"
+#define OPTNAME_BLACKLIST		"blacklist"
+#define OPTNAME_POOL4			"pool4"
+#define OPTNAME_BIB			"bib"
+#define OPTNAME_SESSION			"session"
+#define OPTNAME_JOOLD			"joold"
+#define OPTNAME_PARSE_FILE		"file"
+
+/* Operations */
+#define OPTNAME_DISPLAY			"display"
+#define OPTNAME_ADD			"add"
+#define OPTNAME_UPDATE			"update"
+#define OPTNAME_REMOVE			"remove"
+#define OPTNAME_FLUSH			"flush"
+#define OPTNAME_ADVERTISE		"advertise"
+#define OPTNAME_TEST			"test"
+#define OPTNAME_ACK			"ack"
+
+/* Normal flags */
+#define OPTNAME_ENABLE			"enable"
+#define OPTNAME_DISABLE			"disable"
+#define OPTNAME_ZEROIZE_TC		"zeroize-traffic-class"
+#define OPTNAME_OVERRIDE_TOS		"override-tos"
+#define OPTNAME_TOS			"tos"
+#define OPTNAME_MTU_PLATEAUS		"mtu-plateaus"
+#define OPTNAME_POOL6			"pool6"
+
+/* SIIT-only flags */
+#define OPTNAME_AMEND_UDP_CSUM		"amend-udp-checksum-zero"
+#define OPTNAME_EAM_HAIRPIN_MODE	"eam-hairpin-mode"
+#define OPTNAME_RANDOMIZE_RFC6791	"randomize-rfc6791-addresses"
+#define OPTNAME_RFC6791V6_PREFIX	"rfc6791v6-prefix"
+
+/* NAT64-only flags */
+#define OPTNAME_DROP_BY_ADDR		"address-dependent-filtering"
+#define OPTNAME_DROP_ICMP6_INFO		"drop-icmpv6-info"
+#define OPTNAME_DROP_EXTERNAL_TCP	"drop-externally-initiated-tcp"
+#define OPTNAME_UDP_TIMEOUT		"udp-timeout"
+#define OPTNAME_ICMP_TIMEOUT		"icmp-timeout"
+#define OPTNAME_TCPEST_TIMEOUT		"tcp-est-timeout"
+#define OPTNAME_TCPTRANS_TIMEOUT	"tcp-trans-timeout"
+#define OPTNAME_MAX_SO			"maximum-simultaneous-opens"
+#define OPTNAME_SRC_ICMP6E_BETTER	"source-icmpv6-errors-better"
+#define OPTNAME_HANDLE_FIN_RCV_RST	"handle-rst-during-fin-rcv"
+#define OPTNAME_F_ARGS			"f-args"
+#define OPTNAME_BIB_LOGGING		"logging-bib"
+#define OPTNAME_SESSION_LOGGING		"logging-session"
+
+/* pool4 flags */
+#define OPTNAME_MARK			"mark"
+#define OPTNAME_MAX_ITERATIONS		"max-iterations"
+
+/* Synchronization flags */
+#define OPTNAME_SS_ENABLED		"ss-enabled"
+#define OPTNAME_SS_FLUSH_ASAP		"ss-flush-asap"
+#define OPTNAME_SS_FLUSH_DEADLINE	"ss-flush-deadline"
+#define OPTNAME_SS_CAPACITY		"ss-capacity"
+#define OPTNAME_SS_MAX_PAYLOAD		"ss-max-payload"
+
 enum genl_mc_group_ids {
 	JOOLD_MC_ID = (1 << 0),
 };
@@ -35,75 +106,53 @@ enum attributes {
 };
 
 enum config_mode {
-
-	MODE_INSTANCE = (1 << 11),
+	/** The current message is talking about instance management. */
+	MODE_INSTANCE,
+	/** The current message is talking about stats reporting. */
+	MODE_STATS,
 	/** The current message is talking about global configuration values. */
-	MODE_GLOBAL = (1 << 0),
-	/** The current message is talking about the IPv4 pool. */
-	MODE_POOL4 = (1 << 2),
-	/** The current message is talking about the blacklisted addr pool. */
-	MODE_BLACKLIST = (1 << 8),
-	/** The current message is talking about the RFC6791 pool. */
-	MODE_RFC6791 = (1 << 7),
+	MODE_GLOBAL,
 	/** The current message is talking about the EAMT. */
-	MODE_EAMT = (1 << 6),
+	MODE_EAMT,
+	/** The current message is talking about the blacklisted addr pool. */
+	MODE_BLACKLIST,
+	/** The current message is talking about the IPv4 pool. */
+	MODE_POOL4,
 	/** The current message is talking about the Binding Info Bases. */
-	MODE_BIB = (1 << 3),
+	MODE_BIB,
 	/** The current message is talking about the session tables. */
-	MODE_SESSION = (1 << 4),
-	/** The current message is talking about the JSON configuration file */
-	MODE_PARSE_FILE = (1 << 9),
+	MODE_SESSION,
 	/** The current message is talking about synchronization entries.*/
-	MODE_JOOLD = (1 << 10),
+	MODE_JOOLD,
+	/** The current message is talking about the JSON configuration file */
+	MODE_PARSE_FILE,
 };
 
 char *configmode_to_string(enum config_mode mode);
 
-/**
- * @{
- * Allowed operations for the mode mentioned in the name.
- * eg. BIB_OPS = Allowed operations for BIB requests.
- */
-#define DATABASE_OPS (OP_DISPLAY | OP_COUNT | OP_ADD | OP_REMOVE | OP_FLUSH)
-#define ANY_OP 0xFFFF
-
-#define GLOBAL_OPS (OP_DISPLAY | OP_UPDATE)
-#define POOL4_OPS (DATABASE_OPS | OP_UPDATE)
-#define BLACKLIST_OPS (DATABASE_OPS)
-#define RFC6791_OPS (DATABASE_OPS)
-#define EAMT_OPS (DATABASE_OPS)
-#define BIB_OPS (DATABASE_OPS & ~OP_FLUSH)
-#define SESSION_OPS (OP_DISPLAY | OP_COUNT)
-#define JOOLD_OPS (OP_ADVERTISE | OP_TEST)
-#define INSTANCE_OPS (OP_DISPLAY | OP_ADD | OP_REMOVE | OP_FLUSH)
-/**
- * @}
- */
-
-/* TODO (NOW) Do these still need to be bits? */
 enum config_operation {
 	/** The userspace app wants to print the stuff being requested. */
-	OP_FOREACH = (1 << 0),
+	OP_FOREACH,
 	/**
 	 * The userspace app wants to add an element to the table being
 	 * requested.
 	 */
-	OP_ADD = (1 << 2),
+	OP_ADD,
 	/** The userspace app wants to edit some value. */
-	OP_UPDATE = (1 << 3),
+	OP_UPDATE,
 	/**
 	 * The userspace app wants to delete an element from the table being
 	 * requested.
 	 */
-	OP_REMOVE = (1 << 4),
+	OP_REMOVE,
 	/** The userspace app wants to clear some table. */
-	OP_FLUSH = (1 << 5),
+	OP_FLUSH,
 	/** The userspace app wants us to shout something somewhere. */
-	OP_ADVERTISE = (1 << 6),
+	OP_ADVERTISE,
 	/** The userspace app wants to test something. */
-	OP_TEST = (1 << 7),
+	OP_TEST,
 	/** Somebody is acknowledging reception of a previous message. */
-	OP_ACK = (1 << 8),
+	OP_ACK,
 };
 
 enum parse_section {
@@ -113,7 +162,6 @@ enum parse_section {
 	SEC_COMMIT = 16,
 	SEC_EAMT = 32,
 	SEC_BLACKLIST = 64,
-	SEC_POOL6791 = 128,
 	SEC_INIT = 256
 };
 
@@ -143,14 +191,16 @@ struct request_hdr {
 	 * Explicit unused space for future functionality and to ensure
 	 * sizeof(struct request_hdr) is a power of 2.
 	 */
-	__u8 slop;
+	__u8 slop1;
 
 	/** Jool's version. */
 	__be32 version;
 	/** See "enum config_mode". */
-	__be16 mode;
+	__u8 mode;
 	/** See "enum config_operation". */
-	__be16 operation;
+	__u8 operation;
+
+	__u16 slop2;
 };
 
 void init_request_hdr(struct request_hdr *hdr, enum config_mode mode,
@@ -185,11 +235,12 @@ struct response_hdr {
 	config_bool pending_data;
 };
 
+typedef int jframework;
 #define FW_NETFILTER (1 << 0)
 #define FW_IPTABLES (1 << 1)
 #define FW_ANY (FW_NETFILTER | FW_IPTABLES)
 
-int fw_validate(int fw);
+int fw_validate(jframework fw);
 
 /**
  * Issued during atomic configuration initialization.
@@ -201,7 +252,7 @@ struct request_init {
 struct instance_entry_usr {
 	void *ns;
 	/* This is one of the FW_* constants above. */
-	int fw;
+	__u8 fw;
 	char iname[INAME_MAX_LEN];
 };
 
@@ -279,17 +330,15 @@ union request_pool4 {
 	} flush;
 };
 
-union request_pool {
+union request_blacklist {
 	struct {
 		config_bool offset_set;
 		struct ipv4_prefix offset;
 	} display;
 	struct {
-		/** The addresses the user wants to add to the pool. */
 		struct ipv4_prefix addrs;
 	} add;
 	struct {
-		/** The addresses the user wants to remove from the pool. */
 		struct ipv4_prefix addrs;
 	} rm;
 };

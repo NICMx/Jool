@@ -31,6 +31,7 @@ $(FILTERING)-objs += ../../../src/mod/nat64/pool4/rfc6056.o
 $(FILTERING)-objs += ../../../src/mod/nat64/bib/db.o
 $(FILTERING)-objs += ../../../src/mod/nat64/bib/entry.o
 $(FILTERING)-objs += ../../../src/mod/nat64/bib/pkt_queue.o
+$(FILTERING)-objs += ../../../src/mod/siit/defrag.o
 $(FILTERING)-objs += ../framework/skb_generator.o
 $(FILTERING)-objs += ../framework/types.o
 $(FILTERING)-objs += ../impersonator/icmp_wrapper.o

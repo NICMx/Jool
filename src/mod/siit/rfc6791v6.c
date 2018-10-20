@@ -12,8 +12,7 @@
  * Assuming RFC6791v6 has been populated, returns an IPv6 address an ICMP
  * error should be sourced with, assuming its source is untranslatable.
  */
-static int get_rfc6791_address_v6(struct xlation *state,
-		struct in6_addr *result)
+static int get_pool_address(struct xlation *state, struct in6_addr *result)
 {
 	struct ipv6_prefix *prefix;
 	unsigned int segment_bytes_num;
@@ -73,11 +72,11 @@ static int get_host_address_v6(struct xlation *state, struct in6_addr *result)
  * Returns an IPv6 address an ICMP error should be sourced with, assuming its
  * source is untranslatable.
  */
-int rfc6791_find_v6(struct xlation *state, struct in6_addr *result)
+int rfc6791v6_find(struct xlation *state, struct in6_addr *result)
 {
 	int error;
 
-	error = get_rfc6791_address_v6(state, result);
+	error = get_pool_address(state, result);
 	if (!error)
 		goto success;
 

@@ -61,7 +61,7 @@ static int handle_pool4_rm(struct xlator *jool, struct genl_info *info,
 	error = pool4db_rm_usr(jool->nat64.pool4, &request->rm.entry);
 
 	if (xlat_is_nat64() && !request->rm.quick) {
-		bib_rm_range(jool->nat64.bib, request->rm.entry.proto,
+		bib_rm_range(jool, request->rm.entry.proto,
 				&request->rm.entry.range);
 	}
 
@@ -80,7 +80,7 @@ static int handle_pool4_flush(struct xlator *jool, struct genl_info *info,
 		 * that "not quick" generally means "please clean up", this is
 		 * more likely what people wants.
 		 */
-		bib_flush(jool->nat64.bib);
+		bib_flush(jool);
 	}
 
 	return nlcore_respond(info, 0);
@@ -101,7 +101,7 @@ int handle_pool4_config(struct xlator *jool, struct genl_info *info)
 	if (error)
 		return nlcore_respond(info, error);
 
-	switch (be16_to_cpu(hdr->operation)) {
+	switch (hdr->operation) {
 	case OP_FOREACH:
 		return handle_pool4_display(jool->nat64.pool4, info, request);
 	case OP_ADD:
@@ -114,6 +114,6 @@ int handle_pool4_config(struct xlator *jool, struct genl_info *info)
 		return handle_pool4_flush(jool, info, request);
 	}
 
-	log_err("Unknown operation: %u", be16_to_cpu(hdr->operation));
+	log_err("Unknown operation: %u", hdr->operation);
 	return nlcore_respond(info, -EINVAL);
 }

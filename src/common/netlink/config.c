@@ -16,10 +16,11 @@ void init_request_hdr(struct request_hdr *hdr, enum config_mode mode,
 	hdr->type = xlat_is_nat64() ? 'n' : 's'; /* 'n'at64 or 's'iit. */
 	hdr->castness = 'u';
 	hdr->force = force;
-	hdr->slop = 0;
+	hdr->slop1 = 0;
 	hdr->version = htonl(xlat_version());
-	hdr->mode = htons(mode);
-	hdr->operation = htons(operation);
+	hdr->mode = mode;
+	hdr->operation = operation;
+	hdr->slop2 = 0;
 }
 
 static int validate_magic(struct request_hdr *hdr, char *sender)
@@ -135,7 +136,7 @@ fail:
 	return -EINVAL;
 }
 
-int fw_validate(int fw)
+int fw_validate(jframework fw)
 {
 	if (fw == FW_NETFILTER || fw == FW_IPTABLES)
 		return 0;

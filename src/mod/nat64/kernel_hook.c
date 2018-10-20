@@ -3,6 +3,7 @@
 #include <linux/module.h>
 
 #include "mod/common/linux_version.h"
+#include "mod/common/wkmalloc.h"
 #include "mod/common/xlator.h"
 #include "mod/common/nl/nl_handler.h"
 #include "mod/nat64/joold.h"

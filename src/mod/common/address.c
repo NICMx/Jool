@@ -63,7 +63,7 @@ bool prefix4_equals(const struct ipv4_prefix *a, const struct ipv4_prefix *b)
 	return addr4_equals(&a->addr, &b->addr) && (a->len == b->len);
 }
 
-static __u32 get_prefix4_mask(const struct ipv4_prefix *prefix)
+__u32 get_prefix4_mask(const struct ipv4_prefix *prefix)
 {
 	return ((__u64) 0xffffffffU) << (32 - prefix->len);
 }
@@ -139,6 +139,21 @@ int prefix6_validate(const struct ipv6_prefix *prefix)
 					&prefix->addr, prefix->len);
 			return -EINVAL;
 		}
+	}
+
+	return 0;
+}
+
+int prefix4_validate_scope(struct ipv4_prefix *prefix, bool force)
+{
+	struct ipv4_prefix subnet;
+
+	if (!force && prefix4_has_subnet_scope(prefix, &subnet)) {
+		log_err("Prefix %pI4/%u intersects with subnet scoped network %pI4/%u.",
+				&prefix->addr, prefix->len,
+				&subnet.addr, subnet.len);
+		log_err("Will cancel the operation. Use --force to ignore this validation.");
+		return -EINVAL;
 	}
 
 	return 0;

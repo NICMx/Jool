@@ -10,7 +10,7 @@ MODULE_LICENSE(JOOL_LICENSE);
 MODULE_AUTHOR("Alberto Leiva Popper");
 MODULE_DESCRIPTION("Session DB module test.");
 
-static struct bib *db;
+static struct xlator jool;
 static const l4_protocol PROTO = L4PROTO_UDP;
 static struct session_entry session_instances[16];
 static struct session_entry *sessions[4][4][4][4];
@@ -63,7 +63,7 @@ static bool session_exists(struct session_entry *session)
 	};
 
 	/* This is the closest we currently have to a find_session function. */
-	return bib_foreach_session(db, session->proto, &func, NULL);
+	return bib_foreach_session(&jool, session->proto, &func, NULL);
 }
 
 static bool assert_session(unsigned int la, unsigned int lp,
@@ -124,7 +124,7 @@ static bool inject(unsigned int index, __u32 src_addr, __u16 src_id,
 	entry->timeout = UDP_DEFAULT;
 	entry->has_stored = false;
 
-	error = bib_add_session(db, entry, NULL);
+	error = bib_add_session(&jool, entry, NULL);
 	if (error) {
 		log_err("Errcode %d on sessiontable_add.", error);
 		return false;
@@ -163,7 +163,7 @@ static bool insert_test_sessions(void)
 static bool flush(void)
 {
 	log_debug("Flushing.");
-	bib_flush(db);
+	bib_flush(&jool);
 
 	memset(session_instances, 0, sizeof(session_instances));
 	memset(sessions, 0, sizeof(sessions));
@@ -181,11 +181,11 @@ static bool simple_session(void)
 	/* ---------------------------------------------------------- */
 
 	log_debug("Deleting sessions by BIB.");
-	range.prefix.address.s_addr = cpu_to_be32(0xcb007101u);
+	range.prefix.addr.s_addr = cpu_to_be32(0xcb007101u);
 	range.prefix.len = 32;
 	range.ports.min = 1;
 	range.ports.max = 1;
-	bib_rm_range(db, PROTO, &range);
+	bib_rm_range(&jool, PROTO, &range);
 
 	sessions[1][1][2][2] = NULL;
 	sessions[1][1][2][1] = NULL;
@@ -196,7 +196,7 @@ static bool simple_session(void)
 	/* ---------------------------------------------------------- */
 
 	log_debug("Deleting again.");
-	bib_rm_range(db, PROTO, &range);
+	bib_rm_range(&jool, PROTO, &range);
 	success &= test_db();
 
 	/* ---------------------------------------------------------- */
@@ -208,11 +208,11 @@ static bool simple_session(void)
 	/* ---------------------------------------------------------- */
 
 	log_debug("Deleting by range (all addresses, lower ports).");
-	range.prefix.address.s_addr = cpu_to_be32(0xcb007100u);
+	range.prefix.addr.s_addr = cpu_to_be32(0xcb007100u);
 	range.prefix.len = 30;
 	range.ports.min = 0;
 	range.ports.max = 1;
-	bib_rm_range(db, PROTO, &range);
+	bib_rm_range(&jool, PROTO, &range);
 
 	sessions[2][1][2][1] = NULL;
 	sessions[2][1][1][1] = NULL;
@@ -233,11 +233,11 @@ static bool simple_session(void)
 	/* ---------------------------------------------------------- */
 
 	log_debug("Deleting by range (lower addresses, all ports).");
-	range.prefix.address.s_addr = cpu_to_be32(0xcb007100u);
+	range.prefix.addr.s_addr = cpu_to_be32(0xcb007100u);
 	range.prefix.len = 31;
 	range.ports.min = 0;
 	range.ports.max = 65535;
-	bib_rm_range(db, PROTO, &range);
+	bib_rm_range(&jool, PROTO, &range);
 
 	sessions[1][2][2][2] = NULL;
 	sessions[1][1][2][2] = NULL;
@@ -262,13 +262,12 @@ enum session_fate tcp_est_expire_cb(struct session_entry *session, void *arg)
 
 static int init(void)
 {
-	db = bib_alloc();
-	return db ? 0 : -ENOMEM;
+	return xlator_init(&jool, NULL);
 }
 
 static void clean(void)
 {
-	bib_put(db);
+	xlator_put(&jool);
 }
 
 int init_module(void)

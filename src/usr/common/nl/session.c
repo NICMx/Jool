@@ -45,7 +45,7 @@ static int session_display_response(struct jool_response *response, void *arg)
 	return 0;
 }
 
-int session_foreach(char *instance, l4_protocol proto,
+int session_foreach(char *iname, l4_protocol proto,
 		session_foreach_cb cb, void *_args)
 {
 	unsigned char request[HDR_LEN + PAYLOAD_LEN];
@@ -70,7 +70,7 @@ int session_foreach(char *instance, l4_protocol proto,
 	args.request = payload;
 
 	do {
-		error = netlink_request(instance, request, sizeof(request),
+		error = netlink_request(iname, request, sizeof(request),
 				session_display_response, &args);
 	} while (!error && args.request->display.offset_set);
 

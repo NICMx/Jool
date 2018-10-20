@@ -7,7 +7,7 @@ MODULE_LICENSE(JOOL_LICENSE);
 MODULE_AUTHOR("Alberto Leiva");
 MODULE_DESCRIPTION("BIB DB module test.");
 
-static struct bib *db;
+static struct xlator jool;
 static const l4_protocol PROTO = L4PROTO_TCP;
 static struct bib_entry bibs[8];
 static struct bib_entry *bibs4[4][25];
@@ -23,11 +23,13 @@ static bool assert4(unsigned int addr_id, unsigned int port)
 	taddr.l4 = port;
 
 	if (bibs4[addr_id][port]) {
-		success &= ASSERT_INT(0, bib_find4(db, PROTO, &taddr, &bib),
+		success &= ASSERT_INT(0,
+				bib_find4(jool.nat64.bib, PROTO, &taddr, &bib),
 				"7th (%u %u) - get4", addr_id, port);
 		success &= ASSERT_BIB(bibs4[addr_id][port], &bib, "7th by 4");
 	} else {
-		success &= ASSERT_INT(-ESRCH, bib_find4(db, PROTO, &taddr, NULL),
+		success &= ASSERT_INT(-ESRCH,
+				bib_find4(jool.nat64.bib, PROTO, &taddr, NULL),
 				"get4 fails (%u %u)", addr_id, port);
 	}
 
@@ -47,11 +49,13 @@ static bool assert6(unsigned int addr_id, unsigned int port)
 	taddr.l4 = port;
 
 	if (bibs6[addr_id][port]) {
-		success &= ASSERT_INT(0, bib_find6(db, PROTO, &taddr, &bib),
+		success &= ASSERT_INT(0,
+				bib_find6(jool.nat64.bib, PROTO, &taddr, &bib),
 				"7th (%u %u) - get6", addr_id, port);
 		success &= ASSERT_BIB(bibs6[addr_id][port], &bib, "7th by 6");
 	} else {
-		success &= ASSERT_INT(-ESRCH, bib_find6(db, PROTO, &taddr, &bib),
+		success &= ASSERT_INT(-ESRCH,
+				bib_find6(jool.nat64.bib, PROTO, &taddr, &bib),
 				"get6 fails (%u %u)", addr_id, port);
 	}
 
@@ -120,7 +124,7 @@ static bool insert_test_bibs(void)
 	drop_test_bibs();
 
 	for (i = 0; i < ARRAY_SIZE(tests); i++) {
-		error = bib_inject(db, tests[i].addr6, tests[i].port6,
+		error = bib_inject(&jool, tests[i].addr6, tests[i].port6,
 				tests[i].addr4, tests[i].port4,
 				PROTO, &bibs[i]);
 		if (error)
@@ -150,11 +154,11 @@ static bool test_flow(void)
 	/* ---------------------------------------------------------- */
 
 	log_debug("Removing all ports from a range.");
-	range.prefix.address.s_addr = cpu_to_be32(0xc0000200);
+	range.prefix.addr.s_addr = cpu_to_be32(0xc0000200);
 	range.prefix.len = 31;
 	range.ports.min = 0;
 	range.ports.max = 65535;
-	bib_rm_range(db, PROTO, &range);
+	bib_rm_range(&jool, PROTO, &range);
 
 	drop_bib(0, 10, 1, 21);
 	drop_bib(1, 19, 0, 20);
@@ -165,11 +169,11 @@ static bool test_flow(void)
 	/* ---------------------------------------------------------- */
 
 	log_debug("Deleting only certain ports from a range.");
-	range.prefix.address.s_addr = cpu_to_be32(0xc0000202);
+	range.prefix.addr.s_addr = cpu_to_be32(0xc0000202);
 	range.prefix.len = 31;
 	range.ports.min = 11;
 	range.ports.max = 20;
-	bib_rm_range(db, PROTO, &range);
+	bib_rm_range(&jool, PROTO, &range);
 
 	drop_bib(2, 18, 3, 20);
 	drop_bib(0, 20, 2, 12);
@@ -178,11 +182,11 @@ static bool test_flow(void)
 	/* ---------------------------------------------------------- */
 
 	log_debug("Flushing using bib_rm_range().");
-	range.prefix.address.s_addr = cpu_to_be32(0x00000000);
+	range.prefix.addr.s_addr = cpu_to_be32(0x00000000);
 	range.prefix.len = 0;
 	range.ports.min = 0;
 	range.ports.max = 65535;
-	bib_rm_range(db, PROTO, &range);
+	bib_rm_range(&jool, PROTO, &range);
 
 	drop_bib(3, 10, 3, 10);
 	drop_bib(3, 20, 2, 22);
@@ -194,7 +198,7 @@ static bool test_flow(void)
 		return false;
 
 	log_debug("Flushing using bib_flush().");
-	bib_flush(db);
+	bib_flush(&jool);
 	drop_test_bibs();
 	success &= test_db();
 
@@ -208,13 +212,12 @@ enum session_fate tcp_est_expire_cb(struct session_entry *session, void *arg)
 
 static int init(void)
 {
-	db = bib_alloc();
-	return db ? 0 : -ENOMEM;
+	return xlator_init(&jool, NULL);
 }
 
 static void clean(void)
 {
-	bib_put(db);
+	xlator_put(&jool);
 }
 
 int init_module(void)

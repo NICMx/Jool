@@ -43,7 +43,7 @@ static int parse_iname(void *void_field, int key, char *str)
 }
 
 struct wargp_type wt_iname = {
-	.doc = "<instance name>",
+	.argument = "<instance name>",
 	.parse = parse_iname,
 };
 
@@ -103,7 +103,7 @@ static int print_entry(struct instance_entry_usr *instance, void *arg)
 	return 0;
 }
 
-int handle_instance_display(char *instance, int argc, char **argv, void *arg)
+int handle_instance_display(char *iname, int argc, char **argv, void *arg)
 {
 	struct display_args dargs = { 0 };
 	int error;
@@ -128,7 +128,7 @@ int handle_instance_display(char *instance, int argc, char **argv, void *arg)
 	if (!dargs.csv.value)
 		print_table_divisor();
 
-	error = instance_foreach(instance, print_entry, &dargs);
+	error = instance_foreach(iname, print_entry, &dargs);
 
 	netlink_teardown();
 
@@ -156,13 +156,13 @@ struct add_args {
 static struct wargp_option add_opts[] = {
 	WARGP_INAME(struct add_args, iname, "add"),
 	{
-		.name = "iptables",
+		.name = OPTNAME_IPTABLES,
 		.key = ARGP_IPTABLES,
 		.doc = "Sit the translator on top of iptables",
 		.offset = offsetof(struct add_args, iptables),
 		.type = &wt_bool,
 	}, {
-		.name = "netfilter",
+		.name = OPTNAME_NETFILTER,
 		.key = ARGP_NETFILTER,
 		.doc = "Sit the translator on top of Netfilter",
 		.offset = offsetof(struct add_args, netfilter),
@@ -195,6 +195,12 @@ int handle_instance_add(char *iname, int argc, char **argv, void *arg)
 		iname = aargs.iname.value;
 
 	/* Validate framework */
+	if (!aargs.netfilter.value && !aargs.iptables.value) {
+		log_err("Please specify instance framework. (--"
+				OPTNAME_NETFILTER " or --"
+				OPTNAME_IPTABLES ".)");
+		return -EINVAL;
+	}
 	if (aargs.netfilter.value && aargs.iptables.value) {
 		log_err("The translator can only be hooked to one framework.");
 		return -EINVAL;
@@ -260,7 +266,7 @@ static struct wargp_option flush_opts[] = {
 	{ 0 },
 };
 
-int handle_instance_flush(char *instance, int argc, char **argv, void *arg)
+int handle_instance_flush(char *iname, int argc, char **argv, void *arg)
 {
 	int error;
 

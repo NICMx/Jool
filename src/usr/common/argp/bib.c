@@ -54,7 +54,7 @@ static int print_entry(struct bib_entry_usr *entry, void *args)
  * BTW: This thing is not thread-safe because of the address-to-string v4
  * function.
  */
-int handle_bib_display(char *instance, int argc, char **argv, void *arg)
+int handle_bib_display(char *iname, int argc, char **argv, void *arg)
 {
 	struct display_args dargs = { 0 };
 	int error;
@@ -70,7 +70,7 @@ int handle_bib_display(char *instance, int argc, char **argv, void *arg)
 	if (show_csv_header(dargs.no_headers.value, dargs.csv.value))
 		printf("Protocol,IPv6 Address,IPv6 L4-ID,IPv4 Address,IPv4 L4-ID,Static?\n");
 
-	error = bib_foreach(instance, dargs.proto.proto, print_entry, &dargs);
+	error = bib_foreach(iname, dargs.proto.proto, print_entry, &dargs);
 
 	netlink_teardown();
 	return error;
@@ -110,7 +110,7 @@ struct add_args {
 };
 
 struct wargp_type wt_taddr = {
-	.doc = "<IPv6 transport address> <IPv4 transport address>",
+	.argument = "<IPv6 transport address> <IPv4 transport address>",
 	.parse = parse_taddr,
 };
 
@@ -128,7 +128,7 @@ static struct wargp_option add_opts[] = {
 	{ 0 },
 };
 
-int handle_bib_add(char *instance, int argc, char **argv, void *arg)
+int handle_bib_add(char *iname, int argc, char **argv, void *arg)
 {
 	struct add_args aargs = { 0 };
 	int error;
@@ -150,7 +150,7 @@ int handle_bib_add(char *instance, int argc, char **argv, void *arg)
 	if (error)
 		return error;
 
-	error = bib_add(instance, &aargs.taddrs.addr6, &aargs.taddrs.addr4,
+	error = bib_add(iname, &aargs.taddrs.addr6, &aargs.taddrs.addr4,
 			aargs.proto.proto);
 
 	netlink_teardown();
@@ -181,7 +181,7 @@ static struct wargp_option remove_opts[] = {
 	{ 0 },
 };
 
-int handle_bib_remove(char *instance, int argc, char **argv, void *arg)
+int handle_bib_remove(char *iname, int argc, char **argv, void *arg)
 {
 	struct rm_args rargs = { 0 };
 	int error;
@@ -203,7 +203,7 @@ int handle_bib_remove(char *instance, int argc, char **argv, void *arg)
 	if (error)
 		return error;
 
-	error = bib_rm(instance,
+	error = bib_rm(iname,
 			rargs.taddrs.addr6_set ? &rargs.taddrs.addr6 : NULL,
 			rargs.taddrs.addr4_set ? &rargs.taddrs.addr4 : NULL,
 			rargs.proto.proto);

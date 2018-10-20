@@ -26,8 +26,7 @@ struct xlator {
 	 * instances?
 	 */
 	struct net *ns;
-	/* One of the single-bit FW_* flags from nat64/common/config.h. */
-	int fw;
+	jframework fw;
 	char iname[INAME_MAX_LEN];
 
 	struct jool_stats *stats;
@@ -36,7 +35,6 @@ struct xlator {
 		struct {
 			struct eam_table *eamt;
 			struct addr4_pool *blacklist;
-			struct addr4_pool *pool6791;
 		} siit;
 		struct {
 			struct pool4 *pool4;
@@ -49,7 +47,7 @@ struct xlator {
 int xlator_setup(void);
 void xlator_teardown(void);
 
-int xlator_add(int fw, char *iname, struct config_prefix6 *pool6,
+int xlator_add(jframework fw, char *iname, struct config_prefix6 *pool6,
 		struct xlator *result);
 int xlator_rm(char *iname);
 int xlator_flush(void);
@@ -57,12 +55,12 @@ int xlator_flush(void);
 int xlator_init(struct xlator *instance, struct config_prefix6 *pool6);
 int xlator_replace(struct xlator *instance);
 
-int xlator_find(struct net *ns, int fw, const char *iname,
+int xlator_find(struct net *ns, jframework fw, const char *iname,
 		struct xlator *result);
-int xlator_find_current(int fw, const char *iname, struct xlator *result);
+int xlator_find_current(jframework fw, const char *iname, struct xlator *result);
 void xlator_put(struct xlator *instance);
 
-typedef int (*xlator_foreach_cb)(struct xlator const *, void *);
+typedef int (*xlator_foreach_cb)(struct xlator *, void *);
 int xlator_foreach(xlator_foreach_cb cb, void *args,
 		struct instance_entry_usr *offset);
 

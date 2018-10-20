@@ -15,6 +15,6 @@
 
 #include "mod/common/translation_state.h"
 
-int rfc6791_find_v6(struct xlation *state, struct in6_addr *result);
+int rfc6791v6_find(struct xlation *state, struct in6_addr *result);
 
 #endif /* _JOOL_MOD_RFC6791V6_H */

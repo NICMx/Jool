@@ -94,10 +94,9 @@ static verdict succeed(struct xlation *state)
 	 *
 	 * So let's simplify everything by just joold_add()ing here.
 	 */
-	if (state->entries.session_set) {
-		joold_add(state->jool.nat64.joold, &state->entries.session,
-				state->jool.nat64.bib, state->jool.ns);
-	}
+	if (state->entries.session_set)
+		joold_add(&state->jool, &state->entries.session);
+
 	return VERDICT_CONTINUE;
 }
 
@@ -157,8 +156,7 @@ static verdict ipv6_simple(struct xlation *state)
 	if (find_mask_domain(state, &dst4, &masks))
 		return drop(state, JSTAT_MASK_DOMAIN_NOT_FOUND);
 
-	error = bib_add6(state->jool.nat64.bib, masks, &state->in.tuple, &dst4,
-			&state->entries);
+	error = bib_add6(state, masks, &state->in.tuple, &dst4);
 
 	mask_domain_put(masks);
 
@@ -200,8 +198,7 @@ static verdict ipv4_simple(struct xlation *state)
 		return drop(state, JSTAT_UNTRANSLATABLE_DST4);
 	dst6.l4 = dst4->l4;
 
-	error = bib_add4(state->jool.nat64.bib, &dst6, &state->in.tuple,
-			&state->entries);
+	error = bib_add4(state, &dst6, &state->in.tuple);
 
 	switch (error) {
 	case 0:

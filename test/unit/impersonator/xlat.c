@@ -1,11 +1,11 @@
 #include "common/xlat.h"
 
-bool xlat_is_siit(void)
+int xlat_type(void)
 {
 #ifdef SIIT
-	return true;
+	return XT_SIIT;
 #else
-	return false;
+	return XT_NAT64;
 #endif
 }
 

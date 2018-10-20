@@ -79,7 +79,7 @@ int handle_eamt_config(struct xlator *jool, struct genl_info *info)
 	if (error)
 		return nlcore_respond(info, error);
 
-	switch (be16_to_cpu(hdr->operation)) {
+	switch (hdr->operation) {
 	case OP_FOREACH:
 		return handle_eamt_display(jool->siit.eamt, info, request);
 	case OP_ADD:
@@ -92,7 +92,7 @@ int handle_eamt_config(struct xlator *jool, struct genl_info *info)
 		error = handle_eamt_flush(jool->siit.eamt);
 		break;
 	default:
-		log_err("Unknown operation: %u", be16_to_cpu(hdr->operation));
+		log_err("Unknown operation: %u", hdr->operation);
 		error = -EINVAL;
 	}
 

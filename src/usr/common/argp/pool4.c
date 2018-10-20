@@ -17,7 +17,6 @@ struct display_args {
 	struct wargp_bool no_headers;
 	struct wargp_bool csv;
 
-	unsigned int sample_count;
 	struct {
 		bool initialized;
 		__u32 mark;
@@ -115,11 +114,10 @@ static int handle_display_response(struct pool4_sample *sample, void *args)
 	else
 		display_sample_normal(sample, args);
 
-	dargs->sample_count++;
 	return 0;
 }
 
-int handle_pool4_display(char *instance, int argc, char **argv, void *arg)
+int handle_pool4_display(char *iname, int argc, char **argv, void *arg)
 {
 	struct display_args dargs = { 0 };
 	int error;
@@ -141,7 +139,7 @@ int handle_pool4_display(char *instance, int argc, char **argv, void *arg)
 		}
 	}
 
-	error = pool4_foreach(instance, dargs.proto.proto,
+	error = pool4_foreach(iname, dargs.proto.proto,
 			handle_display_response, &dargs);
 
 	netlink_teardown();
@@ -151,13 +149,6 @@ int handle_pool4_display(char *instance, int argc, char **argv, void *arg)
 
 	if (!dargs.csv.value)
 		print_table_divisor();
-
-	if (show_footer(dargs.no_headers.value, dargs.csv.value)) {
-		if (dargs.sample_count > 0)
-			log_info("  (Fetched %u samples.)", dargs.sample_count);
-		else
-			log_info("  (empty)");
-	}
 
 	return 0;
 }
@@ -192,7 +183,7 @@ static int parse_pool4_entry(void *void_field, int key, char *str)
 }
 
 struct wargp_type wt_pool4_entry = {
-	.doc = "<IPv4 prefix> [<port range>]",
+	.argument = "<IPv4 prefix> [<port range>]",
 	.parse = parse_pool4_entry,
 };
 
@@ -203,13 +194,14 @@ static struct wargp_option add_opts[] = {
 	{
 		.name = "mark",
 		.key = ARGP_MARK,
-		.doc = "", /* TODO */
+		.doc = "In the IPv6 to IPv4 direction, only packets carrying this mark will match this pool4 entry",
 		.offset = offsetof(struct add_args, entry.meat.mark),
 		.type = &wt_u32,
 	}, {
 		.name = "max-iterations",
 		.key = ARGP_MAX_ITERATIONS,
-		.doc = "", /* TODO */
+		.doc = "Maximum number of times the transport address lookup algorithm should be allowed to iterate\n"
+				"(This algorithm is used to find an available transport address to create a BIB entry with)",
 		.offset = offsetof(struct add_args, entry.meat.iterations),
 		.type = &wt_u32,
 	},
@@ -217,14 +209,14 @@ static struct wargp_option add_opts[] = {
 	{
 		.name = "pool4 entry",
 		.key = ARGP_KEY_ARG,
-		.doc = "", /* TODO */
+		.doc = "Range of transport addresses that should be reserved for translation",
 		.offset = offsetof(struct add_args, entry),
 		.type = &wt_pool4_entry,
 	},
 	{ 0 },
 };
 
-int handle_pool4_add(char *instance, int argc, char **argv, void *arg)
+int handle_pool4_add(char *iname, int argc, char **argv, void *arg)
 {
 	struct add_args aargs = { 0 };
 	int error;
@@ -242,15 +234,8 @@ int handle_pool4_add(char *instance, int argc, char **argv, void *arg)
 	}
 
 	if (aargs.entry.meat.range.prefix.len < 24 && !aargs.force) {
-		printf("Warning: You're adding lots of addresses, which "
-				"might defeat the whole point of NAT64 over "
-				"SIIT.\n");
-		printf("Also, and more or less as a consequence, addresses are "
-				"stored in a linked list. Having too many "
-				"addresses in pool4 sharing a mark is slow.\n");
-		printf("Consider using SIIT instead.\n");
-		printf("Will cancel the operation. Use --force to override "
-				"this.\n");
+		log_err("Warning: You're adding lots of addresses, which might defeat the whole point of NAT64 over SIIT.");
+		log_err("Will cancel the operation. Use --force to override this.");
 		return -E2BIG;
 	}
 
@@ -260,7 +245,7 @@ int handle_pool4_add(char *instance, int argc, char **argv, void *arg)
 	if (error)
 		return error;
 
-	error = pool4_add(instance, &aargs.entry.meat);
+	error = pool4_add(iname, &aargs.entry.meat);
 
 	netlink_teardown();
 	return error;
@@ -287,7 +272,7 @@ static struct wargp_option remove_opts[] = {
 	{
 		.name = "mark",
 		.key = ARGP_MARK,
-		.doc = "", /* TODO */
+		.doc = "Only remove entries that match this mark",
 		.offset = offsetof(struct rm_args, entry.meat.mark),
 		.type = &wt_u32,
 	}, {
@@ -299,14 +284,14 @@ static struct wargp_option remove_opts[] = {
 	}, {
 		.name = "pool4 entry",
 		.key = ARGP_KEY_ARG,
-		.doc = "", /* TODO */
+		.doc = "Range of transport addresses that should no longer be reserved for translation",
 		.offset = offsetof(struct rm_args, entry),
 		.type = &wt_pool4_entry,
 	},
 	{ 0 },
 };
 
-int handle_pool4_remove(char *instance, int argc, char **argv, void *arg)
+int handle_pool4_remove(char *iname, int argc, char **argv, void *arg)
 {
 	struct rm_args rargs = { 0 };
 	int error;
@@ -329,7 +314,7 @@ int handle_pool4_remove(char *instance, int argc, char **argv, void *arg)
 	if (error)
 		return error;
 
-	error = pool4_rm(instance, &rargs.entry.meat, rargs.quick);
+	error = pool4_rm(iname, &rargs.entry.meat, rargs.quick);
 
 	netlink_teardown();
 	return error;
@@ -355,7 +340,7 @@ static struct wargp_option flush_opts[] = {
 	{ 0 },
 };
 
-int handle_pool4_flush(char *instance, int argc, char **argv, void *arg)
+int handle_pool4_flush(char *iname, int argc, char **argv, void *arg)
 {
 	struct flush_args fargs = { 0 };
 	int error;
@@ -368,7 +353,7 @@ int handle_pool4_flush(char *instance, int argc, char **argv, void *arg)
 	if (error)
 		return error;
 
-	error = pool4_flush(instance, fargs.quick);
+	error = pool4_flush(iname, fargs.quick);
 
 	netlink_teardown();
 	return error;

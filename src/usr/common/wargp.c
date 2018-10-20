@@ -3,38 +3,51 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "common/xlat.h"
 #include "common/constants.h"
 #include "usr/common/str_utils.h"
+
+const char *argp_program_version = JOOL_VERSION_STR;
+const char *argp_program_bug_address = "jool@nic.mx";
 
 int wargp_parse_bool(void *input, int key, char *str);
 int wargp_parse_u32(void *field, int key, char *str);
 int wargp_parse_l4proto(void *input, int key, char *str);
 int wargp_parse_string(void *input, int key, char *str);
 int wargp_parse_prefix6(void *input, int key, char *str);
+int wargp_parse_prefix4(void *input, int key, char *str);
 
 struct wargp_type wt_bool = {
-	.doc = NULL,
+	/* Boolean opts need no argument; absence is false, presence is true. */
+	.argument = NULL,
 	.parse = wargp_parse_bool,
 };
 
 struct wargp_type wt_u32 = {
-	.doc = "unsigned 32-bit integer",
+	.argument = "<integer>",
 	.parse = wargp_parse_u32,
 };
 
 struct wargp_type wt_l4proto = {
-	.doc = NULL, /* TODO ? */
+	/* The flag itself signals the protocol. */
+	.argument = NULL,
 	.parse = wargp_parse_l4proto,
 };
 
 struct wargp_type wt_string = {
-	.doc = "string",
+	.argument = "<string>",
 	.parse = wargp_parse_string,
 };
 
 struct wargp_type wt_prefix6 = {
-	.doc = "IPv6 Prefix or 'null'",
+	.argument = "(<IPv6 Prefix>|null)",
 	.parse = wargp_parse_prefix6,
+};
+
+struct wargp_type wt_prefix4 = {
+	/* TODO null? */
+	.argument = "<IPv4 prefix>",
+	.parse = wargp_parse_prefix4,
 };
 
 struct wargp_args {
@@ -96,6 +109,13 @@ int wargp_parse_prefix6(void *void_field, int key, char *str)
 	return str_to_prefix6(str, &field->prefix);
 }
 
+int wargp_parse_prefix4(void *void_field, int key, char *str)
+{
+	struct wargp_prefix4 *field = void_field;
+	field->set = true;
+	return str_to_prefix4(str, &field->prefix);
+}
+
 static int adapt_options(struct argp *argp, struct wargp_option *wopts,
 		struct argp_option **result)
 {
@@ -128,7 +148,7 @@ static int adapt_options(struct argp *argp, struct wargp_option *wopts,
 		if (wopt->key != ARGP_KEY_ARG) {
 			opt->name = wopt->name;
 			opt->key = wopt->key;
-			opt->arg = wopt->type->doc;
+			opt->arg = wopt->type->argument;
 			opt->doc = wopt->doc;
 			opt++;
 
@@ -138,7 +158,7 @@ static int adapt_options(struct argp *argp, struct wargp_option *wopts,
 				free(opts);
 				return -EINVAL;
 			}
-			argp->args_doc = wopt->type->doc;
+			argp->args_doc = wopt->type->argument;
 		}
 
 		wopt++;
@@ -177,7 +197,7 @@ int wargp_parse(struct wargp_option *wopts, int argc, char **argv, void *input)
 	if (error)
 		return error;
 
-	error = argp_parse(&argp, argc, argv, ARGP_NO_EXIT, NULL, &wargs);
+	error = argp_parse(&argp, argc, argv, 0, NULL, &wargs);
 
 	if (opts)
 		free(opts);

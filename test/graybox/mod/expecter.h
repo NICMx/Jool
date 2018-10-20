@@ -4,11 +4,13 @@
 #include <linux/skbuff.h>
 #include "types.h"
 
+#define PLATEAUS_MAX 64
+
 struct expected_packet {
 	char *filename;
 	unsigned char *bytes;
 	size_t bytes_len;
-	__u16 *exceptions;
+	__u16 exceptions[PLATEAUS_MAX];
 	/* Number of entries in @exceptions. */
 	size_t exceptions_len;
 };

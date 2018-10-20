@@ -24,6 +24,7 @@ $(SESSIONTABLE)-objs += ../../../src/mod/nat64/bib/db.o
 $(SESSIONTABLE)-objs += ../impersonator/icmp_wrapper.o
 $(SESSIONTABLE)-objs += ../impersonator/bib.o
 $(SESSIONTABLE)-objs += ../impersonator/route.o
+$(SESSIONTABLE)-objs += ../impersonator/xlator.o
 $(SESSIONTABLE)-objs += sessiontable_test.o
 
 

@@ -19,7 +19,7 @@ static bool test(const char *prefix6_str, const unsigned int prefix6_len,
 	struct in_addr addr4;
 	bool success = true;
 
-	if (str_to_addr6(prefix6_str, &prefix.address))
+	if (str_to_addr6(prefix6_str, &prefix.addr))
 		return false;
 	prefix.len = prefix6_len;
 
@@ -30,7 +30,7 @@ static bool test(const char *prefix6_str, const unsigned int prefix6_len,
 
 	success &= ASSERT_INT(0, rfc6052_6to4(&prefix, &addr6, &addr4),
 			"result code of %pI6c - %pI6c/%u = %s",
-			&addr6, &prefix.address, prefix.len, addr4_str);
+			&addr6, &prefix.addr, prefix.len, addr4_str);
 	success &= ASSERT_ADDR4(addr4_str, &addr4, "6to4 address result");
 
 	/* 4 to 6 */
@@ -40,7 +40,7 @@ static bool test(const char *prefix6_str, const unsigned int prefix6_len,
 
 	success &= ASSERT_INT(0, rfc6052_4to6(&prefix, &addr4, &addr6),
 			"result code of %pI4c + %pI6c/%u = %s",
-			&addr4, &prefix.address, prefix.len, addr6_str);
+			&addr4, &prefix.addr, prefix.len, addr6_str);
 	success &= ASSERT_ADDR6(addr6_str, &addr6, "4to6 address result");
 
 	return success;

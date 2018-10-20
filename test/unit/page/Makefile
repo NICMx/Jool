@@ -33,6 +33,7 @@ $(PAGE)-objs += ../../../src/mod/common/rfc6052.o
 $(PAGE)-objs += ../../../src/mod/common/rtrie.o
 $(PAGE)-objs += ../../../src/mod/common/translation_state.o
 $(PAGE)-objs += ../../../src/mod/common/xlator.o
+$(PAGE)-objs += ../../../src/mod/siit/defrag.o
 $(PAGE)-objs += ../../../src/mod/siit/blacklist4.o
 $(PAGE)-objs += ../../../src/mod/siit/eam.o
 $(PAGE)-objs += ../../../src/mod/siit/impersonator.o
