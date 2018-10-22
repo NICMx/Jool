@@ -2,12 +2,12 @@
 language: en
 layout: default
 category: Documentation
-title: --instance
+title: instance Mode
 ---
 
-[Documentation](documentation.html) > [Userspace Application Arguments](documentation.html#userspace-application-arguments) > \--instance
+[Documentation](documentation.html) > [Userspace Clients](documentation.html#userspace-clients) > `instance` Mode
 
-# \--instance
+# `instance` mode
 
 ## Index
 
@@ -25,66 +25,90 @@ title: --instance
 
 While `modprobe jool` and `modprobe jool_siit` can respectively be used to teach NAT64 and SIIT to a kernel, they no longer immediately change the kernel's behavior in any way, as of Jool 3.6.0.
 
-To actually start packet translation, an SIIT or NAT64 instance has to be created and attached somewhere in the network stack. That's where `--instance` comes in.
+To actually start packet translation, an SIIT or NAT64 instance has to be created and attached somewhere in the network stack. That's where `instance` comes in.
 
 As of now, Jool supports two instance types: _Netfilter_ instances and _iptables_ instances. See the [introduction to Jool](intro-jool.html#design) to read upon the differences between the two.
 
 ## Syntax
 
-	(jool_siit | jool) --instance (
-		[--display]
-		| --add [--netfilter|--iptables] [<name>]
-		| --remove [<name>]
-		| --flush
+	(jool_siit | jool) instance (
+		display
+		| add [<name>] (--netfilter|--iptables) [--pool6 <pool6>]
+		| remove [<name>]
+		| flush
 	)
 
 ## Arguments
 
 ### Operations
 
-* `--display`: Print a table listing all the instances known by Jool. (From all network namespaces.)
-* `--add`: Creates and hooks an instance to the current network namespace.
-* `--remove`: Unhooks and deletes the instance of the current network namespace.
-* `--flush`: Unhooks and deletes all the instances in the current namespace.
+* `display`: Print a table listing all the instances known by Jool. (From all network namespaces.)
+* `add`: Creates and hooks instance `<name>` to the current network namespace.
+* `remove`: Unhooks and deletes instance `<name>` from the current network namespace.
+* `flush`: Unhooks and deletes all the instances in the current namespace.
 
 ### Options
 
-| Flag              | Default   | Description                                         |
-|-------------------|-----------|-----------------------------------------------------|
-| `--netfilter`     | enabled   | Sit the instance on top of the Netfilter framework. |
-| `--iptables`      | disabled  | Sit the instance on top of the iptables framework.  |
+| Flag              | Default  | Description                                         |
+|-------------------|----------|-----------------------------------------------------|
+| `--netfilter`     | (absent) | Sit the instance on top of the Netfilter framework. |
+| `--iptables`      | (absent) | Sit the instance on top of the iptables framework.  |
+| `--pool6`         | `null`   | The instance's [IPv6 Address pool](pool6.html).<br />This argument is mandatory (and must not be `null`) in NAT64. |
 
 ### Payload
 
 `<name>`, the name of the instance to add or remove, exists to differentiate separate instances loaded in the same network namespace. You will need it later to configure other aspects of the instance.
 
-It can be up to 15 printable ASCII characters, and defaults to "default".
+It can be up to 15 printable ASCII characters, and defaults to "`default`."
+
+All instances that share stateness and namespace must have different names.
 
 ## Examples
 
 ### General Examples
 
-	# jool --instance --add
-	# jool --instance --add --netfilter alpha
-	# jool --instance --add --iptables  beta
+	# jool_siit instance add --iptables
+	# jool_siit instance add --iptables  alpha
+	# jool_siit instance add --netfilter beta
 	#
 	# ip netns add blue
-	# ip netns exec blue jool --instance --add --netfilter alpha
+	# ip netns exec blue jool_siit instance add --netfilter alpha
 	#
-	# jool --instance --display
-	TODO
+	# jool_siit instance display
+	+--------------------+-----------------+-----------+
+	|          Namespace |            Name | Framework |
+	+--------------------+-----------------+-----------+
+	| 0xffff8e7ae438e400 |         default |  iptables |
+	| 0xffff8e7ae438e400 |           alpha |  iptables |
+	| 0xffff8e7ae438e400 |            beta | netfilter |
+	| 0xffff8e7ae0001900 |           alpha | netfilter |
+	+--------------------+-----------------+-----------+
+
 
 Notice that the namespace identifier is fairly nonsensical garbage. Unfortunately, this is expected behavior for now, because namespace names do not exist in the kernel (in fact, some of them have no name), and so Jool has no concept of them.
 
-	# jool --instance --remove alpha
-	# jool --instance --display
-	TODO
-	# jool --instance --flush
-	# jool --instance --display
-	TODO
-	# ip netns exec blue jool --instance --flush
-	# jool --instance --display
-	TODO
+	# jool_siit instance remove alpha
+	# jool_siit instance display
+	+--------------------+-----------------+-----------+
+	|          Namespace |            Name | Framework |
+	+--------------------+-----------------+-----------+
+	| 0xffff8e7ae438e400 |         default |  iptables |
+	| 0xffff8e7ae438e400 |            beta | netfilter |
+	| 0xffff8e7ae0001900 |           alpha | netfilter |
+	+--------------------+-----------------+-----------+
+	# jool_siit instance flush
+	# jool_siit instance display
+	+--------------------+-----------------+-----------+
+	|          Namespace |            Name | Framework |
+	+--------------------+-----------------+-----------+
+	| 0xffff8e7ae0001900 |           alpha | netfilter |
+	+--------------------+-----------------+-----------+
+	# ip netns exec blue jool_siit instance flush
+	# jool_siit instance display
+	+--------------------+-----------------+-----------+
+	|          Namespace |            Name | Framework |
+	+--------------------+-----------------+-----------+
+	+--------------------+-----------------+-----------+
 
 ### Netfilter Examples
 
@@ -109,6 +133,8 @@ Create two namespaces with two _local_ networks each:
 	# ip link set to_world1 up
 	# ip addr add 2001:db8:1::1/96 dev to_world1
 	# ip addr add 192.0.2.1/24 dev to_world1
+	# sysctl -w net.ipv4.conf.all.forwarding=1
+	# sysctl -w net.ipv6.conf.all.forwarding=1
 	# exit
 	#
 	# # Second!
@@ -116,7 +142,7 @@ Create two namespaces with two _local_ networks each:
 	# ip link add name to_red type veth peer name to_world2
 	# ip link set dev to_world2 netns red
 	#
-	# ip link set to_blue up
+	# ip link set to_red up
 	# ip addr add 2001:db8:2::8/96 dev to_red
 	# ip addr add 203.0.113.8/24 dev to_red
 	#
@@ -124,33 +150,31 @@ Create two namespaces with two _local_ networks each:
 	# ip link set to_world2 up
 	# ip addr add 2001:db8:2::1/96 dev to_world2
 	# ip addr add 203.0.113.1/24 dev to_world2
+	# sysctl -w net.ipv4.conf.all.forwarding=1
+	# sysctl -w net.ipv6.conf.all.forwarding=1
 	# exit
 
 Add a NAT64 to each namespace:
-	
+
 	# ip netns exec blue bash
-	# jool --instance --add
-	# jool --pool6 --add 2001:db8:64::/96
+	# jool instance add --netfilter --pool6 2001:db8:64::/96
 	# exit
 	#
 	# ip netns exec red bash
-	# jool --instance --add
-	# jool --pool6 --add 2001:db8:46::/96
+	# jool instance add --netfilter --pool6 2001:db8:46::/96
 	# exit
 	#
 	# ip route add 2001:db8:64::/96 via 2001:db8:1::1
 	# ip route add 2001:db8:46::/96 via 2001:db8:2::1
 
-(I'm skipping the `sysctl` commands to reduce clutter. Please add them in any serviceable environments.)
-
 Ensure the NAT64s are different:
 
-	# ip netns exec blue jool --pool6
-	2001:db8:64::/96
-	  (Fetched 1 entries.)
-	# ip netns exec red jool --pool6
-	2001:db8:46::/96
-	  (Fetched 1 entries.)
+	# ip netns exec blue jool global display
+	pool6: 2001:db8:64::/96
+	(...)
+	# ip netns exec red jool global display
+	pool6: 2001:db8:46::/96
+	(...)
 
 Ping yourself through each NAT64:
 
@@ -164,6 +188,7 @@ Ping yourself through each NAT64:
 	--- 2001:db8:64::192.0.2.8 ping statistics ---
 	4 packets transmitted, 4 received, 0% packet loss, time 3001ms
 	rtt min/avg/max/mdev = 0.263/0.427/0.625/0.154 ms
+
 	$ ping6 2001:db8:46::203.0.113.8 -c 4
 	PING 2001:db8:46::203.0.113.8(2001:db8:46::cb00:7108) 56 data bytes
 	64 bytes from 2001:db8:46::cb00:7108: icmp_seq=1 ttl=63 time=0.236 ms
@@ -177,7 +202,7 @@ Ping yourself through each NAT64:
 
 Check out each NAT64's [state](usr-flags-session.html):
 
-	# ip netns exec blue jool --session --icmp --numeric
+	# ip netns exec blue jool session display --icmp --numeric
 	ICMP:
 	---------------------------------
 	Expires in 42 seconds
@@ -185,7 +210,7 @@ Check out each NAT64's [state](usr-flags-session.html):
 	Local: 192.0.2.1#62253	2001:db8:64::c000:208#3206
 	---------------------------------
 	  (Fetched 1 entries.)
-	# ip netns exec red jool --session --icmp --numeric
+	# ip netns exec red jool session display --icmp --numeric
 	ICMP:
 	---------------------------------
 	Expires in 48 seconds
@@ -194,30 +219,35 @@ Check out each NAT64's [state](usr-flags-session.html):
 	---------------------------------
 	  (Fetched 1 entries.)
 
-<!-- TODO add a tcpdump... dump? -->
-
 ### iptables Examples
 
 It's important to note that the rule and the instance need separate configurations because they are independent components. First, let's create and configure the instance:
 
 	# modprobe jool
-	# jool --instance --add --iptables alpha
-	# jool --instance-name alpha --pool6 --add 64:ff9b::/96
-	# jool --instance-name alpha --pool4 --add 192.0.2.1
+	# jool instance add alpha --iptables --pool6 64:ff9b::/96
+	# jool -i alpha pool4 add 192.0.2.1
 
-It's also important to note that you need at least two rules per instance. This is because they are the entry point for packets that will reach the instance, and so you need one for each of the IP protocols:
+It's also important to note that you need at least two rules per instance. This is because they are the entry point for packets that will reach the instance, and so you need at least one for each of the IP protocols:
 
-	# ip6tables -t mangle -A PREROUTING --destination 64:ff9b::/96 -j JOOL --instance-name alpha
-	# iptables  -t mangle -A PREROUTING --destination 192.0.2.1    -j JOOL --instance-name alpha
+	# ip6tables -t mangle -A PREROUTING --destination 64:ff9b::/96                         -j JOOL --instance alpha
+	# iptables  -t mangle -A PREROUTING --destination 192.0.2.1 -p tcp --dport 61001:65535 -j JOOL --instance alpha
+	# iptables  -t mangle -A PREROUTING --destination 192.0.2.1 -p udp --dport 61001:65535 -j JOOL --instance alpha
+	# iptables  -t mangle -A PREROUTING --destination 192.0.2.1 -p icmp                    -j JOOL --instance alpha
 
 Convince yourself that this is fairly standard iptables fare:
 
-	# ip6tables -t mangle -L
-	TODO output
+	# ip6tables -t mangle -L PREROUTING
+	Chain PREROUTING (policy ACCEPT)
+	target     prot opt source               destination
+	JOOL       all      anywhere             64:ff9b::/96        instance: alpha
+
 	# iptables  -t mangle -L
-	TODO output
+	Chain PREROUTING (policy ACCEPT)
+	target     prot opt source               destination
+	JOOL       tcp  --  anywhere             192.0.2.1            tcp dpts:61001:65535instance: alpha
+	JOOL       udp  --  anywhere             192.0.2.1            udp dpts:61001:65535instance: alpha
+	JOOL       icmp --  anywhere             192.0.2.1           instance: alpha
 
 And try performing some translation (in this case, from some other IPv6 node):
 
 	$ ping6 64:ff9b::8.8.8.8
-	TODO output

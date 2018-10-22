@@ -2,12 +2,12 @@
 language: en
 layout: default
 category: Documentation
-title: --eamt
+title: eamt Mode
 ---
 
-[Documentation](documentation.html) > [Userspace Application Arguments](documentation.html#userspace-application-arguments) > \--eamt
+[Documentation](documentation.html) > [Userspace Clients](documentation.html#userspace-clients) > `eamt` Mode
 
-# \--eamt
+# `eamt` Mode
 
 ## Index
 
@@ -25,33 +25,31 @@ Interacts with Jool's Explicit Address Mapping Table (EAMT). See [the introducti
 
 ## Syntax
 
-	jool_siit --eamt (
-		[--display] [--csv]
-		| --count
-		| --add <IPv4-prefix> <IPv6-prefix> [--force]
-		| --remove <IPv4-prefix> <IPv6-prefix>
-		| --flush
+	jool_siit eamt (
+		display [--csv]
+		| add <IPv4-prefix> <IPv6-prefix> [--force]
+		| remove <IPv4-prefix> <IPv6-prefix>
+		| flush
 	)
 
 ## Arguments
 
 ### Operations
 
-* `--display`: The EAMT is printed in standard output. This is the default operation.
-* `--count`: The number of entries in the EAMT are printed in standard output.
-* `--add`: Combines `<IPv4-prefix>` and `<IPv6-prefix>` into an EAM entry, and uploads it to Jool's table.
-* `--remove`: Deletes from the table the EAM entry described by `<IPv4-prefix>` and/or `<IPv6-prefix>`.
-* `--flush`: Removes all entries from the table.
+* `display`: The EAMT is printed in standard output.
+* `add`: Combines `<IPv4-prefix>` and `<IPv6-prefix>` into an EAM entry, and uploads it to Jool's table.
+* `remove`: Deletes from the table the EAM entry described by `<IPv4-prefix>` and/or `<IPv6-prefix>`.
+* `flush`: Removes all entries from the table.
 
 ### Options
 
 | **Flag** | **Description** |
 | `--csv` | Print the table in [_Comma/Character-Separated Values_ format](http://en.wikipedia.org/wiki/Comma-separated_values). This is intended to be redirected into a .csv file. |
-| `--force` | Upload the entry even if overlapping occurs (See the next section). |
+| `--force` | Upload the entry even if overlapping occurs. (See the next section.) |
 
 ## Overlapping EAM entries
 
-By default, EAMT entries are not allowed to overlap. You can use `--force` while `--add`ing to override this property. When overlapping EAMT entries exist, Jool picks based on longest match prefix.
+By default, EAMT entries are not allowed to overlap. You can use `--force` while `add`ing to override this property. When overlapping EAMT entries exist, Jool picks based on longest match prefix.
 
 For example:
 
@@ -68,52 +66,50 @@ Overlapping EAMT entries exist to help EAM coexist with [IVI](http://www.rfc-edi
 
 ## Examples
 
+These examples below assume that the name of the Jool instance is "`default`."
+
 Add a handful of mappings:
 
 {% highlight bash %}
-# jool_siit --eamt --add 192.0.2.1      2001:db8:aaaa::
-# jool_siit --eamt --add 192.0.2.2/32   2001:db8:bbbb::b/128
-# jool_siit --eamt --add 192.0.2.16/28  2001:db8:cccc::/124
-# jool_siit --eamt --add 192.0.2.128/26 2001:db8:dddd::/64
-# jool_siit --eamt --add 192.0.2.192/31 64:ff9b::/127
+user@T:~# jool_siit eamt add 192.0.2.1      2001:db8:aaaa::
+user@T:~# jool_siit eamt add 192.0.2.2/32   2001:db8:bbbb::b/128
+user@T:~# jool_siit eamt add 192.0.2.16/28  2001:db8:cccc::/124
+user@T:~# jool_siit eamt add 192.0.2.128/26 2001:db8:dddd::/64
+user@T:~# jool_siit eamt add 192.0.2.192/31 64:ff9b::/127
 {% endhighlight %}
 
 Display the new table:
 
 {% highlight bash %}
-$ jool_siit --eamt --display
-64:ff9b::/127 - 192.0.2.192/31
-2001:db8:dddd::/64 - 192.0.2.128/26
-2001:db8:cccc::/124 - 192.0.2.16/28
-2001:db8:bbbb::b/128 - 192.0.2.2/32
-2001:db8:aaaa::/128 - 192.0.2.1/32
-  (Fetched 5 entries.)
+user@T:~# jool_siit eamt display
++---------------------------------------------+--------------------+
+|                                 IPv6 Prefix |        IPv4 Prefix |
++---------------------------------------------+--------------------+
+|                               64:ff9b::/127 |     192.0.2.192/31 |
+|                         2001:db8:dddd::/64  |     192.0.2.128/26 |
+|                         2001:db8:cccc::/124 |      192.0.2.16/28 |
+|                        2001:db8:bbbb::b/128 |       192.0.2.2/32 |
+|                         2001:db8:aaaa::/128 |       192.0.2.1/32 |
++---------------------------------------------+--------------------+
 {% endhighlight %}
 
 Dump the database on a CSV file:
 
 {% highlight bash %}
-$ jool_siit --eamt --display --csv > eamt.csv
+user@T:~# jool_siit eamt display --csv > eamt.csv
 {% endhighlight %}
 
 [eamt.csv](../obj/eamt.csv)
 
-Display the number of entries in the table:
-
-{% highlight bash %}
-$ jool_siit --eamt --count
-5
-{% endhighlight %}
-
 Remove the first entry:
 
 {% highlight bash %}
-# jool_siit --eamt --remove 2001:db8:aaaa::
+user@T:~# jool_siit eamt remove 2001:db8:aaaa::
 {% endhighlight %}
 
 Empty the table:
 
 {% highlight bash %}
-# jool_siit --eamt --flush
+user@T:~# jool_siit eamt flush
 {% endhighlight %}
 

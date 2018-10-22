@@ -92,7 +92,7 @@ First, teach your kernel what SIIT is by attaching the `jool_siit` module to you
 
 <!-- Most Distros -->
 {% highlight bash %}
-user@T:~# /sbin/modprobe --first-time jool_siit
+user@T:~# /sbin/modprobe jool_siit
 {% endhighlight %}
 
 <!-- OpenWRT -->
@@ -110,32 +110,36 @@ Then, create a SIIT instance and perform the bare minimum configuration:
 <!-- iptables Jool -->
 {% highlight bash %}
 user@T:~# # Create a Jool iptables instance named "example."
-user@T:~# jool_siit --instance --add "example" --iptables
-user@T:~# # Tell it that the IPv6 representation of any IPv4 address should be
+user@T:~# # Also, establish that the IPv6 representation of any IPv4 address should be
 user@T:~# # `2001:db8::<IPv4 address>`. See sections below for examples.
-user@T:~# jool_siit --pool6 --add 2001:db8::/96 --instance-name "example"
+user@T:~# jool_siit instance add "example" --iptables  --pool6 2001:db8::/96
 user@T:~# 
-user@T:~# # Tell iptables that any incoming traffic headed towards the 64:ff9b::/96 and
-user@T:~# # 198.51.100.8/29 networks should be handled by our newly-created instance.
-user@T:~# ip6tables -t mangle -A PREROUTING -d 64:ff9b::/96    -j JOOL_SIIT --instance-name "example"
-user@T:~# iptables  -t mangle -A PREROUTING -d 198.51.100.8/29 -j JOOL_SIIT --instance-name "example"
+user@T:~# # Tell iptables which traffic should be handled by our newly-created instance.
+user@T:~# ip6tables -t mangle -A PREROUTING \
+>		-s 2001:db8::198.51.100.8/125 -d 2001:db8::192.0.2.0/120 \
+>		-j JOOL_SIIT --instance "example"
+user@T:~# iptables  -t mangle -A PREROUTING \
+>		-s 192.0.2.0/24 -d 198.51.100.8/29 \
+>		-j JOOL_SIIT --instance "example"
 {% endhighlight %}
 
 <!-- Netfilter Jool -->
 {% highlight bash %}
 user@T:~# # Create a Jool iptables instance named "example."
-user@T:~# jool_siit --instance --add "example" --netfilter
-user@T:~# # Tell it that the IPv6 representation of any IPv4 address should be
+user@T:~# # Also, establish that the IPv6 representation of any IPv4 address should be
 user@T:~# # `2001:db8::<IPv4 address>`. See sections below for examples.
-user@T:~# jool_siit --pool6 --add 2001:db8::/96 --instance-name "example"
- 
- 
- 
- 
- 
+user@T:~# jool_siit instance add "example" --netfilter --pool6 2001:db8::/96 
+user@T:~#
+user@T:~# # All traffic gets SIIT'd in Netfilter mode.
+user@T:~#
+user@T:~#
+user@T:~#
+user@T:~#
+user@T:~#
+user@T:~#
 {% endhighlight %}
 
-Here's Jool documentation on [`--instance`](usr-flags-instance.html) and [`--pool6`](usr-flags-pool6.html).
+Here's Jool documentation on [`instance`](usr-flags-instance.html).
 
 ## Testing
 
@@ -181,7 +185,7 @@ Then maybe another one in _C_ and request from _W_:
 
 ## Stopping Jool
 
-Destroy your instance by reverting the `--instance --add`:
+Destroy your instance by reverting the `instance add`:
 
 <div class="distro-menu">
 	<span class="distro-selector" onclick="showDistro(this);">iptables Jool</span>
@@ -190,16 +194,24 @@ Destroy your instance by reverting the `--instance --add`:
 
 <!-- iptables Jool -->
 {% highlight bash %}
-user@T:~# ip6tables -t mangle -D PREROUTING -d 64:ff9b::/96    -j JOOL_SIIT --instance-name "example"
-user@T:~# iptables  -t mangle -D PREROUTING -d 198.51.100.8/29 -j JOOL_SIIT --instance-name "example"
-user@T:~# jool_siit --instance --remove "example"
+user@T:~# ip6tables -t mangle -D PREROUTING \
+>		-s 2001:db8::198.51.100.8/125 -d 2001:db8::192.0.2.0/120 \
+>		-j JOOL_SIIT --instance "example"
+user@T:~# iptables  -t mangle -D PREROUTING \
+>		-s 192.0.2.0/24 -d 198.51.100.8/29 \
+>		-j JOOL_SIIT --instance "example"
+user@T:~# jool_siit instance remove "example"
 {% endhighlight %}
 
 <!-- Netfilter Jool -->
 {% highlight bash %}
  
  
-user@T:~# jool_siit --instance --remove "example"
+ 
+ 
+ 
+ 
+user@T:~# jool_siit instance remove "example"
 {% endhighlight %}
 
 And unteach SIIT from your kernel by reverting the `modprobe` if you want:

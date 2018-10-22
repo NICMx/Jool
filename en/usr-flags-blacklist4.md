@@ -2,12 +2,12 @@
 language: en
 layout: default
 category: Documentation
-title: --blacklist
+title: blacklist4 Mode
 ---
 
-[Documentation](documentation.html) > [Userspace Application Arguments](documentation.html#userspace-application-arguments) > \--blacklist
+[Documentation](documentation.html) > [Userspace Clients](documentation.html#userspace-clients) > `blacklist4` Mode
 
-# \--blacklist
+# `blacklist4` Mode
 
 ## Index
 
@@ -24,7 +24,7 @@ Interacts with Jool's blacklisted addresses pool.
 
 The pool dictates which addresses can be translated using the [pool6](usr-flags-pool6.html) prefix. Notice [EAM](usr-flags-eamt.html) has more priority than the prefix, so you don't have to add an entry to this pool for every EAM entry you need.
 
-There are some addresses Jool will refuse to translate, regardless of `blacklist`. These include
+There are some addresses Jool will refuse to translate, regardless of `blacklist4`. These include
 
 - The addresses that belong to Jool's node (because Jool can only be used in a forwarding fashion, currently).
 - Software addresses (0.0.0.0/8).
@@ -37,24 +37,23 @@ The blacklist is mostly only relevant in Netfilter Jool, because iptables Jool a
 
 ## Syntax
 
-	jool_siit --blacklist (
-		[--display] [--csv]
-		| --count
-		| --add <IPv4-prefix>
-		| --remove <IPv4-prefix>
-		| --flush
+	jool_siit blacklist4 (
+		display [--csv]
+		| add <IPv4-prefix>
+		| remove <IPv4-prefix>
+		| flush
 	)
 
 ## Arguments
 
 ### Operations
 
-* `--display`: The pool's addresses/prefixes are printed in standard output. This is the default operation.
-* `--count`: The number of _addresses_ (not prefixes) in the pool is printed in standard output.  
-For example, if all you have is a /30 prefix, expect "4" as output.
-* `--add`: Uploads `<IPv4-prefix>` to the pool.
-* `--remove`: Deletes `<IPv4-prefix>` from the pool.
-* `--flush`: Removes all addresses/prefixes from the pool.
+* `display`: The pool's addresses/prefixes are printed in standard output.
+* `add`: Uploads `<IPv4-prefix>` to the pool.
+* `remove`: Deletes `<IPv4-prefix>` from the pool.
+* `flush`: Removes all addresses/prefixes from the pool.
+
+`<IPv4-prefix>`'s prefix length defaults to 32.
 
 ### Options
 
@@ -63,27 +62,30 @@ For example, if all you have is a /30 prefix, expect "4" as output.
 
 ## Examples
 
+These examples assume that the name of the Jool instance is "default."
+
+Add addresses:
+
+	# jool_siit blacklist4 add 192.0.2.0/28
+	# jool_siit blacklist4 add 198.51.100.0/30
+	# jool_siit blacklist4 add 203.0.113.8/32
+
 Display the current addresses:
 
-	$ jool_siit --blacklist --display
-	192.0.2.0/28
-	198.51.100.0/30
-	203.0.113.8/32
-	  (Fetched 3 prefixes.)
+	# jool_siit blacklist4 display
+	+--------------------+
+	|        IPv4 Prefix |
+	+--------------------+
+	|       192.0.2.0/28 |
+	|    198.51.100.0/30 |
+	|     203.0.113.8/32 |
+	+--------------------+
 
-Display only the address count:
+Remove an entry:
 
-	$ jool_siit --blacklist --count
-	21
+	# jool_siit blacklist4 remove 198.51.100.0/30
 
-(That's /28 + /30 + /32 = 16 + 4 + 1)
+Clear the table:
 
-Remove a couple of entries:
-
-	# jool_siit --blacklist --remove 192.0.2.0/28
-	# jool_siit --blacklist --remove 198.51.100.0/30
-
-Return one entry:
-
-	# jool_siit --blacklist --add 192.0.2.0/28
+	# jool_siit blacklist4 flush
 

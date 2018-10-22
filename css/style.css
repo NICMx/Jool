@@ -278,7 +278,6 @@ blockquote {
 
 
 pre code {
-	font-size: 13px;
 	display: block;
 	overflow: auto;
 	padding: 6px 10px;
@@ -287,7 +286,7 @@ pre code {
 }
 
 code {
-	font-size: 14px;
+	font-size: 90%;
 	background-color: #f8f8f8;
 	border: 1px solid #ddd;
 	padding-left: 0.3em;

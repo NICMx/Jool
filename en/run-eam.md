@@ -76,25 +76,47 @@ Remember you might want to cross-ping _T_ vs everything before continuing.
 
 <!-- Most Distros -->
 {% highlight bash %}
-user@T:~# /sbin/modprobe --first-time jool_siit disabled
-user@T:~# jool_siit --eamt --add 2001:db8:6::/120 198.51.100.0/24
-user@T:~# jool_siit --eamt --add 2001:db8:4::/120 192.0.2.0/24
-user@T:~# jool_siit --enable
+user@T:~# /sbin/modprobe jool_siit
+user@T:~# jool_siit instance add "example" --iptables
+user@T:~# jool_siit -i "example" eamt add 2001:db8:6::/120 198.51.100.0/24
+user@T:~# jool_siit -i "example" eamt add 2001:db8:4::/120 192.0.2.0/24
+user@T:~#
+user@T:~# ip6tables -t mangle -A PREROUTING \
+>		-s 2001:db8:6::/120 -d 2001:db8:4::/120 \
+>		-j JOOL_SIIT --instance "example"
+user@T:~# iptables  -t mangle -A PREROUTING \
+>		-s 192.0.2.0/24 -d 198.51.100.0/24 \
+>		-j JOOL_SIIT --instance "example"
 {% endhighlight %}
 
 <!-- OpenWRT -->
 {% highlight bash %}
-user@T:~# insmod jool_siit disabled
-user@T:~# jool_siit --eamt --add 2001:db8:6::/120 198.51.100.0/24
-user@T:~# jool_siit --eamt --add 2001:db8:4::/120 192.0.2.0/24
-user@T:~# jool_siit --enable
+user@T:~# insmod jool_siit
+user@T:~# jool_siit instance add "example" --iptables
+user@T:~# jool_siit -i "example" eamt add 2001:db8:6::/120 198.51.100.0/24
+user@T:~# jool_siit -i "example" eamt add 2001:db8:4::/120 192.0.2.0/24
+user@T:~#
+user@T:~# ip6tables -t mangle -A PREROUTING \
+>		-s 2001:db8:6::/120 -d 2001:db8:4::/120 \
+>		-j JOOL_SIIT --instance "example"
+user@T:~# iptables  -t mangle -A PREROUTING \
+>		-s 192.0.2.0/24 -d 198.51.100.0/24 \
+>		-j JOOL_SIIT --instance "example"
 {% endhighlight %}
 
-Unlike `pool6`, it is not practical to insert the entire EAM table in a single command, so we instruct Jool to start disabled. We then insert the EAM table rows, one by one, [using the userspace application](usr-flags-eamt.html). When the table is complete, we tell Jool it can start translating traffic ([`--enable`](usr-flags-global.html#--enable---disable)).
+`-i` stands for "instance". The `eamt add` commands build an [Explicit Address Mappings Table](eamt.html). You can see it through the `display` operation:
 
-Using `disabled` and `--enable` is not actually neccesary; Jool will naturally figure out that it cannot translate traffic until the EAM table and/or pool6 are populated. The reason why Jool was "forced" to remain disabled until the table was complete was so there wouldn't be a timespan where traffic was being translated inconsistently (ie. with a half-complete table).
+{% highlight bash %}
+user@T:~# jool_siit -i "example" eamt display
++---------------------------------------------+--------------------+
+|                                 IPv6 Prefix |        IPv4 Prefix |
++---------------------------------------------+--------------------+
+|                            2001:db8:4::/120 |       192.0.2.0/24 |
+|                            2001:db8:6::/120 |    198.51.100.0/24 |
++---------------------------------------------+--------------------+
+{% endhighlight %}
 
-And again, the IPv6 prefix and the EAM table are not exclusive operation modes. Jool will always try to translate an address using EAM, and if that fails, fall back to use the prefix. Add `pool6` during the `modprobe` if you want this.
+And again, the IPv6 prefix and the EAM table are not exclusive operation modes. Jool will always try to translate an address using EAMs, and if that fails, fall back to use the prefix. Add `--pool6` during the `instance add` if you want this.
 
 ## Testing
 
@@ -149,18 +171,31 @@ Same as in the previous walkthrough.
 
 <!-- Most Distros -->
 {% highlight bash %}
+user@T:~# ip6tables -t mangle -D PREROUTING \
+>		-s 2001:db8:6::/120 -d 2001:db8:4::/120 \
+>		-j JOOL_SIIT --instance "example"
+user@T:~# iptables  -t mangle -D PREROUTING \
+>		-s 192.0.2.0/24 -d 198.51.100.0/24 \
+>		-j JOOL_SIIT --instance "example"
+user@T:~# jool_siit instance remove "example"
 user@T:~# /sbin/modprobe -r jool_siit
 {% endhighlight %}
 
 <!-- OpenWRT -->
 {% highlight bash %}
+user@T:~# ip6tables -t mangle -D PREROUTING \
+>		-s 2001:db8:6::/120 -d 2001:db8:4::/120 \
+>		-j JOOL_SIIT --instance "example"
+user@T:~# iptables  -t mangle -D PREROUTING \
+>		-s 192.0.2.0/24 -d 198.51.100.0/24 \
+>		-j JOOL_SIIT --instance "example"
+user@T:~# jool_siit instance remove "example"
 user@T:~# rmmod jool_siit
 {% endhighlight %}
 
 ## Afterwords
 
 1. More complex setups might require you to consider the [MTU notes](mtu.html).
-2. The `modprobe` insertion and removal mechanism is fine if all you need is a simple single SIIT, but if you want to enclose it in a network namespace, or need multiple Jool instances in a single machine, check out [`--instance`](usr-flags-instance.html).
 3. Please note that none of what was done in this tutorial survives reboots! Documentation on persistence will be released in the future.
 
 The [next tutorial](run-nat64.html) is a [Stateful NAT64](intro-xlat.html#stateful-nat64) run.

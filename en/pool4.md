@@ -54,7 +54,7 @@ While it might make sense for the NAT64 to attempt to retain the source port whi
 
 > ![Note](../images/bulb.svg) Pool4 is currently undergoing deep refactors in order to support [per-customer granularity](https://tools.ietf.org/html/draft-ietf-sunset4-nat64-port-allocation-02). Some information in this article might be obsoleted in the future.
 
-The pool4 table can be edited on a running NAT64 Jool by means of [`--pool4`](usr-flags-pool4.html) userspace application commands.
+The pool4 table can be edited on a running NAT64 Jool by means of [`pool4`](usr-flags-pool4.html) userspace application commands.
 
 ## Terminology
 
@@ -85,7 +85,7 @@ Mark | Protocol | Max Iterations | Transport Addresses
 
 then the entirety of the `192.0.2.1` address will mask the `2001:db8::/28` network, and the `192.0.2.2` address will mask the `2001:db8::16/28` network. (TCP only, of course.)
 
-> ![Note](../images/bulb.svg) Ever since [`--instance`](usr-flags-instance.html) became a feature, `Mark` has somewhat fallen into obsolescence, as its behavior can be replicated by having several Jool instances, each with its own pool4. [`Mark` can still prove to be the better performing option, however](https://github.com/NICMx/mark-src-range).
+> ![Note](../images/bulb.svg) Ever since [`instance`](usr-flags-instance.html) became a feature, `Mark` has somewhat fallen into obsolescence, as its behavior can be replicated by having several Jool instances, each with its own pool4. [`Mark` can still prove to be the better performing option, however](https://github.com/NICMx/mark-src-range).
 
 ## Mask Selection Algorithm
 

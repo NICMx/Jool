@@ -40,8 +40,9 @@ This will be the expected packet flow (in addition to the ones in the [SIIT-DC A
 Start from the [SIIT-DC configuration](siit-dc.html#configuration) and add the following SIIT Jool setup on _ER_:
 
 {% highlight bash %}
-modprobe jool_siit pool6=2001:db8:46::/96
-jool_siit --eamt --add 198.51.100.0/24 2001:db8:3333::464:0/120
+modprobe jool_siit
+jool_siit instance add --pool6 2001:db8:46::/96
+jool_siit eamt add 198.51.100.0/24 2001:db8:3333::464:0/120
 {% endhighlight %}
 
 > ![Warning](../images/warning.svg) Remember: The [`sysctl` and `ethtool` commands](run-vanilla.html#sample-network) have been skipped here for the sake of reducing clutter. Please add them in any serviceable environments.
@@ -49,7 +50,7 @@ jool_siit --eamt --add 198.51.100.0/24 2001:db8:3333::464:0/120
 And the new server record on _BR_:
 
 {% highlight bash %}
-jool_siit --eamt --add 192.0.2.2 2001:db8:3333::464:1
+jool_siit eamt add 192.0.2.2 2001:db8:3333::464:1
 {% endhighlight %}
 
 Of course, also make sure `2001:db8:3333::464:0/120` is routed towards _ER_'s IPv6 interface.

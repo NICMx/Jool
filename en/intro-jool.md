@@ -94,7 +94,7 @@ For anyone not in the knowing, that command adds a _rule_ to iptables' _filter_ 
 
 iptables Jool is implemented as an ordinary iptables target. Thus,
 
-	# iptables -t mangle -A PREROUTING --destination 192.0.2.0/24 -j JOOL --instance-name potato
+	# iptables -t mangle -A PREROUTING --destination 192.0.2.0/24 -j JOOL --instance potato
 
 adds a _rule_ to iptables's _mangle_ table, which "Jools" all packets headed towards the `192.0.2` network. This happens during `PREROUTING`. Of all the Jool instances available in the current namespace, the translation is done by the one whose name is `potato`.
 

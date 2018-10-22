@@ -72,5 +72,5 @@ This entry will not expire automatically, so IPv4 clients can reliably query the
 
 ## Further Reading
 
-- You can upload static BIB entries via [`--bib`](usr-flags-bib.html).
+- You can upload static BIB entries via [`bib`](usr-flags-bib.html).
 

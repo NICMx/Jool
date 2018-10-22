@@ -98,7 +98,7 @@ The most basic configuration is very minimalistic. In order to turn on DNS64, th
 And remember to reload.
 
 {% highlight bash %}
-user@B:~# sudo service bind9 restart
+user@B:~# service bind9 restart
 {% endhighlight %}
 
 That's it!

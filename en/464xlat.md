@@ -121,8 +121,8 @@ This is _R_:
 	# We're masking the private network using an EAMT entry.
 	# Traffic towards the Internet is to be appended PLAT's prefix.
 	# Recall that the EAMT has higher precedence than the prefix.
-	modprobe jool_siit pool6=64:ff9b::/96
-	jool_siit --eamt --add 192.168.0.8 2001:db8:2::
+	jool_siit instance add --pool6 64:ff9b::/96
+	jool_siit eamt add 192.168.0.8 2001:db8:2::
 
 > ![Warning](../images/warning.svg) Remember: The [`sysctl` and `ethtool` commands](run-vanilla.html#sample-network) have been skipped here for the sake of reducing clutter. Please add them in any serviceable environments.
 
@@ -146,7 +146,9 @@ For completeness sake, here's _PLAT_'s network configuration:
 	ip addr add 203.0.113.1/24 dev eth1
 	ip addr add 203.0.113.2/24 dev eth1
 
-	modprobe jool pool6=64:ff9b::/96 pool4=203.0.113.2
+	modprobe jool
+	jool instance add --pool6 64:ff9b::/96
+	jool pool4 add 203.0.113.2
 
 > ![Warning](../images/warning.svg) Remember: The [`sysctl` and `ethtool` commands](run-vanilla.html#sample-network) have been skipped here for the sake of reducing clutter. Please add them in any serviceable environments.
 

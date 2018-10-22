@@ -21,16 +21,16 @@ title: Installation
 
 ## Introduction
 
-Jool is six binaries:
+Jool is seven binaries:
 
 - Two [kernel modules](https://en.wikipedia.org/wiki/Loadable_kernel_module) you can hook up to Linux. One of them is the SIIT implementation and the other one is the Stateful NAT64. They are the translating components and do most of the work.
 - Two [userspace](https://en.wikipedia.org/wiki/User_space) clients which can be used to configure each module.
-- A shared object that iptables uses to enable `ip[6]tables -j JOOL[_SIIT]`-style rules.
+- Two shared objects that iptables uses to enable `ip[6]tables -j JOOL[_SIIT]`-style rules.
 - An optional userspace daemon that can synchronize state between different NAT64 Jool instances.
 
 This document will explain how to compile and install all of that on most Linux distributions.
 
-In following console segments, `$` indicates the command can be executed freely; `#` means it requites admin privileges.
+In following console segments, `$` indicates the command can be executed freely; `#` means it requires admin privileges.
 
 ### Kbuild vs DKMS
 
@@ -56,27 +56,27 @@ Aside from that, you will need your build essentials. Some distributions already
 
 <!-- Debian -->
 {% highlight bash %}
-# apt install build-essential pkg-config
+user@T:~# apt install build-essential pkg-config
 {% endhighlight %}
 
 <!-- CentOS -->
 {% highlight bash %}
-# yum install gcc
+user@T:~# yum install gcc
 {% endhighlight %}
 
 <!-- Arch Linux -->
 {% highlight bash %}
-# pacman -S base-devel
+user@T:~# pacman -S base-devel
 {% endhighlight %}
 
 <!-- openSUSE -->
 {% highlight bash %}
-# zypper install gcc make
+user@T:~# zypper install gcc make
 {% endhighlight %}
 
 <!-- Ubuntu Server -->
 {% highlight bash %}
-# apt install gcc make
+user@T:~# apt install gcc make
 {% endhighlight %}
 
 The modules need your kernel headers:
@@ -90,41 +90,41 @@ The modules need your kernel headers:
 
 <!-- Ubuntu/Debian -->
 {% highlight bash %}
-# apt install linux-headers-$(uname -r)
+user@T:~# apt install linux-headers-$(uname -r)
 {% endhighlight %}
 
 <!-- CentOS -->
 {% highlight bash %}
-# yum install kernel-devel
-# yum install kernel-headers
+user@T:~# yum install kernel-devel
+user@T:~# yum install kernel-headers
 {% endhighlight %}
 
 <!-- openSUSE -->
 {% highlight bash %}
-# zypper install kernel-source
+user@T:~# zypper install kernel-source
 {% endhighlight %}
 
 <!-- Raspberry Pi -->
 {% highlight bash %}
-$ # See {{ site.repository-url }}/issues/158
+user@T:~$ # See {{ site.repository-url }}/issues/158
 {% endhighlight %}
 
 The userspace clients and the daemon need the [Development Library and Headers for libnl-genl-3](http://www.infradead.org/~tgr/libnl/):
 
 {% highlight bash %}
-# apt-get install libnl-genl-3-dev
+user@T:~# apt install libnl-genl-3-dev
 {% endhighlight %}
 
 The iptables shared object needs the [Netfilter xtables Library development files](http://www.netfilter.org/):
 
 {% highlight bash %}
-# apt-get install libxtables-dev
+user@T:~# apt install libxtables-dev
 {% endhighlight %}
 
 If you will install Jool via DKMS, you will need DKMS itself:
 
 {% highlight bash %}
-# apt install dkms
+user@T:~# apt install dkms
 {% endhighlight %}
 
 If you're going to clone the git repository, you need git and the autotools:
@@ -135,17 +135,17 @@ If you're going to clone the git repository, you need git and the autotools:
 </div>
 
 {% highlight bash %}
-# apt-get install git autoconf
+user@T:~# apt install git autoconf
 {% endhighlight %}
 
 {% highlight bash %}
-# yum install git automake
+user@T:~# yum install git automake
 {% endhighlight %}
 
 And if you don't, you will need a `.tar.gz` extraction tool:
 
 {% highlight bash %}
-# apt install tar
+user@T:~# apt install tar
 {% endhighlight %}
 
 ## Downloading the Code
@@ -189,20 +189,20 @@ Choose either Kbuild or DKMS; you don't need both.
 
 <!-- tarball -->
 {% highlight bash %}
-$ cd jool-{{ site.latest-version }}/
-$
-$ ./configure
-$ make
-# make install
+user@T:~$ cd jool-{{ site.latest-version }}/
+user@T:~$
+user@T:~$ ./configure
+user@T:~$ make
+user@T:~# make install
 {% endhighlight %}
 
 <!-- git clone -->
 {% highlight bash %}
-$ cd Jool/
-$ ./autogen.sh
-$ ./configure
-$ make
-# make install
+user@T:~$ cd Jool/
+user@T:~$ ./autogen.sh
+user@T:~$ ./configure
+user@T:~$ make
+user@T:~# make install
 {% endhighlight %}
 
 > ![!](../images/warning.svg) Kernels 3.7 and up want you to sign your kernel modules to make sure you're loading them in a responsible manner.
@@ -224,12 +224,12 @@ This is how you compile and install the kernel modules:
 
 <!-- tarball -->
 {% highlight bash %}
-# dkms install jool-{{ site.latest-version }}/
+user@T:~# dkms install jool-{{ site.latest-version }}/
 {% endhighlight %}
 
 <!-- git clone -->
 {% highlight bash %}
-# dkms install Jool/
+user@T:~# dkms install Jool/
 {% endhighlight %}
 
 And this is how you compile and install the userspace applications:
@@ -241,20 +241,20 @@ And this is how you compile and install the userspace applications:
 
 <!-- tarball -->
 {% highlight bash %}
-$ cd jool-{{ site.latest-version }}/
-$
-$ ./configure
-$ cd src/usr/
-$ make
-# make install
+user@T:~$ cd jool-{{ site.latest-version }}/
+user@T:~$
+user@T:~$ ./configure
+user@T:~$ cd src/usr/
+user@T:~$ make
+user@T:~# make install
 {% endhighlight %}
 
 <!-- git clone -->
 {% highlight bash %}
-$ cd Jool/
-$ ./autogen.sh
-$ ./configure
-$ cd src/usr/
-$ make
-# make install
+user@T:~$ cd Jool/
+user@T:~$ ./autogen.sh
+user@T:~$ ./configure
+user@T:~$ cd src/usr/
+user@T:~$ make
+user@T:~# make install
 {% endhighlight %}

@@ -62,11 +62,6 @@ user@T:~# /sbin/ip address add 203.0.113.1/24 dev eth1
 user@T:~# 
 user@T:~# sysctl -w net.ipv4.conf.all.forwarding=1
 user@T:~# sysctl -w net.ipv6.conf.all.forwarding=1
-user@T:~# 
-user@T:~# ethtool --offload eth0 gro off
-user@T:~# ethtool --offload eth0 lro off
-user@T:~# ethtool --offload eth1 gro off
-user@T:~# ethtool --offload eth1 lro off
 {% endhighlight %}
 
 > ![Note!](../images/bulb.svg) In previous versions of Jool, _T_ used to need two or more IPv4 addresses. Because pool4 now stores port ranges, this is no longer the case.
@@ -75,7 +70,7 @@ Remember you might want to cross-ping _T_ vs everything before continuing.
 
 ## Jool
 
-This is the insertion syntax:
+Even though they share a lot of code, because of kernel quirks, the NAT64 module is separate from the SIIT one. The name of the NAT64 module is `jool`.
 
 <div class="distro-menu">
 	<span class="distro-selector" onclick="showDistro(this);">Most Distros</span>
@@ -84,42 +79,58 @@ This is the insertion syntax:
 
 <!-- Most Distros -->
 {% highlight bash %}
-user@T:~# /sbin/modprobe [--first-time] jool \
-		[pool6=<IPv6 prefix>] \
-		[pool4=<IPv4 prefixes>] \
-		[disabled]
+user@T:~# /sbin/modprobe jool
 {% endhighlight %}
 
 <!-- OpenWRT -->
 {% highlight bash %}
-user@T:~# insmod jool \
-		[pool6=<IPv6 prefix>] \
-		[pool4=<IPv4 prefixes>] \
-		[disabled]
+user@T:~# insmod jool
 {% endhighlight %}
 
-The result looks like this:
+Though the meaning of `pool6` is slightly different than in SIIT, the instance configuration looks pretty much the same:
 
 <div class="distro-menu">
-	<span class="distro-selector" onclick="showDistro(this);">Most Distros</span>
-	<span class="distro-selector" onclick="showDistro(this);">OpenWRT</span>
+	<span class="distro-selector" onclick="showDistro(this);">iptables Jool</span>
+	<span class="distro-selector" onclick="showDistro(this);">Netfilter Jool</span>
 </div>
 
-<!-- Most Distros -->
+<!-- iptables Jool -->
 {% highlight bash %}
-user@T:~# /sbin/modprobe --first-time jool pool6=64:ff9b::/96
+user@T:~# jool instance add "example" --iptables  --pool6 64:ff9b::/96
+user@T:~#
+user@T:~# ip6tables -t mangle -A PREROUTING \
+>		-d 64:ff9b::/96 \
+>		-j JOOL --instance "example"
+user@T:~# iptables  -t mangle -A PREROUTING \
+>		-d 203.0.113.1 -p tcp --dport 61001:65535 \
+>		-j JOOL --instance "example"
+user@T:~# iptables  -t mangle -A PREROUTING \
+>		-d 203.0.113.1 -p udp --dport 61001:65535 \
+>		-j JOOL --instance "example"
+user@T:~# iptables  -t mangle -A PREROUTING \
+>		-d 203.0.113.1 -p icmp \
+>		-j JOOL --instance "example"
 {% endhighlight %}
 
-<!-- OpenWRT -->
+<!-- Netfilter Jool -->
 {% highlight bash %}
-user@T:~# insmod jool pool6=64:ff9b::/96
+user@T:~# jool instance add "example" --netfilter --pool6 64:ff9b::/96
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
 {% endhighlight %}
 
-Jool will append and remove prefix `64:ff9b::/96`.
-
-> ![Note!](../images/bulb.svg) In previous versions of Jool, `pool4` used to be mandatory. This is no longer the case.
-
-> ![Note!](../images/bulb.svg) Because we skipped the `pool4` argument, Jool will fall back to mask packets using the upper ports of `203.0.113.1`. Unless you have few IPv6 clients, this is probably not what you want. See [pool4](pool4.html) for details on how to fine-tune this.
+The iptables configuration, on the other hand, needs to use the `JOOL` target and match more specific transport addresses in the IPv4 side. Ports 61001-65535 of _T_'s owned IPv4 addresses are Jool's default reserved mask range. More information can be found in [pool4](pool4.html).
 
 ## Testing
 
@@ -148,8 +159,6 @@ rtt min/avg/max/mdev = 1.136/6.528/15.603/5.438 ms
 
 ## Stopping Jool
 
-To shut down Jool, revert the modprobe using the `-r` flag:
-
 <div class="distro-menu">
 	<span class="distro-selector" onclick="showDistro(this);">Most Distros</span>
 	<span class="distro-selector" onclick="showDistro(this);">OpenWRT</span>
@@ -157,18 +166,23 @@ To shut down Jool, revert the modprobe using the `-r` flag:
 
 <!-- Most Distros -->
 {% highlight bash %}
+user@T:~# ip6tables -t mangle -F
+user@T:~# iptables  -t mangle -F
+user@T:~# jool instance remove "example"
 user@T:~# /sbin/modprobe -r jool
 {% endhighlight %}
 
 <!-- OpenWRT -->
 {% highlight bash %}
+user@T:~# ip6tables -t mangle -F
+user@T:~# iptables  -t mangle -F
+user@T:~# jool instance remove "example"
 user@T:~# rmmod jool
 {% endhighlight %}
 
 ## Afterwords
 
 1. More complex setups might require you to consider the [MTU notes](mtu.html).
-2. The `modprobe` insertion and removal mechanism is fine if all you need is a simple single NAT64, but if you want to enclose it in a network namespace, or need multiple Jool instances in a single machine, check out [`--instance`](usr-flags-instance.html).
 3. Please note that none of what was done in this tutorial survives reboots! Documentation on persistence will be released in the future.
 
 The [next tutorial](dns64.html) explains DNS64.

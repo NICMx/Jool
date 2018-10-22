@@ -2,12 +2,12 @@
 language: en
 layout: default
 category: Documentation
-title: --global
+title: global Mode
 ---
 
-[Documentation](documentation.html) > [Userspace Application Arguments](documentation.html#userspace-application-arguments) > \--global
+[Documentation](documentation.html) > [Userspace Clients](documentation.html#userspace-clients) > `global` Mode
 
-# \--global
+# `global` Mode
 
 ## Index
 
@@ -15,89 +15,80 @@ title: --global
 2. [Syntax](#syntax)
 3. [Examples](#examples)
 4. [Keys](#keys)
-	1. [`--enable`, `--disable`](#--enable---disable)
-	1. [`--pool6`](#--pool6)
+	1. [`manually-enabled`](#manually-enabled)
+	1. [`pool6`](#pool6)
 	1. [`--address-dependent-filtering`](#--address-dependent-filtering)
-	2. [`--drop-icmpv6-info`](#--drop-icmpv6-info)
-	3. [`--drop-externally-initiated-tcp`](#--drop-externally-initiated-tcp)
-	4. [`--udp-timeout`](#--udp-timeout)
-	5. [`--tcp-est-timeout`](#--tcp-est-timeout)
-	6. [`--tcp-trans-timeout`](#--tcp-trans-timeout)
-	7. [`--icmp-timeout`](#--icmp-timeout)
-	8. [`--maximum-simultaneous-opens`](#--maximum-simultaneous-opens)
-	8. [`--source-icmpv6-errors-better`](#--source-icmpv6-errors-better)
-	8. [`--logging-bib`](#--logging-bib)
-	8. [`--logging-session`](#--logging-session)
-	9. [`--zeroize-traffic-class`](#--zeroize-traffic-class)
-	10. [`--override-tos`](#--override-tos)
-	11. [`--tos`](#--tos)
-	13. [`--amend-udp-checksum-zero`](#--amend-udp-checksum-zero)
-	14. [`--randomize-rfc6791-addresses`](#--randomize-rfc6791-addresses)
-	13. [`--mtu-plateaus`](#--mtu-plateaus)
-	15. [`--eam-hairpin-mode`](#--eam-hairpin-mode)
-	16. [`--rfc6791v6-prefix`](#--rfc6791v6-prefix)
-	21. [`--f-args`](#--f-args)
-	22. [`--handle-rst-during-fin-rcv`](#--handle-rst-during-fin-rcv)
-	23. [`--ss-enabled`](#--ss-enabled)
-	24. [`--ss-flush-asap`](#--ss-flush-asap)
-	25. [`--ss-flush-deadline`](#--ss-flush-deadline)
-	26. [`--ss-capacity`](#--ss-capacity)
-	27. [`--ss-max-payload`](#--ss-max-payload)
+	2. [`drop-icmpv6-info`](#drop-icmpv6-info)
+	3. [`drop-externally-initiated-tcp`](#drop-externally-initiated-tcp)
+	4. [`udp-timeout`](#udp-timeout)
+	5. [`tcp-est-timeout`](#tcp-est-timeout)
+	6. [`tcp-trans-timeout`](#tcp-trans-timeout)
+	7. [`icmp-timeout`](#icmp-timeout)
+	8. [`maximum-simultaneous-opens`](#maximum-simultaneous-opens)
+	8. [`source-icmpv6-errors-better`](#source-icmpv6-errors-better)
+	8. [`logging-bib`](#logging-bib)
+	8. [`logging-session`](#logging-session)
+	9. [`zeroize-traffic-class`](#zeroize-traffic-class)
+	10. [`override-tos`](#override-tos)
+	11. [`tos`](#tos)
+	13. [`amend-udp-checksum-zero`](#amend-udp-checksum-zero)
+	14. [`randomize-rfc6791-addresses`](#randomize-rfc6791-addresses)
+	13. [`mtu-plateaus`](#mtu-plateaus)
+	15. [`eam-hairpin-mode`](#eam-hairpin-mode)
+	16. [`rfc6791v6-prefix`](#rfc6791v6-prefix)
+	21. [`f-args`](#f-args)
+	22. [`handle-rst-during-fin-rcv`](#handle-rst-during-fin-rcv)
+	23. [`ss-enabled`](#ss-enabled)
+	24. [`ss-flush-asap`](#ss-flush-asap)
+	25. [`ss-flush-deadline`](#ss-flush-deadline)
+	26. [`ss-capacity`](#ss-capacity)
+	27. [`ss-max-payload`](#ss-max-payload)
 
 ## Description
 
 Controls several of Jool's internal variables.
 
-* Issue an empty `--global` command to display the current values of all of Jool's options.
-* Enter a key and a value to edit the key's variable.
-
-`--global` is the default configuration mode, so you never actually need to input this one flag.
-
 ## Syntax
 
-	(jool_siit | jool) [--global] [--display] [--csv]
-	(jool_siit | jool) [--global] [--update] <flag key> <new value>
+	(jool_siit | jool) global display [--csv]
+	(jool_siit | jool) global update <flag key> <new value>
 
 ## Examples
 
 Display the current configuration, keys and values:
 
-	$ jool_siit --global
-
-Same thing, shorter version:
-
-	$ jool_siit
+	# jool_siit global display
 
 Pause Jool:
 
-	# jool --global --disable
+	# jool global update manually-enabled false
 
 Turn "address dependent filtering" on:
 
 	$ # true, false, 1, 0, yes, no, on and off all count as valid booleans.
-	# jool --address-dependent-filtering true
+	# jool global update address-dependent-filtering true
 
 Update the plateaus list:
 
-	# jool_siit --mtu-plateaus "6000, 5000, 4000, 3000, 2000, 1000"
+	# jool_siit global update mtu-plateaus "6000, 5000, 4000, 3000, 2000, 1000"
 
 ## Keys
 
 The following flag keys are available:
 
-### `--enable`, `--disable`
+### `manually-enabled`
 
-- Type: -
-- Default: Depends on modprobe arguments
+- Type: Boolean
+- Default: True
 - Modes: Both (SIIT and Stateful NAT64)
 
-Resumes and pauses translation of packets, respectively. This might be useful if you want to change more than one configuration parameter at once and you don't want packets being translated inconsistently while you run the commands.
+Resumes (`true`) and pauses (`false`) translation of packets.
 
-(If you don't want Jool to stop while you reconfigure, don't worry about this. Use it only if it feels right.)
+When Netfilter Jool is paused, packets skip it and are handled normally by the kernel. When iptables Jool is paused, it drops the traffic that matches its iptables rules.
 
-Timers will _not_ be paused. [BIB](usr-flags-bib.html)/[session](usr-flags-session.html) entries and stored [packets](#--maximum-simultaneous-opens) might die while Jool is idle.
+Timers will _not_ be paused. [BIB](usr-flags-bib.html)/[session](usr-flags-session.html) entries and stored [packets](#maximum-simultaneous-opens) might die while Jool is idle.
 
-### `--pool6`
+### `pool6`
 
 - Type: IPv6 prefix
 - Default: null
@@ -112,10 +103,10 @@ Updates the [IPv6 Address Pool prefix](pool6.html).
 If you want, the prefix can unset through the `null` keyword:
 
 {% highlight bash %}
-user@T:~# jool_siit --pool6 null
+user@T:~# jool_siit global update pool6 null
 {% endhighlight %}
 
-### `--address-dependent-filtering`
+### `address-dependent-filtering`
 
 <!-- TODO I think this documentation is somewhat incorrect now. -->
 
@@ -126,8 +117,8 @@ user@T:~# jool_siit --pool6 null
 
 Long story short:
 
-- `--address-dependent-filtering` ON means Jool should be an (address)-restricted-cone NAT.
-- `--address-dependent-filtering` OFF means Jool should be a full-cone NAT.
+- `address-dependent-filtering` ON means Jool should be an (address)-restricted-cone NAT.
+- `address-dependent-filtering` OFF means Jool should be a full-cone NAT.
 
 Long story long:
 
@@ -151,12 +142,12 @@ Then _n4b_ tries to chat _n6_ too:
 
 Because the BIB entry exists, _J_ knows that _n4b_ means "2001:db8::1#10" when he says "192.0.2.1#10", so the packet can technically be translated. However, because of the session tables, _J_ can also tell that _n6_ hasn't been talking to _n4b_ in the past.
 
-If `--address-dependent-filtering` is OFF, _J_ will allow _n4b_'s packet through. If `--address-dependent-filtering` is ON, _J_ will drop _n4b_'s packet and respond with a "Communication Administratively Prohibited" ICMP error. This effectively wrecks any IPv4-started communication attempts, even if there are BIB entries (static or otherwise).
+If `address-dependent-filtering` is OFF, _J_ will allow _n4b_'s packet through. If `address-dependent-filtering` is ON, _J_ will drop _n4b_'s packet and respond with a "Communication Administratively Prohibited" ICMP error. This effectively wrecks any IPv4-started communication attempts, even if there are BIB entries (static or otherwise).
 
-* If you're using the NAT64 to publish a IPv6-only service to the IPv4 Internet, it makes sense for `--address-dependent-filtering` to be OFF. This is because clients are expected to find out about the IPv6 service on their own, and the server doesn't normally start packet streams.
-* If you're using the NAT64 to allow IPv6 nodes to browse the IPv4 Internet, please consider the recommendation on [RFC6888 REQ-7](https://tools.ietf.org/html/rfc6888#section-3) before setting `--address-dependent-filtering` to ON.  While it's true that  clients choose their ports at random, so it is suspicious for random outsider nodes to guess these ports, `--address-dependent-filtering` ON might break NAT traversal methods like STUN (or at least make some operation modes impossible) or it might impair some games and peer-to-peer applications.
+* If you're using the NAT64 to publish a IPv6-only service to the IPv4 Internet, it makes sense for `address-dependent-filtering` to be OFF. This is because clients are expected to find out about the IPv6 service on their own, and the server doesn't normally start packet streams.
+* If you're using the NAT64 to allow IPv6 nodes to browse the IPv4 Internet, please consider the recommendation on [RFC6888 REQ-7](https://tools.ietf.org/html/rfc6888#section-3) before setting `address-dependent-filtering` to ON.  While it's true that  clients choose their ports at random, so it is suspicious for random outsider nodes to guess these ports, `address-dependent-filtering` ON might break NAT traversal methods like STUN (or at least make some operation modes impossible) or it might impair some games and peer-to-peer applications.
 
-### `--drop-icmpv6-info`
+### `drop-icmpv6-info`
 
 - Type: Boolean
 - Default: OFF
@@ -169,20 +160,20 @@ For some reason, we're not supposed to block pings from ICMPv4 to ICMPv6, but si
 
 This rule will not affect Error ICMP messages.
 
-### `--drop-externally-initiated-tcp`
+### `drop-externally-initiated-tcp`
 
 - Type: Boolean
 - Default: OFF
 - Modes: Stateful NAT64 only
 - Source: [RFC 6146, section 3.5.2.2](http://tools.ietf.org/html/rfc6146#section-3.5.2.2)
 
-Turn `--drop-externally-initiated-tcp` ON to wreck any attempts of IPv4 nodes to initiate TCP communication to IPv6 nodes.
+Turn `drop-externally-initiated-tcp` ON to wreck any attempts of IPv4 nodes to initiate TCP communication to IPv6 nodes.
 
 Of course, this will not block IPv4 traffic if some IPv6 node first requested it.
 
 The filtering will be completely silent; no ICMP error ("Communication Administratively Prohibited" or otherwise) will be returned to the v4 nodes.
 
-### `--udp-timeout`
+### `udp-timeout`
 
 - Type: Integer (seconds)
 - Default: 5 minutes
@@ -193,29 +184,29 @@ When a UDP session has been lying around inactive for this long, its entry will 
 
 When you change this value, the lifetimes of all already existing UDP sessions are updated.
 
-### `--tcp-est-timeout`
+### `tcp-est-timeout`
 
 - Type: Integer (seconds)
 - Default: 2 hours
 - Modes: Stateful NAT64 only
 - Source: [RFC 6146, section 3.5.2.2](http://tools.ietf.org/html/rfc6146#section-3.5.2.2)
 
-When an established TCP connection has remained inactive for this long, its existence will be questioned. Jool will send a probe packet to one of the endpoints and kill the session if a response is not received before the `--tcp-trans-timeout` timeout.
+When an established TCP connection has remained inactive for this long, its existence will be questioned. Jool will send a probe packet to one of the endpoints and kill the session if a response is not received before the `tcp-trans-timeout` timeout.
 
 When you change this value, the lifetimes of all already existing established TCP sessions are updated.
 
-### `--tcp-trans-timeout`
+### `tcp-trans-timeout`
 
 - Type: Integer (seconds)
 - Default: 4 minutes
 - Modes: Stateful NAT64 only
 - Source: [RFC 6146, derivatives of section 3.5.2](http://tools.ietf.org/html/rfc6146#section-3.5.2)
 
-When an unhealthy TCP session has been lying around inactive for this long, its entry will be removed from the database automatically. An "unhealthy" session is one in which the TCP handshake has not yet been completed, it is being (or has been) terminated by the endpoints, or is technically established but has remained inactive for `--tcp-est-timeout` time.
+When an unhealthy TCP session has been lying around inactive for this long, its entry will be removed from the database automatically. An "unhealthy" session is one in which the TCP handshake has not yet been completed, it is being (or has been) terminated by the endpoints, or is technically established but has remained inactive for `tcp-est-timeout` time.
 
 When you change this value, the lifetimes of all already existing transitory TCP sessions are updated.
 
-### `--icmp-timeout`
+### `icmp-timeout`
 
 - Type: Integer (seconds)
 - Default: 1 minute
@@ -226,7 +217,7 @@ When a ICMP session has been lying around inactive for this long, its entry will
 
 When you change this value, the lifetimes of all already existing ICMP sessions are updated.
 
-### `--maximum-simultaneous-opens`
+### `maximum-simultaneous-opens`
 
 - Type: Integer
 - Default: 10
@@ -237,9 +228,9 @@ When an external (IPv4) node first attempts to open a connection and there's no 
 
 In the case of TCP, the situation is a little more complicated because the IPv4 node might be attempting a <a href="{{ site.repository-url }}/issues/58#issuecomment-43537094" target="_blank">Simultaneous Open of TCP Connections</a>. To really know what's going on, Jool has to store the packet for 6 seconds.
 
-`--maximum-simultaneous-opens` is the maximum amount of packets Jool will store at a time. The default means that you can have up to 10 "simultaneous" simultaneous opens; Jool will fall back to immediately answer the ICMP error message on the eleventh one.
+`maximum-simultaneous-opens` is the maximum amount of packets Jool will store at a time. The default means that you can have up to 10 "simultaneous" simultaneous opens; Jool will fall back to immediately answer the ICMP error message on the eleventh one.
 
-### `--source-icmpv6-errors-better`
+### `source-icmpv6-errors-better`
 
 - Type: Boolean
 - Default: True
@@ -260,10 +251,10 @@ Say the link between _R_ and _n4_ collapses.
 
 [This breaks traceroutes]({{ site.repository-url }}/issues/132). Shouldn't it have been 64:ff9b::**192.0.2.6** -> 2001:db8::1 instead?
 
-- `--source-icmpv6-errors-better` OFF will make Jool obey RFC 6146 (and break traceroutes).
-- `--source-icmpv6-errors-better` ON will translate the outer source address directly, simply appending the prefix to the source address of the original (step 3) packet.
+- `source-icmpv6-errors-better` OFF will make Jool obey RFC 6146 (and break traceroutes).
+- `source-icmpv6-errors-better` ON will translate the outer source address directly, simply appending the prefix to the source address of the original (step 3) packet.
 
-### `--logging-bib`
+### `logging-bib`
 
 - Type: Boolean
 - Default: False
@@ -275,17 +266,19 @@ Enables logging of transport address mappings as they are created and destroyed.
 
 Analysis of these logs can let you know which IPv4 address and port masked your "internal" (IPv6) nodes at a certain time. Here's a sample output:
 
-	$ jool --logging-bib true
+	$ jool global update logging-bib true
 	$ dmesg
-	[  312.493235] 2015/4/8 16:13:2 (GMT) - Mapped 2001:db8::5#19945 to 192.0.2.2#8208 (UDP)
-	[  373.724229] 2015/4/8 16:14:3 (GMT) - Mapped 2001:db8::8#46516 to 192.0.2.2#12592 (TCP)
-	[  468.675524] 2015/4/8 16:15:38 (GMT) - Forgot 2001:db8::5#19945 to 192.0.2.2#8208 (UDP)
+	[  312.493235] alpha 2015/4/8 16:13:2 (GMT) - Mapped 2001:db8::5#19945 to 192.0.2.2#8208 (UDP)
+	[  373.724229] alpha 2015/4/8 16:14:3 (GMT) - Mapped 2001:db8::8#46516 to 192.0.2.2#12592 (TCP)
+	[  468.675524] alpha 2015/4/8 16:15:38 (GMT) - Forgot 2001:db8::5#19945 to 192.0.2.2#8208 (UDP)
 
 In this example,
 
 1. `2001:db8::5` used (its own) port 19945 to speak to someone using the UDP protocol. This someone thought `2001:db8::5`'s address was `192.0.2.2`, and that it was using port 8208. 
 2. Roughly a minute later, `2001:db8::8` (on port 46516) started speaking to somebody using TCP. It's being masked as `192.0.2.2`#12592. This connection has not yet ended.
-3. Some time later, Jool forgot the UDP mapping (because of inactivity, not because the last packet happened at 16:15:38. "How much inactivity" is controlled by the timeouts - in this case, the [UDP one](#--udp-timeout)). At this point, `192.0.2.2`#8208 is free from `2001:db8::5` and Jool can reassign it.
+3. Some time later, Jool forgot the UDP mapping (because of inactivity, not because the last packet happened at 16:15:38. "How much inactivity" is controlled by the timeouts - in this case, the [UDP one](#udp-timeout)). At this point, `192.0.2.2`#8208 is free from `2001:db8::5` and Jool can reassign it.
+
+All of this was performed by the instance whose name is "alpha."
 
 So, if your government comes and says "I detected somebody named `192.0.2.2`#8208 did something illegal at 4:14 pm via UDP", you can report the culprit is `2001:db8::5`#19945 and free yourself from the blame.
 
@@ -298,9 +291,9 @@ There are several important things to notice:
 
 This defaults to false because it generates humongous amounts of logs while active (remember you need infrastructure to maintain them). Notice the maps are dumped into the _kernel log_, so the messages will be mixed along with anything else the kernel has to say ([including Jool's error messages, for example](logging.html)). The log messages will have [INFO priority](http://stackoverflow.com/questions/16390004/change-default-console-loglevel-during-boot-up).
 
-If logging the destination makes sense for you, see `--logging-session` (below). To comply with REQ-12 of RFC 6888 you want to set `--loging-bib` as true and `--logging-session` as false.
+If logging the destination makes sense for you, see `logging-session` (below). To comply with REQ-12 of RFC 6888 you want to set `loging-bib` as true and `logging-session` as false.
 
-### `--logging-session`
+### `logging-session`
 
 - Type: Boolean
 - Default: False
@@ -312,24 +305,24 @@ Enables logging of every session as they are created and destroyed.
 
 The format is
 
-	<date> <time> (GMT) - <action> session <IPv6 node>|<IPv6 representation of IPv4 node>|<IPv4 representation of IPv6 node>|<IPv4 node>|Protocol
+	<instance name> <date> <time> (GMT) - <action> session <IPv6 node>|<IPv6 representation of IPv4 node>|<IPv4 representation of IPv6 node>|<IPv4 node>|Protocol
 
 Here's a sample output:
 
-	$ jool --logging-session true
+	$ jool global update logging-session true
 	$ dmesg
-	[ 3238.087902] 2015/4/8 17:1:47 (GMT) - Added session 1::5#47073|64:ff9b::c000:205#80|192.0.2.2#63527|192.0.2.5#80|TCP
-	[ 3238.099997] 2015/4/8 17:1:47 (GMT) - Added session 1::5#47074|64:ff9b::c000:205#80|192.0.2.2#42527|192.0.2.5#80|TCP
-	[ 3241.624104] 2015/4/8 17:1:51 (GMT) - Added session 1::5#33160|64:ff9b::c000:205#8080|192.0.2.2#15496|192.0.2.5#8080|TCP
-	[ 3241.630905] 2015/4/8 17:1:51 (GMT) - Added session 1::5#33161|64:ff9b::c000:205#8080|192.0.2.2#7060|192.0.2.5#8080|TCP
-	[ 3478.498559] 2015/4/8 17:5:48 (GMT) - Forgot session 1::5#47073|64:ff9b::c000:205#80|192.0.2.2#63527|192.0.2.5#80|TCP
-	[ 3478.499758] 2015/4/8 17:5:48 (GMT) - Forgot session 1::5#47074|64:ff9b::c000:205#80|192.0.2.2#42527|192.0.2.5#80|TCP
-	[ 3481.632214] 2015/4/8 17:5:51 (GMT) - Forgot session 1::5#33160|64:ff9b::c000:205#8080|192.0.2.2#15496|192.0.2.5#8080|TCP
-	[ 3481.632342] 2015/4/8 17:5:51 (GMT) - Forgot session 1::5#33161|64:ff9b::c000:205#8080|192.0.2.2#7060|192.0.2.5#8080|TCP
+	[ 3238.087902] alpha 2015/4/8 17:1:47 (GMT) - Added session 1::5#47073|64:ff9b::c000:205#80|192.0.2.2#63527|192.0.2.5#80|TCP
+	[ 3238.099997] alpha 2015/4/8 17:1:47 (GMT) - Added session 1::5#47074|64:ff9b::c000:205#80|192.0.2.2#42527|192.0.2.5#80|TCP
+	[ 3241.624104] alpha 2015/4/8 17:1:51 (GMT) - Added session 1::5#33160|64:ff9b::c000:205#8080|192.0.2.2#15496|192.0.2.5#8080|TCP
+	[ 3241.630905] alpha 2015/4/8 17:1:51 (GMT) - Added session 1::5#33161|64:ff9b::c000:205#8080|192.0.2.2#7060|192.0.2.5#8080|TCP
+	[ 3478.498559] alpha 2015/4/8 17:5:48 (GMT) - Forgot session 1::5#47073|64:ff9b::c000:205#80|192.0.2.2#63527|192.0.2.5#80|TCP
+	[ 3478.499758] alpha 2015/4/8 17:5:48 (GMT) - Forgot session 1::5#47074|64:ff9b::c000:205#80|192.0.2.2#42527|192.0.2.5#80|TCP
+	[ 3481.632214] alpha 2015/4/8 17:5:51 (GMT) - Forgot session 1::5#33160|64:ff9b::c000:205#8080|192.0.2.2#15496|192.0.2.5#8080|TCP
+	[ 3481.632342] alpha 2015/4/8 17:5:51 (GMT) - Forgot session 1::5#33161|64:ff9b::c000:205#8080|192.0.2.2#7060|192.0.2.5#8080|TCP
 
-This log is remarcably more voluptuous than [`--logging-bib`](#--logging-bib), not only because each message is longer, but because sessions are generated and destroyed more often than BIB entries. (Each BIB entry can have multiple sessions.) Because of REQ-12 from [RFC 6888 section 4](http://tools.ietf.org/html/rfc6888#section-4), chances are you don't even want the extra information sessions grant you.
+This log is remarcably more voluptuous than [`logging-bib`](#logging-bib), not only because each message is longer, but because sessions are generated and destroyed more often than BIB entries. (Each BIB entry can have multiple sessions.) Because of REQ-12 from [RFC 6888 section 4](http://tools.ietf.org/html/rfc6888#section-4), chances are you don't even want the extra information sessions grant you.
 
-### `--zeroize-traffic-class`
+### `zeroize-traffic-class`
 
 - Type: Boolean
 - Default: OFF
@@ -341,7 +334,7 @@ The <a href="http://en.wikipedia.org/wiki/IPv6_packet#Fixed_header" target="_bla
 
 If you leave this OFF, the TOS value will be copied directly to the Traffic Class field. If you turn this ON, Jool will always set Traffic Class as **zero** instead.
 
-### `--override-tos`
+### `override-tos`
 
 - Type: Boolean
 - Default: OFF
@@ -351,9 +344,9 @@ If you leave this OFF, the TOS value will be copied directly to the Traffic Clas
 
 The <a href="http://en.wikipedia.org/wiki/IPv6_packet#Fixed_header" target="_blank">IPv6 header</a>'s Traffic Class field is very similar to <a href="http://en.wikipedia.org/wiki/IPv4#Header" target="_blank">IPv4</a>'s Type of Service (TOS).
 
-If you leave this OFF, the Traffic Class value will be copied directly to the TOS field during IPv6-to-IPv4 translations. If you turn this ON, Jool will always set TOS as [`--tos`](#--tos) instead.
+If you leave this OFF, the Traffic Class value will be copied directly to the TOS field during IPv6-to-IPv4 translations. If you turn this ON, Jool will always set TOS as [`tos`](#tos) instead.
 
-### `--tos`
+### `tos`
 
 - Type: Integer
 - Default: 0
@@ -361,9 +354,9 @@ If you leave this OFF, the Traffic Class value will be copied directly to the TO
 - Translation direction: IPv6 to IPv4
 - Source: [RFC 7915, section 5.1]({{ site.rfc-siit }}#section-5.1)
 
-Value to set the TOS value of the packets' IPv4 fields during IPv6-to-IPv4 translations. _This only applies when [`--override-tos`](#--override-tos) is ON_.
+Value to set the TOS value of the packets' IPv4 fields during IPv6-to-IPv4 translations. _This only applies when [`override-tos`](#override-tos) is ON_.
 
-### `--amend-udp-checksum-zero`
+### `amend-udp-checksum-zero`
 
 - Type: Boolean
 - Default: OFF
@@ -375,14 +368,14 @@ It is legal for IPv4/UDP packets to contain zero as checksum. This is because th
 
 Zero is an invalid checksum value for IPv6/UDP packets.
 
-- If `--amend-udp-checksum-zero` is ON and a zero-checksum IPv4-UDP packet arrives, Jool will compute its checksum before translating it. This can be computationally expensive.
-- If `--amend-udp-checksum-zero` is OFF and a zero-checksum IPv4-UDP packet arrives, Jool will unceremoniously drop the packet and log its addresses (with [Log Level](http://elinux.org/Debugging_by_printing#Log_Levels) KERN_DEBUG).
+- If `amend-udp-checksum-zero` is ON and a zero-checksum IPv4-UDP packet arrives, Jool will compute its checksum before translating it. This can be computationally expensive.
+- If `amend-udp-checksum-zero` is OFF and a zero-checksum IPv4-UDP packet arrives, Jool will unceremoniously drop the packet and log its addresses (with [Log Level](http://elinux.org/Debugging_by_printing#Log_Levels) KERN_DEBUG).
 
-This does not affect _fragmented_ zero-checksum IPv4-UDP packets. SIIT Jool does not reassemble, which means it _cannot_ compute the checksum. In these cases, the packet will be dropped regardless of `--amend-udp-checksum-zero`.
+This does not affect _fragmented_ zero-checksum IPv4-UDP packets. SIIT Jool does not reassemble, which means it _cannot_ compute the checksum. In these cases, the packet will be dropped regardless of `amend-udp-checksum-zero`.
 
 Stateful NAT64 Jool _always_ computes zero-checksums from IPv4-UDP packets. Because it reassembles, it will also do so for fragmented packets.
 
-### `--randomize-rfc6791-addresses`
+### `randomize-rfc6791-addresses`
 
 - Type: Boolean
 - Default: ON
@@ -392,12 +385,12 @@ Stateful NAT64 Jool _always_ computes zero-checksums from IPv4-UDP packets. Beca
 
 If an ICMPv6 error's source cannot be translated, [RFC 6791](https://tools.ietf.org/html/rfc6791) wants us to assign as source a random IPv4 address from the [RFC 6791 pool](usr-flags-pool6791.html).
 
-- If `--randomize-rfc6791-addresses` is ON, Jool will follow RFC 6791's advice, assigning a random address from the pool.
-- If `--randomize-rfc6791-addresses` is OFF, Jool will assign the `hop limit`th address from the pool.
+- If `randomize-rfc6791-addresses` is ON, Jool will follow RFC 6791's advice, assigning a random address from the pool.
+- If `randomize-rfc6791-addresses` is OFF, Jool will assign the `hop limit`th address from the pool.
 
 Why? [It can be argued that `hop limit`th is better]({{ site.repository-url }}/issues/130).
 
-### `--mtu-plateaus`
+### `mtu-plateaus`
 
 - Type: List of Integers separated by commas (If you want whitespace, remember to quote).
 - Default: "65535, 32000, 17914, 8166, 4352, 2002, 1492, 1006, 508, 296, 68"
@@ -415,41 +408,51 @@ Notice that the minimum IPv6 MTU is 1280. This will override the plateau result 
 
 You don't really need to sort the values as you input them.
 
-### `--eam-hairpin-mode`
+### `eam-hairpin-mode`
 
 - Type: Integer
-- Default: 2 (intrinsic)
+- Default: intrinsic
 - Modes: SIIT only
 - Translation direction: Both (mainly v6 to v4)
 - Source: [RFC 7757, section 4](http://tools.ietf.org/html/rfc7757#section-4)
 
 Defines how is hairpinning handled in EAMT-translated traffic. "Hairpinning" is when an IPv6-to-IPv4 translation has to be immediately followed by a IPv4-to-IPv6 translation for the same packet. (This can happen because, according to the EAMT, the [destination of the IPv4 packet represents a node in the IPv6 network](https://tools.ietf.org/html/rfc7757#appendix-B.1).) See [section 4](https://tools.ietf.org/html/rfc7757#section-4) for a complete explanation.
 
-`--eam-hairpin-mode` is an integer but it's intended to reference one of three operation modes:
+`eam-hairpin-mode` is an enum. Its available values are `none`, [`simple`](https://tools.ietf.org/html/rfc7757#section-4.2.1) and [`intrinsic`](https://tools.ietf.org/html/rfc7757#section-4.2.2).
 
-- 0: None
-- 1: [Simple](https://tools.ietf.org/html/rfc7757#section-4.2.1)
-- 2: [Intrinsic](https://tools.ietf.org/html/rfc7757#section-4.2.2)
+### `rfc6791v4-prefix`
 
-### `--rfc6791v6-prefix`
+- Type: IPv4 prefix
+- Default: null
+- Modes: SIIT only
+- Translation direction: IPv6 to IPv4
+- Source: [RFC 6791](https://tools.ietf.org/html/rfc6791) (We have a [summary](pool6791.html).)
+
+A pool from which Jool will extract an IPv4 address whenever it needs to deliver an ICMPv4 error, but does not otherwise have an IPv4 address to source the packet with.
+
+If this prefix is unset, the SIIT will fall back to use its node's own addresses. Use the keyword `null` to unset:
+
+	jool_siit rfc6791v4-prefix null
+
+### `rfc6791v6-prefix`
 
 - Type: IPv6 prefix
 - Default: null
 - Modes: SIIT only
-- Translation direction: Both
+- Translation direction: IPv4 to IPv6
 - Source: [Issue 176]({{ site.repository-url }}/issues/176)
 
-The IPv6-equivalent of [`--pool6791`](usr-flags-pool6791.html).
+The IPv6 counterpart of [`rfc6791v4-prefix`](#rfc6791v4-prefix).
 
-Untranslatable sources in ICMPv4 errors can happen when `pool6` is empty and the EAMT does not span all the IPv4 routers between the SIIT and the clients.
+A pool from which Jool will extract an IPv6 address whenever it needs to deliver an ICMPv6 error, but does not otherwise have an IPv6 address to source the packet with.
 
-If this prefix is unset, the SIIT will fall back to use its own addresses, just like `--pool6791`. Use the keyword `null` to unset:
+This can be needed when `pool6` is empty and the EAMT does not span all the IPv4 routers between the SIIT and the clients.
 
-	jool_siit --rfc6791v6-prefix null
+If this prefix is unset, the SIIT will fall back to use its node's own addresses. Use the keyword `null` to unset:
 
-This is a single prefix (as opossed to a prefix table like `--pool6791`) simply for the sake of ease of implementation.
+	jool_siit rfc6791v6-prefix null
 
-### `--f-args`
+### `f-args`
 
 - Type: Integer
 - Default: 11 (binary 1011)
@@ -467,7 +470,7 @@ In other words, when translating an IPv6 packet from a new connection, the trans
 
 The following three packet flows exemplify how this works out. Let's say `2001:db8::1` writes packet `2001:db8::1#5000 -> 64:ff9b::192.0.2.1#80`.
 
-![Fig.5: --f-args example](../images/network/f-args.svg)
+![Fig.5: f-args example](../images/network/f-args.svg)
 
 Jool needs a mask. Let's say `F`'s hash yields `203.0.113.6#6789`:
 
@@ -491,9 +494,9 @@ You can see the mechanism is designed so masks are scattered randomly across the
 
 That's all well and good, but it turns out there's at least one protocol (FTP using EPSV) in which the server expects a client to open a second connection on a similar transport source, but the connection is also supposed to interact with another server port. The mechanism explained above usually breaks this second connection because the Destination port randoms the `F` hash so `m` is not necessarily a similar source.
 
-`--f-args` allows you to include and exclude arguments from `F`. You can use this to engineer argument combinations that will be friendlier to awkwardly-designed application protocols. Keep in mind though, excluding arguments from `F` increases collision rate because of the reduced randomness, which is somewhat expensive to handle. (for kernel standards, anyway.)
+`f-args` allows you to include and exclude arguments from `F`. You can use this to engineer argument combinations that will be friendlier to awkwardly-designed application protocols. Keep in mind though, excluding arguments from `F` increases collision rate because of the reduced randomness, which is somewhat expensive to handle. (for kernel standards, anyway.)
 
-`--f-args` is a bit field. Each bit in `--f-args` represents an argument to `F`. Activate the bit to include the respective argument (from most significant to least):
+`f-args` is a bit field. Each bit in `f-args` represents an argument to `F`. Activate the bit to include the respective argument (from most significant to least):
 
 1. Source (IPv6) address
 2. Source port
@@ -504,15 +507,15 @@ So, the default value (decimal 11, binary 1011) excludes source port from the eq
 
 To fix the FTP/EPSV problem, you would remove Destination port from `F`. This would force all connections involving the same nodes to be masked similarly.
 
-Unfortunately, `--f-args` can only be entered via its decimal representation. This is possible:
+Unfortunately, `f-args` can only be entered via its decimal representation. This is possible:
 
-	$ jool --f-args 10
+	$ jool global update f-args 10
 
 While this is not:
 
-	$ jool --f-args 0b1010
+	$ jool global update f-args 0b1010
 
-### `--handle-rst-during-fin-rcv`
+### `handle-rst-during-fin-rcv`
 
 - Type: Boolean
 - Default: OFF
@@ -520,16 +523,16 @@ While this is not:
 - Translation direction: Both
 - Source: [Issue 212]({{ site.repository-url }}/issues/212)
 
-Some endpoints have a nasty habit of ending TCP connections ungracefully. Instead of performing a standard FIN handshake (FIN, FIN-ACK, ACK), they kill half-finished packet streams abruptly (FIN, RST). The current NAT64 specification does not seem to consider this, so their respective NAT64 mappings stay alive for `--tcp-est-timeout` seconds. Since the connection is being terminated, a `--tcp-trans-timeout`-second timeout would be more appropriate. This means these sessions stay alive for longer than they probably should.
+Some endpoints have a nasty habit of ending TCP connections ungracefully. Instead of performing a standard FIN handshake (FIN, FIN-ACK, ACK), they kill half-finished packet streams abruptly (FIN, RST). The current NAT64 specification does not seem to consider this, so their respective NAT64 mappings stay alive for `tcp-est-timeout` seconds. Since the connection is being terminated, a `tcp-trans-timeout`-second timeout would be more appropriate. This means these sessions stay alive for longer than they probably should.
 
-If you activate `--handle-rst-during-fin-rcv`, Jool will assign the transitory lifetime to connections ended with a FIN followed by a RST. This is nonstandard behavior, but should optimize pool4 utilization.
+If you activate `handle-rst-during-fin-rcv`, Jool will assign the transitory lifetime to connections ended with a FIN followed by a RST. This is nonstandard behavior, but should optimize pool4 utilization.
 
-The only known downside to activating `--handle-rst-during-fin-rcv` is that attackers can potentially terminate connections that fulfill the following conditions:
+The only known downside to activating `handle-rst-during-fin-rcv` is that attackers can potentially terminate connections that fulfill the following conditions:
 
-- Are idle. (more than `--tcp-trans-timeout` seconds between packets)
+- Are idle. (more than `tcp-trans-timeout` seconds between packets)
 - One endpoint has already sent a FIN.
 
-### `--ss-enabled`
+### `ss-enabled`
 
 - Type: Boolean
 - Default: OFF
@@ -538,7 +541,7 @@ The only known downside to activating `--handle-rst-during-fin-rcv` is that atta
 
 Enable/Disable [Session Synchronization (SS)](session-synchronization.html) on the kernel module.
 
-### `--ss-flush-asap`
+### `ss-flush-asap`
 
 - Type: Boolean
 - Default: ON
@@ -553,13 +556,13 @@ In the Active/Active scenario in particular, this essentially means that every t
 
 In the Active/Passive model, on the other hand, this level of compulsive replication is rather undesired. Since a single big packet is easier to send than the equivalent many smaller ones, it is preferable to queue the session updates and wrap a bunch of them in a single big multicast, thereby reducing the SS packet-to-translated packet ratio and CPU overhead. This is appropriate in Active/Passive mode because the backup NAT64s are not expected to receive traffic in the near future, and losing a few recent queued session updates on crash is no big deal when the sizeable rest of the database has already been dispatched.
 
-Sessions will be queued until the maximum packet size is reached or a timer expires. The maximum packet size is defined by [`--ss-max-payload`](#--ss-max-payload) and the duration of the timer is [`--ss-flush-deadline`](#--ss-flush-deadline).
+Sessions will be queued until the maximum packet size is reached or a timer expires. The maximum packet size is defined by [`ss-max-payload`](#ss-max-payload) and the duration of the timer is [`ss-flush-deadline`](#ss-flush-deadline).
 
 As a rule of thumb, you might think of this option as an "Active/Active vs Active/Passive" switch; in the former this flag is practically mandatory, while in the latter it is needlessly CPU-taxing. (But still legal, which explains the default.)
 
 In reality, some degree of queuing is still done when this flag is enabled, as otherwise Jool tends to saturate the Netlink (kernel-to-userspace) channel, losing sessions.
 
-### `--ss-flush-deadline`
+### `ss-flush-deadline`
 
 - Type: Integer
 - Default: 2 seconds
@@ -570,11 +573,11 @@ If there are queued sessions, an SS packet will be forced out after this amount 
 
 Whenever the kernel module sends a packet to userspace, `joold` is expected to answer an ACK. Jool accounts this ACK as a green light to send the next SS packet. This prevents Jool from over-saturating the Netlink channel.
 
-Being that Netlink is not a reliable protocol, the main intent of `--ss-flush-deadline` is to prevent lost ACKs from stagnating the SS queue.
+Being that Netlink is not a reliable protocol, the main intent of `ss-flush-deadline` is to prevent lost ACKs from stagnating the SS queue.
 
-It also prevents sessions from staying in the queue for too long regardless of that, particularly when [`--ss-flush-asap`](#--ss-flush-asap) is disabled.
+It also prevents sessions from staying in the queue for too long regardless of that, particularly when [`ss-flush-asap`](#ss-flush-asap) is disabled.
 
-### `--ss-capacity`
+### `ss-capacity`
 
 - Type: Integer
 - Default: 512
@@ -591,7 +594,7 @@ Watch out for this message in the kernel logs:
 	Cannot synchronize fast enough; I will have to drop some sessions.
 	Sorry.
 
-### `--ss-max-payload`
+### `ss-max-payload`
 
 - Type: Integer
 - Default: 1452
@@ -608,7 +611,7 @@ The default value is based on 1500, the typical minimum MTU one can be forgiven 
 
 The equation is
 
-	--ss-max-payload = MTU - IP header size - UDP header size
+	ss-max-payload = MTU - IP header size - UDP header size
 
 Since I don't know whether your network is IPv4 or IPv6, the default value was inferred from the following numbers:
 
@@ -616,5 +619,5 @@ Since I don't know whether your network is IPv4 or IPv6, the default value was i
 
 In Jool 3.5.0, The joold header spans 16 bytes and each session is 64 bytes long, which means Jool will be able to fit 22 sessions per SS packet by default.
 
-Feel free to adjust your MTU to reduce CPU overhead further in Active/Passive setups. (See [`--ss-flush-asap`](#--ss-flush-asap).)
+Feel free to adjust your MTU to reduce CPU overhead further in Active/Passive setups. (See [`ss-flush-asap`](#ss-flush-asap).)
 

@@ -2,16 +2,16 @@
 language: en
 layout: default
 category: Documentation
-title: --mtu-plateaus
+title: mtu-plateaus
 ---
 
-[Documentation](documentation.html) > [Userspace Application Arguments](documentation.html#userspace-application-arguments) > [\--global](usr-flags-global.html) > \--mtu-plateaus
+[Documentation](documentation.html) > [Userspace Clients](documentation.html#userspace-clients) > [global](usr-flags-global.html) > `mtu-plateaus`
 
 # MTU Plateaus (Example)
 
 ## Introduction
 
-This article explains the purpose of the `--mtu-plateaus` flag by example.
+This article explains the purpose of the `mtu-plateaus` flag by example.
 
 This is the sample network:
 
@@ -37,7 +37,7 @@ Unfortunately, the inclusion of this number is an afterthought; the original ICM
 
 Being the only one who has a grasp of what the problem is, the task of hacking a solution befalls on the NAT64.
 
-_J_ will realize that the problem exists by observing that it's trying to translate a ICMPv4 error with a zero MTU to ICMPv6, where that is illegal. _J_ does not have a way to know the MTU of the _r4-n4_ network so it has to guess. It does know that the rejected packet was 1500 bytes long, so it takes a look at `--mtu-plateaus` (whose default value is based on the following table) and picks the first plateau which would reject a 1500-sized packet:
+_J_ will realize that the problem exists by observing that it's trying to translate a ICMPv4 error with a zero MTU to ICMPv6, where that is illegal. _J_ does not have a way to know the MTU of the _r4-n4_ network so it has to guess. It does know that the rejected packet was 1500 bytes long, so it takes a look at `mtu-plateaus` (whose default value is based on the following table) and picks the first plateau which would reject a 1500-sized packet:
 
 	   Plateau    MTU    Comments                      Reference
 	   ------     ---    --------                      ---------
@@ -95,9 +95,9 @@ It's not that bad, given that some of the protocols in the table are still in us
 
 And it doesn't mean the plateaus list is hardcoded into Jool, either. If you want to change your plateaus list, run (after installing the [userspace application](install-usr.html))
 
-	(jool_siit | jool) --mtu-plateaus <list>
+	(jool_siit | jool) global update mtu-plateaus <list>
 
 For example:
 
-	jool_siit --mtu-plateaus "80000, 40000, 20000, 10000"
+	jool_siit global update mtu-plateaus "80000, 40000, 20000, 10000"
 

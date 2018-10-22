@@ -61,11 +61,12 @@ The DNS is expected to work the same way as if you were dual stacking: If a node
 Obviating networking commands, this is Jool on _BR_:
 
 {% highlight bash %}
-# modprobe jool_siit pool6=2001:db8:46::/96
-# jool_siit --eamt --add 192.0.2.1 2001:db8:12:34::1
+user@BR:~# modprobe jool_siit
+user@BR:~# jool_siit instance add --pool6 2001:db8:46::/96
+user@BR:~# jool_siit eamt add 192.0.2.1 2001:db8:12:34::1
 {% endhighlight %}
 
-> ![Warning](../images/warning.svg) Remember: The [`sysctl` and `ethtool` commands](run-vanilla.html#sample-network) have been skipped here for the sake of reducing clutter. Please add them in any serviceable environments.
+> ![Warning](../images/warning.svg) Remember: The [`sysctl` commands](run-vanilla.html#sample-network) have been skipped here for the sake of reducing clutter. Please add them in any serviceable environments.
 
 For every server you want to publish on IPv4, you add one EAMT entry (as done above for _s6_) and appropriate DNS records.
 
