@@ -11,7 +11,7 @@ joold_SOURCES = \
 	../common/cJSON.c \
 	../common/file.c \
 	../common/log.c \
-	../common/netlink2.c \
+	../common/netlink.c \
 	../common/str_utils.c
 
 joold_LDADD = ${LIBNLGENL3_LIBS}

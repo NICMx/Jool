@@ -1,19 +1,19 @@
-#include "usr/common/nl/blacklist.h"
+#include "usr/common/nl/blacklist4.h"
 
 #include <errno.h>
 #include "common/types.h"
 #include "usr/common/netlink.h"
 
 #define HDR_LEN sizeof(struct request_hdr)
-#define PAYLOAD_LEN sizeof(union request_blacklist)
+#define PAYLOAD_LEN sizeof(union request_blacklist4)
 
 struct foreach_args {
-	blacklist_foreach_cb cb;
+	blacklist4_foreach_cb cb;
 	void *args;
-	union request_blacklist *request;
+	union request_blacklist4 *request;
 };
 
-static int blacklist_display_response(struct jool_response *response, void *arg)
+static int blacklist4_display_response(struct jool_response *response, void *arg)
 {
 	struct ipv4_prefix *prefixes = response->payload;
 	unsigned int prefix_count, i;
@@ -35,16 +35,16 @@ static int blacklist_display_response(struct jool_response *response, void *arg)
 	return 0;
 }
 
-int blacklist_foreach(char *iname, blacklist_foreach_cb cb, void *_args)
+int blacklist4_foreach(char *iname, blacklist4_foreach_cb cb, void *_args)
 {
 	unsigned char request[HDR_LEN + PAYLOAD_LEN];
 	struct request_hdr *hdr;
-	union request_blacklist *payload;
+	union request_blacklist4 *payload;
 	struct foreach_args args;
 	int error;
 
 	hdr = (struct request_hdr *)request;
-	payload = (union request_blacklist *)(request + HDR_LEN);
+	payload = (union request_blacklist4 *)(request + HDR_LEN);
 
 	init_request_hdr(hdr, MODE_BLACKLIST, OP_FOREACH, false);
 	payload->display.offset_set = false;
@@ -56,7 +56,7 @@ int blacklist_foreach(char *iname, blacklist_foreach_cb cb, void *_args)
 
 	do {
 		error = netlink_request(iname, &request, sizeof(request),
-				blacklist_display_response, &args);
+				blacklist4_display_response, &args);
 		if (error)
 			return error;
 	} while (args.request->display.offset_set);
@@ -65,14 +65,14 @@ int blacklist_foreach(char *iname, blacklist_foreach_cb cb, void *_args)
 }
 
 /* TODO (NOW) remove this force? */
-int blacklist_add(char *iname, struct ipv4_prefix *addrs, bool force)
+int blacklist4_add(char *iname, struct ipv4_prefix *addrs, bool force)
 {
 	unsigned char request[HDR_LEN + PAYLOAD_LEN];
 	struct request_hdr *hdr;
-	union request_blacklist *payload;
+	union request_blacklist4 *payload;
 
 	hdr = (struct request_hdr *)request;
-	payload = (union request_blacklist *)(request + HDR_LEN);
+	payload = (union request_blacklist4 *)(request + HDR_LEN);
 
 	init_request_hdr(hdr, MODE_BLACKLIST, OP_ADD, force);
 	payload->add.addrs = *addrs;
@@ -80,14 +80,14 @@ int blacklist_add(char *iname, struct ipv4_prefix *addrs, bool force)
 	return netlink_request(iname, request, sizeof(request), NULL, NULL);
 }
 
-int blacklist_rm(char *iname, struct ipv4_prefix *addrs)
+int blacklist4_rm(char *iname, struct ipv4_prefix *addrs)
 {
 	unsigned char request[HDR_LEN + PAYLOAD_LEN];
 	struct request_hdr *hdr;
-	union request_blacklist *payload;
+	union request_blacklist4 *payload;
 
 	hdr = (struct request_hdr *) request;
-	payload = (union request_blacklist *) (request + HDR_LEN);
+	payload = (union request_blacklist4 *) (request + HDR_LEN);
 
 	init_request_hdr(hdr, MODE_BLACKLIST, OP_REMOVE, false);
 	payload->rm.addrs = *addrs;
@@ -95,9 +95,10 @@ int blacklist_rm(char *iname, struct ipv4_prefix *addrs)
 	return netlink_request(iname, request, sizeof(request), NULL, NULL);
 }
 
-int blacklist_flush(char *iname)
+int blacklist4_flush(char *iname)
 {
-	struct request_hdr request;
-	init_request_hdr(&request, MODE_BLACKLIST, OP_FLUSH, false);
-	return netlink_request(iname, &request, sizeof(request), NULL, NULL);
+	unsigned char request[HDR_LEN + PAYLOAD_LEN];
+	struct request_hdr *hdr = (struct request_hdr *) request;
+	init_request_hdr(hdr, MODE_BLACKLIST, OP_FLUSH, false);
+	return netlink_request(iname, request, sizeof(request), NULL, NULL);
 }

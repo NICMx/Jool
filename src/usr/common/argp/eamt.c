@@ -20,29 +20,39 @@ static struct wargp_option display_opts[] = {
 	{ 0 },
 };
 
+static void print_separator(void)
+{
+	print_table_separator(0, 43, 18, 0);
+}
+
 static int print_entry(struct eamt_entry *entry, void *args)
 {
-	struct display_args *eargs = args;
+	struct display_args *dargs = args;
 	char ipv6_str[INET6_ADDRSTRLEN];
 	char *ipv4_str;
 
 	inet_ntop(AF_INET6, &entry->prefix6.addr, ipv6_str, sizeof(ipv6_str));
 	ipv4_str = inet_ntoa(entry->prefix4.addr);
 
-	printf("%s/%u", ipv6_str, entry->prefix6.len);
-	printf("%s", eargs->csv.value ? "," : " - ");
-	printf("%s/%u", ipv4_str, entry->prefix4.len);
-	printf("\n");
+	if (dargs->csv.value) {
+		printf("%s/%u,%s/%u\n",
+				ipv6_str, entry->prefix6.len,
+				ipv4_str, entry->prefix4.len);
+	} else {
+		printf("| %39s/%-3u | %15s/%-2u |\n",
+				ipv6_str, entry->prefix6.len,
+				ipv4_str, entry->prefix4.len);
+	}
 
 	return 0;
 }
 
 int handle_eamt_display(char *iname, int argc, char **argv, void *arg)
 {
-	struct display_args eargs = { 0 };
+	struct display_args dargs = { 0 };
 	int error;
 
-	error = wargp_parse(display_opts, argc, argv, &eargs);
+	error = wargp_parse(display_opts, argc, argv, &dargs);
 	if (error)
 		return error;
 
@@ -50,16 +60,27 @@ int handle_eamt_display(char *iname, int argc, char **argv, void *arg)
 	if (error)
 		return error;
 
-	if (show_csv_header(eargs.no_headers.value, eargs.csv.value))
-		printf("IPv6 Prefix,IPv4 Prefix\n");
+	if (!dargs.no_headers.value) {
+		char *th1 = "IPv6 Prefix";
+		char *th2 = "IPv4 Prefix";
+		if (dargs.csv.value)
+			printf("%s,%s\n", th1, th2);
+		else {
+			print_separator();
+			printf("| %43s | %18s |\n", th1, th2);
+			print_separator();
+		}
+	}
 
-	error = eamt_foreach(iname, print_entry, &eargs);
+	error = eamt_foreach(iname, print_entry, &dargs);
 
 	netlink_teardown();
 
 	if (error)
 		return error;
 
+	if (!dargs.csv.value)
+		print_separator();
 	return 0;
 }
 

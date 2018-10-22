@@ -26,7 +26,7 @@ static int parse_siit_json(cJSON *json);
 static int parse_nat64_json(cJSON *json);
 static int handle_global(cJSON *json, bool *globals_found);
 static int handle_eamt(cJSON *json);
-static int handle_blacklist(cJSON *json);
+static int handle_blacklist4(cJSON *json);
 static int handle_pool4(cJSON *pool4);
 static int handle_bib(cJSON *bib);
 
@@ -284,7 +284,7 @@ static int parse_siit_json(cJSON *json)
 {
 	bool global_found = false;
 	bool eamt_found = false;
-	bool blacklist_found = false;
+	bool blacklist4_found = false;
 	bool *globals_found;
 	int error;
 
@@ -306,8 +306,8 @@ static int parse_siit_json(cJSON *json)
 			check_duplicates(&eamt_found, OPTNAME_EAMT);
 			error = handle_eamt(json);
 		} else if (strcasecmp(OPTNAME_BLACKLIST, json->string) == 0) {
-			check_duplicates(&blacklist_found, OPTNAME_BLACKLIST);
-			error = handle_blacklist(json);
+			check_duplicates(&blacklist4_found, OPTNAME_BLACKLIST);
+			error = handle_blacklist4(json);
 		} else if (strcasecmp(OPTNAME_INAME, json->string) == 0) {
 			/* No code. */
 		} else if (strcasecmp(OPTNAME_FW, json->string) == 0) {
@@ -607,7 +607,7 @@ end:
 	return error;
 }
 
-static int handle_blacklist(cJSON *json)
+static int handle_blacklist4(cJSON *json)
 {
 	struct nl_buffer *buffer;
 	struct ipv4_prefix prefix;

@@ -3,7 +3,7 @@
 #include "common/types.h"
 #include "mod/common/xlator.h"
 #include "mod/common/nl/nl_common.h"
-#include "mod/common/nl/nl_core2.h"
+#include "mod/common/nl/nl_core.h"
 
 static int xlator_entry_to_userspace(struct xlator *entry, void *arg)
 {

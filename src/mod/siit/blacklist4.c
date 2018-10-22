@@ -10,32 +10,32 @@
 #include "mod/common/xlator.h"
 #include "mod/common/rcu.h"
 
-struct addr4_pool *blacklist_alloc(void)
+struct addr4_pool *blacklist4_alloc(void)
 {
 	return pool_alloc();
 }
 
-void blacklist_get(struct addr4_pool *pool)
+void blacklist4_get(struct addr4_pool *pool)
 {
 	pool_get(pool);
 }
 
-void blacklist_put(struct addr4_pool *pool)
+void blacklist4_put(struct addr4_pool *pool)
 {
 	pool_put(pool);
 }
 
-int blacklist_add(struct addr4_pool *pool, struct ipv4_prefix *prefix)
+int blacklist4_add(struct addr4_pool *pool, struct ipv4_prefix *prefix)
 {
 	return pool_add(pool, prefix, false);
 }
 
-int blacklist_rm(struct addr4_pool *pool, struct ipv4_prefix *prefix)
+int blacklist4_rm(struct addr4_pool *pool, struct ipv4_prefix *prefix)
 {
 	return pool_rm(pool, prefix);
 }
 
-int blacklist_flush(struct addr4_pool *pool)
+int blacklist4_flush(struct addr4_pool *pool)
 {
 	return pool_flush(pool);
 }
@@ -90,24 +90,24 @@ dont_translate:
 	return true;
 }
 
-bool blacklist_contains(struct addr4_pool *pool, struct in_addr *addr)
+bool blacklist4_contains(struct addr4_pool *pool, struct in_addr *addr)
 {
 	return pool_contains(pool, addr);
 }
 
-int blacklist_foreach(struct addr4_pool *pool,
+int blacklist4_foreach(struct addr4_pool *pool,
 		int (*func)(struct ipv4_prefix *, void *), void *arg,
 		struct ipv4_prefix *offset)
 {
 	return pool_foreach(pool, func, arg, offset);
 }
 
-int blacklist_count(struct addr4_pool *pool, __u64 *result)
+int blacklist4_count(struct addr4_pool *pool, __u64 *result)
 {
 	return pool_count(pool, result);
 }
 
-bool blacklist_is_empty(struct addr4_pool *pool)
+bool blacklist4_is_empty(struct addr4_pool *pool)
 {
 	return pool_is_empty(pool);
 }

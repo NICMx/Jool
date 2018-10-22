@@ -11,13 +11,14 @@ jool_SOURCES = \
 	../common/common-global.c \
 	../common/dns.c \
 	../common/file.c \
-	../common/netlink2.c \
+	../common/netlink.c \
 	../common/requirements.c \
 	../common/str_utils.c \
+	../common/userspace-types.c \
 	../common/wargp.c \
 	\
 	../common/argp/bib.c \
-	../common/argp/blacklist.c \
+	../common/argp/blacklist4.c \
 	../common/argp/eamt.c \
 	../common/argp/file.c \
 	../common/argp/global.c \
@@ -27,7 +28,7 @@ jool_SOURCES = \
 	../common/argp/stats.c \
 	\
 	../common/nl/bib.c \
-	../common/nl/blacklist.c \
+	../common/nl/blacklist4.c \
 	../common/nl/buffer.c \
 	../common/nl/eamt.c \
 	../common/nl/global.c \

@@ -99,7 +99,7 @@ static void print_pkt_meta(struct request_hdr *hdr)
 		printf("eamt");
 		break;
 	case MODE_BLACKLIST:
-		printf("blacklist");
+		printf("blacklist4");
 		break;
 	case MODE_POOL4:
 		printf("pool4");

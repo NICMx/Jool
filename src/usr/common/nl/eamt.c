@@ -105,7 +105,8 @@ int eamt_rm(char *iname, struct ipv6_prefix *p6, struct ipv4_prefix *p4)
 
 int eamt_flush(char *iname)
 {
-	struct request_hdr request;
-	init_request_hdr(&request, MODE_EAMT, OP_FLUSH, false);
-	return netlink_request(iname, &request, sizeof(request), NULL, NULL);
+	unsigned char request[HDR_LEN + PAYLOAD_LEN];
+	struct request_hdr *hdr = (struct request_hdr *)request;
+	init_request_hdr(hdr, MODE_EAMT, OP_FLUSH, false);
+	return netlink_request(iname, request, sizeof(request), NULL, NULL);
 }

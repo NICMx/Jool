@@ -108,6 +108,9 @@ int handle_instance_display(char *iname, int argc, char **argv, void *arg)
 	struct display_args dargs = { 0 };
 	int error;
 
+	if (iname)
+		log_warn("instance display ignores -i.");
+
 	error = wargp_parse(display_opts, argc, argv, &dargs);
 	if (error)
 		return error;
@@ -128,7 +131,7 @@ int handle_instance_display(char *iname, int argc, char **argv, void *arg)
 	if (!dargs.csv.value)
 		print_table_divisor();
 
-	error = instance_foreach(iname, print_entry, &dargs);
+	error = instance_foreach(print_entry, &dargs);
 
 	netlink_teardown();
 
@@ -269,6 +272,9 @@ static struct wargp_option flush_opts[] = {
 int handle_instance_flush(char *iname, int argc, char **argv, void *arg)
 {
 	int error;
+
+	if (iname)
+		log_warn("instance flush ignores -i.");
 
 	error = wargp_parse(flush_opts, argc, argv, NULL);
 	if (error)

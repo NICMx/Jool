@@ -215,7 +215,7 @@ static unsigned long get_timeout(struct xlator *jool,
 	else if (&db->icmp.trans_timer == expirer)
 		secs = 0;
 	else {
-		WARN(1, "Programming error: xlator does not reference querying expirer");
+		log_warn_once("Programming error: xlator does not reference querying expirer");
 		secs = 0;
 	}
 

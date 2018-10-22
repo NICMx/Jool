@@ -2,7 +2,7 @@
 
 #include "common/types.h"
 #include "mod/common/nl/nl_common.h"
-#include "mod/common/nl/nl_core2.h"
+#include "mod/common/nl/nl_core.h"
 #include "mod/siit/eam.h"
 
 static int eam_entry_to_userspace(struct eamt_entry const *entry, void *arg)

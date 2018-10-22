@@ -207,7 +207,7 @@ static int handle_eamt(struct config_candidate *new, void *payload,
 	return 0;
 }
 
-static int handle_blacklist(struct config_candidate *new, void *payload,
+static int handle_blacklist4(struct config_candidate *new, void *payload,
 		__u32 payload_len, bool force)
 {
 	struct ipv4_prefix *prefixes = payload;
@@ -221,7 +221,7 @@ static int handle_blacklist(struct config_candidate *new, void *payload,
 	}
 
 	for (i = 0; i < prefix_count; i++) {
-		error = pool_add(new->xlator.siit.blacklist, &prefixes[i],
+		error = pool_add(new->xlator.siit.blacklist4, &prefixes[i],
 				force);
 		if (error)
 			return error;
@@ -311,7 +311,7 @@ int atomconfig_add(char *iname, void *config, size_t config_len, bool force)
 		error = handle_eamt(candidate, config, config_len, force);
 		break;
 	case SEC_BLACKLIST:
-		error = handle_blacklist(candidate, config, config_len, force);
+		error = handle_blacklist4(candidate, config, config_len, force);
 		break;
 	case SEC_POOL4:
 		error = handle_pool4(candidate, config, config_len);

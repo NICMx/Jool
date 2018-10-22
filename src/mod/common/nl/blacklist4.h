@@ -4,6 +4,6 @@
 #include <net/genetlink.h>
 #include "mod/common/xlator.h"
 
-int handle_blacklist_config(struct xlator *jool, struct genl_info *info);
+int handle_blacklist4_config(struct xlator *jool, struct genl_info *info);
 
 #endif

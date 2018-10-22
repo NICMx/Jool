@@ -38,7 +38,7 @@ $(PAGE)-objs += ../../../src/mod/siit/blacklist4.o
 $(PAGE)-objs += ../../../src/mod/siit/eam.o
 $(PAGE)-objs += ../../../src/mod/siit/impersonator.o
 $(PAGE)-objs += ../../../src/mod/siit/pool.o
-$(PAGE)-objs += ../../../src/mod/siit/rfc6791.o
+$(PAGE)-objs += ../../../src/mod/siit/rfc6791v4.o
 $(PAGE)-objs += ../../../src/mod/siit/rfc6791v6.o
 
 $(PAGE)-objs += ../../../src/mod/siit/handling_hairpinning.o

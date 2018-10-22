@@ -9,13 +9,13 @@
 #include "mod/common/xlator.h"
 #include "mod/common/nl/atomic_config.h"
 #include "mod/common/nl/bib.h"
-#include "mod/common/nl/blacklist.h"
+#include "mod/common/nl/blacklist4.h"
 #include "mod/common/nl/eam.h"
 #include "mod/common/nl/global.h"
 #include "mod/common/nl/instance.h"
 #include "mod/common/nl/joold.h"
 #include "mod/common/nl/nl_common.h"
-#include "mod/common/nl/nl_core2.h"
+#include "mod/common/nl/nl_core.h"
 #include "mod/common/nl/pool4.h"
 #include "mod/common/nl/session.h"
 #include "mod/common/nl/stats.h"
@@ -100,7 +100,7 @@ static int multiplex_request(struct xlator *jool, struct genl_info *info)
 	case MODE_EAMT:
 		return handle_eamt_config(jool, info);
 	case MODE_BLACKLIST:
-		return handle_blacklist_config(jool, info);
+		return handle_blacklist4_config(jool, info);
 	case MODE_POOL4:
 		return handle_pool4_config(jool, info);
 	case MODE_BIB:

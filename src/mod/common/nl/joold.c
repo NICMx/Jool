@@ -1,7 +1,7 @@
 #include "mod/common/nl/joold.h"
 
 #include "mod/common/nl/nl_common.h"
-#include "mod/common/nl/nl_core2.h"
+#include "mod/common/nl/nl_core.h"
 #include "mod/nat64/joold.h"
 
 int handle_joold_request(struct xlator *jool, struct genl_info *info)

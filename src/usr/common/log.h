@@ -13,6 +13,7 @@
 #include <stdio.h>
 #define log_debug(text, ...) printf(text "\n", ##__VA_ARGS__)
 #define log_info(text, ...) log_debug(text, ##__VA_ARGS__)
+#define log_warn(text, ...) log_err("Warning: " text, ##__VA_ARGS__)
 #define log_err(text, ...) fprintf(stderr, text "\n", ##__VA_ARGS__)
 
 #endif

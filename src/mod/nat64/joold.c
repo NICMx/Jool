@@ -4,7 +4,7 @@
 #include "common/str_utils.h"
 #include "mod/common/wkmalloc.h"
 #include "mod/common/xlator.h"
-#include "mod/common/nl/nl_core2.h"
+#include "mod/common/nl/nl_core.h"
 #include "mod/nat64/bib/db.h"
 
 #include <linux/inet.h>

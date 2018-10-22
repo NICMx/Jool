@@ -3,14 +3,8 @@
 
 #include <stdbool.h>
 
-static inline bool show_csv_header(bool no_headers, bool csv)
-{
-	return !no_headers && csv;
-}
-
-static inline bool show_footer(bool no_headers, bool csv)
-{
-	return !no_headers && !csv;
-}
+bool show_csv_header(bool no_headers, bool csv);
+bool show_footer(bool no_headers, bool csv);
+void print_table_separator(int junk, ...);
 
 #endif /* INCLUDE_NAT64_USR_USR_TYPES_H_ */

@@ -34,7 +34,7 @@ struct xlator {
 	union {
 		struct {
 			struct eam_table *eamt;
-			struct addr4_pool *blacklist;
+			struct addr4_pool *blacklist4;
 		} siit;
 		struct {
 			struct pool4 *pool4;

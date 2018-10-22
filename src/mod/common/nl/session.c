@@ -1,7 +1,7 @@
 #include "mod/common/nl/session.h"
 
 #include "mod/common/nl/nl_common.h"
-#include "mod/common/nl/nl_core2.h"
+#include "mod/common/nl/nl_core.h"
 #include "mod/nat64/bib/db.h"
 
 static int session_entry_to_userspace(struct session_entry const *entry,

@@ -2,7 +2,7 @@
 
 #include "mod/common/stats.h"
 #include "mod/common/nl/nl_common.h"
-#include "mod/common/nl/nl_core2.h"
+#include "mod/common/nl/nl_core.h"
 
 static int handle_stats_query(struct xlator *jool, struct genl_info *info)
 {

@@ -35,7 +35,7 @@ static int instance_display_response(struct jool_response *response, void *arg)
 	return 0;
 }
 
-int instance_foreach(char *iname, instance_foreach_entry cb, void *_args)
+int instance_foreach(instance_foreach_entry cb, void *_args)
 {
 	unsigned char request[HDR_LEN + PAYLOAD_LEN];
 	struct request_hdr *hdr;

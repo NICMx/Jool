@@ -1,11 +1,11 @@
-#include "usr/common/argp/blacklist.h"
+#include "usr/common/argp/blacklist4.h"
 
 #include "usr/common/netlink.h"
 #include "usr/common/requirements.h"
 #include "usr/common/userspace-types.h"
 #include "usr/common/str_utils.h"
 #include "usr/common/wargp.h"
-#include "usr/common/nl/blacklist.h"
+#include "usr/common/nl/blacklist4.h"
 
 struct display_args {
 	struct wargp_bool no_headers;
@@ -18,18 +18,25 @@ static struct wargp_option display_opts[] = {
 	{ 0 },
 };
 
+static void print_separator(void)
+{
+	print_table_separator(0, 18, 0);
+}
+
 static int print_entry(struct ipv4_prefix *prefix, void *args)
 {
-	char *prefix_str;
+	struct display_args *dargs = args;
+	char *prefix_str = inet_ntoa(prefix->addr);
 
-	prefix_str = inet_ntoa(prefix->addr);
-	printf("%s/%u", prefix_str, prefix->len);
-	printf("\n");
+	if (dargs->csv.value)
+		printf("%s/%u\n", prefix_str, prefix->len);
+	else
+		printf("| %15s/%-2u |\n", prefix_str, prefix->len);
 
 	return 0;
 }
 
-int handle_blacklist_display(char *iname, int argc, char **argv, void *arg)
+int handle_blacklist4_display(char *iname, int argc, char **argv, void *arg)
 {
 	struct display_args dargs = { 0 };
 	int error;
@@ -42,17 +49,30 @@ int handle_blacklist_display(char *iname, int argc, char **argv, void *arg)
 	if (error)
 		return error;
 
-	if (show_csv_header(dargs.no_headers.value, dargs.csv.value))
-		printf("IPv4 Prefix\n");
+	if (!dargs.no_headers.value) {
+		char *th1 = "IPv4 Prefix";
+		if (dargs.csv.value)
+			printf("%s\n", th1);
+		else {
+			print_separator();
+			printf("| %18s |\n", th1);
+			print_separator();
+		}
+	}
 
-	error = blacklist_foreach(iname, print_entry, &dargs);
+	error = blacklist4_foreach(iname, print_entry, &dargs);
 
 	netlink_teardown();
 
-	return error;
+	if (error)
+		return error;
+
+	if (!dargs.csv.value)
+		print_separator();
+	return 0;
 }
 
-void print_blacklist_display_opts(char *prefix)
+void print_blacklist4_display_opts(char *prefix)
 {
 	print_wargp_opts(display_opts, prefix);
 }
@@ -74,7 +94,7 @@ static struct wargp_option add_opts[] = {
 	{ 0 },
 };
 
-int handle_blacklist_add(char *iname, int argc, char **argv, void *arg)
+int handle_blacklist4_add(char *iname, int argc, char **argv, void *arg)
 {
 	struct add_args aargs = { 0 };
 	int error;
@@ -95,13 +115,13 @@ int handle_blacklist_add(char *iname, int argc, char **argv, void *arg)
 	if (error)
 		return error;
 
-	error = blacklist_add(iname, &aargs.prefix.prefix, aargs.force);
+	error = blacklist4_add(iname, &aargs.prefix.prefix, aargs.force);
 
 	netlink_teardown();
 	return error;
 }
 
-void print_blacklist_add_opts(char *prefix)
+void print_blacklist4_add_opts(char *prefix)
 {
 	print_wargp_opts(add_opts, prefix);
 }
@@ -121,7 +141,7 @@ static struct wargp_option remove_opts[] = {
 	{ 0 },
 };
 
-int handle_blacklist_remove(char *iname, int argc, char **argv, void *arg)
+int handle_blacklist4_remove(char *iname, int argc, char **argv, void *arg)
 {
 	struct rm_args rargs = { 0 };
 	int error;
@@ -142,18 +162,18 @@ int handle_blacklist_remove(char *iname, int argc, char **argv, void *arg)
 	if (error)
 		return error;
 
-	error = blacklist_rm(iname, &rargs.prefix.prefix);
+	error = blacklist4_rm(iname, &rargs.prefix.prefix);
 
 	netlink_teardown();
 	return error;
 }
 
-void print_blacklist_remove_opts(char *prefix)
+void print_blacklist4_remove_opts(char *prefix)
 {
 	print_wargp_opts(remove_opts, prefix);
 }
 
-int handle_blacklist_flush(char *iname, int argc, char **argv, void *arg)
+int handle_blacklist4_flush(char *iname, int argc, char **argv, void *arg)
 {
 	int error;
 
@@ -165,13 +185,13 @@ int handle_blacklist_flush(char *iname, int argc, char **argv, void *arg)
 	if (error)
 		return error;
 
-	error = blacklist_flush(iname);
+	error = blacklist4_flush(iname);
 
 	netlink_teardown();
 	return error;
 }
 
-void print_blacklist_flush_opts(char *prefix)
+void print_blacklist4_flush_opts(char *prefix)
 {
 	/* Nothing needed here. */
 }

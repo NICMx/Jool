@@ -71,7 +71,7 @@ static void xlator_get(struct xlator *jool)
 
 	if (xlat_is_siit()) {
 		eamt_get(jool->siit.eamt);
-		blacklist_get(jool->siit.blacklist);
+		blacklist4_get(jool->siit.blacklist4);
 	} else {
 		pool4db_get(jool->nat64.pool4);
 		bib_get(jool->nat64.bib);
@@ -189,13 +189,13 @@ static int init_siit(struct xlator *jool, struct config_prefix6 *pool6)
 	jool->siit.eamt = eamt_alloc();
 	if (!jool->siit.eamt)
 		goto eamt_fail;
-	jool->siit.blacklist = blacklist_alloc();
-	if (!jool->siit.blacklist)
-		goto blacklist_fail;
+	jool->siit.blacklist4 = blacklist4_alloc();
+	if (!jool->siit.blacklist4)
+		goto blacklist4_fail;
 
 	return 0;
 
-blacklist_fail:
+blacklist4_fail:
 	eamt_put(jool->siit.eamt);
 eamt_fail:
 	config_put(jool->global);
@@ -531,6 +531,17 @@ int xlator_replace(struct xlator *jool)
 	list = rcu_dereference_protected(pool, lockdep_is_held(&lock));
 	list_for_each_entry_rcu(old, list, list_hook) {
 		if (xlator_equals(&old->jool, &new->jool)) {
+			if (xlat_is_nat64()) {
+				if (!prefix6_equals(&old->jool.global->cfg.pool6.prefix,
+						&new->jool.global->cfg.pool6.prefix)) {
+					log_err("You can't change the pool6 prefix after the instance has been created.");
+					mutex_unlock(&lock);
+					destroy_jool_instance(new, false);
+					return -EINVAL;
+				}
+			}
+
+
 #if LINUX_VERSION_AT_LEAST(4, 13, 0, 9999, 0)
 			new->nf_ops = old->nf_ops;
 #endif
@@ -678,7 +689,7 @@ void xlator_put(struct xlator *jool)
 
 	if (xlat_is_siit()) {
 		eamt_put(jool->siit.eamt);
-		blacklist_put(jool->siit.blacklist);
+		blacklist4_put(jool->siit.blacklist4);
 	} else {
 		/*
 		 * Welp. There is no nf_defrag_ipv*_disable(). Guess we'll just

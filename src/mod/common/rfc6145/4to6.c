@@ -175,8 +175,8 @@ static addrxlat_verdict generate_addr6_siit(struct xlation *state,
 			return ADDRXLAT_DROP;
 	}
 
-	if (blacklist_contains(state->jool.siit.blacklist, &tmp)) {
-		log_debug("Address %pI4 lacks EAMT entry and is blacklisted.",
+	if (blacklist4_contains(state->jool.siit.blacklist4, &tmp)) {
+		log_debug("Address %pI4 lacks EAMT entry and is blacklist4ed.",
 				&tmp);
 		return ADDRXLAT_ACCEPT;
 	}

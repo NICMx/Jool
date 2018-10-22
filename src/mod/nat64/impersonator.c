@@ -19,18 +19,18 @@ static int fail(const char *function_name)
 	return -EINVAL;
 }
 
-struct addr4_pool *blacklist_alloc(void)
+struct addr4_pool *blacklist4_alloc(void)
 {
 	fail(__func__);
 	return NULL;
 }
 
-void blacklist_get(struct addr4_pool *pool)
+void blacklist4_get(struct addr4_pool *pool)
 {
 	fail(__func__);
 }
 
-void blacklist_put(struct addr4_pool *pool)
+void blacklist4_put(struct addr4_pool *pool)
 {
 	fail(__func__);
 }
@@ -41,7 +41,7 @@ bool interface_contains(struct net *ns, struct in_addr *addr)
 	return false;
 }
 
-bool blacklist_contains(struct addr4_pool *pool, struct in_addr *addr)
+bool blacklist4_contains(struct addr4_pool *pool, struct in_addr *addr)
 {
 	fail(__func__);
 	return false;

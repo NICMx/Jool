@@ -22,7 +22,7 @@ typedef __u8 config_bool;
 /* TODO these values are not always used. */
 
 /* Instance */
-#define OPTNAME_INAME			"instance-name"
+#define OPTNAME_INAME			"instance"
 #define OPTNAME_FW			"framework"
 #define OPTNAME_NETFILTER		"netfilter"
 #define OPTNAME_IPTABLES		"iptables"
@@ -32,7 +32,7 @@ typedef __u8 config_bool;
 #define OPTNAME_STATS			"stats"
 #define OPTNAME_GLOBAL			"global"
 #define OPTNAME_EAMT			"eamt"
-#define OPTNAME_BLACKLIST		"blacklist"
+#define OPTNAME_BLACKLIST		"blacklist4"
 #define OPTNAME_POOL4			"pool4"
 #define OPTNAME_BIB			"bib"
 #define OPTNAME_SESSION			"session"
@@ -114,7 +114,7 @@ enum config_mode {
 	MODE_GLOBAL,
 	/** The current message is talking about the EAMT. */
 	MODE_EAMT,
-	/** The current message is talking about the blacklisted addr pool. */
+	/** The current message is talking about the blacklist4ed IPv4 addr pool. */
 	MODE_BLACKLIST,
 	/** The current message is talking about the IPv4 pool. */
 	MODE_POOL4,
@@ -330,7 +330,7 @@ union request_pool4 {
 	} flush;
 };
 
-union request_blacklist {
+union request_blacklist4 {
 	struct {
 		config_bool offset_set;
 		struct ipv4_prefix offset;

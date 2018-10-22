@@ -15,7 +15,7 @@
 #include "usr/common/log.h"
 #include "usr/common/str_utils.h"
 #include "usr/common/argp/bib.h"
-#include "usr/common/argp/blacklist.h"
+#include "usr/common/argp/blacklist4.h"
 #include "usr/common/argp/eamt.h"
 #include "usr/common/argp/file.h"
 #include "usr/common/argp/instance.h"
@@ -106,27 +106,27 @@ static struct cmd_option eamt_ops[] = {
 		{ 0 },
 };
 
-static struct cmd_option blacklist_ops[] = {
+static struct cmd_option blacklist4_ops[] = {
 		{
 			.label = DISPLAY,
 			.xt = XT_SIIT,
-			.handler = handle_blacklist_display,
-			.print_opts = print_blacklist_display_opts,
+			.handler = handle_blacklist4_display,
+			.print_opts = print_blacklist4_display_opts,
 		}, {
 			.label = ADD,
 			.xt = XT_SIIT,
-			.handler = handle_blacklist_add,
-			.print_opts = print_blacklist_add_opts,
+			.handler = handle_blacklist4_add,
+			.print_opts = print_blacklist4_add_opts,
 		}, {
 			.label = REMOVE,
 			.xt = XT_SIIT,
-			.handler = handle_blacklist_remove,
-			.print_opts = print_blacklist_remove_opts,
+			.handler = handle_blacklist4_remove,
+			.print_opts = print_blacklist4_remove_opts,
 		}, {
 			.label = FLUSH,
 			.xt = XT_SIIT,
-			.handler = handle_blacklist_flush,
-			.print_opts = print_blacklist_flush_opts,
+			.handler = handle_blacklist4_flush,
+			.print_opts = print_blacklist4_flush_opts,
 		},
 		{ 0 },
 };
@@ -214,9 +214,9 @@ struct cmd_option tree[] = {
 			.xt = XT_SIIT,
 			.children = eamt_ops,
 		}, {
-			.label = "blacklist",
+			.label = "blacklist4",
 			.xt = XT_SIIT,
-			.children = blacklist_ops,
+			.children = blacklist4_ops,
 		}, {
 			.label = "pool4",
 			.xt = XT_NAT64,

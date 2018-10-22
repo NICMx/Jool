@@ -33,6 +33,11 @@ static struct wargp_option display_opts[] = {
 	{ 0 },
 };
 
+static void print_separator(void)
+{
+	print_table_separator(0, 10, 5, 18, 15, 11, 0);
+}
+
 static void display_sample_csv(struct pool4_sample *sample,
 		struct display_args *args)
 {
@@ -60,20 +65,11 @@ static bool print_common_values(struct pool4_sample *sample,
 			|| sample->proto != args->last.proto;
 }
 
-static void print_table_divisor(void)
-{
-	/*
-	 * Lol, dude. Maybe there's some console table manager library out there
-	 * that we should be using.
-	 */
-	printf("+------------+-------+--------------------+-----------------+-------------+\n");
-}
-
 static void display_sample_normal(struct pool4_sample *sample,
 		struct display_args *args)
 {
 	if (print_common_values(sample, args)) {
-		print_table_divisor();
+		print_separator();
 
 		printf("| %10u | %5s | ",
 				sample->mark,
@@ -134,8 +130,10 @@ int handle_pool4_display(char *iname, int argc, char **argv, void *arg)
 		if (dargs.csv.value)
 			printf("Mark,Protocol,Address,Min port,Max port,Iterations,Iterations fixed\n");
 		else {
-			print_table_divisor();
-			printf("|       Mark | Proto |     Max iterations |         Address |       Ports |\n");
+			print_separator();
+			printf("| %10s | %5s | %18s | %15s | %11s |\n",
+					"Mark", "Proto", "Max iterations",
+					"Address", "Ports");
 		}
 	}
 
@@ -148,8 +146,7 @@ int handle_pool4_display(char *iname, int argc, char **argv, void *arg)
 		return error;
 
 	if (!dargs.csv.value)
-		print_table_divisor();
-
+		print_separator();
 	return 0;
 }
 
@@ -160,6 +157,7 @@ void print_pool4_display_opts(char *prefix)
 
 struct parsing_entry {
 	bool prefix4_set;
+	bool range_set;
 	struct pool4_entry_usr meat;
 };
 
@@ -167,6 +165,29 @@ struct add_args {
 	struct parsing_entry entry;
 	struct wargp_l4proto proto;
 	bool force;
+};
+
+static int parse_max_iterations(void *void_field, int key, char *str)
+{
+	struct pool4_entry_usr *meat = void_field;
+
+	meat->flags = ITERATIONS_SET;
+
+	if (STR_EQUAL(str, "auto")) {
+		meat->flags |= ITERATIONS_AUTO;
+		return 0;
+	}
+	if (STR_EQUAL(str, "infinity")) {
+		meat->flags |= ITERATIONS_INFINITE;
+		return 0;
+	}
+
+	return str_to_u32(str, &meat->iterations, 0, MAX_U32);
+}
+
+struct wargp_type wt_max_iterations = {
+	.argument = "(<integer>|auto)",
+	.parse = parse_max_iterations,
 };
 
 static int parse_pool4_entry(void *void_field, int key, char *str)
@@ -179,6 +200,7 @@ static int parse_pool4_entry(void *void_field, int key, char *str)
 	}
 
 	/* Token is a port range. */
+	field->entry.range_set = true;
 	return str_to_port_range(str, &field->entry.meat.range.ports);
 }
 
@@ -202,8 +224,8 @@ static struct wargp_option add_opts[] = {
 		.key = ARGP_MAX_ITERATIONS,
 		.doc = "Maximum number of times the transport address lookup algorithm should be allowed to iterate\n"
 				"(This algorithm is used to find an available transport address to create a BIB entry with)",
-		.offset = offsetof(struct add_args, entry.meat.iterations),
-		.type = &wt_u32,
+		.offset = offsetof(struct add_args, entry.meat),
+		.type = &wt_max_iterations,
 	},
 	WARGP_FORCE(struct add_args, force),
 	{
@@ -225,9 +247,13 @@ int handle_pool4_add(char *iname, int argc, char **argv, void *arg)
 	if (error)
 		return error;
 
-	if (!aargs.entry.prefix4_set) {
+	if (!aargs.entry.prefix4_set
+			|| !aargs.entry.range_set
+			|| !aargs.proto.set) {
 		struct requirement reqs[] = {
 			{ aargs.entry.prefix4_set, "an IPv4 prefix or address" },
+			{ aargs.entry.range_set, "a port (or ICMP id) range" },
+			{ aargs.proto.set, "a protocol (--tcp, --udp or --icmp)" },
 			{ 0 },
 		};
 		return requirement_print(reqs);

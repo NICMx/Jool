@@ -198,8 +198,8 @@ static addrxlat_verdict generate_addr4_siit(struct xlation *state,
 		return ADDRXLAT_TRY_SOMETHING_ELSE;
 	}
 
-	if (blacklist_contains(state->jool.siit.blacklist, &tmp)) {
-		log_debug("The resulting address (%pI4) is blacklisted.", &tmp);
+	if (blacklist4_contains(state->jool.siit.blacklist4, &tmp)) {
+		log_debug("The resulting address (%pI4) is blacklist4ed.", &tmp);
 		return ADDRXLAT_ACCEPT;
 	}
 

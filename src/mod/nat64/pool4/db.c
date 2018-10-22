@@ -522,10 +522,6 @@ int pool4db_add(struct pool4 *pool, const struct pool4_entry_usr *entry)
 		if (addend.ports.min == 0)
 			addend.ports.min = 1;
 
-	/* log_debug("Adding range:%pI4/%u %u-%u",
-			&range->prefix.address, range->prefix.len,
-			range->ports.min, range->ports.max); */
-
 	foreach_addr4(addend.addr, tmp, &entry->range.prefix) {
 		spin_lock_bh(&pool->lock);
 		error = add_to_mark_tree(pool, entry, &addend);

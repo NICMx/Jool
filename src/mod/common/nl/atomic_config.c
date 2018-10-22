@@ -1,7 +1,7 @@
 #include "mod/common/nl/atomic_config.h"
 
 #include "mod/common/nl/nl_common.h"
-#include "mod/common/nl/nl_core2.h"
+#include "mod/common/nl/nl_core.h"
 #include "mod/common/atomic_config.h"
 
 int handle_atomconfig_request(struct genl_info *info)

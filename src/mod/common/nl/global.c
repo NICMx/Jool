@@ -6,7 +6,7 @@
 #include "common/types.h"
 #include "mod/common/config.h"
 #include "mod/common/nl/nl_common.h"
-#include "mod/common/nl/nl_core2.h"
+#include "mod/common/nl/nl_core.h"
 #include "mod/nat64/joold.h"
 #include "mod/nat64/bib/db.h"
 #include "mod/siit/eam.h"
