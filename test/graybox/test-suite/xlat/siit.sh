@@ -13,7 +13,10 @@ ip addr add 198.51.100.1/24 dev $2
 sysctl -w net.ipv4.conf.all.forwarding=1 > /dev/null
 sysctl -w net.ipv6.conf.all.forwarding=1 > /dev/null
 modprobe jool_siit
-jool_siit instance add --netfilter -6 2001:db8:100::/40
+jool_siit instance add --iptables -6 2001:db8:100::/40
+
+ip6tables -t mangle -A PREROUTING -d 2001:db8:1c6:3364:2:: -j JOOL_SIIT
+iptables  -t mangle -A PREROUTING -d 192.0.2.33            -j JOOL_SIIT
 
 # pool6791 test
 jool_siit eamt add 2001:db8:3::/120 1.0.0.0/24

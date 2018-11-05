@@ -47,10 +47,10 @@ struct global_config *config_alloc(struct config_prefix6 *pool6)
 		config->nat64.f_args = DEFAULT_F_ARGS;
 		config->nat64.handle_rst_during_fin_rcv = DEFAULT_HANDLE_FIN_RCV_RST;
 
-		config->nat64.bib.ttl.tcp_est = TCP_EST;
-		config->nat64.bib.ttl.tcp_trans = TCP_TRANS;
-		config->nat64.bib.ttl.udp = UDP_DEFAULT;
-		config->nat64.bib.ttl.icmp = ICMP_DEFAULT;
+		config->nat64.bib.ttl.tcp_est = 1000 * TCP_EST;
+		config->nat64.bib.ttl.tcp_trans = 1000 * TCP_TRANS;
+		config->nat64.bib.ttl.udp = 1000 * UDP_DEFAULT;
+		config->nat64.bib.ttl.icmp = 1000 * ICMP_DEFAULT;
 		config->nat64.bib.bib_logging = DEFAULT_BIB_LOGGING;
 		config->nat64.bib.session_logging = DEFAULT_SESSION_LOGGING;
 		config->nat64.bib.drop_by_addr = DEFAULT_ADDR_DEPENDENT_FILTERING;
@@ -59,7 +59,7 @@ struct global_config *config_alloc(struct config_prefix6 *pool6)
 
 		config->nat64.joold.enabled = DEFAULT_JOOLD_ENABLED;
 		config->nat64.joold.flush_asap = DEFAULT_JOOLD_FLUSH_ASAP;
-		config->nat64.joold.flush_deadline = DEFAULT_JOOLD_DEADLINE;
+		config->nat64.joold.flush_deadline = 1000 * DEFAULT_JOOLD_DEADLINE;
 		config->nat64.joold.capacity = DEFAULT_JOOLD_CAPACITY;
 		config->nat64.joold.max_payload = DEFAULT_JOOLD_MAX_PAYLOAD;
 	}
@@ -93,20 +93,5 @@ void config_copy(struct globals *from, struct globals *to)
 RCUTAG_FREE
 void prepare_config_for_userspace(struct globals *config, bool pools_empty)
 {
-	struct bib_config *bib;
-	struct joold_config *joold;
-
 	config->status = config->enabled && !pools_empty;
-
-	if (xlat_is_siit())
-		return;
-
-	bib = &config->nat64.bib;
-	bib->ttl.tcp_est = jiffies_to_msecs(bib->ttl.tcp_est);
-	bib->ttl.tcp_trans = jiffies_to_msecs(bib->ttl.tcp_trans);
-	bib->ttl.udp = jiffies_to_msecs(bib->ttl.udp);
-	bib->ttl.icmp = jiffies_to_msecs(bib->ttl.icmp);
-
-	joold = &config->nat64.joold;
-	joold->flush_deadline = jiffies_to_msecs(joold->flush_deadline);
 }

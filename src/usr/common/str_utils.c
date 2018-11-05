@@ -456,7 +456,7 @@ static void print_num_csv(__u64 num, char *separator)
 		printf("%llu%s", num, separator);
 }
 
-void print_time_csv(unsigned int millis)
+void print_timeout_hhmmss(unsigned int millis)
 {
 	const unsigned int MILLIS_PER_SECOND = 1000;
 	const unsigned int MILLIS_PER_MIN = 60 * MILLIS_PER_SECOND;
@@ -476,38 +476,6 @@ void print_time_csv(unsigned int millis)
 
 	print_num_csv(hours, ":");
 	print_num_csv(minutes, ":");
-	print_num_csv(seconds, ".");
-	printf("%u", millis);
+	print_num_csv(seconds, "");
 }
 
-void print_time_friendly(unsigned int millis)
-{
-	unsigned int seconds;
-	unsigned int minutes;
-	unsigned int hours;
-
-	if (millis < 1000) {
-		printf("%u milliseconds\n", millis);
-		return;
-	}
-
-	seconds = millis / 1000;
-
-	if (seconds < 60) {
-		printf("%u seconds\n", seconds);
-		return;
-	}
-
-	minutes = seconds / 60;
-	seconds %= 60;
-
-	if (minutes < 60) {
-		printf("%u minutes, %u seconds\n", minutes, seconds);
-		return;
-	}
-
-	hours = minutes / 60;
-	minutes %= 60;
-
-	printf("%u hours, %u minutes\n", hours, minutes);
-}

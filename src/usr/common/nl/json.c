@@ -485,6 +485,7 @@ static int write_field(cJSON *json, struct global_field *field,
 		error = write_u8(field, json, payload);
 		break;
 	case GTI_NUM32:
+	case GTI_TIMEOUT:
 		error = write_u32(field, json, payload);
 		break;
 	case GTI_PLATEAUS:

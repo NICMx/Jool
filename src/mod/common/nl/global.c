@@ -11,8 +11,6 @@
 #include "mod/nat64/bib/db.h"
 #include "mod/siit/eam.h"
 
-/* TODO (NOW) transform jiffies to milliseconds in globals */
-
 static int handle_global_display(struct xlator *jool, struct genl_info *info)
 {
 	struct globals config;

@@ -30,6 +30,11 @@ struct xlator {
 	char iname[INAME_MAX_LEN];
 
 	struct jool_stats *stats;
+	/*
+	 * TODO (performance) It seems like there is no point to this being a
+	 * pointer anymore; global update is now implemented as an xlator
+	 * instance replacement. We can avoid some dereferences.
+	 */
 	struct global_config *global;
 	union {
 		struct {
@@ -52,7 +57,9 @@ int xlator_add(jframework fw, char *iname, struct config_prefix6 *pool6,
 int xlator_rm(char *iname);
 int xlator_flush(void);
 
-int xlator_init(struct xlator *instance, struct config_prefix6 *pool6);
+int xlator_init(struct xlator *instance,
+		struct net *ns, jframework fw, char *iname,
+		struct config_prefix6 *pool6);
 int xlator_replace(struct xlator *instance);
 
 int xlator_find(struct net *ns, jframework fw, const char *iname,

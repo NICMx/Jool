@@ -6,13 +6,14 @@
  * xlator impersonator for BIB unit tests.
  */
 
-int xlator_init(struct xlator *jool, struct config_prefix6 *pool6)
+int xlator_init(struct xlator *jool, struct net *ns, jframework fw, char *iname,
+		struct config_prefix6 *pool6)
 {
 	memset(jool, 0, sizeof(*jool));
 
-	jool->ns = NULL;
-	strcpy(jool->iname, INAME_DEFAULT);
-	jool->fw = FW_NETFILTER;
+	jool->ns = ns;
+	jool->fw = fw;
+	strcpy(jool->iname, iname);
 
 	jool->global = config_alloc(pool6);
 	if (!jool->global)

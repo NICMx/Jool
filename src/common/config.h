@@ -459,7 +459,7 @@ struct session_entry_usr {
 	struct ipv6_transport_addr dst6;
 	struct ipv4_transport_addr src4;
 	struct ipv4_transport_addr dst4;
-	__u64 dying_time;
+	__u32 dying_time;
 	__u8 state;
 };
 
@@ -489,6 +489,7 @@ struct mtu_plateaus {
 };
 
 struct bib_config {
+	/* These values are always measured in milliseconds. */
 	struct {
 		__u32 tcp_est;
 		__u32 tcp_trans;
@@ -507,8 +508,6 @@ struct bib_config {
 	__u32 max_stored_pkts;
 };
 
-/* This has to be <= 32. */
-#define JOOLD_MULTICAST_GROUP 30
 #define JOOLD_MAX_PAYLOAD 2048
 
 struct joold_config {
@@ -533,7 +532,7 @@ struct joold_config {
 
 	/**
 	 * The timer forcibly flushes the queue if this hasn't happened after
-	 * this amount of jiffies, regardless of the ACK and @flush_asap.
+	 * this amount of milliseconds, regardless of the ACK and @flush_asap.
 	 * This helps if an ACK is lost for some reason.
 	 */
 	__u32 flush_deadline;

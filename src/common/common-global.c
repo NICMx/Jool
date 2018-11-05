@@ -7,6 +7,7 @@
 #define print_bool NULL
 #define print_u8 NULL
 #define print_u32 NULL
+#define print_timeout NULL
 #define print_plateaus NULL
 #define print_prefix6 NULL
 #define print_prefix4 NULL
@@ -16,6 +17,7 @@
 #define parse_bool NULL
 #define parse_u8 NULL
 #define parse_u32 NULL
+#define parse_timeout NULL
 #define parse_plateaus NULL
 #define parse_prefix6 NULL
 #define parse_prefix4 NULL
@@ -23,6 +25,7 @@
 
 int validate_u8(struct global_field *field, void *value, bool force);
 int validate_u32(struct global_field *field, void *value, bool force);
+int validate_timeout(struct global_field *field, void *value, bool force);
 int validate_pool6(struct global_field *field, void *value, bool force);
 int validate_plateaus(struct global_field *field, void *value, bool force);
 int validate_prefix6(struct global_field *field, void *value, bool force);
@@ -35,6 +38,7 @@ int validate_hairpin_mode(struct global_field *field, void *value, bool force);
 void print_bool(void *value, bool csv);
 void print_u8(void *value, bool csv);
 void print_u32(void *value, bool csv);
+void print_timeout(void *value, bool csv);
 void print_plateaus(void *value, bool csv);
 void print_prefix6(void *value, bool csv);
 void print_prefix4(void *value, bool csv);
@@ -44,6 +48,7 @@ void print_fargs(void *value, bool csv);
 int parse_bool(struct global_field *field, char *str, void *result);
 int parse_u8(struct global_field *field, char *str, void *result);
 int parse_u32(struct global_field *field, char *str, void *result);
+int parse_timeout(struct global_field *field, char *str, void *result);
 int parse_plateaus(struct global_field *field, char *str, void *result);
 int parse_prefix6(struct global_field *field, char *str, void *result);
 int parse_prefix4(struct global_field *field, char *str, void *result);
@@ -51,6 +56,7 @@ int parse_hairpin_mode(struct global_field *field, char *str, void *result);
 
 #define validate_u8 NULL
 #define validate_u32 NULL
+#define validate_timeout NULL
 #define validate_pool6 NULL
 #define validate_plateaus NULL
 #define validate_prefix6 NULL
@@ -84,6 +90,15 @@ static struct global_type gt_uint32 = {
 	.print = print_u32,
 	.parse = parse_u32,
 	.validate = validate_u32,
+};
+
+static struct global_type gt_timeout = {
+	.id = GTI_TIMEOUT,
+	.name = "32-bit unsigned integer",
+	.size = sizeof(__u32),
+	.print = print_timeout,
+	.parse = parse_timeout,
+	.validate = validate_timeout,
 };
 
 static struct global_type gt_plateaus = {
@@ -218,7 +233,7 @@ static struct global_field global_fields[] = {
 		.xt = XT_NAT64,
 	}, {
 		.name = "udp-timeout",
-		.type = &gt_uint32,
+		.type = &gt_timeout,
 		.doc = "Set the UDP session lifetime (in seconds).",
 		.offset = offsetof(struct globals, nat64.bib.ttl.udp),
 		.xt = XT_NAT64,
@@ -226,7 +241,7 @@ static struct global_field global_fields[] = {
 		.max = MAX_U32 / 1000,
 	}, {
 		.name = "icmp-timeout",
-		.type = &gt_uint32,
+		.type = &gt_timeout,
 		.doc = "Set the timeout for ICMP sessions (in seconds).",
 		.offset = offsetof(struct globals, nat64.bib.ttl.icmp),
 		.xt = XT_NAT64,
@@ -234,7 +249,7 @@ static struct global_field global_fields[] = {
 		.max = MAX_U32 / 1000,
 	}, {
 		.name = "tcp-est-timeout",
-		.type = &gt_uint32,
+		.type = &gt_timeout,
 		.doc = "Set the TCP established session lifetime (in seconds).",
 		.offset = offsetof(struct globals, nat64.bib.ttl.tcp_est),
 		.xt = XT_NAT64,
@@ -242,7 +257,7 @@ static struct global_field global_fields[] = {
 		.max = MAX_U32 / 1000,
 	}, {
 		.name = "tcp-trans-timeout",
-		.type = &gt_uint32,
+		.type = &gt_timeout,
 		.doc = "Set the TCP transitory session lifetime (in seconds).",
 		.offset = offsetof(struct globals, nat64.bib.ttl.tcp_trans),
 		.xt = XT_NAT64,

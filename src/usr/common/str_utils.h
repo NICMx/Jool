@@ -54,15 +54,10 @@ int str_to_prefix6(const char *str, struct ipv6_prefix *out);
 int str_to_prefix4(const char *str, struct ipv4_prefix *out);
 
 /**
- * Prints the @millis amount of milliseconds as spreadsheet-friendly format in
- * the console.
+ * Prints the @millis amount of milliseconds in the console.
+ * The format is "HH:MM:SS".
  */
-void print_time_csv(unsigned int millis);
-/**
- * Prints the @millis amount of milliseconds as a fairly human-readable string
- * in the console.
- */
-void print_time_friendly(unsigned int millis);
+void print_timeout_hhmmss(unsigned int millis);
 
 #define STR_EQUAL(s1, s2) (strcmp(s1, s2) == 0)
 

@@ -43,9 +43,6 @@
 /** Default session lifetime for ICMP bindings, in seconds. */
 #define ICMP_DEFAULT (1 * 60)
 
-/** Default time interval fragments are allowed to arrive in. In seconds. */
-#define FRAGMENT_MIN (2)
-
 /*
  * The timers will never sleep less than this amount of jiffies. This is because
  * I don't think we need to interrupt the kernel too much.
@@ -87,7 +84,7 @@
 		1006, 508, 296, 68 }
 #define DEFAULT_JOOLD_ENABLED false
 #define DEFAULT_JOOLD_FLUSH_ASAP true
-#define DEFAULT_JOOLD_DEADLINE msecs_to_jiffies(2000)
+#define DEFAULT_JOOLD_DEADLINE 2
 #define DEFAULT_JOOLD_CAPACITY 512
 /**
  * typical MTU minus max(20, 40) minus the UDP header. (1500 - 40 - 8)

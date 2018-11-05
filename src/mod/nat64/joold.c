@@ -196,7 +196,7 @@ static bool should_send(struct xlator *jool)
 	if (queue->count == 0)
 		return false;
 
-	deadline = GLOBALS(jool).flush_deadline;
+	deadline = msecs_to_jiffies(GLOBALS(jool).flush_deadline);
 	if (time_before(queue->last_flush_time + deadline, jiffies))
 		return true;
 

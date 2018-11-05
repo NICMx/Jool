@@ -129,11 +129,7 @@ static int get_candidate(char *iname, struct config_candidate **result)
 	 * fw and pool6 are basic configuration that we can't populate yet.
 	 * Those must be handled later.
 	 */
-
-	candidate->xlator.ns = ns;
-	strcpy(candidate->xlator.iname, iname);
-	candidate->xlator.fw = 0;
-	error = xlator_init(&candidate->xlator, NULL);
+	error = xlator_init(&candidate->xlator, ns, 0, iname, NULL);
 	if (error) {
 		wkfree(struct config_candidate, candidate);
 		put_net(ns);

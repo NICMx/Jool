@@ -16,16 +16,20 @@
 #include "mod/nat64/bib/db.h"
 
 /**
- * All the configuration and state of the Jool instance in the given network
- * namespace (@ns).
+ * An xlator, except it's the database node version.
  */
 struct jool_instance {
-	/* TODO (later) maybe turn this into a const. */
+	/**
+	 * The actual xlator. The other modules will actually receive a shallow
+	 * clone of it.
+	 *
+	 * TODO (later) maybe turn this into a const.
+	 */
 	struct xlator jool;
 
 	/*
-	 * I want to turn this into a hash table, but it doesn't seem like
-	 * @jool.ns holds anything reminiscent of an identifier...
+	 * TODO (performance) Maybe turn this into a hash table;
+	 * We have a suitable identifier now (@jool.iname).
 	 */
 	struct list_head list_hook;
 
@@ -38,7 +42,7 @@ struct jool_instance {
 	 * ops needs to survive atomic configuration; the jool_instance needs to
 	 * be replaced but the ops needs to survive.
 	 *
-	 * This is only set if jool.fw matches FW_NETFILTER.
+	 * This is only set if @jool.fw matches FW_NETFILTER.
 	 */
 	struct nf_hook_ops *nf_ops;
 #endif
@@ -79,6 +83,10 @@ static void xlator_get(struct xlator *jool)
 	}
 }
 
+/**
+ * Moves the jool_instance nodes from the database (that match the @ns
+ * namespace) to the @detached list.
+ */
 static void __flush_detach(struct net *ns, struct list_head *detached)
 {
 	struct list_head *list;
@@ -93,6 +101,9 @@ static void __flush_detach(struct net *ns, struct list_head *detached)
 	}
 }
 
+/**
+ * Actually deletes all of the jool_instance nodes listed in @detached.
+ */
 static void __flush_delete(struct list_head *detached)
 {
 	struct jool_instance *instance, *tmp;
@@ -148,8 +159,7 @@ static struct pernet_operations joolns_ops = {
 };
 
 /**
- * xlator_setup - Initializes this module. Do not call other functions before
- * this one.
+ * Initializes this module. Do not call other functions before this one.
  */
 int xlator_setup(void)
 {
@@ -169,7 +179,7 @@ int xlator_setup(void)
 }
 
 /**
- * xlator_teardown - Graceful termination of this module. Reverts xlator_setup().
+ * Graceful termination of this module. Reverts xlator_setup().
  * Will clean up any allocated memory.
  */
 void xlator_teardown(void)
@@ -237,12 +247,12 @@ stats_fail:
 	return -ENOMEM;
 }
 
-/**
- * This only inits the databases for now.
- * ns, fw and iname are the caller's responsibility.
- */
-int xlator_init(struct xlator *jool, struct config_prefix6 *pool6)
+int xlator_init(struct xlator *jool, struct net *ns, jframework fw, char *iname,
+		struct config_prefix6 *pool6)
 {
+	jool->ns = ns;
+	jool->fw = fw;
+	strcpy(jool->iname, iname);
 	return xlat_is_siit()
 			? init_siit(jool, pool6)
 			: init_nat64(jool, pool6);
@@ -364,10 +374,10 @@ int __xlator_add(struct jool_instance *new, struct xlator *result)
 }
 
 /**
- * xlator_add - Whenever called, starts translation of packets traveling through
- * the namespace running in the caller's context.
- * @result: Will be initialized with a reference to the new translator. Send
- *     NULL if you're not interested.
+ * Adds a new Jool instance to the current namespace.
+ *
+ * @result: Will be initialized with a clone of the new translator. Send NULL
+ *     if you're not interested.
  */
 int xlator_add(jframework fw, char *iname, struct config_prefix6 *pool6,
 		struct xlator *result)
@@ -396,10 +406,7 @@ int xlator_add(jframework fw, char *iname, struct config_prefix6 *pool6,
 
 	/* All *error* roads from now need to free @instance. */
 
-	strcpy(instance->jool.iname, iname);
-	instance->jool.fw = fw;
-	instance->jool.ns = ns;
-	error = xlator_init(&instance->jool, pool6);
+	error = xlator_init(&instance->jool, ns, fw, iname, pool6);
 	if (error) {
 		wkfree(struct jool_instance, instance);
 		put_net(ns);
@@ -500,13 +507,6 @@ int xlator_rm(char *iname)
 	return error;
 }
 
-static bool xlator_equals(struct xlator *x1, struct xlator *x2)
-{
-	return (x1->ns == x2->ns)
-			&& (x1->fw == x2->fw)
-			&& (strcmp(x1->iname, x2->iname) == 0);
-}
-
 int xlator_replace(struct xlator *jool)
 {
 	struct list_head *list;
@@ -524,55 +524,60 @@ int xlator_replace(struct xlator *jool)
 		return -ENOMEM;
 	memcpy(&new->jool, jool, sizeof(*jool));
 	xlator_get(&new->jool);
+#if LINUX_VERSION_AT_LEAST(4, 13, 0, 9999, 0)
 	new->nf_ops = NULL;
+#endif
 
 	mutex_lock(&lock);
 
 	list = rcu_dereference_protected(pool, lockdep_is_held(&lock));
 	list_for_each_entry_rcu(old, list, list_hook) {
-		if (xlator_equals(&old->jool, &new->jool)) {
-			if (xlat_is_nat64()) {
-				if (!prefix6_equals(&old->jool.global->cfg.pool6.prefix,
-						&new->jool.global->cfg.pool6.prefix)) {
-					log_err("You can't change the pool6 prefix after the instance has been created.");
-					mutex_unlock(&lock);
-					destroy_jool_instance(new, false);
-					return -EINVAL;
-				}
-			}
+		if (old->jool.ns != new->jool.ns)
+			continue;
+		if (strcmp(old->jool.iname, new->jool.iname) != 0)
+			continue;
 
-
-#if LINUX_VERSION_AT_LEAST(4, 13, 0, 9999, 0)
-			new->nf_ops = old->nf_ops;
-#endif
-			/*
-			 * The old BIB and joold must survive, because they
-			 * shouldn't be reset by atomic configuration.
-			 */
-			if (xlat_is_nat64()) {
-				bib_put(new->jool.nat64.bib);
-				joold_put(new->jool.nat64.joold);
-				new->jool.nat64.bib = old->jool.nat64.bib;
-				new->jool.nat64.joold = old->jool.nat64.joold;
-			}
-
-			list_replace_rcu(&old->list_hook, &new->list_hook);
-			mutex_unlock(&lock);
-
-			synchronize_rcu_bh();
-
-#if LINUX_VERSION_AT_LEAST(4, 13, 0, 9999, 0)
-			old->nf_ops = NULL;
-#endif
-			if (xlat_is_nat64()) {
-				old->jool.nat64.bib = NULL;
-				old->jool.nat64.joold = NULL;
-			}
-
-			log_info("Created instance '%s'.", jool->iname);
-			destroy_jool_instance(old, false);
-			return 0;
+		if (old->jool.fw != new->jool.fw) {
+			log_err("Sorry; you can't change an instance's framework for now.");
+			goto abort;
 		}
+		if (xlat_is_nat64() && !prefix6_equals(
+				&old->jool.global->cfg.pool6.prefix,
+				&new->jool.global->cfg.pool6.prefix)) {
+			log_err("Sorry; you can't change a NAT64 instance's pool6 for now.");
+			goto abort;
+		}
+
+#if LINUX_VERSION_AT_LEAST(4, 13, 0, 9999, 0)
+		new->nf_ops = old->nf_ops;
+#endif
+		/*
+		 * The old BIB and joold must survive,
+		 * because they shouldn't be reset by atomic configuration.
+		 */
+		if (xlat_is_nat64()) {
+			bib_put(new->jool.nat64.bib);
+			joold_put(new->jool.nat64.joold);
+			new->jool.nat64.bib = old->jool.nat64.bib;
+			new->jool.nat64.joold = old->jool.nat64.joold;
+		}
+
+		list_replace_rcu(&old->list_hook, &new->list_hook);
+		mutex_unlock(&lock);
+
+		synchronize_rcu_bh();
+
+#if LINUX_VERSION_AT_LEAST(4, 13, 0, 9999, 0)
+		old->nf_ops = NULL;
+#endif
+		if (xlat_is_nat64()) {
+			old->jool.nat64.bib = NULL;
+			old->jool.nat64.joold = NULL;
+		}
+
+		log_info("Created instance '%s'.", jool->iname);
+		destroy_jool_instance(old, false);
+		return 0;
 	}
 
 	/* Not found, hence not replacing. Add it instead. */
@@ -582,6 +587,11 @@ int xlator_replace(struct xlator *jool)
 
 	mutex_unlock(&lock);
 	return error;
+
+abort:
+	mutex_unlock(&lock);
+	destroy_jool_instance(new, false);
+	return -EINVAL;
 }
 
 int xlator_flush(void)
@@ -601,17 +611,18 @@ int xlator_flush(void)
 }
 
 /**
- * xlator_find - Returns the first instance in the database that matches @ns,
- * @fw and @iname.
+ * Returns the first instance in the database that matches @ns, @fw and @iname.
  *
- * A result value of 0 means success, -ESRCH means that this namespace has no
- * instance, -EINVAL means that @iname is not a valid instance name.
+ * A result value of 0 means success,
+ * -ESRCH means that no instance matches @ns, @fw and @iname,
+ * and -EINVAL means that @iname is not a valid instance name.
+ *
  * @result will be populated with the instance. Send NULL if all you want is to
- * test whether it exists or not.
- * If not NULL, please xlator_put() @result when you're done using it.
+ * test whether it exists or not. If not NULL, please xlator_put() @result when
+ * you're done using it.
  *
- * @iname is allowed to be NULL. Do this when you don't care about the instace's
- * name; you just want one that matches both @ns and @fw.
+ * @fw and @iname are allowed to be NULL/0. Do this when you don't care about
+ * framework and/or instance name.
  *
  * IT IS EXTREMELY IMPORTANT THAT YOU NEVER KREF_GET ANY OF @result'S MEMBERS!!!
  * (You are not meant to fork pointers to them.)

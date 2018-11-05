@@ -12,6 +12,7 @@ typedef enum global_type_id {
 	GTI_BOOL,
 	GTI_NUM8,
 	GTI_NUM32,
+	GTI_TIMEOUT,
 	GTI_PLATEAUS,
 	GTI_PREFIX6,
 	GTI_PREFIX4,

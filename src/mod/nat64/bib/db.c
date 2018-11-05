@@ -200,26 +200,28 @@ static unsigned long get_timeout(struct xlator *jool,
 		struct expire_timer *expirer)
 {
 	struct bib *db = jool->nat64.bib;
-	unsigned int secs;
+	__u32 msecs;
 
 	if (&db->tcp.est_timer == expirer)
-		secs = XGLOBALS(jool).ttl.tcp_est;
+		msecs = XGLOBALS(jool).ttl.tcp_est;
 	else if (&db->tcp.trans_timer == expirer)
-		secs = XGLOBALS(jool).ttl.tcp_trans;
+		msecs = XGLOBALS(jool).ttl.tcp_trans;
 	else if (&db->udp.est_timer == expirer)
-		secs = XGLOBALS(jool).ttl.udp;
+		msecs = XGLOBALS(jool).ttl.udp;
 	else if (&db->icmp.est_timer == expirer)
-		secs = XGLOBALS(jool).ttl.icmp;
-	else if (&db->udp.trans_timer == expirer)
-		secs = 0;
-	else if (&db->icmp.trans_timer == expirer)
-		secs = 0;
-	else {
+		msecs = XGLOBALS(jool).ttl.icmp;
+	else if (&db->udp.trans_timer == expirer) {
+		log_warn_once("Potential programming error: Returning unused UDP expirer.");
+		msecs = 0;
+	} else if (&db->icmp.trans_timer == expirer) {
+		log_warn_once("Potential programming error: Returning unused ICMP expirer.");
+		msecs = 0;
+	} else {
 		log_warn_once("Programming error: xlator does not reference querying expirer");
-		secs = 0;
+		msecs = 0;
 	}
 
-	return msecs_to_jiffies(1000 * secs);
+	return msecs_to_jiffies(msecs);
 }
 
 /**
@@ -915,7 +917,7 @@ static struct tabled_session *find_session_slot(struct tabled_bib *bib,
 		session = node2session(node);
 		comparison = compare_dst4(session, new);
 
-		if (allow && session->dst4.l3.s_addr == new->dst4.l3.s_addr)
+		if (allow && (session->dst4.l3.s_addr == new->dst4.l3.s_addr))
 			*allow = true;
 
 		slot->parent = node;

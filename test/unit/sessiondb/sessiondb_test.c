@@ -262,7 +262,7 @@ enum session_fate tcp_est_expire_cb(struct session_entry *session, void *arg)
 
 static int init(void)
 {
-	return xlator_init(&jool, NULL);
+	return xlator_init(&jool, NULL, FW_NETFILTER, INAME_DEFAULT, NULL);
 }
 
 static void clean(void)
