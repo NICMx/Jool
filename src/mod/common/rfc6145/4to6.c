@@ -18,8 +18,9 @@ verdict ttp46_alloc_skb(struct xlation *state)
 	int delta;
 	struct sk_buff *out;
 	struct iphdr *hdr4_inner;
-	struct frag_hdr *hdr_frag = NULL;
+	struct frag_hdr *hdr_frag;
 	struct skb_shared_info *shinfo;
+	int error;
 
 	/*
 	 * These are my assumptions to compute total_len:
@@ -80,14 +81,32 @@ verdict ttp46_alloc_skb(struct xlation *state)
 
 	/* Add outer l4 headers to the copy. */
 	skb_push(out, pkt_l4hdr_len(in));
-	skb_reset_transport_header(out);
 
 	/* Add outer l3 headers to the copy. */
 	if (will_need_frag_hdr(pkt_ip4_hdr(in)))
-		hdr_frag = (struct frag_hdr *)skb_push(out, sizeof(struct frag_hdr));
+		skb_push(out, sizeof(struct frag_hdr));
 	skb_push(out, sizeof(struct ipv6hdr));
-	skb_reset_network_header(out);
+
+	/* Prevent Linux from dropping or fragmenting ICMP errors. */
+	if (pkt_is_icmp4_error(in)) {
+		error = pskb_trim(out, 1280);
+		if (error) {
+			log_debug("pskb_trim() returned errcode %d.", error);
+			return drop(state, JSTAT_ENOMEM);
+		}
+	}
+
 	skb_reset_mac_header(out);
+	skb_reset_network_header(out);
+	if (will_need_frag_hdr(pkt_ip4_hdr(in))) {
+		hdr_frag = (struct frag_hdr *)(skb_network_header(out)
+				+ sizeof(struct ipv6hdr));
+		skb_set_transport_header(out, sizeof(struct ipv6hdr)
+				+ sizeof(struct frag_hdr));
+	} else {
+		hdr_frag = NULL;
+		skb_set_transport_header(out, sizeof(struct ipv6hdr));
+	}
 
 	/* Wrap up. */
 	pkt_fill(&state->out, out, L3PROTO_IPV6, pkt_l4_proto(in),

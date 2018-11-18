@@ -646,7 +646,6 @@ struct globals {
 			/**
 			 * Address used to represent a not translatable source
 			 * address of an incoming packet.
-			 * TODO (NOW) keep this?
 			 */
 			struct config_prefix4 rfc6791_prefix4;
 

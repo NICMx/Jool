@@ -25,7 +25,6 @@
 
 int validate_u8(struct global_field *field, void *value, bool force);
 int validate_u32(struct global_field *field, void *value, bool force);
-int validate_timeout(struct global_field *field, void *value, bool force);
 int validate_pool6(struct global_field *field, void *value, bool force);
 int validate_plateaus(struct global_field *field, void *value, bool force);
 int validate_prefix6(struct global_field *field, void *value, bool force);
@@ -56,7 +55,6 @@ int parse_hairpin_mode(struct global_field *field, char *str, void *result);
 
 #define validate_u8 NULL
 #define validate_u32 NULL
-#define validate_timeout NULL
 #define validate_pool6 NULL
 #define validate_plateaus NULL
 #define validate_prefix6 NULL
@@ -94,11 +92,11 @@ static struct global_type gt_uint32 = {
 
 static struct global_type gt_timeout = {
 	.id = GTI_TIMEOUT,
-	.name = "32-bit unsigned integer",
+	.name = "[HH:[MM:]]SS[.mmm]",
 	.size = sizeof(__u32),
 	.print = print_timeout,
 	.parse = parse_timeout,
-	.validate = validate_timeout,
+	.validate = validate_u32,
 };
 
 static struct global_type gt_plateaus = {
@@ -234,35 +232,35 @@ static struct global_field global_fields[] = {
 	}, {
 		.name = "udp-timeout",
 		.type = &gt_timeout,
-		.doc = "Set the UDP session lifetime (in seconds).",
+		.doc = "Set the UDP session lifetime (HH:MM:SS.mmm).",
 		.offset = offsetof(struct globals, nat64.bib.ttl.udp),
 		.xt = XT_NAT64,
-		.min = UDP_MIN,
-		.max = MAX_U32 / 1000,
+		.min = 1000 * UDP_MIN,
+		.max = MAX_U32,
 	}, {
 		.name = "icmp-timeout",
 		.type = &gt_timeout,
-		.doc = "Set the timeout for ICMP sessions (in seconds).",
+		.doc = "Set the timeout for ICMP sessions (HH:MM:SS.mmm).",
 		.offset = offsetof(struct globals, nat64.bib.ttl.icmp),
 		.xt = XT_NAT64,
 		.min = 0,
-		.max = MAX_U32 / 1000,
+		.max = MAX_U32,
 	}, {
 		.name = "tcp-est-timeout",
 		.type = &gt_timeout,
-		.doc = "Set the TCP established session lifetime (in seconds).",
+		.doc = "Set the TCP established session lifetime (HH:MM:SS.mmm).",
 		.offset = offsetof(struct globals, nat64.bib.ttl.tcp_est),
 		.xt = XT_NAT64,
-		.min = TCP_EST,
-		.max = MAX_U32 / 1000,
+		.min = 1000 * TCP_EST,
+		.max = MAX_U32,
 	}, {
 		.name = "tcp-trans-timeout",
 		.type = &gt_timeout,
-		.doc = "Set the TCP transitory session lifetime (in seconds).",
+		.doc = "Set the TCP transitory session lifetime (HH:MM:SS.mmm).",
 		.offset = offsetof(struct globals, nat64.bib.ttl.tcp_trans),
 		.xt = XT_NAT64,
-		.min = TCP_TRANS,
-		.max = MAX_U32 / 1000,
+		.min = 1000 * TCP_TRANS,
+		.max = MAX_U32,
 	}, {
 		.name = "maximum-simultaneous-opens",
 		.type = &gt_uint32,

@@ -112,16 +112,14 @@ fi
 # ICMP error, 6 -> 4
 if [[ -z $1 || $1 = *icmpe64* ]]; then
 	# 32, 33, 38 and 39 are inner IDs and checksums.
-	#test-single 6-icmp6err-csumok-df 4-icmp4err-csumok-df 4,5,10,11,32,33,38,39
-	#test-single 6-icmp6err-csumok-nodf 4-icmp4err-csumok-nodf $NOFRAG_IGNORE,32,33,38,39
-	echo "temporarily disabled"
+	test-single 6-icmp6err-csumok-df 4-icmp4err-csumok-df 4,5,10,11,32,33,38,39
+	test-single 6-icmp6err-csumok-nodf 4-icmp4err-csumok-nodf $NOFRAG_IGNORE,32,33,38,39
 fi
 
 # ICMP error, 4 -> 6
 if [[ -z $1 || $1 = *icmpe46* ]]; then
-	#test-single 4-icmp4err-csumok-df 6-icmp6err-csumok-df
-	#test-single 4-icmp4err-csumok-nodf 6-icmp6err-csumok-nodf
-	echo "temporarily disabled"
+	test-single 4-icmp4err-csumok-df 6-icmp6err-csumok-df
+	test-single 4-icmp4err-csumok-nodf 6-icmp6err-csumok-nodf
 fi
 
 # Miscellaneous tests

@@ -24,6 +24,8 @@ static int handle_expect_add(struct genl_info *info)
 	struct expected_packet pkt;
 	struct nlattr *attr;
 
+	log_debug("Handling expect add.");
+
 	if (verify_superpriv())
 		return -EPERM;
 
@@ -59,6 +61,8 @@ static int handle_send(struct genl_info *info)
 	struct nlattr *attr;
 	int error;
 
+	log_debug("Handling send.");
+
 	attr = info->attrs[ATTR_FILENAME];
 	if (!attr) {
 		log_err("Request lacks a file name.");
@@ -78,6 +82,8 @@ static int handle_send(struct genl_info *info)
 
 static int handle_expect_flush(struct genl_info *info)
 {
+	log_debug("Handling expect flush.");
+
 	if (verify_superpriv())
 		return -EPERM;
 
@@ -88,12 +94,17 @@ static int handle_expect_flush(struct genl_info *info)
 static int handle_stats_display(struct genl_info *info)
 {
 	struct graybox_stats stats;
+
+	log_debug("Handling stats display.");
+
 	expecter_stat(&stats);
 	return genl_respond_attr(info, ATTR_STATS, &stats, sizeof(stats));
 }
 
 static int handle_stats_flush(struct genl_info *info)
 {
+	log_debug("Handling stats flush.");
+
 	expecter_stat_flush();
 	return genl_respond(info, 0);
 }

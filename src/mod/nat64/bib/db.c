@@ -208,16 +208,15 @@ static unsigned long get_timeout(struct xlator *jool,
 		msecs = XGLOBALS(jool).ttl.tcp_trans;
 	else if (&db->udp.est_timer == expirer)
 		msecs = XGLOBALS(jool).ttl.udp;
+	else if (&db->tcp.syn4_timer == expirer)
+		msecs = 1000 * TCP_INCOMING_SYN;
 	else if (&db->icmp.est_timer == expirer)
 		msecs = XGLOBALS(jool).ttl.icmp;
-	else if (&db->udp.trans_timer == expirer) {
-		log_warn_once("Potential programming error: Returning unused UDP expirer.");
-		msecs = 0;
-	} else if (&db->icmp.trans_timer == expirer) {
-		log_warn_once("Potential programming error: Returning unused ICMP expirer.");
-		msecs = 0;
-	} else {
-		log_warn_once("Programming error: xlator does not reference querying expirer");
+	else {
+		/*
+		 * This is known to happen whenever the timer is cleaning.
+		 * It's not cause for concern.
+		 */
 		msecs = 0;
 	}
 

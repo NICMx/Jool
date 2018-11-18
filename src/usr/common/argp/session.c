@@ -64,7 +64,7 @@ static int handle_display_response(struct session_entry_usr *entry, void *args)
 		printf(",");
 		print_addr4(&entry->dst4, dargs->numeric.value, ",", proto);
 		printf(",");
-		print_timeout_hhmmss(entry->dying_time);
+		print_timeout_hhmmss(stdout, entry->dying_time);
 		if (proto == L4PROTO_TCP)
 			printf(",%s", tcp_state_to_string(entry->state));
 		printf("\n");
@@ -73,7 +73,7 @@ static int handle_display_response(struct session_entry_usr *entry, void *args)
 			printf("(%s) ", tcp_state_to_string(entry->state));
 
 		printf("Expires in ");
-		print_timeout_hhmmss(entry->dying_time);
+		print_timeout_hhmmss(stdout, entry->dying_time);
 		printf("\n");
 
 		printf("Remote: ");

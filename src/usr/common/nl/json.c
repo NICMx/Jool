@@ -422,6 +422,23 @@ static int write_u32(struct global_field *field, cJSON *json, void *payload)
 	return 0;
 }
 
+static int write_timeout(struct global_field *field, cJSON *json, void *payload)
+{
+	__u32 value;
+	int error;
+
+	if (json->type != cJSON_String)
+		return print_type_error(field->name, json, "string");
+
+	error = str_to_timeout(json->valuestring, &value, field->min,
+			field->max);
+	if (error)
+		return error;
+
+	memcpy(payload, &value, sizeof(value));
+	return 0;
+}
+
 static int write_others(struct global_field *field, cJSON *json, void *payload)
 {
 	if (json->type == cJSON_NULL)
@@ -485,8 +502,10 @@ static int write_field(cJSON *json, struct global_field *field,
 		error = write_u8(field, json, payload);
 		break;
 	case GTI_NUM32:
-	case GTI_TIMEOUT:
 		error = write_u32(field, json, payload);
+		break;
+	case GTI_TIMEOUT:
+		error = write_timeout(field, json, payload);
 		break;
 	case GTI_PLATEAUS:
 		error = write_plateaus(field, json, payload);

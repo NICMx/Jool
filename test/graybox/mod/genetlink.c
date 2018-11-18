@@ -80,6 +80,8 @@ int genl_respond(struct genl_info *info, int error_code)
 	size_t error_msg_size;
 	int error;
 
+	pr_debug("Responding error code %d.\n", error_code);
+
 	error = error_pool_get_message(&error_msg, &error_msg_size);
 	if (error)
 		return error; /* Error msg already printed. */

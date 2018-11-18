@@ -2,6 +2,7 @@
 
 #include <linux/sort.h>
 #include "mod/common/address.h"
+#include "usr/common/str_utils.h"
 
 static int validate_uint(struct global_field *field, unsigned int value)
 {
@@ -29,31 +30,6 @@ int validate_u32(struct global_field *field, void *value, bool force)
 {
 	__u32 value32 = *((__u32 *)value);
 	return validate_uint(field, value32);
-}
-
-int validate_timeout(struct global_field *field, void *value, bool force)
-{
-	__u32 timeout = *((__u32 *)value);
-
-	/*
-	 * Can't reuse validate_uint() for now because @field->min and
-	 * @field->max are not the same unit as @timeout.
-	 */
-
-	if (timeout < 1000 * field->min) {
-		log_err("%u is too small for the range of %s [%llu-%llu].",
-				timeout / 1000, field->name,
-				field->min, field->max);
-		return -EINVAL;
-	}
-	if (timeout > 1000 * field->max) {
-		log_err("%u is too big for the range of %s [%llu-%llu].",
-				timeout / 1000, field->name,
-				field->min, field->max);
-		return -EINVAL;
-	}
-
-	return 0;
 }
 
 static int validate_pool6_len(__u8 len)

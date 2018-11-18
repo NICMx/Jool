@@ -138,6 +138,8 @@ int sender_send(char *pkt_name, void *pkt, size_t pkt_len)
 #else
 		error = dst_output(skb);
 #endif
+		if (error)
+			log_err("dst_output() returned %d.", error);
 	} else {
 		log_err("The packet could not be routed.");
 		error = -ENETUNREACH;

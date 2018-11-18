@@ -30,7 +30,7 @@ void print_u32(void *value, bool csv)
 void print_timeout(void *value, bool csv)
 {
 	__u32 *uvalue = value;
-	print_timeout_hhmmss(*uvalue);
+	print_timeout_hhmmss(stdout, *uvalue);
 	if (!csv)
 		printf(" (HH:MM:SS)");
 }
@@ -138,15 +138,7 @@ int parse_u32(struct global_field *field, char *str, void *result)
 
 int parse_timeout(struct global_field *field, char *str, void *result)
 {
-	__u32 *result32 = result;
-	int error;
-
-	error = parse_u32(field, str, result32);
-	if (error)
-		return error;
-
-	*result32 *= 1000;
-	return 0;
+	return str_to_timeout(str, result, field->min, field->max);
 }
 
 int parse_plateaus(struct global_field *field, char *str, void *result)

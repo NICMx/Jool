@@ -215,6 +215,75 @@ int str_to_u64(const char *str, __u64 *u64_out, __u64 min, __u64 max)
 	return error;
 }
 
+int str_to_timeout(const char *str, __u32 *result, __u32 min, __u32 max)
+{
+	unsigned long long int seconds = 0;
+	unsigned long long int milliseconds;
+	char *tail;
+	int error;
+
+	errno = 0;
+	seconds = strtoull(str, &tail, 10);
+	if (errno)
+		goto parse_failure;
+
+	if (*tail == ':') {
+		errno = 0;
+		seconds = 60 * seconds + strtoull(tail + 1, &tail, 10);
+		if (errno)
+			goto parse_failure;
+
+		if (*tail == ':') {
+			errno = 0;
+			seconds = 60 * seconds + strtoull(tail + 1, &tail, 10);
+			if (errno)
+				goto parse_failure;
+		}
+	}
+
+	milliseconds = 1000 * seconds;
+
+	if (*tail == '.') {
+		if (strlen(tail + 1) < 3)
+			goto msec_length;
+
+		errno = 0;
+		milliseconds += strtoull(tail + 1, &tail, 10);
+		if (errno)
+			goto parse_failure;
+	}
+
+	if (*tail != '\0')
+		goto postfix;
+
+	if (milliseconds < min || max < milliseconds) {
+		fprintf(stderr, "'%s' is out of bounds (", str);
+		print_timeout_hhmmss(stderr, min);
+		fprintf(stderr, "-");
+		print_timeout_hhmmss(stderr, max);
+		fprintf(stderr, ").\n");
+		return -EINVAL;
+	}
+
+	*result = milliseconds;
+	return 0;
+
+parse_failure:
+	error = errno;
+	log_err("Parsing of '%s' threw error code %d.", str, error);
+	return error;
+
+msec_length:
+	log_err("The millisecond portion of '%s' must length at least 3 digits.",
+			str);
+	return -EINVAL;
+
+postfix:
+	log_err("'%s' does not seem to follow the '[HH:[MM:]]SS[.mmm]' format.",
+			str);
+	return -EINVAL;
+}
+
 int str_to_port_range(char *str, struct port_range *range)
 {
 	unsigned long long int tmp;
@@ -448,15 +517,15 @@ int str_to_prefix6(const char *str, struct ipv6_prefix *prefix_out)
 	return str_to_u8(token, &prefix_out->len, 0, 128); /* Error msg already printed. */
 }
 
-static void print_num_csv(__u64 num, char *separator)
+static void print_date_component(FILE *stream, __u64 num, char *separator)
 {
 	if (num < 10)
-		printf("0%llu%s", num, separator);
+		fprintf(stream, "0%llu%s", num, separator);
 	else
-		printf("%llu%s", num, separator);
+		fprintf(stream, "%llu%s", num, separator);
 }
 
-void print_timeout_hhmmss(unsigned int millis)
+void print_timeout_hhmmss(FILE *stream, unsigned int millis)
 {
 	const unsigned int MILLIS_PER_SECOND = 1000;
 	const unsigned int MILLIS_PER_MIN = 60 * MILLIS_PER_SECOND;
@@ -474,8 +543,10 @@ void print_timeout_hhmmss(unsigned int millis)
 	seconds = millis / MILLIS_PER_SECOND;
 	millis -= seconds * MILLIS_PER_SECOND;
 
-	print_num_csv(hours, ":");
-	print_num_csv(minutes, ":");
-	print_num_csv(seconds, "");
+	print_date_component(stream, hours, ":");
+	print_date_component(stream, minutes, ":");
+	print_date_component(stream, seconds, "");
+	if (millis)
+		fprintf(stream, ".%03u", millis);
 }
 

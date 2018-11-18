@@ -18,6 +18,7 @@ verdict ttp64_alloc_skb(struct xlation *state)
 	struct packet *in = &state->in;
 	struct sk_buff *out;
 	struct skb_shared_info *shinfo;
+	int error;
 
 	/*
 	 * I'm going to use __pskb_copy() (via pskb_copy()) because I need the
@@ -61,12 +62,36 @@ verdict ttp64_alloc_skb(struct xlation *state)
 
 	/* Add outer l4 headers to the copy. */
 	skb_push(out, pkt_l4hdr_len(in));
-	skb_reset_transport_header(out);
-
 	/* Add outer l3 headers to the copy. */
 	skb_push(out, sizeof(struct iphdr));
-	skb_reset_network_header(out);
+
+	/*
+	 * According to my tests, if we send an ICMP error that exceeds the MTU,
+	 * Linux will either drop it (if out->skb->local_df is false) or
+	 * fragment it (if out->skb->local_df is true).
+	 * Neither of these possibilities is even remotely acceptable.
+	 * We'll maximize probablilty delivery by truncating to mandatory
+	 * minimum size.
+	 */
+	if (pkt_is_icmp6_error(in)) {
+		/*
+		 * RFC1812 section 4.3.2.3.
+		 * I'm using a literal because the RFC does.
+		 * TODO (NOW) we need a unit test for this. Test packet must be
+		 * paged. (graybox handles the rest.)
+		 *
+		 * pskb_trim() CAN CHANGE SKB POINTERS.
+		 */
+		error = pskb_trim(out, 576);
+		if (error) {
+			log_debug("pskb_trim() returned errcode %d.", error);
+			return drop(state, JSTAT_ENOMEM);
+		}
+	}
+
 	skb_reset_mac_header(out);
+	skb_reset_network_header(out);
+	skb_set_transport_header(out, sizeof(struct iphdr));
 
 	/* Wrap up. */
 	pkt_fill(&state->out, out, L3PROTO_IPV4, pkt_l4_proto(in),

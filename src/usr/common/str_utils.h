@@ -27,6 +27,7 @@ int str_to_u16(const char *str, __u16 *out, __u16 min, __u16 max);
 int str_to_u32(const char *str, __u32 *out, __u32 min, __u32 max);
 int str_to_u64(const char *str, __u64 *out, __u64 min, __u64 max);
 
+int str_to_timeout(const char *str, __u32 *result, __u32 min, __u32 max);
 int str_to_port_range(char *str, struct port_range *range);
 
 /**
@@ -53,11 +54,14 @@ int str_to_addr6_port(const char *str, struct ipv6_transport_addr *out);
 int str_to_prefix6(const char *str, struct ipv6_prefix *out);
 int str_to_prefix4(const char *str, struct ipv4_prefix *out);
 
+#ifndef __KERNEL__
+#include <stdio.h>
 /**
- * Prints the @millis amount of milliseconds in the console.
- * The format is "HH:MM:SS".
+ * Prints the @millis amount of milliseconds in @stream.
+ * The format is "HH:MM:SS" or "HH:MM:SS.mmm".
  */
-void print_timeout_hhmmss(unsigned int millis);
+void print_timeout_hhmmss(FILE *stream, unsigned int millis);
+#endif
 
 #define STR_EQUAL(s1, s2) (strcmp(s1, s2) == 0)
 
