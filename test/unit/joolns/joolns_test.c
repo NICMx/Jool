@@ -147,6 +147,7 @@ static bool atomic_test(void)
 static bool krefs_test(void)
 {
 	struct xlator jool;
+	int refcounter;
 	int error;
 	bool success = true;
 
@@ -158,14 +159,14 @@ static bool krefs_test(void)
 
 	/* The database does not claim references to ns. */
 	success &= ASSERT_INT(old_refs, ns_refcount(jool.ns), "ns kref");
-	/* xlator DB's kref + the one we just took. */
-	success &= ASSERT_INT(2,
+
 #if LINUX_VERSION_AT_LEAST(4, 11, 0, 9999, 0)
-			kref_read(&jool.global->refcounter),
+	refcounter = kref_read(&jool.global->refcounter);
 #else
-			atomic_read(&jool.global->refcounter.refcount),
+	refcounter = atomic_read(&jool.global->refcounter.refcount);
 #endif
-			"pool6 kref");
+	/* xlator DB's kref + the one we just took. */
+	success &= ASSERT_INT(2, refcounter, "pool6 kref");
 
 	xlator_put(&jool);
 	return success;

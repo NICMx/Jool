@@ -22,6 +22,7 @@ $(PAGE)-objs += $(MIN_REQS)
 $(PAGE)-objs += ../impersonator/icmp_wrapper.o
 $(PAGE)-objs += ../impersonator/nf_hook.o
 $(PAGE)-objs += ../impersonator/route.o
+$(PAGE)-objs += ../impersonator/send_packet.o
 $(PAGE)-objs += ../framework/skb_generator.o
 $(PAGE)-objs += ../framework/types.o
 
@@ -48,7 +49,6 @@ $(PAGE)-objs += ../../../src/mod/common/rfc6145/common.o
 $(PAGE)-objs += ../../../src/mod/common/rfc6145/core.o
 $(PAGE)-objs += ../../../src/mod/common/core.o
 
-$(PAGE)-objs += impersonator.o
 $(PAGE)-objs += page_test.o
 
 

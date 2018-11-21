@@ -6,8 +6,8 @@
 #include "mod/nat64/bib/db.h"
 
 /*
- * TODO We don't cancel the timer much at all; it seems like we should be using
- * a hrtimer instead.
+ * TODO (performance) We don't cancel the timer much at all; it seems like we
+ * should be using a hrtimer instead.
  *
  * 	the kernel has two core timer mechanisms. One of those — the
  * 	high-resolution timer (or "hrtimer") — subsystem, is focused on

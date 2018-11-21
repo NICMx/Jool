@@ -6,7 +6,6 @@
 #include "mod/common/icmp_wrapper.h"
 #include "mod/common/packet.h"
 #include "mod/common/route.h"
-#include "mod/common/skbuff.h"
 
 static unsigned int get_nexthop_mtu(struct packet *pkt)
 {

@@ -24,6 +24,7 @@ $(FILTERING)-objs += ../../../src/mod/common/rbtree.o
 $(FILTERING)-objs += ../../../src/mod/common/rfc6052.o
 $(FILTERING)-objs += ../../../src/mod/common/translation_state.o
 $(FILTERING)-objs += ../../../src/mod/common/xlator.o
+$(FILTERING)-objs += ../../../src/mod/nat64/determine_incoming_tuple.o
 $(FILTERING)-objs += ../../../src/mod/nat64/impersonator.o
 $(FILTERING)-objs += ../../../src/mod/nat64/pool4/db.o
 $(FILTERING)-objs += ../../../src/mod/nat64/pool4/empty.o

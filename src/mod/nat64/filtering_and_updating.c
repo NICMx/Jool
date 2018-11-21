@@ -211,7 +211,6 @@ static verdict ipv4_simple(struct xlation *state)
 		return drop_icmp(state, JSTAT_ADF, ICMPERR_FILTER, 0);
 	default:
 		log_debug("Errcode %d while finding a BIB entry.", error);
-		/* TODO (NOW) there used to be an ICMP error here. How come? */
 		return drop(state, JSTAT_UNKNOWN);
 	}
 }

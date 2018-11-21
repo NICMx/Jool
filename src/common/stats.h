@@ -1,6 +1,12 @@
 #ifndef SRC_COMMON_STATS_H_
 #define SRC_COMMON_STATS_H_
 
+/*
+ * TODO Caller review needed.
+ * Make sure there's a counter for every worthwhile event,
+ * and also check the ICMP errors that sometimes need to be appended to them.
+ */
+
 /**
  * NOTE THAT ANY MODIFICATIONS MADE TO THIS STRUCTURE NEED TO BE CASCADED TO
  * jstat_metadatas.

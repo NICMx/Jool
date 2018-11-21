@@ -26,7 +26,6 @@ bool pool_contains(struct addr4_pool *pool, struct in_addr *addr);
 int pool_foreach(struct addr4_pool *pool,
 		int (*func)(struct ipv4_prefix *, void *), void *arg,
 		struct ipv4_prefix *offset);
-int pool_count(struct addr4_pool *pool, __u64 *result);
 bool pool_is_empty(struct addr4_pool *pool);
 void pool_print_refcount(struct addr4_pool *pool);
 

@@ -10,6 +10,8 @@
 #include "mod/common/xlator.h"
 #include "mod/common/rcu.h"
 
+/* TODO (fine) fuse this module and pool.c */
+
 struct addr4_pool *blacklist4_alloc(void)
 {
 	return pool_alloc();
@@ -100,11 +102,6 @@ int blacklist4_foreach(struct addr4_pool *pool,
 		struct ipv4_prefix *offset)
 {
 	return pool_foreach(pool, func, arg, offset);
-}
-
-int blacklist4_count(struct addr4_pool *pool, __u64 *result)
-{
-	return pool_count(pool, result);
 }
 
 bool blacklist4_is_empty(struct addr4_pool *pool)

@@ -23,7 +23,6 @@ bool blacklist4_contains(struct addr4_pool *pool, struct in_addr *addr);
 int blacklist4_foreach(struct addr4_pool *pool,
 		int (*func)(struct ipv4_prefix *, void *), void *arg,
 		struct ipv4_prefix *offset);
-int blacklist4_count(struct addr4_pool *pool, __u64 *result);
 bool blacklist4_is_empty(struct addr4_pool *pool);
 
 #endif /* _JOOL_MOD_BLACKLIST4_H */

@@ -23,7 +23,7 @@ struct jool_instance {
 	 * The actual xlator. The other modules will actually receive a shallow
 	 * clone of it.
 	 *
-	 * TODO (later) maybe turn this into a const.
+	 * TODO (fine) maybe turn this into a const.
 	 */
 	struct xlator jool;
 
@@ -331,7 +331,7 @@ eexist:
 /**
  * Requires the mutex to be locked.
  */
-int __xlator_add(struct jool_instance *new, struct xlator *result)
+static int __xlator_add(struct jool_instance *new, struct xlator *result)
 {
 	struct list_head *list;
 

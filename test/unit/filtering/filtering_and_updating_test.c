@@ -7,6 +7,7 @@
 #include "framework/unit_test.h"
 #include "framework/skb_generator.h"
 #include "mod/nat64/pool4/rfc6056.h"
+#include "mod/nat64/determine_incoming_tuple.h"
 #include "mod/nat64/filtering_and_updating.c"
 
 MODULE_LICENSE(JOOL_LICENSE);
@@ -180,6 +181,30 @@ static int invert_tuple(struct xlation *state)
 	return 0;
 }
 
+static bool
+invert_packet(struct xlation *state, struct sk_buff **skb)
+{
+	struct iphdr *hdr4;
+	struct udphdr *uhdr;
+
+	if (create_skb4_udp("1.1.1.1", 1111, "2.2.2.2", 2222, 100, 32, skb))
+		return false;
+	if (invert_tuple(state))
+		return false;
+
+	hdr4 = ip_hdr(*skb);
+	uhdr = udp_hdr(*skb);
+	hdr4->saddr = state->in.tuple.src.addr4.l3.s_addr;
+	uhdr->source = cpu_to_be16(state->in.tuple.src.addr4.l4);
+	hdr4->daddr = state->in.tuple.dst.addr4.l3.s_addr;
+	uhdr->dest = cpu_to_be16(state->in.tuple.dst.addr4.l4);
+
+	if (pkt_init_ipv4(state, *skb))
+		return false;
+
+	return true;
+}
+
 static bool test_filtering_and_updating(void)
 {
 	struct xlation state;
@@ -188,15 +213,15 @@ static bool test_filtering_and_updating(void)
 
 	xlation_init(&state, &jool);
 
-	log_debug("ICMPv4 errors should succeed but not affect the tables.");
-	if (init_tuple4(&state.in.tuple, "8.7.6.5", 8765, "192.0.2.128", 1024, L4PROTO_TCP))
-		return false;
-	if (create_skb4_icmp_error(&state.in.tuple, &skb, 100, 32))
+	log_debug("== ICMPv4 errors should succeed but not affect the tables ==");
+	if (create_skb4_icmp_error("8.7.6.5", "192.0.2.128", 100, 32, &skb))
 		return false;
 	if (pkt_init_ipv4(&state, skb))
 		return false;
+	if (determine_in_tuple(&state) != VERDICT_CONTINUE)
+		return false;
 
-	success &= ASSERT_VERDICT(CONTINUE, filtering_and_updating(&state), "ICMP error");
+	success &= ASSERT_VERDICT(CONTINUE, filtering_and_updating(&state), "ICMP error 1");
 	success &= assert_bib_count(0, L4PROTO_TCP);
 	success &= assert_bib_count(0, L4PROTO_UDP);
 	success &= assert_bib_count(0, L4PROTO_ICMP);
@@ -208,15 +233,15 @@ static bool test_filtering_and_updating(void)
 	if (!success)
 		return false;
 
-	log_debug("ICMPv6 errors should succeed but not affect the tables.");
-	if (init_tuple6(&state.in.tuple, "1::2", 1212, "3::3:4", 3434, L4PROTO_TCP))
-		return false;
-	if (create_skb6_icmp_error(&state.in.tuple, &skb, 100, 32))
+	log_debug("== ICMPv6 errors should succeed but not affect the tables ==");
+	if (create_skb6_icmp_error("1::2", "3::3:4", 100, 32, &skb))
 		return false;
 	if (pkt_init_ipv6(&state, skb))
 		return false;
+	if (determine_in_tuple(&state) != VERDICT_CONTINUE)
+		return false;
 
-	success &= ASSERT_VERDICT(CONTINUE, filtering_and_updating(&state), "ICMP error");
+	success &= ASSERT_VERDICT(CONTINUE, filtering_and_updating(&state), "ICMP error 2");
 	success &= assert_bib_count(0, L4PROTO_TCP);
 	success &= assert_bib_count(0, L4PROTO_UDP);
 	success &= assert_bib_count(0, L4PROTO_ICMP);
@@ -228,12 +253,12 @@ static bool test_filtering_and_updating(void)
 	if (!success)
 		return false;
 
-	log_debug("Hairpinning loops should be dropped.");
-	if (init_tuple6(&state.in.tuple, "3::1:2", 1212, "3::3:4", 3434, L4PROTO_UDP))
-		return false;
-	if (create_skb6_udp(&state.in.tuple, &skb, 100, 32))
+	log_debug("== Hairpinning loops should be dropped ==");
+	if (create_skb6_udp("3::1:2", 1212, "3::3:4", 3434, 100, 32, &skb))
 		return false;
 	if (pkt_init_ipv6(&state, skb))
+		return false;
+	if (determine_in_tuple(&state) != VERDICT_CONTINUE)
 		return false;
 
 	success &= ASSERT_VERDICT(DROP, filtering_and_updating(&state), "Hairpinning");
@@ -244,12 +269,12 @@ static bool test_filtering_and_updating(void)
 	if (!success)
 		return false;
 
-	log_debug("Packets not headed to pool6 must not be translated.");
-	if (init_tuple6(&state.in.tuple, "1::2", 1212, "4::1", 3434, L4PROTO_UDP))
-		return false;
-	if (create_skb6_udp(&state.in.tuple, &skb, 100, 32))
+	log_debug("== Packets not headed to pool6 must not be translated ==");
+	if (create_skb6_udp("1::2", 1212, "4::1", 3434, 100, 32, &skb))
 		return false;
 	if (pkt_init_ipv6(&state, skb))
+		return false;
+	if (determine_in_tuple(&state) != VERDICT_CONTINUE)
 		return false;
 
 	success &= ASSERT_VERDICT(UNTRANSLATABLE, filtering_and_updating(&state), "Not pool6 packet");
@@ -260,12 +285,12 @@ static bool test_filtering_and_updating(void)
 	if (!success)
 		return false;
 
-	log_debug("Packets not headed to pool4 must not be translated.");
-	if (init_tuple4(&state.in.tuple, "8.7.6.5", 8765, "5.6.7.8", 5678, L4PROTO_UDP))
-		return false;
-	if (create_skb4_udp(&state.in.tuple, &skb, 100, 32))
+	log_debug("== Packets not headed to pool4 must not be translated ==");
+	if (create_skb4_udp("8.7.6.5", 8765, "5.6.7.8", 5678, 100, 32, &skb))
 		return false;
 	if (pkt_init_ipv4(&state, skb))
+		return false;
+	if (determine_in_tuple(&state) != VERDICT_CONTINUE)
 		return false;
 
 	success &= ASSERT_VERDICT(UNTRANSLATABLE, filtering_and_updating(&state), "Not pool4 packet");
@@ -276,12 +301,12 @@ static bool test_filtering_and_updating(void)
 	if (!success)
 		return false;
 
-	log_debug("Other IPv6 packets should survive validations.");
-	if (init_tuple6(&state.in.tuple, "1::2", 1212, "3::3:4", 3434, L4PROTO_UDP))
-		return false;
-	if (create_skb6_udp(&state.in.tuple, &skb, 100, 32))
+	log_debug("== Other IPv6 packets should survive validations ==");
+	if (create_skb6_udp("1::2", 1212, "3::3:4", 3434, 100, 32, &skb))
 		return false;
 	if (pkt_init_ipv6(&state, skb))
+		return false;
+	if (determine_in_tuple(&state) != VERDICT_CONTINUE)
 		return false;
 
 	success &= ASSERT_VERDICT(CONTINUE, filtering_and_updating(&state), "IPv6 success");
@@ -292,12 +317,8 @@ static bool test_filtering_and_updating(void)
 	if (!success)
 		return false;
 
-	log_debug("Other IPv4 packets should survive validations.");
-	if (invert_tuple(&state))
-		return false;
-	if (create_skb4_udp(&state.in.tuple, &skb, 100, 32))
-		return false;
-	if (pkt_init_ipv4(&state, skb))
+	log_debug("== Other IPv4 packets should survive validations ==");
+	if (!invert_packet(&state, &skb))
 		return false;
 
 	success &= ASSERT_VERDICT(CONTINUE, filtering_and_updating(&state), "IPv4 success");
@@ -316,12 +337,12 @@ static bool test_udp(void)
 
 	xlation_init(&state, &jool);
 
-	/* An IPv4 packet attempts to be translated without state. */
-	if (init_tuple4(&state.in.tuple, "0.0.0.4", 3434, "192.0.2.128", 1024, L4PROTO_UDP))
-		return false;
-	if (create_skb4_udp(&state.in.tuple, &skb, 16, 32))
+	log_debug("== An IPv4 packet attempts to be translated without state ==");
+	if (create_skb4_udp("0.0.0.4", 3434, "192.0.2.128", 1024, 16, 32, &skb))
 		return false;
 	if (pkt_init_ipv4(&state, skb))
+		return false;
+	if (determine_in_tuple(&state) != VERDICT_CONTINUE)
 		return false;
 
 	success &= ASSERT_VERDICT(UNTRANSLATABLE, ipv4_simple(&state), "result 1");
@@ -330,12 +351,12 @@ static bool test_udp(void)
 
 	kfree_skb(skb);
 
-	/* IPv6 packet gets translated correctly. */
-	if (init_tuple6(&state.in.tuple, "1::2", 1212, "3::4", 3434, L4PROTO_UDP))
-		return false;
-	if (create_skb6_udp(&state.in.tuple, &skb, 16, 32))
+	log_debug("== IPv6 packet gets translated correctly ==");
+	if (create_skb6_udp("1::2", 1212, "3::4", 3434, 16, 32, &skb))
 		return false;
 	if (pkt_init_ipv6(&state, skb))
+		return false;
+	if (determine_in_tuple(&state) != VERDICT_CONTINUE)
 		return false;
 
 	success &= ASSERT_VERDICT(CONTINUE, ipv6_simple(&state), "result 2");
@@ -349,12 +370,8 @@ static bool test_udp(void)
 
 	kfree_skb(skb);
 
-	/* Now that there's state, the IPv4 packet manages to traverse. */
-	if (invert_tuple(&state))
-		return false;
-	if (create_skb4_udp(&state.in.tuple, &skb, 16, 32))
-		return false;
-	if (pkt_init_ipv4(&state, skb))
+	log_debug("== Now that there's state, the IPv4 packet manages to traverse ==");
+	if (!invert_packet(&state, &skb))
 		return false;
 
 	success &= ASSERT_VERDICT(CONTINUE, ipv4_simple(&state), "result 3");
@@ -379,12 +396,12 @@ static bool test_icmp(void)
 
 	xlation_init(&state, &jool);
 
-	/* A IPv4 packet attempts to be translated without state */
-	if (init_tuple4(&state.in.tuple, "0.0.0.4", 1024, "192.0.2.128", 1024, L4PROTO_ICMP))
-		return false;
-	if (create_skb4_icmp_info(&state.in.tuple, &skb, 16, 32))
+	log_debug("== IPv4 packet attempts to be translated without state ==");
+	if (create_skb4_icmp_info("0.0.0.4", "192.0.2.128", 1024, 16, 32, &skb))
 		return false;
 	if (pkt_init_ipv4(&state, skb))
+		return false;
+	if (determine_in_tuple(&state) != VERDICT_CONTINUE)
 		return false;
 
 	success &= ASSERT_VERDICT(UNTRANSLATABLE, ipv4_simple(&state), "result 1");
@@ -393,12 +410,12 @@ static bool test_icmp(void)
 
 	kfree_skb(skb);
 
-	/* IPv6 packet and gets translated correctly. */
-	if (init_tuple6(&state.in.tuple, "1::2", 1212, "3::4", 1212, L4PROTO_ICMP))
-		return false;
-	if (create_skb6_icmp_info(&state.in.tuple, &skb, 16, 32))
+	log_debug("== IPv6 packet and gets translated correctly ==");
+	if (create_skb6_icmp_info("1::2", "3::4", 1212, 16, 32, &skb))
 		return false;
 	if (pkt_init_ipv6(&state, skb))
+		return false;
+	if (determine_in_tuple(&state) != VERDICT_CONTINUE)
 		return false;
 
 	success &= ASSERT_VERDICT(CONTINUE, ipv6_simple(&state), "result 2");
@@ -412,12 +429,8 @@ static bool test_icmp(void)
 
 	kfree_skb(skb);
 
-	/* Now that there's state, the IPv4 packet manages to traverse. */
-	if (invert_tuple(&state))
-		return false;
-	if (create_skb4_icmp_info(&state.in.tuple, &skb, 16, 32))
-		return false;
-	if (pkt_init_ipv4(&state, skb))
+	log_debug("== Now that there's state, the IPv4 packet manages to traverse ==");
+	if (!invert_packet(&state, &skb))
 		return false;
 
 	success &= ASSERT_VERDICT(CONTINUE, ipv4_simple(&state), "result 3");
@@ -445,7 +458,7 @@ static bool test_tcp(void)
 	struct sk_buff *skb;
 	bool success = true;
 
-	log_debug("V6 SYN");
+	log_debug("== V6 SYN ==");
 	if (init_tuple6(&state.in.tuple, "1::2", 1212, "3::4", 3434, L4PROTO_TCP))
 		return false;
 	if (create_tcp_packet(&skb, L3PROTO_IPV6, true, false, false))
@@ -463,7 +476,7 @@ static bool test_tcp(void)
 
 	kfree_skb(skb);
 
-	log_debug("V4 SYN");
+	log_debug("== V4 SYN ==");
 	if (invert_tuple(&state))
 		return false;
 	if (create_tcp_packet(&skb, L3PROTO_IPV4, true, false, false))
@@ -481,7 +494,7 @@ static bool test_tcp(void)
 
 	kfree_skb(skb);
 
-	log_debug("V6 RST");
+	log_debug("== V6 RST ==");
 	if (init_tuple6(&state.in.tuple, "1::2", 1212, "3::4", 3434, L4PROTO_TCP))
 		return false;
 	if (create_tcp_packet(&skb, L3PROTO_IPV6, false, true, false))
@@ -499,7 +512,7 @@ static bool test_tcp(void)
 
 	kfree_skb(skb);
 
-	log_debug("V6 SYN");
+	log_debug("== V6 SYN ==");
 	if (create_tcp_packet(&skb, L3PROTO_IPV6, true, false, false))
 		return false;
 	if (pkt_init_ipv6(&state, skb))

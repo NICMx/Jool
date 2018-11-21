@@ -11,44 +11,6 @@ MODULE_LICENSE(JOOL_LICENSE);
 MODULE_AUTHOR("Alberto Leiva");
 MODULE_DESCRIPTION("Packet test");
 
-/**
- * Note that the tuple being sent to skb_create_fn() lacks protocols.
- */
-static struct sk_buff *create_skb4(u16 payload_len, skb_creator skb_create_fn)
-{
-	struct sk_buff *skb;
-	struct tuple tuple4;
-
-	tuple4.src.addr4.l3.s_addr = cpu_to_be32(0x01010101);
-	tuple4.src.addr4.l4 = 5644;
-	tuple4.dst.addr4.l3.s_addr = cpu_to_be32(0x02020202);
-	tuple4.dst.addr4.l4 = 6721;
-
-	return skb_create_fn(&tuple4, &skb, payload_len, 32) ? NULL : skb;
-}
-
-/**
- * Note that the tuple being sent to skb_create_fn() lacks protocols.
- */
-static struct sk_buff *create_skb6(u16 payload_len, skb_creator skb_create_fn)
-{
-	struct sk_buff *skb;
-	struct tuple tuple6;
-
-	tuple6.src.addr6.l3.s6_addr32[0] = cpu_to_be32(0x00010000);
-	tuple6.src.addr6.l3.s6_addr32[1] = 0;
-	tuple6.src.addr6.l3.s6_addr32[2] = 0;
-	tuple6.src.addr6.l3.s6_addr32[3] = cpu_to_be32(0x00000001);
-	tuple6.src.addr6.l4 = 5644;
-	tuple6.dst.addr6.l3.s6_addr32[0] = cpu_to_be32(0x00020000);
-	tuple6.dst.addr6.l3.s6_addr32[1] = 0;
-	tuple6.dst.addr6.l3.s6_addr32[2] = 0;
-	tuple6.dst.addr6.l3.s6_addr32[3] = cpu_to_be32(0x00000002);
-	tuple6.dst.addr6.l4 = 6721;
-
-	return skb_create_fn(&tuple6, &skb, payload_len, 32) ? NULL : skb;
-}
-
 static bool test_function_is_df_set(void)
 {
 	struct iphdr hdr;
@@ -110,20 +72,17 @@ static bool test_inner_validation4(void)
 	memset(&jool, 0, sizeof(jool));
 	xlation_init(&state, &jool);
 
-	skb = create_skb4(100, create_skb4_icmp_error);
-	if (!skb)
+	if (create_skb4_icmp_error("1.1.1.1", "2.2.2.2", 100, 32, &skb))
 		return false;
 	result &= ASSERT_VERDICT(CONTINUE, pkt_init_ipv4(&state, skb), "complete inner pkt");
 	kfree_skb(skb);
 
-	skb = create_skb4(30, create_skb4_icmp_error);
-	if (!skb)
+	if (create_skb4_icmp_error("1.1.1.1", "2.2.2.2", 30, 32, &skb))
 		return false;
 	result &= ASSERT_VERDICT(DROP, pkt_init_ipv4(&state, skb), "incomplete inner tcp");
 	kfree_skb(skb);
 
-	skb = create_skb4(15, create_skb4_icmp_error);
-	if (!skb)
+	if (create_skb4_icmp_error("1.1.1.1", "2.2.2.2", 15, 32, &skb))
 		return false;
 	result &= ASSERT_VERDICT(DROP, pkt_init_ipv4(&state, skb), "incomplete inner ipv4");
 	kfree_skb(skb);
@@ -142,20 +101,18 @@ static bool test_inner_validation6(void)
 	memset(&jool, 0, sizeof(jool));
 	xlation_init(&state, &jool);
 
-	skb = create_skb6(100, create_skb6_icmp_error);
-	if (!skb)
+	if (create_skb6_icmp_error("1::1", "2::2", 100, 32, &skb))
 		return false;
 	result &= ASSERT_VERDICT(CONTINUE, pkt_init_ipv6(&state, skb), "complete inner pkt 6");
 	kfree_skb(skb);
 
-	skb = create_skb6(50, create_skb6_icmp_error); /* 40 + 8 + 40 + 20 */
-	if (!skb)
+	/* 50 = 40 + 8 + 40 + 20 (lolwut? This comment seems outdated.) */
+	if (create_skb6_icmp_error("1::1", "2::2", 50, 32, &skb))
 		return false;
 	result &= ASSERT_VERDICT(DROP, pkt_init_ipv6(&state, skb), "incomplete inner tcp");
 	kfree_skb(skb);
 
-	skb = create_skb6(30, create_skb6_icmp_error);
-	if (!skb)
+	if (create_skb6_icmp_error("1::1", "2::2", 30, 32, &skb))
 		return false;
 	result &= ASSERT_VERDICT(DROP, pkt_init_ipv6(&state, skb), "incomplete inner ipv6hdr");
 	kfree_skb(skb);

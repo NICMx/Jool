@@ -64,7 +64,6 @@ int blacklist4_foreach(char *iname, blacklist4_foreach_cb cb, void *_args)
 	return 0;
 }
 
-/* TODO (NOW) remove this force? */
 int blacklist4_add(char *iname, struct ipv4_prefix *addrs, bool force)
 {
 	unsigned char request[HDR_LEN + PAYLOAD_LEN];

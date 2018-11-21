@@ -77,4 +77,6 @@
 		xlat_get_name(), __func__, ##__VA_ARGS__)
 #endif
 
+#define PR_DEBUG pr_err("%s:%d (%s())\n", __FILE__, __LINE__, __func__)
+
 #endif /* _JOOL_MOD_LOG_H */

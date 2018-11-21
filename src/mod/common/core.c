@@ -2,7 +2,6 @@
 
 #include "mod/common/config.h"
 #include "mod/common/handling_hairpinning.h"
-#include "mod/common/skbuff.h"
 #include "mod/common/translation_state.h"
 #include "mod/common/xlator.h"
 #include "mod/common/rfc6145/core.h"

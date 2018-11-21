@@ -14,7 +14,7 @@ The `test.sh` script will run each test and show the results using `less` (so ke
 
 Some tests (most notably, the Filtering and Updating test) might appear like they are failing but the ending verdict will report no issues. This is normal; it is the result of failure pipelines being tested. Watch out for kernel warnings or panics, however. If they happen, the framework might fail to detect them. (This is the reason why I'm asking you to scroll as opposed to automating the spitting of an error code.)
 
-In case you're wondering, kernel warnings and panics tend to look somewhat like this (assuming the kernel does not crash):
+In case you're wondering, kernel warnings and panics tend to look somewhat like this (assuming the kernel does not crash too badly):
 
 	[   69.510310] ------------[ cut here ]------------
 	[   69.510517] kernel BUG at /home/user/Jool/test/unit/hashtable/hash_table_test.c:227!

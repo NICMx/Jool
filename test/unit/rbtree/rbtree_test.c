@@ -123,7 +123,7 @@ struct foreach_arg {
 	int success;
 };
 
-void cb(struct rb_node *node, void *void_arg)
+static void cb(struct rb_node *node, void *void_arg)
 {
 	struct node_thing *thing;
 	struct foreach_arg *arg = void_arg;
@@ -142,7 +142,7 @@ void cb(struct rb_node *node, void *void_arg)
 	arg->iteration++;
 }
 
-struct node_thing fnodes[16];
+static struct node_thing fnodes[16];
 
 static void define_node(int node, int parent, int left, int right)
 {

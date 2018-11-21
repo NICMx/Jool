@@ -32,7 +32,6 @@ static char *icmp_error_to_string(icmp_error_code error)
 	return "Unknown";
 }
 
-/* TODO (NOW) sync with stats */
 bool icmp64_send4(struct sk_buff *skb, icmp_error_code error, __u32 info)
 {
 	int type, code;

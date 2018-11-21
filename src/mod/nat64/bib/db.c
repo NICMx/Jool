@@ -1481,7 +1481,8 @@ static int find_bib_session6(struct xlator *jool,
 			if (WARN(error != -ENOENT, "Unknown error: %d", error))
 				return error;
 			/*
-			 * TODO the rate limit might be a bit of a problem.
+			 * TODO (issue175) the rate limit might be a bit of a
+			 * problem.
 			 * If both mark 0 and mark 1 are running out of
 			 * addresses, only one of them will be logged.
 			 * The problem is that remembering which marks have been
@@ -1527,7 +1528,7 @@ static int find_bib_session6(struct xlator *jool,
  * @result A copy of the resulting BIB entry and session from the database will
  *     be placed here. (if not NULL)
  *
- * TODO (NOW) return verdict
+ * TODO (fine) return verdict
  */
 int bib_add6(struct xlation *state,
 		struct mask_domain *masks,
@@ -1606,7 +1607,7 @@ static void find_bib_session4(struct bib_table *table,
 /**
  * See @bib_add6.
  *
- * TODO (NOW) return verdict
+ * TODO (fine) return verdict
  */
 int bib_add4(struct xlation *state,
 		struct ipv6_transport_addr *dst6,
@@ -1697,7 +1698,7 @@ verdict bib_add_tcp6(struct xlation *state,
 			tstobs(state, old.session);
 			result = VERDICT_CONTINUE;
 		} else {
-			/* TODO shitty hack; we're assuming SO_EXISTS. */
+			/* TODO (fine) shitty hack; we're assuming SO_EXISTS. */
 			result = drop(state, JSTAT_SO_EXISTS);
 		}
 		goto end;
@@ -1769,7 +1770,7 @@ verdict bib_add_tcp4(struct xlation *state,
 			tstobs(state, old.session);
 			result = VERDICT_CONTINUE;
 		} else {
-			/* TODO shitty hack; we're assuming SO_EXISTS. */
+			/* TODO (fine) shitty hack; we're assuming SO_EXISTS. */
 			result = drop(state, JSTAT_SO_EXISTS);
 		}
 		goto end;

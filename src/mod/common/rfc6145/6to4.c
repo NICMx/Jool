@@ -76,9 +76,7 @@ verdict ttp64_alloc_skb(struct xlation *state)
 	if (pkt_is_icmp6_error(in)) {
 		/*
 		 * RFC1812 section 4.3.2.3.
-		 * I'm using a literal because the RFC does.
-		 * TODO (NOW) we need a unit test for this. Test packet must be
-		 * paged. (graybox handles the rest.)
+		 * (I'm using a literal because the RFC does.)
 		 *
 		 * pskb_trim() CAN CHANGE SKB POINTERS.
 		 */

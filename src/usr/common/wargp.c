@@ -40,12 +40,11 @@ struct wargp_type wt_string = {
 };
 
 struct wargp_type wt_prefix6 = {
-	.argument = "(<IPv6 Prefix>|null)",
+	.argument = "<IPv6 Prefix>",
 	.parse = wargp_parse_prefix6,
 };
 
 struct wargp_type wt_prefix4 = {
-	/* TODO null? */
 	.argument = "<IPv4 prefix>",
 	.parse = wargp_parse_prefix4,
 };

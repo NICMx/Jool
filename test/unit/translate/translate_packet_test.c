@@ -192,9 +192,9 @@ static bool test_function_icmp4_to_icmp6_param_prob(void)
 
 	memset(&jool, 0, sizeof(jool));
 	xlation_init(&state, &jool);
-	if (create_skb4_icmp_error(&state.in.tuple, &state.in.skb, 10, 10))
+	if (create_skb4_icmp_error("1.1.1.1", "2.2.2.2", 10, 10, &state.in.skb))
 		return false;
-	if (create_skb6_icmp_error(&state.out.tuple, &state.out.skb, 10, 10))
+	if (create_skb6_icmp_error("1::1", "2::2", 10, 10, &state.out.skb))
 		return false;
 	hdr4 = pkt_icmp4_hdr(&state.in);
 	hdr6 = pkt_icmp6_hdr(&state.out);

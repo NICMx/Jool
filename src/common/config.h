@@ -19,7 +19,7 @@ typedef __u8 config_bool;
 #define GNL_JOOL_FAMILY_NAME (xlat_is_siit() ? "SIIT_Jool" : "NAT64_Jool")
 #define GNL_JOOLD_MULTICAST_GRP_NAME "joold"
 
-/* TODO these values are not always used. */
+/* TODO (fine) these values are not always used. */
 
 /* Instance */
 #define OPTNAME_INAME			"instance"

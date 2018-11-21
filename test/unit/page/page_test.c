@@ -1,6 +1,7 @@
 #include <linux/module.h>
 
 #include "framework/unit_test.h"
+#include "framework/send_packet.h"
 #include "framework/skb_generator.h"
 #include "framework/types.h"
 
@@ -12,10 +13,7 @@ MODULE_LICENSE(JOOL_LICENSE);
 MODULE_AUTHOR("Alberto Leiva");
 MODULE_DESCRIPTION("Pages test");
 
-struct xlator jool;
-struct tuple tuple6;
-u8 buffer[PAGE_SIZE];
-extern struct sk_buff *skb_out;
+static struct xlator jool;
 
 static int init(void)
 {
@@ -28,19 +26,7 @@ static int init(void)
 	if (error)
 		return error;
 
-	error = xlator_add(FW_NETFILTER, INAME_DEFAULT, &pool6, &jool);
-	if (error)
-		return error;
-
-	/* Test's global variables */
-	error = init_tuple6(&tuple6,
-			"2001:db8::192.0.2.1", 5000,
-			"2001:db8::203.0.113.2", 6000,
-			L4PROTO_TCP);
-	if (error)
-		xlator_put(&jool);
-
-	return error;
+	return xlator_add(FW_NETFILTER, INAME_DEFAULT, &pool6, &jool);
 }
 
 static void clean(void)
@@ -49,179 +35,68 @@ static void clean(void)
 	xlator_rm(INAME_DEFAULT);
 }
 
-static void print_some_bytes(void *buffer, unsigned int size)
+static bool validate_skb(struct sk_buff *skb, int payload_offset,
+		int payload_len)
 {
-	u8 *better = buffer;
+	u8 expected[256];
+	u8 actual[256];
+	int copied;
 	unsigned int i;
-
-	if (size < 6) {
-		for (i = 0; i < size; i++)
-			pr_cont("%x ", better[i]);
-		pr_cont("\n");
-		return;
-	}
-
-	pr_cont("%x %x %x ... %x %x %x\n",
-			better[0], better[1], better[2],
-			better[size - 3], better[size - 2], better[size - 1]);
-}
-
-static void print_skb(struct sk_buff *skb, char *prefix)
-{
-	struct skb_shared_info *shinfo = skb_shinfo(skb);
-	unsigned int i;
-
-	pr_info("======= SKB %s =======\n", prefix);
-	pr_info("len: %u\n", skb->len);
-	pr_info("headlen: %u\n", skb_headlen(skb));
-	pr_info("data_len: %u\n", skb->data_len);
-	pr_info("nr_frags: %u\n", shinfo->nr_frags);
-
-	pr_info("    head: ");
-	print_some_bytes(skb->data, skb_headlen(skb));
-
-	for (i = 0; i < shinfo->nr_frags; i++) {
-		skb_frag_t *frag;
-		u8 *vaddr;
-		unsigned int frag_size;
-
-		frag = &shinfo->frags[i];
-		frag_size = skb_frag_size(frag);
-
-		vaddr = kmap_atomic(skb_frag_page(frag));
-		memcpy(buffer, vaddr, frag_size);
-		kunmap_atomic(vaddr);
-
-		pr_info("    frag %u (%u): ", i, frag_size);
-		print_some_bytes(buffer, frag_size);
-	}
-
-	pr_info("===================\n");
-}
-
-static bool validate_skb(struct sk_buff *in, struct sk_buff *out)
-{
-#define BUFFER_SIZE 16
-	u8 buffer_in[BUFFER_SIZE];
-	u8 buffer_out[BUFFER_SIZE];
 	bool success = true;
 
-	success &= ASSERT_INT(in->len - 20, out->len, "out->len");
-	success &= ASSERT_INT(0, skb_copy_bits(in, in->len - BUFFER_SIZE,
-			buffer_in, BUFFER_SIZE), "in buffer extraction");
-	success &= ASSERT_INT(0, skb_copy_bits(out, out->len - BUFFER_SIZE,
-			buffer_out, BUFFER_SIZE), "out buffer extraction");
-	success &= ASSERT_INT(0, memcmp(buffer_in, buffer_out, BUFFER_SIZE),
-			"last bytes comparison");
+	for (i = 0; i < 256; i++)
+		expected[i] = i;
+
+	success &= ASSERT_INT(payload_offset + payload_len, skb->len, "length");
+
+	while (payload_len > 0) {
+		copied = min(256, payload_len);
+
+		if (skb_copy_bits(skb, payload_offset, actual, copied)) {
+			log_err("Buffer extraction failed.");
+			return false;
+		}
+
+		success &= ASSERT_INT(0, memcmp(expected, actual, copied),
+				"byte comparison (payload offset %d)",
+				payload_offset);
+
+		payload_offset += 256;
+		payload_len -= 256;
+	}
 
 	return success;
 }
 
-static int add_v6_hdr(struct sk_buff *skb, unsigned int *offset, u16 plen)
+static int add_v6_hdr(struct sk_buff *skb, int *offset, u8 proto, u16 plen)
 {
-	struct ipv6hdr hdr;
-	int error;
-
-	error = init_ipv6_hdr(&hdr, plen, NEXTHDR_TCP, &tuple6, 1, 0, 0, 64);
-	if (error)
-		return error;
-
-	error = skb_store_bits(skb, *offset, &hdr, sizeof(hdr));
-	if (error) {
-		log_err("skb_store_bits() error: %d", error);
-		return error;
-	}
-
-	*offset += sizeof(hdr);
-	return 0;
+	return init_ipv6_hdr(skb, offset, "2001:db8::192.0.2.1",
+			"2001:db8::203.0.113.2", plen, proto, 64);
 }
 
-static int add_tcp_hdr(struct sk_buff *skb, unsigned int *offset, u16 dlen)
+static int add_v4_hdr(struct sk_buff *skb, int *offset, u8 proto, u16 plen)
 {
-	struct tcphdr hdr;
-	int error;
+	return init_ipv4_hdr(skb, offset, "192.0.2.1", "203.0.113.8", plen,
+			proto, 32);
+}
 
-	error = init_tcp_hdr(&hdr, ETH_P_IPV6, dlen, &tuple6);
-	if (error)
-		return error;
-
-	error = skb_store_bits(skb, *offset, &hdr, sizeof(hdr));
-	if (error) {
-		log_err("skb_store_bits() error: %d", error);
-		return error;
-	}
-
-	*offset += sizeof(hdr);
-	return 0;
+static int add_tcp_hdr(struct sk_buff *skb, int *offset, u16 dlen)
+{
+	return init_tcp_hdr(skb, offset, 5000, 6000, dlen);
 }
 
 static int add_icmp6_hdr(struct sk_buff *skb, unsigned int *offset)
 {
-	struct icmp6hdr hdr;
-	int error;
-
-	hdr.icmp6_type = ICMPV6_PKT_TOOBIG;
-	hdr.icmp6_code = 0;
-	hdr.icmp6_cksum = 0;
-	hdr.icmp6_mtu = cpu_to_be32(1500);
-
-	error = skb_store_bits(skb, *offset, &hdr, sizeof(hdr));
-	if (error) {
-		log_err("skb_store_bits() error: %d", error);
-		return error;
-	}
-
-	*offset += sizeof(hdr);
-	return 0;
+	return init_icmp6_hdr_error(skb, offset, 0, 0, 0);
 }
 
-static int init_skb(struct sk_buff *skb, unsigned int active_len)
+static int add_icmp4_hdr(struct sk_buff *skb, unsigned int *offset)
 {
-	__u8 buffer[256];
-	unsigned int offset = 0;
-	unsigned int len;
-
-	unsigned int i;
-	int error;
-
-	skb_reset_network_header(skb);
-	skb_set_transport_header(skb, 40);
-
-	error = add_v6_hdr(skb, &offset, active_len - sizeof(struct ipv6hdr));
-	if (error)
-		return error;
-	error = add_icmp6_hdr(skb, &offset);
-	if (error)
-		return error;
-	error = add_v6_hdr(skb, &offset, 30);
-	if (error)
-		return error;
-	error = add_tcp_hdr(skb, &offset, 30);
-	if (error)
-		return error;
-
-	for (i = 0; i < 256; i++)
-		buffer[i] = i;
-
-	while (offset < active_len) {
-		/* log_info("offset: %u", offset); */
-
-		len = min_t(unsigned int, 256U, active_len - offset);
-		/* log_info("	(want to write %u bytes)", len); */
-
-		error = skb_store_bits(skb, offset, buffer, len);
-		if (error) {
-			log_err("skb_store_bits() error: %d", error);
-			return error;
-		}
-
-		offset += len;
-	}
-
-	return 0;
+	return init_icmp4_hdr_error(skb, offset, 0, 0, 0);
 }
 
-struct sk_buff *create_paged_skb(unsigned int head_len, unsigned int data_len)
+static struct sk_buff *create_paged_skb(unsigned int head_len,
+		unsigned int data_len)
 {
 	struct sk_buff *skb;
 	unsigned int reserved_len = LL_MAX_HEADER;
@@ -246,24 +121,50 @@ struct sk_buff *create_paged_skb(unsigned int head_len, unsigned int data_len)
 	skb->data_len = data_len;
 	skb->len += data_len;
 
-	if (init_skb(skb, head_len + data_len)) {
-		kfree_skb(skb);
-		skb = NULL;
-	}
+	return skb;
+}
+
+static struct sk_buff *create_paged_tcp_skb(unsigned int head_len,
+		unsigned int data_len)
+{
+	struct sk_buff *skb;
+	unsigned int payload_len;
+	int offset = 0;
+
+	skb = create_paged_skb(head_len, data_len);
+	if (!skb)
+		return NULL;
+
+	skb_reset_network_header(skb);
+	skb_set_transport_header(skb, sizeof(struct ipv6hdr));
+
+	payload_len = head_len + data_len - sizeof(struct ipv6hdr);
+	if (add_v6_hdr(skb, &offset, NEXTHDR_TCP, payload_len))
+		goto abort;
+	if (add_tcp_hdr(skb, &offset, payload_len))
+		goto abort;
+	if (init_payload_normal(skb, &offset))
+		goto abort;
 
 	return skb;
+
+abort:
+	kfree_skb(skb);
+	return NULL;
 }
 
 static bool basic_single_test(unsigned int head_len, unsigned int data_len)
 {
+	const int IN_HDRS = sizeof(struct ipv6hdr) + sizeof(struct tcphdr);
+	const int OUT_HDRS = sizeof(struct iphdr) + sizeof(struct tcphdr);
 	struct sk_buff *skb_in;
 	verdict result;
 	bool success = true;
 
-	if (head_len + data_len < 108) /* IPv6 + ICMP + IPv6 + TCP */
-		return true; /* "Sure thing, kiddo." */
+	if (head_len + data_len < IN_HDRS)
+		return true; /* Invalid test, but we don't care */
 
-	skb_in = create_paged_skb(head_len, data_len);
+	skb_in = create_paged_tcp_skb(head_len, data_len);
 	if (!skb_in)
 		return false;
 
@@ -278,28 +179,16 @@ static bool basic_single_test(unsigned int head_len, unsigned int data_len)
 		return false;
 	}
 
-	/*
-	 * Note: This sucks, but I can't just skb_get() the original skb_in,
-	 * because Jool refuses to translate shared packets.
-	 */
-	skb_in = create_paged_skb(head_len, data_len);
-	if (!skb_in) {
-		log_err("Failed to recreate skb_in.");
-		kfree_skb(skb_out);
-		return false;
-	}
+	success &= validate_skb(skb_out, OUT_HDRS,
+			head_len + data_len - IN_HDRS);
 
-	print_skb(skb_in, "in");
-	print_skb(skb_out, "out");
-	success &= validate_skb(skb_in, skb_out);
-
-	kfree_skb(skb_in);
 	kfree_skb(skb_out);
+	skb_out = NULL;
 
 	return success;
 }
 
-static bool basic(void)
+static bool basic_test(void)
 {
 	unsigned int data_lens[] = {
 			0, 1, 2, 3, 4, 6, 7, 8, 9,
@@ -355,6 +244,144 @@ static bool basic(void)
 	return success;
 }
 
+static struct sk_buff *create_paged_icmp6err_skb(unsigned int head_len,
+		unsigned int data_len)
+{
+	struct sk_buff *skb;
+	unsigned int payload_len;
+	int offset = 0;
+
+	skb = create_paged_skb(head_len, data_len);
+	if (!skb)
+		return NULL;
+
+	skb->ip_summed = CHECKSUM_UNNECESSARY;
+	skb_reset_network_header(skb);
+	skb_set_transport_header(skb, sizeof(struct ipv6hdr));
+
+	payload_len = head_len + data_len - sizeof(struct ipv6hdr);
+	if (add_v6_hdr(skb, &offset, NEXTHDR_ICMP, payload_len))
+		goto abort;
+	if (add_icmp6_hdr(skb, &offset))
+		goto abort;
+	if (add_v6_hdr(skb, &offset, NEXTHDR_TCP, 1300))
+		goto abort;
+	if (add_tcp_hdr(skb, &offset, 1300))
+		goto abort;
+	if (init_payload_normal(skb, &offset))
+		goto abort;
+
+	return skb;
+
+abort:
+	kfree_skb(skb);
+	return NULL;
+}
+
+static bool trim64_test(void)
+{
+	struct sk_buff *skb_in;
+	verdict result;
+	unsigned int hdrs_len;
+	bool success = true;
+
+	const unsigned int head_len = 500;
+	const unsigned int data_len = 500;
+
+	skb_in = create_paged_icmp6err_skb(head_len, data_len);
+	if (!skb_in)
+		return false;
+
+	result = core_6to4(skb_in, &jool);
+	if (result != VERDICT_STOLEN)
+		kfree_skb(skb_in);
+
+	success &= ASSERT_VERDICT(STOLEN, result, "full xlat");
+
+	if (skb_out == NULL) {
+		log_err("skb_out is null.");
+		return false;
+	}
+
+	hdrs_len = sizeof(struct iphdr) + sizeof(struct icmphdr)
+			+ sizeof(struct iphdr) + sizeof(struct tcphdr);
+	success &= validate_skb(skb_out, hdrs_len, 576 - hdrs_len);
+
+	kfree_skb(skb_out);
+	skb_out = NULL;
+
+	return success;
+}
+
+static struct sk_buff *create_paged_icmp4err_skb(unsigned int head_len,
+		unsigned int data_len)
+{
+	struct sk_buff *skb;
+	unsigned int payload_len;
+	int offset = 0;
+
+	skb = create_paged_skb(head_len, data_len);
+	if (!skb)
+		return NULL;
+
+	skb->ip_summed = CHECKSUM_UNNECESSARY;
+	skb_reset_network_header(skb);
+	skb_set_transport_header(skb, sizeof(struct iphdr));
+
+	payload_len = head_len + data_len - sizeof(struct iphdr);
+	if (add_v4_hdr(skb, &offset, IPPROTO_ICMP, payload_len))
+		goto abort;
+	if (add_icmp4_hdr(skb, &offset))
+		goto abort;
+	if (add_v4_hdr(skb, &offset, IPPROTO_TCP, 1400))
+		goto abort;
+	if (add_tcp_hdr(skb, &offset, 1400))
+		goto abort;
+	if (init_payload_normal(skb, &offset))
+		goto abort;
+
+	return skb;
+
+abort:
+	kfree_skb(skb);
+	return NULL;
+}
+
+static bool trim46_test(void)
+{
+	struct sk_buff *skb_in;
+	verdict result;
+	unsigned int hdrs_len;
+	bool success = true;
+
+	const unsigned int head_len = 500;
+	const unsigned int data_len = 1000;
+
+	skb_in = create_paged_icmp4err_skb(head_len, data_len);
+	if (!skb_in)
+		return false;
+
+	result = core_4to6(skb_in, &jool);
+	if (result != VERDICT_STOLEN)
+		kfree_skb(skb_in);
+
+	success &= ASSERT_VERDICT(STOLEN, result, "full xlat");
+
+	if (skb_out == NULL) {
+		log_err("skb_out is null.");
+		return false;
+	}
+
+	hdrs_len = sizeof(struct ipv6hdr) + sizeof(struct icmp6hdr)
+			+ sizeof(struct ipv6hdr) + sizeof(struct tcphdr);
+	success &= validate_skb(skb_out, hdrs_len, 1280 - hdrs_len);
+
+	kfree_skb(skb_out);
+	skb_out = NULL;
+
+	return success;
+}
+
 int init_module(void)
 {
 	struct test_group test = {
@@ -368,7 +395,14 @@ int init_module(void)
 	if (test_group_begin(&test))
 		return -EINVAL;
 
-	test_group_test(&test, basic, "Basic test");
+	test_group_test(&test, basic_test, "Basic test");
+
+	/*
+	 * These are mostly intended for testing the pskb_trim()s that can be
+	 * found in ttp64_alloc_skb() and ttp46_alloc_skb().
+	 */
+	test_group_test(&test, trim64_test, "Trim test IPv6->IPv4");
+	test_group_test(&test, trim46_test, "Trim test IPv4->IPv6");
 
 	return test_group_end(&test);
 }

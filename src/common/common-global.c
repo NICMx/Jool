@@ -1,67 +1,10 @@
-#include "common-global.h"
+#include "common/common-global.h"
 
 #include "constants.h"
-
 #ifdef __KERNEL__
-
-#define print_bool NULL
-#define print_u8 NULL
-#define print_u32 NULL
-#define print_timeout NULL
-#define print_plateaus NULL
-#define print_prefix6 NULL
-#define print_prefix4 NULL
-#define print_hairpin_mode NULL
-#define print_fargs NULL
-
-#define parse_bool NULL
-#define parse_u8 NULL
-#define parse_u32 NULL
-#define parse_timeout NULL
-#define parse_plateaus NULL
-#define parse_prefix6 NULL
-#define parse_prefix4 NULL
-#define parse_hairpin_mode NULL
-
-int validate_u8(struct global_field *field, void *value, bool force);
-int validate_u32(struct global_field *field, void *value, bool force);
-int validate_pool6(struct global_field *field, void *value, bool force);
-int validate_plateaus(struct global_field *field, void *value, bool force);
-int validate_prefix6(struct global_field *field, void *value, bool force);
-int validate_prefix4(struct global_field *field, void *value, bool force);
-int validate_prefix6791v4(struct global_field *field, void *value, bool force);
-int validate_hairpin_mode(struct global_field *field, void *value, bool force);
-
+#include "mod/common/common-global.h"
 #else
-
-void print_bool(void *value, bool csv);
-void print_u8(void *value, bool csv);
-void print_u32(void *value, bool csv);
-void print_timeout(void *value, bool csv);
-void print_plateaus(void *value, bool csv);
-void print_prefix6(void *value, bool csv);
-void print_prefix4(void *value, bool csv);
-void print_hairpin_mode(void *value, bool csv);
-void print_fargs(void *value, bool csv);
-
-int parse_bool(struct global_field *field, char *str, void *result);
-int parse_u8(struct global_field *field, char *str, void *result);
-int parse_u32(struct global_field *field, char *str, void *result);
-int parse_timeout(struct global_field *field, char *str, void *result);
-int parse_plateaus(struct global_field *field, char *str, void *result);
-int parse_prefix6(struct global_field *field, char *str, void *result);
-int parse_prefix4(struct global_field *field, char *str, void *result);
-int parse_hairpin_mode(struct global_field *field, char *str, void *result);
-
-#define validate_u8 NULL
-#define validate_u32 NULL
-#define validate_pool6 NULL
-#define validate_plateaus NULL
-#define validate_prefix6 NULL
-#define validate_prefix4 NULL
-#define validate_prefix6791v4 NULL
-#define validate_hairpin_mode NULL
-
+#include "usr/common/common-global.h"
 #endif
 
 static struct global_type gt_bool = {
@@ -135,7 +78,7 @@ static struct global_type gt_hairpin_mode = {
 	.validate = validate_hairpin_mode,
 };
 
-/* TODO constant */
+/* TODO (fine) turn this into a constant. */
 static struct global_field global_fields[] = {
 	{
 		.name = "manually-enabled",

@@ -1,3 +1,5 @@
+#CC=cgcc
+
 ifndef KERNEL_DIR
 	KERNEL_DIR := /lib/modules/$(shell uname -r)/build
 endif

@@ -5,6 +5,10 @@
  * @file
  * Random packet-related functions.
  *
+ * TODO (doc) though this comment is not wrong, it's probably not as relevant as
+ * it used to be. Thanks to the 3.6 refactors, Jool doesn't often care (if at
+ * all) about different types of packets anymore.
+ *
  * You might want to be aware of the different types of packets the kernel can
  * throw at Jool; see below.
  *
@@ -55,8 +59,6 @@
  *    path MTU (and therefore linearize fragment pages), but there is nothing
  *    else we can do because there is nothing that will tell us whether a
  *    ->frags member is a fragment or a page.
- *
- * TODO copy pages "as they are". We're currently linearizing them...
  *
  * For the most part, full/fragmented/internal packets can be handled similarly.
  * Subsequent packets, freaks of nature as they are, are thankfully often

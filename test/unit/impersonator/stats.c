@@ -1,6 +1,6 @@
 #include "mod/common/stats.h"
 
-struct jool_stats {
+static struct jool_stats {
 	int junk;
 } phony;
 

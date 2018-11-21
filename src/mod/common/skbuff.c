@@ -5,6 +5,7 @@
 #include <linux/printk.h>
 #include <net/ipv6.h>
 
+#include "mod/common/linux_version.h"
 #include "mod/common/packet.h"
 
 enum hdr_protocol {
@@ -23,10 +24,14 @@ enum hdr_protocol {
 
 struct hdr_iterator {
 	unsigned int tabs;
-	void *ptr;
+	struct sk_buff *skb;
+	int skb_offset;
 	enum hdr_protocol type;
 	bool done;
 };
+
+#define skb_hdr_ptr(iterator, buffer) skb_header_pointer(iterator->skb, \
+		iterator->skb_offset, sizeof(buffer), &buffer)
 
 #define print(tabs, text, ...) do { \
 		print_tabs(tabs); \
@@ -90,7 +95,9 @@ static void print_skb_fields(struct sk_buff *skb, unsigned int tabs)
 	print(tabs, "ip_summed:%u (%s)", skb->ip_summed,
 			ipsummed2string(skb->ip_summed));
 	print(tabs, "csum_valid:%u", skb->csum_valid);
+#if LINUX_VERSION_LOWER_THAN(4, 13, 0, 9999, 0)
 	print(tabs, "csum_bad:%u", skb->csum_bad);
+#endif
 	print(tabs, "csum_start:%u", skb->csum_start);
 	print(tabs, "csum_offset:%u", skb->csum_offset);
 	print(tabs, "mark:%u", skb->mark);
@@ -110,12 +117,23 @@ static void print_skb_fields(struct sk_buff *skb, unsigned int tabs)
 	print(tabs, "end:%u", skb->end);
 }
 
-static void print_ipv4_hdr(struct hdr_iterator *meta)
+static int truncated(unsigned int tabs)
 {
-	struct iphdr *hdr = meta->ptr;
+	print(tabs, "[Truncated]");
+	return -ENOSPC;
+}
+
+static int print_ipv4_hdr(struct hdr_iterator *meta)
+{
+	struct iphdr buffer, *hdr;
 	unsigned int tabs = meta->tabs;
 
 	print(tabs++, "IPv4 header:");
+
+	hdr = skb_hdr_ptr(meta, buffer);
+	if (!hdr)
+		return truncated(tabs);
+
 	print(tabs, "Version: %u", hdr->version);
 	print(tabs, "IHL: %u", hdr->ihl);
 	print(tabs, "TOS: %u", hdr->tos);
@@ -132,16 +150,22 @@ static void print_ipv4_hdr(struct hdr_iterator *meta)
 	print(tabs, "Source Address: %pI4", &hdr->saddr);
 	print(tabs, "Destination Address: %pI4", &hdr->daddr);
 
-	meta->ptr = hdr + 1;
+	meta->skb_offset += sizeof(buffer);
 	meta->type = hdr->protocol;
+	return 0;
 }
 
-static void print_ipv6_hdr(struct hdr_iterator *meta)
+static int print_ipv6_hdr(struct hdr_iterator *meta)
 {
-	struct ipv6hdr *hdr = meta->ptr;
+	struct ipv6hdr buffer, *hdr;
 	unsigned int tabs = meta->tabs;
 
 	print(tabs++, "IPv6 header:");
+
+	hdr = skb_hdr_ptr(meta, buffer);
+	if (!hdr)
+		return truncated(tabs);
+
 	print(tabs, "Version: %u", hdr->version);
 	print(tabs, "Priority: %u", hdr->priority);
 	print(tabs, "Flow Label: %u %u %u", hdr->flow_lbl[0], hdr->flow_lbl[1],
@@ -152,16 +176,22 @@ static void print_ipv6_hdr(struct hdr_iterator *meta)
 	print(tabs, "Source Address: %pI6c", &hdr->saddr);
 	print(tabs, "Destination Address: %pI6c", &hdr->daddr);
 
-	meta->ptr = hdr + 1;
+	meta->skb_offset += sizeof(buffer);
 	meta->type = hdr->nexthdr;
+	return 0;
 }
 
-static void print_tcphdr(struct hdr_iterator *meta)
+static int print_tcphdr(struct hdr_iterator *meta)
 {
-	struct tcphdr *hdr = meta->ptr;
+	struct tcphdr buffer, *hdr;
 	unsigned int tabs = meta->tabs;
 
 	print(tabs++, "TCP header:");
+
+	hdr = skb_hdr_ptr(meta, buffer);
+	if (!hdr)
+		return truncated(tabs);
+
 	print(tabs, "Src Port: %u", be16_to_cpu(hdr->source));
 	print(tabs, "Dst Port: %u", be16_to_cpu(hdr->dest));
 	print(tabs, "Seq Number: %u", be32_to_cpu(hdr->seq));
@@ -173,80 +203,107 @@ static void print_tcphdr(struct hdr_iterator *meta)
 	print(tabs, "Checksum: %u", hdr->check);
 	print(tabs, "Urgent Pointer: %u", be16_to_cpu(hdr->urg_ptr));
 
-	meta->ptr = hdr + 1;
+	meta->skb_offset += sizeof(buffer);
 	meta->type = HP_PAYLOAD;
+	return 0;
 }
 
-static void print_udphdr(struct hdr_iterator *meta)
+static int print_udphdr(struct hdr_iterator *meta)
 {
-	struct udphdr *hdr = meta->ptr;
+	struct udphdr buffer, *hdr;
 	unsigned int tabs = meta->tabs;
 
 	print(tabs++, "UDP header:");
+
+	hdr = skb_hdr_ptr(meta, buffer);
+	if (!hdr)
+		return truncated(tabs);
+
 	print(tabs, "Src Port: %u", be16_to_cpu(hdr->source));
 	print(tabs, "Dst Port: %u", be16_to_cpu(hdr->dest));
 	print(tabs, "Length: %u", be16_to_cpu(hdr->len));
-	print(tabs, "Checksum: %u", be16_to_cpu(hdr->check));
+	print(tabs, "Checksum: %u", hdr->check);
 
-	meta->ptr = hdr + 1;
+	meta->skb_offset += sizeof(buffer);
 	meta->type = HP_PAYLOAD;
+	return 0;
 }
 
-static void print_icmp4hdr(struct hdr_iterator *meta)
+static int print_icmp4hdr(struct hdr_iterator *meta)
 {
-	struct icmphdr *hdr = meta->ptr;
+	struct icmphdr buffer, *hdr;
 	unsigned int tabs = meta->tabs;
 
 	print(tabs++, "ICMPv4 header:");
+
+	hdr = skb_hdr_ptr(meta, buffer);
+	if (!hdr)
+		return truncated(tabs);
+
 	print(tabs, "Type:%u Code:%u", hdr->type, hdr->code);
-	print(tabs, "Checksum: %u", be16_to_cpu(hdr->checksum));
+	print(tabs, "Checksum: %u", hdr->checksum);
 	print(tabs, "Rest 1: %u", be16_to_cpu(hdr->un.echo.id));
 	print(tabs, "Rest 2: %u", be16_to_cpu(hdr->un.echo.sequence));
 
-	meta->ptr = hdr + 1;
+	meta->skb_offset += sizeof(buffer);
 	meta->type = is_icmp4_error(hdr->type) ? HP_IPV4 : HP_PAYLOAD;
-
+	return 0;
 }
 
-static void print_icmp6hdr(struct hdr_iterator *meta)
+static int print_icmp6hdr(struct hdr_iterator *meta)
 {
-	struct icmp6hdr *hdr = meta->ptr;
+	struct icmp6hdr buffer, *hdr;
 	unsigned int tabs = meta->tabs;
 
 	print(tabs++, "ICMPv6 header:");
+
+	hdr = skb_hdr_ptr(meta, buffer);
+	if (!hdr)
+		return truncated(tabs);
+
 	print(tabs, "Type:%u Code:%u", hdr->icmp6_type, hdr->icmp6_code);
-	print(tabs, "Checksum: %u", be16_to_cpu(hdr->icmp6_cksum));
+	print(tabs, "Checksum: %u", hdr->icmp6_cksum);
 	print(tabs, "Rest 1: %u", be16_to_cpu(hdr->icmp6_identifier));
 	print(tabs, "Rest 2: %u", be16_to_cpu(hdr->icmp6_sequence));
 
-	meta->ptr = hdr + 1;
+	meta->skb_offset += sizeof(buffer);
 	meta->type = is_icmp6_error(hdr->icmp6_type) ? HP_IPV4 : HP_PAYLOAD;
+	return 0;
 }
 
-static void print_exthdr(struct hdr_iterator *meta)
+static int print_exthdr(struct hdr_iterator *meta)
 {
+	struct ipv6_opt_hdr buffer, *hdr;
 	unsigned int tabs = meta->tabs;
-	__u8 nexthdr;
-	__u8 len;
-
-	nexthdr = *((__u8 *)meta->ptr);
-	len = *((__u8 *)meta->ptr + 1);
-	len = 8 + 8 * len;
+	unsigned int len;
 
 	print(tabs++, "IPv6 Extension header:");
-	print(tabs, "Next Header: %u", nexthdr);
+
+	hdr = skb_hdr_ptr(meta, buffer);
+	if (!hdr)
+		return truncated(tabs);
+
+	len = 8 + 8 * hdr->hdrlen;
+
+	print(tabs, "Next Header: %u", hdr->nexthdr);
 	print(tabs, "Length: %u", len);
 
-	meta->ptr += len;
-	meta->type = nexthdr;
+	meta->skb_offset += len;
+	meta->type = hdr->nexthdr;
+	return 0;
 }
 
-static void print_fraghdr(struct hdr_iterator *meta)
+static int print_fraghdr(struct hdr_iterator *meta)
 {
+	struct frag_hdr buffer, *hdr;
 	unsigned int tabs = meta->tabs;
-	struct frag_hdr *hdr = meta->ptr;
 
 	print(tabs++, "Fragment Header:");
+
+	hdr = skb_hdr_ptr(meta, buffer);
+	if (!hdr)
+		return truncated(tabs);
+
 	print(tabs, "Next Header: %u", hdr->nexthdr);
 	print(tabs, "Reserved: %u", hdr->reserved);
 	print(tabs, "FragmentOffset:%u Res:%u M:%u",
@@ -255,68 +312,98 @@ static void print_fraghdr(struct hdr_iterator *meta)
 			is_mf_set_ipv6(hdr));
 	print(tabs, "Identification: %u", be32_to_cpu(hdr->identification));
 
+	meta->skb_offset += sizeof(buffer);
 	meta->type = hdr->nexthdr;
-	meta->ptr += sizeof(struct frag_hdr);
+	return 0;
 }
 
-static void print_payload(struct hdr_iterator *meta)
+static int print_payload(struct hdr_iterator *meta)
 {
+	unsigned char buffer[10], *payload;
+	unsigned int tabs = meta->tabs;
 	unsigned int i;
 
-	print(meta->tabs, "Payload:");
-	print_tabs(meta->tabs + 1);
+	print(tabs++, "Payload:");
 
 	/*
-	 * Note that this can overflow.
-	 * This is just testing code, so don't take it seriously.
+	 * Most (if not all) test skb payloads are monotonic (0, 1, 2, 3, 4,
+	 * 5, ..., 254, 255, 0, 1, 2, 3, ..., 254, 255, 0, 1, etc) and it's
+	 * rare to need to confirm large payloads visually.
+	 * So let's print only a few bytes.
 	 */
-	for (i = 0; i < 5; i++)
-		pr_cont("%u ", ((__u8 *)(meta->ptr))     [i]);
-	pr_cont("...\n");
+	if (meta->skb->len - meta->skb_offset <= 10) {
+		payload = skb_hdr_ptr(meta, buffer);
+		if (!payload)
+			return truncated(tabs);
+		print_tabs(tabs);
+		for (i = 0; i < 10; i++)
+			pr_cont("%02x ", buffer[i]);
+	} else {
+		payload = skb_header_pointer(meta->skb, meta->skb_offset, 5,
+				buffer);
+		if (!payload)
+			return truncated(tabs);
+		print_tabs(tabs);
+		for (i = 0; i < 5; i++)
+			pr_cont("%02x ", buffer[i]);
 
+		pr_cont("(...) ");
+
+		payload = skb_header_pointer(meta->skb, meta->skb->len - 5, 5,
+				buffer);
+		if (!payload)
+			return truncated(tabs);
+		for (i = 0; i < 5; i++)
+			pr_cont("%02x ", buffer[i]);
+	}
+
+	pr_cont("\n");
 	meta->done = true;
+	return 0;
 }
 
 static void print_hdr_chain(struct hdr_iterator *meta)
 {
+	int error;
+
 	while (!meta->done) {
 		switch (meta->type) {
 		case HP_IPV4:
-			print_ipv4_hdr(meta);
+			error = print_ipv4_hdr(meta);
 			break;
 
 		case HP_IPV6:
-			print_ipv6_hdr(meta);
+			error = print_ipv6_hdr(meta);
 			break;
 
 		case HP_TCP:
-			print_tcphdr(meta);
+			error = print_tcphdr(meta);
 			break;
 
 		case HP_UDP:
-			print_udphdr(meta);
+			error = print_udphdr(meta);
 			break;
 
 		case HP_ICMP4:
-			print_icmp4hdr(meta);
+			error = print_icmp4hdr(meta);
 			break;
 
 		case HP_ICMP6:
-			print_icmp6hdr(meta);
+			error = print_icmp6hdr(meta);
 			break;
 
 		case HP_HOP:
 		case HP_ROUTING:
 		case HP_DEST:
-			print_exthdr(meta);
+			error = print_exthdr(meta);
 			break;
 
 		case HP_FRAG:
-			print_fraghdr(meta);
+			error = print_fraghdr(meta);
 			break;
 
 		case HP_PAYLOAD:
-			print_payload(meta);
+			error = print_payload(meta);
 			break;
 
 		default:
@@ -324,6 +411,9 @@ static void print_hdr_chain(struct hdr_iterator *meta)
 					meta->type);
 			return;
 		}
+
+		if (error)
+			return;
 	}
 }
 
@@ -331,7 +421,8 @@ static void print_headers(struct sk_buff *skb, unsigned int tabs)
 {
 	struct hdr_iterator meta = {
 		.tabs = tabs + 1,
-		.ptr = skb->data,
+		.skb = skb,
+		.skb_offset = skb_network_offset(skb),
 		.type = skb->data[0] >> 4,
 		.done = false,
 	};
