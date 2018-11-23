@@ -92,10 +92,10 @@ static verdict whine_if_too_big(struct xlation *state)
 
 		switch (pkt_l3_proto(out)) {
 		case L3PROTO_IPV6:
-			mtu -= 20;
+			mtu = max(576u, mtu - 20u);
 			break;
 		case L3PROTO_IPV4:
-			mtu += 20;
+			mtu = max(1280u, mtu + 20u);
 			break;
 		}
 

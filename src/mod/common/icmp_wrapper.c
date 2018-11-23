@@ -79,8 +79,8 @@ bool icmp64_send4(struct sk_buff *skb, icmp_error_code error, __u32 info)
 		return false; /* Not supported or needed. */
 	}
 
-	log_debug("Sending ICMPv4 error: %s, type: %d, code: %d.",
-			icmp_error_to_string(error), type, code);
+	log_debug("Sending ICMPv4 error: %s, type: %d, code: %d, rest: %u.",
+			icmp_error_to_string(error), type, code, info);
 	icmp_send(skb, type, code, cpu_to_be32(info));
 	return true;
 }
@@ -123,8 +123,8 @@ bool icmp64_send6(struct sk_buff *skb, icmp_error_code error, __u32 info)
 		return false; /* Not supported or needed. */
 	}
 
-	log_debug("Sending ICMPv6 error: %s, type: %d, code: %d",
-			icmp_error_to_string(error), type, code);
+	log_debug("Sending ICMPv6 error: %s, type: %d, code: %d, rest: %u",
+			icmp_error_to_string(error), type, code, info);
 	icmpv6_send(skb, type, code, info);
 	return true;
 }

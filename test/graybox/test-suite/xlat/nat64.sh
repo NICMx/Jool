@@ -27,9 +27,9 @@ iptables  -t mangle -A PREROUTING -d 192.0.2.2    -p tcp --dport 1:3000 -j JOOL
 iptables  -t mangle -A PREROUTING -d 192.0.2.2    -p udp --dport 1:3000 -j JOOL
 iptables  -t mangle -A PREROUTING -d 192.0.2.2    -p icmp               -j JOOL
 
-# PTB test
-ip route add 2001:db8:1::/96 via 2001:db8::5
-jool bib add 192.0.2.2#1000 2001:db8:1::5#1001 --tcp
+# ptb64 test
 jool bib add 192.0.2.2#1000 2001:db8:1::5#1001 --udp
-jool bib add 192.0.2.2#1002 2001:db8::6#1003   --tcp
-jool bib add 192.0.2.2#1002 2001:db8::6#1003   --udp
+
+# ptb66 test
+#ip route add 2001:db8:1::/96 via 2001:db8::5
+#jool bib add 192.0.2.2#1002 2001:db8::5#1003   --udp

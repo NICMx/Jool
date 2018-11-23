@@ -205,7 +205,8 @@ static verdict ipv4_simple(struct xlation *state)
 		return succeed(state);
 	case -ESRCH:
 		log_debug("There is no BIB entry for the IPv4 packet.");
-		return untranslatable(state, JSTAT_BIB4_NOT_FOUND);
+		return untranslatable_icmp(state, JSTAT_BIB4_NOT_FOUND,
+				ICMPERR_ADDR_UNREACHABLE, 0);
 	case -EPERM:
 		log_debug("Packet was blocked by Address-Dependent Filtering.");
 		return drop_icmp(state, JSTAT_ADF, ICMPERR_FILTER, 0);

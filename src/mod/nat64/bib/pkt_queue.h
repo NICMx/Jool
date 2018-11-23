@@ -43,10 +43,15 @@
  * state, it should not immediately reply the ICMP error because the IPv4
  * endpoint could be attempting a "Simultaneous Open (SO) of TCP Connections"
  * (http://tools.ietf.org/html/rfc5128#section-3.4). What happens is the NAT64
- * stores the packet for 6 seconds; if the IPv6 version of the packet arrives,
+ * stores the packet for 6 seconds; if an IPv6 packet counterpart arrives,
  * the NAT64 drops the original packet (the IPv4 node will eventually realize
  * this on its own by means of the handshake), otherwise a ICMP error containing
  * the original IPv4 packet is generated (because there's no SO going on).
+ *
+ * I believe that the point of this is to allow the endpoints to assemble a
+ * connection whose BIB has a predictable pool4 address. (Because when choosing
+ * the IPv6 packet's mask, Jool will be forced to use the IPv4 packet's
+ * destination address and port.)
  *
  * So in summary, this is what needs to be done when a NAT64 receives a v4 SYN
  * (packet A):

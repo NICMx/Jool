@@ -168,8 +168,8 @@ static int print_ipv6_hdr(struct hdr_iterator *meta)
 
 	print(tabs, "Version: %u", hdr->version);
 	print(tabs, "Priority: %u", hdr->priority);
-	print(tabs, "Flow Label: %u %u %u", hdr->flow_lbl[0], hdr->flow_lbl[1],
-			hdr->flow_lbl[2]);
+	print(tabs, "Flow Label: 0x%02x%02x%02x", hdr->flow_lbl[0],
+			hdr->flow_lbl[1], hdr->flow_lbl[2]);
 	print(tabs, "Payload Length: %u", be16_to_cpu(hdr->payload_len));
 	print(tabs, "Next Header: %u", hdr->nexthdr);
 	print(tabs, "Hop Limit: %u", hdr->hop_limit);
@@ -267,7 +267,7 @@ static int print_icmp6hdr(struct hdr_iterator *meta)
 	print(tabs, "Rest 2: %u", be16_to_cpu(hdr->icmp6_sequence));
 
 	meta->skb_offset += sizeof(buffer);
-	meta->type = is_icmp6_error(hdr->icmp6_type) ? HP_IPV4 : HP_PAYLOAD;
+	meta->type = is_icmp6_error(hdr->icmp6_type) ? HP_IPV6 : HP_PAYLOAD;
 	return 0;
 }
 
@@ -320,10 +320,23 @@ static int print_fraghdr(struct hdr_iterator *meta)
 static int print_payload(struct hdr_iterator *meta)
 {
 	unsigned char buffer[10], *payload;
+	unsigned int payload_len;
 	unsigned int tabs = meta->tabs;
 	unsigned int i;
 
 	print(tabs++, "Payload:");
+
+	if (meta->skb->len < meta->skb_offset) {
+		print(tabs, "Error: Offset exceeds packet length.");
+		return -ENOSPC;
+	}
+
+	payload_len = meta->skb->len - meta->skb_offset;
+
+	if (payload_len == 0) {
+		print(tabs, "(Empty)");
+		goto success;
+	}
 
 	/*
 	 * Most (if not all) test skb payloads are monotonic (0, 1, 2, 3, 4,
@@ -331,13 +344,15 @@ static int print_payload(struct hdr_iterator *meta)
 	 * rare to need to confirm large payloads visually.
 	 * So let's print only a few bytes.
 	 */
-	if (meta->skb->len - meta->skb_offset <= 10) {
-		payload = skb_hdr_ptr(meta, buffer);
+	if (payload_len <= 10) {
+		payload = skb_header_pointer(meta->skb, meta->skb_offset,
+				payload_len, buffer);
 		if (!payload)
 			return truncated(tabs);
 		print_tabs(tabs);
-		for (i = 0; i < 10; i++)
-			pr_cont("%02x ", buffer[i]);
+		for (i = 0; i < payload_len; i++)
+			pr_cont("%02x ", payload[i]);
+
 	} else {
 		payload = skb_header_pointer(meta->skb, meta->skb_offset, 5,
 				buffer);
@@ -345,7 +360,7 @@ static int print_payload(struct hdr_iterator *meta)
 			return truncated(tabs);
 		print_tabs(tabs);
 		for (i = 0; i < 5; i++)
-			pr_cont("%02x ", buffer[i]);
+			pr_cont("%02x ", payload[i]);
 
 		pr_cont("(...) ");
 
@@ -354,10 +369,11 @@ static int print_payload(struct hdr_iterator *meta)
 		if (!payload)
 			return truncated(tabs);
 		for (i = 0; i < 5; i++)
-			pr_cont("%02x ", buffer[i]);
+			pr_cont("%02x ", payload[i]);
 	}
 
 	pr_cont("\n");
+success:
 	meta->done = true;
 	return 0;
 }
@@ -371,41 +387,32 @@ static void print_hdr_chain(struct hdr_iterator *meta)
 		case HP_IPV4:
 			error = print_ipv4_hdr(meta);
 			break;
-
 		case HP_IPV6:
 			error = print_ipv6_hdr(meta);
 			break;
-
 		case HP_TCP:
 			error = print_tcphdr(meta);
 			break;
-
 		case HP_UDP:
 			error = print_udphdr(meta);
 			break;
-
 		case HP_ICMP4:
 			error = print_icmp4hdr(meta);
 			break;
-
 		case HP_ICMP6:
 			error = print_icmp6hdr(meta);
 			break;
-
 		case HP_HOP:
 		case HP_ROUTING:
 		case HP_DEST:
 			error = print_exthdr(meta);
 			break;
-
 		case HP_FRAG:
 			error = print_fraghdr(meta);
 			break;
-
 		case HP_PAYLOAD:
 			error = print_payload(meta);
 			break;
-
 		default:
 			print(meta->tabs, "[Unknown header type: %u]",
 					meta->type);
@@ -482,23 +489,11 @@ static void __skb_log(struct sk_buff *skb, char *header, unsigned int tabs)
 	print_shinfo_fields(skb, tabs);
 }
 
-static unsigned int pkts_printed = 0;
-
 /**
  * Assumes that the headers of the packet can be found in the head area.
  * (ie. Do not call before `pkt_init_ipv*()`.)
  */
 void skb_log(struct sk_buff *skb, char *label)
 {
-	if (skb->mark == 5) {
-		__skb_log(skb, label, 0);
-		return;
-	}
-
-	if (pkts_printed > 4)
-		return;
-	pkts_printed++;
-	skb->mark = 5;
-
 	__skb_log(skb, label, 0);
 }
