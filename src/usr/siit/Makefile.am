@@ -46,3 +46,8 @@ jool_siit_CFLAGS = -Wall -O2
 jool_siit_CFLAGS += -I${srcdir}/../../
 jool_siit_CFLAGS += ${LIBNLGENL3_CFLAGS} ${JOOL_FLAGS}
 man_MANS = jool_siit.8
+
+if ENABLE_BASH_COMPLETION
+bashcompletiondir = $(BASH_COMPLETION_DIR)
+dist_bashcompletion_DATA = jool_siit.bash
+endif

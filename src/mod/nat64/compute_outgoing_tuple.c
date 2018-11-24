@@ -22,7 +22,7 @@ static verdict find_bib(struct xlation *state)
 		 * them, so it's not critical.
 		 */
 		log_debug("Session not found. Error code is %d.", error);
-		return untranslatable(state, JSTAT_BIB_NOT_FOUND);
+		return untranslatable(state, JSTAT_SESSION_NOT_FOUND);
 	}
 
 	return VERDICT_CONTINUE;

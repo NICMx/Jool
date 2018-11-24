@@ -42,12 +42,12 @@ static int handle_jstat(struct jstat const *stat, void *args)
 		printf("%s,%llu", stat->meta.name, stat->value);
 		if (dargs->explain.value)
 			printf(",\"%s\"", stat->meta.doc);
+		printf("\n");
 	} else {
-		printf("%s: %llu ", stat->meta.name, stat->value);
+		printf("%s: %llu\n", stat->meta.name, stat->value);
 		if (dargs->explain.value)
-			printf("(%s)", stat->meta.doc);
+			printf("%s\n\n", stat->meta.doc);
 	}
-	printf("\n");
 
 	return 0;
 }

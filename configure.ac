@@ -28,6 +28,31 @@ AC_SEARCH_LIBS([argp_parse], [argp])
 PKG_CHECK_MODULES(LIBNLGENL3, libnl-genl-3.0 >= 3.1)
 PKG_CHECK_MODULES(XTABLES, xtables)
 
+# Bash autocompletion option (https://www.swansontec.com/bash-completion.html):
+# 1. Offer the user the `--with-bash-completion-dir` configure option,
+#    which can be set to a directory, "yes" (default; means autodetect
+#    directory) or "no" (disable autocompletion).
+AC_ARG_WITH([bash-completion-dir],
+	AS_HELP_STRING([--with-bash-completion-dir[=PATH]],
+		[Install the bash auto-completion script. @<:@default=yes@:>@]),
+	[],
+	[with_bash_completion_dir=yes])
+
+# 2. If the user chose "yes", find a reasonable default directory.
+if test "x$with_bash_completion_dir" = "xyes"; then
+	PKG_CHECK_MODULES([BASH_COMPLETION], [bash-completion >= 2.0],
+		[BASH_COMPLETION_DIR="`pkg-config --variable=completionsdir bash-completion`"],
+		[BASH_COMPLETION_DIR="$datadir/bash-completion/completions"])
+else
+	BASH_COMPLETION_DIR="$with_bash_completion_dir"
+fi
+
+# 3. Export ENABLE_BASH_COMPLETION and BASH_COMPLETION_DIR so the Makefile can
+#    use them.
+AC_SUBST([BASH_COMPLETION_DIR])
+AM_CONDITIONAL([ENABLE_BASH_COMPLETION],
+	[test "x$with_bash_completion_dir" != "xno"])
+
 # Spit out the makefiles.
 AC_OUTPUT(Makefile
 	src/usr/Makefile

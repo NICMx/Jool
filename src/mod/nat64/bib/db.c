@@ -1142,6 +1142,7 @@ static void detach_bib(struct xlator *jool, struct bib_table *table,
 	rb_erase(&bib->hook6, &table->tree6);
 	rb_erase(&bib->hook4, &table->tree4);
 	jstat_dec(jool->stats, JSTAT_BIB_ENTRIES);
+	/* NOTE THAT detach_sessions() RETURNS NEGATIVE. */
 	jstat_add(jool->stats, JSTAT_SESSIONS, detach_sessions(table, bib));
 }
 
@@ -1357,10 +1358,12 @@ static int upgrade_pktqueue_session(struct xlator *jool,
 		goto trainwreck;
 	treeslot_commit(&bib_slot6);
 	treeslot_commit(&bib_slot4);
+	jstat_inc(jool->stats, JSTAT_BIB_ENTRIES);
 
 	rb_link_node(&session->tree_hook, NULL, &bib->sessions.rb_node);
 	rb_insert_color(&session->tree_hook, &bib->sessions);
 	attach_timer(session, &table->syn4_timer);
+	jstat_inc(jool->stats, JSTAT_SESSIONS);
 
 	pktqueue_put_node(sos);
 
