@@ -18,6 +18,21 @@
  * TODO (performance) Maybe pack this?
  */
 struct tabled_bib {
+	/**
+	 * src6 always belongs to the IPv6 node. dst4 always belongs to the IPv4
+	 * node.
+	 *
+	 * <IPv6 node> ---- <N A T 6 4> ---- <IPv4 node>
+	 *        src6 ---- dst6 - src4 ---- dst4
+	 *
+	 * Admittedly, this is pretty counterintuitive for packets traveling
+	 * from 4 to 6.
+	 * But it has to be like this because the RFC uses these names. If we
+	 * rename these to something like "remote6", "local6", "local4" and
+	 * "remote4", code review becomes a nightmare.
+	 *
+	 * The remaining fields can be found in tabled_session.
+	 */
 	struct ipv6_transport_addr src6;
 	struct ipv4_transport_addr src4;
 	l4_protocol proto;

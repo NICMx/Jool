@@ -1,7 +1,9 @@
 #include "mod/common/stats.h"
 
 #include <linux/kref.h>
+#include <net/ip.h>
 #include <net/snmp.h>
+#include "mod/common/linux_version.h"
 #include "mod/common/wkmalloc.h"
 
 struct jool_mib {
@@ -21,8 +23,14 @@ struct jool_stats *jstat_alloc(void)
 	if (!result)
 		return NULL;
 
+#if LINUX_VERSION_AT_LEAST(3, 16, 0, 9999, 0)
 	result->mib = alloc_percpu(struct jool_mib);
 	if (!result->mib) {
+#else
+	if (snmp_mib_init((void __percpu **)result->mib,
+			sizeof(struct jool_mib),
+			__alignof__(struct jool_mib)) < 0) {
+#endif
 		wkfree(struct jool_stats, result);
 		return NULL;
 	}
@@ -65,8 +73,6 @@ void jstat_add(struct jool_stats *stats, enum jool_stat_id stat, int addend)
 	SNMP_ADD_STATS(stats->mib, stat, addend);
 }
 
-#define GET_COUNTER(mib, c, i) (*((unsigned long *)(per_cpu_ptr(mib, c)) + (i)))
-
 /**
  * Returns the list of stats as an array. You will have to free it.
  * The array length will be __JSTAT_MAX.
@@ -74,15 +80,18 @@ void jstat_add(struct jool_stats *stats, enum jool_stat_id stat, int addend)
 __u64 *jstat_query(struct jool_stats *stats)
 {
 	__u64 *result;
-	int c, i;
+	int i;
 
 	result = kcalloc(__JSTAT_MAX, sizeof(__u64), GFP_KERNEL);
 	if (!result)
 		return NULL;
 
-	for_each_possible_cpu(c) {
-		for (i = 0; i < __JSTAT_MAX; i++)
-			result[i] += GET_COUNTER(stats->mib, c, i);
+	for (i = 0; i < __JSTAT_MAX; i++) {
+#if LINUX_VERSION_AT_LEAST(3, 16, 0, 9999, 0)
+		result[i] = snmp_fold_field(stats->mib, i);
+#else
+		result[i] = snmp_fold_field((void __percpu **)stats->mib, i);
+#endif
 	}
 
 	return result;
