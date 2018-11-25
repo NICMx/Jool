@@ -60,7 +60,7 @@ Just note that the translation is bidirectional; given a pool6 prefix, one can i
 
 Because pool6 is the only currently standardized means for a NAT64 to translate IPv6 destinations and IPv4 sources, a pool6 prefix is quintessential NAT64 configuration. NAT64 Jool simply cannot do anything without one.
 
-Also, a synchronization issue was discovered during the review of Jool 3.6.0, and the most realistic solution turned out to be to turn pool6 into a constant.
+Also, a synchronization issue was discovered during the review of Jool 3.6.0, and the most realistic solution turned out to be to turn pool6 into a constant. (For now.)
 
 Thus, NAT64 Jool's pool6 can only be specified during [instance creation](usr-flags-instance.html). It cannot be changed or removed after that:
 

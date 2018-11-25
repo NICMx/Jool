@@ -52,6 +52,12 @@ And finally, `<args>` is an traditional argp-parsed payload of arguments that de
 user@T:~$ jool instance add --help
 {% endhighlight %}
 
+The only exception is [`global update`](usr-flags-global.html), where the value key acts as a third keyword level:
+
+{% highlight bash %}
+user@T:~$ jool global update <key> --help
+{% endhighlight %}
+
 ## Quirks
 
 As long as you don't reach ambiguity, you can abbreviate keywords:

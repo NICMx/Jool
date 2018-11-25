@@ -20,20 +20,59 @@ Jool is an Open Source [SIIT and NAT64](intro-xlat.html) for Linux.
 
 ## Status
 
-As far as we know, Jool is a [compliant](intro-jool.html#compliance) SIIT and Stateful NAT64. This is the roadmap as of 2017-11-23:
+As far as we know, Jool is a [compliant](intro-jool.html#compliance) SIIT and Stateful NAT64.
 
-2. [Milestone 4.0.0]({{ site.repository-url }}/issues?q=milestone%3A4.0.0) will be an [internal refactor]({{ site.repository-url }}/issues/140) which should enhance Jool's config versatility.
-3. [Milestone 4.1.0]({{ site.repository-url }}/issues?q=milestone%3A4.1.0) will add several more features.
+Our latest stable release is version [3.5.7]({{ site.repository-url }}/milestone/42).
 
-New bug reports might interpolate other milestones in-between. Feedback from users can persuade us to change priorities. See [Contact](contact.html) for options on this.
+-------------------
 
-Our latest release is version [3.5.7]({{ site.repository-url }}/milestone/42).
+## Survey
+
+To any existing users: Please answer this survey. It will be open until December 20. **There is only one question!**
+
+<script>(function(t,e,s,n){var o,a,c;t.SMCX=t.SMCX||[],e.getElementById(n)||(o=e.getElementsByTagName(s),a=o[o.length-1],c=e.createElement(s),c.type="text/javascript",c.async=!0,c.id=n,c.src=["https:"===location.protocol?"https://":"http://","widget.surveymonkey.com/collect/website/js/tRaiETqnLgj758hTBazgd_2BOEiGV9wW24VFowpPIOgdSC6HB6TcY1CYlF3G2tBL_2FS.js"].join(""),a.parentNode.insertBefore(c,a))})(window,document,"script","smcx-sdk");</script><a style="font: 12px Helvetica, sans-serif; color: #999; text-decoration: none;" href="https://www.surveymonkey.com"> Create your own user feedback survey </a>
 
 -------------------
 
 ## News
 
-## 2018-05-04
+### 2018-11-24
+
+The first release candidate for version 3.6.0 is now available!
+
+> ![Warning!](../images/warning.svg) 3.6 is our first significantly backward-**incompatible** upgrade. Please ensure that you have the time to review your installation and configuration scripts before updating.
+
+Here's a (possibly incomplete still) list of the changes you want to be aware of if you're upgrading:
+
+1. Installation is [somewhat different](install.html#compilation-and-installation) and the userspace tools have [new dependency](install.html#installing-dependencies) `libxtables`.
+2. You can no longer create a default instance while modprobing. (Sorry. It was very misleading as to what a `modprobe` is supposed to represent.) Please issue `modprobe`s and `instance add`s separately.
+3. [Jool instances now have names](usr-flags-instance.html). Instances that share stateness and namespace must have unique names.
+4. Many [userspace application arguments](usr-clients.html) have lost their `--` prefix, and some degree of order is now enforced.
+5. `pool6` is now a [global configuration field](usr-flags-global.html#pool6), not a database. It can now be defined during `instance add`s. NAT64 Jool no longer allows you to change it afterwards. [See here](pool6.html) for more details.
+6. `pool6791` also became a [global configuration field](usr-flags-global.html#rfc6791v4-prefix), to mirror its [IPv6 counterpart](usr-flags-global.html#rfc6791v6-prefix).
+7. `--count` is gone. (See [`stats`](usr-flags-stats.html).)
+8. Minor `global` variable specific quirks:
+	- [`source-icmpv6-errors-better`](usr-flags-global.html#source-icmpv6-errors-better) now defaults to `true`. YOLO
+	- [`eam-hairpin-mode`](usr-flags-global.html#eam-hairpin-mode) is a string now.
+	- The [`logging-bib`](usr-flags-global.html#logging-bib) and [`logging-session`](usr-flags-global.html#logging-session) formats now have the instance name attached to them.
+	- [The timeouts](usr-flags-global.html#udp-timeout) now follow the `HH:MM:SS:mmm` format.
+	- `--fragment-arrival-timeout` is gone. (Because the fragment database is gone.)
+9. The manpages are horribly outdated. (I will rewrite them over the course of the week; use this site's documentation instead.)
+
+These are the new features:
+
+1. [`iptables` mode](intro-jool.html#design)
+2. [Instance naming](usr-flags-instance.html)
+3. [`stats`](usr-flags-stats.html)
+4. Support for kernels [4.17](https://github.com/NICMx/Jool/issues/266) and [4.18](https://github.com/NICMx/Jool/issues/269). ([4.19](https://github.com/NICMx/Jool/pull/270) compiles too, but I haven't fully tested it.)
+
+And these are the bugfixes:
+
+1. Fix [low performance on virtual interfaces](https://github.com/NICMx/Jool/issues/267). (And perhaps other problems related to offloading.)  
+   Offload disabling might no longer be necessary. (Hoping for some feedback on this.)
+2. Patch [incorrect fragment handling on newer kernels](https://github.com/NICMx/Jool/issues/231).
+
+### 2018-05-04
 
 Version 3.5.7 has been released!
 
@@ -42,7 +81,7 @@ The updates are
 - [#247](https://github.com/NICMx/Jool/issues/247): Fix unlikely kernel panic.
 - [#260](https://github.com/NICMx/Jool/issues/260) and [#263](https://github.com/NICMx/Jool/issues/263): Add support for kernels 4.15 and 4.16.
 
-## 2018-01-16
+### 2018-01-16
 
 Version 3.5.6 has been released!
 
@@ -56,7 +95,7 @@ Other changes include:
 - [#256](https://github.com/NICMx/Jool/issues/256): Added support for kernels 4.13 and 4.14.
 - Fit the `--pool4 --display` table in 80-column terminals for ease of view.
 
-## 2017-11-23
+### 2017-11-23
 
 Version 3.5.5 has been released.
 

@@ -121,16 +121,14 @@ ip addr add 2001:db8:ff08::4/96 dev eth2
 ip addr add 2001:db8::1/96 dev eth0
 ip addr add 192.0.2.1/24 dev eth1
 
-ethtool --offload eth0 gro off
-ethtool --offload eth0 lro off
-ethtool --offload eth1 gro off
-ethtool --offload eth1 lro off
 sysctl -w net.ipv4.conf.all.forwarding=1
 sysctl -w net.ipv6.conf.all.forwarding=1
 
-modprobe jool pool6=64:ff9b::/96
-jool --pool4 --add --tcp --udp 192.0.2.1 61001-65535
-jool --pool4 --add --icmp 192.0.2.1 0-65535
+modprobe jool
+jool instance add --netfilter --pool6 64:ff9b::/96
+jool pool4 add --tcp 192.0.2.1 61001-65535
+jool pool4 add --udp 192.0.2.1 61001-65535
+jool pool4 add --icmp 192.0.2.1 0-65535
 {% endhighlight %}
 
 <!-- K -->
@@ -142,16 +140,14 @@ ip addr add 2001:db8:ff08::5/96 dev eth2
 
 
 
-ethtool --offload eth0 gro off
-ethtool --offload eth0 lro off
-ethtool --offload eth1 gro off
-ethtool --offload eth1 lro off
 sysctl -w net.ipv4.conf.all.forwarding=1
 sysctl -w net.ipv6.conf.all.forwarding=1
 
-modprobe jool pool6=64:ff9b::/96
-jool --pool4 --add --tcp --udp 192.0.2.1 61001-65535
-jool --pool4 --add --icmp 192.0.2.1 0-65535
+modprobe jool
+jool instance add --netfilter --pool6 64:ff9b::/96
+jool pool4 add --tcp 192.0.2.1 61001-65535
+jool pool4 add --udp 192.0.2.1 61001-65535
+jool pool4 add --icmp 192.0.2.1 0-65535
 {% endhighlight %}
 
 <!-- n6 -->
@@ -173,7 +169,7 @@ It is important to note that every translator instance must have the same config
 
 Because forking SS sessions on every translated packet is not free (performance-wise), the kernel module is not SS-enabled by default. The fact that the module and the daemon are separate binaries enhances the importance of this fact; starting the daemon is not, by itself, enough to get sessions synchronized.
 
-	# jool --ss-enabled true
+	# jool global update ss-enabled true
 
 This asks the module to open a channel to userspace and start trading SS sessions.
 
@@ -203,7 +199,7 @@ Find any errors by querying syslog; you can probably do this by `tail`ing `/var/
 
 As far as Jool is concerned, that would be all. If `J` is translating traffic, you should see its sessions being mirrored in `K`:
 
-	user@K:~/# jool --session --numeric
+	user@K:~/# jool session display --numeric
 	TCP:
 	---------------------------------
 	  (empty)
@@ -379,9 +375,9 @@ vrrp_instance VI_2 {
 
 This is `/etc/keepalived/backup.sh`:
 
-	jool --joold --advertise
+	jool joold advertise
 
-See [`--joold`](usr-flags-joold.html).
+See [`joold`](usr-flags-joold.html).
 
 Start keepalived in both `J` and `K`:
 
@@ -409,7 +405,7 @@ Watch the session being cascaded into `K`:
 
 <!-- J -->
 {% highlight bash %}
-# jool -sin
+# jool session display --icmp --numeric
 ICMP:
 ---------------------------------
 Expires in 59 seconds
@@ -421,7 +417,7 @@ Local: 192.0.2.1#2168	64:ff9b::c000:208#10713
 
 <!-- K -->
 {% highlight bash %}
-# jool -sin
+# jool session display --icmp --numeric
 ICMP:
 ---------------------------------
 Expires in 59 seconds
@@ -437,7 +433,7 @@ Then disable `J` somehow.
 
 The ping should stop and resume after a small while. This while is mostly just n4 realizing that `192.0.2.1` changed owner. Once that's done, you should notice that `K` is impersonating `J`, using the same old session that `J` left hanging:
 
-	user@K:~/# jool -sin
+	user@K:~/# jool session display --icmp --numeric
 	ICMP:
 	---------------------------------
 	Expires in 59 seconds
@@ -450,17 +446,19 @@ The ping should stop and resume after a small while. This while is mostly just n
 
 Restart `J`. The ping should pause again and, after a while, `J` should claim control again (since it has more priority than `K`):
 
-	user@J:~/# modprobe jool pool6=64:ff9b::/96 \
-			&& jool --pool4 --add --tcp --udp 192.0.2.1 61001-65535 \
-			&& jool --pool4 --add --icmp 192.0.2.1 0-65535 \
-			&& jool --ss-enabled true \
+	user@J:~/# modprobe jool \
+			&& jool instance add --netfilter --pool6 64:ff9b::/96 \
+			&& jool pool4 add tcp 192.0.2.1 61001-65535 \
+			&& jool pool4 add udp 192.0.2.1 61001-65535 \
+			&& jool pool4 add icmp 192.0.2.1 0-65535 \
+			&& jool global update ss-enabled true \
 			&& joold /path/to/netsocket.json &
 
 Notice that you need to initialize `J`'s NAT64 in one go; otherwise the new instance will miss `K`'s advertise.
 
 If you forget that for some reason, you can ask `K` to advertise its sessions again manually:
 
-	user@K:~/# jool --joold --advertise
+	user@K:~/# jool joold advertise
 
 That's all.
 

@@ -11,33 +11,38 @@ title: FAQ
 
 This sums up problems we've seen users run into.
 
-## I modprobed Jool but it doesn't seem to be doing anything.
+## Why is Jool not doing anything?
 
-Modprobing Jool without enough arguments is legal. It will assume you intend to finish configuring using the userspace app, and sit idle until you've done so.
+First off: Did you [create an instance](usr-flags-instance.html)?
 
-Use the userspace app's [`--global`](usr-flags-global.html#description) flag to figure out Jool's status:
-
-{% highlight bash %}
-$ jool_siit --global
-  Status: Disabled
-{% endhighlight %}
+If so, then try printing your instance's active [statistics](usr-flags-stats.html):
 
 {% highlight bash %}
-$ jool --global
-  Status: Disabled
+user@T:~# jool -i "<Your instance's name>" stats display --explain
+JSTAT_SUCCESS: 35
+Successful translations. (Note: 'Successful translation' does not imply
+that the packet was actually delivered.)
+
+JSTAT_BIB_ENTRIES: 5
+Number of BIB entries currently held in the BIB.
+
+JSTAT_SESSIONS: 8
+Number of session entries currently held in the BIB.
+
+JSTAT_BIB4_NOT_FOUND: 1
+Translations cancelled: IPv4 packet did not match a BIB entry from the
+database.
+
+JSTAT_FAILED_ROUTES: 1045
+The translated packet could not be routed; the kernel's routing function
+errored. Cause is unknown. (It usually happens because the packet's
+destination address could not be found in the routing table.)
+
 {% endhighlight %}
 
-SIIT Jool's minimum configuration requirements are
+Given the output above, for example, I'd try looking into the routing table.
 
-- A prefix in the [IPv6 pool](usr-flags-pool6.html) **or** at least one entry in the [EAM table](usr-flags-eamt.html).
-- You must have not [manually disabled](usr-flags-global.html#--enable---disable) it.
-
-NAT64 Jool's minimum configuration requirements are
-
-- At least one prefix in the [IPv6 pool](usr-flags-pool6.html).
-- You must have not [manually disabled](usr-flags-global.html#--enable---disable) it.
-
-If that doesn't seem to be the problem, try the [logs](logging.html).
+If `stats` proves insufficient, you can [enable debug logging](logging.html).
 
 ## Jool is intermitently unable to translate traffic.
 

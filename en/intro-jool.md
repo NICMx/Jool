@@ -22,7 +22,7 @@ Jool is an Open Source implementation of [IPv4/IPv6 Translation](intro-xlat.html
 
 ## Compliance
 
-As far as we know, this is the compliance status of Jool 3.5:
+As far as we know, this is the compliance status of Jool 3.6:
 
 | RFC/draft | Reminder name | Status |
 |-----------|---------|--------|
@@ -45,13 +45,13 @@ Please [let us know]({{ site.repository-url }}/issues) if you find additional co
 
 | Jool version                        | Supported Linux kernels (mainline) | Supported Linux kernels (RHEL) |
 |-------------------------------------|------------------------------------|--------------------------------|
-| [master]({{ site.repository-url }}) | 3.13 - 3.19, 4.0 - 4.18            | RHEL 7.0 - RHEL 7.5            |
-| [3.6.0](download.html#36x)          | 3.13 - 3.19, 4.0 - 4.18            | RHEL 7.0 - RHEL 7.5            |
-| [3.5.7](download.html#35x)          | 3.2 - 3.19, 4.0 - 4.16             | TODO                           |
+| [master]({{ site.repository-url }}) | 3.2 - 3.19, 4.0 - 4.16             | RHEL 7.0 - RHEL 7.4            |
+| [3.6.0](download.html#36x)          | 3.13 - 3.19, 4.0 - 4.19            | RHEL 7.0 - RHEL 7.5            |
+| [3.5.7](download.html#35x)          | 3.2 - 3.19, 4.0 - 4.16             | RHEL 7.0 - RHEL 7.4            |
 
 If you're using a non-RHEL distribution (eg. Debian derivatives), execute `uname -r` to print the kernel version you're running. Suffixes rarely matter. Here's an example from my running machine, which states that my running kernel is 4.15:
 
-	ydahhrk@Zero:~$ /bin/uname -r
+	user@T:~$ /bin/uname -r
 	4.15.0-36-generic
 
 RHEL-based distributions (such as Red Hat and CentOS) do not follow the normal kernel versioning conventions; use the third column instead.

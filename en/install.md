@@ -163,7 +163,7 @@ You have two options:
 <!-- tarballs -->
 {% highlight bash %}
 $ wget https://github.com/NICMx/releases/raw/master/Jool/jool_{{ site.latest-version }}.tar.gz
-$ tar -xzf jool_{{ site.latest-version }}.orig.tar.gz
+$ tar -xzf jool_{{ site.latest-version }}.tar.gz
 {% endhighlight %}
 
 <!-- git clone -->
@@ -177,6 +177,8 @@ The repository version sometimes includes slight bugfixes not present in the lat
 ## Compilation and Installation
 
 Choose either Kbuild or DKMS; you don't need both.
+
+> ![!](../images/bulb.svg) By the way: We're aiming for completely immaculate code. If you get compilation warnings in your platform when you issue `make`, please [report them](https://github.com/NICMx/Jool/issues).
 
 ### Installation via Kbuild
 

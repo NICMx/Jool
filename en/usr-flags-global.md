@@ -17,7 +17,7 @@ title: global Mode
 4. [Keys](#keys)
 	1. [`manually-enabled`](#manually-enabled)
 	1. [`pool6`](#pool6)
-	1. [`--address-dependent-filtering`](#--address-dependent-filtering)
+	1. [`address-dependent-filtering`](#address-dependent-filtering)
 	2. [`drop-icmpv6-info`](#drop-icmpv6-info)
 	3. [`drop-externally-initiated-tcp`](#drop-externally-initiated-tcp)
 	4. [`udp-timeout`](#udp-timeout)
@@ -35,6 +35,7 @@ title: global Mode
 	14. [`randomize-rfc6791-addresses`](#randomize-rfc6791-addresses)
 	13. [`mtu-plateaus`](#mtu-plateaus)
 	15. [`eam-hairpin-mode`](#eam-hairpin-mode)
+	16. [`rfc6791v4-prefix`](#rfc6791v4-prefix)
 	16. [`rfc6791v6-prefix`](#rfc6791v6-prefix)
 	21. [`f-args`](#f-args)
 	22. [`handle-rst-during-fin-rcv`](#handle-rst-during-fin-rcv)
@@ -175,8 +176,8 @@ The filtering will be completely silent; no ICMP error ("Communication Administr
 
 ### `udp-timeout`
 
-- Type: Integer (seconds)
-- Default: 5 minutes
+- Type: String ("`[[HH:]MM:]SS[.mmm]`" format)
+- Default: 5:00
 - Modes: Stateful NAT64 only
 - Source: [RFC 6146, section 3.5.1](http://tools.ietf.org/html/rfc6146#section-3.5.1)
 
@@ -186,8 +187,8 @@ When you change this value, the lifetimes of all already existing UDP sessions a
 
 ### `tcp-est-timeout`
 
-- Type: Integer (seconds)
-- Default: 2 hours
+- Type: Integer ("`[[HH:]MM:]SS[.mmm]`" format)
+- Default: 2:00:00
 - Modes: Stateful NAT64 only
 - Source: [RFC 6146, section 3.5.2.2](http://tools.ietf.org/html/rfc6146#section-3.5.2.2)
 
@@ -197,8 +198,8 @@ When you change this value, the lifetimes of all already existing established TC
 
 ### `tcp-trans-timeout`
 
-- Type: Integer (seconds)
-- Default: 4 minutes
+- Type: Integer ("`[[HH:]MM:]SS[.mmm]`" format)
+- Default: 4:00
 - Modes: Stateful NAT64 only
 - Source: [RFC 6146, derivatives of section 3.5.2](http://tools.ietf.org/html/rfc6146#section-3.5.2)
 
@@ -208,8 +209,8 @@ When you change this value, the lifetimes of all already existing transitory TCP
 
 ### `icmp-timeout`
 
-- Type: Integer (seconds)
-- Default: 1 minute
+- Type: Integer ("`[[HH:]MM:]SS[.mmm]`" format)
+- Default: 1:00
 - Modes: Stateful NAT64 only
 - Source: [RFC 6146, section 3.5.3](http://tools.ietf.org/html/rfc6146#section-3.5.3)
 
@@ -410,7 +411,7 @@ You don't really need to sort the values as you input them.
 
 ### `eam-hairpin-mode`
 
-- Type: Integer
+- Type: enum
 - Default: intrinsic
 - Modes: SIIT only
 - Translation direction: Both (mainly v6 to v4)

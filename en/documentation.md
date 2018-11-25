@@ -47,6 +47,7 @@ See [RFC 6586](https://tools.ietf.org/html/rfc6586) for deployment experiences u
 1. [General usage](usr-clients.html)
 1. Common modes
 	4. [`instance`](usr-flags-instance.html)
+	2. [`stats`](usr-flags-stats.html)
 	2. [`global`](usr-flags-global.html)
 		1. [`mtu-plateaus`](usr-flags-plateaus.html)
 2. `jool_siit`-only modes

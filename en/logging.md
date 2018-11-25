@@ -21,12 +21,12 @@ Jool uses four levels in the severity spectrum (see `dmesg --help`):
 
 1. err: "Your configuration cannot be applied, user". This only happens during module insertion/removal and as a response of userspace application requests. These messages are also sent over to the userspace application so it can print them in stderr.
 2. warn: "Are you sure this configuration is sane? I'm going to keep doing this, but it doesn't look like it's going places". Only happens during packet translations.
-3. info: "The kernel module was inserted", "the kernel module was removed". Also [`--logging-bib`](usr-flags-global.html#--logging-bib) and [`--logging-session`](usr-flags-global.html#--logging-session)'s exploits.
+3. info: "The kernel module was inserted", "the kernel module was removed". Also [`logging-bib`](usr-flags-global.html#logging-bib) and [`logging-session`](usr-flags-global.html#logging-session)'s exploits.
 4. debug: "And now I'm doing this". "I couldn't translate this packet because X, and I think it's normal".
 
 Debug messages are normally compiled out of Jool's binaries because they are lots and can slow things down. If you are testing or troubleshooting however, they can be of help.
 
-If you want Jool to print debug messages, go back to the kernel module's compilation step and include the `-DDEBUG` flag. After reinstalling and remodprobing normally, you should see a lot of mumbling as a result of network traffic translation, which should give you ideas as to what might be wrong:
+If you want Jool to print debug messages, go back to the kernel module's compilation step and include the `-DDEBUG` flag. After reinstalling, remodprobing and reconfiguring, you should see a lot of mumbling as a result of network traffic translation, which should give you ideas as to what might be wrong:
 
 	$ # Recompile and reinstall Jool with the flag enabled.
 	$ cd Jool/src/mod
@@ -38,7 +38,7 @@ If you want Jool to print debug messages, go back to the kernel module's compila
 	$ # depending on your original configuration.
 	$ sudo modprobe -r jool_siit
 	$ sudo modprobe jool_siit
-	$ sudo jool_siit --instance --add ...
+	$ sudo jool_siit instance add ...
 	$
 	$ # Read the logs.
 	$ dmesg | tail -5
