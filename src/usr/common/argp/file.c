@@ -51,7 +51,7 @@ int handle_file_update(char *iname, int argc, char **argv, void *arg)
 	return error;
 }
 
-void print_file_update_opts(char *prefix)
+void autocomplete_file_update(void *args)
 {
-	print_wargp_opts(update_opts, prefix);
+	/* Do nothing; default to autocomplete directory path */
 }

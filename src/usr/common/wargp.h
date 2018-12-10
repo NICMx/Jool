@@ -27,6 +27,11 @@ struct wargp_type {
 	 */
 	char *argument;
 	wargp_parse_type parse;
+	/*
+	 * A (single) string listing the autocompletion candidates for the
+	 * values of this option, separated by spaces.
+	 */
+	char *candidates;
 };
 
 extern struct wargp_type wt_bool;
@@ -130,6 +135,6 @@ struct wargp_prefix4 {
 	}
 
 int wargp_parse(struct wargp_option *wopts, int argc, char **argv, void *input);
-void print_wargp_opts(struct wargp_option *opts, char *prefix);
+void print_wargp_opts(struct wargp_option *opts);
 
 #endif /* SRC_USERSPACE_CLIENT_WARGP_H_ */

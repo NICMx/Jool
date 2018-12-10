@@ -71,9 +71,9 @@ int handle_global_display(char *iname, int argc, char **argv, void *arg)
 	return error ? : handle_display_response(&dargs, &config);
 }
 
-void print_global_display_opts(char *prefix)
+void autocomplete_global_display(void *args)
 {
-	print_wargp_opts(display_opts, prefix);
+	print_wargp_opts(display_opts);
 }
 
 struct update_args {
@@ -129,9 +129,16 @@ end:
 	return error;
 }
 
-void print_global_update_opts(char *prefix)
+void autocomplete_global_update(void *arg)
 {
-	print_wargp_opts(update_opts, prefix);
+	struct global_field *field = arg;
+
+	if (field->candidates)
+		printf("%s ", field->candidates);
+	else if (field->type->candidates)
+		printf("%s ", field->type->candidates);
+
+	print_wargp_opts(update_opts);
 }
 
 struct cmd_option *build_global_update_children(void)
@@ -151,8 +158,8 @@ struct cmd_option *build_global_update_children(void)
 		opts[i].label = global_fields[i].name;
 		opts[i].xt = global_fields[i].xt;
 		opts[i].handler = handle_global_update;
+		opts[i].handle_autocomplete = autocomplete_global_update;
 		opts[i].args = &global_fields[i];
-		opts[i].print_opts = print_global_update_opts;
 	}
 
 	return opts;

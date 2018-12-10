@@ -78,7 +78,7 @@ int handle_stats_display(char *iname, int argc, char **argv, void *arg)
 	return error;
 }
 
-void print_stats_display_opts(char *prefix)
+void autocomplete_stats_display(void *args)
 {
-	print_wargp_opts(display_opts, prefix);
+	print_wargp_opts(display_opts);
 }

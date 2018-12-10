@@ -127,7 +127,7 @@ int handle_session_display(char *iname, int argc, char **argv, void *arg)
 	return error;
 }
 
-void print_session_display_opts(char *prefix)
+void autocomplete_session_display(void *args)
 {
-	print_wargp_opts(display_opts, prefix);
+	print_wargp_opts(display_opts);
 }

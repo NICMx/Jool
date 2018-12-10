@@ -35,12 +35,22 @@ struct cmd_option {
 	 * If this exists, then @children and @child_builder must be NULL.
 	 */
 	int (*handler)(char *iname, int argc, char **argv, void *args);
-	void *args;
 	/*
-	 * Intended to print flags ("--foo"), not options.
-	 * Used on autocomplete only.
+	 * Prints the autocompletion candidates for the last element in @argv.
+	 * Used by bash autocomplete.
+	 * For example, if the user issued `jool bib display --t<tab>`,
+	 * then this function will receive `display --t`, and is expected to
+	 * print "--tcp" in standard output.
+	 *
+	 * Actually, current implementations will always print all the known
+	 * candidates given this cmd_option's context. This works well enough.
 	 */
-	void (*print_opts)(char *prefix);
+	void (*handle_autocomplete)(void *args);
+	/*
+	 * Will be passed as the last argument to @handler and
+	 * @handle_autocomplete.
+	 */
+	void *args;
 
 	/** Used by the code to chain temporarily correlated nodes at times. */
 	struct cmd_option *next;

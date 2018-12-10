@@ -6,9 +6,9 @@ int handle_instance_add(char *iname, int argc, char **argv, void *arg);
 int handle_instance_remove(char *iname, int argc, char **argv, void *arg);
 int handle_instance_flush(char *iname, int argc, char **argv, void *arg);
 
-void print_instance_display_opts(char *prefix);
-void print_instance_add_opts(char *prefix);
-void print_instance_remove_opts(char *prefix);
-void print_instance_flush_opts(char *prefix);
+void autocomplete_instance_display(void *args);
+void autocomplete_instance_add(void *args);
+void autocomplete_instance_remove(void *args);
+void autocomplete_instance_flush(void *args);
 
 #endif /* SRC_USERSPACE_CLIENT_ARGP_INSTANCE_H_ */

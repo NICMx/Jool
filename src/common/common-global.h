@@ -35,6 +35,7 @@ struct global_type {
 	print_function print;
 	parse_function parse;
 	validate_function validate;
+	char *candidates; /* Same as in struct wargp_type. */
 };
 
 struct global_field {
@@ -47,6 +48,7 @@ struct global_field {
 	__u64 max;
 	print_function print; /* Overrides type->print. */
 	validate_function validate; /* Overrides type->validate. */
+	char *candidates; /* Overrides type->candidates. */
 };
 
 void get_global_fields(struct global_field **fields, unsigned int *len);

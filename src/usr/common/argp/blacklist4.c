@@ -72,9 +72,9 @@ int handle_blacklist4_display(char *iname, int argc, char **argv, void *arg)
 	return 0;
 }
 
-void print_blacklist4_display_opts(char *prefix)
+void autocomplete_blacklist4_display(void *args)
 {
-	print_wargp_opts(display_opts, prefix);
+	print_wargp_opts(display_opts);
 }
 
 struct add_args {
@@ -121,9 +121,9 @@ int handle_blacklist4_add(char *iname, int argc, char **argv, void *arg)
 	return error;
 }
 
-void print_blacklist4_add_opts(char *prefix)
+void autocomplete_blacklist4_add(void *args)
 {
-	print_wargp_opts(add_opts, prefix);
+	print_wargp_opts(add_opts);
 }
 
 struct rm_args {
@@ -168,9 +168,9 @@ int handle_blacklist4_remove(char *iname, int argc, char **argv, void *arg)
 	return error;
 }
 
-void print_blacklist4_remove_opts(char *prefix)
+void autocomplete_blacklist4_remove(void *args)
 {
-	print_wargp_opts(remove_opts, prefix);
+	print_wargp_opts(remove_opts);
 }
 
 int handle_blacklist4_flush(char *iname, int argc, char **argv, void *arg)
@@ -191,7 +191,7 @@ int handle_blacklist4_flush(char *iname, int argc, char **argv, void *arg)
 	return error;
 }
 
-void print_blacklist4_flush_opts(char *prefix)
+void autocomplete_blacklist4_flush(void *args)
 {
 	/* Nothing needed here. */
 }

@@ -13,6 +13,7 @@ static struct global_type gt_bool = {
 	.size = sizeof(config_bool),
 	.print = print_bool,
 	.parse = parse_bool,
+	.candidates = "true false",
 };
 
 static struct global_type gt_uint8 = {
@@ -76,6 +77,7 @@ static struct global_type gt_hairpin_mode = {
 	.print = print_hairpin_mode,
 	.parse = parse_hairpin_mode,
 	.validate = validate_hairpin_mode,
+	.candidates = "off simple intrinsic",
 };
 
 /* TODO (fine) turn this into a constant. */
@@ -93,6 +95,7 @@ static struct global_field global_fields[] = {
 		.offset = offsetof(struct globals, pool6),
 		.xt = XT_BOTH,
 		.validate = validate_pool6,
+		.candidates = WELL_KNOWN_PREFIX,
 	}, {
 		.name = "zeroize-traffic-class",
 		.type = &gt_bool,

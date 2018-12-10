@@ -76,9 +76,9 @@ int handle_bib_display(char *iname, int argc, char **argv, void *arg)
 	return error;
 }
 
-void print_bib_display_opts(char *prefix)
+void autocomplete_bib_display(void *args)
 {
-	print_wargp_opts(display_opts, prefix);
+	print_wargp_opts(display_opts);
 }
 
 struct taddr_tuple {
@@ -157,9 +157,9 @@ int handle_bib_add(char *iname, int argc, char **argv, void *arg)
 	return error;
 }
 
-void print_bib_add_opts(char *prefix)
+void autocomplete_bib_add(void *args)
 {
-	print_wargp_opts(add_opts, prefix);
+	print_wargp_opts(add_opts);
 }
 
 struct rm_args {
@@ -212,7 +212,7 @@ int handle_bib_remove(char *iname, int argc, char **argv, void *arg)
 	return error;
 }
 
-void print_bib_remove_opts(char *prefix)
+void autocomplete_bib_remove(void *args)
 {
-	print_wargp_opts(remove_opts, prefix);
+	print_wargp_opts(remove_opts);
 }

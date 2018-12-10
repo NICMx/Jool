@@ -39,9 +39,14 @@ struct wargp_type wt_string = {
 	.parse = wargp_parse_string,
 };
 
+/*
+ * Because of the autocomplete candidates, this one is specifically meant to
+ * refec to the pool6 prefix.
+ */
 struct wargp_type wt_prefix6 = {
 	.argument = "<IPv6 Prefix>",
 	.parse = wargp_parse_prefix6,
+	.candidates = WELL_KNOWN_PREFIX,
 };
 
 struct wargp_type wt_prefix4 = {
@@ -203,12 +208,15 @@ int wargp_parse(struct wargp_option *wopts, int argc, char **argv, void *input)
 	return error;
 }
 
-void print_wargp_opts(struct wargp_option *opts, char *prefix)
+void print_wargp_opts(struct wargp_option *opts)
 {
 	struct wargp_option *opt;
 
-	for (opt = opts; opt->name; opt++)
+	for (opt = opts; opt->name; opt++) {
 		if (opt->key != ARGP_KEY_ARG)
-			if (strncmp(prefix, opt->name, strlen(prefix)) == 0)
-				printf("--%s\n", opt->name);
+			printf("--%s ", opt->name);
+		if (opt->type->candidates)
+			printf("%s ", opt->type->candidates);
+	}
+	printf("--help --usage --version");
 }

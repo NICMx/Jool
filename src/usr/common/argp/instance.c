@@ -3,6 +3,7 @@
 #include <string.h>
 #include <net/if.h>
 
+#include "common/constants.h"
 #include "common/config.h"
 #include "usr/common/netlink.h"
 #include "usr/common/requirements.h"
@@ -45,6 +46,7 @@ static int parse_iname(void *void_field, int key, char *str)
 struct wargp_type wt_iname = {
 	.argument = "<instance name>",
 	.parse = parse_iname,
+	.candidates = "default",
 };
 
 struct display_args {
@@ -144,9 +146,9 @@ int handle_instance_display(char *iname, int argc, char **argv, void *arg)
 	return 0;
 }
 
-void print_instance_display_opts(char *prefix)
+void autocomplete_instance_display(void *args)
 {
-	print_wargp_opts(display_opts, prefix);
+	print_wargp_opts(display_opts);
 }
 
 struct add_args {
@@ -220,9 +222,9 @@ int handle_instance_add(char *iname, int argc, char **argv, void *arg)
 	return error;
 }
 
-void print_instance_add_opts(char *prefix)
+void autocomplete_instance_add(void *args)
 {
-	print_wargp_opts(add_opts, prefix);
+	print_wargp_opts(add_opts);
 }
 
 struct rm_args {
@@ -260,9 +262,9 @@ int handle_instance_remove(char *iname, int argc, char **argv, void *arg)
 	return error;
 }
 
-void print_instance_remove_opts(char *prefix)
+void autocomplete_instance_remove(void *args)
 {
-	print_wargp_opts(remove_opts, prefix);
+	print_wargp_opts(remove_opts);
 }
 
 static struct wargp_option flush_opts[] = {
@@ -290,7 +292,7 @@ int handle_instance_flush(char *iname, int argc, char **argv, void *arg)
 	return error;
 }
 
-void print_instance_flush_opts(char *prefix)
+void autocomplete_instance_flush(void *args)
 {
-	print_wargp_opts(flush_opts, prefix);
+	print_wargp_opts(flush_opts);
 }

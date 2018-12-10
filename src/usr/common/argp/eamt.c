@@ -84,9 +84,9 @@ int handle_eamt_display(char *iname, int argc, char **argv, void *arg)
 	return 0;
 }
 
-void print_eamt_display_opts(char *prefix)
+void autocomplete_eamt_display(void *args)
 {
-	print_wargp_opts(display_opts, prefix);
+	print_wargp_opts(display_opts);
 }
 
 struct wargp_eamt_entry {
@@ -164,9 +164,9 @@ int handle_eamt_add(char *iname, int argc, char **argv, void *arg)
 	return error;
 }
 
-void print_eamt_add_opts(char *prefix)
+void autocomplete_eamt_add(void *args)
 {
-	print_wargp_opts(add_opts, prefix);
+	print_wargp_opts(add_opts);
 }
 
 struct rm_args {
@@ -213,9 +213,9 @@ int handle_eamt_remove(char *iname, int argc, char **argv, void *arg)
 	return error;
 }
 
-void print_eamt_remove_opts(char *prefix)
+void autocomplete_eamt_remove(void *args)
 {
-	print_wargp_opts(remove_opts, prefix);
+	print_wargp_opts(remove_opts);
 }
 
 int handle_eamt_flush(char *iname, int argc, char **argv, void *arg)
@@ -240,7 +240,7 @@ int handle_eamt_flush(char *iname, int argc, char **argv, void *arg)
 	return error;
 }
 
-void print_eamt_flush_opts(char *prefix)
+void autocomplete_eamt_flush(void *args)
 {
 	/* Nothing needed here. */
 }

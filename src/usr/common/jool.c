@@ -37,22 +37,22 @@ static struct cmd_option instance_ops[] = {
 			.label = DISPLAY,
 			.xt = XT_BOTH,
 			.handler = handle_instance_display,
-			.print_opts = print_instance_display_opts,
+			.handle_autocomplete = autocomplete_instance_display,
 		}, {
 			.label = ADD,
 			.xt = XT_BOTH,
 			.handler = handle_instance_add,
-			.print_opts = print_instance_add_opts,
+			.handle_autocomplete = autocomplete_instance_add,
 		}, {
 			.label = REMOVE,
 			.xt = XT_BOTH,
 			.handler = handle_instance_remove,
-			.print_opts = print_instance_remove_opts,
+			.handle_autocomplete = autocomplete_instance_remove,
 		}, {
 			.label = FLUSH,
 			.xt = XT_BOTH,
 			.handler = handle_instance_flush,
-			.print_opts = print_instance_flush_opts,
+			.handle_autocomplete = autocomplete_instance_flush,
 		},
 		{ 0 },
 };
@@ -62,7 +62,7 @@ static struct cmd_option stats_ops[] = {
 			.label = DISPLAY,
 			.xt = XT_BOTH,
 			.handler = handle_stats_display,
-			.print_opts = print_stats_display_opts,
+			.handle_autocomplete = autocomplete_stats_display,
 		},
 		{ 0 },
 };
@@ -72,7 +72,7 @@ static struct cmd_option global_ops[] = {
 			.label = DISPLAY,
 			.xt = XT_BOTH,
 			.handler = handle_global_display,
-			.print_opts = print_global_display_opts,
+			.handle_autocomplete = autocomplete_global_display,
 		}, {
 			.label = UPDATE,
 			.xt = XT_BOTH,
@@ -86,22 +86,22 @@ static struct cmd_option eamt_ops[] = {
 			.label = DISPLAY,
 			.xt = XT_SIIT,
 			.handler = handle_eamt_display,
-			.print_opts = print_eamt_display_opts,
+			.handle_autocomplete = autocomplete_eamt_display,
 		}, {
 			.label = ADD,
 			.xt = XT_SIIT,
 			.handler = handle_eamt_add,
-			.print_opts = print_eamt_add_opts,
+			.handle_autocomplete = autocomplete_eamt_add,
 		}, {
 			.label = REMOVE,
 			.xt = XT_SIIT,
 			.handler = handle_eamt_remove,
-			.print_opts = print_eamt_remove_opts,
+			.handle_autocomplete = autocomplete_eamt_remove,
 		}, {
 			.label = FLUSH,
 			.xt = XT_SIIT,
 			.handler = handle_eamt_flush,
-			.print_opts = print_eamt_flush_opts,
+			.handle_autocomplete = autocomplete_eamt_flush,
 		},
 		{ 0 },
 };
@@ -111,22 +111,22 @@ static struct cmd_option blacklist4_ops[] = {
 			.label = DISPLAY,
 			.xt = XT_SIIT,
 			.handler = handle_blacklist4_display,
-			.print_opts = print_blacklist4_display_opts,
+			.handle_autocomplete = autocomplete_blacklist4_display,
 		}, {
 			.label = ADD,
 			.xt = XT_SIIT,
 			.handler = handle_blacklist4_add,
-			.print_opts = print_blacklist4_add_opts,
+			.handle_autocomplete = autocomplete_blacklist4_add,
 		}, {
 			.label = REMOVE,
 			.xt = XT_SIIT,
 			.handler = handle_blacklist4_remove,
-			.print_opts = print_blacklist4_remove_opts,
+			.handle_autocomplete = autocomplete_blacklist4_remove,
 		}, {
 			.label = FLUSH,
 			.xt = XT_SIIT,
 			.handler = handle_blacklist4_flush,
-			.print_opts = print_blacklist4_flush_opts,
+			.handle_autocomplete = autocomplete_blacklist4_flush,
 		},
 		{ 0 },
 };
@@ -136,22 +136,22 @@ struct cmd_option pool4_ops[] = {
 			.label = DISPLAY,
 			.xt = XT_NAT64,
 			.handler = handle_pool4_display,
-			.print_opts = print_pool4_display_opts,
+			.handle_autocomplete = autocomplete_pool4_display,
 		}, {
 			.label = ADD,
 			.xt = XT_NAT64,
 			.handler = handle_pool4_add,
-			.print_opts = print_pool4_add_opts,
+			.handle_autocomplete = autocomplete_pool4_add,
 		}, {
 			.label = REMOVE,
 			.xt = XT_NAT64,
 			.handler = handle_pool4_remove,
-			.print_opts = print_pool4_remove_opts,
+			.handle_autocomplete = autocomplete_pool4_remove,
 		}, {
 			.label = FLUSH,
 			.xt = XT_NAT64,
 			.handler = handle_pool4_flush,
-			.print_opts = print_pool4_flush_opts,
+			.handle_autocomplete = autocomplete_pool4_flush,
 		},
 		{ 0 },
 };
@@ -161,17 +161,17 @@ static struct cmd_option bib_ops[] = {
 			.label = DISPLAY,
 			.xt = XT_NAT64,
 			.handler = handle_bib_display,
-			.print_opts = print_bib_display_opts,
+			.handle_autocomplete = autocomplete_bib_display,
 		}, {
 			.label = ADD,
 			.xt = XT_NAT64,
 			.handler = handle_bib_add,
-			.print_opts = print_bib_add_opts,
+			.handle_autocomplete = autocomplete_bib_add,
 		}, {
 			.label = REMOVE,
 			.xt = XT_NAT64,
 			.handler = handle_bib_remove,
-			.print_opts = print_bib_remove_opts,
+			.handle_autocomplete = autocomplete_bib_remove,
 		},
 		{ 0 },
 };
@@ -181,7 +181,7 @@ static struct cmd_option session_ops[] = {
 			.label = DISPLAY,
 			.xt = XT_NAT64,
 			.handler = handle_session_display,
-			.print_opts = print_session_display_opts,
+			.handle_autocomplete = autocomplete_session_display,
 		},
 		{ 0 },
 };
@@ -191,7 +191,7 @@ static struct cmd_option file_ops[] = {
 			.label = UPDATE,
 			.xt = XT_BOTH,
 			.handler = handle_file_update,
-			.print_opts = print_file_update_opts,
+			.handle_autocomplete = autocomplete_file_update,
 		},
 		{ 0 },
 };
@@ -234,6 +234,7 @@ struct cmd_option tree[] = {
 			.xt = XT_BOTH,
 			.children = file_ops,
 		}, {
+			/* See files jool.bash and jool_siit.bash. */
 			.label = "autocomplete",
 			.xt = XT_BOTH,
 			.hidden = true,
@@ -404,54 +405,78 @@ static int handle(char *iname, int argc, char **argv)
 	return error;
 }
 
-static int print_opts(struct cmd_option *node, char *token)
-{
-	/* All flags are candidates for "-". */
-	if (strcmp("-", token) == 0) {
-		node->print_opts("");
-		return 0;
-	}
-
-	/* Does the token start with "--"? */
-	if (strncmp("--", token, strlen("--")) == 0) {
-		node->print_opts(token + 2);
-		return 0;
-	}
-
-	/* Token is not a flag so there are no candidates. */
-	return 0;
-}
-
 /**
  * Never fails because there's no point yet.
  */
 static int handle_autocomplete(char *junk, int argc, char **argv, void *arg)
 {
 	struct cmd_option *node = &tree[0];
-	char *current_token = "";
+	long int depth;
 	int i;
 
-	argc -= 1;
-	argv += 1;
+	/*
+	 * Case 1: Suppose the user typed `jool global update m<tab>`:
+	 * Bash will query `jool autocomplete 3 global update m`. (`3` being the
+	 * index of the incomplete token in the original command.)
+	 * At this point, argc = 5, argv = { "autocomplete", "3", "global",
+	 * "update", "m" }.
+	 *
+	 * Case 2: Suppose the command is `jool global update <tab>`:
+	 * Bash will query `jool autocomplete 3 global update`.
+	 * argc = 4, argv = { "autocomplete", "3", "global", "update" }.
+	 *
+	 * Case 3: Suppose the command is `jool <tab>`:
+	 * Bash will query `jool autocomplete 1`.
+	 * argc = 2, argv = { "autocomplete", "1" }.
+	 */
 
-	if (argc != 0) {
-		for (i = 0; i < argc - 1; i++) {
-			node = find_matches(node, argv[i]);
-			if (!node)
-				return 0; /* Prefix does not exist. */
-			if (node->next)
-				return 0; /* Ambiguous prefix. */
+	if (argc < 2)
+		return 0;
 
-			if (!node->children)
-				return print_opts(node, argv[argc - 1]);
+	errno = 0;
+	depth = strtol(argv[1], NULL, 10) - 1;
+	if (errno)
+		return 0;
+	argc -= 2;
+	argv += 2;
+	/*
+	 * depth can be argc when the user is tabbing the next token,
+	 * without having actually typed any characters.
+	 * (Eg. `jool global update <tab>`)
+	 */
+	if (depth != (argc - 1) && depth != argc)
+		return 0;
 
-			node = node->children;
+	/*
+	 * At this point,
+	 * Case 1: argc = 3, argv = { "global", "update", "m" }, depth = 2.
+	 * Case 2: argc = 2, argv = { "global", "update" }, depth = 2.
+	 * Case 3: argc = 0, argv = {}, depth = 0.
+	 */
+
+	/*
+	 * Traverse the intermediate keywords.
+	 * (Cases 1 & 2: "global" and "update", Case 3: None.)
+	 */
+	for (i = 0; i < depth; i++) {
+		node = find_matches(node, argv[i]);
+		if (!node)
+			return 0; /* Prefix does not exist. */
+		if (node->next)
+			return 0; /* Ambiguous prefix. */
+
+		if (!node->children) {
+			node->handle_autocomplete(node->args);
+			return 0;
 		}
-		current_token = argv[i];
+
+		node = node->children;
 	}
 
-	for (node = find_matches(node, current_token); node; node = node->next)
-		printf("%s\n", node->label);
+	/* Finally print the candidates for the last token. */
+	node = find_matches(node, (i < argc) ? argv[i] : "");
+	for (; node; node = node->next)
+		printf("%s ", node->label);
 
 	return 0;
 }

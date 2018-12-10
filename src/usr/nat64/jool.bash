@@ -18,8 +18,10 @@ _jool() {
 	# "{$ARRAY[*]:1}" means "all of the elements of the array,
 	# except for the first one."
 	#
-	# I got all of this from https://debian-administration.org/article/317/An_introduction_to_bash_completion_part_2
-	COMPREPLY=($(compgen -W "$(${COMP_WORDS[0]} autocomplete ${COMP_WORDS[*]:1})" -- ${COMP_WORDS[COMP_CWORD]}))
+	# I got all of this from https://debian-administration.org/article/317
+	# ("An introduction to bash completion: part 2")
+	CANDIDATES=$(${COMP_WORDS[0]} autocomplete $COMP_CWORD ${COMP_WORDS[*]:1})
+	COMPREPLY=($(compgen -W "$CANDIDATES" -- ${COMP_WORDS[COMP_CWORD]}))
 }
 
-complete -F _jool jool
+complete -o default -F _jool jool

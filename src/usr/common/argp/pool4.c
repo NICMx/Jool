@@ -150,9 +150,9 @@ int handle_pool4_display(char *iname, int argc, char **argv, void *arg)
 	return 0;
 }
 
-void print_pool4_display_opts(char *prefix)
+void autocomplete_pool4_display(void *args)
 {
-	print_wargp_opts(display_opts, prefix);
+	print_wargp_opts(display_opts);
 }
 
 struct parsing_entry {
@@ -186,8 +186,9 @@ static int parse_max_iterations(void *void_field, int key, char *str)
 }
 
 struct wargp_type wt_max_iterations = {
-	.argument = "(<integer>|auto)",
+	.argument = "(<integer>|auto|infinity)",
 	.parse = parse_max_iterations,
+	.candidates = "auto infinity",
 };
 
 static int parse_pool4_entry(void *void_field, int key, char *str)
@@ -277,9 +278,9 @@ int handle_pool4_add(char *iname, int argc, char **argv, void *arg)
 	return error;
 }
 
-void print_pool4_add_opts(char *prefix)
+void autocomplete_pool4_add(void *args)
 {
-	print_wargp_opts(add_opts, prefix);
+	print_wargp_opts(add_opts);
 }
 
 struct rm_args {
@@ -346,9 +347,9 @@ int handle_pool4_remove(char *iname, int argc, char **argv, void *arg)
 	return error;
 }
 
-void print_pool4_remove_opts(char *prefix)
+void autocomplete_pool4_remove(void *args)
 {
-	print_wargp_opts(remove_opts, prefix);
+	print_wargp_opts(remove_opts);
 }
 
 struct flush_args {
@@ -385,7 +386,7 @@ int handle_pool4_flush(char *iname, int argc, char **argv, void *arg)
 	return error;
 }
 
-void print_pool4_flush_opts(char *prefix)
+void autocomplete_pool4_flush(void *args)
 {
-	print_wargp_opts(flush_opts, prefix);
+	print_wargp_opts(flush_opts);
 }
