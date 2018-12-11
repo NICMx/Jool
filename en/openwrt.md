@@ -11,7 +11,9 @@ title: OpenWRT
 
 Compiling and installing kernel modules is not the way things are meat to be done in OpenWRT. Fortunately, the OpenWRT folks are kind enough to provide official packages for Jool. If you intend to use this distribution, please keep in mind the notes in this document while following the rest of the tutorials in the documentation.
 
-Please also note that these binaries are not maintained by the Jool team. We are still available for advice if issues arise, however.
+Please also note that these binaries are not maintained nor supervised by the Jool team. We are still available for advice if issues arise, however.
+
+And finally: It might take an indeterminate amount of time for the latest version of Jool to be uploaded to OpenWRT's repository. Remember that you can find previous versions of this site's documentation in the [download page](download.html).
 
 ## Installing Jool
 

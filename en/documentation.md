@@ -19,6 +19,7 @@ See [RFC 6586](https://tools.ietf.org/html/rfc6586) for deployment experiences u
 ## Installation
 
 1. [Installation on OpenWRT](openwrt.html)
+2. [Installation on openSUSE](opensuse.html)
 2. [Installation on most other distros](install.html)
 
 ## Basic Tutorials
