@@ -49,7 +49,11 @@ static void jstat_release(struct kref *refcount)
 	struct jool_stats *stats;
 	stats = container_of(refcount, struct jool_stats, refcounter);
 
+#if LINUX_VERSION_AT_LEAST(3, 16, 0, 9999, 0)
 	free_percpu(stats->mib);
+#else
+	snmp_mib_free((void __percpu **)stats->mib);
+#endif
 	wkfree(struct jool_stats, stats);
 }
 
