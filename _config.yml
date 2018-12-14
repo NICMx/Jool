@@ -2,7 +2,7 @@ markdown: kramdown
 baseurl: /Jool
 repository-url: https://github.com/NICMx/Jool
 downloads-url: https://github.com/NICMx/releases/raw/master/Jool
-latest-version: 3.6.0-rc1
+latest-version: 3.6.0-rc2
 
 rfc-siit: https://tools.ietf.org/html/rfc7915
 draft-siit-eam: https://tools.ietf.org/html/rfc7757

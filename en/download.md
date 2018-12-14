@@ -7,7 +7,7 @@ title: Download
 
 ## Survey
 
-To any existing users: Please answer this survey. It will be open until December 20. **There is only one question!**
+To any existing users: Please answer this survey. It will be open until December 20. (You're allowed to change your answer until the deadline.) **There is only one question!**
 
 <script>(function(t,e,s,n){var o,a,c;t.SMCX=t.SMCX||[],e.getElementById(n)||(o=e.getElementsByTagName(s),a=o[o.length-1],c=e.createElement(s),c.type="text/javascript",c.async=!0,c.id=n,c.src=["https:"===location.protocol?"https://":"http://","widget.surveymonkey.com/collect/website/js/tRaiETqnLgj758hTBazgd_2BOEiGV9wW24VFowpPIOgdSC6HB6TcY1CYlF3G2tBL_2FS.js"].join(""),a.parentNode.insertBefore(c,a))})(window,document,"script","smcx-sdk");</script><a style="font: 12px Helvetica, sans-serif; color: #999; text-decoration: none;" href="https://www.surveymonkey.com"> Create your own user feedback survey </a>
 
@@ -29,7 +29,8 @@ Please note that this series is rather new, and though it improves the code in m
 
 | Release Date | Version | .tar.gz | Git commit |
 |--------------|---------|---------|------------|
-| 2018-10-24   | 3.6.0-rc1 | [Download]({{ site.downloads-url }}/jool_3.6.0-rc1.tar.gz) | <a href="{{ site.repository-url }}/tree/v3.6.0-rc1" target="_blank">Link</a> |
+| 2018-12-14   | 3.6.0-rc2 | [Download]({{ site.downloads-url }}/jool_3.6.0-rc2.tar.gz) | <a href="{{ site.repository-url }}/tree/v3.6.0-rc2" target="_blank">Link</a> |
+| 2018-11-24   | <del>3.6.0-rc1</del> | <del>[Download]({{ site.downloads-url }}/jool_3.6.0-rc1.tar.gz)</del> | <a href="{{ site.repository-url }}/tree/v3.6.0-rc1" target="_blank">Link</a> |
 
 "rc" stands for "Release Candidate."
 

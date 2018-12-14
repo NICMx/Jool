@@ -11,7 +11,7 @@ title: openSUSE
 
 We're pleased to have a volunteer for package maintenance for Jool in the openSUSE distribution. As with the OpenWRT releases, please note that these binaries are not maintained nor supervised by the Jool team, but we are still available for advice if issues arise.
 
-It might take an indeterminate amount of time for the latest version of Jool to be uploaded to openSUSE's repository. Remember that you can find previous versions of this site's documentation in the [download page](download.html).
+It might take an indeterminate amount of time for the latest version of Jool to be uploaded to this repository. Remember that you can find previous versions of this site's documentation in the [download page](download.html).
 
 ## Installation
 

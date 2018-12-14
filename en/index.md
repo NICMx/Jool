@@ -28,7 +28,7 @@ Our latest stable release is version [3.5.7]({{ site.repository-url }}/milestone
 
 ## Survey
 
-To any existing users: Please answer this survey. It will be open until December 20. **There is only one question!**
+To any existing users: Please answer this survey. It will be open until December 20. (You're allowed to change your answer until the deadline.) **There is only one question!**
 
 <script>(function(t,e,s,n){var o,a,c;t.SMCX=t.SMCX||[],e.getElementById(n)||(o=e.getElementsByTagName(s),a=o[o.length-1],c=e.createElement(s),c.type="text/javascript",c.async=!0,c.id=n,c.src=["https:"===location.protocol?"https://":"http://","widget.surveymonkey.com/collect/website/js/tRaiETqnLgj758hTBazgd_2BOEiGV9wW24VFowpPIOgdSC6HB6TcY1CYlF3G2tBL_2FS.js"].join(""),a.parentNode.insertBefore(c,a))})(window,document,"script","smcx-sdk");</script><a style="font: 12px Helvetica, sans-serif; color: #999; text-decoration: none;" href="https://www.surveymonkey.com"> Create your own user feedback survey </a>
 
@@ -37,6 +37,15 @@ To any existing users: Please answer this survey. It will be open until December
 -------------------
 
 ## News
+
+### 2018-12-14
+
+The second release candidate for version 3.6.0 is now available.
+
+It has two fixes:
+
+- Patch [reliable panic](https://github.com/NICMx/Jool/commit/7dd5b76467cdc161d5549a6e20be53612d6e5643) in certain kernels.
+- [Improve bash autocompletion](https://github.com/NICMx/Jool/commit/0557f39a5c7c1666f9a2843612d5cc5a46cef0e2) by being more prediction-happy. (Autocomplete `64:ff9b::/96`, `true`, `false`, `infinity`, `intrinsic`, `default`, file names, etc.)
 
 ### 2018-11-24
 
@@ -60,6 +69,7 @@ Here's a (possibly incomplete still) list of the changes you want to be aware of
 	- [The timeouts](usr-flags-global.html#udp-timeout) now follow the `HH:MM:SS:mmm` format.
 	- `--fragment-arrival-timeout` is gone. (Because the fragment database is gone.)
 9. The manpages are horribly outdated. (I will rewrite them over the course of the week; use this site's documentation instead.)
+10. All userspace client commands that require kernel cooperation (ie. all off them, except for `--help`, `--usage` and such) now require admin privileges.
 
 These are the new features:
 
@@ -67,6 +77,7 @@ These are the new features:
 2. [Instance naming](usr-flags-instance.html)
 3. [`stats`](usr-flags-stats.html)
 4. Support for kernels [4.17](https://github.com/NICMx/Jool/issues/266) and [4.18](https://github.com/NICMx/Jool/issues/269). ([4.19](https://github.com/NICMx/Jool/pull/270) compiles too, but I haven't fully tested it.)
+5. [Bash autocompletion](https://github.com/NICMx/Jool/issues/259) for the `jool` and `jool_siit` userspace application clients. (You *might* need to restart your terminal after installing to see the effects. I'm not actually sure; it's a little non-deterministic in my experience.)
 
 And these are the bugfixes:
 
