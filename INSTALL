@@ -11,121 +11,58 @@
 
 Install the requirements:
 	1. Your kernel headers (version 3.2.0+)
-		# apt-get install linux-headers-$(uname -r)
-	2. libnl-genl-3-dev (Only if you need the userspace applications):
-		# apt-get install libnl-genl-3-dev
+		# apt install linux-headers-$(uname -r)
+	2. libnl-genl-3-dev
+		# apt install libnl-genl-3-dev
 		(Site: http://www.carisma.slowglass.com/~tgr/libnl)
+	3. iptables dev
+		# apt install libxtables-dev
 
-Installing the modules using Dynamic Kernel Module Support (DKMS):
-	1. Ensure the DKMS framework is installed:
-		# apt-get install dkms
-	2. Add Jool to the DKMS framework (builds and installs the modules):
-		# dkms install /path/to/Jool
-
-Alternatively, manually install the modules using Kbuild directly:
-	1. Compile the modules:
-		Jool$ cd mod
-		Jool/mod$ make
-	2. Install the modules:
-		Jool/mod# make install
+Build and install everything:
+	$ # (This is the Kbuild version.)
+	$ ./configure
+	$ make
+	# make install
 
 Insert the module:
-	Configure networking.
+	Configure networking:
 		# ip link set ...
 		# ip addr add ...
 		# ip route add ...
 		# sysctl -w net.ipv4.conf.all.forwarding=1
 		# sysctl -w net.ipv6.conf.all.forwarding=1
 
-	Turn offloads off (do this for every relevant interface).
-		# ethtool --offload <interface> gro off
-		# ethtool --offload <interface> lro off
-
-	Actually insert the module.
-		# modprobe jool_siit pool6=64:ff9b::/96
+	Actually insert the module:
+		# modprobe jool_siit
 		or
-		# modprobe jool pool6=64:ff9b::/96
+		# modprobe jool
 
-	See your module shine.
-		$ # See your module listed.
+	Create a Jool instance:
+		# jool_siit instance add potato --netfilter
+		or
+		# jool instance add tomato --netfilter -6 64:ff9b::/96
+
+	See your module shine:
+		$ # See your module listed
 		$ lsmod | grep jool
-		$ # Check the log.
+		$ # Check the log
 		$ dmesg
+		$ # Print your instances
+		# jool_siit instance display
+		# jool instance display
 
 Configure the module:
-	Compile the userspace application.
-		Jool$ cd usr
-		Jool/usr$ ./autogen.sh # Only if you downloaded via Git.
-		Jool/usr$ ./configure
-		Jool/usr$ make
-		Jool/usr# make install
+	Configure the instance through userspace app requests:
+		$ jool_siit --help
+		or
+		$ jool --help
 
-	Send requests to the module using the userspace application.
-		Show help:
-			$ jool_siit --help
-			$ man jool_siit
-			$ jool --help
-			$ man jool
+Destroy an instance:
+	# jool_siit instance remove potato
+	or
+	# jool instance remove tomato
 
-		Add/Remove translator instances on the current namespace:
-			# jool --instance add
-			# jool --instance remove
-
-		Interact with the IPv6 pool:
-			$ jool --pool6 --display
-			$ jool --pool6 --count
-			# jool --pool6 --add 64:ff9b::/96
-			# jool --pool6 --remove 64:ff9b::/96
-			# jool --pool6 --flush
-			(Identical commands can be issued on `jool_siit`.)
-
-		Interact with the IPv4 pool:
-			$ jool --pool4 --display
-			# jool --pool4 --add 192.0.2.0/30
-			# jool --pool4 --remove 192.0.2.0/30
-			# jool --pool4 --flush
-
-		Interact with the blacklisted addresses pool:
-			$ jool_siit --blacklist --display
-			$ jool_siit --blacklist --count
-			# jool_siit --blacklist --add 192.0.2.0/30
-			# jool_siit --blacklist --remove 192.0.2.0/30
-			# jool_siit --blacklist --flush
-
-		Interact with the RFC 6791 pool:
-			$ jool_siit --pool6791 --display
-			$ jool_siit --pool6791 --count
-			# jool_siit --pool6791 --add 192.0.2.0/30
-			# jool_siit --pool6791 --remove 192.0.2.0/30
-			# jool_siit --pool6791 --flush
-
-		Interact with the EAMT (Explicit Address Mappings Table):
-			$ jool_siit --eamt --display
-			$ jool_siit --eamt --count
-			# jool_siit --eamt --add 192.0.2.0/24 2001:db8::/120
-			# jool_siit --eamt --remove 192.0.2.0/24 2001:db8::/120
-			# jool_siit --eamt --flush
-
-		Interact with the BIB (Binding Information Base):
-			$ jool --bib --display
-			$ jool --bib --count
-			# jool --bib --add 192.0.2.1#11 2001:db8::1#22
-			# jool --bib --remove 192.0.2.1#11 2001:db8::1#22
-
-		Interact with the session table:
-			$ jool --session --display
-			$ jool --session --count
-
-		Interact with the global configuration values:
-			$ jool_siit --display
-			# jool_siit --update --amend-udp-checksum-zero true
-			$ jool --display
-			# jool --update --address-dependent-filtering false
-
-		Load configuration atomically from a file:
-			# jool_siit --file /path/to/json/file
-
-Remove the module:
+Detatch the module from your kernel:
 	# modprobe -r jool_siit
 	or
 	# modprobe -r jool
