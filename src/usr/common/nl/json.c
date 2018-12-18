@@ -111,36 +111,39 @@ static int print_type_error(char const *field, cJSON *json,
 {
 	switch (json->type) {
 	case cJSON_False:
-		log_err("%s 'false' is not a valid %s.", field, expected);
+		log_err("The '%s' element 'false' is not a valid %s.",
+				field, expected);
 		break;
 	case cJSON_True:
-		log_err("%s 'true' is not a valid %s.", field, expected);
+		log_err("The '%s' element 'true' is not a valid %s.",
+				field, expected);
 		break;
 	case cJSON_NULL:
-		log_err("%s 'null' is not a valid %s.", field, expected);
+		log_err("The '%s' element 'null' is not a valid %s.",
+				field, expected);
 		break;
 	case cJSON_Number:
 		if (json->numflags & VALUENUM_UINT)
-			log_err("%s '%u' is not a valid %s.", field,
-					json->valueuint, expected);
+			log_err("The '%s' element '%u' is not a valid %s.",
+					field, json->valueuint, expected);
 		else if (json->numflags & VALUENUM_INT)
-			log_err("%s '%d' is not a valid %s.", field,
-					json->valueint, expected);
+			log_err("The '%s' element '%d' is not a valid %s.",
+					field, json->valueint, expected);
 		else
-			log_err("%s '%f' is not a valid %s.", field,
-					json->valuedouble, expected);
+			log_err("The '%s' element '%f' is not a valid %s.",
+					field, json->valuedouble, expected);
 		break;
 	case cJSON_String:
-		log_err("%s '%s' is not a valid %s.", field, json->valuestring,
-				expected);
+		log_err("The '%s' element '%s' is not a valid %s.",
+				field, json->valuestring, expected);
 		break;
 	case cJSON_Array:
-		log_err("%s appears to be an array, not a %s.", field,
-				expected);
+		log_err("The '%s' element appears to be an array, not a '%s'.",
+				field, expected);
 		break;
 	case cJSON_Object:
-		log_err("%s appears to be an object, not a %s.", field,
-				expected);
+		log_err("The '%s' element appears to be an object, not a '%s'.",
+				field, expected);
 		break;
 	}
 
@@ -555,6 +558,8 @@ static int handle_global(cJSON *json, bool *globals_found)
 
 	if (!json)
 		return 0;
+	if (json->type != cJSON_Object)
+		return print_type_error(OPTNAME_GLOBAL, json, "Object");
 
 	buffer = buffer_alloc(SEC_GLOBAL);
 	if (!buffer)
@@ -584,6 +589,8 @@ static int handle_eamt(cJSON *json)
 
 	if (!json)
 		return 0;
+	if (json->type != cJSON_Array)
+		return print_type_error(OPTNAME_EAMT, json, "Array");
 
 	buffer = buffer_alloc(SEC_EAMT);
 	if (!buffer)
@@ -635,6 +642,8 @@ static int handle_blacklist4(cJSON *json)
 
 	if (!json)
 		return 0;
+	if (json->type != cJSON_Array)
+		return print_type_error(OPTNAME_BLACKLIST, json, "Array");
 
 	buffer = buffer_alloc(SEC_BLACKLIST);
 	if (!buffer)
@@ -703,6 +712,8 @@ static int handle_pool4(cJSON *json)
 
 	if (!json)
 		return 0;
+	if (json->type != cJSON_Array)
+		return print_type_error(OPTNAME_POOL4, json, "Array");
 
 	buffer = buffer_alloc(SEC_POOL4);
 	if (!buffer)
