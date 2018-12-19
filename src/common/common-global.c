@@ -91,7 +91,7 @@ static struct global_field global_fields[] = {
 	}, {
 		.name = "pool6",
 		.type = &gt_prefix6,
-		.doc = "The IPv6 Address Pool prefix",
+		.doc = "The IPv6 Address Pool prefix.",
 		.offset = offsetof(struct globals, pool6),
 		.xt = XT_BOTH,
 		.validate = validate_pool6,
@@ -253,6 +253,37 @@ static struct global_field global_fields[] = {
 		.doc = "Log sessions as they are created and destroyed?",
 		.offset = offsetof(struct globals, nat64.bib.session_logging),
 		.xt = XT_NAT64,
+	}, {
+		.name = "ss-enabled",
+		.type = &gt_bool,
+		.doc = "Enable Session Synchronization?",
+		.offset = offsetof(struct globals, nat64.joold.enabled),
+		.xt = XT_NAT64,
+	}, {
+		.name = "ss-flush-asap",
+		.type = &gt_bool,
+		.doc = "Try to synchronize sessions as soon as possible?",
+		.offset = offsetof(struct globals, nat64.joold.flush_asap),
+		.xt = XT_NAT64,
+	}, {
+		.name = "ss-flush-deadline",
+		.type = &gt_uint32,
+		.doc = "Inactive milliseconds after which to force a session sync.",
+		.offset = offsetof(struct globals, nat64.joold.flush_deadline),
+		.xt = XT_NAT64,
+	}, {
+		.name = "ss-capacity",
+		.type = &gt_uint32,
+		.doc = "Maximim number of queuable entries.",
+		.offset = offsetof(struct globals, nat64.joold.capacity),
+		.xt = XT_NAT64,
+	}, {
+		.name = "ss-max-payload",
+		.type = &gt_uint32,
+		.doc = "Maximum amount of bytes joold should send per packet.",
+		.offset = offsetof(struct globals, nat64.joold.max_payload),
+		.xt = XT_NAT64,
+		.max = MAX_U16,
 	},
 	{ NULL },
 };

@@ -562,7 +562,7 @@ struct joold_config {
 	 * We should probably handle this ourselves but it sounds like a lot of
 	 * code. (I guess I'm missing something.)
 	 */
-	__u16 max_payload;
+	__u32 max_payload;
 };
 
 /**
