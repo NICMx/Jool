@@ -21,6 +21,8 @@ static char *iname;
 static jframework fw;
 static bool force;
 
+static int print_type_error(char const *field, cJSON *json,
+		char const *expected);
 static int do_parsing(char *buffer);
 static int parse_siit_json(cJSON *json);
 static int parse_nat64_json(cJSON *json);
@@ -55,6 +57,9 @@ static int prepare_instance(cJSON *json)
 
 	iname = NULL;
 	fw = 0;
+
+	if (json->type != cJSON_Object)
+		return print_type_error("root", json, "Object");
 
 	for (json = json->child; json; json = json->next) {
 		if (strcasecmp(OPTNAME_INAME, json->string) == 0) {
