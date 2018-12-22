@@ -7,7 +7,7 @@ title: Download
 
 ## Survey
 
-Results: [https://www.surveymonkey.com/results/SM-XWCYYQMYV/](https://www.surveymonkey.com/results/SM-XWCYYQMYV/)
+Results [here](index.html#survey).
 
 -------------------
 

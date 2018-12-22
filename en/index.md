@@ -28,7 +28,7 @@ Our latest stable release is version [3.5.7]({{ site.repository-url }}/milestone
 
 ## Survey
 
-Results: [https://www.surveymonkey.com/results/SM-XWCYYQMYV/](https://www.surveymonkey.com/results/SM-XWCYYQMYV/)
+[![a](../images/survey.png)](https://www.surveymonkey.com/results/SM-XWCYYQMYV/)
 
 -------------------
 
