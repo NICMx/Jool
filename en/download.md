@@ -25,6 +25,7 @@ Please note that this series is rather new, and though it improves the code in m
 
 | Release Date | Version | .tar.gz | Git commit |
 |--------------|---------|---------|------------|
+| 2018-12-26   | 3.6.0-rc3 | [Download]({{ site.downloads-url }}/jool_3.6.0-rc3.tar.gz) | <a href="{{ site.repository-url }}/tree/v3.6.0-rc3" target="_blank">Link</a> |
 | 2018-12-14   | 3.6.0-rc2 | [Download]({{ site.downloads-url }}/jool_3.6.0-rc2.tar.gz) | <a href="{{ site.repository-url }}/tree/v3.6.0-rc2" target="_blank">Link</a> |
 | 2018-11-24   | <del>3.6.0-rc1</del> | <del>[Download]({{ site.downloads-url }}/jool_3.6.0-rc1.tar.gz)</del> | <a href="{{ site.repository-url }}/tree/v3.6.0-rc1" target="_blank">Link</a> |
 

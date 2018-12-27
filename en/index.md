@@ -34,6 +34,17 @@ Our latest stable release is version [3.5.7]({{ site.repository-url }}/milestone
 
 ## News
 
+### 2018-12-26
+
+The third release candidate for version 3.6.0 is now available.
+
+It patches several (Json) file reading bugs:
+
+- [a2f6ade4](https://github.com/NICMx/Jool/commit/a2f6ade496e840b54ed0aaa9002b9bcf84c2f067)
+- [4e8b1de1](https://github.com/NICMx/Jool/commit/4e8b1de1f7739b75e18751ba46b9ab151ee7d18c)
+- [061231b5](https://github.com/NICMx/Jool/commit/061231b5d8624e204c08965ba503a017cd911c1c)
+- [f7f8ad14](https://github.com/NICMx/Jool/commit/f7f8ad149b245f19a7880bd81f49728c8df54647)
+
 ### 2018-12-14
 
 The second release candidate for version 3.6.0 is now available.
