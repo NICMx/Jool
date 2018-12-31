@@ -1,6 +1,7 @@
 #include "mod/nat64/bib/db.h"
 
 #include <net/ip6_checksum.h>
+#include <linux/ktime.h>
 
 #include "common/constants.h"
 #include "common/str_utils.h"
@@ -452,14 +453,14 @@ void bib_put(struct bib *db)
 
 static void log_bib(struct xlator *jool, struct tabled_bib *bib, char *action)
 {
-	struct timeval tval;
+	time64_t tsec;
 	struct tm time;
 
 	if (!jool->global->cfg.nat64.bib.bib_logging)
 		return;
 
-	do_gettimeofday(&tval);
-	time_to_tm(tval.tv_sec, 0, &time);
+	tsec = ktime_get_real_seconds();
+	time64_to_tm(tsec, 0, &time);
 	log_info("%s %ld/%d/%d %d:%d:%d (GMT) - %s %pI6c#%u to %pI4#%u (%s)",
 			jool->iname,
 			1900 + time.tm_year, time.tm_mon + 1, time.tm_mday,
@@ -478,14 +479,14 @@ static void log_session(struct xlator *jool,
 		struct tabled_session *session,
 		char *action)
 {
-	struct timeval tval;
+	time64_t tsec;
 	struct tm time;
 
 	if (!jool->global->cfg.nat64.bib.session_logging)
 		return;
 
-	do_gettimeofday(&tval);
-	time_to_tm(tval.tv_sec, 0, &time);
+	tsec = ktime_get_real_seconds();
+	time64_to_tm(tsec, 0, &time);
 	log_info("%s %ld/%d/%d %d:%d:%d (GMT) - %s %pI6c#%u|%pI6c#%u|"
 			"%pI4#%u|%pI4#%u|%s", jool->iname,
 			1900 + time.tm_year, time.tm_mon + 1, time.tm_mday,
