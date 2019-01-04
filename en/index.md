@@ -34,6 +34,10 @@ Our latest stable release is version [3.5.7]({{ site.repository-url }}/milestone
 
 ## News
 
+### 2019-01-04
+
+The fourth release candidate for version 3.6.0 is now available. It commits [support for kernel 4.19](https://github.com/NICMx/Jool/pull/270) and also [adds support for 4.20](https://github.com/NICMx/Jool/pull/271).
+
 ### 2018-12-26
 
 The third release candidate for version 3.6.0 is now available.
