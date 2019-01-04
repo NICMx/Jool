@@ -66,6 +66,7 @@ You might also want to see [contact info](https://www.jool.mx/en/contact.html).
 * [ipclouds](https://github.com/ipclouds)
 * [Masaya YAMAMOTO](https://github.com/pandax381)
 * [Michael Richardson](http://www.sandelman.ca/mcr)
+* [paradon](https://github.com/paradon)
 * [Philar Law](https://github.com/philar)
 * [Pier Carlo Chiodi](https://pierky.com/)
 * [Ricardo Salveti](https://github.com/rsalveti) - ricardo@foundries.io
@@ -80,7 +81,7 @@ You might also want to see [contact info](https://www.jool.mx/en/contact.html).
 ## Legal stuff
 
 	Jool - SIIT and NAT64 for Linux
-	Copyright (C) 2018  NIC Mexico <jool@nic.mx>
+	Copyright (C) 2019  NIC Mexico <jool@nic.mx>
 
 	This program is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
