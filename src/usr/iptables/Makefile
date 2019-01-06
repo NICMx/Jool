@@ -5,6 +5,7 @@ all:
 	make libxt_JOOL_SIIT.so;
 	make libxt_JOOL.so;
 install:
+	mkdir -p ${DESTDIR}${XTABLES_SO_DIR}
 	cp *.so ${DESTDIR}${XTABLES_SO_DIR}
 uninstall:
 	rm -f ${DESTDIR}${XTABLES_SO_DIR}/libxt_JOOL_SIIT.so
