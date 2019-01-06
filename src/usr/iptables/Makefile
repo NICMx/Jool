@@ -5,10 +5,10 @@ all:
 	make libxt_JOOL_SIIT.so;
 	make libxt_JOOL.so;
 install:
-	cp *.so ${XTABLES_SO_DIR}
+	cp *.so ${DESTDIR}${XTABLES_SO_DIR}
 uninstall:
-	rm -f ${XTABLES_SO_DIR}/libxt_JOOL_SIIT.so
-	rm -f ${XTABLES_SO_DIR}/libxt_JOOL.so
+	rm -f ${DESTDIR}${XTABLES_SO_DIR}/libxt_JOOL_SIIT.so
+	rm -f ${DESTDIR}${XTABLES_SO_DIR}/libxt_JOOL.so
 lib%.so: lib%.o
 	gcc -shared -fPIC -o $@ $^;
 lib%.o: lib%.c
