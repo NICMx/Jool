@@ -45,7 +45,7 @@ int handle_file_update(char *iname, int argc, char **argv, void *arg)
 	if (error)
 		return error;
 
-	error = parse_file(uargs.file_name.value, uargs.force.value);
+	error = parse_file(iname, uargs.file_name.value, uargs.force.value);
 
 	netlink_teardown();
 	return error;

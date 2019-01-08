@@ -129,8 +129,7 @@ int bib_find6(struct bib *db, l4_protocol proto,
 int bib_find4(struct bib *db, l4_protocol proto,
 		struct ipv4_transport_addr *addr,
 		struct bib_entry *result);
-int bib_add_static(struct xlator *jool, struct bib_entry *new,
-		struct bib_entry *old);
+int bib_add_static(struct xlator *jool, struct bib_entry *new);
 int bib_rm(struct xlator *jool, struct bib_entry *entry);
 void bib_rm_range(struct xlator *jool, l4_protocol proto,
 		struct ipv4_range *range);

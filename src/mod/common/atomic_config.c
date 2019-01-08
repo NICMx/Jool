@@ -21,10 +21,6 @@
  * "configuration candidate") as Netlink messages arrive. The running
  * configuration is then only replaced when the candidate has been completed and
  * validated.
- *
- * In an ideal world, a configuration candidate would be a plain struct xlator,
- * but because of the way basic data types and the kref are handled, the
- * candidate needs a slightly different layout.
  */
 struct config_candidate {
 	struct xlator xlator;
@@ -251,13 +247,27 @@ static int handle_pool4(struct config_candidate *new, void *payload,
 static int handle_bib(struct config_candidate *new, void *payload,
 		__u32 payload_len)
 {
+	struct bib_entry_usr *entries = payload;
+	unsigned int entry_count = payload_len / sizeof(*entries);
+	struct bib_entry entry;
+	unsigned int i;
+	int error;
+
 	if (xlat_is_siit()) {
 		log_err("SIIT doesn't have BIBs.");
 		return -EINVAL;
 	}
 
-	log_err("Atomic configuration of the BIB is not implemented.");
-	return -EINVAL;
+	for (i = 0; i < entry_count; i++) {
+		entry.ipv6 = entries[i].addr6;
+		entry.ipv4 = entries[i].addr4;
+		entry.l4_proto = entries[i].l4_proto;
+		error = bib_add_static(&new->xlator, &entry);
+		if (error)
+			return error;
+	}
+
+	return 0;
 }
 
 static int commit(struct config_candidate *candidate)

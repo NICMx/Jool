@@ -148,8 +148,7 @@ int bib_find4(struct bib *db, l4_protocol proto,
 	return fail(__func__);
 }
 
-int bib_add_static(struct xlator *jool, struct bib_entry *new,
-		struct bib_entry *old)
+int bib_add_static(struct xlator *jool, struct bib_entry *new)
 {
 	return fail(__func__);
 }

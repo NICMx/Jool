@@ -2249,7 +2249,7 @@ static void bib2tabled(struct bib_entry *bib, struct tabled_bib *tabled)
 	tabled->sessions = RB_ROOT;
 }
 
-int bib_add_static(struct xlator *jool, struct bib_entry *new,
+static int __bib_add_static(struct xlator *jool, struct bib_entry *new,
 		struct bib_entry *old)
 {
 	struct bib_table *table;
@@ -2307,6 +2307,31 @@ eexist:
 	spin_unlock_bh(&table->lock);
 	free_bib(bib);
 	return -EEXIST;
+}
+
+/* Noisy version. */
+int bib_add_static(struct xlator *jool, struct bib_entry *new)
+{
+	struct bib_entry old;
+	int error;
+
+	error = __bib_add_static(jool, new, &old);
+	switch (error) {
+	case 0:
+		break;
+	case -EEXIST:
+		log_err("Entry %pI4#%u|%pI6c#%u collides with %pI4#%u|%pI6c#%u.",
+				&new->ipv4.l3, new->ipv4.l4,
+				&new->ipv6.l3, new->ipv6.l4,
+				&old.ipv4.l3, old.ipv4.l4,
+				&old.ipv6.l3, old.ipv6.l4);
+		break;
+	default:
+		log_err("Unknown error code: %d", error);
+		break;
+	}
+
+	return error;
 }
 
 int bib_rm(struct xlator *jool, struct bib_entry *entry)

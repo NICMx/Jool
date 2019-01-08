@@ -90,6 +90,9 @@ typedef __u8 config_bool;
 #define OPTNAME_SS_CAPACITY		"ss-capacity"
 #define OPTNAME_SS_MAX_PAYLOAD		"ss-max-payload"
 
+/* Blah */
+#define OPTNAME_COMMENT			"comment"
+
 enum genl_mc_group_ids {
 	JOOLD_MC_ID = (1 << 0),
 };
@@ -156,13 +159,14 @@ enum config_operation {
 };
 
 enum parse_section {
-	SEC_GLOBAL = 1,
-	SEC_POOL4 = 4,
-	SEC_BIB = 8,
-	SEC_COMMIT = 16,
-	SEC_EAMT = 32,
-	SEC_BLACKLIST = 64,
-	SEC_INIT = 256
+	SEC_INIT,
+	SEC_GLOBAL,
+	SEC_EAMT,
+	SEC_BLACKLIST,
+	SEC_POOL4,
+	SEC_BIB,
+	/* The enum needs to fit in __u8s. */
+	SEC_COMMIT = 0xFF,
 };
 
 /**

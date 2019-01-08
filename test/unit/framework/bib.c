@@ -16,12 +16,6 @@ int bib_inject(struct xlator *jool,
 	entry->ipv4.l4 = port4;
 	entry->ipv6.l4 = port6;
 
-	error = bib_add_static(jool, entry, NULL);
-	if (error) {
-		log_err("Errcode %d on BIB DB add.", error);
-		return error;
-	}
-
-	return 0;
+	return bib_add_static(jool, entry);
 }
 

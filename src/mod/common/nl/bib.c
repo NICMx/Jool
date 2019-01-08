@@ -50,8 +50,6 @@ static int handle_bib_display(struct bib *db, struct genl_info *info,
 static int handle_bib_add(struct xlator *jool, struct request_bib *request)
 {
 	struct bib_entry new;
-	struct bib_entry old;
-	int error;
 
 	log_debug("Adding BIB entry.");
 
@@ -66,24 +64,7 @@ static int handle_bib_add(struct xlator *jool, struct request_bib *request)
 	new.ipv6 = request->add.addr6;
 	new.ipv4 = request->add.addr4;
 	new.l4_proto = request->l4_proto;
-
-	error = bib_add_static(jool, &new, &old);
-	switch (error) {
-	case 0:
-		break;
-	case -EEXIST:
-		log_err("Entry %pI4#%u|%pI6c#%u collides with %pI4#%u|%pI6c#%u.",
-				&new.ipv4.l3, new.ipv4.l4,
-				&new.ipv6.l3, new.ipv6.l4,
-				&old.ipv4.l3, old.ipv4.l4,
-				&old.ipv6.l3, old.ipv6.l4);
-		break;
-	default:
-		log_err("Unknown error code: %d", error);
-		break;
-	}
-
-	return error;
+	return bib_add_static(jool, &new);
 }
 
 static int handle_bib_rm(struct xlator *jool, struct request_bib *request)

@@ -188,7 +188,7 @@ static struct cmd_option session_ops[] = {
 
 static struct cmd_option file_ops[] = {
 		{
-			.label = UPDATE,
+			.label = "handle",
 			.xt = XT_BOTH,
 			.handler = handle_file_update,
 			.handle_autocomplete = autocomplete_file_update,

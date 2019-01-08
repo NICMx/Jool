@@ -204,6 +204,7 @@ int handle_instance_add(char *iname, int argc, char **argv, void *arg)
 		log_err("Please specify instance framework. (--"
 				OPTNAME_NETFILTER " or --"
 				OPTNAME_IPTABLES ".)");
+		log_err("(The Jool 3.5 behavior was --" OPTNAME_NETFILTER ".)");
 		return -EINVAL;
 	}
 	if (aargs.netfilter.value && aargs.iptables.value) {

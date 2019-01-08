@@ -24,13 +24,7 @@ static bool inject(unsigned int index, char *addr4, u16 port4,
 	entries[index].ipv6.l4 = port6;
 	entries[index].l4_proto = L4PROTO_UDP;
 
-	error = bib_add_static(&jool, &entries[index], NULL);
-	if (error) {
-		log_err("Errcode %d on BIB add %u.", error, index);
-		return false;
-	}
-
-	return true;
+	return !bib_add_static(&jool, &entries[index]);
 }
 
 static bool insert_test_bibs(void)

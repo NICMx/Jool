@@ -21,99 +21,40 @@ static char *iname;
 static jframework fw;
 static bool force;
 
-static int print_type_error(char const *field, cJSON *json,
-		char const *expected);
-static int do_parsing(char *buffer);
-static int parse_siit_json(cJSON *json);
-static int parse_nat64_json(cJSON *json);
-static int handle_global(cJSON *json, bool *globals_found);
-static int handle_eamt(cJSON *json);
-static int handle_blacklist4(cJSON *json);
-static int handle_pool4(cJSON *pool4);
-static int handle_bib(cJSON *bib);
-
-int parse_file(char *file_name, bool _force)
-{
-	char *buffer;
-	int error;
-
-	force = _force;
-
-	error = file_to_string(file_name, &buffer);
-	if (error)
-		return error;
-
-	error = do_parsing(buffer);
-	free(buffer);
-	return error;
-}
+struct json_meta {
+	char *name; /* This being NULL signals the end of the array. */
+	/* Second argument is @arg1 and third argument is @arg2. */
+	int (*handler)(cJSON *, void *, void *);
+	void *arg1;
+	void *arg2;
+	bool mandatory;
+	bool already_found;
+};
 
 /*
- * Sets the @iname global variable according to the contents of @json.
+ * =================================
+ * ======== Error functions ========
+ * =================================
  */
-static int prepare_instance(cJSON *json)
+
+static int duplicates_found(char *name)
 {
-	int error;
-
-	iname = NULL;
-	fw = 0;
-
-	if (json->type != cJSON_Object)
-		return print_type_error("root", json, "Object");
-
-	for (json = json->child; json; json = json->next) {
-		if (strcasecmp(OPTNAME_INAME, json->string) == 0) {
-			if (iname)
-				goto iname_exists;
-			error = iname_validate(json->valuestring, false);
-			if (error)
-				return error;
-
-			iname = json->valuestring;
-		}
-
-		if (strcasecmp(OPTNAME_FW, json->string) == 0) {
-			if (fw)
-				goto fw_exists;
-			if (STR_EQUAL(json->valuestring, "netfilter"))
-				fw |= FW_NETFILTER;
-			else if (STR_EQUAL(json->valuestring, "iptables"))
-				fw |= FW_IPTABLES;
-			else
-				goto unknown_fw;
-		}
-
-		/*
-		 * Keep iterating; we want to error if the user defined
-		 * something twice.
-		 */
-	}
-
-	if (!iname) {
-		log_err("The file is missing the '%s' tag.", OPTNAME_INAME);
-		return -EINVAL;
-	}
-	if (!fw) {
-		log_err("The file is missing the '%s' tag.", OPTNAME_FW);
-		return -EINVAL;
-	}
-
-	return 0;
-
-iname_exists:
-	log_err("Multiple '%s's found; Aborting.", OPTNAME_INAME);
+	log_err("Multiple '%s' tags found. Aborting...", name);
 	return -EEXIST;
-fw_exists:
-	log_err("Multiple '%s's found; Aborting.", OPTNAME_FW);
-	return -EEXIST;
-unknown_fw:
-	log_err("Unknown framework: '%s'", json->valuestring);
+}
+
+static int missing_tag(char *parent, char *child)
+{
+	log_err("Object '%s' is missing the '%s' child.",
+			parent ? parent : "<unnamed>", child);
 	return -EINVAL;
 }
 
-static int print_type_error(char const *field, cJSON *json,
-		char const *expected)
+static int type_mismatch(char const *field, cJSON *json, char const *expected)
 {
+	if (!field)
+		field = "<unnamed>";
+
 	switch (json->type) {
 	case cJSON_False:
 		log_err("The '%s' element 'false' is not a valid %s.",
@@ -158,11 +99,27 @@ static int print_type_error(char const *field, cJSON *json,
 	return -EINVAL;
 }
 
+static int string_expected(const char *field, cJSON *json)
+{
+	return type_mismatch(field, json, "String");
+}
+
+/*
+ * =================================
+ * ============= Utils =============
+ * =================================
+ */
+
+static bool tagname_equals(cJSON *json, char *name)
+{
+	return strcasecmp(json->string, name) == 0;
+}
+
 static int validate_uint(char *field_name, cJSON *node,
 		__u64 min, __u64 max)
 {
 	if (node->type != cJSON_Number || !(node->numflags & VALUENUM_UINT))
-		return print_type_error(field_name, node, "unsigned integer");
+		return type_mismatch(field_name, node, "unsigned integer");
 
 	if (node->valueuint < min || max < node->valueuint) {
 		log_err("%s %u is out of range (%llu-%llu).", field_name,
@@ -173,30 +130,11 @@ static int validate_uint(char *field_name, cJSON *node,
 	return 0;
 }
 
-static void check_duplicates(bool *found, char *section)
-{
-	if (*found)
-		log_info("Note: I found multiple '%s' sections.", section);
-	*found = true;
-}
-
-static int do_parsing(char *buffer)
-{
-	int error;
-
-	cJSON *json = cJSON_Parse(buffer);
-	if (!json) {
-		log_err("The JSON parser got confused around about here:");
-		log_err("%s", cJSON_GetErrorPtr());
-		return -EINVAL;
-	}
-
-	error = prepare_instance(json);
-	if (error)
-		return error;
-
-	return xlat_is_siit() ? parse_siit_json(json) : parse_nat64_json(json);
-}
+/*
+ * =================================
+ * ========= Netlink Buffer ========
+ * =================================
+ */
 
 static int init_buffer(struct nl_buffer *buffer, enum parse_section section)
 {
@@ -256,134 +194,89 @@ static int buffer_write(struct nl_buffer *buffer, enum parse_section section,
 	return nlbuffer_write(buffer, payload, payload_len);
 }
 
-static int send_ctrl_msg(enum parse_section section)
+/*
+ * ==================================
+ * ===== Generic object handlers ====
+ * ==================================
+ */
+
+static int handle_child(struct cJSON *child, struct json_meta *metadata)
+{
+	struct json_meta *meta;
+
+	if (tagname_equals(child, "comment"))
+		return 0;
+
+	for (meta = metadata; meta->name; meta++) {
+		if (tagname_equals(child, meta->name)) {
+			if (meta->already_found)
+				return duplicates_found(meta->name);
+			meta->already_found = true;
+			return meta->handler(child, meta->arg1, meta->arg2);
+		}
+	}
+
+	log_err("Unknown tag: '%s'", child->string);
+	return -EINVAL;
+}
+
+static int handle_object(cJSON *obj, struct json_meta *metadata)
+{
+	struct json_meta *meta;
+	cJSON *child;
+	int error;
+
+	if (obj->type != cJSON_Object)
+		return type_mismatch(obj->string, obj, "Object");
+
+	for (child = obj->child; child; child = child->next) {
+		error = handle_child(child, metadata);
+		if (error)
+			return error;
+	}
+
+	for (meta = metadata; meta->name; meta++)
+		if (meta->mandatory && !meta->already_found)
+			return missing_tag(obj->string, meta->name);
+
+	return 0;
+}
+
+static int handle_array(cJSON *json, char *name, enum parse_section section,
+		int (*entry_handler)(cJSON *, struct nl_buffer *))
 {
 	struct nl_buffer *buffer;
-	struct request_init request;
+	unsigned int i;
 	int error;
+
+	if (json->type != cJSON_Array)
+		return type_mismatch(name, json, "Array");
 
 	buffer = buffer_alloc(section);
 	if (!buffer)
 		return -ENOMEM;
 
-	if (section == SEC_INIT) {
-		request.fw = fw;
-		error = buffer_write(buffer, section, &request, sizeof(request));
-		if (error)
+	for (json = json->child, i = 1; json; json = json->next, i++) {
+		error = entry_handler(json, buffer);
+		if (error) {
+			log_err("Error found on %s entry #%u.", name, i);
 			goto end;
+		}
 	}
 
 	error = nlbuffer_flush(buffer);
-	/* Fall through */
+	/* Fall through. */
 
 end:
 	nlbuffer_destroy(buffer);
 	return error;
 }
 
-static bool *create_globals_found_array(void)
-{
-	unsigned int field_count;
-	get_global_fields(NULL, &field_count);
-	return calloc(field_count, sizeof(bool));
-}
-
-static int parse_siit_json(cJSON *json)
-{
-	bool global_found = false;
-	bool eamt_found = false;
-	bool blacklist4_found = false;
-	bool *globals_found;
-	int error;
-
-	error = send_ctrl_msg(SEC_INIT);
-	if (error)
-		return error;
-
-	globals_found = create_globals_found_array();
-	if (!globals_found) {
-		log_err("Out of memory.");
-		return -ENOMEM;
-	}
-
-	for (json = json->child; json; json = json->next) {
-		if (strcasecmp(OPTNAME_GLOBAL, json->string) == 0) {
-			check_duplicates(&global_found, OPTNAME_GLOBAL);
-			error = handle_global(json, globals_found);
-		} else if (strcasecmp(OPTNAME_EAMT, json->string) == 0) {
-			check_duplicates(&eamt_found, OPTNAME_EAMT);
-			error = handle_eamt(json);
-		} else if (strcasecmp(OPTNAME_BLACKLIST, json->string) == 0) {
-			check_duplicates(&blacklist4_found, OPTNAME_BLACKLIST);
-			error = handle_blacklist4(json);
-		} else if (strcasecmp(OPTNAME_INAME, json->string) == 0) {
-			/* No code. */
-		} else if (strcasecmp(OPTNAME_FW, json->string) == 0) {
-			/* No code. */
-		} else {
-			log_err("I don't know what '%s' is; Canceling.",
-					json->string);
-			error = -EINVAL;
-		}
-
-		if (error) {
-			free(globals_found);
-			return error;
-		}
-	}
-	free(globals_found);
-
-	return send_ctrl_msg(SEC_COMMIT);
-}
-
-static int parse_nat64_json(cJSON *json)
-{
-	bool global_found = false;
-	bool pool4_found = false;
-	bool bib_found = false;
-	bool *globals_found;
-	int error;
-
-	error = send_ctrl_msg(SEC_INIT);
-	if (error)
-		return error;
-
-	globals_found = create_globals_found_array();
-	if (!globals_found) {
-		log_err("Out of memory.");
-		return -ENOMEM;
-	}
-
-	for (json = json->child; json; json = json->next) {
-		if (strcasecmp(OPTNAME_GLOBAL, json->string) == 0) {
-			check_duplicates(&global_found, OPTNAME_GLOBAL);
-			error = handle_global(json, globals_found);
-		} else if (strcasecmp(OPTNAME_POOL4, json->string) == 0) {
-			check_duplicates(&pool4_found, OPTNAME_POOL4);
-			error = handle_pool4(json);
-		} else if (strcasecmp(OPTNAME_BIB, json->string) == 0) {
-			check_duplicates(&bib_found, OPTNAME_BIB);
-			error = handle_bib(json);
-		} else if (strcasecmp(OPTNAME_INAME, json->string) == 0) {
-			/* No code. */
-		} else if (strcasecmp(OPTNAME_FW, json->string) == 0) {
-			/* No code. */
-		} else {
-			log_err("I don't know what '%s' is; Canceling.",
-					json->string);
-			error = -EINVAL;
-		}
-
-		if (error) {
-			log_info("Error code: %d", error);
-			free(globals_found);
-			return error;
-		}
-	}
-	free(globals_found);
-
-	return send_ctrl_msg(SEC_COMMIT);
-}
+/*
+ * =================================
+ * == Message writing for globals ==
+ * =================================
+ */
 
 static int write_bool(struct global_field *field, cJSON *json, void *payload)
 {
@@ -399,7 +292,7 @@ static int write_bool(struct global_field *field, cJSON *json, void *payload)
 		return 0;
 	}
 
-	return print_type_error(field->name, json, "boolean");
+	return type_mismatch(field->name, json, "boolean");
 }
 
 static int write_u8(struct global_field *field, cJSON *json, void *payload)
@@ -436,7 +329,7 @@ static int write_timeout(struct global_field *field, cJSON *json, void *payload)
 	int error;
 
 	if (json->type != cJSON_String)
-		return print_type_error(field->name, json, "string");
+		return string_expected(field->name, json);
 
 	error = str_to_timeout(json->valuestring, &value, field->min,
 			field->max);
@@ -445,16 +338,6 @@ static int write_timeout(struct global_field *field, cJSON *json, void *payload)
 
 	memcpy(payload, &value, sizeof(value));
 	return 0;
-}
-
-static int write_others(struct global_field *field, cJSON *json, void *payload)
-{
-	if (json->type == cJSON_NULL)
-		return field->type->parse(field, "null", payload);
-	if (json->type == cJSON_String)
-		return field->type->parse(field, json->valuestring, payload);
-
-	return print_type_error(field->name, json, field->type->name);
 }
 
 static int write_plateaus(struct global_field *field, cJSON *node, void *payload)
@@ -481,9 +364,25 @@ static int write_plateaus(struct global_field *field, cJSON *node, void *payload
 	return 0;
 }
 
-static int write_field(cJSON *json, struct global_field *field,
-		struct nl_buffer *buffer)
+static int write_others(struct global_field *field, cJSON *json, void *payload)
 {
+	if (json->type == cJSON_NULL)
+		return field->type->parse(field, "null", payload);
+	if (json->type == cJSON_String)
+		return field->type->parse(field, json->valuestring, payload);
+
+	return type_mismatch(field->name, json, field->type->name);
+}
+
+/*
+ * =================================
+ * ======= Global tag handler ======
+ * =================================
+ */
+
+static int write_global(struct cJSON *json, void *_field, void *buffer)
+{
+	struct global_field *field = _field;
 	size_t size;
 	struct global_value *hdr;
 	void *payload;
@@ -532,288 +431,488 @@ static int write_field(cJSON *json, struct global_field *field,
 	return error;
 }
 
-static int handle_global_field(cJSON *json, struct nl_buffer *buffer,
-		bool *globals_found)
+static int create_globals_meta(struct nl_buffer *buffer,
+		struct json_meta **result)
 {
 	struct global_field *fields;
+	unsigned int field_count;
+	struct json_meta *meta;
 	unsigned int i;
-	int error;
 
-	get_global_fields(&fields, NULL);
+	get_global_fields(&fields, &field_count);
 
-	for (i = 0; fields[i].name; i++) {
-		if (STR_EQUAL(json->string, fields[i].name)) {
-			error = write_field(json, &fields[i], buffer);
-			if (globals_found[i])
-				log_info("Note: I found multiple '%s' definitions.",
-						fields[i].name);
-			globals_found[i] = true;
-			return error;
-		}
+	meta = malloc(field_count * sizeof(struct json_meta) + 1);
+	if (!meta) {
+		log_err("Out of memory.");
+		return -ENOMEM;
 	}
 
-	log_err("Unknown global configuration field: %s", json->string);
-	return -EINVAL;
+	for (i = 0; i < field_count; i++) {
+		meta[i].name = fields[i].name;
+		meta[i].handler = write_global;
+		meta[i].arg1 = &fields[i];
+		meta[i].arg2 = buffer;
+		meta[i].mandatory = false;
+		meta[i].already_found = false;
+	}
+	meta[field_count].name = NULL;
+
+	*result = meta;
+	return 0;
 }
 
-static int handle_global(cJSON *json, bool *globals_found)
+static int handle_global(cJSON *json)
 {
 	struct nl_buffer *buffer;
+	struct json_meta *meta;
 	int error;
-
-	if (!json)
-		return 0;
-	if (json->type != cJSON_Object)
-		return print_type_error(OPTNAME_GLOBAL, json, "Object");
 
 	buffer = buffer_alloc(SEC_GLOBAL);
 	if (!buffer)
 		return -ENOMEM;
+	error = create_globals_meta(buffer, &meta);
+	if (error)
+		goto end2;
 
-	for (json = json->child; json; json = json->next) {
-		error = handle_global_field(json, buffer, globals_found);
-		if (error)
-			goto end;
-	}
+	error = handle_object(json, meta);
+	if (error)
+		goto end;
 
 	error = nlbuffer_flush(buffer);
 	/* Fall through. */
-
 end:
+	free(meta);
+end2:
 	nlbuffer_destroy(buffer);
 	return error;
 }
 
-static int handle_eamt(cJSON *json)
+/*
+ * =================================
+ * === Parsers of database fields ==
+ * =================================
+ */
+
+static int json2prefix6(cJSON *json, void *arg1, void *arg2)
 {
-	struct nl_buffer *buffer;
-	cJSON *prefix_json;
-	struct eamt_entry eam;
-	unsigned int i = 1;
+	return (json->type == cJSON_String)
+			? str_to_prefix6(json->valuestring, arg1)
+			: string_expected(json->string, json);
+}
+
+static int json2prefix4(cJSON *json, void *arg1, void *arg2)
+{
+	return (json->type == cJSON_String)
+			? str_to_prefix4(json->valuestring, arg1)
+			: string_expected(json->string, json);
+}
+
+static int json2mark(cJSON *json, void *arg1, void *arg2)
+{
+	__u32 *mark = arg1;
 	int error;
 
-	if (!json)
-		return 0;
-	if (json->type != cJSON_Array)
-		return print_type_error(OPTNAME_EAMT, json, "Array");
+	error = validate_uint(json->string, json, 0, MAX_U32);
+	if (error)
+		return error;
 
-	buffer = buffer_alloc(SEC_EAMT);
-	if (!buffer)
-		return -ENOMEM;
-
-	for (json = json->child; json; json = json->next, i++) {
-		prefix_json = cJSON_GetObjectItem(json, "ipv6 Prefix");
-		if (!prefix_json) {
-			log_err("EAM entry #%u lacks an 'ipv6 prefix' field.", i);
-			error = -EINVAL;
-			goto end;
-		}
-		error = str_to_prefix6(prefix_json->valuestring, &eam.prefix6);
-		if (error) {
-			log_err("Error found on EAM entry #%u.", i);
-			goto end;
-		}
-
-		prefix_json = cJSON_GetObjectItem(json, "ipv4 Prefix");
-		if (!prefix_json) {
-			log_err("EAM entry #%u lacks an 'ipv4 prefix' field.", i);
-			error = -EINVAL;
-			goto end;
-		}
-		error = str_to_prefix4(prefix_json->valuestring, &eam.prefix4);
-		if (error) {
-			log_err("Error found on EAM entry #%u.", i);
-			goto end;
-		}
-
-		error = buffer_write(buffer, SEC_EAMT, &eam, sizeof(eam));
-		if (error)
-			goto end;
-	}
-
-	error = nlbuffer_flush(buffer);
-	/* Fall through. */
-
-end:
-	nlbuffer_destroy(buffer);
-	return error;
+	*mark = json->valueint;
+	return 0;
 }
 
-static int handle_blacklist4(cJSON *json)
+static int json2port_range(cJSON *json, void *arg1, void *arg2)
 {
-	struct nl_buffer *buffer;
-	struct ipv4_prefix prefix;
-	int error;
-
-	if (!json)
-		return 0;
-	if (json->type != cJSON_Array)
-		return print_type_error(OPTNAME_BLACKLIST, json, "Array");
-
-	buffer = buffer_alloc(SEC_BLACKLIST);
-	if (!buffer)
-		return -ENOMEM;
-
-	for (json = json->child; json; json = json->next) {
-		error = str_to_prefix4(json->valuestring, &prefix);
-		if (error)
-			goto end;
-		error = buffer_write(buffer, SEC_BLACKLIST,
-				&prefix, sizeof(prefix));
-		if (error)
-			goto end;
-	}
-
-	error = nlbuffer_flush(buffer);
-	/* Fall through. */
-
-end:
-	nlbuffer_destroy(buffer);
-	return error;
+	return (json->type == cJSON_String)
+			? str_to_port_range(json->valuestring, arg1)
+			: string_expected(json->string, json);
 }
 
-static int parse_max_iterations(struct cJSON *node,
-		struct pool4_entry_usr *entry)
+static int json2max_iterations(cJSON *json, void *arg1, void *arg2)
 {
+	struct pool4_entry_usr *entry = arg1;
 	int error = 0;
 
-	switch (node->type) {
+	switch (json->type) {
 	case cJSON_Number:
-		error = validate_uint(OPTNAME_MAX_ITERATIONS, node, 1, MAX_U32);
+		error = validate_uint(OPTNAME_MAX_ITERATIONS, json, 1, MAX_U32);
 		if (error)
 			return error;
 		entry->flags = ITERATIONS_SET;
-		entry->iterations = node->valueuint;
+		entry->iterations = json->valueuint;
 		break;
 	case cJSON_String:
-		if (strcmp(node->valuestring, "auto") == 0) {
+		if (strcmp(json->valuestring, "auto") == 0) {
 			entry->flags = ITERATIONS_SET | ITERATIONS_AUTO;
 			entry->iterations = 0;
-		} else if (strcmp(node->valuestring, "infinity") == 0) {
+		} else if (strcmp(json->valuestring, "infinity") == 0) {
 			entry->flags = ITERATIONS_SET | ITERATIONS_INFINITE;
 			entry->iterations = 0;
 			return 0;
 		} else {
-			log_err("Unrecognized string: '%s'", node->valuestring);
+			log_err("Unrecognized string: '%s'", json->valuestring);
 			error = -EINVAL;
 		}
 		break;
 	default:
-		print_type_error(OPTNAME_MAX_ITERATIONS, node,
+		error = type_mismatch(OPTNAME_MAX_ITERATIONS, json,
 				"string or number");
-		error = -EINVAL;
 	}
 
 	return error;
 }
 
-static int handle_pool4(cJSON *json)
+static int json2taddr6(cJSON *json, void *arg1, void *arg2)
 {
-	struct nl_buffer *buffer;
-	struct cJSON *child;
-	struct pool4_entry_usr entry;
-	unsigned int i = 1;
+	return (json->type == cJSON_String)
+			? str_to_addr6_port(json->valuestring, arg1)
+			: string_expected(json->string, json);
+}
+
+static int json2taddr4(cJSON *json, void *arg1, void *arg2)
+{
+	return (json->type == cJSON_String)
+			? str_to_addr4_port(json->valuestring, arg1)
+			: string_expected(json->string, json);
+}
+
+static int json2proto(cJSON *json, void *arg1, void *arg2)
+{
+	l4_protocol proto;
+
+	if (json->type != cJSON_String)
+		return string_expected(json->string, json);
+
+	proto = str_to_l4proto(json->valuestring);
+	if (proto == L4PROTO_OTHER) {
+		log_err("Protocol '%s' is unknown.", json->valuestring);
+		return -EINVAL;
+	}
+
+	*((__u8 *)arg1) = proto;
+	return 0;
+}
+
+/*
+ * =================================
+ * ===== Database tag handlers =====
+ * =================================
+ */
+
+static int handle_eam_entry(cJSON *json, struct nl_buffer *buffer)
+{
+	struct eamt_entry eam;
+	struct json_meta meta[] = {
+		{ "ipv6 prefix", json2prefix6, &eam.prefix6, NULL, true },
+		{ "ipv4 prefix", json2prefix4, &eam.prefix4, NULL, true },
+		{ NULL },
+	};
 	int error;
 
-	if (!json)
-		return 0;
-	if (json->type != cJSON_Array)
-		return print_type_error(OPTNAME_POOL4, json, "Array");
+	error = handle_object(json, meta);
+	if (error)
+		return error;
 
-	buffer = buffer_alloc(SEC_POOL4);
+	return buffer_write(buffer, SEC_EAMT, &eam, sizeof(eam));
+}
+
+static int handle_blacklist_entry(cJSON *json, struct nl_buffer *buffer)
+{
+	struct ipv4_prefix prefix;
+	int error;
+
+	if (json->type != cJSON_String)
+		return string_expected("blacklist entry", json);
+
+	error = str_to_prefix4(json->valuestring, &prefix);
+	if (error)
+		return error;
+
+	return buffer_write(buffer, SEC_BLACKLIST, &prefix, sizeof(prefix));
+}
+
+static int handle_pool4_entry(cJSON *json, struct nl_buffer *buffer)
+{
+	struct pool4_entry_usr entry;
+	struct json_meta meta[] = {
+		{ OPTNAME_MARK, json2mark, &entry.mark, NULL, false },
+		{ "protocol", json2proto, &entry.proto, NULL, true },
+		{ "prefix", json2prefix4, &entry.range.prefix, NULL, true },
+		{ "port range", json2port_range, &entry.range.ports, NULL, false },
+		{ OPTNAME_MAX_ITERATIONS, json2max_iterations, &entry, NULL, false },
+		{ NULL },
+	};
+	int error;
+
+	entry.mark = 0;
+	entry.range.ports.min = DEFAULT_POOL4_MIN_PORT;
+	entry.range.ports.max = DEFAULT_POOL4_MAX_PORT;
+	entry.iterations = 0;
+	entry.flags = 0;
+
+	error = handle_object(json, meta);
+	if (error)
+		return error;
+
+	return buffer_write(buffer, SEC_POOL4, &entry, sizeof(entry));
+}
+
+static int handle_bib_entry(cJSON *json, struct nl_buffer *buffer)
+{
+	struct bib_entry_usr entry;
+	struct json_meta meta[] = {
+		{ "ipv6 address", json2taddr6, &entry.addr6, NULL, true },
+		{ "ipv4 address", json2taddr4, &entry.addr4, NULL, true },
+		{ "protocol", json2proto, &entry.l4_proto, NULL, true },
+		{ NULL },
+	};
+	int error;
+
+	entry.is_static = true;
+
+	error = handle_object(json, meta);
+	if (error)
+		return error;
+
+	return buffer_write(buffer, SEC_BIB, &entry, sizeof(entry));
+}
+
+/*
+ * ==========================================
+ * = Second level tag handlers, second pass =
+ * ==========================================
+ */
+
+static int do_nothing(cJSON *json, void *arg1, void *arg2)
+{
+	return 0;
+}
+
+static int handle_global_tag(cJSON *json, void *arg1, void *arg2)
+{
+	return handle_global(json);
+}
+
+static int handle_eamt_tag(cJSON *json, void *arg1, void *arg2)
+{
+	return handle_array(json, OPTNAME_EAMT, SEC_EAMT, handle_eam_entry);
+}
+
+static int handle_bl4_tag(cJSON *json, void *arg1, void *arg2)
+{
+	return handle_array(json, OPTNAME_BLACKLIST, SEC_BLACKLIST,
+			handle_blacklist_entry);
+}
+
+static int handle_pool4_tag(cJSON *json, void *arg1, void *arg2)
+{
+	return handle_array(json, OPTNAME_POOL4, SEC_POOL4, handle_pool4_entry);
+}
+
+static int handle_bib_tag(cJSON *json, void *arg1, void *arg2)
+{
+	return handle_array(json, OPTNAME_BIB, SEC_BIB, handle_bib_entry);
+}
+
+/*
+ * ==================================
+ * = Root tag handlers, second pass =
+ * ==================================
+ */
+
+static int parse_siit_json(cJSON *json)
+{
+	struct json_meta meta[] = {
+		/* instance and framework were already handled. */
+		{ OPTNAME_INAME, do_nothing, NULL, NULL, true },
+		{ OPTNAME_FW, do_nothing, NULL, NULL, true },
+		{ OPTNAME_GLOBAL, handle_global_tag, NULL, NULL, false },
+		{ OPTNAME_EAMT, handle_eamt_tag, NULL, NULL, false },
+		{ OPTNAME_BLACKLIST, handle_bl4_tag, NULL, NULL, false },
+		{ NULL },
+	};
+
+	return handle_object(json, meta);
+}
+
+static int parse_nat64_json(cJSON *json)
+{
+	struct json_meta meta[] = {
+		/* instance and framework were already handled. */
+		{ OPTNAME_INAME, do_nothing, NULL, NULL, true },
+		{ OPTNAME_FW, do_nothing, NULL, NULL, true },
+		{ OPTNAME_GLOBAL, handle_global_tag, NULL, NULL, false },
+		{ OPTNAME_POOL4, handle_pool4_tag, NULL, NULL, false },
+		{ OPTNAME_BIB, handle_bib_tag, NULL, NULL, false },
+		{ NULL },
+	};
+
+	return handle_object(json, meta);
+}
+
+/*
+ * =========================================
+ * = Second level tag handlers, first pass =
+ * =========================================
+ */
+
+static int handle_instance_tag(cJSON *json, void *_iname, void *arg2)
+{
+	int error;
+
+	if (json->type != cJSON_String)
+		return string_expected(json->string, json);
+
+	error = iname_validate(json->valuestring, false);
+	if (error)
+		return error;
+	if (_iname && strcmp(_iname, json->valuestring) != 0) {
+		log_err("The -i command line argument (%s) does not match the instance name defined in the file (%s).\n"
+				"You might want to delete one of them.",
+				(char *)_iname, json->valuestring);
+		return -EINVAL;
+	}
+
+	iname = json->valuestring;
+	return 0;
+}
+
+static int handle_framework_tag(cJSON *json, void *arg1, void *arg2)
+{
+	if (json->type != cJSON_String)
+		return string_expected(json->string, json);
+
+	if (STR_EQUAL(json->valuestring, "netfilter")) {
+		fw |= FW_NETFILTER;
+		return 0;
+	} else if (STR_EQUAL(json->valuestring, "iptables")) {
+		fw |= FW_IPTABLES;
+		return 0;
+	}
+
+	log_err("Unknown framework: '%s'", json->valuestring);
+	return -EINVAL;
+}
+
+/*
+ * ================================
+ * = Root tag handler, first pass =
+ * ================================
+ */
+
+/*
+ * Sets the @iname and @fw global variables according to @_iname and @json.
+ */
+static int prepare_instance(char *_iname, cJSON *json)
+{
+	struct json_meta meta[] = {
+		{ OPTNAME_INAME, handle_instance_tag, _iname, NULL, false },
+		{ OPTNAME_FW, handle_framework_tag, NULL, NULL, true },
+		/* The rest will be handled later. */
+		{ OPTNAME_GLOBAL, do_nothing },
+		{ OPTNAME_EAMT, do_nothing },
+		{ OPTNAME_BLACKLIST, do_nothing },
+		{ OPTNAME_POOL4, do_nothing },
+		{ OPTNAME_BIB, do_nothing },
+		{ NULL },
+	};
+	int error;
+
+	iname = NULL;
+	fw = 0;
+
+	/*
+	 * We want to be a little lenient if the user defines both -i and the
+	 * instance tag. Normally, we would complain about the duplication, but
+	 * we don't want to return negative reinforcement if the user is simply
+	 * used to input -i and the strings are the same. This would only be
+	 * irritating.
+	 * So don't do `iname = _iname` yet.
+	 */
+	error = iname_validate(_iname, true);
+	if (error)
+		return error;
+
+	error = handle_object(json, meta);
+	if (error)
+		return error;
+
+	if (!iname && !_iname)
+		return missing_tag("root", OPTNAME_INAME);
+	if (!iname)
+		iname = _iname;
+
+	return 0;
+}
+
+/*
+ * =================================
+ * ======== Outer functions ========
+ * =================================
+ */
+
+static int send_ctrl_msg(enum parse_section section)
+{
+	struct nl_buffer *buffer;
+	struct request_init request;
+	int error;
+
+	buffer = buffer_alloc(section);
 	if (!buffer)
 		return -ENOMEM;
 
-	for (json = json->child; json; json = json->next, i++) {
-		child = cJSON_GetObjectItem(json, OPTNAME_MARK);
-		if (child) {
-			error = validate_uint(OPTNAME_MARK, child, 0, MAX_U32);
-			if (error)
-				goto end;
-			entry.mark = child->valueuint;
-		} else {
-			entry.mark = 0;
-		}
-
-		child = cJSON_GetObjectItem(json, "protocol");
-		if (!child) {
-			log_err("Pool4 entry %u lacks a protocol field.", i);
-			error = -EINVAL;
-			goto end;
-		}
-		entry.proto = str_to_l4proto(child->valuestring);
-		if (entry.proto == L4PROTO_OTHER) {
-			log_err("Protocol '%s' is unknown.",
-					child->valuestring);
-			error = -EINVAL;
-			goto end;
-		}
-
-		child = cJSON_GetObjectItem(json, "prefix");
-		if (!child) {
-			log_err("Pool4 entry %u lacks a prefix field.", i);
-			error = -EINVAL;
-			goto end;
-		}
-		error = str_to_prefix4(child->valuestring, &entry.range.prefix);
-		if (error)
-			goto end;
-
-		child = cJSON_GetObjectItem(json, "port range");
-		if (child) {
-			error = str_to_port_range(child->valuestring,
-					&entry.range.ports);
-			if (error)
-				goto end;
-		} else {
-			entry.range.ports.min = DEFAULT_POOL4_MIN_PORT;
-			entry.range.ports.max = DEFAULT_POOL4_MAX_PORT;
-		}
-
-		child = cJSON_GetObjectItem(json, OPTNAME_MAX_ITERATIONS);
-		if (child) {
-			error = parse_max_iterations(child, &entry);
-			if (error)
-				goto end;
-		} else {
-			entry.iterations = 0;
-			entry.flags = 0;
-		}
-
-		error = buffer_write(buffer, SEC_POOL4, &entry, sizeof(entry));
+	if (section == SEC_INIT) {
+		request.fw = fw;
+		error = buffer_write(buffer, section, &request, sizeof(request));
 		if (error)
 			goto end;
 	}
 
 	error = nlbuffer_flush(buffer);
-	/* Fall through. */
+	/* Fall through */
 
 end:
 	nlbuffer_destroy(buffer);
 	return error;
 }
 
-static int handle_bib(cJSON *json)
+static int do_parsing(char *iname, char *buffer)
 {
-	/*
-	 * xTODO (wontfix) <- The x prevents Eclipse from indexing this to-do.
-	 *
-	 * It seems like it's impossible to support this without slowing
-	 * important BIB/session operations about an order of magnitude down.
-	 * The BIB/session module is already pretty freaking dense already, too.
-	 * It really doesn't want more constraints.
-	 *
-	 * The core of the issue is that, unlike the other databases, BIB is a
-	 * uniform blend between preconfigured stuff (static BIB entries) and
-	 * dynamic stuff (dynamic BIB entries and sessions). There is no atomic
-	 * way to replace *only* the preconfigured stuff.
-	 *
-	 * Atomic static BIB entries are also hardly critical so this is going
-	 * to be postponed indefinitely until somebody gets miraculously
-	 * enlightened.
-	 *
-	 * I'm not getting my hopes up.
-	 */
-	log_err("Sorry; BIB atomic configuration is not implemented.");
-	return -EINVAL;
+	int error;
+
+	cJSON *json = cJSON_Parse(buffer);
+	if (!json) {
+		log_err("The JSON parser got confused around the beginning of this string:");
+		log_err("%s", cJSON_GetErrorPtr());
+		return -EINVAL;
+	}
+
+	error = prepare_instance(iname, json);
+	if (error)
+		return error;
+
+	error = send_ctrl_msg(SEC_INIT);
+	if (error)
+		return error;
+
+	error = xlat_is_siit() ? parse_siit_json(json) : parse_nat64_json(json);
+	if (error)
+		return error;
+
+	return send_ctrl_msg(SEC_COMMIT);
+}
+
+int parse_file(char *iname, char *file_name, bool _force)
+{
+	char *buffer;
+	int error;
+
+	force = _force;
+
+	error = file_to_string(file_name, &buffer);
+	if (error)
+		return error;
+
+	error = do_parsing(iname, buffer);
+	free(buffer);
+	return error;
 }
