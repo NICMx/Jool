@@ -108,7 +108,6 @@ int handle_session_display(char *iname, int argc, char **argv, void *arg)
 		return error;
 
 	if (!dargs.csv.value) {
-		printf("%s:\n", l4proto_to_string(dargs.proto.proto));
 		printf("---------------------------------\n");
 	} else if (show_csv_header(dargs.no_headers.value, dargs.csv.value)) {
 		printf("Protocol,");

@@ -21,5 +21,5 @@ iptables  -t mangle -A PREROUTING -d 192.0.2.33            -j JOOL_SIIT
 # pool6791 test
 jool_siit eamt add 2001:db8:3::/120 1.0.0.0/24
 jool_siit eamt add 2001:db8:2::/120 10.0.0.0/24
-jool_siit global update pool6791v4 203.0.113.8
+jool_siit global update rfc6791v4-prefix 203.0.113.8
 ip route add 2001:db8:3::/120 via 2001:db8:1c0:2:21::
