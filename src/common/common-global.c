@@ -145,13 +145,13 @@ static struct global_field global_fields[] = {
 		.offset = offsetof(struct globals, siit.randomize_error_addresses),
 		.xt = XT_SIIT,
 	}, {
-		.name = "pool6791v6",
+		.name = "rfc6791v6-prefix",
 		.type = &gt_prefix6,
 		.doc = "IPv6 prefix to generate RFC6791v6 addresses from.",
 		.offset = offsetof(struct globals, siit.rfc6791_prefix6),
 		.xt = XT_SIIT,
 	}, {
-		.name = "pool6791v4",
+		.name = "rfc6791v4-prefix",
 		.type = &gt_prefix4,
 		.doc = "IPv4 prefix to generate RFC6791 addresses from.",
 		.offset = offsetof(struct globals, siit.rfc6791_prefix4),
