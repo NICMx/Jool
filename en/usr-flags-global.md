@@ -384,7 +384,7 @@ Stateful NAT64 Jool _always_ computes zero-checksums from IPv4-UDP packets. Beca
 - Translation direction: IPv6 to IPv4
 - Source: [Issue 130]({{ site.repository-url }}/issues/130)
 
-If an ICMPv6 error's source cannot be translated, [RFC 6791](https://tools.ietf.org/html/rfc6791) wants us to assign as source a random IPv4 address from the [RFC 6791 pool](usr-flags-pool6791.html).
+If an ICMPv6 error's source cannot be translated, [RFC 6791](https://tools.ietf.org/html/rfc6791) wants us to assign as source a random IPv4 address from the [RFC 6791 pool](#rfc6791v4-prefix).
 
 - If `randomize-rfc6791-addresses` is ON, Jool will follow RFC 6791's advice, assigning a random address from the pool.
 - If `randomize-rfc6791-addresses` is OFF, Jool will assign the `hop limit`th address from the pool.
