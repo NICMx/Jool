@@ -17,15 +17,16 @@ Results [here](index.html#survey).
 - Normal font signals recommended fallback versions in case the previous option fails you ([bug reports welcomed]({{ site.repository-url }}/issues)).
 - <del>Striked</del> versions are not recommended (either because they're too old or have known critical bugs).
 
-## 3.6.x
+## 4.0.x
 
-Jool 3.6 is a [compliant SIIT and Stateful NAT64](intro-jool.html#compliance).
+Jool 4.0 is a [compliant SIIT and Stateful NAT64](intro-jool.html#compliance).
 
 Please note that this series is rather new, and though it improves the code in meaningful ways, it should not be considered more mature than 3.5 yet.
 
 | Release Date | Version | .tar.gz | Git commit |
 |--------------|---------|---------|------------|
-| 2019-01-04   | 3.6.0-rc4 | [Download]({{ site.downloads-url }}/jool_3.6.0-rc4.tar.gz) | <a href="{{ site.repository-url }}/tree/v3.6.0-rc4" target="_blank">Link</a> |
+| 2019-01-09   | 4.0.0-rc5 | [Download](https://github.com/NICMx/Jool/releases/download/v4.0.0-rc5/jool_4.0.0-rc5.tar.gz) | <a href="{{ site.repository-url }}/tree/v4.0.0-rc4" target="_blank">Link</a> |
+| 2019-01-04   | 3.6.0-rc4 | [Download](https://github.com/NICMx/Jool/releases/download/v3.6.0-rc4/jool_3.6.0-rc4.tar.gz) | <a href="{{ site.repository-url }}/tree/v3.6.0-rc4" target="_blank">Link</a> |
 | 2018-12-26   | 3.6.0-rc3 | [Download]({{ site.downloads-url }}/jool_3.6.0-rc3.tar.gz) | <a href="{{ site.repository-url }}/tree/v3.6.0-rc3" target="_blank">Link</a> |
 | 2018-12-14   | 3.6.0-rc2 | [Download]({{ site.downloads-url }}/jool_3.6.0-rc2.tar.gz) | <a href="{{ site.repository-url }}/tree/v3.6.0-rc2" target="_blank">Link</a> |
 | 2018-11-24   | <del>3.6.0-rc1</del> | <del>[Download]({{ site.downloads-url }}/jool_3.6.0-rc1.tar.gz)</del> | <a href="{{ site.repository-url }}/tree/v3.6.0-rc1" target="_blank">Link</a> |
@@ -38,7 +39,7 @@ Jool 3.5 is also a [compliant SIIT and Stateful NAT64](intro-jool.html#complianc
 
 3.5.7 is the latest version. It is also considered the most mature version of Jool.
 
-> Note! This site's documentation pertains to the new 3.6 series.
+> Note! This site's documentation pertains to the new 4.0 series.
 >
 > You can download a copy of the Jool 3.5 documentation [here]({{ site.downloads-url }}/Jool-3.5-doc.zip).
 

@@ -93,7 +93,7 @@ You might have noticed, however, that ARPANET was disbanded a long time ago, whi
 
 It's not that bad, given that some of the protocols in the table are still in use, and having a few redundant plateaus is better than having a few missing ones.
 
-And it doesn't mean the plateaus list is hardcoded into Jool, either. If you want to change your plateaus list, run (after installing the [userspace application](install-usr.html))
+And it doesn't mean the plateaus list is hardcoded into Jool, either. If you want to change your plateaus list, run
 
 	(jool_siit | jool) global update mtu-plateaus <list>
 

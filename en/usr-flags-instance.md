@@ -23,7 +23,7 @@ title: instance Mode
 
 ## Description
 
-While `modprobe jool` and `modprobe jool_siit` can respectively be used to teach NAT64 and SIIT to a kernel, they no longer immediately change the kernel's behavior in any way, as of Jool 3.6.0.
+While `modprobe jool` and `modprobe jool_siit` can respectively be used to teach NAT64 and SIIT to a kernel, they no longer immediately change the kernel's behavior in any way, as of Jool 4.0.0.
 
 To actually start packet translation, an SIIT or NAT64 instance has to be created and attached somewhere in the network stack. That's where `instance` comes in.
 

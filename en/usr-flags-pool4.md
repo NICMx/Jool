@@ -185,7 +185,7 @@ You already know the ports owned by any servers parked in your NAT64, if any. Th
 	$ sysctl net.ipv4.ip_local_port_range 
 	net.ipv4.ip_local_port_range = 32768	61000
 
-As you can see, Linux's ephemeral port range defaults to 32768-61000, and this is the reason why Jool falls back to use ports 61001-65535 (of whatever primary global addresses its node is wearing) when pool4 is empty. You can change the former by tweaking sysctl `sys.net.ipv4.ip_local_port_range`, and the latter by means of `--pool4 --add` and `--pool4 --remove`.
+As you can see, Linux's ephemeral port range defaults to 32768-61000, and this is the reason why Jool falls back to use ports 61001-65535 (of whatever primary global addresses its node is wearing) when pool4 is empty. You can change the former by tweaking sysctl `sys.net.ipv4.ip_local_port_range`, and the latter by means of `pool4 add` and `pool4 remove`.
 
 Say your NAT64's machine has address 192.0.2.1 and pool4 is empty.
 
@@ -194,7 +194,7 @@ Say your NAT64's machine has address 192.0.2.1 and pool4 is empty.
 
 This means Jool is using ports and ICMP ids 61001-65535 of address 192.0.2.1. Let's add them explicitely:
 
-	# jool --pool4 --add 192.0.2.1 61001-65535
+	# jool pool4 add 192.0.2.1 61001-65535
 
 So, for example, if you only have this one address, but want to reserve more ports for translation, you have to subtract them from elsewhere. The ephemeral range is a good candidate:
 
@@ -218,7 +218,7 @@ So, for example, if you only have this one address, but want to reserve more por
 
 Max Iterations is explained [here](pool4.html#algorithm-performance).
 
-Its default is a reasonable generic value that attempts to find a reasonable balance between packet drops and runtime performance. It is computed as follows:
+Its default is a generic value that attempts to find a reasonable balance between packet drops and runtime performance. It is computed as follows:
 
 - If the set has less than 128k transport addresses, Max Iterations defaults to 1024 (ie. `128k / 128`).
 - If the set has something between 128k and 1024k transport addresses, Max Iterations defaults to `number of transport addresses / 128`.

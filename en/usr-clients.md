@@ -25,7 +25,7 @@ All userspace client command line requests adhere to the following syntax:
 
 `jool` and `jool_siit` are the names of the two available userspace client binaries. The `jool` client speaks to the `jool` kernel module, and the `jool_siit` client speaks to the `jool_siit` kernel module.
 
-`<instance name>` is the name of the instance (defined in [`instance add`](usr-flag-instance.html)) you want to interact with. It defaults to "`default`."
+`<instance name>` is the name of the instance (defined in [`instance add`](usr-flags-instance.html)) you want to interact with. It defaults to "`default`."
 
 `<mode>` is (usually) one of the following keywords:
 

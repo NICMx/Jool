@@ -34,6 +34,20 @@ Our latest stable release is version [3.5.7]({{ site.repository-url }}/milestone
 
 ## News
 
+### 2019-01-09
+
+It has been pointed to me that the new userspace interface warrants a change in major version number for the sake of proper [semantic versioning](https://semver.org/).
+
+Therefore, the fifth release candidate for Jool **4.0.0** is now available.
+
+- It adds support for `$DESTDIR` on the iptables binaries Makefile. ([#272](https://github.com/NICMx/Jool/pull/272))
+- It applies latest feedback on atomic configuration:
+	- It now supports static BIB entries. (But only if the operation is being used to create a new translator instance.)
+	- The JSON parser is more consistent:
+		- Duplicate and unknown tags are no longer allowed on any object contexts. (To make up for this, `comment` tags are now allowed on all object contexts.)
+		- The entirety of the JSON file is now expected to contain all of the intended configuration at once; some sections are not incremental anymore.
+	- See [here](config-atomic.html#changes-from-jool-3) for more details.
+
 ### 2019-01-04
 
 The fourth release candidate for version 3.6.0 is now available. It commits [support for kernel 4.19](https://github.com/NICMx/Jool/pull/270) and also [adds support for 4.20](https://github.com/NICMx/Jool/pull/271).

@@ -123,4 +123,4 @@ IPv4 doesn't need link addresses that much.
 
 If you're running Jool in a guest virtual machine, something important to keep in mind is that you might rather or also have to disable offloads in the [VM host](http://en.wikipedia.org/wiki/Hypervisor)'s uplink interface.
 
-And please [report](contact.html) that this happened to you. Because of recent developments, Jool should be offload-independent as of version 3.6.0.
+And please [report](contact.html) that this happened to you. Because of recent developments, Jool should be offload-independent as of version 4.0.0.
