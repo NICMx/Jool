@@ -14,8 +14,6 @@ static struct bib_entry entries[TEST_BIB_COUNT];
 static bool inject(unsigned int index, char *addr4, u16 port4,
 		char *addr6, u16 port6)
 {
-	int error;
-
 	if (str_to_addr4(addr4, &entries[index].ipv4.l3))
 		return false;
 	if (str_to_addr6(addr6, &entries[index].ipv6.l3))

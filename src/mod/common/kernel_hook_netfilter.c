@@ -33,6 +33,7 @@ static unsigned int verdict2netfilter(verdict result)
 	case VERDICT_STOLEN:
 		return NF_STOLEN; /* This is the happy path. */
 	case VERDICT_UNTRANSLATABLE:
+		/* TODO do not output this before having found the instance. */
 		log_debug("Returning the packet to the kernel.");
 		return NF_ACCEPT;
 	case VERDICT_DROP:

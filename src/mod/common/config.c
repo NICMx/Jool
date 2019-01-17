@@ -5,6 +5,7 @@
 #include "common/config.h"
 #include "common/constants.h"
 #include "common/types.h"
+#include "mod/common/common-global.h"
 #include "mod/common/tags.h"
 #include "mod/common/wkmalloc.h"
 
@@ -13,9 +14,13 @@ static DEFINE_MUTEX(lock);
 RCUTAG_USR
 struct global_config *config_alloc(struct config_prefix6 *pool6)
 {
+	static const __u16 PLATEAUS[] = DEFAULT_MTU_PLATEAUS;
 	struct global_config *result;
 	struct globals *config;
-	__u16 plateaus[] = DEFAULT_MTU_PLATEAUS;
+
+	/* TODO force, return error code, more elegant NULL management */
+	if (pool6 && validate_pool6(NULL, pool6, true))
+		return NULL;
 
 	result = wkmalloc(struct global_config, GFP_KERNEL);
 	if (!result)
@@ -32,8 +37,8 @@ struct global_config *config_alloc(struct config_prefix6 *pool6)
 	config->reset_traffic_class = DEFAULT_RESET_TRAFFIC_CLASS;
 	config->reset_tos = DEFAULT_RESET_TOS;
 	config->new_tos = DEFAULT_NEW_TOS;
-	memcpy(config->plateaus.values, &plateaus, sizeof(plateaus));
-	config->plateaus.count = ARRAY_SIZE(plateaus);
+	memcpy(config->plateaus.values, &PLATEAUS, sizeof(PLATEAUS));
+	config->plateaus.count = ARRAY_SIZE(PLATEAUS);
 
 	if (xlat_is_siit()) {
 		config->siit.compute_udp_csum_zero = DEFAULT_COMPUTE_UDP_CSUM0;

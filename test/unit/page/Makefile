@@ -27,6 +27,7 @@ $(PAGE)-objs += ../framework/skb_generator.o
 $(PAGE)-objs += ../framework/types.o
 
 $(PAGE)-objs += ../../../src/common/netlink/config.o
+$(PAGE)-objs += ../../../src/mod/common/common-global.o
 $(PAGE)-objs += ../../../src/mod/common/config.o
 $(PAGE)-objs += ../../../src/mod/common/ipv6_hdr_iterator.o
 $(PAGE)-objs += ../../../src/mod/common/packet.o

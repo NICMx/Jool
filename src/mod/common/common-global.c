@@ -61,11 +61,11 @@ int validate_pool6(struct global_field *field, void *value, bool force)
 	if (!prefix->set)
 		return 0;
 
-	error = validate_pool6_len(prefix->prefix.len);
+	error = prefix6_validate(&prefix->prefix);
 	if (error)
 		return error;
 
-	error = prefix6_validate(&prefix->prefix);
+	error = validate_pool6_len(prefix->prefix.len);
 	if (error)
 		return error;
 

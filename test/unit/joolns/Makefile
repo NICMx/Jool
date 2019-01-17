@@ -21,6 +21,7 @@ obj-m += $(JOOLNS).o
 $(JOOLNS)-objs += $(MIN_REQS)
 $(JOOLNS)-objs += ../../../src/common/netlink/config.o
 $(JOOLNS)-objs += ../../../src/mod/common/atomic_config.o
+$(JOOLNS)-objs += ../../../src/mod/common/common-global.o
 $(JOOLNS)-objs += ../../../src/mod/common/config.o
 $(JOOLNS)-objs += ../../../src/mod/common/rtrie.o
 $(JOOLNS)-objs += ../../../src/mod/common/xlator.o

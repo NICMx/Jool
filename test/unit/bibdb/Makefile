@@ -17,6 +17,7 @@ BIBDB = bibdb
 obj-m += $(BIBDB).o
 
 $(BIBDB)-objs += $(MIN_REQS)
+$(BIBDB)-objs += ../../../src/mod/common/common-global.o
 $(BIBDB)-objs += ../../../src/mod/common/config.o
 $(BIBDB)-objs += ../../../src/mod/common/rbtree.o
 $(BIBDB)-objs += ../../../src/mod/common/translation_state.o
