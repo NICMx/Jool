@@ -34,6 +34,15 @@ Our latest stable release is version [3.5.7]({{ site.repository-url }}/milestone
 
 ## News
 
+### 2019-01-17
+
+Jool 4.0.0 has been released.
+
+Since the fifth release candidate:
+
+- Update the manpages.
+- Patch validation of pool6 during `instance add`s.
+
 ### 2019-01-09
 
 It has been pointed to me that the new userspace interface warrants a change in major version number for the sake of proper [semantic versioning](https://semver.org/).

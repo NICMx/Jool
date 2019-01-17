@@ -25,11 +25,12 @@ Please note that this series is rather new, and though it improves the code in m
 
 | Release Date | Version | .tar.gz | Git commit |
 |--------------|---------|---------|------------|
-| 2019-01-09   | 4.0.0-rc5 | [Download](https://github.com/NICMx/Jool/releases/download/v4.0.0-rc5/jool_4.0.0-rc5.tar.gz) | <a href="{{ site.repository-url }}/tree/v4.0.0-rc4" target="_blank">Link</a> |
-| 2019-01-04   | 3.6.0-rc4 | [Download](https://github.com/NICMx/Jool/releases/download/v3.6.0-rc4/jool_3.6.0-rc4.tar.gz) | <a href="{{ site.repository-url }}/tree/v3.6.0-rc4" target="_blank">Link</a> |
-| 2018-12-26   | 3.6.0-rc3 | [Download]({{ site.downloads-url }}/jool_3.6.0-rc3.tar.gz) | <a href="{{ site.repository-url }}/tree/v3.6.0-rc3" target="_blank">Link</a> |
-| 2018-12-14   | 3.6.0-rc2 | [Download]({{ site.downloads-url }}/jool_3.6.0-rc2.tar.gz) | <a href="{{ site.repository-url }}/tree/v3.6.0-rc2" target="_blank">Link</a> |
-| 2018-11-24   | <del>3.6.0-rc1</del> | <del>[Download]({{ site.downloads-url }}/jool_3.6.0-rc1.tar.gz)</del> | <a href="{{ site.repository-url }}/tree/v3.6.0-rc1" target="_blank">Link</a> |
+| 2019-01-17   | 4.0.0   | [Download](https://github.com/NICMx/Jool/releases/download/v4.0.0/jool_4.0.0.tar.gz) | <a href="{{ site.repository-url }}/tree/v4.0.0" target="_blank">Link</a> |
+| 2019-01-09   | <del>4.0.0-rc5</del> | [Download](https://github.com/NICMx/Jool/releases/download/v4.0.0-rc5/jool_4.0.0-rc5.tar.gz) | <a href="{{ site.repository-url }}/tree/v4.0.0-rc5" target="_blank">Link</a> |
+| 2019-01-04   | <del>3.6.0-rc4</del> | [Download](https://github.com/NICMx/Jool/releases/download/v3.6.0-rc4/jool_3.6.0-rc4.tar.gz) | <a href="{{ site.repository-url }}/tree/v3.6.0-rc4" target="_blank">Link</a> |
+| 2018-12-26   | <del>3.6.0-rc3</del> | [Download]({{ site.downloads-url }}/jool_3.6.0-rc3.tar.gz) | <a href="{{ site.repository-url }}/tree/v3.6.0-rc3" target="_blank">Link</a> |
+| 2018-12-14   | <del>3.6.0-rc2</del> | [Download]({{ site.downloads-url }}/jool_3.6.0-rc2.tar.gz) | <a href="{{ site.repository-url }}/tree/v3.6.0-rc2" target="_blank">Link</a> |
+| 2018-11-24   | <del>3.6.0-rc1</del> | [Download]({{ site.downloads-url }}/jool_3.6.0-rc1.tar.gz) | <a href="{{ site.repository-url }}/tree/v3.6.0-rc1" target="_blank">Link</a> |
 
 "rc" stands for "Release Candidate."
 

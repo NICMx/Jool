@@ -5,7 +5,7 @@ category: Documentation
 title: Atomic Configuration
 ---
 
-[Documentation](documentation.html) > [Other Configuration](documentation.html#other-configuration) > Atomic Configuration
+[Documentation](documentation.html) > [Userspace Clients](documentation.html#userspace-clients) > Atomic Configuration
 
 # Atomic Configuration
 
