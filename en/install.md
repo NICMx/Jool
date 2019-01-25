@@ -117,8 +117,19 @@ user@T:~# apt install libnl-genl-3-dev
 
 The iptables shared object needs the [Netfilter xtables Library development files](http://www.netfilter.org/):
 
+<div class="distro-menu">
+	<span class="distro-selector" onclick="showDistro(this);">Ubuntu 18.04</span>
+	<span class="distro-selector" onclick="showDistro(this);">Ubuntu 16.04</span>
+</div>
+
+<!-- Ubuntu 18.04 -->
 {% highlight bash %}
 user@T:~# apt install libxtables-dev
+{% endhighlight %}
+
+<!-- Ubuntu 16.04 -->
+{% highlight bash %}
+user@T:~# apt install iptables-dev
 {% endhighlight %}
 
 If you will install Jool via DKMS, you will need DKMS itself:
