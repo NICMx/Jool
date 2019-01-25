@@ -173,7 +173,7 @@ You have two options:
 
 <!-- tarballs -->
 {% highlight bash %}
-$ wget https://github.com/NICMx/releases/raw/master/Jool/jool_{{ site.latest-version }}.tar.gz
+$ wget {{ site.downloads-url-2 }}/v{{ site.latest-version }}/jool_{{ site.latest-version }}.tar.gz
 $ tar -xzf jool_{{ site.latest-version }}.tar.gz
 {% endhighlight %}
 
