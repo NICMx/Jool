@@ -96,4 +96,7 @@ verdict ttpcomm_translate_inner_packet(struct xlation *state);
 
 bool must_not_translate(struct in_addr *addr, struct net *ns);
 
+struct sk_buff *alloc_skb_out(struct packet *in, unsigned int s1,
+		unsigned int s2, unsigned int s3);
+
 #endif /* _JOOL_MOD_TTP_COMMON_H */

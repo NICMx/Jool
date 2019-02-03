@@ -58,11 +58,9 @@ verdict ttp46_alloc_skb(struct xlation *state)
 			total_len = IPV6_MIN_MTU;
 	}
 
-	skb = alloc_skb(reserve + total_len, GFP_ATOMIC);
-	if (!skb) {
-		inc_stats(in, IPSTATS_MIB_INDISCARDS);
+	skb = alloc_skb_out(in, reserve, total_len, 0);
+	if (!skb)
 		return VERDICT_DROP;
-	}
 
 	skb_reserve(skb, reserve);
 	skb_put(skb, total_len);

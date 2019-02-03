@@ -76,6 +76,8 @@ unsigned int core_4to6(struct sk_buff *skb, const struct net_device *dev)
 
 	xlation_init(&state);
 
+	snapshot_record4(&state.in.debug.shot1, skb);
+
 	if (xlator_find(dev_net(dev), &state.jool))
 		return NF_ACCEPT;
 	if (!state.jool.global->cfg.enabled) {
@@ -88,6 +90,8 @@ unsigned int core_4to6(struct sk_buff *skb, const struct net_device *dev)
 		xlation_clean(&state);
 		return NF_DROP;
 	}
+
+	snapshot_record4(&state.in.debug.shot2, skb);
 
 	result = core_common(&state);
 	xlation_clean(&state);
@@ -106,7 +110,7 @@ unsigned int core_6to4(struct sk_buff *skb, const struct net_device *dev)
 
 	xlation_init(&state);
 
-	snapshot_record(&state.in.debug.shot1, skb);
+	snapshot_record6(&state.in.debug.shot1, skb);
 
 	if (xlator_find(dev_net(dev), &state.jool))
 		return NF_ACCEPT;
@@ -121,7 +125,7 @@ unsigned int core_6to4(struct sk_buff *skb, const struct net_device *dev)
 		return NF_DROP;
 	}
 
-	snapshot_record(&state.in.debug.shot2, skb);
+	snapshot_record6(&state.in.debug.shot2, skb);
 
 	if (xlat_is_nat64()) {
 		result = fragdb_handle(state.jool.nat64.frag, &state.in);

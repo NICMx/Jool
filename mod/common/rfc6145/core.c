@@ -44,11 +44,9 @@ static verdict translate_subsequent(struct xlation *state, struct sk_buff *in,
 		break;
 	}
 
-	result = alloc_skb(LL_MAX_HEADER + hdrs_len + in->len, GFP_ATOMIC);
-	if (!result) {
-		inc_stats(&state->in, IPSTATS_MIB_INDISCARDS);
+	result = alloc_skb_out(&state->in, LL_MAX_HEADER, hdrs_len, in->len);
+	if (!result)
 		return VERDICT_DROP;
-	}
 
 	skb_reserve(result, LL_MAX_HEADER + hdrs_len);
 	skb_put(result, in->len);

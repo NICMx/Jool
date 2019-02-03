@@ -75,6 +75,43 @@ static void *offset_to_ptr(struct sk_buff *skb, unsigned int offset)
 	return ((void *) skb->data) + offset;
 }
 
+/* Wrapper for pskb_may_pull(). */
+static bool
+may_pull(struct sk_buff *skb, unsigned int length)
+{
+	unsigned char *head, *data, *tail, *end;
+	unsigned int len, data_len;
+	unsigned char nr_frags;
+
+	head = skb->head;
+	data = skb->data;
+	tail = skb_tail_pointer(skb);
+	end = skb_end_pointer(skb);
+	len = skb->len;
+	data_len = skb->data_len;
+	nr_frags = skb_shinfo(skb)->nr_frags;
+
+	if (!pskb_may_pull(skb, length))
+		return false;
+
+	if (skb_headlen(skb) >= length)
+		return true; /* Happy path */
+
+	pr_err("----- JOOL OUTPUT -----\n");
+	pr_err("(Please report this at https://github.com/NICMx/Jool/issues/247)");
+	pr_err("pskb_may_pull() failed to pull!\n");
+	pr_err("old head:%p data:%p tail:%p end:%p len:%u data_len:%u nr_frags:%u\n",
+			head, data, tail, end, len, data_len, nr_frags);
+	pr_err("new head:%p data:%p tail:%p end:%p len:%u data_len:%u nr_frags:%u\n",
+			skb->head, skb->data, skb_tail_pointer(skb),
+			skb_end_pointer(skb), skb->len, skb->data_len,
+			skb_shinfo(skb)->nr_frags);
+	dump_stack();
+	pr_err("Dropping packet.\n");
+	pr_err("-----------------------\n");
+	return false;
+}
+
 /**
  * Apparently, as of 2007, Netfilter modules can assume they are the sole owners of their
  * skbs (http://lists.openwall.net/netdev/2007/10/14/13).
@@ -129,7 +166,7 @@ static int paranoid_validations(struct sk_buff *skb, size_t basic_hdr_size)
 	error = fail_if_broken_offset(skb);
 	if (error)
 		return error;
-	if (!pskb_may_pull(skb, basic_hdr_size)) {
+	if (!may_pull(skb, basic_hdr_size)) {
 		log_debug("Could not 'pull' a basic IP header out of the skb.");
 		return -EINVAL;
 	}
@@ -276,7 +313,7 @@ static int validate_inner6(struct sk_buff *skb,
 			return inhdr6(skb, "Packet inside packet inside packet.");
 	}
 
-	if (!pskb_may_pull(skb, meta.payload_offset)) {
+	if (!may_pull(skb, meta.payload_offset)) {
 		log_debug("Could not 'pull' the headers out of the skb.");
 		return -EINVAL;
 	}
@@ -358,7 +395,7 @@ int pkt_init_ipv6(struct packet *pkt, struct sk_buff *skb)
 			return error;
 	}
 
-	if (!pskb_may_pull(skb, meta.payload_offset)) {
+	if (!may_pull(skb, meta.payload_offset)) {
 		log_debug("Could not 'pull' the headers out of the skb.");
 		return -EINVAL;
 	}
@@ -420,7 +457,7 @@ static int validate_inner4(struct sk_buff *skb, struct pkt_metadata *meta)
 		break;
 	}
 
-	if (!pskb_may_pull(skb, offset)) {
+	if (!may_pull(skb, offset)) {
 		log_debug("Could not 'pull' the headers out of the skb.");
 		return -EINVAL;
 	}
@@ -518,7 +555,7 @@ int pkt_init_ipv4(struct packet *pkt, struct sk_buff *skb)
 	if (error)
 		return error;
 
-	if (!pskb_may_pull(skb, meta.payload_offset)) {
+	if (!may_pull(skb, meta.payload_offset)) {
 		log_debug("Could not 'pull' the headers out of the skb.");
 		return -EINVAL;
 	}
@@ -573,7 +610,7 @@ unsigned char *jskb_push(struct sk_buff *skb, unsigned int len)
 
 #define SIMPLE_MIN(a, b) ((a < b) ? a : b)
 
-void snapshot_record(struct pkt_snapshot *shot, struct sk_buff *skb)
+static void __snapshot_record(struct pkt_snapshot *shot, struct sk_buff *skb)
 {
 	struct skb_shared_info *shinfo = skb_shinfo(skb);
 	unsigned int limit;
@@ -616,7 +653,50 @@ void snapshot_record(struct pkt_snapshot *shot, struct sk_buff *skb)
 	if (shot->nr_frags > SNAPSHOT_FRAGS_SIZE) {
 		shot->frags[SNAPSHOT_FRAGS_SIZE - 1]
 			    = skb_frag_size(&shinfo->frags[shot->nr_frags - 1]);
+		shot->flags |= SFLAGS_TOO_MANY_FRAGS;
 	}
+}
+
+void snapshot_record6(struct pkt_snapshot *shot, struct sk_buff *skb)
+{
+	union {
+		__u8 nexthdr;
+	} buffer;
+	union {
+		__u8 *nexthdr;
+	} ptr;
+
+	__snapshot_record(shot, skb);
+
+	ptr.nexthdr = skb_hdr_ptr(skb,
+	    skb_network_offset(skb) + offsetof(struct ipv6hdr, nexthdr),
+	    buffer.nexthdr);
+	if (ptr.nexthdr)
+		shot->proto = *ptr.nexthdr;
+	else
+		shot->flags |= SFLAGS_NO_PROTO;
+}
+
+void snapshot_record4(struct pkt_snapshot *shot, struct sk_buff *skb)
+{
+	union {
+		__u8 proto;
+	} buffer;
+	union {
+		__u8 *proto;
+	} ptr;
+
+	__snapshot_record(shot, skb);
+
+	ptr.proto = skb_hdr_ptr(skb,
+	    skb_network_offset(skb) + offsetof(struct iphdr, protocol),
+	    buffer.proto);
+	if (ptr.proto)
+		shot->proto = *ptr.proto;
+	else
+		shot->flags |= SFLAGS_NO_PROTO;
+
+
 }
 
 void snapshot_report(struct pkt_snapshot *shot, char *prefix)
@@ -624,11 +704,13 @@ void snapshot_report(struct pkt_snapshot *shot, char *prefix)
 	unsigned int limit;
 	unsigned int i;
 
-	pr_err("%s len: %u\n", prefix, shot->len);
-	pr_err("%s data_len: %u\n", prefix, shot->data_len);
-	pr_err("%s nr_frags: %u\n", prefix, shot->nr_frags);
+	pr_err("%s len:%u data_len:%u nr_frags:%u proto:%u flags:%u ",
+			prefix,
+			shot->len, shot->data_len, shot->nr_frags,
+			shot->proto, shot->flags);
 
 	limit = SIMPLE_MIN(SNAPSHOT_FRAGS_SIZE, shot->nr_frags);
 	for (i = 0; i < limit; i++)
-		pr_err("    %s frag %u: %u\n", prefix, i, shot->frags[i]);
+		pr_cont("frag%u:%u ", i, shot->frags[i]);
+	pr_cont("\n");
 }

@@ -7,6 +7,7 @@
 #include "nat64/mod/common/rfc6145/6to4.h"
 #include "nat64/mod/stateless/blacklist4.h"
 #include <linux/icmp.h>
+#include <linux/highmem.h>
 
 struct backup_skb {
 	unsigned int pulled;
@@ -95,6 +96,31 @@ bool will_need_frag_hdr(const struct iphdr *hdr)
 	return is_mf_set_ipv4(hdr) || get_fragment_offset_ipv4(hdr);
 }
 
+static void print_first_frag(struct skb_shared_info *shinfo)
+{
+	u8 *vaddr;
+	skb_frag_t *f;
+	unsigned int i;
+
+	if (shinfo->nr_frags == 0)
+		return;
+
+	/*
+	 * We're gonna risk printing the first frag, because in the last output
+	 * it wasn't that big.
+	 */
+
+	pr_err("1st frag: ");
+
+	f = &shinfo->frags[0];
+	vaddr = kmap_atomic(skb_frag_page(f));
+	for (i = 0; i < skb_frag_size(f); i++)
+		pr_cont("%x ", *(vaddr + f->page_offset + i));
+	kunmap_atomic(vaddr);
+
+	pr_cont("\n");
+}
+
 static int report_bug247(struct packet *pkt, __u8 proto)
 {
 	struct sk_buff *skb = pkt->skb;
@@ -103,23 +129,21 @@ static int report_bug247(struct packet *pkt, __u8 proto)
 	unsigned char *pos;
 
 	pr_err("----- JOOL OUTPUT -----\n");
+	pr_err("(Please report this at https://github.com/NICMx/Jool/issues/247)");
 	pr_err("Bug #247 happened!\n");
 
 	pr_err("xlator: %u " JOOL_VERSION_STR, xlat_is_siit());
-	pr_err("Page size: %lu\n", PAGE_SIZE);
-	pr_err("Page shift: %u\n", PAGE_SHIFT);
-	pr_err("protocols: %u %u %u\n", pkt->l3_proto, pkt->l4_proto, proto);
+	pr_err("page %lu %u\n", PAGE_SIZE, PAGE_SHIFT);
+	pr_err("protos: %u %u %u\n", pkt->l3_proto, pkt->l4_proto, proto);
 
 	snapshot_report(&pkt->debug.shot1, "initial");
 	snapshot_report(&pkt->debug.shot2, "mid");
 
-	pr_err("current len: %u\n", skb->len);
-	pr_err("current data_len: %u\n", skb->data_len);
-	pr_err("current nr_frags: %u\n", shinfo->nr_frags);
-	for (i = 0; i < shinfo->nr_frags; i++) {
-		pr_err("    current frag %u: %u\n", i,
-				skb_frag_size(&shinfo->frags[i]));
-	}
+	pr_err("current len:%u data_len:%u nr_frags:%u ", skb->len,
+			skb->data_len, shinfo->nr_frags);
+	for (i = 0; i < shinfo->nr_frags; i++)
+		pr_cont("frag%u:%u ", i, skb_frag_size(&shinfo->frags[i]));
+	pr_cont("\n");
 
 	pr_err("skb head:%p data:%p tail:%p end:%p\n",
 			skb->head, skb->data,
@@ -130,10 +154,14 @@ static int report_bug247(struct packet *pkt, __u8 proto)
 			skb_transport_header(skb),
 			pkt_payload(pkt));
 
-	pr_err("packet content: ");
+	pr_err("head: ");
 	for (pos = skb->head; pos < skb_end_pointer(skb); pos++)
 		pr_cont("%x ", *pos);
 	pr_cont("\n");
+
+	print_first_frag(shinfo);
+
+	dump_stack();
 
 	pr_err("Dropping packet.\n");
 	pr_err("-----------------------\n");
@@ -351,4 +379,35 @@ bool must_not_translate(struct in_addr *addr, struct net *ns)
 {
 	return addr4_is_scope_subnet(addr->s_addr)
 			|| interface_contains(ns, addr);
+}
+
+/* Wrapper for alloc_skb(). */
+struct sk_buff *alloc_skb_out(struct packet *in, unsigned int s1,
+		unsigned int s2, unsigned int s3)
+{
+	struct sk_buff *skb;
+
+	skb = alloc_skb(s1 + s2 + s3, GFP_ATOMIC);
+	if (!skb) {
+		if (in)
+			inc_stats(in, IPSTATS_MIB_INDISCARDS);
+		return NULL;
+	}
+
+	if (skb_is_nonlinear(skb)) {
+		pr_err("----- JOOL OUTPUT -----\n");
+		pr_err("(Please report this at https://github.com/NICMx/Jool/issues/247)");
+		pr_err("alloc_skb() returned a paged skb!\n");
+		pr_err("s1:%u s2:%u s3:%u", s1, s2, s3);
+		pr_err("len:%u data_len:%u nr_frags:%u", skb->len,
+				skb->data_len, skb_shinfo(skb)->nr_frags);
+		dump_stack();
+		pr_err("Dropping packet.\n");
+		pr_err("-----------------------\n");
+
+		kfree_skb(skb);
+		return NULL;
+	}
+
+	return skb;
 }

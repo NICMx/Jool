@@ -51,11 +51,9 @@ verdict ttp64_alloc_skb(struct xlation *state)
 			total_len = 576;
 	}
 
-	skb = alloc_skb(LL_MAX_HEADER + total_len, GFP_ATOMIC);
-	if (!skb) {
-		inc_stats(in, IPSTATS_MIB_INDISCARDS);
+	skb = alloc_skb_out(in, LL_MAX_HEADER, total_len, 0);
+	if (!skb)
 		return VERDICT_DROP;
-	}
 
 	skb_reserve(skb, LL_MAX_HEADER);
 	skb_put(skb, total_len);

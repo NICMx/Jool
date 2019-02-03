@@ -61,7 +61,6 @@ typedef enum l4_protocol {
 #define L4_PROTO_COUNT 4
 } l4_protocol;
 
-__u8 l4_proto_to_nexthdr(l4_protocol proto);
 l4_protocol str_to_l4proto(char *str);
 
 /**

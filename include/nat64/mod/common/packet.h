@@ -231,6 +231,12 @@ struct pkt_snapshot {
 	unsigned int data_len;
 	unsigned char nr_frags;
 	unsigned int frags[SNAPSHOT_FRAGS_SIZE];
+
+	__u8 proto;
+
+#define SFLAGS_NO_PROTO (1 << 0)
+#define SFLAGS_TOO_MANY_FRAGS (1 << 1)
+	__u8 flags;
 };
 
 /**
@@ -578,7 +584,8 @@ void pkt_print(struct packet *pkt);
 unsigned char *jskb_pull(struct sk_buff *skb, unsigned int len);
 unsigned char *jskb_push(struct sk_buff *skb, unsigned int len);
 
-void snapshot_record(struct pkt_snapshot *shot, struct sk_buff *skb);
+void snapshot_record6(struct pkt_snapshot *shot, struct sk_buff *skb);
+void snapshot_record4(struct pkt_snapshot *shot, struct sk_buff *skb);
 void snapshot_report(struct pkt_snapshot *shot, char *prefix);
 
 #endif /* _JOOL_MOD_PACKET_H */

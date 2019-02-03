@@ -9,6 +9,7 @@
 #include "nat64/mod/common/rbtree.h"
 #include "nat64/mod/common/route.h"
 #include "nat64/mod/common/wkmalloc.h"
+#include "nat64/mod/common/rfc6145/common.h"
 #include "nat64/mod/stateful/bib/pkt_queue.h"
 
 /*
@@ -747,7 +748,7 @@ static void send_probe_packet(struct net *ns, struct session_entry *session)
 	unsigned int l3_hdr_len = sizeof(*iph);
 	unsigned int l4_hdr_len = sizeof(*th);
 
-	skb = alloc_skb(LL_MAX_HEADER + l3_hdr_len + l4_hdr_len, GFP_ATOMIC);
+	skb = alloc_skb_out(NULL, LL_MAX_HEADER, l3_hdr_len, l4_hdr_len);
 	if (!skb) {
 		log_debug("Could now allocate a probe packet.");
 		goto fail;

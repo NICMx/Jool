@@ -5,22 +5,6 @@
 #include <net/ipv6.h>
 #include "nat64/common/str_utils.h"
 
-__u8 l4_proto_to_nexthdr(l4_protocol proto)
-{
-	switch (proto) {
-	case L4PROTO_TCP:
-		return NEXTHDR_TCP;
-	case L4PROTO_UDP:
-		return NEXTHDR_UDP;
-	case L4PROTO_ICMP:
-		return NEXTHDR_ICMP;
-	case L4PROTO_OTHER:
-		return 0;
-	}
-
-	return 0;
-}
-
 bool port_range_equals(const struct port_range *r1,
 		const struct port_range *r2)
 {
