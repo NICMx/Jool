@@ -27,7 +27,7 @@ _A_ and _V_ are configured exactly as in their stateful run counterparts, so I'l
 	user@T:~# sysctl -w net.ipv6.conf.all.forwarding=1
 	user@T:~# 
 	user@T:~# /sbin/modprobe jool
-	user@T:~# jool instance add --pool6 64:ff9b::/96
+	user@T:~# jool instance add --netfilter --pool6 64:ff9b::/96
 
 So basically, _A_ and _V_ share a cord, but they still can't talk because they don't speak the same language. That is, unless they ask _T_ to translate their little chat:
 

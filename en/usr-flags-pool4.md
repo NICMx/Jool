@@ -32,14 +32,16 @@ The IPv4 pool is the subset of the node's transport addresses which are reserved
 ## Syntax
 
 	jool pool4 (
-		display [--csv]
-		| add    [--mark <mark>]  <PROTOCOL>  <IPv4-prefix>  <port-range>  [--max-iterations <iterations>] [--force]
+		display  [<PROTOCOL>] [--csv] [--no-headers]
+		| add    [--mark <mark>] <PROTOCOL> <IPv4-prefix> <port-range>
+			 [--max-iterations <iterations>] [--force]
 		| remove [--mark <mark>] [<PROTOCOL>] <IPv4-prefix> [<port-range>] [--quick]
-		| update  --mark <mark>  [<PROTOCOL>] --max-iterations <iterations>
-		| flush [--quick ]
+		| flush  [--quick]
 	)
 
-	<PROTOCOL> := (--tcp|--udp|--icmp)
+	<PROTOCOL> := --tcp | --udp | --icmp
+
+> ![../images/warning.svg](../images/warning.svg) **Warning**: Jool 3's `PROTOCOL` label used to be defined as `[--tcp] [--udp] [--icmp]`. The flags are mutually exclusive now, and default to `--tcp` (when applies).
 
 ## Arguments
 
@@ -48,21 +50,22 @@ The IPv4 pool is the subset of the node's transport addresses which are reserved
 * `display`: The pool4 table is printed in standard output.
 * `add`: Uploads entries to the pool.  
   (Sets are created indirectly as a result.)
-* `update`: Modifies the Max Iterations field of a set.
 * `remove`: Deletes the entries from the pool that match the given criteria.
 * `flush`: Removes all entries from the pool.
 
 ### Options
 
-| **Flag** | **Default** | **Description** |
-| `--csv` | (absent) | Print the table in [_Comma/Character-Separated Values_ format](http://en.wikipedia.org/wiki/Comma-separated_values). This is intended to be redirected into a .csv file. |
-| `--mark` | 0 | Specifies the Mark value of the entry being added, removed or updated.<br>The minimum value is zero, the maximum is 4294967295. |
-| `--tcp` | (absent) | Apply operation on TCP entries (that also match `<mark>`). |
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--tcp` | (depends) | Apply operation on TCP entries (that also match `<mark>`).<br />(This is the default protocol, most of the time.) |
 | `--udp` | (absent) | Apply operation on UDP entries (that also match `<mark>`). |
 | `--icmp` | (absent) | Apply operation on ICMP entries (that also match `<mark>`). |
-| [`--max-iterations`](#--max-iterations) | `auto` | Specifies the Max Iterations value of the set being modified. |
+| `--csv` | (absent) | Print the table in [_Comma/Character-Separated Values_ format](http://en.wikipedia.org/wiki/Comma-separated_values). This is intended to be redirected into a .csv file. |
+| `--no-headers` | (absent) | Print the table entries only; omit the headers. |
+| `--mark` | 0 | Specifies the Mark value of the entry being added, removed or updated.<br />The minimum value is zero, the maximum is 4294967295. |
 | `<IPv4-prefix>` | - | Group of addresses you are adding or removing to/from the pool. The length is optional and defaults to 32. |
 | [`<port-range>`](#port-range) | 1-65535 for TCP/UDP, 0-65535 for ICMP | Ports from `<IPv4-prefix>` you're adding or removing to/from the pool. |
+| [`--max-iterations`](#--max-iterations) | `auto` | Specifies the Max Iterations value of the set being modified. |
 | `--force` | (absent) | If present, add the elements to the pool even if they're too many.<br />(Will print a warning and quit otherwise.) |
 | [`--quick`](#--quick) | (absent) | Do not cascade removal to [BIB entries](bib.html). |
 
@@ -70,72 +73,71 @@ The IPv4 pool is the subset of the node's transport addresses which are reserved
 
 These examples assume that the name of the Jool instance is "`default`."
 
-Display the current table:
+Display the current tables:
 
-	$ jool pool4 display
-	+------------+-------+--------------------+-----------------+----------+----------+
-	|       Mark | Proto |     Max iterations |         Address | Port min | Port max |
-	+------------+-------+--------------------+-----------------+----------+----------+
+{% highlight bash %}
+user@T:~# jool pool4 display --tcp
++------------+-------+--------------------+-----------------+-------------+
+|       Mark | Proto |     Max iterations |         Address |       Ports |
++------------+-------+--------------------+-----------------+-------------+
+user@T:~# jool pool4 display --udp --no-headers
+user@T:~# jool pool4 display --icmp --no-headers
+{% endhighlight %}
 
 Add several entries:
 
-	# jool pool4 add --tcp 192.0.2.1 1000-2500
-	# jool pool4 add --tcp 192.0.2.1 1500-3000
-	$ jool pool4 display
-	+------------+-------+--------------------+-----------------+-------------+
-	|       Mark | Proto |     Max iterations |         Address |       Ports |
-	+------------+-------+--------------------+-----------------+-------------+
-	|          0 |   TCP |       1024 ( auto) |       192.0.2.1 |  1500- 3000 |
-	+------------+-------+--------------------+-----------------+-------------+
-	# jool pool4 add --mark 1 --tcp 192.0.2.1 1500-2500
-	# jool pool4 add          --tcp 192.0.2.8/30
-	# jool pool4 add          --udp 192.0.2.100         --max-iterations 5000
-	$ jool pool4 display
-	+------------+-------+--------------------+-----------------+----------+----------+
-	|       Mark | Proto |     Max iterations |         Address | Port min | Port max |
-	+------------+-------+--------------------+-----------------+----------+----------+
-	|          1 |   TCP |       1024 ( auto) |       192.0.2.1 |     1500 |     2500 |
-	+------------+-------+--------------------+-----------------+----------+----------+
-	|          0 |   TCP |       2059 ( auto) |       192.0.2.1 |     1000 |     3000 |
-	|            |       |                    |       192.0.2.8 |        1 |    65535 |
-	|            |       |                    |       192.0.2.9 |        1 |    65535 |
-	|            |       |                    |      192.0.2.10 |        1 |    65535 |
-	|            |       |                    |      192.0.2.11 |        1 |    65535 |
-	+------------+-------+--------------------+-----------------+----------+----------+
-	|          0 |   UDP |       5000 (fixed) |     192.0.2.100 |        1 |    65535 |
-	+------------+-------+--------------------+-----------------+----------+----------+
-	  (Fetched 7 samples.)
+{% highlight bash %}
+user@T:~# jool pool4 add --tcp 192.0.2.1 1000-2500
+user@T:~# jool pool4 add --tcp 192.0.2.1 1500-3000
+user@T:~# jool pool4 display --tcp
++------------+-------+--------------------+-----------------+-------------+
+|       Mark | Proto |     Max iterations |         Address |       Ports |
++------------+-------+--------------------+-----------------+-------------+
+|          0 |   TCP |       1024 ( auto) |       192.0.2.1 |  1000- 3000 |
++------------+-------+--------------------+-----------------+-------------+
+user@T:~# jool pool4 add --tcp 192.0.2.1    1500-2500 --mark 1 
+user@T:~# jool pool4 add --tcp 192.0.2.8/30 1-65535
+user@T:~# jool pool4 add --udp 192.0.2.100  1-65535   --max-iterations 5000
+user@T:~# jool pool4 display --tcp
++------------+-------+--------------------+-----------------+-------------+
+|       Mark | Proto |     Max iterations |         Address |       Ports |
++------------+-------+--------------------+-----------------+-------------+
+|          1 |   TCP |       1024 ( auto) |       192.0.2.1 |  1500- 2500 |
++------------+-------+--------------------+-----------------+-------------+
+|          0 |   TCP |       2059 ( auto) |       192.0.2.1 |  1000- 3000 |
+|            |       |                    |       192.0.2.8 |     1-65535 |
+|            |       |                    |       192.0.2.9 |     1-65535 |
+|            |       |                    |      192.0.2.10 |     1-65535 |
+|            |       |                    |      192.0.2.11 |     1-65535 |
++------------+-------+--------------------+-----------------+-------------+
+user@T:~# jool pool4 display --udp
++------------+-------+--------------------+-----------------+-------------+
+|       Mark | Proto |     Max iterations |         Address |       Ports |
++------------+-------+--------------------+-----------------+-------------+
+|          0 |   UDP |       5000 (fixed) |     192.0.2.100 |     1-65535 |
++------------+-------+--------------------+-----------------+-------------+
+{% endhighlight %}
 
 Remove some entries:
 
-	# jool pool4 remove --mark 0 192.0.2.0/24 0-65535
-	$ jool pool4 display
-	+------------+-------+--------------------+-----------------+----------+----------+
-	|       Mark | Proto |     Max iterations |         Address | Port min | Port max |
-	+------------+-------+--------------------+-----------------+----------+----------+
-	|          1 |   TCP |       1024 ( auto) |       192.0.2.1 |     1500 |     2500 |
-	+------------+-------+--------------------+-----------------+----------+----------+
-	  (Fetched 1 samples.)
-
-Update the iteration cap of the remaining set:
-
-	# jool pool4 update --mark 1 --tcp --max-iterations 9999
-	$ jool pool4 display
-	+------------+-------+--------------------+-----------------+----------+----------+
-	|       Mark | Proto |     Max iterations |         Address | Port min | Port max |
-	+------------+-------+--------------------+-----------------+----------+----------+
-	|          1 |   TCP |       9999 (fixed) |       192.0.2.1 |     1500 |     2500 |
-	+------------+-------+--------------------+-----------------+----------+----------+
-	  (Fetched 1 samples.)
+{% highlight bash %}
+user@T:~# jool pool4 remove --mark 0 192.0.2.0/24 0-65535
+user@T:~# jool pool4 display
++------------+-------+--------------------+-----------------+-------------+
+|       Mark | Proto |     Max iterations |         Address |       Ports |
++------------+-------+--------------------+-----------------+-------------+
+|          1 |   TCP |       1024 ( auto) |       192.0.2.1 |  1500- 2500 |
++------------+-------+--------------------+-----------------+-------------+
+{% endhighlight %}
 
 Clear the table:
 
-	# jool pool4 flush
-	$ jool pool4 display
-	+------------+-------+--------------------+-----------------+----------+----------+
-	|       Mark | Proto |     Max iterations |         Address | Port min | Port max |
-	+------------+-------+--------------------+-----------------+----------+----------+
-	  (empty)
+{% highlight bash %}
+user@T:~# jool pool4 flush
+user@T:~# jool pool4 display --tcp  --no-headers
+user@T:~# jool pool4 display --udp  --no-headers
+user@T:~# jool pool4 display --icmp --no-headers
+{% endhighlight %}
 
 ## Empty pool4
 
@@ -145,28 +147,29 @@ Empty pool4 defaults to use ports 61001-65535 of whatever universe-scoped IPv4 a
 
 So, for example, if you see this,
 
-	$ ip addr
-	2: eth0: <NO-CARRIER,BROADCAST,MULTICAST,UP> mtu 1500 qdisc pfifo_fast state UP group blah blah blah
-	    link/ether 1c:1b:0d:62:7a:42 brd ff:ff:ff:ff:ff:ff
-	    inet 192.0.2.1/24 brd 192.0.2.255 scope global dynamic eth0
+{% highlight bash %}
+user@T:~# ip addr
+2: eth0: <NO-CARRIER,BROADCAST,MULTICAST,UP> mtu 1500 qdisc pfifo_fast state UP blah blah blah
+    link/ether 1c:1b:0d:62:7a:42 brd ff:ff:ff:ff:ff:ff
+    inet 192.0.2.1/24 brd 192.0.2.255 scope global dynamic eth0
 
-	$ jool pool4 display
-	+------------+-------+--------------------+-----------------+----------+----------+
-	|       Mark | Proto |     Max iterations |         Address | Port min | Port max |
-	+------------+-------+--------------------+-----------------+----------+----------+
-	  (empty)
+user@T:~# jool pool4 display
++------------+-------+--------------------+-----------------+-------------+
+|       Mark | Proto |     Max iterations |         Address |       Ports |
++------------+-------+--------------------+-----------------+-------------+
+{% endhighlight %}
 
 Then Jool is behaving as if pool4 were configured as follows:
 
-	+------------+-------+--------------------+-----------------+----------+----------+
-	|       Mark | Proto |     Max iterations |         Address | Port min | Port max |
-	+------------+-------+--------------------+-----------------+----------+----------+
-	|          0 |   TCP |       1024 ( auto) |       192.0.2.1 |    61001 |    65535 |
-	+------------+-------+--------------------+-----------------+----------+----------+
-	|          0 |   UDP |       1024 ( auto) |       192.0.2.1 |    61001 |    65535 |
-	+------------+-------+--------------------+-----------------+----------+----------+
-	|          0 |  ICMP |       1024 ( auto) |       192.0.2.1 |    61001 |    65535 |
-	+------------+-------+--------------------+-----------------+----------+----------+
+	+------------+-------+--------------------+-----------------+-------------+
+	|       Mark | Proto |     Max iterations |         Address |       Ports |
+	+------------+-------+--------------------+-----------------+-------------+
+	|          0 |   TCP |       1024 ( auto) |       192.0.2.1 | 61001-65535 |
+	+------------+-------+--------------------+-----------------+-------------+
+	|          0 |   UDP |       1024 ( auto) |       192.0.2.1 | 61001-65535 |
+	+------------+-------+--------------------+-----------------+-------------+
+	|          0 |  ICMP |       1024 ( auto) |       192.0.2.1 | 61001-65535 |
+	+------------+-------+--------------------+-----------------+-------------+
 
 These default values are reasonable until you need the NAT64 to service anything other than a small IPv6 client population (as you only get 4535 available masks per protocol).
 
@@ -182,37 +185,43 @@ _Jool is incapable of ensuring pool4 does not intersect with other defined port 
 
 You already know the ports owned by any servers parked in your NAT64, if any. The other one you need to keep in mind is the [ephemeral range](https://en.wikipedia.org/wiki/Ephemeral_port):
 
-	$ sysctl net.ipv4.ip_local_port_range 
-	net.ipv4.ip_local_port_range = 32768	61000
+{% highlight bash %}
+user@T:~# sysctl net.ipv4.ip_local_port_range
+net.ipv4.ip_local_port_range = 32768	61000
+{% endhighlight %}
 
 As you can see, Linux's ephemeral port range defaults to 32768-61000, and this is the reason why Jool falls back to use ports 61001-65535 (of whatever primary global addresses its node is wearing) when pool4 is empty. You can change the former by tweaking sysctl `sys.net.ipv4.ip_local_port_range`, and the latter by means of `pool4 add` and `pool4 remove`.
 
 Say your NAT64's machine has address 192.0.2.1 and pool4 is empty.
 
-	$ jool pool4 display
-	  (empty)
+{% highlight bash %}
+user@T:~# jool pool4 display --no-headers
+{% endhighlight %}
 
 This means Jool is using ports and ICMP ids 61001-65535 of address 192.0.2.1. Let's add them explicitely:
 
-	# jool pool4 add 192.0.2.1 61001-65535
+{% highlight bash %}
+user@T:~# jool pool4 add 192.0.2.1 61001-65535 --tcp
+user@T:~# jool pool4 add 192.0.2.1 61001-65535 --udp
+user@T:~# jool pool4 add 192.0.2.1 61001-65535 --icmp
+{% endhighlight %}
 
 So, for example, if you only have this one address, but want to reserve more ports for translation, you have to subtract them from elsewhere. The ephemeral range is a good candidate:
 
-	# sysctl -w net.ipv4.ip_local_port_range="32768 40000"
-	# jool pool4 add 192.0.2.1 40001-61000
-	$ sysctl net.ipv4.ip_local_port_range 
-	net.ipv4.ip_local_port_range = 32768	40000
-	$ jool pool4 display
-	+------------+-------+--------------------+-----------------+----------+----------+
-	|       Mark | Proto |     Max iterations |         Address | Port min | Port max |
-	+------------+-------+--------------------+-----------------+----------+----------+
-	|          0 |   TCP |       1024 ( auto) |       192.0.2.1 |    40001 |    65535 |
-	+------------+-------+--------------------+-----------------+----------+----------+
-	|          0 |   UDP |       1024 ( auto) |       192.0.2.1 |    40001 |    65535 |
-	+------------+-------+--------------------+-----------------+----------+----------+
-	|          0 |  ICMP |       1024 ( auto) |       192.0.2.1 |    40001 |    65535 |
-	+------------+-------+--------------------+-----------------+----------+----------+
-	  (Fetched 3 samples.)
+{% highlight bash %}
+user@T:~# sysctl -w net.ipv4.ip_local_port_range="32768 40000"
+user@T:~# jool pool4 add 192.0.2.1 40001-61000 --tcp
+user@T:~# jool pool4 add 192.0.2.1 40001-61000 --udp
+user@T:~# jool pool4 add 192.0.2.1 40001-61000 --icmp
+user@T:~$ sysctl net.ipv4.ip_local_port_range 
+net.ipv4.ip_local_port_range = 32768	40000
+user@T:~# jool pool4 display --tcp
++------------+-------+--------------------+-----------------+-------------+
+|       Mark | Proto |     Max iterations |         Address |       Ports |
++------------+-------+--------------------+-----------------+-------------+
+|          0 |   TCP |       1024 ( auto) |       192.0.2.1 | 40001-65535 |
++------------+-------+--------------------+-----------------+-------------+
+{% endhighlight %}
 
 ### `--max-iterations`
 
@@ -226,34 +235,24 @@ Its default is a generic value that attempts to find a reasonable balance betwee
 
 The rationale for all of this can be found in the [source code](https://github.com/NICMx/Jool/blob/16957569f134939d914d82489f23c7b33970bb3b/mod/stateful/pool4/db.c#L850).
 
-To return a fixed Max Iterations to a default value, use the `auto` keyword:
+{% highlight bash %}
+user@T:~# COMMON="192.0.2.1 100-200 --tcp"
+user@T:~# jool pool4 add --mark 0 $COMMON --max-iterations auto
+user@T:~# jool pool4 add --mark 1 $COMMON --max-iterations 999
+user@T:~# jool pool4 add --mark 2 $COMMON --max-iterations infinity
+user@T:~# jool pool4 display
++------------+-------+--------------------+-----------------+-------------+
+|       Mark | Proto |     Max iterations |         Address |       Ports |
++------------+-------+--------------------+-----------------+-------------+
+|          2 |   TCP |   Infinite (fixed) |       192.0.2.1 |   100-  200 |
++------------+-------+--------------------+-----------------+-------------+
+|          1 |   TCP |        999 (fixed) |       192.0.2.1 |   100-  200 |
++------------+-------+--------------------+-----------------+-------------+
+|          0 |   TCP |       1024 ( auto) |       192.0.2.1 |   100-  200 |
++------------+-------+--------------------+-----------------+-------------+
+{% endhighlight %}
 
-	$ jool pool4 display
-	+------------+-------+--------------------+-----------------+----------+----------+
-	|       Mark | Proto |     Max iterations |         Address | Port min | Port max |
-	+------------+-------+--------------------+-----------------+----------+----------+
-	|          0 |   TCP |       9999 (fixed) |       192.0.2.1 |        1 |    65535 |
-	+------------+-------+--------------------+-----------------+----------+----------+
-	  (Fetched 1 samples.)
-	# jool pool4 update --tcp --max-iterations auto
-	$ jool pool4 display
-	+------------+-------+--------------------+-----------------+----------+----------+
-	|       Mark | Proto |     Max iterations |         Address | Port min | Port max |
-	+------------+-------+--------------------+-----------------+----------+----------+
-	|          0 |   TCP |       1024 ( auto) |       192.0.2.1 |        1 |    65535 |
-	+------------+-------+--------------------+-----------------+----------+----------+
-	  (Fetched 1 samples.)
-
-On the other hand, you can use the keyword `infinity` to remove the iteration limit. This yields the same behavior as Jool 3.5.4 and below. (Careful with exhausted pool4s!)
-
-	# jool pool4 update --tcp --max-iterations infinity
-	$ jool pool4 display
-	+------------+-------+--------------------+-----------------+----------+----------+
-	|       Mark | Proto |     Max iterations |         Address | Port min | Port max |
-	+------------+-------+--------------------+-----------------+----------+----------+
-	|          0 |   TCP |   Infinity (fixed) |       192.0.2.1 |        1 |    65535 |
-	+------------+-------+--------------------+-----------------+----------+----------+
-	  (Fetched 1 samples.)
+`infinity` removes the iteration limit. This yields the same behavior as Jool 3.5.4 and below. (Careful with exhausted pool4s!)
 
 ### `--quick`
 

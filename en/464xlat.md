@@ -117,14 +117,15 @@ This is _R_:
 	# Traffic headed to the real IPv4 Internet goes via PLAT.
 	ip route add 64:ff9b::/96 via 2001:db8:100::2
 
+	sysctl -w net.ipv4.conf.all.forwarding=1
+	sysctl -w net.ipv6.conf.all.forwarding=1
+	
 	# Enable SIIT.
 	# We're masking the private network using an EAMT entry.
 	# Traffic towards the Internet is to be appended PLAT's prefix.
 	# Recall that the EAMT has higher precedence than the prefix.
-	jool_siit instance add --pool6 64:ff9b::/96
+	jool_siit instance add --netfilter --pool6 64:ff9b::/96
 	jool_siit eamt add 192.168.0.8 2001:db8:2::
-
-> ![Warning](../images/warning.svg) Remember: The [`sysctl` and `ethtool` commands](run-vanilla.html#sample-network) have been skipped here for the sake of reducing clutter. Please add them in any serviceable environments.
 
 Perhaps an easy way to understand the latter lines of this configuration is that the EAMT will be used to translate the addresses of the nodes at the left of _CLAT_, while the pool6 prefix will be used to translate the addresses of the nodes at the right of _PLAT_.
 
@@ -146,11 +147,12 @@ For completeness sake, here's _PLAT_'s network configuration:
 	ip addr add 203.0.113.1/24 dev eth1
 	ip addr add 203.0.113.2/24 dev eth1
 
+	sysctl -w net.ipv4.conf.all.forwarding=1
+	sysctl -w net.ipv6.conf.all.forwarding=1
+	
 	modprobe jool
-	jool instance add --pool6 64:ff9b::/96
+	jool instance add --netfilter --pool6 64:ff9b::/96
 	jool pool4 add 203.0.113.2
-
-> ![Warning](../images/warning.svg) Remember: The [`sysctl` and `ethtool` commands](run-vanilla.html#sample-network) have been skipped here for the sake of reducing clutter. Please add them in any serviceable environments.
 
 And _n4_ is thoroughly boring:
 

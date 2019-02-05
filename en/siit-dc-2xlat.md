@@ -40,12 +40,13 @@ This will be the expected packet flow (in addition to the ones in the [SIIT-DC A
 Start from the [SIIT-DC configuration](siit-dc.html#configuration) and add the following SIIT Jool setup on _ER_:
 
 {% highlight bash %}
+sysctl -w net.ipv4.conf.all.forwarding=1
+sysctl -w net.ipv6.conf.all.forwarding=1
+
 modprobe jool_siit
-jool_siit instance add --pool6 2001:db8:46::/96
+jool_siit instance add --netfilter --pool6 2001:db8:46::/96
 jool_siit eamt add 198.51.100.0/24 2001:db8:3333::464:0/120
 {% endhighlight %}
-
-> ![Warning](../images/warning.svg) Remember: The [`sysctl` and `ethtool` commands](run-vanilla.html#sample-network) have been skipped here for the sake of reducing clutter. Please add them in any serviceable environments.
 
 And the new server record on _BR_:
 

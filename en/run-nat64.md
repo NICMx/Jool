@@ -132,6 +132,12 @@ user@T:~# jool instance add "example" --netfilter --pool6 64:ff9b::/96
 
 The iptables configuration, on the other hand, needs to use the `JOOL` target and match more specific transport addresses in the IPv4 side. Ports 61001-65535 of _T_'s owned IPv4 addresses are Jool's default reserved mask range. More information can be found in [pool4](pool4.html).
 
+> ![../images/bulb.svg](../images/bulb.svg) About those iptables rules:
+> 
+> As far as transport protocols are concerned, NAT64 Jool knows how to handle TCP and UDP (as well as ICMP if you count it). Because of the large transport header hacking that is required by a stateful translator, NAT64 Jool **cannot** translate unknown transport protocols like SIIT Jool. That, on top of the fact that iptables Jool [drops traffic when it finds itself unable to translate it](intro-jool.html#iptables), is why it's better not to default `--protocol` (`-p`) to `all`, and instead declare a dedicated rule for each one.
+> 
+> ![../images/warning.svg](../images/warning.svg) And again: Please remember that a suitable ICMP-matching rule is not optional on a healthy network.
+
 ## Testing
 
 If something doesn't work, try the [FAQ](faq.html).
@@ -166,7 +172,7 @@ rtt min/avg/max/mdev = 1.136/6.528/15.603/5.438 ms
 
 <!-- Most Distros -->
 {% highlight bash %}
-user@T:~# ip6tables -t mangle -F
+user@T:~# ip6tables -t mangle -F    # Meh, whatever
 user@T:~# iptables  -t mangle -F
 user@T:~# jool instance remove "example"
 user@T:~# /sbin/modprobe -r jool
@@ -174,7 +180,7 @@ user@T:~# /sbin/modprobe -r jool
 
 <!-- OpenWRT -->
 {% highlight bash %}
-user@T:~# ip6tables -t mangle -F
+user@T:~# ip6tables -t mangle -F    # Meh, whatever
 user@T:~# iptables  -t mangle -F
 user@T:~# jool instance remove "example"
 user@T:~# rmmod jool
