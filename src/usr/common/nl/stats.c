@@ -33,7 +33,9 @@ static struct jstat_metadata const jstat_metadatas[] = {
 	DEFINE_STAT(JSTAT_UNKNOWN_PROTO_INNER, TC "ICMP error's inner packet had an unknown transport protocol. (Untranslatable by NAT64.)"),
 	DEFINE_STAT(JSTAT_HAIRPIN_LOOP, TC "Packet would have hairpin-looped infinitely."),
 	DEFINE_STAT(JSTAT_POOL6_MISMATCH, TC "IPv6 packet's destination address did not match pool6. (ie. Packet was not meant to be translated.)"),
-	DEFINE_STAT(JSTAT_POOL4_MISMATCH, TC "IPv4 packet's destination address and transport protocol did not match pool4. (ie. Packet was not meant to be translated.)"),
+	DEFINE_STAT(JSTAT_POOL4_MISMATCH, TC "IPv4 packet's destination address and transport protocol did not match pool4. (ie. Packet was not meant to be translated.)\n"
+			"If the instance is a Netfilter translator, this counter increases randomly from normal operation, and is harmless.\n"
+			"If the instance is an iptables translator, this counter being positive suggests a mismatch between the IPv4 iptables rule(s) and the instance's configuration."),
 	DEFINE_STAT(JSTAT_ICMP6_FILTER, "Packets filtered by `" OPTNAME_DROP_ICMP6_INFO "` policy."),
 	/* TODO This one might signal a programming error. */
 	DEFINE_STAT(JSTAT_UNTRANSLATABLE_DST6, TC "IPv6 packet's destination address did not match pool6."),
