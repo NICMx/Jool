@@ -22,7 +22,7 @@ Jool is an Open Source [SIIT and NAT64](intro-xlat.html) for Linux.
 
 As far as we know, Jool is a [compliant](intro-jool.html#compliance) SIIT and Stateful NAT64.
 
-Our latest stable release is version [3.5.7]({{ site.repository-url }}/milestone/42).
+Our most mature version is [3.5.7]({{ site.repository-url }}/milestone/42), and our latest stable is [4.0.0](https://github.com/NICMx/Jool/releases/tag/v4.0.0).
 
 -------------------
 
@@ -33,6 +33,10 @@ Our latest stable release is version [3.5.7]({{ site.repository-url }}/milestone
 -------------------
 
 ## News
+
+### 2019-02-05
+
+By the way: Per latest feeback, I added a few documentation blocks that, in retrospect, should have been written quite some time ago. If you're interested, they are the notes at the end of the [Vanilla SIIT](run-vanilla.html#jool) and [NAT64](run-nat64.html#jool) "Jool" sections, and [this FAQ entry](faq.html#why-in-my-ping-not-working). (Remember that browsers tend to cache static pages, so hit the Update button.)
 
 ### 2019-01-17
 
