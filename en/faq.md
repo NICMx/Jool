@@ -55,12 +55,6 @@ Probably because you started the ping on the same machine (or rather, network na
 
 At present, Netfilter Jool only hooks itself to [`PRE_ROUTING`](https://netfilter.org/documentation/HOWTO/netfilter-hacking-HOWTO-3.html). It does **not** attach itself to `LOCAL_OUT`. This means it can only translate traffic that inbounds from some interface (physical or otherwise). It does **not** intercept packets sourced from its own network namespace.
 
-There are two reasons for this:
-
-First, certain (most?) Jool configurations hooked to `LOCAL_OUT` would block connectivity sourced in the namespace. Why? Because, if you recall, [Netfilter Jool is greedy](intro-jool.html#netfilter). If it receives a packet that can be translated, then the packet _will_ be translated. There will be no way to tell the instance which traffic should be translated and which shouldn't. Say that you want to attach a Stateful NAT64 Jool to `LOCAL_OUT`. Because a Stateful NAT64 _can_ irremediably translate all IPv6 traffic, then **all** locally generated IPv6 packets will immediately become IPv4 and be sent the wrong way.
-
-The other reason is simply lack of need. Other than testing, I don't know why you would need your dual-stack translator to xlat its own traffic. Even if you do, you have to ask yourself if the [node-based translation trick](node-based-translation.html) wouldn't be more elegant.
-
 Because iptables provides matching functionality, it makes more sense to attach iptables Jool instances to `LOCAL_OUT`. And AFAIK, there's nothing stopping you from doing so. But don't quote me; I haven't tested it.
 
 ## Jool is intermitently unable to translate traffic.
