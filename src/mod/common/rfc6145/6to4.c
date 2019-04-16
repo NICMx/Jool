@@ -178,20 +178,22 @@ static __be16 build_tot_len(struct packet *in, struct packet *out)
 /**
  * One-liner for creating the IPv4 header's Identification field.
  */
-static __be16 generate_ipv4_id(struct frag_hdr *hdr_frag)
+static void generate_ipv4_id(struct xlation *state, struct iphdr *hdr4,
+    struct frag_hdr *hdr_frag)
 {
-	__be16 random;
-
 	/*
-	 * get_random_bytes() is a little slow; we don't want to call it
-	 * pointlessly.
-	 * That's the reason why we consider fragmentation prematurely.
+	 * We used to call get_random_bytes() instead of __ip_select_ident().
+	 * The former is rather slow, so we didn't want to call it pointlessly.
+	 * That's the reason why we considered fragmentation prematurely.
+	 *
+	 * __ip_select_ident() is not as slow, but it can still take a little
+	 * more than a hundred nanoseconds. Also, it's a black box really.
+	 * So I've decided to leave this as is.
 	 */
 	if (hdr_frag)
-		return cpu_to_be16(be32_to_cpu(hdr_frag->identification));
-
-	get_random_bytes(&random, 2);
-	return random;
+		hdr4->id = cpu_to_be16(be32_to_cpu(hdr_frag->identification));
+	else
+		__ip_select_ident(state->jool.ns, hdr4, 1);
 }
 
 /**
@@ -349,11 +351,15 @@ verdict ttp64_ipv4(struct xlation *state)
 	/*
 	 * translate_addrs64_siit->rfc6791v4_find->get_host_address needs tos
 	 * and protocol, so translate them first.
+	 * generate_ipv4_id() also needs protocol.
 	 */
 	hdr4->tos = ttp64_xlat_tos(&state->jool.global->cfg, hdr6);
 	hdr4->protocol = ttp64_xlat_proto(hdr6);
 
-	/* Translate the address before TTL because of issue #167. */
+	/*
+	 * Translate the address before TTL because of issue #167.
+	 * generate_ipv4_id() also needs the addresses.
+	 */
 	if (xlat_is_nat64()) {
 		hdr4->saddr = out->tuple.src.addr4.l3.s_addr;
 		hdr4->daddr = out->tuple.dst.addr4.l3.s_addr;
@@ -366,7 +372,7 @@ verdict ttp64_ipv4(struct xlation *state)
 	hdr4->version = 4;
 	hdr4->ihl = 5;
 	hdr4->tot_len = build_tot_len(in, out);
-	hdr4->id = generate_ipv4_id(hdr_frag);
+	generate_ipv4_id(state, hdr4, hdr_frag);
 	hdr4->frag_off = build_ipv4_frag_off_field(generate_df_flag(out), 0, 0);
 	if (pkt_is_outer(in)) {
 		if (hdr6->hop_limit <= 1) {
