@@ -4,7 +4,7 @@
 
 #include "framework/unit_test.h"
 #include "usr/common/str_utils.h"
-#include "nat64/pool4/db.c"
+#include "mod/nat64/pool4/db.c"
 
 MODULE_LICENSE(JOOL_LICENSE);
 MODULE_AUTHOR("Alberto Leiva");
@@ -129,7 +129,9 @@ static int init(void)
 	/* Add the testing addresses to pool4 */
 	entry.mark = 0;
 	entry.iterations = MAX_ITERATIONS;
-	entry.iterations_set = true;
+	entry.flags = (MAX_ITERATIONS == 0)
+			? ITERATIONS_INFINITE
+			: ITERATIONS_SET;
 	/*
 	 * The reason why I'm using ICMP instead of TCP is because TCP and UDP
 	 * deny port zero, and that's annoying to consider when reading results.
@@ -139,7 +141,7 @@ static int init(void)
 	entry.range.ports.min = 0;
 	entry.range.ports.max = TADDRS_PER_RANGE - 1;
 	for (i = 0; i < RANGE_COUNT; i++) {
-		entry.range.prefix.address.s_addr = cpu_to_be32(0xc0000200 + i);
+		entry.range.prefix.addr.s_addr = cpu_to_be32(0xc0000200 + i);
 		error = pool4db_add(pool, &entry);
 		if (error)
 			goto destroy_pool4_onwards;

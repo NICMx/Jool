@@ -49,6 +49,7 @@ void mask_domain_put(struct mask_domain *masks);
 int mask_domain_next(struct mask_domain *masks,
 		struct ipv4_transport_addr *addr,
 		bool *consecutive);
+void mask_domain_commit(struct mask_domain *masks);
 bool mask_domain_matches(struct mask_domain *masks,
 		struct ipv4_transport_addr *addr);
 bool mask_domain_is_dynamic(struct mask_domain *masks);

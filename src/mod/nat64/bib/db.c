@@ -1266,7 +1266,7 @@ static int find_available_mask(struct bib_table *table,
 		struct tabled_bib *bib,
 		struct tree_slot *slot)
 {
-	struct tabled_bib *collision = NULL;
+	struct tabled_bib *collision;
 	bool consecutive;
 	int error;
 
@@ -1280,7 +1280,7 @@ static int find_available_mask(struct bib_table *table,
 	do {
 		error = mask_domain_next(masks, &bib->src4, &consecutive);
 		if (error)
-			return error;
+			goto end;
 
 		/*
 		 * Just for the sake of clarity:
@@ -1292,7 +1292,9 @@ static int find_available_mask(struct bib_table *table,
 
 	} while (collision);
 
-	return 0;
+end:
+	mask_domain_commit(masks);
+	return error;
 }
 
 static int upgrade_pktqueue_session(struct xlator *jool,

@@ -126,6 +126,31 @@ struct mask_domain {
 };
 
 /**
+ * From RFC 6056, algorithm 3.
+ *
+ * TODO (issue175) This is not perfect. According to the RFC, there would
+ * ideally be one of these per `--f-args`-defined tuple, but since that's not
+ * rational, it settles with one per pool4 table.
+ * This being a global variable, we're doing one per NAT64 kernel module. (Which
+ * is even farther from the ideal.)
+ *
+ * As far as the RFC is concerned, this is actually perfectly fine. (The only
+ * purpose of `next_ephemeral` (as far as I can tell) is to reduce looping for
+ * port allocations that share the `--f-args` fields. This implementation
+ * definitely does that.) But this is only because it doesn't care about gaming
+ * (see the giant note at rfc6056.c). This being a global variable puts a hamper
+ * on gaming because it means unrelated traffic will separate the connections of
+ * a game's client too much. This is, in fact, a natural problem of algorithm 3
+ * (again, because the RFC doesn't care), but we're making it worse.
+ *
+ * Because @next_ephemeral is needed during mask iteration, which does not have
+ * access to the pool4 for significant locking/performance reasons, this is not
+ * trivial to fix. I'm hoping (though haven't actually given it much thought)
+ * that it will be more feasible once issue175 is implemented.
+ */
+static atomic_t next_ephemeral = ATOMIC_INIT(0);
+
+/**
  * Assumes @domain has at least one entry.
  */
 #define foreach_domain_range(entry, domain) \
@@ -1066,6 +1091,8 @@ struct mask_domain *mask_domain_find(struct pool4 *pool, struct tuple *tuple6,
 	if (rfc6056_f(tuple6, f_args, &offset))
 		return NULL;
 
+	offset += atomic_read(&next_ephemeral);
+
 	spin_lock_bh(&pool->lock);
 
 	if (is_empty(pool)) {
@@ -1145,6 +1172,22 @@ int mask_domain_next(struct mask_domain *masks,
 	addr->l3 = masks->current_range->addr;
 	addr->l4 = masks->current_port;
 	return 0;
+}
+
+/*
+ * According to the kernel, adding to an atomic integer is "much slower"
+ * (https://elixir.bootlin.com/linux/v5.0/source/arch/alpha/include/asm/atomic.h#L13)
+ * than adding to a normal integer. That's why this function exists: We add once
+ * when the loop is over instead of every time mask_domain_next() is called.
+ *
+ * Now, this does mean that retrievals of @next_ephemeral that happen
+ * concurrent to the loop will not get the maybe intended value, but RFC 6056 is
+ * silent about what is actually supposed to happen in these cases. Also, I'm
+ * probably micro-optimizing at this point.
+ */
+void mask_domain_commit(struct mask_domain *masks)
+{
+	atomic_add(masks->taddr_counter, &next_ephemeral);
 }
 
 bool mask_domain_matches(struct mask_domain *masks,

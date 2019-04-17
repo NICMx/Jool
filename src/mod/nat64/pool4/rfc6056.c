@@ -3,10 +3,79 @@
 #include <crypto/hash.h>
 #include "mod/common/wkmalloc.h"
 
-/* TODO (issue175) RFC 6056 wants us to change this from time to time. */
+/*
+ * My own notes on RFC 6056's algorithms:
+ *
+ * Algorithms 1 and 2: Currently, the main drawback is that they would require
+ * calls to `get_random_bytes()`, which is a big no-no according to issue #282.
+ * But IIRC, the original reason why I chose not to use them was because they
+ * break games. These algorithms are very anti-RFC6146.
+ *
+ * (When you see the word "gaming" or "games", assume "applications that open
+ * lots of connections, and which the server probably expects them all to share
+ * the same IP address.")
+ *
+ * Algorithm 3: I no longer like this algorithm as much as I used to, TBH. The
+ * fact that `next_ephemeral` is shared between all connections means that high
+ * traffic will increase the probability of games breaking.
+ * However, it seems that `next_ephemeral` was removed from Jool during some
+ * refactor. Whether this was on purpose or not, it is both good (because it
+ * breaks games less) and bad (because it creates unnecesary collisions during
+ * port selection for games). Because our pool4 has the max_iterations feature,
+ * the bad might not be so troublesome after all.
+ *
+ * The reason why I chose it is because I find it (cleverly) offers an
+ * interesting tradeoff between randomization (thanks to `F`) and source
+ * preservation (by way of checking adjacent ports during the loop).
+ *
+ * Algorithm 4: I rejected this one for two reasons. The second one is probably
+ * good:
+ *
+ * 1. I feel like computing two separate hashes is too much overhead for such a
+ *    minor operation.
+ *    (But I'm making assumptions here. MD5 is probably very fast actually, and
+ *    if `shash_desc` can be cloned, most of the operation will be obviated away
+ *    because the hashes differ in one field only.)
+ * 2. Storing the `table` array sounds like a pain.
+ *    (But not that much more of a pain than maintaining a global ephemeral. My
+ *    main gripe is that the array size would have to be configurable, and I
+ *    really don't want to bother users with more stupefyingly-specific global
+ *    fields that nobody asked for.)
+ *
+ * Algorithm 5: This algorithm jumps a lot (particularly with a default `N` of
+ * 500), so it's also 6146-unfriendly. It also has the drawback that `N` needs
+ * to be configurable, so please no.
+ *
+ * In all reality, the ideal solution would be to just fuck it and implement all
+ * 5 algorithms. But since probably nobody cares, this would be a lot of
+ * unnecesary work. 3 remains the winner for me.
+ *
+ * Also, I wonder if this whole gaming gimmic is that much of a factor. Do
+ * servers really expect clients to maintain consistent IP addresses when NAT44
+ * is so pervasive in today's Internet? Also, it's perfectly legal for
+ * client to own more than one IP address. Also, I understand smartphones are a
+ * huge market for online gaming, and I don't imagine it's rare for them to keep
+ * switching networks on the go.
+ */
+
+/*
+ * TODO (issue175) RFC 6056 wants us to change this from time to time.
+ *
+ * For now they are only modified during module initialization and destruction,
+ * which means they don't need synchronization.
+ */
 static unsigned char *secret_key;
 static size_t secret_key_len;
 
+/*
+ * It looks like this does not require a spinlock either:
+ *
+ * "The shash interface (...)
+ * improves over hash in two ways.  Firstly shash is reentrant,
+ * meaning that the same tfm may be used by two threads simultaneously
+ * as all hashing state is stored in a local descriptor."
+ * (Linux commit 7b5a080b3c46f0cac71c0d0262634c6517d4ee4f)
+ */
 static struct crypto_shash *shash;
 
 int rfc6056_setup(void)
@@ -75,9 +144,9 @@ static int hash_tuple(struct shash_desc *desc, __u8 fields,
 /**
  * RFC 6056, Algorithm 3.
  *
- * Just to clarify: Because our port pool is a data structure rather than a
- * simple range, ephemerals are now handled by mask_domain. This function has
- * been stripped now to only consist of F(). (Hence the name.)
+ * Just to clarify: Because our port pool is a somewhat complex data structure
+ * (rather than a simple range), ephemerals are now handled by pool4. This
+ * function has been stripped now to only consist of F(). (Hence the name.)
  */
 int rfc6056_f(const struct tuple *tuple6, __u8 fields, unsigned int *result)
 {
