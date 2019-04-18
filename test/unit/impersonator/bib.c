@@ -13,6 +13,11 @@ int mask_domain_next(struct mask_domain *masks,
 	return broken_unit_call(__func__);
 }
 
+void mask_domain_commit(struct mask_domain *masks)
+{
+	broken_unit_call(__func__);
+}
+
 bool mask_domain_matches(struct mask_domain *masks,
 		struct ipv4_transport_addr *addr)
 {

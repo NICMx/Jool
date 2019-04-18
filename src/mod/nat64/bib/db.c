@@ -1266,7 +1266,7 @@ static int find_available_mask(struct bib_table *table,
 		struct tabled_bib *bib,
 		struct tree_slot *slot)
 {
-	struct tabled_bib *collision;
+	struct tabled_bib *collision = NULL;
 	bool consecutive;
 	int error;
 

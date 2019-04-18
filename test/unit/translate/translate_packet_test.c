@@ -214,31 +214,6 @@ static bool test_function_icmp4_to_icmp6_param_prob(void)
 	return success;
 }
 
-static bool test_function_generate_ipv4_id(void)
-{
-	struct frag_hdr hdr;
-	__be16 attempt_1, attempt_2, attempt_3;
-	bool success = true;
-
-	attempt_1 = generate_ipv4_id(NULL);
-	attempt_2 = generate_ipv4_id(NULL);
-	attempt_3 = generate_ipv4_id(NULL);
-	/*
-	 * At least one of the attempts should be nonzero,
-	 * otherwise the random would be sucking major ****.
-	 */
-	success &= ASSERT_BOOL(true, (attempt_1 | attempt_2 | attempt_3) != 0, "No frag");
-
-	hdr.identification = 0;
-	success &= ASSERT_BE16(0, generate_ipv4_id(&hdr), "Simplest id");
-	hdr.identification = cpu_to_be32(0x0000abcdU);
-	success &= ASSERT_BE16(0xabcd, generate_ipv4_id(&hdr), "No overflow");
-	hdr.identification = cpu_to_be32(0x12345678U);
-	success &= ASSERT_BE16(0x5678, generate_ipv4_id(&hdr), "Overflow");
-
-	return success;
-}
-
 static bool test_function_generate_df_flag(void)
 {
 	struct packet pkt;
@@ -418,7 +393,6 @@ int init_module(void)
 	test_group_test(&test, test_function_icmp6_minimum_mtu, "ICMP6 Minimum MTU function");
 	test_group_test(&test, test_function_icmp4_to_icmp6_param_prob, "Param problem function");
 
-	test_group_test(&test, test_function_generate_ipv4_id, "Generate id function");
 	test_group_test(&test, test_function_generate_df_flag, "Generate DF flag function");
 	test_group_test(&test, test_function_build_protocol_field, "Build protocol function");
 	test_group_test(&test, test_function_has_nonzero_segments_left, "Segments left indicator function");

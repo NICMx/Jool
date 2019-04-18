@@ -5,6 +5,7 @@
 #include "mod/common/config.h"
 #include "mod/common/icmp_wrapper.h"
 #include "mod/common/ipv6_hdr_iterator.h"
+#include "mod/common/linux_version.h"
 #include "mod/common/rfc6052.h"
 #include "mod/common/stats.h"
 #include "mod/common/route.h"
@@ -178,7 +179,7 @@ static __be16 build_tot_len(struct packet *in, struct packet *out)
 /**
  * One-liner for creating the IPv4 header's Identification field.
  */
-static void generate_ipv4_id(struct xlation *state, struct iphdr *hdr4,
+static verdict generate_ipv4_id(struct xlation *state, struct iphdr *hdr4,
     struct frag_hdr *hdr_frag)
 {
 	/*
@@ -190,10 +191,35 @@ static void generate_ipv4_id(struct xlation *state, struct iphdr *hdr4,
 	 * more than a hundred nanoseconds. Also, it's a black box really.
 	 * So I've decided to leave this as is.
 	 */
-	if (hdr_frag)
+
+	if (hdr_frag) {
 		hdr4->id = cpu_to_be16(be32_to_cpu(hdr_frag->identification));
-	else
-		__ip_select_ident(state->jool.ns, hdr4, 1);
+		return VERDICT_CONTINUE;
+	}
+
+#if LINUX_VERSION_AT_LEAST(4, 1, 0, 7, 3)
+	__ip_select_ident(state->jool.ns, hdr4, 1);
+#elif LINUX_VERSION_AT_LEAST(3, 16, 0, 7, 3)
+	__ip_select_ident(hdr4, 1);
+#else
+	{
+		struct dst_entry *dst;
+
+		/*
+		 * Having a namespace, I need to get a dst so __ip_select_ident
+		 * can get the namespace. Kill me.
+		 * Can we drop support for kernels 3.15- please.
+		 */
+
+		dst = route4(state->jool.ns, &state->out);
+		if (!dst)
+			return drop(state, JSTAT_FAILED_ROUTES);
+
+		__ip_select_ident(hdr4, dst, 1);
+	}
+#endif
+
+	return VERDICT_CONTINUE;
 }
 
 /**
@@ -349,9 +375,8 @@ verdict ttp64_ipv4(struct xlation *state)
 	verdict result;
 
 	/*
-	 * translate_addrs64_siit->rfc6791v4_find->get_host_address needs tos
-	 * and protocol, so translate them first.
-	 * generate_ipv4_id() also needs protocol.
+	 * translate_addrs64_siit->rfc6791v4_find->get_host_address and
+	 * generate_ipv4_id() need tos and protocol, so translate them first.
 	 */
 	hdr4->tos = ttp64_xlat_tos(&state->jool.global->cfg, hdr6);
 	hdr4->protocol = ttp64_xlat_proto(hdr6);
@@ -372,7 +397,11 @@ verdict ttp64_ipv4(struct xlation *state)
 	hdr4->version = 4;
 	hdr4->ihl = 5;
 	hdr4->tot_len = build_tot_len(in, out);
-	generate_ipv4_id(state, hdr4, hdr_frag);
+
+	result = generate_ipv4_id(state, hdr4, hdr_frag);
+	if (result != VERDICT_CONTINUE)
+		return result;
+
 	hdr4->frag_off = build_ipv4_frag_off_field(generate_df_flag(out), 0, 0);
 	if (pkt_is_outer(in)) {
 		if (hdr6->hop_limit <= 1) {
@@ -383,6 +412,8 @@ verdict ttp64_ipv4(struct xlation *state)
 	} else {
 		hdr4->ttl = hdr6->hop_limit;
 	}
+
+
 	/* ip4_hdr->check is set later; please scroll down. */
 
 	if (pkt_is_outer(in)) {
