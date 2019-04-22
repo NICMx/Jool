@@ -90,10 +90,8 @@ static bool equals_function(const struct packet *k1, const struct packet *k2)
 static unsigned int inet6_hash_frag(__be32 id, const struct in6_addr *saddr,
 		const struct in6_addr *daddr, u32 rnd)
 {
-	u32 c;
-	c = jhash_3words(ipv6_addr_hash(saddr), ipv6_addr_hash(daddr),
+	return jhash_3words(ipv6_addr_hash(saddr), ipv6_addr_hash(daddr),
 			(__force u32)id, rnd);
-	return c & (INETFRAGS_HASHSZ - 1);
 }
 #endif
 
