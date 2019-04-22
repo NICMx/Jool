@@ -88,6 +88,20 @@ static struct genl_family jool_family = {
 
 static DEFINE_MUTEX(config_mutex);
 
+static int validate_genl_attrs(struct genl_info *info)
+{
+	/*
+	 * I smell a need for another genl refactor.
+	 * Damn it, this thing is so hard to nail right.
+	 */
+	if (info->attrs == NULL || info->attrs[ATTR_DATA] == NULL) {
+		log_err("Malformed request. Most likely, the client is not Jool, or its version is pre-4.0. I can't even respond. Sorry.");
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 static int multiplex_request(struct xlator *jool, struct genl_info *info)
 {
 	struct request_hdr *hdr = get_jool_hdr(info);
@@ -120,6 +134,10 @@ static int __handle_jool_message(struct genl_info *info)
 	struct xlator jool;
 	bool client_is_jool;
 	int error;
+
+	error = validate_genl_attrs(info);
+	if (error)
+		return error;
 
 	if (verify_superpriv())
 		return nlcore_respond(info, -EPERM);
