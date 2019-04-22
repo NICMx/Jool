@@ -1,4 +1,4 @@
-CFLAGS = -O2 -Wall -I../..
+CFLAGS = -O2 -Wall -I../.. $(shell pkg-config xtables --cflags)
 XTABLES_SO_DIR = $(shell pkg-config xtables --variable xtlibdir)
 
 all:

@@ -64,6 +64,7 @@ You might also want to see [contact info](https://www.jool.mx/en/contact.html).
 * Eric Gamess
 * [Hidekazu Tadokoro](https://github.com/tadokoro)
 * [ipclouds](https://github.com/ipclouds)
+* Jan Pokorny - FIT VUTBR
 * [Masaya YAMAMOTO](https://github.com/pandax381)
 * [Michael Richardson](http://www.sandelman.ca/mcr)
 * [paradon](https://github.com/paradon)
