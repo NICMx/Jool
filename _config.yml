@@ -3,7 +3,7 @@ baseurl: /Jool
 repository-url: https://github.com/NICMx/Jool
 downloads-url: https://github.com/NICMx/releases/raw/master/Jool
 downloads-url-2: https://github.com/NICMx/Jool/releases/download
-latest-version: 4.0.0
+latest-version: 4.0.1
 
 rfc-siit: https://tools.ietf.org/html/rfc7915
 draft-siit-eam: https://tools.ietf.org/html/rfc7757

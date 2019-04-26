@@ -22,7 +22,7 @@ Jool is an Open Source [SIIT and NAT64](intro-xlat.html) for Linux.
 
 As far as we know, Jool is a [compliant](intro-jool.html#compliance) SIIT and Stateful NAT64.
 
-Our most mature version is [3.5.7]({{ site.repository-url }}/milestone/42), and our latest stable is [4.0.0](https://github.com/NICMx/Jool/releases/tag/v4.0.0).
+Its most mature version is [4.0.1]({{ site.repository-url }}/milestone/43).
 
 -------------------
 
@@ -33,6 +33,20 @@ Our most mature version is [3.5.7]({{ site.repository-url }}/milestone/42), and 
 -------------------
 
 ## News
+
+### 2019-04-26
+
+[Jool 4.0.1](download.html) has been released.
+
+It patches two bugs:
+
+- [Kernel panic on malformed userspace requests](https://github.com/NICMx/Jool/issues/284).
+- [Two performance bottlenecks](https://github.com/NICMx/Jool/issues/282).
+
+Version 3.5.8 has also been released. It fixes
+
+- [Compilation error on newer Ubuntu (Debian?) kernels](https://github.com/NICMx/Jool/issues/283).  
+  (Incidentally, this also adds support for kernels 4.17 and 4.18.)
 
 ### 2019-02-05
 
