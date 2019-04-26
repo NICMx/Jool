@@ -79,7 +79,7 @@ You might also want to see [contact info](https://www.jool.mx/en/contact.html).
 ## Legal stuff
 
 	Jool - SIIT and NAT64 for Linux
-	Copyright (C) 2018  NIC Mexico <jool@nic.mx>
+	Copyright (C) 2019  NIC Mexico <jool@nic.mx>
 
 	This program is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
