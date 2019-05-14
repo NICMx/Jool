@@ -8,6 +8,7 @@
 #include "mod/common/defrag.h"
 #include "mod/common/kernel_hook.h"
 #include "mod/common/linux_version.h"
+#include "mod/common/rcu.h"
 #include "mod/common/wkmalloc.h"
 #include "mod/siit/blacklist4.h"
 #include "mod/siit/eam.h"

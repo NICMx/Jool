@@ -3,6 +3,7 @@
 #include <linux/rcupdate.h>
 
 #include "common/types.h"
+#include "mod/common/rcu.h"
 #include "mod/common/wkmalloc.h"
 
 
