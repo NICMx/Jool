@@ -111,8 +111,19 @@ user@T:~$ # See {{ site.repository-url }}/issues/158
 
 The userspace clients and the daemon need the [Development Library and Headers for libnl-genl-3](http://www.infradead.org/~tgr/libnl/):
 
+<div class="distro-menu">
+	<span class="distro-selector" onclick="showDistro(this);">Ubuntu</span>
+	<span class="distro-selector" onclick="showDistro(this);">CentOS</span>
+</div>
+
+<!-- Ubuntu -->
 {% highlight bash %}
 user@T:~# apt install libnl-genl-3-dev
+{% endhighlight %}
+
+<!-- CentOS -->
+{% highlight bash %}
+user@T:~# yum install libnl3-devel
 {% endhighlight %}
 
 The iptables shared object needs the [Netfilter xtables Library development files](http://www.netfilter.org/):
@@ -120,6 +131,7 @@ The iptables shared object needs the [Netfilter xtables Library development file
 <div class="distro-menu">
 	<span class="distro-selector" onclick="showDistro(this);">Ubuntu 18.04</span>
 	<span class="distro-selector" onclick="showDistro(this);">Ubuntu 16.04</span>
+	<span class="distro-selector" onclick="showDistro(this);">CentOS</span>
 </div>
 
 <!-- Ubuntu 18.04 -->
@@ -130,6 +142,11 @@ user@T:~# apt install libxtables-dev
 <!-- Ubuntu 16.04 -->
 {% highlight bash %}
 user@T:~# apt install iptables-dev
+{% endhighlight %}
+
+<!-- CentOS -->
+{% highlight bash %}
+user@T:~# yum install iptables-devel
 {% endhighlight %}
 
 If you will install Jool via DKMS, you will need DKMS itself:
