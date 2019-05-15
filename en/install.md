@@ -40,6 +40,10 @@ Kbuild is Linux's bare bones module building infrastructure, while DKMS is a mor
 
 ## Installing Dependencies
 
+> Note: Distros sometimes change this, and it's difficult to keep it updated. You might need to tweak dependency installation to some extent.
+> 
+> Please [report](https://github.com/NICMx/Jool/issues) any issues you find. (Including instructions for different distributions.)
+
 You need a kernel that is [supported](intro-jool.html#compatibility) by the version of Jool that you're using.
 
 Aside from that, you will need your build essentials. Some distributions already ship them by default, so omit this step in those cases.
@@ -112,11 +116,11 @@ user@T:~$ # See {{ site.repository-url }}/issues/158
 The userspace clients and the daemon need the [Development Library and Headers for libnl-genl-3](http://www.infradead.org/~tgr/libnl/):
 
 <div class="distro-menu">
-	<span class="distro-selector" onclick="showDistro(this);">Ubuntu</span>
+	<span class="distro-selector" onclick="showDistro(this);">Debian/Ubuntu</span>
 	<span class="distro-selector" onclick="showDistro(this);">CentOS</span>
 </div>
 
-<!-- Ubuntu -->
+<!-- Debian/Ubuntu -->
 {% highlight bash %}
 user@T:~# apt install libnl-genl-3-dev
 {% endhighlight %}
@@ -129,12 +133,12 @@ user@T:~# yum install libnl3-devel
 The iptables shared object needs the [Netfilter xtables Library development files](http://www.netfilter.org/):
 
 <div class="distro-menu">
-	<span class="distro-selector" onclick="showDistro(this);">Ubuntu 18.04</span>
+	<span class="distro-selector" onclick="showDistro(this);">Debian/Ubuntu 18.04</span>
 	<span class="distro-selector" onclick="showDistro(this);">Ubuntu 16.04</span>
 	<span class="distro-selector" onclick="showDistro(this);">CentOS</span>
 </div>
 
-<!-- Ubuntu 18.04 -->
+<!-- Debian/Ubuntu 18.04 -->
 {% highlight bash %}
 user@T:~# apt install libxtables-dev
 {% endhighlight %}
@@ -162,10 +166,12 @@ If you're going to clone the git repository, you need git and the autotools:
 	<span class="distro-selector" onclick="showDistro(this);">CentOS</span>
 </div>
 
+<!-- Ubuntu -->
 {% highlight bash %}
 user@T:~# apt install git autoconf
 {% endhighlight %}
 
+<!-- CentOS -->
 {% highlight bash %}
 user@T:~# yum install git automake
 {% endhighlight %}
