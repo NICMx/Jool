@@ -1,6 +1,7 @@
 #include "mod/nat64/pool4/rfc6056.h"
 
 #include <crypto/hash.h>
+#include "mod/common/linux_version.h"
 #include "mod/common/wkmalloc.h"
 
 /*
@@ -163,7 +164,10 @@ int rfc6056_f(const struct tuple *tuple6, __u8 fields, unsigned int *result)
 		return -ENOMEM;
 
 	desc->tfm = shash;
+/* Linux commit: 877b5691f27a1aec0d9b53095a323e45c30069e2 */
+#if LINUX_VERSION_LOWER_THAN(5, 2, 0, 9999, 0)
 	desc->flags = 0;
+#endif
 
 	error = crypto_shash_init(desc);
 	if (error) {
