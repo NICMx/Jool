@@ -110,3 +110,57 @@ int eamt_flush(char *iname)
 	init_request_hdr(hdr, MODE_EAMT, OP_FLUSH, false);
 	return netlink_request(iname, request, sizeof(request), NULL, NULL);
 }
+
+static int bad_len(size_t expected, size_t actual)
+{
+	log_err("Jool's response has a bogus length. (expected %zu, got %zu).",
+			expected, actual);
+	log_err("This is probably a programming error.");
+	return -EINVAL;
+}
+
+static int eam_query64_response(struct jool_response *response, void *arg)
+{
+	if (response->payload_len < sizeof(struct in_addr))
+		return bad_len(sizeof(struct in_addr), response->payload_len);
+
+	*((struct in_addr *)arg) = *((struct in_addr *)response->payload);
+	return 0;
+}
+
+int eamt_query_v6(char *iname, struct in6_addr *addr, struct in_addr *result)
+{
+	unsigned char request[HDR_LEN + PAYLOAD_LEN];
+	struct request_hdr *hdr = (struct request_hdr *)request;
+	union request_eamt *payload = (union request_eamt *)(request + HDR_LEN);
+
+	init_request_hdr(hdr, MODE_EAMT, OP_TEST, false);
+	payload->test.proto = 6;
+	payload->test.addr.v6 = *addr;
+
+	return netlink_request(iname, request, sizeof(request),
+			eam_query64_response, result);
+}
+
+static int eam_query46_response(struct jool_response *response, void *arg)
+{
+	if (response->payload_len < sizeof(struct in6_addr))
+		return bad_len(sizeof(struct in6_addr), response->payload_len);
+
+	*((struct in6_addr *)arg) = *((struct in6_addr *)response->payload);
+	return 0;
+}
+
+int eamt_query_v4(char *iname, struct in_addr *addr, struct in6_addr *result)
+{
+	unsigned char request[HDR_LEN + PAYLOAD_LEN];
+	struct request_hdr *hdr = (struct request_hdr *)request;
+	union request_eamt *payload = (union request_eamt *)(request + HDR_LEN);
+
+	init_request_hdr(hdr, MODE_EAMT, OP_TEST, false);
+	payload->test.proto = 4;
+	payload->test.addr.v4 = *addr;
+
+	return netlink_request(iname, request, sizeof(request),
+			eam_query46_response, result);
+}

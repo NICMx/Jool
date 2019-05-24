@@ -244,3 +244,102 @@ void autocomplete_eamt_flush(void *args)
 {
 	/* Nothing needed here. */
 }
+
+struct wargp_eamt_addr {
+	__u8 proto;
+	union {
+		struct in6_addr v6;
+		struct in_addr v4;
+	} addr;
+};
+
+struct query_args {
+	struct wargp_eamt_addr addr;
+};
+
+static int parse_eamt_addr(void *void_field, int key, char *str)
+{
+	struct wargp_eamt_addr *field = void_field;
+
+	if (strchr(str, ':')) {
+		field->proto = 6;
+		return str_to_addr6(str, &field->addr.v6);
+	}
+	if (strchr(str, '.')) {
+		field->proto = 4;
+		return str_to_addr4(str, &field->addr.v4);
+	}
+
+	return ARGP_ERR_UNKNOWN;
+}
+
+struct wargp_type wt_addr = {
+	.argument = "<IP Address>",
+	.parse = parse_eamt_addr,
+};
+
+static struct wargp_option query_opts[] = {
+	{
+		.name = "Address",
+		.key = ARGP_KEY_ARG,
+		.doc = "Address you want translated.",
+		.offset = offsetof(struct query_args, addr),
+		.type = &wt_addr,
+	},
+	{ 0 },
+};
+
+int handle_eamt_query(char *iname, int argc, char **argv, void *arg)
+{
+	struct query_args qargs = { 0 };
+	union {
+		struct in6_addr v6;
+		struct in_addr v4;
+	} result;
+	char ipv6_str[INET6_ADDRSTRLEN];
+	int error;
+
+	error = wargp_parse(query_opts, argc, argv, &qargs);
+	if (error)
+		return error;
+
+	if (!qargs.addr.proto) {
+		struct requirement reqs[] = {
+				{ true, "an address" },
+				{ 0 },
+		};
+		return requirement_print(reqs);
+	}
+
+	error = netlink_setup();
+	if (error)
+		return error;
+
+	switch (qargs.addr.proto) {
+	case 6:
+		error = eamt_query_v6(iname, &qargs.addr.addr.v6, &result.v4);
+		if (error)
+			break;
+		printf("%s\n", inet_ntoa(result.v4));
+		break;
+	case 4:
+		error = eamt_query_v4(iname, &qargs.addr.addr.v4, &result.v6);
+		if (error)
+			break;
+		inet_ntop(AF_INET6, &result.v6, ipv6_str, sizeof(ipv6_str));
+		printf("%s\n", ipv6_str);
+		break;
+	default:
+		log_err("(Programming error) Unknown protocol: %u",
+				qargs.addr.proto);
+		error = -EINVAL;
+	}
+
+	netlink_teardown();
+	return error;
+}
+
+void autocomplete_eamt_query(void *args)
+{
+	print_wargp_opts(query_opts);
+}

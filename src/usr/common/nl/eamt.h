@@ -12,4 +12,7 @@ int eamt_add(char *iname, struct ipv6_prefix *p6, struct ipv4_prefix *p4,
 int eamt_rm(char *iname, struct ipv6_prefix *p6, struct ipv4_prefix *p4);
 int eamt_flush(char *iname);
 
+int eamt_query_v6(char *iname, struct in6_addr *addr, struct in_addr *result);
+int eamt_query_v4(char *iname, struct in_addr *addr, struct in6_addr *result);
+
 #endif /* _JOOL_USR_EAM_H */

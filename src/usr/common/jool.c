@@ -102,6 +102,11 @@ static struct cmd_option eamt_ops[] = {
 			.xt = XT_SIIT,
 			.handler = handle_eamt_flush,
 			.handle_autocomplete = autocomplete_eamt_flush,
+		}, {
+			.label = "query",
+			.xt = XT_SIIT,
+			.handler = handle_eamt_query,
+			.handle_autocomplete = autocomplete_eamt_query,
 		},
 		{ 0 },
 };

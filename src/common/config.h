@@ -365,6 +365,13 @@ union request_eamt {
 		config_bool prefix4_set;
 		struct ipv4_prefix prefix4;
 	} rm;
+	struct {
+		__u8 proto;
+		union {
+			struct in6_addr v6;
+			struct in_addr v4;
+		} addr;
+	} test;
 };
 
 /**

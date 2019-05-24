@@ -22,7 +22,7 @@ static int handle_eamt_display(struct eam_table *eamt, struct genl_info *info,
 
 	error = nlbuffer_init_response(&buffer, info, nlbuffer_response_max_size());
 	if (error)
-		nlcore_respond(info, error);
+		return nlcore_respond(info, error);
 
 	prefix4 = request->display.prefix4_set ? &request->display.prefix4 : NULL;
 	error = eamt_foreach(eamt, eam_entry_to_userspace, &buffer, prefix4);
@@ -61,6 +61,61 @@ static int handle_eamt_flush(struct eam_table *eamt)
 	return 0;
 }
 
+static int handle_eamt_test(struct eam_table *eamt, struct genl_info *info,
+		union request_eamt *request)
+{
+	struct nlcore_buffer buffer;
+	union {
+		struct in6_addr v6;
+		struct in_addr v4;
+	} result;
+	void *result_ptr;
+	size_t result_len;
+	int error;
+
+	switch (request->test.proto) {
+	case 6:
+		result_ptr = &result.v4;
+		result_len = sizeof(result.v4);
+		error = eamt_xlat_6to4(eamt, &request->test.addr.v6,
+				&result.v4);
+		break;
+	case 4:
+		result_ptr = &result.v6;
+		result_len = sizeof(result.v6);
+		error = eamt_xlat_4to6(eamt, &request->test.addr.v4,
+				&result.v6);
+		break;
+	default:
+		log_err("Unknown protocol: %d", request->test.proto);
+		error = -EINVAL;
+		goto fail;
+	}
+
+	if (error == -ESRCH) {
+		log_err("None of the EAM entries match the given address.");
+		goto fail;
+	}
+	if (error) {
+		log_err("Unknown error: %d", error);
+		goto fail;
+	}
+
+	error = nlbuffer_init_response(&buffer, info, result_len);
+	if (error)
+		goto fail;
+	error = nlbuffer_write(&buffer, result_ptr, result_len);
+	if (error)
+		goto clean;
+	error = nlbuffer_send(info, &buffer);
+
+	nlbuffer_clean(&buffer);
+	return error;
+
+clean:	nlbuffer_clean(&buffer);
+fail:	return nlcore_respond(info, error);
+}
+
 int handle_eamt_config(struct xlator *jool, struct genl_info *info)
 {
 	struct request_hdr *hdr;
@@ -91,6 +146,8 @@ int handle_eamt_config(struct xlator *jool, struct genl_info *info)
 	case OP_FLUSH:
 		error = handle_eamt_flush(jool->siit.eamt);
 		break;
+	case OP_TEST:
+		return handle_eamt_test(jool->siit.eamt, info, request);
 	default:
 		log_err("Unknown operation: %u", hdr->operation);
 		error = -EINVAL;
