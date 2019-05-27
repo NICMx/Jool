@@ -46,7 +46,7 @@ All userspace client command line requests adhere to the following syntax:
 - `remove`
 - `flush`
 
-And finally, `<args>` is an traditional argp-parsed payload of arguments that depend on the `<mode> <operation>` context. For example, list the `instance add` flags by running
+And finally, `<args>` is a traditional argp-parsed payload of arguments that depend on the `<mode> <operation>` context. For example, list the `instance add` flags by running
 
 {% highlight bash %}
 user@T:~$ jool instance add --help

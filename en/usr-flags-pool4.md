@@ -64,7 +64,7 @@ The IPv4 pool is the subset of the node's transport addresses which are reserved
 | `--no-headers` | (absent) | Print the table entries only; omit the headers. |
 | `--mark` | 0 | Specifies the Mark value of the entry being added, removed or updated.<br />The minimum value is zero, the maximum is 4294967295. |
 | `<IPv4-prefix>` | - | Group of addresses you are adding or removing to/from the pool. The length is optional and defaults to 32. |
-| [`<port-range>`](#port-range) | 1-65535 for TCP/UDP, 0-65535 for ICMP | Ports from `<IPv4-prefix>` you're adding or removing to/from the pool. |
+| [`<port-range>`](#port-range) | 61001-65535 | Ports from `<IPv4-prefix>` you're adding or removing to/from the pool. |
 | [`--max-iterations`](#--max-iterations) | `auto` | Specifies the Max Iterations value of the set being modified. |
 | `--force` | (absent) | If present, add the elements to the pool even if they're too many.<br />(Will print a warning and quit otherwise.) |
 | [`--quick`](#--quick) | (absent) | Do not cascade removal to [BIB entries](bib.html). |

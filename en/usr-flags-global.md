@@ -565,7 +565,7 @@ In reality, some degree of queuing is still done when this flag is enabled, as o
 
 ### `ss-flush-deadline`
 
-- Type: Integer
+- Type: Integer (milliseconds)
 - Default: 2 seconds
 - Modes: Stateful NAT64 only
 - Source: [Issue 113]({{ site.repository-url }}/issues/113)

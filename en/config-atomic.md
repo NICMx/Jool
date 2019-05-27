@@ -162,16 +162,17 @@ Also, `pool6` is mandatory and immutable (as normal). It must be set during inst
 			"mark": 1,
 			"protocol": "UDP",
 			"prefix": "192.0.2.1",
-			"port range": "61001-62000"
+			"port range": "61001-62000",
+			"max-iterations": 1500
+		}, {
+			"comment": "mark, port range and max-iterations are optional.",
+			"protocol": "TCP",
+			"prefix": "192.0.2.2/31"
 		}, {
 			"mark": 1,
 			"protocol": "ICMP",
 			"prefix": "192.0.2.1/32",
 			"port range": "1000-2000"
-		}, {
-			"comment": "protocol and port range are optional.",
-			"protocol": "TCP",
-			"prefix": "192.0.2.2/31"
 		}
 	],
 	
