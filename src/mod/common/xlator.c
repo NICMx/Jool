@@ -8,6 +8,7 @@
 #include "mod/common/defrag.h"
 #include "mod/common/kernel_hook.h"
 #include "mod/common/linux_version.h"
+#include "mod/common/log.h"
 #include "mod/common/rcu.h"
 #include "mod/common/wkmalloc.h"
 #include "mod/siit/blacklist4.h"
@@ -276,11 +277,15 @@ static int basic_add_validations(jframework fw, char *iname,
 	int error;
 
 	error = iname_validate(iname, false);
-	if (error)
+	if (error) {
+		log_err(INAME_VALIDATE_ERRMSG, INAME_MAX_LEN - 1);
 		return error;
+	}
 	error = fw_validate(fw);
-	if (error)
+	if (error) {
+		log_err(FW_VALIDATE_ERRMSG);
 		return error;
+	}
 	if (xlat_is_nat64() && (!pool6 || !pool6->set)) {
 		log_err("pool6 is mandatory in NAT64 instances.");
 		return -EINVAL;
@@ -483,8 +488,10 @@ int xlator_rm(char *iname)
 	int error;
 
 	error = iname_validate(iname, false);
-	if (error)
+	if (error) {
+		log_err(INAME_VALIDATE_ERRMSG, INAME_MAX_LEN - 1);
 		return error;
+	}
 
 	ns = get_net_ns_by_pid(task_pid_vnr(current));
 	if (IS_ERR(ns)) {
@@ -641,8 +648,10 @@ int xlator_find(struct net *ns, jframework fw, const char *iname,
 	 */
 
 	error = iname_validate(iname, true);
-	if (error)
+	if (error) {
+		log_err(INAME_VALIDATE_ERRMSG, INAME_MAX_LEN - 1);
 		return error;
+	}
 
 	rcu_read_lock_bh();
 

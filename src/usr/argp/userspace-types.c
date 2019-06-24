@@ -1,4 +1,4 @@
-#include "usr/common/userspace-types.h"
+#include "userspace-types.h"
 
 #include <stdarg.h>
 #include <stdio.h>

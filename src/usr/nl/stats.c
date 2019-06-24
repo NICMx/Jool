@@ -1,8 +1,9 @@
-#include "usr/common/nl/stats.h"
+#include "stats.h"
 
 #include <errno.h>
+
 #include "common/config.h"
-#include "usr/common/netlink.h"
+#include "jool_socket.h"
 
 #define DEFINE_STAT(_id, _doc) { \
 		.id = _id, \
@@ -83,7 +84,7 @@ static struct jstat_metadata const jstat_metadatas[] = {
 
 #define ARRAY_SIZE(array) (sizeof(array) / sizeof(array[0]))
 
-static int validate_stats(void)
+static struct jool_result validate_stats(void)
 {
 	unsigned int i;
 
@@ -95,12 +96,13 @@ static int validate_stats(void)
 			goto failure;
 	}
 
-	return 0;
+	return result_success();
 
 failure:
-	log_err("Programming error: The jstat_metadatas array does not match the jool_stat_id enum.");
-	log_err("Please fix and recompile this program.");
-	return -EINVAL;
+	return result_from_error(
+		-EINVAL,
+		"Programming error: The jstat_metadatas array does not match the jool_stat_id enum."
+	);
 }
 
 struct query_args {
@@ -108,48 +110,51 @@ struct query_args {
 	void *args;
 };
 
-int stats_query_response(struct jool_response *response, void *args)
+static struct jool_result stats_query_response(struct jool_response *response,
+		void *args)
 {
 	size_t expected_len;
 	__u64 *values = response->payload;
 	struct jstat stat;
 	struct query_args *qargs = args;
 	unsigned int i;
-	int error;
+	struct jool_result result;
 
 	expected_len = __JSTAT_MAX * sizeof(*values);
 	if (expected_len != response->payload_len) {
-		log_err("Jool's response has a bogus length. (expected %zu, got %zu).",
-				expected_len, response->payload_len);
-		log_err("This is probably a programming error.");
-		return -EINVAL;
+		return result_from_error(
+			-EINVAL,
+			"Jool's response has a bogus length. (expected %zu, got %zu).",
+			expected_len, response->payload_len
+		);
 	}
 
 	for (i = 0; i < __JSTAT_MAX; i++) {
 		stat.meta = jstat_metadatas[i];
 		stat.value = values[i];
-		error = qargs->cb(&stat, qargs->args);
-		if (error)
-			return error;
+		result = qargs->cb(&stat, qargs->args);
+		if (result.error)
+			return result;
 	}
 
-	return 0;
+	return result_success();
 }
 
-int stats_foreach(char *iname, stats_foreach_cb cb, void *args)
+struct jool_result stats_foreach(struct jool_socket *sk, char *iname,
+		stats_foreach_cb cb, void *args)
 {
 	struct query_args qargs;
 	struct request_hdr request;
-	int error;
+	struct jool_result result;
 
-	error = validate_stats();
-	if (error)
-		return error;
+	result = validate_stats();
+	if (result.error)
+		return result;
 
 	qargs.cb = cb;
 	qargs.args = args;
 	init_request_hdr(&request, MODE_STATS, OP_FOREACH, false);
 
-	return netlink_request(iname, &request, sizeof(request),
+	return netlink_request(sk, iname, &request, sizeof(request),
 			stats_query_response, &qargs);
 }

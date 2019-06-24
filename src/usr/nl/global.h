@@ -1,12 +1,14 @@
-#ifndef _JOOL_USR_GLOBAL_H
-#define _JOOL_USR_GLOBAL_H
+#ifndef SRC_USR_NL_GLOBAL_H_
+#define SRC_USR_NL_GLOBAL_H_
 
-#include "common/common-global.h"
-#include "common/config.h"
-
-int global_query(char *iname, struct globals *result);
-int global_update(char *iname, struct global_field *field, void *value,
-		bool force);
+#include "common/globals.h"
+#include "jool_socket.h"
 
 
-#endif /* _JOOL_USR_GLOBAL_H */
+struct jool_result global_query(struct jool_socket *sk, char *iname,
+		struct globals *out);
+struct jool_result global_update(struct jool_socket *sk, char *iname,
+		struct global_field *field, void *value, bool force);
+
+
+#endif /* SRC_USR_NL_GLOBAL_H_ */

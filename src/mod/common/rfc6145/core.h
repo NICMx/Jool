@@ -1,5 +1,5 @@
-#ifndef _JOOL_MOD_RFC6145_CORE_H
-#define _JOOL_MOD_RFC6145_CORE_H
+#ifndef SRC_MOD_COMMON_RFC6145_CORE_H_
+#define SRC_MOD_COMMON_RFC6145_CORE_H_
 
 /**
  * @file
@@ -16,4 +16,4 @@
 
 verdict translating_the_packet(struct xlation *state);
 
-#endif /* _JOOL_MOD_RFC6145_CORE_H */
+#endif /* SRC_MOD_COMMON_RFC6145_CORE_H_ */

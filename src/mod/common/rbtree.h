@@ -1,5 +1,5 @@
-#ifndef _JOOL_MOD_RBTREE_H
-#define _JOOL_MOD_RBTREE_H
+#ifndef SRC_MOD_COMMON_RBTREE_H_
+#define SRC_MOD_COMMON_RBTREE_H_
 
 /**
  * @file
@@ -207,4 +207,4 @@ void rbtree_clear(struct rb_root *root,
 		void (*destructor)(struct rb_node *, void *),
 		void *arg);
 
-#endif /* _JOOL_MOD_RBTREE_H */
+#endif /* SRC_MOD_COMMON_RBTREE_H_ */

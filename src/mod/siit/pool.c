@@ -3,9 +3,9 @@
 #include <linux/inet.h>
 #include <linux/kref.h>
 #include <linux/rculist.h>
-#include "common/str_utils.h"
 #include "common/types.h"
 #include "mod/common/address.h"
+#include "mod/common/log.h"
 #include "mod/common/rcu.h"
 #include "mod/common/tags.h"
 #include "mod/common/wkmalloc.h"

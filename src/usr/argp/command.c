@@ -1,4 +1,4 @@
-#include "usr/common/command.h"
+#include "command.h"
 
 #include "common/xlat.h"
 

@@ -1,14 +1,13 @@
-#include "usr/common/file.h"
+#include "file.h"
 
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include "common/types.h"
 
 /**
  * Remember to free @result when you're done.
  */
-int file_to_string(char *file_name, char **result)
+struct jool_result file_to_string(char *file_name, char **out)
 {
 	FILE *file;
 	long int length;
@@ -18,47 +17,44 @@ int file_to_string(char *file_name, char **result)
 	int error;
 
 	file = fopen(file_name, "rb");
-	if (!file) {
-		perror("fopen() error");
-		return -EINVAL;
-	}
+	if (!file)
+		return result_from_errno(errno, "fopen");
 
 	error = fseek(file, 0, SEEK_END);
 	if (error) {
-		perror("fseek() 1 error");
-		goto fail;
+		error = errno;
+		fclose(file);
+		return result_from_errno(error, "fseek1");
 	}
 
 	length = ftell(file);
 	if (length == -1) {
-		perror("ftell() error");
-		error = length;
-		goto fail;
+		error = errno;
+		fclose(file);
+		return result_from_errno(error, "ftell");
 	}
 
 	error = fseek(file, 0, SEEK_SET);
 	if (error) {
-		perror("fseek() 2 error");
-		goto fail;
+		error = errno;
+		fclose(file);
+		return result_from_errno(error, "fseek2");
 	}
 
 	buffer = malloc(length + 1);
 	if (!buffer) {
-		log_err("Out of memory.");
-		error = -ENOMEM;
-		goto fail;
+		fclose(file);
+		return result_from_enomem();
 	}
 
 	total_read = 0;
 	while (total_read < length) {
 		current_read = fread(&buffer[total_read], 1, length, file);
-		if (current_read == 0 && (error = ferror(file))) {
-			log_err("Reading the file threw error code %d.", error);
-			log_err("I don't know which is the correct way to stringify that code.");
-			errno = error;
-			perror("Let's try this one");
+		if (current_read == 0 && ferror(file)) {
 			free(buffer);
-			goto fail;
+			fclose(file);
+			/* There's literally no way to get an error code. */
+			return result_from_errno(-EINVAL, "fread");
 		}
 
 		total_read += current_read;
@@ -67,10 +63,6 @@ int file_to_string(char *file_name, char **result)
 	fclose(file);
 
 	buffer[total_read] = '\0';
-	*result = buffer;
-	return 0;
-
-fail:
-	fclose(file);
-	return error;
+	*out = buffer;
+	return result_success();
 }

@@ -1,5 +1,5 @@
-#ifndef _JOOL_MOD_RFC6791_H
-#define _JOOL_MOD_RFC6791_H
+#ifndef SRC_MOD_SIIT_RFC6791V4_H_
+#define SRC_MOD_SIIT_RFC6791V4_H_
 
 /**
  * @file
@@ -17,4 +17,4 @@
 
 int rfc6791v4_find(struct xlation *state, __be32 *result);
 
-#endif /* _JOOL_MOD_RFC6791_H */
+#endif /* SRC_MOD_SIIT_RFC6791V4_H_ */

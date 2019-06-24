@@ -1,13 +1,12 @@
 #include "eamt.h"
 
-#include <string.h>
-#include "common/config.h"
-#include "usr/common/netlink.h"
-#include "usr/common/requirements.h"
-#include "usr/common/userspace-types.h"
-#include "usr/common/str_utils.h"
-#include "usr/common/wargp.h"
-#include "usr/common/nl/eamt.h"
+#include "usr/argp/log.h"
+#include "usr/argp/requirements.h"
+#include "usr/argp/userspace-types.h"
+#include "usr/argp/wargp.h"
+#include "usr/nl/eamt.h"
+#include "usr/nl/jool_socket.h"
+#include "usr/util/str_utils.h"
 
 struct display_args {
 	struct wargp_bool no_headers;
@@ -25,7 +24,7 @@ static void print_separator(void)
 	print_table_separator(0, 43, 18, 0);
 }
 
-static int print_entry(struct eamt_entry *entry, void *args)
+static struct jool_result print_entry(struct eamt_entry *entry, void *args)
 {
 	struct display_args *dargs = args;
 	char ipv6_str[INET6_ADDRSTRLEN];
@@ -44,21 +43,22 @@ static int print_entry(struct eamt_entry *entry, void *args)
 				ipv4_str, entry->prefix4.len);
 	}
 
-	return 0;
+	return result_success();
 }
 
 int handle_eamt_display(char *iname, int argc, char **argv, void *arg)
 {
 	struct display_args dargs = { 0 };
-	int error;
+	struct jool_socket sk;
+	struct jool_result result;
 
-	error = wargp_parse(display_opts, argc, argv, &dargs);
-	if (error)
-		return error;
+	result.error = wargp_parse(display_opts, argc, argv, &dargs);
+	if (result.error)
+		return result.error;
 
-	error = netlink_setup();
-	if (error)
-		return error;
+	result = netlink_setup(&sk);
+	if (result.error)
+		return log_result(&result);
 
 	if (!dargs.no_headers.value) {
 		char *th1 = "IPv6 Prefix";
@@ -72,12 +72,12 @@ int handle_eamt_display(char *iname, int argc, char **argv, void *arg)
 		}
 	}
 
-	error = eamt_foreach(iname, print_entry, &dargs);
+	result = eamt_foreach(&sk, iname, print_entry, &dargs);
 
-	netlink_teardown();
+	netlink_teardown(&sk);
 
-	if (error)
-		return error;
+	if (result.error)
+		return log_result(&result);
 
 	if (!dargs.csv.value)
 		print_separator();
@@ -103,14 +103,17 @@ struct add_args {
 static int parse_eamt_column(void *void_field, int key, char *str)
 {
 	struct wargp_eamt_entry *field = void_field;
+	struct jool_result result;
 
 	if (strchr(str, ':')) {
 		field->prefix6_set = true;
-		return str_to_prefix6(str, &field->value.prefix6);
+		result = str_to_prefix6(str, &field->value.prefix6);
+		return log_result(&result);
 	}
 	if (strchr(str, '.')) {
 		field->prefix4_set = true;
-		return str_to_prefix4(str, &field->value.prefix4);
+		result = str_to_prefix4(str, &field->value.prefix4);
+		return log_result(&result);
 	}
 
 	return ARGP_ERR_UNKNOWN;
@@ -136,11 +139,12 @@ static struct wargp_option add_opts[] = {
 int handle_eamt_add(char *iname, int argc, char **argv, void *arg)
 {
 	struct add_args aargs = { 0 };
-	int error;
+	struct jool_socket sk;
+	struct jool_result result;
 
-	error = wargp_parse(add_opts, argc, argv, &aargs);
-	if (error)
-		return error;
+	result.error = wargp_parse(add_opts, argc, argv, &aargs);
+	if (result.error)
+		return result.error;
 
 	if (!aargs.entry.prefix6_set || !aargs.entry.prefix4_set) {
 		struct requirement reqs[] = {
@@ -151,17 +155,17 @@ int handle_eamt_add(char *iname, int argc, char **argv, void *arg)
 		return requirement_print(reqs);
 	}
 
-	error = netlink_setup();
-	if (error)
-		return error;
+	result = netlink_setup(&sk);
+	if (result.error)
+		return log_result(&result);
 
-	error = eamt_add(iname,
+	result = eamt_add(&sk, iname,
 			&aargs.entry.value.prefix6,
 			&aargs.entry.value.prefix4,
 			aargs.force);
 
-	netlink_teardown();
-	return error;
+	netlink_teardown(&sk);
+	return log_result(&result);
 }
 
 void autocomplete_eamt_add(void *args)
@@ -187,11 +191,12 @@ static struct wargp_option remove_opts[] = {
 int handle_eamt_remove(char *iname, int argc, char **argv, void *arg)
 {
 	struct rm_args rargs = { 0 };
-	int error;
+	struct jool_socket sk;
+	struct jool_result result;
 
-	error = wargp_parse(remove_opts, argc, argv, &rargs);
-	if (error)
-		return error;
+	result.error = wargp_parse(remove_opts, argc, argv, &rargs);
+	if (result.error)
+		return result.error;
 
 	if (!rargs.entry.prefix6_set && !rargs.entry.prefix4_set) {
 		struct requirement reqs[] = {
@@ -201,16 +206,16 @@ int handle_eamt_remove(char *iname, int argc, char **argv, void *arg)
 		return requirement_print(reqs);
 	}
 
-	error = netlink_setup();
-	if (error)
-		return error;
+	result = netlink_setup(&sk);
+	if (result.error)
+		return log_result(&result);
 
-	error = eamt_rm(iname,
+	result = eamt_rm(&sk, iname,
 			rargs.entry.prefix6_set ? &rargs.entry.value.prefix6 : NULL,
 			rargs.entry.prefix4_set ? &rargs.entry.value.prefix4 : NULL);
 
-	netlink_teardown();
-	return error;
+	netlink_teardown(&sk);
+	return log_result(&result);
 }
 
 void autocomplete_eamt_remove(void *args)
@@ -220,24 +225,25 @@ void autocomplete_eamt_remove(void *args)
 
 int handle_eamt_flush(char *iname, int argc, char **argv, void *arg)
 {
-	int error;
+	struct jool_socket sk;
+	struct jool_result result;
 
 	/*
 	 * We still call wargp_parse despite not having any arguments because
 	 * there's still --help and --usage that a clueless user might expect.
 	 */
-	error = wargp_parse(NULL, argc, argv, NULL);
-	if (error)
-		return error;
+	result.error = wargp_parse(NULL, argc, argv, NULL);
+	if (result.error)
+		return result.error;
 
-	error = netlink_setup();
-	if (error)
-		return error;
+	result = netlink_setup(&sk);
+	if (result.error)
+		return log_result(&result);
 
-	error = eamt_flush(iname);
+	result = eamt_flush(&sk, iname);
 
-	netlink_teardown();
-	return error;
+	netlink_teardown(&sk);
+	return log_result(&result);
 }
 
 void autocomplete_eamt_flush(void *args)
@@ -260,14 +266,17 @@ struct query_args {
 static int parse_eamt_addr(void *void_field, int key, char *str)
 {
 	struct wargp_eamt_addr *field = void_field;
+	struct jool_result result;
 
 	if (strchr(str, ':')) {
 		field->proto = 6;
-		return str_to_addr6(str, &field->addr.v6);
+		result = str_to_addr6(str, &field->addr.v6);
+		return log_result(&result);
 	}
 	if (strchr(str, '.')) {
 		field->proto = 4;
-		return str_to_addr4(str, &field->addr.v4);
+		result = str_to_addr4(str, &field->addr.v4);
+		return log_result(&result);
 	}
 
 	return ARGP_ERR_UNKNOWN;
@@ -295,13 +304,14 @@ int handle_eamt_query(char *iname, int argc, char **argv, void *arg)
 	union {
 		struct in6_addr v6;
 		struct in_addr v4;
-	} result;
+	} out;
 	char ipv6_str[INET6_ADDRSTRLEN];
-	int error;
+	struct jool_socket sk;
+	struct jool_result result;
 
-	error = wargp_parse(query_opts, argc, argv, &qargs);
-	if (error)
-		return error;
+	result.error = wargp_parse(query_opts, argc, argv, &qargs);
+	if (result.error)
+		return result.error;
 
 	if (!qargs.addr.proto) {
 		struct requirement reqs[] = {
@@ -311,32 +321,34 @@ int handle_eamt_query(char *iname, int argc, char **argv, void *arg)
 		return requirement_print(reqs);
 	}
 
-	error = netlink_setup();
-	if (error)
-		return error;
+	result = netlink_setup(&sk);
+	if (result.error)
+		return log_result(&result);
 
 	switch (qargs.addr.proto) {
 	case 6:
-		error = eamt_query_v6(iname, &qargs.addr.addr.v6, &result.v4);
-		if (error)
+		result = eamt_query_v6(&sk, iname, &qargs.addr.addr.v6, &out.v4);
+		if (result.error)
 			break;
-		printf("%s\n", inet_ntoa(result.v4));
+		printf("%s\n", inet_ntoa(out.v4));
 		break;
 	case 4:
-		error = eamt_query_v4(iname, &qargs.addr.addr.v4, &result.v6);
-		if (error)
+		result = eamt_query_v4(&sk, iname, &qargs.addr.addr.v4, &out.v6);
+		if (result.error)
 			break;
-		inet_ntop(AF_INET6, &result.v6, ipv6_str, sizeof(ipv6_str));
+		inet_ntop(AF_INET6, &out.v6, ipv6_str, sizeof(ipv6_str));
 		printf("%s\n", ipv6_str);
 		break;
 	default:
-		log_err("(Programming error) Unknown protocol: %u",
-				qargs.addr.proto);
-		error = -EINVAL;
+		result = result_from_error(
+			-EINVAL,
+			"(Programming error) Unknown protocol: %u",
+			qargs.addr.proto
+		);
 	}
 
-	netlink_teardown();
-	return error;
+	netlink_teardown(&sk);
+	return log_result(&result);
 }
 
 void autocomplete_eamt_query(void *args)

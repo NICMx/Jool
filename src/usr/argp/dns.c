@@ -1,9 +1,9 @@
-#include "usr/common/dns.h"
+#include "dns.h"
 
 #include <netdb.h>
 #include <stdio.h>
 #include <string.h>
-#include "common/types.h"
+#include "log.h"
 
 void print_addr6(struct ipv6_transport_addr *addr6, bool numeric,
 		char *separator, __u8 l4_proto)
@@ -28,8 +28,10 @@ void print_addr6(struct ipv6_transport_addr *addr6, bool numeric,
 		goto print_numeric;
 	}
 
-	/* Verification because ICMP doesn't use numeric ports, so it makes no sense to have a
-	 * translation of the "ICMP id". */
+	/*
+	 * Verification because ICMP doesn't use numeric ports, so it makes no
+	 * sense to have a translation of the "ICMP id".
+	 */
 	if (l4_proto != L4PROTO_ICMP)
 		printf("%s%s%s", hostname, separator, service);
 	else
@@ -64,8 +66,10 @@ void print_addr4(struct ipv4_transport_addr *addr4, bool numeric,
 		goto print_numeric;
 	}
 
-	/* Verification because ICMP doesn't use numeric ports, so it makes no sense to have a
-	 * translation of the "ICMP id". */
+	/*
+	 * Verification because ICMP doesn't use numeric ports, so it makes no
+	 * sense to have a translation of the "ICMP id".
+	 */
 	if (l4_proto != L4PROTO_ICMP)
 		printf("%s%s%s", hostname, separator, service);
 	else

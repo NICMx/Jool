@@ -1,5 +1,5 @@
-#ifndef _JOOL_MOD_IPV6_HDR_ITERATOR_H
-#define _JOOL_MOD_IPV6_HDR_ITERATOR_H
+#ifndef SRC_MOD_COMMON_HDR_ITERATOR_H_
+#define SRC_MOD_COMMON_HDR_ITERATOR_H_
 
 /**
  * @file
@@ -72,4 +72,4 @@ void hdr_iterator_last(struct hdr_iterator *iterator);
  */
 void *hdr_iterator_find(struct ipv6hdr *ip6_hdr, __u8 hdr_id);
 
-#endif /* _JOOL_MOD_IPV6_HDR_ITERATOR_H */
+#endif /* SRC_MOD_COMMON_HDR_ITERATOR_H_ */

@@ -1,5 +1,5 @@
-#ifndef _JOOL_MOD_KREF_ANALYZER_H
-#define _JOOL_MOD_KREF_ANALYZER_H
+#ifndef SRC_MOD_COMMON_WKMALLOC_H_
+#define SRC_MOD_COMMON_WKMALLOC_H_
 
 #include <linux/slab.h>
 #include "common/types.h"
@@ -60,4 +60,4 @@ static inline void wkmem_cache_free(const char *name, struct kmem_cache *cache,
 #endif
 }
 
-#endif
+#endif /* SRC_MOD_COMMON_WKMALLOC_H_ */

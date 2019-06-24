@@ -1,5 +1,5 @@
-#ifndef _JOOL_MOD_BLACKLIST4_H
-#define _JOOL_MOD_BLACKLIST4_H
+#ifndef SRC_MOD_SIIT_BLACKLIST4_H_
+#define SRC_MOD_SIIT_BLACKLIST4_H_
 
 /**
  * @file
@@ -25,4 +25,4 @@ int blacklist4_foreach(struct addr4_pool *pool,
 		struct ipv4_prefix *offset);
 bool blacklist4_is_empty(struct addr4_pool *pool);
 
-#endif /* _JOOL_MOD_BLACKLIST4_H */
+#endif /* SRC_MOD_SIIT_BLACKLIST4_H_ */

@@ -6,21 +6,17 @@ ccflags-y := -I$(src)/../.. $(JOOL_FLAGS)
 
 obj-m += jool_siit.o
 
-jool_common += ../../common/common-global.o
-jool_common += ../../common/siit/xlat.o
-jool_common += ../../common/netlink/config.o
-
 jool_common += ../common/rfc6145/4to6.o
 jool_common += ../common/rfc6145/6to4.o
 jool_common += ../common/rfc6145/common.o
 jool_common += ../common/rfc6145/core.o
+
 jool_common += ../common/kernel_hook_netfilter.o
 jool_common += ../common/kernel_hook_iptables.o
 jool_common += ../common/address.o
 jool_common += ../common/atomic_config.o
-jool_common += ../common/common-global.o
+jool_common += ../common/global-impl.o
 jool_common += ../common/types.o
-jool_common += ../common/str_utils.o
 jool_common += ../common/packet.o
 jool_common += ../common/stats.o
 jool_common += ../common/icmp_wrapper.o
@@ -37,6 +33,9 @@ jool_common += ../common/send_packet.o
 jool_common += ../common/core.o
 jool_common += ../common/error_pool.o
 jool_common += ../common/wkmalloc.o
+jool_common += ../common/wrapper-config.o
+jool_common += ../common/wrapper-globals.o
+jool_common += ../common/wrapper-types.o
 jool_common += ../common/xlator.o
 
 jool_common += ../common/nl/atomic_config.o
@@ -52,7 +51,6 @@ jool_common += ../common/nl/nl_common.o
 jool_common += ../common/nl/pool4.o
 jool_common += ../common/nl/session.o
 jool_common += ../common/nl/stats.o
-
 
 jool_siit += defrag.o
 jool_siit += eam.o

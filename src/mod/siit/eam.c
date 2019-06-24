@@ -2,6 +2,7 @@
 
 #include "common/types.h"
 #include "mod/common/address.h"
+#include "mod/common/log.h"
 #include "mod/common/wkmalloc.h"
 
 #define ADDR6_BITS		128

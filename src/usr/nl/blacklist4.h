@@ -1,13 +1,18 @@
-#ifndef _JOOL_USR_BLACKLIST_H
-#define _JOOL_USR_BLACKLIST_H
+#ifndef SRC_USR_NL_BLACKLIST_H_
+#define SRC_USR_NL_BLACKLIST_H_
 
-#include "common/config.h"
+#include "common/types.h"
+#include "jool_socket.h"
 
-typedef int (*blacklist4_foreach_cb)(struct ipv4_prefix *entry, void *args);
+typedef struct jool_result (*blacklist4_foreach_cb)(struct ipv4_prefix *entry,
+		void *args);
 
-int blacklist4_foreach(char *iname, blacklist4_foreach_cb cb, void *_args);
-int blacklist4_add(char *iname, struct ipv4_prefix *addrs, bool force);
-int blacklist4_rm(char *iname, struct ipv4_prefix *addrs);
-int blacklist4_flush(char *iname);
+struct jool_result blacklist4_foreach(struct jool_socket *sk, char *iname,
+		blacklist4_foreach_cb cb, void *_args);
+struct jool_result blacklist4_add(struct jool_socket *sk, char *iname,
+		struct ipv4_prefix *addrs, bool force);
+struct jool_result blacklist4_rm(struct jool_socket *sk, char *iname,
+		struct ipv4_prefix *addrs);
+struct jool_result blacklist4_flush(struct jool_socket *sk, char *iname);
 
-#endif /* _JOOL_USR_BLACKLIST_H */
+#endif /* SRC_USR_NL_BLACKLIST_H_ */

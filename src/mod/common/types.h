@@ -1,5 +1,5 @@
-#ifndef _JOOL_MOD_TYPES_H
-#define _JOOL_MOD_TYPES_H
+#ifndef SRC_MOD_COMMON_TYPES_H_
+#define SRC_MOD_COMMON_TYPES_H_
 
 /**
  * @file
@@ -162,4 +162,4 @@ bool is_icmp4_info(__u8 type);
 bool is_icmp6_error(__u8 type);
 bool is_icmp4_error(__u8 type);
 
-#endif /* _JOOL_MOD_TYPES_H */
+#endif /* SRC_MOD_COMMON_TYPES_H_ */

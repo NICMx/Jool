@@ -1,6 +1,8 @@
-#ifndef _JOOL_USR_FILE_H
-#define _JOOL_USR_FILE_H
+#ifndef SRC_USR_UTIL_FILE_H_
+#define SRC_USR_UTIL_FILE_H_
 
-int file_to_string(char *file_name, char **result);
+#include "result.h"
 
-#endif
+struct jool_result file_to_string(char *, char **);
+
+#endif /* SRC_USR_UTIL_FILE_H_ */

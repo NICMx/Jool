@@ -1,5 +1,5 @@
-#ifndef _JOOL_MOD_RFC6791V6_H
-#define _JOOL_MOD_RFC6791V6_H
+#ifndef SRC_MOD_SIIT_RFC6791V6_H_
+#define SRC_MOD_SIIT_RFC6791V6_H_
 
 /**
  * @file
@@ -17,4 +17,4 @@
 
 int rfc6791v6_find(struct xlation *state, struct in6_addr *result);
 
-#endif /* _JOOL_MOD_RFC6791V6_H */
+#endif /* SRC_MOD_SIIT_RFC6791V6_H_ */

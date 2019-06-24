@@ -1,5 +1,5 @@
-#ifndef _JOOL_MOD_JOOLD_H
-#define _JOOL_MOD_JOOLD_H
+#ifndef SRC_MOD_NAT64_JOOLD_H_
+#define SRC_MOD_NAT64_JOOLD_H_
 
 #include "common/config.h"
 #include "mod/common/xlator.h"
@@ -28,4 +28,4 @@ void joold_ack(struct xlator *jool);
 
 void joold_clean(struct xlator *jool);
 
-#endif
+#endif /* SRC_MOD_NAT64_JOOLD_H_ */

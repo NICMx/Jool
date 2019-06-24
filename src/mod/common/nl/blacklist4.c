@@ -1,6 +1,7 @@
 #include "mod/common/nl/blacklist4.h"
 
 #include "common/types.h"
+#include "mod/common/log.h"
 #include "mod/common/nl/nl_common.h"
 #include "mod/common/nl/nl_core.h"
 #include "mod/siit/pool.h"

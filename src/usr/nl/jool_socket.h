@@ -1,23 +1,13 @@
-#ifndef _JOOL_USR_NETLINK2_H_
-#define _JOOL_USR_NETLINK2_H_
+#ifndef SRC_USR_NL_JOOL_SOCKET_H_
+#define SRC_USR_NL_JOOL_SOCKET_H_
 
 #include <netlink/netlink.h>
+#include "usr/util/result.h"
 
-
-/*
- * Assert we're compiling with libnl version >= 3.0
- *
- * Note: it looks like this shouldn't be here, since it's the configure script's
- * responsibility.
- * However, the configure script seems to fail to detect this properly on RedHat
- * (and maybe others).
- */
-#if !defined(LIBNL_VER_NUM)
-	#error "Missing LIBNL dependency (need at least version 3)."
-#endif
-#if LIBNL_VER_NUM < LIBNL_VER(3, 0)
-	#error "Unsupported LIBNL library version number (< 3.0)."
-#endif
+struct jool_socket {
+	struct nl_sock *sk;
+	int family;
+};
 
 struct jool_response {
 	struct response_hdr *hdr;
@@ -25,17 +15,19 @@ struct jool_response {
 	size_t payload_len;
 };
 
-typedef int (*jool_response_cb)(struct jool_response *, void *);
-int netlink_request(char *iname, void *request, __u32 request_len,
+struct jool_result netlink_setup(struct jool_socket *socket);
+void netlink_teardown(struct jool_socket *socket);
+
+typedef struct jool_result (*jool_response_cb)(struct jool_response *, void *);
+
+/* _send only sends a message. _request both sends and handles the response. */
+struct jool_result netlink_send(struct jool_socket *socket, char *iname,
+		void *request, __u32 request_len);
+struct jool_result netlink_request(struct jool_socket *socket, char *iname,
+		void *request, __u32 request_len,
 		jool_response_cb cb, void *cb_arg);
-int netlink_request_simple(void *request, __u32 request_len);
 
-int netlink_setup(void);
-void netlink_teardown(void);
+struct jool_result netlink_parse_response(void *data, size_t data_len,
+		struct jool_response *response);
 
-int netlink_print_error(int error);
-
-int netlink_parse_response(void *data, size_t data_len,
-		struct jool_response *result);
-
-#endif /* _JOOL_USR_NETLINK_H_ */
+#endif /* SRC_USR_NL_JOOL_SOCKET_H_ */

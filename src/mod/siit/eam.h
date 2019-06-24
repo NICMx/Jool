@@ -1,5 +1,5 @@
-#ifndef _JOOL_MOD_EAM_H
-#define _JOOL_MOD_EAM_H
+#ifndef SRC_MOD_SIIT_EAM_H_
+#define SRC_MOD_SIIT_EAM_H_
 
 #include <linux/kref.h>
 #include <linux/rbtree.h>
@@ -42,4 +42,4 @@ int eamt_foreach(struct eam_table *eamt,
 
 void eamt_print_refcount(struct eam_table *eamt);
 
-#endif /* _JOOL_MOD_EAM_H */
+#endif /* SRC_MOD_SIIT_EAM_H_ */

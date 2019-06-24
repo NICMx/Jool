@@ -1,5 +1,5 @@
-#ifndef _JOOL_MOD_RFC6052_H
-#define _JOOL_MOD_RFC6052_H
+#ifndef SRC_MOD_COMMON_RFC6052_H_
+#define SRC_MOD_COMMON_RFC6052_H_
 
 /**
  * @file
@@ -34,4 +34,4 @@ int rfc6052_4to6(struct ipv6_prefix const *prefix, struct in_addr const *src,
 #define RFC6052_4TO6(state, src, dst) \
 	rfc6052_4to6(&(state)->jool.global->cfg.pool6.prefix, src, dst)
 
-#endif /* _JOOL_MOD_RFC6052_H */
+#endif /* SRC_MOD_COMMON_RFC6052_H_ */

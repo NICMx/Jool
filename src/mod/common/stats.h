@@ -1,5 +1,5 @@
-#ifndef _JOOL_MOD_STATS_H
-#define _JOOL_MOD_STATS_H
+#ifndef SRC_MOD_COMMON_STATS_H_
+#define SRC_MOD_COMMON_STATS_H_
 
 #include "common/stats.h"
 #include "mod/common/packet.h"
@@ -16,4 +16,4 @@ void jstat_add(struct jool_stats *stats, enum jool_stat_id stat, int addend);
 
 __u64 *jstat_query(struct jool_stats *stats);
 
-#endif /* _JOOL_MOD_STATS_H */
+#endif /* SRC_MOD_COMMON_STATS_H_ */

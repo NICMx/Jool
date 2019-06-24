@@ -1,15 +1,13 @@
 #include "instance.h"
 
-#include <string.h>
-#include <net/if.h>
-
-#include "common/constants.h"
+#include "log.h"
+#include "requirements.h"
+#include "wargp.h"
 #include "common/config.h"
-#include "usr/common/netlink.h"
-#include "usr/common/requirements.h"
-#include "usr/common/str_utils.h"
-#include "usr/common/wargp.h"
-#include "usr/common/nl/instance.h"
+#include "common/constants.h"
+#include "usr/util/str_utils.h"
+#include "usr/nl/instance.h"
+#include "usr/nl/jool_socket.h"
 
 #define ARGP_IPTABLES 1000
 #define ARGP_NETFILTER 1001
@@ -35,8 +33,10 @@ static int parse_iname(void *void_field, int key, char *str)
 	int error;
 
 	error = iname_validate(str, false);
-	if (error)
+	if (error) {
+		log_err(INAME_VALIDATE_ERRMSG, INAME_MAX_LEN - 1);
 		return error;
+	}
 
 	field->set = true;
 	strcpy(field->value, str);
@@ -95,31 +95,33 @@ static void print_entry_normal(struct instance_entry_usr *entry)
 	printf(" |\n");
 }
 
-static int print_entry(struct instance_entry_usr *instance, void *arg)
+static struct jool_result print_entry(struct instance_entry_usr *instance,
+		void *arg)
 {
 	struct display_args *args = arg;
 	if (args->csv.value)
 		print_entry_csv(instance);
 	else
 		print_entry_normal(instance);
-	return 0;
+	return result_success();
 }
 
 int handle_instance_display(char *iname, int argc, char **argv, void *arg)
 {
 	struct display_args dargs = { 0 };
-	int error;
+	struct jool_socket sk;
+	struct jool_result result;
 
 	if (iname)
 		log_warn("instance display ignores -i.");
 
-	error = wargp_parse(display_opts, argc, argv, &dargs);
-	if (error)
-		return error;
+	result.error = wargp_parse(display_opts, argc, argv, &dargs);
+	if (result.error)
+		return result.error;
 
-	error = netlink_setup();
-	if (error)
-		return error;
+	result = netlink_setup(&sk);
+	if (result.error)
+		return log_result(&result);
 
 	if (!dargs.no_headers.value) {
 		if (dargs.csv.value) {
@@ -133,12 +135,12 @@ int handle_instance_display(char *iname, int argc, char **argv, void *arg)
 	if (!dargs.csv.value)
 		print_table_divisor();
 
-	error = instance_foreach(print_entry, &dargs);
+	result = instance_foreach(&sk, print_entry, &dargs);
 
-	netlink_teardown();
+	netlink_teardown(&sk);
 
-	if (error)
-		return error;
+	if (result.error)
+		return log_result(&result);
 
 	if (!dargs.csv.value)
 		print_table_divisor();
@@ -185,11 +187,12 @@ static struct wargp_option add_opts[] = {
 int handle_instance_add(char *iname, int argc, char **argv, void *arg)
 {
 	struct add_args aargs = { 0 };
-	int error;
+	struct jool_socket sk;
+	struct jool_result result;
 
-	error = wargp_parse(add_opts, argc, argv, &aargs);
-	if (error)
-		return error;
+	result.error = wargp_parse(add_opts, argc, argv, &aargs);
+	if (result.error)
+		return result.error;
 
 	/* Validate instance name */
 	if (iname && aargs.iname.set && !STR_EQUAL(iname, aargs.iname.value)) {
@@ -212,15 +215,16 @@ int handle_instance_add(char *iname, int argc, char **argv, void *arg)
 		return -EINVAL;
 	}
 
-	error = netlink_setup();
-	if (error)
-		return error;
+	result = netlink_setup(&sk);
+	if (result.error)
+		return log_result(&result);
 
-	error = instance_add(aargs.netfilter.value ? FW_NETFILTER : FW_IPTABLES,
+	result = instance_add(&sk,
+			aargs.netfilter.value ? FW_NETFILTER : FW_IPTABLES,
 			iname, aargs.pool6.set ? &aargs.pool6.prefix : NULL);
 
-	netlink_teardown();
-	return error;
+	netlink_teardown(&sk);
+	return log_result(&result);
 }
 
 void autocomplete_instance_add(void *args)
@@ -240,11 +244,12 @@ static struct wargp_option remove_opts[] = {
 int handle_instance_remove(char *iname, int argc, char **argv, void *arg)
 {
 	struct rm_args rargs = { 0 };
-	int error;
+	struct jool_socket sk;
+	struct jool_result result;
 
-	error = wargp_parse(remove_opts, argc, argv, &rargs);
-	if (error)
-		return error;
+	result.error = wargp_parse(remove_opts, argc, argv, &rargs);
+	if (result.error)
+		return result.error;
 
 	if (iname && rargs.iname.set && !STR_EQUAL(iname, rargs.iname.value)) {
 		log_err("You entered two different instance names. Please delete one of them.");
@@ -253,14 +258,14 @@ int handle_instance_remove(char *iname, int argc, char **argv, void *arg)
 	if (!iname && rargs.iname.set)
 		iname = rargs.iname.value;
 
-	error = netlink_setup();
-	if (error)
-		return error;
+	result = netlink_setup(&sk);
+	if (result.error)
+		return log_result(&result);
 
-	error = instance_rm(iname);
+	result = instance_rm(&sk, iname);
 
-	netlink_teardown();
-	return error;
+	netlink_teardown(&sk);
+	return log_result(&result);
 }
 
 void autocomplete_instance_remove(void *args)
@@ -274,23 +279,24 @@ static struct wargp_option flush_opts[] = {
 
 int handle_instance_flush(char *iname, int argc, char **argv, void *arg)
 {
-	int error;
+	struct jool_socket sk;
+	struct jool_result result;
 
 	if (iname)
 		log_warn("instance flush ignores -i.");
 
-	error = wargp_parse(flush_opts, argc, argv, NULL);
-	if (error)
-		return error;
+	result.error = wargp_parse(flush_opts, argc, argv, NULL);
+	if (result.error)
+		return result.error;
 
-	error = netlink_setup();
-	if (error)
-		return error;
+	result = netlink_setup(&sk);
+	if (result.error)
+		return log_result(&result);
 
-	error = instance_flush();
+	result = instance_flush(&sk);
 
-	netlink_teardown();
-	return error;
+	netlink_teardown(&sk);
+	return log_result(&result);
 }
 
 void autocomplete_instance_flush(void *args)

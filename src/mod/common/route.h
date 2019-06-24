@@ -1,5 +1,5 @@
-#ifndef _JOOL_MOD_ROUTE_H
-#define _JOOL_MOD_ROUTE_H
+#ifndef SRC_MOD_COMMON_ROUTE_H_
+#define SRC_MOD_COMMON_ROUTE_H_
 
 #include "mod/common/packet.h"
 
@@ -44,4 +44,4 @@ struct dst_entry *route(struct net *ns, struct packet *pkt);
  */
 int route4_input(struct sk_buff *skb);
 
-#endif /* _JOOL_MOD_ROUTE_H */
+#endif /* SRC_MOD_COMMON_ROUTE_H_ */

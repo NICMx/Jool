@@ -1,8 +1,9 @@
-#ifndef JSONREADER_H_
-#define JSONREADER_H_
+#ifndef SRC_USR_NL_JSON_H_
+#define SRC_USR_NL_JSON_H_
 
-#include <stdbool.h>
+#include "jool_socket.h"
 
-int parse_file(char *iname, char *fileName, bool force);
+struct jool_result parse_file(struct jool_socket *sk, char *iname,
+		char *fileName, bool force);
 
-#endif /* JSONREADER_H_ */
+#endif /* SRC_USR_NL_JSON_H_ */

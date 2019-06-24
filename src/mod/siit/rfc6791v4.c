@@ -1,6 +1,7 @@
 #include "mod/siit/rfc6791v4.h"
 
 #include <linux/inetdevice.h>
+#include "mod/common/log.h"
 #include "mod/common/route.h"
 
 /**

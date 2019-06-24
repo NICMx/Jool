@@ -2,6 +2,7 @@
 
 #include "mod/common/core.h"
 #include "mod/common/linux_version.h"
+#include "mod/common/log.h"
 
 static verdict find_instance(struct net *ns, const struct target_info *info,
 		struct xlator *result)
@@ -34,7 +35,13 @@ static verdict find_instance(struct net *ns, const struct target_info *info,
 int target_checkentry(const struct xt_tgchk_param *param)
 {
 	struct target_info *info = param->targinfo;
-	return iname_validate(info->iname, false);
+	int error;
+
+	error = iname_validate(info->iname, false);
+	if (error)
+		log_err(INAME_VALIDATE_ERRMSG, INAME_MAX_LEN - 1);
+
+	return error;
 
 	/*
 	 * Probably don't need to check if the instance exists;

@@ -1,5 +1,5 @@
-#ifndef _JOOL_MOD_PKT_QUEUE_H
-#define _JOOL_MOD_PKT_QUEUE_H
+#ifndef SRC_MOD_NAT64_BIB_PKT_QUEUE_H_
+#define SRC_MOD_NAT64_BIB_PKT_QUEUE_H_
 
 /**
  * @file
@@ -158,4 +158,4 @@ unsigned int pktqueue_prepare_clean(struct pktqueue *queue,
 void pktqueue_clean(struct list_head *probes);
 
 
-#endif /* _JOOL_MOD_PKT_QUEUE_H */
+#endif /* SRC_MOD_NAT64_BIB_PKT_QUEUE_H_ */

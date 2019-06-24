@@ -5,6 +5,7 @@
 #include <net/ip6_route.h>
 #include <net/route.h>
 #include "mod/common/ipv6_hdr_iterator.h"
+#include "mod/common/log.h"
 
 /**
  * Callers of this function need to mind hairpinning. What happens if @daddr

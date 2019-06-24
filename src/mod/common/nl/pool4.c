@@ -1,5 +1,6 @@
 #include "mod/common/nl/pool4.h"
 
+#include "mod/common/log.h"
 #include "mod/common/nl/nl_common.h"
 #include "mod/common/nl/nl_core.h"
 #include "mod/nat64/pool4/db.h"

@@ -4,8 +4,8 @@
 #include <linux/jiffies.h>
 #include "common/config.h"
 #include "common/constants.h"
+#include "common/globals.h"
 #include "common/types.h"
-#include "mod/common/common-global.h"
 #include "mod/common/tags.h"
 #include "mod/common/wkmalloc.h"
 

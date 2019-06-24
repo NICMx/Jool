@@ -1,5 +1,5 @@
-#ifndef _JOOL_MOD_POOL_H
-#define _JOOL_MOD_POOL_H
+#ifndef SRC_MOD_SIIT_POOL_H_
+#define SRC_MOD_SIIT_POOL_H_
 
 /**
  * @file
@@ -29,4 +29,4 @@ int pool_foreach(struct addr4_pool *pool,
 bool pool_is_empty(struct addr4_pool *pool);
 void pool_print_refcount(struct addr4_pool *pool);
 
-#endif /* _JOOL_MOD_POOL_H */
+#endif /* SRC_MOD_SIIT_POOL_H_ */

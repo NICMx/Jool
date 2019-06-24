@@ -1,5 +1,5 @@
-#ifndef _JOOL_COMMON_TYPES_H
-#define _JOOL_COMMON_TYPES_H
+#ifndef SRC_COMMON_TYPES_H_
+#define SRC_COMMON_TYPES_H_
 
 /**
  * @file
@@ -12,11 +12,9 @@
 #ifdef __KERNEL__
 	#include <linux/in.h>
 	#include <linux/in6.h>
-	#include "mod/common/log.h"
 #else
 	#include <stdbool.h>
 	#include <arpa/inet.h>
-	#include "usr/common/log.h"
 #endif
 
 /** Maximum storable value on a __u8. */
@@ -40,6 +38,9 @@ typedef enum l3_protocol {
 	/** RFC 791. */
 	L3PROTO_IPV4 = 1,
 } l3_protocol;
+
+/** Returns a string version of "proto". */
+const char *l3proto_to_string(l3_protocol proto);
 
 /**
  * Transport (layer 4) protocols Jool is supposed to support.
@@ -70,7 +71,8 @@ typedef enum l4_protocol {
 #define L4_PROTO_COUNT 4
 } l4_protocol;
 
-__u8 l4_proto_to_nexthdr(l4_protocol proto);
+/** Returns a string version of "proto". */
+const char *l4proto_to_string(l4_protocol proto);
 l4_protocol str_to_l4proto(char *str);
 
 /**
@@ -154,7 +156,5 @@ void port_range_fuse(struct port_range *r1, const struct port_range *r2);
 bool pool4_range_equals(struct pool4_range *r1, struct pool4_range *r2);
 bool pool4_range_touches(const struct pool4_range *r1,
 		const struct pool4_range *r2);
-bool range4_contains(struct ipv4_range *range,
-		struct ipv4_transport_addr *addr);
 
-#endif /* _JOOL_COMMON_TYPES_H */
+#endif /* SRC_COMMON_TYPES_H */

@@ -1,5 +1,5 @@
-#ifndef _JOOL_COMMON_XLAT_H
-#define _JOOL_COMMON_XLAT_H
+#ifndef SRC_COMMON_XLAT_H_
+#define SRC_COMMON_XLAT_H_
 
 #include <linux/types.h>
 #ifndef __KERNEL__
@@ -14,7 +14,7 @@
  */
 #define JOOL_VERSION_MAJOR 4
 #define JOOL_VERSION_MINOR 0
-#define JOOL_VERSION_REV 1
+#define JOOL_VERSION_REV 2
 #define JOOL_VERSION_DEV 0
 
 /** See http://stackoverflow.com/questions/195975 */
@@ -51,4 +51,4 @@ int xlat_type(void);
 
 const char *xlat_get_name(void);
 
-#endif /* _JOOL_COMMON_XLAT_H */
+#endif /* SRC_COMMON_XLAT_H_ */

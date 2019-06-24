@@ -1,5 +1,5 @@
-#ifndef __NL_CORE2_H__
-#define __NL_CORE2_H__
+#ifndef SRC_MOD_COMMON_NL_CORE_H_
+#define SRC_MOD_COMMON_NL_CORE_H_
 
 #include <net/netlink.h>
 #include <net/genetlink.h>
@@ -58,4 +58,4 @@ int nlcore_respond(struct genl_info *info, int error);
 
 int nlcore_send_multicast_message(struct net *ns, struct nlcore_buffer *buffer);
 
-#endif
+#endif /* SRC_MOD_COMMON_NL_CORE_H_ */

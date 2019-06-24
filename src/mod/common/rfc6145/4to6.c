@@ -5,6 +5,7 @@
 #include "common/constants.h"
 #include "mod/common/config.h"
 #include "mod/common/icmp_wrapper.h"
+#include "mod/common/log.h"
 #include "mod/common/rfc6052.h"
 #include "mod/common/route.h"
 #include "mod/common/stats.h"

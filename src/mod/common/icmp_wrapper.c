@@ -4,6 +4,7 @@
 #include <linux/version.h>
 #include <net/icmp.h>
 #include "common/types.h"
+#include "mod/common/log.h"
 #include "mod/common/route.h"
 
 static char *icmp_error_to_string(icmp_error_code error)

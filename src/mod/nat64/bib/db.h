@@ -1,5 +1,5 @@
-#ifndef _JOOL_MOD_SESSION_DB_H
-#define _JOOL_MOD_SESSION_DB_H
+#ifndef SRC_MOD_NAT64_BIB_DB_H_
+#define SRC_MOD_NAT64_BIB_DB_H_
 
 /**
  * @file
@@ -140,4 +140,4 @@ void bib_print(struct bib *db);
 /* The user of this module has to implement this. */
 enum session_fate tcp_est_expire_cb(struct session_entry *new, void *arg);
 
-#endif /* _JOOL_MOD_SESSION_DB_H */
+#endif /* SRC_MOD_NAT64_BIB_DB_H_ */

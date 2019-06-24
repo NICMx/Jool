@@ -3,6 +3,7 @@
 #include <linux/module.h>
 
 #include "mod/common/linux_version.h"
+#include "mod/common/log.h"
 #include "mod/common/xlator.h"
 #include "mod/common/wkmalloc.h"
 #include "mod/common/nl/nl_handler.h"
@@ -12,6 +13,8 @@ MODULE_LICENSE(JOOL_LICENSE);
 MODULE_AUTHOR("NIC-ITESM");
 MODULE_DESCRIPTION("Stateless IP/ICMP Translation (RFC 7915)");
 MODULE_VERSION(JOOL_VERSION_STR);
+
+#include "common/xlat-siit.c"
 
 static bool iptables_error;
 

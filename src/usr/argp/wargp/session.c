@@ -1,14 +1,16 @@
 #include "session.h"
 
+#include "dns.h"
 #include "common/config.h"
 #include "common/constants.h"
 #include "common/session.h"
-#include "usr/common/dns.h"
-#include "usr/common/netlink.h"
-#include "usr/common/str_utils.h"
-#include "usr/common/userspace-types.h"
-#include "usr/common/wargp.h"
-#include "usr/common/nl/session.h"
+#include "usr/util/str_utils.h"
+#include "usr/nl/jool_socket.h"
+#include "usr/nl/session.h"
+#include "usr/argp/dns.h"
+#include "usr/argp/log.h"
+#include "usr/argp/userspace-types.h"
+#include "usr/argp/wargp.h"
 
 struct display_args {
 	struct wargp_bool no_headers;
@@ -49,10 +51,14 @@ static char *tcp_state_to_string(tcp_state state)
 	return "UNKNOWN";
 }
 
-static int handle_display_response(struct session_entry_usr *entry, void *args)
+static struct jool_result handle_display_response(
+		struct session_entry_usr *entry, void *args)
 {
 	struct display_args *dargs = args;
 	l4_protocol proto = dargs->proto.proto;
+	char timeout[TIMEOUT_BUFLEN];
+
+	timeout2str(entry->dying_time, timeout);
 
 	if (dargs->csv.value) {
 		printf("%s,", l4proto_to_string(proto));
@@ -64,7 +70,7 @@ static int handle_display_response(struct session_entry_usr *entry, void *args)
 		printf(",");
 		print_addr4(&entry->dst4, dargs->numeric.value, ",", proto);
 		printf(",");
-		print_timeout_hhmmss(stdout, entry->dying_time);
+		printf("%s", timeout);
 		if (proto == L4PROTO_TCP)
 			printf(",%s", tcp_state_to_string(entry->state));
 		printf("\n");
@@ -72,9 +78,7 @@ static int handle_display_response(struct session_entry_usr *entry, void *args)
 		if (proto == L4PROTO_TCP)
 			printf("(%s) ", tcp_state_to_string(entry->state));
 
-		printf("Expires in ");
-		print_timeout_hhmmss(stdout, entry->dying_time);
-		printf("\n");
+		printf("Expires in %s\n", timeout);
 
 		printf("Remote: ");
 		print_addr4(&entry->dst4, dargs->numeric.value, "#", proto);
@@ -91,21 +95,22 @@ static int handle_display_response(struct session_entry_usr *entry, void *args)
 		printf("---------------------------------\n");
 	}
 
-	return 0;
+	return result_success();
 }
 
 int handle_session_display(char *iname, int argc, char **argv, void *arg)
 {
 	struct display_args dargs = { 0 };
-	int error;
+	struct jool_socket sk;
+	struct jool_result result;
 
-	error = wargp_parse(display_opts, argc, argv, &dargs);
-	if (error)
-		return error;
+	result.error = wargp_parse(display_opts, argc, argv, &dargs);
+	if (result.error)
+		return result.error;
 
-	error = netlink_setup();
-	if (error)
-		return error;
+	result = netlink_setup(&sk);
+	if (result.error)
+		return log_result(&result);
 
 	if (!dargs.csv.value) {
 		printf("---------------------------------\n");
@@ -118,12 +123,12 @@ int handle_session_display(char *iname, int argc, char **argv, void *arg)
 		printf("Expires in,State\n");
 	}
 
-	error = session_foreach(iname, dargs.proto.proto,
+	result = session_foreach(&sk, iname, dargs.proto.proto,
 			handle_display_response, &dargs);
 
-	netlink_teardown();
+	netlink_teardown(&sk);
 
-	return error;
+	return log_result(&result);
 }
 
 void autocomplete_session_display(void *args)

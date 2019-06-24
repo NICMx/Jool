@@ -1,5 +1,5 @@
-#ifndef _JOOL_MOD_ICMP_WRAPPER_H
-#define _JOOL_MOD_ICMP_WRAPPER_H
+#ifndef SRC_MOD_COMMON_ICMP_WRAPPER_H_
+#define SRC_MOD_COMMON_ICMP_WRAPPER_H_
 
 /**
  * @file
@@ -46,4 +46,4 @@ bool icmp64_send(struct sk_buff *skb, icmp_error_code error, __u32 info);
 int icmp64_pop(void);
 
 
-#endif /* _JOOL_MOD_ICMP_WRAPPER_H */
+#endif /* SRC_MOD_COMMON_ICMP_WRAPPER_H_ */

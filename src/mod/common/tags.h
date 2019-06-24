@@ -1,5 +1,5 @@
-#ifndef _JOOL_MOD_TAGS_H
-#define _JOOL_MOD_TAGS_H
+#ifndef SRC_MOD_COMMON_TAGS_H_
+#define SRC_MOD_COMMON_TAGS_H_
 
 /**
  * @file
@@ -57,4 +57,4 @@
  */
 #define RCUTAG_INIT
 
-#endif /* _JOOL_MOD_TAGS_H */
+#endif /* SRC_MOD_COMMON_TAGS_H_ */

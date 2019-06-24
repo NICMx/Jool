@@ -1,5 +1,6 @@
 #include <errno.h>
 #include <getopt.h>
+#include <stdio.h>
 #include <string.h>
 #include <xtables.h>
 
@@ -23,31 +24,6 @@ static void jool_tg_init(struct xt_entry_target *target)
 	strcpy(info->iname, INAME_DEFAULT);
 }
 
-/* TODO (duplicate code) See config.h */
-int iname_validate(const char *iname, bool allow_null)
-{
-	unsigned int i;
-
-	if (!iname) {
-		if (allow_null)
-			return 0;
-		goto fail;
-	}
-
-	for (i = 0; i < INAME_MAX_LEN; i++) {
-		if (iname[i] == '\0')
-			return 0;
-		if (iname[i] < 32) /* "if not printable" */
-			break;
-	}
-	/* Fall through. */
-
-fail:
-	log_err("The instance name must be a null-terminated ascii string, %u characters max.",
-			INAME_MAX_LEN - 1);
-	return -EINVAL;
-}
-
 /*
  * Called once for every argument the user sends the rule upon creation.
  */
@@ -61,8 +37,10 @@ static int jool_tg_parse(int c, char **argv, int invert, unsigned int *flags,
 		return false;
 
 	error = iname_validate(optarg, false);
-	if (error)
+	if (error) {
+		fprintf(stderr, INAME_VALIDATE_ERRMSG "\n", INAME_MAX_LEN - 1);
 		return error;
+	}
 	strcpy(info->iname, optarg);
 	return true;
 }

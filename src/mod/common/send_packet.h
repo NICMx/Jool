@@ -1,5 +1,5 @@
-#ifndef _JOOL_MOD_SEND_PACKET_H
-#define _JOOL_MOD_SEND_PACKET_H
+#ifndef SRC_MOD_COMMON_SEND_PACKET_H_
+#define SRC_MOD_COMMON_SEND_PACKET_H_
 
 /**
  * @file
@@ -23,4 +23,4 @@
  */
 verdict sendpkt_send(struct xlation *state);
 
-#endif /* _JOOL_MOD_SEND_PACKET_H */
+#endif /* SRC_MOD_COMMON_SEND_PACKET_H_ */

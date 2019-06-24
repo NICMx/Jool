@@ -2,8 +2,9 @@
 
 #include <linux/kref.h>
 #include <linux/timer.h>
-#include "mod/common/nl/global.h"
+#include "mod/common/log.h"
 #include "mod/common/wkmalloc.h"
+#include "mod/common/nl/global.h"
 #include "mod/siit/eam.h"
 #include "mod/siit/pool.h"
 #include "mod/nat64/joold.h"
@@ -149,8 +150,10 @@ static int handle_init(struct config_candidate *new, void *payload,
 	int error;
 
 	error = fw_validate(request->fw);
-	if (error)
+	if (error) {
+		log_err(FW_VALIDATE_ERRMSG);
 		return error;
+	}
 
 	new->xlator.fw = request->fw;
 	return 0;
@@ -292,8 +295,10 @@ int atomconfig_add(char *iname, void *config, size_t config_len, bool force)
 	int error;
 
 	error = iname_validate(iname, false);
-	if (error)
+	if (error) {
+		log_err(INAME_VALIDATE_ERRMSG, INAME_MAX_LEN - 1);
 		return error;
+	}
 
 	config += sizeof(type);
 	config_len -= sizeof(type);

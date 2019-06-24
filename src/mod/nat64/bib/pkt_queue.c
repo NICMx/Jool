@@ -3,6 +3,7 @@
 #include "common/constants.h"
 #include "mod/common/config.h"
 #include "mod/common/icmp_wrapper.h"
+#include "mod/common/log.h"
 #include "mod/common/rbtree.h"
 #include "mod/common/wkmalloc.h"
 

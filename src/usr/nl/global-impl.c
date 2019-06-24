@@ -1,10 +1,13 @@
-#include "usr/common/common-global.h"
+#include "common/globals.h"
 
 #include <errno.h>
+#include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
+
 #include "common/config.h"
-#include "usr/common/str_utils.h"
-#include "usr/common/cJSON.h"
+#include "usr/util/cJSON.h"
+#include "usr/util/str_utils.h"
 
 void print_bool(void *value, bool csv)
 {
@@ -30,7 +33,11 @@ void print_u32(void *value, bool csv)
 void print_timeout(void *value, bool csv)
 {
 	__u32 *uvalue = value;
-	print_timeout_hhmmss(stdout, *uvalue);
+	char string[TIMEOUT_BUFLEN];
+
+	timeout2str(*uvalue, string);
+	printf("%s", string);
+
 	if (!csv)
 		printf(" (HH:MM:SS)");
 }
@@ -121,76 +128,86 @@ void print_fargs(void *value, bool csv)
 	printf("DstPort:%u",  (uvalue >> 0) & 1);
 }
 
-int parse_bool(struct global_field *field, char *str, void *result)
+struct jool_result parse_bool(struct global_field *field, char *str,
+		void *result)
 {
 	return str_to_bool(str, result);
 }
 
-int parse_u8(struct global_field *field, char *str, void *result)
+struct jool_result parse_u8(struct global_field *field, char *str,
+		void *result)
 {
 	return str_to_u8(str, result, field->min, field->max);
 }
 
-int parse_u32(struct global_field *field, char *str, void *result)
+struct jool_result parse_u32(struct global_field *field, char *str,
+		void *result)
 {
 	return str_to_u32(str, result, field->min, field->max);
 }
 
-int parse_timeout(struct global_field *field, char *str, void *result)
+struct jool_result parse_timeout(struct global_field *field, char *str,
+		void *result)
 {
 	return str_to_timeout(str, result, field->min, field->max);
 }
 
-int parse_plateaus(struct global_field *field, char *str, void *result)
+struct jool_result parse_plateaus(struct global_field *field, char *str,
+		void *result)
 {
 	struct mtu_plateaus *plateaus = result;
 	return str_to_plateaus_array(str, plateaus->values, &plateaus->count);
 }
 
-int parse_prefix6(struct global_field *field, char *str, void *result)
+struct jool_result parse_prefix6(struct global_field *field, char *str,
+		void *result)
 {
 	struct config_prefix6 *prefix = result;
 
 	if (strcmp(str, "null") == 0) {
 		prefix->set = false;
 		memset(&prefix->prefix, 0, sizeof(prefix->prefix));
-		return 0;
+		return result_success();
 	}
 
 	prefix->set = true;
 	return str_to_prefix6(str, &prefix->prefix);
 }
 
-int parse_prefix4(struct global_field *field, char *str, void *result)
+struct jool_result parse_prefix4(struct global_field *field, char *str,
+		void *out)
 {
-	struct config_prefix4 *prefix = result;
+	struct config_prefix4 *prefix = out;
 
 	if (strcmp(str, "null") == 0) {
 		prefix->set = false;
 		memset(&prefix->prefix, 0, sizeof(prefix->prefix));
-		return 0;
+		return result_success();
 	}
 
 	prefix->set = true;
 	return str_to_prefix4(str, &prefix->prefix);
 }
 
-int parse_hairpin_mode(struct global_field *field, char *str, void *result)
+struct jool_result parse_hairpin_mode(struct global_field *field, char *str,
+		void *result)
 {
 	__u8 *mode = result;
 
 	if (strcmp(str, "off") == 0) {
 		*mode = EHM_OFF;
-		return 0;
+		return result_success();
 	} else if (strcmp(str, "simple") == 0) {
 		*mode = EHM_SIMPLE;
-		return 0;
+		return result_success();
 	} else if (strcmp(str, "intrinsic") == 0) {
 		*mode = EHM_INTRINSIC;
-		return 0;
+		return result_success();
 	}
 
-	log_err("'%s' cannot be parsed as a hairpinning mode.", str);
-	log_err("Available options: off, simple, intrinsic");
-	return -EINVAL;
+	return result_from_error(
+		-EINVAL,
+		"'%s' cannot be parsed as a hairpinning mode.\n"
+		"Available options: off, simple, intrinsic", str
+	);
 }

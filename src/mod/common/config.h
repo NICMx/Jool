@@ -1,5 +1,5 @@
-#ifndef _JOOL_MOD_CONFIG_H
-#define _JOOL_MOD_CONFIG_H
+#ifndef SRC_MOD_COMMON_CONFIG_H_
+#define SRC_MOD_COMMON_CONFIG_H_
 
 #include <linux/kref.h>
 #include "common/config.h"
@@ -18,4 +18,4 @@ void config_copy(struct globals *from, struct globals *to);
 #define pool6_contains(state, addr) \
 	prefix6_contains(&(state)->jool.global->cfg.pool6.prefix, addr)
 
-#endif /* _JOOL_MOD_CONFIG_H */
+#endif /* SRC_MOD_COMMON_CONFIG_H_ */

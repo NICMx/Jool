@@ -3,8 +3,8 @@
 #include <linux/hash.h>
 #include <linux/list.h>
 #include <linux/slab.h>
-#include "common/str_utils.h"
 #include "common/types.h"
+#include "mod/common/log.h"
 #include "mod/common/rbtree.h"
 #include "mod/common/wkmalloc.h"
 #include "mod/nat64/pool4/empty.h"

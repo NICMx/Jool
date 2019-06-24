@@ -6,6 +6,7 @@
 #include "common/types.h"
 #include "mod/common/config.h"
 #include "mod/common/linux_version.h"
+#include "mod/common/log.h"
 #include "mod/common/xlator.h"
 #include "mod/common/nl/atomic_config.h"
 #include "mod/common/nl/bib.h"
@@ -88,6 +89,91 @@ static struct genl_family jool_family = {
 
 static DEFINE_MUTEX(config_mutex);
 
+static int validate_magic(struct request_hdr *hdr)
+{
+	if (hdr->magic[0] != 'j' || hdr->magic[1] != 'o')
+		goto fail;
+	if (hdr->magic[2] != 'o' || hdr->magic[3] != 'l')
+		goto fail;
+	return 0;
+
+fail:
+	/* Well, the sender does not understand the protocol. */
+	log_err("The userspace client's request lacks the Jool magic text.");
+	return -EINVAL;
+}
+
+static int validate_stateness(struct request_hdr *hdr)
+{
+	switch (hdr->type) {
+	case 's':
+		if (xlat_is_siit())
+			return 0;
+
+		log_err("The userspace client is SIIT but the kernel module is NAT64.\n"
+				"Please match us correctly.");
+		return -EINVAL;
+	case 'n':
+		if (xlat_is_nat64())
+			return 0;
+
+		log_err("The userspace client is NAT64 but the kernel module is SIIT.\n"
+				"Please match us correctly.");
+		return -EINVAL;
+	}
+
+	log_err("The userspace client's request has unknown stateness '%c'.",
+			hdr->type);
+	return -EINVAL;
+}
+
+static int validate_version(struct request_hdr *hdr)
+{
+	__u32 hdr_version = ntohl(hdr->version);
+
+	if (xlat_version() == hdr_version)
+		return 0;
+
+	log_err("Version mismatch. The userspace client's version is %u.%u.%u.%u,\n"
+			"but the kernel module is %u.%u.%u.%u.\n"
+			"Please update the %s.",
+			hdr_version >> 24, (hdr_version >> 16) & 0xFFU,
+			(hdr_version >> 8) & 0xFFU, hdr_version & 0xFFU,
+			JOOL_VERSION_MAJOR, JOOL_VERSION_MINOR,
+			JOOL_VERSION_REV, JOOL_VERSION_DEV,
+			(xlat_version() > hdr_version)
+					? "userspace client"
+					: "kernel module");
+	return -EINVAL;
+}
+
+static int validate_request(void *data, size_t data_len, bool *peer_is_jool)
+{
+	int error;
+
+	if (peer_is_jool)
+		*peer_is_jool = false;
+
+	if (data_len < sizeof(struct request_hdr)) {
+		log_err("Message from the userspace client is smaller than Jool's header.");
+		return -EINVAL;
+	}
+
+	error = validate_magic(data);
+	if (error)
+		return error;
+
+	if (peer_is_jool)
+		*peer_is_jool = true;
+
+	error = validate_stateness(data);
+	if (error)
+		return error;
+
+	return validate_version(data);
+}
+
+
 static int validate_genl_attrs(struct genl_info *info)
 {
 	/*
@@ -147,8 +233,6 @@ static int __handle_jool_message(struct genl_info *info)
 
 	error = validate_request(nla_data(info->attrs[ATTR_DATA]),
 			nla_len(info->attrs[ATTR_DATA]),
-			"userspace client",
-			"kernel module",
 			&client_is_jool);
 	if (error)
 		return client_is_jool ? nlcore_respond(info, error) : error;

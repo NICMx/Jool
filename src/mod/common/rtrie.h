@@ -1,5 +1,5 @@
-#ifndef _JOOL_MOD_RTRIE_H
-#define _JOOL_MOD_RTRIE_H
+#ifndef SRC_MOD_COMMON_RTRIE_H_
+#define SRC_MOD_COMMON_RTRIE_H_
 
 /**
  * @file
@@ -101,4 +101,4 @@ int rtrie_foreach(struct rtrie *trie,
 		rtrie_foreach_cb cb, void *arg,
 		struct rtrie_key *offset);
 
-#endif /* _JOOL_MOD_RTRIE_H */
+#endif /* SRC_MOD_COMMON_RTRIE_H_ */

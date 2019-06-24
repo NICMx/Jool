@@ -1,15 +1,5 @@
 #include "mod/nat64/filtering_and_updating.h"
 
-#include "common/str_utils.h"
-#include "mod/common/config.h"
-#include "mod/common/icmp_wrapper.h"
-#include "mod/common/rfc6052.h"
-#include "mod/common/stats.h"
-#include "mod/common/rfc6145/6to4.h"
-#include "mod/nat64/joold.h"
-#include "mod/nat64/pool4/db.h"
-#include "mod/nat64/bib/db.h"
-
 #include <linux/skbuff.h>
 #include <linux/ip.h>
 #include <linux/ipv6.h>
@@ -17,6 +7,16 @@
 #include <linux/icmpv6.h>
 #include <net/tcp.h>
 #include <net/icmp.h>
+
+#include "mod/common/config.h"
+#include "mod/common/icmp_wrapper.h"
+#include "mod/common/log.h"
+#include "mod/common/rfc6052.h"
+#include "mod/common/stats.h"
+#include "mod/common/rfc6145/6to4.h"
+#include "mod/nat64/joold.h"
+#include "mod/nat64/pool4/db.h"
+#include "mod/nat64/bib/db.h"
 
 enum session_fate tcp_est_expire_cb(struct session_entry *session, void *arg)
 {

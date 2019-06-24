@@ -1,5 +1,6 @@
 #include "mod/common/nl/stats.h"
 
+#include "mod/common/log.h"
 #include "mod/common/stats.h"
 #include "mod/common/nl/nl_common.h"
 #include "mod/common/nl/nl_core.h"

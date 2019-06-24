@@ -1,5 +1,5 @@
-#ifndef _JOOL_MOD_POOL4_DB_H
-#define _JOOL_MOD_POOL4_DB_H
+#ifndef SRC_MOD_NAT64_POOL4_DB_H_
+#define SRC_MOD_NAT64_POOL4_DB_H_
 
 /*
  * @file
@@ -60,4 +60,4 @@ __u32 mask_domain_get_mark(struct mask_domain *masks);
  */
 void pool4db_print(struct pool4 *pool);
 
-#endif /* _JOOL_MOD_POOL4_DB_H */
+#endif /* SRC_MOD_NAT64_POOL4_DB_H_ */

@@ -1,5 +1,6 @@
 #include "compute_outgoing_tuple.h"
 
+#include "mod/common/log.h"
 #include "mod/common/rfc6052.h"
 #include "mod/nat64/bib/db.h"
 

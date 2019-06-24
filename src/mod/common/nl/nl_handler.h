@@ -1,5 +1,5 @@
-#ifndef _JOOL_MOD_NL_HANDLER_H
-#define _JOOL_MOD_NL_HANDLER_H
+#ifndef SRC_MOD_COMMON_NL_HANDLER_H_
+#define SRC_MOD_COMMON_NL_HANDLER_H_
 
 /**
  * @file
@@ -15,4 +15,4 @@ void nlhandler_teardown(void);
 
 int handle_jool_message(struct sk_buff *skb, struct genl_info *info);
 
-#endif /* _JOOL_MOD_NL_HANDLER_H */
+#endif /* SRC_MOD_COMMON_NL_HANDLER_H_ */

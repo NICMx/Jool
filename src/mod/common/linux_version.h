@@ -1,5 +1,5 @@
-#ifndef _JOOL_COMMON_LINUX_VERSION_H
-#define _JOOL_COMMON_LINUX_VERSION_H
+#ifndef SRC_MOD_COMMON_LINUX_VERSION_H_
+#define SRC_MOD_COMMON_LINUX_VERSION_H_
 
 #include <linux/version.h>
 
@@ -27,4 +27,4 @@
 
 #endif
 
-#endif
+#endif /* SRC_MOD_COMMON_LINUX_VERSION_H_ */

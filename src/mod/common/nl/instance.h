@@ -1,8 +1,8 @@
-#ifndef __NL_INSTANCE_H__
-#define __NL_INSTANCE_H__
+#ifndef SRC_MOD_COMMON_NL_INSTANCE_H_
+#define SRC_MOD_COMMON_NL_INSTANCE_H_
 
 #include <net/genetlink.h>
 
 int handle_instance_request(struct genl_info *info);
 
-#endif
+#endif /* SRC_MOD_COMMON_NL_INSTANCE_H_ */

@@ -1,19 +1,20 @@
-#ifndef _JOOL_USR_BIB_H
-#define _JOOL_USR_BIB_H
+#ifndef SRC_USR_NL_BIB_H_
+#define SRC_USR_NL_BIB_H_
 
 #include "common/config.h"
-#include "common/types.h"
+#include "jool_socket.h"
 
-typedef int (*bib_foreach_cb)(struct bib_entry_usr *entry, void *args);
+typedef struct jool_result (*bib_foreach_cb)(struct bib_entry_usr *, void *);
 
-int bib_foreach(char *iname, l4_protocol proto, bib_foreach_cb cb, void *args);
-int bib_add(char *iname,
-		struct ipv6_transport_addr *a6,
-		struct ipv4_transport_addr *a4,
-		l4_protocol proto);
-int bib_rm(char *iname,
-		struct ipv6_transport_addr *a6,
-		struct ipv4_transport_addr *a4,
+struct jool_result bib_foreach(struct jool_socket *sk, char *iname,
+		l4_protocol proto, bib_foreach_cb cb, void *args);
+
+struct jool_result bib_add(struct jool_socket *sk, char *iname,
+		struct ipv6_transport_addr *a6, struct ipv4_transport_addr *a4,
 		l4_protocol proto);
 
-#endif /* _JOOL_USR_BIB_H */
+struct jool_result bib_rm(struct jool_socket *sk, char *iname,
+		struct ipv6_transport_addr *a6, struct ipv4_transport_addr *a4,
+		l4_protocol proto);
+
+#endif /* SRC_USR_NL_BIB_H_ */

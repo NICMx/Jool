@@ -9,12 +9,14 @@
 #include <arpa/inet.h>
 #include <net/if.h>
 #include <netinet/in.h>
+
+#include "log.h"
+#include "modsocket.h"
 #include "common/config.h"
-#include "common/str_utils.h"
 #include "common/types.h"
-#include "usr/common/cJSON.h"
-#include "usr/common/file.h"
-#include "usr/joold/modsocket.h"
+#include "usr/util/cJSON.h"
+#include "usr/util/file.h"
+#include "usr/util/str_utils.h"
 
 struct netsocket_config {
 	/** Address where the sessions will be advertised. Lacks a default. */
@@ -128,18 +130,18 @@ fail:
 	return 1;
 }
 
-int read_json(int argc, char **argv, cJSON **result)
+int read_json(int argc, char **argv, cJSON **out)
 {
 	char *file_name;
 	char *file;
 	cJSON *json;
-	int error;
+	struct jool_result result;
 
 	file_name = (argc >= 2) ? argv[1] : "netsocket.json";
 	log_info("Opening file %s...", file_name);
-	error = file_to_string(file_name, &file);
-	if (error)
-		return error;
+	result = file_to_string(file_name, &file);
+	if (result.error)
+		return log_result(&result);
 
 	json = cJSON_Parse(file);
 	if (!json) {
@@ -151,7 +153,7 @@ int read_json(int argc, char **argv, cJSON **result)
 	}
 
 	free(file);
-	*result = json;
+	*out = json;
 	return 0;
 }
 
@@ -218,11 +220,15 @@ static int create_socket(struct netsocket_config *config)
 static int mcast4opt_add_membership(struct netsocket_config *cfg)
 {
 	struct ip_mreq mreq;
+	struct jool_result result;
 
 	mreq.imr_multiaddr = *get_addr4(bound_address);
 	if (cfg->in_interface) {
-		if (str_to_addr4(cfg->in_interface, &mreq.imr_interface))
+		result = str_to_addr4(cfg->in_interface, &mreq.imr_interface);
+		if (result.error) {
+			log_result(&result);
 			return 1;
+		}
 	} else {
 		mreq.imr_interface.s_addr = htonl(INADDR_ANY);
 	}
@@ -269,19 +275,23 @@ static int mcast4opt_set_ttl(struct netsocket_config *cfg)
 static int mcast4opt_set_out_interface(struct netsocket_config *cfg)
 {
 	struct in_addr addr;
+	struct jool_result result;
 
 	if (!cfg->out_interface)
 		return 0;
 
-	if (str_to_addr4(cfg->out_interface, &addr))
+	result = str_to_addr4(cfg->out_interface, &addr);
+	if (result.error) {
+		log_result(&result);
 		return 1;
+	}
 
 	if (setsockopt(sk, IPPROTO_IP, IP_MULTICAST_IF, &addr, sizeof(addr))) {
 		log_perror("-> setsockopt(IP_MULTICAST_IF) failed", errno);
 		return 1;
 	}
 
-	log_info("-> The outgoing interface was overriden.");
+	log_info("-> The outgoing interface was overridden.");
 	return 0;
 }
 
@@ -378,7 +388,7 @@ static int mcast6opt_set_out_interface(struct netsocket_config *cfg)
 		return 1;
 	}
 
-	log_info("The outgoing interface was overriden.");
+	log_info("The outgoing interface was overridden.");
 	return 0;
 }
 

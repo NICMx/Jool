@@ -1,5 +1,5 @@
-#ifndef _JOOL_MOD_CORE_H
-#define _JOOL_MOD_CORE_H
+#ifndef SRC_MOD_COMMON_CORE_H_
+#define SRC_MOD_COMMON_CORE_H_
 
 /**
  * @file
@@ -27,4 +27,4 @@ verdict core_6to4(struct sk_buff *skb, struct xlator *instance);
  */
 verdict core_4to6(struct sk_buff *skb, struct xlator *instance);
 
-#endif /* _JOOL_MOD_CORE_H */
+#endif /* SRC_MOD_COMMON_CORE_H_ */

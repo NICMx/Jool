@@ -1,5 +1,5 @@
-#ifndef _JOOL_MOD_INCOMING_H
-#define _JOOL_MOD_INCOMING_H
+#ifndef SRC_MOD_NAT64_DETERMINE_INCOMING_TUPLE_H_
+#define SRC_MOD_NAT64_DETERMINE_INCOMING_TUPLE_H_
 
 /**
  * @file
@@ -13,4 +13,4 @@
 verdict determine_in_tuple(struct xlation *state);
 
 
-#endif /* _JOOL_MOD_INCOMING_H */
+#endif /* SRC_MOD_NAT64_DETERMINE_INCOMING_TUPLE_H_ */

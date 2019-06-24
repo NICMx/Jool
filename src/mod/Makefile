@@ -13,5 +13,4 @@ install:
 	$(foreach dir, $(PROJECTS), $(MAKE) -C $(dir) modules_install;)
 	depmod
 
-
 .PHONY: $(PROJECTS) $(OTHER_TARGETS) install

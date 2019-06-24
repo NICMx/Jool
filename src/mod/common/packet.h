@@ -1,5 +1,5 @@
-#ifndef _JOOL_MOD_PACKET_H
-#define _JOOL_MOD_PACKET_H
+#ifndef SRC_MOD_COMMON_PACKET_H_
+#define SRC_MOD_COMMON_PACKET_H_
 
 /**
  * @file
@@ -579,4 +579,4 @@ unsigned char *jskb_push(struct sk_buff *skb, unsigned int len);
 void snapshot_record(struct pkt_snapshot *shot, struct sk_buff *skb);
 void snapshot_report(struct pkt_snapshot *shot, char *prefix);
 
-#endif /* _JOOL_MOD_PACKET_H */
+#endif /* SRC_MOD_COMMON_PACKET_H_ */

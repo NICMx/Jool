@@ -1,5 +1,6 @@
 #include "mod/common/handling_hairpinning.h"
 
+#include "mod/common/log.h"
 #include "mod/common/send_packet.h"
 #include "mod/common/rfc6145/core.h"
 

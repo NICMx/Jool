@@ -1,5 +1,5 @@
-#ifndef _JOOL_JOOLD_MODSOCKET_H
-#define _JOOL_JOOLD_MODSOCKET_H
+#ifndef SRC_USR_JOOLD_MODSOCKET_H_
+#define SRC_USR_JOOLD_MODSOCKET_H_
 
 /**
  * This is the socket we use to talk to the kernel module.
@@ -13,4 +13,4 @@ void modsocket_teardown(void);
 void *modsocket_listen(void *arg);
 void modsocket_send(void *buffer, size_t size);
 
-#endif
+#endif /* SRC_USR_JOOLD_MODSOCKET_H_ */

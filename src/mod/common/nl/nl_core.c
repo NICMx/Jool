@@ -6,6 +6,7 @@
 #include "common/config.h"
 #include "common/types.h"
 #include "mod/common/linux_version.h"
+#include "mod/common/log.h"
 #include "mod/common/wkmalloc.h"
 #include "mod/common/nl/nl_common.h"
 

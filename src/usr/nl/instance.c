@@ -1,8 +1,8 @@
-#include "usr/common/nl/instance.h"
+#include "instance.h"
 
 #include <errno.h>
-#include "common/config.h"
-#include "usr/common/netlink.h"
+
+#include "jool_socket.h"
 
 #define HDR_LEN sizeof(struct request_hdr)
 #define PAYLOAD_LEN sizeof(union request_instance)
@@ -13,35 +13,37 @@ struct foreach_args {
 	union request_instance *request;
 };
 
-static int instance_display_response(struct jool_response *response, void *arg)
+static struct jool_result instance_display_response(
+		struct jool_response *response, void *arg)
 {
 	struct instance_entry_usr *entries = response->payload;
 	struct foreach_args *args = arg;
 	__u16 entry_count, i;
-	int error;
+	struct jool_result result;
 
 	entry_count = response->payload_len / sizeof(*entries);
 
 	for (i = 0; i < entry_count; i++) {
-		error = args->cb(&entries[i], args->args);
-		if (error)
-			return error;
+		result = args->cb(&entries[i], args->args);
+		if (result.error)
+			return result;
 	}
 
 	args->request->display.offset_set = response->hdr->pending_data;
 	if (entry_count > 0)
 		args->request->display.offset = entries[entry_count - 1];
 
-	return 0;
+	return result_success();
 }
 
-int instance_foreach(instance_foreach_entry cb, void *_args)
+struct jool_result instance_foreach(struct jool_socket *sk,
+		instance_foreach_entry cb, void *_args)
 {
 	unsigned char request[HDR_LEN + PAYLOAD_LEN];
 	struct request_hdr *hdr;
 	union request_instance *payload;
 	struct foreach_args args;
-	int error;
+	struct jool_result result;
 
 	hdr = (struct request_hdr *)request;
 	payload = (union request_instance *)(request + HDR_LEN);
@@ -55,16 +57,17 @@ int instance_foreach(instance_foreach_entry cb, void *_args)
 	args.request = payload;
 
 	do {
-		error = netlink_request(NULL, request, sizeof(request),
+		result = netlink_request(sk, NULL, request, sizeof(request),
 				instance_display_response, &args);
-		if (error)
-			return error;
+		if (result.error)
+			return result;
 	} while (payload->display.offset_set);
 
-	return 0;
+	return result_success();
 }
 
-int instance_add(jframework fw, char *iname, struct ipv6_prefix *pool6)
+struct jool_result instance_add(struct jool_socket *sk, jframework fw,
+		char *iname, struct ipv6_prefix *pool6)
 {
 	unsigned char request[HDR_LEN + PAYLOAD_LEN];
 	struct request_hdr *hdr;
@@ -73,10 +76,16 @@ int instance_add(jframework fw, char *iname, struct ipv6_prefix *pool6)
 
 	error = fw_validate(fw);
 	if (error)
-		return error;
+		return result_from_error(error, FW_VALIDATE_ERRMSG);
+
 	error = iname_validate(iname, true);
-	if (error)
-		return error;
+	if (error) {
+		return result_from_error(
+			error,
+			INAME_VALIDATE_ERRMSG,
+			INAME_MAX_LEN - 1
+		);
+	}
 
 	hdr = (struct request_hdr *)request;
 	payload = (union request_instance *)(request + HDR_LEN);
@@ -93,10 +102,10 @@ int instance_add(jframework fw, char *iname, struct ipv6_prefix *pool6)
 				sizeof(payload->add.pool6.prefix));
 	}
 
-	return netlink_request(NULL, request, sizeof(request), NULL, NULL);
+	return netlink_request(sk, NULL, request, sizeof(request), NULL, NULL);
 }
 
-int instance_rm(char *iname)
+struct jool_result instance_rm(struct jool_socket *sk, char *iname)
 {
 	unsigned char request[HDR_LEN + PAYLOAD_LEN];
 	struct request_hdr *hdr = (struct request_hdr *)request;
@@ -105,18 +114,23 @@ int instance_rm(char *iname)
 	int error;
 
 	error = iname_validate(iname, true);
-	if (error)
-		return error;
+	if (error) {
+		return result_from_error(
+			error,
+			INAME_VALIDATE_ERRMSG,
+			INAME_MAX_LEN - 1
+		);
+	}
 
 	init_request_hdr(hdr, MODE_INSTANCE, OP_REMOVE, false);
 	strcpy(payload->rm.iname, iname ? : INAME_DEFAULT);
 
-	return netlink_request(NULL, request, sizeof(request), NULL, NULL);
+	return netlink_request(sk, NULL, request, sizeof(request), NULL, NULL);
 }
 
-int instance_flush(void)
+struct jool_result instance_flush(struct jool_socket *sk)
 {
 	struct request_hdr request;
 	init_request_hdr(&request, MODE_INSTANCE, OP_FLUSH, false);
-	return netlink_request(NULL, &request, sizeof(request), NULL, NULL);
+	return netlink_request(sk, NULL, &request, sizeof(request), NULL, NULL);
 }

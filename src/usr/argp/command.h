@@ -1,5 +1,5 @@
-#ifndef SRC_USR_COMMON_COMMAND_H_
-#define SRC_USR_COMMON_COMMAND_H_
+#ifndef SRC_USR_ARGP_COMMAND_H_
+#define SRC_USR_ARGP_COMMAND_H_
 
 #include <stdbool.h>
 #include "common/xlat.h"
@@ -58,4 +58,4 @@ struct cmd_option {
 
 bool cmdopt_is_hidden(struct cmd_option *option);
 
-#endif /* SRC_USR_COMMON_COMMAND_H_ */
+#endif /* SRC_USR_ARGP_COMMAND_H_ */

@@ -1,10 +1,12 @@
-#ifndef _JOOL_MOD_ADDRESS_H
-#define _JOOL_MOD_ADDRESS_H
+#ifndef SRC_MOD_COMMON_ADDRESS_H_
+#define SRC_MOD_COMMON_ADDRESS_H_
 
 #include <linux/string.h>
 #include <net/ipv6.h>
 #include "common/types.h"
 
+int str_to_addr4(const char *str, struct in_addr *result);
+int str_to_addr6(const char *str, struct in6_addr *result);
 
 union transport_addr {
 	struct ipv6_transport_addr addr6;
@@ -94,4 +96,4 @@ bool prefix4_has_subnet_scope(struct ipv4_prefix *prefix,
 		struct ipv4_prefix *subnet);
 
 
-#endif /* _JOOL_MOD_ADDRESS_H */
+#endif /* SRC_MOD_COMMON_ADDRESS_H_ */

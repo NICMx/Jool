@@ -1,7 +1,7 @@
 #include "mod/nat64/joold.h"
 
 #include "common/constants.h"
-#include "common/str_utils.h"
+#include "mod/common/log.h"
 #include "mod/common/wkmalloc.h"
 #include "mod/common/xlator.h"
 #include "mod/common/nl/nl_core.h"

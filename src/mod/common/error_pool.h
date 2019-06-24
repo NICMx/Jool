@@ -1,5 +1,5 @@
-#ifndef _JOOL_MOD_ERROR_POOL_H
-#define _JOOL_MOD_ERROR_POOL_H
+#ifndef SRC_MOD_COMMON_ERROR_POOL_H_
+#define SRC_MOD_COMMON_ERROR_POOL_H_
 
 #include <linux/types.h>
 
@@ -12,4 +12,4 @@ int error_pool_has_errors(void);
 int error_pool_get_message(char **out_message, size_t *msg_len);
 void error_pool_deactivate(void);
 
-#endif
+#endif /* SRC_MOD_COMMON_ERROR_POOL_H_ */

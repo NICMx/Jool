@@ -5,7 +5,6 @@
 #include <linux/netdevice.h>
 #include <linux/inetdevice.h>
 
-#include "common/str_utils.h"
 #include "mod/common/address.h"
 #include "mod/common/xlator.h"
 #include "mod/common/rcu.h"

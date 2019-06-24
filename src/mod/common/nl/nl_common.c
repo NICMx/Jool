@@ -1,6 +1,7 @@
 #include "mod/common/nl/nl_common.h"
 
 #include "common/types.h"
+#include "mod/common/log.h"
 
 int verify_superpriv(void)
 {

@@ -1,5 +1,5 @@
-#ifndef _JOOL_MOD_TRANSLATION_STATE_H
-#define _JOOL_MOD_TRANSLATION_STATE_H
+#ifndef SRC_MOD_COMMON_TRANSLATION_STATE_H_
+#define SRC_MOD_COMMON_TRANSLATION_STATE_H_
 
 #include "mod/common/icmp_wrapper.h"
 #include "mod/common/packet.h"
@@ -47,4 +47,4 @@ verdict drop_icmp(struct xlation *state, enum jool_stat_id stat,
 		enum icmp_errcode icmp, __u32 info);
 verdict stolen(struct xlation *state, enum jool_stat_id stat);
 
-#endif /* _JOOL_MOD_TRANSLATION_STATE_H */
+#endif /* SRC_MOD_COMMON_TRANSLATION_STATE_H_ */

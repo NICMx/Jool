@@ -1,15 +1,6 @@
-#include "usr/common/nl/session.h"
+#include "session.h"
 
-#include <errno.h>
-#include <time.h>
-#include <sys/socket.h>
-#include "common/config.h"
-#include "common/session.h"
-#include "usr/common/str_utils.h"
-#include "common/types.h"
-#include "usr/common/netlink.h"
-#include "usr/common/dns.h"
-
+#include "jool_socket.h"
 
 #define HDR_LEN sizeof(struct request_hdr)
 #define PAYLOAD_LEN sizeof(struct request_session)
@@ -20,19 +11,20 @@ struct foreach_args {
 	struct request_session *request;
 };
 
-static int session_display_response(struct jool_response *response, void *arg)
+static struct jool_result session_display_response(
+		struct jool_response *response, void *arg)
 {
 	struct session_entry_usr *entries = response->payload;
 	struct foreach_args *args = arg;
 	__u16 entry_count, i;
-	int error;
+	struct jool_result result;
 
 	entry_count = response->payload_len / sizeof(*entries);
 
 	for (i = 0; i < entry_count; i++) {
-		error = args->cb(&entries[i], args->args);
-		if (error)
-			return error;
+		result = args->cb(&entries[i], args->args);
+		if (result.error)
+			return result;
 	}
 
 	args->request->display.offset_set = response->hdr->pending_data;
@@ -42,17 +34,17 @@ static int session_display_response(struct jool_response *response, void *arg)
 		args->request->display.offset.dst = last->dst4;
 	}
 
-	return 0;
+	return result_success();
 }
 
-int session_foreach(char *iname, l4_protocol proto,
-		session_foreach_cb cb, void *_args)
+struct jool_result session_foreach(struct jool_socket *sk, char *iname,
+		l4_protocol proto, session_foreach_cb cb, void *_args)
 {
 	unsigned char request[HDR_LEN + PAYLOAD_LEN];
 	struct request_hdr *hdr;
 	struct request_session *payload;
 	struct foreach_args args;
-	bool error;
+	struct jool_result result;
 
 	hdr = (struct request_hdr *)request;
 	payload = (struct request_session *)(request + HDR_LEN);
@@ -70,10 +62,9 @@ int session_foreach(char *iname, l4_protocol proto,
 	args.request = payload;
 
 	do {
-		error = netlink_request(iname, request, sizeof(request),
+		result = netlink_request(sk, iname, request, sizeof(request),
 				session_display_response, &args);
-	} while (!error && args.request->display.offset_set);
+	} while (!result.error && args.request->display.offset_set);
 
-	return error;
+	return result;
 }
-

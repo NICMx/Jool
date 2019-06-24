@@ -3,6 +3,7 @@
 #include <linux/random.h>
 #include <net/addrconf.h>
 #include "mod/common/config.h"
+#include "mod/common/log.h"
 #include "mod/common/packet.h"
 #include "mod/common/rcu.h"
 #include "mod/common/route.h"

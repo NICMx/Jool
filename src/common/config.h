@@ -1,5 +1,5 @@
-#ifndef _JOOL_COMMON_CONFIG_H
-#define _JOOL_COMMON_CONFIG_H
+#ifndef SRC_COMMON_CONFIG_H_
+#define SRC_COMMON_CONFIG_H_
 
 /**
  * @file
@@ -209,8 +209,6 @@ struct request_hdr {
 
 void init_request_hdr(struct request_hdr *hdr, enum config_mode mode,
 		enum config_operation operation, bool force);
-int validate_request(void *data, size_t data_len, char *sender, char *receiver,
-		bool *peer_is_jool);
 
 /*
  * This includes the null chara; the practical maximum is 15.
@@ -220,6 +218,7 @@ int validate_request(void *data, size_t data_len, char *sender, char *receiver,
 #define INAME_DEFAULT "default"
 
 int iname_validate(const char *iname, bool allow_null);
+#define INAME_VALIDATE_ERRMSG "The instance name must be a null-terminated ascii string, %u characters max."
 
 struct config_prefix6 {
 	config_bool set;
@@ -245,6 +244,8 @@ typedef int jframework;
 #define FW_ANY (FW_NETFILTER | FW_IPTABLES)
 
 int fw_validate(jframework fw);
+#define FW_VALIDATE_ERRMSG \
+	"The instance framework must be either Netfilter or iptables."
 
 /**
  * Issued during atomic configuration initialization.
@@ -714,4 +715,4 @@ struct target_info {
 	char iname[INAME_MAX_LEN];
 };
 
-#endif /* _JOOL_COMMON_CONFIG_H */
+#endif /* SRC_COMMON_CONFIG_H_ */

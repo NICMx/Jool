@@ -1,5 +1,5 @@
-#ifndef _JOOL_MOD_BIB_PORT_ALLOCATOR_H
-#define _JOOL_MOD_BIB_PORT_ALLOCATOR_H
+#ifndef SRC_MOD_NAT64_POOL4_RFC6056_H_
+#define SRC_MOD_NAT64_POOL4_RFC6056_H_
 
 #include "common/types.h"
 #include "mod/common/translation_state.h"
@@ -9,4 +9,4 @@ void rfc6056_teardown(void);
 
 int rfc6056_f(const struct tuple *tuple6, __u8 fields, unsigned int *result);
 
-#endif /* _JOOL_MOD_BIB_PORT_ALLOCATOR_H */
+#endif /* SRC_MOD_NAT64_POOL4_RFC6056_H_ */

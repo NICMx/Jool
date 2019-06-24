@@ -1,5 +1,5 @@
-#ifndef _JOOL_MOD_LOG_H
-#define _JOOL_MOD_LOG_H
+#ifndef SRC_MOD_COMMON_LOG_H_
+#define SRC_MOD_COMMON_LOG_H_
 
 /*
  * Why include kernel.h? because printk.h depends on it in some old kernels.
@@ -79,4 +79,4 @@
 
 #define PR_DEBUG pr_err("%s:%d (%s())\n", __FILE__, __LINE__, __func__)
 
-#endif /* _JOOL_MOD_LOG_H */
+#endif /* SRC_MOD_COMMON_LOG_H_ */

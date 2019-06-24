@@ -1,5 +1,5 @@
-#ifndef _JOOL_MOD_HARPINNING_H
-#define _JOOL_MOD_HARPINNING_H
+#ifndef SRC_MOD_COMMON_HANDLING_HARPINNING_H_
+#define SRC_MOD_COMMON_HANDLING_HARPINNING_H_
 
 /**
  * @file
@@ -13,4 +13,4 @@
 bool is_hairpin(struct xlation *state);
 verdict handling_hairpinning(struct xlation *state);
 
-#endif /* _JOOL_MOD_HARPINNING_H */
+#endif /* SRC_MOD_COMMON_HANDLING_HARPINNING_H_ */

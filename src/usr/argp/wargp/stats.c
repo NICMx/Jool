@@ -1,9 +1,11 @@
-#include "usr/common/argp/stats.h"
+#include "stats.h"
 
-#include "usr/common/netlink.h"
-#include "usr/common/userspace-types.h"
-#include "usr/common/wargp.h"
-#include "usr/common/nl/stats.h"
+#include "log.h"
+#include "usr/nl/jool_socket.h"
+#include "usr/nl/stats.h"
+#include "usr/argp/log.h"
+#include "usr/argp/userspace-types.h"
+#include "usr/argp/wargp.h"
 
 struct display_args {
 	struct wargp_bool all;
@@ -31,12 +33,12 @@ static struct wargp_option display_opts[] = {
 	{ 0 },
 };
 
-static int handle_jstat(struct jstat const *stat, void *args)
+static struct jool_result handle_jstat(struct jstat const *stat, void *args)
 {
 	struct display_args *dargs = args;
 
 	if (!dargs->all.value && stat->value == 0)
-		return 0;
+		return result_success();
 
 	if (dargs->csv.value) {
 		printf("%s,%llu", stat->meta.name, stat->value);
@@ -49,21 +51,22 @@ static int handle_jstat(struct jstat const *stat, void *args)
 			printf("%s\n\n", stat->meta.doc);
 	}
 
-	return 0;
+	return result_success();
 }
 
 int handle_stats_display(char *iname, int argc, char **argv, void *arg)
 {
 	struct display_args dargs = { 0 };
-	int error;
+	struct jool_socket sk;
+	struct jool_result result;
 
-	error = wargp_parse(display_opts, argc, argv, &dargs);
-	if (error)
-		return error;
+	result.error = wargp_parse(display_opts, argc, argv, &dargs);
+	if (result.error)
+		return result.error;
 
-	error = netlink_setup();
-	if (error)
-		return error;
+	result = netlink_setup(&sk);
+	if (result.error)
+		return log_result(&result);
 
 	if (show_csv_header(dargs.no_headers.value, dargs.csv.value)) {
 		printf("Stat,Value");
@@ -72,10 +75,10 @@ int handle_stats_display(char *iname, int argc, char **argv, void *arg)
 		printf("\n");
 	}
 
-	error = stats_foreach(iname, handle_jstat, &dargs);
+	result = stats_foreach(&sk, iname, handle_jstat, &dargs);
 
-	netlink_teardown();
-	return error;
+	netlink_teardown(&sk);
+	return log_result(&result);
 }
 
 void autocomplete_stats_display(void *args)

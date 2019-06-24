@@ -1,8 +1,8 @@
-#include "mod/common/common-global.h"
+#include "common/globals.h"
 
 #include <linux/sort.h>
 #include "mod/common/address.h"
-#include "usr/common/str_utils.h"
+#include "mod/common/log.h"
 
 static int validate_uint(struct global_field *field, unsigned int value)
 {

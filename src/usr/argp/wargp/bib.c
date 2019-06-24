@@ -1,14 +1,15 @@
 #include "bib.h"
 
 #include <string.h>
-#include "common/config.h"
-#include "usr/common/dns.h"
-#include "usr/common/netlink.h"
-#include "usr/common/requirements.h"
-#include "usr/common/str_utils.h"
-#include "usr/common/userspace-types.h"
-#include "usr/common/wargp.h"
-#include "usr/common/nl/bib.h"
+
+#include "usr/argp/dns.h"
+#include "usr/argp/log.h"
+#include "usr/argp/requirements.h"
+#include "usr/argp/userspace-types.h"
+#include "usr/argp/wargp.h"
+#include "usr/nl/bib.h"
+#include "usr/nl/jool_socket.h"
+#include "usr/util/str_utils.h"
 
 struct display_args {
 	struct wargp_l4proto proto;
@@ -27,7 +28,7 @@ static struct wargp_option display_opts[] = {
 	{ 0 },
 };
 
-static int print_entry(struct bib_entry_usr *entry, void *args)
+static struct jool_result print_entry(struct bib_entry_usr *entry, void *args)
 {
 	struct display_args *dargs = args;
 	l4_protocol proto = entry->l4_proto;
@@ -47,7 +48,7 @@ static int print_entry(struct bib_entry_usr *entry, void *args)
 		printf("\n");
 	}
 
-	return 0;
+	return result_success();
 }
 
 /*
@@ -57,23 +58,25 @@ static int print_entry(struct bib_entry_usr *entry, void *args)
 int handle_bib_display(char *iname, int argc, char **argv, void *arg)
 {
 	struct display_args dargs = { 0 };
-	int error;
+	struct jool_socket sk;
+	struct jool_result result;
 
-	error = wargp_parse(display_opts, argc, argv, &dargs);
-	if (error)
-		return error;
+	result.error = wargp_parse(display_opts, argc, argv, &dargs);
+	if (result.error)
+		return result.error;
 
-	error = netlink_setup();
-	if (error)
-		return error;
+	result = netlink_setup(&sk);
+	if (result.error)
+		return log_result(&result);
 
 	if (show_csv_header(dargs.no_headers.value, dargs.csv.value))
 		printf("Protocol,IPv6 Address,IPv6 L4-ID,IPv4 Address,IPv4 L4-ID,Static?\n");
 
-	error = bib_foreach(iname, dargs.proto.proto, print_entry, &dargs);
+	result = bib_foreach(&sk, iname, dargs.proto.proto,
+			print_entry, &dargs);
 
-	netlink_teardown();
-	return error;
+	netlink_teardown(&sk);
+	return log_result(&result);
 }
 
 void autocomplete_bib_display(void *args)
@@ -91,14 +94,17 @@ struct taddr_tuple {
 static int parse_taddr(void *void_field, int key, char *str)
 {
 	struct taddr_tuple *field = void_field;
+	struct jool_result result;
 
 	if (strchr(str, ':')) {
 		field->addr6_set = true;
-		return str_to_addr6_port(str, &field->addr6);
+		result = str_to_addr6_port(str, &field->addr6);
+		return log_result(&result);
 	}
 	if (strchr(str, '.')) {
 		field->addr4_set = true;
-		return str_to_addr4_port(str, &field->addr4);
+		result = str_to_addr4_port(str, &field->addr4);
+		return log_result(&result);
 	}
 
 	return ARGP_ERR_UNKNOWN;
@@ -131,11 +137,12 @@ static struct wargp_option add_opts[] = {
 int handle_bib_add(char *iname, int argc, char **argv, void *arg)
 {
 	struct add_args aargs = { 0 };
-	int error;
+	struct jool_socket sk;
+	struct jool_result result;
 
-	error = wargp_parse(add_opts, argc, argv, &aargs);
-	if (error)
-		return error;
+	result.error = wargp_parse(add_opts, argc, argv, &aargs);
+	if (result.error)
+		return result.error;
 
 	if (!aargs.taddrs.addr6_set || !aargs.taddrs.addr4_set) {
 		struct requirement reqs[] = {
@@ -146,15 +153,16 @@ int handle_bib_add(char *iname, int argc, char **argv, void *arg)
 		return requirement_print(reqs);
 	}
 
-	error = netlink_setup();
-	if (error)
-		return error;
+	result = netlink_setup(&sk);
+	if (result.error)
+		return log_result(&result);
 
-	error = bib_add(iname, &aargs.taddrs.addr6, &aargs.taddrs.addr4,
+	result = bib_add(&sk, iname,
+			&aargs.taddrs.addr6, &aargs.taddrs.addr4,
 			aargs.proto.proto);
 
-	netlink_teardown();
-	return error;
+	netlink_teardown(&sk);
+	return log_result(&result);
 }
 
 void autocomplete_bib_add(void *args)
@@ -184,11 +192,12 @@ static struct wargp_option remove_opts[] = {
 int handle_bib_remove(char *iname, int argc, char **argv, void *arg)
 {
 	struct rm_args rargs = { 0 };
-	int error;
+	struct jool_socket sk;
+	struct jool_result result;
 
-	error = wargp_parse(remove_opts, argc, argv, &rargs);
-	if (error)
-		return error;
+	result.error = wargp_parse(remove_opts, argc, argv, &rargs);
+	if (result.error)
+		return result.error;
 
 	if (!rargs.taddrs.addr6_set && !rargs.taddrs.addr4_set) {
 		struct requirement reqs[] = {
@@ -199,17 +208,17 @@ int handle_bib_remove(char *iname, int argc, char **argv, void *arg)
 		return requirement_print(reqs);
 	}
 
-	error = netlink_setup();
-	if (error)
-		return error;
+	result = netlink_setup(&sk);
+	if (result.error)
+		return log_result(&result);
 
-	error = bib_rm(iname,
+	result = bib_rm(&sk, iname,
 			rargs.taddrs.addr6_set ? &rargs.taddrs.addr6 : NULL,
 			rargs.taddrs.addr4_set ? &rargs.taddrs.addr4 : NULL,
 			rargs.proto.proto);
 
-	netlink_teardown();
-	return error;
+	netlink_teardown(&sk);
+	return log_result(&result);
 }
 
 void autocomplete_bib_remove(void *args)

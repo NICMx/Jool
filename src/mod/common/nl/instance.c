@@ -1,6 +1,7 @@
 #include "mod/common/nl/instance.h"
 
 #include "common/types.h"
+#include "mod/common/log.h"
 #include "mod/common/xlator.h"
 #include "mod/common/nl/nl_common.h"
 #include "mod/common/nl/nl_core.h"

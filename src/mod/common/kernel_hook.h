@@ -1,5 +1,5 @@
-#ifndef _JOOL_MOD_NF_HOOK_H
-#define _JOOL_MOD_NF_HOOK_H
+#ifndef SRC_MOD_COMMON_KERNEL_HOOK_H_
+#define SRC_MOD_COMMON_KERNEL_HOOK_H_
 
 #include <linux/netfilter_ipv4.h>
 #include <linux/netfilter_ipv6.h>
@@ -22,4 +22,4 @@ unsigned int target_ipv4(struct sk_buff *skb,
 void init_nf_hook_op6(struct nf_hook_ops *ops);
 void init_nf_hook_op4(struct nf_hook_ops *ops);
 
-#endif /* _JOOL_MOD_NF_HOOK_H */
+#endif /* SRC_MOD_COMMON_KERNEL_HOOK_H_ */

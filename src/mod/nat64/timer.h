@@ -1,5 +1,5 @@
-#ifndef _JOOL_MOD_TIMER_H
-#define _JOOL_MOD_TIMER_H
+#ifndef SRC_MOD_NAT64_TIMER_H_
+#define SRC_MOD_NAT64_TIMER_H_
 
 /**
  * @file
@@ -14,4 +14,4 @@
 int jtimer_setup(void);
 void jtimer_teardown(void);
 
-#endif /* _JOOL_MOD_TIMER_H */
+#endif /* SRC_MOD_NAT64_TIMER_H_ */

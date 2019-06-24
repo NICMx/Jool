@@ -1,11 +1,13 @@
-#ifndef _JOOL_USR_SESSION_H
-#define _JOOL_USR_SESSION_H
+#ifndef SRC_USR_NL_SESSION_H_
+#define SRC_USR_NL_SESSION_H_
 
 #include "common/config.h"
+#include "jool_socket.h"
 
-typedef int (*session_foreach_cb)(struct session_entry_usr *entry, void *args);
+typedef struct jool_result (*session_foreach_cb)(
+		struct session_entry_usr *entry, void *args);
 
-int session_foreach(char *iname, l4_protocol proto,
-		session_foreach_cb cb, void *args);
+struct jool_result session_foreach(struct jool_socket *sk, char *iname,
+		l4_protocol proto, session_foreach_cb cb, void *args);
 
-#endif /* _JOOL_USR_SESSION_H */
+#endif /* SRC_USR_NL_SESSION_H_ */

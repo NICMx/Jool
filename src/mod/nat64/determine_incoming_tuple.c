@@ -2,6 +2,7 @@
 
 #include "mod/common/icmp_wrapper.h"
 #include "mod/common/ipv6_hdr_iterator.h"
+#include "mod/common/log.h"
 #include "mod/common/stats.h"
 
 /*

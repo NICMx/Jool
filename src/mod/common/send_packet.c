@@ -3,6 +3,7 @@
 #include <linux/version.h>
 
 #include "mod/common/linux_version.h"
+#include "mod/common/log.h"
 #include "mod/common/icmp_wrapper.h"
 #include "mod/common/packet.h"
 #include "mod/common/route.h"

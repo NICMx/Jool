@@ -1,23 +1,20 @@
-#include "usr/common/nl/joold.h"
+#include "joold.h"
 
 #include <stddef.h>
+
 #include "common/config.h"
-#include "usr/common/netlink.h"
+#include "jool_socket.h"
 
-int joold_advertise(char *iname)
+struct jool_result joold_advertise(struct jool_socket *sk, char *iname)
 {
-	int error = 0;
-	struct request_hdr request;
-
-	init_request_hdr(&request, MODE_JOOLD, OP_ADVERTISE, false);
-	error = netlink_request(iname, &request, sizeof(request), NULL, NULL);
-
-	return error;
+	struct request_hdr hdr;
+	init_request_hdr(&hdr, MODE_JOOLD, OP_ADVERTISE, false);
+	return netlink_request(sk, iname, &hdr, sizeof(hdr), NULL, NULL);
 }
 
-int joold_test(char *iname)
+struct jool_result joold_test(struct jool_socket *sk, char *iname)
 {
 	struct request_hdr hdr;
 	init_request_hdr(&hdr, MODE_JOOLD, OP_TEST, false);
-	return netlink_request(iname, &hdr, sizeof(hdr), NULL, NULL);
+	return netlink_request(sk, iname, &hdr, sizeof(hdr), NULL, NULL);
 }

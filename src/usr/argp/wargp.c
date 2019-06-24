@@ -3,9 +3,10 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "log.h"
 #include "common/xlat.h"
 #include "common/constants.h"
-#include "usr/common/str_utils.h"
+#include "usr/util/str_utils.h"
 
 const char *argp_program_version = JOOL_VERSION_STR;
 const char *argp_program_bug_address = "jool@nic.mx";
@@ -68,7 +69,13 @@ int wargp_parse_bool(void *void_field, int key, char *str)
 
 int wargp_parse_u32(void *field, int key, char *str)
 {
-	return str_to_u32(str, field, 0, MAX_U32);
+	struct jool_result result;
+
+	result = str_to_u32(str, field, 0, MAX_U32);
+	if (result.error)
+		return log_result(&result);
+
+	return 0;
 }
 
 int wargp_parse_l4proto(void *void_field, int key, char *str)
@@ -109,15 +116,27 @@ int wargp_parse_string(void *void_field, int key, char *str)
 int wargp_parse_prefix6(void *void_field, int key, char *str)
 {
 	struct wargp_prefix6 *field = void_field;
+	struct jool_result result;
+
 	field->set = true;
-	return str_to_prefix6(str, &field->prefix);
+	result = str_to_prefix6(str, &field->prefix);
+	if (result.error)
+		return log_result(&result);
+
+	return 0;
 }
 
 int wargp_parse_prefix4(void *void_field, int key, char *str)
 {
 	struct wargp_prefix4 *field = void_field;
+	struct jool_result result;
+
 	field->set = true;
-	return str_to_prefix4(str, &field->prefix);
+	result = str_to_prefix4(str, &field->prefix);
+	if (result.error)
+		return log_result(&result);
+
+	return 0;
 }
 
 static int adapt_options(struct argp *argp, struct wargp_option *wopts,

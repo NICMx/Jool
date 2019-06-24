@@ -1,10 +1,11 @@
 #include "mod/common/nl/global.h"
 
 #include <linux/sort.h>
-#include "common/common-global.h"
 #include "common/constants.h"
+#include "common/globals.h"
 #include "common/types.h"
 #include "mod/common/config.h"
+#include "mod/common/log.h"
 #include "mod/common/nl/nl_common.h"
 #include "mod/common/nl/nl_core.h"
 #include "mod/nat64/joold.h"

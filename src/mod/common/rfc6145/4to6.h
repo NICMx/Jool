@@ -1,5 +1,5 @@
-#ifndef _JOOL_MOD_RFC6145_4TO6_H
-#define _JOOL_MOD_RFC6145_4TO6_H
+#ifndef SRC_MOD_COMMON_RFC6145_4TO6_H_
+#define SRC_MOD_COMMON_RFC6145_4TO6_H_
 
 /**
  * @file
@@ -36,4 +36,4 @@ verdict ttp46_tcp(struct xlation *state);
  */
 verdict ttp46_udp(struct xlation *state);
 
-#endif /* _JOOL_MOD_RFC6145_4TO6_H */
+#endif /* SRC_MOD_COMMON_RFC6145_4TO6_H_ */

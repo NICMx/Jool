@@ -1,3 +1,6 @@
 AUTOMAKE_OPTIONS = foreign
 
-SUBDIRS = src/mod src/usr
+SUBDIRS = src/common src/usr
+
+# Needed by libtoolize. (Othewise autoreconf complains.)
+ACLOCAL_AMFLAGS=-I m4

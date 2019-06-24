@@ -3,6 +3,7 @@
 #include <linux/module.h>
 
 #include "mod/common/linux_version.h"
+#include "mod/common/log.h"
 #include "mod/common/wkmalloc.h"
 #include "mod/common/xlator.h"
 #include "mod/common/nl/nl_handler.h"
@@ -16,6 +17,8 @@ MODULE_LICENSE(JOOL_LICENSE);
 MODULE_AUTHOR("NIC-ITESM");
 MODULE_DESCRIPTION("Stateful NAT64 (RFC 6146)");
 MODULE_VERSION(JOOL_VERSION_STR);
+
+#include "common/xlat-nat64.c"
 
 static char *banner = "\n"
 	"                                   ,----,                       \n"

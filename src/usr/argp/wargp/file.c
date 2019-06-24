@@ -1,11 +1,12 @@
 #include "file.h"
 
 #include <errno.h>
-#include "usr/common/log.h"
-#include "usr/common/netlink.h"
-#include "usr/common/requirements.h"
-#include "usr/common/wargp.h"
-#include "usr/common/nl/json.h"
+
+#include "log.h"
+#include "requirements.h"
+#include "wargp.h"
+#include "usr/nl/jool_socket.h"
+#include "usr/nl/json.h"
 
 struct update_args {
 	struct wargp_string file_name;
@@ -27,11 +28,12 @@ static struct wargp_option update_opts[] = {
 int handle_file_update(char *iname, int argc, char **argv, void *arg)
 {
 	struct update_args uargs = { 0 };
-	int error;
+	struct jool_socket sk;
+	struct jool_result result;
 
-	error = wargp_parse(update_opts, argc, argv, &uargs);
-	if (error)
-		return error;
+	result.error = wargp_parse(update_opts, argc, argv, &uargs);
+	if (result.error)
+		return result.error;
 
 	if (!uargs.file_name.value) {
 		struct requirement reqs[] = {
@@ -41,14 +43,15 @@ int handle_file_update(char *iname, int argc, char **argv, void *arg)
 		return requirement_print(reqs);
 	}
 
-	error = netlink_setup();
-	if (error)
-		return error;
+	result = netlink_setup(&sk);
+	if (result.error)
+		return log_result(&result);
 
-	error = parse_file(iname, uargs.file_name.value, uargs.force.value);
+	result = parse_file(&sk, iname, uargs.file_name.value,
+			uargs.force.value);
 
-	netlink_teardown();
-	return error;
+	netlink_teardown(&sk);
+	return log_result(&result);
 }
 
 void autocomplete_file_update(void *args)

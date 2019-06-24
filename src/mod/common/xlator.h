@@ -1,5 +1,5 @@
-#ifndef _JOOL_MOD_NAMESPACE_H
-#define _JOOL_MOD_NAMESPACE_H
+#ifndef SRC_MOD_COMMON_XLATOR_H_
+#define SRC_MOD_COMMON_XLATOR_H_
 
 #include "mod/common/config.h"
 
@@ -71,4 +71,4 @@ typedef int (*xlator_foreach_cb)(struct xlator *, void *);
 int xlator_foreach(xlator_foreach_cb cb, void *args,
 		struct instance_entry_usr *offset);
 
-#endif /* _JOOL_MOD_NAMESPACE_H */
+#endif /* SRC_MOD_COMMON_XLATOR_H_ */

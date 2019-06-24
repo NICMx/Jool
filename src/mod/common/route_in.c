@@ -1,5 +1,7 @@
 #include "mod/common/route.h"
 
+#include "mod/common/log.h"
+
 int route4_input(struct sk_buff *skb)
 {
 	struct iphdr *hdr;

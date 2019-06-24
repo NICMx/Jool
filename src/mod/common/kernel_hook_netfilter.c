@@ -1,5 +1,6 @@
 #include "mod/common/kernel_hook.h"
 
+#include "mod/common/log.h"
 #include "mod/common/core.h"
 
 static verdict find_instance(struct sk_buff *skb, struct xlator *result)

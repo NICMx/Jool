@@ -1,5 +1,5 @@
-#ifndef _JOOL_MOD_RFC6145_6TO4_H
-#define _JOOL_MOD_RFC6145_6TO4_H
+#ifndef SRC_MOD_COMMON_RFC6145_6TO4_H_
+#define SRC_MOD_COMMON_RFC6145_6TO4_H_
 
 /**
  * @file
@@ -40,4 +40,4 @@ verdict ttp64_udp(struct xlation *state);
 __u8 ttp64_xlat_tos(struct globals *config, struct ipv6hdr *hdr);
 __u8 ttp64_xlat_proto(struct ipv6hdr *hdr);
 
-#endif /* _JOOL_MOD_RFC6145_6TO4_H */
+#endif /* SRC_MOD_COMMON_RFC6145_6TO4_H_ */

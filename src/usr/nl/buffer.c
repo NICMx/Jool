@@ -1,21 +1,18 @@
-#include "usr/common/nl/buffer.h"
+#include "buffer.h"
 
 #include <errno.h>
-#include <stdlib.h>
-#include <string.h>
 #include "common/config.h"
-#include "common/types.h"
-#include "usr/common/netlink.h"
 
 #define BUFFER_MAX 256
 
 struct nl_buffer {
+	struct jool_socket *sk;
 	char iname[INAME_MAX_LEN];
 	unsigned char chars[BUFFER_MAX];
 	size_t len;
 };
 
-struct nl_buffer *nlbuffer_alloc(char *iname)
+struct nl_buffer *nlbuffer_alloc(struct jool_socket *sk, char *iname)
 {
 	struct nl_buffer *buffer;
 
@@ -23,6 +20,7 @@ struct nl_buffer *nlbuffer_alloc(char *iname)
 	if (!buffer)
 		return NULL;
 
+	buffer->sk = sk;
 	strcpy(buffer->iname, iname);
 	buffer->len = 0;
 
@@ -34,28 +32,36 @@ void nlbuffer_destroy(struct nl_buffer *buffer)
 	free(buffer);
 }
 
-int nlbuffer_write(struct nl_buffer *buffer, void *payload, size_t payload_len)
+struct jool_result nlbuffer_write(struct nl_buffer *buffer,
+		void *payload, size_t payload_len)
 {
 	if (payload_len > BUFFER_MAX) {
-		log_err("Packet content is larger than packet limit.");
-		return -EINVAL;
+		return result_from_error(
+			-EINVAL,
+			"Packet content is larger than packet limit."
+		);
 	}
 
-	if (buffer->len + payload_len > BUFFER_MAX)
-		return -ENOSPC;
+	if (buffer->len + payload_len > BUFFER_MAX) {
+		return result_from_error(
+			-ENOSPC,
+			"Message does not fit in the packet."
+		);
+	}
 
 	memcpy(buffer->chars + buffer->len, payload, payload_len);
 	buffer->len += payload_len;
-	return 0;
+	return result_success();
 }
 
-int nlbuffer_flush(struct nl_buffer *buffer)
+struct jool_result nlbuffer_flush(struct nl_buffer *buffer)
 {
-	int error;
+	struct jool_result result;
 
-	error = netlink_request(buffer->iname, &buffer->chars[0], buffer->len,
+	result = netlink_request(buffer->sk, buffer->iname,
+			&buffer->chars[0], buffer->len,
 			NULL, NULL);
 	buffer->len = 0;
 
-	return error;
+	return result;
 }

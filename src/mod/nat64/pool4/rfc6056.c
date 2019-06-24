@@ -2,6 +2,7 @@
 
 #include <crypto/hash.h>
 #include "mod/common/linux_version.h"
+#include "mod/common/log.h"
 #include "mod/common/wkmalloc.h"
 
 /*

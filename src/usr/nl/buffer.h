@@ -1,14 +1,17 @@
-#ifndef _JOOL_USR_NL_BUFFER_H
-#define _JOOL_USR_NL_BUFFER_H
+#ifndef SRC_USR_NL_BUFFER_H_
+#define SRC_USR_NL_BUFFER_H_
 
-#include <stdio.h>
+#include <stddef.h> /* size_t */
+
+#include "jool_socket.h"
 
 struct nl_buffer;
 
-struct nl_buffer *nlbuffer_alloc(char *iname);
+struct nl_buffer *nlbuffer_alloc(struct jool_socket *sk, char *iname);
 void nlbuffer_destroy(struct nl_buffer *buffer);
 
-int nlbuffer_write(struct nl_buffer *buffer, void *payload, size_t payload_len);
-int nlbuffer_flush(struct nl_buffer *buffer);
+struct jool_result nlbuffer_write(struct nl_buffer *buffer,
+		void *payload, size_t payload_len);
+struct jool_result nlbuffer_flush(struct nl_buffer *buffer);
 
-#endif /* _JOOL_USR_NL_BUFFER_H */
+#endif /* SRC_USR_NL_BUFFER_H_ */

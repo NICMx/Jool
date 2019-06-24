@@ -6,6 +6,7 @@
 #include "mod/common/icmp_wrapper.h"
 #include "mod/common/ipv6_hdr_iterator.h"
 #include "mod/common/linux_version.h"
+#include "mod/common/log.h"
 #include "mod/common/rfc6052.h"
 #include "mod/common/stats.h"
 #include "mod/common/route.h"

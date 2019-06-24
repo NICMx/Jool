@@ -1,5 +1,5 @@
-#ifndef _JOOL_MOD_OUTGOING_H
-#define _JOOL_MOD_OUTGOING_H
+#ifndef SRC_MOD_NAT64_COMPUTE_OUTGOING_TUPLE_H_
+#define SRC_MOD_NAT64_COMPUTE_OUTGOING_TUPLE_H_
 
 /**
  * @file
@@ -12,4 +12,4 @@
 
 verdict compute_out_tuple(struct xlation *state);
 
-#endif /* _JOOL_MOD_OUTGOING_H */
+#endif /* SRC_MOD_NAT64_COMPUTE_OUTGOING_TUPLE_H_ */

@@ -1,5 +1,5 @@
-#ifndef _JOOL_MOD_RFC6145_COMMON_H
-#define _JOOL_MOD_RFC6145_COMMON_H
+#ifndef SRC_MOD_COMMON_RFC6145_COMMON_H_
+#define SRC_MOD_COMMON_RFC6145_COMMON_H_
 
 #include <linux/ip.h>
 #include "common/types.h"
@@ -77,4 +77,4 @@ verdict ttpcomm_translate_inner_packet(struct xlation *state);
 
 bool must_not_translate(struct in_addr *addr, struct net *ns);
 
-#endif /* _JOOL_MOD_TTP_COMMON_H */
+#endif /* SRC_MOD_COMMON_RFC6145_COMMON_H_ */

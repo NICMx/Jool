@@ -5,6 +5,7 @@
 #include <linux/netdevice.h>
 #include "common/constants.h"
 #include "mod/common/ipv6_hdr_iterator.h"
+#include "mod/common/log.h"
 #include "mod/common/xlator.h"
 
 static bool contains_addr(struct net *ns, const struct in_addr *addr)

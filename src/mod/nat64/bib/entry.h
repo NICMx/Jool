@@ -1,5 +1,5 @@
-#ifndef _JOOL_MOD_BIB_ENTRY_H
-#define _JOOL_MOD_BIB_ENTRY_H
+#ifndef SRC_MOD_NAT64_BIB_ENTRY_H_
+#define SRC_MOD_NAT64_BIB_ENTRY_H_
 
 #include "common/session.h"
 #include "common/types.h"
@@ -96,4 +96,4 @@ struct bib_session {
 bool session_equals(const struct session_entry *s1,
 		const struct session_entry *s2);
 
-#endif /* _JOOL_MOD_BIB_ENTRY_H */
+#endif /* SRC_MOD_NAT64_BIB_ENTRY_H_ */

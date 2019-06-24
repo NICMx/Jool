@@ -2,7 +2,7 @@
 # Process this file with autoconf to produce a configure script.
 
 AC_PREREQ([2.68])
-AC_INIT([Jool], [4.0.1], [jool@nic.mx])
+AC_INIT([Jool], [4.0.2], [jool@nic.mx])
 AC_CONFIG_SRCDIR([src/common/xlat.h])
 AM_INIT_AUTOMAKE([subdir-objects])
 
@@ -53,9 +53,18 @@ AC_SUBST([BASH_COMPLETION_DIR])
 AM_CONDITIONAL([ENABLE_BASH_COMPLETION],
 	[test "x$with_bash_completion_dir" != "xno"])
 
+# Needed by libtool. (Othewise autoreconf complains.)
+LT_INIT
+# Needed by libtoolize. (Othewise autoreconf complains.)
+AC_CONFIG_MACRO_DIRS([m4])
+
 # Spit out the makefiles.
 AC_OUTPUT(Makefile
+	src/common/Makefile
 	src/usr/Makefile
+	src/usr/util/Makefile
+	src/usr/nl/Makefile
+	src/usr/argp/Makefile
 	src/usr/siit/Makefile
 	src/usr/nat64/Makefile
 	src/usr/joold/Makefile)

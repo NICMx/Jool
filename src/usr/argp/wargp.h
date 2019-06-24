@@ -1,5 +1,5 @@
-#ifndef SRC_USERSPACE_CLIENT_WARGP_H_
-#define SRC_USERSPACE_CLIENT_WARGP_H_
+#ifndef SRC_USR_ARGP_WARGP_H_
+#define SRC_USR_ARGP_WARGP_H_
 
 #include <argp.h>
 #include <stdbool.h>
@@ -137,4 +137,4 @@ struct wargp_prefix4 {
 int wargp_parse(struct wargp_option *wopts, int argc, char **argv, void *input);
 void print_wargp_opts(struct wargp_option *opts);
 
-#endif /* SRC_USERSPACE_CLIENT_WARGP_H_ */
+#endif /* SRC_USR_ARGP_WARGP_H_ */

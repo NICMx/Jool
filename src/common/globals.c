@@ -1,18 +1,19 @@
-#include "common/common-global.h"
+#include "common/constants.h"
+#include "globals.h"
 
-#include "constants.h"
 #ifdef __KERNEL__
-#include "mod/common/common-global.h"
+#define GTYPE_FN(printer, parser, validator) .validate = validator
+#define GLOBAL_FN(validator, printer) .validate = validator
 #else
-#include "usr/common/common-global.h"
+#define GTYPE_FN(printer, parser, validator) .print = printer, .parse = parser
+#define GLOBAL_FN(validator, printer) .print = printer
 #endif
 
 static struct global_type gt_bool = {
 	.id = GTI_BOOL,
 	.name = "Boolean",
 	.size = sizeof(config_bool),
-	.print = print_bool,
-	.parse = parse_bool,
+	GTYPE_FN(print_bool, parse_bool, NULL),
 	.candidates = "true false",
 };
 
@@ -20,63 +21,49 @@ static struct global_type gt_uint8 = {
 	.id = GTI_NUM8,
 	.name = "8-bit unsigned integer",
 	.size = sizeof(__u8),
-	.print = print_u8,
-	.parse = parse_u8,
-	.validate = validate_u8,
+	GTYPE_FN(print_u8, parse_u8, validate_u8),
 };
 
 static struct global_type gt_uint32 = {
 	.id = GTI_NUM32,
 	.name = "32-bit unsigned integer",
 	.size = sizeof(__u32),
-	.print = print_u32,
-	.parse = parse_u32,
-	.validate = validate_u32,
+	GTYPE_FN(print_u32, parse_u32, validate_u32),
 };
 
 static struct global_type gt_timeout = {
 	.id = GTI_TIMEOUT,
 	.name = "[HH:[MM:]]SS[.mmm]",
 	.size = sizeof(__u32),
-	.print = print_timeout,
-	.parse = parse_timeout,
-	.validate = validate_u32,
+	GTYPE_FN(print_timeout, parse_timeout, validate_u32),
 };
 
 static struct global_type gt_plateaus = {
 	.id = GTI_PLATEAUS,
 	.name = "List of 16-bit unsigned integers separated by commas",
 	.size = sizeof(struct mtu_plateaus),
-	.print = print_plateaus,
-	.parse = parse_plateaus,
-	.validate = validate_plateaus,
+	GTYPE_FN(print_plateaus, parse_plateaus, validate_plateaus),
 };
 
 static struct global_type gt_prefix6 = {
 	.id = GTI_PREFIX6,
 	.name = "IPv6 prefix",
 	.size = sizeof(struct config_prefix6),
-	.print = print_prefix6,
-	.parse = parse_prefix6,
-	.validate = validate_prefix6,
+	GTYPE_FN(print_prefix6, parse_prefix6, validate_prefix6),
 };
 
 static struct global_type gt_prefix4 = {
 	.id = GTI_PREFIX4,
 	.name = "IPv4 prefix",
 	.size = sizeof(struct config_prefix4),
-	.print = print_prefix4,
-	.parse = parse_prefix4,
-	.validate = validate_prefix4,
+	GTYPE_FN(print_prefix4, parse_prefix4, validate_prefix4),
 };
 
 static struct global_type gt_hairpin_mode = {
 	.id = GTI_HAIRPIN_MODE,
 	.name = "Hairpinning Mode",
 	.size = sizeof(__u8),
-	.print = print_hairpin_mode,
-	.parse = parse_hairpin_mode,
-	.validate = validate_hairpin_mode,
+	GTYPE_FN(print_hairpin_mode, parse_hairpin_mode, validate_hairpin_mode),
 	.candidates = "off simple intrinsic",
 };
 
@@ -94,7 +81,7 @@ static struct global_field global_fields[] = {
 		.doc = "The IPv6 Address Pool prefix.",
 		.offset = offsetof(struct globals, pool6),
 		.xt = XT_BOTH,
-		.validate = validate_pool6,
+		GLOBAL_FN(validate_pool6, NULL),
 		.candidates = WELL_KNOWN_PREFIX,
 	}, {
 		.name = "zeroize-traffic-class",
@@ -156,7 +143,7 @@ static struct global_field global_fields[] = {
 		.doc = "IPv4 prefix to generate RFC6791 addresses from.",
 		.offset = offsetof(struct globals, siit.rfc6791_prefix4),
 		.xt = XT_SIIT,
-		.validate = validate_prefix6791v4,
+		GLOBAL_FN(validate_prefix6791v4, NULL),
 	}, {
 		.name = "address-dependent-filtering",
 		.type = &gt_bool,
@@ -234,7 +221,7 @@ static struct global_field global_fields[] = {
 		.xt = XT_NAT64,
 		.min = 0,
 		.max = 0b1111,
-		.print = print_fargs,
+		GLOBAL_FN(NULL, print_fargs),
 	}, {
 		.name = "handle-rst-during-fin-rcv",
 		.type = &gt_bool,

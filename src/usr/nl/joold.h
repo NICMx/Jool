@@ -1,7 +1,9 @@
-#ifndef _JOOL_USR_TARGET_JOOLD_H
-#define _JOOL_USR_TARGET_JOOLD_H
+#ifndef SRC_USR_NL_JOOLD_H_
+#define SRC_USR_NL_JOOLD_H_
 
-int joold_advertise(char *iname);
-int joold_test(char *iname);
+#include "jool_socket.h"
 
-#endif
+struct jool_result joold_advertise(struct jool_socket *sk, char *iname);
+struct jool_result joold_test(struct jool_socket *sk, char *iname);
+
+#endif /* SRC_USR_NL_JOOLD_H_ */

@@ -4,9 +4,9 @@
 #include <linux/ktime.h>
 
 #include "common/constants.h"
-#include "common/str_utils.h"
 #include "mod/common/icmp_wrapper.h"
 #include "mod/common/linux_version.h"
+#include "mod/common/log.h"
 #include "mod/common/rbtree.h"
 #include "mod/common/route.h"
 #include "mod/common/wkmalloc.h"

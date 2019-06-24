@@ -1,5 +1,5 @@
-#ifndef _JOOL_MOD_FILTERING_H
-#define _JOOL_MOD_FILTERING_H
+#ifndef SRC_MOD_NAT64_FILTERING_AND_UPDATING_H_
+#define SRC_MOD_NAT64_FILTERING_AND_UPDATING_H_
 
 /**
  * @file
@@ -13,4 +13,4 @@
 verdict filtering_and_updating(struct xlation *state);
 enum session_fate tcp_est_expire_cb(struct session_entry *session, void *arg);
 
-#endif /* _JOOL_MOD_FILTERING_H */
+#endif /* SRC_MOD_NAT64_FILTERING_AND_UPDATING_H_ */

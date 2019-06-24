@@ -20,8 +20,8 @@
  * THE SOFTWARE.
  */
 
-#ifndef cJSON__h
-#define cJSON__h
+#ifndef SRC_USR_UTIL_CJSON_H_
+#define SRC_USR_UTIL_CJSON_H_
 
 /* cJSON Types: */
 #define cJSON_False 0
@@ -101,4 +101,4 @@ const char *cJSON_GetErrorPtr(void);
 cJSON *cJSON_ParseWithOpts(const char *value,
 		const char **return_parse_end, int require_null_terminated);
 
-#endif
+#endif /* SRC_USR_UTIL_CJSON_H_ */

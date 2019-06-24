@@ -1,15 +1,11 @@
 #include "global.h"
 
-#include <argp.h>
-#include <stdlib.h>
-#include <string.h>
-
-#include "common/common-global.h"
-#include "usr/common/command.h"
-#include "usr/common/netlink.h"
-#include "usr/common/userspace-types.h"
-#include "usr/common/wargp.h"
-#include "usr/common/nl/global.h"
+#include "command.h"
+#include "log.h"
+#include "userspace-types.h"
+#include "wargp.h"
+#include "usr/nl/global.h"
+#include "usr/nl/jool_socket.h"
 
 struct display_args {
 	struct wargp_bool no_headers;
@@ -53,22 +49,26 @@ static int handle_display_response(struct display_args *qargs,
 int handle_global_display(char *iname, int argc, char **argv, void *arg)
 {
 	struct display_args dargs = { 0 };
+	struct jool_socket sk;
 	struct globals config;
-	int error;
+	struct jool_result result;
 
-	error = wargp_parse(display_opts, argc, argv, &dargs);
-	if (error)
-		return error;
+	result.error = wargp_parse(display_opts, argc, argv, &dargs);
+	if (result.error)
+		return result.error;
 
-	error = netlink_setup();
-	if (error)
-		return error;
+	result = netlink_setup(&sk);
+	if (result.error)
+		return log_result(&result);
 
-	error = global_query(iname, &config);
+	result = global_query(&sk, iname, &config);
 
-	netlink_teardown();
+	netlink_teardown(&sk);
 
-	return error ? : handle_display_response(&dargs, &config);
+	if (result.error)
+		return log_result(&result);
+
+	return handle_display_response(&dargs, &config);
 }
 
 void autocomplete_global_display(void *args)
@@ -98,11 +98,12 @@ static int handle_global_update(char *iname, int argc, char **argv, void *arg)
 	struct update_args uargs = { 0 };
 	struct global_field *field = arg;
 	void *value;
-	int error;
+	struct jool_socket sk;
+	struct jool_result result;
 
-	error = wargp_parse(update_opts, argc, argv, &uargs);
-	if (error)
-		return error;
+	result.error = wargp_parse(update_opts, argc, argv, &uargs);
+	if (result.error)
+		return result.error;
 
 	if (!uargs.global_str.value) {
 		log_err("Missing value of key %s.", argv[0]);
@@ -113,20 +114,20 @@ static int handle_global_update(char *iname, int argc, char **argv, void *arg)
 	if (!value)
 		return -ENOMEM;
 
-	error = field->type->parse(field, uargs.global_str.value, value);
-	if (error)
+	result = field->type->parse(field, uargs.global_str.value, value);
+	if (result.error)
 		goto end;
 
-	error = netlink_setup();
-	if (error)
+	result = netlink_setup(&sk);
+	if (result.error)
 		goto end;
-	error = global_update(iname, field, value, uargs.force.value);
-	netlink_teardown();
+	result = global_update(&sk, iname, field, value, uargs.force.value);
+	netlink_teardown(&sk);
 	/* Fall through */
 
 end:
 	free(value);
-	return error;
+	return log_result(&result);
 }
 
 void autocomplete_global_update(void *arg)

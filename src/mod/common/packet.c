@@ -5,9 +5,9 @@
 #include <net/route.h>
 #include "common/types.h"
 #include "common/constants.h"
-#include "common/str_utils.h"
 #include "mod/common/config.h"
 #include "mod/common/icmp_wrapper.h"
+#include "mod/common/log.h"
 #include "mod/common/stats.h"
 #include "mod/common/translation_state.h"
 

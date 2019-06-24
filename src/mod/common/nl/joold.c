@@ -1,5 +1,6 @@
 #include "mod/common/nl/joold.h"
 
+#include "mod/common/log.h"
 #include "mod/common/nl/nl_common.h"
 #include "mod/common/nl/nl_core.h"
 #include "mod/nat64/joold.h"

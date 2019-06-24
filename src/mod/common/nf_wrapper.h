@@ -1,5 +1,5 @@
-#ifndef _JOOL_MOD_NF_WRAPPER_H
-#define _JOOL_MOD_NF_WRAPPER_H
+#ifndef SRC_MOD_COMMON_NF_WRAPPER_H_
+#define SRC_MOD_COMMON_NF_WRAPPER_H_
 
 /**
  * @file
@@ -74,4 +74,4 @@
 
 #endif /* RHEL or not RHEL */
 
-#endif /* _JOOL_MOD_NF_WRAPPER_H */
+#endif /* SRC_MOD_COMMON_NF_WRAPPER_H_ */

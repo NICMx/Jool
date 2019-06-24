@@ -1,5 +1,5 @@
-#ifndef _JOOL_MOD_RCU_H
-#define _JOOL_MOD_RCU_H
+#ifndef SRC_MOD_COMMON_RCU_H_
+#define SRC_MOD_COMMON_RCU_H_
 
 /**
  * @file
@@ -36,4 +36,4 @@
 #define synchronize_rcu_bh synchronize_rcu
 #endif
 
-#endif /* _JOOL_MOD_RCU_H */
+#endif /* SRC_MOD_COMMON_RCU_H_ */
