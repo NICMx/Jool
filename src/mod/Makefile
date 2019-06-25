@@ -13,4 +13,10 @@ install:
 	$(foreach dir, $(PROJECTS), $(MAKE) -C $(dir) modules_install;)
 	depmod
 
-.PHONY: $(PROJECTS) $(OTHER_TARGETS) install
+# This target is needed to generate the upstream tarball.
+# It's not a typical Kbuild target.
+distdir:
+	mkdir -p ${distdir}
+	cp -r * ${distdir}
+
+.PHONY: $(PROJECTS) $(OTHER_TARGETS) install dist

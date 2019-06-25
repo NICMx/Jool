@@ -111,3 +111,7 @@ autom4te.cache
 # DKMS version cache
 ######################
 dkms.package_version.conf
+
+# Developer playground
+######################
+tmp/
