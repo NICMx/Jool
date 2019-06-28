@@ -287,5 +287,4 @@ void netlink_teardown(struct jool_socket *socket)
 {
 	nl_close(socket->sk);
 	nl_socket_free(socket->sk);
-	free(socket);
 }
