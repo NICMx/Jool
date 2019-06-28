@@ -1,7 +1,6 @@
 #include <linux/module.h>
 #include "mod/common/packet.h"
 
-#include "common/str_utils.h"
 #include "mod/common/translation_state.h"
 #include "framework/unit_test.h"
 #include "framework/types.h"

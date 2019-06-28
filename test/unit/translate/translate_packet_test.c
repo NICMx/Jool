@@ -2,7 +2,6 @@
 #include <linux/printk.h>
 
 #include "framework/unit_test.h"
-#include "common/str_utils.h"
 #include "framework/skb_generator.h"
 #include "framework/types.h"
 #include "mod/common/rfc6145/core.c"

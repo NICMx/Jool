@@ -1,7 +1,6 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/sched.h>
-#include "common/str_utils.h"
 #include "mod/common/atomic_config.h"
 #include "mod/common/linux_version.h"
 #include "mod/common/xlator.h"

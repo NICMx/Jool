@@ -1,6 +1,6 @@
 #include "framework/skb_generator.h"
 #include "framework/types.h"
-#include "common/str_utils.h"
+#include "mod/common/log.h"
 
 #include <linux/if_ether.h>
 #include <linux/ipv6.h>

@@ -2,7 +2,6 @@
 
 #include <linux/kernel.h>
 #include <net/ipv6.h>
-#include "common/str_utils.h"
 
 bool __ASSERT_ADDR4(const struct in_addr *expected,
 		const struct in_addr *actual,

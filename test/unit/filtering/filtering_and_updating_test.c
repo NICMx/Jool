@@ -2,7 +2,6 @@
 #include <linux/kernel.h>
 
 #include "common/constants.h"
-#include "common/str_utils.h"
 #include "framework/types.h"
 #include "framework/unit_test.h"
 #include "framework/skb_generator.h"

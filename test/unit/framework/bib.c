@@ -1,5 +1,4 @@
 #include "framework/bib.h"
-#include "common/str_utils.h"
 
 int bib_inject(struct xlator *jool,
 		char *addr6, u16 port6, char *addr4, u16 port4,

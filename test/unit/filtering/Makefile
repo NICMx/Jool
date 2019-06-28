@@ -17,9 +17,9 @@ FILTERING = filtering
 obj-m += $(FILTERING).o
 
 $(FILTERING)-objs += $(MIN_REQS)
-$(FILTERING)-objs += ../../../src/common/netlink/config.o
-$(FILTERING)-objs += ../../../src/mod/common/common-global.o
+$(FILTERING)-objs += ../../../src/common/config.o
 $(FILTERING)-objs += ../../../src/mod/common/config.o
+$(FILTERING)-objs += ../../../src/mod/common/global-impl.o
 $(FILTERING)-objs += ../../../src/mod/common/packet.o
 $(FILTERING)-objs += ../../../src/mod/common/rbtree.o
 $(FILTERING)-objs += ../../../src/mod/common/rfc6052.o

@@ -3,7 +3,6 @@
 
 #include "framework/unit_test.h"
 #include "common/constants.h"
-#include "common/str_utils.h"
 #include "mod/nat64/bib/db.h"
 
 MODULE_LICENSE(JOOL_LICENSE);

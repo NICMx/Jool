@@ -1,5 +1,7 @@
 #include "mod/common/route.h"
+
 #include "common/types.h"
+#include "mod/common/log.h"
 
 struct dst_entry *__route4(struct route4_args *args, struct sk_buff *skb)
 {

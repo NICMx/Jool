@@ -5,7 +5,6 @@
 #include "framework/skb_generator.h"
 #include "framework/types.h"
 
-#include "common/str_utils.h"
 #include "mod/common/core.h"
 #include "mod/common/xlator.h"
 

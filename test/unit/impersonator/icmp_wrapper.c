@@ -1,5 +1,7 @@
 #include "mod/common/icmp_wrapper.h"
 
+#include "mod/common/log.h"
+
 /* The unit tests never spawn threads, so this does not need protection. */
 static int sent = 0;
 

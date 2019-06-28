@@ -1,6 +1,7 @@
 #ifndef _JOOL_UNIT_TEST_H
 #define _JOOL_UNIT_TEST_H
 
+#include "mod/common/log.h"
 #include "mod/common/types.h"
 #include "mod/nat64/bib/entry.h"
 

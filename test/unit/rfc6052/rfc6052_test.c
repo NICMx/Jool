@@ -4,7 +4,6 @@
 
 #include "framework/unit_test.h"
 #include "common/types.h"
-#include "common/str_utils.h"
 #include "mod/common/rfc6052.c"
 
 MODULE_LICENSE(JOOL_LICENSE);

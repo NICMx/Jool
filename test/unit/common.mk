@@ -11,9 +11,9 @@ ccflags-y := -I$(src)/../../../src
 ccflags-y += -I$(src)/..
 ccflags-y += $(JOOL_FLAGS)
 
-MIN_REQS = ../../../src/mod/common/types.o \
+MIN_REQS = ../../../src/common/types.o \
+	../../../src/mod/common/types.o \
 	../../../src/mod/common/address.o \
-	../framework/str_utils.o \
 	../framework/unit_test.o \
 	../impersonator/stats.o \
 	../impersonator/xlat.o

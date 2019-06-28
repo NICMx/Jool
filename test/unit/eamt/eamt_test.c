@@ -2,7 +2,6 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 
-#include "common/str_utils.h"
 #include "framework/types.h"
 #include "framework/unit_test.h"
 #include "mod/siit/eam.c"
