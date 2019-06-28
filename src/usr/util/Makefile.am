@@ -6,6 +6,5 @@ libjoolutil_la_SOURCES = \
 	result.c result.h \
 	str_utils.c str_utils.h
 
-libjoolutil_la_CFLAGS = -I${srcdir}/../../
-
-#libjoolutil_la_LDFLAGS = -Wall -O2
+libjoolutil_la_CFLAGS  = ${WARNINGCFLAGS}
+libjoolutil_la_CFLAGS += -I${srcdir}/../../

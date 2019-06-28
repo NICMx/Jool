@@ -4,9 +4,8 @@
 bin_PROGRAMS = jool_siit
 jool_siit_SOURCES = wrapper-xlat.c
 
-jool_siit_CFLAGS  = -Wall -O2
+jool_siit_CFLAGS  = ${WARNINGCFLAGS}
 jool_siit_CFLAGS += -I${srcdir}/../../
-jool_siit_CFLAGS += ${JOOL_FLAGS}
 
 jool_siit_LDADD = ${top_builddir}/src/usr/argp/libjoolargp.la
 

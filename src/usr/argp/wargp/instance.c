@@ -34,7 +34,7 @@ static int parse_iname(void *void_field, int key, char *str)
 
 	error = iname_validate(str, false);
 	if (error) {
-		log_err(INAME_VALIDATE_ERRMSG, INAME_MAX_LEN - 1);
+		pr_err(INAME_VALIDATE_ERRMSG, INAME_MAX_LEN - 1);
 		return error;
 	}
 
@@ -113,7 +113,7 @@ int handle_instance_display(char *iname, int argc, char **argv, void *arg)
 	struct jool_result result;
 
 	if (iname)
-		log_warn("instance display ignores -i.");
+		pr_warn("instance display ignores -i.");
 
 	result.error = wargp_parse(display_opts, argc, argv, &dargs);
 	if (result.error)
@@ -121,7 +121,7 @@ int handle_instance_display(char *iname, int argc, char **argv, void *arg)
 
 	result = netlink_setup(&sk);
 	if (result.error)
-		return log_result(&result);
+		return pr_result(&result);
 
 	if (!dargs.no_headers.value) {
 		if (dargs.csv.value) {
@@ -140,7 +140,7 @@ int handle_instance_display(char *iname, int argc, char **argv, void *arg)
 	netlink_teardown(&sk);
 
 	if (result.error)
-		return log_result(&result);
+		return pr_result(&result);
 
 	if (!dargs.csv.value)
 		print_table_divisor();
@@ -196,7 +196,7 @@ int handle_instance_add(char *iname, int argc, char **argv, void *arg)
 
 	/* Validate instance name */
 	if (iname && aargs.iname.set && !STR_EQUAL(iname, aargs.iname.value)) {
-		log_err("You entered two different instance names. Please delete one of them.");
+		pr_err("You entered two different instance names. Please delete one of them.");
 		return -EINVAL;
 	}
 	if (!iname && aargs.iname.set)
@@ -204,27 +204,27 @@ int handle_instance_add(char *iname, int argc, char **argv, void *arg)
 
 	/* Validate framework */
 	if (!aargs.netfilter.value && !aargs.iptables.value) {
-		log_err("Please specify instance framework. (--"
+		pr_err("Please specify instance framework. (--"
 				OPTNAME_NETFILTER " or --"
 				OPTNAME_IPTABLES ".)");
-		log_err("(The Jool 3.5 behavior was --" OPTNAME_NETFILTER ".)");
+		pr_err("(The Jool 3.5 behavior was --" OPTNAME_NETFILTER ".)");
 		return -EINVAL;
 	}
 	if (aargs.netfilter.value && aargs.iptables.value) {
-		log_err("The translator can only be hooked to one framework.");
+		pr_err("The translator can only be hooked to one framework.");
 		return -EINVAL;
 	}
 
 	result = netlink_setup(&sk);
 	if (result.error)
-		return log_result(&result);
+		return pr_result(&result);
 
 	result = instance_add(&sk,
 			aargs.netfilter.value ? FW_NETFILTER : FW_IPTABLES,
 			iname, aargs.pool6.set ? &aargs.pool6.prefix : NULL);
 
 	netlink_teardown(&sk);
-	return log_result(&result);
+	return pr_result(&result);
 }
 
 void autocomplete_instance_add(void *args)
@@ -252,7 +252,7 @@ int handle_instance_remove(char *iname, int argc, char **argv, void *arg)
 		return result.error;
 
 	if (iname && rargs.iname.set && !STR_EQUAL(iname, rargs.iname.value)) {
-		log_err("You entered two different instance names. Please delete one of them.");
+		pr_err("You entered two different instance names. Please delete one of them.");
 		return -EINVAL;
 	}
 	if (!iname && rargs.iname.set)
@@ -260,12 +260,12 @@ int handle_instance_remove(char *iname, int argc, char **argv, void *arg)
 
 	result = netlink_setup(&sk);
 	if (result.error)
-		return log_result(&result);
+		return pr_result(&result);
 
 	result = instance_rm(&sk, iname);
 
 	netlink_teardown(&sk);
-	return log_result(&result);
+	return pr_result(&result);
 }
 
 void autocomplete_instance_remove(void *args)
@@ -283,7 +283,7 @@ int handle_instance_flush(char *iname, int argc, char **argv, void *arg)
 	struct jool_result result;
 
 	if (iname)
-		log_warn("instance flush ignores -i.");
+		pr_warn("instance flush ignores -i.");
 
 	result.error = wargp_parse(flush_opts, argc, argv, NULL);
 	if (result.error)
@@ -291,12 +291,12 @@ int handle_instance_flush(char *iname, int argc, char **argv, void *arg)
 
 	result = netlink_setup(&sk);
 	if (result.error)
-		return log_result(&result);
+		return pr_result(&result);
 
 	result = instance_flush(&sk);
 
 	netlink_teardown(&sk);
-	return log_result(&result);
+	return pr_result(&result);
 }
 
 void autocomplete_instance_flush(void *args)

@@ -9,6 +9,14 @@ AM_INIT_AUTOMAKE([subdir-objects])
 # Checks for programs.
 AC_PROG_CC
 
+# Note: src/usr/iptables/Makefile does not depend on configure.ac.
+# If you need it to inherit more warnings, you will have to add them manually
+# for now.
+AS_IF([test "$GCC" = "yes"],
+	[WARNINGCFLAGS="-Wall -pedantic"],
+	[WARNINGCFLAGS=""])
+AC_SUBST([WARNINGCFLAGS])
+
 # It's been added because automake requires it, since automake 1.14 it is no longer required.
 AM_PROG_CC_C_O
 

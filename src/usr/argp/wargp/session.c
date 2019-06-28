@@ -110,7 +110,7 @@ int handle_session_display(char *iname, int argc, char **argv, void *arg)
 
 	result = netlink_setup(&sk);
 	if (result.error)
-		return log_result(&result);
+		return pr_result(&result);
 
 	if (!dargs.csv.value) {
 		printf("---------------------------------\n");
@@ -128,7 +128,7 @@ int handle_session_display(char *iname, int argc, char **argv, void *arg)
 
 	netlink_teardown(&sk);
 
-	return log_result(&result);
+	return pr_result(&result);
 }
 
 void autocomplete_session_display(void *args)

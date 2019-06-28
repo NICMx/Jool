@@ -18,7 +18,7 @@ static struct wargp_option display_opts[] = {
 	{ 0 },
 };
 
-#define get_field(config, field) ((void *)config + field->offset)
+#define get_field(config, field) ((unsigned char *)config + field->offset)
 
 static int handle_display_response(struct display_args *qargs,
 		struct globals *conf)
@@ -38,7 +38,7 @@ static int handle_display_response(struct display_args *qargs,
 		if (!qargs->csv.value)
 			printf("  ");
 		printf("%s%s", field->name, qargs->csv.value ? "," : ": ");
-		print = field->print ? : field->type->print;
+		print = field->print ? field->print : field->type->print;
 		print(get_field(conf, field), qargs->csv.value);
 		printf("\n");
 	}
@@ -59,14 +59,14 @@ int handle_global_display(char *iname, int argc, char **argv, void *arg)
 
 	result = netlink_setup(&sk);
 	if (result.error)
-		return log_result(&result);
+		return pr_result(&result);
 
 	result = global_query(&sk, iname, &config);
 
 	netlink_teardown(&sk);
 
 	if (result.error)
-		return log_result(&result);
+		return pr_result(&result);
 
 	return handle_display_response(&dargs, &config);
 }
@@ -106,7 +106,7 @@ static int handle_global_update(char *iname, int argc, char **argv, void *arg)
 		return result.error;
 
 	if (!uargs.global_str.value) {
-		log_err("Missing value of key %s.", argv[0]);
+		pr_err("Missing value of key %s.", argv[0]);
 		return -EINVAL;
 	}
 
@@ -127,7 +127,7 @@ static int handle_global_update(char *iname, int argc, char **argv, void *arg)
 
 end:
 	free(value);
-	return log_result(&result);
+	return pr_result(&result);
 }
 
 void autocomplete_global_update(void *arg)

@@ -66,7 +66,7 @@ int handle_stats_display(char *iname, int argc, char **argv, void *arg)
 
 	result = netlink_setup(&sk);
 	if (result.error)
-		return log_result(&result);
+		return pr_result(&result);
 
 	if (show_csv_header(dargs.no_headers.value, dargs.csv.value)) {
 		printf("Stat,Value");
@@ -78,7 +78,7 @@ int handle_stats_display(char *iname, int argc, char **argv, void *arg)
 	result = stats_foreach(&sk, iname, handle_jstat, &dargs);
 
 	netlink_teardown(&sk);
-	return log_result(&result);
+	return pr_result(&result);
 }
 
 void autocomplete_stats_display(void *args)

@@ -220,7 +220,7 @@ static struct global_field global_fields[] = {
 		.offset = offsetof(struct globals, nat64.f_args),
 		.xt = XT_NAT64,
 		.min = 0,
-		.max = 0b1111,
+		.max = 0x0Fu,
 		GLOBAL_FN(NULL, print_fargs),
 	}, {
 		.name = "handle-rst-during-fin-rcv",

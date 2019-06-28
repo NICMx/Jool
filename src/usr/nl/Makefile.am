@@ -18,12 +18,10 @@ libjoolnl_la_SOURCES = \
 	wrapper-globals.c \
 	wrapper-types.c
 
-libjoolnl_la_CFLAGS  = -Wall -O2
+libjoolnl_la_CFLAGS  = ${WARNINGCFLAGS}
 libjoolnl_la_CFLAGS += -I${srcdir}/../../
 libjoolnl_la_CFLAGS += ${LIBNLGENL3_CFLAGS}
-libjoolnl_la_CFLAGS += ${JOOL_FLAGS}
 
-#libjoolnl_la_LDFLAGS = -Wall -O2
 libjoolnl_la_LIBADD  = ${LIBNLGENL3_LIBS}
 libjoolnl_la_LIBADD += ${top_builddir}/src/usr/util/libjoolutil.la
 

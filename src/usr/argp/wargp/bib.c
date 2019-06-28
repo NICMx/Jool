@@ -67,7 +67,7 @@ int handle_bib_display(char *iname, int argc, char **argv, void *arg)
 
 	result = netlink_setup(&sk);
 	if (result.error)
-		return log_result(&result);
+		return pr_result(&result);
 
 	if (show_csv_header(dargs.no_headers.value, dargs.csv.value))
 		printf("Protocol,IPv6 Address,IPv6 L4-ID,IPv4 Address,IPv4 L4-ID,Static?\n");
@@ -76,7 +76,7 @@ int handle_bib_display(char *iname, int argc, char **argv, void *arg)
 			print_entry, &dargs);
 
 	netlink_teardown(&sk);
-	return log_result(&result);
+	return pr_result(&result);
 }
 
 void autocomplete_bib_display(void *args)
@@ -99,12 +99,12 @@ static int parse_taddr(void *void_field, int key, char *str)
 	if (strchr(str, ':')) {
 		field->addr6_set = true;
 		result = str_to_addr6_port(str, &field->addr6);
-		return log_result(&result);
+		return pr_result(&result);
 	}
 	if (strchr(str, '.')) {
 		field->addr4_set = true;
 		result = str_to_addr4_port(str, &field->addr4);
-		return log_result(&result);
+		return pr_result(&result);
 	}
 
 	return ARGP_ERR_UNKNOWN;
@@ -155,14 +155,14 @@ int handle_bib_add(char *iname, int argc, char **argv, void *arg)
 
 	result = netlink_setup(&sk);
 	if (result.error)
-		return log_result(&result);
+		return pr_result(&result);
 
 	result = bib_add(&sk, iname,
 			&aargs.taddrs.addr6, &aargs.taddrs.addr4,
 			aargs.proto.proto);
 
 	netlink_teardown(&sk);
-	return log_result(&result);
+	return pr_result(&result);
 }
 
 void autocomplete_bib_add(void *args)
@@ -210,7 +210,7 @@ int handle_bib_remove(char *iname, int argc, char **argv, void *arg)
 
 	result = netlink_setup(&sk);
 	if (result.error)
-		return log_result(&result);
+		return pr_result(&result);
 
 	result = bib_rm(&sk, iname,
 			rargs.taddrs.addr6_set ? &rargs.taddrs.addr6 : NULL,
@@ -218,7 +218,7 @@ int handle_bib_remove(char *iname, int argc, char **argv, void *arg)
 			rargs.proto.proto);
 
 	netlink_teardown(&sk);
-	return log_result(&result);
+	return pr_result(&result);
 }
 
 void autocomplete_bib_remove(void *args)

@@ -542,7 +542,7 @@ static int show_help(char *program_name)
 
 static int show_version(void)
 {
-	log_info(JOOL_VERSION_STR);
+	printf(JOOL_VERSION_STR "\n");
 	return 0;
 }
 
@@ -560,7 +560,7 @@ int main(int argc, char **argv)
 		return show_usage(argv[0]);
 	if (STR_EQUAL(argv[1], "-i")) {
 		if (argc == 2) {
-			log_err("-i requires a string as argument.");
+			pr_err("-i requires a string as argument.");
 			return -EINVAL;
 		}
 		iname = argv[2];

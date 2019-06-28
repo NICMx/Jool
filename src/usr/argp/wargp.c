@@ -57,7 +57,7 @@ struct wargp_type wt_prefix4 = {
 
 struct wargp_args {
 	struct wargp_option *opts;
-	void *input;
+	unsigned char *input;
 };
 
 int wargp_parse_bool(void *void_field, int key, char *str)
@@ -73,7 +73,7 @@ int wargp_parse_u32(void *field, int key, char *str)
 
 	result = str_to_u32(str, field, 0, MAX_U32);
 	if (result.error)
-		return log_result(&result);
+		return pr_result(&result);
 
 	return 0;
 }
@@ -83,7 +83,7 @@ int wargp_parse_l4proto(void *void_field, int key, char *str)
 	struct wargp_l4proto *field = void_field;
 
 	if (field->set) {
-		log_err("Only one protocol is allowed per request.");
+		pr_err("Only one protocol is allowed per request.");
 		return -EINVAL;
 	}
 
@@ -102,7 +102,7 @@ int wargp_parse_l4proto(void *void_field, int key, char *str)
 		return 0;
 	}
 
-	log_err("Unknown protocol key: %d", key);
+	pr_err("Unknown protocol key: %d", key);
 	return -EINVAL;
 }
 
@@ -121,7 +121,7 @@ int wargp_parse_prefix6(void *void_field, int key, char *str)
 	field->set = true;
 	result = str_to_prefix6(str, &field->prefix);
 	if (result.error)
-		return log_result(&result);
+		return pr_result(&result);
 
 	return 0;
 }
@@ -134,7 +134,7 @@ int wargp_parse_prefix4(void *void_field, int key, char *str)
 	field->set = true;
 	result = str_to_prefix4(str, &field->prefix);
 	if (result.error)
-		return log_result(&result);
+		return pr_result(&result);
 
 	return 0;
 }
@@ -160,7 +160,7 @@ static int adapt_options(struct argp *argp, struct wargp_option *wopts,
 
 	opts = calloc(total_opts + 1, sizeof(struct argp_option));
 	if (!opts) {
-		log_err("Out of memory.");
+		pr_err("Out of memory.");
 		return -ENOMEM;
 	}
 	argp->options = opts;
@@ -177,7 +177,7 @@ static int adapt_options(struct argp *argp, struct wargp_option *wopts,
 
 		} else {
 			if (argp->args_doc) {
-				log_err("Bug: Only one ARGP_KEY_ARG option is allowed per option list.");
+				pr_err("Bug: Only one ARGP_KEY_ARG option is allowed per option list.");
 				free(opts);
 				return -EINVAL;
 			}

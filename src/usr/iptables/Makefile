@@ -1,4 +1,7 @@
-CFLAGS = -O2 -Wall -I../.. $(shell pkg-config xtables --cflags)
+DEFAULT_CFLAGS  = -Wall -pedantic -O2
+DEFAULT_CFLAGS += -I../..
+DEFAULT_CFLAGS += $(shell pkg-config xtables --cflags)
+
 XTABLES_SO_DIR = $(shell pkg-config xtables --variable xtlibdir)
 
 all:
@@ -13,9 +16,9 @@ uninstall:
 lib%.so: lib%.o
 	gcc -shared -fPIC ${LDFLAGS} -o $@ $^;
 lib%.o: lib%.c
-	gcc ${CFLAGS} -D_INIT=lib$*_init -fPIC -c -o $@ $<;
+	gcc ${DEFAULT_CFLAGS} ${CFLAGS} -D_INIT=lib$*_init -fPIC -c -o $@ $<;
 clean distclean:
 	rm -f *.so
 distdir:
 	mkdir -p ${distdir}
-	cp * ${distdir}
+	cp *.c *.man Makefile ${distdir}

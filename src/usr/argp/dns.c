@@ -24,7 +24,7 @@ void print_addr6(struct ipv6_transport_addr *addr6, bool numeric,
 	err = getnameinfo((const struct sockaddr*) &sa6, sizeof(sa6),
 			hostname, sizeof(hostname), service, sizeof(service), 0);
 	if (err != 0) {
-		log_err("getnameinfo failed: %s", gai_strerror(err));
+		pr_err("getnameinfo failed: %s", gai_strerror(err));
 		goto print_numeric;
 	}
 
@@ -62,7 +62,7 @@ void print_addr4(struct ipv4_transport_addr *addr4, bool numeric,
 	err = getnameinfo((const struct sockaddr*) &sa, sizeof(sa),
 			hostname, sizeof(hostname), service, sizeof(service), 0);
 	if (err != 0) {
-		log_err("getnameinfo failed: %s", gai_strerror(err));
+		pr_err("getnameinfo failed: %s", gai_strerror(err));
 		goto print_numeric;
 	}
 

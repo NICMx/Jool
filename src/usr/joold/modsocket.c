@@ -2,6 +2,7 @@
 
 #include <errno.h>
 #include <string.h>
+#include <syslog.h>
 #include <netlink/genl/ctrl.h>
 #include <netlink/genl/genl.h>
 #include <sys/types.h>
@@ -25,7 +26,7 @@ static int validate_magic(struct request_hdr *hdr, char *sender)
 
 fail:
 	/* Well, the sender does not understand the protocol. */
-	log_err("The %s sent a message that lacks the Jool magic text.",
+	syslog(LOG_ERR, "The %s sent a message that lacks the Jool magic text.",
 			sender);
 	return -EINVAL;
 }
@@ -35,14 +36,14 @@ static int validate_stateness(struct request_hdr *hdr,
 {
 	switch (hdr->type) {
 	case 's':
-		log_err("The %s is SIIT but the %s is NAT64. Please match us correctly.",
+		syslog(LOG_ERR, "The %s is SIIT but the %s is NAT64. Please match us correctly.",
 				sender, receiver);
 		return -EINVAL;
 	case 'n':
 		return 0;
 	}
 
-	log_err("The %s sent a packet with an unknown stateness: '%c'",
+	syslog(LOG_ERR, "The %s sent a packet with an unknown stateness: '%c'",
 			sender, hdr->type);
 	return -EINVAL;
 }
@@ -55,7 +56,7 @@ static int validate_version(struct request_hdr *hdr,
 	if (xlat_version() == hdr_version)
 		return 0;
 
-	log_err("Version mismatch. The %s's version is %u.%u.%u.%u,\n"
+	syslog(LOG_ERR, "Version mismatch. The %s's version is %u.%u.%u.%u,\n"
 			"but the %s is %u.%u.%u.%u.\n"
 			"Please update the %s.",
 			sender,
@@ -73,7 +74,7 @@ int validate_request(void *data, size_t data_len, char *sender, char *receiver)
 	int error;
 
 	if (data_len < sizeof(struct request_hdr)) {
-		log_err("Message from the %s is smaller than Jool's header.",
+		syslog(LOG_ERR, "Message from the %s is smaller than Jool's header.",
 				sender);
 		return -EINVAL;
 	}
@@ -98,7 +99,7 @@ void modsocket_send(void *request, size_t request_len)
 
 	/* TODO (NOW) iname */
 	result = netlink_send(&jsocket, NULL, request, request_len);
-	log_result(&result);
+	pr_result(&result);
 }
 
 static void send_ack(void)
@@ -123,27 +124,27 @@ static int updated_entries_cb(struct nl_msg *msg, void *arg)
 	struct jool_response response;
 	struct jool_result result;
 
-	log_debug("Received a packet from kernelspace.");
+	syslog(LOG_DEBUG, "Received a packet from kernelspace.");
 
 	result.error = genlmsg_parse(nlmsg_hdr(msg), 0, attrs, __ATTR_MAX, NULL);
 	if (result.error) {
-		log_err("genlmsg_parse() failed: %s", nl_geterror(result.error));
+		syslog(LOG_ERR, "genlmsg_parse() failed: %s", nl_geterror(result.error));
 		return result.error;
 	}
 
 	if (!attrs[ATTR_DATA]) {
-		log_err("The request from kernelspace lacks a DATA attribute.");
+		syslog(LOG_ERR, "The request from kernelspace lacks a DATA attribute.");
 		return -EINVAL;
 	}
 
 	data = nla_data(attrs[ATTR_DATA]);
 	if (!data) {
-		log_err("The request from kernelspace is empty!");
+		syslog(LOG_ERR, "The request from kernelspace is empty!");
 		return -EINVAL;
 	}
 	data_size = nla_len(attrs[ATTR_DATA]);
 	if (!data_size) {
-		log_err("The request from kernelspace has zero bytes.");
+		syslog(LOG_ERR, "The request from kernelspace has zero bytes.");
 		return -EINVAL;
 	}
 
@@ -160,10 +161,11 @@ static int updated_entries_cb(struct nl_msg *msg, void *arg)
 		return 0;
 	case 'u':
 		result = netlink_parse_response(data, data_size, &response);
-		return log_result(&result);
+		return pr_result(&result);
 	}
 
-	log_err("Packet sent by the module has unknown castness: %c", castness);
+	syslog(LOG_ERR, "Packet sent by the module has unknown castness: %c",
+			castness);
 	return -EINVAL;
 }
 
@@ -174,26 +176,26 @@ int modsocket_setup(void)
 
 	result = netlink_setup(&jsocket);
 	if (result.error)
-		return log_result(&result);
+		return pr_result(&result);
 
 	result.error = nl_socket_modify_cb(jsocket.sk, NL_CB_VALID,
 			NL_CB_CUSTOM, updated_entries_cb, NULL);
 	if (result.error) {
-		log_err("Couldn't modify receiver socket's callbacks.");
+		syslog(LOG_ERR, "Couldn't modify receiver socket's callbacks.");
 		goto fail;
 	}
 
 	family_mc_grp = genl_ctrl_resolve_grp(jsocket.sk, GNL_JOOL_FAMILY_NAME,
 			GNL_JOOLD_MULTICAST_GRP_NAME);
 	if (family_mc_grp < 0) {
-		log_err("Unable to resolve the Netlink multicast group.");
+		syslog(LOG_ERR, "Unable to resolve the Netlink multicast group.");
 		result.error = family_mc_grp;
 		goto fail;
 	}
 
 	result.error = nl_socket_add_membership(jsocket.sk, family_mc_grp);
 	if (result.error) {
-		log_err("Can't register to the Netlink multicast group.");
+		syslog(LOG_ERR, "Can't register to the Netlink multicast group.");
 		goto fail;
 	}
 
@@ -201,7 +203,7 @@ int modsocket_setup(void)
 
 fail:
 	netlink_teardown(&jsocket);
-	log_err("Netlink error message: %s", nl_geterror(result.error));
+	syslog(LOG_ERR, "Netlink error message: %s", nl_geterror(result.error));
 	return result.error;
 }
 
@@ -217,7 +219,7 @@ void *modsocket_listen(void *arg)
 	do {
 		error = nl_recvmsgs_default(jsocket.sk);
 		if (error < 0) {
-			log_err("Error receiving packet from kernelspace: %s",
+			syslog(LOG_ERR, "Error receiving packet from kernelspace: %s",
 					nl_geterror(error));
 		}
 	} while (true);

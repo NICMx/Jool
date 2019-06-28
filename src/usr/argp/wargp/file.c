@@ -45,13 +45,13 @@ int handle_file_update(char *iname, int argc, char **argv, void *arg)
 
 	result = netlink_setup(&sk);
 	if (result.error)
-		return log_result(&result);
+		return pr_result(&result);
 
 	result = parse_file(&sk, iname, uargs.file_name.value,
 			uargs.force.value);
 
 	netlink_teardown(&sk);
-	return log_result(&result);
+	return pr_result(&result);
 }
 
 void autocomplete_file_update(void *args)

@@ -1,22 +1,17 @@
 #ifndef SRC_USR_JOOLD_LOG_H_
 #define SRC_USR_JOOLD_LOG_H_
 
-#include <syslog.h>
 #include "usr/util/result.h"
 
-#define log_debug(text, ...) syslog(LOG_DEBUG, text, ##__VA_ARGS__)
-#define log_info(text, ...) syslog(LOG_INFO, text, ##__VA_ARGS__)
-#define log_err(text, ...) syslog(LOG_ERR, text, ##__VA_ARGS__)
-int log_result(struct jool_result *result);
+int pr_result(struct jool_result *result);
 
 /**
- * perror() writes into stderror. joold doesn't want that so here's the
- * replacement.
+ * Prints @prefix, then a colon, then @error's standard error message, then a
+ * newline.
  *
- * This also thread safe.
- *
- * ** perror() should not be used anywhere in this project! **
+ * Replaces perror(). (Because perror print into standard error.)
+ * perror() should not be used anywhere in joold!
  */
-void log_perror(char *prefix, int error);
+void pr_perror(char *prefix, int error);
 
 #endif /* SRC_USR_JOOLD_LOG_H_ */

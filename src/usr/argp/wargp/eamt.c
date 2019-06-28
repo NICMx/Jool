@@ -58,7 +58,7 @@ int handle_eamt_display(char *iname, int argc, char **argv, void *arg)
 
 	result = netlink_setup(&sk);
 	if (result.error)
-		return log_result(&result);
+		return pr_result(&result);
 
 	if (!dargs.no_headers.value) {
 		char *th1 = "IPv6 Prefix";
@@ -77,7 +77,7 @@ int handle_eamt_display(char *iname, int argc, char **argv, void *arg)
 	netlink_teardown(&sk);
 
 	if (result.error)
-		return log_result(&result);
+		return pr_result(&result);
 
 	if (!dargs.csv.value)
 		print_separator();
@@ -108,12 +108,12 @@ static int parse_eamt_column(void *void_field, int key, char *str)
 	if (strchr(str, ':')) {
 		field->prefix6_set = true;
 		result = str_to_prefix6(str, &field->value.prefix6);
-		return log_result(&result);
+		return pr_result(&result);
 	}
 	if (strchr(str, '.')) {
 		field->prefix4_set = true;
 		result = str_to_prefix4(str, &field->value.prefix4);
-		return log_result(&result);
+		return pr_result(&result);
 	}
 
 	return ARGP_ERR_UNKNOWN;
@@ -157,7 +157,7 @@ int handle_eamt_add(char *iname, int argc, char **argv, void *arg)
 
 	result = netlink_setup(&sk);
 	if (result.error)
-		return log_result(&result);
+		return pr_result(&result);
 
 	result = eamt_add(&sk, iname,
 			&aargs.entry.value.prefix6,
@@ -165,7 +165,7 @@ int handle_eamt_add(char *iname, int argc, char **argv, void *arg)
 			aargs.force);
 
 	netlink_teardown(&sk);
-	return log_result(&result);
+	return pr_result(&result);
 }
 
 void autocomplete_eamt_add(void *args)
@@ -208,14 +208,14 @@ int handle_eamt_remove(char *iname, int argc, char **argv, void *arg)
 
 	result = netlink_setup(&sk);
 	if (result.error)
-		return log_result(&result);
+		return pr_result(&result);
 
 	result = eamt_rm(&sk, iname,
 			rargs.entry.prefix6_set ? &rargs.entry.value.prefix6 : NULL,
 			rargs.entry.prefix4_set ? &rargs.entry.value.prefix4 : NULL);
 
 	netlink_teardown(&sk);
-	return log_result(&result);
+	return pr_result(&result);
 }
 
 void autocomplete_eamt_remove(void *args)
@@ -238,12 +238,12 @@ int handle_eamt_flush(char *iname, int argc, char **argv, void *arg)
 
 	result = netlink_setup(&sk);
 	if (result.error)
-		return log_result(&result);
+		return pr_result(&result);
 
 	result = eamt_flush(&sk, iname);
 
 	netlink_teardown(&sk);
-	return log_result(&result);
+	return pr_result(&result);
 }
 
 void autocomplete_eamt_flush(void *args)
@@ -271,12 +271,12 @@ static int parse_eamt_addr(void *void_field, int key, char *str)
 	if (strchr(str, ':')) {
 		field->proto = 6;
 		result = str_to_addr6(str, &field->addr.v6);
-		return log_result(&result);
+		return pr_result(&result);
 	}
 	if (strchr(str, '.')) {
 		field->proto = 4;
 		result = str_to_addr4(str, &field->addr.v4);
-		return log_result(&result);
+		return pr_result(&result);
 	}
 
 	return ARGP_ERR_UNKNOWN;
@@ -323,7 +323,7 @@ int handle_eamt_query(char *iname, int argc, char **argv, void *arg)
 
 	result = netlink_setup(&sk);
 	if (result.error)
-		return log_result(&result);
+		return pr_result(&result);
 
 	switch (qargs.addr.proto) {
 	case 6:
@@ -348,7 +348,7 @@ int handle_eamt_query(char *iname, int argc, char **argv, void *arg)
 	}
 
 	netlink_teardown(&sk);
-	return log_result(&result);
+	return pr_result(&result);
 }
 
 void autocomplete_eamt_query(void *args)

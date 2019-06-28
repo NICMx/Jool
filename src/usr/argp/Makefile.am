@@ -19,9 +19,8 @@ libjoolargp_la_SOURCES = \
 	wargp/session.c wargp/session.h \
 	wargp/stats.c wargp/stats.h
 
-libjoolargp_la_CFLAGS  = -Wall -O2
+libjoolargp_la_CFLAGS  = ${WARNINGCFLAGS}
 libjoolargp_la_CFLAGS += -I${srcdir}/../../
 libjoolargp_la_CFLAGS += ${LIBNLGENL3_CFLAGS}
-libjoolargp_la_CFLAGS += ${JOOL_FLAGS}
 
 libjoolargp_la_LIBADD = ${top_builddir}/src/usr/nl/libjoolnl.la

@@ -208,7 +208,6 @@ struct jool_result str_to_timeout(const char *str, __u32 *out, __u32 min, __u32 
 	unsigned long long int seconds = 0;
 	unsigned long long int milliseconds;
 	char *tail;
-	int error;
 
 	errno = 0;
 	seconds = strtoull(str, &tail, 10);
@@ -253,7 +252,7 @@ struct jool_result str_to_timeout(const char *str, __u32 *out, __u32 min, __u32 
 parse_failure:
 	return result_from_error(
 		errno,
-		"Parsing of '%s' threw error code %d.", str, error
+		"Parsing of '%s' threw error code %d.", str, errno
 	);
 
 msec_length:
@@ -386,7 +385,6 @@ struct jool_result str_to_addr4_port(const char *str,
 	/* strtok corrupts the string, so we'll be using this copy instead. */
 	char str_copy[STR_MAX_LEN];
 	char *token;
-	int error;
 	struct jool_result result;
 
 	if (strlen(str) + 1 > STR_MAX_LEN) {
@@ -430,7 +428,6 @@ struct jool_result str_to_addr6_port(const char *str,
 	/* strtok corrupts the string, so we'll be using this copy instead. */
 	char str_copy[STR_MAX_LEN];
 	char *token;
-	int error;
 	struct jool_result result;
 
 	if (strlen(str) + 1 > STR_MAX_LEN) {
@@ -474,7 +471,6 @@ struct jool_result str_to_prefix4(const char *str,
 	/* strtok corrupts the string, so we'll be using this copy instead. */
 	char str_copy[STR_MAX_LEN];
 	char *token;
-	int error;
 	struct jool_result result;
 
 	if (strlen(str) + 1 > STR_MAX_LEN) {
@@ -515,7 +511,6 @@ struct jool_result str_to_prefix6(const char *str,
 	/* strtok corrupts the string, so we'll be using this copy instead. */
 	char str_copy[STR_MAX_LEN];
 	char *token;
-	int error;
 	struct jool_result result;
 
 	if (strlen(str) + 1 > STR_MAX_LEN) {

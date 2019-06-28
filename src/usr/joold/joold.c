@@ -47,12 +47,12 @@ int main(int argc, char **argv)
 
 	error = pthread_create(&mod2net_thread, NULL, modsocket_listen, NULL);
 	if (error) {
-		log_perror("Module-to-network thread initialization", error);
+		pr_perror("Module-to-network thread initialization", error);
 		goto clean;
 	}
 	error = pthread_create(&net2mod_thread, NULL, netsocket_listen, NULL);
 	if (error) {
-		log_perror("Network-to-module thread initialization", error);
+		pr_perror("Network-to-module thread initialization", error);
 		cancel_thread(mod2net_thread);
 		goto clean;
 	}

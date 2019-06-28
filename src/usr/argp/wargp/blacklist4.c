@@ -49,7 +49,7 @@ int handle_blacklist4_display(char *iname, int argc, char **argv, void *arg)
 
 	result = netlink_setup(&sk);
 	if (result.error)
-		return log_result(&result);
+		return pr_result(&result);
 
 	if (!dargs.no_headers.value) {
 		char *th1 = "IPv4 Prefix";
@@ -67,7 +67,7 @@ int handle_blacklist4_display(char *iname, int argc, char **argv, void *arg)
 	netlink_teardown(&sk);
 
 	if (result.error)
-		return log_result(&result);
+		return pr_result(&result);
 
 	if (!dargs.csv.value)
 		print_separator();
@@ -116,12 +116,12 @@ int handle_blacklist4_add(char *iname, int argc, char **argv, void *arg)
 
 	result = netlink_setup(&sk);
 	if (result.error)
-		return log_result(&result);
+		return pr_result(&result);
 
 	result = blacklist4_add(&sk, iname, &aargs.prefix.prefix, aargs.force);
 
 	netlink_teardown(&sk);
-	return log_result(&result);
+	return pr_result(&result);
 }
 
 void autocomplete_blacklist4_add(void *args)
@@ -164,12 +164,12 @@ int handle_blacklist4_remove(char *iname, int argc, char **argv, void *arg)
 
 	result = netlink_setup(&sk);
 	if (result.error)
-		return log_result(&result);
+		return pr_result(&result);
 
 	result = blacklist4_rm(&sk, iname, &rargs.prefix.prefix);
 
 	netlink_teardown(&sk);
-	return log_result(&result);
+	return pr_result(&result);
 }
 
 void autocomplete_blacklist4_remove(void *args)
@@ -188,12 +188,12 @@ int handle_blacklist4_flush(char *iname, int argc, char **argv, void *arg)
 
 	result = netlink_setup(&sk);
 	if (result.error)
-		return log_result(&result);
+		return pr_result(&result);
 
 	result = blacklist4_flush(&sk, iname);
 
 	netlink_teardown(&sk);
-	return log_result(&result);
+	return pr_result(&result);
 }
 
 void autocomplete_blacklist4_flush(void *args)

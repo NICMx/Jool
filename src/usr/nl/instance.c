@@ -92,7 +92,7 @@ struct jool_result instance_add(struct jool_socket *sk, jframework fw,
 
 	init_request_hdr(hdr, MODE_INSTANCE, OP_ADD, false);
 	payload->add.fw = fw;
-	strcpy(payload->add.iname, iname ? : INAME_DEFAULT);
+	strcpy(payload->add.iname, iname ? iname : INAME_DEFAULT);
 	if (pool6) {
 		payload->add.pool6.set = true;
 		payload->add.pool6.prefix = *pool6;
@@ -123,7 +123,7 @@ struct jool_result instance_rm(struct jool_socket *sk, char *iname)
 	}
 
 	init_request_hdr(hdr, MODE_INSTANCE, OP_REMOVE, false);
-	strcpy(payload->rm.iname, iname ? : INAME_DEFAULT);
+	strcpy(payload->rm.iname, iname ? iname : INAME_DEFAULT);
 
 	return netlink_request(sk, NULL, request, sizeof(request), NULL, NULL);
 }

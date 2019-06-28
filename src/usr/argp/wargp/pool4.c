@@ -127,7 +127,7 @@ int handle_pool4_display(char *iname, int argc, char **argv, void *arg)
 
 	result = netlink_setup(&sk);
 	if (result.error)
-		return log_result(&result);
+		return pr_result(&result);
 
 	if (!dargs.no_headers.value) {
 		if (dargs.csv.value)
@@ -146,7 +146,7 @@ int handle_pool4_display(char *iname, int argc, char **argv, void *arg)
 	netlink_teardown(&sk);
 
 	if (result.error)
-		return log_result(&result);
+		return pr_result(&result);
 
 	if (!dargs.csv.value)
 		print_separator();
@@ -187,7 +187,7 @@ static int parse_max_iterations(void *void_field, int key, char *str)
 	}
 
 	result = str_to_u32(str, &meat->iterations, 0, MAX_U32);
-	return log_result(&result);
+	return pr_result(&result);
 }
 
 struct wargp_type wt_max_iterations = {
@@ -204,13 +204,13 @@ static int parse_pool4_entry(void *void_field, int key, char *str)
 	if (strchr(str, '.')) { /* Token is an IPv4 thingy. */
 		field->entry.prefix4_set = true;
 		result = str_to_prefix4(str, &field->entry.meat.range.prefix);
-		return log_result(&result);
+		return pr_result(&result);
 	}
 
 	/* Token is a port range. */
 	field->entry.range_set = true;
 	result = str_to_port_range(str, &field->entry.meat.range.ports);
-	return log_result(&result);
+	return pr_result(&result);
 }
 
 struct wargp_type wt_pool4_entry = {
@@ -270,8 +270,8 @@ int handle_pool4_add(char *iname, int argc, char **argv, void *arg)
 	}
 
 	if (aargs.entry.meat.range.prefix.len < 24 && !aargs.force) {
-		log_err("Warning: You're adding lots of addresses, which might defeat the whole point of NAT64 over SIIT.");
-		log_err("Will cancel the operation. Use --force to override this.");
+		pr_err("Warning: You're adding lots of addresses, which might defeat the whole point of NAT64 over SIIT.");
+		pr_err("Will cancel the operation. Use --force to override this.");
 		return -E2BIG;
 	}
 
@@ -279,12 +279,12 @@ int handle_pool4_add(char *iname, int argc, char **argv, void *arg)
 
 	result = netlink_setup(&sk);
 	if (result.error)
-		return log_result(&result);
+		return pr_result(&result);
 
 	result = pool4_add(&sk, iname, &aargs.entry.meat);
 
 	netlink_teardown(&sk);
-	return log_result(&result);
+	return pr_result(&result);
 }
 
 void autocomplete_pool4_add(void *args)
@@ -349,12 +349,12 @@ int handle_pool4_remove(char *iname, int argc, char **argv, void *arg)
 
 	result = netlink_setup(&sk);
 	if (result.error)
-		return log_result(&result);
+		return pr_result(&result);
 
 	result = pool4_rm(&sk, iname, &rargs.entry.meat, rargs.quick);
 
 	netlink_teardown(&sk);
-	return log_result(&result);
+	return pr_result(&result);
 }
 
 void autocomplete_pool4_remove(void *args)
@@ -389,12 +389,12 @@ int handle_pool4_flush(char *iname, int argc, char **argv, void *arg)
 
 	result = netlink_setup(&sk);
 	if (result.error)
-		return log_result(&result);
+		return pr_result(&result);
 
 	result = pool4_flush(&sk, iname, fargs.quick);
 
 	netlink_teardown(&sk);
-	return log_result(&result);
+	return pr_result(&result);
 }
 
 void autocomplete_pool4_flush(void *args)

@@ -4,9 +4,8 @@
 bin_PROGRAMS = jool
 jool_SOURCES = wrapper-xlat.c
 
-jool_CFLAGS  = -Wall -O2
+jool_CFLAGS  = ${WARNINGCFLAGS}
 jool_CFLAGS += -I${srcdir}/../../
-jool_CFLAGS += ${JOOL_FLAGS}
 
 jool_LDADD = ${top_builddir}/src/usr/argp/libjoolargp.la
 
