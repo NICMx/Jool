@@ -23,4 +23,5 @@ libjoolargp_la_CFLAGS  = ${WARNINGCFLAGS}
 libjoolargp_la_CFLAGS += -I${srcdir}/../../
 libjoolargp_la_CFLAGS += ${LIBNLGENL3_CFLAGS}
 
-libjoolargp_la_LIBADD = ${top_builddir}/src/usr/nl/libjoolnl.la
+libjoolargp_la_LIBADD  = ${top_builddir}/src/usr/util/libjoolutil.la
+libjoolargp_la_LIBADD += ${top_builddir}/src/usr/nl/libjoolnl.la

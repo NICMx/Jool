@@ -61,8 +61,8 @@ int handle_eamt_display(char *iname, int argc, char **argv, void *arg)
 		return pr_result(&result);
 
 	if (!dargs.no_headers.value) {
-		char *th1 = "IPv6 Prefix";
-		char *th2 = "IPv4 Prefix";
+		static char const *const th1 = "IPv6 Prefix";
+		static char const *const th2 = "IPv4 Prefix";
 		if (dargs.csv.value)
 			printf("%s,%s\n", th1, th2);
 		else {

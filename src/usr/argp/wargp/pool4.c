@@ -23,6 +23,8 @@ struct display_args {
 		__u32 mark;
 		__u8 proto;
 	} last;
+
+	unsigned int count;
 };
 
 static struct wargp_option display_opts[] = {
@@ -112,6 +114,7 @@ static struct jool_result handle_display_response(struct pool4_sample *sample,
 	else
 		display_sample_normal(sample, args);
 
+	dargs->count++;
 	return result_success();
 }
 
@@ -140,6 +143,7 @@ int handle_pool4_display(char *iname, int argc, char **argv, void *arg)
 		}
 	}
 
+	dargs.count = 0;
 	result = pool4_foreach(&sk, iname, dargs.proto.proto,
 			handle_display_response, &dargs);
 
@@ -148,8 +152,11 @@ int handle_pool4_display(char *iname, int argc, char **argv, void *arg)
 	if (result.error)
 		return pr_result(&result);
 
-	if (!dargs.csv.value)
-		print_separator();
+	if (!dargs.csv.value) {
+		if (dargs.count == 0)
+			print_separator(); /* Header border */
+		print_separator(); /* Table border */
+	}
 	return 0;
 }
 

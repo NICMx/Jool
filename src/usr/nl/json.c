@@ -936,9 +936,10 @@ end:
 
 static struct jool_result do_parsing(char *iname, char *buffer)
 {
+	cJSON *json;
 	struct jool_result result;
 
-	cJSON *json = cJSON_Parse(buffer);
+	json = cJSON_Parse(buffer);
 	if (!json) {
 		return result_from_error(
 			-EINVAL,
@@ -949,17 +950,27 @@ static struct jool_result do_parsing(char *iname, char *buffer)
 
 	result = prepare_instance(iname, json);
 	if (result.error)
-		return result;
+		goto fail;
 
 	result = send_ctrl_msg(SEC_INIT);
 	if (result.error)
-		return result;
+		goto fail;
 
 	result = xlat_is_siit() ? parse_siit_json(json) : parse_nat64_json(json);
 	if (result.error)
-		return result;
+		goto fail;
 
-	return send_ctrl_msg(SEC_COMMIT);
+	/*
+	 * Send the control message before deleting, because @iname might point
+	 * to the json object, and send_ctrl_msg() needs @iname.
+	 */
+	result = send_ctrl_msg(SEC_COMMIT);
+	cJSON_Delete(json);
+	return result;
+
+fail:
+	cJSON_Delete(json);
+	return result;
 }
 
 struct jool_result parse_file(struct jool_socket *_sk, char *iname,

@@ -350,6 +350,7 @@ struct jool_result str_to_plateaus_array(const char *str, __u16 *plateaus, __u16
 		token = strtok(NULL, ",");
 	}
 
+	free(str_copy);
 	return result_success();
 }
 
