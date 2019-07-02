@@ -11,6 +11,7 @@
 #include "usr/argp/log.h"
 #include "usr/argp/userspace-types.h"
 #include "usr/argp/wargp.h"
+#include "usr/argp/xlator_type.h"
 
 struct display_args {
 	struct wargp_bool no_headers;
@@ -108,7 +109,7 @@ int handle_session_display(char *iname, int argc, char **argv, void *arg)
 	if (result.error)
 		return result.error;
 
-	result = netlink_setup(&sk);
+	result = netlink_setup(&sk, xt_get());
 	if (result.error)
 		return pr_result(&result);
 

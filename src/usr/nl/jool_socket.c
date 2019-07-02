@@ -137,8 +137,8 @@ struct jool_result netlink_send(struct jool_socket *socket, char *iname,
 		);
 	}
 
-	if (!genlmsg_put(msg, NL_AUTO_PORT, NL_AUTO_SEQ, socket->family, 0, 0,
-			JOOL_COMMAND, 1)) {
+	if (!genlmsg_put(msg, NL_AUTO_PORT, NL_AUTO_SEQ, socket->genl_family,
+			0, 0, JOOL_COMMAND, 1)) {
 		nlmsg_free(msg);
 		return result_from_error(
 			-EINVAL,
@@ -235,9 +235,24 @@ struct jool_result netlink_request(struct jool_socket *sk, char *iname,
 	return result_success();
 }
 
-struct jool_result netlink_setup(struct jool_socket *socket)
+struct jool_result netlink_setup(struct jool_socket *socket, xlator_type xt)
 {
+	char const *family;
 	int error;
+
+	switch (xt) {
+	case XT_SIIT:
+		family = GNL_SIIT_JOOL_FAMILY;
+		break;
+	case XT_NAT64:
+		family = GNL_NAT64_JOOL_FAMILY;
+		break;
+	default:
+		return result_from_error(
+			-EINVAL,
+			"Unknown translator type"
+		);
+	}
 
 	socket->sk = nl_socket_alloc();
 	if (!socket->sk) {
@@ -268,15 +283,16 @@ struct jool_result netlink_setup(struct jool_socket *socket)
 		);
 	}
 
-	socket->family = genl_ctrl_resolve(socket->sk, GNL_JOOL_FAMILY_NAME);
-	if (socket->family < 0) {
+	socket->xt = xt;
+	socket->genl_family = genl_ctrl_resolve(socket->sk, family);
+	if (socket->genl_family < 0) {
 		nl_socket_free(socket->sk);
 		return result_from_error(
-			socket->family,
+			socket->genl_family,
 			"Jool's socket family doesn't seem to exist.\n"
 			"(This probably means Jool hasn't been modprobed.)\n"
 			"Netlink error message: %s",
-			nl_geterror(socket->family)
+			nl_geterror(socket->genl_family)
 		);
 	}
 

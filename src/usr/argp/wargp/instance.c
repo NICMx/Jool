@@ -8,6 +8,7 @@
 #include "usr/util/str_utils.h"
 #include "usr/nl/instance.h"
 #include "usr/nl/jool_socket.h"
+#include "usr/argp/xlator_type.h"
 
 #define ARGP_IPTABLES 1000
 #define ARGP_NETFILTER 1001
@@ -119,7 +120,7 @@ int handle_instance_display(char *iname, int argc, char **argv, void *arg)
 	if (result.error)
 		return result.error;
 
-	result = netlink_setup(&sk);
+	result = netlink_setup(&sk, xt_get());
 	if (result.error)
 		return pr_result(&result);
 
@@ -215,7 +216,7 @@ int handle_instance_add(char *iname, int argc, char **argv, void *arg)
 		return -EINVAL;
 	}
 
-	result = netlink_setup(&sk);
+	result = netlink_setup(&sk, xt_get());
 	if (result.error)
 		return pr_result(&result);
 
@@ -258,7 +259,7 @@ int handle_instance_remove(char *iname, int argc, char **argv, void *arg)
 	if (!iname && rargs.iname.set)
 		iname = rargs.iname.value;
 
-	result = netlink_setup(&sk);
+	result = netlink_setup(&sk, xt_get());
 	if (result.error)
 		return pr_result(&result);
 
@@ -289,7 +290,7 @@ int handle_instance_flush(char *iname, int argc, char **argv, void *arg)
 	if (result.error)
 		return result.error;
 
-	result = netlink_setup(&sk);
+	result = netlink_setup(&sk, xt_get());
 	if (result.error)
 		return pr_result(&result);
 

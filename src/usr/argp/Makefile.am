@@ -1,13 +1,14 @@
 pkglib_LTLIBRARIES = libjoolargp.la
 
 libjoolargp_la_SOURCES = \
-	client.c \
 	command.c command.h \
 	dns.c dns.h \
 	log.c log.h \
+	main.c main.h \
 	requirements.c requirements.h \
 	userspace-types.c userspace-types.h \
 	wargp.c wargp.h \
+	xlator_type.c xlator_type.h \
 	\
 	wargp/bib.c wargp/bib.h \
 	wargp/blacklist4.c wargp/blacklist4.h \

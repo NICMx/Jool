@@ -31,23 +31,6 @@ fail:
 	return -EINVAL;
 }
 
-static int validate_stateness(struct request_hdr *hdr,
-		char *sender, char *receiver)
-{
-	switch (hdr->type) {
-	case 's':
-		syslog(LOG_ERR, "The %s is SIIT but the %s is NAT64. Please match us correctly.",
-				sender, receiver);
-		return -EINVAL;
-	case 'n':
-		return 0;
-	}
-
-	syslog(LOG_ERR, "The %s sent a packet with an unknown stateness: '%c'",
-			sender, hdr->type);
-	return -EINVAL;
-}
-
 static int validate_version(struct request_hdr *hdr,
 		char *sender, char *receiver)
 {
@@ -80,10 +63,6 @@ int validate_request(void *data, size_t data_len, char *sender, char *receiver)
 	}
 
 	error = validate_magic(data, sender);
-	if (error)
-		return error;
-
-	error = validate_stateness(data, sender, receiver);
 	if (error)
 		return error;
 
@@ -174,7 +153,7 @@ int modsocket_setup(void)
 	int family_mc_grp;
 	struct jool_result result;
 
-	result = netlink_setup(&jsocket);
+	result = netlink_setup(&jsocket, XT_NAT64);
 	if (result.error)
 		return pr_result(&result);
 
@@ -185,7 +164,7 @@ int modsocket_setup(void)
 		goto fail;
 	}
 
-	family_mc_grp = genl_ctrl_resolve_grp(jsocket.sk, GNL_JOOL_FAMILY_NAME,
+	family_mc_grp = genl_ctrl_resolve_grp(jsocket.sk, GNL_NAT64_JOOL_FAMILY,
 			GNL_JOOLD_MULTICAST_GRP_NAME);
 	if (family_mc_grp < 0) {
 		syslog(LOG_ERR, "Unable to resolve the Netlink multicast group.");

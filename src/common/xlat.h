@@ -41,14 +41,23 @@ typedef int xlator_type;
 #define XT_NAT64 (1 << 1)
 #define XT_BOTH (XT_SIIT | XT_NAT64)
 
+#ifdef __KERNEL__
+
 /**
  * Returns either XT_SIIT or XT_NAT64.
+ * Each translator kernel module has to define it.
  */
-int xlat_type(void);
+xlator_type xlat_type(void);
 
 #define xlat_is_siit() (xlat_type() & XT_SIIT)
 #define xlat_is_nat64() (xlat_type() & XT_NAT64)
 
-const char *xlat_get_name(void);
+/**
+ * Returns a short printable string that describes the module.
+ * Each translator kernel module has to define it.
+ */
+char const *xlat_get_name(void);
+
+#endif /* __KERNEL__ */
 
 #endif /* SRC_COMMON_XLAT_H_ */

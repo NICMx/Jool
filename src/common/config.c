@@ -11,7 +11,6 @@ void init_request_hdr(struct request_hdr *hdr, enum config_mode mode,
 	hdr->magic[1] = 'o';
 	hdr->magic[2] = 'o';
 	hdr->magic[3] = 'l';
-	hdr->type = xlat_is_nat64() ? 'n' : 's'; /* 'n'at64 or 's'iit. */
 	hdr->castness = 'u';
 	hdr->force = force;
 	hdr->slop1 = 0;

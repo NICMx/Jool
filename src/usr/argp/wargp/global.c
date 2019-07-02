@@ -4,6 +4,7 @@
 #include "log.h"
 #include "userspace-types.h"
 #include "wargp.h"
+#include "usr/argp/xlator_type.h"
 #include "usr/nl/global.h"
 #include "usr/nl/jool_socket.h"
 
@@ -32,7 +33,7 @@ static int handle_display_response(struct display_args *qargs,
 	get_global_fields(&field, NULL);
 
 	for (; field->name; field++) {
-		if ((xlat_type() & field->xt) == 0)
+		if ((xt_get() & field->xt) == 0)
 			continue;
 
 		if (!qargs->csv.value)
@@ -57,7 +58,7 @@ int handle_global_display(char *iname, int argc, char **argv, void *arg)
 	if (result.error)
 		return result.error;
 
-	result = netlink_setup(&sk);
+	result = netlink_setup(&sk, xt_get());
 	if (result.error)
 		return pr_result(&result);
 
@@ -118,7 +119,7 @@ static int handle_global_update(char *iname, int argc, char **argv, void *arg)
 	if (result.error)
 		goto end;
 
-	result = netlink_setup(&sk);
+	result = netlink_setup(&sk, xt_get());
 	if (result.error)
 		goto end;
 	result = global_update(&sk, iname, field, value, uargs.force.value);

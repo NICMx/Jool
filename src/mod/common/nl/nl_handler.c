@@ -103,30 +103,6 @@ fail:
 	return -EINVAL;
 }
 
-static int validate_stateness(struct request_hdr *hdr)
-{
-	switch (hdr->type) {
-	case 's':
-		if (xlat_is_siit())
-			return 0;
-
-		log_err("The userspace client is SIIT but the kernel module is NAT64.\n"
-				"Please match us correctly.");
-		return -EINVAL;
-	case 'n':
-		if (xlat_is_nat64())
-			return 0;
-
-		log_err("The userspace client is NAT64 but the kernel module is SIIT.\n"
-				"Please match us correctly.");
-		return -EINVAL;
-	}
-
-	log_err("The userspace client's request has unknown stateness '%c'.",
-			hdr->type);
-	return -EINVAL;
-}
-
 static int validate_version(struct request_hdr *hdr)
 {
 	__u32 hdr_version = ntohl(hdr->version);
@@ -165,10 +141,6 @@ static int validate_request(void *data, size_t data_len, bool *peer_is_jool)
 
 	if (peer_is_jool)
 		*peer_is_jool = true;
-
-	error = validate_stateness(data);
-	if (error)
-		return error;
 
 	return validate_version(data);
 }
@@ -279,11 +251,24 @@ int handle_jool_message(struct sk_buff *skb, struct genl_info *info)
 
 static int register_family(void)
 {
+	char const *family;
 	int error;
 
 	log_debug("Registering Generic Netlink family...");
 
-	strcpy(jool_family.name, GNL_JOOL_FAMILY_NAME);
+	switch (xlat_type()) {
+	case XT_SIIT:
+		family = GNL_SIIT_JOOL_FAMILY;
+		break;
+	case XT_NAT64:
+		family = GNL_NAT64_JOOL_FAMILY;
+		break;
+	default:
+		log_err("Translator has unknown stateness: %d", xlat_type());
+		return -EINVAL;
+	}
+
+	strcpy(jool_family.name, family);
 
 #if LINUX_VERSION_LOWER_THAN(3, 13, 0, 7, 1)
 

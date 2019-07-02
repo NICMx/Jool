@@ -1,6 +1,6 @@
 #include "common/xlat.h"
 
-int xlat_type(void)
+xlator_type xlat_type(void)
 {
 #ifdef SIIT
 	return XT_SIIT;

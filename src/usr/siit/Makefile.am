@@ -2,7 +2,7 @@
 # "jool_siit" is a "target".
 
 bin_PROGRAMS = jool_siit
-jool_siit_SOURCES = wrapper-xlat.c
+jool_siit_SOURCES = main-siit.c
 
 jool_siit_CFLAGS  = ${WARNINGCFLAGS}
 jool_siit_CFLAGS += -I${srcdir}/../../

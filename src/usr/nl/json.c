@@ -956,7 +956,20 @@ static struct jool_result do_parsing(char *iname, char *buffer)
 	if (result.error)
 		goto fail;
 
-	result = xlat_is_siit() ? parse_siit_json(json) : parse_nat64_json(json);
+	switch (sk.xt) {
+	case XT_SIIT:
+		result = parse_siit_json(json);
+		break;
+	case XT_NAT64:
+		result = parse_nat64_json(json);
+		break;
+	default:
+		result = result_from_error(
+			-EINVAL,
+			"Invalid translator type: %d", sk.xt
+		);
+	}
+
 	if (result.error)
 		goto fail;
 

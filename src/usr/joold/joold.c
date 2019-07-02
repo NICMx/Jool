@@ -8,11 +8,6 @@
 #include "usr/joold/modsocket.h"
 #include "usr/joold/netsocket.h"
 
-int xlat_type(void)
-{
-	return XT_NAT64;
-}
-
 static void cancel_thread(pthread_t thread)
 {
 	int error;

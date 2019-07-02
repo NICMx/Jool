@@ -16,7 +16,8 @@ typedef __u8 config_bool;
 #define IPTABLES_SIIT_MODULE_NAME "JOOL_SIIT"
 #define IPTABLES_NAT64_MODULE_NAME "JOOL"
 
-#define GNL_JOOL_FAMILY_NAME (xlat_is_siit() ? "SIIT_Jool" : "NAT64_Jool")
+#define GNL_SIIT_JOOL_FAMILY "SIIT_Jool"
+#define GNL_NAT64_JOOL_FAMILY "NAT64_Jool"
 #define GNL_JOOLD_MULTICAST_GRP_NAME "joold"
 
 /* TODO (fine) these values are not always used. */
@@ -176,8 +177,6 @@ enum parse_section {
 struct request_hdr {
 	/** Protocol magic header (always "jool"). */
 	__u8 magic[4];
-	/** Translation type (SIIT or NAT64) */
-	__u8 type;
 	/**
 	 * 'u'nicast or 'm'ulticast. Only userspace joold needs it, so most of
 	 * the time this field is ignored.
@@ -195,7 +194,7 @@ struct request_hdr {
 	 * Explicit unused space for future functionality and to ensure
 	 * sizeof(struct request_hdr) is a power of 2.
 	 */
-	__u8 slop1;
+	__u16 slop1;
 
 	/** Jool's version. */
 	__be32 version;

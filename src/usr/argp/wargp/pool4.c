@@ -8,6 +8,7 @@
 #include "usr/argp/requirements.h"
 #include "usr/argp/userspace-types.h"
 #include "usr/argp/wargp.h"
+#include "usr/argp/xlator_type.h"
 
 #define ARGP_MARK 3000
 #define ARGP_MAX_ITERATIONS 3001
@@ -128,7 +129,7 @@ int handle_pool4_display(char *iname, int argc, char **argv, void *arg)
 	if (result.error)
 		return result.error;
 
-	result = netlink_setup(&sk);
+	result = netlink_setup(&sk, xt_get());
 	if (result.error)
 		return pr_result(&result);
 
@@ -284,7 +285,7 @@ int handle_pool4_add(char *iname, int argc, char **argv, void *arg)
 
 	aargs.entry.meat.proto = aargs.proto.proto;
 
-	result = netlink_setup(&sk);
+	result = netlink_setup(&sk, xt_get());
 	if (result.error)
 		return pr_result(&result);
 
@@ -354,7 +355,7 @@ int handle_pool4_remove(char *iname, int argc, char **argv, void *arg)
 
 	rargs.entry.meat.proto = rargs.proto.proto;
 
-	result = netlink_setup(&sk);
+	result = netlink_setup(&sk, xt_get());
 	if (result.error)
 		return pr_result(&result);
 
@@ -394,7 +395,7 @@ int handle_pool4_flush(char *iname, int argc, char **argv, void *arg)
 	if (result.error)
 		return result.error;
 
-	result = netlink_setup(&sk);
+	result = netlink_setup(&sk, xt_get());
 	if (result.error)
 		return pr_result(&result);
 

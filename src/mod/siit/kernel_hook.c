@@ -14,7 +14,17 @@ MODULE_AUTHOR("NIC-ITESM");
 MODULE_DESCRIPTION("Stateless IP/ICMP Translation (RFC 7915)");
 MODULE_VERSION(JOOL_VERSION_STR);
 
-#include "common/xlat-siit.c"
+/* Implementation function required by xlat.h */
+xlator_type xlat_type(void)
+{
+	return XT_SIIT;
+}
+
+/* Implementation function required by xlat.h */
+const char *xlat_get_name(void)
+{
+	return "SIIT Jool";
+}
 
 static bool iptables_error;
 

@@ -2,11 +2,13 @@
 #define SRC_USR_NL_JOOL_SOCKET_H_
 
 #include <netlink/netlink.h>
+#include "common/xlat.h"
 #include "usr/util/result.h"
 
 struct jool_socket {
 	struct nl_sock *sk;
-	int family;
+	xlator_type xt;
+	int genl_family;
 };
 
 struct jool_response {
@@ -15,7 +17,7 @@ struct jool_response {
 	size_t payload_len;
 };
 
-struct jool_result netlink_setup(struct jool_socket *socket);
+struct jool_result netlink_setup(struct jool_socket *socket, xlator_type xt);
 void netlink_teardown(struct jool_socket *socket);
 
 typedef struct jool_result (*jool_response_cb)(struct jool_response *, void *);

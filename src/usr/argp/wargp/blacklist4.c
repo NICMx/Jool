@@ -4,6 +4,7 @@
 #include "usr/argp/requirements.h"
 #include "usr/argp/userspace-types.h"
 #include "usr/argp/wargp.h"
+#include "usr/argp/xlator_type.h"
 #include "usr/nl/blacklist4.h"
 #include "usr/nl/jool_socket.h"
 #include "usr/util/str_utils.h"
@@ -47,7 +48,7 @@ int handle_blacklist4_display(char *iname, int argc, char **argv, void *arg)
 	if (result.error)
 		return result.error;
 
-	result = netlink_setup(&sk);
+	result = netlink_setup(&sk, xt_get());
 	if (result.error)
 		return pr_result(&result);
 
@@ -114,7 +115,7 @@ int handle_blacklist4_add(char *iname, int argc, char **argv, void *arg)
 		return requirement_print(reqs);
 	}
 
-	result = netlink_setup(&sk);
+	result = netlink_setup(&sk, xt_get());
 	if (result.error)
 		return pr_result(&result);
 
@@ -162,7 +163,7 @@ int handle_blacklist4_remove(char *iname, int argc, char **argv, void *arg)
 		return requirement_print(reqs);
 	}
 
-	result = netlink_setup(&sk);
+	result = netlink_setup(&sk, xt_get());
 	if (result.error)
 		return pr_result(&result);
 
@@ -186,7 +187,7 @@ int handle_blacklist4_flush(char *iname, int argc, char **argv, void *arg)
 	if (result.error)
 		return result.error;
 
-	result = netlink_setup(&sk);
+	result = netlink_setup(&sk, xt_get());
 	if (result.error)
 		return pr_result(&result);
 

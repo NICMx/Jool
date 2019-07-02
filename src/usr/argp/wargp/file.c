@@ -5,6 +5,7 @@
 #include "log.h"
 #include "requirements.h"
 #include "wargp.h"
+#include "usr/argp/xlator_type.h"
 #include "usr/nl/jool_socket.h"
 #include "usr/nl/json.h"
 
@@ -43,7 +44,7 @@ int handle_file_update(char *iname, int argc, char **argv, void *arg)
 		return requirement_print(reqs);
 	}
 
-	result = netlink_setup(&sk);
+	result = netlink_setup(&sk, xt_get());
 	if (result.error)
 		return pr_result(&result);
 

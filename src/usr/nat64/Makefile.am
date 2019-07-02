@@ -2,7 +2,7 @@
 # "jool" is a "target".
 
 bin_PROGRAMS = jool
-jool_SOURCES = wrapper-xlat.c
+jool_SOURCES = main-nat64.c
 
 jool_CFLAGS  = ${WARNINGCFLAGS}
 jool_CFLAGS += -I${srcdir}/../../

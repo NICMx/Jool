@@ -4,6 +4,7 @@
 #include "usr/argp/requirements.h"
 #include "usr/argp/userspace-types.h"
 #include "usr/argp/wargp.h"
+#include "usr/argp/xlator_type.h"
 #include "usr/nl/eamt.h"
 #include "usr/nl/jool_socket.h"
 #include "usr/util/str_utils.h"
@@ -56,7 +57,7 @@ int handle_eamt_display(char *iname, int argc, char **argv, void *arg)
 	if (result.error)
 		return result.error;
 
-	result = netlink_setup(&sk);
+	result = netlink_setup(&sk, xt_get());
 	if (result.error)
 		return pr_result(&result);
 
@@ -155,7 +156,7 @@ int handle_eamt_add(char *iname, int argc, char **argv, void *arg)
 		return requirement_print(reqs);
 	}
 
-	result = netlink_setup(&sk);
+	result = netlink_setup(&sk, xt_get());
 	if (result.error)
 		return pr_result(&result);
 
@@ -206,7 +207,7 @@ int handle_eamt_remove(char *iname, int argc, char **argv, void *arg)
 		return requirement_print(reqs);
 	}
 
-	result = netlink_setup(&sk);
+	result = netlink_setup(&sk, xt_get());
 	if (result.error)
 		return pr_result(&result);
 
@@ -236,7 +237,7 @@ int handle_eamt_flush(char *iname, int argc, char **argv, void *arg)
 	if (result.error)
 		return result.error;
 
-	result = netlink_setup(&sk);
+	result = netlink_setup(&sk, xt_get());
 	if (result.error)
 		return pr_result(&result);
 
@@ -321,7 +322,7 @@ int handle_eamt_query(char *iname, int argc, char **argv, void *arg)
 		return requirement_print(reqs);
 	}
 
-	result = netlink_setup(&sk);
+	result = netlink_setup(&sk, xt_get());
 	if (result.error)
 		return pr_result(&result);
 

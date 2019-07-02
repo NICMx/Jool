@@ -18,7 +18,17 @@ MODULE_AUTHOR("NIC-ITESM");
 MODULE_DESCRIPTION("Stateful NAT64 (RFC 6146)");
 MODULE_VERSION(JOOL_VERSION_STR);
 
-#include "common/xlat-nat64.c"
+/* Implementation function required by xlat.h */
+xlator_type xlat_type(void)
+{
+	return XT_NAT64;
+}
+
+/* Implementation function required by xlat.h */
+char const *xlat_get_name(void)
+{
+	return "NAT64 Jool";
+}
 
 static char *banner = "\n"
 	"                                   ,----,                       \n"

@@ -14,6 +14,7 @@
 #include "common/config.h"
 #include "common/xlat.h"
 #include "usr/util/str_utils.h"
+#include "usr/argp/xlator_type.h"
 #include "wargp/bib.h"
 #include "wargp/blacklist4.h"
 #include "wargp/eamt.h"
@@ -303,7 +304,7 @@ static struct cmd_option *find_matches(struct cmd_option *options, char *prefix)
 		return NULL;
 
 	for (option = options; option->label; option++) {
-		if (!(xlat_type() & option->xt))
+		if (!(xt_get() & option->xt))
 			continue;
 
 		if (option->hidden) {
@@ -546,7 +547,7 @@ static int show_version(void)
 	return 0;
 }
 
-int main(int argc, char **argv)
+int jool_main(int argc, char **argv)
 {
 	char *iname = NULL;
 
