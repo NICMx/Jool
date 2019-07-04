@@ -19,8 +19,8 @@ AUTOMAKE_OPTIONS = foreign
 #
 # (I'm aware that I can just modify SUBDIRS using Debian's patch thingamajig,
 # but as someone whose first ever package is a bunch of freaking kernel modules
-# coupled with their corresponding userspace tools, libraries and systemd
-# file, the idea of adding even more shit on top makes me sick.)
+# coupled with their corresponding userspace tools, libraries and systemd unit
+# files, the idea of adding even more shit on top makes me sick.)
 #
 # So, going back to our starting point, we can't include src/mod in SUBDIRS.
 #
@@ -35,7 +35,7 @@ AUTOMAKE_OPTIONS = foreign
 # Perhaps I've been misunderstandig Kbuild all this time, and is really only
 # intended for development. As a matter of fact, I'm going to remove it from the
 # documentation shortly. Screw it.
-SUBDIRS = src/common src/usr
+SUBDIRS = src/common src/usr $(MAYBE_GRAYBOX)
 DIST_SUBDIRS = src/common src/mod src/usr
 
 # Needed by libtoolize. (Othewise autoreconf complains.)

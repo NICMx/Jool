@@ -4,8 +4,10 @@
 #include <linux/netdevice.h>
 #include <linux/skbuff.h>
 #include <linux/version.h>
+
 #include "common/types.h"
 #include "mod/common/ipv6_hdr_iterator.h"
+#include "mod/common/log.h"
 #include "mod/common/route.h"
 #include "mod/common/send_packet.h"
 #include "util.h"

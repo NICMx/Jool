@@ -4,11 +4,19 @@
 #include <linux/netfilter_ipv6.h>
 
 #include "common/types.h"
+#include "common/xlat.h"
 #include "mod/common/linux_version.h"
+#include "mod/common/log.h"
 #include "mod/common/nf_wrapper.h"
 
 #include "expecter.h"
 #include "nl_handler.h"
+
+/* Implementation function required by xlat.h */
+char const *xlat_get_name(void)
+{
+	return "Graybox";
+}
 
 MODULE_LICENSE(JOOL_LICENSE);
 MODULE_AUTHOR("NIC-ITESM");

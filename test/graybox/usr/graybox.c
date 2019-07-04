@@ -3,11 +3,11 @@
 #include <netlink/attr.h>
 
 #include "genetlink.h"
-#include "types.h"
+#include "common/graybox-types.h"
 #include "command/expect.h"
 #include "command/send.h"
 #include "command/stats.h"
-#include "common/types.h"
+#include "usr/argp/log.h"
 
 struct request {
 	enum graybox_command cmd;
@@ -22,7 +22,7 @@ static int request_init(int argc, char **argv, struct request *request)
 	char *type;
 
 	if (argc < 1) {
-		log_err("I need at least 1 argument. (see `man graybox`)");
+		pr_err("I need at least 1 argument. (see `man graybox`)");
 		return -EINVAL;
 	}
 	memset(request, 0, sizeof(*request));
@@ -38,7 +38,7 @@ static int request_init(int argc, char **argv, struct request *request)
 		return stats_init_request(argc, argv, &request->cmd);
 	}
 
-	log_err("'%s' is an unknown operation.", type);
+	pr_err("'%s' is an unknown operation.", type);
 	return -EINVAL;
 }
 
@@ -81,7 +81,7 @@ static int build_packet(struct request *req, struct nl_msg **result)
 	}
 
 	if (error) {
-		log_err("Could not write on the packet to kernelspace.");
+		pr_err("Could not write on the packet to kernelspace.");
 		nlmsg_free(msg);
 		return netlink_print_error(error);
 	}
@@ -102,7 +102,7 @@ static int send_request(struct request *req, struct nl_msg *msg)
 		return nlsocket_send(msg, stats_response_handle, NULL);
 	}
 
-	log_err("Unknown command code: %d", req->cmd);
+	pr_err("Unknown command code: %d", req->cmd);
 	return -EINVAL;
 }
 

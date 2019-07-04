@@ -3,13 +3,13 @@
 #include <errno.h>
 #include "common.h"
 #include "common/types.h"
-#include "usr/common/str_utils.h"
+#include "usr/argp/log.h"
 
 int send_init_request(int argc, char **argv, enum graybox_command *cmd,
 		struct send_request *req)
 {
 	if (argc < 1) {
-		log_err("Send requires a packet file as argument.");
+		pr_err("Send requires a packet file as argument.");
 		return -EINVAL;
 	}
 

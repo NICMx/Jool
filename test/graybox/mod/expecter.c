@@ -5,6 +5,7 @@
 #include <linux/sort.h>
 #include "common/types.h"
 #include "mod/common/address.h"
+#include "mod/common/log.h"
 #include "util.h"
 
 struct expecter_node {

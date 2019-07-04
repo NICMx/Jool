@@ -1,21 +1,22 @@
 # Note to myself: documentation tends to call these "PROGRAMS" "targets".
 # "graybox" is a "target".
 
-AUTOMAKE_OPTIONS = foreign
-
 bin_PROGRAMS = graybox
 graybox_SOURCES = \
 	graybox.c \
-	genetlink.c \
-	command/expect.c \
-	command/send.c \
-	command/stats.c \
-	command/common.c \
-	../../../src/usr/common/str_utils.c
+	genetlink.c genetlink.h \
+	command/expect.c command/expect.h \
+	command/send.c command/send.h \
+	command/stats.c command/stats.h \
+	command/common.c command/common.h
 
-graybox_LDADD = ${LIBNLGENL3_LIBS}
-graybox_CFLAGS = -Wall -O2
-graybox_CFLAGS += -I${srcdir}/../common
+graybox_CFLAGS  = ${WARNINGCFLAGS}
+graybox_CFLAGS += -I${srcdir}/..
 graybox_CFLAGS += -I${srcdir}/../../../src
 graybox_CFLAGS += ${LIBNLGENL3_CFLAGS}
+
+graybox_LDADD  = ${LIBNLGENL3_LIBS}
+graybox_LDADD += ${top_builddir}/src/usr/util/libjoolutil.la
+graybox_LDADD += ${top_builddir}/src/usr/argp/libjoolargp.la
+
 man_MANS = graybox.7

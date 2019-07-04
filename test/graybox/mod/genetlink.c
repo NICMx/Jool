@@ -1,7 +1,7 @@
 #include "genetlink.h"
 
 #include <linux/version.h>
-#include "types.h"
+#include "common/graybox-types.h"
 #include "mod/common/linux_version.h"
 #include "mod/common/error_pool.h"
 

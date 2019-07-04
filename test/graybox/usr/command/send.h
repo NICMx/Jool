@@ -3,7 +3,7 @@
 
 #include <stddef.h>
 #include <netlink/msg.h>
-#include "types.h"
+#include "common/graybox-types.h"
 
 struct send_request {
 	char *file_name;

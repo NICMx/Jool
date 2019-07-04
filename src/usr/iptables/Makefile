@@ -1,3 +1,23 @@
+# Confession time:
+#
+# I haven't the slightliest clue how to convert this Makefile into a proper
+# Makefile.am. By default, libtool (from the autotools) creates a lot of
+# auxiliary files, and they don't seem to play well with iptables. I tried
+# finding example iptables projects that use autotools, and I couldn't find
+# anything. (Part of the problem is that I don't know how to look for them, or
+# whether they exist.)
+#
+# I don't even know if it can be done to begin with, because autotools is
+# supposed to be a Unix standard thing, while iptables is a Linux-specific
+# thing. If the autotools make too many assumptions regarding the use of these
+# shared objects, I suppose it might render them uniptablable.
+#
+# So I don't know if the problem can be fixed, but if it does, I'll probably
+# need to read the entire libtool manual to figure it out. But it's like a
+# million pages long. I don't even know what I'm supposed to be looking for:
+# https://www.gnu.org/software/libtool/manual/libtool.html
+# TODO But I mean, I should probably read it anyway.
+
 DEFAULT_CFLAGS  = -Wall -pedantic -O2
 DEFAULT_CFLAGS += -I../..
 DEFAULT_CFLAGS += $(shell pkg-config xtables --cflags)

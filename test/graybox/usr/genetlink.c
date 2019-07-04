@@ -3,8 +3,8 @@
 #include <errno.h>
 #include <netlink/genl/ctrl.h>
 #include <netlink/genl/genl.h>
-#include "common/types.h"
-#include "types.h"
+#include "common/graybox-types.h"
+#include "usr/argp/log.h"
 
 static struct nl_sock *sk;
 static int family;
@@ -42,8 +42,8 @@ int nlsocket_setup(char *family_name)
 
 	sk = nl_socket_alloc();
 	if (!sk) {
-		log_err("Could not allocate the socket to kernelspace.");
-		log_err("(I guess we're out of memory.)");
+		pr_err("Could not allocate the socket to kernelspace.");
+		pr_err("(I guess we're out of memory.)");
 		return -1;
 	}
 
@@ -56,7 +56,7 @@ int nlsocket_setup(char *family_name)
 
 	error = genl_connect(sk);
 	if (error) {
-		log_err("Could not open the socket to kernelspace.");
+		pr_err("Could not open the socket to kernelspace.");
 		goto genl_fail;
 	}
 
@@ -68,8 +68,8 @@ int nlsocket_setup(char *family_name)
 
 	family = genl_ctrl_resolve(sk, family_name);
 	if (family < 0) {
-		log_err("%s's socket family doesn't seem to exist.", family_name);
-		log_err("(This probably means %s hasn't been modprobed.)", family_name);
+		pr_err("%s's socket family doesn't seem to exist.", family_name);
+		pr_err("(This probably means %s hasn't been modprobed.)", family_name);
 		error = family;
 		goto genl_fail;
 	}
@@ -92,12 +92,12 @@ int nlsocket_create_msg(int cmd, struct nl_msg **result)
 
 	msg = nlmsg_alloc();
 	if (!msg) {
-		log_err("Out of memory!");
+		pr_err("Out of memory!");
 		return -ENOMEM;
 	}
 
 	if (!genlmsg_put(msg, NL_AUTO_PORT, NL_AUTO_SEQ, family, 0, 0, cmd, 1)) {
-		log_err("Unknown error building the packet to the kernel.");
+		pr_err("Unknown error building the packet to the kernel.");
 		nlmsg_free(msg);
 		return -EINVAL;
 	}
@@ -129,7 +129,7 @@ static int response_handler(struct nl_msg *msg, void *arg_void)
 	 */
 
 	if (!attrs[ATTR_ERROR_CODE]) {
-		log_err("Jool's response lacks a success/error code.");
+		pr_err("Jool's response lacks a success/error code.");
 		arg->jool_error = -EINVAL;
 		return 0;
 	}
@@ -138,11 +138,11 @@ static int response_handler(struct nl_msg *msg, void *arg_void)
 	arg->jool_error = error;
 	if (error) {
 		if (attrs[ATTR_ERROR_STRING]) {
-			log_err("The module threw error %d: %s", error,
+			pr_err("The module threw error %d: %s", error,
 					nla_get_string(attrs[ATTR_ERROR_STRING]));
 		} else {
-			log_err("The module's response contains error %d.", error);
-			log_err("(Sorry; the response lacks an error message.)");
+			pr_err("The module's response contains error %d.", error);
+			pr_err("(Sorry; the response lacks an error message.)");
 		}
 		return 0;
 	}
@@ -164,20 +164,20 @@ int nlsocket_send(struct nl_msg *msg, jool_response_cb cb, void *cb_arg)
 	error = nl_socket_modify_cb(sk, NL_CB_MSG_IN, NL_CB_CUSTOM,
 			response_handler, &arg);
 	if (error < 0) {
-		log_err("Could not register response handler.");
-		log_err("I will not be able to parse the module's response, so I won't send the request.");
+		pr_err("Could not register response handler.");
+		pr_err("I will not be able to parse the module's response, so I won't send the request.");
 		return netlink_print_error(error);
 	}
 
 	error = nl_send_auto(sk, msg);
 	if (error < 0) {
-		log_err("Could not dispatch the request to kernelspace.");
+		pr_err("Could not dispatch the request to kernelspace.");
 		return netlink_print_error(error);
 	}
 
 	error = nl_recvmsgs_default(sk);
 	if (error < 0) {
-		log_err("Error receiving the kernel module's response.");
+		pr_err("Error receiving the kernel module's response.");
 		return netlink_print_error(error);
 	}
 
@@ -186,6 +186,6 @@ int nlsocket_send(struct nl_msg *msg, jool_response_cb cb, void *cb_arg)
 
 int netlink_print_error(int error)
 {
-	log_err("Netlink error %d: %s", error, nl_geterror(error));
+	pr_err("Netlink error %d: %s", error, nl_geterror(error));
 	return error;
 }

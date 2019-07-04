@@ -2,7 +2,7 @@
 #define _GRAYBOX_MOD_EXPECTER_H
 
 #include <linux/skbuff.h>
-#include "types.h"
+#include "common/graybox-types.h"
 
 #define PLATEAUS_MAX 64
 

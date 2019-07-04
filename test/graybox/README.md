@@ -2,21 +2,28 @@
 
 The "graybox" tests are the logical step after the unit tests. They are a bunch of packet exchanges between a custom IPv6/v4 raw packet sender and validator (named `graybox`) and an actual Jool binary.
 
-Requires a successful installation of both kernel and userspace binaries of SIIT and/or NAT64 Jool.
-
 ## Compiling the test suite
 
-None of this requires privileges.
+It's become convoluted over time. Best do it on a disposable clean virtual machine, because it's going to pollute the system, or clash with existing Jool binares if you have already installed them.
 
 ```bash
-cd mod
+# -- Userspace --
+cd Jool
+./autogen.sh
+./configure --with-graybox
 make
-cd ../usr
-./autogen.sh # only needed if the `configure` file does not exist.
-./configure && make
-```
+sudo make install
 
-Do not install them; it's not necessary.
+# -- Jool's kernel modules --
+cd src/mod
+make
+sudo make install
+
+# -- Graybox's kernel module --
+cd ../../test/graybox/mod
+make # You don't need to install this one.
+cd ..
+```
 
 ## Running the test suite
 
@@ -24,7 +31,7 @@ You might need to stop the network manager beforehand.
 
 ```bash
 cd test-suite
-./run.sh
+sudo ./run.sh
 ```
 
 See the content of `run.sh` for more versatility.

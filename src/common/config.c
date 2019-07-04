@@ -20,15 +20,13 @@ void init_request_hdr(struct request_hdr *hdr, enum config_mode mode,
 	hdr->slop2 = 0;
 }
 
+/* TODO duplicate code (src/usr/iptables/common.c) */
 int iname_validate(const char *iname, bool allow_null)
 {
 	unsigned int i;
 
-	if (!iname) {
-		if (allow_null)
-			return 0;
-		return -EINVAL;
-	}
+	if (!iname)
+		return allow_null ? 0 : -EINVAL;
 
 	for (i = 0; i < INAME_MAX_LEN; i++) {
 		if (iname[i] == '\0')

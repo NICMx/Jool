@@ -3,17 +3,20 @@
 #include <errno.h>
 #include "common.h"
 #include "common/types.h"
-#include "usr/common/str_utils.h"
+#include "usr/util/str_utils.h"
+#include "usr/argp/log.h"
 
 int parse_exceptions(char *exceptions, struct expect_add_request *req)
 {
 	__u16 len;
-	int error;
+	struct jool_result result;
 
-	error = str_to_plateaus_array(exceptions, req->exceptions, &len);
-	if (!error)
-		req->exceptions_len = len;
-	return error;
+	result = str_to_plateaus_array(exceptions, req->exceptions, &len);
+	if (result.error)
+		return pr_result(&result);
+
+	req->exceptions_len = len;
+	return 0;
 }
 
 int expect_init_request(int argc, char **argv, enum graybox_command *cmd,
@@ -22,7 +25,7 @@ int expect_init_request(int argc, char **argv, enum graybox_command *cmd,
 	int error;
 
 	if (argc < 1) {
-		log_err("expect needs an operation as first argument.");
+		pr_err("expect needs an operation as first argument.");
 		return -EINVAL;
 	}
 
@@ -30,7 +33,7 @@ int expect_init_request(int argc, char **argv, enum graybox_command *cmd,
 		*cmd = COMMAND_EXPECT_ADD;
 
 		if (argc < 2) {
-			log_err("expect add needs a packet as argument.");
+			pr_err("expect add needs a packet as argument.");
 			return -EINVAL;
 		}
 
@@ -45,7 +48,7 @@ int expect_init_request(int argc, char **argv, enum graybox_command *cmd,
 		return 0;
 	}
 
-	log_err("Unknown operation for expect: %s", argv[0]);
+	pr_err("Unknown operation for expect: %s", argv[0]);
 	return -EINVAL;
 }
 

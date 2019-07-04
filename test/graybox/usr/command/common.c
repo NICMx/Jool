@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include "common/types.h"
+#include "usr/argp/log.h"
 
 int load_pkt(char *filename, unsigned char **result, size_t *result_len)
 {
@@ -14,7 +15,7 @@ int load_pkt(char *filename, unsigned char **result, size_t *result_len)
 
 	file = fopen(filename, "rb");
 	if (!file) {
-		log_err("Could not open the file %s.", filename);
+		pr_err("Could not open the file %s.", filename);
 		return -EINVAL;
 	}
 
@@ -24,7 +25,7 @@ int load_pkt(char *filename, unsigned char **result, size_t *result_len)
 
 	pkt = malloc(pkt_len);
 	if (!pkt) {
-		log_err("Could not allocate the packet.");
+		pr_err("Could not allocate the packet.");
 		fclose(file);
 		return -ENOMEM;
 	}
@@ -33,7 +34,7 @@ int load_pkt(char *filename, unsigned char **result, size_t *result_len)
 	fclose(file);
 
 	if (bytes_read != pkt_len) {
-		log_err("Reading error.");
+		pr_err("Reading error.");
 		free(pkt);
 		return -EINVAL;
 	}

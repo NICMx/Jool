@@ -1,5 +1,5 @@
-#ifndef _GRAYBOX_TYPES_H
-#define _GRAYBOX_TYPES_H
+#ifndef TEST_GRAYBOX_COMMON_GRAYBOX_TYPES_H_
+#define TEST_GRAYBOX_COMMON_GRAYBOX_TYPES_H_
 
 #include <linux/types.h>
 
@@ -36,4 +36,4 @@ struct graybox_stats {
 	struct graybox_proto_stats ipv4;
 };
 
-#endif
+#endif /* TEST_GRAYBOX_COMMON_GRAYBOX_TYPES_H_ */

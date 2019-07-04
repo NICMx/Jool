@@ -6,6 +6,7 @@
 #include "sender.h"
 #include "common/types.h"
 #include "mod/common/linux_version.h"
+#include "mod/common/log.h"
 
 static DEFINE_MUTEX(config_mutex);
 

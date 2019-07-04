@@ -3,11 +3,12 @@
 #include <errno.h>
 #include <netlink/attr.h>
 #include "common/types.h"
+#include "usr/argp/log.h"
 
 int stats_init_request(int argc, char **argv, enum graybox_command *cmd)
 {
 	if (argc < 1) {
-		log_err("stats needs an operation as first argument.");
+		pr_err("stats needs an operation as first argument.");
 		return -EINVAL;
 	}
 
@@ -19,7 +20,7 @@ int stats_init_request(int argc, char **argv, enum graybox_command *cmd)
 		return 0;
 	}
 
-	log_err("Unknown operation for stats: %s", argv[0]);
+	pr_err("Unknown operation for stats: %s", argv[0]);
 	return -EINVAL;
 }
 
@@ -28,19 +29,19 @@ int stats_response_handle(struct nlattr **attrs, void *arg)
 	struct graybox_stats *stats;
 
 	if (!attrs[ATTR_STATS]) {
-		log_err("The module's response lacks a stats structure.");
+		pr_err("The module's response lacks a stats structure.");
 		return -EINVAL;
 	}
 
 	stats = nla_data(attrs[ATTR_STATS]);
-	log_info("IPv6:");
-	log_info("	Successes: %u", stats->ipv6.successes);
-	log_info("	Failures:  %u", stats->ipv6.failures);
-	log_info("	Queued:    %u", stats->ipv6.queued);
-	log_info("IPv4:");
-	log_info("	Successes: %u", stats->ipv4.successes);
-	log_info("	Failures:  %u", stats->ipv4.failures);
-	log_info("	Queued:    %u", stats->ipv4.queued);
+	printf("IPv6:\n");
+	printf("	Successes: %u\n", stats->ipv6.successes);
+	printf("	Failures:  %u\n", stats->ipv6.failures);
+	printf("	Queued:    %u\n", stats->ipv6.queued);
+	printf("IPv4:\n");
+	printf("	Successes: %u\n", stats->ipv4.successes);
+	printf("	Failures:  %u\n", stats->ipv4.failures);
+	printf("	Queued:    %u\n", stats->ipv4.queued);
 
 	if (stats->ipv6.failures > 0 || stats->ipv6.queued > 0)
 		return -EIO;
