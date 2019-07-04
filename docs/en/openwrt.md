@@ -48,5 +48,5 @@ Do this:
 
 	rmmod jool
 
-With this in mind, you should be ready to tackle the [basic tutorials](http://jool.mx/en/documentation.html#basic-tutorials).
+With this in mind, you should be ready to tackle the [basic tutorials](documentation.html#basic-tutorials).
 

@@ -24,4 +24,4 @@ $ sudo zypper install jool-kmp-default jool-tools
 
 That's it!
 
-Here's a quick link back to the [basic tutorials list](http://jool.mx/en/documentation.html#basic-tutorials).
+Here's a quick link back to the [basic tutorials list](documentation.html#basic-tutorials).

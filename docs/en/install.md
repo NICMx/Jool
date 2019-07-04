@@ -12,12 +12,9 @@ title: Installation
 ## Index
 
 1. [Introduction](#introduction)
-	1. [Kbuild vs DKMS](#kbuild-vs-dkms)
 2. [Installing Dependencies](#installing-dependencies)
 3. [Downloading the Code](#downloading-the-code)
-3. [Compilation and Installation](#compilation-and-installation)
-	1. [Installation via Kbuild](#installation-via-kbuild)
-	2. [Installation via DKMS](#installation-via-dkms)
+4. [Compilation and Installation](#compilation-and-installation)
 
 ## Introduction
 
@@ -31,12 +28,6 @@ Jool is seven binaries:
 This document will explain how to compile and install all of that on most Linux distributions.
 
 In following console segments, `$` indicates the command can be executed freely; `#` means it requires admin privileges.
-
-### Kbuild vs DKMS
-
-Before you start, you need to decide whether you will install the modules via Kbuild or DKMS.
-
-Kbuild is Linux's bare bones module building infrastructure, while DKMS is a more robust framework. Though Kbuild is easier to get started, DKMS is recommended because it has several other benefits. In particular, DKMS takes care of automatically recompiling the modules every time you update your kernel. (If, on the other hand, you choose Kbuild, you will have to do this manually.)
 
 ## Installing Dependencies
 
@@ -153,7 +144,7 @@ user@T:~# apt install iptables-dev
 user@T:~# yum install iptables-devel
 {% endhighlight %}
 
-If you will install Jool via DKMS, you will need DKMS itself:
+You also want DKMS, for automatic module rebuild during kernel updates:
 
 {% highlight bash %}
 user@T:~# apt install dkms
@@ -210,46 +201,7 @@ The repository version sometimes includes slight bugfixes not present in the lat
 
 ## Compilation and Installation
 
-Choose either Kbuild or DKMS; you don't need both.
-
-> ![!](../images/bulb.svg) By the way: We're aiming for completely immaculate code. If you get compilation warnings in your platform when you issue `make`, please [report them](https://github.com/NICMx/Jool/issues).
-
-### Installation via Kbuild
-
-> ![!](../images/warning.svg) Let me say it again: A new kernel (including your distro's automatic kernel updates) **will** obsolete the binaries generated here. If you insist on using Kbuild, you **will** need to recompile and reinstall Jool yourself whenever this happens.
-
-<div class="distro-menu">
-	<span class="distro-selector" onclick="showDistro(this);">tarball</span>
-	<span class="distro-selector" onclick="showDistro(this);">git clone</span>
-</div>
-
-<!-- tarball -->
-{% highlight bash %}
-user@T:~$ cd jool-{{ site.latest-version }}/
-user@T:~$
-user@T:~$ ./configure
-user@T:~$ make
-user@T:~# make install
-{% endhighlight %}
-
-<!-- git clone -->
-{% highlight bash %}
-user@T:~$ cd Jool/
-user@T:~$ ./autogen.sh
-user@T:~$ ./configure
-user@T:~$ make
-user@T:~# make install
-{% endhighlight %}
-
-> ![!](../images/warning.svg) Kernels 3.7 and up want you to sign your kernel modules to make sure you're loading them in a responsible manner.
-> 
-> But if your kernel was not configured to _require_ this feature (the kernels of many distros don't), you won't have much of an issue here. The output of `make install` will output "Can't read private key"; this looks like an error, but is actually a warning, so you can continue the installation peacefully.
-> 
-> Sorry; if your kernel _was_ compiled to require module signing, you probably know what you're doing, so I'll skip the instructions to make that work.
-
-### Installation via DKMS
-
-With DKMS, the kernel modules and the userspace applications need to be installed separately.
+The kernel modules and the userspace applications need to be compiled and installed separately.
 
 This is how you compile and install the kernel modules:
 
@@ -280,7 +232,6 @@ And this is how you compile and install the userspace applications:
 user@T:~$ cd jool-{{ site.latest-version }}/
 user@T:~$
 user@T:~$ ./configure
-user@T:~$ cd src/usr/
 user@T:~$ make
 user@T:~# make install
 {% endhighlight %}
@@ -290,7 +241,6 @@ user@T:~# make install
 user@T:~$ cd Jool/
 user@T:~$ ./autogen.sh
 user@T:~$ ./configure
-user@T:~$ cd src/usr/
 user@T:~$ make
 user@T:~# make install
 {% endhighlight %}
