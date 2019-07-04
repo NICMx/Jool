@@ -1,6 +1,6 @@
 # Jool's website
 
-This branch contains the source files of Jool's site and documentation.
+This directory contains the source files of Jool's site and documentation.
 
 Github automatically compiles this, and it's available at https://nicmx.github.io/Jool. We're also mirroring it at https://www.jool.mx.
 
