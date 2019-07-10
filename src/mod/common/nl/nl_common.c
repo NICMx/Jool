@@ -6,7 +6,7 @@
 int verify_superpriv(void)
 {
 	if (!capable(CAP_NET_ADMIN)) {
-		log_err("Administrative privileges required.");
+		log_err("CAP_NET_ADMIN capability required. (Maybe try using su or sudo?)");
 		return -EPERM;
 	}
 

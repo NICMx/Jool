@@ -6,6 +6,9 @@ The "graybox" tests are the logical step after the unit tests. They are a bunch 
 
 It's become convoluted over time. Best do it on a disposable clean virtual machine, because it's going to pollute the system, or clash with existing Jool binares if you have already installed them.
 
+> TODO actually, it requires even more steps now.
+> If you're not me, don't run graybox for now.
+
 ```bash
 # -- Userspace --
 cd Jool

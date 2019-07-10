@@ -36,7 +36,6 @@ AC_SEARCH_LIBS([argp_parse], [argp])
 PKG_CHECK_MODULES(LIBNLGENL3, libnl-genl-3.0 >= 3.1)
 PKG_CHECK_MODULES(XTABLES, xtables)
 
-# -- Bash autocompletion --
 # Bash autocompletion option (https://www.swansontec.com/bash-completion.html):
 # 1. Offer the user the `--with-bash-completion-dir` configure option,
 #    which can be set to a directory, "yes" (default; means autodetect
@@ -62,27 +61,6 @@ AC_SUBST([BASH_COMPLETION_DIR])
 AM_CONDITIONAL([ENABLE_BASH_COMPLETION],
 	[test "x$with_bash_completion_dir" != "xno"])
 
-# -- Graybox --
-AC_ARG_WITH(
-	[graybox],
-	AS_HELP_STRING(
-		[--with-graybox],
-		[Generate graybox userspace test thingo.]
-	)
-)
-
-# https://www.gnu.org/software/automake/manual/html_node/Conditional-Subdirectories.html
-# "Subdirectories with AM_CONDITIONAL" never worked for me. The problem might
-# be that it puts `MAYBE_TESTS` in `.PRECIOUS`, which maybe is a bug in the
-# autotools. (I honestly can't tell. They are so incredibly poorly designed.)
-# The code below is implemented as "Subdirectories with AC_SUBST."
-if test "x$with_graybox" = "xyes"; then
-	MAYBE_GRAYBOX=test/graybox/usr
-else
-	MAYBE_GRAYBOX=
-fi
-AC_SUBST([MAYBE_GRAYBOX])
-
 # Needed by libtool. (Othewise autoreconf complains.)
 LT_INIT
 # Needed by libtoolize. (Othewise autoreconf complains.)
@@ -97,5 +75,4 @@ AC_OUTPUT(Makefile
 	src/usr/argp/Makefile
 	src/usr/siit/Makefile
 	src/usr/nat64/Makefile
-	src/usr/joold/Makefile
-	test/graybox/usr/Makefile)
+	src/usr/joold/Makefile)

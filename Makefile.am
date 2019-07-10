@@ -35,7 +35,7 @@ AUTOMAKE_OPTIONS = foreign
 # Perhaps I've been misunderstandig Kbuild all this time, and is really only
 # intended for development. As a matter of fact, I'm going to remove it from the
 # documentation shortly. Screw it.
-SUBDIRS = src/common src/usr $(MAYBE_GRAYBOX)
+SUBDIRS = src/common src/usr
 DIST_SUBDIRS = src/common src/mod src/usr
 
 # Needed by libtoolize. (Othewise autoreconf complains.)
