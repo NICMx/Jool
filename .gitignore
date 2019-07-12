@@ -52,6 +52,9 @@ docs/_site/
 *.tar
 *.zip
 
+# Package signature
+*.asc
+
 # Logs #
 ########
 *.log

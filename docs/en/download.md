@@ -37,9 +37,9 @@ Jool 4.0 is a [compliant SIIT and Stateful NAT64](intro-jool.html#compliance).
 
 Transitional packages:
 
-| Release Date | Version | .tar.gz | Git commit |
-|--------------|---------|---------|------------|
-| 2019-07-11   | 4.0.2   | [Download]({{ site.downloads-url-2 }}/v4.0.2/jool-4.0.2.tar.gz) | <a href="{{ site.repository-url }}/tree/v4.0.2" target="_blank">Link</a> |
+| Release Date | Version | .tar.gz | Signature | Git commit |
+|--------------|---------|---------|-----------|------------|
+| 2019-07-11   | 4.0.2   | [Download]({{ site.downloads-url-2 }}/v4.0.2/jool-4.0.2.tar.gz) | [Signature]({{ site.downloads-url-2 }}/v4.0.2/jool-4.0.2.tar.gz.gpg) | <a href="{{ site.repository-url }}/tree/v4.0.2" target="_blank">Link</a> |
 
 ## 3.5.x
 
