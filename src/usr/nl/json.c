@@ -11,6 +11,7 @@
 #include "usr/util/cJSON.h"
 #include "usr/util/file.h"
 #include "usr/util/str_utils.h"
+#include "usr/nl/instance.h"
 
 /* TODO (warning) These variables prevent this module from being thread-safe. */
 static struct jool_socket sk;
@@ -1001,5 +1002,78 @@ struct jool_result parse_file(struct jool_socket *_sk, char *iname,
 
 	result = do_parsing(iname, buffer);
 	free(buffer);
+	return result;
+}
+
+static struct jool_result handle_rm_iname(char *iname_console, char *iname_json)
+{
+	char *iname;
+
+	if (iname_console == NULL && iname_json == NULL) {
+		return result_from_error(
+			-EINVAL,
+			"The file is missing an instance name."
+		);
+	}
+
+	if (iname_console == NULL)
+		iname = iname_json;
+	else if (iname_json == NULL)
+		iname = iname_console;
+	else if (strcmp(iname_console, iname_json) != 0)
+		return result_from_error(
+			-EINVAL,
+			"-i \"%s\" and the file's instance name (\"%s\") don't match.",
+			iname_console, iname_json
+		);
+	else
+		iname = iname_json;
+
+	return instance_rm(&sk, iname);
+}
+
+static struct jool_result handle_rm_json(char *iname, cJSON *root)
+{
+	cJSON *child;
+
+	if (root->type != cJSON_Object)
+		return type_mismatch("root", root, "Object");
+
+	for (child = root->child; child; child = child->next)
+		if (tagname_equals(child, OPTNAME_INAME))
+			return handle_rm_iname(iname, child->valuestring);
+
+	return handle_rm_iname(iname, NULL);
+}
+
+struct jool_result rm_file(struct jool_socket *_sk, char *iname,
+		char *file_name)
+{
+	char *json_string;
+	cJSON *json;
+	struct jool_result result;
+
+	sk = *_sk;
+	force = false;
+
+	result = file_to_string(file_name, &json_string);
+	if (result.error)
+		return result;
+
+	json = cJSON_Parse(json_string);
+
+	free(json_string);
+
+	if (!json) {
+		return result_from_error(
+			-EINVAL,
+			"The JSON parser got confused around the beginning of this string:\n"
+			"%s", cJSON_GetErrorPtr()
+		);
+	}
+
+	result = handle_rm_json(iname, json);
+
+	cJSON_Delete(json);
 	return result;
 }

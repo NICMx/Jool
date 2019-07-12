@@ -59,3 +59,51 @@ void autocomplete_file_update(void *args)
 {
 	/* Do nothing; default to autocomplete directory path */
 }
+
+struct rm_args {
+	struct wargp_string file_name;
+};
+
+static struct wargp_option remove_opts[] = {
+	{
+		.name = "File name",
+		.key = ARGP_KEY_ARG,
+		.doc = "Path to a JSON file containing the instance name.",
+		.offset = offsetof(struct update_args, file_name),
+		.type = &wt_string,
+	},
+	{ 0 },
+};
+
+int handle_file_rm(char *iname, int argc, char **argv, void *arg)
+{
+	struct rm_args rargs = { 0 };
+	struct jool_socket sk;
+	struct jool_result result;
+
+	result.error = wargp_parse(remove_opts, argc, argv, &rargs);
+	if (result.error)
+		return result.error;
+
+	if (!rargs.file_name.value) {
+		struct requirement reqs[] = {
+				{ false, "a file name" },
+				{ 0 }
+		};
+		return requirement_print(reqs);
+	}
+
+	result = netlink_setup(&sk, xt_get());
+	if (result.error)
+		return pr_result(&result);
+
+	result = rm_file(&sk, iname, rargs.file_name.value);
+
+	netlink_teardown(&sk);
+	return pr_result(&result);
+}
+
+void autocomplete_file_rm(void *args)
+{
+	/* Do nothing; default to autocomplete directory path */
+}

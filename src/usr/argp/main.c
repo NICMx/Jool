@@ -198,6 +198,11 @@ static struct cmd_option file_ops[] = {
 			.xt = XT_BOTH,
 			.handler = handle_file_update,
 			.handle_autocomplete = autocomplete_file_update,
+		}, {
+			.label = "remove",
+			.xt = XT_BOTH,
+			.handler = handle_file_rm,
+			.handle_autocomplete = autocomplete_file_rm,
 		},
 		{ 0 },
 };
