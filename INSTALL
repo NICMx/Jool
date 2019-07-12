@@ -1,68 +1,9 @@
-***********************************************************************
+See https://jool.mx/en/install.html.
 
-	Before you continue, perhaps you want to have a look at
-	the newcomer-friendlier version of this file:
-	https://jool.mx/en/documentation.html
-	https://nicmx.github.io/Jool/en/documentation.html
+Quick version:
 
-	It also contains a few tutorials to get you started.
-
-***********************************************************************
-
-Install the requirements:
-	1. Your kernel headers (version 3.13.0+)
-		# apt install linux-headers-$(uname -r)
-	2. libnl-genl-3-dev
-		# apt install libnl-genl-3-dev
-		(Site: http://www.carisma.slowglass.com/~tgr/libnl)
-	3. iptables dev
-		# apt install libxtables-dev
-
-Build and install everything:
-	$ # (This is the Kbuild version.)
-	$ ./configure
-	$ make
-	# make install
-
-Insert the module:
-	Configure networking:
-		# ip link set ...
-		# ip addr add ...
-		# ip route add ...
-		# sysctl -w net.ipv4.conf.all.forwarding=1
-		# sysctl -w net.ipv6.conf.all.forwarding=1
-
-	Actually insert the module:
-		# modprobe jool_siit
-		or
-		# modprobe jool
-
-	Create a Jool instance:
-		# jool_siit instance add potato --netfilter
-		or
-		# jool instance add tomato --netfilter -6 64:ff9b::/96
-
-	See your module shine:
-		$ # See your module listed
-		$ lsmod | grep jool
-		$ # Check the log
-		$ dmesg
-		$ # Print your instances
-		# jool_siit instance display
-		# jool instance display
-
-Configure the module:
-	Configure the instance through userspace app requests:
-		$ jool_siit --help
-		or
-		$ jool --help
-
-Destroy an instance:
-	# jool_siit instance remove potato
-	or
-	# jool instance remove tomato
-
-Detatch the module from your kernel:
-	# modprobe -r jool_siit
-	or
-	# modprobe -r jool
+	./autogen.sh
+	./configure
+	make
+	sudo make install     # userspace tools
+	sudo dkms install .   # kernel modules
