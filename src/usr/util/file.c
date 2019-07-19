@@ -3,6 +3,7 @@
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 /**
  * Remember to free @result when you're done.
@@ -17,28 +18,46 @@ struct jool_result file_to_string(char *file_name, char **out)
 	int error;
 
 	file = fopen(file_name, "rb");
-	if (!file)
-		return result_from_errno(errno, "fopen");
+	if (!file) {
+		error = errno;
+		return result_from_error(
+			error,
+			"Could not open file \"%s\": %s",
+			file_name, strerror(error)
+		);
+	}
 
 	error = fseek(file, 0, SEEK_END);
 	if (error) {
 		error = errno;
 		fclose(file);
-		return result_from_errno(error, "fseek1");
+		return result_from_error(
+			error,
+			"Could not seek the end of file \"%s\" (1): %s",
+			file_name, strerror(error)
+		);
 	}
 
 	length = ftell(file);
 	if (length == -1) {
 		error = errno;
 		fclose(file);
-		return result_from_errno(error, "ftell");
+		return result_from_error(
+			error,
+			"Could not ftell on file \"%s\": %s",
+			file_name, strerror(error)
+		);
 	}
 
 	error = fseek(file, 0, SEEK_SET);
 	if (error) {
 		error = errno;
 		fclose(file);
-		return result_from_errno(error, "fseek2");
+		return result_from_error(
+			error,
+			"Could not fseek on file \"%s\" (2): %s",
+			file_name, strerror(error)
+		);
 	}
 
 	buffer = malloc(length + 1);
@@ -54,7 +73,10 @@ struct jool_result file_to_string(char *file_name, char **out)
 			free(buffer);
 			fclose(file);
 			/* There's literally no way to get an error code. */
-			return result_from_errno(-EINVAL, "fread");
+			return result_from_error(
+				-EINVAL,
+				"File read error. (Sorry; there's no error message.)"
+			);
 		}
 
 		total_read += current_read;

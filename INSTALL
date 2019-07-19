@@ -2,8 +2,8 @@ See https://jool.mx/en/install.html.
 
 Quick version:
 
-	./autogen.sh
+	./autogen.sh         # If this script does not exist, skip this command.
 	./configure
 	make
-	sudo make install     # userspace tools
-	sudo dkms install .   # kernel modules
+	sudo make install    # userspace tools
+	sudo dkms install .  # kernel modules

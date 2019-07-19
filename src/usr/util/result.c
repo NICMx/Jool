@@ -18,40 +18,6 @@ struct jool_result result_success(void)
 	return result;
 }
 
-/**
- * @error: Error code the function died with. Usually errno.
- * @prefix: Name of the function that errored.
- */
-struct jool_result result_from_errno(int error_code, char const *function)
-{
-	size_t function_len;
-	static char const *const SEPARATOR = "() error: ";
-	size_t separator_len;
-	char *suffix;
-	struct jool_result result;
-
-	if (error_code == 0)
-		error_code = -EINVAL; /* We know there's an error */
-
-	function_len = strlen(function);
-	separator_len = strlen(SEPARATOR);
-	suffix = strerror(error_code);
-
-	result.error = error_code;
-	result.msg = malloc(function_len + separator_len + strlen(suffix) + 1);
-	if (!result.msg) {
-		result.msg = suffix;
-		result.flags = JRF_INITIALIZED;
-	} else {
-		strcpy(result.msg, function);
-		strcpy(result.msg + function_len, SEPARATOR);
-		strcpy(result.msg + function_len + separator_len, suffix);
-		result.flags = JRF_INITIALIZED | JRF_MSG_IN_HEAP;
-	}
-
-	return result;
-}
-
 struct jool_result result_from_error(int error_code, char const *msg, ...)
 {
 	static const size_t MAX_STR_LEN = 1024;

@@ -20,7 +20,6 @@ struct jool_result {
 };
 
 struct jool_result result_success(void);
-struct jool_result result_from_errno(int errno, char const *function);
 struct jool_result result_from_error(int errcode, char const *msg, ...);
 struct jool_result result_from_enomem(void);
 
