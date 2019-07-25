@@ -85,7 +85,7 @@ All instances that share stateness and namespace must have different names.
 	+--------------------+-----------------+-----------+
 
 
-Notice that the namespace identifier is fairly nonsensical garbage. Unfortunately, this is expected behavior for now, because namespace names do not exist in the kernel (in fact, some of them have no name), and so Jool has no concept of them.
+Notice that the namespace identifier is fairly nonsensical garbage. Unfortunately, this is expected behavior for now, because namespace names do not exist in the kernel, so Jool has no concept of them. The point is, instances that share a namespace will print the same garbage.
 
 	# jool_siit instance remove alpha
 	# jool_siit instance display

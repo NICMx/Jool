@@ -11,7 +11,6 @@
 #include "usr/util/cJSON.h"
 #include "usr/util/file.h"
 #include "usr/util/str_utils.h"
-#include "usr/nl/instance.h"
 
 /* TODO (warning) These variables prevent this module from being thread-safe. */
 static struct jool_socket sk;
@@ -987,7 +986,7 @@ fail:
 	return result;
 }
 
-struct jool_result parse_file(struct jool_socket *_sk, char *iname,
+struct jool_result json_parse(struct jool_socket *_sk, char *iname,
 		char *file_name, bool _force)
 {
 	char *buffer;
@@ -1005,56 +1004,33 @@ struct jool_result parse_file(struct jool_socket *_sk, char *iname,
 	return result;
 }
 
-static struct jool_result handle_rm_iname(char *iname_console, char *iname_json)
-{
-	char *iname;
-
-	if (iname_console == NULL && iname_json == NULL) {
-		return result_from_error(
-			-EINVAL,
-			"The file is missing an instance name."
-		);
-	}
-
-	if (iname_console == NULL)
-		iname = iname_json;
-	else if (iname_json == NULL)
-		iname = iname_console;
-	else if (strcmp(iname_console, iname_json) != 0)
-		return result_from_error(
-			-EINVAL,
-			"-i \"%s\" and the file's instance name (\"%s\") don't match.",
-			iname_console, iname_json
-		);
-	else
-		iname = iname_json;
-
-	return instance_rm(&sk, iname);
-}
-
-static struct jool_result handle_rm_json(char *iname, cJSON *root)
+static struct jool_result __json_get_iname(cJSON *root, char **out)
 {
 	cJSON *child;
 
 	if (root->type != cJSON_Object)
 		return type_mismatch("root", root, "Object");
 
-	for (child = root->child; child; child = child->next)
-		if (tagname_equals(child, OPTNAME_INAME))
-			return handle_rm_iname(iname, child->valuestring);
+	for (child = root->child; child; child = child->next) {
+		if (tagname_equals(child, OPTNAME_INAME)) {
+			*out = strdup(child->valuestring);
+			return ((*out) != NULL)
+					? result_success()
+					: result_from_enomem();
+		}
+	}
 
-	return handle_rm_iname(iname, NULL);
+	return result_from_error(
+		-EINVAL,
+		"The file does not contain an instance name."
+	);
 }
 
-struct jool_result rm_file(struct jool_socket *_sk, char *iname,
-		char *file_name)
+struct jool_result json_get_iname(char *file_name, char **out)
 {
 	char *json_string;
 	cJSON *json;
 	struct jool_result result;
-
-	sk = *_sk;
-	force = false;
 
 	result = file_to_string(file_name, &json_string);
 	if (result.error)
@@ -1072,7 +1048,7 @@ struct jool_result rm_file(struct jool_socket *_sk, char *iname,
 		);
 	}
 
-	result = handle_rm_json(iname, json);
+	result = __json_get_iname(json, out);
 
 	cJSON_Delete(json);
 	return result;

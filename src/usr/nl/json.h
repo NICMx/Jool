@@ -3,11 +3,8 @@
 
 #include "jool_socket.h"
 
-/* TODO (warning) rename these */
-
-struct jool_result parse_file(struct jool_socket *sk, char *iname,
-		char *fileName, bool force);
-struct jool_result rm_file(struct jool_socket *sk, char *iname,
-		char *file_name);
+struct jool_result json_parse(struct jool_socket *sk, char *iname,
+		char *file_name, bool force);
+struct jool_result json_get_iname(char *file_name, char **out);
 
 #endif /* SRC_USR_NL_JSON_H_ */

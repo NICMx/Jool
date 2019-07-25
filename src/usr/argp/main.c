@@ -1,5 +1,5 @@
 /**
- * Main for the `jool` userspace application.
+ * Main for the `jool` and `jool_siit` userspace applications.
  * Handles the first arguments (often "mode" and "operation") and multiplexes
  * the rest of the work to the corresponding .c's.
  */
@@ -14,6 +14,7 @@
 #include "common/config.h"
 #include "common/xlat.h"
 #include "usr/util/str_utils.h"
+#include "usr/nl/json.h"
 #include "usr/argp/xlator_type.h"
 #include "wargp/bib.h"
 #include "wargp/blacklist4.h"
@@ -198,11 +199,6 @@ static struct cmd_option file_ops[] = {
 			.xt = XT_BOTH,
 			.handler = handle_file_update,
 			.handle_autocomplete = autocomplete_file_update,
-		}, {
-			.label = "remove",
-			.xt = XT_BOTH,
-			.handler = handle_file_rm,
-			.handle_autocomplete = autocomplete_file_rm,
 		},
 		{ 0 },
 };
@@ -492,10 +488,35 @@ static int handle_autocomplete(char *junk, int argc, char **argv, void *arg)
 	return 0;
 }
 
+static const struct option OPTIONS[] = {
+	{
+		.name = "help",
+		.has_arg = no_argument,
+		.val = '?',
+	}, {
+		.name = "version",
+		.has_arg = no_argument,
+		.val = 'V',
+	}, {
+		.name = "usage",
+		.has_arg = no_argument,
+		.val = 1000,
+	}, {
+		.name = "instance",
+		.has_arg = required_argument,
+		.val = 'i',
+	}, {
+		.name = "file",
+		.has_arg = required_argument,
+		.val = 'f',
+	},
+	{ 0 },
+};
+
 static int show_usage(char *program_name)
 {
 	printf("%s (\n", program_name);
-	printf("        [-i <INSTANCE NAME>] <MODE> <OPERATION> <ARGS>\n");
+	printf("        [<ARGP1>] <MODE> <OPERATION> [<ARGP2>]\n");
 	printf("        | [-h|--help]\n");
 	printf("        | (-V|--version)\n");
 	printf("        | --usage\n");
@@ -513,15 +534,15 @@ static int show_help(char *program_name)
 	show_usage(program_name);
 	printf("\n");
 
-	printf("<INSTANCE NAME>\n");
-	printf("===============\n");
-	printf("Name of the Jool instance to operate on.\n");
-	printf("Ascii string, 15 characters max. Defaults to `%s`.\n",
-			INAME_DEFAULT);
+	printf("<ARGP1>\n");
+	printf("=======\n");
+	printf("Either (--instance|-i) <INSTANCE> or (--file|-f) <FILE>.\n");
+	printf("- <INSTANCE> is the instance name\n");
+	printf("- <FILE> is a path to a JSON file that contains the instance name\n");
 	printf("\n");
 
-	printf("<MODE> -> <OPERATION>s\n");
-	printf("======================\n");
+	printf("<MODE>s -> <OPERATION>s\n");
+	printf("=======================\n");
 	for (mode = tree; mode && mode->label; mode++) {
 		if (cmdopt_is_hidden(mode))
 			continue;
@@ -535,7 +556,7 @@ static int show_help(char *program_name)
 	}
 	printf("\n");
 
-	printf("<ARGS>\n");
+	printf("<ARGP2>\n");
 	printf("======\n");
 	printf("Depends on <MODE> and <OPERATION>. Normally, see respective --help for details.\n");
 	printf("(Example: %s instance add --help)\n", program_name);
@@ -554,25 +575,31 @@ static int show_version(void)
 
 int jool_main(int argc, char **argv)
 {
+	int opt;
 	char *iname = NULL;
+	struct jool_result result;
 
 	if (argc == 1)
 		return show_help(argv[0]);
-	if (STR_EQUAL(argv[1], "--help") || STR_EQUAL(argv[1], "-?"))
-		return show_help(argv[0]);
-	if (STR_EQUAL(argv[1], "--version") || STR_EQUAL(argv[1], "-V"))
-		return show_version();
-	if (STR_EQUAL(argv[1], "--usage"))
-		return show_usage(argv[0]);
-	if (STR_EQUAL(argv[1], "-i")) {
-		if (argc == 2) {
-			pr_err("-i requires a string as argument.");
-			return -EINVAL;
+
+	while ((opt = getopt_long(argc, argv, "+?Vi:f:", OPTIONS, NULL)) != -1) {
+		switch (opt) {
+		case '?':
+			return show_help(argv[0]);
+		case 'V':
+			return show_version();
+		case 1000:
+			return show_usage(argv[0]);
+		case 'i':
+			iname = optarg;
+			break;
+		case 'f':
+			result = json_get_iname(optarg, &iname);
+			if (result.error)
+				return pr_result(&result);
+			break;
 		}
-		iname = argv[2];
-		argc -= 2;
-		argv += 2;
 	}
 
-	return handle(iname, argc - 1, argv + 1);
+	return handle(iname, argc - optind, argv + optind);
 }

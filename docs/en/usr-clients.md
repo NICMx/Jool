@@ -13,19 +13,50 @@ title: Userspace Clients General Usage
 
 1. [Syntax](#syntax)
 2. [Arguments](#arguments)
+	1. [`(jool | jool_siit)`](#jool--jool_siit)
+	2. [`<argp1>`](#argp1)
+	4. [`<mode>`](#mode)
+	5. [`<operation>`](#operation)
+	6. [`<argp2>`](#argp2)
 3. [Quirks](#quirks)
 
 ## Syntax
 
 All userspace client command line requests adhere to the following syntax:
 
-	(jool_siit | jool) [-i <instance-name>] <mode> <operation> [<args>]
+	(jool | jool_siit) [<argp1>] <mode> <operation> [<argp2>]
 
 ## Arguments
 
+### `(jool | jool_siit)`
+
 `jool` and `jool_siit` are the names of the two available userspace client binaries. The `jool` client speaks to the `jool` kernel module, and the `jool_siit` client speaks to the `jool_siit` kernel module.
 
-`<instance name>` is the name of the instance (defined in [`instance add`](usr-flags-instance.html)) you want to interact with. It defaults to "`default`."
+### `<argp1>`
+
+`argp1` is a first batch of classic [`getopt`](http://man7.org/linux/man-pages/man3/getopt.3.html)-based arguments:
+
+```bash
+<argp1> := ( --help | --usage | --version | --instance <name> | --file <file> )
+```
+
+- `--help` (`-?`): Print a summary of this document.
+- `--usage`: Print program usage syntax. (Also available amidst the output of `--help`.)
+- `--version` (`-V`): Print program version.
+- `--instance <name>` (`-i <name>`): Specify the name of the Jool instance to interact with.
+- `--file <file>` (`-f <name>`): Specify a JSON file which contains the name of the instance to interact with.
+
+The instance name is a 15-character maximum ASCII string. It defaults to `default`. It's the same one you specify during [`instance add`](usr-flags-instance.html).
+
+The bare minimum legal JSON file looks like this:
+
+	{
+		"instance": "<name>"
+	}
+
+All JSON tags other than `"instance"` are ignored. (The idea is to allow you to reuse an [atomic configuration](config-atomic.html) file as a `--file` file.)
+
+### `<mode>`
 
 `<mode>` is (usually) one of the following keywords:
 
@@ -38,6 +69,8 @@ All userspace client command line requests adhere to the following syntax:
 - [`bib`](usr-flags-bib.html) (NAT64 only)
 - [`session`](usr-flags-session.html) (NAT64 only)
 
+### `<operation>`
+
 `<operation>` is (usually) one of the following keywords:
 
 - `display`
@@ -46,7 +79,11 @@ All userspace client command line requests adhere to the following syntax:
 - `remove`
 - `flush`
 
-And finally, `<args>` is a traditional argp-parsed payload of arguments that depend on the `<mode> <operation>` context. For example, list the `instance add` flags by running
+See the respective mode documentation for details.
+
+### `<argp2>`
+
+`<arg2>` is a second batch of traditional getopt-parsed arguments. (Though these are actually handled by [argp](https://www.gnu.org/software/libc/manual/html_node/Argp.html).) They depend on the `<mode> <operation>` context. For example, list the `instance add` flags by running
 
 {% highlight bash %}
 user@T:~$ jool instance add --help
