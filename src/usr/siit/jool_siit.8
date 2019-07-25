@@ -17,7 +17,7 @@ Linux is the only OS in which this program makes sense.
 Kernels 3.13.0 and up.
 
 .SH SYNTAX
-jool_siit instance (
+.RI "jool_siit [" <argp1> "] instance ("
 .br
 	display
 .br
@@ -39,9 +39,11 @@ jool_siit instance (
 .br
 	| flush
 .br
+.RI "	| " <help>
+.br
 )
 .P
-.RI "jool_siit [-i " <Instance-Name> "] stats ("
+.RI "jool_siit [" <argp1> "] stats ("
 .br
 	display
 .br
@@ -53,9 +55,11 @@ jool_siit instance (
 .br
 		[--explain]
 .br
+.RI "	| " <help>
+.br
 )
 .P
-.RI "jool_siit [-i " <Instance-Name> "] global ("
+.RI "jool_siit [" <argp1> "] global ("
 .br
 	display
 .br
@@ -67,9 +71,11 @@ jool_siit instance (
 .br
 .I			<Key> <Value>
 .br
+.RI "	| " <help>
+.br
 )
 .P
-.RI "jool_siit [-i " <Instance-Name> "] eamt ("
+.RI "jool_siit [" <argp1> "] eamt ("
 .br
 	display
 .br
@@ -89,9 +95,11 @@ jool_siit instance (
 .br
 	| flush
 .br
+.RI "	| " <help>
+.br
 )
 .P
-.RI "jool_siit [-i " <Instance-Name> "] blacklist4 ("
+.RI "jool_siit [" <argp1> "] blacklist4 ("
 .br
 	display
 .br
@@ -109,15 +117,23 @@ jool_siit instance (
 .br
 .RI "		<IPv4-prefix>"
 .br
-	| --flush
+	| flush
+.br
+.RI "	| " <help>
 .br
 )
 .P
-.RI "jool_siit [-i " <Instance-Name> "] file ("
+.RI "jool_siit [" <argp1> "] file ("
 .br
 .RI "	handle " <JSON-File>
 .br
+.RI "	| " <help>
+.br
 )
+.P
+.IR <argp1> " := (" <help> " | --instance " <Name> " | --file " <File> ")"
+.P
+.IR <help> " := (--help | --usage | --version)"
 
 .SH OPTIONS
 .SS Modes and Operations
@@ -154,12 +170,18 @@ Drop an entry from the blacklist.
 Empty the blacklist.
 .IP "file handle"
 Parse all the configuration from a JSON file.
+.br
+Create instance if it doesn't exist, update if it does.
 
 .SS Flags
-.IP "-i <Instance-Name>"
+.IP "--instance <Name>"
 Name of the instance you want to interact with.
 .br
 It's an ASCII string, 15 characters max. Defaults to 'default'.
+.IP "--file <File>"
+JSON file which contains the name of the instance you want to interact with.
+.br
+Same JSON structure as the one from atomic configuration.
 .IP --csv
 Output in CSV table format.
 .IP --no-headers
@@ -189,6 +211,10 @@ Name of the variable you want to edit (see 'Globals' section), and its new value
 The format is IPV6_ADDRESS[/PREFIX_LENGTH]. PREFIX_LENGTH defaults to 128.
 .IP "<IPv4-prefix>"
 The format is IPV4_ADDRESS[/PREFIX_LENGTH]. PREFIX_LENGTH defaults to 32.
+.IP <Instance-Name>
+Name of the instance you want to add or remove.
+.br
+If --instance or --file were included in <argp1>, then the instance names must match.
 .IP <JSON-file>
 Path to a JSON file.
 

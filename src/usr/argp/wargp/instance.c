@@ -114,7 +114,7 @@ int handle_instance_display(char *iname, int argc, char **argv, void *arg)
 	struct jool_result result;
 
 	if (iname)
-		pr_warn("instance display ignores -i.");
+		pr_warn("instance display ignores the instance name argument.");
 
 	result.error = wargp_parse(display_opts, argc, argv, &dargs);
 	if (result.error)
@@ -284,7 +284,7 @@ int handle_instance_flush(char *iname, int argc, char **argv, void *arg)
 	struct jool_result result;
 
 	if (iname)
-		pr_warn("instance flush ignores -i.");
+		pr_warn("instance flush ignores the instance name argument.");
 
 	result.error = wargp_parse(flush_opts, argc, argv, NULL);
 	if (result.error)
