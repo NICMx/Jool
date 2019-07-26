@@ -1,7 +1,7 @@
-#include "mod/common/rfc6145/core.h"
+#include "mod/common/rfc7915/core.h"
 
 #include "mod/common/log.h"
-#include "mod/common/rfc6145/common.h"
+#include "mod/common/rfc7915/common.h"
 
 static bool has_l4_hdr(struct xlation *state)
 {

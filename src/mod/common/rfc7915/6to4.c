@@ -1,4 +1,4 @@
-#include "mod/common/rfc6145/6to4.h"
+#include "mod/common/rfc7915/6to4.h"
 
 #include <net/ip6_checksum.h>
 
@@ -10,7 +10,7 @@
 #include "mod/common/rfc6052.h"
 #include "mod/common/stats.h"
 #include "mod/common/route.h"
-#include "mod/common/rfc6145/common.h"
+#include "mod/common/rfc7915/common.h"
 #include "mod/siit/blacklist4.h"
 #include "mod/siit/rfc6791v4.h"
 #include "mod/siit/eam.h"
@@ -362,7 +362,7 @@ static bool has_nonzero_segments_left(struct ipv6hdr *hdr6, __u32 *location)
 
 /**
  * Translates @state->in's IPv6 header into @state->out's IPv4 header.
- * This is RFC 6145 sections 5.1 and 5.1.1.
+ * This is RFC 7915 sections 5.1 and 5.1.1.
  *
  * This is used to translate both outer and inner headers.
  */
@@ -707,7 +707,7 @@ static verdict post_icmp4error(struct xlation *state)
 
 /**
  * Translates in's icmp6 header and payload into out's icmp4 header and payload.
- * This is the core of RFC 6145 sections 5.2 and 5.3, except checksum (See
+ * This is the core of RFC 7915 sections 5.2 and 5.3, except checksum (See
  * post_icmp4*()).
  */
 verdict ttp64_icmp(struct xlation *state)

@@ -1,10 +1,10 @@
-#include "mod/common/rfc6145/common.h"
+#include "mod/common/rfc7915/common.h"
 #include "mod/common/config.h"
 #include "mod/common/ipv6_hdr_iterator.h"
 #include "mod/common/packet.h"
 #include "mod/common/stats.h"
-#include "mod/common/rfc6145/4to6.h"
-#include "mod/common/rfc6145/6to4.h"
+#include "mod/common/rfc7915/4to6.h"
+#include "mod/common/rfc7915/6to4.h"
 #include "mod/siit/blacklist4.h"
 #include <linux/icmp.h>
 

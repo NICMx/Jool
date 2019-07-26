@@ -5,7 +5,7 @@
 #include "mod/common/log.h"
 #include "mod/common/translation_state.h"
 #include "mod/common/xlator.h"
-#include "mod/common/rfc6145/core.h"
+#include "mod/common/rfc7915/core.h"
 #include "mod/nat64/compute_outgoing_tuple.h"
 #include "mod/nat64/determine_incoming_tuple.h"
 #include "mod/nat64/filtering_and_updating.h"

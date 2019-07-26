@@ -13,6 +13,6 @@ clean:
 	make -C ${KERNEL_DIR} M=$$PWD $@
 	rm -f ../common/*.o
 	rm -f ../common/nl/*.o
-	rm -f ../common/rfc6145/*.o
+	rm -f ../common/rfc7915/*.o
 debug:
 	make all JOOL_FLAGS+=-DDEBUG

@@ -2,7 +2,7 @@
 
 #include "mod/common/log.h"
 #include "mod/common/send_packet.h"
-#include "mod/common/rfc6145/core.h"
+#include "mod/common/rfc7915/core.h"
 
 bool is_hairpin(struct xlation *state)
 {

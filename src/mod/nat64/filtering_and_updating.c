@@ -13,7 +13,7 @@
 #include "mod/common/log.h"
 #include "mod/common/rfc6052.h"
 #include "mod/common/stats.h"
-#include "mod/common/rfc6145/6to4.h"
+#include "mod/common/rfc7915/6to4.h"
 #include "mod/nat64/joold.h"
 #include "mod/nat64/pool4/db.h"
 #include "mod/nat64/bib/db.h"

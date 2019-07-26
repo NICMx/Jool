@@ -4,9 +4,9 @@
 #include "framework/unit_test.h"
 #include "framework/skb_generator.h"
 #include "framework/types.h"
-#include "mod/common/rfc6145/core.c"
-#include "mod/common/rfc6145/6to4.c"
-#include "mod/common/rfc6145/4to6.c"
+#include "mod/common/rfc7915/core.c"
+#include "mod/common/rfc7915/6to4.c"
+#include "mod/common/rfc7915/4to6.c"
 
 MODULE_LICENSE(JOOL_LICENSE);
 MODULE_AUTHOR("Alberto Leiva Popper");

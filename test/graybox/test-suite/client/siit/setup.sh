@@ -13,7 +13,7 @@ ip link set $2 up
 ip addr add 2001:db8:1c0:2:21::/64 dev $1
 ip -6 route add default via 2001:db8:1c0:2:1::
 
-# H4's config (http://tools.ietf.org/html/rfc6145#appendix-A)
+# H4's config (http://tools.ietf.org/html/rfc7915#appendix-A)
 ip addr add 198.51.100.2/24 dev $2
 ip route add 192.0.2.0/24 via 198.51.100.1
 

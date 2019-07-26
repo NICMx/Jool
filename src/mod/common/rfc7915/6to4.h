@@ -1,11 +1,11 @@
-#ifndef SRC_MOD_COMMON_RFC6145_6TO4_H_
-#define SRC_MOD_COMMON_RFC6145_6TO4_H_
+#ifndef SRC_MOD_COMMON_RFC7915_6TO4_H_
+#define SRC_MOD_COMMON_RFC7915_6TO4_H_
 
 /**
  * @file
  * Actual translation of packet contents from from IPv6 to IPv4.
  *
- * This is RFC 6145 sections 5.1, 5.1.1, 5.2 and 5.3. Not to be confused with
+ * This is RFC 7915 sections 5.1, 5.1.1, 5.2 and 5.3. Not to be confused with
  * the technology called "6to4", which is RFC 3056.
  */
 
@@ -40,4 +40,4 @@ verdict ttp64_udp(struct xlation *state);
 __u8 ttp64_xlat_tos(struct globals *config, struct ipv6hdr *hdr);
 __u8 ttp64_xlat_proto(struct ipv6hdr *hdr);
 
-#endif /* SRC_MOD_COMMON_RFC6145_6TO4_H_ */
+#endif /* SRC_MOD_COMMON_RFC7915_6TO4_H_ */

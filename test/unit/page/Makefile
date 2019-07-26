@@ -44,10 +44,10 @@ $(PAGE)-objs += ../../../src/mod/siit/rfc6791v4.o
 $(PAGE)-objs += ../../../src/mod/siit/rfc6791v6.o
 
 $(PAGE)-objs += ../../../src/mod/siit/handling_hairpinning.o
-$(PAGE)-objs += ../../../src/mod/common/rfc6145/4to6.o
-$(PAGE)-objs += ../../../src/mod/common/rfc6145/6to4.o
-$(PAGE)-objs += ../../../src/mod/common/rfc6145/common.o
-$(PAGE)-objs += ../../../src/mod/common/rfc6145/core.o
+$(PAGE)-objs += ../../../src/mod/common/rfc7915/4to6.o
+$(PAGE)-objs += ../../../src/mod/common/rfc7915/6to4.o
+$(PAGE)-objs += ../../../src/mod/common/rfc7915/common.o
+$(PAGE)-objs += ../../../src/mod/common/rfc7915/core.o
 $(PAGE)-objs += ../../../src/mod/common/core.o
 
 $(PAGE)-objs += page_test.o

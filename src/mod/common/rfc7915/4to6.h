@@ -1,14 +1,14 @@
-#ifndef SRC_MOD_COMMON_RFC6145_4TO6_H_
-#define SRC_MOD_COMMON_RFC6145_4TO6_H_
+#ifndef SRC_MOD_COMMON_RFC7915_4TO6_H_
+#define SRC_MOD_COMMON_RFC7915_4TO6_H_
 
 /**
  * @file
  * Actual translation of packet contents from from IPv4 to IPv6.
  *
- * This is RFC 6145 sections 4.1, 4.2 and 4.3.
+ * This is RFC 7915 sections 4.1, 4.2 and 4.3.
  */
 
-#include "mod/common/rfc6145/common.h"
+#include "mod/common/rfc7915/common.h"
 
 /**
  * Creates in "state->out.skb" a packet which other functions will fill with the
@@ -36,4 +36,4 @@ verdict ttp46_tcp(struct xlation *state);
  */
 verdict ttp46_udp(struct xlation *state);
 
-#endif /* SRC_MOD_COMMON_RFC6145_4TO6_H_ */
+#endif /* SRC_MOD_COMMON_RFC7915_4TO6_H_ */

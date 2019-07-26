@@ -1,4 +1,4 @@
-#include "mod/common/rfc6145/4to6.h"
+#include "mod/common/rfc7915/4to6.h"
 
 #include <net/ip6_checksum.h>
 
@@ -336,7 +336,7 @@ static inline __be32 build_id_field(struct iphdr *hdr4)
 /**
  * Infers a IPv6 header from "in"'s IPv4 header and "tuple". Places the result
  * in "out"->l3_hdr.
- * This is RFC 6145 section 4.1.
+ * This is RFC 7915 section 4.1.
  *
  * This is used to translate both outer and inner headers.
  */
@@ -678,7 +678,7 @@ static verdict post_icmp6error(struct xlation *state)
 
 /**
  * Translates in's icmp4 header and payload into out's icmp6 header and payload.
- * This is the RFC 6145 sections 4.2 and 4.3, except checksum (See post_icmp6()).
+ * This is the RFC 7915 sections 4.2 and 4.3, except checksum (See post_icmp6()).
  */
 verdict ttp46_icmp(struct xlation *state)
 {
@@ -793,7 +793,7 @@ static bool can_compute_csum(struct xlation *state)
 		return true;
 
 	/*
-	 * RFC 6145#4.5:
+	 * RFC 7915#4.5:
 	 * A stateless translator cannot compute the UDP checksum of
 	 * fragmented packets, so when a stateless translator receives the
 	 * first fragment of a fragmented UDP IPv4 packet and the checksum

@@ -36,7 +36,7 @@
  *    These are fragments but are separated from their ilk during translation as
  *    you would expect from a stateless forwarding machine.
  * 4. An "internal packet" is a packet wrapped as payload in an ICMP error.
- *    These are set up and used by the RFC6145 submodule.
+ *    These are set up and used by the RFC7915 submodule.
  *    Internal packets can be truncated! Header lengths might contradict the
  *    sizes from the skb fields. Jool in general should *rarely* rely on header
  *    lengths.
@@ -265,7 +265,7 @@ struct packet {
 	enum l4_protocol l4_proto;
 	/**
 	 * Is this a subpacket, contained in an ICMP error?
-	 * (Used by the RFC6145 code.)
+	 * (Used by the RFC7915 code.)
 	 */
 	bool is_inner;
 	/**

@@ -1,5 +1,5 @@
-#ifndef SRC_MOD_COMMON_RFC6145_COMMON_H_
-#define SRC_MOD_COMMON_RFC6145_COMMON_H_
+#ifndef SRC_MOD_COMMON_RFC7915_COMMON_H_
+#define SRC_MOD_COMMON_RFC7915_COMMON_H_
 
 #include <linux/ip.h>
 #include "common/types.h"
@@ -30,7 +30,7 @@ struct translation_steps {
 	 *
 	 * Because we can't afford to completely lose the original headers until
 	 * we've fetched the translated packet successfully. Even after the
-	 * RFC6145 code ends, there is still stuff we might need the original
+	 * RFC7915 code ends, there is still stuff we might need the original
 	 * packet for, such as replying an ICMP error or NF_ACCEPTing.
 	 */
 	verdict (*skb_alloc_fn)(struct xlation *state);
@@ -77,4 +77,4 @@ verdict ttpcomm_translate_inner_packet(struct xlation *state);
 
 bool must_not_translate(struct in_addr *addr, struct net *ns);
 
-#endif /* SRC_MOD_COMMON_RFC6145_COMMON_H_ */
+#endif /* SRC_MOD_COMMON_RFC7915_COMMON_H_ */

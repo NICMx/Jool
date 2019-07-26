@@ -43,9 +43,9 @@ $(FILTERING)-objs += impersonator.o
 $(FILTERING)-objs += filtering_and_updating_test.o
 
 $(FILTERING)-objs += ../../../src/mod/common/ipv6_hdr_iterator.o
-$(FILTERING)-objs += ../../../src/mod/common/rfc6145/common.o
-$(FILTERING)-objs += ../../../src/mod/common/rfc6145/4to6.o
-$(FILTERING)-objs += ../../../src/mod/common/rfc6145/6to4.o
+$(FILTERING)-objs += ../../../src/mod/common/rfc7915/common.o
+$(FILTERING)-objs += ../../../src/mod/common/rfc7915/4to6.o
+$(FILTERING)-objs += ../../../src/mod/common/rfc7915/6to4.o
 
 all:
 	make -C ${KERNEL_DIR} M=$$PWD;
