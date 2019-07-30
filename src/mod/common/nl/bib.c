@@ -37,7 +37,7 @@ static int handle_bib_display(struct bib *db, struct genl_info *info,
 	if (error)
 		return nlcore_respond(info, error);
 
-	offset = request->display.addr4_set ? &request->display.addr4 : NULL;
+	offset = request->foreach.addr4_set ? &request->foreach.addr4 : NULL;
 	error = bib_foreach(db, request->l4_proto, &func, offset);
 	nlbuffer_set_pending_data(&buffer, error > 0);
 	error = (error >= 0)

@@ -31,7 +31,7 @@ static int handle_instance_display(struct genl_info *info,
 	if (error)
 		return nlcore_respond(info, error);
 
-	offset = request->display.offset_set ? &request->display.offset : NULL;
+	offset = request->foreach.offset_set ? &request->foreach.offset : NULL;
 	error = xlator_foreach(xlator_entry_to_userspace, &buffer, offset);
 	nlbuffer_set_pending_data(&buffer, error > 0);
 	error = (error >= 0)
@@ -53,6 +53,27 @@ static int handle_instance_add(struct genl_info *info,
 			&request->add.pool6,
 			NULL
 	));
+}
+
+static int handle_instance_hello(struct genl_info *info,
+		union request_instance *request)
+{
+	struct instance_hello_response response;
+	int error;
+
+	log_debug("Handling instance Hello.");
+
+	error = xlator_find_current(FW_ANY, request->hello.iname, NULL);
+	switch (error) {
+	case 0:
+		response.status = IHS_ALIVE;
+		return nlcore_respond_struct(info, &response, sizeof(response));
+	case -ESRCH:
+		response.status = IHS_DEAD;
+		return nlcore_respond_struct(info, &response, sizeof(response));
+	}
+
+	return nlcore_respond(info, error);
 }
 
 static int handle_instance_rm(struct genl_info *info,
@@ -78,6 +99,8 @@ int handle_instance_request(struct genl_info *info)
 	switch (hdr->operation) {
 	case OP_FOREACH:
 		return handle_instance_display(info, request);
+	case OP_TEST:
+		return handle_instance_hello(info, request);
 	case OP_ADD:
 		return handle_instance_add(info, request);
 	case OP_REMOVE:

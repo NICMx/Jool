@@ -11,7 +11,7 @@ struct foreach_args {
 	struct request_session *request;
 };
 
-static struct jool_result session_display_response(
+static struct jool_result session_foreach_response(
 		struct jool_response *response, void *arg)
 {
 	struct session_entry_usr *entries = response->payload;
@@ -27,11 +27,11 @@ static struct jool_result session_display_response(
 			return result;
 	}
 
-	args->request->display.offset_set = response->hdr->pending_data;
+	args->request->foreach.offset_set = response->hdr->pending_data;
 	if (entry_count > 0) {
 		struct session_entry_usr *last = &entries[entry_count - 1];
-		args->request->display.offset.src = last->src4;
-		args->request->display.offset.dst = last->dst4;
+		args->request->foreach.offset.src = last->src4;
+		args->request->foreach.offset.dst = last->dst4;
 	}
 
 	return result_success();
@@ -51,11 +51,11 @@ struct jool_result session_foreach(struct jool_socket *sk, char *iname,
 
 	init_request_hdr(hdr, MODE_SESSION, OP_FOREACH, false);
 	payload->l4_proto = proto;
-	payload->display.offset_set = false;
-	memset(&payload->display.offset.src, 0,
-			sizeof(payload->display.offset.src));
-	memset(&payload->display.offset.dst, 0,
-			sizeof(payload->display.offset.dst));
+	payload->foreach.offset_set = false;
+	memset(&payload->foreach.offset.src, 0,
+			sizeof(payload->foreach.offset.src));
+	memset(&payload->foreach.offset.dst, 0,
+			sizeof(payload->foreach.offset.dst));
 
 	args.cb = cb;
 	args.args = _args;
@@ -63,8 +63,8 @@ struct jool_result session_foreach(struct jool_socket *sk, char *iname,
 
 	do {
 		result = netlink_request(sk, iname, request, sizeof(request),
-				session_display_response, &args);
-	} while (!result.error && args.request->display.offset_set);
+				session_foreach_response, &args);
+	} while (!result.error && args.request->foreach.offset_set);
 
 	return result;
 }

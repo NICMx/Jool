@@ -625,6 +625,8 @@ int xlator_flush(void)
  * -ESRCH means that no instance matches @ns, @fw and @iname,
  * and -EINVAL means that @iname is not a valid instance name.
  *
+ * 0 and -ESRCH do not print error message; -EINVAL does.
+ *
  * @result will be populated with the instance. Send NULL if all you want is to
  * test whether it exists or not. If not NULL, please xlator_put() @result when
  * you're done using it.

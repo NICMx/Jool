@@ -44,8 +44,8 @@ static int handle_session_display(struct xlator *jool, struct genl_info *info,
 	if (error)
 		return nlcore_respond(info, error);
 
-	if (request->display.offset_set) {
-		offset_struct.offset = request->display.offset;
+	if (request->foreach.offset_set) {
+		offset_struct.offset = request->foreach.offset;
 		offset_struct.include_offset = false;
 		offset = &offset_struct;
 	}

@@ -235,6 +235,10 @@ struct jool_result netlink_request(struct jool_socket *sk, char *iname,
 	return result_success();
 }
 
+/**
+ * Contract: The result will contain 0 on success, -ESRCH on module likely not
+ * modprobed, else -EINVAL.
+ */
 struct jool_result netlink_setup(struct jool_socket *socket, xlator_type xt)
 {
 	char const *family;
@@ -277,7 +281,7 @@ struct jool_result netlink_setup(struct jool_socket *socket, xlator_type xt)
 	if (error) {
 		nl_socket_free(socket->sk);
 		return result_from_error(
-			error,
+			-EINVAL,
 			"Could not open the socket to kernelspace: %s",
 			nl_geterror(error)
 		);
@@ -288,7 +292,7 @@ struct jool_result netlink_setup(struct jool_socket *socket, xlator_type xt)
 	if (socket->genl_family < 0) {
 		nl_socket_free(socket->sk);
 		return result_from_error(
-			socket->genl_family,
+			-ESRCH,
 			"Jool's socket family doesn't seem to exist.\n"
 			"(This probably means Jool hasn't been modprobed.)\n"
 			"Netlink error message: %s",

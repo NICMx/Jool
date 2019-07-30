@@ -304,3 +304,58 @@ void autocomplete_instance_flush(void *args)
 {
 	print_wargp_opts(flush_opts);
 }
+
+static struct wargp_option status_opts[] = {
+	{ 0 },
+};
+
+int handle_instance_status(char *iname, int argc, char **argv, void *arg)
+{
+	/*
+	 * Note: If you want to change the labels "Dead" and "Running", do
+	 * remember that this change will need to cascade to the init script.
+	 */
+	static char const *RUNNING_MSG = "Running\n";
+	static char const *DEAD_MSG = "Dead\n";
+	static char const *UNKNOWN_MSG = "Status unknown\n";
+
+	struct jool_socket sk;
+	enum instance_hello_status status;
+	struct jool_result result;
+
+	result.error = wargp_parse(flush_opts, argc, argv, NULL);
+	if (result.error)
+		return result.error;
+
+	result = netlink_setup(&sk, xt_get());
+	if (result.error == -ESRCH)
+		printf("%s", DEAD_MSG);
+	if (result.error)
+		return pr_result(&result);
+
+	result = instance_hello(&sk, iname, &status);
+	if (result.error) {
+		printf("%s", UNKNOWN_MSG);
+		goto end;
+	}
+
+	switch (status) {
+	case IHS_ALIVE:
+		printf("%s", RUNNING_MSG);
+		break;
+	case IHS_DEAD:
+		printf("%s", DEAD_MSG);
+		printf("(Instance '%s' does not exist.)\n",
+				iname ? iname : INAME_DEFAULT);
+		break;
+	}
+
+end:
+	netlink_teardown(&sk);
+	return pr_result(&result);
+}
+
+void autocomplete_instance_status(void *args)
+{
+	print_wargp_opts(status_opts);
+}

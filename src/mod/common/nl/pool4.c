@@ -24,10 +24,10 @@ static int handle_pool4_display(struct pool4 *pool, struct genl_info *info,
 	if (error)
 		return nlcore_respond(info, error);
 
-	if (request->display.offset_set)
-		offset = &request->display.offset;
+	if (request->foreach.offset_set)
+		offset = &request->foreach.offset;
 
-	error = pool4db_foreach_sample(pool, request->display.proto,
+	error = pool4db_foreach_sample(pool, request->foreach.proto,
 			pool4_to_usr, &buffer, offset);
 	nlbuffer_set_pending_data(&buffer, error > 0);
 	error = (error >= 0)

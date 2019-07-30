@@ -28,9 +28,9 @@ static struct jool_result bib_foreach_response(struct jool_response *response,
 			return result;
 	}
 
-	args->request->display.addr4_set = response->hdr->pending_data;
+	args->request->foreach.addr4_set = response->hdr->pending_data;
 	if (entry_count > 0)
-		args->request->display.addr4 = entries[entry_count - 1].addr4;
+		args->request->foreach.addr4 = entries[entry_count - 1].addr4;
 
 	return result_success();
 }
@@ -46,8 +46,8 @@ struct jool_result bib_foreach(struct jool_socket *sk, char *iname,
 
 	init_request_hdr(hdr, MODE_BIB, OP_FOREACH, false);
 	payload->l4_proto = proto;
-	payload->display.addr4_set = false;
-	memset(&payload->display.addr4, 0, sizeof(payload->display.addr4));
+	payload->foreach.addr4_set = false;
+	memset(&payload->foreach.addr4, 0, sizeof(payload->foreach.addr4));
 
 	args.cb = cb;
 	args.args = _args;
@@ -57,7 +57,7 @@ struct jool_result bib_foreach(struct jool_socket *sk, char *iname,
 		result = netlink_request(sk, iname,
 				request, sizeof(request),
 				bib_foreach_response, &args);
-	} while (!result.error && payload->display.addr4_set);
+	} while (!result.error && payload->foreach.addr4_set);
 
 	return result;
 }

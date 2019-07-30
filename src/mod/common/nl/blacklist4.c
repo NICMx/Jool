@@ -24,7 +24,7 @@ static int handle_blacklist4_display(struct addr4_pool *pool,
 	if (error)
 		return nlcore_respond(info, error);
 
-	offset = request->display.offset_set ? &request->display.offset : NULL;
+	offset = request->foreach.offset_set ? &request->foreach.offset : NULL;
 	error = pool_foreach(pool, pool_to_usr, &buffer, offset);
 	nlbuffer_set_pending_data(&buffer, error > 0);
 	error = (error >= 0)

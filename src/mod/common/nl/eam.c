@@ -25,7 +25,7 @@ static int handle_eamt_display(struct eam_table *eamt, struct genl_info *info,
 	if (error)
 		return nlcore_respond(info, error);
 
-	prefix4 = request->display.prefix4_set ? &request->display.prefix4 : NULL;
+	prefix4 = request->foreach.prefix4_set ? &request->foreach.prefix4 : NULL;
 	error = eamt_foreach(eamt, eam_entry_to_userspace, &buffer, prefix4);
 	nlbuffer_set_pending_data(&buffer, error > 0);
 	error = (error >= 0)

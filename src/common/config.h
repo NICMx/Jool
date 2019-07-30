@@ -264,7 +264,10 @@ union request_instance {
 	struct {
 		config_bool offset_set;
 		struct instance_entry_usr offset;
-	} display;
+	} foreach;
+	struct {
+		char iname[INAME_MAX_LEN];
+	} hello;
 	struct {
 		__u8 fw;
 		char iname[INAME_MAX_LEN];
@@ -273,6 +276,17 @@ union request_instance {
 	struct {
 		char iname[INAME_MAX_LEN];
 	} rm;
+};
+
+enum instance_hello_status {
+	/** Instance exists */
+	IHS_ALIVE,
+	/** Instance does not exist */
+	IHS_DEAD,
+};
+
+struct instance_hello_response {
+	__u8 status;
 };
 
 enum iteration_flags {
@@ -314,7 +328,7 @@ union request_pool4 {
 		__u8 proto;
 		config_bool offset_set;
 		struct pool4_sample offset;
-	} display;
+	} foreach;
 	struct pool4_entry_usr add;
 	struct pool4_update update;
 	struct {
@@ -338,7 +352,7 @@ union request_blacklist4 {
 	struct {
 		config_bool offset_set;
 		struct ipv4_prefix offset;
-	} display;
+	} foreach;
 	struct {
 		struct ipv4_prefix addrs;
 	} add;
@@ -354,7 +368,7 @@ union request_eamt {
 	struct {
 		config_bool prefix4_set;
 		struct ipv4_prefix prefix4;
-	} display;
+	} foreach;
 	struct {
 		struct ipv6_prefix prefix6;
 		struct ipv4_prefix prefix4;
@@ -391,7 +405,7 @@ struct request_bib {
 			 * Iteration should contiue from here.
 			 */
 			struct ipv4_transport_addr addr4;
-		} display;
+		} foreach;
 		struct {
 			/**
 			 * The IPv6 transport address of the entry the user
@@ -438,7 +452,7 @@ struct request_session {
 			 * chunk. Iteration should continue from here.
 			 */
 			struct taddr4_tuple offset;
-		} display;
+		} foreach;
 	};
 };
 

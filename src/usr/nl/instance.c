@@ -13,7 +13,7 @@ struct foreach_args {
 	union request_instance *request;
 };
 
-static struct jool_result instance_display_response(
+static struct jool_result instance_foreach_response(
 		struct jool_response *response, void *arg)
 {
 	struct instance_entry_usr *entries = response->payload;
@@ -29,9 +29,9 @@ static struct jool_result instance_display_response(
 			return result;
 	}
 
-	args->request->display.offset_set = response->hdr->pending_data;
+	args->request->foreach.offset_set = response->hdr->pending_data;
 	if (entry_count > 0)
-		args->request->display.offset = entries[entry_count - 1];
+		args->request->foreach.offset = entries[entry_count - 1];
 
 	return result_success();
 }
@@ -49,8 +49,8 @@ struct jool_result instance_foreach(struct jool_socket *sk,
 	payload = (union request_instance *)(request + HDR_LEN);
 
 	init_request_hdr(hdr, MODE_INSTANCE, OP_FOREACH, false);
-	payload->display.offset_set = false;
-	memset(&payload->display.offset, 0, sizeof(payload->display.offset));
+	payload->foreach.offset_set = false;
+	memset(&payload->foreach.offset, 0, sizeof(payload->foreach.offset));
 
 	args.cb = cb;
 	args.args = _args;
@@ -58,12 +58,62 @@ struct jool_result instance_foreach(struct jool_socket *sk,
 
 	do {
 		result = netlink_request(sk, NULL, request, sizeof(request),
-				instance_display_response, &args);
+				instance_foreach_response, &args);
 		if (result.error)
 			return result;
-	} while (payload->display.offset_set);
+	} while (payload->foreach.offset_set);
 
 	return result_success();
+}
+
+static struct jool_result jool_hello_cb(struct jool_response *response,
+		void *status)
+{
+	struct instance_hello_response *payload;
+
+	if (response->payload_len != sizeof(struct instance_hello_response)) {
+		return result_from_error(
+			-EINVAL,
+			"Jool's response has a bogus length. (expected %zu, got %zu).",
+			sizeof(struct instance_hello_response),
+			response->payload_len
+		);
+	}
+
+	payload = response->payload;
+	*((enum instance_hello_status *) status) = payload->status;
+	return result_success();
+}
+
+/**
+ * If the instance exists, @result will be zero. If the instance does not exist,
+ * @result will be 1.
+ */
+struct jool_result instance_hello(struct jool_socket *sk, char *iname,
+		enum instance_hello_status *status)
+{
+	unsigned char request[HDR_LEN + PAYLOAD_LEN];
+	struct request_hdr *hdr;
+	union request_instance *payload;
+	int error;
+
+	error = iname_validate(iname, true);
+	if (error) {
+		return result_from_error(
+			error,
+			INAME_VALIDATE_ERRMSG,
+			INAME_MAX_LEN - 1
+		);
+	}
+
+	hdr = (struct request_hdr *)request;
+	payload = (union request_instance *)(request + HDR_LEN);
+
+	init_request_hdr(hdr, MODE_INSTANCE, OP_TEST, false);
+	strcpy(payload->hello.iname, iname ? iname : INAME_DEFAULT);
+
+	return netlink_request(sk, NULL, &request, sizeof(request),
+			jool_hello_cb, status);
 }
 
 struct jool_result instance_add(struct jool_socket *sk, jframework fw,

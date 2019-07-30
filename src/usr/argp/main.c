@@ -55,6 +55,11 @@ static struct cmd_option instance_ops[] = {
 			.xt = XT_BOTH,
 			.handler = handle_instance_flush,
 			.handle_autocomplete = autocomplete_instance_flush,
+		}, {
+			.label = "status",
+			.xt = XT_BOTH,
+			.handler = handle_instance_status,
+			.handle_autocomplete = autocomplete_instance_status,
 		},
 		{ 0 },
 };

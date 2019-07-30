@@ -13,7 +13,7 @@ struct foreach_args {
 	union request_blacklist4 *request;
 };
 
-static struct jool_result blacklist4_display_response(
+static struct jool_result blacklist4_foreach_response(
 		struct jool_response *response, void *arg)
 {
 	struct ipv4_prefix *prefixes = response->payload;
@@ -29,9 +29,9 @@ static struct jool_result blacklist4_display_response(
 			return result;
 	}
 
-	args->request->display.offset_set = response->hdr->pending_data;
+	args->request->foreach.offset_set = response->hdr->pending_data;
 	if (prefix_count > 0)
-		args->request->display.offset = prefixes[prefix_count - 1];
+		args->request->foreach.offset = prefixes[prefix_count - 1];
 
 	return result_success();
 }
@@ -49,8 +49,8 @@ struct jool_result blacklist4_foreach(struct jool_socket *sk, char *iname,
 	payload = (union request_blacklist4 *)(request + HDR_LEN);
 
 	init_request_hdr(hdr, MODE_BLACKLIST, OP_FOREACH, false);
-	payload->display.offset_set = false;
-	memset(&payload->display.offset, 0, sizeof(payload->display.offset));
+	payload->foreach.offset_set = false;
+	memset(&payload->foreach.offset, 0, sizeof(payload->foreach.offset));
 
 	args.cb = cb;
 	args.args = _args;
@@ -59,10 +59,10 @@ struct jool_result blacklist4_foreach(struct jool_socket *sk, char *iname,
 	do {
 		result = netlink_request(sk, iname,
 				&request, sizeof(request),
-				blacklist4_display_response, &args);
+				blacklist4_foreach_response, &args);
 		if (result.error)
 			return result;
-	} while (args.request->display.offset_set);
+	} while (args.request->foreach.offset_set);
 
 	return result_success();
 }

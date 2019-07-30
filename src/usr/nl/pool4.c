@@ -14,7 +14,7 @@ struct foreach_args {
 	union request_pool4 *request;
 };
 
-static struct jool_result pool4_display_response(struct jool_response *response,
+static struct jool_result pool4_foreach_response(struct jool_response *response,
 		void *arg)
 {
 	struct pool4_sample *samples = response->payload;
@@ -30,9 +30,9 @@ static struct jool_result pool4_display_response(struct jool_response *response,
 			return result;
 	}
 
-	args->request->display.offset_set = response->hdr->pending_data;
+	args->request->foreach.offset_set = response->hdr->pending_data;
 	if (sample_count > 0)
-		args->request->display.offset = samples[sample_count - 1];
+		args->request->foreach.offset = samples[sample_count - 1];
 
 	return result_success();
 }
@@ -47,9 +47,9 @@ struct jool_result pool4_foreach(struct jool_socket *sk, char *iname,
 	struct jool_result result;
 
 	init_request_hdr(hdr, MODE_POOL4, OP_FOREACH, false);
-	payload->display.proto = proto;
-	payload->display.offset_set = false;
-	memset(&payload->display.offset, 0, sizeof(payload->display.offset));
+	payload->foreach.proto = proto;
+	payload->foreach.offset_set = false;
+	memset(&payload->foreach.offset, 0, sizeof(payload->foreach.offset));
 
 	args.cb = cb;
 	args.args = _args;
@@ -57,10 +57,10 @@ struct jool_result pool4_foreach(struct jool_socket *sk, char *iname,
 
 	do {
 		result = netlink_request(sk, iname, &request, sizeof(request),
-				pool4_display_response, &args);
+				pool4_foreach_response, &args);
 		if (result.error)
 			return result;
-	} while (args.request->display.offset_set);
+	} while (args.request->foreach.offset_set);
 
 	return result_success();
 }

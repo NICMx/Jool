@@ -13,7 +13,7 @@ struct foreach_args {
 	union request_eamt *request;
 };
 
-static struct jool_result eam_display_response(struct jool_response *response,
+static struct jool_result eam_foreach_response(struct jool_response *response,
 		void *arg)
 {
 	struct eamt_entry *entries = response->payload;
@@ -29,10 +29,10 @@ static struct jool_result eam_display_response(struct jool_response *response,
 			return result;
 	}
 
-	args->request->display.prefix4_set = response->hdr->pending_data;
+	args->request->foreach.prefix4_set = response->hdr->pending_data;
 	if (entry_count > 0) {
 		struct eamt_entry *last = &entries[entry_count - 1];
-		args->request->display.prefix4 = last->prefix4;
+		args->request->foreach.prefix4 = last->prefix4;
 	}
 	return result_success();
 }
@@ -47,8 +47,8 @@ struct jool_result eamt_foreach(struct jool_socket *sk, char *iname,
 	struct jool_result result;
 
 	init_request_hdr(hdr, MODE_EAMT, OP_FOREACH, false);
-	payload->display.prefix4_set = false;
-	memset(&payload->display.prefix4, 0, sizeof(payload->display.prefix4));
+	payload->foreach.prefix4_set = false;
+	memset(&payload->foreach.prefix4, 0, sizeof(payload->foreach.prefix4));
 
 	args.cb = cb;
 	args.args = _args;
@@ -57,10 +57,10 @@ struct jool_result eamt_foreach(struct jool_socket *sk, char *iname,
 	do {
 		result = netlink_request(sk, iname,
 				request, sizeof(request),
-				eam_display_response, &args);
+				eam_foreach_response, &args);
 		if (result.error)
 			return result;
-	} while (payload->display.prefix4_set);
+	} while (payload->foreach.prefix4_set);
 
 	return result_success();
 }

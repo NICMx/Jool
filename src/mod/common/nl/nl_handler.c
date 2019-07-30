@@ -224,10 +224,8 @@ static int __handle_jool_message(struct genl_info *info)
 				get_iname(info));
 		return nlcore_respond(info, -ESRCH);
 	}
-	if (error) {
-		log_err("Unknown error %d; Jool instance not found.", error);
+	if (error)
 		return nlcore_respond(info, error);
-	}
 
 	error = multiplex_request(&jool, info);
 	xlator_put(&jool);
