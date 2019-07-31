@@ -5,6 +5,7 @@
 #include <linux/netdevice.h>
 #include "common/constants.h"
 #include "mod/common/ipv6_hdr_iterator.h"
+#include "mod/common/linux_version.h"
 #include "mod/common/log.h"
 #include "mod/common/xlator.h"
 
@@ -12,18 +13,32 @@ static bool contains_addr(struct net *ns, const struct in_addr *addr)
 {
 	struct net_device *dev;
 	struct in_device *in_dev;
+#if LINUX_VERSION_AT_LEAST(5, 3, 0, 9999, 0)
+	struct in_ifaddr *ifa;
+#endif
 
 	for_each_netdev_rcu(ns, dev) {
 		in_dev = __in_dev_get_rcu(dev);
 		if (!in_dev)
 			continue;
 
+#if LINUX_VERSION_AT_LEAST(5, 3, 0, 9999, 0)
+		in_dev_for_each_ifa_rcu(ifa, in_dev) {
+			if (ifa->ifa_flags & IFA_F_SECONDARY)
+				continue;
+			if (ifa->ifa_scope != RT_SCOPE_UNIVERSE)
+				continue;
+			if (ifa->ifa_local == addr->s_addr)
+				return true;
+		}
+#else
 		for_primary_ifa(in_dev) {
 			if (ifa->ifa_scope != RT_SCOPE_UNIVERSE)
 				continue;
 			if (ifa->ifa_local == addr->s_addr)
 				return true;
 		} endfor_ifa(in_dev);
+#endif
 	}
 
 	return false;
