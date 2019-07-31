@@ -39,6 +39,7 @@ Transitional packages:
 
 | Release Date | Version | .tar.gz | Signature | Git commit |
 |--------------|---------|---------|-----------|------------|
+| 2019-07-31   | 4.0.4   | [Download]({{ site.downloads-url-2 }}/v4.0.4/jool-4.0.4.tar.gz) | [Signature]({{ site.downloads-url-2 }}/v4.0.4/jool-4.0.4.tar.gz.asc) | <a href="{{ site.repository-url }}/tree/v4.0.4" target="_blank">Link</a> |
 | 2019-07-19   | 4.0.3   | [Download]({{ site.downloads-url-2 }}/v4.0.3/jool-4.0.3.tar.gz) | [Signature]({{ site.downloads-url-2 }}/v4.0.3/jool-4.0.3.tar.gz.asc) | <a href="{{ site.repository-url }}/tree/v4.0.3" target="_blank">Link</a> |
 | 2019-07-11   | <del>4.0.2</del>   | [Download]({{ site.downloads-url-2 }}/v4.0.2/jool-4.0.2.tar.gz) | [Signature]({{ site.downloads-url-2 }}/v4.0.2/jool-4.0.2.tar.gz.asc) | <a href="{{ site.repository-url }}/tree/v4.0.2" target="_blank">Link</a> |
 
