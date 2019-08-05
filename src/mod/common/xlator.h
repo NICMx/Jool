@@ -2,6 +2,8 @@
 #define SRC_MOD_COMMON_XLATOR_H_
 
 #include "mod/common/config.h"
+#include "mod/common/stats.h"
+#include "mod/common/types.h"
 
 /**
  * A Jool translator "instance". The point is that each network namespace has

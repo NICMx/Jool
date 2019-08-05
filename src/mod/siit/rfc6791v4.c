@@ -7,7 +7,7 @@
 /**
  * Returns in @result the IPv4 address the ICMP error should be sourced with.
  */
-static int get_pool_address(struct xlation *state, __be32 *result)
+static int get_pool_address(struct xlation *state, struct in_addr *result)
 {
 	struct ipv4_prefix *pool;
 	__u32 n; /* We are going to return the "n"th address. */
@@ -19,7 +19,7 @@ static int get_pool_address(struct xlation *state, __be32 *result)
 
 	pool = &state->jool.global->cfg.siit.rfc6791_prefix4.prefix;
 	n &= ~get_prefix4_mask(pool);
-	*result = cpu_to_be32(be32_to_cpu(pool->addr.s_addr) | n);
+	result->s_addr = cpu_to_be32(be32_to_cpu(pool->addr.s_addr) | n);
 
 	return 0;
 }
@@ -28,7 +28,7 @@ static int get_pool_address(struct xlation *state, __be32 *result)
  * Returns in @result the IPv4 address the ICMP error should be sourced with,
  * assuming the RFC6791 pool is empty.
  */
-static int get_host_address(struct xlation *state, __be32 *result)
+static int get_host_address(struct xlation *state, struct in_addr *result)
 {
 	struct dst_entry *dst;
 	__be32 saddr;
@@ -56,11 +56,11 @@ static int get_host_address(struct xlation *state, __be32 *result)
 		return -EINVAL;
 	}
 
-	*result = saddr;
+	result->s_addr = saddr;
 	return 0;
 }
 
-int rfc6791v4_find(struct xlation *state, __be32 *result)
+int rfc6791v4_find(struct xlation *state, struct in_addr *result)
 {
 	return state->jool.global->cfg.siit.rfc6791_prefix4.set
 			? get_pool_address(state, result)

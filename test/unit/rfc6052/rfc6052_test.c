@@ -13,9 +13,9 @@ MODULE_DESCRIPTION("RFC 6052 module test.");
 static bool test(const char *prefix6_str, const unsigned int prefix6_len,
 		const char *addr4_str, const char *addr6_str)
 {
-	struct in6_addr addr6;
+	struct result_addrxlat46 v6;
 	struct ipv6_prefix prefix;
-	struct in_addr addr4;
+	struct result_addrxlat64 v4;
 	bool success = true;
 
 	if (str_to_addr6(prefix6_str, &prefix.addr))
@@ -23,24 +23,34 @@ static bool test(const char *prefix6_str, const unsigned int prefix6_len,
 	prefix.len = prefix6_len;
 
 	/* 6 to 4 */
-	if (str_to_addr6(addr6_str, &addr6))
+	if (str_to_addr6(addr6_str, &v6.addr))
 		return false;
-	memset(&addr4, 0, sizeof(addr4));
 
-	success &= ASSERT_INT(0, rfc6052_6to4(&prefix, &addr6, &addr4),
+	success &= ASSERT_INT(0, rfc6052_6to4(&prefix, &v6.addr, &v4),
 			"result code of %pI6c - %pI6c/%u = %s",
-			&addr6, &prefix.addr, prefix.len, addr4_str);
-	success &= ASSERT_ADDR4(addr4_str, &addr4, "6to4 address result");
+			&v6.addr, &prefix.addr, prefix.len, addr4_str);
+	success &= ASSERT_ADDR4(addr4_str, &v4.addr, "6to4 address result");
+	success &= ASSERT_UINT(AXM_RFC6052, v4.entry.method,
+			"6to4 xlation method");
+	success &= ASSERT_ADDR6(prefix6_str, &v4.entry.prefix6052.addr,
+			"6to4 prefix");
+	success &= ASSERT_UINT(prefix6_len, v4.entry.prefix6052.len,
+			"6to4 prefix length");
 
 	/* 4 to 6 */
-	if (str_to_addr4(addr4_str, &addr4))
+	if (str_to_addr4(addr4_str, &v4.addr))
 		return false;
-	memset(&addr6, 0, sizeof(addr6));
 
-	success &= ASSERT_INT(0, rfc6052_4to6(&prefix, &addr4, &addr6),
+	success &= ASSERT_INT(0, rfc6052_4to6(&prefix, &v4.addr, &v6),
 			"result code of %pI4c + %pI6c/%u = %s",
-			&addr4, &prefix.addr, prefix.len, addr6_str);
-	success &= ASSERT_ADDR6(addr6_str, &addr6, "4to6 address result");
+			&v4.addr, &prefix.addr, prefix.len, addr6_str);
+	success &= ASSERT_ADDR6(addr6_str, &v6.addr, "4to6 address result");
+	success &= ASSERT_UINT(AXM_RFC6052, v6.entry.method,
+			"4to6 xlation method");
+	success &= ASSERT_ADDR6(prefix6_str, &v6.entry.prefix6052.addr,
+			"4to6 prefix");
+	success &= ASSERT_UINT(prefix6_len, v6.entry.prefix6052.len,
+			"4to6 prefix length");
 
 	return success;
 }

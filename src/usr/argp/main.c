@@ -16,6 +16,7 @@
 #include "usr/util/str_utils.h"
 #include "usr/nl/json.h"
 #include "usr/argp/xlator_type.h"
+#include "wargp/address.h"
 #include "wargp/bib.h"
 #include "wargp/blacklist4.h"
 #include "wargp/eamt.h"
@@ -74,6 +75,16 @@ static struct cmd_option stats_ops[] = {
 		{ 0 },
 };
 
+static struct cmd_option address_ops[] = {
+		{
+			.label = "query",
+			.xt = XT_SIIT,
+			.handler = handle_address_query,
+			.handle_autocomplete = autocomplete_address_query,
+		},
+		{ 0 },
+};
+
 static struct cmd_option global_ops[] = {
 		{
 			.label = DISPLAY,
@@ -109,11 +120,6 @@ static struct cmd_option eamt_ops[] = {
 			.xt = XT_SIIT,
 			.handler = handle_eamt_flush,
 			.handle_autocomplete = autocomplete_eamt_flush,
-		}, {
-			.label = "query",
-			.xt = XT_SIIT,
-			.handler = handle_eamt_query,
-			.handle_autocomplete = autocomplete_eamt_query,
 		},
 		{ 0 },
 };
@@ -217,6 +223,10 @@ struct cmd_option tree[] = {
 			.label = "stats",
 			.xt = XT_BOTH,
 			.children = stats_ops,
+		}, {
+			.label = "address",
+			.xt = XT_SIIT,
+			.children = address_ops,
 		}, {
 			.label = "global",
 			.xt = XT_BOTH,

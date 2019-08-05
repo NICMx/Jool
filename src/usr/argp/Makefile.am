@@ -10,6 +10,7 @@ libjoolargp_la_SOURCES = \
 	wargp.c wargp.h \
 	xlator_type.c xlator_type.h \
 	\
+	wargp/address.c wargp/address.h \
 	wargp/bib.c wargp/bib.h \
 	wargp/blacklist4.c wargp/blacklist4.h \
 	wargp/eamt.c wargp/eamt.h \

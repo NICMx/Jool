@@ -3,7 +3,6 @@
 
 #include "mod/common/icmp_wrapper.h"
 #include "mod/common/packet.h"
-#include "mod/common/stats.h"
 #include "mod/common/xlator.h"
 #include "mod/nat64/bib/entry.h"
 

@@ -38,6 +38,7 @@ extern struct wargp_type wt_bool;
 extern struct wargp_type wt_u32;
 extern struct wargp_type wt_l4proto;
 extern struct wargp_type wt_string;
+extern struct wargp_type wt_addr;
 extern struct wargp_type wt_prefix6;
 extern struct wargp_type wt_prefix4;
 
@@ -60,6 +61,14 @@ struct wargp_l4proto {
 
 struct wargp_string {
 	char *value;
+};
+
+struct wargp_addr {
+	__u8 proto;
+	union {
+		struct in6_addr v6;
+		struct in_addr v4;
+	} addr;
 };
 
 struct wargp_prefix6 {

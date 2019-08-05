@@ -107,7 +107,8 @@ static int xlat_dst_6to4(struct xlation *state,
 		struct ipv4_transport_addr *dst4)
 {
 	dst4->l4 = state->in.tuple.dst.addr6.l4;
-	return RFC6052_6TO4(state, &state->in.tuple.dst.addr6.l3, &dst4->l3);
+	return __rfc6052_6to4(&state->jool.global->cfg.pool6.prefix,
+			&state->in.tuple.dst.addr6.l3, &dst4->l3);
 }
 
 /**
@@ -194,7 +195,8 @@ static verdict ipv4_simple(struct xlation *state)
 	struct ipv6_transport_addr dst6;
 	int error;
 
-	if (RFC6052_4TO6(state, &dst4->l3, &dst6.l3))
+	if (__rfc6052_4to6(&state->jool.global->cfg.pool6.prefix,
+			&dst4->l3, &dst6.l3))
 		return drop(state, JSTAT_UNTRANSLATABLE_DST4);
 	dst6.l4 = dst4->l4;
 
@@ -491,7 +493,8 @@ static verdict ipv4_tcp(struct xlation *state)
 	struct collision_cb cb;
 	verdict result;
 
-	if (RFC6052_4TO6(state, &dst4->l3, &dst6.l3))
+	if (__rfc6052_4to6(&state->jool.global->cfg.pool6.prefix,
+			&dst4->l3, &dst6.l3))
 		return drop(state, JSTAT_UNTRANSLATABLE_DST4);
 	dst6.l4 = dst4->l4;
 

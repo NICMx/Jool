@@ -3,11 +3,13 @@
 #include <linux/mutex.h>
 #include <linux/version.h>
 #include <linux/genetlink.h>
+
 #include "common/types.h"
 #include "mod/common/config.h"
 #include "mod/common/linux_version.h"
 #include "mod/common/log.h"
 #include "mod/common/xlator.h"
+#include "mod/common/nl/address.h"
 #include "mod/common/nl/atomic_config.h"
 #include "mod/common/nl/bib.h"
 #include "mod/common/nl/blacklist4.h"
@@ -165,6 +167,8 @@ static int multiplex_request(struct xlator *jool, struct genl_info *info)
 	struct request_hdr *hdr = get_jool_hdr(info);
 
 	switch (hdr->mode) {
+	case MODE_ADDRESS:
+		return handle_address_query(jool, info);
 	case MODE_STATS:
 		return handle_stats_config(jool, info);
 	case MODE_GLOBAL:

@@ -354,55 +354,67 @@ bool eamt_contains4(struct eam_table *eamt, __be32 addr)
 	return rtrie_contains(&eamt->trie4, &key);
 }
 
+/** Contract: Returns 0 or -ESRCH. No other outcomes. */
 int eamt_xlat_6to4(struct eam_table *eamt, struct in6_addr *addr6,
-		struct in_addr *result)
+		struct result_addrxlat64 *result)
 {
 	struct rtrie_key key = ADDR_TO_KEY(addr6);
-	struct eamt_entry eam;
+	struct eamt_entry *eam;
+	struct in_addr *addr4;
 	unsigned int i;
 	int error;
 
+	eam = &result->entry.eam;
+	addr4 = &result->addr;
+
 	/* Find the entry. */
-	error = rtrie_find(&eamt->trie6, &key, &eam);
+	error = rtrie_find(&eamt->trie6, &key, eam);
 	if (error)
 		return error;
 
 	/* Translate the address. */
-	for (i = 0; i < ADDR4_BITS - eam.prefix4.len; i++) {
-		unsigned int offset4 = eam.prefix4.len + i;
-		unsigned int offset6 = eam.prefix6.len + i;
-		addr4_set_bit(&eam.prefix4.addr, offset4,
-				addr6_get_bit(addr6, offset6));
+	*addr4 = eam->prefix4.addr;
+
+	for (i = 0; i < ADDR4_BITS - eam->prefix4.len; i++) {
+		unsigned int offset4 = eam->prefix4.len + i;
+		unsigned int offset6 = eam->prefix6.len + i;
+		addr4_set_bit(addr4, offset4, addr6_get_bit(addr6, offset6));
 	}
 
 	/* I'm assuming the prefix address is already zero-trimmed. */
-	*result = eam.prefix4.addr;
+	result->entry.method = AXM_EAMT;
 	return 0;
 }
 
+/** Contract: Returns 0 or -ESRCH. No other outcomes. */
 int eamt_xlat_4to6(struct eam_table *eamt, struct in_addr *addr4,
-		struct in6_addr *result)
+		struct result_addrxlat46 *result)
 {
 	struct rtrie_key key = ADDR_TO_KEY(addr4);
-	struct eamt_entry eam;
+	struct eamt_entry *eam;
+	struct in6_addr *addr6;
 	unsigned int i;
 	int error;
 
+	eam = &result->entry.eam;
+	addr6 = &result->addr;
+
 	/* Find the entry. */
-	error = rtrie_find(&eamt->trie4, &key, &eam);
+	error = rtrie_find(&eamt->trie4, &key, eam);
 	if (error)
 		return error;
 
 	/* Translate the address. */
-	for (i = 0; i < ADDR4_BITS - eam.prefix4.len; i++) {
-		unsigned int offset4 = eam.prefix4.len + i;
-		unsigned int offset6 = eam.prefix6.len + i;
-		addr6_set_bit(&eam.prefix6.addr, offset6,
-				addr4_get_bit(addr4, offset4));
+	*addr6 = eam->prefix6.addr;
+
+	for (i = 0; i < ADDR4_BITS - eam->prefix4.len; i++) {
+		unsigned int offset4 = eam->prefix4.len + i;
+		unsigned int offset6 = eam->prefix6.len + i;
+		addr6_set_bit(addr6, offset6, addr4_get_bit(addr4, offset4));
 	}
 
 	/* I'm assuming the prefix address is already zero-trimmed. */
-	*result = eam.prefix6.addr;
+	result->entry.method = AXM_EAMT;
 	return 0;
 }
 

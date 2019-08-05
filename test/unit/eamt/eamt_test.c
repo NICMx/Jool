@@ -94,7 +94,7 @@ static bool add_entry(char *addr4, __u8 len4, char *addr6, __u8 len6)
 static bool test_6to4(char *addr6_str, char *addr4_str)
 {
 	struct in6_addr addr6;
-	struct in_addr addr4;
+	struct result_addrxlat64 result;
 	bool success = true;
 
 	log_debug("Testing %s -> %s...", addr6_str, addr4_str);
@@ -103,10 +103,16 @@ static bool test_6to4(char *addr6_str, char *addr4_str)
 		return false;
 
 	if (addr4_str) {
-		success &= ASSERT_INT(0, eamt_xlat_6to4(eamt, &addr6, &addr4), "errcode");
-		success &= ASSERT_ADDR4(addr4_str, &addr4, "resulting address");
+		success &= ASSERT_INT(0, eamt_xlat_6to4(eamt, &addr6, &result),
+				"errcode");
+		success &= ASSERT_ADDR4(addr4_str, &result.addr,
+				"resulting address");
+		success &= ASSERT_UINT(AXM_EAMT, result.entry.method,
+			"translation method");
 	} else {
-		success &= ASSERT_INT(-ESRCH, eamt_xlat_6to4(eamt, &addr6, &addr4), "errcode");
+		success &= ASSERT_INT(-ESRCH,
+				eamt_xlat_6to4(eamt, &addr6, &result),
+				"errcode");
 	}
 
 	return success;
@@ -115,7 +121,7 @@ static bool test_6to4(char *addr6_str, char *addr4_str)
 static bool test_4to6(char *addr4_str, char *addr6_str)
 {
 	struct in_addr addr4;
-	struct in6_addr addr6;
+	struct result_addrxlat46 result;
 	bool success = true;
 
 	log_debug("Testing %s -> %s...", addr4_str, addr6_str);
@@ -124,10 +130,16 @@ static bool test_4to6(char *addr4_str, char *addr6_str)
 		return false;
 
 	if (addr6_str) {
-		success &= ASSERT_INT(0, eamt_xlat_4to6(eamt, &addr4, &addr6), "errcode");
-		success &= ASSERT_ADDR6(addr6_str, &addr6, "resulting address");
+		success &= ASSERT_INT(0, eamt_xlat_4to6(eamt, &addr4, &result),
+				"errcode");
+		success &= ASSERT_ADDR6(addr6_str, &result.addr,
+				"resulting address");
+		success &= ASSERT_UINT(AXM_EAMT, result.entry.method,
+				"translation method");
 	} else {
-		success &= ASSERT_INT(-ESRCH, eamt_xlat_4to6(eamt, &addr4, &addr6), "errcode");
+		success &= ASSERT_INT(-ESRCH,
+				eamt_xlat_4to6(eamt, &addr4, &result),
+				"errcode");
 	}
 
 	return success;

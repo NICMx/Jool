@@ -10,7 +10,7 @@ union ipv4_address {
 	__u8 as8[4];
 };
 
-int rfc6052_6to4(struct ipv6_prefix const *prefix, struct in6_addr const *src,
+int __rfc6052_6to4(struct ipv6_prefix const *prefix, struct in6_addr const *src,
 		struct in_addr *dst)
 {
 	union ipv4_address dst_aux;
@@ -62,7 +62,21 @@ int rfc6052_6to4(struct ipv6_prefix const *prefix, struct in6_addr const *src,
 	return 0;
 }
 
-int rfc6052_4to6(struct ipv6_prefix const *prefix, struct in_addr const *src,
+int rfc6052_6to4(struct ipv6_prefix const *prefix, struct in6_addr const *src,
+		struct result_addrxlat64 *dst)
+{
+	int error;
+
+	error = __rfc6052_6to4(prefix, src, &dst->addr);
+	if (error)
+		return error;
+
+	dst->entry.method = AXM_RFC6052;
+	dst->entry.prefix6052 = *prefix;
+	return 0;
+}
+
+int __rfc6052_4to6(struct ipv6_prefix const *prefix, struct in_addr const *src,
 		struct in6_addr *dst)
 {
 	union ipv4_address src_aux;
@@ -125,5 +139,19 @@ int rfc6052_4to6(struct ipv6_prefix const *prefix, struct in_addr const *src,
 		return -EINVAL;
 	}
 
+	return 0;
+}
+
+int rfc6052_4to6(struct ipv6_prefix const *prefix, struct in_addr const *src,
+		struct result_addrxlat46 *dst)
+{
+	int error;
+
+	error = __rfc6052_4to6(prefix, src, &dst->addr);
+	if (error)
+		return error;
+
+	dst->entry.method = AXM_RFC6052;
+	dst->entry.prefix6052 = *prefix;
 	return 0;
 }

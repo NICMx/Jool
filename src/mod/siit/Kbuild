@@ -11,6 +11,7 @@ jool_common += ../common/rfc7915/6to4.o
 jool_common += ../common/rfc7915/common.o
 jool_common += ../common/rfc7915/core.o
 
+jool_common += ../common/address_xlat.o
 jool_common += ../common/kernel_hook_netfilter.o
 jool_common += ../common/kernel_hook_iptables.o
 jool_common += ../common/address.o
@@ -38,6 +39,7 @@ jool_common += ../common/wrapper-globals.o
 jool_common += ../common/wrapper-types.o
 jool_common += ../common/xlator.o
 
+jool_common += ../common/nl/address.o
 jool_common += ../common/nl/atomic_config.o
 jool_common += ../common/nl/nl_handler.o
 jool_common += ../common/nl/nl_core.o

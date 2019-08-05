@@ -324,9 +324,3 @@ void partialize_skb(struct sk_buff *out_skb, unsigned int csum_offset)
 	out_skb->csum_start = skb_transport_header(out_skb) - out_skb->head;
 	out_skb->csum_offset = csum_offset;
 }
-
-bool must_not_translate(struct in_addr *addr, struct net *ns)
-{
-	return addr4_is_scope_subnet(addr->s_addr)
-			|| interface_contains(ns, addr);
-}

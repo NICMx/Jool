@@ -3,14 +3,13 @@
 #include <net/ip6_checksum.h>
 
 #include "common/constants.h"
+#include "mod/common/address_xlat.h"
 #include "mod/common/config.h"
 #include "mod/common/icmp_wrapper.h"
 #include "mod/common/log.h"
 #include "mod/common/rfc6052.h"
 #include "mod/common/route.h"
 #include "mod/common/stats.h"
-#include "mod/siit/blacklist4.h"
-#include "mod/siit/eam.h"
 #include "mod/siit/rfc6791v6.h"
 
 verdict ttp46_alloc_skb(struct xlation *state)
@@ -168,50 +167,13 @@ static int generate_saddr6_nat64(struct xlation *state)
 	if (cfg->nat64.src_icmp6errs_better && pkt_is_icmp4_error(&state->in)) {
 		/* Issue #132 behaviour. */
 		tmp.s_addr = pkt_ip4_hdr(&state->in)->saddr;
-		return RFC6052_4TO6(state, &tmp, &pkt_ip6_hdr(out)->saddr);
+		return __rfc6052_4to6(&state->jool.global->cfg.pool6.prefix,
+				&tmp, &pkt_ip6_hdr(out)->saddr);
 	}
 
 	/* RFC 6146 behaviour. */
 	pkt_ip6_hdr(out)->saddr = out->tuple.src.addr6.l3;
 	return 0;
-}
-
-static addrxlat_verdict generate_addr6_siit(struct xlation *state,
-		__be32 addr4, struct in6_addr *addr6, bool enable_eam)
-{
-	struct in_addr tmp = { .s_addr = addr4 };
-	int error;
-
-	if (must_not_translate(&tmp, state->jool.ns)) {
-		log_debug("Address %pI4 is not supposed to be xlat'd.", &tmp);
-		return ADDRXLAT_ACCEPT;
-	}
-
-	if (enable_eam) {
-		error = eamt_xlat_4to6(state->jool.siit.eamt, &tmp, addr6);
-		if (!error)
-			return ADDRXLAT_CONTINUE;
-		if (error != -ESRCH)
-			return ADDRXLAT_DROP;
-	}
-
-	if (blacklist4_contains(state->jool.siit.blacklist4, &tmp)) {
-		log_debug("Address %pI4 lacks EAMT entry and is blacklist4ed.",
-				&tmp);
-		return ADDRXLAT_ACCEPT;
-	}
-
-	if (!state->jool.global->cfg.pool6.set) {
-		log_debug("Address %pI4 lacks EAMT entry and there's no pool6 prefix.",
-				&tmp);
-		return ADDRXLAT_TRY_SOMETHING_ELSE;
-	}
-	error = RFC6052_4TO6(state, &tmp, addr6);
-	/*
-	 * This DROP is not TRY_SOMETHING_ELSE because addr_4to6() can only fail
-	 * on criticals, currently.
-	 */
-	return error ? ADDRXLAT_DROP : ADDRXLAT_CONTINUE;
 }
 
 static bool disable_src_eam(struct packet *in, bool hairpin)
@@ -239,22 +201,28 @@ static verdict translate_addrs46_siit(struct xlation *state)
 	struct ipv6hdr *hdr6 = pkt_ip6_hdr(&state->out);
 	enum eam_hairpinning_mode hairpin_mode;
 	bool hairpin;
-	addrxlat_verdict result;
+	struct result_addrxlat46 out;
+	struct addrxlat_result result;
 
 	hairpin_mode = state->jool.global->cfg.siit.eam_hairpin_mode;
 	hairpin = (hairpin_mode == EHM_SIMPLE)
 			|| pkt_is_intrinsic_hairpin(in);
 
 	/* Src address. */
-	result = generate_addr6_siit(state, hdr4->saddr, &hdr6->saddr,
-			!disable_src_eam(in, hairpin));
-	switch (result) {
+	result = addrxlat_siit46(&state->jool, !disable_src_eam(in, hairpin),
+			hdr4->saddr, &out);
+	if (result.reason)
+		log_debug("%s.", result.reason);
+
+	switch (result.verdict) {
 	case ADDRXLAT_CONTINUE:
 		break;
 	case ADDRXLAT_TRY_SOMETHING_ELSE:
 		if (pkt_is_icmp4_error(in)
-				&& !rfc6791v6_find(state, &hdr6->saddr))
+				&& !rfc6791v6_find(state, &out.addr)) {
+			out.entry.method = AXM_RFC6791;
 			break; /* Ok, success. */
+		}
 		return untranslatable(state, JSTAT46_SRC);
 	case ADDRXLAT_ACCEPT:
 		return untranslatable(state, JSTAT46_SRC);
@@ -262,11 +230,17 @@ static verdict translate_addrs46_siit(struct xlation *state)
 		return drop(state, JSTAT_UNKNOWN);
 	}
 
+	hdr6->saddr = out.addr;
+
 	/* Dst address. */
-	result = generate_addr6_siit(state, hdr4->daddr, &hdr6->daddr,
-			!disable_dst_eam(in, hairpin));
-	switch (result) {
+	result = addrxlat_siit46(&state->jool, !disable_dst_eam(in, hairpin),
+			hdr4->daddr, &out);
+	if (result.reason)
+		log_debug("%s.", result.reason);
+
+	switch (result.verdict) {
 	case ADDRXLAT_CONTINUE:
+		hdr6->daddr = out.addr;
 		break;
 	case ADDRXLAT_TRY_SOMETHING_ELSE:
 		return untranslatable(state, JSTAT46_DST);

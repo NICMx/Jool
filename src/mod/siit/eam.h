@@ -16,9 +16,9 @@ void eamt_put(struct eam_table *eamt);
 /* Safe-to-use-during-packet-translation functions */
 
 int eamt_xlat_4to6(struct eam_table *eamt, struct in_addr *addr4,
-		struct in6_addr *result);
+		struct result_addrxlat46 *result);
 int eamt_xlat_6to4(struct eam_table *eamt, struct in6_addr *addr6,
-		struct in_addr *result);
+		struct result_addrxlat64 *result);
 
 bool eamt_contains6(struct eam_table *eamt, struct in6_addr *addr);
 bool eamt_contains4(struct eam_table *eamt, __be32 addr);

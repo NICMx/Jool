@@ -15,6 +15,7 @@ int wargp_parse_bool(void *input, int key, char *str);
 int wargp_parse_u32(void *field, int key, char *str);
 int wargp_parse_l4proto(void *input, int key, char *str);
 int wargp_parse_string(void *input, int key, char *str);
+int wargp_parse_addr(void *void_field, int key, char *str);
 int wargp_parse_prefix6(void *input, int key, char *str);
 int wargp_parse_prefix4(void *input, int key, char *str);
 
@@ -40,9 +41,14 @@ struct wargp_type wt_string = {
 	.parse = wargp_parse_string,
 };
 
+struct wargp_type wt_addr = {
+	.argument = "<IP Address>",
+	.parse = wargp_parse_addr,
+};
+
 /*
  * Because of the autocomplete candidates, this one is specifically meant to
- * refec to the pool6 prefix.
+ * refer to the pool6 prefix.
  */
 struct wargp_type wt_prefix6 = {
 	.argument = "<IPv6 Prefix>",
@@ -111,6 +117,25 @@ int wargp_parse_string(void *void_field, int key, char *str)
 	struct wargp_string *field = void_field;
 	field->value = str;
 	return 0;
+}
+
+int wargp_parse_addr(void *void_field, int key, char *str)
+{
+	struct wargp_addr *field = void_field;
+	struct jool_result result;
+
+	if (strchr(str, ':')) {
+		field->proto = 6;
+		result = str_to_addr6(str, &field->addr.v6);
+		return pr_result(&result);
+	}
+	if (strchr(str, '.')) {
+		field->proto = 4;
+		result = str_to_addr4(str, &field->addr.v4);
+		return pr_result(&result);
+	}
+
+	return ARGP_ERR_UNKNOWN;
 }
 
 int wargp_parse_prefix6(void *void_field, int key, char *str)

@@ -23,6 +23,4 @@ void pr_warn(const char *fmt, ...) CHECK_FORMAT(1, 2);
 void pr_err(const char *fmt, ...) CHECK_FORMAT(1, 2);
 int pr_result(struct jool_result *result);
 
-#define log_delete(text, ...);
-
 #endif /* SRC_USR_ARGP_LOG_H_ */

@@ -35,7 +35,8 @@ static int xlat_addr64(struct xlation *state, struct ipv4_transport_addr *addr4)
 	struct ipv6_transport_addr *d = &state->in.tuple.dst.addr6;
 
 	addr4->l4 = d->l4;
-	return RFC6052_6TO4(state, &d->l3, &addr4->l3);
+	return __rfc6052_6to4(&state->jool.global->cfg.pool6.prefix,
+			&d->l3, &addr4->l3);
 }
 
 static int xlat_addr46(struct xlation *state, struct ipv6_transport_addr *addr6)
@@ -44,7 +45,8 @@ static int xlat_addr46(struct xlation *state, struct ipv6_transport_addr *addr6)
 	struct ipv4_transport_addr *s = &state->in.tuple.src.addr4;
 
 	addr6->l4 = s->l4;
-	return RFC6052_4TO6(state, &s->l3, &addr6->l3);
+	return __rfc6052_4to6(&state->jool.global->cfg.pool6.prefix,
+			&s->l3, &addr6->l3);
 }
 
 verdict compute_out_tuple(struct xlation *state)

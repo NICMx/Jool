@@ -30,6 +30,7 @@ typedef __u8 config_bool;
 
 /* Modes */
 #define OPTNAME_INSTANCE		"instance"
+#define OPTNAME_ADDRESS			"address"
 #define OPTNAME_STATS			"stats"
 #define OPTNAME_GLOBAL			"global"
 #define OPTNAME_EAMT			"eamt"
@@ -112,6 +113,8 @@ enum attributes {
 enum config_mode {
 	/** The current message is talking about instance management. */
 	MODE_INSTANCE,
+	/** Querying an address translation result. */
+	MODE_ADDRESS,
 	/** The current message is talking about stats reporting. */
 	MODE_STATS,
 	/** The current message is talking about global configuration values. */
@@ -496,6 +499,39 @@ struct session_entry_usr {
 struct eamt_entry {
 	struct ipv6_prefix prefix6;
 	struct ipv4_prefix prefix4;
+};
+
+struct request_addrxlat {
+	int direction;
+	union {
+		struct in6_addr v6;
+		struct in_addr v4;
+	} addr;
+};
+
+enum address_translation_method {
+	AXM_RFC6052,
+	AXM_EAMT,
+	AXM_RFC6791,
+};
+
+struct address_translation_entry {
+	enum address_translation_method method;
+	union {
+		struct ipv6_prefix prefix6052;
+		struct eamt_entry eam;
+		/* The RFC6791 prefix is unused for now. */
+	};
+};
+
+struct result_addrxlat64 {
+	struct in_addr addr;
+	struct address_translation_entry entry;
+};
+
+struct result_addrxlat46 {
+	struct in6_addr addr;
+	struct address_translation_entry entry;
 };
 
 enum f_args {

@@ -15,6 +15,6 @@
 
 #include "mod/common/translation_state.h"
 
-int rfc6791v4_find(struct xlation *state, __be32 *result);
+int rfc6791v4_find(struct xlation *state, struct in_addr *result);
 
 #endif /* SRC_MOD_SIIT_RFC6791V4_H_ */

@@ -1,6 +1,7 @@
 pkglib_LTLIBRARIES = libjoolnl.la
 
 libjoolnl_la_SOURCES = \
+	address.c address.h \
 	bib.c bib.h \
 	blacklist4.c blacklist4.h \
 	buffer.c buffer.h \

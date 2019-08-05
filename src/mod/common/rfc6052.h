@@ -9,7 +9,7 @@
 #include <linux/types.h>
 #include <linux/in.h>
 #include <linux/in6.h>
-#include "common/types.h"
+#include "common/config.h"
 
 
 /**
@@ -18,7 +18,7 @@
  * In other words, removes @prefix from @src. The result will be 32 bits of
  * address.
  */
-int rfc6052_6to4(struct ipv6_prefix const *prefix, struct in6_addr const *src,
+int __rfc6052_6to4(struct ipv6_prefix const *prefix, struct in6_addr const *src,
 		struct in_addr *dst);
 
 /**
@@ -26,12 +26,12 @@ int rfc6052_6to4(struct ipv6_prefix const *prefix, struct in6_addr const *src,
  *
  * In other words, adds @prefix to @src. The result will be 128 bits of address.
  */
-int rfc6052_4to6(struct ipv6_prefix const *prefix, struct in_addr const *src,
+int __rfc6052_4to6(struct ipv6_prefix const *prefix, struct in_addr const *src,
 		struct in6_addr *dst);
 
-#define RFC6052_6TO4(state, src, dst) \
-	rfc6052_6to4(&(state)->jool.global->cfg.pool6.prefix, src, dst)
-#define RFC6052_4TO6(state, src, dst) \
-	rfc6052_4to6(&(state)->jool.global->cfg.pool6.prefix, src, dst)
+int rfc6052_6to4(struct ipv6_prefix const *prefix, struct in6_addr const *src,
+		struct result_addrxlat64 *dst);
+int rfc6052_4to6(struct ipv6_prefix const *prefix, struct in_addr const *src,
+		struct result_addrxlat46 *dst);
 
 #endif /* SRC_MOD_COMMON_RFC6052_H_ */

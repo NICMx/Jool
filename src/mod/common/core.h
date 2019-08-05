@@ -7,7 +7,6 @@
  */
 
 #include <linux/skbuff.h>
-#include "mod/common/types.h"
 #include "mod/common/xlator.h"
 
 /**

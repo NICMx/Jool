@@ -20,6 +20,8 @@ char *configmode_to_string(enum config_mode mode)
 	switch (mode) {
 	case MODE_INSTANCE:
 		return OPTNAME_INSTANCE;
+	case MODE_ADDRESS:
+		return OPTNAME_ADDRESS;
 	case MODE_STATS:
 		return OPTNAME_STATS;
 	case MODE_GLOBAL:

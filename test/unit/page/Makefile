@@ -27,6 +27,7 @@ $(PAGE)-objs += ../framework/skb_generator.o
 $(PAGE)-objs += ../framework/types.o
 
 $(PAGE)-objs += ../../../src/common/config.o
+$(PAGE)-objs += ../../../src/mod/common/address_xlat.o
 $(PAGE)-objs += ../../../src/mod/common/config.o
 $(PAGE)-objs += ../../../src/mod/common/global-impl.o
 $(PAGE)-objs += ../../../src/mod/common/ipv6_hdr_iterator.o
