@@ -43,6 +43,8 @@ Transitional packages:
 | 2019-07-19   | 4.0.3   | [Download]({{ site.downloads-url-2 }}/v4.0.3/jool-4.0.3.tar.gz) | [Signature]({{ site.downloads-url-2 }}/v4.0.3/jool-4.0.3.tar.gz.asc) | <a href="{{ site.repository-url }}/tree/v4.0.3" target="_blank">Link</a> |
 | 2019-07-11   | <del>4.0.2</del>   | [Download]({{ site.downloads-url-2 }}/v4.0.2/jool-4.0.2.tar.gz) | [Signature]({{ site.downloads-url-2 }}/v4.0.2/jool-4.0.2.tar.gz.asc) | <a href="{{ site.repository-url }}/tree/v4.0.2" target="_blank">Link</a> |
 
+[This](http://keys.gnupg.net/pks/lookup?op=get&search=0x72160FD57B242967) is my public key. It is not yet certified, so the Signature column is mostly just theater for now.
+
 ## 3.5.x
 
 Jool 3.5 is also a [compliant SIIT and Stateful NAT64](intro-jool.html#compliance).

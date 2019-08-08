@@ -14,7 +14,7 @@ title: address Mode
 1. [Description](#description)
 2. [Syntax](#syntax)
 3. [Arguments](#arguments)
-   1. [`<IP Address>`](#display)
+   1. [`<IP Address>`](#ip-address)
    2. [Flags](#flags)
 4. [Examples](#examples)
 
