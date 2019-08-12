@@ -46,6 +46,9 @@ verdict ttp64_alloc_skb(struct xlation *state)
 		return drop(state, JSTAT64_PSKB_COPY);
 	}
 
+	/* https://github.com/NICMx/Jool/issues/289 */
+	nf_reset(in->skb);
+
 	/* Remove outer l3 and l4 headers from the copy. */
 	skb_pull(out, pkt_hdrs_len(in));
 
