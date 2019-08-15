@@ -65,7 +65,7 @@ verdict ttp46_alloc_skb(struct xlation *state)
 	}
 
 	/* https://github.com/NICMx/Jool/issues/289 */
-	nf_reset(in->skb);
+	nf_reset(out);
 
 	/* Remove outer l3 and l4 headers from the copy. */
 	skb_pull(out, pkt_hdrs_len(in));
