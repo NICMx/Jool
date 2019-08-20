@@ -2,7 +2,7 @@
 # Process this file with autoconf to produce a configure script.
 
 AC_PREREQ([2.68])
-AC_INIT([Jool], [4.0.4], [jool@nic.mx])
+AC_INIT([Jool], [4.0.5], [jool@nic.mx])
 AC_CONFIG_SRCDIR([src/common/xlat.h])
 AM_INIT_AUTOMAKE([subdir-objects])
 
@@ -13,7 +13,7 @@ AC_PROG_CC
 # If you need it to inherit more warnings, you will have to add them manually
 # for now.
 AS_IF([test "$GCC" = "yes"],
-	[WARNINGCFLAGS="-Wall -pedantic"],
+	[WARNINGCFLAGS="-Wall -pedantic -std=gnu11"],
 	[WARNINGCFLAGS=""])
 AC_SUBST([WARNINGCFLAGS])
 

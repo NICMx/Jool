@@ -18,7 +18,7 @@
 # https://www.gnu.org/software/libtool/manual/libtool.html
 # TODO But I mean, I should probably read it anyway.
 
-DEFAULT_CFLAGS  = -Wall -pedantic -O2
+DEFAULT_CFLAGS  = -Wall -pedantic -std=gnu11 -O2
 DEFAULT_CFLAGS += -I../..
 DEFAULT_CFLAGS += $(shell pkg-config xtables --cflags)
 

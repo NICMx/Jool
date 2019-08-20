@@ -14,7 +14,7 @@
  */
 #define JOOL_VERSION_MAJOR 4
 #define JOOL_VERSION_MINOR 0
-#define JOOL_VERSION_REV 4
+#define JOOL_VERSION_REV 5
 #define JOOL_VERSION_DEV 0
 
 /** See http://stackoverflow.com/questions/195975 */
