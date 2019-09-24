@@ -12,6 +12,7 @@ title: Installation
 ## Index
 
 1. [Introduction](#introduction)
+2. [Updating your system](#updating-your-system)
 2. [Installing Dependencies](#installing-dependencies)
 3. [Downloading the Code](#downloading-the-code)
 4. [Compilation and Installation](#compilation-and-installation)
@@ -28,6 +29,33 @@ Jool is seven binaries:
 This document will explain how to compile and install all of that on most Linux distributions.
 
 In following console segments, `$` indicates the command can be executed freely; `#` means it requires admin privileges.
+
+## Updating your system
+
+This is not always necessary, but aside from fetching security patches, it maximizes the probability of easily acquiring the proper kernel headers later.
+
+<div class="distro-menu">
+	<span class="distro-selector" onclick="showDistro(this);">Debian</span>
+	<span class="distro-selector" onclick="showDistro(this);">CentOS</span>
+</div>
+
+<!-- Debian -->
+{% highlight bash %}
+user@T:~# apt update
+user@T:~# apt upgrade
+{% endhighlight %}
+
+<!-- CentOS -->
+{% highlight bash %}
+user@T:~# yum update
+ 
+{% endhighlight %}
+
+If you got a new kernel, best load it:
+
+{% highlight bash %}
+user@T:~# reboot
+{% endhighlight %}
 
 ## Installing Dependencies
 
@@ -56,7 +84,7 @@ user@T:~# apt install build-essential pkg-config
 
 <!-- CentOS -->
 {% highlight bash %}
-user@T:~# yum install gcc
+user@T:~# yum install gcc libtool
 {% endhighlight %}
 
 <!-- Arch Linux -->
@@ -79,6 +107,7 @@ The modules need your kernel headers:
 <div class="distro-menu">
 	<span class="distro-selector" onclick="showDistro(this);">Ubuntu/Debian</span>
 	<span class="distro-selector" onclick="showDistro(this);">CentOS</span>
+	<span class="distro-selector" onclick="showDistro(this);">CentOS (older versions)</span>
 	<span class="distro-selector" onclick="showDistro(this);">openSUSE</span>
 	<span class="distro-selector" onclick="showDistro(this);">Raspberry Pi</span>
 </div>
@@ -92,6 +121,16 @@ user@T:~# apt install linux-headers-$(uname -r)
 {% highlight bash %}
 user@T:~# yum install kernel-devel
 user@T:~# yum install kernel-headers
+{% endhighlight %}
+
+<!-- CentOS (Older versions) -->
+{% highlight bash %}
+Try downloading the corresponding rpms:
+https://rpmfind.net/linux/rpm2html/search.php?query=kernel-headers
+https://rpmfind.net/linux/rpm2html/search.php?query=kernel-devel
+(recall that your kernel version is `uname -r`)
+then do
+user@T:~# rpm -ivh *.rpm
 {% endhighlight %}
 
 <!-- openSUSE -->
