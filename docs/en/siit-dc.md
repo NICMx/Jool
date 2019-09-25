@@ -62,7 +62,7 @@ Obviating networking commands, this is Jool on _BR_:
 
 {% highlight bash %}
 user@BR:~# sysctl -w net.ipv4.conf.all.forwarding=1
-user@BR:~# sysctl -w net.ipv4.conf.all.forwarding=1
+user@BR:~# sysctl -w net.ipv6.conf.all.forwarding=1
 user@BR:~# 
 user@BR:~# modprobe jool_siit
 user@BR:~# jool_siit instance add --netfilter --pool6 2001:db8:46::/96
