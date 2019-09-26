@@ -34,9 +34,9 @@ uninstall:
 	rm -f ${DESTDIR}${XTABLES_SO_DIR}/libxt_JOOL_SIIT.so
 	rm -f ${DESTDIR}${XTABLES_SO_DIR}/libxt_JOOL.so
 lib%.so: lib%.o
-	gcc -shared -fPIC ${LDFLAGS} -o $@ $^;
+	${CC} -shared -fPIC ${LDFLAGS} -o $@ $^;
 lib%.o: lib%.c
-	gcc ${DEFAULT_CFLAGS} ${CFLAGS} -D_INIT=lib$*_init -fPIC -c -o $@ $<;
+	${CC} ${DEFAULT_CFLAGS} ${CFLAGS} -D_INIT=lib$*_init -fPIC -c -o $@ $<;
 clean distclean:
 	rm -f *.so
 distdir:
