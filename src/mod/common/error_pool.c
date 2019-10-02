@@ -17,11 +17,11 @@
  */
 
 struct error_node {
-	char * msg;
+	char *msg;
 	struct list_head prev_next;
 };
 
-static __u8 activated = 0;
+static __u8 enabled = false;
 static size_t msg_size = 0;
 static struct list_head db;
 
@@ -49,34 +49,35 @@ void error_pool_teardown(void)
 
 void error_pool_activate(void)
 {
-	activated = 1;
+	enabled = true;
 	msg_size = 0;
 }
 
-int error_pool_add_message(char *msg)
+/* Always steals ownership of @msg. */
+void error_pool_add_message(char *msg)
 {
+	/*
+	 * This function is used by log_err(), so don't use log_err().
+	 * If you need to print something, use pr_err().
+	 */
+
 	struct error_node *node;
 
-	if (!activated)
-		return 0;
+	if (!enabled)
+		goto quit;
 
 	node = wkmalloc(struct error_node, GFP_ATOMIC);
-	if (!node) {
-		pr_err("Could not allocate memory to store an error pool node!\n") ;
-		return -ENOMEM;
-	}
+	if (!node)
+		goto quit;
 
-	node->msg = __wkmalloc("error_code.msg", strlen(msg) + 1, GFP_ATOMIC);
-	if (!node->msg) {
-		pr_err("Could not allocate memory to store an error pool message!\n") ;
-		wkfree(struct error_node, node);
-		return -ENOMEM;
-	}
-
-	strcpy(node->msg, msg);
-	list_add_tail(&node->prev_next, &db) ;
+	node->msg = msg;
+	list_add_tail(&node->prev_next, &db);
 	msg_size += strlen(msg);
-	return 0;
+	return;
+
+quit:
+	__wkfree("error_code.msg", msg);
+	return;
 }
 
 /**
@@ -87,7 +88,7 @@ int error_pool_get_message(char **out_message, size_t *msg_len)
 	struct error_node *node;
 	char *buffer_pointer;
 
-	if (!activated) {
+	if (!enabled) {
 		pr_err("error_pool_get_message() seems to have been called ouside of an userspace request handler.\n");
 		return -EINVAL;
 	}
@@ -121,5 +122,5 @@ void error_pool_deactivate(void)
 {
 	flush_list();
 	msg_size = 0;
-	activated = 0;
+	enabled = false;
 }

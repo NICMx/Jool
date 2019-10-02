@@ -7,7 +7,7 @@ void error_pool_setup(void);
 void error_pool_teardown(void);
 
 void error_pool_activate(void);
-int error_pool_add_message(char * msg);
+void error_pool_add_message(char *msg);
 int error_pool_has_errors(void);
 int error_pool_get_message(char **out_message, size_t *msg_len);
 void error_pool_deactivate(void);

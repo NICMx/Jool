@@ -11,6 +11,7 @@ jool_common += ../common/rfc7915/6to4.o
 jool_common += ../common/rfc7915/common.o
 jool_common += ../common/rfc7915/core.o
 
+jool_common += ../common/log.o
 jool_common += ../common/kernel_hook_netfilter.o
 jool_common += ../common/kernel_hook_iptables.o
 jool_common += ../common/address.o
