@@ -48,7 +48,12 @@
  * I the code found a **programming** error, use WARN() or its variations
  * instead.
  */
+#ifdef UNIT_TESTING
+#define log_err(text, ...) \
+	pr_err("Jool ERROR (%s): " text "\n", __func__, ##__VA_ARGS__)
+#else
 void log_err(const char *format, ...) __attribute__((format(printf, 1, 2)));
+#endif
 
 /**
  * Used when a developer wants to print a debug message, but this message would

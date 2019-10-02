@@ -5,6 +5,7 @@
 #include <linux/slab.h>
 #include <linux/printk.h>
 #include "common/types.h"
+#include "mod/common/error_pool.h"
 #include "mod/common/wkmalloc.h"
 
 /*
