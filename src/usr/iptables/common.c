@@ -78,7 +78,7 @@ static void jool_tg_print(const void *ip, const struct xt_entry_target *target,
 		int numeric)
 {
 	struct target_info *info = (struct target_info *)target->data;
-	printf("instance: %s ", info->iname);
+	printf(" instance: %s", info->iname);
 }
 
 /**
