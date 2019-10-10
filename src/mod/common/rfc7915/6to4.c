@@ -47,7 +47,11 @@ verdict ttp64_alloc_skb(struct xlation *state)
 	}
 
 	/* https://github.com/NICMx/Jool/issues/289 */
+#if LINUX_VERSION_AT_LEAST(5, 4, 0, 9999, 0)
+	nf_reset_ct(out);
+#else
 	nf_reset(out);
+#endif
 
 	/* Remove outer l3 and l4 headers from the copy. */
 	skb_pull(out, pkt_hdrs_len(in));

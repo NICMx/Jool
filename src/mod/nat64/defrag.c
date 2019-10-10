@@ -6,7 +6,7 @@
 
 void defrag_enable(struct net *ns)
 {
-#if LINUX_VERSION_AT_LEAST(4, 10, 0, 9999, 0)
+#if LINUX_VERSION_AT_LEAST(4, 10, 0, 8, 0)
 	nf_defrag_ipv4_enable(ns);
 	nf_defrag_ipv6_enable(ns);
 #else

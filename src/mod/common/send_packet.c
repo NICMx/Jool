@@ -141,7 +141,7 @@ verdict sendpkt_send(struct xlation *state)
 	 * At time of writing, RHEL hasn't yet upgraded to the messy version of
 	 * dst_output().
 	 */
-#if LINUX_VERSION_AT_LEAST(4, 4, 0, 9999, 0)
+#if LINUX_VERSION_AT_LEAST(4, 4, 0, 8, 0)
 	error = dst_output(state->jool.ns, NULL, out->skb);
 #else
 	error = dst_output(out->skb);

@@ -17,7 +17,13 @@
 /* If this is a Red Hat-based kernel (Red Hat, CentOS, Fedora, etc)... */
 #ifdef RHEL_RELEASE_CODE
 
-#if RHEL_RELEASE_CODE >= RHEL_RELEASE_VERSION(7, 2)
+#if RHEL_RELEASE_CODE >= RHEL_RELEASE_VERSION(8, 0)
+#define NF_CALLBACK(name, skb) unsigned int name( \
+		void *priv, \
+		struct sk_buff *skb, \
+		const struct nf_hook_state *state)
+
+#elif RHEL_RELEASE_CODE >= RHEL_RELEASE_VERSION(7, 2)
 #define NF_CALLBACK(name, skb) unsigned int name( \
 		const struct nf_hook_ops *ops, \
 		struct sk_buff *skb, \

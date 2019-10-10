@@ -30,7 +30,7 @@ static int clean_state(struct xlator *jool, void *args)
 }
 
 static void timer_function(
-#if LINUX_VERSION_AT_LEAST(4, 15, 0, 9999, 0)
+#if LINUX_VERSION_AT_LEAST(4, 15, 0, 8, 0)
 		struct timer_list *arg
 #else
 		unsigned long arg
@@ -46,7 +46,7 @@ static void timer_function(
  */
 int jtimer_setup(void)
 {
-#if LINUX_VERSION_AT_LEAST(4, 15, 0, 9999, 0)
+#if LINUX_VERSION_AT_LEAST(4, 15, 0, 8, 0)
 	timer_setup(&timer, timer_function, 0);
 #else
 	init_timer(&timer);

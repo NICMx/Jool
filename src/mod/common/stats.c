@@ -23,7 +23,7 @@ struct jool_stats *jstat_alloc(void)
 	if (!result)
 		return NULL;
 
-#if LINUX_VERSION_AT_LEAST(3, 16, 0, 9999, 0)
+#if LINUX_VERSION_AT_LEAST(3, 16, 0, 8, 0)
 	result->mib = alloc_percpu(struct jool_mib);
 	if (!result->mib) {
 #else
@@ -49,7 +49,7 @@ static void jstat_release(struct kref *refcount)
 	struct jool_stats *stats;
 	stats = container_of(refcount, struct jool_stats, refcounter);
 
-#if LINUX_VERSION_AT_LEAST(3, 16, 0, 9999, 0)
+#if LINUX_VERSION_AT_LEAST(3, 16, 0, 8, 0)
 	free_percpu(stats->mib);
 #else
 	snmp_mib_free((void __percpu **)stats->mib);

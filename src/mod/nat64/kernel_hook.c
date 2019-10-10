@@ -127,7 +127,7 @@ static int __init jool_init(void)
 	if (error)
 		goto jtimer_fail;
 
-#if LINUX_VERSION_LOWER_THAN(4, 13, 0, 9999, 0)
+#if LINUX_VERSION_LOWER_THAN(4, 13, 0, 8, 0)
 	/* Hook Jool to Netfilter. */
 	error = nf_register_hooks(nfho, ARRAY_SIZE(nfho));
 	if (error)
@@ -145,7 +145,7 @@ static int __init jool_init(void)
 	log_info("%s v" JOOL_VERSION_STR " module inserted.", xlat_get_name());
 	return error;
 
-#if LINUX_VERSION_LOWER_THAN(4, 13, 0, 9999, 0)
+#if LINUX_VERSION_LOWER_THAN(4, 13, 0, 8, 0)
 nf_register_hooks_fail:
 	jtimer_teardown();
 #endif
@@ -168,7 +168,7 @@ static void __exit jool_exit(void)
 	if (!iptables_error)
 		xt_unregister_targets(targets, ARRAY_SIZE(targets));
 
-#if LINUX_VERSION_LOWER_THAN(4, 13, 0, 9999, 0)
+#if LINUX_VERSION_LOWER_THAN(4, 13, 0, 8, 0)
 	nf_unregister_hooks(nfho, ARRAY_SIZE(nfho));
 #endif
 

@@ -6,6 +6,7 @@
 #include "mod/common/address_xlat.h"
 #include "mod/common/config.h"
 #include "mod/common/icmp_wrapper.h"
+#include "mod/common/linux_version.h"
 #include "mod/common/log.h"
 #include "mod/common/rfc6052.h"
 #include "mod/common/route.h"
@@ -65,7 +66,11 @@ verdict ttp46_alloc_skb(struct xlation *state)
 	}
 
 	/* https://github.com/NICMx/Jool/issues/289 */
+#if LINUX_VERSION_AT_LEAST(5, 4, 0, 9999, 0)
+	nf_reset_ct(out);
+#else
 	nf_reset(out);
+#endif
 
 	/* Remove outer l3 and l4 headers from the copy. */
 	skb_pull(out, pkt_hdrs_len(in));

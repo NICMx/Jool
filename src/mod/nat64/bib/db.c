@@ -788,7 +788,7 @@ static void send_probe_packet(struct net *ns, struct session_entry *session)
 	}
 
 	/* Implicit kfree_skb(skb) here. */
-#if LINUX_VERSION_AT_LEAST(4, 4, 0, 9999, 0)
+#if LINUX_VERSION_AT_LEAST(4, 4, 0, 8, 0)
 	error = dst_output(ns, NULL, skb);
 #else
 	error = dst_output(skb);
