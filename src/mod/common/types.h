@@ -29,10 +29,8 @@ typedef enum verdict {
 	 */
 	VERDICT_DROP,
 	/**
-	 * If the Jool instance is Netfilter, this leads to NF_ACCEPT.
-	 * If the Jool instance is iptables, it leads to NF_DROP.
-	 * Used when the packet cannot be translated, but maybe it was intended
-	 * for the kernel.
+	 * This leads to NF_ACCEPT. Used when the packet cannot be translated,
+	 * but maybe it was intended for the kernel.
 	 *
 	 * Code should rarely use this constant directly. Use untranlatable()
 	 * or untranslatable_icmp() instead.
