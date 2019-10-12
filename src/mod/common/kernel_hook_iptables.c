@@ -9,7 +9,7 @@ static verdict find_instance(struct net *ns, const struct target_info *info,
 {
 	int error;
 
-	error = xlator_find(ns, FW_IPTABLES, info->iname, result);
+	error = xlator_find(ns, XF_IPTABLES | info->type, info->iname, result);
 	switch (error) {
 	case 0:
 		return VERDICT_CONTINUE;
@@ -38,10 +38,17 @@ int target_checkentry(const struct xt_tgchk_param *param)
 	int error;
 
 	error = iname_validate(info->iname, false);
-	if (error)
+	if (error) {
 		log_err(INAME_VALIDATE_ERRMSG, INAME_MAX_LEN - 1);
+		return error;
+	}
+	error = xt_validate(info->type);
+	if (error) {
+		log_err(XT_VALIDATE_ERRMSG);
+		return error;
+	}
 
-	return error;
+	return 0;
 
 	/*
 	 * Probably don't need to check if the instance exists;
@@ -50,6 +57,7 @@ int target_checkentry(const struct xt_tgchk_param *param)
 	 * instance while the rule exists so it would be pointless anyway.
 	 */
 }
+EXPORT_SYMBOL_GPL(target_checkentry);
 
 static struct net *action_param_net(const struct xt_action_param *param)
 {
@@ -105,6 +113,7 @@ unsigned int target_ipv6(struct sk_buff *skb,
 	xlator_put(&jool);
 	return verdict2iptables(result);
 }
+EXPORT_SYMBOL_GPL(target_ipv6);
 
 /**
  * This is the function that the kernel calls whenever a packet reaches one of
@@ -125,3 +134,4 @@ unsigned int target_ipv4(struct sk_buff *skb,
 	xlator_put(&jool);
 	return verdict2iptables(result);
 }
+EXPORT_SYMBOL_GPL(target_ipv4);

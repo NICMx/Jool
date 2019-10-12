@@ -23,6 +23,7 @@ static void jool_tg_init(struct xt_entry_target *target)
 {
 	struct target_info *info = (struct target_info *)target->data;
 	strcpy(info->iname, INAME_DEFAULT);
+	info->type = IPTABLES_MODULE_TYPE;
 }
 
 /*

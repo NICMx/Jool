@@ -34,30 +34,4 @@ static inline unsigned int xlat_version(void)
 			| JOOL_VERSION_DEV;
 }
 
-/** Bitwise or'd XT_* constants below. */
-typedef int xlator_type;
-
-#define XT_SIIT (1 << 0)
-#define XT_NAT64 (1 << 1)
-#define XT_BOTH (XT_SIIT | XT_NAT64)
-
-#ifdef __KERNEL__
-
-/**
- * Returns either XT_SIIT or XT_NAT64.
- * Each translator kernel module has to define it.
- */
-xlator_type xlat_type(void);
-
-#define xlat_is_siit() (xlat_type() & XT_SIIT)
-#define xlat_is_nat64() (xlat_type() & XT_NAT64)
-
-/**
- * Returns a short printable string that describes the module.
- * Each translator kernel module has to define it.
- */
-char const *xlat_get_name(void);
-
-#endif /* __KERNEL__ */
-
 #endif /* SRC_COMMON_XLAT_H_ */

@@ -43,7 +43,7 @@ struct jool_result address_query64(struct jool_socket *sk, char *iname,
 	struct request_addrxlat *payload = (struct request_addrxlat *)
 			(request + HDR_LEN);
 
-	init_request_hdr(hdr, MODE_ADDRESS, OP_TEST, false);
+	init_request_hdr(hdr, sk->xt, MODE_ADDRESS, OP_TEST, false);
 	payload->direction = 64;
 	payload->addr.v6 = *addr;
 
@@ -59,7 +59,7 @@ struct jool_result address_query46(struct jool_socket *sk, char *iname,
 	struct request_addrxlat *payload = (struct request_addrxlat *)
 			(request + HDR_LEN);
 
-	init_request_hdr(hdr, MODE_ADDRESS, OP_TEST, false);
+	init_request_hdr(hdr, sk->xt, MODE_ADDRESS, OP_TEST, false);
 	payload->direction = 46;
 	payload->addr.v4 = *addr;
 

@@ -3,8 +3,8 @@
 #include "mod/common/log.h"
 #include "mod/common/nl/nl_common.h"
 #include "mod/common/nl/nl_core.h"
-#include "mod/nat64/pool4/db.h"
-#include "mod/nat64/bib/db.h"
+#include "mod/common/db/pool4/db.h"
+#include "mod/common/db/bib/db.h"
 
 static int bib_entry_to_userspace(struct bib_entry const *entry, bool is_static,
 		void *arg)
@@ -117,7 +117,7 @@ int handle_bib_config(struct xlator *jool, struct genl_info *info)
 	struct request_bib *request = (struct request_bib *)(hdr + 1);
 	int error;
 
-	if (xlat_is_siit()) {
+	if (xlator_is_siit(jool)) {
 		log_err("SIIT doesn't have BIBs.");
 		return nlcore_respond(info, -EINVAL);
 	}

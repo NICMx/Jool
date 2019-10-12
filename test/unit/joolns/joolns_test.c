@@ -4,7 +4,7 @@
 #include "mod/common/atomic_config.h"
 #include "mod/common/linux_version.h"
 #include "mod/common/xlator.h"
-#include "mod/siit/eam.h"
+#include "mod/common/db/eam.h"
 #include "framework/unit_test.h"
 
 /*
@@ -62,7 +62,8 @@ static bool validate(char *expected_addr6, __u8 expected_len6,
 	int error;
 	bool success = true;
 
-	error = xlator_find_current(FW_NETFILTER, INAME_DEFAULT, &jool);
+	error = xlator_find_current(INAME_DEFAULT, XF_NETFILTER | XT_SIIT,
+			&jool);
 	if (error) {
 		log_info("xlator_find_current() threw %d", error);
 		return false;
@@ -106,8 +107,9 @@ static bool atomic_test(void)
 
 	*type = SEC_INIT;
 	init = (struct request_init *)(type + 1);
-	init->fw = FW_NETFILTER;
-	error = atomconfig_add(INAME_DEFAULT, request, sizeof(request), false);
+	init->xf = XF_NETFILTER;
+	error = atomconfig_add(INAME_DEFAULT, XT_SIIT, request, sizeof(request),
+			false);
 	if (error)
 		return false;
 
@@ -123,7 +125,8 @@ static bool atomic_test(void)
 		return false;
 	eam->prefix4.len = 25;
 
-	error = atomconfig_add(INAME_DEFAULT, request, sizeof(request), false);
+	error = atomconfig_add(INAME_DEFAULT, XT_SIIT, request, sizeof(request),
+			false);
 	if (error) {
 		log_info("atomconfig_add() 1 threw %d", error);
 		return false;
@@ -131,7 +134,8 @@ static bool atomic_test(void)
 
 	*type = SEC_COMMIT;
 
-	error = atomconfig_add(INAME_DEFAULT, request, sizeof(*type), false);
+	error = atomconfig_add(INAME_DEFAULT, XT_SIIT, request, sizeof(*type),
+			false);
 	if (error) {
 		log_info("atomconfig_add() 2 threw %d", error);
 		return false;
@@ -146,11 +150,11 @@ static bool atomic_test(void)
 static bool krefs_test(void)
 {
 	struct xlator jool;
-	int refcounter;
 	int error;
 	bool success = true;
 
-	error = xlator_find_current(FW_NETFILTER, INAME_DEFAULT, &jool);
+	error = xlator_find_current(INAME_DEFAULT, XF_NETFILTER | XT_SIIT,
+			&jool);
 	if (error) {
 		log_info("xlator_find_current() threw %d", error);
 		return false;
@@ -158,14 +162,8 @@ static bool krefs_test(void)
 
 	/* The database does not claim references to ns. */
 	success &= ASSERT_INT(old_refs, ns_refcount(jool.ns), "ns kref");
-
-#if LINUX_VERSION_AT_LEAST(4, 11, 0, 9999, 0)
-	refcounter = kref_read(&jool.global->refcounter);
-#else
-	refcounter = atomic_read(&jool.global->refcounter.refcount);
-#endif
 	/* xlator DB's kref + the one we just took. */
-	success &= ASSERT_INT(2, refcounter, "pool6 kref");
+	success &= ASSERT_INT(2, jstat_refcount(jool.stats), "pool6 kref");
 
 	xlator_put(&jool);
 	return success;
@@ -219,7 +217,7 @@ static int init(void)
 		log_info("xlator_setup() threw %d", error);
 		return error;
 	}
-	error = xlator_add(FW_NETFILTER, INAME_DEFAULT, NULL, &jool);
+	error = xlator_add(XF_NETFILTER | XT_SIIT, INAME_DEFAULT, NULL, &jool);
 	if (error) {
 		log_info("xlator_add() threw %d", error);
 		goto fail1;
@@ -255,7 +253,7 @@ fail1:
 static bool clean(void)
 {
 	bool success;
-	success = ASSERT_INT(0, xlator_rm(INAME_DEFAULT), "xlator_rm");
+	success = ASSERT_INT(0, xlator_rm(XT_SIIT, INAME_DEFAULT), "xlator_rm");
 	xlator_teardown();
 	return success;
 }

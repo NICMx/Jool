@@ -48,7 +48,7 @@ struct jool_result blacklist4_foreach(struct jool_socket *sk, char *iname,
 	hdr = (struct request_hdr *)request;
 	payload = (union request_blacklist4 *)(request + HDR_LEN);
 
-	init_request_hdr(hdr, MODE_BLACKLIST, OP_FOREACH, false);
+	init_request_hdr(hdr, sk->xt, MODE_BLACKLIST, OP_FOREACH, false);
 	payload->foreach.offset_set = false;
 	memset(&payload->foreach.offset, 0, sizeof(payload->foreach.offset));
 
@@ -77,7 +77,7 @@ struct jool_result blacklist4_add(struct jool_socket *sk, char *iname,
 	hdr = (struct request_hdr *)request;
 	payload = (union request_blacklist4 *)(request + HDR_LEN);
 
-	init_request_hdr(hdr, MODE_BLACKLIST, OP_ADD, force);
+	init_request_hdr(hdr, sk->xt, MODE_BLACKLIST, OP_ADD, force);
 	payload->add.addrs = *addrs;
 
 	return netlink_request(sk, iname, request, sizeof(request), NULL, NULL);
@@ -93,7 +93,7 @@ struct jool_result blacklist4_rm(struct jool_socket *sk, char *iname,
 	hdr = (struct request_hdr *) request;
 	payload = (union request_blacklist4 *) (request + HDR_LEN);
 
-	init_request_hdr(hdr, MODE_BLACKLIST, OP_REMOVE, false);
+	init_request_hdr(hdr, sk->xt, MODE_BLACKLIST, OP_REMOVE, false);
 	payload->rm.addrs = *addrs;
 
 	return netlink_request(sk, iname, request, sizeof(request), NULL, NULL);
@@ -103,6 +103,6 @@ struct jool_result blacklist4_flush(struct jool_socket *sk, char *iname)
 {
 	unsigned char request[HDR_LEN + PAYLOAD_LEN];
 	struct request_hdr *hdr = (struct request_hdr *) request;
-	init_request_hdr(hdr, MODE_BLACKLIST, OP_FLUSH, false);
+	init_request_hdr(hdr, sk->xt, MODE_BLACKLIST, OP_FLUSH, false);
 	return netlink_request(sk, iname, request, sizeof(request), NULL, NULL);
 }

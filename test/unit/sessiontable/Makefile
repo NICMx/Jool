@@ -17,14 +17,15 @@ SESSIONTABLE = sessiontable
 obj-m += $(SESSIONTABLE).o
 
 $(SESSIONTABLE)-objs += $(MIN_REQS)
-$(SESSIONTABLE)-objs += ../../../src/mod/common/config.o
 $(SESSIONTABLE)-objs += ../../../src/mod/common/global-impl.o
-$(SESSIONTABLE)-objs += ../../../src/mod/common/rbtree.o
 $(SESSIONTABLE)-objs += ../../../src/mod/common/translation_state.o
-$(SESSIONTABLE)-objs += ../../../src/mod/nat64/bib/db.o
+$(SESSIONTABLE)-objs += ../../../src/mod/common/db/config.o
+$(SESSIONTABLE)-objs += ../../../src/mod/common/db/rbtree.o
+$(SESSIONTABLE)-objs += ../../../src/mod/common/db/bib/db.o
 $(SESSIONTABLE)-objs += ../impersonator/icmp_wrapper.o
 $(SESSIONTABLE)-objs += ../impersonator/bib.o
 $(SESSIONTABLE)-objs += ../impersonator/route.o
+$(SESSIONTABLE)-objs += ../impersonator/stats.o
 $(SESSIONTABLE)-objs += ../impersonator/xlator.o
 $(SESSIONTABLE)-objs += sessiontable_test.o
 

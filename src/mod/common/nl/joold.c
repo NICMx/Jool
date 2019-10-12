@@ -3,7 +3,7 @@
 #include "mod/common/log.h"
 #include "mod/common/nl/nl_common.h"
 #include "mod/common/nl/nl_core.h"
-#include "mod/nat64/joold.h"
+#include "mod/common/joold.h"
 
 int handle_joold_request(struct xlator *jool, struct genl_info *info)
 {
@@ -13,7 +13,7 @@ int handle_joold_request(struct xlator *jool, struct genl_info *info)
 
 	log_debug("Received a joold request.");
 
-	if (xlat_is_siit()) {
+	if (xlator_is_siit(jool)) {
 		log_err("SIIT Jool doesn't need a synchronization daemon.");
 		return nlcore_respond(info, -EINVAL);
 	}

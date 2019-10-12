@@ -46,7 +46,7 @@ struct jool_result pool4_foreach(struct jool_socket *sk, char *iname,
 	struct foreach_args args;
 	struct jool_result result;
 
-	init_request_hdr(hdr, MODE_POOL4, OP_FOREACH, false);
+	init_request_hdr(hdr, sk->xt, MODE_POOL4, OP_FOREACH, false);
 	payload->foreach.proto = proto;
 	payload->foreach.offset_set = false;
 	memset(&payload->foreach.offset, 0, sizeof(payload->foreach.offset));
@@ -72,7 +72,7 @@ struct jool_result pool4_add(struct jool_socket *sk, char *iname,
 	struct request_hdr *hdr = (struct request_hdr *)request;
 	union request_pool4 *payload = (union request_pool4 *)(request + HDR_LEN);
 
-	init_request_hdr(hdr, MODE_POOL4, OP_ADD, false);
+	init_request_hdr(hdr, sk->xt, MODE_POOL4, OP_ADD, false);
 	payload->add = *entry;
 
 	return netlink_request(sk, iname, request, sizeof(request), NULL, NULL);
@@ -85,7 +85,7 @@ struct jool_result pool4_rm(struct jool_socket *sk, char *iname,
 	struct request_hdr *hdr = (struct request_hdr *)request;
 	union request_pool4 *payload = (union request_pool4 *)(request + HDR_LEN);
 
-	init_request_hdr(hdr, MODE_POOL4, OP_REMOVE, false);
+	init_request_hdr(hdr, sk->xt, MODE_POOL4, OP_REMOVE, false);
 	payload->rm.entry = *entry;
 	payload->rm.quick = quick;
 
@@ -98,7 +98,7 @@ struct jool_result pool4_flush(struct jool_socket *sk, char *iname, bool quick)
 	struct request_hdr *hdr = (struct request_hdr *)request;
 	union request_pool4 *payload = (union request_pool4 *)(request + HDR_LEN);
 
-	init_request_hdr(hdr, MODE_POOL4, OP_FLUSH, false);
+	init_request_hdr(hdr, sk->xt, MODE_POOL4, OP_FLUSH, false);
 	payload->flush.quick = quick;
 
 	return netlink_request(sk, iname, &request, sizeof(request), NULL, NULL);

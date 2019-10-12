@@ -1,37 +1,32 @@
 #include "mod/common/xlator.h"
 
-#include "mod/nat64/bib/db.h"
+#include "mod/common/db/config.h"
+#include "mod/common/db/bib/db.h"
 
 /*
  * xlator impersonator for BIB unit tests.
  */
 
-int xlator_init(struct xlator *jool, struct net *ns, jframework fw, char *iname,
-		struct config_prefix6 *pool6)
+int xlator_init(struct xlator *jool, struct net *ns, char *iname,
+		xlator_flags flags, struct config_prefix6 *pool6)
 {
+	int error;
+
 	memset(jool, 0, sizeof(*jool));
 
 	jool->ns = ns;
-	jool->fw = fw;
+	jool->flags = flags;
 	strcpy(jool->iname, iname);
 
-	jool->global = config_alloc(pool6);
-	if (!jool->global)
-		goto config_fail;
+	error = globals_init(&jool->globals, XT_NAT64, pool6);
+	if (error)
+		return error;
 	jool->nat64.bib = bib_alloc();
-	if (!jool->nat64.bib)
-		goto bib_fail;
 
-	return 0;
-
-bib_fail:
-	config_put(jool->global);
-config_fail:
-	return -ENOMEM;
+	return jool->nat64.bib ? 0 : -ENOMEM;
 }
 
 void xlator_put(struct xlator *jool)
 {
 	bib_put(jool->nat64.bib);
-	config_put(jool->global);
 }

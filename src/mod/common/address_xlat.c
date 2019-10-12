@@ -2,8 +2,8 @@
 
 #include "mod/common/address.h"
 #include "mod/common/rfc6052.h"
-#include "mod/siit/blacklist4.h"
-#include "mod/siit/eam.h"
+#include "mod/common/db/blacklist4.h"
+#include "mod/common/db/eam.h"
 
 static bool must_not_translate(struct in_addr *addr, struct net *ns)
 {
@@ -31,7 +31,7 @@ struct addrxlat_result addrxlat_siit64(struct xlator *instance,
 	if (unlikely(error != -ESRCH))
 		return programming_error();
 
-	if (!instance->global->cfg.pool6.set || rfc6052_6to4(&instance->global->cfg.pool6.prefix, in, out)) {
+	if (!instance->globals.pool6.set || rfc6052_6to4(&instance->globals.pool6.prefix, in, out)) {
 		result.verdict = ADDRXLAT_TRY_SOMETHING_ELSE;
 		result.reason = "The input address lacks both pool6 prefix and EAM";
 		return result;
@@ -83,13 +83,13 @@ struct addrxlat_result addrxlat_siit46(struct xlator *instance,
 		return result;
 	}
 
-	if (!instance->global->cfg.pool6.set) {
+	if (!instance->globals.pool6.set) {
 		result.verdict = ADDRXLAT_TRY_SOMETHING_ELSE;
 		result.reason = "The address lacks EAMT entry and there's no pool6 prefix";
 		return result;
 	}
 
-	error = rfc6052_4to6(&instance->global->cfg.pool6.prefix, &tmp, out);
+	error = rfc6052_4to6(&instance->globals.pool6.prefix, &tmp, out);
 	if (error)
 		return programming_error();
 

@@ -12,7 +12,7 @@ static int xlator_entry_to_userspace(struct xlator *entry, void *arg)
 	struct instance_entry_usr entry_usr;
 
 	entry_usr.ns = entry->ns;
-	entry_usr.fw = entry->fw;
+	entry_usr.xf = xlator_flags2xf(entry->flags);
 	strcpy(entry_usr.iname, entry->iname);
 
 	return nlbuffer_write(buffer, &entry_usr, sizeof(entry_usr));
@@ -32,7 +32,8 @@ static int handle_instance_display(struct genl_info *info,
 		return nlcore_respond(info, error);
 
 	offset = request->foreach.offset_set ? &request->foreach.offset : NULL;
-	error = xlator_foreach(xlator_entry_to_userspace, &buffer, offset);
+	error = xlator_foreach(get_jool_hdr(info)->xt,
+			xlator_entry_to_userspace, &buffer, offset);
 	nlbuffer_set_pending_data(&buffer, error > 0);
 	error = (error >= 0)
 			? nlbuffer_send(info, &buffer)
@@ -48,7 +49,7 @@ static int handle_instance_add(struct genl_info *info,
 	log_debug("Adding Jool instance.");
 
 	return nlcore_respond(info, xlator_add(
-			request->add.fw,
+			request->add.xf | get_jool_hdr(info)->xt,
 			request->add.iname,
 			&request->add.pool6,
 			NULL
@@ -63,7 +64,8 @@ static int handle_instance_hello(struct genl_info *info,
 
 	log_debug("Handling instance Hello.");
 
-	error = xlator_find_current(FW_ANY, request->hello.iname, NULL);
+	error = xlator_find_current(request->hello.iname,
+			XF_ANY | get_jool_hdr(info)->xt, NULL);
 	switch (error) {
 	case 0:
 		response.status = IHS_ALIVE;
@@ -80,15 +82,15 @@ static int handle_instance_rm(struct genl_info *info,
 		union request_instance *request)
 {
 	log_debug("Removing Jool instance.");
-
-	return nlcore_respond(info, xlator_rm(request->rm.iname));
+	return nlcore_respond(info, xlator_rm(get_jool_hdr(info)->xt,
+			request->rm.iname));
 }
 
 static int handle_instance_flush(struct genl_info *info,
 		union request_instance *request)
 {
 	log_debug("Flushing all instances from this namespace.");
-	return nlcore_respond(info, xlator_flush());
+	return nlcore_respond(info, xlator_flush(get_jool_hdr(info)->xt));
 }
 
 int handle_instance_request(struct genl_info *info)

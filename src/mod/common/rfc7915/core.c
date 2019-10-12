@@ -22,7 +22,7 @@ verdict translating_the_packet(struct xlation *state)
 	struct translation_steps *steps = ttpcomm_get_steps(&state->in);
 	verdict result;
 
-	if (xlat_is_nat64())
+	if (xlation_is_nat64(state))
 		log_debug("Step 4: Translating the Packet");
 	else
 		log_debug("Translating the Packet.");
@@ -41,7 +41,7 @@ verdict translating_the_packet(struct xlation *state)
 			goto revert;
 	}
 
-	if (xlat_is_nat64())
+	if (xlation_is_nat64(state))
 		log_debug("Done step 4.");
 	return VERDICT_CONTINUE;
 

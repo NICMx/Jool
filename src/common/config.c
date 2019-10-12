@@ -4,13 +4,15 @@
 #include <errno.h>
 #endif
 
-void init_request_hdr(struct request_hdr *hdr, enum config_mode mode,
-		enum config_operation operation, bool force)
+void init_request_hdr(struct request_hdr *hdr, xlator_type xt,
+		enum config_mode mode, enum config_operation operation,
+		bool force)
 {
 	hdr->magic[0] = 'j';
 	hdr->magic[1] = 'o';
 	hdr->magic[2] = 'o';
 	hdr->magic[3] = 'l';
+	hdr->xt = xt;
 	hdr->castness = 'u';
 	hdr->force = force;
 	hdr->slop1 = 0;
@@ -38,7 +40,22 @@ int iname_validate(const char *iname, bool allow_null)
 	return -EINVAL;
 }
 
-int fw_validate(jframework fw)
+int xt_validate(xlator_type xt)
 {
-	return (fw == FW_NETFILTER || fw == FW_IPTABLES) ? 0 : -EINVAL;
+	return (xt == XT_SIIT || xt == XT_NAT64) ? 0 : -EINVAL;
+}
+
+int xf_validate(xlator_framework xf)
+{
+	return (xf == XF_NETFILTER || xf == XF_IPTABLES) ? 0 : -EINVAL;
+}
+
+xlator_type xlator_flags2xt(xlator_flags flags)
+{
+	return flags & 0x03;
+}
+
+xlator_framework xlator_flags2xf(xlator_flags flags)
+{
+	return flags & 0x0C;
 }

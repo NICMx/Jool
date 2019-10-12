@@ -48,7 +48,7 @@ int handle_file_update(char *iname, int argc, char **argv, void *arg)
 	if (result.error)
 		return pr_result(&result);
 
-	result = json_parse(&sk, iname, uargs.file_name.value,
+	result = json_parse(&sk, xt_get(), iname, uargs.file_name.value,
 			uargs.force.value);
 
 	netlink_teardown(&sk);

@@ -47,7 +47,7 @@ int handle_address_query(struct xlator *jool, struct genl_info *info)
 	struct request_addrxlat *request = (struct request_addrxlat *)(hdr + 1);
 	int error;
 
-	if (xlat_is_nat64()) {
+	if (xlator_is_nat64(jool)) {
 		log_err("Stateful NAT64 doesn't support address translation queries yet.");
 		return nlcore_respond(info, -EINVAL);
 	}

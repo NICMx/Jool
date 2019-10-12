@@ -2,7 +2,7 @@
 #define SRC_USR_ARGP_COMMAND_H_
 
 #include <stdbool.h>
-#include "common/xlat.h"
+#include "common/config.h"
 
 /**
  * BTW: "cmd" (command) refers to the "jool" command. Eg.

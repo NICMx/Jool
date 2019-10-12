@@ -46,7 +46,7 @@ struct jool_result eamt_foreach(struct jool_socket *sk, char *iname,
 	struct foreach_args args;
 	struct jool_result result;
 
-	init_request_hdr(hdr, MODE_EAMT, OP_FOREACH, false);
+	init_request_hdr(hdr, sk->xt, MODE_EAMT, OP_FOREACH, false);
 	payload->foreach.prefix4_set = false;
 	memset(&payload->foreach.prefix4, 0, sizeof(payload->foreach.prefix4));
 
@@ -72,7 +72,7 @@ struct jool_result eamt_add(struct jool_socket *sk, char *iname,
 	struct request_hdr *hdr = (struct request_hdr *)request;
 	union request_eamt *payload = (union request_eamt *)(request + HDR_LEN);
 
-	init_request_hdr(hdr, MODE_EAMT, OP_ADD, force);
+	init_request_hdr(hdr, sk->xt, MODE_EAMT, OP_ADD, force);
 	payload->add.prefix6 = *p6;
 	payload->add.prefix4 = *p4;
 
@@ -86,7 +86,7 @@ struct jool_result eamt_rm(struct jool_socket *sk, char *iname,
 	struct request_hdr *hdr = (struct request_hdr *)request;
 	union request_eamt *payload = (union request_eamt *)(request + HDR_LEN);
 
-	init_request_hdr(hdr, MODE_EAMT, OP_REMOVE, false);
+	init_request_hdr(hdr, sk->xt, MODE_EAMT, OP_REMOVE, false);
 	if (p6) {
 		payload->rm.prefix6_set = true;
 		memcpy(&payload->rm.prefix6, p6, sizeof(*p6));
@@ -109,7 +109,7 @@ struct jool_result eamt_flush(struct jool_socket *sk, char *iname)
 {
 	unsigned char request[HDR_LEN + PAYLOAD_LEN];
 	struct request_hdr *hdr = (struct request_hdr *)request;
-	init_request_hdr(hdr, MODE_EAMT, OP_FLUSH, false);
+	init_request_hdr(hdr, sk->xt, MODE_EAMT, OP_FLUSH, false);
 	return netlink_request(sk, iname, request, sizeof(request), NULL, NULL);
 }
 
@@ -139,7 +139,7 @@ struct jool_result eamt_query_v6(struct jool_socket *sk, char *iname,
 	struct request_hdr *hdr = (struct request_hdr *)request;
 	union request_eamt *payload = (union request_eamt *)(request + HDR_LEN);
 
-	init_request_hdr(hdr, MODE_EAMT, OP_TEST, false);
+	init_request_hdr(hdr, sk->xt, MODE_EAMT, OP_TEST, false);
 	payload->test.proto = 6;
 	payload->test.addr.v6 = *in;
 
@@ -164,7 +164,7 @@ struct jool_result eamt_query_v4(struct jool_socket *sk, char *iname,
 	struct request_hdr *hdr = (struct request_hdr *)request;
 	union request_eamt *payload = (union request_eamt *)(request + HDR_LEN);
 
-	init_request_hdr(hdr, MODE_EAMT, OP_TEST, false);
+	init_request_hdr(hdr, sk->xt, MODE_EAMT, OP_TEST, false);
 	payload->test.proto = 4;
 	payload->test.addr.v4 = *in;
 

@@ -17,14 +17,15 @@ BIBTABLE = bibtable
 obj-m += $(BIBTABLE).o
 
 $(BIBTABLE)-objs += $(MIN_REQS)
-$(BIBTABLE)-objs += ../../../src/mod/common/config.o
 $(BIBTABLE)-objs += ../../../src/mod/common/global-impl.o
-$(BIBTABLE)-objs += ../../../src/mod/common/rbtree.o
 $(BIBTABLE)-objs += ../../../src/mod/common/translation_state.o
-$(BIBTABLE)-objs += ../../../src/mod/nat64/bib/db.o
+$(BIBTABLE)-objs += ../../../src/mod/common/db/config.o
+$(BIBTABLE)-objs += ../../../src/mod/common/db/rbtree.o
+$(BIBTABLE)-objs += ../../../src/mod/common/db/bib/db.o
 $(BIBTABLE)-objs += ../impersonator/icmp_wrapper.o
 $(BIBTABLE)-objs += ../impersonator/bib.o
 $(BIBTABLE)-objs += ../impersonator/route.o
+$(BIBTABLE)-objs += ../impersonator/stats.o
 $(BIBTABLE)-objs += ../impersonator/xlator.o
 $(BIBTABLE)-objs += bibtable_test.o
 

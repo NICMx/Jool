@@ -16,4 +16,8 @@ void jstat_add(struct jool_stats *stats, enum jool_stat_id stat, int addend);
 
 __u64 *jstat_query(struct jool_stats *stats);
 
+#ifdef UNIT_TESTING
+int jstat_refcount(struct jool_stats *stats);
+#endif
+
 #endif /* SRC_MOD_COMMON_STATS_H_ */

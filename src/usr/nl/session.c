@@ -49,7 +49,7 @@ struct jool_result session_foreach(struct jool_socket *sk, char *iname,
 	hdr = (struct request_hdr *)request;
 	payload = (struct request_session *)(request + HDR_LEN);
 
-	init_request_hdr(hdr, MODE_SESSION, OP_FOREACH, false);
+	init_request_hdr(hdr, sk->xt, MODE_SESSION, OP_FOREACH, false);
 	payload->l4_proto = proto;
 	payload->foreach.offset_set = false;
 	memset(&payload->foreach.offset.src, 0,

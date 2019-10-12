@@ -5,11 +5,11 @@
 #include "mod/common/log.h"
 #include "mod/common/wkmalloc.h"
 #include "mod/common/nl/global.h"
-#include "mod/siit/eam.h"
-#include "mod/siit/pool.h"
-#include "mod/nat64/joold.h"
-#include "mod/nat64/pool4/db.h"
-#include "mod/nat64/bib/db.h"
+#include "mod/common/db/eam.h"
+#include "mod/common/db/pool.h"
+#include "mod/common/joold.h"
+#include "mod/common/db/pool4/db.h"
+#include "mod/common/db/bib/db.h"
 
 /**
  * This represents the new configuration the user wants to apply to a certain
@@ -92,14 +92,13 @@ static void candidate_expire_maybe(struct config_candidate *candidate)
 
 /**
  * Returns the instance candidate whose namespace is the current one and whose
- * name is @iname, creating it if necessary.
+ * name is @iname.
  */
 static int get_candidate(char *iname, struct config_candidate **result)
 {
 	struct net *ns;
 	struct config_candidate *candidate;
 	struct config_candidate *tmp;
-	int error;
 
 	ns = get_net_ns_by_pid(task_pid_vnr(current));
 	if (IS_ERR(ns)) {
@@ -110,53 +109,52 @@ static int get_candidate(char *iname, struct config_candidate **result)
 	list_for_each_entry_safe(candidate, tmp, &db, list_hook) {
 		if ((candidate->xlator.ns == ns)
 				&& (strcmp(candidate->xlator.iname, iname) == 0)
-				&& (candidate->pid == task_pid_nr(current)))
-			goto success;
+				&& (candidate->pid == task_pid_nr(current))) {
+			*result = candidate;
+			put_net(ns);
+			return 0;
+		}
 
 		candidate_expire_maybe(candidate);
 	}
 
-	candidate = wkmalloc(struct config_candidate, GFP_KERNEL);
-	if (!candidate) {
-		put_net(ns);
-		return -ENOMEM;
+	log_err("Instance not found.");
+	return -ESRCH;
+}
+
+static int handle_init(char *iname, xlator_type xt,
+		void *payload, __u32 payload_len)
+{
+	struct net *ns;
+	struct request_init *request = payload;
+	struct config_candidate *candidate;
+	int error;
+
+	ns = get_net_ns_by_pid(task_pid_vnr(current));
+	if (IS_ERR(ns)) {
+		log_err("Could not retrieve the current namespace.");
+		return PTR_ERR(ns);
 	}
 
-	/*
-	 * fw and pool6 are basic configuration that we can't populate yet.
-	 * Those must be handled later.
-	 */
-	error = xlator_init(&candidate->xlator, ns, 0, iname, NULL);
+	candidate = wkmalloc(struct config_candidate, GFP_KERNEL);
+	if (!candidate) {
+		error = -ENOMEM;
+		goto end;
+	}
+
+	error = xlator_init(&candidate->xlator, ns, iname, request->xf | xt,
+			NULL);
 	if (error) {
 		wkfree(struct config_candidate, candidate);
-		put_net(ns);
-		return error;
+		goto end;
 	}
 	candidate->update_time = jiffies;
 	candidate->pid = task_pid_nr(current);
 	list_add(&candidate->list_hook, &db);
 	/* Fall through */
 
-success:
-	*result = candidate;
-	put_net(ns);
-	return 0;
-}
-
-static int handle_init(struct config_candidate *new, void *payload,
-		__u32 payload_len)
-{
-	struct request_init *request = payload;
-	int error;
-
-	error = fw_validate(request->fw);
-	if (error) {
-		log_err(FW_VALIDATE_ERRMSG);
-		return error;
-	}
-
-	new->xlator.fw = request->fw;
-	return 0;
+end:	put_net(ns);
+	return error;
 }
 
 static int handle_global(struct config_candidate *new, void *payload,
@@ -165,7 +163,8 @@ static int handle_global(struct config_candidate *new, void *payload,
 	int result;
 
 	do {
-		result = global_update(new->xlator.global, force,
+		result = global_update(&new->xlator.globals,
+				xlator_get_type(&new->xlator), force,
 				payload, payload_len);
 		if (result < 0)
 			return result;
@@ -186,7 +185,7 @@ static int handle_eamt(struct config_candidate *new, void *payload,
 	unsigned int i;
 	int error;
 
-	if (xlat_is_nat64()) {
+	if (xlator_is_nat64(&new->xlator)) {
 		log_err("Stateful NAT64 doesn't have an EAMT.");
 		return -EINVAL;
 	}
@@ -210,7 +209,7 @@ static int handle_blacklist4(struct config_candidate *new, void *payload,
 	unsigned int i;
 	int error;
 
-	if (xlat_is_nat64()) {
+	if (xlator_is_nat64(&new->xlator)) {
 		log_err("Stateful NAT64 doesn't have IPv4 address pools.");
 		return -EINVAL;
 	}
@@ -233,7 +232,7 @@ static int handle_pool4(struct config_candidate *new, void *payload,
 	unsigned int i;
 	int error;
 
-	if (xlat_is_siit()) {
+	if (xlator_is_siit(&new->xlator)) {
 		log_err("SIIT doesn't have pool4.");
 		return -EINVAL;
 	}
@@ -256,7 +255,7 @@ static int handle_bib(struct config_candidate *new, void *payload,
 	unsigned int i;
 	int error;
 
-	if (xlat_is_siit()) {
+	if (xlator_is_siit(&new->xlator)) {
 		log_err("SIIT doesn't have BIBs.");
 		return -EINVAL;
 	}
@@ -288,7 +287,8 @@ static int commit(struct config_candidate *candidate)
 	return 0;
 }
 
-int atomconfig_add(char *iname, void *config, size_t config_len, bool force)
+int atomconfig_add(char *iname, xlator_type xt, void *config, size_t config_len,
+		bool force)
 {
 	struct config_candidate *candidate = NULL;
 	__u16 type = *((__u16 *)config);
@@ -305,16 +305,16 @@ int atomconfig_add(char *iname, void *config, size_t config_len, bool force)
 
 	mutex_lock(&lock);
 
-	error = get_candidate(iname, &candidate);
-	if (error) {
-		mutex_unlock(&lock);
-		return error;
+	if (type == SEC_INIT) {
+		error = handle_init(iname, xt, config, config_len);
+		goto end;
 	}
 
+	error = get_candidate(iname, &candidate);
+	if (error)
+		goto end;
+
 	switch (type) {
-	case SEC_INIT:
-		error = handle_init(candidate, config, config_len);
-		break;
 	case SEC_GLOBAL:
 		error = handle_global(candidate, config, config_len, force);
 		break;
@@ -344,6 +344,6 @@ int atomconfig_add(char *iname, void *config, size_t config_len, bool force)
 	else
 		candidate->update_time = jiffies;
 
-	mutex_unlock(&lock);
+end:	mutex_unlock(&lock);
 	return error;
 }

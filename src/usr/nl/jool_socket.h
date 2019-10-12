@@ -2,7 +2,7 @@
 #define SRC_USR_NL_JOOL_SOCKET_H_
 
 #include <netlink/netlink.h>
-#include "common/xlat.h"
+#include "common/config.h"
 #include "usr/util/result.h"
 
 struct jool_socket {

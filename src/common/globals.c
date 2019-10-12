@@ -74,13 +74,13 @@ static struct global_field global_fields[] = {
 		.type = &gt_bool,
 		.doc = "Resumes or pauses the instance's translation.",
 		.offset = offsetof(struct globals, enabled),
-		.xt = XT_BOTH,
+		.xt = XT_ANY,
 	}, {
 		.name = "pool6",
 		.type = &gt_prefix6,
 		.doc = "The IPv6 Address Pool prefix.",
 		.offset = offsetof(struct globals, pool6),
-		.xt = XT_BOTH,
+		.xt = XT_ANY,
 		GLOBAL_FN(validate_pool6, NULL),
 		.candidates = WELL_KNOWN_PREFIX,
 	}, {
@@ -88,19 +88,19 @@ static struct global_field global_fields[] = {
 		.type = &gt_bool,
 		.doc = "Always set the IPv6 header's 'Traffic Class' field as zero? Otherwise copy from IPv4 header's 'TOS'.",
 		.offset = offsetof(struct globals, reset_traffic_class),
-		.xt = XT_BOTH,
+		.xt = XT_ANY,
 	}, {
 		.name = "override-tos",
 		.type = &gt_bool,
 		.doc = "Override the IPv4 header's 'TOS' field as --tos? Otherwise copy from IPv6 header's 'Traffic Class'.",
 		.offset = offsetof(struct globals, reset_tos),
-		.xt = XT_BOTH,
+		.xt = XT_ANY,
 	}, {
 		.name = "tos",
 		.type = &gt_uint8,
 		.doc = "Value to override TOS as (only when --override-tos is ON).",
 		.offset = offsetof(struct globals, new_tos),
-		.xt = XT_BOTH,
+		.xt = XT_ANY,
 		.min = 0,
 		.max = MAX_U8,
 	}, {
@@ -108,7 +108,7 @@ static struct global_field global_fields[] = {
 		.type = &gt_plateaus,
 		.doc = "Set the list of plateaus for ICMPv4 Fragmentation Neededs with MTU unset.",
 		.offset = offsetof(struct globals, plateaus),
-		.xt = XT_BOTH,
+		.xt = XT_ANY,
 	}, {
 		.name = "amend-udp-checksum-zero",
 		.type = &gt_bool,

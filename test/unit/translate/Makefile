@@ -17,17 +17,18 @@ TRANSLATE = translate
 obj-m += $(TRANSLATE).o
 
 $(TRANSLATE)-objs += $(MIN_REQS)
-$(TRANSLATE)-objs += ../../../src/mod/common/config.o
 $(TRANSLATE)-objs += ../../../src/mod/common/global-impl.o
 $(TRANSLATE)-objs += ../../../src/mod/common/ipv6_hdr_iterator.o
 $(TRANSLATE)-objs += ../../../src/mod/common/packet.o
 $(TRANSLATE)-objs += ../../../src/mod/common/rfc6052.o
 $(TRANSLATE)-objs += ../../../src/mod/common/translation_state.o
+$(TRANSLATE)-objs += ../../../src/mod/common/db/config.o
 $(TRANSLATE)-objs += ../../../src/mod/common/rfc7915/common.o
-$(TRANSLATE)-objs += ../../../src/mod/nat64/impersonator.o
 $(TRANSLATE)-objs += ../framework/skb_generator.o
 $(TRANSLATE)-objs += ../framework/types.o
 $(TRANSLATE)-objs += ../impersonator/icmp_wrapper.o
+$(TRANSLATE)-objs += ../impersonator/siit.o
+$(TRANSLATE)-objs += ../impersonator/stats.o
 $(TRANSLATE)-objs += translate_packet_test.o
 
 

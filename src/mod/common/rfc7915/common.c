@@ -1,12 +1,14 @@
 #include "mod/common/rfc7915/common.h"
-#include "mod/common/config.h"
+
+#include <linux/icmp.h>
+
+#include "common/config.h"
 #include "mod/common/ipv6_hdr_iterator.h"
 #include "mod/common/packet.h"
 #include "mod/common/stats.h"
 #include "mod/common/rfc7915/4to6.h"
 #include "mod/common/rfc7915/6to4.h"
-#include "mod/siit/blacklist4.h"
-#include <linux/icmp.h>
+#include "mod/common/db/blacklist4.h"
 
 struct backup_skb {
 	unsigned int pulled;
@@ -86,7 +88,7 @@ static int report_bug247(struct packet *pkt, __u8 proto)
 	pr_err("----- JOOL OUTPUT -----\n");
 	pr_err("Bug #247 happened!\n");
 
-	pr_err("xlator: %u " JOOL_VERSION_STR, xlat_is_siit());
+	pr_err("xlator: " JOOL_VERSION_STR);
 	pr_err("Page size: %lu\n", PAGE_SIZE);
 	pr_err("Page shift: %u\n", PAGE_SHIFT);
 	pr_err("protocols: %u %u %u\n", pkt->l3_proto, pkt->l4_proto, proto);
@@ -207,18 +209,20 @@ static int move_pointers6(struct packet *in, struct packet *out)
 	return move_pointers_out(in, out, sizeof(struct iphdr));
 }
 
-static void backup(struct packet *pkt, struct backup_skb *bkp)
+static void backup(struct xlation *state, struct packet *pkt,
+		struct backup_skb *bkp)
 {
 	bkp->pulled = pkt_hdrs_len(pkt);
 	bkp->offset.l3 = skb_network_offset(pkt->skb);
 	bkp->offset.l4 = skb_transport_offset(pkt->skb);
 	bkp->payload = pkt_payload(pkt);
 	bkp->l4_proto = pkt_l4_proto(pkt);
-	if (xlat_is_nat64())
+	if (xlation_is_nat64(state))
 		bkp->tuple = pkt->tuple;
 }
 
-static int restore(struct packet *pkt, struct backup_skb *bkp)
+static int restore(struct xlation *state, struct packet *pkt,
+		struct backup_skb *bkp)
 {
 	if (!jskb_push(pkt->skb, bkp->pulled))
 		return -EINVAL;
@@ -227,7 +231,7 @@ static int restore(struct packet *pkt, struct backup_skb *bkp)
 	pkt->payload = bkp->payload;
 	pkt->l4_proto = bkp->l4_proto;
 	pkt->is_inner = 0;
-	if (xlat_is_nat64())
+	if (xlation_is_nat64(state))
 		pkt->tuple = bkp->tuple;
 	return 0;
 }
@@ -240,8 +244,8 @@ verdict ttpcomm_translate_inner_packet(struct xlation *state)
 	struct translation_steps *current_steps;
 	verdict result;
 
-	backup(in, &bkp_in);
-	backup(out, &bkp_out);
+	backup(state, in, &bkp_in);
+	backup(state, out, &bkp_out);
 
 	switch (pkt_l3_proto(in)) {
 	case L3PROTO_IPV4:
@@ -254,7 +258,7 @@ verdict ttpcomm_translate_inner_packet(struct xlation *state)
 		break;
 	}
 
-	if (xlat_is_nat64()) {
+	if (xlation_is_nat64(state)) {
 		in->tuple.src = bkp_in.tuple.dst;
 		in->tuple.dst = bkp_in.tuple.src;
 		out->tuple.src = bkp_out.tuple.dst;
@@ -280,9 +284,9 @@ verdict ttpcomm_translate_inner_packet(struct xlation *state)
 	if (result != VERDICT_CONTINUE)
 		return result;
 
-	if (restore(in, &bkp_in))
+	if (restore(state, in, &bkp_in))
 		return drop(state, JSTAT_UNKNOWN);
-	if (restore(out, &bkp_out))
+	if (restore(state, out, &bkp_out))
 		return drop(state, JSTAT_UNKNOWN);
 
 	return VERDICT_CONTINUE;

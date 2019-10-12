@@ -62,8 +62,8 @@ static bool test_function_build_ipv4_frag_off_field(void)
 
 static bool test_inner_validation4(void)
 {
-	struct xlation state;
-	struct xlator jool;
+	static struct xlation state; /* Too large for the stack. */
+	static struct xlator jool;
 	struct sk_buff *skb;
 	bool result = true;
 
@@ -91,8 +91,8 @@ static bool test_inner_validation4(void)
 
 static bool test_inner_validation6(void)
 {
-	struct xlation state;
-	struct xlator jool;
+	static struct xlation state; /* Too large for the stack. */
+	static struct xlator jool;
 	struct sk_buff *skb;
 	bool result = true;
 

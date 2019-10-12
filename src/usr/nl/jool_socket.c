@@ -193,7 +193,6 @@ struct jool_result netlink_request(struct jool_socket *sk, char *iname,
 		void *request, __u32 request_len,
 		jool_response_cb cb, void *cb_arg)
 {
-
 	struct response_cb callback;
 	struct jool_result result;
 
@@ -241,22 +240,11 @@ struct jool_result netlink_request(struct jool_socket *sk, char *iname,
  */
 struct jool_result netlink_setup(struct jool_socket *socket, xlator_type xt)
 {
-	char const *family;
 	int error;
 
-	switch (xt) {
-	case XT_SIIT:
-		family = GNL_SIIT_JOOL_FAMILY;
-		break;
-	case XT_NAT64:
-		family = GNL_NAT64_JOOL_FAMILY;
-		break;
-	default:
-		return result_from_error(
-			-EINVAL,
-			"Unknown translator type"
-		);
-	}
+	error = xt_validate(xt);
+	if (error)
+		return result_from_error(error, XT_VALIDATE_ERRMSG);
 
 	socket->sk = nl_socket_alloc();
 	if (!socket->sk) {
@@ -288,7 +276,7 @@ struct jool_result netlink_setup(struct jool_socket *socket, xlator_type xt)
 	}
 
 	socket->xt = xt;
-	socket->genl_family = genl_ctrl_resolve(socket->sk, family);
+	socket->genl_family = genl_ctrl_resolve(socket->sk, GNL_JOOL_FAMILY);
 	if (socket->genl_family < 0) {
 		nl_socket_free(socket->sk);
 		return result_from_error(
