@@ -198,12 +198,12 @@ If you're going to clone the git repository, you need git and the autotools:
 
 <!-- Ubuntu -->
 {% highlight bash %}
-user@T:~# apt install git autoconf
+user@T:~# apt install git autoconf libtool
 {% endhighlight %}
 
 <!-- CentOS -->
 {% highlight bash %}
-user@T:~# yum install git automake
+user@T:~# yum install git automake libtool
 {% endhighlight %}
 
 And if you don't, you will need a `.tar.gz` extraction tool:
