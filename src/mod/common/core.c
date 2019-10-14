@@ -73,12 +73,8 @@ static void send_icmp4_error(struct xlation *state, verdict result)
 
 	if (state->result.icmp == ICMPERR_NONE)
 		return;
-	/*
-	 * Netfilter Jool NF_ACCEPTs the packet on UNTRANSLATABLE, so cancel the
-	 * ICMP error. Linux will decide what to do.
-	 */
-	if ((state->jool.fw & FW_NETFILTER) && result == VERDICT_UNTRANSLATABLE)
-		return;
+	if (result == VERDICT_UNTRANSLATABLE)
+		return; /* Linux will decide what to do. */
 
 	success = icmp64_send4(state->in.skb,
 			state->result.icmp,
@@ -128,8 +124,8 @@ static void send_icmp6_error(struct xlation *state, verdict result)
 
 	if (state->result.icmp == ICMPERR_NONE)
 		return;
-	if ((state->jool.fw & FW_NETFILTER) && result == VERDICT_UNTRANSLATABLE)
-		return;
+	if (result == VERDICT_UNTRANSLATABLE)
+		return; /* Linux will decide what to do. */
 
 	success = icmp64_send6(state->in.skb,
 			state->result.icmp,

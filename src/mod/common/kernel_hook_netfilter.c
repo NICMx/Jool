@@ -28,14 +28,14 @@ static verdict find_instance(struct sk_buff *skb, struct xlator *result)
 	return VERDICT_UNTRANSLATABLE;
 }
 
-static unsigned int verdict2netfilter(verdict result)
+static unsigned int verdict2netfilter(verdict result, bool print_return)
 {
 	switch (result) {
 	case VERDICT_STOLEN:
 		return NF_STOLEN; /* This is the happy path. */
 	case VERDICT_UNTRANSLATABLE:
-		/* TODO do not output this before having found the instance. */
-		log_debug("Returning the packet to the kernel.");
+		if (print_return)
+			log_debug("Returning the packet to the kernel.");
 		return NF_ACCEPT;
 	case VERDICT_DROP:
 		log_debug("Dropping packet.");
@@ -61,12 +61,12 @@ NF_CALLBACK(hook_ipv6, skb)
 
 	result = find_instance(skb, &jool);
 	if (result != VERDICT_CONTINUE)
-		return verdict2netfilter(result);
+		return verdict2netfilter(result, false);
 
 	result = core_6to4(skb, &jool);
 
 	xlator_put(&jool);
-	return verdict2netfilter(result);
+	return verdict2netfilter(result, true);
 }
 
 /**
@@ -80,10 +80,10 @@ NF_CALLBACK(hook_ipv4, skb)
 
 	result = find_instance(skb, &jool);
 	if (result != VERDICT_CONTINUE)
-		return verdict2netfilter(result);
+		return verdict2netfilter(result, false);
 
 	result = core_4to6(skb, &jool);
 
 	xlator_put(&jool);
-	return verdict2netfilter(result);
+	return verdict2netfilter(result, true);
 }

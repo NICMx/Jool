@@ -67,13 +67,10 @@ static unsigned int verdict2iptables(verdict result)
 	switch (result) {
 	case VERDICT_STOLEN:
 		return NF_STOLEN; /* This is the happy path. */
-	case VERDICT_DROP:
 	case VERDICT_UNTRANSLATABLE:
-		/*
-		 * Untranslatable should also lead to a drop because of the
-		 * contract. The packet matched the rule, so we're not supposed
-		 * to return it.
-		 */
+		log_debug("Returning packet to the iptables chain.");
+		return XT_CONTINUE;
+	case VERDICT_DROP:
 		log_debug("Dropping packet.");
 		return NF_DROP;
 	case VERDICT_CONTINUE:
