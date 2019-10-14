@@ -48,7 +48,7 @@ struct jool_result instance_foreach(struct jool_socket *sk,
 	hdr = (struct request_hdr *)request;
 	payload = (union request_instance *)(request + HDR_LEN);
 
-	init_request_hdr(hdr, MODE_INSTANCE, OP_FOREACH, false);
+	init_request_hdr(hdr, sk->xt, MODE_INSTANCE, OP_FOREACH, false);
 	payload->foreach.offset_set = false;
 	memset(&payload->foreach.offset, 0, sizeof(payload->foreach.offset));
 
@@ -109,14 +109,14 @@ struct jool_result instance_hello(struct jool_socket *sk, char *iname,
 	hdr = (struct request_hdr *)request;
 	payload = (union request_instance *)(request + HDR_LEN);
 
-	init_request_hdr(hdr, MODE_INSTANCE, OP_TEST, false);
+	init_request_hdr(hdr, sk->xt, MODE_INSTANCE, OP_TEST, false);
 	strcpy(payload->hello.iname, iname ? iname : INAME_DEFAULT);
 
 	return netlink_request(sk, NULL, &request, sizeof(request),
 			jool_hello_cb, status);
 }
 
-struct jool_result instance_add(struct jool_socket *sk, jframework fw,
+struct jool_result instance_add(struct jool_socket *sk, xlator_framework xf,
 		char *iname, struct ipv6_prefix *pool6)
 {
 	unsigned char request[HDR_LEN + PAYLOAD_LEN];
@@ -124,9 +124,9 @@ struct jool_result instance_add(struct jool_socket *sk, jframework fw,
 	union request_instance *payload;
 	int error;
 
-	error = fw_validate(fw);
+	error = xf_validate(xf);
 	if (error)
-		return result_from_error(error, FW_VALIDATE_ERRMSG);
+		return result_from_error(error, XF_VALIDATE_ERRMSG);
 
 	error = iname_validate(iname, true);
 	if (error) {
@@ -140,8 +140,8 @@ struct jool_result instance_add(struct jool_socket *sk, jframework fw,
 	hdr = (struct request_hdr *)request;
 	payload = (union request_instance *)(request + HDR_LEN);
 
-	init_request_hdr(hdr, MODE_INSTANCE, OP_ADD, false);
-	payload->add.fw = fw;
+	init_request_hdr(hdr, sk->xt, MODE_INSTANCE, OP_ADD, false);
+	payload->add.xf = xf;
 	strcpy(payload->add.iname, iname ? iname : INAME_DEFAULT);
 	if (pool6) {
 		payload->add.pool6.set = true;
@@ -172,7 +172,7 @@ struct jool_result instance_rm(struct jool_socket *sk, char *iname)
 		);
 	}
 
-	init_request_hdr(hdr, MODE_INSTANCE, OP_REMOVE, false);
+	init_request_hdr(hdr, sk->xt, MODE_INSTANCE, OP_REMOVE, false);
 	strcpy(payload->rm.iname, iname ? iname : INAME_DEFAULT);
 
 	return netlink_request(sk, NULL, request, sizeof(request), NULL, NULL);
@@ -181,6 +181,6 @@ struct jool_result instance_rm(struct jool_socket *sk, char *iname)
 struct jool_result instance_flush(struct jool_socket *sk)
 {
 	struct request_hdr request;
-	init_request_hdr(&request, MODE_INSTANCE, OP_FLUSH, false);
+	init_request_hdr(&request, sk->xt, MODE_INSTANCE, OP_FLUSH, false);
 	return netlink_request(sk, NULL, &request, sizeof(request), NULL, NULL);
 }

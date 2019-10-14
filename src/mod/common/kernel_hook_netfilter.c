@@ -7,7 +7,7 @@ static verdict find_instance(struct sk_buff *skb, struct xlator *result)
 {
 	int error;
 
-	error = xlator_find(dev_net(skb->dev), FW_NETFILTER, NULL, result);
+	error = xlator_find_netfilter(dev_net(skb->dev), result);
 	switch (error) {
 	case 0:
 		return VERDICT_CONTINUE;
@@ -68,6 +68,7 @@ NF_CALLBACK(hook_ipv6, skb)
 	xlator_put(&jool);
 	return verdict2netfilter(result, true);
 }
+EXPORT_SYMBOL_GPL(hook_ipv6);
 
 /**
  * This is the function that the kernel calls whenever a packet reaches Jool's
@@ -87,3 +88,4 @@ NF_CALLBACK(hook_ipv4, skb)
 	xlator_put(&jool);
 	return verdict2netfilter(result, true);
 }
+EXPORT_SYMBOL_GPL(hook_ipv4);

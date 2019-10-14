@@ -4,7 +4,7 @@
 
 #include "framework/types.h"
 #include "framework/unit_test.h"
-#include "mod/siit/eam.c"
+#include "mod/common/db/eam.c"
 
 MODULE_LICENSE(JOOL_LICENSE);
 MODULE_AUTHOR("dhernandez");

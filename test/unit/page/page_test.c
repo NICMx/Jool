@@ -25,13 +25,13 @@ static int init(void)
 	if (error)
 		return error;
 
-	return xlator_add(FW_NETFILTER, INAME_DEFAULT, &pool6, &jool);
+	return xlator_add(XF_NETFILTER | XT_SIIT, INAME_DEFAULT, &pool6, &jool);
 }
 
 static void clean(void)
 {
 	xlator_put(&jool);
-	xlator_rm(INAME_DEFAULT);
+	xlator_rm(XT_SIIT, INAME_DEFAULT);
 }
 
 static bool validate_skb(struct sk_buff *skb, int payload_offset,

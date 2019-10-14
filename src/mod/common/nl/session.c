@@ -3,7 +3,7 @@
 #include "mod/common/log.h"
 #include "mod/common/nl/nl_common.h"
 #include "mod/common/nl/nl_core.h"
-#include "mod/nat64/bib/db.h"
+#include "mod/common/db/bib/db.h"
 
 static int session_entry_to_userspace(struct session_entry const *entry,
 		void *arg)
@@ -66,7 +66,7 @@ int handle_session_config(struct xlator *jool, struct genl_info *info)
 	struct request_session *request;
 	int error;
 
-	if (xlat_is_siit()) {
+	if (xlator_is_siit(jool)) {
 		log_err("SIIT doesn't have session tables.");
 		return nlcore_respond(info, -EINVAL);
 	}

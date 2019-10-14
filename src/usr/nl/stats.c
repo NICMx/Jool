@@ -32,7 +32,9 @@ static struct jstat_metadata const jstat_metadatas[] = {
 	DEFINE_STAT(JSTAT_DOUBLE_ICMP6_ERROR, TC "ICMPv6 error contained another ICMPv6 error. (Which is illegal.)"),
 	DEFINE_STAT(JSTAT_DOUBLE_ICMP4_ERROR, TC "ICMPv4 error contained another ICMPv4 error. (Which is illegal.)"),
 	DEFINE_STAT(JSTAT_UNKNOWN_PROTO_INNER, TC "ICMP error's inner packet had an unknown transport protocol. (Untranslatable by NAT64.)"),
-	DEFINE_STAT(JSTAT_HAIRPIN_LOOP, TC "Packet would have hairpin-looped infinitely."),
+	DEFINE_STAT(JSTAT_HAIRPIN_LOOP, TC "Incoming IPv6 packet's source address matches pool6. (Only the destination address should match pool6.)\n"
+			"You have to think of the IPv4 network as an IPv6 network whose prefix is pool6. If your actual IPv6 client also has the pool6 prefix, then your setup risks IP address collision.\n"
+			"Either change the client's address or fix your pool6 so it represents a unique network."),
 	DEFINE_STAT(JSTAT_POOL6_MISMATCH, TC "IPv6 packet's destination address did not match pool6. (ie. Packet was not meant to be translated.)"),
 	DEFINE_STAT(JSTAT_POOL4_MISMATCH, TC "IPv4 packet's destination address and transport protocol did not match pool4. (ie. Packet was not meant to be translated.)\n"
 			"If the instance is a Netfilter translator, this counter increases randomly from normal operation, and is harmless.\n"
@@ -153,7 +155,7 @@ struct jool_result stats_foreach(struct jool_socket *sk, char *iname,
 
 	qargs.cb = cb;
 	qargs.args = args;
-	init_request_hdr(&request, MODE_STATS, OP_FOREACH, false);
+	init_request_hdr(&request, sk->xt, MODE_STATS, OP_FOREACH, false);
 
 	return netlink_request(sk, iname, &request, sizeof(request),
 			stats_query_response, &qargs);

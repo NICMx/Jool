@@ -15,7 +15,7 @@
 /* TODO (warning) These variables prevent this module from being thread-safe. */
 static struct jool_socket sk;
 static char *iname;
-static jframework fw;
+static xlator_flags flags;
 static bool force;
 
 struct json_meta {
@@ -172,7 +172,8 @@ static struct jool_result init_buffer(struct nl_buffer *buffer,
 	__u16 tmp = section;
 	struct jool_result result;
 
-	init_request_hdr(&hdr, MODE_PARSE_FILE, OP_ADD, force);
+	init_request_hdr(&hdr, xlator_flags2xt(flags),
+			MODE_PARSE_FILE, OP_ADD, force);
 	result = nlbuffer_write(buffer, &hdr, sizeof(hdr));
 	if (result.error)
 		return result;
@@ -834,10 +835,10 @@ static struct jool_result handle_framework_tag(cJSON *json,
 		return string_expected(json->string, json);
 
 	if (STR_EQUAL(json->valuestring, "netfilter")) {
-		fw |= FW_NETFILTER;
+		flags |= XF_NETFILTER;
 		return result_success();
 	} else if (STR_EQUAL(json->valuestring, "iptables")) {
-		fw |= FW_IPTABLES;
+		flags |= XF_IPTABLES;
 		return result_success();
 	}
 
@@ -854,7 +855,7 @@ static struct jool_result handle_framework_tag(cJSON *json,
  */
 
 /*
- * Sets the @iname and @fw global variables according to @_iname and @json.
+ * Sets the @iname and @flags global variables according to @_iname and @json.
  */
 static struct jool_result prepare_instance(char *_iname, cJSON *json)
 {
@@ -872,7 +873,6 @@ static struct jool_result prepare_instance(char *_iname, cJSON *json)
 	struct jool_result result;
 
 	iname = NULL;
-	fw = 0;
 
 	/*
 	 * We want to be a little lenient if the user defines both -i and the
@@ -920,7 +920,7 @@ static struct jool_result send_ctrl_msg(enum parse_section section)
 		return result;
 
 	if (section == SEC_INIT) {
-		request.fw = fw;
+		request.xf = xlator_flags2xf(flags);
 		result = buffer_write(buffer, section, &request, sizeof(request));
 		if (result.error)
 			goto end;
@@ -956,7 +956,7 @@ static struct jool_result do_parsing(char *iname, char *buffer)
 	if (result.error)
 		goto fail;
 
-	switch (sk.xt) {
+	switch (xlator_flags2xt(flags)) {
 	case XT_SIIT:
 		result = parse_siit_json(json);
 		break;
@@ -966,7 +966,7 @@ static struct jool_result do_parsing(char *iname, char *buffer)
 	default:
 		result = result_from_error(
 			-EINVAL,
-			"Invalid translator type: %d", sk.xt
+			"Invalid translator type: %d", xlator_flags2xt(flags)
 		);
 	}
 
@@ -986,13 +986,14 @@ fail:
 	return result;
 }
 
-struct jool_result json_parse(struct jool_socket *_sk, char *iname,
-		char *file_name, bool _force)
+struct jool_result json_parse(struct jool_socket *_sk, xlator_type xt,
+		char *iname, char *file_name, bool _force)
 {
 	char *buffer;
 	struct jool_result result;
 
 	sk = *_sk;
+	flags = xt;
 	force = _force;
 
 	result = file_to_string(file_name, &buffer);

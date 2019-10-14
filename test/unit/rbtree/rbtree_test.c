@@ -5,7 +5,7 @@
 #include <linux/rbtree_augmented.h>
 
 #include "framework/unit_test.h"
-#include "mod/common/rbtree.h"
+#include "mod/common/db/rbtree.h"
 
 
 MODULE_LICENSE(JOOL_LICENSE);

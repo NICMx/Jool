@@ -16,8 +16,7 @@ typedef __u8 config_bool;
 #define IPTABLES_SIIT_MODULE_NAME "JOOL_SIIT"
 #define IPTABLES_NAT64_MODULE_NAME "JOOL"
 
-#define GNL_SIIT_JOOL_FAMILY "SIIT_Jool"
-#define GNL_NAT64_JOOL_FAMILY "NAT64_Jool"
+#define GNL_JOOL_FAMILY "Jool"
 #define GNL_JOOLD_MULTICAST_GRP_NAME "joold"
 
 /* TODO (fine) these values are not always used. */
@@ -173,6 +172,29 @@ enum parse_section {
 	SEC_COMMIT = 0xFF,
 };
 
+typedef unsigned int xlator_flags;
+typedef unsigned int xlator_type; /** Bitwise or'd XT_* constants below. */
+typedef unsigned int xlator_framework; /** Bitwise or'd XF_* constants below. */
+
+#define XT_SIIT (1 << 0)
+#define XT_NAT64 (1 << 1)
+#define XF_NETFILTER (1 << 2)
+#define XF_IPTABLES (1 << 3)
+
+#define XT_ANY (XT_SIIT | XT_NAT64)
+#define XF_ANY (XF_NETFILTER | XF_IPTABLES)
+
+int xf_validate(xlator_framework xf);
+int xt_validate(xlator_type xt);
+
+xlator_type xlator_flags2xt(xlator_flags flags);
+xlator_framework xlator_flags2xf(xlator_flags flags);
+
+#define XT_VALIDATE_ERRMSG \
+	"The instance type must be either SIIT or NAT64."
+#define XF_VALIDATE_ERRMSG \
+	"The instance framework must be either Netfilter or iptables."
+
 /**
  * Prefix to all user-to-kernel messages.
  * Indicates what the rest of the message contains.
@@ -180,6 +202,12 @@ enum parse_section {
 struct request_hdr {
 	/** Protocol magic header (always "jool"). */
 	__u8 magic[4];
+	/**
+	 * enum xlator_type
+	 * (Only relevant in requests from userspace)
+	 */
+	__u8 xt;
+
 	/**
 	 * 'u'nicast or 'm'ulticast. Only userspace joold needs it, so most of
 	 * the time this field is ignored.
@@ -197,7 +225,7 @@ struct request_hdr {
 	 * Explicit unused space for future functionality and to ensure
 	 * sizeof(struct request_hdr) is a power of 2.
 	 */
-	__u16 slop1;
+	__u8 slop1;
 
 	/** Jool's version. */
 	__be32 version;
@@ -209,8 +237,9 @@ struct request_hdr {
 	__u16 slop2;
 };
 
-void init_request_hdr(struct request_hdr *hdr, enum config_mode mode,
-		enum config_operation operation, bool force);
+void init_request_hdr(struct request_hdr *hdr, xlator_type xt,
+		enum config_mode mode, enum config_operation operation,
+		bool force);
 
 /*
  * This includes the null chara; the practical maximum is 15.
@@ -240,26 +269,16 @@ struct response_hdr {
 	config_bool pending_data;
 };
 
-typedef int jframework;
-#define FW_NETFILTER (1 << 0)
-#define FW_IPTABLES (1 << 1)
-#define FW_ANY (FW_NETFILTER | FW_IPTABLES)
-
-int fw_validate(jframework fw);
-#define FW_VALIDATE_ERRMSG \
-	"The instance framework must be either Netfilter or iptables."
-
 /**
  * Issued during atomic configuration initialization.
  */
 struct request_init {
-	__u8 fw;
+	__u8 xf; /* enum xlator_framework */
 };
 
 struct instance_entry_usr {
 	void *ns;
-	/* This is one of the FW_* constants above. */
-	__u8 fw;
+	__u8 xf; /* enum xlator_framework */
 	char iname[INAME_MAX_LEN];
 };
 
@@ -272,7 +291,7 @@ union request_instance {
 		char iname[INAME_MAX_LEN];
 	} hello;
 	struct {
-		__u8 fw;
+		__u8 xf; /* enum xlator_framework */
 		char iname[INAME_MAX_LEN];
 		struct config_prefix6 pool6;
 	} add;
@@ -762,6 +781,7 @@ void prepare_config_for_userspace(struct globals *config, bool pools_empty);
 /* For iptables usage. */
 struct target_info {
 	char iname[INAME_MAX_LEN];
+	xlator_type type;
 };
 
 #endif /* SRC_COMMON_CONFIG_H_ */

@@ -1,5 +1,5 @@
-#include "mod/nat64/pool4/db.h"
-#include "mod/nat64/bib/pkt_queue.h"
+#include "mod/common/db/pool4/db.h"
+#include "mod/common/db/bib/pkt_queue.h"
 #include "framework/unit_test.h"
 
 static struct fake_pktqueue {

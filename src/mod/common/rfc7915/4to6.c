@@ -2,16 +2,16 @@
 
 #include <net/ip6_checksum.h>
 
+#include "common/config.h"
 #include "common/constants.h"
 #include "mod/common/address_xlat.h"
-#include "mod/common/config.h"
 #include "mod/common/icmp_wrapper.h"
 #include "mod/common/linux_version.h"
 #include "mod/common/log.h"
 #include "mod/common/rfc6052.h"
 #include "mod/common/route.h"
 #include "mod/common/stats.h"
-#include "mod/siit/rfc6791v6.h"
+#include "mod/common/db/rfc6791v6.h"
 
 verdict ttp46_alloc_skb(struct xlation *state)
 {
@@ -170,13 +170,13 @@ static int generate_saddr6_nat64(struct xlation *state)
 	struct packet *out = &state->out;
 	struct in_addr tmp;
 
-	cfg = &state->jool.global->cfg;
+	cfg = &state->jool.globals;
 
 	if (cfg->nat64.src_icmp6errs_better && pkt_is_icmp4_error(&state->in)) {
 		/* Issue #132 behaviour. */
 		tmp.s_addr = pkt_ip4_hdr(&state->in)->saddr;
-		return __rfc6052_4to6(&state->jool.global->cfg.pool6.prefix,
-				&tmp, &pkt_ip6_hdr(out)->saddr);
+		return __rfc6052_4to6(&cfg->pool6.prefix, &tmp,
+				&pkt_ip6_hdr(out)->saddr);
 	}
 
 	/* RFC 6146 behaviour. */
@@ -207,13 +207,11 @@ static verdict translate_addrs46_siit(struct xlation *state)
 	struct packet *in = &state->in;
 	struct iphdr *hdr4 = pkt_ip4_hdr(in);
 	struct ipv6hdr *hdr6 = pkt_ip6_hdr(&state->out);
-	enum eam_hairpinning_mode hairpin_mode;
 	bool hairpin;
 	struct result_addrxlat46 out;
 	struct addrxlat_result result;
 
-	hairpin_mode = state->jool.global->cfg.siit.eam_hairpin_mode;
-	hairpin = (hairpin_mode == EHM_SIMPLE)
+	hairpin = (state->jool.globals.siit.eam_hairpin_mode == EHM_SIMPLE)
 			|| pkt_is_intrinsic_hairpin(in);
 
 	/* Src address. */
@@ -331,7 +329,7 @@ verdict ttp46_ipv6(struct xlation *state)
 	verdict result;
 
 	/* Translate the address first because of issue #167. */
-	if (xlat_is_nat64()) {
+	if (xlation_is_nat64(state)) {
 		if (generate_saddr6_nat64(state))
 			return drop(state, JSTAT46_SRC);
 		hdr6->daddr = out->tuple.dst.addr6.l3;
@@ -342,7 +340,7 @@ verdict ttp46_ipv6(struct xlation *state)
 	}
 
 	hdr6->version = 6;
-	if (state->jool.global->cfg.reset_traffic_class) {
+	if (state->jool.globals.reset_traffic_class) {
 		hdr6->priority = 0;
 		hdr6->flow_lbl[0] = 0;
 	} else {
@@ -415,8 +413,8 @@ static __be32 icmp6_minimum_mtu(struct xlation *state,
 		 * Got to determine a likely path MTU.
 		 * See RFC 1191 sections 5, 7 and 7.1.
 		 */
-		__u16 *plateaus = state->jool.global->cfg.plateaus.values;
-		__u16 count = state->jool.global->cfg.plateaus.count;
+		__u16 *plateaus = state->jool.globals.plateaus.values;
+		__u16 count = state->jool.globals.plateaus.count;
 		int i;
 
 		for (i = 0; i < count; i++) {
@@ -675,7 +673,8 @@ verdict ttp46_icmp(struct xlation *state)
 	case ICMP_ECHO:
 		icmpv6_hdr->icmp6_type = ICMPV6_ECHO_REQUEST;
 		icmpv6_hdr->icmp6_code = 0;
-		icmpv6_hdr->icmp6_dataun.u_echo.identifier = xlat_is_nat64()
+		icmpv6_hdr->icmp6_dataun.u_echo.identifier =
+				xlation_is_nat64(state)
 				? cpu_to_be16(state->out.tuple.icmp6_id)
 				: icmpv4_hdr->un.echo.id;
 		icmpv6_hdr->icmp6_sequence = icmpv4_hdr->un.echo.sequence;
@@ -685,7 +684,8 @@ verdict ttp46_icmp(struct xlation *state)
 	case ICMP_ECHOREPLY:
 		icmpv6_hdr->icmp6_type = ICMPV6_ECHO_REPLY;
 		icmpv6_hdr->icmp6_code = 0;
-		icmpv6_hdr->icmp6_dataun.u_echo.identifier = xlat_is_nat64()
+		icmpv6_hdr->icmp6_dataun.u_echo.identifier =
+				xlation_is_nat64(state)
 				? cpu_to_be16(state->out.tuple.icmp6_id)
 				: icmpv4_hdr->un.echo.id;
 		icmpv6_hdr->icmp6_sequence = icmpv4_hdr->un.echo.sequence;
@@ -771,7 +771,7 @@ static bool can_compute_csum(struct xlation *state)
 	struct udphdr *hdr_udp;
 	bool amend_csum0;
 
-	if (xlat_is_nat64())
+	if (xlation_is_nat64(state))
 		return true;
 
 	/*
@@ -784,7 +784,7 @@ static bool can_compute_csum(struct xlation *state)
 	 * addresses and port numbers in the packet.
 	 */
 	hdr4 = pkt_ip4_hdr(&state->in);
-	amend_csum0 = state->jool.global->cfg.siit.compute_udp_csum_zero;
+	amend_csum0 = state->jool.globals.siit.compute_udp_csum_zero;
 	if (is_mf_set_ipv4(hdr4) || !amend_csum0) {
 		hdr_udp = pkt_udp_hdr(&state->in);
 		log_debug("Dropping zero-checksum UDP packet: %pI4#%u->%pI4#%u",
@@ -852,7 +852,7 @@ verdict ttp46_tcp(struct xlation *state)
 
 	/* Header */
 	memcpy(tcp_out, tcp_in, pkt_l4hdr_len(in));
-	if (xlat_is_nat64()) {
+	if (xlation_is_nat64(state)) {
 		tcp_out->source = cpu_to_be16(out->tuple.src.addr6.l4);
 		tcp_out->dest = cpu_to_be16(out->tuple.dst.addr6.l4);
 	}
@@ -886,7 +886,7 @@ verdict ttp46_udp(struct xlation *state)
 
 	/* Header */
 	memcpy(udp_out, udp_in, pkt_l4hdr_len(in));
-	if (xlat_is_nat64()) {
+	if (xlation_is_nat64(state)) {
 		udp_out->source = cpu_to_be16(out->tuple.src.addr6.l4);
 		udp_out->dest = cpu_to_be16(out->tuple.dst.addr6.l4);
 	}

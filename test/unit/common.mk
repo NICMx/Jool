@@ -14,6 +14,6 @@ ccflags-y += $(JOOL_FLAGS)
 MIN_REQS = ../../../src/common/types.o \
 	../../../src/mod/common/types.o \
 	../../../src/mod/common/address.o \
-	../framework/unit_test.o \
-	../impersonator/stats.o \
-	../impersonator/xlat.o
+	../framework/unit_test.o
+
+#../impersonator/stats.o

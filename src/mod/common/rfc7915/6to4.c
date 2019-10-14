@@ -2,8 +2,8 @@
 
 #include <net/ip6_checksum.h>
 
+#include "common/config.h"
 #include "mod/common/address_xlat.h"
-#include "mod/common/config.h"
 #include "mod/common/icmp_wrapper.h"
 #include "mod/common/ipv6_hdr_iterator.h"
 #include "mod/common/linux_version.h"
@@ -11,8 +11,8 @@
 #include "mod/common/stats.h"
 #include "mod/common/route.h"
 #include "mod/common/rfc7915/common.h"
-#include "mod/siit/eam.h"
-#include "mod/siit/rfc6791v4.h"
+#include "mod/common/db/eam.h"
+#include "mod/common/db/rfc6791v4.h"
 
 verdict ttp64_alloc_skb(struct xlation *state)
 {
@@ -241,7 +241,6 @@ static verdict translate_addrs64_siit(struct xlation *state)
 {
 	struct ipv6hdr *hdr6 = pkt_ip6_hdr(&state->in);
 	struct iphdr *hdr4 = pkt_ip4_hdr(&state->out);
-	enum eam_hairpinning_mode hairpin_mode;
 	struct result_addrxlat64 src, dst;
 	struct addrxlat_result result;
 
@@ -291,8 +290,7 @@ static verdict translate_addrs64_siit(struct xlation *state)
 	 * involved.
 	 * See the EAM draft.
 	 */
-	hairpin_mode = state->jool.global->cfg.siit.eam_hairpin_mode;
-	if (hairpin_mode == EHM_INTRINSIC) {
+	if (state->jool.globals.siit.eam_hairpin_mode == EHM_INTRINSIC) {
 		struct eam_table *eamt = state->jool.siit.eamt;
 		/* Condition set A */
 		if (pkt_is_outer(&state->in) && !pkt_is_icmp6_error(&state->in)
@@ -356,14 +354,14 @@ verdict ttp64_ipv4(struct xlation *state)
 	 * translate_addrs64_siit->rfc6791v4_find->get_host_address and
 	 * generate_ipv4_id() need tos and protocol, so translate them first.
 	 */
-	hdr4->tos = ttp64_xlat_tos(&state->jool.global->cfg, hdr6);
+	hdr4->tos = ttp64_xlat_tos(&state->jool.globals, hdr6);
 	hdr4->protocol = ttp64_xlat_proto(hdr6);
 
 	/*
 	 * Translate the address before TTL because of issue #167.
 	 * generate_ipv4_id() also needs the addresses.
 	 */
-	if (xlat_is_nat64()) {
+	if (xlation_is_nat64(state)) {
 		hdr4->saddr = out->tuple.src.addr4.l3.s_addr;
 		hdr4->daddr = out->tuple.dst.addr4.l3.s_addr;
 	} else {
@@ -699,7 +697,7 @@ verdict ttp64_icmp(struct xlation *state)
 	case ICMPV6_ECHO_REQUEST:
 		icmpv4_hdr->type = ICMP_ECHO;
 		icmpv4_hdr->code = 0;
-		icmpv4_hdr->un.echo.id = xlat_is_nat64()
+		icmpv4_hdr->un.echo.id = xlation_is_nat64(state)
 				? cpu_to_be16(state->out.tuple.icmp4_id)
 				: icmpv6_hdr->icmp6_identifier;
 		icmpv4_hdr->un.echo.sequence = icmpv6_hdr->icmp6_sequence;
@@ -709,7 +707,7 @@ verdict ttp64_icmp(struct xlation *state)
 	case ICMPV6_ECHO_REPLY:
 		icmpv4_hdr->type = ICMP_ECHOREPLY;
 		icmpv4_hdr->code = 0;
-		icmpv4_hdr->un.echo.id = xlat_is_nat64()
+		icmpv4_hdr->un.echo.id = xlation_is_nat64(state)
 				? cpu_to_be16(state->out.tuple.icmp4_id)
 				: icmpv6_hdr->icmp6_identifier;
 		icmpv4_hdr->un.echo.sequence = icmpv6_hdr->icmp6_sequence;
@@ -817,7 +815,7 @@ verdict ttp64_tcp(struct xlation *state)
 
 	/* Header */
 	memcpy(tcp_out, tcp_in, pkt_l4hdr_len(in));
-	if (xlat_is_nat64()) {
+	if (xlation_is_nat64(state)) {
 		tcp_out->source = cpu_to_be16(out->tuple.src.addr4.l4);
 		tcp_out->dest = cpu_to_be16(out->tuple.dst.addr4.l4);
 	}
@@ -851,7 +849,7 @@ verdict ttp64_udp(struct xlation *state)
 
 	/* Header */
 	memcpy(udp_out, udp_in, pkt_l4hdr_len(in));
-	if (xlat_is_nat64()) {
+	if (xlation_is_nat64(state)) {
 		udp_out->source = cpu_to_be16(out->tuple.src.addr4.l4);
 		udp_out->dest = cpu_to_be16(out->tuple.dst.addr4.l4);
 	}

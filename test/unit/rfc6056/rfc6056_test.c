@@ -1,5 +1,5 @@
 #include <linux/module.h>
-#include "mod/nat64/pool4/rfc6056.c"
+#include "mod/common/db/pool4/rfc6056.c"
 #include "framework/types.h"
 #include "framework/unit_test.h"
 

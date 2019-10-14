@@ -44,7 +44,7 @@ struct jool_result bib_foreach(struct jool_socket *sk, char *iname,
 	struct foreach_args args;
 	struct jool_result result;
 
-	init_request_hdr(hdr, MODE_BIB, OP_FOREACH, false);
+	init_request_hdr(hdr, sk->xt, MODE_BIB, OP_FOREACH, false);
 	payload->l4_proto = proto;
 	payload->foreach.addr4_set = false;
 	memset(&payload->foreach.addr4, 0, sizeof(payload->foreach.addr4));
@@ -70,7 +70,7 @@ struct jool_result bib_add(struct jool_socket *sk, char *iname,
 	struct request_hdr *hdr = (struct request_hdr *)request;
 	struct request_bib *payload = (struct request_bib *)(request + HDR_LEN);
 
-	init_request_hdr(hdr, MODE_BIB, OP_ADD, false);
+	init_request_hdr(hdr, sk->xt, MODE_BIB, OP_ADD, false);
 	payload->l4_proto = proto;
 	payload->add.addr6 = *a6;
 	payload->add.addr4 = *a4;
@@ -86,7 +86,7 @@ struct jool_result bib_rm(struct jool_socket *sk, char *iname,
 	struct request_hdr *hdr = (struct request_hdr *)request;
 	struct request_bib *payload = (struct request_bib *)(request + HDR_LEN);
 
-	init_request_hdr(hdr, MODE_BIB, OP_REMOVE, false);
+	init_request_hdr(hdr, sk->xt, MODE_BIB, OP_REMOVE, false);
 	payload->l4_proto = proto;
 	if (a6) {
 		payload->rm.addr6_set = true;

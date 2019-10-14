@@ -39,27 +39,27 @@ static int handle_autocomplete(char *junk, int argc, char **argv, void *arg);
 static struct cmd_option instance_ops[] = {
 		{
 			.label = DISPLAY,
-			.xt = XT_BOTH,
+			.xt = XT_ANY,
 			.handler = handle_instance_display,
 			.handle_autocomplete = autocomplete_instance_display,
 		}, {
 			.label = ADD,
-			.xt = XT_BOTH,
+			.xt = XT_ANY,
 			.handler = handle_instance_add,
 			.handle_autocomplete = autocomplete_instance_add,
 		}, {
 			.label = REMOVE,
-			.xt = XT_BOTH,
+			.xt = XT_ANY,
 			.handler = handle_instance_remove,
 			.handle_autocomplete = autocomplete_instance_remove,
 		}, {
 			.label = FLUSH,
-			.xt = XT_BOTH,
+			.xt = XT_ANY,
 			.handler = handle_instance_flush,
 			.handle_autocomplete = autocomplete_instance_flush,
 		}, {
 			.label = "status",
-			.xt = XT_BOTH,
+			.xt = XT_ANY,
 			.handler = handle_instance_status,
 			.handle_autocomplete = autocomplete_instance_status,
 		},
@@ -69,7 +69,7 @@ static struct cmd_option instance_ops[] = {
 static struct cmd_option stats_ops[] = {
 		{
 			.label = DISPLAY,
-			.xt = XT_BOTH,
+			.xt = XT_ANY,
 			.handler = handle_stats_display,
 			.handle_autocomplete = autocomplete_stats_display,
 		},
@@ -89,12 +89,12 @@ static struct cmd_option address_ops[] = {
 static struct cmd_option global_ops[] = {
 		{
 			.label = DISPLAY,
-			.xt = XT_BOTH,
+			.xt = XT_ANY,
 			.handler = handle_global_display,
 			.handle_autocomplete = autocomplete_global_display,
 		}, {
 			.label = UPDATE,
-			.xt = XT_BOTH,
+			.xt = XT_ANY,
 			.child_builder = build_global_update_children,
 		},
 		{ 0 },
@@ -208,7 +208,7 @@ static struct cmd_option session_ops[] = {
 static struct cmd_option file_ops[] = {
 		{
 			.label = "handle",
-			.xt = XT_BOTH,
+			.xt = XT_ANY,
 			.handler = handle_file_update,
 			.handle_autocomplete = autocomplete_file_update,
 		},
@@ -218,11 +218,11 @@ static struct cmd_option file_ops[] = {
 struct cmd_option tree[] = {
 		{
 			.label = "instance",
-			.xt = XT_BOTH,
+			.xt = XT_ANY,
 			.children = instance_ops,
 		}, {
 			.label = "stats",
-			.xt = XT_BOTH,
+			.xt = XT_ANY,
 			.children = stats_ops,
 		}, {
 			.label = "address",
@@ -230,7 +230,7 @@ struct cmd_option tree[] = {
 			.children = address_ops,
 		}, {
 			.label = "global",
-			.xt = XT_BOTH,
+			.xt = XT_ANY,
 			.children = global_ops,
 		}, {
 			.label = "eamt",
@@ -254,12 +254,12 @@ struct cmd_option tree[] = {
 			.children = session_ops,
 		}, {
 			.label = "file",
-			.xt = XT_BOTH,
+			.xt = XT_ANY,
 			.children = file_ops,
 		}, {
 			/* See files jool.bash and jool_siit.bash. */
 			.label = "autocomplete",
-			.xt = XT_BOTH,
+			.xt = XT_ANY,
 			.hidden = true,
 			.handler  = handle_autocomplete,
 		},

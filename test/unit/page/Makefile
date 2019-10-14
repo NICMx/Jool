@@ -12,23 +12,23 @@
 include $(shell dirname $(realpath $(lastword $(MAKEFILE_LIST))))/../common.mk
 
 
-EXTRA_CFLAGS += -DSIIT
-
 PAGE = page
 
 obj-m += $(PAGE).o
 
 $(PAGE)-objs += $(MIN_REQS)
 $(PAGE)-objs += ../impersonator/icmp_wrapper.o
+$(PAGE)-objs += ../impersonator/nat64.o
 $(PAGE)-objs += ../impersonator/nf_hook.o
 $(PAGE)-objs += ../impersonator/route.o
+$(PAGE)-objs += ../impersonator/stats.o
 $(PAGE)-objs += ../impersonator/send_packet.o
 $(PAGE)-objs += ../framework/skb_generator.o
 $(PAGE)-objs += ../framework/types.o
 
 $(PAGE)-objs += ../../../src/common/config.o
 $(PAGE)-objs += ../../../src/mod/common/address_xlat.o
-$(PAGE)-objs += ../../../src/mod/common/config.o
+$(PAGE)-objs += ../../../src/mod/common/db/config.o
 $(PAGE)-objs += ../../../src/mod/common/global-impl.o
 $(PAGE)-objs += ../../../src/mod/common/ipv6_hdr_iterator.o
 $(PAGE)-objs += ../../../src/mod/common/packet.o
@@ -36,15 +36,13 @@ $(PAGE)-objs += ../../../src/mod/common/rfc6052.o
 $(PAGE)-objs += ../../../src/mod/common/rtrie.o
 $(PAGE)-objs += ../../../src/mod/common/translation_state.o
 $(PAGE)-objs += ../../../src/mod/common/xlator.o
-$(PAGE)-objs += ../../../src/mod/siit/defrag.o
-$(PAGE)-objs += ../../../src/mod/siit/blacklist4.o
-$(PAGE)-objs += ../../../src/mod/siit/eam.o
-$(PAGE)-objs += ../../../src/mod/siit/impersonator.o
-$(PAGE)-objs += ../../../src/mod/siit/pool.o
-$(PAGE)-objs += ../../../src/mod/siit/rfc6791v4.o
-$(PAGE)-objs += ../../../src/mod/siit/rfc6791v6.o
+$(PAGE)-objs += ../../../src/mod/common/db/blacklist4.o
+$(PAGE)-objs += ../../../src/mod/common/db/eam.o
+$(PAGE)-objs += ../../../src/mod/common/db/pool.o
+$(PAGE)-objs += ../../../src/mod/common/db/rfc6791v4.o
+$(PAGE)-objs += ../../../src/mod/common/db/rfc6791v6.o
 
-$(PAGE)-objs += ../../../src/mod/siit/handling_hairpinning.o
+$(PAGE)-objs += ../../../src/mod/common/steps/handling_hairpinning_siit.o
 $(PAGE)-objs += ../../../src/mod/common/rfc7915/4to6.o
 $(PAGE)-objs += ../../../src/mod/common/rfc7915/6to4.o
 $(PAGE)-objs += ../../../src/mod/common/rfc7915/common.o

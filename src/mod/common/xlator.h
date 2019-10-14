@@ -1,7 +1,7 @@
 #ifndef SRC_MOD_COMMON_XLATOR_H_
 #define SRC_MOD_COMMON_XLATOR_H_
 
-#include "mod/common/config.h"
+#include "common/config.h"
 #include "mod/common/stats.h"
 #include "mod/common/types.h"
 
@@ -28,16 +28,11 @@ struct xlator {
 	 * instances?
 	 */
 	struct net *ns;
-	jframework fw;
 	char iname[INAME_MAX_LEN];
+	xlator_flags flags;
 
 	struct jool_stats *stats;
-	/*
-	 * TODO (performance) It seems like there is no point to this being a
-	 * pointer anymore; global update is now implemented as an xlator
-	 * instance replacement. We can avoid some dereferences.
-	 */
-	struct global_config *global;
+	struct globals globals;
 	union {
 		struct {
 			struct eam_table *eamt;
@@ -49,28 +44,61 @@ struct xlator {
 			struct joold_queue *joold;
 		} nat64;
 	};
+
+	bool (*is_hairpin)(struct xlation *);
+	verdict (*handling_hairpinning)(struct xlation *);
 };
 
+/* User context (reads and writes) */
+
 int xlator_setup(void);
+void xlator_set_defrag(void (*defrag_enable)(struct net *ns));
 void xlator_teardown(void);
 
-int xlator_add(jframework fw, char *iname, struct config_prefix6 *pool6,
+int xlator_add(xlator_flags flags, char *iname, struct config_prefix6 *pool6,
 		struct xlator *result);
-int xlator_rm(char *iname);
-int xlator_flush(void);
+int xlator_rm(xlator_type xt, char *iname);
+int xlator_flush(xlator_type xt);
 
-int xlator_init(struct xlator *instance,
-		struct net *ns, jframework fw, char *iname,
-		struct config_prefix6 *pool6);
-int xlator_replace(struct xlator *instance);
+int xlator_init(struct xlator *jool, struct net *ns, char *iname,
+		xlator_flags flags, struct config_prefix6 *pool6);
+int xlator_replace(struct xlator *jool);
 
-int xlator_find(struct net *ns, jframework fw, const char *iname,
+/* Any context (reads) */
+
+int xlator_find(struct net *ns, xlator_flags flags, const char *iname,
 		struct xlator *result);
-int xlator_find_current(jframework fw, const char *iname, struct xlator *result);
+int xlator_find_current(const char *iname, xlator_flags flags,
+		struct xlator *result);
+int xlator_find_netfilter(struct net *ns, struct xlator *result);
 void xlator_put(struct xlator *instance);
 
 typedef int (*xlator_foreach_cb)(struct xlator *, void *);
-int xlator_foreach(xlator_foreach_cb cb, void *args,
+int xlator_foreach(xlator_type xt, xlator_foreach_cb cb, void *args,
 		struct instance_entry_usr *offset);
+
+xlator_type xlator_get_type(struct xlator *instance);
+xlator_framework xlator_get_framework(struct xlator *instance);
+
+static inline bool xlator_is_siit(struct xlator *instance)
+{
+	return instance->flags & XT_SIIT;
+}
+
+static inline bool xlator_is_nat64(struct xlator *instance)
+{
+	return instance->flags & XT_NAT64;
+}
+
+static inline bool xlator_is_netfilter(struct xlator *instance)
+{
+	return instance->flags & XF_NETFILTER;
+}
+
+static inline bool xlator_is_iptables(struct xlator *instance)
+{
+	return instance->flags & XF_IPTABLES;
+}
+
 
 #endif /* SRC_MOD_COMMON_XLATOR_H_ */

@@ -69,9 +69,9 @@ static void print_table_divisor(void)
 static void print_entry_csv(struct instance_entry_usr *entry)
 {
 	printf("%p,%s,", entry->ns, entry->iname);
-	if (entry->fw == FW_NETFILTER)
+	if (entry->xf & XF_NETFILTER)
 		printf("netfilter");
-	else if (entry->fw == FW_IPTABLES)
+	else if (entry->xf & XF_IPTABLES)
 		printf("iptables");
 	else
 		printf("unknown");
@@ -87,9 +87,9 @@ static void print_entry_normal(struct instance_entry_usr *entry)
 	 * pointers.
 	 */
 	printf("| %18p | %15s | ", entry->ns, entry->iname);
-	if (entry->fw == FW_NETFILTER)
+	if (entry->xf & XF_NETFILTER)
 		printf("netfilter");
-	else if (entry->fw == FW_IPTABLES)
+	else if (entry->xf & XF_IPTABLES)
 		printf(" iptables");
 	else
 		printf("  unknown");
@@ -189,6 +189,7 @@ int handle_instance_add(char *iname, int argc, char **argv, void *arg)
 {
 	struct add_args aargs = { 0 };
 	struct jool_socket sk;
+	xlator_framework xf;
 	struct jool_result result;
 
 	result.error = wargp_parse(add_opts, argc, argv, &aargs);
@@ -220,9 +221,9 @@ int handle_instance_add(char *iname, int argc, char **argv, void *arg)
 	if (result.error)
 		return pr_result(&result);
 
-	result = instance_add(&sk,
-			aargs.netfilter.value ? FW_NETFILTER : FW_IPTABLES,
-			iname, aargs.pool6.set ? &aargs.pool6.prefix : NULL);
+	xf = aargs.netfilter.value ? XF_NETFILTER : XF_IPTABLES;
+	result = instance_add(&sk, xf, iname,
+			aargs.pool6.set ? &aargs.pool6.prefix : NULL);
 
 	netlink_teardown(&sk);
 	return pr_result(&result);

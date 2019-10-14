@@ -3,8 +3,8 @@
 #include "mod/common/log.h"
 #include "mod/common/nl/nl_common.h"
 #include "mod/common/nl/nl_core.h"
-#include "mod/nat64/pool4/db.h"
-#include "mod/nat64/bib/db.h"
+#include "mod/common/db/pool4/db.h"
+#include "mod/common/db/bib/db.h"
 
 static int pool4_to_usr(struct pool4_sample const *sample, void *arg)
 {
@@ -61,7 +61,7 @@ static int handle_pool4_rm(struct xlator *jool, struct genl_info *info,
 
 	error = pool4db_rm_usr(jool->nat64.pool4, &request->rm.entry);
 
-	if (xlat_is_nat64() && !request->rm.quick) {
+	if (xlator_is_nat64(jool) && !request->rm.quick) {
 		bib_rm_range(jool, request->rm.entry.proto,
 				&request->rm.entry.range);
 	}
@@ -75,7 +75,7 @@ static int handle_pool4_flush(struct xlator *jool, struct genl_info *info,
 	log_debug("Flushing pool4.");
 
 	pool4db_flush(jool->nat64.pool4);
-	if (xlat_is_nat64() && !request->flush.quick) {
+	if (xlator_is_nat64(jool) && !request->flush.quick) {
 		/*
 		 * This will also clear *previously* orphaned entries, but given
 		 * that "not quick" generally means "please clean up", this is
@@ -93,7 +93,7 @@ int handle_pool4_config(struct xlator *jool, struct genl_info *info)
 	union request_pool4 *request = (union request_pool4 *)(hdr + 1);
 	int error;
 
-	if (xlat_is_siit()) {
+	if (xlator_is_siit(jool)) {
 		log_err("SIIT doesn't have pool4.");
 		return nlcore_respond(info, -EINVAL);
 	}

@@ -4,6 +4,7 @@
 #include "framework/unit_test.h"
 #include "framework/skb_generator.h"
 #include "framework/types.h"
+#include "mod/common/db/config.h"
 #include "mod/common/rfc7915/core.c"
 #include "mod/common/rfc7915/6to4.c"
 #include "mod/common/rfc7915/4to6.c"
@@ -11,8 +12,6 @@
 MODULE_LICENSE(JOOL_LICENSE);
 MODULE_AUTHOR("Alberto Leiva Popper");
 MODULE_DESCRIPTION("Translating the Packet module test.");
-
-static struct global_config *config;
 
 static bool test_function_has_unexpired_src_route(void)
 {
@@ -132,18 +131,21 @@ static bool test_function_build_id_field(void)
 #define min_mtu(packet, in, out, len) be32_to_cpu(icmp6_minimum_mtu(&state, packet, out, in, len))
 static bool test_function_icmp6_minimum_mtu(void)
 {
-	struct xlation state = { .jool.global = config };
+	struct xlation state;
 	int i;
 	bool success = true;
+
+	if (globals_init(&state.jool.globals, XT_SIIT, NULL))
+		return false;
 
 	/*
 	 * I'm assuming the default plateaus list has 3 elements or more.
 	 * (so I don't have to reallocate mtu_plateaus)
 	 */
-	config->cfg.plateaus.values[0] = 5000;
-	config->cfg.plateaus.values[1] = 4000;
-	config->cfg.plateaus.values[2] = 500;
-	config->cfg.plateaus.count = 2;
+	state.jool.globals.plateaus.values[0] = 5000;
+	state.jool.globals.plateaus.values[1] = 4000;
+	state.jool.globals.plateaus.values[2] = 500;
+	state.jool.globals.plateaus.count = 2;
 
 	/* Simple tests */
 	success &= ASSERT_UINT(1320, min_mtu(1300, 3000, 3000, 2000), "min(1300, 3000, 3000)");
@@ -364,23 +366,10 @@ static bool test_function_icmp4_minimum_mtu(void)
 	return success;
 }
 
-static int setup(void)
-{
-	config = config_alloc(NULL);
-	return config ? 0 : -ENOMEM;
-}
-
-static void teardown(void)
-{
-	config_put(config);
-}
-
 int init_module(void)
 {
 	struct test_group test = {
 		.name = "Translating the Packet",
-		.setup_fn = setup,
-		.teardown_fn = teardown,
 	};
 
 	if (test_group_begin(&test))

@@ -1,21 +1,39 @@
 #include "mod/common/xlator.h"
 
+#include <linux/hashtable.h>
 #include <linux/sched.h>
 
 #include "common/types.h"
 #include "common/xlat.h"
 #include "mod/common/atomic_config.h"
-#include "mod/common/defrag.h"
+#include "mod/common/joold.h"
 #include "mod/common/kernel_hook.h"
 #include "mod/common/linux_version.h"
 #include "mod/common/log.h"
 #include "mod/common/rcu.h"
 #include "mod/common/wkmalloc.h"
-#include "mod/siit/blacklist4.h"
-#include "mod/siit/eam.h"
-#include "mod/nat64/joold.h"
-#include "mod/nat64/pool4/db.h"
-#include "mod/nat64/bib/db.h"
+#include "mod/common/db/blacklist4.h"
+#include "mod/common/db/config.h"
+#include "mod/common/db/eam.h"
+#include "mod/common/db/pool4/db.h"
+#include "mod/common/db/bib/db.h"
+#include "mod/common/steps/handling_hairpinning_nat64.h"
+#include "mod/common/steps/handling_hairpinning_siit.h"
+
+/** Netfilter module registration object */
+static struct nf_hook_ops netfilter_hooks[] = {
+	{
+		.hook = hook_ipv6,
+		.pf = PF_INET6,
+		.hooknum = NF_INET_PRE_ROUTING,
+		.priority = NF_IP6_PRI_NAT_DST + 25,
+	}, {
+		.hook = hook_ipv4,
+		.pf = PF_INET,
+		.hooknum = NF_INET_PRE_ROUTING,
+		.priority = NF_IP_PRI_NAT_DST + 25,
+	},
+};
 
 /**
  * An xlator, except it's the database node version.
@@ -29,12 +47,11 @@ struct jool_instance {
 	 */
 	struct xlator jool;
 
-	/*
-	 * TODO (performance) Maybe turn this into a hash table;
-	 * We have a suitable identifier now (@jool.iname).
-	 */
-	struct list_head list_hook;
+	struct hlist_node table_hook;
+	bool hash_set;
+	u32 hash;
 
+	struct list_head list_hook;
 #if LINUX_VERSION_AT_LEAST(4, 13, 0, 9999, 0)
 	/**
 	 * This points to a 2-sized array for nf_register_net_hooks().
@@ -44,19 +61,63 @@ struct jool_instance {
 	 * ops needs to survive atomic configuration; the jool_instance needs to
 	 * be replaced but the ops needs to survive.
 	 *
-	 * This is only set if @jool.fw matches FW_NETFILTER.
+	 * This is only set if @jool.flags matches FW_NETFILTER.
 	 */
 	struct nf_hook_ops *nf_ops;
 #endif
 };
 
-static struct list_head __rcu *pool;
+static DEFINE_HASHTABLE(instances, 6); /* The identifier is (ns, xt, iname). */
+static struct list_head __rcu *netfilter_instances;
 static DEFINE_MUTEX(lock);
+
+static void (*defrag_enable)(struct net *ns);
+
+static u32 get_hash(struct net *ns, xlator_type xt, char const *iname)
+{
+	u32 hash;
+	unsigned int i;
+
+	hash = hash_ptr(ns, 32);
+	hash = 31 * hash + xt;
+	for (i = 0; iname[i]; i++)
+		hash = 31 * hash + iname[i];
+
+	return hash;
+}
+
+static u32 get_instance_hash(struct jool_instance *instance)
+{
+	if (instance->hash_set)
+		return instance->hash;
+
+	instance->hash_set = true;
+	instance->hash = get_hash(instance->jool.ns,
+			xlator_flags2xt(instance->jool.flags),
+			instance->jool.iname);
+	return instance->hash;
+}
+
+static struct jool_instance *find_instance(struct net *ns, xlator_type xt,
+		char const *iname)
+{
+	struct jool_instance *instance;
+	u32 hash;
+
+	hash = get_hash(ns, xt, iname);
+	hash_for_each_possible_rcu(instances, instance, table_hook, hash)
+		if ((ns == instance->jool.ns)
+				&& (xt & instance->jool.flags)
+				&& (strcmp(iname, instance->jool.iname) == 0))
+			return instance;
+
+	return NULL;
+}
 
 static void destroy_jool_instance(struct jool_instance *instance, bool unhook)
 {
 #if LINUX_VERSION_AT_LEAST(4, 13, 0, 9999, 0)
-	if (instance->jool.fw & FW_NETFILTER) {
+	if (xlator_is_netfilter(&instance->jool)) {
 		if (unhook) {
 			nf_unregister_net_hooks(instance->jool.ns,
 					instance->nf_ops, 2);
@@ -73,32 +134,34 @@ static void destroy_jool_instance(struct jool_instance *instance, bool unhook)
 static void xlator_get(struct xlator *jool)
 {
 	jstat_get(jool->stats);
-	config_get(jool->global);
 
-	if (xlat_is_siit()) {
+	switch (xlator_get_type(jool)) {
+	case XT_SIIT:
 		eamt_get(jool->siit.eamt);
 		blacklist4_get(jool->siit.blacklist4);
-	} else {
+		break;
+	case XT_NAT64:
 		pool4db_get(jool->nat64.pool4);
 		bib_get(jool->nat64.bib);
 		joold_get(jool->nat64.joold);
+		break;
 	}
 }
 
 /**
  * Moves the jool_instance nodes from the database (that match the @ns
- * namespace) to the @detached list.
+ * namespace and the @xt type) to the @detached list.
  */
-static void __flush_detach(struct net *ns, struct list_head *detached)
+static void __flush_detach(struct net *ns, xlator_type xt,
+		struct hlist_head *detached)
 {
-	struct list_head *list;
-	struct jool_instance *instance, *tmp;
+	struct jool_instance *instance;
+	size_t i;
 
-	list = rcu_dereference_protected(pool, lockdep_is_held(&lock));
-	list_for_each_entry_safe(instance, tmp, list, list_hook) {
-		if (instance->jool.ns == ns) {
-			list_del_rcu(&instance->list_hook);
-			list_add(&instance->list_hook, detached);
+	hash_for_each(instances, i, instance, table_hook) {
+		if (instance->jool.ns == ns && (instance->jool.flags & xt)) {
+			hash_del_rcu(&instance->table_hook);
+			hlist_add_head(&instance->table_hook, detached);
 		}
 	}
 }
@@ -106,16 +169,17 @@ static void __flush_detach(struct net *ns, struct list_head *detached)
 /**
  * Actually deletes all of the jool_instance nodes listed in @detached.
  */
-static void __flush_delete(struct list_head *detached)
+static void __flush_delete(struct hlist_head *detached)
 {
-	struct jool_instance *instance, *tmp;
+	struct jool_instance *instance;
+	struct hlist_node *tmp;
 
-	if (list_empty(detached))
+	if (hlist_empty(detached))
 		return; /* Calling synchronize_rcu_bh() for no reason is bad. */
 
 	synchronize_rcu_bh();
 
-	list_for_each_entry_safe(instance, tmp, detached, list_hook)
+	hlist_for_each_entry_safe(instance, tmp, detached, table_hook)
 		destroy_jool_instance(instance, true);
 }
 
@@ -123,15 +187,20 @@ static void __flush_delete(struct list_head *detached)
  * Called whenever the user deletes a namespace. Supposed to delete all the
  * instances inserted in that namespace.
  */
-static void flush_net(struct net *ns)
+static void __flush_net(struct net *ns, xlator_type xt)
 {
-	LIST_HEAD(detached);
+	HLIST_HEAD(detached);
 
 	mutex_lock(&lock);
-	__flush_detach(ns, &detached);
+	__flush_detach(ns, xt, &detached);
 	mutex_unlock(&lock);
 
 	__flush_delete(&detached);
+}
+
+static void flush_net(struct net *ns)
+{
+	__flush_net(ns, XT_ANY);
 }
 
 /**
@@ -145,16 +214,17 @@ static void flush_net(struct net *ns)
 static void flush_batch(struct list_head *net_exit_list)
 {
 	struct net *ns;
-	LIST_HEAD(detached);
+	HLIST_HEAD(detached);
 
 	mutex_lock(&lock);
 	list_for_each_entry(ns, net_exit_list, exit_list)
-		__flush_detach(ns, &detached);
+		__flush_detach(ns, XT_ANY, &detached);
 	mutex_unlock(&lock);
 
 	__flush_delete(&detached);
 }
 
+/** Namespace-aware network operation registration object */
 static struct pernet_operations joolns_ops = {
 	.exit = flush_net,
 	.exit_batch = flush_batch,
@@ -172,12 +242,29 @@ int xlator_setup(void)
 	if (!list)
 		return -ENOMEM;
 	INIT_LIST_HEAD(list);
-	RCU_INIT_POINTER(pool, list);
+	RCU_INIT_POINTER(netfilter_instances, list);
 
 	error = register_pernet_subsys(&joolns_ops);
-	if (error)
+	if (error) {
 		__wkfree("xlator DB", list);
-	return error;
+		return error;
+	}
+
+#if LINUX_VERSION_LOWER_THAN(4, 13, 0, 9999, 0)
+	error = nf_register_hooks(nfho, ARRAY_SIZE(nfho));
+	if (error) {
+		unregister_pernet_subsys(&joolns_ops);
+		__wkfree("xlator DB", list);
+		return error;
+	}
+#endif
+
+	return 0;
+}
+
+void xlator_set_defrag(void (*_defrag_enable)(struct net *ns))
+{
+	defrag_enable = _defrag_enable;
 }
 
 /**
@@ -186,18 +273,25 @@ int xlator_setup(void)
  */
 void xlator_teardown(void)
 {
+#if LINUX_VERSION_LOWER_THAN(4, 13, 0, 9999, 0)
+	nf_unregister_hooks(nfho, ARRAY_SIZE(nfho));
+#endif
 	unregister_pernet_subsys(&joolns_ops);
-	__wkfree("xlator DB", rcu_dereference_raw(pool));
+	__wkfree("xlator DB", rcu_dereference_raw(netfilter_instances));
+	WARN(!hash_empty(instances), "There are elements in the xlator DB after a cleanup.");
 }
 
 static int init_siit(struct xlator *jool, struct config_prefix6 *pool6)
 {
+	int error;
+
+	error = globals_init(&jool->globals, XT_SIIT, pool6);
+	if (error)
+		return error;
+
 	jool->stats = jstat_alloc();
 	if (!jool->stats)
 		goto stats_fail;
-	jool->global = config_alloc(pool6);
-	if (!jool->global)
-		goto config_fail;
 	jool->siit.eamt = eamt_alloc();
 	if (!jool->siit.eamt)
 		goto eamt_fail;
@@ -205,13 +299,13 @@ static int init_siit(struct xlator *jool, struct config_prefix6 *pool6)
 	if (!jool->siit.blacklist4)
 		goto blacklist4_fail;
 
+	jool->is_hairpin = is_hairpin_siit;
+	jool->handling_hairpinning = handling_hairpinning_siit;
 	return 0;
 
 blacklist4_fail:
 	eamt_put(jool->siit.eamt);
 eamt_fail:
-	config_put(jool->global);
-config_fail:
 	jstat_put(jool->stats);
 stats_fail:
 	return -ENOMEM;
@@ -219,12 +313,15 @@ stats_fail:
 
 static int init_nat64(struct xlator *jool, struct config_prefix6 *pool6)
 {
+	int error;
+
+	error = globals_init(&jool->globals, XT_NAT64, pool6);
+	if (error)
+		return error;
+
 	jool->stats = jstat_alloc();
 	if (!jool->stats)
 		goto stats_fail;
-	jool->global = config_alloc(pool6);
-	if (!jool->global)
-		goto config_fail;
 	jool->nat64.pool4 = pool4db_alloc();
 	if (!jool->nat64.pool4)
 		goto pool4_fail;
@@ -235,6 +332,8 @@ static int init_nat64(struct xlator *jool, struct config_prefix6 *pool6)
 	if (!jool->nat64.joold)
 		goto joold_fail;
 
+	jool->is_hairpin = is_hairpin_nat64;
+	jool->handling_hairpinning = handling_hairpinning_nat64;
 	return 0;
 
 joold_fail:
@@ -242,51 +341,71 @@ joold_fail:
 bib_fail:
 	pool4db_put(jool->nat64.pool4);
 pool4_fail:
-	config_put(jool->global);
-config_fail:
 	jstat_put(jool->stats);
 stats_fail:
 	return -ENOMEM;
 }
 
-int xlator_init(struct xlator *jool, struct net *ns, jframework fw, char *iname,
-		struct config_prefix6 *pool6)
-{
-	jool->ns = ns;
-	jool->fw = fw;
-	strcpy(jool->iname, iname);
-	return xlat_is_siit()
-			? init_siit(jool, pool6)
-			: init_nat64(jool, pool6);
-}
-
-static bool xlator_matches(struct xlator *jool, struct net *ns, jframework fw,
-		const char *iname)
-{
-	return (jool->ns == ns)
-			&& (jool->fw & fw)
-			&& (!iname || strcmp(jool->iname, iname) == 0);
-}
-
-/**
- * Basic validations when adding an xlator to the DB.
- */
-static int basic_add_validations(jframework fw, char *iname,
-		struct config_prefix6 *pool6)
+int xlator_init(struct xlator *jool, struct net *ns, char *iname,
+		xlator_flags flags, struct config_prefix6 *pool6)
 {
 	int error;
 
-	error = iname_validate(iname, false);
+	error = xf_validate(xlator_flags2xf(flags));
+	if (error) {
+		log_err(XF_VALIDATE_ERRMSG);
+		return error;
+	}
+
+	jool->ns = ns;
+	strcpy(jool->iname, iname);
+	jool->flags = flags;
+
+	switch (xlator_flags2xt(flags)) {
+	case XT_SIIT:
+		return init_siit(jool, pool6);
+	case XT_NAT64:
+		return init_nat64(jool, pool6);
+	}
+
+	log_err(XT_VALIDATE_ERRMSG);
+	return -EINVAL;
+}
+
+static int basic_validations(char const *iname, bool allow_null_iname,
+		xlator_flags flags)
+{
+	int error;
+
+	error = iname_validate(iname, allow_null_iname);
 	if (error) {
 		log_err(INAME_VALIDATE_ERRMSG, INAME_MAX_LEN - 1);
 		return error;
 	}
-	error = fw_validate(fw);
+	error = xt_validate(xlator_flags2xt(flags));
 	if (error) {
-		log_err(FW_VALIDATE_ERRMSG);
+		log_err(XT_VALIDATE_ERRMSG);
 		return error;
 	}
-	if (xlat_is_nat64() && (!pool6 || !pool6->set)) {
+	error = xf_validate(xlator_flags2xf(flags));
+	if (error) {
+		log_err(XF_VALIDATE_ERRMSG);
+		return error;
+	}
+
+	return 0;
+}
+
+/** Basic validations when adding an xlator to the DB. */
+static int basic_add_validations(char *iname, xlator_flags flags,
+		struct config_prefix6 *pool6)
+{
+	int error;
+
+	error = basic_validations(iname, false, flags);
+	if (error)
+		return error;
+	if ((flags & XT_NAT64) && (!pool6 || !pool6->set)) {
 		log_err("pool6 is mandatory in NAT64 instances.");
 		return -EINVAL;
 	}
@@ -295,43 +414,34 @@ static int basic_add_validations(jframework fw, char *iname,
 }
 
 /**
- * Checks whether an instance (whose namespace is @ns, its framework is @fw,
- * and its name is @iname) can be added to the database without breaking its
+ * Checks whether an instance (whose namespace is @ns, name is @iname and flags
+ * are @flags) can be added to the database without breaking its
  * rules.
  *
  * Assumes the DB mutex is locked.
  */
-static int validate_collision(struct net *ns, jframework fw, char *iname)
+static int validate_collision(struct net *ns, char *iname, xlator_flags flags)
 {
-	struct list_head *list;
 	struct jool_instance *instance;
+	size_t i;
 
-	/* Shuts up the RCU police. Not actually needed because of the mutex. */
-	rcu_read_lock_bh();
-
-	list = rcu_dereference_bh(pool);
-	list_for_each_entry_rcu(instance, list, list_hook) {
+	hash_for_each(instances, i, instance, table_hook) {
 		if (instance->jool.ns != ns)
 			continue;
 
 		if (strcmp(instance->jool.iname, iname) == 0) {
 			log_err("This namespace already has a Jool instance named '%s'.",
 					iname);
-			goto eexist;
+			return -EEXIST;
 		}
 
-		if ((fw & FW_NETFILTER) && (instance->jool.fw & FW_NETFILTER)) {
+		if ((flags & XF_NETFILTER) && xlator_is_netfilter(&instance->jool)) {
 			log_err("This namespace already has a Netfilter Jool instance.");
-			goto eexist;
+			return -EEXIST;
 		}
 	}
 
-	rcu_read_unlock_bh();
 	return 0;
-
-eexist:
-	rcu_read_unlock_bh();
-	return -EEXIST;
 }
 
 /**
@@ -342,7 +452,7 @@ static int __xlator_add(struct jool_instance *new, struct xlator *result)
 	struct list_head *list;
 
 #if LINUX_VERSION_AT_LEAST(4, 13, 0, 9999, 0)
-	if (new->jool.fw & FW_NETFILTER) {
+	if (xlator_is_netfilter(&new->jool)) {
 		struct nf_hook_ops *ops;
 		int error;
 
@@ -353,8 +463,7 @@ static int __xlator_add(struct jool_instance *new, struct xlator *result)
 
 		/* All error roads from now need to free @ops. */
 
-		init_nf_hook_op6(&ops[0]);
-		init_nf_hook_op4(&ops[1]);
+		memcpy(ops, netfilter_hooks, sizeof(netfilter_hooks));
 
 		error = nf_register_net_hooks(new->jool.ns, ops, 2);
 		if (error) {
@@ -366,10 +475,15 @@ static int __xlator_add(struct jool_instance *new, struct xlator *result)
 	}
 #endif
 
-	list = rcu_dereference_protected(pool, lockdep_is_held(&lock));
-	list_add_tail_rcu(&new->list_hook, list);
+	hash_add_rcu(instances, &new->table_hook, get_instance_hash(new));
+	if (new->jool.flags & XF_NETFILTER) {
+		list = rcu_dereference_protected(netfilter_instances,
+				lockdep_is_held(&lock));
+		list_add_tail_rcu(&new->list_hook, list);
+	}
 
-	defrag_enable(new->jool.ns);
+	if (new->jool.flags & XT_NAT64)
+		defrag_enable(new->jool.ns);
 
 	if (result) {
 		xlator_get(&new->jool);
@@ -385,14 +499,14 @@ static int __xlator_add(struct jool_instance *new, struct xlator *result)
  * @result: Will be initialized with a clone of the new translator. Send NULL
  *     if you're not interested.
  */
-int xlator_add(jframework fw, char *iname, struct config_prefix6 *pool6,
+int xlator_add(xlator_flags flags, char *iname, struct config_prefix6 *pool6,
 		struct xlator *result)
 {
 	struct jool_instance *instance;
 	struct net *ns;
 	int error;
 
-	error = basic_add_validations(fw, iname, pool6);
+	error = basic_add_validations(iname, flags, pool6);
 	if (error)
 		return error;
 
@@ -412,12 +526,14 @@ int xlator_add(jframework fw, char *iname, struct config_prefix6 *pool6,
 
 	/* All *error* roads from now need to free @instance. */
 
-	error = xlator_init(&instance->jool, ns, fw, iname, pool6);
+	error = xlator_init(&instance->jool, ns, iname, flags, pool6);
 	if (error) {
 		wkfree(struct jool_instance, instance);
 		put_net(ns);
 		return error;
 	}
+	instance->hash_set = false;
+	instance->hash = 0;
 #if LINUX_VERSION_AT_LEAST(4, 13, 0, 9999, 0)
 	instance->nf_ops = NULL;
 #endif
@@ -429,7 +545,7 @@ int xlator_add(jframework fw, char *iname, struct config_prefix6 *pool6,
 
 	/* All roads from now on must unlock the mutex. */
 
-	error = validate_collision(ns, fw, iname);
+	error = validate_collision(ns, iname, flags);
 	if (error)
 		goto mutex_fail;
 
@@ -449,44 +565,53 @@ mutex_fail:
 	return error;
 }
 
-static int __xlator_rm(struct net *ns, char *iname)
+static int __xlator_rm(struct net *ns, char *iname, xlator_type xt)
 {
-	struct list_head *list;
 	struct jool_instance *instance;
+	struct list_head *list;
 
 	mutex_lock(&lock);
 
-	list = rcu_dereference_protected(pool, lockdep_is_held(&lock));
-	list_for_each_entry(instance, list, list_hook) {
-		if (xlator_matches(&instance->jool, ns, FW_ANY, iname)) {
-			list_del_rcu(&instance->list_hook);
-			mutex_unlock(&lock);
+	instance = find_instance(ns, xt, iname);
+	if (!instance) {
+		mutex_unlock(&lock);
+		log_err("The requested instance does not exist.");
+		return -ESRCH;
+	}
 
-			synchronize_rcu_bh();
-
-			/*
-			 * Nobody can kref_get the databases now:
-			 * Other code should not do it because of the
-			 * xlator_find() contract, and xlator_find()'s
-			 * xlator_get() already happened. Other xlator_find()'s
-			 * xlator_get()s are not going to get in the way either
-			 * because the instance is no longer listed.
-			 * So finally return everything.
-			 */
-			destroy_jool_instance(instance, true);
-			return 0;
-		}
+	hash_del_rcu(&instance->table_hook);
+	if (instance->jool.flags & XF_NETFILTER) {
+		list = rcu_dereference_protected(netfilter_instances,
+				lockdep_is_held(&lock));
+		list_add_rcu(&instance->list_hook, list);
 	}
 
 	mutex_unlock(&lock);
-	return -ESRCH;
+	synchronize_rcu_bh();
+
+	/*
+	 * Nobody can kref_get the databases now:
+	 * Other code should not do it because of the
+	 * xlator_find() contract, and xlator_find()'s
+	 * xlator_get() already happened. Other xlator_find()'s
+	 * xlator_get()s are not going to get in the way either
+	 * because the instance is no longer listed.
+	 * So finally return everything.
+	 */
+	destroy_jool_instance(instance, true);
+	return 0;
 }
 
-int xlator_rm(char *iname)
+int xlator_rm(xlator_type xt, char *iname)
 {
 	struct net *ns;
 	int error;
 
+	error = xt_validate(xt);
+	if (error) {
+		log_err(XT_VALIDATE_ERRMSG);
+		return error;
+	}
 	error = iname_validate(iname, false);
 	if (error) {
 		log_err(INAME_VALIDATE_ERRMSG, INAME_MAX_LEN - 1);
@@ -499,17 +624,7 @@ int xlator_rm(char *iname)
 		return PTR_ERR(ns);
 	}
 
-	error = __xlator_rm(ns, iname);
-	switch (error) {
-	case 0:
-		break;
-	case -ESRCH:
-		log_err("The requested instance does not exist.");
-		break;
-	default:
-		log_err("Unknown error: %d.", error);
-		break;
-	}
+	error = __xlator_rm(ns, iname, xt);
 
 	put_net(ns);
 	return error;
@@ -517,13 +632,12 @@ int xlator_rm(char *iname)
 
 int xlator_replace(struct xlator *jool)
 {
-	struct list_head *list;
 	struct jool_instance *old;
 	struct jool_instance *new;
 	int error;
 
-	error = basic_add_validations(jool->fw, jool->iname,
-			&jool->global->cfg.pool6);
+	error = basic_add_validations(jool->iname, jool->flags,
+			&jool->globals.pool6);
 	if (error)
 		return error;
 
@@ -532,69 +646,68 @@ int xlator_replace(struct xlator *jool)
 		return -ENOMEM;
 	memcpy(&new->jool, jool, sizeof(*jool));
 	xlator_get(&new->jool);
+	new->hash_set = false;
 #if LINUX_VERSION_AT_LEAST(4, 13, 0, 9999, 0)
 	new->nf_ops = NULL;
 #endif
 
 	mutex_lock(&lock);
 
-	list = rcu_dereference_protected(pool, lockdep_is_held(&lock));
-	list_for_each_entry_rcu(old, list, list_hook) {
-		if (old->jool.ns != new->jool.ns)
-			continue;
-		if (strcmp(old->jool.iname, new->jool.iname) != 0)
-			continue;
+	old = find_instance(jool->ns, xlator_flags2xt(jool->flags), jool->iname);
+	if (!old) {
+		/* Not found, hence not replacing. Add it instead. */
+		error = __xlator_add(new, NULL);
+		if (error)
+			destroy_jool_instance(new, false);
 
-		if (old->jool.fw != new->jool.fw) {
-			log_err("Sorry; you can't change an instance's framework for now.");
-			goto abort;
-		}
-		if (xlat_is_nat64() && !prefix6_equals(
-				&old->jool.global->cfg.pool6.prefix,
-				&new->jool.global->cfg.pool6.prefix)) {
-			log_err("Sorry; you can't change a NAT64 instance's pool6 for now.");
-			goto abort;
-		}
-
-#if LINUX_VERSION_AT_LEAST(4, 13, 0, 9999, 0)
-		new->nf_ops = old->nf_ops;
-#endif
-		/*
-		 * The old BIB and joold must survive,
-		 * because they shouldn't be reset by atomic configuration.
-		 */
-		if (xlat_is_nat64()) {
-			bib_put(new->jool.nat64.bib);
-			joold_put(new->jool.nat64.joold);
-			new->jool.nat64.bib = old->jool.nat64.bib;
-			new->jool.nat64.joold = old->jool.nat64.joold;
-		}
-
-		list_replace_rcu(&old->list_hook, &new->list_hook);
 		mutex_unlock(&lock);
-
-		synchronize_rcu_bh();
-
-#if LINUX_VERSION_AT_LEAST(4, 13, 0, 9999, 0)
-		old->nf_ops = NULL;
-#endif
-		if (xlat_is_nat64()) {
-			old->jool.nat64.bib = NULL;
-			old->jool.nat64.joold = NULL;
-		}
-
-		log_info("Created instance '%s'.", jool->iname);
-		destroy_jool_instance(old, false);
-		return 0;
+		return error;
 	}
 
-	/* Not found, hence not replacing. Add it instead. */
-	error = __xlator_add(new, NULL);
-	if (error)
-		destroy_jool_instance(new, false);
+	if (xlator_get_framework(&old->jool) != xlator_get_framework(&new->jool)) {
+		log_err("Sorry; you can't change an instance's framework for now.");
+		goto abort;
+	}
+	if (xlator_is_nat64(&new->jool) && !prefix6_equals(
+			&old->jool.globals.pool6.prefix,
+			&new->jool.globals.pool6.prefix)) {
+		log_err("Sorry; you can't change a NAT64 instance's pool6 for now.");
+		goto abort;
+	}
 
+	new->hash_set = old->hash_set;
+	new->hash = old->hash;
+#if LINUX_VERSION_AT_LEAST(4, 13, 0, 9999, 0)
+	new->nf_ops = old->nf_ops;
+#endif
+	/*
+	 * The old BIB and joold must survive,
+	 * because they shouldn't be reset by atomic configuration.
+	 */
+	if (xlator_is_nat64(&new->jool)) {
+		bib_put(new->jool.nat64.bib);
+		joold_put(new->jool.nat64.joold);
+		new->jool.nat64.bib = old->jool.nat64.bib;
+		new->jool.nat64.joold = old->jool.nat64.joold;
+	}
+
+	hash_del(&old->table_hook);
+	hash_add(instances, &new->table_hook, get_instance_hash(new));
 	mutex_unlock(&lock);
-	return error;
+
+	synchronize_rcu_bh();
+
+#if LINUX_VERSION_AT_LEAST(4, 13, 0, 9999, 0)
+	old->nf_ops = NULL;
+#endif
+	if (xlator_is_nat64(&old->jool)) {
+		old->jool.nat64.bib = NULL;
+		old->jool.nat64.joold = NULL;
+	}
+
+	destroy_jool_instance(old, false);
+	log_info("Replaced instance '%s'.", jool->iname);
+	return 0;
 
 abort:
 	mutex_unlock(&lock);
@@ -602,9 +715,16 @@ abort:
 	return -EINVAL;
 }
 
-int xlator_flush(void)
+int xlator_flush(xlator_type xt)
 {
 	struct net *ns;
+	int error;
+
+	error = xt_validate(xt);
+	if (error) {
+		log_err(XT_VALIDATE_ERRMSG);
+		return error;
+	}
 
 	ns = get_net_ns_by_pid(task_pid_vnr(current));
 	if (IS_ERR(ns)) {
@@ -612,17 +732,17 @@ int xlator_flush(void)
 		return PTR_ERR(ns);
 	}
 
-	flush_net(ns);
+	__flush_net(ns, xt);
 
 	put_net(ns);
 	return 0;
 }
 
 /**
- * Returns the first instance in the database that matches @ns, @fw and @iname.
+ * Returns the instance from the database that matches @ns, @iname and @flags.
  *
  * A result value of 0 means success,
- * -ESRCH means that no instance matches @ns, @fw and @iname,
+ * -ESRCH means that no instance matches @ns, @iname and @flags,
  * and -EINVAL means that @iname is not a valid instance name.
  *
  * 0 and -ESRCH do not print error message; -EINVAL does.
@@ -631,44 +751,42 @@ int xlator_flush(void)
  * test whether it exists or not. If not NULL, please xlator_put() @result when
  * you're done using it.
  *
- * @fw and @iname are allowed to be NULL/0. Do this when you don't care about
- * framework and/or instance name.
- *
  * IT IS EXTREMELY IMPORTANT THAT YOU NEVER KREF_GET ANY OF @result'S MEMBERS!!!
  * (You are not meant to fork pointers to them.)
  */
-int xlator_find(struct net *ns, jframework fw, const char *iname,
+int xlator_find(struct net *ns, xlator_flags flags, char const *iname,
 		struct xlator *result)
 {
-	struct list_head *list;
 	struct jool_instance *instance;
 	int error;
 
 	/*
 	 * There is at least one caller to this function which cares about error
 	 * code. You need to review it if you want to add or reuse error codes.
+	 *
+	 * TODO (now) now throwing more -EINVALs
 	 */
-
-	error = iname_validate(iname, true);
-	if (error) {
-		log_err(INAME_VALIDATE_ERRMSG, INAME_MAX_LEN - 1);
+	error = basic_validations(iname, true, flags);
+	if (error)
 		return error;
-	}
 
 	rcu_read_lock_bh();
 
-	list = rcu_dereference_bh(pool);
-	list_for_each_entry_rcu(instance, list, list_hook) {
-		if (xlator_matches(&instance->jool, ns, fw, iname)) {
-			if (result) {
-				xlator_get(&instance->jool);
-				memcpy(result, &instance->jool, sizeof(*result));
-			}
-			rcu_read_unlock_bh();
-			return 0;
-		}
+	instance = find_instance(ns, xlator_flags2xt(flags), iname);
+	if (!instance)
+		goto not_found;
+	if ((instance->jool.flags & xlator_flags2xf(flags)) == 0)
+		goto not_found;
+
+	if (result) {
+		xlator_get(&instance->jool);
+		memcpy(result, &instance->jool, sizeof(*result));
 	}
 
+	rcu_read_unlock_bh();
+	return 0;
+
+not_found:
 	rcu_read_unlock_bh();
 	return -ESRCH;
 }
@@ -679,7 +797,8 @@ int xlator_find(struct net *ns, jframework fw, const char *iname,
  *
  * Please xlator_put() the instance when you're done using it.
  */
-int xlator_find_current(jframework fw, const char *iname, struct xlator *result)
+int xlator_find_current(const char *iname, xlator_flags flags,
+		struct xlator *result)
 {
 	struct net *ns;
 	int error;
@@ -690,10 +809,31 @@ int xlator_find_current(jframework fw, const char *iname, struct xlator *result)
 		return PTR_ERR(ns);
 	}
 
-	error = xlator_find(ns, fw, iname, result);
+	error = xlator_find(ns, flags, iname, result);
 
 	put_net(ns);
 	return error;
+}
+
+int xlator_find_netfilter(struct net *ns, struct xlator *result)
+{
+	struct list_head *list;
+	struct jool_instance *instance;
+
+	rcu_read_lock_bh();
+
+	list = rcu_dereference_bh(netfilter_instances);
+	list_for_each_entry_rcu(instance, list, list_hook) {
+		if (ns == instance->jool.ns) {
+			xlator_get(&instance->jool);
+			memcpy(result, &instance->jool, sizeof(*result));
+			rcu_read_unlock_bh();
+			return 0;
+		}
+	}
+
+	rcu_read_unlock_bh();
+	return -ESRCH;
 }
 
 /*
@@ -708,12 +848,14 @@ int xlator_find_current(jframework fw, const char *iname, struct xlator *result)
 void xlator_put(struct xlator *jool)
 {
 	jstat_put(jool->stats);
-	config_put(jool->global);
 
-	if (xlat_is_siit()) {
+	switch (xlator_get_type(jool)) {
+	case XT_SIIT:
 		eamt_put(jool->siit.eamt);
 		blacklist4_put(jool->siit.blacklist4);
-	} else {
+		return;
+
+	case XT_NAT64:
 		/*
 		 * Welp. There is no nf_defrag_ipv*_disable(). Guess we'll just
 		 * have to leave those modules around.
@@ -723,28 +865,32 @@ void xlator_put(struct xlator *jool)
 			bib_put(jool->nat64.bib);
 		if (jool->nat64.joold)
 			joold_put(jool->nat64.joold);
+		return;
 	}
+
+	WARN(1, "Unknown translator type: %d", xlator_get_type(jool));
 }
 
 static bool offset_equals(struct instance_entry_usr *offset,
 		struct jool_instance *instance)
 {
 	return (offset->ns == instance->jool.ns)
-			&& (offset->fw == instance->jool.fw)
 			&& (strcmp(offset->iname, instance->jool.iname) == 0);
 }
 
-int xlator_foreach(xlator_foreach_cb cb, void *args,
+int xlator_foreach(xlator_type xt, xlator_foreach_cb cb, void *args,
 		struct instance_entry_usr *offset)
 {
-	struct list_head *list;
 	struct jool_instance *instance;
+	unsigned int i;
 	int error = 0;
 
 	rcu_read_lock_bh();
 
-	list = rcu_dereference_bh(pool);
-	list_for_each_entry_rcu(instance, list, list_hook) {
+	hash_for_each(instances, i, instance, table_hook) {
+		if (!(xlator_flags2xt(instance->jool.flags) & xt))
+			continue;
+
 		if (offset) {
 			if (offset_equals(offset, instance))
 				offset = NULL;
@@ -762,4 +908,14 @@ int xlator_foreach(xlator_foreach_cb cb, void *args,
 	if (offset)
 		return -ESRCH;
 	return 0;
+}
+
+xlator_type xlator_get_type(struct xlator *instance)
+{
+	return xlator_is_nat64(instance) ? XT_NAT64 : XT_SIIT;
+}
+
+xlator_framework xlator_get_framework(struct xlator *instance)
+{
+	return xlator_is_netfilter(instance) ? XF_NETFILTER : XF_IPTABLES;
 }

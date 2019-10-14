@@ -5,7 +5,7 @@
 #include <linux/genetlink.h>
 
 #include "common/types.h"
-#include "mod/common/config.h"
+#include "mod/common/init.h"
 #include "mod/common/linux_version.h"
 #include "mod/common/log.h"
 #include "mod/common/xlator.h"
@@ -105,6 +105,25 @@ fail:
 	return -EINVAL;
 }
 
+static int validate_stateness(struct request_hdr *hdr)
+{
+	switch (hdr->xt) {
+	case XT_SIIT:
+		if (is_siit_enabled())
+			return 0;
+		log_err("SIIT Jool has not been modprobed. (Try `modprobe jool_siit`)");
+		return -EINVAL;
+	case XT_NAT64:
+		if (is_nat64_enabled())
+			return 0;
+		log_err("NAT64 Jool has not been modprobed. (Try `modprobe jool`)");
+		return -EINVAL;
+	}
+
+	log_err(XT_VALIDATE_ERRMSG);
+	return -EINVAL;
+}
+
 static int validate_version(struct request_hdr *hdr)
 {
 	__u32 hdr_version = ntohl(hdr->version);
@@ -144,6 +163,9 @@ static int validate_request(void *data, size_t data_len, bool *peer_is_jool)
 	if (peer_is_jool)
 		*peer_is_jool = true;
 
+	error = validate_stateness(data);
+	if (error)
+		return error;
 	return validate_version(data);
 }
 
@@ -193,6 +215,7 @@ static int multiplex_request(struct xlator *jool, struct genl_info *info)
 
 static int __handle_jool_message(struct genl_info *info)
 {
+	struct request_hdr *hdr;
 	struct xlator jool;
 	bool client_is_jool;
 	int error;
@@ -213,7 +236,8 @@ static int __handle_jool_message(struct genl_info *info)
 	if (error)
 		return client_is_jool ? nlcore_respond(info, error) : error;
 
-	switch (get_jool_hdr(info)->mode) {
+	hdr = get_jool_hdr(info);
+	switch (hdr->mode) {
 	case MODE_INSTANCE:
 		return handle_instance_request(info);
 	case MODE_PARSE_FILE:
@@ -222,7 +246,7 @@ static int __handle_jool_message(struct genl_info *info)
 		break;
 	}
 
-	error = xlator_find_current(FW_ANY, get_iname(info), &jool);
+	error = xlator_find_current(get_iname(info), XF_ANY | hdr->xt, &jool);
 	if (error == -ESRCH) {
 		log_err("This namespace lacks an instance named '%s'.",
 				get_iname(info));
@@ -253,24 +277,11 @@ int handle_jool_message(struct sk_buff *skb, struct genl_info *info)
 
 static int register_family(void)
 {
-	char const *family;
 	int error;
 
 	log_debug("Registering Generic Netlink family...");
 
-	switch (xlat_type()) {
-	case XT_SIIT:
-		family = GNL_SIIT_JOOL_FAMILY;
-		break;
-	case XT_NAT64:
-		family = GNL_NAT64_JOOL_FAMILY;
-		break;
-	default:
-		log_err("Translator has unknown stateness: %d", xlat_type());
-		return -EINVAL;
-	}
-
-	strcpy(jool_family.name, family);
+	strcpy(jool_family.name, GNL_JOOL_FAMILY);
 
 #if LINUX_VERSION_LOWER_THAN(3, 13, 0, 7, 1)
 

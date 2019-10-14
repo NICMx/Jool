@@ -12,6 +12,7 @@
  * useless arguments.
  */
 
+#include <linux/netfilter.h>
 #include <linux/version.h>
 
 /* If this is a Red Hat-based kernel (Red Hat, CentOS, Fedora, etc)... */

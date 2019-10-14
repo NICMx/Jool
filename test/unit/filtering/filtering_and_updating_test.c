@@ -5,9 +5,9 @@
 #include "framework/types.h"
 #include "framework/unit_test.h"
 #include "framework/skb_generator.h"
-#include "mod/nat64/pool4/rfc6056.h"
-#include "mod/nat64/determine_incoming_tuple.h"
-#include "mod/nat64/filtering_and_updating.c"
+#include "mod/common/db/pool4/rfc6056.h"
+#include "mod/common/steps/determine_incoming_tuple.h"
+#include "mod/common/steps/filtering_and_updating.c"
 
 MODULE_LICENSE(JOOL_LICENSE);
 MODULE_AUTHOR("Roberto Aceves");
@@ -530,6 +530,11 @@ static bool test_tcp(void)
 	return success;
 }
 
+static void defrag_dummy(struct net *ns)
+{
+	/* No code */
+}
+
 static int setup(void)
 {
 	int error;
@@ -543,6 +548,7 @@ static int setup(void)
 	error = xlator_setup();
 	if (error)
 		goto fail3;
+	xlator_set_defrag(defrag_dummy);
 
 	return 0;
 
@@ -573,7 +579,8 @@ static int init(void)
 	if (error)
 		return error;
 
-	error = xlator_add(FW_NETFILTER, INAME_DEFAULT, &pool6, &jool);
+	error = xlator_add(XF_NETFILTER | XT_NAT64, INAME_DEFAULT, &pool6,
+			&jool);
 	if (error)
 		return error;
 
@@ -604,7 +611,7 @@ static int init(void)
 
 fail:
 	xlator_put(&jool);
-	xlator_rm(INAME_DEFAULT);
+	xlator_rm(XT_NAT64, INAME_DEFAULT);
 	return error;
 }
 
@@ -612,7 +619,7 @@ static void clean(void)
 {
 	icmp64_pop();
 	xlator_put(&jool);
-	xlator_rm(INAME_DEFAULT);
+	xlator_rm(XT_NAT64, INAME_DEFAULT);
 }
 
 static int filtering_test_init(void)

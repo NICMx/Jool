@@ -17,11 +17,10 @@ PKT = pkt
 obj-m += $(PKT).o
 
 $(PKT)-objs += $(MIN_REQS)
-$(PKT)-objs += ../../../src/mod/common/ipv6_hdr_iterator.o
 $(PKT)-objs += ../../../src/mod/common/packet.o
 $(PKT)-objs += ../../../src/mod/common/translation_state.o
 $(PKT)-objs += ../framework/skb_generator.o
-$(PKT)-objs += ../framework/types.o
+$(PKT)-objs += ../impersonator/stats.o
 $(PKT)-objs += packet_test.o
 
 

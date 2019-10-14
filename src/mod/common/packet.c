@@ -4,8 +4,8 @@
 #include <linux/icmp.h>
 #include <net/route.h>
 #include "common/types.h"
+#include "common/config.h"
 #include "common/constants.h"
-#include "mod/common/config.h"
 #include "mod/common/icmp_wrapper.h"
 #include "mod/common/log.h"
 #include "mod/common/stats.h"
@@ -312,7 +312,9 @@ static verdict handle_icmp6(struct xlation *state, struct pkt_metadata const *me
 			return result;
 	}
 
-	if (xlat_is_siit() && meta->has_frag_hdr && is_icmp6_info(ptr.icmp->icmp6_type)) {
+	if (xlation_is_siit(state)
+			&& meta->has_frag_hdr
+			&& is_icmp6_info(ptr.icmp->icmp6_type)) {
 		ptr.frag = skb_hdr_ptr(state->in.skb, meta->frag_offset, buffer.frag);
 		if (!ptr.frag)
 			return truncated(state, "fragment header");
@@ -446,7 +448,9 @@ static verdict handle_icmp4(struct xlation *state, struct pkt_metadata *meta)
 			return result;
 	}
 
-	if (xlat_is_siit() && is_icmp4_info(ptr->type) && is_fragmented_ipv4(ip_hdr(state->in.skb))) {
+	if (xlation_is_siit(state)
+			&& is_icmp4_info(ptr->type)
+			&& is_fragmented_ipv4(ip_hdr(state->in.skb))) {
 		log_debug("Packet is a fragmented ping; its checksum cannot be translated.");
 		return drop(state, JSTAT_FRAGMENTED_PING);
 	}

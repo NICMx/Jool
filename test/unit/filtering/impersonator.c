@@ -1,4 +1,4 @@
-#include "mod/nat64/joold.h"
+#include "mod/common/joold.h"
 #include "framework/unit_test.h"
 
 static struct fake {

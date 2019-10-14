@@ -60,6 +60,7 @@ Some shortcuts used while naming variables and functions through the code or doc
 - trans = transitory session (inherited from RFC 6146.)
 - ttp = Translating the Packet (Fourth core step of the NAT64 translation algorithm; see RFC 6146)
 - usr = user[space]
+- xf = xlator framework
 - xt = xlator type
 - x<n> (where x is anything and n is 4 or 6) = x has something to do with IPv<n>. Examples:
 	- pool4 = IPv4 pool

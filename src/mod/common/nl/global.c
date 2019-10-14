@@ -4,13 +4,12 @@
 #include "common/constants.h"
 #include "common/globals.h"
 #include "common/types.h"
-#include "mod/common/config.h"
 #include "mod/common/log.h"
 #include "mod/common/nl/nl_common.h"
 #include "mod/common/nl/nl_core.h"
-#include "mod/nat64/joold.h"
-#include "mod/nat64/bib/db.h"
-#include "mod/siit/eam.h"
+#include "mod/common/joold.h"
+#include "mod/common/db/bib/db.h"
+#include "mod/common/db/eam.h"
 
 static int handle_global_display(struct xlator *jool, struct genl_info *info)
 {
@@ -19,10 +18,10 @@ static int handle_global_display(struct xlator *jool, struct genl_info *info)
 
 	log_debug("Returning 'Global' options.");
 
-	memcpy(&config, &jool->global->cfg, sizeof(config));
+	memcpy(&config, &jool->globals, sizeof(config));
 
-	pools_empty = !jool->global->cfg.pool6.set;
-	if (xlat_is_siit())
+	pools_empty = !jool->globals.pool6.set;
+	if (xlator_is_siit(jool))
 		pools_empty &= eamt_is_empty(jool->siit.eamt);
 	prepare_config_for_userspace(&config, pools_empty);
 
@@ -42,7 +41,7 @@ static int handle_global_display(struct xlator *jool, struct genl_info *info)
  * >= 0: Number of bytes consumed from the payload. (ie. the size of the tuple.)
  * < 0: Error code.
  */
-int global_update(struct global_config *cfg, bool force,
+int global_update(struct globals *cfg, xlator_type xt, bool force,
 		struct global_value *request, size_t request_size)
 {
 	struct global_field *field;
@@ -65,11 +64,11 @@ int global_update(struct global_config *cfg, bool force,
 
 	field = &field[request->type];
 
-	if (xlat_is_siit() && !(field->xt & XT_SIIT)) {
+	if ((xt & XT_SIIT) && !(field->xt & XT_SIIT)) {
 		log_err("Field %s is not available in SIIT.", field->name);
 		return -EINVAL;
 	}
-	if (xlat_is_nat64() && !(field->xt & XT_NAT64)) {
+	if ((xt & XT_NAT64) && !(field->xt & XT_NAT64)) {
 		log_err("Field %s is not available in NAT64.", field->name);
 		return -EINVAL;
 	}
@@ -94,15 +93,13 @@ int global_update(struct global_config *cfg, bool force,
 	 * Replace the one field that userspace is requesting in @cfg,
 	 * in a very ugly but effective way.
 	 */
-	memcpy(((void *)&cfg->cfg) + field->offset, request + 1,
-			field->type->size);
+	memcpy(((void *)cfg) + field->offset, request + 1, field->type->size);
 	return sizeof(*request) + field->type->size;
 }
 
 static int handle_global_update(struct xlator *jool, struct genl_info *info,
 		struct request_hdr *hdr)
 {
-	struct global_config *cfg;
 	int error;
 
 	log_debug("Updating 'Global' option.");
@@ -148,29 +145,14 @@ static int handle_global_update(struct xlator *jool, struct genl_info *info,
 	 * So let's STFU and do that.
 	 */
 
-	/* Get a clone of the current config. */
-	cfg = config_alloc(&jool->global->cfg.pool6);
-	if (!cfg)
-		return nlcore_respond(info, -ENOMEM);
-	memcpy(&cfg->cfg, &jool->global->cfg, sizeof(cfg->cfg));
-
-	/* Perform the atomic configuration operation on our clone. */
-	error = global_update(cfg, hdr->force, (struct global_value *)(hdr + 1),
-			nla_len(info->attrs[ATTR_DATA]) - sizeof(*hdr));
-	if (error < 0)
-		return nlcore_respond(info, error);
-
 	/*
-	 * Replace the clone of the instance's old config with the new one.
-	 *
 	 * Notice that this @jool is also a clone and we're the only thread
 	 * with access to it.
 	 */
-	config_put(jool->global);
-	jool->global = cfg;
-
-	/* Replace the device's official translator with the @jool clone. */
-	return nlcore_respond(info, xlator_replace(jool));
+	error = global_update(&jool->globals, xlator_get_type(jool), hdr->force,
+			(struct global_value *)(hdr + 1),
+			nla_len(info->attrs[ATTR_DATA]) - sizeof(*hdr));
+	return nlcore_respond(info, (error < 0) ? error : xlator_replace(jool));
 }
 
 int handle_global_config(struct xlator *jool, struct genl_info *info)

@@ -1,7 +1,7 @@
 #include <linux/module.h>
 #include "framework/unit_test.h"
 #include "common/constants.h"
-#include "mod/nat64/bib/db.h"
+#include "mod/common/db/bib/db.h"
 
 MODULE_LICENSE(JOOL_LICENSE);
 MODULE_AUTHOR("Alberto Leiva");
@@ -278,7 +278,8 @@ enum session_fate tcp_est_expire_cb(struct session_entry *session, void *arg)
 
 static int init(void)
 {
-	return xlator_init(&jool, NULL, FW_NETFILTER, INAME_DEFAULT, NULL);
+	return xlator_init(&jool, NULL, INAME_DEFAULT, XF_NETFILTER | XT_NAT64,
+			NULL);
 }
 
 static void clean(void)

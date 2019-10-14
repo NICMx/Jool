@@ -25,7 +25,7 @@ struct jool_result global_query(struct jool_socket *sk, char *iname,
 		struct globals *out)
 {
 	struct request_hdr request;
-	init_request_hdr(&request, MODE_GLOBAL, OP_FOREACH, false);
+	init_request_hdr(&request, sk->xt, MODE_GLOBAL, OP_FOREACH, false);
 	return netlink_request(sk, iname, &request, sizeof(request),
 			global_query_response, out);
 }
@@ -56,7 +56,7 @@ struct jool_result global_update(struct jool_socket *sk, char *iname,
 	meta = (struct global_value *)(hdr + 1);
 	payload = meta + 1;
 
-	init_request_hdr(hdr, MODE_GLOBAL, OP_UPDATE, force);
+	init_request_hdr(hdr, sk->xt, MODE_GLOBAL, OP_UPDATE, force);
 	meta->type = global_field_index(field);
 	meta->len = value_size;
 	memcpy(payload, value, value_size);

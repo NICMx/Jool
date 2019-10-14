@@ -17,15 +17,16 @@ SESSIONDB = sessiondb
 obj-m += $(SESSIONDB).o
 
 $(SESSIONDB)-objs += $(MIN_REQS)
-$(SESSIONDB)-objs += ../../../src/mod/common/config.o
 $(SESSIONDB)-objs += ../../../src/mod/common/global-impl.o
-$(SESSIONDB)-objs += ../../../src/mod/common/rbtree.o
 $(SESSIONDB)-objs += ../../../src/mod/common/translation_state.o
-$(SESSIONDB)-objs += ../../../src/mod/nat64/bib/db.o
-$(SESSIONDB)-objs += ../../../src/mod/nat64/bib/entry.o
+$(SESSIONDB)-objs += ../../../src/mod/common/db/config.o
+$(SESSIONDB)-objs += ../../../src/mod/common/db/rbtree.o
+$(SESSIONDB)-objs += ../../../src/mod/common/db/bib/db.o
+$(SESSIONDB)-objs += ../../../src/mod/common/db/bib/entry.o
 $(SESSIONDB)-objs += ../impersonator/bib.o
 $(SESSIONDB)-objs += ../impersonator/icmp_wrapper.o
 $(SESSIONDB)-objs += ../impersonator/route.o
+$(SESSIONDB)-objs += ../impersonator/stats.o
 $(SESSIONDB)-objs += ../impersonator/xlator.o
 $(SESSIONDB)-objs += sessiondb_test.o
 

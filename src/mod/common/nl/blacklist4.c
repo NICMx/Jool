@@ -4,7 +4,7 @@
 #include "mod/common/log.h"
 #include "mod/common/nl/nl_common.h"
 #include "mod/common/nl/nl_core.h"
-#include "mod/siit/pool.h"
+#include "mod/common/db/pool.h"
 
 static int pool_to_usr(struct ipv4_prefix *prefix, void *arg)
 {
@@ -61,7 +61,7 @@ int handle_blacklist4_config(struct xlator *jool, struct genl_info *info)
 	union request_blacklist4 *request = (union request_blacklist4 *)(hdr + 1);
 	int error;
 
-	if (xlat_is_nat64()) {
+	if (xlator_is_nat64(jool)) {
 		log_err("Stateful NAT64 doesn't have a blacklist4.");
 		return nlcore_respond(info, -EINVAL);
 	}

@@ -3,7 +3,7 @@
 
 #include "mod/common/log.h"
 #include "mod/common/types.h"
-#include "mod/nat64/bib/entry.h"
+#include "mod/common/db/bib/entry.h"
 
 #define ASSERT_PRIMITIVE(expected, actual, specifier, name, ...) ({	\
 		/* don't want these to be evaluated multiple times. */	\

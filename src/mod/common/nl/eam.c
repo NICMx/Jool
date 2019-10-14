@@ -4,7 +4,7 @@
 #include "mod/common/log.h"
 #include "mod/common/nl/nl_common.h"
 #include "mod/common/nl/nl_core.h"
-#include "mod/siit/eam.h"
+#include "mod/common/db/eam.h"
 
 static int eam_entry_to_userspace(struct eamt_entry const *entry, void *arg)
 {
@@ -68,7 +68,7 @@ int handle_eamt_config(struct xlator *jool, struct genl_info *info)
 	union request_eamt *request;
 	int error;
 
-	if (xlat_is_nat64()) {
+	if (xlator_is_nat64(jool)) {
 		log_err("Stateful NAT64 doesn't have an EAMT.");
 		return nlcore_respond(info, -EINVAL);
 	}

@@ -84,7 +84,7 @@ void modsocket_send(void *request, size_t request_len)
 static void send_ack(void)
 {
 	struct request_hdr hdr;
-	init_request_hdr(&hdr, MODE_JOOLD, OP_ACK, false);
+	init_request_hdr(&hdr, XT_NAT64, MODE_JOOLD, OP_ACK, false);
 	modsocket_send(&hdr, sizeof(hdr));
 }
 
@@ -164,7 +164,7 @@ int modsocket_setup(void)
 		goto fail;
 	}
 
-	family_mc_grp = genl_ctrl_resolve_grp(jsocket.sk, GNL_NAT64_JOOL_FAMILY,
+	family_mc_grp = genl_ctrl_resolve_grp(jsocket.sk, GNL_JOOL_FAMILY,
 			GNL_JOOLD_MULTICAST_GRP_NAME);
 	if (family_mc_grp < 0) {
 		syslog(LOG_ERR, "Unable to resolve the Netlink multicast group.");

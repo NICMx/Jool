@@ -1,23 +1,22 @@
 #include "mod/common/core.h"
 
-#include "mod/common/config.h"
-#include "mod/common/handling_hairpinning.h"
+#include "common/config.h"
 #include "mod/common/log.h"
 #include "mod/common/translation_state.h"
 #include "mod/common/xlator.h"
 #include "mod/common/rfc7915/core.h"
-#include "mod/nat64/compute_outgoing_tuple.h"
-#include "mod/nat64/determine_incoming_tuple.h"
-#include "mod/nat64/filtering_and_updating.h"
-#include "mod/common/send_packet.h"
+#include "mod/common/steps/compute_outgoing_tuple.h"
+#include "mod/common/steps/determine_incoming_tuple.h"
+#include "mod/common/steps/filtering_and_updating.h"
+#include "mod/common/steps/send_packet.h"
 
 static verdict validate_xlator(struct xlation *state)
 {
-	struct globals *cfg = &state->jool.global->cfg;
+	struct globals *cfg = &state->jool.globals;
 
 	if (!cfg->enabled)
 		return untranslatable(state, JSTAT_XLATOR_DISABLED);
-	if (xlat_is_nat64() && !cfg->pool6.set) {
+	if (xlation_is_nat64(state) && !cfg->pool6.set) {
 		log_warn_once("Cannot translate; pool6 is unset.");
 		return untranslatable(state, JSTAT_POOL6_UNSET);
 	}
@@ -29,7 +28,7 @@ static verdict core_common(struct xlation *state)
 {
 	verdict result;
 
-	if (xlat_is_nat64()) {
+	if (xlation_is_nat64(state)) {
 		result = determine_in_tuple(state);
 		if (result != VERDICT_CONTINUE)
 			return result;
@@ -44,8 +43,8 @@ static verdict core_common(struct xlation *state)
 	if (result != VERDICT_CONTINUE)
 		return result;
 
-	if (is_hairpin(state)) {
-		result = handling_hairpinning(state);
+	if (state->jool.is_hairpin(state)) {
+		result = state->jool.handling_hairpinning(state);
 		kfree_skb(state->out.skb); /* Put this inside of hh()? */
 	} else {
 		result = sendpkt_send(state);

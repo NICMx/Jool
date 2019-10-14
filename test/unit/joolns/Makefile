@@ -12,8 +12,6 @@
 include $(shell dirname $(realpath $(lastword $(MAKEFILE_LIST))))/../common.mk
 
 
-EXTRA_CFLAGS += -DSIIT
-
 JOOLNS = joolns
 
 obj-m += $(JOOLNS).o
@@ -21,18 +19,18 @@ obj-m += $(JOOLNS).o
 $(JOOLNS)-objs += $(MIN_REQS)
 $(JOOLNS)-objs += ../../../src/common/config.o
 $(JOOLNS)-objs += ../../../src/mod/common/atomic_config.o
-$(JOOLNS)-objs += ../../../src/mod/common/config.o
 $(JOOLNS)-objs += ../../../src/mod/common/global-impl.o
 $(JOOLNS)-objs += ../../../src/mod/common/rtrie.o
+$(JOOLNS)-objs += ../../../src/mod/common/stats.o
 $(JOOLNS)-objs += ../../../src/mod/common/xlator.o
-$(JOOLNS)-objs += ../../../src/mod/siit/defrag.o
-$(JOOLNS)-objs += ../../../src/mod/siit/blacklist4.o
-$(JOOLNS)-objs += ../../../src/mod/siit/pool.o
-$(JOOLNS)-objs += ../../../src/mod/siit/rfc6791v4.o
-$(JOOLNS)-objs += ../../../src/mod/siit/eam.o
-$(JOOLNS)-objs += ../../../src/mod/siit/impersonator.o
+$(JOOLNS)-objs += ../../../src/mod/common/db/config.o
+$(JOOLNS)-objs += ../../../src/mod/common/db/blacklist4.o
+$(JOOLNS)-objs += ../../../src/mod/common/db/pool.o
+$(JOOLNS)-objs += ../../../src/mod/common/db/eam.o
+$(JOOLNS)-objs += ../../../src/mod/common/steps/handling_hairpinning_siit.o
+$(JOOLNS)-objs += ../impersonator/nat64.o
 $(JOOLNS)-objs += ../impersonator/nf_hook.o
-$(JOOLNS)-objs += ../impersonator/route.o
+$(JOOLNS)-objs += ../impersonator/send_packet.o
 $(JOOLNS)-objs += impersonator.o
 $(JOOLNS)-objs += joolns_test.o
 
