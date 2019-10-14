@@ -72,19 +72,8 @@ Remember you might want to cross-ping _T_ vs everything before continuing.
 
 Even though they share a lot of code, because of kernel quirks, the NAT64 module is separate from the SIIT one. The name of the NAT64 module is `jool`.
 
-<div class="distro-menu">
-	<span class="distro-selector" onclick="showDistro(this);">Most Distros</span>
-	<span class="distro-selector" onclick="showDistro(this);">OpenWRT</span>
-</div>
-
-<!-- Most Distros -->
 {% highlight bash %}
 user@T:~# /sbin/modprobe jool
-{% endhighlight %}
-
-<!-- OpenWRT -->
-{% highlight bash %}
-user@T:~# insmod jool
 {% endhighlight %}
 
 Though the meaning of `pool6` is slightly different than in SIIT, the instance configuration looks pretty much the same:
@@ -98,45 +87,19 @@ Though the meaning of `pool6` is slightly different than in SIIT, the instance c
 {% highlight bash %}
 user@T:~# jool instance add "example" --iptables  --pool6 64:ff9b::/96
 user@T:~#
-user@T:~# ip6tables -t mangle -A PREROUTING \
->		-d 64:ff9b::/96 \
->		-j JOOL --instance "example"
-user@T:~# iptables  -t mangle -A PREROUTING \
->		-d 203.0.113.1 -p tcp --dport 61001:65535 \
->		-j JOOL --instance "example"
-user@T:~# iptables  -t mangle -A PREROUTING \
->		-d 203.0.113.1 -p udp --dport 61001:65535 \
->		-j JOOL --instance "example"
-user@T:~# iptables  -t mangle -A PREROUTING \
->		-d 203.0.113.1 -p icmp \
->		-j JOOL --instance "example"
+user@T:~# ip6tables -t mangle -A PREROUTING -j JOOL --instance "example"
+user@T:~# iptables  -t mangle -A PREROUTING -j JOOL --instance "example"
 {% endhighlight %}
 
 <!-- Netfilter Jool -->
 {% highlight bash %}
 user@T:~# jool instance add "example" --netfilter --pool6 64:ff9b::/96
  
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
+
  
 {% endhighlight %}
 
 The iptables configuration, on the other hand, needs to use the `JOOL` target and match more specific transport addresses in the IPv4 side. Ports 61001-65535 of _T_'s owned IPv4 addresses are Jool's default reserved mask range. More information can be found in [pool4](pool4.html).
-
-> ![../images/bulb.svg](../images/bulb.svg) About those iptables rules:
-> 
-> As far as transport protocols are concerned, NAT64 Jool knows how to handle TCP and UDP (as well as ICMP if you count it). Because of the large transport header hacking that is required by a stateful translator, NAT64 Jool **cannot** translate unknown transport protocols like SIIT Jool. That, on top of the fact that iptables Jool [drops traffic when it finds itself unable to translate it](intro-jool.html#iptables), is why it's better not to default `--protocol` (`-p`) to `all`, and instead declare a dedicated rule for each one.
-> 
-> ![../images/warning.svg](../images/warning.svg) And again: Please remember that a suitable ICMP-matching rule is not optional on a healthy network.
 
 ## Testing
 
@@ -166,24 +129,24 @@ rtt min/avg/max/mdev = 1.136/6.528/15.603/5.438 ms
 ## Stopping Jool
 
 <div class="distro-menu">
-	<span class="distro-selector" onclick="showDistro(this);">Most Distros</span>
-	<span class="distro-selector" onclick="showDistro(this);">OpenWRT</span>
+	<span class="distro-selector" onclick="showDistro(this);">iptables Jool</span>
+	<span class="distro-selector" onclick="showDistro(this);">Netfilter Jool</span>
 </div>
 
-<!-- Most Distros -->
+<!-- iptables Jool -->
 {% highlight bash %}
-user@T:~# ip6tables -t mangle -F    # Meh, whatever
-user@T:~# iptables  -t mangle -F
+user@T:~# ip6tables -t mangle -D PREROUTING -j JOOL --instance "example"
+user@T:~# iptables  -t mangle -D PREROUTING -j JOOL --instance "example"
 user@T:~# jool instance remove "example"
 user@T:~# /sbin/modprobe -r jool
 {% endhighlight %}
 
-<!-- OpenWRT -->
+<!-- Netfilter Jool -->
 {% highlight bash %}
-user@T:~# ip6tables -t mangle -F    # Meh, whatever
-user@T:~# iptables  -t mangle -F
+ 
+ 
 user@T:~# jool instance remove "example"
-user@T:~# rmmod jool
+user@T:~# /sbin/modprobe -r jool
 {% endhighlight %}
 
 ## Afterwords

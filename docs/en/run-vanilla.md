@@ -114,16 +114,10 @@ user@T:~# # Also, establish that the IPv6 representation of any IPv4 address sho
 user@T:~# # `2001:db8::<IPv4 address>`. (See sections below for examples.)
 user@T:~# jool_siit instance add "example" --iptables  --pool6 2001:db8::/96
 user@T:~# 
-user@T:~# # Tell iptables which traffic should be handled by our newly-created instance:
-user@T:~# 
-user@T:~# # IPv6: only packets from 2001:db8::198.51.100.8/125 to 2001:db8::192.0.2
-user@T:~# ip6tables -t mangle -A PREROUTING \
->		-s 2001:db8::198.51.100.8/125 -d 2001:db8::192.0.2.0/120 \
->		-j JOOL_SIIT --instance "example"
-user@T:~# # IPv4: Only packets from 192.0.2 to 198.51.100.8/29
-user@T:~# iptables  -t mangle -A PREROUTING \
->		-s 192.0.2.0/24 -d 198.51.100.8/29 \
->		-j JOOL_SIIT --instance "example"
+user@T:~# # Create iptables rules that will send traffic to our instance somewhere
+user@T:~# # in the mangle chain.
+user@T:~# ip6tables -t mangle -A PREROUTING -j JOOL_SIIT --instance "example"
+user@T:~# iptables  -t mangle -A PREROUTING -j JOOL_SIIT --instance "example"
 {% endhighlight %}
 
 <!-- Netfilter Jool -->
@@ -135,25 +129,15 @@ user@T:~# jool_siit instance add "example" --netfilter --pool6 2001:db8::/96
 user@T:~#
 user@T:~# # All traffic gets SIIT'd in Netfilter mode.
  
- 
- 
- 
- 
- 
- 
- 
+
  
 {% endhighlight %}
 
 [Here](usr-flags-instance.html)'s Jool documentation on `instance`.
 
-> ![../images/bulb.svg](../images/bulb.svg) About those iptables rules:
+> ![../images/bulb.svg](../images/bulb.svg) About those iptables rules: Notice that we did not include any matches (such as [`-s` or `-d`](https://netfilter.org/documentation/HOWTO/packet-filtering-HOWTO-7.html#ss7.3)). This is merely for the sake of tutorial simplicity. If you want to narrow down the traffic that gets translated, you should be able to combine any matches as needed.
 > 
-> Notice that `-s` and `-d` are two [standard iptables matches](https://netfilter.org/documentation/HOWTO/packet-filtering-HOWTO-7.html#ss7.3) I relatively arbitrarily chose according to the network provided. As per iptables contracts, you should be able to combine any matches as needed.
-> 
-> As far as transport protocols are concerned, SIIT Jool knows how to handle TCP and UDP (as well as ICMP if you count it). (By "know how to handle" I mean "update [checksum pseudoheader](https://en.wikipedia.org/wiki/Transmission_Control_Protocol#Checksum_computation)" and other minor quirks.) Other transport protocols are translated on a best-effort basis. (ie. Jool translates the IP header, copies the rest as is, and hopes for the best.) This is the reason why we chose not to narrow the rules further by means of the `--protocol` match.
-> 
-> ![../images/warning.svg](../images/warning.svg) If you do choose to use the `--protocol` match, please do include a rule that matches ICMP, as it's important that you don't prevent the translation of ICMP errors, because they are required for imperative Internet upkeeping (such as [Path MTU Discovery](https://en.wikipedia.org/wiki/Path_MTU_Discovery)).
+> ![../images/warning.svg](../images/warning.svg) If you choose to use the `--protocol` match, please **make sure that you include at least one rule properly matching ICMP**, as it's important that you don't prevent the translation of ICMP errors, because they are required for imperative Internet upkeeping (such as [Path MTU Discovery](https://en.wikipedia.org/wiki/Path_MTU_Discovery)).
 
 ## Testing
 
@@ -208,21 +192,13 @@ Destroy your instance by reverting the `instance add`:
 
 <!-- iptables Jool -->
 {% highlight bash %}
-user@T:~# ip6tables -t mangle -D PREROUTING \
->		-s 2001:db8::198.51.100.8/125 -d 2001:db8::192.0.2.0/120 \
->		-j JOOL_SIIT --instance "example"
-user@T:~# iptables  -t mangle -D PREROUTING \
->		-s 192.0.2.0/24 -d 198.51.100.8/29 \
->		-j JOOL_SIIT --instance "example"
+user@T:~# ip6tables -t mangle -D PREROUTING -j JOOL_SIIT --instance "example"
+user@T:~# iptables  -t mangle -D PREROUTING -j JOOL_SIIT --instance "example"
 user@T:~# jool_siit instance remove "example"
 {% endhighlight %}
 
 <!-- Netfilter Jool -->
 {% highlight bash %}
- 
- 
- 
- 
  
  
 user@T:~# jool_siit instance remove "example"

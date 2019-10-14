@@ -70,38 +70,30 @@ Remember you might want to cross-ping _T_ vs everything before continuing.
 ## Jool
 
 <div class="distro-menu">
-	<span class="distro-selector" onclick="showDistro(this);">Most Distros</span>
-	<span class="distro-selector" onclick="showDistro(this);">OpenWRT</span>
+	<span class="distro-selector" onclick="showDistro(this);">iptables Jool</span>
+	<span class="distro-selector" onclick="showDistro(this);">Netfilter Jool</span>
 </div>
 
-<!-- Most Distros -->
+<!-- iptables Jool -->
 {% highlight bash %}
 user@T:~# /sbin/modprobe jool_siit
 user@T:~# jool_siit instance add "example" --iptables
 user@T:~# jool_siit -i "example" eamt add 2001:db8:6::/120 198.51.100.0/24
 user@T:~# jool_siit -i "example" eamt add 2001:db8:4::/120 192.0.2.0/24
 user@T:~#
-user@T:~# ip6tables -t mangle -A PREROUTING \
->		-s 2001:db8:6::/120 -d 2001:db8:4::/120 \
->		-j JOOL_SIIT --instance "example"
-user@T:~# iptables  -t mangle -A PREROUTING \
->		-s 192.0.2.0/24 -d 198.51.100.0/24 \
->		-j JOOL_SIIT --instance "example"
+user@T:~# ip6tables -t mangle -A PREROUTING -j JOOL_SIIT --instance "example"
+user@T:~# iptables  -t mangle -A PREROUTING -j JOOL_SIIT --instance "example"
 {% endhighlight %}
 
-<!-- OpenWRT -->
+<!-- Netfilter Jool -->
 {% highlight bash %}
-user@T:~# insmod jool_siit
+user@T:~# /sbin/modprobe jool_siit
 user@T:~# jool_siit instance add "example" --iptables
 user@T:~# jool_siit -i "example" eamt add 2001:db8:6::/120 198.51.100.0/24
 user@T:~# jool_siit -i "example" eamt add 2001:db8:4::/120 192.0.2.0/24
-user@T:~#
-user@T:~# ip6tables -t mangle -A PREROUTING \
->		-s 2001:db8:6::/120 -d 2001:db8:4::/120 \
->		-j JOOL_SIIT --instance "example"
-user@T:~# iptables  -t mangle -A PREROUTING \
->		-s 192.0.2.0/24 -d 198.51.100.0/24 \
->		-j JOOL_SIIT --instance "example"
+ 
+ 
+ 
 {% endhighlight %}
 
 `-i` stands for "instance". The `eamt add` commands build an [Explicit Address Mappings Table](eamt.html). You can see it through the `display` operation:
@@ -165,32 +157,24 @@ Then maybe another one in _B_ and request from _X_:
 Same as in the previous walkthrough.
 
 <div class="distro-menu">
-	<span class="distro-selector" onclick="showDistro(this);">Most Distros</span>
-	<span class="distro-selector" onclick="showDistro(this);">OpenWRT</span>
+	<span class="distro-selector" onclick="showDistro(this);">iptables Jool</span>
+	<span class="distro-selector" onclick="showDistro(this);">Netfilter Jool</span>
 </div>
 
-<!-- Most Distros -->
+<!-- iptables Jool -->
 {% highlight bash %}
-user@T:~# ip6tables -t mangle -D PREROUTING \
->		-s 2001:db8:6::/120 -d 2001:db8:4::/120 \
->		-j JOOL_SIIT --instance "example"
-user@T:~# iptables  -t mangle -D PREROUTING \
->		-s 192.0.2.0/24 -d 198.51.100.0/24 \
->		-j JOOL_SIIT --instance "example"
+user@T:~# ip6tables -t mangle -D PREROUTING -j JOOL_SIIT --instance "example"
+user@T:~# iptables  -t mangle -D PREROUTING -j JOOL_SIIT --instance "example"
 user@T:~# jool_siit instance remove "example"
 user@T:~# /sbin/modprobe -r jool_siit
 {% endhighlight %}
 
-<!-- OpenWRT -->
+<!-- Netfilter Jool -->
 {% highlight bash %}
-user@T:~# ip6tables -t mangle -D PREROUTING \
->		-s 2001:db8:6::/120 -d 2001:db8:4::/120 \
->		-j JOOL_SIIT --instance "example"
-user@T:~# iptables  -t mangle -D PREROUTING \
->		-s 192.0.2.0/24 -d 198.51.100.0/24 \
->		-j JOOL_SIIT --instance "example"
+ 
+ 
 user@T:~# jool_siit instance remove "example"
-user@T:~# rmmod jool_siit
+user@T:~# /sbin/modprobe -r jool_siit
 {% endhighlight %}
 
 ## Afterwords
@@ -199,4 +183,3 @@ user@T:~# rmmod jool_siit
 3. Please note that none of what was done in this tutorial survives reboots! Documentation on persistence will be released in the future.
 
 The [next tutorial](run-nat64.html) is a [Stateful NAT64](intro-xlat.html#stateful-nat64) run.
-

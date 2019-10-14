@@ -101,7 +101,7 @@ adds a _rule_ to iptables's _mangle_ table, which "Jools" all packets headed tow
 
 There can be any number of iptables Jool instances in any namespace, and any number of iptables rules can reference them.
 
-iptables Jool instances sit idle until some iptables rule sends packets to them. (Of course, only packets that [match the rule's conditions](https://www.netfilter.org/documentation/HOWTO/packet-filtering-HOWTO-7.html#ss7.3) are sent.) They translate packets that _can_ be translated according to their configuration, and drop everything else.
+iptables Jool instances sit idle until some iptables rule sends packets to them. (Of course, only packets that [match the rule's conditions](https://www.netfilter.org/documentation/HOWTO/packet-filtering-HOWTO-7.html#ss7.3) are sent.) As of version 4.0.6, iptables instances function the same as Netfilter instances: They drop packets deemed corrupted, translate packets which _can_ be translated (according to their configuration) and return everything else to the kernel. (In this context, "return to the kernel" means that the packet will go back to the iptables chain, right after the Jool rule that matched it.)
 
 iptables Jool has a quirk similar to Netfilter Jool that you should be aware of: iptables rules are also not allowed to change the network protocol of their packets, so iptables Jool rules also send their matched and successfully translated packets straight to `POSTROUTING`. Packets which do not match the rule continue through the chain normally.
 

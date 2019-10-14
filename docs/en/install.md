@@ -84,7 +84,7 @@ user@T:~# apt install build-essential pkg-config
 
 <!-- CentOS -->
 {% highlight bash %}
-user@T:~# yum install gcc libtool
+user@T:~# yum install gcc
 {% endhighlight %}
 
 <!-- Arch Linux -->
