@@ -9,7 +9,7 @@ $(PROJECTS):
 $(OTHER_TARGETS):
 	$(foreach dir, $(PROJECTS), $(MAKE) -C $(dir) $@;)
 install:
-	# Don't want to execute depmod twice; it takes too long.
+	# Don't want to execute depmod thrice; it takes too long.
 	$(foreach dir, $(PROJECTS), $(MAKE) -C $(dir) modules_install;)
 	depmod
 

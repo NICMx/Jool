@@ -409,7 +409,7 @@ static bool test_icmp(void)
 
 	kfree_skb(skb);
 
-	log_debug("== IPv6 packet and gets translated correctly ==");
+	log_debug("== IPv6 packet gets translated correctly ==");
 	if (create_skb6_icmp_info("1::2", "3::4", 1212, 16, 32, &skb))
 		return false;
 	if (pkt_init_ipv6(&state, skb))

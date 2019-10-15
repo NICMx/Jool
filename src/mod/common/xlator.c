@@ -127,7 +127,7 @@ static void destroy_jool_instance(struct jool_instance *instance, bool unhook)
 #endif
 
 	xlator_put(&instance->jool);
-	log_info("Deleting instance '%s'.", instance->jool.iname);
+	log_info("Deleted instance '%s'.", instance->jool.iname);
 	wkfree(struct jool_instance, instance);
 }
 
@@ -156,9 +156,10 @@ static void __flush_detach(struct net *ns, xlator_type xt,
 		struct hlist_head *detached)
 {
 	struct jool_instance *instance;
+	struct hlist_node *tmp;
 	size_t i;
 
-	hash_for_each(instances, i, instance, table_hook) {
+	hash_for_each_safe(instances, i, tmp, instance, table_hook) {
 		if (instance->jool.ns == ns && (instance->jool.flags & xt)) {
 			hash_del_rcu(&instance->table_hook);
 			hlist_add_head(&instance->table_hook, detached);
@@ -186,6 +187,8 @@ static void __flush_delete(struct hlist_head *detached)
 /**
  * Called whenever the user deletes a namespace. Supposed to delete all the
  * instances inserted in that namespace.
+ *
+ * Update 2019-10-15: Also called during jool r-modprobe.
  */
 static void __flush_net(struct net *ns, xlator_type xt)
 {
@@ -277,8 +280,10 @@ void xlator_teardown(void)
 	nf_unregister_hooks(nfho, ARRAY_SIZE(nfho));
 #endif
 	unregister_pernet_subsys(&joolns_ops);
+
+	WARN(!hash_empty(instances), "There are elements in the xlator table after a cleanup.");
+	WARN(!list_empty(netfilter_instances), "There are elements in the xlator list after a cleanup.");
 	__wkfree("xlator DB", rcu_dereference_raw(netfilter_instances));
-	WARN(!hash_empty(instances), "There are elements in the xlator DB after a cleanup.");
 }
 
 static int init_siit(struct xlator *jool, struct config_prefix6 *pool6)
@@ -387,11 +392,6 @@ static int basic_validations(char const *iname, bool allow_null_iname,
 		log_err(XT_VALIDATE_ERRMSG);
 		return error;
 	}
-	error = xf_validate(xlator_flags2xf(flags));
-	if (error) {
-		log_err(XF_VALIDATE_ERRMSG);
-		return error;
-	}
 
 	return 0;
 }
@@ -405,6 +405,11 @@ static int basic_add_validations(char *iname, xlator_flags flags,
 	error = basic_validations(iname, false, flags);
 	if (error)
 		return error;
+	error = xf_validate(xlator_flags2xf(flags));
+	if (error) {
+		log_err(XF_VALIDATE_ERRMSG);
+		return error;
+	}
 	if ((flags & XT_NAT64) && (!pool6 || !pool6->set)) {
 		log_err("pool6 is mandatory in NAT64 instances.");
 		return -EINVAL;
@@ -428,7 +433,8 @@ static int validate_collision(struct net *ns, char *iname, xlator_flags flags)
 	hash_for_each(instances, i, instance, table_hook) {
 		if (instance->jool.ns != ns)
 			continue;
-
+		if (xlator_flags2xt(instance->jool.flags) != xlator_flags2xt(flags))
+			continue;
 		if (strcmp(instance->jool.iname, iname) == 0) {
 			log_err("This namespace already has a Jool instance named '%s'.",
 					iname);
@@ -568,7 +574,6 @@ mutex_fail:
 static int __xlator_rm(struct net *ns, char *iname, xlator_type xt)
 {
 	struct jool_instance *instance;
-	struct list_head *list;
 
 	mutex_lock(&lock);
 
@@ -580,11 +585,8 @@ static int __xlator_rm(struct net *ns, char *iname, xlator_type xt)
 	}
 
 	hash_del_rcu(&instance->table_hook);
-	if (instance->jool.flags & XF_NETFILTER) {
-		list = rcu_dereference_protected(netfilter_instances,
-				lockdep_is_held(&lock));
-		list_add_rcu(&instance->list_hook, list);
-	}
+	if (instance->jool.flags & XF_NETFILTER)
+		list_del_rcu(&instance->list_hook);
 
 	mutex_unlock(&lock);
 	synchronize_rcu_bh();
@@ -634,6 +636,7 @@ int xlator_replace(struct xlator *jool)
 {
 	struct jool_instance *old;
 	struct jool_instance *new;
+	struct list_head *list;
 	int error;
 
 	error = basic_add_validations(jool->iname, jool->flags,
@@ -693,6 +696,12 @@ int xlator_replace(struct xlator *jool)
 
 	hash_del(&old->table_hook);
 	hash_add(instances, &new->table_hook, get_instance_hash(new));
+	if (old->jool.flags & XF_NETFILTER) {
+		list = rcu_dereference_protected(netfilter_instances,
+						lockdep_is_held(&lock));
+		list_del_rcu(&old->list_hook);
+		list_add_rcu(&new->list_hook, list);
+	}
 	mutex_unlock(&lock);
 
 	synchronize_rcu_bh();
@@ -763,8 +772,6 @@ int xlator_find(struct net *ns, xlator_flags flags, char const *iname,
 	/*
 	 * There is at least one caller to this function which cares about error
 	 * code. You need to review it if you want to add or reuse error codes.
-	 *
-	 * TODO (now) now throwing more -EINVALs
 	 */
 	error = basic_validations(iname, true, flags);
 	if (error)

@@ -163,7 +163,7 @@ static bool krefs_test(void)
 	/* The database does not claim references to ns. */
 	success &= ASSERT_INT(old_refs, ns_refcount(jool.ns), "ns kref");
 	/* xlator DB's kref + the one we just took. */
-	success &= ASSERT_INT(2, jstat_refcount(jool.stats), "pool6 kref");
+	success &= ASSERT_INT(2, jstat_refcount(jool.stats), "stats kref");
 
 	xlator_put(&jool);
 	return success;
