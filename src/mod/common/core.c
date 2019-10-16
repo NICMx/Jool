@@ -83,9 +83,8 @@ static void send_icmp4_error(struct xlation *state, verdict result)
 			: JSTAT_ICMP4ERR_FAILURE);
 }
 
-verdict core_4to6(struct sk_buff *skb, struct xlator *instance)
+verdict core_4to6(struct sk_buff *skb, struct xlation *state)
 {
-	struct xlation state;
 	verdict result;
 
 	/*
@@ -93,27 +92,26 @@ verdict core_4to6(struct sk_buff *skb, struct xlator *instance)
 	 * pkt_init_ipv4() HAS pskb_may_pull()ED THEM.
 	 */
 
-	xlation_init(&state, instance);
-
-	result = validate_xlator(&state);
+	result = validate_xlator(state);
 	if (result != VERDICT_CONTINUE)
 		goto end;
 
 	log_debug("===============================================");
-	log_debug("Jool instance '%s': Received a v4 packet.", instance->iname);
+	log_debug("Jool instance '%s': Received a v4 packet.",
+			state->jool.iname);
 
 	/* Reminder: This function might change pointers. */
-	result = pkt_init_ipv4(&state, skb);
+	result = pkt_init_ipv4(state, skb);
 	if (result != VERDICT_CONTINUE)
 		goto end;
 
 	/* skb_log(skb, "Incoming IPv4 packet"); */
 
-	result = core_common(&state);
+	result = core_common(state);
 	/* Fall through */
 
 end:
-	send_icmp4_error(&state, result);
+	send_icmp4_error(state, result);
 	return result;
 }
 
@@ -134,9 +132,8 @@ static void send_icmp6_error(struct xlation *state, verdict result)
 			: JSTAT_ICMP6ERR_FAILURE);
 }
 
-verdict core_6to4(struct sk_buff *skb, struct xlator *instance)
+verdict core_6to4(struct sk_buff *skb, struct xlation *state)
 {
-	struct xlation state;
 	verdict result;
 
 	/*
@@ -144,29 +141,28 @@ verdict core_6to4(struct sk_buff *skb, struct xlator *instance)
 	 * pkt_init_ipv6() HAS pskb_may_pull()ED THEM.
 	 */
 
-	xlation_init(&state, instance);
+	snapshot_record(&state->in.debug.shot1, skb);
 
-	snapshot_record(&state.in.debug.shot1, skb);
-
-	result = validate_xlator(&state);
+	result = validate_xlator(state);
 	if (result != VERDICT_CONTINUE)
 		goto end;
 
 	log_debug("===============================================");
-	log_debug("Jool instance '%s': Received a v6 packet.", instance->iname);
+	log_debug("Jool instance '%s': Received a v6 packet.",
+			state->jool.iname);
 
 	/* Reminder: This function might change pointers. */
-	result = pkt_init_ipv6(&state, skb);
+	result = pkt_init_ipv6(state, skb);
 	if (result != VERDICT_CONTINUE)
 		goto end;
 
 	/* skb_log(skb, "Incoming IPv6 packet"); */
-	snapshot_record(&state.in.debug.shot2, skb);
+	snapshot_record(&state->in.debug.shot2, skb);
 
-	result = core_common(&state);
+	result = core_common(state);
 	/* Fall through */
 
 end:
-	send_icmp6_error(&state, result);
+	send_icmp6_error(state, result);
 	return result;
 }

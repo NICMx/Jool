@@ -7,23 +7,17 @@
  */
 
 #include <linux/skbuff.h>
-#include "mod/common/xlator.h"
+#include "mod/common/translation_state.h"
 
 /**
- * Assumes "skb" is a IPv6 packet, checks whether it should be NAT64'd and either translates and
- * sends it or does nothing.
- * Intended to be hooked to Netfilter.
- *
- * @return what should the caller do to the packet. see the NF_* constants.
+ * Assumes @skb is an IPv6 packet, and attempts to translate and send its IPv4
+ * counterpart.
  */
-verdict core_6to4(struct sk_buff *skb, struct xlator *instance);
+verdict core_6to4(struct sk_buff *skb, struct xlation *state);
 /**
- * Assumes "skb" is a IPv4 packet, checks whether it should be NAT64'd and either translates and
- * sends it or does nothing.
- * Intended to be hooked to Netfilter.
- *
- * @return what should the caller do to the packet. see the NF_* constants.
+ * Assumes @skb is an IPv4 packet, and attempts to translate and send its IPv4
+ * counterpart.
  */
-verdict core_4to6(struct sk_buff *skb, struct xlator *instance);
+verdict core_4to6(struct sk_buff *skb, struct xlation *state);
 
 #endif /* SRC_MOD_COMMON_CORE_H_ */

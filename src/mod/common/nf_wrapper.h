@@ -22,7 +22,7 @@
 #define NF_CALLBACK(name, skb) unsigned int name( \
 		void *priv, \
 		struct sk_buff *skb, \
-		const struct nf_hook_state *state)
+		const struct nf_hook_state *nhs)
 
 #elif RHEL_RELEASE_CODE >= RHEL_RELEASE_VERSION(7, 2)
 #define NF_CALLBACK(name, skb) unsigned int name( \
@@ -30,7 +30,7 @@
 		struct sk_buff *skb, \
 		const struct net_device *in, \
 		const struct net_device *out, \
-		const struct nf_hook_state *state) \
+		const struct nf_hook_state *nhs) \
 
 #elif RHEL_RELEASE_CODE >= RHEL_RELEASE_VERSION(7, 0)
 #define NF_CALLBACK(name, skb) unsigned int name( \
@@ -58,13 +58,13 @@
 #define NF_CALLBACK(name, skb) unsigned int name( \
 		void *priv, \
 		struct sk_buff *skb, \
-		const struct nf_hook_state *state)
+		const struct nf_hook_state *nhs)
 
 #elif LINUX_VERSION_CODE >= KERNEL_VERSION(4, 1, 0)
 #define NF_CALLBACK(name, skb) unsigned int name( \
 		const struct nf_hook_ops *ops, \
 		struct sk_buff *skb, \
-		const struct nf_hook_state *state)
+		const struct nf_hook_state *nhs)
 
 #elif LINUX_VERSION_CODE >= KERNEL_VERSION(3, 13, 0)
 #define NF_CALLBACK(name, skb) unsigned int name( \

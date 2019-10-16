@@ -28,13 +28,13 @@ static verdict find_instance(struct sk_buff *skb, struct xlator *result)
 	return VERDICT_UNTRANSLATABLE;
 }
 
-static unsigned int verdict2netfilter(verdict result, bool print_return)
+static unsigned int verdict2netfilter(verdict result, bool silence)
 {
 	switch (result) {
 	case VERDICT_STOLEN:
 		return NF_STOLEN; /* This is the happy path. */
 	case VERDICT_UNTRANSLATABLE:
-		if (print_return)
+		if (!silence)
 			log_debug("Returning the packet to the kernel.");
 		return NF_ACCEPT;
 	case VERDICT_DROP:
@@ -56,17 +56,24 @@ static unsigned int verdict2netfilter(verdict result, bool print_return)
  */
 NF_CALLBACK(hook_ipv6, skb)
 {
-	struct xlator jool;
+	struct xlation *state;
 	verdict result;
+	bool silence = true;
 
-	result = find_instance(skb, &jool);
+	state = xlation_create(NULL);
+	if (!state)
+		return NF_DROP;
+
+	result = find_instance(skb, &state->jool);
 	if (result != VERDICT_CONTINUE)
-		return verdict2netfilter(result, false);
+		goto end;
+	silence = false;
 
-	result = core_6to4(skb, &jool);
+	result = core_6to4(skb, state);
 
-	xlator_put(&jool);
-	return verdict2netfilter(result, true);
+	xlator_put(&state->jool);
+end:	xlation_destroy(state);
+	return verdict2netfilter(result, silence);
 }
 EXPORT_SYMBOL_GPL(hook_ipv6);
 
@@ -76,16 +83,23 @@ EXPORT_SYMBOL_GPL(hook_ipv6);
  */
 NF_CALLBACK(hook_ipv4, skb)
 {
-	struct xlator jool;
+	struct xlation *state;
 	verdict result;
+	bool silence = true;
 
-	result = find_instance(skb, &jool);
+	state = xlation_create(NULL);
+	if (!state)
+		return NF_DROP;
+
+	result = find_instance(skb, &state->jool);
 	if (result != VERDICT_CONTINUE)
-		return verdict2netfilter(result, false);
+		goto end;
+	silence = false;
 
-	result = core_4to6(skb, &jool);
+	result = core_4to6(skb, state);
 
-	xlator_put(&jool);
-	return verdict2netfilter(result, true);
+	xlator_put(&state->jool);
+end:	xlation_destroy(state);
+	return verdict2netfilter(result, silence);
 }
 EXPORT_SYMBOL_GPL(hook_ipv4);

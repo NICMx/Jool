@@ -98,16 +98,22 @@ static unsigned int verdict2iptables(verdict result)
 unsigned int target_ipv6(struct sk_buff *skb,
 		const struct xt_action_param *param)
 {
-	struct xlator jool;
+	struct xlation *state;
 	verdict result;
 
-	result = find_instance(action_param_net(param), param->targinfo, &jool);
+	state = xlation_create(NULL);
+	if (!state)
+		return NF_DROP;
+
+	result = find_instance(action_param_net(param), param->targinfo,
+			&state->jool);
 	if (result != VERDICT_CONTINUE)
-		return verdict2iptables(result);
+		goto end;
 
-	result = core_6to4(skb, &jool);
+	result = core_6to4(skb, state);
 
-	xlator_put(&jool);
+	xlator_put(&state->jool);
+end:	xlation_destroy(state);
 	return verdict2iptables(result);
 }
 EXPORT_SYMBOL_GPL(target_ipv6);
@@ -119,16 +125,22 @@ EXPORT_SYMBOL_GPL(target_ipv6);
 unsigned int target_ipv4(struct sk_buff *skb,
 		const struct xt_action_param *param)
 {
-	struct xlator jool;
+	struct xlation *state;
 	verdict result;
 
-	result = find_instance(action_param_net(param), param->targinfo, &jool);
+	state = xlation_create(NULL);
+	if (!state)
+		return NF_DROP;
+
+	result = find_instance(action_param_net(param), param->targinfo,
+			&state->jool);
 	if (result != VERDICT_CONTINUE)
-		return verdict2iptables(result);
+		goto end;
 
-	result = core_4to6(skb, &jool);
+	result = core_4to6(skb, state);
 
-	xlator_put(&jool);
+	xlator_put(&state->jool);
+end:	xlation_destroy(state);
 	return verdict2iptables(result);
 }
 EXPORT_SYMBOL_GPL(target_ipv4);

@@ -42,27 +42,30 @@ bool is_hairpin_nat64(struct xlation *state)
  */
 verdict handling_hairpinning_nat64(struct xlation *old)
 {
-	struct xlation new;
+	struct xlation *new;
 	verdict result;
 
 	log_debug("Step 5: Handling Hairpinning...");
 
-	xlation_init(&new, &old->jool);
-	new.in = old->out;
+	new = xlation_create(&old->jool);
+	if (!new)
+		return VERDICT_DROP;
+	new->in = old->out;
 
-	result = filtering_and_updating(&new);
+	result = filtering_and_updating(new);
 	if (result != VERDICT_CONTINUE)
-		return result;
-	result = compute_out_tuple(&new);
+		goto end;
+	result = compute_out_tuple(new);
 	if (result != VERDICT_CONTINUE)
-		return result;
-	result = translating_the_packet(&new);
+		goto end;
+	result = translating_the_packet(new);
 	if (result != VERDICT_CONTINUE)
-		return result;
-	result = sendpkt_send(&new);
+		goto end;
+	result = sendpkt_send(new);
 	if (result != VERDICT_CONTINUE)
-		return result;
+		goto end;
 
 	log_debug("Done step 5.");
-	return VERDICT_CONTINUE;
+end:	xlation_destroy(new);
+	return result;
 }

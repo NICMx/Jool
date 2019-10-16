@@ -35,8 +35,8 @@ struct xlation {
 	struct xlation_result result;
 };
 
-void xlation_init(struct xlation *state, struct xlator *jool);
-/* xlation_clean() is not needed for now. */
+struct xlation *xlation_create(struct xlator *jool);
+void xlation_destroy(struct xlation *state);
 
 verdict untranslatable(struct xlation *state, enum jool_stat_id stat);
 verdict untranslatable_icmp(struct xlation *state, enum jool_stat_id stat,

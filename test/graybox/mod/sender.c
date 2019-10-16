@@ -9,7 +9,7 @@
 #include "mod/common/ipv6_hdr_iterator.h"
 #include "mod/common/log.h"
 #include "mod/common/route.h"
-#include "mod/common/send_packet.h"
+#include "mod/common/steps/send_packet.h"
 #include "util.h"
 
 /*
