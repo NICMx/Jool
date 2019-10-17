@@ -2,14 +2,34 @@
 
 #include "mod/common/wkmalloc.h"
 
+static struct kmem_cache *xlation_cache;
+
+int xlation_setup(void)
+{
+	xlation_cache = kmem_cache_create("jool_xlations",
+			sizeof(struct xlation), 0, 0, NULL);
+	return xlation_cache? 0 : -ENOMEM;
+}
+
+void xlation_teardown(void)
+{
+	kmem_cache_destroy(xlation_cache);
+}
+
 struct xlation *xlation_create(struct xlator *jool)
 {
 	struct xlation *state;
 
-	state = wkmalloc(struct xlation, GFP_ATOMIC);
+	state = wkmem_cache_alloc("xlation", xlation_cache, GFP_ATOMIC);
 	if (!state)
 		return NULL;
 
+	xlation_init(state, jool);
+	return state;
+}
+
+void xlation_init(struct xlation *state, struct xlator *jool)
+{
 	if (jool)
 		memcpy(&state->jool, jool, sizeof(*jool));
 	memset(&state->in.debug, 0, sizeof(state->in.debug));
@@ -18,13 +38,11 @@ struct xlation *xlation_create(struct xlator *jool)
 	state->entries.session_set = false;
 	state->result.icmp = ICMPERR_NONE;
 	state->result.info = 0;
-
-	return state;
 }
 
 void xlation_destroy(struct xlation *state)
 {
-	wkfree(struct xlation, state);
+	wkmem_cache_free("xlation", xlation_cache, state);
 }
 
 verdict untranslatable(struct xlation *state, enum jool_stat_id stat)

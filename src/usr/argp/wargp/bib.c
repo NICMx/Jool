@@ -20,7 +20,7 @@ struct display_args {
 };
 
 static struct wargp_option display_opts[] = {
-	WARGP_TCP(struct display_args, proto, "Print the TCP table"),
+	WARGP_TCP(struct display_args, proto, "Print the TCP table (default)"),
 	WARGP_UDP(struct display_args, proto, "Print the UDP table"),
 	WARGP_ICMP(struct display_args, proto, "Print the ICMP table"),
 	WARGP_NO_HEADERS(struct display_args, no_headers),
@@ -122,7 +122,7 @@ struct wargp_type wt_taddr = {
 };
 
 static struct wargp_option add_opts[] = {
-	WARGP_TCP(struct add_args, proto, "Add the entry to the TCP table"),
+	WARGP_TCP(struct add_args, proto, "Add the entry to the TCP table (default)"),
 	WARGP_UDP(struct add_args, proto, "Add the entry to the UDP table"),
 	WARGP_ICMP(struct add_args, proto, "Add the entry to the ICMP table"),
 	{
@@ -177,7 +177,7 @@ struct rm_args {
 };
 
 static struct wargp_option remove_opts[] = {
-	WARGP_TCP(struct rm_args, proto, "Remove the entry from the TCP table"),
+	WARGP_TCP(struct rm_args, proto, "Remove the entry from the TCP table (default)"),
 	WARGP_UDP(struct rm_args, proto, "Remove the entry from the UDP table"),
 	WARGP_ICMP(struct rm_args, proto, "Remove the entry from the ICMP table"),
 	{

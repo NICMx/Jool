@@ -3,6 +3,8 @@
 #include "mod/common/log.h"
 #include "mod/common/core.h"
 
+/* #pragma GCC diagnostic error "-Wframe-larger-than=1" */
+
 static verdict find_instance(struct sk_buff *skb, struct xlator *result)
 {
 	int error;

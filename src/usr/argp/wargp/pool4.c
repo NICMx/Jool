@@ -29,7 +29,7 @@ struct display_args {
 };
 
 static struct wargp_option display_opts[] = {
-	WARGP_TCP(struct display_args, proto, "Print the TCP table"),
+	WARGP_TCP(struct display_args, proto, "Print the TCP table (default)"),
 	WARGP_UDP(struct display_args, proto, "Print the UDP table"),
 	WARGP_ICMP(struct display_args, proto, "Print the ICMP table"),
 	WARGP_NO_HEADERS(struct display_args, no_headers),
@@ -222,7 +222,7 @@ static int parse_pool4_entry(void *void_field, int key, char *str)
 }
 
 struct wargp_type wt_pool4_entry = {
-	.argument = "<IPv4 prefix> [<port range>]",
+	.argument = "<IPv4 prefix> <port range>",
 	.parse = parse_pool4_entry,
 };
 
@@ -308,7 +308,7 @@ struct rm_args {
 
 static struct wargp_option remove_opts[] = {
 	WARGP_TCP(struct add_args, proto,
-			"Remove the entry from the TCP table"),
+			"Remove the entry from the TCP table (default)"),
 	WARGP_UDP(struct add_args, proto,
 			"Remove the entry from the UDP table"),
 	WARGP_ICMP(struct add_args, proto,
@@ -340,6 +340,9 @@ int handle_pool4_remove(char *iname, int argc, char **argv, void *arg)
 	struct rm_args rargs = { 0 };
 	struct jool_socket sk;
 	struct jool_result result;
+
+	/* Delete all ports by default */
+	rargs.entry.meat.range.ports.max = 65535;
 
 	result.error = wargp_parse(remove_opts, argc, argv, &rargs);
 	if (result.error)

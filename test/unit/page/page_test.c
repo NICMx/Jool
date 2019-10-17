@@ -154,6 +154,7 @@ abort:
 
 static bool basic_single_test(unsigned int head_len, unsigned int data_len)
 {
+	static struct xlation state; /* Too large for the stack */
 	const int IN_HDRS = sizeof(struct ipv6hdr) + sizeof(struct tcphdr);
 	const int OUT_HDRS = sizeof(struct iphdr) + sizeof(struct tcphdr);
 	struct sk_buff *skb_in;
@@ -167,7 +168,8 @@ static bool basic_single_test(unsigned int head_len, unsigned int data_len)
 	if (!skb_in)
 		return false;
 
-	result = core_6to4(skb_in, &jool);
+	xlation_init(&state, &jool);
+	result = core_6to4(skb_in, &state);
 	if (result != VERDICT_STOLEN)
 		kfree_skb(skb_in);
 
@@ -279,6 +281,7 @@ abort:
 
 static bool trim64_test(void)
 {
+	static struct xlation state; /* Too large for the stack */
 	struct sk_buff *skb_in;
 	verdict result;
 	unsigned int hdrs_len;
@@ -291,7 +294,8 @@ static bool trim64_test(void)
 	if (!skb_in)
 		return false;
 
-	result = core_6to4(skb_in, &jool);
+	xlation_init(&state, &jool);
+	result = core_6to4(skb_in, &state);
 	if (result != VERDICT_STOLEN)
 		kfree_skb(skb_in);
 
@@ -348,6 +352,7 @@ abort:
 
 static bool trim46_test(void)
 {
+	static struct xlation state; /* Too large for the stack */
 	struct sk_buff *skb_in;
 	verdict result;
 	unsigned int hdrs_len;
@@ -360,7 +365,8 @@ static bool trim46_test(void)
 	if (!skb_in)
 		return false;
 
-	result = core_4to6(skb_in, &jool);
+	xlation_init(&state, &jool);
+	result = core_4to6(skb_in, &state);
 	if (result != VERDICT_STOLEN)
 		kfree_skb(skb_in);
 

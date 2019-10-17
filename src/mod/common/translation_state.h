@@ -35,7 +35,12 @@ struct xlation {
 	struct xlation_result result;
 };
 
+int xlation_setup(void);
+void xlation_teardown(void);
+
 struct xlation *xlation_create(struct xlator *jool);
+void xlation_init(struct xlation *state, struct xlator *jool);
+/* xlation_cleanup() not needed. */
 void xlation_destroy(struct xlation *state);
 
 verdict untranslatable(struct xlation *state, enum jool_stat_id stat);

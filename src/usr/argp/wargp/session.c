@@ -21,7 +21,7 @@ struct display_args {
 };
 
 static struct wargp_option display_opts[] = {
-	WARGP_TCP(struct display_args, proto, "Print the TCP table"),
+	WARGP_TCP(struct display_args, proto, "Print the TCP table (default)"),
 	WARGP_UDP(struct display_args, proto, "Print the UDP table"),
 	WARGP_ICMP(struct display_args, proto, "Print the ICMP table"),
 	WARGP_NO_HEADERS(struct display_args, no_headers),

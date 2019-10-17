@@ -25,13 +25,24 @@ static int setup_common_modules(void)
 	int error;
 
 	log_debug("Initializing common modules.");
+
 	error = xlator_setup();
 	if (error)
-		return error;
+		goto xlator_fail;
+	error = xlation_setup();
+	if (error)
+		goto xlation_fail;
 	error = nlhandler_setup();
 	if (error)
-		xlator_teardown();
+		goto nlhandler_fail;
 
+	return 0;
+
+nlhandler_fail:
+	xlation_teardown();
+xlation_fail:
+	xlator_teardown();
+xlator_fail:
 	return error;
 }
 
@@ -39,6 +50,7 @@ static void teardown_common_modules(void)
 {
 	log_debug("Tearing down common modules.");
 	nlhandler_teardown();
+	xlation_teardown();
 	xlator_teardown();
 }
 

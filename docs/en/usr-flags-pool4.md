@@ -41,7 +41,7 @@ The IPv4 pool is the subset of the node's transport addresses which are reserved
 
 	<PROTOCOL> := --tcp | --udp | --icmp
 
-> ![../images/warning.svg](../images/warning.svg) **Warning**: Jool 3's `PROTOCOL` label used to be defined as `[--tcp] [--udp] [--icmp]`. The flags are mutually exclusive now, and default to `--tcp` (when applies).
+> ![../images/warning.svg](../images/warning.svg) **Warning**: Jool 3's `PROTOCOL` label used to be defined as `[--tcp] [--udp] [--icmp]`. The flags are mutually exclusive now, and the default is operation-dependent.
 
 ## Arguments
 
@@ -50,21 +50,21 @@ The IPv4 pool is the subset of the node's transport addresses which are reserved
 * `display`: The pool4 table is printed in standard output.
 * `add`: Uploads entries to the pool.  
   (Sets are created indirectly as a result.)
-* `remove`: Deletes the entries from the pool that match the given criteria.
+* `remove`: Deletes from the pool the transport addresses that match the given criteria.
 * `flush`: Removes all entries from the pool.
 
 ### Options
 
 | Flag | Default | Description |
 |------|---------|-------------|
-| `--tcp` | (depends) | Apply operation on TCP entries (that also match `<mark>`).<br />(This is the default protocol, most of the time.) |
-| `--udp` | (absent) | Apply operation on UDP entries (that also match `<mark>`). |
-| `--icmp` | (absent) | Apply operation on ICMP entries (that also match `<mark>`). |
+| `--tcp` | `--display`: (enabled)<br />`--add`: (absent),<br />`--remove`: (enabled) | Apply operation on TCP table. |
+| `--udp` | (absent) | Apply operation on UDP table. |
+| `--icmp` | (absent) | Apply operation on ICMP table. |
 | `--csv` | (absent) | Print the table in [_Comma/Character-Separated Values_ format](http://en.wikipedia.org/wiki/Comma-separated_values). This is intended to be redirected into a .csv file. |
 | `--no-headers` | (absent) | Print the table entries only; omit the headers. |
 | `--mark` | 0 | Specifies the Mark value of the entry being added, removed or updated.<br />The minimum value is zero, the maximum is 4294967295. |
 | `<IPv4-prefix>` | - | Group of addresses you are adding or removing to/from the pool. The length is optional and defaults to 32. |
-| [`<port-range>`](#port-range) | 61001-65535 | Ports from `<IPv4-prefix>` you're adding or removing to/from the pool. |
+| [`<port-range>`](#port-range) | `--add`: 61001-65535,<br />`--remove`: 0-65535 | Ports from `<IPv4-prefix>` you're adding or removing to/from the pool. |
 | [`--max-iterations`](#--max-iterations) | `auto` | Specifies the Max Iterations value of the set being modified. |
 | `--force` | (absent) | If present, add the elements to the pool even if they're too many.<br />(Will print a warning and quit otherwise.) |
 | [`--quick`](#--quick) | (absent) | Do not cascade removal to [BIB entries](bib.html). |
