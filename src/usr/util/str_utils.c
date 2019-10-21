@@ -45,9 +45,9 @@ char *configmode_to_string(enum config_mode mode)
 	return "unknown";
 }
 
-struct jool_result validate_int(const char *str)
+struct jool_result validate_uint(const char *str)
 {
-	regex_t integer_regex;
+	regex_t uint_regex;
 	int error;
 
 	if (!str) {
@@ -58,10 +58,10 @@ struct jool_result validate_int(const char *str)
 	}
 
 	/* It seems this RE implementation doesn't understand '+'. */
-	if (regcomp(&integer_regex, "^[0-9][0-9]*", 0)) {
+	if (regcomp(&uint_regex, "^[0-9][0-9]*", 0)) {
 		fprintf(stderr, "Warning: Integer regex didn't compile.\n");
 		fprintf(stderr, "(I will be unable to validate integer inputs.)\n");
-		regfree(&integer_regex);
+		regfree(&uint_regex);
 		/*
 		 * Don't punish the user over our incompetence.
 		 * If the number is valid, this will not bother the user.
@@ -71,12 +71,12 @@ struct jool_result validate_int(const char *str)
 		return result_success();
 	}
 
-	error = regexec(&integer_regex, str, 0, NULL, 0);
-	regfree(&integer_regex);
+	error = regexec(&uint_regex, str, 0, NULL, 0);
+	regfree(&uint_regex);
 	if (error) {
 		return result_from_error(
 			error,
-			"'%s' is not a number. (error code %d)",
+			"'%s' is not an unsigned integer. (error code %d)",
 			str,
 			error
 		);
@@ -93,7 +93,7 @@ static struct jool_result str_to_ull(const char *str, char **endptr,
 	unsigned long long int parsed;
 	struct jool_result result;
 
-	result = validate_int(str);
+	result = validate_uint(str);
 	if (result.error)
 		return result;
 

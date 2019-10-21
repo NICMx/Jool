@@ -1,7 +1,6 @@
 #include "mod/common/init.h"
 
 #include <linux/module.h>
-#include <linux/refcount.h>
 
 #include "mod/common/joold.h"
 #include "mod/common/log.h"

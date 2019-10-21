@@ -1,6 +1,9 @@
 #include "mod/common/db/config.h"
 
+#include <linux/bug.h>
 #include <linux/errno.h>
+#include <linux/string.h>
+
 #include "common/constants.h"
 #include "common/globals.h"
 #include "mod/common/log.h"

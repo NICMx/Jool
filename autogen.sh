@@ -2,7 +2,7 @@
 
 # Hello.
 # Run this file to generate the configure script.
-# You'll need Autoconf and Automake installed!
+# You'll need autoconf, automake and libtool installed!
 
 aclocal --install
 autoreconf --install

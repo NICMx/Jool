@@ -1,5 +1,6 @@
 #include "mod/common/log.h"
 
+#include <linux/interrupt.h>
 #include "mod/common/error_pool.h"
 #include "mod/common/wkmalloc.h"
 

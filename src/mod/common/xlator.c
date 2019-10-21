@@ -52,7 +52,7 @@ struct jool_instance {
 	u32 hash;
 
 	struct list_head list_hook;
-#if LINUX_VERSION_AT_LEAST(4, 13, 0, 9999, 0)
+#if LINUX_VERSION_AT_LEAST(4, 13, 0, 8, 0)
 	/**
 	 * This points to a 2-sized array for nf_register_net_hooks().
 	 * The 2 is currently hardcoded in code below.
@@ -116,7 +116,7 @@ static struct jool_instance *find_instance(struct net *ns, xlator_type xt,
 
 static void destroy_jool_instance(struct jool_instance *instance, bool unhook)
 {
-#if LINUX_VERSION_AT_LEAST(4, 13, 0, 9999, 0)
+#if LINUX_VERSION_AT_LEAST(4, 13, 0, 8, 0)
 	if (xlator_is_netfilter(&instance->jool)) {
 		if (unhook) {
 			nf_unregister_net_hooks(instance->jool.ns,
@@ -253,8 +253,8 @@ int xlator_setup(void)
 		return error;
 	}
 
-#if LINUX_VERSION_LOWER_THAN(4, 13, 0, 9999, 0)
-	error = nf_register_hooks(nfho, ARRAY_SIZE(nfho));
+#if LINUX_VERSION_LOWER_THAN(4, 13, 0, 8, 0)
+	error = nf_register_hooks(netfilter_hooks, ARRAY_SIZE(netfilter_hooks));
 	if (error) {
 		unregister_pernet_subsys(&joolns_ops);
 		__wkfree("xlator DB", list);
@@ -276,8 +276,8 @@ void xlator_set_defrag(void (*_defrag_enable)(struct net *ns))
  */
 void xlator_teardown(void)
 {
-#if LINUX_VERSION_LOWER_THAN(4, 13, 0, 9999, 0)
-	nf_unregister_hooks(nfho, ARRAY_SIZE(nfho));
+#if LINUX_VERSION_LOWER_THAN(4, 13, 0, 8, 0)
+	nf_unregister_hooks(netfilter_hooks, ARRAY_SIZE(netfilter_hooks));
 #endif
 	unregister_pernet_subsys(&joolns_ops);
 
@@ -457,7 +457,7 @@ static int __xlator_add(struct jool_instance *new, struct xlator *result)
 {
 	struct list_head *list;
 
-#if LINUX_VERSION_AT_LEAST(4, 13, 0, 9999, 0)
+#if LINUX_VERSION_AT_LEAST(4, 13, 0, 8, 0)
 	if (xlator_is_netfilter(&new->jool)) {
 		struct nf_hook_ops *ops;
 		int error;
@@ -540,7 +540,7 @@ int xlator_add(xlator_flags flags, char *iname, struct config_prefix6 *pool6,
 	}
 	instance->hash_set = false;
 	instance->hash = 0;
-#if LINUX_VERSION_AT_LEAST(4, 13, 0, 9999, 0)
+#if LINUX_VERSION_AT_LEAST(4, 13, 0, 8, 0)
 	instance->nf_ops = NULL;
 #endif
 
@@ -650,7 +650,7 @@ int xlator_replace(struct xlator *jool)
 	memcpy(&new->jool, jool, sizeof(*jool));
 	xlator_get(&new->jool);
 	new->hash_set = false;
-#if LINUX_VERSION_AT_LEAST(4, 13, 0, 9999, 0)
+#if LINUX_VERSION_AT_LEAST(4, 13, 0, 8, 0)
 	new->nf_ops = NULL;
 #endif
 
@@ -680,7 +680,7 @@ int xlator_replace(struct xlator *jool)
 
 	new->hash_set = old->hash_set;
 	new->hash = old->hash;
-#if LINUX_VERSION_AT_LEAST(4, 13, 0, 9999, 0)
+#if LINUX_VERSION_AT_LEAST(4, 13, 0, 8, 0)
 	new->nf_ops = old->nf_ops;
 #endif
 	/*
@@ -706,7 +706,7 @@ int xlator_replace(struct xlator *jool)
 
 	synchronize_rcu_bh();
 
-#if LINUX_VERSION_AT_LEAST(4, 13, 0, 9999, 0)
+#if LINUX_VERSION_AT_LEAST(4, 13, 0, 8, 0)
 	old->nf_ops = NULL;
 #endif
 	if (xlator_is_nat64(&old->jool)) {
