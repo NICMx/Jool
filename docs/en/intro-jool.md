@@ -116,14 +116,14 @@ As of version 4.0.6, both Netfilter Jool and iptables Jool return the packet to 
 
 - An iptables rule's `--instance` parameter does not match any existing iptables instances. (ie. user created the iptables rule but hasn't yet created the instance.)
 - The packet was translated successfully, but the translated packet cannot be routed. (Most of the time, this is because its destination address does not match any entries in the routing table.)
-- The translator is [disabled by configuration](https://jool.mx/en/usr-flags-global.html#manually-enabled).
+- The translator is [disabled by configuration](usr-flags-global.html#manually-enabled).
 
 SIIT Jool also returns the packet to the kernel when at least one of these conditions are met:
 
 - The packet is IPv4 and at least one of its addresses cannot be translated. An IPv4 address cannot be translated when
 	- it's subnet-scoped,
 	- belongs to one of the translator's interfaces,
-	- is [blacklist4ed](https://jool.mx/en/usr-flags-blacklist4.html), or
+	- is [blacklist4ed](usr-flags-blacklist4.html), or
 	- cannot be translated by any of the populated address translation strategies (EAMT, pool6 and rfc6791).
 - The packet is IPv6 and at least one of its addresses cannot be translated. An IPv6 address cannot be translated when
 	- it cannot be translated by any of the populated address translation strategies (EAMT, pool6 and rfc6791),

@@ -40,7 +40,7 @@ Its most mature version is [4.0.6]({{ site.repository-url }}/milestone/45).
 
 Development since 4.0.1 has been generally focused on [Debian packaging](https://github.com/NICMx/Jool/issues/243#issuecomment-517779741) and [systemd scripts](https://github.com/NICMx/Jool/issues/250#issuecomment-517790775). To make sure the build was sane I was planning to wait until Debian approved it before announcing a new version, but since it's been [queued for more than two months](https://ftp-master.debian.org/new.html) I guess it's time to force ourselves out of the "transitional phase."
 
-In particular, I had to revert the single `make && make install` installation hack from [#163](https://github.com/NICMx/Jool/issues/163). Kernel modules and userspace applications need to be [installed separately](https://jool.mx/en/install.html#compilation-and-installation) again. I also removed Kbuild from the documentation because it induces too many user headaches; Please use DKMS instead.
+In particular, I had to revert the single `make && make install` installation hack from [#163](https://github.com/NICMx/Jool/issues/163). Kernel modules and userspace applications need to be [installed separately](install.html#compilation-and-installation) again. I also removed Kbuild from the documentation because it induces too many user headaches; Please use DKMS instead.
 
 The following additional changes have been applied since 4.0.1:
 
