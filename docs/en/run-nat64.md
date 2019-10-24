@@ -35,7 +35,7 @@ user@A:~# service network-manager stop
 user@A:~# /sbin/ip link set eth0 up
 user@A:~# # Replace "::8" depending on which node you're on.
 user@A:~# /sbin/ip address add 2001:db8::8/96 dev eth0
-user@A:~# /sbin/ip route add default via 2001:db8::1
+user@A:~# /sbin/ip route add 64:ff9b::/96 via 2001:db8::1
 {% endhighlight %}
 
 Nodes _V_ through _Z_:
@@ -99,7 +99,7 @@ user@T:~# jool instance add "example" --netfilter --pool6 64:ff9b::/96
  
 {% endhighlight %}
 
-The iptables configuration, on the other hand, needs to use the `JOOL` target and match more specific transport addresses in the IPv4 side. Ports 61001-65535 of _T_'s owned IPv4 addresses are Jool's default reserved mask range. More information can be found in [pool4](pool4.html).
+The iptables configuration, on the other hand, needs to use the `JOOL` target.
 
 ## Testing
 
@@ -152,6 +152,6 @@ user@T:~# /sbin/modprobe -r jool
 ## Afterwords
 
 1. More complex setups might require you to consider the [MTU notes](mtu.html).
-3. Please note that none of what was done in this tutorial survives reboots! Documentation on persistence will be released in the future.
+3. Please note that none of what was done in this tutorial survives reboots! [Here](run-persistent.html)'s documentation on persistence.
 
 The [next tutorial](dns64.html) explains DNS64.

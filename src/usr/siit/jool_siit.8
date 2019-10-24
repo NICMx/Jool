@@ -1,7 +1,7 @@
 .\" Manpage for jool's userspace app.
 .\" Report bugs to jool@nic.mx.
 
-.TH jool_siit 8 2019-08-20 v4.0.5 "SIIT Jool's Userspace Client"
+.TH jool_siit 8 2019-10-24 v4.0.6 "SIIT Jool's Userspace Client"
 
 .SH NAME
 jool_siit - Interact with SIIT Jool (the kernel module).
@@ -99,6 +99,12 @@ Kernels 3.13.0 and up.
 .br
 )
 .P
+.RI "jool_siit [" <argp1> "] address ("
+.br
+.RI "	query [--verbose] " "<IP-Address>"
+.br
+)
+.P
 .RI "jool_siit [" <argp1> "] blacklist4 ("
 .br
 	display
@@ -160,6 +166,8 @@ Upload an entry to the EAM table.
 Drop an entry from the EAM table.
 .IP "eamt flush"
 Empty the EAM table.
+.IP "address query"
+Print the translated version of the given address using the current configuration.
 .IP "blacklist4 display"
 Show the blacklist.
 .IP "blacklist4 add"
@@ -201,6 +209,8 @@ Show all the counters.
 (Otherwise, only the nonzero ones are printed.)
 .IP --explain
 Show a description of each counter.
+.IP --verbose
+Print some details regarding the translation operation.
 .IP --force
 Apply operation even if certain validations fail.
 

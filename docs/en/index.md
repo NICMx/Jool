@@ -22,7 +22,7 @@ Jool is an Open Source [SIIT and NAT64](intro-xlat.html) for Linux.
 
 As far as we know, Jool is a [compliant](intro-jool.html#compliance) SIIT and Stateful NAT64.
 
-Its most mature version is [4.0.1]({{ site.repository-url }}/milestone/43).
+Its most mature version is [4.0.6]({{ site.repository-url }}/milestone/45).
 
 -------------------
 
@@ -33,6 +33,23 @@ Its most mature version is [4.0.1]({{ site.repository-url }}/milestone/43).
 -------------------
 
 ## News
+
+### 2019-10-24
+
+[Jool 4.0.6](download.html) has been released.
+
+Development since 4.0.1 has been generally focused on [Debian packaging](https://github.com/NICMx/Jool/issues/243#issuecomment-517779741) and [systemd scripts](https://github.com/NICMx/Jool/issues/250#issuecomment-517790775). To make sure the build was sane I was planning to wait until Debian approved it before announcing a new version, but since it's been [queued for more than two months](https://ftp-master.debian.org/new.html) I guess it's time to force ourselves out of the "transitional phase."
+
+In particular, I had to revert the single `make && make install` installation hack from [#163](https://github.com/NICMx/Jool/issues/163). Kernel modules and userspace applications need to be [installed separately](https://jool.mx/en/install.html#compilation-and-installation) again. I also removed Kbuild from the documentation because it induces too many user headaches; Please use DKMS instead.
+
+The following additional changes have been applied since 4.0.1:
+
+1. Add support for kernels 5.1, 5.2, 5.3, 5.4, RHEL7.7 and RHEL8.0.
+2. `.deb` packages are now available in [Downloads](download.html). (See [Debian](debian.html).)
+3. [#287](https://github.com/NICMx/Jool/issues/287): [`address query`](usr-flags-address.html)
+4. [#297](https://github.com/NICMx/Jool/issues/297#issuecomment-540080336): Mirror Netfilter packet return mechanism on iptables mode. (By the way: This means that you're no longer required to include matches in iptables rules. See the [tutorials](run-vanilla.html#jool).)
+
+The OpenWRT version has also been [updated](https://github.com/openwrt/packages/issues/9349).
 
 ### 2019-04-26
 

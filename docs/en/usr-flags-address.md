@@ -22,8 +22,6 @@ title: address Mode
 
 Sends address translation queries to the module. Meant for educative and configuration testing purposes.
 
-> Note! This feature has not yet been officially released. For now, you can find it in the master branch. It is bound to come out in Jool 4.0.5.
-
 Only SIIT Jool implements this feature for now.
 
 ## Syntax

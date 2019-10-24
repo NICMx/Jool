@@ -38,8 +38,6 @@ Jool requires _T_ to be Linux. The rest can be anything you want, as long as it 
 
 For the sake of simplicity however, the examples below assume every node is Linux and everything is being configured statically using the well-known `ip` command (and friends). Depending on your distro, your mileage might vary on how to get the network manager out of the way (assuming that's what you want). Just to clarify, the point of `service network-manager stop` below is to claim control over your interface addresses and routes (otherwise the `ip` commands might be ineffectual).
 
-Also to simplify, routing will be reduced to default all unknown traffic towards _T_. Note that there is nothing martian about anyone's configuration otherwise.
-
 This is nodes _A_ through _E_:
 
 {% highlight bash %}
@@ -47,7 +45,7 @@ user@A:~# service network-manager stop
 user@A:~# /sbin/ip link set eth0 up
 user@A:~# # Replace ".8" depending on which node you're on.
 user@A:~# /sbin/ip addr add 2001:db8::198.51.100.8/120 dev eth0
-user@A:~# /sbin/ip route add default via 2001:db8::198.51.100.1
+user@A:~# /sbin/ip route add 2001:db8::192.0.2.0/120 via 2001:db8::198.51.100.1
 {% endhighlight %}
 
 Nodes _V_ through _Z_:
@@ -57,7 +55,7 @@ user@V:~# service network-manager stop
 user@V:~# /sbin/ip link set eth0 up
 user@V:~# # Replace ".16" depending on which node you're on.
 user@V:~# /sbin/ip addr add 192.0.2.16/24 dev eth0
-user@V:~# /sbin/ip route add default via 192.0.2.1
+user@V:~# /sbin/ip route add 198.51.100.0/24 via 192.0.2.1
 {% endhighlight %}
 
 Node _T_:
@@ -224,7 +222,7 @@ user@T:~# rmmod jool_siit
 ## Afterwords
 
 1. More complex setups might require you to consider the [MTU notes](mtu.html).
-3. Please note that none of what was done in this tutorial survives reboots! Documentation on persistence will be released in the future.
+3. Please note that none of what was done in this tutorial survives reboots! [Here](run-persistent.html)'s documentation on persistence.
 
 The [next tutorial](run-eam.html) covers [EAMT SIIT](intro-xlat.html#siit-with-eam).
 

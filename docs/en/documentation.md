@@ -20,11 +20,10 @@ See [RFC 6586](https://tools.ietf.org/html/rfc6586) for deployment experiences u
 
 ## Installation
 
-1. [Installation on OpenWRT](openwrt.html)
-2. [Installation on openSUSE](opensuse.html)
-2. [Installation on most other distros](install.html)
-
-<!-- 2. [Installation on Debian and derivatives](debian.html) -->
+1. [Installation in OpenWRT](openwrt.html)
+2. [Installation in openSUSE](opensuse.html)
+3. [Installation in Debian and its derivatives](debian.html)
+4. [Installation in most other distros](install.html) (Installing from source)
 
 ## Basic Tutorials
 
@@ -32,6 +31,7 @@ See [RFC 6586](https://tools.ietf.org/html/rfc6586) for deployment experiences u
 2. [SIIT + EAM](run-eam.html)
 3. [Stateful NAT64](run-nat64.html)
 4. [DNS64](dns64.html)
+5. [Persistence](run-persistent.html)
 
 ## IP/ICMP Translation in Detail
 

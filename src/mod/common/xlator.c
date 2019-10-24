@@ -163,6 +163,8 @@ static void __flush_detach(struct net *ns, xlator_type xt,
 		if (instance->jool.ns == ns && (instance->jool.flags & xt)) {
 			hash_del_rcu(&instance->table_hook);
 			hlist_add_head(&instance->table_hook, detached);
+			if (instance->jool.flags & XF_NETFILTER)
+				list_del_rcu(&instance->list_hook);
 		}
 	}
 }

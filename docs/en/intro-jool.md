@@ -15,6 +15,9 @@ title: Introduction to Jool
 2. [Compliance](#compliance)
 3. [Compatibility](#compatibility)
 4. [Design](#design)
+	1. [Netfilter](#netfilter)
+	2. [iptables](#iptables)
+5. [Untranslatable packets](#untranslatable-packets)
 
 ## Overview
 
@@ -46,7 +49,7 @@ Please [let us know]({{ site.repository-url }}/issues) if you find additional co
 | Jool version                        | Supported Linux kernels (mainline)   | Supported Linux kernels (RHEL) |
 |-------------------------------------|--------------------------------------|--------------------------------|
 | [master]({{ site.repository-url }}) | 3.13 - 3.19,<br />4.0 - 4.20,<br />5.0 - 5.4 | RHEL 7.0 - RHEL 7.7,<br />RHEL 8.0 |
-| [4.0.5](download.html#40x)          | 3.13 - 3.19,<br />4.0 - 4.20,<br />5.0 - 5.3 | RHEL 7.0 - RHEL 7.6            |
+| [4.0.6](download.html#40x)          | 3.13 - 3.19,<br />4.0 - 4.20,<br />5.0 - 5.4 | RHEL 7.0 - RHEL 7.7,<br />RHEL 8.0 |
 | [4.0.1](download.html#40x)          | 3.13 - 3.19,<br />4.0 - 4.20,<br />5.0 | RHEL 7.0 - RHEL 7.5            |
 | [3.5.8](download.html#35x)          | 3.2 - 3.19,<br />4.0 - 4.18           | RHEL 7.0 - RHEL 7.4            |
 
@@ -69,7 +72,7 @@ Netfilter Jool instances are simple to configure. However, they are also _greedy
 
 There can only be **one** Netfilter SIIT Jool instance and **one** Netfilter NAT64 instance per network namespace.
 
-Netfilter Jool instances start packet translation as soon as they are created. They drop packets deemed corrupted, translate packets which _can_ be translated (according to their configuration) and return everything else to the kernel.
+Netfilter Jool instances start packet translation as soon as they are created. They drop packets deemed corrupted, translate packets which _can_ be translated (according to their configuration) and return [everything else](#untranslatable-packets) to the kernel.
 
 Netfilter plugins are not allowed to change the network protocol of their packets. Additionally, the kernel API does not export a means to post packets in the `FORWARD` chain. For these reasons, successfully translated packets skip `FORWARD`, going straight to `POSTROUTING`:
 
@@ -101,8 +104,36 @@ adds a _rule_ to iptables's _mangle_ table, which "Jools" all packets headed tow
 
 There can be any number of iptables Jool instances in any namespace, and any number of iptables rules can reference them.
 
-iptables Jool instances sit idle until some iptables rule sends packets to them. (Of course, only packets that [match the rule's conditions](https://www.netfilter.org/documentation/HOWTO/packet-filtering-HOWTO-7.html#ss7.3) are sent.) As of version 4.0.6, iptables instances function the same as Netfilter instances: They drop packets deemed corrupted, translate packets which _can_ be translated (according to their configuration) and return everything else to the kernel. (In this context, "return to the kernel" means that the packet will go back to the iptables chain, right after the Jool rule that matched it.)
+iptables Jool instances sit idle until some iptables rule sends packets to them. (Of course, only packets that [match the rule's conditions](https://www.netfilter.org/documentation/HOWTO/packet-filtering-HOWTO-7.html#ss7.3) are sent.) As of version 4.0.6, iptables instances function the same as Netfilter instances: They drop packets deemed corrupted, translate packets which _can_ be translated (according to their configuration) and return [everything else](#untranslatable-packets) to the kernel. (In this context, "return to the kernel" means that the packet will go back to the iptables chain, right after the Jool rule that matched it.)
 
 iptables Jool has a quirk similar to Netfilter Jool that you should be aware of: iptables rules are also not allowed to change the network protocol of their packets, so iptables Jool rules also send their matched and successfully translated packets straight to `POSTROUTING`. Packets which do not match the rule continue through the chain normally.
 
 iptables Jool first became available in Jool 4.0.0.
+
+## Untranslatable packets
+
+As of version 4.0.6, both Netfilter Jool and iptables Jool return the packet to the kernel if any of these conditions are met:
+
+- An iptables rule's `--instance` parameter does not match any existing iptables instances. (ie. user created the iptables rule but hasn't yet created the instance.)
+- The packet was translated successfully, but the translated packet cannot be routed. (Most of the time, this is because its destination address does not match any entries in the routing table.)
+- The translator is [disabled by configuration](https://jool.mx/en/usr-flags-global.html#manually-enabled).
+
+SIIT Jool also returns the packet to the kernel when at least one of these conditions are met:
+
+- The packet is IPv4 and at least one of its addresses cannot be translated. An IPv4 address cannot be translated when
+	- it's subnet-scoped,
+	- belongs to one of the translator's interfaces,
+	- is [blacklist4ed](https://jool.mx/en/usr-flags-blacklist4.html), or
+	- cannot be translated by any of the populated address translation strategies (EAMT, pool6 and rfc6791).
+- The packet is IPv6 and at least one of its addresses cannot be translated. An IPv6 address cannot be translated when
+	- it cannot be translated by any of the populated address translation strategies (EAMT, pool6 and rfc6791),
+	- its IPv4 counterpart is blacklist4ed,
+	- its IPv4 counterpart is subnet-scoped, or
+	- its IPv4 counterpart belongs to a local interface.
+
+Stateful NAT64 Jool also returns the packet to the kernel when at least one of these conditions are met:
+
+- The packet's transport protocol is unsupported. (NAT64 Jool only supports TCP, UDP and ICMP as of now.)
+- The packet is IPv6 and its destination address does not match pool6. (ie. packet is not meant to be translated.)
+- The packet is IPv4 and its destination transport address (address + port) does not match any BIB entries. (ie. packet lacks IPv6 destination.)
+- Untranslatable/unknown ICMPv4 and ICMPv6 types.

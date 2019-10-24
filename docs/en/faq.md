@@ -12,7 +12,7 @@ title: FAQ
 ## Index
 
 1. [Why is Jool not doing anything?](#why-is-jool-not-doing-anything)
-2. [Why in my ping not working?](#why-in-my-ping-not-working)
+2. [Why is my ping not working?](#why-is-my-ping-not-working)
 3. [Jool is intermitently unable to translate traffic.](#jool-is-intermitently-unable-to-translate-traffic)
 4. [The throughput is terrible!](#the-throughput-is-terrible)
 
@@ -49,7 +49,7 @@ Given the output above, for example, I'd try looking into the routing table.
 
 If `stats` proves insufficient, you can [enable debug logging](logging.html).
 
-## Why in my ping not working?
+## Why is my ping not working?
 
 Probably because you started the ping on the same machine (or rather, network namespace) your translator instance is attached to.
 
