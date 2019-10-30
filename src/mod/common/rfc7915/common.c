@@ -32,18 +32,15 @@ static struct translation_steps steps[][L4_PROTO_COUNT] = {
 			.skb_alloc_fn = ttp64_alloc_skb,
 			.l3_hdr_fn = ttp64_ipv4,
 			.l4_hdr_fn = ttp64_tcp,
-		},
-		{
+		}, {
 			.skb_alloc_fn = ttp64_alloc_skb,
 			.l3_hdr_fn = ttp64_ipv4,
 			.l4_hdr_fn = ttp64_udp,
-		},
-		{
+		}, {
 			.skb_alloc_fn = ttp64_alloc_skb,
 			.l3_hdr_fn = ttp64_ipv4,
 			.l4_hdr_fn = ttp64_icmp,
-		},
-		{
+		}, {
 			.skb_alloc_fn = ttp64_alloc_skb,
 			.l3_hdr_fn = ttp64_ipv4,
 			.l4_hdr_fn = handle_unknown_l4,
@@ -54,18 +51,15 @@ static struct translation_steps steps[][L4_PROTO_COUNT] = {
 			.skb_alloc_fn = ttp46_alloc_skb,
 			.l3_hdr_fn = ttp46_ipv6,
 			.l4_hdr_fn = ttp46_tcp,
-		},
-		{
+		}, {
 			.skb_alloc_fn = ttp46_alloc_skb,
 			.l3_hdr_fn = ttp46_ipv6,
 			.l4_hdr_fn = ttp46_udp,
-		},
-		{
+		}, {
 			.skb_alloc_fn = ttp46_alloc_skb,
 			.l3_hdr_fn = ttp46_ipv6,
 			.l4_hdr_fn = ttp46_icmp,
-		},
-		{
+		}, {
 			.skb_alloc_fn = ttp46_alloc_skb,
 			.l3_hdr_fn = ttp46_ipv6,
 			.l4_hdr_fn = handle_unknown_l4,
@@ -73,6 +67,30 @@ static struct translation_steps steps[][L4_PROTO_COUNT] = {
 	}
 };
 
+/**
+ * RFC 7915:
+ * "When the IPv4 sender does not set the DF bit, the translator MUST NOT
+ * include the Fragment Header for the non-fragmented IPv6 packets."
+ *
+ * Very strange wording. I believe that DF enabled also implies no fragmentation
+ * (as everyone seems to assume no one generates DF-enabled fragments), which,
+ * stacked with the general direction of the atomic fragments deprecation
+ * effort, I think what it actually means is
+ *
+ * The translator MUST NOT include the Fragment Header for non-fragmented IPv6
+ * packets. (Obviously, if the packet is fragmented, the fragment header MUST
+ * be included.)
+ *
+ * (i.e. The translator must include the Fragment header if, and only if, the
+ * packet is fragmented.)
+ *
+ * The following quote also supports this logic:
+ * "If there is a need to add a Fragment Header (the packet is a fragment
+ * or the DF bit is not set and the packet size is greater than the
+ * minimum IPv6 MTU (...)),"
+ *
+ * So that's why I implemented it this way.
+ */
 bool will_need_frag_hdr(const struct iphdr *hdr)
 {
 	return is_mf_set_ipv4(hdr) || get_fragment_offset_ipv4(hdr);

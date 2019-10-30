@@ -28,14 +28,15 @@ verdict ttp46_alloc_skb(struct xlation *state)
 	 *
 	 * The IPv4 header will be replaced by a IPv6 header and possibly a
 	 * fragment header.
-	 *    (we will reserve room for this fragment header just in case the
-	 *    kernel wants to do something with it later.)
+	 *    (we will reserve room for this fragment header even if we don't
+	 *    use it, just in case the kernel wants to do something with it
+	 *    later.)
 	 * The L4 header will never change in size
 	 *    (in particular, ICMPv4 hdr len == ICMPv6 hdr len).
 	 * The payload will not change in TCP, UDP and ICMP infos.
 	 *
 	 * As for ICMP errors:
-	 * The IPv4 header will be replaced by a IPv6 header and possibly a
+	 * The IPv4 header will be replaced by an IPv6 header and possibly a
 	 * fragment header.
 	 * The sub-L4 header will never change in size.
 	 * The subpayload will never change in size (by us).
@@ -134,6 +135,11 @@ verdict ttp46_alloc_skb(struct xlation *state)
 	return VERDICT_CONTINUE;
 }
 
+/*
+ * Yes, this is very different from the RFC's "Total length value from the IPv4
+ * header, minus the size of the IPv4 header and IPv4 options, if present."
+ * This is because we need to account for lots of quirks (mostly from Linux).
+ */
 static __be16 build_payload_len(struct packet *in, struct packet *out)
 {
 	/* See build_tot_len() for relevant comments. */
@@ -208,15 +214,17 @@ static verdict translate_addrs46_siit(struct xlation *state)
 	struct iphdr *hdr4 = pkt_ip4_hdr(in);
 	struct ipv6hdr *hdr6 = pkt_ip6_hdr(&state->out);
 	bool hairpin;
+	bool enable_blacklist;
 	struct result_addrxlat46 out;
 	struct addrxlat_result result;
 
 	hairpin = (state->jool.globals.siit.eam_hairpin_mode == EHM_SIMPLE)
 			|| pkt_is_intrinsic_hairpin(in);
+	enable_blacklist = !pkt_is_icmp4_error(in);
 
 	/* Src address. */
-	result = addrxlat_siit46(&state->jool, !disable_src_eam(in, hairpin),
-			hdr4->saddr, &out);
+	result = addrxlat_siit46(&state->jool, hdr4->saddr, &out,
+			!disable_src_eam(in, hairpin), enable_blacklist);
 	if (result.reason)
 		log_debug("%s.", result.reason);
 
@@ -239,8 +247,8 @@ static verdict translate_addrs46_siit(struct xlation *state)
 	hdr6->saddr = out.addr;
 
 	/* Dst address. */
-	result = addrxlat_siit46(&state->jool, !disable_dst_eam(in, hairpin),
-			hdr4->daddr, &out);
+	result = addrxlat_siit46(&state->jool, hdr4->daddr, &out,
+			!disable_dst_eam(in, hairpin), enable_blacklist);
 	if (result.reason)
 		log_debug("%s.", result.reason);
 
@@ -362,12 +370,6 @@ verdict ttp46_ipv6(struct xlation *state)
 	} else {
 		hdr6->hop_limit = hdr4->ttl;
 	}
-
-	/* Isn't this supposed to be covered by filtering...? */
-	/*
-	if (!is_address_legal(&ip6_hdr->saddr))
-		return -EINVAL;
-	*/
 
 	if (pkt_is_outer(in) && has_unexpired_src_route(hdr4)) {
 		log_debug("Packet has an unexpired source route.");
@@ -534,6 +536,15 @@ static verdict icmp4_to_icmp6_dest_unreach(struct xlation *state)
  */
 static verdict icmp4_to_icmp6_param_prob(struct xlation *state)
 {
+#define DROP 255
+	static const __u8 ptrs[] = {
+		0,    1,    4,    4,
+		DROP, DROP, DROP, DROP,
+		7,    6,    DROP, DROP,
+		8,    8,    8,    8,
+		24,   24,   24,   24
+	};
+
 	struct icmphdr *icmp4_hdr = pkt_icmp4_hdr(&state->in);
 	struct icmp6hdr *icmp6_hdr = pkt_icmp6_hdr(&state->out);
 	__u8 ptr;
@@ -543,15 +554,6 @@ static verdict icmp4_to_icmp6_param_prob(struct xlation *state)
 	switch (icmp4_hdr->code) {
 	case ICMP_PTR_INDICATES_ERROR:
 	case ICMP_BAD_LENGTH: {
-		const __u8 DROP = 255;
-		__u8 ptrs[] = {
-				0,    1,    4,    4,
-				DROP, DROP, DROP, DROP,
-				7,    6,    DROP, DROP,
-				8,    8,    8,    8,
-				24,   24,   24,   24
-		};
-
 		ptr = be32_to_cpu(icmp4_hdr->icmp4_unused) >> 24;
 
 		if (ptr < 0 || 19 < ptr || ptrs[ptr] == DROP) {
@@ -782,6 +784,11 @@ static bool can_compute_csum(struct xlation *state)
 	 * field is zero, the translator SHOULD drop the packet and generate
 	 * a system management event that specifies at least the IP
 	 * addresses and port numbers in the packet.
+	 *
+	 * The "system management event" is outside. (See
+	 * JSTAT46_FRAGMENTED_ZERO_CSUM.)
+	 * It does not include the addresses/ports, which is OK because users
+	 * don't like it: https://github.com/NICMx/Jool/pull/129
 	 */
 	hdr4 = pkt_ip4_hdr(&state->in);
 	amend_csum0 = state->jool.globals.siit.compute_udp_csum_zero;

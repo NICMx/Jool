@@ -5,6 +5,18 @@
 #include "mod/common/db/blacklist4.h"
 #include "mod/common/db/eam.h"
 
+static bool is_illegal_source(struct in6_addr *src)
+{
+	/*
+	 * The RFC does not define "illegal source address"...
+	 * TODO think about this.
+	 */
+	return (src->s6_addr32[0] == 0)
+			&& (src->s6_addr32[1] == 0)
+			&& (src->s6_addr32[2] == 0)
+			&& (be32_to_cpu(src->s6_addr32[3]) == 1);
+}
+
 static bool must_not_translate(struct in_addr *addr, struct net *ns)
 {
 	return addr4_is_scope_subnet(addr->s_addr)
@@ -24,6 +36,12 @@ struct addrxlat_result addrxlat_siit64(struct xlator *instance,
 {
 	struct addrxlat_result result;
 	int error;
+
+	if (is_illegal_source(in)) {
+		result.verdict = ADDRXLAT_DROP;
+		result.reason = "IPv6 source address (::1) is illegal (according to RFC 7915)";
+		return result;
+	}
 
 	error = eamt_xlat_6to4(instance->siit.eamt, in, out);
 	if (!error)
@@ -57,16 +75,19 @@ success:
 }
 
 struct addrxlat_result addrxlat_siit46(struct xlator *instance,
-		bool enable_eam, __be32 in, struct result_addrxlat46 *out)
+		__be32 in, struct result_addrxlat46 *out,
+		bool enable_eam, bool enable_blacklists)
 {
 	struct in_addr tmp = { .s_addr = in };
 	struct addrxlat_result result;
 	int error;
 
-	if (must_not_translate(&tmp, instance->ns)) {
-		result.verdict = ADDRXLAT_ACCEPT;
-		result.reason = "The address is subnet-scoped or belongs to a local interface";
-		return result;
+	if (enable_blacklists) {
+		if (must_not_translate(&tmp, instance->ns)) {
+			result.verdict = ADDRXLAT_ACCEPT;
+			result.reason = "The address is subnet-scoped or belongs to a local interface";
+			return result;
+		}
 	}
 
 	if (enable_eam) {
@@ -77,10 +98,12 @@ struct addrxlat_result addrxlat_siit46(struct xlator *instance,
 			return programming_error();
 	}
 
-	if (blacklist4_contains(instance->siit.blacklist4, &tmp)) {
-		result.verdict = ADDRXLAT_ACCEPT;
-		result.reason = "The address lacks EAMT entry and is blacklist4ed";
-		return result;
+	if (enable_blacklists) {
+		if (blacklist4_contains(instance->siit.blacklist4, &tmp)) {
+			result.verdict = ADDRXLAT_ACCEPT;
+			result.reason = "The address lacks EAMT entry and is blacklist4ed";
+			return result;
+		}
 	}
 
 	if (!instance->globals.pool6.set) {

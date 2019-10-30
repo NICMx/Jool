@@ -35,6 +35,7 @@ struct addrxlat_result {
 struct addrxlat_result addrxlat_siit64(struct xlator *instance,
 		struct in6_addr *in, struct result_addrxlat64 *out);
 struct addrxlat_result addrxlat_siit46(struct xlator *instance,
-		bool enable_eam, __be32 in, struct result_addrxlat46 *out);
+		__be32 in, struct result_addrxlat46 *out,
+		bool enable_eam, bool enable_blacklists);
 
 #endif /* SRC_MOD_COMMON_ADDRESS_XLAT_H_ */

@@ -63,6 +63,7 @@ static struct jstat_metadata const jstat_metadatas[] = {
 	DEFINE_STAT(JSTAT64_UNTRANSLATABLE_PARAM_PROB, TC "Packet was an ICMPv6 Parameter Problem error message, and its code has no ICMPv4 counterpart."),
 	DEFINE_STAT(JSTAT64_UNTRANSLATABLE_PARAM_PROB_PTR, TC "Packet was an ICMv6 Parameter Problem error message, but its pointer was untranslatable."),
 	DEFINE_STAT(JSTAT64_TTL, TC "IPv6 packet's Hop Limit field was 0 or 1."),
+	DEFINE_STAT(JSTAT64_FRAG_THEN_EXT, TC "IPv6 packet has a Hop-by-Hop, Destination or Routing header after the Fragment header."),
 	DEFINE_STAT(JSTAT64_SEGMENTS_LEFT, TC "IPv6 packet had a Segments Left field, and it was nonzero."),
 	DEFINE_STAT(JSTAT46_SRC, TC "IPv4 packet's source address was blacklist4ed, or did not match pool6 nor any EAMT entries."),
 	DEFINE_STAT(JSTAT46_DST, TC "IPv4 packet's destination address was blacklist4ed, or did not match pool6 nor any EAMT entries."),
@@ -73,7 +74,8 @@ static struct jstat_metadata const jstat_metadatas[] = {
 	DEFINE_STAT(JSTAT46_UNTRANSLATABLE_PARAM_PROBLEM_PTR, TC "Packet was an ICMv4 Parameter Problem error message, but its pointer was untranslatable."),
 	DEFINE_STAT(JSTAT46_TTL, TC "IPv4 packet's TTL field was 0 or 1."),
 	DEFINE_STAT(JSTAT46_SRC_ROUTE, TC "Packet had an unexpired Source Route. (Untranslatable.)"),
-	DEFINE_STAT(JSTAT46_FRAGMENTED_ZERO_CSUM, TC "IPv4 packet was UDP, fragmented and had zero for a checksum. This checksum cannot be computed by a stateless translator."),
+	DEFINE_STAT(JSTAT46_FRAGMENTED_ZERO_CSUM, TC "IPv4 packet's UDP checksum was zero. Jool dropped the packet because --amend-udp-checksum-zero was disabled, and/or the packet was fragmented.\n"
+			"(In IPv4, the UDP checksum is optional, but in IPv6 it is not. Because stateless translators do not collect fragments, they cannot compute packet-wide checksums from scratch. Zero-checksum UDP fragments are thus untranslatable.)"),
 	DEFINE_STAT(JSTAT_FAILED_ROUTES, TC "The translated packet could not be routed; the kernel's routing function errored. Cause is unknown. (It usually happens because the packet's destination address could not be found in the routing table.)"),
 	DEFINE_STAT(JSTAT_PKT_TOO_BIG, TC "Translated IPv4 packet did not fit in the outgoing interface's MTU. A Packet Too Big or Fragmentation Needed ICMP error was returned to the client."),
 	DEFINE_STAT(JSTAT_DST_OUTPUT, TC "Translation was successful but the kernel's packet dispatch function (dst_output()) returned nonzero."),
