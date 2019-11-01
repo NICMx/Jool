@@ -34,6 +34,7 @@ ltmain.sh
 
 # Documentation
 docs/_site/
+test/graybox/test-suite/rfc/_site/
 
 # git #
 #######

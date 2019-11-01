@@ -7,8 +7,8 @@
 
 # The .c files are header-source hybrids.
 # They are implementation code that needs to be identical in user and kernel.
-# Each one of them should be included no more than once per kernel module,
-# and no more than once in all of userspace.
+# Each one of them should be included no more than once in kernelspace, and no
+# more than once in userspace.
 
 noinst_HEADERS = \
 	config.c config.h \
