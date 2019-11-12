@@ -293,13 +293,19 @@ code {
 	padding-right: 0.3em;
 }
 
-.language-bash > .c {
+.language-bash .c { /* Comments */
 	color: green;
 }
-.language-bash > .nt {
+.language-bash .nt { /* Flags */
 	color: purple;
 }
-.language-bash > .s2 {
+.language-bash .nb { /* Common commands (such as "cd") */
+	color: brown;
+}
+.language-bash .s2 { /* String */
+	color: blue;
+}
+.language-bash .k { /* Parenthesis */
 	color: blue;
 }
 
