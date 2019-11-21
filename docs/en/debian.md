@@ -22,7 +22,7 @@ Here's a comparison between the three:
 | Automatic updates (through Debian) | yes | no | no |
 | Latest version always available | no `*` | yes | yes |
 
-The Debian Release belongs to the [`unstable` Debian release branch](https://wiki.debian.org/DebianUnstable). For the time being, Jool is stuck in there due to being a recent addition to Debian. Please note that adding `unstable` to your sources puts your entire system in bleeding edge territory; If this is an issue for you, consider apt pinning or the other options.
+At time of writing (2019-11-21), the Debian Release is present in the [`unstable`](https://wiki.debian.org/DebianUnstable) and [`testing`](https://wiki.debian.org/DebianTesting) Debian release branches. For the time being, Jool is stuck there due to being a recent addition to Debian. Please note that adding these branches to your sources puts your entire system in bleeding edge territory; If this is an issue for you, consider apt pinning or the other options.
 
 `*` After an official Jool release, its corresponding latest Debian Release might take up to a few days to be approved and served by Debian.
 
@@ -76,10 +76,9 @@ Then choose whether you want the Debian Release or the Standalone Package:
 
 ### Debian Release
 
-Add `unstable` to your sources list then install like any other formal Debian package:
+Follow [these steps](https://wiki.debian.org/DebianUnstable#Installation) to switch to `unstable`, or [these steps](https://wiki.debian.org/DebianTesting#How_to_use_Debian_.28next-stable.29_Testing) to switch to `testing`, then install like any other formal Debian package:
 
 ```bash
-user@T:~# nano /etc/apt/sources.list # Add "deb <URL> unstable main"
 user@T:~# apt update
 user@T:~# apt install jool-dkms jool-tools
 ```
