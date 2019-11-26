@@ -75,8 +75,8 @@ Because we haven't turned _T_ into a translator yet, nodes _A_ through _E_ still
 Also, enable forwarding on _T_.
 
 {% highlight bash %}
-user@T:~# sysctl -w net.ipv4.conf.all.forwarding=1
-user@T:~# sysctl -w net.ipv6.conf.all.forwarding=1
+user@T:~# /sbin/sysctl -w net.ipv4.conf.all.forwarding=1
+user@T:~# /sbin/sysctl -w net.ipv6.conf.all.forwarding=1
 {% endhighlight %}
 
 ## Jool
@@ -114,8 +114,8 @@ user@T:~# jool_siit instance add "example" --iptables  --pool6 2001:db8::/96
 user@T:~# 
 user@T:~# # Create iptables rules that will send traffic to our instance somewhere
 user@T:~# # in the mangle chain.
-user@T:~# ip6tables -t mangle -A PREROUTING -j JOOL_SIIT --instance "example"
-user@T:~# iptables  -t mangle -A PREROUTING -j JOOL_SIIT --instance "example"
+user@T:~# /sbin/ip6tables -t mangle -A PREROUTING -j JOOL_SIIT --instance "example"
+user@T:~# /sbin/iptables  -t mangle -A PREROUTING -j JOOL_SIIT --instance "example"
 {% endhighlight %}
 
 <!-- Netfilter Jool -->
@@ -190,8 +190,8 @@ Destroy your instance by reverting the `instance add`:
 
 <!-- iptables Jool -->
 {% highlight bash %}
-user@T:~# ip6tables -t mangle -D PREROUTING -j JOOL_SIIT --instance "example"
-user@T:~# iptables  -t mangle -D PREROUTING -j JOOL_SIIT --instance "example"
+user@T:~# /sbin/ip6tables -t mangle -D PREROUTING -j JOOL_SIIT --instance "example"
+user@T:~# /sbin/iptables  -t mangle -D PREROUTING -j JOOL_SIIT --instance "example"
 user@T:~# jool_siit instance remove "example"
 {% endhighlight %}
 
