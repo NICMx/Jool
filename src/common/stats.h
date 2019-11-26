@@ -12,6 +12,8 @@
  * jstat_metadatas.
  */
 enum jool_stat_id {
+	JSTAT_RECEIVED6,
+	JSTAT_RECEIVED4,
 	JSTAT_SUCCESS,
 
 	JSTAT_BIB_ENTRIES,

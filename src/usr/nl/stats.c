@@ -14,6 +14,8 @@
 #define TC "Translations cancelled: "
 
 static struct jstat_metadata const jstat_metadatas[] = {
+	DEFINE_STAT(JSTAT_RECEIVED6, ""),
+	DEFINE_STAT(JSTAT_RECEIVED4, ""),
 	DEFINE_STAT(JSTAT_SUCCESS, "Successful translations. (Note: 'Successful translation' does not imply that the packet was actually delivered.)"),
 	DEFINE_STAT(JSTAT_BIB_ENTRIES, "Number of BIB entries currently held in the BIB."),
 	DEFINE_STAT(JSTAT_SESSIONS, "Number of session entries currently held in the BIB."),

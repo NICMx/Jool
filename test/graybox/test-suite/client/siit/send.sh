@@ -149,6 +149,77 @@ if [[ -z $1 || $1 = *misc* ]]; then
 	#test-single frag-minmtu6-big frag-minmtu6-big0 frag-minmtu6-big1
 fi
 
+function test() {
+	$GRAYBOX expect add `dirname $0`/$1/$2.pkt $4
+	$GRAYBOX send `dirname $0`/$1/$3.pkt
+	sleep 0.1
+	$GRAYBOX expect flush
+}
+
+# When Linux creates an ICMPv4 error on behalf of Jool, it writes 'c0' on the
+# outer TOS field for me. This seems to mean "Network Control" messages
+# according to DSCP, which is fair. Since TOS 0 would also be acceptable, we'll
+# just accept whatever.
+TOS=1
+# The translated IPv4 identification is always random, so it should be always
+# ignored during validation. Unfortunately, of course, the header checksum is
+# also affected.
+IDENTIFICATION=4,5,10,11
+INNER_IDENTIFICATION=32,33,38,39
+
+if [[ -z $1 || $1 = *rfc6791* ]]; then
+	# a
+	test 6791 aae1 aat1
+	test 6791 aae1 aat2
+	test 6791 aae1 aat3
+	test 6791 abe1 abt1 $IDENTIFICATION
+	test 6791 abe1 abt2 $IDENTIFICATION
+	test 6791 abe2 abt3
+	test 6791 ace1 act1
+	test 6791 ace2 act2
+	test 6791 ace3 act3
+	test 6791 ace4 act4
+	test 6791 ace5 act5
+	test 6791 ace6 act6
+
+	# b
+	test 6791 bae1 bat1
+	test 6791 bbe1 bbt1
+	test 6791 bce1 bct1
+	test 6791 bde1 bdt1 $IDENTIFICATION,$INNER_IDENTIFICATION
+	test 6791 bee1 bet1 $IDENTIFICATION,$INNER_IDENTIFICATION
+	
+	# c
+	ip netns exec joolns ip link set dev to_world_v6 mtu 1280
+	test 6791 cae1 cat1 $TOS,$IDENTIFICATION
+	test 6791 cbe1 cbt1
+
+	# Implementation quirk: The RFC wants us to copy the IPv4 identification
+	# value (16 bits) to the IPv6 identification field (32 bits).
+	# However, fragmentation is done by the kernel after the translation,
+	# which means Jool does not get to decide the identification value.
+	#
+	# I think this is fine because identification preservation is only
+	# relevant when the packet is already fragmented. As a matter of fact,
+	# it's better if the kernel decides the identification because it will
+	# generate a 32 bit number, and not be constrained to 16 bits like Jool.
+	#
+	# Identification preservation for already fragmented packets is tested
+	# in cf.
+	$GRAYBOX expect add `dirname $0`/6791/cce1.pkt 44,45,46,47
+	$GRAYBOX expect add `dirname $0`/6791/cce2.pkt 44,45,46,47
+	$GRAYBOX send `dirname $0`/6791/cct1.pkt
+	sleep 0.1
+	$GRAYBOX expect flush
+
+	test 6791 cde1 cdt1
+
+	ip netns exec joolns ip link set dev to_world_v6 mtu 1500
+fi
+
+#if [[ -z $1 || $1 = *new* ]]; then
+#fi
+
 $GRAYBOX stats display
 result=$?
 $GRAYBOX stats flush
