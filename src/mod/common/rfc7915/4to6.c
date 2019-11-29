@@ -919,8 +919,10 @@ verdict ttp46_udp(struct xlation *state)
 		 * TODO (performance) handling this as partial might work just
 		 * as well, or better.
 		 */
-		if (handle_zero_csum(state))
-			return drop(state, JSTAT46_FRAGMENTED_ZERO_CSUM);
+		if (handle_zero_csum(state)) {
+			return drop_icmp(state, JSTAT46_FRAGMENTED_ZERO_CSUM,
+					ICMPERR_FILTER, 0);
+		}
 	}
 
 	return VERDICT_CONTINUE;

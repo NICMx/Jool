@@ -156,10 +156,18 @@ function test() {
 	$GRAYBOX expect flush
 }
 
+function test12() {
+	$GRAYBOX expect add `dirname $0`/$1/$2.pkt $5
+	$GRAYBOX expect add `dirname $0`/$1/$3.pkt $5
+	$GRAYBOX send `dirname $0`/$1/$4.pkt
+	sleep 0.1
+	$GRAYBOX expect flush
+}
+
 # When Linux creates an ICMPv4 error on behalf of Jool, it writes 'c0' on the
 # outer TOS field for me. This seems to mean "Network Control" messages
-# according to DSCP, which is fair. Since TOS 0 would also be acceptable, we'll
-# just accept whatever.
+# according to DSCP, which is probably fair. Since TOS 0 would also be correct,
+# we'll just accept whatever.
 TOS=1
 # The translated IPv4 identification is always random, so it should be always
 # ignored during validation. Unfortunately, of course, the header checksum is
@@ -193,7 +201,6 @@ if [[ -z $1 || $1 = *rfc6791* ]]; then
 	ip netns exec joolns ip link set dev to_world_v6 mtu 1280
 	test 6791 cae1 cat1 $TOS,$IDENTIFICATION
 	test 6791 cbe1 cbt1
-
 	# Implementation quirk: The RFC wants us to copy the IPv4 identification
 	# value (16 bits) to the IPv6 identification field (32 bits).
 	# However, fragmentation is done by the kernel after the translation,
@@ -206,15 +213,37 @@ if [[ -z $1 || $1 = *rfc6791* ]]; then
 	#
 	# Identification preservation for already fragmented packets is tested
 	# in cf.
-	$GRAYBOX expect add `dirname $0`/6791/cce1.pkt 44,45,46,47
-	$GRAYBOX expect add `dirname $0`/6791/cce2.pkt 44,45,46,47
-	$GRAYBOX send `dirname $0`/6791/cct1.pkt
-	sleep 0.1
-	$GRAYBOX expect flush
-
+	test12 6791 cce1 cce2 cct1 44,45,46,47
 	test 6791 cde1 cdt1
-
+	test 6791 cee1 cet1
+	test 6791 cee1 cet2
+	# TODO Nontrivial bug detected here.
+	#test12 6791 cfe1 cfe2 cft1
+	#test12 6791 cfe1 cfe2 cft2
 	ip netns exec joolns ip link set dev to_world_v6 mtu 1500
+
+	ip netns exec joolns ip link set dev to_world_v4 mtu 1400
+	test 6791 cge1 cgt1
+	ip netns exec joolns ip link set dev to_world_v4 mtu 1500
+
+	test 6791 che1 cht1 $IDENTIFICATION
+	test 6791 cie1 cit1 $IDENTIFICATION
+
+	# d
+	test 6791 dae1 dat1 $IDENTIFICATION,$INNER_IDENTIFICATION
+	# TODO needs adjustments
+
+	# e
+	test 6791 eae1 eat1 $TOS,$IDENTIFICATION
+	ip netns exec joolns jool_siit global update amend-udp-checksum-zero 1
+	test 6791 ebe1 eat1
+	test 6791 ece1 ect1 $TOS,$IDENTIFICATION
+	ip netns exec joolns jool_siit global update amend-udp-checksum-zero 0
+	test 6791 ece1 ect1 $TOS,$IDENTIFICATION
+
+	# f
+	test 6791 fae1 fat1
+	test 6791 fbe1 fbt1 $IDENTIFICATION
 fi
 
 #if [[ -z $1 || $1 = *new* ]]; then

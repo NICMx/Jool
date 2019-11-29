@@ -237,7 +237,13 @@ static verdict generate_ipv4_id(struct xlation *state, struct iphdr *hdr4,
  */
 static bool generate_df_flag(struct packet *out)
 {
-	return pkt_len(out) > 1260;
+	unsigned int len;
+
+	len = pkt_is_outer(out)
+			? pkt_len(out)
+			: be16_to_cpu(pkt_ip4_hdr(out)->tot_len);
+
+	return len > 1260;
 }
 
 static verdict translate_addrs64_siit(struct xlation *state)
