@@ -18,7 +18,7 @@ title: Session synchronization
 	2. [Session Synchronization Enabled](#session-synchronization-enabled)
 4. [Architecture](#architecture)
 5. [Basic Tutorial](#basic-tutorial)
-	1. [Kernel Module](#kernel-module)
+	1. [Jool Instance](#jool-instance)
 	2. [Daemon](#daemon)
 	3. [Load Balancer](#load-balancer)
 	4. [Testing](#testing)
@@ -165,13 +165,15 @@ This is generally usual boilerplate Jool mumbo jumbo. `2001:db8::4-5` and `192.0
 
 It is important to note that every translator instance must have the same configuration as the other ones before SS is started. Make sure you've manually synchronized pool6, pool4, static BIB entries, the global variables and any other internal Jool configuration you might have.
 
-### Kernel module
+### Jool Instance
 
-Because forking SS sessions on every translated packet is not free (performance-wise), the kernel module is not SS-enabled by default. The fact that the module and the daemon are separate binaries enhances the importance of this fact; starting the daemon is not, by itself, enough to get sessions synchronized.
+Because forking SS sessions on every translated packet is not free (performance-wise), jool instances are not SS-enabled by default. The fact that the module and the daemon are separate binaries enhances the importance of this fact; starting the daemon is not, by itself, enough to get sessions synchronized.
 
 	# jool global update ss-enabled true
 
-This asks the module to open a channel to userspace and start trading SS sessions.
+This asks the instance to open a channel to userspace and start trading SS sessions.
+
+This needs to be applied both in `J` and `K`.
 
 ### Daemon
 
@@ -199,22 +201,12 @@ Find any errors by querying syslog; you can probably do this by `tail`ing `/var/
 
 As far as Jool is concerned, that would be all. If `J` is translating traffic, you should see its sessions being mirrored in `K`:
 
-	user@K:~/# jool session display --numeric
-	TCP:
-	---------------------------------
-	  (empty)
-
-	UDP:
-	---------------------------------
-	  (empty)
-
-	ICMP:
+	user@K:~/# jool session display --icmp --numeric
 	---------------------------------
 	Expires in 59 seconds
 	Remote: 192.0.2.8#39214	2001:db8::8#5831
 	Local: 192.0.2.1#39214	64:ff9b::c000:208#5831
 	---------------------------------
-	  (Fetched 1 entries.)
 
 ### Load Balancer
 
