@@ -1,5 +1,6 @@
 #include "instance.h"
 
+#include <inttypes.h>
 #include "log.h"
 #include "requirements.h"
 #include "wargp.h"
@@ -68,7 +69,7 @@ static void print_table_divisor(void)
 
 static void print_entry_csv(struct instance_entry_usr *entry)
 {
-	printf("%p,%s,", entry->ns, entry->iname);
+	printf("%" PRIx64 ",%s,", (uint64_t)entry->ns, entry->iname);
 	if (entry->xf & XF_NETFILTER)
 		printf("netfilter");
 	else if (entry->xf & XF_IPTABLES)
@@ -86,7 +87,7 @@ static void print_entry_normal(struct instance_entry_usr *entry)
 	 * characters and I'm assuming that 32-bit machines would print smaller
 	 * pointers.
 	 */
-	printf("| %18p | %15s | ", entry->ns, entry->iname);
+	printf("| %18" PRIx64 " | %15s | ", (uint64_t)entry->ns, entry->iname);
 	if (entry->xf & XF_NETFILTER)
 		printf("netfilter");
 	else if (entry->xf & XF_IPTABLES)

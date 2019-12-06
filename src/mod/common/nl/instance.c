@@ -11,7 +11,7 @@ static int xlator_entry_to_userspace(struct xlator *entry, void *arg)
 	struct nlcore_buffer *buffer = (struct nlcore_buffer *)arg;
 	struct instance_entry_usr entry_usr;
 
-	entry_usr.ns = entry->ns;
+	entry_usr.ns = (__u64)entry->ns;
 	entry_usr.xf = xlator_flags2xf(entry->flags);
 	strcpy(entry_usr.iname, entry->iname);
 
