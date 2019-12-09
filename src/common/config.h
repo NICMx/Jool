@@ -335,9 +335,8 @@ struct pool4_entry_usr {
 	/* 8 */__u32 iterations;
 	/* 9 */ __u8 flags;
 	/* 10 */ __u8 proto;
-	/* 12 */ __u16 slop1;
-	/* 22 */ struct ipv4_range range;
-	/* 24 */ __u16 slop2;
+	/* 12 */ __u16 slop;
+	/* 24 */ struct ipv4_range range;
 };
 
 struct pool4_update {
@@ -494,12 +493,11 @@ struct request_session {
  * This structure needs to length a multiple of 8 bytes.
  */
 struct bib_entry_usr {
-	/* 6 */ struct ipv4_transport_addr addr4;
-	/* 8 */ __u16 slop1;
-	/* 26 */ struct ipv6_transport_addr addr6;
-	/* 27 */ __u8 l4_proto;
-	/* 28 */ config_bool is_static;
-	/* 32 */ __u32 slop2;
+	/* 8 */ struct ipv4_transport_addr addr4;
+	/* 28 */ struct ipv6_transport_addr addr6;
+	/* 29 */ __u8 l4_proto;
+	/* 30 */ config_bool is_static;
+	/* 32 */ __u16 slop2;
 };
 
 /**
@@ -513,15 +511,12 @@ struct bib_entry_usr {
  * This structure needs to length a multiple of 8 bytes.
  */
 struct session_entry_usr {
-	/* 18 */ struct ipv6_transport_addr src6;
-	/* 20 */ __u16 slop1;
-	/* 38 */ struct ipv6_transport_addr dst6;
-	/* 40 */ __u16 slop2;
-	/* 46 */ struct ipv4_transport_addr src4;
-	/* 48 */ __u16 slop3;
-	/* 54 */ struct ipv4_transport_addr dst4;
-	/* 59 */ __u8 slop4;
-	/* 60 */ __u8 state;
+	/* 20 */ struct ipv6_transport_addr src6;
+	/* 40 */ struct ipv6_transport_addr dst6;
+	/* 48 */ struct ipv4_transport_addr src4;
+	/* 56 */ struct ipv4_transport_addr dst4;
+	/* 57 */ __u8 state;
+	/* 60 */ __u8 slop[3];
 	/* 64 */ __u32 dying_time;
 };
 
@@ -533,10 +528,9 @@ struct session_entry_usr {
  * This structure needs to length a multiple of 8 bytes.
  */
 struct eamt_entry {
-	/* 17 */ struct ipv6_prefix prefix6;
-	/* 20 */ __u8 slop1[3];
-	/* 25 */ struct ipv4_prefix prefix4;
-	/* 32 */ __u8 slop2[7];
+	/* 20 */ struct ipv6_prefix prefix6;
+	/* 28 */ struct ipv4_prefix prefix4;
+	/* 32 */ __u32 slop;
 };
 
 struct request_addrxlat {
@@ -797,10 +791,15 @@ enum eam_hairpinning_mode {
  */
 void prepare_config_for_userspace(struct globals *config, bool pools_empty);
 
-/* For iptables usage. */
+/*
+ * For iptables usage.
+ *
+ * This structure needs to length a multiple of 8 bytes.
+ */
 struct target_info {
-	char iname[INAME_MAX_LEN];
-	xlator_type type;
+	/* 16 */ char iname[INAME_MAX_LEN];
+	/* 17 */ __u8 type; /* xlator_type */
+	/* 24 */ __u8 slop[7];
 };
 
 #endif /* SRC_COMMON_CONFIG_H_ */
