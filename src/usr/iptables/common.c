@@ -88,7 +88,7 @@ static void jool_tg_print(const void *ip, const struct xt_entry_target *target,
 static void jool_tg_save(const void *ip, const struct xt_entry_target *target)
 {
 	struct target_info *info = (struct target_info *)target->data;
-	printf("--" OPTNAME_INAME " %s ", info->iname);
+	printf(" --" OPTNAME_INAME " %s ", info->iname);
 }
 
 static struct xtables_target targets[] = {
