@@ -27,7 +27,7 @@ static void jool_tg_init(struct xt_entry_target *target)
 }
 
 /*
- * TODO duplicate code (src/common/config.c)
+ * TODO (fine) duplicate code (src/common/config.c)
  * This bug is actually the tip of an iceberg. The actual problem is that I
  * don't know how to make the iptables shared objects depend on libjoolnl.
  * (Which is perhaps a consequence of me not knowing how to turn the iptables

@@ -172,6 +172,7 @@ static inline bool is_first_frag6(const struct frag_hdr *hdr)
  */
 static inline bool is_fragmented_ipv4(const struct iphdr *hdr)
 {
+	/* TODO (fine) Maybe use ip_is_fragment() instead. */
 	return (get_fragment_offset_ipv4(hdr) != 0) || is_mf_set_ipv4(hdr);
 }
 

@@ -12,7 +12,7 @@
 #include "usr/util/file.h"
 #include "usr/util/str_utils.h"
 
-/* TODO (warning) These variables prevent this module from being thread-safe. */
+/* TODO (fine) These variables prevent this module from being thread-safe. */
 static struct jool_socket sk;
 static char *iname;
 static xlator_flags flags;

@@ -22,7 +22,7 @@ void init_request_hdr(struct request_hdr *hdr, xlator_type xt,
 	hdr->slop2 = 0;
 }
 
-/* TODO duplicate code (src/usr/iptables/common.c) */
+/* TODO (fine) duplicate code (src/usr/iptables/common.c) */
 int iname_validate(const char *iname, bool allow_null)
 {
 	unsigned int i;

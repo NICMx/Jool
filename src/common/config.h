@@ -688,6 +688,15 @@ struct globals {
 	__u8 new_tos;
 
 	/**
+	 * Smallest reachable IPv6 MTU.
+	 *
+	 * Because DF does not exist in IPv6, Jool must ensure that that any
+	 * DF-disabled IPv4 packet translates into fragments sized this or less.
+	 * Otherwise these packets might be black-holed.
+	 */
+	__u32 lowest_ipv6_mtu;
+
+	/**
 	 * If the translator detects the source of the incoming packet does not
 	 * implement RFC 1191, these are the plateau values used to determine a
 	 * likely path MTU for outgoing ICMPv6 fragmentation needed packets.

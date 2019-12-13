@@ -1052,8 +1052,7 @@ void pool4db_print(struct pool4 *pool)
 	print_tree(&pool->tree_addr.icmp, false);
 }
 
-static struct mask_domain *find_empty(struct route4_args *args,
-		unsigned int offset)
+static struct mask_domain *find_empty(unsigned int offset)
 {
 	struct mask_domain *masks;
 	struct pool4_range *range;
@@ -1065,10 +1064,7 @@ static struct mask_domain *find_empty(struct route4_args *args,
 		return NULL;
 
 	range = (struct pool4_range *)(masks + 1);
-	if (pool4empty_find(args, range)) {
-		__wkfree("mask_domain", masks);
-		return NULL;
-	}
+	pool4empty_find(range);
 
 	masks->pool_mark = 0;
 	masks->taddr_count = port_range_count(&range->ports);
@@ -1082,7 +1078,7 @@ static struct mask_domain *find_empty(struct route4_args *args,
 }
 
 struct mask_domain *mask_domain_find(struct pool4 *pool, struct tuple *tuple6,
-		__u8 f_args, struct route4_args *route_args)
+		__u8 f_args, __u32 mark)
 {
 	struct pool4_table *table;
 	struct pool4_range *entry;
@@ -1098,11 +1094,11 @@ struct mask_domain *mask_domain_find(struct pool4 *pool, struct tuple *tuple6,
 
 	if (is_empty(pool)) {
 		spin_unlock_bh(&pool->lock);
-		return find_empty(route_args, offset);
+		return find_empty(offset);
 	}
 
 	table = find_by_mark(get_tree(&pool->tree_mark, tuple6->l4_proto),
-			route_args->mark);
+			mark);
 	if (!table)
 		goto fail;
 
@@ -1120,7 +1116,7 @@ struct mask_domain *mask_domain_find(struct pool4 *pool, struct tuple *tuple6,
 
 	spin_unlock_bh(&pool->lock);
 
-	masks->pool_mark = route_args->mark;
+	masks->pool_mark = mark;
 	masks->taddr_counter = 0;
 	masks->dynamic = false;
 	offset %= masks->taddr_count;

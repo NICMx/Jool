@@ -202,7 +202,6 @@ static void claim_slot_anyway(const unsigned int slot)
  */
 static void new_connection(unsigned int request)
 {
-	struct route4_args route_args; /* Dummy; mostly not needed. */
 	struct tuple tuple6; /* Represents a connection. */
 	struct mask_domain *masks; /* Mask candidates for the tuple6 conn. */
 	struct ipv4_transport_addr addr; /* Currently iterating address. */
@@ -220,8 +219,7 @@ static void new_connection(unsigned int request)
 	 * Ask pool4 for the transport address candidates that can mask that
 	 * connection.
 	 */
-	memset(&route_args, 0, sizeof(route_args));
-	masks = mask_domain_find(pool, &tuple6, 11, &route_args);
+	masks = mask_domain_find(pool, &tuple6, 11, 0);
 	if (!masks) {
 		iterations[request] = 0;
 		errors[request] = true;

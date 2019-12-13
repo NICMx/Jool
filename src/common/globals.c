@@ -104,6 +104,14 @@ static struct global_field global_fields[] = {
 		.min = 0,
 		.max = MAX_U8,
 	}, {
+		.name = "lowest-ipv6-mtu",
+		.type = &gt_uint32,
+		.doc = "Smallest reachable IPv6 MTU.",
+		.offset = offsetof(struct globals, lowest_ipv6_mtu),
+		.xt = XT_ANY,
+		.min = 1280,
+		.max = MAX_U32,
+	}, {
 		.name = "mtu-plateaus",
 		.type = &gt_plateaus,
 		.doc = "Set the list of plateaus for ICMPv4 Fragmentation Neededs with MTU unset.",

@@ -60,6 +60,7 @@ static struct jstat_metadata const jstat_metadatas[] = {
 	DEFINE_STAT(JSTAT64_SRC, TC "IPv6 packet's source address did not match pool6 nor any EAMT entries, or the resulting address was blacklist4ed."),
 	DEFINE_STAT(JSTAT64_DST, TC "IPv6 packet's destination address did not match pool6 nor any EAMT entries, or the resulting address was blacklist4ed."),
 	DEFINE_STAT(JSTAT64_PSKB_COPY, TC "It was not possible to allocate the IPv4 counterpart of the IPv6 packet. (The kernel's pskb_copy() function failed.)"),
+	DEFINE_STAT(JSTAT64_6791_ESRCH, TC "The rfc6791v4 prefix was needed, but it was unset and a suitable replacement could not be found. Cause is unknown."),
 	DEFINE_STAT(JSTAT64_ICMP_CSUM, TC "Incoming ICMPv6 error packet's checksum was incorrect."),
 	DEFINE_STAT(JSTAT64_UNTRANSLATABLE_DEST_UNREACH, TC "Packet was an ICMPv6 Destination Unreachable error message, and its code has no ICMPv4 counterpart."),
 	DEFINE_STAT(JSTAT64_UNTRANSLATABLE_PARAM_PROB, TC "Packet was an ICMPv6 Parameter Problem error message, and its code has no ICMPv4 counterpart."),
@@ -70,6 +71,7 @@ static struct jstat_metadata const jstat_metadatas[] = {
 	DEFINE_STAT(JSTAT46_SRC, TC "IPv4 packet's source address was blacklist4ed, or did not match pool6 nor any EAMT entries."),
 	DEFINE_STAT(JSTAT46_DST, TC "IPv4 packet's destination address was blacklist4ed, or did not match pool6 nor any EAMT entries."),
 	DEFINE_STAT(JSTAT46_PSKB_COPY, TC "It was not possible to allocate the IPv6 counterpart of the IPv4 packet. (The kernel's __pskb_copy() function failed.)"),
+	DEFINE_STAT(JSTAT46_6791_ESRCH, TC "The rfc6791v6 prefix was needed, but it was unset and a suitable replacement could not be found. Cause is unknown."),
 	DEFINE_STAT(JSTAT46_ICMP_CSUM, TC "Incoming ICMPv4 error packet's checksum was incorrect."),
 	DEFINE_STAT(JSTAT46_UNTRANSLATABLE_DEST_UNREACH, TC "Packet was an ICMPv4 Destination Unreachable error message, and its code has no ICMPv6 counterpart."),
 	DEFINE_STAT(JSTAT46_UNTRANSLATABLE_PARAM_PROB, TC "Packet was an ICMPv4 Parameter Problem error message, and its code has no ICMPv6 counterpart."),
@@ -78,6 +80,7 @@ static struct jstat_metadata const jstat_metadatas[] = {
 	DEFINE_STAT(JSTAT46_SRC_ROUTE, TC "Packet had an unexpired Source Route. (Untranslatable.)"),
 	DEFINE_STAT(JSTAT46_FRAGMENTED_ZERO_CSUM, TC "IPv4 packet's UDP checksum was zero. Jool dropped the packet because --amend-udp-checksum-zero was disabled, and/or the packet was fragmented.\n"
 			"(In IPv4, the UDP checksum is optional, but in IPv6 it is not. Because stateless translators do not collect fragments, they cannot compute packet-wide checksums from scratch. Zero-checksum UDP fragments are thus untranslatable.)"),
+	DEFINE_STAT(JSTAT46_BAD_MTU, TC "Translated packet was IPv6, but the interface through which it was routed had an illegal MTU. (< 1280)"),
 	DEFINE_STAT(JSTAT_FAILED_ROUTES, TC "The translated packet could not be routed; the kernel's routing function errored. Cause is unknown. (It usually happens because the packet's destination address could not be found in the routing table.)"),
 	DEFINE_STAT(JSTAT_PKT_TOO_BIG, TC "Translated IPv4 packet did not fit in the outgoing interface's MTU. A Packet Too Big or Fragmentation Needed ICMP error was returned to the client."),
 	DEFINE_STAT(JSTAT_DST_OUTPUT, TC "Translation was successful but the kernel's packet dispatch function (dst_output()) returned nonzero."),

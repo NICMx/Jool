@@ -9,6 +9,7 @@
 #include "mod/common/rfc7915/4to6.h"
 #include "mod/common/rfc7915/6to4.h"
 #include "mod/common/db/blacklist4.h"
+#include "mod/common/steps/compute_outgoing_tuple.h"
 
 struct backup_skb {
 	unsigned int pulled;
@@ -93,7 +94,7 @@ static struct translation_steps steps[][L4_PROTO_COUNT] = {
  */
 bool will_need_frag_hdr(const struct iphdr *hdr)
 {
-	return is_mf_set_ipv4(hdr) || get_fragment_offset_ipv4(hdr);
+	return is_fragmented_ipv4(hdr);
 }
 
 static int report_bug247(struct packet *pkt, __u8 proto)
@@ -254,6 +255,44 @@ static int restore(struct xlation *state, struct packet *pkt,
 	return 0;
 }
 
+static verdict xlat_inner_addresses(struct xlation *state)
+{
+	union {
+		struct ipv6hdr *v6;
+		struct iphdr *v4;
+	} hdr;
+	verdict result;
+
+	switch (pkt_l3_proto(&state->in)) {
+	case L3PROTO_IPV4: /* 4 -> 6 */
+		if (xlation_is_siit(state)) {
+			result = translate_addrs46_siit(state);
+			if (result != VERDICT_CONTINUE)
+				return result;
+		}
+
+		hdr.v6 = pkt_ip6_hdr(&state->out);
+		hdr.v6->saddr = state->out.tuple.src.addr6.l3;
+		hdr.v6->daddr = state->out.tuple.dst.addr6.l3;
+		break;
+
+	case L3PROTO_IPV6: /* 6 -> 4 */
+		if (xlation_is_siit(state)) {
+			result = translate_addrs64_siit(state);
+			if (result != VERDICT_CONTINUE)
+				return result;
+		}
+
+		hdr.v4 = pkt_ip4_hdr(&state->out);
+		hdr.v4->saddr = state->out.tuple.src.addr4.l3.s_addr;
+		hdr.v4->daddr = state->out.tuple.dst.addr4.l3.s_addr;
+		break;
+
+	}
+
+	return VERDICT_CONTINUE;
+}
+
 verdict ttpcomm_translate_inner_packet(struct xlation *state)
 {
 	struct packet *in = &state->in;
@@ -282,6 +321,10 @@ verdict ttpcomm_translate_inner_packet(struct xlation *state)
 		out->tuple.src = bkp_out.tuple.dst;
 		out->tuple.dst = bkp_out.tuple.src;
 	}
+
+	result = xlat_inner_addresses(state);
+	if (result != VERDICT_CONTINUE)
+		return result;
 
 	current_steps = &steps[pkt_l3_proto(in)][pkt_l4_proto(in)];
 

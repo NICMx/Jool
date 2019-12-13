@@ -171,8 +171,7 @@ void treeslot_commit(struct tree_slot *slot);
  * rbtree_find_node - Similar to rbtree_find_slot(), except it doesn't rely
  * on a struct tree_slot.
  *
- * TODO (duplicate code) seriously. The point of this module is to prevent
- * duplicate code.
+ * TODO (fine) seriously. The point of this module is to prevent duplicate code.
  */
 #define rbtree_find_node(expected, root, compare_cb, type, hook_name, parent, \
 		node) \

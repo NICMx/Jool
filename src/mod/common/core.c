@@ -38,6 +38,10 @@ static verdict core_common(struct xlation *state)
 		result = compute_out_tuple(state);
 		if (result != VERDICT_CONTINUE)
 			return result;
+	} else {
+		result = compute_out_tuple_siit(state);
+		if (result != VERDICT_CONTINUE)
+			return result;
 	}
 	result = translating_the_packet(state);
 	if (result != VERDICT_CONTINUE)

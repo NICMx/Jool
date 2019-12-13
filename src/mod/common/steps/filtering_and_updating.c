@@ -113,21 +113,10 @@ static int xlat_dst_6to4(struct xlation *state,
 /**
  * This is just a wrapper. Its sole intent is to minimize mess below.
  */
-static int find_mask_domain(struct xlation *state,
-		struct ipv4_transport_addr *dst,
-		struct mask_domain **masks)
+static int find_mask_domain(struct xlation *state, struct mask_domain **masks)
 {
-	struct ipv6hdr *hdr6 = pkt_ip6_hdr(&state->in);
-	struct route4_args args = {
-		.ns = state->jool.ns,
-		.daddr = dst->l3,
-		.tos = ttp64_xlat_tos(&state->jool.globals, hdr6),
-		.proto = ttp64_xlat_proto(hdr6),
-		.mark = state->in.skb->mark,
-	};
-
 	*masks = mask_domain_find(state->jool.nat64.pool4, &state->in.tuple,
-			state->jool.globals.nat64.f_args, &args);
+			state->jool.globals.nat64.f_args, state->in.skb->mark);
 	if (*masks)
 		return 0;
 
@@ -153,7 +142,7 @@ static verdict ipv6_simple(struct xlation *state)
 
 	if (xlat_dst_6to4(state, &dst4))
 		return drop(state, JSTAT_UNTRANSLATABLE_DST6);
-	if (find_mask_domain(state, &dst4, &masks))
+	if (find_mask_domain(state, &masks))
 		return drop(state, JSTAT_MASK_DOMAIN_NOT_FOUND);
 
 	error = bib_add6(state, masks, &state->in.tuple, &dst4);
@@ -470,7 +459,7 @@ static verdict ipv6_tcp(struct xlation *state)
 
 	if (xlat_dst_6to4(state, &dst4))
 		return drop(state, JSTAT_UNTRANSLATABLE_DST6);
-	if (find_mask_domain(state, &dst4, &masks))
+	if (find_mask_domain(state, &masks))
 		return drop(state, JSTAT_MASK_DOMAIN_NOT_FOUND);
 
 	cb.cb = tcp_state_machine;

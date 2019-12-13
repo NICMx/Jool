@@ -1,13 +1,6 @@
-#include "rfc6791v6.h"
-
-#include <linux/random.h>
-#include <net/addrconf.h>
+#include "mod/common/db/rfc6791v6.h"
 
 #include "mod/common/log.h"
-#include "mod/common/packet.h"
-#include "mod/common/rcu.h"
-#include "mod/common/route.h"
-#include "mod/common/tags.h"
 
 /**
  * Assuming RFC6791v6 has been populated, returns an IPv6 address an ICMP
@@ -49,24 +42,15 @@ static int get_pool_address(struct xlation *state, struct in6_addr *result)
 }
 
 /**
- * Assuming RFC6791v6 has not been populated, returns an IPv6 address an ICMP
- * error should be sourced with, assuming its source is untranslatable.
+ * Flags the source address for automatic completion later.
+ *
+ * (We cannot compute the actual address at this point, because figuring out its
+ * ideal value requires routing, which we can't do until certain packet fields
+ * are translated.)
  */
-static int get_host_address_v6(struct xlation *state, struct in6_addr *result)
+static void get_host_address_v6(struct xlation *state, struct in6_addr *result)
 {
-	struct in6_addr *daddr;
-	unsigned int flags;
-
-	daddr = &pkt_ip6_hdr(&state->out)->daddr;
-	flags = IPV6_PREFER_SRC_PUBLIC;
-
-	if (ipv6_dev_get_saddr(state->jool.ns, NULL, daddr, flags, result)) {
-		log_warn_once("Can't find a sufficiently scoped primary source address to reach %pI6.",
-				daddr);
-		return -EINVAL;
-	}
-
-	return 0;
+	memset(result, 0, sizeof(*result));
 }
 
 /**
@@ -75,19 +59,9 @@ static int get_host_address_v6(struct xlation *state, struct in6_addr *result)
  */
 int rfc6791v6_find(struct xlation *state, struct in6_addr *result)
 {
-	int error;
+	if (get_pool_address(state, result) != 0)
+		get_host_address_v6(state, result);
 
-	error = get_pool_address(state, result);
-	if (!error)
-		goto success;
-
-	error = get_host_address_v6(state, result);
-	if (error)
-		return error;
-
-	/* Fall through. */
-
-success:
 	log_debug("Chose %pI6c as RFC6791v6 address.", result);
 	return 0;
 }
