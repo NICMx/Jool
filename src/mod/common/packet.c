@@ -217,6 +217,13 @@ static verdict summarize_skb6(struct xlation *state,
 		case NEXTHDR_HOP:
 		case NEXTHDR_ROUTING:
 		case NEXTHDR_DEST:
+			if (meta->has_frag_hdr) {
+				log_debug("There's a known extension header (%u) after Fragment.",
+						nexthdr);
+				return drop_icmp(state, JSTAT64_FRAG_THEN_EXT,
+						ICMPERR_FILTER, 0);
+			}
+
 			ptr.opt = skb_hdr_ptr(skb, offset, buffer.opt);
 			if (!ptr.opt)
 				return truncated(state, "extension header");

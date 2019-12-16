@@ -376,6 +376,8 @@ This does not affect _fragmented_ zero-checksum IPv4-UDP packets. SIIT Jool does
 
 Stateful NAT64 Jool _always_ computes zero-checksums from IPv4-UDP packets. Because it reassembles, it will also do so for fragmented packets.
 
+The `JSTAT46_FRAGMENTED_ZERO_CSUM` [stat](usr-flags-stats.html) counts packets dropped by `amend-udp-checksum-zero`, as well as fragmented zero-checksum IPv4/UDP packets.
+
 ### `randomize-rfc6791-addresses`
 
 - Type: Boolean

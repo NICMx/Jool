@@ -36,3 +36,7 @@ Easy ping from n6 to n4:
 Easy ping from n4 to n6:
 	ping 192.0.2.33
 
+Netcat server in n4:
+	nc -ls 198.51.100.2 1234
+Netcat client from n6:
+	nc 2001:db8:1c6:3364:2:: 1234

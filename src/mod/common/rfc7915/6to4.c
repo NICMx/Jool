@@ -140,6 +140,9 @@ __u8 ttp64_xlat_proto(struct ipv6hdr *hdr6)
 static __be16 build_tot_len(struct packet *in, struct packet *out)
 {
 	/*
+	 * Note: This comment is outdated. It is, in fact, talking about RFC
+	 * 6145.
+	 *
 	 * The RFC's equation is wrong, as the errata claims.
 	 * However, this still looks different than the fixed version because:
 	 *
@@ -196,7 +199,7 @@ static verdict generate_ipv4_id(struct xlation *state, struct iphdr *hdr4,
 	 *
 	 * __ip_select_ident() is not as slow, but it can still take a little
 	 * more than a hundred nanoseconds. Also, it's a black box really.
-	 * So I've decided to leave this as is.
+	 * So I decided to leave this if here.
 	 */
 
 	if (hdr_frag) {
@@ -234,7 +237,13 @@ static verdict generate_ipv4_id(struct xlation *state, struct iphdr *hdr4,
  */
 static bool generate_df_flag(struct packet *out)
 {
-	return pkt_len(out) > 1260;
+	unsigned int len;
+
+	len = pkt_is_outer(out)
+			? pkt_len(out)
+			: be16_to_cpu(pkt_ip4_hdr(out)->tot_len);
+
+	return len > 1260;
 }
 
 static verdict translate_addrs64_siit(struct xlation *state)

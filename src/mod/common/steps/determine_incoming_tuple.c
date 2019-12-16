@@ -26,7 +26,7 @@ static void *ipv4_extract_l4_hdr(struct iphdr *hdr_ipv4)
 
 /**
  * unknown_inner_proto - whenever this function is called, the RFC says the
- * packet should be dropped, but Netfilter Jool is accepting it instead.
+ * packet should be dropped, but Jool is accepting it instead.
  *
  * I made it into a function so I wouldn't have to replicate the rationale:
  *
@@ -36,9 +36,6 @@ static void *ipv4_extract_l4_hdr(struct iphdr *hdr_ipv4)
  * Therefore, the original packet came from this host... or it's just crafted
  * garbage.
  * Either way, Linux should be the one who decides the fate of the ICMP error.
- *
- * iptables Jool is still bound by the match contract, and the packet matched,
- * so it drops it instead.
  */
 static verdict unknown_inner_proto(struct xlation *state, __u8 proto)
 {

@@ -87,6 +87,8 @@ verdict core_4to6(struct sk_buff *skb, struct xlation *state)
 {
 	verdict result;
 
+	jstat_inc(state->jool.stats, JSTAT_RECEIVED4);
+
 	/*
 	 * PLEASE REFRAIN FROM READING HEADERS FROM @skb UNTIL
 	 * pkt_init_ipv4() HAS pskb_may_pull()ED THEM.
@@ -135,6 +137,8 @@ static void send_icmp6_error(struct xlation *state, verdict result)
 verdict core_6to4(struct sk_buff *skb, struct xlation *state)
 {
 	verdict result;
+
+	jstat_inc(state->jool.stats, JSTAT_RECEIVED6);
 
 	/*
 	 * PLEASE REFRAIN FROM READING HEADERS FROM @skb UNTIL

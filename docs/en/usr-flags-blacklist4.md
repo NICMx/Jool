@@ -22,9 +22,11 @@ title: blacklist4 Mode
 
 Interacts with Jool's blacklisted addresses pool.
 
-The pool dictates which addresses can be translated using the [pool6](usr-flags-pool6.html) prefix. Notice [EAM](usr-flags-eamt.html) has more priority than the prefix, so you don't have to add an entry to this pool for every EAM entry you need.
+The pool lists IPv4 translation addresses which are _banned_ from [pool6](usr-flags-pool6.html)-based translation. If an incoming IPv4 packet contains one of these addresses (which would be translated via pool6 and not the EAMT), Jool will silently abort translation. If an incoming IPv6 packet translates (through pool6) into an IPv4 packet that contains one of these addresses, Jool will also silently abort translation. 
 
-There are some addresses Jool will refuse to translate, regardless of `blacklist4`. These include
+blacklist4 applies on most addresses. The only exception is source addresses from ICMP errors. These are translated regardless of blacklist4 for the sake of troubleshooting purposes.
+
+As an aside, there are some addresses Jool will refuse to translate, regardless of `blacklist4`. These include
 
 - The addresses that belong to Jool's node (because Jool can only be used in a forwarding fashion, currently).
 - Software addresses (0.0.0.0/8).

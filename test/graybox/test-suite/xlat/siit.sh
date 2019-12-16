@@ -15,8 +15,11 @@ sysctl -w net.ipv6.conf.all.forwarding=1 > /dev/null
 modprobe jool_siit
 jool_siit instance add --iptables -6 2001:db8:100::/40
 
-ip6tables -t mangle -A PREROUTING -d 2001:db8:1c6:3364:2:: -j JOOL_SIIT
-iptables  -t mangle -A PREROUTING -d 192.0.2.33            -j JOOL_SIIT
+ip6tables -t mangle -A PREROUTING -j JOOL_SIIT
+iptables  -t mangle -A PREROUTING -j JOOL_SIIT
+
+# Relevant whenever the kernel responds an ICMPv6 error on behalf of Jool.
+sysctl -w net.ipv6.auto_flowlabels=0 > /dev/null
 
 # pool6791 test
 jool_siit eamt add 2001:db8:3::/120 1.0.0.0/24
