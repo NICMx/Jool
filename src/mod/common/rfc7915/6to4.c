@@ -26,8 +26,9 @@ static __u8 ttp64_xlat_proto(struct ipv6hdr *hdr6)
 			: iterator.hdr_type;
 }
 
-static struct dst_entry *predict_route(struct xlation *state)
+static verdict predict_route(struct xlation *state, struct dst_entry **result)
 {
+	struct dst_entry *dst;
 	struct ipv6hdr *hdr6;
 	struct flowi4 flow;
 
@@ -55,7 +56,7 @@ static struct dst_entry *predict_route(struct xlation *state)
 	case IPPROTO_TCP:
 	case IPPROTO_UDP:
 		flow.fl4_sport = state->out.tuple.src.addr4.l4;
-		flow.fl4_sport = state->out.tuple.src.addr4.l4;
+		flow.fl4_dport = state->out.tuple.dst.addr4.l4;
 		break;
 	case IPPROTO_ICMP:
 		/*
@@ -66,7 +67,22 @@ static struct dst_entry *predict_route(struct xlation *state)
 		break;
 	}
 
-	return route4(state->jool.ns, &flow);
+	dst = route4(state->jool.ns, &flow);
+	if (!dst)
+		return untranslatable(state, JSTAT_FAILED_ROUTES);
+
+	/* TODO (NOW) mirror this in 4->6 */
+	if (flow.saddr == 0) { /* Empty pool4 or empty pool6791v4 */
+		state->out.tuple.src.addr4.l3.s_addr = inet_select_addr(
+				dst->dev,
+				state->out.tuple.dst.addr4.l3.s_addr,
+				RT_SCOPE_UNIVERSE);
+		if (state->out.tuple.src.addr4.l3.s_addr == 0)
+			return drop(state, JSTAT64_6791_ESRCH);
+	}
+
+	*result = dst;
+	return VERDICT_CONTINUE;
 }
 
 static verdict addrs_set(struct xlation *state)
@@ -79,19 +95,7 @@ static verdict addrs_set(struct xlation *state)
 	hdr->saddr = out->tuple.src.addr4.l3.s_addr;
 	hdr->daddr = out->tuple.src.addr4.l3.s_addr;
 
-	if (hdr->saddr == 0) { /* Empty 6791 pool */
-		if (WARN(!xlator_is_siit(&state->jool),
-				"Zero source address on not SIIT!"))
-			return drop(state, JSTAT_UNKNOWN);
-		if (WARN(!is_icmp6_error(pkt_icmp6_hdr(&state->in)->icmp6_type),
-				"Zero source on not ICMP error!"))
-			return drop(state, JSTAT_UNKNOWN);
-
-		hdr->saddr = inet_select_addr(skb_dst(out->skb)->dev,
-				hdr->daddr, RT_SCOPE_UNIVERSE);
-		if (hdr->saddr == 0)
-			return drop(state, JSTAT64_6791_ESRCH);
-	}
+	/* TODO (NOW) review */
 
 	return VERDICT_CONTINUE;
 }
@@ -103,10 +107,11 @@ verdict ttp64_alloc_skb(struct xlation *state)
 	struct skb_shared_info *shinfo;
 	struct dst_entry *dst;
 	int error;
+	verdict result;
 
-	dst = predict_route(state);
-	if (!dst)
-		return untranslatable(state, JSTAT_FAILED_ROUTES);
+	result = predict_route(state, &dst);
+	if (result != VERDICT_CONTINUE)
+		return result;
 
 	/*
 	 * I'm going to use __pskb_copy() (via pskb_copy()) because I need the
@@ -129,9 +134,9 @@ verdict ttp64_alloc_skb(struct xlation *state)
 
 	out = pskb_copy(in->skb, GFP_ATOMIC);
 	if (!out) {
-		dst_release(dst);
 		log_debug("pskb_copy() returned NULL.");
-		return drop(state, JSTAT64_PSKB_COPY);
+		result = drop(state, JSTAT64_PSKB_COPY);
+		goto revert;
 	}
 
 	/* https://github.com/NICMx/Jool/issues/289 */
@@ -178,10 +183,10 @@ verdict ttp64_alloc_skb(struct xlation *state)
 		 */
 		error = pskb_trim(out, 576);
 		if (error) {
-			kfree_skb(out);
-			dst_release(dst);
 			log_debug("pskb_trim() returned errcode %d.", error);
-			return drop(state, JSTAT_ENOMEM);
+			kfree_skb(out);
+			result = drop(state, JSTAT_ENOMEM);
+			goto revert;
 		}
 	}
 
@@ -206,6 +211,10 @@ verdict ttp64_alloc_skb(struct xlation *state)
 
 	skb_dst_set(out, dst);
 	return addrs_set(state);
+
+revert:
+	dst_release(dst);
+	return result;
 }
 
 /**
