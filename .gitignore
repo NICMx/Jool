@@ -54,7 +54,7 @@ test/graybox/test-suite/rfc/_site/
 *.zip
 
 # Package signature
-*.asc
+/*.asc
 
 # Logs #
 ########

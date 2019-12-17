@@ -31,7 +31,7 @@ As far as we know, this is the compliance status of Jool 4:
 |-----------|---------|--------|
 | [RFC 6052](https://tools.ietf.org/html/rfc6052) | IP address translation | Fully compliant. |
 | [RFC 6144](https://tools.ietf.org/html/rfc6144) | IPv4/IPv6 Translation Framework | Fully compliant. |
-| [RFC 7915](https://tools.ietf.org/html/rfc7915) | SIIT | Fully compliant. |
+| [RFC 7915](https://tools.ietf.org/html/rfc7915) | SIIT | Compliant, except for [`lowest-ipv6-mtu`](https://github.com/NICMx/Jool/issues/136). |
 | [RFC 6146](https://tools.ietf.org/html/rfc6146) | Stateful NAT64 | Fully compliant. |
 | [RFC 6384](http://tools.ietf.org/html/rfc6384) | FTP over NAT64 | [Not yet compliant]({{ site.repository-url }}/issues/114). |
 | [RFC 6791](https://tools.ietf.org/html/rfc6791) | ICMP quirks | In short, this RFC wants two things: A pool of IPv4 addresses and an ICMP header extension. Jool implements the former but not the latter. |
@@ -40,7 +40,7 @@ As far as we know, this is the compliance status of Jool 4:
 | [RFC 7756]({{ site.draft-siit-dc-2xlat }}) | SIIT-DC: Dual Translation Mode | Fully compliant. |
 | [RFC 8021]({{ site.draft-deprecate-atomfrag-generation }}) | Atomic Fragment Deprecation | Fully compliant. |
 | [RFC 7757]({{ site.draft-siit-eam }}) | EAM | Fully compliant. |
-| [RFC 7422](https://tools.ietf.org/html/rfc7422) | Deterministic port allocations | Deterministic port allocations (sequential algorithm only) can be obtained using the pool4's `--mark` argument ([mark-src-range](https://github.com/NICMx/mark-src-range) ip6tables plugin suggested). |
+| [RFC 7422](https://tools.ietf.org/html/rfc7422) | Deterministic port allocations | Deterministic port allocations (sequential algorithm only) can be achieved using the pool4's `--mark` argument ([mark-src-range](https://github.com/NICMx/mark-src-range) ip6tables plugin suggested). |
 
 Please [let us know]({{ site.repository-url }}/issues) if you find additional compliance issues or RFCs/drafts we've missed.
 
@@ -49,8 +49,7 @@ Please [let us know]({{ site.repository-url }}/issues) if you find additional co
 | Jool version                        | Supported Linux kernels (mainline)   | Supported Linux kernels (RHEL) |
 |-------------------------------------|--------------------------------------|--------------------------------|
 | [master]({{ site.repository-url }}) | 3.13 - 3.19,<br />4.0 - 4.20,<br />5.0 - 5.4 | RHEL 7.0 - RHEL 7.7,<br />RHEL 8.0 |
-| [4.0.6](download.html#40x)          | 3.13 - 3.19,<br />4.0 - 4.20,<br />5.0 - 5.4 | RHEL 7.0 - RHEL 7.7,<br />RHEL 8.0 |
-| [4.0.1](download.html#40x)          | 3.13 - 3.19,<br />4.0 - 4.20,<br />5.0 | RHEL 7.0 - RHEL 7.5            |
+| [4.0.7](download.html#40x)          | 3.13 - 3.19,<br />4.0 - 4.20,<br />5.0 - 5.4 | RHEL 7.0 - RHEL 7.7,<br />RHEL 8.0 |
 | [3.5.8](download.html#35x)          | 3.2 - 3.19,<br />4.0 - 4.18           | RHEL 7.0 - RHEL 7.4            |
 
 If you're using a non-RHEL distribution (eg. Debian derivatives), execute `uname -r` to print the kernel version you're running. Suffixes rarely matter. Here's an example from my running machine, which states that my running kernel is 4.15:
