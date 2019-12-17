@@ -1,0 +1,18 @@
+jool (4.0.7-1) unstable; urgency=medium
+
+  * New upstream release
+  * Kbuild: s/SUBDIRS/M/ (Closes: #946681)
+
+ -- Alberto Leiva Popper <ydahhrk@gmail.com>  Tue, 17 Dec 2019 15:31:29 -0600
+
+jool (4.0.6-1) unstable; urgency=medium
+
+  * New upstream release
+
+ -- Alberto Leiva Popper <ydahhrk@gmail.com>  Mon, 11 Nov 2019 10:28:43 -0600
+
+jool (4.0.4-1) unstable; urgency=low
+
+  * Initial release (Closes: #883393)
+
+ -- Alberto Leiva Popper <ydahhrk@gmail.com>  Thu, 1 Aug 2019 11:06:08 -0500
