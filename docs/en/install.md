@@ -16,6 +16,7 @@ title: Installation
 2. [Installing Dependencies](#installing-dependencies)
 3. [Downloading the Code](#downloading-the-code)
 4. [Compilation and Installation](#compilation-and-installation)
+5. [Uninstalling](#uninstalling)
 
 ## Introduction
 
@@ -230,8 +231,8 @@ You have two options:
 
 <!-- tarballs -->
 {% highlight bash %}
-$ wget {{ site.downloads-url-2 }}/v{{ site.latest-version }}/jool_{{ site.latest-version }}.tar.gz
-$ tar -xzf jool_{{ site.latest-version }}.tar.gz
+$ wget {{ site.downloads-url-2 }}/v{{ site.latest-version }}/jool-{{ site.latest-version }}.tar.gz
+$ tar -xzf jool-{{ site.latest-version }}.tar.gz
 {% endhighlight %}
 
 <!-- git clone -->
@@ -287,3 +288,79 @@ user@T:~$ ./configure
 user@T:~$ make
 user@T:~# make install
 {% endhighlight %}
+
+## Uninstalling
+
+### Userspace Clients
+
+Simply run `make uninstall` in the directory where you compiled them:
+
+```bash
+user@T:~$ cd jool-{{ site.latest-version }}/
+user@T:~# make uninstall
+```
+
+If you no longer have the directory where you compiled them, download it again and do this instead:
+
+<div class="distro-menu">
+	<span class="distro-selector" onclick="showDistro(this);">tarball</span>
+	<span class="distro-selector" onclick="showDistro(this);">git clone</span>
+</div>
+
+<!-- tarball -->
+```bash
+user@T:~$ cd jool-{{ site.latest-version }}/
+user@T:~$
+user@T:~$ ./configure
+user@T:~# make uninstall
+```
+
+<!-- git clone -->
+```bash
+user@T:~$ cd Jool/
+user@T:~$ ./autogen.sh
+user@T:~$ ./configure
+user@T:~# make uninstall
+```
+
+### Kernel Modules (if installed by DKMS)
+
+Use `dkms remove`. Here's an example in which I'm trying to remove version 4.0.1:
+
+```bash
+$ dkms status
+jool, 4.0.1.git.v4.0.1, 4.15.0-54-generic, x86_64: built
+jool, 4.0.6.git.v4.0.6, 4.15.0-54-generic, x86_64: installed
+$
+$ sudo dkms remove jool/4.0.1.git.v4.0.1 --all
+
+-------- Uninstall Beginning --------
+Module:  jool
+Version: 4.0.1.git.v4.0.1
+Kernel:  4.15.0-54-generic (x86_64)
+-------------------------------------
+
+Status: This module version was INACTIVE for this kernel.
+depmod...
+
+DKMS: uninstall completed.
+
+------------------------------
+Deleting module version: 4.0.1.git.v4.0.1
+completely from the DKMS tree.
+------------------------------
+Done.
+$
+$ dkms status
+jool, 4.0.6.git.v4.0.6, 4.15.0-54-generic, x86_64: installed
+```
+
+### Kernel Modules (if installed by Kbuild in accordance with old documentation)
+
+Delete the `.ko` files and re-index by way of `depmod`:
+
+```bash
+$ sudo rm /lib/modules/$(uname -r)/extra/jool_siit.ko
+$ sudo rm /lib/modules/$(uname -r)/extra/jool.ko
+$ sudo depmod
+```

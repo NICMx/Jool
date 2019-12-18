@@ -32,37 +32,7 @@ This document explains how to install the Debian Release and the Standalone Pack
 
 > Skip this step if you've never installed Jool from source in your target machine.
 
-If you already installed a previous version of Jool from source, know that it will conflict with the userspace clients installed in the next section. To uninstall the old userspace clients, run `make uninstall` in the directory where you compiled them:
-
-```bash
-user@T:~$ cd jool-4.0.5/
-user@T:~# make uninstall
-```
-
-If you no longer have the directory where you compiled it, download it again and do this instead:
-
-<div class="distro-menu">
-	<span class="distro-selector" onclick="showDistro(this);">tarball</span>
-	<span class="distro-selector" onclick="showDistro(this);">git clone</span>
-</div>
-
-<!-- iptables Jool -->
-```bash
-user@T:~$ cd jool-4.0.5/
-user@T:~$
-user@T:~$ ./configure
-user@T:~# make uninstall
-```
-
-<!-- Netfilter Jool -->
-```bash
-user@T:~$ cd Jool/
-user@T:~$ ./autogen.sh
-user@T:~$ ./configure
-user@T:~# make uninstall
-```
-
-This can be done before or after the commands in the next section. (But if you did it later, restart your terminal.)
+If you already installed a previous version of Jool from source, know that it might will conflict with the binaries installed in the following section. To uninstall the old version, [follow these steps](install.html#uninstalling).
 
 ## Installing the Debian packages
 
