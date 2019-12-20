@@ -2,6 +2,7 @@
 
 #include "common/config.h"
 #include "mod/common/log.h"
+#include "mod/common/trace.h"
 #include "mod/common/translation_state.h"
 #include "mod/common/xlator.h"
 #include "mod/common/rfc7915/core.h"
@@ -107,6 +108,8 @@ verdict core_4to6(struct sk_buff *skb, struct xlation *state)
 	if (result != VERDICT_CONTINUE)
 		goto end;
 
+	if (state->jool.globals.trace)
+		pkt_trace4(state);
 	/* skb_log(skb, "Incoming IPv4 packet"); */
 
 	result = core_common(state);
@@ -160,6 +163,8 @@ verdict core_6to4(struct sk_buff *skb, struct xlation *state)
 	if (result != VERDICT_CONTINUE)
 		goto end;
 
+	if (state->jool.globals.trace)
+		pkt_trace6(state);
 	/* skb_log(skb, "Incoming IPv6 packet"); */
 	snapshot_record(&state->in.debug.shot2, skb);
 

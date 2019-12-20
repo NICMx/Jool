@@ -28,6 +28,7 @@ title: global Mode
 	8. [`source-icmpv6-errors-better`](#source-icmpv6-errors-better)
 	8. [`logging-bib`](#logging-bib)
 	8. [`logging-session`](#logging-session)
+	9. [`trace`](#trace)
 	9. [`zeroize-traffic-class`](#zeroize-traffic-class)
 	10. [`override-tos`](#override-tos)
 	11. [`tos`](#tos)
@@ -322,6 +323,24 @@ Here's a sample output:
 	[ 3481.632342] alpha 2015/4/8 17:5:51 (GMT) - Forgot session 1::5#33161|64:ff9b::c000:205#8080|192.0.2.2#7060|192.0.2.5#8080|TCP
 
 This log is remarcably more voluptuous than [`logging-bib`](#logging-bib), not only because each message is longer, but because sessions are generated and destroyed more often than BIB entries. (Each BIB entry can have multiple sessions.) Because of REQ-12 from [RFC 6888 section 4](http://tools.ietf.org/html/rfc6888#section-4), chances are you don't even want the extra information sessions grant you.
+
+### `trace`
+
+- Type: Boolean
+- Default: False
+- Modes: Both (SIIT and Stateful NAT64)
+- Translation direction: Both
+- Source: -
+
+Enables logging of basic packet fields as they are received.
+
+	# jool global update trace true
+	# dmesg
+	[  826.131405] Jool: INSTANCE:default PROTO:IPv6/ICMP SRC:fe80::4470:d3ff:fe67:e466 DST:64:ff9b::c000:205 TYPE:128 CODE:0
+	[  826.131501] Jool: INSTANCE:default PROTO:IPv4/ICMP SRC:192.0.2.5 DST:192.0.2.2 TYPE:0 CODE:0
+	[  826.229011] Jool: INSTANCE:default PROTO:IPv6/UDP SRC:2001:db8::5#2000 DST:64:ff9b::c000:205#4000
+	[  827.998465] Jool: INSTANCE:default PROTO:IPv6/TCP SRC:2001:db8::5#2000 DST:64:ff9b::c000:205#4000
+	[  828.878303] Jool: INSTANCE:default PROTO:IPv6/ICMP SRC:2001:db8::5 DST:64:ff9b::c000:205 TYPE:128 CODE:0
 
 ### `zeroize-traffic-class`
 

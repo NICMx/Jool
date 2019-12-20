@@ -672,6 +672,8 @@ struct globals {
 	 * Does the user wants this Jool instance to translate packets?
 	 */
 	config_bool enabled;
+	/** Print packet addresses on reception? */
+	config_bool trace;
 
 	/**
 	 * BTW: NAT64 Jool can't do anything without pool6, so it validates that

@@ -23,6 +23,7 @@ int globals_init(struct globals *config, xlator_type type,
 
 	config->status = 0; /* This is never read, but whatever. */
 	config->enabled = DEFAULT_INSTANCE_ENABLED;
+	config->trace = false;
 	if (pool6)
 		config->pool6 = *pool6;
 	else

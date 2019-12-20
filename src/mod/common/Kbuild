@@ -35,6 +35,7 @@ jool_common-objs += route_out.o
 jool_common-objs += core.o
 jool_common-objs += error_pool.o
 jool_common-objs += timer.o
+jool_common-objs += trace.o
 jool_common-objs += wkmalloc.o
 jool_common-objs += wrapper-config.o
 jool_common-objs += wrapper-globals.o
