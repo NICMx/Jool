@@ -113,4 +113,4 @@ dkms.package_version.conf
 
 # Developer playground
 ######################
-tmp/
+sandbox/
