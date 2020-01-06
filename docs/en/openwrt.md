@@ -17,6 +17,10 @@ And finally: It might take an indeterminate amount of time for the latest versio
 
 ## Installing Jool
 
+> ![Warning!](../images/warning.svg) If you have somehow previously installed Jool from source in your machine, then those binaries may conflict with the ones installed here.
+>
+> You may uninstall source-installed binaries by following [these steps](install.html#uninstalling).
+
 You need LEDE 17.01 at least. I tested it in LEDE-17.01.1, but newer is better, of course.
 
 	opkg update

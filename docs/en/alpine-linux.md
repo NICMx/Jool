@@ -17,6 +17,10 @@ And finally: It might take an indeterminate amount of time for the latest versio
 
 ## Installing Jool
 
+> ![Warning!](../images/warning.svg) If you have somehow previously installed Jool from source in your machine, then those binaries may conflict with the ones installed here.
+>
+> You may uninstall source-installed binaries by following [these steps](install.html#uninstalling).
+
 You need Alpine Linux v3.11 at least (or edge).
 
 	apk add jool-tools

@@ -42,6 +42,7 @@ This is not always necessary, but aside from fetching security patches, it maxim
 <div class="distro-menu">
 	<span class="distro-selector" onclick="showDistro(this);">Debian</span>
 	<span class="distro-selector" onclick="showDistro(this);">CentOS</span>
+	<span class="distro-selector" onclick="showDistro(this);">openSUSE</span>
 </div>
 
 <!-- Debian -->
@@ -56,6 +57,12 @@ user@T:~# yum update
  
 {% endhighlight %}
 
+<!-- openSUSE -->
+{% highlight bash %}
+user@T:~# zypper update
+ 
+{% endhighlight %}
+
 If you got a new kernel, best load it:
 
 {% highlight bash %}
@@ -65,24 +72,26 @@ user@T:~# /sbin/reboot
 ## Installing Dependencies
 
 > Note: Distros sometimes change this, and it's difficult to keep it updated. You might need to tweak dependency installation to some extent.
-> 
+>
 > Please [report](https://github.com/NICMx/Jool/issues) any issues you find. (Including instructions for different distributions.)
+>
+> Latest revision (2020-01-06):
+>
+> - Debian 10.2
+> - Ubuntu 18.04.3 LTS
+> - CentOS 7.7.1908 (Core)
+> - OpenSUSE Leap 15.1 <!-- cat /usr/lib/os-release -->
 
-You need a kernel that is [supported](intro-jool.html#compatibility) by the version of Jool that you're using.
-
-Aside from that, you will need your build essentials. Some distributions already ship them by default, so omit this step in those cases.
+First, you need your build essentials:
 
 <div class="distro-menu">
-	<span class="distro-selector" onclick="showDistro(this);">Debian</span>
+	<span class="distro-selector" onclick="showDistro(this);">Debian/Ubuntu</span>
 	<span class="distro-selector" onclick="showDistro(this);">CentOS</span>
 	<span class="distro-selector" onclick="showDistro(this);">Arch Linux</span>
 	<span class="distro-selector" onclick="showDistro(this);">openSUSE</span>
-	<span class="distro-selector" onclick="showDistro(this);">Ubuntu Server</span>
 </div>
 
-<!-- TODO pkg-config in other distros -->
-
-<!-- Debian -->
+<!-- Debian/Ubuntu -->
 {% highlight bash %}
 user@T:~# apt install build-essential pkg-config
 {% endhighlight %}
@@ -99,25 +108,19 @@ user@T:~# pacman -S base-devel
 
 <!-- openSUSE -->
 {% highlight bash %}
-user@T:~# zypper install gcc make
+user@T:~# zypper install gcc
 {% endhighlight %}
 
-<!-- Ubuntu Server -->
-{% highlight bash %}
-user@T:~# apt install gcc make
-{% endhighlight %}
-
-The modules need your kernel headers:
+The modules need your kernel headers (and make sure your kernel is [supported](intro-jool.html#compatibility) by your version of Jool):
 
 <div class="distro-menu">
-	<span class="distro-selector" onclick="showDistro(this);">Ubuntu/Debian</span>
+	<span class="distro-selector" onclick="showDistro(this);">Debian/Ubuntu</span>
 	<span class="distro-selector" onclick="showDistro(this);">CentOS</span>
-	<span class="distro-selector" onclick="showDistro(this);">CentOS (older versions)</span>
 	<span class="distro-selector" onclick="showDistro(this);">openSUSE</span>
 	<span class="distro-selector" onclick="showDistro(this);">Raspberry Pi</span>
 </div>
 
-<!-- Ubuntu/Debian -->
+<!-- Debian/Ubuntu -->
 {% highlight bash %}
 user@T:~# apt install linux-headers-$(uname -r)
 {% endhighlight %}
@@ -125,22 +128,11 @@ user@T:~# apt install linux-headers-$(uname -r)
 <!-- CentOS -->
 {% highlight bash %}
 user@T:~# yum install kernel-devel
-user@T:~# yum install kernel-headers
-{% endhighlight %}
-
-<!-- CentOS (Older versions) -->
-{% highlight bash %}
-Try downloading the corresponding rpms:
-https://rpmfind.net/linux/rpm2html/search.php?query=kernel-headers
-https://rpmfind.net/linux/rpm2html/search.php?query=kernel-devel
-(recall that your kernel version is `uname -r`)
-then do
-user@T:~# rpm -ivh *.rpm
 {% endhighlight %}
 
 <!-- openSUSE -->
 {% highlight bash %}
-user@T:~# zypper install kernel-source
+user@T:~# # Unneeded
 {% endhighlight %}
 
 <!-- Raspberry Pi -->
@@ -153,6 +145,7 @@ The userspace clients and the daemon need the [Development Library and Headers f
 <div class="distro-menu">
 	<span class="distro-selector" onclick="showDistro(this);">Debian/Ubuntu</span>
 	<span class="distro-selector" onclick="showDistro(this);">CentOS</span>
+	<span class="distro-selector" onclick="showDistro(this);">openSUSE</span>
 </div>
 
 <!-- Debian/Ubuntu -->
@@ -165,12 +158,18 @@ user@T:~# apt install libnl-genl-3-dev
 user@T:~# yum install libnl3-devel
 {% endhighlight %}
 
+<!-- openSUSE -->
+{% highlight bash %}
+user@T:~# zypper install libnl3-devel
+{% endhighlight %}
+
 The iptables shared object needs the [Netfilter xtables Library development files](http://www.netfilter.org/):
 
 <div class="distro-menu">
 	<span class="distro-selector" onclick="showDistro(this);">Debian/Ubuntu 18.04</span>
 	<span class="distro-selector" onclick="showDistro(this);">Ubuntu 16.04</span>
 	<span class="distro-selector" onclick="showDistro(this);">CentOS</span>
+	<span class="distro-selector" onclick="showDistro(this);">openSUSE</span>
 </div>
 
 <!-- Debian/Ubuntu 18.04 -->
@@ -188,20 +187,45 @@ user@T:~# apt install iptables-dev
 user@T:~# yum install iptables-devel
 {% endhighlight %}
 
+<!-- openSUSE -->
+{% highlight bash %}
+user@T:~# zypper install libxtables-devel
+{% endhighlight %}
+
 You also want DKMS, for automatic module rebuild during kernel updates:
 
+<div class="distro-menu">
+	<span class="distro-selector" onclick="showDistro(this);">Debian/Ubuntu</span>
+	<span class="distro-selector" onclick="showDistro(this);">CentOS</span>
+	<span class="distro-selector" onclick="showDistro(this);">openSUSE</span>
+</div>
+
+<!-- Debian/Ubuntu 18.04 -->
 {% highlight bash %}
 user@T:~# apt install dkms
+{% endhighlight %}
+
+<!-- CentOS -->
+{% highlight bash %}
+user@T:~# # https://fedoraproject.org/wiki/EPEL
+user@T:~# yum install https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm
+user@T:~# yum install dkms
+{% endhighlight %}
+
+<!-- openSUSE -->
+{% highlight bash %}
+user@T:~# zypper install dkms
 {% endhighlight %}
 
 If you're going to clone the git repository, you need git and the autotools:
 
 <div class="distro-menu">
-	<span class="distro-selector" onclick="showDistro(this);">Ubuntu</span>
+	<span class="distro-selector" onclick="showDistro(this);">Debian/Ubuntu</span>
 	<span class="distro-selector" onclick="showDistro(this);">CentOS</span>
+	<span class="distro-selector" onclick="showDistro(this);">openSUSE</span>
 </div>
 
-<!-- Ubuntu -->
+<!-- Debian/Ubuntu -->
 {% highlight bash %}
 user@T:~# apt install git autoconf libtool
 {% endhighlight %}
@@ -211,10 +235,32 @@ user@T:~# apt install git autoconf libtool
 user@T:~# yum install git automake libtool
 {% endhighlight %}
 
-And if you don't, you will need a `.tar.gz` extraction tool:
+<!-- openSUSE -->
+{% highlight bash %}
+user@T:~# zypper install git-core automake autoconf libtool
+{% endhighlight %}
 
+And if you don't, you will need a `.tar.gz` extraction tool. Most distros include this by default, but just for completeness sake,
+
+<div class="distro-menu">
+	<span class="distro-selector" onclick="showDistro(this);">Debian/Ubuntu</span>
+	<span class="distro-selector" onclick="showDistro(this);">CentOS</span>
+	<span class="distro-selector" onclick="showDistro(this);">openSUSE</span>
+</div>
+
+<!-- Debian/Ubuntu -->
 {% highlight bash %}
 user@T:~# apt install tar
+{% endhighlight %}
+
+<!-- CentOS -->
+{% highlight bash %}
+user@T:~# yum install tar
+{% endhighlight %}
+
+<!-- openSUSE -->
+{% highlight bash %}
+user@T:~# zypper install tar
 {% endhighlight %}
 
 ## Downloading the Code
@@ -256,12 +302,12 @@ This is how you compile and install the kernel modules:
 
 <!-- tarball -->
 {% highlight bash %}
-user@T:~# dkms install jool-{{ site.latest-version }}/
+user@T:~# /sbin/dkms install jool-{{ site.latest-version }}/
 {% endhighlight %}
 
 <!-- git clone -->
 {% highlight bash %}
-user@T:~# dkms install Jool/
+user@T:~# /sbin/dkms install Jool/
 {% endhighlight %}
 
 And this is how you compile and install the userspace applications:
@@ -328,11 +374,11 @@ user@T:~# make uninstall
 Use `dkms remove`. Here's an example in which I'm trying to remove version 4.0.1:
 
 ```bash
-$ dkms status
+$ /sbin/dkms status
 jool, 4.0.1.git.v4.0.1, 4.15.0-54-generic, x86_64: built
 jool, 4.0.6.git.v4.0.6, 4.15.0-54-generic, x86_64: installed
 $
-$ sudo dkms remove jool/4.0.1.git.v4.0.1 --all
+$ sudo /sbin/dkms remove jool/4.0.1.git.v4.0.1 --all
 
 -------- Uninstall Beginning --------
 Module:  jool
@@ -351,7 +397,7 @@ completely from the DKMS tree.
 ------------------------------
 Done.
 $
-$ dkms status
+$ /sbin/dkms status
 jool, 4.0.6.git.v4.0.6, 4.15.0-54-generic, x86_64: installed
 ```
 
@@ -362,5 +408,6 @@ Delete the `.ko` files and re-index by way of `depmod`:
 ```bash
 $ sudo rm /lib/modules/$(uname -r)/extra/jool_siit.ko
 $ sudo rm /lib/modules/$(uname -r)/extra/jool.ko
+$ sudo rm -f /lib/modules/$(uname -r)/extra/jool_common.ko
 $ sudo depmod
 ```

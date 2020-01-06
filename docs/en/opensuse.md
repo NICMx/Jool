@@ -15,6 +15,10 @@ It might take an indeterminate amount of time for the latest version of Jool to 
 
 ## Installation
 
+> ![Warning!](../images/warning.svg) If you have somehow previously installed Jool from source in your machine, then those binaries may conflict with the ones installed here.
+>
+> You may uninstall source-installed binaries by following [these steps](install.html#uninstalling).
+
 Courtesy of Martin Hauke:
 
 {% highlight bash %}

@@ -28,13 +28,11 @@ At time of writing (2019-11-21), the Debian Release is present in the [`unstable
 
 This document explains how to install the Debian Release and the Standalone Package. To compile from source, visit [this page](install.html).
 
-## Uninstalling old versions (installed from source)
-
-> Skip this step if you've never installed Jool from source in your target machine.
-
-If you already installed a previous version of Jool from source, know that it might will conflict with the binaries installed in the following section. To uninstall the old version, [follow these steps](install.html#uninstalling).
-
 ## Installing the Debian packages
+
+> ![Warning!](../images/warning.svg) If you have already installed Jool from source in your machine, then those binaries may conflict with the ones installed here.
+>
+> You may uninstall source-installed binaries by following [these steps](install.html#uninstalling).
 
 Make sure you have your current kernel headers:
 

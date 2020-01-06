@@ -83,7 +83,7 @@ Be aware that this means that, because filtering normally happens during `FORWAR
 
 Alternatively, if you know what you're doing, you can [filter on mangle]({{ site.repository-url }}/issues/41#issuecomment-77951288).
 
-Until Jool 3.5, Netfilter used to be the only available operation mode, and partly because of this, it is also the default one today.
+Until Jool 3.5, Netfilter used to be the only available operation mode.
 
 ### iptables
 
