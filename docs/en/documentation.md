@@ -21,9 +21,10 @@ See [RFC 6586](https://tools.ietf.org/html/rfc6586) for deployment experiences u
 ## Installation
 
 1. [Installation in OpenWRT](openwrt.html)
-2. [Installation in openSUSE](opensuse.html)
-3. [Installation in Debian and its derivatives](debian.html)
-4. [Installation in most other distros](install.html) (Installing from source)
+2. [Installation in Alpine Linux](alpine-linux.html)
+3. [Installation in openSUSE](opensuse.html)
+4. [Installation in Debian and its derivatives](debian.html)
+5. [Installation in most other distros](install.html) (Installing from source)
 
 ## Basic Tutorials
 

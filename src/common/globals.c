@@ -249,6 +249,12 @@ static struct global_field global_fields[] = {
 		.offset = offsetof(struct globals, nat64.bib.session_logging),
 		.xt = XT_NAT64,
 	}, {
+		.name = "trace",
+		.type = &gt_bool,
+		.doc = "Log basic packet fields as they are received?",
+		.offset = offsetof(struct globals, trace),
+		.xt = XT_ANY,
+	}, {
 		.name = "ss-enabled",
 		.type = &gt_bool,
 		.doc = "Enable Session Synchronization?",

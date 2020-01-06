@@ -809,7 +809,7 @@ static verdict icmp4_to_icmp6_param_prob(struct xlation *state)
 	case ICMP_BAD_LENGTH: {
 		ptr = be32_to_cpu(icmp4_hdr->icmp4_unused) >> 24;
 
-		if (ptr < 0 || 19 < ptr || ptrs[ptr] == DROP) {
+		if (19 < ptr || ptrs[ptr] == DROP) {
 			log_debug("ICMPv4 messages type %u code %u pointer %u lack an ICMPv6 counterpart.",
 					icmp4_hdr->type, icmp4_hdr->code, ptr);
 			return drop(state, JSTAT46_UNTRANSLATABLE_PARAM_PROBLEM_PTR);

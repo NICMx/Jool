@@ -547,8 +547,8 @@ struct jool_result str_to_prefix6(const char *str,
 void timeout2str(unsigned int millis, char *buffer)
 {
 	static const unsigned int MILLIS_PER_SECOND = 1000;
-	static const unsigned int MILLIS_PER_MIN = 60 * MILLIS_PER_SECOND;
-	static const unsigned int MILLIS_PER_HOUR = 60 * MILLIS_PER_MIN;
+	static const unsigned int MILLIS_PER_MIN = 60000;
+	static const unsigned int MILLIS_PER_HOUR = 3600000;
 	unsigned int hours;
 	unsigned int minutes;
 	unsigned int seconds;

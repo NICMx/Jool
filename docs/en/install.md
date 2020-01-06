@@ -16,15 +16,20 @@ title: Installation
 2. [Installing Dependencies](#installing-dependencies)
 3. [Downloading the Code](#downloading-the-code)
 4. [Compilation and Installation](#compilation-and-installation)
+5. [Uninstalling](#uninstalling)
 
 ## Introduction
 
-Jool is seven binaries:
+A full installation of Jool is eleven binaries:
 
-- Two [kernel modules](https://en.wikipedia.org/wiki/Loadable_kernel_module) you can hook up to Linux. One of them is the SIIT implementation and the other one is the Stateful NAT64. They are the translating components and do most of the work.
-- Two [userspace](https://en.wikipedia.org/wiki/User_space) clients which can be used to configure each module.
-- Two shared objects that iptables uses to enable `ip[6]tables -j JOOL[_SIIT]`-style rules.
-- An optional userspace daemon that can synchronize state between different NAT64 Jool instances.
+- [Kernel modules](https://en.wikipedia.org/wiki/Loadable_kernel_module):
+	- `jool.ko`, `jool_siit.ko` and `jool_common.ko`: The Stateful NAT64, the SIIT and the functionality that is shared between the previous two. They are the actual translators and do most of the work.
+- [Userspace](https://en.wikipedia.org/wiki/User_space) tools:
+	- `jool` and `jool_siit`: Two console clients which can be used to configure the modules above.
+	- `joold`: An userspace daemon that can synchronize state between different NAT64 Jool instances.
+- Userspace libraries:
+	- `libxt_JOOL.so` and `libxt_JOOL_SIIT.so`: Two shared objects that enable Jool-themed iptables rules.
+	- `libjoolargp.la`, `libjoolnl.la` and `libjoolutil.la` (extensions may vary): Three shared libraries containing common functionality for the other userspace components.
 
 This document will explain how to compile and install all of that on most Linux distributions.
 
@@ -54,7 +59,7 @@ user@T:~# yum update
 If you got a new kernel, best load it:
 
 {% highlight bash %}
-user@T:~# reboot
+user@T:~# /sbin/reboot
 {% endhighlight %}
 
 ## Installing Dependencies
@@ -226,8 +231,8 @@ You have two options:
 
 <!-- tarballs -->
 {% highlight bash %}
-$ wget {{ site.downloads-url-2 }}/v{{ site.latest-version }}/jool_{{ site.latest-version }}.tar.gz
-$ tar -xzf jool_{{ site.latest-version }}.tar.gz
+$ wget {{ site.downloads-url-2 }}/v{{ site.latest-version }}/jool-{{ site.latest-version }}.tar.gz
+$ tar -xzf jool-{{ site.latest-version }}.tar.gz
 {% endhighlight %}
 
 <!-- git clone -->
@@ -283,3 +288,79 @@ user@T:~$ ./configure
 user@T:~$ make
 user@T:~# make install
 {% endhighlight %}
+
+## Uninstalling
+
+### Userspace Clients
+
+Simply run `make uninstall` in the directory where you compiled them:
+
+```bash
+user@T:~$ cd jool-{{ site.latest-version }}/
+user@T:~# make uninstall
+```
+
+If you no longer have the directory where you compiled them, download it again and do this instead:
+
+<div class="distro-menu">
+	<span class="distro-selector" onclick="showDistro(this);">tarball</span>
+	<span class="distro-selector" onclick="showDistro(this);">git clone</span>
+</div>
+
+<!-- tarball -->
+```bash
+user@T:~$ cd jool-{{ site.latest-version }}/
+user@T:~$
+user@T:~$ ./configure
+user@T:~# make uninstall
+```
+
+<!-- git clone -->
+```bash
+user@T:~$ cd Jool/
+user@T:~$ ./autogen.sh
+user@T:~$ ./configure
+user@T:~# make uninstall
+```
+
+### Kernel Modules (if installed by DKMS)
+
+Use `dkms remove`. Here's an example in which I'm trying to remove version 4.0.1:
+
+```bash
+$ dkms status
+jool, 4.0.1.git.v4.0.1, 4.15.0-54-generic, x86_64: built
+jool, 4.0.6.git.v4.0.6, 4.15.0-54-generic, x86_64: installed
+$
+$ sudo dkms remove jool/4.0.1.git.v4.0.1 --all
+
+-------- Uninstall Beginning --------
+Module:  jool
+Version: 4.0.1.git.v4.0.1
+Kernel:  4.15.0-54-generic (x86_64)
+-------------------------------------
+
+Status: This module version was INACTIVE for this kernel.
+depmod...
+
+DKMS: uninstall completed.
+
+------------------------------
+Deleting module version: 4.0.1.git.v4.0.1
+completely from the DKMS tree.
+------------------------------
+Done.
+$
+$ dkms status
+jool, 4.0.6.git.v4.0.6, 4.15.0-54-generic, x86_64: installed
+```
+
+### Kernel Modules (if installed by Kbuild in accordance with old documentation)
+
+Delete the `.ko` files and re-index by way of `depmod`:
+
+```bash
+$ sudo rm /lib/modules/$(uname -r)/extra/jool_siit.ko
+$ sudo rm /lib/modules/$(uname -r)/extra/jool.ko
+$ sudo depmod
+```

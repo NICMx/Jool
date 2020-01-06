@@ -60,8 +60,8 @@ user@T:~#
 user@T:~# /sbin/ip link set eth1 up
 user@T:~# /sbin/ip address add 203.0.113.1/24 dev eth1
 user@T:~# 
-user@T:~# sysctl -w net.ipv4.conf.all.forwarding=1
-user@T:~# sysctl -w net.ipv6.conf.all.forwarding=1
+user@T:~# /sbin/sysctl -w net.ipv4.conf.all.forwarding=1
+user@T:~# /sbin/sysctl -w net.ipv6.conf.all.forwarding=1
 {% endhighlight %}
 
 > ![Note!](../images/bulb.svg) In previous versions of Jool, _T_ used to need two or more IPv4 addresses. Because pool4 now stores port ranges, this is no longer the case.
@@ -87,8 +87,8 @@ Though the meaning of `pool6` is slightly different than in SIIT, the instance c
 {% highlight bash %}
 user@T:~# jool instance add "example" --iptables  --pool6 64:ff9b::/96
 user@T:~#
-user@T:~# ip6tables -t mangle -A PREROUTING -j JOOL --instance "example"
-user@T:~# iptables  -t mangle -A PREROUTING -j JOOL --instance "example"
+user@T:~# /sbin/ip6tables -t mangle -A PREROUTING -j JOOL --instance "example"
+user@T:~# /sbin/iptables  -t mangle -A PREROUTING -j JOOL --instance "example"
 {% endhighlight %}
 
 <!-- Netfilter Jool -->
@@ -135,8 +135,8 @@ rtt min/avg/max/mdev = 1.136/6.528/15.603/5.438 ms
 
 <!-- iptables Jool -->
 {% highlight bash %}
-user@T:~# ip6tables -t mangle -D PREROUTING -j JOOL --instance "example"
-user@T:~# iptables  -t mangle -D PREROUTING -j JOOL --instance "example"
+user@T:~# /sbin/ip6tables -t mangle -D PREROUTING -j JOOL --instance "example"
+user@T:~# /sbin/iptables  -t mangle -D PREROUTING -j JOOL --instance "example"
 user@T:~# jool instance remove "example"
 user@T:~# /sbin/modprobe -r jool
 {% endhighlight %}

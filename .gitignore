@@ -54,7 +54,7 @@ test/graybox/test-suite/rfc/_site/
 *.zip
 
 # Package signature
-*.asc
+/*.asc
 
 # Logs #
 ########
@@ -113,4 +113,4 @@ dkms.package_version.conf
 
 # Developer playground
 ######################
-tmp/
+sandbox/

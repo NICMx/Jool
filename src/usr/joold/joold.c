@@ -29,6 +29,11 @@ int main(int argc, char **argv)
 	pthread_t net2mod_thread;
 	int error;
 
+	printf("Remember that joold is intended as a daemon, so it outputs straight to syslog.\n");
+	printf("(Syslog normally sends messages to /var/log/syslog by default.)\n");
+	printf("The standard streams will mostly shut up from now on.\n");
+	printf("---------------------------------------------\n");
+
 	openlog("joold", 0, LOG_DAEMON);
 
 	error = netsocket_setup(argc, argv);

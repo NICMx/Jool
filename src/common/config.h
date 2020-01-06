@@ -276,10 +276,12 @@ struct request_init {
 	__u8 xf; /* enum xlator_framework */
 };
 
+/* This structure needs to length a multiple of 8 bytes. */
 struct instance_entry_usr {
-	void *ns;
-	__u8 xf; /* enum xlator_framework */
-	char iname[INAME_MAX_LEN];
+	/* 8 */ __u64 ns;
+	/* 9 */ __u8 xf; /* enum xlator_framework */
+	/* 25 */ char iname[INAME_MAX_LEN];
+	/* 32 */ __u8 slop[7];
 };
 
 union request_instance {
@@ -323,16 +325,18 @@ enum iteration_flags {
 	ITERATIONS_INFINITE = (1 << 2),
 };
 
+/* This structure needs to length a multiple of 8 bytes. */
 struct pool4_entry_usr {
-	__u32 mark;
+	/* 4 */ __u32 mark;
 	/**
 	 * BTW: This field is only meaningful if flags has ITERATIONS_SET,
 	 * !ITERATIONS_AUTO and !ITERATIONS_INFINITE.
 	 */
-	__u32 iterations;
-	__u8 flags;
-	__u8 proto;
-	struct ipv4_range range;
+	/* 8 */__u32 iterations;
+	/* 9 */ __u8 flags;
+	/* 10 */ __u8 proto;
+	/* 12 */ __u16 slop;
+	/* 24 */ struct ipv4_range range;
 };
 
 struct pool4_update {
@@ -485,12 +489,15 @@ struct request_session {
  * need to travel to userspace. For anything else, use "struct bib_entry".
  *
  * See "struct bib_entry" for documentation on the fields.
+ *
+ * This structure needs to length a multiple of 8 bytes.
  */
 struct bib_entry_usr {
-	struct ipv4_transport_addr addr4;
-	struct ipv6_transport_addr addr6;
-	__u8 l4_proto;
-	config_bool is_static;
+	/* 8 */ struct ipv4_transport_addr addr4;
+	/* 28 */ struct ipv6_transport_addr addr6;
+	/* 29 */ __u8 l4_proto;
+	/* 30 */ config_bool is_static;
+	/* 32 */ __u16 slop2;
 };
 
 /**
@@ -500,24 +507,30 @@ struct bib_entry_usr {
  * need to travel to userspace. For anything else, use "struct session_entry".
  *
  * See "struct session_entry" for documentation on the fields.
+ *
+ * This structure needs to length a multiple of 8 bytes.
  */
 struct session_entry_usr {
-	struct ipv6_transport_addr src6;
-	struct ipv6_transport_addr dst6;
-	struct ipv4_transport_addr src4;
-	struct ipv4_transport_addr dst4;
-	__u32 dying_time;
-	__u8 state;
+	/* 20 */ struct ipv6_transport_addr src6;
+	/* 40 */ struct ipv6_transport_addr dst6;
+	/* 48 */ struct ipv4_transport_addr src4;
+	/* 56 */ struct ipv4_transport_addr dst4;
+	/* 57 */ __u8 state;
+	/* 60 */ __u8 slop[3];
+	/* 64 */ __u32 dying_time;
 };
 
 /**
  * Explicit Address Mapping definition.
  * Intended to be a row in the Explicit Address Mapping Table, bind an IPv4
  * Prefix to an IPv6 Prefix and vice versa.
+ *
+ * This structure needs to length a multiple of 8 bytes.
  */
 struct eamt_entry {
-	struct ipv6_prefix prefix6;
-	struct ipv4_prefix prefix4;
+	/* 20 */ struct ipv6_prefix prefix6;
+	/* 28 */ struct ipv4_prefix prefix4;
+	/* 32 */ __u32 slop;
 };
 
 struct request_addrxlat {
@@ -659,6 +672,8 @@ struct globals {
 	 * Does the user wants this Jool instance to translate packets?
 	 */
 	config_bool enabled;
+	/** Print packet addresses on reception? */
+	config_bool trace;
 
 	/**
 	 * BTW: NAT64 Jool can't do anything without pool6, so it validates that
@@ -787,10 +802,15 @@ enum eam_hairpinning_mode {
  */
 void prepare_config_for_userspace(struct globals *config, bool pools_empty);
 
-/* For iptables usage. */
+/*
+ * For iptables usage.
+ *
+ * This structure needs to length a multiple of 8 bytes.
+ */
 struct target_info {
-	char iname[INAME_MAX_LEN];
-	xlator_type type;
+	/* 16 */ char iname[INAME_MAX_LEN];
+	/* 17 */ __u8 type; /* xlator_type */
+	/* 24 */ __u8 slop[7];
 };
 
 #endif /* SRC_COMMON_CONFIG_H_ */

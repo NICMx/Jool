@@ -61,8 +61,8 @@ user@T:~#
 user@T:~# /sbin/ip link set eth1 up
 user@T:~# /sbin/ip addr add 192.0.2.1/24 dev eth1
 user@T:~# 
-user@T:~# sysctl -w net.ipv4.conf.all.forwarding=1
-user@T:~# sysctl -w net.ipv6.conf.all.forwarding=1
+user@T:~# /sbin/sysctl -w net.ipv4.conf.all.forwarding=1
+user@T:~# /sbin/sysctl -w net.ipv6.conf.all.forwarding=1
 {% endhighlight %}
 
 Remember you might want to cross-ping _T_ vs everything before continuing.
@@ -81,8 +81,8 @@ user@T:~# jool_siit instance add "example" --iptables
 user@T:~# jool_siit -i "example" eamt add 2001:db8:6::/120 198.51.100.0/24
 user@T:~# jool_siit -i "example" eamt add 2001:db8:4::/120 192.0.2.0/24
 user@T:~#
-user@T:~# ip6tables -t mangle -A PREROUTING -j JOOL_SIIT --instance "example"
-user@T:~# iptables  -t mangle -A PREROUTING -j JOOL_SIIT --instance "example"
+user@T:~# /sbin/ip6tables -t mangle -A PREROUTING -j JOOL_SIIT --instance "example"
+user@T:~# /sbin/iptables  -t mangle -A PREROUTING -j JOOL_SIIT --instance "example"
 {% endhighlight %}
 
 <!-- Netfilter Jool -->
@@ -163,8 +163,8 @@ Same as in the previous walkthrough.
 
 <!-- iptables Jool -->
 {% highlight bash %}
-user@T:~# ip6tables -t mangle -D PREROUTING -j JOOL_SIIT --instance "example"
-user@T:~# iptables  -t mangle -D PREROUTING -j JOOL_SIIT --instance "example"
+user@T:~# /sbin/ip6tables -t mangle -D PREROUTING -j JOOL_SIIT --instance "example"
+user@T:~# /sbin/iptables  -t mangle -D PREROUTING -j JOOL_SIIT --instance "example"
 user@T:~# jool_siit instance remove "example"
 user@T:~# /sbin/modprobe -r jool_siit
 {% endhighlight %}

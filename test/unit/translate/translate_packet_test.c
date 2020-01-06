@@ -225,6 +225,7 @@ static bool test_function_generate_df_flag(void)
 	if (!skb)
 		return false;
 	pkt.skb = skb;
+	pkt.is_inner = false;
 
 	skb_put(skb, 1000);
 	success &= ASSERT_UINT(0, generate_df_flag(&pkt), "Len < 1260");
