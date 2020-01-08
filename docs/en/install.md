@@ -43,6 +43,7 @@ This is not always necessary, but aside from fetching security patches, it maxim
 	<span class="distro-selector" onclick="showDistro(this);">Debian</span>
 	<span class="distro-selector" onclick="showDistro(this);">CentOS</span>
 	<span class="distro-selector" onclick="showDistro(this);">openSUSE</span>
+	<span class="distro-selector" onclick="showDistro(this);">Arch</span>
 </div>
 
 <!-- Debian -->
@@ -63,6 +64,12 @@ user@T:~# zypper update
  
 {% endhighlight %}
 
+<!-- Arch -->
+{% highlight bash %}
+user@T:~# pacman -Syy
+user@T:~# pacman -Su
+{% endhighlight %}
+
 If you got a new kernel, best load it:
 
 {% highlight bash %}
@@ -75,20 +82,21 @@ user@T:~# /sbin/reboot
 >
 > Please [report](https://github.com/NICMx/Jool/issues) any issues you find. (Including instructions for different distributions.)
 >
-> Latest revision (2020-01-06):
+> Latest revision (2020-01-08):
 >
-> - Debian 10.2
-> - Ubuntu 18.04.3 LTS
-> - CentOS 7.7.1908 (Core)
-> - OpenSUSE Leap 15.1 <!-- cat /usr/lib/os-release -->
+> - Debian 10.2 (`cat /etc/debian_version`)
+> - Ubuntu 18.04.3 LTS (`lsb_release -a`, `cat /etc/os-release`, `hostnamectl`)
+> - CentOS 7.7.1908 (Core) (`cat /etc/system-release`, `cat /etc/centos-release`)
+> - OpenSUSE Leap 15.1 (`cat /usr/lib/os-release`)
+> - Arch Linux 5.4.8-arch1-1 (Found at the top of the login prompt. Might not be the right one, because it's the same as `uname -r`. Dunno; can't find a better string.)
 
 First, you need your build essentials:
 
 <div class="distro-menu">
 	<span class="distro-selector" onclick="showDistro(this);">Debian/Ubuntu</span>
 	<span class="distro-selector" onclick="showDistro(this);">CentOS</span>
-	<span class="distro-selector" onclick="showDistro(this);">Arch Linux</span>
 	<span class="distro-selector" onclick="showDistro(this);">openSUSE</span>
+	<span class="distro-selector" onclick="showDistro(this);">Arch</span>
 </div>
 
 <!-- Debian/Ubuntu -->
@@ -101,14 +109,14 @@ user@T:~# apt install build-essential pkg-config
 user@T:~# yum install gcc
 {% endhighlight %}
 
-<!-- Arch Linux -->
-{% highlight bash %}
-user@T:~# pacman -S base-devel
-{% endhighlight %}
-
 <!-- openSUSE -->
 {% highlight bash %}
 user@T:~# zypper install gcc
+{% endhighlight %}
+
+<!-- Arch -->
+{% highlight bash %}
+user@T:~# pacman -S base-devel
 {% endhighlight %}
 
 The modules need your kernel headers (and make sure your kernel is [supported](intro-jool.html#compatibility) by your version of Jool):
@@ -117,7 +125,7 @@ The modules need your kernel headers (and make sure your kernel is [supported](i
 	<span class="distro-selector" onclick="showDistro(this);">Debian/Ubuntu</span>
 	<span class="distro-selector" onclick="showDistro(this);">CentOS</span>
 	<span class="distro-selector" onclick="showDistro(this);">openSUSE</span>
-	<span class="distro-selector" onclick="showDistro(this);">Raspberry Pi</span>
+	<span class="distro-selector" onclick="showDistro(this);">Arch</span>
 </div>
 
 <!-- Debian/Ubuntu -->
@@ -135,9 +143,9 @@ user@T:~# yum install kernel-devel
 user@T:~# # Unneeded
 {% endhighlight %}
 
-<!-- Raspberry Pi -->
+<!-- Arch -->
 {% highlight bash %}
-user@T:~$ # See {{ site.repository-url }}/issues/158
+user@T:~# pacman -S linux-headers
 {% endhighlight %}
 
 The userspace clients and the daemon need the [Development Library and Headers for libnl-genl-3](http://www.infradead.org/~tgr/libnl/):
@@ -146,6 +154,7 @@ The userspace clients and the daemon need the [Development Library and Headers f
 	<span class="distro-selector" onclick="showDistro(this);">Debian/Ubuntu</span>
 	<span class="distro-selector" onclick="showDistro(this);">CentOS</span>
 	<span class="distro-selector" onclick="showDistro(this);">openSUSE</span>
+	<span class="distro-selector" onclick="showDistro(this);">Arch</span>
 </div>
 
 <!-- Debian/Ubuntu -->
@@ -163,23 +172,23 @@ user@T:~# yum install libnl3-devel
 user@T:~# zypper install libnl3-devel
 {% endhighlight %}
 
-The iptables shared object needs the [Netfilter xtables Library development files](http://www.netfilter.org/):
-
-<div class="distro-menu">
-	<span class="distro-selector" onclick="showDistro(this);">Debian/Ubuntu 18.04</span>
-	<span class="distro-selector" onclick="showDistro(this);">Ubuntu 16.04</span>
-	<span class="distro-selector" onclick="showDistro(this);">CentOS</span>
-	<span class="distro-selector" onclick="showDistro(this);">openSUSE</span>
-</div>
-
-<!-- Debian/Ubuntu 18.04 -->
+<!-- Arch -->
 {% highlight bash %}
-user@T:~# apt install libxtables-dev
+user@T:~# # Installed by default, apparently
 {% endhighlight %}
 
-<!-- Ubuntu 16.04 -->
+The iptables shared objects need the [Netfilter xtables Library development files](http://www.netfilter.org/):
+
+<div class="distro-menu">
+	<span class="distro-selector" onclick="showDistro(this);">Debian/Ubuntu</span>
+	<span class="distro-selector" onclick="showDistro(this);">CentOS</span>
+	<span class="distro-selector" onclick="showDistro(this);">openSUSE</span>
+	<span class="distro-selector" onclick="showDistro(this);">Arch</span>
+</div>
+
+<!-- Debian/Ubuntu -->
 {% highlight bash %}
-user@T:~# apt install iptables-dev
+user@T:~# apt install libxtables-dev # It's called iptables-dev in Ubuntu 16.04
 {% endhighlight %}
 
 <!-- CentOS -->
@@ -192,12 +201,18 @@ user@T:~# yum install iptables-devel
 user@T:~# zypper install libxtables-devel
 {% endhighlight %}
 
+<!-- Arch -->
+{% highlight bash %}
+user@T:~# # Installed by default, apparently
+{% endhighlight %}
+
 You also want DKMS, for automatic module rebuild during kernel updates:
 
 <div class="distro-menu">
 	<span class="distro-selector" onclick="showDistro(this);">Debian/Ubuntu</span>
 	<span class="distro-selector" onclick="showDistro(this);">CentOS</span>
 	<span class="distro-selector" onclick="showDistro(this);">openSUSE</span>
+	<span class="distro-selector" onclick="showDistro(this);">Arch</span>
 </div>
 
 <!-- Debian/Ubuntu 18.04 -->
@@ -217,12 +232,18 @@ user@T:~# yum install dkms
 user@T:~# zypper install dkms
 {% endhighlight %}
 
+<!-- Arch -->
+{% highlight bash %}
+user@T:~# pacman -S dkms
+{% endhighlight %}
+
 If you're going to clone the git repository, you need git and the autotools:
 
 <div class="distro-menu">
 	<span class="distro-selector" onclick="showDistro(this);">Debian/Ubuntu</span>
 	<span class="distro-selector" onclick="showDistro(this);">CentOS</span>
 	<span class="distro-selector" onclick="showDistro(this);">openSUSE</span>
+	<span class="distro-selector" onclick="showDistro(this);">Arch</span>
 </div>
 
 <!-- Debian/Ubuntu -->
@@ -240,12 +261,18 @@ user@T:~# yum install git automake libtool
 user@T:~# zypper install git-core automake autoconf libtool
 {% endhighlight %}
 
+<!-- Arch -->
+{% highlight bash %}
+user@T:~# pacman -S git # autotools already included in base-devel.
+{% endhighlight %}
+
 And if you don't, you will need a `.tar.gz` extraction tool. Most distros include this by default, but just for completeness sake,
 
 <div class="distro-menu">
 	<span class="distro-selector" onclick="showDistro(this);">Debian/Ubuntu</span>
 	<span class="distro-selector" onclick="showDistro(this);">CentOS</span>
 	<span class="distro-selector" onclick="showDistro(this);">openSUSE</span>
+	<span class="distro-selector" onclick="showDistro(this);">Arch</span>
 </div>
 
 <!-- Debian/Ubuntu -->
@@ -261,6 +288,11 @@ user@T:~# yum install tar
 <!-- openSUSE -->
 {% highlight bash %}
 user@T:~# zypper install tar
+{% endhighlight %}
+
+<!-- Arch -->
+{% highlight bash %}
+user@T:~# pacman -S tar
 {% endhighlight %}
 
 ## Downloading the Code
