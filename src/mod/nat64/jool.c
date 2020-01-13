@@ -4,6 +4,7 @@
 #include <net/netfilter/ipv4/nf_defrag_ipv4.h>
 #include <net/netfilter/ipv6/nf_defrag_ipv6.h>
 
+#include "common/config.h"
 #include "mod/common/linux_version.h"
 #include "mod/common/log.h"
 #include "mod/common/kernel_hook.h"
@@ -78,9 +79,11 @@ static int __init nat64_init(void)
 	iptables_error = xt_register_targets(targets, ARRAY_SIZE(targets));
 	if (iptables_error) {
 		log_warn("Error code %d while trying to register the iptables targets.\n"
-				"iptables SIIT Jool will not be available.",
+				"iptables NAT64 Jool will not be available.",
 				iptables_error);
 	}
+
+	nft_setup();
 
 	pr_info("NAT64 Jool v" JOOL_VERSION_STR " module inserted.\n");
 	return error;
@@ -88,6 +91,7 @@ static int __init nat64_init(void)
 
 static void __exit nat64_exit(void)
 {
+	nft_teardown();
 	if (!iptables_error)
 		xt_unregister_targets(targets, ARRAY_SIZE(targets));
 	jool_nat64_put();

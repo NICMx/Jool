@@ -17,6 +17,9 @@ jool_siit instance add --iptables -6 2001:db8:100::/40
 
 ip6tables -t mangle -A PREROUTING -j JOOL_SIIT
 iptables  -t mangle -A PREROUTING -j JOOL_SIIT
+#/home/al/git/nftables/src/nft add table inet graybox
+#/home/al/git/nftables/src/nft add chain inet graybox test \{ type filter hook prerouting priority 0 \; \}
+#/home/al/git/nftables/src/nft add rule  inet graybox test jool siit default
 
 # Relevant whenever the kernel responds an ICMPv6 error on behalf of Jool.
 sysctl -w net.ipv6.auto_flowlabels=0 > /dev/null

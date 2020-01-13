@@ -1,6 +1,8 @@
 #include "mod/common/xlator.h"
 
 #include <linux/hashtable.h>
+#include <linux/netfilter_ipv4.h>
+#include <linux/netfilter_ipv6.h>
 #include <linux/sched.h>
 
 #include "common/types.h"

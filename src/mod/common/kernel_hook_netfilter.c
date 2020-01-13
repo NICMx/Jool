@@ -5,7 +5,7 @@
 
 /* #pragma GCC diagnostic error "-Wframe-larger-than=1" */
 
-static verdict find_instance(struct sk_buff *skb, struct xlator *result)
+static verdict find_instance_nf(struct sk_buff *skb, struct xlator *result)
 {
 	int error;
 
@@ -66,7 +66,7 @@ NF_CALLBACK(hook_ipv6, skb)
 	if (!state)
 		return NF_DROP;
 
-	result = find_instance(skb, &state->jool);
+	result = find_instance_nf(skb, &state->jool);
 	if (result != VERDICT_CONTINUE)
 		goto end;
 	silence = false;
@@ -93,7 +93,7 @@ NF_CALLBACK(hook_ipv4, skb)
 	if (!state)
 		return NF_DROP;
 
-	result = find_instance(skb, &state->jool);
+	result = find_instance_nf(skb, &state->jool);
 	if (result != VERDICT_CONTINUE)
 		goto end;
 	silence = false;

@@ -15,6 +15,7 @@ jool_common-objs += rfc7915/core.o
 jool_common-objs += address_xlat.o
 jool_common-objs += kernel_hook_netfilter.o
 jool_common-objs += kernel_hook_iptables.o
+jool_common-objs += kernel_hook_nftables.o
 jool_common-objs += log.o
 jool_common-objs += address.o
 jool_common-objs += atomic_config.o

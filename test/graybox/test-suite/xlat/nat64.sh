@@ -26,6 +26,9 @@ ip6tables -t mangle -A PREROUTING -d 64:ff9b::/96                       -j JOOL
 iptables  -t mangle -A PREROUTING -d 192.0.2.2    -p tcp --dport 1:3000 -j JOOL
 iptables  -t mangle -A PREROUTING -d 192.0.2.2    -p udp --dport 1:3000 -j JOOL
 iptables  -t mangle -A PREROUTING -d 192.0.2.2    -p icmp               -j JOOL
+#/home/al/git/nftables/src/nft add table inet graybox
+#/home/al/git/nftables/src/nft add chain inet graybox test \{ type filter hook prerouting priority 0 \; \}
+#/home/al/git/nftables/src/nft add rule  inet graybox test jool nat64 default
 
 # Relevant whenever the kernel responds an ICMPv6 error on behalf of Jool.
 sysctl -w net.ipv6.auto_flowlabels=0 > /dev/null

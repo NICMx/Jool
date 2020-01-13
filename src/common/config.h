@@ -794,7 +794,7 @@ enum eam_hairpinning_mode {
 void prepare_config_for_userspace(struct globals *config, bool pools_empty);
 
 /*
- * For iptables usage.
+ * For iptables and nftables usage.
  *
  * This structure needs to length a multiple of 8 bytes.
  */

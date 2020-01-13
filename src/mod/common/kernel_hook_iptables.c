@@ -4,7 +4,7 @@
 #include "mod/common/linux_version.h"
 #include "mod/common/log.h"
 
-static verdict find_instance(struct net *ns, const struct target_info *info,
+verdict find_instance_tb(struct net *ns, const struct target_info *info,
 		struct xlator *result)
 {
 	int error;
@@ -105,7 +105,7 @@ unsigned int target_ipv6(struct sk_buff *skb,
 	if (!state)
 		return NF_DROP;
 
-	result = find_instance(action_param_net(param), param->targinfo,
+	result = find_instance_tb(action_param_net(param), param->targinfo,
 			&state->jool);
 	if (result != VERDICT_CONTINUE)
 		goto end;
@@ -132,7 +132,7 @@ unsigned int target_ipv4(struct sk_buff *skb,
 	if (!state)
 		return NF_DROP;
 
-	result = find_instance(action_param_net(param), param->targinfo,
+	result = find_instance_tb(action_param_net(param), param->targinfo,
 			&state->jool);
 	if (result != VERDICT_CONTINUE)
 		goto end;

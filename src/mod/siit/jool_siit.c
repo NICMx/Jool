@@ -1,6 +1,7 @@
 #include "mod/common/init.h"
 
 #include <linux/module.h>
+#include "common/config.h"
 #include "mod/common/kernel_hook.h"
 #include "mod/common/log.h"
 
@@ -48,12 +49,15 @@ static int __init siit_init(void)
 				iptables_error);
 	}
 
+	nft_setup();
+
 	pr_info("SIIT Jool v" JOOL_VERSION_STR " module inserted.\n");
 	return 0;
 }
 
 static void __exit siit_exit(void)
 {
+	nft_teardown();
 	if (!iptables_error)
 		xt_unregister_targets(targets, ARRAY_SIZE(targets));
 	jool_siit_put();
