@@ -6,6 +6,7 @@
 #include "mod/common/db/rfc6791v4.h"
 #include "mod/common/db/rfc6791v6.h"
 
+/* Populates the IPv4 addresses of state->out.tuple. */
 verdict translate_addrs64_siit(struct xlation *state)
 {
 	struct ipv6hdr *hdr6 = pkt_ip6_hdr(&state->in);
@@ -96,6 +97,7 @@ static bool disable_dst_eam(struct packet *in, bool hairpin)
 	return hairpin && pkt_is_inner(in);
 }
 
+/* Populates the IPv6 addresses of state->out.tuple. */
 verdict translate_addrs46_siit(struct xlation *state)
 {
 	struct packet *in = &state->in;
@@ -156,6 +158,7 @@ verdict translate_addrs46_siit(struct xlation *state)
 	return VERDICT_CONTINUE;
 }
 
+/* Populates state->out.tuple.*. */
 verdict compute_out_tuple_siit(struct xlation *state)
 {
 	union {

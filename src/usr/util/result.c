@@ -27,8 +27,6 @@ struct jool_result result_from_error(int error_code, char const *msg, ...)
 	if (error_code == 0)
 		error_code = -EINVAL; /* We know there's an error */
 
-	/* TODO (NOW) handle caller wants us to fail silently. */
-
 	result.error = error_code;
 	result.flags = JRF_INITIALIZED | JRF_MSG_IN_HEAP;
 	result.msg = malloc(MAX_STR_LEN);

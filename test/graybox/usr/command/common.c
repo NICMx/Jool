@@ -3,8 +3,7 @@
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include "common/types.h"
-#include "usr/argp/log.h"
+#include "log.h"
 
 int load_pkt(char *filename, unsigned char **result, size_t *result_len)
 {

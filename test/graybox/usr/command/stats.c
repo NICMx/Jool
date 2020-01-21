@@ -2,8 +2,7 @@
 
 #include <errno.h>
 #include <netlink/attr.h>
-#include "common/types.h"
-#include "usr/argp/log.h"
+#include "log.h"
 
 int stats_init_request(int argc, char **argv, enum graybox_command *cmd)
 {

@@ -14,7 +14,7 @@ install:
 	depmod
 
 # This target is needed to generate the upstream tarball.
-# It's not a typical Kbuild target.
+# It's not a standard Kbuild target.
 distdir:
 	mkdir -p ${distdir}
 	cp -r * ${distdir}

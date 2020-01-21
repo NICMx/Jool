@@ -92,6 +92,7 @@ static struct dst_entry *route_ipv6(struct net *ns, struct sk_buff *skb)
 	struct ipv6hdr *hdr;
 	struct hdr_iterator iterator;
 	struct flowi6 flow;
+	struct dst_entry *dst;
 
 	hdr = ipv6_hdr(skb);
 
@@ -105,7 +106,12 @@ static struct dst_entry *route_ipv6(struct net *ns, struct sk_buff *skb)
 	flow.saddr = hdr->saddr;
 	flow.daddr = hdr->daddr;
 
-	return route6(ns, &flow);
+	dst = route6(ns, &flow);
+	if (!dst)
+		return NULL;
+
+	skb_dst_set(skb, dst);
+	return dst;
 }
 
 int sender_send(char *pkt_name, void *pkt, size_t pkt_len)

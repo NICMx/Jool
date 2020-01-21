@@ -1,22 +1,70 @@
 #include "expect.h"
 
 #include <errno.h>
-#include "common.h"
-#include "common/types.h"
-#include "usr/util/str_utils.h"
-#include "usr/argp/log.h"
+#include "log.h"
+#include "command/common.h"
 
-int parse_exceptions(char *exceptions, struct expect_add_request *req)
+static int validate_uint(char const *token)
 {
-	__u16 len;
-	struct jool_result result;
+	unsigned int i;
 
-	result = str_to_plateaus_array(exceptions, req->exceptions, &len);
-	if (result.error)
-		return pr_result(&result);
+	for (i = 0; token[i]; i++)
+		if (token[i] < '0' || '9' < token[i])
+			return pr_err("'%c' is not a digit.", token[i]);
 
-	req->exceptions_len = len;
 	return 0;
+}
+
+static int parse_exceptions(char const *_str, struct expect_add_request *req)
+{
+	char *str;
+	char *token;
+	unsigned long int tmp;
+	int error;
+
+	req->exceptions_len = 0;
+
+	/* we need a copy because strtok corrupts the string */
+	str = strdup(_str);
+	if (!str)
+		return pr_enomem();
+
+	token = strtok(str, ",");
+	while (token) {
+		if (req->exceptions_len >= EXCEPTIONS_MAX) {
+			error = pr_err("Too many exceptions. (Max: %u)",
+					EXCEPTIONS_MAX);
+			goto abort;
+		}
+
+		error = validate_uint(token);
+		if (error)
+			goto abort;
+
+		errno = 0;
+		tmp = strtoul(token, NULL, 10);
+		if (errno) {
+			error = errno;
+			pr_err("Number parsing failed: %s", strerror(error));
+			goto abort;
+		}
+
+		if (tmp > UINT16_MAX) {
+			error = pr_err("%lu is out of bounds. (0-%d)", tmp,
+					UINT16_MAX);
+			goto abort;
+		}
+
+		req->exceptions[req->exceptions_len++] = tmp;
+		token = strtok(NULL, ",");
+	}
+
+	free(str);
+	return 0;
+
+abort:
+	free(str);
+	return error;
 }
 
 int expect_init_request(int argc, char **argv, enum graybox_command *cmd,

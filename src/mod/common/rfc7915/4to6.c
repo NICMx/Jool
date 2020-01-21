@@ -55,9 +55,12 @@ static __u8 xlat_nexthdr(__u8 protocol)
 	return (protocol == IPPROTO_ICMP) ? NEXTHDR_ICMP : protocol;
 }
 
-static struct dst_entry *predict_route(struct xlation *state,
-		struct ipv6_addresses *addrs)
+static verdict predict_route46(struct xlation *state,
+		struct ipv6_addresses *addrs,
+		struct dst_entry **result)
 {
+#ifndef UNIT_TESTING
+	struct dst_entry *dst;
 	struct packet *in;
 	struct flowi6 flow;
 
@@ -86,7 +89,41 @@ static struct dst_entry *predict_route(struct xlation *state,
 		break;
 	}
 
-	return route6(state->jool.ns, &flow);
+	dst = route6(state->jool.ns, &flow);
+	if (!dst)
+		return untranslatable(state, JSTAT_FAILED_ROUTES);
+
+	if (ipv6_addr_any(&flow.saddr)) { /* empty pool6791v6 */
+		if (WARN(!xlator_is_siit(&state->jool),
+			 "Zero source address on not SIIT!"))
+			goto panic;
+		if (WARN(!is_icmp4_error(pkt_icmp4_hdr(&state->in)->type),
+			 "Zero source on not ICMP error!"))
+			goto panic;
+
+		if (ipv6_dev_get_saddr(state->jool.ns,
+				       NULL,
+				       &state->out.tuple.dst.addr6.l3,
+				       IPV6_PREFER_SRC_PUBLIC,
+				       &state->out.tuple.src.addr6.l3)) {
+			log_warn_once("Can't find a sufficiently scoped primary source address to reach %pI6.",
+					&state->out.tuple.dst.addr6.l3);
+			dst_release(dst);
+			return drop(state, JSTAT46_6791_ENOENT);
+		}
+	}
+
+	*result = dst;
+	return VERDICT_CONTINUE;
+
+panic:
+	dst_release(dst);
+	return drop(state, JSTAT_UNKNOWN);
+
+#else
+	*result = NULL;
+	return VERDICT_CONTINUE;
+#endif
 }
 
 static int hdr4len_to_hdr6len(struct iphdr *hdr4)
@@ -330,39 +367,12 @@ static void autofill_dst(struct xlation *state, struct dst_entry *dst)
 		skb_dst_set(skb, dst_clone(dst));
 }
 
-static bool is_zero(struct in6_addr *addr)
-{
-	return (addr->s6_addr32[0] == 0)
-			&& (addr->s6_addr32[1] == 0)
-			&& (addr->s6_addr32[2] == 0)
-			&& (addr->s6_addr32[3] == 0);
-}
-
-static verdict addrs_set(struct xlation *state, struct ipv6_addresses *addrs)
+static void addrs_set46(struct xlation *state, struct ipv6_addresses *addrs)
 {
 	struct ipv6hdr *hdr6;
-
 	hdr6 = pkt_ip6_hdr(&state->out);
 	hdr6->saddr = addrs->src;
 	hdr6->daddr = addrs->dst;
-
-	if (is_zero(&hdr6->saddr)) { /* Empty 6791 pool */
-		if (WARN(!xlator_is_siit(&state->jool),
-				"Zero source address on not SIIT!"))
-			return drop(state, JSTAT_UNKNOWN);
-		if (WARN(!is_icmp4_error(pkt_icmp4_hdr(&state->in)->type),
-				"Zero source on not ICMP error!"))
-			return drop(state, JSTAT_UNKNOWN);
-
-		if (ipv6_dev_get_saddr(state->jool.ns, NULL, &hdr6->daddr,
-				IPV6_PREFER_SRC_PUBLIC, &hdr6->saddr)) {
-			log_warn_once("Can't find a sufficiently scoped primary source address to reach %pI6.",
-					&hdr6->daddr);
-			return drop(state, JSTAT46_6791_ESRCH);
-		}
-	}
-
-	return VERDICT_CONTINUE;
 }
 
 verdict ttp46_alloc_skb(struct xlation *state)
@@ -428,11 +438,15 @@ verdict ttp46_alloc_skb(struct xlation *state)
 	result = xlat_addresses46(state, &addrs);
 	if (result != VERDICT_CONTINUE)
 		return result;
-	dst = predict_route(state, &addrs);
-	if (!dst)
-		return untranslatable(state, JSTAT_FAILED_ROUTES);
+	result = predict_route46(state, &addrs, &dst);
+	if (result != VERDICT_CONTINUE)
+		return result;
 	out_pkt_len = predict_out_len(in);
+#ifndef UNIT_TESTING
 	nexthop_mtu = dst->dev->mtu;
+#else
+	nexthop_mtu = 1500;
+#endif
 	lowest_ipv6_mtu = state->jool.globals.lowest_ipv6_mtu;
 	mpl = min(nexthop_mtu, lowest_ipv6_mtu);
 
@@ -468,7 +482,7 @@ end:
 	}
 
 	autofill_dst(state, dst);
-	addrs_set(state, &addrs);
+	addrs_set46(state, &addrs);
 	return VERDICT_CONTINUE;
 
 fail:

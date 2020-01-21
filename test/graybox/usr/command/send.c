@@ -1,9 +1,8 @@
 #include "send.h"
 
 #include <errno.h>
-#include "common.h"
-#include "common/types.h"
-#include "usr/argp/log.h"
+#include "log.h"
+#include "command/common.h"
 
 int send_init_request(int argc, char **argv, enum graybox_command *cmd,
 		struct send_request *req)

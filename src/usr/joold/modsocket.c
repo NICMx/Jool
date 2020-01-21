@@ -76,7 +76,7 @@ void modsocket_send(void *request, size_t request_len)
 	if (validate_request(request, request_len, "joold peer", "local joold"))
 		return;
 
-	/* TODO (NOW) iname */
+	/* TODO (joold) iname */
 	result = netlink_send(&jsocket, NULL, request, request_len);
 	pr_result(&result);
 }

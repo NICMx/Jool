@@ -26,12 +26,14 @@ static __u8 ttp64_xlat_proto(struct ipv6hdr *hdr6)
 			: iterator.hdr_type;
 }
 
-static verdict predict_route(struct xlation *state, struct dst_entry **result)
+static verdict predict_route64(struct xlation *state, struct dst_entry **result)
 {
+#ifndef UNIT_TESTING
 	struct dst_entry *dst;
 	struct ipv6hdr *hdr6;
 	struct flowi4 flow;
 
+	*result = NULL;
 	hdr6 = pkt_ip6_hdr(&state->in);
 
 	memset(&flow, 0, sizeof(flow));
@@ -71,21 +73,27 @@ static verdict predict_route(struct xlation *state, struct dst_entry **result)
 	if (!dst)
 		return untranslatable(state, JSTAT_FAILED_ROUTES);
 
-	/* TODO (NOW) mirror this in 4->6 */
 	if (flow.saddr == 0) { /* Empty pool4 or empty pool6791v4 */
 		state->out.tuple.src.addr4.l3.s_addr = inet_select_addr(
 				dst->dev,
 				state->out.tuple.dst.addr4.l3.s_addr,
 				RT_SCOPE_UNIVERSE);
-		if (state->out.tuple.src.addr4.l3.s_addr == 0)
-			return drop(state, JSTAT64_6791_ESRCH);
+		if (state->out.tuple.src.addr4.l3.s_addr == 0) {
+			dst_release(dst);
+			return drop(state, JSTAT64_6791_ENOENT);
+		}
 	}
 
 	*result = dst;
 	return VERDICT_CONTINUE;
+
+#else
+	*result = NULL;
+	return VERDICT_CONTINUE;
+#endif
 }
 
-static verdict addrs_set(struct xlation *state)
+static void addrs_set64(struct xlation *state)
 {
 	struct packet *out;
 	struct iphdr *hdr;
@@ -93,11 +101,7 @@ static verdict addrs_set(struct xlation *state)
 	out = &state->out;
 	hdr = pkt_ip4_hdr(out);
 	hdr->saddr = out->tuple.src.addr4.l3.s_addr;
-	hdr->daddr = out->tuple.src.addr4.l3.s_addr;
-
-	/* TODO (NOW) review */
-
-	return VERDICT_CONTINUE;
+	hdr->daddr = out->tuple.dst.addr4.l3.s_addr;
 }
 
 verdict ttp64_alloc_skb(struct xlation *state)
@@ -109,7 +113,7 @@ verdict ttp64_alloc_skb(struct xlation *state)
 	int error;
 	verdict result;
 
-	result = predict_route(state, &dst);
+	result = predict_route64(state, &dst);
 	if (result != VERDICT_CONTINUE)
 		return result;
 
@@ -210,7 +214,8 @@ verdict ttp64_alloc_skb(struct xlation *state)
 	}
 
 	skb_dst_set(out, dst);
-	return addrs_set(state);
+	addrs_set64(state);
+	return VERDICT_CONTINUE;
 
 revert:
 	dst_release(dst);

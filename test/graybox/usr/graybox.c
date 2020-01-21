@@ -3,11 +3,11 @@
 #include <netlink/attr.h>
 
 #include "genetlink.h"
+#include "log.h"
 #include "common/graybox-types.h"
 #include "command/expect.h"
 #include "command/send.h"
 #include "command/stats.h"
-#include "usr/argp/log.h"
 
 struct request {
 	enum graybox_command cmd;

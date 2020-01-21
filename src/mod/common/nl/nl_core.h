@@ -27,7 +27,7 @@
  * So we use a buffer to build the attribute content first and write the
  * attribute later.
  *
- * TODO (later) maybe find a way to do this without attributes?
+ * TODO (fine) maybe find a way to do this without attributes?
  */
 struct nlcore_buffer {
 	__u16 len;

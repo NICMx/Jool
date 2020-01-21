@@ -3,8 +3,9 @@
 #include <errno.h>
 #include <netlink/genl/ctrl.h>
 #include <netlink/genl/genl.h>
+
+#include "log.h"
 #include "common/graybox-types.h"
-#include "usr/argp/log.h"
 
 static struct nl_sock *sk;
 static int family;

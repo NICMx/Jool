@@ -35,6 +35,7 @@ $(PAGE)-objs += ../../../src/mod/common/packet.o
 $(PAGE)-objs += ../../../src/mod/common/rfc6052.o
 $(PAGE)-objs += ../../../src/mod/common/rtrie.o
 $(PAGE)-objs += ../../../src/mod/common/translation_state.o
+$(PAGE)-objs += ../../../src/mod/common/trace.o
 $(PAGE)-objs += ../../../src/mod/common/xlator.o
 $(PAGE)-objs += ../../../src/mod/common/db/blacklist4.o
 $(PAGE)-objs += ../../../src/mod/common/db/eam.o
@@ -42,6 +43,7 @@ $(PAGE)-objs += ../../../src/mod/common/db/pool.o
 $(PAGE)-objs += ../../../src/mod/common/db/rfc6791v4.o
 $(PAGE)-objs += ../../../src/mod/common/db/rfc6791v6.o
 
+$(PAGE)-objs += ../../../src/mod/common/steps/compute_outgoing_tuple_siit.o
 $(PAGE)-objs += ../../../src/mod/common/steps/handling_hairpinning_siit.o
 $(PAGE)-objs += ../../../src/mod/common/rfc7915/4to6.o
 $(PAGE)-objs += ../../../src/mod/common/rfc7915/6to4.o

@@ -4,13 +4,13 @@
 #include <linux/skbuff.h>
 #include "common/graybox-types.h"
 
-#define PLATEAUS_MAX 64
+#define EXCEPTIONS_MAX 64u
 
 struct expected_packet {
 	char *filename;
 	unsigned char *bytes;
 	size_t bytes_len;
-	__u16 exceptions[PLATEAUS_MAX];
+	__u16 exceptions[EXCEPTIONS_MAX];
 	/* Number of entries in @exceptions. */
 	size_t exceptions_len;
 };

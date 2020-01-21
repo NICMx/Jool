@@ -179,6 +179,18 @@ struct addrxlat_result addrxlat_siit46(struct xlator *instance,
 	return fail_addr();
 }
 
+verdict translate_addrs64_siit(struct xlation *state)
+{
+	fail(__func__);
+	return VERDICT_DROP;
+}
+
+verdict translate_addrs46_siit(struct xlation *state)
+{
+	fail(__func__);
+	return VERDICT_DROP;
+}
+
 bool is_hairpin_siit(struct xlation *state)
 {
 	fail(__func__);
