@@ -176,13 +176,13 @@ static unsigned int predict_out_len(struct packet *in)
 static bool is_fragmentation_allowed(struct packet *in)
 {
 	/*
-	 * intention:
+	 * Intended Truth Table:
 	 *
 	 * ignore_df    df       result
 	 * false        false    allow fragmentation
 	 * false        true     fragmentation prohibited
 	 * true         false    allow fragmentation
-	 * true         TRUE     allow fragmentation
+	 * true         true     allow fragmentation
 	 */
 	return in->skb->ignore_df || !is_df_set(pkt_ip4_hdr(in));
 }
@@ -302,7 +302,7 @@ static verdict allocate_slow(struct xlation *state, unsigned int mpl)
 
 	in = &state->in;
 	previous = &state->out.skb;
-	payload_left = pkt_payload_len_pkt(in);
+	payload_left = pkt_l3payload_len(in);
 	payload_per_frag = (mpl - HDRS_LEN) & 0xFFFFFFF8U;
 	bytes_consumed = 0;
 
@@ -328,10 +328,10 @@ static verdict allocate_slow(struct xlation *state, unsigned int mpl)
 		skb_reset_network_header(out);
 		skb_put(out, sizeof(struct ipv6hdr));
 		frag = skb_put(out, sizeof(struct frag_hdr));
-		skb_reset_transport_header(out);
 		l3_payload = skb_put(out, fragment_payload_len);
 
 		if (out == state->out.skb) {
+			skb_set_transport_header(out, HDRS_LEN);
 			pkt_fill(&state->out, out, L3PROTO_IPV6,
 					pkt_l4_proto(in), frag,
 					l3_payload + pkt_l4hdr_len(in),
@@ -380,30 +380,74 @@ verdict ttp46_alloc_skb(struct xlation *state)
 	/*
 	 * Glossary:
 	 *
-	 * - PL: (Ideal) (Out) Packet Length
+	 * - IPL: Ideal (Outgoing) Packet Length
 	 * - MPL: Maximum Packet Length
 	 * - Slow Path: Out packet(s) will have to be created from scratch, data
 	 *   will be inevitably copied from In to Out(s)
 	 * - Fast Path: Out packet will share In packet's paged data if possible
+	 * - PTB: Packet Too Big (ICMPv6 error type 2 code 0)
+	 * - FN: Fragmentation Needed (ICMPv4 error type 3 code 4)
 	 *
-	 * I have decided NOT to attempt to preserve frag_list, because past
-	 * experience has suggested the semantics of that fucking thing depend
-	 * on kernel version, and so there's no way I'd get it right. I intend
-	 * to attempt no skb surgery whatsoever. The messy internal fields are
-	 * transparent to me; my tools are skb_copy_bits() and friends.
+	 * My tools are skb_copy_bits() and friends. I intend to attempt no
+	 * frag/frag_list surgery whatsoever.
 	 *
-	 * This is the algorithm in pseudocode:
+	 * This is a gargantuan pain in the ass. Here's the general algorithm in
+	 * pseudocode:
 	 *
-	 *	If fragmentation prohibited:
-	 *		If PL > netxhop MTU:
-	 *			Frag Needed (ICMPv4 error type 3 code 4)
+	 *	If ICMP error:
+	 *		Fast Path
+	 *
+	 *	Else if fragmentation prohibited:
+	 *		If IPL > netxhop MTU:
+	 *			FN
 	 *		Else:
 	 *			Fast Path
 	 *	Else:
-	 *		If PL <= MPL:
+	 *		If IPL <= MPL:
 	 *			Fast Path
 	 *		Else:
 	 *			Slow Path
+	 *
+	 * Design notes:
+	 *
+	 * # MTU
+	 *
+	 * MTU needs to be handled with extreme caution. We do not want
+	 * ip6_output() -> ip6_finish_output() -> ip6_fragment() to return
+	 * PTB because we want a FN instead. (We wouldn't translate
+	 * ip6_fragment()'s PTB to FN because we're stuck in prerouting, so
+	 * it'll never reach us.) PMTUD depends on this. We avoid the PTB by
+	 * sending the FN ourselves by querying dst_mtu() (the same MTU function
+	 * ip6_fragment() uses to compute the MTU).
+	 *
+	 * Of course, this hinges on ip6_fragment() using dst_mtu(). If this
+	 * ever stops working, this is the first thing you need to check.
+	 * (Hint: The struct sock is always NULL.)
+	 *
+	 * (If, on the other hand, a future namespace returns a PTB, it will
+	 * cross our prerouting so it'll be converted to a FN no problem.)
+	 *
+	 * --lowest-ipv6-mtu acts as a second line of defense, since it's (in
+	 * theory) guaranteeing that the kernel will never enter ip6_fragment()
+	 * in the first place. Though I'm glad it's not the only one because it
+	 * depends on user competence.
+	 *
+	 * # GSO
+	 *
+	 * The algorithm does not care about GSO. This is because
+	 *
+	 * 1. If fragmentation is not allowed, GSO is irrelevant. It will serve
+	 * as a means to transport multiple buffers in one packet (which is
+	 * performance friendly and works end-to-end without us doing anything),
+	 * but never to ease fragmentation.
+	 *
+	 * 2. If fragmentation is allowed, we're RFC-bound to ensure the packet
+	 * fits --lowest-ipv6-mtu no matter what. We're forced to throw away GSO
+	 * in these situations.
+	 *
+	 * TODO (NOW) think more about frag_list
+	 *
+	 * # Slow/Fast Path
 	 *
 	 * In Fast Path the result will be a single skb, mirroring the incoming
 	 * packet's paging.
@@ -428,7 +472,7 @@ verdict ttp46_alloc_skb(struct xlation *state)
 	struct packet *in;
 	struct ipv6_addresses addrs;
 	struct dst_entry *dst;
-	unsigned int out_pkt_len;
+	unsigned int ipl;
 	unsigned int nexthop_mtu;
 	unsigned int lowest_ipv6_mtu;
 	unsigned int mpl;
@@ -441,9 +485,10 @@ verdict ttp46_alloc_skb(struct xlation *state)
 	result = predict_route46(state, &addrs, &dst);
 	if (result != VERDICT_CONTINUE)
 		return result;
-	out_pkt_len = predict_out_len(in);
+
+	ipl = predict_out_len(in);
 #ifndef UNIT_TESTING
-	nexthop_mtu = dst->dev->mtu;
+	nexthop_mtu = dst_mtu(dst);
 #else
 	nexthop_mtu = 1500;
 #endif
@@ -456,30 +501,25 @@ verdict ttp46_alloc_skb(struct xlation *state)
 	}
 
 	if (is_icmp4_error(pkt_icmp4_hdr(in)->type)) {
-		result = allocate_fast(state, out_pkt_len);
-		goto end;
-	}
+		result = allocate_fast(state, ipl);
 
-	if (is_fragmentation_allowed(in)) {
-		if (out_pkt_len <= mpl)
-			result = allocate_fast(state, out_pkt_len);
+	} else if (is_fragmentation_allowed(in)) {
+		if (ipl <= mpl)
+			result = allocate_fast(state, ipl);
 		else
 			result = allocate_slow(state, mpl);
 
 	} else { /* Fragmentation prohibited */
-		if (out_pkt_len > nexthop_mtu) {
+		if (ipl > nexthop_mtu) {
 			result = drop_icmp(state, JSTAT_PKT_TOO_BIG,
-					ICMPERR_FRAG_NEEDED, nexthop_mtu);
+					ICMPERR_FRAG_NEEDED, nexthop_mtu - 20);
 			goto fail;
 		}
-		result = allocate_fast(state, out_pkt_len);
+		result = allocate_fast(state, ipl);
 	}
 
-end:
-	if (result != VERDICT_CONTINUE) {
-		dst_release(dst);
-		return result;
-	}
+	if (result != VERDICT_CONTINUE)
+		goto fail;
 
 	autofill_dst(state, dst);
 	addrs_set46(state, &addrs);
@@ -589,7 +629,7 @@ static void autofill_hdr6(struct packet *out)
 	frag = (struct frag_hdr *)(ipv6_hdr(first) + 1);
 	frag_offset = get_fragment_offset_ipv6(frag) + first->len - HDRS_LEN;
 	first_mf = is_mf_set_ipv6(frag);
-	frag->frag_off |= IP6_MF;
+	frag->frag_off |= cpu_to_be16(IP6_MF);
 
 	for (skb = first->next; skb != NULL; skb = skb->next) {
 		hdr6 = ipv6_hdr(skb);
@@ -718,7 +758,7 @@ static verdict compute_mtu6(struct xlation *state)
 	 * hairpinning).
 	 */
 	in_mtu = state->in.skb->dev ? state->in.skb->dev->mtu : 0xfffffff;
-	out_mtu = skb_dst(state->out.skb)->dev->mtu;
+	out_mtu = dst_mtu(skb_dst(state->out.skb));
 
 	log_debug("Packet MTU: %u", be16_to_cpu(in_icmp->un.frag.mtu));
 	log_debug("In dev MTU: %u", in_mtu);

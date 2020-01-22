@@ -401,10 +401,10 @@ static verdict compute_mtu4(struct xlation *state)
 
 	log_debug("Packet MTU: %u", be32_to_cpu(in_icmp->icmp6_mtu));
 	log_debug("In dev MTU: %u", state->in.skb->dev->mtu);
-	log_debug("Out dev MTU: %u", skb_dst(state->out.skb)->dev->mtu);
+	log_debug("Out dev MTU: %u", dst_mtu(skb_dst(state->out.skb)));
 
 	out_icmp->un.frag.mtu = minimum(be32_to_cpu(in_icmp->icmp6_mtu) - 20,
-			skb_dst(state->out.skb)->dev->mtu,
+			dst_mtu(skb_dst(state->out.skb)),
 			state->in.skb->dev->mtu - 20);
 	log_debug("Resulting MTU: %u", be16_to_cpu(out_icmp->un.frag.mtu));
 

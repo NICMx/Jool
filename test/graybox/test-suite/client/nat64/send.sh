@@ -242,15 +242,28 @@ result=$?
 $GRAYBOX stats flush
 
 
+INTERRUPTED=0
+function catch_interruption() {
+	INTERRUPTED=1
+}
+
+trap "catch_interruption" INT
 echo "---------------"
 echo "Strictly speaking, I'm done testing, but I'll wait 5:05 minutes."
 echo "This is intended to test session timer timeout."
 echo "You can see the status by running 'ip netns exec joolns jool se d --numeric' in a separate terminal."
+echo "(Or you can interrupt me and I'll clean up properly.)"
+
 for i in {305..1}; do
 	echo -en "Cleaning up in $i seconds.  \r"
 	sleep 1
+	if [ "$INTERRUPTED" -eq 1 ]; then
+		echo "Interrupted."
+		break
+	fi
 done
-echo "--------------------------"
 
+echo "--------------------------"
+trap SIGINT # Restore normal signal handling
 
 exit $result
