@@ -59,6 +59,8 @@ int xlator_add(xlator_flags flags, char *iname, struct config_prefix6 *pool6,
 		struct xlator *result);
 int xlator_rm(xlator_type xt, char *iname);
 int xlator_flush(xlator_type xt);
+void jool_xlator_flush_net(struct net *ns, xlator_type xt);
+void jool_xlator_flush_batch(struct list_head *net_exit_list, xlator_type xt);
 
 int xlator_init(struct xlator *jool, struct net *ns, char *iname,
 		xlator_flags flags, struct config_prefix6 *pool6);

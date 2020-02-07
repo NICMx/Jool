@@ -539,24 +539,19 @@ static int setup(void)
 {
 	int error;
 
-	error = bib_setup();
-	if (error)
-		goto fail1;
 	error = rfc6056_setup();
 	if (error)
-		goto fail2;
+		goto rfc6056_fail;
 	error = xlator_setup();
 	if (error)
-		goto fail3;
+		goto xlator_fail;
 	xlator_set_defrag(defrag_dummy);
 
 	return 0;
 
-fail3:
+xlator_fail:
 	rfc6056_teardown();
-fail2:
-	bib_teardown();
-fail1:
+rfc6056_fail:
 	return error;
 }
 

@@ -78,28 +78,29 @@ user@T:~# /sbin/reboot
 
 ## Installing Dependencies
 
-> Note: Distros sometimes change this, and it's difficult to keep it updated. You might need to tweak dependency installation to some extent.
->
-> Please [report](https://github.com/NICMx/Jool/issues) any issues you find. (Including instructions for different distributions.)
->
-> Latest revision (2020-01-08):
+Of course, I can't list exact dependencies for every single distribution, but here is a small list compiled from previous troubleshooting experiences. It should at least get you started if your environment is different.
+
+> This section was last revised in 2020-01-08, using the following Linux flavors:
 >
 > - Debian 10.2 (`cat /etc/debian_version`)
 > - Ubuntu 18.04.3 LTS (`lsb_release -a`, `cat /etc/os-release`, `hostnamectl`)
+> - Raspberri Pi Desktop (Debian Buster) September 2019 (This is just the name of the ISO; Raspberri does not seem to have a dedicated version string. `/etc/os-release` refers to Debian 10 and `/etc/debian_version` says `10.2`.)
 > - CentOS 7.7.1908 (Core) (`cat /etc/system-release`, `cat /etc/centos-release`)
 > - OpenSUSE Leap 15.1 (`cat /usr/lib/os-release`)
 > - Arch Linux 5.4.8-arch1-1 (Found at the top of the login prompt. Might not be the right one, because it's the same as `uname -r`. Dunno; can't find a better string.)
+>
+> For Ubuntu and Raspberri, use the Debian tabs.
 
 First, you need your build essentials:
 
 <div class="distro-menu">
-	<span class="distro-selector" onclick="showDistro(this);">Debian/Ubuntu</span>
+	<span class="distro-selector" onclick="showDistro(this);">Debian</span>
 	<span class="distro-selector" onclick="showDistro(this);">CentOS</span>
 	<span class="distro-selector" onclick="showDistro(this);">openSUSE</span>
 	<span class="distro-selector" onclick="showDistro(this);">Arch</span>
 </div>
 
-<!-- Debian/Ubuntu -->
+<!-- Debian -->
 {% highlight bash %}
 user@T:~# apt install build-essential pkg-config
 {% endhighlight %}
@@ -122,13 +123,13 @@ user@T:~# pacman -S base-devel
 The modules need your kernel headers (and make sure your kernel is [supported](intro-jool.html#compatibility) by your version of Jool):
 
 <div class="distro-menu">
-	<span class="distro-selector" onclick="showDistro(this);">Debian/Ubuntu</span>
+	<span class="distro-selector" onclick="showDistro(this);">Debian</span>
 	<span class="distro-selector" onclick="showDistro(this);">CentOS</span>
 	<span class="distro-selector" onclick="showDistro(this);">openSUSE</span>
 	<span class="distro-selector" onclick="showDistro(this);">Arch</span>
 </div>
 
-<!-- Debian/Ubuntu -->
+<!-- Debian -->
 {% highlight bash %}
 user@T:~# apt install linux-headers-$(uname -r)
 {% endhighlight %}
@@ -151,13 +152,13 @@ user@T:~# pacman -S linux-headers
 The userspace clients and the daemon need the [Development Library and Headers for libnl-genl-3](http://www.infradead.org/~tgr/libnl/):
 
 <div class="distro-menu">
-	<span class="distro-selector" onclick="showDistro(this);">Debian/Ubuntu</span>
+	<span class="distro-selector" onclick="showDistro(this);">Debian</span>
 	<span class="distro-selector" onclick="showDistro(this);">CentOS</span>
 	<span class="distro-selector" onclick="showDistro(this);">openSUSE</span>
 	<span class="distro-selector" onclick="showDistro(this);">Arch</span>
 </div>
 
-<!-- Debian/Ubuntu -->
+<!-- Debian -->
 {% highlight bash %}
 user@T:~# apt install libnl-genl-3-dev
 {% endhighlight %}
@@ -180,13 +181,13 @@ user@T:~# # Installed by default, apparently
 The iptables shared objects need the [Netfilter xtables Library development files](http://www.netfilter.org/):
 
 <div class="distro-menu">
-	<span class="distro-selector" onclick="showDistro(this);">Debian/Ubuntu</span>
+	<span class="distro-selector" onclick="showDistro(this);">Debian</span>
 	<span class="distro-selector" onclick="showDistro(this);">CentOS</span>
 	<span class="distro-selector" onclick="showDistro(this);">openSUSE</span>
 	<span class="distro-selector" onclick="showDistro(this);">Arch</span>
 </div>
 
-<!-- Debian/Ubuntu -->
+<!-- Debian -->
 {% highlight bash %}
 user@T:~# apt install libxtables-dev # It's called iptables-dev in Ubuntu 16.04
 {% endhighlight %}
@@ -209,13 +210,13 @@ user@T:~# # Installed by default, apparently
 You also want DKMS, for automatic module rebuild during kernel updates:
 
 <div class="distro-menu">
-	<span class="distro-selector" onclick="showDistro(this);">Debian/Ubuntu</span>
+	<span class="distro-selector" onclick="showDistro(this);">Debian</span>
 	<span class="distro-selector" onclick="showDistro(this);">CentOS</span>
 	<span class="distro-selector" onclick="showDistro(this);">openSUSE</span>
 	<span class="distro-selector" onclick="showDistro(this);">Arch</span>
 </div>
 
-<!-- Debian/Ubuntu 18.04 -->
+<!-- Debian -->
 {% highlight bash %}
 user@T:~# apt install dkms
 {% endhighlight %}
@@ -240,13 +241,13 @@ user@T:~# pacman -S dkms
 If you're going to clone the git repository, you need git and the autotools:
 
 <div class="distro-menu">
-	<span class="distro-selector" onclick="showDistro(this);">Debian/Ubuntu</span>
+	<span class="distro-selector" onclick="showDistro(this);">Debian</span>
 	<span class="distro-selector" onclick="showDistro(this);">CentOS</span>
 	<span class="distro-selector" onclick="showDistro(this);">openSUSE</span>
 	<span class="distro-selector" onclick="showDistro(this);">Arch</span>
 </div>
 
-<!-- Debian/Ubuntu -->
+<!-- Debian -->
 {% highlight bash %}
 user@T:~# apt install git autoconf libtool
 {% endhighlight %}
@@ -269,13 +270,13 @@ user@T:~# pacman -S git # autotools already included in base-devel.
 And if you don't, you will need a `.tar.gz` extraction tool. Most distros include this by default, but just for completeness sake,
 
 <div class="distro-menu">
-	<span class="distro-selector" onclick="showDistro(this);">Debian/Ubuntu</span>
+	<span class="distro-selector" onclick="showDistro(this);">Debian</span>
 	<span class="distro-selector" onclick="showDistro(this);">CentOS</span>
 	<span class="distro-selector" onclick="showDistro(this);">openSUSE</span>
 	<span class="distro-selector" onclick="showDistro(this);">Arch</span>
 </div>
 
-<!-- Debian/Ubuntu -->
+<!-- Debian -->
 {% highlight bash %}
 user@T:~# apt install tar
 {% endhighlight %}

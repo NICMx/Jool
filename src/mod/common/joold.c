@@ -163,28 +163,19 @@ struct joold_node {
 
 static struct kmem_cache *node_cache;
 
-/**
- * joold_setup - Initializes this module. Make sure you call this before other
- * joold_ functions.
- */
-int joold_setup(void)
+static int joold_setup(void)
 {
 	node_cache = kmem_cache_create("jool_joold_nodes",
 			sizeof(struct joold_node), 0, 0, NULL);
-	if (!node_cache) {
-		log_err("Could not allocate the Joold node cache.");
-		return -ENOMEM;
-	}
-
-	return 0;
+	return node_cache ? 0 : -EINVAL;
 }
 
-/**
- * joold_teardown - Reverts joold_setup().
- */
 void joold_teardown(void)
 {
-	kmem_cache_destroy(node_cache);
+	if (node_cache) {
+		kmem_cache_destroy(node_cache);
+		node_cache = NULL;
+	}
 }
 
 static bool should_send(struct xlator *jool)
@@ -404,10 +395,21 @@ static void send_to_userspace(struct joold_buffer *buffer, struct net *ns)
 struct joold_queue *joold_alloc(struct net *ns)
 {
 	struct joold_queue *queue;
+	bool cache_created;
+
+	cache_created = false;
+	if (!node_cache) {
+		if (joold_setup())
+			return NULL;
+		cache_created = true;
+	}
 
 	queue = wkmalloc(struct joold_queue, GFP_KERNEL);
-	if (!queue)
+	if (!queue) {
+		if (cache_created)
+			joold_teardown();
 		return NULL;
+	}
 
 	INIT_LIST_HEAD(&queue->sessions);
 	queue->count = 0;

@@ -190,9 +190,9 @@ static void __flush_delete(struct hlist_head *detached)
  * Called whenever the user deletes a namespace. Supposed to delete all the
  * instances inserted in that namespace.
  *
- * Update 2019-10-15: Also called during jool r-modprobe.
+ * Update 2019-10-15: Also called during modprobe -r.
  */
-static void __flush_net(struct net *ns, xlator_type xt)
+void jool_xlator_flush_net(struct net *ns, xlator_type xt)
 {
 	HLIST_HEAD(detached);
 
@@ -202,11 +202,7 @@ static void __flush_net(struct net *ns, xlator_type xt)
 
 	__flush_delete(&detached);
 }
-
-static void flush_net(struct net *ns)
-{
-	__flush_net(ns, XT_ANY);
-}
+EXPORT_SYMBOL_GPL(jool_xlator_flush_net);
 
 /**
  * Called whenever the user deletes... several namespaces? I'm not really sure.
@@ -216,24 +212,19 @@ static void flush_net(struct net *ns)
  *
  * Maybe delete flush_net(); I guess it's redundant.
  */
-static void flush_batch(struct list_head *net_exit_list)
+void jool_xlator_flush_batch(struct list_head *net_exit_list, xlator_type xt)
 {
 	struct net *ns;
 	HLIST_HEAD(detached);
 
 	mutex_lock(&lock);
 	list_for_each_entry(ns, net_exit_list, exit_list)
-		__flush_detach(ns, XT_ANY, &detached);
+		__flush_detach(ns, xt, &detached);
 	mutex_unlock(&lock);
 
 	__flush_delete(&detached);
 }
-
-/** Namespace-aware network operation registration object */
-static struct pernet_operations joolns_ops = {
-	.exit = flush_net,
-	.exit_batch = flush_batch,
-};
+EXPORT_SYMBOL_GPL(jool_xlator_flush_batch);
 
 /**
  * Initializes this module. Do not call other functions before this one.
@@ -241,7 +232,9 @@ static struct pernet_operations joolns_ops = {
 int xlator_setup(void)
 {
 	struct list_head *list;
+#if LINUX_VERSION_LOWER_THAN(4, 13, 0, 8, 0)
 	int error;
+#endif
 
 	list = __wkmalloc("xlator DB", sizeof(struct list_head), GFP_KERNEL);
 	if (!list)
@@ -249,16 +242,9 @@ int xlator_setup(void)
 	INIT_LIST_HEAD(list);
 	RCU_INIT_POINTER(netfilter_instances, list);
 
-	error = register_pernet_subsys(&joolns_ops);
-	if (error) {
-		__wkfree("xlator DB", list);
-		return error;
-	}
-
 #if LINUX_VERSION_LOWER_THAN(4, 13, 0, 8, 0)
 	error = nf_register_hooks(netfilter_hooks, ARRAY_SIZE(netfilter_hooks));
 	if (error) {
-		unregister_pernet_subsys(&joolns_ops);
 		__wkfree("xlator DB", list);
 		return error;
 	}
@@ -281,7 +267,6 @@ void xlator_teardown(void)
 #if LINUX_VERSION_LOWER_THAN(4, 13, 0, 8, 0)
 	nf_unregister_hooks(netfilter_hooks, ARRAY_SIZE(netfilter_hooks));
 #endif
-	unregister_pernet_subsys(&joolns_ops);
 
 	WARN(!hash_empty(instances), "There are elements in the xlator table after a cleanup.");
 	WARN(!list_empty(netfilter_instances), "There are elements in the xlator list after a cleanup.");
@@ -743,7 +728,7 @@ int xlator_flush(xlator_type xt)
 		return PTR_ERR(ns);
 	}
 
-	__flush_net(ns, xt);
+	jool_xlator_flush_net(ns, xt);
 
 	put_net(ns);
 	return 0;

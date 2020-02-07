@@ -225,7 +225,6 @@ int init_module(void)
 {
 	struct test_group test = {
 		.name = "Filtering and Updating",
-		.setup_fn = bib_setup,
 		.teardown_fn = bib_teardown,
 		.init_fn = init,
 		.clean_fn = clean,

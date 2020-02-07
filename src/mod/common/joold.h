@@ -12,7 +12,7 @@ struct joold_queue;
  * is emptied as a result.
  */
 
-int joold_setup(void);
+/* joold_setup() not needed. */
 void joold_teardown(void);
 
 struct joold_queue *joold_alloc(struct net *ns);

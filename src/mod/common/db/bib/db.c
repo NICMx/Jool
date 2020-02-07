@@ -314,7 +314,7 @@ static void kill_stored_pkt(struct bib_table *table,
 	table->pkt_count--;
 }
 
-int bib_setup(void)
+static int bib_setup(void)
 {
 	bib_cache = kmem_cache_create("bib_nodes",
 			sizeof(struct tabled_bib),
@@ -327,6 +327,7 @@ int bib_setup(void)
 			0, 0, NULL);
 	if (!session_cache) {
 		kmem_cache_destroy(bib_cache);
+		bib_cache = NULL;
 		return -ENOMEM;
 	}
 
@@ -335,8 +336,13 @@ int bib_setup(void)
 
 void bib_teardown(void)
 {
+	if (!bib_cache)
+		return;
+
 	kmem_cache_destroy(bib_cache);
+	bib_cache = NULL;
 	kmem_cache_destroy(session_cache);
+	session_cache = NULL;
 }
 
 static enum session_fate just_die(struct session_entry *session, void *arg)
@@ -376,24 +382,37 @@ static void init_table(struct bib_table *table,
 struct bib *bib_alloc(void)
 {
 	struct bib *db;
+	bool cache_created;
+
+	cache_created = false;
+	if (!bib_cache) {
+		if (bib_setup())
+			return NULL;
+		cache_created = true;
+	}
 
 	db = wkmalloc(struct bib, GFP_KERNEL);
 	if (!db)
-		return NULL;
+		goto db_alloc_fail;
 
 	init_table(&db->udp, UDP_DEFAULT, 0, just_die);
 	init_table(&db->tcp, TCP_EST, TCP_TRANS, tcp_est_expire_cb);
 	init_table(&db->icmp, ICMP_DEFAULT, 0, just_die);
 
 	db->tcp.pkt_queue = pktqueue_alloc();
-	if (!db->tcp.pkt_queue) {
-		wkfree(struct bib, db);
-		return NULL;
-	}
+	if (!db->tcp.pkt_queue)
+		goto pktqueue_alloc_fail;
 
 	kref_init(&db->refs);
 
 	return db;
+
+pktqueue_alloc_fail:
+	wkfree(struct bib, db);
+db_alloc_fail:
+	if (cache_created)
+		bib_teardown();
+	return NULL;
 }
 
 void bib_get(struct bib *db)

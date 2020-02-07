@@ -34,6 +34,7 @@ $(PAGE)-objs += ../../../src/mod/common/ipv6_hdr_iterator.o
 $(PAGE)-objs += ../../../src/mod/common/packet.o
 $(PAGE)-objs += ../../../src/mod/common/rfc6052.o
 $(PAGE)-objs += ../../../src/mod/common/rtrie.o
+$(PAGE)-objs += ../../../src/mod/common/trace.o
 $(PAGE)-objs += ../../../src/mod/common/translation_state.o
 $(PAGE)-objs += ../../../src/mod/common/xlator.o
 $(PAGE)-objs += ../../../src/mod/common/db/blacklist4.o
