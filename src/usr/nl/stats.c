@@ -42,7 +42,7 @@ static struct jstat_metadata const jstat_metadatas[] = {
 			"If the instance is a Netfilter translator, this counter increases randomly from normal operation, and is harmless.\n"
 			"If the instance is an iptables translator, this counter being positive suggests a mismatch between the IPv4 iptables rule(s) and the instance's configuration."),
 	DEFINE_STAT(JSTAT_ICMP6_FILTER, "Packets filtered by `" OPTNAME_DROP_ICMP6_INFO "` policy."),
-	/* TODO This one might signal a programming error. */
+	/* TODO (warning) This one might signal a programming error. */
 	DEFINE_STAT(JSTAT_UNTRANSLATABLE_DST6, TC "IPv6 packet's destination address did not match pool6."),
 	DEFINE_STAT(JSTAT_UNTRANSLATABLE_DST4, TC "IPv4 packet's source address could not be translated with the given pool6."),
 	DEFINE_STAT(JSTAT_MASK_DOMAIN_NOT_FOUND, TC "There was no pool4 entry whose protocol and mark matched the incoming IPv6 packet."),

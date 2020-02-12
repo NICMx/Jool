@@ -93,6 +93,51 @@ static verdict predict_route64(struct xlation *state, struct dst_entry **result)
 #endif
 }
 
+static int fragment_exceeds_mtu64(struct packet *in, unsigned int mtu)
+{
+	struct sk_buff *iter;
+	int delta;
+
+	delta = sizeof(struct iphdr) - pkt_l3hdr_len(in);
+
+	if (!skb_shinfo(in->skb)->frag_list) {
+		if (in->skb->len + delta > mtu)
+			return is_first_frag6(pkt_frag_hdr(in)) ? 1 : 2;
+		return 0;
+	}
+
+	if (skb_headlen(in->skb) + delta > mtu)
+		return 1;
+
+	mtu -= sizeof(struct iphdr);
+	skb_walk_frags(in->skb, iter)
+		if (iter->len > mtu)
+			return 2;
+
+	return 0;
+}
+
+static verdict validate_size(struct xlation *state, struct dst_entry *dst)
+{
+	unsigned int nexthop_mtu = dst_mtu(dst);
+
+	if (is_icmp6_error(pkt_icmp6_hdr(&state->in)->icmp6_type))
+		return VERDICT_CONTINUE;
+
+	switch (fragment_exceeds_mtu64(&state->in, nexthop_mtu)) {
+	case 0:
+		return VERDICT_CONTINUE;
+	case 1:
+		return drop_icmp(state, JSTAT_PKT_TOO_BIG, ICMPERR_FRAG_NEEDED,
+				nexthop_mtu + 20);
+	case 2:
+		return drop(state, JSTAT_PKT_TOO_BIG);
+	}
+
+	WARN(1, "fragment_exceeds_mtu64() returned garbage.");
+	return drop(state, JSTAT_UNKNOWN);
+}
+
 static void addrs_set64(struct xlation *state)
 {
 	struct packet *out;
@@ -114,6 +159,9 @@ verdict ttp64_alloc_skb(struct xlation *state)
 	verdict result;
 
 	result = predict_route64(state, &dst);
+	if (result != VERDICT_CONTINUE)
+		return result;
+	result = validate_size(state, dst);
 	if (result != VERDICT_CONTINUE)
 		return result;
 
@@ -177,6 +225,8 @@ verdict ttp64_alloc_skb(struct xlation *state)
 	 * Neither of these possibilities is even remotely acceptable.
 	 * We'll maximize probability delivery by truncating to mandatory
 	 * minimum size.
+	 *
+	 * TODO (warning) shouldn't this also check for first fragment?
 	 */
 	if (pkt_is_icmp6_error(in)) {
 		/*

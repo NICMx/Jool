@@ -711,6 +711,8 @@ struct globals {
 	 */
 	__u32 lowest_ipv6_mtu;
 
+	config_bool force_slow_path_46;
+
 	/**
 	 * If the translator detects the source of the incoming packet does not
 	 * implement RFC 1191, these are the plateau values used to determine a

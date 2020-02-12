@@ -9,7 +9,7 @@ static bool is_illegal_source(struct in6_addr *src)
 {
 	/*
 	 * The RFC does not define "illegal source address"...
-	 * TODO think about this.
+	 * TODO (warning) think about this.
 	 */
 	return (src->s6_addr32[0] == 0)
 			&& (src->s6_addr32[1] == 0)

@@ -137,16 +137,17 @@ static int hdr4len_to_hdr6len(struct iphdr *hdr4)
 	return result;
 }
 
-/**
- * Computes and returns the "ideal" outgoing packet's length.
+/*
+ * Returns the "ideal" difference in size between in->skb and out->skb.
+ * in->skb->len + delta should equal out->skb->len.
  *
- * "Ideal" means Fast Path. (ie. assuming Jool will not need to fragment the
- * packet further.)
+ * ("Ideal" refers to Fast Path. This delta will not apply if Jool has to mess
+ * around with fragmentation.)
  *
- * Please note that there's no guarantee that the resulting size will be greater
- * than the original (ie. delta can be negative). Handle with caution.
+ * Please note that there is no guarantee that delta will be positive. If the
+ * IPv4 header has lots of options, it might exceed the IPv6 header length.
  */
-static unsigned int predict_out_len(struct packet *in)
+static int get_delta(struct packet *in)
 {
 	int delta;
 
@@ -170,34 +171,47 @@ static unsigned int predict_out_len(struct packet *in)
 	if (is_first_frag4(pkt_ip4_hdr(in)) && pkt_is_icmp4_error(in))
 		delta += hdr4len_to_hdr6len(pkt_payload(in));
 
-	return in->skb->len + delta;
+	return delta;
 }
 
-static bool is_fragmentation_allowed(struct packet *in)
+/*
+ * Returns:
+ *
+ * - 0: No fragments exceed MTU
+ * - 1: First fragment exceeds MTU
+ * - 2: Subsequent fragment exceeds MTU
+ */
+static int fragment_exceeds_mtu46(struct packet *in, int delta,
+		unsigned int mtu)
 {
-	/*
-	 * Intended Truth Table:
-	 *
-	 * ignore_df    df       result
-	 * false        false    allow fragmentation
-	 * false        true     fragmentation prohibited
-	 * true         false    allow fragmentation
-	 * true         true     allow fragmentation
-	 */
-	return in->skb->ignore_df || !is_df_set(pkt_ip4_hdr(in));
+	struct sk_buff *iter;
+
+	if (!skb_shinfo(in->skb)->frag_list) {
+		if (in->skb->len + delta > mtu)
+			return is_first_frag4(pkt_ip4_hdr(in)) ? 1 : 2;
+		return 0;
+	}
+
+	if (skb_headlen(in->skb) + delta > mtu)
+		return 1;
+
+	mtu -= sizeof(struct ipv6hdr) + sizeof(struct frag_hdr);
+	skb_walk_frags(in->skb, iter)
+		if (iter->len > mtu)
+			return 2;
+
+	return 0;
 }
 
-static verdict allocate_fast(struct xlation *state, unsigned int out_pkt_len)
+static verdict allocate_fast(struct xlation *state, int delta, bool ignore_df)
 {
 	struct packet *in = &state->in;
 	struct sk_buff *out;
 	struct iphdr *hdr4_inner;
 	struct frag_hdr *hdr_frag;
 	struct skb_shared_info *shinfo;
-	int delta;
 	int error;
 
-	delta = out_pkt_len - in->skb->len;
 	/* Dunno what happens when headroom is negative, so don't risk it. */
 	if (delta < 0)
 		delta = 0;
@@ -274,6 +288,7 @@ static verdict allocate_fast(struct xlation *state, unsigned int out_pkt_len)
 			pkt_original_pkt(in));
 
 	memset(out->cb, 0, sizeof(out->cb));
+	out->ignore_df = ignore_df;
 	out->mark = in->skb->mark;
 	out->protocol = htons(ETH_P_IPV6);
 
@@ -338,6 +353,7 @@ static verdict allocate_slow(struct xlation *state, unsigned int mpl)
 					pkt_original_pkt(in));
 		}
 
+		out->ignore_df = false;
 		out->mark = in->skb->mark;
 		out->protocol = htons(ETH_P_IPV6);
 
@@ -384,29 +400,35 @@ verdict ttp46_alloc_skb(struct xlation *state)
 	 * - MPL: Maximum Packet Length
 	 * - Slow Path: Out packet(s) will have to be created from scratch, data
 	 *   will be inevitably copied from In to Out(s)
-	 * - Fast Path: Out packet will share In packet's paged data if possible
+	 * - Fast Path: Out packet will share In packet's fragment and paged
+	 *   data if possible
 	 * - PTB: Packet Too Big (ICMPv6 error type 2 code 0)
 	 * - FN: Fragmentation Needed (ICMPv4 error type 3 code 4)
 	 *
 	 * My tools are skb_copy_bits() and friends. I intend to attempt no
-	 * frag/frag_list surgery whatsoever.
+	 * frags surgery whatsoever.
 	 *
-	 * This is a gargantuan pain in the ass. Here's the general algorithm in
-	 * pseudocode:
+	 * This is a pain in the ass because of --lowest-ipv6-mtu and GRO/GSO.
+	 * Here's the general algorithm in pseudocode:
 	 *
 	 *	If ICMP error:
 	 *		Fast Path
 	 *
+	 *	Else If user wants to force Slow Path:
+	 *		Slow Path
+	 *
 	 *	Else if fragmentation prohibited:
-	 *		If IPL > netxhop MTU:
+	 *		If first fragment exceeds MTU:
 	 *			FN
+	 *		Else if subsequent fragment exceeds MTU:
+	 *			Silent drop
 	 *		Else:
 	 *			Fast Path
 	 *	Else:
-	 *		If IPL <= MPL:
-	 *			Fast Path
-	 *		Else:
+	 *		If at least one fragment exceeds MTU:
 	 *			Slow Path
+	 *		Else:
+	 *			Fast Path
 	 *
 	 * Design notes:
 	 *
@@ -416,7 +438,7 @@ verdict ttp46_alloc_skb(struct xlation *state)
 	 * ip6_output() -> ip6_finish_output() -> ip6_fragment() to return
 	 * PTB because we want a FN instead. (We wouldn't translate
 	 * ip6_fragment()'s PTB to FN because we're stuck in prerouting, so
-	 * it'll never reach us.) PMTUD depends on this. We avoid the PTB by
+	 * it'd never reach us.) PMTUD depends on this. We avoid the PTB by
 	 * sending the FN ourselves by querying dst_mtu() (the same MTU function
 	 * ip6_fragment() uses to compute the MTU).
 	 *
@@ -429,52 +451,123 @@ verdict ttp46_alloc_skb(struct xlation *state)
 	 *
 	 * --lowest-ipv6-mtu acts as a second line of defense, since it's (in
 	 * theory) guaranteeing that the kernel will never enter ip6_fragment()
-	 * in the first place. Though I'm glad it's not the only one because it
-	 * depends on user competence.
-	 *
-	 * # GSO
-	 *
-	 * The algorithm does not care about GSO. This is because
-	 *
-	 * 1. If fragmentation is not allowed, GSO is irrelevant. It will serve
-	 * as a means to transport multiple buffers in one packet (which is
-	 * performance friendly and works end-to-end without us doing anything),
-	 * but never to ease fragmentation.
-	 *
-	 * 2. If fragmentation is allowed, we're RFC-bound to ensure the packet
-	 * fits --lowest-ipv6-mtu no matter what. We're forced to throw away GSO
-	 * in these situations.
-	 *
-	 * TODO (NOW) think more about frag_list
+	 * in the first place. Though I'm glad it's not the only one because the
+	 * user could misconfigure it.
 	 *
 	 * # Slow/Fast Path
 	 *
-	 * In Fast Path the result will be a single skb, mirroring the incoming
-	 * packet's paging.
+	 * In Fast Path the result will be a single skb, sharing the incoming
+	 * packet's frag_list and frags.
 	 * In Slow Path the result will be multiple skbs, connected by their
 	 * next pointers. (We don't need prev for anything.)
 	 *
-	 * At time of writing, we need Slow Path for two reasons:
-	 *
-	 * 1. The kernel does not provide a means to fragment a packet to a
-	 * specified length. We can't inform lowest-ipv6-mtu to the kernel.
-	 *
-	 * 2. The kernel does not care about already existing fragment headers,
-	 * which complicates the survival of the Fragment Identification value
-	 * needed when the packet is already fragmented. If Jool sends an IPv6
-	 * packet containing a fragment header hoping that the kernel will reuse
-	 * it if it needs to fragment, the kernel will just add another fragment
-	 * header instead.
+	 * At time of writing, we need Slow Path (ie. we need to fragment
+	 * ourselves) because the kernel's IPv6 fragmentator does not care about
+	 * already existing fragment headers, which complicates the survival of
+	 * the Fragment Identification value needed when the packet is already
+	 * fragmented. If Jool sends an IPv6 packet containing a fragment header
+	 * hoping that the kernel will reuse it if it needs to fragment, the
+	 * kernel will just add another fragment header instead.
 	 *
 	 * I love you, Linux, but you can be such a moron.
+	 *
+	 * (Must not forget: The above might suggest that the following
+	 * situation could be handled by Fast Path:
+	 * - Fragmentation allowed
+	 * - Packet not already fragmented
+	 * - Packet too big
+	 * And it seems this would be true, but it would
+	 * 1. Complicate the code further. (Need to perform packet surgery in
+	 * the form of IP6CB(skb)->frag_max_size.)
+	 * 2. Not be particularly faster. (Because the fragmentator would end up
+	 * performing an operation equivalent to our Slow Path anyway.))
+	 *
+	 * Obviously, we want to use Fast Path whenever possible. Problem is,
+	 * it's risky because it could mess up packet sizes if done carelessly,
+	 * which borks PMTUD.
+	 *
+	 * Slow Path always works but breaks GRO/GSO optimizations.
+	 *
+	 * # GRO and GSO
+	 *
+	 * GRO/GSO are a problem because they lack contracts. I think the most
+	 * helpful documentation I found was https://lwn.net/Articles/358910/,
+	 * which has some interesting claims:
+	 *
+	 * - "the criteria for which packets can be merged is greatly
+	 *   restricted; (...) only a few TCP or IP headers can differ."
+	 * - "As a result of these restrictions, merged packets can be
+	 *   resegmented losslessly; as an added benefit, the GSO code can be
+	 *   used to perform resegmentation."
+	 *
+	 * In short, "GRO aims to be lossless, strict and symmetrical to GSO."
+	 *
+	 * Unfortunately, it doesn't say which are the fields that are allowed
+	 * to differ. Thus I need to make assumptions based on my readings of
+	 * the kernel code. This is obviously not future-proof, but it's
+	 * basically needed because performance is severely restricted
+	 * otherwise.
+	 *
+	 * I believe the relevant code is inet_gro_receive() (Hint: "^" is some
+	 * funny guy's smartass way of saying "!="), and these are my
+	 * assumptions:
+	 *
+	 * 1. DF is one of the fields which are not allowed to differ. If GSO is
+	 * active, then I can assume that all DFs were enabled, or all DFs were
+	 * disabled. This appears to be true for all currently supported
+	 * kernels.
+	 *
+	 * 2. The original packet size (agreed upon by way of PMTUD) will not
+	 * be mangled by GRO/GSO. I can assume this because PMTUD is sacred, and
+	 * I can't see any way to reconcile it with GRO/GSO if the latter
+	 * mangles packet sizes. (Though I must emphasize that I could be
+	 * overlooking something.)
+	 *
+	 * 3. IPv4 GRO/GSO and IPv6 GRO/GSO basically function the same way (ie.
+	 * a translated IPv4 GRO packet will be correctly segmented by the IPv6
+	 * GSO code.) (This is the biggest stretch, and I really can't prove it
+	 * definitely, but has worked fine so far.)
+	 *
+	 * So:
+	 *
+	 * 1. If fragmentation is prohibited, GSO does not prevent us from using
+	 * Fast Path, because it preserves packet sizes. This is awesome.
+	 *
+	 * 2. If fragmentation is allowed, GSO might lead us to translate a
+	 * large DF-disabled IPv4 packet into a large IPv6 packet, which is a
+	 * problem. We need to throw GSO away in those situations. (Or verify
+	 * each page size independently. But this would definitely meander deep
+	 * into the realms of "packet surgery," so I'd rather not do it.)
+	 *
+	 * (Note: GRO enabled on !DF suggests there might exist some potential
+	 * optimization I could be missing somewhere.)
+	 *
+	 * Therefore: If users want performance, they need to enable DF or GTFO.
+	 *
+	 * If my assumptions prove incorrect, the user can enable
+	 * --force-slow-path-46 and hopefully report the issue. Though I
+	 * honestly hope I never have to touch this code again.
+	 *
+	 * # LRO
+	 *
+	 * I'm not worrying about LRO because
+	 *
+	 * a) I don't know how it works. (eg. Does it affect skb_is_gso()?)
+	 * b) I'm assuming it's always disabled nowadays. (Corollary: I can't
+	 * test it because I can't find any hardware that supports it.)
+	 * c) It's lossy, which means it might be inherently incompatible with
+	 * IP XLAT anyway.
+	 * d) The code is already convoluted enough as it is.
+	 *
+	 * The code might or might not work if LRO is enabled.
 	 */
 
 	struct packet *in;
 	struct ipv6_addresses addrs;
 	struct dst_entry *dst;
-	unsigned int ipl;
+	int delta;
 	unsigned int nexthop_mtu;
-	unsigned int lowest_ipv6_mtu;
+	unsigned int lim;
 	unsigned int mpl;
 	verdict result;
 
@@ -486,36 +579,49 @@ verdict ttp46_alloc_skb(struct xlation *state)
 	if (result != VERDICT_CONTINUE)
 		return result;
 
-	ipl = predict_out_len(in);
+	delta = get_delta(in);
 #ifndef UNIT_TESTING
 	nexthop_mtu = dst_mtu(dst);
 #else
 	nexthop_mtu = 1500;
 #endif
-	lowest_ipv6_mtu = state->jool.globals.lowest_ipv6_mtu;
-	mpl = min(nexthop_mtu, lowest_ipv6_mtu);
-
+	lim = state->jool.globals.lowest_ipv6_mtu;
+	mpl = min(nexthop_mtu, lim);
 	if (mpl < 1280) {
 		result = drop(state, JSTAT46_BAD_MTU);
 		goto fail;
 	}
 
 	if (is_icmp4_error(pkt_icmp4_hdr(in)->type)) {
-		result = allocate_fast(state, ipl);
+		result = allocate_fast(state, delta, false);
 
-	} else if (is_fragmentation_allowed(in)) {
-		if (ipl <= mpl)
-			result = allocate_fast(state, ipl);
-		else
-			result = allocate_slow(state, mpl);
+	} else if (state->jool.globals.force_slow_path_46) {
+		result = allocate_slow(state, mpl);
 
-	} else { /* Fragmentation prohibited */
-		if (ipl > nexthop_mtu) {
+	} else if (is_df_set(pkt_ip4_hdr(in))) {
+		switch (fragment_exceeds_mtu46(in, delta, nexthop_mtu)) {
+		case 0:
+			result = allocate_fast(state, delta,
+					in->skb->ignore_df);
+			break;
+		case 1:
 			result = drop_icmp(state, JSTAT_PKT_TOO_BIG,
 					ICMPERR_FRAG_NEEDED, nexthop_mtu - 20);
-			goto fail;
+			break;
+		case 2:
+			result = drop(state, JSTAT_PKT_TOO_BIG);
+			break;
+		default:
+			WARN(1, "fragment_exceeds_mtu() returned garbage.");
+			result = drop(state, JSTAT_UNKNOWN);
+			break;
 		}
-		result = allocate_fast(state, ipl);
+
+	} else { /* Fragmentation allowed */
+		if (fragment_exceeds_mtu46(in, delta, mpl))
+			result = allocate_slow(state, mpl);
+		else
+			result = allocate_fast(state, delta, true);
 	}
 
 	if (result != VERDICT_CONTINUE)

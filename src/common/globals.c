@@ -112,6 +112,12 @@ static struct global_field global_fields[] = {
 		.min = 1280,
 		.max = MAX_U32,
 	}, {
+		.name = "force-slow-path-46",
+		.type = &gt_bool,
+		.doc = "Guarantee 4-to-6 translation at the expense of GSO optimizations?",
+		.offset = offsetof(struct globals, force_slow_path_46),
+		.xt = XT_ANY,
+	}, {
 		.name = "mtu-plateaus",
 		.type = &gt_plateaus,
 		.doc = "Set the list of plateaus for ICMPv4 Fragmentation Neededs with MTU unset.",

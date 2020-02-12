@@ -365,7 +365,7 @@ static void init_table(struct bib_table *table,
 
 	init_expirer(&table->trans_timer, trans_timeout, SESSION_TIMER_TRANS,
 			just_die);
-	/* TODO "just_die"? what about the stored packet? */
+	/* TODO (warning) "just_die"? what about the stored packet? */
 	init_expirer(&table->syn4_timer, TCP_INCOMING_SYN, SESSION_TIMER_SYN4,
 			just_die);
 	table->pkt_count = 0;
@@ -681,7 +681,10 @@ static bool decide_fate(struct xlator *jool,
 		break;
 
 	case FATE_PROBE:
-		/* TODO ICMP errors aren't supposed to drop down to TRANS. */
+		/*
+		 * TODO (warning) ICMP errors aren't supposed to drop down to
+		 * TRANS.
+		 */
 		handle_probe(table, probes, session, &tmp);
 		/* Fall through. */
 	case FATE_TIMER_TRANS:
