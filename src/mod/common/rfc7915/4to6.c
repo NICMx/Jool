@@ -89,6 +89,7 @@ static verdict predict_route46(struct xlation *state,
 		break;
 	}
 
+	log_debug("Routing: %pI6c->%pI6c", &flow.saddr, &flow.daddr);
 	dst = route6(state->jool.ns, &flow);
 	if (!dst)
 		return untranslatable(state, JSTAT_FAILED_ROUTES);
@@ -852,19 +853,22 @@ static __be32 icmp6_minimum_mtu(struct xlation *state,
 
 static verdict compute_mtu6(struct xlation *state)
 {
-	struct icmp6hdr *out_icmp = pkt_icmp6_hdr(&state->out);
-#ifndef UNIT_TESTING
+	/* Meant for hairpinning and unit tests. */
+	static const unsigned int INFINITE = 0xffffffff;
+	struct net_device *in_dev;
+	struct dst_entry *out_dst;
+	struct icmphdr *in_icmp;
+	struct icmp6hdr *out_icmp;
 	struct iphdr *hdr4;
-	struct icmphdr *in_icmp = pkt_icmp4_hdr(&state->in);
 	unsigned int in_mtu;
 	unsigned int out_mtu;
 
-	/*
-	 * 0xfffffff is intended for hairpinning (there's no IPv4 device on
-	 * hairpinning).
-	 */
-	in_mtu = state->in.skb->dev ? state->in.skb->dev->mtu : 0xfffffff;
-	out_mtu = dst_mtu(skb_dst(state->out.skb));
+	in_icmp = pkt_icmp4_hdr(&state->in);
+	out_icmp = pkt_icmp6_hdr(&state->out);
+	in_dev = state->in.skb->dev;
+	in_mtu = in_dev ? in_dev->mtu : INFINITE;
+	out_dst = skb_dst(state->out.skb);
+	out_mtu = out_dst ? dst_mtu(out_dst) : INFINITE;
 
 	log_debug("Packet MTU: %u", be16_to_cpu(in_icmp->un.frag.mtu));
 	log_debug("In dev MTU: %u", in_mtu);
@@ -881,10 +885,6 @@ static verdict compute_mtu6(struct xlation *state)
 			in_mtu,
 			be16_to_cpu(hdr4->tot_len));
 	log_debug("Resulting MTU: %u", be32_to_cpu(out_icmp->icmp6_mtu));
-
-#else
-	out_icmp->icmp6_mtu = icmp6_minimum_mtu(state, 9999, 1500, 9999, 100);
-#endif
 
 	return VERDICT_CONTINUE;
 }

@@ -330,9 +330,6 @@ int nlcore_send_multicast_message(struct net *ns, struct nlcore_buffer *buffer)
 
 	genlmsg_end(skb, msg_head);
 
-#if LINUX_VERSION_LOWER_THAN(3, 13, 0, 7, 1)
-	error = genlmsg_multicast_netns(ns, skb, 0, group->id, GFP_ATOMIC);
-#else
 	/*
 	 * Note: Starting from kernel 3.13, all groups of a common family share
 	 * a group offset (from a common pool), and they are numbered
@@ -344,7 +341,6 @@ int nlcore_send_multicast_message(struct net *ns, struct nlcore_buffer *buffer)
 	 * family.
 	 */
 	error = genlmsg_multicast_netns(family, ns, skb, 0, 0, GFP_ATOMIC);
-#endif
 	if (error) {
 		log_warn_once("Looks like nobody received my multicast message. Is the joold daemon really active? (errcode %d)",
 				error);

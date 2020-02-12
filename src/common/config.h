@@ -94,10 +94,6 @@ typedef __u8 config_bool;
 /* Blah */
 #define OPTNAME_COMMENT			"comment"
 
-enum genl_mc_group_ids {
-	JOOLD_MC_ID = (1 << 0),
-};
-
 enum genl_commands {
 	JOOL_COMMAND,
 };

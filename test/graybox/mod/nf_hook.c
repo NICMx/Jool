@@ -67,7 +67,7 @@ static int graybox_init(void)
 		return error;
 	}
 
-	log_info("%s module inserted.\n", xlat_get_name());
+	log_info("%s module inserted.", xlat_get_name());
 	return error;
 }
 

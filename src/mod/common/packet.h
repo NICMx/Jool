@@ -320,7 +320,7 @@ static inline void pkt_fill(struct packet *pkt, struct sk_buff *skb,
 	pkt->l3_proto = l3_proto;
 	pkt->l4_proto = l4_proto;
 	pkt->is_inner = 0;
-	pkt->is_hairpin = false;
+	/* pkt->is_hairpin = false; */
 	pkt->hdr_frag = hdr_frag;
 	pkt->payload = payload;
 	pkt->original_pkt = original_pkt;

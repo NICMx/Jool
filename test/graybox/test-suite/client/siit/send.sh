@@ -15,6 +15,8 @@
 #     - icmpe64: IPv6->IPv4 ICMP error tests
 #     - icmpe46: IPv4->IPv6 ICMP error tests
 #     - misc: random tests we've designed later.
+#     - rfc7915: Tests designed to prove the RFC 7915 compliance. These are
+#       documented in ../../rfc/7915.md.
 #     (Feel free to add new groups if you want.)
 
 
@@ -217,9 +219,7 @@ if [[ -z $1 || $1 = *rfc7915* ]]; then
 	test 7915 cde1 cdt1
 	test 7915 cee1 cet1
 	test 7915 cee1 cet2
-	# TODO Nontrivial bug detected here.
-	#test12 7915 cfe1 cfe2 cft1
-	#test12 7915 cfe1 cfe2 cft2
+	test12 7915 cfe1 cfe2 cft1
 	ip netns exec joolns ip link set dev to_world_v6 mtu 1500
 
 	ip netns exec joolns ip link set dev to_world_v4 mtu 1400

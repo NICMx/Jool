@@ -6,9 +6,14 @@
 
 verdict __sendpkt_send(struct xlation *state, struct sk_buff *out)
 {
+	struct dst_entry *dst;
 	int error;
 
-	out->dev = skb_dst(out)->dev;
+	dst = skb_dst(out);
+	if (WARN(!dst, "dst is NULL!"))
+		return drop(state, JSTAT_UNKNOWN);
+
+	out->dev = dst->dev;
 	log_debug("Sending skb.");
 
 	/* skb_log(out, "Translated packet"); */

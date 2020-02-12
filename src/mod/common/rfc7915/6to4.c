@@ -26,14 +26,23 @@ static __u8 ttp64_xlat_proto(struct ipv6hdr *hdr6)
 			: iterator.hdr_type;
 }
 
+/**
+ * Please note: @result might be NULL even on VERDICT_CONTINUE. Handle properly.
+ */
 static verdict predict_route64(struct xlation *state, struct dst_entry **result)
 {
-#ifndef UNIT_TESTING
 	struct dst_entry *dst;
 	struct ipv6hdr *hdr6;
 	struct flowi4 flow;
 
 	*result = NULL;
+#ifdef UNIT_TESTING
+	return VERDICT_CONTINUE;
+#endif
+
+	if (pkt_is_intrinsic_hairpin(&state->out))
+		return VERDICT_CONTINUE;
+
 	hdr6 = pkt_ip6_hdr(&state->in);
 
 	memset(&flow, 0, sizeof(flow));
@@ -69,6 +78,7 @@ static verdict predict_route64(struct xlation *state, struct dst_entry **result)
 		break;
 	}
 
+	log_debug("Routing: %pI4->%pI4", &flow.saddr, &flow.daddr);
 	dst = route4(state->jool.ns, &flow);
 	if (!dst)
 		return untranslatable(state, JSTAT_FAILED_ROUTES);
@@ -86,11 +96,6 @@ static verdict predict_route64(struct xlation *state, struct dst_entry **result)
 
 	*result = dst;
 	return VERDICT_CONTINUE;
-
-#else
-	*result = NULL;
-	return VERDICT_CONTINUE;
-#endif
 }
 
 static int fragment_exceeds_mtu64(struct packet *in, unsigned int mtu)
@@ -119,11 +124,12 @@ static int fragment_exceeds_mtu64(struct packet *in, unsigned int mtu)
 
 static verdict validate_size(struct xlation *state, struct dst_entry *dst)
 {
-	unsigned int nexthop_mtu = dst_mtu(dst);
+	unsigned int nexthop_mtu;
 
-	if (is_icmp6_error(pkt_icmp6_hdr(&state->in)->icmp6_type))
+	if (!dst || is_icmp6_error(pkt_icmp6_hdr(&state->in)->icmp6_type))
 		return VERDICT_CONTINUE;
 
+	nexthop_mtu = dst_mtu(dst);
 	switch (fragment_exceeds_mtu64(&state->in, nexthop_mtu)) {
 	case 0:
 		return VERDICT_CONTINUE;
@@ -263,12 +269,14 @@ verdict ttp64_alloc_skb(struct xlation *state)
 		shinfo->gso_type |= SKB_GSO_TCPV4;
 	}
 
-	skb_dst_set(out, dst);
+	if (dst)
+		skb_dst_set(out, dst);
 	addrs_set64(state);
 	return VERDICT_CONTINUE;
 
 revert:
-	dst_release(dst);
+	if (dst)
+		dst_release(dst);
 	return result;
 }
 
@@ -321,10 +329,8 @@ static verdict generate_ipv4_id(struct xlation *state, struct iphdr *hdr4,
 
 #if LINUX_VERSION_AT_LEAST(4, 1, 0, 7, 3)
 	__ip_select_ident(state->jool.ns, hdr4, 1);
-#elif LINUX_VERSION_AT_LEAST(3, 16, 0, 7, 3)
-	__ip_select_ident(hdr4, 1);
 #else
-	__ip_select_ident(hdr4, skb_dst(state->out.skb), 1);
+	__ip_select_ident(hdr4, 1);
 #endif
 
 	return VERDICT_CONTINUE;
@@ -445,22 +451,30 @@ static __be16 minimum(unsigned int mtu1, unsigned int mtu2, unsigned int mtu3)
 
 static verdict compute_mtu4(struct xlation *state)
 {
-	struct icmphdr *out_icmp = pkt_icmp4_hdr(&state->out);
-#ifndef UNIT_TESTING
-	struct icmp6hdr *in_icmp = pkt_icmp6_hdr(&state->in);
+	/* Meant for unit tests. */
+	static const unsigned int INFINITE = 0xffffffff;
+	struct icmphdr *out_icmp;
+	struct icmp6hdr *in_icmp;
+	struct net_device *in_dev;
+	struct dst_entry *out_dst;
+	unsigned int in_mtu;
+	unsigned int out_mtu;
+
+	out_icmp = pkt_icmp4_hdr(&state->out);
+	in_icmp = pkt_icmp6_hdr(&state->in);
+	in_dev = state->in.skb->dev;
+	in_mtu = in_dev ? in_dev->mtu : INFINITE;
+	out_dst = skb_dst(state->out.skb);
+	out_mtu = out_dst ? dst_mtu(out_dst) : INFINITE;
 
 	log_debug("Packet MTU: %u", be32_to_cpu(in_icmp->icmp6_mtu));
-	log_debug("In dev MTU: %u", state->in.skb->dev->mtu);
-	log_debug("Out dev MTU: %u", dst_mtu(skb_dst(state->out.skb)));
+	log_debug("In dev MTU: %u", in_mtu);
+	log_debug("Out dev MTU: %u", out_mtu);
 
 	out_icmp->un.frag.mtu = minimum(be32_to_cpu(in_icmp->icmp6_mtu) - 20,
-			dst_mtu(skb_dst(state->out.skb)),
-			state->in.skb->dev->mtu - 20);
+			out_mtu,
+			in_mtu - 20);
 	log_debug("Resulting MTU: %u", be16_to_cpu(out_icmp->un.frag.mtu));
-
-#else
-	out_icmp->un.frag.mtu = minimum(1500, 9999, 9999);
-#endif
 
 	return VERDICT_CONTINUE;
 }

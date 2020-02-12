@@ -23,14 +23,8 @@ struct jool_stats *jstat_alloc(void)
 	if (!result)
 		return NULL;
 
-#if LINUX_VERSION_AT_LEAST(3, 16, 0, 8, 0)
 	result->mib = alloc_percpu(struct jool_mib);
 	if (!result->mib) {
-#else
-	if (snmp_mib_init((void __percpu **)result->mib,
-			sizeof(struct jool_mib),
-			__alignof__(struct jool_mib)) < 0) {
-#endif
 		wkfree(struct jool_stats, result);
 		return NULL;
 	}
@@ -49,11 +43,7 @@ static void jstat_release(struct kref *refcount)
 	struct jool_stats *stats;
 	stats = container_of(refcount, struct jool_stats, refcounter);
 
-#if LINUX_VERSION_AT_LEAST(3, 16, 0, 8, 0)
 	free_percpu(stats->mib);
-#else
-	snmp_mib_free((void __percpu **)stats->mib);
-#endif
 	wkfree(struct jool_stats, stats);
 }
 
@@ -90,13 +80,8 @@ __u64 *jstat_query(struct jool_stats *stats)
 	if (!result)
 		return NULL;
 
-	for (i = 0; i < __JSTAT_MAX; i++) {
-#if LINUX_VERSION_AT_LEAST(3, 16, 0, 9999, 0)
+	for (i = 0; i < __JSTAT_MAX; i++)
 		result[i] = snmp_fold_field(stats->mib, i);
-#else
-		result[i] = snmp_fold_field((void __percpu **)stats->mib, i);
-#endif
-	}
 
 	return result;
 }

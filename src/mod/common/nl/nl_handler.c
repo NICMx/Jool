@@ -24,12 +24,7 @@
 #include "mod/common/nl/stats.h"
 
 static struct genl_multicast_group mc_groups[1] = {
-	{
-		.name = GNL_JOOLD_MULTICAST_GRP_NAME,
-#if LINUX_VERSION_LOWER_THAN(3, 13, 0, 7, 1)
-		.id = JOOLD_MC_ID,
-#endif
-	},
+	{ .name = GNL_JOOLD_MULTICAST_GRP_NAME, },
 };
 
 /**
@@ -283,22 +278,7 @@ static int register_family(void)
 
 	strcpy(jool_family.name, GNL_JOOL_FAMILY);
 
-#if LINUX_VERSION_LOWER_THAN(3, 13, 0, 7, 1)
-
-	error = genl_register_family_with_ops(&jool_family, ops,
-			ARRAY_SIZE(ops));
-	if (error) {
-		log_err("Couldn't register family!");
-		return error;
-	}
-
-	error = genl_register_mc_group(&jool_family, &(mc_groups[0]));
-	if (error) {
-		log_err("Couldn't register multicast group!");
-		return error;
-	}
-
-#elif LINUX_VERSION_LOWER_THAN(4, 10, 0, 7, 5)
+#if LINUX_VERSION_LOWER_THAN(4, 10, 0, 7, 5)
 	error = genl_register_family_with_ops_groups(&jool_family, ops,
 			mc_groups);
 	if (error) {

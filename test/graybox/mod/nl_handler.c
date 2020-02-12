@@ -189,9 +189,7 @@ int nlhandler_setup(void)
 {
 	int error;
 
-#if LINUX_VERSION_LOWER_THAN(3, 13, 0, 7, 1)
-	error = genl_register_family_with_ops(&family, ops, ARRAY_SIZE(ops));
-#elif LINUX_VERSION_LOWER_THAN(4, 10, 0, 7, 5)
+#if LINUX_VERSION_LOWER_THAN(4, 10, 0, 7, 5)
 	error = genl_register_family_with_ops(&family, ops);
 #else
 	error = genl_register_family(&family);
