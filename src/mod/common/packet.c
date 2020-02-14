@@ -567,6 +567,8 @@ verdict pkt_init_ipv4(struct xlation *state, struct sk_buff *skb)
  * usual.
  *
  * Never use skb_pull() directly.
+ *
+ * TODO (fine) the 7915 code is breaking that rule.
  */
 unsigned char *jskb_pull(struct sk_buff *skb, unsigned int len)
 {

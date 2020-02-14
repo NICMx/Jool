@@ -59,10 +59,14 @@ static verdict predict_route46(struct xlation *state,
 		struct ipv6_addresses *addrs,
 		struct dst_entry **result)
 {
-#ifndef UNIT_TESTING
 	struct dst_entry *dst;
 	struct packet *in;
 	struct flowi6 flow;
+
+#ifdef UNIT_TESTING
+	*result = NULL;
+	return VERDICT_CONTINUE;
+#endif
 
 	in = &state->in;
 
@@ -120,11 +124,6 @@ static verdict predict_route46(struct xlation *state,
 panic:
 	dst_release(dst);
 	return drop(state, JSTAT_UNKNOWN);
-
-#else
-	*result = NULL;
-	return VERDICT_CONTINUE;
-#endif
 }
 
 static int hdr4len_to_hdr6len(struct iphdr *hdr4)

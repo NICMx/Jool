@@ -13,8 +13,7 @@ static int handle_xlat64(struct xlator *jool, struct genl_info *info,
 
 	log_debug("Handling 6->4 address translation query.");
 
-	verdict = addrxlat_siit64(jool, &request->addr.v6, &result);
-
+	verdict = addrxlat_siit64(jool, &request->addr.v6, &result, true);
 	if (verdict.verdict != ADDRXLAT_CONTINUE) {
 		log_err("%s.", verdict.reason);
 		return nlcore_respond(info, -EINVAL);
@@ -31,9 +30,7 @@ static int handle_xlat46(struct xlator *jool, struct genl_info *info,
 
 	log_debug("Handling 4->6 address translation query.");
 
-	verdict = addrxlat_siit46(jool, request->addr.v4.s_addr, &result,
-			true, true);
-
+	verdict = addrxlat_siit46(jool, request->addr.v4.s_addr, &result, true);
 	if (verdict.verdict != ADDRXLAT_CONTINUE) {
 		log_err("%s.", verdict.reason);
 		return nlcore_respond(info, -EINVAL);

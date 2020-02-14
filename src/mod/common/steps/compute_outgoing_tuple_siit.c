@@ -14,7 +14,7 @@ verdict translate_addrs64_siit(struct xlation *state)
 	struct addrxlat_result addr_result;
 
 	/* Dst address. (SRC DEPENDS CON DST, SO WE NEED TO XLAT DST FIRST!) */
-	addr_result = addrxlat_siit64(&state->jool, &hdr6->daddr, &dst);
+	addr_result = addrxlat_siit64(&state->jool, &hdr6->daddr, &dst, true);
 	if (addr_result.reason)
 		log_debug("%s.", addr_result.reason);
 
@@ -31,7 +31,8 @@ verdict translate_addrs64_siit(struct xlation *state)
 	}
 
 	/* Src address. */
-	addr_result = addrxlat_siit64(&state->jool, &hdr6->saddr, &src);
+	addr_result = addrxlat_siit64(&state->jool, &hdr6->saddr, &src,
+			!pkt_is_icmp6_error(&state->in));
 	if (addr_result.reason)
 		log_debug("%s.", addr_result.reason);
 
@@ -103,17 +104,16 @@ verdict translate_addrs46_siit(struct xlation *state)
 	struct packet *in = &state->in;
 	struct iphdr *hdr4 = pkt_ip4_hdr(in);
 	bool is_hairpin;
-	bool enable_blacklist;
 	struct result_addrxlat46 addr6;
 	struct addrxlat_result addr_result;
 
 	is_hairpin = (state->jool.globals.siit.eam_hairpin_mode == EHM_SIMPLE)
 			|| pkt_is_intrinsic_hairpin(in);
-	enable_blacklist = !pkt_is_icmp4_error(in);
+
 
 	/* Dst address. (SRC DEPENDS CON DST, SO WE NEED TO XLAT DST FIRST!) */
 	addr_result = addrxlat_siit46(&state->jool, hdr4->daddr, &addr6,
-			!disable_dst_eam(in, is_hairpin), enable_blacklist);
+			!disable_dst_eam(in, is_hairpin));
 	if (addr_result.reason)
 		log_debug("%s.", addr_result.reason);
 
@@ -131,7 +131,7 @@ verdict translate_addrs46_siit(struct xlation *state)
 
 	/* Src address. */
 	addr_result = addrxlat_siit46(&state->jool, hdr4->saddr, &addr6,
-			!disable_src_eam(in, is_hairpin), enable_blacklist);
+			!disable_src_eam(in, is_hairpin));
 	if (addr_result.reason)
 		log_debug("%s.", addr_result.reason);
 
