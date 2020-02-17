@@ -210,7 +210,6 @@ static verdict allocate_fast(struct xlation *state, int delta, bool ignore_df)
 	struct iphdr *hdr4_inner;
 	struct frag_hdr *hdr_frag;
 	struct skb_shared_info *shinfo;
-	int error;
 
 	/* Dunno what happens when headroom is negative, so don't risk it. */
 	if (delta < 0)
@@ -252,23 +251,6 @@ static verdict allocate_fast(struct xlation *state, int delta, bool ignore_df)
 	if (will_need_frag_hdr(pkt_ip4_hdr(in)))
 		skb_push(out, sizeof(struct frag_hdr));
 	skb_push(out, sizeof(struct ipv6hdr));
-
-	/* Prevent Linux from dropping or fragmenting ICMP errors. */
-	if (pkt_is_icmp4_error(in)) {
-		/*
-		 * Though ICMPv4 errors are supposed to be max 576 bytes long,
-		 * a good portion of the Internet seems prepared against bigger
-		 * ICMPv4 errors. Thus, the resulting ICMPv6 packet might have
-		 * a smaller payload than the original packet even though
-		 * IPv4 MTU < IPv6 MTU.
-		 */
-		error = pskb_trim(out, 1280);
-		if (error) {
-			kfree_skb(out);
-			log_debug("pskb_trim() returned errcode %d.", error);
-			return drop(state, JSTAT_ENOMEM);
-		}
-	}
 
 	skb_reset_mac_header(out);
 	skb_reset_network_header(out);
@@ -317,7 +299,7 @@ static verdict allocate_slow(struct xlation *state, unsigned int mpl)
 
 	in = &state->in;
 	previous = &state->out.skb;
-	payload_left = pkt_l3payload_len(in);
+	payload_left = pkt_len(in) - pkt_l3hdr_len(in);
 	payload_per_frag = (mpl - HDRS_LEN) & 0xFFFFFFF8U;
 	bytes_consumed = 0;
 
@@ -606,7 +588,8 @@ verdict ttp46_alloc_skb(struct xlation *state)
 			break;
 		case 1:
 			result = drop_icmp(state, JSTAT_PKT_TOO_BIG,
-					ICMPERR_FRAG_NEEDED, nexthop_mtu - 20);
+					ICMPERR_FRAG_NEEDED,
+					max(576u, nexthop_mtu - 20u));
 			break;
 		case 2:
 			result = drop(state, JSTAT_PKT_TOO_BIG);
@@ -1050,6 +1033,75 @@ static verdict validate_icmp4_csum(struct xlation *state)
 	return VERDICT_CONTINUE;
 }
 
+static bool should_remove_ie(struct xlation *state)
+{
+	struct icmphdr *hdr;
+	__u8 type;
+	__u8 code;
+
+	hdr = pkt_icmp4_hdr(&state->in);
+	type = hdr->type;
+	code = hdr->code;
+
+	/* v4 Protocol Unreachable becomes v6 Parameter Problem. */
+	if (type == 3 && code == 2)
+		return true;
+	/* v4 Fragmentation Needed becomes v6 Packet Too Big. */
+	if (type == 3 && code == 4)
+		return true;
+	/* v4 Parameter Problem becomes v6 Parameter Problem. */
+	if (type == 12)
+		return true;
+
+	return false;
+}
+
+static verdict handle_icmp6_extension(struct xlation *state)
+{
+	struct icmpext_args args;
+	verdict result;
+
+	args.max_pkt_len = 1280;
+	args.ipl = pkt_icmp4_hdr(&state->in)->icmp4_length << 2;
+	args.out_bits = 3;
+	args.icmp_len = &pkt_icmp6_hdr(&state->out)->icmp6_length;
+	args.remove_ie = should_remove_ie(state);
+
+	result = handle_icmp_extension(state, &args);
+	if (result != VERDICT_CONTINUE)
+		return result;
+
+	pkt_ip6_hdr(&state->out)->payload_len = cpu_to_be16(state->out.skb->len
+			- sizeof(struct ipv6hdr));
+	return VERDICT_CONTINUE;
+}
+
+/*
+ * Though ICMPv4 errors are supposed to be max 576 bytes long, a good portion of
+ * the Internet seems prepared against bigger ICMPv4 errors. Thus, the resulting
+ * ICMPv6 packet might have a smaller payload than the original packet even
+ * though IPv4 MTU < IPv6 MTU.
+ */
+static verdict trim_1280(struct xlation *state)
+{
+	struct packet *out;
+	int error;
+
+	out = &state->out;
+	if (out->skb->len <= 1280)
+		return VERDICT_CONTINUE;
+
+	error = pskb_trim(out->skb, 1280);
+	if (error) {
+		log_debug("pskb_trim() error: %d", error);
+		return drop(state, JSTAT_ENOMEM);
+	}
+
+	pkt_ip6_hdr(out)->payload_len = cpu_to_be16(out->skb->len
+			- sizeof(struct ipv6hdr));
+	return VERDICT_CONTINUE;
+}
+
 static verdict post_icmp6error(struct xlation *state)
 {
 	verdict result;
@@ -1066,6 +1118,14 @@ static verdict post_icmp6error(struct xlation *state)
 		return result;
 
 	result = ttpcomm_translate_inner_packet(state);
+	if (result != VERDICT_CONTINUE)
+		return result;
+
+	result = handle_icmp6_extension(state);
+	if (result != VERDICT_CONTINUE)
+		return result;
+
+	result = trim_1280(state);
 	if (result != VERDICT_CONTINUE)
 		return result;
 
@@ -1264,8 +1324,8 @@ static int handle_zero_csum(struct xlation *state)
 	 */
 
 	csum = csum_partial(hdr_udp, sizeof(*hdr_udp), 0);
-	csum = skb_checksum(in->skb, pkt_payload_offset(in),
-			pkt_payload_len_pkt(in), csum);
+	csum = skb_checksum(in->skb, in->payload_offset,
+			in->skb->len - pkt_hdrs_len(in), csum);
 	hdr_udp->check = csum_ipv6_magic(&hdr6->saddr, &hdr6->daddr,
 			pkt_datagram_len(in), IPPROTO_UDP, csum);
 

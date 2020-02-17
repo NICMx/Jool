@@ -60,4 +60,21 @@ verdict ttpcomm_translate_inner_packet(struct xlation *state);
 
 bool must_not_translate(struct in_addr *addr, struct net *ns);
 
+/* ICMP Extensions */
+
+#define icmp6_length icmp6_dataun.un_data8[0]
+#define icmp4_length un.reserved[1]
+
+/* See /test/graybox/test-suite/rfc/7915.md#ic */
+struct icmpext_args {
+	size_t max_pkt_len; /* Maximum (allowed outgoing) Packet Length */
+	size_t ipl; /* Internal Packet Length */
+	size_t out_bits; /* 4->6: Set as 3; 6->4: Set as 2 */
+	__u8 *icmp_len; /* Pointer to the length field from the ICMP header */
+	bool remove_ie; /* Force the removal of the IE? */
+};
+
+verdict handle_icmp_extension(struct xlation *state,
+		struct icmpext_args const *args);
+
 #endif /* SRC_MOD_COMMON_RFC7915_COMMON_H_ */

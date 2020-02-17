@@ -135,7 +135,7 @@ static verdict validate_size(struct xlation *state, struct dst_entry *dst)
 		return VERDICT_CONTINUE;
 	case 1:
 		return drop_icmp(state, JSTAT_PKT_TOO_BIG, ICMPERR_FRAG_NEEDED,
-				nexthop_mtu + 20);
+				max(1280u, nexthop_mtu + 20u));
 	case 2:
 		return drop(state, JSTAT_PKT_TOO_BIG);
 	}
@@ -161,7 +161,6 @@ verdict ttp64_alloc_skb(struct xlation *state)
 	struct sk_buff *out;
 	struct skb_shared_info *shinfo;
 	struct dst_entry *dst;
-	int error;
 	verdict result;
 
 	result = predict_route64(state, &dst);
@@ -169,7 +168,7 @@ verdict ttp64_alloc_skb(struct xlation *state)
 		return result;
 	result = validate_size(state, dst);
 	if (result != VERDICT_CONTINUE)
-		return result;
+		goto revert;
 
 	/*
 	 * I'm going to use __pskb_copy() (via pskb_copy()) because I need the
@@ -223,32 +222,6 @@ verdict ttp64_alloc_skb(struct xlation *state)
 	skb_push(out, pkt_l4hdr_len(in));
 	/* Add outer l3 headers to the copy. */
 	skb_push(out, sizeof(struct iphdr));
-
-	/*
-	 * According to my tests, if we send an ICMP error that exceeds the MTU,
-	 * Linux will either drop it (if out->skb->local_df is false) or
-	 * fragment it (if out->skb->local_df is true).
-	 * Neither of these possibilities is even remotely acceptable.
-	 * We'll maximize probability delivery by truncating to mandatory
-	 * minimum size.
-	 *
-	 * TODO (warning) shouldn't this also check for first fragment?
-	 */
-	if (pkt_is_icmp6_error(in)) {
-		/*
-		 * RFC1812 section 4.3.2.3.
-		 * (I'm using a literal because the RFC does.)
-		 *
-		 * pskb_trim() CAN CHANGE SKB POINTERS.
-		 */
-		error = pskb_trim(out, 576);
-		if (error) {
-			log_debug("pskb_trim() returned errcode %d.", error);
-			kfree_skb(out);
-			result = drop(state, JSTAT_ENOMEM);
-			goto revert;
-		}
-	}
 
 	skb_reset_mac_header(out);
 	skb_reset_network_header(out);
@@ -677,7 +650,52 @@ static verdict validate_icmp6_csum(struct xlation *state)
 	return VERDICT_CONTINUE;
 }
 
-static verdict post_icmp4error(struct xlation *state)
+static verdict handle_icmp4_extension(struct xlation *state)
+{
+	struct icmpext_args args;
+	verdict result;
+
+	args.max_pkt_len = 576;
+	args.ipl = pkt_icmp6_hdr(&state->in)->icmp6_length << 3;
+	args.out_bits = 2;
+	args.icmp_len = &pkt_icmp4_hdr(&state->out)->icmp4_length;
+	args.remove_ie = false;
+
+	result = handle_icmp_extension(state, &args);
+	if (result != VERDICT_CONTINUE)
+		return result;
+
+	pkt_ip4_hdr(&state->out)->tot_len = cpu_to_be16(state->out.skb->len);
+	return VERDICT_CONTINUE;
+}
+
+/*
+ * According to my tests, if we send an ICMP error that exceeds the MTU, Linux
+ * will either drop it (if skb->local_df is false) or fragment it (if
+ * skb->local_df is true).
+ * Neither of these possibilities is even remotely acceptable.
+ * We'll maximize delivery probability by truncating to mandatory minimum size.
+ */
+static verdict trim_576(struct xlation *state)
+{
+	struct packet *out;
+	int error;
+
+	out = &state->out;
+	if (out->skb->len <= 576)
+		return VERDICT_CONTINUE;
+
+	error = pskb_trim(out->skb, 576);
+	if (error) {
+		log_debug("pskb_trim() error: %d", error);
+		return drop(state, JSTAT_ENOMEM);
+	}
+
+	pkt_ip4_hdr(out)->tot_len = cpu_to_be16(out->skb->len);
+	return VERDICT_CONTINUE;
+}
+
+static verdict post_icmp4error(struct xlation *state, bool handle_extensions)
 {
 	verdict result;
 
@@ -688,6 +706,16 @@ static verdict post_icmp4error(struct xlation *state)
 		return result;
 
 	result = ttpcomm_translate_inner_packet(state);
+	if (result != VERDICT_CONTINUE)
+		return result;
+
+	if (handle_extensions) {
+		result = handle_icmp4_extension(state);
+		if (result != VERDICT_CONTINUE)
+			return result;
+	}
+
+	result = trim_576(state);
 	if (result != VERDICT_CONTINUE)
 		return result;
 
@@ -733,7 +761,7 @@ verdict ttp64_icmp(struct xlation *state)
 		result = icmp6_to_icmp4_dest_unreach(state);
 		if (result != VERDICT_CONTINUE)
 			return result;
-		return post_icmp4error(state);
+		return post_icmp4error(state, true);
 
 	case ICMPV6_PKT_TOOBIG:
 		/*
@@ -748,19 +776,19 @@ verdict ttp64_icmp(struct xlation *state)
 		result = compute_mtu4(state);
 		if (result != VERDICT_CONTINUE)
 			return result;
-		return post_icmp4error(state);
+		return post_icmp4error(state, false);
 
 	case ICMPV6_TIME_EXCEED:
 		icmpv4_hdr->type = ICMP_TIME_EXCEEDED;
 		icmpv4_hdr->code = icmpv6_hdr->icmp6_code;
 		icmpv4_hdr->icmp4_unused = 0;
-		return post_icmp4error(state);
+		return post_icmp4error(state, true);
 
 	case ICMPV6_PARAMPROB:
 		result = icmp6_to_icmp4_param_prob(state);
 		if (result != VERDICT_CONTINUE)
 			return result;
-		return post_icmp4error(state);
+		return post_icmp4error(state, false);
 	}
 
 	/*

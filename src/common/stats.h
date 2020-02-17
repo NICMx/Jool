@@ -92,6 +92,9 @@ enum jool_stat_id {
 	JSTAT_ICMP4ERR_SUCCESS,
 	JSTAT_ICMP4ERR_FAILURE,
 
+	JSTAT_ICMPEXT_SMALL,
+	JSTAT_ICMPEXT_BIG,
+
 	/* "WTF was that" errors only. */
 	JSTAT_UNKNOWN,
 

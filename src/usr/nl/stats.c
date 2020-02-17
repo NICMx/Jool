@@ -88,6 +88,8 @@ static struct jstat_metadata const jstat_metadatas[] = {
 	DEFINE_STAT(JSTAT_ICMP6ERR_FAILURE, "ICMPv6 errors (created by Jool, not translated) that could not be sent."),
 	DEFINE_STAT(JSTAT_ICMP4ERR_SUCCESS, "ICMPv4 errors (created by Jool, not translated) sent successfully."),
 	DEFINE_STAT(JSTAT_ICMP4ERR_FAILURE, "ICMPv4 errors (created by Jool, not translated) that could not be sent."),
+	DEFINE_STAT(JSTAT_ICMPEXT_SMALL, "Illegal ICMP header length. (Inner packet has less than 128 bytes.)"),
+	DEFINE_STAT(JSTAT_ICMPEXT_BIG, "Illegal ICMP header length. (Exceeds available payload in packet.)"),
 	DEFINE_STAT(JSTAT_UNKNOWN, TC "Unknown error. Likely a programming error."),
 };
 

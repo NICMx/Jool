@@ -123,6 +123,7 @@ void expecter_flush(void)
 		list_del(hook);
 		node = list_entry(hook, struct expecter_node, list_hook);
 
+		log_info("Queued: %s", node->pkt.filename);
 		switch (get_l3_proto(node->pkt.bytes)) {
 		case 4:
 			stats.ipv4.queued++;
