@@ -227,7 +227,7 @@ static int handle_blacklist4(struct config_candidate *new, void *payload,
 static int handle_pool4(struct config_candidate *new, void *payload,
 		__u32 payload_len)
 {
-	struct pool4_entry_usr *entries = payload;
+	struct pool4_entry *entries = payload;
 	unsigned int entry_count = payload_len / sizeof(*entries);
 	unsigned int i;
 	int error;
@@ -249,7 +249,7 @@ static int handle_pool4(struct config_candidate *new, void *payload,
 static int handle_bib(struct config_candidate *new, void *payload,
 		__u32 payload_len)
 {
-	struct bib_entry_usr *entries = payload;
+	struct bib_entry *entries = payload;
 	unsigned int entry_count = payload_len / sizeof(*entries);
 	struct bib_entry entry;
 	unsigned int i;
@@ -296,7 +296,7 @@ int atomconfig_add(char *iname, xlator_type xt, void *config, size_t config_len,
 
 	error = iname_validate(iname, false);
 	if (error) {
-		log_err(INAME_VALIDATE_ERRMSG, INAME_MAX_LEN - 1);
+		log_err(INAME_VALIDATE_ERRMSG);
 		return error;
 	}
 

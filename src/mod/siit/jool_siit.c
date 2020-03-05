@@ -1,6 +1,7 @@
 #include "mod/common/init.h"
 
 #include <linux/module.h>
+#include "common/iptables.h"
 #include "mod/common/kernel_hook.h"
 #include "mod/common/log.h"
 #include "mod/common/xlator.h"

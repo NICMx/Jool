@@ -206,12 +206,14 @@ static struct cmd_option session_ops[] = {
 };
 
 static struct cmd_option file_ops[] = {
+		/* TODO
 		{
 			.label = "handle",
 			.xt = XT_ANY,
 			.handler = handle_file_update,
 			.handle_autocomplete = autocomplete_file_update,
 		},
+		*/
 		{ 0 },
 };
 
@@ -593,7 +595,7 @@ int jool_main(int argc, char **argv)
 {
 	int opt;
 	char *iname = NULL;
-	struct jool_result result;
+	/* struct jool_result result; */
 
 	if (argc == 1)
 		return show_help(argv[0]);
@@ -609,11 +611,13 @@ int jool_main(int argc, char **argv)
 		case 'i':
 			iname = optarg;
 			break;
+			/* TODO
 		case 'f':
 			result = json_get_iname(optarg, &iname);
 			if (result.error)
 				return pr_result(&result);
 			break;
+			*/
 		}
 	}
 

@@ -17,7 +17,7 @@
  * Each tree group is made out of three red-black trees. (One RB-tree per
  * transport protocol.)
  * Each tree is made out of nodes. Each node is a *table* (struct pool4_table).
- * Each table is made out of entries (struct pool4_range).
+ * Each table is made out of entries (struct ipv4_range).
  * Entries are roughly what the user --pool4 --added.
  *
  * There's also struct mask_domain, which is a copy of a table, and with
@@ -67,7 +67,7 @@ struct pool4_table {
 	enum iteration_flags max_iterations_flags;
 
 	/*
-	 * An array of struct pool4_range hangs off here.
+	 * An array of struct ipv4_range hangs off here.
 	 * (The array length is @sample_count.)
 	 */
 };
@@ -105,7 +105,7 @@ struct mask_domain {
 	unsigned int max_iterations;
 
 	unsigned int range_count;
-	struct pool4_range *current_range;
+	struct ipv4_range *current_range;
 	int current_port;
 
 	/**
@@ -121,7 +121,7 @@ struct mask_domain {
 	bool dynamic;
 
 	/*
-	 * An array of struct pool4_range hangs off here.
+	 * An array of struct ipv4_range hangs off here.
 	 * (The array length is @sample_count.)
 	 */
 };
@@ -222,29 +222,29 @@ static bool is_empty(struct pool4 *pool)
 			&& RB_EMPTY_ROOT(&pool->tree_mark.icmp);
 }
 
-static struct pool4_range *first_table_entry(struct pool4_table *table)
+static struct ipv4_range *first_table_entry(struct pool4_table *table)
 {
-	return (struct pool4_range *)(table + 1);
+	return (struct ipv4_range *)(table + 1);
 }
 
-static struct pool4_range *last_table_entry(struct pool4_table *table)
+static struct ipv4_range *last_table_entry(struct pool4_table *table)
 {
 	return first_table_entry(table) + table->sample_count - 1;
 }
 
-static struct pool4_range *first_domain_entry(struct mask_domain *domain)
+static struct ipv4_range *first_domain_entry(struct mask_domain *domain)
 {
-	return (struct pool4_range *)(domain + 1);
+	return (struct ipv4_range *)(domain + 1);
 }
 
 /* Leaves table->addr and table->mark undefined! */
-static struct pool4_table *create_table(struct pool4_range *range)
+static struct pool4_table *create_table(struct ipv4_range *range)
 {
 	struct pool4_table *table;
-	struct pool4_range *entry;
+	struct ipv4_range *entry;
 
 	table = __wkmalloc("pool4table",
-			sizeof(struct pool4_table) + sizeof(struct pool4_range),
+			sizeof(struct pool4_table) + sizeof(struct ipv4_range),
 			GFP_ATOMIC);
 	if (!table)
 		return NULL;
@@ -341,11 +341,11 @@ static int max_iterations_validate(__u8 flags, __u32 iterations)
 	return 0;
 }
 
-static int compare_range(struct pool4_range *r1, struct pool4_range *r2)
+static int compare_range(struct ipv4_range *r1, struct ipv4_range *r2)
 {
 	int gap;
 
-	gap = ipv4_addr_cmp(&r1->addr, &r2->addr);
+	gap = ipv4_addr_cmp(&r1->prefix.addr, &r2->prefix.addr);
 	if (gap)
 		return gap;
 
@@ -360,24 +360,24 @@ static int compare_range(struct pool4_range *r1, struct pool4_range *r2)
 	return 0;
 }
 
-static void pool4_range_fuse(struct pool4_range *r1, struct pool4_range *r2)
+static void ipv4_range_fuse(struct ipv4_range *r1, struct ipv4_range *r2)
 {
 	return port_range_fuse(&r1->ports, &r2->ports);
 }
 
-static void fix_collisions(struct pool4_table *table, struct pool4_range *entry)
+static void fix_collisions(struct pool4_table *table, struct ipv4_range *entry)
 {
-	struct pool4_range *last = last_table_entry(table);
+	struct ipv4_range *last = last_table_entry(table);
 
-	while (entry != last && pool4_range_touches(entry, entry + 1)) {
+	while (entry != last && ipv4_range_touches(entry, entry + 1)) {
 		table->taddr_count -= port_range_count(&entry->ports);
 		table->taddr_count -= port_range_count(&(entry + 1)->ports);
-		pool4_range_fuse(entry, entry + 1);
+		ipv4_range_fuse(entry, entry + 1);
 		table->taddr_count += port_range_count(&entry->ports);
 
 		last--;
 		memmove(entry + 1, entry + 2,
-				(last - entry) * sizeof(struct pool4_range));
+				(last - entry) * sizeof(struct ipv4_range));
 
 		table->sample_count--;
 	}
@@ -390,18 +390,18 @@ static void fix_collisions(struct pool4_table *table, struct pool4_range *entry)
  * (@entry must belong to @table, @new must not.)
  */
 static int slip_in(struct rb_root *tree, struct pool4_table *table,
-		struct pool4_range *entry, struct pool4_range *new)
+		struct ipv4_range *entry, struct ipv4_range *new)
 {
 	unsigned int entry_offset;
 	size_t new_size;
 	struct rb_node tmp;
 	struct pool4_table *new_table;
-	struct pool4_range *last;
+	struct ipv4_range *last;
 
 	entry_offset = entry - first_table_entry(table);
 	new_size = sizeof(struct pool4_table)
 			+ (table->sample_count + 1)
-			* sizeof(struct pool4_range);
+			* sizeof(struct ipv4_range);
 
 	rb_replace_node(&table->tree_hook, &tmp, tree);
 	new_table = krealloc(table, new_size, GFP_ATOMIC);
@@ -419,7 +419,7 @@ static int slip_in(struct rb_root *tree, struct pool4_table *table,
 			 * I'm not actually sure if negatives are a problem
 			 * when it comes to pointers, but whatever.
 			 */
-			(last + 1 - entry) * sizeof(struct pool4_range));
+			(last + 1 - entry) * sizeof(struct ipv4_range));
 
 	*entry = *new;
 	new_table->taddr_count += port_range_count(&new->ports);
@@ -428,16 +428,16 @@ static int slip_in(struct rb_root *tree, struct pool4_table *table,
 }
 
 static int pool4_add_range(struct rb_root *tree, struct pool4_table *table,
-		struct pool4_range *new)
+		struct ipv4_range *new)
 {
-	struct pool4_range *entry;
+	struct ipv4_range *entry;
 	int comparison;
 
 	/* Reminder: @table cannot be empty when this function kicks in. */
 	foreach_table_range(entry, table) {
 		comparison = compare_range(entry, new);
 		if (comparison == 0) {
-			pool4_range_fuse(entry, new);
+			ipv4_range_fuse(entry, new);
 			fix_collisions(table, entry);
 			return 0;
 		}
@@ -449,8 +449,8 @@ static int pool4_add_range(struct rb_root *tree, struct pool4_table *table,
 }
 
 static int add_to_mark_tree(struct pool4 *pool,
-		const struct pool4_entry_usr *entry,
-		struct pool4_range *new)
+		const struct pool4_entry *entry,
+		struct ipv4_range *new)
 {
 	struct pool4_table *table;
 	struct pool4_table *collision;
@@ -496,8 +496,8 @@ static int add_to_mark_tree(struct pool4 *pool,
 }
 
 static int add_to_addr_tree(struct pool4 *pool,
-		const struct pool4_entry_usr *entry,
-		struct pool4_range *new)
+		const struct pool4_entry *entry,
+		struct ipv4_range *new)
 {
 	struct rb_root *tree;
 	struct pool4_table *table;
@@ -507,14 +507,14 @@ static int add_to_addr_tree(struct pool4 *pool,
 	if (!tree)
 		return -EINVAL;
 
-	table = find_by_addr(tree, &new->addr);
+	table = find_by_addr(tree, &new->prefix.addr);
 	if (table)
 		return pool4_add_range(tree, table, new);
 
 	table = create_table(new);
 	if (!table)
 		return -ENOMEM;
-	table->addr = new->addr;
+	table->addr = new->prefix.addr;
 	table->max_iterations_flags = ITERATIONS_AUTO;
 	table->max_iterations_allowed = 0;
 
@@ -529,9 +529,9 @@ static int add_to_addr_tree(struct pool4 *pool,
 	return 0;
 }
 
-int pool4db_add(struct pool4 *pool, const struct pool4_entry_usr *entry)
+int pool4db_add(struct pool4 *pool, const struct pool4_entry *entry)
 {
-	struct pool4_range addend = { .ports = entry->range.ports };
+	struct ipv4_range addend = { .ports = entry->range.ports };
 	u64 tmp;
 	int error;
 
@@ -548,7 +548,8 @@ int pool4db_add(struct pool4 *pool, const struct pool4_entry_usr *entry)
 		if (addend.ports.min == 0)
 			addend.ports.min = 1;
 
-	foreach_addr4(addend.addr, tmp, &entry->range.prefix) {
+	addend.prefix.len = 32;
+	foreach_addr4(addend.prefix.addr, tmp, &entry->range.prefix) {
 		spin_lock_bh(&pool->lock);
 		error = add_to_mark_tree(pool, entry, &addend);
 		if (!error) {
@@ -617,9 +618,9 @@ int pool4db_update(struct pool4 *pool, const struct pool4_update *update)
 static int remove_range(struct rb_root *tree, struct pool4_table *table,
 		struct ipv4_range *rm)
 {
-	struct pool4_range *entry;
+	struct ipv4_range *entry;
 	struct port_range *ports;
-	struct pool4_range tmp;
+	struct ipv4_range tmp;
 	/*
 	 * This is not unsigned because there's a i-- below that can happen
 	 * during i = 0.
@@ -639,7 +640,7 @@ static int remove_range(struct rb_root *tree, struct pool4_table *table,
 	for (i = 0; i < table->sample_count; i++) {
 		entry = first_table_entry(table) + i;
 
-		if (!prefix4_contains(&rm->prefix, &entry->addr))
+		if (!prefix4_contains(&rm->prefix, &entry->prefix.addr))
 			continue;
 
 		ports = &entry->ports;
@@ -648,7 +649,7 @@ static int remove_range(struct rb_root *tree, struct pool4_table *table,
 			/* log_debug("    rm fully contains %pI4 %u-%u.",
 					&entry->addr, ports->min, ports->max);*/
 			table->taddr_count -= port_range_count(ports);
-			memmove(entry, entry + 1, sizeof(struct pool4_range)
+			memmove(entry, entry + 1, sizeof(struct ipv4_range)
 					* (table->sample_count - i - 1));
 			table->sample_count--;
 			i--;
@@ -659,7 +660,7 @@ static int remove_range(struct rb_root *tree, struct pool4_table *table,
 					&entry->addr, ports->min, ports->max);*/
 			/* Punch a hole in ports. */
 			table->taddr_count -= port_range_count(&rm->ports);
-			tmp.addr = entry->addr;
+			tmp.prefix = entry->prefix;
 			tmp.ports.min = rm->ports.max + 1;
 			tmp.ports.max = ports->max;
 			ports->max = rm->ports.min - 1;
@@ -784,7 +785,7 @@ int pool4db_rm(struct pool4 *pool, const __u32 mark, l4_protocol proto,
 	return error;
 }
 
-int pool4db_rm_usr(struct pool4 *pool, struct pool4_entry_usr *entry)
+int pool4db_rm_usr(struct pool4 *pool, struct pool4_entry *entry)
 {
 	return pool4db_rm(pool, entry->mark, entry->proto, &entry->range);
 }
@@ -796,11 +797,11 @@ void pool4db_flush(struct pool4 *pool)
 	spin_unlock_bh(&pool->lock);
 }
 
-static struct pool4_range *find_port_range(struct pool4_table *entry, __u16 port)
+static struct ipv4_range *find_port_range(struct pool4_table *entry, __u16 port)
 {
-	struct pool4_range *first = first_table_entry(entry);
-	struct pool4_range *middle;
-	struct pool4_range *last = first + entry->sample_count - 1;
+	struct ipv4_range *first = first_table_entry(entry);
+	struct ipv4_range *middle;
+	struct ipv4_range *last = first + entry->sample_count - 1;
 
 	do {
 		middle = first + ((last - first) / 2);
@@ -844,13 +845,13 @@ bool pool4db_contains(struct pool4 *pool, struct net *ns, l4_protocol proto,
 	return found;
 }
 
-static int find_offset(struct pool4_table *table, struct pool4_range *offset,
-		struct pool4_range **result)
+static int find_offset(struct pool4_table *table, struct ipv4_range *offset,
+		struct ipv4_range **result)
 {
-	struct pool4_range *entry;
+	struct ipv4_range *entry;
 
 	foreach_table_range(entry, table) {
-		if (pool4_range_equals(offset, entry)) {
+		if (ipv4_range_equals(offset, entry)) {
 			*result = entry;
 			return 0;
 		}
@@ -931,11 +932,11 @@ static unsigned int compute_max_iterations(const struct pool4_table *table)
 	return result;
 }
 
-static void __update_sample(struct pool4_sample *sample,
+static void __update_sample(struct pool4_entry *sample,
 		const struct pool4_table *table)
 {
 	sample->mark = table->mark;
-	sample->iterations_flags = table->max_iterations_flags;
+	sample->flags = table->max_iterations_flags;
 	sample->iterations = compute_max_iterations(table);
 }
 
@@ -949,14 +950,14 @@ static void __update_sample(struct pool4_sample *sample,
  * - 0 if iteration ended with no interruptions.
  */
 int pool4db_foreach_sample(struct pool4 *pool, l4_protocol proto,
-		pool4db_foreach_sample_cb cb, void *arg,
-		struct pool4_sample *offset)
+		pool4db_foreach_entry_cb cb, void *arg,
+		struct pool4_entry *offset)
 {
 	struct rb_root *tree;
 	struct rb_node *node;
 	struct pool4_table *table;
-	struct pool4_range *entry;
-	struct pool4_sample sample = { .proto = proto };
+	struct ipv4_range *entry;
+	struct pool4_entry sample = { .proto = proto };
 	int error = 0;
 
 	spin_lock_bh(&pool->lock);
@@ -1008,7 +1009,7 @@ static void print_tree(struct rb_root *tree, bool mark)
 {
 	struct rb_node *node = rb_first(tree);
 	struct pool4_table *table;
-	struct pool4_range *entry;
+	struct ipv4_range *entry;
 
 	if (!node) {
 		log_info("	Empty.");
@@ -1025,7 +1026,7 @@ static void print_tree(struct rb_root *tree, bool mark)
 		log_info("\tTaddr count:%u", table->taddr_count);
 
 		foreach_table_range(entry, table) {
-			log_info("\t\t%pI4 %u-%u", &entry->addr,
+			log_info("\t\t%pI4 %u-%u", &entry->prefix.addr,
 					entry->ports.min, entry->ports.max);
 		}
 
@@ -1056,15 +1057,15 @@ static struct mask_domain *find_empty(struct route4_args *args,
 		unsigned int offset)
 {
 	struct mask_domain *masks;
-	struct pool4_range *range;
+	struct ipv4_range *range;
 
 	masks = __wkmalloc("mask_domain",
-			sizeof(struct mask_domain) * sizeof(struct pool4_range),
+			sizeof(struct mask_domain) * sizeof(struct ipv4_range),
 			GFP_ATOMIC);
 	if (!masks)
 		return NULL;
 
-	range = (struct pool4_range *)(masks + 1);
+	range = (struct ipv4_range *)(masks + 1);
 	if (pool4empty_find(args, range)) {
 		__wkfree("mask_domain", masks);
 		return NULL;
@@ -1085,7 +1086,7 @@ struct mask_domain *mask_domain_find(struct pool4 *pool, struct tuple *tuple6,
 		__u8 f_args, struct route4_args *route_args)
 {
 	struct pool4_table *table;
-	struct pool4_range *entry;
+	struct ipv4_range *entry;
 	struct mask_domain *masks;
 	unsigned int offset;
 
@@ -1107,13 +1108,13 @@ struct mask_domain *mask_domain_find(struct pool4 *pool, struct tuple *tuple6,
 		goto fail;
 
 	masks = __wkmalloc("mask_domain", sizeof(struct mask_domain)
-			+ table->sample_count * sizeof(struct pool4_range),
+			+ table->sample_count * sizeof(struct ipv4_range),
 			GFP_ATOMIC);
 	if (!masks)
 		goto fail;
 
 	memcpy(masks + 1, table + 1,
-			table->sample_count * sizeof(struct pool4_range));
+			table->sample_count * sizeof(struct ipv4_range));
 	masks->taddr_count = table->taddr_count;
 	masks->max_iterations = compute_max_iterations(table);
 	masks->range_count = table->sample_count;
@@ -1170,7 +1171,7 @@ int mask_domain_next(struct mask_domain *masks,
 		*consecutive = (masks->taddr_counter != 1);
 	}
 
-	addr->l3 = masks->current_range->addr;
+	addr->l3 = masks->current_range->prefix.addr;
 	addr->l4 = masks->current_port;
 	return 0;
 }
@@ -1194,10 +1195,10 @@ void mask_domain_commit(struct mask_domain *masks)
 bool mask_domain_matches(struct mask_domain *masks,
 		struct ipv4_transport_addr *addr)
 {
-	struct pool4_range *entry;
+	struct ipv4_range *entry;
 
 	foreach_domain_range(entry, masks) {
-		if (entry->addr.s_addr != addr->l3.s_addr)
+		if (entry->prefix.addr.s_addr != addr->l3.s_addr)
 			continue;
 		if (port_range_contains(&entry->ports, addr->l4))
 			return true;

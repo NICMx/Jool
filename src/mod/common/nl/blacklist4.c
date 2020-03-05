@@ -2,92 +2,142 @@
 
 #include "common/types.h"
 #include "mod/common/log.h"
+#include "mod/common/xlator.h"
+#include "mod/common/nl/attribute.h"
 #include "mod/common/nl/nl_common.h"
 #include "mod/common/nl/nl_core.h"
 #include "mod/common/db/pool.h"
 
-static int pool_to_usr(struct ipv4_prefix *prefix, void *arg)
+static int serialize_bl4_entry(struct ipv4_prefix *prefix, void *arg)
 {
-	return nlbuffer_write(arg, prefix, sizeof(*prefix));
+	struct sk_buff *skb = arg;
+	int error;
+
+	error = jnla_put_prefix4(skb, EA_PREFIX4, prefix);
+	if (error)
+		return (error != -EMSGSIZE) ? -1 : 1;
+
+	return 0;
 }
 
-static int handle_blacklist4_display(struct addr4_pool *pool,
-		struct genl_info *info, union request_blacklist4 *request)
+int handle_blacklist4_foreach(struct sk_buff *skb, struct genl_info *info)
 {
-	struct nlcore_buffer buffer;
-	struct ipv4_prefix *offset;
+	struct xlator jool;
+	struct jool_response response;
+	struct ipv4_prefix offset, *offset_ptr;
 	int error;
 
 	log_debug("Sending the blacklist4 to userspace.");
 
-	error = nlbuffer_init_response(&buffer, info, nlbuffer_response_max_size());
+	error = request_handle_start(info, XT_SIIT, &jool);
 	if (error)
-		return nlcore_respond(info, error);
+		goto end;
+	error = jresponse_init(&response, info);
+	if (error)
+		goto revert_start;
 
-	offset = request->foreach.offset_set ? &request->foreach.offset : NULL;
-	error = pool_foreach(pool, pool_to_usr, &buffer, offset);
-	nlbuffer_set_pending_data(&buffer, error > 0);
-	error = (error >= 0)
-			? nlbuffer_send(info, &buffer)
-			: nlcore_respond(info, error);
+	offset_ptr = NULL;
+	if (info->attrs[RA_BL4_ENTRY]) {
+		error = jnla_get_prefix4(info->attrs[RA_BL4_ENTRY], "Blacklist4 prefix", &offset);
+		if (error)
+			goto revert_response;
+		offset_ptr = &offset;
+	}
 
-	nlbuffer_clean(&buffer);
-	return error;
+	error = pool_foreach(jool.siit.blacklist4, serialize_bl4_entry,
+			response.skb, offset_ptr);
+	if (error < 0) {
+		jresponse_cleanup(&response);
+		goto revert_response;
+	}
+
+	if (error > 0)
+		jresponse_enable_m(&response);
+	request_handle_end(&jool);
+	return jresponse_send(&response);
+
+revert_response:
+	jresponse_cleanup(&response);
+revert_start:
+	request_handle_end(&jool);
+end:
+	return nlcore_respond(info, error);
 }
 
-static int handle_blacklist4_add(struct addr4_pool *pool,
-		union request_blacklist4 *request, bool force)
+int handle_blacklist4_add(struct sk_buff *skb, struct genl_info *info)
 {
-	log_debug("Adding an address to the blacklist4.");
-	return pool_add(pool, &request->add.addrs, force);
-}
-
-static int handle_blacklist4_rm(struct addr4_pool *pool,
-		union request_blacklist4 *request)
-{
-	log_debug("Removing an address from the blacklist4.");
-	return pool_rm(pool, &request->rm.addrs);
-}
-
-static int handle_blacklist4_flush(struct addr4_pool *pool)
-{
-	log_debug("Flushing the blacklist4...");
-	return pool_flush(pool);
-}
-
-int handle_blacklist4_config(struct xlator *jool, struct genl_info *info)
-{
-	struct request_hdr *hdr = get_jool_hdr(info);
-	union request_blacklist4 *request = (union request_blacklist4 *)(hdr + 1);
+	struct xlator jool;
+	struct ipv4_prefix addend;
 	int error;
 
-	if (xlator_is_nat64(jool)) {
-		log_err("Stateful NAT64 doesn't have a blacklist4.");
-		return nlcore_respond(info, -EINVAL);
-	}
+	log_debug("Adding Blacklist4 entry.");
 
-	error = validate_request_size(info, sizeof(*request));
+	error = request_handle_start(info, XT_SIIT, &jool);
 	if (error)
-		return nlcore_respond(info, error);
+		goto end;
 
-	switch (hdr->operation) {
-	case OP_FOREACH:
-		return handle_blacklist4_display(jool->siit.blacklist4, info,
-				request);
-	case OP_ADD:
-		error = handle_blacklist4_add(jool->siit.blacklist4, request,
-				hdr->force);
-		break;
-	case OP_REMOVE:
-		error = handle_blacklist4_rm(jool->siit.blacklist4, request);
-		break;
-	case OP_FLUSH:
-		error = handle_blacklist4_flush(jool->siit.blacklist4);
-		break;
-	default:
-		log_err("Unknown operation: %u", hdr->operation);
+	if (!info->attrs[RA_BL4_ENTRY]) {
+		log_err("Request is missing the Blacklist4 container attribute.");
 		error = -EINVAL;
+		goto revert_start;
 	}
 
+	error = jnla_get_prefix4(info->attrs[RA_BL4_ENTRY], "Blacklist4 entry", &addend);
+	if (error)
+		goto revert_start;
+
+	error = pool_add(jool.siit.blacklist4, &addend,
+			get_jool_hdr(info)->flags & HDRFLAGS_FORCE);
+	/* Fall through */
+
+revert_start:
+	request_handle_end(&jool);
+end:
+	return nlcore_respond(info, error);
+}
+
+int handle_blacklist4_rm(struct sk_buff *skb, struct genl_info *info)
+{
+	struct xlator jool;
+	struct ipv4_prefix rem; /* TODO */
+	int error;
+
+	log_debug("Removing Blacklist4 entry.");
+
+	error = request_handle_start(info, XT_SIIT, &jool);
+	if (error)
+		goto end;
+
+	if (!info->attrs[RA_BL4_ENTRY]) {
+		log_err("Request is missing the Blacklist4 container attribute.");
+		error = -EINVAL;
+		goto revert_start;
+	}
+
+	error = jnla_get_prefix4(info->attrs[RA_BL4_ENTRY], "Blacklist4 entry", &rem);
+	if (error)
+		goto revert_start;
+
+	error = pool_rm(jool.siit.blacklist4, &rem);
+revert_start:
+	request_handle_end(&jool);
+end:
+	return nlcore_respond(info, error);
+}
+
+int handle_blacklist4_flush(struct sk_buff *skb, struct genl_info *info)
+{
+	struct xlator jool;
+	int error;
+
+	log_debug("Flushing the blacklist4...");
+
+	error = request_handle_start(info, XT_SIIT, &jool);
+	if (error)
+		goto end;
+
+	error = pool_flush(jool.siit.blacklist4);
+	request_handle_end(&jool);
+end:
 	return nlcore_respond(info, error);
 }

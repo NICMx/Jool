@@ -4,22 +4,6 @@
 #include "common/session.h"
 #include "common/types.h"
 
-/**
- * A mask that dictates which IPv4 transport address is being used to mask a
- * given IPv6 (transport) client.
- *
- * Please note that modifications to this structure may need to cascade to
- * struct bib_entry_usr.
- */
-struct bib_entry {
-	/** The mask. */
-	struct ipv4_transport_addr ipv4;
-	/** The service/client being masked. */
-	struct ipv6_transport_addr ipv6;
-	/** Protocol of the channel. */
-	l4_protocol l4_proto;
-};
-
 typedef enum session_timer_type {
 	SESSION_TIMER_EST,
 	SESSION_TIMER_TRANS,

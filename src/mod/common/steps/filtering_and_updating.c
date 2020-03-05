@@ -93,8 +93,10 @@ static verdict succeed(struct xlation *state)
 	 *
 	 * So let's simplify everything by just joold_add()ing here.
 	 */
+	/*
 	if (state->entries.session_set)
 		joold_add(&state->jool, &state->entries.session);
+	*/
 
 	return VERDICT_CONTINUE;
 }

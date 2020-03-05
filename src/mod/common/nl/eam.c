@@ -2,100 +2,173 @@
 
 #include "common/types.h"
 #include "mod/common/log.h"
+#include "mod/common/xlator.h"
+#include "mod/common/nl/attribute.h"
 #include "mod/common/nl/nl_common.h"
 #include "mod/common/nl/nl_core.h"
 #include "mod/common/db/eam.h"
 
-static int eam_entry_to_userspace(struct eamt_entry const *entry, void *arg)
+static int serialize_eam_entry(struct eamt_entry const *entry, void *arg)
 {
-	struct nlcore_buffer *buffer = (struct nlcore_buffer *)arg;
-	return nlbuffer_write(buffer, entry, sizeof(*entry));
-}
-
-static int handle_eamt_display(struct eam_table *eamt, struct genl_info *info,
-		union request_eamt *request)
-{
-	struct nlcore_buffer buffer;
-	struct ipv4_prefix *prefix4;
+	struct sk_buff *skb = arg;
+	struct nlattr *root;
 	int error;
 
-	log_debug("Sending EAMT to userspace.");
+	root = nla_nest_start(skb, RA_EAMT_ENTRY);
+	if (!root)
+		return 1;
 
-	error = nlbuffer_init_response(&buffer, info, nlbuffer_response_max_size());
+	error = jnla_put_prefix6(skb, EA_PREFIX6, &entry->prefix6);
 	if (error)
-		return nlcore_respond(info, error);
+		goto cancel;
+	error = jnla_put_prefix4(skb, EA_PREFIX4, &entry->prefix4);
+	if (error)
+		goto cancel;
 
-	prefix4 = request->foreach.prefix4_set ? &request->foreach.prefix4 : NULL;
-	error = eamt_foreach(eamt, eam_entry_to_userspace, &buffer, prefix4);
-	nlbuffer_set_pending_data(&buffer, error > 0);
-	error = (error >= 0)
-			? nlbuffer_send(info, &buffer)
-			: nlcore_respond(info, error);
+	nla_nest_end(skb, root);
+	return 0;
 
-	nlbuffer_clean(&buffer);
-	return error;
+cancel:
+	nla_nest_cancel(skb, root);
+	return 1;
 }
 
-static int handle_eamt_add(struct eam_table *eamt, union request_eamt *request,
-		bool force)
+int handle_eamt_foreach(struct sk_buff *skb, struct genl_info *info)
 {
+	struct xlator jool;
+	struct jool_response response;
+	struct ipv4_prefix offset, *offset_ptr;
+	int error;
+
+	error = request_handle_start(info, XT_SIIT, &jool);
+	if (error)
+		goto end;
+	error = jresponse_init(&response, info);
+	if (error)
+		goto revert_start;
+
+	offset_ptr = NULL;
+	if (info->attrs[RA_EAMT_ENTRY]) {
+		error = jnla_get_prefix4(info->attrs[RA_EAMT_ENTRY], "EAMT entry", &offset);
+		if (error)
+			goto revert_response;
+		offset_ptr = &offset;
+	}
+
+	error = eamt_foreach(jool.siit.eamt, serialize_eam_entry, response.skb, offset_ptr);
+	if (error < 0) {
+		jresponse_cleanup(&response);
+		goto revert_response;
+	}
+
+	if (error > 0)
+		jresponse_enable_m(&response);
+	request_handle_end(&jool);
+	return jresponse_send(&response);
+
+revert_response:
+	jresponse_cleanup(&response);
+revert_start:
+	request_handle_end(&jool);
+end:
+	return nlcore_respond(info, error);
+}
+
+int handle_eamt_add(struct sk_buff *skb, struct genl_info *info)
+{
+	struct xlator jool;
+	struct eamt_entry addend;
+	int error;
+
 	log_debug("Adding EAMT entry.");
-	return eamt_add(eamt, &request->add.prefix6, &request->add.prefix4,
-			force);
+
+	error = request_handle_start(info, XT_SIIT, &jool);
+	if (error)
+		goto end;
+
+	if (!info->attrs[RA_EAMT_ENTRY]) {
+		log_err("Request is missing the EAM container attribute.");
+		error = -EINVAL;
+		goto revert_start;
+	}
+
+	error = jnla_get_eam(info->attrs[RA_EAMT_ENTRY], "EAMT entry", &addend);
+	if (error)
+		goto revert_start;
+
+	error = eamt_add(jool.siit.eamt, &addend,
+			get_jool_hdr(info)->flags & HDRFLAGS_FORCE);
+revert_start:
+	request_handle_end(&jool);
+end:
+	return nlcore_respond(info, error);
 }
 
-static int handle_eamt_rm(struct eam_table *eamt, union request_eamt *request)
+int handle_eamt_rm(struct sk_buff *skb, struct genl_info *info)
 {
-	struct ipv6_prefix *prefix6;
-	struct ipv4_prefix *prefix4;
+	struct xlator jool;
+	struct nlattr *attrs[EA_COUNT];
+	struct ipv6_prefix prefix6, *prefix6_ptr;
+	struct ipv4_prefix prefix4, *prefix4_ptr;
+	int error;
 
 	log_debug("Removing EAMT entry.");
 
-	prefix6 = request->rm.prefix6_set ? &request->rm.prefix6 : NULL;
-	prefix4 = request->rm.prefix4_set ? &request->rm.prefix4 : NULL;
-	return eamt_rm(eamt, prefix6, prefix4);
+	error = request_handle_start(info, XT_SIIT, &jool);
+	if (error)
+		goto end;
+
+	if (!info->attrs[RA_EAMT_ENTRY]) {
+		log_err("Request is missing the EAM container attribute.");
+		error = -EINVAL;
+		goto revert_start;
+	}
+	error = nla_parse_nested(attrs, EA_MAX, info->attrs[RA_EAMT_ENTRY], eam_policy, NULL);
+	if (error) {
+		log_err("The 'EAMT' attribute is malformed.");
+		goto revert_start;
+	}
+
+	if (!attrs[EA_PREFIX6] && !attrs[EA_PREFIX4]) {
+		log_err("The request contains no prefixes.");
+		error = -ENOENT;
+		goto revert_start;
+	}
+	prefix6_ptr = NULL;
+	if (attrs[EA_PREFIX6]) {
+		error = jnla_get_prefix6(attrs[EA_PREFIX6], "IPv6 prefix", &prefix6);
+		if (error)
+			goto revert_start;
+		prefix6_ptr = &prefix6;
+	}
+	prefix4_ptr = NULL;
+	if (attrs[EA_PREFIX4]) {
+		error = jnla_get_prefix4(attrs[EA_PREFIX4], "IPv4 prefix", &prefix4);
+		if (error)
+			goto revert_start;
+		prefix4_ptr = &prefix4;
+	}
+
+	error = eamt_rm(jool.siit.eamt, prefix6_ptr, prefix4_ptr);
+revert_start:
+	request_handle_end(&jool);
+end:
+	return nlcore_respond(info, error);
 }
 
-static int handle_eamt_flush(struct eam_table *eamt)
+int handle_eamt_flush(struct sk_buff *skb, struct genl_info *info)
 {
-	eamt_flush(eamt);
-	return 0;
-}
-
-int handle_eamt_config(struct xlator *jool, struct genl_info *info)
-{
-	struct request_hdr *hdr;
-	union request_eamt *request;
+	struct xlator jool;
 	int error;
 
-	if (xlator_is_nat64(jool)) {
-		log_err("Stateful NAT64 doesn't have an EAMT.");
-		return nlcore_respond(info, -EINVAL);
-	}
+	log_debug("Flushing EAM table.");
 
-	hdr = get_jool_hdr(info);
-	request = (union request_eamt *)(hdr + 1);
-
-	error = validate_request_size(info, sizeof(*request));
+	error = request_handle_start(info, XT_SIIT, &jool);
 	if (error)
-		return nlcore_respond(info, error);
+		goto end;
 
-	switch (hdr->operation) {
-	case OP_FOREACH:
-		return handle_eamt_display(jool->siit.eamt, info, request);
-	case OP_ADD:
-		error = handle_eamt_add(jool->siit.eamt, request, hdr->force);
-		break;
-	case OP_REMOVE:
-		error = handle_eamt_rm(jool->siit.eamt, request);
-		break;
-	case OP_FLUSH:
-		error = handle_eamt_flush(jool->siit.eamt);
-		break;
-	default:
-		log_err("Unknown operation: %u", hdr->operation);
-		error = -EINVAL;
-	}
-
+	eamt_flush(jool.siit.eamt);
+	request_handle_end(&jool);
+end:
 	return nlcore_respond(info, error);
 }

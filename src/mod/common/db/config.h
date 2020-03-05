@@ -4,6 +4,6 @@
 #include "common/config.h"
 
 int globals_init(struct globals *config, xlator_type type,
-		struct config_prefix6 *pool6);
+		struct ipv6_prefix *pool6);
 
 #endif /* SRC_MOD_COMMON_CONFIG_H_ */

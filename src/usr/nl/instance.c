@@ -1,87 +1,131 @@
-#include "instance.h"
+#include "usr/nl/instance.h"
 
 #include <errno.h>
-
-#include "jool_socket.h"
-
-#define HDR_LEN sizeof(struct request_hdr)
-#define PAYLOAD_LEN sizeof(union request_instance)
+#include <netlink/genl/genl.h>
+#include "usr/nl/attribute.h"
 
 struct foreach_args {
-	instance_foreach_entry cb;
+	instance_foreach_cb cb;
 	void *args;
-	union request_instance *request;
+	bool done;
+	struct instance_entry_usr last;
 };
 
-static struct jool_result instance_foreach_response(
-		struct jool_response *response, void *arg)
+static struct jool_result entry2attr(struct instance_entry_usr *entry,
+		struct nl_msg *msg)
 {
-	struct instance_entry_usr *entries = response->payload;
-	struct foreach_args *args = arg;
-	__u16 entry_count, i;
+	struct nlattr *root;
+
+	root = nla_nest_start(msg, RA_INSTANCE);
+	if (!root)
+		goto nla_put_failure;
+
+	NLA_PUT_U32(msg, IFEA_NS, entry->ns);
+	NLA_PUT_U8(msg, IFEA_XF, entry->xf);
+	NLA_PUT_STRING(msg, IFEA_INAME, entry->iname);
+
+	nla_nest_end(msg, root);
+	return result_success();
+
+nla_put_failure:
+	return packet_too_small();
+}
+
+static struct jool_result attr2entry(struct nlattr *root,
+		struct instance_entry_usr *entry)
+{
+	struct nlattr *attrs[IFEA_COUNT];
 	struct jool_result result;
 
-	entry_count = response->payload_len / sizeof(*entries);
+	result = jnla_parse_nested(attrs, IFEA_MAX, root, instance_entry_policy);
+	if (result.error)
+		return result;
 
-	for (i = 0; i < entry_count; i++) {
-		result = args->cb(&entries[i], args->args);
+	entry->ns = nla_get_u32(attrs[IFEA_NS]);
+	entry->xf = nla_get_u8(attrs[IFEA_XF]);
+	strcpy(entry->iname, nla_get_string(attrs[IFEA_INAME]));
+	return result_success();
+}
+
+static struct jool_result handle_foreach_response(struct nl_msg *response,
+		void *arg)
+{
+	struct foreach_args *args;
+	struct genlmsghdr *ghdr;
+	struct request_hdr *jhdr;
+	struct nlattr *attr;
+	int rem;
+	struct instance_entry_usr entry;
+	struct jool_result result;
+
+	args = arg;
+	ghdr = genlmsg_hdr(nlmsg_hdr(response));
+
+	foreach_entry(attr, ghdr, rem) {
+		result = attr2entry(attr, &entry);
 		if (result.error)
 			return result;
+
+		result = args->cb(&entry, args->args);
+		if (result.error)
+			return result;
+
+		memcpy(&args->last, &entry, sizeof(entry));
 	}
 
-	args->request->foreach.offset_set = response->hdr->pending_data;
-	if (entry_count > 0)
-		args->request->foreach.offset = entries[entry_count - 1];
-
+	jhdr = genlmsg_user_hdr(ghdr);
+	args->done = !(jhdr->flags & HDRFLAGS_M);
 	return result_success();
 }
 
 struct jool_result instance_foreach(struct jool_socket *sk,
-		instance_foreach_entry cb, void *_args)
+		instance_foreach_cb cb, void *_args)
 {
-	unsigned char request[HDR_LEN + PAYLOAD_LEN];
-	struct request_hdr *hdr;
-	union request_instance *payload;
+	struct nl_msg *msg;
 	struct foreach_args args;
 	struct jool_result result;
-
-	hdr = (struct request_hdr *)request;
-	payload = (union request_instance *)(request + HDR_LEN);
-
-	init_request_hdr(hdr, sk->xt, MODE_INSTANCE, OP_FOREACH, false);
-	payload->foreach.offset_set = false;
-	memset(&payload->foreach.offset, 0, sizeof(payload->foreach.offset));
+	bool first_request;
 
 	args.cb = cb;
 	args.args = _args;
-	args.request = payload;
+	args.done = false;
+	memset(&args.last, 0, sizeof(args.last));
+	first_request = true;
 
 	do {
-		result = netlink_request(sk, NULL, request, sizeof(request),
-				instance_foreach_response, &args);
+		result = allocate_jool_nlmsg(sk, NULL, JOP_INSTANCE_FOREACH, 0, &msg);
 		if (result.error)
 			return result;
-	} while (payload->foreach.offset_set);
+
+		if (first_request) {
+			first_request = false;
+		} else {
+			result = entry2attr(&args.last, msg);
+			if (result.error)
+				return result;
+		}
+
+		result = netlink_request(sk, msg, handle_foreach_response, &args);
+		if (result.error)
+			return result;
+	} while (!args.done);
 
 	return result_success();
 }
 
-static struct jool_result jool_hello_cb(struct jool_response *response,
-		void *status)
+static struct jool_result jool_hello_cb(struct nl_msg *response, void *status)
 {
-	struct instance_hello_response *payload;
+	static struct nla_policy status_policy[ISRA_COUNT] = {
+		[ISRA_STATUS] = { .type = NLA_U8 },
+	};
+	struct nlattr *attrs[ISRA_COUNT];
+	struct jool_result result;
 
-	if (response->payload_len != sizeof(struct instance_hello_response)) {
-		return result_from_error(
-			-EINVAL,
-			"Jool's response has a bogus length. (expected %zu, got %zu).",
-			sizeof(struct instance_hello_response),
-			response->payload_len
-		);
-	}
+	result = jnla_parse_msg(response, attrs, ISRA_MAX, status_policy, true);
+	if (result.error)
+		return result;
 
-	payload = response->payload;
-	*((enum instance_hello_status *) status) = payload->status;
+	*((enum instance_hello_status *)status) = nla_get_u8(attrs[ISRA_STATUS]);
 	return result_success();
 }
 
@@ -92,95 +136,67 @@ static struct jool_result jool_hello_cb(struct jool_response *response,
 struct jool_result instance_hello(struct jool_socket *sk, char *iname,
 		enum instance_hello_status *status)
 {
-	unsigned char request[HDR_LEN + PAYLOAD_LEN];
-	struct request_hdr *hdr;
-	union request_instance *payload;
-	int error;
+	struct nl_msg *msg;
+	struct jool_result result;
 
-	error = iname_validate(iname, true);
-	if (error) {
-		return result_from_error(
-			error,
-			INAME_VALIDATE_ERRMSG,
-			INAME_MAX_LEN - 1
-		);
-	}
+	result = allocate_jool_nlmsg(sk, iname, JOP_INSTANCE_HELLO, 0, &msg);
+	if (result.error)
+		return result;
 
-	hdr = (struct request_hdr *)request;
-	payload = (union request_instance *)(request + HDR_LEN);
-
-	init_request_hdr(hdr, sk->xt, MODE_INSTANCE, OP_TEST, false);
-	strcpy(payload->hello.iname, iname ? iname : INAME_DEFAULT);
-
-	return netlink_request(sk, NULL, &request, sizeof(request),
-			jool_hello_cb, status);
+	return netlink_request(sk, msg, jool_hello_cb, status);
 }
 
 struct jool_result instance_add(struct jool_socket *sk, xlator_framework xf,
 		char *iname, struct ipv6_prefix *pool6)
 {
-	unsigned char request[HDR_LEN + PAYLOAD_LEN];
-	struct request_hdr *hdr;
-	union request_instance *payload;
-	int error;
+	struct nl_msg *msg;
+	struct nlattr *root;
+	struct jool_result result;
 
-	error = xf_validate(xf);
-	if (error)
-		return result_from_error(error, XF_VALIDATE_ERRMSG);
+	result.error = xf_validate(xf);
+	if (result.error)
+		return result_from_error(result.error, XF_VALIDATE_ERRMSG);
 
-	error = iname_validate(iname, true);
-	if (error) {
-		return result_from_error(
-			error,
-			INAME_VALIDATE_ERRMSG,
-			INAME_MAX_LEN - 1
-		);
-	}
+	result = allocate_jool_nlmsg(sk, iname, JOP_INSTANCE_ADD, 0, &msg);
+	if (result.error)
+		return result;
 
-	hdr = (struct request_hdr *)request;
-	payload = (union request_instance *)(request + HDR_LEN);
+	root = nla_nest_start(msg, RA_INSTANCE);
+	if (!root)
+		goto nla_put_failure;
 
-	init_request_hdr(hdr, sk->xt, MODE_INSTANCE, OP_ADD, false);
-	payload->add.xf = xf;
-	strcpy(payload->add.iname, iname ? iname : INAME_DEFAULT);
-	if (pool6) {
-		payload->add.pool6.set = true;
-		payload->add.pool6.prefix = *pool6;
-	} else {
-		payload->add.pool6.set = false;
-		memset(&payload->add.pool6.prefix, 0,
-				sizeof(payload->add.pool6.prefix));
-	}
+	NLA_PUT_U8(msg, IARA_XF, xf);
+	if (pool6 && nla_put_prefix6(msg, IARA_POOL6, pool6))
+		goto nla_put_failure;
 
-	return netlink_request(sk, NULL, request, sizeof(request), NULL, NULL);
+	nla_nest_end(msg, root);
+	return netlink_request(sk, msg, NULL, NULL);
+
+nla_put_failure:
+	nlmsg_free(msg);
+	return packet_too_small();
 }
 
 struct jool_result instance_rm(struct jool_socket *sk, char *iname)
 {
-	unsigned char request[HDR_LEN + PAYLOAD_LEN];
-	struct request_hdr *hdr = (struct request_hdr *)request;
-	union request_instance *payload = (union request_instance *)
-			(request + HDR_LEN);
-	int error;
+	struct nl_msg *msg;
+	struct jool_result result;
 
-	error = iname_validate(iname, true);
-	if (error) {
-		return result_from_error(
-			error,
-			INAME_VALIDATE_ERRMSG,
-			INAME_MAX_LEN - 1
-		);
-	}
+	result = allocate_jool_nlmsg(sk, iname, JOP_INSTANCE_RM, 0, &msg);
+	if (result.error)
+		return result;
 
-	init_request_hdr(hdr, sk->xt, MODE_INSTANCE, OP_REMOVE, false);
-	strcpy(payload->rm.iname, iname ? iname : INAME_DEFAULT);
-
-	return netlink_request(sk, NULL, request, sizeof(request), NULL, NULL);
+	return netlink_request(sk, msg, NULL, NULL);
 }
 
 struct jool_result instance_flush(struct jool_socket *sk)
 {
-	struct request_hdr request;
-	init_request_hdr(&request, sk->xt, MODE_INSTANCE, OP_FLUSH, false);
-	return netlink_request(sk, NULL, &request, sizeof(request), NULL, NULL);
+	struct nl_msg *msg;
+	struct jool_result result;
+
+	result = allocate_jool_nlmsg(sk, NULL, JOP_INSTANCE_FLUSH, 0, &msg);
+	if (result.error)
+		return result;
+
+	return netlink_request(sk, msg, NULL, NULL);
 }

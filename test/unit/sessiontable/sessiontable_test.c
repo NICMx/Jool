@@ -113,7 +113,6 @@ static int cb(struct session_entry const *session, void *void_args)
 static bool test_foreach(void)
 {
 	struct unit_iteration_args args;
-	struct session_foreach_func func = { .cb = cb, .arg = &args, };
 	struct session_foreach_offset offset;
 	int error;
 	bool success = true;
@@ -126,7 +125,7 @@ static bool test_foreach(void)
 	/* Empty table, no offset. */
 	args.i = 0;
 	args.offset = 0;
-	error = bib_foreach_session(&jool, L4PROTO_UDP, &func, NULL);
+	error = bib_foreach_session(&jool, L4PROTO_UDP, cb, &args, NULL);
 	success &= ASSERT_INT(0, error, "call 1 result");
 	success &= ASSERT_UINT(0, args.i, "call 1 counter");
 
@@ -134,7 +133,7 @@ static bool test_foreach(void)
 	args.i = 0;
 	args.offset = 0;
 	offset.include_offset = true;
-	error = bib_foreach_session(&jool, L4PROTO_UDP, &func, &offset);
+	error = bib_foreach_session(&jool, L4PROTO_UDP, cb, &args, &offset);
 	success &= ASSERT_INT(0, error, "call 2 result");
 	success &= ASSERT_UINT(0, args.i, "call 2 counter");
 
@@ -142,7 +141,7 @@ static bool test_foreach(void)
 	args.i = 0;
 	args.offset = 0;
 	offset.include_offset = false;
-	error = bib_foreach_session(&jool, L4PROTO_UDP, &func, &offset);
+	error = bib_foreach_session(&jool, L4PROTO_UDP, cb, &args, &offset);
 	success &= ASSERT_INT(0, error, "call 3 result");
 	success &= ASSERT_UINT(0, args.i, "call 3 counter");
 
@@ -154,7 +153,7 @@ static bool test_foreach(void)
 	/* Populated table, no offset. */
 	args.i = 0;
 	args.offset = 0;
-	error = bib_foreach_session(&jool, L4PROTO_UDP, &func, NULL);
+	error = bib_foreach_session(&jool, L4PROTO_UDP, cb, &args, NULL);
 	success &= ASSERT_INT(0, error, "call 4 result");
 	success &= ASSERT_UINT(9, args.i, "call 4 counter");
 
@@ -162,7 +161,7 @@ static bool test_foreach(void)
 	args.i = 0;
 	args.offset = 4;
 	offset.include_offset = true;
-	error = bib_foreach_session(&jool, L4PROTO_UDP, &func, &offset);
+	error = bib_foreach_session(&jool, L4PROTO_UDP, cb, &args, &offset);
 	success &= ASSERT_INT(0, error, "call 5 result");
 	success &= ASSERT_UINT(5, args.i, "call 5 counter");
 
@@ -171,7 +170,7 @@ static bool test_foreach(void)
 	args.offset = 5;
 	offset.include_offset = true;
 	offset.offset.dst.l4 = 1250;
-	error = bib_foreach_session(&jool, L4PROTO_UDP, &func, &offset);
+	error = bib_foreach_session(&jool, L4PROTO_UDP, cb, &args, &offset);
 	success &= ASSERT_INT(0, error, "call 6 result");
 	success &= ASSERT_UINT(4, args.i, "call 6 counter");
 
@@ -180,7 +179,7 @@ static bool test_foreach(void)
 	args.offset = 5;
 	offset.include_offset = false;
 	offset.offset.dst.l4 = 1200;
-	error = bib_foreach_session(&jool, L4PROTO_UDP, &func, &offset);
+	error = bib_foreach_session(&jool, L4PROTO_UDP, cb, &args, &offset);
 	success &= ASSERT_INT(0, error, "call 7 result");
 	success &= ASSERT_UINT(4, args.i, "call 7 counter");
 
@@ -189,7 +188,7 @@ static bool test_foreach(void)
 	args.offset = 5;
 	offset.include_offset = false;
 	offset.offset.dst.l4 = 1250;
-	error = bib_foreach_session(&jool, L4PROTO_UDP, &func, &offset);
+	error = bib_foreach_session(&jool, L4PROTO_UDP, cb, &args, &offset);
 	success &= ASSERT_INT(0, error, "call 8 result");
 	success &= ASSERT_UINT(4, args.i, "call 8 counter");
 
@@ -204,14 +203,14 @@ static bool test_foreach(void)
 	args.i = 0;
 	args.offset = 0;
 	offset.include_offset = true;
-	error = bib_foreach_session(&jool, L4PROTO_UDP, &func, &offset);
+	error = bib_foreach_session(&jool, L4PROTO_UDP, cb, &args, &offset);
 	success &= ASSERT_INT(0, error, "call 9 result");
 	success &= ASSERT_UINT(9, args.i, "call 9 counter");
 
 	/* Offset is before first, do not include offset. */
 	args.i = 0;
 	offset.include_offset = false;
-	error = bib_foreach_session(&jool, L4PROTO_UDP, &func, &offset);
+	error = bib_foreach_session(&jool, L4PROTO_UDP, cb, &args, &offset);
 	success &= ASSERT_INT(0, error, "call 10 result");
 	success &= ASSERT_UINT(9, args.i, "call 10 counter");
 
@@ -220,7 +219,7 @@ static bool test_foreach(void)
 
 	args.i = 0;
 	offset.include_offset = true;
-	error = bib_foreach_session(&jool, L4PROTO_UDP, &func, &offset);
+	error = bib_foreach_session(&jool, L4PROTO_UDP, cb, &args, &offset);
 	success &= ASSERT_INT(0, error, "call 11 result");
 	success &= ASSERT_UINT(9, args.i, "call 11 counter");
 
@@ -228,7 +227,7 @@ static bool test_foreach(void)
 	args.i = 0;
 	args.offset = 1;
 	offset.include_offset = false;
-	error = bib_foreach_session(&jool, L4PROTO_UDP, &func, &offset);
+	error = bib_foreach_session(&jool, L4PROTO_UDP, cb, &args, &offset);
 	success &= ASSERT_INT(0, error, "call 12 result");
 	success &= ASSERT_UINT(8, args.i, "call 12 counter");
 
@@ -241,14 +240,14 @@ static bool test_foreach(void)
 	args.i = 0;
 	args.offset = 8;
 	offset.include_offset = true;
-	error = bib_foreach_session(&jool, L4PROTO_UDP, &func, &offset);
+	error = bib_foreach_session(&jool, L4PROTO_UDP, cb, &args, &offset);
 	success &= ASSERT_INT(0, error, "call 13 result");
 	success &= ASSERT_UINT(1, args.i, "call 13 counter");
 
 	/* Offset is last, do not include offset. */
 	args.i = 0;
 	offset.include_offset = false;
-	error = bib_foreach_session(&jool, L4PROTO_UDP, &func, &offset);
+	error = bib_foreach_session(&jool, L4PROTO_UDP, cb, &args, &offset);
 	success &= ASSERT_INT(0, error, "call 14 result");
 	success &= ASSERT_UINT(0, args.i, "call 14 counter");
 
@@ -257,14 +256,14 @@ static bool test_foreach(void)
 
 	args.i = 0;
 	offset.include_offset = true;
-	error = bib_foreach_session(&jool, L4PROTO_UDP, &func, &offset);
+	error = bib_foreach_session(&jool, L4PROTO_UDP, cb, &args, &offset);
 	success &= ASSERT_INT(0, error, "call 15 result");
 	success &= ASSERT_UINT(0, args.i, "call 15 counter");
 
 	/* Offset is after last, do not include offset. */
 	args.i = 0;
 	offset.include_offset = false;
-	error = bib_foreach_session(&jool, L4PROTO_UDP, &func, &offset);
+	error = bib_foreach_session(&jool, L4PROTO_UDP, cb, &args, &offset);
 	success &= ASSERT_INT(0, error, "call 16 result");
 	success &= ASSERT_UINT(0, args.i, "call 16 counter");
 

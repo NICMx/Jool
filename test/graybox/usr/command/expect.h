@@ -4,21 +4,18 @@
 #include <stddef.h>
 #include <netlink/msg.h>
 #include "common/graybox-types.h"
-
-#define PLATEAUS_MAX 64
+#include "common/types.h"
 
 struct expect_add_request {
 	char *file_name;
 	unsigned char *pkt;
 	size_t pkt_len;
 	/*
-	 * This is not a plateaus array. PLATEAUS_MAX is a dumb hack, obviously.
+	 * This is not a plateaus list. mtu_plateaus is a dumb hack, obviously.
 	 * This is fine for now because no sane test would reach the
 	 * PLATEAUS_MAX exceptions limit.
 	 */
-	__u16 exceptions[PLATEAUS_MAX];
-	/* Number of exceptions; not number of bytes. */
-	__u16 exceptions_len;
+	struct mtu_plateaus exceptions;
 };
 
 int expect_init_request(int argc, char **argv, enum graybox_command *cmd,

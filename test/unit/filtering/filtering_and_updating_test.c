@@ -16,7 +16,7 @@ MODULE_DESCRIPTION("Unit tests for the Filtering module");
 
 static struct xlator jool;
 
-static int bib_count_fn(struct bib_entry const *bib, bool is_static, void *arg)
+static int bib_count_fn(struct bib_entry const *bib, void *arg)
 {
 	int *count = arg;
 	(*count)++;
@@ -26,10 +26,9 @@ static int bib_count_fn(struct bib_entry const *bib, bool is_static, void *arg)
 static bool assert_bib_count(int expected, l4_protocol proto)
 {
 	int counter = 0;
-	struct bib_foreach_func func = { .cb = bib_count_fn, .arg = &counter, };
 	bool success = true;
 
-	success &= ASSERT_INT(0, bib_foreach(jool.nat64.bib, proto, &func, NULL), "foreach result");
+	success &= ASSERT_INT(0, bib_foreach(jool.nat64.bib, proto, bib_count_fn, &counter, NULL), "foreach result");
 	success &= ASSERT_INT(expected, counter, "computed count");
 
 	return success;
@@ -50,9 +49,9 @@ static bool assert_bib_exists(char *addr6, u16 port6, char *addr4, u16 port4,
 	if (!success)
 		return false;
 
-	success &= ASSERT_ADDR6(addr6, &bib.ipv6.l3, "IPv6 address");
-	success &= ASSERT_UINT(port6, bib.ipv6.l4, "IPv6 port");
-	success &= ASSERT_ADDR4(addr4, &bib.ipv4.l3, "IPv4 address");
+	success &= ASSERT_ADDR6(addr6, &bib.addr6.l3, "IPv6 address");
+	success &= ASSERT_UINT(port6, bib.addr6.l4, "IPv6 port");
+	success &= ASSERT_ADDR4(addr4, &bib.addr4.l3, "IPv4 address");
 	/* The IPv4 port is unpredictable. */
 	success &= ASSERT_BOOL(proto, bib.l4_proto, "BIB proto");
 
@@ -69,10 +68,9 @@ static int session_count_fn(struct session_entry const *session, void *arg)
 static bool assert_session_count(int expected, l4_protocol proto)
 {
 	int counter = 0;
-	struct session_foreach_func cb = { .cb = session_count_fn, .arg = &counter, };
 	bool success = true;
 
-	success &= ASSERT_INT(0, bib_foreach_session(&jool, proto, &cb, NULL), "foreach result");
+	success &= ASSERT_INT(0, bib_foreach_session(&jool, proto, session_count_fn, &counter, NULL), "foreach result");
 	success &= ASSERT_INT(expected, counter, "computed count");
 
 	return success;
@@ -103,15 +101,11 @@ static int compare_session_foreach_cb(struct session_entry const *session,
 
 static int session_exists(struct session_entry *session)
 {
-	struct session_foreach_func func = {
-			.cb = compare_session_foreach_cb,
-			.arg = session,
-	};
 	/*
 	 * This is the closest we have to a session finding function in the
 	 * current API.
 	 */
-	return bib_foreach_session(&jool, session->proto, &func, NULL);
+	return bib_foreach_session(&jool, session->proto, compare_session_foreach_cb, session, NULL);
 }
 
 static bool assert_session_exists(char *src6_addr, u16 src6_port,
@@ -564,13 +558,12 @@ static void teardown(void)
 
 static int init(void)
 {
-	struct config_prefix6 pool6;
-	struct pool4_entry_usr entry;
+	struct ipv6_prefix pool6;
+	struct pool4_entry entry;
 	int error;
 
-	pool6.set = true;
-	pool6.prefix.len = 96;
-	error = str_to_addr6("3::", &pool6.prefix.addr);
+	pool6.len = 96;
+	error = str_to_addr6("3::", &pool6.addr);
 	if (error)
 		return error;
 

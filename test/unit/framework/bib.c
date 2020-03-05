@@ -6,14 +6,14 @@ int bib_inject(struct xlator *jool,
 {
 	int error;
 
-	error = str_to_addr4(addr4, &entry->ipv4.l3);
+	error = str_to_addr4(addr4, &entry->addr4.l3);
 	if (error)
 		return error;
-	error = str_to_addr6(addr6, &entry->ipv6.l3);
+	error = str_to_addr6(addr6, &entry->addr6.l3);
 	if (error)
 		return error;
-	entry->ipv4.l4 = port4;
-	entry->ipv6.l4 = port6;
+	entry->addr4.l4 = port4;
+	entry->addr6.l4 = port6;
 
 	return bib_add_static(jool, entry);
 }

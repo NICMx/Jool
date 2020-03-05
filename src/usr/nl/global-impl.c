@@ -8,6 +8,7 @@
 #include "common/config.h"
 #include "usr/util/cJSON.h"
 #include "usr/util/str_utils.h"
+#include "usr/nl/attribute.h"
 
 void print_bool(void *value, bool csv)
 {
@@ -128,86 +129,146 @@ void print_fargs(void *value, bool csv)
 	printf("DstPort:%u",  (uvalue >> 0) & 1);
 }
 
-struct jool_result parse_bool(struct global_field *field, char *str,
-		void *result)
+struct jool_result packetize_bool(struct nl_msg *msg, struct global_field *field, char const *string)
 {
-	return str_to_bool(str, result);
+	bool value;
+	struct jool_result result;
+
+	result = str_to_bool(string, &value);
+	if (result.error)
+		return result;
+
+	result.error = nla_put_u8(msg, field->id, value);
+	if (result.error)
+		return result_from_error(result.error, "Packet too small");
+
+	return result_success();
 }
 
-struct jool_result parse_u8(struct global_field *field, char *str,
-		void *result)
+struct jool_result packetize_u8(struct nl_msg *msg, struct global_field *field, char const *string)
 {
-	return str_to_u8(str, result, field->min, field->max);
+	__u8 value;
+	struct jool_result result;
+
+	result = str_to_u8(string, &value, field->min, field->max);
+	if (result.error)
+		return result;
+
+	result.error = nla_put_u8(msg, field->id, value);
+	if (result.error)
+		return result_from_error(result.error, "Packet too small");
+
+	return result_success();
 }
 
-struct jool_result parse_u32(struct global_field *field, char *str,
-		void *result)
+struct jool_result packetize_u32(struct nl_msg *msg, struct global_field *field, char const *string)
 {
-	return str_to_u32(str, result, field->min, field->max);
+	__u32 value;
+	struct jool_result result;
+
+	result = str_to_u32(string, &value, field->min, field->max);
+	if (result.error)
+		return result;
+
+	result.error = nla_put_u32(msg, field->id, value);
+	if (result.error)
+		return result_from_error(result.error, "Packet too small");
+
+	return result_success();
 }
 
-struct jool_result parse_timeout(struct global_field *field, char *str,
-		void *result)
+struct jool_result packetize_timeout(struct nl_msg *msg, struct global_field *field, char const *string)
 {
-	return str_to_timeout(str, result, field->min, field->max);
+	__u32 value;
+	struct jool_result result;
+
+	result = str_to_timeout(string, &value, field->min, field->max);
+	if (result.error)
+		return result;
+
+	result.error = nla_put_u32(msg, field->id, value);
+	if (result.error)
+		return result_from_error(result.error, "Packet too small");
+
+	return result_success();
 }
 
-struct jool_result parse_plateaus(struct global_field *field, char *str,
-		void *result)
+struct jool_result packetize_plateaus(struct nl_msg *msg, struct global_field *field, char const *string)
 {
-	struct mtu_plateaus *plateaus = result;
-	return str_to_plateaus_array(str, plateaus->values, &plateaus->count);
+	struct mtu_plateaus plateaus;
+	struct jool_result result;
+
+	result = str_to_plateaus_array(string, &plateaus);
+	if (result.error)
+		return result;
+
+	result.error = nla_put_plateaus(msg, field->id, &plateaus);
+	if (result.error)
+		return result_from_error(result.error, "Packet too small");
+
+	return result_success();
 }
 
-struct jool_result parse_prefix6(struct global_field *field, char *str,
-		void *result)
+struct jool_result packetize_prefix6(struct nl_msg *msg, struct global_field *field, char const *string)
 {
-	struct config_prefix6 *prefix = result;
+	struct ipv6_prefix prefix, *prefix_ptr;
+	struct jool_result result;
 
-	if (strcmp(str, "null") == 0) {
-		prefix->set = false;
-		memset(&prefix->prefix, 0, sizeof(prefix->prefix));
-		return result_success();
+	prefix_ptr = NULL;
+	if (strcmp(string, "null") != 0) {
+		result = str_to_prefix6(string, &prefix);
+		if (result.error)
+			return result;
+		prefix_ptr = &prefix;
 	}
 
-	prefix->set = true;
-	return str_to_prefix6(str, &prefix->prefix);
+	result.error = nla_put_prefix6(msg, field->id, prefix_ptr);
+	if (result.error)
+		return result_from_error(result.error, "Packet too small");
+
+	return result_success();
 }
 
-struct jool_result parse_prefix4(struct global_field *field, char *str,
-		void *out)
+struct jool_result packetize_prefix4(struct nl_msg *msg, struct global_field *field, char const *string)
 {
-	struct config_prefix4 *prefix = out;
+	struct ipv4_prefix prefix, *prefix_ptr;
+	struct jool_result result;
 
-	if (strcmp(str, "null") == 0) {
-		prefix->set = false;
-		memset(&prefix->prefix, 0, sizeof(prefix->prefix));
-		return result_success();
+	prefix_ptr = NULL;
+	if (strcmp(string, "null") != 0) {
+		result = str_to_prefix4(string, &prefix);
+		if (result.error)
+			return result;
+		prefix_ptr = &prefix;
 	}
 
-	prefix->set = true;
-	return str_to_prefix4(str, &prefix->prefix);
+	result.error = nla_put_prefix4(msg, field->id, prefix_ptr);
+	if (result.error)
+		return result_from_error(result.error, "Packet too small");
+
+	return result_success();
 }
 
-struct jool_result parse_hairpin_mode(struct global_field *field, char *str,
-		void *result)
+struct jool_result packetize_hairpin_mode(struct nl_msg *msg, struct global_field *field, char const *string)
 {
-	__u8 *mode = result;
+	__u8 mode;
+	int error;
 
-	if (strcmp(str, "off") == 0) {
-		*mode = EHM_OFF;
-		return result_success();
-	} else if (strcmp(str, "simple") == 0) {
-		*mode = EHM_SIMPLE;
-		return result_success();
-	} else if (strcmp(str, "intrinsic") == 0) {
-		*mode = EHM_INTRINSIC;
-		return result_success();
-	}
-
-	return result_from_error(
+	if (strcmp(string, "off") == 0)
+		mode = EHM_OFF;
+	else if (strcmp(string, "simple") == 0)
+		mode = EHM_SIMPLE;
+	else if (strcmp(string, "intrinsic") == 0)
+		mode = EHM_INTRINSIC;
+	else return result_from_error(
 		-EINVAL,
 		"'%s' cannot be parsed as a hairpinning mode.\n"
-		"Available options: off, simple, intrinsic", str
+		"Available options: off, simple, intrinsic", string
 	);
+
+	error = nla_put_u8(msg, field->id, mode);
+	if (error)
+		return result_from_error(error, "Packet too small");
+
+	return result_success();
 }

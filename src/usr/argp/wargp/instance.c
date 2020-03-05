@@ -36,7 +36,7 @@ static int parse_iname(void *void_field, int key, char *str)
 
 	error = iname_validate(str, false);
 	if (error) {
-		pr_err(INAME_VALIDATE_ERRMSG, INAME_MAX_LEN - 1);
+		pr_err(INAME_VALIDATE_ERRMSG);
 		return error;
 	}
 

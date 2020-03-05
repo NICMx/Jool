@@ -143,7 +143,7 @@ static void xlator_get(struct xlator *jool)
 	case XT_NAT64:
 		pool4db_get(jool->nat64.pool4);
 		bib_get(jool->nat64.bib);
-		joold_get(jool->nat64.joold);
+		/* joold_get(jool->nat64.joold); */
 		break;
 	}
 }
@@ -273,7 +273,7 @@ void xlator_teardown(void)
 	__wkfree("xlator DB", rcu_dereference_raw(netfilter_instances));
 }
 
-static int init_siit(struct xlator *jool, struct config_prefix6 *pool6)
+static int init_siit(struct xlator *jool, struct ipv6_prefix *pool6)
 {
 	int error;
 
@@ -303,7 +303,7 @@ stats_fail:
 	return -ENOMEM;
 }
 
-static int init_nat64(struct xlator *jool, struct config_prefix6 *pool6)
+static int init_nat64(struct xlator *jool, struct ipv6_prefix *pool6)
 {
 	int error;
 
@@ -320,16 +320,20 @@ static int init_nat64(struct xlator *jool, struct config_prefix6 *pool6)
 	jool->nat64.bib = bib_alloc();
 	if (!jool->nat64.bib)
 		goto bib_fail;
+	/*
 	jool->nat64.joold = joold_alloc(jool->ns);
 	if (!jool->nat64.joold)
 		goto joold_fail;
+		*/
 
 	jool->is_hairpin = is_hairpin_nat64;
 	jool->handling_hairpinning = handling_hairpinning_nat64;
 	return 0;
 
+/*
 joold_fail:
 	bib_put(jool->nat64.bib);
+*/
 bib_fail:
 	pool4db_put(jool->nat64.pool4);
 pool4_fail:
@@ -339,7 +343,7 @@ stats_fail:
 }
 
 int xlator_init(struct xlator *jool, struct net *ns, char *iname,
-		xlator_flags flags, struct config_prefix6 *pool6)
+		xlator_flags flags, struct ipv6_prefix *pool6)
 {
 	int error;
 
@@ -371,7 +375,7 @@ static int basic_validations(char const *iname, bool allow_null_iname,
 
 	error = iname_validate(iname, allow_null_iname);
 	if (error) {
-		log_err(INAME_VALIDATE_ERRMSG, INAME_MAX_LEN - 1);
+		log_err(INAME_VALIDATE_ERRMSG);
 		return error;
 	}
 	error = xt_validate(xlator_flags2xt(flags));
@@ -385,7 +389,7 @@ static int basic_validations(char const *iname, bool allow_null_iname,
 
 /** Basic validations when adding an xlator to the DB. */
 static int basic_add_validations(char *iname, xlator_flags flags,
-		struct config_prefix6 *pool6)
+		struct ipv6_prefix *pool6)
 {
 	int error;
 
@@ -397,7 +401,7 @@ static int basic_add_validations(char *iname, xlator_flags flags,
 		log_err(XF_VALIDATE_ERRMSG);
 		return error;
 	}
-	if ((flags & XT_NAT64) && (!pool6 || !pool6->set)) {
+	if ((flags & XT_NAT64) && !pool6) {
 		log_err("pool6 is mandatory in NAT64 instances.");
 		return -EINVAL;
 	}
@@ -492,7 +496,7 @@ static int __xlator_add(struct jool_instance *new, struct xlator *result)
  * @result: Will be initialized with a clone of the new translator. Send NULL
  *     if you're not interested.
  */
-int xlator_add(xlator_flags flags, char *iname, struct config_prefix6 *pool6,
+int xlator_add(xlator_flags flags, char *iname, struct ipv6_prefix *pool6,
 		struct xlator *result)
 {
 	struct jool_instance *instance;
@@ -603,7 +607,7 @@ int xlator_rm(xlator_type xt, char *iname)
 	}
 	error = iname_validate(iname, false);
 	if (error) {
-		log_err(INAME_VALIDATE_ERRMSG, INAME_MAX_LEN - 1);
+		log_err(INAME_VALIDATE_ERRMSG);
 		return error;
 	}
 
@@ -627,7 +631,9 @@ int xlator_replace(struct xlator *jool)
 	int error;
 
 	error = basic_add_validations(jool->iname, jool->flags,
-			&jool->globals.pool6);
+			jool->globals.pool6.set
+					? &jool->globals.pool6.prefix
+					: NULL);
 	if (error)
 		return error;
 
@@ -676,9 +682,9 @@ int xlator_replace(struct xlator *jool)
 	 */
 	if (xlator_is_nat64(&new->jool)) {
 		bib_put(new->jool.nat64.bib);
-		joold_put(new->jool.nat64.joold);
+		/* joold_put(new->jool.nat64.joold); */
 		new->jool.nat64.bib = old->jool.nat64.bib;
-		new->jool.nat64.joold = old->jool.nat64.joold;
+		/* new->jool.nat64.joold = old->jool.nat64.joold; */
 	}
 
 	hash_del(&old->table_hook);
@@ -698,7 +704,7 @@ int xlator_replace(struct xlator *jool)
 #endif
 	if (xlator_is_nat64(&old->jool)) {
 		old->jool.nat64.bib = NULL;
-		old->jool.nat64.joold = NULL;
+		/* old->jool.nat64.joold = NULL; */
 	}
 
 	destroy_jool_instance(old, false);
@@ -857,8 +863,10 @@ void xlator_put(struct xlator *jool)
 		pool4db_put(jool->nat64.pool4);
 		if (jool->nat64.bib)
 			bib_put(jool->nat64.bib);
+		/*
 		if (jool->nat64.joold)
 			joold_put(jool->nat64.joold);
+		*/
 		return;
 	}
 

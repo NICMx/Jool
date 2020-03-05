@@ -23,7 +23,102 @@
 #include "mod/common/nl/session.h"
 #include "mod/common/nl/stats.h"
 
-static struct genl_multicast_group mc_groups[1] = {
+static int pre_handle_request(const struct genl_ops *ops, struct sk_buff *skb,
+		struct genl_info *info)
+{
+	error_pool_activate();
+	return 0;
+}
+
+static void post_handle_request(const struct genl_ops *ops, struct sk_buff *skb,
+		struct genl_info *info)
+{
+	error_pool_deactivate();
+}
+
+static const struct genl_ops ops[] = {
+	{
+		.cmd = JOP_INSTANCE_FOREACH,
+		.doit = handle_instance_foreach,
+	}, {
+		.cmd = JOP_INSTANCE_ADD,
+		.doit = handle_instance_add,
+	}, {
+		.cmd = JOP_INSTANCE_HELLO,
+		.doit = handle_instance_hello,
+	}, {
+		.cmd = JOP_INSTANCE_RM,
+		.doit = handle_instance_rm,
+	}, {
+		.cmd = JOP_INSTANCE_FLUSH,
+		.doit = handle_instance_flush,
+	}, {
+		.cmd = JOP_ADDRESS_QUERY64,
+		.doit = handle_address_query64,
+	}, {
+		.cmd = JOP_ADDRESS_QUERY46,
+		.doit = handle_address_query46,
+	}, {
+		.cmd = JOP_STATS_FOREACH,
+		.doit = handle_stats_foreach,
+	}, {
+		.cmd = JOP_GLOBAL_FOREACH,
+		.doit = handle_global_foreach,
+	}, {
+		.cmd = JOP_GLOBAL_UPDATE,
+		.doit = handle_global_update,
+	}, {
+		.cmd = JOP_EAMT_FOREACH,
+		.doit = handle_eamt_foreach,
+	}, {
+		.cmd = JOP_EAMT_ADD,
+		.doit = handle_eamt_add,
+	}, {
+		.cmd = JOP_EAMT_RM,
+		.doit = handle_eamt_rm,
+	}, {
+		.cmd = JOP_EAMT_FLUSH,
+		.doit = handle_eamt_flush,
+	}, {
+		.cmd = JOP_BL4_FOREACH,
+		.doit = handle_blacklist4_foreach,
+	}, {
+		.cmd = JOP_BL4_ADD,
+		.doit = handle_blacklist4_add,
+	}, {
+		.cmd = JOP_BL4_RM,
+		.doit = handle_blacklist4_rm,
+	}, {
+		.cmd = JOP_BL4_FLUSH,
+		.doit = handle_blacklist4_flush,
+	}, {
+		.cmd = JOP_POOL4_FOREACH,
+		.doit = handle_pool4_foreach,
+	}, {
+		.cmd = JOP_POOL4_ADD,
+		.doit = handle_pool4_add,
+	}, {
+		.cmd = JOP_POOL4_RM,
+		.doit = handle_pool4_rm,
+	}, {
+		.cmd = JOP_POOL4_FLUSH,
+		.doit = handle_pool4_flush,
+	}, {
+		.cmd = JOP_BIB_FOREACH,
+		.doit = handle_bib_foreach,
+	}, {
+		.cmd = JOP_BIB_ADD,
+		.doit = handle_bib_add,
+	}, {
+		.cmd = JOP_BIB_RM,
+		.doit = handle_bib_rm,
+	}, {
+		.cmd = JOP_SESSION_FOREACH,
+		.doit = handle_session_foreach,
+	}
+};
+
+static struct genl_multicast_group mc_groups[] = {
 	{
 		.name = GNL_JOOLD_MULTICAST_GRP_NAME,
 #if LINUX_VERSION_LOWER_THAN(3, 13, 0, 7, 1)
@@ -32,41 +127,20 @@ static struct genl_multicast_group mc_groups[1] = {
 	},
 };
 
-/**
- * Actual message type definition.
- */
-static struct genl_ops ops[] = {
-	{
-		.cmd = JOOL_COMMAND,
-		.doit = handle_jool_message,
-		.dumpit = NULL,
-	},
-};
-
 static struct genl_family jool_family = {
 #if LINUX_VERSION_LOWER_THAN(4, 10, 0, 7, 5)
 	/* This variable became "private" on kernel 4.10. */
 	.id = GENL_ID_GENERATE,
 #endif
-	.hdrsize = 0,
+	.hdrsize = sizeof(struct request_hdr),
 	/* This is initialized below. See register_family(). */
 	/* .name = GNL_JOOL_FAMILY_NAME, */
-	.version = 1,
-	.maxattr = __ATTR_MAX,
+	.version = 2,
+	.maxattr = RA_MAX,
 	.netnsok = true,
-	/*
-	 * In kernel 3.10, they added a variable here called "parallel_ops".
-	 * Documentation about it can be found in Linux's commit
-	 * def3117493eafd9dfa1f809d861e0031b2cc8a07.
-	 * It appears to be an attempt to free genetlink users from the task of
-	 * locking.
-	 * We need to support older kernels, so we need to lock anyway, so this
-	 * feature is of no use to us.
-	 */
-	/*
-	 * "pre_doit" and "post_doit" are a pain in the ass; there is no doit
-	 * function so I have no idea. Whatever; they can be null. Fuck 'em.
-	 */
+	.parallel_ops = false,
+	.pre_doit = pre_handle_request,
+	.post_doit = post_handle_request,
 
 #if LINUX_VERSION_AT_LEAST(4, 10, 0, 7, 5)
 	/*
@@ -88,192 +162,6 @@ static struct genl_family jool_family = {
 	.n_mcgrps = ARRAY_SIZE(mc_groups),
 #endif
 };
-
-static DEFINE_MUTEX(config_mutex);
-
-static int validate_magic(struct request_hdr *hdr)
-{
-	if (hdr->magic[0] != 'j' || hdr->magic[1] != 'o')
-		goto fail;
-	if (hdr->magic[2] != 'o' || hdr->magic[3] != 'l')
-		goto fail;
-	return 0;
-
-fail:
-	/* Well, the sender does not understand the protocol. */
-	log_err("The userspace client's request lacks the Jool magic text.");
-	return -EINVAL;
-}
-
-static int validate_stateness(struct request_hdr *hdr)
-{
-	switch (hdr->xt) {
-	case XT_SIIT:
-		if (is_siit_enabled())
-			return 0;
-		log_err("SIIT Jool has not been modprobed. (Try `modprobe jool_siit`)");
-		return -EINVAL;
-	case XT_NAT64:
-		if (is_nat64_enabled())
-			return 0;
-		log_err("NAT64 Jool has not been modprobed. (Try `modprobe jool`)");
-		return -EINVAL;
-	}
-
-	log_err(XT_VALIDATE_ERRMSG);
-	return -EINVAL;
-}
-
-static int validate_version(struct request_hdr *hdr)
-{
-	__u32 hdr_version = ntohl(hdr->version);
-
-	if (xlat_version() == hdr_version)
-		return 0;
-
-	log_err("Version mismatch. The userspace client's version is %u.%u.%u.%u,\n"
-			"but the kernel module is %u.%u.%u.%u.\n"
-			"Please update the %s.",
-			hdr_version >> 24, (hdr_version >> 16) & 0xFFU,
-			(hdr_version >> 8) & 0xFFU, hdr_version & 0xFFU,
-			JOOL_VERSION_MAJOR, JOOL_VERSION_MINOR,
-			JOOL_VERSION_REV, JOOL_VERSION_DEV,
-			(xlat_version() > hdr_version)
-					? "userspace client"
-					: "kernel module");
-	return -EINVAL;
-}
-
-static int validate_request(void *data, size_t data_len, bool *peer_is_jool)
-{
-	int error;
-
-	if (peer_is_jool)
-		*peer_is_jool = false;
-
-	if (data_len < sizeof(struct request_hdr)) {
-		log_err("Message from the userspace client is smaller than Jool's header.");
-		return -EINVAL;
-	}
-
-	error = validate_magic(data);
-	if (error)
-		return error;
-
-	if (peer_is_jool)
-		*peer_is_jool = true;
-
-	error = validate_stateness(data);
-	if (error)
-		return error;
-	return validate_version(data);
-}
-
-
-static int validate_genl_attrs(struct genl_info *info)
-{
-	/*
-	 * I smell a need for another genl refactor.
-	 * Damn it, this thing is so hard to nail right.
-	 */
-	if (info->attrs == NULL || info->attrs[ATTR_DATA] == NULL) {
-		log_err("Malformed request. Most likely, the client is not Jool, or its version is pre-4.0. I can't even respond. Sorry.");
-		return -EINVAL;
-	}
-
-	return 0;
-}
-
-static int multiplex_request(struct xlator *jool, struct genl_info *info)
-{
-	struct request_hdr *hdr = get_jool_hdr(info);
-
-	switch (hdr->mode) {
-	case MODE_ADDRESS:
-		return handle_address_query(jool, info);
-	case MODE_STATS:
-		return handle_stats_config(jool, info);
-	case MODE_GLOBAL:
-		return handle_global_config(jool, info);
-	case MODE_EAMT:
-		return handle_eamt_config(jool, info);
-	case MODE_BLACKLIST:
-		return handle_blacklist4_config(jool, info);
-	case MODE_POOL4:
-		return handle_pool4_config(jool, info);
-	case MODE_BIB:
-		return handle_bib_config(jool, info);
-	case MODE_SESSION:
-		return handle_session_config(jool, info);
-	case MODE_JOOLD:
-		return handle_joold_request(jool, info);
-	default:
-		log_err("Unknown configuration mode: %d", hdr->mode);
-		return nlcore_respond(info, -EINVAL);
-	}
-}
-
-static int __handle_jool_message(struct genl_info *info)
-{
-	struct request_hdr *hdr;
-	struct xlator jool;
-	bool client_is_jool;
-	int error;
-
-	error = validate_genl_attrs(info);
-	if (error)
-		return error;
-
-	if (verify_superpriv())
-		return nlcore_respond(info, -EPERM);
-
-	log_debug("===============================================");
-	log_debug("Received a request from userspace.");
-
-	error = validate_request(nla_data(info->attrs[ATTR_DATA]),
-			nla_len(info->attrs[ATTR_DATA]),
-			&client_is_jool);
-	if (error)
-		return client_is_jool ? nlcore_respond(info, error) : error;
-
-	hdr = get_jool_hdr(info);
-	switch (hdr->mode) {
-	case MODE_INSTANCE:
-		return handle_instance_request(info);
-	case MODE_PARSE_FILE:
-		return handle_atomconfig_request(info);
-	default:
-		break;
-	}
-
-	error = xlator_find_current(get_iname(info), XF_ANY | hdr->xt, &jool);
-	if (error == -ESRCH) {
-		log_err("This namespace lacks an instance named '%s'.",
-				get_iname(info));
-		return nlcore_respond(info, -ESRCH);
-	}
-	if (error)
-		return nlcore_respond(info, error);
-
-	error = multiplex_request(&jool, info);
-	xlator_put(&jool);
-	return error;
-}
-
-int handle_jool_message(struct sk_buff *skb, struct genl_info *info)
-{
-	int error;
-
-	mutex_lock(&config_mutex);
-
-	error_pool_activate();
-	error = __handle_jool_message(info);
-	error_pool_deactivate();
-
-	mutex_unlock(&config_mutex);
-
-	return error;
-}
 
 static int register_family(void)
 {

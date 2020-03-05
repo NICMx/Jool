@@ -14,10 +14,10 @@ libtool
 ltmain.sh
 
 # Kernel module
+*.cmd
 *.ko
+*.mod
 *.mod.c
-*.ko.cmd
-*.o.cmd
 *.order
 *.symvers
 .tmp_versions

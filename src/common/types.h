@@ -26,6 +26,43 @@
 /** Maximum storable value on a __u64. */
 #define MAX_U64 0xFFFFFFFFFFFFFFFFU
 
+typedef unsigned int xlator_flags;
+typedef unsigned int xlator_type; /** Bitwise or'd XT_* constants below. */
+typedef unsigned int xlator_framework; /** Bitwise or'd XF_* constants below. */
+
+#define XT_SIIT (1 << 0)
+#define XT_NAT64 (1 << 1)
+#define XF_NETFILTER (1 << 2)
+#define XF_IPTABLES (1 << 3)
+
+#define XT_ANY (XT_SIIT | XT_NAT64)
+#define XF_ANY (XF_NETFILTER | XF_IPTABLES)
+
+int xf_validate(xlator_framework xf);
+int xt_validate(xlator_type xt);
+
+xlator_type xlator_flags2xt(xlator_flags flags);
+xlator_framework xlator_flags2xf(xlator_flags flags);
+
+#define XT_VALIDATE_ERRMSG \
+	"The instance type must be either SIIT or NAT64."
+#define XF_VALIDATE_ERRMSG \
+	"The instance framework must be either Netfilter or iptables."
+
+/*
+ * This includes the null chara; the practical maximum is 15.
+ * 15 looks pallatable for decimal-thinking users :p
+ *
+ * TODO add INAME_MAX_SIZE
+ */
+#define INAME_MAX_LEN 16
+#define INAME_DEFAULT "default"
+
+int iname_validate(const char *iname, bool allow_null);
+/* TODO (fine) use INAME_MAX_LEN? */
+#define INAME_VALIDATE_ERRMSG \
+	"The instance name must be a null-terminated ascii string, 16 characters max."
+
 /**
  * Network (layer 3) protocols Jool is supposed to support.
  * We do not use PF_INET, PF_INET6, AF_INET or AF_INET6 because I want the
@@ -75,6 +112,14 @@ typedef enum l4_protocol {
 const char *l4proto_to_string(l4_protocol proto);
 l4_protocol str_to_l4proto(char *str);
 
+#define PLATEAUS_MAX 64
+
+struct mtu_plateaus {
+	__u16 values[PLATEAUS_MAX];
+	/** Actual length of the values array. */
+	__u16 count;
+};
+
 /**
  * A layer-3 (IPv4) identifier attached to a layer-4 identifier.
  * Because they're paired all the time in this project.
@@ -122,6 +167,16 @@ struct ipv6_prefix {
 	__u8 len;
 };
 
+/**
+ * Explicit Address Mapping definition.
+ * Intended to be a row in the Explicit Address Mapping Table, bind an IPv4
+ * Prefix to an IPv6 Prefix and vice versa.
+ */
+struct eamt_entry {
+	struct ipv6_prefix prefix6;
+	struct ipv4_prefix prefix4;
+};
+
 struct port_range {
 	__u16 min;
 	__u16 max;
@@ -132,17 +187,38 @@ struct ipv4_range {
 	struct port_range ports;
 };
 
+/*
 struct pool4_range {
 	struct in_addr addr;
 	struct port_range ports;
 };
+*/
 
-struct pool4_sample {
+struct pool4_entry {
 	__u32 mark;
+	/**
+	 * BTW: This field is only meaningful if flags has ITERATIONS_SET,
+	 * !ITERATIONS_AUTO and !ITERATIONS_INFINITE.
+	 */
 	__u32 iterations;
-	__u8 iterations_flags;
+	__u8 flags;
 	__u8 proto;
-	struct pool4_range range;
+	struct ipv4_range range;
+};
+
+/*
+ * A mask that dictates which IPv4 transport address is being used to mask a
+ * given IPv6 (transport) client.
+ */
+struct bib_entry {
+	/** The service/client being masked. */
+	struct ipv6_transport_addr addr6;
+	/** The mask. */
+	struct ipv4_transport_addr addr4;
+	/** Protocol of the channel. */
+	__u8 l4_proto;
+	/** Created by userspace app client? */
+	bool is_static;
 };
 
 bool port_range_equals(const struct port_range *r1,
@@ -153,8 +229,7 @@ bool port_range_contains(const struct port_range *range, __u16 port);
 unsigned int port_range_count(const struct port_range *range);
 void port_range_fuse(struct port_range *r1, const struct port_range *r2);
 
-bool pool4_range_equals(struct pool4_range *r1, struct pool4_range *r2);
-bool pool4_range_touches(const struct pool4_range *r1,
-		const struct pool4_range *r2);
+bool ipv4_range_equals(struct ipv4_range const *r1, struct ipv4_range const *r2);
+bool ipv4_range_touches(struct ipv4_range const *r1, struct ipv4_range const *r2);
 
 #endif /* SRC_COMMON_TYPES_H */

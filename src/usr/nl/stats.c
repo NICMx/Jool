@@ -1,11 +1,11 @@
 #include "stats.h"
 
 #include <errno.h>
+#include <netlink/genl/genl.h>
+#include "usr/nl/attribute.h"
 
-#include "common/config.h"
-#include "jool_socket.h"
-
-#define DEFINE_STAT(_id, _doc) { \
+#define DEFINE_STAT(_id, _doc) \
+	[_id] = { \
 		.id = _id, \
 		.name = #_id, \
 		.doc = _doc, \
@@ -14,8 +14,8 @@
 #define TC "Translations cancelled: "
 
 static struct jstat_metadata const jstat_metadatas[] = {
-	DEFINE_STAT(JSTAT_RECEIVED6, ""),
-	DEFINE_STAT(JSTAT_RECEIVED4, ""),
+	DEFINE_STAT(JSTAT_RECEIVED6, "Total IPv6 packets received by the instance so far."),
+	DEFINE_STAT(JSTAT_RECEIVED4, "Total IPv4 packets received by the instance so far."),
 	DEFINE_STAT(JSTAT_SUCCESS, "Successful translations. (Note: 'Successful translation' does not imply that the packet was actually delivered.)"),
 	DEFINE_STAT(JSTAT_BIB_ENTRIES, "Number of BIB entries currently held in the BIB."),
 	DEFINE_STAT(JSTAT_SESSIONS, "Number of session entries currently held in the BIB."),
@@ -85,7 +85,8 @@ static struct jstat_metadata const jstat_metadatas[] = {
 	DEFINE_STAT(JSTAT_ICMP6ERR_FAILURE, "ICMPv6 errors (created by Jool, not translated) that could not be sent."),
 	DEFINE_STAT(JSTAT_ICMP4ERR_SUCCESS, "ICMPv4 errors (created by Jool, not translated) sent successfully."),
 	DEFINE_STAT(JSTAT_ICMP4ERR_FAILURE, "ICMPv4 errors (created by Jool, not translated) that could not be sent."),
-	DEFINE_STAT(JSTAT_UNKNOWN, TC "Unknown error. Likely a programming error."),
+	DEFINE_STAT(JSTAT_UNKNOWN, TC "Programming error found. The module recovered, but the packet was dropped."),
+	DEFINE_STAT(JSTAT_PADDING, "Dummy; ignore this one."),
 };
 
 #define ARRAY_SIZE(array) (sizeof(array) / sizeof(array[0]))
@@ -94,10 +95,10 @@ static struct jool_result validate_stats(void)
 {
 	unsigned int i;
 
-	if (ARRAY_SIZE(jstat_metadatas) != __JSTAT_MAX)
+	if (ARRAY_SIZE(jstat_metadatas) != JSTAT_COUNT)
 		goto failure;
 
-	for (i = 0; i < __JSTAT_MAX; i++) {
+	for (i = 0; i < JSTAT_COUNT; i++) {
 		if (i != jstat_metadatas[i].id)
 			goto failure;
 	}
@@ -116,51 +117,55 @@ struct query_args {
 	void *args;
 };
 
-static struct jool_result stats_query_response(struct jool_response *response,
+static struct jool_result stats_query_response(struct nl_msg *response,
 		void *args)
 {
-	size_t expected_len;
-	__u64 *values = response->payload;
+	struct genlmsghdr *ghdr;
+	struct nlattr *attr;
+	int rem;
+	int id;
 	struct jstat stat;
 	struct query_args *qargs = args;
-	unsigned int i;
 	struct jool_result result;
 
-	expected_len = __JSTAT_MAX * sizeof(*values);
-	if (expected_len != response->payload_len) {
-		return result_from_error(
-			-EINVAL,
-			"Jool's response has a bogus length. (expected %zu, got %zu).",
-			expected_len, response->payload_len
-		);
-	}
+	ghdr = nlmsg_data(nlmsg_hdr(response));
+	foreach_entry(attr, ghdr, rem) {
+		id = nla_type(attr);
+		if (id < 1 || id >= JSTAT_PADDING)
+			goto bad_id;
 
-	for (i = 0; i < __JSTAT_MAX; i++) {
-		stat.meta = jstat_metadatas[i];
-		stat.value = values[i];
+		stat.meta = jstat_metadatas[id];
+		stat.value = nla_get_u64(attr);
 		result = qargs->cb(&stat, qargs->args);
 		if (result.error)
 			return result;
 	}
 
 	return result_success();
+
+bad_id:
+	return result_from_error(
+		-EINVAL,
+		"The kernel module returned an unknown stat counter."
+	);
 }
 
 struct jool_result stats_foreach(struct jool_socket *sk, char *iname,
 		stats_foreach_cb cb, void *args)
 {
+	struct nl_msg *msg;
 	struct query_args qargs;
-	struct request_hdr request;
 	struct jool_result result;
 
 	result = validate_stats();
 	if (result.error)
 		return result;
 
+	result = allocate_jool_nlmsg(sk, iname, JOP_STATS_FOREACH, 0, &msg);
+	if (result.error)
+		return result;
+
 	qargs.cb = cb;
 	qargs.args = args;
-	init_request_hdr(&request, sk->xt, MODE_STATS, OP_FOREACH, false);
-
-	return netlink_request(sk, iname, &request, sizeof(request),
-			stats_query_response, &qargs);
+	return netlink_request(sk, msg, stats_query_response, &qargs);
 }

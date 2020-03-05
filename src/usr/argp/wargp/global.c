@@ -98,7 +98,6 @@ static int handle_global_update(char *iname, int argc, char **argv, void *arg)
 {
 	struct update_args uargs = { 0 };
 	struct global_field *field = arg;
-	void *value;
 	struct jool_socket sk;
 	struct jool_result result;
 
@@ -111,23 +110,12 @@ static int handle_global_update(char *iname, int argc, char **argv, void *arg)
 		return -EINVAL;
 	}
 
-	value = malloc(field->type->size);
-	if (!value)
-		return -ENOMEM;
-
-	result = field->type->parse(field, uargs.global_str.value, value);
-	if (result.error)
-		goto end;
-
 	result = netlink_setup(&sk, xt_get());
 	if (result.error)
-		goto end;
-	result = global_update(&sk, iname, field, value, uargs.force.value);
+		return pr_result(&result);
+	result = global_update(&sk, iname, field, uargs.global_str.value, uargs.force.value);
 	netlink_teardown(&sk);
-	/* Fall through */
 
-end:
-	free(value);
 	return pr_result(&result);
 }
 

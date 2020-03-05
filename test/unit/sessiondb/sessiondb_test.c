@@ -56,13 +56,9 @@ static int compare_session_foreach_cb(struct session_entry const *session,
 
 static bool session_exists(struct session_entry *session)
 {
-	struct session_foreach_func func = {
-			.cb = compare_session_foreach_cb,
-			.arg = session,
-	};
-
 	/* This is the closest we currently have to a find_session function. */
-	return bib_foreach_session(&jool, session->proto, &func, NULL);
+	return bib_foreach_session(&jool, session->proto,
+			compare_session_foreach_cb, session, NULL);
 }
 
 static bool assert_session(unsigned int la, unsigned int lp,

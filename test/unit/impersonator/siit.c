@@ -74,8 +74,7 @@ void eamt_put(struct eam_table *eamt)
 	fail(__func__);
 }
 
-int eamt_add(struct eam_table *eamt, struct ipv6_prefix *prefix6,
-		struct ipv4_prefix *prefix4, bool force)
+int eamt_add(struct eam_table *eamt, struct eamt_entry *new, bool force)
 {
 	return fail(__func__);
 }

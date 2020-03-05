@@ -29,7 +29,7 @@ static struct wargp_option display_opts[] = {
 	{ 0 },
 };
 
-static struct jool_result print_entry(struct bib_entry_usr *entry, void *args)
+static struct jool_result print_entry(struct bib_entry *entry, void *args)
 {
 	struct display_args *dargs = args;
 	l4_protocol proto = entry->l4_proto;

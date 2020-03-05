@@ -43,7 +43,7 @@ static int validate_pool6_len(__u8 len)
 	return -EINVAL;
 }
 
-static int validate_ubit(struct ipv6_prefix *prefix, config_bool force)
+static int validate_ubit(struct ipv6_prefix *prefix, bool force)
 {
 	if (force || !prefix->addr.s6_addr[8])
 		return 0;

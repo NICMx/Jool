@@ -5,6 +5,8 @@
 #include <string.h>
 #include <xtables.h>
 
+#define OPTNAME_INAME "instance"
+
 static const struct option jool_tg_opts[] = {
 	{ .name = OPTNAME_INAME, .has_arg = true, .val = 'i'},
 	{ NULL },
@@ -65,7 +67,7 @@ static int jool_tg_parse(int c, char **argv, int invert, unsigned int *flags,
 
 	error = iname_validate(optarg, false);
 	if (error) {
-		fprintf(stderr, INAME_VALIDATE_ERRMSG "\n", INAME_MAX_LEN - 1);
+		fprintf(stderr, INAME_VALIDATE_ERRMSG "\n");
 		return error;
 	}
 	strcpy(info->iname, optarg);

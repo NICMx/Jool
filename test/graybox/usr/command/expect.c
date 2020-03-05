@@ -8,14 +8,12 @@
 
 int parse_exceptions(char *exceptions, struct expect_add_request *req)
 {
-	__u16 len;
 	struct jool_result result;
 
-	result = str_to_plateaus_array(exceptions, req->exceptions, &len);
+	result = str_to_plateaus_array(exceptions, &req->exceptions);
 	if (result.error)
 		return pr_result(&result);
 
-	req->exceptions_len = len;
 	return 0;
 }
 
@@ -70,10 +68,10 @@ int expect_add_build_pkt(struct expect_add_request *req, struct nl_msg *pkt)
 	if (error)
 		return error;
 
-	if (req->exceptions_len)
+	if (req->exceptions.count)
 		error = nla_put(pkt, ATTR_EXCEPTIONS,
-				sizeof(*req->exceptions) * req->exceptions_len,
-				req->exceptions);
+				sizeof(*req->exceptions.values) * req->exceptions.count,
+				req->exceptions.values);
 
 	return error;
 }

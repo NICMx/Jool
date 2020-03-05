@@ -1,107 +1,170 @@
-#include "bib.h"
+#include "usr/nl/bib.h"
 
 #include <errno.h>
-
-#define HDR_LEN sizeof(struct request_hdr)
-#define PAYLOAD_LEN sizeof(struct request_bib)
+#include <netlink/genl/genl.h>
+#include "usr/nl/attribute.h"
 
 struct foreach_args {
 	bib_foreach_cb cb;
 	void *args;
-	struct request_bib *request;
+	bool done;
+	struct bib_entry last;
 };
 
-static struct jool_result bib_foreach_response(struct jool_response *response,
-		void *arg)
+static struct jool_result fields2attr(struct ipv6_transport_addr *addr6,
+		struct ipv4_transport_addr *addr4,
+		l4_protocol proto,
+		bool is_static,
+		struct nl_msg *msg)
 {
-	struct bib_entry_usr *entries = response->payload;
-	struct foreach_args *args = arg;
-	unsigned int entry_count;
-	unsigned int e;
+	struct nlattr *root;
+
+	root = nla_nest_start(msg, RA_BIB_ENTRY);
+	if (!root)
+		goto nla_put_failure;
+
+	if (addr6 && nla_put_taddr6(msg, BA_SRC6, addr6))
+		goto nla_put_failure;
+	if (addr4 && nla_put_taddr4(msg, BA_SRC4, addr4))
+		goto nla_put_failure;
+	NLA_PUT_U8(msg, BA_PROTO, proto);
+	NLA_PUT_U8(msg, BA_STATIC, is_static);
+
+	nla_nest_end(msg, root);
+	return result_success();
+
+nla_put_failure:
+	return packet_too_small();
+}
+
+static struct jool_result entry2attr(struct bib_entry *entry,
+		struct nl_msg *msg)
+{
+	return fields2attr(&entry->addr6, &entry->addr4, entry->l4_proto,
+			entry->is_static, msg);
+}
+
+static struct jool_result attr2entry(struct nlattr *attr,
+		struct bib_entry *entry)
+{
+	struct nlattr *attrs[BA_COUNT];
 	struct jool_result result;
 
-	entry_count = response->payload_len / sizeof(*entries);
+	result = jnla_parse_nested(attrs, BA_MAX, attr, bib_entry_policy);
+	if (result.error)
+		return result;
 
-	for (e = 0; e < entry_count; e++) {
-		result = args->cb(&entries[e], args->args);
+	result = nla_get_taddr6(attrs[BA_SRC6], &entry->addr6);
+	if (result.error)
+		return result;
+	result = nla_get_taddr4(attrs[BA_SRC4], &entry->addr4);
+	if (result.error)
+		return result;
+	entry->l4_proto = nla_get_u8(attrs[BA_PROTO]);
+	entry->is_static = nla_get_u8(attrs[BA_STATIC]);
+	return result_success();
+}
+
+static struct jool_result handle_foreach_response(struct nl_msg *response,
+		void *arg)
+{
+	struct foreach_args *args;
+	struct genlmsghdr *ghdr;
+	struct request_hdr *jhdr;
+	struct nlattr *attr;
+	int rem;
+	struct bib_entry entry;
+	struct jool_result result;
+
+	args = arg;
+	ghdr = genlmsg_hdr(nlmsg_hdr(response));
+
+	foreach_entry(attr, ghdr, rem) {
+		result = attr2entry(attr, &entry);
 		if (result.error)
 			return result;
+
+		result = args->cb(&entry, args->args);
+		if (result.error)
+			return result;
+
+		memcpy(&args->last, &entry, sizeof(entry));
 	}
 
-	args->request->foreach.addr4_set = response->hdr->pending_data;
-	if (entry_count > 0)
-		args->request->foreach.addr4 = entries[entry_count - 1].addr4;
-
+	jhdr = genlmsg_user_hdr(ghdr);
+	args->done = !(jhdr->flags & HDRFLAGS_M);
 	return result_success();
 }
 
 struct jool_result bib_foreach(struct jool_socket *sk, char *iname,
 	l4_protocol proto, bib_foreach_cb cb, void *_args)
 {
-	unsigned char request[HDR_LEN + PAYLOAD_LEN];
-	struct request_hdr *hdr = (struct request_hdr *)request;
-	struct request_bib *payload = (struct request_bib *)(request + HDR_LEN);
+	struct nl_msg *msg;
 	struct foreach_args args;
 	struct jool_result result;
-
-	init_request_hdr(hdr, sk->xt, MODE_BIB, OP_FOREACH, false);
-	payload->l4_proto = proto;
-	payload->foreach.addr4_set = false;
-	memset(&payload->foreach.addr4, 0, sizeof(payload->foreach.addr4));
+	bool first_request;
 
 	args.cb = cb;
 	args.args = _args;
-	args.request = payload;
+	args.done = false;
+	memset(&args.last, 0, sizeof(args.last));
+	first_request = true;
 
 	do {
-		result = netlink_request(sk, iname,
-				request, sizeof(request),
-				bib_foreach_response, &args);
-	} while (!result.error && payload->foreach.addr4_set);
+		result = allocate_jool_nlmsg(sk, iname, JOP_BIB_FOREACH, 0, &msg);
+		if (result.error)
+			return result;
 
-	return result;
+		if (first_request) {
+			if (nla_put_u8(msg, RA_PROTO, proto))
+				return packet_too_small();
+			first_request = false;
+		} else {
+			result = entry2attr(&args.last, msg);
+			if (result.error)
+				return result;
+		}
+
+		result = netlink_request(sk, msg, handle_foreach_response, &args);
+		if (result.error)
+			return result;
+	} while (!args.done);
+
+	return result_success();
 }
+
+static struct jool_result __update(struct jool_socket *sk, char *iname,
+		enum jool_operation op,
+		struct ipv6_transport_addr *a6, struct ipv4_transport_addr *a4,
+		l4_protocol proto)
+{
+	struct nl_msg *msg;
+	struct jool_result result;
+
+	result = allocate_jool_nlmsg(sk, iname, op, 0, &msg);
+	if (result.error)
+		return result;
+
+	result = fields2attr(a6, a4, proto, true, msg);
+	if (result.error) {
+		nlmsg_free(msg);
+		return result;
+	}
+
+	return netlink_request(sk, msg, NULL, NULL);
+}
+
 
 struct jool_result bib_add(struct jool_socket *sk, char *iname,
 		struct ipv6_transport_addr *a6, struct ipv4_transport_addr *a4,
 		l4_protocol proto)
 {
-	unsigned char request[HDR_LEN + PAYLOAD_LEN];
-	struct request_hdr *hdr = (struct request_hdr *)request;
-	struct request_bib *payload = (struct request_bib *)(request + HDR_LEN);
-
-	init_request_hdr(hdr, sk->xt, MODE_BIB, OP_ADD, false);
-	payload->l4_proto = proto;
-	payload->add.addr6 = *a6;
-	payload->add.addr4 = *a4;
-
-	return netlink_request(sk, iname, request, sizeof(request), NULL, NULL);
+	return __update(sk, iname, JOP_BIB_ADD, a6, a4, proto);
 }
 
 struct jool_result bib_rm(struct jool_socket *sk, char *iname,
 		struct ipv6_transport_addr *a6, struct ipv4_transport_addr *a4,
 		l4_protocol proto)
 {
-	unsigned char request[HDR_LEN + PAYLOAD_LEN];
-	struct request_hdr *hdr = (struct request_hdr *)request;
-	struct request_bib *payload = (struct request_bib *)(request + HDR_LEN);
-
-	init_request_hdr(hdr, sk->xt, MODE_BIB, OP_REMOVE, false);
-	payload->l4_proto = proto;
-	if (a6) {
-		payload->rm.addr6_set = true;
-		memcpy(&payload->rm.addr6, a6, sizeof(*a6));
-	} else {
-		payload->rm.addr6_set = false;
-		memset(&payload->rm.addr6, 0, sizeof(payload->rm.addr6));
-	}
-	if (a4) {
-		payload->rm.addr4_set = true;
-		memcpy(&payload->rm.addr4, a4, sizeof(*a4));
-	} else {
-		payload->rm.addr4_set = false;
-		memset(&payload->rm.addr4, 0, sizeof(payload->rm.addr4));
-	}
-
-	return netlink_request(sk, iname, request, sizeof(request), NULL, NULL);
+	return __update(sk, iname, JOP_BIB_RM, a6, a4, proto);
 }

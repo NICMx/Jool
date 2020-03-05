@@ -22,7 +22,7 @@ static struct net *ns;
  */
 static bool add(__u32 addr, __u8 prefix_len, __u16 min, __u16 max)
 {
-	struct pool4_entry_usr entry;
+	struct pool4_entry entry;
 
 	entry.mark = 1;
 	entry.iterations = 0;
@@ -73,24 +73,25 @@ struct foreach_taddr4_args {
 	unsigned int i;
 };
 
-static void init_sample(struct pool4_sample *sample, __u32 addr, __u16 min,
+static void init_sample(struct pool4_entry *sample, __u32 addr, __u16 min,
 		__u16 max)
 {
 	sample->mark = 1;
 	sample->proto = L4PROTO_TCP;
-	sample->range.addr.s_addr = cpu_to_be32(addr);
+	sample->range.prefix.addr.s_addr = cpu_to_be32(addr);
+	sample->range.prefix.len = 32;
 	sample->range.ports.min = min;
 	sample->range.ports.max = max;
 }
 
 struct foreach_sample_args {
-	struct pool4_sample *expected;
+	struct pool4_entry *expected;
 	unsigned int expected_len;
 	unsigned int samples;
 	unsigned int taddrs;
 };
 
-static int validate_sample(struct pool4_sample const *sample, void *void_args)
+static int validate_sample(struct pool4_entry const *sample, void *void_args)
 {
 	struct foreach_sample_args *args = void_args;
 	bool success = true;
@@ -103,8 +104,8 @@ static int validate_sample(struct pool4_sample const *sample, void *void_args)
 	if (!success)
 		return -EINVAL;
 
-	success &= __ASSERT_ADDR4(&args->expected[args->samples].range.addr,
-			&sample->range.addr, "addr");
+	success &= ASSERT_PREFIX4(&args->expected[args->samples].range.prefix,
+			&sample->range.prefix, "prefix");
 	success &= ASSERT_UINT(args->expected[args->samples].range.ports.min,
 			sample->range.ports.min, "min");
 	success &= ASSERT_UINT(args->expected[args->samples].range.ports.max,
@@ -119,7 +120,7 @@ static int validate_sample(struct pool4_sample const *sample, void *void_args)
 
 static bool test_foreach_sample(void)
 {
-	struct pool4_sample expected[COUNT];
+	struct pool4_entry expected[COUNT];
 	unsigned int i = 0;
 	struct foreach_sample_args args;
 	int error;
@@ -200,7 +201,7 @@ static bool assert_contains_range(__u32 addr_min, __u32 addr_max,
 	return success;
 }
 
-static bool __foreach(struct pool4_sample *expected, unsigned int expected_len,
+static bool __foreach(struct pool4_entry *expected, unsigned int expected_len,
 		unsigned int expected_taddrs)
 {
 	struct foreach_sample_args args;
@@ -222,7 +223,7 @@ static bool __foreach(struct pool4_sample *expected, unsigned int expected_len,
 
 static bool test_add(void)
 {
-	struct pool4_sample samples[8];
+	struct pool4_entry samples[8];
 	bool success = true;
 
 	/* ---------------------------------------------------------- */
@@ -400,7 +401,7 @@ static bool test_add(void)
 
 static bool test_rm(void)
 {
-	struct pool4_sample samples[8];
+	struct pool4_entry samples[8];
 	unsigned int i;
 	bool success = true;
 

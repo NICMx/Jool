@@ -102,15 +102,8 @@ void bib_clean(struct xlator *jool);
 
 /* These are used by userspace request handling. */
 
-struct bib_foreach_func {
-	int (*cb)(struct bib_entry const *, bool, void *);
-	void *arg;
-};
-
-struct session_foreach_func {
-	int (*cb)(struct session_entry const *, void *);
-	void *arg;
-};
+typedef int (*bib_foreach_entry_cb)(struct bib_entry const *, void *);
+typedef int (*session_foreach_entry_cb)(struct session_entry const *, void *);
 
 struct session_foreach_offset {
 	struct taddr4_tuple offset;
@@ -118,10 +111,10 @@ struct session_foreach_offset {
 };
 
 int bib_foreach(struct bib *db, l4_protocol proto,
-		struct bib_foreach_func *func,
+		bib_foreach_entry_cb cb, void *cb_arg,
 		const struct ipv4_transport_addr *offset);
 int bib_foreach_session(struct xlator *jool, l4_protocol proto,
-		struct session_foreach_func *collision_cb,
+		session_foreach_entry_cb cb, void *cb_arg,
 		struct session_foreach_offset *offset);
 int bib_find6(struct bib *db, l4_protocol proto,
 		struct ipv6_transport_addr *addr,

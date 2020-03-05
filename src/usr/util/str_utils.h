@@ -15,7 +15,7 @@
 /**
  * Parses @str as a boolean value, which it then copies to @out.
  */
-struct jool_result str_to_bool(const char *str, __u8 *out);
+struct jool_result str_to_bool(const char *str, bool *out);
 
 struct jool_result validate_int(const char *str);
 
@@ -30,15 +30,6 @@ struct jool_result str_to_u64(const char *str, __u64 *out, __u64 min, __u64 max)
 
 struct jool_result str_to_timeout(const char *str, __u32 *out, __u32 min, __u32 max);
 struct jool_result str_to_port_range(char *str, struct port_range *range);
-
-/**
- * Parses @str as a comma-separated array of __u16s, which it then copies to
- * @result.
- *
- * @result is assumed to length PLATEAUS_MAX elements. The actual length is
- * going to be copied to @count.
- */
-struct jool_result str_to_plateaus_array(const char *str, __u16 *plateaus, __u16 *count);
 
 /**
  * Converts "str" to a IPv4 address. Stores the result in "result".
@@ -71,6 +62,15 @@ struct jool_result str_to_addr6_port(const char *str, struct ipv6_transport_addr
  */
 struct jool_result str_to_prefix6(const char *str, struct ipv6_prefix *out);
 struct jool_result str_to_prefix4(const char *str, struct ipv4_prefix *out);
+
+/**
+ * Parses @str as a comma-separated array of __u16s, which it then copies to
+ * @result.
+ *
+ * @result is assumed to length PLATEAUS_MAX elements. The actual length is
+ * going to be copied to @count.
+ */
+struct jool_result str_to_plateaus_array(const char *str, struct mtu_plateaus *plateaus);
 
 /**
  * Converts the @millis amount of milliseconds to a string.

@@ -4,6 +4,7 @@
 #include <net/netfilter/ipv4/nf_defrag_ipv4.h>
 #include <net/netfilter/ipv6/nf_defrag_ipv6.h>
 
+#include "common/iptables.h"
 #include "mod/common/linux_version.h"
 #include "mod/common/log.h"
 #include "mod/common/kernel_hook.h"

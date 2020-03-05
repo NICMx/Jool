@@ -1,4 +1,4 @@
-#include "xlator_type.h"
+#include "usr/argp/xlator_type.h"
 
 static xlator_type xtype = -1;
 

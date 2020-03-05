@@ -7,14 +7,13 @@
  * which they use to communicate with each other.
  */
 
+#ifdef __KERNEL__
+#include <net/netlink.h>
+#else
+#include <netlink/attr.h>
+#endif
 #include "common/types.h"
 #include "common/xlat.h"
-
-/** cuz sizeof(bool) is implementation-defined. */
-typedef __u8 config_bool;
-
-#define IPTABLES_SIIT_MODULE_NAME "JOOL_SIIT"
-#define IPTABLES_NAT64_MODULE_NAME "JOOL"
 
 #define GNL_JOOL_FAMILY "Jool"
 #define GNL_JOOLD_MULTICAST_GRP_NAME "joold"
@@ -22,7 +21,6 @@ typedef __u8 config_bool;
 /* TODO (fine) these values are not always used. */
 
 /* Instance */
-#define OPTNAME_INAME			"instance"
 #define OPTNAME_FW			"framework"
 #define OPTNAME_NETFILTER		"netfilter"
 #define OPTNAME_IPTABLES		"iptables"
@@ -94,71 +92,242 @@ typedef __u8 config_bool;
 /* Blah */
 #define OPTNAME_COMMENT			"comment"
 
+enum jool_operation {
+	JOP_INSTANCE_FOREACH,
+	JOP_INSTANCE_ADD,
+	JOP_INSTANCE_HELLO,
+	JOP_INSTANCE_RM,
+	JOP_INSTANCE_FLUSH,
+
+	JOP_ADDRESS_QUERY64,
+	JOP_ADDRESS_QUERY46,
+
+	JOP_STATS_FOREACH,
+
+	JOP_GLOBAL_FOREACH,
+	JOP_GLOBAL_UPDATE,
+
+	JOP_EAMT_FOREACH,
+	JOP_EAMT_ADD,
+	JOP_EAMT_RM,
+	JOP_EAMT_FLUSH,
+
+	JOP_BL4_FOREACH,
+	JOP_BL4_ADD,
+	JOP_BL4_RM,
+	JOP_BL4_FLUSH,
+
+	JOP_POOL4_FOREACH,
+	JOP_POOL4_ADD,
+	JOP_POOL4_RM,
+	JOP_POOL4_FLUSH,
+
+	JOP_BIB_FOREACH,
+	JOP_BIB_ADD,
+	JOP_BIB_RM,
+
+	JOP_SESSION_FOREACH,
+};
+
 enum genl_mc_group_ids {
 	JOOLD_MC_ID = (1 << 0),
 };
 
-enum genl_commands {
-	JOOL_COMMAND,
+enum root_attribute {
+	RA_INSTANCE = 1,
+	RA_ADDR_QUERY,
+	RA_GLOBALS,
+	RA_BL4_ENTRY,
+	RA_EAMT_ENTRY,
+	RA_POOL4_ENTRY,
+	RA_BIB_ENTRY,
+	RA_SESSION_ENTRY,
+	RA_PROTO,
+	RA_COUNT,
+#define RA_MAX (RA_COUNT - 1)
 };
 
-enum attributes {
-	ATTR_DUMMY,
-	ATTR_INAME,
-	ATTR_DATA,
-	__ATTR_MAX,
+#ifdef __KERNEL__
+#define ADDR6_POLICY { \
+	.type = NLA_UNSPEC, \
+	.len = sizeof(struct in6_addr), \
+}
+#define ADDR4_POLICY { \
+	.type = NLA_UNSPEC, \
+	.len = sizeof(struct in_addr), \
+}
+#else
+#define ADDR6_POLICY { \
+	.type = NLA_UNSPEC, \
+	.minlen = sizeof(struct in6_addr), \
+	.maxlen = sizeof(struct in6_addr), \
+}
+#define ADDR4_POLICY { \
+	.type = NLA_UNSPEC, \
+	.minlen = sizeof(struct in_addr), \
+	.maxlen = sizeof(struct in_addr), \
+}
+#endif
+
+enum prefix_attribute {
+	PA_ADDR = 1,
+	PA_LEN,
+	PA_COUNT,
+#define PA_MAX (PA_COUNT - 1)
 };
 
-enum config_mode {
-	/** The current message is talking about instance management. */
-	MODE_INSTANCE,
-	/** Querying an address translation result. */
-	MODE_ADDRESS,
-	/** The current message is talking about stats reporting. */
-	MODE_STATS,
-	/** The current message is talking about global configuration values. */
-	MODE_GLOBAL,
-	/** The current message is talking about the EAMT. */
-	MODE_EAMT,
-	/** The current message is talking about the blacklist4ed IPv4 addr pool. */
-	MODE_BLACKLIST,
-	/** The current message is talking about the IPv4 pool. */
-	MODE_POOL4,
-	/** The current message is talking about the Binding Info Bases. */
-	MODE_BIB,
-	/** The current message is talking about the session tables. */
-	MODE_SESSION,
-	/** The current message is talking about synchronization entries.*/
-	MODE_JOOLD,
-	/** The current message is talking about the JSON configuration file */
-	MODE_PARSE_FILE,
+extern struct nla_policy prefix6_policy[PA_COUNT];
+extern struct nla_policy prefix4_policy[PA_COUNT];
+
+enum transport_addr_attribute {
+	TAA_ADDR = 1,
+	TAA_PORT,
+	TAA_COUNT,
+#define TAA_MAX (TAA_COUNT - 1)
 };
 
-char *configmode_to_string(enum config_mode mode);
+extern struct nla_policy taddr6_policy[TAA_COUNT];
+extern struct nla_policy taddr4_policy[TAA_COUNT];
 
-enum config_operation {
-	/** The userspace app wants to print the stuff being requested. */
-	OP_FOREACH,
-	/**
-	 * The userspace app wants to add an element to the table being
-	 * requested.
-	 */
-	OP_ADD,
-	/** The userspace app wants to edit some value. */
-	OP_UPDATE,
-	/**
-	 * The userspace app wants to delete an element from the table being
-	 * requested.
-	 */
-	OP_REMOVE,
-	/** The userspace app wants to clear some table. */
-	OP_FLUSH,
-	/** The userspace app wants us to shout something somewhere. */
-	OP_ADVERTISE,
-	/** The userspace app wants to test something. */
-	OP_TEST,
-	/** Somebody is acknowledging reception of a previous message. */
-	OP_ACK,
+enum instance_entry_attribute {
+	IFEA_NS = 1,
+	IFEA_XF,
+	IFEA_INAME,
+	IFEA_COUNT,
+#define IFEA_MAX (IFEA_COUNT - 1)
+};
+
+extern struct nla_policy instance_entry_policy[IFEA_COUNT];
+
+enum instance_status_response_attribute {
+	ISRA_STATUS = 1,
+	ISRA_COUNT,
+#define ISRA_MAX (ISRA_COUNT - 1)
+};
+
+enum instance_add_request_attribute {
+	IARA_XF = 1,
+	IARA_POOL6,
+	IARA_COUNT,
+#define IARA_MAX (IARA_COUNT - 1)
+};
+
+enum eam_attribute {
+	EA_PREFIX6 = 1,
+	EA_PREFIX4,
+	EA_COUNT,
+#define EA_MAX (EA_COUNT - 1)
+};
+
+enum pool4_attribute {
+	P4A_MARK = 1,
+	P4A_ITERATIONS,
+	P4A_FLAGS,
+	P4A_PROTO,
+	P4A_PREFIX,
+	P4A_PORT_MIN,
+	P4A_PORT_MAX,
+	P4A_COUNT,
+#define P4A_MAX (P4A_COUNT - 1)
+};
+
+extern struct nla_policy pool4_entry_policy[P4A_COUNT];
+
+enum bib_attribute {
+	BA_SRC6 = 1,
+	BA_SRC4,
+	BA_PROTO,
+	BA_STATIC,
+	BA_COUNT,
+#define BA_MAX (BA_COUNT - 1)
+};
+
+extern struct nla_policy bib_entry_policy[BA_COUNT];
+
+enum session_attribute {
+	SEA_SRC6 = 1,
+	SEA_DST6,
+	SEA_SRC4,
+	SEA_DST4,
+	SEA_PROTO,
+	SEA_STATE,
+	SEA_EXPIRATION,
+	SEA_COUNT,
+#define SEA_MAX (SEA_COUNT - 1)
+};
+
+extern struct nla_policy session_entry_policy[SEA_COUNT];
+
+enum address_query_attribute {
+	AQA_ADDR6 = 1,
+	AQA_ADDR4,
+	AQA_PREFIX6052,
+	AQA_EAM,
+	AQA_COUNT,
+#define AQA_MAX (AQA_COUNT - 1)
+};
+
+extern struct nla_policy eam_policy[EA_COUNT];
+
+enum globals_attribute {
+	/* Common */
+	GA_STATUS = 1,
+	GA_ENABLED,
+	GA_TRACE,
+	GA_POOL6,
+	GA_RESET_TC,
+	GA_RESET_TOS,
+	GA_TOS,
+	GA_PLATEAUS,
+
+	/* SIIT */
+	GA_COMPUTE_CSUM_ZERO,
+	GA_HAIRPIN_MODE,
+	GA_RANDOMIZE_ERROR_ADDR,
+	GA_POOL6791V6,
+	GA_POOL6791V4,
+
+	/* NAT64 */
+	GA_DROP_ICMP6_INFO,
+	GA_SRC_ICMP6_BETTER,
+	GA_F_ARGS,
+	GA_HANDLE_RST,
+	GA_TTL_TCP_EST,
+	GA_TTL_TCP_TRANS,
+	GA_TTL_UDP,
+	GA_TTL_ICMP,
+	GA_BIB_LOGGING,
+	GA_SESSION_LOGGING,
+	GA_DROP_BY_ADDR,
+	GA_DROP_EXTERNAL_TCP,
+	GA_MAX_STORED_PKTS,
+
+	/* joold */
+	GA_JOOLD_ENABLED,
+	GA_JOOLD_FLUSH_ASAP,
+	GA_JOOLD_FLUSH_DEADLINE,
+	GA_JOOLD_CAPACITY,
+	GA_JOOLD_MAX_PAYLOAD,
+
+	/* Needs to be last */
+	GA_COUNT,
+#define GA_MAX (GA_COUNT - 1)
+};
+
+enum plateaus_attribute {
+	PLATTR_PLATEAU = 1,
+	PLATTR_COUNT,
+#define PLATTR_MAX (PLATTR_COUNT - 1)
+};
+
+extern struct nla_policy siit_globals_policy[GA_COUNT];
+extern struct nla_policy nat64_globals_policy[GA_COUNT];
+
+enum error_attribute {
+	ERRA_CODE = 1,
+	ERRA_MSG,
+	ERRA_COUNT,
+#define ERRA_MAX (ERRA_COUNT - 1)
 };
 
 enum parse_section {
@@ -172,101 +341,60 @@ enum parse_section {
 	SEC_COMMIT = 0xFF,
 };
 
-typedef unsigned int xlator_flags;
-typedef unsigned int xlator_type; /** Bitwise or'd XT_* constants below. */
-typedef unsigned int xlator_framework; /** Bitwise or'd XF_* constants below. */
-
-#define XT_SIIT (1 << 0)
-#define XT_NAT64 (1 << 1)
-#define XF_NETFILTER (1 << 2)
-#define XF_IPTABLES (1 << 3)
-
-#define XT_ANY (XT_SIIT | XT_NAT64)
-#define XF_ANY (XF_NETFILTER | XF_IPTABLES)
-
-int xf_validate(xlator_framework xf);
-int xt_validate(xlator_type xt);
-
-xlator_type xlator_flags2xt(xlator_flags flags);
-xlator_framework xlator_flags2xf(xlator_flags flags);
-
-#define XT_VALIDATE_ERRMSG \
-	"The instance type must be either SIIT or NAT64."
-#define XF_VALIDATE_ERRMSG \
-	"The instance framework must be either Netfilter or iptables."
+/** Is this packet an error report? */
+#define HDRFLAGS_ERROR (1 << 0)
+/** Ignore certain validations? */
+#define HDRFLAGS_FORCE (1 << 1)
+/** Cascade removal to orphaned entries? */
+#define HDRFLAGS_QUICK (1 << 2)
+/**
+ * "Some data could not be included in this message. Please request it."
+ * Named after the IPv6 fragment header flag, though it has nothing to do with
+ * IP fragmentation.
+ */
+#define HDRFLAGS_M (1 << 3)
+/**
+ * Only userspace joold needs this, so most of the time it does nothing.
+ * TODO (fine) find a way to remove this?
+ */
+#define HDRFLAGS_MULTICAST (1 << 4)
 
 /**
  * Prefix to all user-to-kernel messages.
  * Indicates what the rest of the message contains.
+ *
+ * Mind alignment on this structure.
+ *
+ * TODO rename to "jool_request_hdr"
  */
 struct request_hdr {
-	/** Protocol magic header (always "jool"). */
-	__u8 magic[4];
-	/**
-	 * enum xlator_type
-	 * (Only relevant in requests from userspace)
-	 */
-	__u8 xt;
-
-	/**
-	 * 'u'nicast or 'm'ulticast. Only userspace joold needs it, so most of
-	 * the time this field is ignored.
-	 *
-	 * This exists because I haven't found a way for joold to tell whether a
-	 * kernel packet is a multicast request or a unicast response.
-	 * TODO (fine) Find a way to do that?
-	 */
-	__u8 castness;
-	/** Ignore certain validations? */
-	__u8 force;
-
-	/**
-	 * http://www.catb.org/esr/structure-packing/
-	 * Explicit unused space for future functionality and to ensure
-	 * sizeof(struct request_hdr) is a power of 2.
-	 */
-	__u8 slop1;
-
 	/** Jool's version. */
 	__be32 version;
-	/** See "enum config_mode". */
-	__u8 mode;
-	/** See "enum config_operation". */
-	__u8 operation;
 
-	__u16 slop2;
+	/** enum xlator_type (Only relevant in requests from userspace) */
+	__u8 xt;
+	/** See HDRFLAGS_* above. */
+	__u8 flags;
+
+	__u8 reserved1;
+	__u8 reserved2;
+
+	char iname[INAME_MAX_LEN];
 };
 
 void init_request_hdr(struct request_hdr *hdr, xlator_type xt,
-		enum config_mode mode, enum config_operation operation,
-		bool force);
-
-/*
- * This includes the null chara; the practical maximum is 15.
- * 15 looks pallatable for decimal-thinking users :p
- */
-#define INAME_MAX_LEN 16u
-#define INAME_DEFAULT "default"
-
-int iname_validate(const char *iname, bool allow_null);
-#define INAME_VALIDATE_ERRMSG "The instance name must be a null-terminated ascii string, %u characters max."
+		char const *iname, __u8 flags);
 
 struct config_prefix6 {
-	config_bool set;
+	bool set;
 	/** Please note that this could be garbage; see above. */
 	struct ipv6_prefix prefix;
 };
 
 struct config_prefix4 {
-	config_bool set;
+	bool set;
 	/** Please note that this could be garbage; see above. */
 	struct ipv4_prefix prefix;
-};
-
-struct response_hdr {
-	struct request_hdr req;
-	__u16 error_code;
-	config_bool pending_data;
 };
 
 /**
@@ -276,30 +404,11 @@ struct request_init {
 	__u8 xf; /* enum xlator_framework */
 };
 
-/* This structure needs to length a multiple of 8 bytes. */
 struct instance_entry_usr {
-	/* 8 */ __u64 ns;
-	/* 9 */ __u8 xf; /* enum xlator_framework */
-	/* 25 */ char iname[INAME_MAX_LEN];
-	/* 32 */ __u8 slop[7];
-};
-
-union request_instance {
-	struct {
-		config_bool offset_set;
-		struct instance_entry_usr offset;
-	} foreach;
-	struct {
-		char iname[INAME_MAX_LEN];
-	} hello;
-	struct {
-		__u8 xf; /* enum xlator_framework */
-		char iname[INAME_MAX_LEN];
-		struct config_prefix6 pool6;
-	} add;
-	struct {
-		char iname[INAME_MAX_LEN];
-	} rm;
+	/* TODO (fine) find a way to turn this into a u64? */
+	__u32 ns;
+	__u8 xf; /* enum xlator_framework */
+	char iname[INAME_MAX_LEN];
 };
 
 enum instance_hello_status {
@@ -307,10 +416,6 @@ enum instance_hello_status {
 	IHS_ALIVE,
 	/** Instance does not exist */
 	IHS_DEAD,
-};
-
-struct instance_hello_response {
-	__u8 status;
 };
 
 enum iteration_flags {
@@ -325,179 +430,11 @@ enum iteration_flags {
 	ITERATIONS_INFINITE = (1 << 2),
 };
 
-/* This structure needs to length a multiple of 8 bytes. */
-struct pool4_entry_usr {
-	/* 4 */ __u32 mark;
-	/**
-	 * BTW: This field is only meaningful if flags has ITERATIONS_SET,
-	 * !ITERATIONS_AUTO and !ITERATIONS_INFINITE.
-	 */
-	/* 8 */__u32 iterations;
-	/* 9 */ __u8 flags;
-	/* 10 */ __u8 proto;
-	/* 12 */ __u16 slop;
-	/* 24 */ struct ipv4_range range;
-};
-
 struct pool4_update {
 	__u32 mark;
 	__u32 iterations;
 	__u8 flags;
 	__u8 l4_proto;
-};
-
-/**
- * Configuration for the "IPv4 Pool" module.
- */
-union request_pool4 {
-	struct {
-		__u8 proto;
-		config_bool offset_set;
-		struct pool4_sample offset;
-	} foreach;
-	struct pool4_entry_usr add;
-	struct pool4_update update;
-	struct {
-		struct pool4_entry_usr entry;
-		/**
-		 * Whether the address's BIB entries and sessions should be
-		 * cleared too (false) or not (true).
-		 */
-		config_bool quick;
-	} rm;
-	struct {
-		/**
-		 * Whether the BIB and the sessions tables should also be
-		 * cleared (false) or not (true).
-		 */
-		config_bool quick;
-	} flush;
-};
-
-union request_blacklist4 {
-	struct {
-		config_bool offset_set;
-		struct ipv4_prefix offset;
-	} foreach;
-	struct {
-		struct ipv4_prefix addrs;
-	} add;
-	struct {
-		struct ipv4_prefix addrs;
-	} rm;
-};
-
-/**
- * Configuration for the "EAM" module.
- */
-union request_eamt {
-	struct {
-		config_bool prefix4_set;
-		struct ipv4_prefix prefix4;
-	} foreach;
-	struct {
-		struct ipv6_prefix prefix6;
-		struct ipv4_prefix prefix4;
-	} add;
-	struct {
-		config_bool prefix6_set;
-		struct ipv6_prefix prefix6;
-		config_bool prefix4_set;
-		struct ipv4_prefix prefix4;
-	} rm;
-	struct {
-		__u8 proto;
-		union {
-			struct in6_addr v6;
-			struct in_addr v4;
-		} addr;
-	} test;
-};
-
-/**
- * Configuration for the "BIB" module.
- */
-struct request_bib {
-	/**
-	 * Table the userspace app wants to display or edit. See enum
-	 * l4_protocol.
-	 */
-	__u8 l4_proto;
-	union {
-		struct {
-			config_bool addr4_set;
-			/**
-			 * Address the userspace app received in the last chunk.
-			 * Iteration should contiue from here.
-			 */
-			struct ipv4_transport_addr addr4;
-		} foreach;
-		struct {
-			/**
-			 * The IPv6 transport address of the entry the user
-			 * wants to add.
-			 */
-			struct ipv6_transport_addr addr6;
-			/**
-			 * The IPv4 transport address of the entry the user
-			 * wants to add.
-			 */
-			struct ipv4_transport_addr addr4;
-		} add;
-		struct {
-			/* Is the value if "addr6" set? */
-			config_bool addr6_set;
-			/**
-			 * The IPv6 transport address of the entry the user
-			 * wants to remove.
-			 */
-			struct ipv6_transport_addr addr6;
-			/* Is the value if "addr4" set? */
-			config_bool addr4_set;
-			/**
-			 * The IPv4 transport address of the entry the user
-			 * wants to remove.
-			 */
-			struct ipv4_transport_addr addr4;
-		} rm;
-	};
-};
-
-/**
- * Configuration for the "Session DB"'s tables.
- */
-struct request_session {
-	/** Table the userspace app wants to display. See enum l4_protocol. */
-	__u8 l4_proto;
-	union {
-		struct {
-			/** Is offset set? */
-			config_bool offset_set;
-			/**
-			 * Connection the userspace app received in the last
-			 * chunk. Iteration should continue from here.
-			 */
-			struct taddr4_tuple offset;
-		} foreach;
-	};
-};
-
-/**
- * A BIB entry, from the eyes of userspace.
- *
- * It's a stripped version of "struct bib_entry" and only used when BIB entries
- * need to travel to userspace. For anything else, use "struct bib_entry".
- *
- * See "struct bib_entry" for documentation on the fields.
- *
- * This structure needs to length a multiple of 8 bytes.
- */
-struct bib_entry_usr {
-	/* 8 */ struct ipv4_transport_addr addr4;
-	/* 28 */ struct ipv6_transport_addr addr6;
-	/* 29 */ __u8 l4_proto;
-	/* 30 */ config_bool is_static;
-	/* 32 */ __u16 slop2;
 };
 
 /**
@@ -507,38 +444,15 @@ struct bib_entry_usr {
  * need to travel to userspace. For anything else, use "struct session_entry".
  *
  * See "struct session_entry" for documentation on the fields.
- *
- * This structure needs to length a multiple of 8 bytes.
  */
 struct session_entry_usr {
-	/* 20 */ struct ipv6_transport_addr src6;
-	/* 40 */ struct ipv6_transport_addr dst6;
-	/* 48 */ struct ipv4_transport_addr src4;
-	/* 56 */ struct ipv4_transport_addr dst4;
-	/* 57 */ __u8 state;
-	/* 60 */ __u8 slop[3];
-	/* 64 */ __u32 dying_time;
-};
-
-/**
- * Explicit Address Mapping definition.
- * Intended to be a row in the Explicit Address Mapping Table, bind an IPv4
- * Prefix to an IPv6 Prefix and vice versa.
- *
- * This structure needs to length a multiple of 8 bytes.
- */
-struct eamt_entry {
-	/* 20 */ struct ipv6_prefix prefix6;
-	/* 28 */ struct ipv4_prefix prefix4;
-	/* 32 */ __u32 slop;
-};
-
-struct request_addrxlat {
-	int direction;
-	union {
-		struct in6_addr v6;
-		struct in_addr v4;
-	} addr;
+	struct ipv6_transport_addr src6;
+	struct ipv6_transport_addr dst6;
+	struct ipv4_transport_addr src4;
+	struct ipv4_transport_addr dst4;
+	__u8 proto;
+	__u8 state;
+	__u32 dying_time;
 };
 
 enum address_translation_method {
@@ -573,14 +487,6 @@ enum f_args {
 	F_ARGS_DST_PORT = (1 << 0),
 };
 
-#define PLATEAUS_MAX 64
-
-struct mtu_plateaus {
-	__u16 values[PLATEAUS_MAX];
-	/** Actual length of the values array. */
-	__u16 count;
-};
-
 struct bib_config {
 	/* These values are always measured in milliseconds. */
 	struct {
@@ -590,13 +496,13 @@ struct bib_config {
 		__u32 icmp;
 	} ttl;
 
-	config_bool bib_logging;
-	config_bool session_logging;
+	bool bib_logging;
+	bool session_logging;
 
 	/** Use Address-Dependent Filtering? */
-	config_bool drop_by_addr;
+	bool drop_by_addr;
 	/** Drop externally initiated (IPv4) TCP connections? */
-	config_bool drop_external_tcp;
+	bool drop_external_tcp;
 
 	__u32 max_stored_pkts;
 };
@@ -605,7 +511,7 @@ struct bib_config {
 
 struct joold_config {
 	/** Is joold enabled on this Jool instance? */
-	config_bool enabled;
+	bool enabled;
 
 	/**
 	 * true:  Whenever a session changes, packet it up and send it.
@@ -621,7 +527,7 @@ struct joold_config {
 	 *        (ACKs are still required, but expected to arrive faster.)
 	 *        This is the preferred method in passive scenarios.
 	 */
-	config_bool flush_asap;
+	bool flush_asap;
 
 	/**
 	 * The timer forcibly flushes the queue if this hasn't happened after
@@ -667,13 +573,13 @@ struct globals {
 	 * This depends on several factors depending on stateness, and is not an
 	 * actual variable Jool stores; it is computed as it is requested.
 	 */
-	config_bool status;
+	bool status;
 	/**
 	 * Does the user wants this Jool instance to translate packets?
 	 */
-	config_bool enabled;
+	bool enabled;
 	/** Print packet addresses on reception? */
-	config_bool trace;
+	bool trace;
 
 	/**
 	 * BTW: NAT64 Jool can't do anything without pool6, so it validates that
@@ -687,14 +593,14 @@ struct globals {
 	 * always be zeroized.
 	 * Otherwise it will be copied from the IPv4 header's TOS field.
 	 */
-	config_bool reset_traffic_class;
+	bool reset_traffic_class;
 	/**
 	 * "true" if the Type of Service (TOS) field of translated IPv4 headers
 	 * should always be set as "new_tos".
 	 * Otherwise it will be copied from the IPv6 header's Traffic Class
 	 * field.
 	 */
-	config_bool reset_tos;
+	bool reset_tos;
 	/**
 	 * If "reset_tos" is "true", this is the value the translator will
 	 * always write in the TOS field of translated IPv4 headers.
@@ -718,7 +624,7 @@ struct globals {
 			 * when it's zero? Otherwise these packets will be
 			 * dropped (because they're illegal in IPv6).
 			 */
-			config_bool compute_udp_csum_zero;
+			bool compute_udp_csum_zero;
 			/**
 			 * How should hairpinning be handled by EAM-translated
 			 * packets.
@@ -731,7 +637,7 @@ struct globals {
 			 * packet's Hop Limit.
 			 * See https://github.com/NICMx/Jool/issues/130.
 			 */
-			config_bool randomize_error_addresses;
+			bool randomize_error_addresses;
 
 			/**
 			 * Address used to represent a not translatable source
@@ -747,13 +653,13 @@ struct globals {
 		} siit;
 		struct {
 			/** Filter ICMPv6 Informational packets? */
-			config_bool drop_icmp6_info;
+			bool drop_icmp6_info;
 
 			/**
 			 * True = issue #132 behaviour.
 			 * False = RFC 6146 behaviour.
 			 */
-			config_bool src_icmp6errs_better;
+			bool src_icmp6errs_better;
 			/**
 			 * Fields of the packet that will be sent to the F() function.
 			 * (RFC 6056 algorithm 3.)
@@ -765,18 +671,12 @@ struct globals {
 			 * `V4 FIN RCV` or `V6 FIN RCV` states?
 			 * https://github.com/NICMx/Jool/issues/212
 			 */
-			config_bool handle_rst_during_fin_rcv;
+			bool handle_rst_during_fin_rcv;
 
 			struct bib_config bib;
 			struct joold_config joold;
 		} nat64;
 	};
-};
-
-struct global_value {
-	__u16 type;
-	/* Payload length; does not include this header. */
-	__u16 len;
 };
 
 /**
@@ -786,22 +686,6 @@ enum eam_hairpinning_mode {
 	EHM_OFF = 0,
 	EHM_SIMPLE = 1,
 	EHM_INTRINSIC = 2,
-};
-
-/**
- * Converts config's fields to userspace friendly units.
- */
-void prepare_config_for_userspace(struct globals *config, bool pools_empty);
-
-/*
- * For iptables usage.
- *
- * This structure needs to length a multiple of 8 bytes.
- */
-struct target_info {
-	/* 16 */ char iname[INAME_MAX_LEN];
-	/* 17 */ __u8 type; /* xlator_type */
-	/* 24 */ __u8 slop[7];
 };
 
 #endif /* SRC_COMMON_CONFIG_H_ */

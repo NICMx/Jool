@@ -18,7 +18,7 @@ PROJECTS += bibdb
 PROJECTS += sessiondb
 
 # Layer 4 tests (utils that depend on the dbs)
-PROJECTS += joolns
+#PROJECTS += joolns
 
 # Layer 5 tests (translation steps)
 PROJECTS += filtering

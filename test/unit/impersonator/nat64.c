@@ -84,7 +84,7 @@ void pool4db_put(struct pool4 *pool)
 	fail(__func__);
 }
 
-int pool4db_add(struct pool4 *pool, const struct pool4_entry_usr *entry)
+int pool4db_add(struct pool4 *pool, const struct pool4_entry *entry)
 {
 	return fail(__func__);
 }
@@ -94,7 +94,7 @@ int pool4db_update(struct pool4 *pool, const struct pool4_update *update)
 	return fail(__func__);
 }
 
-int pool4db_rm_usr(struct pool4 *pool, struct pool4_entry_usr *entry)
+int pool4db_rm_usr(struct pool4 *pool, struct pool4_entry *entry)
 {
 	return fail(__func__);
 }
@@ -105,8 +105,8 @@ void pool4db_flush(struct pool4 *pool)
 }
 
 int pool4db_foreach_sample(struct pool4 *pool, l4_protocol proto,
-		pool4db_foreach_sample_cb cb, void *arg,
-		struct pool4_sample *offset)
+		pool4db_foreach_entry_cb cb, void *arg,
+		struct pool4_entry *offset)
 {
 	return fail(__func__);
 }
@@ -170,14 +170,14 @@ void bib_flush(struct xlator *jool)
 }
 
 int bib_foreach(struct bib *db, l4_protocol proto,
-		struct bib_foreach_func *func,
+		bib_foreach_entry_cb cb, void *cb_arg,
 		const struct ipv4_transport_addr *offset)
 {
 	return fail(__func__);
 }
 
 int bib_foreach_session(struct xlator *jool, l4_protocol proto,
-		struct session_foreach_func *collision_cb,
+		session_foreach_entry_cb cb, void *cb_arg,
 		struct session_foreach_offset *offset)
 {
 	return fail(__func__);

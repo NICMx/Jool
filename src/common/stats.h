@@ -12,7 +12,7 @@
  * jstat_metadatas.
  */
 enum jool_stat_id {
-	JSTAT_RECEIVED6,
+	JSTAT_RECEIVED6 = 1,
 	JSTAT_RECEIVED4,
 	JSTAT_SUCCESS,
 
@@ -89,10 +89,11 @@ enum jool_stat_id {
 	JSTAT_ICMP4ERR_SUCCESS,
 	JSTAT_ICMP4ERR_FAILURE,
 
-	/* "WTF was that" errors only. */
-	JSTAT_UNKNOWN,
-
-	__JSTAT_MAX,
+	/* These 3 need to be last, and in this order. */
+	JSTAT_UNKNOWN, /* "WTF was that" errors only. */
+	JSTAT_PADDING,
+	JSTAT_COUNT,
+#define JSTAT_MAX (JSTAT_COUNT - 1)
 };
 
 #endif /* SRC_COMMON_STATS_H_ */

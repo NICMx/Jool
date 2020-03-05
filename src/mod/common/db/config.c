@@ -9,25 +9,27 @@
 #include "mod/common/log.h"
 
 int globals_init(struct globals *config, xlator_type type,
-		struct config_prefix6 *pool6)
+		struct ipv6_prefix *pool6)
 {
 	static const __u16 PLATEAUS[] = DEFAULT_MTU_PLATEAUS;
 	int error;
 
-	if (pool6) {
-		/* TODO (fine) force */
-		error = validate_pool6(NULL, pool6, true);
-		if (error)
-			return error;
-	}
-
 	config->status = 0; /* This is never read, but whatever. */
 	config->enabled = DEFAULT_INSTANCE_ENABLED;
 	config->trace = false;
-	if (pool6)
-		config->pool6 = *pool6;
-	else
+
+	if (pool6) {
+		config->pool6.set = true;
+		config->pool6.prefix = *pool6;
+	} else {
 		config->pool6.set = false;
+	}
+
+	/* TODO (fine) force */
+	error = validate_pool6(NULL, &config->pool6, true);
+	if (error)
+		return error;
+
 	config->reset_traffic_class = DEFAULT_RESET_TRAFFIC_CLASS;
 	config->reset_tos = DEFAULT_RESET_TOS;
 	config->new_tos = DEFAULT_NEW_TOS;
@@ -72,9 +74,4 @@ int globals_init(struct globals *config, xlator_type type,
 	}
 
 	return 0;
-}
-
-void prepare_config_for_userspace(struct globals *config, bool pools_empty)
-{
-	config->status = config->enabled && !pools_empty;
 }

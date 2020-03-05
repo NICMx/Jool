@@ -2,7 +2,7 @@
 #define SRC_USR_NL_ADDRESS_H_
 
 #include "common/config.h"
-#include "jool_socket.h"
+#include "usr/nl/jool_socket.h"
 
 struct jool_result address_query64(struct jool_socket *sk, char *iname,
 		struct in6_addr *addr, struct result_addrxlat64 *result);

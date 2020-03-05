@@ -11,7 +11,7 @@ $(OTHER_TARGETS):
 install:
 	# Don't want to execute depmod thrice; it takes too long.
 	$(foreach dir, $(PROJECTS), $(MAKE) -C $(dir) modules_install;)
-	depmod
+	/sbin/depmod
 
 # This target is needed to generate the upstream tarball.
 # It's not a typical Kbuild target.

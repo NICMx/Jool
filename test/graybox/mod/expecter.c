@@ -52,8 +52,8 @@ static void be16_swap(void *a, void *b, int size)
 
 static void sort_exceptions(struct expected_packet *pkt)
 {
-	__u16 *list = pkt->exceptions;
-	int list_length = pkt->exceptions_len;
+	__u16 *list = pkt->exceptions.values;
+	int list_length = pkt->exceptions.count;
 	unsigned int i, j;
 
 	/* Sort ascending. */
@@ -67,13 +67,12 @@ static void sort_exceptions(struct expected_packet *pkt)
 		}
 	}
 
-	pkt->exceptions_len = i + 1;
+	pkt->exceptions.count = i + 1;
 }
 
 int expecter_add(struct expected_packet *pkt)
 {
 	struct expecter_node *node;
-	size_t exceptions_size;
 
 	if (pkt->bytes_len == 0) {
 		log_err("The packet is zero bytes long.");
@@ -96,10 +95,8 @@ int expecter_add(struct expected_packet *pkt)
 	memcpy(node->pkt.bytes, pkt->bytes, pkt->bytes_len);
 	node->pkt.bytes_len = pkt->bytes_len;
 
-	if (pkt->exceptions && pkt->exceptions_len) {
-		exceptions_size = pkt->exceptions_len * sizeof(*pkt->exceptions);
-		memcpy(node->pkt.exceptions, pkt->exceptions, exceptions_size);
-		node->pkt.exceptions_len = pkt->exceptions_len;
+	if (pkt->exceptions.count) {
+		node->pkt.exceptions = pkt->exceptions;
 		sort_exceptions(&node->pkt);
 	}
 
@@ -197,7 +194,7 @@ static bool pkt_equals(struct expected_packet *expected, struct sk_buff *actual)
 	skip_count = 0;
 
 	for (i = 0; i < min_len; i++) {
-		if (skip_count < expected->exceptions_len && expected->exceptions[skip_count] == i) {
+		if (skip_count < expected->exceptions.count && expected->exceptions.values[skip_count] == i) {
 			skip_count++;
 			continue;
 		}

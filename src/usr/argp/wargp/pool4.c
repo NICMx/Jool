@@ -42,78 +42,78 @@ static void print_separator(void)
 	print_table_separator(0, 10, 5, 18, 15, 11, 0);
 }
 
-static void display_sample_csv(struct pool4_sample *sample,
+static void display_entry_csv(struct pool4_entry *entry,
 		struct display_args *args)
 {
-	printf("%u,%s,%s,%u,%u,", sample->mark,
-			l4proto_to_string(sample->proto),
-			inet_ntoa(sample->range.addr),
-			sample->range.ports.min,
-			sample->range.ports.max);
+	printf("%u,%s,%s", entry->mark, l4proto_to_string(entry->proto),
+			inet_ntoa(entry->range.prefix.addr));
+	if (entry->range.prefix.len != 32)
+		printf("/%u", entry->range.prefix.len);
+	printf(",%u,%u,", entry->range.ports.min, entry->range.ports.max);
 
-	if (sample->iterations_flags & ITERATIONS_INFINITE) {
+	if (entry->flags & ITERATIONS_INFINITE)
 		printf("infinite,");
-	} else {
-		printf("%u,", sample->iterations);
-	}
+	else
+		printf("%u,", entry->iterations);
 
-	printf("%u\n", !(sample->iterations_flags & ITERATIONS_AUTO));
+	printf("%u\n", !(entry->flags & ITERATIONS_AUTO));
 }
 
-static bool print_common_values(struct pool4_sample *sample,
+static bool print_common_values(struct pool4_entry *entry,
 		struct display_args *args)
 {
 	if (!args->last.initialized)
 		return true;
-	return sample->mark != args->last.mark
-			|| sample->proto != args->last.proto;
+	return entry->mark != args->last.mark
+			|| entry->proto != args->last.proto;
 }
 
-static void display_sample_normal(struct pool4_sample *sample,
+static void display_entry_normal(struct pool4_entry *entry,
 		struct display_args *args)
 {
-	if (print_common_values(sample, args)) {
+	/* TODO ignoring length */
+	if (print_common_values(entry, args)) {
 		print_separator();
 
 		printf("| %10u | %5s | ",
-				sample->mark,
-				l4proto_to_string(sample->proto));
-		if (sample->iterations_flags & ITERATIONS_INFINITE)
+				entry->mark,
+				l4proto_to_string(entry->proto));
+		if (entry->flags & ITERATIONS_INFINITE)
 			printf("%10s", "Infinite");
 		else
-			printf("%10u", sample->iterations);
+			printf("%10u", entry->iterations);
 		printf(" (%5s) | %15s | %5u-%5u |\n",
-				(sample->iterations_flags & ITERATIONS_AUTO)
+				(entry->flags & ITERATIONS_AUTO)
 						? "auto"
 						: "fixed",
-				inet_ntoa(sample->range.addr),
-				sample->range.ports.min,
-				sample->range.ports.max);
+				inet_ntoa(entry->range.prefix.addr),
+				entry->range.ports.min,
+				entry->range.ports.max);
 	} else {
 		printf("| %10s | %5s | %10s  %5s  | %15s | %5u-%5u |\n",
 				"",
 				"",
 				"",
 				"",
-				inet_ntoa(sample->range.addr),
-				sample->range.ports.min,
-				sample->range.ports.max);
+				inet_ntoa(entry->range.prefix.addr),
+				entry->range.ports.min,
+				entry->range.ports.max);
 	}
 
 	args->last.initialized = true;
-	args->last.mark = sample->mark;
-	args->last.proto = sample->proto;
+	args->last.mark = entry->mark;
+	args->last.proto = entry->proto;
 }
 
-static struct jool_result handle_display_response(struct pool4_sample *sample,
+static struct jool_result handle_display_response(struct pool4_entry *entry,
 		void *args)
 {
 	struct display_args *dargs = args;
 
 	if (dargs->csv.value)
-		display_sample_csv(sample, args);
+		display_entry_csv(entry, args);
 	else
-		display_sample_normal(sample, args);
+		display_entry_normal(entry, args);
 
 	dargs->count++;
 	return result_success();
@@ -169,7 +169,7 @@ void autocomplete_pool4_display(void *args)
 struct parsing_entry {
 	bool prefix4_set;
 	bool range_set;
-	struct pool4_entry_usr meat;
+	struct pool4_entry meat;
 };
 
 struct add_args {
@@ -180,7 +180,7 @@ struct add_args {
 
 static int parse_max_iterations(void *void_field, int key, char *str)
 {
-	struct pool4_entry_usr *meat = void_field;
+	struct pool4_entry *meat = void_field;
 	struct jool_result result;
 
 	meat->flags = ITERATIONS_SET;

@@ -22,11 +22,11 @@ struct pool4 *pool4db_alloc(void);
 void pool4db_get(struct pool4 *pool);
 void pool4db_put(struct pool4 *pool);
 
-int pool4db_add(struct pool4 *pool, const struct pool4_entry_usr *entry);
+int pool4db_add(struct pool4 *pool, const struct pool4_entry *entry);
 int pool4db_update(struct pool4 *pool, const struct pool4_update *update);
 int pool4db_rm(struct pool4 *pool, const __u32 mark, enum l4_protocol proto,
 		struct ipv4_range *range);
-int pool4db_rm_usr(struct pool4 *pool, struct pool4_entry_usr *entry);
+int pool4db_rm_usr(struct pool4 *pool, struct pool4_entry *entry);
 void pool4db_flush(struct pool4 *pool);
 
 /*
@@ -36,10 +36,10 @@ void pool4db_flush(struct pool4 *pool);
 bool pool4db_contains(struct pool4 *pool, struct net *ns,
 		enum l4_protocol proto, struct ipv4_transport_addr *addr);
 
-typedef int (*pool4db_foreach_sample_cb)(struct pool4_sample const *, void *);
+typedef int (*pool4db_foreach_entry_cb)(struct pool4_entry const *, void *);
 int pool4db_foreach_sample(struct pool4 *pool, l4_protocol proto,
-		pool4db_foreach_sample_cb cb, void *arg,
-		struct pool4_sample *offset);
+		pool4db_foreach_entry_cb cb, void *arg,
+		struct pool4_entry *offset);
 
 struct mask_domain;
 

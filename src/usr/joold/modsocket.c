@@ -16,21 +16,6 @@
 /** Receives Generic Netlink packets from the kernel module. */
 static struct jool_socket jsocket;
 
-static int validate_magic(struct request_hdr *hdr, char *sender)
-{
-	if (hdr->magic[0] != 'j' || hdr->magic[1] != 'o')
-		goto fail;
-	if (hdr->magic[2] != 'o' || hdr->magic[3] != 'l')
-		goto fail;
-	return 0;
-
-fail:
-	/* Well, the sender does not understand the protocol. */
-	syslog(LOG_ERR, "The %s sent a message that lacks the Jool magic text.",
-			sender);
-	return -EINVAL;
-}
-
 static int validate_version(struct request_hdr *hdr,
 		char *sender, char *receiver)
 {
@@ -61,10 +46,6 @@ int validate_request(void *data, size_t data_len, char *sender, char *receiver)
 				sender);
 		return -EINVAL;
 	}
-
-	error = validate_magic(data, sender);
-	if (error)
-		return error;
 
 	return validate_version(data, sender, receiver);
 }

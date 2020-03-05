@@ -4,10 +4,13 @@
 #include <net/genetlink.h>
 #include "mod/common/xlator.h"
 
-int handle_global_config(struct xlator *jool, struct genl_info *info);
+int handle_global_foreach(struct sk_buff *skb, struct genl_info *info);
+int handle_global_update(struct sk_buff *skb, struct genl_info *info);
 
 /* Helper for atomic configuration. */
+/*
 int global_update(struct globals *cfg, xlator_type xt, bool force,
 		struct global_value *request, size_t request_size);
+*/
 
 #endif /* SRC_MOD_COMMON_NL_GLOBAL_H_ */

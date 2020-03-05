@@ -173,7 +173,7 @@ static struct jool_result init_buffer(struct nl_buffer *buffer,
 	struct jool_result result;
 
 	init_request_hdr(&hdr, xlator_flags2xt(flags),
-			MODE_PARSE_FILE, OP_ADD, force);
+			MODE_PARSE_FILE, OP_ADD, force ? HDRFLAGS_FORCE : 0);
 	result = nlbuffer_write(buffer, &hdr, sizeof(hdr));
 	if (result.error)
 		return result;
@@ -565,7 +565,7 @@ static struct jool_result json2port_range(cJSON *json, void *arg1, void *arg2)
 static struct jool_result json2max_iterations(cJSON *json,
 		void *arg1, void *arg2)
 {
-	struct pool4_entry_usr *entry = arg1;
+	struct pool4_entry *entry = arg1;
 	struct jool_result result;
 
 	switch (json->type) {
@@ -675,7 +675,7 @@ static struct jool_result handle_blacklist_entry(cJSON *json,
 static struct jool_result handle_pool4_entry(cJSON *json,
 		struct nl_buffer *buffer)
 {
-	struct pool4_entry_usr entry;
+	struct pool4_entry entry;
 	struct json_meta meta[] = {
 		{ OPTNAME_MARK, json2mark, &entry.mark, NULL, false },
 		{ "protocol", json2proto, &entry.proto, NULL, true },
@@ -702,7 +702,7 @@ static struct jool_result handle_pool4_entry(cJSON *json,
 static struct jool_result handle_bib_entry(cJSON *json,
 		struct nl_buffer *buffer)
 {
-	struct bib_entry_usr entry;
+	struct bib_entry entry;
 	struct json_meta meta[] = {
 		{ "ipv6 address", json2taddr6, &entry.addr6, NULL, true },
 		{ "ipv4 address", json2taddr4, &entry.addr4, NULL, true },
@@ -808,13 +808,8 @@ static struct jool_result handle_instance_tag(cJSON *json, void *_iname,
 		return string_expected(json->string, json);
 
 	error = iname_validate(json->valuestring, false);
-	if (error) {
-		return result_from_error(
-			error,
-			INAME_VALIDATE_ERRMSG,
-			INAME_MAX_LEN - 1
-		);
-	}
+	if (error)
+		return result_from_error(error, INAME_VALIDATE_ERRMSG);
 	if (_iname && strcmp(_iname, json->valuestring) != 0) {
 		return result_from_error(
 			-EINVAL,
@@ -883,13 +878,8 @@ static struct jool_result prepare_instance(char *_iname, cJSON *json)
 	 * So don't do `iname = _iname` yet.
 	 */
 	result.error = iname_validate(_iname, true);
-	if (result.error) {
-		return result_from_error(
-			result.error,
-			INAME_VALIDATE_ERRMSG,
-			INAME_MAX_LEN - 1
-		);
-	}
+	if (result.error)
+		return result_from_error(result.error, INAME_VALIDATE_ERRMSG);
 
 	result = handle_object(json, meta);
 	if (result.error)

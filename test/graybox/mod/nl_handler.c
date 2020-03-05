@@ -48,10 +48,11 @@ static int handle_expect_add(struct genl_info *info)
 
 	attr = info->attrs[ATTR_EXCEPTIONS];
 	if (attr) {
-		memcpy(pkt.exceptions, nla_data(attr), nla_len(attr));
-		pkt.exceptions_len = nla_len(attr) / sizeof(*pkt.exceptions);
+		pr_info("%p %p %d\n", pkt.exceptions.values, nla_data(attr), nla_len(attr));
+		memcpy(pkt.exceptions.values, nla_data(attr), nla_len(attr));
+		pkt.exceptions.count = nla_len(attr) / sizeof(*pkt.exceptions.values);
 	} else {
-		pkt.exceptions_len = 0;
+		pkt.exceptions.count = 0;
 	}
 
 	return genl_respond(info, expecter_add(&pkt));

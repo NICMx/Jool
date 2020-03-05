@@ -13,12 +13,12 @@ static struct bib_entry entries[TEST_BIB_COUNT];
 static bool inject(unsigned int index, char *addr4, u16 port4,
 		char *addr6, u16 port6)
 {
-	if (str_to_addr4(addr4, &entries[index].ipv4.l3))
+	if (str_to_addr4(addr4, &entries[index].addr4.l3))
 		return false;
-	if (str_to_addr6(addr6, &entries[index].ipv6.l3))
+	if (str_to_addr6(addr6, &entries[index].addr6.l3))
 		return false;
-	entries[index].ipv4.l4 = port4;
-	entries[index].ipv6.l4 = port6;
+	entries[index].addr4.l4 = port4;
+	entries[index].addr6.l4 = port6;
 	entries[index].l4_proto = L4PROTO_UDP;
 
 	return !bib_add_static(&jool, &entries[index]);
@@ -38,7 +38,7 @@ struct unit_iteration_args {
 	unsigned int offset;
 };
 
-static int cb(struct bib_entry const *bib, bool is_static, void *void_args)
+static int cb(struct bib_entry const *bib, void *void_args)
 {
 	struct unit_iteration_args *args = void_args;
 	unsigned int index;
@@ -57,7 +57,6 @@ static bool test_foreach(void)
 {
 	struct ipv4_transport_addr offset;
 	struct unit_iteration_args args;
-	struct bib_foreach_func func = { .cb = cb, .arg = &args, };
 	int error;
 	bool success = true;
 
@@ -67,14 +66,14 @@ static bool test_foreach(void)
 	/* Empty table, no offset. */
 	args.i = 0;
 	args.offset = 0;
-	error = bib_foreach(jool.nat64.bib, L4PROTO_UDP, &func, NULL);
+	error = bib_foreach(jool.nat64.bib, L4PROTO_UDP, cb, &args, NULL);
 	success &= ASSERT_INT(0, error, "call 1 result");
 	success &= ASSERT_UINT(0, args.i, "call 1 counter");
 
 	/* Empty table, offset, offset not found. */
 	args.i = 0;
 	args.offset = 0;
-	error = bib_foreach(jool.nat64.bib, L4PROTO_UDP, &func, &offset);
+	error = bib_foreach(jool.nat64.bib, L4PROTO_UDP, cb, &args, &offset);
 	success &= ASSERT_INT(0, error, "call 3 result");
 	success &= ASSERT_UINT(0, args.i, "call 3 counter");
 
@@ -86,7 +85,7 @@ static bool test_foreach(void)
 	/* Populated table, no offset. */
 	args.i = 0;
 	args.offset = 0;
-	error = bib_foreach(jool.nat64.bib, L4PROTO_UDP, &func, NULL);
+	error = bib_foreach(jool.nat64.bib, L4PROTO_UDP, cb, &args, NULL);
 	success &= ASSERT_INT(0, error, "call 4 result");
 	success &= ASSERT_UINT(5, args.i, "call 4 counter");
 
@@ -94,7 +93,7 @@ static bool test_foreach(void)
 	args.i = 0;
 	args.offset = 3;
 	offset.l4 = 100;
-	error = bib_foreach(jool.nat64.bib, L4PROTO_UDP, &func, &offset);
+	error = bib_foreach(jool.nat64.bib, L4PROTO_UDP, cb, &args, &offset);
 	success &= ASSERT_INT(0, error, "call 7 result");
 	success &= ASSERT_UINT(2, args.i, "call 7 counter");
 
@@ -102,7 +101,7 @@ static bool test_foreach(void)
 	args.i = 0;
 	args.offset = 3;
 	offset.l4 = 125;
-	error = bib_foreach(jool.nat64.bib, L4PROTO_UDP, &func, &offset);
+	error = bib_foreach(jool.nat64.bib, L4PROTO_UDP, cb, &args, &offset);
 	success &= ASSERT_INT(0, error, "call 8 result");
 	success &= ASSERT_UINT(2, args.i, "call 8 counter");
 
@@ -113,7 +112,7 @@ static bool test_foreach(void)
 	args.offset = 0;
 	offset.l3.s_addr = cpu_to_be32(0xc0000201u);
 	offset.l4 = 50;
-	error = bib_foreach(jool.nat64.bib, L4PROTO_UDP, &func, &offset);
+	error = bib_foreach(jool.nat64.bib, L4PROTO_UDP, cb, &args, &offset);
 	success &= ASSERT_INT(0, error, "call 10 result");
 	success &= ASSERT_UINT(5, args.i, "call 10 counter");
 
@@ -121,7 +120,7 @@ static bool test_foreach(void)
 	args.i = 0;
 	args.offset = 1;
 	offset.l4 = 100;
-	error = bib_foreach(jool.nat64.bib, L4PROTO_UDP, &func, &offset);
+	error = bib_foreach(jool.nat64.bib, L4PROTO_UDP, cb, &args, &offset);
 	success &= ASSERT_INT(0, error, "call 12 result");
 	success &= ASSERT_UINT(4, args.i, "call 12 counter");
 
@@ -129,14 +128,14 @@ static bool test_foreach(void)
 	args.i = 0;
 	offset.l3.s_addr = cpu_to_be32(0xc0000203u);
 	offset.l4 = 100;
-	error = bib_foreach(jool.nat64.bib, L4PROTO_UDP, &func, &offset);
+	error = bib_foreach(jool.nat64.bib, L4PROTO_UDP, cb, &args, &offset);
 	success &= ASSERT_INT(0, error, "call 14 result");
 	success &= ASSERT_UINT(0, args.i, "call 14 counter");
 
 	/* Offset is after last, do not include offset. */
 	args.i = 0;
 	offset.l4 = 150;
-	error = bib_foreach(jool.nat64.bib, L4PROTO_UDP, &func, &offset);
+	error = bib_foreach(jool.nat64.bib, L4PROTO_UDP, cb, &args, &offset);
 	success &= ASSERT_INT(0, error, "call 16 result");
 	success &= ASSERT_UINT(0, args.i, "call 16 counter");
 

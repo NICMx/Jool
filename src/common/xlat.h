@@ -3,7 +3,7 @@
 
 #include <linux/types.h>
 #ifndef __KERNEL__
-	#include <stdbool.h>
+#include <stdbool.h>
 #endif
 
 #define JOOL_LICENSE "GPL v2"
@@ -15,7 +15,7 @@
 #define JOOL_VERSION_MAJOR 4
 #define JOOL_VERSION_MINOR 0
 #define JOOL_VERSION_REV 7
-#define JOOL_VERSION_DEV 1
+#define JOOL_VERSION_DEV 2
 
 /** See http://stackoverflow.com/questions/195975 */
 #define STR_VALUE(arg) #arg

@@ -1,10 +1,9 @@
-#include "jool_socket.h"
+#include "usr/nl/jool_socket.h"
 
 #include <errno.h>
 #include <netlink/genl/genl.h>
 #include <netlink/genl/ctrl.h>
-#include "common/config.h"
-
+#include "usr/nl/attribute.h"
 
 /*
  * Assert we're compiling with libnl version >= 3.0
@@ -28,45 +27,58 @@ struct response_cb {
 	struct jool_result result;
 };
 
-static struct jool_result print_error_msg(struct jool_response *response)
+struct jool_result allocate_jool_nlmsg(struct jool_socket *socket,
+		char const *iname, enum jool_operation op, __u8 flags,
+		struct nl_msg **out)
 {
-	int error_code;
-	char *msg;
+	struct nl_msg *msg;
+	struct request_hdr *hdr;
+	int error;
 
-	error_code = response->hdr->error_code;
+	error = iname_validate(iname, true);
+	if (error)
+		return result_from_error(error, INAME_VALIDATE_ERRMSG);
 
-	if (response->payload_len <= 0) {
-		msg = strerror(error_code);
-	} else {
-		msg = response->payload;
-		if (msg[response->payload_len - 1] != '\0')
-			msg = strerror(error_code);
-	}
+	msg = nlmsg_alloc();
+	if (!msg)
+		return result_from_enomem();
 
-	return result_from_error(
-		error_code,
-		"The kernel module returned error %d: %s", error_code, msg
-	);
-}
-
-struct jool_result netlink_parse_response(void *data, size_t data_len,
-		struct jool_response *response)
-{
-	if (data_len < sizeof(struct response_hdr)) {
+	hdr = genlmsg_put(msg, NL_AUTO_PORT, NL_AUTO_SEQ, socket->genl_family,
+			sizeof(struct request_hdr), 0, op, 1);
+	if (!hdr) {
+		nlmsg_free(msg);
 		return result_from_error(
 			-EINVAL,
-			"The response of the module is too small. (%zu bytes)",
-			data_len
+			"Cannot initialize Netlink headers (Unknown cause.)"
 		);
 	}
 
-	response->hdr = data;
-	response->payload = response->hdr + 1;
-	response->payload_len = data_len - sizeof(struct response_hdr);
+	init_request_hdr(hdr, socket->xt, iname, flags);
+	*out = msg;
+	return result_success();
+}
 
-	return response->hdr->error_code
-			? print_error_msg(response)
-			: result_success();
+static struct jool_result print_error_msg(struct nl_msg *response)
+{
+	static struct nla_policy error_policy[ERRA_COUNT] = {
+		[ERRA_CODE] = { .type = NLA_U16 },
+		[ERRA_MSG] = { .type = NLA_STRING },
+	};
+	struct nlattr *attrs[ERRA_COUNT];
+	struct jool_result result;
+	__u16 code;
+	char *msg;
+
+	result = jnla_parse_msg(response, attrs, ERRA_MAX, error_policy, false);
+	if (result.error)
+		return result;
+
+	code = attrs[ERRA_CODE] ? nla_get_u16(attrs[ERRA_CODE]) : EINVAL;
+	msg = attrs[ERRA_MSG] ? nla_get_string(attrs[ERRA_MSG]) : strerror(code);
+	return result_from_error(
+		code,
+		"The kernel module returned error %u: %s", code, msg
+	);
 }
 
 /*
@@ -76,122 +88,49 @@ struct jool_result netlink_parse_response(void *data, size_t data_len,
  * Because NL_SKIP == EPERM and NL_STOP == ENOENT, you really need to mind the
  * sign of the result.
  */
-static int response_handler(struct nl_msg *msg, void *void_arg)
+static int response_handler(struct nl_msg *response, void *_args)
 {
-	struct jool_response response;
-	struct nlattr *attrs[__ATTR_MAX + 1];
-	struct response_cb *arg = void_arg;
+	struct response_cb *args;
+	struct nlmsghdr *nhdr;
+	struct request_hdr *jhdr;
 	int error;
 
 	/* Also: arg->result needs to be set on all paths. */
 
-	error = genlmsg_parse(nlmsg_hdr(msg), 0, attrs, __ATTR_MAX, NULL);
-	if (error) {
-		arg->result = result_from_error(
-			error,
-			"%s", nl_geterror(error)
+	args = _args;
+	nhdr = nlmsg_hdr(response); /* TODO validate */
+	if (!genlmsg_valid_hdr(nhdr, sizeof(struct request_hdr))) {
+		args->result = result_from_error(
+			-NLE_MSG_TOOSHORT,
+			"The kernel module's response is too small."
 		);
-		goto return_error;
+		goto end;
 	}
 
-	if (!attrs[ATTR_DATA]) {
-		arg->result = result_from_error(
-			-EINVAL,
-			"The module's response seems to be empty."
-		);
-		return -EINVAL;
-	}
-	arg->result = netlink_parse_response(
-		nla_data(attrs[ATTR_DATA]),
-		nla_len(attrs[ATTR_DATA]),
-		&response
-	);
-	if (arg->result.error)
-		goto return_result;
-
-	if (arg->cb) {
-		arg->result = arg->cb(&response, arg->arg);
-		if (arg->result.error)
-			goto return_result;
+	jhdr = genlmsg_user_hdr(genlmsg_hdr(nhdr));
+	if (jhdr->flags & HDRFLAGS_ERROR) {
+		args->result = print_error_msg(response);
+		goto end;
 	}
 
-	return 0;
+	args->result = args->cb
+			? args->cb(response, args->arg)
+			: result_success();
+	/* Fall through */
 
-return_result:
-	error = arg->result.error;
-return_error:
+end:
+	error = args->result.error;
 	return (error < 0) ? error : -error;
-}
-
-struct jool_result netlink_send(struct jool_socket *socket, char *iname,
-		void *request, __u32 request_len)
-{
-	struct nl_msg *msg;
-	int error;
-
-	msg = nlmsg_alloc();
-	if (!msg) {
-		return result_from_error(
-			-EINVAL,
-			"Request allocation failure (Unknown cause)"
-		);
-	}
-
-	if (!genlmsg_put(msg, NL_AUTO_PORT, NL_AUTO_SEQ, socket->genl_family,
-			0, 0, JOOL_COMMAND, 1)) {
-		nlmsg_free(msg);
-		return result_from_error(
-			-EINVAL,
-			"Unknown error building the packet to the kernel."
-		);
-	}
-
-	/*
-	 * The kernel module already knows that the default instance name is
-	 * INAME_DEFAULT.
-	 */
-	if (iname && strcmp(iname, INAME_DEFAULT) != 0) {
-		error = nla_put_string(msg, ATTR_INAME, iname);
-		if (error) {
-			nlmsg_free(msg);
-			return result_from_error(
-				error,
-				"(Instance) write attempt on packet failed: %s",
-				nl_geterror(error)
-			);
-		}
-	}
-
-	error = nla_put(msg, ATTR_DATA, request_len, request);
-	if (error) {
-		nlmsg_free(msg);
-		return result_from_error(
-			error,
-			"(Data) write attempt on packet failed: %s",
-			nl_geterror(error)
-		);
-	}
-
-	error = nl_send_auto(socket->sk, msg);
-	nlmsg_free(msg);
-	if (error < 0) {
-		return result_from_error(
-			error,
-			"Could not dispatch the request to kernelspace: %s",
-			nl_geterror(error)
-		);
-	}
-
-	return result_success();
 }
 
 /**
  * @iname can be NULL. The kernel module will assume that the instance name is
  * "" (empty string).
+ *
+ * Consumes @msg, even on error.
  */
-struct jool_result netlink_request(struct jool_socket *sk, char *iname,
-		void *request, __u32 request_len,
-		jool_response_cb cb, void *cb_arg)
+struct jool_result netlink_request(struct jool_socket *socket,
+		struct nl_msg *msg, jool_response_cb cb, void *cb_arg)
 {
 	struct response_cb callback;
 	struct jool_result result;
@@ -201,9 +140,10 @@ struct jool_result netlink_request(struct jool_socket *sk, char *iname,
 	/* Clear out JRF_INITIALIZED and error code */
 	memset(&callback.result, 0, sizeof(callback.result));
 
-	result.error = nl_socket_modify_cb(sk->sk, NL_CB_MSG_IN, NL_CB_CUSTOM,
+	result.error = nl_socket_modify_cb(socket->sk, NL_CB_MSG_IN, NL_CB_CUSTOM,
 			response_handler, &callback);
 	if (result.error < 0) {
+		nlmsg_free(msg);
 		return result_from_error(
 			result.error,
 			"Could not register response handler: %s\n",
@@ -211,11 +151,17 @@ struct jool_result netlink_request(struct jool_socket *sk, char *iname,
 		);
 	}
 
-	result = netlink_send(sk, iname, request, request_len);
-	if (result.error)
-		return result;
+	result.error = nl_send_auto(socket->sk, msg);
+	nlmsg_free(msg);
+	if (result.error < 0) {
+		return result_from_error(
+			result.error,
+			"Could not dispatch the request to kernelspace: %s",
+			nl_geterror(result.error)
+		);
+	}
 
-	result.error = nl_recvmsgs_default(sk->sk);
+	result.error = nl_recvmsgs_default(socket->sk);
 	if (result.error < 0) {
 		if ((callback.result.flags & JRF_INITIALIZED)
 				&& callback.result.error) {
