@@ -102,7 +102,7 @@ int jnla_get_prefix6(struct nlattr *attr, char const *name, struct ipv6_prefix *
 	if (error)
 		return error;
 
-	error = nla_parse_nested(attrs, PA_MAX, attr, prefix6_policy, NULL);
+	error = NLA_PARSE_NESTED(attrs, PA_MAX, attr, prefix6_policy);
 	if (error) {
 		log_err("The '%s' attribute is malformed.", name);
 		return error;
@@ -121,7 +121,7 @@ int jnla_get_prefix4(struct nlattr *attr, char const *name, struct ipv4_prefix *
 	if (error)
 		return error;
 
-	error = nla_parse_nested(attrs, PA_MAX, attr, prefix4_policy, NULL);
+	error = NLA_PARSE_NESTED(attrs, PA_MAX, attr, prefix4_policy);
 	if (error) {
 		log_err("The '%s' attribute is malformed", name);
 		return error;
@@ -140,7 +140,7 @@ int jnla_get_taddr6(struct nlattr *attr, char const *name, struct ipv6_transport
 	if (error)
 		return error;
 
-	error = nla_parse_nested(attrs, TAA_MAX, attr, taddr6_policy, NULL);
+	error = NLA_PARSE_NESTED(attrs, TAA_MAX, attr, taddr6_policy);
 	if (error) {
 		log_err("The '%s' attribute is malformed.", name);
 		return error;
@@ -159,7 +159,7 @@ int jnla_get_taddr4(struct nlattr *attr, char const *name, struct ipv4_transport
 	if (error)
 		return error;
 
-	error = nla_parse_nested(attrs, TAA_MAX, attr, taddr4_policy, NULL);
+	error = NLA_PARSE_NESTED(attrs, TAA_MAX, attr, taddr4_policy);
 	if (error) {
 		log_err("The '%s' attribute is malformed.", name);
 		return error;
@@ -178,7 +178,7 @@ int jnla_get_eam(struct nlattr *attr, char const *name, struct eamt_entry *eam)
 	if (error)
 		return error;
 
-	error = nla_parse_nested(attrs, EA_MAX, attr, eam_policy, NULL);
+	error = NLA_PARSE_NESTED(attrs, EA_MAX, attr, eam_policy);
 	if (error) {
 		log_err("The '%s' attribute is malformed.", name);
 		return error;
@@ -200,7 +200,7 @@ int jnla_get_pool4(struct nlattr *attr, char const *name, struct pool4_entry *en
 	if (error)
 		return error;
 
-	error = nla_parse_nested(attrs, P4A_MAX, attr, pool4_entry_policy, NULL);
+	error = NLA_PARSE_NESTED(attrs, P4A_MAX, attr, pool4_entry_policy);
 	if (error) {
 		log_err("The 'pool4 entry' attribute is malformed.");
 		return error;
@@ -238,7 +238,7 @@ int jnla_get_bib(struct nlattr *attr, char const *name, struct bib_entry *entry)
 	if (error)
 		return error;
 
-	error = nla_parse_nested(attrs, BA_MAX, attr, bib_entry_policy, NULL);
+	error = NLA_PARSE_NESTED(attrs, BA_MAX, attr, bib_entry_policy);
 	if (error) {
 		log_err("The '%s' attribute is malformed.", name);
 		return error;

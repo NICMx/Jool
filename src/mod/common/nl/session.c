@@ -12,7 +12,7 @@ static int parse_offset(struct nlattr *root, struct session_foreach_offset *entr
 	struct nlattr *attrs[SEA_COUNT];
 	int error;
 
-	error = nla_parse_nested(attrs, SEA_MAX, root, session_entry_policy, NULL);
+	error = NLA_PARSE_NESTED(attrs, SEA_MAX, root, session_entry_policy);
 	if (error) {
 		log_err("The 'session entry' attribute is malformed.");
 		return error;

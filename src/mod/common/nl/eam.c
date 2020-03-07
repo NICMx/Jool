@@ -99,7 +99,7 @@ int handle_eamt_rm(struct sk_buff *skb, struct genl_info *info)
 		error = -EINVAL;
 		goto revert_start;
 	}
-	error = nla_parse_nested(attrs, EA_MAX, info->attrs[RA_OPERAND], eam_policy, NULL);
+	error = NLA_PARSE_NESTED(attrs, EA_MAX, info->attrs[RA_OPERAND], eam_policy);
 	if (error) {
 		log_err("The 'EAMT' attribute is malformed.");
 		goto revert_start;

@@ -12,7 +12,7 @@ static int parse_instance(struct nlattr *root, struct instance_entry_usr *entry)
 	struct nlattr *attrs[IFEA_COUNT];
 	int error;
 
-	error = nla_parse_nested(attrs, IFEA_MAX, root, instance_entry_policy, NULL);
+	error = NLA_PARSE_NESTED(attrs, IFEA_MAX, root, instance_entry_policy);
 	if (error) {
 		log_err("The 'instance' attribute is malformed.");
 		return error;
@@ -119,7 +119,7 @@ int handle_instance_add(struct sk_buff *skb, struct genl_info *info)
 		goto revert_start;
 	}
 
-	error = nla_parse_nested(attrs, IARA_MAX, info->attrs[RA_OPERAND], add_policy, NULL);
+	error = NLA_PARSE_NESTED(attrs, IARA_MAX, info->attrs[RA_OPERAND], add_policy);
 	if (error) {
 		log_err("The 'Operand' attribute is malformed.");
 		return error;

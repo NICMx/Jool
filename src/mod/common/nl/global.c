@@ -307,7 +307,7 @@ int global_update(struct globals *cfg, xlator_type xt, struct nlattr *root)
 	struct nlattr *attrs[GA_COUNT];
 	int error;
 
-	error = nla_parse_nested(attrs, GA_MAX, root, globals_policy, NULL);
+	error = NLA_PARSE_NESTED(attrs, GA_MAX, root, globals_policy);
 	if (error) {
 		log_err("The 'Globals Container' attribute is malformed.");
 		return error;

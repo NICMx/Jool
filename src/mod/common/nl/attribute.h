@@ -3,6 +3,14 @@
 
 #include <linux/netlink.h>
 #include "common/config.h"
+#include "mod/common/linux_version.h"
+
+#if LINUX_VERSION_AT_LEAST(4, 12, 0, 8, 0)
+#define NLA_PARSE_NESTED(tb, maxtype, nla, policy) \
+	nla_parse_nested(tb, maxtype, nla, policy, NULL)
+#else
+#define NLA_PARSE_NESTED nla_parse_nested
+#endif
 
 int jnla_get_u8(struct nlattr *attr, char const *name, __u8 *out);
 int jnla_get_u32(struct nlattr *attr, char const *name, __u32 *out);
