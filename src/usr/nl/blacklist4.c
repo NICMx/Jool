@@ -11,28 +11,18 @@ struct foreach_args {
 	struct ipv4_prefix last;
 };
 
-static struct jool_result entry2attr(struct ipv4_prefix *entry,
-		struct nl_msg *msg)
+static struct jool_result entry2attr(struct nl_msg *msg, int attrtype, struct ipv4_prefix *entry)
 {
-	struct nlattr *root;
-
-	root = nla_nest_start(msg, RA_BL4_ENTRY);
-	if (!root)
-		goto nla_put_failure;
-
-	NLA_PUT(msg, PA_ADDR, sizeof(entry->addr), &entry->addr);
-	NLA_PUT_U8(msg, PA_LEN, entry->len);
-
-	nla_nest_end(msg, root);
-	return result_success();
-
-nla_put_failure:
-	return packet_too_small();
+	return nla_put_prefix4(msg, attrtype, entry)
+			? packet_too_small()
+			: result_success();
 }
 
 static struct jool_result attr2entry(struct nlattr *attr,
 		struct ipv4_prefix *entry)
 {
+	if (nla_type(attr) != LA_ENTRY)
+		return result_success(); /* dunno; skip I guess */
 	return nla_get_prefix4(attr, entry);
 }
 
@@ -41,7 +31,7 @@ static struct jool_result handle_foreach_response(struct nl_msg *response,
 {
 	struct foreach_args *args;
 	struct genlmsghdr *ghdr;
-	struct request_hdr *jhdr;
+	struct joolnl_hdr *jhdr;
 	struct nlattr *attr;
 	int rem;
 	struct ipv4_prefix entry;
@@ -89,9 +79,11 @@ struct jool_result blacklist4_foreach(struct jool_socket *sk, char *iname,
 		if (first_request) {
 			first_request = false;
 		} else {
-			result = entry2attr(&args.last, msg);
-			if (result.error)
+			result = entry2attr(msg, RA_OFFSET, &args.last);
+			if (result.error) {
+				nlmsg_free(msg);
 				return result;
+			}
 		}
 
 		result = netlink_request(sk, msg, handle_foreach_response, &args);
@@ -114,7 +106,7 @@ static struct jool_result __update(struct jool_socket *sk, char *iname,
 		return result;
 
 	if (prefix) {
-		result = entry2attr(prefix, msg);
+		result = entry2attr(msg, RA_OPERAND, prefix);
 		if (result.error) {
 			nlmsg_free(msg);
 			return result;

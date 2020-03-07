@@ -10,27 +10,7 @@
 
 static int serialize_eam_entry(struct eamt_entry const *entry, void *arg)
 {
-	struct sk_buff *skb = arg;
-	struct nlattr *root;
-	int error;
-
-	root = nla_nest_start(skb, RA_EAMT_ENTRY);
-	if (!root)
-		return 1;
-
-	error = jnla_put_prefix6(skb, EA_PREFIX6, &entry->prefix6);
-	if (error)
-		goto cancel;
-	error = jnla_put_prefix4(skb, EA_PREFIX4, &entry->prefix4);
-	if (error)
-		goto cancel;
-
-	nla_nest_end(skb, root);
-	return 0;
-
-cancel:
-	nla_nest_cancel(skb, root);
-	return 1;
+	return jnla_put_eam(arg, LA_ENTRY, entry) ? 1 : 0;
 }
 
 int handle_eamt_foreach(struct sk_buff *skb, struct genl_info *info)
@@ -48,8 +28,8 @@ int handle_eamt_foreach(struct sk_buff *skb, struct genl_info *info)
 		goto revert_start;
 
 	offset_ptr = NULL;
-	if (info->attrs[RA_EAMT_ENTRY]) {
-		error = jnla_get_prefix4(info->attrs[RA_EAMT_ENTRY], "EAMT entry", &offset);
+	if (info->attrs[RA_OFFSET]) {
+		error = jnla_get_prefix4(info->attrs[RA_OFFSET], "Iteration offset", &offset);
 		if (error)
 			goto revert_response;
 		offset_ptr = &offset;
@@ -61,17 +41,19 @@ int handle_eamt_foreach(struct sk_buff *skb, struct genl_info *info)
 		goto revert_response;
 	}
 
-	if (error > 0)
-		jresponse_enable_m(&response);
+	error = jresponse_send_array(&response, error);
+	if (error)
+		goto revert_response;
+
 	request_handle_end(&jool);
-	return jresponse_send(&response);
+	return 0;
 
 revert_response:
 	jresponse_cleanup(&response);
 revert_start:
 	request_handle_end(&jool);
 end:
-	return nlcore_respond(info, error);
+	return jresponse_send_simple(info, error);
 }
 
 int handle_eamt_add(struct sk_buff *skb, struct genl_info *info)
@@ -86,13 +68,7 @@ int handle_eamt_add(struct sk_buff *skb, struct genl_info *info)
 	if (error)
 		goto end;
 
-	if (!info->attrs[RA_EAMT_ENTRY]) {
-		log_err("Request is missing the EAM container attribute.");
-		error = -EINVAL;
-		goto revert_start;
-	}
-
-	error = jnla_get_eam(info->attrs[RA_EAMT_ENTRY], "EAMT entry", &addend);
+	error = jnla_get_eam(info->attrs[RA_OPERAND], "Operand", &addend);
 	if (error)
 		goto revert_start;
 
@@ -101,7 +77,7 @@ int handle_eamt_add(struct sk_buff *skb, struct genl_info *info)
 revert_start:
 	request_handle_end(&jool);
 end:
-	return nlcore_respond(info, error);
+	return jresponse_send_simple(info, error);
 }
 
 int handle_eamt_rm(struct sk_buff *skb, struct genl_info *info)
@@ -118,12 +94,12 @@ int handle_eamt_rm(struct sk_buff *skb, struct genl_info *info)
 	if (error)
 		goto end;
 
-	if (!info->attrs[RA_EAMT_ENTRY]) {
-		log_err("Request is missing the EAM container attribute.");
+	if (!info->attrs[RA_OPERAND]) {
+		log_err("The request is missing the 'Operand' attribute.");
 		error = -EINVAL;
 		goto revert_start;
 	}
-	error = nla_parse_nested(attrs, EA_MAX, info->attrs[RA_EAMT_ENTRY], eam_policy, NULL);
+	error = nla_parse_nested(attrs, EA_MAX, info->attrs[RA_OPERAND], eam_policy, NULL);
 	if (error) {
 		log_err("The 'EAMT' attribute is malformed.");
 		goto revert_start;
@@ -153,7 +129,7 @@ int handle_eamt_rm(struct sk_buff *skb, struct genl_info *info)
 revert_start:
 	request_handle_end(&jool);
 end:
-	return nlcore_respond(info, error);
+	return jresponse_send_simple(info, error);
 }
 
 int handle_eamt_flush(struct sk_buff *skb, struct genl_info *info)
@@ -170,5 +146,5 @@ int handle_eamt_flush(struct sk_buff *skb, struct genl_info *info)
 	eamt_flush(jool.siit.eamt);
 	request_handle_end(&jool);
 end:
-	return nlcore_respond(info, error);
+	return jresponse_send_simple(info, error);
 }

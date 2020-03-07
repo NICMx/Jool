@@ -43,7 +43,7 @@ int iname_validate(const char *iname, bool allow_null)
 	if (!iname)
 		return allow_null ? 0 : -EINVAL;
 
-	for (i = 0; i < INAME_MAX_LEN; i++) {
+	for (i = 0; i < INAME_MAX_SIZE; i++) {
 		if (iname[i] == '\0')
 			return 0;
 		if (iname[i] < 32) /* "if not printable" */

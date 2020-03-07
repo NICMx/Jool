@@ -37,38 +37,23 @@ static int parse_offset(struct nlattr *root, struct session_foreach_offset *entr
 
 static int serialize_session_entry(struct session_entry const *entry, void *arg)
 {
-	struct sk_buff *skb = arg;
-	struct nlattr *root;
+	struct session_entry_usr entry_usr;
 	unsigned long dying_time;
-	int error;
 
-	root = nla_nest_start(skb, RA_SESSION_ENTRY);
-	if (!root)
-		return 1;
+	entry_usr.src6 = entry->src6;
+	entry_usr.dst6 = entry->dst6;
+	entry_usr.src4 = entry->src4;
+	entry_usr.dst4 = entry->dst4;
+	entry_usr.proto = entry->proto;
+	entry_usr.state = entry->state;
 
 	dying_time = entry->update_time + entry->timeout;
 	dying_time = (dying_time > jiffies)
 			? jiffies_to_msecs(dying_time - jiffies)
 			: 0;
-	if (dying_time > U32_MAX)
-		dying_time = U32_MAX;
+	entry_usr.dying_time = (dying_time > U32_MAX) ? U32_MAX : dying_time;
 
-	error = jnla_put_taddr6(skb, SEA_SRC6, &entry->src6)
-		|| jnla_put_taddr6(skb, SEA_DST6, &entry->dst6)
-		|| jnla_put_taddr4(skb, SEA_SRC4, &entry->src4)
-		|| jnla_put_taddr4(skb, SEA_DST4, &entry->dst4)
-		|| nla_put_u8(skb, SEA_PROTO, entry->proto)
-		|| nla_put_u8(skb, SEA_STATE, entry->state)
-		|| nla_put_u32(skb, SEA_EXPIRATION, dying_time);
-	if (error)
-		goto cancel;
-
-	nla_nest_end(skb, root);
-	return 0;
-
-cancel:
-	nla_nest_cancel(skb, root);
-	return 1;
+	return jnla_put_session(arg, LA_ENTRY, &entry_usr) ? 1 : 0;
 }
 
 int handle_session_foreach(struct sk_buff *skb, struct genl_info *info)
@@ -88,8 +73,8 @@ int handle_session_foreach(struct sk_buff *skb, struct genl_info *info)
 	if (error)
 		goto revert_start;
 
-	if (info->attrs[RA_SESSION_ENTRY]) {
-		error = parse_offset(info->attrs[RA_SESSION_ENTRY], &offset);
+	if (info->attrs[RA_OFFSET]) {
+		error = parse_offset(info->attrs[RA_OFFSET], &offset);
 		if (error)
 			goto revert_response;
 		offset_ptr = &offset;
@@ -101,19 +86,18 @@ int handle_session_foreach(struct sk_buff *skb, struct genl_info *info)
 
 	error = bib_foreach_session(&jool, proto, serialize_session_entry,
 			response.skb, offset_ptr);
-	if (error < 0) {
-		jresponse_cleanup(&response);
-		goto revert_response;
-	}
 
-	if (error > 0)
-		jresponse_enable_m(&response);
-	return jresponse_send(&response);
+	error = jresponse_send_array(&response, error);
+	if (error)
+		goto revert_response;
+
+	request_handle_end(&jool);
+	return 0;
 
 revert_response:
 	jresponse_cleanup(&response);
 revert_start:
 	request_handle_end(&jool);
 end:
-	return nlcore_respond(info, error);
+	return jresponse_send_simple(info, error);
 }

@@ -25,7 +25,7 @@ static int parse_instance(struct nlattr *root, struct instance_entry_usr *entry)
 	if (error)
 		return error;
 	return jnla_get_str(attrs[IFEA_INAME], "instance name",
-			INAME_MAX_LEN - 1, entry->iname);
+			INAME_MAX_SIZE, entry->iname);
 }
 
 static int serialize_instance(struct xlator *entry, void *arg)
@@ -34,7 +34,7 @@ static int serialize_instance(struct xlator *entry, void *arg)
 	struct nlattr *root;
 	int error;
 
-	root = nla_nest_start(skb, RA_INSTANCE);
+	root = nla_nest_start(skb, LA_ENTRY);
 	if (!root)
 		return 1;
 
@@ -64,31 +64,36 @@ int handle_instance_foreach(struct sk_buff *skb, struct genl_info *info)
 
 	log_debug("Sending instance table to userspace.");
 
+	error = request_handle_start(info, XT_ANY, NULL);
+	if (error)
+		goto fail;
+
 	offset_ptr = NULL;
-	if (info->attrs[RA_INSTANCE]) {
-		error = parse_instance(info->attrs[RA_INSTANCE], &offset);
+	if (info->attrs[RA_OFFSET]) {
+		error = parse_instance(info->attrs[RA_OFFSET], &offset);
 		if (error)
-			goto fail;
+			goto revert_start;
 		offset_ptr = &offset;
 	}
 
 	error = jresponse_init(&response, info);
 	if (error)
-		goto fail;
+		goto revert_start;
 
 	error = xlator_foreach(get_jool_hdr(info)->xt, serialize_instance,
 			response.skb, offset_ptr);
-	if (error < 0) {
-		jresponse_cleanup(&response);
-		goto fail;
-	}
 
-	if (error > 0)
-		jresponse_enable_m(&response);
-	return jresponse_send(&response);
+	error = jresponse_send_array(&response, error);
+	if (error)
+		goto revert_start;
 
+	request_handle_end(NULL);
+	return 0;
+
+revert_start:
+	request_handle_end(NULL);
 fail:
-	return nlcore_respond(info, error);
+	return jresponse_send_simple(info, error);
 }
 
 int handle_instance_add(struct sk_buff *skb, struct genl_info *info)
@@ -104,38 +109,44 @@ int handle_instance_add(struct sk_buff *skb, struct genl_info *info)
 
 	log_debug("Adding Jool instance.");
 
-	if (!info->attrs[RA_INSTANCE]) {
-		log_err("The request is missing an 'instance' attribute.");
-		error = -EINVAL;
+	error = request_handle_start(info, XT_ANY, NULL);
+	if (error)
 		goto abort;
+
+	if (!info->attrs[RA_OPERAND]) {
+		log_err("The request is missing an 'Operand' attribute.");
+		error = -EINVAL;
+		goto revert_start;
 	}
 
-	error = nla_parse_nested(attrs, IARA_MAX, info->attrs[RA_INSTANCE], add_policy, NULL);
+	error = nla_parse_nested(attrs, IARA_MAX, info->attrs[RA_OPERAND], add_policy, NULL);
 	if (error) {
-		log_err("The 'instance' attribute is malformed.");
+		log_err("The 'Operand' attribute is malformed.");
 		return error;
 	}
 
 	error = jnla_get_u8(attrs[IARA_XF], "framework", &xf);
 	if (error)
-		goto abort;
+		goto revert_start;
 	pool6_ptr = NULL;
 	if (attrs[IARA_POOL6]) {
 		error = jnla_get_prefix6(attrs[IARA_POOL6], "pool6", &pool6);
 		if (error)
-			goto abort;
+			goto revert_start;
 		pool6_ptr = &pool6;
 	}
 
-	return nlcore_respond(info, xlator_add(
+	return jresponse_send_simple(info, xlator_add(
 		xf | get_jool_hdr(info)->xt,
 		get_jool_hdr(info)->iname,
 		pool6_ptr,
 		NULL
 	));
 
+revert_start:
+	request_handle_end(NULL);
 abort:
-	return nlcore_respond(info, error);
+	return jresponse_send_simple(info, error);
 }
 
 int handle_instance_hello(struct sk_buff *skb, struct genl_info *info)
@@ -145,35 +156,67 @@ int handle_instance_hello(struct sk_buff *skb, struct genl_info *info)
 
 	log_debug("Handling instance Hello.");
 
+	error = request_handle_start(info, XT_ANY, NULL);
+	if (error)
+		goto fail;
+
 	error = jresponse_init(&response, info);
 	if (error)
-		return nlcore_respond(info, error);
+		goto revert_start;
 
 	error = xlator_find_current(get_jool_hdr(info)->iname,
 			XF_ANY | get_jool_hdr(info)->xt, NULL);
 	switch (error) {
 	case 0:
 		error = nla_put_u8(response.skb, ISRA_STATUS, IHS_ALIVE);
+		if (error)
+			goto put_failure;
 		break;
 	case -ESRCH:
 		error = nla_put_u8(response.skb, ISRA_STATUS, IHS_DEAD);
+		if (error)
+			goto put_failure;
 		break;
+	default:
+		log_err("Unknown status.");
+		error = -EINVAL;
+		goto revert_start;
 	}
 
-	return error ? nlcore_respond(info, error) : jresponse_send(&response);
+	return jresponse_send(&response);
+
+put_failure:
+	report_put_failure();
+revert_start:
+	request_handle_end(NULL);
+fail:
+	return jresponse_send_simple(info, error);
 }
 
 int handle_instance_rm(struct sk_buff *skb, struct genl_info *info)
 {
+	int error;
+
 	log_debug("Removing Jool instance.");
-	return nlcore_respond(info, xlator_rm(
-			get_jool_hdr(info)->xt,
-			get_jool_hdr(info)->iname
-	));
+
+	error = request_handle_start(info, XT_ANY, NULL);
+	if (!error)
+		error = xlator_rm(get_jool_hdr(info)->xt, get_jool_hdr(info)->iname);
+	request_handle_end(NULL);
+
+	return jresponse_send_simple(info, error);
 }
 
 int handle_instance_flush(struct sk_buff *skb, struct genl_info *info)
 {
+	int error;
+
 	log_debug("Flushing all instances from this namespace.");
-	return nlcore_respond(info, xlator_flush(get_jool_hdr(info)->xt));
+
+	error = request_handle_start(info, XT_ANY, NULL);
+	if (!error)
+		error = xlator_flush(get_jool_hdr(info)->xt);
+	request_handle_end(NULL);
+
+	return jresponse_send_simple(info, error);
 }

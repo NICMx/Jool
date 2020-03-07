@@ -293,7 +293,7 @@ static int write_group_node(struct xlator *jool, struct joold_node *node,
 static int build_buffer(struct nlcore_buffer *buffer, struct xlator *jool)
 {
 	struct joold_queue *queue = jool->nat64.joold;
-	struct request_hdr jool_hdr;
+	struct joolnl_hdr jool_hdr;
 	struct joold_node *node;
 	int error;
 
@@ -661,7 +661,7 @@ int joold_sync(struct xlator *jool, void *data, __u32 data_len)
 int joold_test(struct xlator *jool)
 {
 	struct nlcore_buffer buffer;
-	struct request_hdr hdr;
+	struct joolnl_hdr hdr;
 	int error;
 
 	error = validate_enabled(jool);

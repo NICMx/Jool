@@ -28,7 +28,7 @@ struct xlator {
 	 * instances?
 	 */
 	struct net *ns;
-	char iname[INAME_MAX_LEN];
+	char iname[INAME_MAX_SIZE];
 	xlator_flags flags;
 
 	struct jool_stats *stats;

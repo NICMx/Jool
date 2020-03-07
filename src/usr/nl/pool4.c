@@ -11,37 +11,14 @@ struct foreach_args {
 	struct pool4_entry last;
 };
 
-static struct jool_result entry2attr(struct pool4_entry *entry,
-		struct nl_msg *msg)
-{
-	struct nlattr *root;
-
-	root = nla_nest_start(msg, RA_POOL4_ENTRY);
-	if (!root)
-		goto nla_put_failure;
-
-	NLA_PUT_U32(msg, P4A_MARK, entry->mark);
-	NLA_PUT_U32(msg, P4A_ITERATIONS, entry->iterations);
-	NLA_PUT_U8(msg, P4A_FLAGS, entry->flags);
-	NLA_PUT_U8(msg, P4A_PROTO, entry->proto);
-	if (nla_put_prefix4(msg, P4A_PREFIX, &entry->range.prefix))
-		goto nla_put_failure;
-	NLA_PUT_U16(msg, P4A_PORT_MIN, entry->range.ports.min);
-	NLA_PUT_U16(msg, P4A_PORT_MAX, entry->range.ports.max);
-
-	nla_nest_end(msg, root);
-	return result_success();
-
-nla_put_failure:
-	return packet_too_small();
-}
-
 static struct jool_result attr2entry(struct nlattr *attr,
 		struct pool4_entry *entry)
 {
 	struct nlattr *attrs[P4A_COUNT];
 	struct jool_result result;
 
+	if (nla_type(attr) != LA_ENTRY)
+		return result_success(); /* dunno; skip I guess */
 	result = jnla_parse_nested(attrs, P4A_MAX, attr, pool4_entry_policy);
 	if (result.error)
 		return result;
@@ -60,7 +37,7 @@ static struct jool_result handle_foreach_response(struct nl_msg *response,
 {
 	struct foreach_args *args;
 	struct genlmsghdr *ghdr;
-	struct request_hdr *jhdr;
+	struct joolnl_hdr *jhdr;
 	struct nlattr *attr;
 	int rem;
 	struct pool4_entry entry;
@@ -106,13 +83,17 @@ struct jool_result pool4_foreach(struct jool_socket *sk, char *iname,
 			return result;
 
 		if (first_request) {
-			if (nla_put_u8(msg, RA_PROTO, proto))
+			if (nla_put_u8(msg, RA_PROTO, proto)) {
+				nlmsg_free(msg);
 				return packet_too_small();
+			}
 			first_request = false;
 		} else {
-			result = entry2attr(&args.last, msg);
-			if (result.error)
+			result = nla_put_pool4(msg, RA_OFFSET, &args.last);
+			if (result.error) {
+				nlmsg_free(msg);
 				return result;
+			}
 		}
 
 		result = netlink_request(sk, msg, handle_foreach_response, &args);
@@ -135,7 +116,7 @@ static struct jool_result __update(struct jool_socket *sk, char const *iname,
 		return result;
 
 	if (entry) {
-		result = entry2attr(entry, msg);
+		result = nla_put_pool4(msg, RA_OPERAND, entry);
 		if (result.error) {
 			nlmsg_free(msg);
 			return result;

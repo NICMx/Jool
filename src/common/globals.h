@@ -81,7 +81,7 @@ struct global_field {
 	char *name; /* This being NULL means the end of the array. */
 	struct global_type *type;
 	const char *doc;
-	size_t offset; /* TODO delete me */
+	size_t offset;
 	xlator_type xt;
 	__u64 min;
 	__u64 max;

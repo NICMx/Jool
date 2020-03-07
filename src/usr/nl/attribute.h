@@ -8,8 +8,8 @@
 #define foreach_entry(pos, ghdr, rem) \
 	nla_for_each_attr( \
 		pos, \
-		genlmsg_attrdata(ghdr, sizeof(struct request_hdr)), \
-		genlmsg_attrlen(ghdr, sizeof(struct request_hdr)), \
+		genlmsg_attrdata(ghdr, sizeof(struct joolnl_hdr)), \
+		genlmsg_attrlen(ghdr, sizeof(struct joolnl_hdr)), \
 		rem \
 	)
 
@@ -35,6 +35,15 @@ int nla_put_prefix4(struct nl_msg *msg, int attrtype, struct ipv4_prefix *prefix
 int nla_put_taddr6(struct nl_msg *msg, int attrtype, struct ipv6_transport_addr *prefix);
 int nla_put_taddr4(struct nl_msg *msg, int attrtype, struct ipv4_transport_addr *prefix);
 int nla_put_plateaus(struct nl_msg *msg, int attrtype, struct mtu_plateaus *plateaus);
+struct jool_result nla_put_eam(struct nl_msg *msg, int attrtype, struct eamt_entry *entry);
+struct jool_result nla_put_pool4(struct nl_msg *msg, int attrtype, struct pool4_entry *entry);
+struct jool_result nla_put_bib(struct nl_msg *msg, int attrtype, struct bib_entry *entry);
+struct jool_result nla_put_bib_attrs(struct nl_msg *msg, int attrtype,
+		struct ipv6_transport_addr *addr6,
+		struct ipv4_transport_addr *addr4,
+		l4_protocol proto,
+		bool is_static);
+struct jool_result nla_put_session(struct nl_msg *msg, int attrtype, struct session_entry_usr *entry);
 
 struct jool_result packet_too_small(void);
 

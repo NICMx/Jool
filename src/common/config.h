@@ -21,6 +21,7 @@
 /* TODO (fine) these values are not always used. */
 
 /* Instance */
+#define OPTNAME_INAME 			"instance"
 #define OPTNAME_FW			"framework"
 #define OPTNAME_NETFILTER		"netfilter"
 #define OPTNAME_IPTABLES		"iptables"
@@ -127,6 +128,8 @@ enum jool_operation {
 	JOP_BIB_RM,
 
 	JOP_SESSION_FOREACH,
+
+	JOP_FILE_HANDLE,
 };
 
 enum genl_mc_group_ids {
@@ -134,17 +137,26 @@ enum genl_mc_group_ids {
 };
 
 enum root_attribute {
-	RA_INSTANCE = 1,
-	RA_ADDR_QUERY,
+	RA_ADDR_QUERY = 1,
 	RA_GLOBALS,
-	RA_BL4_ENTRY,
-	RA_EAMT_ENTRY,
-	RA_POOL4_ENTRY,
-	RA_BIB_ENTRY,
-	RA_SESSION_ENTRY,
+	RA_BL4_ENTRIES,
+	RA_EAMT_ENTRIES,
+	RA_POOL4_ENTRIES,
+	RA_BIB_ENTRIES,
+	RA_SESSION_ENTRIES,
+	RA_OFFSET,
+	RA_OPERAND,
 	RA_PROTO,
+	RA_ATOMIC_INIT,
+	RA_ATOMIC_END,
 	RA_COUNT,
 #define RA_MAX (RA_COUNT - 1)
+};
+
+enum list_attribute {
+	LA_ENTRY = 1,
+	LA_COUNT,
+#define LA_MAX (LA_COUNT - 1)
 };
 
 #ifdef __KERNEL__
@@ -314,12 +326,6 @@ enum globals_attribute {
 #define GA_MAX (GA_COUNT - 1)
 };
 
-enum plateaus_attribute {
-	PLATTR_PLATEAU = 1,
-	PLATTR_COUNT,
-#define PLATTR_MAX (PLATTR_COUNT - 1)
-};
-
 extern struct nla_policy siit_globals_policy[GA_COUNT];
 extern struct nla_policy nat64_globals_policy[GA_COUNT];
 
@@ -328,17 +334,6 @@ enum error_attribute {
 	ERRA_MSG,
 	ERRA_COUNT,
 #define ERRA_MAX (ERRA_COUNT - 1)
-};
-
-enum parse_section {
-	SEC_INIT,
-	SEC_GLOBAL,
-	SEC_EAMT,
-	SEC_BLACKLIST,
-	SEC_POOL4,
-	SEC_BIB,
-	/* The enum needs to fit in __u8s. */
-	SEC_COMMIT = 0xFF,
 };
 
 /** Is this packet an error report? */
@@ -364,10 +359,8 @@ enum parse_section {
  * Indicates what the rest of the message contains.
  *
  * Mind alignment on this structure.
- *
- * TODO rename to "jool_request_hdr"
  */
-struct request_hdr {
+struct joolnl_hdr {
 	/** Jool's version. */
 	__be32 version;
 
@@ -379,11 +372,11 @@ struct request_hdr {
 	__u8 reserved1;
 	__u8 reserved2;
 
-	char iname[INAME_MAX_LEN];
+	char iname[INAME_MAX_SIZE];
 };
 
-void init_request_hdr(struct request_hdr *hdr, xlator_type xt,
-		char const *iname, __u8 flags);
+void init_request_hdr(struct joolnl_hdr *hdr, xlator_type xt, char const *iname,
+		__u8 flags);
 
 struct config_prefix6 {
 	bool set;
@@ -408,7 +401,7 @@ struct instance_entry_usr {
 	/* TODO (fine) find a way to turn this into a u64? */
 	__u32 ns;
 	__u8 xf; /* enum xlator_framework */
-	char iname[INAME_MAX_LEN];
+	char iname[INAME_MAX_SIZE];
 };
 
 enum instance_hello_status {
@@ -435,24 +428,6 @@ struct pool4_update {
 	__u32 iterations;
 	__u8 flags;
 	__u8 l4_proto;
-};
-
-/**
- * A session entry, from the eyes of userspace.
- *
- * It's a stripped version of "struct session_entry" and only used when sessions
- * need to travel to userspace. For anything else, use "struct session_entry".
- *
- * See "struct session_entry" for documentation on the fields.
- */
-struct session_entry_usr {
-	struct ipv6_transport_addr src6;
-	struct ipv6_transport_addr dst6;
-	struct ipv4_transport_addr src4;
-	struct ipv4_transport_addr dst4;
-	__u8 proto;
-	__u8 state;
-	__u32 dying_time;
 };
 
 enum address_translation_method {

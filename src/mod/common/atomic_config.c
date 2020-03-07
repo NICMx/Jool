@@ -4,7 +4,9 @@
 #include <linux/timer.h>
 #include "mod/common/log.h"
 #include "mod/common/wkmalloc.h"
+#include "mod/common/nl/attribute.h"
 #include "mod/common/nl/global.h"
+#include "mod/common/nl/nl_common.h"
 #include "mod/common/db/eam.h"
 #include "mod/common/db/pool.h"
 #include "mod/common/joold.h"
@@ -122,12 +124,11 @@ static int get_candidate(char *iname, struct config_candidate **result)
 	return -ESRCH;
 }
 
-static int handle_init(char *iname, xlator_type xt,
-		void *payload, __u32 payload_len)
+static int handle_init(struct config_candidate **out, struct nlattr *attr,
+		char *iname, xlator_type xt)
 {
-	struct net *ns;
-	struct request_init *request = payload;
 	struct config_candidate *candidate;
+	struct net *ns;
 	int error;
 
 	ns = get_net_ns_by_pid(task_pid_vnr(current));
@@ -142,7 +143,7 @@ static int handle_init(char *iname, xlator_type xt,
 		goto end;
 	}
 
-	error = xlator_init(&candidate->xlator, ns, iname, request->xf | xt,
+	error = xlator_init(&candidate->xlator, ns, iname, nla_get_u8(attr) | xt,
 			NULL);
 	if (error) {
 		wkfree(struct config_candidate, candidate);
@@ -151,38 +152,27 @@ static int handle_init(char *iname, xlator_type xt,
 	candidate->update_time = jiffies;
 	candidate->pid = task_pid_nr(current);
 	list_add(&candidate->list_hook, &db);
+	*out = candidate;
 	/* Fall through */
 
 end:	put_net(ns);
 	return error;
 }
 
-static int handle_global(struct config_candidate *new, void *payload,
-		__u32 payload_len, bool force)
+static int handle_global(struct config_candidate *new, struct nlattr *attr,
+		bool force)
 {
-	int result;
-
-	do {
-		result = global_update(&new->xlator.globals,
-				xlator_get_type(&new->xlator), force,
-				payload, payload_len);
-		if (result < 0)
-			return result;
-
-		payload += result;
-		payload_len -= result;
-	} while (payload_len > 0);
-
-	return 0;
+	return global_update(&new->xlator.globals,
+			xlator_get_type(&new->xlator),
+			attr);
 }
 
-static int handle_eamt(struct config_candidate *new, void *payload,
-		__u32 payload_len, bool force)
+static int handle_eamt(struct config_candidate *new, struct nlattr *root,
+		bool force)
 {
-	struct eamt_entry *eams = payload;
-	unsigned int eam_count = payload_len / sizeof(*eams);
-	struct eamt_entry *eam;
-	unsigned int i;
+	struct nlattr *attr;
+	struct eamt_entry entry;
+	int rem;
 	int error;
 
 	if (xlator_is_nat64(&new->xlator)) {
@@ -190,10 +180,13 @@ static int handle_eamt(struct config_candidate *new, void *payload,
 		return -EINVAL;
 	}
 
-	for (i = 0; i < eam_count; i++) {
-		eam = &eams[i];
-		error = eamt_add(new->xlator.siit.eamt, &eam->prefix6,
-				&eam->prefix4, force);
+	nla_for_each_nested(attr, root, rem) {
+		if (nla_type(attr) != LA_ENTRY)
+			continue; /* ? */
+		error = jnla_get_eam(attr, "EAMT entry", &entry);
+		if (error)
+			return error;
+		error = eamt_add(new->xlator.siit.eamt, &entry, force);
 		if (error)
 			return error;
 	}
@@ -201,22 +194,26 @@ static int handle_eamt(struct config_candidate *new, void *payload,
 	return 0;
 }
 
-static int handle_blacklist4(struct config_candidate *new, void *payload,
-		__u32 payload_len, bool force)
+static int handle_blacklist4(struct config_candidate *new, struct nlattr *root,
+		bool force)
 {
-	struct ipv4_prefix *prefixes = payload;
-	unsigned int prefix_count = payload_len / sizeof(*prefixes);
-	unsigned int i;
+	struct nlattr *attr;
+	struct ipv4_prefix entry;
+	int rem;
 	int error;
 
 	if (xlator_is_nat64(&new->xlator)) {
-		log_err("Stateful NAT64 doesn't have IPv4 address pools.");
+		log_err("Stateful NAT64 doesn't have blacklist4.");
 		return -EINVAL;
 	}
 
-	for (i = 0; i < prefix_count; i++) {
-		error = pool_add(new->xlator.siit.blacklist4, &prefixes[i],
-				force);
+	nla_for_each_nested(attr, root, rem) {
+		if (nla_type(attr) != LA_ENTRY)
+			continue; /* ? */
+		error = jnla_get_prefix4(attr, "IPv4 blacklist entry", &entry);
+		if (error)
+			return error;
+		error = pool_add(new->xlator.siit.blacklist4, &entry, force);
 		if (error)
 			return error;
 	}
@@ -224,12 +221,11 @@ static int handle_blacklist4(struct config_candidate *new, void *payload,
 	return 0;
 }
 
-static int handle_pool4(struct config_candidate *new, void *payload,
-		__u32 payload_len)
+static int handle_pool4(struct config_candidate *new, struct nlattr *root)
 {
-	struct pool4_entry *entries = payload;
-	unsigned int entry_count = payload_len / sizeof(*entries);
-	unsigned int i;
+	struct nlattr *attr;
+	struct pool4_entry entry;
+	int rem;
 	int error;
 
 	if (xlator_is_siit(&new->xlator)) {
@@ -237,8 +233,13 @@ static int handle_pool4(struct config_candidate *new, void *payload,
 		return -EINVAL;
 	}
 
-	for (i = 0; i < entry_count; i++) {
-		error = pool4db_add(new->xlator.nat64.pool4, &entries[i]);
+	nla_for_each_nested(attr, root, rem) {
+		if (nla_type(attr) != LA_ENTRY)
+			continue; /* ? */
+		error = jnla_get_pool4(attr, "pool4 entry", &entry);
+		if (error)
+			return error;
+		error = pool4db_add(new->xlator.nat64.pool4, &entry);
 		if (error)
 			return error;
 	}
@@ -246,13 +247,11 @@ static int handle_pool4(struct config_candidate *new, void *payload,
 	return 0;
 }
 
-static int handle_bib(struct config_candidate *new, void *payload,
-		__u32 payload_len)
+static int handle_bib(struct config_candidate *new, struct nlattr *root)
 {
-	struct bib_entry *entries = payload;
-	unsigned int entry_count = payload_len / sizeof(*entries);
+	struct nlattr *attr;
 	struct bib_entry entry;
-	unsigned int i;
+	int rem;
 	int error;
 
 	if (xlator_is_siit(&new->xlator)) {
@@ -260,10 +259,12 @@ static int handle_bib(struct config_candidate *new, void *payload,
 		return -EINVAL;
 	}
 
-	for (i = 0; i < entry_count; i++) {
-		entry.ipv6 = entries[i].addr6;
-		entry.ipv4 = entries[i].addr4;
-		entry.l4_proto = entries[i].l4_proto;
+	nla_for_each_nested(attr, root, rem) {
+		if (nla_type(attr) != LA_ENTRY)
+			continue; /* ? */
+		error = jnla_get_bib(attr, "BIB entry", &entry);
+		if (error)
+			return error;
 		error = bib_add_static(&new->xlator, &entry);
 		if (error)
 			return error;
@@ -287,63 +288,64 @@ static int commit(struct config_candidate *candidate)
 	return 0;
 }
 
-int atomconfig_add(char *iname, xlator_type xt, void *config, size_t config_len,
-		bool force)
+int atomconfig_add(struct sk_buff *skb, struct genl_info *info)
 {
 	struct config_candidate *candidate = NULL;
-	__u16 type = *((__u16 *)config);
+	struct joolnl_hdr *jhdr;
 	int error;
 
-	error = iname_validate(iname, false);
+	jhdr = get_jool_hdr(info);
+	error = iname_validate(jhdr->iname, false);
 	if (error) {
 		log_err(INAME_VALIDATE_ERRMSG);
 		return error;
 	}
 
-	config += sizeof(type);
-	config_len -= sizeof(type);
-
 	mutex_lock(&lock);
 
-	if (type == SEC_INIT) {
-		error = handle_init(iname, xt, config, config_len);
-		goto end;
-	}
-
-	error = get_candidate(iname, &candidate);
+	error = info->attrs[RA_ATOMIC_INIT]
+			? handle_init(&candidate, info->attrs[RA_ATOMIC_INIT], jhdr->iname, xlator_flags2xt(jhdr->xt))
+			: get_candidate(jhdr->iname, &candidate);
 	if (error)
 		goto end;
 
-	switch (type) {
-	case SEC_GLOBAL:
-		error = handle_global(candidate, config, config_len, force);
-		break;
-	case SEC_EAMT:
-		error = handle_eamt(candidate, config, config_len, force);
-		break;
-	case SEC_BLACKLIST:
-		error = handle_blacklist4(candidate, config, config_len, force);
-		break;
-	case SEC_POOL4:
-		error = handle_pool4(candidate, config, config_len);
-		break;
-	case SEC_BIB:
-		error = handle_bib(candidate, config, config_len);
-		break;
-	case SEC_COMMIT:
+	if (info->attrs[RA_GLOBALS]) {
+		error = handle_global(candidate, info->attrs[RA_GLOBALS], jhdr->flags & HDRFLAGS_FORCE);
+		if (error)
+			goto revert;
+	}
+	if (info->attrs[RA_BL4_ENTRIES]) {
+		error = handle_blacklist4(candidate, info->attrs[RA_BL4_ENTRIES], jhdr->flags & HDRFLAGS_FORCE);
+		if (error)
+			goto revert;
+	}
+	if (info->attrs[RA_EAMT_ENTRIES]) {
+		error = handle_eamt(candidate, info->attrs[RA_EAMT_ENTRIES], jhdr->flags & HDRFLAGS_FORCE);
+		if (error)
+			goto revert;
+	}
+	if (info->attrs[RA_POOL4_ENTRIES]) {
+		error = handle_pool4(candidate, info->attrs[RA_POOL4_ENTRIES]);
+		if (error)
+			goto revert;
+	}
+	if (info->attrs[RA_BIB_ENTRIES]) {
+		error = handle_bib(candidate, info->attrs[RA_BIB_ENTRIES]);
+		if (error)
+			goto revert;
+	}
+	if (info->attrs[RA_ATOMIC_END]) {
 		error = commit(candidate);
-		break;
-	default:
-		log_err("Unknown configuration mode.");
-		error = -EINVAL;
-		break;
+		if (error)
+			goto revert;
 	}
 
-	if (error)
-		candidate_destroy(candidate);
-	else
-		candidate->update_time = jiffies;
+	candidate->update_time = jiffies;
+	goto end;
 
-end:	mutex_unlock(&lock);
+revert:
+	candidate_destroy(candidate);
+end:
+	mutex_unlock(&lock);
 	return error;
 }

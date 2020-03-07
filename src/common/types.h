@@ -50,18 +50,16 @@ xlator_framework xlator_flags2xf(xlator_flags flags);
 	"The instance framework must be either Netfilter or iptables."
 
 /*
- * This includes the null chara; the practical maximum is 15.
- * 15 looks pallatable for decimal-thinking users :p
+ * This includes the null chara.
  *
- * TODO add INAME_MAX_SIZE
+ * 15 looks pallatable for decimal-thinking users :p
  */
-#define INAME_MAX_LEN 16
+#define INAME_MAX_SIZE 16
 #define INAME_DEFAULT "default"
 
 int iname_validate(const char *iname, bool allow_null);
-/* TODO (fine) use INAME_MAX_LEN? */
 #define INAME_VALIDATE_ERRMSG \
-	"The instance name must be a null-terminated ascii string, 16 characters max."
+	"The instance name must be a null-terminated ascii string, 15 characters max."
 
 /**
  * Network (layer 3) protocols Jool is supposed to support.
@@ -219,6 +217,24 @@ struct bib_entry {
 	__u8 l4_proto;
 	/** Created by userspace app client? */
 	bool is_static;
+};
+
+/**
+ * A session entry, from the eyes of userspace.
+ *
+ * It's a stripped version of "struct session_entry" and only used when sessions
+ * need to travel to userspace. For anything else, use "struct session_entry".
+ *
+ * See "struct session_entry" for documentation on the fields.
+ */
+struct session_entry_usr {
+	struct ipv6_transport_addr src6;
+	struct ipv6_transport_addr dst6;
+	struct ipv4_transport_addr src4;
+	struct ipv4_transport_addr dst4;
+	__u8 proto;
+	__u8 state;
+	__u32 dying_time;
 };
 
 bool port_range_equals(const struct port_range *r1,

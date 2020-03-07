@@ -1,6 +1,6 @@
 #include "mod/common/nl/nl_core.h"
 
-int nlbuffer_init_request(struct nlcore_buffer *buffer, struct request_hdr *hdr,
+int nlbuffer_init_request(struct nlcore_buffer *buffer, struct joolnl_hdr *hdr,
 		size_t capacity)
 {
 	return 0;

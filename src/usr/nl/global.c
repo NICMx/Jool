@@ -20,7 +20,7 @@ static struct jool_result parse_common_globals(struct nlattr *attrs[],
 	if (result.error)
 		return result;
 
-	if (attrs[GA_POOL6]) {
+	if (nla_len(attrs[GA_POOL6]) > 0) {
 		out->pool6.set = true;
 		return nla_get_prefix6(attrs[GA_POOL6], &out->pool6.prefix);
 	} else {
@@ -36,9 +36,7 @@ static struct jool_result handle_query_response_siit(struct nl_msg *response,
 	struct globals *out = _args;
 	struct jool_result result;
 
-	/* TODO not validating NULLs */
-
-	result = jnla_parse_msg(response, attrs, GA_MAX, siit_globals_policy, false);
+	result = jnla_parse_msg(response, attrs, GA_MAX, siit_globals_policy, true);
 	if (result.error)
 		return result;
 
@@ -50,7 +48,7 @@ static struct jool_result handle_query_response_siit(struct nl_msg *response,
 	out->siit.eam_hairpin_mode = nla_get_u8(attrs[GA_HAIRPIN_MODE]);
 	out->siit.randomize_error_addresses = nla_get_u8(attrs[GA_RANDOMIZE_ERROR_ADDR]);
 
-	if (attrs[GA_POOL6791V6]) {
+	if (nla_len(attrs[GA_POOL6791V6]) > 0) {
 		out->siit.rfc6791_prefix6.set = true;
 		result = nla_get_prefix6(attrs[GA_POOL6791V6], &out->siit.rfc6791_prefix6.prefix);
 		if (result.error)
@@ -59,7 +57,7 @@ static struct jool_result handle_query_response_siit(struct nl_msg *response,
 		out->siit.rfc6791_prefix6.set = false;
 	}
 
-	if (attrs[GA_POOL6791V4]) {
+	if (nla_len(attrs[GA_POOL6791V4]) > 0) {
 		out->siit.rfc6791_prefix4.set = true;
 		result = nla_get_prefix4(attrs[GA_POOL6791V4], &out->siit.rfc6791_prefix4.prefix);
 		if (result.error)
@@ -155,6 +153,5 @@ struct jool_result global_update(struct jool_socket *sk, char *iname,
 	}
 
 	nla_nest_end(msg, root);
-
 	return netlink_request(sk, msg, NULL, NULL);
 }

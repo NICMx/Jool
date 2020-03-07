@@ -10,7 +10,7 @@ struct nla_policy instance_entry_policy[IFEA_COUNT] = {
 	[IFEA_INAME] = {
 		.type = NLA_STRING,
 #ifndef __KERNEL__
-		.maxlen = INAME_MAX_LEN - 1
+		.maxlen = INAME_MAX_SIZE
 #endif
 	},
 };
@@ -112,9 +112,9 @@ struct nla_policy nat64_globals_policy[GA_COUNT] = {
 	[GA_JOOLD_MAX_PAYLOAD] = { .type = NLA_U32 },
 };
 
-/* TODO assumes strlen(iname) < 16 */
-void init_request_hdr(struct request_hdr *hdr, xlator_type xt,
-		char const *iname, __u8 flags)
+/* Note: assumes strlen(iname) < INAME_MAX_SIZE */
+void init_request_hdr(struct joolnl_hdr *hdr, xlator_type xt, char const *iname,
+		__u8 flags)
 {
 	hdr->version = htonl(xlat_version());
 	hdr->xt = xt;
@@ -133,7 +133,7 @@ int iname_validate(const char *iname, bool allow_null)
 	if (!iname)
 		return allow_null ? 0 : -EINVAL;
 
-	for (i = 0; i < INAME_MAX_LEN; i++) {
+	for (i = 0; i < INAME_MAX_SIZE; i++) {
 		if (iname[i] == '\0')
 			return 0;
 		if (iname[i] < 32) /* "if not printable" */

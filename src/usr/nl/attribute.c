@@ -24,16 +24,15 @@ static struct jool_result validate_mandatory_attrs(struct nlattr *attrs[],
 	return result_success();
 }
 
-/* Wrapper for jnla_parse_msg(). */
+/* Wrapper for genlmsg_parse(). */
 struct jool_result jnla_parse_msg(struct nl_msg *msg, struct nlattr *tb[],
 		int maxtype, struct nla_policy *policy,
 		bool validate_mandatories)
 {
 	int error;
 
-	/* TODO validate the netlink header */
-	error = genlmsg_parse(nlmsg_hdr(msg), sizeof(struct request_hdr),
-				tb, maxtype, policy);
+	error = genlmsg_parse(nlmsg_hdr(msg), sizeof(struct joolnl_hdr), tb,
+			maxtype, policy);
 	if (!error) {
 		return validate_mandatories
 				? validate_mandatory_attrs(tb, maxtype, policy)
@@ -52,15 +51,6 @@ struct jool_result jnla_parse_nested(struct nlattr *tb[], int maxtype,
 		struct nlattr *root, struct nla_policy *policy)
 {
 	int error;
-
-//	{
-//		struct nlattr *pos;
-//		int rem;
-//
-//		printf("Root: %d %d\n", nla_type(root), nla_len(root));
-//		nla_for_each_nested(pos, root, rem)
-//			printf("%d %d\n", nla_type(pos), nla_len(pos));
-//	}
 
 	error = nla_parse_nested(tb, maxtype, root, policy);
 	if (!error)
@@ -88,6 +78,18 @@ struct jool_result nla_get_prefix6(struct nlattr *root, struct ipv6_prefix *out)
 	struct nlattr *attrs[PA_COUNT];
 	struct jool_result result;
 
+	/*
+	 * Because they can be empty on globals, the policy marks them as
+	 * unspecified, so we need to validate them here.
+	 * TODO This is not working right.
+	 */
+//	if (!nla_is_nested(root)) {
+//		return result_from_error(
+//			-EINVAL,
+//			"Malformed IPv6 prefix: Not a nested attribute."
+//		);
+//	}
+
 	result = jnla_parse_nested(attrs, PA_MAX, root, prefix6_policy);
 	if (result.error)
 		return result;
@@ -101,6 +103,18 @@ struct jool_result nla_get_prefix4(struct nlattr *root, struct ipv4_prefix *out)
 {
 	struct nlattr *attrs[PA_COUNT];
 	struct jool_result result;
+
+	/*
+	 * Because they can be empty on globals, the policy marks them as
+	 * unspecified, so we need to validate them here.
+	 * TODO This is not working right.
+	 */
+//	if (!nla_is_nested(root)) {
+//		return result_from_error(
+//			-EINVAL,
+//			"Malformed IPv4 prefix: Not a nested attribute."
+//		);
+//	}
 
 	result = jnla_parse_nested(attrs, PA_MAX, root, prefix4_policy);
 	if (result.error)
@@ -288,7 +302,7 @@ int nla_put_plateaus(struct nl_msg *msg, int attrtype, struct mtu_plateaus *plat
 		goto abort;
 
 	for (i = 0; i < plateaus->count; i++)
-		if (nla_put_u16(msg, PLATTR_PLATEAU, plateaus->values[i]))
+		if (nla_put_u16(msg, LA_ENTRY, plateaus->values[i]))
 			goto cancel;
 
 	nla_nest_end(msg, root);
@@ -296,6 +310,109 @@ int nla_put_plateaus(struct nl_msg *msg, int attrtype, struct mtu_plateaus *plat
 
 cancel:	nla_nest_cancel(msg, root);
 abort:	return -ENOSPC;
+}
+
+struct jool_result nla_put_eam(struct nl_msg *msg, int attrtype, struct eamt_entry *entry)
+{
+	struct nlattr *root;
+
+	root = nla_nest_start(msg, attrtype);
+	if (!root)
+		goto nla_put_failure;
+
+	if (nla_put_prefix6(msg, EA_PREFIX6, &entry->prefix6))
+		goto nla_put_failure;
+	if (nla_put_prefix4(msg, EA_PREFIX4, &entry->prefix4))
+		goto nla_put_failure;
+
+	nla_nest_end(msg, root);
+	return result_success();
+
+nla_put_failure:
+	return packet_too_small();
+}
+
+struct jool_result nla_put_pool4(struct nl_msg *msg, int attrtype, struct pool4_entry *entry)
+{
+	struct nlattr *root;
+
+	root = nla_nest_start(msg, attrtype);
+	if (!root)
+		goto nla_put_failure;
+
+	NLA_PUT_U32(msg, P4A_MARK, entry->mark);
+	NLA_PUT_U32(msg, P4A_ITERATIONS, entry->iterations);
+	NLA_PUT_U8(msg, P4A_FLAGS, entry->flags);
+	NLA_PUT_U8(msg, P4A_PROTO, entry->proto);
+	if (nla_put_prefix4(msg, P4A_PREFIX, &entry->range.prefix))
+		goto nla_put_failure;
+	NLA_PUT_U16(msg, P4A_PORT_MIN, entry->range.ports.min);
+	NLA_PUT_U16(msg, P4A_PORT_MAX, entry->range.ports.max);
+
+	nla_nest_end(msg, root);
+	return result_success();
+
+nla_put_failure:
+	return packet_too_small();
+}
+
+struct jool_result nla_put_bib_attrs(struct nl_msg *msg, int attrtype,
+		struct ipv6_transport_addr *addr6,
+		struct ipv4_transport_addr *addr4,
+		l4_protocol proto,
+		bool is_static)
+{
+	struct nlattr *root;
+
+	root = nla_nest_start(msg, attrtype);
+	if (!root)
+		goto nla_put_failure;
+
+	if (addr6 && nla_put_taddr6(msg, BA_SRC6, addr6))
+		goto nla_put_failure;
+	if (addr4 && nla_put_taddr4(msg, BA_SRC4, addr4))
+		goto nla_put_failure;
+	NLA_PUT_U8(msg, BA_PROTO, proto);
+	NLA_PUT_U8(msg, BA_STATIC, is_static);
+
+	nla_nest_end(msg, root);
+	return result_success();
+
+nla_put_failure:
+	return packet_too_small();
+}
+
+struct jool_result nla_put_bib(struct nl_msg *msg, int attrtype, struct bib_entry *entry)
+{
+	return nla_put_bib_attrs(msg, attrtype, &entry->addr6, &entry->addr4,
+			entry->l4_proto, entry->is_static);
+}
+
+struct jool_result nla_put_session(struct nl_msg *msg, int attrtype, struct session_entry_usr *entry)
+{
+	struct nlattr *root;
+
+	root = nla_nest_start(msg, attrtype);
+	if (!root)
+		goto nla_put_failure;
+
+	if (nla_put_taddr6(msg, SEA_SRC6, &entry->src6))
+		goto nla_put_failure;
+	if (nla_put_taddr6(msg, SEA_DST6, &entry->dst6))
+		goto nla_put_failure;
+	if (nla_put_taddr4(msg, SEA_SRC4, &entry->src4))
+		goto nla_put_failure;
+	if (nla_put_taddr4(msg, SEA_DST4, &entry->dst4))
+		goto nla_put_failure;
+	NLA_PUT_U8(msg, SEA_PROTO, entry->proto);
+	NLA_PUT_U8(msg, SEA_STATE, entry->state);
+	NLA_PUT_U32(msg, SEA_EXPIRATION, entry->dying_time);
+
+	nla_nest_end(msg, root);
+	return result_success();
+
+nla_put_failure:
+	return packet_too_small();
 }
 
 struct jool_result packet_too_small(void)

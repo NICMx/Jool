@@ -10,14 +10,7 @@
 
 static int serialize_bl4_entry(struct ipv4_prefix *prefix, void *arg)
 {
-	struct sk_buff *skb = arg;
-	int error;
-
-	error = jnla_put_prefix4(skb, EA_PREFIX4, prefix);
-	if (error)
-		return (error != -EMSGSIZE) ? -1 : 1;
-
-	return 0;
+	return jnla_put_prefix4(arg, LA_ENTRY, prefix) ? 1 : 0;
 }
 
 int handle_blacklist4_foreach(struct sk_buff *skb, struct genl_info *info)
@@ -37,8 +30,8 @@ int handle_blacklist4_foreach(struct sk_buff *skb, struct genl_info *info)
 		goto revert_start;
 
 	offset_ptr = NULL;
-	if (info->attrs[RA_BL4_ENTRY]) {
-		error = jnla_get_prefix4(info->attrs[RA_BL4_ENTRY], "Blacklist4 prefix", &offset);
+	if (info->attrs[RA_OFFSET]) {
+		error = jnla_get_prefix4(info->attrs[RA_OFFSET], "Iteration offset", &offset);
 		if (error)
 			goto revert_response;
 		offset_ptr = &offset;
@@ -46,28 +39,26 @@ int handle_blacklist4_foreach(struct sk_buff *skb, struct genl_info *info)
 
 	error = pool_foreach(jool.siit.blacklist4, serialize_bl4_entry,
 			response.skb, offset_ptr);
-	if (error < 0) {
-		jresponse_cleanup(&response);
-		goto revert_response;
-	}
 
-	if (error > 0)
-		jresponse_enable_m(&response);
+	error = jresponse_send_array(&response, error);
+	if (error)
+		goto revert_response;
+
 	request_handle_end(&jool);
-	return jresponse_send(&response);
+	return 0;
 
 revert_response:
 	jresponse_cleanup(&response);
 revert_start:
 	request_handle_end(&jool);
 end:
-	return nlcore_respond(info, error);
+	return jresponse_send_simple(info, error);
 }
 
 int handle_blacklist4_add(struct sk_buff *skb, struct genl_info *info)
 {
 	struct xlator jool;
-	struct ipv4_prefix addend;
+	struct ipv4_prefix operand;
 	int error;
 
 	log_debug("Adding Blacklist4 entry.");
@@ -76,30 +67,24 @@ int handle_blacklist4_add(struct sk_buff *skb, struct genl_info *info)
 	if (error)
 		goto end;
 
-	if (!info->attrs[RA_BL4_ENTRY]) {
-		log_err("Request is missing the Blacklist4 container attribute.");
-		error = -EINVAL;
-		goto revert_start;
-	}
-
-	error = jnla_get_prefix4(info->attrs[RA_BL4_ENTRY], "Blacklist4 entry", &addend);
+	error = jnla_get_prefix4(info->attrs[RA_OPERAND], "Operand", &operand);
 	if (error)
 		goto revert_start;
 
-	error = pool_add(jool.siit.blacklist4, &addend,
+	error = pool_add(jool.siit.blacklist4, &operand,
 			get_jool_hdr(info)->flags & HDRFLAGS_FORCE);
 	/* Fall through */
 
 revert_start:
 	request_handle_end(&jool);
 end:
-	return nlcore_respond(info, error);
+	return jresponse_send_simple(info, error);
 }
 
 int handle_blacklist4_rm(struct sk_buff *skb, struct genl_info *info)
 {
 	struct xlator jool;
-	struct ipv4_prefix rem; /* TODO */
+	struct ipv4_prefix operand;
 	int error;
 
 	log_debug("Removing Blacklist4 entry.");
@@ -108,21 +93,15 @@ int handle_blacklist4_rm(struct sk_buff *skb, struct genl_info *info)
 	if (error)
 		goto end;
 
-	if (!info->attrs[RA_BL4_ENTRY]) {
-		log_err("Request is missing the Blacklist4 container attribute.");
-		error = -EINVAL;
-		goto revert_start;
-	}
-
-	error = jnla_get_prefix4(info->attrs[RA_BL4_ENTRY], "Blacklist4 entry", &rem);
+	error = jnla_get_prefix4(info->attrs[RA_OPERAND], "Operand", &operand);
 	if (error)
 		goto revert_start;
 
-	error = pool_rm(jool.siit.blacklist4, &rem);
+	error = pool_rm(jool.siit.blacklist4, &operand);
 revert_start:
 	request_handle_end(&jool);
 end:
-	return nlcore_respond(info, error);
+	return jresponse_send_simple(info, error);
 }
 
 int handle_blacklist4_flush(struct sk_buff *skb, struct genl_info *info)
@@ -139,5 +118,5 @@ int handle_blacklist4_flush(struct sk_buff *skb, struct genl_info *info)
 	error = pool_flush(jool.siit.blacklist4);
 	request_handle_end(&jool);
 end:
-	return nlcore_respond(info, error);
+	return jresponse_send_simple(info, error);
 }

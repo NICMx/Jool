@@ -16,7 +16,7 @@
 /** Receives Generic Netlink packets from the kernel module. */
 static struct jool_socket jsocket;
 
-static int validate_version(struct request_hdr *hdr,
+static int validate_version(struct joolnl_hdr *hdr,
 		char *sender, char *receiver)
 {
 	__u32 hdr_version = ntohl(hdr->version);
@@ -41,7 +41,7 @@ int validate_request(void *data, size_t data_len, char *sender, char *receiver)
 {
 	int error;
 
-	if (data_len < sizeof(struct request_hdr)) {
+	if (data_len < sizeof(struct joolnl_hdr)) {
 		syslog(LOG_ERR, "Message from the %s is smaller than Jool's header.",
 				sender);
 		return -EINVAL;
@@ -64,7 +64,7 @@ void modsocket_send(void *request, size_t request_len)
 
 static void send_ack(void)
 {
-	struct request_hdr hdr;
+	struct joolnl_hdr hdr;
 	init_request_hdr(&hdr, XT_NAT64, MODE_JOOLD, OP_ACK, false);
 	modsocket_send(&hdr, sizeof(hdr));
 }
@@ -77,7 +77,7 @@ static void send_ack(void)
 static int updated_entries_cb(struct nl_msg *msg, void *arg)
 {
 	struct nlattr *attrs[__ATTR_MAX + 1];
-	struct request_hdr  *data;
+	struct joolnl_hdr  *data;
 
 	size_t data_size;
 	char castness;

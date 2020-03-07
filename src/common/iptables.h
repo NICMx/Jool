@@ -8,7 +8,7 @@
 
 /* Mind alignment on this structure. */
 struct target_info {
-	char iname[INAME_MAX_LEN];
+	char iname[INAME_MAX_SIZE];
 	__u8 type; /* xlator_type */
 };
 

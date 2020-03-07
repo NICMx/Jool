@@ -3,20 +3,21 @@
 #include <errno.h>
 #include <stdlib.h>
 #include <string.h>
+#include <netlink/msg.h>
 
-#include "buffer.h"
 #include "common/config.h"
 #include "common/constants.h"
 #include "common/globals.h"
 #include "usr/util/cJSON.h"
 #include "usr/util/file.h"
 #include "usr/util/str_utils.h"
+#include "usr/nl/attribute.h"
 
 /* TODO (warning) These variables prevent this module from being thread-safe. */
 static struct jool_socket sk;
 static char *iname;
 static xlator_flags flags;
-static bool force;
+static __u8 force;
 
 struct json_meta {
 	char *name; /* This being NULL signals the end of the array. */
@@ -160,68 +161,6 @@ static struct jool_result validate_uint(char *field_name, cJSON *node,
 }
 
 /*
- * =================================
- * ========= Netlink Buffer ========
- * =================================
- */
-
-static struct jool_result init_buffer(struct nl_buffer *buffer,
-		enum parse_section section)
-{
-	struct request_hdr hdr;
-	__u16 tmp = section;
-	struct jool_result result;
-
-	init_request_hdr(&hdr, xlator_flags2xt(flags),
-			MODE_PARSE_FILE, OP_ADD, force ? HDRFLAGS_FORCE : 0);
-	result = nlbuffer_write(buffer, &hdr, sizeof(hdr));
-	if (result.error)
-		return result;
-
-	return nlbuffer_write(buffer, &tmp, sizeof(tmp));
-}
-
-static struct jool_result buffer_alloc(enum parse_section section,
-		struct nl_buffer **out)
-{
-	struct nl_buffer *buffer;
-	struct jool_result result;
-
-	buffer = nlbuffer_alloc(&sk, iname);
-	if (!buffer)
-		return result_from_enomem();
-
-	result = init_buffer(buffer, section);
-	if (result.error) {
-		nlbuffer_destroy(buffer);
-		return result;
-	}
-
-	*out = buffer;
-	return result;
-}
-
-static struct jool_result buffer_write(struct nl_buffer *buffer,
-		enum parse_section section, void *payload, size_t payload_len)
-{
-	struct jool_result result;
-
-	result = nlbuffer_write(buffer, payload, payload_len);
-	if (result.error != -ENOSPC)
-		return result;
-
-	result = nlbuffer_flush(buffer);
-	if (result.error)
-		return result;
-
-	result = init_buffer(buffer, section);
-	if (result.error)
-		return result;
-
-	return nlbuffer_write(buffer, payload, payload_len);
-}
-
-/*
  * ==================================
  * ===== Generic object handlers ====
  * ==================================
@@ -269,113 +208,70 @@ static struct jool_result handle_object(cJSON *obj, struct json_meta *metadata)
 	return result_success();
 }
 
-static struct jool_result handle_array(cJSON *json, char *name,
-		enum parse_section section,
-		struct jool_result (*entry_handler)(cJSON *, struct nl_buffer *))
+static struct jool_result handle_array(cJSON *json, int attrtype, char *name,
+		struct jool_result (*entry_handler)(cJSON *, struct nl_msg *))
 {
-	struct nl_buffer *buffer;
-	unsigned int i;
+	struct nl_msg *msg;
+	struct nlattr *root;
+	unsigned int entries_written;
 	struct jool_result result;
 
 	if (json->type != cJSON_Array)
 		return type_mismatch(name, json, "Array");
 
-	result = buffer_alloc(section, &buffer);
-	if (result.error)
-		return result;
+	msg = NULL;
+	entries_written = 0;
+	for (json = json->child; json; json = json->next) {
+		if (msg == NULL) {
+			result = allocate_jool_nlmsg(&sk, iname,
+					JOP_FILE_HANDLE, force, &msg);
+			if (result.error)
+				return result;
 
-	for (json = json->child, i = 1; json; json = json->next, i++) {
-		result = entry_handler(json, buffer);
-		if (result.error)
-			goto end;
+			root = nla_nest_start(msg, attrtype);
+			if (!root)
+				goto too_small;
+		}
+
+		result = entry_handler(json, msg);
+		if (result.error) {
+			if (entries_written == 0)
+				goto too_small;
+
+			nla_nest_end(msg, root);
+			result = netlink_request(&sk, msg, NULL, NULL);
+			if (result.error)
+				return result;
+
+			msg = NULL;
+			json = json->prev;
+			entries_written = 0;
+		} else {
+			entries_written++;
+		}
 	}
 
-	result = nlbuffer_flush(buffer);
-	/* Fall through. */
-
-end:
-	nlbuffer_destroy(buffer);
-	return result;
-}
-
-/*
- * =================================
- * == Message writing for globals ==
- * =================================
- */
-
-static struct jool_result write_bool(struct global_field *field, cJSON *json,
-		void *payload)
-{
-	config_bool cb_true = true;
-	config_bool cb_false = false;
-
-	switch (json->type) {
-	case cJSON_True:
-		memcpy(payload, &cb_true, sizeof(cb_true));
+	if (entries_written == 0)
 		return result_success();
-	case cJSON_False:
-		memcpy(payload, &cb_false, sizeof(cb_false));
-		return result_success();
-	}
 
-	return type_mismatch(field->name, json, "boolean");
+	nla_nest_end(msg, root);
+	return netlink_request(&sk, msg, NULL, NULL);
+
+too_small:
+	nlmsg_free(msg);
+	return packet_too_small();
 }
 
-static struct jool_result write_u8(struct global_field *field, cJSON *json,
-		void *payload)
+static struct jool_result write_plateaus(struct nl_msg *msg,
+		struct global_field *field, struct cJSON *node)
 {
-	__u8 value;
-	struct jool_result result;
-
-	result = validate_uint(field->name, json, field->min, field->max);
-	if (result.error)
-		return result;
-
-	value = json->valueuint;
-	memcpy(payload, &value, sizeof(value));
-	return result;
-}
-
-static struct jool_result write_u32(struct global_field *field, cJSON *json,
-		void *payload)
-{
-	__u32 value;
-	struct jool_result result;
-
-	result = validate_uint(field->name, json, field->min, field->max);
-	if (result.error)
-		return result;
-
-	value = json->valueuint;
-	memcpy(payload, &value, sizeof(value));
-	return result;
-}
-
-static struct jool_result write_timeout(struct global_field *field, cJSON *json,
-		void *payload)
-{
-	__u32 value;
-	struct jool_result result;
-
-	if (json->type != cJSON_String)
-		return string_expected(field->name, json);
-
-	result = str_to_timeout(json->valuestring, &value, field->min,
-			field->max);
-	if (result.error)
-		return result;
-
-	memcpy(payload, &value, sizeof(value));
-	return result;
-}
-
-static struct jool_result write_plateaus(struct global_field *field,
-		cJSON *node, void *payload)
-{
-	struct mtu_plateaus *plateaus = payload;
 	unsigned int i = 0;
+	struct nlattr *root;
 	struct jool_result result;
+
+	root = nla_nest_start(msg, GA_PLATEAUS);
+	if (!root)
+		goto too_small;
 
 	for (node = node->child; node; node = node->next) {
 		if (i > PLATEAUS_MAX) {
@@ -385,89 +281,95 @@ static struct jool_result write_plateaus(struct global_field *field,
 			);
 		}
 
+		/* TODO validate the others */
+		/* TODO also maybe reuse struct mtu_plateaus and nla_put_plateaus(). */
 		result = validate_uint(field->name, node, 0, MAX_U16);
 		if (result.error)
 			return result;
 
-		plateaus->values[i] = node->valueuint;
+		result.error = nla_put_u16(msg, LA_ENTRY, node->valueuint);
+		if (result.error)
+			goto too_small;
+
 		i++;
 	}
 
-	plateaus->count = i;
+	nla_nest_end(msg, root);
 	return result_success();
+
+too_small:
+	return result_from_error(-ENOSPC, "Packet too small");
 }
 
-static struct jool_result write_others(struct global_field *field, cJSON *json,
-		void *payload)
+static struct jool_result write_global(struct cJSON *json, void *_field,
+		void *msg)
 {
-	if (json->type == cJSON_NULL)
-		return field->type->parse(field, "null", payload);
-	if (json->type == cJSON_String)
-		return field->type->parse(field, json->valuestring, payload);
+	struct global_field *field = _field;
+	int error;
 
-	return type_mismatch(field->name, json, field->type->name);
-}
-
-/*
- * =================================
- * ======= Global tag handler ======
- * =================================
- */
-
-static struct jool_result write_field(struct global_field *field, struct cJSON *json, void *payload)
-{
-	/*
-	 * TODO (fine) This does not scale well. We'll need a big refactor of
-	 * the json module or use some other library.
-	 */
 	switch (field->type->id) {
 	case GTI_BOOL:
-		return write_bool(field, json, payload);
+		switch (json->type) {
+		case cJSON_True:
+			error = nla_put_u8(msg, field->id, true);
+			if (error)
+				goto too_small;
+			break;
+		case cJSON_False:
+			error = nla_put_u8(msg, field->id, false);
+			if (error)
+				goto too_small;
+			break;
+		default:
+			return type_mismatch(json->string, json, "boolean");
+		}
+		return result_success();
+
 	case GTI_NUM8:
-		return write_u8(field, json, payload);
+		if (json->type == cJSON_Number) {
+			error = nla_put_u8(msg, field->id, json->valueuint);
+			if (error)
+				goto too_small;
+		} else {
+			return type_mismatch(json->string, json, "number");
+		}
+		return result_success();
 	case GTI_NUM32:
-		return write_u32(field, json, payload);
+		if (json->type == cJSON_Number) {
+			error = nla_put_u32(msg, field->id, json->valueuint);
+			if (error)
+				goto too_small;
+		} else {
+			return type_mismatch(json->string, json, "number");
+		}
+		return result_success();
+
 	case GTI_TIMEOUT:
-		return write_timeout(field, json, payload);
-	case GTI_PLATEAUS:
-		return write_plateaus(field, json, payload);
+	case GTI_HAIRPIN_MODE:
 	case GTI_PREFIX6:
 	case GTI_PREFIX4:
-	case GTI_HAIRPIN_MODE:
-		return write_others(field, json, payload);
+		switch (json->type) {
+		case cJSON_String:
+			return field->type->packetize(msg, field, json->valuestring);
+		case cJSON_NULL:
+			return field->type->packetize(msg, field, "null");
+		}
+		return type_mismatch(json->string, json, "string");
+
+	case GTI_PLATEAUS:
+		return write_plateaus(msg, field, json);
 	}
 
 	return result_from_error(
 		-EINVAL,
 		"Unknown field type: %u", field->type->id
 	);
+
+too_small:
+	return result_from_error(error, "Packet too small");
 }
 
-static struct jool_result write_global(struct cJSON *json, void *_field,
-		void *buffer)
-{
-	struct global_field *field = _field;
-	size_t size;
-	struct global_value *hdr;
-	struct jool_result result;
-
-	size = sizeof(struct global_value) + field->type->size;
-	hdr = malloc(size);
-	if (!hdr)
-		return result_from_enomem();
-
-	hdr->type = global_field_index(field);
-	hdr->len = field->type->size;
-
-	result = write_field(field, json, hdr + 1);
-	if (!result.error)
-		result = buffer_write(buffer, SEC_GLOBAL, hdr, size);
-
-	free(hdr);
-	return result;
-}
-
-static struct jool_result create_globals_meta(struct nl_buffer *buffer,
+static struct jool_result create_globals_meta(struct nl_msg *msg,
 		struct json_meta **globals_meta)
 {
 	struct global_field *fields;
@@ -486,7 +388,7 @@ static struct jool_result create_globals_meta(struct nl_buffer *buffer,
 		meta[i].name = fields[i].name;
 		meta[i].handler = write_global;
 		meta[i].arg1 = &fields[i];
-		meta[i].arg2 = buffer;
+		meta[i].arg2 = msg;
 		meta[i].mandatory = false;
 		meta[i].already_found = false;
 	}
@@ -498,27 +400,42 @@ static struct jool_result create_globals_meta(struct nl_buffer *buffer,
 
 static struct jool_result handle_global(cJSON *json)
 {
-	struct nl_buffer *buffer;
+	struct nl_msg *msg;
+	struct nlattr *root;
 	struct json_meta *meta;
 	struct jool_result result;
 
-	result = buffer_alloc(SEC_GLOBAL, &buffer);
+	/*
+	 * TODO BTW: We're not validating @field.
+	 * Update: kernelspace has validation functions.
+	 */
+
+	result = allocate_jool_nlmsg(&sk, iname, JOP_FILE_HANDLE, force, &msg);
 	if (result.error)
 		return result;
-	result = create_globals_meta(buffer, &meta);
+
+	root = nla_nest_start(msg, RA_GLOBALS);
+	if (!root) {
+		result = packet_too_small();
+		goto revert_msg;
+	}
+
+	result = create_globals_meta(msg, &meta);
 	if (result.error)
-		goto end2;
+		goto revert_msg;
 
 	result = handle_object(json, meta);
 	if (result.error)
-		goto end;
+		goto revert_meta;
 
-	result = nlbuffer_flush(buffer);
-	/* Fall through. */
-end:
+	nla_nest_end(msg, root);
 	free(meta);
-end2:
-	nlbuffer_destroy(buffer);
+	return netlink_request(&sk, msg, NULL, NULL);
+
+revert_meta:
+	free(meta);
+revert_msg:
+	nlmsg_free(msg);
 	return result;
 }
 
@@ -638,8 +555,7 @@ static struct jool_result json2proto(cJSON *json, void *arg1, void *arg2)
  * =================================
  */
 
-static struct jool_result handle_eam_entry(cJSON *json,
-		struct nl_buffer *buffer)
+static struct jool_result handle_eam_entry(cJSON *json, struct nl_msg *msg)
 {
 	struct eamt_entry eam;
 	struct json_meta meta[] = {
@@ -653,11 +569,10 @@ static struct jool_result handle_eam_entry(cJSON *json,
 	if (result.error)
 		return result;
 
-	return buffer_write(buffer, SEC_EAMT, &eam, sizeof(eam));
+	return nla_put_eam(msg, LA_ENTRY, &eam);
 }
 
-static struct jool_result handle_blacklist_entry(cJSON *json,
-		struct nl_buffer *buffer)
+static struct jool_result handle_blacklist_entry(cJSON *json, struct nl_msg *msg)
 {
 	struct ipv4_prefix prefix;
 	struct jool_result result;
@@ -669,11 +584,14 @@ static struct jool_result handle_blacklist_entry(cJSON *json,
 	if (result.error)
 		return result;
 
-	return buffer_write(buffer, SEC_BLACKLIST, &prefix, sizeof(prefix));
+	result.error = nla_put_prefix4(msg, LA_ENTRY, &prefix);
+	if (result.error)
+		return packet_too_small();
+
+	return result_success();
 }
 
-static struct jool_result handle_pool4_entry(cJSON *json,
-		struct nl_buffer *buffer)
+static struct jool_result handle_pool4_entry(cJSON *json, struct nl_msg *msg)
 {
 	struct pool4_entry entry;
 	struct json_meta meta[] = {
@@ -696,11 +614,10 @@ static struct jool_result handle_pool4_entry(cJSON *json,
 	if (result.error)
 		return result;
 
-	return buffer_write(buffer, SEC_POOL4, &entry, sizeof(entry));
+	return nla_put_pool4(msg, LA_ENTRY, &entry);
 }
 
-static struct jool_result handle_bib_entry(cJSON *json,
-		struct nl_buffer *buffer)
+static struct jool_result handle_bib_entry(cJSON *json, struct nl_msg *msg)
 {
 	struct bib_entry entry;
 	struct json_meta meta[] = {
@@ -717,7 +634,7 @@ static struct jool_result handle_bib_entry(cJSON *json,
 	if (result.error)
 		return result;
 
-	return buffer_write(buffer, SEC_BIB, &entry, sizeof(entry));
+	return nla_put_bib(msg, LA_ENTRY, &entry);
 }
 
 /*
@@ -738,23 +655,22 @@ static struct jool_result handle_global_tag(cJSON *json, void *arg1, void *arg2)
 
 static struct jool_result handle_eamt_tag(cJSON *json, void *arg1, void *arg2)
 {
-	return handle_array(json, OPTNAME_EAMT, SEC_EAMT, handle_eam_entry);
+	return handle_array(json, RA_EAMT_ENTRIES, OPTNAME_EAMT, handle_eam_entry);
 }
 
 static struct jool_result handle_bl4_tag(cJSON *json, void *arg1, void *arg2)
 {
-	return handle_array(json, OPTNAME_BLACKLIST, SEC_BLACKLIST,
-			handle_blacklist_entry);
+	return handle_array(json, RA_BL4_ENTRIES, OPTNAME_BLACKLIST, handle_blacklist_entry);
 }
 
 static struct jool_result handle_pool4_tag(cJSON *json, void *arg1, void *arg2)
 {
-	return handle_array(json, OPTNAME_POOL4, SEC_POOL4, handle_pool4_entry);
+	return handle_array(json, RA_POOL4_ENTRIES, OPTNAME_POOL4, handle_pool4_entry);
 }
 
 static struct jool_result handle_bib_tag(cJSON *json, void *arg1, void *arg2)
 {
-	return handle_array(json, OPTNAME_BIB, SEC_BIB, handle_bib_entry);
+	return handle_array(json, RA_BIB_ENTRIES, OPTNAME_BIB, handle_bib_entry);
 }
 
 /*
@@ -899,28 +815,28 @@ static struct jool_result prepare_instance(char *_iname, cJSON *json)
  * =================================
  */
 
-static struct jool_result send_ctrl_msg(enum parse_section section)
+static struct jool_result send_ctrl_msg(bool init)
 {
-	struct nl_buffer *buffer;
-	struct request_init request;
+	struct nl_msg *msg;
 	struct jool_result result;
 
-	result = buffer_alloc(section, &buffer);
+	result = allocate_jool_nlmsg(&sk, iname, JOP_FILE_HANDLE, 0, &msg);
 	if (result.error)
 		return result;
 
-	if (section == SEC_INIT) {
-		request.xf = xlator_flags2xf(flags);
-		result = buffer_write(buffer, section, &request, sizeof(request));
-		if (result.error)
-			goto end;
-	}
+	if (init)
+		NLA_PUT_U8(msg, RA_ATOMIC_INIT, xlator_flags2xf(flags));
+	else
+		NLA_PUT(msg, RA_ATOMIC_END, 0, NULL);
 
-	result = nlbuffer_flush(buffer);
-	/* Fall through */
+	result = netlink_request(&sk, msg, NULL, NULL);
+	if (result.error)
+		return result;
 
-end:
-	nlbuffer_destroy(buffer);
+	return result_success();
+
+nla_put_failure:
+	nlmsg_free(msg);
 	return result;
 }
 
@@ -942,7 +858,7 @@ static struct jool_result do_parsing(char *iname, char *buffer)
 	if (result.error)
 		goto fail;
 
-	result = send_ctrl_msg(SEC_INIT);
+	result = send_ctrl_msg(true);
 	if (result.error)
 		goto fail;
 
@@ -967,7 +883,7 @@ static struct jool_result do_parsing(char *iname, char *buffer)
 	 * Send the control message before deleting, because @iname might point
 	 * to the json object, and send_ctrl_msg() needs @iname.
 	 */
-	result = send_ctrl_msg(SEC_COMMIT);
+	result = send_ctrl_msg(false);
 	cJSON_Delete(json);
 	return result;
 
@@ -984,7 +900,7 @@ struct jool_result json_parse(struct jool_socket *_sk, xlator_type xt,
 
 	sk = *_sk;
 	flags = xt;
-	force = _force;
+	force = _force ? HDRFLAGS_FORCE : 0;
 
 	result = file_to_string(file_name, &buffer);
 	if (result.error)

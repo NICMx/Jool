@@ -10,17 +10,25 @@
 static int jnla_put_entry(struct jool_response *response,
 		struct address_translation_entry *entry)
 {
+	int error;
+
 	switch (entry->method) {
 	case AXM_RFC6052:
-		return jnla_put_prefix6(response->skb, AQA_PREFIX6052, &entry->prefix6052);
+		error = jnla_put_prefix6(response->skb, AQA_PREFIX6052, &entry->prefix6052);
+		break;
 	case AXM_EAMT:
-		return jnla_put_eam(response->skb, AQA_EAM, &entry->eam);
+		error = jnla_put_eam(response->skb, AQA_EAM, &entry->eam);
+		break;
 	case AXM_RFC6791:
 		return 0;
+	default:
+		log_err("Unknown translation method: %u", entry->method);
+		return -EINVAL;
 	}
 
-	log_err("Unknown translation method: %u", entry->method);
-	return -EINVAL;
+	if (error)
+		report_put_failure();
+	return error;
 }
 
 int handle_address_query64(struct sk_buff *skb, struct genl_info *info)
@@ -56,8 +64,10 @@ int handle_address_query64(struct sk_buff *skb, struct genl_info *info)
 	if (error)
 		goto revert_start;
 	error = jnla_put_addr4(response.skb, AQA_ADDR4, &result.addr);
-	if (error)
+	if (error) {
+		report_put_failure();
 		goto drop_response;
+	}
 	error = jnla_put_entry(&response, &result.entry);
 	if (error)
 		goto drop_response;
@@ -71,7 +81,7 @@ drop_response:
 revert_start:
 	request_handle_end(&jool);
 end:
-	return nlcore_respond(info, error);
+	return jresponse_send_simple(info, error);
 }
 
 int handle_address_query46(struct sk_buff *skb, struct genl_info *info)
@@ -107,8 +117,10 @@ int handle_address_query46(struct sk_buff *skb, struct genl_info *info)
 	if (error)
 		goto revert_start;
 	error = jnla_put_addr6(response.skb, AQA_ADDR6, &result.addr);
-	if (error)
+	if (error) {
+		report_put_failure();
 		goto drop_response;
+	}
 	error = jnla_put_entry(&response, &result.entry);
 	if (error)
 		goto drop_response;
@@ -122,5 +134,5 @@ drop_response:
 revert_start:
 	request_handle_end(&jool);
 end:
-	return nlcore_respond(info, error);
+	return jresponse_send_simple(info, error);
 }

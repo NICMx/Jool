@@ -17,7 +17,7 @@
 
 struct wargp_iname {
 	bool set;
-	char value[INAME_MAX_LEN];
+	char value[INAME_MAX_SIZE];
 };
 
 #define WARGP_INAME(container, field, description) \

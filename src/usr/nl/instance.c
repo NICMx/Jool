@@ -12,11 +12,11 @@ struct foreach_args {
 };
 
 static struct jool_result entry2attr(struct instance_entry_usr *entry,
-		struct nl_msg *msg)
+		int attrtype, struct nl_msg *msg)
 {
 	struct nlattr *root;
 
-	root = nla_nest_start(msg, RA_INSTANCE);
+	root = nla_nest_start(msg, attrtype);
 	if (!root)
 		goto nla_put_failure;
 
@@ -52,7 +52,7 @@ static struct jool_result handle_foreach_response(struct nl_msg *response,
 {
 	struct foreach_args *args;
 	struct genlmsghdr *ghdr;
-	struct request_hdr *jhdr;
+	struct joolnl_hdr *jhdr;
 	struct nlattr *attr;
 	int rem;
 	struct instance_entry_usr entry;
@@ -100,9 +100,11 @@ struct jool_result instance_foreach(struct jool_socket *sk,
 		if (first_request) {
 			first_request = false;
 		} else {
-			result = entry2attr(&args.last, msg);
-			if (result.error)
+			result = entry2attr(&args.last, RA_OFFSET, msg);
+			if (result.error) {
+				nlmsg_free(msg);
 				return result;
+			}
 		}
 
 		result = netlink_request(sk, msg, handle_foreach_response, &args);
@@ -161,7 +163,7 @@ struct jool_result instance_add(struct jool_socket *sk, xlator_framework xf,
 	if (result.error)
 		return result;
 
-	root = nla_nest_start(msg, RA_INSTANCE);
+	root = nla_nest_start(msg, RA_OPERAND);
 	if (!root)
 		goto nla_put_failure;
 

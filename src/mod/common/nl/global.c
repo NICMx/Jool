@@ -6,6 +6,22 @@
 #include "mod/common/nl/attribute.h"
 #include "mod/common/db/eam.h"
 
+static int put_optional_prefix6(struct sk_buff *skb, int attrtype,
+		struct config_prefix6 *prefix6)
+{
+	return prefix6->set
+		? jnla_put_prefix6(skb, attrtype, &prefix6->prefix)
+		: nla_put(skb, attrtype, 0, NULL);
+}
+
+static int put_optional_prefix4(struct sk_buff *skb, int attrtype,
+		struct config_prefix4 *prefix4)
+{
+	return prefix4->set
+		? jnla_put_prefix4(skb, attrtype, &prefix4->prefix)
+		: nla_put(skb, attrtype, 0, NULL);
+}
+
 static int put_common_values(struct sk_buff *skb, struct xlator *jool)
 {
 	struct globals *values;
@@ -19,7 +35,7 @@ static int put_common_values(struct sk_buff *skb, struct xlator *jool)
 	return nla_put_u8(skb, GA_STATUS, values->enabled && !pools_empty)
 		|| nla_put_u8(skb, GA_ENABLED, values->enabled)
 		|| nla_put_u8(skb, GA_TRACE, values->trace)
-		|| (values->pool6.set && jnla_put_prefix6(skb, GA_POOL6, &values->pool6.prefix))
+		|| put_optional_prefix6(skb, GA_POOL6, &values->pool6)
 		|| nla_put_u8(skb, GA_RESET_TC, values->reset_traffic_class)
 		|| nla_put_u8(skb, GA_RESET_TOS, values->reset_tos)
 		|| nla_put_u8(skb, GA_TOS, values->new_tos)
@@ -31,8 +47,8 @@ static int put_siit_values(struct sk_buff *skb, struct globals *values)
 	return nla_put_u8(skb, GA_COMPUTE_CSUM_ZERO, values->siit.compute_udp_csum_zero)
 		|| nla_put_u8(skb, GA_HAIRPIN_MODE, values->siit.eam_hairpin_mode)
 		|| nla_put_u8(skb, GA_RANDOMIZE_ERROR_ADDR, values->siit.randomize_error_addresses)
-		|| (values->siit.rfc6791_prefix6.set && jnla_put_prefix6(skb, GA_POOL6791V6, &values->siit.rfc6791_prefix6.prefix))
-		|| (values->siit.rfc6791_prefix4.set && jnla_put_prefix4(skb, GA_POOL6791V4, &values->siit.rfc6791_prefix4.prefix));
+		|| put_optional_prefix6(skb, GA_POOL6791V6, &values->siit.rfc6791_prefix6)
+		|| put_optional_prefix4(skb, GA_POOL6791V4, &values->siit.rfc6791_prefix4);
 }
 
 static int put_nat64_values(struct sk_buff *skb, struct globals *values)
@@ -74,27 +90,35 @@ int handle_global_foreach(struct sk_buff *skb, struct genl_info *info)
 
 	error = put_common_values(response.skb, &jool);
 	if (error)
-		goto revert_response;
+		goto put_failure;
 	switch (xlator_flags2xt(jool.flags)) {
 	case XT_SIIT:
 		error = put_siit_values(response.skb, &jool.globals);
+		if (error)
+			goto put_failure;
 		break;
 	case XT_NAT64:
 		error = put_nat64_values(response.skb, &jool.globals);
+		if (error)
+			goto put_failure;
 		break;
-	}
-	if (error)
+	default:
+		log_err("Unknown translator type: %u", xlator_flags2xt(jool.flags));
+		error = -EINVAL;
 		goto revert_response;
+	}
 
 	request_handle_end(&jool);
 	return jresponse_send(&response);
 
+put_failure:
+	report_put_failure();
 revert_response:
 	jresponse_cleanup(&response);
 revert_start:
 	request_handle_end(&jool);
 end:
-	return nlcore_respond(info, error);
+	return jresponse_send_simple(info, error);
 }
 
 static const struct nla_policy globals_policy[GA_COUNT] = {
@@ -251,7 +275,6 @@ static int get_nat64_values(struct nlattr *attrs[], struct globals *values)
 int handle_global_update(struct sk_buff *skb, struct genl_info *info)
 {
 	struct xlator jool;
-	struct nlattr *attrs[GA_COUNT];
 	int error;
 
 	log_debug("Updating 'Global' value.");
@@ -266,23 +289,7 @@ int handle_global_update(struct sk_buff *skb, struct genl_info *info)
 		goto revert_start;
 	}
 
-	error = nla_parse_nested(attrs, GA_MAX, info->attrs[RA_GLOBALS], globals_policy, NULL);
-	if (error) {
-		log_err("The 'Globals Container' attribute is malformed.");
-		goto revert_start;
-	}
-
-	error = get_common_values(attrs, &jool.globals);
-	if (error)
-		goto revert_start;
-	switch (xlator_flags2xt(jool.flags)) {
-	case XT_SIIT:
-		error = get_siit_values(attrs, &jool.globals);
-		break;
-	case XT_NAT64:
-		error = get_nat64_values(attrs, &jool.globals);
-		break;
-	}
+	error = global_update(&jool.globals, jool.flags, info->attrs[RA_GLOBALS]);
 	if (error)
 		goto revert_start;
 
@@ -291,78 +298,35 @@ int handle_global_update(struct sk_buff *skb, struct genl_info *info)
 revert_start:
 	request_handle_end(&jool);
 end:
-	return nlcore_respond(info, error);
+	return jresponse_send_simple(info, error);
 }
 
-///**
-// * This consumes one global update request tuple from @request, and applies it
-// * to @cfg.
-// *
-// * @request is assumed to be the payload of some request packet, which contains
-// * a sequence of [field, value] tuples. ("field" is struct global_value and
-// * "value" is the actual value, whose semantics are described by "field".)
-// * Again, only one of those tuples will be consumed by this function.
-// *
-// * Returns
-// * >= 0: Number of bytes consumed from the payload. (ie. the size of the tuple.)
-// * < 0: Error code.
-// */
-//int global_update(struct globals *cfg, xlator_type xt, bool force,
-//		struct global_value *request, size_t request_size)
-//{
-//	struct global_field *field;
-//	unsigned int field_count;
-//	int error;
-//
-//	if (request_size < sizeof(*request)) {
-//		log_err("The request is too small to contain a global_value header.");
-//		return -EINVAL;
-//	}
-//
-//	/* Get the current metadata for the field we want to edit. */
-//	get_global_fields(&field, &field_count);
-//
-//	if (request->type >= field_count) {
-//		log_err("Request type index %u is out of bounds.",
-//				request->type);
-//		return -EINVAL;
-//	}
-//
-//	field = &field[request->type];
-//
-//	if ((xt & XT_SIIT) && !(field->xt & XT_SIIT)) {
-//		log_err("Field %s is not available in SIIT.", field->name);
-//		return -EINVAL;
-//	}
-//	if ((xt & XT_NAT64) && !(field->xt & XT_NAT64)) {
-//		log_err("Field %s is not available in NAT64.", field->name);
-//		return -EINVAL;
-//	}
-//	if (field->type->size > (request_size - sizeof(*request))) {
-//		log_err("Invalid field size. Field %s (type %s) expects %zu bytes, %zu received.",
-//				field->name,
-//				field->type->name,
-//				field->type->size,
-//				request_size - sizeof(*request));
-//		return -EINVAL;
-//	}
-//
-//	error = 0;
-//	if (field->validate)
-//		error = field->validate(field, request + 1, force);
-//	else if (field->type->validate)
-//		error = field->type->validate(field, request + 1, force);
-//	if (error)
-//		return error;
-//
-//	/*
-//	 * Replace the one field that userspace is requesting in @cfg,
-//	 * in a very ugly but effective way.
-//	 */
-//	memcpy(((void *)cfg) + field->offset, request + 1, field->type->size);
-//	return sizeof(*request) + field->type->size;
-//}
-//
+int global_update(struct globals *cfg, xlator_type xt, struct nlattr *root)
+{
+	/* TODO the old code had force, but I don't see it anymore. */
+	struct nlattr *attrs[GA_COUNT];
+	int error;
+
+	error = nla_parse_nested(attrs, GA_MAX, root, globals_policy, NULL);
+	if (error) {
+		log_err("The 'Globals Container' attribute is malformed.");
+		return error;
+	}
+
+	error = get_common_values(attrs, cfg);
+	if (error)
+		return error;
+	switch (xlator_flags2xt(xt)) {
+	case XT_SIIT:
+		return get_siit_values(attrs, cfg);
+	case XT_NAT64:
+		return get_nat64_values(attrs, cfg);
+	}
+
+	log_err("Unknown translator type: %d", xt);
+	return -EINVAL;
+}
+
 //static int handle_global_update(struct xlator *jool, struct genl_info *info,
 //		struct request_hdr *hdr)
 //{

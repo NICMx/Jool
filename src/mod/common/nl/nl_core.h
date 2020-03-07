@@ -6,7 +6,7 @@
 struct jool_response {
 	struct genl_info *info;
 	struct sk_buff *skb;
-	struct request_hdr *hdr;
+	struct joolnl_hdr *hdr;
 };
 
 void nlcore_setup(struct genl_family *new_family,
@@ -18,6 +18,8 @@ int jresponse_send(struct jool_response *response);
 void jresponse_cleanup(struct jool_response *response);
 
 void jresponse_enable_m(struct jool_response *response);
-int nlcore_respond(struct genl_info *info, int error);
+int jresponse_send_array(struct jool_response *response, int error);
+
+int jresponse_send_simple(struct genl_info *info, int error);
 
 #endif /* SRC_MOD_COMMON_NL_CORE_H_ */

@@ -14,6 +14,7 @@ libjoolargp_la_SOURCES = \
 	wargp/bib.c wargp/bib.h \
 	wargp/blacklist4.c wargp/blacklist4.h \
 	wargp/eamt.c wargp/eamt.h \
+	wargp/file.c wargp/file.h \
 	wargp/global.c wargp/global.h \
 	wargp/instance.c wargp/instance.h \
 	wargp/pool4.c wargp/pool4.h \

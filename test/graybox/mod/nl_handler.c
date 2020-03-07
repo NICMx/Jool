@@ -48,7 +48,6 @@ static int handle_expect_add(struct genl_info *info)
 
 	attr = info->attrs[ATTR_EXCEPTIONS];
 	if (attr) {
-		pr_info("%p %p %d\n", pkt.exceptions.values, nla_data(attr), nla_len(attr));
 		memcpy(pkt.exceptions.values, nla_data(attr), nla_len(attr));
 		pkt.exceptions.count = nla_len(attr) / sizeof(*pkt.exceptions.values);
 	} else {

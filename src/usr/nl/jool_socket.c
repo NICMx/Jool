@@ -32,7 +32,7 @@ struct jool_result allocate_jool_nlmsg(struct jool_socket *socket,
 		struct nl_msg **out)
 {
 	struct nl_msg *msg;
-	struct request_hdr *hdr;
+	struct joolnl_hdr *hdr;
 	int error;
 
 	error = iname_validate(iname, true);
@@ -44,7 +44,7 @@ struct jool_result allocate_jool_nlmsg(struct jool_socket *socket,
 		return result_from_enomem();
 
 	hdr = genlmsg_put(msg, NL_AUTO_PORT, NL_AUTO_SEQ, socket->genl_family,
-			sizeof(struct request_hdr), 0, op, 1);
+			sizeof(struct joolnl_hdr), 0, op, 1);
 	if (!hdr) {
 		nlmsg_free(msg);
 		return result_from_error(
@@ -92,14 +92,14 @@ static int response_handler(struct nl_msg *response, void *_args)
 {
 	struct response_cb *args;
 	struct nlmsghdr *nhdr;
-	struct request_hdr *jhdr;
+	struct joolnl_hdr *jhdr;
 	int error;
 
 	/* Also: arg->result needs to be set on all paths. */
 
 	args = _args;
-	nhdr = nlmsg_hdr(response); /* TODO validate */
-	if (!genlmsg_valid_hdr(nhdr, sizeof(struct request_hdr))) {
+	nhdr = nlmsg_hdr(response);
+	if (!genlmsg_valid_hdr(nhdr, sizeof(struct joolnl_hdr))) {
 		args->result = result_from_error(
 			-NLE_MSG_TOOSHORT,
 			"The kernel module's response is too small."

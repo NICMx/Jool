@@ -77,7 +77,18 @@ void jresponse_enable_m(struct jool_response *response)
 	response->hdr->flags |= HDRFLAGS_M;
 }
 
-int nlcore_respond(struct genl_info *info, int error_code)
+int jresponse_send_array(struct jool_response *response, int error)
+{
+	if (error < 0)
+		return error;
+	/* TODO check at least one entry was written? */
+	if (error > 0)
+		jresponse_enable_m(response);
+
+	return jresponse_send(response);
+}
+
+int jresponse_send_simple(struct genl_info *info, int error_code)
 {
 	struct jool_response response;
 	int error;

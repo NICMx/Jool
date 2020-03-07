@@ -8,60 +8,9 @@
 #include "mod/common/db/pool4/db.h"
 #include "mod/common/db/bib/db.h"
 
-static int parse_bib_entry(struct nlattr *root, struct bib_entry *entry)
-{
-	struct nlattr *attrs[BA_COUNT];
-	int error;
-
-	error = nla_parse_nested(attrs, BA_MAX, root, bib_entry_policy, NULL);
-	if (error) {
-		log_err("The 'BIB entry' attribute is malformed.");
-		return error;
-	}
-
-	memset(entry, 0, sizeof(*entry));
-
-	if (attrs[BA_SRC6]) {
-		error = jnla_get_taddr6(attrs[BA_SRC6], "IPv6 transport address", &entry->addr6);
-		if (error)
-			return error;
-	}
-	if (attrs[BA_SRC4]) {
-		error = jnla_get_taddr4(attrs[BA_SRC4], "IPv4 transport address", &entry->addr4);
-		if (error)
-			return error;
-	}
-	if (attrs[BA_PROTO])
-		entry->l4_proto = nla_get_u8(attrs[BA_PROTO]);
-	if (attrs[BA_STATIC])
-		entry->is_static = nla_get_u8(attrs[BA_STATIC]);
-
-	return 0;
-}
-
 static int serialize_bib_entry(struct bib_entry const *entry, void *arg)
 {
-	struct sk_buff *skb = arg;
-	struct nlattr *root;
-	int error;
-
-	root = nla_nest_start(skb, RA_BIB_ENTRY);
-	if (!root)
-		return 1;
-
-	error = jnla_put_taddr6(skb, BA_SRC6, &entry->addr6)
-		|| jnla_put_taddr4(skb, BA_SRC4, &entry->addr4)
-		|| nla_put_u8(skb, BA_PROTO, entry->l4_proto)
-		|| nla_put_u8(skb, BA_STATIC, entry->is_static);
-	if (error)
-		goto cancel;
-
-	nla_nest_end(skb, root);
-	return 0;
-
-cancel:
-	nla_nest_cancel(skb, root);
-	return 1;
+	return jnla_put_bib(arg, LA_ENTRY, entry) ? 1 : 0;
 }
 
 int handle_bib_foreach(struct sk_buff *skb, struct genl_info *info)
@@ -80,8 +29,8 @@ int handle_bib_foreach(struct sk_buff *skb, struct genl_info *info)
 	if (error)
 		goto revert_start;
 
-	if (info->attrs[RA_BIB_ENTRY]) {
-		error = parse_bib_entry(info->attrs[RA_BIB_ENTRY], &offset);
+	if (info->attrs[RA_OFFSET]) {
+		error = jnla_get_bib(info->attrs[RA_OFFSET], "Iteration offset", &offset);
 		if (error)
 			goto revert_response;
 		offset_ptr = &offset;
@@ -97,22 +46,20 @@ int handle_bib_foreach(struct sk_buff *skb, struct genl_info *info)
 	/* TODO stop fooling around and receive the full BIB as offset. */
 	error = bib_foreach(jool.nat64.bib, offset.l4_proto, serialize_bib_entry,
 			response.skb, offset_ptr ? &offset_ptr->addr4 : NULL);
-	if (error < 0) {
-		jresponse_cleanup(&response);
-		goto revert_response;
-	}
 
-	if (error > 0)
-		jresponse_enable_m(&response);
+	error = jresponse_send_array(&response, error);
+	if (error)
+		goto revert_response;
+
 	request_handle_end(&jool);
-	return jresponse_send(&response);
+	return 0;
 
 revert_response:
 	jresponse_cleanup(&response);
 revert_start:
 	request_handle_end(&jool);
 end:
-	return nlcore_respond(info, error);
+	return jresponse_send_simple(info, error);
 }
 
 int handle_bib_add(struct sk_buff *skb, struct genl_info *info)
@@ -127,13 +74,7 @@ int handle_bib_add(struct sk_buff *skb, struct genl_info *info)
 	if (error)
 		goto end;
 
-	if (!info->attrs[RA_BIB_ENTRY]) {
-		log_err("The request lacks a BIB container attribute.");
-		error = -EINVAL;
-		goto revert_start;
-	}
-
-	error = parse_bib_entry(info->attrs[RA_BIB_ENTRY], &new);
+	error = jnla_get_bib(info->attrs[RA_OPERAND], "Operand", &new);
 	if (error)
 		goto revert_start;
 
@@ -148,7 +89,7 @@ int handle_bib_add(struct sk_buff *skb, struct genl_info *info)
 revert_start:
 	request_handle_end(&jool);
 end:
-	return nlcore_respond(info, error);
+	return jresponse_send_simple(info, error);
 }
 
 int handle_bib_rm(struct sk_buff *skb, struct genl_info *info)
@@ -164,13 +105,13 @@ int handle_bib_rm(struct sk_buff *skb, struct genl_info *info)
 	if (error)
 		goto end;
 
-	if (!info->attrs[RA_BIB_ENTRY]) {
-		log_err("The request lacks a BIB container attribute.");
+	if (!info->attrs[RA_OPERAND]) {
+		log_err("The request lacks an operand attribute.");
 		error = -EINVAL;
 		goto revert_start;
 	}
 
-	error = nla_parse_nested(attrs, BA_MAX, info->attrs[RA_BIB_ENTRY], bib_entry_policy, NULL);
+	error = nla_parse_nested(attrs, BA_MAX, info->attrs[RA_OPERAND], bib_entry_policy, NULL);
 	if (error) {
 		log_err("The 'BIB entry' attribute is malformed.");
 		goto revert_start;
@@ -214,7 +155,7 @@ int handle_bib_rm(struct sk_buff *skb, struct genl_info *info)
 revert_start:
 	request_handle_end(&jool);
 end:
-	return nlcore_respond(info, error);
+	return jresponse_send_simple(info, error);
 
 esrch:
 	log_err("The entry wasn't in the database.");

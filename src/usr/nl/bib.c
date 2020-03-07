@@ -11,45 +11,14 @@ struct foreach_args {
 	struct bib_entry last;
 };
 
-static struct jool_result fields2attr(struct ipv6_transport_addr *addr6,
-		struct ipv4_transport_addr *addr4,
-		l4_protocol proto,
-		bool is_static,
-		struct nl_msg *msg)
-{
-	struct nlattr *root;
-
-	root = nla_nest_start(msg, RA_BIB_ENTRY);
-	if (!root)
-		goto nla_put_failure;
-
-	if (addr6 && nla_put_taddr6(msg, BA_SRC6, addr6))
-		goto nla_put_failure;
-	if (addr4 && nla_put_taddr4(msg, BA_SRC4, addr4))
-		goto nla_put_failure;
-	NLA_PUT_U8(msg, BA_PROTO, proto);
-	NLA_PUT_U8(msg, BA_STATIC, is_static);
-
-	nla_nest_end(msg, root);
-	return result_success();
-
-nla_put_failure:
-	return packet_too_small();
-}
-
-static struct jool_result entry2attr(struct bib_entry *entry,
-		struct nl_msg *msg)
-{
-	return fields2attr(&entry->addr6, &entry->addr4, entry->l4_proto,
-			entry->is_static, msg);
-}
-
 static struct jool_result attr2entry(struct nlattr *attr,
 		struct bib_entry *entry)
 {
 	struct nlattr *attrs[BA_COUNT];
 	struct jool_result result;
 
+	if (nla_type(attr) != LA_ENTRY)
+		return result_success(); /* dunno; skip I guess */
 	result = jnla_parse_nested(attrs, BA_MAX, attr, bib_entry_policy);
 	if (result.error)
 		return result;
@@ -70,7 +39,7 @@ static struct jool_result handle_foreach_response(struct nl_msg *response,
 {
 	struct foreach_args *args;
 	struct genlmsghdr *ghdr;
-	struct request_hdr *jhdr;
+	struct joolnl_hdr *jhdr;
 	struct nlattr *attr;
 	int rem;
 	struct bib_entry entry;
@@ -116,13 +85,17 @@ struct jool_result bib_foreach(struct jool_socket *sk, char *iname,
 			return result;
 
 		if (first_request) {
-			if (nla_put_u8(msg, RA_PROTO, proto))
+			if (nla_put_u8(msg, RA_PROTO, proto)) {
+				nlmsg_free(msg);
 				return packet_too_small();
+			}
 			first_request = false;
 		} else {
-			result = entry2attr(&args.last, msg);
-			if (result.error)
+			result = nla_put_bib(msg, RA_OFFSET, &args.last);
+			if (result.error) {
+				nlmsg_free(msg);
 				return result;
+			}
 		}
 
 		result = netlink_request(sk, msg, handle_foreach_response, &args);
@@ -145,7 +118,7 @@ static struct jool_result __update(struct jool_socket *sk, char *iname,
 	if (result.error)
 		return result;
 
-	result = fields2attr(a6, a4, proto, true, msg);
+	result = nla_put_bib_attrs(msg, RA_OPERAND, a6, a4, proto, true);
 	if (result.error) {
 		nlmsg_free(msg);
 		return result;

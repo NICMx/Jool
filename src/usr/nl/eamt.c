@@ -11,33 +11,14 @@ struct foreach_args {
 	struct eamt_entry last;
 };
 
-static struct jool_result entry2attr(struct eamt_entry *entry,
-		struct nl_msg *msg)
-{
-	struct nlattr *root;
-
-	root = nla_nest_start(msg, RA_EAMT_ENTRY);
-	if (!root)
-		goto nla_put_failure;
-
-	if (nla_put_prefix6(msg, EA_PREFIX6, &entry->prefix6))
-		goto nla_put_failure;
-	if (nla_put_prefix4(msg, EA_PREFIX4, &entry->prefix4))
-		goto nla_put_failure;
-
-	nla_nest_end(msg, root);
-	return result_success();
-
-nla_put_failure:
-	return packet_too_small();
-}
-
 static struct jool_result attr2entry(struct nlattr *attr,
 		struct eamt_entry *entry)
 {
 	struct nlattr *eam_attrs[EA_COUNT];
 	struct jool_result result;
 
+	if (nla_type(attr) != LA_ENTRY)
+		return result_success(); /* dunno; skip I guess */
 	result = jnla_parse_nested(eam_attrs, EA_MAX, attr, eam_policy);
 	if (result.error)
 		return result;
@@ -54,7 +35,7 @@ static struct jool_result handle_foreach_response(struct nl_msg *response,
 {
 	struct foreach_args *args;
 	struct genlmsghdr *ghdr;
-	struct request_hdr *jhdr;
+	struct joolnl_hdr *jhdr;
 	struct nlattr *attr;
 	int rem;
 	struct eamt_entry entry;
@@ -102,9 +83,11 @@ struct jool_result eamt_foreach(struct jool_socket *sk, char *iname,
 		if (first_request) {
 			first_request = false;
 		} else {
-			result = entry2attr(&args.last, msg);
-			if (result.error)
+			result = nla_put_eam(msg, RA_OFFSET, &args.last);
+			if (result.error) {
+				nlmsg_free(msg);
 				return result;
+			}
 		}
 
 		result = netlink_request(sk, msg, handle_foreach_response, &args);
@@ -128,7 +111,7 @@ static struct jool_result __update(struct jool_socket *sk, char *iname,
 	if (result.error)
 		return result;
 
-	root = nla_nest_start(msg, RA_EAMT_ENTRY);
+	root = nla_nest_start(msg, RA_OPERAND);
 	if (!root)
 		goto nla_put_failure;
 

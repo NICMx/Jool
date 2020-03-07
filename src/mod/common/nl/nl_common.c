@@ -7,12 +7,12 @@
 
 char *get_iname(struct genl_info *info)
 {
-	struct request_hdr *hdr;
+	struct joolnl_hdr *hdr;
 	hdr = get_jool_hdr(info);
 	return (hdr->iname[0] != 0) ? hdr->iname : INAME_DEFAULT;
 }
 
-struct request_hdr *get_jool_hdr(struct genl_info *info)
+struct joolnl_hdr *get_jool_hdr(struct genl_info *info)
 {
 	return info->userhdr;
 }
@@ -29,7 +29,7 @@ static char const *xt2str(xlator_type xt)
 	return "unknown";
 }
 
-static int validate_stateness(struct request_hdr *hdr)
+static int validate_stateness(struct joolnl_hdr *hdr)
 {
 	switch (hdr->xt) {
 	case XT_SIIT:
@@ -48,7 +48,7 @@ static int validate_stateness(struct request_hdr *hdr)
 	return -EINVAL;
 }
 
-static int validate_version(struct request_hdr *hdr)
+static int validate_version(struct joolnl_hdr *hdr)
 {
 	__u32 hdr_version = ntohl(hdr->version);
 
@@ -70,7 +70,7 @@ static int validate_version(struct request_hdr *hdr)
 
 int request_handle_start(struct genl_info *info, xlator_type xt, struct xlator *jool)
 {
-	struct request_hdr *hdr;
+	struct joolnl_hdr *hdr;
 	int error;
 
 	if (!capable(CAP_NET_ADMIN)) {

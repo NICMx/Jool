@@ -7,7 +7,7 @@
 
 int handle_joold_request(struct xlator *jool, struct genl_info *info)
 {
-	struct request_hdr *hdr;
+	struct joolnl_hdr *hdr;
 	size_t total_len;
 	int error;
 
@@ -15,7 +15,7 @@ int handle_joold_request(struct xlator *jool, struct genl_info *info)
 
 	if (xlator_is_siit(jool)) {
 		log_err("SIIT Jool doesn't need a synchronization daemon.");
-		return nlcore_respond(info, -EINVAL);
+		return jresponse_send_simple(info, -EINVAL);
 	}
 
 	hdr = get_jool_hdr(info);
@@ -46,5 +46,5 @@ int handle_joold_request(struct xlator *jool, struct genl_info *info)
 		error = -EINVAL;
 	}
 
-	return nlcore_respond(info, error);
+	return jresponse_send_simple(info, error);
 }

@@ -2,6 +2,7 @@
 
 #include "mod/common/log.h"
 #include "mod/common/stats.h"
+#include "mod/common/nl/attribute.h"
 #include "mod/common/nl/nl_common.h"
 #include "mod/common/nl/nl_core.h"
 
@@ -41,11 +42,12 @@ int handle_stats_foreach(struct sk_buff *skb, struct genl_info *info)
 	return jresponse_send(&response);
 
 revert_response:
+	report_put_failure();
 	jresponse_cleanup(&response);
 revert_query:
 	kfree(stats);
 revert_start:
 	request_handle_end(&jool);
 end:
-	return nlcore_respond(info, error);
+	return jresponse_send_simple(info, error);
 }

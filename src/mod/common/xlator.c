@@ -876,7 +876,7 @@ void xlator_put(struct xlator *jool)
 static bool offset_equals(struct instance_entry_usr *offset,
 		struct jool_instance *instance)
 {
-	return (offset->ns == (__u64)instance->jool.ns)
+	return (offset->ns == ((__u64)instance->jool.ns & 0xFFFFFFFF))
 			&& (strcmp(offset->iname, instance->jool.iname) == 0);
 }
 

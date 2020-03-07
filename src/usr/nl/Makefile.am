@@ -10,6 +10,7 @@ libjoolnl_la_SOURCES = \
 	global-impl.c \
 	instance.c instance.h \
 	jool_socket.c jool_socket.h \
+	json.c json.h \
 	pool4.c pool4.h \
 	session.c session.h \
 	stats.c stats.h \
