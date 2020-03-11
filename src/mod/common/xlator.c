@@ -143,7 +143,7 @@ static void xlator_get(struct xlator *jool)
 	case XT_NAT64:
 		pool4db_get(jool->nat64.pool4);
 		bib_get(jool->nat64.bib);
-		/* joold_get(jool->nat64.joold); */
+		joold_get(jool->nat64.joold);
 		break;
 	}
 }
@@ -320,20 +320,16 @@ static int init_nat64(struct xlator *jool, struct ipv6_prefix *pool6)
 	jool->nat64.bib = bib_alloc();
 	if (!jool->nat64.bib)
 		goto bib_fail;
-	/*
 	jool->nat64.joold = joold_alloc(jool->ns);
 	if (!jool->nat64.joold)
 		goto joold_fail;
-		*/
 
 	jool->is_hairpin = is_hairpin_nat64;
 	jool->handling_hairpinning = handling_hairpinning_nat64;
 	return 0;
 
-/*
 joold_fail:
 	bib_put(jool->nat64.bib);
-*/
 bib_fail:
 	pool4db_put(jool->nat64.pool4);
 pool4_fail:
@@ -682,9 +678,9 @@ int xlator_replace(struct xlator *jool)
 	 */
 	if (xlator_is_nat64(&new->jool)) {
 		bib_put(new->jool.nat64.bib);
-		/* joold_put(new->jool.nat64.joold); */
+		joold_put(new->jool.nat64.joold);
 		new->jool.nat64.bib = old->jool.nat64.bib;
-		/* new->jool.nat64.joold = old->jool.nat64.joold; */
+		new->jool.nat64.joold = old->jool.nat64.joold;
 	}
 
 	hash_del(&old->table_hook);
@@ -704,7 +700,7 @@ int xlator_replace(struct xlator *jool)
 #endif
 	if (xlator_is_nat64(&old->jool)) {
 		old->jool.nat64.bib = NULL;
-		/* old->jool.nat64.joold = NULL; */
+		old->jool.nat64.joold = NULL;
 	}
 
 	destroy_jool_instance(old, false);
@@ -863,10 +859,8 @@ void xlator_put(struct xlator *jool)
 		pool4db_put(jool->nat64.pool4);
 		if (jool->nat64.bib)
 			bib_put(jool->nat64.bib);
-		/*
 		if (jool->nat64.joold)
 			joold_put(jool->nat64.joold);
-		*/
 		return;
 	}
 

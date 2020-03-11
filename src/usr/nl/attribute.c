@@ -24,14 +24,17 @@ static struct jool_result validate_mandatory_attrs(struct nlattr *attrs[],
 	return result_success();
 }
 
-/* Wrapper for genlmsg_parse(). */
+/*
+ * Wrapper for genlmsg_parse().
+ * TODO check genlmsg_parse is not used.
+ */
 struct jool_result jnla_parse_msg(struct nl_msg *msg, struct nlattr *tb[],
 		int maxtype, struct nla_policy *policy,
 		bool validate_mandatories)
 {
 	int error;
 
-	error = genlmsg_parse(nlmsg_hdr(msg), sizeof(struct joolnl_hdr), tb,
+	error = genlmsg_parse(nlmsg_hdr(msg), sizeof(struct joolnlhdr), tb,
 			maxtype, policy);
 	if (!error) {
 		return validate_mandatories

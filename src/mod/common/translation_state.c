@@ -30,14 +30,9 @@ struct xlation *xlation_create(struct xlator *jool)
 
 void xlation_init(struct xlation *state, struct xlator *jool)
 {
+	memset(state, 0, sizeof(*state));
 	if (jool)
 		memcpy(&state->jool, jool, sizeof(*jool));
-	memset(&state->in.debug, 0, sizeof(state->in.debug));
-	memset(&state->out.debug, 0, sizeof(state->out.debug));
-	state->entries.bib_set = false;
-	state->entries.session_set = false;
-	state->result.icmp = ICMPERR_NONE;
-	state->result.info = 0;
 }
 
 void xlation_destroy(struct xlation *state)

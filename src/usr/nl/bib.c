@@ -39,13 +39,14 @@ static struct jool_result handle_foreach_response(struct nl_msg *response,
 {
 	struct foreach_args *args;
 	struct genlmsghdr *ghdr;
-	struct joolnl_hdr *jhdr;
+	struct joolnlhdr *jhdr;
 	struct nlattr *attr;
 	int rem;
 	struct bib_entry entry;
 	struct jool_result result;
 
 	args = arg;
+	/* TODO validate via genlmsg_valid_hdr()? */
 	ghdr = genlmsg_hdr(nlmsg_hdr(response));
 
 	foreach_entry(attr, ghdr, rem) {

@@ -6,7 +6,7 @@
 #include "mod/common/xlator.h"
 
 char *get_iname(struct genl_info *info);
-struct joolnl_hdr *get_jool_hdr(struct genl_info *info);
+struct joolnlhdr *get_jool_hdr(struct genl_info *info);
 
 int request_handle_start(struct genl_info *info, xlator_type xt, struct xlator *jool);
 void request_handle_end(struct xlator *jool);

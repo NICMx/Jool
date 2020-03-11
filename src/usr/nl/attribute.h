@@ -8,8 +8,8 @@
 #define foreach_entry(pos, ghdr, rem) \
 	nla_for_each_attr( \
 		pos, \
-		genlmsg_attrdata(ghdr, sizeof(struct joolnl_hdr)), \
-		genlmsg_attrlen(ghdr, sizeof(struct joolnl_hdr)), \
+		genlmsg_attrdata(ghdr, sizeof(struct joolnlhdr)), \
+		genlmsg_attrlen(ghdr, sizeof(struct joolnlhdr)), \
 		rem \
 	)
 

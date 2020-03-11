@@ -32,7 +32,7 @@ struct jool_result allocate_jool_nlmsg(struct jool_socket *socket,
 		struct nl_msg **out)
 {
 	struct nl_msg *msg;
-	struct joolnl_hdr *hdr;
+	struct joolnlhdr *hdr;
 	int error;
 
 	error = iname_validate(iname, true);
@@ -44,7 +44,7 @@ struct jool_result allocate_jool_nlmsg(struct jool_socket *socket,
 		return result_from_enomem();
 
 	hdr = genlmsg_put(msg, NL_AUTO_PORT, NL_AUTO_SEQ, socket->genl_family,
-			sizeof(struct joolnl_hdr), 0, op, 1);
+			sizeof(struct joolnlhdr), 0, op, 1);
 	if (!hdr) {
 		nlmsg_free(msg);
 		return result_from_error(
@@ -58,7 +58,8 @@ struct jool_result allocate_jool_nlmsg(struct jool_socket *socket,
 	return result_success();
 }
 
-static struct jool_result print_error_msg(struct nl_msg *response)
+/* Returns the error contained in @response in result form. */
+struct jool_result joolnl_msg2result(struct nl_msg *response)
 {
 	static struct nla_policy error_policy[ERRA_COUNT] = {
 		[ERRA_CODE] = { .type = NLA_U16 },
@@ -92,14 +93,14 @@ static int response_handler(struct nl_msg *response, void *_args)
 {
 	struct response_cb *args;
 	struct nlmsghdr *nhdr;
-	struct joolnl_hdr *jhdr;
+	struct joolnlhdr *jhdr;
 	int error;
 
 	/* Also: arg->result needs to be set on all paths. */
 
 	args = _args;
 	nhdr = nlmsg_hdr(response);
-	if (!genlmsg_valid_hdr(nhdr, sizeof(struct joolnl_hdr))) {
+	if (!genlmsg_valid_hdr(nhdr, sizeof(struct joolnlhdr))) {
 		args->result = result_from_error(
 			-NLE_MSG_TOOSHORT,
 			"The kernel module's response is too small."
@@ -109,7 +110,7 @@ static int response_handler(struct nl_msg *response, void *_args)
 
 	jhdr = genlmsg_user_hdr(genlmsg_hdr(nhdr));
 	if (jhdr->flags & HDRFLAGS_ERROR) {
-		args->result = print_error_msg(response);
+		args->result = joolnl_msg2result(response);
 		goto end;
 	}
 

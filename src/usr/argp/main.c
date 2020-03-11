@@ -24,6 +24,7 @@
 #include "wargp/file.h"
 #include "wargp/global.h"
 #include "wargp/instance.h"
+#include "wargp/joold.h"
 #include "wargp/pool4.h"
 #include "wargp/session.h"
 #include "wargp/stats.h"
@@ -215,6 +216,16 @@ static struct cmd_option file_ops[] = {
 		{ 0 },
 };
 
+static struct cmd_option joold_ops[] = {
+		{
+			.label = "advertise",
+			.xt = XT_NAT64,
+			.handler = handle_joold_advertise,
+			.handle_autocomplete = autocomplete_joold_advertise,
+		},
+		{ 0 },
+};
+
 struct cmd_option tree[] = {
 		{
 			.label = "instance",
@@ -256,6 +267,10 @@ struct cmd_option tree[] = {
 			.label = "file",
 			.xt = XT_ANY,
 			.children = file_ops,
+		}, {
+			.label = "joold",
+			.xt = XT_NAT64,
+			.children = joold_ops,
 		}, {
 			/* See files jool.bash and jool_siit.bash. */
 			.label = "autocomplete",

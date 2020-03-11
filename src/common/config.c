@@ -64,6 +64,7 @@ struct nla_policy session_entry_policy[SEA_COUNT] = {
 	[SEA_DST4] = { .type = NLA_NESTED },
 	[SEA_PROTO] = { .type = NLA_U8 },
 	[SEA_STATE] = { .type = NLA_U8 },
+	[SEA_TIMER] = { .type = NLA_U8 },
 	[SEA_EXPIRATION] = { .type = NLA_U32 },
 };
 
@@ -113,7 +114,7 @@ struct nla_policy nat64_globals_policy[GA_COUNT] = {
 };
 
 /* Note: assumes strlen(iname) < INAME_MAX_SIZE */
-void init_request_hdr(struct joolnl_hdr *hdr, xlator_type xt, char const *iname,
+void init_request_hdr(struct joolnlhdr *hdr, xlator_type xt, char const *iname,
 		__u8 flags)
 {
 	hdr->version = htonl(xlat_version());

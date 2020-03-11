@@ -291,7 +291,7 @@ static int commit(struct config_candidate *candidate)
 int atomconfig_add(struct sk_buff *skb, struct genl_info *info)
 {
 	struct config_candidate *candidate = NULL;
-	struct joolnl_hdr *jhdr;
+	struct joolnlhdr *jhdr;
 	int error;
 
 	jhdr = get_jool_hdr(info);

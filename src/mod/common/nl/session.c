@@ -37,23 +37,7 @@ static int parse_offset(struct nlattr *root, struct session_foreach_offset *entr
 
 static int serialize_session_entry(struct session_entry const *entry, void *arg)
 {
-	struct session_entry_usr entry_usr;
-	unsigned long dying_time;
-
-	entry_usr.src6 = entry->src6;
-	entry_usr.dst6 = entry->dst6;
-	entry_usr.src4 = entry->src4;
-	entry_usr.dst4 = entry->dst4;
-	entry_usr.proto = entry->proto;
-	entry_usr.state = entry->state;
-
-	dying_time = entry->update_time + entry->timeout;
-	dying_time = (dying_time > jiffies)
-			? jiffies_to_msecs(dying_time - jiffies)
-			: 0;
-	entry_usr.dying_time = (dying_time > U32_MAX) ? U32_MAX : dying_time;
-
-	return jnla_put_session(arg, LA_ENTRY, &entry_usr) ? 1 : 0;
+	return jnla_put_session(arg, LA_ENTRY, entry) ? 1 : 0;
 }
 
 int handle_session_foreach(struct sk_buff *skb, struct genl_info *info)

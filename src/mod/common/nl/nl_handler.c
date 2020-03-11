@@ -166,6 +166,22 @@ static const struct genl_ops ops[] = {
 		.cmd = JOP_FILE_HANDLE,
 		.doit = handle_atomconfig_request,
 		JOOL_POLICY
+	}, {
+		.cmd = JOP_JOOLD_ADD,
+		.doit = handle_joold_add,
+		JOOL_POLICY
+	}, {
+		.cmd = JOP_JOOLD_TEST,
+		.doit = handle_joold_test,
+		JOOL_POLICY
+	}, {
+		.cmd = JOP_JOOLD_ADVERTISE,
+		.doit = handle_joold_advertise,
+		JOOL_POLICY
+	}, {
+		.cmd = JOP_JOOLD_ACK,
+		.doit = handle_joold_ack,
+		JOOL_POLICY
 	}
 };
 
@@ -183,7 +199,7 @@ static struct genl_family jool_family = {
 	/* This variable became "private" on kernel 4.10. */
 	.id = GENL_ID_GENERATE,
 #endif
-	.hdrsize = sizeof(struct joolnl_hdr),
+	.hdrsize = sizeof(struct joolnlhdr),
 	/* This is initialized below. See register_family(). */
 	/* .name = GNL_JOOL_FAMILY_NAME, */
 	.version = 2,

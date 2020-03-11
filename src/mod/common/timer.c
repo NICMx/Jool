@@ -25,7 +25,7 @@ static struct timer_list timer;
 static int clean_state(struct xlator *jool, void *args)
 {
 	bib_clean(jool);
-	/* joold_clean(jool); */
+	joold_clean(jool);
 	return 0;
 }
 

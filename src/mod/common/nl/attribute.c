@@ -1,5 +1,6 @@
 #include "mod/common/nl/attribute.h"
 
+#include "common/constants.h"
 #include "mod/common/log.h"
 
 static int validate_attr(struct nlattr *attr, char const *name,
@@ -264,6 +265,101 @@ int jnla_get_bib(struct nlattr *attr, char const *name, struct bib_entry *entry)
 	return 0;
 }
 
+static int get_timeout(struct bib_config *config, struct session_entry *entry)
+{
+	unsigned long timeout;
+
+	switch (entry->proto) {
+	case L4PROTO_TCP:
+		switch (entry->timer_type) {
+		case SESSION_TIMER_EST:
+			timeout = config->ttl.tcp_est;
+			break;
+		case SESSION_TIMER_TRANS:
+			timeout = config->ttl.tcp_trans;
+			break;
+		case SESSION_TIMER_SYN4:
+			timeout = TCP_INCOMING_SYN;
+			break;
+		default:
+			log_err("Unknown session timer: %u", entry->timer_type);
+			return -EINVAL;
+		}
+		break;
+	case L4PROTO_UDP:
+		timeout = config->ttl.udp;
+		break;
+	case L4PROTO_ICMP:
+		timeout = config->ttl.icmp;
+		break;
+	default:
+		log_err("Unknown protocol: %u", entry->proto);
+		return -EINVAL;
+	}
+
+	entry->timeout = msecs_to_jiffies(timeout);
+	return 0;
+}
+
+int jnla_get_session(struct nlattr *attr, char const *name, struct bib_config *config, struct session_entry *entry)
+{
+	struct nlattr *attrs[SEA_COUNT];
+	unsigned long expiration;
+	int error;
+
+	error = validate_attr(attr, name, 0);
+	if (error)
+		return error;
+
+	error = NLA_PARSE_NESTED(attrs, SEA_MAX, attr, session_entry_policy);
+	if (error) {
+		log_err("The '%s' attribute is malformed.", name);
+		return error;
+	}
+
+	memset(entry, 0, sizeof(*entry));
+
+	if (attrs[SEA_SRC6]) {
+		error = jnla_get_taddr6(attrs[SEA_SRC6], "IPv6 source address", &entry->src6);
+		if (error)
+			return error;
+	}
+	if (attrs[SEA_DST6]) {
+		error = jnla_get_taddr6(attrs[SEA_DST6], "IPv6 destination address", &entry->dst6);
+		if (error)
+			return error;
+	}
+	if (attrs[SEA_SRC4]) {
+		error = jnla_get_taddr4(attrs[SEA_SRC4], "IPv4 source address", &entry->src4);
+		if (error)
+			return error;
+	}
+	if (attrs[SEA_DST4]) {
+		error = jnla_get_taddr4(attrs[SEA_DST4], "IPv4 destination address", &entry->dst4);
+		if (error)
+			return error;
+	}
+
+	if (attrs[SEA_PROTO])
+		entry->proto = nla_get_u8(attrs[SEA_PROTO]);
+	if (attrs[SEA_STATE])
+		entry->state = nla_get_u8(attrs[SEA_STATE]);
+	if (attrs[SEA_TIMER])
+		entry->timer_type = nla_get_u8(attrs[SEA_TIMER]);
+
+	error = get_timeout(config, entry);
+	if (error)
+		return error;
+
+	if (attrs[SEA_EXPIRATION]) {
+		expiration = msecs_to_jiffies(nla_get_u32(attrs[SEA_EXPIRATION]));
+		entry->update_time = jiffies + expiration - entry->timeout;
+	}
+	entry->has_stored = false;
+
+	return 0;
+}
+
 int jnla_get_plateaus(struct nlattr *root, struct mtu_plateaus *out)
 {
 	struct nlattr *attr;
@@ -465,14 +561,22 @@ int jnla_put_bib(struct sk_buff *skb, int attrtype, struct bib_entry const *bib)
 	return 0;
 }
 
-int jnla_put_session(struct sk_buff *skb, int attrtype, struct session_entry_usr const *entry)
+int jnla_put_session(struct sk_buff *skb, int attrtype, struct session_entry const *entry)
 {
 	struct nlattr *root;
+	unsigned long dying_time;
 	int error;
 
 	root = nla_nest_start(skb, attrtype);
 	if (!root)
 		return -ENOSPC;
+
+	dying_time = entry->update_time + entry->timeout;
+	dying_time = (dying_time > jiffies)
+			? jiffies_to_msecs(dying_time - jiffies)
+			: 0;
+	if (dying_time > U32_MAX)
+		dying_time = U32_MAX;
 
 	error = jnla_put_taddr6(skb, SEA_SRC6, &entry->src6)
 		|| jnla_put_taddr6(skb, SEA_DST6, &entry->dst6)
@@ -480,7 +584,8 @@ int jnla_put_session(struct sk_buff *skb, int attrtype, struct session_entry_usr
 		|| jnla_put_taddr4(skb, SEA_DST4, &entry->dst4)
 		|| nla_put_u8(skb, SEA_PROTO, entry->proto)
 		|| nla_put_u8(skb, SEA_STATE, entry->state)
-		|| nla_put_u32(skb, SEA_EXPIRATION, entry->dying_time);
+		|| nla_put_u8(skb, SEA_TIMER, entry->timer_type)
+		|| nla_put_u32(skb, SEA_EXPIRATION, dying_time);
 	if (error)
 		goto cancel;
 

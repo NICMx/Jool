@@ -226,6 +226,8 @@ struct bib_entry {
  * need to travel to userspace. For anything else, use "struct session_entry".
  *
  * See "struct session_entry" for documentation on the fields.
+ *
+ * TODO this is userspace-only now.
  */
 struct session_entry_usr {
 	struct ipv6_transport_addr src6;

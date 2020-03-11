@@ -46,7 +46,7 @@ static struct jool_result handle_foreach_response(struct nl_msg *response,
 {
 	struct foreach_args *args;
 	struct genlmsghdr *ghdr;
-	struct joolnl_hdr *jhdr;
+	struct joolnlhdr *jhdr;
 	struct nlattr *attr;
 	int rem;
 	struct session_entry_usr entry;

@@ -79,7 +79,7 @@ static void teardown_common_modules(void)
 	/* NAT64 */
 	jtimer_teardown();
 	rfc6056_teardown();
-	/* joold_teardown(); */
+	joold_teardown();
 	bib_teardown();
 }
 

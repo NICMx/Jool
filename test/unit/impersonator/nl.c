@@ -1,6 +1,8 @@
 #include "mod/common/nl/nl_core.h"
 
-int nlbuffer_init_request(struct nlcore_buffer *buffer, struct joolnl_hdr *hdr,
+/* TODO delete this */
+
+int nlbuffer_init_request(struct nlcore_buffer *buffer, struct joolnlhdr *hdr,
 		size_t capacity)
 {
 	return 0;

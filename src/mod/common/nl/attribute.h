@@ -4,6 +4,7 @@
 #include <linux/netlink.h>
 #include "common/config.h"
 #include "mod/common/linux_version.h"
+#include "mod/common/db/bib/entry.h"
 
 #if LINUX_VERSION_AT_LEAST(4, 12, 0, 8, 0)
 #define NLA_PARSE_NESTED(tb, maxtype, nla, policy) \
@@ -24,6 +25,7 @@ int jnla_get_taddr4(struct nlattr *attr, char const *name, struct ipv4_transport
 int jnla_get_eam(struct nlattr *attr, char const *name, struct eamt_entry *eam);
 int jnla_get_pool4(struct nlattr *attr, char const *name, struct pool4_entry *entry);
 int jnla_get_bib(struct nlattr *attr, char const *name, struct bib_entry *entry);
+int jnla_get_session(struct nlattr *attr, char const *name, struct bib_config *config, struct session_entry *entry);
 int jnla_get_plateaus(struct nlattr *attr, struct mtu_plateaus *out);
 
 /* Note: None of these print error messages. */
@@ -36,7 +38,7 @@ int jnla_put_taddr4(struct sk_buff *skb, int attrtype, struct ipv4_transport_add
 int jnla_put_eam(struct sk_buff *skb, int attrtype, struct eamt_entry const *eam);
 int jnla_put_pool4(struct sk_buff *skb, int attrtype, struct pool4_entry const *bib);
 int jnla_put_bib(struct sk_buff *skb, int attrtype, struct bib_entry const *bib);
-int jnla_put_session(struct sk_buff *skb, int attrtype, struct session_entry_usr const *entry);
+int jnla_put_session(struct sk_buff *skb, int attrtype, struct session_entry const *entry);
 int jnla_put_plateaus(struct sk_buff *skb, int attrtype, struct mtu_plateaus const *plateaus);
 
 void report_put_failure(void);

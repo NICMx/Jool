@@ -130,6 +130,11 @@ enum jool_operation {
 	JOP_SESSION_FOREACH,
 
 	JOP_FILE_HANDLE,
+
+	JOP_JOOLD_ADD,
+	JOP_JOOLD_TEST, /* TODO remove */
+	JOP_JOOLD_ADVERTISE,
+	JOP_JOOLD_ACK, /* TODO remove */
 };
 
 enum genl_mc_group_ids {
@@ -263,6 +268,7 @@ enum session_attribute {
 	SEA_DST4,
 	SEA_PROTO,
 	SEA_STATE,
+	SEA_TIMER,
 	SEA_EXPIRATION,
 	SEA_COUNT,
 #define SEA_MAX (SEA_COUNT - 1)
@@ -348,19 +354,17 @@ enum error_attribute {
  * IP fragmentation.
  */
 #define HDRFLAGS_M (1 << 3)
-/**
- * Only userspace joold needs this, so most of the time it does nothing.
- * TODO (fine) find a way to remove this?
- */
-#define HDRFLAGS_MULTICAST (1 << 4)
 
 /**
  * Prefix to all user-to-kernel messages.
  * Indicates what the rest of the message contains.
  *
  * Mind alignment on this structure.
+ *
+ * (Name follows kernel conventions: iphdr, ipv6hdr, tcphdr, udphdr, icmphdr,
+ * nlmsghdr, genlmsghdr)
  */
-struct joolnl_hdr {
+struct joolnlhdr {
 	/** Jool's version. */
 	__be32 version;
 
@@ -375,7 +379,7 @@ struct joolnl_hdr {
 	char iname[INAME_MAX_SIZE];
 };
 
-void init_request_hdr(struct joolnl_hdr *hdr, xlator_type xt, char const *iname,
+void init_request_hdr(struct joolnlhdr *hdr, xlator_type xt, char const *iname,
 		__u8 flags);
 
 struct config_prefix6 {

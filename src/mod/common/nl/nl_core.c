@@ -30,6 +30,11 @@ void nlcore_setup(struct genl_family *new_family,
 	group = new_group;
 }
 
+struct genl_family *nlcore_get_family(void)
+{
+	return family;
+}
+
 int jresponse_init(struct jool_response *response, struct genl_info *info)
 {
 	response->info = info;
@@ -137,51 +142,3 @@ revert_msg:
 	return error;
 }
 
-//int nlcore_send_multicast_message(struct net *ns, struct nlcore_buffer *buffer)
-//{
-//	int error;
-//	struct sk_buff *skb;
-//	void *msg_head;
-//
-//	skb = genlmsg_new(nla_total_size(buffer->len), GFP_ATOMIC);
-//	if (!skb)
-//		return -ENOMEM;
-//
-//	msg_head = genlmsg_put(skb, 0, 0, family, 0, 0);
-//	if (!msg_head) {
-//		pr_err("genlmsg_put() returned NULL.\n");
-//		return -ENOMEM;
-//	}
-//
-//	error = nla_put(skb, ATTR_DATA, buffer->len, buffer->data);
-//	if (error) {
-//		pr_err("nla_put() failed. (errcode %d)\n", error);
-//		kfree_skb(skb);
-//		return error;
-//	}
-//
-//	genlmsg_end(skb, msg_head);
-//
-//#if LINUX_VERSION_LOWER_THAN(3, 13, 0, 7, 1)
-//	error = genlmsg_multicast_netns(ns, skb, 0, group->id, GFP_ATOMIC);
-//#else
-//	/*
-//	 * Note: Starting from kernel 3.13, all groups of a common family share
-//	 * a group offset (from a common pool), and they are numbered
-//	 * monotonically from there. That means if all we have is one group,
-//	 * its id will always be zero.
-//	 *
-//	 * That's the reason why so many callers of this function stopped
-//	 * providing a group when the API started forcing them to provide a
-//	 * family.
-//	 */
-//	error = genlmsg_multicast_netns(family, ns, skb, 0, 0, GFP_ATOMIC);
-//#endif
-//	if (error) {
-//		log_warn_once("Looks like nobody received my multicast message. Is the joold daemon really active? (errcode %d)",
-//				error);
-//		return error;
-//	}
-//
-//	return 0;
-//}

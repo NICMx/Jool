@@ -7,7 +7,7 @@
 
 #include <stddef.h>
 
-int modsocket_setup(void);
+int modsocket_setup(int argc, char **argv);
 void modsocket_teardown(void);
 
 void *modsocket_listen(void *arg);
