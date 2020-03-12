@@ -3,51 +3,30 @@
 #include <errno.h>
 #include <netlink/genl/genl.h>
 #include "usr/nl/attribute.h"
+#include "usr/nl/common.h"
 
 struct foreach_args {
-	pool4_foreach_cb cb;
+	joolnl_pool4_foreach_cb cb;
 	void *args;
 	bool done;
 	struct pool4_entry last;
 };
 
-static struct jool_result attr2entry(struct nlattr *attr,
-		struct pool4_entry *entry)
-{
-	struct nlattr *attrs[P4A_COUNT];
-	struct jool_result result;
-
-	if (nla_type(attr) != LA_ENTRY)
-		return result_success(); /* dunno; skip I guess */
-	result = jnla_parse_nested(attrs, P4A_MAX, attr, pool4_entry_policy);
-	if (result.error)
-		return result;
-
-	entry->mark = nla_get_u32(attrs[P4A_MARK]);
-	entry->iterations = nla_get_u32(attrs[P4A_ITERATIONS]);
-	entry->flags = nla_get_u8(attrs[P4A_FLAGS]);
-	entry->proto = nla_get_u8(attrs[P4A_PROTO]);
-	entry->range.ports.min = nla_get_u16(attrs[P4A_PORT_MIN]);
-	entry->range.ports.max = nla_get_u16(attrs[P4A_PORT_MAX]);
-	return nla_get_prefix4(attrs[P4A_PREFIX], &entry->range.prefix);
-}
-
 static struct jool_result handle_foreach_response(struct nl_msg *response,
 		void *arg)
 {
-	struct foreach_args *args;
-	struct genlmsghdr *ghdr;
-	struct joolnlhdr *jhdr;
+	struct foreach_args *args = arg;
 	struct nlattr *attr;
 	int rem;
 	struct pool4_entry entry;
 	struct jool_result result;
 
-	args = arg;
-	ghdr = genlmsg_hdr(nlmsg_hdr(response));
+	result = joolnl_init_foreach(response, "pool4", &args->done);
+	if (result.error)
+		return result;
 
-	foreach_entry(attr, ghdr, rem) {
-		result = attr2entry(attr, &entry);
+	foreach_entry(attr, genlmsg_hdr(nlmsg_hdr(response)), rem) {
+		result = nla_get_pool4(attr, &entry);
 		if (result.error)
 			return result;
 
@@ -58,13 +37,12 @@ static struct jool_result handle_foreach_response(struct nl_msg *response,
 		memcpy(&args->last, &entry, sizeof(entry));
 	}
 
-	jhdr = genlmsg_user_hdr(ghdr);
-	args->done = !(jhdr->flags & HDRFLAGS_M);
 	return result_success();
 }
 
-struct jool_result pool4_foreach(struct jool_socket *sk, char *iname,
-		l4_protocol proto, pool4_foreach_cb cb, void *_args)
+struct jool_result joolnl_pool4_foreach(struct joolnl_socket *sk,
+		char const *iname, l4_protocol proto,
+		joolnl_pool4_foreach_cb cb, void *_args)
 {
 	struct nl_msg *msg;
 	struct foreach_args args;
@@ -78,67 +56,64 @@ struct jool_result pool4_foreach(struct jool_socket *sk, char *iname,
 	first_request = true;
 
 	do {
-		result = allocate_jool_nlmsg(sk, iname, JOP_POOL4_FOREACH, 0, &msg);
+		result = joolnl_alloc_msg(sk, iname, JOP_POOL4_FOREACH, 0, &msg);
 		if (result.error)
 			return result;
 
 		if (first_request) {
-			if (nla_put_u8(msg, RA_PROTO, proto)) {
-				nlmsg_free(msg);
-				return packet_too_small();
-			}
+			if (nla_put_u8(msg, RA_PROTO, proto) < 0)
+				goto cancel;
 			first_request = false;
-		} else {
-			result = nla_put_pool4(msg, RA_OFFSET, &args.last);
-			if (result.error) {
-				nlmsg_free(msg);
-				return result;
-			}
+
+		} else if (nla_put_pool4(msg, RA_OFFSET, &args.last) < 0) {
+			goto cancel;
 		}
 
-		result = netlink_request(sk, msg, handle_foreach_response, &args);
+		result = joolnl_request(sk, msg, handle_foreach_response, &args);
 		if (result.error)
 			return result;
 	} while (!args.done);
 
 	return result_success();
+
+cancel:
+	nlmsg_free(msg);
+	return joolnl_err_msgsize();
 }
 
-static struct jool_result __update(struct jool_socket *sk, char const *iname,
-		enum jool_operation operation, struct pool4_entry *entry,
+static struct jool_result __update(struct joolnl_socket *sk, char const *iname,
+		enum jool_operation operation, struct pool4_entry const *entry,
 		bool quick)
 {
 	struct nl_msg *msg;
 	struct jool_result result;
 
-	result = allocate_jool_nlmsg(sk, iname, operation, quick ? HDRFLAGS_QUICK : 0, &msg);
+	result = joolnl_alloc_msg(sk, iname, operation, quick ? HDRFLAGS_QUICK : 0, &msg);
 	if (result.error)
 		return result;
 
-	if (entry) {
-		result = nla_put_pool4(msg, RA_OPERAND, entry);
-		if (result.error) {
-			nlmsg_free(msg);
-			return result;
-		}
+	if (entry && nla_put_pool4(msg, RA_OPERAND, entry) < 0) {
+		nlmsg_free(msg);
+		return joolnl_err_msgsize();
 	}
 
-	return netlink_request(sk, msg, NULL, NULL);
+	return joolnl_request(sk, msg, NULL, NULL);
 }
 
-struct jool_result pool4_add(struct jool_socket *sk, char *iname,
-		struct pool4_entry *entry)
+struct jool_result joolnl_pool4_add(struct joolnl_socket *sk, char const *iname,
+		struct pool4_entry const *entry)
 {
 	return __update(sk, iname, JOP_POOL4_ADD, entry, false);
 }
 
-struct jool_result pool4_rm(struct jool_socket *sk, char *iname,
-		struct pool4_entry *entry, bool quick)
+struct jool_result joolnl_pool4_rm(struct joolnl_socket *sk, char const *iname,
+		struct pool4_entry const *entry, bool quick)
 {
 	return __update(sk, iname, JOP_POOL4_RM, entry, quick);
 }
 
-struct jool_result pool4_flush(struct jool_socket *sk, char *iname, bool quick)
+struct jool_result joolnl_pool4_flush(struct joolnl_socket *sk,
+		char const *iname, bool quick)
 {
 	return __update(sk, iname, JOP_POOL4_FLUSH, NULL, quick);
 }

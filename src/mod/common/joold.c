@@ -574,7 +574,7 @@ void joold_clean(struct xlator *jool)
 	spinlock_t *lock;
 	struct sk_buff *skb;
 
-	if (validate_enabled(jool))
+	if (!GLOBALS(jool).enabled)
 		return;
 
 	lock = &jool->nat64.joold->lock;

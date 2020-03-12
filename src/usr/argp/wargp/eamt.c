@@ -1,12 +1,12 @@
-#include "eamt.h"
+#include "usr/argp/wargp/eamt.h"
 
 #include "usr/argp/log.h"
 #include "usr/argp/requirements.h"
 #include "usr/argp/userspace-types.h"
 #include "usr/argp/wargp.h"
 #include "usr/argp/xlator_type.h"
+#include "usr/nl/core.h"
 #include "usr/nl/eamt.h"
-#include "usr/nl/jool_socket.h"
 #include "usr/util/str_utils.h"
 
 struct display_args {
@@ -25,7 +25,7 @@ static void print_separator(void)
 	print_table_separator(0, 43, 18, 0);
 }
 
-static struct jool_result print_entry(struct eamt_entry *entry, void *args)
+static struct jool_result print_entry(struct eamt_entry const *entry, void *args)
 {
 	struct display_args *dargs = args;
 	char ipv6_str[INET6_ADDRSTRLEN];
@@ -50,14 +50,14 @@ static struct jool_result print_entry(struct eamt_entry *entry, void *args)
 int handle_eamt_display(char *iname, int argc, char **argv, void *arg)
 {
 	struct display_args dargs = { 0 };
-	struct jool_socket sk;
+	struct joolnl_socket sk;
 	struct jool_result result;
 
 	result.error = wargp_parse(display_opts, argc, argv, &dargs);
 	if (result.error)
 		return result.error;
 
-	result = netlink_setup(&sk, xt_get());
+	result = joolnl_setup(&sk, xt_get());
 	if (result.error)
 		return pr_result(&result);
 
@@ -73,9 +73,9 @@ int handle_eamt_display(char *iname, int argc, char **argv, void *arg)
 		}
 	}
 
-	result = eamt_foreach(&sk, iname, print_entry, &dargs);
+	result = joolnl_eamt_foreach(&sk, iname, print_entry, &dargs);
 
-	netlink_teardown(&sk);
+	joolnl_teardown(&sk);
 
 	if (result.error)
 		return pr_result(&result);
@@ -140,7 +140,7 @@ static struct wargp_option add_opts[] = {
 int handle_eamt_add(char *iname, int argc, char **argv, void *arg)
 {
 	struct add_args aargs = { 0 };
-	struct jool_socket sk;
+	struct joolnl_socket sk;
 	struct jool_result result;
 
 	result.error = wargp_parse(add_opts, argc, argv, &aargs);
@@ -156,16 +156,16 @@ int handle_eamt_add(char *iname, int argc, char **argv, void *arg)
 		return requirement_print(reqs);
 	}
 
-	result = netlink_setup(&sk, xt_get());
+	result = joolnl_setup(&sk, xt_get());
 	if (result.error)
 		return pr_result(&result);
 
-	result = eamt_add(&sk, iname,
+	result = joolnl_eamt_add(&sk, iname,
 			&aargs.entry.value.prefix6,
 			&aargs.entry.value.prefix4,
 			aargs.force);
 
-	netlink_teardown(&sk);
+	joolnl_teardown(&sk);
 	return pr_result(&result);
 }
 
@@ -192,7 +192,7 @@ static struct wargp_option remove_opts[] = {
 int handle_eamt_remove(char *iname, int argc, char **argv, void *arg)
 {
 	struct rm_args rargs = { 0 };
-	struct jool_socket sk;
+	struct joolnl_socket sk;
 	struct jool_result result;
 
 	result.error = wargp_parse(remove_opts, argc, argv, &rargs);
@@ -207,15 +207,15 @@ int handle_eamt_remove(char *iname, int argc, char **argv, void *arg)
 		return requirement_print(reqs);
 	}
 
-	result = netlink_setup(&sk, xt_get());
+	result = joolnl_setup(&sk, xt_get());
 	if (result.error)
 		return pr_result(&result);
 
-	result = eamt_rm(&sk, iname,
+	result = joolnl_eamt_rm(&sk, iname,
 			rargs.entry.prefix6_set ? &rargs.entry.value.prefix6 : NULL,
 			rargs.entry.prefix4_set ? &rargs.entry.value.prefix4 : NULL);
 
-	netlink_teardown(&sk);
+	joolnl_teardown(&sk);
 	return pr_result(&result);
 }
 
@@ -226,7 +226,7 @@ void autocomplete_eamt_remove(void *args)
 
 int handle_eamt_flush(char *iname, int argc, char **argv, void *arg)
 {
-	struct jool_socket sk;
+	struct joolnl_socket sk;
 	struct jool_result result;
 
 	/*
@@ -237,13 +237,13 @@ int handle_eamt_flush(char *iname, int argc, char **argv, void *arg)
 	if (result.error)
 		return result.error;
 
-	result = netlink_setup(&sk, xt_get());
+	result = joolnl_setup(&sk, xt_get());
 	if (result.error)
 		return pr_result(&result);
 
-	result = eamt_flush(&sk, iname);
+	result = joolnl_eamt_flush(&sk, iname);
 
-	netlink_teardown(&sk);
+	joolnl_teardown(&sk);
 	return pr_result(&result);
 }
 

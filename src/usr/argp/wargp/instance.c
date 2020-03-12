@@ -1,15 +1,15 @@
-#include "instance.h"
+#include "usr/argp/wargp/instance.h"
 
 #include <inttypes.h>
-#include "log.h"
-#include "requirements.h"
-#include "wargp.h"
 #include "common/config.h"
 #include "common/constants.h"
-#include "usr/util/str_utils.h"
-#include "usr/nl/instance.h"
-#include "usr/nl/jool_socket.h"
+#include "usr/argp/log.h"
+#include "usr/argp/requirements.h"
+#include "usr/argp/wargp.h"
 #include "usr/argp/xlator_type.h"
+#include "usr/util/str_utils.h"
+#include "usr/nl/core.h"
+#include "usr/nl/instance.h"
 
 #define ARGP_IPTABLES 1000
 #define ARGP_NETFILTER 1001
@@ -67,7 +67,7 @@ static void print_table_divisor(void)
 	printf("+--------------------+-----------------+-----------+\n");
 }
 
-static void print_entry_csv(struct instance_entry_usr *entry)
+static void print_entry_csv(struct instance_entry_usr const *entry)
 {
 	printf("%" PRIx64 ",%s,", (uint64_t)entry->ns, entry->iname);
 	if (entry->xf & XF_NETFILTER)
@@ -79,7 +79,7 @@ static void print_entry_csv(struct instance_entry_usr *entry)
 	printf("\n");
 }
 
-static void print_entry_normal(struct instance_entry_usr *entry)
+static void print_entry_normal(struct instance_entry_usr const *entry)
 {
 	/*
 	 * 18 is "0x" plus 16 hexadecimal digits.
@@ -97,7 +97,7 @@ static void print_entry_normal(struct instance_entry_usr *entry)
 	printf(" |\n");
 }
 
-static struct jool_result print_entry(struct instance_entry_usr *instance,
+static struct jool_result print_entry(struct instance_entry_usr const *instance,
 		void *arg)
 {
 	struct display_args *args = arg;
@@ -111,7 +111,7 @@ static struct jool_result print_entry(struct instance_entry_usr *instance,
 int handle_instance_display(char *iname, int argc, char **argv, void *arg)
 {
 	struct display_args dargs = { 0 };
-	struct jool_socket sk;
+	struct joolnl_socket sk;
 	struct jool_result result;
 
 	if (iname)
@@ -121,7 +121,7 @@ int handle_instance_display(char *iname, int argc, char **argv, void *arg)
 	if (result.error)
 		return result.error;
 
-	result = netlink_setup(&sk, xt_get());
+	result = joolnl_setup(&sk, xt_get());
 	if (result.error)
 		return pr_result(&result);
 
@@ -137,9 +137,9 @@ int handle_instance_display(char *iname, int argc, char **argv, void *arg)
 	if (!dargs.csv.value)
 		print_table_divisor();
 
-	result = instance_foreach(&sk, print_entry, &dargs);
+	result = joolnl_instance_foreach(&sk, print_entry, &dargs);
 
-	netlink_teardown(&sk);
+	joolnl_teardown(&sk);
 
 	if (result.error)
 		return pr_result(&result);
@@ -189,7 +189,7 @@ static struct wargp_option add_opts[] = {
 int handle_instance_add(char *iname, int argc, char **argv, void *arg)
 {
 	struct add_args aargs = { 0 };
-	struct jool_socket sk;
+	struct joolnl_socket sk;
 	xlator_framework xf;
 	struct jool_result result;
 
@@ -218,15 +218,15 @@ int handle_instance_add(char *iname, int argc, char **argv, void *arg)
 		return -EINVAL;
 	}
 
-	result = netlink_setup(&sk, xt_get());
+	result = joolnl_setup(&sk, xt_get());
 	if (result.error)
 		return pr_result(&result);
 
 	xf = aargs.netfilter.value ? XF_NETFILTER : XF_IPTABLES;
-	result = instance_add(&sk, xf, iname,
+	result = joolnl_instance_add(&sk, xf, iname,
 			aargs.pool6.set ? &aargs.pool6.prefix : NULL);
 
-	netlink_teardown(&sk);
+	joolnl_teardown(&sk);
 	return pr_result(&result);
 }
 
@@ -247,7 +247,7 @@ static struct wargp_option remove_opts[] = {
 int handle_instance_remove(char *iname, int argc, char **argv, void *arg)
 {
 	struct rm_args rargs = { 0 };
-	struct jool_socket sk;
+	struct joolnl_socket sk;
 	struct jool_result result;
 
 	result.error = wargp_parse(remove_opts, argc, argv, &rargs);
@@ -261,13 +261,13 @@ int handle_instance_remove(char *iname, int argc, char **argv, void *arg)
 	if (!iname && rargs.iname.set)
 		iname = rargs.iname.value;
 
-	result = netlink_setup(&sk, xt_get());
+	result = joolnl_setup(&sk, xt_get());
 	if (result.error)
 		return pr_result(&result);
 
-	result = instance_rm(&sk, iname);
+	result = joolnl_instance_rm(&sk, iname);
 
-	netlink_teardown(&sk);
+	joolnl_teardown(&sk);
 	return pr_result(&result);
 }
 
@@ -282,7 +282,7 @@ static struct wargp_option flush_opts[] = {
 
 int handle_instance_flush(char *iname, int argc, char **argv, void *arg)
 {
-	struct jool_socket sk;
+	struct joolnl_socket sk;
 	struct jool_result result;
 
 	if (iname)
@@ -292,13 +292,13 @@ int handle_instance_flush(char *iname, int argc, char **argv, void *arg)
 	if (result.error)
 		return result.error;
 
-	result = netlink_setup(&sk, xt_get());
+	result = joolnl_setup(&sk, xt_get());
 	if (result.error)
 		return pr_result(&result);
 
-	result = instance_flush(&sk);
+	result = joolnl_instance_flush(&sk);
 
-	netlink_teardown(&sk);
+	joolnl_teardown(&sk);
 	return pr_result(&result);
 }
 
@@ -321,7 +321,7 @@ int handle_instance_status(char *iname, int argc, char **argv, void *arg)
 	static char const *DEAD_MSG = "Dead\n";
 	static char const *UNKNOWN_MSG = "Status unknown\n";
 
-	struct jool_socket sk;
+	struct joolnl_socket sk;
 	enum instance_hello_status status;
 	struct jool_result result;
 
@@ -329,13 +329,13 @@ int handle_instance_status(char *iname, int argc, char **argv, void *arg)
 	if (result.error)
 		return result.error;
 
-	result = netlink_setup(&sk, xt_get());
+	result = joolnl_setup(&sk, xt_get());
 	if (result.error == -ESRCH)
 		printf("%s", DEAD_MSG);
 	if (result.error)
 		return pr_result(&result);
 
-	result = instance_hello(&sk, iname, &status);
+	result = joolnl_instance_hello(&sk, iname, &status);
 	if (result.error) {
 		printf("%s", UNKNOWN_MSG);
 		goto end;
@@ -353,7 +353,7 @@ int handle_instance_status(char *iname, int argc, char **argv, void *arg)
 	}
 
 end:
-	netlink_teardown(&sk);
+	joolnl_teardown(&sk);
 	return pr_result(&result);
 }
 

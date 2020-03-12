@@ -1,8 +1,7 @@
-#include "pool4.h"
+#include "usr/argp/wargp/pool4.h"
 
-#include "log.h"
 #include "usr/util/str_utils.h"
-#include "usr/nl/jool_socket.h"
+#include "usr/nl/core.h"
 #include "usr/nl/pool4.h"
 #include "usr/argp/log.h"
 #include "usr/argp/requirements.h"
@@ -42,7 +41,7 @@ static void print_separator(void)
 	print_table_separator(0, 10, 5, 18, 15, 11, 0);
 }
 
-static void display_entry_csv(struct pool4_entry *entry,
+static void display_entry_csv(struct pool4_entry const *entry,
 		struct display_args *args)
 {
 	printf("%u,%s,%s", entry->mark, l4proto_to_string(entry->proto),
@@ -59,7 +58,7 @@ static void display_entry_csv(struct pool4_entry *entry,
 	printf("%u\n", !(entry->flags & ITERATIONS_AUTO));
 }
 
-static bool print_common_values(struct pool4_entry *entry,
+static bool print_common_values(struct pool4_entry const *entry,
 		struct display_args *args)
 {
 	if (!args->last.initialized)
@@ -68,7 +67,7 @@ static bool print_common_values(struct pool4_entry *entry,
 			|| entry->proto != args->last.proto;
 }
 
-static void display_entry_normal(struct pool4_entry *entry,
+static void display_entry_normal(struct pool4_entry const *entry,
 		struct display_args *args)
 {
 	/* TODO ignoring length */
@@ -105,7 +104,7 @@ static void display_entry_normal(struct pool4_entry *entry,
 	args->last.proto = entry->proto;
 }
 
-static struct jool_result handle_display_response(struct pool4_entry *entry,
+static struct jool_result handle_display_response(struct pool4_entry const *entry,
 		void *args)
 {
 	struct display_args *dargs = args;
@@ -122,14 +121,14 @@ static struct jool_result handle_display_response(struct pool4_entry *entry,
 int handle_pool4_display(char *iname, int argc, char **argv, void *arg)
 {
 	struct display_args dargs = { 0 };
-	struct jool_socket sk;
+	struct joolnl_socket sk;
 	struct jool_result result;
 
 	result.error = wargp_parse(display_opts, argc, argv, &dargs);
 	if (result.error)
 		return result.error;
 
-	result = netlink_setup(&sk, xt_get());
+	result = joolnl_setup(&sk, xt_get());
 	if (result.error)
 		return pr_result(&result);
 
@@ -145,10 +144,10 @@ int handle_pool4_display(char *iname, int argc, char **argv, void *arg)
 	}
 
 	dargs.count = 0;
-	result = pool4_foreach(&sk, iname, dargs.proto.proto,
+	result = joolnl_pool4_foreach(&sk, iname, dargs.proto.proto,
 			handle_display_response, &dargs);
 
-	netlink_teardown(&sk);
+	joolnl_teardown(&sk);
 
 	if (result.error)
 		return pr_result(&result);
@@ -258,7 +257,7 @@ static struct wargp_option add_opts[] = {
 int handle_pool4_add(char *iname, int argc, char **argv, void *arg)
 {
 	struct add_args aargs = { 0 };
-	struct jool_socket sk;
+	struct joolnl_socket sk;
 	struct jool_result result;
 
 	result.error = wargp_parse(add_opts, argc, argv, &aargs);
@@ -285,13 +284,13 @@ int handle_pool4_add(char *iname, int argc, char **argv, void *arg)
 
 	aargs.entry.meat.proto = aargs.proto.proto;
 
-	result = netlink_setup(&sk, xt_get());
+	result = joolnl_setup(&sk, xt_get());
 	if (result.error)
 		return pr_result(&result);
 
-	result = pool4_add(&sk, iname, &aargs.entry.meat);
+	result = joolnl_pool4_add(&sk, iname, &aargs.entry.meat);
 
-	netlink_teardown(&sk);
+	joolnl_teardown(&sk);
 	return pr_result(&result);
 }
 
@@ -338,7 +337,7 @@ static struct wargp_option remove_opts[] = {
 int handle_pool4_remove(char *iname, int argc, char **argv, void *arg)
 {
 	struct rm_args rargs = { 0 };
-	struct jool_socket sk;
+	struct joolnl_socket sk;
 	struct jool_result result;
 
 	/* Delete all ports by default */
@@ -358,13 +357,13 @@ int handle_pool4_remove(char *iname, int argc, char **argv, void *arg)
 
 	rargs.entry.meat.proto = rargs.proto.proto;
 
-	result = netlink_setup(&sk, xt_get());
+	result = joolnl_setup(&sk, xt_get());
 	if (result.error)
 		return pr_result(&result);
 
-	result = pool4_rm(&sk, iname, &rargs.entry.meat, rargs.quick);
+	result = joolnl_pool4_rm(&sk, iname, &rargs.entry.meat, rargs.quick);
 
-	netlink_teardown(&sk);
+	joolnl_teardown(&sk);
 	return pr_result(&result);
 }
 
@@ -391,20 +390,20 @@ static struct wargp_option flush_opts[] = {
 int handle_pool4_flush(char *iname, int argc, char **argv, void *arg)
 {
 	struct flush_args fargs = { 0 };
-	struct jool_socket sk;
+	struct joolnl_socket sk;
 	struct jool_result result;
 
 	result.error = wargp_parse(flush_opts, argc, argv, &fargs);
 	if (result.error)
 		return result.error;
 
-	result = netlink_setup(&sk, xt_get());
+	result = joolnl_setup(&sk, xt_get());
 	if (result.error)
 		return pr_result(&result);
 
-	result = pool4_flush(&sk, iname, fargs.quick);
+	result = joolnl_pool4_flush(&sk, iname, fargs.quick);
 
-	netlink_teardown(&sk);
+	joolnl_teardown(&sk);
 	return pr_result(&result);
 }
 

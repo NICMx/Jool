@@ -12,14 +12,14 @@
 #include "usr/joold/log.h"
 #include "usr/joold/netsocket.h"
 
-static struct jool_socket jsocket;
+static struct joolnl_socket jsocket;
 static char *iname;
 
 /* Called by the net socket whenever joold receives data from the network. */
 void modsocket_send(void *request, size_t request_len)
 {
 	struct jool_result result;
-	result = joold_add(&jsocket, iname, request, request_len);
+	result = joolnl_joold_add(&jsocket, iname, request, request_len);
 	pr_result(&result);
 }
 
@@ -27,7 +27,7 @@ static void do_ack(void)
 {
 	struct jool_result result;
 
-	result = joold_ack(&jsocket, iname);
+	result = joolnl_joold_ack(&jsocket, iname);
 	if (result.error)
 		pr_result(&result);
 }
@@ -127,7 +127,7 @@ static int create_socket(void)
 	int family_mc_grp;
 	struct jool_result result;
 
-	result = netlink_setup(&jsocket, XT_NAT64);
+	result = joolnl_setup(&jsocket, XT_NAT64);
 	if (result.error)
 		return pr_result(&result);
 
@@ -155,7 +155,7 @@ static int create_socket(void)
 	return 0;
 
 fail:
-	netlink_teardown(&jsocket);
+	joolnl_teardown(&jsocket);
 	syslog(LOG_ERR, "Netlink error message: %s", nl_geterror(result.error));
 	return result.error;
 }
@@ -174,7 +174,7 @@ int modsocket_setup(int argc, char **argv)
 void modsocket_teardown(void)
 {
 	free(iname);
-	netlink_teardown(&jsocket);
+	joolnl_teardown(&jsocket);
 }
 
 void *modsocket_listen(void *arg)

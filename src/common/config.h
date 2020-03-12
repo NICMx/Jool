@@ -134,7 +134,7 @@ enum jool_operation {
 	JOP_JOOLD_ADD,
 	JOP_JOOLD_TEST, /* TODO remove */
 	JOP_JOOLD_ADVERTISE,
-	JOP_JOOLD_ACK, /* TODO remove */
+	JOP_JOOLD_ACK,
 };
 
 enum genl_mc_group_ids {
@@ -163,6 +163,8 @@ enum list_attribute {
 	LA_COUNT,
 #define LA_MAX (LA_COUNT - 1)
 };
+
+extern struct nla_policy struct_list_policy[LA_COUNT];
 
 #ifdef __KERNEL__
 #define ADDR6_POLICY { \
@@ -334,6 +336,7 @@ enum globals_attribute {
 
 extern struct nla_policy siit_globals_policy[GA_COUNT];
 extern struct nla_policy nat64_globals_policy[GA_COUNT];
+extern struct nla_policy plateau_list_policy[LA_COUNT];
 
 enum error_attribute {
 	ERRA_CODE = 1,

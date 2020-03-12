@@ -61,17 +61,20 @@ int expect_add_build_pkt(struct expect_add_request *req, struct nl_msg *pkt)
 	int error;
 
 	error = nla_put_string(pkt, ATTR_FILENAME, req->file_name);
-	if (error)
+	if (error < 0)
 		return error;
 
 	error = nla_put(pkt, ATTR_PKT, req->pkt_len, req->pkt);
-	if (error)
+	if (error < 0)
 		return error;
 
-	if (req->exceptions.count)
+	if (req->exceptions.count) {
 		error = nla_put(pkt, ATTR_EXCEPTIONS,
 				sizeof(*req->exceptions.values) * req->exceptions.count,
 				req->exceptions.values);
+		if (error < 0)
+			return error;
+	}
 
-	return error;
+	return 0;
 }

@@ -1,4 +1,4 @@
-#include "command.h"
+#include "usr/argp/command.h"
 
 #include "common/xlat.h"
 #include "usr/argp/xlator_type.h"

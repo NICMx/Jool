@@ -1,11 +1,10 @@
-#include "session.h"
+#include "usr/argp/wargp/session.h"
 
-#include "dns.h"
 #include "common/config.h"
 #include "common/constants.h"
 #include "common/session.h"
 #include "usr/util/str_utils.h"
-#include "usr/nl/jool_socket.h"
+#include "usr/nl/core.h"
 #include "usr/nl/session.h"
 #include "usr/argp/dns.h"
 #include "usr/argp/log.h"
@@ -53,7 +52,7 @@ static char *tcp_state_to_string(tcp_state state)
 }
 
 static struct jool_result handle_display_response(
-		struct session_entry_usr *entry, void *args)
+		struct session_entry_usr const *entry, void *args)
 {
 	struct display_args *dargs = args;
 	l4_protocol proto = dargs->proto.proto;
@@ -102,14 +101,14 @@ static struct jool_result handle_display_response(
 int handle_session_display(char *iname, int argc, char **argv, void *arg)
 {
 	struct display_args dargs = { 0 };
-	struct jool_socket sk;
+	struct joolnl_socket sk;
 	struct jool_result result;
 
 	result.error = wargp_parse(display_opts, argc, argv, &dargs);
 	if (result.error)
 		return result.error;
 
-	result = netlink_setup(&sk, xt_get());
+	result = joolnl_setup(&sk, xt_get());
 	if (result.error)
 		return pr_result(&result);
 
@@ -124,10 +123,10 @@ int handle_session_display(char *iname, int argc, char **argv, void *arg)
 		printf("Expires in,State\n");
 	}
 
-	result = session_foreach(&sk, iname, dargs.proto.proto,
+	result = joolnl_session_foreach(&sk, iname, dargs.proto.proto,
 			handle_display_response, &dargs);
 
-	netlink_teardown(&sk);
+	joolnl_teardown(&sk);
 
 	return pr_result(&result);
 }

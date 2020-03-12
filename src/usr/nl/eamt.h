@@ -2,22 +2,37 @@
 #define SRC_USR_NL_EAMT_H_
 
 #include "common/config.h"
-#include "jool_socket.h"
+#include "usr/nl/core.h"
 
-typedef struct jool_result (*eamt_foreach_cb)(struct eamt_entry *entry,
-		void *args);
+typedef struct jool_result (*joolnl_eamt_foreach_cb)(
+	struct eamt_entry const *entry, void *args
+);
 
-struct jool_result eamt_foreach(struct jool_socket *sk, char *iname,
-		eamt_foreach_cb cb, void *args);
-struct jool_result eamt_add(struct jool_socket *sk, char *iname,
-		struct ipv6_prefix *p6, struct ipv4_prefix *p4, bool force);
-struct jool_result eamt_rm(struct jool_socket *sk, char *iname,
-		struct ipv6_prefix *p6, struct ipv4_prefix *p4);
-struct jool_result eamt_flush(struct jool_socket *sk, char *iname);
+struct jool_result joolnl_eamt_foreach(
+	struct joolnl_socket *sk,
+	char const *iname,
+	joolnl_eamt_foreach_cb cb,
+	void *args
+);
 
-struct jool_result eamt_query_v6(struct jool_socket *sk, char *iname,
-		struct in6_addr *in, struct in_addr *out);
-struct jool_result eamt_query_v4(struct jool_socket *sk, char *iname,
-		struct in_addr *in, struct in6_addr *out);
+struct jool_result joolnl_eamt_add(
+	struct joolnl_socket *sk,
+	char const *iname,
+	struct ipv6_prefix const *p6,
+	struct ipv4_prefix const *p4,
+	bool force
+);
+
+struct jool_result joolnl_eamt_rm(
+	struct joolnl_socket *sk,
+	char const *iname,
+	struct ipv6_prefix const *p6,
+	struct ipv4_prefix const *p4
+);
+
+struct jool_result joolnl_eamt_flush(
+	struct joolnl_socket *sk,
+	char const *iname
+);
 
 #endif /* SRC_USR_NL_EAMT_H_ */

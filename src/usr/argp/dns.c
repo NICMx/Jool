@@ -1,12 +1,12 @@
-#include "dns.h"
+#include "usr/argp/dns.h"
 
 #include <netdb.h>
 #include <stdio.h>
 #include <string.h>
-#include "log.h"
+#include "usr/argp/log.h"
 
-void print_addr6(struct ipv6_transport_addr *addr6, bool numeric,
-		char *separator, __u8 l4_proto)
+void print_addr6(struct ipv6_transport_addr const *addr6, bool numeric,
+		char const *separator, __u8 l4_proto)
 {
 	char hostname[NI_MAXHOST], service[NI_MAXSERV];
 	char hostaddr[INET6_ADDRSTRLEN];
@@ -43,8 +43,8 @@ print_numeric:
 	printf("%s%s%u", hostaddr, separator, addr6->l4);
 }
 
-void print_addr4(struct ipv4_transport_addr *addr4, bool numeric,
-		char *separator, __u8 l4_proto)
+void print_addr4(struct ipv4_transport_addr const *addr4, bool numeric,
+		char const *separator, __u8 l4_proto)
 {
 	char hostname[NI_MAXHOST], service[NI_MAXSERV];
 	char *hostaddr;

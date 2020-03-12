@@ -3,6 +3,7 @@
 #include <errno.h>
 #include <netlink/msg.h>
 #include "usr/nl/attribute.h"
+#include "usr/nl/common.h"
 
 static struct jool_result parse_common_globals(struct nlattr *attrs[],
 		struct globals *out)
@@ -105,46 +106,42 @@ static struct jool_result handle_query_response_nat64(struct nl_msg *response,
 	return result_success();
 }
 
-struct jool_result global_query(struct jool_socket *sk, char *iname,
-		struct globals *out)
+struct jool_result joolnl_global_query(struct joolnl_socket *sk,
+		char const *iname, struct globals *out)
 {
 	struct nl_msg *msg;
 	struct jool_result result;
 
-	result = allocate_jool_nlmsg(sk, iname, JOP_GLOBAL_FOREACH, 0, &msg);
+	result = joolnl_alloc_msg(sk, iname, JOP_GLOBAL_FOREACH, 0, &msg);
 	if (result.error)
 		return result;
 
 	switch (sk->xt) {
 	case XT_SIIT:
-		return netlink_request(sk, msg, handle_query_response_siit, out);
+		return joolnl_request(sk, msg, handle_query_response_siit, out);
 	case XT_NAT64:
-		return netlink_request(sk, msg, handle_query_response_nat64, out);
+		return joolnl_request(sk, msg, handle_query_response_nat64, out);
 	}
 
 	return result_from_error(-EINVAL, "Unknown translator type: %u", sk->xt);
 }
 
-struct jool_result global_update(struct jool_socket *sk, char *iname,
-		struct global_field *field, char const *value, bool force)
+struct jool_result joolnl_global_update(struct joolnl_socket *sk,
+		char const *iname, struct global_field const *field,
+		char const *value, bool force)
 {
 	struct nl_msg *msg;
 	struct nlattr *root;
 	struct jool_result result;
 
-	/*
-	 * TODO BTW: We're not validating @field.
-	 * Update: kernelspace has validation functions.
-	 */
-
-	result = allocate_jool_nlmsg(sk, iname, JOP_GLOBAL_UPDATE,
+	result = joolnl_alloc_msg(sk, iname, JOP_GLOBAL_UPDATE,
 			force ? HDRFLAGS_FORCE : 0, &msg);
 	if (result.error)
 		return result;
 
 	root = nla_nest_start(msg, RA_GLOBALS);
 	if (!root)
-		return packet_too_small();
+		return joolnl_err_msgsize();
 
 	result = field->type->packetize(msg, field, value);
 	if (result.error) {
@@ -153,5 +150,5 @@ struct jool_result global_update(struct jool_socket *sk, char *iname,
 	}
 
 	nla_nest_end(msg, root);
-	return netlink_request(sk, msg, NULL, NULL);
+	return joolnl_request(sk, msg, NULL, NULL);
 }

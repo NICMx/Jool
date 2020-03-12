@@ -42,7 +42,7 @@ void log_err(const char *format, ...)
 
 	/* Want to avoid vprintk because I can't append a level string to it. */
 	va_start(args, format);
-	vsnprintf(msg, 512, format, args);
+	vsnprintf(msg, 256, format, args);
 	va_end(args);
 
 	/*

@@ -1,4 +1,4 @@
-#include "stats.h"
+#include "usr/nl/stats.h"
 
 #include <errno.h>
 #include <netlink/genl/genl.h>
@@ -13,7 +13,7 @@
 
 #define TC "Translations cancelled: "
 
-static struct jstat_metadata const jstat_metadatas[] = {
+static struct joolnl_stat_metadata const jstat_metadatas[] = {
 	DEFINE_STAT(JSTAT_RECEIVED6, "Total IPv6 packets received by the instance so far."),
 	DEFINE_STAT(JSTAT_RECEIVED4, "Total IPv4 packets received by the instance so far."),
 	DEFINE_STAT(JSTAT_SUCCESS, "Successful translations. (Note: 'Successful translation' does not imply that the packet was actually delivered.)"),
@@ -113,7 +113,7 @@ failure:
 }
 
 struct query_args {
-	stats_foreach_cb cb;
+	joolnl_stats_foreach_cb cb;
 	void *args;
 };
 
@@ -121,15 +121,18 @@ static struct jool_result stats_query_response(struct nl_msg *response,
 		void *args)
 {
 	struct genlmsghdr *ghdr;
-	struct nlattr *attr;
-	int rem;
+	struct nlattr *head, *attr;
+	int len, rem;
 	int id;
-	struct jstat stat;
+	struct joolnl_stat stat;
 	struct query_args *qargs = args;
 	struct jool_result result;
 
 	ghdr = nlmsg_data(nlmsg_hdr(response));
-	foreach_entry(attr, ghdr, rem) {
+	head = genlmsg_attrdata(ghdr, sizeof(struct joolnlhdr));
+	len = genlmsg_attrlen(ghdr, sizeof(struct joolnlhdr));
+
+	nla_for_each_attr(attr, head, len, rem) {
 		id = nla_type(attr);
 		if (id < 1 || id >= JSTAT_PADDING)
 			goto bad_id;
@@ -150,8 +153,8 @@ bad_id:
 	);
 }
 
-struct jool_result stats_foreach(struct jool_socket *sk, char *iname,
-		stats_foreach_cb cb, void *args)
+struct jool_result joolnl_stats_foreach(struct joolnl_socket *sk,
+		char const *iname, joolnl_stats_foreach_cb cb, void *args)
 {
 	struct nl_msg *msg;
 	struct query_args qargs;
@@ -161,11 +164,11 @@ struct jool_result stats_foreach(struct jool_socket *sk, char *iname,
 	if (result.error)
 		return result;
 
-	result = allocate_jool_nlmsg(sk, iname, JOP_STATS_FOREACH, 0, &msg);
+	result = joolnl_alloc_msg(sk, iname, JOP_STATS_FOREACH, 0, &msg);
 	if (result.error)
 		return result;
 
 	qargs.cb = cb;
 	qargs.args = args;
-	return netlink_request(sk, msg, stats_query_response, &qargs);
+	return joolnl_request(sk, msg, stats_query_response, &qargs);
 }

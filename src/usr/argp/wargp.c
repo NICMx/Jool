@@ -1,12 +1,12 @@
-#include "wargp.h"
+#include "usr/argp/wargp.h"
 
 #include <stdlib.h>
 #include <string.h>
 
-#include "log.h"
 #include "common/xlat.h"
 #include "common/constants.h"
 #include "usr/util/str_utils.h"
+#include "usr/argp/log.h"
 
 const char *argp_program_version = JOOL_VERSION_STR;
 const char *argp_program_bug_address = "jool@nic.mx";

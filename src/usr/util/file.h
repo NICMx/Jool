@@ -3,6 +3,6 @@
 
 #include "result.h"
 
-struct jool_result file_to_string(char *, char **);
+struct jool_result file_to_string(char const *, char **);
 
 #endif /* SRC_USR_UTIL_FILE_H_ */

@@ -5,11 +5,12 @@ libjoolnl_la_SOURCES = \
 	attribute.c attribute.h \
 	bib.c bib.h \
 	blacklist4.c blacklist4.h \
+	common.c common.h \
+	core.c core.h \
 	eamt.c eamt.h \
 	global.c global.h \
 	global-impl.c \
 	instance.c instance.h \
-	jool_socket.c jool_socket.h \
 	joold.c joold.h \
 	json.c json.h \
 	pool4.c pool4.h \

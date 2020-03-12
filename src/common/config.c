@@ -4,6 +4,10 @@
 #include <errno.h>
 #endif
 
+struct nla_policy struct_list_policy[LA_COUNT] = {
+	[LA_ENTRY] = { .type = NLA_NESTED }
+};
+
 struct nla_policy instance_entry_policy[IFEA_COUNT] = {
 	[IFEA_NS] = { .type = NLA_U32 },
 	[IFEA_XF] = { .type = NLA_U8 },
@@ -111,6 +115,10 @@ struct nla_policy nat64_globals_policy[GA_COUNT] = {
 	[GA_JOOLD_FLUSH_DEADLINE] = { .type = NLA_U32 },
 	[GA_JOOLD_CAPACITY] = { .type = NLA_U32 },
 	[GA_JOOLD_MAX_PAYLOAD] = { .type = NLA_U32 },
+};
+
+struct nla_policy plateau_list_policy[LA_COUNT] = {
+	[LA_ENTRY] = { .type = NLA_U16 }
 };
 
 /* Note: assumes strlen(iname) < INAME_MAX_SIZE */

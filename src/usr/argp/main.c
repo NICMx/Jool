@@ -10,24 +10,24 @@
 #include <string.h>
 #include <getopt.h>
 
-#include "command.h"
-#include "log.h"
 #include "common/config.h"
 #include "common/xlat.h"
 #include "usr/util/str_utils.h"
 #include "usr/nl/json.h"
+#include "usr/argp/command.h"
+#include "usr/argp/log.h"
 #include "usr/argp/xlator_type.h"
-#include "wargp/address.h"
-#include "wargp/bib.h"
-#include "wargp/blacklist4.h"
-#include "wargp/eamt.h"
-#include "wargp/file.h"
-#include "wargp/global.h"
-#include "wargp/instance.h"
-#include "wargp/joold.h"
-#include "wargp/pool4.h"
-#include "wargp/session.h"
-#include "wargp/stats.h"
+#include "usr/argp/wargp/address.h"
+#include "usr/argp/wargp/bib.h"
+#include "usr/argp/wargp/blacklist4.h"
+#include "usr/argp/wargp/eamt.h"
+#include "usr/argp/wargp/file.h"
+#include "usr/argp/wargp/global.h"
+#include "usr/argp/wargp/instance.h"
+#include "usr/argp/wargp/joold.h"
+#include "usr/argp/wargp/pool4.h"
+#include "usr/argp/wargp/session.h"
+#include "usr/argp/wargp/stats.h"
 
 #define DISPLAY "display"
 #define ADD "add"
@@ -625,7 +625,7 @@ int jool_main(int argc, char **argv)
 			iname = optarg;
 			break;
 		case 'f':
-			result = json_get_iname(optarg, &iname);
+			result = joolnl_json_get_iname(optarg, &iname);
 			if (result.error)
 				return pr_result(&result);
 			break;

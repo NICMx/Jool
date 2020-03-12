@@ -1,4 +1,4 @@
-#include "usr/nl/jool_socket.h"
+#include "core.h"
 
 #include <errno.h>
 #include <netlink/genl/genl.h>
@@ -27,7 +27,7 @@ struct response_cb {
 	struct jool_result result;
 };
 
-struct jool_result allocate_jool_nlmsg(struct jool_socket *socket,
+struct jool_result joolnl_alloc_msg(struct joolnl_socket *socket,
 		char const *iname, enum jool_operation op, __u8 flags,
 		struct nl_msg **out)
 {
@@ -130,7 +130,7 @@ end:
  *
  * Consumes @msg, even on error.
  */
-struct jool_result netlink_request(struct jool_socket *socket,
+struct jool_result joolnl_request(struct joolnl_socket *socket,
 		struct nl_msg *msg, jool_response_cb cb, void *cb_arg)
 {
 	struct response_cb callback;
@@ -185,7 +185,7 @@ struct jool_result netlink_request(struct jool_socket *socket,
  * Contract: The result will contain 0 on success, -ESRCH on module likely not
  * modprobed, else -EINVAL.
  */
-struct jool_result netlink_setup(struct jool_socket *socket, xlator_type xt)
+struct jool_result joolnl_setup(struct joolnl_socket *socket, xlator_type xt)
 {
 	int error;
 
@@ -238,7 +238,7 @@ struct jool_result netlink_setup(struct jool_socket *socket, xlator_type xt)
 	return result_success();
 }
 
-void netlink_teardown(struct jool_socket *socket)
+void joolnl_teardown(struct joolnl_socket *socket)
 {
 	nl_close(socket->sk);
 	nl_socket_free(socket->sk);

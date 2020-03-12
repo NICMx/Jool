@@ -1,12 +1,12 @@
-#include "global.h"
+#include "usr/argp/wargp/global.h"
 
-#include "command.h"
-#include "log.h"
-#include "userspace-types.h"
-#include "wargp.h"
+#include "usr/argp/command.h"
+#include "usr/argp/log.h"
+#include "usr/argp/userspace-types.h"
+#include "usr/argp/wargp.h"
 #include "usr/argp/xlator_type.h"
+#include "usr/nl/core.h"
 #include "usr/nl/global.h"
-#include "usr/nl/jool_socket.h"
 
 struct display_args {
 	struct wargp_bool no_headers;
@@ -50,7 +50,7 @@ static int handle_display_response(struct display_args *qargs,
 int handle_global_display(char *iname, int argc, char **argv, void *arg)
 {
 	struct display_args dargs = { 0 };
-	struct jool_socket sk;
+	struct joolnl_socket sk;
 	struct globals config;
 	struct jool_result result;
 
@@ -58,13 +58,13 @@ int handle_global_display(char *iname, int argc, char **argv, void *arg)
 	if (result.error)
 		return result.error;
 
-	result = netlink_setup(&sk, xt_get());
+	result = joolnl_setup(&sk, xt_get());
 	if (result.error)
 		return pr_result(&result);
 
-	result = global_query(&sk, iname, &config);
+	result = joolnl_global_query(&sk, iname, &config);
 
-	netlink_teardown(&sk);
+	joolnl_teardown(&sk);
 
 	if (result.error)
 		return pr_result(&result);
@@ -98,7 +98,7 @@ static int handle_global_update(char *iname, int argc, char **argv, void *arg)
 {
 	struct update_args uargs = { 0 };
 	struct global_field *field = arg;
-	struct jool_socket sk;
+	struct joolnl_socket sk;
 	struct jool_result result;
 
 	result.error = wargp_parse(update_opts, argc, argv, &uargs);
@@ -110,11 +110,11 @@ static int handle_global_update(char *iname, int argc, char **argv, void *arg)
 		return -EINVAL;
 	}
 
-	result = netlink_setup(&sk, xt_get());
+	result = joolnl_setup(&sk, xt_get());
 	if (result.error)
 		return pr_result(&result);
-	result = global_update(&sk, iname, field, uargs.global_str.value, uargs.force.value);
-	netlink_teardown(&sk);
+	result = joolnl_global_update(&sk, iname, field, uargs.global_str.value, uargs.force.value);
+	joolnl_teardown(&sk);
 
 	return pr_result(&result);
 }

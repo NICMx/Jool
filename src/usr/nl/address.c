@@ -1,6 +1,7 @@
 #include "usr/nl/address.h"
 
 #include <errno.h>
+#include "usr/nl/common.h"
 #include "usr/nl/attribute.h"
 
 static struct jool_result handle_method(struct nlattr *attrs[],
@@ -54,19 +55,20 @@ static struct jool_result query64_response_cb(struct nl_msg *response, void *arg
 	return handle_method(attrs, &out->entry);
 }
 
-struct jool_result address_query64(struct jool_socket *sk, char *iname,
-		struct in6_addr *addr, struct result_addrxlat64 *out)
+struct jool_result joolnl_address_query64(struct joolnl_socket *sk,
+		char const *iname, struct in6_addr const *addr,
+		struct result_addrxlat64 *out)
 {
 	struct nl_msg *msg;
 	struct jool_result result;
 
-	result = allocate_jool_nlmsg(sk, iname, JOP_ADDRESS_QUERY64, 0, &msg);
+	result = joolnl_alloc_msg(sk, iname, JOP_ADDRESS_QUERY64, 0, &msg);
 	if (result.error)
 		return result;
 
 	NLA_PUT(msg, RA_ADDR_QUERY, sizeof(*addr), addr);
 
-	return netlink_request(sk, msg, query64_response_cb, out);
+	return joolnl_request(sk, msg, query64_response_cb, out);
 
 nla_put_failure:
 	return result_from_error(
@@ -101,20 +103,21 @@ static struct jool_result query46_response_cb(struct nl_msg *response, void *arg
 	return handle_method(attrs, &out->entry);
 }
 
-struct jool_result address_query46(struct jool_socket *sk, char *iname,
-		struct in_addr *addr, struct result_addrxlat46 *out)
+struct jool_result joolnl_address_query46(struct joolnl_socket *sk,
+		char const *iname, struct in_addr const *addr,
+		struct result_addrxlat46 *out)
 {
 	struct nl_msg *msg;
 	struct jool_result result;
 
-	result = allocate_jool_nlmsg(sk, iname, JOP_ADDRESS_QUERY46, 0, &msg);
+	result = joolnl_alloc_msg(sk, iname, JOP_ADDRESS_QUERY46, 0, &msg);
 	if (result.error)
 		return result;
 
 	NLA_PUT(msg, RA_ADDR_QUERY, sizeof(*addr), addr);
 
-	return netlink_request(sk, msg, query46_response_cb, out);
+	return joolnl_request(sk, msg, query46_response_cb, out);
 
 nla_put_failure:
-	return packet_too_small();
+	return joolnl_err_msgsize();
 }

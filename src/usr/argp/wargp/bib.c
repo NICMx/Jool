@@ -1,4 +1,4 @@
-#include "bib.h"
+#include "usr/argp/wargp/bib.h"
 
 #include <string.h>
 
@@ -9,7 +9,7 @@
 #include "usr/argp/wargp.h"
 #include "usr/argp/xlator_type.h"
 #include "usr/nl/bib.h"
-#include "usr/nl/jool_socket.h"
+#include "usr/nl/core.h"
 #include "usr/util/str_utils.h"
 
 struct display_args {
@@ -29,7 +29,7 @@ static struct wargp_option display_opts[] = {
 	{ 0 },
 };
 
-static struct jool_result print_entry(struct bib_entry *entry, void *args)
+static struct jool_result print_entry(struct bib_entry const *entry, void *args)
 {
 	struct display_args *dargs = args;
 	l4_protocol proto = entry->l4_proto;
@@ -59,24 +59,24 @@ static struct jool_result print_entry(struct bib_entry *entry, void *args)
 int handle_bib_display(char *iname, int argc, char **argv, void *arg)
 {
 	struct display_args dargs = { 0 };
-	struct jool_socket sk;
+	struct joolnl_socket sk;
 	struct jool_result result;
 
 	result.error = wargp_parse(display_opts, argc, argv, &dargs);
 	if (result.error)
 		return result.error;
 
-	result = netlink_setup(&sk, xt_get());
+	result = joolnl_setup(&sk, xt_get());
 	if (result.error)
 		return pr_result(&result);
 
 	if (show_csv_header(dargs.no_headers.value, dargs.csv.value))
 		printf("Protocol,IPv6 Address,IPv6 L4-ID,IPv4 Address,IPv4 L4-ID,Static?\n");
 
-	result = bib_foreach(&sk, iname, dargs.proto.proto,
+	result = joolnl_bib_foreach(&sk, iname, dargs.proto.proto,
 			print_entry, &dargs);
 
-	netlink_teardown(&sk);
+	joolnl_teardown(&sk);
 	return pr_result(&result);
 }
 
@@ -138,7 +138,7 @@ static struct wargp_option add_opts[] = {
 int handle_bib_add(char *iname, int argc, char **argv, void *arg)
 {
 	struct add_args aargs = { 0 };
-	struct jool_socket sk;
+	struct joolnl_socket sk;
 	struct jool_result result;
 
 	result.error = wargp_parse(add_opts, argc, argv, &aargs);
@@ -154,15 +154,15 @@ int handle_bib_add(char *iname, int argc, char **argv, void *arg)
 		return requirement_print(reqs);
 	}
 
-	result = netlink_setup(&sk, xt_get());
+	result = joolnl_setup(&sk, xt_get());
 	if (result.error)
 		return pr_result(&result);
 
-	result = bib_add(&sk, iname,
+	result = joolnl_bib_add(&sk, iname,
 			&aargs.taddrs.addr6, &aargs.taddrs.addr4,
 			aargs.proto.proto);
 
-	netlink_teardown(&sk);
+	joolnl_teardown(&sk);
 	return pr_result(&result);
 }
 
@@ -193,7 +193,7 @@ static struct wargp_option remove_opts[] = {
 int handle_bib_remove(char *iname, int argc, char **argv, void *arg)
 {
 	struct rm_args rargs = { 0 };
-	struct jool_socket sk;
+	struct joolnl_socket sk;
 	struct jool_result result;
 
 	result.error = wargp_parse(remove_opts, argc, argv, &rargs);
@@ -209,16 +209,16 @@ int handle_bib_remove(char *iname, int argc, char **argv, void *arg)
 		return requirement_print(reqs);
 	}
 
-	result = netlink_setup(&sk, xt_get());
+	result = joolnl_setup(&sk, xt_get());
 	if (result.error)
 		return pr_result(&result);
 
-	result = bib_rm(&sk, iname,
+	result = joolnl_bib_rm(&sk, iname,
 			rargs.taddrs.addr6_set ? &rargs.taddrs.addr6 : NULL,
 			rargs.taddrs.addr4_set ? &rargs.taddrs.addr4 : NULL,
 			rargs.proto.proto);
 
-	netlink_teardown(&sk);
+	joolnl_teardown(&sk);
 	return pr_result(&result);
 }
 
