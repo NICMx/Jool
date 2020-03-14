@@ -271,7 +271,6 @@ static int register_family(void)
 	}
 #endif
 
-	nlcore_setup(&jool_family, &mc_groups[0]);
 	return 0;
 }
 
@@ -285,4 +284,16 @@ void nlhandler_teardown(void)
 {
 	genl_unregister_family(&jool_family);
 	error_pool_teardown();
+}
+
+#if LINUX_VERSION_LOWER_THAN(3, 13, 0, 7, 1)
+u32 jnl_gid(void)
+{
+	return mc_groups[0].id;
+}
+#endif
+
+struct genl_family *jnl_family(void)
+{
+	return &jool_family;
 }

@@ -9,6 +9,7 @@
 #include "mod/common/xlator.h"
 #include "mod/common/nl/attribute.h"
 #include "mod/common/nl/nl_core.h"
+#include "mod/common/nl/nl_handler.h"
 #include "mod/common/db/bib/db.h"
 
 #define GLOBALS(xlator) (xlator->globals.nat64.joold)
@@ -218,11 +219,9 @@ static void send_to_userspace(struct sk_buff *skb, struct net *ns)
 	if (!skb)
 		return;
 
-	/* TODO genlmsg_end called? */
-
 	log_debug("Sending multicast message.");
 #if LINUX_VERSION_LOWER_THAN(3, 13, 0, 7, 1)
-	error = genlmsg_multicast_netns(ns, skb, 0, group->id, GFP_ATOMIC);
+	error = genlmsg_multicast_netns(ns, skb, 0, jnl_gid(), GFP_ATOMIC);
 #else
 	/*
 	 * Note: Starting from kernel 3.13, all groups of a common family share

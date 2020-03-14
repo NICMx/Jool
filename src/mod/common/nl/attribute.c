@@ -575,8 +575,8 @@ int jnla_put_session(struct sk_buff *skb, int attrtype, struct session_entry con
 	dying_time = (dying_time > jiffies)
 			? jiffies_to_msecs(dying_time - jiffies)
 			: 0;
-	if (dying_time > U32_MAX)
-		dying_time = U32_MAX;
+	if (dying_time > MAX_U32)
+		dying_time = MAX_U32;
 
 	error = jnla_put_taddr6(skb, SEA_SRC6, &entry->src6)
 		|| jnla_put_taddr6(skb, SEA_DST6, &entry->dst6)

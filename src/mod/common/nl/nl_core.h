@@ -9,9 +9,6 @@ struct jool_response {
 	struct joolnlhdr *hdr;
 };
 
-void nlcore_setup(struct genl_family *new_family,
-		struct genl_multicast_group *new_group);
-/* There's no nlcore_teardown; just destroy the family yourself. */
 struct genl_family *nlcore_get_family(void);
 
 int jresponse_init(struct jool_response *response, struct genl_info *info);

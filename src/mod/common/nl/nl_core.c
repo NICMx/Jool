@@ -11,6 +11,7 @@
 #include "mod/common/log.h"
 #include "mod/common/wkmalloc.h"
 #include "mod/common/nl/nl_common.h"
+#include "mod/common/nl/nl_handler.h"
 
 /*
  * Note: If you're working on this module, please keep in mind that there should
@@ -19,21 +20,6 @@
  * If a preparation to send something to userspace failed, then trying to send
  * the error message (via log_err()) to userspace is a fairly lost cause.
  */
-
-static struct genl_family *family;
-static struct genl_multicast_group *group;
-
-void nlcore_setup(struct genl_family *new_family,
-		struct genl_multicast_group *new_group)
-{
-	family = new_family;
-	group = new_group;
-}
-
-struct genl_family *nlcore_get_family(void)
-{
-	return family;
-}
 
 int jresponse_init(struct jool_response *response, struct genl_info *info)
 {
@@ -45,7 +31,7 @@ int jresponse_init(struct jool_response *response, struct genl_info *info)
 	}
 
 	response->hdr = genlmsg_put(response->skb, info->snd_portid,
-			info->nlhdr->nlmsg_seq, family, 0, 0);
+			info->nlhdr->nlmsg_seq, jnl_family(), 0, 0);
 	if (!response->hdr) {
 		pr_err("genlmsg_put() failed.\n");
 		kfree_skb(response->skb);
