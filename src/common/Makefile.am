@@ -13,7 +13,6 @@
 noinst_HEADERS = \
 	config.c config.h \
 	constants.h \
-	globals.c globals.h \
 	session.h \
 	stats.h \
 	types.c types.h \

@@ -77,7 +77,7 @@ int wargp_parse_u32(void *field, int key, char *str)
 {
 	struct jool_result result;
 
-	result = str_to_u32(str, field, 0, MAX_U32);
+	result = str_to_u32(str, field);
 	if (result.error)
 		return pr_result(&result);
 

@@ -19,7 +19,6 @@ obj-m += $(FILTERING).o
 $(FILTERING)-objs += $(MIN_REQS)
 $(FILTERING)-objs += ../../../src/common/config.o
 $(FILTERING)-objs += ../../../src/mod/common/db/config.o
-$(FILTERING)-objs += ../../../src/mod/common/global-impl.o
 $(FILTERING)-objs += ../../../src/mod/common/packet.o
 $(FILTERING)-objs += ../../../src/mod/common/db/rbtree.o
 $(FILTERING)-objs += ../../../src/mod/common/rfc6052.o

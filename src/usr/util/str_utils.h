@@ -9,26 +9,18 @@
  * parser of the userspace app's arguments.
  */
 
-#include "result.h"
 #include "common/types.h"
+#include "usr/util/result.h"
 
-/**
- * Parses @str as a boolean value, which it then copies to @out.
- */
+/** Parses @str as a boolean value, which it then copies to @out. */
 struct jool_result str_to_bool(const char *str, bool *out);
 
-struct jool_result validate_int(const char *str);
+/** Parses @str" as a number, which it then copies to @out. */
+struct jool_result str_to_u8(const char *str, __u8 *out, __u8 max);
+struct jool_result str_to_u16(const char *str, __u16 *out);
+struct jool_result str_to_u32(const char *str, __u32 *out);
 
-/**
- * Parses @str" as a number, which it then copies to @out.
- * Refuses to succeed if @out is less than @min or higher than @max.
- */
-struct jool_result str_to_u8(const char *str, __u8 *out, __u8 min, __u8 max);
-struct jool_result str_to_u16(const char *str, __u16 *out, __u16 min, __u16 max);
-struct jool_result str_to_u32(const char *str, __u32 *out, __u32 min, __u32 max);
-struct jool_result str_to_u64(const char *str, __u64 *out, __u64 min, __u64 max);
-
-struct jool_result str_to_timeout(const char *str, __u32 *out, __u32 min, __u32 max);
+struct jool_result str_to_timeout(const char *str, __u32 *out);
 struct jool_result str_to_port_range(char *str, struct port_range *range);
 
 /**

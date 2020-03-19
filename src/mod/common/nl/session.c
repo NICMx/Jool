@@ -9,10 +9,10 @@
 
 static int parse_offset(struct nlattr *root, struct session_foreach_offset *entry)
 {
-	struct nlattr *attrs[SEA_COUNT];
+	struct nlattr *attrs[JNLASE_COUNT];
 	int error;
 
-	error = NLA_PARSE_NESTED(attrs, SEA_MAX, root, session_entry_policy);
+	error = NLA_PARSE_NESTED(attrs, JNLASE_MAX, root, joolnl_session_entry_policy);
 	if (error) {
 		log_err("The 'session entry' attribute is malformed.");
 		return error;
@@ -20,13 +20,13 @@ static int parse_offset(struct nlattr *root, struct session_foreach_offset *entr
 
 	memset(entry, 0, sizeof(*entry));
 
-	if (attrs[SEA_SRC4]) {
-		error = jnla_get_taddr4(attrs[SEA_SRC4], "IPv4 source address", &entry->offset.src);
+	if (attrs[JNLASE_SRC4]) {
+		error = jnla_get_taddr4(attrs[JNLASE_SRC4], "IPv4 source address", &entry->offset.src);
 		if (error)
 			return error;
 	}
-	if (attrs[SEA_DST4]) {
-		error = jnla_get_taddr4(attrs[SEA_DST4], "IPv4 destination address", &entry->offset.dst);
+	if (attrs[JNLASE_DST4]) {
+		error = jnla_get_taddr4(attrs[JNLASE_DST4], "IPv4 destination address", &entry->offset.dst);
 		if (error)
 			return error;
 	}
@@ -37,7 +37,7 @@ static int parse_offset(struct nlattr *root, struct session_foreach_offset *entr
 
 static int serialize_session_entry(struct session_entry const *entry, void *arg)
 {
-	return jnla_put_session(arg, LA_ENTRY, entry) ? 1 : 0;
+	return jnla_put_session(arg, JNLAL_ENTRY, entry) ? 1 : 0;
 }
 
 int handle_session_foreach(struct sk_buff *skb, struct genl_info *info)
@@ -57,15 +57,15 @@ int handle_session_foreach(struct sk_buff *skb, struct genl_info *info)
 	if (error)
 		goto revert_start;
 
-	if (info->attrs[RA_OFFSET]) {
-		error = parse_offset(info->attrs[RA_OFFSET], &offset);
+	if (info->attrs[JNLAR_OFFSET]) {
+		error = parse_offset(info->attrs[JNLAR_OFFSET], &offset);
 		if (error)
 			goto revert_response;
 		offset_ptr = &offset;
 	}
 
-	proto = info->attrs[RA_PROTO]
-			? nla_get_u8(info->attrs[RA_PROTO])
+	proto = info->attrs[JNLAR_PROTO]
+			? nla_get_u8(info->attrs[JNLAR_PROTO])
 			: 0;
 
 	error = bib_foreach_session(&jool, proto, serialize_session_entry,

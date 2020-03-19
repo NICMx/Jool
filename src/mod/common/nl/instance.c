@@ -9,22 +9,22 @@
 
 static int parse_instance(struct nlattr *root, struct instance_entry_usr *entry)
 {
-	struct nlattr *attrs[IFEA_COUNT];
+	struct nlattr *attrs[JNLAIE_COUNT];
 	int error;
 
-	error = NLA_PARSE_NESTED(attrs, IFEA_MAX, root, instance_entry_policy);
+	error = NLA_PARSE_NESTED(attrs, JNLAIE_MAX, root, joolnl_instance_entry_policy);
 	if (error) {
 		log_err("The 'instance' attribute is malformed.");
 		return error;
 	}
 
-	error = jnla_get_u32(attrs[IFEA_NS], "namespace", &entry->ns);
+	error = jnla_get_u32(attrs[JNLAIE_NS], "namespace", &entry->ns);
 	if (error)
 		return error;
-	error = jnla_get_u8(attrs[IFEA_XF], "framework", &entry->xf);
+	error = jnla_get_u8(attrs[JNLAIE_XF], "framework", &entry->xf);
 	if (error)
 		return error;
-	return jnla_get_str(attrs[IFEA_INAME], "instance name",
+	return jnla_get_str(attrs[JNLAIE_INAME], "instance name",
 			INAME_MAX_SIZE, entry->iname);
 }
 
@@ -34,17 +34,17 @@ static int serialize_instance(struct xlator *entry, void *arg)
 	struct nlattr *root;
 	int error;
 
-	root = nla_nest_start(skb, LA_ENTRY);
+	root = nla_nest_start(skb, JNLAL_ENTRY);
 	if (!root)
 		return 1;
 
-	error = nla_put_u32(skb, IFEA_NS, ((__u64)entry->ns) & 0xFFFFFFFF);
+	error = nla_put_u32(skb, JNLAIE_NS, ((__u64)entry->ns) & 0xFFFFFFFF);
 	if (error)
 		goto cancel;
-	error = nla_put_u8(skb, IFEA_XF, xlator_flags2xf(entry->flags));
+	error = nla_put_u8(skb, JNLAIE_XF, xlator_flags2xf(entry->flags));
 	if (error)
 		goto cancel;
-	error = nla_put_string(skb, IFEA_INAME, entry->iname);
+	error = nla_put_string(skb, JNLAIE_INAME, entry->iname);
 	if (error)
 		goto cancel;
 
@@ -69,8 +69,8 @@ int handle_instance_foreach(struct sk_buff *skb, struct genl_info *info)
 		goto fail;
 
 	offset_ptr = NULL;
-	if (info->attrs[RA_OFFSET]) {
-		error = parse_instance(info->attrs[RA_OFFSET], &offset);
+	if (info->attrs[JNLAR_OFFSET]) {
+		error = parse_instance(info->attrs[JNLAR_OFFSET], &offset);
 		if (error)
 			goto revert_start;
 		offset_ptr = &offset;
@@ -98,11 +98,11 @@ fail:
 
 int handle_instance_add(struct sk_buff *skb, struct genl_info *info)
 {
-	static struct nla_policy add_policy[IARA_COUNT] = {
-		[IARA_XF] = { .type = NLA_U8 },
-		[IARA_POOL6] = { .type = NLA_NESTED, },
+	static struct nla_policy add_policy[JNLAIA_COUNT] = {
+		[JNLAIA_XF] = { .type = NLA_U8 },
+		[JNLAIA_POOL6] = { .type = NLA_NESTED, },
 	};
-	struct nlattr *attrs[IARA_COUNT];
+	struct nlattr *attrs[JNLAIA_COUNT];
 	struct ipv6_prefix pool6, *pool6_ptr;
 	__u8 xf;
 	int error;
@@ -113,24 +113,24 @@ int handle_instance_add(struct sk_buff *skb, struct genl_info *info)
 	if (error)
 		goto abort;
 
-	if (!info->attrs[RA_OPERAND]) {
+	if (!info->attrs[JNLAR_OPERAND]) {
 		log_err("The request is missing an 'Operand' attribute.");
 		error = -EINVAL;
 		goto revert_start;
 	}
 
-	error = NLA_PARSE_NESTED(attrs, IARA_MAX, info->attrs[RA_OPERAND], add_policy);
+	error = NLA_PARSE_NESTED(attrs, JNLAIA_MAX, info->attrs[JNLAR_OPERAND], add_policy);
 	if (error) {
 		log_err("The 'Operand' attribute is malformed.");
 		return error;
 	}
 
-	error = jnla_get_u8(attrs[IARA_XF], "framework", &xf);
+	error = jnla_get_u8(attrs[JNLAIA_XF], "framework", &xf);
 	if (error)
 		goto revert_start;
 	pool6_ptr = NULL;
-	if (attrs[IARA_POOL6]) {
-		error = jnla_get_prefix6(attrs[IARA_POOL6], "pool6", &pool6);
+	if (attrs[JNLAIA_POOL6]) {
+		error = jnla_get_prefix6(attrs[JNLAIA_POOL6], "pool6", &pool6);
 		if (error)
 			goto revert_start;
 		pool6_ptr = &pool6;
@@ -168,12 +168,12 @@ int handle_instance_hello(struct sk_buff *skb, struct genl_info *info)
 			XF_ANY | get_jool_hdr(info)->xt, NULL);
 	switch (error) {
 	case 0:
-		error = nla_put_u8(response.skb, ISRA_STATUS, IHS_ALIVE);
+		error = nla_put_u8(response.skb, JNLAIS_STATUS, IHS_ALIVE);
 		if (error)
 			goto put_failure;
 		break;
 	case -ESRCH:
-		error = nla_put_u8(response.skb, ISRA_STATUS, IHS_DEAD);
+		error = nla_put_u8(response.skb, JNLAIS_STATUS, IHS_DEAD);
 		if (error)
 			goto put_failure;
 		break;

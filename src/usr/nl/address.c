@@ -7,20 +7,20 @@
 static struct jool_result handle_method(struct nlattr *attrs[],
 		struct address_translation_entry *out)
 {
-	if (attrs[AQA_PREFIX6052] && attrs[AQA_EAM]) {
+	if (attrs[JNLAAQ_PREFIX6052] && attrs[JNLAAQ_EAM]) {
 		return result_from_error(
 			-EINVAL,
 			"The kernel's response has too many translation methods."
 		);
 	}
 
-	if (attrs[AQA_PREFIX6052]) {
+	if (attrs[JNLAAQ_PREFIX6052]) {
 		out->method = AXM_RFC6052;
-		return nla_get_prefix6(attrs[AQA_PREFIX6052], &out->prefix6052);
+		return nla_get_prefix6(attrs[JNLAAQ_PREFIX6052], &out->prefix6052);
 	}
-	if (attrs[AQA_EAM]) {
+	if (attrs[JNLAAQ_EAM]) {
 		out->method = AXM_EAMT;
-		return nla_get_eam(attrs[AQA_EAM], &out->eam);
+		return nla_get_eam(attrs[JNLAAQ_EAM], &out->eam);
 	}
 
 	return result_from_error(
@@ -31,27 +31,27 @@ static struct jool_result handle_method(struct nlattr *attrs[],
 
 static struct jool_result query64_response_cb(struct nl_msg *response, void *args)
 {
-	static struct nla_policy query64_policy[AQA_COUNT] = {
-		[AQA_ADDR4] = ADDR4_POLICY,
-		[AQA_PREFIX6052] = { .type = NLA_NESTED, },
-		[AQA_EAM] = { .type = NLA_NESTED, },
+	static struct nla_policy query64_policy[JNLAAQ_COUNT] = {
+		[JNLAAQ_ADDR4] = JOOLNL_ADDR4_POLICY,
+		[JNLAAQ_PREFIX6052] = { .type = NLA_NESTED, },
+		[JNLAAQ_EAM] = { .type = NLA_NESTED, },
 	};
-	struct nlattr *attrs[AQA_COUNT];
+	struct nlattr *attrs[JNLAAQ_COUNT];
 	struct jool_result result;
 	struct result_addrxlat64 *out = args;
 
-	result = jnla_parse_msg(response, attrs, AQA_MAX, query64_policy, false);
+	result = jnla_parse_msg(response, attrs, JNLAAQ_MAX, query64_policy, false);
 	if (result.error)
 		return result;
 
-	if (!attrs[AQA_ADDR4]) {
+	if (!attrs[JNLAAQ_ADDR4]) {
 		return result_from_error(
 			-ESRCH,
 			"The kernel's response lacks the result."
 		);
 	}
 
-	nla_get_addr4(attrs[AQA_ADDR4], &out->addr);
+	nla_get_addr4(attrs[JNLAAQ_ADDR4], &out->addr);
 	return handle_method(attrs, &out->entry);
 }
 
@@ -62,11 +62,11 @@ struct jool_result joolnl_address_query64(struct joolnl_socket *sk,
 	struct nl_msg *msg;
 	struct jool_result result;
 
-	result = joolnl_alloc_msg(sk, iname, JOP_ADDRESS_QUERY64, 0, &msg);
+	result = joolnl_alloc_msg(sk, iname, JNLOP_ADDRESS_QUERY64, 0, &msg);
 	if (result.error)
 		return result;
 
-	NLA_PUT(msg, RA_ADDR_QUERY, sizeof(*addr), addr);
+	NLA_PUT(msg, JNLAR_ADDR_QUERY, sizeof(*addr), addr);
 
 	return joolnl_request(sk, msg, query64_response_cb, out);
 
@@ -79,27 +79,27 @@ nla_put_failure:
 
 static struct jool_result query46_response_cb(struct nl_msg *response, void *args)
 {
-	static struct nla_policy query46_policy[AQA_COUNT] = {
-		[AQA_ADDR6] = ADDR6_POLICY,
-		[AQA_PREFIX6052] = { .type = NLA_NESTED, },
-		[AQA_EAM] = { .type = NLA_NESTED, },
+	static struct nla_policy query46_policy[JNLAAQ_COUNT] = {
+		[JNLAAQ_ADDR6] = JOOLNL_ADDR6_POLICY,
+		[JNLAAQ_PREFIX6052] = { .type = NLA_NESTED, },
+		[JNLAAQ_EAM] = { .type = NLA_NESTED, },
 	};
-	struct nlattr *attrs[AQA_COUNT];
+	struct nlattr *attrs[JNLAAQ_COUNT];
 	struct jool_result result;
 	struct result_addrxlat46 *out = args;
 
-	result = jnla_parse_msg(response, attrs, AQA_MAX, query46_policy, false);
+	result = jnla_parse_msg(response, attrs, JNLAAQ_MAX, query46_policy, false);
 	if (result.error)
 		return result;
 
-	if (!attrs[AQA_ADDR6]) {
+	if (!attrs[JNLAAQ_ADDR6]) {
 		return result_from_error(
 			-ESRCH,
 			"The kernel's response lacks the result."
 		);
 	}
 
-	nla_get_addr6(attrs[AQA_ADDR6], &out->addr);
+	nla_get_addr6(attrs[JNLAAQ_ADDR6], &out->addr);
 	return handle_method(attrs, &out->entry);
 }
 
@@ -110,11 +110,11 @@ struct jool_result joolnl_address_query46(struct joolnl_socket *sk,
 	struct nl_msg *msg;
 	struct jool_result result;
 
-	result = joolnl_alloc_msg(sk, iname, JOP_ADDRESS_QUERY46, 0, &msg);
+	result = joolnl_alloc_msg(sk, iname, JNLOP_ADDRESS_QUERY46, 0, &msg);
 	if (result.error)
 		return result;
 
-	NLA_PUT(msg, RA_ADDR_QUERY, sizeof(*addr), addr);
+	NLA_PUT(msg, JNLAR_ADDR_QUERY, sizeof(*addr), addr);
 
 	return joolnl_request(sk, msg, query46_response_cb, out);
 

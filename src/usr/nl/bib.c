@@ -55,16 +55,16 @@ struct jool_result joolnl_bib_foreach(struct joolnl_socket *sk, char const *inam
 	first_request = true;
 
 	do {
-		result = joolnl_alloc_msg(sk, iname, JOP_BIB_FOREACH, 0, &msg);
+		result = joolnl_alloc_msg(sk, iname, JNLOP_BIB_FOREACH, 0, &msg);
 		if (result.error)
 			return result;
 
 		if (first_request) {
-			if (nla_put_u8(msg, RA_PROTO, proto) < 0)
+			if (nla_put_u8(msg, JNLAR_PROTO, proto) < 0)
 				goto cancel;
 			first_request = false;
 
-		} else if (nla_put_bib(msg, RA_OFFSET, &args.last) < 0) {
+		} else if (nla_put_bib(msg, JNLAR_OFFSET, &args.last) < 0) {
 			goto cancel;
 		}
 
@@ -81,7 +81,7 @@ cancel:
 }
 
 static struct jool_result __update(struct joolnl_socket *sk, char const *iname,
-		enum jool_operation op,
+		enum joolnl_operation op,
 		struct ipv6_transport_addr const *a6,
 		struct ipv4_transport_addr const *a4,
 		l4_protocol proto)
@@ -93,7 +93,7 @@ static struct jool_result __update(struct joolnl_socket *sk, char const *iname,
 	if (result.error)
 		return result;
 
-	if (nla_put_bib_attrs(msg, RA_OPERAND, a6, a4, proto, true) < 0) {
+	if (nla_put_bib_attrs(msg, JNLAR_OPERAND, a6, a4, proto, true) < 0) {
 		nlmsg_free(msg);
 		return joolnl_err_msgsize();
 	}
@@ -108,7 +108,7 @@ struct jool_result joolnl_bib_add(struct joolnl_socket *sk,
 		struct ipv4_transport_addr const *a4,
 		l4_protocol proto)
 {
-	return __update(sk, iname, JOP_BIB_ADD, a6, a4, proto);
+	return __update(sk, iname, JNLOP_BIB_ADD, a6, a4, proto);
 }
 
 struct jool_result joolnl_bib_rm(struct joolnl_socket *sk,
@@ -117,5 +117,5 @@ struct jool_result joolnl_bib_rm(struct joolnl_socket *sk,
 		struct ipv4_transport_addr const *a4,
 		l4_protocol proto)
 {
-	return __update(sk, iname, JOP_BIB_RM, a6, a4, proto);
+	return __update(sk, iname, JNLOP_BIB_RM, a6, a4, proto);
 }

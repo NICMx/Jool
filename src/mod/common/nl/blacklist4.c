@@ -10,7 +10,7 @@
 
 static int serialize_bl4_entry(struct ipv4_prefix *prefix, void *arg)
 {
-	return jnla_put_prefix4(arg, LA_ENTRY, prefix) ? 1 : 0;
+	return jnla_put_prefix4(arg, JNLAL_ENTRY, prefix) ? 1 : 0;
 }
 
 int handle_blacklist4_foreach(struct sk_buff *skb, struct genl_info *info)
@@ -30,8 +30,8 @@ int handle_blacklist4_foreach(struct sk_buff *skb, struct genl_info *info)
 		goto revert_start;
 
 	offset_ptr = NULL;
-	if (info->attrs[RA_OFFSET]) {
-		error = jnla_get_prefix4(info->attrs[RA_OFFSET], "Iteration offset", &offset);
+	if (info->attrs[JNLAR_OFFSET]) {
+		error = jnla_get_prefix4(info->attrs[JNLAR_OFFSET], "Iteration offset", &offset);
 		if (error)
 			goto revert_response;
 		offset_ptr = &offset;
@@ -67,12 +67,12 @@ int handle_blacklist4_add(struct sk_buff *skb, struct genl_info *info)
 	if (error)
 		goto end;
 
-	error = jnla_get_prefix4(info->attrs[RA_OPERAND], "Operand", &operand);
+	error = jnla_get_prefix4(info->attrs[JNLAR_OPERAND], "Operand", &operand);
 	if (error)
 		goto revert_start;
 
 	error = pool_add(jool.siit.blacklist4, &operand,
-			get_jool_hdr(info)->flags & HDRFLAGS_FORCE);
+			get_jool_hdr(info)->flags & JOOLNLHDR_FLAGS_FORCE);
 	/* Fall through */
 
 revert_start:
@@ -93,7 +93,7 @@ int handle_blacklist4_rm(struct sk_buff *skb, struct genl_info *info)
 	if (error)
 		goto end;
 
-	error = jnla_get_prefix4(info->attrs[RA_OPERAND], "Operand", &operand);
+	error = jnla_get_prefix4(info->attrs[JNLAR_OPERAND], "Operand", &operand);
 	if (error)
 		goto revert_start;
 

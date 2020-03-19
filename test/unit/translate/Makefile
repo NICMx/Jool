@@ -17,7 +17,7 @@ TRANSLATE = translate
 obj-m += $(TRANSLATE).o
 
 $(TRANSLATE)-objs += $(MIN_REQS)
-$(TRANSLATE)-objs += ../../../src/mod/common/global-impl.o
+#$(TRANSLATE)-objs += ../../../src/mod/common/global-impl.o
 $(TRANSLATE)-objs += ../../../src/mod/common/ipv6_hdr_iterator.o
 $(TRANSLATE)-objs += ../../../src/mod/common/packet.o
 $(TRANSLATE)-objs += ../../../src/mod/common/rfc6052.o

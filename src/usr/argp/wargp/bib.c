@@ -56,7 +56,7 @@ static struct jool_result print_entry(struct bib_entry const *entry, void *args)
  * BTW: This thing is not thread-safe because of the address-to-string v4
  * function.
  */
-int handle_bib_display(char *iname, int argc, char **argv, void *arg)
+int handle_bib_display(char *iname, int argc, char **argv, void const *arg)
 {
 	struct display_args dargs = { 0 };
 	struct joolnl_socket sk;
@@ -80,7 +80,7 @@ int handle_bib_display(char *iname, int argc, char **argv, void *arg)
 	return pr_result(&result);
 }
 
-void autocomplete_bib_display(void *args)
+void autocomplete_bib_display(void const *args)
 {
 	print_wargp_opts(display_opts);
 }
@@ -135,7 +135,7 @@ static struct wargp_option add_opts[] = {
 	{ 0 },
 };
 
-int handle_bib_add(char *iname, int argc, char **argv, void *arg)
+int handle_bib_add(char *iname, int argc, char **argv, void const *arg)
 {
 	struct add_args aargs = { 0 };
 	struct joolnl_socket sk;
@@ -166,7 +166,7 @@ int handle_bib_add(char *iname, int argc, char **argv, void *arg)
 	return pr_result(&result);
 }
 
-void autocomplete_bib_add(void *args)
+void autocomplete_bib_add(void const *args)
 {
 	print_wargp_opts(add_opts);
 }
@@ -190,7 +190,7 @@ static struct wargp_option remove_opts[] = {
 	{ 0 },
 };
 
-int handle_bib_remove(char *iname, int argc, char **argv, void *arg)
+int handle_bib_remove(char *iname, int argc, char **argv, void const *arg)
 {
 	struct rm_args rargs = { 0 };
 	struct joolnl_socket sk;
@@ -222,7 +222,7 @@ int handle_bib_remove(char *iname, int argc, char **argv, void *arg)
 	return pr_result(&result);
 }
 
-void autocomplete_bib_remove(void *args)
+void autocomplete_bib_remove(void const *args)
 {
 	print_wargp_opts(remove_opts);
 }

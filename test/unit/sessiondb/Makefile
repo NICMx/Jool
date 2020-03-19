@@ -17,7 +17,6 @@ SESSIONDB = sessiondb
 obj-m += $(SESSIONDB).o
 
 $(SESSIONDB)-objs += $(MIN_REQS)
-$(SESSIONDB)-objs += ../../../src/mod/common/global-impl.o
 $(SESSIONDB)-objs += ../../../src/mod/common/translation_state.o
 $(SESSIONDB)-objs += ../../../src/mod/common/db/config.o
 $(SESSIONDB)-objs += ../../../src/mod/common/db/rbtree.o

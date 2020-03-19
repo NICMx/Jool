@@ -132,13 +132,13 @@ int allocate_joold_skb(struct xlator *jool)
 	if (!queue->skb)
 		return -ENOMEM;
 
-	queue->msg_head = genlmsg_put(queue->skb, 0, 0, nlcore_get_family(), 0, 0);
+	queue->msg_head = genlmsg_put(queue->skb, 0, 0, jnl_family(), 0, 0);
 	if (!queue->msg_head) {
 		pr_err("genlmsg_put() returned NULL.\n");
 		goto kill_packet;
 	}
 
-	queue->root = nla_nest_start(queue->skb, RA_SESSION_ENTRIES);
+	queue->root = nla_nest_start(queue->skb, JNLAR_SESSION_ENTRIES);
 	if (!queue->root) {
 		pr_err("Joold packets cannot contain any sessions.\n");
 		queue->msg_head = NULL;
@@ -233,7 +233,7 @@ static void send_to_userspace(struct sk_buff *skb, struct net *ns)
 	 * providing a group when the API started forcing them to provide a
 	 * family.
 	 */
-	error = genlmsg_multicast_netns(nlcore_get_family(), ns, skb, 0, 0, GFP_ATOMIC);
+	error = genlmsg_multicast_netns(jnl_family(), ns, skb, 0, 0, GFP_ATOMIC);
 #endif
 	if (error) {
 		log_warn_once("Looks like nobody received my multicast message. Is the joold daemon really active? (errcode %d)",
@@ -343,7 +343,7 @@ void joold_add(struct xlator *jool, struct session_entry *entry)
 		return;
 	}
 
-	queue->skb_full = jnla_put_session(queue->skb, LA_ENTRY, entry);
+	queue->skb_full = jnla_put_session(queue->skb, JNLAL_ENTRY, entry);
 	if (queue->skb_full) {
 		copy = wkmem_cache_alloc("joold node", node_cache, GFP_ATOMIC);
 		if (copy) {
@@ -456,33 +456,6 @@ int joold_sync(struct xlator *jool, struct nlattr *root)
 	log_debug("Done.");
 	return success ? 0 : -EINVAL;
 }
-
-int joold_test(struct xlator *jool)
-{
-	struct sk_buff *skb;
-	void *msg_head;
-	int error;
-
-	error = validate_enabled(jool);
-	if (error)
-		return error;
-
-	skb = genlmsg_new(0, GFP_ATOMIC);
-	if (!skb)
-		return -ENOMEM;
-
-	msg_head = genlmsg_put(skb, 0, 0, nlcore_get_family(), 0, 0);
-	if (!msg_head) {
-		log_err("genlmsg_put() returned NULL.");
-		kfree_skb(skb);
-		return -ENOMEM;
-	}
-	genlmsg_end(skb, msg_head);
-
-	send_to_userspace(skb, jool->ns);
-	return 0;
-}
-
 
 static int add_advertise_node(struct joold_queue *queue, l4_protocol proto)
 {

@@ -10,7 +10,7 @@ static struct nl_sock *sk;
 static int family;
 
 struct response_handler_arg {
-	jool_response_cb cb;
+	joolnl_response_cb cb;
 	void *arg;
 	int jool_error;
 };
@@ -152,7 +152,7 @@ static int response_handler(struct nl_msg *msg, void *arg_void)
 	return 0;
 }
 
-int nlsocket_send(struct nl_msg *msg, jool_response_cb cb, void *cb_arg)
+int nlsocket_send(struct nl_msg *msg, joolnl_response_cb cb, void *cb_arg)
 {
 	struct response_handler_arg arg = {
 			.cb = cb,

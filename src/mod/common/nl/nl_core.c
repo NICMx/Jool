@@ -39,6 +39,7 @@ int jresponse_init(struct jool_response *response, struct genl_info *info)
 	}
 
 	memcpy(response->hdr, get_jool_hdr(info), sizeof(*response->hdr));
+	response->initial_len = response->skb->len;
 	return 0;
 }
 
@@ -65,15 +66,18 @@ void jresponse_cleanup(struct jool_response *response)
 
 void jresponse_enable_m(struct jool_response *response)
 {
-	response->hdr->flags |= HDRFLAGS_M;
+	response->hdr->flags |= JOOLNLHDR_FLAGS_M;
 }
 
 int jresponse_send_array(struct jool_response *response, int error)
 {
 	if (error < 0)
 		return error;
-	/* TODO check at least one entry was written? */
-	if (error > 0)
+	/*
+	 * Packet empty might happen when the last entry died between foreach
+	 * requests.
+	 */
+	if ((error > 0) && (response->skb->len != response->initial_len))
 		jresponse_enable_m(response);
 
 	return jresponse_send(response);
@@ -100,16 +104,16 @@ int jresponse_send_simple(struct genl_info *info, int error_code)
 		goto revert_msg;
 
 	if (error_code) {
-		response.hdr->flags |= HDRFLAGS_ERROR;
+		response.hdr->flags |= JOOLNLHDR_FLAGS_ERROR;
 
-		error = nla_put_u16(response.skb, ERRA_CODE, error_code);
+		error = nla_put_u16(response.skb, JNLAERR_CODE, error_code);
 		if (error)
 			goto revert_response;
 
-		error = nla_put_string(response.skb, ERRA_MSG, error_msg);
+		error = nla_put_string(response.skb, JNLAERR_MSG, error_msg);
 		if (error) {
 			error_msg[128] = '\0';
-			error = nla_put_string(response.skb, ERRA_MSG, error_msg);
+			error = nla_put_string(response.skb, JNLAERR_MSG, error_msg);
 			if (error)
 				goto revert_response;
 		}

@@ -56,7 +56,7 @@ static int updated_entries_cb(struct nl_msg *msg, void *arg)
 	ghdr = genlmsg_hdr(nhdr);
 	jhdr = genlmsg_user_hdr(ghdr);
 
-	if (jhdr->flags & HDRFLAGS_ERROR) {
+	if (jhdr->flags & JOOLNLHDR_FLAGS_ERROR) {
 		result = joolnl_msg2result(msg);
 		result.error = pr_result(&result);
 		do_ack();
@@ -64,7 +64,7 @@ static int updated_entries_cb(struct nl_msg *msg, void *arg)
 	}
 
 	root = genlmsg_attrdata(ghdr, sizeof(struct joolnlhdr));
-	if (nla_type(root) != RA_SESSION_ENTRIES) {
+	if (nla_type(root) != JNLAR_SESSION_ENTRIES) {
 		syslog(LOG_ERR, "Kernel sent invalid data: Message lacks a session container");
 		do_ack();
 		return -EINVAL;
@@ -138,8 +138,8 @@ static int create_socket(void)
 		goto fail;
 	}
 
-	family_mc_grp = genl_ctrl_resolve_grp(jsocket.sk, GNL_JOOL_FAMILY,
-			GNL_JOOLD_MULTICAST_GRP_NAME);
+	family_mc_grp = genl_ctrl_resolve_grp(jsocket.sk, JOOLNL_FAMILY,
+			JOOLNL_MULTICAST_GRP_NAME);
 	if (family_mc_grp < 0) {
 		syslog(LOG_ERR, "Unable to resolve the Netlink multicast group.");
 		result.error = family_mc_grp;

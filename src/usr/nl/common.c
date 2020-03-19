@@ -32,12 +32,12 @@ struct jool_result joolnl_init_foreach(struct nl_msg *response,
 
 	ghdr = genlmsg_hdr(nhdr);
 	jhdr = genlmsg_user_hdr(ghdr);
-	*done = !(jhdr->flags & HDRFLAGS_M);
+	*done = !(jhdr->flags & JOOLNLHDR_FLAGS_M);
 
 	return jnla_validate_list(
 		genlmsg_attrdata(ghdr, sizeof(struct joolnlhdr)),
 		genlmsg_attrlen(ghdr, sizeof(struct joolnlhdr)),
 		what,
-		struct_list_policy
+		joolnl_struct_list_policy
 	);
 }

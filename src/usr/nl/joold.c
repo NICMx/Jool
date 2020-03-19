@@ -10,11 +10,11 @@ struct jool_result joolnl_joold_add(struct joolnl_socket *sk, char const *iname,
 	struct nl_msg *msg;
 	struct jool_result result;
 
-	result = joolnl_alloc_msg(sk, iname, JOP_JOOLD_ADD, 0, &msg);
+	result = joolnl_alloc_msg(sk, iname, JNLOP_JOOLD_ADD, 0, &msg);
 	if (result.error)
 		return result;
 
-	result.error = nla_put(msg, RA_SESSION_ENTRIES, data_len, data);
+	result.error = nla_put(msg, JNLAR_SESSION_ENTRIES, data_len, data);
 	if (result.error < 0) {
 		nlmsg_free(msg);
 		/*
@@ -36,7 +36,7 @@ struct jool_result joolnl_joold_advertise(struct joolnl_socket *sk,
 	struct nl_msg *msg;
 	struct jool_result result;
 
-	result = joolnl_alloc_msg(sk, iname, JOP_JOOLD_ADVERTISE, 0, &msg);
+	result = joolnl_alloc_msg(sk, iname, JNLOP_JOOLD_ADVERTISE, 0, &msg);
 	if (result.error)
 		return result;
 
@@ -48,7 +48,7 @@ struct jool_result joolnl_joold_ack(struct joolnl_socket *sk, char const *iname)
 	struct nl_msg *msg;
 	struct jool_result result;
 
-	result = joolnl_alloc_msg(sk, iname, JOP_JOOLD_ACK, 0, &msg);
+	result = joolnl_alloc_msg(sk, iname, JNLOP_JOOLD_ACK, 0, &msg);
 	if (result.error)
 		return result;
 

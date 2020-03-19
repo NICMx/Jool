@@ -5,8 +5,48 @@
 #include <linux/string.h>
 
 #include "common/constants.h"
-#include "common/globals.h"
+#include "mod/common/address.h"
 #include "mod/common/log.h"
+#include "mod/common/nl/global.h"
+
+static int validate_pool6_len(__u8 len)
+{
+	if (len == 32 || len == 40 || len == 48)
+		return 0;
+	if (len == 56 || len == 64 || len == 96)
+		return 0;
+
+	log_err("%u is not a valid prefix length (32, 40, 48, 56, 64, 96).", len);
+	return -EINVAL;
+}
+
+static int validate_ubit(struct ipv6_prefix *prefix, bool force)
+{
+	if (force || !prefix->addr.s6_addr[8])
+		return 0;
+
+	log_err("The u-bit is nonzero; see https://github.com/NICMx/Jool/issues/174.\n"
+			"Will cancel the operation. Use --force to override this.");
+	return -EINVAL;
+}
+
+int validate_pool6(struct config_prefix6 *prefix, bool force)
+{
+	int error;
+
+	if (!prefix->set)
+		return 0;
+
+	error = prefix6_validate(&prefix->prefix);
+	if (error)
+		return error;
+
+	error = validate_pool6_len(prefix->prefix.len);
+	if (error)
+		return error;
+
+	return validate_ubit(&prefix->prefix, force);
+}
 
 int globals_init(struct globals *config, xlator_type type,
 		struct ipv6_prefix *pool6)
@@ -26,7 +66,7 @@ int globals_init(struct globals *config, xlator_type type,
 	}
 
 	/* TODO (fine) force */
-	error = validate_pool6(NULL, &config->pool6, true);
+	error = validate_pool6(&config->pool6, true);
 	if (error)
 		return error;
 

@@ -98,7 +98,7 @@ static struct jool_result handle_display_response(
 	return result_success();
 }
 
-int handle_session_display(char *iname, int argc, char **argv, void *arg)
+int handle_session_display(char *iname, int argc, char **argv, void const *arg)
 {
 	struct display_args dargs = { 0 };
 	struct joolnl_socket sk;
@@ -131,7 +131,7 @@ int handle_session_display(char *iname, int argc, char **argv, void *arg)
 	return pr_result(&result);
 }
 
-void autocomplete_session_display(void *args)
+void autocomplete_session_display(void const *args)
 {
 	print_wargp_opts(display_opts);
 }

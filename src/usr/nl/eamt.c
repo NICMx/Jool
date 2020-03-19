@@ -55,14 +55,14 @@ struct jool_result joolnl_eamt_foreach(struct joolnl_socket *sk,
 	first_request = true;
 
 	do {
-		result = joolnl_alloc_msg(sk, iname, JOP_EAMT_FOREACH, 0, &msg);
+		result = joolnl_alloc_msg(sk, iname, JNLOP_EAMT_FOREACH, 0, &msg);
 		if (result.error)
 			return result;
 
 		if (first_request) {
 			first_request = false;
 
-		} else if (nla_put_eam(msg, RA_OFFSET, &args.last) < 0) {
+		} else if (nla_put_eam(msg, JNLAR_OFFSET, &args.last) < 0) {
 			nlmsg_free(msg);
 			return joolnl_err_msgsize();
 		}
@@ -76,7 +76,7 @@ struct jool_result joolnl_eamt_foreach(struct joolnl_socket *sk,
 }
 
 static struct jool_result __update(struct joolnl_socket *sk, char const *iname,
-		enum jool_operation operation,
+		enum joolnl_operation operation,
 		struct ipv6_prefix const *p6, struct ipv4_prefix const *p4,
 		__u8 flags)
 {
@@ -89,13 +89,13 @@ static struct jool_result __update(struct joolnl_socket *sk, char const *iname,
 		return result;
 
 	if (p6 || p4) {
-		root = nla_nest_start(msg, RA_OPERAND);
+		root = nla_nest_start(msg, JNLAR_OPERAND);
 		if (!root)
 			goto nla_put_failure;
 
-		if (p6 && nla_put_prefix6(msg, EA_PREFIX6, p6) < 0)
+		if (p6 && nla_put_prefix6(msg, JNLAE_PREFIX6, p6) < 0)
 			goto nla_put_failure;
-		if (p4 && nla_put_prefix4(msg, EA_PREFIX4, p4) < 0)
+		if (p4 && nla_put_prefix4(msg, JNLAE_PREFIX4, p4) < 0)
 			goto nla_put_failure;
 
 		nla_nest_end(msg, root);
@@ -112,16 +112,16 @@ struct jool_result joolnl_eamt_add(struct joolnl_socket *sk, char const *iname,
 		struct ipv6_prefix const *p6, struct ipv4_prefix const *p4,
 		bool force)
 {
-	return __update(sk, iname, JOP_EAMT_ADD, p6, p4, force ? HDRFLAGS_FORCE : 0);
+	return __update(sk, iname, JNLOP_EAMT_ADD, p6, p4, force ? JOOLNLHDR_FLAGS_FORCE : 0);
 }
 
 struct jool_result joolnl_eamt_rm(struct joolnl_socket *sk, char const *iname,
 		struct ipv6_prefix const *p6, struct ipv4_prefix const *p4)
 {
-	return __update(sk, iname, JOP_EAMT_RM, p6, p4, 0);
+	return __update(sk, iname, JNLOP_EAMT_RM, p6, p4, 0);
 }
 
 struct jool_result joolnl_eamt_flush(struct joolnl_socket *sk, char const *iname)
 {
-	return __update(sk, iname, JOP_EAMT_FLUSH, NULL, NULL, 0);
+	return __update(sk, iname, JNLOP_EAMT_FLUSH, NULL, NULL, 0);
 }

@@ -55,14 +55,14 @@ struct jool_result joolnl_blacklist4_foreach(struct joolnl_socket *sk,
 	first_request = true;
 
 	do {
-		result = joolnl_alloc_msg(sk, iname, JOP_BL4_FOREACH, 0, &msg);
+		result = joolnl_alloc_msg(sk, iname, JNLOP_BL4_FOREACH, 0, &msg);
 		if (result.error)
 			return result;
 
 		if (first_request) {
 			first_request = false;
 
-		} else if (nla_put_prefix4(msg, RA_OFFSET, &args.last) < 0) {
+		} else if (nla_put_prefix4(msg, JNLAR_OFFSET, &args.last) < 0) {
 			nlmsg_free(msg);
 			return joolnl_err_msgsize();
 		}
@@ -76,7 +76,7 @@ struct jool_result joolnl_blacklist4_foreach(struct joolnl_socket *sk,
 }
 
 static struct jool_result __update(struct joolnl_socket *sk, char const *iname,
-		enum jool_operation operation, struct ipv4_prefix const *prefix,
+		enum joolnl_operation operation, struct ipv4_prefix const *prefix,
 		__u8 force)
 {
 	struct nl_msg *msg;
@@ -86,7 +86,7 @@ static struct jool_result __update(struct joolnl_socket *sk, char const *iname,
 	if (result.error)
 		return result;
 
-	if (prefix && nla_put_prefix4(msg, RA_OPERAND, prefix) < 0) {
+	if (prefix && nla_put_prefix4(msg, JNLAR_OPERAND, prefix) < 0) {
 		nlmsg_free(msg);
 		return joolnl_err_msgsize();
 	}
@@ -97,17 +97,17 @@ static struct jool_result __update(struct joolnl_socket *sk, char const *iname,
 struct jool_result joolnl_blacklist4_add(struct joolnl_socket *sk,
 		char const *iname, struct ipv4_prefix const *prefix, bool force)
 {
-	return __update(sk, iname, JOP_BL4_ADD, prefix, force ? HDRFLAGS_FORCE : 0);
+	return __update(sk, iname, JNLOP_BL4_ADD, prefix, force ? JOOLNLHDR_FLAGS_FORCE : 0);
 }
 
 struct jool_result joolnl_blacklist4_rm(struct joolnl_socket *sk,
 		char const *iname, struct ipv4_prefix const *prefix)
 {
-	return __update(sk, iname, JOP_BL4_RM, prefix, 0);
+	return __update(sk, iname, JNLOP_BL4_RM, prefix, 0);
 }
 
 struct jool_result joolnl_blacklist4_flush(struct joolnl_socket *sk,
 		char const *iname)
 {
-	return __update(sk, iname, JOP_BL4_FLUSH, NULL, 0);
+	return __update(sk, iname, JNLOP_BL4_FLUSH, NULL, 0);
 }

@@ -219,26 +219,6 @@ struct bib_entry {
 	bool is_static;
 };
 
-/**
- * A session entry, from the eyes of userspace.
- *
- * It's a stripped version of "struct session_entry" and only used when sessions
- * need to travel to userspace. For anything else, use "struct session_entry".
- *
- * See "struct session_entry" for documentation on the fields.
- *
- * TODO this is userspace-only now.
- */
-struct session_entry_usr {
-	struct ipv6_transport_addr src6;
-	struct ipv6_transport_addr dst6;
-	struct ipv4_transport_addr src4;
-	struct ipv4_transport_addr dst4;
-	__u8 proto;
-	__u8 state;
-	__u32 dying_time;
-};
-
 bool port_range_equals(const struct port_range *r1,
 		const struct port_range *r2);
 bool port_range_touches(const struct port_range *r1,

@@ -8,8 +8,8 @@ libjoolnl_la_SOURCES = \
 	common.c common.h \
 	core.c core.h \
 	eamt.c eamt.h \
+	file.c file.h \
 	global.c global.h \
-	global-impl.c \
 	instance.c instance.h \
 	joold.c joold.h \
 	json.c json.h \
@@ -17,7 +17,6 @@ libjoolnl_la_SOURCES = \
 	session.c session.h \
 	stats.c stats.h \
 	wrapper-config.c \
-	wrapper-globals.c \
 	wrapper-types.c
 
 libjoolnl_la_CFLAGS  = ${WARNINGCFLAGS}

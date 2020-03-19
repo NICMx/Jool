@@ -160,11 +160,11 @@ end:	put_net(ns);
 }
 
 static int handle_global(struct config_candidate *new, struct nlattr *attr,
-		bool force)
+		joolnlhdr_flags flags)
 {
 	return global_update(&new->xlator.globals,
-			xlator_get_type(&new->xlator),
-			attr);
+			xlator_flags2xt(new->xlator.flags),
+			!!(flags & JOOLNLHDR_FLAGS_FORCE), attr);
 }
 
 static int handle_eamt(struct config_candidate *new, struct nlattr *root,
@@ -181,7 +181,7 @@ static int handle_eamt(struct config_candidate *new, struct nlattr *root,
 	}
 
 	nla_for_each_nested(attr, root, rem) {
-		if (nla_type(attr) != LA_ENTRY)
+		if (nla_type(attr) != JNLAL_ENTRY)
 			continue; /* ? */
 		error = jnla_get_eam(attr, "EAMT entry", &entry);
 		if (error)
@@ -208,7 +208,7 @@ static int handle_blacklist4(struct config_candidate *new, struct nlattr *root,
 	}
 
 	nla_for_each_nested(attr, root, rem) {
-		if (nla_type(attr) != LA_ENTRY)
+		if (nla_type(attr) != JNLAL_ENTRY)
 			continue; /* ? */
 		error = jnla_get_prefix4(attr, "IPv4 blacklist entry", &entry);
 		if (error)
@@ -234,7 +234,7 @@ static int handle_pool4(struct config_candidate *new, struct nlattr *root)
 	}
 
 	nla_for_each_nested(attr, root, rem) {
-		if (nla_type(attr) != LA_ENTRY)
+		if (nla_type(attr) != JNLAL_ENTRY)
 			continue; /* ? */
 		error = jnla_get_pool4(attr, "pool4 entry", &entry);
 		if (error)
@@ -260,7 +260,7 @@ static int handle_bib(struct config_candidate *new, struct nlattr *root)
 	}
 
 	nla_for_each_nested(attr, root, rem) {
-		if (nla_type(attr) != LA_ENTRY)
+		if (nla_type(attr) != JNLAL_ENTRY)
 			continue; /* ? */
 		error = jnla_get_bib(attr, "BIB entry", &entry);
 		if (error)
@@ -303,38 +303,38 @@ int atomconfig_add(struct sk_buff *skb, struct genl_info *info)
 
 	mutex_lock(&lock);
 
-	error = info->attrs[RA_ATOMIC_INIT]
-			? handle_init(&candidate, info->attrs[RA_ATOMIC_INIT], jhdr->iname, xlator_flags2xt(jhdr->xt))
+	error = info->attrs[JNLAR_ATOMIC_INIT]
+			? handle_init(&candidate, info->attrs[JNLAR_ATOMIC_INIT], jhdr->iname, jhdr->xt)
 			: get_candidate(jhdr->iname, &candidate);
 	if (error)
 		goto end;
 
-	if (info->attrs[RA_GLOBALS]) {
-		error = handle_global(candidate, info->attrs[RA_GLOBALS], jhdr->flags & HDRFLAGS_FORCE);
+	if (info->attrs[JNLAR_GLOBALS]) {
+		error = handle_global(candidate, info->attrs[JNLAR_GLOBALS], jhdr->flags);
 		if (error)
 			goto revert;
 	}
-	if (info->attrs[RA_BL4_ENTRIES]) {
-		error = handle_blacklist4(candidate, info->attrs[RA_BL4_ENTRIES], jhdr->flags & HDRFLAGS_FORCE);
+	if (info->attrs[JNLAR_BL4_ENTRIES]) {
+		error = handle_blacklist4(candidate, info->attrs[JNLAR_BL4_ENTRIES], jhdr->flags & JOOLNLHDR_FLAGS_FORCE);
 		if (error)
 			goto revert;
 	}
-	if (info->attrs[RA_EAMT_ENTRIES]) {
-		error = handle_eamt(candidate, info->attrs[RA_EAMT_ENTRIES], jhdr->flags & HDRFLAGS_FORCE);
+	if (info->attrs[JNLAR_EAMT_ENTRIES]) {
+		error = handle_eamt(candidate, info->attrs[JNLAR_EAMT_ENTRIES], jhdr->flags & JOOLNLHDR_FLAGS_FORCE);
 		if (error)
 			goto revert;
 	}
-	if (info->attrs[RA_POOL4_ENTRIES]) {
-		error = handle_pool4(candidate, info->attrs[RA_POOL4_ENTRIES]);
+	if (info->attrs[JNLAR_POOL4_ENTRIES]) {
+		error = handle_pool4(candidate, info->attrs[JNLAR_POOL4_ENTRIES]);
 		if (error)
 			goto revert;
 	}
-	if (info->attrs[RA_BIB_ENTRIES]) {
-		error = handle_bib(candidate, info->attrs[RA_BIB_ENTRIES]);
+	if (info->attrs[JNLAR_BIB_ENTRIES]) {
+		error = handle_bib(candidate, info->attrs[JNLAR_BIB_ENTRIES]);
 		if (error)
 			goto revert;
 	}
-	if (info->attrs[RA_ATOMIC_END]) {
+	if (info->attrs[JNLAR_ATOMIC_END]) {
 		error = commit(candidate);
 		if (error)
 			goto revert;

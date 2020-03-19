@@ -13,7 +13,7 @@
 #include "common/config.h"
 #include "common/xlat.h"
 #include "usr/util/str_utils.h"
-#include "usr/nl/json.h"
+#include "usr/nl/file.h"
 #include "usr/argp/command.h"
 #include "usr/argp/log.h"
 #include "usr/argp/xlator_type.h"
@@ -35,7 +35,7 @@
 #define REMOVE "remove"
 #define FLUSH "flush"
 
-static int handle_autocomplete(char *junk, int argc, char **argv, void *arg);
+static int handle_autocomplete(char *junk, int argc, char **argv, void const *arg);
 
 static struct cmd_option instance_ops[] = {
 		{
@@ -446,7 +446,7 @@ static int handle(char *iname, int argc, char **argv)
 /**
  * Never fails because there's no point yet.
  */
-static int handle_autocomplete(char *junk, int argc, char **argv, void *arg)
+static int handle_autocomplete(char *junk, int argc, char **argv, void const *arg)
 {
 	struct cmd_option *node = &tree[0];
 	long int depth;
@@ -625,7 +625,7 @@ int jool_main(int argc, char **argv)
 			iname = optarg;
 			break;
 		case 'f':
-			result = joolnl_json_get_iname(optarg, &iname);
+			result = joolnl_file_get_iname(optarg, &iname);
 			if (result.error)
 				return pr_result(&result);
 			break;

@@ -70,34 +70,26 @@ static bool print_common_values(struct pool4_entry const *entry,
 static void display_entry_normal(struct pool4_entry const *entry,
 		struct display_args *args)
 {
-	/* TODO ignoring length */
 	if (print_common_values(entry, args)) {
 		print_separator();
-
-		printf("| %10u | %5s | ",
-				entry->mark,
+		printf("| %10u | %5s | ", entry->mark,
 				l4proto_to_string(entry->proto));
 		if (entry->flags & ITERATIONS_INFINITE)
 			printf("%10s", "Infinite");
 		else
 			printf("%10u", entry->iterations);
-		printf(" (%5s) | %15s | %5u-%5u |\n",
-				(entry->flags & ITERATIONS_AUTO)
-						? "auto"
-						: "fixed",
-				inet_ntoa(entry->range.prefix.addr),
-				entry->range.ports.min,
-				entry->range.ports.max);
+		printf(" (%5s)", (entry->flags & ITERATIONS_AUTO)
+				? "auto" : "fixed");
 	} else {
-		printf("| %10s | %5s | %10s  %5s  | %15s | %5u-%5u |\n",
-				"",
-				"",
-				"",
-				"",
-				inet_ntoa(entry->range.prefix.addr),
-				entry->range.ports.min,
-				entry->range.ports.max);
+		printf("| %10s | %5s | %10s  %5s  ", "", "", "", "");
 	}
+
+	printf(" | %15s", inet_ntoa(entry->range.prefix.addr));
+	if (entry->range.prefix.len != 32)
+		printf("/%u", entry->range.prefix.len);
+	printf(" | %5u-%5u |\n",
+			entry->range.ports.min,
+			entry->range.ports.max);
 
 	args->last.initialized = true;
 	args->last.mark = entry->mark;
@@ -118,7 +110,7 @@ static struct jool_result handle_display_response(struct pool4_entry const *entr
 	return result_success();
 }
 
-int handle_pool4_display(char *iname, int argc, char **argv, void *arg)
+int handle_pool4_display(char *iname, int argc, char **argv, void const *arg)
 {
 	struct display_args dargs = { 0 };
 	struct joolnl_socket sk;
@@ -160,7 +152,7 @@ int handle_pool4_display(char *iname, int argc, char **argv, void *arg)
 	return 0;
 }
 
-void autocomplete_pool4_display(void *args)
+void autocomplete_pool4_display(void const *args)
 {
 	print_wargp_opts(display_opts);
 }
@@ -193,7 +185,7 @@ static int parse_max_iterations(void *void_field, int key, char *str)
 		return 0;
 	}
 
-	result = str_to_u32(str, &meat->iterations, 0, MAX_U32);
+	result = str_to_u32(str, &meat->iterations);
 	return pr_result(&result);
 }
 
@@ -254,7 +246,7 @@ static struct wargp_option add_opts[] = {
 	{ 0 },
 };
 
-int handle_pool4_add(char *iname, int argc, char **argv, void *arg)
+int handle_pool4_add(char *iname, int argc, char **argv, void const *arg)
 {
 	struct add_args aargs = { 0 };
 	struct joolnl_socket sk;
@@ -294,7 +286,7 @@ int handle_pool4_add(char *iname, int argc, char **argv, void *arg)
 	return pr_result(&result);
 }
 
-void autocomplete_pool4_add(void *args)
+void autocomplete_pool4_add(void const *args)
 {
 	print_wargp_opts(add_opts);
 }
@@ -334,7 +326,7 @@ static struct wargp_option remove_opts[] = {
 	{ 0 },
 };
 
-int handle_pool4_remove(char *iname, int argc, char **argv, void *arg)
+int handle_pool4_remove(char *iname, int argc, char **argv, void const *arg)
 {
 	struct rm_args rargs = { 0 };
 	struct joolnl_socket sk;
@@ -367,7 +359,7 @@ int handle_pool4_remove(char *iname, int argc, char **argv, void *arg)
 	return pr_result(&result);
 }
 
-void autocomplete_pool4_remove(void *args)
+void autocomplete_pool4_remove(void const *args)
 {
 	print_wargp_opts(remove_opts);
 }
@@ -387,7 +379,7 @@ static struct wargp_option flush_opts[] = {
 	{ 0 },
 };
 
-int handle_pool4_flush(char *iname, int argc, char **argv, void *arg)
+int handle_pool4_flush(char *iname, int argc, char **argv, void const *arg)
 {
 	struct flush_args fargs = { 0 };
 	struct joolnl_socket sk;
@@ -407,7 +399,7 @@ int handle_pool4_flush(char *iname, int argc, char **argv, void *arg)
 	return pr_result(&result);
 }
 
-void autocomplete_pool4_flush(void *args)
+void autocomplete_pool4_flush(void const *args)
 {
 	print_wargp_opts(flush_opts);
 }

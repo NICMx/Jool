@@ -16,7 +16,7 @@ int handle_joold_add(struct sk_buff *skb, struct genl_info *info)
 	if (error)
 		goto end;
 
-	error = joold_sync(&jool, info->attrs[RA_SESSION_ENTRIES]);
+	error = joold_sync(&jool, info->attrs[JNLAR_SESSION_ENTRIES]);
 	if (error)
 		goto revert_start;
 
@@ -31,22 +31,6 @@ revert_start:
 	request_handle_end(&jool);
 end:
 	return jresponse_send_simple(info, error);
-}
-
-int handle_joold_test(struct sk_buff *skb, struct genl_info *info)
-{
-	struct xlator jool;
-	int error;
-
-	log_debug("Handling joold test.");
-
-	error = request_handle_start(info, XT_NAT64, &jool);
-	if (error)
-		goto end;
-
-	error = joold_test(&jool);
-	request_handle_end(&jool);
-end:	return jresponse_send_simple(info, error);
 }
 
 int handle_joold_advertise(struct sk_buff *skb, struct genl_info *info)

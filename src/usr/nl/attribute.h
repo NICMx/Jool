@@ -4,6 +4,7 @@
 #include <netlink/attr.h>
 #include "common/config.h"
 #include "usr/util/result.h"
+#include "usr/nl/session.h"
 
 #define foreach_entry(pos, ghdr, rem) \
 	nla_for_each_attr( \

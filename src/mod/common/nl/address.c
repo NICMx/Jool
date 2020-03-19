@@ -14,10 +14,10 @@ static int jnla_put_entry(struct jool_response *response,
 
 	switch (entry->method) {
 	case AXM_RFC6052:
-		error = jnla_put_prefix6(response->skb, AQA_PREFIX6052, &entry->prefix6052);
+		error = jnla_put_prefix6(response->skb, JNLAAQ_PREFIX6052, &entry->prefix6052);
 		break;
 	case AXM_EAMT:
-		error = jnla_put_eam(response->skb, AQA_EAM, &entry->eam);
+		error = jnla_put_eam(response->skb, JNLAAQ_EAM, &entry->eam);
 		break;
 	case AXM_RFC6791:
 		return 0;
@@ -47,7 +47,7 @@ int handle_address_query64(struct sk_buff *skb, struct genl_info *info)
 		goto end;
 
 	/* Parse request */
-	error = jnla_get_addr6(info->attrs[RA_ADDR_QUERY], "IPv6 address", &request);
+	error = jnla_get_addr6(info->attrs[JNLAR_ADDR_QUERY], "IPv6 address", &request);
 	if (error)
 		goto revert_start;
 
@@ -63,7 +63,7 @@ int handle_address_query64(struct sk_buff *skb, struct genl_info *info)
 	error = jresponse_init(&response, info);
 	if (error)
 		goto revert_start;
-	error = jnla_put_addr4(response.skb, AQA_ADDR4, &result.addr);
+	error = jnla_put_addr4(response.skb, JNLAAQ_ADDR4, &result.addr);
 	if (error) {
 		report_put_failure();
 		goto drop_response;
@@ -100,7 +100,7 @@ int handle_address_query46(struct sk_buff *skb, struct genl_info *info)
 		goto end;
 
 	/* Parse request */
-	error = jnla_get_addr4(info->attrs[RA_ADDR_QUERY], "IPv4 address", &request);
+	error = jnla_get_addr4(info->attrs[JNLAR_ADDR_QUERY], "IPv4 address", &request);
 	if (error)
 		goto revert_start;
 
@@ -116,7 +116,7 @@ int handle_address_query46(struct sk_buff *skb, struct genl_info *info)
 	error = jresponse_init(&response, info);
 	if (error)
 		goto revert_start;
-	error = jnla_put_addr6(response.skb, AQA_ADDR6, &result.addr);
+	error = jnla_put_addr6(response.skb, JNLAAQ_ADDR6, &result.addr);
 	if (error) {
 		report_put_failure();
 		goto drop_response;

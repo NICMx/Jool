@@ -4,7 +4,7 @@
 #include "usr/argp/log.h"
 #include "usr/argp/xlator_type.h"
 
-int handle_joold_advertise(char *iname, int argc, char **argv, void *arg)
+int handle_joold_advertise(char *iname, int argc, char **argv, void const *arg)
 {
 	struct joolnl_socket sk;
 	struct jool_result result;
@@ -19,7 +19,7 @@ int handle_joold_advertise(char *iname, int argc, char **argv, void *arg)
 	return pr_result(&result);
 }
 
-void autocomplete_joold_advertise(void *args)
+void autocomplete_joold_advertise(void const *args)
 {
 	/* joold advertise has no arguments. */
 }

@@ -17,7 +17,6 @@ SESSIONTABLE = sessiontable
 obj-m += $(SESSIONTABLE).o
 
 $(SESSIONTABLE)-objs += $(MIN_REQS)
-$(SESSIONTABLE)-objs += ../../../src/mod/common/global-impl.o
 $(SESSIONTABLE)-objs += ../../../src/mod/common/translation_state.o
 $(SESSIONTABLE)-objs += ../../../src/mod/common/db/config.o
 $(SESSIONTABLE)-objs += ../../../src/mod/common/db/rbtree.o

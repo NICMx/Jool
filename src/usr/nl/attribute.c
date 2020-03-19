@@ -1,6 +1,7 @@
 #include "usr/nl/attribute.h"
 
 #include <errno.h>
+#include <netlink/errno.h>
 #include <netlink/msg.h>
 #include <netlink/genl/genl.h>
 
@@ -70,7 +71,7 @@ struct jool_result jnla_validate_list(struct nlattr *head, int len,
 	int rem;
 	int error;
 
-	error = nla_validate(head, len, LA_MAX, policy);
+	error = nla_validate(head, len, JNLAL_MAX, policy);
 	if (error) {
 		return result_from_error(
 			error,
@@ -81,7 +82,7 @@ struct jool_result jnla_validate_list(struct nlattr *head, int len,
 
 	/* Sigh */
 	nla_for_each_attr(attr, head, len, rem) {
-		if (nla_type(attr) != LA_ENTRY) {
+		if (nla_type(attr) != JNLAL_ENTRY) {
 			return result_from_error(
 				-EINVAL,
 				"The kernel's response contains unexpected attribute '%d' in its '%s' list.",
@@ -105,7 +106,7 @@ void nla_get_addr4(struct nlattr const *attr, struct in_addr *addr)
 
 struct jool_result nla_get_prefix6(struct nlattr *root, struct ipv6_prefix *out)
 {
-	struct nlattr *attrs[PA_COUNT];
+	struct nlattr *attrs[JNLAP_COUNT];
 	struct jool_result result;
 
 	/*
@@ -120,18 +121,18 @@ struct jool_result nla_get_prefix6(struct nlattr *root, struct ipv6_prefix *out)
 		);
 	}
 
-	result = jnla_parse_nested(attrs, PA_MAX, root, prefix6_policy);
+	result = jnla_parse_nested(attrs, JNLAP_MAX, root, joolnl_prefix6_policy);
 	if (result.error)
 		return result;
 
-	nla_get_addr6(attrs[PA_ADDR], &out->addr);
-	out->len = nla_get_u8(attrs[PA_LEN]);
+	nla_get_addr6(attrs[JNLAP_ADDR], &out->addr);
+	out->len = nla_get_u8(attrs[JNLAP_LEN]);
 	return result_success();
 }
 
 struct jool_result nla_get_prefix4(struct nlattr *root, struct ipv4_prefix *out)
 {
-	struct nlattr *attrs[PA_COUNT];
+	struct nlattr *attrs[JNLAP_COUNT];
 	struct jool_result result;
 
 	/*
@@ -146,121 +147,121 @@ struct jool_result nla_get_prefix4(struct nlattr *root, struct ipv4_prefix *out)
 		);
 	}
 
-	result = jnla_parse_nested(attrs, PA_MAX, root, prefix4_policy);
+	result = jnla_parse_nested(attrs, JNLAP_MAX, root, joolnl_prefix4_policy);
 	if (result.error)
 		return result;
 
-	nla_get_addr4(attrs[PA_ADDR], &out->addr);
-	out->len = nla_get_u8(attrs[PA_LEN]);
+	nla_get_addr4(attrs[JNLAP_ADDR], &out->addr);
+	out->len = nla_get_u8(attrs[JNLAP_LEN]);
 	return result_success();
 }
 
 struct jool_result nla_get_taddr6(struct nlattr *root, struct ipv6_transport_addr *out)
 {
-	struct nlattr *attrs[TAA_COUNT];
+	struct nlattr *attrs[JNLAT_COUNT];
 	struct jool_result result;
 
-	result = jnla_parse_nested(attrs, TAA_MAX, root, taddr6_policy);
+	result = jnla_parse_nested(attrs, JNLAT_MAX, root, joolnl_taddr6_policy);
 	if (result.error)
 		return result;
 
-	nla_get_addr6(attrs[TAA_ADDR], &out->l3);
-	out->l4 = nla_get_u16(attrs[TAA_PORT]);
+	nla_get_addr6(attrs[JNLAT_ADDR], &out->l3);
+	out->l4 = nla_get_u16(attrs[JNLAT_PORT]);
 	return result_success();
 }
 
 struct jool_result nla_get_taddr4(struct nlattr *root, struct ipv4_transport_addr *out)
 {
-	struct nlattr *attrs[TAA_COUNT];
+	struct nlattr *attrs[JNLAT_COUNT];
 	struct jool_result result;
 
-	result = jnla_parse_nested(attrs, TAA_MAX, root, taddr4_policy);
+	result = jnla_parse_nested(attrs, JNLAT_MAX, root, joolnl_taddr4_policy);
 	if (result.error)
 		return result;
 
-	nla_get_addr4(attrs[TAA_ADDR], &out->l3);
-	out->l4 = nla_get_u16(attrs[TAA_PORT]);
+	nla_get_addr4(attrs[JNLAT_ADDR], &out->l3);
+	out->l4 = nla_get_u16(attrs[JNLAT_PORT]);
 	return result_success();
 }
 
 struct jool_result nla_get_eam(struct nlattr *root, struct eamt_entry *out)
 {
-	struct nlattr *attrs[EA_COUNT];
+	struct nlattr *attrs[JNLAE_COUNT];
 	struct jool_result result;
 
-	result = jnla_parse_nested(attrs, EA_MAX, root, eam_policy);
+	result = jnla_parse_nested(attrs, JNLAE_MAX, root, eam_policy);
 	if (result.error)
 		return result;
 
-	result = nla_get_prefix6(attrs[EA_PREFIX6], &out->prefix6);
+	result = nla_get_prefix6(attrs[JNLAE_PREFIX6], &out->prefix6);
 	if (result.error)
 		return result;
 
-	return nla_get_prefix4(attrs[EA_PREFIX4], &out->prefix4);
+	return nla_get_prefix4(attrs[JNLAE_PREFIX4], &out->prefix4);
 }
 
 struct jool_result nla_get_pool4(struct nlattr *root, struct pool4_entry *out)
 {
-	struct nlattr *attrs[P4A_COUNT];
+	struct nlattr *attrs[JNLAP4_COUNT];
 	struct jool_result result;
 
-	result = jnla_parse_nested(attrs, P4A_MAX, root, pool4_entry_policy);
+	result = jnla_parse_nested(attrs, JNLAP4_MAX, root, joolnl_pool4_entry_policy);
 	if (result.error)
 		return result;
 
-	out->mark = nla_get_u32(attrs[P4A_MARK]);
-	out->iterations = nla_get_u32(attrs[P4A_ITERATIONS]);
-	out->flags = nla_get_u8(attrs[P4A_FLAGS]);
-	out->proto = nla_get_u8(attrs[P4A_PROTO]);
-	out->range.ports.min = nla_get_u16(attrs[P4A_PORT_MIN]);
-	out->range.ports.max = nla_get_u16(attrs[P4A_PORT_MAX]);
-	return nla_get_prefix4(attrs[P4A_PREFIX], &out->range.prefix);
+	out->mark = nla_get_u32(attrs[JNLAP4_MARK]);
+	out->iterations = nla_get_u32(attrs[JNLAP4_ITERATIONS]);
+	out->flags = nla_get_u8(attrs[JNLAP4_FLAGS]);
+	out->proto = nla_get_u8(attrs[JNLAP4_PROTO]);
+	out->range.ports.min = nla_get_u16(attrs[JNLAP4_PORT_MIN]);
+	out->range.ports.max = nla_get_u16(attrs[JNLAP4_PORT_MAX]);
+	return nla_get_prefix4(attrs[JNLAP4_PREFIX], &out->range.prefix);
 }
 
 struct jool_result nla_get_bib(struct nlattr *root, struct bib_entry *out)
 {
-	struct nlattr *attrs[BA_COUNT];
+	struct nlattr *attrs[JNLAB_COUNT];
 	struct jool_result result;
 
-	result = jnla_parse_nested(attrs, BA_MAX, root, bib_entry_policy);
+	result = jnla_parse_nested(attrs, JNLAB_MAX, root, joolnl_bib_entry_policy);
 	if (result.error)
 		return result;
 
-	result = nla_get_taddr6(attrs[BA_SRC6], &out->addr6);
+	result = nla_get_taddr6(attrs[JNLAB_SRC6], &out->addr6);
 	if (result.error)
 		return result;
-	result = nla_get_taddr4(attrs[BA_SRC4], &out->addr4);
+	result = nla_get_taddr4(attrs[JNLAB_SRC4], &out->addr4);
 	if (result.error)
 		return result;
-	out->l4_proto = nla_get_u8(attrs[BA_PROTO]);
-	out->is_static = nla_get_u8(attrs[BA_STATIC]);
+	out->l4_proto = nla_get_u8(attrs[JNLAB_PROTO]);
+	out->is_static = nla_get_u8(attrs[JNLAB_STATIC]);
 	return result_success();
 }
 
 struct jool_result nla_get_session(struct nlattr *root, struct session_entry_usr *out)
 {
-	struct nlattr *attrs[SEA_COUNT];
+	struct nlattr *attrs[JNLASE_COUNT];
 	struct jool_result result;
 
-	result = jnla_parse_nested(attrs, SEA_MAX, root, session_entry_policy);
+	result = jnla_parse_nested(attrs, JNLASE_MAX, root, joolnl_session_entry_policy);
 	if (result.error)
 		return result;
 
-	result = nla_get_taddr6(attrs[SEA_SRC6], &out->src6);
+	result = nla_get_taddr6(attrs[JNLASE_SRC6], &out->src6);
 	if (result.error)
 		return result;
-	result = nla_get_taddr6(attrs[SEA_DST6], &out->dst6);
+	result = nla_get_taddr6(attrs[JNLASE_DST6], &out->dst6);
 	if (result.error)
 		return result;
-	result = nla_get_taddr4(attrs[SEA_SRC4], &out->src4);
+	result = nla_get_taddr4(attrs[JNLASE_SRC4], &out->src4);
 	if (result.error)
 		return result;
-	result = nla_get_taddr4(attrs[SEA_DST4], &out->dst4);
+	result = nla_get_taddr4(attrs[JNLASE_DST4], &out->dst4);
 	if (result.error)
 		return result;
-	out->proto = nla_get_u8(attrs[SEA_PROTO]);
-	out->state = nla_get_u8(attrs[SEA_STATE]);
-	out->dying_time = nla_get_u32(attrs[SEA_EXPIRATION]);
+	out->proto = nla_get_u8(attrs[JNLASE_PROTO]);
+	out->state = nla_get_u8(attrs[JNLASE_STATE]);
+	out->dying_time = nla_get_u32(attrs[JNLASE_EXPIRATION]);
 	return result_success();
 }
 
@@ -272,7 +273,7 @@ struct jool_result nla_get_plateaus(struct nlattr *root,
 	struct jool_result result;
 
 	result = jnla_validate_list(nla_data(root), nla_len(root), "plateus",
-			plateau_list_policy);
+			joolnl_plateau_list_policy);
 	if (result.error)
 		return result;
 
@@ -315,9 +316,9 @@ int nla_put_prefix6(struct nl_msg *msg, int attrtype, struct ipv6_prefix const *
 	if (!root)
 		goto abort;
 
-	if (nla_put_addr6(msg, PA_ADDR, &prefix->addr) < 0)
+	if (nla_put_addr6(msg, JNLAP_ADDR, &prefix->addr) < 0)
 		goto cancel;
-	if (nla_put_u8(msg, PA_LEN, prefix->len) < 0)
+	if (nla_put_u8(msg, JNLAP_LEN, prefix->len) < 0)
 		goto cancel;
 
 	nla_nest_end(msg, root);
@@ -341,9 +342,9 @@ int nla_put_prefix4(struct nl_msg *msg, int attrtype, struct ipv4_prefix const *
 	if (!root)
 		goto abort;
 
-	if (nla_put_addr4(msg, PA_ADDR, &prefix->addr) < 0)
+	if (nla_put_addr4(msg, JNLAP_ADDR, &prefix->addr) < 0)
 		goto cancel;
-	if (nla_put_u8(msg, PA_LEN, prefix->len) < 0)
+	if (nla_put_u8(msg, JNLAP_LEN, prefix->len) < 0)
 		goto cancel;
 
 	nla_nest_end(msg, root);
@@ -361,9 +362,9 @@ static int nla_put_taddr6(struct nl_msg *msg, int attrtype, struct ipv6_transpor
 	if (!root)
 		return -NLE_NOMEM;
 
-	if (nla_put_addr6(msg, TAA_ADDR, &taddr->l3) < 0)
+	if (nla_put_addr6(msg, JNLAT_ADDR, &taddr->l3) < 0)
 		goto cancel;
-	if (nla_put_u16(msg, TAA_PORT, taddr->l4) < 0)
+	if (nla_put_u16(msg, JNLAT_PORT, taddr->l4) < 0)
 		goto cancel;
 
 	nla_nest_end(msg, root);
@@ -382,9 +383,9 @@ static int nla_put_taddr4(struct nl_msg *msg, int attrtype, struct ipv4_transpor
 	if (!root)
 		return -NLE_NOMEM;
 
-	if (nla_put_addr4(msg, TAA_ADDR, &taddr->l3) < 0)
+	if (nla_put_addr4(msg, JNLAT_ADDR, &taddr->l3) < 0)
 		goto cancel;
-	if (nla_put_u16(msg, TAA_PORT, taddr->l4) < 0)
+	if (nla_put_u16(msg, JNLAT_PORT, taddr->l4) < 0)
 		goto cancel;
 
 	nla_nest_end(msg, root);
@@ -405,7 +406,7 @@ int nla_put_plateaus(struct nl_msg *msg, int attrtype, struct mtu_plateaus const
 		return -NLE_NOMEM;
 
 	for (i = 0; i < plateaus->count; i++) {
-		if (nla_put_u16(msg, LA_ENTRY, plateaus->values[i]) < 0) {
+		if (nla_put_u16(msg, JNLAL_ENTRY, plateaus->values[i]) < 0) {
 			nla_nest_cancel(msg, root);
 			return -NLE_NOMEM;
 		}
@@ -423,9 +424,9 @@ int nla_put_eam(struct nl_msg *msg, int attrtype, struct eamt_entry const *entry
 	if (!root)
 		return -NLE_NOMEM;
 
-	if (nla_put_prefix6(msg, EA_PREFIX6, &entry->prefix6) < 0)
+	if (nla_put_prefix6(msg, JNLAE_PREFIX6, &entry->prefix6) < 0)
 		goto cancel;
-	if (nla_put_prefix4(msg, EA_PREFIX4, &entry->prefix4) < 0)
+	if (nla_put_prefix4(msg, JNLAE_PREFIX4, &entry->prefix4) < 0)
 		goto cancel;
 
 	nla_nest_end(msg, root);
@@ -444,14 +445,14 @@ int nla_put_pool4(struct nl_msg *msg, int attrtype, struct pool4_entry const *en
 	if (!root)
 		return -NLE_NOMEM;
 
-	NLA_PUT_U32(msg, P4A_MARK, entry->mark);
-	NLA_PUT_U32(msg, P4A_ITERATIONS, entry->iterations);
-	NLA_PUT_U8(msg, P4A_FLAGS, entry->flags);
-	NLA_PUT_U8(msg, P4A_PROTO, entry->proto);
-	if (nla_put_prefix4(msg, P4A_PREFIX, &entry->range.prefix) < 0)
+	NLA_PUT_U32(msg, JNLAP4_MARK, entry->mark);
+	NLA_PUT_U32(msg, JNLAP4_ITERATIONS, entry->iterations);
+	NLA_PUT_U8(msg, JNLAP4_FLAGS, entry->flags);
+	NLA_PUT_U8(msg, JNLAP4_PROTO, entry->proto);
+	if (nla_put_prefix4(msg, JNLAP4_PREFIX, &entry->range.prefix) < 0)
 		goto nla_put_failure;
-	NLA_PUT_U16(msg, P4A_PORT_MIN, entry->range.ports.min);
-	NLA_PUT_U16(msg, P4A_PORT_MAX, entry->range.ports.max);
+	NLA_PUT_U16(msg, JNLAP4_PORT_MIN, entry->range.ports.min);
+	NLA_PUT_U16(msg, JNLAP4_PORT_MAX, entry->range.ports.max);
 
 	nla_nest_end(msg, root);
 	return 0;
@@ -473,12 +474,12 @@ int nla_put_bib_attrs(struct nl_msg *msg, int attrtype,
 	if (!root)
 		return -NLE_NOMEM;
 
-	if (addr6 && nla_put_taddr6(msg, BA_SRC6, addr6) < 0)
+	if (addr6 && nla_put_taddr6(msg, JNLAB_SRC6, addr6) < 0)
 		goto nla_put_failure;
-	if (addr4 && nla_put_taddr4(msg, BA_SRC4, addr4) < 0)
+	if (addr4 && nla_put_taddr4(msg, JNLAB_SRC4, addr4) < 0)
 		goto nla_put_failure;
-	NLA_PUT_U8(msg, BA_PROTO, proto);
-	NLA_PUT_U8(msg, BA_STATIC, is_static);
+	NLA_PUT_U8(msg, JNLAB_PROTO, proto);
+	NLA_PUT_U8(msg, JNLAB_STATIC, is_static);
 
 	nla_nest_end(msg, root);
 	return 0;
@@ -502,17 +503,17 @@ int nla_put_session(struct nl_msg *msg, int attrtype, struct session_entry_usr c
 	if (!root)
 		return -NLE_NOMEM;
 
-	if (nla_put_taddr6(msg, SEA_SRC6, &entry->src6) < 0)
+	if (nla_put_taddr6(msg, JNLASE_SRC6, &entry->src6) < 0)
 		goto nla_put_failure;
-	if (nla_put_taddr6(msg, SEA_DST6, &entry->dst6) < 0)
+	if (nla_put_taddr6(msg, JNLASE_DST6, &entry->dst6) < 0)
 		goto nla_put_failure;
-	if (nla_put_taddr4(msg, SEA_SRC4, &entry->src4) < 0)
+	if (nla_put_taddr4(msg, JNLASE_SRC4, &entry->src4) < 0)
 		goto nla_put_failure;
-	if (nla_put_taddr4(msg, SEA_DST4, &entry->dst4) < 0)
+	if (nla_put_taddr4(msg, JNLASE_DST4, &entry->dst4) < 0)
 		goto nla_put_failure;
-	NLA_PUT_U8(msg, SEA_PROTO, entry->proto);
-	NLA_PUT_U8(msg, SEA_STATE, entry->state);
-	NLA_PUT_U32(msg, SEA_EXPIRATION, entry->dying_time);
+	NLA_PUT_U8(msg, JNLASE_PROTO, entry->proto);
+	NLA_PUT_U8(msg, JNLASE_STATE, entry->state);
+	NLA_PUT_U32(msg, JNLASE_EXPIRATION, entry->dying_time);
 
 	nla_nest_end(msg, root);
 	return 0;

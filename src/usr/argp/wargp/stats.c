@@ -54,7 +54,7 @@ static struct jool_result handle_jstat(struct joolnl_stat const *stat, void *arg
 	return result_success();
 }
 
-int handle_stats_display(char *iname, int argc, char **argv, void *arg)
+int handle_stats_display(char *iname, int argc, char **argv, void const *arg)
 {
 	struct display_args dargs = { 0 };
 	struct joolnl_socket sk;
@@ -81,7 +81,7 @@ int handle_stats_display(char *iname, int argc, char **argv, void *arg)
 	return pr_result(&result);
 }
 
-void autocomplete_stats_display(void *args)
+void autocomplete_stats_display(void const *args)
 {
 	print_wargp_opts(display_opts);
 }

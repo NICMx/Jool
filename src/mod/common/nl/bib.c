@@ -10,7 +10,7 @@
 
 static int serialize_bib_entry(struct bib_entry const *entry, void *arg)
 {
-	return jnla_put_bib(arg, LA_ENTRY, entry) ? 1 : 0;
+	return jnla_put_bib(arg, JNLAL_ENTRY, entry) ? 1 : 0;
 }
 
 int handle_bib_foreach(struct sk_buff *skb, struct genl_info *info)
@@ -29,13 +29,13 @@ int handle_bib_foreach(struct sk_buff *skb, struct genl_info *info)
 	if (error)
 		goto revert_start;
 
-	if (info->attrs[RA_OFFSET]) {
-		error = jnla_get_bib(info->attrs[RA_OFFSET], "Iteration offset", &offset);
+	if (info->attrs[JNLAR_OFFSET]) {
+		error = jnla_get_bib(info->attrs[JNLAR_OFFSET], "Iteration offset", &offset);
 		if (error)
 			goto revert_response;
 		offset_ptr = &offset;
-	} else if (info->attrs[RA_PROTO]) {
-		offset.l4_proto = nla_get_u8(info->attrs[RA_PROTO]);
+	} else if (info->attrs[JNLAR_PROTO]) {
+		offset.l4_proto = nla_get_u8(info->attrs[JNLAR_PROTO]);
 		offset_ptr = NULL;
 	} else {
 		log_err("The request is missing a protocol.");
@@ -43,7 +43,6 @@ int handle_bib_foreach(struct sk_buff *skb, struct genl_info *info)
 		goto revert_response;
 	}
 
-	/* TODO stop fooling around and receive the full BIB as offset. */
 	error = bib_foreach(jool.nat64.bib, offset.l4_proto, serialize_bib_entry,
 			response.skb, offset_ptr ? &offset_ptr->addr4 : NULL);
 
@@ -74,7 +73,7 @@ int handle_bib_add(struct sk_buff *skb, struct genl_info *info)
 	if (error)
 		goto end;
 
-	error = jnla_get_bib(info->attrs[RA_OPERAND], "Operand", &new);
+	error = jnla_get_bib(info->attrs[JNLAR_OPERAND], "Operand", &new);
 	if (error)
 		goto revert_start;
 
@@ -95,7 +94,7 @@ end:
 int handle_bib_rm(struct sk_buff *skb, struct genl_info *info)
 {
 	struct xlator jool;
-	struct nlattr *attrs[BA_COUNT];
+	struct nlattr *attrs[JNLAB_COUNT];
 	struct bib_entry entry;
 	int error;
 
@@ -105,42 +104,42 @@ int handle_bib_rm(struct sk_buff *skb, struct genl_info *info)
 	if (error)
 		goto end;
 
-	if (!info->attrs[RA_OPERAND]) {
+	if (!info->attrs[JNLAR_OPERAND]) {
 		log_err("The request lacks an operand attribute.");
 		error = -EINVAL;
 		goto revert_start;
 	}
 
-	error = NLA_PARSE_NESTED(attrs, BA_MAX, info->attrs[RA_OPERAND], bib_entry_policy);
+	error = NLA_PARSE_NESTED(attrs, JNLAB_MAX, info->attrs[JNLAR_OPERAND], joolnl_bib_entry_policy);
 	if (error) {
 		log_err("The 'BIB entry' attribute is malformed.");
 		goto revert_start;
 	}
 
-	if (!attrs[BA_SRC6] && !attrs[BA_SRC4]) {
+	if (!attrs[JNLAB_SRC6] && !attrs[JNLAB_SRC4]) {
 		error = -EINVAL;
 		goto revert_start;
 	}
 
-	if (attrs[BA_SRC6]) {
-		error = jnla_get_taddr6(attrs[BA_SRC6], "IPv6 transport address", &entry.addr6);
+	if (attrs[JNLAB_SRC6]) {
+		error = jnla_get_taddr6(attrs[JNLAB_SRC6], "IPv6 transport address", &entry.addr6);
 		if (error)
 			goto revert_start;
 	}
-	if (attrs[BA_SRC4]) {
-		error = jnla_get_taddr4(attrs[BA_SRC4], "IPv4 transport address", &entry.addr4);
+	if (attrs[JNLAB_SRC4]) {
+		error = jnla_get_taddr4(attrs[JNLAB_SRC4], "IPv4 transport address", &entry.addr4);
 		if (error)
 			goto revert_start;
 	}
 
-	if (attrs[BA_PROTO])
-		entry.l4_proto = nla_get_u8(attrs[BA_PROTO]);
-	if (attrs[BA_STATIC])
-		entry.is_static = nla_get_u8(attrs[BA_STATIC]);
+	if (attrs[JNLAB_PROTO])
+		entry.l4_proto = nla_get_u8(attrs[JNLAB_PROTO]);
+	if (attrs[JNLAB_STATIC])
+		entry.is_static = nla_get_u8(attrs[JNLAB_STATIC]);
 
-	if (!attrs[BA_SRC4])
+	if (!attrs[JNLAB_SRC4])
 		error = bib_find6(jool.nat64.bib, entry.l4_proto, &entry.addr6, &entry);
-	else if (!attrs[BA_SRC6])
+	else if (!attrs[JNLAB_SRC6])
 		error = bib_find4(jool.nat64.bib, entry.l4_proto, &entry.addr4, &entry);
 	if (error == -ESRCH)
 		goto esrch;

@@ -38,7 +38,7 @@ static struct jool_result print_entry(struct ipv4_prefix const *prefix, void *ar
 	return result_success();
 }
 
-int handle_blacklist4_display(char *iname, int argc, char **argv, void *arg)
+int handle_blacklist4_display(char *iname, int argc, char **argv, void const *arg)
 {
 	struct display_args dargs = { 0 };
 	struct joolnl_socket sk;
@@ -75,7 +75,7 @@ int handle_blacklist4_display(char *iname, int argc, char **argv, void *arg)
 	return 0;
 }
 
-void autocomplete_blacklist4_display(void *args)
+void autocomplete_blacklist4_display(void const *args)
 {
 	print_wargp_opts(display_opts);
 }
@@ -97,7 +97,7 @@ static struct wargp_option add_opts[] = {
 	{ 0 },
 };
 
-int handle_blacklist4_add(char *iname, int argc, char **argv, void *arg)
+int handle_blacklist4_add(char *iname, int argc, char **argv, void const *arg)
 {
 	struct add_args aargs = { 0 };
 	struct joolnl_socket sk;
@@ -125,7 +125,7 @@ int handle_blacklist4_add(char *iname, int argc, char **argv, void *arg)
 	return pr_result(&result);
 }
 
-void autocomplete_blacklist4_add(void *args)
+void autocomplete_blacklist4_add(void const *args)
 {
 	print_wargp_opts(add_opts);
 }
@@ -145,7 +145,7 @@ static struct wargp_option remove_opts[] = {
 	{ 0 },
 };
 
-int handle_blacklist4_remove(char *iname, int argc, char **argv, void *arg)
+int handle_blacklist4_remove(char *iname, int argc, char **argv, void const *arg)
 {
 	struct rm_args rargs = { 0 };
 	struct joolnl_socket sk;
@@ -173,12 +173,12 @@ int handle_blacklist4_remove(char *iname, int argc, char **argv, void *arg)
 	return pr_result(&result);
 }
 
-void autocomplete_blacklist4_remove(void *args)
+void autocomplete_blacklist4_remove(void const *args)
 {
 	print_wargp_opts(remove_opts);
 }
 
-int handle_blacklist4_flush(char *iname, int argc, char **argv, void *arg)
+int handle_blacklist4_flush(char *iname, int argc, char **argv, void const *arg)
 {
 	struct joolnl_socket sk;
 	struct jool_result result;
@@ -197,7 +197,7 @@ int handle_blacklist4_flush(char *iname, int argc, char **argv, void *arg)
 	return pr_result(&result);
 }
 
-void autocomplete_blacklist4_flush(void *args)
+void autocomplete_blacklist4_flush(void const *args)
 {
 	/* Nothing needed here. */
 }

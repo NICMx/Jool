@@ -5,7 +5,6 @@
 #include "mod/common/xlator.h"
 
 int handle_joold_add(struct sk_buff *skb, struct genl_info *info);
-int handle_joold_test(struct sk_buff *skb, struct genl_info *info);
 int handle_joold_advertise(struct sk_buff *skb, struct genl_info *info);
 int handle_joold_ack(struct sk_buff *skb, struct genl_info *info);
 

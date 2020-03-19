@@ -3,14 +3,18 @@
 #include "common/constants.h"
 #include "mod/common/log.h"
 
-static int validate_attr(struct nlattr *attr, char const *name,
-		size_t expected_len)
+static int validate_null(struct nlattr *attr, char const *name)
 {
 	if (!attr) {
 		log_err("Invalid request: '%s' attribute is missing.", name);
 		return -EINVAL;
 	}
 
+	return 0;
+}
+
+static int validate_len(struct nlattr *attr, char const *name, size_t expected_len)
+{
 	if (nla_len(attr) < expected_len) {
 		log_err("Invalid request: %s has %d bytes instead of %zu.",
 				name, nla_len(attr), expected_len);
@@ -24,7 +28,7 @@ int jnla_get_u8(struct nlattr *attr, char const *name, __u8 *out)
 {
 	int error;
 
-	error = validate_attr(attr, name, sizeof(__u8));
+	error = validate_null(attr, name);
 	if (error)
 		return error;
 
@@ -36,7 +40,7 @@ int jnla_get_u32(struct nlattr *attr, char const *name, __u32 *out)
 {
 	int error;
 
-	error = validate_attr(attr, name, sizeof(__u32));
+	error = validate_null(attr, name);
 	if (error)
 		return error;
 
@@ -59,7 +63,7 @@ int jnla_get_str(struct nlattr *attr, char const *name, size_t size, char *out)
 {
 	int error;
 
-	error = validate_attr(attr, name, 0);
+	error = validate_null(attr, name);
 	if (error)
 		return error;
 	error = validate_str(nla_data(attr), size);
@@ -74,7 +78,10 @@ int jnla_get_addr6(struct nlattr *attr, char const *name, struct in6_addr *out)
 {
 	int error;
 
-	error = validate_attr(attr, name, sizeof(struct in6_addr));
+	error = validate_null(attr, name);
+	if (error)
+		return error;
+	error = validate_len(attr, name, sizeof(struct in6_addr));
 	if (error)
 		return error;
 
@@ -86,7 +93,10 @@ int jnla_get_addr4(struct nlattr *attr, char const *name, struct in_addr *out)
 {
 	int error;
 
-	error = validate_attr(attr, name, sizeof(struct in_addr));
+	error = validate_null(attr, name);
+	if (error)
+		return error;
+	error = validate_len(attr, name, sizeof(struct in_addr));
 	if (error)
 		return error;
 
@@ -96,112 +106,112 @@ int jnla_get_addr4(struct nlattr *attr, char const *name, struct in_addr *out)
 
 int jnla_get_prefix6(struct nlattr *attr, char const *name, struct ipv6_prefix *out)
 {
-	struct nlattr *attrs[PA_COUNT];
+	struct nlattr *attrs[JNLAP_COUNT];
 	int error;
 
-	error = validate_attr(attr, name, 0);
+	error = validate_null(attr, name);
 	if (error)
 		return error;
 
-	error = NLA_PARSE_NESTED(attrs, PA_MAX, attr, prefix6_policy);
+	error = NLA_PARSE_NESTED(attrs, JNLAP_MAX, attr, joolnl_prefix6_policy);
 	if (error) {
 		log_err("The '%s' attribute is malformed.", name);
 		return error;
 	}
 
-	out->len = nla_get_u8(attrs[PA_LEN]);
-	return jnla_get_addr6(attrs[PA_ADDR], "IPv6 prefix address", &out->addr);
+	out->len = nla_get_u8(attrs[JNLAP_LEN]);
+	return jnla_get_addr6(attrs[JNLAP_ADDR], "IPv6 prefix address", &out->addr);
 }
 
 int jnla_get_prefix4(struct nlattr *attr, char const *name, struct ipv4_prefix *out)
 {
-	struct nlattr *attrs[PA_COUNT];
+	struct nlattr *attrs[JNLAP_COUNT];
 	int error;
 
-	error = validate_attr(attr, name, 0);
+	error = validate_null(attr, name);
 	if (error)
 		return error;
 
-	error = NLA_PARSE_NESTED(attrs, PA_MAX, attr, prefix4_policy);
+	error = NLA_PARSE_NESTED(attrs, JNLAP_MAX, attr, joolnl_prefix4_policy);
 	if (error) {
 		log_err("The '%s' attribute is malformed", name);
 		return error;
 	}
 
-	out->len = nla_get_u8(attrs[PA_LEN]);
-	return jnla_get_addr4(attrs[PA_ADDR], "IPv4 prefix address", &out->addr);
+	out->len = nla_get_u8(attrs[JNLAP_LEN]);
+	return jnla_get_addr4(attrs[JNLAP_ADDR], "IPv4 prefix address", &out->addr);
 }
 
 int jnla_get_taddr6(struct nlattr *attr, char const *name, struct ipv6_transport_addr *out)
 {
-	struct nlattr *attrs[TAA_COUNT];
+	struct nlattr *attrs[JNLAT_COUNT];
 	int error;
 
-	error = validate_attr(attr, name, 0);
+	error = validate_null(attr, name);
 	if (error)
 		return error;
 
-	error = NLA_PARSE_NESTED(attrs, TAA_MAX, attr, taddr6_policy);
+	error = NLA_PARSE_NESTED(attrs, JNLAT_MAX, attr, joolnl_taddr6_policy);
 	if (error) {
 		log_err("The '%s' attribute is malformed.", name);
 		return error;
 	}
 
-	out->l4 = nla_get_u16(attrs[TAA_PORT]);
-	return jnla_get_addr6(attrs[TAA_ADDR], "IPv6 address", &out->l3);
+	out->l4 = nla_get_u16(attrs[JNLAT_PORT]);
+	return jnla_get_addr6(attrs[JNLAT_ADDR], "IPv6 address", &out->l3);
 }
 
 int jnla_get_taddr4(struct nlattr *attr, char const *name, struct ipv4_transport_addr *out)
 {
-	struct nlattr *attrs[TAA_COUNT];
+	struct nlattr *attrs[JNLAT_COUNT];
 	int error;
 
-	error = validate_attr(attr, name, 0);
+	error = validate_null(attr, name);
 	if (error)
 		return error;
 
-	error = NLA_PARSE_NESTED(attrs, TAA_MAX, attr, taddr4_policy);
+	error = NLA_PARSE_NESTED(attrs, JNLAT_MAX, attr, joolnl_taddr4_policy);
 	if (error) {
 		log_err("The '%s' attribute is malformed.", name);
 		return error;
 	}
 
-	out->l4 = nla_get_u16(attrs[TAA_PORT]);
-	return jnla_get_addr4(attrs[TAA_ADDR], "IPv4 address", &out->l3);
+	out->l4 = nla_get_u16(attrs[JNLAT_PORT]);
+	return jnla_get_addr4(attrs[JNLAT_ADDR], "IPv4 address", &out->l3);
 }
 
 int jnla_get_eam(struct nlattr *attr, char const *name, struct eamt_entry *eam)
 {
-	struct nlattr *attrs[EA_COUNT];
+	struct nlattr *attrs[JNLAE_COUNT];
 	int error;
 
-	error = validate_attr(attr, name, 0);
+	error = validate_null(attr, name);
 	if (error)
 		return error;
 
-	error = NLA_PARSE_NESTED(attrs, EA_MAX, attr, eam_policy);
+	error = NLA_PARSE_NESTED(attrs, JNLAE_MAX, attr, eam_policy);
 	if (error) {
 		log_err("The '%s' attribute is malformed.", name);
 		return error;
 	}
 
-	error = jnla_get_prefix6(attrs[EA_PREFIX6], "IPv6 prefix", &eam->prefix6);
+	error = jnla_get_prefix6(attrs[JNLAE_PREFIX6], "IPv6 prefix", &eam->prefix6);
 	if (error)
 		return error;
 
-	return jnla_get_prefix4(attrs[EA_PREFIX4], "IPv4 prefix", &eam->prefix4);
+	return jnla_get_prefix4(attrs[JNLAE_PREFIX4], "IPv4 prefix", &eam->prefix4);
 }
 
 int jnla_get_pool4(struct nlattr *attr, char const *name, struct pool4_entry *entry)
 {
-	struct nlattr *attrs[P4A_COUNT];
+	struct nlattr *attrs[JNLAP4_COUNT];
 	int error;
 
-	error = validate_attr(attr, name, 0);
+	error = validate_null(attr, name);
 	if (error)
 		return error;
 
-	error = NLA_PARSE_NESTED(attrs, P4A_MAX, attr, pool4_entry_policy);
+	error = NLA_PARSE_NESTED(attrs, JNLAP4_MAX, attr, joolnl_pool4_entry_policy);
 	if (error) {
 		log_err("The 'pool4 entry' attribute is malformed.");
 		return error;
@@ -209,37 +219,37 @@ int jnla_get_pool4(struct nlattr *attr, char const *name, struct pool4_entry *en
 
 	memset(entry, 0, sizeof(*entry));
 
-	if (attrs[P4A_MARK])
-		entry->mark = nla_get_u32(attrs[P4A_MARK]);
-	if (attrs[P4A_ITERATIONS])
-		entry->iterations = nla_get_u32(attrs[P4A_ITERATIONS]);
-	if (attrs[P4A_FLAGS])
-		entry->flags = nla_get_u8(attrs[P4A_FLAGS]);
-	if (attrs[P4A_PROTO])
-		entry->proto = nla_get_u8(attrs[P4A_PROTO]);
-	if (attrs[P4A_PREFIX]) {
-		error = jnla_get_prefix4(attrs[P4A_PREFIX], "IPv4 prefix", &entry->range.prefix);
+	if (attrs[JNLAP4_MARK])
+		entry->mark = nla_get_u32(attrs[JNLAP4_MARK]);
+	if (attrs[JNLAP4_ITERATIONS])
+		entry->iterations = nla_get_u32(attrs[JNLAP4_ITERATIONS]);
+	if (attrs[JNLAP4_FLAGS])
+		entry->flags = nla_get_u8(attrs[JNLAP4_FLAGS]);
+	if (attrs[JNLAP4_PROTO])
+		entry->proto = nla_get_u8(attrs[JNLAP4_PROTO]);
+	if (attrs[JNLAP4_PREFIX]) {
+		error = jnla_get_prefix4(attrs[JNLAP4_PREFIX], "IPv4 prefix", &entry->range.prefix);
 		if (error)
 			return error;
 	}
-	if (attrs[P4A_PORT_MIN])
-		entry->range.ports.min = nla_get_u16(attrs[P4A_PORT_MIN]);
-	if (attrs[P4A_PORT_MAX])
-		entry->range.ports.max = nla_get_u16(attrs[P4A_PORT_MAX]);
+	if (attrs[JNLAP4_PORT_MIN])
+		entry->range.ports.min = nla_get_u16(attrs[JNLAP4_PORT_MIN]);
+	if (attrs[JNLAP4_PORT_MAX])
+		entry->range.ports.max = nla_get_u16(attrs[JNLAP4_PORT_MAX]);
 
 	return 0;
 }
 
 int jnla_get_bib(struct nlattr *attr, char const *name, struct bib_entry *entry)
 {
-	struct nlattr *attrs[BA_COUNT];
+	struct nlattr *attrs[JNLAB_COUNT];
 	int error;
 
-	error = validate_attr(attr, name, 0);
+	error = validate_null(attr, name);
 	if (error)
 		return error;
 
-	error = NLA_PARSE_NESTED(attrs, BA_MAX, attr, bib_entry_policy);
+	error = NLA_PARSE_NESTED(attrs, JNLAB_MAX, attr, joolnl_bib_entry_policy);
 	if (error) {
 		log_err("The '%s' attribute is malformed.", name);
 		return error;
@@ -247,20 +257,20 @@ int jnla_get_bib(struct nlattr *attr, char const *name, struct bib_entry *entry)
 
 	memset(entry, 0, sizeof(*entry));
 
-	if (attrs[BA_SRC6]) {
-		error = jnla_get_taddr6(attrs[BA_SRC6], "IPv6 transport address", &entry->addr6);
+	if (attrs[JNLAB_SRC6]) {
+		error = jnla_get_taddr6(attrs[JNLAB_SRC6], "IPv6 transport address", &entry->addr6);
 		if (error)
 			return error;
 	}
-	if (attrs[BA_SRC4]) {
-		error = jnla_get_taddr4(attrs[BA_SRC4], "IPv4 transport address", &entry->addr4);
+	if (attrs[JNLAB_SRC4]) {
+		error = jnla_get_taddr4(attrs[JNLAB_SRC4], "IPv4 transport address", &entry->addr4);
 		if (error)
 			return error;
 	}
-	if (attrs[BA_PROTO])
-		entry->l4_proto = nla_get_u8(attrs[BA_PROTO]);
-	if (attrs[BA_STATIC])
-		entry->is_static = nla_get_u8(attrs[BA_STATIC]);
+	if (attrs[JNLAB_PROTO])
+		entry->l4_proto = nla_get_u8(attrs[JNLAB_PROTO]);
+	if (attrs[JNLAB_STATIC])
+		entry->is_static = nla_get_u8(attrs[JNLAB_STATIC]);
 
 	return 0;
 }
@@ -303,15 +313,15 @@ static int get_timeout(struct bib_config *config, struct session_entry *entry)
 
 int jnla_get_session(struct nlattr *attr, char const *name, struct bib_config *config, struct session_entry *entry)
 {
-	struct nlattr *attrs[SEA_COUNT];
+	struct nlattr *attrs[JNLASE_COUNT];
 	unsigned long expiration;
 	int error;
 
-	error = validate_attr(attr, name, 0);
+	error = validate_null(attr, name);
 	if (error)
 		return error;
 
-	error = NLA_PARSE_NESTED(attrs, SEA_MAX, attr, session_entry_policy);
+	error = NLA_PARSE_NESTED(attrs, JNLASE_MAX, attr, joolnl_session_entry_policy);
 	if (error) {
 		log_err("The '%s' attribute is malformed.", name);
 		return error;
@@ -319,40 +329,40 @@ int jnla_get_session(struct nlattr *attr, char const *name, struct bib_config *c
 
 	memset(entry, 0, sizeof(*entry));
 
-	if (attrs[SEA_SRC6]) {
-		error = jnla_get_taddr6(attrs[SEA_SRC6], "IPv6 source address", &entry->src6);
+	if (attrs[JNLASE_SRC6]) {
+		error = jnla_get_taddr6(attrs[JNLASE_SRC6], "IPv6 source address", &entry->src6);
 		if (error)
 			return error;
 	}
-	if (attrs[SEA_DST6]) {
-		error = jnla_get_taddr6(attrs[SEA_DST6], "IPv6 destination address", &entry->dst6);
+	if (attrs[JNLASE_DST6]) {
+		error = jnla_get_taddr6(attrs[JNLASE_DST6], "IPv6 destination address", &entry->dst6);
 		if (error)
 			return error;
 	}
-	if (attrs[SEA_SRC4]) {
-		error = jnla_get_taddr4(attrs[SEA_SRC4], "IPv4 source address", &entry->src4);
+	if (attrs[JNLASE_SRC4]) {
+		error = jnla_get_taddr4(attrs[JNLASE_SRC4], "IPv4 source address", &entry->src4);
 		if (error)
 			return error;
 	}
-	if (attrs[SEA_DST4]) {
-		error = jnla_get_taddr4(attrs[SEA_DST4], "IPv4 destination address", &entry->dst4);
+	if (attrs[JNLASE_DST4]) {
+		error = jnla_get_taddr4(attrs[JNLASE_DST4], "IPv4 destination address", &entry->dst4);
 		if (error)
 			return error;
 	}
 
-	if (attrs[SEA_PROTO])
-		entry->proto = nla_get_u8(attrs[SEA_PROTO]);
-	if (attrs[SEA_STATE])
-		entry->state = nla_get_u8(attrs[SEA_STATE]);
-	if (attrs[SEA_TIMER])
-		entry->timer_type = nla_get_u8(attrs[SEA_TIMER]);
+	if (attrs[JNLASE_PROTO])
+		entry->proto = nla_get_u8(attrs[JNLASE_PROTO]);
+	if (attrs[JNLASE_STATE])
+		entry->state = nla_get_u8(attrs[JNLASE_STATE]);
+	if (attrs[JNLASE_TIMER])
+		entry->timer_type = nla_get_u8(attrs[JNLASE_TIMER]);
 
 	error = get_timeout(config, entry);
 	if (error)
 		return error;
 
-	if (attrs[SEA_EXPIRATION]) {
-		expiration = msecs_to_jiffies(nla_get_u32(attrs[SEA_EXPIRATION]));
+	if (attrs[JNLASE_EXPIRATION]) {
+		expiration = msecs_to_jiffies(nla_get_u32(attrs[JNLASE_EXPIRATION]));
 		entry->update_time = jiffies + expiration - entry->timeout;
 	}
 	entry->has_stored = false;
@@ -366,7 +376,11 @@ int jnla_get_plateaus(struct nlattr *root, struct mtu_plateaus *out)
 	int rem;
 	int error;
 
-	error = validate_attr(root, "MTU plateaus", 0);
+	error = validate_null(root, "MTU plateaus");
+	if (error)
+		return error;
+	error = nla_validate(nla_data(root), nla_len(root), JNLAL_MAX,
+			joolnl_plateau_list_policy, NULL);
 	if (error)
 		return error;
 
@@ -377,7 +391,6 @@ int jnla_get_plateaus(struct nlattr *root, struct mtu_plateaus *out)
 			return -EINVAL;
 		}
 
-		/* TODO not validating type */
 		out->values[out->count] = nla_get_u16(attr);
 		out->count++;
 	}
@@ -404,10 +417,10 @@ int jnla_put_prefix6(struct sk_buff *skb, int attrtype, struct ipv6_prefix const
 	if (!root)
 		return -EMSGSIZE;
 
-	error = jnla_put_addr6(skb, PA_ADDR, &prefix->addr);
+	error = jnla_put_addr6(skb, JNLAP_ADDR, &prefix->addr);
 	if (error)
 		goto cancel;
-	error = nla_put_u8(skb, PA_LEN, prefix->len);
+	error = nla_put_u8(skb, JNLAP_LEN, prefix->len);
 	if (error)
 		goto cancel;
 
@@ -428,10 +441,10 @@ int jnla_put_prefix4(struct sk_buff *skb, int attrtype, struct ipv4_prefix const
 	if (!root)
 		return -EMSGSIZE;
 
-	error = jnla_put_addr4(skb, PA_ADDR, &prefix->addr);
+	error = jnla_put_addr4(skb, JNLAP_ADDR, &prefix->addr);
 	if (error)
 		goto cancel;
-	error = nla_put_u8(skb, PA_LEN, prefix->len);
+	error = nla_put_u8(skb, JNLAP_LEN, prefix->len);
 	if (error)
 		goto cancel;
 
@@ -452,10 +465,10 @@ int jnla_put_taddr6(struct sk_buff *skb, int attrtype, struct ipv6_transport_add
 	if (!root)
 		return -EMSGSIZE;
 
-	error = jnla_put_addr6(skb, TAA_ADDR, &taddr->l3);
+	error = jnla_put_addr6(skb, JNLAT_ADDR, &taddr->l3);
 	if (error)
 		goto cancel;
-	error = nla_put_u16(skb, TAA_PORT, taddr->l4);
+	error = nla_put_u16(skb, JNLAT_PORT, taddr->l4);
 	if (error)
 		goto cancel;
 
@@ -476,10 +489,10 @@ int jnla_put_taddr4(struct sk_buff *skb, int attrtype, struct ipv4_transport_add
 	if (!root)
 		return -EMSGSIZE;
 
-	error = jnla_put_addr4(skb, TAA_ADDR, &taddr->l3);
+	error = jnla_put_addr4(skb, JNLAT_ADDR, &taddr->l3);
 	if (error)
 		goto cancel;
-	error = nla_put_u16(skb, TAA_PORT, taddr->l4);
+	error = nla_put_u16(skb, JNLAT_PORT, taddr->l4);
 	if (error)
 		goto cancel;
 
@@ -499,9 +512,9 @@ int jnla_put_eam(struct sk_buff *skb, int attrtype, struct eamt_entry const *eam
 	if (!root)
 		return -EMSGSIZE;
 
-	if (jnla_put_prefix6(skb, EA_PREFIX6, &eam->prefix6))
+	if (jnla_put_prefix6(skb, JNLAE_PREFIX6, &eam->prefix6))
 		goto cancel;
-	if (jnla_put_prefix4(skb, EA_PREFIX4, &eam->prefix4))
+	if (jnla_put_prefix4(skb, JNLAE_PREFIX4, &eam->prefix4))
 		goto cancel;
 
 	nla_nest_end(skb, root);
@@ -521,13 +534,13 @@ int jnla_put_pool4(struct sk_buff *skb, int attrtype, struct pool4_entry const *
 	if (!root)
 		return -EMSGSIZE;
 
-	error = nla_put_u32(skb, P4A_MARK, entry->mark)
-		|| nla_put_u32(skb, P4A_ITERATIONS, entry->iterations)
-		|| nla_put_u8(skb, P4A_FLAGS, entry->flags)
-		|| nla_put_u8(skb, P4A_PROTO, entry->proto)
-		|| jnla_put_prefix4(skb, P4A_PREFIX, &entry->range.prefix)
-		|| nla_put_u16(skb, P4A_PORT_MIN, entry->range.ports.min)
-		|| nla_put_u16(skb, P4A_PORT_MAX, entry->range.ports.max);
+	error = nla_put_u32(skb, JNLAP4_MARK, entry->mark)
+		|| nla_put_u32(skb, JNLAP4_ITERATIONS, entry->iterations)
+		|| nla_put_u8(skb, JNLAP4_FLAGS, entry->flags)
+		|| nla_put_u8(skb, JNLAP4_PROTO, entry->proto)
+		|| jnla_put_prefix4(skb, JNLAP4_PREFIX, &entry->range.prefix)
+		|| nla_put_u16(skb, JNLAP4_PORT_MIN, entry->range.ports.min)
+		|| nla_put_u16(skb, JNLAP4_PORT_MAX, entry->range.ports.max);
 	if (error)
 		goto cancel;
 
@@ -548,10 +561,10 @@ int jnla_put_bib(struct sk_buff *skb, int attrtype, struct bib_entry const *bib)
 	if (!root)
 		return -EMSGSIZE;
 
-	error = jnla_put_taddr6(skb, BA_SRC6, &bib->addr6)
-		|| jnla_put_taddr4(skb, BA_SRC4, &bib->addr4)
-		|| nla_put_u8(skb, BA_PROTO, bib->l4_proto)
-		|| nla_put_u8(skb, BA_STATIC, bib->is_static);
+	error = jnla_put_taddr6(skb, JNLAB_SRC6, &bib->addr6)
+		|| jnla_put_taddr4(skb, JNLAB_SRC4, &bib->addr4)
+		|| nla_put_u8(skb, JNLAB_PROTO, bib->l4_proto)
+		|| nla_put_u8(skb, JNLAB_STATIC, bib->is_static);
 	if (error) {
 		nla_nest_cancel(skb, root);
 		return -EMSGSIZE;
@@ -578,14 +591,14 @@ int jnla_put_session(struct sk_buff *skb, int attrtype, struct session_entry con
 	if (dying_time > MAX_U32)
 		dying_time = MAX_U32;
 
-	error = jnla_put_taddr6(skb, SEA_SRC6, &entry->src6)
-		|| jnla_put_taddr6(skb, SEA_DST6, &entry->dst6)
-		|| jnla_put_taddr4(skb, SEA_SRC4, &entry->src4)
-		|| jnla_put_taddr4(skb, SEA_DST4, &entry->dst4)
-		|| nla_put_u8(skb, SEA_PROTO, entry->proto)
-		|| nla_put_u8(skb, SEA_STATE, entry->state)
-		|| nla_put_u8(skb, SEA_TIMER, entry->timer_type)
-		|| nla_put_u32(skb, SEA_EXPIRATION, dying_time);
+	error = jnla_put_taddr6(skb, JNLASE_SRC6, &entry->src6)
+		|| jnla_put_taddr6(skb, JNLASE_DST6, &entry->dst6)
+		|| jnla_put_taddr4(skb, JNLASE_SRC4, &entry->src4)
+		|| jnla_put_taddr4(skb, JNLASE_DST4, &entry->dst4)
+		|| nla_put_u8(skb, JNLASE_PROTO, entry->proto)
+		|| nla_put_u8(skb, JNLASE_STATE, entry->state)
+		|| nla_put_u8(skb, JNLASE_TIMER, entry->timer_type)
+		|| nla_put_u32(skb, JNLASE_EXPIRATION, dying_time);
 	if (error)
 		goto cancel;
 
@@ -608,7 +621,7 @@ int jnla_put_plateaus(struct sk_buff *skb, int attrtype, struct mtu_plateaus con
 		return -EMSGSIZE;
 
 	for (i = 0; i < plateaus->count; i++) {
-		error = nla_put_u16(skb, LA_ENTRY, plateaus->values[i]);
+		error = nla_put_u16(skb, JNLAL_ENTRY, plateaus->values[i]);
 		if (error)
 			goto cancel;
 	}

@@ -18,7 +18,6 @@ jool_common-objs += kernel_hook_iptables.o
 jool_common-objs += log.o
 jool_common-objs += address.o
 jool_common-objs += atomic_config.o
-jool_common-objs += global-impl.o
 jool_common-objs += icmp_wrapper.o
 jool_common-objs += init.o
 jool_common-objs += ipv6_hdr_iterator.o
@@ -38,7 +37,6 @@ jool_common-objs += timer.o
 jool_common-objs += trace.o
 jool_common-objs += wkmalloc.o
 jool_common-objs += wrapper-config.o
-jool_common-objs += wrapper-globals.o
 jool_common-objs += wrapper-types.o
 jool_common-objs += xlator.o
 

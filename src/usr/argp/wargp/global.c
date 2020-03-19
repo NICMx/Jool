@@ -19,35 +19,30 @@ static struct wargp_option display_opts[] = {
 	{ 0 },
 };
 
-#define get_field(config, field) ((unsigned char *)config + field->offset)
-
-static int handle_display_response(struct display_args *qargs,
-		struct globals *conf)
+static int handle_display_response(struct display_args *dargs,
+		struct globals *response)
 {
-	struct global_field *field;
-	print_function print;
+	struct joolnl_global_meta const *global;
 
-	if (show_csv_header(qargs->no_headers.value, qargs->csv.value))
+	if (show_csv_header(dargs->no_headers.value, dargs->csv.value))
 		printf("Field,Value\n");
 
-	get_global_fields(&field, NULL);
-
-	for (; field->name; field++) {
-		if ((xt_get() & field->xt) == 0)
+	joolnl_global_foreach(global) {
+		if ((xt_get() & joolnl_global_meta_xt(global)) == 0)
 			continue;
 
-		if (!qargs->csv.value)
+		if (!dargs->csv.value)
 			printf("  ");
-		printf("%s%s", field->name, qargs->csv.value ? "," : ": ");
-		print = field->print ? field->print : field->type->print;
-		print(get_field(conf, field), qargs->csv.value);
+		printf("%s%s", joolnl_global_meta_name(global),
+				dargs->csv.value ? "," : ": ");
+		joolnl_global_print(global, response, dargs->csv.value);
 		printf("\n");
 	}
 
 	return 0;
 }
 
-int handle_global_display(char *iname, int argc, char **argv, void *arg)
+int handle_global_display(char *iname, int argc, char **argv, void const *arg)
 {
 	struct display_args dargs = { 0 };
 	struct joolnl_socket sk;
@@ -72,7 +67,7 @@ int handle_global_display(char *iname, int argc, char **argv, void *arg)
 	return handle_display_response(&dargs, &config);
 }
 
-void autocomplete_global_display(void *args)
+void autocomplete_global_display(void const *args)
 {
 	print_wargp_opts(display_opts);
 }
@@ -94,10 +89,9 @@ static struct wargp_option update_opts[] = {
 	{ 0 },
 };
 
-static int handle_global_update(char *iname, int argc, char **argv, void *arg)
+static int handle_global_update(char *iname, int argc, char **argv, void const *field)
 {
 	struct update_args uargs = { 0 };
-	struct global_field *field = arg;
 	struct joolnl_socket sk;
 	struct jool_result result;
 
@@ -119,37 +113,30 @@ static int handle_global_update(char *iname, int argc, char **argv, void *arg)
 	return pr_result(&result);
 }
 
-void autocomplete_global_update(void *arg)
+void autocomplete_global_update(void const *meta)
 {
-	struct global_field *field = arg;
-
-	if (field->candidates)
-		printf("%s ", field->candidates);
-	else if (field->type->candidates)
-		printf("%s ", field->type->candidates);
-
+	printf("%s ", joolnl_global_meta_values(meta));
 	print_wargp_opts(update_opts);
 }
 
 struct cmd_option *build_global_update_children(void)
 {
-	struct global_field *global_fields;
-	unsigned int field_count;
+	struct joolnl_global_meta const *meta;
 	struct cmd_option *opts;
-	unsigned int i;
+	struct cmd_option *opt;
 
-	get_global_fields(&global_fields, &field_count);
-
-	opts = calloc(field_count + 1, sizeof(struct cmd_option));
+	opts = calloc(joolnl_global_meta_count() + 1, sizeof(struct cmd_option));
 	if (!opts)
 		return NULL;
 
-	for (i = 0; i < field_count; i++) {
-		opts[i].label = global_fields[i].name;
-		opts[i].xt = global_fields[i].xt;
-		opts[i].handler = handle_global_update;
-		opts[i].handle_autocomplete = autocomplete_global_update;
-		opts[i].args = &global_fields[i];
+	opt = opts;
+	joolnl_global_foreach(meta) {
+		opt->label = joolnl_global_meta_name(meta);
+		opt->xt = joolnl_global_meta_xt(meta);
+		opt->handler = handle_global_update;
+		opt->handle_autocomplete = autocomplete_global_update;
+		opt->args = meta;
+		opt++;
 	}
 
 	return opts;

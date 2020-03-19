@@ -29,7 +29,6 @@ $(PAGE)-objs += ../framework/types.o
 $(PAGE)-objs += ../../../src/common/config.o
 $(PAGE)-objs += ../../../src/mod/common/address_xlat.o
 $(PAGE)-objs += ../../../src/mod/common/db/config.o
-$(PAGE)-objs += ../../../src/mod/common/global-impl.o
 $(PAGE)-objs += ../../../src/mod/common/ipv6_hdr_iterator.o
 $(PAGE)-objs += ../../../src/mod/common/packet.o
 $(PAGE)-objs += ../../../src/mod/common/rfc6052.o

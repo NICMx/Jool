@@ -47,7 +47,7 @@ static struct jool_result print_entry(struct eamt_entry const *entry, void *args
 	return result_success();
 }
 
-int handle_eamt_display(char *iname, int argc, char **argv, void *arg)
+int handle_eamt_display(char *iname, int argc, char **argv, void const *arg)
 {
 	struct display_args dargs = { 0 };
 	struct joolnl_socket sk;
@@ -85,7 +85,7 @@ int handle_eamt_display(char *iname, int argc, char **argv, void *arg)
 	return 0;
 }
 
-void autocomplete_eamt_display(void *args)
+void autocomplete_eamt_display(void const *args)
 {
 	print_wargp_opts(display_opts);
 }
@@ -137,7 +137,7 @@ static struct wargp_option add_opts[] = {
 	{ 0 },
 };
 
-int handle_eamt_add(char *iname, int argc, char **argv, void *arg)
+int handle_eamt_add(char *iname, int argc, char **argv, void const *arg)
 {
 	struct add_args aargs = { 0 };
 	struct joolnl_socket sk;
@@ -169,7 +169,7 @@ int handle_eamt_add(char *iname, int argc, char **argv, void *arg)
 	return pr_result(&result);
 }
 
-void autocomplete_eamt_add(void *args)
+void autocomplete_eamt_add(void const *args)
 {
 	print_wargp_opts(add_opts);
 }
@@ -189,7 +189,7 @@ static struct wargp_option remove_opts[] = {
 	{ 0 },
 };
 
-int handle_eamt_remove(char *iname, int argc, char **argv, void *arg)
+int handle_eamt_remove(char *iname, int argc, char **argv, void const *arg)
 {
 	struct rm_args rargs = { 0 };
 	struct joolnl_socket sk;
@@ -219,12 +219,12 @@ int handle_eamt_remove(char *iname, int argc, char **argv, void *arg)
 	return pr_result(&result);
 }
 
-void autocomplete_eamt_remove(void *args)
+void autocomplete_eamt_remove(void const *args)
 {
 	print_wargp_opts(remove_opts);
 }
 
-int handle_eamt_flush(char *iname, int argc, char **argv, void *arg)
+int handle_eamt_flush(char *iname, int argc, char **argv, void const *arg)
 {
 	struct joolnl_socket sk;
 	struct jool_result result;
@@ -247,7 +247,7 @@ int handle_eamt_flush(char *iname, int argc, char **argv, void *arg)
 	return pr_result(&result);
 }
 
-void autocomplete_eamt_flush(void *args)
+void autocomplete_eamt_flush(void const *args)
 {
 	/* Nothing needed here. */
 }

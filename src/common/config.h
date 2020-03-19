@@ -13,350 +13,274 @@
 #include <netlink/attr.h>
 #endif
 #include "common/types.h"
-#include "common/xlat.h"
 
-#define GNL_JOOL_FAMILY "Jool"
-#define GNL_JOOLD_MULTICAST_GRP_NAME "joold"
+#define JOOLNL_FAMILY "Jool"
+#define JOOLNL_MULTICAST_GRP_NAME "joold"
 
-/* TODO (fine) these values are not always used. */
+enum joolnl_operation {
+	JNLOP_INSTANCE_FOREACH,
+	JNLOP_INSTANCE_ADD,
+	JNLOP_INSTANCE_HELLO,
+	JNLOP_INSTANCE_RM,
+	JNLOP_INSTANCE_FLUSH,
 
-/* Instance */
-#define OPTNAME_INAME 			"instance"
-#define OPTNAME_FW			"framework"
-#define OPTNAME_NETFILTER		"netfilter"
-#define OPTNAME_IPTABLES		"iptables"
+	JNLOP_ADDRESS_QUERY64,
+	JNLOP_ADDRESS_QUERY46,
 
-/* Modes */
-#define OPTNAME_INSTANCE		"instance"
-#define OPTNAME_ADDRESS			"address"
-#define OPTNAME_STATS			"stats"
-#define OPTNAME_GLOBAL			"global"
-#define OPTNAME_EAMT			"eamt"
-#define OPTNAME_BLACKLIST		"blacklist4"
-#define OPTNAME_POOL4			"pool4"
-#define OPTNAME_BIB			"bib"
-#define OPTNAME_SESSION			"session"
-#define OPTNAME_JOOLD			"joold"
-#define OPTNAME_PARSE_FILE		"file"
+	JNLOP_STATS_FOREACH,
 
-/* Operations */
-#define OPTNAME_DISPLAY			"display"
-#define OPTNAME_ADD			"add"
-#define OPTNAME_UPDATE			"update"
-#define OPTNAME_REMOVE			"remove"
-#define OPTNAME_FLUSH			"flush"
-#define OPTNAME_ADVERTISE		"advertise"
-#define OPTNAME_TEST			"test"
-#define OPTNAME_ACK			"ack"
+	JNLOP_GLOBAL_FOREACH,
+	JNLOP_GLOBAL_UPDATE,
 
-/* Normal flags */
-#define OPTNAME_ENABLE			"enable"
-#define OPTNAME_DISABLE			"disable"
-#define OPTNAME_ZEROIZE_TC		"zeroize-traffic-class"
-#define OPTNAME_OVERRIDE_TOS		"override-tos"
-#define OPTNAME_TOS			"tos"
-#define OPTNAME_MTU_PLATEAUS		"mtu-plateaus"
-#define OPTNAME_POOL6			"pool6"
+	JNLOP_EAMT_FOREACH,
+	JNLOP_EAMT_ADD,
+	JNLOP_EAMT_RM,
+	JNLOP_EAMT_FLUSH,
 
-/* SIIT-only flags */
-#define OPTNAME_AMEND_UDP_CSUM		"amend-udp-checksum-zero"
-#define OPTNAME_EAM_HAIRPIN_MODE	"eam-hairpin-mode"
-#define OPTNAME_RANDOMIZE_RFC6791	"randomize-rfc6791-addresses"
-#define OPTNAME_RFC6791V6_PREFIX	"rfc6791v6-prefix"
+	JNLOP_BL4_FOREACH,
+	JNLOP_BL4_ADD,
+	JNLOP_BL4_RM,
+	JNLOP_BL4_FLUSH,
 
-/* NAT64-only flags */
-#define OPTNAME_DROP_BY_ADDR		"address-dependent-filtering"
-#define OPTNAME_DROP_ICMP6_INFO		"drop-icmpv6-info"
-#define OPTNAME_DROP_EXTERNAL_TCP	"drop-externally-initiated-tcp"
-#define OPTNAME_UDP_TIMEOUT		"udp-timeout"
-#define OPTNAME_ICMP_TIMEOUT		"icmp-timeout"
-#define OPTNAME_TCPEST_TIMEOUT		"tcp-est-timeout"
-#define OPTNAME_TCPTRANS_TIMEOUT	"tcp-trans-timeout"
-#define OPTNAME_MAX_SO			"maximum-simultaneous-opens"
-#define OPTNAME_SRC_ICMP6E_BETTER	"source-icmpv6-errors-better"
-#define OPTNAME_HANDLE_FIN_RCV_RST	"handle-rst-during-fin-rcv"
-#define OPTNAME_F_ARGS			"f-args"
-#define OPTNAME_BIB_LOGGING		"logging-bib"
-#define OPTNAME_SESSION_LOGGING		"logging-session"
+	JNLOP_POOL4_FOREACH,
+	JNLOP_POOL4_ADD,
+	JNLOP_POOL4_RM,
+	JNLOP_POOL4_FLUSH,
 
-/* pool4 flags */
-#define OPTNAME_MARK			"mark"
-#define OPTNAME_MAX_ITERATIONS		"max-iterations"
+	JNLOP_BIB_FOREACH,
+	JNLOP_BIB_ADD,
+	JNLOP_BIB_RM,
 
-/* Synchronization flags */
-#define OPTNAME_SS_ENABLED		"ss-enabled"
-#define OPTNAME_SS_FLUSH_ASAP		"ss-flush-asap"
-#define OPTNAME_SS_FLUSH_DEADLINE	"ss-flush-deadline"
-#define OPTNAME_SS_CAPACITY		"ss-capacity"
-#define OPTNAME_SS_MAX_PAYLOAD		"ss-max-payload"
+	JNLOP_SESSION_FOREACH,
 
-/* Blah */
-#define OPTNAME_COMMENT			"comment"
+	JNLOP_FILE_HANDLE,
 
-enum jool_operation {
-	JOP_INSTANCE_FOREACH,
-	JOP_INSTANCE_ADD,
-	JOP_INSTANCE_HELLO,
-	JOP_INSTANCE_RM,
-	JOP_INSTANCE_FLUSH,
-
-	JOP_ADDRESS_QUERY64,
-	JOP_ADDRESS_QUERY46,
-
-	JOP_STATS_FOREACH,
-
-	JOP_GLOBAL_FOREACH,
-	JOP_GLOBAL_UPDATE,
-
-	JOP_EAMT_FOREACH,
-	JOP_EAMT_ADD,
-	JOP_EAMT_RM,
-	JOP_EAMT_FLUSH,
-
-	JOP_BL4_FOREACH,
-	JOP_BL4_ADD,
-	JOP_BL4_RM,
-	JOP_BL4_FLUSH,
-
-	JOP_POOL4_FOREACH,
-	JOP_POOL4_ADD,
-	JOP_POOL4_RM,
-	JOP_POOL4_FLUSH,
-
-	JOP_BIB_FOREACH,
-	JOP_BIB_ADD,
-	JOP_BIB_RM,
-
-	JOP_SESSION_FOREACH,
-
-	JOP_FILE_HANDLE,
-
-	JOP_JOOLD_ADD,
-	JOP_JOOLD_TEST, /* TODO remove */
-	JOP_JOOLD_ADVERTISE,
-	JOP_JOOLD_ACK,
+	JNLOP_JOOLD_ADD,
+	JNLOP_JOOLD_ADVERTISE,
+	JNLOP_JOOLD_ACK,
 };
 
-enum genl_mc_group_ids {
-	JOOLD_MC_ID = (1 << 0),
+enum joolnl_attr_root {
+	JNLAR_ADDR_QUERY = 1,
+	JNLAR_GLOBALS,
+	JNLAR_BL4_ENTRIES,
+	JNLAR_EAMT_ENTRIES,
+	JNLAR_POOL4_ENTRIES,
+	JNLAR_BIB_ENTRIES,
+	JNLAR_SESSION_ENTRIES,
+	JNLAR_OFFSET,
+	JNLAR_OPERAND,
+	JNLAR_PROTO,
+	JNLAR_ATOMIC_INIT,
+	JNLAR_ATOMIC_END,
+	JNLAR_COUNT,
+#define JNLAR_MAX (JNLAR_COUNT - 1)
 };
 
-enum root_attribute {
-	RA_ADDR_QUERY = 1,
-	RA_GLOBALS,
-	RA_BL4_ENTRIES,
-	RA_EAMT_ENTRIES,
-	RA_POOL4_ENTRIES,
-	RA_BIB_ENTRIES,
-	RA_SESSION_ENTRIES,
-	RA_OFFSET,
-	RA_OPERAND,
-	RA_PROTO,
-	RA_ATOMIC_INIT,
-	RA_ATOMIC_END,
-	RA_COUNT,
-#define RA_MAX (RA_COUNT - 1)
+enum joolnl_attr_list {
+	JNLAL_ENTRY = 1,
+	JNLAL_COUNT,
+#define JNLAL_MAX (JNLAL_COUNT - 1)
 };
 
-enum list_attribute {
-	LA_ENTRY = 1,
-	LA_COUNT,
-#define LA_MAX (LA_COUNT - 1)
-};
-
-extern struct nla_policy struct_list_policy[LA_COUNT];
+extern struct nla_policy joolnl_struct_list_policy[JNLAL_COUNT];
+extern struct nla_policy joolnl_plateau_list_policy[JNLAL_COUNT];
 
 #ifdef __KERNEL__
-#define ADDR6_POLICY { \
+#define JOOLNL_ADDR6_POLICY { \
 	.type = NLA_UNSPEC, \
 	.len = sizeof(struct in6_addr), \
 }
-#define ADDR4_POLICY { \
+#define JOOLNL_ADDR4_POLICY { \
 	.type = NLA_UNSPEC, \
 	.len = sizeof(struct in_addr), \
 }
 #else
-#define ADDR6_POLICY { \
+#define JOOLNL_ADDR6_POLICY { \
 	.type = NLA_UNSPEC, \
 	.minlen = sizeof(struct in6_addr), \
 	.maxlen = sizeof(struct in6_addr), \
 }
-#define ADDR4_POLICY { \
+#define JOOLNL_ADDR4_POLICY { \
 	.type = NLA_UNSPEC, \
 	.minlen = sizeof(struct in_addr), \
 	.maxlen = sizeof(struct in_addr), \
 }
 #endif
 
-enum prefix_attribute {
-	PA_ADDR = 1,
-	PA_LEN,
-	PA_COUNT,
-#define PA_MAX (PA_COUNT - 1)
+enum joolnl_attr_prefix {
+	JNLAP_ADDR = 1,
+	JNLAP_LEN,
+	JNLAP_COUNT,
+#define JNLAP_MAX (JNLAP_COUNT - 1)
 };
 
-extern struct nla_policy prefix6_policy[PA_COUNT];
-extern struct nla_policy prefix4_policy[PA_COUNT];
+extern struct nla_policy joolnl_prefix6_policy[JNLAP_COUNT];
+extern struct nla_policy joolnl_prefix4_policy[JNLAP_COUNT];
 
-enum transport_addr_attribute {
-	TAA_ADDR = 1,
-	TAA_PORT,
-	TAA_COUNT,
-#define TAA_MAX (TAA_COUNT - 1)
+enum joolnl_attr_taddr {
+	JNLAT_ADDR = 1,
+	JNLAT_PORT,
+	JNLAT_COUNT,
+#define JNLAT_MAX (JNLAT_COUNT - 1)
 };
 
-extern struct nla_policy taddr6_policy[TAA_COUNT];
-extern struct nla_policy taddr4_policy[TAA_COUNT];
+extern struct nla_policy joolnl_taddr6_policy[JNLAT_COUNT];
+extern struct nla_policy joolnl_taddr4_policy[JNLAT_COUNT];
 
-enum instance_entry_attribute {
-	IFEA_NS = 1,
-	IFEA_XF,
-	IFEA_INAME,
-	IFEA_COUNT,
-#define IFEA_MAX (IFEA_COUNT - 1)
+enum joolnl_attr_instance_entry {
+	JNLAIE_NS = 1,
+	JNLAIE_XF,
+	JNLAIE_INAME,
+	JNLAIE_COUNT,
+#define JNLAIE_MAX (JNLAIE_COUNT - 1)
 };
 
-extern struct nla_policy instance_entry_policy[IFEA_COUNT];
+extern struct nla_policy joolnl_instance_entry_policy[JNLAIE_COUNT];
 
-enum instance_status_response_attribute {
-	ISRA_STATUS = 1,
-	ISRA_COUNT,
-#define ISRA_MAX (ISRA_COUNT - 1)
+/* TODO why are these two lacking policies? */
+
+enum joolnl_attr_instance_status {
+	JNLAIS_STATUS = 1,
+	JNLAIS_COUNT,
+#define JNLAIS_MAX (JNLAIS_COUNT - 1)
 };
 
-enum instance_add_request_attribute {
-	IARA_XF = 1,
-	IARA_POOL6,
-	IARA_COUNT,
-#define IARA_MAX (IARA_COUNT - 1)
+enum joolnl_attr_instance_add {
+	JNLAIA_XF = 1,
+	JNLAIA_POOL6,
+	JNLAIA_COUNT,
+#define JNLAIA_MAX (JNLAIA_COUNT - 1)
 };
 
-enum eam_attribute {
-	EA_PREFIX6 = 1,
-	EA_PREFIX4,
-	EA_COUNT,
-#define EA_MAX (EA_COUNT - 1)
+enum joolnl_attr_eam {
+	JNLAE_PREFIX6 = 1,
+	JNLAE_PREFIX4,
+	JNLAE_COUNT,
+#define JNLAE_MAX (JNLAE_COUNT - 1)
 };
 
-enum pool4_attribute {
-	P4A_MARK = 1,
-	P4A_ITERATIONS,
-	P4A_FLAGS,
-	P4A_PROTO,
-	P4A_PREFIX,
-	P4A_PORT_MIN,
-	P4A_PORT_MAX,
-	P4A_COUNT,
-#define P4A_MAX (P4A_COUNT - 1)
+extern struct nla_policy eam_policy[JNLAE_COUNT];
+
+enum joolnl_attr_pool4 {
+	JNLAP4_MARK = 1,
+	JNLAP4_ITERATIONS,
+	JNLAP4_FLAGS,
+	JNLAP4_PROTO,
+	JNLAP4_PREFIX,
+	JNLAP4_PORT_MIN,
+	JNLAP4_PORT_MAX,
+	JNLAP4_COUNT,
+#define JNLAP4_MAX (JNLAP4_COUNT - 1)
 };
 
-extern struct nla_policy pool4_entry_policy[P4A_COUNT];
+extern struct nla_policy joolnl_pool4_entry_policy[JNLAP4_COUNT];
 
-enum bib_attribute {
-	BA_SRC6 = 1,
-	BA_SRC4,
-	BA_PROTO,
-	BA_STATIC,
-	BA_COUNT,
-#define BA_MAX (BA_COUNT - 1)
+enum joolnl_attr_bib {
+	JNLAB_SRC6 = 1,
+	JNLAB_SRC4,
+	JNLAB_PROTO,
+	JNLAB_STATIC,
+	JNLAB_COUNT,
+#define JNLAB_MAX (JNLAB_COUNT - 1)
 };
 
-extern struct nla_policy bib_entry_policy[BA_COUNT];
+extern struct nla_policy joolnl_bib_entry_policy[JNLAB_COUNT];
 
-enum session_attribute {
-	SEA_SRC6 = 1,
-	SEA_DST6,
-	SEA_SRC4,
-	SEA_DST4,
-	SEA_PROTO,
-	SEA_STATE,
-	SEA_TIMER,
-	SEA_EXPIRATION,
-	SEA_COUNT,
-#define SEA_MAX (SEA_COUNT - 1)
+enum joolnl_attr_session {
+	JNLASE_SRC6 = 1,
+	JNLASE_DST6,
+	JNLASE_SRC4,
+	JNLASE_DST4,
+	JNLASE_PROTO,
+	JNLASE_STATE,
+	JNLASE_TIMER,
+	JNLASE_EXPIRATION,
+	JNLASE_COUNT,
+#define JNLASE_MAX (JNLASE_COUNT - 1)
 };
 
-extern struct nla_policy session_entry_policy[SEA_COUNT];
+extern struct nla_policy joolnl_session_entry_policy[JNLASE_COUNT];
 
-enum address_query_attribute {
-	AQA_ADDR6 = 1,
-	AQA_ADDR4,
-	AQA_PREFIX6052,
-	AQA_EAM,
-	AQA_COUNT,
-#define AQA_MAX (AQA_COUNT - 1)
+/* TODO no policy */
+enum joolnl_attr_address_query {
+	JNLAAQ_ADDR6 = 1,
+	JNLAAQ_ADDR4,
+	JNLAAQ_PREFIX6052,
+	JNLAAQ_EAM,
+	JNLAAQ_COUNT,
+#define JNLAAQ_MAX (JNLAAQ_COUNT - 1)
 };
 
-extern struct nla_policy eam_policy[EA_COUNT];
-
-enum globals_attribute {
+enum joolnl_attr_global {
 	/* Common */
-	GA_STATUS = 1,
-	GA_ENABLED,
-	GA_TRACE,
-	GA_POOL6,
-	GA_RESET_TC,
-	GA_RESET_TOS,
-	GA_TOS,
-	GA_PLATEAUS,
+	JNLAG_STATUS = 1,
+	JNLAG_ENABLED,
+	JNLAG_TRACE,
+	JNLAG_POOL6,
+	JNLAG_RESET_TC,
+	JNLAG_RESET_TOS,
+	JNLAG_TOS,
+	JNLAG_PLATEAUS,
 
 	/* SIIT */
-	GA_COMPUTE_CSUM_ZERO,
-	GA_HAIRPIN_MODE,
-	GA_RANDOMIZE_ERROR_ADDR,
-	GA_POOL6791V6,
-	GA_POOL6791V4,
+	JNLAG_COMPUTE_CSUM_ZERO,
+	JNLAG_HAIRPIN_MODE,
+	JNLAG_RANDOMIZE_ERROR_ADDR,
+	JNLAG_POOL6791V6,
+	JNLAG_POOL6791V4,
 
 	/* NAT64 */
-	GA_DROP_ICMP6_INFO,
-	GA_SRC_ICMP6_BETTER,
-	GA_F_ARGS,
-	GA_HANDLE_RST,
-	GA_TTL_TCP_EST,
-	GA_TTL_TCP_TRANS,
-	GA_TTL_UDP,
-	GA_TTL_ICMP,
-	GA_BIB_LOGGING,
-	GA_SESSION_LOGGING,
-	GA_DROP_BY_ADDR,
-	GA_DROP_EXTERNAL_TCP,
-	GA_MAX_STORED_PKTS,
+	JNLAG_DROP_ICMP6_INFO,
+	JNLAG_SRC_ICMP6_BETTER,
+	JNLAG_F_ARGS,
+	JNLAG_HANDLE_RST,
+	JNLAG_TTL_TCP_EST,
+	JNLAG_TTL_TCP_TRANS,
+	JNLAG_TTL_UDP,
+	JNLAG_TTL_ICMP,
+	JNLAG_BIB_LOGGING,
+	JNLAG_SESSION_LOGGING,
+	JNLAG_DROP_BY_ADDR,
+	JNLAG_DROP_EXTERNAL_TCP,
+	JNLAG_MAX_STORED_PKTS,
 
 	/* joold */
-	GA_JOOLD_ENABLED,
-	GA_JOOLD_FLUSH_ASAP,
-	GA_JOOLD_FLUSH_DEADLINE,
-	GA_JOOLD_CAPACITY,
-	GA_JOOLD_MAX_PAYLOAD,
+	JNLAG_JOOLD_ENABLED,
+	JNLAG_JOOLD_FLUSH_ASAP,
+	JNLAG_JOOLD_FLUSH_DEADLINE,
+	JNLAG_JOOLD_CAPACITY,
+	JNLAG_JOOLD_MAX_PAYLOAD,
 
 	/* Needs to be last */
-	GA_COUNT,
-#define GA_MAX (GA_COUNT - 1)
+	JNLAG_COUNT,
+#define JNLAG_MAX (JNLAG_COUNT - 1)
 };
 
-extern struct nla_policy siit_globals_policy[GA_COUNT];
-extern struct nla_policy nat64_globals_policy[GA_COUNT];
-extern struct nla_policy plateau_list_policy[LA_COUNT];
+extern struct nla_policy siit_globals_policy[JNLAG_COUNT];
+extern struct nla_policy nat64_globals_policy[JNLAG_COUNT];
 
-enum error_attribute {
-	ERRA_CODE = 1,
-	ERRA_MSG,
-	ERRA_COUNT,
-#define ERRA_MAX (ERRA_COUNT - 1)
+enum joolnl_attr_error {
+	JNLAERR_CODE = 1,
+	JNLAERR_MSG,
+	JNLAERR_COUNT,
+#define JNLAERR_MAX (JNLAERR_COUNT - 1)
 };
 
 /** Is this packet an error report? */
-#define HDRFLAGS_ERROR (1 << 0)
+#define JOOLNLHDR_FLAGS_ERROR (1 << 0)
 /** Ignore certain validations? */
-#define HDRFLAGS_FORCE (1 << 1)
+#define JOOLNLHDR_FLAGS_FORCE (1 << 1)
 /** Cascade removal to orphaned entries? */
-#define HDRFLAGS_QUICK (1 << 2)
+#define JOOLNLHDR_FLAGS_QUICK (1 << 2)
 /**
  * "Some data could not be included in this message. Please request it."
  * Named after the IPv6 fragment header flag, though it has nothing to do with
  * IP fragmentation.
  */
-#define HDRFLAGS_M (1 << 3)
+#define JOOLNLHDR_FLAGS_M (1 << 3)
+
+typedef __u8 joolnlhdr_flags; /** See JOOLNLHDR_FLAGS_* above. */
 
 /**
  * Prefix to all user-to-kernel messages.
@@ -373,17 +297,14 @@ struct joolnlhdr {
 
 	/** enum xlator_type (Only relevant in requests from userspace) */
 	__u8 xt;
-	/** See HDRFLAGS_* above. */
-	__u8 flags;
+
+	__u8 flags; /* joolnlhdr_flags */
 
 	__u8 reserved1;
 	__u8 reserved2;
 
 	char iname[INAME_MAX_SIZE];
 };
-
-void init_request_hdr(struct joolnlhdr *hdr, xlator_type xt, char const *iname,
-		__u8 flags);
 
 struct config_prefix6 {
 	bool set;
@@ -661,9 +582,7 @@ struct globals {
 	};
 };
 
-/**
- * The modes are defined by the latest version of the EAM draft.
- */
+/** From RFC 7757 */
 enum eam_hairpinning_mode {
 	EHM_OFF = 0,
 	EHM_SIMPLE = 1,

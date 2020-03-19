@@ -36,19 +36,19 @@ static void post_handle_request(const struct genl_ops *ops, struct sk_buff *skb,
 	error_pool_deactivate();
 }
 
-struct nla_policy const jool_policy[RA_COUNT] = {
-	[RA_ADDR_QUERY] = { .type = NLA_NESTED },
-	[RA_GLOBALS] = { .type = NLA_NESTED },
-	[RA_BL4_ENTRIES] = { .type = NLA_NESTED },
-	[RA_EAMT_ENTRIES] = { .type = NLA_NESTED },
-	[RA_POOL4_ENTRIES] = { .type = NLA_NESTED },
-	[RA_BIB_ENTRIES] = { .type = NLA_NESTED },
-	[RA_SESSION_ENTRIES] = { .type = NLA_NESTED },
-	[RA_OFFSET] = { .type = NLA_NESTED },
-	[RA_OPERAND] = { .type = NLA_NESTED },
-	[RA_PROTO] = { .type = NLA_U8 },
-	[RA_ATOMIC_INIT] = { .type = NLA_U8 },
-	[RA_ATOMIC_END] = { .type = NLA_UNSPEC, .len = 0 },
+struct nla_policy const jool_policy[JNLAR_COUNT] = {
+	[JNLAR_ADDR_QUERY] = { .type = NLA_BINARY },
+	[JNLAR_GLOBALS] = { .type = NLA_NESTED },
+	[JNLAR_BL4_ENTRIES] = { .type = NLA_NESTED },
+	[JNLAR_EAMT_ENTRIES] = { .type = NLA_NESTED },
+	[JNLAR_POOL4_ENTRIES] = { .type = NLA_NESTED },
+	[JNLAR_BIB_ENTRIES] = { .type = NLA_NESTED },
+	[JNLAR_SESSION_ENTRIES] = { .type = NLA_NESTED },
+	[JNLAR_OFFSET] = { .type = NLA_NESTED },
+	[JNLAR_OPERAND] = { .type = NLA_NESTED },
+	[JNLAR_PROTO] = { .type = NLA_U8 },
+	[JNLAR_ATOMIC_INIT] = { .type = NLA_U8 },
+	[JNLAR_ATOMIC_END] = { .type = NLA_UNSPEC, .len = 0 },
 };
 
 #if LINUX_VERSION_AT_LEAST(5, 2, 0, 9999, 0)
@@ -59,127 +59,123 @@ struct nla_policy const jool_policy[RA_COUNT] = {
 
 static const struct genl_ops ops[] = {
 	{
-		.cmd = JOP_INSTANCE_FOREACH,
+		.cmd = JNLOP_INSTANCE_FOREACH,
 		.doit = handle_instance_foreach,
 		JOOL_POLICY
 	}, {
-		.cmd = JOP_INSTANCE_ADD,
+		.cmd = JNLOP_INSTANCE_ADD,
 		.doit = handle_instance_add,
 		JOOL_POLICY
 	}, {
-		.cmd = JOP_INSTANCE_HELLO,
+		.cmd = JNLOP_INSTANCE_HELLO,
 		.doit = handle_instance_hello,
 		JOOL_POLICY
 	}, {
-		.cmd = JOP_INSTANCE_RM,
+		.cmd = JNLOP_INSTANCE_RM,
 		.doit = handle_instance_rm,
 		JOOL_POLICY
 	}, {
-		.cmd = JOP_INSTANCE_FLUSH,
+		.cmd = JNLOP_INSTANCE_FLUSH,
 		.doit = handle_instance_flush,
 		JOOL_POLICY
 	}, {
-		.cmd = JOP_ADDRESS_QUERY64,
+		.cmd = JNLOP_ADDRESS_QUERY64,
 		.doit = handle_address_query64,
 		JOOL_POLICY
 	}, {
-		.cmd = JOP_ADDRESS_QUERY46,
+		.cmd = JNLOP_ADDRESS_QUERY46,
 		.doit = handle_address_query46,
 		JOOL_POLICY
 	}, {
-		.cmd = JOP_STATS_FOREACH,
+		.cmd = JNLOP_STATS_FOREACH,
 		.doit = handle_stats_foreach,
 		JOOL_POLICY
 	}, {
-		.cmd = JOP_GLOBAL_FOREACH,
+		.cmd = JNLOP_GLOBAL_FOREACH,
 		.doit = handle_global_foreach,
 		JOOL_POLICY
 	}, {
-		.cmd = JOP_GLOBAL_UPDATE,
+		.cmd = JNLOP_GLOBAL_UPDATE,
 		.doit = handle_global_update,
 		JOOL_POLICY
 	}, {
-		.cmd = JOP_EAMT_FOREACH,
+		.cmd = JNLOP_EAMT_FOREACH,
 		.doit = handle_eamt_foreach,
 		JOOL_POLICY
 	}, {
-		.cmd = JOP_EAMT_ADD,
+		.cmd = JNLOP_EAMT_ADD,
 		.doit = handle_eamt_add,
 		JOOL_POLICY
 	}, {
-		.cmd = JOP_EAMT_RM,
+		.cmd = JNLOP_EAMT_RM,
 		.doit = handle_eamt_rm,
 		JOOL_POLICY
 	}, {
-		.cmd = JOP_EAMT_FLUSH,
+		.cmd = JNLOP_EAMT_FLUSH,
 		.doit = handle_eamt_flush,
 		JOOL_POLICY
 	}, {
-		.cmd = JOP_BL4_FOREACH,
+		.cmd = JNLOP_BL4_FOREACH,
 		.doit = handle_blacklist4_foreach,
 		JOOL_POLICY
 	}, {
-		.cmd = JOP_BL4_ADD,
+		.cmd = JNLOP_BL4_ADD,
 		.doit = handle_blacklist4_add,
 		JOOL_POLICY
 	}, {
-		.cmd = JOP_BL4_RM,
+		.cmd = JNLOP_BL4_RM,
 		.doit = handle_blacklist4_rm,
 		JOOL_POLICY
 	}, {
-		.cmd = JOP_BL4_FLUSH,
+		.cmd = JNLOP_BL4_FLUSH,
 		.doit = handle_blacklist4_flush,
 		JOOL_POLICY
 	}, {
-		.cmd = JOP_POOL4_FOREACH,
+		.cmd = JNLOP_POOL4_FOREACH,
 		.doit = handle_pool4_foreach,
 		JOOL_POLICY
 	}, {
-		.cmd = JOP_POOL4_ADD,
+		.cmd = JNLOP_POOL4_ADD,
 		.doit = handle_pool4_add,
 		JOOL_POLICY
 	}, {
-		.cmd = JOP_POOL4_RM,
+		.cmd = JNLOP_POOL4_RM,
 		.doit = handle_pool4_rm,
 		JOOL_POLICY
 	}, {
-		.cmd = JOP_POOL4_FLUSH,
+		.cmd = JNLOP_POOL4_FLUSH,
 		.doit = handle_pool4_flush,
 		JOOL_POLICY
 	}, {
-		.cmd = JOP_BIB_FOREACH,
+		.cmd = JNLOP_BIB_FOREACH,
 		.doit = handle_bib_foreach,
 		JOOL_POLICY
 	}, {
-		.cmd = JOP_BIB_ADD,
+		.cmd = JNLOP_BIB_ADD,
 		.doit = handle_bib_add,
 		JOOL_POLICY
 	}, {
-		.cmd = JOP_BIB_RM,
+		.cmd = JNLOP_BIB_RM,
 		.doit = handle_bib_rm,
 		JOOL_POLICY
 	}, {
-		.cmd = JOP_SESSION_FOREACH,
+		.cmd = JNLOP_SESSION_FOREACH,
 		.doit = handle_session_foreach,
 		JOOL_POLICY
 	}, {
-		.cmd = JOP_FILE_HANDLE,
+		.cmd = JNLOP_FILE_HANDLE,
 		.doit = handle_atomconfig_request,
 		JOOL_POLICY
 	}, {
-		.cmd = JOP_JOOLD_ADD,
+		.cmd = JNLOP_JOOLD_ADD,
 		.doit = handle_joold_add,
 		JOOL_POLICY
 	}, {
-		.cmd = JOP_JOOLD_TEST,
-		.doit = handle_joold_test,
-		JOOL_POLICY
-	}, {
-		.cmd = JOP_JOOLD_ADVERTISE,
+		.cmd = JNLOP_JOOLD_ADVERTISE,
 		.doit = handle_joold_advertise,
 		JOOL_POLICY
 	}, {
-		.cmd = JOP_JOOLD_ACK,
+		.cmd = JNLOP_JOOLD_ACK,
 		.doit = handle_joold_ack,
 		JOOL_POLICY
 	}
@@ -187,9 +183,13 @@ static const struct genl_ops ops[] = {
 
 static struct genl_multicast_group mc_groups[] = {
 	{
-		.name = GNL_JOOLD_MULTICAST_GRP_NAME,
+		.name = JOOLNL_MULTICAST_GRP_NAME,
 #if LINUX_VERSION_LOWER_THAN(3, 13, 0, 7, 1)
-		.id = JOOLD_MC_ID,
+		/*
+		 * TODO This doesn't seem to be doing anything because there's
+		 * no userspace equivalent
+		 */
+		.id = 1,
 #endif
 	},
 };
@@ -203,7 +203,7 @@ static struct genl_family jool_family = {
 	/* This is initialized below. See register_family(). */
 	/* .name = GNL_JOOL_FAMILY_NAME, */
 	.version = 2,
-	.maxattr = RA_MAX,
+	.maxattr = JNLAR_MAX,
 	.netnsok = true,
 	.parallel_ops = false,
 #if LINUX_VERSION_AT_LEAST(5, 2, 0, 9999, 0)
@@ -239,7 +239,7 @@ static int register_family(void)
 
 	log_debug("Registering Generic Netlink family...");
 
-	strcpy(jool_family.name, GNL_JOOL_FAMILY);
+	strcpy(jool_family.name, JOOLNL_FAMILY);
 
 #if LINUX_VERSION_LOWER_THAN(3, 13, 0, 7, 1)
 

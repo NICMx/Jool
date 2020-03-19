@@ -56,16 +56,16 @@ struct jool_result joolnl_pool4_foreach(struct joolnl_socket *sk,
 	first_request = true;
 
 	do {
-		result = joolnl_alloc_msg(sk, iname, JOP_POOL4_FOREACH, 0, &msg);
+		result = joolnl_alloc_msg(sk, iname, JNLOP_POOL4_FOREACH, 0, &msg);
 		if (result.error)
 			return result;
 
 		if (first_request) {
-			if (nla_put_u8(msg, RA_PROTO, proto) < 0)
+			if (nla_put_u8(msg, JNLAR_PROTO, proto) < 0)
 				goto cancel;
 			first_request = false;
 
-		} else if (nla_put_pool4(msg, RA_OFFSET, &args.last) < 0) {
+		} else if (nla_put_pool4(msg, JNLAR_OFFSET, &args.last) < 0) {
 			goto cancel;
 		}
 
@@ -82,17 +82,17 @@ cancel:
 }
 
 static struct jool_result __update(struct joolnl_socket *sk, char const *iname,
-		enum jool_operation operation, struct pool4_entry const *entry,
+		enum joolnl_operation operation, struct pool4_entry const *entry,
 		bool quick)
 {
 	struct nl_msg *msg;
 	struct jool_result result;
 
-	result = joolnl_alloc_msg(sk, iname, operation, quick ? HDRFLAGS_QUICK : 0, &msg);
+	result = joolnl_alloc_msg(sk, iname, operation, quick ? JOOLNLHDR_FLAGS_QUICK : 0, &msg);
 	if (result.error)
 		return result;
 
-	if (entry && nla_put_pool4(msg, RA_OPERAND, entry) < 0) {
+	if (entry && nla_put_pool4(msg, JNLAR_OPERAND, entry) < 0) {
 		nlmsg_free(msg);
 		return joolnl_err_msgsize();
 	}
@@ -103,17 +103,17 @@ static struct jool_result __update(struct joolnl_socket *sk, char const *iname,
 struct jool_result joolnl_pool4_add(struct joolnl_socket *sk, char const *iname,
 		struct pool4_entry const *entry)
 {
-	return __update(sk, iname, JOP_POOL4_ADD, entry, false);
+	return __update(sk, iname, JNLOP_POOL4_ADD, entry, false);
 }
 
 struct jool_result joolnl_pool4_rm(struct joolnl_socket *sk, char const *iname,
 		struct pool4_entry const *entry, bool quick)
 {
-	return __update(sk, iname, JOP_POOL4_RM, entry, quick);
+	return __update(sk, iname, JNLOP_POOL4_RM, entry, quick);
 }
 
 struct jool_result joolnl_pool4_flush(struct joolnl_socket *sk,
 		char const *iname, bool quick)
 {
-	return __update(sk, iname, JOP_POOL4_FLUSH, NULL, quick);
+	return __update(sk, iname, JNLOP_POOL4_FLUSH, NULL, quick);
 }

@@ -1,7 +1,7 @@
 #ifndef SRC_USR_UTIL_FILE_H_
 #define SRC_USR_UTIL_FILE_H_
 
-#include "result.h"
+#include "usr/util/result.h"
 
 struct jool_result file_to_string(char const *, char **);
 

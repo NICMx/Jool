@@ -1,8 +1,10 @@
 #include "core.h"
 
 #include <errno.h>
+#include <netlink/attr.h>
 #include <netlink/genl/genl.h>
 #include <netlink/genl/ctrl.h>
+#include "common/xlat.h"
 #include "usr/nl/attribute.h"
 
 /*
@@ -22,13 +24,13 @@
 
 
 struct response_cb {
-	jool_response_cb cb;
+	joolnl_response_cb cb;
 	void *arg;
 	struct jool_result result;
 };
 
 struct jool_result joolnl_alloc_msg(struct joolnl_socket *socket,
-		char const *iname, enum jool_operation op, __u8 flags,
+		char const *iname, enum joolnl_operation op, __u8 flags,
 		struct nl_msg **out)
 {
 	struct nl_msg *msg;
@@ -53,7 +55,14 @@ struct jool_result joolnl_alloc_msg(struct joolnl_socket *socket,
 		);
 	}
 
-	init_request_hdr(hdr, socket->xt, iname, flags);
+	hdr->version = htonl(xlat_version());
+	hdr->xt = socket->xt;
+	hdr->flags = flags;
+	hdr->reserved1 = 0;
+	hdr->reserved2 = 0;
+	memset(hdr->iname, 0, sizeof(hdr->iname));
+	strcpy(hdr->iname, iname ? iname : "default");
+
 	*out = msg;
 	return result_success();
 }
@@ -61,21 +70,21 @@ struct jool_result joolnl_alloc_msg(struct joolnl_socket *socket,
 /* Returns the error contained in @response in result form. */
 struct jool_result joolnl_msg2result(struct nl_msg *response)
 {
-	static struct nla_policy error_policy[ERRA_COUNT] = {
-		[ERRA_CODE] = { .type = NLA_U16 },
-		[ERRA_MSG] = { .type = NLA_STRING },
+	static struct nla_policy error_policy[JNLAERR_COUNT] = {
+		[JNLAERR_CODE] = { .type = NLA_U16 },
+		[JNLAERR_MSG] = { .type = NLA_STRING },
 	};
-	struct nlattr *attrs[ERRA_COUNT];
+	struct nlattr *attrs[JNLAERR_COUNT];
 	struct jool_result result;
 	__u16 code;
 	char *msg;
 
-	result = jnla_parse_msg(response, attrs, ERRA_MAX, error_policy, false);
+	result = jnla_parse_msg(response, attrs, JNLAERR_MAX, error_policy, false);
 	if (result.error)
 		return result;
 
-	code = attrs[ERRA_CODE] ? nla_get_u16(attrs[ERRA_CODE]) : EINVAL;
-	msg = attrs[ERRA_MSG] ? nla_get_string(attrs[ERRA_MSG]) : strerror(code);
+	code = attrs[JNLAERR_CODE] ? nla_get_u16(attrs[JNLAERR_CODE]) : EINVAL;
+	msg = attrs[JNLAERR_MSG] ? nla_get_string(attrs[JNLAERR_MSG]) : strerror(code);
 	return result_from_error(
 		code,
 		"The kernel module returned error %u: %s", code, msg
@@ -109,7 +118,7 @@ static int response_handler(struct nl_msg *response, void *_args)
 	}
 
 	jhdr = genlmsg_user_hdr(genlmsg_hdr(nhdr));
-	if (jhdr->flags & HDRFLAGS_ERROR) {
+	if (jhdr->flags & JOOLNLHDR_FLAGS_ERROR) {
 		args->result = joolnl_msg2result(response);
 		goto end;
 	}
@@ -131,7 +140,7 @@ end:
  * Consumes @msg, even on error.
  */
 struct jool_result joolnl_request(struct joolnl_socket *socket,
-		struct nl_msg *msg, jool_response_cb cb, void *cb_arg)
+		struct nl_msg *msg, joolnl_response_cb cb, void *cb_arg)
 {
 	struct response_cb callback;
 	struct jool_result result;
@@ -223,7 +232,7 @@ struct jool_result joolnl_setup(struct joolnl_socket *socket, xlator_type xt)
 	}
 
 	socket->xt = xt;
-	socket->genl_family = genl_ctrl_resolve(socket->sk, GNL_JOOL_FAMILY);
+	socket->genl_family = genl_ctrl_resolve(socket->sk, JOOLNL_FAMILY);
 	if (socket->genl_family < 0) {
 		nl_socket_free(socket->sk);
 		return result_from_error(

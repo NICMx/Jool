@@ -166,7 +166,7 @@ end:	print_addr6(&dst->addr);
 	printf("\n");
 }
 
-int handle_address_query(char *iname, int argc, char **argv, void *arg)
+int handle_address_query(char *iname, int argc, char **argv, void const *arg)
 {
 	struct query_args qargs = { 0 };
 	struct joolnl_socket sk;
@@ -214,7 +214,7 @@ int handle_address_query(char *iname, int argc, char **argv, void *arg)
 	return pr_result(&result);
 }
 
-void autocomplete_address_query(void *args)
+void autocomplete_address_query(void const *args)
 {
 	print_wargp_opts(query_opts);
 }

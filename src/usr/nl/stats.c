@@ -41,7 +41,7 @@ static struct joolnl_stat_metadata const jstat_metadatas[] = {
 	DEFINE_STAT(JSTAT_POOL4_MISMATCH, TC "IPv4 packet's destination address and transport protocol did not match pool4. (ie. Packet was not meant to be translated.)\n"
 			"If the instance is a Netfilter translator, this counter increases randomly from normal operation, and is harmless.\n"
 			"If the instance is an iptables translator, this counter being positive suggests a mismatch between the IPv4 iptables rule(s) and the instance's configuration."),
-	DEFINE_STAT(JSTAT_ICMP6_FILTER, "Packets filtered by `" OPTNAME_DROP_ICMP6_INFO "` policy."),
+	DEFINE_STAT(JSTAT_ICMP6_FILTER, "Packets filtered by `drop-icmpv6-info` policy."),
 	/* TODO This one might signal a programming error. */
 	DEFINE_STAT(JSTAT_UNTRANSLATABLE_DST6, TC "IPv6 packet's destination address did not match pool6."),
 	DEFINE_STAT(JSTAT_UNTRANSLATABLE_DST4, TC "IPv4 packet's source address could not be translated with the given pool6."),
@@ -49,8 +49,8 @@ static struct joolnl_stat_metadata const jstat_metadatas[] = {
 	DEFINE_STAT(JSTAT_BIB6_NOT_FOUND, TC "IPv6 packet did not match a BIB entry from the database, and one could not be created."),
 	DEFINE_STAT(JSTAT_BIB4_NOT_FOUND, TC "IPv4 packet did not match a BIB entry from the database."),
 	DEFINE_STAT(JSTAT_SESSION_NOT_FOUND, TC "Packet was an ICMP error, but did not match a session entry from the database. (Which means that the original packet couldn't have been translated.)"),
-	DEFINE_STAT(JSTAT_ADF, "Packets filtered by `" OPTNAME_DROP_BY_ADDR "` policy."),
-	DEFINE_STAT(JSTAT_V4_SYN, "Packets filtered by `" OPTNAME_DROP_EXTERNAL_TCP "` policy."),
+	DEFINE_STAT(JSTAT_ADF, "Packets filtered by `address-dependent-filtering` policy."),
+	DEFINE_STAT(JSTAT_V4_SYN, "Packets filtered by `drop-externally-initiated-tcp` policy."),
 	DEFINE_STAT(JSTAT_SYN6_EXPECTED, TC "Incoming IPv6 packet was the first of a TCP connection, but its SYN flag was disabled."),
 	DEFINE_STAT(JSTAT_SYN4_EXPECTED, TC "Incoming IPv4 packet was the first of a TCP connection, but its SYN flag was disabled."),
 	DEFINE_STAT(JSTAT_TYPE1PKT, "Total number of Type 1 packets stored. (See https://github.com/NICMx/Jool/blob/584a846d09e891a0cd6342426b7a25c6478c90d6/src/mod/nat64/bib/pkt_queue.h#L77) (This counter is not decremented when a packet leaves the queue.)"),
@@ -164,7 +164,7 @@ struct jool_result joolnl_stats_foreach(struct joolnl_socket *sk,
 	if (result.error)
 		return result;
 
-	result = joolnl_alloc_msg(sk, iname, JOP_STATS_FOREACH, 0, &msg);
+	result = joolnl_alloc_msg(sk, iname, JNLOP_STATS_FOREACH, 0, &msg);
 	if (result.error)
 		return result;
 

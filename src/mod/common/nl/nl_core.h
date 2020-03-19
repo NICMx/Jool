@@ -4,12 +4,11 @@
 #include <net/genetlink.h>
 
 struct jool_response {
-	struct genl_info *info;
-	struct sk_buff *skb;
-	struct joolnlhdr *hdr;
+	struct genl_info *info; /* Request */
+	struct sk_buff *skb; /* Packet to userspace */
+	struct joolnlhdr *hdr; /* Quick access to @skb's Jool header */
+	unsigned int initial_len;
 };
-
-struct genl_family *nlcore_get_family(void);
 
 int jresponse_init(struct jool_response *response, struct genl_info *info);
 int jresponse_send(struct jool_response *response);

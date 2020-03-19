@@ -1,20 +1,13 @@
 #ifndef SRC_USR_NL_JSON_H_
 #define SRC_USR_NL_JSON_H_
 
-#include "common/config.h"
-#include "usr/nl/core.h"
+#include <linux/types.h>
+#include "usr/util/cJSON.h"
+#include "usr/util/result.h"
 
-struct jool_result joolnl_json_parse(
-	struct joolnl_socket *sk,
-	xlator_type xt,
-	char const *iname,
-	char const *file_name,
-	bool force
-);
-
-struct jool_result joolnl_json_get_iname(
-	char const *file_name,
-	char **out
-);
+struct jool_result type_mismatch(char const *field, cJSON *json,
+		char const *expected);
+struct jool_result validate_uint(char const *field_name, cJSON *node,
+		__u64 min, __u64 max);
 
 #endif /* SRC_USR_NL_JSON_H_ */

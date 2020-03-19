@@ -7,7 +7,7 @@
 #include "usr/argp/wargp.h"
 #include "usr/argp/xlator_type.h"
 #include "usr/nl/core.h"
-#include "usr/nl/json.h"
+#include "usr/nl/file.h"
 
 struct update_args {
 	struct wargp_string file_name;
@@ -26,7 +26,7 @@ static struct wargp_option update_opts[] = {
 	{ 0 },
 };
 
-int handle_file_update(char *iname, int argc, char **argv, void *arg)
+int handle_file_update(char *iname, int argc, char **argv, void const *arg)
 {
 	struct update_args uargs = { 0 };
 	struct joolnl_socket sk;
@@ -48,14 +48,14 @@ int handle_file_update(char *iname, int argc, char **argv, void *arg)
 	if (result.error)
 		return pr_result(&result);
 
-	result = joolnl_json_parse(&sk, xt_get(), iname, uargs.file_name.value,
+	result = joolnl_file_parse(&sk, xt_get(), iname, uargs.file_name.value,
 			uargs.force.value);
 
 	joolnl_teardown(&sk);
 	return pr_result(&result);
 }
 
-void autocomplete_file_update(void *args)
+void autocomplete_file_update(void const *args)
 {
 	/* Do nothing; default to autocomplete directory path */
 }

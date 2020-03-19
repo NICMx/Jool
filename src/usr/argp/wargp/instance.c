@@ -11,6 +11,9 @@
 #include "usr/nl/core.h"
 #include "usr/nl/instance.h"
 
+#define OPTNAME_NETFILTER		"netfilter"
+#define OPTNAME_IPTABLES		"iptables"
+
 #define ARGP_IPTABLES 1000
 #define ARGP_NETFILTER 1001
 #define ARGP_POOL6 '6'
@@ -108,7 +111,7 @@ static struct jool_result print_entry(struct instance_entry_usr const *instance,
 	return result_success();
 }
 
-int handle_instance_display(char *iname, int argc, char **argv, void *arg)
+int handle_instance_display(char *iname, int argc, char **argv, void const *arg)
 {
 	struct display_args dargs = { 0 };
 	struct joolnl_socket sk;
@@ -150,7 +153,7 @@ int handle_instance_display(char *iname, int argc, char **argv, void *arg)
 	return 0;
 }
 
-void autocomplete_instance_display(void *args)
+void autocomplete_instance_display(void const *args)
 {
 	print_wargp_opts(display_opts);
 }
@@ -186,7 +189,7 @@ static struct wargp_option add_opts[] = {
 	{ 0 },
 };
 
-int handle_instance_add(char *iname, int argc, char **argv, void *arg)
+int handle_instance_add(char *iname, int argc, char **argv, void const *arg)
 {
 	struct add_args aargs = { 0 };
 	struct joolnl_socket sk;
@@ -230,7 +233,7 @@ int handle_instance_add(char *iname, int argc, char **argv, void *arg)
 	return pr_result(&result);
 }
 
-void autocomplete_instance_add(void *args)
+void autocomplete_instance_add(void const *args)
 {
 	print_wargp_opts(add_opts);
 }
@@ -244,7 +247,7 @@ static struct wargp_option remove_opts[] = {
 	{ 0 },
 };
 
-int handle_instance_remove(char *iname, int argc, char **argv, void *arg)
+int handle_instance_remove(char *iname, int argc, char **argv, void const *arg)
 {
 	struct rm_args rargs = { 0 };
 	struct joolnl_socket sk;
@@ -271,7 +274,7 @@ int handle_instance_remove(char *iname, int argc, char **argv, void *arg)
 	return pr_result(&result);
 }
 
-void autocomplete_instance_remove(void *args)
+void autocomplete_instance_remove(void const *args)
 {
 	print_wargp_opts(remove_opts);
 }
@@ -280,7 +283,7 @@ static struct wargp_option flush_opts[] = {
 	{ 0 },
 };
 
-int handle_instance_flush(char *iname, int argc, char **argv, void *arg)
+int handle_instance_flush(char *iname, int argc, char **argv, void const *arg)
 {
 	struct joolnl_socket sk;
 	struct jool_result result;
@@ -302,7 +305,7 @@ int handle_instance_flush(char *iname, int argc, char **argv, void *arg)
 	return pr_result(&result);
 }
 
-void autocomplete_instance_flush(void *args)
+void autocomplete_instance_flush(void const *args)
 {
 	print_wargp_opts(flush_opts);
 }
@@ -311,7 +314,7 @@ static struct wargp_option status_opts[] = {
 	{ 0 },
 };
 
-int handle_instance_status(char *iname, int argc, char **argv, void *arg)
+int handle_instance_status(char *iname, int argc, char **argv, void const *arg)
 {
 	/*
 	 * Note: If you want to change the labels "Dead" and "Running", do
@@ -357,7 +360,7 @@ end:
 	return pr_result(&result);
 }
 
-void autocomplete_instance_status(void *args)
+void autocomplete_instance_status(void const *args)
 {
 	print_wargp_opts(status_opts);
 }

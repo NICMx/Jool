@@ -17,7 +17,6 @@ BIBTABLE = bibtable
 obj-m += $(BIBTABLE).o
 
 $(BIBTABLE)-objs += $(MIN_REQS)
-$(BIBTABLE)-objs += ../../../src/mod/common/global-impl.o
 $(BIBTABLE)-objs += ../../../src/mod/common/translation_state.o
 $(BIBTABLE)-objs += ../../../src/mod/common/db/config.o
 $(BIBTABLE)-objs += ../../../src/mod/common/db/rbtree.o

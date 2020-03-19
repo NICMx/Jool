@@ -1,20 +1,18 @@
-#include "str_utils.h"
+#include "usr/util/str_utils.h"
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <errno.h>
 #include <string.h>
 #include <regex.h>
-
-
-#define MAX_PORT 0xFFFF
+#include <netinet/in.h>
 
 /* The maximum network length for IPv4. */
 static const __u8 IPV4_MAX_PREFIX = 32;
 /* The maximum network length for IPv6. */
 static const __u8 IPV6_MAX_PREFIX = 128;
 
-struct jool_result validate_uint(const char *str)
+static struct jool_result validate_uint(const char *str)
 {
 	regex_t uint_regex;
 	int error;
@@ -111,12 +109,12 @@ struct jool_result str_to_bool(const char *str, bool *out)
 	);
 }
 
-struct jool_result str_to_u8(const char *str, __u8 *u8_out, __u8 min, __u8 max)
+struct jool_result str_to_u8(const char *str, __u8 *u8_out, __u8 max)
 {
 	unsigned long long int out;
 	struct jool_result result;
 
-	result = str_to_ull(str, NULL, min, max, &out);
+	result = str_to_ull(str, NULL, 0, max, &out);
 	if (result.error)
 		return result;
 
@@ -124,57 +122,29 @@ struct jool_result str_to_u8(const char *str, __u8 *u8_out, __u8 min, __u8 max)
 	return result_success();
 }
 
-struct jool_result str_to_u16(const char *str, __u16 *u16_out,
-		__u16 min, __u16 max)
+struct jool_result str_to_u16(const char *str, __u16 *u16_out)
 {
 	unsigned long long int out;
 	struct jool_result result;
 
-	result = str_to_ull(str, NULL, min, max, &out);
+	result = str_to_ull(str, NULL, 0, MAX_U16, &out);
 
 	*u16_out = out;
 	return result;
 }
 
-struct jool_result str_to_u32(const char *str, __u32 *u32_out,
-		__u32 min, __u32 max)
+struct jool_result str_to_u32(const char *str, __u32 *u32_out)
 {
 	unsigned long long int out;
 	struct jool_result result;
 
-	result = str_to_ull(str, NULL, min, max, &out);
+	result = str_to_ull(str, NULL, 0, MAX_U32, &out);
 
 	*u32_out = out;
 	return result;
 }
 
-struct jool_result str_to_u64(const char *str, __u64 *u64_out,
-		__u64 min, __u64 max)
-{
-	unsigned long long int out;
-	struct jool_result result;
-
-	result = str_to_ull(str, NULL, min, max, &out);
-
-	*u64_out = out;
-	return result;
-}
-
-static struct jool_result out_of_bounds(const char *str, __u32 min, __u32 max)
-{
-	char str_min[TIMEOUT_BUFLEN];
-	char str_max[TIMEOUT_BUFLEN];
-
-	timeout2str(min, str_min);
-	timeout2str(max, str_max);
-
-	return result_from_error(
-		-EINVAL,
-		"'%s' is out of bounds (%s-%s).", str, str_min, str_max
-	);
-}
-
-struct jool_result str_to_timeout(const char *str, __u32 *out, __u32 min, __u32 max)
+struct jool_result str_to_timeout(const char *str, __u32 *out)
 {
 	unsigned long long int seconds = 0;
 	unsigned long long int milliseconds;
@@ -213,9 +183,6 @@ struct jool_result str_to_timeout(const char *str, __u32 *out, __u32 min, __u32 
 
 	if (*tail != '\0')
 		goto postfix;
-
-	if (milliseconds < min || max < milliseconds)
-		return out_of_bounds(str, min, max);
 
 	*out = milliseconds;
 	return result_success();
@@ -328,7 +295,7 @@ struct jool_result str_to_addr4_port(const char *str,
 			str, FORMAT
 		);
 	}
-	return str_to_u16(token, &addr_out->l4, 0, MAX_PORT);
+	return str_to_u16(token, &addr_out->l4);
 }
 
 #undef STR_MAX_LEN
@@ -371,7 +338,7 @@ struct jool_result str_to_addr6_port(const char *str,
 			str, FORMAT
 		);
 	}
-	return str_to_u16(token, &addr_out->l4, 0, MAX_PORT);
+	return str_to_u16(token, &addr_out->l4);
 }
 
 #undef STR_MAX_LEN
@@ -411,7 +378,7 @@ struct jool_result str_to_prefix4(const char *str,
 		prefix_out->len = IPV4_MAX_PREFIX;
 		return result_success();
 	}
-	return str_to_u8(token, &prefix_out->len, 0, 32);
+	return str_to_u8(token, &prefix_out->len, 32);
 }
 
 #undef STR_MAX_LEN
@@ -451,7 +418,7 @@ struct jool_result str_to_prefix6(const char *str,
 		prefix_out->len = IPV6_MAX_PREFIX;
 		return result_success();
 	}
-	return str_to_u8(token, &prefix_out->len, 0, 128);
+	return str_to_u8(token, &prefix_out->len, 128);
 }
 
 struct jool_result str_to_plateaus_array(const char *str, struct mtu_plateaus *plateaus)
@@ -499,7 +466,7 @@ struct jool_result str_to_plateaus_array(const char *str, struct mtu_plateaus *p
 	strcpy(str_copy, str);
 	token = strtok(str_copy, ",");
 	while (token) {
-		result = str_to_u16(token, &plateaus->values[len], 0, 0xFFFF);
+		result = str_to_u16(token, &plateaus->values[len]);
 		if (result.error) {
 			free(str_copy);
 			return result;

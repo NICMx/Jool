@@ -6,7 +6,7 @@
 #include "usr/nl/common.h"
 
 struct foreach_args {
-	session_foreach_cb cb;
+	joolnl_session_foreach_cb cb;
 	void *args;
 	bool done;
 	struct session_entry_usr last;
@@ -42,7 +42,7 @@ static struct jool_result handle_foreach_response(struct nl_msg *response,
 
 struct jool_result joolnl_session_foreach(struct joolnl_socket *sk,
 		char const *iname, l4_protocol proto,
-		session_foreach_cb cb, void *_args)
+		joolnl_session_foreach_cb cb, void *_args)
 {
 	struct nl_msg *msg;
 	struct foreach_args args;
@@ -56,16 +56,16 @@ struct jool_result joolnl_session_foreach(struct joolnl_socket *sk,
 	first_request = true;
 
 	do {
-		result = joolnl_alloc_msg(sk, iname, JOP_SESSION_FOREACH, 0, &msg);
+		result = joolnl_alloc_msg(sk, iname, JNLOP_SESSION_FOREACH, 0, &msg);
 		if (result.error)
 			return result;
 
 		if (first_request) {
-			if (nla_put_u8(msg, RA_PROTO, proto) < 0)
+			if (nla_put_u8(msg, JNLAR_PROTO, proto) < 0)
 				goto cancel;
 			first_request = false;
 
-		} else if (nla_put_session(msg, RA_OFFSET, &args.last) < 0) {
+		} else if (nla_put_session(msg, JNLAR_OFFSET, &args.last) < 0) {
 			goto cancel;
 		}
 

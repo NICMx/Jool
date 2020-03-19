@@ -21,9 +21,9 @@ static struct jool_result entry2attr(struct instance_entry_usr *entry,
 	if (!root)
 		goto nla_put_failure;
 
-	NLA_PUT_U32(msg, IFEA_NS, entry->ns);
-	NLA_PUT_U8(msg, IFEA_XF, entry->xf);
-	NLA_PUT_STRING(msg, IFEA_INAME, entry->iname);
+	NLA_PUT_U32(msg, JNLAIE_NS, entry->ns);
+	NLA_PUT_U8(msg, JNLAIE_XF, entry->xf);
+	NLA_PUT_STRING(msg, JNLAIE_INAME, entry->iname);
 
 	nla_nest_end(msg, root);
 	return result_success();
@@ -35,16 +35,16 @@ nla_put_failure:
 static struct jool_result attr2entry(struct nlattr *root,
 		struct instance_entry_usr *entry)
 {
-	struct nlattr *attrs[IFEA_COUNT];
+	struct nlattr *attrs[JNLAIE_COUNT];
 	struct jool_result result;
 
-	result = jnla_parse_nested(attrs, IFEA_MAX, root, instance_entry_policy);
+	result = jnla_parse_nested(attrs, JNLAIE_MAX, root, joolnl_instance_entry_policy);
 	if (result.error)
 		return result;
 
-	entry->ns = nla_get_u32(attrs[IFEA_NS]);
-	entry->xf = nla_get_u8(attrs[IFEA_XF]);
-	strcpy(entry->iname, nla_get_string(attrs[IFEA_INAME]));
+	entry->ns = nla_get_u32(attrs[JNLAIE_NS]);
+	entry->xf = nla_get_u8(attrs[JNLAIE_XF]);
+	strcpy(entry->iname, nla_get_string(attrs[JNLAIE_INAME]));
 	return result_success();
 }
 
@@ -91,14 +91,14 @@ struct jool_result joolnl_instance_foreach(struct joolnl_socket *sk,
 	first_request = true;
 
 	do {
-		result = joolnl_alloc_msg(sk, NULL, JOP_INSTANCE_FOREACH, 0, &msg);
+		result = joolnl_alloc_msg(sk, NULL, JNLOP_INSTANCE_FOREACH, 0, &msg);
 		if (result.error)
 			return result;
 
 		if (first_request) {
 			first_request = false;
 		} else {
-			result = entry2attr(&args.last, RA_OFFSET, msg);
+			result = entry2attr(&args.last, JNLAR_OFFSET, msg);
 			if (result.error) {
 				nlmsg_free(msg);
 				return result;
@@ -115,17 +115,17 @@ struct jool_result joolnl_instance_foreach(struct joolnl_socket *sk,
 
 static struct jool_result jool_hello_cb(struct nl_msg *response, void *status)
 {
-	static struct nla_policy status_policy[ISRA_COUNT] = {
-		[ISRA_STATUS] = { .type = NLA_U8 },
+	static struct nla_policy status_policy[JNLAIS_COUNT] = {
+		[JNLAIS_STATUS] = { .type = NLA_U8 },
 	};
-	struct nlattr *attrs[ISRA_COUNT];
+	struct nlattr *attrs[JNLAIS_COUNT];
 	struct jool_result result;
 
-	result = jnla_parse_msg(response, attrs, ISRA_MAX, status_policy, true);
+	result = jnla_parse_msg(response, attrs, JNLAIS_MAX, status_policy, true);
 	if (result.error)
 		return result;
 
-	*((enum instance_hello_status *)status) = nla_get_u8(attrs[ISRA_STATUS]);
+	*((enum instance_hello_status *)status) = nla_get_u8(attrs[JNLAIS_STATUS]);
 	return result_success();
 }
 
@@ -139,7 +139,7 @@ struct jool_result joolnl_instance_hello(struct joolnl_socket *sk,
 	struct nl_msg *msg;
 	struct jool_result result;
 
-	result = joolnl_alloc_msg(sk, iname, JOP_INSTANCE_HELLO, 0, &msg);
+	result = joolnl_alloc_msg(sk, iname, JNLOP_INSTANCE_HELLO, 0, &msg);
 	if (result.error)
 		return result;
 
@@ -158,16 +158,16 @@ struct jool_result joolnl_instance_add(struct joolnl_socket *sk,
 	if (result.error)
 		return result_from_error(result.error, XF_VALIDATE_ERRMSG);
 
-	result = joolnl_alloc_msg(sk, iname, JOP_INSTANCE_ADD, 0, &msg);
+	result = joolnl_alloc_msg(sk, iname, JNLOP_INSTANCE_ADD, 0, &msg);
 	if (result.error)
 		return result;
 
-	root = nla_nest_start(msg, RA_OPERAND);
+	root = nla_nest_start(msg, JNLAR_OPERAND);
 	if (!root)
 		goto nla_put_failure;
 
-	NLA_PUT_U8(msg, IARA_XF, xf);
-	if (pool6 && nla_put_prefix6(msg, IARA_POOL6, pool6) < 0)
+	NLA_PUT_U8(msg, JNLAIA_XF, xf);
+	if (pool6 && nla_put_prefix6(msg, JNLAIA_POOL6, pool6) < 0)
 		goto nla_put_failure;
 
 	nla_nest_end(msg, root);
@@ -184,7 +184,7 @@ struct jool_result joolnl_instance_rm(struct joolnl_socket *sk,
 	struct nl_msg *msg;
 	struct jool_result result;
 
-	result = joolnl_alloc_msg(sk, iname, JOP_INSTANCE_RM, 0, &msg);
+	result = joolnl_alloc_msg(sk, iname, JNLOP_INSTANCE_RM, 0, &msg);
 	if (result.error)
 		return result;
 
@@ -196,7 +196,7 @@ struct jool_result joolnl_instance_flush(struct joolnl_socket *sk)
 	struct nl_msg *msg;
 	struct jool_result result;
 
-	result = joolnl_alloc_msg(sk, NULL, JOP_INSTANCE_FLUSH, 0, &msg);
+	result = joolnl_alloc_msg(sk, NULL, JNLOP_INSTANCE_FLUSH, 0, &msg);
 	if (result.error)
 		return result;
 
