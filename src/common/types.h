@@ -23,8 +23,6 @@
 #define MAX_U16 0xFFFFU
 /** Maximum storable value on a __u32. */
 #define MAX_U32 0xFFFFFFFFU
-/** Maximum storable value on a __u64. */
-#define MAX_U64 0xFFFFFFFFFFFFFFFFU
 
 typedef unsigned int xlator_flags;
 typedef unsigned int xlator_type; /** Bitwise or'd XT_* constants below. */

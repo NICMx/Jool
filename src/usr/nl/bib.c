@@ -21,7 +21,7 @@ static struct jool_result handle_foreach_response(struct nl_msg *response,
 	struct bib_entry entry;
 	struct jool_result result;
 
-	result = joolnl_init_foreach(response, "bib", &args->done);
+	result = joolnl_init_foreach_list(response, "bib", &args->done);
 	if (result.error)
 		return result;
 
@@ -50,7 +50,7 @@ struct jool_result joolnl_bib_foreach(struct joolnl_socket *sk, char const *inam
 
 	args.cb = cb;
 	args.args = _args;
-	args.done = false;
+	args.done = true;
 	memset(&args.last, 0, sizeof(args.last));
 	first_request = true;
 

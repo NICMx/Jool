@@ -5,6 +5,7 @@
 
 #include "common/types.h"
 #include "common/xlat.h"
+#include "db/global.h"
 #include "mod/common/atomic_config.h"
 #include "mod/common/joold.h"
 #include "mod/common/kernel_hook.h"
@@ -13,7 +14,6 @@
 #include "mod/common/rcu.h"
 #include "mod/common/wkmalloc.h"
 #include "mod/common/db/blacklist4.h"
-#include "mod/common/db/config.h"
 #include "mod/common/db/eam.h"
 #include "mod/common/db/pool4/db.h"
 #include "mod/common/db/bib/db.h"

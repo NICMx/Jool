@@ -3,6 +3,7 @@
 #include <errno.h>
 #include <netlink/genl/genl.h>
 #include "usr/nl/attribute.h"
+#include "usr/nl/common.h"
 
 #define DEFINE_STAT(_id, _doc) \
 	[_id] = { \
@@ -115,6 +116,8 @@ failure:
 struct query_args {
 	joolnl_stats_foreach_cb cb;
 	void *args;
+	bool done;
+	enum jool_stat_id last;
 };
 
 static struct jool_result stats_query_response(struct nl_msg *response,
@@ -123,21 +126,24 @@ static struct jool_result stats_query_response(struct nl_msg *response,
 	struct genlmsghdr *ghdr;
 	struct nlattr *head, *attr;
 	int len, rem;
-	int id;
 	struct joolnl_stat stat;
 	struct query_args *qargs = args;
 	struct jool_result result;
+
+	result = joolnl_init_foreach(response, &qargs->done);
+	if (result.error)
+		return result;
 
 	ghdr = nlmsg_data(nlmsg_hdr(response));
 	head = genlmsg_attrdata(ghdr, sizeof(struct joolnlhdr));
 	len = genlmsg_attrlen(ghdr, sizeof(struct joolnlhdr));
 
 	nla_for_each_attr(attr, head, len, rem) {
-		id = nla_type(attr);
-		if (id < 1 || id >= JSTAT_PADDING)
+		qargs->last = nla_type(attr);
+		if (qargs->last < 1 || qargs->last >= JSTAT_PADDING)
 			goto bad_id;
 
-		stat.meta = jstat_metadatas[id];
+		stat.meta = jstat_metadatas[qargs->last];
 		stat.value = nla_get_u64(attr);
 		result = qargs->cb(&stat, qargs->args);
 		if (result.error)
@@ -164,11 +170,24 @@ struct jool_result joolnl_stats_foreach(struct joolnl_socket *sk,
 	if (result.error)
 		return result;
 
-	result = joolnl_alloc_msg(sk, iname, JNLOP_STATS_FOREACH, 0, &msg);
-	if (result.error)
-		return result;
-
 	qargs.cb = cb;
 	qargs.args = args;
-	return joolnl_request(sk, msg, stats_query_response, &qargs);
+	qargs.done = true;
+
+	do {
+		result = joolnl_alloc_msg(sk, iname, JNLOP_STATS_FOREACH, 0, &msg);
+		if (result.error)
+			return result;
+
+		if (qargs.last && (nla_put_u8(msg, JNLAR_OFFSET_U8, qargs.last) < 0)) {
+			nlmsg_free(msg);
+			return joolnl_err_msgsize();
+		}
+
+		result = joolnl_request(sk, msg, stats_query_response, &qargs);
+		if (result.error)
+			return result;
+	} while (!qargs.done);
+
+	return result_success();
 }

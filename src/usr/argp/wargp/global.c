@@ -19,34 +19,26 @@ static struct wargp_option display_opts[] = {
 	{ 0 },
 };
 
-static int handle_display_response(struct display_args *dargs,
-		struct globals *response)
+static struct jool_result handle_display_response(
+		struct joolnl_global_meta const *metadata,
+		void *value, void *args)
 {
-	struct joolnl_global_meta const *global;
+	struct display_args *dargs = args;
 
-	if (show_csv_header(dargs->no_headers.value, dargs->csv.value))
-		printf("Field,Value\n");
+	if (!dargs->csv.value)
+		printf("  ");
+	printf("%s%s", joolnl_global_meta_name(metadata),
+			dargs->csv.value ? "," : ": ");
+	joolnl_global_print(metadata, value, dargs->csv.value);
+	printf("\n");
 
-	joolnl_global_foreach(global) {
-		if ((xt_get() & joolnl_global_meta_xt(global)) == 0)
-			continue;
-
-		if (!dargs->csv.value)
-			printf("  ");
-		printf("%s%s", joolnl_global_meta_name(global),
-				dargs->csv.value ? "," : ": ");
-		joolnl_global_print(global, response, dargs->csv.value);
-		printf("\n");
-	}
-
-	return 0;
+	return result_success();
 }
 
 int handle_global_display(char *iname, int argc, char **argv, void const *arg)
 {
 	struct display_args dargs = { 0 };
 	struct joolnl_socket sk;
-	struct globals config;
 	struct jool_result result;
 
 	result.error = wargp_parse(display_opts, argc, argv, &dargs);
@@ -57,14 +49,15 @@ int handle_global_display(char *iname, int argc, char **argv, void const *arg)
 	if (result.error)
 		return pr_result(&result);
 
-	result = joolnl_global_query(&sk, iname, &config);
+	if (show_csv_header(dargs.no_headers.value, dargs.csv.value))
+		printf("Field,Value\n");
+
+	result = joolnl_global_foreach(&sk, iname, handle_display_response,
+			&dargs);
 
 	joolnl_teardown(&sk);
 
-	if (result.error)
-		return pr_result(&result);
-
-	return handle_display_response(&dargs, &config);
+	return pr_result(&result);
 }
 
 void autocomplete_global_display(void const *args)
@@ -130,7 +123,7 @@ struct cmd_option *build_global_update_children(void)
 		return NULL;
 
 	opt = opts;
-	joolnl_global_foreach(meta) {
+	joolnl_global_foreach_meta(meta) {
 		opt->label = joolnl_global_meta_name(meta);
 		opt->xt = joolnl_global_meta_xt(meta);
 		opt->handler = handle_global_update;

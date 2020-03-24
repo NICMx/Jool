@@ -11,13 +11,19 @@ int handle_stats_foreach(struct sk_buff *skb, struct genl_info *info)
 	struct xlator jool;
 	__u64 *stats;
 	struct jool_response response;
-	int i, error;
+	enum jool_stat_id id;
+	unsigned int written;
+	int error;
 
 	log_debug("Returning stats.");
 
 	error = request_handle_start(info, XT_ANY, &jool);
 	if (error)
 		goto end;
+
+	id = 0;
+	if (info->attrs[JNLAR_OFFSET_U8])
+		id = nla_get_u8(info->attrs[JNLAR_OFFSET_U8]);
 
 	/* Perform query */
 	stats = jstat_query(jool.stats);
@@ -30,14 +36,22 @@ int handle_stats_foreach(struct sk_buff *skb, struct genl_info *info)
 	error = jresponse_init(&response, info);
 	if (error)
 		goto revert_query;
-	for (i = 1; i <= JSTAT_UNKNOWN; i++) {
+
+	written = 0;
+	for (id++; id <= JSTAT_UNKNOWN; id++) {
 #if LINUX_VERSION_AT_LEAST(4, 7, 0, 7, 4)
-		error = nla_put_u64_64bit(response.skb, i, stats[i], JSTAT_PADDING);
+		error = nla_put_u64_64bit(response.skb, id, stats[id], JSTAT_PADDING);
 #else
-		error = nla_put_u64(response.skb, i, stats[i]);
+		error = nla_put_u64(response.skb, id, stats[id]);
 #endif
-		if (error)
-			goto revert_response;
+		if (error) {
+			if (!written)
+				goto revert_response;
+			jresponse_enable_m(&response);
+			break;
+		}
+
+		written++;
 	}
 
 	/* Send response */

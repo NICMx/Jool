@@ -4,7 +4,7 @@
 #include "framework/unit_test.h"
 #include "framework/skb_generator.h"
 #include "framework/types.h"
-#include "mod/common/db/config.h"
+#include "mod/common/db/global.h"
 #include "mod/common/rfc7915/core.c"
 #include "mod/common/rfc7915/6to4.c"
 #include "mod/common/rfc7915/4to6.c"

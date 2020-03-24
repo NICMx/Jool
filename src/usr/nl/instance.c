@@ -38,7 +38,8 @@ static struct jool_result attr2entry(struct nlattr *root,
 	struct nlattr *attrs[JNLAIE_COUNT];
 	struct jool_result result;
 
-	result = jnla_parse_nested(attrs, JNLAIE_MAX, root, joolnl_instance_entry_policy);
+	result = jnla_parse_nested(attrs, JNLAIE_MAX, root,
+			joolnl_instance_entry_policy);
 	if (result.error)
 		return result;
 
@@ -57,7 +58,7 @@ static struct jool_result handle_foreach_response(struct nl_msg *response,
 	struct instance_entry_usr entry;
 	struct jool_result result;
 
-	result = joolnl_init_foreach(response, "instance", &args->done);
+	result = joolnl_init_foreach_list(response, "instance", &args->done);
 	if (result.error)
 		return result;
 
@@ -86,7 +87,7 @@ struct jool_result joolnl_instance_foreach(struct joolnl_socket *sk,
 
 	args.cb = cb;
 	args.args = _args;
-	args.done = false;
+	args.done = true;
 	memset(&args.last, 0, sizeof(args.last));
 	first_request = true;
 

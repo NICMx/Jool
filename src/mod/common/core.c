@@ -13,7 +13,7 @@
 
 static verdict validate_xlator(struct xlation *state)
 {
-	struct globals *cfg = &state->jool.globals;
+	struct jool_globals *cfg = &state->jool.globals;
 
 	if (!cfg->enabled)
 		return untranslatable(state, JSTAT_XLATOR_DISABLED);

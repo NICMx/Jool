@@ -1,5 +1,6 @@
 #include "mod/common/nl/attribute.h"
 
+#include <linux/sort.h>
 #include "common/constants.h"
 #include "mod/common/log.h"
 
@@ -370,6 +371,47 @@ int jnla_get_session(struct nlattr *attr, char const *name, struct bib_config *c
 	return 0;
 }
 
+static int u16_compare(const void *a, const void *b)
+{
+	return *(__u16 *)b - *(__u16 *)a;
+}
+
+static void u16_swap(void *a, void *b, int size)
+{
+	__u16 t = *(__u16 *)a;
+	*(__u16 *)a = *(__u16 *)b;
+	*(__u16 *)b = t;
+}
+
+static int validate_plateaus(struct mtu_plateaus *plateaus)
+{
+	__u16 *values = plateaus->values;
+	unsigned int i, j;
+
+	/* Sort descending. */
+	sort(values, plateaus->count, sizeof(*values), u16_compare, u16_swap);
+
+	/* Remove zeroes and duplicates. */
+	for (i = 0, j = 1; j < plateaus->count; j++) {
+		if (values[j] == 0)
+			break;
+		if (values[i] != values[j]) {
+			i++;
+			values[i] = values[j];
+		}
+	}
+
+	if (values[0] == 0) {
+		log_err("The plateaus list contains nothing but zeroes.");
+		return -EINVAL;
+	}
+
+	/* Update. */
+	plateaus->count = i + 1;
+	return 0;
+}
+
+
 int jnla_get_plateaus(struct nlattr *root, struct mtu_plateaus *out)
 {
 	struct nlattr *attr;
@@ -395,7 +437,7 @@ int jnla_get_plateaus(struct nlattr *root, struct mtu_plateaus *out)
 		out->count++;
 	}
 
-	return 0;
+	return validate_plateaus(out);
 }
 
 int jnla_put_addr6(struct sk_buff *skb, int attrtype, struct in6_addr const *addr)
@@ -507,14 +549,17 @@ cancel:
 int jnla_put_eam(struct sk_buff *skb, int attrtype, struct eamt_entry const *eam)
 {
 	struct nlattr *root;
+	int error;
 
 	root = nla_nest_start(skb, attrtype);
 	if (!root)
 		return -EMSGSIZE;
 
-	if (jnla_put_prefix6(skb, JNLAE_PREFIX6, &eam->prefix6))
+	error = jnla_put_prefix6(skb, JNLAE_PREFIX6, &eam->prefix6);
+	if (error)
 		goto cancel;
-	if (jnla_put_prefix4(skb, JNLAE_PREFIX4, &eam->prefix4))
+	error = jnla_put_prefix4(skb, JNLAE_PREFIX4, &eam->prefix4);
+	if (error)
 		goto cancel;
 
 	nla_nest_end(skb, root);
@@ -522,7 +567,7 @@ int jnla_put_eam(struct sk_buff *skb, int attrtype, struct eamt_entry const *eam
 
 cancel:
 	nla_nest_cancel(skb, root);
-	return -EMSGSIZE;
+	return error;
 }
 
 int jnla_put_pool4(struct sk_buff *skb, int attrtype, struct pool4_entry const *entry)
@@ -541,15 +586,13 @@ int jnla_put_pool4(struct sk_buff *skb, int attrtype, struct pool4_entry const *
 		|| jnla_put_prefix4(skb, JNLAP4_PREFIX, &entry->range.prefix)
 		|| nla_put_u16(skb, JNLAP4_PORT_MIN, entry->range.ports.min)
 		|| nla_put_u16(skb, JNLAP4_PORT_MAX, entry->range.ports.max);
-	if (error)
-		goto cancel;
+	if (error) {
+		nla_nest_cancel(skb, root);
+		return error;
+	}
 
 	nla_nest_end(skb, root);
 	return 0;
-
-cancel:
-	nla_nest_cancel(skb, root);
-	return -EMSGSIZE;
 }
 
 int jnla_put_bib(struct sk_buff *skb, int attrtype, struct bib_entry const *bib)
@@ -599,15 +642,13 @@ int jnla_put_session(struct sk_buff *skb, int attrtype, struct session_entry con
 		|| nla_put_u8(skb, JNLASE_STATE, entry->state)
 		|| nla_put_u8(skb, JNLASE_TIMER, entry->timer_type)
 		|| nla_put_u32(skb, JNLASE_EXPIRATION, dying_time);
-	if (error)
-		goto cancel;
+	if (error) {
+		nla_nest_cancel(skb, root);
+		return error;
+	}
 
 	nla_nest_end(skb, root);
 	return 0;
-
-cancel:
-	nla_nest_cancel(skb, root);
-	return -EMSGSIZE;
 }
 
 int jnla_put_plateaus(struct sk_buff *skb, int attrtype, struct mtu_plateaus const *plateaus)
@@ -622,16 +663,14 @@ int jnla_put_plateaus(struct sk_buff *skb, int attrtype, struct mtu_plateaus con
 
 	for (i = 0; i < plateaus->count; i++) {
 		error = nla_put_u16(skb, JNLAL_ENTRY, plateaus->values[i]);
-		if (error)
-			goto cancel;
+		if (error) {
+			nla_nest_cancel(skb, root);
+			return error;
+		}
 	}
 
 	nla_nest_end(skb, root);
 	return 0;
-
-cancel:
-	nla_nest_cancel(skb, root);
-	return error;
 }
 
 void report_put_failure(void)

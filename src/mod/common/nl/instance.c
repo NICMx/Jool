@@ -12,7 +12,8 @@ static int parse_instance(struct nlattr *root, struct instance_entry_usr *entry)
 	struct nlattr *attrs[JNLAIE_COUNT];
 	int error;
 
-	error = NLA_PARSE_NESTED(attrs, JNLAIE_MAX, root, joolnl_instance_entry_policy);
+	error = NLA_PARSE_NESTED(attrs, JNLAIE_MAX, root,
+			joolnl_instance_entry_policy);
 	if (error) {
 		log_err("The 'instance' attribute is malformed.");
 		return error;

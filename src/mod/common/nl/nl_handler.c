@@ -45,6 +45,7 @@ struct nla_policy const jool_policy[JNLAR_COUNT] = {
 	[JNLAR_BIB_ENTRIES] = { .type = NLA_NESTED },
 	[JNLAR_SESSION_ENTRIES] = { .type = NLA_NESTED },
 	[JNLAR_OFFSET] = { .type = NLA_NESTED },
+	[JNLAR_OFFSET_U8] = { .type = NLA_U8 },
 	[JNLAR_OPERAND] = { .type = NLA_NESTED },
 	[JNLAR_PROTO] = { .type = NLA_U8 },
 	[JNLAR_ATOMIC_INIT] = { .type = NLA_U8 },

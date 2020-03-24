@@ -1,4 +1,4 @@
-#include "mod/common/db/config.h"
+#include "mod/common/db/global.h"
 
 #include <linux/bug.h>
 #include <linux/errno.h>
@@ -30,7 +30,7 @@ static int validate_ubit(struct ipv6_prefix *prefix, bool force)
 	return -EINVAL;
 }
 
-int validate_pool6(struct config_prefix6 *prefix, bool force)
+int pool6_validate(struct config_prefix6 *prefix, bool force)
 {
 	int error;
 
@@ -48,13 +48,12 @@ int validate_pool6(struct config_prefix6 *prefix, bool force)
 	return validate_ubit(&prefix->prefix, force);
 }
 
-int globals_init(struct globals *config, xlator_type type,
+int globals_init(struct jool_globals *config, xlator_type type,
 		struct ipv6_prefix *pool6)
 {
 	static const __u16 PLATEAUS[] = DEFAULT_MTU_PLATEAUS;
 	int error;
 
-	config->status = 0; /* This is never read, but whatever. */
 	config->enabled = DEFAULT_INSTANCE_ENABLED;
 	config->trace = false;
 
@@ -66,7 +65,7 @@ int globals_init(struct globals *config, xlator_type type,
 	}
 
 	/* TODO (fine) force */
-	error = validate_pool6(&config->pool6, true);
+	error = pool6_validate(&config->pool6, true);
 	if (error)
 		return error;
 
@@ -111,6 +110,29 @@ int globals_init(struct globals *config, xlator_type type,
 	default:
 		log_err("Unknown translator type: %d", type);
 		return -EINVAL;
+	}
+
+	return 0;
+}
+
+int globals_foreach(struct jool_globals *config,
+		int (*cb)(struct joolnl_global_meta const *, void *, void *),
+		void *arg,
+		enum joolnl_attr_global offset)
+{
+	struct joolnl_global_meta const *meta;
+	int error;
+
+	joolnl_global_foreach_meta(meta) {
+		if (offset) {
+			if (joolnl_global_meta_id(meta) == offset)
+				offset = 0;
+			continue;
+		}
+
+		error = cb(meta, joolnl_global_get(meta, config), arg);
+		if (error)
+			return error;
 	}
 
 	return 0;

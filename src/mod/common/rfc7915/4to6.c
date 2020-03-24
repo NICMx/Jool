@@ -172,7 +172,7 @@ static __be16 build_payload_len(struct packet *in, struct packet *out)
 
 static int generate_saddr6_nat64(struct xlation *state)
 {
-	struct globals *cfg;
+	struct jool_globals *cfg;
 	struct packet *out = &state->out;
 	struct in_addr tmp;
 

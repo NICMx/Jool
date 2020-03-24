@@ -10,6 +10,7 @@
 #include "mod/common/linux_version.h"
 #include "mod/common/log.h"
 #include "mod/common/wkmalloc.h"
+#include "mod/common/nl/attribute.h"
 #include "mod/common/nl/nl_common.h"
 #include "mod/common/nl/nl_handler.h"
 
@@ -71,14 +72,22 @@ void jresponse_enable_m(struct jool_response *response)
 
 int jresponse_send_array(struct jool_response *response, int error)
 {
-	if (error < 0)
+	if (error < 0) {
+		jresponse_cleanup(response);
 		return error;
+	}
+
 	/*
 	 * Packet empty might happen when the last entry died between foreach
 	 * requests.
 	 */
-	if ((error > 0) && (response->skb->len != response->initial_len))
+	if (error > 0) {
+		if (response->skb->len == response->initial_len) {
+			report_put_failure();
+			return jresponse_send_simple(response->info, -EINVAL);
+		}
 		jresponse_enable_m(response);
+	}
 
 	return jresponse_send(response);
 }

@@ -17,6 +17,7 @@ libjoolnl_la_SOURCES = \
 	session.c session.h \
 	stats.c stats.h \
 	wrapper-config.c \
+	wrapper-global.c \
 	wrapper-types.c
 
 libjoolnl_la_CFLAGS  = ${WARNINGCFLAGS}

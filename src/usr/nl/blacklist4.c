@@ -21,7 +21,7 @@ static struct jool_result handle_foreach_response(struct nl_msg *response,
 	struct ipv4_prefix entry;
 	struct jool_result result;
 
-	result = joolnl_init_foreach(response, "blacklist4", &args->done);
+	result = joolnl_init_foreach_list(response, "blacklist4", &args->done);
 	if (result.error)
 		return result;
 
@@ -50,7 +50,7 @@ struct jool_result joolnl_blacklist4_foreach(struct joolnl_socket *sk,
 
 	args.cb = cb;
 	args.args = _args;
-	args.done = false;
+	args.done = true;
 	memset(&args.last, 0, sizeof(args.last));
 	first_request = true;
 

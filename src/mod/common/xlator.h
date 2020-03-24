@@ -32,7 +32,7 @@ struct xlator {
 	xlator_flags flags;
 
 	struct jool_stats *stats;
-	struct globals globals;
+	struct jool_globals globals;
 	union {
 		struct {
 			struct eam_table *eamt;

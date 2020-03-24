@@ -1,6 +1,6 @@
 #include "mod/common/xlator.h"
 
-#include "mod/common/db/config.h"
+#include "mod/common/db/global.h"
 #include "mod/common/db/bib/db.h"
 
 /*

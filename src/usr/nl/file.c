@@ -183,7 +183,7 @@ too_small:
 static struct jool_result write_global(struct cJSON *json, void const *meta,
 		void *msg)
 {
-	return joolnl_global_packetize_json(msg, meta, json);
+	return joolnl_global_json2nl(meta, json, msg);
 }
 
 static struct jool_result create_globals_meta(struct nl_msg *msg,
@@ -197,7 +197,7 @@ static struct jool_result create_globals_meta(struct nl_msg *msg,
 		return result_from_enomem();
 
 	jmeta = *result;
-	joolnl_global_foreach(gmeta) {
+	joolnl_global_foreach_meta(gmeta) {
 		jmeta->name = joolnl_global_meta_name(gmeta);
 		jmeta->handler = write_global;
 		jmeta->arg1 = gmeta;

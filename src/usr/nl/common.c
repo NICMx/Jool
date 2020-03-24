@@ -1,4 +1,4 @@
-#include "common.h"
+#include "usr/nl/common.h"
 
 #include <netlink/errno.h>
 #include <netlink/msg.h>
@@ -15,11 +15,9 @@ struct jool_result joolnl_err_msgsize(void)
 }
 
 /* Boilerplate that needs to be done during every foreach response handler. */
-struct jool_result joolnl_init_foreach(struct nl_msg *response,
-		char const *what, bool *done)
+struct jool_result joolnl_init_foreach(struct nl_msg *response, bool *done)
 {
 	struct nlmsghdr *nhdr;
-	struct genlmsghdr *ghdr;
 	struct joolnlhdr *jhdr;
 
 	nhdr = nlmsg_hdr(response);
@@ -30,10 +28,24 @@ struct jool_result joolnl_init_foreach(struct nl_msg *response,
 		);
 	}
 
-	ghdr = genlmsg_hdr(nhdr);
-	jhdr = genlmsg_user_hdr(ghdr);
+	jhdr = genlmsg_user_hdr(genlmsg_hdr(nhdr));
 	*done = !(jhdr->flags & JOOLNLHDR_FLAGS_M);
 
+	return result_success();
+}
+
+/* Boilerplate that needs to be done during most foreach response handlers. */
+struct jool_result joolnl_init_foreach_list(struct nl_msg *msg,
+		char const *what, bool *done)
+{
+	struct genlmsghdr *ghdr;
+	struct jool_result result;
+
+	result = joolnl_init_foreach(msg, done);
+	if (result.error)
+		return result;
+
+	ghdr = genlmsg_hdr(nlmsg_hdr(msg));
 	return jnla_validate_list(
 		genlmsg_attrdata(ghdr, sizeof(struct joolnlhdr)),
 		genlmsg_attrlen(ghdr, sizeof(struct joolnlhdr)),

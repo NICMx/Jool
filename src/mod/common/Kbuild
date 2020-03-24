@@ -37,6 +37,7 @@ jool_common-objs += timer.o
 jool_common-objs += trace.o
 jool_common-objs += wkmalloc.o
 jool_common-objs += wrapper-config.o
+jool_common-objs += wrapper-global.o
 jool_common-objs += wrapper-types.o
 jool_common-objs += xlator.o
 
@@ -59,7 +60,7 @@ jool_common-objs += nl/session.o
 jool_common-objs += nl/stats.o
 
 jool_common-objs += db/blacklist4.o
-jool_common-objs += db/config.o
+jool_common-objs += db/global.o
 jool_common-objs += db/eam.o
 jool_common-objs += db/pool.o
 jool_common-objs += db/rbtree.o

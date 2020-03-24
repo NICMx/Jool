@@ -69,6 +69,7 @@ enum joolnl_attr_root {
 	JNLAR_BIB_ENTRIES,
 	JNLAR_SESSION_ENTRIES,
 	JNLAR_OFFSET,
+	JNLAR_OFFSET_U8,
 	JNLAR_OPERAND,
 	JNLAR_PROTO,
 	JNLAR_ATOMIC_INIT,
@@ -138,8 +139,6 @@ enum joolnl_attr_instance_entry {
 
 extern struct nla_policy joolnl_instance_entry_policy[JNLAIE_COUNT];
 
-/* TODO why are these two lacking policies? */
-
 enum joolnl_attr_instance_status {
 	JNLAIS_STATUS = 1,
 	JNLAIS_COUNT,
@@ -202,7 +201,6 @@ enum joolnl_attr_session {
 
 extern struct nla_policy joolnl_session_entry_policy[JNLASE_COUNT];
 
-/* TODO no policy */
 enum joolnl_attr_address_query {
 	JNLAAQ_ADDR6 = 1,
 	JNLAAQ_ADDR4,
@@ -214,10 +212,9 @@ enum joolnl_attr_address_query {
 
 enum joolnl_attr_global {
 	/* Common */
-	JNLAG_STATUS = 1,
-	JNLAG_ENABLED,
-	JNLAG_TRACE,
+	JNLAG_ENABLED = 1,
 	JNLAG_POOL6,
+	JNLAG_TRACE,
 	JNLAG_RESET_TC,
 	JNLAG_RESET_TOS,
 	JNLAG_TOS,
@@ -231,6 +228,8 @@ enum joolnl_attr_global {
 	JNLAG_POOL6791V4,
 
 	/* NAT64 */
+	JNLAG_DROP_BY_ADDR,
+	JNLAG_DROP_EXTERNAL_TCP,
 	JNLAG_DROP_ICMP6_INFO,
 	JNLAG_SRC_ICMP6_BETTER,
 	JNLAG_F_ARGS,
@@ -241,8 +240,6 @@ enum joolnl_attr_global {
 	JNLAG_TTL_ICMP,
 	JNLAG_BIB_LOGGING,
 	JNLAG_SESSION_LOGGING,
-	JNLAG_DROP_BY_ADDR,
-	JNLAG_DROP_EXTERNAL_TCP,
 	JNLAG_MAX_STORED_PKTS,
 
 	/* joold */
@@ -271,7 +268,7 @@ enum joolnl_attr_error {
 #define JOOLNLHDR_FLAGS_ERROR (1 << 0)
 /** Ignore certain validations? */
 #define JOOLNLHDR_FLAGS_FORCE (1 << 1)
-/** Cascade removal to orphaned entries? */
+/** Skip removal of orphaned entries? */
 #define JOOLNLHDR_FLAGS_QUICK (1 << 2)
 /**
  * "Some data could not be included in this message. Please request it."
@@ -470,16 +467,9 @@ struct joold_config {
 /**
  * A copy of the entire running configuration, excluding databases.
  */
-struct globals {
-	/**
-	 * Is Jool actually translating?
-	 * This depends on several factors depending on stateness, and is not an
-	 * actual variable Jool stores; it is computed as it is requested.
-	 */
-	bool status;
-	/**
-	 * Does the user wants this Jool instance to translate packets?
-	 */
+struct jool_globals {
+
+	/** Does the user wants this Jool instance to translate packets? */
 	bool enabled;
 	/** Print packet addresses on reception? */
 	bool trace;

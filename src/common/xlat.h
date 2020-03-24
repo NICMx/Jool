@@ -1,11 +1,6 @@
 #ifndef SRC_COMMON_XLAT_H_
 #define SRC_COMMON_XLAT_H_
 
-#include <linux/types.h>
-#ifndef __KERNEL__
-#include <stdbool.h>
-#endif
-
 #define JOOL_LICENSE "GPL v2"
 
 /**
