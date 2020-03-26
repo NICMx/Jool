@@ -34,6 +34,10 @@ int handle_bib_foreach(struct sk_buff *skb, struct genl_info *info)
 		if (error)
 			goto revert_response;
 		offset_ptr = &offset;
+		log_debug("Offset: [%pI6c#%u %pI4#%u %u %u]",
+				&offset.addr6.l3, offset.addr6.l4,
+				&offset.addr4.l3, offset.addr4.l4,
+				offset.is_static, offset.l4_proto);
 	} else if (info->attrs[JNLAR_PROTO]) {
 		offset.l4_proto = nla_get_u8(info->attrs[JNLAR_PROTO]);
 		offset_ptr = NULL;
@@ -81,6 +85,7 @@ int handle_bib_add(struct sk_buff *skb, struct genl_info *info)
 		log_err("The transport address '%pI4#%u' does not belong to pool4.\n"
 				"Please add it there first.",
 				&new.addr4.l3, new.addr4.l4);
+		error = -EINVAL;
 		goto revert_start;
 	}
 

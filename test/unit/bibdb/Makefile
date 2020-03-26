@@ -18,9 +18,12 @@ obj-m += $(BIBDB).o
 
 $(BIBDB)-objs += $(MIN_REQS)
 $(BIBDB)-objs += ../../../src/mod/common/translation_state.o
-$(BIBDB)-objs += ../../../src/mod/common/db/config.o
+$(BIBDB)-objs += ../../../src/mod/common/wrapper-config.o
+$(BIBDB)-objs += ../../../src/mod/common/wrapper-global.o
+$(BIBDB)-objs += ../../../src/mod/common/db/global.o
 $(BIBDB)-objs += ../../../src/mod/common/db/rbtree.o
 $(BIBDB)-objs += ../../../src/mod/common/db/bib/db.o
+$(BIBDB)-objs += ../../../src/mod/common/nl/attribute.o
 $(BIBDB)-objs += ../framework/bib.o
 $(BIBDB)-objs += ../impersonator/icmp_wrapper.o
 $(BIBDB)-objs += ../impersonator/bib.o

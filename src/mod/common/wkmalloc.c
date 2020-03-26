@@ -14,7 +14,9 @@
 #ifdef JKMEMLEAK
 
 #include "mod/common/wkmalloc.h"
-#include "mod/common/rbtree.h"
+
+#include "mod/common/log.h"
+#include "mod/common/db/rbtree.h"
 
 struct kmalloc_entry {
 	unsigned int count;

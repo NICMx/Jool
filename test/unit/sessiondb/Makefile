@@ -18,10 +18,13 @@ obj-m += $(SESSIONDB).o
 
 $(SESSIONDB)-objs += $(MIN_REQS)
 $(SESSIONDB)-objs += ../../../src/mod/common/translation_state.o
-$(SESSIONDB)-objs += ../../../src/mod/common/db/config.o
+$(SESSIONDB)-objs += ../../../src/mod/common/wrapper-config.o
+$(SESSIONDB)-objs += ../../../src/mod/common/wrapper-global.o
+$(SESSIONDB)-objs += ../../../src/mod/common/db/global.o
 $(SESSIONDB)-objs += ../../../src/mod/common/db/rbtree.o
 $(SESSIONDB)-objs += ../../../src/mod/common/db/bib/db.o
 $(SESSIONDB)-objs += ../../../src/mod/common/db/bib/entry.o
+$(SESSIONDB)-objs += ../../../src/mod/common/nl/attribute.o
 $(SESSIONDB)-objs += ../impersonator/bib.o
 $(SESSIONDB)-objs += ../impersonator/icmp_wrapper.o
 $(SESSIONDB)-objs += ../impersonator/route.o

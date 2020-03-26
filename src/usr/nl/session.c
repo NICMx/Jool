@@ -60,14 +60,13 @@ struct jool_result joolnl_session_foreach(struct joolnl_socket *sk,
 		if (result.error)
 			return result;
 
-		if (first_request) {
-			if (nla_put_u8(msg, JNLAR_PROTO, proto) < 0)
-				goto cancel;
-			first_request = false;
-
-		} else if (nla_put_session(msg, JNLAR_OFFSET, &args.last) < 0) {
+		if (nla_put_u8(msg, JNLAR_PROTO, proto) < 0)
 			goto cancel;
-		}
+
+		if (first_request)
+			first_request = false;
+		else if (nla_put_session(msg, JNLAR_OFFSET, &args.last) < 0)
+			goto cancel;
 
 		result = joolnl_request(sk, msg, handle_foreach_response, &args);
 		if (result.error)

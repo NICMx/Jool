@@ -57,16 +57,25 @@ int handle_session_foreach(struct sk_buff *skb, struct genl_info *info)
 	if (error)
 		goto revert_start;
 
-	if (info->attrs[JNLAR_OFFSET]) {
+	if (!info->attrs[JNLAR_PROTO]) {
+		log_err("The request is missing a transport protocol.");
+		error = -EINVAL;
+		goto revert_response;
+	} else {
+		proto = nla_get_u8(info->attrs[JNLAR_PROTO]);
+	}
+
+	if (!info->attrs[JNLAR_OFFSET]) {
+		offset_ptr = NULL;
+	} else {
 		error = parse_offset(info->attrs[JNLAR_OFFSET], &offset);
 		if (error)
 			goto revert_response;
 		offset_ptr = &offset;
+		log_debug("Offset: [%pI4/%u %pI4/%u]",
+				&offset.offset.src.l3, offset.offset.src.l4,
+				&offset.offset.dst.l3, offset.offset.dst.l4);
 	}
-
-	proto = info->attrs[JNLAR_PROTO]
-			? nla_get_u8(info->attrs[JNLAR_PROTO])
-			: 0;
 
 	error = bib_foreach_session(&jool, proto, serialize_session_entry,
 			response.skb, offset_ptr);

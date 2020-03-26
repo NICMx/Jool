@@ -20,6 +20,8 @@ int handle_eamt_foreach(struct sk_buff *skb, struct genl_info *info)
 	struct ipv4_prefix offset, *offset_ptr;
 	int error;
 
+	log_debug("Sending EAMT to userspace.");
+
 	error = request_handle_start(info, XT_SIIT, &jool);
 	if (error)
 		goto end;
@@ -33,10 +35,12 @@ int handle_eamt_foreach(struct sk_buff *skb, struct genl_info *info)
 		if (error)
 			goto revert_response;
 		offset_ptr = &offset;
+		log_debug("Offset: [%pI4/%u]", &offset.addr, offset.len);
 	}
 
 	error = eamt_foreach(jool.siit.eamt, serialize_eam_entry, response.skb, offset_ptr);
 	if (error < 0) {
+		log_err("Offset not found.");
 		jresponse_cleanup(&response);
 		goto revert_response;
 	}

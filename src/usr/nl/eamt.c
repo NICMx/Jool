@@ -9,7 +9,7 @@ struct foreach_args {
 	joolnl_eamt_foreach_cb cb;
 	void *args;
 	bool done;
-	struct eamt_entry last;
+	struct ipv4_prefix last;
 };
 
 static struct jool_result handle_foreach_response(struct nl_msg *response,
@@ -34,7 +34,7 @@ static struct jool_result handle_foreach_response(struct nl_msg *response,
 		if (result.error)
 			return result;
 
-		memcpy(&args->last, &entry, sizeof(entry));
+		args->last = entry.prefix4;
 	}
 
 	return result_success();
@@ -62,7 +62,7 @@ struct jool_result joolnl_eamt_foreach(struct joolnl_socket *sk,
 		if (first_request) {
 			first_request = false;
 
-		} else if (nla_put_eam(msg, JNLAR_OFFSET, &args.last) < 0) {
+		} else if (nla_put_prefix4(msg, JNLAR_OFFSET, &args.last) < 0) {
 			nlmsg_free(msg);
 			return joolnl_err_msgsize();
 		}

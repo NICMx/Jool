@@ -31,11 +31,13 @@ int handle_global_foreach(struct sk_buff *skb, struct genl_info *info)
 		goto revert_start;
 
 	offset = 0;
-	if (info->attrs[JNLAR_OFFSET_U8])
+	if (info->attrs[JNLAR_OFFSET_U8]) {
 		offset = nla_get_u8(info->attrs[JNLAR_OFFSET_U8]);
+		log_debug("Offset: [%u]", offset);
+	}
 
-	error = globals_foreach(&jool.globals, serialize_global, response.skb,
-			offset);
+	error = globals_foreach(&jool.globals, xlator_get_type(&jool),
+			serialize_global, response.skb, offset);
 
 	error = jresponse_send_array(&response, error);
 	if (error)

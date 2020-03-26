@@ -116,6 +116,7 @@ int globals_init(struct jool_globals *config, xlator_type type,
 }
 
 int globals_foreach(struct jool_globals *config,
+		xlator_type xt,
 		int (*cb)(struct joolnl_global_meta const *, void *, void *),
 		void *arg,
 		enum joolnl_attr_global offset)
@@ -124,6 +125,8 @@ int globals_foreach(struct jool_globals *config,
 	int error;
 
 	joolnl_global_foreach_meta(meta) {
+		if (!(joolnl_global_meta_xt(meta) & xt))
+			continue;
 		if (offset) {
 			if (joolnl_global_meta_id(meta) == offset)
 				offset = 0;

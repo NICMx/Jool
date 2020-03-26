@@ -72,10 +72,8 @@ void jresponse_enable_m(struct jool_response *response)
 
 int jresponse_send_array(struct jool_response *response, int error)
 {
-	if (error < 0) {
-		jresponse_cleanup(response);
-		return error;
-	}
+	if (error < 0)
+		goto cancel;
 
 	/*
 	 * Packet empty might happen when the last entry died between foreach
@@ -84,12 +82,17 @@ int jresponse_send_array(struct jool_response *response, int error)
 	if (error > 0) {
 		if (response->skb->len == response->initial_len) {
 			report_put_failure();
-			return jresponse_send_simple(response->info, -EINVAL);
+			error = jresponse_send_simple(response->info, -EINVAL);
+			goto cancel;
 		}
 		jresponse_enable_m(response);
 	}
 
 	return jresponse_send(response);
+
+cancel:
+	jresponse_cleanup(response);
+	return error;
 }
 
 int jresponse_send_simple(struct genl_info *info, int error_code)

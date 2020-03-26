@@ -22,8 +22,10 @@ int handle_stats_foreach(struct sk_buff *skb, struct genl_info *info)
 		goto end;
 
 	id = 0;
-	if (info->attrs[JNLAR_OFFSET_U8])
+	if (info->attrs[JNLAR_OFFSET_U8]) {
 		id = nla_get_u8(info->attrs[JNLAR_OFFSET_U8]);
+		log_debug("Offset: [%u]", id);
+	}
 
 	/* Perform query */
 	stats = jstat_query(jool.stats);

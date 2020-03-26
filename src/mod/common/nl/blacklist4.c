@@ -35,6 +35,7 @@ int handle_blacklist4_foreach(struct sk_buff *skb, struct genl_info *info)
 		if (error)
 			goto revert_response;
 		offset_ptr = &offset;
+		log_debug("Offset: [%pI4/%u]", &offset.addr, offset.len);
 	}
 
 	error = pool_foreach(jool.siit.blacklist4, serialize_bl4_entry,

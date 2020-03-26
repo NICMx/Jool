@@ -34,6 +34,15 @@ int handle_pool4_foreach(struct sk_buff *skb, struct genl_info *info)
 		if (error)
 			goto revert_response;
 		offset_ptr = &offset;
+		log_debug("Offset: [%pI4/%u %u-%u %u %u %u %u]",
+				&offset.range.prefix.addr,
+				offset.range.prefix.len,
+				offset.range.ports.min,
+				offset.range.ports.max,
+				offset.mark,
+				offset.iterations,
+				offset.flags,
+				offset.proto);
 	} else if (info->attrs[JNLAR_PROTO]) {
 		offset.proto = nla_get_u8(info->attrs[JNLAR_PROTO]);
 		offset_ptr = NULL;

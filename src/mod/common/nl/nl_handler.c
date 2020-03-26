@@ -1,7 +1,6 @@
 #include "mod/common/nl/nl_handler.h"
 
 #include <linux/mutex.h>
-#include <linux/version.h>
 #include <linux/genetlink.h>
 
 #include "common/types.h"
@@ -23,14 +22,20 @@
 #include "mod/common/nl/session.h"
 #include "mod/common/nl/stats.h"
 
-static int pre_handle_request(const struct genl_ops *ops, struct sk_buff *skb,
+#if LINUX_VERSION_AT_LEAST(0, 0, 0, 7, 1)
+#define _CONST const
+#else
+#define _CONST
+#endif
+
+static int pre_handle_request(_CONST struct genl_ops *ops, struct sk_buff *skb,
 		struct genl_info *info)
 {
 	error_pool_activate();
 	return 0;
 }
 
-static void post_handle_request(const struct genl_ops *ops, struct sk_buff *skb,
+static void post_handle_request(_CONST struct genl_ops *ops, struct sk_buff *skb,
 		struct genl_info *info)
 {
 	error_pool_deactivate();
@@ -58,7 +63,7 @@ struct nla_policy const jool_policy[JNLAR_COUNT] = {
 #define JOOL_POLICY .policy = jool_policy,
 #endif
 
-static const struct genl_ops ops[] = {
+static _CONST struct genl_ops ops[] = {
 	{
 		.cmd = JNLOP_INSTANCE_FOREACH,
 		.doit = handle_instance_foreach,
@@ -185,13 +190,6 @@ static const struct genl_ops ops[] = {
 static struct genl_multicast_group mc_groups[] = {
 	{
 		.name = JOOLNL_MULTICAST_GRP_NAME,
-#if LINUX_VERSION_LOWER_THAN(3, 13, 0, 7, 1)
-		/*
-		 * TODO This doesn't seem to be doing anything because there's
-		 * no userspace equivalent
-		 */
-		.id = 1,
-#endif
 	},
 };
 

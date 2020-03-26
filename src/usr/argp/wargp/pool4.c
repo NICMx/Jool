@@ -81,7 +81,7 @@ static void display_entry_normal(struct pool4_entry const *entry,
 		printf(" (%5s)", (entry->flags & ITERATIONS_AUTO)
 				? "auto" : "fixed");
 	} else {
-		printf("| %10s | %5s | %10s  %5s  ", "", "", "", "");
+		printf("| %10s | %5s | %10s  %5s ", "", "", "", "");
 	}
 
 	printf(" | %15s", inet_ntoa(entry->range.prefix.addr));

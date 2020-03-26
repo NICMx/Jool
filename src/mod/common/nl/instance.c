@@ -75,6 +75,8 @@ int handle_instance_foreach(struct sk_buff *skb, struct genl_info *info)
 		if (error)
 			goto revert_start;
 		offset_ptr = &offset;
+		log_debug("Offset: [%x %s %u]", offset.ns, offset.iname,
+				offset.xf);
 	}
 
 	error = jresponse_init(&response, info);

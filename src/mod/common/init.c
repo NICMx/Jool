@@ -5,6 +5,7 @@
 #include "mod/common/joold.h"
 #include "mod/common/log.h"
 #include "mod/common/timer.h"
+#include "mod/common/wkmalloc.h"
 #include "mod/common/xlator.h"
 #include "mod/common/db/bib/db.h"
 #include "mod/common/db/pool4/rfc6056.h"
