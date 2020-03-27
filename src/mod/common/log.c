@@ -49,7 +49,7 @@ void log_err(const char *format, ...)
 	 * Errors should be catched during user context, so a log_err()
 	 * during packet context should be upgraded to critical.
 	 */
-	if (WARN(is_packet_context(), msg)) {
+	if (WARN(is_packet_context(), "%s", msg)) {
 		__wkfree("error_code.msg", msg);
 		return;
 	}

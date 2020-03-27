@@ -55,6 +55,15 @@ static void candidate_destroy(struct config_candidate *candidate)
 	wkfree(struct config_candidate, candidate);
 }
 
+void atomconfig_teardown(void)
+{
+	struct config_candidate *candidate;
+	struct config_candidate *tmp;
+
+	list_for_each_entry_safe(candidate, tmp, &db, list_hook)
+		candidate_destroy(candidate);
+}
+
 static void candidate_expire_maybe(struct config_candidate *candidate)
 {
 	/*
@@ -131,6 +140,8 @@ static int handle_init(struct config_candidate **out, struct nlattr *attr,
 	struct net *ns;
 	int error;
 
+	log_debug("Handling atomic INIT attribute.");
+
 	ns = get_net_ns_by_pid(task_pid_vnr(current));
 	if (IS_ERR(ns)) {
 		log_err("Could not retrieve the current namespace.");
@@ -162,6 +173,7 @@ end:	put_net(ns);
 static int handle_global(struct config_candidate *new, struct nlattr *attr,
 		joolnlhdr_flags flags)
 {
+	log_debug("Handling atomic global attribute.");
 	return global_update(&new->xlator.globals,
 			xlator_flags2xt(new->xlator.flags),
 			!!(flags & JOOLNLHDR_FLAGS_FORCE), attr);
@@ -174,6 +186,8 @@ static int handle_eamt(struct config_candidate *new, struct nlattr *root,
 	struct eamt_entry entry;
 	int rem;
 	int error;
+
+	log_debug("Handling atomic EAMT attribute.");
 
 	if (xlator_is_nat64(&new->xlator)) {
 		log_err("Stateful NAT64 doesn't have an EAMT.");
@@ -202,6 +216,8 @@ static int handle_blacklist4(struct config_candidate *new, struct nlattr *root,
 	int rem;
 	int error;
 
+	log_debug("Handling atomic blacklist4 attribute.");
+
 	if (xlator_is_nat64(&new->xlator)) {
 		log_err("Stateful NAT64 doesn't have blacklist4.");
 		return -EINVAL;
@@ -227,6 +243,8 @@ static int handle_pool4(struct config_candidate *new, struct nlattr *root)
 	struct pool4_entry entry;
 	int rem;
 	int error;
+
+	log_debug("Handling atomic pool4 attribute.");
 
 	if (xlator_is_siit(&new->xlator)) {
 		log_err("SIIT doesn't have pool4.");
@@ -254,6 +272,8 @@ static int handle_bib(struct config_candidate *new, struct nlattr *root)
 	int rem;
 	int error;
 
+	log_debug("Handling atomic BIB attribute.");
+
 	if (xlator_is_siit(&new->xlator)) {
 		log_err("SIIT doesn't have BIBs.");
 		return -EINVAL;
@@ -276,6 +296,8 @@ static int handle_bib(struct config_candidate *new, struct nlattr *root)
 static int commit(struct config_candidate *candidate)
 {
 	int error;
+
+	log_debug("Handling atomic END attribute.");
 
 	error = xlator_replace(&candidate->xlator);
 	if (error) {

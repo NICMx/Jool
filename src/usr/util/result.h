@@ -8,8 +8,8 @@
 #define JRF_MSG_IN_HEAP (1 << 0)
 /*
  * Was this jool_result initialized?
- * This flag is not always set properly. It's only needed when the code might
- * fail in code that's not jool_result-aware. (ie. in some other library.)
+ * This flag doesn't work on its own, obviously. Zeroize the result beforehand
+ * if you plan on reading it.
  */
 #define JRF_INITIALIZED (1 << 1)
 

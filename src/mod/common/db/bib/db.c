@@ -2280,6 +2280,10 @@ static int __bib_add_static(struct xlator *jool, struct bib_entry *new,
 	struct tree_slot slot6;
 	struct tree_slot slot4;
 
+	log_debug("Adding static BIB entry (%pI6c#%u, %pI4#%u).",
+			&new->addr6.l3, new->addr6.l4,
+			&new->addr4.l3, new->addr4.l4);
+
 	table = get_table(jool->nat64.bib, new->l4_proto);
 	if (!table)
 		return -EINVAL;

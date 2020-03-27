@@ -143,36 +143,36 @@ struct jool_result joolnl_request(struct joolnl_socket *socket,
 		struct nl_msg *msg, joolnl_response_cb cb, void *cb_arg)
 {
 	struct response_cb callback;
-	struct jool_result result;
+	int error;
 
 	callback.cb = cb;
 	callback.arg = cb_arg;
 	/* Clear out JRF_INITIALIZED and error code */
 	memset(&callback.result, 0, sizeof(callback.result));
 
-	result.error = nl_socket_modify_cb(socket->sk, NL_CB_MSG_IN, NL_CB_CUSTOM,
+	error = nl_socket_modify_cb(socket->sk, NL_CB_MSG_IN, NL_CB_CUSTOM,
 			response_handler, &callback);
-	if (result.error < 0) {
+	if (error < 0) {
 		nlmsg_free(msg);
 		return result_from_error(
-			result.error,
+			error,
 			"Could not register response handler: %s\n",
-			nl_geterror(result.error)
+			nl_geterror(error)
 		);
 	}
 
-	result.error = nl_send_auto(socket->sk, msg);
+	error = nl_send_auto(socket->sk, msg);
 	nlmsg_free(msg);
-	if (result.error < 0) {
+	if (error < 0) {
 		return result_from_error(
-			result.error,
+			error,
 			"Could not dispatch the request to kernelspace: %s",
-			nl_geterror(result.error)
+			nl_geterror(error)
 		);
 	}
 
-	result.error = nl_recvmsgs_default(socket->sk);
-	if (result.error < 0) {
+	error = nl_recvmsgs_default(socket->sk);
+	if (error < 0) {
 		if ((callback.result.flags & JRF_INITIALIZED)
 				&& callback.result.error) {
 			/* nl_recvmsgs_default() failed during our callback */
@@ -181,9 +181,9 @@ struct jool_result joolnl_request(struct joolnl_socket *socket,
 
 		/* nl_recvmsgs_default() failed before or after our callback */
 		return result_from_error(
-			result.error,
+			error,
 			"Error receiving the kernel module's response: %s",
-			nl_geterror(result.error)
+			nl_geterror(error)
 		);
 	}
 

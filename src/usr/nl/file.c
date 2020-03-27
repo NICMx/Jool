@@ -153,6 +153,10 @@ static struct jool_result handle_array(cJSON *json, int attrtype, char *name,
 
 		result = entry_handler(json, msg);
 		if (result.error) {
+			if (result.error != -NLE_NOMEM)
+				return result;
+			result_cleanup(&result);
+
 			if (entries_written == 0)
 				goto too_small;
 

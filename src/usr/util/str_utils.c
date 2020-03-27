@@ -225,12 +225,11 @@ struct jool_result str_to_port_range(char *str, struct port_range *range)
 	}
 
 	result = str_to_ull(endptr + 1, NULL, 0, 65535, &tmp);
-	if (!result.error) {
-		range->max = tmp;
+	if (result.error)
 		return result;
-	}
 
-	return result_success();
+	range->max = tmp;
+	return result;
 }
 
 struct jool_result str_to_addr4(const char *str, struct in_addr *addr)
@@ -430,6 +429,7 @@ struct jool_result str_to_plateaus_array(const char *str, struct mtu_plateaus *p
 	struct jool_result result;
 
 	/* Validate str and copy it to the temp buffer. */
+	/* TODO (fine) strdup, damn it */
 	str_copy = malloc(strlen(str) + 1);
 	if (!str_copy)
 		return result_from_enomem();

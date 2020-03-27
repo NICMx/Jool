@@ -4,7 +4,7 @@
 #include <netlink/genl/ctrl.h>
 #include <netlink/genl/genl.h>
 #include "common/graybox-types.h"
-#include "usr/argp/log.h"
+#include "usr/log.h"
 
 static struct nl_sock *sk;
 static int family;
@@ -81,7 +81,7 @@ genl_fail:
 	return netlink_print_error(error);
 }
 
-void nlsocket_teardown()
+void nlsocket_teardown(void)
 {
 	nl_socket_free(sk);
 }

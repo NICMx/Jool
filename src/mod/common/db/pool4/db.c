@@ -535,6 +535,12 @@ int pool4db_add(struct pool4 *pool, const struct pool4_entry *entry)
 	u64 tmp;
 	int error;
 
+	log_debug("Adding pool4 entry (%pI4/%u, %u-%u, %u, %u, %u, %u).",
+			&entry->range.prefix.addr, entry->range.prefix.len,
+			entry->range.ports.min, entry->range.ports.max,
+			entry->mark, entry->iterations,
+			entry->flags, entry->proto);
+
 	error = prefix4_validate(&entry->range.prefix);
 	if (error)
 		return error;
@@ -694,7 +700,7 @@ static int remove_range(struct rb_root *tree, struct pool4_table *table,
 
 	if (table->sample_count == 0) {
 		rb_erase(&table->tree_hook, tree);
-		wkfree(struct pool4_table, table);
+		destroy_table(table);
 	}
 
 	return error;

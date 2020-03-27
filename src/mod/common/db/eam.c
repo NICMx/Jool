@@ -207,6 +207,10 @@ int eamt_add(struct eam_table *eamt, struct eamt_entry *new, bool force)
 {
 	int error;
 
+	log_debug("Adding EAM (%pI6c/%u, %pI4/%u)",
+			&new->prefix6.addr, new->prefix6.len,
+			&new->prefix4.addr, new->prefix4.len);
+
 	error = validate_prefixes(new);
 	if (error)
 		return error;

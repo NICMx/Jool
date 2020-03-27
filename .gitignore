@@ -105,6 +105,7 @@ autom4te.cache
 /src/usr/nl/Makefile
 /src/usr/siit/Makefile
 /src/usr/util/Makefile
+/test/graybox/Makefile
 /test/graybox/usr/Makefile
 
 # DKMS version cache

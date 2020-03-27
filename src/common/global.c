@@ -754,7 +754,7 @@ static struct joolnl_global_type gt_hairpin_mode = {
 	USERSPACE_FUNCTIONS(print_hairpin_mode, str2nl_hairpin_mode, json2nl_string, nl2raw_u8)
 };
 
-const struct joolnl_global_meta globals_metadata[] = {
+static const struct joolnl_global_meta globals_metadata[] = {
 	{
 		.id = JNLAG_ENABLED,
 		.name = "manually-enabled",

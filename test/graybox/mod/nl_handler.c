@@ -25,6 +25,7 @@ static int handle_expect_add(struct genl_info *info)
 {
 	struct expected_packet pkt;
 	struct nlattr *attr;
+	int rem;
 
 	log_debug("Handling expect add.");
 
@@ -46,10 +47,16 @@ static int handle_expect_add(struct genl_info *info)
 	pkt.bytes = nla_data(attr);
 	pkt.bytes_len = nla_len(attr);
 
-	attr = info->attrs[ATTR_EXCEPTIONS];
-	if (attr) {
-		memcpy(pkt.exceptions.values, nla_data(attr), nla_len(attr));
-		pkt.exceptions.count = nla_len(attr) / sizeof(*pkt.exceptions.values);
+	if (info->attrs[ATTR_EXCEPTIONS]) {
+		pkt.exceptions.count = 0;
+		nla_for_each_nested(attr, info->attrs[ATTR_EXCEPTIONS], rem) {
+			if (pkt.exceptions.count >= PLATEAUS_MAX) {
+				log_err("Too many exceptions.");
+				return -EINVAL;
+			}
+			pkt.exceptions.values[pkt.exceptions.count] = nla_get_u16(attr);
+			pkt.exceptions.count++;
+		}
 	} else {
 		pkt.exceptions.count = 0;
 	}

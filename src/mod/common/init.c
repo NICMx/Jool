@@ -2,6 +2,7 @@
 
 #include <linux/module.h>
 
+#include "mod/common/atomic_config.h"
 #include "mod/common/joold.h"
 #include "mod/common/log.h"
 #include "mod/common/timer.h"
@@ -76,6 +77,7 @@ static void teardown_common_modules(void)
 	nlhandler_teardown(); /* Userspace requests no longer handled now */
 	xlator_teardown(); /* Packets no longer handled by Netfilter now */
 	xlation_teardown();
+	atomconfig_teardown();
 
 	/* NAT64 */
 	jtimer_teardown();

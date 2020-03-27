@@ -66,7 +66,7 @@ int handle_eamt_add(struct sk_buff *skb, struct genl_info *info)
 	struct eamt_entry addend;
 	int error;
 
-	log_debug("Adding EAMT entry.");
+	log_debug("Adding EAMT entry...");
 
 	error = request_handle_start(info, XT_SIIT, &jool);
 	if (error)

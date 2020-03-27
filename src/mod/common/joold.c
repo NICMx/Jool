@@ -124,7 +124,7 @@ void joold_teardown(void)
 	}
 }
 
-int allocate_joold_skb(struct xlator *jool)
+static int allocate_joold_skb(struct xlator *jool)
 {
 	struct joold_queue *queue = jool->nat64.joold;
 
@@ -339,7 +339,7 @@ void joold_add(struct xlator *jool, struct session_entry *entry)
 	spin_lock_bh(&queue->lock);
 
 	if (!queue->skb && allocate_joold_skb(jool)) {
-		spin_lock_bh(&queue->lock);
+		spin_unlock_bh(&queue->lock);
 		return;
 	}
 

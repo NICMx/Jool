@@ -264,13 +264,16 @@ void xlator_set_defrag(void (*_defrag_enable)(struct net *ns))
  */
 void xlator_teardown(void)
 {
+	struct list_head *ni;
+
 #if LINUX_VERSION_LOWER_THAN(4, 13, 0, 8, 0)
 	nf_unregister_hooks(netfilter_hooks, ARRAY_SIZE(netfilter_hooks));
 #endif
 
 	WARN(!hash_empty(instances), "There are elements in the xlator table after a cleanup.");
-	WARN(!list_empty(netfilter_instances), "There are elements in the xlator list after a cleanup.");
-	__wkfree("xlator DB", rcu_dereference_raw(netfilter_instances));
+	ni = rcu_dereference_raw(netfilter_instances);
+	WARN(!list_empty(ni), "There are elements in the xlator list after a cleanup.");
+	__wkfree("xlator DB", ni);
 }
 
 static int init_siit(struct xlator *jool, struct ipv6_prefix *pool6)

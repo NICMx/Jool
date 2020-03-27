@@ -3,9 +3,7 @@ KERNEL_DIR ?= ${MODULES_DIR}/build
 KBUILD_EXTRA_SYMBOLS = $(src)/../common/Module.symvers
 
 #CC=cgcc    # More healthy warnings.
-#CC=gcc-4.9 # Needed to cross-compile Jool for an older machine.
 ccflags-y := -I$(src)/../.. $(JOOL_FLAGS)
-#ccflags-y += -Wfatal-errors -Werror
 
 obj-m += jool.o
 

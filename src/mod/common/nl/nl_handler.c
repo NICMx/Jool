@@ -41,7 +41,7 @@ static void post_handle_request(_CONST struct genl_ops *ops, struct sk_buff *skb
 	error_pool_deactivate();
 }
 
-struct nla_policy const jool_policy[JNLAR_COUNT] = {
+static struct nla_policy const jool_policy[JNLAR_COUNT] = {
 	[JNLAR_ADDR_QUERY] = { .type = NLA_BINARY },
 	[JNLAR_GLOBALS] = { .type = NLA_NESTED },
 	[JNLAR_BL4_ENTRIES] = { .type = NLA_NESTED },
