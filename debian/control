@@ -7,7 +7,7 @@ Build-Depends: debhelper (>= 11), dkms,
  mime-support, pkg-config, gawk, file, cpio,
  libnl-genl-3-dev, libnl-3-dev,
  libxtables-dev
-Standards-Version: 4.4.1
+Standards-Version: 4.5.0
 Rules-Requires-Root: no
 Homepage: https://jool.mx
 Vcs-Browser: https://github.com/NICMx/Jool
