@@ -15,4 +15,7 @@ void nlhandler_teardown(void);
 
 int handle_jool_message(struct sk_buff *skb, struct genl_info *info);
 
+u32 jnl_gid(void);
+struct genl_family *jnl_family(void);
+
 #endif /* SRC_MOD_COMMON_NL_HANDLER_H_ */

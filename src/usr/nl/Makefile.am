@@ -2,21 +2,22 @@ pkglib_LTLIBRARIES = libjoolnl.la
 
 libjoolnl_la_SOURCES = \
 	address.c address.h \
+	attribute.c attribute.h \
 	bib.c bib.h \
 	blacklist4.c blacklist4.h \
-	buffer.c buffer.h \
+	common.c common.h \
+	core.c core.h \
 	eamt.c eamt.h \
+	file.c file.h \
 	global.c global.h \
-	global-impl.c \
 	instance.c instance.h \
-	jool_socket.c jool_socket.h \
 	joold.c joold.h \
 	json.c json.h \
 	pool4.c pool4.h \
 	session.c session.h \
 	stats.c stats.h \
 	wrapper-config.c \
-	wrapper-globals.c \
+	wrapper-global.c \
 	wrapper-types.c
 
 libjoolnl_la_CFLAGS  = ${WARNINGCFLAGS}

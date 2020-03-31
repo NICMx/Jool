@@ -50,6 +50,9 @@ bool ASSERT_ADDR4(char const *expected,
 bool __ASSERT_ADDR4(struct in_addr const *expected,
 		struct in_addr const *actual,
 		char const *test_name);
+bool ASSERT_PREFIX4(struct ipv4_prefix const *expected,
+		struct ipv4_prefix const *actual,
+		char const *test_name);
 bool ASSERT_TADDR4(struct ipv4_transport_addr const *expected,
 		struct ipv4_transport_addr const *actual,
 		char const *test_name);
@@ -58,6 +61,9 @@ bool ASSERT_ADDR6(char const *expected,
 		char const *test_name);
 bool __ASSERT_ADDR6(struct in6_addr const *expected,
 		struct in6_addr const *actual,
+		char const *test_name);
+bool ASSERT_PREFIX6(struct ipv6_prefix const *expected,
+		struct ipv6_prefix const *actual,
 		char const *test_name);
 bool ASSERT_TADDR6(struct ipv6_transport_addr const *expected,
 		struct ipv6_transport_addr const *actual,

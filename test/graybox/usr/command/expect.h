@@ -5,20 +5,14 @@
 #include <netlink/msg.h>
 #include "common/graybox-types.h"
 
-#define PLATEAUS_MAX 64
+#define MAX_EXCEPTIONS 64
 
 struct expect_add_request {
 	char *file_name;
 	unsigned char *pkt;
 	size_t pkt_len;
-	/*
-	 * This is not a plateaus array. PLATEAUS_MAX is a dumb hack, obviously.
-	 * This is fine for now because no sane test would reach the
-	 * PLATEAUS_MAX exceptions limit.
-	 */
-	__u16 exceptions[PLATEAUS_MAX];
-	/* Number of exceptions; not number of bytes. */
-	__u16 exceptions_len;
+	unsigned long int exceptions[MAX_EXCEPTIONS];
+	unsigned int exceptions_len;
 };
 
 int expect_init_request(int argc, char **argv, enum graybox_command *cmd,

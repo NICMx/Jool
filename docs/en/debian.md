@@ -28,43 +28,11 @@ At time of writing (2019-11-21), the Debian Release is present in the [`unstable
 
 This document explains how to install the Debian Release and the Standalone Package. To compile from source, visit [this page](install.html).
 
-## Uninstalling old versions (installed from source)
-
-> Skip this step if you've never installed Jool from source in your target machine.
-
-If you already installed a previous version of Jool from source, know that it will conflict with the userspace clients installed in the next section. To uninstall the old userspace clients, run `make uninstall` in the directory where you compiled them:
-
-```bash
-user@T:~$ cd jool-4.0.5/
-user@T:~# make uninstall
-```
-
-If you no longer have the directory where you compiled it, download it again and do this instead:
-
-<div class="distro-menu">
-	<span class="distro-selector" onclick="showDistro(this);">tarball</span>
-	<span class="distro-selector" onclick="showDistro(this);">git clone</span>
-</div>
-
-<!-- iptables Jool -->
-```bash
-user@T:~$ cd jool-4.0.5/
-user@T:~$
-user@T:~$ ./configure
-user@T:~# make uninstall
-```
-
-<!-- Netfilter Jool -->
-```bash
-user@T:~$ cd Jool/
-user@T:~$ ./autogen.sh
-user@T:~$ ./configure
-user@T:~# make uninstall
-```
-
-This can be done before or after the commands in the next section. (But if you did it later, restart your terminal.)
-
 ## Installing the Debian packages
+
+> ![Warning!](../images/warning.svg) If you have already installed Jool from source in your machine, then those binaries may conflict with the ones installed here.
+>
+> You may uninstall source-installed binaries by following [these steps](install.html#uninstalling).
 
 Make sure you have your current kernel headers:
 

@@ -13,7 +13,8 @@
 noinst_HEADERS = \
 	config.c config.h \
 	constants.h \
-	globals.c globals.h \
+	global.c global.h \
+	iptables.h \
 	session.h \
 	stats.h \
 	types.c types.h \

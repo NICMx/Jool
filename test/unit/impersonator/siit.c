@@ -36,18 +36,6 @@ void blacklist4_put(struct addr4_pool *pool)
 	fail(__func__);
 }
 
-bool interface_contains(struct net *ns, struct in_addr *addr)
-{
-	fail(__func__);
-	return false;
-}
-
-bool blacklist4_contains(struct addr4_pool *pool, struct in_addr *addr)
-{
-	fail(__func__);
-	return false;
-}
-
 int rfc6791v4_find(struct xlation *state, struct in_addr *result)
 {
 	return fail(__func__);
@@ -74,85 +62,10 @@ void eamt_put(struct eam_table *eamt)
 	fail(__func__);
 }
 
-int eamt_add(struct eam_table *eamt, struct ipv6_prefix *prefix6,
-		struct ipv4_prefix *prefix4, bool force)
-{
-	return fail(__func__);
-}
-
-int eamt_rm(struct eam_table *eamt, struct ipv6_prefix *prefix6,
-		struct ipv4_prefix *prefix4)
-{
-	return fail(__func__);
-}
-
-void eamt_flush(struct eam_table *eamt)
-{
-	fail(__func__);
-}
-
 bool eamt_contains4(struct eam_table *eamt, __be32 addr)
 {
 	fail(__func__);
 	return false;
-}
-
-int eamt_xlat_4to6(struct eam_table *eamt, struct in_addr *addr4,
-		struct result_addrxlat46 *result)
-{
-	return fail(__func__);
-}
-
-int eamt_xlat_6to4(struct eam_table *eamt, struct in6_addr *addr6,
-		struct result_addrxlat64 *result)
-{
-	return fail(__func__);
-}
-
-int eamt_foreach(struct eam_table *eamt,
-		eamt_foreach_cb cb, void *arg,
-		struct ipv4_prefix *offset)
-{
-	return fail(__func__);
-}
-
-bool eamt_is_empty(struct eam_table *eamt)
-{
-	fail(__func__);
-	return true;
-}
-
-struct addr4_pool *pool_alloc(void)
-{
-	fail(__func__);
-	return NULL;
-}
-
-void pool_put(struct addr4_pool *pool)
-{
-	fail(__func__);
-}
-
-int pool_add(struct addr4_pool *pool, struct ipv4_prefix *prefix, bool force)
-{
-	return fail(__func__);
-}
-
-int pool_rm(struct addr4_pool *pool, struct ipv4_prefix *prefix)
-{
-	return fail(__func__);
-}
-
-int pool_flush(struct addr4_pool *pool)
-{
-	return fail(__func__);
-}
-
-int pool_foreach(struct addr4_pool *pool,
-		int (*func)(struct ipv4_prefix *, void *), void *arg,
-		struct ipv4_prefix *offset)
-{
-	return fail(__func__);
 }
 
 static struct addrxlat_result fail_addr(void)

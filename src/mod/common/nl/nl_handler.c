@@ -1,7 +1,6 @@
 #include "mod/common/nl/nl_handler.h"
 
 #include <linux/mutex.h>
-#include <linux/version.h>
 #include <linux/genetlink.h>
 
 #include "common/types.h"
@@ -23,23 +22,174 @@
 #include "mod/common/nl/session.h"
 #include "mod/common/nl/stats.h"
 
-static struct genl_multicast_group mc_groups[1] = {
-	{
-		.name = GNL_JOOLD_MULTICAST_GRP_NAME,
-#if LINUX_VERSION_LOWER_THAN(3, 13, 0, 7, 1)
-		.id = JOOLD_MC_ID,
+#if LINUX_VERSION_AT_LEAST(0, 0, 0, 7, 1)
+#define _CONST const
+#else
+#define _CONST
 #endif
-	},
+
+static int pre_handle_request(_CONST struct genl_ops *ops, struct sk_buff *skb,
+		struct genl_info *info)
+{
+	error_pool_activate();
+	return 0;
+}
+
+static void post_handle_request(_CONST struct genl_ops *ops, struct sk_buff *skb,
+		struct genl_info *info)
+{
+	error_pool_deactivate();
+}
+
+static struct nla_policy const jool_policy[JNLAR_COUNT] = {
+	[JNLAR_ADDR_QUERY] = { .type = NLA_BINARY },
+	[JNLAR_GLOBALS] = { .type = NLA_NESTED },
+	[JNLAR_BL4_ENTRIES] = { .type = NLA_NESTED },
+	[JNLAR_EAMT_ENTRIES] = { .type = NLA_NESTED },
+	[JNLAR_POOL4_ENTRIES] = { .type = NLA_NESTED },
+	[JNLAR_BIB_ENTRIES] = { .type = NLA_NESTED },
+	[JNLAR_SESSION_ENTRIES] = { .type = NLA_NESTED },
+	[JNLAR_OFFSET] = { .type = NLA_NESTED },
+	[JNLAR_OFFSET_U8] = { .type = NLA_U8 },
+	[JNLAR_OPERAND] = { .type = NLA_NESTED },
+	[JNLAR_PROTO] = { .type = NLA_U8 },
+	[JNLAR_ATOMIC_INIT] = { .type = NLA_U8 },
+	[JNLAR_ATOMIC_END] = { .type = NLA_UNSPEC, .len = 0 },
 };
 
-/**
- * Actual message type definition.
- */
-static struct genl_ops ops[] = {
+#if LINUX_VERSION_AT_LEAST(5, 2, 0, 9999, 0)
+#define JOOL_POLICY
+#else
+#define JOOL_POLICY .policy = jool_policy,
+#endif
+
+static _CONST struct genl_ops ops[] = {
 	{
-		.cmd = JOOL_COMMAND,
-		.doit = handle_jool_message,
-		.dumpit = NULL,
+		.cmd = JNLOP_INSTANCE_FOREACH,
+		.doit = handle_instance_foreach,
+		JOOL_POLICY
+	}, {
+		.cmd = JNLOP_INSTANCE_ADD,
+		.doit = handle_instance_add,
+		JOOL_POLICY
+	}, {
+		.cmd = JNLOP_INSTANCE_HELLO,
+		.doit = handle_instance_hello,
+		JOOL_POLICY
+	}, {
+		.cmd = JNLOP_INSTANCE_RM,
+		.doit = handle_instance_rm,
+		JOOL_POLICY
+	}, {
+		.cmd = JNLOP_INSTANCE_FLUSH,
+		.doit = handle_instance_flush,
+		JOOL_POLICY
+	}, {
+		.cmd = JNLOP_ADDRESS_QUERY64,
+		.doit = handle_address_query64,
+		JOOL_POLICY
+	}, {
+		.cmd = JNLOP_ADDRESS_QUERY46,
+		.doit = handle_address_query46,
+		JOOL_POLICY
+	}, {
+		.cmd = JNLOP_STATS_FOREACH,
+		.doit = handle_stats_foreach,
+		JOOL_POLICY
+	}, {
+		.cmd = JNLOP_GLOBAL_FOREACH,
+		.doit = handle_global_foreach,
+		JOOL_POLICY
+	}, {
+		.cmd = JNLOP_GLOBAL_UPDATE,
+		.doit = handle_global_update,
+		JOOL_POLICY
+	}, {
+		.cmd = JNLOP_EAMT_FOREACH,
+		.doit = handle_eamt_foreach,
+		JOOL_POLICY
+	}, {
+		.cmd = JNLOP_EAMT_ADD,
+		.doit = handle_eamt_add,
+		JOOL_POLICY
+	}, {
+		.cmd = JNLOP_EAMT_RM,
+		.doit = handle_eamt_rm,
+		JOOL_POLICY
+	}, {
+		.cmd = JNLOP_EAMT_FLUSH,
+		.doit = handle_eamt_flush,
+		JOOL_POLICY
+	}, {
+		.cmd = JNLOP_BL4_FOREACH,
+		.doit = handle_blacklist4_foreach,
+		JOOL_POLICY
+	}, {
+		.cmd = JNLOP_BL4_ADD,
+		.doit = handle_blacklist4_add,
+		JOOL_POLICY
+	}, {
+		.cmd = JNLOP_BL4_RM,
+		.doit = handle_blacklist4_rm,
+		JOOL_POLICY
+	}, {
+		.cmd = JNLOP_BL4_FLUSH,
+		.doit = handle_blacklist4_flush,
+		JOOL_POLICY
+	}, {
+		.cmd = JNLOP_POOL4_FOREACH,
+		.doit = handle_pool4_foreach,
+		JOOL_POLICY
+	}, {
+		.cmd = JNLOP_POOL4_ADD,
+		.doit = handle_pool4_add,
+		JOOL_POLICY
+	}, {
+		.cmd = JNLOP_POOL4_RM,
+		.doit = handle_pool4_rm,
+		JOOL_POLICY
+	}, {
+		.cmd = JNLOP_POOL4_FLUSH,
+		.doit = handle_pool4_flush,
+		JOOL_POLICY
+	}, {
+		.cmd = JNLOP_BIB_FOREACH,
+		.doit = handle_bib_foreach,
+		JOOL_POLICY
+	}, {
+		.cmd = JNLOP_BIB_ADD,
+		.doit = handle_bib_add,
+		JOOL_POLICY
+	}, {
+		.cmd = JNLOP_BIB_RM,
+		.doit = handle_bib_rm,
+		JOOL_POLICY
+	}, {
+		.cmd = JNLOP_SESSION_FOREACH,
+		.doit = handle_session_foreach,
+		JOOL_POLICY
+	}, {
+		.cmd = JNLOP_FILE_HANDLE,
+		.doit = handle_atomconfig_request,
+		JOOL_POLICY
+	}, {
+		.cmd = JNLOP_JOOLD_ADD,
+		.doit = handle_joold_add,
+		JOOL_POLICY
+	}, {
+		.cmd = JNLOP_JOOLD_ADVERTISE,
+		.doit = handle_joold_advertise,
+		JOOL_POLICY
+	}, {
+		.cmd = JNLOP_JOOLD_ACK,
+		.doit = handle_joold_ack,
+		JOOL_POLICY
+	}
+};
+
+static struct genl_multicast_group mc_groups[] = {
+	{
+		.name = JOOLNL_MULTICAST_GRP_NAME,
 	},
 };
 
@@ -48,25 +198,18 @@ static struct genl_family jool_family = {
 	/* This variable became "private" on kernel 4.10. */
 	.id = GENL_ID_GENERATE,
 #endif
-	.hdrsize = 0,
+	.hdrsize = sizeof(struct joolnlhdr),
 	/* This is initialized below. See register_family(). */
 	/* .name = GNL_JOOL_FAMILY_NAME, */
-	.version = 1,
-	.maxattr = __ATTR_MAX,
+	.version = 2,
+	.maxattr = JNLAR_MAX,
 	.netnsok = true,
-	/*
-	 * In kernel 3.10, they added a variable here called "parallel_ops".
-	 * Documentation about it can be found in Linux's commit
-	 * def3117493eafd9dfa1f809d861e0031b2cc8a07.
-	 * It appears to be an attempt to free genetlink users from the task of
-	 * locking.
-	 * We need to support older kernels, so we need to lock anyway, so this
-	 * feature is of no use to us.
-	 */
-	/*
-	 * "pre_doit" and "post_doit" are a pain in the ass; there is no doit
-	 * function so I have no idea. Whatever; they can be null. Fuck 'em.
-	 */
+	.parallel_ops = false,
+#if LINUX_VERSION_AT_LEAST(5, 2, 0, 9999, 0)
+	.policy = jool_policy,
+#endif
+	.pre_doit = pre_handle_request,
+	.post_doit = post_handle_request,
 
 #if LINUX_VERSION_AT_LEAST(4, 10, 0, 7, 5)
 	/*
@@ -89,199 +232,13 @@ static struct genl_family jool_family = {
 #endif
 };
 
-static DEFINE_MUTEX(config_mutex);
-
-static int validate_magic(struct request_hdr *hdr)
-{
-	if (hdr->magic[0] != 'j' || hdr->magic[1] != 'o')
-		goto fail;
-	if (hdr->magic[2] != 'o' || hdr->magic[3] != 'l')
-		goto fail;
-	return 0;
-
-fail:
-	/* Well, the sender does not understand the protocol. */
-	log_err("The userspace client's request lacks the Jool magic text.");
-	return -EINVAL;
-}
-
-static int validate_stateness(struct request_hdr *hdr)
-{
-	switch (hdr->xt) {
-	case XT_SIIT:
-		if (is_siit_enabled())
-			return 0;
-		log_err("SIIT Jool has not been modprobed. (Try `modprobe jool_siit`)");
-		return -EINVAL;
-	case XT_NAT64:
-		if (is_nat64_enabled())
-			return 0;
-		log_err("NAT64 Jool has not been modprobed. (Try `modprobe jool`)");
-		return -EINVAL;
-	}
-
-	log_err(XT_VALIDATE_ERRMSG);
-	return -EINVAL;
-}
-
-static int validate_version(struct request_hdr *hdr)
-{
-	__u32 hdr_version = ntohl(hdr->version);
-
-	if (xlat_version() == hdr_version)
-		return 0;
-
-	log_err("Version mismatch. The userspace client's version is %u.%u.%u.%u,\n"
-			"but the kernel module is %u.%u.%u.%u.\n"
-			"Please update the %s.",
-			hdr_version >> 24, (hdr_version >> 16) & 0xFFU,
-			(hdr_version >> 8) & 0xFFU, hdr_version & 0xFFU,
-			JOOL_VERSION_MAJOR, JOOL_VERSION_MINOR,
-			JOOL_VERSION_REV, JOOL_VERSION_DEV,
-			(xlat_version() > hdr_version)
-					? "userspace client"
-					: "kernel module");
-	return -EINVAL;
-}
-
-static int validate_request(void *data, size_t data_len, bool *peer_is_jool)
-{
-	int error;
-
-	if (peer_is_jool)
-		*peer_is_jool = false;
-
-	if (data_len < sizeof(struct request_hdr)) {
-		log_err("Message from the userspace client is smaller than Jool's header.");
-		return -EINVAL;
-	}
-
-	error = validate_magic(data);
-	if (error)
-		return error;
-
-	if (peer_is_jool)
-		*peer_is_jool = true;
-
-	error = validate_stateness(data);
-	if (error)
-		return error;
-	return validate_version(data);
-}
-
-
-static int validate_genl_attrs(struct genl_info *info)
-{
-	/*
-	 * I smell a need for another genl refactor.
-	 * Damn it, this thing is so hard to nail right.
-	 */
-	if (info->attrs == NULL || info->attrs[ATTR_DATA] == NULL) {
-		log_err("Malformed request. Most likely, the client is not Jool, or its version is pre-4.0. I can't even respond. Sorry.");
-		return -EINVAL;
-	}
-
-	return 0;
-}
-
-static int multiplex_request(struct xlator *jool, struct genl_info *info)
-{
-	struct request_hdr *hdr = get_jool_hdr(info);
-
-	switch (hdr->mode) {
-	case MODE_ADDRESS:
-		return handle_address_query(jool, info);
-	case MODE_STATS:
-		return handle_stats_config(jool, info);
-	case MODE_GLOBAL:
-		return handle_global_config(jool, info);
-	case MODE_EAMT:
-		return handle_eamt_config(jool, info);
-	case MODE_BLACKLIST:
-		return handle_blacklist4_config(jool, info);
-	case MODE_POOL4:
-		return handle_pool4_config(jool, info);
-	case MODE_BIB:
-		return handle_bib_config(jool, info);
-	case MODE_SESSION:
-		return handle_session_config(jool, info);
-	case MODE_JOOLD:
-		return handle_joold_request(jool, info);
-	default:
-		log_err("Unknown configuration mode: %d", hdr->mode);
-		return nlcore_respond(info, -EINVAL);
-	}
-}
-
-static int __handle_jool_message(struct genl_info *info)
-{
-	struct request_hdr *hdr;
-	struct xlator jool;
-	bool client_is_jool;
-	int error;
-
-	error = validate_genl_attrs(info);
-	if (error)
-		return error;
-
-	if (verify_superpriv())
-		return nlcore_respond(info, -EPERM);
-
-	log_debug("===============================================");
-	log_debug("Received a request from userspace.");
-
-	error = validate_request(nla_data(info->attrs[ATTR_DATA]),
-			nla_len(info->attrs[ATTR_DATA]),
-			&client_is_jool);
-	if (error)
-		return client_is_jool ? nlcore_respond(info, error) : error;
-
-	hdr = get_jool_hdr(info);
-	switch (hdr->mode) {
-	case MODE_INSTANCE:
-		return handle_instance_request(info);
-	case MODE_PARSE_FILE:
-		return handle_atomconfig_request(info);
-	default:
-		break;
-	}
-
-	error = xlator_find_current(get_iname(info), XF_ANY | hdr->xt, &jool);
-	if (error == -ESRCH) {
-		log_err("This namespace lacks an instance named '%s'.",
-				get_iname(info));
-		return nlcore_respond(info, -ESRCH);
-	}
-	if (error)
-		return nlcore_respond(info, error);
-
-	error = multiplex_request(&jool, info);
-	xlator_put(&jool);
-	return error;
-}
-
-int handle_jool_message(struct sk_buff *skb, struct genl_info *info)
-{
-	int error;
-
-	mutex_lock(&config_mutex);
-
-	error_pool_activate();
-	error = __handle_jool_message(info);
-	error_pool_deactivate();
-
-	mutex_unlock(&config_mutex);
-
-	return error;
-}
-
 static int register_family(void)
 {
 	int error;
 
 	log_debug("Registering Generic Netlink family...");
 
-	strcpy(jool_family.name, GNL_JOOL_FAMILY);
+	strcpy(jool_family.name, JOOLNL_FAMILY);
 
 #if LINUX_VERSION_LOWER_THAN(3, 13, 0, 7, 1)
 
@@ -313,7 +270,6 @@ static int register_family(void)
 	}
 #endif
 
-	nlcore_setup(&jool_family, &mc_groups[0]);
 	return 0;
 }
 
@@ -327,4 +283,16 @@ void nlhandler_teardown(void)
 {
 	genl_unregister_family(&jool_family);
 	error_pool_teardown();
+}
+
+#if LINUX_VERSION_LOWER_THAN(3, 13, 0, 7, 1)
+u32 jnl_gid(void)
+{
+	return mc_groups[0].id;
+}
+#endif
+
+struct genl_family *jnl_family(void)
+{
+	return &jool_family;
 }

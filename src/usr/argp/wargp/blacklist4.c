@@ -1,12 +1,12 @@
-#include "blacklist4.h"
+#include "usr/argp/wargp/blacklist4.h"
 
 #include "usr/argp/log.h"
 #include "usr/argp/requirements.h"
 #include "usr/argp/userspace-types.h"
 #include "usr/argp/wargp.h"
 #include "usr/argp/xlator_type.h"
+#include "usr/nl/core.h"
 #include "usr/nl/blacklist4.h"
-#include "usr/nl/jool_socket.h"
 #include "usr/util/str_utils.h"
 
 struct display_args {
@@ -25,7 +25,7 @@ static void print_separator(void)
 	print_table_separator(0, 18, 0);
 }
 
-static struct jool_result print_entry(struct ipv4_prefix *prefix, void *args)
+static struct jool_result print_entry(struct ipv4_prefix const *prefix, void *args)
 {
 	struct display_args *dargs = args;
 	char *prefix_str = inet_ntoa(prefix->addr);
@@ -38,17 +38,17 @@ static struct jool_result print_entry(struct ipv4_prefix *prefix, void *args)
 	return result_success();
 }
 
-int handle_blacklist4_display(char *iname, int argc, char **argv, void *arg)
+int handle_blacklist4_display(char *iname, int argc, char **argv, void const *arg)
 {
 	struct display_args dargs = { 0 };
-	struct jool_socket sk;
+	struct joolnl_socket sk;
 	struct jool_result result;
 
 	result.error = wargp_parse(display_opts, argc, argv, &dargs);
 	if (result.error)
 		return result.error;
 
-	result = netlink_setup(&sk, xt_get());
+	result = joolnl_setup(&sk, xt_get());
 	if (result.error)
 		return pr_result(&result);
 
@@ -63,9 +63,9 @@ int handle_blacklist4_display(char *iname, int argc, char **argv, void *arg)
 		}
 	}
 
-	result = blacklist4_foreach(&sk, iname, print_entry, &dargs);
+	result = joolnl_blacklist4_foreach(&sk, iname, print_entry, &dargs);
 
-	netlink_teardown(&sk);
+	joolnl_teardown(&sk);
 
 	if (result.error)
 		return pr_result(&result);
@@ -75,7 +75,7 @@ int handle_blacklist4_display(char *iname, int argc, char **argv, void *arg)
 	return 0;
 }
 
-void autocomplete_blacklist4_display(void *args)
+void autocomplete_blacklist4_display(void const *args)
 {
 	print_wargp_opts(display_opts);
 }
@@ -97,10 +97,10 @@ static struct wargp_option add_opts[] = {
 	{ 0 },
 };
 
-int handle_blacklist4_add(char *iname, int argc, char **argv, void *arg)
+int handle_blacklist4_add(char *iname, int argc, char **argv, void const *arg)
 {
 	struct add_args aargs = { 0 };
-	struct jool_socket sk;
+	struct joolnl_socket sk;
 	struct jool_result result;
 
 	result.error = wargp_parse(add_opts, argc, argv, &aargs);
@@ -115,17 +115,17 @@ int handle_blacklist4_add(char *iname, int argc, char **argv, void *arg)
 		return requirement_print(reqs);
 	}
 
-	result = netlink_setup(&sk, xt_get());
+	result = joolnl_setup(&sk, xt_get());
 	if (result.error)
 		return pr_result(&result);
 
-	result = blacklist4_add(&sk, iname, &aargs.prefix.prefix, aargs.force);
+	result = joolnl_blacklist4_add(&sk, iname, &aargs.prefix.prefix, aargs.force);
 
-	netlink_teardown(&sk);
+	joolnl_teardown(&sk);
 	return pr_result(&result);
 }
 
-void autocomplete_blacklist4_add(void *args)
+void autocomplete_blacklist4_add(void const *args)
 {
 	print_wargp_opts(add_opts);
 }
@@ -145,10 +145,10 @@ static struct wargp_option remove_opts[] = {
 	{ 0 },
 };
 
-int handle_blacklist4_remove(char *iname, int argc, char **argv, void *arg)
+int handle_blacklist4_remove(char *iname, int argc, char **argv, void const *arg)
 {
 	struct rm_args rargs = { 0 };
-	struct jool_socket sk;
+	struct joolnl_socket sk;
 	struct jool_result result;
 
 	result.error = wargp_parse(remove_opts, argc, argv, &rargs);
@@ -163,41 +163,41 @@ int handle_blacklist4_remove(char *iname, int argc, char **argv, void *arg)
 		return requirement_print(reqs);
 	}
 
-	result = netlink_setup(&sk, xt_get());
+	result = joolnl_setup(&sk, xt_get());
 	if (result.error)
 		return pr_result(&result);
 
-	result = blacklist4_rm(&sk, iname, &rargs.prefix.prefix);
+	result = joolnl_blacklist4_rm(&sk, iname, &rargs.prefix.prefix);
 
-	netlink_teardown(&sk);
+	joolnl_teardown(&sk);
 	return pr_result(&result);
 }
 
-void autocomplete_blacklist4_remove(void *args)
+void autocomplete_blacklist4_remove(void const *args)
 {
 	print_wargp_opts(remove_opts);
 }
 
-int handle_blacklist4_flush(char *iname, int argc, char **argv, void *arg)
+int handle_blacklist4_flush(char *iname, int argc, char **argv, void const *arg)
 {
-	struct jool_socket sk;
+	struct joolnl_socket sk;
 	struct jool_result result;
 
 	result.error = wargp_parse(NULL, argc, argv, NULL);
 	if (result.error)
 		return result.error;
 
-	result = netlink_setup(&sk, xt_get());
+	result = joolnl_setup(&sk, xt_get());
 	if (result.error)
 		return pr_result(&result);
 
-	result = blacklist4_flush(&sk, iname);
+	result = joolnl_blacklist4_flush(&sk, iname);
 
-	netlink_teardown(&sk);
+	joolnl_teardown(&sk);
 	return pr_result(&result);
 }
 
-void autocomplete_blacklist4_flush(void *args)
+void autocomplete_blacklist4_flush(void const *args)
 {
 	/* Nothing needed here. */
 }

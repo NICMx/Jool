@@ -17,6 +17,7 @@ libjoolargp_la_SOURCES = \
 	wargp/file.c wargp/file.h \
 	wargp/global.c wargp/global.h \
 	wargp/instance.c wargp/instance.h \
+	wargp/joold.c wargp/joold.h \
 	wargp/pool4.c wargp/pool4.h \
 	wargp/session.c wargp/session.h \
 	wargp/stats.c wargp/stats.h

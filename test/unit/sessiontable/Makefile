@@ -17,11 +17,13 @@ SESSIONTABLE = sessiontable
 obj-m += $(SESSIONTABLE).o
 
 $(SESSIONTABLE)-objs += $(MIN_REQS)
-$(SESSIONTABLE)-objs += ../../../src/mod/common/global-impl.o
 $(SESSIONTABLE)-objs += ../../../src/mod/common/translation_state.o
-$(SESSIONTABLE)-objs += ../../../src/mod/common/db/config.o
+$(SESSIONTABLE)-objs += ../../../src/mod/common/wrapper-config.o
+$(SESSIONTABLE)-objs += ../../../src/mod/common/wrapper-global.o
+$(SESSIONTABLE)-objs += ../../../src/mod/common/db/global.o
 $(SESSIONTABLE)-objs += ../../../src/mod/common/db/rbtree.o
 $(SESSIONTABLE)-objs += ../../../src/mod/common/db/bib/db.o
+$(SESSIONTABLE)-objs += ../../../src/mod/common/nl/attribute.o
 $(SESSIONTABLE)-objs += ../impersonator/icmp_wrapper.o
 $(SESSIONTABLE)-objs += ../impersonator/bib.o
 $(SESSIONTABLE)-objs += ../impersonator/route.o

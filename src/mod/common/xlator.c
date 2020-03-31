@@ -5,6 +5,7 @@
 
 #include "common/types.h"
 #include "common/xlat.h"
+#include "db/global.h"
 #include "mod/common/atomic_config.h"
 #include "mod/common/joold.h"
 #include "mod/common/kernel_hook.h"
@@ -13,7 +14,6 @@
 #include "mod/common/rcu.h"
 #include "mod/common/wkmalloc.h"
 #include "mod/common/db/blacklist4.h"
-#include "mod/common/db/config.h"
 #include "mod/common/db/eam.h"
 #include "mod/common/db/pool4/db.h"
 #include "mod/common/db/bib/db.h"
@@ -190,9 +190,9 @@ static void __flush_delete(struct hlist_head *detached)
  * Called whenever the user deletes a namespace. Supposed to delete all the
  * instances inserted in that namespace.
  *
- * Update 2019-10-15: Also called during jool r-modprobe.
+ * Update 2019-10-15: Also called during modprobe -r.
  */
-static void __flush_net(struct net *ns, xlator_type xt)
+void jool_xlator_flush_net(struct net *ns, xlator_type xt)
 {
 	HLIST_HEAD(detached);
 
@@ -202,11 +202,7 @@ static void __flush_net(struct net *ns, xlator_type xt)
 
 	__flush_delete(&detached);
 }
-
-static void flush_net(struct net *ns)
-{
-	__flush_net(ns, XT_ANY);
-}
+EXPORT_SYMBOL_GPL(jool_xlator_flush_net);
 
 /**
  * Called whenever the user deletes... several namespaces? I'm not really sure.
@@ -216,24 +212,19 @@ static void flush_net(struct net *ns)
  *
  * Maybe delete flush_net(); I guess it's redundant.
  */
-static void flush_batch(struct list_head *net_exit_list)
+void jool_xlator_flush_batch(struct list_head *net_exit_list, xlator_type xt)
 {
 	struct net *ns;
 	HLIST_HEAD(detached);
 
 	mutex_lock(&lock);
 	list_for_each_entry(ns, net_exit_list, exit_list)
-		__flush_detach(ns, XT_ANY, &detached);
+		__flush_detach(ns, xt, &detached);
 	mutex_unlock(&lock);
 
 	__flush_delete(&detached);
 }
-
-/** Namespace-aware network operation registration object */
-static struct pernet_operations joolns_ops = {
-	.exit = flush_net,
-	.exit_batch = flush_batch,
-};
+EXPORT_SYMBOL_GPL(jool_xlator_flush_batch);
 
 /**
  * Initializes this module. Do not call other functions before this one.
@@ -241,7 +232,9 @@ static struct pernet_operations joolns_ops = {
 int xlator_setup(void)
 {
 	struct list_head *list;
+#if LINUX_VERSION_LOWER_THAN(4, 13, 0, 8, 0)
 	int error;
+#endif
 
 	list = __wkmalloc("xlator DB", sizeof(struct list_head), GFP_KERNEL);
 	if (!list)
@@ -249,16 +242,9 @@ int xlator_setup(void)
 	INIT_LIST_HEAD(list);
 	RCU_INIT_POINTER(netfilter_instances, list);
 
-	error = register_pernet_subsys(&joolns_ops);
-	if (error) {
-		__wkfree("xlator DB", list);
-		return error;
-	}
-
 #if LINUX_VERSION_LOWER_THAN(4, 13, 0, 8, 0)
 	error = nf_register_hooks(netfilter_hooks, ARRAY_SIZE(netfilter_hooks));
 	if (error) {
-		unregister_pernet_subsys(&joolns_ops);
 		__wkfree("xlator DB", list);
 		return error;
 	}
@@ -278,17 +264,19 @@ void xlator_set_defrag(void (*_defrag_enable)(struct net *ns))
  */
 void xlator_teardown(void)
 {
+	struct list_head *ni;
+
 #if LINUX_VERSION_LOWER_THAN(4, 13, 0, 8, 0)
 	nf_unregister_hooks(netfilter_hooks, ARRAY_SIZE(netfilter_hooks));
 #endif
-	unregister_pernet_subsys(&joolns_ops);
 
 	WARN(!hash_empty(instances), "There are elements in the xlator table after a cleanup.");
-	WARN(!list_empty(netfilter_instances), "There are elements in the xlator list after a cleanup.");
-	__wkfree("xlator DB", rcu_dereference_raw(netfilter_instances));
+	ni = rcu_dereference_raw(netfilter_instances);
+	WARN(!list_empty(ni), "There are elements in the xlator list after a cleanup.");
+	__wkfree("xlator DB", ni);
 }
 
-static int init_siit(struct xlator *jool, struct config_prefix6 *pool6)
+static int init_siit(struct xlator *jool, struct ipv6_prefix *pool6)
 {
 	int error;
 
@@ -318,7 +306,7 @@ stats_fail:
 	return -ENOMEM;
 }
 
-static int init_nat64(struct xlator *jool, struct config_prefix6 *pool6)
+static int init_nat64(struct xlator *jool, struct ipv6_prefix *pool6)
 {
 	int error;
 
@@ -354,7 +342,7 @@ stats_fail:
 }
 
 int xlator_init(struct xlator *jool, struct net *ns, char *iname,
-		xlator_flags flags, struct config_prefix6 *pool6)
+		xlator_flags flags, struct ipv6_prefix *pool6)
 {
 	int error;
 
@@ -386,7 +374,7 @@ static int basic_validations(char const *iname, bool allow_null_iname,
 
 	error = iname_validate(iname, allow_null_iname);
 	if (error) {
-		log_err(INAME_VALIDATE_ERRMSG, INAME_MAX_LEN - 1);
+		log_err(INAME_VALIDATE_ERRMSG);
 		return error;
 	}
 	error = xt_validate(xlator_flags2xt(flags));
@@ -400,7 +388,7 @@ static int basic_validations(char const *iname, bool allow_null_iname,
 
 /** Basic validations when adding an xlator to the DB. */
 static int basic_add_validations(char *iname, xlator_flags flags,
-		struct config_prefix6 *pool6)
+		struct ipv6_prefix *pool6)
 {
 	int error;
 
@@ -412,7 +400,7 @@ static int basic_add_validations(char *iname, xlator_flags flags,
 		log_err(XF_VALIDATE_ERRMSG);
 		return error;
 	}
-	if ((flags & XT_NAT64) && (!pool6 || !pool6->set)) {
+	if ((flags & XT_NAT64) && !pool6) {
 		log_err("pool6 is mandatory in NAT64 instances.");
 		return -EINVAL;
 	}
@@ -507,7 +495,7 @@ static int __xlator_add(struct jool_instance *new, struct xlator *result)
  * @result: Will be initialized with a clone of the new translator. Send NULL
  *     if you're not interested.
  */
-int xlator_add(xlator_flags flags, char *iname, struct config_prefix6 *pool6,
+int xlator_add(xlator_flags flags, char *iname, struct ipv6_prefix *pool6,
 		struct xlator *result)
 {
 	struct jool_instance *instance;
@@ -618,7 +606,7 @@ int xlator_rm(xlator_type xt, char *iname)
 	}
 	error = iname_validate(iname, false);
 	if (error) {
-		log_err(INAME_VALIDATE_ERRMSG, INAME_MAX_LEN - 1);
+		log_err(INAME_VALIDATE_ERRMSG);
 		return error;
 	}
 
@@ -642,7 +630,9 @@ int xlator_replace(struct xlator *jool)
 	int error;
 
 	error = basic_add_validations(jool->iname, jool->flags,
-			&jool->globals.pool6);
+			jool->globals.pool6.set
+					? &jool->globals.pool6.prefix
+					: NULL);
 	if (error)
 		return error;
 
@@ -743,7 +733,7 @@ int xlator_flush(xlator_type xt)
 		return PTR_ERR(ns);
 	}
 
-	__flush_net(ns, xt);
+	jool_xlator_flush_net(ns, xt);
 
 	put_net(ns);
 	return 0;
@@ -883,7 +873,7 @@ void xlator_put(struct xlator *jool)
 static bool offset_equals(struct instance_entry_usr *offset,
 		struct jool_instance *instance)
 {
-	return (offset->ns == (__u64)instance->jool.ns)
+	return (offset->ns == ((__u64)instance->jool.ns & 0xFFFFFFFF))
 			&& (strcmp(offset->iname, instance->jool.iname) == 0);
 }
 

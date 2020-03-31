@@ -12,11 +12,11 @@ JSON=/tmp/jool-test.conf
 
 function start() {
 		clear
-		echo "$1"
+		echo -e "\\x1b[36m$1\\x1b[0m"
 }
 
 function pause() {
-	read -p "Press enter to continue"
+	read -p "Press Enter to continue"
 }
 
 # --------------
@@ -41,8 +41,8 @@ function single_module_instance_test() {
 
 	start "'Running', followed by single entry table"
 	( set -x
-		$THIS instance add --netfilter -6 64::/96 nat64-1
-		$THIS -i nat64-1 instance status
+		$THIS instance add --netfilter -6 64::/96 xlat-1
+		$THIS -i xlat-1 instance status
 		$THIS instance display
 	)
 	pause
@@ -52,26 +52,26 @@ function single_module_instance_test() {
 	pause
 
 	start "Error: Duplicate instance name"
-	( set -x; $THIS instance add --iptables -6 128::/96 nat64-1 )
+	( set -x; $THIS instance add --iptables -6 128::/96 xlat-1 )
 	pause
 
 	start "2-entry table (CSV format)"
 	( set -x
-		$THIS instance add --iptables -6 32::/96 nat64-2
+		$THIS instance add --iptables -6 32::/96 xlat-2
 		$THIS instance display --csv
 	)
 	pause
 
 	start "3-entry table (No headers)"
 	( set -x
-		$THIS instance add --iptables -6 16::/96 nat64-3
+		$THIS instance add --iptables -6 16::/96 xlat-3
 		$THIS instance display --no-headers
 	)
 	pause
 
 	start "table with 1 and 3 (CSV no headers)"
 	( set -x
-		$THIS instance remove nat64-2
+		$THIS instance remove xlat-2
 		$THIS instance display --csv --no-headers
 	)
 	pause
@@ -89,12 +89,12 @@ single_module_instance_test jool_siit jool
 # --------------
 
 function add_dummy_entries() {
-	jool instance add --netfilter -6 64::/96 nat64-1
-	jool instance add --iptables -6 64::/96 nat64-2
-	jool instance add --iptables -6 64::/96 nat64-3
-	jool_siit instance add --netfilter -6 64::/96 nat64-1
-	jool_siit instance add --iptables -6 64::/96 nat64-2
-	jool_siit instance add --iptables -6 64::/96 nat64-3
+	jool instance add --netfilter -6 64::/96 xlat-1
+	jool instance add --iptables -6 64::/96 xlat-2
+	jool instance add --iptables -6 64::/96 xlat-3
+	jool_siit instance add --netfilter -6 64::/96 xlat-1
+	jool_siit instance add --iptables -6 64::/96 xlat-2
+	jool_siit instance add --iptables -6 64::/96 xlat-3
 }
 
 start  "Test instance database management: Remove entries before r-modprobing"
@@ -347,7 +347,7 @@ start "Modify other columns"
 )
 pause
 
-start "--quick (no special effects)"
+start "--quick (no visible special effects)"
 ( set -x
 	jool pool4 remove --quick --tcp 0.0.0.1 100-300 --mark 1
 	display_pool4
@@ -376,7 +376,6 @@ start "Errors: Malformed stuff during add"
 	jool pool4 add --tcp 192.0.2.1/33 100-200
 	jool pool4 add --tcp 192.0.2.1/24 100-200
 	jool pool4 add --tcp 192.a 100-200
-# TODO (fine) "1a00-200" is being parsed as "1". This is intentional but sucks.
 	jool pool4 add --tcp 192.0.2.1 a100-200
 	jool pool4 add --tcp 192.0.2.1 -1
 	jool pool4 add --tcp 192.0.2.1 65536
@@ -449,7 +448,7 @@ start "Display populated table (output variations)"
 ( set -x; display_bib_outputs )
 pause
 
-start "Error: IPv4 already exists"
+start "Entry already exists (error, error, success)"
 ( set -x
 	jool bib add 2001:db8::1#1234 192.0.2.1#1236
 	jool bib add 2001:db8::1#1236 192.0.2.1#1234

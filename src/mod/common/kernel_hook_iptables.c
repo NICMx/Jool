@@ -1,5 +1,6 @@
 #include "mod/common/kernel_hook.h"
 
+#include "common/iptables.h"
 #include "mod/common/core.h"
 #include "mod/common/linux_version.h"
 #include "mod/common/log.h"
@@ -39,7 +40,7 @@ int target_checkentry(const struct xt_tgchk_param *param)
 
 	error = iname_validate(info->iname, false);
 	if (error) {
-		log_err(INAME_VALIDATE_ERRMSG, INAME_MAX_LEN - 1);
+		log_err(INAME_VALIDATE_ERRMSG);
 		return error;
 	}
 	error = xt_validate(info->type);

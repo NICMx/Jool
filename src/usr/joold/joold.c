@@ -39,7 +39,7 @@ int main(int argc, char **argv)
 	error = netsocket_setup(argc, argv);
 	if (error)
 		goto end;
-	error = modsocket_setup();
+	error = modsocket_setup(argc, argv);
 	if (error) {
 		netsocket_teardown();
 		goto end;

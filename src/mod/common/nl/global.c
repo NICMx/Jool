@@ -1,108 +1,65 @@
 #include "mod/common/nl/global.h"
 
-#include <linux/sort.h>
 #include "common/constants.h"
-#include "common/globals.h"
-#include "common/types.h"
 #include "mod/common/log.h"
 #include "mod/common/nl/nl_common.h"
 #include "mod/common/nl/nl_core.h"
-#include "mod/common/joold.h"
-#include "mod/common/db/bib/db.h"
+#include "mod/common/nl/attribute.h"
 #include "mod/common/db/eam.h"
+#include "mod/common/db/global.h"
 
-static int handle_global_display(struct xlator *jool, struct genl_info *info)
+static int serialize_global(struct joolnl_global_meta const *meta, void *global,
+		void *skb)
 {
-	struct globals config;
-	bool pools_empty;
+	return joolnl_global_raw2nl(meta, global, skb) ? 1 : 0;
+}
+
+int handle_global_foreach(struct sk_buff *skb, struct genl_info *info)
+{
+	struct xlator jool;
+	struct jool_response response;
+	enum joolnl_attr_global offset;
+	int error;
 
 	log_debug("Returning 'Global' options.");
 
-	memcpy(&config, &jool->globals, sizeof(config));
-
-	pools_empty = !jool->globals.pool6.set;
-	if (xlator_is_siit(jool))
-		pools_empty &= eamt_is_empty(jool->siit.eamt);
-	prepare_config_for_userspace(&config, pools_empty);
-
-	return nlcore_respond_struct(info, &config, sizeof(config));
-}
-
-/**
- * This consumes one global update request tuple from @request, and applies it
- * to @cfg.
- *
- * @request is assumed to be the payload of some request packet, which contains
- * a sequence of [field, value] tuples. ("field" is struct global_value and
- * "value" is the actual value, whose semantics are described by "field".)
- * Again, only one of those tuples will be consumed by this function.
- *
- * Returns
- * >= 0: Number of bytes consumed from the payload. (ie. the size of the tuple.)
- * < 0: Error code.
- */
-int global_update(struct globals *cfg, xlator_type xt, bool force,
-		struct global_value *request, size_t request_size)
-{
-	struct global_field *field;
-	unsigned int field_count;
-	int error;
-
-	if (request_size < sizeof(*request)) {
-		log_err("The request is too small to contain a global_value header.");
-		return -EINVAL;
-	}
-
-	/* Get the current metadata for the field we want to edit. */
-	get_global_fields(&field, &field_count);
-
-	if (request->type >= field_count) {
-		log_err("Request type index %u is out of bounds.",
-				request->type);
-		return -EINVAL;
-	}
-
-	field = &field[request->type];
-
-	if ((xt & XT_SIIT) && !(field->xt & XT_SIIT)) {
-		log_err("Field %s is not available in SIIT.", field->name);
-		return -EINVAL;
-	}
-	if ((xt & XT_NAT64) && !(field->xt & XT_NAT64)) {
-		log_err("Field %s is not available in NAT64.", field->name);
-		return -EINVAL;
-	}
-	if (field->type->size > (request_size - sizeof(*request))) {
-		log_err("Invalid field size. Field %s (type %s) expects %zu bytes, %zu received.",
-				field->name,
-				field->type->name,
-				field->type->size,
-				request_size - sizeof(*request));
-		return -EINVAL;
-	}
-
-	error = 0;
-	if (field->validate)
-		error = field->validate(field, request + 1, force);
-	else if (field->type->validate)
-		error = field->type->validate(field, request + 1, force);
+	error = request_handle_start(info, XT_ANY, &jool);
 	if (error)
-		return error;
+		goto end;
+	error = jresponse_init(&response, info);
+	if (error)
+		goto revert_start;
 
-	/*
-	 * Replace the one field that userspace is requesting in @cfg,
-	 * in a very ugly but effective way.
-	 */
-	memcpy(((void *)cfg) + field->offset, request + 1, field->type->size);
-	return sizeof(*request) + field->type->size;
+	offset = 0;
+	if (info->attrs[JNLAR_OFFSET_U8]) {
+		offset = nla_get_u8(info->attrs[JNLAR_OFFSET_U8]);
+		log_debug("Offset: [%u]", offset);
+	}
+
+	error = globals_foreach(&jool.globals, xlator_get_type(&jool),
+			serialize_global, response.skb, offset);
+
+	error = jresponse_send_array(&response, error);
+	if (error)
+		goto revert_response;
+
+	request_handle_end(&jool);
+	return 0;
+
+revert_response:
+	jresponse_cleanup(&response);
+revert_start:
+	request_handle_end(&jool);
+end:
+	return jresponse_send_simple(info, error);
 }
 
-static int handle_global_update(struct xlator *jool, struct genl_info *info,
-		struct request_hdr *hdr)
+int handle_global_update(struct sk_buff *skb, struct genl_info *info)
 {
+	struct xlator jool;
 	int error;
 
-	log_debug("Updating 'Global' option.");
+	log_debug("Updating 'Global' value.");
 
 	/*
 	 * This is implemented as an atomic configuration run with only a single
@@ -112,13 +69,13 @@ static int handle_global_update(struct xlator *jool, struct genl_info *info,
 	 *
 	 * First, I can't just modify the value directly because ongoing
 	 * translations could be using it. Making those values atomic is
-	 * awkward because not all of them are basic data types and atomic_t is
-	 * not exported to userspace. (struct globals needs to be.)
+	 * awkward because not all of them are basic data types.
 	 *
 	 * Protecting the values by a spinlock is feasible but dirty and not
 	 * very performant. The translating code wants to query the globals
 	 * often and I don't think that locking all the time is very healthy.
 	 *
+	 * [Also, the global values should ideally]
 	 * remain constant through a translation, because bad things might
 	 * happen if a value is queried at the beginning of the pipeline, some
 	 * stuff is done based on it, and a different value pops when queried
@@ -145,27 +102,74 @@ static int handle_global_update(struct xlator *jool, struct genl_info *info,
 	 * So let's STFU and do that.
 	 */
 
+	error = request_handle_start(info, XT_ANY, &jool);
+	if (error)
+		goto end;
+
+	if (!info->attrs[JNLAR_GLOBALS]) {
+		log_err("Request is missing a globals container.");
+		error = -EINVAL;
+		goto revert_start;
+	}
+
+	error = global_update(&jool.globals, get_jool_hdr(info)->xt,
+			get_jool_hdr(info)->flags & JOOLNLHDR_FLAGS_FORCE,
+			info->attrs[JNLAR_GLOBALS]);
+	if (error)
+		goto revert_start;
+
 	/*
 	 * Notice that this @jool is also a clone and we're the only thread
 	 * with access to it.
 	 */
-	error = global_update(&jool->globals, xlator_get_type(jool), hdr->force,
-			(struct global_value *)(hdr + 1),
-			nla_len(info->attrs[ATTR_DATA]) - sizeof(*hdr));
-	return nlcore_respond(info, (error < 0) ? error : xlator_replace(jool));
+	error = xlator_replace(&jool);
+
+revert_start:
+	request_handle_end(&jool);
+end:
+	return jresponse_send_simple(info, error);
 }
 
-int handle_global_config(struct xlator *jool, struct genl_info *info)
+int global_update(struct jool_globals *cfg, xlator_type xt, bool force,
+		struct nlattr *root)
 {
-	struct request_hdr *hdr = get_jool_hdr(info);
+	const struct nla_policy *policy;
+	struct nlattr *attrs[JNLAG_COUNT];
+	struct joolnl_global_meta const *meta;
+	enum joolnl_attr_global id;
+	int error;
 
-	switch (hdr->operation) {
-	case OP_FOREACH:
-		return handle_global_display(jool, info);
-	case OP_UPDATE:
-		return handle_global_update(jool, info, hdr);
+	switch (xt) {
+	case XT_SIIT:
+		policy = siit_globals_policy;
+		break;
+	case XT_NAT64:
+		policy = nat64_globals_policy;
+		break;
+	default:
+		log_err(XT_VALIDATE_ERRMSG);
+		return -EINVAL;
 	}
 
-	log_err("Unknown operation: %u", hdr->operation);
-	return nlcore_respond(info, -EINVAL);
+	error = NLA_PARSE_NESTED(attrs, JNLAG_MAX, root, policy);
+	if (error) {
+		log_err("The 'Globals Container' attribute is malformed.");
+		return error;
+	}
+
+	joolnl_global_foreach_meta(meta) {
+		if (!(joolnl_global_meta_xt(meta) & xt))
+			continue;
+		id = joolnl_global_meta_id(meta);
+		if (!attrs[id])
+			continue;
+
+		error = joolnl_global_nl2raw(meta, attrs[id],
+				joolnl_global_get(meta, cfg),
+				force);
+		if (error)
+			return error;
+	}
+
+	return 0;
 }

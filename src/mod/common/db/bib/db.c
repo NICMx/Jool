@@ -207,9 +207,10 @@ static void tbtobe(struct tabled_bib *tabled, struct bib_entry *bib)
 	if (!bib)
 		return;
 
-	bib->ipv6 = tabled->src6;
-	bib->ipv4 = tabled->src4;
+	bib->addr6 = tabled->src6;
+	bib->addr4 = tabled->src4;
 	bib->l4_proto = tabled->proto;
+	bib->is_static = tabled->is_static;
 }
 
 static unsigned long get_timeout(struct xlator *jool,
@@ -314,7 +315,7 @@ static void kill_stored_pkt(struct bib_table *table,
 	table->pkt_count--;
 }
 
-int bib_setup(void)
+static int bib_setup(void)
 {
 	bib_cache = kmem_cache_create("bib_nodes",
 			sizeof(struct tabled_bib),
@@ -327,6 +328,7 @@ int bib_setup(void)
 			0, 0, NULL);
 	if (!session_cache) {
 		kmem_cache_destroy(bib_cache);
+		bib_cache = NULL;
 		return -ENOMEM;
 	}
 
@@ -335,8 +337,13 @@ int bib_setup(void)
 
 void bib_teardown(void)
 {
+	if (!bib_cache)
+		return;
+
 	kmem_cache_destroy(bib_cache);
+	bib_cache = NULL;
 	kmem_cache_destroy(session_cache);
+	session_cache = NULL;
 }
 
 static enum session_fate just_die(struct session_entry *session, void *arg)
@@ -376,24 +383,37 @@ static void init_table(struct bib_table *table,
 struct bib *bib_alloc(void)
 {
 	struct bib *db;
+	bool cache_created;
+
+	cache_created = false;
+	if (!bib_cache) {
+		if (bib_setup())
+			return NULL;
+		cache_created = true;
+	}
 
 	db = wkmalloc(struct bib, GFP_KERNEL);
 	if (!db)
-		return NULL;
+		goto db_alloc_fail;
 
 	init_table(&db->udp, UDP_DEFAULT, 0, just_die);
 	init_table(&db->tcp, TCP_EST, TCP_TRANS, tcp_est_expire_cb);
 	init_table(&db->icmp, ICMP_DEFAULT, 0, just_die);
 
 	db->tcp.pkt_queue = pktqueue_alloc();
-	if (!db->tcp.pkt_queue) {
-		wkfree(struct bib, db);
-		return NULL;
-	}
+	if (!db->tcp.pkt_queue)
+		goto pktqueue_alloc_fail;
 
 	kref_init(&db->refs);
 
 	return db;
+
+pktqueue_alloc_fail:
+	wkfree(struct bib, db);
+db_alloc_fail:
+	if (cache_created)
+		bib_teardown();
+	return NULL;
 }
 
 void bib_get(struct bib *db)
@@ -1919,8 +1939,8 @@ int bib_find(struct bib *db, struct tuple *tuple, struct bib_session *result)
 		return error;
 
 	result->bib_set = true;
-	result->session.src6 = tmp.ipv6;
-	result->session.src4 = tmp.ipv4;
+	result->session.src6 = tmp.addr6;
+	result->session.src4 = tmp.addr4;
 	result->session.proto = tmp.l4_proto;
 	return 0;
 }
@@ -2057,7 +2077,7 @@ static struct rb_node *find_starting_point(struct bib_table *table,
 }
 
 int bib_foreach(struct bib *db, l4_protocol proto,
-		struct bib_foreach_func *func,
+		bib_foreach_entry_cb cb, void *cb_arg,
 		const struct ipv4_transport_addr *offset)
 {
 	struct bib_table *table;
@@ -2076,7 +2096,7 @@ int bib_foreach(struct bib *db, l4_protocol proto,
 	for (; node && !error; node = rb_next(node)) {
 		tabled = bib4_entry(node);
 		tbtobe(tabled, &bib);
-		error = func->cb(&bib, tabled->is_static, func->arg);
+		error = cb(&bib, cb_arg);
 	}
 
 	spin_unlock_bh(&table->lock);
@@ -2161,7 +2181,7 @@ static void find_session_offset(struct bib_table *table,
 				node = node2session(rb_next(&node->tree_hook)))
 
 int bib_foreach_session(struct xlator *jool, l4_protocol proto,
-		struct session_foreach_func *func,
+		session_foreach_entry_cb cb, void *cb_arg,
 		struct session_foreach_offset *offset)
 {
 	struct bib_table *table;
@@ -2188,7 +2208,7 @@ int bib_foreach_session(struct xlator *jool, l4_protocol proto,
 	foreach_bib(table, pos.bib) {
 goto_bib:	foreach_session(&pos.bib->sessions, pos.session) {
 goto_session:		tstose(jool, pos.session, &tmp);
-			error = func->cb(&tmp, func->arg);
+			error = cb(&tmp, cb_arg);
 			if (error)
 				goto end;
 		}
@@ -2244,8 +2264,8 @@ int bib_find4(struct bib *db, l4_protocol proto,
 
 static void bib2tabled(struct bib_entry *bib, struct tabled_bib *tabled)
 {
-	tabled->src6 = bib->ipv6;
-	tabled->src4 = bib->ipv4;
+	tabled->src6 = bib->addr6;
+	tabled->src4 = bib->addr4;
 	tabled->proto = bib->l4_proto;
 	tabled->is_static = true;
 	tabled->sessions = RB_ROOT;
@@ -2259,6 +2279,10 @@ static int __bib_add_static(struct xlator *jool, struct bib_entry *new,
 	struct tabled_bib *collision;
 	struct tree_slot slot6;
 	struct tree_slot slot4;
+
+	log_debug("Adding static BIB entry (%pI6c#%u, %pI4#%u).",
+			&new->addr6.l3, new->addr6.l4,
+			&new->addr4.l3, new->addr4.l4);
 
 	table = get_table(jool->nat64.bib, new->l4_proto);
 	if (!table)
@@ -2293,7 +2317,7 @@ static int __bib_add_static(struct xlator *jool, struct bib_entry *new,
 	 * going to retry anyway, so let's just forget the packets instead.
 	 */
 	if (new->l4_proto == L4PROTO_TCP)
-		pktqueue_rm(jool->nat64.bib->tcp.pkt_queue, &new->ipv4);
+		pktqueue_rm(jool->nat64.bib->tcp.pkt_queue, &new->addr4);
 
 	spin_unlock_bh(&table->lock);
 	return 0;
@@ -2323,10 +2347,10 @@ int bib_add_static(struct xlator *jool, struct bib_entry *new)
 		break;
 	case -EEXIST:
 		log_err("Entry %pI4#%u|%pI6c#%u collides with %pI4#%u|%pI6c#%u.",
-				&new->ipv4.l3, new->ipv4.l4,
-				&new->ipv6.l3, new->ipv6.l4,
-				&old.ipv4.l3, old.ipv4.l4,
-				&old.ipv6.l3, old.ipv6.l4);
+				&new->addr4.l3, new->addr4.l4,
+				&new->addr6.l3, new->addr6.l4,
+				&old.addr4.l3, old.addr4.l4,
+				&old.addr6.l3, old.addr6.l4);
 		break;
 	default:
 		log_err("Unknown error code: %d", error);

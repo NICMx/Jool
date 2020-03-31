@@ -1,51 +1,18 @@
-#include "str_utils.h"
+#include "usr/util/str_utils.h"
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <errno.h>
 #include <string.h>
 #include <regex.h>
-#include "common/config.h"
-
-
-#define MAX_PORT 0xFFFF
+#include <netinet/in.h>
 
 /* The maximum network length for IPv4. */
 static const __u8 IPV4_MAX_PREFIX = 32;
 /* The maximum network length for IPv6. */
 static const __u8 IPV6_MAX_PREFIX = 128;
 
-char *configmode_to_string(enum config_mode mode)
-{
-	switch (mode) {
-	case MODE_INSTANCE:
-		return OPTNAME_INSTANCE;
-	case MODE_ADDRESS:
-		return OPTNAME_ADDRESS;
-	case MODE_STATS:
-		return OPTNAME_STATS;
-	case MODE_GLOBAL:
-		return OPTNAME_GLOBAL;
-	case MODE_EAMT:
-		return OPTNAME_EAMT;
-	case MODE_BLACKLIST:
-		return OPTNAME_BLACKLIST;
-	case MODE_POOL4:
-		return OPTNAME_POOL4;
-	case MODE_BIB:
-		return OPTNAME_BIB;
-	case MODE_SESSION:
-		return OPTNAME_SESSION;
-	case MODE_JOOLD:
-		return OPTNAME_JOOLD;
-	case MODE_PARSE_FILE:
-		return OPTNAME_PARSE_FILE;
-	}
-
-	return "unknown";
-}
-
-struct jool_result validate_uint(const char *str)
+static struct jool_result validate_uint(const char *str)
 {
 	regex_t uint_regex;
 	int error;
@@ -117,13 +84,13 @@ static struct jool_result str_to_ull(const char *str, char **endptr,
 	return result_success();
 }
 
-struct jool_result str_to_bool(const char *str, __u8 *bool_out)
+struct jool_result str_to_bool(const char *str, bool *out)
 {
 	if (strcasecmp(str, "true") == 0
 			|| strcasecmp(str, "1") == 0
 			|| strcasecmp(str, "yes") == 0
 			|| strcasecmp(str, "on") == 0) {
-		*bool_out = true;
+		*out = true;
 		return result_success();
 	}
 
@@ -131,7 +98,7 @@ struct jool_result str_to_bool(const char *str, __u8 *bool_out)
 			|| strcasecmp(str, "0") == 0
 			|| strcasecmp(str, "no") == 0
 			|| strcasecmp(str, "off") == 0) {
-		*bool_out = false;
+		*out = false;
 		return result_success();
 	}
 
@@ -142,12 +109,12 @@ struct jool_result str_to_bool(const char *str, __u8 *bool_out)
 	);
 }
 
-struct jool_result str_to_u8(const char *str, __u8 *u8_out, __u8 min, __u8 max)
+struct jool_result str_to_u8(const char *str, __u8 *u8_out, __u8 max)
 {
 	unsigned long long int out;
 	struct jool_result result;
 
-	result = str_to_ull(str, NULL, min, max, &out);
+	result = str_to_ull(str, NULL, 0, max, &out);
 	if (result.error)
 		return result;
 
@@ -155,57 +122,29 @@ struct jool_result str_to_u8(const char *str, __u8 *u8_out, __u8 min, __u8 max)
 	return result_success();
 }
 
-struct jool_result str_to_u16(const char *str, __u16 *u16_out,
-		__u16 min, __u16 max)
+struct jool_result str_to_u16(const char *str, __u16 *u16_out)
 {
 	unsigned long long int out;
 	struct jool_result result;
 
-	result = str_to_ull(str, NULL, min, max, &out);
+	result = str_to_ull(str, NULL, 0, MAX_U16, &out);
 
 	*u16_out = out;
 	return result;
 }
 
-struct jool_result str_to_u32(const char *str, __u32 *u32_out,
-		__u32 min, __u32 max)
+struct jool_result str_to_u32(const char *str, __u32 *u32_out)
 {
 	unsigned long long int out;
 	struct jool_result result;
 
-	result = str_to_ull(str, NULL, min, max, &out);
+	result = str_to_ull(str, NULL, 0, MAX_U32, &out);
 
 	*u32_out = out;
 	return result;
 }
 
-struct jool_result str_to_u64(const char *str, __u64 *u64_out,
-		__u64 min, __u64 max)
-{
-	unsigned long long int out;
-	struct jool_result result;
-
-	result = str_to_ull(str, NULL, min, max, &out);
-
-	*u64_out = out;
-	return result;
-}
-
-static struct jool_result out_of_bounds(const char *str, __u32 min, __u32 max)
-{
-	char str_min[TIMEOUT_BUFLEN];
-	char str_max[TIMEOUT_BUFLEN];
-
-	timeout2str(min, str_min);
-	timeout2str(max, str_max);
-
-	return result_from_error(
-		-EINVAL,
-		"'%s' is out of bounds (%s-%s).", str, str_min, str_max
-	);
-}
-
-struct jool_result str_to_timeout(const char *str, __u32 *out, __u32 min, __u32 max)
+struct jool_result str_to_timeout(const char *str, __u32 *out)
 {
 	unsigned long long int seconds = 0;
 	unsigned long long int milliseconds;
@@ -244,9 +183,6 @@ struct jool_result str_to_timeout(const char *str, __u32 *out, __u32 min, __u32 
 
 	if (*tail != '\0')
 		goto postfix;
-
-	if (milliseconds < min || max < milliseconds)
-		return out_of_bounds(str, min, max);
 
 	*out = milliseconds;
 	return result_success();
@@ -289,71 +225,11 @@ struct jool_result str_to_port_range(char *str, struct port_range *range)
 	}
 
 	result = str_to_ull(endptr + 1, NULL, 0, 65535, &tmp);
-	if (!result.error) {
-		range->max = tmp;
+	if (result.error)
 		return result;
-	}
 
-	return result_success();
-}
-
-struct jool_result str_to_plateaus_array(const char *str, __u16 *plateaus, __u16 *count)
-{
-	/* strtok corrupts the string, so we'll be using this copy instead. */
-	char *str_copy;
-	char *token;
-	unsigned int len;
-	struct jool_result result;
-
-	/* Validate str and copy it to the temp buffer. */
-	str_copy = malloc(strlen(str) + 1);
-	if (!str_copy)
-		return result_from_enomem();
-
-	strcpy(str_copy, str);
-
-	/* Count the number of elements in the string. */
-	len = 0;
-	token = strtok(str_copy, ",");
-	while (token) {
-		len++;
-		token = strtok(NULL, ",");
-	}
-
-	if (len == 0) {
-		free(str_copy);
-		return result_from_error(
-			-EINVAL,
-			"The plateaus string cannot be empty."
-		);
-	}
-	if (len > PLATEAUS_MAX) {
-		free(str_copy);
-		return result_from_error(
-			-EINVAL,
-			"Too many plateaus. The current max is %u.",
-			PLATEAUS_MAX
-		);
-	}
-
-	/* Build the result. */
-	*count = len;
-	len = 0;
-	strcpy(str_copy, str);
-	token = strtok(str_copy, ",");
-	while (token) {
-		result = str_to_u16(token, &plateaus[len], 0, 0xFFFF);
-		if (result.error) {
-			free(str_copy);
-			return result;
-		}
-
-		len++;
-		token = strtok(NULL, ",");
-	}
-
-	free(str_copy);
-	return result_success();
+	range->max = tmp;
+	return result;
 }
 
 struct jool_result str_to_addr4(const char *str, struct in_addr *addr)
@@ -418,7 +294,7 @@ struct jool_result str_to_addr4_port(const char *str,
 			str, FORMAT
 		);
 	}
-	return str_to_u16(token, &addr_out->l4, 0, MAX_PORT);
+	return str_to_u16(token, &addr_out->l4);
 }
 
 #undef STR_MAX_LEN
@@ -461,7 +337,7 @@ struct jool_result str_to_addr6_port(const char *str,
 			str, FORMAT
 		);
 	}
-	return str_to_u16(token, &addr_out->l4, 0, MAX_PORT);
+	return str_to_u16(token, &addr_out->l4);
 }
 
 #undef STR_MAX_LEN
@@ -501,7 +377,7 @@ struct jool_result str_to_prefix4(const char *str,
 		prefix_out->len = IPV4_MAX_PREFIX;
 		return result_success();
 	}
-	return str_to_u8(token, &prefix_out->len, 0, 32);
+	return str_to_u8(token, &prefix_out->len, 32);
 }
 
 #undef STR_MAX_LEN
@@ -541,7 +417,67 @@ struct jool_result str_to_prefix6(const char *str,
 		prefix_out->len = IPV6_MAX_PREFIX;
 		return result_success();
 	}
-	return str_to_u8(token, &prefix_out->len, 0, 128);
+	return str_to_u8(token, &prefix_out->len, 128);
+}
+
+struct jool_result str_to_plateaus_array(const char *str, struct mtu_plateaus *plateaus)
+{
+	/* strtok corrupts the string, so we'll be using this copy instead. */
+	char *str_copy;
+	char *token;
+	unsigned int len;
+	struct jool_result result;
+
+	/* Validate str and copy it to the temp buffer. */
+	/* TODO (fine) strdup, damn it */
+	str_copy = malloc(strlen(str) + 1);
+	if (!str_copy)
+		return result_from_enomem();
+
+	strcpy(str_copy, str);
+
+	/* Count the number of elements in the string. */
+	len = 0;
+	token = strtok(str_copy, ",");
+	while (token) {
+		len++;
+		token = strtok(NULL, ",");
+	}
+
+	if (len == 0) {
+		free(str_copy);
+		return result_from_error(
+			-EINVAL,
+			"The plateaus string cannot be empty."
+		);
+	}
+	if (len > PLATEAUS_MAX) {
+		free(str_copy);
+		return result_from_error(
+			-EINVAL,
+			"Too many plateaus. The current max is %u.",
+			PLATEAUS_MAX
+		);
+	}
+
+	/* Build the result. */
+	plateaus->count = len;
+	len = 0;
+	strcpy(str_copy, str);
+	token = strtok(str_copy, ",");
+	while (token) {
+		result = str_to_u16(token, &plateaus->values[len]);
+		if (result.error) {
+			free(str_copy);
+			return result;
+		}
+
+		len++;
+		token = strtok(NULL, ",");
+	}
+
+	free(str_copy);
+	return result_success();
 }
 
 void timeout2str(unsigned int millis, char *buffer)

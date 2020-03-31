@@ -2,12 +2,12 @@
 #include <stddef.h>
 #include <netlink/attr.h>
 
-#include "genetlink.h"
 #include "common/graybox-types.h"
-#include "command/expect.h"
-#include "command/send.h"
-#include "command/stats.h"
-#include "usr/argp/log.h"
+#include "usr/command/expect.h"
+#include "usr/command/send.h"
+#include "usr/command/stats.h"
+#include "usr/genetlink.h"
+#include "usr/log.h"
 
 struct request {
 	enum graybox_command cmd;
@@ -42,7 +42,7 @@ static int request_init(int argc, char **argv, struct request *request)
 	return -EINVAL;
 }
 
-void request_clean(struct request *req)
+static void request_clean(struct request *req)
 {
 	switch (req->cmd) {
 	case COMMAND_EXPECT_ADD:

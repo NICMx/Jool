@@ -1,70 +1,82 @@
-#include "session.h"
+#include "usr/nl/session.h"
 
-#include "jool_socket.h"
-
-#define HDR_LEN sizeof(struct request_hdr)
-#define PAYLOAD_LEN sizeof(struct request_session)
+#include <errno.h>
+#include <netlink/genl/genl.h>
+#include "usr/nl/attribute.h"
+#include "usr/nl/common.h"
 
 struct foreach_args {
-	session_foreach_cb cb;
+	joolnl_session_foreach_cb cb;
 	void *args;
-	struct request_session *request;
+	bool done;
+	struct session_entry_usr last;
 };
 
-static struct jool_result session_foreach_response(
-		struct jool_response *response, void *arg)
+static struct jool_result handle_foreach_response(struct nl_msg *response,
+		void *arg)
 {
-	struct session_entry_usr *entries = response->payload;
 	struct foreach_args *args = arg;
-	__u16 entry_count, i;
+	struct nlattr *attr;
+	int rem;
+	struct session_entry_usr entry;
 	struct jool_result result;
 
-	entry_count = response->payload_len / sizeof(*entries);
+	result = joolnl_init_foreach_list(response, "session", &args->done);
+	if (result.error)
+		return result;
 
-	for (i = 0; i < entry_count; i++) {
-		result = args->cb(&entries[i], args->args);
+	foreach_entry(attr, genlmsg_hdr(nlmsg_hdr(response)), rem) {
+		result = nla_get_session(attr, &entry);
 		if (result.error)
 			return result;
-	}
 
-	args->request->foreach.offset_set = response->hdr->pending_data;
-	if (entry_count > 0) {
-		struct session_entry_usr *last = &entries[entry_count - 1];
-		args->request->foreach.offset.src = last->src4;
-		args->request->foreach.offset.dst = last->dst4;
+		result = args->cb(&entry, args->args);
+		if (result.error)
+			return result;
+
+		memcpy(&args->last, &entry, sizeof(entry));
 	}
 
 	return result_success();
 }
 
-struct jool_result session_foreach(struct jool_socket *sk, char *iname,
-		l4_protocol proto, session_foreach_cb cb, void *_args)
+struct jool_result joolnl_session_foreach(struct joolnl_socket *sk,
+		char const *iname, l4_protocol proto,
+		joolnl_session_foreach_cb cb, void *_args)
 {
-	unsigned char request[HDR_LEN + PAYLOAD_LEN];
-	struct request_hdr *hdr;
-	struct request_session *payload;
+	struct nl_msg *msg;
 	struct foreach_args args;
 	struct jool_result result;
-
-	hdr = (struct request_hdr *)request;
-	payload = (struct request_session *)(request + HDR_LEN);
-
-	init_request_hdr(hdr, sk->xt, MODE_SESSION, OP_FOREACH, false);
-	payload->l4_proto = proto;
-	payload->foreach.offset_set = false;
-	memset(&payload->foreach.offset.src, 0,
-			sizeof(payload->foreach.offset.src));
-	memset(&payload->foreach.offset.dst, 0,
-			sizeof(payload->foreach.offset.dst));
+	bool first_request;
 
 	args.cb = cb;
 	args.args = _args;
-	args.request = payload;
+	args.done = true;
+	memset(&args.last, 0, sizeof(args.last));
+	first_request = true;
 
 	do {
-		result = netlink_request(sk, iname, request, sizeof(request),
-				session_foreach_response, &args);
-	} while (!result.error && args.request->foreach.offset_set);
+		result = joolnl_alloc_msg(sk, iname, JNLOP_SESSION_FOREACH, 0, &msg);
+		if (result.error)
+			return result;
 
-	return result;
+		if (nla_put_u8(msg, JNLAR_PROTO, proto) < 0)
+			goto cancel;
+
+		if (first_request)
+			first_request = false;
+		else if (nla_put_session(msg, JNLAR_OFFSET, &args.last) < 0)
+			goto cancel;
+
+		result = joolnl_request(sk, msg, handle_foreach_response, &args);
+		if (result.error)
+			return result;
+	} while (!args.done);
+
+	return result_success();
+
+cancel:
+	nlmsg_free(msg);
+	return joolnl_err_msgsize();
 }
+

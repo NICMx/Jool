@@ -1,108 +1,113 @@
 #include "blacklist4.h"
 
 #include <errno.h>
-#include "common/config.h"
-#include "jool_socket.h"
-
-#define HDR_LEN sizeof(struct request_hdr)
-#define PAYLOAD_LEN sizeof(union request_blacklist4)
+#include <netlink/genl/genl.h>
+#include "usr/nl/attribute.h"
+#include "usr/nl/common.h"
 
 struct foreach_args {
-	blacklist4_foreach_cb cb;
+	joolnl_blacklist4_foreach_cb cb;
 	void *args;
-	union request_blacklist4 *request;
+	bool done;
+	struct ipv4_prefix last;
 };
 
-static struct jool_result blacklist4_foreach_response(
-		struct jool_response *response, void *arg)
+static struct jool_result handle_foreach_response(struct nl_msg *response,
+		void *arg)
 {
-	struct ipv4_prefix *prefixes = response->payload;
-	unsigned int prefix_count, i;
 	struct foreach_args *args = arg;
+	struct nlattr *attr;
+	int rem;
+	struct ipv4_prefix entry;
 	struct jool_result result;
 
-	prefix_count = response->payload_len / sizeof(*prefixes);
+	result = joolnl_init_foreach_list(response, "blacklist4", &args->done);
+	if (result.error)
+		return result;
 
-	for (i = 0; i < prefix_count; i++) {
-		result = args->cb(&prefixes[i], args->args);
+	foreach_entry(attr, genlmsg_hdr(nlmsg_hdr(response)), rem) {
+		result = nla_get_prefix4(attr, &entry);
 		if (result.error)
 			return result;
-	}
 
-	args->request->foreach.offset_set = response->hdr->pending_data;
-	if (prefix_count > 0)
-		args->request->foreach.offset = prefixes[prefix_count - 1];
+		result = args->cb(&entry, args->args);
+		if (result.error)
+			return result;
+
+		memcpy(&args->last, &entry, sizeof(entry));
+	}
 
 	return result_success();
 }
 
-struct jool_result blacklist4_foreach(struct jool_socket *sk, char *iname,
-		blacklist4_foreach_cb cb, void *_args)
+struct jool_result joolnl_blacklist4_foreach(struct joolnl_socket *sk,
+		char const *iname, joolnl_blacklist4_foreach_cb cb, void *_args)
 {
-	unsigned char request[HDR_LEN + PAYLOAD_LEN];
-	struct request_hdr *hdr;
-	union request_blacklist4 *payload;
+	struct nl_msg *msg;
 	struct foreach_args args;
 	struct jool_result result;
-
-	hdr = (struct request_hdr *)request;
-	payload = (union request_blacklist4 *)(request + HDR_LEN);
-
-	init_request_hdr(hdr, sk->xt, MODE_BLACKLIST, OP_FOREACH, false);
-	payload->foreach.offset_set = false;
-	memset(&payload->foreach.offset, 0, sizeof(payload->foreach.offset));
+	bool first_request;
 
 	args.cb = cb;
 	args.args = _args;
-	args.request = payload;
+	args.done = true;
+	memset(&args.last, 0, sizeof(args.last));
+	first_request = true;
 
 	do {
-		result = netlink_request(sk, iname,
-				&request, sizeof(request),
-				blacklist4_foreach_response, &args);
+		result = joolnl_alloc_msg(sk, iname, JNLOP_BL4_FOREACH, 0, &msg);
 		if (result.error)
 			return result;
-	} while (args.request->foreach.offset_set);
+
+		if (first_request) {
+			first_request = false;
+
+		} else if (nla_put_prefix4(msg, JNLAR_OFFSET, &args.last) < 0) {
+			nlmsg_free(msg);
+			return joolnl_err_msgsize();
+		}
+
+		result = joolnl_request(sk, msg, handle_foreach_response, &args);
+		if (result.error)
+			return result;
+	} while (!args.done);
 
 	return result_success();
 }
 
-struct jool_result blacklist4_add(struct jool_socket *sk, char *iname,
-		struct ipv4_prefix *addrs, bool force)
+static struct jool_result __update(struct joolnl_socket *sk, char const *iname,
+		enum joolnl_operation operation, struct ipv4_prefix const *prefix,
+		__u8 force)
 {
-	unsigned char request[HDR_LEN + PAYLOAD_LEN];
-	struct request_hdr *hdr;
-	union request_blacklist4 *payload;
+	struct nl_msg *msg;
+	struct jool_result result;
 
-	hdr = (struct request_hdr *)request;
-	payload = (union request_blacklist4 *)(request + HDR_LEN);
+	result = joolnl_alloc_msg(sk, iname, operation, force, &msg);
+	if (result.error)
+		return result;
 
-	init_request_hdr(hdr, sk->xt, MODE_BLACKLIST, OP_ADD, force);
-	payload->add.addrs = *addrs;
+	if (prefix && nla_put_prefix4(msg, JNLAR_OPERAND, prefix) < 0) {
+		nlmsg_free(msg);
+		return joolnl_err_msgsize();
+	}
 
-	return netlink_request(sk, iname, request, sizeof(request), NULL, NULL);
+	return joolnl_request(sk, msg, NULL, NULL);
 }
 
-struct jool_result blacklist4_rm(struct jool_socket *sk, char *iname,
-		struct ipv4_prefix *addrs)
+struct jool_result joolnl_blacklist4_add(struct joolnl_socket *sk,
+		char const *iname, struct ipv4_prefix const *prefix, bool force)
 {
-	unsigned char request[HDR_LEN + PAYLOAD_LEN];
-	struct request_hdr *hdr;
-	union request_blacklist4 *payload;
-
-	hdr = (struct request_hdr *) request;
-	payload = (union request_blacklist4 *) (request + HDR_LEN);
-
-	init_request_hdr(hdr, sk->xt, MODE_BLACKLIST, OP_REMOVE, false);
-	payload->rm.addrs = *addrs;
-
-	return netlink_request(sk, iname, request, sizeof(request), NULL, NULL);
+	return __update(sk, iname, JNLOP_BL4_ADD, prefix, force ? JOOLNLHDR_FLAGS_FORCE : 0);
 }
 
-struct jool_result blacklist4_flush(struct jool_socket *sk, char *iname)
+struct jool_result joolnl_blacklist4_rm(struct joolnl_socket *sk,
+		char const *iname, struct ipv4_prefix const *prefix)
 {
-	unsigned char request[HDR_LEN + PAYLOAD_LEN];
-	struct request_hdr *hdr = (struct request_hdr *) request;
-	init_request_hdr(hdr, sk->xt, MODE_BLACKLIST, OP_FLUSH, false);
-	return netlink_request(sk, iname, request, sizeof(request), NULL, NULL);
+	return __update(sk, iname, JNLOP_BL4_RM, prefix, 0);
+}
+
+struct jool_result joolnl_blacklist4_flush(struct joolnl_socket *sk,
+		char const *iname)
+{
+	return __update(sk, iname, JNLOP_BL4_FLUSH, NULL, 0);
 }

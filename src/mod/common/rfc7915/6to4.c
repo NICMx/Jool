@@ -117,7 +117,7 @@ verdict ttp64_alloc_skb(struct xlation *state)
 	return VERDICT_CONTINUE;
 }
 
-__u8 ttp64_xlat_tos(struct globals *config, struct ipv6hdr *hdr)
+__u8 ttp64_xlat_tos(struct jool_globals *config, struct ipv6hdr *hdr)
 {
 	return config->reset_tos ? config->new_tos : get_traffic_class(hdr);
 }

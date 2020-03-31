@@ -1,11 +1,12 @@
-#include "stats.h"
+#include "usr/nl/stats.h"
 
 #include <errno.h>
+#include <netlink/genl/genl.h>
+#include "usr/nl/attribute.h"
+#include "usr/nl/common.h"
 
-#include "common/config.h"
-#include "jool_socket.h"
-
-#define DEFINE_STAT(_id, _doc) { \
+#define DEFINE_STAT(_id, _doc) \
+	[_id] = { \
 		.id = _id, \
 		.name = #_id, \
 		.doc = _doc, \
@@ -13,9 +14,9 @@
 
 #define TC "Translations cancelled: "
 
-static struct jstat_metadata const jstat_metadatas[] = {
-	DEFINE_STAT(JSTAT_RECEIVED6, ""),
-	DEFINE_STAT(JSTAT_RECEIVED4, ""),
+static struct joolnl_stat_metadata const jstat_metadatas[] = {
+	DEFINE_STAT(JSTAT_RECEIVED6, "Total IPv6 packets received by the instance so far."),
+	DEFINE_STAT(JSTAT_RECEIVED4, "Total IPv4 packets received by the instance so far."),
 	DEFINE_STAT(JSTAT_SUCCESS, "Successful translations. (Note: 'Successful translation' does not imply that the packet was actually delivered.)"),
 	DEFINE_STAT(JSTAT_BIB_ENTRIES, "Number of BIB entries currently held in the BIB."),
 	DEFINE_STAT(JSTAT_SESSIONS, "Number of session entries currently held in the BIB."),
@@ -41,7 +42,7 @@ static struct jstat_metadata const jstat_metadatas[] = {
 	DEFINE_STAT(JSTAT_POOL4_MISMATCH, TC "IPv4 packet's destination address and transport protocol did not match pool4. (ie. Packet was not meant to be translated.)\n"
 			"If the instance is a Netfilter translator, this counter increases randomly from normal operation, and is harmless.\n"
 			"If the instance is an iptables translator, this counter being positive suggests a mismatch between the IPv4 iptables rule(s) and the instance's configuration."),
-	DEFINE_STAT(JSTAT_ICMP6_FILTER, "Packets filtered by `" OPTNAME_DROP_ICMP6_INFO "` policy."),
+	DEFINE_STAT(JSTAT_ICMP6_FILTER, "Packets filtered by `drop-icmpv6-info` policy."),
 	/* TODO This one might signal a programming error. */
 	DEFINE_STAT(JSTAT_UNTRANSLATABLE_DST6, TC "IPv6 packet's destination address did not match pool6."),
 	DEFINE_STAT(JSTAT_UNTRANSLATABLE_DST4, TC "IPv4 packet's source address could not be translated with the given pool6."),
@@ -49,8 +50,8 @@ static struct jstat_metadata const jstat_metadatas[] = {
 	DEFINE_STAT(JSTAT_BIB6_NOT_FOUND, TC "IPv6 packet did not match a BIB entry from the database, and one could not be created."),
 	DEFINE_STAT(JSTAT_BIB4_NOT_FOUND, TC "IPv4 packet did not match a BIB entry from the database."),
 	DEFINE_STAT(JSTAT_SESSION_NOT_FOUND, TC "Packet was an ICMP error, but did not match a session entry from the database. (Which means that the original packet couldn't have been translated.)"),
-	DEFINE_STAT(JSTAT_ADF, "Packets filtered by `" OPTNAME_DROP_BY_ADDR "` policy."),
-	DEFINE_STAT(JSTAT_V4_SYN, "Packets filtered by `" OPTNAME_DROP_EXTERNAL_TCP "` policy."),
+	DEFINE_STAT(JSTAT_ADF, "Packets filtered by `address-dependent-filtering` policy."),
+	DEFINE_STAT(JSTAT_V4_SYN, "Packets filtered by `drop-externally-initiated-tcp` policy."),
 	DEFINE_STAT(JSTAT_SYN6_EXPECTED, TC "Incoming IPv6 packet was the first of a TCP connection, but its SYN flag was disabled."),
 	DEFINE_STAT(JSTAT_SYN4_EXPECTED, TC "Incoming IPv4 packet was the first of a TCP connection, but its SYN flag was disabled."),
 	DEFINE_STAT(JSTAT_TYPE1PKT, "Total number of Type 1 packets stored. (See https://github.com/NICMx/Jool/blob/584a846d09e891a0cd6342426b7a25c6478c90d6/src/mod/nat64/bib/pkt_queue.h#L77) (This counter is not decremented when a packet leaves the queue.)"),
@@ -85,7 +86,8 @@ static struct jstat_metadata const jstat_metadatas[] = {
 	DEFINE_STAT(JSTAT_ICMP6ERR_FAILURE, "ICMPv6 errors (created by Jool, not translated) that could not be sent."),
 	DEFINE_STAT(JSTAT_ICMP4ERR_SUCCESS, "ICMPv4 errors (created by Jool, not translated) sent successfully."),
 	DEFINE_STAT(JSTAT_ICMP4ERR_FAILURE, "ICMPv4 errors (created by Jool, not translated) that could not be sent."),
-	DEFINE_STAT(JSTAT_UNKNOWN, TC "Unknown error. Likely a programming error."),
+	DEFINE_STAT(JSTAT_UNKNOWN, TC "Programming error found. The module recovered, but the packet was dropped."),
+	DEFINE_STAT(JSTAT_PADDING, "Dummy; ignore this one."),
 };
 
 #define ARRAY_SIZE(array) (sizeof(array) / sizeof(array[0]))
@@ -94,10 +96,10 @@ static struct jool_result validate_stats(void)
 {
 	unsigned int i;
 
-	if (ARRAY_SIZE(jstat_metadatas) != __JSTAT_MAX)
+	if (ARRAY_SIZE(jstat_metadatas) != JSTAT_COUNT)
 		goto failure;
 
-	for (i = 0; i < __JSTAT_MAX; i++) {
+	for (i = 0; i < JSTAT_COUNT; i++) {
 		if (i != jstat_metadatas[i].id)
 			goto failure;
 	}
@@ -112,45 +114,56 @@ failure:
 }
 
 struct query_args {
-	stats_foreach_cb cb;
+	joolnl_stats_foreach_cb cb;
 	void *args;
+	bool done;
+	enum jool_stat_id last;
 };
 
-static struct jool_result stats_query_response(struct jool_response *response,
+static struct jool_result stats_query_response(struct nl_msg *response,
 		void *args)
 {
-	size_t expected_len;
-	__u64 *values = response->payload;
-	struct jstat stat;
+	struct genlmsghdr *ghdr;
+	struct nlattr *head, *attr;
+	int len, rem;
+	struct joolnl_stat stat;
 	struct query_args *qargs = args;
-	unsigned int i;
 	struct jool_result result;
 
-	expected_len = __JSTAT_MAX * sizeof(*values);
-	if (expected_len != response->payload_len) {
-		return result_from_error(
-			-EINVAL,
-			"Jool's response has a bogus length. (expected %zu, got %zu).",
-			expected_len, response->payload_len
-		);
-	}
+	result = joolnl_init_foreach(response, &qargs->done);
+	if (result.error)
+		return result;
 
-	for (i = 0; i < __JSTAT_MAX; i++) {
-		stat.meta = jstat_metadatas[i];
-		stat.value = values[i];
+	ghdr = nlmsg_data(nlmsg_hdr(response));
+	head = genlmsg_attrdata(ghdr, sizeof(struct joolnlhdr));
+	len = genlmsg_attrlen(ghdr, sizeof(struct joolnlhdr));
+
+	nla_for_each_attr(attr, head, len, rem) {
+		qargs->last = nla_type(attr);
+		if (qargs->last < 1 || qargs->last >= JSTAT_PADDING)
+			goto bad_id;
+
+		stat.meta = jstat_metadatas[qargs->last];
+		stat.value = nla_get_u64(attr);
 		result = qargs->cb(&stat, qargs->args);
 		if (result.error)
 			return result;
 	}
 
 	return result_success();
+
+bad_id:
+	return result_from_error(
+		-EINVAL,
+		"The kernel module returned an unknown stat counter."
+	);
 }
 
-struct jool_result stats_foreach(struct jool_socket *sk, char *iname,
-		stats_foreach_cb cb, void *args)
+struct jool_result joolnl_stats_foreach(struct joolnl_socket *sk,
+		char const *iname, joolnl_stats_foreach_cb cb, void *args)
 {
+	struct nl_msg *msg;
 	struct query_args qargs;
-	struct request_hdr request;
 	struct jool_result result;
 
 	result = validate_stats();
@@ -159,8 +172,22 @@ struct jool_result stats_foreach(struct jool_socket *sk, char *iname,
 
 	qargs.cb = cb;
 	qargs.args = args;
-	init_request_hdr(&request, sk->xt, MODE_STATS, OP_FOREACH, false);
+	qargs.done = true;
 
-	return netlink_request(sk, iname, &request, sizeof(request),
-			stats_query_response, &qargs);
+	do {
+		result = joolnl_alloc_msg(sk, iname, JNLOP_STATS_FOREACH, 0, &msg);
+		if (result.error)
+			return result;
+
+		if (qargs.last && (nla_put_u8(msg, JNLAR_OFFSET_U8, qargs.last) < 0)) {
+			nlmsg_free(msg);
+			return joolnl_err_msgsize();
+		}
+
+		result = joolnl_request(sk, msg, stats_query_response, &qargs);
+		if (result.error)
+			return result;
+	} while (!qargs.done);
+
+	return result_success();
 }

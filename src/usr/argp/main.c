@@ -10,23 +10,24 @@
 #include <string.h>
 #include <getopt.h>
 
-#include "command.h"
-#include "log.h"
 #include "common/config.h"
 #include "common/xlat.h"
 #include "usr/util/str_utils.h"
-#include "usr/nl/json.h"
+#include "usr/nl/file.h"
+#include "usr/argp/command.h"
+#include "usr/argp/log.h"
 #include "usr/argp/xlator_type.h"
-#include "wargp/address.h"
-#include "wargp/bib.h"
-#include "wargp/blacklist4.h"
-#include "wargp/eamt.h"
-#include "wargp/file.h"
-#include "wargp/global.h"
-#include "wargp/instance.h"
-#include "wargp/pool4.h"
-#include "wargp/session.h"
-#include "wargp/stats.h"
+#include "usr/argp/wargp/address.h"
+#include "usr/argp/wargp/bib.h"
+#include "usr/argp/wargp/blacklist4.h"
+#include "usr/argp/wargp/eamt.h"
+#include "usr/argp/wargp/file.h"
+#include "usr/argp/wargp/global.h"
+#include "usr/argp/wargp/instance.h"
+#include "usr/argp/wargp/joold.h"
+#include "usr/argp/wargp/pool4.h"
+#include "usr/argp/wargp/session.h"
+#include "usr/argp/wargp/stats.h"
 
 #define DISPLAY "display"
 #define ADD "add"
@@ -34,7 +35,7 @@
 #define REMOVE "remove"
 #define FLUSH "flush"
 
-static int handle_autocomplete(char *junk, int argc, char **argv, void *arg);
+static int handle_autocomplete(char *junk, int argc, char **argv, void const *arg);
 
 static struct cmd_option instance_ops[] = {
 		{
@@ -215,6 +216,16 @@ static struct cmd_option file_ops[] = {
 		{ 0 },
 };
 
+static struct cmd_option joold_ops[] = {
+		{
+			.label = "advertise",
+			.xt = XT_NAT64,
+			.handler = handle_joold_advertise,
+			.handle_autocomplete = autocomplete_joold_advertise,
+		},
+		{ 0 },
+};
+
 struct cmd_option tree[] = {
 		{
 			.label = "instance",
@@ -256,6 +267,10 @@ struct cmd_option tree[] = {
 			.label = "file",
 			.xt = XT_ANY,
 			.children = file_ops,
+		}, {
+			.label = "joold",
+			.xt = XT_NAT64,
+			.children = joold_ops,
 		}, {
 			/* See files jool.bash and jool_siit.bash. */
 			.label = "autocomplete",
@@ -431,7 +446,7 @@ static int handle(char *iname, int argc, char **argv)
 /**
  * Never fails because there's no point yet.
  */
-static int handle_autocomplete(char *junk, int argc, char **argv, void *arg)
+static int handle_autocomplete(char *junk, int argc, char **argv, void const *arg)
 {
 	struct cmd_option *node = &tree[0];
 	long int depth;
@@ -610,7 +625,7 @@ int jool_main(int argc, char **argv)
 			iname = optarg;
 			break;
 		case 'f':
-			result = json_get_iname(optarg, &iname);
+			result = joolnl_file_get_iname(optarg, &iname);
 			if (result.error)
 				return pr_result(&result);
 			break;

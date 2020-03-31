@@ -5,6 +5,8 @@
 #include <string.h>
 #include <xtables.h>
 
+#define OPTNAME_INAME "instance"
+
 static const struct option jool_tg_opts[] = {
 	{ .name = OPTNAME_INAME, .has_arg = true, .val = 'i'},
 	{ NULL },
@@ -27,7 +29,7 @@ static void jool_tg_init(struct xt_entry_target *target)
 }
 
 /*
- * TODO duplicate code (src/common/config.c)
+ * TODO (fine) duplicate code (src/common/config.c)
  * This bug is actually the tip of an iceberg. The actual problem is that I
  * don't know how to make the iptables shared objects depend on libjoolnl.
  * (Which is perhaps a consequence of me not knowing how to turn the iptables
@@ -41,7 +43,7 @@ int iname_validate(const char *iname, bool allow_null)
 	if (!iname)
 		return allow_null ? 0 : -EINVAL;
 
-	for (i = 0; i < INAME_MAX_LEN; i++) {
+	for (i = 0; i < INAME_MAX_SIZE; i++) {
 		if (iname[i] == '\0')
 			return 0;
 		if (iname[i] < 32) /* "if not printable" */
@@ -65,7 +67,7 @@ static int jool_tg_parse(int c, char **argv, int invert, unsigned int *flags,
 
 	error = iname_validate(optarg, false);
 	if (error) {
-		fprintf(stderr, INAME_VALIDATE_ERRMSG "\n", INAME_MAX_LEN - 1);
+		fprintf(stderr, INAME_VALIDATE_ERRMSG "\n");
 		return error;
 	}
 	strcpy(info->iname, optarg);

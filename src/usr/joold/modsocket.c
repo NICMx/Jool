@@ -5,87 +5,31 @@
 #include <syslog.h>
 #include <netlink/genl/ctrl.h>
 #include <netlink/genl/genl.h>
-#include <sys/types.h>
 
-#include "log.h"
-#include "netsocket.h"
-#include "common/config.h"
-#include "common/types.h"
-#include "usr/nl/jool_socket.h"
+#include "usr/util/cJSON.h"
+#include "usr/util/file.h"
+#include "usr/nl/joold.h"
+#include "usr/joold/log.h"
+#include "usr/joold/netsocket.h"
 
-/** Receives Generic Netlink packets from the kernel module. */
-static struct jool_socket jsocket;
+static struct joolnl_socket jsocket;
+static char *iname;
 
-static int validate_magic(struct request_hdr *hdr, char *sender)
-{
-	if (hdr->magic[0] != 'j' || hdr->magic[1] != 'o')
-		goto fail;
-	if (hdr->magic[2] != 'o' || hdr->magic[3] != 'l')
-		goto fail;
-	return 0;
-
-fail:
-	/* Well, the sender does not understand the protocol. */
-	syslog(LOG_ERR, "The %s sent a message that lacks the Jool magic text.",
-			sender);
-	return -EINVAL;
-}
-
-static int validate_version(struct request_hdr *hdr,
-		char *sender, char *receiver)
-{
-	__u32 hdr_version = ntohl(hdr->version);
-
-	if (xlat_version() == hdr_version)
-		return 0;
-
-	syslog(LOG_ERR, "Version mismatch. The %s's version is %u.%u.%u.%u,\n"
-			"but the %s is %u.%u.%u.%u.\n"
-			"Please update the %s.",
-			sender,
-			hdr_version >> 24, (hdr_version >> 16) & 0xFFU,
-			(hdr_version >> 8) & 0xFFU, hdr_version & 0xFFU,
-			receiver,
-			JOOL_VERSION_MAJOR, JOOL_VERSION_MINOR,
-			JOOL_VERSION_REV, JOOL_VERSION_DEV,
-			(xlat_version() > hdr_version) ? sender : receiver);
-	return -EINVAL;
-}
-
-int validate_request(void *data, size_t data_len, char *sender, char *receiver)
-{
-	int error;
-
-	if (data_len < sizeof(struct request_hdr)) {
-		syslog(LOG_ERR, "Message from the %s is smaller than Jool's header.",
-				sender);
-		return -EINVAL;
-	}
-
-	error = validate_magic(data, sender);
-	if (error)
-		return error;
-
-	return validate_version(data, sender, receiver);
-}
-
+/* Called by the net socket whenever joold receives data from the network. */
 void modsocket_send(void *request, size_t request_len)
 {
 	struct jool_result result;
-
-	if (validate_request(request, request_len, "joold peer", "local joold"))
-		return;
-
-	/* TODO (NOW) iname */
-	result = netlink_send(&jsocket, NULL, request, request_len);
+	result = joolnl_joold_add(&jsocket, iname, request, request_len);
 	pr_result(&result);
 }
 
-static void send_ack(void)
+static void do_ack(void)
 {
-	struct request_hdr hdr;
-	init_request_hdr(&hdr, XT_NAT64, MODE_JOOLD, OP_ACK, false);
-	modsocket_send(&hdr, sizeof(hdr));
+	struct jool_result result;
+
+	result = joolnl_joold_ack(&jsocket, iname);
+	if (result.error)
+		pr_result(&result);
 }
 
 /**
@@ -95,65 +39,95 @@ static void send_ack(void)
  */
 static int updated_entries_cb(struct nl_msg *msg, void *arg)
 {
-	struct nlattr *attrs[__ATTR_MAX + 1];
-	struct request_hdr  *data;
-
-	size_t data_size;
-	char castness;
-	struct jool_response response;
+	struct nlmsghdr *nhdr;
+	struct genlmsghdr *ghdr;
+	struct joolnlhdr *jhdr;
+	struct nlattr *root;
 	struct jool_result result;
 
 	syslog(LOG_DEBUG, "Received a packet from kernelspace.");
 
-	result.error = genlmsg_parse(nlmsg_hdr(msg), 0, attrs, __ATTR_MAX, NULL);
-	if (result.error) {
-		syslog(LOG_ERR, "genlmsg_parse() failed: %s", nl_geterror(result.error));
-		return result.error;
+	nhdr = nlmsg_hdr(msg);
+	if (!genlmsg_valid_hdr(nhdr, sizeof(struct joolnlhdr))) {
+		syslog(LOG_ERR, "Kernel sent invalid data: Message too short to contain headers");
+		do_ack();
+		return -EINVAL;
+	}
+	ghdr = genlmsg_hdr(nhdr);
+	jhdr = genlmsg_user_hdr(ghdr);
+
+	if (jhdr->flags & JOOLNLHDR_FLAGS_ERROR) {
+		result = joolnl_msg2result(msg);
+		result.error = pr_result(&result);
+		do_ack();
+		return (result.error < 0) ? result.error : -result.error;
 	}
 
-	if (!attrs[ATTR_DATA]) {
-		syslog(LOG_ERR, "The request from kernelspace lacks a DATA attribute.");
+	root = genlmsg_attrdata(ghdr, sizeof(struct joolnlhdr));
+	if (nla_type(root) != JNLAR_SESSION_ENTRIES) {
+		syslog(LOG_ERR, "Kernel sent invalid data: Message lacks a session container");
+		do_ack();
 		return -EINVAL;
 	}
 
-	data = nla_data(attrs[ATTR_DATA]);
-	if (!data) {
-		syslog(LOG_ERR, "The request from kernelspace is empty!");
-		return -EINVAL;
-	}
-	data_size = nla_len(attrs[ATTR_DATA]);
-	if (!data_size) {
-		syslog(LOG_ERR, "The request from kernelspace has zero bytes.");
-		return -EINVAL;
-	}
-
-	result.error = validate_request(data, data_size, "the kernel module",
-			"joold daemon");
-	if (result.error)
-		return result.error;
-
-	castness = data->castness;
-	switch (castness) {
-	case 'm':
-		netsocket_send(data, data_size); /* handle request. */
-		send_ack();
-		return 0;
-	case 'u':
-		result = netlink_parse_response(data, data_size, &response);
-		return pr_result(&result);
-	}
-
-	syslog(LOG_ERR, "Packet sent by the module has unknown castness: %c",
-			castness);
-	return -EINVAL;
+	/*
+	 * Why do we detach the session container?
+	 * Because the Netlink API forces the other end to recreate it.
+	 * (See modsocket_send())
+	 */
+	netsocket_send(nla_data(root), nla_len(root));
+	do_ack();
+	return 0;
 }
 
-int modsocket_setup(void)
+static int read_json(int argc, char **argv)
+{
+	char *file;
+	cJSON *json, *child;
+	struct jool_result result;
+
+	if (argc < 2) {
+		iname = NULL;
+		return 0;
+	}
+
+	syslog(LOG_INFO, "Opening file %s...", argv[2]);
+	result = file_to_string(argv[2], &file);
+	if (result.error)
+		return pr_result(&result);
+
+	json = cJSON_Parse(file);
+	if (!json) {
+		syslog(LOG_ERR, "JSON syntax error.");
+		syslog(LOG_ERR, "The JSON parser got confused around about here:");
+		syslog(LOG_ERR, "%s", cJSON_GetErrorPtr());
+		free(file);
+		return 1;
+	}
+
+	free(file);
+
+	child = cJSON_GetObjectItem(json, "instance");
+	if (child) {
+		iname = strdup(child->valuestring);
+		if (!iname) {
+			cJSON_Delete(json);
+			return -ENOMEM;
+		}
+	} else {
+		iname = NULL;
+	}
+
+	cJSON_Delete(json);
+	return 0;
+}
+
+static int create_socket(void)
 {
 	int family_mc_grp;
 	struct jool_result result;
 
-	result = netlink_setup(&jsocket, XT_NAT64);
+	result = joolnl_setup(&jsocket, XT_NAT64);
 	if (result.error)
 		return pr_result(&result);
 
@@ -164,8 +138,8 @@ int modsocket_setup(void)
 		goto fail;
 	}
 
-	family_mc_grp = genl_ctrl_resolve_grp(jsocket.sk, GNL_JOOL_FAMILY,
-			GNL_JOOLD_MULTICAST_GRP_NAME);
+	family_mc_grp = genl_ctrl_resolve_grp(jsocket.sk, JOOLNL_FAMILY,
+			JOOLNL_MULTICAST_GRP_NAME);
 	if (family_mc_grp < 0) {
 		syslog(LOG_ERR, "Unable to resolve the Netlink multicast group.");
 		result.error = family_mc_grp;
@@ -181,14 +155,26 @@ int modsocket_setup(void)
 	return 0;
 
 fail:
-	netlink_teardown(&jsocket);
+	joolnl_teardown(&jsocket);
 	syslog(LOG_ERR, "Netlink error message: %s", nl_geterror(result.error));
 	return result.error;
 }
 
+int modsocket_setup(int argc, char **argv)
+{
+	int error;
+
+	error = read_json(argc, argv);
+	if (error)
+		return error;
+
+	return create_socket();
+}
+
 void modsocket_teardown(void)
 {
-	netlink_teardown(&jsocket);
+	free(iname);
+	joolnl_teardown(&jsocket);
 }
 
 void *modsocket_listen(void *arg)

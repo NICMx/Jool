@@ -26,21 +26,23 @@ $(PAGE)-objs += ../impersonator/send_packet.o
 $(PAGE)-objs += ../framework/skb_generator.o
 $(PAGE)-objs += ../framework/types.o
 
-$(PAGE)-objs += ../../../src/common/config.o
 $(PAGE)-objs += ../../../src/mod/common/address_xlat.o
-$(PAGE)-objs += ../../../src/mod/common/db/config.o
-$(PAGE)-objs += ../../../src/mod/common/global-impl.o
 $(PAGE)-objs += ../../../src/mod/common/ipv6_hdr_iterator.o
 $(PAGE)-objs += ../../../src/mod/common/packet.o
 $(PAGE)-objs += ../../../src/mod/common/rfc6052.o
 $(PAGE)-objs += ../../../src/mod/common/rtrie.o
+$(PAGE)-objs += ../../../src/mod/common/trace.o
 $(PAGE)-objs += ../../../src/mod/common/translation_state.o
+$(PAGE)-objs += ../../../src/mod/common/wrapper-config.o
+$(PAGE)-objs += ../../../src/mod/common/wrapper-global.o
 $(PAGE)-objs += ../../../src/mod/common/xlator.o
 $(PAGE)-objs += ../../../src/mod/common/db/blacklist4.o
 $(PAGE)-objs += ../../../src/mod/common/db/eam.o
+$(PAGE)-objs += ../../../src/mod/common/db/global.o
 $(PAGE)-objs += ../../../src/mod/common/db/pool.o
 $(PAGE)-objs += ../../../src/mod/common/db/rfc6791v4.o
 $(PAGE)-objs += ../../../src/mod/common/db/rfc6791v6.o
+$(PAGE)-objs += ../../../src/mod/common/nl/attribute.o
 
 $(PAGE)-objs += ../../../src/mod/common/steps/handling_hairpinning_siit.o
 $(PAGE)-objs += ../../../src/mod/common/rfc7915/4to6.o

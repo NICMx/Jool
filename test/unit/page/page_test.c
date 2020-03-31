@@ -16,12 +16,11 @@ static struct xlator jool;
 
 static int init(void)
 {
-	struct config_prefix6 pool6;
+	struct ipv6_prefix pool6;
 	int error;
 
-	pool6.set = true;
-	pool6.prefix.len = 96;
-	error = str_to_addr6("2001:db8::", &pool6.prefix.addr);
+	pool6.len = 96;
+	error = str_to_addr6("2001:db8::", &pool6.addr);
 	if (error)
 		return error;
 

@@ -26,21 +26,78 @@ Jool uses four levels in the severity spectrum (see `dmesg --help`):
 
 Debug messages are normally compiled out of Jool's binaries because they are lots and can slow things down. If you are testing or troubleshooting however, they can be of help.
 
-If you want Jool to print debug messages, go back to the kernel module's compilation step and include the `-DDEBUG` flag. After reinstalling, remodprobing and reconfiguring, you should see a lot of mumbling as a result of network traffic translation, which should give you ideas as to what might be wrong:
+If you want Jool to print debug messages, follow these steps:
 
-	$ # Recompile and reinstall Jool with the flag enabled.
-	$ cd Jool/src/mod
-	$ make JOOL_FLAGS=-DDEBUG       # <==== This is the key!
-	$ sudo make install
-	$
-	$ # Disable the old Jool, add the new one.
-	$ # Please note that this is a rough example; you need to adjust these commands
-	$ # depending on your original configuration.
-	$ sudo modprobe -r jool_siit
-	$ sudo modprobe jool_siit
-	$ sudo jool_siit instance add ...
-	$
-	$ # Read the logs.
+## 1. Uninstall your current modules
+
+Do one of the following:
+
+- If you used some package, just remove the package (eg. `apt remove jool-dkms`).
+- If you used DKMS, follow [these steps](install.html#kernel-modules-if-installed-by-dkms).
+- If you used Kbuild, follow [these steps](install.html#kernel-modules-if-installed-by-kbuild-in-accordance-with-old-documentation). (At the bottom.)
+
+## 2. Recompile, including the -DDEBUG flag
+
+Go to the `dkms.conf` file found in the root of the source package.
+
+<div class="distro-menu">
+	<span class="distro-selector" onclick="showDistro(this);">tarball</span>
+	<span class="distro-selector" onclick="showDistro(this);">git clone</span>
+</div>
+
+<!-- tarball -->
+{% highlight bash %}
+user@T:~$ cd jool-{{ site.latest-version }}/
+user@T:~$ nano dkms.conf
+{% endhighlight %}
+
+<!-- git clone -->
+{% highlight bash %}
+user@T:~$ cd Jool/
+user@T:~$ nano dkms.conf
+{% endhighlight %}
+
+Change
+
+	MAKE[0]="make -C ${kernel_source_dir} M=${dkms_tree}/${PACKAGE_NAME}/${PACKAGE_VERSION}/build/src/mod/common modules \
+	      && make -C ${kernel_source_dir} M=${dkms_tree}/${PACKAGE_NAME}/${PACKAGE_VERSION}/build/src/mod/nat64 modules \
+	      && make -C ${kernel_source_dir} M=${dkms_tree}/${PACKAGE_NAME}/${PACKAGE_VERSION}/build/src/mod/siit modules"
+
+Into
+
+	MAKE[0]="make -C ${kernel_source_dir} M=${dkms_tree}/${PACKAGE_NAME}/${PACKAGE_VERSION}/build/src/mod/common JOOL_FLAGS=-DDEBUG modules \
+	      && make -C ${kernel_source_dir} M=${dkms_tree}/${PACKAGE_NAME}/${PACKAGE_VERSION}/build/src/mod/nat64 JOOL_FLAGS=-DDEBUG modules \
+	      && make -C ${kernel_source_dir} M=${dkms_tree}/${PACKAGE_NAME}/${PACKAGE_VERSION}/build/src/mod/siit JOOL_FLAGS=-DDEBUG modules"
+
+Then install the module via DKMS:
+
+```bash
+user@T:~# dkms install .
+```
+
+## 3. Restart and reconfigure you Jool instance(s)
+
+<div class="distro-menu">
+	<span class="distro-selector" onclick="showDistro(this);">jool</span>
+	<span class="distro-selector" onclick="showDistro(this);">jool_siit</span>
+</div>
+
+<!-- tarball -->
+{% highlight bash %}
+modprobe -r jool
+modprobe jool
+jool instance add ...
+{% endhighlight %}
+
+<!-- git clone -->
+{% highlight bash %}
+modprobe -r jool_siit
+modprobe jool_siit
+jool_siit instance add ...
+{% endhighlight %}
+
+## 4. Notice the log noise
+
 	$ dmesg | tail -5
 	[ 3465.639622] ===============================================
 	[ 3465.639655] Catching IPv4 packet: 192.0.2.16->198.51.100.8
@@ -48,7 +105,6 @@ If you want Jool to print debug messages, go back to the kernel module's compila
 	[ 3465.639756] Address 192.0.2.16 lacks an EAMT entry and there's no pool6 prefix.
 	[ 3465.639806] Returning the packet to the kernel.
 
-These messages quickly add up. If your computer is storing them, make sure you revert the binaries when you're done so they stop flooding your disk.
+These messages quickly add up. If your computer is storing them, make sure you revert the binaries (by removing `-DDEBUG` and reinstalling) when you're done so they stop flooding your disk.
 
 If `dmesg` is not printing the messages, try tweaking its `--console-level`. Have a look at `man dmesg` for details.
-

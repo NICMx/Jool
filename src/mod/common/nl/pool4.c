@@ -1,120 +1,154 @@
 #include "mod/common/nl/pool4.h"
 
 #include "mod/common/log.h"
+#include "mod/common/xlator.h"
+#include "mod/common/nl/attribute.h"
 #include "mod/common/nl/nl_common.h"
 #include "mod/common/nl/nl_core.h"
 #include "mod/common/db/pool4/db.h"
 #include "mod/common/db/bib/db.h"
 
-static int pool4_to_usr(struct pool4_sample const *sample, void *arg)
+static int serialize_pool4_entry(struct pool4_entry const *entry, void *arg)
 {
-	return nlbuffer_write(arg, sample, sizeof(*sample));
+	return jnla_put_pool4(arg, JNLAL_ENTRY, entry) ? 1 : 0;
 }
 
-static int handle_pool4_display(struct pool4 *pool, struct genl_info *info,
-		union request_pool4 *request)
+int handle_pool4_foreach(struct sk_buff *skb, struct genl_info *info)
 {
-	struct nlcore_buffer buffer;
-	struct pool4_sample *offset = NULL;
-	int error = 0;
+	struct xlator jool;
+	struct jool_response response;
+	struct pool4_entry offset, *offset_ptr;
+	int error;
 
 	log_debug("Sending pool4 to userspace.");
 
-	error = nlbuffer_init_response(&buffer, info, nlbuffer_response_max_size());
+	error = request_handle_start(info, XT_NAT64, &jool);
 	if (error)
-		return nlcore_respond(info, error);
+		goto end;
+	error = jresponse_init(&response, info);
+	if (error)
+		goto revert_start;
 
-	if (request->foreach.offset_set)
-		offset = &request->foreach.offset;
+	if (info->attrs[JNLAR_OFFSET]) {
+		error = jnla_get_pool4(info->attrs[JNLAR_OFFSET], "Iteration offset", &offset);
+		if (error)
+			goto revert_response;
+		offset_ptr = &offset;
+		log_debug("Offset: [%pI4/%u %u-%u %u %u %u %u]",
+				&offset.range.prefix.addr,
+				offset.range.prefix.len,
+				offset.range.ports.min,
+				offset.range.ports.max,
+				offset.mark,
+				offset.iterations,
+				offset.flags,
+				offset.proto);
+	} else if (info->attrs[JNLAR_PROTO]) {
+		offset.proto = nla_get_u8(info->attrs[JNLAR_PROTO]);
+		offset_ptr = NULL;
+	} else {
+		log_err("The request is missing a protocol.");
+		error = -EINVAL;
+		goto revert_response;
+	}
 
-	error = pool4db_foreach_sample(pool, request->foreach.proto,
-			pool4_to_usr, &buffer, offset);
-	nlbuffer_set_pending_data(&buffer, error > 0);
-	error = (error >= 0)
-			? nlbuffer_send(info, &buffer)
-			: nlcore_respond(info, error);
+	error = pool4db_foreach_sample(jool.nat64.pool4,
+			offset.proto, serialize_pool4_entry, response.skb,
+			offset_ptr);
 
-	nlbuffer_clean(&buffer);
-	return error;
+	error = jresponse_send_array(&response, error);
+	if (error)
+		goto revert_response;
+
+	request_handle_end(&jool);
+	return 0;
+
+revert_response:
+	jresponse_cleanup(&response);
+revert_start:
+	request_handle_end(&jool);
+end:
+	return jresponse_send_simple(info, error);
 }
 
-static int handle_pool4_add(struct pool4 *pool, struct genl_info *info,
-		union request_pool4 *request)
+int handle_pool4_add(struct sk_buff *skb, struct genl_info *info)
 {
+	struct xlator jool;
+	struct pool4_entry entry;
+	int error;
+
 	log_debug("Adding elements to pool4.");
-	return nlcore_respond(info, pool4db_add(pool, &request->add));
+
+	error = request_handle_start(info, XT_NAT64, &jool);
+	if (error)
+		goto end;
+
+	error = jnla_get_pool4(info->attrs[JNLAR_OPERAND], "Operand", &entry);
+	if (error)
+		goto revert_start;
+
+	error = pool4db_add(jool.nat64.pool4, &entry);
+revert_start:
+	request_handle_end(&jool);
+end:
+	return jresponse_send_simple(info, error);
 }
 
-static int handle_pool4_update(struct pool4 *pool, struct genl_info *info,
-		union request_pool4 *request)
+/*
+int handle_pool4_update(struct sk_buff *skb, struct genl_info *info)
 {
 	log_debug("Updating pool4 table.");
 	return nlcore_respond(info, pool4db_update(pool, &request->update));
 }
+*/
 
-static int handle_pool4_rm(struct xlator *jool, struct genl_info *info,
-		union request_pool4 *request)
+int handle_pool4_rm(struct sk_buff *skb, struct genl_info *info)
 {
+	struct xlator jool;
+	struct pool4_entry entry;
 	int error;
 
 	log_debug("Removing elements from pool4.");
 
-	error = pool4db_rm_usr(jool->nat64.pool4, &request->rm.entry);
+	error = request_handle_start(info, XT_NAT64, &jool);
+	if (error)
+		goto end;
 
-	if (xlator_is_nat64(jool) && !request->rm.quick) {
-		bib_rm_range(jool, request->rm.entry.proto,
-				&request->rm.entry.range);
-	}
+	error = jnla_get_pool4(info->attrs[JNLAR_OPERAND], "Operand", &entry);
+	if (error)
+		goto revert_start;
 
-	return nlcore_respond(info, error);
+	error = pool4db_rm_usr(jool.nat64.pool4, &entry);
+	if (xlator_is_nat64(&jool) && !(get_jool_hdr(info)->flags & JOOLNLHDR_FLAGS_QUICK))
+		bib_rm_range(&jool, entry.proto, &entry.range);
+
+revert_start:
+	request_handle_end(&jool);
+end:
+	return jresponse_send_simple(info, error);
 }
 
-static int handle_pool4_flush(struct xlator *jool, struct genl_info *info,
-		union request_pool4 *request)
+int handle_pool4_flush(struct sk_buff *skb, struct genl_info *info)
 {
-	log_debug("Flushing pool4.");
-
-	pool4db_flush(jool->nat64.pool4);
-	if (xlator_is_nat64(jool) && !request->flush.quick) {
-		/*
-		 * This will also clear *previously* orphaned entries, but given
-		 * that "not quick" generally means "please clean up", this is
-		 * more likely what people wants.
-		 */
-		bib_flush(jool);
-	}
-
-	return nlcore_respond(info, 0);
-}
-
-int handle_pool4_config(struct xlator *jool, struct genl_info *info)
-{
-	struct request_hdr *hdr = get_jool_hdr(info);
-	union request_pool4 *request = (union request_pool4 *)(hdr + 1);
+	struct xlator jool;
 	int error;
 
-	if (xlator_is_siit(jool)) {
-		log_err("SIIT doesn't have pool4.");
-		return nlcore_respond(info, -EINVAL);
-	}
+	log_debug("Flushing pool4.");
 
-	error = validate_request_size(info, sizeof(*request));
+	error = request_handle_start(info, XT_NAT64, &jool);
 	if (error)
-		return nlcore_respond(info, error);
+		goto end;
 
-	switch (hdr->operation) {
-	case OP_FOREACH:
-		return handle_pool4_display(jool->nat64.pool4, info, request);
-	case OP_ADD:
-		return handle_pool4_add(jool->nat64.pool4, info, request);
-	case OP_UPDATE:
-		return handle_pool4_update(jool->nat64.pool4, info, request);
-	case OP_REMOVE:
-		return handle_pool4_rm(jool, info, request);
-	case OP_FLUSH:
-		return handle_pool4_flush(jool, info, request);
+	pool4db_flush(jool.nat64.pool4);
+	if (xlator_is_nat64(&jool) && !(get_jool_hdr(info)->flags & JOOLNLHDR_FLAGS_QUICK)) {
+		/*
+		 * This will also clear *previously* orphaned entries, but given
+		 * that "not quick" generally means "please clean up," this is
+		 * more likely what people wants.
+		 */
+		bib_flush(&jool);
 	}
 
-	log_err("Unknown operation: %u", hdr->operation);
-	return nlcore_respond(info, -EINVAL);
+	request_handle_end(&jool);
+end:	return jresponse_send_simple(info, error);
 }

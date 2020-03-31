@@ -65,7 +65,7 @@ bool pool4empty_contains(struct net *ns, const struct ipv4_transport_addr *addr)
  * Initializes @range with the address candidates that could source a packet
  * routed with @route_args.
  */
-int pool4empty_find(struct route4_args *route_args, struct pool4_range *range)
+int pool4empty_find(struct route4_args *route_args, struct ipv4_range *range)
 {
 	struct dst_entry *dst;
 
@@ -82,10 +82,11 @@ int pool4empty_find(struct route4_args *route_args, struct pool4_range *range)
 	 * Consider trying the old code if this somehow fails. The last commit
 	 * that had it was 00bb35f5ea2a6e23a8530f2e3e033d1afd964708.
 	 */
-	range->addr.s_addr = inet_select_addr(dst->dev,
+	range->prefix.addr.s_addr = inet_select_addr(dst->dev,
 			route_args->daddr.s_addr,
 			RT_SCOPE_UNIVERSE);
-	if (range->addr.s_addr) {
+	if (range->prefix.addr.s_addr) {
+		range->prefix.len = 32;
 		range->ports.min = DEFAULT_POOL4_MIN_PORT;
 		range->ports.max = DEFAULT_POOL4_MAX_PORT;
 	} else {
@@ -101,5 +102,5 @@ int pool4empty_find(struct route4_args *route_args, struct pool4_range *range)
 	 * placeholder.
 	 */
 	dst_release(dst);
-	return range->addr.s_addr ? 0 : -ESRCH;
+	return range->prefix.addr.s_addr ? 0 : -ESRCH;
 }

@@ -5,16 +5,6 @@
 #include "mod/common/linux_version.h"
 #include "mod/common/error_pool.h"
 
-#ifndef GENLMSG_DEFAULT_SIZE
-/* This happens in old kernels. */
-#define GENLMSG_DEFAULT_SIZE (NLMSG_DEFAULT_SIZE - GENL_HDRLEN)
-#endif
-
-/**
- * See nl_core#NLBUFFER_MAX_PAYLOAD.
- */
-#define NLBUFFER_MAX_PAYLOAD ((size_t)(GENLMSG_DEFAULT_SIZE - 256))
-
 static struct genl_family *family;
 
 void genl_setup(struct genl_family *new_family)
@@ -85,11 +75,6 @@ int genl_respond(struct genl_info *info, int error_code)
 	error = error_pool_get_message(&error_msg, &error_msg_size);
 	if (error)
 		return error; /* Error msg already printed. */
-
-	if (error_msg_size > NLBUFFER_MAX_PAYLOAD) {
-		error_msg[NLBUFFER_MAX_PAYLOAD - 1] = '\0';
-		error_msg_size = NLBUFFER_MAX_PAYLOAD;
-	}
 
 	error = respond(info, error_code, ATTR_ERROR_STRING, error_msg,
 			error_msg_size);

@@ -1,10 +1,10 @@
-#include "address.h"
+#include "usr/argp/wargp/address.h"
 
 #include <string.h>
 #include "common/types.h"
 #include "usr/util/str_utils.h"
-#include "usr/nl/jool_socket.h"
 #include "usr/nl/address.h"
+#include "usr/nl/core.h"
 #include "usr/argp/log.h"
 #include "usr/argp/requirements.h"
 #include "usr/argp/wargp.h"
@@ -166,10 +166,10 @@ end:	print_addr6(&dst->addr);
 	printf("\n");
 }
 
-int handle_address_query(char *iname, int argc, char **argv, void *arg)
+int handle_address_query(char *iname, int argc, char **argv, void const *arg)
 {
 	struct query_args qargs = { 0 };
-	struct jool_socket sk;
+	struct joolnl_socket sk;
 	union {
 		struct result_addrxlat64 v4;
 		struct result_addrxlat46 v6;
@@ -189,20 +189,20 @@ int handle_address_query(char *iname, int argc, char **argv, void *arg)
 		return requirement_print(reqs);
 	}
 
-	result = netlink_setup(&sk, xt_get());
+	result = joolnl_setup(&sk, xt_get());
 	if (result.error)
 		return pr_result(&result);
 
 	switch (qargs.addr.proto) {
 	case 6:
-		result = address_query64(&sk, iname, &qargs.addr.addr.v6,
+		result = joolnl_address_query64(&sk, iname, &qargs.addr.addr.v6,
 				&response.v4);
 		if (result.error)
 			break;
 		print4(&qargs.addr.addr.v6, &response.v4, qargs.verbose.value);
 		break;
 	case 4:
-		result = address_query46(&sk, iname, &qargs.addr.addr.v4,
+		result = joolnl_address_query46(&sk, iname, &qargs.addr.addr.v4,
 				&response.v6);
 		if (result.error)
 			break;
@@ -210,11 +210,11 @@ int handle_address_query(char *iname, int argc, char **argv, void *arg)
 		break;
 	}
 
-	netlink_teardown(&sk);
+	joolnl_teardown(&sk);
 	return pr_result(&result);
 }
 
-void autocomplete_address_query(void *args)
+void autocomplete_address_query(void const *args)
 {
 	print_wargp_opts(query_opts);
 }

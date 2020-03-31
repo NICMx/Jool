@@ -12,17 +12,16 @@ struct joold_queue;
  * is emptied as a result.
  */
 
-int joold_setup(void);
+/* joold_setup() not needed. */
 void joold_teardown(void);
 
 struct joold_queue *joold_alloc(struct net *ns);
 void joold_get(struct joold_queue *queue);
 void joold_put(struct joold_queue *queue);
 
-int joold_sync(struct xlator *jool, void *data, __u32 size);
+int joold_sync(struct xlator *jool, struct nlattr *root);
 void joold_add(struct xlator *jool, struct session_entry *entry);
 
-int joold_test(struct xlator *jool);
 int joold_advertise(struct xlator *jool);
 void joold_ack(struct xlator *jool);
 

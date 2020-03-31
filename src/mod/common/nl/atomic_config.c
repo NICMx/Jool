@@ -1,22 +1,20 @@
 #include "mod/common/nl/atomic_config.h"
 
+#include "mod/common/log.h"
+#include "mod/common/atomic_config.h"
 #include "mod/common/nl/nl_common.h"
 #include "mod/common/nl/nl_core.h"
-#include "mod/common/atomic_config.h"
 
-int handle_atomconfig_request(struct genl_info *info)
+int handle_atomconfig_request(struct sk_buff *skb, struct genl_info *info)
 {
-	struct request_hdr *hdr;
-	size_t total_len;
+	int error;
 
-	hdr = nla_data(info->attrs[ATTR_DATA]);
-	total_len = nla_len(info->attrs[ATTR_DATA]);
+	log_debug("Handling atomic configuration request.");
 
-	return nlcore_respond(info, atomconfig_add(
-			get_iname(info),
-			hdr->xt,
-			hdr + 1,
-			total_len - sizeof(*hdr),
-			hdr->force)
-	);
+	error = request_handle_start(info, XT_ANY, NULL);
+	if (!error)
+		error = atomconfig_add(skb, info);
+	request_handle_end(NULL);
+
+	return jresponse_send_simple(info, error);
 }

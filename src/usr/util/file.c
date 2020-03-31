@@ -1,4 +1,4 @@
-#include "file.h"
+#include "usr/util/file.h"
 
 #include <errno.h>
 #include <stdio.h>
@@ -8,7 +8,7 @@
 /**
  * Remember to free @result when you're done.
  */
-struct jool_result file_to_string(char *file_name, char **out)
+struct jool_result file_to_string(char const *file_name, char **out)
 {
 	FILE *file;
 	long int length;

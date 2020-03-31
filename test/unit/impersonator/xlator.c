@@ -1,6 +1,6 @@
 #include "mod/common/xlator.h"
 
-#include "mod/common/db/config.h"
+#include "mod/common/db/global.h"
 #include "mod/common/db/bib/db.h"
 
 /*
@@ -8,7 +8,7 @@
  */
 
 int xlator_init(struct xlator *jool, struct net *ns, char *iname,
-		xlator_flags flags, struct config_prefix6 *pool6)
+		xlator_flags flags, struct ipv6_prefix *pool6)
 {
 	int error;
 

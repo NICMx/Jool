@@ -13,7 +13,7 @@ struct cmd_option {
 	 * Name this node is known by the userspace application interface.
 	 * This being NULL signals the end of the array.
 	 */
-	char *label;
+	char const *label;
 	xlator_type xt;
 	/** Hide this option from the user? */
 	bool hidden;
@@ -34,7 +34,7 @@ struct cmd_option {
 	 * A function that will handle any arguments after this one.
 	 * If this exists, then @children and @child_builder must be NULL.
 	 */
-	int (*handler)(char *iname, int argc, char **argv, void *args);
+	int (*handler)(char *iname, int argc, char **argv, void const *args);
 	/*
 	 * Prints the autocompletion candidates for the last element in @argv.
 	 * Used by bash autocomplete.
@@ -45,12 +45,12 @@ struct cmd_option {
 	 * Actually, current implementations will always print all the known
 	 * candidates given this cmd_option's context. This works well enough.
 	 */
-	void (*handle_autocomplete)(void *args);
+	void (*handle_autocomplete)(void const *args);
 	/*
 	 * Will be passed as the last argument to @handler and
 	 * @handle_autocomplete.
 	 */
-	void *args;
+	void const *args;
 
 	/** Used by the code to chain temporarily correlated nodes at times. */
 	struct cmd_option *next;

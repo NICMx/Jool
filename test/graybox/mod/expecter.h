@@ -3,16 +3,13 @@
 
 #include <linux/skbuff.h>
 #include "common/graybox-types.h"
-
-#define PLATEAUS_MAX 64
+#include "common/types.h"
 
 struct expected_packet {
 	char *filename;
 	unsigned char *bytes;
 	size_t bytes_len;
-	__u16 exceptions[PLATEAUS_MAX];
-	/* Number of entries in @exceptions. */
-	size_t exceptions_len;
+	struct mtu_plateaus exceptions;
 };
 
 void expecter_setup(void);

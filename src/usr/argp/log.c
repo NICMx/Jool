@@ -1,4 +1,5 @@
-#include "log.h"
+#include "usr/argp/log.h"
+
 #include <stdarg.h>
 #include <stdio.h>
 

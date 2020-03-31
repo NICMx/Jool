@@ -1,8 +1,7 @@
-#include "pool4.h"
+#include "usr/argp/wargp/pool4.h"
 
-#include "log.h"
 #include "usr/util/str_utils.h"
-#include "usr/nl/jool_socket.h"
+#include "usr/nl/core.h"
 #include "usr/nl/pool4.h"
 #include "usr/argp/log.h"
 #include "usr/argp/requirements.h"
@@ -42,94 +41,86 @@ static void print_separator(void)
 	print_table_separator(0, 10, 5, 18, 15, 11, 0);
 }
 
-static void display_sample_csv(struct pool4_sample *sample,
+static void display_entry_csv(struct pool4_entry const *entry,
 		struct display_args *args)
 {
-	printf("%u,%s,%s,%u,%u,", sample->mark,
-			l4proto_to_string(sample->proto),
-			inet_ntoa(sample->range.addr),
-			sample->range.ports.min,
-			sample->range.ports.max);
+	printf("%u,%s,%s", entry->mark, l4proto_to_string(entry->proto),
+			inet_ntoa(entry->range.prefix.addr));
+	if (entry->range.prefix.len != 32)
+		printf("/%u", entry->range.prefix.len);
+	printf(",%u,%u,", entry->range.ports.min, entry->range.ports.max);
 
-	if (sample->iterations_flags & ITERATIONS_INFINITE) {
+	if (entry->flags & ITERATIONS_INFINITE)
 		printf("infinite,");
-	} else {
-		printf("%u,", sample->iterations);
-	}
+	else
+		printf("%u,", entry->iterations);
 
-	printf("%u\n", !(sample->iterations_flags & ITERATIONS_AUTO));
+	printf("%u\n", !(entry->flags & ITERATIONS_AUTO));
 }
 
-static bool print_common_values(struct pool4_sample *sample,
+static bool print_common_values(struct pool4_entry const *entry,
 		struct display_args *args)
 {
 	if (!args->last.initialized)
 		return true;
-	return sample->mark != args->last.mark
-			|| sample->proto != args->last.proto;
+	return entry->mark != args->last.mark
+			|| entry->proto != args->last.proto;
 }
 
-static void display_sample_normal(struct pool4_sample *sample,
+static void display_entry_normal(struct pool4_entry const *entry,
 		struct display_args *args)
 {
-	if (print_common_values(sample, args)) {
+	if (print_common_values(entry, args)) {
 		print_separator();
-
-		printf("| %10u | %5s | ",
-				sample->mark,
-				l4proto_to_string(sample->proto));
-		if (sample->iterations_flags & ITERATIONS_INFINITE)
+		printf("| %10u | %5s | ", entry->mark,
+				l4proto_to_string(entry->proto));
+		if (entry->flags & ITERATIONS_INFINITE)
 			printf("%10s", "Infinite");
 		else
-			printf("%10u", sample->iterations);
-		printf(" (%5s) | %15s | %5u-%5u |\n",
-				(sample->iterations_flags & ITERATIONS_AUTO)
-						? "auto"
-						: "fixed",
-				inet_ntoa(sample->range.addr),
-				sample->range.ports.min,
-				sample->range.ports.max);
+			printf("%10u", entry->iterations);
+		printf(" (%5s)", (entry->flags & ITERATIONS_AUTO)
+				? "auto" : "fixed");
 	} else {
-		printf("| %10s | %5s | %10s  %5s  | %15s | %5u-%5u |\n",
-				"",
-				"",
-				"",
-				"",
-				inet_ntoa(sample->range.addr),
-				sample->range.ports.min,
-				sample->range.ports.max);
+		printf("| %10s | %5s | %10s  %5s ", "", "", "", "");
 	}
 
+	printf(" | %15s", inet_ntoa(entry->range.prefix.addr));
+	if (entry->range.prefix.len != 32)
+		printf("/%u", entry->range.prefix.len);
+	printf(" | %5u-%5u |\n",
+			entry->range.ports.min,
+			entry->range.ports.max);
+
 	args->last.initialized = true;
-	args->last.mark = sample->mark;
-	args->last.proto = sample->proto;
+	args->last.mark = entry->mark;
+	args->last.proto = entry->proto;
 }
 
-static struct jool_result handle_display_response(struct pool4_sample *sample,
+static struct jool_result handle_display_response(struct pool4_entry const *entry,
 		void *args)
 {
 	struct display_args *dargs = args;
 
 	if (dargs->csv.value)
-		display_sample_csv(sample, args);
+		display_entry_csv(entry, args);
 	else
-		display_sample_normal(sample, args);
+		display_entry_normal(entry, args);
 
 	dargs->count++;
 	return result_success();
 }
 
-int handle_pool4_display(char *iname, int argc, char **argv, void *arg)
+int handle_pool4_display(char *iname, int argc, char **argv, void const *arg)
 {
 	struct display_args dargs = { 0 };
-	struct jool_socket sk;
+	struct joolnl_socket sk;
 	struct jool_result result;
 
 	result.error = wargp_parse(display_opts, argc, argv, &dargs);
 	if (result.error)
 		return result.error;
 
-	result = netlink_setup(&sk, xt_get());
+	result = joolnl_setup(&sk, xt_get());
 	if (result.error)
 		return pr_result(&result);
 
@@ -145,10 +136,10 @@ int handle_pool4_display(char *iname, int argc, char **argv, void *arg)
 	}
 
 	dargs.count = 0;
-	result = pool4_foreach(&sk, iname, dargs.proto.proto,
+	result = joolnl_pool4_foreach(&sk, iname, dargs.proto.proto,
 			handle_display_response, &dargs);
 
-	netlink_teardown(&sk);
+	joolnl_teardown(&sk);
 
 	if (result.error)
 		return pr_result(&result);
@@ -161,7 +152,7 @@ int handle_pool4_display(char *iname, int argc, char **argv, void *arg)
 	return 0;
 }
 
-void autocomplete_pool4_display(void *args)
+void autocomplete_pool4_display(void const *args)
 {
 	print_wargp_opts(display_opts);
 }
@@ -169,7 +160,7 @@ void autocomplete_pool4_display(void *args)
 struct parsing_entry {
 	bool prefix4_set;
 	bool range_set;
-	struct pool4_entry_usr meat;
+	struct pool4_entry meat;
 };
 
 struct add_args {
@@ -180,7 +171,7 @@ struct add_args {
 
 static int parse_max_iterations(void *void_field, int key, char *str)
 {
-	struct pool4_entry_usr *meat = void_field;
+	struct pool4_entry *meat = void_field;
 	struct jool_result result;
 
 	meat->flags = ITERATIONS_SET;
@@ -194,7 +185,7 @@ static int parse_max_iterations(void *void_field, int key, char *str)
 		return 0;
 	}
 
-	result = str_to_u32(str, &meat->iterations, 0, MAX_U32);
+	result = str_to_u32(str, &meat->iterations);
 	return pr_result(&result);
 }
 
@@ -255,10 +246,10 @@ static struct wargp_option add_opts[] = {
 	{ 0 },
 };
 
-int handle_pool4_add(char *iname, int argc, char **argv, void *arg)
+int handle_pool4_add(char *iname, int argc, char **argv, void const *arg)
 {
 	struct add_args aargs = { 0 };
-	struct jool_socket sk;
+	struct joolnl_socket sk;
 	struct jool_result result;
 
 	result.error = wargp_parse(add_opts, argc, argv, &aargs);
@@ -285,17 +276,17 @@ int handle_pool4_add(char *iname, int argc, char **argv, void *arg)
 
 	aargs.entry.meat.proto = aargs.proto.proto;
 
-	result = netlink_setup(&sk, xt_get());
+	result = joolnl_setup(&sk, xt_get());
 	if (result.error)
 		return pr_result(&result);
 
-	result = pool4_add(&sk, iname, &aargs.entry.meat);
+	result = joolnl_pool4_add(&sk, iname, &aargs.entry.meat);
 
-	netlink_teardown(&sk);
+	joolnl_teardown(&sk);
 	return pr_result(&result);
 }
 
-void autocomplete_pool4_add(void *args)
+void autocomplete_pool4_add(void const *args)
 {
 	print_wargp_opts(add_opts);
 }
@@ -335,10 +326,10 @@ static struct wargp_option remove_opts[] = {
 	{ 0 },
 };
 
-int handle_pool4_remove(char *iname, int argc, char **argv, void *arg)
+int handle_pool4_remove(char *iname, int argc, char **argv, void const *arg)
 {
 	struct rm_args rargs = { 0 };
-	struct jool_socket sk;
+	struct joolnl_socket sk;
 	struct jool_result result;
 
 	/* Delete all ports by default */
@@ -358,17 +349,17 @@ int handle_pool4_remove(char *iname, int argc, char **argv, void *arg)
 
 	rargs.entry.meat.proto = rargs.proto.proto;
 
-	result = netlink_setup(&sk, xt_get());
+	result = joolnl_setup(&sk, xt_get());
 	if (result.error)
 		return pr_result(&result);
 
-	result = pool4_rm(&sk, iname, &rargs.entry.meat, rargs.quick);
+	result = joolnl_pool4_rm(&sk, iname, &rargs.entry.meat, rargs.quick);
 
-	netlink_teardown(&sk);
+	joolnl_teardown(&sk);
 	return pr_result(&result);
 }
 
-void autocomplete_pool4_remove(void *args)
+void autocomplete_pool4_remove(void const *args)
 {
 	print_wargp_opts(remove_opts);
 }
@@ -388,27 +379,27 @@ static struct wargp_option flush_opts[] = {
 	{ 0 },
 };
 
-int handle_pool4_flush(char *iname, int argc, char **argv, void *arg)
+int handle_pool4_flush(char *iname, int argc, char **argv, void const *arg)
 {
 	struct flush_args fargs = { 0 };
-	struct jool_socket sk;
+	struct joolnl_socket sk;
 	struct jool_result result;
 
 	result.error = wargp_parse(flush_opts, argc, argv, &fargs);
 	if (result.error)
 		return result.error;
 
-	result = netlink_setup(&sk, xt_get());
+	result = joolnl_setup(&sk, xt_get());
 	if (result.error)
 		return pr_result(&result);
 
-	result = pool4_flush(&sk, iname, fargs.quick);
+	result = joolnl_pool4_flush(&sk, iname, fargs.quick);
 
-	netlink_teardown(&sk);
+	joolnl_teardown(&sk);
 	return pr_result(&result);
 }
 
-void autocomplete_pool4_flush(void *args)
+void autocomplete_pool4_flush(void const *args)
 {
 	print_wargp_opts(flush_opts);
 }

@@ -80,7 +80,7 @@ static bool *taken;
 
 static int init(void)
 {
-	struct pool4_entry_usr entry;
+	struct pool4_entry entry;
 	unsigned int i;
 	int error;
 

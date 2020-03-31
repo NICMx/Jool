@@ -1,7 +1,6 @@
-#include "stats.h"
+#include "usr/argp/wargp/stats.h"
 
-#include "log.h"
-#include "usr/nl/jool_socket.h"
+#include "usr/nl/core.h"
 #include "usr/nl/stats.h"
 #include "usr/argp/log.h"
 #include "usr/argp/userspace-types.h"
@@ -34,7 +33,7 @@ static struct wargp_option display_opts[] = {
 	{ 0 },
 };
 
-static struct jool_result handle_jstat(struct jstat const *stat, void *args)
+static struct jool_result handle_jstat(struct joolnl_stat const *stat, void *args)
 {
 	struct display_args *dargs = args;
 
@@ -55,17 +54,17 @@ static struct jool_result handle_jstat(struct jstat const *stat, void *args)
 	return result_success();
 }
 
-int handle_stats_display(char *iname, int argc, char **argv, void *arg)
+int handle_stats_display(char *iname, int argc, char **argv, void const *arg)
 {
 	struct display_args dargs = { 0 };
-	struct jool_socket sk;
+	struct joolnl_socket sk;
 	struct jool_result result;
 
 	result.error = wargp_parse(display_opts, argc, argv, &dargs);
 	if (result.error)
 		return result.error;
 
-	result = netlink_setup(&sk, xt_get());
+	result = joolnl_setup(&sk, xt_get());
 	if (result.error)
 		return pr_result(&result);
 
@@ -76,13 +75,13 @@ int handle_stats_display(char *iname, int argc, char **argv, void *arg)
 		printf("\n");
 	}
 
-	result = stats_foreach(&sk, iname, handle_jstat, &dargs);
+	result = joolnl_stats_foreach(&sk, iname, handle_jstat, &dargs);
 
-	netlink_teardown(&sk);
+	joolnl_teardown(&sk);
 	return pr_result(&result);
 }
 
-void autocomplete_stats_display(void *args)
+void autocomplete_stats_display(void const *args)
 {
 	print_wargp_opts(display_opts);
 }

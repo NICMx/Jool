@@ -26,20 +26,19 @@ static void clean(void)
 
 static int __add_entry(char *addr4, __u8 len4, char *addr6, __u8 len6)
 {
-	struct ipv4_prefix prefix4;
-	struct ipv6_prefix prefix6;
+	struct eamt_entry new;
 	int error;
 
-	if (str_to_addr4(addr4, &prefix4.addr))
+	if (str_to_addr4(addr4, &new.prefix4.addr))
 		return false;
-	prefix4.len = len4;
+	new.prefix4.len = len4;
 
-	if (str_to_addr6(addr6, &prefix6.addr))
+	if (str_to_addr6(addr6, &new.prefix6.addr))
 		return false;
-	prefix6.len = len6;
+	new.prefix6.len = len6;
 
 	/* log_debug("Inserting %s/%u | %s/%u", addr6, len6, addr4, len4); */
-	error = eamt_add(eamt, &prefix6, &prefix4, true);
+	error = eamt_add(eamt, &new, true);
 	/*
 	if (error) {
 		log_err("Errcode %d; I'm not going to print the tree.", error);

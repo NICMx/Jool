@@ -42,14 +42,14 @@ void log_err(const char *format, ...)
 
 	/* Want to avoid vprintk because I can't append a level string to it. */
 	va_start(args, format);
-	vsnprintf(msg, 512, format, args);
+	vsnprintf(msg, 256, format, args);
 	va_end(args);
 
 	/*
 	 * Errors should be catched during user context, so a log_err()
 	 * during packet context should be upgraded to critical.
 	 */
-	if (WARN(is_packet_context(), msg)) {
+	if (WARN(is_packet_context(), "%s", msg)) {
 		__wkfree("error_code.msg", msg);
 		return;
 	}

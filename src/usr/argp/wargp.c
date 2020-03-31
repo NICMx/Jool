@@ -1,12 +1,12 @@
-#include "wargp.h"
+#include "usr/argp/wargp.h"
 
 #include <stdlib.h>
 #include <string.h>
 
-#include "log.h"
 #include "common/xlat.h"
 #include "common/constants.h"
 #include "usr/util/str_utils.h"
+#include "usr/argp/log.h"
 
 const char *argp_program_version = JOOL_VERSION_STR;
 const char *argp_program_bug_address = "jool@nic.mx";
@@ -77,7 +77,7 @@ int wargp_parse_u32(void *field, int key, char *str)
 {
 	struct jool_result result;
 
-	result = str_to_u32(str, field, 0, MAX_U32);
+	result = str_to_u32(str, field);
 	if (result.error)
 		return pr_result(&result);
 

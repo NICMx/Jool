@@ -33,6 +33,28 @@ bool ASSERT_ADDR4(char const *expected_str, struct in_addr const *actual,
 			: __ASSERT_ADDR4(&expected, actual, test_name);
 }
 
+bool ASSERT_PREFIX4(struct ipv4_prefix const *expected,
+		struct ipv4_prefix const *actual,
+		char const *test_name)
+{
+	if (expected == actual)
+		return true;
+
+	if (!expected) {
+		log_err("Test '%s' failed.", test_name);
+		pr_err("  Expected: NULL\n");
+		pr_err("  Actual  : %pI4/%u\n", &actual->addr, actual->len);
+	}
+	if (!actual) {
+		log_err("Test '%s' failed.", test_name);
+		pr_err("  Expected: %pI4/%u\n", &expected->addr, expected->len);
+		pr_err("  Actual  : NULL\n");
+	}
+
+	return __ASSERT_ADDR4(&expected->addr, &actual->addr, test_name)
+			&& ASSERT_UINT(expected->len, actual->len, "%s", test_name);
+}
+
 bool ASSERT_TADDR4(struct ipv4_transport_addr const *expected,
 		struct ipv4_transport_addr const *actual,
 		char const *test_name)
@@ -74,6 +96,28 @@ bool ASSERT_ADDR6(char const *expected_str,
 	return str_to_addr6(expected_str, &expected)
 			? false
 			: __ASSERT_ADDR6(&expected, actual, test_name);
+}
+
+bool ASSERT_PREFIX6(struct ipv6_prefix const *expected,
+		struct ipv6_prefix const *actual,
+		char const *test_name)
+{
+	if (expected == actual)
+		return true;
+
+	if (!expected) {
+		log_err("Test '%s' failed.", test_name);
+		pr_err("  Expected: NULL\n");
+		pr_err("  Actual  : %pI6c/%u\n", &actual->addr, actual->len);
+	}
+	if (!actual) {
+		log_err("Test '%s' failed.", test_name);
+		pr_err("  Expected: %pI6c/%u\n", &expected->addr, expected->len);
+		pr_err("  Actual  : NULL\n");
+	}
+
+	return __ASSERT_ADDR6(&expected->addr, &actual->addr, test_name)
+			&& ASSERT_UINT(expected->len, actual->len, "%s", test_name);
 }
 
 bool ASSERT_TADDR6(struct ipv6_transport_addr const *expected,
@@ -186,7 +230,7 @@ bool ASSERT_TUPLE(struct tuple const *expected,
 }
 
 #define BIB_KEY "[BIB %pI4#%u %pI6c#%u]"
-#define BIB_PRINT(bib) &bib->ipv4.l3, bib->ipv4.l4, &bib->ipv6.l3, bib->ipv6.l4
+#define BIB_PRINT(bib) &bib->addr4.l3, bib->addr4.l4, &bib->addr6.l3, bib->addr6.l4
 
 bool ASSERT_BIB(struct bib_entry const* expected,
 		struct bib_entry const* actual,
@@ -208,8 +252,8 @@ bool ASSERT_BIB(struct bib_entry const* expected,
 		return false;
 	}
 
-	if (!taddr4_equals(&expected->ipv4, &actual->ipv4)
-			|| !taddr6_equals(&expected->ipv6, &actual->ipv6)) {
+	if (!taddr4_equals(&expected->addr4, &actual->addr4)
+			|| !taddr6_equals(&expected->addr6, &actual->addr6)) {
 		log_err("Test '%s' failed:", test_name);
 		pr_err("  Expected: " BIB_KEY "\n", BIB_PRINT(expected));
 		pr_err("  Actual  : " BIB_KEY "\n", BIB_PRINT(actual));

@@ -2,9 +2,11 @@
 
 #include <linux/module.h>
 
+#include "mod/common/atomic_config.h"
 #include "mod/common/joold.h"
 #include "mod/common/log.h"
 #include "mod/common/timer.h"
+#include "mod/common/wkmalloc.h"
 #include "mod/common/xlator.h"
 #include "mod/common/db/bib/db.h"
 #include "mod/common/db/pool4/rfc6056.h"
@@ -24,13 +26,28 @@ static int setup_common_modules(void)
 	int error;
 
 	log_debug("Initializing common modules.");
+	/* Careful with the order. */
 
-	error = xlator_setup();
+	/* NAT64 */
+	error = rfc6056_setup();
 	if (error)
-		goto xlator_fail;
+		goto rfc6056_fail;
+	/* TODO SIIT-only shouldn't need to pay for this; move. */
+	error = jtimer_setup();
+	if (error)
+		goto jtimer_fail;
+
+	/* Common */
 	error = xlation_setup();
 	if (error)
 		goto xlation_fail;
+	/*
+	 * In kernel < 4.13, this opens the Netfilter packet gate, so all
+	 * submodules needed for translation need to be up by now.
+	 */
+	error = xlator_setup();
+	if (error)
+		goto xlator_fail;
 	error = nlhandler_setup();
 	if (error)
 		goto nlhandler_fail;
@@ -38,56 +55,31 @@ static int setup_common_modules(void)
 	return 0;
 
 nlhandler_fail:
-	xlation_teardown();
-xlation_fail:
 	xlator_teardown();
 xlator_fail:
+	xlation_teardown();
+xlation_fail:
+	jtimer_teardown();
+jtimer_fail:
+	rfc6056_teardown();
+rfc6056_fail:
 	return error;
 }
 
 static void teardown_common_modules(void)
 {
 	log_debug("Tearing down common modules.");
-	nlhandler_teardown();
+
+	/* Careful with the order. */
+	/* (iptables packet handler already stopped by jool.ko/jool_siit.ko) */
+
+	/* Common */
+	nlhandler_teardown(); /* Userspace requests no longer handled now */
+	xlator_teardown(); /* Packets no longer handled by Netfilter now */
 	xlation_teardown();
-	xlator_teardown();
-}
+	atomconfig_teardown();
 
-static int setup_nat64_modules(void (*defrag_enable)(struct net *ns))
-{
-	int error;
-
-	log_debug("Initializing NAT64 modules.");
-
-	error = bib_setup();
-	if (error)
-		goto bib_fail;
-	error = joold_setup();
-	if (error)
-		goto joold_fail;
-	error = rfc6056_setup();
-	if (error)
-		goto rfc6056_fail;
-	error = jtimer_setup();
-	if (error)
-		goto jtimer_fail;
-
-	xlator_set_defrag(defrag_enable);
-	return 0;
-
-jtimer_fail:
-	rfc6056_teardown();
-rfc6056_fail:
-	joold_teardown();
-joold_fail:
-	bib_teardown();
-bib_fail:
-	return error;
-}
-
-static void teardown_nat64_modules(void)
-{
-	log_debug("Tearing down NAT64 modules.");
+	/* NAT64 */
 	jtimer_teardown();
 	rfc6056_teardown();
 	joold_teardown();
@@ -114,30 +106,21 @@ EXPORT_SYMBOL_GPL(jool_siit_put);
 
 int jool_nat64_get(void (*defrag_enable)(struct net *ns))
 {
-	int error = 0;
 	mutex_lock(&lock);
-
 	nat64_refs++;
 	if (nat64_refs == 1)
-		error = setup_nat64_modules(defrag_enable);
-
+		xlator_set_defrag(defrag_enable);
 	mutex_unlock(&lock);
-	return error;
+	return 0;
 }
 EXPORT_SYMBOL_GPL(jool_nat64_get);
 
 void jool_nat64_put(void)
 {
 	mutex_lock(&lock);
-
-	if (WARN(nat64_refs == 0, "Too many jool_nat64_put()s!"))
-		goto end;
-
-	nat64_refs--;
-	if (nat64_refs == 0)
-		teardown_nat64_modules();
-
-end:	mutex_unlock(&lock);
+	if (!WARN(nat64_refs == 0, "Too many jool_nat64_put()s!"))
+		nat64_refs--;
+	mutex_unlock(&lock);
 }
 EXPORT_SYMBOL_GPL(jool_nat64_put);
 

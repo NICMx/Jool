@@ -14,7 +14,9 @@
 #ifdef JKMEMLEAK
 
 #include "mod/common/wkmalloc.h"
-#include "mod/common/rbtree.h"
+
+#include "mod/common/log.h"
+#include "mod/common/db/rbtree.h"
 
 struct kmalloc_entry {
 	unsigned int count;
@@ -22,7 +24,7 @@ struct kmalloc_entry {
 };
 
 static DEFINE_SPINLOCK(lock);
-struct rb_root tree = RB_ROOT;
+static struct rb_root tree = RB_ROOT;
 
 static struct kmalloc_entry *kmn_entry(struct rb_node *hook)
 {
@@ -83,8 +85,8 @@ void wkmalloc_rm(const char *name, void *obj)
 	spin_lock_bh(&lock);
 
 	entry = rbtree_find(name, &tree, cmp_kmn, struct kmalloc_entry, hook);
-	if (!WARN(!entry, "Freeing out-of-tree object.")) {
-		if (!WARN(entry->count == 0, "Freeing unallocated object."))
+	if (!WARN(!entry, "Freeing out-of-tree object '%s'.", name)) {
+		if (!WARN(entry->count == 0, "Freeing unallocated object '%s'.", name))
 			entry->count--;
 	}
 
@@ -101,7 +103,7 @@ void wkmalloc_print_leaks(void)
 	for (node = rb_first(&tree); node; node = rb_next(node)) {
 		entry = kmn_entry(node);
 		if (entry->count > 0) {
-			log_info("- %s: %d", kmn_name(entry), entry->count);
+			pr_err("- %s: %d\n", kmn_name(entry), entry->count);
 			leaks++;
 		}
 	}
@@ -110,7 +112,7 @@ void wkmalloc_print_leaks(void)
 		log_info("None.");
 }
 
-void destroy_node(struct rb_node *node, void *arg)
+static void destroy_node(struct rb_node *node, void *arg)
 {
 	kfree(kmn_entry(node));
 }

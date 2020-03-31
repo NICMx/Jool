@@ -1,68 +1,123 @@
-#include "address.h"
+#include "usr/nl/address.h"
 
 #include <errno.h>
+#include "usr/nl/common.h"
+#include "usr/nl/attribute.h"
 
-#define HDR_LEN sizeof(struct request_hdr)
-#define PAYLOAD_LEN sizeof(struct request_addrxlat)
-
-static struct jool_result query_response_cb(size_t expected_len,
-		struct jool_response *response, void *args)
+static struct jool_result handle_method(struct nlattr *attrs[],
+		struct address_translation_entry *out)
 {
-	if (expected_len != response->payload_len) {
+	if (attrs[JNLAAQ_PREFIX6052] && attrs[JNLAAQ_EAM]) {
 		return result_from_error(
 			-EINVAL,
-			"Jool's response has a bogus length. (expected %zu, got %zu).",
-			expected_len,
-			response->payload_len
+			"The kernel's response has too many translation methods."
 		);
 	}
 
-	memcpy(args, response->payload, expected_len);
-	return result_success();
+	if (attrs[JNLAAQ_PREFIX6052]) {
+		out->method = AXM_RFC6052;
+		return nla_get_prefix6(attrs[JNLAAQ_PREFIX6052], &out->prefix6052);
+	}
+	if (attrs[JNLAAQ_EAM]) {
+		out->method = AXM_EAMT;
+		return nla_get_eam(attrs[JNLAAQ_EAM], &out->eam);
+	}
+
+	return result_from_error(
+		-EINVAL,
+		"The kernel's response lacks the translation method."
+	);
 }
 
-static struct jool_result query64_response_cb(struct jool_response *response,
-		void *args)
+static struct jool_result query64_response_cb(struct nl_msg *response, void *args)
 {
-	return query_response_cb(sizeof(struct result_addrxlat64),
-			response, args);
+	static struct nla_policy query64_policy[JNLAAQ_COUNT] = {
+		[JNLAAQ_ADDR4] = JOOLNL_ADDR4_POLICY,
+		[JNLAAQ_PREFIX6052] = { .type = NLA_NESTED, },
+		[JNLAAQ_EAM] = { .type = NLA_NESTED, },
+	};
+	struct nlattr *attrs[JNLAAQ_COUNT];
+	struct jool_result result;
+	struct result_addrxlat64 *out = args;
+
+	result = jnla_parse_msg(response, attrs, JNLAAQ_MAX, query64_policy, false);
+	if (result.error)
+		return result;
+
+	if (!attrs[JNLAAQ_ADDR4]) {
+		return result_from_error(
+			-ESRCH,
+			"The kernel's response lacks the result."
+		);
+	}
+
+	nla_get_addr4(attrs[JNLAAQ_ADDR4], &out->addr);
+	return handle_method(attrs, &out->entry);
 }
 
-static struct jool_result query46_response_cb(struct jool_response *response,
-		void *args)
+struct jool_result joolnl_address_query64(struct joolnl_socket *sk,
+		char const *iname, struct in6_addr const *addr,
+		struct result_addrxlat64 *out)
 {
-	return query_response_cb(sizeof(struct result_addrxlat46),
-			response, args);
+	struct nl_msg *msg;
+	struct jool_result result;
+
+	result = joolnl_alloc_msg(sk, iname, JNLOP_ADDRESS_QUERY64, 0, &msg);
+	if (result.error)
+		return result;
+
+	NLA_PUT(msg, JNLAR_ADDR_QUERY, sizeof(*addr), addr);
+
+	return joolnl_request(sk, msg, query64_response_cb, out);
+
+nla_put_failure:
+	return result_from_error(
+		-NLE_NOMEM,
+		"Cannot build Netlink request: Packet is too small."
+	);
 }
 
-struct jool_result address_query64(struct jool_socket *sk, char *iname,
-		struct in6_addr *addr, struct result_addrxlat64 *result)
+static struct jool_result query46_response_cb(struct nl_msg *response, void *args)
 {
-	unsigned char request[HDR_LEN + PAYLOAD_LEN];
-	struct request_hdr *hdr = (struct request_hdr *)request;
-	struct request_addrxlat *payload = (struct request_addrxlat *)
-			(request + HDR_LEN);
+	static struct nla_policy query46_policy[JNLAAQ_COUNT] = {
+		[JNLAAQ_ADDR6] = JOOLNL_ADDR6_POLICY,
+		[JNLAAQ_PREFIX6052] = { .type = NLA_NESTED, },
+		[JNLAAQ_EAM] = { .type = NLA_NESTED, },
+	};
+	struct nlattr *attrs[JNLAAQ_COUNT];
+	struct jool_result result;
+	struct result_addrxlat46 *out = args;
 
-	init_request_hdr(hdr, sk->xt, MODE_ADDRESS, OP_TEST, false);
-	payload->direction = 64;
-	payload->addr.v6 = *addr;
+	result = jnla_parse_msg(response, attrs, JNLAAQ_MAX, query46_policy, false);
+	if (result.error)
+		return result;
 
-	return netlink_request(sk, iname, request, sizeof(request),
-			query64_response_cb, result);
+	if (!attrs[JNLAAQ_ADDR6]) {
+		return result_from_error(
+			-ESRCH,
+			"The kernel's response lacks the result."
+		);
+	}
+
+	nla_get_addr6(attrs[JNLAAQ_ADDR6], &out->addr);
+	return handle_method(attrs, &out->entry);
 }
 
-struct jool_result address_query46(struct jool_socket *sk, char *iname,
-		struct in_addr *addr, struct result_addrxlat46 *result)
+struct jool_result joolnl_address_query46(struct joolnl_socket *sk,
+		char const *iname, struct in_addr const *addr,
+		struct result_addrxlat46 *out)
 {
-	unsigned char request[HDR_LEN + PAYLOAD_LEN];
-	struct request_hdr *hdr = (struct request_hdr *)request;
-	struct request_addrxlat *payload = (struct request_addrxlat *)
-			(request + HDR_LEN);
+	struct nl_msg *msg;
+	struct jool_result result;
 
-	init_request_hdr(hdr, sk->xt, MODE_ADDRESS, OP_TEST, false);
-	payload->direction = 46;
-	payload->addr.v4 = *addr;
+	result = joolnl_alloc_msg(sk, iname, JNLOP_ADDRESS_QUERY46, 0, &msg);
+	if (result.error)
+		return result;
 
-	return netlink_request(sk, iname, request, sizeof(request),
-			query46_response_cb, result);
+	NLA_PUT(msg, JNLAR_ADDR_QUERY, sizeof(*addr), addr);
+
+	return joolnl_request(sk, msg, query46_response_cb, out);
+
+nla_put_failure:
+	return joolnl_err_msgsize();
 }

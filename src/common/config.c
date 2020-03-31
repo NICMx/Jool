@@ -4,25 +4,120 @@
 #include <errno.h>
 #endif
 
-void init_request_hdr(struct request_hdr *hdr, xlator_type xt,
-		enum config_mode mode, enum config_operation operation,
-		bool force)
-{
-	hdr->magic[0] = 'j';
-	hdr->magic[1] = 'o';
-	hdr->magic[2] = 'o';
-	hdr->magic[3] = 'l';
-	hdr->xt = xt;
-	hdr->castness = 'u';
-	hdr->force = force;
-	hdr->slop1 = 0;
-	hdr->version = htonl(xlat_version());
-	hdr->mode = mode;
-	hdr->operation = operation;
-	hdr->slop2 = 0;
-}
+struct nla_policy joolnl_struct_list_policy[JNLAL_COUNT] = {
+	[JNLAL_ENTRY] = { .type = NLA_NESTED }
+};
+struct nla_policy joolnl_plateau_list_policy[JNLAL_COUNT] = {
+	[JNLAL_ENTRY] = { .type = NLA_U16 }
+};
 
-/* TODO duplicate code (src/usr/iptables/common.c) */
+struct nla_policy joolnl_instance_entry_policy[JNLAIE_COUNT] = {
+	[JNLAIE_NS] = { .type = NLA_U32 },
+	[JNLAIE_XF] = { .type = NLA_U8 },
+	[JNLAIE_INAME] = {
+		.type = NLA_STRING,
+#ifndef __KERNEL__
+		.maxlen = INAME_MAX_SIZE
+#endif
+	},
+};
+
+struct nla_policy joolnl_prefix6_policy[JNLAP_COUNT] = {
+	[JNLAP_ADDR] = JOOLNL_ADDR6_POLICY,
+	[JNLAP_LEN] = { .type = NLA_U8 },
+};
+
+struct nla_policy joolnl_prefix4_policy[JNLAP_COUNT] = {
+	[JNLAP_ADDR] = JOOLNL_ADDR4_POLICY,
+	[JNLAP_LEN] = { .type = NLA_U8 },
+};
+
+struct nla_policy joolnl_taddr6_policy[JNLAT_COUNT] = {
+	[JNLAT_ADDR] = JOOLNL_ADDR6_POLICY,
+	[JNLAT_PORT] = { .type = NLA_U16 },
+};
+
+struct nla_policy joolnl_taddr4_policy[JNLAT_COUNT] = {
+	[JNLAT_ADDR] = JOOLNL_ADDR4_POLICY,
+	[JNLAT_PORT] = { .type = NLA_U16 },
+};
+
+struct nla_policy eam_policy[JNLAE_COUNT] = {
+	[JNLAE_PREFIX6] = { .type = NLA_NESTED },
+	[JNLAE_PREFIX4] = { .type = NLA_NESTED },
+};
+
+struct nla_policy joolnl_pool4_entry_policy[JNLAP4_COUNT] = {
+	[JNLAP4_MARK] = { .type = NLA_U32 },
+	[JNLAP4_ITERATIONS] = { .type = NLA_U32 },
+	[JNLAP4_FLAGS] = { .type = NLA_U8 },
+	[JNLAP4_PROTO] = { .type = NLA_U8 },
+	[JNLAP4_PREFIX] = { .type = NLA_NESTED },
+	[JNLAP4_PORT_MIN] = { .type = NLA_U16 },
+	[JNLAP4_PORT_MAX] = { .type = NLA_U16 },
+};
+
+struct nla_policy joolnl_bib_entry_policy[JNLAB_COUNT] = {
+	[JNLAB_SRC6] = { .type = NLA_NESTED },
+	[JNLAB_SRC4] = { .type = NLA_NESTED },
+	[JNLAB_PROTO] = { .type = NLA_U8 },
+	[JNLAB_STATIC] = { .type = NLA_U8 },
+};
+
+struct nla_policy joolnl_session_entry_policy[JNLASE_COUNT] = {
+	[JNLASE_SRC6] = { .type = NLA_NESTED },
+	[JNLASE_DST6] = { .type = NLA_NESTED },
+	[JNLASE_SRC4] = { .type = NLA_NESTED },
+	[JNLASE_DST4] = { .type = NLA_NESTED },
+	[JNLASE_PROTO] = { .type = NLA_U8 },
+	[JNLASE_STATE] = { .type = NLA_U8 },
+	[JNLASE_TIMER] = { .type = NLA_U8 },
+	[JNLASE_EXPIRATION] = { .type = NLA_U32 },
+};
+
+struct nla_policy siit_globals_policy[JNLAG_COUNT] = {
+	[JNLAG_ENABLED] = { .type = NLA_U8 },
+	[JNLAG_TRACE] = { .type = NLA_U8 },
+	[JNLAG_POOL6] = { .type = NLA_UNSPEC },
+	[JNLAG_RESET_TC] = { .type = NLA_U8 },
+	[JNLAG_RESET_TOS] = { .type = NLA_U8 },
+	[JNLAG_TOS] = { .type = NLA_U8 },
+	[JNLAG_PLATEAUS] = { .type = NLA_NESTED },
+	[JNLAG_COMPUTE_CSUM_ZERO] = { .type = NLA_U8 },
+	[JNLAG_HAIRPIN_MODE] = { .type = NLA_U8 },
+	[JNLAG_RANDOMIZE_ERROR_ADDR] = { .type = NLA_U8 },
+	[JNLAG_POOL6791V6] = { .type = NLA_UNSPEC },
+	[JNLAG_POOL6791V4] = { .type = NLA_UNSPEC },
+};
+
+struct nla_policy nat64_globals_policy[JNLAG_COUNT] = {
+	[JNLAG_ENABLED] = { .type = NLA_U8 },
+	[JNLAG_TRACE] = { .type = NLA_U8 },
+	[JNLAG_POOL6] = { .type = NLA_UNSPEC },
+	[JNLAG_RESET_TC] = { .type = NLA_U8 },
+	[JNLAG_RESET_TOS] = { .type = NLA_U8 },
+	[JNLAG_TOS] = { .type = NLA_U8 },
+	[JNLAG_PLATEAUS] = { .type = NLA_NESTED },
+	[JNLAG_DROP_ICMP6_INFO] = { .type = NLA_U8 },
+	[JNLAG_SRC_ICMP6_BETTER] = { .type = NLA_U8 },
+	[JNLAG_F_ARGS] = { .type = NLA_U8 },
+	[JNLAG_HANDLE_RST] = { .type = NLA_U8 },
+	[JNLAG_TTL_TCP_EST] = { .type = NLA_U32 },
+	[JNLAG_TTL_TCP_TRANS] = { .type = NLA_U32 },
+	[JNLAG_TTL_UDP] = { .type = NLA_U32 },
+	[JNLAG_TTL_ICMP] = { .type = NLA_U32 },
+	[JNLAG_BIB_LOGGING] = { .type = NLA_U8 },
+	[JNLAG_SESSION_LOGGING] = { .type = NLA_U8 },
+	[JNLAG_DROP_BY_ADDR] = { .type = NLA_U8 },
+	[JNLAG_DROP_EXTERNAL_TCP] = { .type = NLA_U8 },
+	[JNLAG_MAX_STORED_PKTS] = { .type = NLA_U32 },
+	[JNLAG_JOOLD_ENABLED] = { .type = NLA_U8 },
+	[JNLAG_JOOLD_FLUSH_ASAP] = { .type = NLA_U8 },
+	[JNLAG_JOOLD_FLUSH_DEADLINE] = { .type = NLA_U32 },
+	[JNLAG_JOOLD_CAPACITY] = { .type = NLA_U32 },
+	[JNLAG_JOOLD_MAX_PAYLOAD] = { .type = NLA_U32 },
+};
+
 int iname_validate(const char *iname, bool allow_null)
 {
 	unsigned int i;
@@ -30,7 +125,7 @@ int iname_validate(const char *iname, bool allow_null)
 	if (!iname)
 		return allow_null ? 0 : -EINVAL;
 
-	for (i = 0; i < INAME_MAX_LEN; i++) {
+	for (i = 0; i < INAME_MAX_SIZE; i++) {
 		if (iname[i] == '\0')
 			return 0;
 		if (iname[i] < 32) /* "if not printable" */

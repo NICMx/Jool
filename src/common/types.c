@@ -79,15 +79,17 @@ void port_range_fuse(struct port_range *r1, const struct port_range *r2)
 	r1->max = (r1->max > r2->max) ? r1->max : r2->max;
 }
 
-bool pool4_range_equals(struct pool4_range *r1, struct pool4_range *r2)
+bool ipv4_range_equals(struct ipv4_range const *r1, struct ipv4_range const *r2)
 {
-	return (r1->addr.s_addr == r2->addr.s_addr)
+	return r1->prefix.addr.s_addr == r2->prefix.addr.s_addr
+			&& r1->prefix.len == r2->prefix.len
 			&& port_range_equals(&r1->ports, &r2->ports);
 }
 
-bool pool4_range_touches(const struct pool4_range *r1,
-		const struct pool4_range *r2)
+bool ipv4_range_touches(struct ipv4_range const *r1, struct ipv4_range const *r2)
 {
-	return (r1->addr.s_addr == r2->addr.s_addr)
+	/* TODO (fine) technically inconsistent, but fine for now */
+	return r1->prefix.addr.s_addr == r2->prefix.addr.s_addr
+			&& r1->prefix.len == r2->prefix.len
 			&& port_range_touches(&r1->ports, &r2->ports);
 }

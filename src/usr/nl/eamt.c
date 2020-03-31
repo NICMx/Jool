@@ -1,173 +1,127 @@
-#include "eamt.h"
+#include "usr/nl/eamt.h"
 
 #include <errno.h>
-
-#include "jool_socket.h"
-
-#define HDR_LEN sizeof(struct request_hdr)
-#define PAYLOAD_LEN sizeof(union request_eamt)
+#include <netlink/genl/genl.h>
+#include "usr/nl/attribute.h"
+#include "usr/nl/common.h"
 
 struct foreach_args {
-	eamt_foreach_cb cb;
+	joolnl_eamt_foreach_cb cb;
 	void *args;
-	union request_eamt *request;
+	bool done;
+	struct ipv4_prefix last;
 };
 
-static struct jool_result eam_foreach_response(struct jool_response *response,
+static struct jool_result handle_foreach_response(struct nl_msg *response,
 		void *arg)
 {
-	struct eamt_entry *entries = response->payload;
 	struct foreach_args *args = arg;
-	__u16 entry_count, i;
+	struct nlattr *attr;
+	int rem;
+	struct eamt_entry entry;
 	struct jool_result result;
 
-	entry_count = response->payload_len / sizeof(*entries);
+	result = joolnl_init_foreach_list(response, "eam", &args->done);
+	if (result.error)
+		return result;
 
-	for (i = 0; i < entry_count; i++) {
-		result = args->cb(&entries[i], args->args);
+	foreach_entry(attr, genlmsg_hdr(nlmsg_hdr(response)), rem) {
+		result = nla_get_eam(attr, &entry);
 		if (result.error)
 			return result;
+
+		result = args->cb(&entry, args->args);
+		if (result.error)
+			return result;
+
+		args->last = entry.prefix4;
 	}
 
-	args->request->foreach.prefix4_set = response->hdr->pending_data;
-	if (entry_count > 0) {
-		struct eamt_entry *last = &entries[entry_count - 1];
-		args->request->foreach.prefix4 = last->prefix4;
-	}
 	return result_success();
 }
 
-struct jool_result eamt_foreach(struct jool_socket *sk, char *iname,
-		eamt_foreach_cb cb, void *_args)
+struct jool_result joolnl_eamt_foreach(struct joolnl_socket *sk,
+		char const *iname, joolnl_eamt_foreach_cb cb, void *_args)
 {
-	unsigned char request[HDR_LEN + PAYLOAD_LEN];
-	struct request_hdr *hdr = (struct request_hdr *)request;
-	union request_eamt *payload = (union request_eamt *)(request + HDR_LEN);
+	struct nl_msg *msg;
 	struct foreach_args args;
 	struct jool_result result;
-
-	init_request_hdr(hdr, sk->xt, MODE_EAMT, OP_FOREACH, false);
-	payload->foreach.prefix4_set = false;
-	memset(&payload->foreach.prefix4, 0, sizeof(payload->foreach.prefix4));
+	bool first_request;
 
 	args.cb = cb;
 	args.args = _args;
-	args.request = payload;
+	args.done = true;
+	memset(&args.last, 0, sizeof(args.last));
+	first_request = true;
 
 	do {
-		result = netlink_request(sk, iname,
-				request, sizeof(request),
-				eam_foreach_response, &args);
+		result = joolnl_alloc_msg(sk, iname, JNLOP_EAMT_FOREACH, 0, &msg);
 		if (result.error)
 			return result;
-	} while (payload->foreach.prefix4_set);
+
+		if (first_request) {
+			first_request = false;
+
+		} else if (nla_put_prefix4(msg, JNLAR_OFFSET, &args.last) < 0) {
+			nlmsg_free(msg);
+			return joolnl_err_msgsize();
+		}
+
+		result = joolnl_request(sk, msg, handle_foreach_response, &args);
+		if (result.error)
+			return result;
+	} while (!args.done);
 
 	return result_success();
 }
 
-struct jool_result eamt_add(struct jool_socket *sk, char *iname,
-		struct ipv6_prefix *p6, struct ipv4_prefix *p4, bool force)
+static struct jool_result __update(struct joolnl_socket *sk, char const *iname,
+		enum joolnl_operation operation,
+		struct ipv6_prefix const *p6, struct ipv4_prefix const *p4,
+		__u8 flags)
 {
-	unsigned char request[HDR_LEN + PAYLOAD_LEN];
-	struct request_hdr *hdr = (struct request_hdr *)request;
-	union request_eamt *payload = (union request_eamt *)(request + HDR_LEN);
+	struct nl_msg *msg;
+	struct nlattr *root;
+	struct jool_result result;
 
-	init_request_hdr(hdr, sk->xt, MODE_EAMT, OP_ADD, force);
-	payload->add.prefix6 = *p6;
-	payload->add.prefix4 = *p4;
+	result = joolnl_alloc_msg(sk, iname, operation, flags, &msg);
+	if (result.error)
+		return result;
 
-	return netlink_request(sk, iname, request, sizeof(request), NULL, NULL);
-}
+	if (p6 || p4) {
+		root = nla_nest_start(msg, JNLAR_OPERAND);
+		if (!root)
+			goto nla_put_failure;
 
-struct jool_result eamt_rm(struct jool_socket *sk, char *iname,
-		struct ipv6_prefix *p6, struct ipv4_prefix *p4)
-{
-	unsigned char request[HDR_LEN + PAYLOAD_LEN];
-	struct request_hdr *hdr = (struct request_hdr *)request;
-	union request_eamt *payload = (union request_eamt *)(request + HDR_LEN);
+		if (p6 && nla_put_prefix6(msg, JNLAE_PREFIX6, p6) < 0)
+			goto nla_put_failure;
+		if (p4 && nla_put_prefix4(msg, JNLAE_PREFIX4, p4) < 0)
+			goto nla_put_failure;
 
-	init_request_hdr(hdr, sk->xt, MODE_EAMT, OP_REMOVE, false);
-	if (p6) {
-		payload->rm.prefix6_set = true;
-		memcpy(&payload->rm.prefix6, p6, sizeof(*p6));
-	} else {
-		payload->rm.prefix6_set = false;
-		memset(&payload->rm.prefix6, 0, sizeof(payload->rm.prefix6));
+		nla_nest_end(msg, root);
 	}
-	if (p4) {
-		payload->rm.prefix4_set = true;
-		memcpy(&payload->rm.prefix4, p4, sizeof(*p4));
-	} else {
-		payload->rm.prefix4_set = false;
-		memset(&payload->rm.prefix4, 0, sizeof(payload->rm.prefix4));
-	}
 
-	return netlink_request(sk, iname, request, sizeof(request), NULL, NULL);
+	return joolnl_request(sk, msg, NULL, NULL);
+
+nla_put_failure:
+	nlmsg_free(msg);
+	return joolnl_err_msgsize();
 }
 
-struct jool_result eamt_flush(struct jool_socket *sk, char *iname)
+struct jool_result joolnl_eamt_add(struct joolnl_socket *sk, char const *iname,
+		struct ipv6_prefix const *p6, struct ipv4_prefix const *p4,
+		bool force)
 {
-	unsigned char request[HDR_LEN + PAYLOAD_LEN];
-	struct request_hdr *hdr = (struct request_hdr *)request;
-	init_request_hdr(hdr, sk->xt, MODE_EAMT, OP_FLUSH, false);
-	return netlink_request(sk, iname, request, sizeof(request), NULL, NULL);
+	return __update(sk, iname, JNLOP_EAMT_ADD, p6, p4, force ? JOOLNLHDR_FLAGS_FORCE : 0);
 }
 
-static struct jool_result bad_len(size_t expected, size_t actual)
+struct jool_result joolnl_eamt_rm(struct joolnl_socket *sk, char const *iname,
+		struct ipv6_prefix const *p6, struct ipv4_prefix const *p4)
 {
-	return result_from_error(
-		-EINVAL,
-		"Jool's response has a bogus length. (expected %zu, got %zu).",
-		expected, actual
-	);
+	return __update(sk, iname, JNLOP_EAMT_RM, p6, p4, 0);
 }
 
-static struct jool_result eam_query64_response(struct jool_response *response,
-		void *args)
+struct jool_result joolnl_eamt_flush(struct joolnl_socket *sk, char const *iname)
 {
-	if (response->payload_len < sizeof(struct in_addr))
-		return bad_len(sizeof(struct in_addr), response->payload_len);
-
-	*((struct in_addr *)args) = *((struct in_addr *)response->payload);
-	return result_success();
-}
-
-struct jool_result eamt_query_v6(struct jool_socket *sk, char *iname,
-		struct in6_addr *in, struct in_addr *out)
-{
-	unsigned char request[HDR_LEN + PAYLOAD_LEN];
-	struct request_hdr *hdr = (struct request_hdr *)request;
-	union request_eamt *payload = (union request_eamt *)(request + HDR_LEN);
-
-	init_request_hdr(hdr, sk->xt, MODE_EAMT, OP_TEST, false);
-	payload->test.proto = 6;
-	payload->test.addr.v6 = *in;
-
-	return netlink_request(sk, iname, request, sizeof(request),
-			eam_query64_response, out);
-}
-
-static struct jool_result eam_query46_response(struct jool_response *response,
-		void *args)
-{
-	if (response->payload_len < sizeof(struct in6_addr))
-		return bad_len(sizeof(struct in6_addr), response->payload_len);
-
-	*((struct in6_addr *)args) = *((struct in6_addr *)response->payload);
-	return result_success();
-}
-
-struct jool_result eamt_query_v4(struct jool_socket *sk, char *iname,
-		struct in_addr *in, struct in6_addr *out)
-{
-	unsigned char request[HDR_LEN + PAYLOAD_LEN];
-	struct request_hdr *hdr = (struct request_hdr *)request;
-	union request_eamt *payload = (union request_eamt *)(request + HDR_LEN);
-
-	init_request_hdr(hdr, sk->xt, MODE_EAMT, OP_TEST, false);
-	payload->test.proto = 4;
-	payload->test.addr.v4 = *in;
-
-	return netlink_request(sk, iname, request, sizeof(request),
-			eam_query46_response, out);
+	return __update(sk, iname, JNLOP_EAMT_FLUSH, NULL, NULL, 0);
 }

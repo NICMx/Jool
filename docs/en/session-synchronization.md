@@ -34,7 +34,7 @@ The fact that stock NAT64 is stateful makes redundancy difficult. You can't simp
 
 Since version 3.5, Jool ships with a daemon that allows constant synchronization of sessions across Jool instances so you can work around this limitation. The purpose of this document is to explain and exemplify its usage.
 
-Session Synchronization (hereby abbreviated as "SS") applies to NAT64 Jool only. SIIT stores no state, and therefore it has no difficulties regarding failover clustering.
+Session Synchronization (hereby abbreviated as "SS") applies to NAT64 Jool only. SIIT stores no state, and therefore scales horizontally without any special configuration.
 
 ## Sample Network
 
@@ -42,7 +42,7 @@ Session Synchronization (hereby abbreviated as "SS") applies to NAT64 Jool only.
 
 Nodes `J`, `K` and `L` will be Stateful NAT64s. Their configuration will be only slightly different, and any number of extra backup NAT64s can be appended by replicating similar configuration through additional nodes. You intend to have at least two of these.
 
-Network `10.0.0.0/24` is a private network where the sessions will be advertised as the NAT64s serve traffic through their other interfaces. You want this network to be dedicated because sessions are confidential information to some extent, and as a result you don't want this information to leak elsewhere.
+`2001:db8:ff08::/96` is a private network where the sessions will be advertised as the NAT64s serve traffic through their other interfaces. It can be IPv4, and is not strictly required to be separate.
 
 ## Traffic Flow Explanation
 
@@ -74,8 +74,6 @@ When `J` dies, `K` has everything it needs to impersonate `J` and continue the c
 
 ![Figure - SS K](../images/flow/ss-enabled-k.svg)
 
-The reason why almost _every_ translated packet forks SS packets is because ongoing traffic tends to update sessions, and the other NAT64 instances need to also be aware of these changes.
-
 ## Architecture
 
 Each machine hosting a NAT64 will also hold a daemon that will bridge SS traffic between the private network and its Jool instance. This daemon is named `joold`. So the kernel modules will generate SS traffic and offset the delivery task to these daemons:
@@ -88,16 +86,18 @@ Synchronizing sessions is _all_ the daemons do; the traffic redirection part is 
 
 In this proposed/inauguratory implementation, SS traffic is distributed through an IPv4 or IPv6 unencrypted TCP connection. You might want to cast votes on the issue tracker or propose code if you favor some other solution.
 
-It is also important to note that SS is relatively resource-intensive; its traffic is not only _extra_ traffic, but it must also do two full U-turns to userspace before reaching its destination:
-
-![Figure - joold U-turns](../images/network/joold-uturn.svg)
-
 There are two operation modes in which SS can be used:
 
 1. Active/Passive: One Jool instance serves traffic at any given time, the other ones serve as backup. The load balancer redirects traffic when the current active NAT64 dies.
 2. Active/Active: All Jool instances serve traffic. The load balancer distributes traffic so no NAT64 is too heavily encumbered.
 
 Active/Active is discouraged because the session synchronization across Jool instances does not lock and is not instantaneous; if the translating traffic is faster, the session tables can end up desynchronized. Users will perceive this mainly as difficulties opening connections through the translators.
+
+It is also important to note that SS is relatively resource-intensive; its traffic is not only _extra_ traffic, but it must also do two full U-turns to userspace before reaching its destination:
+
+![Figure - joold U-turns](../images/network/joold-uturn.svg)
+
+To alleviate this to some extent, sessions are normally accumulated in Active/Passive mode before being sent to the private network. Transmitting several sessions in one packet substantially reduces the overhead of SS.
 
 ## Basic Tutorial
 
@@ -125,6 +125,7 @@ sysctl -w net.ipv4.conf.all.forwarding=1
 sysctl -w net.ipv6.conf.all.forwarding=1
 
 modprobe jool
+# Notice that the instance name will default to "default" in this example.
 jool instance add --netfilter --pool6 64:ff9b::/96
 jool pool4 add --tcp 192.0.2.1 61001-65535
 jool pool4 add --udp 192.0.2.1 61001-65535
@@ -144,6 +145,7 @@ sysctl -w net.ipv4.conf.all.forwarding=1
 sysctl -w net.ipv6.conf.all.forwarding=1
 
 modprobe jool
+# Notice that the instance name will default to "default" in this example.
 jool instance add --netfilter --pool6 64:ff9b::/96
 jool pool4 add --tcp 192.0.2.1 61001-65535
 jool pool4 add --udp 192.0.2.1 61001-65535
@@ -177,19 +179,31 @@ This needs to be applied both in `J` and `K`.
 
 ### Daemon
 
-`joold` reads the configuration of its network socket from a Json file I name `netsocket.json`. (The socket to kernelspace does not need any configuration as of now.)
+`joold` has two configuration files: One for the socket it uses to exchange sessions with the network, and one for the socket it uses to exchange sessions with its dedicated Jool instance. The latter is presently optional.
 
-	{
-		"multicast address": "ff08::db8:64:64",
-		"multicast port": "6464",
-		"in interface": "eth2",
-		"out interface": "eth2",
-		"reuseaddr": 1
-	}
+This is `netsocket.json`, the network socket configuration file for our example:
 
-`J` and `K` happen to use the same file in this setup.
+```json
+{
+	"multicast address": "ff08::db8:64:64",
+	"multicast port": "6464",
+	"in interface": "eth2",
+	"out interface": "eth2",
+	"reuseaddr": 1
+}
+```
 
-A description of each field can be found [here](config-joold.html). For now, suffice to say that the nodes will send and receive SS traffic through multicast address `ff08::db8:64:64` on port `6464`.
+And this `modsocket.json`, our kernel socket configuration file:
+
+```json
+{
+	"instance": "default"
+}
+```
+
+`J` and `K` happen to use the same files in this setup.
+
+A description of each field can be found [here](config-joold.html). For now, suffice to say that the nodes will send and receive SS traffic through multicast address `ff08::db8:64:64` on port `6464`. They will exchange sessions with the Jool instance named `default`.
 
 Please note that `ff08::db8:64:64` is a [documentation address](https://tools.ietf.org/html/rfc6676#section-3) and you should probably change it (along with the others) once you're done experimenting.
 

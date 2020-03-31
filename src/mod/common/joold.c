@@ -1,20 +1,18 @@
 #include "mod/common/joold.h"
 
 #include <linux/inet.h>
+#include <net/genetlink.h>
 
 #include "common/constants.h"
 #include "mod/common/log.h"
 #include "mod/common/wkmalloc.h"
 #include "mod/common/xlator.h"
+#include "mod/common/nl/attribute.h"
 #include "mod/common/nl/nl_core.h"
+#include "mod/common/nl/nl_handler.h"
 #include "mod/common/db/bib/db.h"
 
 #define GLOBALS(xlator) (xlator->globals.nat64.joold)
-
-struct joold_advertise_struct {
-	struct taddr4_tuple offset;
-	struct nlcore_buffer *buffer;
-};
 
 /*
  * Remember to include in the user documentation:
@@ -24,20 +22,13 @@ struct joold_advertise_struct {
  */
 
 struct joold_queue {
-	/**
-	 * Sessions so far listed to be sent to the daemon.
-	 *
-	 * TODO (performance) this might be slightly optimizable, but I don't
-	 * care enough at the moment.
-	 * Sessions are accumulated in this list. When the module decides it
-	 * needs to send them, it copies them to a buffer (so they can be fed to
-	 * the nl core module), and then nl core copies that into an skb.
-	 * Instead of adding to a list, we should probably build the buffer
-	 * directly (or the skb).
-	 * On the downside, this might mean the spinlock would need to be held
-	 * for longer times (as the list splicing is very fast and cheap
-	 * currently).
-	 */
+	/* The packet we're accumulating the sessions in. */
+	struct sk_buff *skb;
+	void *msg_head;
+	struct nlattr *root;
+	bool skb_full;
+
+	/** Additional sessions we've queued but don't fit in @skb yet. */
 	struct list_head sessions;
 	/** Number of nodes in @sessions. */
 	unsigned int count;
@@ -65,62 +56,6 @@ struct joold_queue {
 };
 
 /**
- * Subset of fields from struct session_entry which need to be synchronized
- * across Jool instances.
- *
- * Note: Careful with the layout of this structure! It's currently padded and
- * packed to fit in exactly 64 bytes.
- * http://www.catb.org/esr/structure-packing/
- */
-struct joold_session {
-
-	/**
-	 * This is not actually the same as session_entry->update_time.
-	 * session_entry->update_time is the time at which the session was last
-	 * updated.
-	 * This update_time is the age of the session's last update.
-	 * We do this so we don't have to ask the user to synchronize clocks.
-	 * (We're assuming the session will travel to the other Jools
-	 * instantaneously.)
-	 *
-	 * Also, session->entry->update time is measured in jiffies.
-	 * This one is measured in milliseconds.
-	 */
-	__be64 update_time;
-
-	/* Exactly 8 bytes so far. */
-
-	struct in6_addr src6_addr;
-	struct in6_addr dst6_addr;
-	struct in_addr src4_addr;
-	struct in_addr dst4_addr;
-	__be16 src6_port;
-	__be16 dst6_port;
-	__be16 src4_port;
-	__be16 dst4_port;
-
-	/*
-	 * Exactly 56 bytes so far.
-	 * Notice that the following can be compressed further but there's no
-	 * point currently.
-	 */
-
-	__u8 l4_proto;
-	__u8 state;
-	/* See session_timer_type. */
-	__u8 timer_type;
-
-	/* Exactly 59 bytes so far. */
-
-	/**
-	 * Forces sizeof(struct joold_session) to be exacly 64 bytes.
-	 * If not present, sizeof yields me 60 in a 32-bit machine and 64 in a
-	 * 64-bit machine, which breaks compatibility.
-	 */
-	__u8 padding[5];
-};
-
-/**
  * A session or group of sessions that need to be transmitted to other Jool
  * instances in the near future.
  */
@@ -136,7 +71,7 @@ struct joold_node {
 		 * These are added whenever a translating packet updates a
 		 * session.
 		 */
-		struct joold_session single;
+		struct session_entry single;
 		/**
 		 * If @group is valid, the user issued an --advertise.
 		 * The whole database needs to be transmitted.
@@ -161,39 +96,70 @@ struct joold_node {
 	struct list_head nextprev;
 };
 
+struct write_status {
+	bool is_full;
+	unsigned int entries_written;
+};
+
+struct joold_advertise_struct {
+	struct sk_buff *skb;
+	struct joold_node *node;
+	struct write_status *status;
+};
+
 static struct kmem_cache *node_cache;
 
-/**
- * joold_setup - Initializes this module. Make sure you call this before other
- * joold_ functions.
- */
-int joold_setup(void)
+static int joold_setup(void)
 {
 	node_cache = kmem_cache_create("jool_joold_nodes",
 			sizeof(struct joold_node), 0, 0, NULL);
-	if (!node_cache) {
-		log_err("Could not allocate the Joold node cache.");
+	return node_cache ? 0 : -EINVAL;
+}
+
+void joold_teardown(void)
+{
+	if (node_cache) {
+		kmem_cache_destroy(node_cache);
+		node_cache = NULL;
+	}
+}
+
+static int allocate_joold_skb(struct xlator *jool)
+{
+	struct joold_queue *queue = jool->nat64.joold;
+
+	queue->skb = genlmsg_new(GLOBALS(jool).max_payload, GFP_ATOMIC);
+	if (!queue->skb)
 		return -ENOMEM;
+
+	queue->msg_head = genlmsg_put(queue->skb, 0, 0, jnl_family(), 0, 0);
+	if (!queue->msg_head) {
+		pr_err("genlmsg_put() returned NULL.\n");
+		goto kill_packet;
+	}
+
+	queue->root = nla_nest_start(queue->skb, JNLAR_SESSION_ENTRIES);
+	if (!queue->root) {
+		pr_err("Joold packets cannot contain any sessions.\n");
+		queue->msg_head = NULL;
+		goto kill_packet;
 	}
 
 	return 0;
-}
 
-/**
- * joold_teardown - Reverts joold_setup().
- */
-void joold_teardown(void)
-{
-	kmem_cache_destroy(node_cache);
+kill_packet:
+	kfree_skb(queue->skb);
+	queue->skb = NULL;
+	return -ENOMEM;
 }
 
 static bool should_send(struct xlator *jool)
 {
-	struct joold_queue *queue = jool->nat64.joold;
+	struct joold_queue *queue;
 	unsigned long deadline;
-	unsigned int max_sessions;
 
-	if (queue->count == 0)
+	queue = jool->nat64.joold;
+	if (!queue->skb)
 		return false;
 
 	deadline = msecs_to_jiffies(GLOBALS(jool).flush_deadline);
@@ -209,168 +175,27 @@ static bool should_send(struct xlator *jool)
 	if (queue->advertisement_count > 0)
 		return true;
 
-	max_sessions = GLOBALS(jool).max_payload / sizeof(struct joold_session);
-	return queue->count >= max_sessions;
+	return queue->skb_full;
 }
-
-static int write_single_node(struct joold_node *node,
-		struct nlcore_buffer *buffer)
-{
-	__be64 old;
-	__u64 time;
-	int full;
-
-	old = node->single.update_time;
-
-	time = be64_to_cpu(node->single.update_time);
-	time = jiffies_to_msecs(jiffies - time);
-	node->single.update_time = cpu_to_be64(time);
-
-	full = nlbuffer_write(buffer, &node->single, sizeof(node->single));
-	if (full) {
-		/* We'll convert the time again in the next flush, so revert. */
-		node->single.update_time = old;
-	}
-
-	return full;
-}
-
-static int foreach_cb(struct session_entry const *entry, void *arg)
-{
-	int status;
-	struct joold_advertise_struct *adv = arg;
-	struct joold_session session;
-	__u64 update_time;
-
-	update_time = jiffies_to_msecs(jiffies - entry->update_time);
-	session.update_time = cpu_to_be64(update_time);
-
-	session.src6_addr = entry->src6.l3;
-	session.dst6_addr = entry->dst6.l3;
-	session.src4_addr = entry->src4.l3;
-	session.dst4_addr = entry->dst4.l3;
-	session.src6_port = cpu_to_be16(entry->src6.l4);
-	session.dst6_port = cpu_to_be16(entry->dst6.l4);
-	session.src4_port = cpu_to_be16(entry->src4.l4);
-	session.dst4_port = cpu_to_be16(entry->dst4.l4);
-
-	session.l4_proto = entry->proto;
-	session.state = entry->state;
-	session.timer_type = entry->timer_type;
-	memset(session.padding, 0, sizeof(session.padding));
-
-	status = nlbuffer_write(adv->buffer, &session, sizeof(session));
-	if (status) {
-		adv->offset.src = entry->src4;
-		adv->offset.dst = entry->dst4;
-	}
-
-	return status;
-}
-
-static int write_group_node(struct xlator *jool, struct joold_node *node,
-		struct nlcore_buffer *buffer)
-{
-	struct joold_advertise_struct arg;
-	struct session_foreach_func func = {
-		.cb = foreach_cb,
-		.arg = &arg,
-	};
-	struct session_foreach_offset offset_struct;
-	struct session_foreach_offset *offset = NULL;
-	int error;
-
-	arg.buffer = buffer;
-	if (node->group.offset_set) {
-		offset_struct.offset = node->group.offset;
-		offset_struct.include_offset = true;
-		offset = &offset_struct;
-	}
-
-	error = bib_foreach_session(jool, node->group.proto, &func, offset);
-	if (error > 0) {
-		node->group.offset = arg.offset;
-		node->group.offset_set = true;
-	}
-
-	return error;
-}
-
-/**
- * Builds an nl-core-compatible buffer out of @sessions.
- */
-static int build_buffer(struct nlcore_buffer *buffer, struct xlator *jool)
-{
-	struct joold_queue *queue = jool->nat64.joold;
-	struct request_hdr jool_hdr;
-	struct joold_node *node;
-	int error;
-
-	init_request_hdr(&jool_hdr, XT_NAT64, MODE_JOOLD, OP_ADD, false);
-	jool_hdr.castness = 'm';
-
-	error = nlbuffer_init_request(buffer, &jool_hdr,
-			GLOBALS(jool).max_payload - sizeof(jool_hdr));
-	if (error) {
-		log_debug("nlbuffer_init_request() threw error %d.", error);
-		return error;
-	}
-
-	while (!list_empty(&queue->sessions)) {
-		node = list_first_entry(&queue->sessions, struct joold_node,
-				nextprev);
-		error = (node->is_group)
-				? write_group_node(jool, node, buffer)
-				: write_single_node(node, buffer);
-		if (error > 0) {
-			return 0;
-		} else if (error) {
-			nlbuffer_clean(buffer);
-			return error;
-		}
-
-		queue->count--;
-		if (node->is_group)
-			queue->advertisement_count--;
-
-		list_del(&node->nextprev);
-		wkmem_cache_free("joold node", node_cache, node);
-	}
-
-	/*
-	 * This can happen when the list only had group nodes and the session
-	 * database was empty.
-	 */
-	if (sizeof(jool_hdr) == buffer->len) {
-		log_debug("There was nothing to send after all.");
-		nlbuffer_clean(buffer);
-		return -ENOENT;
-	}
-
-	return 0;
-}
-
-struct joold_buffer {
-	struct nlcore_buffer buffer;
-	bool initialized;
-};
-
-#define JOOLD_BUFFER_INIT { .initialized = false }
 
 /**
  * Assumes the lock is held.
- * YOU HAVE TO CALL send_to_userspace() AFTER YOU RELEASE THE SPINLOCK!!!
+ * If this returns a packet, you have to send it via send_to_userspace() after
+ * releasing the spinlock.
  */
-static void send_to_userspace_prepare(struct xlator *jool,
-		struct joold_buffer *buffer)
+static struct sk_buff *send_to_userspace_prepare(struct xlator *jool)
 {
+	struct joold_queue *queue;
+	struct sk_buff *skb;
+
 	if (!should_send(jool))
-		return;
+		return NULL;
 
-	if (build_buffer(&buffer->buffer, jool))
-		return;
+	queue = jool->nat64.joold;
 
-	buffer->initialized = true;
+	skb = queue->skb;
+	nla_nest_end(skb, queue->root);
+	genlmsg_end(skb, queue->msg_head);
 
 	/*
 	 * BTW: This sucks.
@@ -379,23 +204,43 @@ static void send_to_userspace_prepare(struct xlator *jool,
 	 * But the alternative is to do the nlcore_send_multicast_message()
 	 * with the lock held, and I don't have the stomach for that.
 	 */
-	jool->nat64.joold->ack_received = false;
-	jool->nat64.joold->last_flush_time = jiffies;
+	queue->skb = NULL;
+	queue->msg_head = NULL;
+	queue->root = NULL;
+	queue->ack_received = false;
+	queue->last_flush_time = jiffies;
+	return skb;
 }
 
-static void send_to_userspace(struct joold_buffer *buffer, struct net *ns)
+static void send_to_userspace(struct sk_buff *skb, struct net *ns)
 {
 	int error;
 
-	if (!buffer->initialized)
+	if (!skb)
 		return;
 
 	log_debug("Sending multicast message.");
-	error = nlcore_send_multicast_message(ns, &buffer->buffer);
-	if (!error)
+#if LINUX_VERSION_LOWER_THAN(3, 13, 0, 7, 1)
+	error = genlmsg_multicast_netns(ns, skb, 0, jnl_gid(), GFP_ATOMIC);
+#else
+	/*
+	 * Note: Starting from kernel 3.13, all groups of a common family share
+	 * a group offset (from a common pool), and they are numbered
+	 * monotonically from there. That means if all we have is one group,
+	 * its id will always be zero.
+	 *
+	 * That's the reason why so many callers of this function stopped
+	 * providing a group when the API started forcing them to provide a
+	 * family.
+	 */
+	error = genlmsg_multicast_netns(jnl_family(), ns, skb, 0, 0, GFP_ATOMIC);
+#endif
+	if (error) {
+		log_warn_once("Looks like nobody received my multicast message. Is the joold daemon really active? (errcode %d)",
+				error);
+	} else {
 		log_debug("Multicast message sent.");
-
-	nlbuffer_clean(&buffer->buffer);
+	}
 }
 
 /**
@@ -404,11 +249,26 @@ static void send_to_userspace(struct joold_buffer *buffer, struct net *ns)
 struct joold_queue *joold_alloc(struct net *ns)
 {
 	struct joold_queue *queue;
+	bool cache_created;
+
+	cache_created = false;
+	if (!node_cache) {
+		if (joold_setup())
+			return NULL;
+		cache_created = true;
+	}
 
 	queue = wkmalloc(struct joold_queue, GFP_KERNEL);
-	if (!queue)
+	if (!queue) {
+		if (cache_created)
+			joold_teardown();
 		return NULL;
+	}
 
+	queue->skb = NULL;
+	queue->msg_head = NULL;
+	queue->root = NULL;
+	queue->skb_full = false;
 	INIT_LIST_HEAD(&queue->sessions);
 	queue->count = 0;
 	queue->advertisement_count = 0;
@@ -467,84 +327,42 @@ void joold_put(struct joold_queue *queue)
  */
 void joold_add(struct xlator *jool, struct session_entry *entry)
 {
-	struct joold_queue *queue = jool->nat64.joold;
+	struct joold_queue *queue;
 	struct joold_node *copy;
-	struct joold_buffer buffer = JOOLD_BUFFER_INIT;
+	struct sk_buff *skb;
+
+	if (!GLOBALS(jool).enabled)
+		return;
+
+	queue = jool->nat64.joold;
 
 	spin_lock_bh(&queue->lock);
 
-	if (!GLOBALS(jool).enabled) {
+	if (!queue->skb && allocate_joold_skb(jool)) {
 		spin_unlock_bh(&queue->lock);
 		return;
 	}
 
-	copy = wkmem_cache_alloc("joold node", node_cache, GFP_ATOMIC);
-	if (!copy) {
-		spin_unlock_bh(&queue->lock);
-		return;
+	queue->skb_full = jnla_put_session(queue->skb, JNLAL_ENTRY, entry);
+	if (queue->skb_full) {
+		copy = wkmem_cache_alloc("joold node", node_cache, GFP_ATOMIC);
+		if (copy) {
+			copy->is_group = false;
+			copy->single = *entry;
+			list_add_tail(&copy->nextprev, &queue->sessions);
+			queue->count++;
+		} /* Else discard it; can't do anything. */
 	}
 
-	copy->is_group = false;
-	/*
-	 * Do not convert the time yet; if the session is queued for a long
-	 * time, these will be horribly inaccurate.
-	 */
-	copy->single.update_time = cpu_to_be64(entry->update_time);
-	copy->single.src6_addr = entry->src6.l3;
-	copy->single.dst6_addr = entry->dst6.l3;
-	copy->single.src4_addr = entry->src4.l3;
-	copy->single.dst4_addr = entry->dst4.l3;
-	copy->single.src6_port = cpu_to_be16(entry->src6.l4);
-	copy->single.dst6_port = cpu_to_be16(entry->dst6.l4);
-	copy->single.src4_port = cpu_to_be16(entry->src4.l4);
-	copy->single.dst4_port = cpu_to_be16(entry->dst4.l4);
-	copy->single.l4_proto = entry->proto;
-	copy->single.state = entry->state;
-	copy->single.timer_type = entry->timer_type;
-	memset(copy->single.padding, 0, sizeof(copy->single.padding));
-
-	list_add_tail(&copy->nextprev, &queue->sessions);
-	queue->count++;
-
-	if (queue->count > GLOBALS(jool).capacity) {
-		log_warn_once("Too many sessions are queuing up!\n"
-				"Cannot synchronize fast enough; I will have to drop some sessions.\n"
-				"Sorry.");
-		purge_sessions(queue);
-	} else {
-		send_to_userspace_prepare(jool, &buffer);
-	}
+	skb = send_to_userspace_prepare(jool);
 
 	spin_unlock_bh(&queue->lock);
 
-	send_to_userspace(&buffer, jool->ns);
-}
-
-static void init_session_entry(struct joold_session *in,
-		struct session_entry *out)
-{
-	__u64 update_time;
-
-	out->src6.l3 = in->src6_addr;
-	out->src6.l4 = be16_to_cpu(in->src6_port);
-	out->dst6.l3 = in->dst6_addr;
-	out->dst6.l4 = be16_to_cpu(in->dst6_port);
-	out->src4.l3 = in->src4_addr;
-	out->src4.l4 = be16_to_cpu(in->src4_port);
-	out->dst4.l3 = in->dst4_addr;
-	out->dst4.l4 = be16_to_cpu(in->dst4_port);
-	out->proto = in->l4_proto;
-	out->state = in->state;
-	out->timer_type = in->timer_type;
-	update_time = be64_to_cpu(in->update_time);
-	update_time = jiffies - msecs_to_jiffies(update_time);
-	out->update_time = update_time;
-	out->has_stored = false;
+	send_to_userspace(skb, jool->ns);
 }
 
 struct add_params {
 	struct session_entry new;
-	struct joold_session *newd;
 	bool success;
 };
 
@@ -555,7 +373,7 @@ static enum session_fate collision_cb(struct session_entry *old, void *arg)
 
 	if (session_equals(old, new)) { /* It's the same session; update it. */
 		old->state = new->state;
-		old->timer_type = params->newd->timer_type;
+		old->timer_type = new->timer_type;
 		old->update_time = new->update_time;
 		params->success = true;
 		return FATE_TIMER_SLOW;
@@ -575,19 +393,23 @@ static enum session_fate collision_cb(struct session_entry *old, void *arg)
 	return FATE_PRESERVE;
 }
 
-static bool add_new_session(struct xlator *jool, struct joold_session *in)
+static bool add_new_session(struct xlator *jool, struct nlattr *attr)
 {
 	struct add_params params;
-	struct collision_cb cb = {
-			.cb = collision_cb,
-			.arg = &params,
-	};
+	struct collision_cb cb;
 	int error;
 
 	log_debug("Adding session!");
 
-	init_session_entry(in, &params.new);
-	params.newd = in;
+	error = jnla_get_session(attr, "Joold session",
+			&jool->globals.nat64.bib, &params.new);
+	if (error)
+		return false;
+
+	params.success = true;
+	cb.cb = collision_cb;
+	cb.arg = &params;
+
 	error = bib_add_session(jool, &params.new, &cb);
 	if (error == -EEXIST)
 		return params.success;
@@ -599,7 +421,7 @@ static bool add_new_session(struct xlator *jool, struct joold_session *in)
 	return true;
 }
 
-static int __validate_enabled(struct xlator *jool)
+static int validate_enabled(struct xlator *jool)
 {
 	if (!GLOBALS(jool).enabled) {
 		log_err("Session sync is disabled on this instance.");
@@ -609,18 +431,6 @@ static int __validate_enabled(struct xlator *jool)
 	return 0;
 }
 
-static int validate_enabled(struct xlator *jool)
-{
-	spinlock_t *lock = &jool->nat64.joold->lock;
-	int enabled;
-
-	spin_lock_bh(lock);
-	enabled = __validate_enabled(jool);
-	spin_unlock_bh(lock);
-
-	return enabled;
-}
-
 /**
  * joold_sync - Parses a bunch of sessions out of @data and adds them to @jool's
  * session database.
@@ -628,11 +438,10 @@ static int validate_enabled(struct xlator *jool)
  * This is the function that gets called whenever the jool daemon sends data to
  * the @jool Jool instance.
  */
-int joold_sync(struct xlator *jool, void *data, __u32 data_len)
+int joold_sync(struct xlator *jool, struct nlattr *root)
 {
-	struct joold_session *session;
-	unsigned int num_sessions;
-	unsigned int i;
+	struct nlattr *attr;
+	int rem;
 	int error;
 	bool success;
 
@@ -640,54 +449,21 @@ int joold_sync(struct xlator *jool, void *data, __u32 data_len)
 	if (error)
 		return error;
 
-	if (data_len % sizeof(struct joold_session) != 0) {
-		log_err("The Netlink packet seems corrupted.");
-		return -EINVAL;
-	}
-
-	session = data;
-	num_sessions = data_len / sizeof(struct joold_session);
-
 	success = true;
-	for (i = 0; i < num_sessions; i++, session++)
-		success &= add_new_session(jool, session);
+	nla_for_each_nested(attr, root, rem)
+		success &= add_new_session(jool, attr);
 
-	log_debug("Added %u sessions.", i);
+	log_debug("Done.");
 	return success ? 0 : -EINVAL;
 }
-
-int joold_test(struct xlator *jool)
-{
-	struct nlcore_buffer buffer;
-	struct request_hdr hdr;
-	int error;
-
-	error = validate_enabled(jool);
-	if (error)
-		return error;
-
-	init_request_hdr(&hdr, XT_NAT64, MODE_JOOLD, OP_ADD, false);
-	hdr.castness = 'm';
-
-	error = nlbuffer_init_request(&buffer, &hdr, 0);
-	if (error)
-		return error;
-
-	error = nlcore_send_multicast_message(jool->ns, &buffer);
-	nlbuffer_clean(&buffer);
-	return error;
-}
-
 
 static int add_advertise_node(struct joold_queue *queue, l4_protocol proto)
 {
 	struct joold_node *node;
 
 	node = wkmem_cache_alloc("joold node", node_cache, GFP_ATOMIC);
-	if (!node) {
-		log_err("Out of memory.");
+	if (!node)
 		return -ENOMEM;
-	}
 
 	node->is_group = true;
 	memset(&node->group.offset, 0, sizeof(node->group.offset));
@@ -718,46 +494,45 @@ static int prepare_advertisement(struct joold_queue *queue)
 
 int joold_advertise(struct xlator *jool)
 {
-	struct joold_queue *queue = jool->nat64.joold;
-	struct joold_buffer buffer = JOOLD_BUFFER_INIT;
+	struct joold_queue *queue;
+	struct sk_buff *skb;
 	int error;
+
+	error = validate_enabled(jool);
+	if (error)
+		return error;
+
+	queue = jool->nat64.joold;
 
 	spin_lock_bh(&queue->lock);
 
-	error = __validate_enabled(jool);
-	if (error)
-		goto end;
-
 	error = prepare_advertisement(queue);
-	if (error)
-		goto end;
+	skb = error ? NULL : send_to_userspace_prepare(jool);
 
-	send_to_userspace_prepare(jool, &buffer);
-	/* Fall through */
-
-end:
 	spin_unlock_bh(&queue->lock);
-	send_to_userspace(&buffer, jool->ns);
+
+	send_to_userspace(skb, jool->ns);
 	return error;
 }
 
 void joold_ack(struct xlator *jool)
 {
-	struct joold_queue *queue = jool->nat64.joold;
-	struct joold_buffer buffer = JOOLD_BUFFER_INIT;
+	struct joold_queue *queue;
+	struct sk_buff *skb;
+
+	if (validate_enabled(jool))
+		return;
+
+	queue = jool->nat64.joold;
 
 	spin_lock_bh(&queue->lock);
 
-	if (__validate_enabled(jool))
-		goto end;
-
 	queue->ack_received = true;
-	send_to_userspace_prepare(jool, &buffer);
-	/* Fall through */
+	skb = send_to_userspace_prepare(jool);
 
-end:
 	spin_unlock_bh(&queue->lock);
-	send_to_userspace(&buffer, jool->ns);
+
+	send_to_userspace(skb, jool->ns);
 }
 
 /**
@@ -768,18 +543,19 @@ end:
  */
 void joold_clean(struct xlator *jool)
 {
-	spinlock_t *lock = &jool->nat64.joold->lock;
-	struct joold_buffer buffer = JOOLD_BUFFER_INIT;
+	spinlock_t *lock;
+	struct sk_buff *skb;
+
+	if (!GLOBALS(jool).enabled)
+		return;
+
+	lock = &jool->nat64.joold->lock;
 
 	spin_lock_bh(lock);
 
-	if (!GLOBALS(jool).enabled)
-		goto end;
+	skb = send_to_userspace_prepare(jool);
 
-	send_to_userspace_prepare(jool, &buffer);
-	/* Fall through */
-
-end:
 	spin_unlock_bh(lock);
-	send_to_userspace(&buffer, jool->ns);
+
+	send_to_userspace(skb, jool->ns);
 }

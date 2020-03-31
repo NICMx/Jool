@@ -7,7 +7,7 @@
 #include "mod/common/wkmalloc.h"
 
 struct jool_mib {
-	unsigned long mibs[__JSTAT_MAX];
+	unsigned long mibs[JSTAT_COUNT];
 };
 
 struct jool_stats {
@@ -79,18 +79,18 @@ void jstat_add(struct jool_stats *stats, enum jool_stat_id stat, int addend)
 
 /**
  * Returns the list of stats as an array. You will have to free it.
- * The array length will be __JSTAT_MAX.
+ * The array length will be JSTAT_COUNT.
  */
 __u64 *jstat_query(struct jool_stats *stats)
 {
 	__u64 *result;
 	int i;
 
-	result = kcalloc(__JSTAT_MAX, sizeof(__u64), GFP_KERNEL);
+	result = kcalloc(JSTAT_COUNT, sizeof(__u64), GFP_KERNEL);
 	if (!result)
 		return NULL;
 
-	for (i = 0; i < __JSTAT_MAX; i++) {
+	for (i = 0; i < JSTAT_COUNT; i++) {
 #if LINUX_VERSION_AT_LEAST(3, 16, 0, 9999, 0)
 		result[i] = snmp_fold_field(stats->mib, i);
 #else

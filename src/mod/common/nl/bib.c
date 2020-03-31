@@ -1,144 +1,167 @@
 #include "mod/common/nl/bib.h"
 
 #include "mod/common/log.h"
+#include "mod/common/xlator.h"
+#include "mod/common/nl/attribute.h"
 #include "mod/common/nl/nl_common.h"
 #include "mod/common/nl/nl_core.h"
 #include "mod/common/db/pool4/db.h"
 #include "mod/common/db/bib/db.h"
 
-static int bib_entry_to_userspace(struct bib_entry const *entry, bool is_static,
-		void *arg)
+static int serialize_bib_entry(struct bib_entry const *entry, void *arg)
 {
-	struct nlcore_buffer *buffer = (struct nlcore_buffer *)arg;
-	struct bib_entry_usr entry_usr;
-
-	entry_usr.addr4 = entry->ipv4;
-	entry_usr.addr6 = entry->ipv6;
-	entry_usr.l4_proto = entry->l4_proto;
-	entry_usr.is_static = is_static;
-
-	return nlbuffer_write(buffer, &entry_usr, sizeof(entry_usr));
+	return jnla_put_bib(arg, JNLAL_ENTRY, entry) ? 1 : 0;
 }
 
-static int handle_bib_display(struct bib *db, struct genl_info *info,
-		struct request_bib *request)
+int handle_bib_foreach(struct sk_buff *skb, struct genl_info *info)
 {
-	struct nlcore_buffer buffer;
-	struct bib_foreach_func func = {
-			.cb = bib_entry_to_userspace,
-			.arg = &buffer,
-	};
-	struct ipv4_transport_addr *offset;
+	struct xlator jool;
+	struct jool_response response;
+	struct bib_entry offset, *offset_ptr;
 	int error;
 
 	log_debug("Sending BIB to userspace.");
 
-	error = nlbuffer_init_response(&buffer, info, nlbuffer_response_max_size());
+	error = request_handle_start(info, XT_NAT64, &jool);
 	if (error)
-		return nlcore_respond(info, error);
+		goto end;
+	error = jresponse_init(&response, info);
+	if (error)
+		goto revert_start;
 
-	offset = request->foreach.addr4_set ? &request->foreach.addr4 : NULL;
-	error = bib_foreach(db, request->l4_proto, &func, offset);
-	nlbuffer_set_pending_data(&buffer, error > 0);
-	error = (error >= 0)
-			? nlbuffer_send(info, &buffer)
-			: nlcore_respond(info, error);
+	if (info->attrs[JNLAR_OFFSET]) {
+		error = jnla_get_bib(info->attrs[JNLAR_OFFSET], "Iteration offset", &offset);
+		if (error)
+			goto revert_response;
+		offset_ptr = &offset;
+		log_debug("Offset: [%pI6c#%u %pI4#%u %u %u]",
+				&offset.addr6.l3, offset.addr6.l4,
+				&offset.addr4.l3, offset.addr4.l4,
+				offset.is_static, offset.l4_proto);
+	} else if (info->attrs[JNLAR_PROTO]) {
+		offset.l4_proto = nla_get_u8(info->attrs[JNLAR_PROTO]);
+		offset_ptr = NULL;
+	} else {
+		log_err("The request is missing a protocol.");
+		error = -EINVAL;
+		goto revert_response;
+	}
 
-	nlbuffer_clean(&buffer);
-	return error;
+	error = bib_foreach(jool.nat64.bib, offset.l4_proto, serialize_bib_entry,
+			response.skb, offset_ptr ? &offset_ptr->addr4 : NULL);
+
+	error = jresponse_send_array(&response, error);
+	if (error)
+		goto revert_response;
+
+	request_handle_end(&jool);
+	return 0;
+
+revert_response:
+	jresponse_cleanup(&response);
+revert_start:
+	request_handle_end(&jool);
+end:
+	return jresponse_send_simple(info, error);
 }
 
-static int handle_bib_add(struct xlator *jool, struct request_bib *request)
+int handle_bib_add(struct sk_buff *skb, struct genl_info *info)
 {
+	struct xlator jool;
 	struct bib_entry new;
+	int error;
 
 	log_debug("Adding BIB entry.");
 
-	if (!pool4db_contains(jool->nat64.pool4, jool->ns, request->l4_proto,
-			&request->add.addr4)) {
+	error = request_handle_start(info, XT_NAT64, &jool);
+	if (error)
+		goto end;
+
+	error = jnla_get_bib(info->attrs[JNLAR_OPERAND], "Operand", &new);
+	if (error)
+		goto revert_start;
+
+	if (!pool4db_contains(jool.nat64.pool4, jool.ns, new.l4_proto, &new.addr4)) {
 		log_err("The transport address '%pI4#%u' does not belong to pool4.\n"
 				"Please add it there first.",
-				&request->add.addr4.l3, request->add.addr4.l4);
-		return -EINVAL;
+				&new.addr4.l3, new.addr4.l4);
+		error = -EINVAL;
+		goto revert_start;
 	}
 
-	new.ipv6 = request->add.addr6;
-	new.ipv4 = request->add.addr4;
-	new.l4_proto = request->l4_proto;
-	return bib_add_static(jool, &new);
+	error = bib_add_static(&jool, &new);
+revert_start:
+	request_handle_end(&jool);
+end:
+	return jresponse_send_simple(info, error);
 }
 
-static int handle_bib_rm(struct xlator *jool, struct request_bib *request)
+int handle_bib_rm(struct sk_buff *skb, struct genl_info *info)
 {
-	struct bib_entry bib;
+	struct xlator jool;
+	struct nlattr *attrs[JNLAB_COUNT];
+	struct bib_entry entry;
 	int error;
 
 	log_debug("Removing BIB entry.");
 
-	if (request->rm.addr6_set && request->rm.addr4_set) {
-		bib.ipv6 = request->rm.addr6;
-		bib.ipv4 = request->rm.addr4;
-		bib.l4_proto = request->l4_proto;
-		error = 0;
-	} else if (request->rm.addr6_set) {
-		error = bib_find6(jool->nat64.bib, request->l4_proto,
-				&request->rm.addr6, &bib);
-	} else if (request->rm.addr4_set) {
-		error = bib_find4(jool->nat64.bib, request->l4_proto,
-				&request->rm.addr4, &bib);
-	} else {
-		log_err("You need to provide an address so I can find the entry you want to remove.");
-		return -EINVAL;
+	error = request_handle_start(info, XT_NAT64, &jool);
+	if (error)
+		goto end;
+
+	if (!info->attrs[JNLAR_OPERAND]) {
+		log_err("The request lacks an operand attribute.");
+		error = -EINVAL;
+		goto revert_start;
 	}
 
+	error = NLA_PARSE_NESTED(attrs, JNLAB_MAX, info->attrs[JNLAR_OPERAND], joolnl_bib_entry_policy);
+	if (error) {
+		log_err("The 'BIB entry' attribute is malformed.");
+		goto revert_start;
+	}
+
+	if (!attrs[JNLAB_SRC6] && !attrs[JNLAB_SRC4]) {
+		error = -EINVAL;
+		goto revert_start;
+	}
+
+	if (attrs[JNLAB_SRC6]) {
+		error = jnla_get_taddr6(attrs[JNLAB_SRC6], "IPv6 transport address", &entry.addr6);
+		if (error)
+			goto revert_start;
+	}
+	if (attrs[JNLAB_SRC4]) {
+		error = jnla_get_taddr4(attrs[JNLAB_SRC4], "IPv4 transport address", &entry.addr4);
+		if (error)
+			goto revert_start;
+	}
+
+	if (attrs[JNLAB_PROTO])
+		entry.l4_proto = nla_get_u8(attrs[JNLAB_PROTO]);
+	if (attrs[JNLAB_STATIC])
+		entry.is_static = nla_get_u8(attrs[JNLAB_STATIC]);
+
+	if (!attrs[JNLAB_SRC4])
+		error = bib_find6(jool.nat64.bib, entry.l4_proto, &entry.addr6, &entry);
+	else if (!attrs[JNLAB_SRC6])
+		error = bib_find4(jool.nat64.bib, entry.l4_proto, &entry.addr4, &entry);
 	if (error == -ESRCH)
 		goto esrch;
 	if (error)
-		return error;
+		goto revert_start;
 
-	error = bib_rm(jool, &bib);
-	if (error == -ESRCH) {
-		if (request->rm.addr6_set && request->rm.addr4_set)
-			goto esrch;
-		/* It died on its own between the find and the rm. */
-		return 0;
-	}
+	error = bib_rm(&jool, &entry);
+	if (error == -ESRCH)
+		goto esrch;
+	/* Fall through */
 
-	return error;
+revert_start:
+	request_handle_end(&jool);
+end:
+	return jresponse_send_simple(info, error);
 
 esrch:
 	log_err("The entry wasn't in the database.");
-	return -ESRCH;
-}
-
-int handle_bib_config(struct xlator *jool, struct genl_info *info)
-{
-	struct request_hdr *hdr = get_jool_hdr(info);
-	struct request_bib *request = (struct request_bib *)(hdr + 1);
-	int error;
-
-	if (xlator_is_siit(jool)) {
-		log_err("SIIT doesn't have BIBs.");
-		return nlcore_respond(info, -EINVAL);
-	}
-
-	error = validate_request_size(info, sizeof(*request));
-	if (error)
-		return nlcore_respond(info, error);
-
-	switch (hdr->operation) {
-	case OP_FOREACH:
-		return handle_bib_display(jool->nat64.bib, info, request);
-	case OP_ADD:
-		error = handle_bib_add(jool, request);
-		break;
-	case OP_REMOVE:
-		error = handle_bib_rm(jool, request);
-		break;
-	default:
-		log_err("Unknown operation: %u", hdr->operation);
-		error = -EINVAL;
-	}
-
-	return nlcore_respond(info, error);
+	goto revert_start;
 }

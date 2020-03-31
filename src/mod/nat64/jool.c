@@ -4,9 +4,11 @@
 #include <net/netfilter/ipv4/nf_defrag_ipv4.h>
 #include <net/netfilter/ipv6/nf_defrag_ipv6.h>
 
+#include "common/iptables.h"
 #include "mod/common/linux_version.h"
 #include "mod/common/log.h"
 #include "mod/common/kernel_hook.h"
+#include "mod/common/xlator.h"
 
 MODULE_LICENSE(JOOL_LICENSE);
 MODULE_AUTHOR("NIC-ITESM");
@@ -53,6 +55,22 @@ static struct xt_target targets[] = {
 	},
 };
 
+static void flush_net(struct net *ns)
+{
+	jool_xlator_flush_net(ns, XT_NAT64);
+}
+
+static void flush_batch(struct list_head *net_exit_list)
+{
+	jool_xlator_flush_batch(net_exit_list, XT_NAT64);
+}
+
+/** Namespace-aware network operation registration object */
+static struct pernet_operations joolns_ops = {
+	.exit = flush_net,
+	.exit_batch = flush_batch,
+};
+
 static void defrag_enable(struct net *ns)
 {
 #if LINUX_VERSION_AT_LEAST(4, 10, 0, 8, 0)
@@ -70,8 +88,9 @@ static int __init nat64_init(void)
 
 	pr_debug("%s", banner);
 	pr_debug("Inserting NAT64 Jool...\n");
+	/* Careful with the order */
 
-	error = jool_nat64_get(defrag_enable);
+	error = register_pernet_subsys(&joolns_ops);
 	if (error)
 		return error;
 
@@ -82,15 +101,25 @@ static int __init nat64_init(void)
 				iptables_error);
 	}
 
+	/* NAT64 instances can now function properly; unlock them. */
+	error = jool_nat64_get(defrag_enable);
+	if (error) {
+		if (!iptables_error)
+			xt_unregister_targets(targets, ARRAY_SIZE(targets));
+		unregister_pernet_subsys(&joolns_ops);
+		return error;
+	}
+
 	pr_info("NAT64 Jool v" JOOL_VERSION_STR " module inserted.\n");
 	return error;
 }
 
 static void __exit nat64_exit(void)
 {
+	jool_nat64_put();
 	if (!iptables_error)
 		xt_unregister_targets(targets, ARRAY_SIZE(targets));
-	jool_nat64_put();
+	unregister_pernet_subsys(&joolns_ops);
 	pr_info("NAT64 Jool v" JOOL_VERSION_STR " module removed.\n");
 }
 

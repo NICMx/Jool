@@ -4,7 +4,6 @@ Some shortcuts used while naming variables and functions through the code or doc
 
 - src = source
 - dst = destination
-
 - in = incoming (Note, not "inner")
 - out = outgoing (Not "outer")
 
@@ -13,11 +12,9 @@ Some shortcuts used while naming variables and functions through the code or doc
 - alloc = memory allocation
 - addr = address
 - ADF = Address-Dependent Filtering
-- aux = auxiliar function
 - cb = callback (synonym for "fn")
 - cmp = compare (Inherited from the kernel)
 - csum = checksum
-- comm = common
 - daddr = destination address
 - dev = network device
 - eam = Explicit Address Mapping (https://tools.ietf.org/html/rfc7757)
@@ -26,8 +23,6 @@ Some shortcuts used while naming variables and functions through the code or doc
 - est = established session (inherited from RFC 6146.)
 - fn = function ("this parameter is a pointer to a function.")
 - frag = fragment
-- fw = framework
-  (Usually refers to the framework Jool is hooked to; netfilter or iptables.)
 - hdr = header
 - init = initialize
 - iname = instance name
@@ -43,10 +38,8 @@ Some shortcuts used while naming variables and functions through the code or doc
 - nl = Netlink (http://en.wikipedia.org/wiki/Netlink)
 - ns = (network) namespace
 - pkt = packet
-- pref = prefix
 - proto = protocol
 - ptr = pointer
-- req = request
 - rm = remove
 	- "remove" stands for "take out of a database".  
 	  Sometimes, this also means the entry is deleted.
@@ -60,14 +53,13 @@ Some shortcuts used while naming variables and functions through the code or doc
 - trans = transitory session (inherited from RFC 6146.)
 - ttp = Translating the Packet (Fourth core step of the NAT64 translation algorithm; see RFC 6146)
 - usr = user[space]
-- xf = xlator framework
-- xt = xlator type
+- xf = xlator framework (Netfilter or iptables)
+- xt = xlator type (SIIT or NAT64)
 - x<n> (where x is anything and n is 4 or 6) = x has something to do with IPv<n>. Examples:
 	- pool4 = IPv4 pool
-	- addr6 = IPv6 address  
-	In particular, the "tuple<n>" names intend to remind you of the correct type of addresses you're supposed to extract from their tuples' inner unions. 
+	- addr6 = IPv6 address
+	- tuple6 = IPv6 tuple
 - xlat = translation
 - xlator = translator
 
-When we say "payload", we mean the layer-4 payload. When we want to say layer-3 payload, we should
-prefix it ("l3_payload").
+When we say "payload", we mean the layer-4 payload. When we want to say layer-3 payload, we should prefix it ("l3_payload").

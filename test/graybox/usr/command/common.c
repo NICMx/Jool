@@ -1,10 +1,9 @@
-#include "common.h"
+#include "usr/command/common.h"
 
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include "common/types.h"
-#include "usr/argp/log.h"
+#include "usr/log.h"
 
 int load_pkt(char *filename, unsigned char **result, size_t *result_len)
 {

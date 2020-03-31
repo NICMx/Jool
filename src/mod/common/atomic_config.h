@@ -1,9 +1,9 @@
 #ifndef SRC_MOD_COMMON_ATOMIC_CONFIG_H_
 #define SRC_MOD_COMMON_ATOMIC_CONFIG_H_
 
-#include "common/config.h"
+#include <net/genetlink.h>
 
-int atomconfig_add(char *iname, xlator_type xt, void *config, size_t config_len,
-		bool force);
+void atomconfig_teardown(void);
+int atomconfig_add(struct sk_buff *skb, struct genl_info *info);
 
 #endif /* SRC_MOD_COMMON_ATOMIC_CONFIG_H_ */

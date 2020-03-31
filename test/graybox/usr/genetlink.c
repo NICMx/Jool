@@ -4,13 +4,13 @@
 #include <netlink/genl/ctrl.h>
 #include <netlink/genl/genl.h>
 #include "common/graybox-types.h"
-#include "usr/argp/log.h"
+#include "usr/log.h"
 
 static struct nl_sock *sk;
 static int family;
 
 struct response_handler_arg {
-	jool_response_cb cb;
+	joolnl_response_cb cb;
 	void *arg;
 	int jool_error;
 };
@@ -81,7 +81,7 @@ genl_fail:
 	return netlink_print_error(error);
 }
 
-void nlsocket_teardown()
+void nlsocket_teardown(void)
 {
 	nl_socket_free(sk);
 }
@@ -152,7 +152,7 @@ static int response_handler(struct nl_msg *msg, void *arg_void)
 	return 0;
 }
 
-int nlsocket_send(struct nl_msg *msg, jool_response_cb cb, void *cb_arg)
+int nlsocket_send(struct nl_msg *msg, joolnl_response_cb cb, void *cb_arg)
 {
 	struct response_handler_arg arg = {
 			.cb = cb,
