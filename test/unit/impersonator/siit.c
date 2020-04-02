@@ -80,16 +80,29 @@ static struct addrxlat_result fail_addr(void)
 }
 
 struct addrxlat_result addrxlat_siit64(struct xlator *instance,
-		struct in6_addr *in, struct result_addrxlat64 *out)
+		struct in6_addr *in, struct result_addrxlat64 *out,
+		bool enable_blacklists)
 {
 	return fail_addr();
 }
 
 struct addrxlat_result addrxlat_siit46(struct xlator *instance,
 		__be32 in, struct result_addrxlat46 *out,
-		bool enable_eam, bool enable_blacklists)
+		bool enable_eam)
 {
 	return fail_addr();
+}
+
+verdict translate_addrs64_siit(struct xlation *state)
+{
+	fail(__func__);
+	return VERDICT_DROP;
+}
+
+verdict translate_addrs46_siit(struct xlation *state)
+{
+	fail(__func__);
+	return VERDICT_DROP;
 }
 
 bool is_hairpin_siit(struct xlation *state)

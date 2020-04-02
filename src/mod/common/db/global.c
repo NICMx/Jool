@@ -72,6 +72,8 @@ int globals_init(struct jool_globals *config, xlator_type type,
 	config->reset_traffic_class = DEFAULT_RESET_TRAFFIC_CLASS;
 	config->reset_tos = DEFAULT_RESET_TOS;
 	config->new_tos = DEFAULT_NEW_TOS;
+	config->lowest_ipv6_mtu = DEFAULT_LOWEST_IPV6_MTU;
+	config->force_slow_path_46 = false;
 	memcpy(config->plateaus.values, &PLATEAUS, sizeof(PLATEAUS));
 	config->plateaus.count = ARRAY_SIZE(PLATEAUS);
 

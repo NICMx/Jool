@@ -2,7 +2,7 @@
 #define SRC_COMMON_STATS_H_
 
 /*
- * TODO (warning) Caller review needed.
+ * TODO (fine) Caller review needed.
  * Make sure there's a counter for every worthwhile event,
  * and also check the ICMP errors that sometimes need to be appended to them.
  */
@@ -61,6 +61,7 @@ enum jool_stat_id {
 	JSTAT64_SRC,
 	JSTAT64_DST,
 	JSTAT64_PSKB_COPY,
+	JSTAT64_6791_ENOENT,
 	JSTAT64_ICMP_CSUM,
 	JSTAT64_UNTRANSLATABLE_DEST_UNREACH,
 	JSTAT64_UNTRANSLATABLE_PARAM_PROB,
@@ -72,6 +73,7 @@ enum jool_stat_id {
 	JSTAT46_SRC,
 	JSTAT46_DST,
 	JSTAT46_PSKB_COPY,
+	JSTAT46_6791_ENOENT,
 	JSTAT46_ICMP_CSUM,
 	JSTAT46_UNTRANSLATABLE_DEST_UNREACH,
 	JSTAT46_UNTRANSLATABLE_PARAM_PROB,
@@ -79,6 +81,7 @@ enum jool_stat_id {
 	JSTAT46_TTL,
 	JSTAT46_SRC_ROUTE,
 	JSTAT46_FRAGMENTED_ZERO_CSUM,
+	JSTAT46_BAD_MTU,
 
 	JSTAT_FAILED_ROUTES,
 	JSTAT_PKT_TOO_BIG,
@@ -88,6 +91,9 @@ enum jool_stat_id {
 	JSTAT_ICMP6ERR_FAILURE,
 	JSTAT_ICMP4ERR_SUCCESS,
 	JSTAT_ICMP4ERR_FAILURE,
+
+	JSTAT_ICMPEXT_SMALL,
+	JSTAT_ICMPEXT_BIG,
 
 	/* These 3 need to be last, and in this order. */
 	JSTAT_UNKNOWN, /* "WTF was that" errors only. */

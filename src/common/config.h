@@ -218,6 +218,8 @@ enum joolnl_attr_global {
 	JNLAG_RESET_TC,
 	JNLAG_RESET_TOS,
 	JNLAG_TOS,
+	JNLAG_LOWEST_IPV6_MTU,
+	JNLAG_FORCE_SLOW46,
 	JNLAG_PLATEAUS,
 
 	/* SIIT */
@@ -500,6 +502,16 @@ struct jool_globals {
 	 * If "reset_tos" is "false", then this doesn't do anything.
 	 */
 	__u8 new_tos;
+
+	/**
+	 * Smallest reachable IPv6 MTU.
+	 *
+	 * Because DF does not exist in IPv6, Jool must ensure that that any
+	 * DF-disabled IPv4 packet translates into fragments sized this or less.
+	 * Otherwise these packets might be black-holed.
+	 */
+	__u32 lowest_ipv6_mtu;
+	bool force_slow_path_46;
 
 	/**
 	 * If the translator detects the source of the incoming packet does not

@@ -4,11 +4,13 @@
 
 #include "common/config.h"
 #include "mod/common/ipv6_hdr_iterator.h"
+#include "mod/common/log.h"
 #include "mod/common/packet.h"
 #include "mod/common/stats.h"
 #include "mod/common/rfc7915/4to6.h"
 #include "mod/common/rfc7915/6to4.h"
 #include "mod/common/db/blacklist4.h"
+#include "mod/common/steps/compute_outgoing_tuple.h"
 
 struct backup_skb {
 	unsigned int pulled;
@@ -16,7 +18,7 @@ struct backup_skb {
 		int l3;
 		int l4;
 	} offset;
-	void *payload;
+	unsigned int payload;
 	l4_protocol l4_proto;
 	struct tuple tuple;
 };
@@ -93,7 +95,7 @@ static struct translation_steps steps[][L4_PROTO_COUNT] = {
  */
 bool will_need_frag_hdr(const struct iphdr *hdr)
 {
-	return is_mf_set_ipv4(hdr) || get_fragment_offset_ipv4(hdr);
+	return is_fragmented_ipv4(hdr);
 }
 
 static int report_bug247(struct packet *pkt, __u8 proto)
@@ -174,7 +176,7 @@ static int move_pointers_in(struct packet *pkt, __u8 protocol,
 		break;
 	}
 	pkt->is_inner = true;
-	pkt->payload = skb_transport_header(pkt->skb) + l4hdr_len;
+	pkt->payload_offset = skb_transport_offset(pkt->skb) + l4hdr_len;
 
 	return 0;
 }
@@ -189,7 +191,8 @@ static int move_pointers_out(struct packet *in, struct packet *out,
 
 	out->l4_proto = pkt_l4_proto(in);
 	out->is_inner = true;
-	out->payload = skb_transport_header(out->skb) + pkt_l4hdr_len(in);
+	out->payload_offset = skb_transport_offset(out->skb)
+			+ pkt_l4hdr_len(in);
 
 	return 0;
 }
@@ -233,7 +236,7 @@ static void backup(struct xlation *state, struct packet *pkt,
 	bkp->pulled = pkt_hdrs_len(pkt);
 	bkp->offset.l3 = skb_network_offset(pkt->skb);
 	bkp->offset.l4 = skb_transport_offset(pkt->skb);
-	bkp->payload = pkt_payload(pkt);
+	bkp->payload = pkt->payload_offset;
 	bkp->l4_proto = pkt_l4_proto(pkt);
 	if (xlation_is_nat64(state))
 		bkp->tuple = pkt->tuple;
@@ -246,12 +249,50 @@ static int restore(struct xlation *state, struct packet *pkt,
 		return -EINVAL;
 	skb_set_network_header(pkt->skb, bkp->offset.l3);
 	skb_set_transport_header(pkt->skb, bkp->offset.l4);
-	pkt->payload = bkp->payload;
+	pkt->payload_offset = bkp->payload;
 	pkt->l4_proto = bkp->l4_proto;
 	pkt->is_inner = 0;
 	if (xlation_is_nat64(state))
 		pkt->tuple = bkp->tuple;
 	return 0;
+}
+
+static verdict xlat_inner_addresses(struct xlation *state)
+{
+	union {
+		struct ipv6hdr *v6;
+		struct iphdr *v4;
+	} hdr;
+	verdict result;
+
+	switch (pkt_l3_proto(&state->in)) {
+	case L3PROTO_IPV4: /* 4 -> 6 */
+		if (xlation_is_siit(state)) {
+			result = translate_addrs46_siit(state);
+			if (result != VERDICT_CONTINUE)
+				return result;
+		}
+
+		hdr.v6 = pkt_ip6_hdr(&state->out);
+		hdr.v6->saddr = state->out.tuple.src.addr6.l3;
+		hdr.v6->daddr = state->out.tuple.dst.addr6.l3;
+		break;
+
+	case L3PROTO_IPV6: /* 6 -> 4 */
+		if (xlation_is_siit(state)) {
+			result = translate_addrs64_siit(state);
+			if (result != VERDICT_CONTINUE)
+				return result;
+		}
+
+		hdr.v4 = pkt_ip4_hdr(&state->out);
+		hdr.v4->saddr = state->out.tuple.src.addr4.l3.s_addr;
+		hdr.v4->daddr = state->out.tuple.dst.addr4.l3.s_addr;
+		break;
+
+	}
+
+	return VERDICT_CONTINUE;
 }
 
 verdict ttpcomm_translate_inner_packet(struct xlation *state)
@@ -282,6 +323,10 @@ verdict ttpcomm_translate_inner_packet(struct xlation *state)
 		out->tuple.src = bkp_out.tuple.dst;
 		out->tuple.dst = bkp_out.tuple.src;
 	}
+
+	result = xlat_inner_addresses(state);
+	if (result != VERDICT_CONTINUE)
+		return result;
 
 	current_steps = &steps[pkt_l3_proto(in)][pkt_l4_proto(in)];
 
@@ -345,4 +390,120 @@ void partialize_skb(struct sk_buff *out_skb, unsigned int csum_offset)
 	out_skb->ip_summed = CHECKSUM_PARTIAL;
 	out_skb->csum_start = skb_transport_header(out_skb) - out_skb->head;
 	out_skb->csum_offset = csum_offset;
+}
+
+/**
+ * "Handle the ICMP Extension" in this context means
+ *
+ * - Make sure it aligns in accordance with the target protocol's ICMP length
+ *   field. (32 bits in IPv4, 64 bits in IPv6)
+ * - Make sure it fits in the packet in accordance with the target protocol's
+ *   official maximum ICMP error size. (576 for IPv4, 1280 for IPv6)
+ * 	- If it doesn't fit, remove it completely.
+ * 	- If it does fit, trim the Optional Part if needed.
+ * - Update the ICMP header's length field.
+ *
+ * Again, see /test/graybox/test-suite/rfc/7915.md#ic.
+ *
+ * "Handle the ICMP Extension" does NOT mean:
+ *
+ * - Translate the contents. (Jool treats extensions like opaque bit strings.)
+ * - Update outer packet's L3 headers. (Too difficult to do here; caller's
+ *   responsibility.)
+ */
+verdict handle_icmp_extension(struct xlation *state,
+		struct icmpext_args const *args)
+{
+	struct packet *in;
+	struct packet *out;
+	unsigned char *buffer;
+	int error;
+
+	size_t payload_len;
+	size_t in_epl; /* Incoming packet's Essential Part Length */
+	size_t out_epl; /* Outgoing packet's Essential Part Length */
+	size_t opl; /* Optional Part Length (incoming and outgoing packet) */
+	size_t iel; /* ICMP Extension Length (incoming and outgoing packet) */
+
+	bool retain_ie; /* Keep the ICMP Extension? Otherwise chop it off. */
+	size_t final_opl; /* Adjusted Optional Part Length */
+	size_t final_pl; /* Adjusted Packet Length */
+
+	in = &state->in;
+	out = &state->out;
+
+	/* Validate input */
+	if (args->ipl == 0)
+		return VERDICT_CONTINUE;
+	if (args->ipl < 128) {
+		log_debug("Illegal internal packet length (%zu < 128)",
+				args->ipl);
+		return drop(state, JSTAT_ICMPEXT_SMALL);
+	}
+
+	payload_len = in->skb->len - pkt_hdrs_len(in);
+	if (args->ipl == payload_len)
+		return VERDICT_CONTINUE; /* Whatever, I guess */
+	if (args->ipl > payload_len) {
+		log_debug("ICMP Length %zu > L3 payload %zu", args->ipl,
+				payload_len);
+		return drop(state, JSTAT_ICMPEXT_BIG);
+	}
+
+	/* Compute helpers */
+	in_epl = pkt_hdrs_len(in) + 128;
+	out_epl = pkt_hdrs_len(out) + 128;
+	opl = args->ipl - 128;
+	iel = in->skb->len - in_epl - opl;
+
+	/* Figure out what we want to do */
+	if (args->remove_ie || (iel > args->max_pkt_len - out_epl)) {
+		retain_ie = false;
+		final_opl = min(opl, args->max_pkt_len - out_epl);
+		final_pl = out_epl + final_opl;
+	} else {
+		retain_ie = true;
+		final_opl = (min((size_t)out->skb->len, args->max_pkt_len)
+				- out_epl - iel)
+				& ((~(size_t)0) << args->out_bits);
+		final_pl = out_epl + final_opl + iel;
+	}
+
+	/* Move the ICMP Extension if needed */
+	if (retain_ie && (final_opl != opl)) {
+		buffer = kmalloc(iel, GFP_ATOMIC);
+		if (!buffer)
+			return drop(state, JSTAT_ENOMEM);
+
+		error = skb_copy_bits(in->skb, in_epl + opl, buffer, iel);
+		if (error) {
+			kfree(buffer);
+			log_debug("skb_copy_bits error: %d", error);
+			return drop(state, JSTAT_UNKNOWN);
+		}
+		error = skb_store_bits(out->skb, out_epl + final_opl, buffer,
+				iel);
+		if (error) {
+			kfree(buffer);
+			log_debug("skb_store_bits error: %d", error);
+			return drop(state, JSTAT_UNKNOWN);
+		}
+
+		kfree(buffer);
+	}
+
+	/* Resize the packet */
+	if (out->skb->len != final_pl) {
+		error = pskb_trim(out->skb, final_pl);
+		if (error) {
+			log_debug("pskb_trim() error: %d", error);
+			return drop(state, JSTAT_UNKNOWN);
+		}
+	}
+
+	/* Update the ICMP length field */
+	if (retain_ie)
+		*args->icmp_len = (out_epl + final_opl) >> args->out_bits;
+
+	return VERDICT_CONTINUE;
 }

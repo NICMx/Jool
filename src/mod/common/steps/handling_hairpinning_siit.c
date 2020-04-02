@@ -1,7 +1,8 @@
-#include "handling_hairpinning_siit.h"
+#include "mod/common/steps/handling_hairpinning_siit.h"
 
 #include "mod/common/log.h"
 #include "mod/common/rfc7915/core.h"
+#include "mod/common/steps/compute_outgoing_tuple.h"
 #include "mod/common/steps/send_packet.h"
 
 bool is_hairpin_siit(struct xlation *state)
@@ -19,6 +20,9 @@ verdict handling_hairpinning_siit(struct xlation *old)
 	new.jool = old->jool;
 	new.in = old->out;
 
+	result = compute_out_tuple_siit(&new);
+	if (result != VERDICT_CONTINUE)
+		return result;
 	result = translating_the_packet(&new);
 	if (result != VERDICT_CONTINUE)
 		return result;

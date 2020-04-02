@@ -29,6 +29,7 @@ $(TRANSLATE)-objs += ../../../src/mod/common/rfc7915/common.o
 $(TRANSLATE)-objs += ../framework/skb_generator.o
 $(TRANSLATE)-objs += ../framework/types.o
 $(TRANSLATE)-objs += ../impersonator/icmp_wrapper.o
+$(TRANSLATE)-objs += ../impersonator/route.o
 $(TRANSLATE)-objs += ../impersonator/siit.o
 $(TRANSLATE)-objs += ../impersonator/stats.o
 $(TRANSLATE)-objs += translate_packet_test.o

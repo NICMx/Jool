@@ -5,7 +5,7 @@
 #include <linux/sort.h>
 #include "common/types.h"
 #include "mod/common/address.h"
-#include "mod/common/log.h"
+#include "log.h"
 #include "util.h"
 
 struct expecter_node {
@@ -24,6 +24,29 @@ void expecter_setup(void)
 void expecter_teardown(void)
 {
 	expecter_flush();
+}
+
+static void log_intro(struct sk_buff *skb)
+{
+	struct iphdr *hdr4;
+	struct ipv6hdr *hdr6;
+
+	switch (skb->protocol) {
+	case htons(ETH_P_IP):
+		hdr4 = ip_hdr(skb);
+		log_debug("Received packet %pI4 -> %pI4",
+				&hdr4->saddr, &hdr4->daddr);
+		break;
+
+	case htons(ETH_P_IPV6):
+		hdr6 = ipv6_hdr(skb);
+		log_debug("Received packet %pI6c -> %pI6c",
+				&hdr6->saddr, &hdr6->daddr);
+		break;
+
+	default:
+		log_debug("Received packet. (Unknown protocol.)");
+	}
 }
 
 static void free_node(struct expecter_node *node)
@@ -120,6 +143,7 @@ void expecter_flush(void)
 		list_del(hook);
 		node = list_entry(hook, struct expecter_node, list_hook);
 
+		log_info("Queued: %s", node->pkt.filename);
 		switch (get_l3_proto(node->pkt.bytes)) {
 		case 4:
 			stats.ipv4.queued++;
@@ -135,13 +159,27 @@ void expecter_flush(void)
 
 static bool has_same_addr6(struct ipv6hdr *hdr1, struct ipv6hdr *hdr2)
 {
-	return addr6_equals(&hdr1->daddr, &hdr2->daddr)
+	bool result;
+
+	result = addr6_equals(&hdr1->daddr, &hdr2->daddr)
 			&& addr6_equals(&hdr1->saddr, &hdr2->saddr);
+	log_debug("Incoming packet %s %pI6c -> %pI6c.",
+			result ? "matches" : "does not match",
+			&hdr1->saddr, &hdr1->daddr);
+
+	return result;
 }
 
 static bool has_same_addr4(struct iphdr *hdr1, struct iphdr *hdr2)
 {
-	return hdr1->daddr == hdr2->daddr && hdr1->saddr == hdr2->saddr;
+	bool result;
+
+	result = hdr1->daddr == hdr2->daddr && hdr1->saddr == hdr2->saddr;
+	log_debug("Incoming packet %s %pI4 -> %pI4.",
+			result ? "matches" : "does not match",
+			&hdr1->saddr, &hdr1->daddr);
+
+	return result;
 }
 
 static bool has_same_address(struct expected_packet *expected, struct sk_buff *actual)
@@ -149,8 +187,10 @@ static bool has_same_address(struct expected_packet *expected, struct sk_buff *a
 	int expected_proto = get_l3_proto(expected->bytes);
 	int actual_proto = get_l3_proto(skb_network_header(actual));
 
-	if (expected_proto != actual_proto)
+	if (expected_proto != actual_proto) {
+		log_debug("Incoming packet does not match l3 protocol of expected packet.");
 		return false;
+	}
 
 	switch (expected_proto) {
 	case 4:
@@ -230,8 +270,12 @@ int expecter_handle_pkt(struct sk_buff *actual)
 	struct expected_packet *expected;
 	struct graybox_proto_stats *stats;
 
-	if (list_empty(&list)) /* nothing to do. */
+	log_intro(actual);
+
+	if (list_empty(&list)) { /* nothing to do. */
+		log_debug("No packets queued.");
 		return NF_ACCEPT;
+	}
 
 	node = list_entry(list.next, struct expecter_node, list_hook);
 	expected = &node->pkt;

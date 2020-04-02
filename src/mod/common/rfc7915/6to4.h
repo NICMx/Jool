@@ -37,7 +37,4 @@ verdict ttp64_tcp(struct xlation *state);
  */
 verdict ttp64_udp(struct xlation *state);
 
-__u8 ttp64_xlat_tos(struct jool_globals *config, struct ipv6hdr *hdr);
-__u8 ttp64_xlat_proto(struct ipv6hdr *hdr);
-
 #endif /* SRC_MOD_COMMON_RFC7915_6TO4_H_ */

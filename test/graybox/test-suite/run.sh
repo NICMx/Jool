@@ -37,11 +37,9 @@ nat64_result=$?
 
 
 if [ $siit_result -ne 0 ]; then
-	echo "There was at least one SIIT error."
 	exit $siit_result
 fi
 if [ $nat64_result -ne 0 ]; then
-	echo "There was at least one NAT64 error."
 	exit $nat64_result
 fi
 echo "No errors detected."

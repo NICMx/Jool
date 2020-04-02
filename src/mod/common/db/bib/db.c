@@ -1,13 +1,12 @@
 #include "mod/common/db/bib/db.h"
 
-#include <net/ip6_checksum.h>
 #include <linux/ktime.h>
+#include <net/ip6_checksum.h>
 
 #include "common/constants.h"
 #include "mod/common/icmp_wrapper.h"
 #include "mod/common/linux_version.h"
 #include "mod/common/log.h"
-#include "mod/common/route.h"
 #include "mod/common/wkmalloc.h"
 #include "mod/common/db/rbtree.h"
 #include "mod/common/db/bib/pkt_queue.h"
@@ -373,7 +372,7 @@ static void init_table(struct bib_table *table,
 
 	init_expirer(&table->trans_timer, trans_timeout, SESSION_TIMER_TRANS,
 			just_die);
-	/* TODO "just_die"? what about the stored packet? */
+	/* TODO (warning) "just_die"? what about the stored packet? */
 	init_expirer(&table->syn4_timer, TCP_INCOMING_SYN, SESSION_TIMER_SYN4,
 			just_die);
 	table->pkt_count = 0;
@@ -702,7 +701,10 @@ static bool decide_fate(struct xlator *jool,
 		break;
 
 	case FATE_PROBE:
-		/* TODO ICMP errors aren't supposed to drop down to TRANS. */
+		/*
+		 * TODO (warning) ICMP errors aren't supposed to drop down to
+		 * TRANS.
+		 */
 		handle_probe(table, probes, session, &tmp);
 		/* Fall through. */
 	case FATE_TIMER_TRANS:
@@ -743,10 +745,11 @@ static bool decide_fate(struct xlator *jool,
  */
 static void send_probe_packet(struct net *ns, struct session_entry *session)
 {
-	struct packet pkt;
 	struct sk_buff *skb;
 	struct ipv6hdr *iph;
 	struct tcphdr *th;
+	struct flowi6 flow;
+	struct dst_entry *dst;
 	int error;
 
 	unsigned int l3_hdr_len = sizeof(*iph);
@@ -800,12 +803,19 @@ static void send_probe_packet(struct net *ns, struct session_entry *session)
 			IPPROTO_TCP, csum_partial(th, l4_hdr_len, 0));
 	skb->ip_summed = CHECKSUM_UNNECESSARY;
 
-	pkt_fill(&pkt, skb, L3PROTO_IPV6, L4PROTO_TCP, NULL, th + 1, NULL);
+	memset(&flow, 0, sizeof(flow));
+	flow.flowi6_scope = RT_SCOPE_UNIVERSE;
+	flow.flowi6_proto = NEXTHDR_TCP;
+	flow.saddr = iph->saddr;
+	flow.daddr = iph->daddr;
+	flow.fl6_sport = th->source;
+	flow.fl6_dport = th->dest;
 
-	if (!route6(ns, &pkt)) {
-		kfree_skb(skb);
-		goto fail;
-	}
+	dst = route6(ns, &flow);
+	if (!dst)
+		goto revert;
+
+	skb_dst_set(skb, dst);
 
 	/* Implicit kfree_skb(skb) here. */
 #if LINUX_VERSION_AT_LEAST(4, 4, 0, 8, 0)
@@ -820,6 +830,8 @@ static void send_probe_packet(struct net *ns, struct session_entry *session)
 
 	return;
 
+revert:
+	kfree_skb(skb);
 fail:
 	log_debug("A TCP connection will probably break.");
 }

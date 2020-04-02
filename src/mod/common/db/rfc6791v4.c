@@ -1,8 +1,4 @@
-#include "rfc6791v4.h"
-
-#include <linux/inetdevice.h>
-#include "mod/common/log.h"
-#include "mod/common/route.h"
+#include "mod/common/db/rfc6791v4.h"
 
 /**
  * Returns in @result the IPv4 address the ICMP error should be sourced with.
@@ -25,38 +21,15 @@ static int get_pool_address(struct xlation *state, struct in_addr *result)
 }
 
 /**
- * Returns in @result the IPv4 address the ICMP error should be sourced with,
- * assuming the RFC6791 pool is empty.
+ * Flags the source address for automatic completion later.
+ *
+ * (We cannot compute the actual address at this point, because figuring out its
+ * ideal value requires routing, which we can't do until certain packet fields
+ * are translated.)
  */
-static int get_host_address(struct xlation *state, struct in_addr *result)
+static int get_host_address(struct in_addr *result)
 {
-	struct dst_entry *dst;
-	__be32 saddr;
-	__be32 daddr;
-
-	/*
-	 * TODO (warning) if the ICMP error hairpins, this route4 fails so
-	 * translation is not done.
-	 *
-	 * I'm a little stuck on how to fix it. If I assign any address, will
-	 * that enhance an attacker's ability to ICMP spoof a connection?
-	 * Read RFC 5927 and figure it out.
-	 */
-
-	dst = route4(state->jool.ns, &state->out);
-	if (!dst)
-		return -EINVAL;
-
-	daddr = pkt_ip4_hdr(&state->out)->daddr;
-	saddr = inet_select_addr(dst->dev, daddr, RT_SCOPE_LINK);
-
-	if (!saddr) {
-		log_warn_once("Can't find a proper src address to reach %pI4.",
-				&daddr);
-		return -EINVAL;
-	}
-
-	result->s_addr = saddr;
+	result->s_addr = 0;
 	return 0;
 }
 
@@ -64,5 +37,5 @@ int rfc6791v4_find(struct xlation *state, struct in_addr *result)
 {
 	return state->jool.globals.siit.rfc6791_prefix4.set
 			? get_pool_address(state, result)
-			: get_host_address(state, result);
+			: get_host_address(result);
 }

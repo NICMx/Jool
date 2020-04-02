@@ -17,11 +17,10 @@
  */
 struct pkt_metadata {
 	/*
+	 * Offset is from skb->data. Zero if there's no fragment header.
 	 * Note: The fact that a packet has a fragment header does not imply
 	 * that it is fragmented.
 	 */
-	bool has_frag_hdr;
-	/* Offset is from skb->data. Do not use if has_frag_hdr is false. */
 	unsigned int frag_offset;
 	/* Actual packet protocol; not tuple protocol. */
 	enum l4_protocol l4_proto;
@@ -61,11 +60,6 @@ static verdict inhdr4(struct xlation *state, const char *msg)
 {
 	log_debug("%s", msg);
 	return drop(state, JSTAT_HDR4);
-}
-
-static void *skb_offset_to_ptr(struct sk_buff *skb, unsigned int offset)
-{
-	return ((void *) skb->data) + offset;
 }
 
 /**
@@ -167,7 +161,7 @@ static verdict summarize_skb6(struct xlation *state,
 	nexthdr = *ptr.nexthdr;
 	offset = hdr6_offset + sizeof(struct ipv6hdr);
 
-	meta->has_frag_hdr = false;
+	meta->frag_offset = 0;
 
 	do {
 		switch (nexthdr) {
@@ -206,7 +200,6 @@ static verdict summarize_skb6(struct xlation *state,
 			if (!ptr.frag)
 				return truncated(state, "fragment header");
 
-			meta->has_frag_hdr = true;
 			meta->frag_offset = offset;
 			is_first = is_first_frag6(ptr.frag);
 
@@ -217,7 +210,7 @@ static verdict summarize_skb6(struct xlation *state,
 		case NEXTHDR_HOP:
 		case NEXTHDR_ROUTING:
 		case NEXTHDR_DEST:
-			if (meta->has_frag_hdr) {
+			if (meta->frag_offset) {
 				log_debug("There's a known extension header (%u) after Fragment.",
 						nexthdr);
 				return drop_icmp(state, JSTAT64_FRAG_THEN_EXT,
@@ -271,7 +264,7 @@ static verdict validate_inner6(struct xlation *state,
 	if (result != VERDICT_CONTINUE)
 		return result;
 
-	if (meta.has_frag_hdr) {
+	if (meta.frag_offset) {
 		ptr.frag = skb_hdr_ptr(state->in.skb, meta.frag_offset,
 				buffer.frag);
 		if (!ptr.frag)
@@ -320,7 +313,7 @@ static verdict handle_icmp6(struct xlation *state, struct pkt_metadata const *me
 	}
 
 	if (xlation_is_siit(state)
-			&& meta->has_frag_hdr
+			&& meta->frag_offset
 			&& is_icmp6_info(ptr.icmp->icmp6_type)) {
 		ptr.frag = skb_hdr_ptr(state->in.skb, meta->frag_offset, buffer.frag);
 		if (!ptr.frag)
@@ -380,11 +373,9 @@ verdict pkt_init_ipv6(struct xlation *state, struct sk_buff *skb)
 	state->in.l4_proto = meta.l4_proto;
 	state->in.is_inner = 0;
 	state->in.is_hairpin = false;
-	state->in.hdr_frag = meta.has_frag_hdr
-			? skb_offset_to_ptr(skb, meta.frag_offset)
-			: NULL;
+	state->in.frag_offset = meta.frag_offset;
 	skb_set_transport_header(skb, meta.l4_offset);
-	state->in.payload = skb_offset_to_ptr(skb, meta.payload_offset);
+	state->in.payload_offset = meta.payload_offset;
 	state->in.original_pkt = &state->in;
 
 	return VERDICT_CONTINUE;
@@ -473,7 +464,7 @@ static verdict summarize_skb4(struct xlation *state, struct pkt_metadata *meta)
 	hdr4 = ip_hdr(state->in.skb);
 	offset = skb_network_offset(state->in.skb) + (hdr4->ihl << 2);
 
-	meta->has_frag_hdr = false;
+	meta->frag_offset = 0;
 	meta->l4_offset = offset;
 	meta->payload_offset = offset;
 
@@ -544,9 +535,9 @@ verdict pkt_init_ipv4(struct xlation *state, struct sk_buff *skb)
 	state->in.l4_proto = meta.l4_proto;
 	state->in.is_inner = false;
 	state->in.is_hairpin = false;
-	state->in.hdr_frag = NULL;
+	state->in.frag_offset = 0;
 	skb_set_transport_header(skb, meta.l4_offset);
-	state->in.payload = skb_offset_to_ptr(skb, meta.payload_offset);
+	state->in.payload_offset = meta.payload_offset;
 	state->in.original_pkt = &state->in;
 
 	return VERDICT_CONTINUE;
@@ -567,6 +558,8 @@ verdict pkt_init_ipv4(struct xlation *state, struct sk_buff *skb)
  * usual.
  *
  * Never use skb_pull() directly.
+ *
+ * TODO (fine) the 7915 code is breaking that rule.
  */
 unsigned char *jskb_pull(struct sk_buff *skb, unsigned int len)
 {

@@ -182,8 +182,8 @@ static bool test_function_icmp6_minimum_mtu(void)
 
 static bool test_function_icmp4_to_icmp6_param_prob(void)
 {
-	struct xlator jool;
-	struct xlation state;
+	static struct xlator jool;
+	static struct xlation state;
 
 	struct icmphdr *hdr4;
 	struct icmp6hdr *hdr6;

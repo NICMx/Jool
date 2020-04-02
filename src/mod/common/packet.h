@@ -172,6 +172,7 @@ static inline bool is_first_frag6(const struct frag_hdr *hdr)
  */
 static inline bool is_fragmented_ipv4(const struct iphdr *hdr)
 {
+	/* TODO (fine) Maybe use ip_is_fragment() instead. */
 	return (get_fragment_offset_ipv4(hdr) != 0) || is_mf_set_ipv4(hdr);
 }
 
@@ -275,12 +276,10 @@ struct packet {
 	 */
 	bool is_hairpin;
 
+	/** Offset of the skb's fragment header (from skb->data), if any. */
+	unsigned int frag_offset;
 	/**
-	 * Quick pointer to skb's fragment header, if any.
-	 */
-	struct frag_hdr *hdr_frag;
-	/**
-	 * Pointer to the packet's payload.
+	 * Offset of the packet's payload. (From skb->data.)
 	 * Because skbs only store pointers to headers.
 	 *
 	 * Sometimes the kernel seems to use skb->data for this. It would be
@@ -291,7 +290,7 @@ struct packet {
 	 * (unlike headers). Do not access the data pointed by this field
 	 * carelessly.
 	 */
-	void *payload;
+	unsigned int payload_offset;
 	/**
 	 * If this is an incoming packet (as in, incoming to Jool), this points
 	 * to the same packet (pkt->original_pkt = pkt). Otherwise (which
@@ -312,16 +311,16 @@ struct packet {
  */
 static inline void pkt_fill(struct packet *pkt, struct sk_buff *skb,
 		l3_protocol l3_proto, l4_protocol l4_proto,
-		struct frag_hdr *hdr_frag, void *payload,
+		struct frag_hdr *frag, void *payload,
 		struct packet *original_pkt)
 {
 	pkt->skb = skb;
 	pkt->l3_proto = l3_proto;
 	pkt->l4_proto = l4_proto;
 	pkt->is_inner = 0;
-	pkt->is_hairpin = false;
-	pkt->hdr_frag = hdr_frag;
-	pkt->payload = payload;
+	/* pkt->is_hairpin = false; */
+	pkt->frag_offset = frag ? ((unsigned char *)frag - skb->data) : 0;
+	pkt->payload_offset = (unsigned char *)payload - skb->data;
 	pkt->original_pkt = original_pkt;
 }
 
@@ -351,6 +350,12 @@ static inline l4_protocol pkt_l4_proto(const struct packet *pkt)
 	return pkt->l4_proto;
 }
 
+/*
+ * These functions assume that @pkt is not a subsequent fragment.
+ *
+ * TODO (NOW) review that.
+ */
+
 static inline struct udphdr *pkt_udp_hdr(const struct packet *pkt)
 {
 	return udp_hdr(pkt->skb);
@@ -373,12 +378,14 @@ static inline struct icmp6hdr *pkt_icmp6_hdr(const struct packet *pkt)
 
 static inline struct frag_hdr *pkt_frag_hdr(const struct packet *pkt)
 {
-	return pkt->hdr_frag;
+	if (!pkt->frag_offset)
+		return NULL;
+	return (struct frag_hdr *)(pkt->skb->data + pkt->frag_offset);
 }
 
 static inline void *pkt_payload(const struct packet *pkt)
 {
-	return pkt->payload;
+	return pkt->skb->data + pkt->payload_offset;
 }
 
 static inline bool pkt_is_inner(const struct packet *pkt)
@@ -394,18 +401,6 @@ static inline bool pkt_is_outer(const struct packet *pkt)
 static inline bool pkt_is_intrinsic_hairpin(const struct packet *pkt)
 {
 	return pkt->is_hairpin;
-}
-
-static inline int pkt_payload_offset(const struct packet *pkt)
-{
-	/*
-	 * It seems like the network header functions are cancelling each other.
-	 * This is *NOT* the case!
-	 * The point is to make the offset's reference the same as the network
-	 * header's (whatever it is).
-	 */
-	return skb_network_offset(pkt->skb) + (pkt_payload(pkt)
-			- (void *)skb_network_header(pkt->skb));
 }
 
 static inline struct packet *pkt_original_pkt(const struct packet *pkt)
@@ -454,7 +449,7 @@ static inline unsigned int pkt_l3hdr_len(const struct packet *pkt)
  */
 static inline unsigned int pkt_l4hdr_len(const struct packet *pkt)
 {
-	return pkt_payload(pkt) - (void *) skb_transport_header(pkt->skb);
+	return pkt_payload(pkt) - (void *)skb_transport_header(pkt->skb);
 }
 
 /**
@@ -468,50 +463,7 @@ static inline unsigned int pkt_l4hdr_len(const struct packet *pkt)
  */
 static inline unsigned int pkt_hdrs_len(const struct packet *pkt)
 {
-	return pkt_payload(pkt) - (void *) skb_network_header(pkt->skb);
-}
-
-/**
- * Returns the length of @pkt's layer-4 payload.
- * Only counts bytes actually present within @pkt. In other words, payload of
- * any subsequent fragments linked to @pkt is ignored.
- *
- * Includes data payload area and paged area.
- * Does not include l3 header, l4 header nor frag_list area.
- */
-static inline unsigned int pkt_payload_len_frag(const struct packet *pkt)
-{
-	return pkt_len(pkt) - pkt_hdrs_len(pkt);
-}
-
-/**
- * Returns the length of @pkt's layer-4 payload.
- * Includes the entire layer-4 payload (ie. including subsequent fragment
- * payload).
- *
- * This function is compatible with full and internal packets. Technically, it
- * might also be used with fragmented packets depending on context, but
- * pkt_payload_len_frag() would likely make more sense.
- *
- * Includes data payload area, paged area and frag_list area.
- * Does not include l3 header nor l4 header.
- */
-static inline unsigned int pkt_payload_len_pkt(const struct packet *pkt)
-{
-	return pkt->skb->len - pkt_hdrs_len(pkt);
-}
-
-/**
- * Returns the length of @pkt's layer-3 payload.
- * Only counts bytes actually present within @pkt. In other words, payload of
- * any subsequent fragments linked to @pkt is ignored.
- *
- * Includes l4 header, data payload area and paged area.
- * Does not include l3 header nor frag_list area.
- */
-static inline unsigned int pkt_l3payload_len(const struct packet *pkt)
-{
-	return pkt_len(pkt) - pkt_l3hdr_len(pkt);
+	return pkt->payload_offset;
 }
 
 /**
@@ -530,12 +482,14 @@ static inline unsigned int pkt_datagram_len(const struct packet *pkt)
 	return pkt->skb->len - pkt_l3hdr_len(pkt);
 }
 
+/* This function assumes that @pkt is not a subsequent fragment. */
 static inline bool pkt_is_icmp6_error(const struct packet *pkt)
 {
 	return pkt_l4_proto(pkt) == L4PROTO_ICMP
 			&& is_icmp6_error(pkt_icmp6_hdr(pkt)->icmp6_type);
 }
 
+/* This function assumes that @pkt is not a subsequent fragment. */
 static inline bool pkt_is_icmp4_error(const struct packet *pkt)
 {
 	return pkt_l4_proto(pkt) == L4PROTO_ICMP

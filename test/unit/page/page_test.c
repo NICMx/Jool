@@ -163,6 +163,8 @@ static bool basic_single_test(unsigned int head_len, unsigned int data_len)
 	if (head_len + data_len < IN_HDRS)
 		return true; /* Invalid test, but we don't care */
 
+	log_debug("Test: %u %u", head_len, data_len);
+
 	skb_in = create_paged_tcp_skb(head_len, data_len);
 	if (!skb_in)
 		return false;
@@ -190,58 +192,16 @@ static bool basic_single_test(unsigned int head_len, unsigned int data_len)
 
 static bool basic_test(void)
 {
-	unsigned int data_lens[] = {
-			0, 1, 2, 3, 4, 6, 7, 8, 9,
-
-			PAGE_SIZE - 9,
-			PAGE_SIZE - 8,
-			PAGE_SIZE - 7,
-			PAGE_SIZE - 6,
-			PAGE_SIZE - 5,
-			PAGE_SIZE - 4,
-			PAGE_SIZE - 3,
-			PAGE_SIZE - 2,
-			PAGE_SIZE - 1,
-			PAGE_SIZE,
-			PAGE_SIZE + 1,
-			PAGE_SIZE + 2,
-			PAGE_SIZE + 3,
-			PAGE_SIZE + 4,
-			PAGE_SIZE + 5,
-			PAGE_SIZE + 6,
-			PAGE_SIZE + 7,
-			PAGE_SIZE + 8,
-			PAGE_SIZE + 9,
-
-			2 * PAGE_SIZE - 9,
-			2 * PAGE_SIZE - 8,
-			2 * PAGE_SIZE - 7,
-			2 * PAGE_SIZE - 6,
-			2 * PAGE_SIZE - 5,
-			2 * PAGE_SIZE - 4,
-			2 * PAGE_SIZE - 3,
-			2 * PAGE_SIZE - 2,
-			2 * PAGE_SIZE - 1,
-			2 * PAGE_SIZE,
-			2 * PAGE_SIZE + 1,
-			2 * PAGE_SIZE + 2,
-			2 * PAGE_SIZE + 3,
-			2 * PAGE_SIZE + 4,
-			2 * PAGE_SIZE + 5,
-			2 * PAGE_SIZE + 6,
-			2 * PAGE_SIZE + 7,
-			2 * PAGE_SIZE + 8,
-			2 * PAGE_SIZE + 9,
-	};
+	unsigned int data_lens[] = { 0, 1, 2, 3, 4, 6, 7, 8, 9 };
 
 	unsigned int h, d; /* head counter, data[_len] counter */
-	bool success = true;
 
 	for (h = 40; h < 110; h += 20)
 		for (d = 0; d < ARRAY_SIZE(data_lens); d++)
-			success &= basic_single_test(h, data_lens[d]);
+			if (!basic_single_test(h, data_lens[d]))
+				return false;
 
-	return success;
+	return true;
 }
 
 static struct sk_buff *create_paged_icmp6err_skb(unsigned int head_len,

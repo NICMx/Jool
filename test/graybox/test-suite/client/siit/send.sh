@@ -15,6 +15,8 @@
 #     - icmpe64: IPv6->IPv4 ICMP error tests
 #     - icmpe46: IPv4->IPv6 ICMP error tests
 #     - misc: random tests we've designed later.
+#     - rfc7915: Tests designed to prove the RFC 7915 compliance. These are
+#       documented in ../../rfc/7915.md.
 #     (Feel free to add new groups if you want.)
 
 
@@ -189,6 +191,8 @@ if [[ -z $1 || $1 = *rfc7915* ]]; then
 	test 7915 ace4 act4
 	test 7915 ace5 act5
 	test 7915 ace6 act6
+	test 7915 ade1 adt1 $IDENTIFICATION
+	test 7915 ade1 adt2
 
 	# b
 	test 7915 bae1 bat1
@@ -198,8 +202,10 @@ if [[ -z $1 || $1 = *rfc7915* ]]; then
 	test 7915 bee1 bet1 $IDENTIFICATION,$INNER_IDENTIFICATION
 	
 	# c
+	ip netns exec joolns jool_siit global update lowest-ipv6-mtu 1500
 	ip netns exec joolns ip link set dev to_world_v6 mtu 1280
 	test 7915 cae1 cat1 $TOS,$IDENTIFICATION
+	test 7915 cae2 cat2 $TOS,$IDENTIFICATION
 	test 7915 cbe1 cbt1
 	# Implementation quirk: The RFC wants us to copy the IPv4 identification
 	# value (16 bits) to the IPv6 identification field (32 bits).
@@ -217,17 +223,24 @@ if [[ -z $1 || $1 = *rfc7915* ]]; then
 	test 7915 cde1 cdt1
 	test 7915 cee1 cet1
 	test 7915 cee1 cet2
-	# TODO Nontrivial bug detected here.
-	#test12 7915 cfe1 cfe2 cft1
-	#test12 7915 cfe1 cfe2 cft2
+	test12 7915 cfe1 cfe2 cft1
 	ip netns exec joolns ip link set dev to_world_v6 mtu 1500
 
 	ip netns exec joolns ip link set dev to_world_v4 mtu 1400
 	test 7915 cge1 cgt1
+	test 7915 cge2 cgt2
 	ip netns exec joolns ip link set dev to_world_v4 mtu 1500
 
 	test 7915 che1 cht1 $IDENTIFICATION
 	test 7915 cie1 cit1 $IDENTIFICATION
+	test 7915 cje1 cjt1
+	test 7915 cje2 cjt2
+	test 7915 cje3 cjt3
+	test 7915 cje4 cjt4
+
+	ip netns exec joolns jool_siit global update lowest-ipv6-mtu 1280
+	# This one is actually ck.
+	test12 7915 cce1 cce2 cct1
 
 	# d
 	test 7915 dae1 dat1 $IDENTIFICATION,$INNER_IDENTIFICATION
@@ -249,6 +262,9 @@ if [[ -z $1 || $1 = *rfc7915* ]]; then
 
 	# g
 	test 7915 gae1 gat1
+	
+	# h
+	test 7915 hae1 hat1 $IDENTIFICATION,$INNER_IDENTIFICATION
 fi
 
 $GRAYBOX stats display

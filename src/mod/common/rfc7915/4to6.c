@@ -1,61 +1,217 @@
 #include "mod/common/rfc7915/4to6.h"
 
+#include <net/addrconf.h>
 #include <net/ip6_checksum.h>
 
-#include "common/config.h"
 #include "common/constants.h"
-#include "mod/common/address_xlat.h"
-#include "mod/common/icmp_wrapper.h"
 #include "mod/common/linux_version.h"
 #include "mod/common/log.h"
 #include "mod/common/rfc6052.h"
 #include "mod/common/route.h"
-#include "mod/common/stats.h"
-#include "mod/common/db/rfc6791v6.h"
 
-verdict ttp46_alloc_skb(struct xlation *state)
+/* Layer 3 only */
+#define HDRS_LEN (sizeof(struct ipv6hdr) + sizeof(struct frag_hdr))
+
+struct ipv6_addresses {
+	struct in6_addr src;
+	struct in6_addr dst;
+};
+
+static int generate_saddr6_nat64(struct xlation *state,
+		struct ipv6_addresses *addrs)
+{
+	struct jool_globals *cfg;
+	struct in_addr tmp;
+
+	cfg = &state->jool.globals;
+
+	if (cfg->nat64.src_icmp6errs_better && pkt_is_icmp4_error(&state->in)) {
+		/* Issue #132 behaviour. */
+		tmp.s_addr = pkt_ip4_hdr(&state->in)->saddr;
+		return __rfc6052_4to6(&cfg->pool6.prefix, &tmp, &addrs->src);
+	}
+
+	/* RFC 6146 behaviour. */
+	addrs->src = state->out.tuple.src.addr6.l3;
+	return 0;
+}
+
+static verdict xlat_addresses46(struct xlation *state,
+		struct ipv6_addresses *addrs)
+{
+	if (xlation_is_nat64(state)) {
+		if (generate_saddr6_nat64(state, addrs))
+			return drop(state, JSTAT46_SRC);
+	} else {
+		addrs->src = state->out.tuple.src.addr6.l3;
+	}
+
+	addrs->dst = state->out.tuple.dst.addr6.l3;
+	return VERDICT_CONTINUE;
+}
+
+static __u8 xlat_nexthdr(__u8 protocol)
+{
+	return (protocol == IPPROTO_ICMP) ? NEXTHDR_ICMP : protocol;
+}
+
+static verdict predict_route46(struct xlation *state,
+		struct ipv6_addresses *addrs,
+		struct dst_entry **result)
+{
+	struct dst_entry *dst;
+	struct packet *in;
+	struct flowi6 flow;
+
+#ifdef UNIT_TESTING
+	*result = NULL;
+	return VERDICT_CONTINUE;
+#endif
+
+	in = &state->in;
+
+	memset(&flow, 0, sizeof(flow));
+	flow.flowi6_mark = in->skb->mark;
+	flow.flowi6_scope = RT_SCOPE_UNIVERSE;
+	flow.flowi6_proto = xlat_nexthdr(pkt_ip4_hdr(in)->protocol);
+	flow.flowi6_flags = FLOWI_FLAG_ANYSRC;
+	flow.saddr = addrs->src;
+	flow.daddr = addrs->dst;
+
+	switch (flow.flowi6_proto) {
+	case NEXTHDR_TCP:
+	case NEXTHDR_UDP:
+		flow.fl6_sport = state->out.tuple.src.addr6.l4;
+		flow.fl6_dport = state->out.tuple.dst.addr6.l4;
+		break;
+	case NEXTHDR_ICMP:
+		/*
+		 * type and code have not been translated yet, and I don't think
+		 * they're worth the trouble.
+		 * These flowi fields are probably just clutter at this point.
+		 */
+		break;
+	}
+
+	log_debug("Routing: %pI6c->%pI6c", &flow.saddr, &flow.daddr);
+	dst = route6(state->jool.ns, &flow);
+	if (!dst)
+		return untranslatable(state, JSTAT_FAILED_ROUTES);
+
+	if (ipv6_addr_any(&flow.saddr)) { /* empty pool6791v6 */
+		if (WARN(!xlator_is_siit(&state->jool),
+			 "Zero source address on not SIIT!"))
+			goto panic;
+		if (WARN(!is_icmp4_error(pkt_icmp4_hdr(&state->in)->type),
+			 "Zero source on not ICMP error!"))
+			goto panic;
+
+		if (ipv6_dev_get_saddr(state->jool.ns,
+				       NULL,
+				       &state->out.tuple.dst.addr6.l3,
+				       IPV6_PREFER_SRC_PUBLIC,
+				       &state->out.tuple.src.addr6.l3)) {
+			log_warn_once("Can't find a sufficiently scoped primary source address to reach %pI6.",
+					&state->out.tuple.dst.addr6.l3);
+			dst_release(dst);
+			return drop(state, JSTAT46_6791_ENOENT);
+		}
+	}
+
+	*result = dst;
+	return VERDICT_CONTINUE;
+
+panic:
+	dst_release(dst);
+	return drop(state, JSTAT_UNKNOWN);
+}
+
+static int hdr4len_to_hdr6len(struct iphdr *hdr4)
+{
+	int result;
+
+	result = sizeof(struct ipv6hdr) - (hdr4->ihl << 2);
+	if (will_need_frag_hdr(hdr4))
+		result += sizeof(struct frag_hdr);
+
+	return result;
+}
+
+/*
+ * Returns the "ideal" difference in size between in->skb and out->skb.
+ * in->skb->len + delta should equal out->skb->len.
+ *
+ * ("Ideal" refers to Fast Path. This delta will not apply if Jool has to mess
+ * around with fragmentation.)
+ *
+ * Please note that there is no guarantee that delta will be positive. If the
+ * IPv4 header has lots of options, it might exceed the IPv6 header length.
+ */
+static int get_delta(struct packet *in)
+{
+	int delta;
+
+	/*
+	 * The following is assumed by this code:
+	 *
+	 * The IPv4 header will be replaced by a IPv6 header and possibly a
+	 * fragment header.
+	 * The L4 header will never change in size.
+	 *    (In particular, ICMPv4 hdr len == ICMPv6 hdr len)
+	 * The payload will not change in TCP, UDP and ICMP infos.
+	 *
+	 * As for ICMP errors:
+	 * The sub-IPv4 header will be replaced by an IPv6 header and possibly a
+	 * fragment header.
+	 * The sub-L4 header will never change in size.
+	 * The subpayload will never change in size (for now).
+	 */
+
+	delta = hdr4len_to_hdr6len(pkt_ip4_hdr(in));
+	if (is_first_frag4(pkt_ip4_hdr(in)) && pkt_is_icmp4_error(in))
+		delta += hdr4len_to_hdr6len(pkt_payload(in));
+
+	return delta;
+}
+
+/*
+ * Returns:
+ *
+ * - 0: No fragments exceed MTU
+ * - 1: First fragment exceeds MTU
+ * - 2: Subsequent fragment exceeds MTU
+ */
+static int fragment_exceeds_mtu46(struct packet *in, int delta,
+		unsigned int mtu)
+{
+	struct sk_buff *iter;
+
+	if (!skb_shinfo(in->skb)->frag_list) {
+		if (in->skb->len + delta > mtu)
+			return is_first_frag4(pkt_ip4_hdr(in)) ? 1 : 2;
+		return 0;
+	}
+
+	if (skb_headlen(in->skb) + delta > mtu)
+		return 1;
+
+	mtu -= sizeof(struct ipv6hdr) + sizeof(struct frag_hdr);
+	skb_walk_frags(in->skb, iter)
+		if (iter->len > mtu)
+			return 2;
+
+	return 0;
+}
+
+static verdict allocate_fast(struct xlation *state, int delta, bool ignore_df)
 {
 	struct packet *in = &state->in;
-	int delta;
 	struct sk_buff *out;
 	struct iphdr *hdr4_inner;
 	struct frag_hdr *hdr_frag;
 	struct skb_shared_info *shinfo;
-	int error;
 
-	/*
-	 * These are my assumptions to compute total_len:
-	 *
-	 * The IPv4 header will be replaced by a IPv6 header and possibly a
-	 * fragment header.
-	 *    (we will reserve room for this fragment header even if we don't
-	 *    use it, just in case the kernel wants to do something with it
-	 *    later.)
-	 * The L4 header will never change in size
-	 *    (in particular, ICMPv4 hdr len == ICMPv6 hdr len).
-	 * The payload will not change in TCP, UDP and ICMP infos.
-	 *
-	 * As for ICMP errors:
-	 * The IPv4 header will be replaced by an IPv6 header and possibly a
-	 * fragment header.
-	 * The sub-L4 header will never change in size.
-	 * The subpayload will never change in size (by us).
-	 */
-
-	/* Calculate the "delta" - the amount the packet might grow in size. */
-	delta = sizeof(struct ipv6hdr) - pkt_l3hdr_len(in)
-			+ sizeof(struct frag_hdr);
-	if (is_first_frag4(pkt_ip4_hdr(in)) && pkt_is_icmp4_error(in)) {
-		hdr4_inner = pkt_payload(in);
-		delta += sizeof(struct ipv6hdr) - (hdr4_inner->ihl << 2);
-		if (will_need_frag_hdr(hdr4_inner))
-			delta += sizeof(struct frag_hdr);
-	}
-
-	/*
-	 * Do not shrink under any circumstances because I'm not sure what
-	 * happens when headroom is negative.
-	 */
+	/* Dunno what happens when headroom is negative, so don't risk it. */
 	if (delta < 0)
 		delta = 0;
 
@@ -96,15 +252,6 @@ verdict ttp46_alloc_skb(struct xlation *state)
 		skb_push(out, sizeof(struct frag_hdr));
 	skb_push(out, sizeof(struct ipv6hdr));
 
-	/* Prevent Linux from dropping or fragmenting ICMP errors. */
-	if (pkt_is_icmp4_error(in)) {
-		error = pskb_trim(out, 1280);
-		if (error) {
-			log_debug("pskb_trim() returned errcode %d.", error);
-			return drop(state, JSTAT_ENOMEM);
-		}
-	}
-
 	skb_reset_mac_header(out);
 	skb_reset_network_header(out);
 	if (will_need_frag_hdr(pkt_ip4_hdr(in))) {
@@ -123,6 +270,7 @@ verdict ttp46_alloc_skb(struct xlation *state)
 			pkt_original_pkt(in));
 
 	memset(out->cb, 0, sizeof(out->cb));
+	out->ignore_df = ignore_df;
 	out->mark = in->skb->mark;
 	out->protocol = htons(ETH_P_IPV6);
 
@@ -135,137 +283,366 @@ verdict ttp46_alloc_skb(struct xlation *state)
 	return VERDICT_CONTINUE;
 }
 
-/*
- * Yes, this is very different from the RFC's "Total length value from the IPv4
- * header, minus the size of the IPv4 header and IPv4 options, if present."
- * This is because we need to account for lots of quirks (mostly from Linux).
- */
+static verdict allocate_slow(struct xlation *state, unsigned int mpl)
+{
+	struct packet *in;
+	struct sk_buff **previous;
+	struct sk_buff *out;
+	unsigned int payload_left; /* Payload not yet consumed */
+	/* Amount of layer 3 payload we can include in each fragment */
+	unsigned int payload_per_frag;
+	/* Current fragment's layer 3 payload length */
+	unsigned int fragment_payload_len;
+	unsigned int bytes_consumed;
+	struct frag_hdr *frag;
+	unsigned char *l3_payload;
+
+	in = &state->in;
+	previous = &state->out.skb;
+	payload_left = pkt_len(in) - pkt_l3hdr_len(in);
+	payload_per_frag = (mpl - HDRS_LEN) & 0xFFFFFFF8U;
+	bytes_consumed = 0;
+
+	while (payload_left > 0) {
+		if (payload_left > payload_per_frag) {
+			fragment_payload_len = payload_per_frag;
+			payload_left -= payload_per_frag;
+		} else {
+			fragment_payload_len = payload_left;
+			payload_left = 0;
+		}
+
+		out = alloc_skb(skb_headroom(in->skb) + HDRS_LEN
+				+ fragment_payload_len, GFP_ATOMIC);
+		if (!out)
+			goto fail;
+
+		*previous = out;
+		previous = &out->next;
+
+		skb_reserve(out, skb_headroom(in->skb));
+		skb_reset_mac_header(out);
+		skb_reset_network_header(out);
+		skb_put(out, sizeof(struct ipv6hdr));
+		frag = skb_put(out, sizeof(struct frag_hdr));
+		l3_payload = skb_put(out, fragment_payload_len);
+
+		if (out == state->out.skb) {
+			skb_set_transport_header(out, HDRS_LEN);
+			pkt_fill(&state->out, out, L3PROTO_IPV6,
+					pkt_l4_proto(in), frag,
+					l3_payload + pkt_l4hdr_len(in),
+					pkt_original_pkt(in));
+		}
+
+		out->ignore_df = false;
+		out->mark = in->skb->mark;
+		out->protocol = htons(ETH_P_IPV6);
+
+		if (skb_copy_bits(in->skb,
+				skb_transport_offset(in->skb) + bytes_consumed,
+				l3_payload, fragment_payload_len))
+			goto fail;
+		bytes_consumed += fragment_payload_len;
+	}
+
+	return VERDICT_CONTINUE;
+
+fail:
+	kfree_skb_list(state->out.skb);
+	state->out.skb = NULL;
+	return drop(state, JSTAT_ENOMEM);
+}
+
+static void autofill_dst(struct xlation *state, struct dst_entry *dst)
+{
+	struct sk_buff *skb;
+
+	skb = state->out.skb;
+	skb_dst_set(skb, dst);
+
+	for (skb = skb->next; skb != NULL; skb = skb->next)
+		skb_dst_set(skb, dst_clone(dst));
+}
+
+static void addrs_set46(struct xlation *state, struct ipv6_addresses *addrs)
+{
+	struct ipv6hdr *hdr6;
+	hdr6 = pkt_ip6_hdr(&state->out);
+	hdr6->saddr = addrs->src;
+	hdr6->daddr = addrs->dst;
+}
+
+verdict ttp46_alloc_skb(struct xlation *state)
+{
+	/*
+	 * Glossary:
+	 *
+	 * - IPL: Ideal (Outgoing) Packet Length
+	 * - MPL: Maximum Packet Length
+	 * - Slow Path: Out packet(s) will have to be created from scratch, data
+	 *   will be inevitably copied from In to Out(s)
+	 * - Fast Path: Out packet will share In packet's fragment and paged
+	 *   data if possible
+	 * - PTB: Packet Too Big (ICMPv6 error type 2 code 0)
+	 * - FN: Fragmentation Needed (ICMPv4 error type 3 code 4)
+	 *
+	 * My tools are skb_copy_bits() and friends. I intend to attempt no
+	 * frags surgery whatsoever.
+	 *
+	 * This is a pain in the ass because of --lowest-ipv6-mtu and GRO/GSO.
+	 * Here's the general algorithm in pseudocode:
+	 *
+	 *	If ICMP error:
+	 *		Fast Path
+	 *
+	 *	Else If user wants to force Slow Path:
+	 *		Slow Path
+	 *
+	 *	Else if fragmentation prohibited:
+	 *		If first fragment exceeds MTU:
+	 *			FN
+	 *		Else if subsequent fragment exceeds MTU:
+	 *			Silent drop
+	 *		Else:
+	 *			Fast Path
+	 *	Else:
+	 *		If at least one fragment exceeds MTU:
+	 *			Slow Path
+	 *		Else:
+	 *			Fast Path
+	 *
+	 * Design notes:
+	 *
+	 * # MTU
+	 *
+	 * MTU needs to be handled with extreme caution. We do not want
+	 * ip6_output() -> ip6_finish_output() -> ip6_fragment() to return
+	 * PTB because we want a FN instead. (We wouldn't translate
+	 * ip6_fragment()'s PTB to FN because we're stuck in prerouting, so
+	 * it'd never reach us.) PMTUD depends on this. We avoid the PTB by
+	 * sending the FN ourselves by querying dst_mtu() (the same MTU function
+	 * ip6_fragment() uses to compute the MTU).
+	 *
+	 * Of course, this hinges on ip6_fragment() using dst_mtu(). If this
+	 * ever stops working, this is the first thing you need to check.
+	 * (Hint: The struct sock is always NULL.)
+	 *
+	 * (If, on the other hand, a future namespace returns a PTB, it will
+	 * cross our prerouting so it'll be converted to a FN no problem.)
+	 *
+	 * --lowest-ipv6-mtu acts as a second line of defense, since it's (in
+	 * theory) guaranteeing that the kernel will never enter ip6_fragment()
+	 * in the first place. Though I'm glad it's not the only one because the
+	 * user could misconfigure it.
+	 *
+	 * # Slow/Fast Path
+	 *
+	 * In Fast Path the result will be a single skb, sharing the incoming
+	 * packet's frag_list and frags.
+	 * In Slow Path the result will be multiple skbs, connected by their
+	 * next pointers. (We don't need prev for anything.)
+	 *
+	 * At time of writing, we need Slow Path (ie. we need to fragment
+	 * ourselves) because the kernel's IPv6 fragmentator does not care about
+	 * already existing fragment headers, which complicates the survival of
+	 * the Fragment Identification value needed when the packet is already
+	 * fragmented. If Jool sends an IPv6 packet containing a fragment header
+	 * hoping that the kernel will reuse it if it needs to fragment, the
+	 * kernel will just add another fragment header instead.
+	 *
+	 * I love you, Linux, but you can be such a moron.
+	 *
+	 * (Must not forget: The above might suggest that the following
+	 * situation could be handled by Fast Path:
+	 * - Fragmentation allowed
+	 * - Packet not already fragmented
+	 * - Packet too big
+	 * And it seems this would be true, but it would
+	 * 1. Complicate the code further. (Need to perform packet surgery in
+	 * the form of IP6CB(skb)->frag_max_size.)
+	 * 2. Not be particularly faster. (Because the fragmentator would end up
+	 * performing an operation equivalent to our Slow Path anyway.))
+	 *
+	 * Obviously, we want to use Fast Path whenever possible. Problem is,
+	 * it's risky because it could mess up packet sizes if done carelessly,
+	 * which borks PMTUD.
+	 *
+	 * Slow Path always works but breaks GRO/GSO optimizations.
+	 *
+	 * # GRO and GSO
+	 *
+	 * GRO/GSO are a problem because they lack contracts. I think the most
+	 * helpful documentation I found was https://lwn.net/Articles/358910/,
+	 * which has some interesting claims:
+	 *
+	 * - "the criteria for which packets can be merged is greatly
+	 *   restricted; (...) only a few TCP or IP headers can differ."
+	 * - "As a result of these restrictions, merged packets can be
+	 *   resegmented losslessly; as an added benefit, the GSO code can be
+	 *   used to perform resegmentation."
+	 *
+	 * In short, "GRO aims to be lossless, strict and symmetrical to GSO."
+	 *
+	 * Unfortunately, it doesn't say which are the fields that are allowed
+	 * to differ. Thus I need to make assumptions based on my readings of
+	 * the kernel code. This is obviously not future-proof, but it's
+	 * basically needed because performance is severely restricted
+	 * otherwise.
+	 *
+	 * I believe the relevant code is inet_gro_receive() (Hint: "^" is some
+	 * funny guy's smartass way of saying "!="), and these are my
+	 * assumptions:
+	 *
+	 * 1. DF is one of the fields which are not allowed to differ. If GSO is
+	 * active, then I can assume that all DFs were enabled, or all DFs were
+	 * disabled. This appears to be true for all currently supported
+	 * kernels.
+	 *
+	 * 2. The original packet size (agreed upon by way of PMTUD) will not
+	 * be mangled by GRO/GSO. I can assume this because PMTUD is sacred, and
+	 * I can't see any way to reconcile it with GRO/GSO if the latter
+	 * mangles packet sizes. (Though I must emphasize that I could be
+	 * overlooking something.)
+	 *
+	 * 3. IPv4 GRO/GSO and IPv6 GRO/GSO basically function the same way (ie.
+	 * a translated IPv4 GRO packet will be correctly segmented by the IPv6
+	 * GSO code.) (This is the biggest stretch, and I really can't prove it
+	 * definitely, but has worked fine so far.)
+	 *
+	 * So:
+	 *
+	 * 1. If fragmentation is prohibited, GSO does not prevent us from using
+	 * Fast Path, because it preserves packet sizes. This is awesome.
+	 *
+	 * 2. If fragmentation is allowed, GSO might lead us to translate a
+	 * large DF-disabled IPv4 packet into a large IPv6 packet, which is a
+	 * problem. We need to throw GSO away in those situations. (Or verify
+	 * each page size independently. But this would definitely meander deep
+	 * into the realms of "packet surgery," so I'd rather not do it.)
+	 *
+	 * (Note: GRO enabled on !DF suggests there might exist some potential
+	 * optimization I could be missing somewhere.)
+	 *
+	 * Therefore: If users want performance, they need to enable DF or GTFO.
+	 *
+	 * If my assumptions prove incorrect, the user can enable
+	 * --force-slow-path-46 and hopefully report the issue. Though I
+	 * honestly hope I never have to touch this code again.
+	 *
+	 * # LRO
+	 *
+	 * I'm not worrying about LRO because
+	 *
+	 * a) I don't know how it works. (eg. Does it affect skb_is_gso()?)
+	 * b) I'm assuming it's always disabled nowadays. (Corollary: I can't
+	 * test it because I can't find any hardware that supports it.)
+	 * c) It's lossy, which means it might be inherently incompatible with
+	 * IP XLAT anyway.
+	 * d) The code is already convoluted enough as it is.
+	 *
+	 * The code might or might not work if LRO is enabled.
+	 */
+
+	struct packet *in;
+	struct ipv6_addresses addrs;
+	struct dst_entry *dst;
+	int delta;
+	unsigned int nexthop_mtu;
+	unsigned int lim;
+	unsigned int mpl;
+	verdict result;
+
+	in = &state->in;
+	result = xlat_addresses46(state, &addrs);
+	if (result != VERDICT_CONTINUE)
+		return result;
+	result = predict_route46(state, &addrs, &dst);
+	if (result != VERDICT_CONTINUE)
+		return result;
+
+	delta = get_delta(in);
+#ifndef UNIT_TESTING
+	nexthop_mtu = dst_mtu(dst);
+#else
+	nexthop_mtu = 1500;
+#endif
+	lim = state->jool.globals.lowest_ipv6_mtu;
+	mpl = min(nexthop_mtu, lim);
+	if (mpl < 1280) {
+		result = drop(state, JSTAT46_BAD_MTU);
+		goto fail;
+	}
+
+	if (is_icmp4_error(pkt_icmp4_hdr(in)->type)) {
+		result = allocate_fast(state, delta, false);
+
+	} else if (state->jool.globals.force_slow_path_46) {
+		result = allocate_slow(state, mpl);
+
+	} else if (is_df_set(pkt_ip4_hdr(in))) {
+		switch (fragment_exceeds_mtu46(in, delta, nexthop_mtu)) {
+		case 0:
+			result = allocate_fast(state, delta,
+					in->skb->ignore_df);
+			break;
+		case 1:
+			result = drop_icmp(state, JSTAT_PKT_TOO_BIG,
+					ICMPERR_FRAG_NEEDED,
+					max(576u, nexthop_mtu - 20u));
+			break;
+		case 2:
+			result = drop(state, JSTAT_PKT_TOO_BIG);
+			break;
+		default:
+			WARN(1, "fragment_exceeds_mtu() returned garbage.");
+			result = drop(state, JSTAT_UNKNOWN);
+			break;
+		}
+
+	} else { /* Fragmentation allowed */
+		if (fragment_exceeds_mtu46(in, delta, mpl))
+			result = allocate_slow(state, mpl);
+		else
+			result = allocate_fast(state, delta, true);
+	}
+
+	if (result != VERDICT_CONTINUE)
+		goto fail;
+
+	autofill_dst(state, dst);
+	addrs_set46(state, &addrs);
+	return VERDICT_CONTINUE;
+
+fail:
+	dst_release(dst);
+	return result;
+}
+
 static __be16 build_payload_len(struct packet *in, struct packet *out)
 {
-	/* See build_tot_len() for relevant comments. */
-
 	__u16 total_len;
 
-	if (pkt_is_inner(out)) { /* Internal packets */
+	if (pkt_is_inner(out)) {
+		/*
+		 * The RFC formula is fine, but this avoids the need to override
+		 * if we later discover that we need to account for a fragment
+		 * header.
+		 */
 		total_len = be16_to_cpu(pkt_ip4_hdr(in)->tot_len)
 				- pkt_hdrs_len(in) + pkt_hdrs_len(out);
-
-	} else if (skb_shinfo(in->skb)->frag_list) { /* Fake full packets */
-		total_len = in->skb->len - pkt_hdrs_len(in) + pkt_hdrs_len(out);
-
-	} else { /* Real full packets and fragmented packets */
-		total_len = out->skb->len;
+	} else {
 		/*
-		 * Though ICMPv4 errors are supposed to be max 576 bytes long,
-		 * a good portion of the Internet seems prepared against bigger
-		 * ICMPv4 errors. Thus, the resulting ICMPv6 packet might have
-		 * a smaller payload than the original packet even though
-		 * IPv4 MTU < IPv6 MTU.
+		 * I was tempted to use the RFC formula, but it's a little
+		 * difficult because we can't trust the incoming packet's total
+		 * length when we need to fragment due to lowest-ipv6-mtu.
+		 * Also, this avoids the need to override if we later discover
+		 * that we need to account for a fragment header.
 		 */
-		if (pkt_is_icmp6_error(out) && total_len > IPV6_MIN_MTU)
-			total_len = IPV6_MIN_MTU;
-
-	} /* (Subsequent fragments don't reach this function) */
+		total_len = out->skb->len;
+	}
 
 	return cpu_to_be16(total_len - sizeof(struct ipv6hdr));
-}
-
-static int generate_saddr6_nat64(struct xlation *state)
-{
-	struct jool_globals *cfg;
-	struct packet *out = &state->out;
-	struct in_addr tmp;
-
-	cfg = &state->jool.globals;
-
-	if (cfg->nat64.src_icmp6errs_better && pkt_is_icmp4_error(&state->in)) {
-		/* Issue #132 behaviour. */
-		tmp.s_addr = pkt_ip4_hdr(&state->in)->saddr;
-		return __rfc6052_4to6(&cfg->pool6.prefix, &tmp,
-				&pkt_ip6_hdr(out)->saddr);
-	}
-
-	/* RFC 6146 behaviour. */
-	pkt_ip6_hdr(out)->saddr = out->tuple.src.addr6.l3;
-	return 0;
-}
-
-static bool disable_src_eam(struct packet *in, bool hairpin)
-{
-	struct iphdr *inner_hdr;
-
-	if (!hairpin || pkt_is_inner(in))
-		return false;
-	if (!pkt_is_icmp4_error(in))
-		return true;
-
-	inner_hdr = pkt_payload(in);
-	return pkt_ip4_hdr(in)->saddr == inner_hdr->daddr;
-}
-
-static bool disable_dst_eam(struct packet *in, bool hairpin)
-{
-	return hairpin && pkt_is_inner(in);
-}
-
-static verdict translate_addrs46_siit(struct xlation *state)
-{
-	struct packet *in = &state->in;
-	struct iphdr *hdr4 = pkt_ip4_hdr(in);
-	struct ipv6hdr *hdr6 = pkt_ip6_hdr(&state->out);
-	bool hairpin;
-	bool enable_blacklist;
-	struct result_addrxlat46 out;
-	struct addrxlat_result result;
-
-	hairpin = (state->jool.globals.siit.eam_hairpin_mode == EHM_SIMPLE)
-			|| pkt_is_intrinsic_hairpin(in);
-	enable_blacklist = !pkt_is_icmp4_error(in);
-
-	/* Src address. */
-	result = addrxlat_siit46(&state->jool, hdr4->saddr, &out,
-			!disable_src_eam(in, hairpin), enable_blacklist);
-	if (result.reason)
-		log_debug("%s.", result.reason);
-
-	switch (result.verdict) {
-	case ADDRXLAT_CONTINUE:
-		break;
-	case ADDRXLAT_TRY_SOMETHING_ELSE:
-		if (pkt_is_icmp4_error(in)
-				&& !rfc6791v6_find(state, &out.addr)) {
-			out.entry.method = AXM_RFC6791;
-			break; /* Ok, success. */
-		}
-		return untranslatable(state, JSTAT46_SRC);
-	case ADDRXLAT_ACCEPT:
-		return untranslatable(state, JSTAT46_SRC);
-	case ADDRXLAT_DROP:
-		return drop(state, JSTAT_UNKNOWN);
-	}
-
-	hdr6->saddr = out.addr;
-
-	/* Dst address. */
-	result = addrxlat_siit46(&state->jool, hdr4->daddr, &out,
-			!disable_dst_eam(in, hairpin), enable_blacklist);
-	if (result.reason)
-		log_debug("%s.", result.reason);
-
-	switch (result.verdict) {
-	case ADDRXLAT_CONTINUE:
-		hdr6->daddr = out.addr;
-		break;
-	case ADDRXLAT_TRY_SOMETHING_ELSE:
-		return untranslatable(state, JSTAT46_DST);
-	case ADDRXLAT_ACCEPT:
-		return untranslatable(state, JSTAT46_DST);
-	case ADDRXLAT_DROP:
-		return drop(state, JSTAT_UNKNOWN);
-	}
-
-	log_debug("Result: %pI6c->%pI6c", &hdr6->saddr, &hdr6->daddr);
-	return VERDICT_CONTINUE;
 }
 
 /**
@@ -321,6 +698,41 @@ static inline __be32 build_id_field(struct iphdr *hdr4)
 	return cpu_to_be32(be16_to_cpu(hdr4->id));
 }
 
+/*
+ * Copies the IPv6 and fragment headers from the first fragment to the
+ * subsequent ones, adapting fields appropriately.
+ */
+static void autofill_hdr6(struct packet *out)
+{
+	struct sk_buff *first;
+	struct sk_buff *skb;
+	struct ipv6hdr *hdr6;
+	struct frag_hdr *frag;
+	__u16 frag_offset;
+	__u16 first_mf;
+
+	first = out->skb;
+	if (!first->next)
+		return;
+
+	frag = (struct frag_hdr *)(ipv6_hdr(first) + 1);
+	frag_offset = get_fragment_offset_ipv6(frag) + first->len - HDRS_LEN;
+	first_mf = is_mf_set_ipv6(frag);
+	frag->frag_off |= cpu_to_be16(IP6_MF);
+
+	for (skb = first->next; skb != NULL; skb = skb->next) {
+		hdr6 = ipv6_hdr(skb);
+		frag = (struct frag_hdr *)(hdr6 + 1);
+
+		memcpy(hdr6, ipv6_hdr(first), HDRS_LEN);
+		hdr6->payload_len = cpu_to_be16(skb->len - sizeof(*hdr6));
+		frag->frag_off = build_ipv6_frag_off_field(frag_offset,
+				skb->next ? true : first_mf);
+
+		frag_offset += skb->len - HDRS_LEN;
+	}
+}
+
 /**
  * Infers a IPv6 header from "in"'s IPv4 header and "tuple". Places the result
  * in "out"->l3_hdr.
@@ -334,17 +746,11 @@ verdict ttp46_ipv6(struct xlation *state)
 	struct packet *out = &state->out;
 	struct iphdr *hdr4 = pkt_ip4_hdr(in);
 	struct ipv6hdr *hdr6 = pkt_ip6_hdr(out);
-	verdict result;
+	struct frag_hdr *frag_header;
 
-	/* Translate the address first because of issue #167. */
-	if (xlation_is_nat64(state)) {
-		if (generate_saddr6_nat64(state))
-			return drop(state, JSTAT46_SRC);
-		hdr6->daddr = out->tuple.dst.addr6.l3;
-	} else {
-		result = translate_addrs46_siit(state);
-		if (result != VERDICT_CONTINUE)
-			return result;
+	if (pkt_is_outer(in) && has_unexpired_src_route(hdr4)) {
+		log_debug("Packet has an unexpired source route.");
+		return drop_icmp(state, JSTAT46_SRC_ROUTE, ICMPERR_SRC_ROUTE, 0);
 	}
 
 	hdr6->version = 6;
@@ -358,9 +764,7 @@ verdict ttp46_ipv6(struct xlation *state)
 	hdr6->flow_lbl[1] = 0;
 	hdr6->flow_lbl[2] = 0;
 	hdr6->payload_len = build_payload_len(in, out);
-	hdr6->nexthdr = (hdr4->protocol == IPPROTO_ICMP)
-			? NEXTHDR_ICMP
-			: hdr4->protocol;
+	hdr6->nexthdr = xlat_nexthdr(hdr4->protocol);
 	if (pkt_is_outer(in) && !pkt_is_intrinsic_hairpin(in)) {
 		if (hdr4->ttl <= 1) {
 			log_debug("Packet's TTL <= 1.");
@@ -371,27 +775,21 @@ verdict ttp46_ipv6(struct xlation *state)
 		hdr6->hop_limit = hdr4->ttl;
 	}
 
-	if (pkt_is_outer(in) && has_unexpired_src_route(hdr4)) {
-		log_debug("Packet has an unexpired source route.");
-		return drop_icmp(state, JSTAT46_SRC_ROUTE, ICMPERR_SRC_ROUTE, 0);
-	}
+	/* The addresses are already set. */
 
-	if (will_need_frag_hdr(hdr4)) {
-		struct frag_hdr *frag_header = (struct frag_hdr *)(hdr6 + 1);
-
-		/* Override some fixed header fields... */
+	if (will_need_frag_hdr(hdr4) || out->skb->next) {
 		hdr6->nexthdr = NEXTHDR_FRAGMENT;
 
-		/* ...and set the fragment header ones. */
-		frag_header->nexthdr = (hdr4->protocol == IPPROTO_ICMP)
-				? NEXTHDR_ICMP
-				: hdr4->protocol;
+		frag_header = (struct frag_hdr *)(hdr6 + 1);
+		frag_header->nexthdr = xlat_nexthdr(hdr4->protocol);
 		frag_header->reserved = 0;
 		frag_header->frag_off = build_ipv6_frag_off_field(
 				get_fragment_offset_ipv4(hdr4),
 				is_mf_set_ipv4(hdr4));
 		frag_header->identification = build_id_field(hdr4);
 	}
+
+	autofill_hdr6(out);
 
 	return VERDICT_CONTINUE;
 }
@@ -437,25 +835,26 @@ static __be32 icmp6_minimum_mtu(struct xlation *state,
 
 static verdict compute_mtu6(struct xlation *state)
 {
-	struct icmp6hdr *out_icmp = pkt_icmp6_hdr(&state->out);
-#ifndef UNIT_TESTING
+	/* Meant for hairpinning and unit tests. */
+	static const unsigned int INFINITE = 0xffffffff;
+	struct net_device *in_dev;
 	struct dst_entry *out_dst;
+	struct icmphdr *in_icmp;
+	struct icmp6hdr *out_icmp;
 	struct iphdr *hdr4;
-	struct icmphdr *in_icmp = pkt_icmp4_hdr(&state->in);
 	unsigned int in_mtu;
+	unsigned int out_mtu;
 
-	out_dst = route6(state->jool.ns, &state->out);
-	if (!out_dst)
-		return drop(state, JSTAT_FAILED_ROUTES);
-	/*
-	 * 0xfffffff is intended for hairpinning (there's no IPv4 device on
-	 * hairpinning).
-	 */
-	in_mtu = state->in.skb->dev ? state->in.skb->dev->mtu : 0xfffffff;
+	in_icmp = pkt_icmp4_hdr(&state->in);
+	out_icmp = pkt_icmp6_hdr(&state->out);
+	in_dev = state->in.skb->dev;
+	in_mtu = in_dev ? in_dev->mtu : INFINITE;
+	out_dst = skb_dst(state->out.skb);
+	out_mtu = out_dst ? dst_mtu(out_dst) : INFINITE;
 
 	log_debug("Packet MTU: %u", be16_to_cpu(in_icmp->un.frag.mtu));
 	log_debug("In dev MTU: %u", in_mtu);
-	log_debug("Out dev MTU: %u", out_dst->dev->mtu);
+	log_debug("Out dev MTU: %u", out_mtu);
 
 	/*
 	 * We want the length of the packet that couldn't get through,
@@ -464,14 +863,10 @@ static verdict compute_mtu6(struct xlation *state)
 	hdr4 = pkt_payload(&state->in);
 	out_icmp->icmp6_mtu = icmp6_minimum_mtu(state,
 			be16_to_cpu(in_icmp->un.frag.mtu),
-			out_dst->dev->mtu,
+			out_mtu,
 			in_mtu,
 			be16_to_cpu(hdr4->tot_len));
 	log_debug("Resulting MTU: %u", be32_to_cpu(out_icmp->icmp6_mtu));
-
-#else
-	out_icmp->icmp6_mtu = icmp6_minimum_mtu(state, 9999, 1500, 9999, 100);
-#endif
 
 	return VERDICT_CONTINUE;
 }
@@ -575,6 +970,9 @@ static verdict icmp4_to_icmp6_param_prob(struct xlation *state)
 	return drop(state, JSTAT46_UNTRANSLATABLE_PARAM_PROB);
 }
 
+/*
+ * Removes L4 header, adds L4 header, adds IPv6 pseudoheader.
+ */
 static void update_icmp6_csum(struct xlation *state)
 {
 	struct ipv6hdr *out_ip6 = pkt_ip6_hdr(&state->out);
@@ -635,6 +1033,75 @@ static verdict validate_icmp4_csum(struct xlation *state)
 	return VERDICT_CONTINUE;
 }
 
+static bool should_remove_ie(struct xlation *state)
+{
+	struct icmphdr *hdr;
+	__u8 type;
+	__u8 code;
+
+	hdr = pkt_icmp4_hdr(&state->in);
+	type = hdr->type;
+	code = hdr->code;
+
+	/* v4 Protocol Unreachable becomes v6 Parameter Problem. */
+	if (type == 3 && code == 2)
+		return true;
+	/* v4 Fragmentation Needed becomes v6 Packet Too Big. */
+	if (type == 3 && code == 4)
+		return true;
+	/* v4 Parameter Problem becomes v6 Parameter Problem. */
+	if (type == 12)
+		return true;
+
+	return false;
+}
+
+static verdict handle_icmp6_extension(struct xlation *state)
+{
+	struct icmpext_args args;
+	verdict result;
+
+	args.max_pkt_len = 1280;
+	args.ipl = pkt_icmp4_hdr(&state->in)->icmp4_length << 2;
+	args.out_bits = 3;
+	args.icmp_len = &pkt_icmp6_hdr(&state->out)->icmp6_length;
+	args.remove_ie = should_remove_ie(state);
+
+	result = handle_icmp_extension(state, &args);
+	if (result != VERDICT_CONTINUE)
+		return result;
+
+	pkt_ip6_hdr(&state->out)->payload_len = cpu_to_be16(state->out.skb->len
+			- sizeof(struct ipv6hdr));
+	return VERDICT_CONTINUE;
+}
+
+/*
+ * Though ICMPv4 errors are supposed to be max 576 bytes long, a good portion of
+ * the Internet seems prepared against bigger ICMPv4 errors. Thus, the resulting
+ * ICMPv6 packet might have a smaller payload than the original packet even
+ * though IPv4 MTU < IPv6 MTU.
+ */
+static verdict trim_1280(struct xlation *state)
+{
+	struct packet *out;
+	int error;
+
+	out = &state->out;
+	if (out->skb->len <= 1280)
+		return VERDICT_CONTINUE;
+
+	error = pskb_trim(out->skb, 1280);
+	if (error) {
+		log_debug("pskb_trim() error: %d", error);
+		return drop(state, JSTAT_ENOMEM);
+	}
+
+	pkt_ip6_hdr(out)->payload_len = cpu_to_be16(out->skb->len
+			- sizeof(struct ipv6hdr));
+	return VERDICT_CONTINUE;
+}
+
 static verdict post_icmp6error(struct xlation *state)
 {
 	verdict result;
@@ -651,6 +1118,14 @@ static verdict post_icmp6error(struct xlation *state)
 		return result;
 
 	result = ttpcomm_translate_inner_packet(state);
+	if (result != VERDICT_CONTINUE)
+		return result;
+
+	result = handle_icmp6_extension(state);
+	if (result != VERDICT_CONTINUE)
+		return result;
+
+	result = trim_1280(state);
 	if (result != VERDICT_CONTINUE)
 		return result;
 
@@ -726,6 +1201,10 @@ verdict ttp46_icmp(struct xlation *state)
 	return drop(state, JSTAT_UNKNOWN_ICMP4_TYPE);
 }
 
+/**
+ * Removes the IPv4 pseudoheader and L4 header, adds the IPv6 pseudoheader and
+ * L4 header. Input and result are folded.
+ */
 static __sum16 update_csum_4to6(__sum16 csum16,
 		struct iphdr *in_ip4, void *in_l4_hdr,
 		struct ipv6hdr *out_ip6, void *out_l4_hdr,
@@ -750,6 +1229,10 @@ static __sum16 update_csum_4to6(__sum16 csum16,
 	return csum_fold(csum);
 }
 
+/**
+ * Removes the IPv4 pseudoheader, adds the IPv6 pseudoheader.
+ * Input and result are unfolded.
+ */
 static __sum16 update_csum_4to6_partial(__sum16 csum16, struct iphdr *in4,
 		struct ipv6hdr *out6)
 {
@@ -807,8 +1290,8 @@ static bool can_compute_csum(struct xlation *state)
  * Assumes that "out" is IPv6 and UDP, and computes and sets its l4-checksum.
  * This has to be done because the field is mandatory only in IPv6, so Jool has
  * to make up for lazy IPv4 nodes.
- * This is actually required in the Determine Incoming Tuple step, but it feels
- * more at home here.
+ * This is actually required in the Determine Incoming Tuple step, but we can't
+ * modify the incoming packet, so we do it here.
  */
 static int handle_zero_csum(struct xlation *state)
 {
@@ -841,8 +1324,8 @@ static int handle_zero_csum(struct xlation *state)
 	 */
 
 	csum = csum_partial(hdr_udp, sizeof(*hdr_udp), 0);
-	csum = skb_checksum(in->skb, pkt_payload_offset(in),
-			pkt_payload_len_pkt(in), csum);
+	csum = skb_checksum(in->skb, in->payload_offset,
+			in->skb->len - pkt_hdrs_len(in), csum);
 	hdr_udp->check = csum_ipv6_magic(&hdr6->saddr, &hdr6->daddr,
 			pkt_datagram_len(in), IPPROTO_UDP, csum);
 

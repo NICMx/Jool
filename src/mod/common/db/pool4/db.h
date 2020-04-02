@@ -44,7 +44,7 @@ int pool4db_foreach_sample(struct pool4 *pool, l4_protocol proto,
 struct mask_domain;
 
 struct mask_domain *mask_domain_find(struct pool4 *pool, struct tuple *tuple6,
-		__u8 f_args, struct route4_args *route_args);
+		__u8 f_args, __u32 mark);
 void mask_domain_put(struct mask_domain *masks);
 int mask_domain_next(struct mask_domain *masks,
 		struct ipv4_transport_addr *addr,

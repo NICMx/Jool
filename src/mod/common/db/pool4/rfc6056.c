@@ -115,6 +115,7 @@ static int hash_tuple(struct shash_desc *desc, __u8 fields,
 {
 	int error;
 
+	/* TODO (NOW) this might be reading garbage. */
 	if (fields & F_ARGS_SRC_ADDR) {
 		error = crypto_shash_update(desc, (u8 *)&tuple6->src.addr6.l3,
 				sizeof(tuple6->src.addr6.l3));

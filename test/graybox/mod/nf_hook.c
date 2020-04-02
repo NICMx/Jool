@@ -7,10 +7,10 @@
 #include "common/xlat.h"
 #include "mod/common/error_pool.h"
 #include "mod/common/linux_version.h"
-#include "mod/common/log.h"
 #include "mod/common/nf_wrapper.h"
 
 #include "expecter.h"
+#include "log.h"
 #include "nl_handler.h"
 
 /* Implementation function required by xlat.h */
@@ -25,6 +25,7 @@ MODULE_DESCRIPTION("Graybox test gimmic for Jool.");
 
 static NF_CALLBACK(hook_cb, skb)
 {
+	log_debug("========= Graybox: Received packet =========");
 	return expecter_handle_pkt(skb);
 }
 
@@ -67,7 +68,7 @@ static int graybox_init(void)
 		return error;
 	}
 
-	log_info("%s module inserted.\n", xlat_get_name());
+	log_info("%s module inserted.", xlat_get_name());
 	return error;
 }
 
