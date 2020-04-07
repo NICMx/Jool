@@ -662,11 +662,8 @@ static void update_total_length(struct packet *out)
 		return;
 
 	hdr->tot_len = cpu_to_be16(new_len);
+	hdr->frag_off &= cpu_to_be16(~IP_DF); /* Assumes new_len <= 1260 */
 	hdr->check = 0;
-	/*
-	 * TODO (fine) optimize? only one field changed.
-	 * Alternatively, don't set the checksum until the end.
-	 */
 	hdr->check = ip_fast_csum(hdr, hdr->ihl);
 }
 
