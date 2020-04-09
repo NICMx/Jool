@@ -200,7 +200,7 @@ if [[ -z $1 || $1 = *rfc7915* ]]; then
 	test 7915 bce1 bct1
 	test 7915 bde1 bdt1 $IDENTIFICATION,$INNER_IDENTIFICATION
 	test 7915 bee1 bet1 $IDENTIFICATION,$INNER_IDENTIFICATION
-	
+
 	# c
 	ip netns exec joolns jool_siit global update lowest-ipv6-mtu 1500
 	ip netns exec joolns ip link set dev to_world_v6 mtu 1280
@@ -262,9 +262,17 @@ if [[ -z $1 || $1 = *rfc7915* ]]; then
 
 	# g
 	test 7915 gae1 gat1
-	
+
 	# h
 	test 7915 hae1 hat1 $IDENTIFICATION,$INNER_IDENTIFICATION
+fi
+
+if [[ -z $1 || $1 = *new* ]]; then
+	# i
+	test 7915 ic1e ic1t $IDENTIFICATION,$INNER_IDENTIFICATION
+	test 7915 ic2e ic2t $IDENTIFICATION,$INNER_IDENTIFICATION
+	test 7915 ic3e ic3t $IDENTIFICATION,$INNER_IDENTIFICATION
+	test 7915 ic4e ic4t $IDENTIFICATION,$INNER_IDENTIFICATION
 fi
 
 $GRAYBOX stats display

@@ -1060,18 +1060,20 @@ static verdict handle_icmp6_extension(struct xlation *state)
 {
 	struct icmpext_args args;
 	verdict result;
+	struct packet *out;
 
 	args.max_pkt_len = 1280;
 	args.ipl = pkt_icmp4_hdr(&state->in)->icmp4_length << 2;
 	args.out_bits = 3;
-	args.icmp_len = &pkt_icmp6_hdr(&state->out)->icmp6_length;
-	args.remove_ie = should_remove_ie(state);
+	args.force_remove_ie = should_remove_ie(state);
 
 	result = handle_icmp_extension(state, &args);
 	if (result != VERDICT_CONTINUE)
 		return result;
 
-	pkt_ip6_hdr(&state->out)->payload_len = cpu_to_be16(state->out.skb->len
+	out = &state->out;
+	pkt_icmp6_hdr(out)->icmp6_length = args.ipl;
+	pkt_ip6_hdr(out)->payload_len = cpu_to_be16(out->skb->len
 			- sizeof(struct ipv6hdr));
 	return VERDICT_CONTINUE;
 }

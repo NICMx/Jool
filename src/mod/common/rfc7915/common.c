@@ -392,6 +392,69 @@ void partialize_skb(struct sk_buff *out_skb, unsigned int csum_offset)
 	out_skb->csum_offset = csum_offset;
 }
 
+static verdict fix_ie(struct xlation *state, size_t in_ie_offset,
+		size_t ipl, size_t pad, size_t iel)
+{
+	struct sk_buff *skb_old;
+	struct sk_buff *skb_new;
+	unsigned int ohl; /* Outer Headers Length */
+	void *beginning;
+	void *to;
+	int offset;
+	int len;
+	int error;
+
+	skb_old = state->out.skb;
+	ohl = pkt_hdrs_len(&state->out);
+	len = ohl + ipl + pad + iel;
+	skb_new = alloc_skb(LL_MAX_HEADER + len, GFP_ATOMIC);
+	if (!skb_new)
+		return drop(state, JSTAT_ENOMEM);
+
+	skb_reserve(skb_new, LL_MAX_HEADER);
+	beginning = skb_put(skb_new, len);
+	skb_reset_mac_header(skb_new);
+	skb_reset_network_header(skb_new);
+	skb_set_transport_header(skb_new, skb_transport_offset(skb_old));
+
+	offset = skb_network_offset(skb_old);
+	to = beginning;
+	len = ohl;
+	error = skb_copy_bits(skb_old, offset, to, len);
+	if (error)
+		goto copy_fail;
+
+	offset += len;
+	to += len; /* alloc_skb() always creates linear packets. */
+	len = ipl;
+	error = skb_copy_bits(skb_old, offset, to, len);
+	if (error)
+		goto copy_fail;
+
+	if (iel) {
+		to += len;
+		len = pad;
+		memset(to, 0, len);
+
+		offset = in_ie_offset;
+		to += len;
+		len = iel;
+		error = skb_copy_bits(state->in.skb, offset, to, len);
+		if (error)
+			goto copy_fail;
+	}
+
+	skb_dst_set(skb_new, dst_clone(skb_dst(skb_old)));
+	kfree_skb(skb_old);
+	state->out.skb = skb_new;
+	return VERDICT_CONTINUE;
+
+copy_fail:
+	log_debug("skb_copy_bits(skb, %d, %zd, %d) threw error %d.", offset,
+			to - beginning, len, error);
+	return drop(state, JSTAT_UNKNOWN);
+}
+
 /**
  * "Handle the ICMP Extension" in this context means
  *
@@ -401,33 +464,31 @@ void partialize_skb(struct sk_buff *out_skb, unsigned int csum_offset)
  *   official maximum ICMP error size. (576 for IPv4, 1280 for IPv6)
  * 	- If it doesn't fit, remove it completely.
  * 	- If it does fit, trim the Optional Part if needed.
- * - Update the ICMP header's length field.
+ * - Add padding to the internal packet if necessary.
  *
  * Again, see /test/graybox/test-suite/rfc/7915.md#ic.
  *
  * "Handle the ICMP Extension" does NOT mean:
  *
  * - Translate the contents. (Jool treats extensions like opaque bit strings.)
- * - Update outer packet's L3 headers. (Too difficult to do here; caller's
- *   responsibility.)
+ * - Update outer packet's L3 checksums and lengths. (Too difficult to do here;
+ *   caller's responsibility.) This includes the ICMP header length.
+ *
+ * If this function succeeds, it will return the value of the ICMP header length
+ * in args->ipl.
  */
 verdict handle_icmp_extension(struct xlation *state,
-		struct icmpext_args const *args)
+		struct icmpext_args *args)
 {
 	struct packet *in;
 	struct packet *out;
-	unsigned char *buffer;
-	int error;
-
-	size_t payload_len;
-	size_t in_epl; /* Incoming packet's Essential Part Length */
-	size_t out_epl; /* Outgoing packet's Essential Part Length */
-	size_t opl; /* Optional Part Length (incoming and outgoing packet) */
-	size_t iel; /* ICMP Extension Length (incoming and outgoing packet) */
-
-	bool retain_ie; /* Keep the ICMP Extension? Otherwise chop it off. */
-	size_t final_opl; /* Adjusted Optional Part Length */
-	size_t final_pl; /* Adjusted Packet Length */
+	size_t payload_len; /* Incoming packet's payload length */
+	size_t in_iel; /* Incoming packet's IE length */
+	size_t max_iel; /* Maximum outgoing packet's allowable IE length */
+	size_t in_ieo; /* Incoming packet's IE offset */
+	size_t out_ipl; /* Outgoing packet's internal packet length */
+	size_t out_pad; /* Outgoing packet's padding length */
+	size_t out_iel; /* Outgoing packet's IE length */
 
 	in = &state->in;
 	out = &state->out;
@@ -442,8 +503,10 @@ verdict handle_icmp_extension(struct xlation *state,
 	}
 
 	payload_len = in->skb->len - pkt_hdrs_len(in);
-	if (args->ipl == payload_len)
+	if (args->ipl == payload_len) {
+		args->ipl = 0;
 		return VERDICT_CONTINUE; /* Whatever, I guess */
+	}
 	if (args->ipl > payload_len) {
 		log_debug("ICMP Length %zu > L3 payload %zu", args->ipl,
 				payload_len);
@@ -451,59 +514,28 @@ verdict handle_icmp_extension(struct xlation *state,
 	}
 
 	/* Compute helpers */
-	in_epl = pkt_hdrs_len(in) + 128;
-	out_epl = pkt_hdrs_len(out) + 128;
-	opl = args->ipl - 128;
-	iel = in->skb->len - in_epl - opl;
+	in_ieo = pkt_hdrs_len(in) + args->ipl;
+	in_iel = in->skb->len - in_ieo;
+	max_iel = args->max_pkt_len - (pkt_hdrs_len(out) + 128);
 
 	/* Figure out what we want to do */
-	if (args->remove_ie || (iel > args->max_pkt_len - out_epl)) {
-		retain_ie = false;
-		final_opl = min(opl, args->max_pkt_len - out_epl);
-		final_pl = out_epl + final_opl;
+	/* (Assumption: In packet's iel equals current out packet's iel) */
+	if (args->force_remove_ie || (in_iel > max_iel)) {
+		out_ipl = min(out->skb->len - in_iel, args->max_pkt_len)
+				- pkt_hdrs_len(out);
+		out_pad = 0;
+		out_iel = 0;
+		args->ipl = 0;
 	} else {
-		retain_ie = true;
-		final_opl = (min((size_t)out->skb->len, args->max_pkt_len)
-				- out_epl - iel)
-				& ((~(size_t)0) << args->out_bits);
-		final_pl = out_epl + final_opl + iel;
+		out_ipl = min((size_t)out->skb->len, args->max_pkt_len) - in_iel
+				- pkt_hdrs_len(out);
+		out_ipl &= (~(size_t)0) << args->out_bits;
+		out_pad = (out_ipl < 128) ? (128 - out_ipl) : 0;
+		out_iel = in_iel;
+		args->ipl = (out_ipl + out_pad) >> args->out_bits;
 	}
 
-	/* Move the ICMP Extension if needed */
-	if (retain_ie && (final_opl != opl)) {
-		buffer = kmalloc(iel, GFP_ATOMIC);
-		if (!buffer)
-			return drop(state, JSTAT_ENOMEM);
-
-		error = skb_copy_bits(in->skb, in_epl + opl, buffer, iel);
-		if (error) {
-			kfree(buffer);
-			log_debug("skb_copy_bits error: %d", error);
-			return drop(state, JSTAT_UNKNOWN);
-		}
-		error = skb_store_bits(out->skb, out_epl + final_opl, buffer,
-				iel);
-		if (error) {
-			kfree(buffer);
-			log_debug("skb_store_bits error: %d", error);
-			return drop(state, JSTAT_UNKNOWN);
-		}
-
-		kfree(buffer);
-	}
-
-	/* Resize the packet */
-	if (out->skb->len != final_pl) {
-		error = pskb_trim(out->skb, final_pl);
-		if (error) {
-			log_debug("pskb_trim() error: %d", error);
-			return drop(state, JSTAT_UNKNOWN);
-		}
-	}
-
-	/* Update the ICMP length field */
-	if (retain_ie)
-		*args->icmp_len = (out_epl + final_opl) >> args->out_bits;
-
-	return VERDICT_CONTINUE;
+	/* Move everything around */
+	return fix_ie(state, skb_network_offset(in->skb) + in_ieo, out_ipl,
+			out_pad, out_iel);
 }

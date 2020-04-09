@@ -671,18 +671,20 @@ static verdict handle_icmp4_extension(struct xlation *state)
 {
 	struct icmpext_args args;
 	verdict result;
+	struct packet *out;
 
 	args.max_pkt_len = 576;
 	args.ipl = pkt_icmp6_hdr(&state->in)->icmp6_length << 3;
 	args.out_bits = 2;
-	args.icmp_len = &pkt_icmp4_hdr(&state->out)->icmp4_length;
-	args.remove_ie = false;
+	args.force_remove_ie = false;
 
 	result = handle_icmp_extension(state, &args);
 	if (result != VERDICT_CONTINUE)
 		return result;
 
-	update_total_length(&state->out);
+	out = &state->out;
+	pkt_icmp4_hdr(out)->icmp4_length = args.ipl;
+	update_total_length(out);
 	return VERDICT_CONTINUE;
 }
 

@@ -244,8 +244,10 @@ static bool pkt_equals(struct expected_packet *expected, struct sk_buff *actual)
 			log_info("    byte %u\t0x%x\t    0x%x", i,
 					expected_ptr[i], actual_ptr[i]);
 			errors++;
-			if (errors >= 8)
+			/*
+			if (errors >= 16)
 				break;
+			*/
 		}
 	}
 
