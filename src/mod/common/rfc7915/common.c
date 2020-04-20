@@ -523,7 +523,7 @@ verdict handle_icmp_extension(struct xlation *state,
 	if (args->force_remove_ie || (in_iel > max_iel)) {
 		out_ipl = min(out->skb->len - in_iel, args->max_pkt_len)
 				- pkt_hdrs_len(out);
-		out_pad = 0;
+		out_pad = (out_ipl < 128) ? (128 - out_ipl) : 0;
 		out_iel = 0;
 		args->ipl = 0;
 	} else {

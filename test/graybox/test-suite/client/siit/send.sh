@@ -265,14 +265,21 @@ if [[ -z $1 || $1 = *rfc7915* ]]; then
 
 	# h
 	test 7915 hae1 hat1 $IDENTIFICATION,$INNER_IDENTIFICATION
-fi
 
-if [[ -z $1 || $1 = *new* ]]; then
 	# i
 	test 7915 ic1e ic1t $IDENTIFICATION,$INNER_IDENTIFICATION
 	test 7915 ic2e ic2t $IDENTIFICATION,$INNER_IDENTIFICATION
 	test 7915 ic3e ic3t $IDENTIFICATION,$INNER_IDENTIFICATION
 	test 7915 ic4e ic4t $IDENTIFICATION,$INNER_IDENTIFICATION
+	test 7915 ic5e ic5t $IDENTIFICATION,$INNER_IDENTIFICATION
+	test 7915 ic6e ic6t $IDENTIFICATION,$INNER_IDENTIFICATION
+	test 7915 id1e id1t
+	test 7915 id2e id2t
+	ip link set dev to_jool_v4 mtu 1708
+	ip netns exec joolns ip link set dev to_world_v4 mtu 1708
+	test 7915 id3e id3t
+	ip link set dev to_jool_v4 mtu 1500
+	ip netns exec joolns ip link set dev to_world_v4 mtu 1500
 fi
 
 $GRAYBOX stats display
