@@ -273,14 +273,27 @@ if [[ -z $1 || $1 = *rfc7915* ]]; then
 	test 7915 ic4e ic4t $IDENTIFICATION,$INNER_IDENTIFICATION
 	test 7915 ic5e ic5t $IDENTIFICATION,$INNER_IDENTIFICATION
 	test 7915 ic6e ic6t $IDENTIFICATION,$INNER_IDENTIFICATION
-	test 7915 id1e id1t
-	test 7915 id2e id2t
-	ip link set dev to_jool_v4 mtu 1708
-	ip netns exec joolns ip link set dev to_world_v4 mtu 1708
-	test 7915 id3e id3t
+	test 7915 idae idat
+	test 7915 idbe idbt
+	test 7915 idce idct
+	test 7915 idde iddt
+	test 7915 idee idet
+	test 7915 idfe idft
+	test 7915 idhe idht
+	test 7915 idze idzt
+
+	ip link set dev to_jool_v4 mtu 2153
+	ip netns exec joolns ip link set dev to_world_v4 mtu 2153
+	sleep 0.5
+	test 7915 idge idgt
+	test 7915 idie idit
+	test 7915 idye idyt
 	ip link set dev to_jool_v4 mtu 1500
 	ip netns exec joolns ip link set dev to_world_v4 mtu 1500
 fi
+
+#if [[ -z $1 || $1 = *new* ]]; then
+#fi
 
 $GRAYBOX stats display
 result=$?
