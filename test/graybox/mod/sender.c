@@ -149,7 +149,7 @@ int sender_send(char *pkt_name, void *pkt, size_t pkt_len)
 		return -EINVAL;
 	}
 
-	skb->ip_summed = CHECKSUM_UNNECESSARY;
+	skb->ip_summed = CHECKSUM_NONE;
 	switch (get_l3_proto(pkt)) {
 	case 6:
 		skb->protocol = htons(ETH_P_IPV6);

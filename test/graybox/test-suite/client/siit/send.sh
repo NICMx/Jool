@@ -290,6 +290,11 @@ if [[ -z $1 || $1 = *rfc7915* ]]; then
 	test 7915 idye idyt
 	ip link set dev to_jool_v4 mtu 1500
 	ip netns exec joolns ip link set dev to_world_v4 mtu 1500
+
+	# j
+	ip netns exec joolns jool_siit global update lowest-ipv6-mtu 1500
+	test 7915 jae jat
+	ip netns exec joolns jool_siit global update lowest-ipv6-mtu 1280
 fi
 
 #if [[ -z $1 || $1 = *new* ]]; then
