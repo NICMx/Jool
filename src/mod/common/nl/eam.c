@@ -103,11 +103,9 @@ int handle_eamt_rm(struct sk_buff *skb, struct genl_info *info)
 		error = -EINVAL;
 		goto revert_start;
 	}
-	error = NLA_PARSE_NESTED(attrs, JNLAE_MAX, info->attrs[JNLAR_OPERAND], eam_policy);
-	if (error) {
-		log_err("The 'EAMT' attribute is malformed.");
+	error = jnla_parse_nested(attrs, JNLAE_MAX, info->attrs[JNLAR_OPERAND], eam_policy, "EAM");
+	if (error)
 		goto revert_start;
-	}
 
 	if (!attrs[JNLAE_PREFIX6] && !attrs[JNLAE_PREFIX4]) {
 		log_err("The request contains no prefixes.");

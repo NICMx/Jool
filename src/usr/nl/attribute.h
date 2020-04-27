@@ -22,6 +22,8 @@ struct jool_result jnla_parse_nested(struct nlattr *result[], int maxtype,
 struct jool_result jnla_validate_list(struct nlattr *head, int len,
 		char const *what, struct nla_policy const *policy);
 
+struct nlattr *jnla_nest_start(struct nl_msg *msg, int attrtype);
+
 void nla_get_addr6(struct nlattr const *attr, struct in6_addr *addr);
 void nla_get_addr4(struct nlattr const *attr, struct in_addr *addr);
 struct jool_result nla_get_prefix6(struct nlattr *attr, struct ipv6_prefix *out);

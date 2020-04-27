@@ -12,12 +12,10 @@ static int parse_instance(struct nlattr *root, struct instance_entry_usr *entry)
 	struct nlattr *attrs[JNLAIE_COUNT];
 	int error;
 
-	error = NLA_PARSE_NESTED(attrs, JNLAIE_MAX, root,
-			joolnl_instance_entry_policy);
-	if (error) {
-		log_err("The 'instance' attribute is malformed.");
+	error = jnla_parse_nested(attrs, JNLAIE_MAX, root,
+			joolnl_instance_entry_policy, "instance");
+	if (error)
 		return error;
-	}
 
 	error = jnla_get_u32(attrs[JNLAIE_NS], "namespace", &entry->ns);
 	if (error)
@@ -122,11 +120,9 @@ int handle_instance_add(struct sk_buff *skb, struct genl_info *info)
 		goto revert_start;
 	}
 
-	error = NLA_PARSE_NESTED(attrs, JNLAIA_MAX, info->attrs[JNLAR_OPERAND], add_policy);
-	if (error) {
-		log_err("The 'Operand' attribute is malformed.");
+	error = jnla_parse_nested(attrs, JNLAIA_MAX, info->attrs[JNLAR_OPERAND], add_policy, "Operand");
+	if (error)
 		return error;
-	}
 
 	error = jnla_get_u8(attrs[JNLAIA_XF], "framework", &xf);
 	if (error)

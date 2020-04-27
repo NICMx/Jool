@@ -107,18 +107,16 @@ static int raw2nl_prefix6(struct joolnl_global_meta const *meta, void *raw,
 		struct sk_buff *skb)
 {
 	struct config_prefix6 *prefix6 = raw;
-	return prefix6->set
-		? jnla_put_prefix6(skb, meta->id, &prefix6->prefix)
-		: nla_put(skb, meta->id, 0, NULL);
+	return jnla_put_prefix6(skb, meta->id,
+			prefix6->set ? &prefix6->prefix : NULL);
 }
 
 static int raw2nl_prefix4(struct joolnl_global_meta const *meta, void *raw,
 		struct sk_buff *skb)
 {
 	struct config_prefix4 *prefix4 = raw;
-	return prefix4->set
-		? jnla_put_prefix4(skb, meta->id, &prefix4->prefix)
-		: nla_put(skb, meta->id, 0, NULL);
+	return jnla_put_prefix4(skb, meta->id,
+			prefix4->set ? &prefix4->prefix : NULL);
 }
 
 static int nl2raw_bool(struct nlattr *attr, void *raw, bool force)
@@ -144,30 +142,6 @@ static int nl2raw_plateaus(struct nlattr *attr, void *raw, bool force)
 	return jnla_get_plateaus(attr, raw);
 }
 
-static int get_optional_prefix6(struct nlattr *attr, char const *name, struct config_prefix6 *prefix)
-{
-	if (nla_len(attr) > 0) {
-		prefix->set = true;
-		return jnla_get_prefix6(attr, name, &prefix->prefix);
-	}
-
-	prefix->set = false;
-	memset(&prefix->prefix, 0, sizeof(prefix->prefix));
-	return 0;
-}
-
-static int get_optional_prefix4(struct nlattr *attr, char const *name, struct config_prefix4 *prefix)
-{
-	if (nla_len(attr) > 0) {
-		prefix->set = true;
-		return jnla_get_prefix4(attr, name, &prefix->prefix);
-	}
-
-	prefix->set = false;
-	memset(&prefix->prefix, 0, sizeof(prefix->prefix));
-	return 0;
-}
-
 static int validate_prefix6791v4(struct config_prefix4 *prefix, bool force)
 {
 	int error;
@@ -187,7 +161,7 @@ static int nl2raw_pool6(struct nlattr *attr, void *raw, bool force)
 	struct config_prefix6 *prefix = raw;
 	int error;
 
-	error = get_optional_prefix6(attr, "pool6", prefix);
+	error = jnla_get_prefix6_optional(attr, "pool6", prefix);
 	if (error)
 		return error;
 
@@ -199,7 +173,7 @@ static int nl2raw_pool6791v6(struct nlattr *attr, void *raw, bool force)
 	struct config_prefix6 *prefix = raw;
 	int error;
 
-	error = get_optional_prefix6(attr, "RFC 6791 prefix v6", prefix);
+	error = jnla_get_prefix6_optional(attr, "RFC 6791 prefix v6", prefix);
 	if (error)
 		return error;
 
@@ -211,7 +185,7 @@ static int nl2raw_pool6791v4(struct nlattr *attr, void *raw, bool force)
 	struct config_prefix4 *prefix = raw;
 	int error;
 
-	error = get_optional_prefix4(attr, "RFC 6791 prefix v4", prefix);
+	error = jnla_get_prefix4_optional(attr, "RFC 6791 prefix v4", prefix);
 	if (error)
 		return error;
 
@@ -443,27 +417,37 @@ static struct jool_result nl2raw_plateaus(struct nlattr *attr, void *raw)
 static struct jool_result nl2raw_prefix6(struct nlattr *attr, void *raw)
 {
 	struct config_prefix6 *prefix = raw;
+	struct jool_result result;
 
-	if (nla_len(attr) == 0) {
+	result = nla_get_prefix6(attr, &prefix->prefix);
+	switch (result.error) {
+	case 0:
+		prefix->set = true;
+		return result_success();
+	case -ENOENT:
 		prefix->set = false;
 		return result_success();
 	}
 
-	prefix->set = true;
-	return nla_get_prefix6(attr, &prefix->prefix);
+	return result;
 }
 
 static struct jool_result nl2raw_prefix4(struct nlattr *attr, void *raw)
 {
 	struct config_prefix4 *prefix = raw;
+	struct jool_result result;
 
-	if (nla_len(attr) == 0) {
+	result = nla_get_prefix4(attr, &prefix->prefix);
+	switch (result.error) {
+	case 0:
+		prefix->set = true;
+		return result_success();
+	case -ENOENT:
 		prefix->set = false;
 		return result_success();
 	}
 
-	prefix->set = true;
-	return nla_get_prefix4(attr, &prefix->prefix);
+	return result;
 }
 
 static struct jool_result str2nl_bool(enum joolnl_attr_global id,
@@ -669,7 +653,7 @@ static struct jool_result json2nl_plateaus(struct joolnl_global_meta const *meta
 	if (json->type != cJSON_Array)
 		return type_mismatch(json->string, json, "plateaus array");
 
-	root = nla_nest_start(msg, JNLAG_PLATEAUS);
+	root = jnla_nest_start(msg, JNLAG_PLATEAUS);
 	if (!root)
 		return joolnl_err_msgsize();
 

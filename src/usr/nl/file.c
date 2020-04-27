@@ -146,7 +146,7 @@ static struct jool_result handle_array(cJSON *json, int attrtype, char *name,
 			if (result.error)
 				return result;
 
-			root = nla_nest_start(msg, attrtype);
+			root = jnla_nest_start(msg, attrtype);
 			if (!root)
 				goto too_small;
 		}
@@ -226,7 +226,7 @@ static struct jool_result handle_global(cJSON *json)
 	if (result.error)
 		return result;
 
-	root = nla_nest_start(msg, JNLAR_GLOBALS);
+	root = jnla_nest_start(msg, JNLAR_GLOBALS);
 	if (!root) {
 		result = joolnl_err_msgsize();
 		goto revert_msg;

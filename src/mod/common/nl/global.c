@@ -151,11 +151,9 @@ int global_update(struct jool_globals *cfg, xlator_type xt, bool force,
 		return -EINVAL;
 	}
 
-	error = NLA_PARSE_NESTED(attrs, JNLAG_MAX, root, policy);
-	if (error) {
-		log_err("The 'Globals Container' attribute is malformed.");
+	error = jnla_parse_nested(attrs, JNLAG_MAX, root, policy, "Globals Container");
+	if (error)
 		return error;
-	}
 
 	joolnl_global_foreach_meta(meta) {
 		if (!(joolnl_global_meta_xt(meta) & xt))
