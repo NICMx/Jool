@@ -9,11 +9,11 @@ joold_SOURCES = \
 	netsocket.c netsocket.h
 
 joold_CFLAGS  = ${WARNINGCFLAGS}
-joold_CFLAGS += -I${srcdir}/../../
+joold_CFLAGS += -I${top_srcdir}/src
 joold_CFLAGS += ${LIBNLGENL3_CFLAGS}
 
 joold_LDADD  = ${LIBNLGENL3_LIBS}
-joold_LDADD += ${top_builddir}/src/usr/nl/libjoolnl.la
-joold_LDADD += ${top_builddir}/src/usr/util/libjoolutil.la
+joold_LDADD += ../nl/libjoolnl.la
+joold_LDADD += ../util/libjoolutil.la
 
 dist_man_MANS = joold.8
