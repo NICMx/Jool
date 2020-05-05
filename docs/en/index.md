@@ -22,7 +22,7 @@ Jool is an Open Source [SIIT and NAT64](intro-xlat.html) for Linux.
 
 As far as we know, Jool is a [generally compliant](intro-jool.html#compliance) SIIT and Stateful NAT64.
 
-Its most mature version is [4.0.8]({{ site.repository-url }}/milestone/47).
+Its most mature version is [4.0.9]({{ site.repository-url }}/milestone/48).
 
 -------------------
 
@@ -34,11 +34,16 @@ Its most mature version is [4.0.8]({{ site.repository-url }}/milestone/47).
 
 ## Latest News
 
-### 2020-03-30
+### 2020-05-05
 
-[Jool 4.0.8](download.html) has been released.
+[Jool 4.0.9](download.html) has been released.
 
-Changes:
+Bugfixes:
 
-1. [#320](https://github.com/NICMx/Jool/issues/320): Fixed a memory leak during `modprobe -r`.
-2. [#322](https://github.com/NICMx/Jool/issues/322): Modernized the Netlink code to prevent alignment issues during userspace client requests.
+1. [#325](https://github.com/NICMx/Jool/issues/325): Patch userspace compilation error triggered when different versions of Jool's libraries are already installed in the system.
+2. [#326](https://github.com/NICMx/Jool/issues/326): Patch userspace-kernel communication on newer kernels. (This bug was introduced in Jool 4.0.8.)
+3. Added support for kernel 5.6.
+
+In other news, Jool 4.0.7 is now available in Ubuntu 20.04 (Focal Fossa)'s stable release:
+
+	sudo apt install jool-dkms jool-tools
