@@ -104,7 +104,7 @@ int handle_instance_add(struct sk_buff *skb, struct genl_info *info)
 		[JNLAIA_POOL6] = { .type = NLA_NESTED, },
 	};
 	struct nlattr *attrs[JNLAIA_COUNT];
-	struct ipv6_prefix pool6, *pool6_ptr;
+	struct config_prefix6 pool6;
 	__u8 xf;
 	int error;
 
@@ -127,18 +127,17 @@ int handle_instance_add(struct sk_buff *skb, struct genl_info *info)
 	error = jnla_get_u8(attrs[JNLAIA_XF], "framework", &xf);
 	if (error)
 		goto revert_start;
-	pool6_ptr = NULL;
+	pool6.set = false;
 	if (attrs[JNLAIA_POOL6]) {
-		error = jnla_get_prefix6(attrs[JNLAIA_POOL6], "pool6", &pool6);
+		error = jnla_get_prefix6_optional(attrs[JNLAIA_POOL6], "pool6", &pool6);
 		if (error)
 			goto revert_start;
-		pool6_ptr = &pool6;
 	}
 
 	return jresponse_send_simple(info, xlator_add(
 		xf | get_jool_hdr(info)->xt,
 		get_jool_hdr(info)->iname,
-		pool6_ptr,
+		pool6.set ? &pool6.prefix : NULL,
 		NULL
 	));
 

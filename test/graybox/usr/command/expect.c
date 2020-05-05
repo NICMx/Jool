@@ -98,7 +98,7 @@ int expect_add_build_pkt(struct expect_add_request *req, struct nl_msg *pkt)
 		goto packet_too_small;
 
 	if (req->exceptions_len) {
-		root = jnla_nest_start(pkt, ATTR_EXCEPTIONS);
+		root = nla_nest_start(pkt, NLA_F_NESTED | ATTR_EXCEPTIONS);
 		if (!root) {
 			error = -NLE_NOMEM;
 			goto packet_too_small;
