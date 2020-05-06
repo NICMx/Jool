@@ -89,11 +89,11 @@ extern struct nla_policy joolnl_plateau_list_policy[JNLAL_COUNT];
 
 #ifdef __KERNEL__
 #define JOOLNL_ADDR6_POLICY { \
-	.type = NLA_UNSPEC, \
+	.type = NLA_BINARY, \
 	.len = sizeof(struct in6_addr), \
 }
 #define JOOLNL_ADDR4_POLICY { \
-	.type = NLA_UNSPEC, \
+	.type = NLA_BINARY, \
 	.len = sizeof(struct in_addr), \
 }
 #else

@@ -86,7 +86,7 @@ static struct jool_result __update(struct joolnl_socket *sk, char const *iname,
 	if (result.error)
 		return result;
 
-	if (prefix && nla_put_prefix4(msg, JNLAR_OPERAND, prefix) < 0) {
+	if (nla_put_prefix4(msg, JNLAR_OPERAND, prefix) < 0) {
 		nlmsg_free(msg);
 		return joolnl_err_msgsize();
 	}
@@ -97,7 +97,8 @@ static struct jool_result __update(struct joolnl_socket *sk, char const *iname,
 struct jool_result joolnl_blacklist4_add(struct joolnl_socket *sk,
 		char const *iname, struct ipv4_prefix const *prefix, bool force)
 {
-	return __update(sk, iname, JNLOP_BL4_ADD, prefix, force ? JOOLNLHDR_FLAGS_FORCE : 0);
+	return __update(sk, iname, JNLOP_BL4_ADD, prefix,
+			force ? JOOLNLHDR_FLAGS_FORCE : 0);
 }
 
 struct jool_result joolnl_blacklist4_rm(struct joolnl_socket *sk,
@@ -109,5 +110,12 @@ struct jool_result joolnl_blacklist4_rm(struct joolnl_socket *sk,
 struct jool_result joolnl_blacklist4_flush(struct joolnl_socket *sk,
 		char const *iname)
 {
-	return __update(sk, iname, JNLOP_BL4_FLUSH, NULL, 0);
+	struct nl_msg *msg;
+	struct jool_result result;
+
+	result = joolnl_alloc_msg(sk, iname, JNLOP_BL4_FLUSH, 0, &msg);
+	if (result.error)
+		return result;
+
+	return joolnl_request(sk, msg, NULL, NULL);
 }

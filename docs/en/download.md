@@ -15,19 +15,20 @@ title: Download
 
 Jool 4.0 is a [compliant SIIT and Stateful NAT64](intro-jool.html#compliance).
 
-4.0.8 is the latest and most mature version of Jool.
+4.0.9 is the latest and most mature version of Jool.
 
 | Release Date | Version | .tar.gz | .tar.gz Signature | Git commit | .deb |
 |--------------|---------|---------|-------------------|------------|------|
-| 2020-03-30   | **4.0.8** | [Download]({{ site.downloads-url-2 }}/v4.0.8/jool-4.0.8.tar.gz) | [Signature]({{ site.downloads-url-2 }}/v4.0.8/jool-4.0.8.tar.gz.asc) | <a href="{{ site.repository-url }}/tree/v4.0.8" target="_blank">Link</a> | [Kernel modules]({{ site.downloads-url-2 }}/v4.0.8/jool-dkms_4.0.8-1_all.deb)<br />[Userspace tools]({{ site.downloads-url-2 }}/v4.0.8/jool-tools_4.0.8-1_amd64.deb) (amd64 only) |
+| 2020-05-05   | **4.0.9** | [Download]({{ site.downloads-url-2 }}/v4.0.9/jool-4.0.9.tar.gz) | [Signature]({{ site.downloads-url-2 }}/v4.0.9/jool-4.0.9.tar.gz.asc) | <a href="{{ site.repository-url }}/tree/v4.0.9" target="_blank">Link</a> | [Kernel modules]({{ site.downloads-url-2 }}/v4.0.9/jool-dkms_4.0.9-1_all.deb)<br />[Userspace tools]({{ site.downloads-url-2 }}/v4.0.9/jool-tools_4.0.9-1_amd64.deb) (amd64 only) |
+| 2020-03-30   | 4.0.8 | [Download]({{ site.downloads-url-2 }}/v4.0.8/jool-4.0.8.tar.gz) | [Signature]({{ site.downloads-url-2 }}/v4.0.8/jool-4.0.8.tar.gz.asc) | <a href="{{ site.repository-url }}/tree/v4.0.8" target="_blank">Link</a> | [Kernel modules]({{ site.downloads-url-2 }}/v4.0.8/jool-dkms_4.0.8-1_all.deb)<br />[Userspace tools]({{ site.downloads-url-2 }}/v4.0.8/jool-tools_4.0.8-1_amd64.deb) (amd64 only) |
 | 2019-12-17   | 4.0.7 | [Download]({{ site.downloads-url-2 }}/v4.0.7/jool-4.0.7.tar.gz) | [Signature]({{ site.downloads-url-2 }}/v4.0.7/jool-4.0.7.tar.gz.asc) | <a href="{{ site.repository-url }}/tree/v4.0.7" target="_blank">Link</a> | [Kernel modules]({{ site.downloads-url-2 }}/v4.0.7/jool-dkms_4.0.7-1_all.deb)<br />[Userspace tools]({{ site.downloads-url-2 }}/v4.0.7/jool-tools_4.0.7-1_amd64.deb) (amd64 only) |
 | 2019-10-24   | 4.0.6 | [Download]({{ site.downloads-url-2 }}/v4.0.6/jool-4.0.6.tar.gz) | [Signature]({{ site.downloads-url-2 }}/v4.0.6/jool-4.0.6.tar.gz.asc) | <a href="{{ site.repository-url }}/tree/v4.0.6" target="_blank">Link</a> | [Kernel modules]({{ site.downloads-url-2 }}/v4.0.6/jool-dkms_4.0.6-1_all.deb)<br />[Userspace tools]({{ site.downloads-url-2 }}/v4.0.6/jool-tools_4.0.6-1_amd64.deb) (amd64 only) |
 | 2019-08-20   | 4.0.5 | [Download]({{ site.downloads-url-2 }}/v4.0.5/jool-4.0.5.tar.gz) | [Signature]({{ site.downloads-url-2 }}/v4.0.5/jool-4.0.5.tar.gz.asc) | <a href="{{ site.repository-url }}/tree/v4.0.5" target="_blank">Link</a> | - |
 | 2019-07-31   | <del>4.0.4</del> | [Download]({{ site.downloads-url-2 }}/v4.0.4/jool-4.0.4.tar.gz) | [Signature]({{ site.downloads-url-2 }}/v4.0.4/jool-4.0.4.tar.gz.asc) | <a href="{{ site.repository-url }}/tree/v4.0.4" target="_blank">Link</a> | - |
 | 2019-07-19   | <del>4.0.3</del> | [Download]({{ site.downloads-url-2 }}/v4.0.3/jool-4.0.3.tar.gz) | [Signature]({{ site.downloads-url-2 }}/v4.0.3/jool-4.0.3.tar.gz.asc) | <a href="{{ site.repository-url }}/tree/v4.0.3" target="_blank">Link</a> | - |
 | 2019-07-11   | <del>4.0.2</del> | [Download]({{ site.downloads-url-2 }}/v4.0.2/jool-4.0.2.tar.gz) | [Signature]({{ site.downloads-url-2 }}/v4.0.2/jool-4.0.2.tar.gz.asc) | <a href="{{ site.repository-url }}/tree/v4.0.2" target="_blank">Link</a> | - |
-| 2019-04-26   | 4.0.1                | [Download]({{ site.downloads-url-2 }}/v4.0.1/jool_4.0.1.tar.gz) | - | <a href="{{ site.repository-url }}/tree/v4.0.1" target="_blank">Link</a> | - |
-| 2019-01-17   | <del>4.0.0</del>     | [Download]({{ site.downloads-url-2 }}/v4.0.0/jool_4.0.0.tar.gz) | - | <a href="{{ site.repository-url }}/tree/v4.0.0" target="_blank">Link</a> | - |
+| 2019-04-26   | <del>4.0.1</del> | [Download]({{ site.downloads-url-2 }}/v4.0.1/jool_4.0.1.tar.gz) | - | <a href="{{ site.repository-url }}/tree/v4.0.1" target="_blank">Link</a> | - |
+| 2019-01-17   | <del>4.0.0</del> | [Download]({{ site.downloads-url-2 }}/v4.0.0/jool_4.0.0.tar.gz) | - | <a href="{{ site.repository-url }}/tree/v4.0.0" target="_blank">Link</a> | - |
 | 2019-01-09   | <del>4.0.0-rc5</del> | [Download]({{ site.downloads-url-2 }}/v4.0.0-rc5/jool_4.0.0-rc5.tar.gz) | - | <a href="{{ site.repository-url }}/tree/v4.0.0-rc5" target="_blank">Link</a> | - |
 | 2019-01-04   | <del>3.6.0-rc4</del> | [Download]({{ site.downloads-url-2 }}/v3.6.0-rc4/jool_3.6.0-rc4.tar.gz) | - | <a href="{{ site.repository-url }}/tree/v3.6.0-rc4" target="_blank">Link</a> | - |
 | 2018-12-26   | <del>3.6.0-rc3</del> | [Download]({{ site.downloads-url }}/jool_3.6.0-rc3.tar.gz) | - | <a href="{{ site.repository-url }}/tree/v3.6.0-rc3" target="_blank">Link</a> | - |

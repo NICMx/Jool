@@ -115,11 +115,9 @@ int handle_bib_rm(struct sk_buff *skb, struct genl_info *info)
 		goto revert_start;
 	}
 
-	error = NLA_PARSE_NESTED(attrs, JNLAB_MAX, info->attrs[JNLAR_OPERAND], joolnl_bib_entry_policy);
-	if (error) {
-		log_err("The 'BIB entry' attribute is malformed.");
+	error = jnla_parse_nested(attrs, JNLAB_MAX, info->attrs[JNLAR_OPERAND], joolnl_bib_entry_policy, "BIB entry");
+	if (error)
 		goto revert_start;
-	}
 
 	if (!attrs[JNLAB_SRC6] && !attrs[JNLAB_SRC4]) {
 		error = -EINVAL;

@@ -88,19 +88,16 @@ static struct jool_result __update(struct joolnl_socket *sk, char const *iname,
 	if (result.error)
 		return result;
 
-	if (p6 || p4) {
-		root = nla_nest_start(msg, JNLAR_OPERAND);
-		if (!root)
-			goto nla_put_failure;
+	root = jnla_nest_start(msg, JNLAR_OPERAND);
+	if (!root)
+		goto nla_put_failure;
 
-		if (p6 && nla_put_prefix6(msg, JNLAE_PREFIX6, p6) < 0)
-			goto nla_put_failure;
-		if (p4 && nla_put_prefix4(msg, JNLAE_PREFIX4, p4) < 0)
-			goto nla_put_failure;
+	if (nla_put_prefix6(msg, JNLAE_PREFIX6, p6) < 0)
+		goto nla_put_failure;
+	if (nla_put_prefix4(msg, JNLAE_PREFIX4, p4) < 0)
+		goto nla_put_failure;
 
-		nla_nest_end(msg, root);
-	}
-
+	nla_nest_end(msg, root);
 	return joolnl_request(sk, msg, NULL, NULL);
 
 nla_put_failure:
@@ -112,7 +109,8 @@ struct jool_result joolnl_eamt_add(struct joolnl_socket *sk, char const *iname,
 		struct ipv6_prefix const *p6, struct ipv4_prefix const *p4,
 		bool force)
 {
-	return __update(sk, iname, JNLOP_EAMT_ADD, p6, p4, force ? JOOLNLHDR_FLAGS_FORCE : 0);
+	return __update(sk, iname, JNLOP_EAMT_ADD, p6, p4,
+			force ? JOOLNLHDR_FLAGS_FORCE : 0);
 }
 
 struct jool_result joolnl_eamt_rm(struct joolnl_socket *sk, char const *iname,
@@ -123,5 +121,12 @@ struct jool_result joolnl_eamt_rm(struct joolnl_socket *sk, char const *iname,
 
 struct jool_result joolnl_eamt_flush(struct joolnl_socket *sk, char const *iname)
 {
-	return __update(sk, iname, JNLOP_EAMT_FLUSH, NULL, NULL, 0);
+	struct nl_msg *msg;
+	struct jool_result result;
+
+	result = joolnl_alloc_msg(sk, iname, JNLOP_EAMT_FLUSH, 0, &msg);
+	if (result.error)
+		return result;
+
+	return joolnl_request(sk, msg, NULL, NULL);
 }

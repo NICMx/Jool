@@ -17,7 +17,7 @@ static struct jool_result entry2attr(struct instance_entry_usr *entry,
 {
 	struct nlattr *root;
 
-	root = nla_nest_start(msg, attrtype);
+	root = jnla_nest_start(msg, attrtype);
 	if (!root)
 		goto nla_put_failure;
 
@@ -163,12 +163,12 @@ struct jool_result joolnl_instance_add(struct joolnl_socket *sk,
 	if (result.error)
 		return result;
 
-	root = nla_nest_start(msg, JNLAR_OPERAND);
+	root = jnla_nest_start(msg, JNLAR_OPERAND);
 	if (!root)
 		goto nla_put_failure;
 
 	NLA_PUT_U8(msg, JNLAIA_XF, xf);
-	if (pool6 && nla_put_prefix6(msg, JNLAIA_POOL6, pool6) < 0)
+	if (nla_put_prefix6(msg, JNLAIA_POOL6, pool6) < 0)
 		goto nla_put_failure;
 
 	nla_nest_end(msg, root);
