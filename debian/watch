@@ -1,2 +1,4 @@
 version=4
-opts=pgpsigurlmangle=s/$/.asc/ https://jool.mx/en/download.html https://github.com/NICMx/Jool/releases/download/v\d+\.\d+\.\d+/@PACKAGE@@ANY_VERSION@@ARCHIVE_EXT@
+opts=pgpsigurlmangle=s/$/.asc/ \
+	https://nicmx.github.io/Jool/en/download.html \
+	https://github.com/NICMx/Jool/releases/download/v\d+\.\d+\.\d+/@PACKAGE@@ANY_VERSION@@ARCHIVE_EXT@

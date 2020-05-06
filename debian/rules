@@ -12,8 +12,6 @@ export DEB_BUILD_MAINT_OPTIONS = hardening=+all
 # see ENVIRONMENT in dpkg-buildflags(1)
 # package maintainers to append CFLAGS
 export DEB_CFLAGS_MAINT_APPEND  = -Wall -pedantic
-# package maintainers to append LDFLAGS
-export DEB_LDFLAGS_MAINT_APPEND = -Wl,--as-needed
 
 %:
 	dh $@ --with=dkms
@@ -24,26 +22,12 @@ override_dh_dkms:
 	# -V enables us to use #MODULE_VERSION# in the jool-dkms.dkms file.
 	dh_dkms -V
 
-# -- Overrides needed by the shared libraries --
-
 override_dh_install:
+	# See `debhelper(7)`, not `dh_install(1)`.
 	dh_install -Njool-dkms
 	dh_install -pjool-dkms \
 		-X/usr/ -X.o -XMakefile.in -XMakefile.am \
 		src usr/src/jool-dkms-$(DEB_VERSION_UPSTREAM)
-	# Fixes lintian warning: non-empty-dependency_libs-in-la-file
-	# I have no idea why this needs to be done, nor why I'm supposed to do
-	# it myself.
-	find $(CURDIR)/debian -name *.la -delete
-
-override_dh_makeshlibs:
-	# --no-scripts: Do not add the "ldconfig" trigger, even if it seems like
-	# the package might need it.
-	# Once again, fixes some lintian warning:
-	# package-has-unnecessary-activation-of-ldconfig-trigger.
-	# Apparently dh_makeshlibs is not detecting that all of the project's
-	# libraries are private, so the ldconfig is redundant.
-	dh_makeshlibs --no-scripts
 
 # -- Overrides needed by the systemd unit files --
 
