@@ -158,6 +158,7 @@ function test() {
 	$GRAYBOX expect flush
 }
 
+# Sends one packet, expects two.
 function test12() {
 	$GRAYBOX expect add `dirname $0`/$1/$2.pkt $5
 	$GRAYBOX expect add `dirname $0`/$1/$3.pkt $5
@@ -294,6 +295,22 @@ if [[ -z $1 || $1 = *rfc7915* ]]; then
 	# j
 	ip netns exec joolns jool_siit global update lowest-ipv6-mtu 1500
 	test 7915 jae jat
+	ip netns exec joolns jool_siit global update lowest-ipv6-mtu 1280
+
+	test12 7915 jbae1 jbae2 jbat
+	test 7915 jbbe jbbt
+	ip netns exec joolns jool_siit global update force-slow-path-46 true
+	test12 7915 jbae1 jbae2 jbat
+	test12 7915 jbae1 jbae2 jbbt
+	ip netns exec joolns jool_siit global update force-slow-path-46 false
+
+	ip netns exec joolns jool_siit global update lowest-ipv6-mtu 1402
+	test12 7915 jcae1 jcae2 jcat
+	test 7915 jcbe jcbt
+	ip netns exec joolns jool_siit global update force-slow-path-46 true
+	test12 7915 jcae1 jcae2 jcat
+	test12 7915 jcae1 jcae2 jcbt
+	ip netns exec joolns jool_siit global update force-slow-path-46 false
 	ip netns exec joolns jool_siit global update lowest-ipv6-mtu 1280
 fi
 
