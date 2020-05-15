@@ -121,7 +121,7 @@ int sender_send(char *pkt_name, void *pkt, size_t pkt_len)
 	struct dst_entry *dst;
 	int error;
 
-	log_debug("Sending packet '%s'...", pkt_name);
+	log_info("Sending packet %s (length %zu)...", pkt_name, pkt_len);
 
 	if (pkt_len == 0) {
 		log_err("The packet is zero bytes long.");

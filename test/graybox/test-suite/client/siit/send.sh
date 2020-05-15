@@ -142,13 +142,7 @@ fi
 
 # Miscellaneous tests
 if [[ -z $1 || $1 = *misc* ]]; then
-	test-manual igmp64 4,5,10,11
-	test-manual igmp46
 	test-manual 6791 4,5,10,11,32,33,38,39
-	# TODO mangle the packet size so this doesn't have so many exceptions.
-	test-single frag-icmp6 frag-icmp6 4,5,6,10,11,22,23,32,33,34,38,39,54,55
-	test-single frag-icmp4 frag-icmp4
-	#test-single frag-minmtu6-big frag-minmtu6-big0 frag-minmtu6-big1
 fi
 
 function test() {
@@ -193,7 +187,7 @@ if [[ -z $1 || $1 = *rfc7915* ]]; then
 	test 7915 ace5 act5
 	test 7915 ace6 act6
 	test 7915 ade1 adt1 $IDENTIFICATION
-	test 7915 ade1 adt2
+	test 7915 ade2 adt2
 
 	# b
 	test 7915 bae1 bat1

@@ -125,7 +125,7 @@ fi
 # ICMP error, 6 -> 4
 if [[ -z $1 || $1 = *icmpe64* ]]; then
 	# 32, 33, 38 and 39 are inner IDs and checksums.
-	test-single 6-icmp6err-csumok-df 4-icmp4err-csumok-df 4,5,10,11,32,33,38,39
+	test-single 6-icmp6err-csumok-df 4-icmp4err-csumok-df $NOFRAG_IGNORE,32,33,38,39
 	test-single 6-icmp6err-csumok-nodf 4-icmp4err-csumok-nodf $NOFRAG_IGNORE,32,33,38,39
 fi
 
@@ -137,9 +137,6 @@ fi
 
 # Miscellaneous tests
 if [[ -z $1 || $1 = *misc* ]]; then
-	# TODO graybox should report sending and queued packet names.
-	# Also "..." for additional differing bytes.
-
 	# Issue #132 tests explanation: We're sending a packet from N6 in hopes that
 	# N4 will bounce back an ICMP error due to nonexistant route 203.0.113.
 	# We're mainly testing the address Jool uses to source the translated ICMP
@@ -160,10 +157,6 @@ if [[ -z $1 || $1 = *misc* ]]; then
 	ip netns exec joolns jool g u source-icmpv6-errors-better off
 	# TODO The IPv4 node is returning DSCP 0x30. I don't know why.
 	test-manual issue132-test issue132-expected-off 0
-
-	# TODO what is this?
-	# test-frags 4-udp-csumok-nodf 6-udp-csumok-nodf
-	# test-frags 4-udp-csumfail-nodf 6-udp-csumfail-nodf
 
 	# TODO I don't know why I made the tests below.
 	# Jool returns unknown packets to the kernel, so the kernel decides

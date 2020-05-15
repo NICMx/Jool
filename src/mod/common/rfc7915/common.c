@@ -417,6 +417,7 @@ static verdict fix_ie(struct xlation *state, size_t in_ie_offset,
 	skb_reset_network_header(skb_new);
 	skb_set_transport_header(skb_new, skb_transport_offset(skb_old));
 
+	/* Outer headers */
 	offset = skb_network_offset(skb_old);
 	to = beginning;
 	len = ohl;
@@ -424,6 +425,7 @@ static verdict fix_ie(struct xlation *state, size_t in_ie_offset,
 	if (error)
 		goto copy_fail;
 
+	/* Internal packet */
 	offset += len;
 	to += len; /* alloc_skb() always creates linear packets. */
 	len = ipl;
@@ -432,10 +434,12 @@ static verdict fix_ie(struct xlation *state, size_t in_ie_offset,
 		goto copy_fail;
 
 	if (iel) {
+		/* Internal packet padding */
 		to += len;
 		len = pad;
 		memset(to, 0, len);
 
+		/* ICMP Extension */
 		offset = in_ie_offset;
 		to += len;
 		len = iel;
@@ -523,7 +527,7 @@ verdict handle_icmp_extension(struct xlation *state,
 	if (args->force_remove_ie || (in_iel > max_iel)) {
 		out_ipl = min(out->skb->len - in_iel, args->max_pkt_len)
 				- pkt_hdrs_len(out);
-		out_pad = (out_ipl < 128) ? (128 - out_ipl) : 0;
+		out_pad = 0;
 		out_iel = 0;
 		args->ipl = 0;
 	} else {

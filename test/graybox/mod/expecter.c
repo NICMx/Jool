@@ -5,6 +5,7 @@
 #include <linux/sort.h>
 #include "common/types.h"
 #include "mod/common/address.h"
+#include "diff.h"
 #include "log.h"
 #include "util.h"
 
@@ -182,7 +183,8 @@ static bool has_same_addr4(struct iphdr *hdr1, struct iphdr *hdr2)
 	return result;
 }
 
-static bool has_same_address(struct expected_packet *expected, struct sk_buff *actual)
+static bool has_same_address(struct expected_packet *expected,
+		struct sk_buff *actual)
 {
 	int expected_proto = get_l3_proto(expected->bytes);
 	int actual_proto = get_l3_proto(skb_network_header(actual));
@@ -204,54 +206,60 @@ static bool has_same_address(struct expected_packet *expected, struct sk_buff *a
 	return false;
 }
 
-static void print_error_table_hdr(struct expected_packet *expected, int errors)
+static unsigned int old_algorithm(struct expected_packet *expected,
+		struct sk_buff *actual)
 {
-	if (!errors) {
-		log_info("%s", expected->filename);
-		log_info("    Value\tExpected    Actual");
+	unsigned char *actual_ptr;
+	size_t i;
+	size_t min_len;
+	__u16 skip;
+
+	/* BTW: The old algorithm does not account for paging. Weird. */
+	actual_ptr = skb_network_header(actual);
+	min_len = min(expected->bytes_len, (size_t)actual->len);
+	skip = 0;
+
+	for (i = 0; i < min_len; i++) {
+		if (skip < expected->exceptions.count
+				&& expected->exceptions.values[skip] == i) {
+			skip++;
+			continue;
+		}
+
+		if (expected->bytes[i] != actual_ptr[i])
+			return 1;
 	}
+
+	return 0;
 }
 
 static bool pkt_equals(struct expected_packet *expected, struct sk_buff *actual)
 {
-	unsigned char *expected_ptr;
-	unsigned char *actual_ptr;
-	unsigned int i;
-	unsigned int min_len;
-	unsigned int skip_count;
-	int errors = 0;
+	unsigned int errors_new = 0;
+	unsigned int errors_old = 0;
+
+	log_info("Packet %s (length %zu):", expected->filename,
+			expected->bytes_len);
 
 	if (expected->bytes_len != actual->len) {
-		print_error_table_hdr(expected, errors);
-		log_info("    Length\t%zu\t    %d", expected->bytes_len, actual->len);
-		errors++;
+		log_info("\tLength:");
+		log_info("\t\tExpected: %zu", expected->bytes_len);
+		log_info("\t\tActual: %u", actual->len);
+		errors_new++;
+		errors_old++;
 	}
 
-	expected_ptr = expected->bytes;
-	actual_ptr = skb_network_header(actual);
-	min_len = (expected->bytes_len < actual->len) ? expected->bytes_len : actual->len;
+	errors_new += collect_errors(expected, actual);
+	errors_old += old_algorithm(expected, actual);
 
-	skip_count = 0;
-
-	for (i = 0; i < min_len; i++) {
-		if (skip_count < expected->exceptions.count && expected->exceptions.values[skip_count] == i) {
-			skip_count++;
-			continue;
-		}
-
-		if (expected_ptr[i] != actual_ptr[i]) {
-			print_error_table_hdr(expected, errors);
-			log_info("    byte %u\t0x%x\t    0x%x", i,
-					expected_ptr[i], actual_ptr[i]);
-			errors++;
-			/*
-			if (errors >= 16)
-				break;
-			*/
-		}
+	if (!!errors_new != !!errors_old) {
+		log_err("Error: The new algorithm %s errors, the old algorithm did %s errors.",
+				errors_new ? "yielded" : "did not yield",
+				errors_old ? "yield" : "not yield");
+		errors_new++;
 	}
 
-	return !errors;
+	return !errors_new;
 }
 
 static struct graybox_proto_stats *get_stats(struct expected_packet *pkt)
