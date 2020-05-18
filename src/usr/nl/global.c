@@ -104,7 +104,7 @@ struct jool_result joolnl_global_update(struct joolnl_socket *sk,
 	if (result.error)
 		return result;
 
-	root = nla_nest_start(msg, JNLAR_GLOBALS);
+	root = jnla_nest_start(msg, JNLAR_GLOBALS);
 	if (!root)
 		return joolnl_err_msgsize();
 

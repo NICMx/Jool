@@ -54,7 +54,7 @@ static struct nla_policy const jool_policy[JNLAR_COUNT] = {
 	[JNLAR_OPERAND] = { .type = NLA_NESTED },
 	[JNLAR_PROTO] = { .type = NLA_U8 },
 	[JNLAR_ATOMIC_INIT] = { .type = NLA_U8 },
-	[JNLAR_ATOMIC_END] = { .type = NLA_UNSPEC, .len = 0 },
+	[JNLAR_ATOMIC_END] = { .type = NLA_BINARY, .len = 0 },
 };
 
 #if LINUX_VERSION_AT_LEAST(5, 2, 0, 9999, 0)

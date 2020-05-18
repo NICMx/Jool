@@ -94,6 +94,11 @@ struct jool_result jnla_validate_list(struct nlattr *head, int len,
 	return result_success();
 }
 
+struct nlattr *jnla_nest_start(struct nl_msg *msg, int attrtype)
+{
+	return nla_nest_start(msg, NLA_F_NESTED | attrtype);
+}
+
 void nla_get_addr6(struct nlattr const *attr, struct in6_addr *addr)
 {
 	memcpy(addr, nla_data(attr), sizeof(*addr));
@@ -104,52 +109,76 @@ void nla_get_addr4(struct nlattr const *attr, struct in_addr *addr)
 	memcpy(addr, nla_data(attr), sizeof(*addr));
 }
 
+/**
+ * Contract:
+ * Result contains 0 on success.
+ * Result contains -ENOENT if the prefix was unset.
+ * Result contains something else on other errors.
+ */
 struct jool_result nla_get_prefix6(struct nlattr *root, struct ipv6_prefix *out)
 {
 	struct nlattr *attrs[JNLAP_COUNT];
-	struct jool_result result;
+	int error;
 
-	/*
-	 * Because they can be empty on globals, the policy marks them as
-	 * unspecified. We can't return an unset prefix in this function,
-	 * so we need to validate this here.
-	 */
-	if (nla_len(root) == 0) {
+	error = nla_parse_nested(attrs, JNLAP_MAX, root, joolnl_prefix6_policy);
+	if (error) {
 		return result_from_error(
 			-EINVAL,
-			"The IPv6 prefix attribute is empty."
+			"Could not parse a nested attribute in Jool's Netlink response: %s",
+			nl_geterror(error)
 		);
 	}
 
-	result = jnla_parse_nested(attrs, JNLAP_MAX, root, joolnl_prefix6_policy);
-	if (result.error)
-		return result;
+	if (!attrs[JNLAP_ADDR]) {
+		return result_from_error(
+			-ENOENT,
+			"Invalid kernel response: IPv6 prefix lacks address."
+		);
+	}
+	if (!attrs[JNLAP_LEN]) {
+		return result_from_error(
+			-EINVAL,
+			"Invalid kernel response: IPv6 prefix lacks length."
+		);
+	}
 
 	nla_get_addr6(attrs[JNLAP_ADDR], &out->addr);
 	out->len = nla_get_u8(attrs[JNLAP_LEN]);
 	return result_success();
 }
 
+/**
+ * Contract:
+ * Result contains 0 on success.
+ * Result contains -ENOENT if the prefix was unset.
+ * Result contains something else on other errors.
+ */
 struct jool_result nla_get_prefix4(struct nlattr *root, struct ipv4_prefix *out)
 {
 	struct nlattr *attrs[JNLAP_COUNT];
-	struct jool_result result;
+	int error;
 
-	/*
-	 * Because they can be empty on globals, the policy marks them as
-	 * unspecified. We can't return an unset prefix in this function,
-	 * so we need to validate this here.
-	 */
-	if (nla_len(root) == 0) {
+	error = nla_parse_nested(attrs, JNLAP_MAX, root, joolnl_prefix4_policy);
+	if (error) {
 		return result_from_error(
 			-EINVAL,
-			"The IPv4 prefix attribute is empty."
+			"Could not parse a nested attribute in Jool's Netlink response: %s",
+			nl_geterror(error)
 		);
 	}
 
-	result = jnla_parse_nested(attrs, JNLAP_MAX, root, joolnl_prefix4_policy);
-	if (result.error)
-		return result;
+	if (!attrs[JNLAP_ADDR]) {
+		return result_from_error(
+			-ENOENT,
+			"Invalid kernel response: IPv4 prefix lacks address."
+		);
+	}
+	if (!attrs[JNLAP_LEN]) {
+		return result_from_error(
+			-EINVAL,
+			"Invalid kernel response: IPv4 prefix lacks length."
+		);
+	}
 
 	nla_get_addr4(attrs[JNLAP_ADDR], &out->addr);
 	out->len = nla_get_u8(attrs[JNLAP_LEN]);
@@ -306,20 +335,20 @@ int nla_put_prefix6(struct nl_msg *msg, int attrtype, struct ipv6_prefix const *
 {
 	struct nlattr *root;
 
-	if (!prefix) {
-		if (nla_put(msg, attrtype, 0, NULL) < 0)
-			goto abort;
-		return 0;
-	}
-
-	root = nla_nest_start(msg, attrtype);
+	root = jnla_nest_start(msg, attrtype);
 	if (!root)
 		goto abort;
 
-	if (nla_put_addr6(msg, JNLAP_ADDR, &prefix->addr) < 0)
-		goto cancel;
-	if (nla_put_u8(msg, JNLAP_LEN, prefix->len) < 0)
-		goto cancel;
+	if (prefix) {
+		if (nla_put_addr6(msg, JNLAP_ADDR, &prefix->addr) < 0)
+			goto cancel;
+		if (nla_put_u8(msg, JNLAP_LEN, prefix->len) < 0)
+			goto cancel;
+	} else {
+		/* forces the nested attribute to exist */
+		if (nla_put_u8(msg, JNLAP_LEN, 0) < 0)
+			goto cancel;
+	}
 
 	nla_nest_end(msg, root);
 	return 0;
@@ -332,20 +361,20 @@ int nla_put_prefix4(struct nl_msg *msg, int attrtype, struct ipv4_prefix const *
 {
 	struct nlattr *root;
 
-	if (!prefix) {
-		if (nla_put(msg, attrtype, 0, NULL) < 0)
-			goto abort;
-		return 0;
-	}
-
-	root = nla_nest_start(msg, attrtype);
+	root = jnla_nest_start(msg, attrtype);
 	if (!root)
 		goto abort;
 
-	if (nla_put_addr4(msg, JNLAP_ADDR, &prefix->addr) < 0)
-		goto cancel;
-	if (nla_put_u8(msg, JNLAP_LEN, prefix->len) < 0)
-		goto cancel;
+	if (prefix) {
+		if (nla_put_addr4(msg, JNLAP_ADDR, &prefix->addr) < 0)
+			goto cancel;
+		if (nla_put_u8(msg, JNLAP_LEN, prefix->len) < 0)
+			goto cancel;
+	} else {
+		/* forces the nested attribute to exist */
+		if (nla_put_u8(msg, JNLAP_LEN, 0) < 0)
+			goto cancel;
+	}
 
 	nla_nest_end(msg, root);
 	return 0;
@@ -358,7 +387,7 @@ static int nla_put_taddr6(struct nl_msg *msg, int attrtype, struct ipv6_transpor
 {
 	struct nlattr *root;
 
-	root = nla_nest_start(msg, attrtype);
+	root = jnla_nest_start(msg, attrtype);
 	if (!root)
 		return -NLE_NOMEM;
 
@@ -379,7 +408,7 @@ static int nla_put_taddr4(struct nl_msg *msg, int attrtype, struct ipv4_transpor
 {
 	struct nlattr *root;
 
-	root = nla_nest_start(msg, attrtype);
+	root = jnla_nest_start(msg, attrtype);
 	if (!root)
 		return -NLE_NOMEM;
 
@@ -401,7 +430,7 @@ int nla_put_plateaus(struct nl_msg *msg, int attrtype, struct mtu_plateaus const
 	struct nlattr *root;
 	unsigned int i;
 
-	root = nla_nest_start(msg, attrtype);
+	root = jnla_nest_start(msg, attrtype);
 	if (!root)
 		return -NLE_NOMEM;
 
@@ -420,7 +449,7 @@ int nla_put_eam(struct nl_msg *msg, int attrtype, struct eamt_entry const *entry
 {
 	struct nlattr *root;
 
-	root = nla_nest_start(msg, attrtype);
+	root = jnla_nest_start(msg, attrtype);
 	if (!root)
 		return -NLE_NOMEM;
 
@@ -441,7 +470,7 @@ int nla_put_pool4(struct nl_msg *msg, int attrtype, struct pool4_entry const *en
 {
 	struct nlattr *root;
 
-	root = nla_nest_start(msg, attrtype);
+	root = jnla_nest_start(msg, attrtype);
 	if (!root)
 		return -NLE_NOMEM;
 
@@ -470,7 +499,7 @@ int nla_put_bib_attrs(struct nl_msg *msg, int attrtype,
 {
 	struct nlattr *root;
 
-	root = nla_nest_start(msg, attrtype);
+	root = jnla_nest_start(msg, attrtype);
 	if (!root)
 		return -NLE_NOMEM;
 
@@ -499,7 +528,7 @@ int nla_put_session(struct nl_msg *msg, int attrtype, struct session_entry_usr c
 {
 	struct nlattr *root;
 
-	root = nla_nest_start(msg, attrtype);
+	root = jnla_nest_start(msg, attrtype);
 	if (!root)
 		return -NLE_NOMEM;
 

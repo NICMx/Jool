@@ -1,4 +1,4 @@
-pkglib_LTLIBRARIES = libjoolargp.la
+noinst_LTLIBRARIES = libjoolargp.la
 
 libjoolargp_la_SOURCES = \
 	command.c command.h \
@@ -23,8 +23,8 @@ libjoolargp_la_SOURCES = \
 	wargp/stats.c wargp/stats.h
 
 libjoolargp_la_CFLAGS  = ${WARNINGCFLAGS}
-libjoolargp_la_CFLAGS += -I${srcdir}/../../
+libjoolargp_la_CFLAGS += -I${top_srcdir}/src
 libjoolargp_la_CFLAGS += ${LIBNLGENL3_CFLAGS}
 
-libjoolargp_la_LIBADD  = ${top_builddir}/src/usr/util/libjoolutil.la
-libjoolargp_la_LIBADD += ${top_builddir}/src/usr/nl/libjoolnl.la
+libjoolargp_la_LIBADD  = ../util/libjoolutil.la
+libjoolargp_la_LIBADD += ../nl/libjoolnl.la

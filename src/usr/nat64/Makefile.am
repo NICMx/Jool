@@ -5,9 +5,9 @@ bin_PROGRAMS = jool
 jool_SOURCES = main-nat64.c
 
 jool_CFLAGS  = ${WARNINGCFLAGS}
-jool_CFLAGS += -I${srcdir}/../../
+jool_CFLAGS += -I${top_srcdir}/src
 
-jool_LDADD = ${top_builddir}/src/usr/argp/libjoolargp.la
+jool_LDADD = ../argp/libjoolargp.la
 
 dist_man_MANS = jool.8
 

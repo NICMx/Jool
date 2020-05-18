@@ -15,9 +15,14 @@ struct nla_policy joolnl_instance_entry_policy[JNLAIE_COUNT] = {
 	[JNLAIE_NS] = { .type = NLA_U32 },
 	[JNLAIE_XF] = { .type = NLA_U8 },
 	[JNLAIE_INAME] = {
+#ifdef __KERNEL__
+		.type = NLA_NUL_STRING,
+		/* Must not include the null char (see struct nla_policy) */
+		.len = INAME_MAX_SIZE - 1,
+#else
 		.type = NLA_STRING,
-#ifndef __KERNEL__
-		.maxlen = INAME_MAX_SIZE
+		/* Must include the null char (see validate_nla()) */
+		.maxlen = INAME_MAX_SIZE,
 #endif
 	},
 };
@@ -78,7 +83,7 @@ struct nla_policy joolnl_session_entry_policy[JNLASE_COUNT] = {
 struct nla_policy siit_globals_policy[JNLAG_COUNT] = {
 	[JNLAG_ENABLED] = { .type = NLA_U8 },
 	[JNLAG_TRACE] = { .type = NLA_U8 },
-	[JNLAG_POOL6] = { .type = NLA_UNSPEC },
+	[JNLAG_POOL6] = { .type = NLA_NESTED },
 	[JNLAG_RESET_TC] = { .type = NLA_U8 },
 	[JNLAG_RESET_TOS] = { .type = NLA_U8 },
 	[JNLAG_TOS] = { .type = NLA_U8 },
@@ -88,14 +93,14 @@ struct nla_policy siit_globals_policy[JNLAG_COUNT] = {
 	[JNLAG_COMPUTE_CSUM_ZERO] = { .type = NLA_U8 },
 	[JNLAG_HAIRPIN_MODE] = { .type = NLA_U8 },
 	[JNLAG_RANDOMIZE_ERROR_ADDR] = { .type = NLA_U8 },
-	[JNLAG_POOL6791V6] = { .type = NLA_UNSPEC },
-	[JNLAG_POOL6791V4] = { .type = NLA_UNSPEC },
+	[JNLAG_POOL6791V6] = { .type = NLA_NESTED },
+	[JNLAG_POOL6791V4] = { .type = NLA_NESTED },
 };
 
 struct nla_policy nat64_globals_policy[JNLAG_COUNT] = {
 	[JNLAG_ENABLED] = { .type = NLA_U8 },
 	[JNLAG_TRACE] = { .type = NLA_U8 },
-	[JNLAG_POOL6] = { .type = NLA_UNSPEC },
+	[JNLAG_POOL6] = { .type = NLA_NESTED },
 	[JNLAG_RESET_TC] = { .type = NLA_U8 },
 	[JNLAG_RESET_TOS] = { .type = NLA_U8 },
 	[JNLAG_TOS] = { .type = NLA_U8 },

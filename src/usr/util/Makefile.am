@@ -1,4 +1,4 @@
-pkglib_LTLIBRARIES = libjoolutil.la
+noinst_LTLIBRARIES = libjoolutil.la
 
 libjoolutil_la_SOURCES = \
 	cJSON.c cJSON.h \
@@ -7,4 +7,4 @@ libjoolutil_la_SOURCES = \
 	str_utils.c str_utils.h
 
 libjoolutil_la_CFLAGS  = ${WARNINGCFLAGS}
-libjoolutil_la_CFLAGS += -I${srcdir}/../../
+libjoolutil_la_CFLAGS += -I${top_srcdir}/src

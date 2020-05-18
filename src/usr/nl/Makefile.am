@@ -1,4 +1,4 @@
-pkglib_LTLIBRARIES = libjoolnl.la
+noinst_LTLIBRARIES = libjoolnl.la
 
 libjoolnl_la_SOURCES = \
 	address.c address.h \
@@ -21,9 +21,9 @@ libjoolnl_la_SOURCES = \
 	wrapper-types.c
 
 libjoolnl_la_CFLAGS  = ${WARNINGCFLAGS}
-libjoolnl_la_CFLAGS += -I${srcdir}/../../
+libjoolnl_la_CFLAGS += -I${top_srcdir}/src
 libjoolnl_la_CFLAGS += ${LIBNLGENL3_CFLAGS}
 
 libjoolnl_la_LIBADD  = ${LIBNLGENL3_LIBS}
-libjoolnl_la_LIBADD += ${top_builddir}/src/usr/util/libjoolutil.la
+libjoolnl_la_LIBADD += ../util/libjoolutil.la
 

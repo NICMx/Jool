@@ -12,11 +12,9 @@ static int parse_offset(struct nlattr *root, struct session_foreach_offset *entr
 	struct nlattr *attrs[JNLASE_COUNT];
 	int error;
 
-	error = NLA_PARSE_NESTED(attrs, JNLASE_MAX, root, joolnl_session_entry_policy);
-	if (error) {
-		log_err("The 'session entry' attribute is malformed.");
+	error = jnla_parse_nested(attrs, JNLASE_MAX, root, joolnl_session_entry_policy, "session entry");
+	if (error)
 		return error;
-	}
 
 	memset(entry, 0, sizeof(*entry));
 

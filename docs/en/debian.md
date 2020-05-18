@@ -7,9 +7,9 @@ title: Debian
 
 [Documentation](documentation.html) > [Installation](documentation.html#installation) > Debian
 
-# Jool in Debian and its Derivatives
+# Jool in Debian
 
-If you're using a flavor of Debian, you have three options: Installing the _Debian Release_, the _Standalone Package_ or compiling from source.
+You have three options: Installing the _Debian Release_, the _Standalone Package_ or compiling from source.
 
 Here's a comparison between the three:
 

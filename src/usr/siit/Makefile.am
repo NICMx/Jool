@@ -5,9 +5,9 @@ bin_PROGRAMS = jool_siit
 jool_siit_SOURCES = main-siit.c
 
 jool_siit_CFLAGS  = ${WARNINGCFLAGS}
-jool_siit_CFLAGS += -I${srcdir}/../../
+jool_siit_CFLAGS += -I${top_srcdir}/src
 
-jool_siit_LDADD = ${top_builddir}/src/usr/argp/libjoolargp.la
+jool_siit_LDADD = ../argp/libjoolargp.la
 
 dist_man_MANS = jool_siit.8
 
