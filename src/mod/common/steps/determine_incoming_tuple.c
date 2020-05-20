@@ -19,9 +19,9 @@
  *
  * Skips IPv4 options if any.
  */
-static void *ipv4_extract_l4_hdr(struct iphdr *hdr_ipv4)
+static void const *ipv4_extract_l4_hdr(struct iphdr const *hdr_ipv4)
 {
-	return ((void *) hdr_ipv4) + (hdr_ipv4->ihl << 2);
+	return ((void const *) hdr_ipv4) + (hdr_ipv4->ihl << 2);
 }
 
 /**
@@ -87,44 +87,47 @@ static verdict ipv4_icmp_info(struct xlation *state)
 static verdict ipv4_icmp_err(struct xlation *state)
 {
 	struct tuple *tuple4 = &state->in.tuple;
-	struct iphdr *inner_ip4 = (struct iphdr *)(pkt_icmp4_hdr(&state->in) + 1);
-	struct udphdr *inner_udp;
-	struct tcphdr *inner_tcp;
-	struct icmphdr *inner_icmp;
+	union {
+		struct iphdr const *ip4;
+		struct udphdr const *udp;
+		struct tcphdr const *tcp;
+		struct icmphdr const *icmp;
+	} inner;
 
-	tuple4->src.addr4.l3.s_addr = inner_ip4->daddr;
-	tuple4->dst.addr4.l3.s_addr = inner_ip4->saddr;
+	inner.ip4 = (struct iphdr *)(pkt_icmp4_hdr(&state->in) + 1);
+	tuple4->src.addr4.l3.s_addr = inner.ip4->daddr;
+	tuple4->dst.addr4.l3.s_addr = inner.ip4->saddr;
 
-	switch (inner_ip4->protocol) {
+	switch (inner.ip4->protocol) {
 	case IPPROTO_UDP:
-		inner_udp = ipv4_extract_l4_hdr(inner_ip4);
-		tuple4->src.addr4.l4 = be16_to_cpu(inner_udp->dest);
-		tuple4->dst.addr4.l4 = be16_to_cpu(inner_udp->source);
+		inner.udp = ipv4_extract_l4_hdr(inner.ip4);
+		tuple4->src.addr4.l4 = be16_to_cpu(inner.udp->dest);
+		tuple4->dst.addr4.l4 = be16_to_cpu(inner.udp->source);
 		tuple4->l4_proto = L4PROTO_UDP;
 		break;
 
 	case IPPROTO_TCP:
-		inner_tcp = ipv4_extract_l4_hdr(inner_ip4);
-		tuple4->src.addr4.l4 = be16_to_cpu(inner_tcp->dest);
-		tuple4->dst.addr4.l4 = be16_to_cpu(inner_tcp->source);
+		inner.tcp = ipv4_extract_l4_hdr(inner.ip4);
+		tuple4->src.addr4.l4 = be16_to_cpu(inner.tcp->dest);
+		tuple4->dst.addr4.l4 = be16_to_cpu(inner.tcp->source);
 		tuple4->l4_proto = L4PROTO_TCP;
 		break;
 
 	case IPPROTO_ICMP:
-		inner_icmp = ipv4_extract_l4_hdr(inner_ip4);
+		inner.icmp = ipv4_extract_l4_hdr(inner.ip4);
 
-		if (is_icmp4_error(inner_icmp->type)) {
+		if (is_icmp4_error(inner.icmp->type)) {
 			log_debug("Bogus pkt: ICMP error inside ICMP error.");
 			return drop(state, JSTAT_DOUBLE_ICMP4_ERROR);
 		}
 
-		tuple4->src.addr4.l4 = be16_to_cpu(inner_icmp->un.echo.id);
+		tuple4->src.addr4.l4 = be16_to_cpu(inner.icmp->un.echo.id);
 		tuple4->dst.addr4.l4 = tuple4->src.addr4.l4;
 		tuple4->l4_proto = L4PROTO_ICMP;
 		break;
 
 	default:
-		return unknown_inner_proto(state, inner_ip4->protocol);
+		return unknown_inner_proto(state, inner.ip4->protocol);
 	}
 
 	tuple4->l3_proto = L3PROTO_IPV4;
@@ -195,41 +198,46 @@ static verdict ipv6_icmp_err(struct xlation *state)
 {
 	struct packet *pkt = &state->in;
 	struct tuple *tuple6 = &pkt->tuple;
-	struct ipv6hdr *inner_ip6 = (struct ipv6hdr *)(pkt_icmp6_hdr(pkt) + 1);
-	struct hdr_iterator iterator = HDR_ITERATOR_INIT(inner_ip6);
-	struct udphdr *inner_udp;
-	struct tcphdr *inner_tcp;
-	struct icmp6hdr *inner_icmp;
+	struct hdr_iterator iterator;
+	union {
+		struct ipv6hdr const *ip6;
+		struct udphdr const *udp;
+		struct tcphdr const *tcp;
+		struct icmp6hdr const *icmp;
+	} inner;
 	__u16 id;
 
-	tuple6->src.addr6.l3 = inner_ip6->daddr;
-	tuple6->dst.addr6.l3 = inner_ip6->saddr;
+	inner.ip6 = (struct ipv6hdr *)(pkt_icmp6_hdr(pkt) + 1);
+	tuple6->src.addr6.l3 = inner.ip6->daddr;
+	tuple6->dst.addr6.l3 = inner.ip6->saddr;
 
+	hdr_iterator_init(&iterator, inner.ip6);
 	hdr_iterator_last(&iterator);
+
 	switch (iterator.hdr_type) {
 	case NEXTHDR_UDP:
-		inner_udp = iterator.data;
-		tuple6->src.addr6.l4 = be16_to_cpu(inner_udp->dest);
-		tuple6->dst.addr6.l4 = be16_to_cpu(inner_udp->source);
+		inner.udp = iterator.data;
+		tuple6->src.addr6.l4 = be16_to_cpu(inner.udp->dest);
+		tuple6->dst.addr6.l4 = be16_to_cpu(inner.udp->source);
 		tuple6->l4_proto = L4PROTO_UDP;
 		break;
 
 	case NEXTHDR_TCP:
-		inner_tcp = iterator.data;
-		tuple6->src.addr6.l4 = be16_to_cpu(inner_tcp->dest);
-		tuple6->dst.addr6.l4 = be16_to_cpu(inner_tcp->source);
+		inner.tcp = iterator.data;
+		tuple6->src.addr6.l4 = be16_to_cpu(inner.tcp->dest);
+		tuple6->dst.addr6.l4 = be16_to_cpu(inner.tcp->source);
 		tuple6->l4_proto = L4PROTO_TCP;
 		break;
 
 	case NEXTHDR_ICMP:
-		inner_icmp = iterator.data;
+		inner.icmp = iterator.data;
 
-		if (is_icmp6_error(inner_icmp->icmp6_type)) {
+		if (is_icmp6_error(inner.icmp->icmp6_type)) {
 			log_debug("Bogus pkt: ICMP error inside ICMP error.");
 			return drop(state, JSTAT_DOUBLE_ICMP6_ERROR);
 		}
 
-		id = be16_to_cpu(inner_icmp->icmp6_identifier);
+		id = be16_to_cpu(inner.icmp->icmp6_identifier);
 		tuple6->src.addr6.l4 = id;
 		tuple6->dst.addr6.l4 = id;
 		tuple6->l4_proto = L4PROTO_ICMP;

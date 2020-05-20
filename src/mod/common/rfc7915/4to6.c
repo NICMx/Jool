@@ -8,97 +8,254 @@
 #include "mod/common/log.h"
 #include "mod/common/rfc6052.h"
 #include "mod/common/route.h"
+#include "mod/common/steps/compute_outgoing_tuple.h"
 
 /* Layer 3 only */
 #define HDRS_LEN (sizeof(struct ipv6hdr) + sizeof(struct frag_hdr))
-
-struct ipv6_addresses {
-	struct in6_addr src;
-	struct in6_addr dst;
-};
-
-static int generate_saddr6_nat64(struct xlation *state,
-		struct ipv6_addresses *addrs)
-{
-	struct jool_globals *cfg;
-	struct in_addr tmp;
-
-	cfg = &state->jool.globals;
-
-	if (cfg->nat64.src_icmp6errs_better && pkt_is_icmp4_error(&state->in)) {
-		/* Issue #132 behaviour. */
-		tmp.s_addr = pkt_ip4_hdr(&state->in)->saddr;
-		return __rfc6052_4to6(&cfg->pool6.prefix, &tmp, &addrs->src);
-	}
-
-	/* RFC 6146 behaviour. */
-	addrs->src = state->out.tuple.src.addr6.l3;
-	return 0;
-}
-
-static verdict xlat_addresses46(struct xlation *state,
-		struct ipv6_addresses *addrs)
-{
-	if (xlation_is_nat64(state)) {
-		if (generate_saddr6_nat64(state, addrs))
-			return drop(state, JSTAT46_SRC);
-	} else {
-		addrs->src = state->out.tuple.src.addr6.l3;
-	}
-
-	addrs->dst = state->out.tuple.dst.addr6.l3;
-	return VERDICT_CONTINUE;
-}
 
 static __u8 xlat_nexthdr(__u8 protocol)
 {
 	return (protocol == IPPROTO_ICMP) ? NEXTHDR_ICMP : protocol;
 }
 
-static verdict predict_route46(struct xlation *state,
-		struct ipv6_addresses *addrs,
+static int generate_saddr6_nat64(struct xlation *state, union flowix *flowx)
+{
+	struct jool_globals *cfg;
+	struct in_addr tmp;
+
+	cfg = &state->jool.globals;
+	if (cfg->nat64.src_icmp6errs_better && pkt_is_icmp4_error(&state->in)) {
+		/* Issue #132 behaviour. */
+		tmp.s_addr = pkt_ip4_hdr(&state->in)->saddr;
+		return __rfc6052_4to6(&cfg->pool6.prefix, &tmp,
+				&flowx->v6.flowi.saddr);
+	}
+
+	/* RFC 6146 behaviour. */
+	flowx->v6.flowi.saddr = state->out.tuple.src.addr6.l3;
+	return 0;
+}
+
+static verdict xlat_external_addresses(struct xlation *state,
+		union flowix *flowx)
+{
+	switch (xlator_get_type(&state->jool)) {
+	case XT_NAT64:
+		if (generate_saddr6_nat64(state, flowx))
+			return drop(state, JSTAT46_SRC);
+		flowx->v6.flowi.daddr = state->out.tuple.dst.addr6.l3;
+		return VERDICT_CONTINUE;
+
+	case XT_SIIT:
+		return translate_addrs46_siit(state,
+				&flowx->v6.flowi.saddr,
+				&flowx->v6.flowi.daddr);
+	}
+
+	WARN(1, "xlator type is not SIIT nor NAT64: %u",
+			xlator_get_type(&state->jool));
+	return drop(state, JSTAT_UNKNOWN);
+}
+
+static verdict xlat_internal_addresses(struct xlation *state,
+		union flowix *flowx)
+{
+	struct bkp_skb_tuple bkp;
+	verdict result;
+
+	switch (xlator_get_type(&state->jool)) {
+	case XT_NAT64:
+		flowx->v6.inner_src = state->out.tuple.dst.addr6.l3;
+		flowx->v6.inner_dst = state->out.tuple.src.addr6.l3;
+		return VERDICT_CONTINUE;
+
+	case XT_SIIT:
+		result = become_inner_packet(state, &bkp, false);
+		if (result != VERDICT_CONTINUE)
+			return result;
+		log_debug("Translating internal addresses...");
+		result = translate_addrs46_siit(state,
+				&flowx->v6.inner_src,
+				&flowx->v6.inner_dst);
+		restore_outer_packet(state, &bkp, false);
+		return result;
+	}
+
+	WARN(1, "xlator type is not SIIT nor NAT64: %u",
+			xlator_get_type(&state->jool));
+	return drop(state, JSTAT_UNKNOWN);
+}
+
+static verdict xlat_tcp_ports(struct xlation const *state,
+		struct flowi6 *flowi)
+{
+	struct tcphdr const *hdr;
+
+	switch (xlator_get_type(&state->jool)) {
+	case XT_NAT64:
+		flowi->fl6_sport = state->out.tuple.src.addr4.l4;
+		flowi->fl6_dport = state->out.tuple.dst.addr4.l4;
+		break;
+	case XT_SIIT:
+		hdr = pkt_tcp_hdr(&state->in);
+		flowi->fl6_sport = hdr->source;
+		flowi->fl6_dport = hdr->dest;
+	}
+
+	return VERDICT_CONTINUE;
+}
+
+static verdict xlat_udp_ports(struct xlation const *state,
+		struct flowi6 *flowi)
+{
+	struct udphdr const *udp;
+
+	switch (xlator_get_type(&state->jool)) {
+	case XT_NAT64:
+		flowi->fl6_sport = state->out.tuple.src.addr4.l4;
+		flowi->fl6_dport = state->out.tuple.dst.addr4.l4;
+		break;
+	case XT_SIIT:
+		udp = pkt_udp_hdr(&state->in);
+		flowi->fl6_sport = udp->source;
+		flowi->fl6_dport = udp->dest;
+	}
+
+	return VERDICT_CONTINUE;
+}
+
+static verdict xlat_icmp_type(struct xlation *state, union flowix *flowx)
+{
+	struct icmphdr const *hdr;
+	struct flowi6 *flow6;
+
+	hdr = pkt_icmp4_hdr(&state->in);
+	flow6 = &flowx->v6.flowi;
+
+	switch (hdr->type) {
+	case ICMP_ECHO:
+		flow6->fl6_icmp_type = ICMPV6_ECHO_REQUEST;
+		flow6->fl6_icmp_code = 0;
+		return VERDICT_CONTINUE;
+
+	case ICMP_ECHOREPLY:
+		flow6->fl6_icmp_type = ICMPV6_ECHO_REPLY;
+		flow6->fl6_icmp_code = 0;
+		return VERDICT_CONTINUE;
+
+	case ICMP_DEST_UNREACH:
+		switch (hdr->code) {
+		case ICMP_NET_UNREACH:
+		case ICMP_HOST_UNREACH:
+		case ICMP_SR_FAILED:
+		case ICMP_NET_UNKNOWN:
+		case ICMP_HOST_UNKNOWN:
+		case ICMP_HOST_ISOLATED:
+		case ICMP_NET_UNR_TOS:
+		case ICMP_HOST_UNR_TOS:
+			flow6->fl6_icmp_type = ICMPV6_DEST_UNREACH;
+			flow6->fl6_icmp_code = ICMPV6_NOROUTE;
+			return xlat_internal_addresses(state, flowx);
+
+		case ICMP_PROT_UNREACH:
+			flow6->fl6_icmp_type = ICMPV6_PARAMPROB;
+			flow6->fl6_icmp_code = ICMPV6_UNK_NEXTHDR;
+			return xlat_internal_addresses(state, flowx);
+
+		case ICMP_PORT_UNREACH:
+			flow6->fl6_icmp_type = ICMPV6_DEST_UNREACH;
+			flow6->fl6_icmp_code = ICMPV6_PORT_UNREACH;
+			return xlat_internal_addresses(state, flowx);
+
+		case ICMP_FRAG_NEEDED:
+			flow6->fl6_icmp_type = ICMPV6_PKT_TOOBIG;
+			flow6->fl6_icmp_code = 0;
+			return xlat_internal_addresses(state, flowx);
+
+		case ICMP_NET_ANO:
+		case ICMP_HOST_ANO:
+		case ICMP_PKT_FILTERED:
+		case ICMP_PREC_CUTOFF:
+			flow6->fl6_icmp_type = ICMPV6_DEST_UNREACH;
+			flow6->fl6_icmp_code = ICMPV6_ADM_PROHIBITED;
+			return xlat_internal_addresses(state, flowx);
+		}
+		break;
+
+	case ICMP_TIME_EXCEEDED:
+		flow6->fl6_icmp_type = ICMPV6_TIME_EXCEED;
+		flow6->fl6_icmp_code = hdr->code;
+		return xlat_internal_addresses(state, flowx);
+
+	case ICMP_PARAMETERPROB:
+		flow6->fl6_icmp_type = ICMPV6_PARAMPROB;
+		switch (hdr->code) {
+		case ICMP_PTR_INDICATES_ERROR:
+		case ICMP_BAD_LENGTH:
+			flow6->fl6_icmp_code = ICMPV6_HDR_FIELD;
+			return xlat_internal_addresses(state, flowx);
+		}
+	}
+
+	/*
+	 * The following codes are known to fall through here:
+	 * Information Request/Reply (15, 16), Timestamp and Timestamp Reply
+	 * (13, 14), Address Mask Request/Reply (17, 18), Router Advertisement
+	 * (9), Router Solicitation (10), Source Quench (4), Redirect (5),
+	 * Alternative Host Address (6).
+	 * This time there's no ICMP error.
+	 */
+	log_debug("ICMPv4 messages type %u code %u lack an ICMPv6 counterpart.",
+			hdr->type, hdr->code);
+	return drop(state, JSTAT_UNKNOWN_ICMP4_TYPE);
+}
+
+static verdict compute_flowix46(struct xlation *state, union flowix *flowx)
+{
+	struct flowi6 *flow6;
+	verdict result;
+
+	memset(&flowx->v6, 0, sizeof(flowx->v6));
+	flow6 = &flowx->v6.flowi;
+
+	flow6->flowi6_mark = state->in.skb->mark;
+	flow6->flowi6_scope = RT_SCOPE_UNIVERSE;
+	flow6->flowi6_proto = xlat_nexthdr(pkt_ip4_hdr(&state->in)->protocol);
+	flow6->flowi6_flags = FLOWI_FLAG_ANYSRC;
+
+	result = xlat_external_addresses(state, flowx);
+	if (result != VERDICT_CONTINUE)
+		return result;
+
+	switch (flow6->flowi6_proto) {
+	case NEXTHDR_TCP:
+		return xlat_tcp_ports(state, &flowx->v6.flowi);
+	case NEXTHDR_UDP:
+		return xlat_udp_ports(state, &flowx->v6.flowi);
+	case NEXTHDR_ICMP:
+		return xlat_icmp_type(state, flowx);
+	}
+
+	return VERDICT_CONTINUE;
+}
+
+static verdict predict_route46(struct xlation *state, union flowix *flowx,
 		struct dst_entry **result)
 {
 	struct dst_entry *dst;
-	struct packet *in;
-	struct flowi6 flow;
 
-#ifdef UNIT_TESTING
 	*result = NULL;
+#ifdef UNIT_TESTING
 	return VERDICT_CONTINUE;
 #endif
 
-	in = &state->in;
-
-	memset(&flow, 0, sizeof(flow));
-	flow.flowi6_mark = in->skb->mark;
-	flow.flowi6_scope = RT_SCOPE_UNIVERSE;
-	flow.flowi6_proto = xlat_nexthdr(pkt_ip4_hdr(in)->protocol);
-	flow.flowi6_flags = FLOWI_FLAG_ANYSRC;
-	flow.saddr = addrs->src;
-	flow.daddr = addrs->dst;
-
-	switch (flow.flowi6_proto) {
-	case NEXTHDR_TCP:
-	case NEXTHDR_UDP:
-		flow.fl6_sport = state->out.tuple.src.addr6.l4;
-		flow.fl6_dport = state->out.tuple.dst.addr6.l4;
-		break;
-	case NEXTHDR_ICMP:
-		/*
-		 * type and code have not been translated yet, and I don't think
-		 * they're worth the trouble.
-		 * These flowi fields are probably just clutter at this point.
-		 */
-		break;
-	}
-
-	log_debug("Routing: %pI6c->%pI6c", &flow.saddr, &flow.daddr);
-	dst = route6(state->jool.ns, &flow);
+	log_debug("Routing: %pI6c->%pI6c", &flowx->v6.flowi.saddr,
+			&flowx->v6.flowi.daddr);
+	dst = route6(state->jool.ns, &flowx->v6.flowi);
 	if (!dst)
 		return untranslatable(state, JSTAT_FAILED_ROUTES);
 
-	if (ipv6_addr_any(&flow.saddr)) { /* empty pool6791v6 */
+	if (ipv6_addr_any(&flowx->v6.flowi.saddr)) { /* empty pool6791v6 */
 		if (WARN(!xlator_is_siit(&state->jool),
 			 "Zero source address on not SIIT!"))
 			goto panic;
@@ -108,11 +265,11 @@ static verdict predict_route46(struct xlation *state,
 
 		if (ipv6_dev_get_saddr(state->jool.ns,
 				       NULL,
-				       &state->out.tuple.dst.addr6.l3,
+				       &flowx->v6.flowi.daddr,
 				       IPV6_PREFER_SRC_PUBLIC,
-				       &state->out.tuple.src.addr6.l3)) {
+				       &flowx->v6.flowi.saddr)) {
 			log_warn_once("Can't find a sufficiently scoped primary source address to reach %pI6.",
-					&state->out.tuple.dst.addr6.l3);
+					&flowx->v6.flowi.daddr);
 			dst_release(dst);
 			return drop(state, JSTAT46_6791_ENOENT);
 		}
@@ -365,15 +522,7 @@ static void autofill_dst(struct xlation *state, struct dst_entry *dst)
 		skb_dst_set(skb, dst_clone(dst));
 }
 
-static void addrs_set46(struct xlation *state, struct ipv6_addresses *addrs)
-{
-	struct ipv6hdr *hdr6;
-	hdr6 = pkt_ip6_hdr(&state->out);
-	hdr6->saddr = addrs->src;
-	hdr6->daddr = addrs->dst;
-}
-
-verdict ttp46_alloc_skb(struct xlation *state)
+static verdict ttp46_alloc_skb(struct xlation *state, union flowix *flowx)
 {
 	/*
 	 * Glossary:
@@ -390,7 +539,7 @@ verdict ttp46_alloc_skb(struct xlation *state)
 	 * My tools are skb_copy_bits() and friends. I intend to attempt no
 	 * frags surgery whatsoever.
 	 *
-	 * This is a pain in the ass because of --lowest-ipv6-mtu and GRO/GSO.
+	 * This is a pain in the ass because of lowest-ipv6-mtu and GRO/GSO.
 	 * Here's the general algorithm in pseudocode:
 	 *
 	 *	If ICMP error:
@@ -431,7 +580,7 @@ verdict ttp46_alloc_skb(struct xlation *state)
 	 * (If, on the other hand, a future namespace returns a PTB, it will
 	 * cross our prerouting so it'll be converted to a FN no problem.)
 	 *
-	 * --lowest-ipv6-mtu acts as a second line of defense, since it's (in
+	 * lowest-ipv6-mtu acts as a second line of defense, since it's (in
 	 * theory) guaranteeing that the kernel will never enter ip6_fragment()
 	 * in the first place. Though I'm glad it's not the only one because the
 	 * user could misconfigure it.
@@ -527,8 +676,8 @@ verdict ttp46_alloc_skb(struct xlation *state)
 	 * Therefore: If users want performance, they need to enable DF or GTFO.
 	 *
 	 * If my assumptions prove incorrect, the user can enable
-	 * --force-slow-path-46 and hopefully report the issue. Though I
-	 * honestly hope I never have to touch this code again.
+	 * force-slow-path-46 and hopefully report the issue. Though I honestly
+	 * hope I never have to touch this code again.
 	 *
 	 * # LRO
 	 *
@@ -545,7 +694,6 @@ verdict ttp46_alloc_skb(struct xlation *state)
 	 */
 
 	struct packet *in;
-	struct ipv6_addresses addrs;
 	struct dst_entry *dst;
 	int delta;
 	unsigned int nexthop_mtu;
@@ -553,14 +701,14 @@ verdict ttp46_alloc_skb(struct xlation *state)
 	unsigned int mpl;
 	verdict result;
 
-	in = &state->in;
-	result = xlat_addresses46(state, &addrs);
+	result = compute_flowix46(state, flowx);
 	if (result != VERDICT_CONTINUE)
 		return result;
-	result = predict_route46(state, &addrs, &dst);
+	result = predict_route46(state, flowx, &dst);
 	if (result != VERDICT_CONTINUE)
 		return result;
 
+	in = &state->in;
 	delta = get_delta(in);
 #ifndef UNIT_TESTING
 	nexthop_mtu = dst_mtu(dst);
@@ -611,38 +759,11 @@ verdict ttp46_alloc_skb(struct xlation *state)
 		goto fail;
 
 	autofill_dst(state, dst);
-	addrs_set46(state, &addrs);
 	return VERDICT_CONTINUE;
 
 fail:
 	dst_release(dst);
 	return result;
-}
-
-static __be16 build_payload_len(struct packet *in, struct packet *out)
-{
-	__u16 total_len;
-
-	if (pkt_is_inner(out)) {
-		/*
-		 * The RFC formula is fine, but this avoids the need to override
-		 * if we later discover that we need to account for a fragment
-		 * header.
-		 */
-		total_len = be16_to_cpu(pkt_ip4_hdr(in)->tot_len)
-				- pkt_hdrs_len(in) + pkt_hdrs_len(out);
-	} else {
-		/*
-		 * I was tempted to use the RFC formula, but it's a little
-		 * difficult because we can't trust the incoming packet's total
-		 * length when we need to fragment due to lowest-ipv6-mtu.
-		 * Also, this avoids the need to override if we later discover
-		 * that we need to account for a fragment header.
-		 */
-		total_len = out->skb->len;
-	}
-
-	return cpu_to_be16(total_len - sizeof(struct ipv6hdr));
 }
 
 /**
@@ -733,25 +854,13 @@ static void autofill_hdr6(struct packet *out)
 	}
 }
 
-/**
- * Infers a IPv6 header from "in"'s IPv4 header and "tuple". Places the result
- * in "out"->l3_hdr.
- * This is RFC 7915 section 4.1.
- *
- * This is used to translate both outer and inner headers.
- */
-verdict ttp46_ipv6(struct xlation *state)
+static verdict ttcp46_ipv6_common(struct xlation *state)
 {
 	struct packet *in = &state->in;
 	struct packet *out = &state->out;
 	struct iphdr *hdr4 = pkt_ip4_hdr(in);
 	struct ipv6hdr *hdr6 = pkt_ip6_hdr(out);
 	struct frag_hdr *frag_header;
-
-	if (pkt_is_outer(in) && has_unexpired_src_route(hdr4)) {
-		log_debug("Packet has an unexpired source route.");
-		return drop_icmp(state, JSTAT46_SRC_ROUTE, ICMPERR_SRC_ROUTE, 0);
-	}
 
 	hdr6->version = 6;
 	if (state->jool.globals.reset_traffic_class) {
@@ -763,9 +872,9 @@ verdict ttp46_ipv6(struct xlation *state)
 	}
 	hdr6->flow_lbl[1] = 0;
 	hdr6->flow_lbl[2] = 0;
-	hdr6->payload_len = build_payload_len(in, out);
-	hdr6->nexthdr = xlat_nexthdr(hdr4->protocol);
-	if (pkt_is_outer(in) && !pkt_is_intrinsic_hairpin(in)) {
+	/* hdr6->payload_len */
+	/* hdr6->nexthdr */
+	if (pkt_is_outer(in) && !state->is_hairpin) {
 		if (hdr4->ttl <= 1) {
 			log_debug("Packet's TTL <= 1.");
 			return drop_icmp(state, JSTAT46_TTL, ICMPERR_TTL, 0);
@@ -775,13 +884,13 @@ verdict ttp46_ipv6(struct xlation *state)
 		hdr6->hop_limit = hdr4->ttl;
 	}
 
-	/* The addresses are already set. */
+	/* hdr6->saddr */
+	/* hdr6->daddr */
 
 	if (will_need_frag_hdr(hdr4) || out->skb->next) {
-		hdr6->nexthdr = NEXTHDR_FRAGMENT;
-
 		frag_header = (struct frag_hdr *)(hdr6 + 1);
-		frag_header->nexthdr = xlat_nexthdr(hdr4->protocol);
+		frag_header->nexthdr = hdr6->nexthdr;
+		hdr6->nexthdr = NEXTHDR_FRAGMENT;
 		frag_header->reserved = 0;
 		frag_header->frag_off = build_ipv6_frag_off_field(
 				get_fragment_offset_ipv4(hdr4),
@@ -789,7 +898,73 @@ verdict ttp46_ipv6(struct xlation *state)
 		frag_header->identification = build_id_field(hdr4);
 	}
 
+	return VERDICT_CONTINUE;
+}
+
+/**
+ * Infers a IPv6 header from "in"'s IPv4 header and "tuple". Places the result
+ * in "out"->l3_hdr.
+ * This is RFC 7915 section 4.1.
+ *
+ * This is used to translate both outer and inner headers.
+ */
+static verdict ttp46_ipv6_external(struct xlation *state,
+		union flowix const *flowx)
+{
+	struct packet *in = &state->in;
+	struct packet *out = &state->out;
+	struct ipv6hdr *hdr6 = pkt_ip6_hdr(out);
+	verdict result;
+
+	if (pkt_is_outer(in) && has_unexpired_src_route(pkt_ip4_hdr(in))) {
+		log_debug("Packet has an unexpired source route.");
+		return drop_icmp(state, JSTAT46_SRC_ROUTE, ICMPERR_SRC_ROUTE, 0);
+	}
+
+	hdr6->nexthdr = flowx->v6.flowi.flowi6_proto;
+
+	result = ttcp46_ipv6_common(state);
+	if (result != VERDICT_CONTINUE)
+		return result;
+
+	/*
+	 * I was tempted to use the RFC formula, but it's a little difficult
+	 * because we can't trust the incoming packet's total length when we
+	 * need to fragment due to lowest-ipv6-mtu.
+	 * Also, this avoids the need to handle differently depending on whether
+	 * we're adding a fragment header.
+	 */
+	hdr6->payload_len = cpu_to_be16(out->skb->len - sizeof(struct ipv6hdr));
+	hdr6->saddr = flowx->v6.flowi.saddr;
+	hdr6->daddr = flowx->v6.flowi.daddr;
+
 	autofill_hdr6(out);
+	return VERDICT_CONTINUE;
+}
+
+static verdict ttp46_ipv6_internal(struct xlation *state,
+		union flowix const *flowx)
+{
+	struct packet *in = &state->in;
+	struct packet *out = &state->out;
+	struct ipv6hdr *hdr6 = pkt_ip6_hdr(out);
+	verdict result;
+
+	hdr6->nexthdr = xlat_nexthdr(pkt_ip4_hdr(in)->protocol);
+
+	result = ttcp46_ipv6_common(state);
+	if (result != VERDICT_CONTINUE)
+		return result;
+
+	/*
+	 * The RFC formula is fine, but this avoids the need to handle
+	 * differently depending on whether we're adding a fragment header.
+	 */
+	hdr6->payload_len = cpu_to_be16(be16_to_cpu(pkt_ip4_hdr(in)->tot_len)
+			- pkt_hdrs_len(in) + pkt_hdrs_len(out)
+			- sizeof(struct ipv6hdr));
+	hdr6->saddr = flowx->v6.inner_src;
+	hdr6->daddr = flowx->v6.inner_dst;
 
 	return VERDICT_CONTINUE;
 }
@@ -880,9 +1055,6 @@ static verdict icmp4_to_icmp6_dest_unreach(struct xlation *state)
 	struct icmphdr *icmp4_hdr = pkt_icmp4_hdr(&state->in);
 	struct icmp6hdr *icmp6_hdr = pkt_icmp6_hdr(&state->out);
 
-	icmp6_hdr->icmp6_type = ICMPV6_DEST_UNREACH;
-	icmp6_hdr->icmp6_unused = 0;
-
 	switch (icmp4_hdr->code) {
 	case ICMP_NET_UNREACH:
 	case ICMP_HOST_UNREACH:
@@ -892,38 +1064,27 @@ static verdict icmp4_to_icmp6_dest_unreach(struct xlation *state)
 	case ICMP_HOST_ISOLATED:
 	case ICMP_NET_UNR_TOS:
 	case ICMP_HOST_UNR_TOS:
-		icmp6_hdr->icmp6_code = ICMPV6_NOROUTE;
-		return VERDICT_CONTINUE;
-
-	case ICMP_PROT_UNREACH:
-		icmp6_hdr->icmp6_type = ICMPV6_PARAMPROB;
-		icmp6_hdr->icmp6_code = ICMPV6_UNK_NEXTHDR;
-		icmp6_hdr->icmp6_pointer = cpu_to_be32(offsetof(struct ipv6hdr,
-				nexthdr));
-		return VERDICT_CONTINUE;
-
 	case ICMP_PORT_UNREACH:
-		icmp6_hdr->icmp6_code = ICMPV6_PORT_UNREACH;
-		return VERDICT_CONTINUE;
-
-	case ICMP_FRAG_NEEDED:
-		icmp6_hdr->icmp6_type = ICMPV6_PKT_TOOBIG;
-		icmp6_hdr->icmp6_code = 0;
-		return compute_mtu6(state);
-
 	case ICMP_NET_ANO:
 	case ICMP_HOST_ANO:
 	case ICMP_PKT_FILTERED:
 	case ICMP_PREC_CUTOFF:
-		icmp6_hdr->icmp6_code = ICMPV6_ADM_PROHIBITED;
+		icmp6_hdr->icmp6_unused = 0;
 		return VERDICT_CONTINUE;
+
+	case ICMP_PROT_UNREACH:
+		icmp6_hdr->icmp6_pointer = cpu_to_be32(offsetof(struct ipv6hdr,
+				nexthdr));
+		return VERDICT_CONTINUE;
+
+	case ICMP_FRAG_NEEDED:
+		return compute_mtu6(state);
 	}
 
-	/* hostPrecedenceViolation (14) is known to fall through here. */
-	log_debug("ICMPv4 messages type %u code %u lack an ICMPv6 counterpart.",
-			icmp4_hdr->type, icmp4_hdr->code);
-	/* No ICMP error. */
-	return drop(state, JSTAT46_UNTRANSLATABLE_DEST_UNREACH);
+	/* Dead code */
+	WARN(1, "ICMPv4 Destination Unreachable code %u was unhandled by the switch above.",
+			icmp4_hdr->code);
+	return drop(state, JSTAT_UNKNOWN);
 }
 
 /**
@@ -944,11 +1105,9 @@ static verdict icmp4_to_icmp6_param_prob(struct xlation *state)
 	struct icmp6hdr *icmp6_hdr = pkt_icmp6_hdr(&state->out);
 	__u8 ptr;
 
-	icmp6_hdr->icmp6_type = ICMPV6_PARAMPROB;
-
 	switch (icmp4_hdr->code) {
 	case ICMP_PTR_INDICATES_ERROR:
-	case ICMP_BAD_LENGTH: {
+	case ICMP_BAD_LENGTH:
 		ptr = be32_to_cpu(icmp4_hdr->icmp4_unused) >> 24;
 
 		if (19 < ptr || ptrs[ptr] == DROP) {
@@ -957,17 +1116,14 @@ static verdict icmp4_to_icmp6_param_prob(struct xlation *state)
 			return drop(state, JSTAT46_UNTRANSLATABLE_PARAM_PROBLEM_PTR);
 		}
 
-		icmp6_hdr->icmp6_code = ICMPV6_HDR_FIELD;
 		icmp6_hdr->icmp6_pointer = cpu_to_be32(ptrs[ptr]);
 		return VERDICT_CONTINUE;
 	}
-	}
 
-	/* missingARequiredOption (1) is known to fall through here. */
-	log_debug("ICMPv4 messages type %u code %u lack an ICMPv6 counterpart.",
-			icmp4_hdr->type, icmp4_hdr->code);
-	/* No ICMP error. */
-	return drop(state, JSTAT46_UNTRANSLATABLE_PARAM_PROB);
+	/* Dead code */
+	WARN(1, "ICMPv4 Parameter Problem code %u was unhandled by the switch above.",
+			icmp4_hdr->code);
+	return drop(state, JSTAT_UNKNOWN);
 }
 
 /*
@@ -1104,7 +1260,7 @@ static verdict trim_1280(struct xlation *state)
 	return VERDICT_CONTINUE;
 }
 
-static verdict post_icmp6error(struct xlation *state)
+static verdict post_icmp6error(struct xlation *state, union flowix const *flowx)
 {
 	verdict result;
 
@@ -1119,7 +1275,7 @@ static verdict post_icmp6error(struct xlation *state)
 	if (result != VERDICT_CONTINUE)
 		return result;
 
-	result = ttpcomm_translate_inner_packet(state);
+	result = ttpcomm_translate_inner_packet(state, flowx, &ttp46_steps);
 	if (result != VERDICT_CONTINUE)
 		return result;
 
@@ -1139,31 +1295,21 @@ static verdict post_icmp6error(struct xlation *state)
  * Translates in's icmp4 header and payload into out's icmp6 header and payload.
  * This is the RFC 7915 sections 4.2 and 4.3, except checksum (See post_icmp6()).
  */
-verdict ttp46_icmp(struct xlation *state)
+static verdict ttp46_icmp(struct xlation *state, union flowix const *flowx)
 {
 	struct icmphdr *icmpv4_hdr = pkt_icmp4_hdr(&state->in);
 	struct icmp6hdr *icmpv6_hdr = pkt_icmp6_hdr(&state->out);
 	verdict result;
 
+	icmpv6_hdr->icmp6_type = flowx->v6.flowi.fl6_icmp_type;
+	icmpv6_hdr->icmp6_code = flowx->v6.flowi.fl6_icmp_code;
 	icmpv6_hdr->icmp6_cksum = icmpv4_hdr->checksum; /* default. */
 
 	/* -- First the ICMP header. -- */
 	switch (icmpv4_hdr->type) {
 	case ICMP_ECHO:
-		icmpv6_hdr->icmp6_type = ICMPV6_ECHO_REQUEST;
-		icmpv6_hdr->icmp6_code = 0;
-		icmpv6_hdr->icmp6_dataun.u_echo.identifier =
-				xlation_is_nat64(state)
-				? cpu_to_be16(state->out.tuple.icmp6_id)
-				: icmpv4_hdr->un.echo.id;
-		icmpv6_hdr->icmp6_sequence = icmpv4_hdr->un.echo.sequence;
-		update_icmp6_csum(state);
-		return VERDICT_CONTINUE;
-
 	case ICMP_ECHOREPLY:
-		icmpv6_hdr->icmp6_type = ICMPV6_ECHO_REPLY;
-		icmpv6_hdr->icmp6_code = 0;
-		icmpv6_hdr->icmp6_dataun.u_echo.identifier =
+		icmpv6_hdr->icmp6_identifier =
 				xlation_is_nat64(state)
 				? cpu_to_be16(state->out.tuple.icmp6_id)
 				: icmpv4_hdr->un.echo.id;
@@ -1175,32 +1321,37 @@ verdict ttp46_icmp(struct xlation *state)
 		result = icmp4_to_icmp6_dest_unreach(state);
 		if (result != VERDICT_CONTINUE)
 			return result;
-		return post_icmp6error(state);
+		return post_icmp6error(state, flowx);
 
 	case ICMP_TIME_EXCEEDED:
-		icmpv6_hdr->icmp6_type = ICMPV6_TIME_EXCEED;
-		icmpv6_hdr->icmp6_code = icmpv4_hdr->code;
 		icmpv6_hdr->icmp6_unused = 0;
-		return post_icmp6error(state);
+		return post_icmp6error(state, flowx);
 
 	case ICMP_PARAMETERPROB:
 		result = icmp4_to_icmp6_param_prob(state);
 		if (result != VERDICT_CONTINUE)
 			return result;
-		return post_icmp6error(state);
+		return post_icmp6error(state, flowx);
 	}
 
-	/*
-	 * The following codes are known to fall through here:
-	 * Information Request/Reply (15, 16), Timestamp and Timestamp Reply
-	 * (13, 14), Address Mask Request/Reply (17, 18), Router Advertisement
-	 * (9), Router Solicitation (10), Source Quench (4), Redirect (5),
-	 * Alternative Host Address (6).
-	 * This time there's no ICMP error.
-	 */
-	log_debug("ICMPv4 messages type %u lack an ICMPv6 counterpart.",
-			icmpv4_hdr->type);
-	return drop(state, JSTAT_UNKNOWN_ICMP4_TYPE);
+	/* Dead code */
+	WARN(1, "ICMPv6 type %u was unhandled by the switch above.",
+			icmpv6_hdr->icmp6_type);
+	return drop(state, JSTAT_UNKNOWN);
+}
+
+static __be16 get_src_port(struct packet const *pkt, union flowix const *flowx)
+{
+	return pkt_is_inner(pkt)
+			? cpu_to_be16(pkt->tuple.dst.addr4.l4)
+			: flowx->v6.flowi.fl6_sport;
+}
+
+static __be16 get_dst_port(struct packet const *pkt, union flowix const *flowx)
+{
+	return pkt_is_inner(pkt)
+			? cpu_to_be16(pkt->tuple.src.addr4.l4)
+			: flowx->v6.flowi.fl6_dport;
 }
 
 /**
@@ -1334,7 +1485,7 @@ static int handle_zero_csum(struct xlation *state)
 	return 0;
 }
 
-verdict ttp46_tcp(struct xlation *state)
+static verdict ttp46_tcp(struct xlation *state, union flowix const *flowx)
 {
 	struct packet *in = &state->in;
 	struct packet *out = &state->out;
@@ -1345,8 +1496,8 @@ verdict ttp46_tcp(struct xlation *state)
 	/* Header */
 	memcpy(tcp_out, tcp_in, pkt_l4hdr_len(in));
 	if (xlation_is_nat64(state)) {
-		tcp_out->source = cpu_to_be16(out->tuple.src.addr6.l4);
-		tcp_out->dest = cpu_to_be16(out->tuple.dst.addr6.l4);
+		tcp_out->source = get_src_port(out, flowx);
+		tcp_out->dest = get_dst_port(out, flowx);
 	}
 
 	/* Header.checksum */
@@ -1368,7 +1519,7 @@ verdict ttp46_tcp(struct xlation *state)
 	return VERDICT_CONTINUE;
 }
 
-verdict ttp46_udp(struct xlation *state)
+static verdict ttp46_udp(struct xlation *state, union flowix const *flowx)
 {
 	struct packet *in = &state->in;
 	struct packet *out = &state->out;
@@ -1379,8 +1530,8 @@ verdict ttp46_udp(struct xlation *state)
 	/* Header */
 	memcpy(udp_out, udp_in, pkt_l4hdr_len(in));
 	if (xlation_is_nat64(state)) {
-		udp_out->source = cpu_to_be16(out->tuple.src.addr6.l4);
-		udp_out->dest = cpu_to_be16(out->tuple.dst.addr6.l4);
+		udp_out->source = get_src_port(out, flowx);
+		udp_out->dest = get_dst_port(out, flowx);
 	}
 
 	/* Header.checksum */
@@ -1412,3 +1563,12 @@ verdict ttp46_udp(struct xlation *state)
 
 	return VERDICT_CONTINUE;
 }
+
+const struct translation_steps ttp46_steps = {
+	.skb_alloc = ttp46_alloc_skb,
+	.xlat_outer_l3 = ttp46_ipv6_external,
+	.xlat_inner_l3 = ttp46_ipv6_internal,
+	.xlat_tcp = ttp46_tcp,
+	.xlat_udp = ttp46_udp,
+	.xlat_icmp = ttp46_icmp,
+};

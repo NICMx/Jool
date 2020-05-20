@@ -105,7 +105,7 @@ int handle_address_query46(struct sk_buff *skb, struct genl_info *info)
 		goto revert_start;
 
 	/* Perform query */
-	verdict = addrxlat_siit46(&jool, request.s_addr, &result, true);
+	verdict = addrxlat_siit46(&jool, request.s_addr, &result, true, true);
 	if (verdict.verdict != ADDRXLAT_CONTINUE) {
 		log_err("%s.", verdict.reason);
 		error = -EINVAL;

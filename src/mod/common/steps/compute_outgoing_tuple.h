@@ -10,10 +10,11 @@
 
 #include "mod/common/translation_state.h"
 
-verdict translate_addrs64_siit(struct xlation *state);
-verdict translate_addrs46_siit(struct xlation *state);
+verdict translate_addrs64_siit(struct xlation *state, __be32 *src_out,
+		__be32 *dst_out);
+verdict translate_addrs46_siit(struct xlation *state, struct in6_addr *src_out,
+		struct in6_addr *dst_out);
 
-verdict compute_out_tuple_siit(struct xlation *state);
 verdict compute_out_tuple(struct xlation *state);
 
 #endif /* SRC_MOD_NAT64_COMPUTE_OUTGOING_TUPLE_H_ */

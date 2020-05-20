@@ -12,24 +12,37 @@
  */
 #define icmp4_unused un.gateway
 
+/*
+ * Fields that need to be translated prematurely because the routing functions
+ * need them as input.
+ *
+ * I named it "flowix" because it's more or less the same as a flowi (routing
+ * arguments). But it might be a misnomer because I don't exactly know what
+ * "flowi" stands for. I'm assuming it's "IP flow." The added "x" stands for
+ * "xlat." Hence "IP translation flow."
+ */
+union flowix {
+	struct {
+		struct flowi4 flowi;
+		struct in_addr inner_src;
+		struct in_addr inner_dst;
+	} v4;
+	struct {
+		struct flowi6 flowi;
+		struct in6_addr inner_src;
+		struct in6_addr inner_dst;
+	} v6;
+};
+
+typedef verdict (*skb_alloc_fn)(struct xlation *, union flowix *);
+typedef verdict (*header_xlat_fn)(struct xlation *, union flowix const *);
+
 struct translation_steps {
 	/**
-	 * Note: For the purposes of this comment, remember that the reserved
-	 * area of a packet (bytes between head and data) is called "headroom"
-	 * (example: skb_headroom()), while the non-paged active area (bytes
-	 * between data and tail) is called "head" (eg: skb_headlen()). This is
-	 * a kernel quirk; don't blame me for it.
-	 *
-	 * Computes the outer addresses of the outgoing packet, routes it,
-	 * allocates it, then copies addresses, destination and layer 4 payload
-	 * into it. Ensures there's enough headroom for translated headers.
-	 * (In other words, it does everything except for headers, except for
-	 * outer addresses.)
-	 *
-	 * Addresses need to be translated first because of issue #167, and
-	 * because they're needed for routing. Routing needs to be done before
-	 * allocation because we might need to fragment based on the outgoing
-	 * interface's MTU.
+	 * Routes the outgoing packet, allocates it, then copies dst_entry and
+	 * layer 4 payload into it. Ensures there's enough headroom (bytes
+	 * between skb->head and skb->data) for translated headers.
+	 * (In other words, it does everything except for headers.)
 	 *
 	 * "Why do we need this? Why don't we simply override the headers of the
 	 * incoming packet? This would avoid lots of allocation and copying."
@@ -38,25 +51,56 @@ struct translation_steps {
 	 * we've fetched the translated packet successfully. Even after the
 	 * RFC7915 code ends, there is still stuff we might need the original
 	 * packet for, such as replying an ICMP error or NF_ACCEPTing.
+	 *
+	 * There's also the issue that the incoming packet might not have enough
+	 * room for the header length expansion from v4 to v6.
 	 */
-	verdict (*skb_alloc_fn)(struct xlation *state);
+	skb_alloc_fn skb_alloc;
+	/** The function that will translate the external IP header. */
+	header_xlat_fn xlat_outer_l3;
 	/**
-	 * The function that will translate the layer-3 header, except
-	 * addresses.
+	 * The function that will translate the internal IP header.
+	 * (ICMP errors only.)
 	 */
-	verdict (*l3_hdr_fn)(struct xlation *state);
+	header_xlat_fn xlat_inner_l3;
 	/**
-	 * The function that will translate the layer-4 header.
-	 * For ICMP errors, this also translates the inner packet headers.
+	 * Translates everything between the external IP header and the L4
+	 * payload.
 	 */
-	verdict (*l4_hdr_fn)(struct xlation *state);
+	header_xlat_fn xlat_tcp;
+	header_xlat_fn xlat_udp;
+	header_xlat_fn xlat_icmp;
 };
-
-struct translation_steps *ttpcomm_get_steps(struct packet *in);
 
 void partialize_skb(struct sk_buff *skb, unsigned int csum_offset);
 bool will_need_frag_hdr(const struct iphdr *hdr);
-verdict ttpcomm_translate_inner_packet(struct xlation *state);
+verdict ttpcomm_translate_inner_packet(struct xlation *state,
+		union flowix const *flowx,
+		struct translation_steps const *steps);
+
+/* TODO maybe these should belong to packet */
+struct bkp_skb {
+	unsigned int pulled;
+	struct {
+		int l3;
+		int l4;
+	} offset;
+	unsigned int payload;
+	l4_protocol l4_proto;
+};
+
+struct bkp_skb_tuple {
+	struct bkp_skb in;
+	struct bkp_skb out;
+};
+
+verdict become_inner_packet(struct xlation *state, struct bkp_skb_tuple *bkp,
+		bool do_out);
+void restore_outer_packet(struct xlation *state, struct bkp_skb_tuple *bkp,
+		bool do_out);
+
+verdict xlat_l4_function(struct xlation *state, union flowix const *flowx,
+		struct translation_steps const *steps);
 
 bool must_not_translate(struct in_addr *addr, struct net *ns);
 

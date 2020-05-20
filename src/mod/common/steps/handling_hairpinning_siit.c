@@ -7,7 +7,7 @@
 
 bool is_hairpin_siit(struct xlation *state)
 {
-	return pkt_is_intrinsic_hairpin(&state->out);
+	return state->is_hairpin;
 }
 
 verdict handling_hairpinning_siit(struct xlation *old)
@@ -15,14 +15,12 @@ verdict handling_hairpinning_siit(struct xlation *old)
 	struct xlation new;
 	verdict result;
 
-	log_debug("Packet is a hairpin. U-turning...");
+	log_debug("Packet is hairpinning. U-turning...");
 
 	new.jool = old->jool;
 	new.in = old->out;
+	new.is_hairpin = true;
 
-	result = compute_out_tuple_siit(&new);
-	if (result != VERDICT_CONTINUE)
-		return result;
 	result = translating_the_packet(&new);
 	if (result != VERDICT_CONTINUE)
 		return result;

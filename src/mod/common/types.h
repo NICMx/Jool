@@ -116,8 +116,8 @@ struct tuple {
 	l4_protocol l4_proto;
 
 /**
- * By the way: There's code that depends on src.<x>.l4_id containing the same
- * value as dst.<x>.l4_id when l4_proto == L4PROTO_ICMP (i. e. 3-tuples).
+ * By the way: There's code that relies on src.addr<x>.l4 containing the same
+ * value as dst.addr<x>.l4 when l4_proto == L4PROTO_ICMP (i. e. 3-tuples).
  */
 #define icmp4_id src.addr4.l4
 #define icmp6_id src.addr6.l4

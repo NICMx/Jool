@@ -78,13 +78,13 @@ success:
 
 struct addrxlat_result addrxlat_siit46(struct xlator *instance,
 		__be32 in, struct result_addrxlat46 *out,
-		bool enable_eam)
+		bool enable_eam, bool enable_blacklists)
 {
 	struct in_addr tmp = { .s_addr = in };
 	struct addrxlat_result result;
 	int error;
 
-	if (must_not_translate(&tmp, instance->ns)) {
+	if (enable_blacklists && must_not_translate(&tmp, instance->ns)) {
 		result.verdict = ADDRXLAT_ACCEPT;
 		result.reason = "The address is subnet-scoped or belongs to a local interface";
 		return result;

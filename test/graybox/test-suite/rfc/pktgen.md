@@ -3,11 +3,11 @@
 
 # Graybox Tests: pktgen
 
-The pktgen tests are the first group of packets Graybox was tasked with checking. Their purpose and rationale was more or less lost to time, and this document is a very late attempt to rediscover and document them.
+The pktgen tests (`../client/(siit|nat64)/pktgen/`) are the first group of packets Graybox was tasked with checking. Their purpose and rationale was more or less lost to time, and this document is a very late attempt to rediscover and document them.
 
 They are seemingly named after the [Packet Generator](https://github.com/ydahhrk/PktGenerator) (PG). This is a bit strange since the latter was always meant as Graybox's official packet source, not just the first ones. (Consider renaming "pktgen" to "auto" or something.)
 
-They were born in February 2015 at the latest, using a very early version of the PG (probably [this one](https://github.com/ydahhrk/PktGenerator/blob/2e9954fb4640afffe5b7d08e57918f1f91250321/src/mx/nic/jool/pktgen/auto/PacketGenAuto.java), which had no input and simply spew them in batch. They were meant to test whatever I was developing at the time, rather than specific RFC requirements.
+They were born in February 2015 at the latest, using a very early version of the PG (probably [this one](https://github.com/ydahhrk/PktGenerator/blob/2e9954fb4640afffe5b7d08e57918f1f91250321/src/mx/nic/jool/pktgen/auto/PacketGenAuto.java), which had no input and simply spew them in batch). They were meant to test whatever I was developing at the time, rather than specific RFC requirements.
 
 The test designer appears to have been concerned with the variables explained in the subsections below. The batch generated all possible combinations of these variables across all supported protocols.
 
@@ -41,7 +41,7 @@ I think this stems from the following requirement from RFC 7915:
 > same flow leave the translator in the same order in which they
 > arrived.
 
-I have always wondered if it implies the following or not:
+Particularly since IPv6 forwarders are not supposed to mess with fragmentation, I have always wondered if the above implies the following or not:
 
 > The translator SHOULD NOT move layer 3 payload from one fragment to another.
 

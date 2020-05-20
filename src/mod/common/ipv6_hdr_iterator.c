@@ -1,7 +1,8 @@
 #include "mod/common/ipv6_hdr_iterator.h"
 #include <net/ipv6.h>
 
-void hdr_iterator_init(struct hdr_iterator *iterator, struct ipv6hdr *main_hdr)
+void hdr_iterator_init(struct hdr_iterator *iterator,
+		struct ipv6hdr const *main_hdr)
 {
 	struct hdr_iterator defaults = HDR_ITERATOR_INIT(main_hdr);
 	memcpy(iterator, &defaults, sizeof(defaults));
@@ -10,8 +11,8 @@ void hdr_iterator_init(struct hdr_iterator *iterator, struct ipv6hdr *main_hdr)
 int hdr_iterator_next(struct hdr_iterator *iterator)
 {
 	union {
-		struct ipv6_opt_hdr *opt;
-		struct frag_hdr *frag;
+		struct ipv6_opt_hdr const *opt;
+		struct frag_hdr const *frag;
 	} hdr;
 
 	switch (iterator->hdr_type) {
@@ -42,7 +43,7 @@ void hdr_iterator_last(struct hdr_iterator *iterator)
 		/* Void on purpose. */;
 }
 
-void *hdr_iterator_find(struct ipv6hdr *ip6_hdr, __u8 hdr_id)
+void const *hdr_iterator_find(struct ipv6hdr const *ip6_hdr, __u8 hdr_id)
 {
 	struct hdr_iterator iterator = HDR_ITERATOR_INIT(ip6_hdr);
 

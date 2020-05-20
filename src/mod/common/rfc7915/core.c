@@ -1,7 +1,8 @@
 #include "mod/common/rfc7915/core.h"
 
 #include "mod/common/log.h"
-#include "mod/common/rfc7915/common.h"
+#include "mod/common/rfc7915/4to6.h"
+#include "mod/common/rfc7915/6to4.h"
 
 static bool has_l4_hdr(struct xlation *state)
 {
@@ -19,64 +20,39 @@ static bool has_l4_hdr(struct xlation *state)
 
 verdict translating_the_packet(struct xlation *state)
 {
-	/*
-	 * Here's the thing:
-	 *
-	 * In order to allocate the outgoing packet we need its length.
-	 * In order to find its length we need the MTU of the outgoing
-	 * interface (because fragmentation).
-	 * In order to find the MTU of the outgoing interface, we need the
-	 * outgoing interface.
-	 * In order to find the outgoing interface, we need to route the
-	 * outgoing packet.
-	 * To route the outgoing packet (assuming it hasn't been already
-	 * routed), we need flowi fields (set A).
-	 * Among the flowi fields (set A), there are several outgoing packet
-	 * header fields. The IP addresses are among them.
-	 * To get the source address, we might need to route the outgoing
-	 * packet (without source address) (because RFC 6791).
-	 * To route the outgoing packet (without source address), we need flowi
-	 * fields (set B).
-	 * Among the flowi fields (set B), we need to include the destination
-	 * address, ports and some other header fields.
-	 *
-	 * And there's a catch: If the packet is a PTB or FN, the transport
-	 * header will need the MTU of the outgoing interface.
-	 *
-	 * Therefore, the order is
-	 *
-	 * If packet is ICMP error and 6791 pool is in host mode,
-	 *	1. Outer IP and Transport Headers, except Source Address and MTU
-	 *	2. Route
-	 *	3. Source address and MTU
-	 * else,
-	 *	1. Outer IP and Transport Headers, except MTU
-	 *	2. Route
-	 *	3. MTU
-	 * 4. Packet allocation
-	 *
-	 * Therefore, we need to translate the headers before actually
-	 * allocating the outgoing packet.
-	 */
-
-	struct translation_steps *steps = ttpcomm_get_steps(&state->in);
+	struct translation_steps const *steps;
+	union flowix flowx;
 	verdict result;
 
-	if (xlation_is_nat64(state))
+	switch (xlator_get_type(&state->jool)) {
+	case XT_NAT64:
 		log_debug("Step 4: Translating the Packet");
-	else
+		break;
+	case XT_SIIT:
 		log_debug("Translating the Packet.");
+		break;
+	}
 
-	result = steps->skb_alloc_fn(state);
+	switch (pkt_l3_proto(&state->in)) {
+	case L3PROTO_IPV6:
+		steps = &ttp64_steps;
+		break;
+	case L3PROTO_IPV4:
+		steps = &ttp46_steps;
+		break;
+	default:
+		WARN(1, "Unknown l3 proto: %u", pkt_l3_proto(&state->in));
+		return drop(state, JSTAT_UNKNOWN);
+	}
+
+	result = steps->skb_alloc(state, &flowx);
 	if (result != VERDICT_CONTINUE)
 		return result;
-
-	result = steps->l3_hdr_fn(state);
+	result = steps->xlat_outer_l3(state, &flowx);
 	if (result != VERDICT_CONTINUE)
 		goto revert;
-
 	if (has_l4_hdr(state)) {
-		result = steps->l4_hdr_fn(state);
+		result = xlat_l4_function(state, &flowx, steps);
 		if (result != VERDICT_CONTINUE)
 			goto revert;
 	}

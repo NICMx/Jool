@@ -7,67 +7,8 @@
 #include "mod/common/log.h"
 #include "mod/common/packet.h"
 #include "mod/common/stats.h"
-#include "mod/common/rfc7915/4to6.h"
-#include "mod/common/rfc7915/6to4.h"
 #include "mod/common/db/blacklist4.h"
 #include "mod/common/steps/compute_outgoing_tuple.h"
-
-struct backup_skb {
-	unsigned int pulled;
-	struct {
-		int l3;
-		int l4;
-	} offset;
-	unsigned int payload;
-	l4_protocol l4_proto;
-	struct tuple tuple;
-};
-
-static verdict handle_unknown_l4(struct xlation *state)
-{
-	return VERDICT_CONTINUE;
-}
-
-static struct translation_steps steps[][L4_PROTO_COUNT] = {
-	{ /* IPv6 */
-		{
-			.skb_alloc_fn = ttp64_alloc_skb,
-			.l3_hdr_fn = ttp64_ipv4,
-			.l4_hdr_fn = ttp64_tcp,
-		}, {
-			.skb_alloc_fn = ttp64_alloc_skb,
-			.l3_hdr_fn = ttp64_ipv4,
-			.l4_hdr_fn = ttp64_udp,
-		}, {
-			.skb_alloc_fn = ttp64_alloc_skb,
-			.l3_hdr_fn = ttp64_ipv4,
-			.l4_hdr_fn = ttp64_icmp,
-		}, {
-			.skb_alloc_fn = ttp64_alloc_skb,
-			.l3_hdr_fn = ttp64_ipv4,
-			.l4_hdr_fn = handle_unknown_l4,
-		}
-	},
-	{ /* IPv4 */
-		{
-			.skb_alloc_fn = ttp46_alloc_skb,
-			.l3_hdr_fn = ttp46_ipv6,
-			.l4_hdr_fn = ttp46_tcp,
-		}, {
-			.skb_alloc_fn = ttp46_alloc_skb,
-			.l3_hdr_fn = ttp46_ipv6,
-			.l4_hdr_fn = ttp46_udp,
-		}, {
-			.skb_alloc_fn = ttp46_alloc_skb,
-			.l3_hdr_fn = ttp46_ipv6,
-			.l4_hdr_fn = ttp46_icmp,
-		}, {
-			.skb_alloc_fn = ttp46_alloc_skb,
-			.l3_hdr_fn = ttp46_ipv6,
-			.l4_hdr_fn = handle_unknown_l4,
-		}
-	}
-};
 
 /**
  * RFC 7915:
@@ -197,24 +138,27 @@ static int move_pointers_out(struct packet *in, struct packet *out,
 	return 0;
 }
 
-static int move_pointers4(struct xlation *state)
+static int move_pointers4(struct packet *in, struct packet *out, bool do_out)
 {
 	struct iphdr *hdr4;
 	unsigned int l3hdr_len;
 	int error;
 
-	hdr4 = pkt_payload(&state->in);
-	error = move_pointers_in(&state->in, hdr4->protocol, 4 * hdr4->ihl);
+	hdr4 = pkt_payload(in);
+	error = move_pointers_in(in, hdr4->protocol, 4 * hdr4->ihl);
 	if (error)
 		return error;
+
+	if (!do_out)
+		return 0;
 
 	l3hdr_len = sizeof(struct ipv6hdr);
 	if (will_need_frag_hdr(hdr4))
 		l3hdr_len += sizeof(struct frag_hdr);
-	return move_pointers_out(&state->in, &state->out, l3hdr_len);
+	return move_pointers_out(in, out, l3hdr_len);
 }
 
-static int move_pointers6(struct packet *in, struct packet *out)
+static int move_pointers6(struct packet *in, struct packet *out, bool do_out)
 {
 	struct ipv6hdr *hdr6 = pkt_payload(in);
 	struct hdr_iterator iterator = HDR_ITERATOR_INIT(hdr6);
@@ -227,137 +171,108 @@ static int move_pointers6(struct packet *in, struct packet *out)
 	if (error)
 		return error;
 
-	return move_pointers_out(in, out, sizeof(struct iphdr));
+	return do_out ? move_pointers_out(in, out, sizeof(struct iphdr)) : 0;
 }
 
-static void backup(struct xlation *state, struct packet *pkt,
-		struct backup_skb *bkp)
+static void backup_pointers(struct packet *pkt, struct bkp_skb *bkp)
 {
 	bkp->pulled = pkt_hdrs_len(pkt);
 	bkp->offset.l3 = skb_network_offset(pkt->skb);
 	bkp->offset.l4 = skb_transport_offset(pkt->skb);
 	bkp->payload = pkt->payload_offset;
 	bkp->l4_proto = pkt_l4_proto(pkt);
-	if (xlation_is_nat64(state))
-		bkp->tuple = pkt->tuple;
 }
 
-static int restore(struct xlation *state, struct packet *pkt,
-		struct backup_skb *bkp)
+static void restore_pointers(struct packet *pkt, struct bkp_skb *bkp)
 {
-	if (!jskb_push(pkt->skb, bkp->pulled))
-		return -EINVAL;
+	skb_push(pkt->skb, bkp->pulled);
 	skb_set_network_header(pkt->skb, bkp->offset.l3);
 	skb_set_transport_header(pkt->skb, bkp->offset.l4);
 	pkt->payload_offset = bkp->payload;
 	pkt->l4_proto = bkp->l4_proto;
 	pkt->is_inner = 0;
-	if (xlation_is_nat64(state))
-		pkt->tuple = bkp->tuple;
-	return 0;
 }
 
-static verdict xlat_inner_addresses(struct xlation *state)
+verdict become_inner_packet(struct xlation *state, struct bkp_skb_tuple *bkp,
+		bool do_out)
 {
-	union {
-		struct ipv6hdr *v6;
-		struct iphdr *v4;
-	} hdr;
-	verdict result;
+	struct packet *in = &state->in;
+	struct packet *out = &state->out;
 
-	switch (pkt_l3_proto(&state->in)) {
-	case L3PROTO_IPV4: /* 4 -> 6 */
-		if (xlation_is_siit(state)) {
-			result = translate_addrs46_siit(state);
-			if (result != VERDICT_CONTINUE)
-				return result;
-		}
+	backup_pointers(in, &bkp->in);
+	if (do_out)
+		backup_pointers(out, &bkp->out);
 
-		hdr.v6 = pkt_ip6_hdr(&state->out);
-		hdr.v6->saddr = state->out.tuple.src.addr6.l3;
-		hdr.v6->daddr = state->out.tuple.dst.addr6.l3;
+	switch (pkt_l3_proto(in)) {
+	case L3PROTO_IPV4:
+		if (move_pointers4(in, out, do_out))
+			return drop(state, JSTAT_UNKNOWN);
 		break;
-
-	case L3PROTO_IPV6: /* 6 -> 4 */
-		if (xlation_is_siit(state)) {
-			result = translate_addrs64_siit(state);
-			if (result != VERDICT_CONTINUE)
-				return result;
-		}
-
-		hdr.v4 = pkt_ip4_hdr(&state->out);
-		hdr.v4->saddr = state->out.tuple.src.addr4.l3.s_addr;
-		hdr.v4->daddr = state->out.tuple.dst.addr4.l3.s_addr;
+	case L3PROTO_IPV6:
+		if (move_pointers6(in, out, do_out))
+			return drop(state, JSTAT_UNKNOWN);
 		break;
-
 	}
 
 	return VERDICT_CONTINUE;
 }
 
-verdict ttpcomm_translate_inner_packet(struct xlation *state)
+void restore_outer_packet(struct xlation *state, struct bkp_skb_tuple *bkp,
+		bool do_out)
 {
-	struct packet *in = &state->in;
-	struct packet *out = &state->out;
-	struct backup_skb bkp_in, bkp_out;
-	struct translation_steps *current_steps;
+	restore_pointers(&state->in, &bkp->in);
+	if (do_out)
+		restore_pointers(&state->out, &bkp->out);
+}
+
+verdict xlat_l4_function(struct xlation *state, union flowix const *flowx,
+		struct translation_steps const *steps)
+{
+	switch (state->in.l4_proto) {
+	case L4PROTO_TCP:
+		return steps->xlat_tcp(state, flowx);
+	case L4PROTO_UDP:
+		return steps->xlat_udp(state, flowx);
+	case L4PROTO_ICMP:
+		return steps->xlat_icmp(state, flowx);
+	case L4PROTO_OTHER:
+		return VERDICT_CONTINUE;
+	}
+
+	WARN(1, "Unknown l4 proto: %u", state->in.l4_proto);
+	return drop(state, JSTAT_UNKNOWN);
+}
+
+verdict ttpcomm_translate_inner_packet(struct xlation *state,
+		union flowix const *flowx,
+		struct translation_steps const *steps)
+{
+	struct bkp_skb_tuple bkp;
 	verdict result;
 
-	backup(state, in, &bkp_in);
-	backup(state, out, &bkp_out);
-
-	switch (pkt_l3_proto(in)) {
-	case L3PROTO_IPV4:
-		if (move_pointers4(state))
-			return drop(state, JSTAT_UNKNOWN);
-		break;
-	case L3PROTO_IPV6:
-		if (move_pointers6(in, out))
-			return drop(state, JSTAT_UNKNOWN);
-		break;
-	}
-
-	if (xlation_is_nat64(state)) {
-		in->tuple.src = bkp_in.tuple.dst;
-		in->tuple.dst = bkp_in.tuple.src;
-		out->tuple.src = bkp_out.tuple.dst;
-		out->tuple.dst = bkp_out.tuple.src;
-	}
-
-	result = xlat_inner_addresses(state);
+	result = become_inner_packet(state, &bkp, true);
 	if (result != VERDICT_CONTINUE)
 		return result;
 
-	current_steps = &steps[pkt_l3_proto(in)][pkt_l4_proto(in)];
-
-	result = current_steps->l3_hdr_fn(state);
+	result = steps->xlat_inner_l3(state, flowx);
 	if (result == VERDICT_UNTRANSLATABLE) {
 		/*
 		 * Accepting because of an inner packet doesn't make sense.
 		 * Also we couldn't have translated this inner packet.
 		 */
-		return VERDICT_DROP;
+		result = VERDICT_DROP;
+		goto end;
 	}
 	if (result != VERDICT_CONTINUE)
-		return result;
+		goto end;
 
-	result = current_steps->l4_hdr_fn(state);
+	result = xlat_l4_function(state, flowx, steps);
 	if (result == VERDICT_UNTRANSLATABLE)
-		return VERDICT_DROP;
-	if (result != VERDICT_CONTINUE)
-		return result;
+		result = VERDICT_DROP;
 
-	if (restore(state, in, &bkp_in))
-		return drop(state, JSTAT_UNKNOWN);
-	if (restore(state, out, &bkp_out))
-		return drop(state, JSTAT_UNKNOWN);
-
-	return VERDICT_CONTINUE;
-}
-
-struct translation_steps *ttpcomm_get_steps(struct packet *in)
-{
-	return &steps[pkt_l3_proto(in)][pkt_l4_proto(in)];
+end:
+	restore_outer_packet(state, &bkp, true);
+	return result;
 }
 
 /**

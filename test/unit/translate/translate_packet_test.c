@@ -262,7 +262,7 @@ static bool test_function_build_protocol_field(void)
 	/* Just ICMP. */
 	ip6_hdr->nexthdr = NEXTHDR_ICMP;
 	ip6_hdr->payload_len = cpu_to_be16(sizeof(*icmp6_hdr));
-	if (!ASSERT_UINT(IPPROTO_ICMP, ttp64_xlat_proto(ip6_hdr), "Just ICMP"))
+	if (!ASSERT_UINT(IPPROTO_ICMP, xlat_proto(ip6_hdr), "Just ICMP"))
 		goto failure;
 
 	/* Skippable headers then ICMP. */
@@ -281,13 +281,13 @@ static bool test_function_build_protocol_field(void)
 	dest_options_hdr->nexthdr = NEXTHDR_ICMP;
 	dest_options_hdr->hdrlen = 2;
 
-	if (!ASSERT_UINT(IPPROTO_ICMP, ttp64_xlat_proto(ip6_hdr), "Skippable then ICMP"))
+	if (!ASSERT_UINT(IPPROTO_ICMP, xlat_proto(ip6_hdr), "Skippable then ICMP"))
 		goto failure;
 
 	/* Skippable headers then something else */
 	dest_options_hdr->nexthdr = NEXTHDR_TCP;
 	ip6_hdr->payload_len = cpu_to_be16(8 + 16 + 24 + sizeof(struct tcphdr));
-	if (!ASSERT_UINT(IPPROTO_TCP, ttp64_xlat_proto(ip6_hdr), "Skippable then TCP"))
+	if (!ASSERT_UINT(IPPROTO_TCP, xlat_proto(ip6_hdr), "Skippable then TCP"))
 		goto failure;
 
 	kfree(ip6_hdr);

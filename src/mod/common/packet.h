@@ -236,6 +236,11 @@ struct pkt_snapshot {
 	unsigned int frags[SNAPSHOT_FRAGS_SIZE];
 };
 
+union ip_address {
+	struct in_addr v4;
+	struct in6_addr v6;
+};
+
 /**
  * We need to store packet metadata, so we encapsulate sk_buffs into this.
  *
@@ -269,12 +274,6 @@ struct packet {
 	 * (Used by the RFC7915 code.)
 	 */
 	bool is_inner;
-	/**
-	 * Is the packet going to hairpin?
-	 * Intrinsic EAM hairpinning only. RFC6052 hairpin and Simple EAM
-	 * hairpin don't need any flags.
-	 */
-	bool is_hairpin;
 
 	/** Offset of the skb's fragment header (from skb->data), if any. */
 	unsigned int frag_offset;
@@ -396,11 +395,6 @@ static inline bool pkt_is_inner(const struct packet *pkt)
 static inline bool pkt_is_outer(const struct packet *pkt)
 {
 	return !pkt_is_inner(pkt);
-}
-
-static inline bool pkt_is_intrinsic_hairpin(const struct packet *pkt)
-{
-	return pkt->is_hairpin;
 }
 
 static inline struct packet *pkt_original_pkt(const struct packet *pkt)

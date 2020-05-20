@@ -372,7 +372,6 @@ verdict pkt_init_ipv6(struct xlation *state, struct sk_buff *skb)
 	state->in.l3_proto = L3PROTO_IPV6;
 	state->in.l4_proto = meta.l4_proto;
 	state->in.is_inner = 0;
-	state->in.is_hairpin = false;
 	state->in.frag_offset = meta.frag_offset;
 	skb_set_transport_header(skb, meta.l4_offset);
 	state->in.payload_offset = meta.payload_offset;
@@ -534,7 +533,6 @@ verdict pkt_init_ipv4(struct xlation *state, struct sk_buff *skb)
 	state->in.l3_proto = L3PROTO_IPV4;
 	state->in.l4_proto = meta.l4_proto;
 	state->in.is_inner = false;
-	state->in.is_hairpin = false;
 	state->in.frag_offset = 0;
 	skb_set_transport_header(skb, meta.l4_offset);
 	state->in.payload_offset = meta.payload_offset;
@@ -566,17 +564,6 @@ unsigned char *jskb_pull(struct sk_buff *skb, unsigned int len)
 	unsigned char *result = skb_pull(skb, len);
 	WARN(!result, "Bug: We tried to pull %u bytes out of a %u-length skb.",
 			len, skb->len);
-	return result;
-}
-
-/**
- * skb_push() cannot return NULL at present, but maybe someday will.
- */
-unsigned char *jskb_push(struct sk_buff *skb, unsigned int len)
-{
-	unsigned char *result = skb_push(skb, len);
-	WARN(!result, "Bug: skb_push() returned NULL (skblen:%u len:%u).",
-			skb->len, len);
 	return result;
 }
 

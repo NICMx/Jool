@@ -63,7 +63,7 @@ static struct dst_entry *route_ipv4(struct net *ns, struct sk_buff *skb)
 	flow.flowi4_scope = RT_SCOPE_UNIVERSE;
 	flow.flowi4_proto = hdr->protocol;
 	flow.flowi4_flags = FLOWI_FLAG_ANYSRC;
-	flow.saddr = hdr->saddr;
+	flow.saddr = 0;
 	flow.daddr = hdr->daddr;
 
 	dst = route4(ns, &flow);

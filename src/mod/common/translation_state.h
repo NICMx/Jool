@@ -32,6 +32,13 @@ struct xlation {
 	 */
 	struct bib_session entries;
 
+	/**
+	 * Intrinsic hairpin?
+	 * Intrinsic EAM hairpinning only. RFC6052 hairpin and Simple EAM
+	 * hairpin don't need any flags.
+	 */
+	bool is_hairpin;
+
 	struct xlation_result result;
 };
 

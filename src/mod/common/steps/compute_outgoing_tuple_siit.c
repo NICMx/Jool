@@ -6,8 +6,8 @@
 #include "mod/common/db/rfc6791v4.h"
 #include "mod/common/db/rfc6791v6.h"
 
-/* Populates the IPv4 addresses of state->out.tuple. */
-verdict translate_addrs64_siit(struct xlation *state)
+verdict translate_addrs64_siit(struct xlation *state, __be32 *src_out,
+		__be32 *dst_out)
 {
 	struct ipv6hdr *hdr6 = pkt_ip6_hdr(&state->in);
 	struct result_addrxlat64 src, dst;
@@ -20,7 +20,7 @@ verdict translate_addrs64_siit(struct xlation *state)
 
 	switch (addr_result.verdict) {
 	case ADDRXLAT_CONTINUE:
-		state->out.tuple.dst.addr4.l3 = dst.addr;
+		*dst_out = dst.addr.s_addr;
 		break;
 	case ADDRXLAT_TRY_SOMETHING_ELSE:
 		return untranslatable(state, JSTAT64_SRC);
@@ -52,7 +52,7 @@ verdict translate_addrs64_siit(struct xlation *state)
 		return drop(state, JSTAT_UNKNOWN);
 	}
 
-	state->out.tuple.src.addr4.l3 = src.addr;
+	*src_out = src.addr.s_addr;
 
 	/*
 	 * Mark intrinsic hairpinning if it's going to be needed.
@@ -65,18 +65,17 @@ verdict translate_addrs64_siit(struct xlation *state)
 		if (pkt_is_outer(&state->in) && !pkt_is_icmp6_error(&state->in)
 				&& (dst.entry.method == AXM_RFC6052)
 				&& eamt_contains4(eamt, dst.addr.s_addr)) {
-			state->out.is_hairpin = true;
+			state->is_hairpin = true;
 
 		/* Condition set B */
 		} else if (pkt_is_inner(&state->in)
 				&& (src.entry.method == AXM_RFC6052)
 				&& eamt_contains4(eamt, src.addr.s_addr)) {
-			state->out.is_hairpin = true;
+			state->is_hairpin = true;
 		}
 	}
 
-	log_debug("Result: %pI4->%pI4", &state->out.tuple.src.addr4.l3,
-			&state->out.tuple.dst.addr4.l3);
+	log_debug("Result: %pI4->%pI4", &src.addr, &dst.addr);
 	return VERDICT_CONTINUE;
 }
 
@@ -98,8 +97,8 @@ static bool disable_dst_eam(struct packet *in, bool hairpin)
 	return hairpin && pkt_is_inner(in);
 }
 
-/* Populates the IPv6 addresses of state->out.tuple. */
-verdict translate_addrs46_siit(struct xlation *state)
+verdict translate_addrs46_siit(struct xlation *state, struct in6_addr *src_out,
+		struct in6_addr *dst_out)
 {
 	struct packet *in = &state->in;
 	struct iphdr *hdr4 = pkt_ip4_hdr(in);
@@ -108,21 +107,20 @@ verdict translate_addrs46_siit(struct xlation *state)
 	struct addrxlat_result addr_result;
 
 	is_hairpin = (state->jool.globals.siit.eam_hairpin_mode == EHM_SIMPLE)
-			|| pkt_is_intrinsic_hairpin(in);
-
+			|| state->is_hairpin;
 
 	/* Dst address. (SRC DEPENDS CON DST, SO WE NEED TO XLAT DST FIRST!) */
+
 	addr_result = addrxlat_siit46(&state->jool, hdr4->daddr, &addr6,
-			!disable_dst_eam(in, is_hairpin));
+			!disable_dst_eam(in, is_hairpin), false);
 	if (addr_result.reason)
 		log_debug("%s.", addr_result.reason);
 
 	switch (addr_result.verdict) {
 	case ADDRXLAT_CONTINUE:
-		state->out.tuple.dst.addr6.l3 = addr6.addr;
+		*dst_out = addr6.addr;
 		break;
 	case ADDRXLAT_TRY_SOMETHING_ELSE:
-		return untranslatable(state, JSTAT46_DST);
 	case ADDRXLAT_ACCEPT:
 		return untranslatable(state, JSTAT46_DST);
 	case ADDRXLAT_DROP:
@@ -131,7 +129,8 @@ verdict translate_addrs46_siit(struct xlation *state)
 
 	/* Src address. */
 	addr_result = addrxlat_siit46(&state->jool, hdr4->saddr, &addr6,
-			!disable_src_eam(in, is_hairpin));
+			!disable_src_eam(in, is_hairpin),
+			!pkt_is_icmp4_error(in));
 	if (addr_result.reason)
 		log_debug("%s.", addr_result.reason);
 
@@ -144,64 +143,15 @@ verdict translate_addrs46_siit(struct xlation *state)
 			addr6.entry.method = AXM_RFC6791;
 			break; /* Ok, success. */
 		}
-		return untranslatable(state, JSTAT46_SRC);
+		/* Fall through */
 	case ADDRXLAT_ACCEPT:
 		return untranslatable(state, JSTAT46_SRC);
 	case ADDRXLAT_DROP:
 		return drop(state, JSTAT_UNKNOWN);
 	}
 
-	state->out.tuple.src.addr6.l3 = addr6.addr;
+	*src_out = addr6.addr;
 
-	log_debug("Result: %pI6c->%pI6c", &state->out.tuple.src.addr6.l3,
-			&state->out.tuple.dst.addr6.l3);
+	log_debug("Result: %pI6c->%pI6c", src_out, dst_out);
 	return VERDICT_CONTINUE;
-}
-
-/* Populates state->out.tuple.*. */
-verdict compute_out_tuple_siit(struct xlation *state)
-{
-	union {
-		struct tcphdr *tcp;
-		struct udphdr *udp;
-	} hdr;
-	__be16 sport;
-	__be16 dport;
-
-	log_debug("Translating addresses...");
-
-	state->out.tuple.l4_proto = pkt_l4_proto(&state->in);
-
-	switch (state->out.tuple.l4_proto) {
-	case L4PROTO_TCP:
-		hdr.tcp = pkt_tcp_hdr(&state->in);
-		sport = hdr.tcp->source;
-		dport = hdr.tcp->dest;
-		break;
-	case L4PROTO_UDP:
-		hdr.udp = pkt_udp_hdr(&state->in);
-		sport = hdr.udp->source;
-		dport = hdr.udp->dest;
-		break;
-	default:
-		sport = 0;
-		dport = 0;
-		break;
-	}
-
-	switch (pkt_l3_proto(&state->in)) {
-	case L3PROTO_IPV6: /* 6 -> 4 */
-		state->out.tuple.l3_proto = L3PROTO_IPV4;
-		state->out.tuple.src.addr4.l4 = sport;
-		state->out.tuple.dst.addr4.l4 = dport;
-		return translate_addrs64_siit(state);
-	case L3PROTO_IPV4: /* 4 -> 6 */
-		state->out.tuple.l3_proto = L3PROTO_IPV6;
-		state->out.tuple.src.addr6.l4 = sport;
-		state->out.tuple.dst.addr6.l4 = dport;
-		return translate_addrs46_siit(state);
-	}
-
-	WARN(1, "Unknown l3 protocol: %d", pkt_l3_proto(&state->in));
-	return drop(state, JSTAT_UNKNOWN);
 }
