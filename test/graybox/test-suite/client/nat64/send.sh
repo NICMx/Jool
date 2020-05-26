@@ -24,6 +24,7 @@ GRAYBOX=`dirname $0`/../../../usr/graybox
 # The ID's randomization cascades to the checksum. (Bytes 10 and
 # 11.)
 NOFRAG_IGNORE=4,5,10,11
+NOFRAG_IGNORE_INNER=32,33,38,39
 
 function test-single {
 	$GRAYBOX expect add `dirname $0`/pktgen/receiver/$2-nofrag.pkt $3
@@ -124,9 +125,8 @@ fi
 
 # ICMP error, 6 -> 4
 if [[ -z $1 || $1 = *icmpe64* ]]; then
-	# 32, 33, 38 and 39 are inner IDs and checksums.
-	test-single 6-icmp6err-csumok-df 4-icmp4err-csumok-df $NOFRAG_IGNORE,32,33,38,39
-	test-single 6-icmp6err-csumok-nodf 4-icmp4err-csumok-nodf $NOFRAG_IGNORE,32,33,38,39
+	test-single 6-icmp6err-csumok-df 4-icmp4err-csumok-df $NOFRAG_IGNORE,$NOFRAG_IGNORE_INNER
+	test-single 6-icmp6err-csumok-nodf 4-icmp4err-csumok-nodf $NOFRAG_IGNORE,$NOFRAG_IGNORE_INNER
 fi
 
 # ICMP error, 4 -> 6
@@ -150,13 +150,15 @@ if [[ -z $1 || $1 = *misc* ]]; then
 
 	# 2018-10-10: These tests appear to be affected by ICMP error rate-limits.
 	# It'd probably be a good idea to redesign them so N4 were not needed.
+	# 2020-05-26: Those zeroize-traffic-classes patch the 192 TOS Linux quirk.
+	# Remove them once you've refactored all ICMP usage of TOS.
 
-	ip netns exec joolns jool g u source-icmpv6-errors-better on
-	# TODO The IPv4 node is returning DSCP 0x30. I don't know why.
-	test-manual issue132-test issue132-expected-on 0
+	ip netns exec joolns jool g u zeroize-traffic-class true
+	test-manual issue132-test issue132-expected-on
 	ip netns exec joolns jool g u source-icmpv6-errors-better off
-	# TODO The IPv4 node is returning DSCP 0x30. I don't know why.
-	test-manual issue132-test issue132-expected-off 0
+	test-manual issue132-test issue132-expected-off
+	ip netns exec joolns jool g u source-icmpv6-errors-better on
+	ip netns exec joolns jool g u zeroize-traffic-class false
 
 	# TODO I don't know why I made the tests below.
 	# Jool returns unknown packets to the kernel, so the kernel decides
@@ -194,7 +196,7 @@ fi
 # These are the forwarding PTBs; Jool-created PTBs are tested in the 'errors'
 # section above.
 if [[ -z $1 || $1 = *ptb* ]]; then
-	test-ptb ptb64 4,5,6,10,11,32,33,34,38,39
+	test-ptb ptb64 $NOFRAG_IGNORE,$NOFRAG_IGNORE_INNER
 	test-ptb ptb46
 	# TODO there's something wrong with hairpinning packets that seems to be
 	# graybox's fault. If you try to trigger this test manually (with a normal
@@ -204,8 +206,6 @@ fi
 
 # Simultaneous Open tests
 if [[ -z $1 || $1 = *so* ]]; then
-	# Send an IPv4 TCP packet. Jool should store it for 6 seconds, then respond
-	# a Port Unreachable ICMP error.
 	$GRAYBOX expect add `dirname $0`/manual/so/46-receiver.pkt 1,4,5,6,10,11
 	$GRAYBOX send `dirname $0`/manual/so/46-sender.pkt
 	sleep 8.1 # The timer runs every two seconds.
@@ -218,11 +218,6 @@ if [[ -z $1 || $1 = *so* ]]; then
 #	sleep 8.1 # The timer runs every two seconds.
 #	$GRAYBOX expect flush
 
-	# Send an IPv4 TCP packet, wait 1 second, then send a matching IPv6 packet.
-	# The IPv6 packet's translated counterpart should have a predictable source
-	# address and port despite not matching any existing BIB entries.
-	# (And the original IPv4 packet will be dropped silently, though we don't
-	# really have a way to test that through this framework.)
 	$GRAYBOX expect add `dirname $0`/manual/so/success-receiver.pkt 4,5,6,10,11
 	$GRAYBOX send `dirname $0`/manual/so/success-sender4.pkt
 	$GRAYBOX send `dirname $0`/manual/so/success-sender6.pkt

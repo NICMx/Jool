@@ -81,8 +81,8 @@ static verdict xlat_tcp_ports(struct xlation const *state,
 
 	switch (xlator_get_type(&state->jool)) {
 	case XT_NAT64:
-		flowi->fl4_sport = state->out.tuple.src.addr4.l4;
-		flowi->fl4_dport = state->out.tuple.dst.addr4.l4;
+		flowi->fl4_sport = cpu_to_be16(state->out.tuple.src.addr4.l4);
+		flowi->fl4_dport = cpu_to_be16(state->out.tuple.dst.addr4.l4);
 		break;
 	case XT_SIIT:
 		hdr = pkt_tcp_hdr(&state->in);
@@ -100,8 +100,8 @@ static verdict xlat_udp_ports(struct xlation const *state,
 
 	switch (xlator_get_type(&state->jool)) {
 	case XT_NAT64:
-		flowi->fl4_sport = state->out.tuple.src.addr4.l4;
-		flowi->fl4_dport = state->out.tuple.dst.addr4.l4;
+		flowi->fl4_sport = cpu_to_be16(state->out.tuple.src.addr4.l4);
+		flowi->fl4_dport = cpu_to_be16(state->out.tuple.dst.addr4.l4);
 		break;
 	case XT_SIIT:
 		udp = pkt_udp_hdr(&state->in);

@@ -125,6 +125,18 @@ static struct header_metadata const *fragh_next(void *hdr)
 			: v6_next(fhdr->nexthdr);
 }
 
+/*
+ * When Jool uses icmp_send() to send an error message, Linux sets the
+ * precedence bits of the TOS field as 6, in likely accordance with RFC 1812,
+ * section 4.3.2.5. If my reading of the code is correct, this behavior is
+ * hardcoded: https://elixir.bootlin.com/linux/v4.15/source/net/ipv4/icmp.c#L693
+ *
+ * Since it doesn't appear as though this quirk will ever change, it'd probably
+ * be a good idea to update all affected tests to expect precedence 6.
+ *
+ * But I already have too much on my plate during this particular refactor, so
+ * in the meantime, I've decided to push a special validation function for TOS.
+ */
 static bool v4tos_equals(struct field_metadata const *field,
 		__u8 *hdr1, __u8 *hdr2)
 {
@@ -210,7 +222,15 @@ static const struct field_metadata tcph_fields[] = {
 	{ "acknum", 32, 64 },
 	{ "data offset", 4, 96 },
 	{ "reserved", 3, 100 },
-	{ "flags", 9, 103 },
+	{ "ns", 1, 103 },
+	{ "cwr", 1, 104 },
+	{ "ece", 1, 105 },
+	{ "urg", 1, 106 },
+	{ "ack", 1, 107 },
+	{ "psh", 1, 108 },
+	{ "rst", 1, 109 },
+	{ "syn", 1, 110 },
+	{ "fin", 1, 111 },
 	{ "window size", 16, 112 },
 	{ "checksum", 16, 128, FIELD_HEXADECIMAL },
 	{ "urgent pointer", 16, 144 },
@@ -310,12 +330,13 @@ static struct header_metadata const *first_meta(
 	}
 }
 
-static __u8 get_bit(struct field_metadata const *field, __u8 *hdr,
-		size_t offset)
+static __u8 get_bit(struct field_metadata const *field, __u8 const *hdr,
+		size_t bit_offset)
 {
-	hdr += (field->offset >> 3) + (offset >> 3);
-	offset &= 7;
-	return ((*hdr) >> (7 - offset)) & 1;
+	size_t byte_offset;
+	byte_offset = (field->offset + bit_offset) >> 3;
+	bit_offset = (field->offset + bit_offset) & 7;
+	return (hdr[byte_offset] >> (7 - bit_offset)) & 1;
 }
 
 static void print_field(char const *prefix, struct field_metadata const *field,

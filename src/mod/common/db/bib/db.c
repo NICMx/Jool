@@ -757,7 +757,7 @@ static void send_probe_packet(struct net *ns, struct session_entry *session)
 
 	skb = alloc_skb(LL_MAX_HEADER + l3_hdr_len + l4_hdr_len, GFP_ATOMIC);
 	if (!skb) {
-		log_debug("Could now allocate a probe packet.");
+		log_debug("Could not allocate a probe packet.");
 		goto fail;
 	}
 

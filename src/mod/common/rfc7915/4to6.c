@@ -93,8 +93,8 @@ static verdict xlat_tcp_ports(struct xlation const *state,
 
 	switch (xlator_get_type(&state->jool)) {
 	case XT_NAT64:
-		flowi->fl6_sport = state->out.tuple.src.addr4.l4;
-		flowi->fl6_dport = state->out.tuple.dst.addr4.l4;
+		flowi->fl6_sport = cpu_to_be16(state->out.tuple.src.addr6.l4);
+		flowi->fl6_dport = cpu_to_be16(state->out.tuple.dst.addr6.l4);
 		break;
 	case XT_SIIT:
 		hdr = pkt_tcp_hdr(&state->in);
@@ -112,8 +112,8 @@ static verdict xlat_udp_ports(struct xlation const *state,
 
 	switch (xlator_get_type(&state->jool)) {
 	case XT_NAT64:
-		flowi->fl6_sport = state->out.tuple.src.addr4.l4;
-		flowi->fl6_dport = state->out.tuple.dst.addr4.l4;
+		flowi->fl6_sport = cpu_to_be16(state->out.tuple.src.addr6.l4);
+		flowi->fl6_dport = cpu_to_be16(state->out.tuple.dst.addr6.l4);
 		break;
 	case XT_SIIT:
 		udp = pkt_udp_hdr(&state->in);
@@ -1343,14 +1343,14 @@ static verdict ttp46_icmp(struct xlation *state, union flowix const *flowx)
 static __be16 get_src_port(struct packet const *pkt, union flowix const *flowx)
 {
 	return pkt_is_inner(pkt)
-			? cpu_to_be16(pkt->tuple.dst.addr4.l4)
+			? cpu_to_be16(pkt->tuple.dst.addr6.l4)
 			: flowx->v6.flowi.fl6_sport;
 }
 
 static __be16 get_dst_port(struct packet const *pkt, union flowix const *flowx)
 {
 	return pkt_is_inner(pkt)
-			? cpu_to_be16(pkt->tuple.src.addr4.l4)
+			? cpu_to_be16(pkt->tuple.src.addr6.l4)
 			: flowx->v6.flowi.fl6_dport;
 }
 
