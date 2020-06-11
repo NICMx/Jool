@@ -1,37 +1,29 @@
-#!/bin/bash
+#!/bin/sh
 
 
-# Runs the entire test suite contained in this folder.
+# Runs the entire Graybox test suite.
 #
 # Will print results in standard output and return nonzero if at least one test
 # failed.
 
 
-if [[ $UID != 0 ]]; then
+if [ $(id -u) != 0 ]; then
 	echo "Please start the script as root or sudo."
 	exit 1
 fi
 
 
-# Arguments:
-# $1: Either "siit" or "nat64", depending on which tests you want to run.
-#     (No quotes.)
-# $2: Argument to client/$1/send.sh. See client/$1/send.sh.
-function run-tests {
-	./network-create.sh $1
-	client/$1/send.sh $2
-	result=$?
-	./network-destroy.sh $1
-	return $result
-}
-
-
 ./namespace-create.sh
 
-run-tests siit
+siit/setup.sh
+siit/test.sh
 siit_result=$?
-run-tests nat64
+siit/end.sh
+
+nat64/setup.sh
+nat64/test.sh
 nat64_result=$?
+nat64/end.sh
 
 ./namespace-destroy.sh
 

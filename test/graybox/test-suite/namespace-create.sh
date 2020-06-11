@@ -1,20 +1,25 @@
-#!/bin/bash
+#!/bin/sh
 
-# Prepares the namespace environment where the translators of the test suite
-# will be enclosed.
+echo "Preparing the Graybox network namespaces..."
 
-. config
+if ip netns list | grep 'joolns' > /dev/null; then
+	echo "The namespaces seem to already exist. Skipping step."
+	exit 0
+fi
 
-echo "Preparing the $NS namespace..."
+ip netns add joolns
+ip netns add client6ns
+ip netns add client4ns
 
-ip netns add $NS
+ip link add name to_client_v6 type veth peer name to_jool_v6
+ip link set dev to_client_v6 netns joolns
+ip link set dev to_jool_v6 netns client6ns
 
-ip link add name $CLIENT_V6_INTERFACE type veth peer name $XLAT_V6_INTERFACE
-ip link add name $CLIENT_V4_INTERFACE type veth peer name $XLAT_V4_INTERFACE
-ip link set dev $XLAT_V6_INTERFACE netns $NS
-ip link set dev $XLAT_V4_INTERFACE netns $NS
+ip link add name to_client_v4 type veth peer name to_jool_v4
+ip link set dev to_client_v4 netns joolns
+ip link set dev to_jool_v4 netns client4ns
 
-ip link set up dev $CLIENT_V6_INTERFACE
-ip link set up dev $CLIENT_V4_INTERFACE
-ip netns exec $NS ip link set up dev $XLAT_V6_INTERFACE
-ip netns exec $NS ip link set up dev $XLAT_V4_INTERFACE
+ip netns exec joolns ip link set up dev to_client_v6
+ip netns exec joolns ip link set up dev to_client_v4
+ip netns exec client6ns ip link set up dev to_jool_v6
+ip netns exec client4ns ip link set up dev to_jool_v4

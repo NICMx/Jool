@@ -2,9 +2,13 @@
 
 #include <linux/ip.h>
 #include <linux/ipv6.h>
+#include <linux/netfilter_ipv4.h>
+#include <linux/netfilter_ipv6.h>
 #include <linux/sort.h>
 #include "common/types.h"
 #include "mod/common/address.h"
+#include "mod/common/linux_version.h"
+#include "mod/common/nf_wrapper.h"
 #include "diff.h"
 #include "log.h"
 #include "util.h"
@@ -14,17 +18,73 @@ struct expecter_node {
 	struct list_head list_hook;
 };
 
-static LIST_HEAD(list);
+struct netfilter_hook {
+	struct net *ns;
+	struct list_head nodes;
+	struct list_head list_hook;
+};
+
+static LIST_HEAD(hooks);
 static struct graybox_stats stats;
 
-void expecter_setup(void)
+static int expecter_handle_pkt(struct sk_buff *actual);
+
+static NF_CALLBACK(hook_cb, skb)
+{
+	log_debug("========= Graybox: Received packet =========");
+	return expecter_handle_pkt(skb);
+}
+
+static struct nf_hook_ops nfho[] = {
+	{
+		.hook = hook_cb,
+		.pf = PF_INET6,
+		.hooknum = NF_INET_PRE_ROUTING,
+		.priority = NF_IP6_PRI_FIRST + 25,
+	},
+	{
+		.hook = hook_cb,
+		.pf = PF_INET,
+		.hooknum = NF_INET_PRE_ROUTING,
+		.priority = NF_IP_PRI_FIRST + 25,
+	}
+};
+
+int expecter_setup(void)
 {
 	memset(&stats, 0, sizeof(stats));
+#if LINUX_VERSION_LOWER_THAN(4, 13, 0, 9999, 0)
+	return nf_register_hooks(nfho, ARRAY_SIZE(nfho));
+#else
+	return 0;
+#endif
 }
 
 void expecter_teardown(void)
 {
+	struct list_head *node;
+	struct netfilter_hook *hook;
+
+#if LINUX_VERSION_LOWER_THAN(4, 13, 0, 9999, 0)
+	nf_unregister_hooks(nfho, ARRAY_SIZE(nfho));
+#endif
+
 	expecter_flush();
+
+	while (!list_empty(&hooks)) {
+		log_info("Deleting hook.");
+		node = hooks.next;
+		list_del(node);
+		hook = list_entry(node, struct netfilter_hook, list_hook);
+
+#if LINUX_VERSION_AT_LEAST(4, 13, 0, 9999, 0)
+		nf_unregister_net_hooks(hook->ns, nfho, ARRAY_SIZE(nfho));
+#endif
+
+		put_net(hook->ns);
+		WARN(!list_empty(&hook->nodes), "hook node list is not empty");
+		kfree(hook);
+	}
 }
 
 static void log_intro(struct sk_buff *skb)
@@ -94,8 +154,63 @@ static void sort_exceptions(struct expected_packet *pkt)
 	pkt->exceptions.count = i + 1;
 }
 
+static struct netfilter_hook *__get_hook(struct net *ns)
+{
+	struct netfilter_hook *hook;
+
+	list_for_each_entry(hook, &hooks, list_hook)
+		if (hook->ns == ns)
+			return hook;
+
+	return NULL;
+}
+
+static struct netfilter_hook *get_hook(void)
+{
+	struct netfilter_hook *hook;
+	struct net *ns;
+	int error;
+
+	ns = get_net_ns_by_pid(task_pid_vnr(current));
+	if (IS_ERR(ns)) {
+		log_err("Could not retrieve the current namespace: %ld",
+				PTR_ERR(ns));
+		return NULL;
+	}
+
+	hook = __get_hook(ns);
+	if (hook) {
+		put_net(ns);
+		return hook;
+	}
+
+	hook = kmalloc(sizeof(struct netfilter_hook), GFP_KERNEL);
+	if (!hook) {
+		put_net(ns);
+		return NULL;
+	}
+
+	hook->ns = ns;
+	INIT_LIST_HEAD(&hook->nodes);
+	list_add(&hook->list_hook, &hooks);
+
+#if LINUX_VERSION_AT_LEAST(4, 13, 0, 9999, 0)
+	error = nf_register_net_hooks(ns, nfho, ARRAY_SIZE(nfho));
+	if (error) {
+		log_info("nf_register_net_hooks() error: %d", error);
+		list_del(&hook->list_hook);
+		kfree(hook);
+		put_net(ns);
+		return NULL;
+	}
+#endif
+
+	return hook;
+}
+
 int expecter_add(struct expected_packet *pkt)
 {
+	struct netfilter_hook *hook;
 	struct expecter_node *node;
 
 	if (pkt->bytes_len == 0) {
@@ -124,7 +239,11 @@ int expecter_add(struct expected_packet *pkt)
 		sort_exceptions(&node->pkt);
 	}
 
-	list_add_tail(&node->list_hook, &list);
+	hook = get_hook();
+	if (!hook)
+		goto enomem;
+
+	list_add_tail(&node->list_hook, &hook->nodes);
 
 	log_debug("Stored packet '%s'.", pkt->filename);
 	return 0;
@@ -136,25 +255,28 @@ enomem:
 
 void expecter_flush(void)
 {
+	struct netfilter_hook *hook;
 	struct expecter_node *node;
-	struct list_head *hook;
 
-	while (!list_empty(&list)) {
-		hook = list.next;
-		list_del(hook);
-		node = list_entry(hook, struct expecter_node, list_hook);
+	list_for_each_entry(hook, &hooks, list_hook) {
+		while (!list_empty(&hook->nodes)) {
+			node = list_entry(hook->nodes.next,
+					struct expecter_node,
+					list_hook);
+			list_del(&node->list_hook);
 
-		log_info("Queued: %s", node->pkt.filename);
-		switch (get_l3_proto(node->pkt.bytes)) {
-		case 4:
-			stats.ipv4.queued++;
-			break;
-		case 6:
-			stats.ipv6.queued++;
-			break;
+			log_info("Queued: %s", node->pkt.filename);
+			switch (get_l3_proto(node->pkt.bytes)) {
+			case 4:
+				stats.ipv4.queued++;
+				break;
+			case 6:
+				stats.ipv6.queued++;
+				break;
+			}
+
+			free_node(node);
 		}
-
-		free_node(node);
 	}
 }
 
@@ -274,20 +396,22 @@ static struct graybox_proto_stats *get_stats(struct expected_packet *pkt)
 	return NULL;
 }
 
-int expecter_handle_pkt(struct sk_buff *actual)
+static int expecter_handle_pkt(struct sk_buff *actual)
 {
+	struct netfilter_hook *hook;
 	struct expecter_node *node;
 	struct expected_packet *expected;
 	struct graybox_proto_stats *stats;
 
 	log_intro(actual);
 
-	if (list_empty(&list)) { /* nothing to do. */
+	hook = __get_hook(dev_net(actual->dev));
+	if (!hook || list_empty(&hook->nodes)) {
 		log_debug("No packets queued.");
 		return NF_ACCEPT;
 	}
 
-	node = list_entry(list.next, struct expecter_node, list_hook);
+	node = list_entry(hook->nodes.next, struct expecter_node, list_hook);
 	expected = &node->pkt;
 
 	if (!has_same_address(expected, actual))
@@ -313,20 +437,21 @@ int expecter_handle_pkt(struct sk_buff *actual)
 
 void expecter_stat(struct graybox_stats *result)
 {
+	struct netfilter_hook *hook;
 	struct expecter_node *node;
-	struct list_head *hook;
 
 	memcpy(result, &stats, sizeof(stats));
 
-	list_for_each(hook, &list) {
-		node = list_entry(hook, struct expecter_node, list_hook);
-		switch (get_l3_proto(node->pkt.bytes)) {
-		case 4:
-			result->ipv4.queued++;
-			break;
-		case 6:
-			result->ipv6.queued++;
-			break;
+	list_for_each_entry(hook, &hooks, list_hook) {
+		list_for_each_entry(node, &hook->nodes, list_hook) {
+			switch (get_l3_proto(node->pkt.bytes)) {
+			case 4:
+				result->ipv4.queued++;
+				break;
+			case 6:
+				result->ipv6.queued++;
+				break;
+			}
 		}
 	}
 }
