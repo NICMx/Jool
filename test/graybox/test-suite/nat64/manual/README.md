@@ -2,12 +2,43 @@
 
 In contrast with the "auto" (pktgen) tests, the manual tests were generated manually. They are a bunch of packet exchanges improvised after the auto tests, but before Graybox became a more formal endeavor.
 
-## misc.issue132
+## issue132
 
-Sending a packet from N6 in hopes that N4 will bounce back an ICMP error due to nonexistant route 203.0.113. Mainly checks the address Jool uses to source the translated ICMP error behaves in accordance with #132's agreed upon rules. This test is the reason why N4 has v4 forwarding active (otherwise N4 drops the packet silently), and the translator has a bogus route to 200.0.113. (Though there might be other tests that exploit this configuration; I don't remember.)
+Sends a packet from N6 in hopes that N4 will bounce back an ICMP error due to nonexistant route 203.0.113. Mainly checks the address Jool uses to source the translated ICMP error behaves in accordance with #132's agreed upon rules. This test is the reason why N4 has v4 forwarding active (otherwise N4 drops the packet silently), and the translator has a bogus route to 200.0.113. (Though there might be other tests that exploit this configuration; I don't remember.)
 
-2018-10-10: These tests appear to be affected by ICMP error rate-limits. It'd probably be a good idea to redesign them so N4 were not needed.
+	packet test
+		40	IPv6	src:2001:db8::5 dst:64:ff9b::cb00:7106
+		20	TCP
+		4	Payload
 
+	packet expected-on
+		40	IPv6	ttl-- src:64:ff9b::c000:205 dst:2001:db8::5
+		8	ICMPv6	type:1 code:0
+		40	IPv6	ttl-- src:2001:db8::5 dst:64:ff9b::cb00:7106
+		20	TCP
+		4	Payload
+
+	packet expected-off
+		40	IPv6	ttl-- src:64:ff9b::cb00:7106 dst:2001:db8::5
+		8	ICMPv6	type:1 code:0
+		40	IPv6	ttl-- src:2001:db8::5 dst:64:ff9b::cb00:7106
+		20	TCP
+		4	Payload
+
+## errors.bibless
+
+Sends an IPv4 packet for which there's no BIB, expects an ICMPv4 3/3 (Port Unreachable).
+
+	packet bibless-test
+		20	IPv4
+		8	UDP	dst:4101
+		4	Payload
+
+	packet bibless-expected
+		20	IPv4	swap !df
+		8	ICMPv4
+		32	Payload	file:bibless-test
+		
 ## errors.ptb46
 
 Sends a large IPv4 packet, expects Jool to generate a FN.
@@ -25,6 +56,20 @@ Sends a large IPv4 packet, expects Jool to generate a FN.
 		548	Payload	file:ptb46-test
 
 That `!df` appears to stem from [this](https://elixir.bootlin.com/linux/v4.15/source/net/ipv4/ip_output.c#L1361) in combination with [this](https://elixir.bootlin.com/linux/v4.15/source/net/ipv4/icmp.c#L1222). It doesn't seem to be configurable for ICMP in particular, but I didn't look too hard.
+
+## errors.ptb64
+
+Sends a large IPv6 packet, expects Jool to generate a PTB.
+
+	packet ptb64-test
+		40	IPv6
+		8	UDP
+		1233	Payload
+
+	packet ptb64-expected
+		40	IPv6	src:2001:db8::1 dst:2001:db8::5
+		8	ICMPv6	type:2 code:0 mtu:1280
+		1232	Payload	file:ptb64-test
 
 ## ptb.ptb46
 
@@ -215,4 +260,93 @@ The IPv6 packet's translated counterpart should have a predictable source addres
 
 This test fails if the session is already created. (eg. by running it twice.)
 
-> TODO tests that create sessions should flush them by the end.
+> TODO devise a means for tests to clean up after themselves?
+
+## frag.icmp6
+
+Sends a large ICMPv6 error, expects a truncated ICMPv4 error.
+
+	packet icmp6-session-test
+		40	IPv6			# 2001 -> 64
+		8	UDP			# 2000 -> 4000
+		4	Payload
+
+	packet icmp6-session-expected
+		20	IPv4	!df ttl-- swap	# 192.2 -> 192.5
+		8	UDP			# 2000 -> 4000
+		4	Payload
+
+	packet icmp6-test
+		40	IPv6			# 2001 -> 64
+		8	ICMPv6
+		40	IPv6	swap		# 64 -> 2001
+		8	UDP	swap		# 4000 -> 2000
+		1300	Payload
+
+	packet icmp6-helper
+		20	IPv4			# 192.5 -> 192.2
+		8	UDP	swap		# 4000 -> 2000
+		1300	Payload
+
+	packet icmp6-expected
+		20	IPv4	!df ttl-- swap	# 192.2 -> 192.5
+		8	ICMPv4
+		548	Payload	file:icmp6-helper
+
+## frag.icmp4
+
+Sends a large ICMPv4 error, expects a truncated ICMPv6 error.
+
+	packet icmp4-session-test
+		same as icmp6-session-test
+
+	packet icmp4-session-expected
+		same as icmp6-session-expected
+
+	packet icmp4-test
+		20	IPv4			# 192.5 -> 192.2
+		8	ICMPv4
+		20	IPv4	ttl-- swap	# 192.2 -> 192.5
+		8	UDP			# 2000 -> 4000
+		1300	Payload
+
+	packet icmp4-helper
+		40	IPv6	ttl--		# 2001 -> 64
+		8	UDP			# 2000 -> 4000
+		1300	Payload
+
+	packet icmp4-expected
+		40	IPv6	ttl-- swap	# 64 -> 2001
+		8	ICMPv6
+		1232	Payload	file:icmp4-helper
+
+# frag.minmtu6
+
+Very old `lowest-ipv6-mtu` test. Sends one large IPv4 packet, expects two fragments.
+
+	packet minmtu6-session-test
+		same as icmp6-session-test
+
+	packet minmtu6-session-expected
+		same as icmp6-session-expected
+
+	packet minmtu6-big-test
+		20	IPv4	identification:4660 !df		# 192.5 -> 192.2
+		8	UDP	swap				# 4000 -> 2000
+		1400	Payload
+
+	packet minmtu6-helper: Used to compute UDP checksum
+		40	IPv6		ttl-- swap		# 64 -> 2001
+		8	UDP		swap			# 4000 -> 2000
+		1400	Payload
+
+	packet minmtu6-big0-expected
+		40	IPv6		ttl-- swap			# 64 -> 2001
+		8	Fragment	m:1 identification:4660
+		8	UDP		swap checksum:19038 length:1408	# 4000 -> 2000
+		1224	Payload
+
+	packet minmtu6-big1-expected
+		40	IPv6		ttl-- swap		# 64 -> 2001
+		8	Fragment	nextHeader:17 fragmentOffset:154 identification:4660
+		176	Payload		offset:200

@@ -64,6 +64,14 @@ test44_11() {
 	test_11 client4ns client4ns $1 $2 $3
 }
 
+test46_12() {
+	ip netns exec client6ns $GRAYBOX expect add `dirname $0`/manual/$1/$3.pkt $5
+	ip netns exec client6ns $GRAYBOX expect add `dirname $0`/manual/$1/$4.pkt $5
+	ip netns exec client4ns $GRAYBOX send `dirname $0`/manual/$1/$2.pkt
+	sleep 0.1
+	ip netns exec client6ns $GRAYBOX expect flush
+}
+
 
 `dirname $0`/../wait.sh 64:ff9b::192.0.2.5
 if [ $? -ne 0 ]; then
@@ -188,6 +196,14 @@ if [ -z "$1" -o "$1" = "so" ]; then
 	ip netns exec client4ns $GRAYBOX expect flush
 fi
 
+# Old big packet tests
+if [ -z "$1" -o "$1" = "frag" ]; then
+	test64_11 frag/icmp6-session-test frag/icmp6-session-expected $NOFRAG_IGNORE
+	test64_11 frag/icmp6-test frag/icmp6-expected $NOFRAG_IGNORE,$NOFRAG_IGNORE_INNER
+	test46_11 frag/icmp4-test frag/icmp4-expected
+	test46_12 frag minmtu6-big-test minmtu6-big0-expected minmtu6-big1-expected
+fi
+
 $GRAYBOX stats display
 result=$?
 $GRAYBOX stats flush
@@ -202,7 +218,7 @@ for i in $(seq 305 -1 1); do
 	printf "Cleaning up in $i seconds.  \r"
 	sleep 1
 done
-echo "---------------"
+echo "\n---------------"
 
 
 exit $result
