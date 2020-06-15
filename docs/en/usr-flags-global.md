@@ -17,6 +17,8 @@ title: global Mode
 4. [Keys](#keys)
 	1. [`manually-enabled`](#manually-enabled)
 	1. [`pool6`](#pool6)
+	1. [`lowest-ipv6-mtu`](#lowest-ipv6-mtu)
+	1. [`force-slow-path-46`](#force-slow-path-46)
 	1. [`address-dependent-filtering`](#address-dependent-filtering)
 	2. [`drop-icmpv6-info`](#drop-icmpv6-info)
 	3. [`drop-externally-initiated-tcp`](#drop-externally-initiated-tcp)
@@ -106,6 +108,38 @@ If you want, the prefix can unset through the `null` keyword:
 {% highlight bash %}
 user@T:~# jool_siit global update pool6 null
 {% endhighlight %}
+
+### `lowest-ipv6-mtu`
+
+- Type: Integer
+- Default: 1280
+- Modes: Both (SIIT and Stateful NAT64)
+- Translation direction: IPv4 to IPv6
+- Source: [RFC 7915](https://tools.ietf.org/html/rfc7915)
+
+You want to set this value as the minimum MTU accross all your IPv6 networks. All incoming IPv4 packets containing a disabled Don't Fragment (DF) flag will be fragmented to `lowest-ipv6-mtu` size once translated to IPv6.
+
+Why? Because the IPv6 header lacks a DF counterpart. All IPv6 packets behave as if DF were enabled. If Jool translates a DF-disabled IPv4 packet into an IPv6 packet, and the resulting packet is larger than the available MTU, then it will not be able to reach its destination. If the IPv4 note insists on sending such DF-disabled large packets in hopes that the IPv6 router will eventually fragment them, the result will be a black hole.
+
+This flag does not affect DF-enabled IPv4 packets, because those operate under normal Path MTU Discovery rules, so never rely on fragmenting routers.
+
+To enhance performance, you want to minimize fragmentation, which means you want to assign the largest possible value to this flag. You do not want to assign a value that is larger than your overall minimum IPv6 MTU however, as this may end up causing black holes as explained above.
+
+A more graphic explanation can be found [here](mtu.html).
+
+### `force-slow-path-46`
+
+- Type: Boolean
+- Default: false
+- Modes: Both (SIIT and Stateful NAT64)
+- Translation direction: IPv4 to IPv6
+- Status: **Deprecated**
+
+If Jool seems to be arbitrarily dropping incoming IPv4 packets, try enabling this flag. **This is NOT intended as a permanent solution. You WILL face a performance penalty. Please [report the problem](https://github.com/NICMx/Jool/issues).**
+
+Why does this exist? Because it serves as a quick patch, and also as a means to narrow down the problem, in case there's something wrong with the Fast Path. (Which is, unfortunately, unavoidably messy code.)
+
+This flag first appeared in Jool 4.1.0 and is not intended to exist for long.
 
 ### `address-dependent-filtering`
 

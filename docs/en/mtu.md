@@ -11,25 +11,23 @@ title: MTU and Fragmentation
 
 ## Problem Statement
 
-There's one major difference between IPv4 and IPv6 which an IP Translator alone cannot make up for.
+There's one major difference between IPv4 and IPv6 which an IP Translator alone cannot make up for: DF.
 
-The IPv4 header "features" a flag called [_Don't Fragment_](http://en.wikipedia.org/wiki/IPv4#Packet_structure) (DF). It dictates whether the source allows routers to fragment the packet.
+The IPv4 header rather ill-advisedly "features" a flag called [_Don't Fragment_](http://en.wikipedia.org/wiki/IPv4#Packet_structure) (DF). It dictates whether the source allows intermediary routers to fragment the packet.
 
 In IPv6, packets can never be fragmented by routers. DF is implicit and always active.
 
-When there's a translator in the middle, an IPv4 packet which can be fragmented becomes an IPv6 packet that must not be fragmented.
+Therefore, when there's a translator in the middle, an IPv4 packet which can be fragmented will inevitably become an IPv6 packet that must not be fragmented.
 
-So what happens if the packet is too big?
-
-(Actual packet sizes are different due to headers changes, but you get the point.)
+So what happens if the packet is too big? Well, the following exchange will take place:
 
 ![Fig.1 - MTU flow fail](../images/flow/mtu-frag-fail-en.svg)
 
-It is implementation defined. If _n4_ is smart, it will try to decrease the lenght of the packet. If it is not, the packet will never reach _n6_.
+(Packet sizes would actually be slightly different due to header changes, but you get the point.)
 
-Proper implementations today actually use [Path MTU discovery](http://en.wikipedia.org/wiki/Path_MTU_Discovery) and therefore never unset the DF flag. Still, stubborn or legacy code is not unheard of.
+And what happens afterwards is implementation defined. If _n4_ is smart, it will stop fooling around and perform [Path MTU Discovery](https://en.wikipedia.org/wiki/Path_MTU_Discovery) like a proper Internet citizen. If it is slightly less smart, it will try to gradually decrease the length of its packet until it succeeds. If it is completely dumb, it will retry unmodified and its packet will never reach _n6_.
 
-By the way: when you want to know a link's MTU, ask Linux:
+Your operative system normally has a means to tell you the MTU of a particular interface:
 
 <div class="highlight"><pre><code class="bash">$ ip link
 (...)
@@ -39,19 +37,30 @@ By the way: when you want to know a link's MTU, ask Linux:
 
 ## Solution
 
-If you know the smallest MTU across all your IPv6 networks, tell _T_ about it:
+[`lowest-ipv6-mtu`](usr-flags-global.html#lowest-ipv6-mtu).
 
-![Fig.2 - Proper Network](../images/network/mtu-frag.svg)
+	$ (jool | jool_siit) global update lowest-ipv6-mtu 1300
 
-_T_ knows it's translating, so it knows it **has** to fragment even though it's sort of an IPv6 router.
-
-Jool used to have a flag called `--minMTU6` to do this. Because deferring fragmentation to the kernel is considered better practice, you now configure it on Linux starting from Jool 3.3.
-
-	ip link set dev eth0 mtu 1300
-
-And voilà:
+The command above will force yor Jool instance to ensure that, through fragmentation, DF-disabled IPv4 packets never be translated into IPv6 packets larger than 1300 bytes.
 
 ![Fig.3 - MTU flow succeeds](../images/flow/mtu-frag-success-en.svg)
 
+This will, in turn, prevent R from ever responding "Packet Too Big" errors.
+
 If you don't know the minimum MTU of your IPv6 networks, assign 1280. Every IPv6 node must be able to handle at least 1280 bytes per packet by standard.
 
+## Examples
+
+Suppose this is your organization's network:
+
+![Fig.2 - Potential Network 1](../images/network/mtu-example-1.svg)
+
+Your `lowest-ipv6-mtu` should be 1440.
+
+Now suppose C will never need to access the IPv4 Internet: Your `lowest-ipv6-mtu` should be 1460.
+
+Now suppose your NAT64 is openly available to the entire IPv6 Internet:
+
+![Fig.3 - Potential Network 3](../images/network/mtu-example-3.svg)
+
+Your `lowest-ipv6-mtu` should be 1280.
