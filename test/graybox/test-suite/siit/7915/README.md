@@ -1840,8 +1840,6 @@ Pseudocode:
 	If the packet is an ICMP error:
 		lowest-ipv6-mtu does nothing
 		(but packet is still constrained to 1280 regardless of `lowest-ipv6-mtu`.)
-	else if force-slow-path is enabled:
-		lowest-ipv6-mtu kicks in
 	else if DF is enabled:
 		lowest-ipv6-mtu does nothing
 	else
@@ -1851,15 +1849,11 @@ Therefore, tests:
 
 1. [ja](#ja): Raise `lowest-ipv6-mtu` to > 1280, send ICMPv4 error, make sure it does not exceed 1280.
 2. Set `lowest-ipv6-mtu`=1280,
-	1. [jba](#jba): `force-slow-path`=false, DF=false, make sure large packet becomes fragments.
-	2. [jbb](#jbb): `force-slow-path`=false, DF=true, make sure large packet stays large.
-	3. [jbc](#jbc): `force-slow-path`=true, DF=false, make sure large packet becomes fragments.
-	4. [jbd](#jbd): `force-slow-path`=true, DF=true, make sure large packet becomes fragments.
+	1. [jba](#jba): DF=false, make sure large packet becomes fragments.
+	2. [jbb](#jbb): DF=true, make sure large packet stays large.
 2. Set `lowest-ipv6-mtu`=1402,
-	1. [jca](#jca): `force-slow-path`=false, DF=false, make sure large packet becomes fragments.
-	2. [jcb](#jcb): `force-slow-path`=false, DF=true, make sure large packet stays large.
-	3. [jcc](#jcc): `force-slow-path`=true, DF=false, make sure large packet becomes fragments.
-	4. [jcd](#jcd): `force-slow-path`=true, DF=true, make sure large packet becomes fragments.
+	1. [jca](#jca): DF=false, make sure large packet becomes fragments.
+	2. [jcb](#jcb): DF=true, make sure large packet stays large.
 
 `jc` tests purposes:
 
@@ -1914,7 +1908,7 @@ Therefore, tests:
 		8	Fragment	fragmentOffset:154 nextHeader:17
 		9	Payload		offset:200
 
-- Environment: `lowest-ipv6-mtu` = 1280, `force-slow-path` = `false`
+- Environment: `lowest-ipv6-mtu` = 1280
 - Validation: `jbat` must yield `jbae1` and `jbae2`.
 
 #### jbb
@@ -1929,36 +1923,8 @@ Therefore, tests:
 		8	UDP
 		1233	Payload
 
-- Environment: `lowest-ipv6-mtu` = 1280, `force-slow-path` = `false`
+- Environment: `lowest-ipv6-mtu` = 1280
 - Validation: `jbbt` must yield `jbbe`.
-
-#### jbc
-
-	packet jbct
-		Same as jbat
-
-	packet jbce1
-		Same as jbae1
-
-	packet jbce2
-		Same as jbae2
-
-- Environment: `lowest-ipv6-mtu` = 1280, `force-slow-path` = `true`
-- Validation: `jbct` must yield `jbce1` and `jbce2`.
-
-#### jbd
-
-	packet jbdt
-		Same as jbbt
-
-	packet jbde1
-		Same as jbae1
-
-	packet jbde2
-		Same as jbae2
-
-- Environment: `lowest-ipv6-mtu` = 1280, `force-slow-path` = `true`
-- Validation: `jbdt` must yield `jbde1` and `jbde2`.
 
 #### jca
 
@@ -1983,7 +1949,7 @@ Therefore, tests:
 		8	Fragment	fragmentOffset:169 nextHeader:17
 		11	Payload		offset:64
 
-- Environment: `lowest-ipv6-mtu` = 1402, `force-slow-path` = `false`
+- Environment: `lowest-ipv6-mtu` = 1402
 - Validation: `jcat` must yield `jcae1` and `jcae2`.
 
 #### jcb
@@ -1999,34 +1965,5 @@ Therefore, tests:
 		8	UDP
 		1355	Payload
 
-- Environment: `lowest-ipv6-mtu` = 1402, `force-slow-path` = `false`
+- Environment: `lowest-ipv6-mtu` = 1402
 - Validation: `jcbt` must yield `jcbe`.
-
-#### jcc
-
-	packet jcct
-		Same as jcat
-
-	packet jcce1
-		Same as jcae1
-
-	packet jcce2
-		Same as jcae2
-
-- Environment: `lowest-ipv6-mtu` = 1402, `force-slow-path` = `true`
-- Validation: `jcct` must yield `jcce1` and `jcce2`.
-
-#### jcd
-
-	packet jcdt
-		Same as jcbt
-
-	packet jcde1
-		Same as jcae1
-
-	packet jcde2
-		Same as jcae2
-
-- Environment: `lowest-ipv6-mtu` = 1402, `force-slow-path` = `true`
-- Validation: `jcdt` must yield `jcde1` and `jcde2`.
-

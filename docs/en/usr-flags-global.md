@@ -18,7 +18,6 @@ title: global Mode
 	1. [`manually-enabled`](#manually-enabled)
 	1. [`pool6`](#pool6)
 	1. [`lowest-ipv6-mtu`](#lowest-ipv6-mtu)
-	1. [`force-slow-path-46`](#force-slow-path-46)
 	1. [`address-dependent-filtering`](#address-dependent-filtering)
 	2. [`drop-icmpv6-info`](#drop-icmpv6-info)
 	3. [`drop-externally-initiated-tcp`](#drop-externally-initiated-tcp)
@@ -126,20 +125,6 @@ This flag does not affect DF-enabled IPv4 packets, because those operate under n
 To enhance performance, you want to minimize fragmentation, which means you want to assign the largest possible value to this flag. You do not want to assign a value that is larger than your overall minimum IPv6 MTU however, as this may end up causing black holes as explained above.
 
 A more graphic explanation can be found [here](mtu.html).
-
-### `force-slow-path-46`
-
-- Type: Boolean
-- Default: false
-- Modes: Both (SIIT and Stateful NAT64)
-- Translation direction: IPv4 to IPv6
-- Status: **Deprecated**
-
-If Jool seems to be arbitrarily dropping incoming IPv4 packets, try enabling this flag. **This is NOT intended as a permanent solution. You WILL face a performance penalty. Please [report the problem](https://github.com/NICMx/Jool/issues).**
-
-Why does this exist? Because it serves as a quick patch, and also as a means to narrow down the problem, in case there's something wrong with the Fast Path. (Which is, unfortunately, unavoidably messy code.)
-
-This flag first appeared in Jool 4.1.0 and is not intended to exist for long.
 
 ### `address-dependent-filtering`
 

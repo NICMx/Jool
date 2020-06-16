@@ -545,9 +545,6 @@ static verdict ttp46_alloc_skb(struct xlation *state, union flowix *flowx)
 	 *	If ICMP error:
 	 *		Fast Path
 	 *
-	 *	Else If user wants to force Slow Path:
-	 *		Slow Path
-	 *
 	 *	Else if fragmentation prohibited:
 	 *		If first fragment exceeds MTU:
 	 *			FN
@@ -675,10 +672,6 @@ static verdict ttp46_alloc_skb(struct xlation *state, union flowix *flowx)
 	 *
 	 * Therefore: If users want performance, they need to enable DF or GTFO.
 	 *
-	 * If my assumptions prove incorrect, the user can enable
-	 * force-slow-path-46 and hopefully report the issue. Though I honestly
-	 * hope I never have to touch this code again.
-	 *
 	 * # LRO
 	 *
 	 * I'm not worrying about LRO because
@@ -724,9 +717,6 @@ static verdict ttp46_alloc_skb(struct xlation *state, union flowix *flowx)
 
 	if (is_icmp4_error(pkt_icmp4_hdr(in)->type)) {
 		result = allocate_fast(state, delta, false);
-
-	} else if (state->jool.globals.force_slow_path_46) {
-		result = allocate_slow(state, mpl);
 
 	} else if (is_df_set(pkt_ip4_hdr(in))) {
 		switch (fragment_exceeds_mtu46(in, delta, nexthop_mtu)) {

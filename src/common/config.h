@@ -511,7 +511,6 @@ struct jool_globals {
 	 * Otherwise these packets might be black-holed.
 	 */
 	__u32 lowest_ipv6_mtu;
-	bool force_slow_path_46;
 
 	/**
 	 * If the translator detects the source of the incoming packet does not

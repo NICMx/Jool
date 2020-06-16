@@ -331,22 +331,9 @@ if [ -z "$1" -o "$1" = "rfc7915" ]; then
 
 	test46_12 7915 jbat jbae1 jbae2
 	test46_11 7915 jbbt jbbe
-	ip netns exec joolns jool_siit global update force-slow-path-46 true
-	# jbc
-	test46_12 7915 jbat jbae1 jbae2
-	# jbd
-	test46_12 7915 jbbt jbae1 jbae2
-	ip netns exec joolns jool_siit global update force-slow-path-46 false
-
 	ip netns exec joolns jool_siit global update lowest-ipv6-mtu 1402
 	test46_12 7915 jcat jcae1 jcae2
 	test46_11 7915 jcbt jcbe
-	ip netns exec joolns jool_siit global update force-slow-path-46 true
-	# jcc
-	test46_12 7915 jcat jcae1 jcae2
-	# jcd
-	test46_12 7915 jcbt jcae1 jcae2
-	ip netns exec joolns jool_siit global update force-slow-path-46 false
 	ip netns exec joolns jool_siit global update lowest-ipv6-mtu 1280
 fi
 

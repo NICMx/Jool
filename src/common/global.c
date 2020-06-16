@@ -809,13 +809,6 @@ static const struct joolnl_global_meta globals_metadata[] = {
 #ifdef __KERNEL__
 		.nl2raw = nl2raw_lowest_ipv6_mtu,
 #endif
-	}, {
-		.id = JNLAG_FORCE_SLOW46,
-		.name = "force-slow-path-46",
-		.type = &gt_bool,
-		.doc = "Guarantee 4-to-6 translation at the expense of GSO optimizations?",
-		.offset = offsetof(struct jool_globals, force_slow_path_46),
-		.xt = XT_ANY,
 	} , {
 		.id = JNLAG_PLATEAUS,
 		.name = "mtu-plateaus",

@@ -212,7 +212,7 @@ $GRAYBOX stats flush
 echo "---------------"
 echo "Strictly speaking, I'm done testing, but I'll wait 5:05 minutes."
 echo "This is intended to test session timer timeout."
-echo "You can see the status by running 'ip netns exec joolns jool se d --nu' in a separate terminal."
+echo "You can see the status by running 'ip netns exec joolns jool se d -u --nu' in a separate terminal."
 
 for i in $(seq 305 -1 1); do
 	printf "Cleaning up in $i seconds.  \r"
