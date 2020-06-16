@@ -107,7 +107,8 @@ bool must_not_translate(struct in_addr *addr, struct net *ns);
 /* ICMP Extensions */
 
 #define icmp6_length icmp6_dataun.un_data8[0]
-#define icmp4_length un.reserved[1]
+/* un.reserved does not exist in old kernels. */
+#define icmp4_length(hdr) (((__u8 *)(&(hdr)->un.gateway))[1])
 
 /* See /test/graybox/test-suite/rfc/7915.md#ic */
 struct icmpext_args {

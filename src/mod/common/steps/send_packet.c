@@ -5,7 +5,7 @@
 #include "mod/common/packet.h"
 /* #include "mod/common/skbuff.h" */
 
-verdict __sendpkt_send(struct xlation *state, struct sk_buff *out)
+static verdict __sendpkt_send(struct xlation *state, struct sk_buff *out)
 {
 	struct dst_entry *dst;
 	int error;

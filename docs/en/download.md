@@ -11,11 +11,23 @@ title: Download
 - Normal font signals recommended fallback versions in case the previous option fails you ([bug reports welcomed]({{ site.repository-url }}/issues)).
 - <del>Striked</del> versions are not recommended (either because they're too old or have known critical bugs).
 
+## 4.1.x
+
+Jool 4.1 is a [compliant SIIT and Stateful NAT64](intro-jool.html#compliance).
+
+Currently, 4.1.0 is the latest version of Jool.
+
+| Release Date | Version | .tar.gz | .tar.gz Signature | Git commit | .deb |
+|--------------|---------|---------|-------------------|------------|------|
+| 2020-06-16   | **4.1.0** | [Download]({{ site.downloads-url-2 }}/v4.1.0/jool-4.1.0.tar.gz) | [Signature]({{ site.downloads-url-2 }}/v4.1.0/jool-4.1.0.tar.gz.asc) | <a href="{{ site.repository-url }}/tree/v4.1.0" target="_blank">Link</a> | [Kernel modules]({{ site.downloads-url-2 }}/v4.1.0/jool-dkms_4.1.0-1_all.deb)<br />[Userspace tools]({{ site.downloads-url-2 }}/v4.1.0/jool-tools_4.1.0-1_amd64.deb) (amd64 only) |
+
+"rc" stands for "Release Candidate." [This](http://keys.gnupg.net/pks/lookup?op=get&search=0x72160FD57B242967) is my public key. It is not yet certified, so the Signature column is mostly just theater for now.
+
 ## 4.0.x
 
-Jool 4.0 is a [compliant SIIT and Stateful NAT64](intro-jool.html#compliance).
+Jool 4.0 is a compliant SIIT and Stateful NAT64.
 
-4.0.9 is the latest and most mature version of Jool.
+Currently, 4.0.9 is the most mature version of Jool.
 
 | Release Date | Version | .tar.gz | .tar.gz Signature | Git commit | .deb |
 |--------------|---------|---------|-------------------|------------|------|
@@ -35,8 +47,6 @@ Jool 4.0 is a [compliant SIIT and Stateful NAT64](intro-jool.html#compliance).
 | 2018-12-14   | <del>3.6.0-rc2</del> | [Download]({{ site.downloads-url }}/jool_3.6.0-rc2.tar.gz) | - | <a href="{{ site.repository-url }}/tree/v3.6.0-rc2" target="_blank">Link</a> | - |
 | 2018-11-24   | <del>3.6.0-rc1</del> | [Download]({{ site.downloads-url }}/jool_3.6.0-rc1.tar.gz) | - | <a href="{{ site.repository-url }}/tree/v3.6.0-rc1" target="_blank">Link</a> | - |
 
-"rc" stands for "Release Candidate." [This](http://keys.gnupg.net/pks/lookup?op=get&search=0x72160FD57B242967) is my public key. It is not yet certified, so the Signature column is mostly just theater for now.
-
 ## 3.5.x
 
 Jool 3.5 is also a [compliant SIIT and Stateful NAT64](intro-jool.html#compliance).
@@ -49,8 +59,8 @@ Jool 3.5 is also a [compliant SIIT and Stateful NAT64](intro-jool.html#complianc
 
 | Release Date | Version | .zip | .tar.gz | Git commit |
 |--------------|---------|------|---------|------------|
-| 2018-04-26 | 3.5.8 | [Download]({{ site.downloads-url-2 }}/v3.5.8/Jool-3.5.8.zip) | - | <a href="{{ site.repository-url }}/tree/v3.5.8" target="_blank">Link</a> |
-| 2018-05-04 | 3.5.7 | [Download]({{ site.downloads-url }}/Jool-3.5.7.zip) | - | <a href="{{ site.repository-url }}/tree/v3.5.7" target="_blank">Link</a> |
+| 2018-04-26 | <del>3.5.8</del> | [Download]({{ site.downloads-url-2 }}/v3.5.8/Jool-3.5.8.zip) | - | <a href="{{ site.repository-url }}/tree/v3.5.8" target="_blank">Link</a> |
+| 2018-05-04 | <del>3.5.7</del> | [Download]({{ site.downloads-url }}/Jool-3.5.7.zip) | - | <a href="{{ site.repository-url }}/tree/v3.5.7" target="_blank">Link</a> |
 | 2018-01-16 | <del>3.5.6</del> | <del>[Download]({{ site.downloads-url }}/Jool-3.5.6.zip)</del> | - | <a href="{{ site.repository-url }}/tree/v3.5.6" target="_blank">Link</a> |
 | 2017-11-23 | <del>3.5.5</del> | <del>[Download]({{ site.downloads-url }}/Jool-3.5.5.zip)</del> | - | <a href="{{ site.repository-url }}/tree/v3.5.5" target="_blank">Link</a> |
 | 2017-07-25 | <del>3.5.4</del> | <del>[Download]({{ site.downloads-url }}/Jool-3.5.4.zip)</del> | - | <a href="{{ site.repository-url }}/tree/v3.5.4" target="_blank">Link</a> |

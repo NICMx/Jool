@@ -88,7 +88,7 @@ struct addrxlat_result addrxlat_siit64(struct xlator *instance,
 
 struct addrxlat_result addrxlat_siit46(struct xlator *instance,
 		__be32 in, struct result_addrxlat46 *out,
-		bool enable_eam)
+		bool enable_eam, bool enable_blacklists)
 {
 	return fail_addr();
 }

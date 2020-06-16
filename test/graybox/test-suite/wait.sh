@@ -12,7 +12,7 @@
 echo "Waiting for the network to be ready..."
 
 for i in $(seq 10); do
-	ip netns exec client6ns ping6 $1 -c 1 > /dev/null
+	ip netns exec client6ns ping6 $1 -c 1 >/dev/null 2>&1
 	if [ $? -eq 0 ]; then
 		echo "Ready."
 		exit 0

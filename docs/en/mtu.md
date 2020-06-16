@@ -57,7 +57,7 @@ Suppose this is your organization's network:
 
 Your `lowest-ipv6-mtu` should be 1440.
 
-Now suppose C will never need to access the IPv4 Internet: Your `lowest-ipv6-mtu` should be 1460.
+Now suppose C will never need to access the IPv4 Internet: Your `lowest-ipv6-mtu` should be 1460. (But if you're unsure, 1440 is probably fine.)
 
 Now suppose your NAT64 is openly available to the entire IPv6 Internet:
 

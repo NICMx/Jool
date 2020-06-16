@@ -108,7 +108,7 @@ void wkmalloc_print_leaks(void)
 		}
 	}
 
-	if (!leaks)
+	if (!WARN(leaks, "Total leaks: %u", leaks))
 		log_info("None.");
 }
 

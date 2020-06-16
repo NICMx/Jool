@@ -1,6 +1,7 @@
 #ifndef SRC_MOD_COMMON_ROUTE_H_
 #define SRC_MOD_COMMON_ROUTE_H_
 
+#include <linux/bug.h> /* Needed by flow.h in some old kernels (~4.9) */
 #include <net/flow.h>
 #include <net/net_namespace.h>
 

@@ -36,7 +36,7 @@ static int generate_saddr6_nat64(struct xlation *state, union flowix *flowx)
 	return 0;
 }
 
-static verdict xlat_external_addresses(struct xlation *state,
+static verdict xlat46_external_addresses(struct xlation *state,
 		union flowix *flowx)
 {
 	switch (xlator_get_type(&state->jool)) {
@@ -57,7 +57,7 @@ static verdict xlat_external_addresses(struct xlation *state,
 	return drop(state, JSTAT_UNKNOWN);
 }
 
-static verdict xlat_internal_addresses(struct xlation *state,
+static verdict xlat46_internal_addresses(struct xlation *state,
 		union flowix *flowx)
 {
 	struct bkp_skb_tuple bkp;
@@ -86,7 +86,7 @@ static verdict xlat_internal_addresses(struct xlation *state,
 	return drop(state, JSTAT_UNKNOWN);
 }
 
-static verdict xlat_tcp_ports(struct xlation const *state,
+static verdict xlat46_tcp_ports(struct xlation const *state,
 		struct flowi6 *flowi)
 {
 	struct tcphdr const *hdr;
@@ -105,7 +105,7 @@ static verdict xlat_tcp_ports(struct xlation const *state,
 	return VERDICT_CONTINUE;
 }
 
-static verdict xlat_udp_ports(struct xlation const *state,
+static verdict xlat46_udp_ports(struct xlation const *state,
 		struct flowi6 *flowi)
 {
 	struct udphdr const *udp;
@@ -124,7 +124,7 @@ static verdict xlat_udp_ports(struct xlation const *state,
 	return VERDICT_CONTINUE;
 }
 
-static verdict xlat_icmp_type(struct xlation *state, union flowix *flowx)
+static verdict xlat46_icmp_type(struct xlation *state, union flowix *flowx)
 {
 	struct icmphdr const *hdr;
 	struct flowi6 *flow6;
@@ -155,22 +155,22 @@ static verdict xlat_icmp_type(struct xlation *state, union flowix *flowx)
 		case ICMP_HOST_UNR_TOS:
 			flow6->fl6_icmp_type = ICMPV6_DEST_UNREACH;
 			flow6->fl6_icmp_code = ICMPV6_NOROUTE;
-			return xlat_internal_addresses(state, flowx);
+			return xlat46_internal_addresses(state, flowx);
 
 		case ICMP_PROT_UNREACH:
 			flow6->fl6_icmp_type = ICMPV6_PARAMPROB;
 			flow6->fl6_icmp_code = ICMPV6_UNK_NEXTHDR;
-			return xlat_internal_addresses(state, flowx);
+			return xlat46_internal_addresses(state, flowx);
 
 		case ICMP_PORT_UNREACH:
 			flow6->fl6_icmp_type = ICMPV6_DEST_UNREACH;
 			flow6->fl6_icmp_code = ICMPV6_PORT_UNREACH;
-			return xlat_internal_addresses(state, flowx);
+			return xlat46_internal_addresses(state, flowx);
 
 		case ICMP_FRAG_NEEDED:
 			flow6->fl6_icmp_type = ICMPV6_PKT_TOOBIG;
 			flow6->fl6_icmp_code = 0;
-			return xlat_internal_addresses(state, flowx);
+			return xlat46_internal_addresses(state, flowx);
 
 		case ICMP_NET_ANO:
 		case ICMP_HOST_ANO:
@@ -178,14 +178,14 @@ static verdict xlat_icmp_type(struct xlation *state, union flowix *flowx)
 		case ICMP_PREC_CUTOFF:
 			flow6->fl6_icmp_type = ICMPV6_DEST_UNREACH;
 			flow6->fl6_icmp_code = ICMPV6_ADM_PROHIBITED;
-			return xlat_internal_addresses(state, flowx);
+			return xlat46_internal_addresses(state, flowx);
 		}
 		break;
 
 	case ICMP_TIME_EXCEEDED:
 		flow6->fl6_icmp_type = ICMPV6_TIME_EXCEED;
 		flow6->fl6_icmp_code = hdr->code;
-		return xlat_internal_addresses(state, flowx);
+		return xlat46_internal_addresses(state, flowx);
 
 	case ICMP_PARAMETERPROB:
 		flow6->fl6_icmp_type = ICMPV6_PARAMPROB;
@@ -193,7 +193,7 @@ static verdict xlat_icmp_type(struct xlation *state, union flowix *flowx)
 		case ICMP_PTR_INDICATES_ERROR:
 		case ICMP_BAD_LENGTH:
 			flow6->fl6_icmp_code = ICMPV6_HDR_FIELD;
-			return xlat_internal_addresses(state, flowx);
+			return xlat46_internal_addresses(state, flowx);
 		}
 	}
 
@@ -223,17 +223,17 @@ static verdict compute_flowix46(struct xlation *state, union flowix *flowx)
 	flow6->flowi6_proto = xlat_nexthdr(pkt_ip4_hdr(&state->in)->protocol);
 	flow6->flowi6_flags = FLOWI_FLAG_ANYSRC;
 
-	result = xlat_external_addresses(state, flowx);
+	result = xlat46_external_addresses(state, flowx);
 	if (result != VERDICT_CONTINUE)
 		return result;
 
 	switch (flow6->flowi6_proto) {
 	case NEXTHDR_TCP:
-		return xlat_tcp_ports(state, &flowx->v6.flowi);
+		return xlat46_tcp_ports(state, &flowx->v6.flowi);
 	case NEXTHDR_UDP:
-		return xlat_udp_ports(state, &flowx->v6.flowi);
+		return xlat46_udp_ports(state, &flowx->v6.flowi);
 	case NEXTHDR_ICMP:
-		return xlat_icmp_type(state, flowx);
+		return xlat46_icmp_type(state, flowx);
 	}
 
 	return VERDICT_CONTINUE;
@@ -481,7 +481,7 @@ static verdict allocate_slow(struct xlation *state, unsigned int mpl)
 		skb_reset_mac_header(out);
 		skb_reset_network_header(out);
 		skb_put(out, sizeof(struct ipv6hdr));
-		frag = skb_put(out, sizeof(struct frag_hdr));
+		frag = (struct frag_hdr *)skb_put(out, sizeof(struct frag_hdr));
 		l3_payload = skb_put(out, fragment_payload_len);
 
 		if (out == state->out.skb) {
@@ -1209,7 +1209,7 @@ static verdict handle_icmp6_extension(struct xlation *state)
 	struct packet *out;
 
 	args.max_pkt_len = 1280;
-	args.ipl = pkt_icmp4_hdr(&state->in)->icmp4_length << 2;
+	args.ipl = icmp4_length(pkt_icmp4_hdr(&state->in)) << 2;
 	args.out_bits = 3;
 	args.force_remove_ie = should_remove_ie(state);
 
@@ -1330,14 +1330,14 @@ static verdict ttp46_icmp(struct xlation *state, union flowix const *flowx)
 	return drop(state, JSTAT_UNKNOWN);
 }
 
-static __be16 get_src_port(struct packet const *pkt, union flowix const *flowx)
+static __be16 get_src_port46(struct packet const *pkt, union flowix const *flowx)
 {
 	return pkt_is_inner(pkt)
 			? cpu_to_be16(pkt->tuple.dst.addr6.l4)
 			: flowx->v6.flowi.fl6_sport;
 }
 
-static __be16 get_dst_port(struct packet const *pkt, union flowix const *flowx)
+static __be16 get_dst_port46(struct packet const *pkt, union flowix const *flowx)
 {
 	return pkt_is_inner(pkt)
 			? cpu_to_be16(pkt->tuple.src.addr6.l4)
@@ -1486,8 +1486,8 @@ static verdict ttp46_tcp(struct xlation *state, union flowix const *flowx)
 	/* Header */
 	memcpy(tcp_out, tcp_in, pkt_l4hdr_len(in));
 	if (xlation_is_nat64(state)) {
-		tcp_out->source = get_src_port(out, flowx);
-		tcp_out->dest = get_dst_port(out, flowx);
+		tcp_out->source = get_src_port46(out, flowx);
+		tcp_out->dest = get_dst_port46(out, flowx);
 	}
 
 	/* Header.checksum */
@@ -1520,8 +1520,8 @@ static verdict ttp46_udp(struct xlation *state, union flowix const *flowx)
 	/* Header */
 	memcpy(udp_out, udp_in, pkt_l4hdr_len(in));
 	if (xlation_is_nat64(state)) {
-		udp_out->source = get_src_port(out, flowx);
-		udp_out->dest = get_dst_port(out, flowx);
+		udp_out->source = get_src_port46(out, flowx);
+		udp_out->dest = get_dst_port46(out, flowx);
 	}
 
 	/* Header.checksum */

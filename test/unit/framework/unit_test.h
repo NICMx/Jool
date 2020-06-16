@@ -8,7 +8,7 @@
 #define ASSERT_PRIMITIVE(expected, actual, specifier, name, ...) ({	\
 		/* don't want these to be evaluated multiple times. */	\
 		typeof(expected) __expected = expected;			\
-		typeof(expected) __actual = actual;			\
+		typeof(actual) __actual = actual;			\
 		if (__expected != __actual) {				\
 			log_err("Test '" name "' failed.", ##__VA_ARGS__); \
 			pr_err("  Expected: " specifier "\n", __expected);  \

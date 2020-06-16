@@ -13,6 +13,11 @@ MODULE_LICENSE(JOOL_LICENSE);
 MODULE_AUTHOR("Alberto Leiva Popper");
 MODULE_DESCRIPTION("Translating the Packet module test.");
 
+xlator_type xlator_get_type(struct xlator const *instance)
+{
+	return XT_SIIT;
+}
+
 static bool test_function_has_unexpired_src_route(void)
 {
 	struct iphdr *hdr = kmalloc(60, GFP_ATOMIC); /* 60 is the max value allowed by hdr.ihl. */
