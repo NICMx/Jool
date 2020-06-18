@@ -7,7 +7,10 @@
 #include "mod/common/ipv6_hdr_iterator.h"
 #include "mod/common/linux_version.h"
 #include "mod/common/log.h"
+#include "mod/common/rfc6052.h"
+#include "mod/common/translation_state.h"
 #include "mod/common/xlator.h"
+#include "mod/common/rfc7915/6to4.h"
 
 static bool contains_addr(struct net *ns, const struct in_addr *addr)
 {
@@ -50,7 +53,6 @@ bool pool4empty_contains(struct net *ns, const struct ipv4_transport_addr *addr)
 
 	if (addr->l4 < DEFAULT_POOL4_MIN_PORT)
 		return false;
-	/* I sure hope this gets compiled out :p */
 	if (DEFAULT_POOL4_MAX_PORT < addr->l4)
 		return false;
 
@@ -62,13 +64,25 @@ bool pool4empty_contains(struct net *ns, const struct ipv4_transport_addr *addr)
 }
 
 /**
- * Initializes @range with the address candidates that could source a packet
- * routed with @route_args.
+ * Initializes @range with the address candidates that could source @state's
+ * outgoing packet.
  */
-void pool4empty_find(struct ipv4_range *range)
+verdict pool4empty_find(struct xlation *state, struct ipv4_range *range)
 {
-	range->prefix.addr.s_addr = 0;
+	verdict result;
+
+	if (__rfc6052_6to4(&state->jool.globals.pool6.prefix,
+			&state->in.tuple.dst.addr6.l3,
+			&state->out.tuple.dst.addr4.l3))
+		return untranslatable(state, JSTAT_UNTRANSLATABLE_DST6);
+
+	result = predict_route64(state);
+	if (result != VERDICT_CONTINUE)
+		return result;
+
+	range->prefix.addr.s_addr = state->flowx.v4.flowi.saddr;
 	range->prefix.len = 0;
 	range->ports.min = DEFAULT_POOL4_MIN_PORT;
 	range->ports.max = DEFAULT_POOL4_MAX_PORT;
+	return VERDICT_CONTINUE;
 }

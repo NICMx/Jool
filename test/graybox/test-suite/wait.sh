@@ -11,6 +11,13 @@
 
 echo "Waiting for the network to be ready..."
 
+# It seems there are some handshakes that get confused if we ping too early.
+# According to my tests, they take about 2 seconds.
+# If we ping during these handshakes, sometimes it seems to run into some sort
+# of temporary deadlock, which can last up to like 10 seconds.
+# We avoid this deadlock by wasting 2 seconds and a bit of extra.
+sleep 3
+
 for i in $(seq 10); do
 	ip netns exec client6ns ping6 $1 -c 1 >/dev/null 2>&1
 	if [ $? -eq 0 ]; then

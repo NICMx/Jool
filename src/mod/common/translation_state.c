@@ -37,6 +37,8 @@ void xlation_init(struct xlation *state, struct xlator *jool)
 
 void xlation_destroy(struct xlation *state)
 {
+	if (state->dst)
+		dst_release(state->dst);
 	wkmem_cache_free("xlation", xlation_cache, state);
 }
 

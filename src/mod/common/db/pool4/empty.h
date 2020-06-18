@@ -5,6 +5,6 @@
 #include "mod/common/packet.h"
 
 bool pool4empty_contains(struct net *ns, const struct ipv4_transport_addr *addr);
-void pool4empty_find(struct ipv4_range *range);
+verdict pool4empty_find(struct xlation *state, struct ipv4_range *range);
 
 #endif /* SRC_MOD_NAT64_POOL4_EMPTY_H_ */

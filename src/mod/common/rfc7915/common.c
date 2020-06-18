@@ -225,16 +225,16 @@ void restore_outer_packet(struct xlation *state, struct bkp_skb_tuple *bkp,
 		restore_pointers(&state->out, &bkp->out);
 }
 
-verdict xlat_l4_function(struct xlation *state, union flowix const *flowx,
+verdict xlat_l4_function(struct xlation *state,
 		struct translation_steps const *steps)
 {
 	switch (state->in.l4_proto) {
 	case L4PROTO_TCP:
-		return steps->xlat_tcp(state, flowx);
+		return steps->xlat_tcp(state);
 	case L4PROTO_UDP:
-		return steps->xlat_udp(state, flowx);
+		return steps->xlat_udp(state);
 	case L4PROTO_ICMP:
-		return steps->xlat_icmp(state, flowx);
+		return steps->xlat_icmp(state);
 	case L4PROTO_OTHER:
 		return VERDICT_CONTINUE;
 	}
@@ -244,7 +244,6 @@ verdict xlat_l4_function(struct xlation *state, union flowix const *flowx,
 }
 
 verdict ttpcomm_translate_inner_packet(struct xlation *state,
-		union flowix const *flowx,
 		struct translation_steps const *steps)
 {
 	struct bkp_skb_tuple bkp;
@@ -254,7 +253,7 @@ verdict ttpcomm_translate_inner_packet(struct xlation *state,
 	if (result != VERDICT_CONTINUE)
 		return result;
 
-	result = steps->xlat_inner_l3(state, flowx);
+	result = steps->xlat_inner_l3(state);
 	if (result == VERDICT_UNTRANSLATABLE) {
 		/*
 		 * Accepting because of an inner packet doesn't make sense.
@@ -266,7 +265,7 @@ verdict ttpcomm_translate_inner_packet(struct xlation *state,
 	if (result != VERDICT_CONTINUE)
 		goto end;
 
-	result = xlat_l4_function(state, flowx, steps);
+	result = xlat_l4_function(state, steps);
 	if (result == VERDICT_UNTRANSLATABLE)
 		result = VERDICT_DROP;
 

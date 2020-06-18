@@ -46,6 +46,7 @@ static struct joolnl_stat_metadata const jstat_metadatas[] = {
 	/* TODO (warning) This one might signal a programming error. */
 	DEFINE_STAT(JSTAT_UNTRANSLATABLE_DST6, TC "IPv6 packet's destination address did not match pool6."),
 	DEFINE_STAT(JSTAT_UNTRANSLATABLE_DST4, TC "IPv4 packet's source address could not be translated with the given pool6."),
+	DEFINE_STAT(JSTAT_6056_F, TC "Unable to hash packet fields; cannot compute source port. (From my reading of the 4.15 kernel, this can only happen due to memory allocation failures, but YMMV.)"),
 	DEFINE_STAT(JSTAT_MASK_DOMAIN_NOT_FOUND, TC "There was no pool4 entry whose protocol and mark matched the incoming IPv6 packet."),
 	DEFINE_STAT(JSTAT_BIB6_NOT_FOUND, TC "IPv6 packet did not match a BIB entry from the database, and one could not be created."),
 	DEFINE_STAT(JSTAT_BIB4_NOT_FOUND, TC "IPv4 packet did not match a BIB entry from the database."),

@@ -13,4 +13,6 @@
 
 extern const struct translation_steps ttp64_steps;
 
+verdict predict_route64(struct xlation *state);
+
 #endif /* SRC_MOD_COMMON_RFC7915_6TO4_H_ */

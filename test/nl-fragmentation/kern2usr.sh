@@ -209,6 +209,7 @@ if [[ -z "$TESTS" || "$TESTS" = *nat64-session* ]]; then
 	sudo ip netns exec joolns ip addr add 2001:db8::1/96 dev to_world
 	sudo ip netns exec joolns ip addr add 192.0.2.1/24 dev to_world
 	sudo ip route add 64:ff9b::/96 via 2001:db8::1
+	sleep 3
 	
 	sudo modprobe jool
 	sudo ip netns exec joolns jool instance add --netfilter --pool6 64:ff9b::/96

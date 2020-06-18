@@ -111,21 +111,6 @@ static int xlat_dst_6to4(struct xlation *state,
 }
 
 /**
- * This is just a wrapper. Its sole intent is to minimize mess below.
- */
-static int find_mask_domain(struct xlation *state, struct mask_domain **masks)
-{
-	*masks = mask_domain_find(state->jool.nat64.pool4, &state->in.tuple,
-			state->jool.globals.nat64.f_args, state->in.skb->mark);
-	if (*masks)
-		return 0;
-
-	log_debug("There is no mask domain mapped to mark %u.",
-			state->in.skb->mark);
-	return -EINVAL;
-}
-
-/**
  * Assumes that "tuple" represents a IPv6-UDP or ICMP packet, and filters and
  * updates based on it.
  *
@@ -139,11 +124,16 @@ static verdict ipv6_simple(struct xlation *state)
 	struct ipv4_transport_addr dst4;
 	struct mask_domain *masks;
 	int error;
+	verdict result;
 
 	if (xlat_dst_6to4(state, &dst4))
 		return drop(state, JSTAT_UNTRANSLATABLE_DST6);
-	if (find_mask_domain(state, &masks))
-		return drop(state, JSTAT_MASK_DOMAIN_NOT_FOUND);
+	result = mask_domain_find(state, &masks);
+	if (result != VERDICT_CONTINUE) {
+		log_debug("There is no mask domain mapped to mark %u.",
+				state->in.skb->mark);
+		return result;
+	}
 
 	error = bib_add6(state, masks, &state->in.tuple, &dst4);
 
@@ -459,8 +449,12 @@ static verdict ipv6_tcp(struct xlation *state)
 
 	if (xlat_dst_6to4(state, &dst4))
 		return drop(state, JSTAT_UNTRANSLATABLE_DST6);
-	if (find_mask_domain(state, &masks))
-		return drop(state, JSTAT_MASK_DOMAIN_NOT_FOUND);
+	result = mask_domain_find(state, &masks);
+	if (result != VERDICT_CONTINUE) {
+		log_debug("There is no mask domain mapped to mark %u.",
+				state->in.skb->mark);
+		return result;
+	}
 
 	cb.cb = tcp_state_machine;
 	cb.arg = state;

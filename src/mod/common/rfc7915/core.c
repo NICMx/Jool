@@ -21,7 +21,6 @@ static bool has_l4_hdr(struct xlation *state)
 verdict translating_the_packet(struct xlation *state)
 {
 	struct translation_steps const *steps;
-	union flowix flowx;
 	verdict result;
 
 	switch (xlator_get_type(&state->jool)) {
@@ -45,14 +44,14 @@ verdict translating_the_packet(struct xlation *state)
 		return drop(state, JSTAT_UNKNOWN);
 	}
 
-	result = steps->skb_alloc(state, &flowx);
+	result = steps->skb_alloc(state);
 	if (result != VERDICT_CONTINUE)
 		return result;
-	result = steps->xlat_outer_l3(state, &flowx);
+	result = steps->xlat_outer_l3(state);
 	if (result != VERDICT_CONTINUE)
 		goto revert;
 	if (has_l4_hdr(state)) {
-		result = xlat_l4_function(state, &flowx, steps);
+		result = xlat_l4_function(state, steps);
 		if (result != VERDICT_CONTINUE)
 			goto revert;
 	}

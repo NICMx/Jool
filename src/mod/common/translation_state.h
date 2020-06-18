@@ -6,6 +6,28 @@
 #include "mod/common/xlator.h"
 #include "mod/common/db/bib/entry.h"
 
+/*
+ * Fields that need to be translated prematurely because the routing functions
+ * need them as input.
+ *
+ * I named it "flowix" because it's more or less the same as a flowi (routing
+ * arguments). But it might be a misnomer because I don't exactly know what
+ * "flowi" stands for. I'm assuming it's "IP flow." The added "x" stands for
+ * "xlat." Hence "IP translation flow."
+ */
+union flowix {
+	struct {
+		struct flowi4 flowi;
+		struct in_addr inner_src;
+		struct in_addr inner_dst;
+	} v4;
+	struct {
+		struct flowi6 flowi;
+		struct in6_addr inner_src;
+		struct in6_addr inner_dst;
+	} v6;
+};
+
 struct xlation_result {
 	enum icmp_errcode icmp;
 	__u32 info;
@@ -27,8 +49,17 @@ struct xlation {
 	struct packet out;
 
 	/**
+	 * Routing arguments and result.
+	 * Needed as part of this structure because the packet sometimes needs
+	 * to be routed prematurely.
+	 */
+	bool flowx_set;
+	union flowix flowx;
+	struct dst_entry *dst;
+
+	/**
 	 * Convenient accesor to the BIB and session entries that correspond
-	 * to the packet being translated, so you don't have to find it again.
+	 * to the packet being translated, so you don't have to find them again.
 	 */
 	struct bib_session entries;
 

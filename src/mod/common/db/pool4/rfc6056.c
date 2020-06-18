@@ -145,7 +145,7 @@ static int hash_tuple(struct shash_desc *desc, __u8 fields,
 }
 
 /**
- * RFC 6056, Algorithm 3.
+ * RFC 6056, Algorithm 3. Returns a hash out of some of @tuple's fields.
  *
  * Just to clarify: Because our port pool is a somewhat complex data structure
  * (rather than a simple range), ephemerals are now handled by pool4. This

@@ -12,30 +12,8 @@
  */
 #define icmp4_unused un.gateway
 
-/*
- * Fields that need to be translated prematurely because the routing functions
- * need them as input.
- *
- * I named it "flowix" because it's more or less the same as a flowi (routing
- * arguments). But it might be a misnomer because I don't exactly know what
- * "flowi" stands for. I'm assuming it's "IP flow." The added "x" stands for
- * "xlat." Hence "IP translation flow."
- */
-union flowix {
-	struct {
-		struct flowi4 flowi;
-		struct in_addr inner_src;
-		struct in_addr inner_dst;
-	} v4;
-	struct {
-		struct flowi6 flowi;
-		struct in6_addr inner_src;
-		struct in6_addr inner_dst;
-	} v6;
-};
-
-typedef verdict (*skb_alloc_fn)(struct xlation *, union flowix *);
-typedef verdict (*header_xlat_fn)(struct xlation *, union flowix const *);
+typedef verdict (*skb_alloc_fn)(struct xlation *);
+typedef verdict (*header_xlat_fn)(struct xlation *);
 
 struct translation_steps {
 	/**
@@ -75,7 +53,6 @@ struct translation_steps {
 void partialize_skb(struct sk_buff *skb, unsigned int csum_offset);
 bool will_need_frag_hdr(const struct iphdr *hdr);
 verdict ttpcomm_translate_inner_packet(struct xlation *state,
-		union flowix const *flowx,
 		struct translation_steps const *steps);
 
 /* TODO maybe these should belong to packet */
@@ -99,7 +76,7 @@ verdict become_inner_packet(struct xlation *state, struct bkp_skb_tuple *bkp,
 void restore_outer_packet(struct xlation *state, struct bkp_skb_tuple *bkp,
 		bool do_out);
 
-verdict xlat_l4_function(struct xlation *state, union flowix const *flowx,
+verdict xlat_l4_function(struct xlation *state,
 		struct translation_steps const *steps);
 
 bool must_not_translate(struct in_addr *addr, struct net *ns);
