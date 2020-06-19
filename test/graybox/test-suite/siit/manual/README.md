@@ -4,7 +4,7 @@ In contrast with the "auto" (pktgen) tests, the manual tests were generated manu
 
 ## 6791v64
 
-Test of pool6791v4. It's missing an empty pool counterpart.
+Test of pool6791v4, populated version.
 
 	packet 6791v64t
 		40	IPv6	src:4000::1
@@ -22,29 +22,59 @@ Test of pool6791v4. It's missing an empty pool counterpart.
 
 Source address is untranslatable, so it gets assigned the pool6791v4 entry.
 
-## empty6791-64
+## 6791v64-empty
 
-This is a puzzling one. From the name it seems like another attempt to check pool6791v4 assignment (which would make it a duplicate of [`6791v64`](#6791v64)), but the original blueprint looked like this:
+Test of pool6791v64, empty version.
 
-	packet e6791-64-sender-nofrag
-		40	IPv6	src:2001:db8:2::
-		8	ICMPv6	type:1 code:0
-		40	IPv6	swap
+	packet 6791v64t-empty
+		Same as 6791v64t.
+
+	packet 6791v64e-empty
+		20	IPv4	!df ttl-- swap src:198.51.100.1
+		8	ICMPv4
+		20	IPv4	!df
+		8	UDP
+		32	Payload
+
+Environment: Empty pool6791v4.
+
+## 6791v46
+
+- Set `pool6` to null
+- Set `rfc6791v6-prefix` to 2::2
+- Add EAM entry: 198.51.100 | 2001:db8:1c6:3364::/72
+- Add EAM entry: 192.0.2 | 2001:db8:1c0:2/72
+
+	packet 6791v46t
+		20	IPv4	src:2.0.0.2
+		8	ICMPv4
+		20	IPv4	ttl-- swap
 		8	UDP
 		4	Payload
 
-	packet e6791-64-receiver-nofrag
-		20	IPv4	src:198.51.100.1 dst:198.51.100.2 ttl--
-		8	ICMPv4	type:3 code:1
-		20	IPv4
+	packet 6791v46e
+		40	IPv6	ttl-- src:2::2 dst:2001:db8:1c0:2:21::
+		8	ICMPv6
+		40	IPv6	ttl--
 		8	UDP
 		4	Payload
 
-The source address is translatable (and does not yield 198.51.100.1), which suggests the test was already obsolete by the time it was git'd. I suppose this isn't too strange because, for some reason, the test was never actually referenced in the run script; it's been dormant this whole time.
+## 6791v46-empty
 
-The packets don't feature any additional peculiarities, so I don't think there is a reason to retain them.
+- Set pool6 to null
+- Set rfc6791v6-prefix to null
+- Add EAM entry: 198.51.100 | 2001:db8:1c6:3364::/72
+- Add EAM entry: 192.0.2 | 2001:db8:1c0:2/72
 
-Deleted.
+	packet 6791v46t-empty
+		Same as 6791v46t.
+
+	packet 6791v46e-empty
+		40	IPv6	ttl-- src:2001:db8:1c0:2:1:: dst:2001:db8:1c0:2:21::
+		8	ICMPv6
+		40	IPv6	ttl--
+		8	UDP
+		4	Payload
 
 ## 6791v66
 

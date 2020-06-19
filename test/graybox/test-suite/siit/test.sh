@@ -205,6 +205,21 @@ fi
 if [ -z "$1" -o "$1" = "misc" ]; then
 	test64_11 manual 6791v64t 6791v64e $IDENTIFICATION,$INNER_IDENTIFICATION
 	test66_11 manual 6791v66t 6791v66e
+
+	ip netns exec joolns jool_siit global update rfc6791v4-prefix null
+	test64_11 manual 6791v64t 6791v64e-empty $IDENTIFICATION,$INNER_IDENTIFICATION
+	ip netns exec joolns jool_siit global update rfc6791v4-prefix 203.0.113.8
+
+	ip netns exec joolns jool_siit global update pool6 null
+	ip netns exec joolns jool_siit eamt add 198.51.100.0/24 2001:db8:1c6:3364::/72
+	ip netns exec joolns jool_siit eamt add 192.0.2.0/24 2001:db8:1c0:2::/72
+	test46_11 manual 6791v46t 6791v46e-empty
+	ip netns exec joolns jool_siit global update rfc6791v6-prefix 2::2
+	test46_11 manual 6791v46t 6791v46e
+	ip netns exec joolns jool_siit global update pool6 2001:db8:100::/40
+	ip netns exec joolns jool_siit eamt remove 198.51.100.0/24 2001:db8:1c6:3364::/72
+	ip netns exec joolns jool_siit eamt remove 192.0.2.0/24 2001:db8:1c0:2::/72
+	ip netns exec joolns jool_siit global update rfc6791v6-prefix null
 fi
 
 # "RFC 6791" tests
@@ -295,11 +310,15 @@ if [ -z "$1" -o "$1" = "rfc7915" ]; then
 	test66_11 7915 gat1 gae1
 
 	# h
-	test46_11 7915 hat1 hae1 $IDENTIFICATION,$INNER_IDENTIFICATION
-	# TODO there seems to be a missing test here
+	test46_11 7915 hat1 hae1
+	test46_11 7915 hat2 hae2
 
 	# i
-	# TODO there seem to be several missing tests here
+	test64_11 7915 ia1t ia1e $IDENTIFICATION,$INNER_IDENTIFICATION
+	test46_11 7915 ia2t ia2e
+	test64_11 7915 ib1t ib1e $IDENTIFICATION,$INNER_IDENTIFICATION
+	test46_11 7915 ib2t ib2e
+	test46_11 7915 ib3t ib3e
 	test64_11 7915 ic1t ic1e $IDENTIFICATION,$INNER_IDENTIFICATION
 	test64_11 7915 ic2t ic2e $IDENTIFICATION,$INNER_IDENTIFICATION
 	test64_11 7915 ic3t ic3e $IDENTIFICATION,$INNER_IDENTIFICATION

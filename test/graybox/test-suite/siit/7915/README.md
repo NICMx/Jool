@@ -1330,93 +1330,115 @@ Hairpinning on SIIT is actually RFC 7757's realm. This test was adapted from [77
 #### ia
 
 - Requirement: Jool should treat ICMP extensions like opaque strings, but update the ICMP header length.
-- Test packets:
-	1. Small ICMPv6 error with ICMP extensions
-		1. IPv6
-		2. ICMPv6 (1/4, length 16)
-		3. IPv6: 40 (swap addresses, TTL-1)
-		4. TCP: 20
-		5. Payload: 68
-		7. ICMP extension: 20
-	2. Small ICMPv4 error with ICMP extensions
-		1. IPv4
-		2. ICMPv4 (3/3, length 32)
-		3. IPv4: 20
-		4. TCP: 20
-		5. Payload: 88
-		7. ICMP extension: 20
-- Expected packets:
-	1. Small ICMPv4 error with ICMP extensions
-		1. IPv4
-		2. ICMPv4 (3/3, length 32)
-		3. IPv4: 40 (swap addresses, TTL-1)
-		4. TCP: 20
-		5. Payload: 68
-		7. ICMP extension: 20
-	2. Small ICMPv6 error with ICMP extensions
-		1. IPv6
-		2. ICMPv6 (1/4, length 16)
-		3. IPv6: 20
-		4. TCP: 20
-		5. Payload: 88
-		7. ICMP extension: 20
-- Validations: `test-n` must yield `expected-n`.
+- Validations: `ia<n>t` must yield `ia<n>e`.
+
+	packet ia1t: Small ICMPv6 error with ICMP extensions
+		40	IPv6
+		8	ICMPv6	type:1 code:4 length:19
+		40	IPv6	ttl-- swap payloadLength:112
+		20	TCP
+		92	Payload
+		20	Payload # ICMP Extension
+
+	packet ia1e: Small ICMPv4 error with ICMP extensions
+		20	IPv4	ttl-- !df swap
+		8	ICMPv4	type:3 code:3 length:33
+		20	IPv4	ttl-- !df totalLength:132
+		20	TCP
+		92	Payload
+		20	Payload # ICMP extension
+
+	packet ia2t: Small ICMPv4 error with ICMP extensions
+		20	IPv4
+		8	ICMPv4	type:3 code:3 length:33
+		20	IPv4	ttl-- swap totalLength:132
+		20	TCP
+		92	Payload
+		20	Payload # ICMP Extension
+
+	packet ia2e: Small ICMPv6 error with ICMP extensions
+		40	IPv6	ttl-- swap
+		8	ICMPv6	type:1 code:4 length:19
+		40	IPv6	ttl-- payloadLength:112
+		20	TCP
+		92	Payload
+		20	Payload # ICMP extension
 
 #### ib
 
 This is not actually required by the RFC. It's just my common sense speaking.
 
 - Requirement: Jool needs to adjust padding and length to make up for the difference between the ICMPv6 and ICMPv4 length units.
-- Test packets:
-	1. ICMPv6 error with ICMP extensions
-		1. IPv6
-		2. ICMPv6 (1/4, length 16)
-		3. IPv6: 40 (swap addresses, TTL-1)
-		4. TCP: 20
-		5. Payload: 61
-		6. Padding: 7
-		7. ICMP extension: 20
-	2. ICMPv4 error with ICMP extensions
-		1. IPv4
-		2. ICMPv4 (3/3, length 32)
-		3. IPv4: 20
-		4. TCP: 20
-		5. Payload: 86
-		6. Padding: 2
-		7. ICMP extension: 20
-	3. ICMPv4 error without padding, but internal packet length not multiple of 8
-		1. IPv4
-		2. ICMPv4 (3/3, length 31)
-		3. IPv4: 20
-		4. TCP: 20
-		5. Payload: 84
-		7. ICMP extension: 20
-- Expected packets:
-	1. ICMPv4 error with ICMP extensions
-		1. IPv4
-		2. ICMPv4 (3/3, length 32)
-		3. IPv4: 40 (swap addresses, TTL-1)
-		4. TCP: 20
-		5. Payload: 61
-		6. Padding: 7
-		7. ICMP extension: 20
-	2. ICMPv6 error with ICMP extensions
-		1. IPv6
-		2. ICMPv6 (1/4, length 16)
-		3. IPv6: 20
-		4. TCP: 20
-		5. Payload: 86
-		6. Padding: 2
-		7. ICMP extension: 20
-	3. ICMPv6 error with padding
-		1. IPv6
-		2. ICMPv6 (1/4, length 16)
-		3. IPv6: 20
-		4. TCP: 20
-		5. Payload: 84
-		6. Padding: 4
-		7. ICMP extension: 20
-- Validation: `test-n` must yield `expected-n`.
+- Validation: `ib<n>t` must yield `ib<n>e`.
+
+	packet ib1th
+		40	IPv6	ttl-- swap
+		20	TCP
+		62	Payload
+
+	packet ib1t: ICMPv6 error with ICMP extensions
+		40	IPv6
+		8	ICMPv6	type:1 code:4 length:16
+		122	Payload	file:ib1th
+		6	Padding
+		20	Payload # ICMP extension
+
+	packet ib1eh
+		20	IPv4	!df ttl--
+		20	TCP
+		62	Payload
+
+	packet ib1e: ICMPv4 error with ICMP extensions
+		20	IPv4	!df ttl-- swap
+		8	ICMPv4	type:3 code:3 length:32
+		102	Payload	file:ib1eh
+		26	Padding
+		20	Payload # ICMP extension
+
+	packet ib2th
+		20	IPv4	ttl-- swap
+		20	TCP
+		86	Payload
+
+	packet ib2t: ICMPv4 error with ICMP extensions
+		20	IPv4
+		8	ICMPv4	type:3 code:3 length:32
+		126	Payload	file:ib2th
+		2	Padding
+		20	Payload # ICMP extension
+
+	packet ib2eh
+		40	IPv6	ttl--
+		20	TCP
+		86	Payload
+
+	packet ib2e: ICMPv6 error with ICMP extensions
+		40	IPv6	ttl-- swap
+		8	ICMPv6	type:1 code:4 length:18
+		144	Payload	file:ib2eh
+		20	Payload # ICMP extension
+
+	packet ib3th
+		20	IPv4	ttl-- swap
+		20	TCP
+		88	Payload
+
+	packet ib3t: ICMPv4 error without padding, but internal packet length not multiple of 8
+		20	IPv4
+		8	ICMPv4	type:3 code:3 length:32
+		128	Payload	file:ib3th
+		20	Payload # ICMP extension
+
+	packet ib3eh
+		40	IPv6	ttl--
+		20	TCP
+		88	Payload
+
+	packet ib3e: ICMPv6 error with padding
+		40	IPv6	ttl-- swap
+		8	ICMPv6	type:1 code:4 length:18
+		144	Payload	file:ib3eh
+		20	Payload # ICMP extension
 
 #### ic
 
