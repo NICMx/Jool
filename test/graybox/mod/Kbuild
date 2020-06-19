@@ -3,6 +3,7 @@ ccflags-y := -I$(src)/.. -I$(src)/../../../src
 
 obj-m += graybox.o
 
+graybox-objs += diff.o
 graybox-objs += nf_hook.o
 graybox-objs += expecter.o
 graybox-objs += genetlink.o

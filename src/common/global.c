@@ -192,6 +192,20 @@ static int nl2raw_pool6791v4(struct nlattr *attr, void *raw, bool force)
 	return validate_prefix6791v4(prefix, force);
 }
 
+static int nl2raw_lowest_ipv6_mtu(struct nlattr *attr, void *raw, bool force)
+{
+	__u32 lim;
+
+	lim = nla_get_u32(attr);
+	if (lim < 1280) {
+		log_err("lowest-ipv6-mtu (%u) is too small (min: 1280).", lim);
+		return -EINVAL;
+	}
+
+	*((__u32 *)raw) = lim;
+	return 0;
+}
+
 static int nl2raw_hairpin_mode(struct nlattr *attr, void *raw, bool force)
 {
 	__u8 mode;
@@ -786,6 +800,16 @@ static const struct joolnl_global_meta globals_metadata[] = {
 		.offset = offsetof(struct jool_globals, new_tos),
 		.xt = XT_ANY,
 	}, {
+		.id = JNLAG_LOWEST_IPV6_MTU,
+		.name = "lowest-ipv6-mtu",
+		.type = &gt_uint32,
+		.doc = "Smallest reachable IPv6 MTU.",
+		.offset = offsetof(struct jool_globals, lowest_ipv6_mtu),
+		.xt = XT_ANY,
+#ifdef __KERNEL__
+		.nl2raw = nl2raw_lowest_ipv6_mtu,
+#endif
+	} , {
 		.id = JNLAG_PLATEAUS,
 		.name = "mtu-plateaus",
 		.type = &gt_plateaus,
@@ -1011,6 +1035,8 @@ struct joolnl_global_meta const *joolnl_global_id2meta(enum joolnl_attr_global i
 {
 	struct joolnl_global_meta const *meta;
 
+	if (id < 1 || JNLAG_MAX < id)
+		return NULL;
 	if (id == globals_metadata[id - 1].id)
 		return &globals_metadata[id - 1];
 

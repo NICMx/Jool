@@ -1,5 +1,4 @@
-# Note to myself: documentation tends to call these "PROGRAMS" "targets".
-# "graybox" is a "target".
+AUTOMAKE_OPTIONS = foreign
 
 bin_PROGRAMS = graybox
 graybox_SOURCES = \

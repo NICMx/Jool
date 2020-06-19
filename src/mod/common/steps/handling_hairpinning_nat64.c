@@ -51,6 +51,7 @@ verdict handling_hairpinning_nat64(struct xlation *old)
 	if (!new)
 		return VERDICT_DROP;
 	new->in = old->out;
+	new->is_hairpin = true;
 
 	result = filtering_and_updating(new);
 	if (result != VERDICT_CONTINUE)

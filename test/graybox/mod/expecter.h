@@ -12,13 +12,11 @@ struct expected_packet {
 	struct mtu_plateaus exceptions;
 };
 
-void expecter_setup(void);
+int expecter_setup(void);
 void expecter_teardown(void);
 
 int expecter_add(struct expected_packet *pkt);
 void expecter_flush(void);
-
-int expecter_handle_pkt(struct sk_buff *skb);
 
 void expecter_stat(struct graybox_stats *result);
 void expecter_stat_flush(void);

@@ -3,11 +3,11 @@
 #include <linux/version.h>
 #include "expecter.h"
 #include "genetlink.h"
+#include "log.h"
 #include "sender.h"
 #include "common/types.h"
 #include "mod/common/error_pool.h"
 #include "mod/common/linux_version.h"
-#include "mod/common/log.h"
 
 static DEFINE_MUTEX(config_mutex);
 
@@ -27,7 +27,7 @@ static int handle_expect_add(struct genl_info *info)
 	struct nlattr *attr;
 	int rem;
 
-	log_debug("Handling expect add.");
+	log_debug("========= Expect Add =========");
 
 	if (verify_superpriv())
 		return -EPERM;
@@ -70,7 +70,7 @@ static int handle_send(struct genl_info *info)
 	struct nlattr *attr;
 	int error;
 
-	log_debug("Handling send.");
+	log_debug("========= Send =========");
 
 	attr = info->attrs[ATTR_FILENAME];
 	if (!attr) {
@@ -86,12 +86,13 @@ static int handle_send(struct genl_info *info)
 	}
 
 	error = sender_send(filename, nla_data(attr), nla_len(attr));
+	log_debug("Ending graybox send");
 	return genl_respond(info, error);
 }
 
 static int handle_expect_flush(struct genl_info *info)
 {
-	log_debug("Handling expect flush.");
+	log_debug("========= Expect Flush =========");
 
 	if (verify_superpriv())
 		return -EPERM;
@@ -104,7 +105,7 @@ static int handle_stats_display(struct genl_info *info)
 {
 	struct graybox_stats stats;
 
-	log_debug("Handling stats display.");
+	log_debug("========= Stats Display =========");
 
 	expecter_stat(&stats);
 	return genl_respond_attr(info, ATTR_STATS, &stats, sizeof(stats));
@@ -112,7 +113,7 @@ static int handle_stats_display(struct genl_info *info)
 
 static int handle_stats_flush(struct genl_info *info)
 {
-	log_debug("Handling stats flush.");
+	log_debug("========= Stats Flush =========");
 
 	expecter_stat_flush();
 	return genl_respond(info, 0);
@@ -196,9 +197,7 @@ int nlhandler_setup(void)
 {
 	int error;
 
-#if LINUX_VERSION_LOWER_THAN(3, 13, 0, 7, 1)
-	error = genl_register_family_with_ops(&family, ops, ARRAY_SIZE(ops));
-#elif LINUX_VERSION_LOWER_THAN(4, 10, 0, 7, 5)
+#if LINUX_VERSION_LOWER_THAN(4, 10, 0, 7, 5)
 	error = genl_register_family_with_ops(&family, ops);
 #else
 	error = genl_register_family(&family);

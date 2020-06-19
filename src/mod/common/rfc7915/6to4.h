@@ -9,35 +9,10 @@
  * the technology called "6to4", which is RFC 3056.
  */
 
-#include "mod/common/translation_state.h"
+#include "mod/common/rfc7915/common.h"
 
-/**
- * Creates in "state->out.skb" a packet which other functions will fill with the
- * IPv4 version of the IPv6 packet "state->in.skb".
- */
-verdict ttp64_alloc_skb(struct xlation *state);
-/**
- * Translates "state->in"'s IPv6 header into IPv4 and places the result in
- * "state->out".
- */
-verdict ttp64_ipv4(struct xlation *state);
-/**
- * Translates "state->in"'s ICMPv6 header and payload, and places the result in
- * "state->out".
- */
-verdict ttp64_icmp(struct xlation *state);
-/**
- * Translates "state->in"'s TCP header and payload, and places the result in
- * "state->out".
- */
-verdict ttp64_tcp(struct xlation *state);
-/**
- * Translates "state->in"'s UDP header and payload, and places the result in
- * "state->out".
- */
-verdict ttp64_udp(struct xlation *state);
+extern const struct translation_steps ttp64_steps;
 
-__u8 ttp64_xlat_tos(struct jool_globals *config, struct ipv6hdr *hdr);
-__u8 ttp64_xlat_proto(struct ipv6hdr *hdr);
+verdict predict_route64(struct xlation *state);
 
 #endif /* SRC_MOD_COMMON_RFC7915_6TO4_H_ */

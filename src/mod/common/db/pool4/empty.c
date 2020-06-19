@@ -7,7 +7,10 @@
 #include "mod/common/ipv6_hdr_iterator.h"
 #include "mod/common/linux_version.h"
 #include "mod/common/log.h"
+#include "mod/common/rfc6052.h"
+#include "mod/common/translation_state.h"
 #include "mod/common/xlator.h"
+#include "mod/common/rfc7915/6to4.h"
 
 static bool contains_addr(struct net *ns, const struct in_addr *addr)
 {
@@ -50,7 +53,6 @@ bool pool4empty_contains(struct net *ns, const struct ipv4_transport_addr *addr)
 
 	if (addr->l4 < DEFAULT_POOL4_MIN_PORT)
 		return false;
-	/* I sure hope this gets compiled out :p */
 	if (DEFAULT_POOL4_MAX_PORT < addr->l4)
 		return false;
 
@@ -62,45 +64,25 @@ bool pool4empty_contains(struct net *ns, const struct ipv4_transport_addr *addr)
 }
 
 /**
- * Initializes @range with the address candidates that could source a packet
- * routed with @route_args.
+ * Initializes @range with the address candidates that could source @state's
+ * outgoing packet.
  */
-int pool4empty_find(struct route4_args *route_args, struct ipv4_range *range)
+verdict pool4empty_find(struct xlation *state, struct ipv4_range *range)
 {
-	struct dst_entry *dst;
+	verdict result;
 
-	dst = __route4(route_args, NULL);
-	if (!dst)
-		return -ENOMEM;
+	if (__rfc6052_6to4(&state->jool.globals.pool6.prefix,
+			&state->in.tuple.dst.addr6.l3,
+			&state->out.tuple.dst.addr4.l3))
+		return untranslatable(state, JSTAT_UNTRANSLATABLE_DST6);
 
-	/*
-	 * For some strange reason I used to have a near complete ripoff of
-	 * inet_select_addr() here. It kind of looks like the reason was that
-	 * it had some special code that (seemingly) handled hairpinning but,
-	 * after testing inet_select_addr(), it doesn't appear to make any
-	 * difference.
-	 * Consider trying the old code if this somehow fails. The last commit
-	 * that had it was 00bb35f5ea2a6e23a8530f2e3e033d1afd964708.
-	 */
-	range->prefix.addr.s_addr = inet_select_addr(dst->dev,
-			route_args->daddr.s_addr,
-			RT_SCOPE_UNIVERSE);
-	if (range->prefix.addr.s_addr) {
-		range->prefix.len = 32;
-		range->ports.min = DEFAULT_POOL4_MIN_PORT;
-		range->ports.max = DEFAULT_POOL4_MAX_PORT;
-	} else {
-		log_debug("Couldn't find a good source address candidate.");
-	}
+	result = predict_route64(state);
+	if (result != VERDICT_CONTINUE)
+		return result;
 
-	/*
-	 * The outgoing packet hasn't been allocated yet, so we don't have a
-	 * placeholder for this. We will therefore have to regenerate it later.
-	 * Life sucks :-)
-	 *
-	 * TODO (performance) if you can send the xlator in, we would have a
-	 * placeholder.
-	 */
-	dst_release(dst);
-	return range->prefix.addr.s_addr ? 0 : -ESRCH;
+	range->prefix.addr.s_addr = state->flowx.v4.flowi.saddr;
+	range->prefix.len = 0;
+	range->ports.min = DEFAULT_POOL4_MIN_PORT;
+	range->ports.max = DEFAULT_POOL4_MAX_PORT;
+	return VERDICT_CONTINUE;
 }

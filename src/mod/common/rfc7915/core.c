@@ -1,7 +1,8 @@
 #include "mod/common/rfc7915/core.h"
 
 #include "mod/common/log.h"
-#include "mod/common/rfc7915/common.h"
+#include "mod/common/rfc7915/4to6.h"
+#include "mod/common/rfc7915/6to4.h"
 
 static bool has_l4_hdr(struct xlation *state)
 {
@@ -19,24 +20,38 @@ static bool has_l4_hdr(struct xlation *state)
 
 verdict translating_the_packet(struct xlation *state)
 {
-	struct translation_steps *steps = ttpcomm_get_steps(&state->in);
+	struct translation_steps const *steps;
 	verdict result;
 
-	if (xlation_is_nat64(state))
+	switch (xlator_get_type(&state->jool)) {
+	case XT_NAT64:
 		log_debug("Step 4: Translating the Packet");
-	else
+		break;
+	case XT_SIIT:
 		log_debug("Translating the Packet.");
+		break;
+	}
 
-	result = steps->skb_alloc_fn(state);
+	switch (pkt_l3_proto(&state->in)) {
+	case L3PROTO_IPV6:
+		steps = &ttp64_steps;
+		break;
+	case L3PROTO_IPV4:
+		steps = &ttp46_steps;
+		break;
+	default:
+		WARN(1, "Unknown l3 proto: %u", pkt_l3_proto(&state->in));
+		return drop(state, JSTAT_UNKNOWN);
+	}
+
+	result = steps->skb_alloc(state);
 	if (result != VERDICT_CONTINUE)
 		return result;
-
-	result = steps->l3_hdr_fn(state);
+	result = steps->xlat_outer_l3(state);
 	if (result != VERDICT_CONTINUE)
 		goto revert;
-
 	if (has_l4_hdr(state)) {
-		result = steps->l4_hdr_fn(state);
+		result = xlat_l4_function(state, steps);
 		if (result != VERDICT_CONTINUE)
 			goto revert;
 	}
@@ -46,6 +61,6 @@ verdict translating_the_packet(struct xlation *state)
 	return VERDICT_CONTINUE;
 
 revert:
-	kfree_skb(state->out.skb);
+	kfree_skb_list(state->out.skb);
 	return result;
 }

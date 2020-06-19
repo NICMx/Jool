@@ -20,9 +20,9 @@ Jool is an Open Source [SIIT and NAT64](intro-xlat.html) for Linux.
 
 ## Status
 
-As far as we know, Jool is a [generally compliant](intro-jool.html#compliance) SIIT and Stateful NAT64.
+As far as we know, Jool is a [compliant](intro-jool.html#compliance) SIIT and Stateful NAT64.
 
-Its most mature version is [4.0.9]({{ site.repository-url }}/milestone/48).
+Its latest version is [4.1.0](downloads.html#41x) and its most mature version is [4.0.9](downloads.html#40x).
 
 -------------------
 
@@ -34,16 +34,18 @@ Its most mature version is [4.0.9]({{ site.repository-url }}/milestone/48).
 
 ## Latest News
 
-### 2020-05-05
+### 2020-06-16
 
-[Jool 4.0.9](download.html) has been released.
+[Jool 4.1.0](download.html) has been released.
 
-Bugfixes:
+Improvements:
 
-1. [#325](https://github.com/NICMx/Jool/issues/325): Patch userspace compilation error triggered when different versions of Jool's libraries are already installed in the system.
-2. [#326](https://github.com/NICMx/Jool/issues/326): Patch userspace-kernel communication on newer kernels. (This bug was introduced in Jool 4.0.8.)
-3. Added support for kernel 5.6.
+1. [#136](https://github.com/NICMx/Jool/issues/136): Implement [`lowest-ipv6-mtu`](usr-flags-global.html#lowest-ipv6-mtu).
+2. Implement shallow translation of ICMP extensions. (RFC 7915 pp. [13](https://tools.ietf.org/html/rfc7915#page-13), [22](https://tools.ietf.org/html/rfc7915#page-22))
+3. [#329](https://github.com/NICMx/Jool/issues/329): Add support for kernel 5.7.
 
-In other news, Jool 4.0.7 is now available in Ubuntu 20.04 (Focal Fossa)'s stable release:
+There is one downgrade:
 
-	sudo apt install jool-dkms jool-tools
+1. 4.1.0 drops support for kernels 3.13 - 3.15, and RHEL 7.0 - 7.5. Here's the updated [compatibility table](intro-jool.html#compatibility).
+
+Also, note that `lowest-ipv6-mtu`'s paranoid default might induce unnecessary fragmentation. If you want 4.1.0 to reach 4.0.9's performance, please review the [MTU documentation](mtu.html).

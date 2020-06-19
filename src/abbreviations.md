@@ -22,6 +22,7 @@ Some shortcuts used while naming variables and functions through the code or doc
 - err = error
 - est = established session (inherited from RFC 6146.)
 - fn = function ("this parameter is a pointer to a function.")
+- FN = Fragmentation Needed (ICMPv4 error type 3 code 4)
 - frag = fragment
 - hdr = header
 - init = initialize
@@ -40,6 +41,7 @@ Some shortcuts used while naming variables and functions through the code or doc
 - pkt = packet
 - proto = protocol
 - ptr = pointer
+- PTB = Packet Too Big (ICMPv6 error type 2 code 0)
 - rm = remove
 	- "remove" stands for "take out of a database".  
 	  Sometimes, this also means the entry is deleted.

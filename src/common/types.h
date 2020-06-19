@@ -183,13 +183,6 @@ struct ipv4_range {
 	struct port_range ports;
 };
 
-/*
-struct pool4_range {
-	struct in_addr addr;
-	struct port_range ports;
-};
-*/
-
 struct pool4_entry {
 	__u32 mark;
 	/**

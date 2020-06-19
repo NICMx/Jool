@@ -44,6 +44,7 @@ $(PAGE)-objs += ../../../src/mod/common/db/rfc6791v4.o
 $(PAGE)-objs += ../../../src/mod/common/db/rfc6791v6.o
 $(PAGE)-objs += ../../../src/mod/common/nl/attribute.o
 
+$(PAGE)-objs += ../../../src/mod/common/steps/compute_outgoing_tuple_siit.o
 $(PAGE)-objs += ../../../src/mod/common/steps/handling_hairpinning_siit.o
 $(PAGE)-objs += ../../../src/mod/common/rfc7915/4to6.o
 $(PAGE)-objs += ../../../src/mod/common/rfc7915/6to4.o
@@ -52,7 +53,6 @@ $(PAGE)-objs += ../../../src/mod/common/rfc7915/core.o
 $(PAGE)-objs += ../../../src/mod/common/core.o
 
 $(PAGE)-objs += page_test.o
-
 
 all:
 	make -C ${KERNEL_DIR} M=$$PWD;

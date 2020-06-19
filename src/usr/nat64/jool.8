@@ -1,7 +1,7 @@
 .\" Manpage for jool's userspace app.
 .\" Report bugs to jool@nic.mx.
 
-.TH jool 8 2020-05-05 v4.0.9 "NAT64 Jool's Userspace Client"
+.TH jool 8 2020-06-16 v4.1.0 "NAT64 Jool's Userspace Client"
 
 .SH NAME
 jool - Interact with NAT64 Jool (the kernel module).
@@ -307,6 +307,8 @@ Override the IPv4 header's 'TOS' field as --tos?
 Otherwise copy from IPv6 header's 'Traffic Class'.
 .IP "tos <Unsigned 8-bit integer>"
 Value to override TOS as (only when override-tos is ON)
+.IP "lowest-ipv6-mtu <Unsigned 32-bit integer>"
+Smallest reachable IPv6 MTU.
 .IP "mtu-plateaus <Comma-separated list of unsigned 16-bit integers>"
 Set the list of plateaus for ICMPv4 Fragmentation Neededs with MTU unset.
 .IP "address-dependent-filtering <Boolean>"

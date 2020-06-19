@@ -5,7 +5,7 @@
 #include <netlink/msg.h>
 #include "common/graybox-types.h"
 
-#define MAX_EXCEPTIONS 64
+#define MAX_EXCEPTIONS 64u
 
 struct expect_add_request {
 	char *file_name;

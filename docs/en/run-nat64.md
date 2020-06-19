@@ -151,7 +151,7 @@ user@T:~# /sbin/modprobe -r jool
 
 ## Afterwords
 
-1. More complex setups might require you to consider the [MTU notes](mtu.html).
+1. If you care about performance, you might want to raise [`lowest-ipv6-mtu`](mtu.html).
 3. Please note that none of what was done in this tutorial survives reboots! [Here](run-persistent.html)'s documentation on persistence.
 
 The [next tutorial](dns64.html) explains DNS64.

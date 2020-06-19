@@ -9,7 +9,7 @@ static bool is_illegal_source(struct in6_addr *src)
 {
 	/*
 	 * The RFC does not define "illegal source address"...
-	 * TODO think about this.
+	 * TODO (warning) think about this.
 	 */
 	return (src->s6_addr32[0] == 0)
 			&& (src->s6_addr32[1] == 0)
@@ -32,7 +32,8 @@ static struct addrxlat_result programming_error(void)
 }
 
 struct addrxlat_result addrxlat_siit64(struct xlator *instance,
-		struct in6_addr *in, struct result_addrxlat64 *out)
+		struct in6_addr *in, struct result_addrxlat64 *out,
+		bool enable_blacklists)
 {
 	struct addrxlat_result result;
 	int error;
@@ -55,7 +56,8 @@ struct addrxlat_result addrxlat_siit64(struct xlator *instance,
 		return result;
 	}
 
-	if (blacklist4_contains(instance->siit.blacklist4, &out->addr)) {
+	if (enable_blacklists && blacklist4_contains(instance->siit.blacklist4,
+			&out->addr)) {
 		result.verdict = ADDRXLAT_ACCEPT;
 		/* No, that's not a typo. */
 		result.reason = "The resulting address (%pI4) is blacklist4ed";
@@ -63,7 +65,7 @@ struct addrxlat_result addrxlat_siit64(struct xlator *instance,
 	}
 
 success:
-	if (must_not_translate(&out->addr, instance->ns)) {
+	if (enable_blacklists && must_not_translate(&out->addr, instance->ns)) {
 		result.verdict = ADDRXLAT_ACCEPT;
 		result.reason = "The resulting address is subnet-scoped or belongs to a local interface";
 		return result;
@@ -82,12 +84,10 @@ struct addrxlat_result addrxlat_siit46(struct xlator *instance,
 	struct addrxlat_result result;
 	int error;
 
-	if (enable_blacklists) {
-		if (must_not_translate(&tmp, instance->ns)) {
-			result.verdict = ADDRXLAT_ACCEPT;
-			result.reason = "The address is subnet-scoped or belongs to a local interface";
-			return result;
-		}
+	if (enable_blacklists && must_not_translate(&tmp, instance->ns)) {
+		result.verdict = ADDRXLAT_ACCEPT;
+		result.reason = "The address is subnet-scoped or belongs to a local interface";
+		return result;
 	}
 
 	if (enable_eam) {
@@ -98,12 +98,10 @@ struct addrxlat_result addrxlat_siit46(struct xlator *instance,
 			return programming_error();
 	}
 
-	if (enable_blacklists) {
-		if (blacklist4_contains(instance->siit.blacklist4, &tmp)) {
-			result.verdict = ADDRXLAT_ACCEPT;
-			result.reason = "The address lacks EAMT entry and is blacklist4ed";
-			return result;
-		}
+	if (blacklist4_contains(instance->siit.blacklist4, &tmp)) {
+		result.verdict = ADDRXLAT_ACCEPT;
+		result.reason = "The address lacks EAMT entry and is blacklist4ed";
+		return result;
 	}
 
 	if (!instance->globals.pool6.set) {

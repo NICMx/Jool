@@ -41,6 +41,12 @@ static struct jool_result handle_foreach_response(struct nl_msg *msg,
 	nla_for_each_attr(attr, head, len, rem) {
 		args->last = nla_type(attr);
 		meta = joolnl_global_id2meta(args->last);
+		if (!meta) {
+			fprintf(stderr, "Warning: The kernel module sent us unknown global id '%u'.\n",
+					args->last);
+			continue;
+		}
+
 		slot = joolnl_global_get(meta, &globals);
 
 		result = joolnl_global_nl2raw(meta, attr, slot);

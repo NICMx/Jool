@@ -27,7 +27,6 @@ $(JOOLNS)-objs += ../../../src/mod/common/db/global.o
 $(JOOLNS)-objs += ../../../src/mod/common/db/blacklist4.o
 $(JOOLNS)-objs += ../../../src/mod/common/db/pool.o
 $(JOOLNS)-objs += ../../../src/mod/common/db/eam.o
-$(JOOLNS)-objs += ../../../src/mod/common/steps/handling_hairpinning_siit.o
 $(JOOLNS)-objs += ../impersonator/nat64.o
 $(JOOLNS)-objs += ../impersonator/nf_hook.o
 $(JOOLNS)-objs += ../impersonator/send_packet.o

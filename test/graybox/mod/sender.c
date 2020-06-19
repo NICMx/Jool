@@ -7,9 +7,9 @@
 
 #include "common/types.h"
 #include "mod/common/ipv6_hdr_iterator.h"
-#include "mod/common/log.h"
 #include "mod/common/route.h"
 #include "mod/common/steps/send_packet.h"
+#include "log.h"
 #include "util.h"
 
 /*
@@ -51,15 +51,27 @@ static struct net *find_current_namespace(void)
 
 static struct dst_entry *route_ipv4(struct net *ns, struct sk_buff *skb)
 {
-	struct iphdr *hdr = ip_hdr(skb);
-	struct route4_args args = {
-			.ns = ns,
-			.daddr.s_addr = hdr->daddr,
-			.tos = hdr->tos,
-			.proto = hdr->protocol,
-			.mark = skb->mark,
-	};
-	return __route4(&args, skb);
+	struct iphdr *hdr;
+	struct flowi4 flow;
+	struct dst_entry *dst;
+
+	hdr = ip_hdr(skb);
+
+	memset(&flow, 0, sizeof(flow));
+	flow.flowi4_mark = skb->mark;
+	flow.flowi4_tos = hdr->tos;
+	flow.flowi4_scope = RT_SCOPE_UNIVERSE;
+	flow.flowi4_proto = hdr->protocol;
+	flow.flowi4_flags = FLOWI_FLAG_ANYSRC;
+	flow.saddr = 0;
+	flow.daddr = hdr->daddr;
+
+	dst = route4(ns, &flow);
+	if (!dst)
+		return NULL;
+
+	skb_dst_set(skb, dst);
+	return dst;
 }
 
 static l4_protocol nexthdr_to_l4proto(__u8 nexthdr)
@@ -77,10 +89,29 @@ static l4_protocol nexthdr_to_l4proto(__u8 nexthdr)
 
 static struct dst_entry *route_ipv6(struct net *ns, struct sk_buff *skb)
 {
+	struct ipv6hdr *hdr;
 	struct hdr_iterator iterator;
-	hdr_iterator_init(&iterator, ipv6_hdr(skb));
+	struct flowi6 flow;
+	struct dst_entry *dst;
+
+	hdr = ipv6_hdr(skb);
+
+	hdr_iterator_init(&iterator, hdr);
 	hdr_iterator_last(&iterator);
-	return __route6(ns, skb, nexthdr_to_l4proto(iterator.hdr_type));
+
+	flow.flowi6_mark = skb->mark;
+	flow.flowi6_scope = RT_SCOPE_UNIVERSE;
+	flow.flowi6_proto = nexthdr_to_l4proto(iterator.hdr_type);
+	flow.flowi6_flags = FLOWI_FLAG_ANYSRC;
+	flow.saddr = hdr->saddr;
+	flow.daddr = hdr->daddr;
+
+	dst = route6(ns, &flow);
+	if (!dst)
+		return NULL;
+
+	skb_dst_set(skb, dst);
+	return dst;
 }
 
 int sender_send(char *pkt_name, void *pkt, size_t pkt_len)
@@ -90,7 +121,7 @@ int sender_send(char *pkt_name, void *pkt, size_t pkt_len)
 	struct dst_entry *dst;
 	int error;
 
-	log_debug("Sending packet '%s'...", pkt_name);
+	log_info("Sending packet %s (length %zu)...", pkt_name, pkt_len);
 
 	if (pkt_len == 0) {
 		log_err("The packet is zero bytes long.");
@@ -118,7 +149,7 @@ int sender_send(char *pkt_name, void *pkt, size_t pkt_len)
 		return -EINVAL;
 	}
 
-	skb->ip_summed = CHECKSUM_UNNECESSARY;
+	skb->ip_summed = CHECKSUM_NONE;
 	switch (get_l3_proto(pkt)) {
 	case 6:
 		skb->protocol = htons(ETH_P_IPV6);

@@ -2,10 +2,15 @@
 
 #include <linux/ip.h>
 #include <linux/ipv6.h>
+#include <linux/netfilter_ipv4.h>
+#include <linux/netfilter_ipv6.h>
 #include <linux/sort.h>
 #include "common/types.h"
 #include "mod/common/address.h"
-#include "mod/common/log.h"
+#include "mod/common/linux_version.h"
+#include "mod/common/nf_wrapper.h"
+#include "diff.h"
+#include "log.h"
 #include "util.h"
 
 struct expecter_node {
@@ -13,17 +18,96 @@ struct expecter_node {
 	struct list_head list_hook;
 };
 
-static LIST_HEAD(list);
+struct netfilter_hook {
+	struct net *ns;
+	struct list_head nodes;
+	struct list_head list_hook;
+};
+
+static LIST_HEAD(hooks);
 static struct graybox_stats stats;
 
-void expecter_setup(void)
+static int expecter_handle_pkt(struct sk_buff *actual);
+
+static NF_CALLBACK(hook_cb, skb)
+{
+	log_debug("========= Graybox: Received packet =========");
+	return expecter_handle_pkt(skb);
+}
+
+static struct nf_hook_ops nfho[] = {
+	{
+		.hook = hook_cb,
+		.pf = PF_INET6,
+		.hooknum = NF_INET_PRE_ROUTING,
+		.priority = NF_IP6_PRI_FIRST + 25,
+	},
+	{
+		.hook = hook_cb,
+		.pf = PF_INET,
+		.hooknum = NF_INET_PRE_ROUTING,
+		.priority = NF_IP_PRI_FIRST + 25,
+	}
+};
+
+int expecter_setup(void)
 {
 	memset(&stats, 0, sizeof(stats));
+#if LINUX_VERSION_LOWER_THAN(4, 13, 0, 9999, 0)
+	return nf_register_hooks(nfho, ARRAY_SIZE(nfho));
+#else
+	return 0;
+#endif
 }
 
 void expecter_teardown(void)
 {
+	struct list_head *node;
+	struct netfilter_hook *hook;
+
+#if LINUX_VERSION_LOWER_THAN(4, 13, 0, 9999, 0)
+	nf_unregister_hooks(nfho, ARRAY_SIZE(nfho));
+#endif
+
 	expecter_flush();
+
+	while (!list_empty(&hooks)) {
+		log_info("Deleting hook.");
+		node = hooks.next;
+		list_del(node);
+		hook = list_entry(node, struct netfilter_hook, list_hook);
+
+#if LINUX_VERSION_AT_LEAST(4, 13, 0, 9999, 0)
+		nf_unregister_net_hooks(hook->ns, nfho, ARRAY_SIZE(nfho));
+#endif
+
+		put_net(hook->ns);
+		WARN(!list_empty(&hook->nodes), "hook node list is not empty");
+		kfree(hook);
+	}
+}
+
+static void log_intro(struct sk_buff *skb)
+{
+	struct iphdr *hdr4;
+	struct ipv6hdr *hdr6;
+
+	switch (skb->protocol) {
+	case htons(ETH_P_IP):
+		hdr4 = ip_hdr(skb);
+		log_debug("Received packet %pI4 -> %pI4",
+				&hdr4->saddr, &hdr4->daddr);
+		break;
+
+	case htons(ETH_P_IPV6):
+		hdr6 = ipv6_hdr(skb);
+		log_debug("Received packet %pI6c -> %pI6c",
+				&hdr6->saddr, &hdr6->daddr);
+		break;
+
+	default:
+		log_debug("Received packet. (Unknown protocol.)");
+	}
 }
 
 static void free_node(struct expecter_node *node)
@@ -70,8 +154,63 @@ static void sort_exceptions(struct expected_packet *pkt)
 	pkt->exceptions.count = i + 1;
 }
 
+static struct netfilter_hook *__get_hook(struct net *ns)
+{
+	struct netfilter_hook *hook;
+
+	list_for_each_entry(hook, &hooks, list_hook)
+		if (hook->ns == ns)
+			return hook;
+
+	return NULL;
+}
+
+static struct netfilter_hook *get_hook(void)
+{
+	struct netfilter_hook *hook;
+	struct net *ns;
+	int error;
+
+	ns = get_net_ns_by_pid(task_pid_vnr(current));
+	if (IS_ERR(ns)) {
+		log_err("Could not retrieve the current namespace: %ld",
+				PTR_ERR(ns));
+		return NULL;
+	}
+
+	hook = __get_hook(ns);
+	if (hook) {
+		put_net(ns);
+		return hook;
+	}
+
+	hook = kmalloc(sizeof(struct netfilter_hook), GFP_KERNEL);
+	if (!hook) {
+		put_net(ns);
+		return NULL;
+	}
+
+	hook->ns = ns;
+	INIT_LIST_HEAD(&hook->nodes);
+	list_add(&hook->list_hook, &hooks);
+
+#if LINUX_VERSION_AT_LEAST(4, 13, 0, 9999, 0)
+	error = nf_register_net_hooks(ns, nfho, ARRAY_SIZE(nfho));
+	if (error) {
+		log_info("nf_register_net_hooks() error: %d", error);
+		list_del(&hook->list_hook);
+		kfree(hook);
+		put_net(ns);
+		return NULL;
+	}
+#endif
+
+	return hook;
+}
+
 int expecter_add(struct expected_packet *pkt)
 {
+	struct netfilter_hook *hook;
 	struct expecter_node *node;
 
 	if (pkt->bytes_len == 0) {
@@ -100,7 +239,11 @@ int expecter_add(struct expected_packet *pkt)
 		sort_exceptions(&node->pkt);
 	}
 
-	list_add_tail(&node->list_hook, &list);
+	hook = get_hook();
+	if (!hook)
+		goto enomem;
+
+	list_add_tail(&node->list_hook, &hook->nodes);
 
 	log_debug("Stored packet '%s'.", pkt->filename);
 	return 0;
@@ -112,45 +255,66 @@ enomem:
 
 void expecter_flush(void)
 {
+	struct netfilter_hook *hook;
 	struct expecter_node *node;
-	struct list_head *hook;
 
-	while (!list_empty(&list)) {
-		hook = list.next;
-		list_del(hook);
-		node = list_entry(hook, struct expecter_node, list_hook);
+	list_for_each_entry(hook, &hooks, list_hook) {
+		while (!list_empty(&hook->nodes)) {
+			node = list_entry(hook->nodes.next,
+					struct expecter_node,
+					list_hook);
+			list_del(&node->list_hook);
 
-		switch (get_l3_proto(node->pkt.bytes)) {
-		case 4:
-			stats.ipv4.queued++;
-			break;
-		case 6:
-			stats.ipv6.queued++;
-			break;
+			log_info("Queued: %s", node->pkt.filename);
+			switch (get_l3_proto(node->pkt.bytes)) {
+			case 4:
+				stats.ipv4.queued++;
+				break;
+			case 6:
+				stats.ipv6.queued++;
+				break;
+			}
+
+			free_node(node);
 		}
-
-		free_node(node);
 	}
 }
 
 static bool has_same_addr6(struct ipv6hdr *hdr1, struct ipv6hdr *hdr2)
 {
-	return addr6_equals(&hdr1->daddr, &hdr2->daddr)
+	bool result;
+
+	result = addr6_equals(&hdr1->daddr, &hdr2->daddr)
 			&& addr6_equals(&hdr1->saddr, &hdr2->saddr);
+	log_debug("Incoming packet %s %pI6c -> %pI6c.",
+			result ? "matches" : "does not match",
+			&hdr1->saddr, &hdr1->daddr);
+
+	return result;
 }
 
 static bool has_same_addr4(struct iphdr *hdr1, struct iphdr *hdr2)
 {
-	return hdr1->daddr == hdr2->daddr && hdr1->saddr == hdr2->saddr;
+	bool result;
+
+	result = hdr1->daddr == hdr2->daddr && hdr1->saddr == hdr2->saddr;
+	log_debug("Incoming packet %s %pI4 -> %pI4.",
+			result ? "matches" : "does not match",
+			&hdr1->saddr, &hdr1->daddr);
+
+	return result;
 }
 
-static bool has_same_address(struct expected_packet *expected, struct sk_buff *actual)
+static bool has_same_address(struct expected_packet *expected,
+		struct sk_buff *actual)
 {
 	int expected_proto = get_l3_proto(expected->bytes);
 	int actual_proto = get_l3_proto(skb_network_header(actual));
 
-	if (expected_proto != actual_proto)
+	if (expected_proto != actual_proto) {
+		log_debug("Incoming packet does not match l3 protocol of expected packet.");
 		return false;
+	}
 
 	switch (expected_proto) {
 	case 4:
@@ -164,52 +328,60 @@ static bool has_same_address(struct expected_packet *expected, struct sk_buff *a
 	return false;
 }
 
-static void print_error_table_hdr(struct expected_packet *expected, int errors)
+static unsigned int old_algorithm(struct expected_packet *expected,
+		struct sk_buff *actual)
 {
-	if (!errors) {
-		log_info("%s", expected->filename);
-		log_info("    Value\tExpected    Actual");
+	unsigned char *actual_ptr;
+	size_t i;
+	size_t min_len;
+	__u16 skip;
+
+	/* BTW: The old algorithm does not account for paging. Weird. */
+	actual_ptr = skb_network_header(actual);
+	min_len = min(expected->bytes_len, (size_t)actual->len);
+	skip = 0;
+
+	for (i = 0; i < min_len; i++) {
+		if (skip < expected->exceptions.count
+				&& expected->exceptions.values[skip] == i) {
+			skip++;
+			continue;
+		}
+
+		if (expected->bytes[i] != actual_ptr[i])
+			return 1;
 	}
+
+	return 0;
 }
 
 static bool pkt_equals(struct expected_packet *expected, struct sk_buff *actual)
 {
-	unsigned char *expected_ptr;
-	unsigned char *actual_ptr;
-	unsigned int i;
-	unsigned int min_len;
-	unsigned int skip_count;
-	int errors = 0;
+	unsigned int errors_new = 0;
+	unsigned int errors_old = 0;
+
+	log_info("Packet %s (length %zu):", expected->filename,
+			expected->bytes_len);
 
 	if (expected->bytes_len != actual->len) {
-		print_error_table_hdr(expected, errors);
-		log_info("    Length\t%zu\t    %d", expected->bytes_len, actual->len);
-		errors++;
+		log_info("\tLength:");
+		log_info("\t\tExpected: %zu", expected->bytes_len);
+		log_info("\t\tActual: %u", actual->len);
+		errors_new++;
+		errors_old++;
 	}
 
-	expected_ptr = expected->bytes;
-	actual_ptr = skb_network_header(actual);
-	min_len = (expected->bytes_len < actual->len) ? expected->bytes_len : actual->len;
+	errors_new += collect_errors(expected, actual);
+	errors_old += old_algorithm(expected, actual);
 
-	skip_count = 0;
-
-	for (i = 0; i < min_len; i++) {
-		if (skip_count < expected->exceptions.count && expected->exceptions.values[skip_count] == i) {
-			skip_count++;
-			continue;
-		}
-
-		if (expected_ptr[i] != actual_ptr[i]) {
-			print_error_table_hdr(expected, errors);
-			log_info("    byte %u\t0x%x\t    0x%x", i,
-					expected_ptr[i], actual_ptr[i]);
-			errors++;
-			if (errors >= 8)
-				break;
-		}
+	if (!!errors_new != !!errors_old) {
+		log_err("Error: The new algorithm %s errors, the old algorithm did %s errors.",
+				errors_new ? "yielded" : "did not yield",
+				errors_old ? "yield" : "not yield");
+		errors_new++;
 	}
 
-	return !errors;
+	return !errors_new;
 }
 
 static struct graybox_proto_stats *get_stats(struct expected_packet *pkt)
@@ -224,16 +396,22 @@ static struct graybox_proto_stats *get_stats(struct expected_packet *pkt)
 	return NULL;
 }
 
-int expecter_handle_pkt(struct sk_buff *actual)
+static int expecter_handle_pkt(struct sk_buff *actual)
 {
+	struct netfilter_hook *hook;
 	struct expecter_node *node;
 	struct expected_packet *expected;
 	struct graybox_proto_stats *stats;
 
-	if (list_empty(&list)) /* nothing to do. */
-		return NF_ACCEPT;
+	log_intro(actual);
 
-	node = list_entry(list.next, struct expecter_node, list_hook);
+	hook = __get_hook(dev_net(actual->dev));
+	if (!hook || list_empty(&hook->nodes)) {
+		log_debug("No packets queued.");
+		return NF_ACCEPT;
+	}
+
+	node = list_entry(hook->nodes.next, struct expecter_node, list_hook);
 	expected = &node->pkt;
 
 	if (!has_same_address(expected, actual))
@@ -259,20 +437,21 @@ int expecter_handle_pkt(struct sk_buff *actual)
 
 void expecter_stat(struct graybox_stats *result)
 {
+	struct netfilter_hook *hook;
 	struct expecter_node *node;
-	struct list_head *hook;
 
 	memcpy(result, &stats, sizeof(stats));
 
-	list_for_each(hook, &list) {
-		node = list_entry(hook, struct expecter_node, list_hook);
-		switch (get_l3_proto(node->pkt.bytes)) {
-		case 4:
-			result->ipv4.queued++;
-			break;
-		case 6:
-			result->ipv6.queued++;
-			break;
+	list_for_each_entry(hook, &hooks, list_hook) {
+		list_for_each_entry(node, &hook->nodes, list_hook) {
+			switch (get_l3_proto(node->pkt.bytes)) {
+			case 4:
+				result->ipv4.queued++;
+				break;
+			case 6:
+				result->ipv6.queued++;
+				break;
+			}
 		}
 	}
 }

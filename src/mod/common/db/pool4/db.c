@@ -1059,22 +1059,24 @@ void pool4db_print(struct pool4 *pool)
 	print_tree(&pool->tree_addr.icmp, false);
 }
 
-static struct mask_domain *find_empty(struct route4_args *args,
-		unsigned int offset)
+static verdict find_empty(struct xlation *state, unsigned int offset,
+		struct mask_domain **out)
 {
 	struct mask_domain *masks;
 	struct ipv4_range *range;
+	verdict result;
 
 	masks = __wkmalloc("mask_domain",
 			sizeof(struct mask_domain) * sizeof(struct ipv4_range),
 			GFP_ATOMIC);
 	if (!masks)
-		return NULL;
+		return drop(state, JSTAT_ENOMEM);
 
 	range = (struct ipv4_range *)(masks + 1);
-	if (pool4empty_find(args, range)) {
+	result = pool4empty_find(state, range);
+	if (result != VERDICT_CONTINUE) {
 		__wkfree("mask_domain", masks);
-		return NULL;
+		return result;
 	}
 
 	masks->pool_mark = 0;
@@ -1085,31 +1087,36 @@ static struct mask_domain *find_empty(struct route4_args *args,
 	masks->current_range = range;
 	masks->current_port = range->ports.min + offset % masks->taddr_count;
 	masks->dynamic = true;
-	return masks;
+
+	*out = masks;
+	return VERDICT_CONTINUE;
 }
 
-struct mask_domain *mask_domain_find(struct pool4 *pool, struct tuple *tuple6,
-		__u8 f_args, struct route4_args *route_args)
+verdict mask_domain_find(struct xlation *state, struct mask_domain **out)
 {
+	struct pool4 *pool;
 	struct pool4_table *table;
 	struct ipv4_range *entry;
 	struct mask_domain *masks;
 	unsigned int offset;
 
-	if (rfc6056_f(tuple6, f_args, &offset))
-		return NULL;
+	if (rfc6056_f(&state->in.tuple, state->jool.globals.nat64.f_args,
+			&offset))
+		return drop(state, JSTAT_6056_F);
 
 	offset += atomic_read(&next_ephemeral);
 
+	pool = state->jool.nat64.pool4;
 	spin_lock_bh(&pool->lock);
 
 	if (is_empty(pool)) {
 		spin_unlock_bh(&pool->lock);
-		return find_empty(route_args, offset);
+		return find_empty(state, offset, out);
 	}
 
-	table = find_by_mark(get_tree(&pool->tree_mark, tuple6->l4_proto),
-			route_args->mark);
+	table = find_by_mark(get_tree(&pool->tree_mark,
+			state->in.tuple.l4_proto),
+			state->in.skb->mark);
 	if (!table)
 		goto fail;
 
@@ -1127,7 +1134,7 @@ struct mask_domain *mask_domain_find(struct pool4 *pool, struct tuple *tuple6,
 
 	spin_unlock_bh(&pool->lock);
 
-	masks->pool_mark = route_args->mark;
+	masks->pool_mark = state->in.skb->mark;
 	masks->taddr_counter = 0;
 	masks->dynamic = false;
 	offset %= masks->taddr_count;
@@ -1136,18 +1143,19 @@ struct mask_domain *mask_domain_find(struct pool4 *pool, struct tuple *tuple6,
 		if (offset <= port_range_count(&entry->ports)) {
 			masks->current_range = entry;
 			masks->current_port = entry->ports.min + offset - 1;
-			return masks; /* Happy path */
+			*out = masks;
+			return VERDICT_CONTINUE; /* Happy path */
 		}
 		offset -= port_range_count(&entry->ports);
 	}
 
 	WARN(true, "Bug: pool4 entry counter does not match entry count.");
 	__wkfree("mask_domain", masks);
-	return NULL;
+	return drop(state, JSTAT_UNKNOWN);
 
 fail:
 	spin_unlock_bh(&pool->lock);
-	return NULL;
+	return drop(state, JSTAT_MASK_DOMAIN_NOT_FOUND);
 }
 
 void mask_domain_put(struct mask_domain *masks)

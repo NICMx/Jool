@@ -9,8 +9,9 @@
 
 #include <linux/net.h>
 #include "common/config.h"
-#include "mod/common/types.h"
 #include "mod/common/route.h"
+#include "mod/common/translation_state.h"
+#include "mod/common/types.h"
 
 struct pool4;
 
@@ -43,8 +44,7 @@ int pool4db_foreach_sample(struct pool4 *pool, l4_protocol proto,
 
 struct mask_domain;
 
-struct mask_domain *mask_domain_find(struct pool4 *pool, struct tuple *tuple6,
-		__u8 f_args, struct route4_args *route_args);
+verdict mask_domain_find(struct xlation *state, struct mask_domain **out);
 void mask_domain_put(struct mask_domain *masks);
 int mask_domain_next(struct mask_domain *masks,
 		struct ipv4_transport_addr *addr,

@@ -79,25 +79,25 @@ typedef int (*xlator_foreach_cb)(struct xlator *, void *);
 int xlator_foreach(xlator_type xt, xlator_foreach_cb cb, void *args,
 		struct instance_entry_usr *offset);
 
-xlator_type xlator_get_type(struct xlator *instance);
-xlator_framework xlator_get_framework(struct xlator *instance);
+xlator_type xlator_get_type(struct xlator const *instance);
+xlator_framework xlator_get_framework(struct xlator const *instance);
 
-static inline bool xlator_is_siit(struct xlator *instance)
+static inline bool xlator_is_siit(struct xlator const *instance)
 {
 	return instance->flags & XT_SIIT;
 }
 
-static inline bool xlator_is_nat64(struct xlator *instance)
+static inline bool xlator_is_nat64(struct xlator const *instance)
 {
 	return instance->flags & XT_NAT64;
 }
 
-static inline bool xlator_is_netfilter(struct xlator *instance)
+static inline bool xlator_is_netfilter(struct xlator const *instance)
 {
 	return instance->flags & XF_NETFILTER;
 }
 
-static inline bool xlator_is_iptables(struct xlator *instance)
+static inline bool xlator_is_iptables(struct xlator const *instance)
 {
 	return instance->flags & XF_IPTABLES;
 }

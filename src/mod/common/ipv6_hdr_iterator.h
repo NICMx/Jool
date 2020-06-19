@@ -24,7 +24,7 @@ struct hdr_iterator {
 	 * Header we're currently visiting. Might also be the payload, if the iteration ended.
 	 * You can know what's here by querying "hdr_type".
 	 */
-	void *data;
+	void const *data;
 };
 
 /**
@@ -44,7 +44,8 @@ struct hdr_iterator {
  * @param iterator The struct you want to initialize.
  * @param main_hdr The IPv6 header whose subheaders you want to traverse.
  */
-void hdr_iterator_init(struct hdr_iterator *iterator, struct ipv6hdr *main_hdr);
+void hdr_iterator_init(struct hdr_iterator *iterator,
+		struct ipv6hdr const *main_hdr);
 /**
  * Advances "iterator->data" one header and updates "iterator->hdr_type" accordingly. If "iterator"
  * has already reached the payload, nothing will happen.
@@ -70,6 +71,6 @@ void hdr_iterator_last(struct hdr_iterator *iterator);
  * @return header whose ID is "hdr_id" from "ip6_hdr"'s extension headers. Returns "NULL" if the
  *		header chain does not contain such a header.
  */
-void *hdr_iterator_find(struct ipv6hdr *ip6_hdr, __u8 hdr_id);
+void const *hdr_iterator_find(struct ipv6hdr const *ip6_hdr, __u8 hdr_id);
 
 #endif /* SRC_MOD_COMMON_HDR_ITERATOR_H_ */

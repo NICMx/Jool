@@ -17,6 +17,8 @@ POOL4DB = pool4db
 obj-m += $(POOL4DB).o
 
 $(POOL4DB)-objs += $(MIN_REQS)
+$(POOL4DB)-objs += ../../../src/mod/common/stats.o
+$(POOL4DB)-objs += ../../../src/mod/common/translation_state.o
 $(POOL4DB)-objs += ../../../src/mod/common/wrapper-config.o
 $(POOL4DB)-objs += ../../../src/mod/common/wrapper-global.o
 $(POOL4DB)-objs += ../../../src/mod/common/db/global.o

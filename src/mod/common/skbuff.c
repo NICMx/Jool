@@ -146,12 +146,12 @@ static int print_ipv4_hdr(struct hdr_iterator *meta)
 			get_fragment_offset_ipv4(hdr));
 	print(tabs, "TTL: %u", hdr->ttl);
 	print(tabs, "Protocol: %u", hdr->protocol);
-	print(tabs, "Checksum: %u", hdr->check);
+	print(tabs, "Checksum: 0x%x", be16_to_cpu(hdr->check));
 	print(tabs, "Source Address: %pI4", &hdr->saddr);
 	print(tabs, "Destination Address: %pI4", &hdr->daddr);
 
 	meta->skb_offset += sizeof(buffer);
-	meta->type = hdr->protocol;
+	meta->type = is_first_frag4(hdr) ? hdr->protocol : HP_PAYLOAD;
 	return 0;
 }
 
@@ -200,7 +200,7 @@ static int print_tcphdr(struct hdr_iterator *meta)
 			hdr->ack, hdr->rst, hdr->syn, hdr->fin);
 	print(tabs, "[Other flags ommitted]");
 	print(tabs, "Window Size: %u", be16_to_cpu(hdr->window));
-	print(tabs, "Checksum: %u", hdr->check);
+	print(tabs, "Checksum: 0x%x", be16_to_cpu(hdr->check));
 	print(tabs, "Urgent Pointer: %u", be16_to_cpu(hdr->urg_ptr));
 
 	meta->skb_offset += sizeof(buffer);
@@ -222,7 +222,7 @@ static int print_udphdr(struct hdr_iterator *meta)
 	print(tabs, "Src Port: %u", be16_to_cpu(hdr->source));
 	print(tabs, "Dst Port: %u", be16_to_cpu(hdr->dest));
 	print(tabs, "Length: %u", be16_to_cpu(hdr->len));
-	print(tabs, "Checksum: %u", hdr->check);
+	print(tabs, "Checksum: 0x%x", be16_to_cpu(hdr->check));
 
 	meta->skb_offset += sizeof(buffer);
 	meta->type = HP_PAYLOAD;
@@ -241,7 +241,7 @@ static int print_icmp4hdr(struct hdr_iterator *meta)
 		return truncated(tabs);
 
 	print(tabs, "Type:%u Code:%u", hdr->type, hdr->code);
-	print(tabs, "Checksum: %u", hdr->checksum);
+	print(tabs, "Checksum: 0x%x", be16_to_cpu(hdr->checksum));
 	print(tabs, "Rest 1: %u", be16_to_cpu(hdr->un.echo.id));
 	print(tabs, "Rest 2: %u", be16_to_cpu(hdr->un.echo.sequence));
 
@@ -262,7 +262,7 @@ static int print_icmp6hdr(struct hdr_iterator *meta)
 		return truncated(tabs);
 
 	print(tabs, "Type:%u Code:%u", hdr->icmp6_type, hdr->icmp6_code);
-	print(tabs, "Checksum: %u", hdr->icmp6_cksum);
+	print(tabs, "Checksum: 0x%x", be16_to_cpu(hdr->icmp6_cksum));
 	print(tabs, "Rest 1: %u", be16_to_cpu(hdr->icmp6_identifier));
 	print(tabs, "Rest 2: %u", be16_to_cpu(hdr->icmp6_sequence));
 
@@ -313,7 +313,7 @@ static int print_fraghdr(struct hdr_iterator *meta)
 	print(tabs, "Identification: %u", be32_to_cpu(hdr->identification));
 
 	meta->skb_offset += sizeof(buffer);
-	meta->type = hdr->nexthdr;
+	meta->type = is_first_frag6(hdr) ? hdr->nexthdr : HP_PAYLOAD;
 	return 0;
 }
 

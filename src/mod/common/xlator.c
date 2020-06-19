@@ -909,12 +909,12 @@ int xlator_foreach(xlator_type xt, xlator_foreach_cb cb, void *args,
 	return 0;
 }
 
-xlator_type xlator_get_type(struct xlator *instance)
+xlator_type xlator_get_type(struct xlator const *instance)
 {
 	return xlator_is_nat64(instance) ? XT_NAT64 : XT_SIIT;
 }
 
-xlator_framework xlator_get_framework(struct xlator *instance)
+xlator_framework xlator_get_framework(struct xlator const *instance)
 {
 	return xlator_is_netfilter(instance) ? XF_NETFILTER : XF_IPTABLES;
 }
