@@ -22,7 +22,7 @@ Jool is an Open Source [SIIT and NAT64](intro-xlat.html) for Linux.
 
 As far as we know, Jool is a [compliant](intro-jool.html#compliance) SIIT and Stateful NAT64.
 
-Its latest version is [4.1.0](downloads.html#41x) and its most mature version is [4.0.9](downloads.html#40x).
+Its latest version is [4.1.0](download.html#41x) and its most mature version is [4.0.9](download.html#40x).
 
 -------------------
 

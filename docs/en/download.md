@@ -25,7 +25,7 @@ Currently, 4.1.0 is the latest version of Jool.
 
 ## 4.0.x
 
-Jool 4.0 is a compliant SIIT and Stateful NAT64.
+Jool 4.0 is a generally compliant SIIT and Stateful NAT64.
 
 Currently, 4.0.9 is the most mature version of Jool.
 
@@ -49,7 +49,7 @@ Currently, 4.0.9 is the most mature version of Jool.
 
 ## 3.5.x
 
-Jool 3.5 is also a [compliant SIIT and Stateful NAT64](intro-jool.html#compliance).
+Jool 3.5 is a generally compliant SIIT and Stateful NAT64.
 
 3.5.8 is the latest version.
 
