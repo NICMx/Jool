@@ -78,16 +78,16 @@ All tests are packet exchanges between `n6` and `n4`, or by `n6` and `n6`, via `
 
 Easy ping from n6 to n4:
 
-	ping6 2001:db8:1c6:3364:2::
+	sudo ip netns exec client6ns ping6 2001:db8:1c6:3364:2::
 
 Easy ping from n4 to n6:
 
-	ping 192.0.2.33
+	sudo ip netns exec client4ns ping 192.0.2.33
 
 Netcat server in n4:
 
-	nc -ls 198.51.100.2 1234
+	sudo ip netns exec client4ns nc -ls 198.51.100.2 -p 1234
 
 Netcat client from n6:
 
-	nc 2001:db8:1c6:3364:2:: 1234
+	sudo ip netns exec client6ns nc 2001:db8:1c6:3364:2:: 1234

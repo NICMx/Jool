@@ -1040,14 +1040,14 @@ static __be16 get_src_port64(struct xlation *state)
 {
 	return pkt_is_inner(&state->out)
 			? cpu_to_be16(state->out.tuple.dst.addr4.l4)
-			: state->flowx.v4.flowi.fl4_sport;
+			: cpu_to_be16(state->out.tuple.src.addr4.l4);
 }
 
 static __be16 get_dst_port64(struct xlation *state)
 {
 	return pkt_is_inner(&state->out)
 			? cpu_to_be16(state->out.tuple.src.addr4.l4)
-			: state->flowx.v4.flowi.fl4_dport;
+			: cpu_to_be16(state->out.tuple.dst.addr4.l4);
 }
 
 static __wsum pseudohdr6_csum(struct ipv6hdr const *hdr)

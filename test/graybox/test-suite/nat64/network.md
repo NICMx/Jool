@@ -74,12 +74,13 @@ All tests are packet exchanges between `n6` and `n4`, or by `n6` and `n6`, via `
 
 Easy ping from n6 to n4:
 
-	ping6 64:ff9b::192.0.2.5
+	sudo ip netns exec client6ns ping6 64:ff9b::192.0.2.5
 
 Netcat server in n4:
 
-	nc -ls 192.0.2.5 1234
+	sudo ip netns exec client4ns nc -ls 192.0.2.5 -p 1234
 
 Netcat client from n6:
 
-	nc 64:ff9b::192.0.2.5 1234
+	sudo ip netns exec client6ns nc 64:ff9b::192.0.2.5 1234
+

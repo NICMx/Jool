@@ -75,6 +75,7 @@ verdict pool4empty_find(struct xlation *state, struct ipv4_range *range)
 			&state->in.tuple.dst.addr6.l3,
 			&state->out.tuple.dst.addr4.l3))
 		return untranslatable(state, JSTAT_UNTRANSLATABLE_DST6);
+	state->out.tuple.dst.addr4.l4 = state->in.tuple.dst.addr6.l4;
 
 	result = predict_route64(state);
 	if (result != VERDICT_CONTINUE)

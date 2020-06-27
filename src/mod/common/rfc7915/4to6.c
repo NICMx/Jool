@@ -1329,14 +1329,14 @@ static __be16 get_src_port46(struct xlation *state)
 {
 	return pkt_is_inner(&state->out)
 			? cpu_to_be16(state->out.tuple.dst.addr6.l4)
-			: state->flowx.v6.flowi.fl6_sport;
+			: cpu_to_be16(state->out.tuple.src.addr6.l4);
 }
 
 static __be16 get_dst_port46(struct xlation *state)
 {
 	return pkt_is_inner(&state->out)
 			? cpu_to_be16(state->out.tuple.src.addr6.l4)
-			: state->flowx.v6.flowi.fl6_dport;
+			: cpu_to_be16(state->out.tuple.dst.addr6.l4);
 }
 
 /**
