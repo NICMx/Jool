@@ -393,22 +393,9 @@ static int fragment_exceeds_mtu64(struct packet const *in, unsigned int mtu)
 	 * querying frag_max_size. You'll have to test it.
 	 */
 	mtu -= sizeof(struct iphdr);
-	skb_walk_frags(in->skb, iter) {
-		if (iter->len > mtu) {
-			/*
-			shinfo = skb_shinfo(iter);
-			log_delete("  iter->len: %u", iter->len);
-			log_delete("  iter->frag_max_size: %u", IP6CB(iter)->frag_max_size);
-			log_delete("  iter->ignore_df: %u", iter->ignore_df);
-			log_delete("  skb_is_gso(iter): %u", skb_is_gso(iter));
-			log_delete("  iter->gso_size: %u", shinfo->gso_size);
-			log_delete("    head: %u", skb_headlen(iter));
-			for (i = 0; i < shinfo->nr_frags; i++)
-				log_delete("    %u: %u", i, skb_frag_size(&shinfo->frags[i]));
-			*/
+	skb_walk_frags(in->skb, iter)
+		if (iter->len > mtu)
 			return 2;
-		}
-	}
 
 	return 0;
 
