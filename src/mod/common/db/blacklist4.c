@@ -1,10 +1,6 @@
 #include "blacklist4.h"
 
-#include <linux/rculist.h>
-#include <linux/inet.h>
-#include <linux/netdevice.h>
-#include <linux/inetdevice.h>
-
+#include "mod/common/dev.h"
 #include "mod/common/address.h"
 #include "mod/common/xlator.h"
 #include "mod/common/rcu.h"
@@ -41,6 +37,36 @@ int blacklist4_flush(struct addr4_pool *pool)
 	return pool_flush(pool);
 }
 
+#define NOT_BLACKLISTED false
+#define BLACKLISTED true
+
+/* "Check interface address" */
+static int check_ifa(struct in_ifaddr *ifa, void const *arg)
+{
+	struct in_addr const *query = arg;
+	struct in_addr ifaddr;
+
+	/* Broadcast */
+	/* (RFC3021: /31 and /32 networks lack broadcast) */
+	if (ifa->ifa_prefixlen < 31) {
+		ifaddr.s_addr = ifa->ifa_local | ~ifa->ifa_mask;
+		if (ipv4_addr_cmp(&ifaddr, query) == 0)
+			return BLACKLISTED;
+	}
+
+	/* Secondary addresses */
+	/* https://github.com/NICMx/Jool/issues/223 */
+	if (ifa->ifa_flags & IFA_F_SECONDARY)
+		return NOT_BLACKLISTED;
+
+	/* Primary addresses */
+	ifaddr.s_addr = ifa->ifa_local;
+	if (ipv4_addr_cmp(&ifaddr, query) == 0)
+		return BLACKLISTED;
+
+	return NOT_BLACKLISTED;
+}
+
 /**
  * Is @addr *NOT* translatable, according to the interfaces?
  *
@@ -51,44 +77,7 @@ int blacklist4_flush(struct addr4_pool *pool)
  */
 bool interface_contains(struct net *ns, struct in_addr *addr)
 {
-	struct net_device *dev;
-	struct in_device *in_dev;
-	struct in_ifaddr *ifa;
-	struct in_addr ifaddr;
-
-	rcu_read_lock();
-	for_each_netdev_rcu(ns, dev) {
-		in_dev = rcu_dereference(dev->ip_ptr);
-		ifa = in_dev->ifa_list;
-		while (ifa) {
-			ifaddr.s_addr = ifa->ifa_local;
-			if (ipv4_addr_cmp(&ifaddr, addr) == 0) {
-				/* https://github.com/NICMx/Jool/issues/223 */
-				if (ifa->ifa_prefixlen == 32)
-					goto do_translate;
-				else
-					goto dont_translate;
-			}
-
-			/* RFC3021: /31 (and /32) networks lack broadcast. */
-			if (ifa->ifa_prefixlen < 31) {
-				ifaddr.s_addr = ifa->ifa_local | ~ifa->ifa_mask;
-				if (ipv4_addr_cmp(&ifaddr, addr) == 0)
-					goto dont_translate;
-			}
-
-			ifa = ifa->ifa_next;
-		}
-	}
-	/* Fall through */
-
-do_translate:
-	rcu_read_unlock();
-	return false;
-
-dont_translate:
-	rcu_read_unlock();
-	return true;
+	return foreach_ifa(ns, check_ifa, addr);
 }
 
 bool blacklist4_contains(struct addr4_pool *pool, struct in_addr *addr)

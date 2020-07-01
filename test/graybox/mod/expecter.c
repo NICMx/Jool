@@ -169,7 +169,9 @@ static struct netfilter_hook *get_hook(void)
 {
 	struct netfilter_hook *hook;
 	struct net *ns;
+#if LINUX_VERSION_AT_LEAST(4, 13, 0, 9999, 0)
 	int error;
+#endif
 
 	ns = get_net_ns_by_pid(task_pid_vnr(current));
 	if (IS_ERR(ns)) {

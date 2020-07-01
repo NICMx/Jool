@@ -17,3 +17,9 @@ verdict predict_route64(struct xlation *state)
 	broken_unit_call(__func__);
 	return VERDICT_DROP;
 }
+
+int foreach_ifa(struct net *ns, int (*cb)(struct in_ifaddr *, void const *),
+		void const *args)
+{
+	return broken_unit_call(__func__);
+}

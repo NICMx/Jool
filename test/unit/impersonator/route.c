@@ -1,6 +1,8 @@
 #include "mod/common/route.h"
 
+#include "mod/common/dev.h"
 #include "mod/common/log.h"
+#include "framework/unit_test.h"
 
 struct dst_entry *route4(struct net *ns, struct flowi4 *flow)
 {
