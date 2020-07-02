@@ -10,8 +10,8 @@ Build-Depends: debhelper (>= 11), dkms,
 Standards-Version: 4.5.0
 Rules-Requires-Root: no
 Homepage: https://jool.mx
-Vcs-Browser: https://github.com/NICMx/Jool
-Vcs-Git: https://github.com/NICMx/Jool.git -b debian
+Vcs-Browser: https://github.com/ydahhrk/Jool
+Vcs-Git: https://github.com/ydahhrk/Jool.git
 
 Package: jool-dkms
 Architecture: all
