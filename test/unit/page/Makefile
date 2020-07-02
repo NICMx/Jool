@@ -52,6 +52,7 @@ $(PAGE)-objs += ../../../src/mod/common/rfc7915/common.o
 $(PAGE)-objs += ../../../src/mod/common/rfc7915/core.o
 $(PAGE)-objs += ../../../src/mod/common/core.o
 
+$(PAGE)-objs += impersonator.o
 $(PAGE)-objs += page_test.o
 
 all:

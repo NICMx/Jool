@@ -25,13 +25,13 @@ Jool is an Open Source implementation of [IPv4/IPv6 Translation](intro-xlat.html
 
 ## Compliance
 
-As far as we know, this is the compliance status of Jool 4:
+As far as we know, this is the compliance status of Jool 4.1:
 
 | RFC/draft | Reminder name | Status |
 |-----------|---------|--------|
 | [RFC 6052](https://tools.ietf.org/html/rfc6052) | IP address translation | Fully compliant. |
 | [RFC 6144](https://tools.ietf.org/html/rfc6144) | IPv4/IPv6 Translation Framework | Fully compliant. |
-| [RFC 7915](https://tools.ietf.org/html/rfc7915) | SIIT | Compliant, except for [`lowest-ipv6-mtu`](https://github.com/NICMx/Jool/issues/136). |
+| [RFC 7915](https://tools.ietf.org/html/rfc7915) | SIIT | Fully compliant. |
 | [RFC 6146](https://tools.ietf.org/html/rfc6146) | Stateful NAT64 | Fully compliant. |
 | [RFC 6384](http://tools.ietf.org/html/rfc6384) | FTP over NAT64 | [Not yet compliant]({{ site.repository-url }}/issues/114). |
 | [RFC 6791](https://tools.ietf.org/html/rfc6791) | ICMP quirks | In short, this RFC wants two things: A pool of IPv4 addresses and an ICMP header extension. Jool implements the former but not the latter. |

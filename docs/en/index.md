@@ -22,7 +22,7 @@ Jool is an Open Source [SIIT and NAT64](intro-xlat.html) for Linux.
 
 As far as we know, Jool is a [compliant](intro-jool.html#compliance) SIIT and Stateful NAT64.
 
-Its latest version is [4.1.0](downloads.html#41x) and its most mature version is [4.0.9](downloads.html#40x).
+Its latest version is [4.1.1](download.html#41x) and its most mature version is [4.0.9](download.html#40x).
 
 -------------------
 
@@ -34,18 +34,14 @@ Its latest version is [4.1.0](downloads.html#41x) and its most mature version is
 
 ## Latest News
 
-### 2020-06-16
+### 2020-07-01
 
-[Jool 4.1.0](download.html) has been released.
+[Jool 4.1.1](download.html) has been released.
 
-Improvements:
+Bugfixes:
 
-1. [#136](https://github.com/NICMx/Jool/issues/136): Implement [`lowest-ipv6-mtu`](usr-flags-global.html#lowest-ipv6-mtu).
-2. Implement shallow translation of ICMP extensions. (RFC 7915 pp. [13](https://tools.ietf.org/html/rfc7915#page-13), [22](https://tools.ietf.org/html/rfc7915#page-22))
-3. [#329](https://github.com/NICMx/Jool/issues/329): Add support for kernel 5.7.
+1. [#331](https://github.com/NICMx/Jool/issues/331): Remove need to disable offloads again.
+3. [#332](https://github.com/NICMx/Jool/issues/332): Patch bad NAT64 translation on empty pool4.
 
-There is one downgrade:
+> Remember that `lowest-ipv6-mtu`'s paranoid default might induce unnecessary fragmentation. If you want Jool 4.1 to reach 4.0's performance, please review the [MTU documentation](mtu.html).
 
-1. 4.1.0 drops support for kernels 3.13 - 3.15, and RHEL 7.0 - 7.5. Here's the updated [compatibility table](intro-jool.html#compatibility).
-
-Also, note that `lowest-ipv6-mtu`'s paranoid default might induce unnecessary fragmentation. If you want 4.1.0 to reach 4.0.9's performance, please review the [MTU documentation](mtu.html).

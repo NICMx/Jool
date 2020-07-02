@@ -339,28 +339,68 @@ verdict predict_route64(struct xlation *state)
 	return VERDICT_CONTINUE;
 }
 
+/*
+ * Returns:
+ * 0: Packet does not exceed MTU.
+ * 1: First fragment exceeds MTU. (ie. PTB needed)
+ * 2: Subsequent fragment exceeds MTU. (ie. PTB not needed)
+ */
 static int fragment_exceeds_mtu64(struct packet const *in, unsigned int mtu)
 {
 	struct sk_buff *iter;
+	unsigned short gso_size;
 	int delta;
 
-	delta = sizeof(struct iphdr) - pkt_l3hdr_len(in);
+	/*
+	 * I haven't found a hard definition of what shinfo->gso_size is
+	 * supposed to represent, but my general impression is that it's the
+	 * value the kernel uses (during resegmentation) to remember the length
+	 * of the original segments after GRO. It's the length of the largest
+	 * segment, after stripping the common headers out. (In other words,
+	 * just the L4 payload length.)
+	 *
+	 * I ran into a surprising quirk: If packet A has frag_list fragments B,
+	 * and B have frags fragments C, then A's gso_size also applies to B,
+	 * as well as C.
+	 *
+	 * I don't know if gso_size is populated if there are frag_list
+	 * fragments but not frags fragments. Luckily, the solution I wrote
+	 * below should handle things correctly either way.
+	 *
+	 * (One way to observe this madness is to connect two Virtualbox VMs
+	 * and trace iperf traffic.)
+	 *
+	 * I notice that there's also IP6CB(skb)->frag_max_size, which appears
+	 * to be a defrag-only thing, and I've no idea how it relates to
+	 * gso_size.
+	 *
+	 * See ip_exceeds_mtu() and ip6_pkt_too_big().
+	 */
 
-	if (!skb_shinfo(in->skb)->frag_list) {
-		if (in->skb->len + delta > mtu)
-			return is_first_frag6(pkt_frag_hdr(in)) ? 1 : 2;
+	gso_size = skb_shinfo(in->skb)->gso_size;
+	if (gso_size) {
+		if (sizeof(struct iphdr) + pkt_l4hdr_len(in) + gso_size > mtu)
+			goto generic_too_big;
 		return 0;
 	}
 
+	delta = sizeof(struct iphdr) - pkt_l3hdr_len(in);
 	if (skb_headlen(in->skb) + delta > mtu)
-		return 1;
+		goto generic_too_big;
 
+	/*
+	 * TODO (performance) This loop could probably be optimized away by
+	 * querying frag_max_size. You'll have to test it.
+	 */
 	mtu -= sizeof(struct iphdr);
 	skb_walk_frags(in->skb, iter)
 		if (iter->len > mtu)
 			return 2;
 
 	return 0;
+
+generic_too_big:
+	return is_first_frag6(pkt_frag_hdr(in)) ? 1 : 2;
 }
 
 static verdict validate_size(struct xlation *state)
@@ -987,14 +1027,14 @@ static __be16 get_src_port64(struct xlation *state)
 {
 	return pkt_is_inner(&state->out)
 			? cpu_to_be16(state->out.tuple.dst.addr4.l4)
-			: state->flowx.v4.flowi.fl4_sport;
+			: cpu_to_be16(state->out.tuple.src.addr4.l4);
 }
 
 static __be16 get_dst_port64(struct xlation *state)
 {
 	return pkt_is_inner(&state->out)
 			? cpu_to_be16(state->out.tuple.src.addr4.l4)
-			: state->flowx.v4.flowi.fl4_dport;
+			: cpu_to_be16(state->out.tuple.dst.addr4.l4);
 }
 
 static __wsum pseudohdr6_csum(struct ipv6hdr const *hdr)

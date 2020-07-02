@@ -278,30 +278,32 @@ panic:
 	return drop(state, JSTAT_UNKNOWN);
 }
 
-static int hdr4len_to_hdr6len(struct iphdr *hdr4)
+struct ttp46_delta {
+	/* Actual delta Jool is supposed to work with. */
+	int actual;
+	/*
+	 * This delta always include the fragment header, and it's only for
+	 * allocation purposes.
+	 */
+	int reserve;
+};
+
+static int iphdr_delta(struct iphdr *hdr4)
 {
-	int result;
-
-	result = sizeof(struct ipv6hdr) - (hdr4->ihl << 2);
-	if (will_need_frag_hdr(hdr4))
-		result += sizeof(struct frag_hdr);
-
-	return result;
+	return sizeof(struct ipv6hdr) - (hdr4->ihl << 2);
 }
 
 /*
- * Returns the "ideal" difference in size between in->skb and out->skb.
- * in->skb->len + delta should equal out->skb->len.
- *
- * ("Ideal" refers to Fast Path. This delta will not apply if Jool has to mess
- * around with fragmentation.)
+ * Returns the "ideal" (ie. Fast Path only) difference in size between in->skb
+ * and out->skb. in->skb->len + delta should equal out->skb->len.
  *
  * Please note that there is no guarantee that delta will be positive. If the
  * IPv4 header has lots of options, it might exceed the IPv6 header length.
  */
-static int get_delta(struct packet *in)
+static void get_delta(struct packet *in, struct ttp46_delta *delta)
 {
-	int delta;
+	struct iphdr *hdr4;
+	int __delta;
 
 	/*
 	 * The following is assumed by this code:
@@ -319,11 +321,28 @@ static int get_delta(struct packet *in)
 	 * The subpayload will never change in size (for now).
 	 */
 
-	delta = hdr4len_to_hdr6len(pkt_ip4_hdr(in));
-	if (is_first_frag4(pkt_ip4_hdr(in)) && pkt_is_icmp4_error(in))
-		delta += hdr4len_to_hdr6len(pkt_payload(in));
+	hdr4 = pkt_ip4_hdr(in);
+	__delta = iphdr_delta(hdr4);
+	/*
+	 * - defrag4 always removes MF and fragment offset.
+	 * - This fragment header will only included if defrag4 is not mangling
+	 *   packets.
+	 * - If defrag4 is mangling packets, Linux might add a fragment header
+	 *   later, but it's none of Jool's concern. (Except for allocation
+	 *   purposes.)
+	 */
+	delta->actual = will_need_frag_hdr(hdr4) ? sizeof(struct frag_hdr) : 0;
+	delta->reserve = sizeof(struct frag_hdr);
 
-	return delta;
+	if (is_first_frag4(hdr4) && pkt_is_icmp4_error(in)) {
+		hdr4 = pkt_payload(in);
+		__delta += iphdr_delta(hdr4);
+		if (will_need_frag_hdr(hdr4))
+			__delta += sizeof(struct frag_hdr);
+	}
+
+	delta->actual += __delta;
+	delta->reserve += __delta;
 }
 
 /*
@@ -336,16 +355,22 @@ static int get_delta(struct packet *in)
 static int fragment_exceeds_mtu46(struct packet *in, int delta,
 		unsigned int mtu)
 {
+	unsigned short gso_size;
+	unsigned int l3_len;
 	struct sk_buff *iter;
 
-	if (!skb_shinfo(in->skb)->frag_list) {
-		if (in->skb->len + delta > mtu)
-			return is_first_frag4(pkt_ip4_hdr(in)) ? 1 : 2;
+	gso_size = skb_shinfo(in->skb)->gso_size;
+	if (gso_size) {
+		l3_len = sizeof(struct ipv6hdr)
+				+ (will_need_frag_hdr(pkt_ip4_hdr(in))
+				? sizeof(struct frag_hdr) : 0);
+		if (l3_len + pkt_l4hdr_len(in) + gso_size > mtu)
+			goto generic_too_big;
 		return 0;
 	}
 
 	if (skb_headlen(in->skb) + delta > mtu)
-		return 1;
+		goto generic_too_big;
 
 	mtu -= sizeof(struct ipv6hdr) + sizeof(struct frag_hdr);
 	skb_walk_frags(in->skb, iter)
@@ -353,6 +378,9 @@ static int fragment_exceeds_mtu46(struct packet *in, int delta,
 			return 2;
 
 	return 0;
+
+generic_too_big:
+	return is_first_frag4(pkt_ip4_hdr(in)) ? 1 : 2;
 }
 
 static verdict allocate_fast(struct xlation *state, int delta, bool ignore_df)
@@ -684,7 +712,7 @@ static verdict ttp46_alloc_skb(struct xlation *state)
 	 */
 
 	struct packet *in;
-	int delta;
+	struct ttp46_delta delta;
 	unsigned int nexthop_mtu;
 	unsigned int lim;
 	unsigned int mpl;
@@ -698,7 +726,7 @@ static verdict ttp46_alloc_skb(struct xlation *state)
 		return result;
 
 	in = &state->in;
-	delta = get_delta(in);
+	get_delta(in, &delta);
 #ifndef UNIT_TESTING
 	nexthop_mtu = dst_mtu(state->dst);
 #else
@@ -712,12 +740,21 @@ static verdict ttp46_alloc_skb(struct xlation *state)
 	}
 
 	if (is_icmp4_error(pkt_icmp4_hdr(in)->type)) {
-		result = allocate_fast(state, delta, false);
+		/* Fragment header will not be added because ICMP error */
+		result = allocate_fast(state, delta.reserve, false);
 
 	} else if (is_df_set(pkt_ip4_hdr(in))) {
-		switch (fragment_exceeds_mtu46(in, delta, nexthop_mtu)) {
+		/*
+		 * Fragment header will not be added because DF.
+		 * ...Unless it's already fragmented.
+		 * If defrag disabled:
+		 * 	Fragment header already included in delta.
+		 * Else:
+		 * 	Fragment header not included in delta.
+		 */
+		switch (fragment_exceeds_mtu46(in, delta.actual, nexthop_mtu)) {
 		case 0:
-			result = allocate_fast(state, delta,
+			result = allocate_fast(state, delta.reserve,
 					in->skb->ignore_df);
 			break;
 		case 1:
@@ -735,10 +772,10 @@ static verdict ttp46_alloc_skb(struct xlation *state)
 		}
 
 	} else { /* Fragmentation allowed */
-		if (fragment_exceeds_mtu46(in, delta, mpl))
+		if (fragment_exceeds_mtu46(in, delta.actual, mpl))
 			result = allocate_slow(state, mpl);
 		else
-			result = allocate_fast(state, delta, true);
+			result = allocate_fast(state, delta.reserve, true);
 	}
 
 	if (result != VERDICT_CONTINUE)
@@ -1329,14 +1366,14 @@ static __be16 get_src_port46(struct xlation *state)
 {
 	return pkt_is_inner(&state->out)
 			? cpu_to_be16(state->out.tuple.dst.addr6.l4)
-			: state->flowx.v6.flowi.fl6_sport;
+			: cpu_to_be16(state->out.tuple.src.addr6.l4);
 }
 
 static __be16 get_dst_port46(struct xlation *state)
 {
 	return pkt_is_inner(&state->out)
 			? cpu_to_be16(state->out.tuple.src.addr6.l4)
-			: state->flowx.v6.flowi.fl6_dport;
+			: cpu_to_be16(state->out.tuple.dst.addr6.l4);
 }
 
 /**
