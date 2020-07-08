@@ -30,8 +30,6 @@ bool pool4empty_contains(struct net *ns, const struct ipv4_transport_addr *addr)
 {
 	if (addr->l4 < DEFAULT_POOL4_MIN_PORT)
 		return false;
-	if (DEFAULT_POOL4_MAX_PORT < addr->l4)
-		return false;
 
 	return contains_addr(ns, &addr->l3);
 }
