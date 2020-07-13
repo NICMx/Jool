@@ -138,7 +138,7 @@ void pktqueue_rm(struct pktqueue *queue, struct ipv4_transport_addr *src4);
 struct pktqueue_session *pktqueue_find(struct pktqueue *queue,
 		struct ipv6_transport_addr *addr,
 		struct mask_domain *masks);
-void pktqueue_put_node(struct pktqueue_session *node);
+void pktqueue_put_node(struct xlator *jool, struct pktqueue_session *node);
 
 /**
  * In a perfect world, `prepare_clean` and `clean` would be a single function.

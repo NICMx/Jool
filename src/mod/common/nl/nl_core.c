@@ -70,7 +70,8 @@ void jresponse_enable_m(struct jool_response *response)
 	response->hdr->flags |= JOOLNLHDR_FLAGS_M;
 }
 
-int jresponse_send_array(struct jool_response *response, int error)
+int jresponse_send_array(struct xlator *jool, struct jool_response *response,
+		int error)
 {
 	if (error < 0)
 		goto cancel;
@@ -82,7 +83,8 @@ int jresponse_send_array(struct jool_response *response, int error)
 	if (error > 0) {
 		if (response->skb->len == response->initial_len) {
 			report_put_failure();
-			error = jresponse_send_simple(response->info, -EINVAL);
+			error = jresponse_send_simple(jool, response->info,
+					-EINVAL);
 			goto cancel;
 		}
 		jresponse_enable_m(response);
@@ -95,7 +97,8 @@ cancel:
 	return error;
 }
 
-int jresponse_send_simple(struct genl_info *info, int error_code)
+int jresponse_send_simple(struct xlator *jool, struct genl_info *info,
+		int error_code)
 {
 	struct jool_response response;
 	int error;
@@ -125,13 +128,15 @@ int jresponse_send_simple(struct genl_info *info, int error_code)
 		error = nla_put_string(response.skb, JNLAERR_MSG, error_msg);
 		if (error) {
 			error_msg[128] = '\0';
-			error = nla_put_string(response.skb, JNLAERR_MSG, error_msg);
+			error = nla_put_string(response.skb, JNLAERR_MSG,
+					error_msg);
 			if (error)
 				goto revert_response;
 		}
-		log_debug("Sending error code %d to userspace.", error_code);
+		__log_debug(jool, "Sending error code %d to userspace.",
+				error_code);
 	} else {
-		log_debug("Sending ACK to userspace.");
+		__log_debug(jool, "Sending ACK to userspace.");
 	}
 
 	error = jresponse_send(&response);

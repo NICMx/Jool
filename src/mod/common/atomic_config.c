@@ -48,7 +48,7 @@ static DEFINE_MUTEX(lock);
 
 static void candidate_destroy(struct config_candidate *candidate)
 {
-	log_debug("Destroying atomic configuration candidate '%s'.",
+	LOG_DEBUG("Destroying atomic configuration candidate '%s'.",
 			candidate->xlator.iname);
 	xlator_put(&candidate->xlator);
 	list_del(&candidate->list_hook);
@@ -140,7 +140,7 @@ static int handle_init(struct config_candidate **out, struct nlattr *attr,
 	struct net *ns;
 	int error;
 
-	log_debug("Handling atomic INIT attribute.");
+	LOG_DEBUG("Handling atomic INIT attribute.");
 
 	ns = get_net_ns_by_pid(task_pid_vnr(current));
 	if (IS_ERR(ns)) {
@@ -173,7 +173,7 @@ end:	put_net(ns);
 static int handle_global(struct config_candidate *new, struct nlattr *attr,
 		joolnlhdr_flags flags)
 {
-	log_debug("Handling atomic global attribute.");
+	LOG_DEBUG("Handling atomic global attribute.");
 	return global_update(&new->xlator.globals,
 			xlator_flags2xt(new->xlator.flags),
 			!!(flags & JOOLNLHDR_FLAGS_FORCE), attr);
@@ -187,7 +187,7 @@ static int handle_eamt(struct config_candidate *new, struct nlattr *root,
 	int rem;
 	int error;
 
-	log_debug("Handling atomic EAMT attribute.");
+	LOG_DEBUG("Handling atomic EAMT attribute.");
 
 	if (xlator_is_nat64(&new->xlator)) {
 		log_err("Stateful NAT64 doesn't have an EAMT.");
@@ -216,7 +216,7 @@ static int handle_blacklist4(struct config_candidate *new, struct nlattr *root,
 	int rem;
 	int error;
 
-	log_debug("Handling atomic blacklist4 attribute.");
+	LOG_DEBUG("Handling atomic blacklist4 attribute.");
 
 	if (xlator_is_nat64(&new->xlator)) {
 		log_err("Stateful NAT64 doesn't have blacklist4.");
@@ -244,7 +244,7 @@ static int handle_pool4(struct config_candidate *new, struct nlattr *root)
 	int rem;
 	int error;
 
-	log_debug("Handling atomic pool4 attribute.");
+	LOG_DEBUG("Handling atomic pool4 attribute.");
 
 	if (xlator_is_siit(&new->xlator)) {
 		log_err("SIIT doesn't have pool4.");
@@ -272,7 +272,7 @@ static int handle_bib(struct config_candidate *new, struct nlattr *root)
 	int rem;
 	int error;
 
-	log_debug("Handling atomic BIB attribute.");
+	LOG_DEBUG("Handling atomic BIB attribute.");
 
 	if (xlator_is_siit(&new->xlator)) {
 		log_err("SIIT doesn't have BIBs.");
@@ -297,7 +297,7 @@ static int commit(struct config_candidate *candidate)
 {
 	int error;
 
-	log_debug("Handling atomic END attribute.");
+	LOG_DEBUG("Handling atomic END attribute.");
 
 	error = xlator_replace(&candidate->xlator);
 	if (error) {
@@ -306,7 +306,7 @@ static int commit(struct config_candidate *candidate)
 	}
 
 	candidate_destroy(candidate);
-	log_debug("The atomic configuration transaction was a success.");
+	LOG_DEBUG("The atomic configuration transaction was a success.");
 	return 0;
 }
 

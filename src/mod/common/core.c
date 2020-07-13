@@ -55,7 +55,7 @@ static verdict core_common(struct xlation *state)
 	if (result != VERDICT_CONTINUE)
 		return result;
 
-	log_debug("Success.");
+	log_debug(state, "Success.");
 	/*
 	 * The new packet was sent, so the original one can die; drop it.
 	 *
@@ -77,9 +77,8 @@ static void send_icmp4_error(struct xlation *state, verdict result)
 	if (result == VERDICT_UNTRANSLATABLE)
 		return; /* Linux will decide what to do. */
 
-	success = icmp64_send4(state->in.skb,
-			state->result.icmp,
-			state->result.info);
+	success = icmp64_send4(&state->jool, state->in.skb,
+			state->result.icmp, state->result.info);
 	jstat_inc(state->jool.stats, success
 			? JSTAT_ICMP4ERR_SUCCESS
 			: JSTAT_ICMP4ERR_FAILURE);
@@ -100,8 +99,8 @@ verdict core_4to6(struct sk_buff *skb, struct xlation *state)
 	if (result != VERDICT_CONTINUE)
 		goto end;
 
-	log_debug("===============================================");
-	log_debug("Jool instance '%s': Received a v4 packet.",
+	log_debug(state, "===============================================");
+	log_debug(state, "Jool instance '%s': Received a v4 packet.",
 			state->jool.iname);
 
 	/* Reminder: This function might change pointers. */
@@ -130,9 +129,8 @@ static void send_icmp6_error(struct xlation *state, verdict result)
 	if (result == VERDICT_UNTRANSLATABLE)
 		return; /* Linux will decide what to do. */
 
-	success = icmp64_send6(state->in.skb,
-			state->result.icmp,
-			state->result.info);
+	success = icmp64_send6(&state->jool, state->in.skb,
+			state->result.icmp, state->result.info);
 	jstat_inc(state->jool.stats, success
 			? JSTAT_ICMP6ERR_SUCCESS
 			: JSTAT_ICMP6ERR_FAILURE);
@@ -155,8 +153,8 @@ verdict core_6to4(struct sk_buff *skb, struct xlation *state)
 	if (result != VERDICT_CONTINUE)
 		goto end;
 
-	log_debug("===============================================");
-	log_debug("Jool instance '%s': Received a v6 packet.",
+	log_debug(state, "===============================================");
+	log_debug(state, "Jool instance '%s': Received a v6 packet.",
 			state->jool.iname);
 
 	/* Reminder: This function might change pointers. */

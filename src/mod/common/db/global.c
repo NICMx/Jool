@@ -55,6 +55,7 @@ int globals_init(struct jool_globals *config, xlator_type type,
 	int error;
 
 	config->enabled = DEFAULT_INSTANCE_ENABLED;
+	config->debug = false;
 	config->trace = false;
 
 	if (pool6) {

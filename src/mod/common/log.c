@@ -3,6 +3,49 @@
 #include <linux/interrupt.h>
 #include "mod/common/error_pool.h"
 #include "mod/common/wkmalloc.h"
+#include "mod/common/translation_state.h"
+
+void JOOL_LOG(struct xlation const *state, char const *format, ...)
+{
+	va_list args;
+
+#ifndef DEBUG
+	if (!state || !state->jool.globals.debug)
+		return;
+#endif
+
+	va_start(args, format);
+	vprintk(format, args);
+	va_end(args);
+}
+
+void __JOOL_LOG(struct xlator const *jool, char const *format, ...)
+{
+	va_list args;
+
+#ifndef DEBUG
+	if (!jool || !jool->globals.debug)
+		return;
+#endif
+
+	va_start(args, format);
+	vprintk(format, args);
+	va_end(args);
+}
+
+void ____JOOL_LOG(bool conditional, char const *format, ...)
+{
+	va_list args;
+
+#ifndef DEBUG
+	if (!conditional)
+		return;
+#endif
+
+	va_start(args, format);
+	vprintk(format, args);
+	va_end(args);
+}
 
 /*
  * From the logging module's point of view, Jool functions in three different

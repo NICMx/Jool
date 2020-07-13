@@ -772,6 +772,13 @@ static const struct joolnl_global_meta globals_metadata[] = {
 		.nl2raw = nl2raw_pool6,
 #endif
 	}, {
+		.id = JNLAG_DEBUG,
+		.name = "debug",
+		.type = &gt_bool,
+		.doc = "Pour lots of debugging messages on the log?",
+		.offset = offsetof(struct jool_globals, debug),
+		.xt = XT_ANY,
+	}, {
 		.id = JNLAG_TRACE,
 		.name = "trace",
 		.type = &gt_bool,

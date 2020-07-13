@@ -19,6 +19,7 @@
  */
 
 #include "mod/common/packet.h"
+#include "mod/common/xlator.h"
 
 typedef enum icmp_errcode {
 	ICMPERR_NONE,
@@ -35,9 +36,12 @@ typedef enum icmp_errcode {
 /**
  * Wrappers for icmp_send() and icmpv6_send().
  */
-bool icmp64_send6(struct sk_buff *skb, icmp_error_code error, __u32 info);
-bool icmp64_send4(struct sk_buff *skb, icmp_error_code error, __u32 info);
-bool icmp64_send(struct sk_buff *skb, icmp_error_code error, __u32 info);
+bool icmp64_send6(struct xlator *jool, struct sk_buff *skb,
+		icmp_error_code error, __u32 info);
+bool icmp64_send4(struct xlator *jool, struct sk_buff *skb,
+		icmp_error_code error, __u32 info);
+bool icmp64_send(struct xlator *jool, struct sk_buff *skb,
+		icmp_error_code error, __u32 info);
 
 /**
  * Return the numbers of icmp error that was sent, also reset the static counter

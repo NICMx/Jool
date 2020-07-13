@@ -40,11 +40,11 @@ int handle_address_query64(struct sk_buff *skb, struct genl_info *info)
 	struct jool_response response;
 	int error;
 
-	log_debug("Handling 6->4 address translation query.");
-
 	error = request_handle_start(info, XT_SIIT, &jool);
 	if (error)
-		goto end;
+		return jresponse_send_simple(NULL, info, error);
+
+	__log_debug(&jool, "Handling 6->4 address translation query.");
 
 	/* Parse request */
 	error = jnla_get_addr6(info->attrs[JNLAR_ADDR_QUERY], "IPv6 address", &request);
@@ -79,9 +79,9 @@ int handle_address_query64(struct sk_buff *skb, struct genl_info *info)
 drop_response:
 	jresponse_cleanup(&response);
 revert_start:
+	error = jresponse_send_simple(&jool, info, error);
 	request_handle_end(&jool);
-end:
-	return jresponse_send_simple(info, error);
+	return error;
 }
 
 int handle_address_query46(struct sk_buff *skb, struct genl_info *info)
@@ -93,11 +93,11 @@ int handle_address_query46(struct sk_buff *skb, struct genl_info *info)
 	struct jool_response response;
 	int error;
 
-	log_debug("Handling 4->6 address translation query.");
-
 	error = request_handle_start(info, XT_SIIT, &jool);
 	if (error)
-		goto end;
+		return jresponse_send_simple(NULL, info, error);
+
+	__log_debug(&jool, "Handling 4->6 address translation query.");
 
 	/* Parse request */
 	error = jnla_get_addr4(info->attrs[JNLAR_ADDR_QUERY], "IPv4 address", &request);
@@ -132,7 +132,7 @@ int handle_address_query46(struct sk_buff *skb, struct genl_info *info)
 drop_response:
 	jresponse_cleanup(&response);
 revert_start:
+	error = jresponse_send_simple(&jool, info, error);
 	request_handle_end(&jool);
-end:
-	return jresponse_send_simple(info, error);
+	return error;
 }

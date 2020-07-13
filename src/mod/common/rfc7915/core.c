@@ -25,10 +25,10 @@ verdict translating_the_packet(struct xlation *state)
 
 	switch (xlator_get_type(&state->jool)) {
 	case XT_NAT64:
-		log_debug("Step 4: Translating the Packet");
+		log_debug(state, "Step 4: Translating the Packet");
 		break;
 	case XT_SIIT:
-		log_debug("Translating the Packet.");
+		log_debug(state, "Translating the Packet.");
 		break;
 	}
 
@@ -57,7 +57,7 @@ verdict translating_the_packet(struct xlation *state)
 	}
 
 	if (xlation_is_nat64(state))
-		log_debug("Done step 4.");
+		log_debug(state, "Done step 4.");
 	return VERDICT_CONTINUE;
 
 revert:

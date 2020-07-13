@@ -7,6 +7,6 @@
 int rfc6056_setup(void);
 void rfc6056_teardown(void);
 
-int rfc6056_f(const struct tuple *tuple6, __u8 fields, unsigned int *result);
+int rfc6056_f(struct xlation *state, unsigned int *result);
 
 #endif /* SRC_MOD_NAT64_POOL4_RFC6056_H_ */

@@ -3,12 +3,33 @@
 
 #include <linux/printk.h>
 
+struct xlation;
+struct xlator;
+
+void JOOL_LOG(struct xlation const *state, char const *format, ...);
+void __JOOL_LOG(struct xlator const *jool, char const *format, ...);
+void ____JOOL_LOG(bool conditional, char const *format, ...);
+
+#define LOGGIFY(text) KERN_INFO "Jool: " text "\n"
+
 /**
  * Messages to help us walk through a run. Also covers normal packet drops
  * (because users catch those from stats instead) and some failed memory
  * allocations (because the kernel already prints those).
  */
-#define log_debug(text, ...) \
+#define     log_debug(state, text, ...) \
+	    JOOL_LOG(state, LOGGIFY(text), ##__VA_ARGS__)
+#define   __log_debug(jool,  text, ...) \
+	  __JOOL_LOG(jool,  LOGGIFY(text), ##__VA_ARGS__)
+#define ____log_debug(cond,  text, ...) \
+	____JOOL_LOG(cond,  LOGGIFY(text), ##__VA_ARGS__)
+
+/*
+ * Debug messages not associated with an instance. They need JOOL_FLAGS=-DDEBUG.
+ * I think this is fine for now; people normally wants debug messages to learn
+ * why an instance is misbehaving.
+ */
+#define LOG_DEBUG(text, ...) \
 	pr_debug("Jool: " text "\n", ##__VA_ARGS__)
 
 /**

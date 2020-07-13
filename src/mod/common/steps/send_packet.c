@@ -15,7 +15,7 @@ static verdict __sendpkt_send(struct xlation *state, struct sk_buff *out)
 		return drop(state, JSTAT_UNKNOWN);
 
 	out->dev = dst->dev;
-	log_debug("Sending skb.");
+	log_debug(state, "Sending skb.");
 
 	/* skb_log(out, "Translated packet"); */
 
@@ -26,7 +26,7 @@ static verdict __sendpkt_send(struct xlation *state, struct sk_buff *out)
 	error = dst_output(out);
 #endif
 	if (error) {
-		log_debug("dst_output() returned errcode %d.", error);
+		log_debug(state, "dst_output() returned errcode %d.", error);
 		return drop(state, JSTAT_DST_OUTPUT);
 	}
 

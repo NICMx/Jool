@@ -9,12 +9,12 @@ int handle_atomconfig_request(struct sk_buff *skb, struct genl_info *info)
 {
 	int error;
 
-	log_debug("Handling atomic configuration request.");
+	LOG_DEBUG("Handling atomic configuration request.");
 
 	error = request_handle_start(info, XT_ANY, NULL);
 	if (!error)
 		error = atomconfig_add(skb, info);
 	request_handle_end(NULL);
 
-	return jresponse_send_simple(info, error);
+	return jresponse_send_simple(NULL, info, error);
 }

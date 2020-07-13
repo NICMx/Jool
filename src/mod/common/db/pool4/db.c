@@ -535,12 +535,6 @@ int pool4db_add(struct pool4 *pool, const struct pool4_entry *entry)
 	u64 tmp;
 	int error;
 
-	log_debug("Adding pool4 entry (%pI4/%u, %u-%u, %u, %u, %u, %u).",
-			&entry->range.prefix.addr, entry->range.prefix.len,
-			entry->range.ports.min, entry->range.ports.max,
-			entry->mark, entry->iterations,
-			entry->flags, entry->proto);
-
 	error = prefix4_validate(&entry->range.prefix);
 	if (error)
 		return error;
@@ -634,10 +628,6 @@ static int remove_range(struct rb_root *tree, struct pool4_table *table,
 	int i;
 	int error = 0;
 
-	/* log_debug("  removing range %pI4/%u %u-%u",
-			&rm->prefix.address, rm->prefix.len,
-			rm->ports.min, rm->ports.max); */
-
 	/*
 	 * Note: The entries are sorted so this could be a binary search, but I
 	 * don't want to risk getting it wrong or complicate the code further.
@@ -652,8 +642,6 @@ static int remove_range(struct rb_root *tree, struct pool4_table *table,
 		ports = &entry->ports;
 
 		if (rm->ports.min <= ports->min && ports->max <= rm->ports.max) {
-			/* log_debug("    rm fully contains %pI4 %u-%u.",
-					&entry->addr, ports->min, ports->max);*/
 			table->taddr_count -= port_range_count(ports);
 			memmove(entry, entry + 1, sizeof(struct ipv4_range)
 					* (table->sample_count - i - 1));
@@ -662,8 +650,6 @@ static int remove_range(struct rb_root *tree, struct pool4_table *table,
 			continue;
 		}
 		if (ports->min < rm->ports.min && rm->ports.max < ports->max) {
-			/* log_debug("    rm is inside %pI4 %u-%u.",
-					&entry->addr, ports->min, ports->max);*/
 			/* Punch a hole in ports. */
 			table->taddr_count -= port_range_count(&rm->ports);
 			tmp.prefix = entry->prefix;
@@ -677,21 +663,15 @@ static int remove_range(struct rb_root *tree, struct pool4_table *table,
 		}
 
 		if (rm->ports.max < ports->min || rm->ports.min > ports->max) {
-			/* log_debug("    rm has nothing to do with %pI4 %u-%u.",
-					&entry->addr, ports->min, ports->max);*/
 			continue;
 		}
 
 		if (ports->min < rm->ports.min) {
-			/* log_debug("    rm touches %pI4 %u-%u's right.",
-					&entry->addr, ports->min, ports->max);*/
 			table->taddr_count -= ports->max - rm->ports.min + 1;
 			ports->max = rm->ports.min - 1;
 			continue;
 		}
 		if (rm->ports.max < ports->max) {
-			/* log_debug("    rm touches %pI4 %u-%u's left.",
-					&entry->addr, ports->min, ports->max);*/
 			table->taddr_count -= rm->ports.max - ports->min + 1;
 			ports->min = rm->ports.max + 1;
 			continue;
@@ -1100,8 +1080,7 @@ verdict mask_domain_find(struct xlation *state, struct mask_domain **out)
 	struct mask_domain *masks;
 	unsigned int offset;
 
-	if (rfc6056_f(&state->in.tuple, state->jool.globals.nat64.f_args,
-			&offset))
+	if (rfc6056_f(state, &offset))
 		return drop(state, JSTAT_6056_F);
 
 	offset += atomic_read(&next_ephemeral);

@@ -20,21 +20,23 @@ int handle_pool4_foreach(struct sk_buff *skb, struct genl_info *info)
 	struct pool4_entry offset, *offset_ptr;
 	int error;
 
-	log_debug("Sending pool4 to userspace.");
-
 	error = request_handle_start(info, XT_NAT64, &jool);
 	if (error)
-		goto end;
+		return jresponse_send_simple(NULL, info, error);
+
+	__log_debug(&jool, "Sending pool4 to userspace.");
+
 	error = jresponse_init(&response, info);
 	if (error)
 		goto revert_start;
 
 	if (info->attrs[JNLAR_OFFSET]) {
-		error = jnla_get_pool4(info->attrs[JNLAR_OFFSET], "Iteration offset", &offset);
+		error = jnla_get_pool4(info->attrs[JNLAR_OFFSET],
+				"Iteration offset", &offset);
 		if (error)
 			goto revert_response;
 		offset_ptr = &offset;
-		log_debug("Offset: [%pI4/%u %u-%u %u %u %u %u]",
+		__log_debug(&jool, "Offset: [%pI4/%u %u-%u %u %u %u %u]",
 				&offset.range.prefix.addr,
 				offset.range.prefix.len,
 				offset.range.ports.min,
@@ -56,7 +58,7 @@ int handle_pool4_foreach(struct sk_buff *skb, struct genl_info *info)
 			offset.proto, serialize_pool4_entry, response.skb,
 			offset_ptr);
 
-	error = jresponse_send_array(&response, error);
+	error = jresponse_send_array(&jool, &response, error);
 	if (error)
 		goto revert_response;
 
@@ -66,9 +68,9 @@ int handle_pool4_foreach(struct sk_buff *skb, struct genl_info *info)
 revert_response:
 	jresponse_cleanup(&response);
 revert_start:
+	error = jresponse_send_simple(&jool, info, error);
 	request_handle_end(&jool);
-end:
-	return jresponse_send_simple(info, error);
+	return error;
 }
 
 int handle_pool4_add(struct sk_buff *skb, struct genl_info *info)
@@ -77,11 +79,11 @@ int handle_pool4_add(struct sk_buff *skb, struct genl_info *info)
 	struct pool4_entry entry;
 	int error;
 
-	log_debug("Adding elements to pool4.");
-
 	error = request_handle_start(info, XT_NAT64, &jool);
 	if (error)
-		goto end;
+		return jresponse_send_simple(NULL, info, error);
+
+	__log_debug(&jool, "Adding elements to pool4.");
 
 	error = jnla_get_pool4(info->attrs[JNLAR_OPERAND], "Operand", &entry);
 	if (error)
@@ -89,9 +91,9 @@ int handle_pool4_add(struct sk_buff *skb, struct genl_info *info)
 
 	error = pool4db_add(jool.nat64.pool4, &entry);
 revert_start:
+	error = jresponse_send_simple(&jool, info, error);
 	request_handle_end(&jool);
-end:
-	return jresponse_send_simple(info, error);
+	return error;
 }
 
 /*
@@ -108,11 +110,11 @@ int handle_pool4_rm(struct sk_buff *skb, struct genl_info *info)
 	struct pool4_entry entry;
 	int error;
 
-	log_debug("Removing elements from pool4.");
-
 	error = request_handle_start(info, XT_NAT64, &jool);
 	if (error)
-		goto end;
+		return jresponse_send_simple(NULL, info, error);
+
+	__log_debug(&jool, "Removing elements from pool4.");
 
 	error = jnla_get_pool4(info->attrs[JNLAR_OPERAND], "Operand", &entry);
 	if (error)
@@ -123,9 +125,9 @@ int handle_pool4_rm(struct sk_buff *skb, struct genl_info *info)
 		bib_rm_range(&jool, entry.proto, &entry.range);
 
 revert_start:
+	error = jresponse_send_simple(&jool, info, error);
 	request_handle_end(&jool);
-end:
-	return jresponse_send_simple(info, error);
+	return error;
 }
 
 int handle_pool4_flush(struct sk_buff *skb, struct genl_info *info)
@@ -133,11 +135,11 @@ int handle_pool4_flush(struct sk_buff *skb, struct genl_info *info)
 	struct xlator jool;
 	int error;
 
-	log_debug("Flushing pool4.");
-
 	error = request_handle_start(info, XT_NAT64, &jool);
 	if (error)
-		goto end;
+		return jresponse_send_simple(NULL, info, error);
+
+	__log_debug(&jool, "Flushing pool4.");
 
 	pool4db_flush(jool.nat64.pool4);
 	if (xlator_is_nat64(&jool) && !(get_jool_hdr(info)->flags & JOOLNLHDR_FLAGS_QUICK)) {
@@ -149,6 +151,7 @@ int handle_pool4_flush(struct sk_buff *skb, struct genl_info *info)
 		bib_flush(&jool);
 	}
 
+	error = jresponse_send_simple(&jool, info, error);
 	request_handle_end(&jool);
-end:	return jresponse_send_simple(info, error);
+	return error;
 }

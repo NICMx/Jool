@@ -71,16 +71,16 @@ static struct net *action_param_net(const struct xt_action_param *param)
 #endif
 }
 
-static unsigned int verdict2iptables(verdict result)
+static unsigned int verdict2iptables(verdict result, bool enable_debug)
 {
 	switch (result) {
 	case VERDICT_STOLEN:
 		return NF_STOLEN; /* This is the happy path. */
 	case VERDICT_UNTRANSLATABLE:
-		log_debug("Returning packet to the iptables chain.");
+		____log_debug(enable_debug, "Returning packet to the iptables chain.");
 		return XT_CONTINUE;
 	case VERDICT_DROP:
-		log_debug("Dropping packet.");
+		____log_debug(enable_debug, "Jool: Dropping packet.");
 		return NF_DROP;
 	case VERDICT_CONTINUE:
 		WARN(true, "At time of writing, Jool core is not supposed to return CONTINUE after the packet is handled.\n"
@@ -101,6 +101,7 @@ unsigned int target_ipv6(struct sk_buff *skb,
 {
 	struct xlation *state;
 	verdict result;
+	bool enable_debug = false;
 
 	state = xlation_create(NULL);
 	if (!state)
@@ -110,12 +111,13 @@ unsigned int target_ipv6(struct sk_buff *skb,
 			&state->jool);
 	if (result != VERDICT_CONTINUE)
 		goto end;
+	enable_debug = state->jool.globals.debug;
 
 	result = core_6to4(skb, state);
 
 	xlator_put(&state->jool);
 end:	xlation_destroy(state);
-	return verdict2iptables(result);
+	return verdict2iptables(result, enable_debug);
 }
 EXPORT_SYMBOL_GPL(target_ipv6);
 
@@ -128,6 +130,7 @@ unsigned int target_ipv4(struct sk_buff *skb,
 {
 	struct xlation *state;
 	verdict result;
+	bool enable_debug = false;
 
 	state = xlation_create(NULL);
 	if (!state)
@@ -137,11 +140,12 @@ unsigned int target_ipv4(struct sk_buff *skb,
 			&state->jool);
 	if (result != VERDICT_CONTINUE)
 		goto end;
+	enable_debug = state->jool.globals.debug;
 
 	result = core_4to6(skb, state);
 
 	xlator_put(&state->jool);
 end:	xlation_destroy(state);
-	return verdict2iptables(result);
+	return verdict2iptables(result, enable_debug);
 }
 EXPORT_SYMBOL_GPL(target_ipv4);

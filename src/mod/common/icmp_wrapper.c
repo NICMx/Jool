@@ -6,7 +6,7 @@
 #include "common/types.h"
 #include "mod/common/log.h"
 
-static int route4_input(struct sk_buff *skb)
+static int route4_input(struct xlator *jool, struct sk_buff *skb)
 {
 	struct iphdr *hdr;
 	int error;
@@ -19,7 +19,7 @@ static int route4_input(struct sk_buff *skb)
 	hdr = ip_hdr(skb);
 	error = ip_route_input(skb, hdr->daddr, hdr->saddr, hdr->tos, skb->dev);
 	if (error)
-		log_debug("ip_route_input failed: %d", error);
+		__log_debug(jool, "ip_route_input failed: %d", error);
 
 	return error;
 }
@@ -50,7 +50,8 @@ static char *icmp_error_to_string(icmp_error_code error)
 	return "Unknown";
 }
 
-bool icmp64_send4(struct sk_buff *skb, icmp_error_code error, __u32 info)
+bool icmp64_send4(struct xlator *jool, struct sk_buff *skb,
+		icmp_error_code error, __u32 info)
 {
 	int type, code;
 
@@ -61,7 +62,7 @@ bool icmp64_send4(struct sk_buff *skb, icmp_error_code error, __u32 info)
 	 * I don't know why the kernel needs this nonsense,
 	 * but it's not my fault.
 	 */
-	if (route4_input(skb))
+	if (route4_input(jool, skb))
 		return false;
 
 	switch (error) {
@@ -97,13 +98,14 @@ bool icmp64_send4(struct sk_buff *skb, icmp_error_code error, __u32 info)
 		return false; /* Not supported or needed. */
 	}
 
-	log_debug("Sending ICMPv4 error: %s, type: %d, code: %d, rest: %u.",
+	__log_debug(jool, "Sending ICMPv4 error: %s, type: %d, code: %d, rest: %u.",
 			icmp_error_to_string(error), type, code, info);
 	icmp_send(skb, type, code, cpu_to_be32(info));
 	return true;
 }
 
-bool icmp64_send6(struct sk_buff *skb, icmp_error_code error, __u32 info)
+bool icmp64_send6(struct xlator *jool, struct sk_buff *skb,
+		icmp_error_code error, __u32 info)
 {
 	int type, code;
 
@@ -141,22 +143,23 @@ bool icmp64_send6(struct sk_buff *skb, icmp_error_code error, __u32 info)
 		return false; /* Not supported or needed. */
 	}
 
-	log_debug("Sending ICMPv6 error: %s, type: %d, code: %d, rest: %u",
+	__log_debug(jool, "Sending ICMPv6 error: %s, type: %d, code: %d, rest: %u",
 			icmp_error_to_string(error), type, code, info);
 	icmpv6_send(skb, type, code, info);
 	return true;
 }
 
-bool icmp64_send(struct sk_buff *skb, icmp_error_code error, __u32 info)
+bool icmp64_send(struct xlator *jool, struct sk_buff *skb,
+		icmp_error_code error, __u32 info)
 {
 	if (unlikely(!skb))
 		return false;
 
 	switch (ntohs(skb->protocol)) {
 	case ETH_P_IP:
-		return icmp64_send4(skb, error, info);
+		return icmp64_send4(jool, skb, error, info);
 	case ETH_P_IPV6:
-		return icmp64_send6(skb, error, info);
+		return icmp64_send6(jool, skb, error, info);
 	}
 
 	return false;

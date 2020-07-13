@@ -62,6 +62,6 @@ int rfc6791v6_find(struct xlation *state, struct in6_addr *result)
 	if (get_pool_address(state, result) != 0)
 		get_host_address_v6(state, result);
 
-	log_debug("Chose %pI6c as RFC6791v6 address.", result);
+	log_debug(state, "Chose %pI6c as RFC6791v6 address.", result);
 	return 0;
 }

@@ -25,7 +25,7 @@ static int setup_common_modules(void)
 {
 	int error;
 
-	log_debug("Initializing common modules.");
+	LOG_DEBUG("Initializing common modules.");
 	/* Careful with the order. */
 
 	/* NAT64 */
@@ -68,7 +68,7 @@ rfc6056_fail:
 
 static void teardown_common_modules(void)
 {
-	log_debug("Tearing down common modules.");
+	LOG_DEBUG("Tearing down common modules.");
 
 	/* Careful with the order. */
 	/* (iptables packet handler already stopped by jool.ko/jool_siit.ko) */
@@ -150,7 +150,7 @@ static int __init jool_init(void)
 {
 	int error;
 
-	log_debug("Inserting Core Jool...");
+	LOG_DEBUG("Inserting Core Jool...");
 
 	error = setup_common_modules();
 	if (error)

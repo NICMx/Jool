@@ -4,6 +4,7 @@
 #include <linux/icmpv6.h>
 #include <net/ipv6.h>
 #include "mod/common/log.h"
+#include "mod/common/translation_state.h"
 
 bool is_icmp6_info(__u8 type)
 {
@@ -42,17 +43,17 @@ bool is_icmp4_error(__u8 type)
 *
 * It's a ripoff of nf_ct_dump_tuple(), adjusted to comply to this project's logging requirements.
 */
-void log_tuple(struct tuple *tuple)
+void log_tuple(struct xlation *state, struct tuple *tuple)
 {
 	switch (tuple->l3_proto) {
 	case L3PROTO_IPV4:
-		log_debug("Tuple: %pI4#%u -> %pI4#%u (%s)",
+		log_debug(state, "Tuple: %pI4#%u -> %pI4#%u (%s)",
 				&tuple->src.addr4.l3, tuple->src.addr4.l4,
 				&tuple->dst.addr4.l3, tuple->dst.addr4.l4,
 				l4proto_to_string(tuple->l4_proto));
 		break;
 	case L3PROTO_IPV6:
-		log_debug("Tuple: %pI6c#%u -> %pI6c#%u (%s)",
+		log_debug(state, "Tuple: %pI6c#%u -> %pI6c#%u (%s)",
 				&tuple->src.addr6.l3, tuple->src.addr6.l4,
 				&tuple->dst.addr6.l3, tuple->dst.addr6.l4,
 				l4proto_to_string(tuple->l4_proto));

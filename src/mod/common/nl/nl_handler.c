@@ -236,7 +236,7 @@ static int register_family(void)
 {
 	int error;
 
-	log_debug("Registering Generic Netlink family...");
+	LOG_DEBUG("Registering Generic Netlink family...");
 
 	strcpy(jool_family.name, JOOLNL_FAMILY);
 

@@ -21,11 +21,12 @@ int handle_global_foreach(struct sk_buff *skb, struct genl_info *info)
 	enum joolnl_attr_global offset;
 	int error;
 
-	log_debug("Returning 'Global' options.");
-
 	error = request_handle_start(info, XT_ANY, &jool);
 	if (error)
-		goto end;
+		return jresponse_send_simple(NULL, info, error);
+
+	__log_debug(&jool, "Returning 'Global' options.");
+
 	error = jresponse_init(&response, info);
 	if (error)
 		goto revert_start;
@@ -33,13 +34,13 @@ int handle_global_foreach(struct sk_buff *skb, struct genl_info *info)
 	offset = 0;
 	if (info->attrs[JNLAR_OFFSET_U8]) {
 		offset = nla_get_u8(info->attrs[JNLAR_OFFSET_U8]);
-		log_debug("Offset: [%u]", offset);
+		__log_debug(&jool, "Offset: [%u]", offset);
 	}
 
 	error = globals_foreach(&jool.globals, xlator_get_type(&jool),
 			serialize_global, response.skb, offset);
 
-	error = jresponse_send_array(&response, error);
+	error = jresponse_send_array(&jool, &response, error);
 	if (error)
 		goto revert_response;
 
@@ -49,17 +50,15 @@ int handle_global_foreach(struct sk_buff *skb, struct genl_info *info)
 revert_response:
 	jresponse_cleanup(&response);
 revert_start:
+	error = jresponse_send_simple(&jool, info, error);
 	request_handle_end(&jool);
-end:
-	return jresponse_send_simple(info, error);
+	return error;
 }
 
 int handle_global_update(struct sk_buff *skb, struct genl_info *info)
 {
 	struct xlator jool;
 	int error;
-
-	log_debug("Updating 'Global' value.");
 
 	/*
 	 * This is implemented as an atomic configuration run with only a single
@@ -104,7 +103,9 @@ int handle_global_update(struct sk_buff *skb, struct genl_info *info)
 
 	error = request_handle_start(info, XT_ANY, &jool);
 	if (error)
-		goto end;
+		return jresponse_send_simple(NULL, info, error);
+
+	__log_debug(&jool, "Updating 'Global' value.");
 
 	if (!info->attrs[JNLAR_GLOBALS]) {
 		log_err("Request is missing a globals container.");
@@ -125,9 +126,9 @@ int handle_global_update(struct sk_buff *skb, struct genl_info *info)
 	error = xlator_replace(&jool);
 
 revert_start:
+	error = jresponse_send_simple(&jool, info, error);
 	request_handle_end(&jool);
-end:
-	return jresponse_send_simple(info, error);
+	return error;
 }
 
 int global_update(struct jool_globals *cfg, xlator_type xt, bool force,

@@ -46,19 +46,19 @@ static bool has_inner_pkt6(__u8 icmp6_type)
 /* It seems that this should never trigger ICMP errors. */
 static verdict truncated(struct xlation *state, const char *what)
 {
-	log_debug("The %s seems truncated.", what);
+	log_debug(state, "The %s seems truncated.", what);
 	return drop(state, JSTAT_SKB_TRUNCATED);
 }
 
 static verdict inhdr6(struct xlation *state, const char *msg)
 {
-	log_debug("%s", msg);
+	log_debug(state, "%s", msg);
 	return drop(state, JSTAT_HDR6);
 }
 
 static verdict inhdr4(struct xlation *state, const char *msg)
 {
-	log_debug("%s", msg);
+	log_debug(state, "%s", msg);
 	return drop(state, JSTAT_HDR4);
 }
 
@@ -211,7 +211,7 @@ static verdict summarize_skb6(struct xlation *state,
 		case NEXTHDR_ROUTING:
 		case NEXTHDR_DEST:
 			if (meta->frag_offset) {
-				log_debug("There's a known extension header (%u) after Fragment.",
+				log_debug(state, "There's a known extension header (%u) after Fragment.",
 						nexthdr);
 				return drop_icmp(state, JSTAT64_FRAG_THEN_EXT,
 						ICMPERR_FILTER, 0);
@@ -283,7 +283,7 @@ static verdict validate_inner6(struct xlation *state,
 	}
 
 	if (!pskb_may_pull(state->in.skb, meta.payload_offset)) {
-		log_debug("Could not 'pull' the headers out of the skb.");
+		log_debug(state, "Could not 'pull' the headers out of the skb.");
 		return truncated(state, "inner headers");
 	}
 
@@ -319,7 +319,7 @@ static verdict handle_icmp6(struct xlation *state, struct pkt_metadata const *me
 		if (!ptr.frag)
 			return truncated(state, "fragment header");
 		if (is_fragmented_ipv6(ptr.frag)) {
-			log_debug("Packet is a fragmented ping; its checksum cannot be translated.");
+			log_debug(state, "Packet is a fragmented ping; its checksum cannot be translated.");
 			return drop(state, JSTAT_FRAGMENTED_PING);
 		}
 	}
@@ -348,7 +348,7 @@ verdict pkt_init_ipv6(struct xlation *state, struct sk_buff *skb)
 	if (result != VERDICT_CONTINUE)
 		return result;
 
-	log_debug("Packet addresses: %pI6c->%pI6c",
+	log_debug(state, "Packet addresses: %pI6c->%pI6c",
 			&ipv6_hdr(skb)->saddr,
 			&ipv6_hdr(skb)->daddr);
 
@@ -448,7 +448,7 @@ static verdict handle_icmp4(struct xlation *state, struct pkt_metadata *meta)
 	if (xlation_is_siit(state)
 			&& is_icmp4_info(ptr->type)
 			&& is_fragmented_ipv4(ip_hdr(state->in.skb))) {
-		log_debug("Packet is a fragmented ping; its checksum cannot be translated.");
+		log_debug(state, "Packet is a fragmented ping; its checksum cannot be translated.");
 		return drop(state, JSTAT_FRAGMENTED_PING);
 	}
 
@@ -517,7 +517,7 @@ verdict pkt_init_ipv4(struct xlation *state, struct sk_buff *skb)
 	if (result != VERDICT_CONTINUE)
 		return result;
 
-	log_debug("Packet addresses: %pI4->%pI4",
+	log_debug(state, "Packet addresses: %pI4->%pI4",
 			&ip_hdr(skb)->saddr,
 			&ip_hdr(skb)->daddr);
 
@@ -526,7 +526,7 @@ verdict pkt_init_ipv4(struct xlation *state, struct sk_buff *skb)
 		return result;
 
 	if (!pskb_may_pull(skb, meta.payload_offset)) {
-		log_debug("Could not 'pull' the headers out of the skb.");
+		log_debug(state, "Could not 'pull' the headers out of the skb.");
 		return truncated(state, "headers");
 	}
 

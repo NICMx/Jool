@@ -15,16 +15,16 @@ int handle_stats_foreach(struct sk_buff *skb, struct genl_info *info)
 	unsigned int written;
 	int error;
 
-	log_debug("Returning stats.");
-
 	error = request_handle_start(info, XT_ANY, &jool);
 	if (error)
-		goto end;
+		return jresponse_send_simple(NULL, info, error);
+
+	__log_debug(&jool, "Returning stats.");
 
 	id = 0;
 	if (info->attrs[JNLAR_OFFSET_U8]) {
 		id = nla_get_u8(info->attrs[JNLAR_OFFSET_U8]);
-		log_debug("Offset: [%u]", id);
+		__log_debug(&jool, "Offset: [%u]", id);
 	}
 
 	/* Perform query */
@@ -67,7 +67,7 @@ revert_response:
 revert_query:
 	kfree(stats);
 revert_start:
+	error = jresponse_send_simple(&jool, info, error);
 	request_handle_end(&jool);
-end:
-	return jresponse_send_simple(info, error);
+	return error;
 }

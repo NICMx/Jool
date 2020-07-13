@@ -214,6 +214,7 @@ enum joolnl_attr_global {
 	/* Common */
 	JNLAG_ENABLED = 1,
 	JNLAG_POOL6,
+	JNLAG_DEBUG,
 	JNLAG_TRACE,
 	JNLAG_RESET_TC,
 	JNLAG_RESET_TOS,
@@ -472,6 +473,8 @@ struct jool_globals {
 
 	/** Does the user wants this Jool instance to translate packets? */
 	bool enabled;
+	/** Print debug messages? */
+	bool debug;
 	/** Print packet addresses on reception? */
 	bool trace;
 

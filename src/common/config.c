@@ -82,8 +82,9 @@ struct nla_policy joolnl_session_entry_policy[JNLASE_COUNT] = {
 
 struct nla_policy siit_globals_policy[JNLAG_COUNT] = {
 	[JNLAG_ENABLED] = { .type = NLA_U8 },
-	[JNLAG_TRACE] = { .type = NLA_U8 },
 	[JNLAG_POOL6] = { .type = NLA_NESTED },
+	[JNLAG_DEBUG] = { .type = NLA_U8 },
+	[JNLAG_TRACE] = { .type = NLA_U8 },
 	[JNLAG_RESET_TC] = { .type = NLA_U8 },
 	[JNLAG_RESET_TOS] = { .type = NLA_U8 },
 	[JNLAG_TOS] = { .type = NLA_U8 },
@@ -98,8 +99,9 @@ struct nla_policy siit_globals_policy[JNLAG_COUNT] = {
 
 struct nla_policy nat64_globals_policy[JNLAG_COUNT] = {
 	[JNLAG_ENABLED] = { .type = NLA_U8 },
-	[JNLAG_TRACE] = { .type = NLA_U8 },
 	[JNLAG_POOL6] = { .type = NLA_NESTED },
+	[JNLAG_DEBUG] = { .type = NLA_U8 },
+	[JNLAG_TRACE] = { .type = NLA_U8 },
 	[JNLAG_RESET_TC] = { .type = NLA_U8 },
 	[JNLAG_RESET_TOS] = { .type = NLA_U8 },
 	[JNLAG_TOS] = { .type = NLA_U8 },

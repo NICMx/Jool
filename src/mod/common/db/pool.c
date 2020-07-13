@@ -107,8 +107,6 @@ int pool_add(struct addr4_pool *pool, struct ipv4_prefix *prefix, bool force)
 	struct pool_entry *entry;
 	int error;
 
-	log_debug("Adding prefix %pI4/%u...", &prefix->addr, prefix->len);
-
 	error = prefix4_validate(prefix);
 	if (error)
 		return error;

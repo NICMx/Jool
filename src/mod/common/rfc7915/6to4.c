@@ -60,7 +60,7 @@ static verdict xlat64_internal_addresses(struct xlation *state)
 		result = become_inner_packet(state, &bkp, false);
 		if (result != VERDICT_CONTINUE)
 			return result;
-		log_debug("Translating internal addresses...");
+		log_debug(state, "Translating internal addresses...");
 		result = translate_addrs64_siit(state,
 				&state->flowx.v4.inner_src.s_addr,
 				&state->flowx.v4.inner_dst.s_addr);
@@ -177,7 +177,7 @@ static verdict xlat64_icmp_type(struct xlation *state)
 	 * ICMPV6_MGM_QUERY, ICMPV6_MGM_REPORT, ICMPV6_MGM_REDUCTION, Neighbor
 	 * Discover messages (133 - 137).
 	 */
-	log_debug("ICMPv6 messages type %u code %u lack an ICMPv4 counterpart.",
+	log_debug(state, "ICMPv6 messages type %u code %u lack an ICMPv4 counterpart.",
 			hdr->icmp6_type, hdr->icmp6_code);
 	return drop(state, JSTAT_UNKNOWN_ICMP6_TYPE);
 }
@@ -226,7 +226,7 @@ static verdict select_good_saddr(struct xlation *state)
 	flow4->saddr = inet_select_addr(state->dst->dev, flow4->daddr,
 			RT_SCOPE_UNIVERSE);
 	if (flow4->saddr == 0) {
-		log_debug("ICMPv6 error has untranslatable source, but the kernel could not find a suitable source for destination %pI4.",
+		log_debug(state, "ICMPv6 error has untranslatable source, but the kernel could not find a suitable source for destination %pI4.",
 				&flow4->daddr);
 		return drop(state, JSTAT64_6791_ENOENT);
 	}
@@ -268,7 +268,7 @@ static verdict select_any_saddr(struct xlation *state)
 	}
 
 	rcu_read_unlock();
-	log_debug("ICMPv6 error has untranslatable source, and there aren't any universe-scoped addresses to mask it with.");
+	log_debug(state, "ICMPv6 error has untranslatable source, and there aren't any universe-scoped addresses to mask it with.");
 	return drop(state, JSTAT64_6791_ENOENT);
 
 success:
@@ -293,10 +293,10 @@ static verdict __predict_route64(struct xlation *state)
 	flow4 = &state->flowx.v4.flowi;
 
 	if (state->is_hairpin) {
-		log_debug("Packet is hairpinning; skipping routing.");
+		log_debug(state, "Packet is hairpinning; skipping routing.");
 	} else {
-		log_debug("Routing: %pI4->%pI4", &flow4->saddr, &flow4->daddr);
-		state->dst = route4(state->jool.ns, flow4);
+		log_debug(state, "Routing: %pI4->%pI4", &flow4->saddr, &flow4->daddr);
+		state->dst = route4(&state->jool, flow4);
 		if (!state->dst)
 			return untranslatable(state, JSTAT_FAILED_ROUTES);
 	}
@@ -460,7 +460,7 @@ static verdict ttp64_alloc_skb(struct xlation *state)
 
 	out = pskb_copy(in->skb, GFP_ATOMIC);
 	if (!out) {
-		log_debug("pskb_copy() returned NULL.");
+		log_debug(state, "pskb_copy() returned NULL.");
 		result = drop(state, JSTAT64_PSKB_COPY);
 		goto revert;
 	}
@@ -617,11 +617,11 @@ static verdict ttp64_ipv4_external(struct xlation *state)
 	hdr6 = pkt_ip6_hdr(&state->in);
 
 	if (hdr6->hop_limit <= 1) {
-		log_debug("Packet's hop limit <= 1.");
+		log_debug(state, "Packet's hop limit <= 1.");
 		return drop_icmp(state, JSTAT64_TTL, ICMPERR_TTL, 0);
 	}
 	if (has_nonzero_segments_left(hdr6, &nonzero_location)) {
-		log_debug("Packet's segments left field is nonzero.");
+		log_debug(state, "Packet's segments left field is nonzero.");
 		return drop_icmp(state, JSTAT64_SEGMENTS_LEFT,
 				ICMPERR_HDR_FIELD, nonzero_location);
 	}
@@ -702,14 +702,14 @@ static verdict compute_mtu4(struct xlation const *state)
 	out_dst = skb_dst(state->out.skb);
 	out_mtu = out_dst ? dst_mtu(out_dst) : INFINITE;
 
-	log_debug("Packet MTU: %u", be32_to_cpu(in_icmp->icmp6_mtu));
-	log_debug("In dev MTU: %u", in_mtu);
-	log_debug("Out dev MTU: %u", out_mtu);
+	log_debug(state, "Packet MTU: %u", be32_to_cpu(in_icmp->icmp6_mtu));
+	log_debug(state, "In dev MTU: %u", in_mtu);
+	log_debug(state, "Out dev MTU: %u", out_mtu);
 
 	out_icmp->un.frag.mtu = minimum(be32_to_cpu(in_icmp->icmp6_mtu) - 20,
 			out_mtu,
 			in_mtu - 20);
-	log_debug("Resulting MTU: %u", be16_to_cpu(out_icmp->un.frag.mtu));
+	log_debug(state, "Resulting MTU: %u", be16_to_cpu(out_icmp->un.frag.mtu));
 
 	return VERDICT_CONTINUE;
 }
@@ -767,7 +767,7 @@ success:
 	icmpv4_hdr->icmp4_unused = cpu_to_be32(icmp4_ptr << 24);
 	return VERDICT_CONTINUE;
 failure:
-	log_debug("Parameter problem pointer '%u' lacks an ICMPv4 counterpart.",
+	log_debug(state, "Parameter problem pointer '%u' lacks an ICMPv4 counterpart.",
 			icmp6_ptr);
 	return drop(state, JSTAT64_UNTRANSLATABLE_PARAM_PROB_PTR);
 }
@@ -868,7 +868,7 @@ static verdict validate_icmp6_csum(struct xlation *state)
 			skb_checksum(in->skb, skb_transport_offset(in->skb),
 					len, 0));
 	if (csum != 0) {
-		log_debug("Checksum doesn't match.");
+		log_debug(state, "Checksum doesn't match.");
 		return drop(state, JSTAT64_ICMP_CSUM);
 	}
 
@@ -931,7 +931,7 @@ static verdict trim_576(struct xlation *state)
 
 	error = pskb_trim(out->skb, 576);
 	if (error) {
-		log_debug("pskb_trim() error: %d", error);
+		log_debug(state, "pskb_trim() error: %d", error);
 		return drop(state, JSTAT_ENOMEM);
 	}
 
@@ -943,7 +943,7 @@ static verdict post_icmp4error(struct xlation *state, bool handle_extensions)
 {
 	verdict result;
 
-	log_debug("Translating the inner packet (6->4)...");
+	log_debug(state, "Translating the inner packet (6->4)...");
 
 	result = validate_icmp6_csum(state);
 	if (result != VERDICT_CONTINUE)
