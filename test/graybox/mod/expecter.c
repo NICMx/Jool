@@ -53,7 +53,7 @@ static struct nf_hook_ops nfho[] = {
 int expecter_setup(void)
 {
 	memset(&stats, 0, sizeof(stats));
-#if LINUX_VERSION_LOWER_THAN(4, 13, 0, 9999, 0)
+#if LINUX_VERSION_LOWER_THAN(4, 13, 0, 8, 0)
 	return nf_register_hooks(nfho, ARRAY_SIZE(nfho));
 #else
 	return 0;
@@ -65,7 +65,7 @@ void expecter_teardown(void)
 	struct list_head *node;
 	struct netfilter_hook *hook;
 
-#if LINUX_VERSION_LOWER_THAN(4, 13, 0, 9999, 0)
+#if LINUX_VERSION_LOWER_THAN(4, 13, 0, 8, 0)
 	nf_unregister_hooks(nfho, ARRAY_SIZE(nfho));
 #endif
 
@@ -77,7 +77,7 @@ void expecter_teardown(void)
 		list_del(node);
 		hook = list_entry(node, struct netfilter_hook, list_hook);
 
-#if LINUX_VERSION_AT_LEAST(4, 13, 0, 9999, 0)
+#if LINUX_VERSION_AT_LEAST(4, 13, 0, 8, 0)
 		nf_unregister_net_hooks(hook->ns, nfho, ARRAY_SIZE(nfho));
 #endif
 
@@ -169,7 +169,7 @@ static struct netfilter_hook *get_hook(void)
 {
 	struct netfilter_hook *hook;
 	struct net *ns;
-#if LINUX_VERSION_AT_LEAST(4, 13, 0, 9999, 0)
+#if LINUX_VERSION_AT_LEAST(4, 13, 0, 8, 0)
 	int error;
 #endif
 
@@ -196,7 +196,7 @@ static struct netfilter_hook *get_hook(void)
 	INIT_LIST_HEAD(&hook->nodes);
 	list_add(&hook->list_hook, &hooks);
 
-#if LINUX_VERSION_AT_LEAST(4, 13, 0, 9999, 0)
+#if LINUX_VERSION_AT_LEAST(4, 13, 0, 8, 0)
 	error = nf_register_net_hooks(ns, nfho, ARRAY_SIZE(nfho));
 	if (error) {
 		log_info("nf_register_net_hooks() error: %d", error);

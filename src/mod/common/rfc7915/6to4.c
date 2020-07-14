@@ -238,7 +238,7 @@ static verdict select_any_saddr(struct xlation *state)
 {
 	struct net_device *dev;
 	struct in_device *in_dev;
-#if LINUX_VERSION_AT_LEAST(5, 3, 0, 9999, 0)
+#if LINUX_VERSION_AT_LEAST(5, 3, 0, 8, 0)
 	struct in_ifaddr *ifa;
 #endif
 
@@ -248,7 +248,7 @@ static verdict select_any_saddr(struct xlation *state)
 		if (!in_dev)
 			continue;
 
-#if LINUX_VERSION_AT_LEAST(5, 3, 0, 9999, 0)
+#if LINUX_VERSION_AT_LEAST(5, 3, 0, 8, 0)
 		in_dev_for_each_ifa_rcu(ifa, in_dev) {
 			if (ifa->ifa_flags & IFA_F_SECONDARY)
 				continue;
