@@ -5,19 +5,22 @@
 /* The unit tests never spawn threads, so this does not need protection. */
 static int sent = 0;
 
-bool icmp64_send6(struct sk_buff *skb, icmp_error_code error, __u32 info)
+bool icmp64_send6(struct xlator *jool, struct sk_buff *skb,
+		icmp_error_code error, __u32 info)
 {
-	return icmp64_send(skb, error, info);
+	return icmp64_send(jool, skb, error, info);
 }
 
-bool icmp64_send4(struct sk_buff *skb, icmp_error_code error, __u32 info)
+bool icmp64_send4(struct xlator *jool, struct sk_buff *skb,
+		icmp_error_code error, __u32 info)
 {
-	return icmp64_send(skb, error, info);
+	return icmp64_send(jool, skb, error, info);
 }
 
-bool icmp64_send(struct sk_buff *skb, icmp_error_code error, __u32 info)
+bool icmp64_send(struct xlator *jool, struct sk_buff *skb,
+		icmp_error_code error, __u32 info)
 {
-	log_debug("Pretending I'm sending an ICMP error.");
+	log_debug(jool, "Pretending I'm sending an ICMP error.");
 	sent++;
 	return true;
 }

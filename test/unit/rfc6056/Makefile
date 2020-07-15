@@ -12,13 +12,15 @@
 include $(shell dirname $(realpath $(lastword $(MAKEFILE_LIST))))/../common.mk
 
 
-PALLOC = rfc6056
+UNIT = rfc6056
 
-obj-m += $(PALLOC).o
+obj-m += $(UNIT).o
 
-$(PALLOC)-objs += $(MIN_REQS)
-$(PALLOC)-objs += ../framework/types.o
-$(PALLOC)-objs += rfc6056_test.o
+$(UNIT)-objs += $(MIN_REQS)
+$(UNIT)-objs += ../../../src/mod/common/stats.o
+$(UNIT)-objs += ../../../src/mod/common/translation_state.o
+$(UNIT)-objs += ../framework/types.o
+$(UNIT)-objs += rfc6056_test.o
 
 
 all:
@@ -29,5 +31,5 @@ clean:
 	make -C ${KERNEL_DIR} M=$$PWD $@;
 test:
 	sudo dmesg -C
-	-sudo insmod $(PALLOC).ko && sudo rmmod $(PALLOC)
+	-sudo insmod $(UNIT).ko && sudo rmmod $(UNIT)
 	sudo dmesg -tc | less

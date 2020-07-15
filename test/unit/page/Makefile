@@ -12,48 +12,48 @@
 include $(shell dirname $(realpath $(lastword $(MAKEFILE_LIST))))/../common.mk
 
 
-PAGE = page
+UNIT = page
 
-obj-m += $(PAGE).o
+obj-m += $(UNIT).o
 
-$(PAGE)-objs += $(MIN_REQS)
-$(PAGE)-objs += ../impersonator/icmp_wrapper.o
-$(PAGE)-objs += ../impersonator/nat64.o
-$(PAGE)-objs += ../impersonator/nf_hook.o
-$(PAGE)-objs += ../impersonator/route.o
-$(PAGE)-objs += ../impersonator/stats.o
-$(PAGE)-objs += ../impersonator/send_packet.o
-$(PAGE)-objs += ../framework/skb_generator.o
-$(PAGE)-objs += ../framework/types.o
+$(UNIT)-objs += $(MIN_REQS)
+$(UNIT)-objs += ../impersonator/icmp_wrapper.o
+$(UNIT)-objs += ../impersonator/nat64.o
+$(UNIT)-objs += ../impersonator/nf_hook.o
+$(UNIT)-objs += ../impersonator/route.o
+$(UNIT)-objs += ../impersonator/stats.o
+$(UNIT)-objs += ../impersonator/send_packet.o
+$(UNIT)-objs += ../framework/skb_generator.o
+$(UNIT)-objs += ../framework/types.o
 
-$(PAGE)-objs += ../../../src/mod/common/address_xlat.o
-$(PAGE)-objs += ../../../src/mod/common/ipv6_hdr_iterator.o
-$(PAGE)-objs += ../../../src/mod/common/packet.o
-$(PAGE)-objs += ../../../src/mod/common/rfc6052.o
-$(PAGE)-objs += ../../../src/mod/common/rtrie.o
-$(PAGE)-objs += ../../../src/mod/common/trace.o
-$(PAGE)-objs += ../../../src/mod/common/translation_state.o
-$(PAGE)-objs += ../../../src/mod/common/wrapper-config.o
-$(PAGE)-objs += ../../../src/mod/common/wrapper-global.o
-$(PAGE)-objs += ../../../src/mod/common/xlator.o
-$(PAGE)-objs += ../../../src/mod/common/db/blacklist4.o
-$(PAGE)-objs += ../../../src/mod/common/db/eam.o
-$(PAGE)-objs += ../../../src/mod/common/db/global.o
-$(PAGE)-objs += ../../../src/mod/common/db/pool.o
-$(PAGE)-objs += ../../../src/mod/common/db/rfc6791v4.o
-$(PAGE)-objs += ../../../src/mod/common/db/rfc6791v6.o
-$(PAGE)-objs += ../../../src/mod/common/nl/attribute.o
+$(UNIT)-objs += ../../../src/mod/common/address_xlat.o
+$(UNIT)-objs += ../../../src/mod/common/ipv6_hdr_iterator.o
+$(UNIT)-objs += ../../../src/mod/common/packet.o
+$(UNIT)-objs += ../../../src/mod/common/rfc6052.o
+$(UNIT)-objs += ../../../src/mod/common/rtrie.o
+$(UNIT)-objs += ../../../src/mod/common/trace.o
+$(UNIT)-objs += ../../../src/mod/common/translation_state.o
+$(UNIT)-objs += ../../../src/mod/common/wrapper-config.o
+$(UNIT)-objs += ../../../src/mod/common/wrapper-global.o
+$(UNIT)-objs += ../../../src/mod/common/xlator.o
+$(UNIT)-objs += ../../../src/mod/common/db/blacklist4.o
+$(UNIT)-objs += ../../../src/mod/common/db/eam.o
+$(UNIT)-objs += ../../../src/mod/common/db/global.o
+$(UNIT)-objs += ../../../src/mod/common/db/pool.o
+$(UNIT)-objs += ../../../src/mod/common/db/rfc6791v4.o
+$(UNIT)-objs += ../../../src/mod/common/db/rfc6791v6.o
+$(UNIT)-objs += ../../../src/mod/common/nl/attribute.o
 
-$(PAGE)-objs += ../../../src/mod/common/steps/compute_outgoing_tuple_siit.o
-$(PAGE)-objs += ../../../src/mod/common/steps/handling_hairpinning_siit.o
-$(PAGE)-objs += ../../../src/mod/common/rfc7915/4to6.o
-$(PAGE)-objs += ../../../src/mod/common/rfc7915/6to4.o
-$(PAGE)-objs += ../../../src/mod/common/rfc7915/common.o
-$(PAGE)-objs += ../../../src/mod/common/rfc7915/core.o
-$(PAGE)-objs += ../../../src/mod/common/core.o
+$(UNIT)-objs += ../../../src/mod/common/steps/compute_outgoing_tuple_siit.o
+$(UNIT)-objs += ../../../src/mod/common/steps/handling_hairpinning_siit.o
+$(UNIT)-objs += ../../../src/mod/common/rfc7915/4to6.o
+$(UNIT)-objs += ../../../src/mod/common/rfc7915/6to4.o
+$(UNIT)-objs += ../../../src/mod/common/rfc7915/common.o
+$(UNIT)-objs += ../../../src/mod/common/rfc7915/core.o
+$(UNIT)-objs += ../../../src/mod/common/core.o
 
-$(PAGE)-objs += impersonator.o
-$(PAGE)-objs += page_test.o
+$(UNIT)-objs += impersonator.o
+$(UNIT)-objs += page_test.o
 
 all:
 	make -C ${KERNEL_DIR} M=$$PWD;
@@ -63,5 +63,5 @@ clean:
 	make -C ${KERNEL_DIR} M=$$PWD $@;
 test:
 	sudo dmesg -C
-	-sudo insmod $(PAGE).ko && sudo rmmod $(PAGE)
+	-sudo insmod $(UNIT).ko && sudo rmmod $(UNIT)
 	sudo dmesg -tc | less

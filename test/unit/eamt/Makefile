@@ -12,13 +12,13 @@
 include $(shell dirname $(realpath $(lastword $(MAKEFILE_LIST))))/../common.mk
 
 
-EAMT = eamt
+UNIT = eamt
 
-obj-m += $(EAMT).o
+obj-m += $(UNIT).o
 
-$(EAMT)-objs += $(MIN_REQS)
-$(EAMT)-objs += ../../../src/mod/common/rtrie.o
-$(EAMT)-objs += eamt_test.o
+$(UNIT)-objs += $(MIN_REQS)
+$(UNIT)-objs += ../../../src/mod/common/rtrie.o
+$(UNIT)-objs += eamt_test.o
 
 
 all:
@@ -29,5 +29,5 @@ clean:
 	make -C ${KERNEL_DIR} M=$$PWD $@;
 test:
 	sudo dmesg -C
-	-sudo insmod $(EAMT).ko && sudo rmmod $(EAMT)
+	-sudo insmod $(UNIT).ko && sudo rmmod $(UNIT)
 	sudo dmesg -tc | less

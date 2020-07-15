@@ -12,12 +12,12 @@
 include $(shell dirname $(realpath $(lastword $(MAKEFILE_LIST))))/../common.mk
 
 
-ADDR = addr
+UNIT = addr
 
-obj-m += $(ADDR).o
+obj-m += $(UNIT).o
 
-$(ADDR)-objs += $(MIN_REQS)
-$(ADDR)-objs += address_test.o
+$(UNIT)-objs += $(MIN_REQS)
+$(UNIT)-objs += address_test.o
 
 
 all:
@@ -28,5 +28,5 @@ clean:
 	make -C ${KERNEL_DIR} M=$$PWD $@;
 test:
 	sudo dmesg -C
-	-sudo insmod $(ADDR).ko && sudo rmmod $(ADDR)
+	-sudo insmod $(UNIT).ko && sudo rmmod $(UNIT)
 	sudo dmesg -tc | less

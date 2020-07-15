@@ -12,25 +12,25 @@
 include $(shell dirname $(realpath $(lastword $(MAKEFILE_LIST))))/../common.mk
 
 
-SESSIONDB = sessiondb
+UNIT = sessiondb
 
-obj-m += $(SESSIONDB).o
+obj-m += $(UNIT).o
 
-$(SESSIONDB)-objs += $(MIN_REQS)
-$(SESSIONDB)-objs += ../../../src/mod/common/translation_state.o
-$(SESSIONDB)-objs += ../../../src/mod/common/wrapper-config.o
-$(SESSIONDB)-objs += ../../../src/mod/common/wrapper-global.o
-$(SESSIONDB)-objs += ../../../src/mod/common/db/global.o
-$(SESSIONDB)-objs += ../../../src/mod/common/db/rbtree.o
-$(SESSIONDB)-objs += ../../../src/mod/common/db/bib/db.o
-$(SESSIONDB)-objs += ../../../src/mod/common/db/bib/entry.o
-$(SESSIONDB)-objs += ../../../src/mod/common/nl/attribute.o
-$(SESSIONDB)-objs += ../impersonator/bib.o
-$(SESSIONDB)-objs += ../impersonator/icmp_wrapper.o
-$(SESSIONDB)-objs += ../impersonator/route.o
-$(SESSIONDB)-objs += ../impersonator/stats.o
-$(SESSIONDB)-objs += ../impersonator/xlator.o
-$(SESSIONDB)-objs += sessiondb_test.o
+$(UNIT)-objs += $(MIN_REQS)
+$(UNIT)-objs += ../../../src/mod/common/translation_state.o
+$(UNIT)-objs += ../../../src/mod/common/wrapper-config.o
+$(UNIT)-objs += ../../../src/mod/common/wrapper-global.o
+$(UNIT)-objs += ../../../src/mod/common/db/global.o
+$(UNIT)-objs += ../../../src/mod/common/db/rbtree.o
+$(UNIT)-objs += ../../../src/mod/common/db/bib/db.o
+$(UNIT)-objs += ../../../src/mod/common/db/bib/entry.o
+$(UNIT)-objs += ../../../src/mod/common/nl/attribute.o
+$(UNIT)-objs += ../impersonator/bib.o
+$(UNIT)-objs += ../impersonator/icmp_wrapper.o
+$(UNIT)-objs += ../impersonator/route.o
+$(UNIT)-objs += ../impersonator/stats.o
+$(UNIT)-objs += ../impersonator/xlator.o
+$(UNIT)-objs += sessiondb_test.o
 
 
 all:
@@ -41,5 +41,5 @@ clean:
 	make -C ${KERNEL_DIR} M=$$PWD $@;
 test:
 	sudo dmesg -C
-	-sudo insmod $(SESSIONDB).ko && sudo rmmod $(SESSIONDB)
+	-sudo insmod $(UNIT).ko && sudo rmmod $(UNIT)
 	sudo dmesg -tc | less

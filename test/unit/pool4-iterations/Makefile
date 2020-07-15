@@ -12,16 +12,16 @@
 include $(shell dirname $(realpath $(lastword $(MAKEFILE_LIST))))/../common.mk
 
 
-ITERATIONS = pool4-iterations
+UNIT = pool4-iterations
 
-obj-m += $(ITERATIONS).o
+obj-m += $(UNIT).o
 
-$(ITERATIONS)-objs += $(MIN_REQS)
-$(ITERATIONS)-objs += ../../../src/mod/common/rbtree.o
-$(ITERATIONS)-objs += ../../../src/mod/nat64/pool4/empty.o
-$(ITERATIONS)-objs += ../../../src/mod/nat64/pool4/rfc6056.o
-$(ITERATIONS)-objs += ../impersonator/route.o
-$(ITERATIONS)-objs += iterations.o
+$(UNIT)-objs += $(MIN_REQS)
+$(UNIT)-objs += ../../../src/mod/common/rbtree.o
+$(UNIT)-objs += ../../../src/mod/nat64/pool4/empty.o
+$(UNIT)-objs += ../../../src/mod/nat64/pool4/rfc6056.o
+$(UNIT)-objs += ../impersonator/route.o
+$(UNIT)-objs += iterations.o
 
 
 all:

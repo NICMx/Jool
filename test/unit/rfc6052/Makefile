@@ -12,12 +12,12 @@
 include $(shell dirname $(realpath $(lastword $(MAKEFILE_LIST))))/../common.mk
 
 
-RFC6052 = rfc6052
+UNIT = rfc6052
 
-obj-m += $(RFC6052).o
+obj-m += $(UNIT).o
 
-$(RFC6052)-objs += $(MIN_REQS)
-$(RFC6052)-objs += rfc6052_test.o
+$(UNIT)-objs += $(MIN_REQS)
+$(UNIT)-objs += rfc6052_test.o
 
 
 all:
@@ -28,5 +28,5 @@ clean:
 	make -C ${KERNEL_DIR} M=$$PWD $@;
 test:
 	sudo dmesg -C
-	-sudo insmod $(RFC6052).ko && sudo rmmod $(RFC6052)
+	-sudo insmod $(UNIT).ko && sudo rmmod $(UNIT)
 	sudo dmesg -tc | less

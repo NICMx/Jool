@@ -12,13 +12,13 @@
 include $(shell dirname $(realpath $(lastword $(MAKEFILE_LIST))))/../common.mk
 
 
-RBTREE = rbtree
+UNIT = rbtree
 
-obj-m += $(RBTREE).o
+obj-m += $(UNIT).o
 
-$(RBTREE)-objs += $(MIN_REQS)
-$(RBTREE)-objs += rbtree_test.o
-$(RBTREE)-objs += ../../../src/mod/common/db/rbtree.o
+$(UNIT)-objs += $(MIN_REQS)
+$(UNIT)-objs += rbtree_test.o
+$(UNIT)-objs += ../../../src/mod/common/db/rbtree.o
 
 
 all:
@@ -29,5 +29,5 @@ clean:
 	make -C ${KERNEL_DIR} M=$$PWD $@;
 test:
 	sudo dmesg -C
-	-sudo insmod $(RBTREE).ko && sudo rmmod $(RBTREE)
+	-sudo insmod $(UNIT).ko && sudo rmmod $(UNIT)
 	sudo dmesg -tc | less

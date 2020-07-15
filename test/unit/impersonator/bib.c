@@ -64,7 +64,7 @@ struct pktqueue_session *pktqueue_find(struct pktqueue *queue,
 	return NULL;
 }
 
-void pktqueue_put_node(struct pktqueue_session *node)
+void pktqueue_put_node(struct xlator *jool, struct pktqueue_session *node)
 {
 	broken_unit_call(__func__);
 }

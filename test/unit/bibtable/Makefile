@@ -12,24 +12,24 @@
 include $(shell dirname $(realpath $(lastword $(MAKEFILE_LIST))))/../common.mk
 
 
-BIBTABLE = bibtable
+UNIT = bibtable
 
-obj-m += $(BIBTABLE).o
+obj-m += $(UNIT).o
 
-$(BIBTABLE)-objs += $(MIN_REQS)
-$(BIBTABLE)-objs += ../../../src/mod/common/translation_state.o
-$(BIBTABLE)-objs += ../../../src/mod/common/wrapper-config.o
-$(BIBTABLE)-objs += ../../../src/mod/common/wrapper-global.o
-$(BIBTABLE)-objs += ../../../src/mod/common/db/global.o
-$(BIBTABLE)-objs += ../../../src/mod/common/db/rbtree.o
-$(BIBTABLE)-objs += ../../../src/mod/common/db/bib/db.o
-$(BIBTABLE)-objs += ../../../src/mod/common/nl/attribute.o
-$(BIBTABLE)-objs += ../impersonator/bib.o
-$(BIBTABLE)-objs += ../impersonator/icmp_wrapper.o
-$(BIBTABLE)-objs += ../impersonator/route.o
-$(BIBTABLE)-objs += ../impersonator/stats.o
-$(BIBTABLE)-objs += ../impersonator/xlator.o
-$(BIBTABLE)-objs += bibtable_test.o
+$(UNIT)-objs += $(MIN_REQS)
+$(UNIT)-objs += ../../../src/mod/common/translation_state.o
+$(UNIT)-objs += ../../../src/mod/common/wrapper-config.o
+$(UNIT)-objs += ../../../src/mod/common/wrapper-global.o
+$(UNIT)-objs += ../../../src/mod/common/db/global.o
+$(UNIT)-objs += ../../../src/mod/common/db/rbtree.o
+$(UNIT)-objs += ../../../src/mod/common/db/bib/db.o
+$(UNIT)-objs += ../../../src/mod/common/nl/attribute.o
+$(UNIT)-objs += ../impersonator/bib.o
+$(UNIT)-objs += ../impersonator/icmp_wrapper.o
+$(UNIT)-objs += ../impersonator/route.o
+$(UNIT)-objs += ../impersonator/stats.o
+$(UNIT)-objs += ../impersonator/xlator.o
+$(UNIT)-objs += bibtable_test.o
 
 
 all:
@@ -40,5 +40,5 @@ clean:
 	make -C ${KERNEL_DIR} M=$$PWD $@;
 test:
 	sudo dmesg -C
-	-sudo insmod $(BIBTABLE).ko && sudo rmmod $(BIBTABLE)
+	-sudo insmod $(UNIT).ko && sudo rmmod $(UNIT)
 	sudo dmesg -tc | less
