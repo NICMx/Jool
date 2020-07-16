@@ -779,13 +779,6 @@ static const struct joolnl_global_meta globals_metadata[] = {
 		.offset = offsetof(struct jool_globals, debug),
 		.xt = XT_ANY,
 	}, {
-		.id = JNLAG_TRACE,
-		.name = "trace",
-		.type = &gt_bool,
-		.doc = "Log basic packet fields as they are received?",
-		.offset = offsetof(struct jool_globals, trace),
-		.xt = XT_ANY,
-	}, {
 		.id = JNLAG_RESET_TC,
 		.name = "zeroize-traffic-class",
 		.type = &gt_bool,

@@ -348,7 +348,7 @@ verdict pkt_init_ipv6(struct xlation *state, struct sk_buff *skb)
 	if (result != VERDICT_CONTINUE)
 		return result;
 
-	log_debug(state, "Packet addresses: %pI6c->%pI6c",
+	log_debug(state, "Packet: %pI6c->%pI6c",
 			&ipv6_hdr(skb)->saddr,
 			&ipv6_hdr(skb)->daddr);
 
@@ -517,7 +517,7 @@ verdict pkt_init_ipv4(struct xlation *state, struct sk_buff *skb)
 	if (result != VERDICT_CONTINUE)
 		return result;
 
-	log_debug(state, "Packet addresses: %pI4->%pI4",
+	log_debug(state, "Packet: %pI4->%pI4",
 			&ip_hdr(skb)->saddr,
 			&ip_hdr(skb)->daddr);
 

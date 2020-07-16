@@ -2,34 +2,55 @@
 #define SRC_MOD_COMMON_LOG_H_
 
 #include <linux/printk.h>
+#include "mod/common/translation_state.h"
 
-struct xlation;
-struct xlator;
+static inline bool state_debug(struct xlation const *state)
+{
+	return state && state->jool.globals.debug;
+}
 
-#define LOGGIFY(text) "Jool: " text "\n"
-#define LOGGIFY_FULL(text) KERN_INFO LOGGIFY(text)
-
-#ifdef UNIT_TESTING
-#define JOOL_LOG(trash, f, ...) pr_debug(f, ##__VA_ARGS__)
-#define __JOOL_LOG JOOL_LOG
-#define ____JOOL_LOG JOOL_LOG
-#else
-void JOOL_LOG(struct xlation const *state, char const *format, ...);
-void __JOOL_LOG(struct xlator const *jool, char const *format, ...);
-void ____JOOL_LOG(bool conditional, char const *format, ...);
-#endif
+static inline bool xlator_debug(struct xlator const *instance)
+{
+	return instance && instance->globals.debug;
+}
 
 /**
  * Messages to help us walk through a run. Also covers normal packet drops
  * (because users catch those from stats instead) and some failed memory
  * allocations (because the kernel already prints those).
  */
-#define     log_debug(state, text, ...) \
-	    JOOL_LOG(state, LOGGIFY_FULL(text), ##__VA_ARGS__)
-#define   __log_debug(jool,  text, ...) \
-	  __JOOL_LOG(jool,  LOGGIFY_FULL(text), ##__VA_ARGS__)
-#define ____log_debug(cond,  text, ...) \
-	____JOOL_LOG(cond,  LOGGIFY_FULL(text), ##__VA_ARGS__)
+#ifdef UNIT_TESTING
+
+#define log_debug(trash, f, ...) pr_debug(f, ##__VA_ARGS__)
+#define __log_debug log_debug
+#define ____log_debug log_debug
+
+#else
+
+#define JOOL_DEBUG(instance, text, ...) \
+	pr_info("Jool %s/%lx/%s: " text "\n", \
+			xt2str(xlator_get_type(instance)), \
+			0xFFFFFFFFu & (uintptr_t)(instance)->ns, \
+			(instance)->iname, \
+			##__VA_ARGS__)
+
+#define log_debug(state, text, ...)					\
+	do {								\
+		if (state_debug(state))					\
+			JOOL_DEBUG(&state->jool, text, ##__VA_ARGS__);	\
+	} while (0)
+#define __log_debug(jool, text, ...)					\
+	do {								\
+		if (xlator_debug(jool))					\
+			JOOL_DEBUG(jool, text, ##__VA_ARGS__);		\
+	} while (0)
+#define ____log_debug(cond, text, ...)					\
+	do {								\
+		if (cond)						\
+			pr_info("Jool: " text "\n", ##__VA_ARGS__);	\
+	} while (0)
+
+#endif
 
 /*
  * Debug messages not associated with an instance. They need JOOL_FLAGS=-DDEBUG.
@@ -37,14 +58,14 @@ void ____JOOL_LOG(bool conditional, char const *format, ...);
  * why an instance is misbehaving.
  */
 #define LOG_DEBUG(text, ...) \
-	pr_debug(LOGGIFY(text), ##__VA_ARGS__)
+	pr_debug("Jool: " text "\n", ##__VA_ARGS__)
 
 /**
  * Responses to events triggered by the user, which might not show signs of life
  * elsehow.
  */
 #define log_info(text, ...) \
-	pr_info(LOGGIFY(text), ##__VA_ARGS__)
+	pr_info("Jool: " text "\n", ##__VA_ARGS__)
 
 /**
  * Warnings. Only use this one during module insertion/deletion.

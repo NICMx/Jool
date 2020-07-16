@@ -215,7 +215,6 @@ enum joolnl_attr_global {
 	JNLAG_ENABLED = 1,
 	JNLAG_POOL6,
 	JNLAG_DEBUG,
-	JNLAG_TRACE,
 	JNLAG_RESET_TC,
 	JNLAG_RESET_TOS,
 	JNLAG_TOS,
@@ -475,8 +474,6 @@ struct jool_globals {
 	bool enabled;
 	/** Print debug messages? */
 	bool debug;
-	/** Print packet addresses on reception? */
-	bool trace;
 
 	/**
 	 * BTW: NAT64 Jool can't do anything without pool6, so it validates that

@@ -84,7 +84,6 @@ struct nla_policy siit_globals_policy[JNLAG_COUNT] = {
 	[JNLAG_ENABLED] = { .type = NLA_U8 },
 	[JNLAG_POOL6] = { .type = NLA_NESTED },
 	[JNLAG_DEBUG] = { .type = NLA_U8 },
-	[JNLAG_TRACE] = { .type = NLA_U8 },
 	[JNLAG_RESET_TC] = { .type = NLA_U8 },
 	[JNLAG_RESET_TOS] = { .type = NLA_U8 },
 	[JNLAG_TOS] = { .type = NLA_U8 },
@@ -101,7 +100,6 @@ struct nla_policy nat64_globals_policy[JNLAG_COUNT] = {
 	[JNLAG_ENABLED] = { .type = NLA_U8 },
 	[JNLAG_POOL6] = { .type = NLA_NESTED },
 	[JNLAG_DEBUG] = { .type = NLA_U8 },
-	[JNLAG_TRACE] = { .type = NLA_U8 },
 	[JNLAG_RESET_TC] = { .type = NLA_U8 },
 	[JNLAG_RESET_TOS] = { .type = NLA_U8 },
 	[JNLAG_TOS] = { .type = NLA_U8 },
@@ -162,4 +160,16 @@ xlator_type xlator_flags2xt(xlator_flags flags)
 xlator_framework xlator_flags2xf(xlator_flags flags)
 {
 	return flags & 0x0C;
+}
+
+char const *xt2str(xlator_type xt)
+{
+	switch (xt) {
+	case XT_SIIT:
+		return "SIIT";
+	case XT_NAT64:
+		return "NAT64";
+	}
+
+	return "Unknown";
 }

@@ -100,15 +100,13 @@ verdict core_4to6(struct sk_buff *skb, struct xlation *state)
 		goto end;
 
 	log_debug(state, "===============================================");
-	log_debug(state, "Jool instance '%s': Received a v4 packet.",
-			state->jool.iname);
 
 	/* Reminder: This function might change pointers. */
 	result = pkt_init_ipv4(state, skb);
 	if (result != VERDICT_CONTINUE)
 		goto end;
 
-	if (state->jool.globals.trace)
+	if (state->jool.globals.debug)
 		pkt_trace4(state);
 	/* skb_log(skb, "Incoming IPv4 packet"); */
 
@@ -154,15 +152,13 @@ verdict core_6to4(struct sk_buff *skb, struct xlation *state)
 		goto end;
 
 	log_debug(state, "===============================================");
-	log_debug(state, "Jool instance '%s': Received a v6 packet.",
-			state->jool.iname);
 
 	/* Reminder: This function might change pointers. */
 	result = pkt_init_ipv6(state, skb);
 	if (result != VERDICT_CONTINUE)
 		goto end;
 
-	if (state->jool.globals.trace)
+	if (state->jool.globals.debug)
 		pkt_trace6(state);
 	/* skb_log(skb, "Incoming IPv6 packet"); */
 	snapshot_record(&state->in.debug.shot2, skb);
