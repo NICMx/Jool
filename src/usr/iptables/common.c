@@ -123,7 +123,11 @@ static struct xtables_target targets[] = {
 	}
 };
 
-static void _init(void)
+/*
+ * Please don't add the static modifier to this function.
+ * https://github.com/NICMx/Jool/issues/337
+ */
+void _init(void)
 {
 	xtables_register_targets(targets, sizeof(targets) / sizeof(targets[0]));
 }
