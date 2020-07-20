@@ -87,7 +87,6 @@ See [RFC 6586](https://tools.ietf.org/html/rfc6586) for deployment experiences u
 ## Miscellaneous
 
 1. [FAQ](faq.html)
-2. [Logging](logging.html)
 3. [MTU and Fragmentation](mtu.html)
 4. [Offloads](offloads.html)
 

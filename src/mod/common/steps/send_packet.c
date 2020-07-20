@@ -15,7 +15,7 @@ static verdict __sendpkt_send(struct xlation *state, struct sk_buff *out)
 		return drop(state, JSTAT_UNKNOWN);
 
 	out->dev = dst->dev;
-	log_debug(state, "Sending skb.");
+	log_debug(state, "Sending packet.");
 
 	/* skb_log(out, "Translated packet"); */
 

@@ -47,7 +47,7 @@ destination address could not be found in the routing table.)
 
 Given the output above, for example, I'd try looking into the routing table.
 
-If `stats` proves insufficient, you can [enable debug logging](logging.html).
+If `stats` proves insufficient, you can [enable debug logging](usr-flags-global.html#logging-debug).
 
 ## Why is my ping not working?
 

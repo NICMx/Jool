@@ -1,7 +1,7 @@
 .\" Manpage for jool's userspace app.
 .\" Report bugs to jool@nic.mx.
 
-.TH jool_siit 8 2020-07-01 v4.1.1 "SIIT Jool's Userspace Client"
+.TH jool_siit 8 2020-07-22 v4.1.2 "SIIT Jool's Userspace Client"
 
 .SH NAME
 jool_siit - Interact with SIIT Jool (the kernel module).
@@ -237,6 +237,10 @@ The IPv6 pool's prefix.
 The format is 'PREFIX_ADDRESS[/PREFIX_LENGTH]'.
 .br
 Use null to clear.
+.IP "lowest-ipv6-mtu <Unsigned 32-bit integer>"
+Smallest reachable IPv6 MTU.
+.IP "logging-debug <Boolean>"
+Enable logging of debug messages?
 .IP "zeroize-traffic-class <Boolean>"
 Always set the IPv6 header's 'Traffic Class' field as zero?
 .br
@@ -247,8 +251,6 @@ Override the IPv4 header's 'TOS' field as --tos?
 Otherwise copy from IPv6 header's 'Traffic Class'.
 .IP "tos <Unsigned 8-bit integer>"
 Value to override TOS as (only when override-tos is ON)
-.IP "lowest-ipv6-mtu <Unsigned 32-bit integer>"
-Smallest reachable IPv6 MTU.
 .IP "mtu-plateaus <Comma-separated list of unsigned 16-bit integers>"
 Set the list of plateaus for ICMPv4 Fragmentation Neededs with MTU unset.
 .IP "amend-udp-checksum-zero <Boolean>"

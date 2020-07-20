@@ -107,7 +107,7 @@ user@T:~# apt install build-essential pkg-config
 
 <!-- CentOS -->
 {% highlight bash %}
-user@T:~# yum install gcc
+user@T:~# yum install gcc make elfutils-libelf-devel
 {% endhighlight %}
 
 <!-- openSUSE -->
