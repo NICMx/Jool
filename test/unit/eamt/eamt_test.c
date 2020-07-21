@@ -37,7 +37,6 @@ static int __add_entry(char *addr4, __u8 len4, char *addr6, __u8 len6)
 		return false;
 	new.prefix6.len = len6;
 
-	/* log_debug("Inserting %s/%u | %s/%u", addr6, len6, addr4, len4); */
 	error = eamt_add(eamt, &new, true);
 	/*
 	if (error) {
@@ -96,8 +95,6 @@ static bool test_6to4(char *addr6_str, char *addr4_str)
 	struct result_addrxlat64 result;
 	bool success = true;
 
-	log_debug("Testing %s -> %s...", addr6_str, addr4_str);
-
 	if (str_to_addr6(addr6_str, &addr6))
 		return false;
 
@@ -122,8 +119,6 @@ static bool test_4to6(char *addr4_str, char *addr6_str)
 	struct in_addr addr4;
 	struct result_addrxlat46 result;
 	bool success = true;
-
-	log_debug("Testing %s -> %s...", addr4_str, addr6_str);
 
 	if (str_to_addr4(addr4_str, &addr4))
 		return false;
@@ -242,9 +237,6 @@ static bool remove_entry(char *addr4, __u8 len4, char *addr6, __u8 len6,
 	struct ipv6_prefix prefix6;
 	bool success;
 	int error;
-
-	/* log_debug("----------------"); */
-	/* log_debug("Removing entry %s/%u %s/%u", addr6, len6, addr4, len4); */
 
 	if (!addr4 && !addr6) {
 		log_err("Both addr4 and addr6 are NULL.");

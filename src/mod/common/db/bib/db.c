@@ -302,13 +302,13 @@ static struct bib_table *get_table(struct bib *db, l4_protocol proto)
 	return NULL;
 }
 
-static void kill_stored_pkt(struct bib_table *table,
+static void kill_stored_pkt(struct xlator *jool, struct bib_table *table,
 		struct tabled_session *session)
 {
 	if (!session->stored)
 		return;
 
-	log_debug("Deleting stored type 2 packet.");
+	__log_debug(jool, "Deleting stored type 2 packet.");
 	kfree_skb(session->stored);
 	session->stored = NULL;
 	table->pkt_count--;
@@ -429,7 +429,7 @@ static void release_session(struct rb_node *node, void *arg)
 	struct tabled_session *session = node2session(node);
 
 	if (session->stored) {
-		icmp64_send(session->stored, ICMPERR_PORT_UNREACHABLE, 0);
+		icmp64_send(NULL, session->stored, ICMPERR_PORT_UNREACHABLE, 0);
 		kfree_skb(session->stored);
 	}
 
@@ -547,7 +547,8 @@ static void log_new_session(struct xlator *jool, struct tabled_session *session)
  * This function does not actually send the probe; it merely prepares it so the
  * caller can commit to sending it after releasing the spinlock.
  */
-static void handle_probe(struct bib_table *table,
+static void handle_probe(struct xlator *jool,
+		struct bib_table *table,
 		struct list_head *probes,
 		struct tabled_session *session,
 		struct session_entry *tmp)
@@ -588,7 +589,7 @@ discard_probe:
 	 * we do not want that massive thing to linger in the database anymore,
 	 * especially if we failed due to a memory allocation.
 	 */
-	kill_stored_pkt(table, session);
+	kill_stored_pkt(jool, table, session);
 }
 
 static void rm(struct xlator *jool,
@@ -600,7 +601,7 @@ static void rm(struct xlator *jool,
 	struct tabled_bib *bib = session->bib;
 
 	if (session->stored)
-		handle_probe(table, probes, session, tmp);
+		handle_probe(jool, table, probes, session, tmp);
 
 	rb_erase(&session->tree_hook, &bib->sessions);
 	list_del(&session->list_hook);
@@ -692,7 +693,7 @@ static bool decide_fate(struct xlator *jool,
 	session->state = tmp.state;
 	session->update_time = tmp.update_time;
 	if (!tmp.has_stored)
-		kill_stored_pkt(table, session);
+		kill_stored_pkt(jool, table, session);
 	/* Also the expirer, which is down below. */
 
 	switch (fate) {
@@ -705,7 +706,7 @@ static bool decide_fate(struct xlator *jool,
 		 * TODO (warning) ICMP errors aren't supposed to drop down to
 		 * TRANS.
 		 */
-		handle_probe(table, probes, session, &tmp);
+		handle_probe(jool, table, probes, session, &tmp);
 		/* Fall through. */
 	case FATE_TIMER_TRANS:
 		handle_fate_timer(session, &table->trans_timer);
@@ -743,7 +744,7 @@ static bool decide_fate(struct xlator *jool,
  *
  * Best if not called with spinlocks held.
  */
-static void send_probe_packet(struct net *ns, struct session_entry *session)
+static void send_probe_packet(struct xlator *jool, struct session_entry *session)
 {
 	struct sk_buff *skb;
 	struct ipv6hdr *iph;
@@ -757,7 +758,7 @@ static void send_probe_packet(struct net *ns, struct session_entry *session)
 
 	skb = alloc_skb(LL_MAX_HEADER + l3_hdr_len + l4_hdr_len, GFP_ATOMIC);
 	if (!skb) {
-		log_debug("Could not allocate a probe packet.");
+		__log_debug(jool, "Could not allocate a probe packet.");
 		goto fail;
 	}
 
@@ -811,7 +812,7 @@ static void send_probe_packet(struct net *ns, struct session_entry *session)
 	flow.fl6_sport = th->source;
 	flow.fl6_dport = th->dest;
 
-	dst = route6(ns, &flow);
+	dst = route6(jool, &flow);
 	if (!dst)
 		goto revert;
 
@@ -819,12 +820,12 @@ static void send_probe_packet(struct net *ns, struct session_entry *session)
 
 	/* Implicit kfree_skb(skb) here. */
 #if LINUX_VERSION_AT_LEAST(4, 4, 0, 8, 0)
-	error = dst_output(ns, NULL, skb);
+	error = dst_output(jool->ns, NULL, skb);
 #else
 	error = dst_output(skb);
 #endif
 	if (error) {
-		log_debug("dst_output() returned errcode %d.", error);
+		__log_debug(jool, "dst_output() returned errcode %d.", error);
 		goto fail;
 	}
 
@@ -833,13 +834,13 @@ static void send_probe_packet(struct net *ns, struct session_entry *session)
 revert:
 	kfree_skb(skb);
 fail:
-	log_debug("A TCP connection will probably break.");
+	__log_debug(jool, "A TCP connection will probably break.");
 }
 
 /**
  * Sends all the probes and ICMP errors listed in @probes.
  */
-static void post_fate(struct net *ns, struct list_head *probes)
+static void post_fate(struct xlator *jool, struct list_head *probes)
 {
 	struct probing_session *probe;
 	struct probing_session *tmp;
@@ -847,11 +848,12 @@ static void post_fate(struct net *ns, struct list_head *probes)
 	list_for_each_entry_safe(probe, tmp, probes, list_hook) {
 		if (probe->skb) {
 			/* The "probe" is not a probe; it's an ICMP error. */
-			icmp64_send(probe->skb, ICMPERR_PORT_UNREACHABLE, 0);
+			icmp64_send(jool, probe->skb, ICMPERR_PORT_UNREACHABLE,
+					0);
 			kfree_skb(probe->skb);
 		} else {
 			/* Actual TCP probe. */
-			send_probe_packet(ns, &probe->session);
+			send_probe_packet(jool, &probe->session);
 		}
 		wkfree(struct probing_session, probe);
 	}
@@ -1383,18 +1385,18 @@ static int upgrade_pktqueue_session(struct xlator *jool,
 		 * joold anyway. And this is only a problem in active-active
 		 * scenarios.
 		 */
-		pktqueue_put_node(sos);
+		pktqueue_put_node(jool, sos);
 		return -ESRCH;
 	}
 
-	log_debug("Simultaneous Open!");
+	__log_debug(jool, "Simultaneous Open!");
 	/*
 	 * We're going to pretend that @sos has been a valid V4 INIT session all
 	 * along.
 	 */
 	error = alloc_bib_session(old);
 	if (error) {
-		pktqueue_put_node(sos);
+		pktqueue_put_node(jool, sos);
 		return error;
 	}
 
@@ -1433,14 +1435,14 @@ static int upgrade_pktqueue_session(struct xlator *jool,
 	attach_timer(session, &table->syn4_timer);
 	jstat_inc(jool->stats, JSTAT_SESSIONS);
 
-	pktqueue_put_node(sos);
+	pktqueue_put_node(jool, sos);
 
 	log_new_bib(jool, bib);
 	log_new_session(jool, session);
 	return 0;
 
 trainwreck:
-	pktqueue_put_node(sos);
+	pktqueue_put_node(jool, sos);
 	free_bib(bib);
 	free_session(session);
 	return -EINVAL;
@@ -1513,7 +1515,7 @@ static int find_bib_session6(struct xlator *jool,
 		 * BIB entry and recompute it from scratch.
 		 * https://github.com/NICMx/Jool/issues/216
 		 */
-		log_debug("Issue #216.");
+		__log_debug(jool, "Issue #216.");
 		detach_bib(jool, table, old->bib);
 		add_to_delete_list(bdl, &old->bib->hook4);
 
@@ -1782,7 +1784,7 @@ verdict bib_add_tcp6(struct xlation *state,
 			tbtobs(old.bib, &state->entries);
 			result = VERDICT_CONTINUE;
 		} else {
-			log_debug("Packet is not SYN and lacks state.");
+			log_debug(state, "Packet is not SYN and lacks state.");
 			result = drop(state, JSTAT_SYN6_EXPECTED);
 		}
 		goto end;
@@ -1854,14 +1856,14 @@ verdict bib_add_tcp4(struct xlation *state,
 			tbtobs(old.bib, &state->entries);
 			result = VERDICT_CONTINUE;
 		} else {
-			log_debug("Packet is not SYN and lacks state.");
+			log_debug(state, "Packet is not SYN and lacks state.");
 			result = drop(state, JSTAT_SYN4_EXPECTED);
 		}
 		goto end;
 	}
 
 	if (GLOBALS(state).drop_external_tcp) {
-		log_debug("Externally initiated TCP connections are prohibited.");
+		log_debug(state, "Externally initiated TCP connections are prohibited.");
 		result = drop(state, JSTAT_V4_SYN);
 		goto end;
 	}
@@ -1869,7 +1871,7 @@ verdict bib_add_tcp4(struct xlation *state,
 	if (!old.bib) {
 		bool too_many;
 
-		log_debug("Potential Simultaneous Open; storing type 1 packet.");
+		log_debug(state, "Potential Simultaneous Open; storing type 1 packet.");
 		too_many = table->pkt_count >= GLOBALS(state).max_stored_pkts;
 		error = pktqueue_add(table->pkt_queue, pkt, dst6, too_many);
 		switch (error) {
@@ -1878,7 +1880,7 @@ verdict bib_add_tcp4(struct xlation *state,
 			table->pkt_count++;
 			goto end;
 		case -EEXIST:
-			log_debug("Simultaneous Open already exists.");
+			log_debug(state, "Simultaneous Open already exists.");
 			result = drop(state, JSTAT_SO_EXISTS);
 			goto end;
 		case -ENOSPC:
@@ -1899,7 +1901,7 @@ verdict bib_add_tcp4(struct xlation *state,
 		if (table->pkt_count >= GLOBALS(state).max_stored_pkts)
 			goto too_many_pkts;
 
-		log_debug("Potential Simultaneous Open; storing type 2 packet.");
+		log_debug(state, "Potential Simultaneous Open; storing type 2 packet.");
 		new->stored = pkt_original_pkt(pkt)->skb;
 		result = stolen(state, JSTAT_TYPE2PKT);
 		table->pkt_count++;
@@ -1925,7 +1927,7 @@ end:
 too_many_pkts:
 	spin_unlock_bh(&table->lock);
 	free_session(new);
-	log_debug("Too many Simultaneous Opens.");
+	log_debug(state, "Too many Simultaneous Opens.");
 	/* Fall back to assume there's no SO. */
 	return drop_icmp(state, JSTAT_SO_FULL, ICMPERR_PORT_UNREACHABLE, 0);
 }
@@ -2043,7 +2045,7 @@ static void clean_table(struct xlator *jool, struct bib_table *table)
 	}
 	spin_unlock_bh(&table->lock);
 
-	post_fate(jool->ns, &probes);
+	post_fate(jool, &probes);
 	pktqueue_clean(&icmps);
 }
 
@@ -2292,7 +2294,7 @@ static int __bib_add_static(struct xlator *jool, struct bib_entry *new,
 	struct tree_slot slot6;
 	struct tree_slot slot4;
 
-	log_debug("Adding static BIB entry (%pI6c#%u, %pI4#%u).",
+	__log_debug(jool, "Adding static BIB entry (%pI6c#%u, %pI4#%u).",
 			&new->addr6.l3, new->addr6.l4,
 			&new->addr4.l3, new->addr4.l4);
 
@@ -2510,10 +2512,10 @@ static void print_bib(struct rb_node *node, int tabs)
 
 void bib_print(struct bib *db)
 {
-	log_debug("TCP:");
+	LOG_DEBUG("TCP:");
 	print_bib(db->tcp.tree4.rb_node, 1);
-	log_debug("UDP:");
+	LOG_DEBUG("UDP:");
 	print_bib(db->udp.tree4.rb_node, 1);
-	log_debug("ICMP:");
+	LOG_DEBUG("ICMP:");
 	print_bib(db->icmp.tree4.rb_node, 1);
 }

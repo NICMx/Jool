@@ -43,34 +43,38 @@ enum session_fate tcp_est_expire_cb(struct session_entry *session, void *arg)
 	return FATE_RM;
 }
 
-static void log_entries(struct bib_session *entries)
+static void log_entries(struct xlation *state)
 {
-	struct session_entry *session = &entries->session;
+	struct bib_session *entries;
+	struct session_entry *session;
+
+	entries = &state->entries;
+	session = &entries->session;
 
 	if (entries->bib_set) {
-		log_debug("BIB entry: %pI6c#%u - %pI4#%u (%s)",
+		log_debug(state, "BIB entry: %pI6c#%u - %pI4#%u (%s)",
 				&session->src6.l3, session->src6.l4,
 				&session->src4.l3, session->src4.l4,
 				l4proto_to_string(session->proto));
 	} else {
-		log_debug("BIB entry: None");
+		log_debug(state, "BIB entry: None");
 	}
 
 	if (entries->session_set) {
-		log_debug("Session entry: %pI6c#%u - %pI6c#%u | %pI4#%u - %pI4#%u (%s)",
+		log_debug(state, "Session entry: %pI6c#%u - %pI6c#%u | %pI4#%u - %pI4#%u (%s)",
 				&session->src6.l3, session->src6.l4,
 				&session->dst6.l3, session->dst6.l4,
 				&session->src4.l3, session->src4.l4,
 				&session->dst4.l3, session->dst4.l4,
 				l4proto_to_string(session->proto));
 	} else {
-		log_debug("Session entry: None");
+		log_debug(state, "Session entry: None");
 	}
 }
 
 static verdict succeed(struct xlation *state)
 {
-	log_entries(&state->entries);
+	log_entries(state);
 
 	/*
 	 * Sometimes the session doesn't change as a result of the state
@@ -130,7 +134,7 @@ static verdict ipv6_simple(struct xlation *state)
 		return drop(state, JSTAT_UNTRANSLATABLE_DST6);
 	result = mask_domain_find(state, &masks);
 	if (result != VERDICT_CONTINUE) {
-		log_debug("There is no mask domain mapped to mark %u.",
+		log_debug(state, "There is no mask domain mapped to mark %u.",
 				state->in.skb->mark);
 		return result;
 	}
@@ -147,7 +151,7 @@ static verdict ipv6_simple(struct xlation *state)
 		 * Error msg already printed, but since bib_add6() sprawls
 		 * messily, let's leave this here just in case.
 		 */
-		log_debug("bib_add6() threw error code %d.", error);
+		log_debug(state, "bib_add6() threw error code %d.", error);
 		return drop(state, JSTAT_BIB6_NOT_FOUND);
 	}
 }
@@ -184,14 +188,14 @@ static verdict ipv4_simple(struct xlation *state)
 	case 0:
 		return succeed(state);
 	case -ESRCH:
-		log_debug("There is no BIB entry for the IPv4 packet.");
+		log_debug(state, "There is no BIB entry for the IPv4 packet.");
 		return untranslatable_icmp(state, JSTAT_BIB4_NOT_FOUND,
 				ICMPERR_ADDR_UNREACHABLE, 0);
 	case -EPERM:
-		log_debug("Packet was blocked by Address-Dependent Filtering.");
+		log_debug(state, "Packet was blocked by Address-Dependent Filtering.");
 		return drop_icmp(state, JSTAT_ADF, ICMPERR_FILTER, 0);
 	default:
-		log_debug("Errcode %d while finding a BIB entry.", error);
+		log_debug(state, "Errcode %d while finding a BIB entry.", error);
 		return drop(state, JSTAT_UNKNOWN);
 	}
 }
@@ -209,7 +213,7 @@ static enum session_fate tcp_v4_init_state(struct session_entry *session,
 	case L3PROTO_IPV6:
 		if (pkt_tcp_hdr(pkt)->syn) {
 			if (session->has_stored)
-				log_debug("Simultaneous Open!");
+				log_debug(state, "Simultaneous Open!");
 			session->state = ESTABLISHED;
 			session->has_stored = false;
 			return FATE_TIMER_EST;
@@ -272,7 +276,7 @@ static enum session_fate tcp_v4_init_state(struct session_entry *session,
 	 */
 	case L3PROTO_IPV4:
 		if (session->has_stored) {
-			log_debug("Simultaneous Open already exists.");
+			log_debug(state, "Simultaneous Open already exists.");
 			return FATE_DROP;
 		}
 		break;
@@ -451,7 +455,7 @@ static verdict ipv6_tcp(struct xlation *state)
 		return drop(state, JSTAT_UNTRANSLATABLE_DST6);
 	result = mask_domain_find(state, &masks);
 	if (result != VERDICT_CONTINUE) {
-		log_debug("There is no mask domain mapped to mark %u.",
+		log_debug(state, "There is no mask domain mapped to mark %u.",
 				state->in.skb->mark);
 		return result;
 	}
@@ -500,24 +504,24 @@ verdict filtering_and_updating(struct xlation *state)
 	struct ipv6hdr *hdr_ip6;
 	verdict result = VERDICT_CONTINUE;
 
-	log_debug("Step 2: Filtering and Updating");
+	log_debug(state, "Step 2: Filtering and Updating");
 
 	switch (pkt_l3_proto(in)) {
 	case L3PROTO_IPV6:
 		/* Get rid of hairpinning loops and unwanted packets. */
 		hdr_ip6 = pkt_ip6_hdr(in);
 		if (pool6_contains(state, &hdr_ip6->saddr)) {
-			log_debug("Hairpinning loop. Dropping...");
+			log_debug(state, "Hairpinning loop. Dropping...");
 			return drop(state, JSTAT_HAIRPIN_LOOP);
 		}
 		if (!pool6_contains(state, &hdr_ip6->daddr)) {
-			log_debug("Packet does not belong to pool6.");
+			log_debug(state, "Packet does not belong to pool6.");
 			return untranslatable(state, JSTAT_POOL6_MISMATCH);
 		}
 
 		/* ICMP errors should not be filtered or affect the tables. */
 		if (pkt_is_icmp6_error(in)) {
-			log_debug("Packet is ICMPv6 error; skipping step...");
+			log_debug(state, "Packet is ICMPv6 error; skipping step...");
 			return VERDICT_CONTINUE;
 		}
 		break;
@@ -525,13 +529,13 @@ verdict filtering_and_updating(struct xlation *state)
 		/* Get rid of unexpected packets */
 		if (!pool4db_contains(state->jool.nat64.pool4, state->jool.ns,
 				in->tuple.l4_proto, &in->tuple.dst.addr4)) {
-			log_debug("Packet does not belong to pool4.");
+			log_debug(state, "Packet does not belong to pool4.");
 			return untranslatable(state, JSTAT_POOL4_MISMATCH);
 		}
 
 		/* ICMP errors should not be filtered or affect the tables. */
 		if (pkt_is_icmp4_error(in)) {
-			log_debug("Packet is ICMPv4 error; skipping step...");
+			log_debug(state, "Packet is ICMPv4 error; skipping step...");
 			return VERDICT_CONTINUE;
 		}
 		break;
@@ -571,7 +575,7 @@ verdict filtering_and_updating(struct xlation *state)
 		switch (pkt_l3_proto(in)) {
 		case L3PROTO_IPV6:
 			if (state->jool.globals.nat64.drop_icmp6_info) {
-				log_debug("Packet is ICMPv6 info (ping); dropping due to policy.");
+				log_debug(state, "Packet is ICMPv6 info (ping); dropping due to policy.");
 				return drop(state, JSTAT_ICMP6_FILTER);
 			}
 
@@ -588,6 +592,6 @@ verdict filtering_and_updating(struct xlation *state)
 		return drop(state, JSTAT_UNKNOWN_L4_PROTO);
 	}
 
-	log_debug("Done: Step 2.");
+	log_debug(state, "Done: Step 2.");
 	return result;
 }

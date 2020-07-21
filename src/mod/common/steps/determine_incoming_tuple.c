@@ -39,7 +39,8 @@ static void const *ipv4_extract_l4_hdr(struct iphdr const *hdr_ipv4)
  */
 static verdict unknown_inner_proto(struct xlation *state, __u8 proto)
 {
-	log_debug("Packet's inner packet is not UDP, TCP or ICMP (%u).", proto);
+	log_debug(state, "Packet's inner packet is not UDP, TCP or ICMP (%u).",
+			proto);
 	return untranslatable(state, JSTAT_UNKNOWN_PROTO_INNER);
 }
 
@@ -117,7 +118,7 @@ static verdict ipv4_icmp_err(struct xlation *state)
 		inner.icmp = ipv4_extract_l4_hdr(inner.ip4);
 
 		if (is_icmp4_error(inner.icmp->type)) {
-			log_debug("Bogus pkt: ICMP error inside ICMP error.");
+			log_debug(state, "Bogus pkt: ICMP error inside ICMP error.");
 			return drop(state, JSTAT_DOUBLE_ICMP4_ERROR);
 		}
 
@@ -144,7 +145,7 @@ static verdict ipv4_icmp(struct xlation *state)
 	if (is_icmp4_error(type))
 		return ipv4_icmp_err(state);
 
-	log_debug("Unknown ICMPv4 type: %u", type);
+	log_debug(state, "Unknown ICMPv4 type: %u", type);
 	/*
 	 * Hope the kernel has something to do with the packet.
 	 * Neighbor discovery not likely an issue, but see ipv6_icmp() anyway.
@@ -233,7 +234,7 @@ static verdict ipv6_icmp_err(struct xlation *state)
 		inner.icmp = iterator.data;
 
 		if (is_icmp6_error(inner.icmp->icmp6_type)) {
-			log_debug("Bogus pkt: ICMP error inside ICMP error.");
+			log_debug(state, "Bogus pkt: ICMP error inside ICMP error.");
 			return drop(state, JSTAT_DOUBLE_ICMP6_ERROR);
 		}
 
@@ -261,7 +262,7 @@ static verdict ipv6_icmp(struct xlation *state)
 	if (is_icmp6_error(type))
 		return ipv6_icmp_err(state);
 
-	log_debug("Unknown ICMPv6 type: %u.", type);
+	log_debug(state, "Unknown ICMPv6 type: %u.", type);
 	/*
 	 * Netfilter Jool returns ACCEPT instead of DROP because the neighbor
 	 * discovery code happens after Jool, apparently (even though it's
@@ -283,7 +284,7 @@ verdict determine_in_tuple(struct xlation *state)
 {
 	verdict result = VERDICT_CONTINUE;
 
-	log_debug("Step 1: Determining the Incoming Tuple");
+	log_debug(state, "Step 1: Determining the Incoming Tuple");
 
 	switch (pkt_l3_proto(&state->in)) {
 	case L3PROTO_IPV4:
@@ -320,12 +321,12 @@ verdict determine_in_tuple(struct xlation *state)
 	}
 
 	if (result == VERDICT_CONTINUE)
-		log_tuple(&state->in.tuple);
-	log_debug("Done step 1.");
+		log_tuple(state, &state->in.tuple);
+	log_debug(state, "Done step 1.");
 	return result;
 
 unknown_proto:
-	log_debug("NAT64 doesn't support unknown transport protocols.");
+	log_debug(state, "NAT64 doesn't support unknown transport protocols.");
 	return untranslatable_icmp(state, JSTAT_UNKNOWN_L4_PROTO,
 			ICMPERR_PROTO_UNREACHABLE, 0);
 }

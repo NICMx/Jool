@@ -18,6 +18,7 @@ title: global Mode
 	1. [`manually-enabled`](#manually-enabled)
 	1. [`pool6`](#pool6)
 	1. [`lowest-ipv6-mtu`](#lowest-ipv6-mtu)
+	1. [`logging-debug`](#logging-debug)
 	1. [`address-dependent-filtering`](#address-dependent-filtering)
 	2. [`drop-icmpv6-info`](#drop-icmpv6-info)
 	3. [`drop-externally-initiated-tcp`](#drop-externally-initiated-tcp)
@@ -125,6 +126,63 @@ This flag does not affect DF-enabled IPv4 packets, because those operate under n
 To enhance performance, you want to minimize fragmentation, which means you want to assign the largest possible value to this flag. You do not want to assign a value that is larger than your overall minimum IPv6 MTU however, as this may end up causing black holes as explained above.
 
 A more graphic explanation can be found [here](mtu.html).
+
+### `logging-debug`
+
+- Type: Boolean
+- Default: false
+- Modes: Both (SIIT and Stateful NAT64)
+- Source: [Issue 336](https://github.com/NICMx/Jool/issues/336)
+
+Print the instance's debug messages on the log?
+
+The logging messages can typically be found by querying the [`dmesg`](https://www.man7.org/linux/man-pages/man1/dmesg.1.html) program, or (if syslog is listening) the `/var/log/syslog` file.
+
+Here's an example of a successful IPv4->IPv6 SIIT translation:
+
+	$ sudo jool_siit global update logging-debug true
+	$ dmesg -t
+	Jool SIIT/6b514d00/default: ===============================================
+	Jool SIIT/6b514d00/default: Packet: 198.51.100.2->192.0.2.33
+	Jool SIIT/6b514d00/default: UDP 4000->2000
+	Jool SIIT/6b514d00/default: Translating the Packet.
+	Jool SIIT/6b514d00/default: Result: 2001:db8:1c6:3364:2::->2001:db8:1c0:2:21::
+	Jool SIIT/6b514d00/default: Routing: 2001:db8:1c6:3364:2::->2001:db8:1c0:2:21::
+	Jool SIIT/6b514d00/default: Packet routed via device 'to_client_v6'.
+	Jool SIIT/6b514d00/default: Sending packet.
+	Jool SIIT/6b514d00/default: Success.
+
+The label `SIIT/6b514d00/default` is the instance identifier (`<stateness>/<namespace>/<name>`). See [`instance display`](usr-flags-instance.html#examples).
+
+Here's an example of a successful IPv6->IPv4 NAT64 translation:
+
+	$ sudo jool global update logging-debug true
+	$ dmesg -t
+	Jool NAT64/6b514d00/default: ===============================================
+	Jool NAT64/6b514d00/default: Packet: 2001:db8::5->64:ff9b::c000:205
+	Jool NAT64/6b514d00/default: TCP 2000->4000
+	Jool NAT64/6b514d00/default: Step 1: Determining the Incoming Tuple
+	Jool NAT64/6b514d00/default: Tuple: 2001:db8::5#2000 -> 64:ff9b::c000:205#4000 (TCP)
+	Jool NAT64/6b514d00/default: Done step 1.
+	Jool NAT64/6b514d00/default: Step 2: Filtering and Updating
+	Jool NAT64/6b514d00/default: BIB entry: 2001:db8::5#2000 - 192.0.2.2#2000 (TCP)
+	Jool NAT64/6b514d00/default: Session entry: 2001:db8::5#2000 - 64:ff9b::c000:205#4000 | 192.0.2.2#2000 - 192.0.2.5#4000 (TCP)
+	Jool NAT64/6b514d00/default: Done: Step 2.
+	Jool NAT64/6b514d00/default: Step 3: Computing the Outgoing Tuple
+	Jool NAT64/6b514d00/default: Tuple: 192.0.2.2#2000 -> 192.0.2.5#4000 (TCP)
+	Jool NAT64/6b514d00/default: Done step 3.
+	Jool NAT64/6b514d00/default: Step 4: Translating the Packet
+	Jool NAT64/6b514d00/default: Routing: 192.0.2.2->192.0.2.5
+	Jool NAT64/6b514d00/default: Packet routed via device 'to_client_v4'.
+	Jool NAT64/6b514d00/default: Done step 4.
+	Jool NAT64/6b514d00/default: Sending packet.
+	Jool NAT64/6b514d00/default: Success.
+
+By default, debug logging needs to be enabled on a per-instance basis, and only prints debug messages that correspond to that particular instance. The compilation flag [`-DDEBUG`](https://github.com/NICMx/Jool/wiki/Jool's-Compilation-Options#-ddebug) enables all debug logging by default, including debug logging not associated with an instance.
+
+Though it's called "instance _debug_ logging," Jool actually uses INFO severity. This is because DEBUG level requires the `-DDEBUG` flag.
+
+Make sure to disable this flag in production. It slows things down, and if syslog is listening, the log messages quickly eat up large amounts of disk space.
 
 ### `address-dependent-filtering`
 
@@ -309,7 +367,7 @@ There are several important things to notice:
 - There's no information on _who_ was `2001:db8::5` talking to. This is a _good_ thing; it means you're honoring your client's privacy as much as you can.
 - The logging uses GMT; you might need to convert this for comfort.
 
-This defaults to false because it generates humongous amounts of logs while active (remember you need infrastructure to maintain them). Notice the maps are dumped into the _kernel log_, so the messages will be mixed along with anything else the kernel has to say ([including Jool's error messages, for example](logging.html)). The log messages will have [INFO priority](http://stackoverflow.com/questions/16390004/change-default-console-loglevel-during-boot-up).
+This defaults to false because it generates humongous amounts of logs while active (remember you need infrastructure to maintain them). Notice the maps are dumped into the _kernel log_, so the messages will be mixed along with anything else the kernel has to say. The log messages will have [INFO priority](http://stackoverflow.com/questions/16390004/change-default-console-loglevel-during-boot-up).
 
 If logging the destination makes sense for you, see `logging-session` (below). To comply with REQ-12 of RFC 6888 you want to set `loging-bib` as true and `logging-session` as false.
 

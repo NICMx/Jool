@@ -45,7 +45,7 @@ verdict handling_hairpinning_nat64(struct xlation *old)
 	struct xlation *new;
 	verdict result;
 
-	log_debug("Step 5: Handling Hairpinning...");
+	log_debug(old, "Step 5: Handling Hairpinning...");
 
 	new = xlation_create(&old->jool);
 	if (!new)
@@ -66,7 +66,7 @@ verdict handling_hairpinning_nat64(struct xlation *old)
 	if (result != VERDICT_CONTINUE)
 		goto end;
 
-	log_debug("Done step 5.");
+	log_debug(old, "Done step 5.");
 end:	xlation_destroy(new);
 	return result;
 }

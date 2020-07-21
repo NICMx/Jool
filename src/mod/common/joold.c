@@ -212,14 +212,15 @@ static struct sk_buff *send_to_userspace_prepare(struct xlator *jool)
 	return skb;
 }
 
-static void send_to_userspace(struct sk_buff *skb, struct net *ns)
+static void send_to_userspace(struct xlator *jool, struct sk_buff *skb,
+		struct net *ns)
 {
 	int error;
 
 	if (!skb)
 		return;
 
-	log_debug("Sending multicast message.");
+	__log_debug(jool, "Sending multicast message.");
 #if LINUX_VERSION_LOWER_THAN(3, 13, 0, 7, 1)
 	error = genlmsg_multicast_netns(ns, skb, 0, jnl_gid(), GFP_ATOMIC);
 #else
@@ -239,7 +240,7 @@ static void send_to_userspace(struct sk_buff *skb, struct net *ns)
 		log_warn_once("Looks like nobody received my multicast message. Is the joold daemon really active? (errcode %d)",
 				error);
 	} else {
-		log_debug("Multicast message sent.");
+		__log_debug(jool, "Multicast message sent.");
 	}
 }
 
@@ -358,7 +359,7 @@ void joold_add(struct xlator *jool, struct session_entry *entry)
 
 	spin_unlock_bh(&queue->lock);
 
-	send_to_userspace(skb, jool->ns);
+	send_to_userspace(jool, skb, jool->ns);
 }
 
 struct add_params {
@@ -399,7 +400,7 @@ static bool add_new_session(struct xlator *jool, struct nlattr *attr)
 	struct collision_cb cb;
 	int error;
 
-	log_debug("Adding session!");
+	__log_debug(jool, "Adding session!");
 
 	error = jnla_get_session(attr, "Joold session",
 			&jool->globals.nat64.bib, &params.new);
@@ -453,7 +454,7 @@ int joold_sync(struct xlator *jool, struct nlattr *root)
 	nla_for_each_nested(attr, root, rem)
 		success &= add_new_session(jool, attr);
 
-	log_debug("Done.");
+	__log_debug(jool, "Done.");
 	return success ? 0 : -EINVAL;
 }
 
@@ -511,7 +512,7 @@ int joold_advertise(struct xlator *jool)
 
 	spin_unlock_bh(&queue->lock);
 
-	send_to_userspace(skb, jool->ns);
+	send_to_userspace(jool, skb, jool->ns);
 	return error;
 }
 
@@ -532,7 +533,7 @@ void joold_ack(struct xlator *jool)
 
 	spin_unlock_bh(&queue->lock);
 
-	send_to_userspace(skb, jool->ns);
+	send_to_userspace(jool, skb, jool->ns);
 }
 
 /**
@@ -557,5 +558,5 @@ void joold_clean(struct xlator *jool)
 
 	spin_unlock_bh(lock);
 
-	send_to_userspace(skb, jool->ns);
+	send_to_userspace(jool, skb, jool->ns);
 }

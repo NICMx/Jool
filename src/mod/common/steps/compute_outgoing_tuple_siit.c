@@ -16,7 +16,7 @@ verdict translate_addrs64_siit(struct xlation *state, __be32 *src_out,
 	/* Dst address. (SRC DEPENDS CON DST, SO WE NEED TO XLAT DST FIRST!) */
 	addr_result = addrxlat_siit64(&state->jool, &hdr6->daddr, &dst, true);
 	if (addr_result.reason)
-		log_debug("%s.", addr_result.reason);
+		log_debug(state, "%s.", addr_result.reason);
 
 	switch (addr_result.verdict) {
 	case ADDRXLAT_CONTINUE:
@@ -34,7 +34,7 @@ verdict translate_addrs64_siit(struct xlation *state, __be32 *src_out,
 	addr_result = addrxlat_siit64(&state->jool, &hdr6->saddr, &src,
 			!pkt_is_icmp6_error(&state->in));
 	if (addr_result.reason)
-		log_debug("%s.", addr_result.reason);
+		log_debug(state, "%s.", addr_result.reason);
 
 	switch (addr_result.verdict) {
 	case ADDRXLAT_CONTINUE:
@@ -75,7 +75,7 @@ verdict translate_addrs64_siit(struct xlation *state, __be32 *src_out,
 		}
 	}
 
-	log_debug("Result: %pI4->%pI4", &src.addr, &dst.addr);
+	log_debug(state, "Result: %pI4->%pI4", &src.addr, &dst.addr);
 	return VERDICT_CONTINUE;
 }
 
@@ -114,7 +114,7 @@ verdict translate_addrs46_siit(struct xlation *state, struct in6_addr *src_out,
 	addr_result = addrxlat_siit46(&state->jool, hdr4->daddr, &addr6,
 			!disable_dst_eam(in, is_hairpin), false);
 	if (addr_result.reason)
-		log_debug("%s.", addr_result.reason);
+		log_debug(state, "%s.", addr_result.reason);
 
 	switch (addr_result.verdict) {
 	case ADDRXLAT_CONTINUE:
@@ -132,7 +132,7 @@ verdict translate_addrs46_siit(struct xlation *state, struct in6_addr *src_out,
 			!disable_src_eam(in, is_hairpin),
 			!pkt_is_icmp4_error(in));
 	if (addr_result.reason)
-		log_debug("%s.", addr_result.reason);
+		log_debug(state, "%s.", addr_result.reason);
 
 	switch (addr_result.verdict) {
 	case ADDRXLAT_CONTINUE:
@@ -152,6 +152,6 @@ verdict translate_addrs46_siit(struct xlation *state, struct in6_addr *src_out,
 
 	*src_out = addr6.addr;
 
-	log_debug("Result: %pI6c->%pI6c", src_out, dst_out);
+	log_debug(state, "Result: %pI6c->%pI6c", src_out, dst_out);
 	return VERDICT_CONTINUE;
 }

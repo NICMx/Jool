@@ -98,7 +98,7 @@ if [ -z "$1" -o "$1" = "udp46" ]; then
 fi
 
 # TCP
-if [ -z "$1" -o "$1" = "tcp64" ]]; then
+if [ -z "$1" -o "$1" = "tcp64" ]; then
 	test64_auto 6-tcp-csumok-df 4-tcp-csumok-df $NOFRAG_IGNORE
 	test64_auto 6-tcp-csumfail-df 4-tcp-csumfail-df $NOFRAG_IGNORE
 	test64_auto 6-tcp-csumok-nodf 4-tcp-csumok-nodf $NOFRAG_IGNORE

@@ -151,16 +151,13 @@ void rtrie_clean(struct rtrie *trie)
 {
 	struct rtrie_node *node;
 	struct rtrie_node *tmp_node;
-	unsigned int i = 0;
 
 	/* rtrie_print("Destroying trie", trie); */
 	list_for_each_entry_safe(node, tmp_node, &trie->list, list_hook) {
 		list_del(&node->list_hook);
 		__wkfree("Rtrie node", node);
-		i++;
 	}
 
-	log_debug("Deleted %u nodes.", i);
 	/* rtrie_print("Trie after", trie); */
 }
 
@@ -557,12 +554,11 @@ void rtrie_flush(struct rtrie *trie)
 	struct rtrie_node *node;
 	struct rtrie_node *tmp_node;
 	struct list_head tmp_list;
-	unsigned int i = 0;
 
 	/* rtrie_print("Flushing trie", trie); */
 
 	if (!deref_updater(trie, trie->root))
-		goto end;
+		return;
 
 	rcu_assign_pointer(trie->root, NULL);
 	list_replace_init(&trie->list, &tmp_list);
@@ -572,12 +568,7 @@ void rtrie_flush(struct rtrie *trie)
 	list_for_each_entry_safe(node, tmp_node, &tmp_list, list_hook) {
 		list_del(&node->list_hook);
 		__wkfree("Rtrie node", node);
-		i++;
 	}
-
-end:
-	log_debug("Deleted %u nodes.", i);
-	/* rtrie_print("Trie after", trie); */
 }
 
 /**

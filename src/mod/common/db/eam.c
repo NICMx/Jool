@@ -207,10 +207,6 @@ int eamt_add(struct eam_table *eamt, struct eamt_entry *new, bool force)
 {
 	int error;
 
-	log_debug("Adding EAM (%pI6c/%u, %pI4/%u)",
-			&new->prefix6.addr, new->prefix6.len,
-			&new->prefix4.addr, new->prefix4.len);
-
 	error = validate_prefixes(new);
 	if (error)
 		return error;
@@ -485,7 +481,6 @@ static void eamt_release(struct kref *refcount)
 {
 	struct eam_table *eamt;
 	eamt = container_of(refcount, struct eam_table, refcount);
-	log_debug("Emptying EAMT...");
 	rtrie_clean(&eamt->trie6);
 	rtrie_clean(&eamt->trie4);
 	wkfree(struct eam_table, eamt);

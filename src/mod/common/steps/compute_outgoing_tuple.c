@@ -22,7 +22,7 @@ static verdict find_bib(struct xlation *state)
 		 * Bogus ICMP errors might cause this because Filtering skips
 		 * them, so it's not critical.
 		 */
-		log_debug("Session not found. Error code is %d.", error);
+		log_debug(state, "Session not found. Error code is %d.", error);
 		return untranslatable(state, JSTAT_SESSION_NOT_FOUND);
 	}
 
@@ -55,7 +55,7 @@ verdict compute_out_tuple(struct xlation *state)
 	struct tuple *out;
 	verdict result;
 
-	log_debug("Step 3: Computing the Outgoing Tuple");
+	log_debug(state, "Step 3: Computing the Outgoing Tuple");
 
 	result = find_bib(state);
 	if (result != VERDICT_CONTINUE)
@@ -88,7 +88,7 @@ verdict compute_out_tuple(struct xlation *state)
 		break;
 	}
 
-	log_tuple(out);
-	log_debug("Done step 3.");
+	log_tuple(state, out);
+	log_debug(state, "Done step 3.");
 	return VERDICT_CONTINUE;
 }

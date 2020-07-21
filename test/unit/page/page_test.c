@@ -163,13 +163,13 @@ static bool basic_single_test(unsigned int head_len, unsigned int data_len)
 	if (head_len + data_len < IN_HDRS)
 		return true; /* Invalid test, but we don't care */
 
-	log_debug("Test: %u %u", head_len, data_len);
+	xlation_init(&state, &jool);
+	log_debug(&state, "Test: %u %u", head_len, data_len);
 
 	skb_in = create_paged_tcp_skb(head_len, data_len);
 	if (!skb_in)
 		return false;
 
-	xlation_init(&state, &jool);
 	result = core_6to4(skb_in, &state);
 	if (result != VERDICT_STOLEN)
 		kfree_skb(skb_in);

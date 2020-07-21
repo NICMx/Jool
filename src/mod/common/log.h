@@ -2,13 +2,62 @@
 #define SRC_MOD_COMMON_LOG_H_
 
 #include <linux/printk.h>
+#include "mod/common/translation_state.h"
+
+static inline bool state_debug(struct xlation const *state)
+{
+	return state && state->jool.globals.debug;
+}
+
+static inline bool xlator_debug(struct xlator const *instance)
+{
+	return instance && instance->globals.debug;
+}
 
 /**
  * Messages to help us walk through a run. Also covers normal packet drops
  * (because users catch those from stats instead) and some failed memory
  * allocations (because the kernel already prints those).
  */
-#define log_debug(text, ...) \
+#ifdef UNIT_TESTING
+
+#define log_debug(trash, f, ...) pr_debug(f, ##__VA_ARGS__)
+#define __log_debug log_debug
+#define ____log_debug log_debug
+
+#else
+
+#define JOOL_DEBUG(instance, text, ...) \
+	pr_info("Jool %s/%lx/%s: " text "\n", \
+			xt2str(xlator_get_type(instance)), \
+			0xFFFFFFFFu & (uintptr_t)(instance)->ns, \
+			(instance)->iname, \
+			##__VA_ARGS__)
+
+#define log_debug(state, text, ...)					\
+	do {								\
+		if (state_debug(state))					\
+			JOOL_DEBUG(&state->jool, text, ##__VA_ARGS__);	\
+	} while (0)
+#define __log_debug(jool, text, ...)					\
+	do {								\
+		if (xlator_debug(jool))					\
+			JOOL_DEBUG(jool, text, ##__VA_ARGS__);		\
+	} while (0)
+#define ____log_debug(cond, text, ...)					\
+	do {								\
+		if (cond)						\
+			pr_info("Jool: " text "\n", ##__VA_ARGS__);	\
+	} while (0)
+
+#endif
+
+/*
+ * Debug messages not associated with an instance. They need JOOL_FLAGS=-DDEBUG.
+ * I think this is fine for now; people normally wants debug messages to learn
+ * why an instance is misbehaving.
+ */
+#define LOG_DEBUG(text, ...) \
 	pr_debug("Jool: " text "\n", ##__VA_ARGS__)
 
 /**

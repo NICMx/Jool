@@ -151,7 +151,7 @@ static int hash_tuple(struct shash_desc *desc, __u8 fields,
  * (rather than a simple range), ephemerals are now handled by pool4. This
  * function has been stripped now to only consist of F(). (Hence the name.)
  */
-int rfc6056_f(const struct tuple *tuple6, __u8 fields, unsigned int *result)
+int rfc6056_f(struct xlation *state, unsigned int *result)
 {
 	union {
 		__be32 as32[4];
@@ -173,19 +173,20 @@ int rfc6056_f(const struct tuple *tuple6, __u8 fields, unsigned int *result)
 
 	error = crypto_shash_init(desc);
 	if (error) {
-		log_debug("crypto_hash_init() failed. Errcode: %d", error);
+		log_debug(state, "crypto_hash_init() error: %d", error);
 		goto end;
 	}
 
-	error = hash_tuple(desc, fields, tuple6);
+	error = hash_tuple(desc, state->jool.globals.nat64.f_args,
+			&state->in.tuple);
 	if (error) {
-		log_debug("crypto_hash_update() failed. Errcode: %d", error);
+		log_debug(state, "crypto_hash_update() error: %d", error);
 		goto end;
 	}
 
 	error = crypto_shash_final(desc, md5_result.as8);
 	if (error) {
-		log_debug("crypto_hash_digest() failed. Errcode: %d", error);
+		log_debug(state, "crypto_hash_digest() error: %d", error);
 		goto end;
 	}
 

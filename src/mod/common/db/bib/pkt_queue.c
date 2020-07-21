@@ -20,7 +20,7 @@ static unsigned long get_timeout(void)
 
 static void send_icmp_error(struct pktqueue_session *node)
 {
-	icmp64_send(node->skb, ICMPERR_PORT_UNREACHABLE, 0);
+	icmp64_send(NULL, node->skb, ICMPERR_PORT_UNREACHABLE, 0);
 	kfree_skb(node->skb);
 	wkfree(struct pktqueue_session, node);
 }
@@ -185,9 +185,9 @@ struct pktqueue_session *pktqueue_find(struct pktqueue *queue,
 	return node;
 }
 
-void pktqueue_put_node(struct pktqueue_session *node)
+void pktqueue_put_node(struct xlator *jool, struct pktqueue_session *node)
 {
-	log_debug("Deleting stored type 1 packet.");
+	__log_debug(jool, "Deleting stored type 1 packet.");
 	kfree_skb(node->skb);
 	wkfree(struct pktqueue_session, node);
 }

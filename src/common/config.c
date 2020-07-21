@@ -82,12 +82,12 @@ struct nla_policy joolnl_session_entry_policy[JNLASE_COUNT] = {
 
 struct nla_policy siit_globals_policy[JNLAG_COUNT] = {
 	[JNLAG_ENABLED] = { .type = NLA_U8 },
-	[JNLAG_TRACE] = { .type = NLA_U8 },
 	[JNLAG_POOL6] = { .type = NLA_NESTED },
+	[JNLAG_LOWEST_IPV6_MTU] = { .type = NLA_U32 },
+	[JNLAG_DEBUG] = { .type = NLA_U8 },
 	[JNLAG_RESET_TC] = { .type = NLA_U8 },
 	[JNLAG_RESET_TOS] = { .type = NLA_U8 },
 	[JNLAG_TOS] = { .type = NLA_U8 },
-	[JNLAG_LOWEST_IPV6_MTU] = { .type = NLA_U32 },
 	[JNLAG_PLATEAUS] = { .type = NLA_NESTED },
 	[JNLAG_COMPUTE_CSUM_ZERO] = { .type = NLA_U8 },
 	[JNLAG_HAIRPIN_MODE] = { .type = NLA_U8 },
@@ -98,12 +98,12 @@ struct nla_policy siit_globals_policy[JNLAG_COUNT] = {
 
 struct nla_policy nat64_globals_policy[JNLAG_COUNT] = {
 	[JNLAG_ENABLED] = { .type = NLA_U8 },
-	[JNLAG_TRACE] = { .type = NLA_U8 },
 	[JNLAG_POOL6] = { .type = NLA_NESTED },
+	[JNLAG_LOWEST_IPV6_MTU] = { .type = NLA_U32 },
+	[JNLAG_DEBUG] = { .type = NLA_U8 },
 	[JNLAG_RESET_TC] = { .type = NLA_U8 },
 	[JNLAG_RESET_TOS] = { .type = NLA_U8 },
 	[JNLAG_TOS] = { .type = NLA_U8 },
-	[JNLAG_LOWEST_IPV6_MTU] = { .type = NLA_U32 },
 	[JNLAG_PLATEAUS] = { .type = NLA_NESTED },
 	[JNLAG_DROP_ICMP6_INFO] = { .type = NLA_U8 },
 	[JNLAG_SRC_ICMP6_BETTER] = { .type = NLA_U8 },
@@ -160,4 +160,16 @@ xlator_type xlator_flags2xt(xlator_flags flags)
 xlator_framework xlator_flags2xf(xlator_flags flags)
 {
 	return flags & 0x0C;
+}
+
+char const *xt2str(xlator_type xt)
+{
+	switch (xt) {
+	case XT_SIIT:
+		return "SIIT";
+	case XT_NAT64:
+		return "NAT64";
+	}
+
+	return "Unknown";
 }

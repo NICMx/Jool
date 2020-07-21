@@ -65,7 +65,7 @@ struct jool_result jnla_parse_nested(struct nlattr *tb[], int maxtype,
 
 /* Wrapper for nla_validate() for lists */
 struct jool_result jnla_validate_list(struct nlattr *head, int len,
-		char const *what, struct nla_policy const *policy)
+		char const *what, struct nla_policy *policy)
 {
 	struct nlattr *attr;
 	int rem;

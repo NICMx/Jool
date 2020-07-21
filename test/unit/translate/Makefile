@@ -12,27 +12,27 @@
 include $(shell dirname $(realpath $(lastword $(MAKEFILE_LIST))))/../common.mk
 
 
-TRANSLATE = translate
+UNIT = translate
 
-obj-m += $(TRANSLATE).o
+obj-m += $(UNIT).o
 
-$(TRANSLATE)-objs += $(MIN_REQS)
-$(TRANSLATE)-objs += ../../../src/mod/common/ipv6_hdr_iterator.o
-$(TRANSLATE)-objs += ../../../src/mod/common/packet.o
-$(TRANSLATE)-objs += ../../../src/mod/common/rfc6052.o
-$(TRANSLATE)-objs += ../../../src/mod/common/translation_state.o
-$(TRANSLATE)-objs += ../../../src/mod/common/wrapper-config.o
-$(TRANSLATE)-objs += ../../../src/mod/common/wrapper-global.o
-$(TRANSLATE)-objs += ../../../src/mod/common/db/global.o
-$(TRANSLATE)-objs += ../../../src/mod/common/nl/attribute.o
-$(TRANSLATE)-objs += ../../../src/mod/common/rfc7915/common.o
-$(TRANSLATE)-objs += ../framework/skb_generator.o
-$(TRANSLATE)-objs += ../framework/types.o
-$(TRANSLATE)-objs += ../impersonator/icmp_wrapper.o
-$(TRANSLATE)-objs += ../impersonator/route.o
-$(TRANSLATE)-objs += ../impersonator/siit.o
-$(TRANSLATE)-objs += ../impersonator/stats.o
-$(TRANSLATE)-objs += translate_packet_test.o
+$(UNIT)-objs += $(MIN_REQS)
+$(UNIT)-objs += ../../../src/mod/common/ipv6_hdr_iterator.o
+$(UNIT)-objs += ../../../src/mod/common/packet.o
+$(UNIT)-objs += ../../../src/mod/common/rfc6052.o
+$(UNIT)-objs += ../../../src/mod/common/translation_state.o
+$(UNIT)-objs += ../../../src/mod/common/wrapper-config.o
+$(UNIT)-objs += ../../../src/mod/common/wrapper-global.o
+$(UNIT)-objs += ../../../src/mod/common/db/global.o
+$(UNIT)-objs += ../../../src/mod/common/nl/attribute.o
+$(UNIT)-objs += ../../../src/mod/common/rfc7915/common.o
+$(UNIT)-objs += ../framework/skb_generator.o
+$(UNIT)-objs += ../framework/types.o
+$(UNIT)-objs += ../impersonator/icmp_wrapper.o
+$(UNIT)-objs += ../impersonator/route.o
+$(UNIT)-objs += ../impersonator/siit.o
+$(UNIT)-objs += ../impersonator/stats.o
+$(UNIT)-objs += translate_packet_test.o
 
 
 all:
@@ -43,5 +43,5 @@ clean:
 	make -C ${KERNEL_DIR} M=$$PWD $@;
 test:
 	sudo dmesg -C
-	-sudo insmod $(TRANSLATE).ko && sudo rmmod $(TRANSLATE)
+	-sudo insmod $(UNIT).ko && sudo rmmod $(UNIT)
 	sudo dmesg -tc | less

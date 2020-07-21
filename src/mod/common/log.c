@@ -3,6 +3,7 @@
 #include <linux/interrupt.h>
 #include "mod/common/error_pool.h"
 #include "mod/common/wkmalloc.h"
+#include "mod/common/translation_state.h"
 
 /*
  * From the logging module's point of view, Jool functions in three different

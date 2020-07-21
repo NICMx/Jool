@@ -71,7 +71,7 @@ static verdict xlat46_internal_addresses(struct xlation *state)
 		result = become_inner_packet(state, &bkp, false);
 		if (result != VERDICT_CONTINUE)
 			return result;
-		log_debug("Translating internal addresses...");
+		log_debug(state, "Translating internal addresses...");
 		result = translate_addrs46_siit(state,
 				&state->flowx.v6.inner_src,
 				&state->flowx.v6.inner_dst);
@@ -205,7 +205,7 @@ static verdict xlat46_icmp_type(struct xlation *state)
 	 * Alternative Host Address (6).
 	 * This time there's no ICMP error.
 	 */
-	log_debug("ICMPv4 messages type %u code %u lack an ICMPv6 counterpart.",
+	log_debug(state, "ICMPv4 messages type %u code %u lack an ICMPv6 counterpart.",
 			hdr->type, hdr->code);
 	return drop(state, JSTAT_UNKNOWN_ICMP4_TYPE);
 }
@@ -247,8 +247,8 @@ static verdict predict_route46(struct xlation *state)
 #endif
 
 	flow6 = &state->flowx.v6.flowi;
-	log_debug("Routing: %pI6c->%pI6c", &flow6->saddr, &flow6->daddr);
-	state->dst = route6(state->jool.ns, flow6);
+	log_debug(state, "Routing: %pI6c->%pI6c", &flow6->saddr, &flow6->daddr);
+	state->dst = route6(&state->jool, flow6);
 	if (!state->dst)
 		return untranslatable(state, JSTAT_FAILED_ROUTES);
 
@@ -398,7 +398,7 @@ static verdict allocate_fast(struct xlation *state, int delta, bool ignore_df)
 	/* Allocate the outgoing packet as a copy of @in with shared pages. */
 	out = __pskb_copy(in->skb, delta + skb_headroom(in->skb), GFP_ATOMIC);
 	if (!out) {
-		log_debug("__pskb_copy() returned NULL.");
+		log_debug(state, "__pskb_copy() returned NULL.");
 		return drop(state, JSTAT46_PSKB_COPY);
 	}
 
@@ -900,7 +900,7 @@ static verdict ttcp46_ipv6_common(struct xlation *state)
 	/* hdr6->nexthdr */
 	if (pkt_is_outer(in) && !state->is_hairpin) {
 		if (hdr4->ttl <= 1) {
-			log_debug("Packet's TTL <= 1.");
+			log_debug(state, "Packet's TTL <= 1.");
 			return drop_icmp(state, JSTAT46_TTL, ICMPERR_TTL, 0);
 		}
 		hdr6->hop_limit = hdr4->ttl - 1;
@@ -940,7 +940,7 @@ static verdict ttp46_ipv6_external(struct xlation *state)
 	verdict result;
 
 	if (pkt_is_outer(in) && has_unexpired_src_route(pkt_ip4_hdr(in))) {
-		log_debug("Packet has an unexpired source route.");
+		log_debug(state, "Packet has an unexpired source route.");
 		return drop_icmp(state, JSTAT46_SRC_ROUTE, ICMPERR_SRC_ROUTE, 0);
 	}
 
@@ -1049,9 +1049,9 @@ static verdict compute_mtu6(struct xlation *state)
 	out_dst = skb_dst(state->out.skb);
 	out_mtu = out_dst ? dst_mtu(out_dst) : INFINITE;
 
-	log_debug("Packet MTU: %u", be16_to_cpu(in_icmp->un.frag.mtu));
-	log_debug("In dev MTU: %u", in_mtu);
-	log_debug("Out dev MTU: %u", out_mtu);
+	log_debug(state, "Packet MTU: %u", be16_to_cpu(in_icmp->un.frag.mtu));
+	log_debug(state, "In dev MTU: %u", in_mtu);
+	log_debug(state, "Out dev MTU: %u", out_mtu);
 
 	/*
 	 * We want the length of the packet that couldn't get through,
@@ -1063,7 +1063,7 @@ static verdict compute_mtu6(struct xlation *state)
 			out_mtu,
 			in_mtu,
 			be16_to_cpu(hdr4->tot_len));
-	log_debug("Resulting MTU: %u", be32_to_cpu(out_icmp->icmp6_mtu));
+	log_debug(state, "Resulting MTU: %u", be32_to_cpu(out_icmp->icmp6_mtu));
 
 	return VERDICT_CONTINUE;
 }
@@ -1133,7 +1133,7 @@ static verdict icmp4_to_icmp6_param_prob(struct xlation *state)
 		ptr = be32_to_cpu(icmp4_hdr->icmp4_unused) >> 24;
 
 		if (19 < ptr || ptrs[ptr] == DROP) {
-			log_debug("ICMPv4 messages type %u code %u pointer %u lack an ICMPv6 counterpart.",
+			log_debug(state, "ICMPv4 messages type %u code %u pointer %u lack an ICMPv6 counterpart.",
 					icmp4_hdr->type, icmp4_hdr->code, ptr);
 			return drop(state, JSTAT46_UNTRANSLATABLE_PARAM_PROBLEM_PTR);
 		}
@@ -1204,7 +1204,7 @@ static verdict validate_icmp4_csum(struct xlation *state)
 	csum = csum_fold(skb_checksum(in->skb, skb_transport_offset(in->skb),
 			pkt_datagram_len(in), 0));
 	if (csum != 0) {
-		log_debug("Checksum doesn't match.");
+		log_debug(state, "Checksum doesn't match.");
 		return drop(state, JSTAT46_ICMP_CSUM);
 	}
 
@@ -1273,7 +1273,7 @@ static verdict trim_1280(struct xlation *state)
 
 	error = pskb_trim(out->skb, 1280);
 	if (error) {
-		log_debug("pskb_trim() error: %d", error);
+		log_debug(state, "pskb_trim() error: %d", error);
 		return drop(state, JSTAT_ENOMEM);
 	}
 
@@ -1286,7 +1286,7 @@ static verdict post_icmp6error(struct xlation *state)
 {
 	verdict result;
 
-	log_debug("Translating the inner packet (4->6)...");
+	log_debug(state, "Translating the inner packet (4->6)...");
 
 	/*
 	 * We will later recompute the checksum from scratch, but we should not
@@ -1452,7 +1452,7 @@ static bool can_compute_csum(struct xlation *state)
 	amend_csum0 = state->jool.globals.siit.compute_udp_csum_zero;
 	if (is_mf_set_ipv4(hdr4) || !amend_csum0) {
 		hdr_udp = pkt_udp_hdr(&state->in);
-		log_debug("Dropping zero-checksum UDP packet: %pI4#%u->%pI4#%u",
+		log_debug(state, "Dropping zero-checksum UDP packet: %pI4#%u->%pI4#%u",
 				&hdr4->saddr, ntohs(hdr_udp->source),
 				&hdr4->daddr, ntohs(hdr_udp->dest));
 		return false;

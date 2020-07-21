@@ -368,8 +368,8 @@ static verdict fix_ie(struct xlation *state, size_t in_ie_offset,
 	return VERDICT_CONTINUE;
 
 copy_fail:
-	log_debug("skb_copy_bits(skb, %d, %zd, %d) threw error %d.", offset,
-			to - beginning, len, error);
+	log_debug(state, "skb_copy_bits(skb, %d, %zd, %d) threw error %d.",
+			offset, to - beginning, len, error);
 	return drop(state, JSTAT_UNKNOWN);
 }
 
@@ -415,7 +415,7 @@ verdict handle_icmp_extension(struct xlation *state,
 	if (args->ipl == 0)
 		return VERDICT_CONTINUE;
 	if (args->ipl < 128) {
-		log_debug("Illegal internal packet length (%zu < 128)",
+		log_debug(state, "Illegal internal packet length (%zu < 128)",
 				args->ipl);
 		return drop(state, JSTAT_ICMPEXT_SMALL);
 	}
@@ -426,7 +426,7 @@ verdict handle_icmp_extension(struct xlation *state,
 		return VERDICT_CONTINUE; /* Whatever, I guess */
 	}
 	if (args->ipl > payload_len) {
-		log_debug("ICMP Length %zu > L3 payload %zu", args->ipl,
+		log_debug(state, "ICMP Length %zu > L3 payload %zu", args->ipl,
 				payload_len);
 		return drop(state, JSTAT_ICMPEXT_BIG);
 	}

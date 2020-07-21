@@ -46,11 +46,12 @@ int handle_session_foreach(struct sk_buff *skb, struct genl_info *info)
 	l4_protocol proto;
 	int error;
 
-	log_debug("Sending session to userspace.");
-
 	error = request_handle_start(info, XT_NAT64, &jool);
 	if (error)
-		goto end;
+		return jresponse_send_simple(NULL, info, error);
+
+	__log_debug(&jool, "Sending session to userspace.");
+
 	error = jresponse_init(&response, info);
 	if (error)
 		goto revert_start;
@@ -70,7 +71,7 @@ int handle_session_foreach(struct sk_buff *skb, struct genl_info *info)
 		if (error)
 			goto revert_response;
 		offset_ptr = &offset;
-		log_debug("Offset: [%pI4/%u %pI4/%u]",
+		__log_debug(&jool, "Offset: [%pI4/%u %pI4/%u]",
 				&offset.offset.src.l3, offset.offset.src.l4,
 				&offset.offset.dst.l3, offset.offset.dst.l4);
 	}
@@ -78,7 +79,7 @@ int handle_session_foreach(struct sk_buff *skb, struct genl_info *info)
 	error = bib_foreach_session(&jool, proto, serialize_session_entry,
 			response.skb, offset_ptr);
 
-	error = jresponse_send_array(&response, error);
+	error = jresponse_send_array(&jool, &response, error);
 	if (error)
 		goto revert_response;
 
@@ -88,7 +89,7 @@ int handle_session_foreach(struct sk_buff *skb, struct genl_info *info)
 revert_response:
 	jresponse_cleanup(&response);
 revert_start:
+	error = jresponse_send_simple(&jool, info, error);
 	request_handle_end(&jool);
-end:
-	return jresponse_send_simple(info, error);
+	return error;
 }

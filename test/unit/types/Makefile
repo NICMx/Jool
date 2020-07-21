@@ -12,12 +12,12 @@
 include $(shell dirname $(realpath $(lastword $(MAKEFILE_LIST))))/../common.mk
 
 
-TYPES = types
+UNIT = types
 
-obj-m += $(TYPES).o
+obj-m += $(UNIT).o
 
-$(TYPES)-objs += $(MIN_REQS)
-$(TYPES)-objs += types_test.o
+$(UNIT)-objs += $(MIN_REQS)
+$(UNIT)-objs += types_test.o
 
 
 all:
@@ -28,5 +28,5 @@ clean:
 	make -C ${KERNEL_DIR} M=$$PWD $@;
 test:
 	sudo dmesg -C
-	-sudo insmod $(TYPES).ko && sudo rmmod $(TYPES)
+	-sudo insmod $(UNIT).ko && sudo rmmod $(UNIT)
 	sudo dmesg -tc | less

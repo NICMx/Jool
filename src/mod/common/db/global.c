@@ -55,7 +55,11 @@ int globals_init(struct jool_globals *config, xlator_type type,
 	int error;
 
 	config->enabled = DEFAULT_INSTANCE_ENABLED;
-	config->trace = false;
+#ifdef DEBUG
+	config->debug = true;
+#else
+	config->debug = false;
+#endif
 
 	if (pool6) {
 		config->pool6.set = true;

@@ -10,11 +10,11 @@ int handle_joold_add(struct sk_buff *skb, struct genl_info *info)
 	struct xlator jool;
 	int error;
 
-	log_debug("Handling joold add.");
-
 	error = request_handle_start(info, XT_NAT64, &jool);
 	if (error)
-		goto end;
+		return jresponse_send_simple(NULL, info, error);
+
+	__log_debug(&jool, "Handling joold add.");
 
 	error = joold_sync(&jool, info->attrs[JNLAR_SESSION_ENTRIES]);
 	if (error)
@@ -28,9 +28,9 @@ int handle_joold_add(struct sk_buff *skb, struct genl_info *info)
 	return 0;
 
 revert_start:
+	error = jresponse_send_simple(&jool, info, error);
 	request_handle_end(&jool);
-end:
-	return jresponse_send_simple(info, error);
+	return error;
 }
 
 int handle_joold_advertise(struct sk_buff *skb, struct genl_info *info)
@@ -38,16 +38,16 @@ int handle_joold_advertise(struct sk_buff *skb, struct genl_info *info)
 	struct xlator jool;
 	int error;
 
-	log_debug("Handling joold advertise.");
-
 	error = request_handle_start(info, XT_NAT64, &jool);
 	if (error)
-		goto end;
+		return jresponse_send_simple(NULL, info, error);
+
+	__log_debug(&jool, "Handling joold advertise.");
 
 	error = joold_advertise(&jool);
+	error = jresponse_send_simple(&jool, info, error);
 	request_handle_end(&jool);
-end:
-	return jresponse_send_simple(info, error);
+	return error;
 }
 
 int handle_joold_ack(struct sk_buff *skb, struct genl_info *info)
@@ -55,11 +55,11 @@ int handle_joold_ack(struct sk_buff *skb, struct genl_info *info)
 	struct xlator jool;
 	int error;
 
-	log_debug("Handling joold ack.");
-
 	error = request_handle_start(info, XT_NAT64, &jool);
 	if (error)
-		return jresponse_send_simple(info, error);
+		return jresponse_send_simple(NULL, info, error);
+
+	__log_debug(&jool, "Handling joold ack.");
 
 	joold_ack(&jool);
 

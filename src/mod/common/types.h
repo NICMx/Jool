@@ -144,7 +144,8 @@ static inline bool is_5_tuple(struct tuple *tuple)
 /**
  * Prints @tuple pretty in the log.
  */
-void log_tuple(struct tuple *tuple);
+struct xlation;
+void log_tuple(struct xlation *state, struct tuple *tuple);
 
 /**
  * Returns true if @type (which is assumed to have been extracted from a ICMP

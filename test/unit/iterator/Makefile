@@ -12,12 +12,12 @@
 include $(shell dirname $(realpath $(lastword $(MAKEFILE_LIST))))/../common.mk
 
 
-ITERATOR = iterator
+UNIT = iterator
 
-obj-m += $(ITERATOR).o
+obj-m += $(UNIT).o
 
-$(ITERATOR)-objs += $(MIN_REQS)
-$(ITERATOR)-objs += ipv6_hdr_iterator_test.o
+$(UNIT)-objs += $(MIN_REQS)
+$(UNIT)-objs += ipv6_hdr_iterator_test.o
 
 
 all:
@@ -28,5 +28,5 @@ clean:
 	make -C ${KERNEL_DIR} M=$$PWD $@;
 test:
 	sudo dmesg -C
-	-sudo insmod $(ITERATOR).ko && sudo rmmod $(ITERATOR)
+	-sudo insmod $(UNIT).ko && sudo rmmod $(UNIT)
 	sudo dmesg -tc | less

@@ -47,6 +47,8 @@ xlator_framework xlator_flags2xf(xlator_flags flags);
 #define XF_VALIDATE_ERRMSG \
 	"The instance framework must be either Netfilter or iptables."
 
+char const *xt2str(xlator_type xt);
+
 /*
  * This includes the null chara.
  *

@@ -20,22 +20,25 @@ int handle_eamt_foreach(struct sk_buff *skb, struct genl_info *info)
 	struct ipv4_prefix offset, *offset_ptr;
 	int error;
 
-	log_debug("Sending EAMT to userspace.");
-
 	error = request_handle_start(info, XT_SIIT, &jool);
 	if (error)
-		goto end;
+		return jresponse_send_simple(NULL, info, error);
+
+	__log_debug(&jool, "Sending EAMT to userspace.");
+
 	error = jresponse_init(&response, info);
 	if (error)
 		goto revert_start;
 
 	offset_ptr = NULL;
 	if (info->attrs[JNLAR_OFFSET]) {
-		error = jnla_get_prefix4(info->attrs[JNLAR_OFFSET], "Iteration offset", &offset);
+		error = jnla_get_prefix4(info->attrs[JNLAR_OFFSET],
+				"Iteration offset", &offset);
 		if (error)
 			goto revert_response;
 		offset_ptr = &offset;
-		log_debug("Offset: [%pI4/%u]", &offset.addr, offset.len);
+		__log_debug(&jool, "Offset: [%pI4/%u]", &offset.addr,
+				offset.len);
 	}
 
 	error = eamt_foreach(jool.siit.eamt, serialize_eam_entry, response.skb, offset_ptr);
@@ -45,7 +48,7 @@ int handle_eamt_foreach(struct sk_buff *skb, struct genl_info *info)
 		goto revert_response;
 	}
 
-	error = jresponse_send_array(&response, error);
+	error = jresponse_send_array(&jool, &response, error);
 	if (error)
 		goto revert_response;
 
@@ -55,9 +58,9 @@ int handle_eamt_foreach(struct sk_buff *skb, struct genl_info *info)
 revert_response:
 	jresponse_cleanup(&response);
 revert_start:
+	error = jresponse_send_simple(&jool, info, error);
 	request_handle_end(&jool);
-end:
-	return jresponse_send_simple(info, error);
+	return error;
 }
 
 int handle_eamt_add(struct sk_buff *skb, struct genl_info *info)
@@ -66,11 +69,11 @@ int handle_eamt_add(struct sk_buff *skb, struct genl_info *info)
 	struct eamt_entry addend;
 	int error;
 
-	log_debug("Adding EAMT entry...");
-
 	error = request_handle_start(info, XT_SIIT, &jool);
 	if (error)
-		goto end;
+		return jresponse_send_simple(NULL, info, error);
+
+	__log_debug(&jool, "Adding EAM entry.");
 
 	error = jnla_get_eam(info->attrs[JNLAR_OPERAND], "Operand", &addend);
 	if (error)
@@ -79,9 +82,9 @@ int handle_eamt_add(struct sk_buff *skb, struct genl_info *info)
 	error = eamt_add(jool.siit.eamt, &addend,
 			get_jool_hdr(info)->flags & JOOLNLHDR_FLAGS_FORCE);
 revert_start:
+	error = jresponse_send_simple(&jool, info, error);
 	request_handle_end(&jool);
-end:
-	return jresponse_send_simple(info, error);
+	return error;
 }
 
 int handle_eamt_rm(struct sk_buff *skb, struct genl_info *info)
@@ -92,11 +95,11 @@ int handle_eamt_rm(struct sk_buff *skb, struct genl_info *info)
 	struct ipv4_prefix prefix4, *prefix4_ptr;
 	int error;
 
-	log_debug("Removing EAMT entry.");
-
 	error = request_handle_start(info, XT_SIIT, &jool);
 	if (error)
-		goto end;
+		return jresponse_send_simple(NULL, info, error);
+
+	__log_debug(&jool, "Removing EAM entry.");
 
 	if (!info->attrs[JNLAR_OPERAND]) {
 		log_err("The request is missing the 'Operand' attribute.");
@@ -129,9 +132,9 @@ int handle_eamt_rm(struct sk_buff *skb, struct genl_info *info)
 
 	error = eamt_rm(jool.siit.eamt, prefix6_ptr, prefix4_ptr);
 revert_start:
+	error = jresponse_send_simple(&jool, info, error);
 	request_handle_end(&jool);
-end:
-	return jresponse_send_simple(info, error);
+	return error;
 }
 
 int handle_eamt_flush(struct sk_buff *skb, struct genl_info *info)
@@ -139,14 +142,15 @@ int handle_eamt_flush(struct sk_buff *skb, struct genl_info *info)
 	struct xlator jool;
 	int error;
 
-	log_debug("Flushing EAM table.");
-
 	error = request_handle_start(info, XT_SIIT, &jool);
 	if (error)
-		goto end;
+		return jresponse_send_simple(NULL, info, error);
+
+	__log_debug(&jool, "Flushing the EAMT.");
 
 	eamt_flush(jool.siit.eamt);
+
+	error = jresponse_send_simple(&jool, info, error);
 	request_handle_end(&jool);
-end:
-	return jresponse_send_simple(info, error);
+	return error;
 }

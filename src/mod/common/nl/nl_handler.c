@@ -57,7 +57,7 @@ static struct nla_policy const jool_policy[JNLAR_COUNT] = {
 	[JNLAR_ATOMIC_END] = { .type = NLA_BINARY, .len = 0 },
 };
 
-#if LINUX_VERSION_AT_LEAST(5, 2, 0, 9999, 0)
+#if LINUX_VERSION_AT_LEAST(5, 2, 0, 8, 0)
 #define JOOL_POLICY
 #else
 #define JOOL_POLICY .policy = jool_policy,
@@ -205,7 +205,7 @@ static struct genl_family jool_family = {
 	.maxattr = JNLAR_MAX,
 	.netnsok = true,
 	.parallel_ops = false,
-#if LINUX_VERSION_AT_LEAST(5, 2, 0, 9999, 0)
+#if LINUX_VERSION_AT_LEAST(5, 2, 0, 8, 0)
 	.policy = jool_policy,
 #endif
 	.pre_doit = pre_handle_request,
@@ -236,7 +236,7 @@ static int register_family(void)
 {
 	int error;
 
-	log_debug("Registering Generic Netlink family...");
+	LOG_DEBUG("Registering Generic Netlink family...");
 
 	strcpy(jool_family.name, JOOLNL_FAMILY);
 

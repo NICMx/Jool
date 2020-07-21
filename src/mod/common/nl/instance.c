@@ -61,7 +61,7 @@ int handle_instance_foreach(struct sk_buff *skb, struct genl_info *info)
 	struct jool_response response;
 	int error;
 
-	log_debug("Sending instance table to userspace.");
+	LOG_DEBUG("Sending instance table to userspace.");
 
 	error = request_handle_start(info, XT_ANY, NULL);
 	if (error)
@@ -73,7 +73,7 @@ int handle_instance_foreach(struct sk_buff *skb, struct genl_info *info)
 		if (error)
 			goto revert_start;
 		offset_ptr = &offset;
-		log_debug("Offset: [%x %s %u]", offset.ns, offset.iname,
+		LOG_DEBUG("Offset: [%x %s %u]", offset.ns, offset.iname,
 				offset.xf);
 	}
 
@@ -84,7 +84,7 @@ int handle_instance_foreach(struct sk_buff *skb, struct genl_info *info)
 	error = xlator_foreach(get_jool_hdr(info)->xt, serialize_instance,
 			response.skb, offset_ptr);
 
-	error = jresponse_send_array(&response, error);
+	error = jresponse_send_array(NULL, &response, error);
 	if (error)
 		goto revert_start;
 
@@ -94,7 +94,7 @@ int handle_instance_foreach(struct sk_buff *skb, struct genl_info *info)
 revert_start:
 	request_handle_end(NULL);
 fail:
-	return jresponse_send_simple(info, error);
+	return jresponse_send_simple(NULL, info, error);
 }
 
 int handle_instance_add(struct sk_buff *skb, struct genl_info *info)
@@ -108,7 +108,7 @@ int handle_instance_add(struct sk_buff *skb, struct genl_info *info)
 	__u8 xf;
 	int error;
 
-	log_debug("Adding Jool instance.");
+	LOG_DEBUG("Adding Jool instance.");
 
 	error = request_handle_start(info, XT_ANY, NULL);
 	if (error)
@@ -120,7 +120,8 @@ int handle_instance_add(struct sk_buff *skb, struct genl_info *info)
 		goto revert_start;
 	}
 
-	error = jnla_parse_nested(attrs, JNLAIA_MAX, info->attrs[JNLAR_OPERAND], add_policy, "Operand");
+	error = jnla_parse_nested(attrs, JNLAIA_MAX, info->attrs[JNLAR_OPERAND],
+			add_policy, "Operand");
 	if (error)
 		return error;
 
@@ -129,12 +130,13 @@ int handle_instance_add(struct sk_buff *skb, struct genl_info *info)
 		goto revert_start;
 	pool6.set = false;
 	if (attrs[JNLAIA_POOL6]) {
-		error = jnla_get_prefix6_optional(attrs[JNLAIA_POOL6], "pool6", &pool6);
+		error = jnla_get_prefix6_optional(attrs[JNLAIA_POOL6], "pool6",
+				&pool6);
 		if (error)
 			goto revert_start;
 	}
 
-	return jresponse_send_simple(info, xlator_add(
+	return jresponse_send_simple(NULL, info, xlator_add(
 		xf | get_jool_hdr(info)->xt,
 		get_jool_hdr(info)->iname,
 		pool6.set ? &pool6.prefix : NULL,
@@ -144,7 +146,7 @@ int handle_instance_add(struct sk_buff *skb, struct genl_info *info)
 revert_start:
 	request_handle_end(NULL);
 abort:
-	return jresponse_send_simple(info, error);
+	return jresponse_send_simple(NULL, info, error);
 }
 
 int handle_instance_hello(struct sk_buff *skb, struct genl_info *info)
@@ -152,7 +154,7 @@ int handle_instance_hello(struct sk_buff *skb, struct genl_info *info)
 	struct jool_response response;
 	int error;
 
-	log_debug("Handling instance Hello.");
+	LOG_DEBUG("Handling instance Hello.");
 
 	error = request_handle_start(info, XT_ANY, NULL);
 	if (error)
@@ -188,33 +190,33 @@ put_failure:
 revert_start:
 	request_handle_end(NULL);
 fail:
-	return jresponse_send_simple(info, error);
+	return jresponse_send_simple(NULL, info, error);
 }
 
 int handle_instance_rm(struct sk_buff *skb, struct genl_info *info)
 {
 	int error;
 
-	log_debug("Removing Jool instance.");
+	LOG_DEBUG("Removing Jool instance.");
 
 	error = request_handle_start(info, XT_ANY, NULL);
 	if (!error)
 		error = xlator_rm(get_jool_hdr(info)->xt, get_jool_hdr(info)->iname);
 	request_handle_end(NULL);
 
-	return jresponse_send_simple(info, error);
+	return jresponse_send_simple(NULL, info, error);
 }
 
 int handle_instance_flush(struct sk_buff *skb, struct genl_info *info)
 {
 	int error;
 
-	log_debug("Flushing all instances from this namespace.");
+	LOG_DEBUG("Flushing all instances from this namespace.");
 
 	error = request_handle_start(info, XT_ANY, NULL);
 	if (!error)
 		error = xlator_flush(get_jool_hdr(info)->xt);
 	request_handle_end(NULL);
 
-	return jresponse_send_simple(info, error);
+	return jresponse_send_simple(NULL, info, error);
 }

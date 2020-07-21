@@ -30,17 +30,16 @@ static verdict find_instance(struct sk_buff *skb, struct xlator *result)
 	return VERDICT_UNTRANSLATABLE;
 }
 
-static unsigned int verdict2netfilter(verdict result, bool silence)
+static unsigned int verdict2netfilter(verdict result, bool enable_debug)
 {
 	switch (result) {
 	case VERDICT_STOLEN:
 		return NF_STOLEN; /* This is the happy path. */
 	case VERDICT_UNTRANSLATABLE:
-		if (!silence)
-			log_debug("Returning the packet to the kernel.");
+		____log_debug(enable_debug, "Returning the packet to the kernel.");
 		return NF_ACCEPT;
 	case VERDICT_DROP:
-		log_debug("Dropping packet.");
+		____log_debug(enable_debug, "Dropping packet.");
 		return NF_DROP;
 	case VERDICT_CONTINUE:
 		WARN(true, "At time of writing, Jool core is not supposed to return CONTINUE after the packet is handled.\n"
@@ -60,7 +59,7 @@ NF_CALLBACK(hook_ipv6, skb)
 {
 	struct xlation *state;
 	verdict result;
-	bool silence = true;
+	bool enable_debug = false;
 
 	state = xlation_create(NULL);
 	if (!state)
@@ -69,13 +68,13 @@ NF_CALLBACK(hook_ipv6, skb)
 	result = find_instance(skb, &state->jool);
 	if (result != VERDICT_CONTINUE)
 		goto end;
-	silence = false;
+	enable_debug = state->jool.globals.debug;
 
 	result = core_6to4(skb, state);
 
 	xlator_put(&state->jool);
 end:	xlation_destroy(state);
-	return verdict2netfilter(result, silence);
+	return verdict2netfilter(result, enable_debug);
 }
 EXPORT_SYMBOL_GPL(hook_ipv6);
 
@@ -87,7 +86,7 @@ NF_CALLBACK(hook_ipv4, skb)
 {
 	struct xlation *state;
 	verdict result;
-	bool silence = true;
+	bool enable_debug = false;
 
 	state = xlation_create(NULL);
 	if (!state)
@@ -96,12 +95,12 @@ NF_CALLBACK(hook_ipv4, skb)
 	result = find_instance(skb, &state->jool);
 	if (result != VERDICT_CONTINUE)
 		goto end;
-	silence = false;
+	enable_debug = state->jool.globals.debug;
 
 	result = core_4to6(skb, state);
 
 	xlator_put(&state->jool);
 end:	xlation_destroy(state);
-	return verdict2netfilter(result, silence);
+	return verdict2netfilter(result, enable_debug);
 }
 EXPORT_SYMBOL_GPL(hook_ipv4);

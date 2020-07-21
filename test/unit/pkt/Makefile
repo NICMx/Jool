@@ -12,16 +12,16 @@
 include $(shell dirname $(realpath $(lastword $(MAKEFILE_LIST))))/../common.mk
 
 
-PKT = pkt
+UNIT = pkt
 
-obj-m += $(PKT).o
+obj-m += $(UNIT).o
 
-$(PKT)-objs += $(MIN_REQS)
-$(PKT)-objs += ../../../src/mod/common/packet.o
-$(PKT)-objs += ../../../src/mod/common/translation_state.o
-$(PKT)-objs += ../framework/skb_generator.o
-$(PKT)-objs += ../impersonator/stats.o
-$(PKT)-objs += packet_test.o
+$(UNIT)-objs += $(MIN_REQS)
+$(UNIT)-objs += ../../../src/mod/common/packet.o
+$(UNIT)-objs += ../../../src/mod/common/translation_state.o
+$(UNIT)-objs += ../framework/skb_generator.o
+$(UNIT)-objs += ../impersonator/stats.o
+$(UNIT)-objs += packet_test.o
 
 
 all:
@@ -32,5 +32,5 @@ clean:
 	make -C ${KERNEL_DIR} M=$$PWD $@;
 test:
 	sudo dmesg -C
-	-sudo insmod $(PKT).ko && sudo rmmod $(PKT)
+	-sudo insmod $(UNIT).ko && sudo rmmod $(UNIT)
 	sudo dmesg -tc | less

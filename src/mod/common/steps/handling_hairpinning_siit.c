@@ -15,7 +15,7 @@ verdict handling_hairpinning_siit(struct xlation *old)
 	struct xlation new;
 	verdict result;
 
-	log_debug("Packet is hairpinning. U-turning...");
+	log_debug(old, "Packet is hairpinning. U-turning...");
 
 	new.jool = old->jool;
 	new.in = old->out;
@@ -28,6 +28,6 @@ verdict handling_hairpinning_siit(struct xlation *old)
 	if (result != VERDICT_CONTINUE)
 		return result;
 
-	log_debug("Done hairpinning.");
+	log_debug(old, "Done hairpinning.");
 	return VERDICT_CONTINUE;
 }

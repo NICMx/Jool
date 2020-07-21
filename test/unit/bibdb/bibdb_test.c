@@ -153,7 +153,7 @@ static bool test_flow(void)
 
 	/* ---------------------------------------------------------- */
 
-	log_debug("Removing all ports from a range.");
+	log_debug(NULL, "Removing all ports from a range.");
 	range.prefix.addr.s_addr = cpu_to_be32(0xc0000200);
 	range.prefix.len = 31;
 	range.ports.min = 0;
@@ -168,7 +168,7 @@ static bool test_flow(void)
 
 	/* ---------------------------------------------------------- */
 
-	log_debug("Deleting only certain ports from a range.");
+	log_debug(NULL, "Deleting only certain ports from a range.");
 	range.prefix.addr.s_addr = cpu_to_be32(0xc0000202);
 	range.prefix.len = 31;
 	range.ports.min = 11;
@@ -181,7 +181,7 @@ static bool test_flow(void)
 
 	/* ---------------------------------------------------------- */
 
-	log_debug("Flushing using bib_rm_range().");
+	log_debug(NULL, "Flushing using bib_rm_range().");
 	range.prefix.addr.s_addr = cpu_to_be32(0x00000000);
 	range.prefix.len = 0;
 	range.ports.min = 0;
@@ -197,7 +197,7 @@ static bool test_flow(void)
 	if (!insert_test_bibs())
 		return false;
 
-	log_debug("Flushing using bib_flush().");
+	log_debug(NULL, "Flushing using bib_flush().");
 	bib_flush(&jool);
 	drop_test_bibs();
 	success &= test_db();

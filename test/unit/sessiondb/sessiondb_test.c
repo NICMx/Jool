@@ -157,7 +157,7 @@ static bool insert_test_sessions(void)
 
 static bool flush(void)
 {
-	log_debug("Flushing.");
+	log_debug(NULL, "Flushing.");
 	bib_flush(&jool);
 
 	memset(session_instances, 0, sizeof(session_instances));
@@ -175,7 +175,7 @@ static bool simple_session(void)
 
 	/* ---------------------------------------------------------- */
 
-	log_debug("Deleting sessions by BIB.");
+	log_debug(NULL, "Deleting sessions by BIB.");
 	range.prefix.addr.s_addr = cpu_to_be32(0xcb007101u);
 	range.prefix.len = 32;
 	range.ports.min = 1;
@@ -190,7 +190,7 @@ static bool simple_session(void)
 
 	/* ---------------------------------------------------------- */
 
-	log_debug("Deleting again.");
+	log_debug(NULL, "Deleting again.");
 	bib_rm_range(&jool, PROTO, &range);
 	success &= test_db();
 
@@ -202,7 +202,7 @@ static bool simple_session(void)
 
 	/* ---------------------------------------------------------- */
 
-	log_debug("Deleting by range (all addresses, lower ports).");
+	log_debug(NULL, "Deleting by range (all addresses, lower ports).");
 	range.prefix.addr.s_addr = cpu_to_be32(0xcb007100u);
 	range.prefix.len = 30;
 	range.ports.min = 0;
@@ -227,7 +227,7 @@ static bool simple_session(void)
 
 	/* ---------------------------------------------------------- */
 
-	log_debug("Deleting by range (lower addresses, all ports).");
+	log_debug(NULL, "Deleting by range (lower addresses, all ports).");
 	range.prefix.addr.s_addr = cpu_to_be32(0xcb007100u);
 	range.prefix.len = 31;
 	range.ports.min = 0;

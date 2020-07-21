@@ -772,11 +772,21 @@ static const struct joolnl_global_meta globals_metadata[] = {
 		.nl2raw = nl2raw_pool6,
 #endif
 	}, {
-		.id = JNLAG_TRACE,
-		.name = "trace",
+		.id = JNLAG_LOWEST_IPV6_MTU,
+		.name = "lowest-ipv6-mtu",
+		.type = &gt_uint32,
+		.doc = "Smallest reachable IPv6 MTU.",
+		.offset = offsetof(struct jool_globals, lowest_ipv6_mtu),
+		.xt = XT_ANY,
+#ifdef __KERNEL__
+		.nl2raw = nl2raw_lowest_ipv6_mtu,
+#endif
+	}, {
+		.id = JNLAG_DEBUG,
+		.name = "logging-debug",
 		.type = &gt_bool,
-		.doc = "Log basic packet fields as they are received?",
-		.offset = offsetof(struct jool_globals, trace),
+		.doc = "Pour lots of debugging messages on the log?",
+		.offset = offsetof(struct jool_globals, debug),
 		.xt = XT_ANY,
 	}, {
 		.id = JNLAG_RESET_TC,
@@ -799,16 +809,6 @@ static const struct joolnl_global_meta globals_metadata[] = {
 		.doc = "Value to override TOS as (only when --override-tos is ON).",
 		.offset = offsetof(struct jool_globals, new_tos),
 		.xt = XT_ANY,
-	}, {
-		.id = JNLAG_LOWEST_IPV6_MTU,
-		.name = "lowest-ipv6-mtu",
-		.type = &gt_uint32,
-		.doc = "Smallest reachable IPv6 MTU.",
-		.offset = offsetof(struct jool_globals, lowest_ipv6_mtu),
-		.xt = XT_ANY,
-#ifdef __KERNEL__
-		.nl2raw = nl2raw_lowest_ipv6_mtu,
-#endif
 	} , {
 		.id = JNLAG_PLATEAUS,
 		.name = "mtu-plateaus",

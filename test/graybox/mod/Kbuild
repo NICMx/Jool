@@ -11,5 +11,3 @@ graybox-objs += sender.o
 graybox-objs += nl_handler.o
 graybox-objs += ../../../src/mod/common/error_pool.o
 graybox-objs += ../../../src/mod/common/ipv6_hdr_iterator.o
-graybox-objs += ../../../src/mod/common/log.o
-graybox-objs += ../../../src/mod/common/route_out.o

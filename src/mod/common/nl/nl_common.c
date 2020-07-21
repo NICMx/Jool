@@ -17,18 +17,6 @@ struct joolnlhdr *get_jool_hdr(struct genl_info *info)
 	return info->userhdr;
 }
 
-static char const *xt2str(xlator_type xt)
-{
-	switch (xt) {
-	case XT_SIIT:
-		return "SIIT";
-	case XT_NAT64:
-		return "Stateful NAT64";
-	}
-
-	return "unknown";
-}
-
 static int validate_stateness(struct joolnlhdr *hdr)
 {
 	switch (hdr->xt) {

@@ -214,11 +214,11 @@ enum joolnl_attr_global {
 	/* Common */
 	JNLAG_ENABLED = 1,
 	JNLAG_POOL6,
-	JNLAG_TRACE,
+	JNLAG_LOWEST_IPV6_MTU,
+	JNLAG_DEBUG,
 	JNLAG_RESET_TC,
 	JNLAG_RESET_TOS,
 	JNLAG_TOS,
-	JNLAG_LOWEST_IPV6_MTU,
 	JNLAG_PLATEAUS,
 
 	/* SIIT */
@@ -472,8 +472,8 @@ struct jool_globals {
 
 	/** Does the user wants this Jool instance to translate packets? */
 	bool enabled;
-	/** Print packet addresses on reception? */
-	bool trace;
+	/** Print debug messages? */
+	bool debug;
 
 	/**
 	 * BTW: NAT64 Jool can't do anything without pool6, so it validates that

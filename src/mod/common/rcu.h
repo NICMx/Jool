@@ -32,7 +32,7 @@
  * Which is reaaaaaally weird. What if it turns out they need to add a separate
  * version later again? Hope they know what they're doing, seriously.
  */
-#if LINUX_VERSION_AT_LEAST(5, 1, 0, 9999, 0)
+#if LINUX_VERSION_AT_LEAST(5, 1, 0, 8, 0)
 #define synchronize_rcu_bh synchronize_rcu
 #endif
 

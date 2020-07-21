@@ -20,11 +20,12 @@ int handle_bib_foreach(struct sk_buff *skb, struct genl_info *info)
 	struct bib_entry offset, *offset_ptr;
 	int error;
 
-	log_debug("Sending BIB to userspace.");
-
 	error = request_handle_start(info, XT_NAT64, &jool);
 	if (error)
-		goto end;
+		return jresponse_send_simple(NULL, info, error);
+
+	__log_debug(&jool, "Sending BIB to userspace.");
+
 	error = jresponse_init(&response, info);
 	if (error)
 		goto revert_start;
@@ -34,7 +35,7 @@ int handle_bib_foreach(struct sk_buff *skb, struct genl_info *info)
 		if (error)
 			goto revert_response;
 		offset_ptr = &offset;
-		log_debug("Offset: [%pI6c#%u %pI4#%u %u %u]",
+		__log_debug(&jool, "Offset: [%pI6c#%u %pI4#%u %u %u]",
 				&offset.addr6.l3, offset.addr6.l4,
 				&offset.addr4.l3, offset.addr4.l4,
 				offset.is_static, offset.l4_proto);
@@ -50,7 +51,7 @@ int handle_bib_foreach(struct sk_buff *skb, struct genl_info *info)
 	error = bib_foreach(jool.nat64.bib, offset.l4_proto, serialize_bib_entry,
 			response.skb, offset_ptr ? &offset_ptr->addr4 : NULL);
 
-	error = jresponse_send_array(&response, error);
+	error = jresponse_send_array(&jool, &response, error);
 	if (error)
 		goto revert_response;
 
@@ -60,9 +61,9 @@ int handle_bib_foreach(struct sk_buff *skb, struct genl_info *info)
 revert_response:
 	jresponse_cleanup(&response);
 revert_start:
+	error = jresponse_send_simple(&jool, info, error);
 	request_handle_end(&jool);
-end:
-	return jresponse_send_simple(info, error);
+	return error;
 }
 
 int handle_bib_add(struct sk_buff *skb, struct genl_info *info)
@@ -71,11 +72,11 @@ int handle_bib_add(struct sk_buff *skb, struct genl_info *info)
 	struct bib_entry new;
 	int error;
 
-	log_debug("Adding BIB entry.");
-
 	error = request_handle_start(info, XT_NAT64, &jool);
 	if (error)
-		goto end;
+		return jresponse_send_simple(NULL, info, error);
+
+	__log_debug(&jool, "Adding BIB entry.");
 
 	error = jnla_get_bib(info->attrs[JNLAR_OPERAND], "Operand", &new);
 	if (error)
@@ -91,9 +92,9 @@ int handle_bib_add(struct sk_buff *skb, struct genl_info *info)
 
 	error = bib_add_static(&jool, &new);
 revert_start:
+	error = jresponse_send_simple(&jool, info, error);
 	request_handle_end(&jool);
-end:
-	return jresponse_send_simple(info, error);
+	return error;
 }
 
 int handle_bib_rm(struct sk_buff *skb, struct genl_info *info)
@@ -103,11 +104,11 @@ int handle_bib_rm(struct sk_buff *skb, struct genl_info *info)
 	struct bib_entry entry;
 	int error;
 
-	log_debug("Removing BIB entry.");
-
 	error = request_handle_start(info, XT_NAT64, &jool);
 	if (error)
-		goto end;
+		return jresponse_send_simple(NULL, info, error);
+
+	__log_debug(&jool, "Removing BIB entry.");
 
 	if (!info->attrs[JNLAR_OPERAND]) {
 		log_err("The request lacks an operand attribute.");
@@ -155,9 +156,9 @@ int handle_bib_rm(struct sk_buff *skb, struct genl_info *info)
 	/* Fall through */
 
 revert_start:
+	error = jresponse_send_simple(&jool, info, error);
 	request_handle_end(&jool);
-end:
-	return jresponse_send_simple(info, error);
+	return error;
 
 esrch:
 	log_err("The entry wasn't in the database.");

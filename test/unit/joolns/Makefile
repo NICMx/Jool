@@ -12,26 +12,26 @@
 include $(shell dirname $(realpath $(lastword $(MAKEFILE_LIST))))/../common.mk
 
 
-JOOLNS = joolns
+UNIT = joolns
 
-obj-m += $(JOOLNS).o
+obj-m += $(UNIT).o
 
-$(JOOLNS)-objs += $(MIN_REQS)
-$(JOOLNS)-objs += ../../../src/common/config.o
-$(JOOLNS)-objs += ../../../src/mod/common/atomic_config.o
-#$(JOOLNS)-objs += ../../../src/mod/common/wrapper-global.o
-$(JOOLNS)-objs += ../../../src/mod/common/rtrie.o
-$(JOOLNS)-objs += ../../../src/mod/common/stats.o
-$(JOOLNS)-objs += ../../../src/mod/common/xlator.o
-$(JOOLNS)-objs += ../../../src/mod/common/db/global.o
-$(JOOLNS)-objs += ../../../src/mod/common/db/blacklist4.o
-$(JOOLNS)-objs += ../../../src/mod/common/db/pool.o
-$(JOOLNS)-objs += ../../../src/mod/common/db/eam.o
-$(JOOLNS)-objs += ../impersonator/nat64.o
-$(JOOLNS)-objs += ../impersonator/nf_hook.o
-$(JOOLNS)-objs += ../impersonator/send_packet.o
-$(JOOLNS)-objs += impersonator.o
-$(JOOLNS)-objs += joolns_test.o
+$(UNIT)-objs += $(MIN_REQS)
+$(UNIT)-objs += ../../../src/common/config.o
+$(UNIT)-objs += ../../../src/mod/common/atomic_config.o
+#$(UNIT)-objs += ../../../src/mod/common/wrapper-global.o
+$(UNIT)-objs += ../../../src/mod/common/rtrie.o
+$(UNIT)-objs += ../../../src/mod/common/stats.o
+$(UNIT)-objs += ../../../src/mod/common/xlator.o
+$(UNIT)-objs += ../../../src/mod/common/db/global.o
+$(UNIT)-objs += ../../../src/mod/common/db/blacklist4.o
+$(UNIT)-objs += ../../../src/mod/common/db/pool.o
+$(UNIT)-objs += ../../../src/mod/common/db/eam.o
+$(UNIT)-objs += ../impersonator/nat64.o
+$(UNIT)-objs += ../impersonator/nf_hook.o
+$(UNIT)-objs += ../impersonator/send_packet.o
+$(UNIT)-objs += impersonator.o
+$(UNIT)-objs += joolns_test.o
 
 
 all:
@@ -42,5 +42,5 @@ clean:
 	make -C ${KERNEL_DIR} M=$$PWD $@;
 test:
 	sudo dmesg -C
-	-sudo insmod $(JOOLNS).ko && sudo rmmod $(JOOLNS)
+	-sudo insmod $(UNIT).ko && sudo rmmod $(UNIT)
 	sudo dmesg -tc | less

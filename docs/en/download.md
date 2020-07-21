@@ -15,11 +15,12 @@ title: Download
 
 Jool 4.1 is a [compliant SIIT and Stateful NAT64](intro-jool.html#compliance).
 
-Currently, 4.1.1 is the latest version of Jool.
+Currently, 4.1.2 is the latest version of Jool.
 
 | Release Date | Version | .tar.gz | .tar.gz Signature | Git commit | .deb |
 |--------------|---------|---------|-------------------|------------|------|
-| 2020-07-01   | **4.1.1** | [Download]({{ site.downloads-url-2 }}/v4.1.1/jool-4.1.1.tar.gz) | [Signature]({{ site.downloads-url-2 }}/v4.1.1/jool-4.1.1.tar.gz.asc) | <a href="{{ site.repository-url }}/tree/v4.1.1" target="_blank">Link</a> | [Kernel modules]({{ site.downloads-url-2 }}/v4.1.1/jool-dkms_4.1.1-1_all.deb)<br />[Userspace tools]({{ site.downloads-url-2 }}/v4.1.1/jool-tools_4.1.1-1_amd64.deb) (amd64 only) |
+| 2020-07-22   | **4.1.2** | [Download]({{ site.downloads-url-2 }}/v4.1.2/jool-4.1.2.tar.gz) | [Signature]({{ site.downloads-url-2 }}/v4.1.2/jool-4.1.2.tar.gz.asc) | <a href="{{ site.repository-url }}/tree/v4.1.2" target="_blank">Link</a> | [Kernel modules]({{ site.downloads-url-2 }}/v4.1.2/jool-dkms_4.1.2-1_all.deb)<br />[Userspace tools]({{ site.downloads-url-2 }}/v4.1.2/jool-tools_4.1.2-1_amd64.deb) (amd64 only) |
+| 2020-07-01   | 4.1.1 | [Download]({{ site.downloads-url-2 }}/v4.1.1/jool-4.1.1.tar.gz) | [Signature]({{ site.downloads-url-2 }}/v4.1.1/jool-4.1.1.tar.gz.asc) | <a href="{{ site.repository-url }}/tree/v4.1.1" target="_blank">Link</a> | [Kernel modules]({{ site.downloads-url-2 }}/v4.1.1/jool-dkms_4.1.1-1_all.deb)<br />[Userspace tools]({{ site.downloads-url-2 }}/v4.1.1/jool-tools_4.1.1-1_amd64.deb) (amd64 only) |
 | 2020-06-16   | <del>4.1.0</del> | [Download]({{ site.downloads-url-2 }}/v4.1.0/jool-4.1.0.tar.gz) | [Signature]({{ site.downloads-url-2 }}/v4.1.0/jool-4.1.0.tar.gz.asc) | <a href="{{ site.repository-url }}/tree/v4.1.0" target="_blank">Link</a> | [Kernel modules]({{ site.downloads-url-2 }}/v4.1.0/jool-dkms_4.1.0-1_all.deb)<br />[Userspace tools]({{ site.downloads-url-2 }}/v4.1.0/jool-tools_4.1.0-1_amd64.deb) (amd64 only) |
 
 [This](http://keys.gnupg.net/pks/lookup?op=get&search=0x72160FD57B242967) is my public key. It is not yet certified, so the Signature column is mostly just theater for now.
