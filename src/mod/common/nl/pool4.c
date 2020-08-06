@@ -121,7 +121,7 @@ int handle_pool4_rm(struct sk_buff *skb, struct genl_info *info)
 		goto revert_start;
 
 	error = pool4db_rm_usr(jool.nat64.pool4, &entry);
-	if (xlator_is_nat64(&jool) && !(get_jool_hdr(info)->flags & JOOLNLHDR_FLAGS_QUICK))
+	if (!(get_jool_hdr(info)->flags & JOOLNLHDR_FLAGS_QUICK))
 		bib_rm_range(&jool, entry.proto, &entry.range);
 
 revert_start:
@@ -142,7 +142,7 @@ int handle_pool4_flush(struct sk_buff *skb, struct genl_info *info)
 	__log_debug(&jool, "Flushing pool4.");
 
 	pool4db_flush(jool.nat64.pool4);
-	if (xlator_is_nat64(&jool) && !(get_jool_hdr(info)->flags & JOOLNLHDR_FLAGS_QUICK)) {
+	if (!(get_jool_hdr(info)->flags & JOOLNLHDR_FLAGS_QUICK)) {
 		/*
 		 * This will also clear *previously* orphaned entries, but given
 		 * that "not quick" generally means "please clean up," this is

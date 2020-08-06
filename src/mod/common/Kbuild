@@ -20,6 +20,7 @@ jool_common-objs += icmp_wrapper.o
 jool_common-objs += init.o
 jool_common-objs += ipv6_hdr_iterator.o
 jool_common-objs += joold.o
+jool_common-objs += mapt.o
 jool_common-objs += packet.o
 jool_common-objs += rfc6052.o
 jool_common-objs += rtrie.o

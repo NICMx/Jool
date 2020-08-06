@@ -145,6 +145,8 @@ static void xlator_get(struct xlator *jool)
 		bib_get(jool->nat64.bib);
 		joold_get(jool->nat64.joold);
 		break;
+	case XT_MAPT:
+		break;
 	}
 }
 
@@ -865,6 +867,9 @@ void xlator_put(struct xlator *jool)
 		if (jool->nat64.joold)
 			joold_put(jool->nat64.joold);
 		return;
+
+	case XT_MAPT:
+		return;
 	}
 
 	WARN(1, "Unknown translator type: %d", xlator_get_type(jool));
@@ -911,10 +916,10 @@ int xlator_foreach(xlator_type xt, xlator_foreach_cb cb, void *args,
 
 xlator_type xlator_get_type(struct xlator const *instance)
 {
-	return xlator_is_nat64(instance) ? XT_NAT64 : XT_SIIT;
+	return instance->flags & XT_MASK;
 }
 
 xlator_framework xlator_get_framework(struct xlator const *instance)
 {
-	return xlator_is_netfilter(instance) ? XF_NETFILTER : XF_IPTABLES;
+	return instance->flags & XF_MASK;
 }

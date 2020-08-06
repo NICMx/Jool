@@ -312,7 +312,7 @@ static verdict handle_icmp6(struct xlation *state, struct pkt_metadata const *me
 			return result;
 	}
 
-	if (xlation_is_siit(state)
+	if (!xlation_has_defrag(state)
 			&& meta->frag_offset
 			&& is_icmp6_info(ptr.icmp->icmp6_type)) {
 		ptr.frag = skb_hdr_ptr(state->in.skb, meta->frag_offset, buffer.frag);
@@ -445,7 +445,7 @@ static verdict handle_icmp4(struct xlation *state, struct pkt_metadata *meta)
 			return result;
 	}
 
-	if (xlation_is_siit(state)
+	if (!xlation_has_defrag(state)
 			&& is_icmp4_info(ptr->type)
 			&& is_fragmented_ipv4(ip_hdr(state->in.skb))) {
 		log_debug(state, "Packet is a fragmented ping; its checksum cannot be translated.");

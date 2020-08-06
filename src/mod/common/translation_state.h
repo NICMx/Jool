@@ -91,5 +91,6 @@ verdict stolen(struct xlation *state, enum jool_stat_id stat);
 
 #define xlation_is_siit(state) xlator_is_siit(&(state)->jool)
 #define xlation_is_nat64(state) xlator_is_nat64(&(state)->jool)
+#define xlation_has_defrag(state) xlator_has_defrag(&(state)->jool)
 
 #endif /* SRC_MOD_COMMON_TRANSLATION_STATE_H_ */

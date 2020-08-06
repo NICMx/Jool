@@ -144,7 +144,7 @@ int iname_validate(const char *iname, bool allow_null)
 
 int xt_validate(xlator_type xt)
 {
-	return (xt == XT_SIIT || xt == XT_NAT64) ? 0 : -EINVAL;
+	return (xt == XT_SIIT || xt == XT_NAT64 || xt == XT_MAPT) ? 0 : -EINVAL;
 }
 
 int xf_validate(xlator_framework xf)
@@ -154,12 +154,12 @@ int xf_validate(xlator_framework xf)
 
 xlator_type xlator_flags2xt(xlator_flags flags)
 {
-	return flags & 0x03;
+	return flags & XT_MASK;
 }
 
 xlator_framework xlator_flags2xf(xlator_flags flags)
 {
-	return flags & 0x0C;
+	return flags & XF_MASK;
 }
 
 char const *xt2str(xlator_type xt)
@@ -169,6 +169,8 @@ char const *xt2str(xlator_type xt)
 		return "SIIT";
 	case XT_NAT64:
 		return "NAT64";
+	case XT_MAPT:
+		return "MAP-T";
 	}
 
 	return "Unknown";

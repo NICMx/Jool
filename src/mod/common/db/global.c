@@ -7,6 +7,7 @@
 #include "common/constants.h"
 #include "mod/common/address.h"
 #include "mod/common/log.h"
+#include "mod/common/mapt.h"
 #include "mod/common/nl/global.h"
 
 static int validate_pool6_len(__u8 len)
@@ -111,6 +112,9 @@ int globals_init(struct jool_globals *config, xlator_type type,
 		config->nat64.joold.capacity = DEFAULT_JOOLD_CAPACITY;
 		config->nat64.joold.max_payload = DEFAULT_JOOLD_MAX_PAYLOAD;
 		break;
+
+	case XT_MAPT:
+		return mapt_init(config, NULL, NULL, 6, 8);
 
 	default:
 		log_err("Unknown translator type: %d", type);

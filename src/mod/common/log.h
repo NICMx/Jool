@@ -28,8 +28,8 @@ static inline bool xlator_debug(struct xlator const *instance)
 #else
 
 #define JOOL_DEBUG(instance, text, ...) \
-	pr_info("Jool %s/%lx/%s: " text "\n", \
-			xt2str(xlator_get_type(instance)), \
+	pr_info("Jool /%lx/%s: " text "\n", \
+			/* xt2str(xlator_get_type(instance)), */ \
 			0xFFFFFFFFu & (uintptr_t)(instance)->ns, \
 			(instance)->iname, \
 			##__VA_ARGS__)

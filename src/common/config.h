@@ -465,6 +465,31 @@ struct joold_config {
 	__u32 max_payload;
 };
 
+/*
+ * Heads up: Though RFC 7597 became a proposed standard, its section 5.1 appears
+ * to be an early draft. As a formal explanation of the port-mapping algorithm,
+ * it's clearly incomplete. Therefore, I'm following the nomenclature from
+ * appendix B.1, which is a much better explanation of the whole rodeo.
+ */
+struct port_restricted_port_field {
+	/*
+	 * Length of the "i" field.
+	 * The RFCs have an unfortunate long name for "a": "PSID offset."
+	 * In my opinion, this is a poor choice because it only makes sense if
+	 * you're looking at the Port-Restricted Port Field diagram, and is very
+	 * confusing if you're looking at the MAP IPv6 Address Format diagram.
+	 * (`a` does not have anything to do with `n + p`.)
+	 */
+	unsigned int a;
+	/*
+	 * Length of the "PSID" field.
+	 * Seemingly also known as "q," unfortunately.
+	 */
+	unsigned int k;
+	/* Length of the "j" field */
+	unsigned int m;
+};
+
 /**
  * A copy of the entire running configuration, excluding databases.
  */
@@ -552,8 +577,8 @@ struct jool_globals {
 			 * address of an incoming packet.
 			 */
 			struct config_prefix4 rfc6791_prefix4;
-
 		} siit;
+
 		struct {
 			/** Filter ICMPv6 Informational packets? */
 			bool drop_icmp6_info;
@@ -564,14 +589,14 @@ struct jool_globals {
 			 */
 			bool src_icmp6errs_better;
 			/**
-			 * Fields of the packet that will be sent to the F() function.
-			 * (RFC 6056 algorithm 3.)
+			 * Fields of the packet that will be sent to the F()
+			 * function. (RFC 6056 algorithm 3.)
 			 * See "enum f_args".
 			 */
 			__u8 f_args;
 			/**
-			 * Decrease timer when a FIN packet is received during the
-			 * `V4 FIN RCV` or `V6 FIN RCV` states?
+			 * Decrease timer when a FIN packet is received during
+			 * the `V4 FIN RCV` or `V6 FIN RCV` states?
 			 * https://github.com/NICMx/Jool/issues/212
 			 */
 			bool handle_rst_during_fin_rcv;
@@ -579,6 +604,14 @@ struct jool_globals {
 			struct bib_config bib;
 			struct joold_config joold;
 		} nat64;
+
+		struct {
+			bool ce; /* true:ce false:br */
+			struct port_restricted_port_field prpf;
+			struct in6_addr map_ce_addr6; /* CE-only */
+			/* TODO (mapt fmr) convert this into a database. */
+			struct mapping_rule fmr;
+		} mapt;
 	};
 };
 

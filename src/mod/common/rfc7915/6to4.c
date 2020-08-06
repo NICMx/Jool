@@ -6,6 +6,7 @@
 #include "mod/common/ipv6_hdr_iterator.h"
 #include "mod/common/linux_version.h"
 #include "mod/common/log.h"
+#include "mod/common/mapt.h"
 #include "mod/common/route.h"
 #include "mod/common/steps/compute_outgoing_tuple.h"
 
@@ -38,9 +39,12 @@ static verdict xlat64_external_addresses(struct xlation *state)
 
 	case XT_SIIT:
 		return translate_addrs64_siit(state, &flow->saddr, &flow->daddr);
+
+	case XT_MAPT:
+		return translate_addrs64_mapt(state, &flow->saddr, &flow->daddr);
 	}
 
-	WARN(1, "xlator type is not SIIT nor NAT64: %u",
+	WARN(1, "xlator type is not SIIT, NAT64 nor MAP-T: %u",
 			xlator_get_type(&state->jool));
 	return drop(state, JSTAT_UNKNOWN);
 }
@@ -66,9 +70,21 @@ static verdict xlat64_internal_addresses(struct xlation *state)
 				&state->flowx.v4.inner_dst.s_addr);
 		restore_outer_packet(state, &bkp, false);
 		return result;
+
+	case XT_MAPT:
+		result = become_inner_packet(state, &bkp, false);
+		if (result != VERDICT_CONTINUE)
+			return result;
+		log_debug(state, "Translating internal addresses...");
+		/* TODO (mapt during test) might need to swap the addresses */
+		result = translate_addrs64_siit(state,
+				&state->flowx.v4.inner_src.s_addr,
+				&state->flowx.v4.inner_dst.s_addr);
+		restore_outer_packet(state, &bkp, false);
+		return result;
 	}
 
-	WARN(1, "xlator type is not SIIT nor NAT64: %u",
+	WARN(1, "xlator type is not SIIT, NAT64 nor MAP-T: %u",
 			xlator_get_type(&state->jool));
 	return drop(state, JSTAT_UNKNOWN);
 }
@@ -85,6 +101,7 @@ static verdict xlat64_tcp_ports(struct xlation *state)
 		flow4->fl4_dport = cpu_to_be16(state->out.tuple.dst.addr4.l4);
 		break;
 	case XT_SIIT:
+	case XT_MAPT:
 		hdr = pkt_tcp_hdr(&state->in);
 		flow4->fl4_sport = hdr->source;
 		flow4->fl4_dport = hdr->dest;
@@ -105,6 +122,7 @@ static verdict xlat64_udp_ports(struct xlation *state)
 		flow4->fl4_dport = cpu_to_be16(state->out.tuple.dst.addr4.l4);
 		break;
 	case XT_SIIT:
+	case XT_MAPT:
 		udp = pkt_udp_hdr(&state->in);
 		flow4->fl4_sport = udp->source;
 		flow4->fl4_dport = udp->dest;

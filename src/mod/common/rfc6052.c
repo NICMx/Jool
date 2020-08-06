@@ -142,6 +142,11 @@ int __rfc6052_4to6(struct ipv6_prefix const *prefix, struct in_addr const *src,
 	return 0;
 }
 
+/*
+ * TODO (fine) Right now, there are two legitimate users of this function,
+ * and both of them want a __be32 instead of an in_addr.
+ * Stop wasting the stack.
+ */
 int rfc6052_4to6(struct ipv6_prefix const *prefix, struct in_addr const *src,
 		struct result_addrxlat46 *dst)
 {

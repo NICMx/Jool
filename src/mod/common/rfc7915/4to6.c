@@ -6,6 +6,7 @@
 #include "common/constants.h"
 #include "mod/common/linux_version.h"
 #include "mod/common/log.h"
+#include "mod/common/mapt.h"
 #include "mod/common/rfc6052.h"
 #include "mod/common/route.h"
 #include "mod/common/steps/compute_outgoing_tuple.h"
@@ -49,9 +50,13 @@ static verdict xlat46_external_addresses(struct xlation *state)
 		return translate_addrs46_siit(state,
 				&state->flowx.v6.flowi.saddr,
 				&state->flowx.v6.flowi.daddr);
+	case XT_MAPT:
+		return translate_addrs46_mapt(state,
+				&state->flowx.v6.flowi.saddr,
+				&state->flowx.v6.flowi.daddr);
 	}
 
-	WARN(1, "xlator type is not SIIT nor NAT64: %u",
+	WARN(1, "xlator type is not SIIT, NAT64 nor MAP-T: %u",
 			xlator_get_type(&state->jool));
 	return drop(state, JSTAT_UNKNOWN);
 }
@@ -77,9 +82,21 @@ static verdict xlat46_internal_addresses(struct xlation *state)
 				&state->flowx.v6.inner_dst);
 		restore_outer_packet(state, &bkp, false);
 		return result;
+
+	case XT_MAPT:
+		result = become_inner_packet(state, &bkp, false);
+		if (result != VERDICT_CONTINUE)
+			return result;
+		log_debug(state, "Translating internal addresses...");
+		/* TODO (mapt during test) might need to swap the addresses */
+		result = translate_addrs46_mapt(state,
+				&state->flowx.v6.inner_src,
+				&state->flowx.v6.inner_dst);
+		restore_outer_packet(state, &bkp, false);
+		return result;
 	}
 
-	WARN(1, "xlator type is not SIIT nor NAT64: %u",
+	WARN(1, "xlator type is not SIIT, NAT64 nor MAP-T: %u",
 			xlator_get_type(&state->jool));
 	return drop(state, JSTAT_UNKNOWN);
 }
@@ -96,6 +113,7 @@ static verdict xlat46_tcp_ports(struct xlation *state)
 		flow6->fl6_dport = cpu_to_be16(state->out.tuple.dst.addr6.l4);
 		break;
 	case XT_SIIT:
+	case XT_MAPT:
 		hdr = pkt_tcp_hdr(&state->in);
 		flow6->fl6_sport = hdr->source;
 		flow6->fl6_dport = hdr->dest;
@@ -116,6 +134,7 @@ static verdict xlat46_udp_ports(struct xlation *state)
 		flow6->fl6_dport = cpu_to_be16(state->out.tuple.dst.addr6.l4);
 		break;
 	case XT_SIIT:
+	case XT_MAPT:
 		udp = pkt_udp_hdr(&state->in);
 		flow6->fl6_sport = udp->source;
 		flow6->fl6_dport = udp->dest;
@@ -1431,7 +1450,7 @@ static bool can_compute_csum(struct xlation *state)
 	struct udphdr *hdr_udp;
 	bool amend_csum0;
 
-	if (xlation_is_nat64(state))
+	if (xlation_has_defrag(state))
 		return true;
 
 	/*

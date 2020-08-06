@@ -21,6 +21,7 @@ Some shortcuts used while naming variables and functions through the code or doc
 - eamt = EAM table
 - err = error
 - est = established session (inherited from RFC 6146.)
+- eui6p = End-user IPv6 Prefix (RFC 7597)
 - fn = function ("this parameter is a pointer to a function.")
 - FN = Fragmentation Needed (ICMPv4 error type 3 code 4)
 - frag = fragment
@@ -40,6 +41,7 @@ Some shortcuts used while naming variables and functions through the code or doc
 - ns = (network) namespace
 - pkt = packet
 - proto = protocol
+- prpf = Port-Restricted Port Field (RFC 7597)
 - ptr = pointer
 - PTB = Packet Too Big (ICMPv6 error type 2 code 0)
 - rm = remove

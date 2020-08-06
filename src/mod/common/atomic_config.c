@@ -101,6 +101,20 @@ static void candidate_expire_maybe(struct config_candidate *candidate)
 		candidate_destroy(candidate);
 }
 
+static int check_xtype(struct config_candidate *candidate, xlator_type expected,
+		char const *what)
+{
+	xlator_type actual;
+
+	actual = xlator_get_type(&candidate->xlator);
+	if (!(actual & expected)) {
+		log_err("%s translators don't have %ss.", xt2str(actual), what);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 /**
  * Returns the instance candidate whose namespace is the current one and whose
  * name is @iname.
@@ -189,10 +203,9 @@ static int handle_eamt(struct config_candidate *new, struct nlattr *root,
 
 	LOG_DEBUG("Handling atomic EAMT attribute.");
 
-	if (xlator_is_nat64(&new->xlator)) {
-		log_err("Stateful NAT64 doesn't have an EAMT.");
-		return -EINVAL;
-	}
+	error = check_xtype(new, XT_SIIT, "EAMT");
+	if (error)
+		return error;
 
 	nla_for_each_nested(attr, root, rem) {
 		if (nla_type(attr) != JNLAL_ENTRY)
@@ -218,10 +231,9 @@ static int handle_blacklist4(struct config_candidate *new, struct nlattr *root,
 
 	LOG_DEBUG("Handling atomic blacklist4 attribute.");
 
-	if (xlator_is_nat64(&new->xlator)) {
-		log_err("Stateful NAT64 doesn't have blacklist4.");
-		return -EINVAL;
-	}
+	error = check_xtype(new, XT_SIIT, "blacklist4");
+	if (error)
+		return error;
 
 	nla_for_each_nested(attr, root, rem) {
 		if (nla_type(attr) != JNLAL_ENTRY)
@@ -246,10 +258,9 @@ static int handle_pool4(struct config_candidate *new, struct nlattr *root)
 
 	LOG_DEBUG("Handling atomic pool4 attribute.");
 
-	if (xlator_is_siit(&new->xlator)) {
-		log_err("SIIT doesn't have pool4.");
-		return -EINVAL;
-	}
+	error = check_xtype(new, XT_NAT64, "pool4");
+	if (error)
+		return error;
 
 	nla_for_each_nested(attr, root, rem) {
 		if (nla_type(attr) != JNLAL_ENTRY)
@@ -274,10 +285,9 @@ static int handle_bib(struct config_candidate *new, struct nlattr *root)
 
 	LOG_DEBUG("Handling atomic BIB attribute.");
 
-	if (xlator_is_siit(&new->xlator)) {
-		log_err("SIIT doesn't have BIBs.");
-		return -EINVAL;
-	}
+	error = check_xtype(new, XT_NAT64, "BIB");
+	if (error)
+		return error;
 
 	nla_for_each_nested(attr, root, rem) {
 		if (nla_type(attr) != JNLAL_ENTRY)

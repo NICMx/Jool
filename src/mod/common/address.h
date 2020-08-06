@@ -95,5 +95,4 @@ bool addr4_is_scope_subnet(const __be32 addr);
 bool prefix4_has_subnet_scope(struct ipv4_prefix *prefix,
 		struct ipv4_prefix *subnet);
 
-
 #endif /* SRC_MOD_COMMON_ADDRESS_H_ */

@@ -30,8 +30,12 @@ typedef unsigned int xlator_framework; /** Bitwise or'd XF_* constants below. */
 
 #define XT_SIIT (1 << 0)
 #define XT_NAT64 (1 << 1)
-#define XF_NETFILTER (1 << 2)
-#define XF_IPTABLES (1 << 3)
+#define XT_MAPT (1 << 2)
+#define XT_MASK (XT_SIIT | XT_NAT64 | XT_MAPT)
+
+#define XF_NETFILTER (1 << 3)
+#define XF_IPTABLES (1 << 4)
+#define XF_MASK (XF_NETFILTER | XF_IPTABLES)
 
 #define XT_ANY (XT_SIIT | XT_NAT64)
 #define XF_ANY (XF_NETFILTER | XF_IPTABLES)
@@ -222,5 +226,12 @@ void port_range_fuse(struct port_range *r1, const struct port_range *r2);
 
 bool ipv4_range_equals(struct ipv4_range const *r1, struct ipv4_range const *r2);
 bool ipv4_range_touches(struct ipv4_range const *r1, struct ipv4_range const *r2);
+
+/* For MAP-T */
+struct mapping_rule {
+	struct ipv6_prefix prefix6;
+	struct ipv4_prefix prefix4;
+	unsigned int ea_bit_length;
+};
 
 #endif /* SRC_COMMON_TYPES_H */

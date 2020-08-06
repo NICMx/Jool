@@ -92,6 +92,11 @@ static inline bool xlator_is_nat64(struct xlator const *instance)
 	return instance->flags & XT_NAT64;
 }
 
+static inline bool xlator_is_mapt(struct xlator const *instance)
+{
+	return instance->flags & XT_MAPT;
+}
+
 static inline bool xlator_is_netfilter(struct xlator const *instance)
 {
 	return instance->flags & XF_NETFILTER;
@@ -102,5 +107,9 @@ static inline bool xlator_is_iptables(struct xlator const *instance)
 	return instance->flags & XF_IPTABLES;
 }
 
+static inline bool xlator_has_defrag(struct xlator const *instance)
+{
+	return !xlator_is_siit(instance);
+}
 
 #endif /* SRC_MOD_COMMON_XLATOR_H_ */
