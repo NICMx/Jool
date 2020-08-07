@@ -30,6 +30,11 @@ static int validate_stateness(struct joolnlhdr *hdr)
 			return 0;
 		log_err("NAT64 Jool has not been modprobed. (Try `modprobe jool`)");
 		return -EINVAL;
+	case XT_MAPT:
+		if (is_mapt_enabled())
+			return 0;
+		log_err("MAPT Jool has not been modprobed. (Try `modprobe jool_mapt`)");
+		return -EINVAL;
 	}
 
 	log_err(XT_VALIDATE_ERRMSG);

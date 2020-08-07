@@ -4,21 +4,21 @@
 #include "mod/common/translation_state.h"
 
 int mapt_init(
-		struct jool_globals *config,
+		struct mapt_globals *cfg,
 		struct ipv6_prefix *euip,
 		struct mapping_rule *bmr,
 		unsigned int a,
 		unsigned int k
 );
 
-int translate_addrs46_mapt(
-		struct xlation const *state,
+verdict translate_addrs46_mapt(
+		struct xlation *state,
 		struct in6_addr *out_src,
 		struct in6_addr *out_dst
 );
 
-int translate_addrs64_mapt(
-		struct xlation const *state,
+verdict translate_addrs64_mapt(
+		struct xlation *state,
 		__be32 *out_src,
 		__be32 *out_dst
 );

@@ -250,6 +250,14 @@ enum joolnl_attr_global {
 	JNLAG_JOOLD_CAPACITY,
 	JNLAG_JOOLD_MAX_PAYLOAD,
 
+	/* MAP-T */
+	JNLAG_MAPT_a, /* "A" is a different thing, so don't capitalize. */
+	JNLAG_MAPT_k, /* Low capitalization to hint relationship with a. */
+	JNLAG_MAPT_END_USER_IPV6_PREFIX,
+	JNLAG_MAPT_BMR_PREFIX6,
+	JNLAG_MAPT_BMR_PREFIX4,
+	JNLAG_MAPT_EA_BITS_LEN,
+
 	/* Needs to be last */
 	JNLAG_COUNT,
 #define JNLAG_MAX (JNLAG_COUNT - 1)
@@ -490,6 +498,23 @@ struct port_restricted_port_field {
 	unsigned int m;
 };
 
+struct mapt_globals {
+	bool ce; /* true:ce false:br */
+	struct port_restricted_port_field prpf;
+
+	/*
+	 * The "End-user IPv6 prefix." CE-only.
+	 * Overkill name, honestly. Should be called "CE prefix," but I'm not
+	 * convinced to change the RFC terms yet.
+	 */
+	struct ipv6_prefix eui6p;
+	/* The "Basic Mapping Rule." CE-only. */
+	struct mapping_rule bmr;
+
+	/* TODO (mapt fmr) convert this into a database. */
+	struct mapping_rule fmr;
+};
+
 /**
  * A copy of the entire running configuration, excluding databases.
  */
@@ -605,13 +630,7 @@ struct jool_globals {
 			struct joold_config joold;
 		} nat64;
 
-		struct {
-			bool ce; /* true:ce false:br */
-			struct port_restricted_port_field prpf;
-			struct in6_addr map_ce_addr6; /* CE-only */
-			/* TODO (mapt fmr) convert this into a database. */
-			struct mapping_rule fmr;
-		} mapt;
+		struct mapt_globals mapt;
 	};
 };
 

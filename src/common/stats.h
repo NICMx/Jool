@@ -92,6 +92,11 @@ enum jool_stat_id {
 	JSTAT_ICMPEXT_SMALL,
 	JSTAT_ICMPEXT_BIG,
 
+	JSTAT_MAPT_PSID,
+	JSTAT_MAPT_POOL6,
+	JSTAT_MAPT_EUI6P,
+	JSTAT_MAPT_FMR,
+
 	/* These 3 need to be last, and in this order. */
 	JSTAT_UNKNOWN, /* "WTF was that" errors only. */
 	JSTAT_PADDING,

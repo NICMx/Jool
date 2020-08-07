@@ -47,7 +47,7 @@ xlator_type xlator_flags2xt(xlator_flags flags);
 xlator_framework xlator_flags2xf(xlator_flags flags);
 
 #define XT_VALIDATE_ERRMSG \
-	"The instance type must be either SIIT or NAT64."
+	"The instance type must be either SIIT, NAT64 or MAP-T."
 #define XF_VALIDATE_ERRMSG \
 	"The instance framework must be either Netfilter or iptables."
 
@@ -231,7 +231,7 @@ bool ipv4_range_touches(struct ipv4_range const *r1, struct ipv4_range const *r2
 struct mapping_rule {
 	struct ipv6_prefix prefix6;
 	struct ipv4_prefix prefix4;
-	unsigned int ea_bit_length;
+	unsigned int ea_bits_length;
 };
 
 #endif /* SRC_COMMON_TYPES_H */

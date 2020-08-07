@@ -114,7 +114,7 @@ int globals_init(struct jool_globals *config, xlator_type type,
 		break;
 
 	case XT_MAPT:
-		return mapt_init(config, NULL, NULL, 6, 8);
+		return mapt_init(&config->mapt, NULL, NULL, 6, 8);
 
 	default:
 		log_err("Unknown translator type: %d", type);

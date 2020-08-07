@@ -1,7 +1,7 @@
 _jool() {
 	# Given the following incomplete command:
 	#
-	#     $ jool global update m
+	#     $ jool_mapt global update m
 	#
 	# This function (_jool()) gets called when the user hits tab.
 	# It is expected to place the autocompletion candidates (in this
@@ -9,7 +9,7 @@ _jool() {
 	# `mtu-plateaus`) in the COMPREPLY variable.
 	#
 	# COMP_WORDS is an array that contains all the tokens the user
-	# has written so far. (Hence `(jool global update m)`.)
+	# has written so far. (Hence `(jool_mapt global update m)`.)
 	# COMP_CWORD is the index of the "current" token. (Hence `3`.)
 	#
 	# `compgen -W <a> -- <b>` prints the elements from `a` that
@@ -24,4 +24,4 @@ _jool() {
 	COMPREPLY=($(compgen -W "$CANDIDATES" -- ${COMP_WORDS[COMP_CWORD]}))
 }
 
-complete -o default -F _jool jool
+complete -o default -F _jool jool_mapt

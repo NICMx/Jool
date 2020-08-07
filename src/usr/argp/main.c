@@ -272,7 +272,7 @@ struct cmd_option tree[] = {
 			.xt = XT_NAT64,
 			.children = joold_ops,
 		}, {
-			/* See files jool.bash and jool_siit.bash. */
+			/* See files jool*.bash */
 			.label = "autocomplete",
 			.xt = XT_ANY,
 			.hidden = true,

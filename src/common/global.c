@@ -1003,7 +1003,49 @@ static const struct joolnl_global_meta globals_metadata[] = {
 		.doc = "Maximum amount of bytes joold should send per packet.",
 		.offset = offsetof(struct jool_globals, nat64.joold.max_payload),
 		.xt = XT_NAT64,
-	},
+	}, {
+		.id = JNLAG_MAPT_a,
+		.name = "a",
+		.type = &gt_uint8,
+		.doc = "The offset of the PSID field in the Port-Restricted Port Field.",
+		.offset = offsetof(struct jool_globals, mapt.prpf.a),
+		.xt = XT_MAPT,
+	}, {
+		.id = JNLAG_MAPT_k,
+		.name = "k",
+		.type = &gt_uint8,
+		.doc = "The length of the PSID field in the Port-Restricted Port Field.",
+		.offset = offsetof(struct jool_globals, mapt.prpf.k),
+		.xt = XT_MAPT,
+	}, {
+		.id = JNLAG_MAPT_END_USER_IPV6_PREFIX,
+		.name = "end-user-ipv6-prefix",
+		.type = &gt_prefix6,
+		.doc = "The End-user IPv6 Prefix. (CE-only)",
+		.offset = offsetof(struct jool_globals, mapt.eui6p),
+		.xt = XT_MAPT,
+	}, {
+		.id = JNLAG_MAPT_BMR_PREFIX6,
+		.name = "bmr.prefix6",
+		.type = &gt_prefix6,
+		.doc = "The Basic Mapping Rule's IPv6 Prefix. (CE-only)",
+		.offset = offsetof(struct jool_globals, mapt.bmr.prefix6),
+		.xt = XT_MAPT,
+	}, {
+		.id = JNLAG_MAPT_BMR_PREFIX4,
+		.name = "bmr.prefix4",
+		.type = &gt_prefix4,
+		.doc = "The Basic Mapping Rule's IPv4 Prefix. (CE-only)",
+		.offset = offsetof(struct jool_globals, mapt.bmr.prefix4),
+		.xt = XT_MAPT,
+	}, {
+		.id = JNLAG_MAPT_EA_BITS_LEN,
+		.name = "bmr.ea-bits-length",
+		.type = &gt_uint8,
+		.doc = "Length of the Basic Mapping Rule's Embedded Address Bits field. (CE-only)",
+		.offset = offsetof(struct jool_globals, mapt.bmr.ea_bits_length),
+		.xt = XT_MAPT,
+	}
 };
 
 static const unsigned int globals_metadata_len = sizeof(globals_metadata)
