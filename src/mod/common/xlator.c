@@ -343,6 +343,28 @@ stats_fail:
 	return -ENOMEM;
 }
 
+static bool is_hairpin_mapt(struct xlation *state)
+{
+	return false;
+}
+
+static int init_mapt(struct xlator *jool, struct ipv6_prefix *pool6)
+{
+	int error;
+
+	error = globals_init(&jool->globals, XT_MAPT, pool6);
+	if (error)
+		return error;
+
+	jool->stats = jstat_alloc();
+	if (!jool->stats)
+		return -ENOMEM;
+
+	jool->is_hairpin = is_hairpin_mapt; /* TODO (mapt) */
+	jool->handling_hairpinning = NULL;
+	return 0;
+}
+
 int xlator_init(struct xlator *jool, struct net *ns, char *iname,
 		xlator_flags flags, struct ipv6_prefix *pool6)
 {
@@ -363,6 +385,8 @@ int xlator_init(struct xlator *jool, struct net *ns, char *iname,
 		return init_siit(jool, pool6);
 	case XT_NAT64:
 		return init_nat64(jool, pool6);
+	case XT_MAPT:
+		return init_mapt(jool, pool6);
 	}
 
 	log_err(XT_VALIDATE_ERRMSG);
@@ -480,7 +504,7 @@ static int __xlator_add(struct jool_instance *new, struct xlator *result)
 		list_add_tail_rcu(&new->list_hook, list);
 	}
 
-	if (new->jool.flags & XT_NAT64)
+	if (xlator_has_defrag(&new->jool))
 		defrag_enable(new->jool.ns);
 
 	if (result) {

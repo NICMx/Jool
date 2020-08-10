@@ -1039,7 +1039,7 @@ static const struct joolnl_global_meta globals_metadata[] = {
 		.offset = offsetof(struct jool_globals, mapt.bmr.prefix4),
 		.xt = XT_MAPT,
 	}, {
-		.id = JNLAG_MAPT_EA_BITS_LEN,
+		.id = JNLAG_MAPT_BMR_EA_BITS_LEN,
 		.name = "bmr.ea-bits-length",
 		.type = &gt_uint8,
 		.doc = "Length of the Basic Mapping Rule's Embedded Address Bits field. (CE-only)",

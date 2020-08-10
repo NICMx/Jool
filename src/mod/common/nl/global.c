@@ -147,6 +147,9 @@ int global_update(struct jool_globals *cfg, xlator_type xt, bool force,
 	case XT_NAT64:
 		policy = nat64_globals_policy;
 		break;
+	case XT_MAPT:
+		policy = mapt_globals_policy;
+		break;
 	default:
 		log_err(XT_VALIDATE_ERRMSG);
 		return -EINVAL;

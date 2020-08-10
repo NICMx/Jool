@@ -37,8 +37,8 @@ typedef unsigned int xlator_framework; /** Bitwise or'd XF_* constants below. */
 #define XF_IPTABLES (1 << 4)
 #define XF_MASK (XF_NETFILTER | XF_IPTABLES)
 
-#define XT_ANY (XT_SIIT | XT_NAT64)
-#define XF_ANY (XF_NETFILTER | XF_IPTABLES)
+#define XT_ANY XT_MASK
+#define XF_ANY XF_MASK
 
 int xf_validate(xlator_framework xf);
 int xt_validate(xlator_type xt);

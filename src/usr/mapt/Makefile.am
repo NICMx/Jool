@@ -2,12 +2,12 @@
 # "jool_mapt" is a "target".
 
 bin_PROGRAMS = jool_mapt
-jool_SOURCES = main-mapt.c
+jool_mapt_SOURCES = main-mapt.c
 
-jool_CFLAGS  = ${WARNINGCFLAGS}
-jool_CFLAGS += -I${top_srcdir}/src
+jool_mapt_CFLAGS  = ${WARNINGCFLAGS}
+jool_mapt_CFLAGS += -I${top_srcdir}/src
 
-jool_LDADD = ../argp/libjoolargp.la
+jool_mapt_LDADD = ../argp/libjoolargp.la
 
 #dist_man_MANS = jool_mapt.8
 

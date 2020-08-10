@@ -256,15 +256,16 @@ enum joolnl_attr_global {
 	JNLAG_MAPT_END_USER_IPV6_PREFIX,
 	JNLAG_MAPT_BMR_PREFIX6,
 	JNLAG_MAPT_BMR_PREFIX4,
-	JNLAG_MAPT_EA_BITS_LEN,
+	JNLAG_MAPT_BMR_EA_BITS_LEN,
 
 	/* Needs to be last */
 	JNLAG_COUNT,
 #define JNLAG_MAX (JNLAG_COUNT - 1)
 };
 
-extern struct nla_policy siit_globals_policy[JNLAG_COUNT];
-extern struct nla_policy nat64_globals_policy[JNLAG_COUNT];
+extern const struct nla_policy siit_globals_policy[JNLAG_COUNT];
+extern const struct nla_policy nat64_globals_policy[JNLAG_COUNT];
+extern const struct nla_policy mapt_globals_policy[JNLAG_COUNT];
 
 enum joolnl_attr_error {
 	JNLAERR_CODE = 1,
@@ -494,8 +495,7 @@ struct port_restricted_port_field {
 	 * Seemingly also known as "q," unfortunately.
 	 */
 	unsigned int k;
-	/* Length of the "j" field */
-	unsigned int m;
+	/* "m" always equals 16 - a - k, so let's not store it. */
 };
 
 struct mapt_globals {

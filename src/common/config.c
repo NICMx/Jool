@@ -80,7 +80,7 @@ struct nla_policy joolnl_session_entry_policy[JNLASE_COUNT] = {
 	[JNLASE_EXPIRATION] = { .type = NLA_U32 },
 };
 
-struct nla_policy siit_globals_policy[JNLAG_COUNT] = {
+const struct nla_policy siit_globals_policy[JNLAG_COUNT] = {
 	[JNLAG_ENABLED] = { .type = NLA_U8 },
 	[JNLAG_POOL6] = { .type = NLA_NESTED },
 	[JNLAG_LOWEST_IPV6_MTU] = { .type = NLA_U32 },
@@ -96,7 +96,7 @@ struct nla_policy siit_globals_policy[JNLAG_COUNT] = {
 	[JNLAG_POOL6791V4] = { .type = NLA_NESTED },
 };
 
-struct nla_policy nat64_globals_policy[JNLAG_COUNT] = {
+const struct nla_policy nat64_globals_policy[JNLAG_COUNT] = {
 	[JNLAG_ENABLED] = { .type = NLA_U8 },
 	[JNLAG_POOL6] = { .type = NLA_NESTED },
 	[JNLAG_LOWEST_IPV6_MTU] = { .type = NLA_U32 },
@@ -123,6 +123,23 @@ struct nla_policy nat64_globals_policy[JNLAG_COUNT] = {
 	[JNLAG_JOOLD_FLUSH_DEADLINE] = { .type = NLA_U32 },
 	[JNLAG_JOOLD_CAPACITY] = { .type = NLA_U32 },
 	[JNLAG_JOOLD_MAX_PAYLOAD] = { .type = NLA_U32 },
+};
+
+const struct nla_policy mapt_globals_policy[JNLAG_COUNT] = {
+	[JNLAG_ENABLED] = { .type = NLA_U8 },
+	[JNLAG_POOL6] = { .type = NLA_NESTED },
+	[JNLAG_LOWEST_IPV6_MTU] = { .type = NLA_U32 },
+	[JNLAG_DEBUG] = { .type = NLA_U8 },
+	[JNLAG_RESET_TC] = { .type = NLA_U8 },
+	[JNLAG_RESET_TOS] = { .type = NLA_U8 },
+	[JNLAG_TOS] = { .type = NLA_U8 },
+	[JNLAG_PLATEAUS] = { .type = NLA_NESTED },
+	[JNLAG_MAPT_a] = { .type = NLA_U8 },
+	[JNLAG_MAPT_k] = { .type = NLA_U8 },
+	[JNLAG_MAPT_END_USER_IPV6_PREFIX] = { .type = NLA_NESTED },
+	[JNLAG_MAPT_BMR_PREFIX6] = { .type = NLA_NESTED },
+	[JNLAG_MAPT_BMR_PREFIX4] = { .type = NLA_NESTED },
+	[JNLAG_MAPT_BMR_EA_BITS_LEN] = { .type = NLA_NESTED },
 };
 
 int iname_validate(const char *iname, bool allow_null)

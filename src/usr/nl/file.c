@@ -525,6 +525,17 @@ static struct jool_result parse_nat64_json(cJSON *json)
 	return handle_object(json, meta);
 }
 
+static struct jool_result parse_mapt_json(cJSON *json)
+{
+	struct json_meta meta[] = {
+		{ OPTNAME_INAME, do_nothing, NULL, NULL, true },
+		{ OPTNAME_FW, do_nothing, NULL, NULL, true },
+		{ OPTNAME_GLOBAL, handle_global_tag, NULL, NULL, false },
+		{ NULL },
+	};
+	return handle_object(json, meta);
+}
+
 /*
  * =========================================
  * = Second level tag handlers, first pass =
@@ -684,6 +695,9 @@ static struct jool_result do_parsing(char const *iname, char *buffer)
 		break;
 	case XT_NAT64:
 		result = parse_nat64_json(json);
+		break;
+	case XT_MAPT:
+		result = parse_mapt_json(json);
 		break;
 	default:
 		result = result_from_error(

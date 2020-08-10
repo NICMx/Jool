@@ -52,7 +52,6 @@ static int init_prpf(struct port_restricted_port_field *prpf,
 
 	prpf->a = a;
 	prpf->k = k;
-	prpf->m = 16 - a - k;
 	return 0;
 }
 
@@ -69,10 +68,14 @@ int mapt_init(struct mapt_globals *cfg,
 	if (error)
 		return error;
 
-	if (eui6p)
+	if (eui6p) {
+		cfg->ce = true;
 		cfg->eui6p = *eui6p;
-	if (bmr)
+	}
+	if (bmr) {
+		cfg->ce = true;
 		cfg->bmr = *bmr;
+	}
 
 	/* TODO (mapt fmr) */
 	cfg->fmr.prefix6.addr.s6_addr32[0] = cpu_to_be32(0x20010db8);
@@ -91,13 +94,17 @@ static unsigned int prpf_get_psid(struct mapt_globals const *cfg,
 		unsigned int port)
 {
 	struct port_restricted_port_field const *prpf;
+	unsigned int m;
+
 	prpf = &cfg->prpf;
+	m = 16u - prpf->a - prpf->k;
+
 	/*
 	 * This is an optimized version of the
 	 * 	PSID = trunc((P modulo (R * M)) / M)
 	 * equation. (See rfc7597#appendix-B.)
 	 */
-	return (port & (((1u << prpf->k) << prpf->m) - 1u)) >> prpf->m;
+	return (port & (((1u << prpf->k) << m) - 1u)) >> m;
 }
 
 static unsigned int get_sport(struct packet const *pkt)
@@ -201,6 +208,7 @@ static verdict ce46_src(struct xlation *state, __be32 in, struct in6_addr *out)
 
 static verdict ce46_dst(struct xlation *state, __be32 in, struct in6_addr *out)
 {
+	/* TODO (mapt fmr) attempt to use the FMR first */
 	return use_pool6_46(state, in, out);
 }
 
@@ -276,7 +284,7 @@ static verdict use_pool6_64(struct xlation *state, struct in6_addr const *in,
 	}
 
 	*out = __out.s_addr;
-	log_debug(state, "Address: %pI6c", out);
+	log_debug(state, "Address: %pI4", out);
 	return VERDICT_CONTINUE;
 }
 
@@ -292,6 +300,7 @@ static void extract_addr_64(struct mapping_rule *rule,
 static verdict ce64_src(struct xlation *state, struct in6_addr const *in,
 		__be32 *out)
 {
+	/* TODO (mapt fmr) attempt to use the FMR first.  */
 	return use_pool6_64(state, in, out);
 }
 
