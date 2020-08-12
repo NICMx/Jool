@@ -15,6 +15,7 @@
 #include "mod/common/wkmalloc.h"
 #include "mod/common/db/blacklist4.h"
 #include "mod/common/db/eam.h"
+#include "mod/common/db/fmr.h"
 #include "mod/common/db/pool4/db.h"
 #include "mod/common/db/bib/db.h"
 #include "mod/common/steps/handling_hairpinning_nat64.h"
@@ -146,6 +147,7 @@ static void xlator_get(struct xlator *jool)
 		joold_get(jool->nat64.joold);
 		break;
 	case XT_MAPT:
+		fmrt_get(jool->mapt.fmrt);
 		break;
 	}
 }
@@ -359,6 +361,11 @@ static int init_mapt(struct xlator *jool, struct ipv6_prefix *pool6)
 	jool->stats = jstat_alloc();
 	if (!jool->stats)
 		return -ENOMEM;
+	jool->mapt.fmrt = fmrt_alloc();
+	if (!jool->mapt.fmrt) {
+		jstat_put(jool->stats);
+		return -ENOMEM;
+	}
 
 	jool->is_hairpin = is_hairpin_mapt; /* TODO (mapt) */
 	jool->handling_hairpinning = NULL;
@@ -893,6 +900,7 @@ void xlator_put(struct xlator *jool)
 		return;
 
 	case XT_MAPT:
+		fmrt_put(jool->mapt.fmrt);
 		return;
 	}
 

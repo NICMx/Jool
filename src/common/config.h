@@ -53,6 +53,9 @@ enum joolnl_operation {
 
 	JNLOP_SESSION_FOREACH,
 
+	JNLOP_FMRT_FOREACH,
+	JNLOP_FMRT_ADD,
+
 	JNLOP_FILE_HANDLE,
 
 	JNLOP_JOOLD_ADD,
@@ -159,7 +162,7 @@ enum joolnl_attr_eam {
 #define JNLAE_MAX (JNLAE_COUNT - 1)
 };
 
-extern struct nla_policy eam_policy[JNLAE_COUNT];
+extern struct nla_policy joolnl_eam_policy[JNLAE_COUNT];
 
 enum joolnl_attr_pool4 {
 	JNLAP4_MARK = 1,
@@ -200,6 +203,16 @@ enum joolnl_attr_session {
 };
 
 extern struct nla_policy joolnl_session_entry_policy[JNLASE_COUNT];
+
+enum joolnl_attr_fmr {
+	JNLAF_PREFIX6 = 1,
+	JNLAF_PREFIX4,
+	JNLAF_EA_BITS_LENGTH,
+	JNLAF_COUNT,
+#define JNLAF_MAX (JNLAF_COUNT - 1)
+};
+
+extern struct nla_policy joolnl_fmr_policy[JNLAF_COUNT];
 
 enum joolnl_attr_address_query {
 	JNLAAQ_ADDR6 = 1,
@@ -510,9 +523,6 @@ struct mapt_globals {
 	struct ipv6_prefix eui6p;
 	/* The "Basic Mapping Rule." CE-only. */
 	struct mapping_rule bmr;
-
-	/* TODO (mapt fmr) convert this into a database. */
-	struct mapping_rule fmr;
 };
 
 /**

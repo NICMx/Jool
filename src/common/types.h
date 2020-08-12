@@ -231,7 +231,7 @@ bool ipv4_range_touches(struct ipv4_range const *r1, struct ipv4_range const *r2
 struct mapping_rule {
 	struct ipv6_prefix prefix6;
 	struct ipv4_prefix prefix4;
-	unsigned int ea_bits_length;
+	__u8 ea_bits_length;
 };
 
 #endif /* SRC_COMMON_TYPES_H */

@@ -34,6 +34,7 @@ struct jool_result nla_get_eam(struct nlattr *attr, struct eamt_entry *out);
 struct jool_result nla_get_pool4(struct nlattr *attr, struct pool4_entry *out);
 struct jool_result nla_get_bib(struct nlattr *attr, struct bib_entry *out);
 struct jool_result nla_get_session(struct nlattr *attr, struct session_entry_usr *out);
+struct jool_result nla_get_fmr(struct nlattr *attr, struct mapping_rule *out);
 struct jool_result nla_get_plateaus(struct nlattr *attr, struct mtu_plateaus *out);
 
 /*

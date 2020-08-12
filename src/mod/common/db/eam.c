@@ -8,10 +8,6 @@
 #define ADDR6_BITS		128
 #define ADDR4_BITS		32
 
-#define INIT_KEY(ptr, length)	{ .bytes = (__u8 *)(ptr), .len = length }
-#define ADDR_TO_KEY(addr)	INIT_KEY(addr, 8 * sizeof(*addr))
-#define PREFIX_TO_KEY(prefix)	INIT_KEY(&(prefix)->addr, (prefix)->len)
-
 /**
  * Well, it really goes without saying, but I'll say it anyway:
  *
@@ -135,8 +131,8 @@ static int validate_overlapping(struct eam_table *eamt, struct eamt_entry *new,
 		bool force)
 {
 	struct eamt_entry old;
-	struct rtrie_key key6 = PREFIX_TO_KEY(&new->prefix6);
-	struct rtrie_key key4 = PREFIX_TO_KEY(&new->prefix4);
+	struct rtrie_key key6 = RTRIE_PREFIX_TO_KEY(&new->prefix6);
+	struct rtrie_key key4 = RTRIE_PREFIX_TO_KEY(&new->prefix4);
 	int error;
 
 	key6.len = 128;
@@ -161,7 +157,7 @@ static int validate_overlapping(struct eam_table *eamt, struct eamt_entry *new,
 
 static void __revert_add6(struct eam_table *eamt, struct ipv6_prefix *prefix6)
 {
-	struct rtrie_key key = PREFIX_TO_KEY(prefix6);
+	struct rtrie_key key = RTRIE_PREFIX_TO_KEY(prefix6);
 	int error;
 
 	error = rtrie_rm(&eamt->trie6, &key);
@@ -235,7 +231,7 @@ end:
 static int get_exact6(struct eam_table *eamt, struct ipv6_prefix *prefix,
 		struct eamt_entry *eam)
 {
-	struct rtrie_key key = PREFIX_TO_KEY(prefix);
+	struct rtrie_key key = RTRIE_PREFIX_TO_KEY(prefix);
 	int error;
 
 	error = rtrie_find(&eamt->trie6, &key, eam);
@@ -248,7 +244,7 @@ static int get_exact6(struct eam_table *eamt, struct ipv6_prefix *prefix,
 static int get_exact4(struct eam_table *eamt, struct ipv4_prefix *prefix,
 		struct eamt_entry *eam)
 {
-	struct rtrie_key key = PREFIX_TO_KEY(prefix);
+	struct rtrie_key key = RTRIE_PREFIX_TO_KEY(prefix);
 	int error;
 
 	error = rtrie_find(&eamt->trie4, &key, eam);
@@ -262,8 +258,8 @@ static int __rm(struct eam_table *eamt,
 		struct ipv6_prefix *prefix6,
 		struct ipv4_prefix *prefix4)
 {
-	struct rtrie_key key6 = PREFIX_TO_KEY(prefix6);
-	struct rtrie_key key4 = PREFIX_TO_KEY(prefix4);
+	struct rtrie_key key6 = RTRIE_PREFIX_TO_KEY(prefix6);
+	struct rtrie_key key4 = RTRIE_PREFIX_TO_KEY(prefix4);
 	int error;
 
 	error = rtrie_rm(&eamt->trie6, &key6);
@@ -332,14 +328,14 @@ int eamt_rm(struct eam_table *eamt,
 
 bool eamt_contains6(struct eam_table *eamt, struct in6_addr *addr)
 {
-	struct rtrie_key key = ADDR_TO_KEY(addr);
+	struct rtrie_key key = RTRIE_ADDR_TO_KEY(addr);
 	return rtrie_contains(&eamt->trie6, &key);
 }
 
 bool eamt_contains4(struct eam_table *eamt, __be32 addr)
 {
 	struct in_addr tmp = { .s_addr = addr };
-	struct rtrie_key key = ADDR_TO_KEY(&tmp);
+	struct rtrie_key key = RTRIE_ADDR_TO_KEY(&tmp);
 	return rtrie_contains(&eamt->trie4, &key);
 }
 
@@ -347,7 +343,7 @@ bool eamt_contains4(struct eam_table *eamt, __be32 addr)
 int eamt_xlat_6to4(struct eam_table *eamt, struct in6_addr *addr6,
 		struct result_addrxlat64 *result)
 {
-	struct rtrie_key key = ADDR_TO_KEY(addr6);
+	struct rtrie_key key = RTRIE_ADDR_TO_KEY(addr6);
 	struct eamt_entry *eam;
 	struct in_addr *addr4;
 	unsigned int i;
@@ -379,7 +375,7 @@ int eamt_xlat_6to4(struct eam_table *eamt, struct in6_addr *addr6,
 int eamt_xlat_4to6(struct eam_table *eamt, struct in_addr *addr4,
 		struct result_addrxlat46 *result)
 {
-	struct rtrie_key key = ADDR_TO_KEY(addr4);
+	struct rtrie_key key = RTRIE_ADDR_TO_KEY(addr4);
 	struct eamt_entry *eam;
 	struct in6_addr *addr6;
 	unsigned int i;

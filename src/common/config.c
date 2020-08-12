@@ -47,7 +47,7 @@ struct nla_policy joolnl_taddr4_policy[JNLAT_COUNT] = {
 	[JNLAT_PORT] = { .type = NLA_U16 },
 };
 
-struct nla_policy eam_policy[JNLAE_COUNT] = {
+struct nla_policy joolnl_eam_policy[JNLAE_COUNT] = {
 	[JNLAE_PREFIX6] = { .type = NLA_NESTED },
 	[JNLAE_PREFIX4] = { .type = NLA_NESTED },
 };
@@ -78,6 +78,12 @@ struct nla_policy joolnl_session_entry_policy[JNLASE_COUNT] = {
 	[JNLASE_STATE] = { .type = NLA_U8 },
 	[JNLASE_TIMER] = { .type = NLA_U8 },
 	[JNLASE_EXPIRATION] = { .type = NLA_U32 },
+};
+
+struct nla_policy joolnl_fmr_policy[JNLAF_COUNT] = {
+	[JNLAF_PREFIX6] = { .type = NLA_NESTED },
+	[JNLAF_PREFIX4] = { .type = NLA_NESTED },
+	[JNLAF_EA_BITS_LENGTH] = { .type = NLA_U8 },
 };
 
 const struct nla_policy siit_globals_policy[JNLAG_COUNT] = {

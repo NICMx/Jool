@@ -250,7 +250,7 @@ int jnla_get_eam(struct nlattr *attr, char const *name, struct eamt_entry *eam)
 	if (error)
 		return error;
 
-	error = jnla_parse_nested(attrs, JNLAE_MAX, attr, eam_policy, name);
+	error = jnla_parse_nested(attrs, JNLAE_MAX, attr, joolnl_eam_policy, name);
 	if (error)
 		return error;
 
@@ -435,6 +435,24 @@ int jnla_get_session(struct nlattr *attr, char const *name,
 	return 0;
 }
 
+int jnla_get_fmr(struct nlattr *attr, char const *name, struct mapping_rule *fmr)
+{
+	struct nlattr *attrs[JNLAF_COUNT];
+	int error;
+
+	error = validate_null(attr, name);
+	if (error)
+		return error;
+
+	error = jnla_parse_nested(attrs, JNLAF_MAX, attr, joolnl_fmr_policy, name);
+	if (error)
+		return error;
+
+	return jnla_get_prefix6(attrs[JNLAF_PREFIX6], "IPv6 prefix", &fmr->prefix6)
+	    || jnla_get_prefix4(attrs[JNLAF_PREFIX4], "IPv4 prefix", &fmr->prefix4)
+	    || jnla_get_u8(attrs[JNLAF_EA_BITS_LENGTH], "EA-bits length", &fmr->ea_bits_length);
+}
+
 static int u16_compare(const void *a, const void *b)
 {
 	return *(__u16 *)b - *(__u16 *)a;
@@ -474,7 +492,6 @@ static int validate_plateaus(struct mtu_plateaus *plateaus)
 	plateaus->count = i + 1;
 	return 0;
 }
-
 
 int jnla_get_plateaus(struct nlattr *root, struct mtu_plateaus *out)
 {
@@ -532,10 +549,8 @@ int jnla_put_prefix6(struct sk_buff *skb, int attrtype,
 		return -EMSGSIZE;
 
 	if (prefix) {
-		error = jnla_put_addr6(skb, JNLAP_ADDR, &prefix->addr);
-		if (error)
-			goto cancel;
-		error = nla_put_u8(skb, JNLAP_LEN, prefix->len);
+		error = jnla_put_addr6(skb, JNLAP_ADDR, &prefix->addr)
+		     || nla_put_u8(skb, JNLAP_LEN, prefix->len);
 		if (error)
 			goto cancel;
 	} else {
@@ -563,10 +578,8 @@ int jnla_put_prefix4(struct sk_buff *skb, int attrtype,
 		return -EMSGSIZE;
 
 	if (prefix) {
-		error = jnla_put_addr4(skb, JNLAP_ADDR, &prefix->addr);
-		if (error)
-			goto cancel;
-		error = nla_put_u8(skb, JNLAP_LEN, prefix->len);
+		error = jnla_put_addr4(skb, JNLAP_ADDR, &prefix->addr)
+		     || nla_put_u8(skb, JNLAP_LEN, prefix->len);
 		if (error)
 			goto cancel;
 	} else {
@@ -593,19 +606,15 @@ int jnla_put_taddr6(struct sk_buff *skb, int attrtype,
 	if (!root)
 		return -EMSGSIZE;
 
-	error = jnla_put_addr6(skb, JNLAT_ADDR, &taddr->l3);
-	if (error)
-		goto cancel;
-	error = nla_put_u16(skb, JNLAT_PORT, taddr->l4);
-	if (error)
-		goto cancel;
+	error = jnla_put_addr6(skb, JNLAT_ADDR, &taddr->l3)
+	     || nla_put_u16(skb, JNLAT_PORT, taddr->l4);
+	if (error) {
+		nla_nest_cancel(skb, root);
+		return error;
+	}
 
 	nla_nest_end(skb, root);
 	return 0;
-
-cancel:
-	nla_nest_cancel(skb, root);
-	return error;
 }
 
 int jnla_put_taddr4(struct sk_buff *skb, int attrtype,
@@ -618,19 +627,15 @@ int jnla_put_taddr4(struct sk_buff *skb, int attrtype,
 	if (!root)
 		return -EMSGSIZE;
 
-	error = jnla_put_addr4(skb, JNLAT_ADDR, &taddr->l3);
-	if (error)
-		goto cancel;
-	error = nla_put_u16(skb, JNLAT_PORT, taddr->l4);
-	if (error)
-		goto cancel;
+	error = jnla_put_addr4(skb, JNLAT_ADDR, &taddr->l3)
+	     || nla_put_u16(skb, JNLAT_PORT, taddr->l4);
+	if (error) {
+		nla_nest_cancel(skb, root);
+		return error;
+	}
 
 	nla_nest_end(skb, root);
 	return 0;
-
-cancel:
-	nla_nest_cancel(skb, root);
-	return error;
 }
 
 int jnla_put_eam(struct sk_buff *skb, int attrtype,
@@ -643,19 +648,15 @@ int jnla_put_eam(struct sk_buff *skb, int attrtype,
 	if (!root)
 		return -EMSGSIZE;
 
-	error = jnla_put_prefix6(skb, JNLAE_PREFIX6, &eam->prefix6);
-	if (error)
-		goto cancel;
-	error = jnla_put_prefix4(skb, JNLAE_PREFIX4, &eam->prefix4);
-	if (error)
-		goto cancel;
+	error = jnla_put_prefix6(skb, JNLAE_PREFIX6, &eam->prefix6)
+	     || jnla_put_prefix4(skb, JNLAE_PREFIX4, &eam->prefix4);
+	if (error) {
+		nla_nest_cancel(skb, root);
+		return error;
+	}
 
 	nla_nest_end(skb, root);
 	return 0;
-
-cancel:
-	nla_nest_cancel(skb, root);
-	return error;
 }
 
 int jnla_put_pool4(struct sk_buff *skb, int attrtype,
@@ -732,6 +733,28 @@ int jnla_put_session(struct sk_buff *skb, int attrtype,
 		|| nla_put_u8(skb, JNLASE_STATE, entry->state)
 		|| nla_put_u8(skb, JNLASE_TIMER, entry->timer_type)
 		|| nla_put_u32(skb, JNLASE_EXPIRATION, dying_time);
+	if (error) {
+		nla_nest_cancel(skb, root);
+		return error;
+	}
+
+	nla_nest_end(skb, root);
+	return 0;
+}
+
+int jnla_put_fmr(struct sk_buff *skb, int attrtype,
+		struct mapping_rule const *fmr)
+{
+	struct nlattr *root;
+	int error;
+
+	root = nla_nest_start(skb, attrtype);
+	if (!root)
+		return -EMSGSIZE;
+
+	error = jnla_put_prefix6(skb, JNLAF_PREFIX6, &fmr->prefix6)
+	     || jnla_put_prefix4(skb, JNLAF_PREFIX4, &fmr->prefix4)
+	     || nla_put_u8(skb, JNLAF_EA_BITS_LENGTH, fmr->ea_bits_length);
 	if (error) {
 		nla_nest_cancel(skb, root);
 		return error;

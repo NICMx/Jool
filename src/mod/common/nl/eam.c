@@ -106,7 +106,7 @@ int handle_eamt_rm(struct sk_buff *skb, struct genl_info *info)
 		error = -EINVAL;
 		goto revert_start;
 	}
-	error = jnla_parse_nested(attrs, JNLAE_MAX, info->attrs[JNLAR_OPERAND], eam_policy, "EAM");
+	error = jnla_parse_nested(attrs, JNLAE_MAX, info->attrs[JNLAR_OPERAND], joolnl_eam_policy, "EAM");
 	if (error)
 		goto revert_start;
 

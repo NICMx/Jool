@@ -54,6 +54,11 @@ struct wargp_bool {
 	bool value;
 };
 
+struct wargp_u8 {
+	bool set;
+	__u8 value;
+};
+
 struct wargp_l4proto {
 	bool set;
 	l4_protocol proto;

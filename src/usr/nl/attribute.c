@@ -218,7 +218,7 @@ struct jool_result nla_get_eam(struct nlattr *root, struct eamt_entry *out)
 	struct nlattr *attrs[JNLAE_COUNT];
 	struct jool_result result;
 
-	result = jnla_parse_nested(attrs, JNLAE_MAX, root, eam_policy);
+	result = jnla_parse_nested(attrs, JNLAE_MAX, root, joolnl_eam_policy);
 	if (result.error)
 		return result;
 
@@ -291,6 +291,25 @@ struct jool_result nla_get_session(struct nlattr *root, struct session_entry_usr
 	out->proto = nla_get_u8(attrs[JNLASE_PROTO]);
 	out->state = nla_get_u8(attrs[JNLASE_STATE]);
 	out->dying_time = nla_get_u32(attrs[JNLASE_EXPIRATION]);
+	return result_success();
+}
+
+struct jool_result nla_get_fmr(struct nlattr *root, struct mapping_rule *fmr)
+{
+	struct nlattr *attrs[JNLAF_COUNT];
+	struct jool_result result;
+
+	result = jnla_parse_nested(attrs, JNLAF_MAX, root, joolnl_fmr_policy);
+	if (result.error)
+		return result;
+
+	result = nla_get_prefix6(attrs[JNLAF_PREFIX6], &fmr->prefix6);
+	if (result.error)
+		return result;
+	result = nla_get_prefix4(attrs[JNLAF_PREFIX4], &fmr->prefix4);
+	if (result.error)
+		return result;
+	fmr->ea_bits_length = nla_get_u8(attrs[JNLAF_EA_BITS_LENGTH]);
 	return result_success();
 }
 

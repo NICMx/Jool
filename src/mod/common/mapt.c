@@ -5,6 +5,7 @@
 #include "mod/common/address_xlat.h"
 #include "mod/common/log.h"
 #include "mod/common/rfc6052.h"
+#include "mod/common/db/fmr.h"
 
 static unsigned int addr6_get_bits(struct in6_addr const *addr,
 		unsigned int offset, unsigned int len)
@@ -76,16 +77,6 @@ int mapt_init(struct mapt_globals *cfg,
 		cfg->ce = true;
 		cfg->bmr = *bmr;
 	}
-
-	/* TODO (mapt fmr) */
-	cfg->fmr.prefix6.addr.s6_addr32[0] = cpu_to_be32(0x20010db8);
-	cfg->fmr.prefix6.addr.s6_addr32[1] = 0;
-	cfg->fmr.prefix6.addr.s6_addr32[2] = 0;
-	cfg->fmr.prefix6.addr.s6_addr32[3] = 0;
-	cfg->fmr.prefix6.len = 40;
-	cfg->fmr.prefix4.addr.s_addr = cpu_to_be32(0xc0000200);
-	cfg->fmr.prefix4.len = 24;
-	cfg->fmr.ea_bits_length = 16;
 
 	return 0;
 }
@@ -202,14 +193,51 @@ static verdict ce46_src(struct xlation *state, __be32 in, struct in6_addr *out)
 	memcpy(out, &cfg->eui6p.addr, sizeof(cfg->eui6p.addr));
 	set_interface_id(in, out, packet_psid);
 
-	log_debug(state, "IPv6 source address: %pI6c", out);
 	return VERDICT_CONTINUE;
+}
+
+static void rule_xlat46(struct xlation *state, struct mapping_rule *rule,
+		__be32 in, struct in6_addr *out)
+{
+	unsigned int p;
+	unsigned int q;
+	unsigned int psid;
+	struct in_addr addr4;
+
+	/* IPv6 prefix */
+	memcpy(out, &rule->prefix6.addr, sizeof(rule->prefix6.addr));
+
+	/* Embedded IPv4 suffix */
+	p = 32 - rule->prefix4.len;
+	addr4.s_addr = in;
+	addr6_set_bits(out, rule->prefix6.len, p, addr4_get_bits(&addr4,
+			rule->prefix4.len, p));
+
+	/* PSID */
+	psid = prpf_get_psid(&state->jool.globals.mapt, get_dport(&state->in));
+	q = rule->ea_bits_length - p;
+	addr6_set_bits(out, rule->prefix6.len + p, q, psid);
+
+	/* Interface ID */
+	set_interface_id(in, out, psid);
 }
 
 static verdict ce46_dst(struct xlation *state, __be32 in, struct in6_addr *out)
 {
-	/* TODO (mapt fmr) attempt to use the FMR first */
-	return use_pool6_46(state, in, out);
+	struct mapping_rule fmr;
+	int error;
+
+	error = fmrt_find4(state->jool.mapt.fmrt, in, &fmr);
+	switch (error) {
+	case 0:
+		rule_xlat46(state, &fmr, in, out);
+		return VERDICT_CONTINUE;
+	case -ESRCH:
+		return use_pool6_46(state, in, out);
+	}
+
+	WARN(1, "Unknown fmrt_find4() result: %d", error);
+	return drop(state, JSTAT_UNKNOWN);
 }
 
 static verdict br46_src(struct xlation *state, __be32 in, struct in6_addr *out)
@@ -219,36 +247,21 @@ static verdict br46_src(struct xlation *state, __be32 in, struct in6_addr *out)
 
 static verdict br46_dst(struct xlation *state, __be32 in, struct in6_addr *out)
 {
-	struct mapt_globals *cfg;
-	unsigned int p;
-	unsigned int q;
-	unsigned int psid;
-	struct in_addr addr4;
 	struct mapping_rule fmr;
+	int error;
 
-	/* TODO (mapt fmr) */
-	cfg = &state->jool.globals.mapt;
-	fmr = cfg->fmr;
+	error = fmrt_find4(state->jool.mapt.fmrt, in, &fmr);
+	switch (error) {
+	case 0:
+		rule_xlat46(state, &fmr, in, out);
+		return VERDICT_CONTINUE;
+	case -ESRCH:
+		log_debug(state, "Cannot translate address: No FMR matches '%pI4'.", &in);
+		return untranslatable(state, JSTAT_MAPT_FMR4);
+	}
 
-	/* IPv6 prefix */
-	memcpy(out, &fmr.prefix6.addr, sizeof(fmr.prefix6.addr));
-
-	/* Embedded IPv4 suffix */
-	p = 32 - fmr.prefix4.len;
-	addr4.s_addr = in;
-	addr6_set_bits(out, fmr.prefix6.len, p, addr4_get_bits(&addr4,
-			fmr.prefix4.len, p));
-
-	/* PSID */
-	psid = prpf_get_psid(cfg, get_dport(&state->in));
-	q = fmr.ea_bits_length - p;
-	addr6_set_bits(out, fmr.prefix6.len + p, q, psid);
-
-	/* Interface ID */
-	set_interface_id(in, out, psid);
-
-	log_debug(state, "IPv6 destination address: %pI6c", out);
-	return VERDICT_CONTINUE;
+	WARN(1, "Unknown fmrt_find4() result: %d", error);
+	return drop(state, JSTAT_UNKNOWN);
 }
 
 verdict translate_addrs46_mapt(struct xlation *state,
@@ -284,7 +297,6 @@ static verdict use_pool6_64(struct xlation *state, struct in6_addr const *in,
 	}
 
 	*out = __out.s_addr;
-	log_debug(state, "Address: %pI4", out);
 	return VERDICT_CONTINUE;
 }
 
@@ -300,8 +312,20 @@ static void extract_addr_64(struct mapping_rule *rule,
 static verdict ce64_src(struct xlation *state, struct in6_addr const *in,
 		__be32 *out)
 {
-	/* TODO (mapt fmr) attempt to use the FMR first.  */
-	return use_pool6_64(state, in, out);
+	struct mapping_rule fmr;
+	int error;
+
+	error = fmrt_find6(state->jool.mapt.fmrt, in, &fmr);
+	switch (error) {
+	case 0:
+		extract_addr_64(&fmr, in, out);
+		return VERDICT_CONTINUE;
+	case -ESRCH:
+		return use_pool6_64(state, in, out);
+	}
+
+	WARN(1, "Unknown fmrt_find6() result: %d", error);
+	return drop(state, JSTAT_UNKNOWN);
 }
 
 static verdict ce64_dst(struct xlation *state, struct in6_addr const *in,
@@ -315,7 +339,6 @@ static verdict ce64_dst(struct xlation *state, struct in6_addr const *in,
 	}
 
 	extract_addr_64(&cfg->bmr, in, out);
-	log_debug(state, "Address: %pI4", out);
 	return VERDICT_CONTINUE;
 }
 
@@ -323,17 +346,20 @@ static verdict br64_src(struct xlation *state, struct in6_addr const *in,
 		__be32 *out)
 {
 	struct mapping_rule fmr;
+	int error;
 
-	/* TODO (mapt fmr) */
-	fmr = state->jool.globals.mapt.fmr;
-	if (!prefix6_contains(&fmr.prefix6, in)) {
+	error = fmrt_find6(state->jool.mapt.fmrt, in, &fmr);
+	switch (error) {
+	case 0:
+		extract_addr_64(&fmr, in, out);
+		return VERDICT_CONTINUE;
+	case -ESRCH:
 		log_debug(state, "Cannot translate address: No FMR matches '%pI6c'.", in);
-		return untranslatable(state, JSTAT_MAPT_FMR);
+		return untranslatable(state, JSTAT_MAPT_FMR6);
 	}
 
-	extract_addr_64(&fmr, in, out);
-	log_debug(state, "Address: %pI4", out);
-	return VERDICT_CONTINUE;
+	WARN(1, "Unknown fmrt_find6() result: %d", error);
+	return drop(state, JSTAT_UNKNOWN);
 }
 
 static verdict br64_dst(struct xlation *state, struct in6_addr const *in,

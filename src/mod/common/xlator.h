@@ -43,6 +43,9 @@ struct xlator {
 			struct bib *bib;
 			struct joold_queue *joold;
 		} nat64;
+		struct {
+			struct fmr_table *fmrt;
+		} mapt;
 	};
 
 	bool (*is_hairpin)(struct xlation *);

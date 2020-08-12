@@ -13,6 +13,7 @@
 #include "mod/common/nl/bib.h"
 #include "mod/common/nl/blacklist4.h"
 #include "mod/common/nl/eam.h"
+#include "mod/common/nl/fmr.h"
 #include "mod/common/nl/global.h"
 #include "mod/common/nl/instance.h"
 #include "mod/common/nl/joold.h"
@@ -167,6 +168,14 @@ static _CONST struct genl_ops ops[] = {
 	}, {
 		.cmd = JNLOP_SESSION_FOREACH,
 		.doit = handle_session_foreach,
+		JOOL_POLICY
+	}, {
+		.cmd = JNLOP_FMRT_FOREACH,
+		.doit = handle_fmrt_foreach,
+		JOOL_POLICY
+	}, {
+		.cmd = JNLOP_FMRT_ADD,
+		.doit = handle_fmrt_add,
 		JOOL_POLICY
 	}, {
 		.cmd = JNLOP_FILE_HANDLE,

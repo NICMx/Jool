@@ -22,6 +22,8 @@ Some shortcuts used while naming variables and functions through the code or doc
 - err = error
 - est = established session (inherited from RFC 6146.)
 - eui6p = End-user IPv6 Prefix (RFC 7597)
+- fmr = Forwarding Mapping Rule
+- fmrt = Forwarding Mapping Rule Table
 - fn = function ("this parameter is a pointer to a function.")
 - FN = Fragmentation Needed (ICMPv4 error type 3 code 4)
 - frag = fragment

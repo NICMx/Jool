@@ -8,6 +8,7 @@ libjoolnl_la_SOURCES = \
 	common.c common.h \
 	core.c core.h \
 	eamt.c eamt.h \
+	fmrt.c fmrt.h \
 	file.c file.h \
 	global.c global.h \
 	instance.c instance.h \
