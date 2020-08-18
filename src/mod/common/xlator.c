@@ -399,6 +399,7 @@ int xlator_init(struct xlator *jool, struct net *ns, char *iname,
 	log_err(XT_VALIDATE_ERRMSG);
 	return -EINVAL;
 }
+EXPORT_UNIT_SYMBOL(xlator_init);
 
 static int basic_validations(char const *iname, bool allow_null_iname,
 		xlator_flags flags)
@@ -906,6 +907,7 @@ void xlator_put(struct xlator *jool)
 
 	WARN(1, "Unknown translator type: %d", xlator_get_type(jool));
 }
+EXPORT_UNIT_SYMBOL(xlator_put);
 
 static bool offset_equals(struct instance_entry_usr *offset,
 		struct jool_instance *instance)

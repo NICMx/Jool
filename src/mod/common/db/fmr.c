@@ -127,6 +127,7 @@ end:
 	mutex_unlock(&lock);
 	return error;
 }
+EXPORT_UNIT_SYMBOL(fmrt_add);
 
 struct foreach_args {
 	fmr_foreach_cb cb;

@@ -502,13 +502,16 @@ struct port_restricted_port_field {
 	 * confusing if you're looking at the MAP IPv6 Address Format diagram.
 	 * (`a` does not have anything to do with `n + p`.)
 	 */
-	unsigned int a;
+	__u8 a;
 	/*
 	 * Length of the "PSID" field.
-	 * Seemingly also known as "q," unfortunately.
+	 * (Which is not the same as `q`.)
 	 */
-	unsigned int k;
-	/* "m" always equals 16 - a - k, so let's not store it. */
+	__u8 k;
+	/*
+	 * The length of `m` depends on `a`, `k` and the mapping rule in play.
+	 * Shouldn't store it.
+	 */
 };
 
 struct mapt_globals {

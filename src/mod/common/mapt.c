@@ -43,32 +43,15 @@ static unsigned int addr4_get_bits(struct in_addr const *addr,
 	return result;
 }
 
-static int init_prpf(struct port_restricted_port_field *prpf,
-		unsigned int a, unsigned int k)
-{
-	if (a + k > 16) {
-		log_err("a + k = %u + %u > 16, which is illegal.", a, k);
-		return -EINVAL;
-	}
-
-	prpf->a = a;
-	prpf->k = k;
-	return 0;
-}
-
 /* TODO (mapt post test) missing PSID override */
 int mapt_init(struct mapt_globals *cfg,
 		struct ipv6_prefix *eui6p, struct mapping_rule *bmr,
 		unsigned int a, unsigned int k)
 {
-	int error;
-
 	memset(cfg, 0, sizeof(*cfg));
 
-	error = init_prpf(&cfg->prpf, a, k);
-	if (error)
-		return error;
-
+	cfg->prpf.a = a;
+	cfg->prpf.k = k;
 	if (eui6p) {
 		cfg->ce = true;
 		cfg->eui6p = *eui6p;
@@ -80,22 +63,57 @@ int mapt_init(struct mapt_globals *cfg,
 
 	return 0;
 }
+EXPORT_UNIT_SYMBOL(mapt_init);
 
-static unsigned int prpf_get_psid(struct mapt_globals const *cfg,
-		unsigned int port)
+static verdict get_m(struct xlation *state, struct mapping_rule *rule,
+		unsigned int *m)
 {
-	struct port_restricted_port_field const *prpf;
-	unsigned int m;
+	struct port_restricted_port_field *prpf;
+	unsigned int o;
+	unsigned int r;
+	unsigned int P;
 
-	prpf = &cfg->prpf;
-	m = 16u - prpf->a - prpf->k;
+	prpf = &state->jool.globals.mapt.prpf;
+	o = rule->ea_bits_length;
+	r = rule->prefix4.len;
+	P = ((o + r < 32u) ? (32u - o - r) : 0) + 16u;
+
+	if ((prpf->a + prpf->k) > P) {
+		log_debug(state, "The values of a (%u) and k (%u) exceed the Port-Restricted Port Field length (%u) defined by mapping rule { *, %pI4c/%u, %u }.",
+				prpf->a, prpf->k, P,
+				&rule->prefix4.addr, rule->prefix4.len,
+				rule->ea_bits_length);
+		return drop(state, JSTAT_MAPT_BAD_P);
+	}
+
+	*m = P - prpf->a - prpf->k;
+	return VERDICT_CONTINUE;
+}
+
+static verdict prpf_get_psid(struct xlation *state,
+		struct mapping_rule *rule,
+		unsigned int port,
+		unsigned int *psid)
+{
+	unsigned int k;
+	unsigned int m;
+	verdict result;
+
+	result = get_m(state, rule, &m);
+	if (result != VERDICT_CONTINUE)
+		return result;
+
 
 	/*
 	 * This is an optimized version of the
 	 * 	PSID = trunc((P modulo (R * M)) / M)
 	 * equation. (See rfc7597#appendix-B.)
+	 *
+	 * TODO (mapt later) ensure m < 32
 	 */
-	return (port & (((1u << prpf->k) << m) - 1u)) >> m;
+	k = state->jool.globals.mapt.prpf.k;
+	*psid = (port & (((1u << k) << m) - 1u)) >> m;
+	return VERDICT_CONTINUE;
 }
 
 static unsigned int get_sport(struct packet const *pkt)
@@ -175,10 +193,14 @@ static verdict ce46_src(struct xlation *state, __be32 in, struct in6_addr *out)
 	unsigned int q;
 	unsigned int packet_psid;
 	unsigned int ce_psid;
+	verdict result;
 
 	cfg = &state->jool.globals.mapt;
 	q = get_q(&cfg->bmr);
-	packet_psid = prpf_get_psid(cfg, get_sport(&state->in));
+	result = prpf_get_psid(state, &cfg->bmr, get_sport(&state->in),
+			&packet_psid);
+	if (result != VERDICT_CONTINUE)
+		return result;
 
 	/* Check the NAT made sure the port belongs to us */
 	if (q > 0) {
@@ -196,13 +218,15 @@ static verdict ce46_src(struct xlation *state, __be32 in, struct in6_addr *out)
 	return VERDICT_CONTINUE;
 }
 
-static void rule_xlat46(struct xlation *state, struct mapping_rule *rule,
-		__be32 in, struct in6_addr *out)
+EXPORT_UNIT_STATIC verdict rule_xlat46(struct xlation *state,
+		struct mapping_rule *rule, __be32 in, unsigned int port,
+		struct in6_addr *out)
 {
 	unsigned int p;
 	unsigned int q;
 	unsigned int psid;
 	struct in_addr addr4;
+	verdict result;
 
 	/* IPv6 prefix */
 	memcpy(out, &rule->prefix6.addr, sizeof(rule->prefix6.addr));
@@ -214,13 +238,18 @@ static void rule_xlat46(struct xlation *state, struct mapping_rule *rule,
 			rule->prefix4.len, p));
 
 	/* PSID */
-	psid = prpf_get_psid(&state->jool.globals.mapt, get_dport(&state->in));
+	result = prpf_get_psid(state, rule, port, &psid);
+	if (result != VERDICT_CONTINUE)
+		return result;
 	q = rule->ea_bits_length - p;
 	addr6_set_bits(out, rule->prefix6.len + p, q, psid);
 
 	/* Interface ID */
 	set_interface_id(in, out, psid);
+
+	return VERDICT_CONTINUE;
 }
+EXPORT_UNIT_SYMBOL(rule_xlat46);
 
 static verdict ce46_dst(struct xlation *state, __be32 in, struct in6_addr *out)
 {
@@ -230,8 +259,7 @@ static verdict ce46_dst(struct xlation *state, __be32 in, struct in6_addr *out)
 	error = fmrt_find4(state->jool.mapt.fmrt, in, &fmr);
 	switch (error) {
 	case 0:
-		rule_xlat46(state, &fmr, in, out);
-		return VERDICT_CONTINUE;
+		return rule_xlat46(state, &fmr, in, get_dport(&state->in), out);
 	case -ESRCH:
 		return use_pool6_46(state, in, out);
 	}
@@ -253,8 +281,7 @@ static verdict br46_dst(struct xlation *state, __be32 in, struct in6_addr *out)
 	error = fmrt_find4(state->jool.mapt.fmrt, in, &fmr);
 	switch (error) {
 	case 0:
-		rule_xlat46(state, &fmr, in, out);
-		return VERDICT_CONTINUE;
+		return rule_xlat46(state, &fmr, in, get_dport(&state->in), out);
 	case -ESRCH:
 		log_debug(state, "Cannot translate address: No FMR matches '%pI4'.", &in);
 		return untranslatable(state, JSTAT_MAPT_FMR4);
@@ -278,6 +305,7 @@ verdict translate_addrs46_mapt(struct xlation *state,
 		    || br46_dst(state, in->daddr, out_dst);
 	}
 }
+EXPORT_UNIT_SYMBOL(translate_addrs46_mapt);
 
 static verdict use_pool6_64(struct xlation *state, struct in6_addr const *in,
 		__be32 *out)
@@ -381,3 +409,4 @@ verdict translate_addrs64_mapt(struct xlation *state, __be32 *out_src,
 		    || br64_dst(state, &in->daddr, out_dst);
 	}
 }
+EXPORT_UNIT_SYMBOL(translate_addrs64_mapt);

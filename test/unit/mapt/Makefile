@@ -12,16 +12,13 @@
 include $(shell dirname $(realpath $(lastword $(MAKEFILE_LIST))))/../common.mk
 
 
+KBUILD_EXTRA_SYMBOLS = $(src)/../../../src/mod/common/Module.symvers
 UNIT = mapt
 
 obj-m += $(UNIT).o
 
-$(UNIT)-objs += $(MIN_REQS)
-$(UNIT)-objs += ../../../src/mod/common/mapt.o
-$(UNIT)-objs += ../../../src/mod/common/packet.o
-$(UNIT)-objs += ../../../src/mod/common/rfc6052.o
-$(UNIT)-objs += ../../../src/mod/common/translation_state.o
 $(UNIT)-objs += ../framework/skb_generator.o
+$(UNIT)-objs += ../framework/unit_test.o
 $(UNIT)-objs += mapt_test.o
 
 
@@ -33,5 +30,8 @@ clean:
 	make -C ${KERNEL_DIR} M=$$PWD $@;
 test:
 	sudo dmesg -C
+	sudo modprobe jool_common
 	-sudo insmod $(UNIT).ko && sudo rmmod $(UNIT)
-	sudo dmesg -tc | less
+	sudo modprobe -r jool_common
+	#sudo dmesg -tc | less
+	sudo dmesg -tc

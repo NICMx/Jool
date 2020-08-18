@@ -25,7 +25,7 @@ static int store_bits(struct sk_buff *skb, int *offset, void *bits, size_t len)
 	delta = (room > len) ? len : room;
 	error = skb_store_bits(skb, *offset, bits, delta);
 	if (error) {
-		log_err("skb_store_bits() error: %d", error);
+		pr_err("skb_store_bits() error: %d\n", error);
 		return error;
 	}
 
@@ -399,7 +399,7 @@ static int create_skb(struct proto_meta *l3, char *src, char *dst, u8 ttl,
 
 	skb = alloc_skb(LL_MAX_HEADER + l3->hdr_len + dlen, GFP_ATOMIC);
 	if (!skb) {
-		log_err("New packet allocation failed.");
+		pr_err("New packet allocation failed.\n");
 		return -ENOMEM;
 	}
 	skb->protocol = htons(l3->hdr_type);

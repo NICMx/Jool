@@ -93,6 +93,14 @@ static struct joolnl_stat_metadata const jstat_metadatas[] = {
 	DEFINE_STAT(JSTAT_MAPT_EUI6P, "The incoming IPv6 packet's destination address did not match the End-user IPv6 Prefix assigned to this CE."),
 	DEFINE_STAT(JSTAT_MAPT_FMR6, "The incoming IPv6 packet's source address did not match any FMRs assigned to this BR."),
 	DEFINE_STAT(JSTAT_MAPT_FMR4, "The incoming IPv4 packet's destination address did not match any FMRs assigned to this BR."),
+	DEFINE_STAT(JSTAT_MAPT_BAD_P, "The values of a and k exceed the Port-Restricted Port Field length defined by a mapping rule.\n"
+			"This is hard to explain.\n"
+			"Basically, Jool cannot assemble a MAP-T IPv6 address if a + k > P, where\n"
+			"- a and k are configuration globals\n"
+			"- P = ((o + r < 32u) ? (32u - o - r) : 0) + 16\n"
+			"- o = Mapping Rule's EA-bits length\n"
+			"- r = Mapping Rule's IPv4 prefix length\n"
+			"- \"Mapping Rule\" is the BMR or one of the FMRs."),
 	DEFINE_STAT(JSTAT_UNKNOWN, TC "Programming error found. The module recovered, but the packet was dropped."),
 	DEFINE_STAT(JSTAT_PADDING, "Dummy; ignore this one."),
 };

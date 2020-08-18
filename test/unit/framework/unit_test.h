@@ -10,7 +10,7 @@
 		typeof(expected) __expected = expected;			\
 		typeof(actual) __actual = actual;			\
 		if (__expected != __actual) {				\
-			log_err("Test '" name "' failed.", ##__VA_ARGS__); \
+			pr_err("Test '" name "' failed.\n", ##__VA_ARGS__); \
 			pr_err("  Expected: " specifier "\n", __expected);  \
 			pr_err("  Actual  : " specifier "\n", __actual); \
 		}							\

@@ -379,6 +379,7 @@ verdict pkt_init_ipv6(struct xlation *state, struct sk_buff *skb)
 
 	return VERDICT_CONTINUE;
 }
+EXPORT_UNIT_SYMBOL(pkt_init_ipv6);
 
 static verdict validate_inner4(struct xlation *state, struct pkt_metadata *meta)
 {
@@ -540,6 +541,7 @@ verdict pkt_init_ipv4(struct xlation *state, struct sk_buff *skb)
 
 	return VERDICT_CONTINUE;
 }
+EXPORT_UNIT_SYMBOL(pkt_init_ipv4);
 
 /**
  * skb_pull() is oddly special in that it can return NULL in a situation where
