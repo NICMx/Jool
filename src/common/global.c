@@ -1008,14 +1008,7 @@ static const struct joolnl_global_meta globals_metadata[] = {
 		.name = "a",
 		.type = &gt_uint8,
 		.doc = "The offset of the PSID field in the Port-Restricted Port Field.",
-		.offset = offsetof(struct jool_globals, mapt.prpf.a),
-		.xt = XT_MAPT,
-	}, {
-		.id = JNLAG_MAPT_k,
-		.name = "k",
-		.type = &gt_uint8,
-		.doc = "The length of the PSID field in the Port-Restricted Port Field.",
-		.offset = offsetof(struct jool_globals, mapt.prpf.k),
+		.offset = offsetof(struct jool_globals, mapt.a),
 		.xt = XT_MAPT,
 	}, {
 		.id = JNLAG_MAPT_END_USER_IPV6_PREFIX,

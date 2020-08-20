@@ -5,10 +5,9 @@
 
 int mapt_init(
 		struct mapt_globals *cfg,
-		struct ipv6_prefix *euip,
-		struct mapping_rule *bmr,
 		unsigned int a,
-		unsigned int k
+		struct ipv6_prefix *euip,
+		struct mapping_rule *bmr
 );
 
 verdict translate_addrs46_mapt(

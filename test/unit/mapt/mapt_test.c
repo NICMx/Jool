@@ -42,8 +42,8 @@ static int setup_mapt(void)
 	error = prefix6_parse("2001:db8:12:3400::/56", &eui6p)
 	    || prefix6_parse("2001:db8::/40", &bmr.prefix6)
 	    || prefix4_parse("192.0.2.0/24", &bmr.prefix4)
-	    || mapt_init(&br.globals.mapt, NULL, NULL, 6, 8)
-	    || mapt_init(&ce.globals.mapt, &eui6p, &bmr, 6, 8);
+	    || mapt_init(&br.globals.mapt, 6, NULL, NULL)
+	    || mapt_init(&ce.globals.mapt, 6, &eui6p, &bmr);
 	if (error)
 		return error;
 
@@ -142,8 +142,7 @@ static bool ce64(void)
 	return success;
 }
 
-static bool check_variant(unsigned int a, unsigned int k,
-		unsigned int r, unsigned int o,
+static bool check_variant(unsigned int a, unsigned int r, unsigned int o,
 		char const *test, unsigned int port, char const *expected)
 {
 	struct xlation state;
@@ -152,9 +151,8 @@ static bool check_variant(unsigned int a, unsigned int k,
 	struct in6_addr addr6;
 	bool success;
 
-	memset(&state, 0, sizeof(state));
-	state.jool.globals.mapt.prpf.a = a;
-	state.jool.globals.mapt.prpf.k = k;
+	xlation_init(&state, &ce);
+	state.jool.globals.mapt.a = a;
 
 	memset(&rule, 0, sizeof(rule));
 	rule.prefix6.addr.s6_addr32[0] = cpu_to_be32(0x20010db8);
@@ -168,7 +166,7 @@ static bool check_variant(unsigned int a, unsigned int k,
 		return false;
 	}
 
-	pr_info("a:%u k:%u r:%u o:%u %s:%u\n", a, k, r, o, test, port);
+	pr_info("a:%u r:%u o:%u %s:%u\n", a, r, o, test, port);
 
 	success = ASSERT_VERDICT(
 		CONTINUE,
@@ -180,17 +178,14 @@ static bool check_variant(unsigned int a, unsigned int k,
 	return success;
 }
 
-static bool a_plus_k_plus_m_equals_16(void)
+/* "he" stands for "higher or equal." */
+static bool o_plus_r_he_32(void)
 {
 	bool success = true;
 
 	/*
 	 * See rfc7597#section-5.2.
-	 *
-	 * When `a + k + m = 16`, each CE has *one* IPv4 address (`o + r = 32`)
-	 * or a *portion* of one IPv4 address (`o + r > 32`). (If you don't
-	 * understand why, it's because 16 is exactly the number of bits you
-	 * need to represent *one* full range of ports.)
+	 * This is the train of thought that led to these tests:
 	 *
 	 * When `o + r = 32`, `o = p` and therefore `q = 0`. (ie. the PSID is
 	 * included in the EA-bits only if it contributes routing information.)
@@ -202,52 +197,82 @@ static bool a_plus_k_plus_m_equals_16(void)
 	 *	Hence o + r = 32 + q
 	 *
 	 * This doesn't contradict our observations from `o + r = 32`, so we can
-	 * generalize this as "if `a + k + m = 16`, then `o + r = 32 + q`."
+	 * generalize this as "if `o + r >= 32`, then `o + r = 32 + q`."
 	 *
-	 * Presumably, `q = k`. (I still have yet to understand if there's a
-	 * difference between the two.)
-	 *
-	 * So these tests are all designed around `o + r = 32 + k`.
+	 * So, because `k = q`, these tests are all designed around
+	 * `o + r = 32 + k`.
+	 */
+
+	/*
+	 * 0 <= o <= 48
+	 * 0 <= r <= 32
+	 * 0 <= a <= 16
+	 * 0 <= k = q <= 16
+	 * 0 <= m <= 16
 	 */
 
 	/*
 	 * First, pivot around r = 24.
 	 * (r = 24, try several combinations of a/k/m, use above equation to
 	 * infer o.)
-	 * (The commented column is m.)
+	 * (The commented columns are k and m.)
 	 */
-	success &= check_variant( 0,  0, /* 16, */ 24,  8, "192.0.2.89", 1234, "2001:db8:0:59::c000:259:0");
-	success &= check_variant( 0, 16, /*  0, */ 24, 24, "192.0.2.89", 1234, "2001:db8:59:4d2::c000:259:4d2");
-	success &= check_variant(16,  0, /*  0, */ 24,  8, "192.0.2.89", 1234, "2001:db8:0:59:0:c000:259:0");
-	success &= check_variant( 0,  8, /*  8, */ 24, 16, "192.0.2.89", 1234, "2001:db8:0:5904:0:c000:259:4");
-	success &= check_variant( 8,  0, /*  8, */ 24,  8, "192.0.2.89", 1234, "2001:db8:0:59:0:c000:259:0");
-	success &= check_variant( 8,  8, /*  0, */ 24, 16, "192.0.2.89", 1234, "2001:db8:0:59d2:0:c000:259:d2");
-	success &= check_variant( 0,  7, /*  9, */ 24, 15, "192.0.2.89", 1234, "2001:db8:0:2c82:0:c000:259:2");
-	success &= check_variant( 7,  0, /*  9, */ 24,  8, "192.0.2.89", 1234, "2001:db8:0:59:0:c000:259:0");
-	success &= check_variant( 7,  9, /*  0, */ 24, 17, "192.0.2.89", 1234, "2001:db8:0:b2d2:0:c000:259:d2");
-	success &= check_variant( 0,  9, /*  7, */ 24, 17, "192.0.2.89", 1234, "2001:db8:0:b209:0:c000:259:9");
-	success &= check_variant( 9,  0, /*  7, */ 24,  8, "192.0.2.89", 1234, "2001:db8:0:59:0:c000:259:0");
-	success &= check_variant( 9,  7, /*  0, */ 24, 15, "192.0.2.89", 1234, "2001:db8:0:2cd2:0:c000:259:52");
-	success &= check_variant( 6,  8, /*  2, */ 24, 16, "192.0.2.89", 1234, "2001:db8:0:5934:0:c000:259:34");
+	success &= check_variant( 0, /*  0, 16, */ 24,  8, "192.0.2.89", 1234, "2001:db8:0:59::c000:259:0");
+	success &= check_variant( 0, /* 16,  0, */ 24, 24, "192.0.2.89", 1234, "2001:db8:59:4d2::c000:259:4d2");
+	success &= check_variant(16, /*  0,  0, */ 24,  8, "192.0.2.89", 1234, "2001:db8:0:59:0:c000:259:0");
+	success &= check_variant( 0, /*  8,  8, */ 24, 16, "192.0.2.89", 1234, "2001:db8:0:5904:0:c000:259:4");
+	success &= check_variant( 8, /*  0,  8, */ 24,  8, "192.0.2.89", 1234, "2001:db8:0:59:0:c000:259:0");
+	success &= check_variant( 8, /*  8,  0, */ 24, 16, "192.0.2.89", 1234, "2001:db8:0:59d2:0:c000:259:d2");
+	success &= check_variant( 0, /*  7,  9, */ 24, 15, "192.0.2.89", 1234, "2001:db8:0:2c82:0:c000:259:2");
+	success &= check_variant( 7, /*  0,  9, */ 24,  8, "192.0.2.89", 1234, "2001:db8:0:59:0:c000:259:0");
+	success &= check_variant( 7, /*  9,  0, */ 24, 17, "192.0.2.89", 1234, "2001:db8:0:b2d2:0:c000:259:d2");
+	success &= check_variant( 0, /*  9,  7, */ 24, 17, "192.0.2.89", 1234, "2001:db8:0:b209:0:c000:259:9");
+	success &= check_variant( 9, /*  0,  7, */ 24,  8, "192.0.2.89", 1234, "2001:db8:0:59:0:c000:259:0");
+	success &= check_variant( 9, /*  7,  0, */ 24, 15, "192.0.2.89", 1234, "2001:db8:0:2cd2:0:c000:259:52");
+	success &= check_variant( 6, /*  8,  2, */ 24, 16, "192.0.2.89", 1234, "2001:db8:0:5934:0:c000:259:34");
 
 	/*
 	 * Now, pivot around o = 16.
 	 * (o = 16, try several combinations of a/k/m, use above equation to
 	 * infer r.)
 	 */
-	success &= check_variant( 0,  0, /* 16, */ 16, 16, "192.0.2.89", 1234, "2001:db8:0:259::c000:259:0");
-	success &= check_variant( 0, 16, /*  0, */ 32, 16, "192.0.2.89", 1234, "2001:db8:0:4d2::c000:259:4d2");
-	success &= check_variant(16,  0, /*  0, */ 16, 16, "192.0.2.89", 1234, "2001:db8:0:259::c000:259:0");
-//	success &= check_variant( 0,  8, /*  8, */ 24, 16, "192.0.2.89", 1234, "2001:db8:0:____::c000:259:____");
-	success &= check_variant( 8,  0, /*  8, */ 16, 16, "192.0.2.89", 1234, "2001:db8:0:259::c000:259:0");
-//	success &= check_variant( 8,  8, /*  0, */ 24, 16, "192.0.2.89", 1234, "2001:db8:0:____::c000:259:____");
-	success &= check_variant( 0,  7, /*  9, */ 23, 16, "192.0.2.89", 1234, "2001:db8:0:2c82::c000:259:2");
-	success &= check_variant( 7,  0, /*  9, */ 16, 16, "192.0.2.89", 1234, "2001:db8:0:259::c000:259:0");
-	success &= check_variant( 7,  9, /*  0, */ 25, 16, "192.0.2.89", 1234, "2001:db8:0:b2d2::c000:259:d2");
-	success &= check_variant( 0,  9, /*  7, */ 25, 16, "192.0.2.89", 1234, "2001:db8:0:b209::c000:259:09");
-	success &= check_variant( 9,  0, /*  7, */ 16, 16, "192.0.2.89", 1234, "2001:db8:0:259::c000:259:0");
-	success &= check_variant( 9,  7, /*  0, */ 23, 16, "192.0.2.89", 1234, "2001:db8:0:2cd2::c000:259:52");
-//	success &= check_variant( 6,  8, /*  2, */ 24, 16, "192.0.2.89", 1234, "2001:db8:0:____::c000:259:____");
+	success &= check_variant( 0, /*  0, 16, */ 16, 16, "192.0.2.89", 1234, "2001:db8:0:259::c000:259:0");
+	success &= check_variant( 0, /* 16,  0, */ 32, 16, "192.0.2.89", 1234, "2001:db8:0:4d2::c000:259:4d2");
+	success &= check_variant(16, /*  0,  0, */ 16, 16, "192.0.2.89", 1234, "2001:db8:0:259::c000:259:0");
+//	success &= check_variant( 0, /*  8,  8, */ 24, 16, "192.0.2.89", 1234, "2001:db8:0:____::c000:259:____");
+	success &= check_variant( 8, /*  0,  8, */ 16, 16, "192.0.2.89", 1234, "2001:db8:0:259::c000:259:0");
+//	success &= check_variant( 8, /*  8,  0, */ 24, 16, "192.0.2.89", 1234, "2001:db8:0:____::c000:259:____");
+	success &= check_variant( 0, /*  7,  9, */ 23, 16, "192.0.2.89", 1234, "2001:db8:0:2c82::c000:259:2");
+	success &= check_variant( 7, /*  0,  9, */ 16, 16, "192.0.2.89", 1234, "2001:db8:0:259::c000:259:0");
+	success &= check_variant( 7, /*  9,  0, */ 25, 16, "192.0.2.89", 1234, "2001:db8:0:b2d2::c000:259:d2");
+	success &= check_variant( 0, /*  9,  7, */ 25, 16, "192.0.2.89", 1234, "2001:db8:0:b209::c000:259:09");
+	success &= check_variant( 9, /*  0,  7, */ 16, 16, "192.0.2.89", 1234, "2001:db8:0:259::c000:259:0");
+	success &= check_variant( 9, /*  7,  0, */ 23, 16, "192.0.2.89", 1234, "2001:db8:0:2cd2::c000:259:52");
+//	success &= check_variant( 6, /*  8,  2, */ 24, 16, "192.0.2.89", 1234, "2001:db8:0:____::c000:259:____");
+
+	return success;
+}
+
+/* "lt" stands for "less than." */
+static bool o_plus_r_lt_32(void)
+{
+	bool success = true;
+
+	/*
+	 * o + r < 32
+	 *
+	 * 0 <= o = p < 32
+	 * 0 <= r < 32
+	 * q = 0
+	 * a, k and m do not exist
+	 */
+
+	success &= check_variant(0,  8,  8, "198.51.100.89", 1234, "2001:db8:0:33::c633:6459:0");
+	success &= check_variant(0, 16, 15, "198.51.100.89", 1234, "2001:db8:0:322c::c633:6459:0");
+	success &= check_variant(0, 15, 16, "198.51.100.89", 1234, "2001:db8:0:b22c::c633:6459:0");
+	success &= check_variant(0,  0,  0, "198.51.100.89", 1234, "2001:db8::c633:6459:0");
+	success &= check_variant(0,  0, 31, "198.51.100.89", 1234, "2001:db8:6319:b22c::c633:6459:0");
+	success &= check_variant(0, 31,  0, "198.51.100.89", 1234, "2001:db8::c633:6459:0");
 
 	return success;
 }
@@ -267,7 +292,8 @@ int init_module(void)
 	test_group_test(&test, br64, "BR address translation, 6->4");
 	test_group_test(&test, ce46, "CE address translation, 4->6");
 	test_group_test(&test, ce64, "CE address translation, 6->4");
-	test_group_test(&test, a_plus_k_plus_m_equals_16, "a + k + m = 16");
+	test_group_test(&test, o_plus_r_he_32, "o + r >= 32");
+	test_group_test(&test, o_plus_r_lt_32, "o + r < 32");
 
 	return test_group_end(&test);
 }

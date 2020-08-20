@@ -97,7 +97,7 @@ enum jool_stat_id {
 	JSTAT_MAPT_EUI6P,
 	JSTAT_MAPT_FMR6,
 	JSTAT_MAPT_FMR4,
-	JSTAT_MAPT_BAD_P,
+	JSTAT_MAPT_BAD_PRPF,
 
 	/* These 3 need to be last, and in this order. */
 	JSTAT_UNKNOWN, /* "WTF was that" errors only. */

@@ -141,7 +141,6 @@ const struct nla_policy mapt_globals_policy[JNLAG_COUNT] = {
 	[JNLAG_TOS] = { .type = NLA_U8 },
 	[JNLAG_PLATEAUS] = { .type = NLA_NESTED },
 	[JNLAG_MAPT_a] = { .type = NLA_U8 },
-	[JNLAG_MAPT_k] = { .type = NLA_U8 },
 	[JNLAG_MAPT_END_USER_IPV6_PREFIX] = { .type = NLA_NESTED },
 	[JNLAG_MAPT_BMR_PREFIX6] = { .type = NLA_NESTED },
 	[JNLAG_MAPT_BMR_PREFIX4] = { .type = NLA_NESTED },

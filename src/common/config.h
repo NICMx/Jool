@@ -265,7 +265,6 @@ enum joolnl_attr_global {
 
 	/* MAP-T */
 	JNLAG_MAPT_a, /* "A" is a different thing, so don't capitalize. */
-	JNLAG_MAPT_k, /* Low capitalization to hint relationship with a. */
 	JNLAG_MAPT_END_USER_IPV6_PREFIX,
 	JNLAG_MAPT_BMR_PREFIX6,
 	JNLAG_MAPT_BMR_PREFIX4,
@@ -487,36 +486,21 @@ struct joold_config {
 	__u32 max_payload;
 };
 
-/*
- * Heads up: Though RFC 7597 became a proposed standard, its section 5.1 appears
- * to be an early draft. As a formal explanation of the port-mapping algorithm,
- * it's clearly incomplete. Therefore, I'm following the nomenclature from
- * appendix B.1, which is a much better explanation of the whole rodeo.
- */
-struct port_restricted_port_field {
+struct mapt_globals {
+	bool ce; /* true:ce false:br */
 	/*
-	 * Length of the "i" field.
+	 * Length of the Port-Restricted Port Field's "i" slice. (Also known as
+	 * the "A" slice.)
 	 * The RFCs have an unfortunate long name for "a": "PSID offset."
 	 * In my opinion, this is a poor choice because it only makes sense if
 	 * you're looking at the Port-Restricted Port Field diagram, and is very
 	 * confusing if you're looking at the MAP IPv6 Address Format diagram.
 	 * (`a` does not have anything to do with `n + p`.)
+	 *
+	 * Remember that k = q = o - p, and m = 16 - a - k.
+	 * So storing those fields would be redundant.
 	 */
 	__u8 a;
-	/*
-	 * Length of the "PSID" field.
-	 * (Which is not the same as `q`.)
-	 */
-	__u8 k;
-	/*
-	 * The length of `m` depends on `a`, `k` and the mapping rule in play.
-	 * Shouldn't store it.
-	 */
-};
-
-struct mapt_globals {
-	bool ce; /* true:ce false:br */
-	struct port_restricted_port_field prpf;
 
 	/*
 	 * The "End-user IPv6 prefix." CE-only.
