@@ -20,7 +20,7 @@ bool icmp64_send4(struct xlator *jool, struct sk_buff *skb,
 bool icmp64_send(struct xlator *jool, struct sk_buff *skb,
 		icmp_error_code error, __u32 info)
 {
-	log_debug(jool, "Pretending I'm sending an ICMP error.");
+	pr_info("Pretending I'm sending an ICMP error.\n");
 	sent++;
 	return true;
 }

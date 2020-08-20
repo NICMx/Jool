@@ -26,21 +26,13 @@ static void addr6_set_bits(struct in6_addr *addr, unsigned int offset,
 {
 	unsigned int i;
 	for (i = 0; i < len; i++)
-		addr6_set_bit(addr, offset + i, (value >> (len - i - 1)) & 1u);
+		addr6_set_bit(addr, offset + i, (value >> (len - i - 1u)) & 1u);
 }
 
-static unsigned int addr4_get_bits(struct in_addr const *addr,
-		unsigned int offset, unsigned int len)
+static unsigned int addr4_get_suffix(struct in_addr const *addr,
+		unsigned int suffix_len)
 {
-	unsigned int i;
-	unsigned int result;
-
-	result = 0;
-	for (i = 0; i < len; i++)
-		if (addr4_get_bit(addr, i + offset))
-			result |= 1 << (len - i - 1);
-
-	return result;
+	return be32_to_cpu(addr->s_addr) & ((1u << suffix_len) - 1u);
 }
 
 /* TODO (mapt post test) missing PSID override */
@@ -103,11 +95,12 @@ static verdict prpf_get_psid(struct xlation *state,
 	if (result != VERDICT_CONTINUE)
 		return result;
 
-
 	/*
 	 * This is an optimized version of the
 	 * 	PSID = trunc((P modulo (R * M)) / M)
 	 * equation. (See rfc7597#appendix-B.)
+	 * It assumes R and M are powers of 2. I don't really plan on allowing
+	 * otherwise for the purposes of this implementation.
 	 *
 	 * TODO (mapt later) ensure m < 32
 	 */
@@ -234,8 +227,7 @@ EXPORT_UNIT_STATIC verdict rule_xlat46(struct xlation *state,
 	/* Embedded IPv4 suffix */
 	p = 32 - rule->prefix4.len;
 	addr4.s_addr = in;
-	addr6_set_bits(out, rule->prefix6.len, p, addr4_get_bits(&addr4,
-			rule->prefix4.len, p));
+	addr6_set_bits(out, rule->prefix6.len, p, addr4_get_suffix(&addr4, p));
 
 	/* PSID */
 	result = prpf_get_psid(state, rule, port, &psid);

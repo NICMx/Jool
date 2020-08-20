@@ -10,10 +10,3 @@ EXTRA_CFLAGS += -DUNIT_TESTING
 ccflags-y := -I$(src)/../../../src
 ccflags-y += -I$(src)/..
 ccflags-y += $(JOOL_FLAGS)
-
-MIN_REQS = ../../../src/common/types.o \
-	../../../src/mod/common/types.o \
-	../../../src/mod/common/address.o \
-	../framework/unit_test.o
-
-#../impersonator/stats.o

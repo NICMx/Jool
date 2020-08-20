@@ -65,7 +65,7 @@ static bool validate(char *expected_addr6, __u8 expected_len6,
 	error = xlator_find_current(INAME_DEFAULT, XF_NETFILTER | XT_SIIT,
 			&jool);
 	if (error) {
-		log_info("xlator_find_current() threw %d", error);
+		pr_info("xlator_find_current() threw %d\n", error);
 		return false;
 	}
 
@@ -128,7 +128,7 @@ static bool atomic_test(void)
 	error = atomconfig_add(INAME_DEFAULT, XT_SIIT, request, sizeof(request),
 			false);
 	if (error) {
-		log_info("atomconfig_add() 1 threw %d", error);
+		pr_info("atomconfig_add() 1 threw %d\n", error);
 		return false;
 	}
 
@@ -137,7 +137,7 @@ static bool atomic_test(void)
 	error = atomconfig_add(INAME_DEFAULT, XT_SIIT, request, sizeof(*type),
 			false);
 	if (error) {
-		log_info("atomconfig_add() 2 threw %d", error);
+		pr_info("atomconfig_add() 2 threw %d\n", error);
 		return false;
 	}
 
@@ -156,7 +156,7 @@ static bool krefs_test(void)
 	error = xlator_find_current(INAME_DEFAULT, XF_NETFILTER | XT_SIIT,
 			&jool);
 	if (error) {
-		log_info("xlator_find_current() threw %d", error);
+		pr_info("xlator_find_current() threw %d\n", error);
 		return false;
 	}
 
@@ -193,7 +193,7 @@ static int setup(void)
 
 	ns = get_net_ns_by_pid(task_pid_vnr(current));
 	if (IS_ERR(ns)) {
-		log_err("Could not retrieve the current namespace.");
+		pr_err("Could not retrieve the current namespace.\n");
 		return PTR_ERR(ns);
 	}
 	old_refs = ns_refcount(ns);
@@ -214,12 +214,12 @@ static int init(void)
 
 	error = xlator_setup();
 	if (error) {
-		log_info("xlator_setup() threw %d", error);
+		pr_info("xlator_setup() threw %d\n", error);
 		return error;
 	}
 	error = xlator_add(XF_NETFILTER | XT_SIIT, INAME_DEFAULT, NULL, &jool);
 	if (error) {
-		log_info("xlator_add() threw %d", error);
+		pr_info("xlator_add() threw %d\n", error);
 		goto fail1;
 	}
 
@@ -233,7 +233,7 @@ static int init(void)
 	eam.prefix4.len = 24;
 	error = eamt_add(jool.siit.eamt, &eam.prefix6, &eam.prefix4, true);
 	if (error) {
-		log_info("eamt_add() threw %d", error);
+		pr_info("eamt_add() threw %d\n", error);
 		goto fail2;
 	}
 

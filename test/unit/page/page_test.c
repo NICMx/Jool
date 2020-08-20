@@ -51,7 +51,7 @@ static bool validate_skb(struct sk_buff *skb, int payload_offset,
 		copied = min(256, payload_len);
 
 		if (skb_copy_bits(skb, payload_offset, actual, copied)) {
-			log_err("Buffer extraction failed.");
+			pr_err("Buffer extraction failed.\n");
 			return false;
 		}
 
@@ -164,7 +164,7 @@ static bool basic_single_test(unsigned int head_len, unsigned int data_len)
 		return true; /* Invalid test, but we don't care */
 
 	xlation_init(&state, &jool);
-	log_debug(&state, "Test: %u %u", head_len, data_len);
+	pr_info("Test: %u %u\n", head_len, data_len);
 
 	skb_in = create_paged_tcp_skb(head_len, data_len);
 	if (!skb_in)
@@ -177,7 +177,7 @@ static bool basic_single_test(unsigned int head_len, unsigned int data_len)
 	success &= ASSERT_VERDICT(STOLEN, result, "full xlat");
 
 	if (skb_out == NULL) {
-		log_err("skb_out is null.");
+		pr_err("skb_out is null.\n");
 		return false;
 	}
 
@@ -261,7 +261,7 @@ static bool trim64_test(void)
 	success &= ASSERT_VERDICT(STOLEN, result, "full xlat");
 
 	if (skb_out == NULL) {
-		log_err("skb_out is null.");
+		pr_err("skb_out is null.\n");
 		return false;
 	}
 
@@ -332,7 +332,7 @@ static bool trim46_test(void)
 	success &= ASSERT_VERDICT(STOLEN, result, "full xlat");
 
 	if (skb_out == NULL) {
-		log_err("skb_out is null.");
+		pr_err("skb_out is null.\n");
 		return false;
 	}
 

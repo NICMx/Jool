@@ -6,12 +6,12 @@
 
 struct dst_entry *route4(struct xlator *jool, struct flowi4 *flow)
 {
-	log_debug(jool, "Pretending I'm routing an IPv4 packet.");
+	pr_info("Pretending I'm routing an IPv4 packet.\n");
 	return NULL;
 }
 
 struct dst_entry *route6(struct xlator *jool, struct flowi6 *flow)
 {
-	log_debug(jool, "Pretending I'm routing an IPv6 packet.");
+	pr_info("Pretending I'm routing an IPv6 packet.\n");
 	return NULL;
 }

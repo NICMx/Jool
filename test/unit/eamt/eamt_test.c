@@ -40,7 +40,7 @@ static int __add_entry(char *addr4, __u8 len4, char *addr6, __u8 len6)
 	error = eamt_add(eamt, &new, true);
 	/*
 	if (error) {
-		log_err("Errcode %d; I'm not going to print the tree.", error);
+		pr_err("Errcode %d; I'm not going to print the tree.\n", error);
 	} else {
 		rtrie_print(eamt.tree6);
 	}
@@ -82,7 +82,7 @@ static bool add_test(void)
 static bool add_entry(char *addr4, __u8 len4, char *addr6, __u8 len6)
 {
 	if (__add_entry(addr4, len4, addr6, len6)) {
-		log_err("The call to eamt_add() failed.");
+		pr_err("The call to eamt_add() failed.\n");
 		return false;
 	}
 
@@ -239,7 +239,7 @@ static bool remove_entry(char *addr4, __u8 len4, char *addr6, __u8 len6,
 	int error;
 
 	if (!addr4 && !addr6) {
-		log_err("Both addr4 and addr6 are NULL.");
+		pr_err("Both addr4 and addr6 are NULL.\n");
 		return false;
 	}
 

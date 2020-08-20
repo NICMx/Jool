@@ -160,11 +160,11 @@ static bool assert_session_exists(char *src6_addr, u16 src6_port,
 static int invert_tuple(struct xlation *state)
 {
 	if (!state->entries.bib_set) {
-		log_err("Session was expected to have a BIB entry.");
+		pr_err("Session was expected to have a BIB entry.\n");
 		return -ESRCH;
 	}
 	if (!state->entries.session_set) {
-		log_err("Session was expected to have a session."); /* Lel */
+		pr_err("Session was expected to have a session.\n"); /* Lel */
 		return -ESRCH;
 	}
 
@@ -206,7 +206,7 @@ static bool test_filtering_and_updating(void)
 
 	xlation_init(&state, &jool);
 
-	log_debug(&state, "== ICMPv4 errors should succeed but not affect the tables ==");
+	pr_info("== ICMPv4 errors should succeed but not affect the tables ==\n");
 	if (create_skb4_icmp_error("8.7.6.5", "192.0.2.128", 100, 32, &skb))
 		return false;
 	if (pkt_init_ipv4(&state, skb))
@@ -226,7 +226,7 @@ static bool test_filtering_and_updating(void)
 	if (!success)
 		return false;
 
-	log_debug(&state, "== ICMPv6 errors should succeed but not affect the tables ==");
+	pr_info("== ICMPv6 errors should succeed but not affect the tables ==\n");
 	if (create_skb6_icmp_error("1::2", "3::3:4", 100, 32, &skb))
 		return false;
 	if (pkt_init_ipv6(&state, skb))
@@ -246,7 +246,7 @@ static bool test_filtering_and_updating(void)
 	if (!success)
 		return false;
 
-	log_debug(&state, "== Hairpinning loops should be dropped ==");
+	pr_info("== Hairpinning loops should be dropped ==\n");
 	if (create_skb6_udp("3::1:2", 1212, "3::3:4", 3434, 100, 32, &skb))
 		return false;
 	if (pkt_init_ipv6(&state, skb))
@@ -262,7 +262,7 @@ static bool test_filtering_and_updating(void)
 	if (!success)
 		return false;
 
-	log_debug(&state, "== Packets not headed to pool6 must not be translated ==");
+	pr_info("== Packets not headed to pool6 must not be translated ==\n");
 	if (create_skb6_udp("1::2", 1212, "4::1", 3434, 100, 32, &skb))
 		return false;
 	if (pkt_init_ipv6(&state, skb))
@@ -278,7 +278,7 @@ static bool test_filtering_and_updating(void)
 	if (!success)
 		return false;
 
-	log_debug(&state, "== Packets not headed to pool4 must not be translated ==");
+	pr_info("== Packets not headed to pool4 must not be translated ==\n");
 	if (create_skb4_udp("8.7.6.5", 8765, "5.6.7.8", 5678, 100, 32, &skb))
 		return false;
 	if (pkt_init_ipv4(&state, skb))
@@ -294,7 +294,7 @@ static bool test_filtering_and_updating(void)
 	if (!success)
 		return false;
 
-	log_debug(&state, "== Other IPv6 packets should survive validations ==");
+	pr_info("== Other IPv6 packets should survive validations ==\n");
 	if (create_skb6_udp("1::2", 1212, "3::3:4", 3434, 100, 32, &skb))
 		return false;
 	if (pkt_init_ipv6(&state, skb))
@@ -310,7 +310,7 @@ static bool test_filtering_and_updating(void)
 	if (!success)
 		return false;
 
-	log_debug(&state, "== Other IPv4 packets should survive validations ==");
+	pr_info("== Other IPv4 packets should survive validations ==\n");
 	if (!invert_packet(&state, &skb))
 		return false;
 
@@ -330,7 +330,7 @@ static bool test_udp(void)
 
 	xlation_init(&state, &jool);
 
-	log_debug(&state, "== An IPv4 packet attempts to be translated without state ==");
+	pr_info("== An IPv4 packet attempts to be translated without state ==\n");
 	if (create_skb4_udp("0.0.0.4", 3434, "192.0.2.128", 1024, 16, 32, &skb))
 		return false;
 	if (pkt_init_ipv4(&state, skb))
@@ -344,7 +344,7 @@ static bool test_udp(void)
 
 	kfree_skb(skb);
 
-	log_debug(&state, "== IPv6 packet gets translated correctly ==");
+	pr_info("== IPv6 packet gets translated correctly ==\n");
 	if (create_skb6_udp("1::2", 1212, "3::4", 3434, 16, 32, &skb))
 		return false;
 	if (pkt_init_ipv6(&state, skb))
@@ -363,7 +363,7 @@ static bool test_udp(void)
 
 	kfree_skb(skb);
 
-	log_debug(&state, "== Now that there's state, the IPv4 packet manages to traverse ==");
+	pr_info("== Now that there's state, the IPv4 packet manages to traverse ==\n");
 	if (!invert_packet(&state, &skb))
 		return false;
 
@@ -389,7 +389,7 @@ static bool test_icmp(void)
 
 	xlation_init(&state, &jool);
 
-	log_debug(&state, "== IPv4 packet attempts to be translated without state ==");
+	pr_info("== IPv4 packet attempts to be translated without state ==\n");
 	if (create_skb4_icmp_info("0.0.0.4", "192.0.2.128", 1024, 16, 32, &skb))
 		return false;
 	if (pkt_init_ipv4(&state, skb))
@@ -403,7 +403,7 @@ static bool test_icmp(void)
 
 	kfree_skb(skb);
 
-	log_debug(&state, "== IPv6 packet gets translated correctly ==");
+	pr_info("== IPv6 packet gets translated correctly ==\n");
 	if (create_skb6_icmp_info("1::2", "3::4", 1212, 16, 32, &skb))
 		return false;
 	if (pkt_init_ipv6(&state, skb))
@@ -422,7 +422,7 @@ static bool test_icmp(void)
 
 	kfree_skb(skb);
 
-	log_debug(&state, "== Now that there's state, the IPv4 packet manages to traverse ==");
+	pr_info("== Now that there's state, the IPv4 packet manages to traverse ==\n");
 	if (!invert_packet(&state, &skb))
 		return false;
 
@@ -451,7 +451,7 @@ static bool test_tcp(void)
 	struct sk_buff *skb;
 	bool success = true;
 
-	log_debug(&state, "== V6 SYN ==");
+	pr_info("== V6 SYN ==\n");
 	if (init_tuple6(&state.in.tuple, "1::2", 1212, "3::4", 3434, L4PROTO_TCP))
 		return false;
 	if (create_tcp_packet(&skb, L3PROTO_IPV6, true, false, false))
@@ -469,7 +469,7 @@ static bool test_tcp(void)
 
 	kfree_skb(skb);
 
-	log_debug(&state, "== V4 SYN ==");
+	pr_info("== V4 SYN ==\n");
 	if (invert_tuple(&state))
 		return false;
 	if (create_tcp_packet(&skb, L3PROTO_IPV4, true, false, false))
@@ -487,7 +487,7 @@ static bool test_tcp(void)
 
 	kfree_skb(skb);
 
-	log_debug(&state, "== V6 RST ==");
+	pr_info("== V6 RST ==\n");
 	if (init_tuple6(&state.in.tuple, "1::2", 1212, "3::4", 3434, L4PROTO_TCP))
 		return false;
 	if (create_tcp_packet(&skb, L3PROTO_IPV6, false, true, false))
@@ -505,7 +505,7 @@ static bool test_tcp(void)
 
 	kfree_skb(skb);
 
-	log_debug(&state, "== V6 SYN ==");
+	pr_info("== V6 SYN ==\n");
 	if (create_tcp_packet(&skb, L3PROTO_IPV6, true, false, false))
 		return false;
 	if (pkt_init_ipv6(&state, skb))

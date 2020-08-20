@@ -96,7 +96,7 @@ static int validate_sample(struct pool4_entry const *sample, void *void_args)
 	struct foreach_sample_args *args = void_args;
 	bool success = true;
 
-	/* log_debug("  foreaching %pI4 %u-%u", &sample->range.addr,
+	/* pr_info("  foreaching %pI4 %u-%u\n", &sample->range.addr,
 			sample->range.ports.min, sample->range.ports.max); */
 
 	success &= ASSERT_BOOL(true, args->samples < args->expected_len,
@@ -140,7 +140,7 @@ static bool test_foreach_sample(void)
 	init_sample(&expected[i++], 0xc0000223U, 1, 1);
 
 	if (i != COUNT) {
-		log_err("Input mismatch. Unit test is broken: %u %u", i, COUNT);
+		pr_err("Input mismatch. Unit test is broken: %u %u\n", i, COUNT);
 		return false;
 	}
 
@@ -163,7 +163,7 @@ static bool test_foreach_sample(void)
 		error = pool4db_foreach_sample(pool, L4PROTO_TCP,
 				validate_sample, &args, &expected[i]);
 		success &= ASSERT_INT(0, error, "call %u", i);
-		/* log_debug("--------------"); */
+		/* pr_info("--------------\n"); */
 	}
 
 	return success;
@@ -526,7 +526,7 @@ static int init(void)
 
 	ns = get_net_ns_by_pid(task_pid_vnr(current));
 	if (IS_ERR(ns)) {
-		log_err("Could not retrieve the current namespace.");
+		pr_err("Could not retrieve the current namespace.\n");
 		pool4db_put(pool);
 		return PTR_ERR(ns);
 	}
