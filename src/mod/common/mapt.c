@@ -140,7 +140,8 @@ static unsigned int get_dport(struct packet const *pkt)
 	return 0;
 }
 
-static verdict use_pool6_46(struct xlation *state, __be32 in, struct in6_addr *out)
+static verdict use_pool6_46(struct xlation *state, __be32 in,
+		struct in6_addr *out)
 {
 	struct in_addr __in;
 	int error;
