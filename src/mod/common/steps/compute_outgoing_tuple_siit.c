@@ -112,7 +112,7 @@ verdict translate_addrs46_siit(struct xlation *state, struct in6_addr *src_out,
 	/* Dst address. (SRC DEPENDS CON DST, SO WE NEED TO XLAT DST FIRST!) */
 
 	addr_result = addrxlat_siit46(&state->jool, hdr4->daddr, &addr6,
-			!disable_dst_eam(in, is_hairpin), false);
+			!disable_dst_eam(in, is_hairpin), true);
 	if (addr_result.reason)
 		log_debug(state, "%s.", addr_result.reason);
 
