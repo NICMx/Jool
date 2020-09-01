@@ -22,7 +22,7 @@ Jool is an Open Source [SIIT and NAT64](intro-xlat.html) for Linux.
 
 As far as we know, Jool is a [compliant](intro-jool.html#compliance) SIIT and Stateful NAT64.
 
-Its latest version is [4.1.2](download.html#41x) and its most mature version is [4.0.9](download.html#40x).
+Its latest version is [4.1.3](download.html#41x) and its most mature version is [4.0.9](download.html#40x).
 
 -------------------
 
@@ -34,16 +34,13 @@ Its latest version is [4.1.2](download.html#41x) and its most mature version is 
 
 ## Latest News
 
-### 2020-07-22
+### 2020-09-02
 
-[Jool 4.1.2](download.html) has been released.
+[Jool 4.1.3](download.html) has been released.
 
-Bugfixes:
+It only has one bugfix, though it's fairly critical:
 
-1. [#334](https://github.com/NICMx/Jool/issues/334): Patch compilation on newest CentOS 8.
-2. [#335](https://github.com/NICMx/Jool/issues/335): Patch deb package dependencies for Debian stable.
-3. [#336](https://github.com/NICMx/Jool/issues/336): Add `logging-debug` runtime configuration option.
-4. [#337](https://github.com/NICMx/Jool/issues/337): Patch iptables userspace binaries so they can be managed by python-iptables.
+1. [#338](https://github.com/NICMx/Jool/issues/338), [#339](https://github.com/NICMx/Jool/issues/339): Patch SIIT Jool's generic blacklist. SIIT Jool should no longer steal traffic intended for its own node.
 
 > Remember that `lowest-ipv6-mtu`'s paranoid default might induce unnecessary fragmentation. If you want Jool 4.1 to reach 4.0's performance, please review the [MTU documentation](mtu.html).
 

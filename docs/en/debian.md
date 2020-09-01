@@ -51,6 +51,8 @@ user@T:~# apt update
 user@T:~# apt install jool-dkms jool-tools
 ```
 
+Here's a quick link back to the [basic tutorials list](documentation.html#basic-tutorials).
+
 ### Standalone Package
 
 Download the standalone `.deb` packages from [Downloads](download.html) and install them like so:
@@ -59,6 +61,15 @@ Download the standalone `.deb` packages from [Downloads](download.html) and inst
 user@T:~# apt install ./jool-dkms_{{ site.latest-version }}-1_all.deb ./jool-tools_{{ site.latest-version }}-1_amd64.deb
 ```
 
-These have been tested in Debian 10 and Ubuntu 18.04.
+These have been tested in Debian 10 and Ubuntu 20.04.
 
 Here's a quick link back to the [basic tutorials list](documentation.html#basic-tutorials).
+
+## Uninstallation
+
+Whether you installed the Debian Release or the Standalone Package, the procedure is the same:
+
+```bash
+user@T:~# apt remove jool-dkms jool-tools
+```
+
