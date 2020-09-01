@@ -308,9 +308,11 @@ You have two options:
 	<span class="distro-selector" onclick="showDistro(this);">git clone</span>
 </div>
 
+<!-- wget https://jool.mx/download/jool-{{ site.latest-version }}.tar.gz -->
+
 <!-- tarballs -->
 {% highlight bash %}
-$ wget {{ site.downloads-url-2 }}/v{{ site.latest-version }}/jool-{{ site.latest-version }}.tar.gz
+$ wget https://github.com/NICMx/Jool/releases/download/v{{ site.latest-version }}/jool-{{ site.latest-version }}.tar.gz
 $ tar -xzf jool-{{ site.latest-version }}.tar.gz
 {% endhighlight %}
 
@@ -323,6 +325,10 @@ $ git clone https://github.com/NICMx/Jool.git
 The repository version sometimes includes slight bugfixes not present in the latest official tarball, which you can access by sticking to the latest commit of the `master` branch. (Tarballs and `master` are considered stable, other branches are development.)
 
 ## Compilation and Installation
+
+> ![Warning!](../images/warning.svg) Please note: If you have previously installed Jool from a package (.deb or otherwise), the binaries installed here will not necessarily override them. Source Jool and package Jool tend to be installed in different locations by default. This means that, if you've previously installed from a package, both versions will coexist in your system, and the one you actually run will not necessarily be the one you expect.
+> 
+> To minimize confusion, it is strongly recommended that you uninstall package Jool before proceeding.
 
 The kernel modules and the userspace applications need to be compiled and installed separately.
 
