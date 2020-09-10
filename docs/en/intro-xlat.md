@@ -42,21 +42,21 @@ Similar to hiring a human translator so you can have people from different cultu
 
 A typical IPv4 packet consists of an IPv4 header, a TCP (or UDP) header and a block of payload:
 
-![Diagram: IPv4 packet](../images/packet-ipv4.svg)
+![Diagram: IPv4 packet](../images/intro/packet-ipv4.svg)
 
 In contrast, a typical IPv6 packet consists of an IPv6 header, a TCP (or UDP) header and a block of payload:
 
-![Diagram: IPv6 packet](../images/packet-ipv6.svg)
+![Diagram: IPv6 packet](../images/intro/packet-ipv6.svg)
 
 The task of an IP translator, then, is to replace incoming IP headers, while leaving the actual data unmodified:
 
-![Packet flow: IP Translation](../images/xlator.svg)
+![Packet flow: IP Translation](../images/intro/xlator.svg)
 
 > ![Note!](../images/bulb.svg) Sometimes, the TCP/UDP header also needs to be adjusted slightly, but we’ll get to that later.
 
 Most of the header translation is straightforward. For example, the IPv4 “Protocol” field is basically the same as the IPv6 “Next Header” field. IPv4 “TTL” is the same as IPv6 “Hop Limit,” etc. The only part where it gets tactical is the IP addresses. Largely, address translation strategies are what separate the different types of translators from the others.
 
-The IP translation mechanisms were all designed by the [_Internet Engineering Task Force_](https://www.ietf.org/) (IETF), and formally defined in several different [RFC](https://en.wikipedia.org/wiki/Request_for_Comments)s (which I have listed in their corresponding translators’ dedicated sections below).
+The IP translation mechanisms were all designed by the [_Internet Engineering Task Force_](https://www.ietf.org/) (IETF), and formally defined in several different [RFC](https://en.wikipedia.org/wiki/Request_for_Comments)s (which have been listed in their corresponding translators’ dedicated sections below).
 
 In general, there are three different basic types of IP translators:
 
@@ -71,27 +71,31 @@ These, along with the different available address translation strategies, will b
 ## SIIT (EAMT)
 
 <style type="text/css">
-	.v192  { background-color: #afdde9; }
-	.v203  { background-color: #ff9955; }
-	.v2006 { background-color: #fafaa9; }
-	.v2004 { background-color: #ff80b2; }
+	/*
+	 * IPv6: Dark; IPv4: Light
+	 * A: Orange; V: Purple
+	 */
+	.a6 { color: #ff6600; }
+	.a4 { color: #ff9955; }
+	.v6 { color: #892ca0; }
+	.v4 { color: #cd87de; }
 </style>
 
 This is the easiest one to explain. Consider the following setup:
 
-![Fig.1 - EAM sample network](../images/network/eam.svg)
+![Network: SIIT-EAMT](../images/intro/eamt/network.svg)
 
 (T stands for “Translator”.)
 
 Assuming everyone’s default gateway is _T_, how do you communicate _A_ (IPv6) with _V_ (IPv4)?
 
-- You tell _T_ (By SIIT-EAM configuration): “Change <span class="v2006">2001:db8:6::3</span> into <span class="v203">203.0.113.3</span>, and <span class="v192">192.0.2.3</span> into <span class="v2004">2001:db8:4::3</span>.”
-- You tell _A_ (usually by DNS): “_V_’s address is <span class="v2004">2001:db8:4::3</span>”.
-- You tell _V_ (usually by DNS): “_A_’s address is <span class="v203">203.0.113.3</span>”.
+- You tell _T_ (By SIIT-EAM configuration): “Change <span class="a6">2001:db8:6::8</span> into <span class="a4">203.0.113.8</span>, and <span class="v4">192.0.2.16</span> into <span class="v6">2001:db8:4::16</span>.”
+- You tell _A_ (usually by DNS): “_V_’s address is <span class="v6">2001:db8:4::16</span>”.
+- You tell _V_ (usually by DNS): “_A_’s address is <span class="a4">203.0.113.8</span>”.
 
 This will happen:
 
-![Fig.2 - EAM flow](../images/flow/eam-en-.svg)
+![Packet flow: SIIT-EAMT](../images/intro/eamt/flow.svg)
 
 The translator is “fooling” each node into thinking the other one can speak their language. It’s an address translation strategy in which you assign specific addresses to specific nodes without them realizing it.
 
@@ -105,26 +109,26 @@ On the other hand, the “Explicit Address Mapping Table” (EAMT) is the specif
 
 Here’s an example of an EAMT which would allow communication between all the nodes in the network depicted above:
 
-| IPv6          | IPv4        |
-|---------------|-------------|
-| 2001:db8:6::3 | 203.0.113.3 |
-| 2001:db8:6::4 | 203.0.113.4 |
-| 2001:db8:6::5 | 203.0.113.5 |
-| 2001:db8:6::6 | 203.0.113.6 |
-| 2001:db8:6::7 | 203.0.113.7 |
-| 2001:db8:4::3 | 192.0.2.3   |
-| 2001:db8:4::4 | 192.0.2.4   |
-| 2001:db8:4::5 | 192.0.2.5   |
-| 2001:db8:4::6 | 192.0.2.6   |
-| 2001:db8:4::7 | 192.0.2.7   |
+| IPv6           | IPv4         |
+|----------------|--------------|
+| <span class="a6">2001:db8:6::8</span> | <span class="a4">203.0.113.8</span> |
+| 2001:db8:6::9  | 203.0.113.9  |
+| 2001:db8:6::a  | 203.0.113.10 |
+| 2001:db8:6::b  | 203.0.113.11 |
+| 2001:db8:6::c  | 203.0.113.12 |
+| <span class="v6">2001:db8:4::16</span> | <span class="v4">192.0.2.16</span> |
+| 2001:db8:4::17 | 192.0.2.17   |
+| 2001:db8:4::18 | 192.0.2.18   |
+| 2001:db8:4::19 | 192.0.2.19   |
+| 2001:db8:4::20 | 192.0.2.20   |
 
 Given the configuration above, the IPv6 nodes would perceive the network like this:
 
-Network: EAMT-SIIT v6
+![Packet flow: SIIT-EAMT - IPv6 view](../images/intro/eamt/network-v6.svg)
 
 And conversely, it would look like this from the IPv4 side:
 
-Network: EAMT-SIIT v4
+![Packet flow: SIIT-EAMT - IPv4 view](../images/intro/eamt/network-v4.svg)
 
 I have simplified the EAMT here for the sake of illustration. In truth, it is more versatile than simply allowing you to bind single arbitrary addresses to other single arbitrary addresses. You can find more information in its formal specification, [RFC 7757](https://tools.ietf.org/html/rfc7757).
 
@@ -132,11 +136,11 @@ I have simplified the EAMT here for the sake of illustration. In truth, it is mo
 
 This is actually the originally designed form of SIIT, and as such, it’s more constrictive. We need to change the sample IPv6 network to make it work:
 
-![Fig.3 - Vanilla sample network](../images/network/vanilla.svg)
+![Network: SIIT-traditional](../images/intro/traditional/network.svg)
 
 The idea is to simply remove a prefix while translating from IPv6 to IPv4, and prepend it in the other direction:
 
-![Fig.4 - Vanilla flow](../images/flow/vanilla-en.svg)
+![Packet flow: SIIT-traditional](../images/intro/traditional/flow.svg)
 
 As you can see, this translation mechanism allows any IPv4 address to be converted to an IPv6 address by way of one simple configurable IPv6 prefix. The reverse, however, is not true. An IPv6 address needs a valid, public and embedded IPv4 address (in addition to the prefix) to be translatable. Your mileage might vary as to how viable this is to fulfill.
 
@@ -146,9 +150,17 @@ As you can see, this translation mechanism allows any IPv4 address to be convert
 > 
 > (To be perfectly honest, “traditional” is a bit of a misnomer, because there used to exist an even older and simpler version of the algorithm, but it was obsoleted by RFC 6145 in 2011.)
 
+The IPv6 view is followed by the IPv4 view:
+
+![Packet flow: SIIT-traditional - IPv6 view](../images/intro/traditional/network-v6.svg) ![Packet flow: SIIT-traditional - IPv4 view](../images/intro/traditional/network-v4.svg)
+
 As already mentioned, you can find the formal definition of the traditional address translation algorithm in [RFC 6052](http://tools.ietf.org/html/rfc6052).
 
 ## SIIT-DC
+
+<style type="text/css">
+	.wkp { color: #d40000; }
+</style>
 
 SIIT-DC (_SIIT for IPv6 Data Center Environments_) is more of an architecture than a dedicated address translation mechanism, but I’m including it here because (a) it’s a useful and far more down-to-earth stateless scenario you should keep in mind, and (b) it’s a perfect opportunity to show the EAMT and pool6 working in concert.
 
@@ -156,27 +168,31 @@ So here’s the thing:
 
 I might have given you the impression that “EAMT” SIIT and “traditional” SIIT refer to different types of translators. This is not the case; this is all SIIT. A modern implementation is expected to always try to translate an address based on the EAMT first, and if no mapping is found, fall back to append or remove pool6. The separation was done above for illustrative purposes only.
 
-Suppose you have an IPv6-only Data Center. To save space, we will show it to have only two servers. One of them needs to be accessed only by remote IPv6 clients, but turns out the other one needs to be accesed from IPv4 as well:
+Suppose you have an IPv6-only Data Center. To save space, we will show it to have only two servers. _s6a_ needs to be accessed only by remote IPv6 clients, but turns out _s6b_ one needs to be accesed from IPv4 as well:
 
-![Network: SIIT-DC](../images/network/siit-dc.svg)
+![Network: SIIT-DC](../images/intro/siit-dc/network.svg)
 
 > ![Note!](../images/bulb.svg) A _Border Relay_ (BR) is just a gateway, which in the SIIT-DC context is simply an SIIT translator. (Or several identical ones, if you want redundancy.)
 
 Basically, the pool6 prefix is only used to mask IPv4 Internet nodes (which is a pattern you will see often from now on, because it works well), whereas the EAMT is used to mask your IPv6 servers.
 
+Suppose _BR_ has the following configuration:
+
+![Configuration: SIIT-DC BR](../images/intro/siit-dc/config.svg)
+
 Here’s the expected packet flow between your EAM’d server and a random IPv4 Internet client:
 
-Packet flow: SIIT-DC 64
+![Packet flow: SIIT-DC 64](../images/intro/siit-dc/flow.svg)
 
 In this way, _any_ IPv4 Internet node can access your EAM’d servers, and only your EAM’d servers can respond. You are also not forced to assign constrained IPv6 addresses to your servers, effectively gaining the advantages of both traditional and EAM, and the drawbacks of neither. It is also worth mentioning that most of your Data Center enjoys the simplicity of IPv6-only, since IPv4 has been relegated into a “service.”
 
-> ![Note!](../images/bulb.svg) Much like the documentation prefixes, “64:ff9b::/96” is officially reserved, and it’s publicly known as the “Well-Known Prefix.” (Which, admittedly, is a bit awkward outside of the context of IP translation.) You can use it freely for translation purposes in your network, as long as you don’t route it globally.
+> ![Note!](../images/bulb.svg) Much like the documentation prefixes, “<span class="wkp">64:ff9b::/96</span>” is officially reserved, and it’s publicly known as the “<span class="wkp">Well-Known Prefix</span>.” (Which, admittedly, is a bit awkward outside of the context of IP translation.) You can use it freely for translation purposes in your network, as long as you don’t route it globally.
 
-Do note that the IPv6 traffic is not affected in any way:
+Do note that the pure IPv6 traffic is not affected by the translator in any way:
 
-Packet flow: SIIT-DC 66
+![Packet flow: SIIT-DC 66](../images/intro/siit-dc/flow-v6.svg)
 
-Naturally, DNS-wise, the A record of s6a should be 192.0.2.1, and its AAAA record should be 2001:db8:12:34:1. As usual, you’ve effectively given s6a a dual stack without it knowing it.
+Naturally, DNS-wise, the _A_ record of <span class="a6">_s6b_</span> should be <span class="a4">203.0.113.6</span>, and its _AAAA_ record should be <span class="a6">2001:db8:12:34:1</span>. As usual, you’ve effectively given <span class="a6">_s6b_</span> a dual stack without it knowing it.
 
 SIIT-DC is formally defined in [RFC 7755](https://tools.ietf.org/html/rfc7755).
 
