@@ -272,7 +272,7 @@
          style="font-size:10px;line-height:1.25;font-family:sans-serif;text-align:center;text-anchor:middle;fill:#cd87de;fill-opacity:1;">192.0.2.4</tspan></text>
     <text
        xml:space="preserve"
-       style="font-style:normal;font-weight:normal;font-size:12px;line-height:0%;font-family:sans-serif;text-align:center;letter-spacing:0px;word-spacing:0px;text-anchor:middle;fill:#0000ff;fill-opacity:1;stroke:none;"
+       style="font-style:normal;font-weight:normal;font-size:12px;line-height:0%;font-family:sans-serif;text-align:center;letter-spacing:0px;word-spacing:0px;text-anchor:middle;fill:#0000ff;fill-opacity:1;stroke:none"
        x="468"
        y="733.36182"
        id="text3023"><tspan
@@ -280,10 +280,10 @@
          id="tspan3025"
          x="468"
          y="733.36182"
-         style="font-size:12px;line-height:1.25;font-family:sans-serif;fill:#0000ff;">n6</tspan></text>
+         style="font-size:12px;line-height:1.25;font-family:sans-serif;fill:#0000ff">c6</tspan></text>
     <text
        xml:space="preserve"
-       style="font-style:normal;font-weight:normal;font-size:12px;line-height:0%;font-family:sans-serif;text-align:center;letter-spacing:0px;word-spacing:0px;text-anchor:middle;fill:#cd87de;fill-opacity:1;stroke:none;"
+       style="font-style:normal;font-weight:normal;font-size:12px;line-height:0%;font-family:sans-serif;text-align:center;letter-spacing:0px;word-spacing:0px;text-anchor:middle;fill:#cd87de;fill-opacity:1;stroke:none"
        x="468.53906"
        y="860.36218"
        id="text3165"><tspan
@@ -291,7 +291,7 @@
          id="tspan3167"
          x="468.53906"
          y="860.36218"
-         style="font-size:12px;line-height:1.25;font-family:sans-serif;fill:#cd87de;fill-opacity:1;">n4</tspan></text>
+         style="font-size:12px;line-height:1.25;font-family:sans-serif;fill:#cd87de;fill-opacity:1">c4</tspan></text>
     <path
        id="rect3143"
        style="display:inline;fill:#666666;stroke:#000000;stroke-width:1;stroke-miterlimit:4;stroke-dasharray:none"

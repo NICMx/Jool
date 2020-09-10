@@ -376,7 +376,9 @@
          x="128"
          y="816.36218"
          id="tspan920"
-         style="font-size:16px">2001:db8::<tspan
+         style="font-size:16px"><tspan
+   style="fill:#00aa88;fill-opacity:1"
+   id="tspan923">2001:db8</tspan>::<tspan
    style="fill:#d40000"
    id="tspan914">cb00:7100</tspan>/120</tspan></text>
     <text
@@ -544,7 +546,9 @@
          sodipodi:role="line"
          id="tspan924"
          x="128"
-         y="830.36218">(2001:db8::<tspan
+         y="830.36218">(<tspan
+   style="fill:#00aa88;fill-opacity:1"
+   id="tspan925">2001:db8</tspan>::<tspan
    style="fill:#d40000"
    id="tspan916">203.0.113.0</tspan>/120)</tspan></text>
   </g>

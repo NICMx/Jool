@@ -32,7 +32,7 @@ The reader is assumed to have a basic understanding of [IPv4](https://en.wikiped
 
 <!-- TODO Replace those bad apostrophes. -->
 
-> ![Note!](../images/bulb.svg) I want this documentation to be the most helpful possible introduction to the topic. Please [let me know](contact.html) if you have feedback. Thanks.
+> ![Note!](../images/bulb.svg) Please [let me know](contact.html) if you have feedback on this documentation.
 
 ## IPv4/IPv6 Translation
 
@@ -85,13 +85,13 @@ This is the easiest one to explain. Consider the following setup:
 
 ![Network: SIIT-EAMT](../images/intro/eamt/network.svg)
 
-(T stands for “Translator”.)
+(_T_ stands for “Translator”.)
 
-Assuming everyone’s default gateway is _T_, how do you communicate _A_ (IPv6) with _V_ (IPv4)?
+Assuming everyone’s default gateway is _T_, how do you communicate <span class="a6">_A_</span> (IPv6) with <span class="v4">_V_</span> (IPv4)?
 
 - You tell _T_ (By SIIT-EAM configuration): “Change <span class="a6">2001:db8:6::8</span> into <span class="a4">203.0.113.8</span>, and <span class="v4">192.0.2.16</span> into <span class="v6">2001:db8:4::16</span>.”
-- You tell _A_ (usually by DNS): “_V_’s address is <span class="v6">2001:db8:4::16</span>”.
-- You tell _V_ (usually by DNS): “_A_’s address is <span class="a4">203.0.113.8</span>”.
+- You tell _A_ (usually by DNS): “_V_’s address is <span class="v6">2001:db8:4::16</span>.”
+- You tell _V_ (usually by DNS): “_A_’s address is <span class="a4">203.0.113.8</span>.”
 
 This will happen:
 
@@ -134,11 +134,15 @@ I have simplified the EAMT here for the sake of illustration. In truth, it is mo
 
 ## SIIT (traditional)
 
+<style type="text/css">
+	.traditional-prefix { color: #00aa88; }
+</style>
+
 This is actually the originally designed form of SIIT, and as such, it’s more constrictive. We need to change the sample IPv6 network to make it work:
 
 ![Network: SIIT-traditional](../images/intro/traditional/network.svg)
 
-The idea is to simply remove a prefix while translating from IPv6 to IPv4, and prepend it in the other direction:
+The idea is to simply remove a <span class="traditional-prefix">prefix</span> while translating from IPv6 to IPv4, and prepend it in the other direction:
 
 ![Packet flow: SIIT-traditional](../images/intro/traditional/flow.svg)
 
@@ -186,9 +190,9 @@ Here’s the expected packet flow between your EAM’d server and a random IPv4 
 
 In this way, _any_ IPv4 Internet node can access your EAM’d servers, and only your EAM’d servers can respond. You are also not forced to assign constrained IPv6 addresses to your servers, effectively gaining the advantages of both traditional and EAM, and the drawbacks of neither. It is also worth mentioning that most of your Data Center enjoys the simplicity of IPv6-only, since IPv4 has been relegated into a “service.”
 
-> ![Note!](../images/bulb.svg) Much like the documentation prefixes, “<span class="wkp">64:ff9b::/96</span>” is officially reserved, and it’s publicly known as the “<span class="wkp">Well-Known Prefix</span>.” (Which, admittedly, is a bit awkward outside of the context of IP translation.) You can use it freely for translation purposes in your network, as long as you don’t route it globally.
+> ![Note!](../images/bulb.svg) Much like the documentation prefixes, “<span class="wkp">64:ff9b::/96</span>” is officially reserved, and it’s publicly known as the “<span class="wkp">Well-Known Prefix</span>.” (Which, admittedly, is a bit of an awkward name outside of the context of IP translation.) You can use it freely for translation purposes in your network, as long as you don’t route it globally.
 
-Do note that the pure IPv6 traffic is not affected by the translator in any way:
+Do note that pure IPv6 traffic is not affected by the translator in any way:
 
 ![Packet flow: SIIT-DC 66](../images/intro/siit-dc/flow-v6.svg)
 
@@ -200,45 +204,46 @@ SIIT-DC is formally defined in [RFC 7755](https://tools.ietf.org/html/rfc7755).
 
 Even though your endgoal might be an IPv6-only Data Center, services which are still completely incompatible with IPv6 are not unheard of.
 
-You can’t give these IPv6 stacks, but if you still wish to have a mostly IPv6 Data Center, you can isolate them into small IPv4 islands and still keep most of your infrastructure IPv6. This technique is known as “SIIT-DC: Dual translation mode” (Abbreviated in this documentation as “SIIT-DC-2xlat”).
+You can’t give these IPv6 stacks, but if you still wish to have a mostly IPv6 Data Center, you can isolate them into small IPv4 islands and still keep most of your infrastructure IPv6. This technique is known as “SIIT-DC: Dual Translation Mode.”
 
-![Network: SIIT-DC-2xlat](../images/network/siit-dc-2xlat.svg)
+![Network: SIIT-DC-2xlat](../images/intro/siit-dc-2xlat/network.svg)
 
 > ![Note!](../images/bulb.svg) In the context of SIIT-DC-2xlat, a translator that serves a specific island is called an _Edge Relay_ (ER), though again, it’s just a normal SIIT.
 
 This is the expected packet flow for these little infidels:
 
-![Packet flow: SIIT-DC-2xlat](../images/flow/siit-dc-2xlat.svg)
+![Packet flow: SIIT-DC-2xlat](../images/intro/siit-dc-2xlat/flow.svg)
 
 The rest of the network is normal SIIT-DC.
 
 ## NAPT
 
 <style type="text/css">
+	.private { color: #0000ff; }
 	.napt-ref { color: #ff0066; }
-	.napt-a-ip { color: #008000; }
-	.napt-a-port { color: #ff6600; }
+	.napt-a-ip { color: #ff9955; }
+	.napt-a-port { color: #0066aa; }
 	.napt-napt-ip { color: #aa8800; }
-	.napt-napt-port { color: #008080; }
-	.napt-v-ip { color: #0000ff; }
-	.napt-v-port { color: #000000; }
+	.napt-napt-port { color: #5577ff; }
+	.napt-v-ip { color: #cd87de; }
+	.napt-v-port { color: #327821; }
 </style>
 
 _Network Address and Port Translation_ (NAPT) (usually commonly known as “NAT” or, more specifically, “Stateful NAT”) is not an IPv6/IPv4 translation mechanism, but it might help you understand Stateful NAT64 because of their similarities.
 
-Therefore, let’s remember how NAPT works:
+Therefore, this section is a reminder of how NAPT works.
 
 ![Network: NAPT](../images/intro/napt/network.svg)
 
-The left network is called “Private” because it uses [IPv4 addresses unavailable in the global Internet](https://en.wikipedia.org/wiki/Private_network). To make up for this, the _NAPT_ machine mangles packet transport addresses so outsiders think any traffic started by the private nodes was actually started by itself:
+NAPT is a hack whose purpose is to minimize the amount of global ("real") IPv4 address you spend on the "Private Network" nodes. (Why? [Because the world has officially run out of IPv4 addresses](https://en.wikipedia.org/wiki/IPv4_address_exhaustion).) Basically, the left network has been assigned "fake" [<span class="private">192.168</span> addresses](https://tools.ietf.org/html/rfc1918#section-3) (ie. ["Private" IPv4 addresses](https://en.wikipedia.org/wiki/Private_network)), and the _NAPT_ machine's job is to permute packet transport addresses with the goal of impersonating the private nodes. It fools outsiders into thinking that the traffic started by the private nodes was actually started by itself:
 
 ![Packet flow: NAPT 1](../images/intro/napt/flow-1.svg)
 
-_A_ wants to request an HTTP resource from <span class="napt-v-ip">_V_</span>. It therefore sends a packet to <span class="napt-v-ip">203.0.113.16</span>:<span class="napt-v-port">80</span>. The <span class="napt-a-ip">source address</span> is its own IP, while the <span class="napt-a-port">source port</span> was chosen randomly when the socket was bound. This is all normal and independent of _NAPT_.
+Here's the setup: <span class="napt-a-ip">_A_</span> wants to request an HTTP resource from <span class="napt-v-ip">_V_</span>. It therefore sends a packet to <span class="napt-v-ip">203.0.113.16</span>:<span class="napt-v-port">80</span>. The <span class="napt-a-ip">source address</span> is its own IP, while the <span class="napt-a-port">source port</span> was chosen randomly when the socket was bound. This is all normal and independent of _NAPT_.
 
 ![Packet flow: NAPT 2](../images/intro/napt/flow-2.svg)
 
-When <span class="napt-a-ip">_A_</span>’s first packet arrives to _NAPT_, the latter realizes it lacks an mapping for <span class="napt-a-ip">192.168.0.8</span>:<span class="napt-a-port">1234</span>, so it opens a new socket towards <span class="napt-v-ip">_V_</span> <span class="napt-ref">(1)</span>. (Again, the <span class="napt-napt-ip">source address</span> is its own IP, while the <span class="napt-napt-port">source port</span> is chosen randomly.)
+When <span class="napt-a-ip">_A_</span>’s first packet arrives to _NAPT_, the latter realizes it lacks an mapping for <span class="napt-a-ip">192.168.0.8</span>:<span class="napt-a-port">1234</span>, so it opens a new socket <span class="napt-ref">(1)</span> towards <span class="napt-v-ip">_V_</span>. (Again, the <span class="napt-napt-ip">source address</span> is its own IP, while the <span class="napt-napt-port">source port</span> is chosen randomly.)
 
 It will, from now, act as a middleman, and proceed to copy the data received from one socket to the other <span class="napt-ref">(2)</span>.
 
@@ -256,11 +261,11 @@ For outside purposes, you can say that nodes <span class="napt-a-ip">_A_</span> 
 
 ![Diagram: NAPT impersonator](../images/intro/napt/impersonator.svg)
 
-For example, <span class="napt-a-ip">192.168.0.8</span>:<span class="napt-a-port">1234</span> thinks it’s talking directly to <span class="napt-v-ip">203.0.113.16</span>:<span class="napt-v-port">80</span>, but it’s in fact talking directly to _NAPT_ and only indirectly to <span class="napt-v-ip">203.0.113.16</span>:<span class="napt-v-port">80</span>. Because _NAPT_ has opened its own socket to <span class="napt-v-ip">203.0.113.16</span>:<span class="napt-v-port">80</span>, the latter thinks it’s talking to _NAPT_, and is not even aware of the existence of <span class="napt-a-ip">192.168.0.8</span>:<span class="napt-a-port">1234<span>.
+For example, <span class="napt-a-ip">192.168.0.8</span>:<span class="napt-a-port">1234</span> thinks it’s talking directly to <span class="napt-v-ip">203.0.113.16</span>:<span class="napt-v-port">80</span>, but _NAPT_ is in fact sneakily rehashing its traffic. Because _NAPT_ has opened its own socket to <span class="napt-v-ip">203.0.113.16</span>:<span class="napt-v-port">80</span>, the latter thinks it’s talking to _NAPT_, and is not even aware of the existence of <span class="napt-a-ip">192.168.0.8</span>:<span class="napt-a-port">1234<span>.
 
 There are a couple more things you might want to be aware of in regards to NAPT:
 
-NAPT was generally designed with the objective of allowing a limited set of clients (ie. the private network left side) to access any number of servers (the public right side) with the cost of only one public IPv4 address. In practice, communication can only be started from the private network by default. Why? Because, in the absence of state, the NAPT can make sense out of an outbound destination address, but not an inbound destination address. Packet `192.168.0.8:5000 → 203.0.113.16:80` is simply headed to `203.0.113.16:80`, but _NAPT_ cannot know which of the private nodes inbound packet `203.0.113.16:5000 → 203.0.113.1:80` belongs to. This is the reason why you have to set up Port Forwarding if you want to, say, publish an HTTP server behind a NAPT. Port Forwarding rule `[192.168.0.8:80, 203.0.113.1:80]`, as an example, is static configuration that permanently reserves the `203.0.113.1:80` mask for the `192.168.0.8:80` service, and allows inbound packets to be “Network Address Translated” even in the absense of the usual required dynamic state.
+NAPT was generally designed with the objective of allowing a limited set of clients (ie. the private network left side) to access any number of servers (the public right side) with the cost of only one public IPv4 address. The somewhat unfortunate result is that communication can only be started from the private network by default. Why? Because, in the absence of state, the NAPT can make sense out of an outbound destination address, but not an inbound destination address. Packet `192.168.0.8:5000 → 203.0.113.16:80` is simply headed to `203.0.113.16:80`, but _NAPT_ cannot know which of the private nodes inbound packet `203.0.113.16:5000 → 203.0.113.1:80` belongs to (again, assuming the mappings table is empty). This is the reason why you have to set up Port Forwarding if you want to, say, publish an HTTP server behind a NAPT. Port Forwarding rule `[192.168.0.8:80, 203.0.113.1:80]`, as an example, is static configuration that permanently reserves the `203.0.113.1:80` mask for the `192.168.0.8:80` service, and allows inbound packets to be “Network Address Translated” even in the absense of the usual required dynamic state.
 
 Second, the number of public masks available to a NAPT is limited to 65536 per transport protocol (assuming you don’t want to exclude system ports), per public IPv4 address. Why? Because both TCP and UDP grant 65536 ports to each IP address. This means that, if your NAPT is impersonating 130 private nodes, and it only has one public IPv4 address, then each can have at most ~500 (65536 divided by 130) sockets simultaneously, at least for speaking with nodes through the NAPT. This limitation isn’t really remarkable on NAPT, since it’s often used to serve households with ~10 or even ~20 devices interacting with the Internet, but it might become a more pressing matter depending on what you want to do with you Stateful NAT64.
 
@@ -268,11 +273,11 @@ Second, the number of public masks available to a NAPT is limited to 65536 per t
 
 Stateful NAT64 (often abbreviated to “NAT64” in this documentation) is pretty much the same as NAPT. The only difference is that the “Private Network” is actually an IPv6 network:
 
-![Network: Stateful NAT64](../images/network/stateful.svg)
+![Network: Stateful NAT64](../images/intro/nat64/network.svg)
 
 Once an outbound packet arrives, its source address is translated in exactly the same way as in NAPT, whereas its destination address is translated according to pool6:
 
-![Packet flow: Stateful NAT64](../images/flow/stateful-en.svg)
+![Packet flow: Stateful NAT64](../images/intro/nat64/flow.svg)
 
 Most everything else applies:
 
@@ -280,13 +285,15 @@ Most everything else applies:
 
 > ![Note!](../images/bulb.svg) In the context of NAT64, the mappings table is called the _Binding Information Base_ (BIB).
 
-Now, that’s where the similarities with NAT end. You don’t normally say the IPv6 network is “Private,” because the whole point is that it should also be connected to the IPv6 Internet:
+Basically, a Stateful NAT64 is similar to an SIIT, but it has all the benefits and drawbacks of NAPT. You get to represent all your IPv6 nodes with as few IPv4 addresses as possible, but you are limited to 65536 connections per public IPv4 addresses, and in the absence of Port Forwarding, all communication has to start from the IPv6 side.
 
-![Diagram: Full NAT64](../images/network/full-en.svg)
+You might also draw comparisons to SIIT-DC. Application-wise, Stateful NAT64 is sort of a reverse SIIT-DC; The former feels at home when you have a handful of IPv6 clients that need to access any amount of IPv4 Internet servers, while the latter is a more adequate fit when you have a handful of IPv6 servers that need to be accessed by any IPv4 Internet clients.
+
+In the context of NAT64, you don’t normally say the IPv6 network is “Private,” because the whole point is that it should also be connected to the IPv6 Internet:
+
+![Diagram: Full NAT64](../images/intro/nat64/full.svg)
 
 In this way, _A_ through _E_ are IPv6-only nodes, but they have access to both Internets (the IPv6 one via router _R_, and the IPv4 one via _T_).
-
-Application-wise, you might notice that a Stateful NAT64 is sort of a reverse SIIT-DC. The former feels at home when you have a handful of IPv6 clients that need to access any amount of IPv4 Internet servers, while the latter is a more adequate fit when you have a handful of IPv6 servers that need to be accessed by any IPv4 Internet clients.
 
 Stateful NAT64 is defined by [RFC 6146](https://tools.ietf.org/html/rfc6146) and is most of the time coupled with [DNS64](dns64.html).
 
@@ -294,9 +301,17 @@ Stateful NAT64 is defined by [RFC 6146](https://tools.ietf.org/html/rfc6146) and
 
 ## 464XLAT
 
-464XLAT is basically a SIIT-DC-2xlat where the BR is a Stateful NAT64 instead of an SIIT:
+464XLAT is basically a SIIT-DC-2xlat where the BR is a Stateful NAT64 instead of an SIIT. I think it's more typically used by ISPs. (As opposed to SIIT-DC's Data Centers.)
 
-TODO
+![Network: 464XLAT](../images/intro/464xlat/network.svg)
+
+> ![Note!](../images/bulb.svg) In the context of 464XLAT, the _ER_ is called _CLAT_ ("Customer-side Translator"), and the _BR_ is called _PLAT_ ("Provider-side Translator"). Don't look too deep into it.
+
+Just to be clear: _PLAT_ is the Stateful NAT64. The _CLAT_ is still an SIIT. Since Stateful NAT64 connections have to start from the IPv6 side, it doesn't really make sense for the _CLAT_ to be a NAT64.
+
+![Packet flow: 464XLAT](../images/intro/464xlat/flow.svg)
+
+Why would you want to do this? Again, because some applications still don't work on IPv6. The point is a mostly IPv6 infrastructure with small IPv4 islands as a workaround.
 
 ## BIBless NAT64
 

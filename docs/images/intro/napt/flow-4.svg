@@ -12,7 +12,7 @@
    height="432"
    id="svg2"
    version="1.1"
-   inkscape:version="1.0 (262b4497e3, 2020-09-04)"
+   inkscape:version="1.0.1 (3bc2e813f5, 2020-09-07)"
    sodipodi:docname="flow-4.svg">
   <defs
      id="defs4">
@@ -29,76 +29,6 @@
          style="fill:#000000;fill-opacity:1;fill-rule:evenodd;stroke:#000000;stroke-width:1pt;stroke-opacity:1"
          d="M 0,0 5,-5 -12.5,0 5,5 Z"
          id="path991" />
-    </marker>
-    <marker
-       style="overflow:visible"
-       id="SquareM"
-       refX="0"
-       refY="0"
-       orient="auto"
-       inkscape:stockid="SquareM"
-       inkscape:isstock="true">
-      <path
-         transform="scale(0.4)"
-         style="fill:#000000;fill-opacity:1;fill-rule:evenodd;stroke:#000000;stroke-width:1pt;stroke-opacity:1"
-         d="M -5,-5 V 5 H 5 V -5 Z"
-         id="path968" />
-    </marker>
-    <marker
-       style="overflow:visible"
-       id="SquareL"
-       refX="0"
-       refY="0"
-       orient="auto"
-       inkscape:stockid="SquareL"
-       inkscape:isstock="true">
-      <path
-         transform="scale(0.8)"
-         style="fill:#000000;fill-opacity:1;fill-rule:evenodd;stroke:#000000;stroke-width:1pt;stroke-opacity:1"
-         d="M -5,-5 V 5 H 5 V -5 Z"
-         id="path965" />
-    </marker>
-    <marker
-       style="overflow:visible"
-       id="Arrow1Mend"
-       refX="0"
-       refY="0"
-       orient="auto"
-       inkscape:stockid="Arrow1Mend"
-       inkscape:isstock="true">
-      <path
-         transform="matrix(-0.4,0,0,-0.4,-4,0)"
-         style="fill:#000000;fill-opacity:1;fill-rule:evenodd;stroke:#000000;stroke-width:1pt;stroke-opacity:1"
-         d="M 0,0 5,-5 -12.5,0 5,5 Z"
-         id="path920" />
-    </marker>
-    <marker
-       inkscape:stockid="Arrow2Lend"
-       orient="auto"
-       refY="0"
-       refX="0"
-       id="Arrow2Lend"
-       style="overflow:visible">
-      <path
-         id="path4784"
-         style="fill-rule:evenodd;stroke-width:0.625;stroke-linejoin:round"
-         d="M 8.7185878,4.0337352 -2.2072895,0.01601326 8.7185884,-4.0017078 c -1.7454984,2.3720609 -1.7354408,5.6174519 -6e-7,8.035443 z"
-         transform="matrix(-1.1,0,0,-1.1,-1.1,0)"
-         inkscape:connector-curvature="0" />
-    </marker>
-    <marker
-       inkscape:stockid="Arrow2Lstart"
-       orient="auto"
-       refY="0"
-       refX="0"
-       id="Arrow2Lstart"
-       style="overflow:visible">
-      <path
-         id="path4781"
-         style="fill-rule:evenodd;stroke-width:0.625;stroke-linejoin:round"
-         d="M 8.7185878,4.0337352 -2.2072895,0.01601326 8.7185884,-4.0017078 c -1.7454984,2.3720609 -1.7354408,5.6174519 -6e-7,8.035443 z"
-         transform="matrix(1.1,0,0,1.1,1.1,0)"
-         inkscape:connector-curvature="0" />
     </marker>
     <marker
        style="overflow:visible"
@@ -184,8 +114,10 @@
          y="868.36218"
          id="tspan4237"
          style="font-size:12px;line-height:1.25;font-family:sans-serif">src: <tspan
-   style="fill:#0000ff"
-   id="tspan1291">203.0.113.16</tspan>:80</tspan><tspan
+   style="fill:#cd87de;fill-opacity:1"
+   id="tspan1291">203.0.113.16</tspan>:<tspan
+   style="fill:#327821;fill-opacity:1"
+   id="tspan983">80</tspan></tspan><tspan
          sodipodi:role="line"
          x="424"
          y="883.36218"
@@ -193,7 +125,7 @@
          style="font-size:12px;line-height:1.25;font-family:sans-serif">dst: <tspan
    style="fill:#aa8800;fill-opacity:1"
    id="tspan1293">203.0.113.1</tspan>:<tspan
-   style="fill:#008080"
+   style="fill:#5577ff;fill-opacity:1"
    id="tspan1295">5678</tspan></tspan></text>
     <path
        style="fill:none;stroke:#000000;stroke-width:2;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1;marker-start:url(#Arrow1Mstart)"
@@ -207,7 +139,7 @@
        d="m 84.353553,688.36218 v 24 l -8,8 h 31.999997 l 8,-8 v -24 z m 2,2 h 27.999997 v 20 H 86.353553 Z" />
     <text
        xml:space="preserve"
-       style="font-style:normal;font-weight:normal;line-height:0%;font-family:sans-serif;text-align:center;letter-spacing:0px;word-spacing:0px;text-anchor:middle;display:inline;fill:#008000;fill-opacity:1;stroke:none;"
+       style="font-style:normal;font-weight:normal;line-height:0%;font-family:sans-serif;text-align:center;letter-spacing:0px;word-spacing:0px;text-anchor:middle;display:inline;fill:#ff9955;fill-opacity:1;stroke:none;"
        x="100"
        y="705.36224"
        id="text3042"><tspan
@@ -215,18 +147,18 @@
          id="tspan3044"
          x="100"
          y="705.36224"
-         style="font-size:14px;line-height:1.25;font-family:sans-serif;text-align:center;text-anchor:middle;fill:#008000;">A</tspan></text>
+         style="font-size:14px;line-height:1.25;font-family:sans-serif;text-align:center;text-anchor:middle;fill:#ff9955;fill-opacity:1;">A</tspan></text>
     <text
        id="text3141"
        y="705.36224"
        x="548"
-       style="font-style:normal;font-weight:normal;line-height:0%;font-family:sans-serif;text-align:center;letter-spacing:0px;word-spacing:0px;text-anchor:middle;display:inline;fill:#0000ff;fill-opacity:1;stroke:none;"
+       style="font-style:normal;font-weight:normal;line-height:0%;font-family:sans-serif;text-align:center;letter-spacing:0px;word-spacing:0px;text-anchor:middle;display:inline;fill:#cd87de;fill-opacity:1;stroke:none;"
        xml:space="preserve"><tspan
          y="705.36224"
          x="548"
          id="tspan3143"
          sodipodi:role="line"
-         style="font-size:14px;line-height:1.25;font-family:sans-serif;text-align:center;text-anchor:middle;fill:#0000ff;">V</tspan></text>
+         style="font-size:14px;line-height:1.25;font-family:sans-serif;text-align:center;text-anchor:middle;fill:#cd87de;fill-opacity:1;">V</tspan></text>
     <g
        id="g997"
        transform="translate(2,5)">
@@ -376,7 +308,7 @@
          id="tspan959"><tspan
    style="fill:#aa8800;fill-opacity:1"
    id="tspan977">203.0.113.1</tspan>:<tspan
-   style="fill:#008080"
+   style="fill:#5577ff;fill-opacity:1"
    id="tspan975">5678</tspan>!</tspan><tspan
          sodipodi:role="line"
          x="320"
@@ -386,9 +318,9 @@
          x="320"
          y="969.86218"
          id="tspan958"><tspan
-   style="fill:#008000"
+   style="fill:#ff9955;fill-opacity:1"
    id="tspan960">192.168.0.8</tspan>:<tspan
-   style="fill:#ff6600"
+   style="fill:#0066aa;fill-opacity:1"
    id="tspan962">1234</tspan>.</tspan></text>
     <use
        x="0"
@@ -414,9 +346,9 @@
          id="tspan1233"
          x="96"
          y="80"><tspan
-   style="text-align:center;text-anchor:middle;fill:#008000"
+   style="text-align:center;text-anchor:middle;fill:#ff9955;fill-opacity:1"
    id="tspan980">192.168.0.8</tspan>:<tspan
-   style="text-align:center;text-anchor:middle;fill:#ff6600"
+   style="text-align:center;text-anchor:middle;fill:#0066aa;fill-opacity:1"
    id="tspan984">1234</tspan></tspan></text>
     <path
        style="display:inline;fill:#ff8080;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
@@ -436,7 +368,7 @@
          y="80"><tspan
    style="text-align:center;text-anchor:middle;fill:#aa8800;fill-opacity:1"
    id="tspan999">203.0.113.1</tspan>:<tspan
-   style="text-align:center;text-anchor:middle;fill:#008080"
+   style="text-align:center;text-anchor:middle;fill:#5577ff;fill-opacity:1"
    id="tspan1001">5678</tspan></tspan></text>
     <text
        xml:space="preserve"
@@ -449,13 +381,10 @@
          id="tspan1038"
          x="256"
          y="80"><tspan
-   style="fill:#0000ff"
-   id="tspan1065">203.0.113.16</tspan>:80</tspan></text>
-    <path
-       style="display:inline;fill:none;stroke:#000000;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
-       d="m 212,76 h 88"
-       id="path1067"
-       transform="translate(0,668.36218)" />
+   style="fill:#cd87de;fill-opacity:1"
+   id="tspan1065">203.0.113.16</tspan>:<tspan
+   style="fill:#327821;fill-opacity:1"
+   id="tspan978">80</tspan></tspan></text>
     <text
        xml:space="preserve"
        style="font-size:10px;line-height:1.25;font-family:sans-serif;text-align:center;text-anchor:middle;display:inline"
@@ -466,8 +395,10 @@
          id="tspan1038-6"
          x="544"
          y="748.36218"><tspan
-   style="fill:#0000ff"
-   id="tspan1065-7">203.0.113.16</tspan>:80</tspan></text>
+   style="fill:#cd87de;fill-opacity:1"
+   id="tspan1065-7">203.0.113.16</tspan>:<tspan
+   style="fill:#327821;fill-opacity:1"
+   id="tspan981">80</tspan></tspan></text>
     <text
        xml:space="preserve"
        style="font-style:normal;font-weight:normal;line-height:0%;font-family:sans-serif;text-align:center;letter-spacing:0px;word-spacing:0px;text-anchor:middle;display:inline;fill:#000000;fill-opacity:1;stroke:none"
@@ -479,16 +410,18 @@
          y="1076.3622"
          id="tspan4237-6"
          style="font-size:12px;line-height:1.25;font-family:sans-serif">src: <tspan
-   style="fill:#0000ff"
-   id="tspan1291-2">203.0.113.16</tspan>:80</tspan><tspan
+   style="fill:#cd87de;fill-opacity:1"
+   id="tspan1291-2">203.0.113.16</tspan>:<tspan
+   style="fill:#327821;fill-opacity:1"
+   id="tspan985">80</tspan></tspan><tspan
          sodipodi:role="line"
          x="200"
          y="1091.3622"
          id="tspan4241-9"
          style="font-size:12px;line-height:1.25;font-family:sans-serif">dst: <tspan
-   style="fill:#008000"
+   style="fill:#ff9955;fill-opacity:1"
    id="tspan1450">192.168.0.8</tspan>:<tspan
-   style="fill:#ff6600"
+   style="fill:#0066aa;fill-opacity:1"
    id="tspan1448">1234</tspan></tspan></text>
     <path
        style="display:inline;fill:none;stroke:#000000;stroke-width:2;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1;marker-start:url(#Arrow1Mstart-5)"
@@ -532,5 +465,15 @@
            x="384"
            y="864.36218">2 + 2 = 4</tspan></text>
     </g>
+  </g>
+  <g
+     inkscape:groupmode="layer"
+     id="layer2"
+     inkscape:label="tmp"
+     sodipodi:insensitive="true">
+    <path
+       style="display:inline;fill:none;stroke:#000000;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+       d="m 212,76 h 88"
+       id="path1067" />
   </g>
 </svg>
