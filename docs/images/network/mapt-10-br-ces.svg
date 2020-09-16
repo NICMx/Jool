@@ -12,10 +12,39 @@
    height="512"
    id="svg3053"
    version="1.1"
-   inkscape:version="1.0 (b51213c273, 2020-08-10)"
+   inkscape:version="1.0.1 (3bc2e813f5, 2020-09-07)"
    sodipodi:docname="mapt-10-br-ces.svg">
   <defs
      id="defs3055">
+    <marker
+       style="overflow:visible;"
+       id="marker1285"
+       refX="0.0"
+       refY="0.0"
+       orient="auto"
+       inkscape:stockid="Arrow1Mend"
+       inkscape:isstock="true">
+      <path
+         transform="scale(0.4) rotate(180) translate(10,0)"
+         style="fill-rule:evenodd;stroke:#000000;stroke-width:1pt;stroke-opacity:1;fill:#000000;fill-opacity:1"
+         d="M 0.0,0.0 L 5.0,-5.0 L -12.5,0.0 L 5.0,5.0 L 0.0,0.0 z "
+         id="path1283" />
+    </marker>
+    <marker
+       style="overflow:visible;"
+       id="Arrow1Mend"
+       refX="0.0"
+       refY="0.0"
+       orient="auto"
+       inkscape:stockid="Arrow1Mend"
+       inkscape:isstock="true"
+       inkscape:collect="always">
+      <path
+         transform="scale(0.4) rotate(180) translate(10,0)"
+         style="fill-rule:evenodd;stroke:#000000;stroke-width:1pt;stroke-opacity:1;fill:#000000;fill-opacity:1"
+         d="M 0.0,0.0 L 5.0,-5.0 L -12.5,0.0 L 5.0,5.0 L 0.0,0.0 z "
+         id="path920" />
+    </marker>
     <rect
        x="256"
        y="716.36218"
@@ -36,7 +65,7 @@
      inkscape:document-units="px"
      inkscape:current-layer="layer1"
      showgrid="true"
-     inkscape:snap-bbox="true"
+     inkscape:snap-bbox="false"
      inkscape:snap-bbox-midpoints="true"
      inkscape:window-width="1920"
      inkscape:window-height="1043"
@@ -44,7 +73,8 @@
      inkscape:window-y="0"
      inkscape:window-maximized="1"
      inkscape:document-rotation="0"
-     inkscape:snap-global="true">
+     inkscape:snap-global="true"
+     inkscape:snap-text-baseline="true">
     <inkscape:grid
        type="xygrid"
        id="grid3061"
@@ -52,8 +82,8 @@
        visible="true"
        enabled="true"
        snapvisiblegridlinesonly="true"
-       spacingx="16"
-       spacingy="16"
+       spacingx="8"
+       spacingy="8"
        originx="0"
        originy="0" />
   </sodipodi:namedview>
@@ -65,7 +95,7 @@
         <dc:format>image/svg+xml</dc:format>
         <dc:type
            rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
-        <dc:title />
+        <dc:title></dc:title>
       </cc:Work>
     </rdf:RDF>
   </metadata>
@@ -75,6 +105,34 @@
      id="layer1"
      transform="translate(0,-668.36218)"
      style="display:inline">
+    <rect
+       style="fill:#ffffff;stroke:#000000;stroke-linecap:square;stroke-linejoin:round;stroke-width:2;stroke-miterlimit:4;stroke-dasharray:none"
+       id="rect1357"
+       width="160"
+       height="16"
+       x="192"
+       y="828.36218" />
+    <rect
+       style="fill:#ffffff;stroke:#000000;stroke-linecap:square;stroke-linejoin:round;stroke-width:2;stroke-miterlimit:4;stroke-dasharray:none"
+       id="rect1359"
+       width="160"
+       height="15.999997"
+       x="192"
+       y="1052.3622" />
+    <rect
+       style="fill:#ffffff;stroke:#000000;stroke-linecap:square;stroke-linejoin:round;stroke-width:2;stroke-miterlimit:4;stroke-dasharray:none"
+       id="rect1361"
+       width="160"
+       height="16"
+       x="192"
+       y="1084.3622" />
+    <rect
+       style="fill:#ffffff;stroke:#000000;stroke-width:2;stroke-linecap:square;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none"
+       id="rect1355"
+       width="160"
+       height="15.999997"
+       x="192"
+       y="700.36218" />
     <path
        style="fill:none;stroke:#000000;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
        d="M 176,956.36218 H 288"
@@ -409,5 +467,70 @@
          style="font-size:11px;line-height:1.25;font-family:sans-serif">CE<tspan
    style="font-size:65%;baseline-shift:sub"
    id="tspan952">3</tspan></tspan></text>
+    <text
+       xml:space="preserve"
+       style="font-size:10px;line-height:1.25;font-family:sans-serif;text-align:start;letter-spacing:0px;text-anchor:start"
+       x="196"
+       y="712.36218"
+       id="text891"><tspan
+         sodipodi:role="line"
+         id="tspan889"
+         x="196"
+         y="712.36218">192.0.2.1, ports 0-16383</tspan></text>
+    <text
+       xml:space="preserve"
+       style="font-size:10px;line-height:1.25;font-family:sans-serif;letter-spacing:0px"
+       x="196"
+       y="840.36218"
+       id="text899"><tspan
+         sodipodi:role="line"
+         id="tspan897"
+         x="196"
+         y="840.36218">192.0.2.1, ports 16384-32767</tspan></text>
+    <text
+       xml:space="preserve"
+       style="font-size:10px;line-height:1.25;font-family:sans-serif;letter-spacing:0px"
+       x="196"
+       y="1064.3622"
+       id="text903"><tspan
+         sodipodi:role="line"
+         id="tspan901"
+         x="196"
+         y="1064.3622">192.0.2.1, ports 32768-49161</tspan></text>
+    <text
+       xml:space="preserve"
+       style="font-size:10px;line-height:1.25;font-family:sans-serif;letter-spacing:0px"
+       x="196"
+       y="1096.3622"
+       id="text907"><tspan
+         sodipodi:role="line"
+         id="tspan905"
+         x="196"
+         y="1096.3622">192.0.2.1, ports 49152-65535</tspan></text>
+    <path
+       style="fill:none;stroke:#000000;stroke-width:2;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1;marker-end:url(#Arrow1Mend)"
+       d="m 192,716.36218 -30,10"
+       id="path909"
+       sodipodi:nodetypes="cc" />
+    <use
+       x="0"
+       y="0"
+       xlink:href="#path909"
+       id="use1427"
+       transform="translate(0,128)"
+       width="100%"
+       height="100%" />
+    <use
+       x="0"
+       y="0"
+       xlink:href="#path909"
+       id="use1429"
+       transform="translate(0,384)"
+       width="100%"
+       height="100%" />
+    <path
+       style="fill:none;stroke:#000000;stroke-width:2;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;stroke-miterlimit:4;stroke-dasharray:none;marker-end:url(#marker1285)"
+       d="m 192,1052.3622 -32,-16"
+       id="path1479" />
   </g>
 </svg>

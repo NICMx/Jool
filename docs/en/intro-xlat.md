@@ -20,7 +20,7 @@ title: Introduction to IPv4/IPv6 Translation
    5. [NAPT](#napt)
    6. [Stateful NAT64](#stateful-nat64)
    7. [464XLAT](#464xlat)
-   8. [MAP-T](#mapt)
+   8. [MAP-T](#map-t)
 
 ## Introduction
 
@@ -321,13 +321,13 @@ TODO
 
 <!-- https://github.com/NICMx/Jool/blob/265a4d24b6639ab262a5e48596d9fc0350066e35/en/intro-xlat.md -->
 
-(Note: This is an oversimplification meant as a general introduction. The terminology is particularly concealed because I'm not a fan of the official one. Please read the MAP-T tutorial to learn more.)
+(Note: This is an oversimplification meant as a general introduction. The terminology is particularly concealed because I'm not a fan of the official one. Please read the [MAP-T tutorial](map-t.html) after this to learn more.)
 
 Suppose you're an Internet Service Provider (ISP) with 4 customers, but you only have one IPv4 address free to distribute among them.
 
 ![Network Diagram: ISP, 4 nodes, 1 IPv4 address](../images/network/mapt-0-problem.svg)
 
-The idea of MAP-T is to "subdivide" your IPv4 address into equal slices, and give each slice to a separate customer. (And make everything else pure IPv6.)
+The idea of MAP-T is to "subdivide" your IPv4 address into equal slices, and give each slice to a separate customer. (And make the rest of the _ISP_ cloud pure IPv6.)
 
 How do you "subdivide" an IPv4 address? By remembering that each address has 65536 ports per transport protocol:
 
@@ -350,7 +350,7 @@ Suppose we've decided to reserve subnetwork <span style="background-color:#e9afd
 
 The packet first gets NAPT'd from a private IPv4 transport address into a pseudorandom public IPv4 transport address that can be used by the CE.
 
-Though you can be forgiven if you’ve never NAPT’d into a reduced port range, you can be assured that this is a perfectly ordinary stateful NAT operation. Phe packet would already be routable, if we had an IPv4 network on hand.
+Though you can be forgiven if you’ve never NAPT’d into a reduced port range, you can be assured that this is a perfectly ordinary stateful NAT operation. The packet would already be routable, if we had an IPv4 network on hand.
 
 ![Packet Flow: 192.0.2.1:40000--203.0.113.56:80 becomes 2001:db8:4464:2:::40000--64:ff9b::203.0.113.56:80](../images/flow/mapt-2.svg)
 
@@ -376,7 +376,7 @@ Things end by continuing to happen in reverse.
 
 Of course, while MAP-T is a technique primarily preoccupied with transferring IPv4 traffic through an IPv6 backbone, there's nothing stopping you from also assigning IPv6 addresses to your customers, and have that traffic routed normally.
 
-As you might have noticed, MAP-T is most similar to 464XLAT. While 464XLAT relies on stateless translators in the customer edge, and a stateful translator as the IPv4 Internet door, MAP-T uses stateless translators exclusively, while also having stateful NATs in the customer edge. In 464XLAT, the PLAT creates mappings on demand, while MAP-T has those allocations predefined (“pre-sliced”) by configuration.
+As you might have noticed, MAP-T is most similar to 464XLAT. You can think of the _BR_ as a "stateless" Stateful NAT64, since all the mappings are preallocated instead of dynamic. While 464XLAT relies on stateless translators in the customer edge, and a stateful translator as the IPv4 Internet door, MAP-T uses stateless translators exclusively, while also having stateful NATs in the customer edge. In 464XLAT, the PLAT creates mappings on demand, while MAP-T has those allocations predefined (“pre-sliced”) by configuration.
 
 | 464XLAT | MAP-T |
 |---------|-------|
@@ -384,4 +384,8 @@ As you might have noticed, MAP-T is most similar to 464XLAT. While 464XLAT relie
 | The PLAT assigns public transport addresses to customers on demand. (Customers needing lots of public transport addresses will get more than those who need few.) | Everyone is assigned the same number of public transport addresses. |
 | One customer can perform DoS to other customers by exhausting the PLAT's public transport address pool. | One customer cannot steal other customers' public transport addresses because they're all preallocated by configuration. |
 
+MAP-T is formally defined by [RFC 7599](https://tools.ietf.org/html/rfc7599) and, to a significant extent, [RFC 7597](https://tools.ietf.org/html/rfc7597).
 
+> ![Warning!](../images/warning.svg) A word of caution: It is my personal opinion that these are not the most well-written RFCs ever devised by the IETF, and if you're going to consume them, I suggest that you read RFC 7597's Appendix B instead of RFC 7597's section 5.1. (And skip 5.1 entirely.)
+> 
+> Or just read [Jool's layman's MAP-T](map-t.html).
