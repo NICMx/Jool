@@ -37,8 +37,8 @@ int blacklist4_flush(struct addr4_pool *pool)
 	return pool_flush(pool);
 }
 
-#define NOT_BLACKLISTED false
-#define BLACKLISTED true
+#define ALLOW_ADDRESS false
+#define DENY_ADDRESS true
 
 /* "Check interface address" */
 static int check_ifa(struct in_ifaddr *ifa, void const *arg)
@@ -51,20 +51,23 @@ static int check_ifa(struct in_ifaddr *ifa, void const *arg)
 	if (ifa->ifa_prefixlen < 31) {
 		ifaddr.s_addr = ifa->ifa_local | ~ifa->ifa_mask;
 		if (ipv4_addr_cmp(&ifaddr, query) == 0)
-			return BLACKLISTED;
+			return DENY_ADDRESS;
 	}
 
-	/* Secondary addresses */
-	/* https://github.com/NICMx/Jool/issues/223 */
+	/* Secondary address (https://github.com/NICMx/Jool/issues/223) */
 	if (ifa->ifa_flags & IFA_F_SECONDARY)
-		return NOT_BLACKLISTED;
+		return ALLOW_ADDRESS;
+	/* /32 (https://github.com/NICMx/Jool/issues/342) */
+	if (ifa->ifa_prefixlen == 32)
+		return ALLOW_ADDRESS;
 
-	/* Primary addresses */
+	/* Address belongs to this node */
 	ifaddr.s_addr = ifa->ifa_local;
 	if (ipv4_addr_cmp(&ifaddr, query) == 0)
-		return BLACKLISTED;
+		return DENY_ADDRESS;
 
-	return NOT_BLACKLISTED;
+	/* Anything else */
+	return ALLOW_ADDRESS;
 }
 
 /**
