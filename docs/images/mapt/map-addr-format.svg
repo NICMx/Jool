@@ -18,12 +18,42 @@
      id="defs2">
     <marker
        style="overflow:visible"
-       id="marker989"
+       id="marker1099"
        refX="0"
        refY="0"
        orient="auto"
        inkscape:stockid="StopL"
        inkscape:isstock="true">
+      <path
+         transform="scale(0.8)"
+         style="fill:none;fill-opacity:0.75;fill-rule:evenodd;stroke:#000000;stroke-width:1pt;stroke-opacity:1"
+         d="M 0,5.65 V -5.65"
+         id="path1097" />
+    </marker>
+    <marker
+       style="overflow:visible"
+       id="marker1003"
+       refX="0"
+       refY="0"
+       orient="auto"
+       inkscape:stockid="StopL"
+       inkscape:isstock="true"
+       inkscape:collect="always">
+      <path
+         transform="scale(0.8)"
+         style="fill:none;fill-opacity:0.75;fill-rule:evenodd;stroke:#000000;stroke-width:1pt;stroke-opacity:1"
+         d="M 0,5.65 V -5.65"
+         id="path1001" />
+    </marker>
+    <marker
+       style="overflow:visible"
+       id="marker989"
+       refX="0"
+       refY="0"
+       orient="auto"
+       inkscape:stockid="StopL"
+       inkscape:isstock="true"
+       inkscape:collect="always">
       <path
          transform="scale(0.8)"
          style="fill:none;fill-opacity:0.75;fill-rule:evenodd;stroke:#000000;stroke-width:1pt;stroke-opacity:1"
@@ -137,7 +167,7 @@
      inkscape:cx="272"
      inkscape:cy="48"
      inkscape:document-units="px"
-     inkscape:current-layer="layer1"
+     inkscape:current-layer="layer2"
      inkscape:document-rotation="0"
      showgrid="true"
      units="px"
@@ -147,13 +177,13 @@
      inkscape:window-y="0"
      inkscape:window-maximized="1"
      inkscape:snap-text-baseline="true"
-     inkscape:pagecheckerboard="false">
+     inkscape:pagecheckerboard="true">
     <inkscape:grid
        type="xygrid"
        id="grid833"
        originx="0"
-       spacingx="4.2333333"
-       spacingy="4.2333333"
+       spacingx="2.1166668"
+       spacingy="2.1166668"
        empspacing="8" />
   </sodipodi:namedview>
   <metadata
@@ -174,18 +204,13 @@
      inkscape:label="Boxes"
      style="display:inline">
     <path
-       style="fill:none;stroke:#000000;stroke-width:0.264583px;stroke-linecap:butt;stroke-linejoin:round;stroke-opacity:1;marker-start:url(#marker1759);marker-end:url(#marker1759)"
-       d="m 4.2333334,21.166666 135.4666766,-2e-6"
+       style="fill:none;stroke:#000000;stroke-width:0.264583px;stroke-linecap:butt;stroke-linejoin:round;stroke-opacity:1;marker-start:url(#marker1759)"
+       d="m 4.2333334,21.166666 60.3250066,-2e-6"
        id="path1755"
        sodipodi:nodetypes="cc" />
     <path
-       id="rect1843"
-       style="fill:#ffffff;stroke:none;stroke-width:0.264583;stroke-linecap:square;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none"
-       d="m 64.558336,18.520831 h 14.816667 v 5.820834 H 64.558336 Z"
-       sodipodi:nodetypes="ccccc" />
-    <path
-       style="display:inline;fill:none;stroke:#000000;stroke-width:0.264583;stroke-linecap:butt;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1;marker-start:url(#StopL);marker-end:url(#StopL)"
-       d="m 71.96669,4.2333319 h 67.73337"
+       style="display:inline;fill:none;stroke:#000000;stroke-width:0.264583;stroke-linecap:butt;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1;marker-start:url(#StopL)"
+       d="m 71.96669,4.2333319 25.399983,1.7e-6"
        id="path902"
        sodipodi:nodetypes="cc" />
     <rect
@@ -231,20 +256,23 @@
        x="46.566662"
        y="8.4666653" />
     <path
-       id="rect1380"
-       style="display:inline;fill:#ffffff;stroke:none;stroke-width:0.264583;stroke-linecap:square;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none"
-       d="M 97.366718,1.5874992 H 114.30006 V 6.8791649 H 97.366718 Z"
-       sodipodi:nodetypes="ccccc" />
-    <path
-       style="fill:none;stroke:#000000;stroke-width:0.264583px;stroke-linecap:butt;stroke-linejoin:round;stroke-opacity:1;marker-start:url(#marker1636);marker-end:url(#marker1636)"
-       d="M 4.2333334,4.2333329 H 59.266667"
+       style="fill:none;stroke:#000000;stroke-width:0.264583;stroke-linecap:butt;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1;marker-start:url(#marker1636)"
+       d="m 4.2333334,4.2333329 12.7000006,7e-7"
        id="path1632"
        sodipodi:nodetypes="cc" />
     <path
-       id="rect1722"
-       style="fill:#ffffff;stroke:none;stroke-width:0.264583;stroke-linecap:square;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none"
-       d="M 19.050007,1.5875002 H 48.683342 V 6.8791669 H 19.050007 Z"
-       sodipodi:nodetypes="ccccc" />
+       style="fill:none;stroke:#000000;stroke-width:0.264583px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;marker-end:url(#marker989)"
+       d="m 46.566668,4.2333334 h 12.7"
+       id="path973" />
+    <path
+       style="fill:none;stroke:#000000;stroke-width:0.264583px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;marker-end:url(#marker1003)"
+       d="m 114.30001,4.2333334 h 25.4"
+       id="path999" />
+    <path
+       style="fill:none;stroke:#000000;stroke-width:0.264583px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;marker-end:url(#marker1099)"
+       d="M 79.375005,21.166668 H 139.70001"
+       id="path1095"
+       sodipodi:nodetypes="cc" />
   </g>
   <g
      inkscape:label="Text"
@@ -254,12 +282,12 @@
     <text
        xml:space="preserve"
        style="font-size:2.64583px;line-height:1.25;font-family:sans-serif;text-align:center;letter-spacing:0px;text-anchor:middle;stroke-width:0.264583;stroke-linejoin:round"
-       x="33.866665"
+       x="31.749996"
        y="5.291666"
        id="text833"><tspan
          sodipodi:role="line"
          id="tspan831"
-         x="33.866665"
+         x="31.749996"
          y="5.291666"
          style="stroke-width:0.264583;stroke-linejoin:round">End-user IPv6 prefix</tspan></text>
     <text

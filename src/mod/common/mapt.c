@@ -182,7 +182,7 @@ static verdict ce46_src(struct xlation *state, __be32 in, struct in6_addr *out)
 	q = get_q(&cfg->bmr);
 	packet_psid = 0;
 
-	/* Check the NAT made sure the port belongs to us */
+	/* Check the NAPT made sure the port belongs to us */
 	if (q > 0) {
 		result = prpf_get_psid(state, &cfg->bmr, get_sport(&state->in),
 				&packet_psid);

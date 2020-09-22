@@ -12,8 +12,8 @@
    viewBox="0 0 93.133331 88.899991"
    version="1.1"
    id="svg8"
-   inkscape:version="1.0 (b51213c273, 2020-08-10)"
-   sodipodi:docname="mapt-port-division.svg">
+   inkscape:version="1.0.1 (3bc2e813f5, 2020-09-07)"
+   sodipodi:docname="port-division.svg">
   <defs
      id="defs2">
     <marker
@@ -30,20 +30,6 @@
          d="M 0,0 5,-5 -12.5,0 5,5 Z"
          id="path1230" />
     </marker>
-    <marker
-       style="overflow:visible"
-       id="Arrow1Lend"
-       refX="0"
-       refY="0"
-       orient="auto"
-       inkscape:stockid="Arrow1Lend"
-       inkscape:isstock="true">
-      <path
-         transform="matrix(-0.8,0,0,-0.8,-10,0)"
-         style="fill:#000000;fill-opacity:1;fill-rule:evenodd;stroke:#000000;stroke-width:1pt;stroke-opacity:1"
-         d="M 0,0 5,-5 -12.5,0 5,5 Z"
-         id="path1218" />
-    </marker>
   </defs>
   <sodipodi:namedview
      id="base"
@@ -52,9 +38,9 @@
      borderopacity="1.0"
      inkscape:pageopacity="0.0"
      inkscape:pageshadow="2"
-     inkscape:zoom="1.4142136"
-     inkscape:cx="138.03417"
-     inkscape:cy="230.37041"
+     inkscape:zoom="2.5595238"
+     inkscape:cx="176"
+     inkscape:cy="168"
      inkscape:document-units="px"
      inkscape:current-layer="layer1"
      inkscape:document-rotation="0"
@@ -82,14 +68,15 @@
         <dc:format>image/svg+xml</dc:format>
         <dc:type
            rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
-        <dc:title></dc:title>
+        <dc:title />
       </cc:Work>
     </rdf:RDF>
   </metadata>
   <g
      inkscape:label="Layer 1"
      inkscape:groupmode="layer"
-     id="layer1">
+     id="layer1"
+     style="display:inline">
     <rect
        style="fill:#ffffff;fill-opacity:0.639216;stroke:#000000;stroke-width:0.3;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1"
        id="rect1054"

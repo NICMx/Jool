@@ -12,17 +12,10 @@
    height="512"
    id="svg3053"
    version="1.1"
-   inkscape:version="1.0 (b51213c273, 2020-08-10)"
-   sodipodi:docname="mapt-0-problem.svg">
+   inkscape:version="1.0.1 (3bc2e813f5, 2020-09-07)"
+   sodipodi:docname="problem.svg">
   <defs
-     id="defs3055">
-    <rect
-       x="256"
-       y="716.36218"
-       width="192"
-       height="48"
-       id="rect1067" />
-  </defs>
+     id="defs3055" />
   <sodipodi:namedview
      id="base"
      pagecolor="#ffffff"
@@ -30,13 +23,13 @@
      borderopacity="1.0"
      inkscape:pageopacity="0.0"
      inkscape:pageshadow="2"
-     inkscape:zoom="1.4142136"
-     inkscape:cx="217.29104"
-     inkscape:cy="263.03247"
+     inkscape:zoom="1.6796875"
+     inkscape:cx="280"
+     inkscape:cy="256"
      inkscape:document-units="px"
      inkscape:current-layer="layer1"
      showgrid="true"
-     inkscape:snap-bbox="true"
+     inkscape:snap-bbox="false"
      inkscape:snap-bbox-midpoints="true"
      inkscape:window-width="1920"
      inkscape:window-height="1043"
@@ -44,7 +37,8 @@
      inkscape:window-y="0"
      inkscape:window-maximized="1"
      inkscape:document-rotation="0"
-     inkscape:snap-global="true">
+     inkscape:snap-global="true"
+     inkscape:snap-text-baseline="true">
     <inkscape:grid
        type="xygrid"
        id="grid3061"
@@ -179,12 +173,12 @@
        height="100%" />
     <text
        id="text3438-3"
-       y="962.91443"
-       x="287.42871"
+       y="956.36218"
+       x="288"
        style="font-style:normal;font-weight:normal;line-height:0%;font-family:sans-serif;text-align:center;letter-spacing:0px;word-spacing:0px;text-anchor:middle;display:inline;fill:#000000;fill-opacity:1;stroke:none"
        xml:space="preserve"><tspan
-         y="962.91443"
-         x="287.42871"
+         y="956.36218"
+         x="288"
          id="tspan3440-6"
          sodipodi:role="line"
          style="font-size:18px;line-height:1.25;font-family:sans-serif;text-align:center;text-anchor:middle">ISP</tspan></text>
@@ -284,5 +278,15 @@
          id="tspan912"
          x="431.86328"
          y="738.1864">192.0.2.1</tspan></text>
+    <text
+       xml:space="preserve"
+       style="font-size:12px;line-height:1.25;font-family:sans-serif;text-align:center;letter-spacing:0px;text-anchor:middle"
+       x="288"
+       y="972.36218"
+       id="text871"><tspan
+         sodipodi:role="line"
+         id="tspan869"
+         x="288"
+         y="972.36218">(IPv6)</tspan></text>
   </g>
 </svg>
