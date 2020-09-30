@@ -49,11 +49,9 @@ int pool6_validate(struct config_prefix6 *prefix, bool force)
 	return validate_ubit(&prefix->prefix, force);
 }
 
-int globals_init(struct jool_globals *config, xlator_type type,
-		struct ipv6_prefix *pool6)
+int globals_init(struct jool_globals *config, xlator_type type)
 {
 	static const __u16 PLATEAUS[] = DEFAULT_MTU_PLATEAUS;
-	int error;
 
 	config->enabled = DEFAULT_INSTANCE_ENABLED;
 #ifdef DEBUG
@@ -61,19 +59,7 @@ int globals_init(struct jool_globals *config, xlator_type type,
 #else
 	config->debug = false;
 #endif
-
-	if (pool6) {
-		config->pool6.set = true;
-		config->pool6.prefix = *pool6;
-	} else {
-		config->pool6.set = false;
-	}
-
-	/* TODO (fine) force */
-	error = pool6_validate(&config->pool6, true);
-	if (error)
-		return error;
-
+	config->pool6.set = false;
 	config->reset_traffic_class = DEFAULT_RESET_TRAFFIC_CLASS;
 	config->reset_tos = DEFAULT_RESET_TOS;
 	config->new_tos = DEFAULT_NEW_TOS;
@@ -114,7 +100,8 @@ int globals_init(struct jool_globals *config, xlator_type type,
 		break;
 
 	case XT_MAPT:
-		return mapt_init(&config->mapt, 6, NULL, NULL);
+		config->mapt.type = MAPTYPE_BR;
+		break;
 
 	default:
 		log_err("Unknown translator type: %d", type);
@@ -123,6 +110,7 @@ int globals_init(struct jool_globals *config, xlator_type type,
 
 	return 0;
 }
+EXPORT_UNIT_SYMBOL(globals_init);
 
 int globals_foreach(struct jool_globals *config,
 		xlator_type xt,

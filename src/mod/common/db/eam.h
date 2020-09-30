@@ -32,8 +32,6 @@ int eamt_rm(struct eam_table *eamt, struct ipv6_prefix *prefix6,
 		struct ipv4_prefix *prefix4);
 void eamt_flush(struct eam_table *eamt);
 
-int eamt_count(struct eam_table *eamt, __u64 *count);
-
 typedef int (*eamt_foreach_cb)(struct eamt_entry const *, void *);
 int eamt_foreach(struct eam_table *eamt,
 		eamt_foreach_cb cb, void *arg,

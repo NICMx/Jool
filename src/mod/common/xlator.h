@@ -58,7 +58,7 @@ int xlator_setup(void);
 void xlator_set_defrag(void (*defrag_enable)(struct net *ns));
 void xlator_teardown(void);
 
-int xlator_add(xlator_flags flags, char *iname, struct ipv6_prefix *pool6,
+int xlator_add(xlator_flags flags, char *iname, struct jool_globals *globals,
 		struct xlator *result);
 int xlator_rm(xlator_type xt, char *iname);
 int xlator_flush(xlator_type xt);
@@ -66,7 +66,7 @@ void jool_xlator_flush_net(struct net *ns, xlator_type xt);
 void jool_xlator_flush_batch(struct list_head *net_exit_list, xlator_type xt);
 
 int xlator_init(struct xlator *jool, struct net *ns, char *iname,
-		xlator_flags flags, struct ipv6_prefix *pool6);
+		xlator_flags flags, struct jool_globals *globals);
 int xlator_replace(struct xlator *jool);
 
 /* Any context (reads) */

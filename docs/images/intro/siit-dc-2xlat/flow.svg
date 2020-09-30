@@ -153,7 +153,7 @@
         <dc:format>image/svg+xml</dc:format>
         <dc:type
            rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
-        <dc:title></dc:title>
+        <dc:title />
       </cc:Work>
     </rdf:RDF>
   </metadata>
@@ -388,7 +388,7 @@
          id="tspan1072"
          style="font-size:12px;line-height:1.25;font-family:sans-serif">src: <tspan
    style="fill:#d40000"
-   id="tspan937">64:ff9b</tspan>::<tspan
+   id="tspan937">64:ff9b:1</tspan>::<tspan
    style="fill:#cd87de;fill-opacity:1"
    id="tspan939">192.0.2.4</tspan></tspan><tspan
          sodipodi:role="line"
@@ -624,7 +624,7 @@
          style="font-size:12px;line-height:1.25;font-family:sans-serif"
          id="tspan935-9">dst: <tspan
    style="fill:#d40000"
-   id="tspan1977">64:ff9b</tspan>::<tspan
+   id="tspan1977">64:ff9b:1</tspan>::<tspan
    style="fill:#cd87de;fill-opacity:1"
    id="tspan1979">192.0.2.4</tspan></tspan></text>
   </g>

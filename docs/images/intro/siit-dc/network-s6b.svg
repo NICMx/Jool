@@ -8,7 +8,7 @@
    xmlns:xlink="http://www.w3.org/1999/xlink"
    xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
    xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
-   width="512"
+   width="520"
    height="256"
    id="svg3053"
    version="1.1"
@@ -23,8 +23,8 @@
      borderopacity="1.0"
      inkscape:pageopacity="0.0"
      inkscape:pageshadow="2"
-     inkscape:zoom="2.5761719"
-     inkscape:cx="256"
+     inkscape:zoom="2.5365385"
+     inkscape:cx="260"
      inkscape:cy="128"
      inkscape:document-units="px"
      inkscape:current-layer="layer1"
@@ -60,7 +60,7 @@
         <dc:format>image/svg+xml</dc:format>
         <dc:type
            rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
-        <dc:title />
+        <dc:title></dc:title>
       </cc:Work>
     </rdf:RDF>
   </metadata>
@@ -103,11 +103,13 @@
          id="tspan3345"
          x="368"
          y="860.36218"
-         style="font-size:10px;line-height:1.25;font-family:sans-serif;text-align:center;text-anchor:middle;fill:#d40000">64:ff9b::/96</tspan><tspan
+         style="font-size:10px;line-height:1.25;font-family:sans-serif;text-align:center;text-anchor:middle;fill:#000000"><tspan
+   style="fill:#d40000;fill-opacity:1"
+   id="tspan874">64:ff9b:1</tspan>::/96</tspan><tspan
          sodipodi:role="line"
          x="368"
          y="872.86218"
-         style="font-size:10px;line-height:1.25;font-family:sans-serif;text-align:center;text-anchor:middle"
+         style="font-size:10px;line-height:1.25;font-family:sans-serif;text-align:center;text-anchor:middle;fill:#000000"
          id="tspan880">network</tspan></text>
     <use
        style="display:inline"
@@ -194,7 +196,7 @@
          y="888.36218"
          style="font-size:10px;line-height:1.25;font-family:sans-serif;text-align:center;text-anchor:middle;fill:#000000;fill-opacity:1"><tspan
    style="fill:#d40000"
-   id="tspan884">64:ff9b</tspan>::<tspan
+   id="tspan884">64:ff9b:1</tspan>::<tspan
    style="fill:#cd87de;fill-opacity:1"
    id="tspan882">192.0.2.4</tspan></tspan></text>
     <text

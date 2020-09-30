@@ -390,9 +390,10 @@
          x="352"
          y="1116.3622"
          id="tspan1072"
-         style="font-size:12px;line-height:1.25;font-family:sans-serif">src: [<tspan
+         style="font-size:12px;line-height:1.25;font-family:sans-serif"
+         dy="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0">src: [<tspan
    style="fill:#d40000"
-   id="tspan1070">64:ff9b</tspan>::<tspan
+   id="tspan1070">64:ff9b:1</tspan>::<tspan
    style="fill:#cd87de;fill-opacity:1"
    id="tspan1073">192.0.2.4</tspan>]:<tspan
    style="fill:#327821;fill-opacity:1"
@@ -598,7 +599,7 @@
          style="font-size:12px;line-height:1.25;font-family:sans-serif"
          id="tspan935-9">dst: [<tspan
    style="fill:#d40000"
-   id="tspan1056">64:ff9b</tspan>::<tspan
+   id="tspan1056">64:ff9b:1</tspan>::<tspan
    style="fill:#cd87de;fill-opacity:1"
    id="tspan1058">192.0.2.4</tspan>]:<tspan
    style="fill:#327821;fill-opacity:1"

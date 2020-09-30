@@ -1,17 +1,28 @@
 #include <linux/module.h>
 #include <linux/printk.h>
 
+#include "common/constants.h"
 #include "framework/unit_test.h"
 #include "framework/skb_generator.h"
 #include "framework/types.h"
 #include "mod/common/db/global.h"
-#include "mod/common/rfc7915/core.c"
-#include "mod/common/rfc7915/6to4.c"
-#include "mod/common/rfc7915/4to6.c"
+#include "mod/common/rfc7915/core.h"
+#include "mod/common/rfc7915/6to4.h"
+#include "mod/common/rfc7915/4to6.h"
 
 MODULE_LICENSE(JOOL_LICENSE);
 MODULE_AUTHOR("Alberto Leiva Popper");
 MODULE_DESCRIPTION("Translating the Packet module test.");
+
+bool has_unexpired_src_route(struct iphdr *);
+__be32 build_id_field(struct iphdr *);
+__be32 icmp6_minimum_mtu(struct xlation *, unsigned int, unsigned int,
+		unsigned int, __u16);
+verdict icmp4_to_icmp6_param_prob(struct xlation *);
+bool generate_df_flag(struct packet const *);
+__u8 xlat_proto(struct ipv6hdr const *);
+bool has_nonzero_segments_left(struct ipv6hdr const *, __u32 *);
+__be16 minimum(unsigned int, unsigned int, unsigned int);
 
 xlator_type xlator_get_type(struct xlator const *instance)
 {
@@ -140,7 +151,7 @@ static bool test_function_icmp6_minimum_mtu(void)
 	int i;
 	bool success = true;
 
-	if (globals_init(&state.jool.globals, XT_SIIT, NULL))
+	if (globals_init(&state.jool.globals, XT_SIIT))
 		return false;
 
 	/*

@@ -22,16 +22,16 @@
      borderopacity="1.0"
      inkscape:pageopacity="0.0"
      inkscape:pageshadow="2"
-     inkscape:zoom="5.0585938"
+     inkscape:zoom="5.1523438"
      inkscape:cx="128"
      inkscape:cy="56"
      inkscape:document-units="px"
      inkscape:current-layer="layer1"
      showgrid="true"
-     inkscape:window-width="1848"
-     inkscape:window-height="1016"
-     inkscape:window-x="1992"
-     inkscape:window-y="27"
+     inkscape:window-width="1920"
+     inkscape:window-height="1043"
+     inkscape:window-x="0"
+     inkscape:window-y="0"
      inkscape:window-maximized="1"
      showguides="true"
      inkscape:guide-bbox="true"
@@ -169,7 +169,7 @@
          x="40"
          y="700.36218"><tspan
    style="fill:#d40000"
-   id="tspan851">64:ff9b::</tspan>/96</tspan></text>
+   id="tspan851">64:ff9b:1</tspan>::/96</tspan></text>
     <text
        xml:space="preserve"
        style="font-size:10px;line-height:1.25;font-family:sans-serif;text-align:start;letter-spacing:0px;text-anchor:start"

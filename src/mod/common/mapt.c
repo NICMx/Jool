@@ -7,55 +7,6 @@
 #include "mod/common/rfc6052.h"
 #include "mod/common/db/fmr.h"
 
-static unsigned int addr6_get_bits(struct in6_addr const *addr,
-		unsigned int offset, unsigned int len)
-{
-	unsigned int i;
-	unsigned int result;
-
-	result = 0;
-	for (i = 0; i < len; i++)
-		if (addr6_get_bit(addr, i + offset))
-			result |= 1 << (len - i - 1);
-
-	return result;
-}
-
-static void addr6_set_bits(struct in6_addr *addr, unsigned int offset,
-		unsigned int len, unsigned int value)
-{
-	unsigned int i;
-	for (i = 0; i < len; i++)
-		addr6_set_bit(addr, offset + i, (value >> (len - i - 1u)) & 1u);
-}
-
-static unsigned int addr4_get_bits(struct in_addr const *addr,
-		unsigned int offset, unsigned int len)
-{
-	return (be32_to_cpu(addr->s_addr) >> (32u - offset - len))
-			& ((1u << len) - 1u);
-}
-
-/* TODO (mapt post test) missing PSID override */
-int mapt_init(struct mapt_globals *cfg, unsigned int a,
-		struct ipv6_prefix *eui6p, struct mapping_rule *bmr)
-{
-	memset(cfg, 0, sizeof(*cfg));
-
-	cfg->a = a;
-	if (eui6p) {
-		cfg->ce = true;
-		cfg->eui6p = *eui6p;
-	}
-	if (bmr) {
-		cfg->ce = true;
-		cfg->bmr = *bmr;
-	}
-
-	return 0;
-}
-EXPORT_UNIT_SYMBOL(mapt_init);
-
 static unsigned int get_o(struct mapping_rule *rule)
 {
 	return rule->ea_bits_length;
@@ -86,7 +37,7 @@ static verdict prpf_get_psid(struct xlation *state,
 	unsigned int k;
 	unsigned int m;
 
-	a = state->jool.globals.mapt.a;
+	a = rule->a;
 	k = get_q(rule);
 
 	if ((a + k) > 16u) {
@@ -287,13 +238,17 @@ verdict translate_addrs46_mapt(struct xlation *state,
 {
 	struct iphdr *in = pkt_ip4_hdr(&state->in);
 
-	if (state->jool.globals.mapt.ce) {
+	switch (state->jool.globals.mapt.type) {
+	case MAPTYPE_CE:
 		return ce46_src(state, in->saddr, out_src)
 		    || ce46_dst(state, in->daddr, out_dst);
-	} else {
+	case MAPTYPE_BR:
 		return br46_src(state, in->saddr, out_src)
 		    || br46_dst(state, in->daddr, out_dst);
 	}
+
+	log_debug(state, "Unknown MAP type: %d", state->jool.globals.mapt.type);
+	return drop(state, JSTAT_UNKNOWN);
 }
 EXPORT_UNIT_SYMBOL(translate_addrs46_mapt);
 
@@ -391,12 +346,16 @@ verdict translate_addrs64_mapt(struct xlation *state, __be32 *out_src,
 {
 	struct ipv6hdr *in = pkt_ip6_hdr(&state->in);
 
-	if (state->jool.globals.mapt.ce) {
+	switch (state->jool.globals.mapt.type) {
+	case MAPTYPE_CE:
 		return ce64_src(state, &in->saddr, out_src)
 		    || ce64_dst(state, &in->daddr, out_dst);
-	} else {
+	case MAPTYPE_BR:
 		return br64_src(state, &in->saddr, out_src)
 		    || br64_dst(state, &in->daddr, out_dst);
 	}
+
+	log_debug(state, "Unknown MAP type: %d", state->jool.globals.mapt.type);
+	return drop(state, JSTAT_UNKNOWN);
 }
 EXPORT_UNIT_SYMBOL(translate_addrs64_mapt);

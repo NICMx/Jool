@@ -816,7 +816,7 @@ fail:
  * Assumes the options are glued in memory after "hdr", the way sk_buffs work
  * (when linearized or pullable).
  */
-static bool has_unexpired_src_route(struct iphdr *hdr)
+EXPORT_UNIT_STATIC bool has_unexpired_src_route(struct iphdr *hdr)
 {
 	unsigned char *current_opt, *end_of_opts;
 	__u8 src_route_len, src_route_ptr;
@@ -853,14 +853,16 @@ static bool has_unexpired_src_route(struct iphdr *hdr)
 	src_route_ptr = current_opt[2];
 	return src_route_len >= src_route_ptr;
 }
+EXPORT_UNIT_SYMBOL(has_unexpired_src_route);
 
 /**
  * One-liner for creating the Identification field of the IPv6 Fragment header.
  */
-static inline __be32 build_id_field(struct iphdr *hdr4)
+EXPORT_UNIT_STATIC __be32 build_id_field(struct iphdr *hdr4)
 {
 	return cpu_to_be32(be16_to_cpu(hdr4->id));
 }
+EXPORT_UNIT_SYMBOL(build_id_field);
 
 /*
  * Copies the IPv6 and fragment headers from the first fragment to the
@@ -1015,7 +1017,7 @@ static verdict ttp46_ipv6_internal(struct xlation *state)
  * Returns the smallest out of the three first parameters. It also handles some
  * quirks. See comments inside for more info.
  */
-static __be32 icmp6_minimum_mtu(struct xlation *state,
+EXPORT_UNIT_STATIC __be32 icmp6_minimum_mtu(struct xlation *state,
 		unsigned int packet_mtu,
 		unsigned int nexthop6_mtu,
 		unsigned int nexthop4_mtu,
@@ -1048,6 +1050,7 @@ static __be32 icmp6_minimum_mtu(struct xlation *state,
 
 	return cpu_to_be32(result);
 }
+EXPORT_UNIT_SYMBOL(icmp6_minimum_mtu);
 
 static verdict compute_mtu6(struct xlation *state)
 {
@@ -1131,7 +1134,7 @@ static verdict icmp4_to_icmp6_dest_unreach(struct xlation *state)
 /**
  * One-liner for translating "Parameter Problem" messages from ICMPv4 to ICMPv6.
  */
-static verdict icmp4_to_icmp6_param_prob(struct xlation *state)
+EXPORT_UNIT_STATIC verdict icmp4_to_icmp6_param_prob(struct xlation *state)
 {
 #define DROP 255
 	static const __u8 ptrs[] = {
@@ -1166,6 +1169,7 @@ static verdict icmp4_to_icmp6_param_prob(struct xlation *state)
 			icmp4_hdr->code);
 	return drop(state, JSTAT_UNKNOWN);
 }
+EXPORT_UNIT_SYMBOL(icmp4_to_icmp6_param_prob);
 
 /*
  * Removes L4 header, adds L4 header, adds IPv6 pseudoheader.

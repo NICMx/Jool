@@ -4,8 +4,7 @@
 #include "common/config.h"
 #include "common/global.h"
 
-int globals_init(struct jool_globals *config, xlator_type type,
-		struct ipv6_prefix *pool6);
+int globals_init(struct jool_globals *config, xlator_type type);
 
 int globals_foreach(struct jool_globals *config,
 		xlator_type xt,

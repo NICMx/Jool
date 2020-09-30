@@ -7,7 +7,6 @@
  */
 
 #include "common/types.h"
-#include <linux/netfilter.h>
 #include <linux/kernel.h>
 #include "common/xlat.h"
 #include "mod/common/address.h"
@@ -160,15 +159,5 @@ bool is_icmp4_info(__u8 type);
  */
 bool is_icmp6_error(__u8 type);
 bool is_icmp4_error(__u8 type);
-
-#ifdef UNIT_TESTING
-/* Exported so the unit test modules can manhandle them */
-#define EXPORT_UNIT_SYMBOL(symbol) EXPORT_SYMBOL_GPL(symbol)
-#define EXPORT_UNIT_STATIC
-#else
-#define EXPORT_UNIT_SYMBOL(symbol)
-/* Static only if not exported */
-#define EXPORT_UNIT_STATIC static
-#endif
 
 #endif /* SRC_MOD_COMMON_TYPES_H_ */

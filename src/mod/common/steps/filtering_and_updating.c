@@ -123,7 +123,7 @@ static int xlat_dst_6to4(struct xlation *state,
  * @pkt: tuple's packet. This is actually only used for error reporting.
  * @tuple: summary of the packet Jool is currently translating.
  */
-static verdict ipv6_simple(struct xlation *state)
+EXPORT_UNIT_STATIC verdict ipv6_simple(struct xlation *state)
 {
 	struct ipv4_transport_addr dst4;
 	struct mask_domain *masks;
@@ -155,6 +155,7 @@ static verdict ipv6_simple(struct xlation *state)
 		return drop(state, JSTAT_BIB6_NOT_FOUND);
 	}
 }
+EXPORT_UNIT_SYMBOL(ipv6_simple);
 
 /**
  * Assumes that "tuple" represents a IPv4-UDP or ICMP packet, and filters and
@@ -166,7 +167,7 @@ static verdict ipv6_simple(struct xlation *state)
  * @tuple4 tuple summary of the packet Jool is currently translating.
  * @return VER_CONTINUE if everything went OK, VER_DROP otherwise.
  */
-static verdict ipv4_simple(struct xlation *state)
+EXPORT_UNIT_STATIC verdict ipv4_simple(struct xlation *state)
 {
 	/*
 	 * Because this is the IPv4->IPv6 direction, what the tuple labels
@@ -199,6 +200,7 @@ static verdict ipv4_simple(struct xlation *state)
 		return drop(state, JSTAT_UNKNOWN);
 	}
 }
+EXPORT_UNIT_SYMBOL(ipv4_simple);
 
 /**
  * Filtering and updating during the V4 INIT state of the TCP state machine.
@@ -444,7 +446,7 @@ static enum session_fate tcp_state_machine(struct session_entry *session,
 /**
  * IPv6 half of RFC 6146 section 3.5.2.
  */
-static verdict ipv6_tcp(struct xlation *state)
+EXPORT_UNIT_STATIC verdict ipv6_tcp(struct xlation *state)
 {
 	struct ipv4_transport_addr dst4;
 	struct collision_cb cb;
@@ -468,11 +470,12 @@ static verdict ipv6_tcp(struct xlation *state)
 
 	return (result == VERDICT_CONTINUE) ? succeed(state) : result;
 }
+EXPORT_UNIT_SYMBOL(ipv6_tcp);
 
 /**
  * IPv4 half of RFC 6146 section 3.5.2.
  */
-static verdict ipv4_tcp(struct xlation *state)
+EXPORT_UNIT_STATIC verdict ipv4_tcp(struct xlation *state)
 {
 	struct ipv4_transport_addr *dst4 = &state->in.tuple.src.addr4;
 	struct ipv6_transport_addr dst6;
@@ -490,6 +493,7 @@ static verdict ipv4_tcp(struct xlation *state)
 
 	return (result == VERDICT_CONTINUE) ? succeed(state) : result;
 }
+EXPORT_UNIT_SYMBOL(ipv4_tcp);
 
 #define pool6_contains(state, addr) \
 	prefix6_contains(&(state)->jool.globals.pool6.prefix, addr)
@@ -595,3 +599,4 @@ verdict filtering_and_updating(struct xlation *state)
 	log_debug(state, "Done: Step 2.");
 	return result;
 }
+EXPORT_UNIT_SYMBOL(filtering_and_updating);

@@ -232,6 +232,44 @@ struct mapping_rule {
 	struct ipv6_prefix prefix6;
 	struct ipv4_prefix prefix4;
 	__u8 ea_bits_length;
+
+	/*
+	 * Length of the Port-Restricted Port Field's "i" slice. (Also known as
+	 * the "A" slice.)
+	 * The RFCs have an unfortunate long name for "a": "PSID offset."
+	 * In my opinion, this is a poor choice because it only makes sense if
+	 * you're looking at the Port-Restricted Port Field diagram, and is very
+	 * confusing if you're looking at the MAP IPv6 Address Format diagram.
+	 * (`a` does not have anything to do with `n + p`.)
+	 *
+	 * Remember that k = q = o - p, and m = 16 - a - k.
+	 * So storing those fields would be redundant.
+	 *
+	 * Yes, I know the RFCs imply that `a` doesn't belong to mapping rules.
+	 * But let's be honest: Those RFCs are massive, massive trainwrecks.
+	 * In practice, there's no reason to force all mapping rules to share
+	 * the same `a`.
+	 *
+	 * You see, the RFCs have a massive problem in that the notion of a
+	 * "MAP domain" is not consistent through them. I've decided to go with
+	 * the version that makes sense to me, which is "each MAP domain has a
+	 * distinct BMR." According to that definition, it doesn't make sense to
+	 * force every connected MAP domain to have the same Port-Restricted
+	 * Port Field.
+	 */
+	__u8 a;
 };
+
+#ifdef __KERNEL__
+#ifdef UNIT_TESTING
+/* Exported so the unit test modules can manhandle them */
+#define EXPORT_UNIT_SYMBOL(symbol) EXPORT_SYMBOL_GPL(symbol)
+#define EXPORT_UNIT_STATIC
+#else
+#define EXPORT_UNIT_SYMBOL(symbol)
+/* Static only if not exported */
+#define EXPORT_UNIT_STATIC static
+#endif
+#endif
 
 #endif /* SRC_COMMON_TYPES_H */

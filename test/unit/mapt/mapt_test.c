@@ -41,11 +41,22 @@ static int setup_mapt(void)
 	bmr.ea_bits_length = 16;
 	error = prefix6_parse("2001:db8:12:3400::/56", &eui6p)
 	    || prefix6_parse("2001:db8::/40", &bmr.prefix6)
-	    || prefix4_parse("192.0.2.0/24", &bmr.prefix4)
-	    || mapt_init(&br.globals.mapt, 6, NULL, NULL)
-	    || mapt_init(&ce.globals.mapt, 6, &eui6p, &bmr);
+	    || prefix4_parse("192.0.2.0/24", &bmr.prefix4);
 	if (error)
 		return error;
+
+	memset(&br.globals.mapt, 0, sizeof(br.globals.mapt));
+	br.globals.mapt.a = 6;
+	memset(&ce.globals.mapt, 0, sizeof(ce.globals.mapt));
+	ce.globals.mapt.eui6p.set = true;
+	ce.globals.mapt.eui6p.prefix = eui6p;
+	ce.globals.mapt.bmr_p6.set = true;
+	ce.globals.mapt.bmr_p6.set = true;
+	ce.globals.mapt.bmr_p6.prefix = bmr.prefix6;
+	ce.globals.mapt.bmr_p4.set = true;
+	ce.globals.mapt.bmr_p4.prefix = bmr.prefix4;
+	ce.globals.mapt.bmr_ebl = bmr.ea_bits_length;
+	ce.globals.mapt.a = 6;
 
 	return fmrt_add(br.mapt.fmrt, &bmr);
 }

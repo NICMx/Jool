@@ -344,6 +344,7 @@ void bib_teardown(void)
 	kmem_cache_destroy(session_cache);
 	session_cache = NULL;
 }
+EXPORT_UNIT_SYMBOL(bib_teardown);
 
 static enum session_fate just_die(struct session_entry *session, void *arg)
 {
@@ -2004,6 +2005,7 @@ end:
 
 	return error;
 }
+EXPORT_UNIT_SYMBOL(bib_add_session);
 
 static void __clean(struct xlator *jool,
 		struct expire_timer *expirer,
@@ -2116,6 +2118,7 @@ int bib_foreach(struct bib *db, l4_protocol proto,
 	spin_unlock_bh(&table->lock);
 	return error;
 }
+EXPORT_UNIT_SYMBOL(bib_foreach);
 
 static struct rb_node *slot_next(struct tree_slot *slot)
 {
@@ -2232,6 +2235,7 @@ end:
 	spin_unlock_bh(&table->lock);
 	return error;
 }
+EXPORT_UNIT_SYMBOL(bib_foreach_session);
 
 #undef foreach_session
 #undef foreach_bib
@@ -2255,6 +2259,7 @@ int bib_find6(struct bib *db, l4_protocol proto,
 
 	return bib ? 0 : -ESRCH;
 }
+EXPORT_UNIT_SYMBOL(bib_find6);
 
 int bib_find4(struct bib *db, l4_protocol proto,
 		struct ipv4_transport_addr *addr,
@@ -2275,6 +2280,7 @@ int bib_find4(struct bib *db, l4_protocol proto,
 
 	return bib ? 0 : -ESRCH;
 }
+EXPORT_UNIT_SYMBOL(bib_find4);
 
 static void bib2tabled(struct bib_entry *bib, struct tabled_bib *tabled)
 {
@@ -2373,6 +2379,7 @@ int bib_add_static(struct xlator *jool, struct bib_entry *new)
 
 	return error;
 }
+EXPORT_UNIT_SYMBOL(bib_add_static);
 
 int bib_rm(struct xlator *jool, struct bib_entry *entry)
 {
@@ -2439,6 +2446,7 @@ void bib_rm_range(struct xlator *jool, l4_protocol proto,
 
 	commit_delete_list(&delete_list);
 }
+EXPORT_UNIT_SYMBOL(bib_rm_range);
 
 static void flush_table(struct xlator *jool, struct bib_table *table)
 {
@@ -2466,6 +2474,7 @@ void bib_flush(struct xlator *jool)
 	flush_table(jool, &db->udp);
 	flush_table(jool, &db->icmp);
 }
+EXPORT_UNIT_SYMBOL(bib_flush);
 
 static void print_tabs(int tabs)
 {

@@ -35,6 +35,7 @@ struct wargp_type {
 };
 
 extern struct wargp_type wt_bool;
+extern struct wargp_type wt_u8;
 extern struct wargp_type wt_u32;
 extern struct wargp_type wt_l4proto;
 extern struct wargp_type wt_string;
@@ -43,6 +44,7 @@ extern struct wargp_type wt_prefix6;
 extern struct wargp_type wt_prefix4;
 
 struct wargp_option {
+	xlator_type xt; /* Zero is treated as XT_ANY. */
 	const char *name;
 	int key;
 	const char *doc;

@@ -36,7 +36,7 @@ The reader is assumed to have a basic understanding of [IPv4](https://en.wikiped
 
 ## IPv4/IPv6 Translation
 
-Here's a problem: IPv4 and IPv6 are not compatible with each other. In the absence of other possible communication mediums, a node that only speaks IPv4 cannot directly interact with a node that only speaks IPv6.
+Here's a problem: IPv4 and IPv6 are not compatible with each other. A node that only speaks IPv4 cannot directly interact with a node that only speaks IPv6.
 
 Similar to hiring a human translator so you can have people from different cultures understand each other, an “IP translator” is a device (or sometimes a service) you place between networking nodes that speak different IP protocols with the intent of exchanging data.
 
@@ -56,7 +56,7 @@ The task of an IP translator, then, is to replace incoming IP headers, while lea
 
 Most of the header translation is straightforward. For example, the IPv4 “Protocol” field is basically the same as the IPv6 “Next Header” field. IPv4 “TTL” is the same as IPv6 “Hop Limit,” etc. The only part where it gets tactical is the IP addresses. Largely, address translation strategies are what separate the different types of translators from the others.
 
-The IP translation mechanisms were all designed by the [_Internet Engineering Task Force_](https://www.ietf.org/) (IETF), and formally defined in several different [RFC](https://en.wikipedia.org/wiki/Request_for_Comments)s (which have been listed in their corresponding translators’ dedicated sections below).
+Most of the IP translation mechanisms were designed by the [_Internet Engineering Task Force_](https://www.ietf.org/) (IETF), and formally defined in several different [RFC](https://en.wikipedia.org/wiki/Request_for_Comments)s (which have been listed in their corresponding translators’ dedicated sections below).
 
 In general, there are three different basic types of IP translators:
 
@@ -65,8 +65,6 @@ In general, there are three different basic types of IP translators:
 3. MAP-T
 
 These, along with the different available address translation strategies, will be explained in the following sections.
-
-> (TODO mention this later) In their basic forms, SIIT only helps communicating nodes speaking different protocols, while NAT64 also helps with [IPv4 address exhaustion](https://en.wikipedia.org/wiki/IPv4_address_exhaustion) (at the cost of being more computationally expensive and generally hindering end-to-end transparency).
 
 ## SIIT (EAMT)
 
@@ -101,7 +99,7 @@ The translator is “fooling” each node into thinking the other one can speak 
 
 On one hand, “SIIT” stands for “Stateless IP/ICMP Translation,” or, in our case, “Stateless IP/ICMP Translator.”
 
-> ![Warning!](../images/warning.svg) Actually, that’s not strictly true. According to the [official specification](https://tools.ietf.org/html/rfc7915), “SIIT” stands for “Stateless IP/ICMP Translation _Algorithm_,” which is pretty awkward. As far as I can tell, the closest SIIT translators have to an official name is "stateless translator," but it's not actually defined by any glossaries. And it doesn't seem to accound for MAP-Ts also being "stateless" and "translators." Then again, by that argument you could also say that MAP-Ts are also "Stateless IP/ICMP Translators," but I've dragged this train of thought too much already.
+> ![Warning!](../images/warning.svg) Actually, that’s not strictly true. According to the [official specification](https://tools.ietf.org/html/rfc7915), “SIIT” stands for “Stateless IP/ICMP Translation _Algorithm_,” which is somewhat awkward. As far as I can tell, the closest SIIT translators have to an official name is "stateless translator," but it's not actually defined by any glossaries. And it doesn't seem to account for MAP-Ts also being "stateless" and "translators." Then again, by that argument you could also say that MAP-Ts are also "Stateless IP/ICMP Translators," but I've dragged this train of thought too much already.
 > 
 > From my personal experience, the IETF tends to struggle sustaining precise terminology, so I recommend that you don’t lose sleep over it either. We call them "SIITs." You might see them being referred to as elsewhat elsewhere.
 
@@ -124,15 +122,15 @@ Here’s an example of an EAMT which would allow communication between all the n
 | 2001:db8:4::19 | 192.0.2.19   |
 | 2001:db8:4::20 | 192.0.2.20   |
 
-Given the configuration above, the IPv6 nodes would perceive the network like this:
+Given the configuration above, the IPv6 nodes perceive the network like this:
 
 ![Packet flow: SIIT-EAMT - IPv6 view](../images/intro/eamt/network-v6.svg)
 
-And conversely, it would look like this from the IPv4 side:
+And conversely, it looks like this from the IPv4 side:
 
 ![Packet flow: SIIT-EAMT - IPv4 view](../images/intro/eamt/network-v4.svg)
 
-I have simplified the EAMT here for the sake of illustration. In truth, it is more versatile than simply allowing you to bind single arbitrary addresses to other single arbitrary addresses. You can find more information in its formal specification, [RFC 7757](https://tools.ietf.org/html/rfc7757).
+I have simplified the EAMT here for the sake of illustration. In truth, it is more versatile than simply allowing you to bind single arbitrary addresses to other single arbitrary addresses. You can find more information in its formal specification, [RFC 7757](https://tools.ietf.org/html/rfc7757). Jool's documentation also has a bit of a [summary](eamt.html).
 
 ## SIIT (traditional)
 
@@ -160,7 +158,7 @@ The IPv6 view is followed by the IPv4 view:
 
 ![Packet flow: SIIT-traditional - IPv6 view](../images/intro/traditional/network-v6.svg) ![Packet flow: SIIT-traditional - IPv4 view](../images/intro/traditional/network-v4.svg)
 
-As already mentioned, you can find the formal definition of the traditional address translation algorithm in [RFC 6052](http://tools.ietf.org/html/rfc6052).
+As already mentioned, you can find the formal definition of the traditional address translation algorithm in [RFC 6052](http://tools.ietf.org/html/rfc6052). Jool's documentation also has a [summary](pool6.html) of it.
 
 ## SIIT-DC
 
@@ -177,7 +175,7 @@ So here’s the thing:
 
 I might have given you the impression that “EAMT” SIIT and “traditional” SIIT refer to different types of translators. This is not the case; this is all SIIT. A modern implementation is expected to always try to translate an address based on the EAMT first, and if no mapping is found, fall back to append or remove pool6. The separation was done above for illustrative purposes only.
 
-Suppose you have an IPv6-only Data Center. To save space, we will show it to have only two servers. _s6a_ needs to be accessed only by remote IPv6 clients, but turns out _s6b_ one needs to be accesed from IPv4 as well:
+Suppose you have an IPv6-only Data Center. To save space, we will show it to have only two servers. <span class="s6a">_s6a_</span> needs to be accessed only by remote IPv6 clients, but turns out <span class="a6">_s6b_</span> one needs to be accesed from IPv4 as well:
 
 ![Network: SIIT-DC](../images/intro/siit-dc/network.svg)
 
@@ -189,19 +187,21 @@ Suppose _BR_ has the following configuration:
 
 ![Configuration: SIIT-DC BR](../images/intro/siit-dc/config.svg)
 
-Here’s the expected packet flow between your EAM’d server and a random IPv4 Internet client:
+(Add one EAM entry for every other server you want available from IPv4.)
+
+Here’s the expected packet flow between your <span class="a6">EAM’d server</span> and a <span class="v4">random IPv4 Internet client</span>:
 
 ![Packet flow: SIIT-DC 64](../images/intro/siit-dc/flow.svg)
 
 In this way, _any_ IPv4 Internet node can access your EAM’d servers, and only your EAM’d servers can respond. You are also not forced to assign constrained IPv6 addresses to your servers, effectively gaining the advantages of both traditional and EAM, and the drawbacks of neither. It is also worth mentioning that most of your Data Center enjoys the simplicity of IPv6-only, since IPv4 has been relegated into a “service.”
 
-> ![Note!](../images/bulb.svg) Much like the documentation prefixes, “<span class="wkp">64:ff9b::/96</span>” is officially reserved, and it’s publicly known as the “<span class="wkp">Well-Known Prefix</span>.” (Which, admittedly, is another awkward name, particularly outside of the context of IP translation.) You can use it freely for translation purposes in your network, as long as you don’t route it globally.
+> ![Note!](../images/bulb.svg) Much like the documentation prefixes, “<span class="wkp">64:ff9b:1::/48</span>” is officially reserved, and it’s publicly known as the “<span class="wkp">Local-Use IPv4/IPv6 Translation Prefix</span>.” You can use it freely for translation purposes in your network, as long as you don’t route it globally. If you're curious, it's defined in [RFC 8215](https://tools.ietf.org/html/rfc8215).
 
 Do note that pure IPv6 traffic is not affected by the translator in any way:
 
 ![Packet flow: SIIT-DC 66](../images/intro/siit-dc/flow-v6.svg)
 
-Naturally, DNS-wise, the _A_ record of <span class="a6">_s6b_</span> should be <span class="a4">203.0.113.6</span>, and its _AAAA_ record should be <span class="a6">2001:db8:12:34:1</span>. As usual, you’ve effectively given <span class="a6">_s6b_</span> a dual stack without it knowing it.
+Naturally, DNS-wise, the _A_ record of <span class="a6">_s6b_</span> should be <span class="a4">203.0.113.6</span>, and its _AAAA_ record should be <span class="a6">2001:db8:12:34:1</span>. As usual, you’ve effectively given <span class="a6">_s6b_</span> a dual stack (ie. both IPv4 and IPv6 capabilities) without it knowing it.
 
 This is how <span class="a6">_s6b_</span> views the network:
 
@@ -221,11 +221,11 @@ SIIT-DC is formally defined in [RFC 7755](https://tools.ietf.org/html/rfc7755).
 
 Even though your endgoal might be an IPv6-only Data Center, services which are still completely incompatible with IPv6 are not unheard of.
 
-You can’t give these IPv6 stacks, but if you still wish to have a mostly IPv6 Data Center, you can isolate them into small IPv4 islands and still keep most of your infrastructure IPv6. This technique is known as “SIIT-DC: Dual Translation Mode.”
+You can’t give these IPv6 stacks, but if you still wish to have a mostly IPv6 Data Center, you can isolate them into small IPv4 islands and still keep most of your infrastructure IPv6. This technique is known as “SIIT-DC: Dual Translation Mode” (SIIT-DC-2xlat).
 
 ![Network: SIIT-DC-2xlat](../images/intro/siit-dc-2xlat/network.svg)
 
-> ![Note!](../images/bulb.svg) In the context of SIIT-DC-2xlat, a translator that serves a specific island is called an _Edge Relay_ (ER), though again, it’s just a normal SIIT.
+> ![Note!](../images/bulb.svg) In the context of SIIT-DC-2xlat, a translator that serves a specific island is called an _Edge Relay_ (ER). Again, it’s just a normal SIIT.
 
 This is the expected packet flow for these little infidels:
 
@@ -266,7 +266,7 @@ NAPT is a hack whose purpose is to minimize the amount of global ("real") IPv4 a
 
 ![Packet flow: NAPT 1](../images/intro/napt/flow-1.svg)
 
-Here's the setup: <span class="napt-a-ip">_A_</span> wants to request an HTTP resource from <span class="napt-v-ip">_V_</span>. It therefore sends a packet to <span class="napt-v-ip">203.0.113.16</span>:<span class="napt-v-port">80</span>. The <span class="napt-a-ip">source address</span> is its own IP, while the <span class="napt-a-port">source port</span> was chosen randomly when the socket was bound. This is all normal and independent of _NAPT_.
+Here's the setup: <span class="napt-a-ip">_A_</span> wants to request an <span class="napt-v-port">HTTP</span> resource from <span class="napt-v-ip">_V_</span>. It therefore sends a packet to <span class="napt-v-ip">203.0.113.16</span>:<span class="napt-v-port">80</span>. The <span class="napt-a-ip">source address</span> is its own IP, while the <span class="napt-a-port">source port</span> was chosen randomly when the socket was bound. This is all normal and independent of _NAPT_.
 
 ![Packet flow: NAPT 2](../images/intro/napt/flow-2.svg)
 
@@ -318,7 +318,13 @@ Most everything else applies:
 
 ![Diagram: NAT64 impersonator](../images/intro/nat64/impersonator.svg)
 
-> ![Note!](../images/bulb.svg) In the context of NAT64, the mappings table is called the _Binding Information Base_ (BIB).
+IPv6 view:
+
+![Network: NAT64 IPv6 view](../images/intro/nat64/network-ipv6.svg)
+
+IPv4 view:
+
+![Network: NAT64 IPv4 view](../images/intro/nat64/network-ipv4.svg)
 
 Basically, a Stateful NAT64 is similar to an SIIT, but it has all the benefits and drawbacks of NAPT. You get to represent all your IPv6 nodes with as few IPv4 addresses as possible, but you are limited to 65536 connections per public IPv4 addresses, and in the absence of Port Forwarding, all communication has to start from the IPv6 side.
 
@@ -330,9 +336,7 @@ In the context of NAT64, you don’t normally say the IPv6 network is “Private
 
 In this way, _A_ through _E_ are IPv6-only nodes, but they have access to both Internets (the IPv6 one via router _R_, and the IPv4 one via _T_).
 
-Stateful NAT64 is defined by [RFC 6146](https://tools.ietf.org/html/rfc6146) and is most of the time coupled with [DNS64](dns64.html).
-
-> TODO explain DNS64
+Stateful NAT64 is defined by [RFC 6146](https://tools.ietf.org/html/rfc6146) and is most of the time coupled with DNS64 (which has a small introduction [here](dns64.html#bind)).
 
 ## 464XLAT
 
@@ -350,13 +354,13 @@ Why would you want to do this? Again, because some applications still don't work
 
 ## BIBless NAT64
 
-TODO
+> ![Warning!](../images/warning.svg) Under construction.
 
 ## MAP-T
 
 <!-- https://github.com/NICMx/Jool/blob/265a4d24b6639ab262a5e48596d9fc0350066e35/en/intro-xlat.md -->
 
-(Note: This is an oversimplification meant as a general introduction. The terminology is particularly concealed because I have some beef with the official one. Please read the [MAP-T tutorial](map-t.html) after this to learn more.)
+(Note: This is an oversimplification meant as a general introduction. The terminology is particularly concealed because I have some beef with the official one. Please read the [MAP-T summary](map-t.html) after this to learn more.)
 
 Suppose you're an Internet Service Provider (ISP) with 4 customers, but you only have one IPv4 address free to distribute among them.
 
@@ -379,7 +383,7 @@ Customer Edges (CEs) and Border Relays (BRs) will, as usual, make sure everyone 
 
 Here's an example:
 
-Suppose we've decided to reserve subnetwork <span style="background-color:#e9afdd">2001:db8:4464::/48</span> for CE usage, and we're using <span style="background-color:#cfa">64:ff9b::/96</span> to mask the IPv4 Internet as usual. Client <span style="background-color:#ffaaaa">192.168.0.4</span> is behind the CE who owns slice <span style="background-color:#f95;padding:0 0.2em">2</span> (ports 32768-49151), and wants to send a packet to IPv4 Internet HTTP server <span style="background-color:#afdde9">203.0.113.56</span>.
+Suppose we've decided to reserve subnetwork <span style="background-color:#e9afdd">2001:db8:4464::/48</span> for CE usage, and we're using <span class="wkp">64:ff9b:1</span>::/96 to mask the IPv4 Internet as usual. Client <span style="background-color:#ffaaaa">192.168.0.4</span> is behind the CE who owns slice <span style="background-color:#f95;padding:0 0.2em">2</span> (ports 32768-49151), and wants to send a packet to IPv4 Internet HTTP server <span style="background-color:#afdde9">203.0.113.56</span>.
 
 ![Packet Flow: 182.168.0.4:12345--203.0.113.56:80 becomes 192.0.2.1:40000--203.0.113.56:80](../images/intro/mapt/flow-1.svg)
 
@@ -387,17 +391,17 @@ The packet first gets NAPT'd from a private IPv4 transport address into a pseudo
 
 Though you can be forgiven if you’ve never NAPT’d into a reduced port range, you can be assured that this is a perfectly ordinary stateful NAT operation. The packet would already be routable, if we had an IPv4 network on hand.
 
-![Packet Flow: 192.0.2.1:40000--203.0.113.56:80 becomes 2001:db8:4464:2:::40000--64:ff9b::203.0.113.56:80](../images/intro/mapt/flow-2.svg)
+![Packet Flow: 192.0.2.1:40000--203.0.113.56:80 becomes 2001:db8:4464:2:::40000--64:ff9b:1::203.0.113.56:80](../images/intro/mapt/flow-2.svg)
 
-The packet is then properly MAP-T'd. The source address contains the CE's <span style="background-color:#f95">slice identifier</span>, and <span style="background-color:#cfa">pool6</span> is prepended to the destination address as usual.
+The packet is then properly MAP-T'd. The source address contains the CE's <span style="background-color:#f95">slice identifier</span>, and <span class="wkp">pool6</span> is prepended to the destination address as usual.
 
 (By the way: I'm lying. The address format used to translate the source is significantly more complicated than that, but you get the point. It contains the <span style="background-color:#e9afdd">"CE prefix"</span> and the <span style="background-color:#f95">slice ID</span>, and everything else is fluff.)
 
-![Packet Flow: 2001:db8:4464:2:::40000--64:ff9b::203.0.113.56:80 becomes 192.0.2.1:40000--203.0.113.56:80](../images/intro/mapt/flow-3.svg)
+![Packet Flow: 2001:db8:4464:2:::40000--64:ff9b:1::203.0.113.56:80 becomes 192.0.2.1:40000--203.0.113.56:80](../images/intro/mapt/flow-3.svg)
 
 The BR mirrors the translation part of what the CE did, but not the NAPT part.
 
-![Packet Flow: 203.0.113.56:80--192.0.2.1:40000 becomes 64:ff9b::203.0.113.56:80--2001:db8:4464:2:::40000](../images/intro/mapt/flow-4.svg)
+![Packet Flow: 203.0.113.56:80--192.0.2.1:40000 becomes 64:ff9b:1::203.0.113.56:80--2001:db8:4464:2:::40000](../images/intro/mapt/flow-4.svg)
 
 The server responds. The BR applies the appropriate transformation to each address.
 
@@ -405,7 +409,7 @@ You might be wondering: Since all CEs technically own address <span style="backg
 
 Because, by configuration, the BR knows that port 40000 belongs to slice <span style="background-color:#f95;padding:0 0.2em">2</span>.
 
-![Packet Flow: 64:ff9b::203.0.113.56:80--2001:db8:4464:2:::40000 becomes 203.0.113.56:80--182.168.0.4:12345](../images/intro/mapt/flow-5.svg)
+![Packet Flow: 64:ff9b:1::203.0.113.56:80--2001:db8:4464:2:::40000 becomes 203.0.113.56:80--182.168.0.4:12345](../images/intro/mapt/flow-5.svg)
 
 Things end by continuing to happen in reverse.
 
@@ -423,4 +427,4 @@ MAP-T is formally defined by [RFC 7599](https://tools.ietf.org/html/rfc7599) and
 
 > ![Warning!](../images/warning.svg) A word of caution: It is my personal opinion that these are not the most well-written RFCs ever devised by the IETF, and if you're going to consume them, I suggest that you read RFC 7597's Appendix B instead of RFC 7597's section 5.1. (And skip 5.1 entirely.)
 > 
-> Or just read [Jool's layman's MAP-T](map-t.html).
+> Or just read [Jool's MAP-T summary](map-t.html).

@@ -20,5 +20,4 @@ test:
 	-sudo insmod $(UNIT).ko && sudo rmmod $(UNIT)
 	sudo rmmod unit.ko
 	sudo modprobe -r jool_common
-	#dmesg -t | less
-	dmesg -t
+	dmesg -t | less

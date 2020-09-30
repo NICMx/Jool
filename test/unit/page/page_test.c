@@ -7,6 +7,7 @@
 
 #include "mod/common/core.h"
 #include "mod/common/xlator.h"
+#include "mod/common/db/global.h"
 
 MODULE_LICENSE(JOOL_LICENSE);
 MODULE_AUTHOR("Alberto Leiva");
@@ -16,15 +17,21 @@ static struct xlator jool;
 
 static int init(void)
 {
-	struct ipv6_prefix pool6;
+	struct jool_globals globals;
 	int error;
 
-	pool6.len = 96;
-	error = str_to_addr6("2001:db8::", &pool6.addr);
+	error = globals_init(&globals, XT_SIIT);
 	if (error)
 		return error;
 
-	return xlator_add(XF_NETFILTER | XT_SIIT, INAME_DEFAULT, &pool6, &jool);
+	globals.pool6.set = true;
+	globals.pool6.prefix.len = 96;
+	error = str_to_addr6("2001:db8::", &globals.pool6.prefix.addr);
+	if (error)
+		return error;
+
+	return xlator_add(XF_NETFILTER | XT_SIIT, INAME_DEFAULT, &globals,
+			&jool);
 }
 
 static void clean(void)

@@ -179,6 +179,54 @@ nla_put_failure:
 	return joolnl_err_msgsize();
 }
 
+struct jool_result joolnl_instance_add_mapt(struct joolnl_socket *sk,
+		xlator_framework xf, char const *iname,
+		struct ipv6_prefix const *eui6p,
+		struct ipv6_prefix const *bmr6,
+		struct ipv4_prefix const *bmr4,
+		__u8 const *bmr_ebl,
+		struct ipv6_prefix const *dmr,
+		__u8 const *a)
+{
+	struct nl_msg *msg;
+	struct nlattr *root, *ce;
+	struct jool_result result;
+
+	result.error = xf_validate(xf);
+	if (result.error)
+		return result_from_error(result.error, XF_VALIDATE_ERRMSG);
+
+	result = joolnl_alloc_msg(sk, iname, JNLOP_INSTANCE_ADD, 0, &msg);
+	if (result.error)
+		return result;
+
+	root = jnla_nest_start(msg, JNLAR_OPERAND);
+	if (!root)
+		goto nla_put_failure;
+
+	NLA_PUT_U8(msg, JNLAIA_XF, xf);
+	if (dmr && nla_put_prefix6(msg, JNLAIA_POOL6, dmr) < 0)
+		goto nla_put_failure;
+
+	ce = jnla_nest_start(msg, JNLAIA_MAPT);
+	if (!ce)
+		goto nla_put_failure;
+	if ((eui6p && nla_put_prefix6(msg, JNLAMT_EUI6P, eui6p) < 0)
+	 || (bmr6 && nla_put_prefix6(msg, JNLAMT_BMR_P6, bmr6) < 0)
+	 || (bmr4 && nla_put_prefix4(msg, JNLAMT_BMR_P4, bmr4) < 0)
+	 || (bmr_ebl && nla_put_u8(msg, JNLAMT_BMR_EBL, *bmr_ebl) < 0)
+	 || (a && nla_put_u8(msg, JNLAMT_a, *a) < 0))
+		goto nla_put_failure;
+
+	nla_nest_end(msg, ce);
+	nla_nest_end(msg, root);
+	return joolnl_request(sk, msg, NULL, NULL);
+
+nla_put_failure:
+	nlmsg_free(msg);
+	return joolnl_err_msgsize();
+}
+
 struct jool_result joolnl_instance_rm(struct joolnl_socket *sk,
 		char const *iname)
 {

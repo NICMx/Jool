@@ -56,6 +56,13 @@ void addr4_set_bit(struct in_addr *addr, unsigned int pos, bool value);
 __u32 addr6_get_bit(const struct in6_addr *addr, unsigned int pos);
 void addr6_set_bit(struct in6_addr *addr, unsigned int pos, bool value);
 
+unsigned int addr4_get_bits(struct in_addr const *addr,
+		unsigned int offset, unsigned int len);
+unsigned int addr6_get_bits(struct in6_addr const *addr,
+		unsigned int offset, unsigned int len);
+void addr6_set_bits(struct in6_addr *addr, unsigned int offset,
+		unsigned int len, unsigned int value);
+
 /**
  * foreach_addr4 - iterate over prefix's addresses.
  * @address: struct in_addr cursor.

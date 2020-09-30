@@ -151,9 +151,12 @@ enum joolnl_attr_instance_status {
 enum joolnl_attr_instance_add {
 	JNLAIA_XF = 1,
 	JNLAIA_POOL6,
+	JNLAIA_MAPT,
 	JNLAIA_COUNT,
 #define JNLAIA_MAX (JNLAIA_COUNT - 1)
 };
+
+extern struct nla_policy joolnl_instance_add_policy[JNLAIA_COUNT];
 
 enum joolnl_attr_eam {
 	JNLAE_PREFIX6 = 1,
@@ -264,11 +267,7 @@ enum joolnl_attr_global {
 	JNLAG_JOOLD_MAX_PAYLOAD,
 
 	/* MAP-T */
-	JNLAG_MAPT_a, /* "A" is a different thing, so don't capitalize. */
-	JNLAG_MAPT_END_USER_IPV6_PREFIX,
-	JNLAG_MAPT_BMR_PREFIX6,
-	JNLAG_MAPT_BMR_PREFIX4,
-	JNLAG_MAPT_BMR_EA_BITS_LEN,
+	JNLAG_MAPT,
 
 	/* Needs to be last */
 	JNLAG_COUNT,
@@ -278,6 +277,22 @@ enum joolnl_attr_global {
 extern const struct nla_policy siit_globals_policy[JNLAG_COUNT];
 extern const struct nla_policy nat64_globals_policy[JNLAG_COUNT];
 extern const struct nla_policy mapt_globals_policy[JNLAG_COUNT];
+
+enum joolnl_attr_mapt {
+	JNLAMT_TYPE,
+	JNLAMT_EUI6P,
+	JNLAMT_EABITS,
+	JNLAMT_BMR_P6,
+	JNLAMT_BMR_P4,
+	JNLAMT_BMR_EBL,
+	JNLAMT_a,
+	JNLAMT_k,
+	JNLAMT_m,
+	JNLAMT_COUNT,
+#define JNLAMT_MAX (JNLAMT_COUNT - 1)
+};
+
+extern struct nla_policy mapt_policy[JNLAMT_COUNT];
 
 enum joolnl_attr_error {
 	JNLAERR_CODE = 1,
@@ -335,6 +350,11 @@ struct config_prefix4 {
 	bool set;
 	/** Please note that this could be garbage; see above. */
 	struct ipv4_prefix prefix;
+};
+
+struct config_u8 {
+	bool set;
+	__u8 value;
 };
 
 /**
@@ -486,22 +506,13 @@ struct joold_config {
 	__u32 max_payload;
 };
 
-struct mapt_globals {
-	bool ce; /* true:ce false:br */
-	/*
-	 * Length of the Port-Restricted Port Field's "i" slice. (Also known as
-	 * the "A" slice.)
-	 * The RFCs have an unfortunate long name for "a": "PSID offset."
-	 * In my opinion, this is a poor choice because it only makes sense if
-	 * you're looking at the Port-Restricted Port Field diagram, and is very
-	 * confusing if you're looking at the MAP IPv6 Address Format diagram.
-	 * (`a` does not have anything to do with `n + p`.)
-	 *
-	 * Remember that k = q = o - p, and m = 16 - a - k.
-	 * So storing those fields would be redundant.
-	 */
-	__u8 a;
+enum mapt_type {
+	MAPTYPE_BR,
+	MAPTYPE_CE,
+};
 
+struct mapt_globals {
+	enum mapt_type type;
 	/*
 	 * The "End-user IPv6 prefix." CE-only.
 	 * Overkill name, honestly. Should be called "CE prefix," but I'm not

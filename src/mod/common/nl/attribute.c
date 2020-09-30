@@ -49,6 +49,18 @@ int jnla_get_u32(struct nlattr *attr, char const *name, __u32 *out)
 	return 0;
 }
 
+int jnla_get_u64(struct nlattr *attr, char const *name, __u64 *out)
+{
+	int error;
+
+	error = validate_null(attr, name);
+	if (error)
+		return error;
+
+	*out = nla_get_u64(attr);
+	return 0;
+}
+
 static int validate_str(char const *str, size_t max_size)
 {
 	size_t i;

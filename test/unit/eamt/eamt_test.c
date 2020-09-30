@@ -4,7 +4,7 @@
 
 #include "framework/types.h"
 #include "framework/unit_test.h"
-#include "mod/common/db/eam.c"
+#include "mod/common/db/eam.h"
 
 MODULE_LICENSE(JOOL_LICENSE);
 MODULE_AUTHOR("dhernandez");
@@ -343,10 +343,6 @@ static bool remove_test(void)
 	success &= remove_entry(NULL, 0, "3::0", 120, 0);
 	success &= test_6to4("3::", NULL);
 	success &= test_4to6("30.0.0.0", NULL);
-
-	success &= ASSERT_U64(0ULL, eamt->count, "Table count");
-	if (!success)
-		return false;
 
 	/* trie is two nodes high */
 	success &= create_two_story_trie();

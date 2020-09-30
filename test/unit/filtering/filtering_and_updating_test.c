@@ -5,9 +5,11 @@
 #include "framework/types.h"
 #include "framework/unit_test.h"
 #include "framework/skb_generator.h"
+#include "mod/common/db/global.h"
+#include "mod/common/db/bib/db.h"
 #include "mod/common/db/pool4/rfc6056.h"
 #include "mod/common/steps/determine_incoming_tuple.h"
-#include "mod/common/steps/filtering_and_updating.c"
+#include "mod/common/steps/filtering_and_updating.h"
 
 MODULE_LICENSE(JOOL_LICENSE);
 MODULE_AUTHOR("Roberto Aceves");
@@ -15,6 +17,11 @@ MODULE_AUTHOR("Alberto Leiva");
 MODULE_DESCRIPTION("Unit tests for the Filtering module");
 
 static struct xlator jool;
+
+verdict ipv4_simple(struct xlation *state);
+verdict ipv6_simple(struct xlation *state);
+verdict ipv4_tcp(struct xlation *state);
+verdict ipv6_tcp(struct xlation *state);
 
 static int bib_count_fn(struct bib_entry const *bib, void *arg)
 {
@@ -558,16 +565,21 @@ static void teardown(void)
 
 static int init(void)
 {
-	struct ipv6_prefix pool6;
+	struct jool_globals globals;
 	struct pool4_entry entry;
 	int error;
 
-	pool6.len = 96;
-	error = str_to_addr6("3::", &pool6.addr);
+	error = globals_init(&globals, XT_NAT64);
 	if (error)
 		return error;
 
-	error = xlator_add(XF_NETFILTER | XT_NAT64, INAME_DEFAULT, &pool6,
+	globals.pool6.set = true;
+	globals.pool6.prefix.len = 96;
+	error = str_to_addr6("3::", &globals.pool6.prefix.addr);
+	if (error)
+		return error;
+
+	error = xlator_add(XF_NETFILTER | XT_NAT64, INAME_DEFAULT, &globals,
 			&jool);
 	if (error)
 		return error;
@@ -605,7 +617,6 @@ fail:
 
 static void clean(void)
 {
-	icmp64_pop();
 	xlator_put(&jool);
 	xlator_rm(XT_NAT64, INAME_DEFAULT);
 }

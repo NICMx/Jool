@@ -43,7 +43,6 @@ static verdict core_common(struct xlation *state)
 	result = translating_the_packet(state);
 	if (result != VERDICT_CONTINUE)
 		return result;
-
 	if (state->jool.is_hairpin(state)) {
 		skb_dst_drop(state->out.skb);
 		result = state->jool.handling_hairpinning(state);
@@ -117,6 +116,7 @@ end:
 	send_icmp4_error(state, result);
 	return result;
 }
+EXPORT_UNIT_SYMBOL(core_4to6);
 
 static void send_icmp6_error(struct xlation *state, verdict result)
 {
@@ -170,3 +170,4 @@ end:
 	send_icmp6_error(state, result);
 	return result;
 }
+EXPORT_UNIT_SYMBOL(core_6to4);

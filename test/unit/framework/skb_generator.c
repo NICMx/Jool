@@ -106,7 +106,6 @@ static int init_udp_hdr(struct sk_buff *skb, int *offset, __u16 src, __u16 dst,
 
 	return store_bits(skb, offset, &hdr, sizeof(hdr));
 }
-EXPORT_SYMBOL_GPL(init_udp_hdr);
 
 #define TCP_HDR_LEN sizeof(struct tcphdr)
 int init_tcp_hdr(struct sk_buff *skb, int *offset, __u16 src, __u16 dst,
@@ -150,7 +149,6 @@ static int init_icmp4_hdr_info(struct sk_buff *skb, int *offset,
 
 	return store_bits(skb, offset, &hdr, sizeof(hdr));
 }
-EXPORT_SYMBOL_GPL(init_icmp4_hdr_info);
 
 int init_icmp4_hdr_error(struct sk_buff *skb, int *offset, __u16 src, __u16 dst,
 		u16 datagram_len)
@@ -181,7 +179,6 @@ static int init_icmp6_hdr_info(struct sk_buff *skb, int *offset,
 
 	return store_bits(skb, offset, &hdr, sizeof(hdr));
 }
-EXPORT_SYMBOL_GPL(init_icmp6_hdr_info);
 
 int init_icmp6_hdr_error(struct sk_buff *skb, int *offset, __u16 src, __u16 dst,
 		u16 datagram_len)
@@ -232,7 +229,6 @@ static int init_payload_inner_ipv6(struct sk_buff *skb, int *offset)
 
 	return init_payload_normal(skb, offset);
 }
-EXPORT_SYMBOL_GPL(init_payload_inner_ipv6);
 
 static int init_payload_inner_ipv4(struct sk_buff *skb, int *offset)
 {
@@ -249,7 +245,6 @@ static int init_payload_inner_ipv4(struct sk_buff *skb, int *offset)
 
 	return init_payload_normal(skb, offset);
 }
-EXPORT_SYMBOL_GPL(init_payload_inner_ipv4);
 
 static int ipv4_tcp_post(struct sk_buff *skb)
 {

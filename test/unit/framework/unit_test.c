@@ -180,7 +180,6 @@ fail:
 		pr_err("  Actual:  NULL\n");
 	return false;
 }
-EXPORT_SYMBOL_GPL(ASSERT_TUPLE4);
 
 #undef TUPLE_KEY
 #undef TUPLE_PRINT
@@ -218,7 +217,6 @@ fail:
 		pr_err("  Actual:  NULL\n");
 	return false;
 }
-EXPORT_SYMBOL_GPL(ASSERT_TUPLE6);
 
 #undef TUPLE_KEY
 #undef TUPLE_PRINT

@@ -2,9 +2,6 @@
 
 #include "mod/common/log.h"
 
-/* The unit tests never spawn threads, so this does not need protection. */
-static int sent = 0;
-
 bool icmp64_send6(struct xlator *jool, struct sk_buff *skb,
 		icmp_error_code error, __u32 info)
 {
@@ -21,13 +18,5 @@ bool icmp64_send(struct xlator *jool, struct sk_buff *skb,
 		icmp_error_code error, __u32 info)
 {
 	pr_info("Pretending I'm sending an ICMP error.\n");
-	sent++;
 	return true;
-}
-
-int icmp64_pop(void)
-{
-	int result = sent;
-	sent = 0;
-	return result;
 }

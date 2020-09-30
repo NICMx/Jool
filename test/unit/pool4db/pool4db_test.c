@@ -2,7 +2,7 @@
 #include <linux/module.h>
 
 #include "framework/unit_test.h"
-#include "mod/common/db/pool4/db.c"
+#include "mod/common/db/pool4/db.h"
 
 MODULE_LICENSE(JOOL_LICENSE);
 MODULE_AUTHOR("Ramiro Nava");

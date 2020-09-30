@@ -28,7 +28,7 @@ PROJECTS += filtering
 PROJECTS += translate
 
 # Layer 6 test (global translation)
-PROJECTS += page
+#PROJECTS += page # Problematic
 
 
 CLEANPROJECTS = $(patsubst %,%.clean,$(PROJECTS))

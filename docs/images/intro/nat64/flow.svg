@@ -277,14 +277,14 @@
          id="text3880"
          y="800.62201"
          x="326.7291"
-         style="font-style:normal;font-weight:normal;font-size:12px;line-height:0%;font-family:sans-serif;text-align:center;letter-spacing:0px;word-spacing:0px;text-anchor:middle;display:inline;fill:#000000;fill-opacity:1;stroke:none;"
+         style="font-style:normal;font-weight:normal;font-size:12px;line-height:0%;font-family:sans-serif;text-align:center;letter-spacing:0px;word-spacing:0px;text-anchor:middle;display:inline;fill:#000000;fill-opacity:1;stroke:none"
          xml:space="preserve"
          transform="skewY(-16.580003)"><tspan
            y="800.62201"
            x="326.7291"
            id="tspan3882"
            sodipodi:role="line"
-           style="line-height:1.25;font-family:sans-serif;text-align:center;text-anchor:middle;font-size:12px;">T</tspan></text>
+           style="font-size:12px;line-height:1.25;font-family:sans-serif;text-align:center;text-anchor:middle">T</tspan></text>
     </g>
     <use
        x="0"
@@ -348,7 +348,7 @@
          x="256"
          y="80">[<tspan
    style="fill:#d40000"
-   id="tspan965">64:ff9b</tspan>::<tspan
+   id="tspan965">64:ff9b:1</tspan>::<tspan
    style="fill:#cd87de;fill-opacity:1"
    id="tspan967">203.0.113.16</tspan>]:<tspan
    style="fill:#327821;fill-opacity:1"
@@ -379,7 +379,7 @@
          id="tspan4237-6"
          style="font-size:12px;line-height:1.25;font-family:sans-serif">src: [<tspan
    style="fill:#d40000"
-   id="tspan975">64:ff9b</tspan>::<tspan
+   id="tspan975">64:ff9b:1</tspan>::<tspan
    style="fill:#cd87de;fill-opacity:1"
    id="tspan1291-2">203.0.113.16</tspan>]:<tspan
    style="fill:#327821;fill-opacity:1"
@@ -420,7 +420,7 @@
          id="tspan1033"
          style="font-size:12px;line-height:1.25;font-family:sans-serif">dst: [<tspan
    style="fill:#d40000"
-   id="tspan1165">64:ff9b</tspan>::<tspan
+   id="tspan1165">64:ff9b:1</tspan>::<tspan
    style="fill:#cd87de;fill-opacity:1"
    id="tspan1167">203.0.113.16</tspan>]:<tspan
    style="fill:#327821;fill-opacity:1"
@@ -549,16 +549,11 @@
          id="tspan1728"
          x="208"
          y="1048.3622">4</tspan></text>
-  </g>
-  <g
-     inkscape:groupmode="layer"
-     id="layer2"
-     inkscape:label="tmp"
-     sodipodi:insensitive="true">
     <path
        style="display:inline;fill:none;stroke:#000000;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
-       d="M 188,76 H 324"
+       d="M 184,76 H 328"
        id="path1067"
-       sodipodi:nodetypes="cc" />
+       sodipodi:nodetypes="cc"
+       transform="translate(0,668.36218)" />
   </g>
 </svg>

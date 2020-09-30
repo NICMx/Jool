@@ -17,6 +17,11 @@
 #define ARGP_IPTABLES 1000
 #define ARGP_NETFILTER 1001
 #define ARGP_POOL6 '6'
+#define ARGP_EUI6P 1002
+#define ARGP_BMR_P6 1003
+#define ARGP_BMR_P4 1004
+#define ARGP_BMR_EBL 1005
+#define ARGP_a 'a'
 
 struct wargp_iname {
 	bool set;
@@ -163,6 +168,11 @@ struct add_args {
 	struct wargp_bool iptables;
 	struct wargp_bool netfilter;
 	struct wargp_prefix6 pool6;
+	struct wargp_prefix6 eui6p;
+	struct wargp_prefix6 bmr_p6;
+	struct wargp_prefix4 bmr_p4;
+	struct wargp_u8 bmr_ebl;
+	struct wargp_u8 a;
 };
 
 static struct wargp_option add_opts[] = {
@@ -180,11 +190,54 @@ static struct wargp_option add_opts[] = {
 		.offset = offsetof(struct add_args, netfilter),
 		.type = &wt_bool,
 	}, {
+		.xt = XT_SIIT | XT_NAT64,
 		.name = "pool6",
 		.key = ARGP_POOL6,
 		.doc = "Prefix that will populate the IPv6 Address Pool",
 		.offset = offsetof(struct add_args, pool6),
 		.type = &wt_prefix6,
+	}, {
+		.xt = XT_MAPT,
+		.name = "end-user-ipv6-prefix",
+		.key = ARGP_EUI6P,
+		.doc = "",
+		.offset = offsetof(struct add_args, eui6p),
+		.type = &wt_prefix6,
+	}, {
+		.xt = XT_MAPT,
+		.name = "bmr.ipv6-prefix",
+		.key = ARGP_BMR_P6,
+		.doc = "",
+		.offset = offsetof(struct add_args, bmr_p6),
+		.type = &wt_prefix6,
+	}, {
+		.xt = XT_MAPT,
+		.name = "bmr.ipv4-prefix",
+		.key = ARGP_BMR_P4,
+		.doc = "",
+		.offset = offsetof(struct add_args, bmr_p4),
+		.type = &wt_prefix4,
+	}, {
+		.xt = XT_MAPT,
+		.name = "bmr.ea-bits-length",
+		.key = ARGP_BMR_EBL,
+		.doc = "",
+		.offset = offsetof(struct add_args, bmr_ebl),
+		.type = &wt_u8,
+	}, {
+		.xt = XT_MAPT,
+		.name = "dmr",
+		.key = ARGP_POOL6,
+		.doc = "",
+		.offset = offsetof(struct add_args, pool6),
+		.type = &wt_prefix6,
+	}, {
+		.xt = XT_MAPT,
+		.name = "a",
+		.key = ARGP_a,
+		.doc = "",
+		.offset = offsetof(struct add_args, a),
+		.type = &wt_u8,
 	},
 	{ 0 },
 };
@@ -226,8 +279,24 @@ int handle_instance_add(char *iname, int argc, char **argv, void const *arg)
 		return pr_result(&result);
 
 	xf = aargs.netfilter.value ? XF_NETFILTER : XF_IPTABLES;
-	result = joolnl_instance_add(&sk, xf, iname,
-			aargs.pool6.set ? &aargs.pool6.prefix : NULL);
+	switch (xt_get()) {
+	case XT_SIIT:
+	case XT_NAT64:
+		result = joolnl_instance_add(&sk, xf, iname,
+				aargs.pool6.set ? &aargs.pool6.prefix : NULL);
+		break;
+	case XT_MAPT:
+		result = joolnl_instance_add_mapt(
+				&sk, xf, iname,
+				aargs.eui6p.set ? &aargs.eui6p.prefix : NULL,
+				aargs.bmr_p6.set ? &aargs.bmr_p6.prefix : NULL,
+				aargs.bmr_p4.set ? &aargs.bmr_p4.prefix : NULL,
+				aargs.bmr_ebl.set ? &aargs.bmr_ebl.value : NULL,
+				aargs.pool6.set ? &aargs.pool6.prefix: NULL,
+				aargs.a.set ? &aargs.a.value : NULL
+		);
+		break;
+	}
 
 	joolnl_teardown(&sk);
 	return pr_result(&result);

@@ -17,4 +17,4 @@ int bib_inject(struct xlator *jool,
 
 	return bib_add_static(jool, entry);
 }
-
+EXPORT_UNIT_SYMBOL(bib_inject);

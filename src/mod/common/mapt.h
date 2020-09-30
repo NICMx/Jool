@@ -3,13 +3,6 @@
 
 #include "mod/common/translation_state.h"
 
-int mapt_init(
-		struct mapt_globals *cfg,
-		unsigned int a,
-		struct ipv6_prefix *euip,
-		struct mapping_rule *bmr
-);
-
 verdict translate_addrs46_mapt(
 		struct xlation *state,
 		struct in6_addr *out_src,

@@ -3,6 +3,7 @@
 #include "common/types.h"
 #include "mod/common/log.h"
 #include "mod/common/xlator.h"
+#include "mod/common/db/global.h"
 #include "mod/common/nl/attribute.h"
 #include "mod/common/nl/nl_common.h"
 #include "mod/common/nl/nl_core.h"
@@ -99,12 +100,9 @@ fail:
 
 int handle_instance_add(struct sk_buff *skb, struct genl_info *info)
 {
-	static struct nla_policy add_policy[JNLAIA_COUNT] = {
-		[JNLAIA_XF] = { .type = NLA_U8 },
-		[JNLAIA_POOL6] = { .type = NLA_NESTED, },
-	};
 	struct nlattr *attrs[JNLAIA_COUNT];
-	struct config_prefix6 pool6;
+	struct jool_globals globals;
+	xlator_type xt;
 	__u8 xf;
 	int error;
 
@@ -121,25 +119,34 @@ int handle_instance_add(struct sk_buff *skb, struct genl_info *info)
 	}
 
 	error = jnla_parse_nested(attrs, JNLAIA_MAX, info->attrs[JNLAR_OPERAND],
-			add_policy, "Operand");
+			joolnl_instance_add_policy, "Operand");
 	if (error)
 		return error;
 
 	error = jnla_get_u8(attrs[JNLAIA_XF], "framework", &xf);
 	if (error)
 		goto revert_start;
-	pool6.set = false;
-	if (attrs[JNLAIA_POOL6]) {
-		error = jnla_get_prefix6_optional(attrs[JNLAIA_POOL6], "pool6",
-				&pool6);
+
+	xt = get_jool_hdr(info)->xt;
+	error = globals_init(&globals, xt);
+	if (error)
+		goto revert_start;
+
+	error = jnla_get_prefix6_optional(attrs[JNLAIA_POOL6],
+			"pool6",
+			&globals.pool6);
+	if (error)
+		goto revert_start;
+	if ((xt & XT_MAPT) && attrs[JNLAIA_MAPT]) {
+		error = joolnl_mapt_nl2raw(attrs[JNLAIA_MAPT], &globals.mapt);
 		if (error)
 			goto revert_start;
 	}
 
 	return jresponse_send_simple(NULL, info, xlator_add(
-		xf | get_jool_hdr(info)->xt,
+		xf | xt,
 		get_jool_hdr(info)->iname,
-		pool6.set ? &pool6.prefix : NULL,
+		&globals,
 		NULL
 	));
 

@@ -28,11 +28,6 @@
 struct eam_table {
 	struct rtrie trie6;
 	struct rtrie trie4;
-	/**
-	 * This one is not RCU-friendly. Touch only while you're holding the
-	 * mutex.
-	 */
-	u64 count;
 	struct kref refcount;
 };
 
@@ -222,11 +217,11 @@ int eamt_add(struct eam_table *eamt, struct eamt_entry *new, bool force)
 		goto end;
 	}
 
-	eamt->count++;
 end:
 	mutex_unlock(&lock);
 	return error;
 }
+EXPORT_UNIT_SYMBOL(eamt_add);
 
 static int get_exact6(struct eam_table *eamt, struct ipv6_prefix *prefix,
 		struct eamt_entry *eam)
@@ -268,7 +263,6 @@ static int __rm(struct eam_table *eamt,
 	error = rtrie_rm(&eamt->trie4, &key4);
 	if (error)
 		goto corrupted;
-	eamt->count--;
 
 	/* rtrie_print("IPv6 trie after remove", &eamt.trie6); */
 	/* rtrie_print("IPv4 trie after remove", &eamt.trie4); */
@@ -325,6 +319,7 @@ int eamt_rm(struct eam_table *eamt,
 
 	return error;
 }
+EXPORT_UNIT_SYMBOL(eamt_rm);
 
 bool eamt_contains6(struct eam_table *eamt, struct in6_addr *addr)
 {
@@ -370,6 +365,7 @@ int eamt_xlat_6to4(struct eam_table *eamt, struct in6_addr *addr6,
 	result->entry.method = AXM_EAMT;
 	return 0;
 }
+EXPORT_UNIT_SYMBOL(eamt_xlat_6to4);
 
 /** Contract: Returns 0 or -ESRCH. No other outcomes. */
 int eamt_xlat_4to6(struct eam_table *eamt, struct in_addr *addr4,
@@ -402,6 +398,7 @@ int eamt_xlat_4to6(struct eam_table *eamt, struct in_addr *addr4,
 	result->entry.method = AXM_EAMT;
 	return 0;
 }
+EXPORT_UNIT_SYMBOL(eamt_xlat_4to6);
 
 bool eamt_is_empty(struct eam_table *eamt)
 {
@@ -445,9 +442,9 @@ void eamt_flush(struct eam_table *eamt)
 	mutex_lock(&lock);
 	rtrie_flush(&eamt->trie6);
 	rtrie_flush(&eamt->trie4);
-	eamt->count = 0;
 	mutex_unlock(&lock);
 }
+EXPORT_UNIT_SYMBOL(eamt_flush);
 
 struct eam_table *eamt_alloc(void)
 {
@@ -459,11 +456,11 @@ struct eam_table *eamt_alloc(void)
 
 	rtrie_init(&result->trie6, sizeof(struct eamt_entry), &lock);
 	rtrie_init(&result->trie4, sizeof(struct eamt_entry), &lock);
-	result->count = 0;
 	kref_init(&result->refcount);
 
 	return result;
 }
+EXPORT_UNIT_SYMBOL(eamt_alloc);
 
 void eamt_get(struct eam_table *eamt)
 {
@@ -486,3 +483,4 @@ void eamt_put(struct eam_table *eamt)
 {
 	kref_put(&eamt->refcount, eamt_release);
 }
+EXPORT_UNIT_SYMBOL(eamt_put);

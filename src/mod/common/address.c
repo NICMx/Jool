@@ -93,6 +93,7 @@ bool prefix4_contains(const struct ipv4_prefix *prefix,
 	__u32 addrbits = be32_to_cpu(addr->s_addr) & maskbits;
 	return prefixbits == addrbits;
 }
+EXPORT_UNIT_SYMBOL(prefix4_contains);
 
 bool prefix4_intersects(const struct ipv4_prefix *p1,
 		const struct ipv4_prefix *p2)
@@ -105,12 +106,14 @@ __u64 prefix4_get_addr_count(const struct ipv4_prefix *prefix)
 {
 	return ((__u64) 1U) << (32 - prefix->len);
 }
+EXPORT_UNIT_SYMBOL(prefix4_get_addr_count);
 
 bool prefix6_contains(const struct ipv6_prefix *prefix,
 		const struct in6_addr *addr)
 {
 	return ipv6_prefix_equal(&prefix->addr, addr, prefix->len);
 }
+EXPORT_UNIT_SYMBOL(prefix6_contains);
 
 int prefix4_validate(const struct ipv4_prefix *prefix)
 {
@@ -217,6 +220,35 @@ void addr6_set_bit(struct in6_addr *addr, unsigned int pos, bool value)
 		*quadrant |= cpu_to_be32(mask);
 	else
 		*quadrant &= cpu_to_be32(~mask);
+}
+
+unsigned int addr4_get_bits(struct in_addr const *addr,
+		unsigned int offset, unsigned int len)
+{
+	return (be32_to_cpu(addr->s_addr) >> (32u - offset - len))
+			& ((1u << len) - 1u);
+}
+
+unsigned int addr6_get_bits(struct in6_addr const *addr,
+		unsigned int offset, unsigned int len)
+{
+	unsigned int i;
+	unsigned int result;
+
+	result = 0;
+	for (i = 0; i < len; i++)
+		if (addr6_get_bit(addr, i + offset))
+			result |= 1 << (len - i - 1);
+
+	return result;
+}
+
+void addr6_set_bits(struct in6_addr *addr, unsigned int offset,
+		unsigned int len, unsigned int value)
+{
+	unsigned int i;
+	for (i = 0; i < len; i++)
+		addr6_set_bit(addr, offset + i, (value >> (len - i - 1u)) & 1u);
 }
 
 __u64 prefix4_next(const struct ipv4_prefix *prefix)

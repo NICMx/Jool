@@ -103,12 +103,14 @@ int rfc6056_setup(void)
 
 	return 0;
 }
+EXPORT_UNIT_SYMBOL(rfc6056_setup);
 
 void rfc6056_teardown(void)
 {
 	crypto_free_shash(shash);
 	__wkfree("Secret key", secret_key);
 }
+EXPORT_UNIT_SYMBOL(rfc6056_teardown);
 
 static int hash_tuple(struct shash_desc *desc, __u8 fields,
 		const struct tuple *tuple6)

@@ -31,6 +31,8 @@ title: MAP-T
 
 This document is a layman's (but exhaustive) slightly sardonic explanation of MAP-T. It is intended to serve as a replacement for RFC 7599, or at least, as preparatory reading for it. I'm assuming you've already consumed the [general introduction to the topic](intro-xlat.html#map-t), so you know what you're getting into.
 
+> ![Warning!](../images/warning.svg) **This page is still under construction. It's bound to change. Do not use it as reference.**
+
 ## Foreword
 
 The MAP RFCs argue that, depending on how many IPv4 addresses you have, and how many you're willing to assign to each CE, there are three different MAP-T scenarios:
@@ -75,6 +77,10 @@ Let's visualize all of that:
 
 ![Network: EA-bits distribution](../images/mapt/distribution.svg)
 
+> **THE CONTENTS OF THIS BLOCK ARE NOT ACCURATE. IGNORE THIS BLOCK. WIP**
+> 
+> &lt;lies&gt;
+> 
 > ![Note!](../images/bulb.svg) You might be wondering why we're crossing out Port Set 0.
 > 
 > One reason is that it contains port 0, which is invalid. Port zero should never be used on the wire.
@@ -82,6 +88,8 @@ Let's visualize all of that:
 > Another reason is that it contains the system port range (1-1023), which everyone is scared of (for reasons that are likely obsolete, IMO).
 > 
 > MAP implementations are supposed to be hardcoded into always leaving Port Set 0 unused.
+> 
+> &lt;/lies&gt;
 
 > ![Warning!](../images/warning.svg) The RFCs define a rather important notion called "MAP domain," whose meaning is unfortunately significantly inconsistent across the specification. (Probably as a result of its evolution as the documents were written.)
 > 
@@ -302,7 +310,7 @@ The BR needs two things:
 
 The FMR table is a bunch of BMRs. One BMR per connected MAP domain.
 
-In our example, the FMR would look like
+In our example, the FMR would only have one entry:
 
 | IPv6 Prefix          | IPv4 Prefix  | EA-bits length |
 |----------------------|--------------|----------------|
@@ -338,4 +346,4 @@ In fact, a CE's BMR is usually added to its own FMR table. This allows clients f
 
 ### `a`, `k` and `m`
 
-> Under construction
+> ![Warning!](../images/warning.svg) Under construction

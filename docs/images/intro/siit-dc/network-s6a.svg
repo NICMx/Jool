@@ -78,16 +78,16 @@
        sodipodi:nodetypes="cccc" />
     <path
        style="display:inline;fill:none;stroke:#000000;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
-       d="M 454,732.36218 H 208 v 64"
+       d="M 454,732.36218 H 208 v 128 h 52"
        id="path3104"
        inkscape:connector-curvature="0"
-       sodipodi:nodetypes="ccc" />
+       sodipodi:nodetypes="cccc" />
     <path
        style="display:inline;fill:none;stroke:#aa0000;stroke-width:1;stroke-linejoin:bevel;stroke-miterlimit:4;stroke-dasharray:8, 8;stroke-dashoffset:0;stroke-opacity:0.501961"
-       d="m 16,700.36218 h 256 v 192 H 16 Z"
+       d="m 272,876.36218 v 16 H 16 v -192 h 256 v 144"
        id="rect3025"
        inkscape:connector-curvature="0"
-       sodipodi:nodetypes="ccccc" />
+       sodipodi:nodetypes="cccccc" />
     <path
        style="display:inline;fill:#eef4d7;fill-opacity:1;stroke:#000000;stroke-width:1;stroke-miterlimit:4;stroke-dasharray:none"
        d="m 352,685.36218 c -9.07414,0 -16.4507,7.1098 -16.9375,16.0625 -8.95262,0.4868 -16.0625,7.8633 -16.0625,16.9375 0,5.788 2.89402,10.9299 7.3125,14 -4.41848,3.0701 -7.3125,8.2119 -7.3125,14 0,9.3888 7.61116,17 17,17 2.49392,0 4.86628,-0.5353 7,-1.5 -0.004,0.1662 0,0.3325 0,0.5 0,9.3888 7.61116,17 17,17 5.77458,0 10.86508,-2.9114 13.9375,-7.3125 2.82074,2.0809 6.28828,3.3125 10.0625,3.3125 9.38884,0 17,-7.6112 17,-17 0,-1.0226 -0.1394,-2.0271 -0.3125,-3 9.07014,-0.3607 16.3125,-7.8414 16.3125,-17 0,-5.0277 -2.21822,-9.5126 -5.6875,-12.625 1.07432,-2.2296 1.6875,-4.7344 1.6875,-7.375 0,-9.3889 -7.61116,-17 -17,-17 -1.02262,0 -2.0271,0.1394 -3,0.3125 -0.36072,-9.0702 -7.8414,-16.3125 -17,-16.3125 -4.69442,0 -8.9236,1.9236 -12,5 -3.0764,-3.0764 -7.30558,-5 -12,-5 z"
@@ -236,5 +236,23 @@
          inkscape:connector-curvature="0"
          sodipodi:nodetypes="cc" />
     </g>
+    <use
+       x="0"
+       y="0"
+       xlink:href="#rect3143"
+       id="use860"
+       transform="translate(192,96)"
+       width="100%"
+       height="100%" />
+    <text
+       xml:space="preserve"
+       style="font-size:12px;line-height:1.25;font-family:sans-serif;text-align:center;letter-spacing:0px;text-anchor:middle"
+       x="276"
+       y="860.36218"
+       id="text864"><tspan
+         sodipodi:role="line"
+         id="tspan862"
+         x="276"
+         y="860.36218">BR</tspan></text>
   </g>
 </svg>

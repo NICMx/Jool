@@ -42,7 +42,7 @@
      inkscape:cx="384"
      inkscape:cy="156"
      inkscape:document-units="px"
-     inkscape:current-layer="layer7"
+     inkscape:current-layer="layer6"
      showgrid="true"
      showguides="true"
      inkscape:guide-bbox="true"
@@ -327,19 +327,12 @@
      id="layer6"
      inkscape:label="Inbound 2"
      style="display:inline">
-    <rect
-       style="display:inline;fill:#ccffaa;stroke:none;stroke-dasharray:4, 2"
-       id="rect1810"
-       width="51.864719"
-       height="12.737671"
-       x="401.19852"
-       y="125.399" />
     <use
        x="0"
        y="0"
        xlink:href="#rect1010"
        id="use1812"
-       transform="translate(-233.09783,-818.13536)"
+       transform="translate(-227.92334,-818.13536)"
        width="100%"
        height="100%"
        style="display:inline" />
@@ -376,7 +369,9 @@
          x="464"
          y="136"
          id="tspan1820"
-         style="font-size:12px;line-height:1.25;font-family:sans-serif">src: [64:ff9b::203.0.113.56]:80</tspan><tspan
+         style="font-size:12px;line-height:1.25;font-family:sans-serif">src: [<tspan
+   style="fill:#d40000;fill-opacity:1"
+   id="tspan915">64:ff9b:1</tspan>::203.0.113.56]:80</tspan><tspan
          sodipodi:role="line"
          x="464"
          y="151"

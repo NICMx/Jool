@@ -256,11 +256,13 @@ int xlator_setup(void)
 
 	return 0;
 }
+EXPORT_UNIT_SYMBOL(xlator_setup);
 
 void xlator_set_defrag(void (*_defrag_enable)(struct net *ns))
 {
 	defrag_enable = _defrag_enable;
 }
+EXPORT_UNIT_SYMBOL(xlator_set_defrag);
 
 /**
  * Graceful termination of this module. Reverts xlator_setup().
@@ -279,18 +281,10 @@ void xlator_teardown(void)
 	WARN(!list_empty(ni), "There are elements in the xlator list after a cleanup.");
 	__wkfree("xlator DB", ni);
 }
+EXPORT_UNIT_SYMBOL(xlator_teardown);
 
-static int init_siit(struct xlator *jool, struct ipv6_prefix *pool6)
+static int init_siit(struct xlator *jool)
 {
-	int error;
-
-	error = globals_init(&jool->globals, XT_SIIT, pool6);
-	if (error)
-		return error;
-
-	jool->stats = jstat_alloc();
-	if (!jool->stats)
-		goto stats_fail;
 	jool->siit.eamt = eamt_alloc();
 	if (!jool->siit.eamt)
 		goto eamt_fail;
@@ -305,22 +299,11 @@ static int init_siit(struct xlator *jool, struct ipv6_prefix *pool6)
 blacklist4_fail:
 	eamt_put(jool->siit.eamt);
 eamt_fail:
-	jstat_put(jool->stats);
-stats_fail:
 	return -ENOMEM;
 }
 
-static int init_nat64(struct xlator *jool, struct ipv6_prefix *pool6)
+static int init_nat64(struct xlator *jool)
 {
-	int error;
-
-	error = globals_init(&jool->globals, XT_NAT64, pool6);
-	if (error)
-		return error;
-
-	jool->stats = jstat_alloc();
-	if (!jool->stats)
-		goto stats_fail;
 	jool->nat64.pool4 = pool4db_alloc();
 	if (!jool->nat64.pool4)
 		goto pool4_fail;
@@ -340,8 +323,6 @@ joold_fail:
 bib_fail:
 	pool4db_put(jool->nat64.pool4);
 pool4_fail:
-	jstat_put(jool->stats);
-stats_fail:
 	return -ENOMEM;
 }
 
@@ -350,22 +331,11 @@ static bool is_hairpin_mapt(struct xlation *state)
 	return false;
 }
 
-static int init_mapt(struct xlator *jool, struct ipv6_prefix *pool6)
+static int init_mapt(struct xlator *jool)
 {
-	int error;
-
-	error = globals_init(&jool->globals, XT_MAPT, pool6);
-	if (error)
-		return error;
-
-	jool->stats = jstat_alloc();
-	if (!jool->stats)
-		return -ENOMEM;
 	jool->mapt.fmrt = fmrt_alloc();
-	if (!jool->mapt.fmrt) {
-		jstat_put(jool->stats);
+	if (!jool->mapt.fmrt)
 		return -ENOMEM;
-	}
 
 	jool->is_hairpin = is_hairpin_mapt; /* TODO (mapt) */
 	jool->handling_hairpinning = NULL;
@@ -373,8 +343,9 @@ static int init_mapt(struct xlator *jool, struct ipv6_prefix *pool6)
 }
 
 int xlator_init(struct xlator *jool, struct net *ns, char *iname,
-		xlator_flags flags, struct ipv6_prefix *pool6)
+		xlator_flags flags, struct jool_globals *globals)
 {
+	xlator_type xt;
 	int error;
 
 	error = xf_validate(xlator_flags2xf(flags));
@@ -387,17 +358,37 @@ int xlator_init(struct xlator *jool, struct net *ns, char *iname,
 	strcpy(jool->iname, iname);
 	jool->flags = flags;
 
-	switch (xlator_flags2xt(flags)) {
-	case XT_SIIT:
-		return init_siit(jool, pool6);
-	case XT_NAT64:
-		return init_nat64(jool, pool6);
-	case XT_MAPT:
-		return init_mapt(jool, pool6);
+	xt = xlator_flags2xt(flags);
+	if (globals) {
+		jool->globals = *globals;
+	} else {
+		error = globals_init(&jool->globals, xt);
+		if (error)
+			return error;
 	}
 
-	log_err(XT_VALIDATE_ERRMSG);
-	return -EINVAL;
+	jool->stats = jstat_alloc();
+	if (!jool->stats)
+		return -ENOMEM;
+
+	switch (xt) {
+	case XT_SIIT:
+		error = init_siit(jool);
+		break;
+	case XT_NAT64:
+		error = init_nat64(jool);
+		break;
+	case XT_MAPT:
+		error = init_mapt(jool);
+		break;
+	default:
+		log_err(XT_VALIDATE_ERRMSG);
+		error = -EINVAL;
+	}
+
+	if (error)
+		jstat_put(jool->stats);
+	return error;
 }
 EXPORT_UNIT_SYMBOL(xlator_init);
 
@@ -422,7 +413,7 @@ static int basic_validations(char const *iname, bool allow_null_iname,
 
 /** Basic validations when adding an xlator to the DB. */
 static int basic_add_validations(char *iname, xlator_flags flags,
-		struct ipv6_prefix *pool6)
+		struct jool_globals *globals)
 {
 	int error;
 
@@ -434,7 +425,8 @@ static int basic_add_validations(char *iname, xlator_flags flags,
 		log_err(XF_VALIDATE_ERRMSG);
 		return error;
 	}
-	if ((flags & XT_NAT64) && !pool6) {
+
+	if ((flags & XT_NAT64) && !globals->pool6.set) {
 		log_err("pool6 is mandatory in NAT64 instances.");
 		return -EINVAL;
 	}
@@ -529,14 +521,14 @@ static int __xlator_add(struct jool_instance *new, struct xlator *result)
  * @result: Will be initialized with a clone of the new translator. Send NULL
  *     if you're not interested.
  */
-int xlator_add(xlator_flags flags, char *iname, struct ipv6_prefix *pool6,
+int xlator_add(xlator_flags flags, char *iname, struct jool_globals *globals,
 		struct xlator *result)
 {
 	struct jool_instance *instance;
 	struct net *ns;
 	int error;
 
-	error = basic_add_validations(iname, flags, pool6);
+	error = basic_add_validations(iname, flags, globals);
 	if (error)
 		return error;
 
@@ -556,7 +548,7 @@ int xlator_add(xlator_flags flags, char *iname, struct ipv6_prefix *pool6,
 
 	/* All *error* roads from now need to free @instance. */
 
-	error = xlator_init(&instance->jool, ns, iname, flags, pool6);
+	error = xlator_init(&instance->jool, ns, iname, flags, globals);
 	if (error) {
 		wkfree(struct jool_instance, instance);
 		put_net(ns);
@@ -594,6 +586,7 @@ mutex_fail:
 	put_net(ns);
 	return error;
 }
+EXPORT_UNIT_SYMBOL(xlator_add);
 
 static int __xlator_rm(struct net *ns, char *iname, xlator_type xt)
 {
@@ -655,6 +648,7 @@ int xlator_rm(xlator_type xt, char *iname)
 	put_net(ns);
 	return error;
 }
+EXPORT_UNIT_SYMBOL(xlator_rm);
 
 int xlator_replace(struct xlator *jool)
 {
@@ -663,10 +657,7 @@ int xlator_replace(struct xlator *jool)
 	struct list_head *list;
 	int error;
 
-	error = basic_add_validations(jool->iname, jool->flags,
-			jool->globals.pool6.set
-					? &jool->globals.pool6.prefix
-					: NULL);
+	error = basic_add_validations(jool->iname, jool->flags, &jool->globals);
 	if (error)
 		return error;
 

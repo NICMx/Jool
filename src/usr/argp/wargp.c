@@ -7,11 +7,13 @@
 #include "common/constants.h"
 #include "usr/util/str_utils.h"
 #include "usr/argp/log.h"
+#include "usr/argp/xlator_type.h"
 
 const char *argp_program_version = JOOL_VERSION_STR;
 const char *argp_program_bug_address = "jool@nic.mx";
 
 int wargp_parse_bool(void *input, int key, char *str);
+int wargp_parse_u8(void *field, int key, char *str);
 int wargp_parse_u32(void *field, int key, char *str);
 int wargp_parse_l4proto(void *input, int key, char *str);
 int wargp_parse_string(void *input, int key, char *str);
@@ -23,6 +25,11 @@ struct wargp_type wt_bool = {
 	/* Boolean opts need no argument; absence is false, presence is true. */
 	.argument = NULL,
 	.parse = wargp_parse_bool,
+};
+
+struct wargp_type wt_u8 = {
+	.argument = "<integer>",
+	.parse = wargp_parse_u8,
 };
 
 struct wargp_type wt_u32 = {
@@ -53,7 +60,7 @@ struct wargp_type wt_addr = {
 struct wargp_type wt_prefix6 = {
 	.argument = "<IPv6 Prefix>",
 	.parse = wargp_parse_prefix6,
-	.candidates = WELL_KNOWN_PREFIX,
+	.candidates = TYPICAL_XLAT_PREFIXES,
 };
 
 struct wargp_type wt_prefix4 = {
@@ -70,6 +77,17 @@ int wargp_parse_bool(void *void_field, int key, char *str)
 {
 	struct wargp_bool *field = void_field;
 	field->value = true;
+	return 0;
+}
+
+int wargp_parse_u8(void *field, int key, char *str)
+{
+	struct jool_result result;
+
+	result = str_to_u8(str, field, MAX_U8);
+	if (result.error)
+		return pr_result(&result);
+
 	return 0;
 }
 
@@ -164,13 +182,12 @@ int wargp_parse_prefix4(void *void_field, int key, char *str)
 	return 0;
 }
 
-static int adapt_options(struct argp *argp, struct wargp_option *wopts,
+static int adapt_options(struct argp *argp, struct wargp_option const *wopts,
 		struct argp_option **result)
 {
-	struct wargp_option *wopt;
+	struct wargp_option const *wopt;
 	struct argp_option *opts;
 	struct argp_option *opt;
-	unsigned int i;
 	unsigned int total_opts;
 
 	if (!wopts) {
@@ -179,8 +196,8 @@ static int adapt_options(struct argp *argp, struct wargp_option *wopts,
 	}
 
 	total_opts = 0;
-	for (i = 0; wopts[i].name; i++)
-		if (wopts[i].key != ARGP_KEY_ARG)
+	for (wopt = wopts; wopt->name; wopt++)
+		if ((xt_get() & wopt->xt) && (wopt->key != ARGP_KEY_ARG))
 			total_opts++;
 
 	opts = calloc(total_opts + 1, sizeof(struct argp_option));
@@ -190,26 +207,26 @@ static int adapt_options(struct argp *argp, struct wargp_option *wopts,
 	}
 	argp->options = opts;
 
-	wopt = wopts;
 	opt = opts;
-	while (wopt->name) {
-		if (wopt->key != ARGP_KEY_ARG) {
-			opt->name = wopt->name;
-			opt->key = wopt->key;
-			opt->arg = wopt->type->argument;
-			opt->doc = wopt->doc;
-			opt++;
+	for (wopt = wopts; wopt->name; wopt++) {
+		if (!(xt_get() & wopt->xt))
+			continue;
 
-		} else {
+		if (wopt->key == ARGP_KEY_ARG) {
 			if (argp->args_doc) {
 				pr_err("Bug: Only one ARGP_KEY_ARG option is allowed per option list.");
 				free(opts);
 				return -EINVAL;
 			}
 			argp->args_doc = wopt->type->argument;
+			continue;
 		}
 
-		wopt++;
+		opt->name = wopt->name;
+		opt->key = wopt->key;
+		opt->arg = wopt->type->argument;
+		opt->doc = wopt->doc;
+		opt++;
 	}
 
 	*result = opts;

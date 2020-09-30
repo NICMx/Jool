@@ -18,7 +18,7 @@ static __u8 xlat_tos(struct jool_globals const *config, struct ipv6hdr const *hd
 /**
  * One-liner for creating the IPv4 header's Protocol field.
  */
-static __u8 xlat_proto(struct ipv6hdr const *hdr6)
+EXPORT_UNIT_STATIC __u8 xlat_proto(struct ipv6hdr const *hdr6)
 {
 	struct hdr_iterator iterator = HDR_ITERATOR_INIT(hdr6);
 	hdr_iterator_last(&iterator);
@@ -26,6 +26,7 @@ static __u8 xlat_proto(struct ipv6hdr const *hdr6)
 			? IPPROTO_ICMP
 			: iterator.hdr_type;
 }
+EXPORT_UNIT_SYMBOL(xlat_proto);
 
 static verdict xlat64_external_addresses(struct xlation *state)
 {
@@ -563,7 +564,7 @@ static void generate_ipv4_id(struct xlation const *state, struct iphdr *hdr4,
 /**
  * One-liner for creating the IPv4 header's Dont Fragment flag.
  */
-static bool generate_df_flag(struct packet const *out)
+EXPORT_UNIT_STATIC bool generate_df_flag(struct packet const *out)
 {
 	unsigned int len;
 
@@ -573,6 +574,7 @@ static bool generate_df_flag(struct packet const *out)
 
 	return len > 1260;
 }
+EXPORT_UNIT_SYMBOL(generate_df_flag);
 
 static __be16 xlat_frag_off(struct frag_hdr const *hdr_frag, struct packet const *out)
 {
@@ -601,7 +603,7 @@ static __be16 xlat_frag_off(struct frag_hdr const *hdr_frag, struct packet const
  *		of the segments left field (from the start of @hdr6) will be
  *		stored here.
  */
-static bool has_nonzero_segments_left(struct ipv6hdr const *hdr6,
+EXPORT_UNIT_STATIC bool has_nonzero_segments_left(struct ipv6hdr const *hdr6,
 		__u32 *location)
 {
 	struct ipv6_rt_hdr const *rt_hdr;
@@ -618,6 +620,7 @@ static bool has_nonzero_segments_left(struct ipv6hdr const *hdr6,
 	*location = offset + offsetof(struct ipv6_rt_hdr, segments_left);
 	return true;
 }
+EXPORT_UNIT_SYMBOL(has_nonzero_segments_left);
 
 /**
  * Translates @state->in's IPv6 header into @state->out's IPv4 header.
@@ -697,10 +700,12 @@ static verdict ttp64_ipv4_internal(struct xlation *state)
  * One liner for creating the ICMPv4 header's MTU field.
  * Returns the smallest out of the three parameters.
  */
-static __be16 minimum(unsigned int mtu1, unsigned int mtu2, unsigned int mtu3)
+EXPORT_UNIT_STATIC __be16 minimum(unsigned int mtu1, unsigned int mtu2,
+		unsigned int mtu3)
 {
 	return cpu_to_be16(min(mtu1, min(mtu2, mtu3)));
 }
+EXPORT_UNIT_SYMBOL(minimum);
 
 static verdict compute_mtu4(struct xlation const *state)
 {

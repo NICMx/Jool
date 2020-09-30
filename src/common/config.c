@@ -27,6 +27,12 @@ struct nla_policy joolnl_instance_entry_policy[JNLAIE_COUNT] = {
 	},
 };
 
+struct nla_policy joolnl_instance_add_policy[JNLAIA_COUNT] = {
+	[JNLAIA_XF] = { .type = NLA_U8},
+	[JNLAIA_POOL6] = { .type = NLA_NESTED },
+	[JNLAIA_MAPT] = { .type = NLA_NESTED },
+};
+
 struct nla_policy joolnl_prefix6_policy[JNLAP_COUNT] = {
 	[JNLAP_ADDR] = JOOLNL_ADDR6_POLICY,
 	[JNLAP_LEN] = { .type = NLA_U8 },
@@ -140,11 +146,19 @@ const struct nla_policy mapt_globals_policy[JNLAG_COUNT] = {
 	[JNLAG_RESET_TOS] = { .type = NLA_U8 },
 	[JNLAG_TOS] = { .type = NLA_U8 },
 	[JNLAG_PLATEAUS] = { .type = NLA_NESTED },
-	[JNLAG_MAPT_a] = { .type = NLA_U8 },
-	[JNLAG_MAPT_END_USER_IPV6_PREFIX] = { .type = NLA_NESTED },
-	[JNLAG_MAPT_BMR_PREFIX6] = { .type = NLA_NESTED },
-	[JNLAG_MAPT_BMR_PREFIX4] = { .type = NLA_NESTED },
-	[JNLAG_MAPT_BMR_EA_BITS_LEN] = { .type = NLA_NESTED },
+	[JNLAG_MAPT] = { .type = NLA_NESTED },
+};
+
+struct nla_policy mapt_policy[JNLAMT_COUNT] = {
+	[JNLAMT_TYPE] = { .type = NLA_U8 },
+	[JNLAMT_EUI6P] = { .type = NLA_NESTED },
+	[JNLAMT_EABITS] = { .type = NLA_U64 },
+	[JNLAMT_BMR_P6] = { .type = NLA_NESTED },
+	[JNLAMT_BMR_P4] = { .type = NLA_NESTED },
+	[JNLAMT_BMR_EBL] = { .type = NLA_U8 },
+	[JNLAMT_a] = { .type = NLA_U8 },
+	[JNLAMT_k] = { .type = NLA_U8 },
+	[JNLAMT_m] = { .type = NLA_U8 },
 };
 
 int iname_validate(const char *iname, bool allow_null)

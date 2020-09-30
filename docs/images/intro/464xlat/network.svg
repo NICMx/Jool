@@ -301,13 +301,13 @@
        id="text3869"
        y="760.36218"
        x="544"
-       style="font-style:normal;font-weight:normal;line-height:0%;font-family:sans-serif;text-align:center;letter-spacing:0px;word-spacing:0px;text-anchor:middle;display:inline;fill:#000000;fill-opacity:1;stroke:none;"
+       style="font-style:normal;font-weight:normal;line-height:0%;font-family:sans-serif;text-align:center;letter-spacing:0px;word-spacing:0px;text-anchor:middle;display:inline;fill:#000000;fill-opacity:1;stroke:none"
        xml:space="preserve"><tspan
          y="760.36218"
          x="544"
          id="tspan3871"
          sodipodi:role="line"
-         style="font-size:10px;line-height:1.25;font-family:sans-serif;fill:#000000;">2001:db8::ab:cd</tspan></text>
+         style="font-size:10px;line-height:1.25;font-family:sans-serif;fill:#000000">2001:db8::ab:cd</tspan></text>
     <text
        xml:space="preserve"
        style="font-style:normal;font-weight:normal;line-height:0%;font-family:sans-serif;text-align:center;letter-spacing:0px;word-spacing:0px;text-anchor:middle;display:inline;fill:#cd87de;fill-opacity:1;stroke:none"
@@ -371,7 +371,7 @@
        height="100%" />
     <text
        xml:space="preserve"
-       style="font-style:normal;font-weight:normal;font-size:12px;line-height:0%;font-family:sans-serif;text-align:center;letter-spacing:0px;word-spacing:0px;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:none;"
+       style="font-style:normal;font-weight:normal;font-size:12px;line-height:0%;font-family:sans-serif;text-align:center;letter-spacing:0px;word-spacing:0px;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:none"
        x="164.00293"
        y="828.83582"
        id="text919"><tspan
@@ -379,10 +379,10 @@
          id="tspan917"
          x="164.00293"
          y="828.83582"
-         style="font-size:12px;line-height:1.25;font-family:sans-serif;fill:#000000;fill-opacity:1;">c6b</tspan></text>
+         style="font-size:12px;line-height:1.25;font-family:sans-serif;fill:#000000;fill-opacity:1">c6b</tspan></text>
     <text
        xml:space="preserve"
-       style="font-style:normal;font-weight:normal;line-height:0%;font-family:sans-serif;text-align:center;letter-spacing:0px;word-spacing:0px;text-anchor:middle;display:inline;fill:#000000;fill-opacity:1;stroke:none;"
+       style="font-style:normal;font-weight:normal;line-height:0%;font-family:sans-serif;text-align:center;letter-spacing:0px;word-spacing:0px;text-anchor:middle;display:inline;fill:#000000;fill-opacity:1;stroke:none"
        x="160"
        y="856.36218"
        id="text923"><tspan
@@ -390,7 +390,7 @@
          id="tspan921"
          x="160"
          y="856.36218"
-         style="font-size:10px;line-height:1.25;font-family:sans-serif;text-align:center;text-anchor:middle;fill:#000000;fill-opacity:1;">2001:db8:12:34::6b</tspan></text>
+         style="font-size:10px;line-height:1.25;font-family:sans-serif;text-align:center;text-anchor:middle;fill:#000000;fill-opacity:1">2001:db8:12:34::6b</tspan></text>
     <g
        transform="translate(55.96875,-41.234375)"
        id="use3161"
@@ -579,7 +579,7 @@
          x="80"
          y="1032.3622"><tspan
    style="fill:#d40000"
-   id="tspan851">64:ff9b::</tspan>/96</tspan></text>
+   id="tspan851">64:ff9b:1</tspan>::/96</tspan></text>
     <text
        xml:space="preserve"
        style="font-size:10px;line-height:1.25;font-family:sans-serif;text-align:start;letter-spacing:0px;text-anchor:start;display:inline"
@@ -611,9 +611,9 @@
          x="352"
          y="960.36218"><tspan
    style="fill:#d40000"
-   id="tspan851-6">64:ff9b::</tspan>/96</tspan></text>
+   id="tspan851-6">64:ff9b:1</tspan>::/96</tspan></text>
     <path
-       style="fill:none;stroke:#000000;stroke-width:2;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;marker-end:url(#Arrow2Mend);stroke-miterlimit:4;stroke-dasharray:none"
+       style="fill:none;stroke:#000000;stroke-width:2;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1;marker-end:url(#Arrow2Mend)"
        d="M 232,1004.3622 V 956.36218"
        id="path1106"
        sodipodi:nodetypes="cc" />
