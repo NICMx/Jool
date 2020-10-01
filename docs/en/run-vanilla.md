@@ -224,5 +224,5 @@ user@T:~# rmmod jool_siit
 1. If you care about performance, you might want to raise [`lowest-ipv6-mtu`](mtu.html).
 3. Please note that none of what was done in this tutorial survives reboots! [Here](run-persistent.html)'s documentation on persistence.
 
-The [next tutorial](run-eam.html) covers [EAMT SIIT](intro-xlat.html#siit-with-eam).
+The [next tutorial](run-eam.html) covers [EAMT SIIT](intro-xlat.html#siit-eamt).
 
