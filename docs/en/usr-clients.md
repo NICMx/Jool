@@ -64,7 +64,7 @@ All JSON tags other than `"instance"` are ignored. (The idea is to allow you to 
 - [`stats`](usr-flags-stats.html)
 - [`global`](usr-flags-global.html)
 - [`eamt`](usr-flags-eamt.html) (SIIT only)
-- [`blacklist4`](usr-flags-blacklist4.html) (SIIT only)
+- [`denylist4`](usr-flags-denylist4.html) (SIIT only)
 - [`pool4`](usr-flags-pool4.html) (NAT64 only)
 - [`bib`](usr-flags-bib.html) (NAT64 only)
 - [`session`](usr-flags-session.html) (NAT64 only)

@@ -7,7 +7,7 @@
 #include "mod/common/log.h"
 #include "mod/common/packet.h"
 #include "mod/common/stats.h"
-#include "mod/common/db/blacklist4.h"
+#include "mod/common/db/denylist4.h"
 #include "mod/common/steps/compute_outgoing_tuple.h"
 
 /**

@@ -77,8 +77,8 @@ if [[ -z "$TESTS" || "$TESTS" = *eamt* ]]; then
 	pause
 fi
 
-# Blacklist4
-if [[ -z "$TESTS" || "$TESTS" = *blacklist4* ]]; then
+# Denylist4
+if [[ -z "$TESTS" || "$TESTS" = *denylist4* ]]; then
 	clear
 	sudo modprobe jool_siit
 	sudo dmesg -C
@@ -86,7 +86,7 @@ if [[ -z "$TESTS" || "$TESTS" = *blacklist4* ]]; then
 	echo -e "\t{
 		\"framework\": \"iptables\",
 		\"instance\": \"default\",
-		\"blacklist4\": [" > tmp.txt
+		\"denylist4\": [" > tmp.txt
 	for i in {1..16}; do
 		echo "\"198.51.100.$i\"" >> tmp.txt
 		if [ $i -ne 16 ]; then
@@ -97,7 +97,7 @@ if [[ -z "$TESTS" || "$TESTS" = *blacklist4* ]]; then
 
 	sudo jool_siit file handle tmp.txt
 	print_table_check
-	sudo jool_siit blacklist4 display
+	sudo jool_siit denylist4 display
 	dmesg_check jool_siit
 
 	rm tmp.txt

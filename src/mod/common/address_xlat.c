@@ -2,7 +2,7 @@
 
 #include "mod/common/address.h"
 #include "mod/common/rfc6052.h"
-#include "mod/common/db/blacklist4.h"
+#include "mod/common/db/denylist4.h"
 #include "mod/common/db/eam.h"
 
 static bool is_illegal_source(struct in6_addr *src)
@@ -33,7 +33,7 @@ static struct addrxlat_result programming_error(void)
 
 struct addrxlat_result addrxlat_siit64(struct xlator *instance,
 		struct in6_addr *in, struct result_addrxlat64 *out,
-		bool enable_blacklists)
+		bool enable_denylists)
 {
 	struct addrxlat_result result;
 	int error;
@@ -56,16 +56,16 @@ struct addrxlat_result addrxlat_siit64(struct xlator *instance,
 		return result;
 	}
 
-	if (enable_blacklists && blacklist4_contains(instance->siit.blacklist4,
+	if (enable_denylists && denylist4_contains(instance->siit.denylist4,
 			&out->addr)) {
 		result.verdict = ADDRXLAT_ACCEPT;
 		/* No, that's not a typo. */
-		result.reason = "The resulting address (%pI4) is blacklist4ed";
+		result.reason = "The resulting address (%pI4) is denylist4ed";
 		return result;
 	}
 
 success:
-	if (enable_blacklists && must_not_translate(&out->addr, instance->ns)) {
+	if (enable_denylists && must_not_translate(&out->addr, instance->ns)) {
 		result.verdict = ADDRXLAT_ACCEPT;
 		result.reason = "The resulting address is subnet-scoped or belongs to a local interface";
 		return result;
@@ -78,13 +78,13 @@ success:
 
 struct addrxlat_result addrxlat_siit46(struct xlator *instance,
 		__be32 in, struct result_addrxlat46 *out,
-		bool enable_eam, bool enable_blacklists)
+		bool enable_eam, bool enable_denylists)
 {
 	struct in_addr tmp = { .s_addr = in };
 	struct addrxlat_result result;
 	int error;
 
-	if (enable_blacklists && must_not_translate(&tmp, instance->ns)) {
+	if (enable_denylists && must_not_translate(&tmp, instance->ns)) {
 		result.verdict = ADDRXLAT_ACCEPT;
 		result.reason = "The address is subnet-scoped or belongs to a local interface";
 		return result;
@@ -98,9 +98,9 @@ struct addrxlat_result addrxlat_siit46(struct xlator *instance,
 			return programming_error();
 	}
 
-	if (blacklist4_contains(instance->siit.blacklist4, &tmp)) {
+	if (denylist4_contains(instance->siit.denylist4, &tmp)) {
 		result.verdict = ADDRXLAT_ACCEPT;
-		result.reason = "The address lacks EAMT entry and is blacklist4ed";
+		result.reason = "The address lacks EAMT entry and is denylist4ed";
 		return result;
 	}
 
