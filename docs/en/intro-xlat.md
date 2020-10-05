@@ -266,7 +266,7 @@ NAPT is a hack whose purpose is to minimize the amount of global ("real") IPv4 a
 
 ![Packet flow: NAPT 1](../images/intro/napt/flow-1.svg)
 
-Here's the setup: <span class="napt-a-ip">_A_</span> wants to request an <span class="napt-v-port">HTTP</span> resource from <span class="napt-v-ip">_V_</span>. It therefore sends a packet to <span class="napt-v-ip">203.0.113.16</span>:<span class="napt-v-port">80</span>. The <span class="napt-a-ip">source address</span> is its own IP, while the <span class="napt-a-port">source port</span> was chosen randomly when the socket was bound. This is all normal and independent of _NAPT_.
+Here's the setup: <span class="napt-a-ip">_A_</span> wants to request an <span class="napt-v-port">HTTP</span> resource from <span class="napt-v-ip">_V_</span>. It therefore sends a packet to <span class="napt-v-ip">203.0.113.16</span>:<span class="napt-v-port">80</span>. The <span class="napt-a-ip">source address</span> is its own IP, while the <span class="napt-a-port">source port</span> was chosen randomly when the socket was bound. These are all everyday TCP/IP twirls, and _NAPT_ has not interfered with anything yet.
 
 ![Packet flow: NAPT 2](../images/intro/napt/flow-2.svg)
 
