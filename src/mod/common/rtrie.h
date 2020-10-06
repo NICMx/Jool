@@ -45,9 +45,9 @@ struct rtrie_node {
 	 *
 	 * If you want to assign a different value here, consider:
 	 *
-	 * - Black nodes cannot be upgraded into white nodes since white nodes
+	 * - Black nodes cannot be changed into white nodes since white nodes
 	 *   are supposed to contain a value (black nodes only need a key).
-	 * - White nodes can be downgraded into black nodes as long as they're
+	 * - White nodes can be changed into black nodes as long as they're
 	 *   not attached to tries.
 	 */
 	enum rtrie_color color;

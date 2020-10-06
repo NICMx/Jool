@@ -60,7 +60,7 @@ See [RFC 6586](https://tools.ietf.org/html/rfc6586) for deployment experiences u
 	4. [`file`](config-atomic.html)
 2. `jool_siit`-only modes
 	1. [`eamt`](usr-flags-eamt.html)
-	2. [`blacklist4`](usr-flags-blacklist4.html)
+	2. [`denylist4`](usr-flags-denylist4.html)
 	3. [`address`](usr-flags-address.html)
 3. `jool`-only modes
 	1. [`pool4`](usr-flags-pool4.html)

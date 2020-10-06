@@ -1,4 +1,4 @@
-#include "blacklist4.h"
+#include "usr/nl/denylist4.h"
 
 #include <errno.h>
 #include <netlink/genl/genl.h>
@@ -6,7 +6,7 @@
 #include "usr/nl/common.h"
 
 struct foreach_args {
-	joolnl_blacklist4_foreach_cb cb;
+	joolnl_denylist4_foreach_cb cb;
 	void *args;
 	bool done;
 	struct ipv4_prefix last;
@@ -21,7 +21,7 @@ static struct jool_result handle_foreach_response(struct nl_msg *response,
 	struct ipv4_prefix entry;
 	struct jool_result result;
 
-	result = joolnl_init_foreach_list(response, "blacklist4", &args->done);
+	result = joolnl_init_foreach_list(response, "denylist4", &args->done);
 	if (result.error)
 		return result;
 
@@ -40,8 +40,8 @@ static struct jool_result handle_foreach_response(struct nl_msg *response,
 	return result_success();
 }
 
-struct jool_result joolnl_blacklist4_foreach(struct joolnl_socket *sk,
-		char const *iname, joolnl_blacklist4_foreach_cb cb, void *_args)
+struct jool_result joolnl_denylist4_foreach(struct joolnl_socket *sk,
+		char const *iname, joolnl_denylist4_foreach_cb cb, void *_args)
 {
 	struct nl_msg *msg;
 	struct foreach_args args;
@@ -94,20 +94,20 @@ static struct jool_result __update(struct joolnl_socket *sk, char const *iname,
 	return joolnl_request(sk, msg, NULL, NULL);
 }
 
-struct jool_result joolnl_blacklist4_add(struct joolnl_socket *sk,
+struct jool_result joolnl_denylist4_add(struct joolnl_socket *sk,
 		char const *iname, struct ipv4_prefix const *prefix, bool force)
 {
 	return __update(sk, iname, JNLOP_BL4_ADD, prefix,
 			force ? JOOLNLHDR_FLAGS_FORCE : 0);
 }
 
-struct jool_result joolnl_blacklist4_rm(struct joolnl_socket *sk,
+struct jool_result joolnl_denylist4_rm(struct joolnl_socket *sk,
 		char const *iname, struct ipv4_prefix const *prefix)
 {
 	return __update(sk, iname, JNLOP_BL4_RM, prefix, 0);
 }
 
-struct jool_result joolnl_blacklist4_flush(struct joolnl_socket *sk,
+struct jool_result joolnl_denylist4_flush(struct joolnl_socket *sk,
 		char const *iname)
 {
 	struct nl_msg *msg;

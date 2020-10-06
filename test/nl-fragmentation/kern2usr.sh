@@ -100,18 +100,18 @@ if [[ -z "$TESTS" || "$TESTS" = *siit-eamt* ]]; then
 fi
 
 
-# blacklist4
-if [[ -z "$TESTS" || "$TESTS" = *siit-blacklist4* ]]; then
+# denylist4
+if [[ -z "$TESTS" || "$TESTS" = *siit-denylist4* ]]; then
 	clear
 	sudo modprobe jool_siit
 	sudo jool_siit instance add --iptables --pool6 64:ff9b::/96
 	for i in {1..16}; do
-		sudo jool_siit blacklist4 add 203.0.113.$i
+		sudo jool_siit denylist4 add 203.0.113.$i
 	done
 	sudo dmesg -C
 	
-	print_table_check "blacklist4"
-	sudo jool_siit blacklist4 display
+	print_table_check "denylist4"
+	sudo jool_siit denylist4 display
 	dmesg_check jool_siit
 
 	pause

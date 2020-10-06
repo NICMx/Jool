@@ -1,4 +1,4 @@
-#include "usr/argp/wargp/blacklist4.h"
+#include "usr/argp/wargp/denylist4.h"
 
 #include "usr/argp/log.h"
 #include "usr/argp/requirements.h"
@@ -6,7 +6,7 @@
 #include "usr/argp/wargp.h"
 #include "usr/argp/xlator_type.h"
 #include "usr/nl/core.h"
-#include "usr/nl/blacklist4.h"
+#include "usr/nl/denylist4.h"
 #include "usr/util/str_utils.h"
 
 struct display_args {
@@ -38,7 +38,7 @@ static struct jool_result print_entry(struct ipv4_prefix const *prefix, void *ar
 	return result_success();
 }
 
-int handle_blacklist4_display(char *iname, int argc, char **argv, void const *arg)
+int handle_denylist4_display(char *iname, int argc, char **argv, void const *arg)
 {
 	struct display_args dargs = { 0 };
 	struct joolnl_socket sk;
@@ -63,7 +63,7 @@ int handle_blacklist4_display(char *iname, int argc, char **argv, void const *ar
 		}
 	}
 
-	result = joolnl_blacklist4_foreach(&sk, iname, print_entry, &dargs);
+	result = joolnl_denylist4_foreach(&sk, iname, print_entry, &dargs);
 
 	joolnl_teardown(&sk);
 
@@ -75,7 +75,13 @@ int handle_blacklist4_display(char *iname, int argc, char **argv, void const *ar
 	return 0;
 }
 
-void autocomplete_blacklist4_display(void const *args)
+int handle_blacklist4_display(char *iname, int argc, char **argv, void const *arg)
+{
+	fprintf(stderr, "Warning: blacklist4 is deprecated. Use 'denylist4' instead.\n");
+	return handle_denylist4_display(iname, argc, argv, arg);
+}
+
+void autocomplete_denylist4_display(void const *args)
 {
 	print_wargp_opts(display_opts);
 }
@@ -97,7 +103,7 @@ static struct wargp_option add_opts[] = {
 	{ 0 },
 };
 
-int handle_blacklist4_add(char *iname, int argc, char **argv, void const *arg)
+int handle_denylist4_add(char *iname, int argc, char **argv, void const *arg)
 {
 	struct add_args aargs = { 0 };
 	struct joolnl_socket sk;
@@ -119,13 +125,19 @@ int handle_blacklist4_add(char *iname, int argc, char **argv, void const *arg)
 	if (result.error)
 		return pr_result(&result);
 
-	result = joolnl_blacklist4_add(&sk, iname, &aargs.prefix.prefix, aargs.force);
+	result = joolnl_denylist4_add(&sk, iname, &aargs.prefix.prefix, aargs.force);
 
 	joolnl_teardown(&sk);
 	return pr_result(&result);
 }
 
-void autocomplete_blacklist4_add(void const *args)
+int handle_blacklist4_add(char *iname, int argc, char **argv, void const *arg)
+{
+	fprintf(stderr, "Warning: blacklist4 is deprecated. Use 'denylist4' instead.\n");
+	return handle_denylist4_add(iname, argc, argv, arg);
+}
+
+void autocomplete_denylist4_add(void const *args)
 {
 	print_wargp_opts(add_opts);
 }
@@ -145,7 +157,7 @@ static struct wargp_option remove_opts[] = {
 	{ 0 },
 };
 
-int handle_blacklist4_remove(char *iname, int argc, char **argv, void const *arg)
+int handle_denylist4_remove(char *iname, int argc, char **argv, void const *arg)
 {
 	struct rm_args rargs = { 0 };
 	struct joolnl_socket sk;
@@ -167,18 +179,24 @@ int handle_blacklist4_remove(char *iname, int argc, char **argv, void const *arg
 	if (result.error)
 		return pr_result(&result);
 
-	result = joolnl_blacklist4_rm(&sk, iname, &rargs.prefix.prefix);
+	result = joolnl_denylist4_rm(&sk, iname, &rargs.prefix.prefix);
 
 	joolnl_teardown(&sk);
 	return pr_result(&result);
 }
 
-void autocomplete_blacklist4_remove(void const *args)
+int handle_blacklist4_remove(char *iname, int argc, char **argv, void const *arg)
+{
+	fprintf(stderr, "Warning: blacklist4 is deprecated. Use 'denylist4' instead.\n");
+	return handle_denylist4_remove(iname, argc, argv, arg);
+}
+
+void autocomplete_denylist4_remove(void const *args)
 {
 	print_wargp_opts(remove_opts);
 }
 
-int handle_blacklist4_flush(char *iname, int argc, char **argv, void const *arg)
+int handle_denylist4_flush(char *iname, int argc, char **argv, void const *arg)
 {
 	struct joolnl_socket sk;
 	struct jool_result result;
@@ -191,13 +209,19 @@ int handle_blacklist4_flush(char *iname, int argc, char **argv, void const *arg)
 	if (result.error)
 		return pr_result(&result);
 
-	result = joolnl_blacklist4_flush(&sk, iname);
+	result = joolnl_denylist4_flush(&sk, iname);
 
 	joolnl_teardown(&sk);
 	return pr_result(&result);
 }
 
-void autocomplete_blacklist4_flush(void const *args)
+int handle_blacklist4_flush(char *iname, int argc, char **argv, void const *arg)
+{
+	fprintf(stderr, "Warning: blacklist4 is deprecated. Use 'denylist4' instead.\n");
+	return handle_denylist4_flush(iname, argc, argv, arg);
+}
+
+void autocomplete_denylist4_flush(void const *args)
 {
 	/* Nothing needed here. */
 }

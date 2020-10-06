@@ -19,6 +19,7 @@
 #define OPTNAME_GLOBAL			"global"
 #define OPTNAME_EAMT			"eamt"
 #define OPTNAME_BLACKLIST		"blacklist4"
+#define OPTNAME_DENYLIST		"denylist4"
 #define OPTNAME_POOL4			"pool4"
 #define OPTNAME_BIB			"bib"
 #define OPTNAME_MAX_ITERATIONS		"max-iterations"
@@ -386,13 +387,13 @@ static struct jool_result handle_eam_entry(cJSON *json, struct nl_msg *msg)
 			: result_success();
 }
 
-static struct jool_result handle_blacklist_entry(cJSON *json, struct nl_msg *msg)
+static struct jool_result handle_denylist_entry(cJSON *json, struct nl_msg *msg)
 {
 	struct ipv4_prefix prefix;
 	struct jool_result result;
 
 	if (json->type != cJSON_String)
-		return string_expected("blacklist entry", json);
+		return string_expected("denylist entry", json);
 
 	result = str_to_prefix4(json->valuestring, &prefix);
 	if (result.error)
@@ -476,7 +477,12 @@ static struct jool_result handle_eamt_tag(cJSON *json, void const *arg1, void *a
 
 static struct jool_result handle_bl4_tag(cJSON *json, void const *arg1, void *arg2)
 {
-	return handle_array(json, JNLAR_BL4_ENTRIES, OPTNAME_BLACKLIST, handle_blacklist_entry);
+	return handle_array(json, JNLAR_BL4_ENTRIES, OPTNAME_BLACKLIST, handle_denylist_entry);
+}
+
+static struct jool_result handle_dl4_tag(cJSON *json, void const *arg1, void *arg2)
+{
+	return handle_array(json, JNLAR_BL4_ENTRIES, OPTNAME_DENYLIST, handle_denylist_entry);
 }
 
 static struct jool_result handle_pool4_tag(cJSON *json, void const *arg1, void *arg2)
@@ -504,6 +510,7 @@ static struct jool_result parse_siit_json(cJSON *json)
 		{ OPTNAME_GLOBAL, handle_global_tag, NULL, NULL, false },
 		{ OPTNAME_EAMT, handle_eamt_tag, NULL, NULL, false },
 		{ OPTNAME_BLACKLIST, handle_bl4_tag, NULL, NULL, false },
+		{ OPTNAME_DENYLIST, handle_dl4_tag, NULL, NULL, false },
 		{ NULL },
 	};
 
@@ -593,6 +600,7 @@ static struct jool_result prepare_instance(char const *_iname, cJSON *json)
 		{ OPTNAME_GLOBAL, do_nothing },
 		{ OPTNAME_EAMT, do_nothing },
 		{ OPTNAME_BLACKLIST, do_nothing },
+		{ OPTNAME_DENYLIST, do_nothing },
 		{ OPTNAME_POOL4, do_nothing },
 		{ OPTNAME_BIB, do_nothing },
 		{ NULL },

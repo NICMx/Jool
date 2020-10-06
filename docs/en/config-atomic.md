@@ -17,7 +17,6 @@ title: Atomic Configuration
 4. [Examples](#examples)
 	1. [SIIT](#siit)
 	2. [NAT64](#nat64)
-6. [Changes from Jool 3](#changes-from-jool-3)
 
 ## Introduction
 
@@ -100,8 +99,8 @@ Unrecognized tags will trigger errors, but any amount of `comment`s are allowed 
 		}
 	],
 
-	"comment": "This comment is relevant to blacklist4 maybe.",
-	"<a href="usr-flags-blacklist4.html">blacklist4</a>": [
+	"comment": "This comment is relevant to denylist4 maybe.",
+	"<a href="usr-flags-denylist4.html">denylist4</a>": [
 		"198.51.100.0",
 		"198.51.100.2/32",
 		"198.51.100.32/27"
@@ -195,26 +194,3 @@ Also, `pool6` is mandatory and immutable (as normal). It must be set during inst
 
 Updating a NAT64 instance through atomic configuration is not the same as dropping the instance and then creating another one in its place. Aside from skipping the translatorless time window through the former, you get to keep the BIB/session database.
 
-## Changes from Jool 3
-
-1. `pool6` and the RFC 6791 IPv4 pool were moved to the `global` object. (They used to be in the root.)
-2. On NAT64, `pool6` is immutable now.
-3. Added the `instance` (the instance name) and `framework` (`netfilter` or `iptables`) tags.
-4. In object contexts,
-	1. Comment tags are now allowed.
-	2. Unknown tags are no longer allowed.
-	3. Tag redeclarations are no longer allowed. (Even if they define the same value.)
-5. Configuration of static BIB entries is now supported (but only on instance creation).
-6. The configuration is not incremental anymore. (See the following paragraphs for an explatation.)
-
-Jool 3's atomic configuration used to try to retain old values when instances were being updated. For example, if an existing instance's `logging-bib` option was set to the non-default `true`, then an atomic configuration run using a JSON file that lacked the `logging-bib` tag would result in `logging-bib` remaining `true` rather than resetting.
-
-Despite the good intentions, this turned to be inconsistent, and therefore hard to explain and error-prone. This is because of the databases.
-
-If the blacklist database has prefixes `192.0.2/24`, `198.51.100/24`, `203.0.113/24`, then what should happen if the user runs atomic configuration with blacklist prefix `192.0.2.128/23`? Should Jool reject it because of collision? Did they meant to replace the first prefix? And if Jool treated it that way, then what would the user have to do to delete the other prefixes? Obviously, that was a dead end, so databases were always completely replaced as long as the base tag (`blacklist4` in this case) existed.
-
-So individual `global` values survived reconfigurations, but individual database entries did not.
-
-Starting from Jool 4, all tags work the same, which is to say, the JSON file is a snapshot of the ENTIRE configuration at a given time. Anything that's absent from the file will be mercilessly defaulted during updates.
-
-This also leads to simpler code.

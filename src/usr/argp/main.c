@@ -19,7 +19,7 @@
 #include "usr/argp/xlator_type.h"
 #include "usr/argp/wargp/address.h"
 #include "usr/argp/wargp/bib.h"
-#include "usr/argp/wargp/blacklist4.h"
+#include "usr/argp/wargp/denylist4.h"
 #include "usr/argp/wargp/eamt.h"
 #include "usr/argp/wargp/file.h"
 #include "usr/argp/wargp/global.h"
@@ -131,22 +131,47 @@ static struct cmd_option blacklist4_ops[] = {
 			.label = DISPLAY,
 			.xt = XT_SIIT,
 			.handler = handle_blacklist4_display,
-			.handle_autocomplete = autocomplete_blacklist4_display,
+			.handle_autocomplete = autocomplete_denylist4_display,
 		}, {
 			.label = ADD,
 			.xt = XT_SIIT,
 			.handler = handle_blacklist4_add,
-			.handle_autocomplete = autocomplete_blacklist4_add,
+			.handle_autocomplete = autocomplete_denylist4_add,
 		}, {
 			.label = REMOVE,
 			.xt = XT_SIIT,
 			.handler = handle_blacklist4_remove,
-			.handle_autocomplete = autocomplete_blacklist4_remove,
+			.handle_autocomplete = autocomplete_denylist4_remove,
 		}, {
 			.label = FLUSH,
 			.xt = XT_SIIT,
 			.handler = handle_blacklist4_flush,
-			.handle_autocomplete = autocomplete_blacklist4_flush,
+			.handle_autocomplete = autocomplete_denylist4_flush,
+		},
+		{ 0 },
+};
+
+static struct cmd_option denylist4_ops[] = {
+		{
+			.label = DISPLAY,
+			.xt = XT_SIIT,
+			.handler = handle_denylist4_display,
+			.handle_autocomplete = autocomplete_denylist4_display,
+		}, {
+			.label = ADD,
+			.xt = XT_SIIT,
+			.handler = handle_denylist4_add,
+			.handle_autocomplete = autocomplete_denylist4_add,
+		}, {
+			.label = REMOVE,
+			.xt = XT_SIIT,
+			.handler = handle_denylist4_remove,
+			.handle_autocomplete = autocomplete_denylist4_remove,
+		}, {
+			.label = FLUSH,
+			.xt = XT_SIIT,
+			.handler = handle_denylist4_flush,
+			.handle_autocomplete = autocomplete_denylist4_flush,
 		},
 		{ 0 },
 };
@@ -248,9 +273,13 @@ struct cmd_option tree[] = {
 			.xt = XT_SIIT,
 			.children = eamt_ops,
 		}, {
-			.label = "blacklist4",
+			.label = "blacklist4", /* Deprecated */
 			.xt = XT_SIIT,
 			.children = blacklist4_ops,
+		}, {
+			.label = "denylist4",
+			.xt = XT_SIIT,
+			.children = denylist4_ops,
 		}, {
 			.label = "pool4",
 			.xt = XT_NAT64,

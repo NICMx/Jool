@@ -125,11 +125,11 @@ SIIT Jool also returns the packet to the kernel when at least one of these condi
 - The packet is IPv4 and at least one of its addresses cannot be translated. An IPv4 address cannot be translated when
 	- it's subnet-scoped,
 	- belongs to one of the translator's interfaces,
-	- is [blacklist4ed](usr-flags-blacklist4.html), or
+	- is [denylist4ed](usr-flags-denylist4.html), or
 	- cannot be translated by any of the populated address translation strategies (EAMT, pool6 and rfc6791).
 - The packet is IPv6 and at least one of its addresses cannot be translated. An IPv6 address cannot be translated when
 	- it cannot be translated by any of the populated address translation strategies (EAMT, pool6 and rfc6791),
-	- its IPv4 counterpart is blacklist4ed,
+	- its IPv4 counterpart is denylist4ed,
 	- its IPv4 counterpart is subnet-scoped, or
 	- its IPv4 counterpart belongs to a local interface.
 

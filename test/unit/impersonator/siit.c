@@ -1,7 +1,7 @@
 #include "common/types.h"
 #include "mod/common/address_xlat.h"
 #include "mod/common/packet.h"
-#include "mod/common/db/blacklist4.h"
+#include "mod/common/db/denylist4.h"
 #include "mod/common/db/eam.h"
 #include "mod/common/db/rfc6791v4.h"
 #include "mod/common/db/rfc6791v6.h"
@@ -20,18 +20,18 @@ static int fail(const char *function_name)
 	return -EINVAL;
 }
 
-struct addr4_pool *blacklist4_alloc(void)
+struct addr4_pool *denylist4_alloc(void)
 {
 	fail(__func__);
 	return NULL;
 }
 
-void blacklist4_get(struct addr4_pool *pool)
+void denylist4_get(struct addr4_pool *pool)
 {
 	fail(__func__);
 }
 
-void blacklist4_put(struct addr4_pool *pool)
+void denylist4_put(struct addr4_pool *pool)
 {
 	fail(__func__);
 }
@@ -81,14 +81,14 @@ static struct addrxlat_result fail_addr(void)
 
 struct addrxlat_result addrxlat_siit64(struct xlator *instance,
 		struct in6_addr *in, struct result_addrxlat64 *out,
-		bool enable_blacklists)
+		bool enable_denylists)
 {
 	return fail_addr();
 }
 
 struct addrxlat_result addrxlat_siit46(struct xlator *instance,
 		__be32 in, struct result_addrxlat46 *out,
-		bool enable_eam, bool enable_blacklists)
+		bool enable_eam, bool enable_denylists)
 {
 	return fail_addr();
 }

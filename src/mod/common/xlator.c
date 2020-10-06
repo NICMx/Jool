@@ -13,7 +13,7 @@
 #include "mod/common/log.h"
 #include "mod/common/rcu.h"
 #include "mod/common/wkmalloc.h"
-#include "mod/common/db/blacklist4.h"
+#include "mod/common/db/denylist4.h"
 #include "mod/common/db/eam.h"
 #include "mod/common/db/pool4/db.h"
 #include "mod/common/db/bib/db.h"
@@ -138,7 +138,7 @@ static void xlator_get(struct xlator *jool)
 	switch (xlator_get_type(jool)) {
 	case XT_SIIT:
 		eamt_get(jool->siit.eamt);
-		blacklist4_get(jool->siit.blacklist4);
+		denylist4_get(jool->siit.denylist4);
 		break;
 	case XT_NAT64:
 		pool4db_get(jool->nat64.pool4);
@@ -290,15 +290,15 @@ static int init_siit(struct xlator *jool, struct ipv6_prefix *pool6)
 	jool->siit.eamt = eamt_alloc();
 	if (!jool->siit.eamt)
 		goto eamt_fail;
-	jool->siit.blacklist4 = blacklist4_alloc();
-	if (!jool->siit.blacklist4)
-		goto blacklist4_fail;
+	jool->siit.denylist4 = denylist4_alloc();
+	if (!jool->siit.denylist4)
+		goto denylist4_fail;
 
 	jool->is_hairpin = is_hairpin_siit;
 	jool->handling_hairpinning = handling_hairpinning_siit;
 	return 0;
 
-blacklist4_fail:
+denylist4_fail:
 	eamt_put(jool->siit.eamt);
 eamt_fail:
 	jstat_put(jool->stats);
@@ -851,7 +851,7 @@ void xlator_put(struct xlator *jool)
 	switch (xlator_get_type(jool)) {
 	case XT_SIIT:
 		eamt_put(jool->siit.eamt);
-		blacklist4_put(jool->siit.blacklist4);
+		denylist4_put(jool->siit.denylist4);
 		return;
 
 	case XT_NAT64:
