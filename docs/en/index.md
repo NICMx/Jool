@@ -22,7 +22,7 @@ Jool is an Open Source [SIIT and NAT64](intro-xlat.html) for Linux.
 
 As far as we know, Jool is a [compliant](intro-jool.html#compliance) SIIT and Stateful NAT64.
 
-Its latest version is [4.1.3](download.html#41x) and its most mature version is [4.0.9](download.html#40x).
+Its latest version is [4.1.4](download.html#41x) and its most mature version is [4.0.9](download.html#40x).
 
 -------------------
 
@@ -34,13 +34,17 @@ Its latest version is [4.1.3](download.html#41x) and its most mature version is 
 
 ## Latest News
 
-### 2020-09-02
+### 2020-10-07
 
-[Jool 4.1.3](download.html) has been released.
+[Jool 4.1.4](download.html) has been released.
 
-It only has one bugfix, though it's fairly critical:
+Bugfixes:
 
-1. [#338](https://github.com/NICMx/Jool/issues/338), [#339](https://github.com/NICMx/Jool/issues/339): Patch SIIT Jool's generic blacklist. SIIT Jool should no longer steal traffic intended for its own node.
+1. [#341](https://github.com/NICMx/Jool/issues/341): Deprecate "blacklist4," add replacement "denylist4."
+2. [#342](https://github.com/NICMx/Jool/issues/342): Add /32 to the generic denylist again. (And remove secondary addresses, since nobody has actually requested them.)
+3. [#343](https://github.com/NICMx/Jool/issues/343): Clarify some documentation. (WIP)
+
+I also largely rewrote the [intro to xlat](https://nicmx.github.io/Jool/en/intro-xlat.html), to reflect the changes from the MAP-T branch. Feedback would be appreciated.
 
 > Remember that `lowest-ipv6-mtu`'s paranoid default might induce unnecessary fragmentation. If you want Jool 4.1 to reach 4.0's performance, please review the [MTU documentation](mtu.html).
 

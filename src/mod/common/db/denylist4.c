@@ -182,9 +182,6 @@ static int check_ifa(struct in_ifaddr *ifa, void const *arg)
 			return DENY_ADDRESS;
 	}
 
-	/* Secondary address (https://github.com/NICMx/Jool/issues/223) */
-	if (ifa->ifa_flags & IFA_F_SECONDARY)
-		return ALLOW_ADDRESS;
 	/* /32 (https://github.com/NICMx/Jool/issues/342) */
 	if (ifa->ifa_prefixlen == 32)
 		return ALLOW_ADDRESS;
