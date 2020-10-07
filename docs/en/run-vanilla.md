@@ -101,9 +101,22 @@ user@T:~# insmod jool_siit
 Then, create a SIIT instance and perform the bare minimum configuration:
 
 <div class="distro-menu">
-	<span class="distro-selector" onclick="showDistro(this);">iptables Jool</span>
 	<span class="distro-selector" onclick="showDistro(this);">Netfilter Jool</span>
+	<span class="distro-selector" onclick="showDistro(this);">iptables Jool</span>
 </div>
+
+<!-- Netfilter Jool -->
+{% highlight bash %}
+user@T:~# # Create a Jool iptables instance named "example."
+user@T:~# # Also, establish that the IPv6 representation of any IPv4 address should be
+user@T:~# # `2001:db8::<IPv4 address>`. (See sections below for examples.)
+user@T:~# jool_siit instance add "example" --netfilter --pool6 2001:db8::/96 
+ 
+ 
+ 
+ 
+ 
+{% endhighlight %}
 
 <!-- iptables Jool -->
 {% highlight bash %}
@@ -117,21 +130,6 @@ user@T:~# # in the mangle chain.
 user@T:~# /sbin/ip6tables -t mangle -A PREROUTING -j JOOL_SIIT --instance "example"
 user@T:~# /sbin/iptables  -t mangle -A PREROUTING -j JOOL_SIIT --instance "example"
 {% endhighlight %}
-
-<!-- Netfilter Jool -->
-{% highlight bash %}
-user@T:~# # Create a Jool iptables instance named "example."
-user@T:~# # Also, establish that the IPv6 representation of any IPv4 address should be
-user@T:~# # `2001:db8::<IPv4 address>`. (See sections below for examples.)
-user@T:~# jool_siit instance add "example" --netfilter --pool6 2001:db8::/96 
-user@T:~#
-user@T:~# # All traffic gets SIIT'd in Netfilter mode.
- 
-
- 
-{% endhighlight %}
-
-[Here](usr-flags-instance.html)'s Jool documentation on `instance`.
 
 > ![../images/bulb.svg](../images/bulb.svg) About those iptables rules: Notice that we did not include any matches (such as [`-s` or `-d`](https://netfilter.org/documentation/HOWTO/packet-filtering-HOWTO-7.html#ss7.3)). This is merely for the sake of tutorial simplicity. If you want to narrow down the traffic that gets translated, you should be able to combine any matches as needed.
 > 
@@ -184,21 +182,21 @@ Then maybe another one in _C_ and request from _W_:
 Destroy your instance by reverting the `instance add`:
 
 <div class="distro-menu">
-	<span class="distro-selector" onclick="showDistro(this);">iptables Jool</span>
 	<span class="distro-selector" onclick="showDistro(this);">Netfilter Jool</span>
+	<span class="distro-selector" onclick="showDistro(this);">iptables Jool</span>
 </div>
-
-<!-- iptables Jool -->
-{% highlight bash %}
-user@T:~# /sbin/ip6tables -t mangle -D PREROUTING -j JOOL_SIIT --instance "example"
-user@T:~# /sbin/iptables  -t mangle -D PREROUTING -j JOOL_SIIT --instance "example"
-user@T:~# jool_siit instance remove "example"
-{% endhighlight %}
 
 <!-- Netfilter Jool -->
 {% highlight bash %}
  
  
+user@T:~# jool_siit instance remove "example"
+{% endhighlight %}
+
+<!-- iptables Jool -->
+{% highlight bash %}
+user@T:~# /sbin/ip6tables -t mangle -D PREROUTING -j JOOL_SIIT --instance "example"
+user@T:~# /sbin/iptables  -t mangle -D PREROUTING -j JOOL_SIIT --instance "example"
 user@T:~# jool_siit instance remove "example"
 {% endhighlight %}
 
@@ -224,5 +222,5 @@ user@T:~# rmmod jool_siit
 1. If you care about performance, you might want to raise [`lowest-ipv6-mtu`](mtu.html).
 3. Please note that none of what was done in this tutorial survives reboots! [Here](run-persistent.html)'s documentation on persistence.
 
-The [next tutorial](run-eam.html) covers [EAMT SIIT](intro-xlat.html#siit-with-eam).
+The [next tutorial](run-eam.html) covers [EAMT SIIT](intro-xlat.html#siit-eamt).
 

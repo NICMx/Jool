@@ -20,7 +20,7 @@ title: EAM Run
 
 ## Introduction
 
-This document explains how to run Jool in [EAM mode](intro-xlat.html#siit-with-eam) (which actually more than a "mode" is simply stock SIIT with records in the EAM table). Follow the link for more details on what to expect. See also [the EAMT RFC summary](eamt.html) for more details on how the EAMT works.
+This document explains how to run Jool in [EAM mode](intro-xlat.html#siit-eamt) (which actually more than a "mode" is simply stock SIIT with records in the EAM table). Follow the link for more details on what to expect. See also [the EAMT RFC summary](eamt.html) for more details on how the EAMT works.
 
 [Stock mode](run-vanilla.html) is faster to configure and you're encouraged to learn it before, particularly because I will not ellaborate here on the steps which both modes have in common.
 
@@ -70,20 +70,9 @@ Remember you might want to cross-ping _T_ vs everything before continuing.
 ## Jool
 
 <div class="distro-menu">
-	<span class="distro-selector" onclick="showDistro(this);">iptables Jool</span>
 	<span class="distro-selector" onclick="showDistro(this);">Netfilter Jool</span>
+	<span class="distro-selector" onclick="showDistro(this);">iptables Jool</span>
 </div>
-
-<!-- iptables Jool -->
-{% highlight bash %}
-user@T:~# /sbin/modprobe jool_siit
-user@T:~# jool_siit instance add "example" --iptables
-user@T:~# jool_siit -i "example" eamt add 2001:db8:6::/120 198.51.100.0/24
-user@T:~# jool_siit -i "example" eamt add 2001:db8:4::/120 192.0.2.0/24
-user@T:~#
-user@T:~# /sbin/ip6tables -t mangle -A PREROUTING -j JOOL_SIIT --instance "example"
-user@T:~# /sbin/iptables  -t mangle -A PREROUTING -j JOOL_SIIT --instance "example"
-{% endhighlight %}
 
 <!-- Netfilter Jool -->
 {% highlight bash %}
@@ -94,6 +83,17 @@ user@T:~# jool_siit -i "example" eamt add 2001:db8:4::/120 192.0.2.0/24
  
  
  
+{% endhighlight %}
+
+<!-- iptables Jool -->
+{% highlight bash %}
+user@T:~# /sbin/modprobe jool_siit
+user@T:~# jool_siit instance add "example" --iptables
+user@T:~# jool_siit -i "example" eamt add 2001:db8:6::/120 198.51.100.0/24
+user@T:~# jool_siit -i "example" eamt add 2001:db8:4::/120 192.0.2.0/24
+user@T:~#
+user@T:~# /sbin/ip6tables -t mangle -A PREROUTING -j JOOL_SIIT --instance "example"
+user@T:~# /sbin/iptables  -t mangle -A PREROUTING -j JOOL_SIIT --instance "example"
 {% endhighlight %}
 
 `-i` stands for "instance". The `eamt add` commands build an [Explicit Address Mappings Table](eamt.html). You can see it through the `display` operation:
@@ -157,22 +157,22 @@ Then maybe another one in _B_ and request from _X_:
 Same as in the previous walkthrough.
 
 <div class="distro-menu">
-	<span class="distro-selector" onclick="showDistro(this);">iptables Jool</span>
 	<span class="distro-selector" onclick="showDistro(this);">Netfilter Jool</span>
+	<span class="distro-selector" onclick="showDistro(this);">iptables Jool</span>
 </div>
-
-<!-- iptables Jool -->
-{% highlight bash %}
-user@T:~# /sbin/ip6tables -t mangle -D PREROUTING -j JOOL_SIIT --instance "example"
-user@T:~# /sbin/iptables  -t mangle -D PREROUTING -j JOOL_SIIT --instance "example"
-user@T:~# jool_siit instance remove "example"
-user@T:~# /sbin/modprobe -r jool_siit
-{% endhighlight %}
 
 <!-- Netfilter Jool -->
 {% highlight bash %}
  
  
+user@T:~# jool_siit instance remove "example"
+user@T:~# /sbin/modprobe -r jool_siit
+{% endhighlight %}
+
+<!-- iptables Jool -->
+{% highlight bash %}
+user@T:~# /sbin/ip6tables -t mangle -D PREROUTING -j JOOL_SIIT --instance "example"
+user@T:~# /sbin/iptables  -t mangle -D PREROUTING -j JOOL_SIIT --instance "example"
 user@T:~# jool_siit instance remove "example"
 user@T:~# /sbin/modprobe -r jool_siit
 {% endhighlight %}

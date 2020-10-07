@@ -11,7 +11,7 @@
 #include "mod/common/nl/address.h"
 #include "mod/common/nl/atomic_config.h"
 #include "mod/common/nl/bib.h"
-#include "mod/common/nl/blacklist4.h"
+#include "mod/common/nl/denylist4.h"
 #include "mod/common/nl/eam.h"
 #include "mod/common/nl/global.h"
 #include "mod/common/nl/instance.h"
@@ -122,19 +122,19 @@ static _CONST struct genl_ops ops[] = {
 		JOOL_POLICY
 	}, {
 		.cmd = JNLOP_BL4_FOREACH,
-		.doit = handle_blacklist4_foreach,
+		.doit = handle_denylist4_foreach,
 		JOOL_POLICY
 	}, {
 		.cmd = JNLOP_BL4_ADD,
-		.doit = handle_blacklist4_add,
+		.doit = handle_denylist4_add,
 		JOOL_POLICY
 	}, {
 		.cmd = JNLOP_BL4_RM,
-		.doit = handle_blacklist4_rm,
+		.doit = handle_denylist4_rm,
 		JOOL_POLICY
 	}, {
 		.cmd = JNLOP_BL4_FLUSH,
-		.doit = handle_blacklist4_flush,
+		.doit = handle_denylist4_flush,
 		JOOL_POLICY
 	}, {
 		.cmd = JNLOP_POOL4_FOREACH,

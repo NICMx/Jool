@@ -662,15 +662,15 @@ function remove_namespace_instances() {
 	ip netns exec jool2 jool_siit instance remove $1
 }
 
-start "Check instance uniqueness - Same name, different types and namespaces"
+start "Check instance uniqueness - Same name, different types and namespaces (success)"
 ( set -x; add_namespace_instances "name1" )
 pause
 
-start "Check instance uniqueness - Collide everything"
+start "Check instance uniqueness - Collide everything (failure)"
 ( set -x; add_namespace_instances "name1" )
 pause
 
-start "Check instance uniqueness - Different names"
+start "Check instance uniqueness - Different names (success)"
 ( set -x; add_namespace_instances "name2" )
 pause
 

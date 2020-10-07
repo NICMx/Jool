@@ -1,7 +1,7 @@
 .\" Manpage for jool's userspace app.
 .\" Report bugs to jool@nic.mx.
 
-.TH jool_siit 8 2020-09-02 v4.1.3 "SIIT Jool's Userspace Client"
+.TH jool_siit 8 2020-10-07 v4.1.4 "SIIT Jool's Userspace Client"
 
 .SH NAME
 jool_siit - Interact with SIIT Jool (the kernel module).
@@ -105,7 +105,7 @@ Kernels 3.13.0 and up.
 .br
 )
 .P
-.RI "jool_siit [" <argp1> "] blacklist4 ("
+.RI "jool_siit [" <argp1> "] denylist4 ("
 .br
 	display
 .br
@@ -168,14 +168,14 @@ Drop an entry from the EAM table.
 Empty the EAM table.
 .IP "address query"
 Print the translated version of the given address using the current configuration.
-.IP "blacklist4 display"
-Show the blacklist.
-.IP "blacklist4 add"
-Upload an entry to the blacklist.
-.IP "blacklist4 remove"
-Drop an entry from the blacklist.
-.IP "blacklist4 flush"
-Empty the blacklist.
+.IP "denylist4 display"
+Show the denylist.
+.IP "denylist4 add"
+Upload an entry to the denylist.
+.IP "denylist4 remove"
+Drop an entry from the denylist.
+.IP "denylist4 flush"
+Empty the denylist.
 .IP "file handle"
 Parse all the configuration from a JSON file.
 .br
@@ -299,13 +299,13 @@ Remove an entry from the EAMT:
 .br
 	jool_siit -i Example eamt remove 2001:db8::/120
 .P
-Add blacklist prefix 192.0.2.0/24:
+Add denylist prefix 192.0.2.0/24:
 .br
-	jool_siit -i Example blacklist4 add 192.0.2.0/24
+	jool_siit -i Example denylist4 add 192.0.2.0/24
 .P
 Allow translation of 192.0.2.0/24:
 .br
-	jool_siit -i Example blacklist4 remove 192.0.2.0/24
+	jool_siit -i Example denylist4 remove 192.0.2.0/24
 
 .SH NOTES
 TRUE, FALSE, 1, 0, YES, NO, ON and OFF are all valid booleans. You can mix case too.

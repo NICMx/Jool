@@ -1,14 +1,11 @@
-#include "pool.h"
+#include "mod/common/db/denylist4.h"
 
-#include <linux/inet.h>
-#include <linux/kref.h>
-#include <linux/rculist.h>
-#include "common/types.h"
+#include "mod/common/dev.h"
 #include "mod/common/address.h"
 #include "mod/common/log.h"
 #include "mod/common/rcu.h"
-#include "mod/common/tags.h"
 #include "mod/common/wkmalloc.h"
+#include "mod/common/xlator.h"
 
 struct pool_entry {
 	struct ipv4_prefix prefix;
@@ -23,30 +20,11 @@ struct addr4_pool {
 /* I can't have per-pool mutexes because of the replace function. */
 static DEFINE_MUTEX(lock);
 
-RCUTAG_FREE
 static struct pool_entry *get_entry(struct list_head *node)
 {
 	return list_entry(node, struct pool_entry, list_hook);
 }
 
-/**
- * Assumes it has exclusive access to @list.
- */
-RCUTAG_FREE
-static void __destroy(struct list_head *list)
-{
-	struct list_head *node;
-	struct list_head *tmp;
-
-	list_for_each_safe(node, tmp, list) {
-		list_del(node);
-		wkfree(struct pool_entry, get_entry(node));
-	}
-
-	__wkfree("IPv4 address pool list", list);
-}
-
-RCUTAG_USR /* Only because of GFP_KERNEL. Can be easily upgraded to FREE. */
 static struct list_head *alloc_list(void)
 {
 	struct list_head *list;
@@ -59,8 +37,7 @@ static struct list_head *alloc_list(void)
 	return list;
 }
 
-RCUTAG_USR
-struct addr4_pool *pool_alloc(void)
+struct addr4_pool *denylist4_alloc(void)
 {
 	struct addr4_pool *result;
 	struct list_head *list;
@@ -81,12 +58,24 @@ struct addr4_pool *pool_alloc(void)
 	return result;
 }
 
-void pool_get(struct addr4_pool *pool)
+void denylist4_get(struct addr4_pool *pool)
 {
 	kref_get(&pool->refcounter);
 }
 
-RCUTAG_USR
+static void __destroy(struct list_head *list)
+{
+	struct list_head *node;
+	struct list_head *tmp;
+
+	list_for_each_safe(node, tmp, list) {
+		list_del(node);
+		wkfree(struct pool_entry, get_entry(node));
+	}
+
+	__wkfree("IPv4 address pool list", list);
+}
+
 static void pool_release(struct kref *refcounter)
 {
 	struct addr4_pool *pool;
@@ -95,13 +84,13 @@ static void pool_release(struct kref *refcounter)
 	wkfree(struct addr4_pool, pool);
 }
 
-void pool_put(struct addr4_pool *pool)
+void denylist4_put(struct addr4_pool *pool)
 {
 	kref_put(&pool->refcounter, pool_release);
 }
 
-RCUTAG_USR
-int pool_add(struct addr4_pool *pool, struct ipv4_prefix *prefix, bool force)
+int denylist4_add(struct addr4_pool *pool, struct ipv4_prefix *prefix,
+		bool force)
 {
 	struct list_head *list;
 	struct pool_entry *entry;
@@ -131,8 +120,7 @@ end:
 	return error;
 }
 
-RCUTAG_USR
-int pool_rm(struct addr4_pool *pool, struct ipv4_prefix *prefix)
+int denylist4_rm(struct addr4_pool *pool, struct ipv4_prefix *prefix)
 {
 	struct list_head *list;
 	struct list_head *node;
@@ -157,8 +145,7 @@ int pool_rm(struct addr4_pool *pool, struct ipv4_prefix *prefix)
 	return -ESRCH;
 }
 
-RCUTAG_USR
-int pool_flush(struct addr4_pool *pool)
+int denylist4_flush(struct addr4_pool *pool)
 {
 	struct list_head *old;
 	struct list_head *new;
@@ -178,8 +165,50 @@ int pool_flush(struct addr4_pool *pool)
 	return 0;
 }
 
-RCUTAG_PKT
-bool pool_contains(struct addr4_pool *pool, struct in_addr *addr)
+#define ALLOW_ADDRESS false
+#define DENY_ADDRESS true
+
+/* "Check interface address" */
+static int check_ifa(struct in_ifaddr *ifa, void const *arg)
+{
+	struct in_addr const *query = arg;
+	struct in_addr ifaddr;
+
+	/* Broadcast */
+	/* (RFC3021: /31 and /32 networks lack broadcast) */
+	if (ifa->ifa_prefixlen < 31) {
+		ifaddr.s_addr = ifa->ifa_local | ~ifa->ifa_mask;
+		if (ipv4_addr_cmp(&ifaddr, query) == 0)
+			return DENY_ADDRESS;
+	}
+
+	/* /32 (https://github.com/NICMx/Jool/issues/342) */
+	if (ifa->ifa_prefixlen == 32)
+		return ALLOW_ADDRESS;
+
+	/* Address belongs to this node */
+	ifaddr.s_addr = ifa->ifa_local;
+	if (ipv4_addr_cmp(&ifaddr, query) == 0)
+		return DENY_ADDRESS;
+
+	/* Anything else */
+	return ALLOW_ADDRESS;
+}
+
+/**
+ * Is @addr *NOT* translatable, according to the interfaces?
+ *
+ * The name comes from the fact that interface addresses are usually
+ * non-translatable (ie. the traffic is meant for the translator box).
+ *
+ * Recognizable directed broadcast is also not translatable.
+ */
+bool interface_contains(struct net *ns, struct in_addr *addr)
+{
+	return foreach_ifa(ns, check_ifa, addr);
+}
+
+bool denylist4_contains(struct addr4_pool *pool, struct in_addr *addr)
 {
 	struct list_head *list;
 	struct list_head *node;
@@ -200,8 +229,7 @@ bool pool_contains(struct addr4_pool *pool, struct in_addr *addr)
 	return false;
 }
 
-RCUTAG_PKT
-int pool_foreach(struct addr4_pool *pool,
+int denylist4_foreach(struct addr4_pool *pool,
 		int (*func)(struct ipv4_prefix *, void *), void *arg,
 		struct ipv4_prefix *offset)
 {
@@ -228,8 +256,7 @@ int pool_foreach(struct addr4_pool *pool,
 	return offset ? -ESRCH : error;
 }
 
-RCUTAG_PKT
-bool pool_is_empty(struct addr4_pool *pool)
+bool denylist4_is_empty(struct addr4_pool *pool)
 {
 	struct list_head *list;
 	bool result;

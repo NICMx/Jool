@@ -79,17 +79,9 @@ user@T:~# /sbin/modprobe jool
 Though the meaning of `pool6` is slightly different than in SIIT, the instance configuration looks pretty much the same:
 
 <div class="distro-menu">
-	<span class="distro-selector" onclick="showDistro(this);">iptables Jool</span>
 	<span class="distro-selector" onclick="showDistro(this);">Netfilter Jool</span>
+	<span class="distro-selector" onclick="showDistro(this);">iptables Jool</span>
 </div>
-
-<!-- iptables Jool -->
-{% highlight bash %}
-user@T:~# jool instance add "example" --iptables  --pool6 64:ff9b::/96
-user@T:~#
-user@T:~# /sbin/ip6tables -t mangle -A PREROUTING -j JOOL --instance "example"
-user@T:~# /sbin/iptables  -t mangle -A PREROUTING -j JOOL --instance "example"
-{% endhighlight %}
 
 <!-- Netfilter Jool -->
 {% highlight bash %}
@@ -97,6 +89,14 @@ user@T:~# jool instance add "example" --netfilter --pool6 64:ff9b::/96
  
 
  
+{% endhighlight %}
+
+<!-- iptables Jool -->
+{% highlight bash %}
+user@T:~# jool instance add "example" --iptables  --pool6 64:ff9b::/96
+user@T:~#
+user@T:~# /sbin/ip6tables -t mangle -A PREROUTING -j JOOL --instance "example"
+user@T:~# /sbin/iptables  -t mangle -A PREROUTING -j JOOL --instance "example"
 {% endhighlight %}
 
 The iptables configuration, on the other hand, needs to use the `JOOL` target.
@@ -129,22 +129,22 @@ rtt min/avg/max/mdev = 1.136/6.528/15.603/5.438 ms
 ## Stopping Jool
 
 <div class="distro-menu">
-	<span class="distro-selector" onclick="showDistro(this);">iptables Jool</span>
 	<span class="distro-selector" onclick="showDistro(this);">Netfilter Jool</span>
+	<span class="distro-selector" onclick="showDistro(this);">iptables Jool</span>
 </div>
-
-<!-- iptables Jool -->
-{% highlight bash %}
-user@T:~# /sbin/ip6tables -t mangle -D PREROUTING -j JOOL --instance "example"
-user@T:~# /sbin/iptables  -t mangle -D PREROUTING -j JOOL --instance "example"
-user@T:~# jool instance remove "example"
-user@T:~# /sbin/modprobe -r jool
-{% endhighlight %}
 
 <!-- Netfilter Jool -->
 {% highlight bash %}
  
  
+user@T:~# jool instance remove "example"
+user@T:~# /sbin/modprobe -r jool
+{% endhighlight %}
+
+<!-- iptables Jool -->
+{% highlight bash %}
+user@T:~# /sbin/ip6tables -t mangle -D PREROUTING -j JOOL --instance "example"
+user@T:~# /sbin/iptables  -t mangle -D PREROUTING -j JOOL --instance "example"
 user@T:~# jool instance remove "example"
 user@T:~# /sbin/modprobe -r jool
 {% endhighlight %}
