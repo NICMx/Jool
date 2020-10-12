@@ -66,6 +66,8 @@ RHEL-based distributions (such as Red Hat and CentOS) do not follow the normal k
 
 A Jool instance can be attached to one of two different traffic-intercepting, plugin-enabling, kernel-based frameworks: _Netfilter_ and _iptables_. Despite some documentation out there, these two are not the same thing; at least not from Jool's point of view.
 
+> ![Note!](../images/bulb.svg) Yes, we know we're supposed to add nftables support, but it's going to be a lot of work, and so it's tentatively scheduled to come out in late 2021.
+
 ### Netfilter
 
 _Netfilter_ is a bunch of [hooks](http://www.netfilter.org/documentation/HOWTO/netfilter-hacking-HOWTO-3.html) (`PREROUTING`, `LOCALIN`, `FORWARD`, `LOCALOUT` and `POSTROUTING`) in the Linux kernel where modules can inject code. Whenever a packet reaches a hook, the kernel runs it through all the corresponding registered modules. Netfilter Jool instances hook themselves to `PREROUTING` and as such intercept all incoming traffic ("pre"vious to "routing") with the intent of translating it.

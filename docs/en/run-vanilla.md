@@ -98,7 +98,7 @@ user@T:~# /sbin/modprobe jool_siit
 user@T:~# insmod jool_siit
 {% endhighlight %}
 
-Then, create a SIIT instance and perform the bare minimum configuration:
+Then, create a SIIT instance and perform the bare minimum configuration (Note: [This section](intro-jool.html#design) discusses Netfilter Jool vs iptables Jool):
 
 <div class="distro-menu">
 	<span class="distro-selector" onclick="showDistro(this);">Netfilter Jool</span>

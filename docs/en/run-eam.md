@@ -69,6 +69,8 @@ Remember you might want to cross-ping _T_ vs everything before continuing.
 
 ## Jool
 
+> ![Note!](../images/bulb.svg) [This section](intro-jool.html#design) discusses Netfilter Jool vs iptables Jool.
+
 <div class="distro-menu">
 	<span class="distro-selector" onclick="showDistro(this);">Netfilter Jool</span>
 	<span class="distro-selector" onclick="showDistro(this);">iptables Jool</span>

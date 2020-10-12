@@ -22,17 +22,17 @@ title: Daemon Configuration Options
 
 ## Introduction
 
-`joold` expects an optional file as program argument. 
+`joold` (Jool's userspace daemon binary) is part of the [Session Synchronization](session-synchronization.html) gimmic. Follow the link for context.
 
-	$ joold [/path/to/netsocket/config]
+It expects two optional files as program arguments:
 
-If omitted, the daemon will attempt to find an adjacent file named `netsocket.json` and use that.
+	$ joold [/path/to/netsocket/config] [/path/to/modsocket/config]
 
-Only the network socket has available configuration as of now; the kernel socket is self-sufficient.
+The "net socket" file name defaults to `netsocket.json`, and the "module socket" file name defaults to `modsocket.json`. (They are both expected to be found in the same directory the command is executed in.)
 
 ## Network Socket Configuration File
 
-This is a Json file that configures the daemon's SS **network** socket. Here are two example of its contents:
+This is a Json file that configures the daemon's SS **network** socket. (ie. The one it uses to communicate to other synchronization daemons.) Here are two example of its contents:
 
 <div class="distro-menu">
 	<span class="distro-selector" onclick="showDistro(this);">IPv6</span>
@@ -145,4 +145,22 @@ Same as `IP_MULTICAST_TTL`. From `man 7 ip`:
 		set the smallest TTL possible. The default is 1 which means that
 		multicast packets don't leave the local network unless the user
 		program explicitly requests it. Argument is an integer.
+
+## Module Socket Configuration File
+
+This is a Json file that configures the daemon's SS **Netlink** socket. (ie. the one it uses to communicate with its designated Jool instance.) Here's an example of its contents:
+
+```json
+{
+	"instance": "potato"
+}
+```
+
+These are the options:
+
+### `instance`
+
+Name of the instance the daemon is supposed to synchronize. It's the one you designate during [`jool instance add`](usr-flags-instance.html). As usual, it defaults to "`default`."
+
+The instance is expected to exist within the same network namespace the daemon is running in.
 

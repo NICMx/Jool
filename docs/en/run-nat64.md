@@ -76,7 +76,7 @@ Even though they share a lot of code, because of kernel quirks, the NAT64 module
 user@T:~# /sbin/modprobe jool
 {% endhighlight %}
 
-Though the meaning of `pool6` is slightly different than in SIIT, the instance configuration looks pretty much the same:
+Though the meaning of `pool6` is slightly different than in SIIT, the instance configuration looks pretty much the same (Note: [This section](intro-jool.html#design) discusses Netfilter Jool vs iptables Jool):
 
 <div class="distro-menu">
 	<span class="distro-selector" onclick="showDistro(this);">Netfilter Jool</span>
@@ -99,7 +99,7 @@ user@T:~# /sbin/ip6tables -t mangle -A PREROUTING -j JOOL --instance "example"
 user@T:~# /sbin/iptables  -t mangle -A PREROUTING -j JOOL --instance "example"
 {% endhighlight %}
 
-The iptables configuration, on the other hand, needs to use the `JOOL` target.
+The iptables configuration, on the other hand, needs to use the `JOOL` target. (Instead of `JOOL_SIIT`.)
 
 ## Testing
 
