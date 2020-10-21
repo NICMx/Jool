@@ -29,6 +29,7 @@ See [RFC 6586](https://tools.ietf.org/html/rfc6586) for deployment experiences u
 
 ## Basic Tutorials
 
+1. [Basic Linux Networking](run-linux.html)
 1. [SIIT](run-vanilla.html)
 2. [SIIT + EAM](run-eam.html)
 3. [Stateful NAT64](run-nat64.html)

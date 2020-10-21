@@ -22,9 +22,18 @@ title: Basic SIIT Run
 
 This document explains how to run Jool in [stock SIIT mode](intro-xlat.html#siit-traditional). Follow the link for more details on what to expect.
 
-In case you're wondering, you can follow along these tutorials using virtual machines or alternate interface types just fine. Jool is _not_ married to physical "_ethX_" interfaces).
+To follow along, you're expected to understand
 
-If you intend on using iptables Jool, basic familiarity with iptables is recommended.
+1. what IP addresses are, and how they are aggregated into prefixes (ie. networks).
+2. You need to know how to start a command-line terminal, and type letters in it.
+	- Most of the commands will require administrative privileges, so please also be aware of `su`/`sudo`. (Commands requiring privileges will be prefixed by `#`, others will be prefixed with `$`.)
+3. You're also expected to know how to configure addresses and routes in your specific distribution's networking tools.
+	- Familiarity with the `ip address` and `ip route` commands is recommended, because I'm going to use their syntax to formally declare intended network configuration. You can find exactly what you need to know in [Basic Linux Networking](run-linux.html). (Even if you already know, please at least read the second paragraph of the introduction.)
+4. If you intend on using iptables Jool (as opposed to Netfilter Jool), basic familiarity with iptables is recommended.
+	- If you don't know iptables, really just stick to Netfilter Jool for now.
+5. It helps to know the purpose of the `ping` command.
+
+In case you're wondering, you can follow along these tutorials using virtual machines or alternate interface types just fine. Jool is _not_ married to physical "_ethX_" interfaces).
 
 ## Sample Network
 
@@ -36,50 +45,50 @@ We will pretend I have address block 198.51.100.8/29 to distribute among my IPv6
 
 Jool requires _T_ to be Linux. The rest can be anything you want, as long as it implements the network protocol it's connected to. You are also free to configure the networks using any manager you want.
 
-For the sake of simplicity however, the examples below assume every node is Linux and everything is being configured statically using the well-known `ip` command (and friends). Depending on your distro, your mileage might vary on how to get the network manager out of the way (assuming that's what you want). Just to clarify, the point of `service network-manager stop` below is to claim control over your interface addresses and routes (otherwise the `ip` commands might be ineffectual).
+Here is the "formal" definition of the sample network, in `ip` syntax. Whatever your operative system or configuration interface of choice, please accomplish the following:
 
-This is nodes _A_ through _E_:
+Nodes _A_ through _E_:
 
-{% highlight bash %}
-user@A:~# service network-manager stop
+```bash
 user@A:~# /sbin/ip link set eth0 up
 user@A:~# # Replace ".8" depending on which node you're on.
-user@A:~# /sbin/ip addr add 2001:db8::198.51.100.8/120 dev eth0
+user@A:~# /sbin/ip address add 2001:db8::198.51.100.8/120 dev eth0
 user@A:~# /sbin/ip route add 2001:db8::192.0.2.0/120 via 2001:db8::198.51.100.1
-{% endhighlight %}
+```
 
 Nodes _V_ through _Z_:
 
-{% highlight bash %}
-user@V:~# service network-manager stop
+```bash
 user@V:~# /sbin/ip link set eth0 up
 user@V:~# # Replace ".16" depending on which node you're on.
-user@V:~# /sbin/ip addr add 192.0.2.16/24 dev eth0
+user@V:~# /sbin/ip address add 192.0.2.16/24 dev eth0
 user@V:~# /sbin/ip route add 198.51.100.0/24 via 192.0.2.1
-{% endhighlight %}
+```
 
 Node _T_:
 
-{% highlight bash %}
-user@T:~# service network-manager stop
-user@T:~# 
+```bash
 user@T:~# /sbin/ip link set eth0 up
-user@T:~# /sbin/ip addr add 2001:db8::198.51.100.1/120 dev eth0
+user@T:~# /sbin/ip address add 2001:db8::198.51.100.1/120 dev eth0
 user@T:~# 
 user@T:~# /sbin/ip link set eth1 up
-user@T:~# /sbin/ip addr add 192.0.2.1/24 dev eth1
-{% endhighlight %}
+user@T:~# /sbin/ip address add 192.0.2.1/24 dev eth1
+```
 
-Because we haven't turned _T_ into a translator yet, nodes _A_ through _E_ still cannot interact with _V_ through _Z_, but you might want to make sure _T_ can ping everyone before continuing.
+Because we haven't turned _T_ into a translator yet, nodes _A_ through _E_ still cannot interact with _V_ through _Z_, but please make sure _T_ can ping everyone before continuing.
 
-Also, enable forwarding on _T_.
+Also, enable forwarding on _T_:
 
-{% highlight bash %}
+```bash
 user@T:~# /sbin/sysctl -w net.ipv4.conf.all.forwarding=1
 user@T:~# /sbin/sysctl -w net.ipv6.conf.all.forwarding=1
-{% endhighlight %}
+```
+
+That's our sample network out of the way. Let's now talk about Jool:
 
 ## Jool
+
+From the [introduction to traditional SIIT](intro-xlat.html#siit-traditional), you might have surmised that all the configuration a minimal traditional SIIT needs is a <span style="color: #00aa88">prefix</span>. And you would be correct.
 
 First, teach your kernel what SIIT is by attaching the `jool_siit` module to your kernel:
 
@@ -98,7 +107,7 @@ user@T:~# /sbin/modprobe jool_siit
 user@T:~# insmod jool_siit
 {% endhighlight %}
 
-Then, create a SIIT instance and perform the bare minimum configuration (Note: [This section](intro-jool.html#design) discusses Netfilter Jool vs iptables Jool):
+Then, create a SIIT instance and perform the bare minimum configuration (Note: [This section](intro-jool.html#design) discusses Netfilter Jool vs iptables Jool. When in doubt, just pick Netfilter):
 
 <div class="distro-menu">
 	<span class="distro-selector" onclick="showDistro(this);">Netfilter Jool</span>
@@ -110,7 +119,7 @@ Then, create a SIIT instance and perform the bare minimum configuration (Note: [
 user@T:~# # Create a Jool iptables instance named "example."
 user@T:~# # Also, establish that the IPv6 representation of any IPv4 address should be
 user@T:~# # `2001:db8::<IPv4 address>`. (See sections below for examples.)
-user@T:~# jool_siit instance add "example" --netfilter --pool6 2001:db8::/96 
+user@T:~# jool_siit instance add "example" --netfilter --pool6 2001:db8::/96
  
  
  
@@ -131,13 +140,17 @@ user@T:~# /sbin/ip6tables -t mangle -A PREROUTING -j JOOL_SIIT --instance "examp
 user@T:~# /sbin/iptables  -t mangle -A PREROUTING -j JOOL_SIIT --instance "example"
 {% endhighlight %}
 
-> ![../images/bulb.svg](../images/bulb.svg) About those iptables rules: Notice that we did not include any matches (such as [`-s` or `-d`](https://netfilter.org/documentation/HOWTO/packet-filtering-HOWTO-7.html#ss7.3)). This is merely for the sake of tutorial simplicity. If you want to narrow down the traffic that gets translated, you should be able to combine any matches as needed.
+> About iptables Jool:
+> 
+> ![../images/bulb.svg](../images/bulb.svg) Notice that we did not include any matches (such as [`-s` or `-d`](https://netfilter.org/documentation/HOWTO/packet-filtering-HOWTO-7.html#ss7.3)). This is merely for the sake of tutorial simplicity. If you want to narrow down the traffic that gets translated, you should be able to combine any matches as needed.
 > 
 > ![../images/warning.svg](../images/warning.svg) If you choose to use the `--protocol` match, please **make sure that you include at least one rule properly matching ICMP**, as it's important that you don't prevent the translation of ICMP errors, because they are required for imperative Internet upkeeping (such as [Path MTU Discovery](https://en.wikipedia.org/wiki/Path_MTU_Discovery)).
 
+That's all.
+
 ## Testing
 
-If something doesn't work, try the [FAQ](faq.html). In particular, if you face noticeably low performance, try [disabling offloads](offloads.html).
+If something doesn't work, try the [FAQ](faq.html). In particular, if you think Jool is misbehaving, try [enabling debug](usr-flags-global.html#logging-debug).
 
 Try to ping _A_ from _V_ like this:
 

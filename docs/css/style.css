@@ -423,10 +423,46 @@ hr {
 	border: 1px solid #DDD;
 	border-bottom-style: none;
 	border-radius: 5px 5px 0px 0px;
-	cursor: pointer;
 }
 
 .distro-selector:hover, .distro-selector.selected {
 	background-color: #F8F8F8;
+	cursor: default;
+}
+
+.distro-selector:hover:not(.selected) {
+	cursor: pointer;
+}
+
+.distro-menu {
+	text-align: right;
+	margin-bottom: -1px;
+}
+
+/* --------------- */
+
+.selector-menu span {
+	background-color: #DDD;
+	font-size: 80%;
+	font-weight: bold;
+	padding: 1px 1em;
+	border: 1px solid #DDD;
+	border-bottom-style: none;
+	border-radius: 5px 5px 0px 0px;
+}
+
+.selector-menu span:hover {
+	background-color: #F8F8F8;
+	cursor: pointer;
+}
+
+.selector-menu span.selected {
+	background-color: #F8F8F8;
+	cursor: default;
+}
+
+.selector-items img {
+	border: 1px solid #DDD;
+	background-color: white;
 }
 
