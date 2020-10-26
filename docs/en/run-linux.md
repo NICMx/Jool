@@ -20,11 +20,11 @@ title: Background Knowledge
 
 This page is a tutorial meant to explain the subset of the core Linux networking toolset which is relevant to the rest of the Jool tutorials.
 
-The thing about Linux is that it comes in many different flavors, and I really have better things to do than explain how to do everything in each. Therefore, Jool's documentation simplifies things by reaching for the lowest common denominator: The `ip` command. Throghout the runs, I will provide you the intended address and routing configuration in `ip` syntax. From this tutorial, you will learn what to extract out of these commands. If you can input them verbatim, great. If you want to translate them into your specific network manager's speak, that's yor job.
+The thing about Linux is that it comes in many different flavors, and I really have better things to do than explain how to set up a network in each of them. Therefore, Jool's documentation simplifies things by reaching for the lowest common denominator: The `ip` command. Throghout the runs, I will provide you the intended address and routing configuration in `ip` syntax. From this tutorial, you will learn what to extract out of these commands. If you can input them verbatim, great. If you want to translate them into your specific network manager's speak, that's yor job.
 
-To be perfectly honest, I don't actually expect you to follow this tutorial; I only hope that you read and understand it. I've found network managers tend to make horrible habits out of undoing your tweaks under your nose, or shutting down without properly cleaning up their network configurations. Also, I realize expecting people to happen to have more than one computer at hand might sometimes be a stretch. If you have experience with minimalist virtual machines, go nuts. Otherwise just stare at the pictures; `ip` isn't hard to understand.
+To be perfectly honest, I don't actually expect you to follow this tutorial; I only hope that you read and understand it. I've found network managers tend to make horrible habits out of undoing your tweaks under your nose, or shutting down without properly cleaning up their network configurations. Also, I realize expecting people to happen to have more than one computer at hand might sometimes be a stretch. If you have experience with minimalist virtual machines, go nuts. Otherwise just stare at the pictures; `ip` isn't really hard to understand.
 
-To follow along, you're expected to know what IP addresses are, and how they are aggregated into prefixes (ie. networks). You don't need to have experience with terminals beyond knowing how to start one, and type letters in it. However, most of the commands will require administrative privileges, so please also be aware of `su`/`sudo`. You also need to know the purpose of the `ping` command.
+To follow along, you're expected to know what IP addresses are, and how they are aggregated into prefixes (ie. networks). You don't need to have experience with command-line terminals beyond knowing how to start one, and type letters in it. However, most of the commands will require administrative privileges, so please also be aware of `su`/`sudo`. You also need to know the purpose of the `ping` command.
 
 ## Scenario 1: Minimal networking on Linux
 
@@ -185,7 +185,7 @@ The `ip route add` command has the following form:
 
 "`ip route add A via B`" means "If you need something delivered to `A`, send it to `B`, and it'll know that to do."
 
-If you mess something up, you can delete a route you previously created by `ip route delete`:
+If you mess something up, you can delete a route you previously created with `ip route delete`:
 
 	ip route delete <same arguments you used when creating the rule>
 

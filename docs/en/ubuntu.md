@@ -13,9 +13,9 @@ At time of writing, this installs Jool 4.0.7:
 
 	sudo apt install jool-dkms jool-tools
 
-Alternatively, you can use the [standalone Debian packages](debian.html#standalone-package).
+It's always a bit outdated. If you prefer a newer version, consider using the [standalone Debian packages](debian.html#standalone-package) instead. You can also [compile from source](install.html).
 
-To uninstall, revert as usual:
+Whichever method you chose, if you installed via `apt`, you can uninstall as usual:
 
 	sudo apt remove jool-dkms jool-tools
 

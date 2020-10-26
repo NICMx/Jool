@@ -29,9 +29,11 @@ title: MAP-T
 
 ## Introduction
 
-This document is a layman's (but exhaustive) slightly sardonic explanation of MAP-T. It is intended to serve as a replacement for RFC 7599, or at least, as preparatory reading for it. I'm assuming you've already consumed the [general introduction to the topic](intro-xlat.html#map-t), so you know what you're getting into.
+This document is a layman's (but exhaustive) slightly sardonic explanation of MAP-T. It is intended to serve as a replacement for RFC 7599, or at least, as preparatory reading for it. **I'm assuming you've already consumed the [general introduction to the topic](intro-xlat.html#map-t), so you know what you're getting into.**
 
 > ![Warning!](../images/warning.svg) **This page is still under construction. It's bound to change. Do not use it as reference.**
+
+A word of caution: MAP-T as an idea is the outcome of several years worth of experience with IP translation. It's several things going on at the same time, and not many of them make much sense in isolation. Sit down, grab a cup of coffee and relax. You're probably going to be here for a while.
 
 ## Foreword
 

@@ -30,7 +30,7 @@ To follow along, you're expected to understand
 3. You're also expected to know how to configure addresses and routes in your specific distribution's networking tools.
 	- Familiarity with the `ip address` and `ip route` commands is recommended, because I'm going to use their syntax to formally declare intended network configuration. You can find exactly what you need to know in [Basic Linux Networking](run-linux.html). (Even if you already know, please at least read the second paragraph of the introduction.)
 4. If you intend on using iptables Jool (as opposed to Netfilter Jool), basic familiarity with iptables is recommended.
-	- If you don't know iptables, really just stick to Netfilter Jool for now.
+	- If you don't know iptables, really just stick to Netfilter Jool for now. (Even if you don't know what Netfilter is.)
 5. It helps to know the purpose of the `ping` command.
 
 In case you're wondering, you can follow along these tutorials using virtual machines or alternate interface types just fine. Jool is _not_ married to physical "_ethX_" interfaces).
