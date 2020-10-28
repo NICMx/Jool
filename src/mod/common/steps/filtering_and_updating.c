@@ -155,7 +155,7 @@ EXPORT_UNIT_STATIC verdict ipv6_simple(struct xlation *state)
 		return drop(state, JSTAT_BIB6_NOT_FOUND);
 	}
 }
-EXPORT_UNIT_SYMBOL(ipv6_simple);
+EXPORT_UNIT_SYMBOL(ipv6_simple)
 
 /**
  * Assumes that "tuple" represents a IPv4-UDP or ICMP packet, and filters and
@@ -200,7 +200,7 @@ EXPORT_UNIT_STATIC verdict ipv4_simple(struct xlation *state)
 		return drop(state, JSTAT_UNKNOWN);
 	}
 }
-EXPORT_UNIT_SYMBOL(ipv4_simple);
+EXPORT_UNIT_SYMBOL(ipv4_simple)
 
 /**
  * Filtering and updating during the V4 INIT state of the TCP state machine.
@@ -470,7 +470,7 @@ EXPORT_UNIT_STATIC verdict ipv6_tcp(struct xlation *state)
 
 	return (result == VERDICT_CONTINUE) ? succeed(state) : result;
 }
-EXPORT_UNIT_SYMBOL(ipv6_tcp);
+EXPORT_UNIT_SYMBOL(ipv6_tcp)
 
 /**
  * IPv4 half of RFC 6146 section 3.5.2.
@@ -493,7 +493,7 @@ EXPORT_UNIT_STATIC verdict ipv4_tcp(struct xlation *state)
 
 	return (result == VERDICT_CONTINUE) ? succeed(state) : result;
 }
-EXPORT_UNIT_SYMBOL(ipv4_tcp);
+EXPORT_UNIT_SYMBOL(ipv4_tcp)
 
 #define pool6_contains(state, addr) \
 	prefix6_contains(&(state)->jool.globals.pool6.prefix, addr)
@@ -599,4 +599,4 @@ verdict filtering_and_updating(struct xlation *state)
 	log_debug(state, "Done: Step 2.");
 	return result;
 }
-EXPORT_UNIT_SYMBOL(filtering_and_updating);
+EXPORT_UNIT_SYMBOL(filtering_and_updating)

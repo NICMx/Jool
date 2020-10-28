@@ -853,7 +853,7 @@ EXPORT_UNIT_STATIC bool has_unexpired_src_route(struct iphdr *hdr)
 	src_route_ptr = current_opt[2];
 	return src_route_len >= src_route_ptr;
 }
-EXPORT_UNIT_SYMBOL(has_unexpired_src_route);
+EXPORT_UNIT_SYMBOL(has_unexpired_src_route)
 
 /**
  * One-liner for creating the Identification field of the IPv6 Fragment header.
@@ -862,7 +862,7 @@ EXPORT_UNIT_STATIC __be32 build_id_field(struct iphdr *hdr4)
 {
 	return cpu_to_be32(be16_to_cpu(hdr4->id));
 }
-EXPORT_UNIT_SYMBOL(build_id_field);
+EXPORT_UNIT_SYMBOL(build_id_field)
 
 /*
  * Copies the IPv6 and fragment headers from the first fragment to the
@@ -1050,7 +1050,7 @@ EXPORT_UNIT_STATIC __be32 icmp6_minimum_mtu(struct xlation *state,
 
 	return cpu_to_be32(result);
 }
-EXPORT_UNIT_SYMBOL(icmp6_minimum_mtu);
+EXPORT_UNIT_SYMBOL(icmp6_minimum_mtu)
 
 static verdict compute_mtu6(struct xlation *state)
 {
@@ -1169,7 +1169,7 @@ EXPORT_UNIT_STATIC verdict icmp4_to_icmp6_param_prob(struct xlation *state)
 			icmp4_hdr->code);
 	return drop(state, JSTAT_UNKNOWN);
 }
-EXPORT_UNIT_SYMBOL(icmp4_to_icmp6_param_prob);
+EXPORT_UNIT_SYMBOL(icmp4_to_icmp6_param_prob)
 
 /*
  * Removes L4 header, adds L4 header, adds IPv6 pseudoheader.

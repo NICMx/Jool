@@ -279,7 +279,7 @@ struct pool4 *pool4db_alloc(void)
 
 	return result;
 }
-EXPORT_UNIT_SYMBOL(pool4db_alloc);
+EXPORT_UNIT_SYMBOL(pool4db_alloc)
 
 void pool4db_get(struct pool4 *pool)
 {
@@ -320,7 +320,7 @@ void pool4db_put(struct pool4 *pool)
 {
 	kref_put(&pool->refcounter, pool4db_release);
 }
-EXPORT_UNIT_SYMBOL(pool4db_put);
+EXPORT_UNIT_SYMBOL(pool4db_put)
 
 static int max_iterations_validate(__u8 flags, __u32 iterations)
 {
@@ -581,7 +581,7 @@ trainwreck:
 	log_err("pool4 was probably left in an inconsistent state because of a memory allocation failure or a bug. Please remove NAT64 Jool from your kernel.");
 	return error;
 }
-EXPORT_UNIT_SYMBOL(pool4db_add);
+EXPORT_UNIT_SYMBOL(pool4db_add)
 
 int pool4db_update(struct pool4 *pool, const struct pool4_update *update)
 {
@@ -773,7 +773,7 @@ int pool4db_rm(struct pool4 *pool, const __u32 mark, l4_protocol proto,
 	spin_unlock_bh(&pool->lock);
 	return error;
 }
-EXPORT_UNIT_SYMBOL(pool4db_rm);
+EXPORT_UNIT_SYMBOL(pool4db_rm)
 
 int pool4db_rm_usr(struct pool4 *pool, struct pool4_entry *entry)
 {
@@ -786,7 +786,7 @@ void pool4db_flush(struct pool4 *pool)
 	clear_trees(pool);
 	spin_unlock_bh(&pool->lock);
 }
-EXPORT_UNIT_SYMBOL(pool4db_flush);
+EXPORT_UNIT_SYMBOL(pool4db_flush)
 
 static struct ipv4_range *find_port_range(struct pool4_table *entry, __u16 port)
 {
@@ -835,7 +835,7 @@ bool pool4db_contains(struct pool4 *pool, struct net *ns, l4_protocol proto,
 	spin_unlock_bh(&pool->lock);
 	return found;
 }
-EXPORT_UNIT_SYMBOL(pool4db_contains);
+EXPORT_UNIT_SYMBOL(pool4db_contains)
 
 static int find_offset(struct pool4_table *table, struct ipv4_range *offset,
 		struct ipv4_range **result)
@@ -996,7 +996,7 @@ eagain:
 	log_err("Oops. Pool4 changed while I was iterating so I lost track of where I was. Try again.");
 	return -EAGAIN;
 }
-EXPORT_UNIT_SYMBOL(pool4db_foreach_sample);
+EXPORT_UNIT_SYMBOL(pool4db_foreach_sample)
 
 static void print_tree(struct rb_root *tree, bool mark)
 {

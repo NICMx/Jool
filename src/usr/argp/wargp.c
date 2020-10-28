@@ -27,11 +27,13 @@ struct wargp_type wt_bool = {
 	.parse = wargp_parse_bool,
 };
 
+/* Inconsistency warning: Refers to a wargp_u8. */
 struct wargp_type wt_u8 = {
 	.argument = "<integer>",
 	.parse = wargp_parse_u8,
 };
 
+/* Inconsistency warning: Refers to a __u32. */
 struct wargp_type wt_u32 = {
 	.argument = "<integer>",
 	.parse = wargp_parse_u32,
@@ -80,14 +82,16 @@ int wargp_parse_bool(void *void_field, int key, char *str)
 	return 0;
 }
 
-int wargp_parse_u8(void *field, int key, char *str)
+int wargp_parse_u8(void *void_field, int key, char *str)
 {
+	struct wargp_u8 *field = void_field;
 	struct jool_result result;
 
-	result = str_to_u8(str, field, MAX_U8);
+	result = str_to_u8(str, &field->value, MAX_U8);
 	if (result.error)
 		return pr_result(&result);
 
+	field->set = true;
 	return 0;
 }
 
@@ -182,6 +186,13 @@ int wargp_parse_prefix4(void *void_field, int key, char *str)
 	return 0;
 }
 
+static bool xt_matches(struct wargp_option const *wopt)
+{
+	if (!wopt->xt)
+		return true;
+	return xt_get() & wopt->xt;
+}
+
 static int adapt_options(struct argp *argp, struct wargp_option const *wopts,
 		struct argp_option **result)
 {
@@ -197,7 +208,7 @@ static int adapt_options(struct argp *argp, struct wargp_option const *wopts,
 
 	total_opts = 0;
 	for (wopt = wopts; wopt->name; wopt++)
-		if ((xt_get() & wopt->xt) && (wopt->key != ARGP_KEY_ARG))
+		if (xt_matches(wopt) && (wopt->key != ARGP_KEY_ARG))
 			total_opts++;
 
 	opts = calloc(total_opts + 1, sizeof(struct argp_option));
@@ -209,7 +220,7 @@ static int adapt_options(struct argp *argp, struct wargp_option const *wopts,
 
 	opt = opts;
 	for (wopt = wopts; wopt->name; wopt++) {
-		if (!(xt_get() & wopt->xt))
+		if (!xt_matches(wopt))
 			continue;
 
 		if (wopt->key == ARGP_KEY_ARG) {

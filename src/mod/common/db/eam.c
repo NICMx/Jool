@@ -221,7 +221,7 @@ end:
 	mutex_unlock(&lock);
 	return error;
 }
-EXPORT_UNIT_SYMBOL(eamt_add);
+EXPORT_UNIT_SYMBOL(eamt_add)
 
 static int get_exact6(struct eam_table *eamt, struct ipv6_prefix *prefix,
 		struct eamt_entry *eam)
@@ -319,7 +319,7 @@ int eamt_rm(struct eam_table *eamt,
 
 	return error;
 }
-EXPORT_UNIT_SYMBOL(eamt_rm);
+EXPORT_UNIT_SYMBOL(eamt_rm)
 
 bool eamt_contains6(struct eam_table *eamt, struct in6_addr *addr)
 {
@@ -365,7 +365,7 @@ int eamt_xlat_6to4(struct eam_table *eamt, struct in6_addr *addr6,
 	result->entry.method = AXM_EAMT;
 	return 0;
 }
-EXPORT_UNIT_SYMBOL(eamt_xlat_6to4);
+EXPORT_UNIT_SYMBOL(eamt_xlat_6to4)
 
 /** Contract: Returns 0 or -ESRCH. No other outcomes. */
 int eamt_xlat_4to6(struct eam_table *eamt, struct in_addr *addr4,
@@ -398,7 +398,7 @@ int eamt_xlat_4to6(struct eam_table *eamt, struct in_addr *addr4,
 	result->entry.method = AXM_EAMT;
 	return 0;
 }
-EXPORT_UNIT_SYMBOL(eamt_xlat_4to6);
+EXPORT_UNIT_SYMBOL(eamt_xlat_4to6)
 
 bool eamt_is_empty(struct eam_table *eamt)
 {
@@ -444,7 +444,7 @@ void eamt_flush(struct eam_table *eamt)
 	rtrie_flush(&eamt->trie4);
 	mutex_unlock(&lock);
 }
-EXPORT_UNIT_SYMBOL(eamt_flush);
+EXPORT_UNIT_SYMBOL(eamt_flush)
 
 struct eam_table *eamt_alloc(void)
 {
@@ -460,7 +460,7 @@ struct eam_table *eamt_alloc(void)
 
 	return result;
 }
-EXPORT_UNIT_SYMBOL(eamt_alloc);
+EXPORT_UNIT_SYMBOL(eamt_alloc)
 
 void eamt_get(struct eam_table *eamt)
 {
@@ -483,4 +483,4 @@ void eamt_put(struct eam_table *eamt)
 {
 	kref_put(&eamt->refcount, eamt_release);
 }
-EXPORT_UNIT_SYMBOL(eamt_put);
+EXPORT_UNIT_SYMBOL(eamt_put)

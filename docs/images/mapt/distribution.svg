@@ -12,7 +12,7 @@
    height="632"
    id="svg3053"
    version="1.1"
-   inkscape:version="1.0.1 (3bc2e813f5, 2020-09-07)"
+   inkscape:version="1.0.1 (0767f8302a, 2020-10-17)"
    sodipodi:docname="distribution.svg">
   <defs
      id="defs3055">
@@ -1069,36 +1069,7 @@
      id="layer6"
      inkscape:label="crosses"
      style="display:inline;opacity:0.75"
-     sodipodi:insensitive="true">
-    <path
-       id="path1098"
-       style="fill:#ff0000;stroke:#ffff00;stroke-width:2;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
-       d="m 100,80 24,40 -24,40 h 8 L 128,126.66602 148,160 h 8 l -24,-40 24,-40 h -8 L 128,113.33398 108,80 Z" />
-    <use
-       x="0"
-       y="0"
-       xlink:href="#path1098"
-       id="use1106"
-       transform="translate(0,128)"
-       width="100%"
-       height="100%" />
-    <use
-       x="0"
-       y="0"
-       xlink:href="#path1098"
-       id="use1108"
-       transform="translate(0,256)"
-       width="100%"
-       height="100%" />
-    <use
-       x="0"
-       y="0"
-       xlink:href="#path1098"
-       id="use1110"
-       transform="translate(0,432)"
-       width="100%"
-       height="100%" />
-  </g>
+     sodipodi:insensitive="true" />
   <g
      inkscape:groupmode="layer"
      id="layer5"

@@ -26,7 +26,7 @@ EXPORT_UNIT_STATIC __u8 xlat_proto(struct ipv6hdr const *hdr6)
 			? IPPROTO_ICMP
 			: iterator.hdr_type;
 }
-EXPORT_UNIT_SYMBOL(xlat_proto);
+EXPORT_UNIT_SYMBOL(xlat_proto)
 
 static verdict xlat64_external_addresses(struct xlation *state)
 {
@@ -574,7 +574,7 @@ EXPORT_UNIT_STATIC bool generate_df_flag(struct packet const *out)
 
 	return len > 1260;
 }
-EXPORT_UNIT_SYMBOL(generate_df_flag);
+EXPORT_UNIT_SYMBOL(generate_df_flag)
 
 static __be16 xlat_frag_off(struct frag_hdr const *hdr_frag, struct packet const *out)
 {
@@ -620,7 +620,7 @@ EXPORT_UNIT_STATIC bool has_nonzero_segments_left(struct ipv6hdr const *hdr6,
 	*location = offset + offsetof(struct ipv6_rt_hdr, segments_left);
 	return true;
 }
-EXPORT_UNIT_SYMBOL(has_nonzero_segments_left);
+EXPORT_UNIT_SYMBOL(has_nonzero_segments_left)
 
 /**
  * Translates @state->in's IPv6 header into @state->out's IPv4 header.
@@ -705,7 +705,7 @@ EXPORT_UNIT_STATIC __be16 minimum(unsigned int mtu1, unsigned int mtu2,
 {
 	return cpu_to_be16(min(mtu1, min(mtu2, mtu3)));
 }
-EXPORT_UNIT_SYMBOL(minimum);
+EXPORT_UNIT_SYMBOL(minimum)
 
 static verdict compute_mtu4(struct xlation const *state)
 {

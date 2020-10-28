@@ -446,11 +446,14 @@ static int nl2raw_ce(struct nlattr *attrs[], struct mapt_globals *cfg)
 	/* EA-bits length guaranteed from now on. */
 
 	if (attrs[JNLAMT_k]) {
-		if (k != cfg->bmr.ea_bits_length - cfg->bmr.prefix4.len) {
+		if (k != maprule_get_k(&cfg->bmr)) {
 			log_err("k != o - p.");
 			return -EINVAL;
 		}
+	} else {
+		k = maprule_get_k(&cfg->bmr);
 	}
+
 	/* "k" guaranteed from now on. */
 	/* (Also, remember that "a" has a default value.) */
 
@@ -596,15 +599,10 @@ static void print_plateaus(void *value, bool csv)
 		printf("\"");
 }
 
-static void print_prefix(int af, const void *addr, __u8 len, bool set, bool csv)
+static void __print_prefix(int af, const void *addr, __u8 len)
 {
 	const char *str;
 	char buffer[INET6_ADDRSTRLEN];
-
-	if (!set) {
-		printf("%s", csv ? "" : "(unset)");
-		return;
-	}
 
 	str = inet_ntop(af, addr, buffer, sizeof(buffer));
 	if (str)
@@ -613,6 +611,17 @@ static void print_prefix(int af, const void *addr, __u8 len, bool set, bool csv)
 		perror("inet_ntop");
 }
 
+static void print_prefix(int af, const void *addr, __u8 len, bool set, bool csv)
+{
+	if (!set) {
+		printf("%s", csv ? "" : "(unset)");
+		return;
+	}
+
+	__print_prefix(af, addr, len);
+}
+
+/* Remember that @value is a config_prefix6, not an ipv6_prefix. */
 static void print_prefix6(void *value, bool csv)
 {
 	struct config_prefix6 *prefix = value;
@@ -620,6 +629,7 @@ static void print_prefix6(void *value, bool csv)
 			prefix->set, csv);
 }
 
+/* Remember that @value is a config_prefix4, not an ipv4_prefix. */
 static void print_prefix4(void *value, bool csv)
 {
 	struct config_prefix4 *prefix = value;
@@ -664,6 +674,16 @@ static void print_fargs(void *value, bool csv)
 	printf("DstPort:%u",  (uvalue >> 0) & 1);
 }
 
+static void __print_prefix6(struct ipv6_prefix *prefix)
+{
+	__print_prefix(AF_INET6, &prefix->addr, prefix->len);
+}
+
+static void __print_prefix4(struct ipv4_prefix *prefix)
+{
+	__print_prefix(AF_INET, &prefix->addr, prefix->len);
+}
+
 static void print_mapt(void *value, bool csv)
 {
 	struct mapt_globals *globals = value;
@@ -672,16 +692,16 @@ static void print_mapt(void *value, bool csv)
 	switch (globals->type) {
 	case MAPTYPE_CE:
 		printf("CE");
-		k = globals->bmr.ea_bits_length - globals->bmr.prefix4.len;
+		k = maprule_get_k(&globals->bmr);
 		m = 16 - globals->bmr.a - k;
 
 		if (csv) {
 			printf("\nEnd-user IPv6 Prefix,");
-			print_prefix6(&globals->eui6p, csv);
+			__print_prefix6(&globals->eui6p);
 			printf("\nBMR IPv6 Prefix,");
-			print_prefix6(&globals->bmr.prefix6, csv);
+			__print_prefix6(&globals->bmr.prefix6);
 			printf("\nBMR IPv4 Prefix,");
-			print_prefix4(&globals->bmr.prefix4, csv);
+			__print_prefix4(&globals->bmr.prefix4);
 			printf("\nBMR EA-bits Length,%u\n",
 					globals->bmr.ea_bits_length);
 			printf("BMR a,%u\n", globals->bmr.a);
@@ -689,13 +709,15 @@ static void print_mapt(void *value, bool csv)
 			printf("BMR m,%u", m);
 		} else {
 			printf("\n  End-user IPv6 Prefix: ");
-			print_prefix6(&globals->eui6p, csv);
+			__print_prefix6(&globals->eui6p);
 			printf("\n  BMR: ");
-			print_prefix6(&globals->bmr.prefix6, csv);
-			printf(",");
-			print_prefix4(&globals->bmr.prefix4, csv);
-			printf(",%u (a:%u k:%u m:%u)",
-					globals->bmr.ea_bits_length,
+			printf("\n    IPv6 prefix: ");
+			__print_prefix6(&globals->bmr.prefix6);
+			printf("\n    IPv4 prefix: ");
+			__print_prefix4(&globals->bmr.prefix4);
+			printf("\n    EA-bits length: %u",
+					globals->bmr.ea_bits_length);
+			printf("\n    (a:%u k:%u m:%u)",
 					globals->bmr.a, k, m);
 		}
 		return;

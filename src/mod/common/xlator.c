@@ -256,13 +256,13 @@ int xlator_setup(void)
 
 	return 0;
 }
-EXPORT_UNIT_SYMBOL(xlator_setup);
+EXPORT_UNIT_SYMBOL(xlator_setup)
 
 void xlator_set_defrag(void (*_defrag_enable)(struct net *ns))
 {
 	defrag_enable = _defrag_enable;
 }
-EXPORT_UNIT_SYMBOL(xlator_set_defrag);
+EXPORT_UNIT_SYMBOL(xlator_set_defrag)
 
 /**
  * Graceful termination of this module. Reverts xlator_setup().
@@ -281,7 +281,7 @@ void xlator_teardown(void)
 	WARN(!list_empty(ni), "There are elements in the xlator list after a cleanup.");
 	__wkfree("xlator DB", ni);
 }
-EXPORT_UNIT_SYMBOL(xlator_teardown);
+EXPORT_UNIT_SYMBOL(xlator_teardown)
 
 static int init_siit(struct xlator *jool)
 {
@@ -390,7 +390,7 @@ int xlator_init(struct xlator *jool, struct net *ns, char *iname,
 		jstat_put(jool->stats);
 	return error;
 }
-EXPORT_UNIT_SYMBOL(xlator_init);
+EXPORT_UNIT_SYMBOL(xlator_init)
 
 static int basic_validations(char const *iname, bool allow_null_iname,
 		xlator_flags flags)
@@ -586,7 +586,7 @@ mutex_fail:
 	put_net(ns);
 	return error;
 }
-EXPORT_UNIT_SYMBOL(xlator_add);
+EXPORT_UNIT_SYMBOL(xlator_add)
 
 static int __xlator_rm(struct net *ns, char *iname, xlator_type xt)
 {
@@ -648,7 +648,7 @@ int xlator_rm(xlator_type xt, char *iname)
 	put_net(ns);
 	return error;
 }
-EXPORT_UNIT_SYMBOL(xlator_rm);
+EXPORT_UNIT_SYMBOL(xlator_rm)
 
 int xlator_replace(struct xlator *jool)
 {
@@ -898,7 +898,7 @@ void xlator_put(struct xlator *jool)
 
 	WARN(1, "Unknown translator type: %d", xlator_get_type(jool));
 }
-EXPORT_UNIT_SYMBOL(xlator_put);
+EXPORT_UNIT_SYMBOL(xlator_put)
 
 static bool offset_equals(struct instance_entry_usr *offset,
 		struct jool_instance *instance)

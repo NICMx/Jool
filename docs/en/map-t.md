@@ -57,15 +57,56 @@ In order to define your MAP-T network, you first need a general idea of how you'
 
 Suppose you have the entirety of block 192.0.2.0/24 to distribute among your CEs. Suppose, as well, that you have 5000 customers.
 
-Considering that the size of your IPv4 address pool is 256 (because of "/24"), with a simple division (ceiling of (customers divided by pool size)) you will conclude that you need to fit 20 customers per address.
+Let's define some variables:
 
-Therefore, each address needs to be divided into 20 "Sets" of ports. (But MAP-T likes powers of two, so we'll have to round that up to 32.) We will assing each set to a different customer, and leftovers will be reserved for a future growth of our customer pool or whatever.
+- _r_ = Length of the IPv4 prefix (Defined by RFC 7597)
+- _p_ = Length of the IPv4 suffix (Defined by RFC 7597)
+- _a<sub>4</sub>_ = Number of available IPv4 "a"ddresses
+- _c_ = Total "c"ustomers
+- _c<sub>4</sub>_ = "C"ustomers per IPv"4" address
 
-> ![Warning!](../images/warning.svg) The following paragraph assumes `a = 0` and `m = 11`. Don't worry about this for now; `a` and `m` will be explained later.
+Yes, I'm also very upset by the RFC's choices.
 
-So, we will divide each address into 32 sets of 2048 ports each (65536 / 32). The first set consists of ports 0-2047, the second set has 2048-4095, the third set has 4096-6143, and so on. The last set has 63488-65535.
+In our example,
 
-With that in mind, I would like to introduce the notion of _Embedded Address bits_ ("EA-bits"). It's basically a CE identifier. (Each CE has a different one, except in scenario 3, in which every CE has several, but they're still unique.) It's composed of a concatenation of the suffix of the IPv4 address that has been assigned to the CE, as well as the identifier of its Port Set. In our example, we would need 8 bits for the suffix and 5 bits for the _Port Set IDentifier_ (PSID):
+<style type="text/css">
+	.equations {
+		display: block;
+		margin-left: auto;
+		margin-right: auto;
+	}
+</style>
+
+<img src="../images/mapt/equations1.png" alt="Equations: 1" class="equations" />
+
+> ![Note](../images/bulb.svg) Not sure if I should be explaining this, but the &#8968;&#8969; operation means [_ceiling_](https://en.wikipedia.org/wiki/Floor_and_ceiling_functions).
+
+As you can see, each address needs to be divided into 20 "Sets" of ports. (But MAP-T likes powers of two, so we'll have to round that up to 32.) We will assign each set to a different customer. (And leftovers will be reserved for a future growth of our customer pool or whatever.)
+
+- _S_ = Number of "s"ets per IPv4 address
+- _P_ = Number of "P"orts per set
+
+<img src="../images/mapt/equations2.png" alt="Equations: 2" class="equations" />
+
+So, we will divide each address into 32 sets of 2048 ports each.
+
+> ![Warning!](../images/warning.svg) The following is an oversimplification that assumes `a = 0` and `m = 11`. Don't worry about this for now; `a` and `m` will be explained later.
+> 
+> Also, take heed of the upcoming multicharacter variable. We're dropping the formal pretenses now.
+
+The first port of set _PSID_ is _P_ * _PSID_, and its last port is _P_ * (_PSID_ + 1) - 1. (Where _PSID_ = { 0, 1, 2, 3, ..., _S_ - 1 }.)
+
+In english:
+
+| Port Set ID (PSID) | First Port | Last Port |
+|--------------------|------------|-----------|
+| 0                  | 0          | 2047      |
+| 1                  | 2048       | 4095      |
+| 2                  | 4096       | 6143      |
+| ...                | ...        | ...       |
+| 31                 | 63488      | 65535     |
+
+With that in mind, I would like to introduce the notion of _Embedded Address bits_ ("EA-bits"). It's basically a CE identifier. (Each CE has a different one, except in scenario 3, in which every CE has several, but they're still unique.) It's composed of a concatenation of the suffix of the IPv4 address that has been assigned to the CE, as well as the identifier of its Port Set. In our example, we would need 8 bits for the suffix and 5 bits for the _Port Set IDentifier_:
 
 ![Diagram: EA-bits](../images/mapt/ea-bits.svg)
 
@@ -73,7 +114,7 @@ With that in mind, I would like to introduce the notion of _Embedded Address bit
 
 > ![Note!](../images/bulb.svg) Only scenario 1 includes PSID. Port Sets only need to exist if the IPv4 addresses are being shared.
 
-Let's visualize all of that:
+Let's visualize all of that. Don't stop looking at this picture until you've understood the relationship between each CE's number and its assigned IPv4 address and PSID:
 
 ![Network: EA-bits distribution](../images/mapt/distribution.svg)
 

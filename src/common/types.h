@@ -260,16 +260,25 @@ struct mapping_rule {
 	__u8 a;
 };
 
+__u8 maprule_get_k(struct mapping_rule *rule);
+
 #ifdef __KERNEL__
+
 #ifdef UNIT_TESTING
 /* Exported so the unit test modules can manhandle them */
-#define EXPORT_UNIT_SYMBOL(symbol) EXPORT_SYMBOL_GPL(symbol)
+#define EXPORT_UNIT_SYMBOL(symbol) EXPORT_SYMBOL_GPL(symbol);
 #define EXPORT_UNIT_STATIC
 #else
 #define EXPORT_UNIT_SYMBOL(symbol)
 /* Static only if not exported */
 #define EXPORT_UNIT_STATIC static
 #endif
+
+#else /* __KERNEL__ */
+
+#define EXPORT_UNIT_SYMBOL(symbol)
+#define EXPORT_UNIT_STATIC static
+
 #endif
 
 #endif /* SRC_COMMON_TYPES_H */

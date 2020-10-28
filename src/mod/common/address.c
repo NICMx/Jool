@@ -8,13 +8,13 @@ int str_to_addr4(const char *str, struct in_addr *result)
 {
 	return in4_pton(str, -1, (u8 *) result, '\0', NULL) ? 0 : -EINVAL;
 }
-EXPORT_UNIT_SYMBOL(str_to_addr4);
+EXPORT_UNIT_SYMBOL(str_to_addr4)
 
 int str_to_addr6(const char *str, struct in6_addr *result)
 {
 	return in6_pton(str, -1, (u8 *) result, '\0', NULL) ? 0 : -EINVAL;
 }
-EXPORT_UNIT_SYMBOL(str_to_addr6);
+EXPORT_UNIT_SYMBOL(str_to_addr6)
 
 int prefix6_parse(char *str, struct ipv6_prefix *result)
 {
@@ -31,7 +31,7 @@ fail:
 	log_err("IPv6 prefix is malformed: %s.", str);
 	return -EINVAL;
 }
-EXPORT_UNIT_SYMBOL(prefix6_parse);
+EXPORT_UNIT_SYMBOL(prefix6_parse)
 
 int prefix4_parse(char *str, struct ipv4_prefix *result)
 {
@@ -54,21 +54,21 @@ fail:
 	log_err("IPv4 prefix or address is malformed: %s.", str);
 	return -EINVAL;
 }
-EXPORT_UNIT_SYMBOL(prefix4_parse);
+EXPORT_UNIT_SYMBOL(prefix4_parse)
 
 bool taddr6_equals(const struct ipv6_transport_addr *a,
 		const struct ipv6_transport_addr *b)
 {
 	return addr6_equals(&a->l3, &b->l3) && (a->l4 == b->l4);
 }
-EXPORT_UNIT_SYMBOL(taddr6_equals);
+EXPORT_UNIT_SYMBOL(taddr6_equals)
 
 bool taddr4_equals(const struct ipv4_transport_addr *a,
 		const struct ipv4_transport_addr *b)
 {
 	return addr4_equals(&a->l3, &b->l3) && (a->l4 == b->l4);
 }
-EXPORT_UNIT_SYMBOL(taddr4_equals);
+EXPORT_UNIT_SYMBOL(taddr4_equals)
 
 bool prefix6_equals(const struct ipv6_prefix *a, const struct ipv6_prefix *b)
 {
@@ -93,7 +93,7 @@ bool prefix4_contains(const struct ipv4_prefix *prefix,
 	__u32 addrbits = be32_to_cpu(addr->s_addr) & maskbits;
 	return prefixbits == addrbits;
 }
-EXPORT_UNIT_SYMBOL(prefix4_contains);
+EXPORT_UNIT_SYMBOL(prefix4_contains)
 
 bool prefix4_intersects(const struct ipv4_prefix *p1,
 		const struct ipv4_prefix *p2)
@@ -106,14 +106,14 @@ __u64 prefix4_get_addr_count(const struct ipv4_prefix *prefix)
 {
 	return ((__u64) 1U) << (32 - prefix->len);
 }
-EXPORT_UNIT_SYMBOL(prefix4_get_addr_count);
+EXPORT_UNIT_SYMBOL(prefix4_get_addr_count)
 
 bool prefix6_contains(const struct ipv6_prefix *prefix,
 		const struct in6_addr *addr)
 {
 	return ipv6_prefix_equal(&prefix->addr, addr, prefix->len);
 }
-EXPORT_UNIT_SYMBOL(prefix6_contains);
+EXPORT_UNIT_SYMBOL(prefix6_contains)
 
 int prefix4_validate(const struct ipv4_prefix *prefix)
 {

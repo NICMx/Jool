@@ -110,7 +110,7 @@ int globals_init(struct jool_globals *config, xlator_type type)
 
 	return 0;
 }
-EXPORT_UNIT_SYMBOL(globals_init);
+EXPORT_UNIT_SYMBOL(globals_init)
 
 int globals_foreach(struct jool_globals *config,
 		xlator_type xt,

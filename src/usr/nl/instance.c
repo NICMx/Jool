@@ -205,7 +205,7 @@ struct jool_result joolnl_instance_add_mapt(struct joolnl_socket *sk,
 		goto nla_put_failure;
 
 	NLA_PUT_U8(msg, JNLAIA_XF, xf);
-	if (dmr && nla_put_prefix6(msg, JNLAIA_POOL6, dmr) < 0)
+	if (nla_put_prefix6(msg, JNLAIA_POOL6, dmr) < 0)
 		goto nla_put_failure;
 
 	ce = jnla_nest_start(msg, JNLAIA_MAPT);

@@ -72,7 +72,7 @@ void rbtree_foreach(struct rb_root *root, void (*cb)(struct rb_node *, void *),
 		} while (true);
 	}
 }
-EXPORT_UNIT_SYMBOL(rbtree_foreach);
+EXPORT_UNIT_SYMBOL(rbtree_foreach)
 
 void rbtree_clear(struct rb_root *root,
 		void (*destructor)(struct rb_node *, void *),

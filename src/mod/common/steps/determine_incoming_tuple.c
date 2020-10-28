@@ -330,4 +330,4 @@ unknown_proto:
 	return untranslatable_icmp(state, JSTAT_UNKNOWN_L4_PROTO,
 			ICMPERR_PROTO_UNREACHABLE, 0);
 }
-EXPORT_UNIT_SYMBOL(determine_in_tuple);
+EXPORT_UNIT_SYMBOL(determine_in_tuple)

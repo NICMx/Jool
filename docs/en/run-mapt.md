@@ -123,6 +123,8 @@ user@BR:~# jool_mapt instance add "BR" --netfilter \
 user@BR:~# jool_mapt -i "BR" fmr add 2001:db8:0:4464:/96 192.0.2.0/24 13
 ```
 
+TODO FMR6 is wrong
+
 ## Testing
 
 ## Stopping Jool

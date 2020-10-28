@@ -10,4 +10,4 @@ bool session_equals(const struct session_entry *s1,
 			&& taddr4_equals(&s1->dst4, &s2->dst4)
 			&& (s1->proto == s2->proto);
 }
-EXPORT_UNIT_SYMBOL(session_equals);
+EXPORT_UNIT_SYMBOL(session_equals)

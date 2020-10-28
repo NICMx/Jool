@@ -279,7 +279,7 @@ extern const struct nla_policy nat64_globals_policy[JNLAG_COUNT];
 extern const struct nla_policy mapt_globals_policy[JNLAG_COUNT];
 
 enum joolnl_attr_mapt {
-	JNLAMT_TYPE,
+	JNLAMT_TYPE = 1,
 	JNLAMT_EUI6P,
 	JNLAMT_EABITS,
 	JNLAMT_BMR_P6,
@@ -350,11 +350,6 @@ struct config_prefix4 {
 	bool set;
 	/** Please note that this could be garbage; see above. */
 	struct ipv4_prefix prefix;
-};
-
-struct config_u8 {
-	bool set;
-	__u8 value;
 };
 
 /**
