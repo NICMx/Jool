@@ -232,23 +232,35 @@ static verdict br46_dst(struct xlation *state, __be32 in, struct in6_addr *out)
 	return drop(state, JSTAT_UNKNOWN);
 }
 
-verdict translate_addrs46_mapt(struct xlation *state,
-		struct in6_addr *out_src,
-		struct in6_addr *out_dst)
+typedef verdict (*xlat46_cb)(struct xlation *, __be32, struct in6_addr *);
+
+verdict translate_addrs46_mapt(struct xlation *state, struct in6_addr *out_src,
+		struct in6_addr *out_dst, bool invert)
 {
 	struct iphdr *in = pkt_ip4_hdr(&state->in);
+	xlat46_cb src_cb;
+	xlat46_cb dst_cb;
+	verdict result;
 
 	switch (state->jool.globals.mapt.type) {
 	case MAPTYPE_CE:
-		return ce46_src(state, in->saddr, out_src)
-		    || ce46_dst(state, in->daddr, out_dst);
+		src_cb = invert ? ce46_dst : ce46_src;
+		dst_cb = invert ? ce46_src : ce46_dst;
+		break;
 	case MAPTYPE_BR:
-		return br46_src(state, in->saddr, out_src)
-		    || br46_dst(state, in->daddr, out_dst);
+		src_cb = invert ? br46_dst : br46_src;
+		dst_cb = invert ? br46_src : br46_dst;
+		break;
+	default:
+		log_debug(state, "Unknown MAP type: %d",
+				state->jool.globals.mapt.type);
+		return drop(state, JSTAT_UNKNOWN);
 	}
 
-	log_debug(state, "Unknown MAP type: %d", state->jool.globals.mapt.type);
-	return drop(state, JSTAT_UNKNOWN);
+	result = src_cb(state, in->saddr, out_src);
+	if (result != VERDICT_CONTINUE)
+		return result;
+	return dst_cb(state, in->daddr, out_dst);
 }
 EXPORT_UNIT_SYMBOL(translate_addrs46_mapt);
 
@@ -341,21 +353,34 @@ static verdict br64_dst(struct xlation *state, struct in6_addr const *in,
 	return use_pool6_64(state, in, out);
 }
 
+typedef verdict (*xlat64_cb)(struct xlation *, struct in6_addr const *, __be32 *);
+
 verdict translate_addrs64_mapt(struct xlation *state, __be32 *out_src,
-		__be32 *out_dst)
+		__be32 *out_dst, bool invert)
 {
 	struct ipv6hdr *in = pkt_ip6_hdr(&state->in);
+	xlat64_cb src_cb;
+	xlat64_cb dst_cb;
+	verdict result;
 
 	switch (state->jool.globals.mapt.type) {
 	case MAPTYPE_CE:
-		return ce64_src(state, &in->saddr, out_src)
-		    || ce64_dst(state, &in->daddr, out_dst);
+		src_cb = invert ? ce64_dst : ce64_src;
+		dst_cb = invert ? ce64_src : ce64_dst;
+		break;
 	case MAPTYPE_BR:
-		return br64_src(state, &in->saddr, out_src)
-		    || br64_dst(state, &in->daddr, out_dst);
+		src_cb = invert ? br64_dst : br64_src;
+		dst_cb = invert ? br64_src : br64_dst;
+		break;
+	default:
+		log_debug(state, "Unknown MAP type: %d",
+				state->jool.globals.mapt.type);
+		return drop(state, JSTAT_UNKNOWN);
 	}
 
-	log_debug(state, "Unknown MAP type: %d", state->jool.globals.mapt.type);
-	return drop(state, JSTAT_UNKNOWN);
+	result = src_cb(state, &in->saddr, out_src);
+	if (result != VERDICT_CONTINUE)
+		return result;
+	return dst_cb(state, &in->daddr, out_dst);
 }
 EXPORT_UNIT_SYMBOL(translate_addrs64_mapt);

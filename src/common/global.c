@@ -402,7 +402,7 @@ static int nl2raw_ce(struct nlattr *attrs[], struct mapt_globals *cfg)
 		if (attrs[JNLAMT_EABITS]
 		 && attrs[JNLAMT_BMR_P6]
 		 && attrs[JNLAMT_BMR_EBL]) {
-			/* TODO missing validations */
+			/* TODO (mapt) missing validations */
 			cfg->eui6p.addr = cfg->bmr.prefix6.addr;
 			cfg->eui6p.len = cfg->bmr.prefix6.len
 					+ cfg->bmr.ea_bits_length;

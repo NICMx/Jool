@@ -53,7 +53,8 @@ static verdict xlat46_external_addresses(struct xlation *state)
 	case XT_MAPT:
 		return translate_addrs46_mapt(state,
 				&state->flowx.v6.flowi.saddr,
-				&state->flowx.v6.flowi.daddr);
+				&state->flowx.v6.flowi.daddr,
+				false);
 	}
 
 	WARN(1, "xlator type is not SIIT, NAT64 nor MAP-T: %u",
@@ -88,10 +89,10 @@ static verdict xlat46_internal_addresses(struct xlation *state)
 		if (result != VERDICT_CONTINUE)
 			return result;
 		log_debug(state, "Translating internal addresses...");
-		/* TODO (mapt during test) might need to swap the addresses */
 		result = translate_addrs46_mapt(state,
 				&state->flowx.v6.inner_src,
-				&state->flowx.v6.inner_dst);
+				&state->flowx.v6.inner_dst,
+				true);
 		restore_outer_packet(state, &bkp, false);
 		return result;
 	}

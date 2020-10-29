@@ -6,13 +6,15 @@
 verdict translate_addrs46_mapt(
 		struct xlation *state,
 		struct in6_addr *out_src,
-		struct in6_addr *out_dst
+		struct in6_addr *out_dst,
+		bool invert
 );
 
 verdict translate_addrs64_mapt(
 		struct xlation *state,
 		__be32 *out_src,
-		__be32 *out_dst
+		__be32 *out_dst,
+		bool invert
 );
 
 #endif /* SRC_MOD_COMMON_MAPT_H_ */

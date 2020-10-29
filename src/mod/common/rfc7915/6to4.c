@@ -42,7 +42,8 @@ static verdict xlat64_external_addresses(struct xlation *state)
 		return translate_addrs64_siit(state, &flow->saddr, &flow->daddr);
 
 	case XT_MAPT:
-		return translate_addrs64_mapt(state, &flow->saddr, &flow->daddr);
+		return translate_addrs64_mapt(state, &flow->saddr, &flow->daddr,
+				false);
 	}
 
 	WARN(1, "xlator type is not SIIT, NAT64 nor MAP-T: %u",
@@ -77,10 +78,10 @@ static verdict xlat64_internal_addresses(struct xlation *state)
 		if (result != VERDICT_CONTINUE)
 			return result;
 		log_debug(state, "Translating internal addresses...");
-		/* TODO (mapt during test) might need to swap the addresses */
-		result = translate_addrs64_siit(state,
+		result = translate_addrs64_mapt(state,
 				&state->flowx.v4.inner_src.s_addr,
-				&state->flowx.v4.inner_dst.s_addr);
+				&state->flowx.v4.inner_dst.s_addr,
+				true);
 		restore_outer_packet(state, &bkp, false);
 		return result;
 	}
