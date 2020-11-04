@@ -15,6 +15,7 @@ const char *argp_program_bug_address = "jool@nic.mx";
 int wargp_parse_bool(void *input, int key, char *str);
 int wargp_parse_u8(void *field, int key, char *str);
 int wargp_parse_u32(void *field, int key, char *str);
+int wargp_parse_u64(void *field, int key, char *str);
 int wargp_parse_l4proto(void *input, int key, char *str);
 int wargp_parse_string(void *input, int key, char *str);
 int wargp_parse_addr(void *void_field, int key, char *str);
@@ -37,6 +38,12 @@ struct wargp_type wt_u8 = {
 struct wargp_type wt_u32 = {
 	.argument = "<integer>",
 	.parse = wargp_parse_u32,
+};
+
+/* Inconsistency warning: Refers to a wargp_u64. */
+struct wargp_type wt_u64 = {
+	.argument = "<integer>",
+	.parse = wargp_parse_u64,
 };
 
 struct wargp_type wt_l4proto = {
@@ -100,6 +107,17 @@ int wargp_parse_u32(void *field, int key, char *str)
 	struct jool_result result;
 
 	result = str_to_u32(str, field);
+	if (result.error)
+		return pr_result(&result);
+
+	return 0;
+}
+
+int wargp_parse_u64(void *field, int key, char *str)
+{
+	struct jool_result result;
+
+	result = str_to_u64(str, field);
 	if (result.error)
 		return pr_result(&result);
 

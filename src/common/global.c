@@ -71,7 +71,7 @@ struct joolnl_global_meta {
 	size_t offset;
 	xlator_type xt;
 #ifdef __KERNEL__
-	joolnl_global_nl2raw_fn nl2raw; /* Overridets type->nl2raw. */
+	joolnl_global_nl2raw_fn nl2raw; /* Overrides type->nl2raw. */
 #else
 	joolnl_global_print_fn print; /* Overrides type->print. */
 #endif
@@ -1018,18 +1018,24 @@ static struct jool_result json2nl_bool(struct joolnl_global_meta const *meta,
 	return type_mismatch(json->string, json, "boolean");
 }
 
-static struct jool_result json2nl_u8(struct joolnl_global_meta const *meta,
-		cJSON *json, struct nl_msg *msg)
+static struct jool_result __json2nl_u8(cJSON *json, struct nl_msg *msg,
+		unsigned int key)
 {
 	struct jool_result result;
 
-	result = validate_uint(json->string, json, 0, 255);
+	result = validate_uint(json->string, json, 0, MAX_U8);
 	if (result.error)
 		return result;
-	if (nla_put_u8(msg, meta->id, json->valueuint) < 0)
+	if (nla_put_u8(msg, key, json->valueuint) < 0)
 		return joolnl_err_msgsize();
 
 	return result_success();
+}
+
+static struct jool_result json2nl_u8(struct joolnl_global_meta const *meta,
+		cJSON *json, struct nl_msg *msg)
+{
+	return __json2nl_u8(json, msg, meta->id);
 }
 
 static struct jool_result json2nl_u32(struct joolnl_global_meta const *meta,
@@ -1085,11 +1091,103 @@ static struct jool_result json2nl_plateaus(struct joolnl_global_meta const *meta
 	return result_success();
 }
 
+static struct jool_result j2n_prefix6(cJSON *json, struct nl_msg *msg,
+		unsigned int key)
+{
+	struct ipv6_prefix prefix;
+	struct jool_result result;
+
+	if (json->type != cJSON_String)
+		return type_mismatch(json->string, json, "String");
+	result = str_to_prefix6(json->valuestring, &prefix);
+	if (result.error)
+		return result;
+	if (nla_put_prefix6(msg, key, &prefix) < 0)
+		return joolnl_err_msgsize();
+
+	return result_success();
+}
+
+static struct jool_result j2n_prefix4(cJSON *json, struct nl_msg *msg,
+		unsigned int key)
+{
+	struct ipv4_prefix prefix;
+	struct jool_result result;
+
+	if (json->type != cJSON_String)
+		return type_mismatch(json->string, json, "String");
+	result = str_to_prefix4(json->valuestring, &prefix);
+	if (result.error)
+		return result;
+	if (nla_put_prefix4(msg, key, &prefix) < 0)
+		return joolnl_err_msgsize();
+
+	return result_success();
+}
+
 static struct jool_result json2nl_mapt(struct joolnl_global_meta const *meta,
 		cJSON *json, struct nl_msg *msg)
 {
-	/* TODO (mapt) */
-	return result_from_error(-EINVAL, "Not implemented yet.");
+	struct nlattr *root;
+	cJSON *child;
+	struct jool_result result;
+
+	if (json->type != cJSON_Object)
+		return type_mismatch(json->string, json, "Object");
+
+	root = jnla_nest_start(msg, JNLAG_MAPT);
+	if (!root)
+		return joolnl_err_msgsize();
+
+	for (json = json->child; json; json = json->next) {
+		if (strcasecmp(json->string, "comment") == 0) {
+			/* Skip */
+
+		} else if (strcasecmp(json->string, "End-User IPv6 Prefix") == 0) {
+			result = j2n_prefix6(json, msg, JNLAMT_EUI6P);
+			if (result.error)
+				goto cancel;
+
+		} else if (strcasecmp(json->string, "BMR") == 0) {
+			if (json->type != cJSON_Object) {
+				result = type_mismatch(json->string, json, "Object");
+				goto cancel;
+			}
+
+			for (child = json->child; child; child = child->next) {
+				if (strcasecmp(json->string, "comment") == 0)
+					result = result_success(); /* Skip */
+				else if (strcasecmp(json->string, "IPv6 Prefix") == 0)
+					result = j2n_prefix6(json, msg, JNLAMT_BMR_P6);
+				else if (strcasecmp(json->string, "IPv4 Prefix") == 0)
+					result = j2n_prefix4(json, msg, JNLAMT_BMR_P4);
+				else if (strcasecmp(json->string, "EA-bits length") == 0)
+					result = __json2nl_u8(json, msg, JNLAMT_BMR_EBL);
+				else if (strcasecmp(json->string, "a") == 0)
+					result = __json2nl_u8(json, msg, JNLAMT_a);
+				else if (strcasecmp(json->string, "k") == 0)
+					result = __json2nl_u8(json, msg, JNLAMT_k);
+				else if (strcasecmp(json->string, "m") == 0)
+					result = __json2nl_u8(json, msg, JNLAMT_m);
+				else
+					result = result_from_error(-EINVAL, "Unknown tag: '%s'", child->string);
+
+				if (result.error)
+					goto cancel;
+			}
+
+		} else {
+			result = result_from_error(-EINVAL, "Unknown tag: '%s'", json->string);
+			goto cancel;
+		}
+	}
+
+	nla_nest_end(msg, root);
+	return result_success();
+
+cancel:
+	nla_nest_cancel(msg, root);
+	return result;
 }
 
 #endif

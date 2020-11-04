@@ -82,6 +82,13 @@ struct jool_result joolnl_global_json2nl(
 	struct nl_msg *msg
 );
 
+typedef int (*joolnl_global_argp_handler)(
+	char *iname,
+	int argc,
+	char **argv,
+	void const *field
+);
+
 void joolnl_global_print(
 	struct joolnl_global_meta const *meta,
 	void *value,

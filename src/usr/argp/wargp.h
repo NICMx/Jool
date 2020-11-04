@@ -37,6 +37,7 @@ struct wargp_type {
 extern struct wargp_type wt_bool;
 extern struct wargp_type wt_u8;
 extern struct wargp_type wt_u32;
+extern struct wargp_type wt_u64;
 extern struct wargp_type wt_l4proto;
 extern struct wargp_type wt_string;
 extern struct wargp_type wt_addr;
@@ -59,6 +60,11 @@ struct wargp_bool {
 struct wargp_u8 {
 	bool set;
 	__u8 value;
+};
+
+struct wargp_u64 {
+	bool set;
+	__u64 value;
 };
 
 struct wargp_l4proto {

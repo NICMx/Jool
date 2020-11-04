@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <errno.h>
+#include <limits.h>
 #include <string.h>
 #include <regex.h>
 #include <netinet/in.h>
@@ -141,6 +142,17 @@ struct jool_result str_to_u32(const char *str, __u32 *u32_out)
 	result = str_to_ull(str, NULL, 0, MAX_U32, &out);
 
 	*u32_out = out;
+	return result;
+}
+
+struct jool_result str_to_u64(const char *str, __u64 *u64_out)
+{
+	unsigned long long int out;
+	struct jool_result result;
+
+	result = str_to_ull(str, NULL, 0, ULLONG_MAX, &out);
+
+	*u64_out = out;
 	return result;
 }
 

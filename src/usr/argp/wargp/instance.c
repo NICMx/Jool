@@ -175,6 +175,7 @@ struct add_args {
 	struct wargp_u8 a;
 };
 
+/* TODO (mapt) docs */
 static struct wargp_option add_opts[] = {
 	WARGP_INAME(struct add_args, iname, "add"),
 	{
@@ -238,6 +239,7 @@ static struct wargp_option add_opts[] = {
 		.doc = "",
 		.offset = offsetof(struct add_args, a),
 		.type = &wt_u8,
+		/* TODO (mapt) missing k, m and EA-bits? */
 	},
 	{ 0 },
 };

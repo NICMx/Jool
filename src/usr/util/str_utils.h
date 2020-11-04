@@ -19,6 +19,7 @@ struct jool_result str_to_bool(const char *str, bool *out);
 struct jool_result str_to_u8(const char *str, __u8 *out, __u8 max);
 struct jool_result str_to_u16(const char *str, __u16 *out);
 struct jool_result str_to_u32(const char *str, __u32 *out);
+struct jool_result str_to_u64(const char *str, __u64 *out);
 
 struct jool_result str_to_timeout(const char *str, __u32 *out);
 struct jool_result str_to_port_range(char *str, struct port_range *range);
