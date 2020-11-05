@@ -59,38 +59,6 @@ static verdict prpf_get_psid(struct xlation *state,
 	return VERDICT_CONTINUE;
 }
 
-static unsigned int get_sport(struct packet const *pkt)
-{
-	switch (pkt->l4_proto) {
-	case L4PROTO_TCP:
-		return be16_to_cpu(pkt_tcp_hdr(pkt)->source);
-	case L4PROTO_UDP:
-		return be16_to_cpu(pkt_udp_hdr(pkt)->source);
-	case L4PROTO_ICMP:
-	case L4PROTO_OTHER:
-		/* TODO (mapt) */
-		;
-	}
-
-	return 0;
-}
-
-static unsigned int get_dport(struct packet const *pkt)
-{
-	switch (pkt->l4_proto) {
-	case L4PROTO_TCP:
-		return be16_to_cpu(pkt_tcp_hdr(pkt)->dest);
-	case L4PROTO_UDP:
-		return be16_to_cpu(pkt_udp_hdr(pkt)->dest);
-	case L4PROTO_ICMP:
-	case L4PROTO_OTHER:
-		/* TODO (mapt) */
-		;
-	}
-
-	return 0;
-}
-
 static verdict use_pool6_46(struct xlation *state, __be32 in,
 		struct in6_addr *out)
 {
@@ -135,8 +103,8 @@ static verdict ce46_src(struct xlation *state, __be32 in, struct in6_addr *out)
 
 	/* Check the NAPT made sure the port belongs to us */
 	if (q > 0) {
-		result = prpf_get_psid(state, &cfg->bmr, get_sport(&state->in),
-				&packet_psid);
+		result = prpf_get_psid(state, &cfg->bmr,
+				state->in.tuple.src.addr4.l4, &packet_psid);
 		if (result != VERDICT_CONTINUE)
 			return result;
 
@@ -200,7 +168,8 @@ static verdict ce46_dst(struct xlation *state, __be32 in, struct in6_addr *out)
 	error = fmrt_find4(state->jool.mapt.fmrt, in, &fmr);
 	switch (error) {
 	case 0:
-		return rule_xlat46(state, &fmr, in, get_dport(&state->in), out);
+		return rule_xlat46(state, &fmr, in,
+				state->in.tuple.dst.addr4.l4, out);
 	case -ESRCH:
 		return use_pool6_46(state, in, out);
 	}
@@ -222,7 +191,8 @@ static verdict br46_dst(struct xlation *state, __be32 in, struct in6_addr *out)
 	error = fmrt_find4(state->jool.mapt.fmrt, in, &fmr);
 	switch (error) {
 	case 0:
-		return rule_xlat46(state, &fmr, in, get_dport(&state->in), out);
+		return rule_xlat46(state, &fmr, in,
+				state->in.tuple.dst.addr4.l4, out);
 	case -ESRCH:
 		log_debug(state, "Cannot translate address: No FMR matches '%pI4'.", &in);
 		return untranslatable(state, JSTAT_MAPT_FMR4);

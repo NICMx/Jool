@@ -18,6 +18,7 @@
 #include "mod/common/db/fmr.h"
 #include "mod/common/db/pool4/db.h"
 #include "mod/common/db/bib/db.h"
+#include "mod/common/steps/handling_hairpinning_mapt.h"
 #include "mod/common/steps/handling_hairpinning_nat64.h"
 #include "mod/common/steps/handling_hairpinning_siit.h"
 
@@ -326,19 +327,14 @@ pool4_fail:
 	return -ENOMEM;
 }
 
-static bool is_hairpin_mapt(struct xlation *state)
-{
-	return false;
-}
-
 static int init_mapt(struct xlator *jool)
 {
 	jool->mapt.fmrt = fmrt_alloc();
 	if (!jool->mapt.fmrt)
 		return -ENOMEM;
 
-	jool->is_hairpin = is_hairpin_mapt; /* TODO (mapt) */
-	jool->handling_hairpinning = NULL;
+	jool->is_hairpin = is_hairpin_mapt;
+	jool->handling_hairpinning = handling_hairpinning_mapt;
 	return 0;
 }
 

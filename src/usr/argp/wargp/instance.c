@@ -7,21 +7,13 @@
 #include "usr/argp/requirements.h"
 #include "usr/argp/wargp.h"
 #include "usr/argp/xlator_type.h"
+#include "usr/argp/wargp/global.h"
 #include "usr/util/str_utils.h"
 #include "usr/nl/core.h"
 #include "usr/nl/instance.h"
 
 #define OPTNAME_NETFILTER		"netfilter"
 #define OPTNAME_IPTABLES		"iptables"
-
-#define ARGP_IPTABLES 1000
-#define ARGP_NETFILTER 1001
-#define ARGP_POOL6 '6'
-#define ARGP_EUI6P 1002
-#define ARGP_BMR_P6 1003
-#define ARGP_BMR_P4 1004
-#define ARGP_BMR_EBL 1005
-#define ARGP_a 'a'
 
 struct wargp_iname {
 	bool set;
@@ -169,78 +161,52 @@ struct add_args {
 	struct wargp_bool netfilter;
 	struct wargp_prefix6 pool6;
 	struct wargp_prefix6 eui6p;
+	struct wargp_u64 ea_bits;
 	struct wargp_prefix6 bmr_p6;
 	struct wargp_prefix4 bmr_p4;
 	struct wargp_u8 bmr_ebl;
 	struct wargp_u8 a;
+	struct wargp_u8 k;
+	struct wargp_u8 m;
 };
 
-/* TODO (mapt) docs */
 static struct wargp_option add_opts[] = {
 	WARGP_INAME(struct add_args, iname, "add"),
 	{
 		.name = OPTNAME_IPTABLES,
-		.key = ARGP_IPTABLES,
+		.key = 'i',
 		.doc = "Sit the translator on top of iptables",
 		.offset = offsetof(struct add_args, iptables),
 		.type = &wt_bool,
 	}, {
 		.name = OPTNAME_NETFILTER,
-		.key = ARGP_NETFILTER,
+		.key = 'n',
 		.doc = "Sit the translator on top of Netfilter",
 		.offset = offsetof(struct add_args, netfilter),
 		.type = &wt_bool,
 	}, {
 		.xt = XT_SIIT | XT_NAT64,
 		.name = "pool6",
-		.key = ARGP_POOL6,
+		.key = '6',
 		.doc = "Prefix that will populate the IPv6 Address Pool",
 		.offset = offsetof(struct add_args, pool6),
 		.type = &wt_prefix6,
 	}, {
 		.xt = XT_MAPT,
-		.name = "end-user-ipv6-prefix",
-		.key = ARGP_EUI6P,
-		.doc = "",
-		.offset = offsetof(struct add_args, eui6p),
-		.type = &wt_prefix6,
-	}, {
-		.xt = XT_MAPT,
-		.name = "bmr.ipv6-prefix",
-		.key = ARGP_BMR_P6,
-		.doc = "",
-		.offset = offsetof(struct add_args, bmr_p6),
-		.type = &wt_prefix6,
-	}, {
-		.xt = XT_MAPT,
-		.name = "bmr.ipv4-prefix",
-		.key = ARGP_BMR_P4,
-		.doc = "",
-		.offset = offsetof(struct add_args, bmr_p4),
-		.type = &wt_prefix4,
-	}, {
-		.xt = XT_MAPT,
-		.name = "bmr.ea-bits-length",
-		.key = ARGP_BMR_EBL,
-		.doc = "",
-		.offset = offsetof(struct add_args, bmr_ebl),
-		.type = &wt_u8,
-	}, {
-		.xt = XT_MAPT,
 		.name = "dmr",
-		.key = ARGP_POOL6,
-		.doc = "",
+		.key = '6',
+		.doc = "The prefix the IPv4 Internet is being masked with.",
 		.offset = offsetof(struct add_args, pool6),
 		.type = &wt_prefix6,
-	}, {
-		.xt = XT_MAPT,
-		.name = "a",
-		.key = ARGP_a,
-		.doc = "",
-		.offset = offsetof(struct add_args, a),
-		.type = &wt_u8,
-		/* TODO (mapt) missing k, m and EA-bits? */
 	},
+	WOPT_GLOBAL_MAPT_EUI6P(struct add_args),
+	WOPT_GLOBAL_MAPT_EABITS(struct add_args),
+	WOPT_GLOBAL_MAPT_BMR6(struct add_args),
+	WOPT_GLOBAL_MAPT_BMR4(struct add_args),
+	WOPT_GLOBAL_MAPT_EBL(struct add_args),
+	WOPT_GLOBAL_MAPT_a(struct add_args),
+	WOPT_GLOBAL_MAPT_k(struct add_args),
+	WOPT_GLOBAL_MAPT_m(struct add_args),
 	{ 0 },
 };
 

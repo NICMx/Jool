@@ -81,3 +81,4 @@ jool_common-objs += steps/compute_outgoing_tuple.o
 jool_common-objs += steps/compute_outgoing_tuple_siit.o
 jool_common-objs += steps/handling_hairpinning_siit.o
 jool_common-objs += steps/handling_hairpinning_nat64.o
+jool_common-objs += steps/handling_hairpinning_mapt.o

@@ -127,65 +127,15 @@ struct mapt_update_args {
 	struct wargp_u8 m;
 };
 
-/* TODO (mapt) docs */
 static struct wargp_option mapt_update_opts[] = {
-	{
-		.xt = XT_MAPT,
-		.name = "end-user-ipv6-prefix",
-		.key = 1002,
-		.doc = "",
-		.offset = offsetof(struct mapt_update_args, eui6p),
-		.type = &wt_prefix6,
-	}, {
-		.xt = XT_MAPT,
-		.name = "ea-bits",
-		.key = 1001,
-		.doc = "",
-		.offset = offsetof(struct mapt_update_args, ea_bits),
-		.type = &wt_u64,
-	}, {
-		.xt = XT_MAPT,
-		.name = "bmr.ipv6-prefix",
-		.key = 1003,
-		.doc = "",
-		.offset = offsetof(struct mapt_update_args, bmr_p6),
-		.type = &wt_prefix6,
-	}, {
-		.xt = XT_MAPT,
-		.name = "bmr.ipv4-prefix",
-		.key = 1004,
-		.doc = "",
-		.offset = offsetof(struct mapt_update_args, bmr_p4),
-		.type = &wt_prefix4,
-	}, {
-		.xt = XT_MAPT,
-		.name = "bmr.ea-bits-length",
-		.key = 1005,
-		.doc = "",
-		.offset = offsetof(struct mapt_update_args, bmr_ebl),
-		.type = &wt_u8,
-	}, {
-		.xt = XT_MAPT,
-		.name = "a",
-		.key = 'a',
-		.doc = "",
-		.offset = offsetof(struct mapt_update_args, a),
-		.type = &wt_u8,
-	}, {
-		.xt = XT_MAPT,
-		.name = "k",
-		.key = 'k',
-		.doc = "",
-		.offset = offsetof(struct mapt_update_args, k),
-		.type = &wt_u8,
-	}, {
-		.xt = XT_MAPT,
-		.name = "m",
-		.key = 'm',
-		.doc = "",
-		.offset = offsetof(struct mapt_update_args, m),
-		.type = &wt_u8,
-	},
+	WOPT_GLOBAL_MAPT_EUI6P(struct mapt_update_args),
+	WOPT_GLOBAL_MAPT_EABITS(struct mapt_update_args),
+	WOPT_GLOBAL_MAPT_BMR6(struct mapt_update_args),
+	WOPT_GLOBAL_MAPT_BMR4(struct mapt_update_args),
+	WOPT_GLOBAL_MAPT_EBL(struct mapt_update_args),
+	WOPT_GLOBAL_MAPT_a(struct mapt_update_args),
+	WOPT_GLOBAL_MAPT_k(struct mapt_update_args),
+	WOPT_GLOBAL_MAPT_m(struct mapt_update_args),
 	{ 0 },
 };
 

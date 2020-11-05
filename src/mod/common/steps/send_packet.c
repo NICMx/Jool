@@ -1,9 +1,8 @@
-#include "send_packet.h"
+#include "mod/common/steps/send_packet.h"
 
 #include "mod/common/linux_version.h"
 #include "mod/common/log.h"
 #include "mod/common/packet.h"
-/* #include "mod/common/skbuff.h" */
 
 static verdict __sendpkt_send(struct xlation *state, struct sk_buff *out)
 {

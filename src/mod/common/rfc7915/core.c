@@ -23,10 +23,17 @@ verdict translating_the_packet(struct xlation *state)
 	struct translation_steps const *steps;
 	verdict result;
 
-	if (xlator_is_nat64(&state->jool))
-		log_debug(state, "Step 4: Translating the Packet");
-	else
+	switch (xlator_flags2xt(state->jool.flags)) {
+	case XT_SIIT:
 		log_debug(state, "Translating the Packet.");
+		break;
+	case XT_NAT64:
+		log_debug(state, "Step 4: Translating the Packet");
+		break;
+	case XT_MAPT:
+		log_debug(state, "Step 2: Translating the Packet");
+		break;
+	}
 
 	switch (pkt_l3_proto(&state->in)) {
 	case L3PROTO_IPV6:
@@ -52,8 +59,18 @@ verdict translating_the_packet(struct xlation *state)
 			goto revert;
 	}
 
-	if (xlation_is_nat64(state))
+	switch (xlator_flags2xt(state->jool.flags)) {
+	case XT_SIIT:
+		log_debug(state, "Translation done.");
+		break;
+	case XT_NAT64:
 		log_debug(state, "Done step 4.");
+		break;
+	case XT_MAPT:
+		log_debug(state, "Done step 2.");
+		break;
+	}
+
 	return VERDICT_CONTINUE;
 
 revert:

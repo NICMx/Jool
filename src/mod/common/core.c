@@ -29,10 +29,13 @@ static verdict core_common(struct xlation *state)
 {
 	verdict result;
 
-	if (xlation_is_nat64(state)) {
+	if (xlation_is_nat64(state) || xlation_is_mapt(state)) {
 		result = determine_in_tuple(state);
 		if (result != VERDICT_CONTINUE)
 			return result;
+	}
+
+	if (xlation_is_nat64(state)) {
 		result = filtering_and_updating(state);
 		if (result != VERDICT_CONTINUE)
 			return result;
@@ -40,9 +43,11 @@ static verdict core_common(struct xlation *state)
 		if (result != VERDICT_CONTINUE)
 			return result;
 	}
+
 	result = translating_the_packet(state);
 	if (result != VERDICT_CONTINUE)
 		return result;
+
 	if (state->jool.is_hairpin(state)) {
 		skb_dst_drop(state->out.skb);
 		result = state->jool.handling_hairpinning(state);
