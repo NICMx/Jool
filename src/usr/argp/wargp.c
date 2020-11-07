@@ -113,14 +113,16 @@ int wargp_parse_u32(void *field, int key, char *str)
 	return 0;
 }
 
-int wargp_parse_u64(void *field, int key, char *str)
+int wargp_parse_u64(void *void_field, int key, char *str)
 {
+	struct wargp_u64 *field = void_field;
 	struct jool_result result;
 
-	result = str_to_u64(str, field);
+	result = str_to_u64(str, &field->value);
 	if (result.error)
 		return pr_result(&result);
 
+	field->set = true;
 	return 0;
 }
 

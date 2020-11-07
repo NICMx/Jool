@@ -73,7 +73,7 @@ void error_pool_add_message(char *msg)
 
 	node->msg = msg;
 	list_add_tail(&node->prev_next, &db);
-	msg_size += strlen(msg);
+	msg_size += strlen(msg) + 1;
 	return;
 
 quit:
@@ -94,29 +94,41 @@ int error_pool_get_message(char **out_message, size_t *msg_len)
 		return -EINVAL;
 	}
 
-	(*out_message) = __wkmalloc("Error msg out", msg_size + 1, GFP_KERNEL);
-	if (!(*out_message)) {
-		pr_err("Could not allocate the error pool message!\n") ;
-		return -ENOMEM;
+	if (msg_size == 0) {
+		*out_message = NULL;
+		*msg_len = 0;
+		return 0;
 	}
 
-	buffer_pointer = (*out_message);
+	*out_message = __wkmalloc("Error msg out", msg_size, GFP_KERNEL);
+	if (!(*out_message))
+		goto enomem;
+
+	buffer_pointer = *out_message;
 	while (!list_empty(&db)) {
 		node = list_first_entry(&db, struct error_node, prev_next);
 
 		strcpy(buffer_pointer, node->msg);
 		buffer_pointer += strlen(node->msg);
-		list_del(&(node->prev_next));
+		list_del(&node->prev_next);
 		__wkfree("error_code.msg", node->msg);
 		wkfree(struct error_node, node);
+
+		if (list_empty(&db)) {
+			buffer_pointer[0] = '\0';
+		} else {
+			buffer_pointer[0] = '\n';
+			buffer_pointer++;
+		}
 	}
 
-	buffer_pointer[0] = '\0';
-
-	(*msg_len) = msg_size + 1;
+	*msg_len = msg_size;
 	msg_size = 0;
-
 	return 0;
+
+enomem:
+	pr_err("Could not allocate the error pool message!\n") ;
+	return -ENOMEM;
 }
 
 void error_pool_deactivate(void)

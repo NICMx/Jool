@@ -316,6 +316,38 @@ static int nl2raw_f_args(struct nlattr *attr, void *raw, bool force)
 	return 0;
 }
 
+static int validate_missing_eui6p(__u64 eabits, struct mapping_rule *bmr)
+{
+	__u64 limit;
+
+	limit = ((__u64)1) << bmr->ea_bits_length;
+	if (eabits >= limit) {
+		log_err("EA-bits %llu (0x%llx) does not fit in the BMR's \"EA-bits length\" bits (%u).",
+				eabits, eabits, bmr->ea_bits_length);
+		return -EINVAL;
+	}
+
+	if (bmr->prefix6.len + bmr->ea_bits_length > 128) {
+		log_err("BMR IPv6 Prefix (%u) + BMR EA bits length (%u) > 128; cannot assemble a valid End-user IPv6 Prefix.",
+				bmr->prefix6.len, bmr->ea_bits_length);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static int validate_missing_bmr6(struct mapt_globals *cfg)
+{
+	if (cfg->eui6p.len < cfg->bmr.ea_bits_length) {
+		log_err("There is no room for the EA-bits (length %u) in the End-user IPv6 prefix (length %u).",
+				cfg->bmr.ea_bits_length,
+				cfg->eui6p.len);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 static int nl2raw_ce(struct nlattr *attrs[], struct mapt_globals *cfg)
 {
 	__u64 eabits;
@@ -338,6 +370,7 @@ static int nl2raw_ce(struct nlattr *attrs[], struct mapt_globals *cfg)
 			return error;
 		if (eabits > 0xFFFFFFFFFFFFu) {
 			log_err("EA-bits > 0xFFFFFFFFFFFF.");
+			log_err("current value: %llu (0x%llx)", eabits, eabits);
 			return -EINVAL;
 		}
 	}
@@ -402,7 +435,9 @@ static int nl2raw_ce(struct nlattr *attrs[], struct mapt_globals *cfg)
 		if (attrs[JNLAMT_EABITS]
 		 && attrs[JNLAMT_BMR_P6]
 		 && attrs[JNLAMT_BMR_EBL]) {
-			/* TODO (mapt) missing validations */
+			error = validate_missing_eui6p(eabits, &cfg->bmr);
+			if (error)
+				return error;
 			cfg->eui6p.addr = cfg->bmr.prefix6.addr;
 			cfg->eui6p.len = cfg->bmr.prefix6.len
 					+ cfg->bmr.ea_bits_length;
@@ -419,6 +454,9 @@ static int nl2raw_ce(struct nlattr *attrs[], struct mapt_globals *cfg)
 
 	if (!attrs[JNLAMT_BMR_P6]) {
 		if (attrs[JNLAMT_BMR_EBL]) {
+			error = validate_missing_bmr6(cfg);
+			if (error)
+				return error;
 			cfg->bmr.prefix6.addr = cfg->eui6p.addr;
 			cfg->bmr.prefix6.len = cfg->eui6p.len
 					- cfg->bmr.ea_bits_length;
@@ -447,7 +485,9 @@ static int nl2raw_ce(struct nlattr *attrs[], struct mapt_globals *cfg)
 
 	if (attrs[JNLAMT_k]) {
 		if (k != maprule_get_k(&cfg->bmr)) {
-			log_err("k != o - p.");
+			log_err("The PSID length (k:%u) must equal EA-bits length (o:%u) minus the suffix of the BMR's IPv4 address (p:%u).",
+					k, cfg->bmr.ea_bits_length,
+					32u - cfg->bmr.prefix4.len);
 			return -EINVAL;
 		}
 	} else {
@@ -459,13 +499,16 @@ static int nl2raw_ce(struct nlattr *attrs[], struct mapt_globals *cfg)
 
 	if (attrs[JNLAMT_a] && attrs[JNLAMT_k] && attrs[JNLAMT_m]) {
 		if (cfg->bmr.a + k + m != 16) {
-			log_err("a + k + m != 16.");
+			log_err("a + k + m must equal 16.");
+			log_err("current values: a:%u k:%u m:%u",
+					cfg->bmr.a, k, m);
 			return -EINVAL;
 		}
 
 	} else if (!attrs[JNLAMT_a] && attrs[JNLAMT_k] && attrs[JNLAMT_m]) {
 		if (k + m > 16) {
-			log_err("k + m > 16.");
+			log_err("k + m must not exceed 16.");
+			log_err("current values: k:%u m:%u", k, m);
 			return -EINVAL;
 		}
 		cfg->bmr.a = 16 - k - m;
@@ -473,18 +516,27 @@ static int nl2raw_ce(struct nlattr *attrs[], struct mapt_globals *cfg)
 	} else if (attrs[JNLAMT_a] && !attrs[JNLAMT_k] && attrs[JNLAMT_m]) {
 		if (cfg->bmr.a + k + m != 16) {
 			log_err("a + (o - p) + m != 16.");
+			log_err("(o is EA-bits length, p is the suffix of the BMR's IPv4 prefix.)");
+			log_err("current values: a:%u o:%u p:%u m:%u",
+					cfg->bmr.a, cfg->bmr.ea_bits_length,
+					32u - cfg->bmr.prefix4.len, m);
 			return -EINVAL;
 		}
 
 	} else if (attrs[JNLAMT_a] && attrs[JNLAMT_k] && !attrs[JNLAMT_m]) {
 		if (cfg->bmr.a + k > 16) {
-			log_err("a + k > 16.");
+			log_err("a + k must not exceed 16.");
+			log_err("current values: a:%u k:%u", cfg->bmr.a, k);
 			return -EINVAL;
 		}
 
 	} else if (!attrs[JNLAMT_a] && !attrs[JNLAMT_k] && attrs[JNLAMT_m]) {
 		if (k + m > 16) {
-			log_err("(o - p) + m > 16.");
+			log_err("(o - p) + m must not exceed 16.");
+			log_err("(o is EA-bits length, p is the suffix of the BMR's IPv4 prefix.)");
+			log_err("current values: o:%u p:%u m:%u",
+					cfg->bmr.ea_bits_length,
+					32u - cfg->bmr.prefix4.len, m);
 			return -EINVAL;
 		}
 		cfg->bmr.a = 16 - k - m;
@@ -492,20 +544,29 @@ static int nl2raw_ce(struct nlattr *attrs[], struct mapt_globals *cfg)
 	} else if (!attrs[JNLAMT_a] && attrs[JNLAMT_k] && !attrs[JNLAMT_m]) {
 		cfg->bmr.a = 6;
 		if (cfg->bmr.a + k > 16) {
-			log_err("a + k > 16.");
+			log_err("a + k must not exceed 16.");
+			log_err("current values: a:%u k:%u", cfg->bmr.a, k);
 			return -EINVAL;
 		}
 
 	} else if (attrs[JNLAMT_a] && !attrs[JNLAMT_k] && !attrs[JNLAMT_m]) {
 		if (cfg->bmr.a + k > 16) {
-			log_err("a + (o - p) > 16.");
+			log_err("a + (o - p) must not exceed 16.");
+			log_err("(o is EA-bits length, p is the suffix of the BMR's IPv4 prefix.)");
+			log_err("current values: a:%u o:%u p:%u",
+					cfg->bmr.a, cfg->bmr.ea_bits_length,
+					32u - cfg->bmr.prefix4.len);
 			return -EINVAL;
 		}
 
 	} else { // Nothing set
 		cfg->bmr.a = 6;
 		if (cfg->bmr.a + k > 16) {
-			log_err("a + (o - p) > 16.");
+			log_err("a + (o - p) must not exceed 16.");
+			log_err("(o is EA-bits length, p is the suffix of the BMR's IPv4 prefix.)");
+			log_err("current values: a:%u o:%u p:%u",
+					cfg->bmr.a, cfg->bmr.ea_bits_length,
+					32u - cfg->bmr.prefix4.len);
 			return -EINVAL;
 		}
 	}

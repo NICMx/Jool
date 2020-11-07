@@ -125,13 +125,17 @@ int jresponse_send_simple(struct xlator *jool, struct genl_info *info,
 		if (error)
 			goto revert_response;
 
-		error = nla_put_string(response.skb, JNLAERR_MSG, error_msg);
-		if (error) {
-			error_msg[128] = '\0';
-			error = nla_put_string(response.skb, JNLAERR_MSG,
-					error_msg);
-			if (error)
-				goto revert_response;
+		if (error_msg) {
+			error = nla_put_string(response.skb, JNLAERR_MSG, error_msg);
+			if (error) {
+				if (error_msg_size <= 128)
+					goto revert_response;
+				error_msg[128] = '\0';
+				error = nla_put_string(response.skb, JNLAERR_MSG,
+						error_msg);
+				if (error)
+					goto revert_response;
+			}
 		}
 		__log_debug(jool, "Sending error code %d to userspace.",
 				error_code);
