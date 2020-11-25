@@ -113,3 +113,15 @@ struct jool_result joolnl_fmrt_add(struct joolnl_socket *sk, char const *iname,
 {
 	return __update(sk, iname, JNLOP_FMRT_ADD, p6, p4, ea_bits_length);
 }
+
+struct jool_result joolnl_fmrt_flush(struct joolnl_socket *sk, char const *iname)
+{
+	struct nl_msg *msg;
+	struct jool_result result;
+
+	result = joolnl_alloc_msg(sk, iname, JNLOP_FMRT_FLUSH, 0, &msg);
+	if (result.error)
+		return result;
+
+	return joolnl_request(sk, msg, NULL, NULL);
+}

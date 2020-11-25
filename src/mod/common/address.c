@@ -222,10 +222,10 @@ void addr6_set_bit(struct in6_addr *addr, unsigned int pos, bool value)
 		*quadrant &= cpu_to_be32(~mask);
 }
 
-unsigned int addr4_get_bits(struct in_addr const *addr,
-		unsigned int offset, unsigned int len)
+unsigned int addr4_get_bits(__be32 addr, unsigned int offset,
+		unsigned int len)
 {
-	return (be32_to_cpu(addr->s_addr) >> (32u - offset - len))
+	return (be32_to_cpu(addr) >> (32u - offset - len))
 			& ((1u << len) - 1u);
 }
 
@@ -243,12 +243,55 @@ unsigned int addr6_get_bits(struct in6_addr const *addr,
 	return result;
 }
 
+/* TODO (performance) if bits are aligned, copy bytes instead. */
 void addr6_set_bits(struct in6_addr *addr, unsigned int offset,
 		unsigned int len, unsigned int value)
 {
 	unsigned int i;
 	for (i = 0; i < len; i++)
 		addr6_set_bit(addr, offset + i, (value >> (len - i - 1u)) & 1u);
+}
+
+void __addr6_copy_bits(struct in6_addr *src, struct in6_addr *dst,
+		unsigned int offset, unsigned int last)
+{
+	unsigned int i;
+	for (i = offset; i < last; i++)
+		addr6_set_bit(dst, i, addr6_get_bit(src, i));
+}
+
+void addr6_copy_bits(struct in6_addr *src, struct in6_addr *dst,
+		unsigned int offset, unsigned int len)
+{
+	unsigned int last; /* temporary end */
+	unsigned int end; /* absolute end */
+
+	if (((offset & 7u) == 0) && ((len & 7u) == 0)) {
+		/* Fast path */
+		offset >>= 3u;
+		memcpy(&dst->s6_addr[offset], &src->s6_addr[offset], len >> 3u);
+		return;
+	}
+
+	end = offset + len;
+
+	/* Rightmost bits of left byte */
+	if ((offset & 7u) == 0) {
+		offset = offset >> 3u;
+	} else {
+		last = (offset | 7u) + 1u;
+		last = (end > last) ? last : end;
+		__addr6_copy_bits(src, dst, offset, last);
+		offset = (offset >> 3u) + 1u;
+	}
+
+	/* Middle bytes */
+	last = (end >> 3u) - 1u;
+	if (last >= offset)
+		memcpy(&dst->s6_addr[offset], &src->s6_addr[offset], last - offset);
+
+	/* Leftmost bits of right byte */
+	__addr6_copy_bits(src, dst, end & ~0x7, end);
 }
 
 __u64 prefix4_next(const struct ipv4_prefix *prefix)

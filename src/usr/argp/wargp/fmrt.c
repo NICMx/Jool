@@ -179,3 +179,27 @@ void autocomplete_fmrt_add(void const *args)
 {
 	print_wargp_opts(add_opts);
 }
+
+int handle_fmrt_flush(char *iname, int argc, char **argv, void const *arg)
+{
+	struct joolnl_socket sk;
+	struct jool_result result;
+
+	result.error = wargp_parse(add_opts, argc, argv, NULL);
+	if (result.error)
+		return result.error;
+
+	result = joolnl_setup(&sk, xt_get());
+	if (result.error)
+		return pr_result(&result);
+
+	result = joolnl_fmrt_flush(&sk, iname);
+
+	joolnl_teardown(&sk);
+	return pr_result(&result);
+}
+
+void autocomplete_fmrt_flush(void const *args)
+{
+	/* Nothing needed here. */
+}

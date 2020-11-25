@@ -85,3 +85,21 @@ revert_start:
 	request_handle_end(&jool);
 	return error;
 }
+
+int handle_fmrt_flush(struct sk_buff *skb, struct genl_info *info)
+{
+	struct xlator jool;
+	int error;
+
+	error = request_handle_start(info, XT_MAPT, &jool);
+	if (error)
+		return jresponse_send_simple(NULL, info, error);
+
+	__log_debug(&jool, "Flushing FMR table.");
+
+	fmrt_flush(jool.mapt.fmrt);
+
+	error = jresponse_send_simple(&jool, info, error);
+	request_handle_end(&jool);
+	return error;
+}

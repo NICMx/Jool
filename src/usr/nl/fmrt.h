@@ -23,4 +23,9 @@ struct jool_result joolnl_fmrt_add(
 	__u8 ea_bits_length
 );
 
+struct jool_result joolnl_fmrt_flush(
+	struct joolnl_socket *sk,
+	char const *iname
+);
+
 #endif /* SRC_USR_NL_FMRT_H_ */

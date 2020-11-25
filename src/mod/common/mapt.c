@@ -12,19 +12,24 @@ static unsigned int get_o(struct mapping_rule *rule)
 	return rule->ea_bits_length;
 }
 
+/*
+ * Note: The definition of p is inconsistent through the RFC. The two
+ * definitions are
+ *
+ * 1. p = length of the IPv4 suffix contained in the EA bit field.
+ * 2. p = length of the IPv4 suffix.
+ *
+ * I went with the second one; it's the most useful for the implementation ATM.
+ */
 static unsigned int get_p(struct mapping_rule *rule)
 {
-	unsigned int o;
-	unsigned int p;
-
-	o = get_o(rule);
-	p = 32u - rule->prefix4.len;
-
-	return (o > p) ? p : o;
+	return 32u - rule->prefix4.len;
 }
 
 static unsigned int get_q(struct mapping_rule *rule)
 {
+	if (rule->prefix4.len + rule->ea_bits_length <= 32)
+		return 0;
 	return get_o(rule) - get_p(rule);
 }
 
@@ -95,6 +100,8 @@ static verdict ce46_src(struct xlation *state, __be32 in, struct in6_addr *out)
 	unsigned int q;
 	unsigned int packet_psid;
 	unsigned int ce_psid;
+	unsigned int offset;
+	unsigned int len;
 	verdict result;
 
 	cfg = &state->jool.globals.mapt;
@@ -117,8 +124,32 @@ static verdict ce46_src(struct xlation *state, __be32 in, struct in6_addr *out)
 		}
 	}
 
-	memcpy(out, &cfg->eui6p.addr, sizeof(cfg->eui6p.addr));
+	/*
+	 * Interface ID
+	 * (The IID can be overridden by everything else, so write it first.)
+	 */
 	set_interface_id(in, out, packet_psid);
+
+	/*
+	 * BMR's IPv6 prefix
+	 * (Do not copy the End-user IPv6 Prefix; it's wrong when o + r < 32
+	 * because it contains trailing zeroes.)
+	 */
+	offset = 0;
+	len = cfg->bmr.prefix6.len;
+	addr6_copy_bits(&cfg->bmr.prefix6.addr, out, offset, len);
+
+	/* IPv4 address suffix */
+	offset += len;
+	len = get_p(&cfg->bmr);
+	addr6_set_bits(out, offset, len,
+		addr4_get_bits(in, cfg->bmr.prefix4.len, len)
+	);
+
+	/* PSID */
+	offset += len;
+	len = q;
+	addr6_set_bits(out, offset, len, packet_psid);
 
 	return VERDICT_CONTINUE;
 }
@@ -130,7 +161,6 @@ EXPORT_UNIT_STATIC verdict rule_xlat46(struct xlation *state,
 	unsigned int p;
 	unsigned int q;
 	unsigned int psid;
-	struct in_addr addr4;
 	verdict result;
 
 	/* IPv6 prefix */
@@ -138,9 +168,8 @@ EXPORT_UNIT_STATIC verdict rule_xlat46(struct xlation *state,
 
 	/* Embedded IPv4 suffix */
 	p = get_p(rule);
-	addr4.s_addr = in;
 	addr6_set_bits(out, rule->prefix6.len, p,
-		addr4_get_bits(&addr4, rule->prefix4.len, p)
+		addr4_get_bits(in, rule->prefix4.len, p)
 	);
 
 	/* PSID */
@@ -154,6 +183,7 @@ EXPORT_UNIT_STATIC verdict rule_xlat46(struct xlation *state,
 	}
 
 	/* Interface ID */
+	/* TODO this needs to be done first */
 	set_interface_id(in, out, psid);
 
 	return VERDICT_CONTINUE;
@@ -250,6 +280,10 @@ static verdict use_pool6_64(struct xlation *state, struct in6_addr const *in,
 		log_debug(state, "__rfc6052_6to4() error: %d", error);
 		return untranslatable(state, JSTAT_MAPT_POOL6);
 	}
+
+	if (state->jool.globals.mapt.type == MAPTYPE_BR &&
+	    fmrt_find4(state->jool.mapt.fmrt, __out.s_addr, NULL) == 0)
+		state->is_hairpin = true;
 
 	*out = __out.s_addr;
 	return VERDICT_CONTINUE;

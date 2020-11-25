@@ -35,7 +35,6 @@ basic_test() {
 	ip netns exec $3 $GRAYBOX expect flush
 }
 
-# Basic
 if [ -z "$1" -o "$1" = "basic" ]; then
 	basic_test client aat br     aae1
 	basic_test client aat server aae2 $IDENTIFICATION

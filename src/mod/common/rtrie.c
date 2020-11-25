@@ -452,7 +452,8 @@ int rtrie_find(struct rtrie *trie, struct rtrie_key *key, void *result)
 		return -ESRCH;
 	}
 
-	memcpy(result, node + 1, trie->value_size);
+	if (result)
+		memcpy(result, node + 1, trie->value_size);
 	rcu_read_unlock_bh();
 	return 0;
 }

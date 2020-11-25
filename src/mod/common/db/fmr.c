@@ -129,6 +129,14 @@ end:
 }
 EXPORT_UNIT_SYMBOL(fmrt_add);
 
+void fmrt_flush(struct fmr_table *fmrt)
+{
+	mutex_lock(&lock);
+	rtrie_flush(&fmrt->trie6);
+	rtrie_flush(&fmrt->trie4);
+	mutex_unlock(&lock);
+}
+
 struct foreach_args {
 	fmr_foreach_cb cb;
 	void *arg;
