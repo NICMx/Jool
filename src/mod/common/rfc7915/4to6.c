@@ -258,6 +258,11 @@ static verdict compute_flowix46(struct xlation *state)
 	return VERDICT_CONTINUE;
 }
 
+/**
+ * Initializes state->dst.
+ * Please note: The resulting dst might be NULL even on VERDICT_CONTINUE.
+ * Handle properly.
+ */
 static verdict predict_route46(struct xlation *state)
 {
 	struct flowi6 *flow6;
@@ -266,11 +271,16 @@ static verdict predict_route46(struct xlation *state)
 	return VERDICT_CONTINUE;
 #endif
 
-	flow6 = &state->flowx.v6.flowi;
-	log_debug(state, "Routing: %pI6c->%pI6c", &flow6->saddr, &flow6->daddr);
-	state->dst = route6(&state->jool, flow6);
-	if (!state->dst)
-		return untranslatable(state, JSTAT_FAILED_ROUTES);
+	if (state->is_hairpin_1) {
+		log_debug(state, "Packet is hairpinning; skipping routing.");
+	} else {
+		flow6 = &state->flowx.v6.flowi;
+		log_debug(state, "Routing: %pI6c->%pI6c", &flow6->saddr,
+				&flow6->daddr);
+		state->dst = route6(&state->jool, flow6);
+		if (!state->dst)
+			return untranslatable(state, JSTAT_FAILED_ROUTES);
+	}
 
 	if (ipv6_addr_any(&flow6->saddr)) { /* empty pool6791v6 */
 		if (WARN(!xlator_is_siit(&state->jool),
@@ -284,8 +294,10 @@ static verdict predict_route46(struct xlation *state)
 				       IPV6_PREFER_SRC_PUBLIC, &flow6->saddr)) {
 			log_warn_once("Can't find a sufficiently scoped primary source address to reach %pI6.",
 					&flow6->daddr);
-			dst_release(state->dst);
-			state->dst = NULL;
+			if (state->dst) {
+				dst_release(state->dst);
+				state->dst = NULL;
+			}
 			return drop(state, JSTAT46_6791_ENOENT);
 		}
 	}
@@ -293,8 +305,10 @@ static verdict predict_route46(struct xlation *state)
 	return VERDICT_CONTINUE;
 
 panic:
-	dst_release(state->dst);
-	state->dst = NULL;
+	if (state->dst) {
+		dst_release(state->dst);
+		state->dst = NULL;
+	}
 	return drop(state, JSTAT_UNKNOWN);
 }
 
@@ -747,6 +761,11 @@ static verdict ttp46_alloc_skb(struct xlation *state)
 
 	in = &state->in;
 	get_delta(in, &delta);
+
+	/* Hairpinning: We'll worry about MTU during the second pass. */
+	if (state->dst == NULL)
+		return allocate_fast(state, delta.reserve, false);
+
 #ifndef UNIT_TESTING
 	nexthop_mtu = dst_mtu(state->dst);
 #else
@@ -920,7 +939,7 @@ static verdict ttcp46_ipv6_common(struct xlation *state)
 	hdr6->flow_lbl[2] = 0;
 	/* hdr6->payload_len */
 	/* hdr6->nexthdr */
-	if (pkt_is_outer(in) && !state->is_hairpin) {
+	if (pkt_is_outer(in) && !state->is_hairpin_2) {
 		if (hdr4->ttl <= 1) {
 			log_debug(state, "Packet's TTL <= 1.");
 			return drop_icmp(state, JSTAT46_TTL, ICMPERR_TTL, 0);

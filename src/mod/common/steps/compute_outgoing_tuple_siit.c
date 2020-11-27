@@ -65,13 +65,13 @@ verdict translate_addrs64_siit(struct xlation *state, __be32 *src_out,
 		if (pkt_is_outer(&state->in) && !pkt_is_icmp6_error(&state->in)
 				&& (dst.entry.method == AXM_RFC6052)
 				&& eamt_contains4(eamt, dst.addr.s_addr)) {
-			state->is_hairpin = true;
+			state->is_hairpin_1 = true;
 
 		/* Condition set B */
 		} else if (pkt_is_inner(&state->in)
 				&& (src.entry.method == AXM_RFC6052)
 				&& eamt_contains4(eamt, src.addr.s_addr)) {
-			state->is_hairpin = true;
+			state->is_hairpin_1 = true;
 		}
 	}
 
@@ -107,7 +107,7 @@ verdict translate_addrs46_siit(struct xlation *state, struct in6_addr *src_out,
 	struct addrxlat_result addr_result;
 
 	is_hairpin = (state->jool.globals.siit.eam_hairpin_mode == EHM_SIMPLE)
-			|| state->is_hairpin;
+			|| state->is_hairpin_2;
 
 	/* Dst address. (SRC DEPENDS CON DST, SO WE NEED TO XLAT DST FIRST!) */
 

@@ -9,6 +9,9 @@ bool is_hairpin_mapt(struct xlation *state)
 {
 	int error;
 
+	if (state->is_hairpin_1)
+		return true;
+
 	if (state->jool.globals.mapt.type != MAPTYPE_BR)
 		return false;
 	if (pkt_l3_proto(&state->in) != L3PROTO_IPV6)
@@ -38,7 +41,7 @@ verdict handling_hairpinning_mapt(struct xlation *old)
 	if (!new)
 		return VERDICT_DROP;
 	new->in = old->out;
-	new->is_hairpin = true;
+	new->is_hairpin_2 = true;
 
 	result = translating_the_packet(new);
 	if (result != VERDICT_CONTINUE)

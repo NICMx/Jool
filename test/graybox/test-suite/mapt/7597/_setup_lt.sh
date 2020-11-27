@@ -24,6 +24,25 @@ fi
 set -x
 set -e
 
+# Variables defined by README
+
+MD1_BMR="2001:db8:4464:1::/64 192.0.2.0/28 1"
+MD2_BMR="2001:db8:4464:2::/64 198.51.100.0/28 1"
+
+CE11_EUIP=2001:db8:4464:1:0000::/65
+CE11_ADDRL=192.0.2.1
+CE12_EUIP=2001:db8:4464:1:8000::/65
+CE12_ADDRL=192.0.2.9
+CE21_EUIP=2001:db8:4464:2:0000::/65
+CE21_ADDRL=198.51.100.1
+
+C111_ADDR=192.0.2.2
+C112_ADDR=192.0.2.3
+C121_ADDR=192.0.2.10
+C211_ADDR=198.51.100.2
+
+# Namespaces and Links
+
 ip netns add c111
 ip netns add c112
 ip netns add c121
@@ -71,18 +90,17 @@ connect br r4
 setup_client() {
 	CLIENT=$1
 	RIGHT_TARGET=$2
-	NETWORK=$3
-	ADDR=$4
-	GATEWAY=$5
-	ip netns exec $CLIENT ip address add ${NETWORK}.${ADDR}/29 dev ${CLIENT}_${RIGHT_TARGET}
+	ADDR=$3
+	GATEWAY=$4
+	ip netns exec $CLIENT ip address add ${ADDR}/29 dev ${CLIENT}_${RIGHT_TARGET}
 	ip netns exec $CLIENT ip link set ${CLIENT}_${RIGHT_TARGET} up
-	ip netns exec $CLIENT ip route add default via ${NETWORK}.${GATEWAY}
+	ip netns exec $CLIENT ip route add default via ${GATEWAY}
 }
 
-setup_client c111 br1 192.0.2 2 1
-setup_client c112 br1 192.0.2 3 1
-setup_client c121 ce12 192.0.2 10 9
-setup_client c211 ce21 198.51.100 2 1
+setup_client c111 br1 $C111_ADDR $CE11_ADDRL
+setup_client c112 br1 $C112_ADDR $CE11_ADDRL
+setup_client c121 ce12 $C121_ADDR $CE12_ADDRL
+setup_client c211 ce21 $C211_ADDR $CE21_ADDRL
 
 # CEs
 
@@ -98,26 +116,26 @@ setup_ce() {
 }
 
 add_route_ce11() {
-	ip netns exec $1 ip route add 2001:db8:4464:1:0000::/65 via 2001:db8::ce11
+	ip netns exec $1 ip route add $CE11_EUIP via 2001:db8::ce11
 }
 
 add_route_ce12() {
-	ip netns exec $1 ip route add 2001:db8:4464:1:8000::/65 via 2001:db8::ce12
+	ip netns exec $1 ip route add $CE12_EUIP via 2001:db8::ce12
 }
 
 add_route_ce21() {
-	ip netns exec $1 ip route add 2001:db8:4464:2:0000::/65 via 2001:db8::ce21
+	ip netns exec $1 ip route add $CE21_EUIP via 2001:db8::ce21
 }
 
-setup_ce ce11 192.0.2.1    br1
+setup_ce ce11 $CE11_ADDRL br1
 add_route_ce12 ce11
 add_route_ce21 ce11
 
-setup_ce ce12 192.0.2.9    c121
+setup_ce ce12 $CE12_ADDRL c121
 add_route_ce11 ce12
 add_route_ce21 ce12
 
-setup_ce ce21 198.51.100.1 c211
+setup_ce ce21 $CE21_ADDRL c211
 add_route_ce11 ce21
 add_route_ce12 ce21
 
@@ -148,10 +166,10 @@ test_network() {
 	ip netns exec $1 ping -c1 $2
 }
 
-test_network c111 192.0.2.1
-test_network c112 192.0.2.1
-test_network c121 192.0.2.9
-test_network c211 198.51.100.1
+test_network c111 $CE11_ADDRL
+test_network c112 $CE11_ADDRL
+test_network c121 $CE12_ADDRL
+test_network c211 $CE21_ADDRL
 test_network br   2001:db8::ce11
 test_network br   2001:db8::ce12
 test_network br   2001:db8::ce21
@@ -185,13 +203,13 @@ add_ce_translator() {
 	ip netns exec $CE iptables  -t mangle -A PREROUTING -d 203.0.113.0/24  -j JOOL_MAPT --instance "$CE"
 }
 
-add_ce_translator ce11 2001:db8:4464:1:0000::/65 2001:db8:4464:1::/64 192.0.2.0/28    1
-add_ce_translator ce12 2001:db8:4464:1:8000::/65 2001:db8:4464:1::/64 192.0.2.0/28    1
-add_ce_translator ce21 2001:db8:4464:2:0000::/65 2001:db8:4464:2::/64 198.51.100.0/28 1
+add_ce_translator ce11 $CE11_EUIP $MD1_BMR
+add_ce_translator ce12 $CE12_EUIP $MD1_BMR
+add_ce_translator ce21 $CE21_EUIP $MD2_BMR
 
 ip netns exec br jool_mapt instance add "br" --iptables --dmr $DMR
-ip netns exec br jool_mapt -i "br" fmr add 2001:db8:4464:1::/64 192.0.2.0/28    1
-ip netns exec br jool_mapt -i "br" fmr add 2001:db8:4464:2::/64 198.51.100.0/28 1
+ip netns exec br jool_mapt -i "br" fmr add $MD1_BMR
+ip netns exec br jool_mapt -i "br" fmr add $MD2_BMR
 
 ip netns exec br ip6tables -t mangle -A PREROUTING -d $DMR            -j JOOL_MAPT --instance "br"
 ip netns exec br iptables  -t mangle -A PREROUTING -d 192.0.2.0/24    -j JOOL_MAPT --instance "br"

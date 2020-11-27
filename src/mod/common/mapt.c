@@ -194,12 +194,17 @@ static verdict ce46_dst(struct xlation *state, __be32 in, struct in6_addr *out)
 {
 	struct mapping_rule fmr;
 	int error;
+	verdict result;
 
 	error = fmrt_find4(state->jool.mapt.fmrt, in, &fmr);
 	switch (error) {
 	case 0:
-		return rule_xlat46(state, &fmr, in,
+		result = rule_xlat46(state, &fmr, in,
 				state->in.tuple.dst.addr4.l4, out);
+		if (result == VERDICT_CONTINUE)
+			if (prefix6_contains(&state->jool.globals.mapt.eui6p, out))
+				state->is_hairpin_1 = true;
+		return result;
 	case -ESRCH:
 		return use_pool6_46(state, in, out);
 	}
@@ -281,9 +286,10 @@ static verdict use_pool6_64(struct xlation *state, struct in6_addr const *in,
 		return untranslatable(state, JSTAT_MAPT_POOL6);
 	}
 
+	/* TODO (mapt) this probably only works for external packets */
 	if (state->jool.globals.mapt.type == MAPTYPE_BR &&
 	    fmrt_find4(state->jool.mapt.fmrt, __out.s_addr, NULL) == 0)
-		state->is_hairpin = true;
+		state->is_hairpin_1 = true;
 
 	*out = __out.s_addr;
 	return VERDICT_CONTINUE;

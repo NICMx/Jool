@@ -312,7 +312,7 @@ static verdict __predict_route64(struct xlation *state)
 
 	flow4 = &state->flowx.v4.flowi;
 
-	if (state->is_hairpin) {
+	if (state->is_hairpin_1) {
 		log_debug(state, "Packet is hairpinning; skipping routing.");
 	} else {
 		log_debug(state, "Routing: %pI4->%pI4", &flow4->saddr, &flow4->daddr);
@@ -638,10 +638,6 @@ static verdict ttp64_ipv4_external(struct xlation *state)
 
 	hdr6 = pkt_ip6_hdr(&state->in);
 
-	if (hdr6->hop_limit <= 1) {
-		log_debug(state, "Packet's hop limit <= 1.");
-		return drop_icmp(state, JSTAT64_TTL, ICMPERR_TTL, 0);
-	}
 	if (has_nonzero_segments_left(hdr6, &nonzero_location)) {
 		log_debug(state, "Packet's segments left field is nonzero.");
 		return drop_icmp(state, JSTAT64_SEGMENTS_LEFT,
@@ -658,7 +654,17 @@ static verdict ttp64_ipv4_external(struct xlation *state)
 	hdr4->tot_len = cpu_to_be16(state->out.skb->len);
 	generate_ipv4_id(state, hdr4, hdr_frag);
 	hdr4->frag_off = xlat_frag_off(hdr_frag, &state->out);
-	hdr4->ttl = hdr6->hop_limit - 1;
+
+	if (!state->is_hairpin_2) {
+		if (hdr6->hop_limit <= 1) {
+			log_debug(state, "Packet's hop limit <= 1.");
+			return drop_icmp(state, JSTAT64_TTL, ICMPERR_TTL, 0);
+		}
+		hdr4->ttl = hdr6->hop_limit - 1;
+	} else {
+		hdr4->ttl = hdr6->hop_limit;
+	}
+
 	hdr4->protocol = flow4->flowi4_proto;
 	/* ip4_hdr->check is set later; please scroll down. */
 	hdr4->saddr = flow4->saddr;
