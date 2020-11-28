@@ -310,6 +310,7 @@ struct jool_result nla_get_fmr(struct nlattr *root, struct mapping_rule *fmr)
 	if (result.error)
 		return result;
 	fmr->ea_bits_length = nla_get_u8(attrs[JNLAF_EA_BITS_LENGTH]);
+	fmr->a = nla_get_u8(attrs[JNLAF_a]);
 	return result_success();
 }
 

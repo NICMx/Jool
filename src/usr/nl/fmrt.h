@@ -18,9 +18,7 @@ struct jool_result joolnl_fmrt_foreach(
 struct jool_result joolnl_fmrt_add(
 	struct joolnl_socket *sk,
 	char const *iname,
-	struct ipv6_prefix const *p6,
-	struct ipv4_prefix const *p4,
-	__u8 ea_bits_length
+	struct mapping_rule const *rule
 );
 
 struct jool_result joolnl_fmrt_flush(

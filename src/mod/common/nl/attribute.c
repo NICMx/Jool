@@ -460,9 +460,14 @@ int jnla_get_fmr(struct nlattr *attr, char const *name, struct mapping_rule *fmr
 	if (error)
 		return error;
 
-	return jnla_get_prefix6(attrs[JNLAF_PREFIX6], "IPv6 prefix", &fmr->prefix6)
-	    || jnla_get_prefix4(attrs[JNLAF_PREFIX4], "IPv4 prefix", &fmr->prefix4)
-	    || jnla_get_u8(attrs[JNLAF_EA_BITS_LENGTH], "EA-bits length", &fmr->ea_bits_length);
+	error = jnla_get_prefix6(attrs[JNLAF_PREFIX6], "IPv6 prefix", &fmr->prefix6)
+	     || jnla_get_prefix4(attrs[JNLAF_PREFIX4], "IPv4 prefix", &fmr->prefix4)
+	     || jnla_get_u8(attrs[JNLAF_EA_BITS_LENGTH], "EA-bits length", &fmr->ea_bits_length);
+	if (error)
+		return error;
+
+	fmr->a = attrs[JNLAF_a] ? nla_get_u8(attrs[JNLAF_a]) : 6;
+	return 0;
 }
 
 static int u16_compare(const void *a, const void *b)
@@ -766,7 +771,8 @@ int jnla_put_fmr(struct sk_buff *skb, int attrtype,
 
 	error = jnla_put_prefix6(skb, JNLAF_PREFIX6, &fmr->prefix6)
 	     || jnla_put_prefix4(skb, JNLAF_PREFIX4, &fmr->prefix4)
-	     || nla_put_u8(skb, JNLAF_EA_BITS_LENGTH, fmr->ea_bits_length);
+	     || nla_put_u8(skb, JNLAF_EA_BITS_LENGTH, fmr->ea_bits_length)
+	     || nla_put_u8(skb, JNLAF_a, fmr->a);
 	if (error) {
 		nla_nest_cancel(skb, root);
 		return error;

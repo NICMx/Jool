@@ -77,8 +77,7 @@ struct jool_result joolnl_fmrt_foreach(struct joolnl_socket *sk,
 
 static struct jool_result __update(struct joolnl_socket *sk, char const *iname,
 		enum joolnl_operation operation,
-		struct ipv6_prefix const *p6, struct ipv4_prefix const *p4,
-		__u8 ea_bits_length)
+		struct mapping_rule const *rule)
 {
 	struct nl_msg *msg;
 	struct nlattr *root;
@@ -92,11 +91,13 @@ static struct jool_result __update(struct joolnl_socket *sk, char const *iname,
 	if (!root)
 		goto nla_put_failure;
 
-	if (nla_put_prefix6(msg, JNLAF_PREFIX6, p6) < 0)
+	if (nla_put_prefix6(msg, JNLAF_PREFIX6, &rule->prefix6) < 0)
 		goto nla_put_failure;
-	if (nla_put_prefix4(msg, JNLAF_PREFIX4, p4) < 0)
+	if (nla_put_prefix4(msg, JNLAF_PREFIX4, &rule->prefix4) < 0)
 		goto nla_put_failure;
-	if (nla_put_u8(msg, JNLAF_EA_BITS_LENGTH, ea_bits_length) < 0)
+	if (nla_put_u8(msg, JNLAF_EA_BITS_LENGTH, rule->ea_bits_length) < 0)
+		goto nla_put_failure;
+	if (nla_put_u8(msg, JNLAF_a, rule->a) < 0)
 		goto nla_put_failure;
 
 	nla_nest_end(msg, root);
@@ -108,10 +109,9 @@ nla_put_failure:
 }
 
 struct jool_result joolnl_fmrt_add(struct joolnl_socket *sk, char const *iname,
-		struct ipv6_prefix const *p6, struct ipv4_prefix const *p4,
-		__u8 ea_bits_length)
+		struct mapping_rule const *rule)
 {
-	return __update(sk, iname, JNLOP_FMRT_ADD, p6, p4, ea_bits_length);
+	return __update(sk, iname, JNLOP_FMRT_ADD, rule);
 }
 
 struct jool_result joolnl_fmrt_flush(struct joolnl_socket *sk, char const *iname)

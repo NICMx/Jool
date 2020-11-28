@@ -227,6 +227,8 @@ static verdict compute_flowix64(struct xlation *state)
 	if (result != VERDICT_CONTINUE)
 		return result;
 
+	log_debug(state, "Result: %pI4->%pI4", &flow4->saddr, &flow4->daddr);
+
 	switch (flow4->flowi4_proto) {
 	case IPPROTO_TCP:
 		return xlat64_tcp_ports(state);

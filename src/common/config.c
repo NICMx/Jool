@@ -90,6 +90,7 @@ struct nla_policy joolnl_fmr_policy[JNLAF_COUNT] = {
 	[JNLAF_PREFIX6] = { .type = NLA_NESTED },
 	[JNLAF_PREFIX4] = { .type = NLA_NESTED },
 	[JNLAF_EA_BITS_LENGTH] = { .type = NLA_U8 },
+	[JNLAF_a] = { .type = NLA_U8 },
 };
 
 const struct nla_policy siit_globals_policy[JNLAG_COUNT] = {

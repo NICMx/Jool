@@ -3,6 +3,7 @@
 #include "mod/common/log.h"
 #include "mod/common/db/fmr.h"
 #include "mod/common/rfc7915/core.h"
+#include "mod/common/steps/determine_incoming_tuple.h"
 #include "mod/common/steps/send_packet.h"
 
 bool is_hairpin_mapt(struct xlation *state)
@@ -43,6 +44,9 @@ verdict handling_hairpinning_mapt(struct xlation *old)
 	new->in = old->out;
 	new->is_hairpin_2 = true;
 
+	result = determine_in_tuple(new);
+	if (result != VERDICT_CONTINUE)
+		goto end;
 	result = translating_the_packet(new);
 	if (result != VERDICT_CONTINUE)
 		goto end;

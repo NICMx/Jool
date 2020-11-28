@@ -212,6 +212,7 @@ enum joolnl_attr_fmr {
 	JNLAF_PREFIX6 = 1,
 	JNLAF_PREFIX4,
 	JNLAF_EA_BITS_LENGTH,
+	JNLAF_a,
 	JNLAF_COUNT,
 #define JNLAF_MAX (JNLAF_COUNT - 1)
 };

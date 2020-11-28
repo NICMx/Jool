@@ -246,6 +246,8 @@ static verdict compute_flowix46(struct xlation *state)
 	if (result != VERDICT_CONTINUE)
 		return result;
 
+	log_debug(state, "Result: %pI6c->%pI6c", &flow6->saddr, &flow6->daddr);
+
 	switch (flow6->flowi6_proto) {
 	case NEXTHDR_TCP:
 		return xlat46_tcp_ports(state);

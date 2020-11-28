@@ -22,7 +22,7 @@ static struct wargp_option display_opts[] = {
 
 static void print_separator(void)
 {
-	print_table_separator(0, 43, 18, 14, 0);
+	print_table_separator(0, 43, 18, 14, 2, 0);
 }
 
 static struct jool_result print_entry(struct mapping_rule const *entry, void *args)
@@ -35,15 +35,16 @@ static struct jool_result print_entry(struct mapping_rule const *entry, void *ar
 	ipv4_str = inet_ntoa(entry->prefix4.addr);
 
 	if (dargs->csv.value) {
-		printf("%s/%u,%s/%u,%u\n",
+		printf("%s/%u,%s/%u,%u,%u\n",
 				ipv6_str, entry->prefix6.len,
 				ipv4_str, entry->prefix4.len,
-				entry->ea_bits_length);
+				entry->ea_bits_length,
+				entry->a);
 	} else {
-		printf("| %39s/%-3u | %15s/%-2u | %-14u |\n",
+		printf("| %39s/%-3u | %15s/%-2u | %-14u | %2u |\n",
 				ipv6_str, entry->prefix6.len,
 				ipv4_str, entry->prefix4.len,
-				entry->ea_bits_length);
+				entry->ea_bits_length, entry->a);
 	}
 
 	return result_success();
@@ -67,11 +68,12 @@ int handle_fmrt_display(char *iname, int argc, char **argv, void const *arg)
 		static char const *const th1 = "IPv6 Prefix";
 		static char const *const th2 = "IPv4 Prefix";
 		static char const *const th3 = "EA-bits Length";
+		static char const *const th4 = "a";
 		if (dargs.csv.value)
-			printf("%s,%s,%s\n", th1, th2, th3);
+			printf("%s,%s,%s,%s\n", th1, th2, th3, th4);
 		else {
 			print_separator();
-			printf("| %43s | %18s | %s |\n", th1, th2, th3);
+			printf("| %43s | %18s | %s | %2s |\n", th1, th2, th3, th4);
 			print_separator();
 		}
 	}
@@ -101,6 +103,7 @@ struct wargp_mapping_rule {
 
 struct add_args {
 	struct wargp_mapping_rule rule;
+	struct wargp_u8 a;
 };
 
 static int parse_fmrt_column(void *void_field, int key, char *str)
@@ -138,6 +141,12 @@ static struct wargp_option add_opts[] = {
 		.doc = "Prefixes and EA-bits Length that will shape the new FMR",
 		.offset = offsetof(struct add_args, rule),
 		.type = &wt_rule,
+	}, {
+		.name = "a",
+		.key = 'a',
+		.doc = "a", /* TODO (MAP-T) */
+		.offset = offsetof(struct add_args, a),
+		.type = &wt_u8,
 	},
 	{ 0 },
 };
@@ -145,6 +154,7 @@ static struct wargp_option add_opts[] = {
 int handle_fmrt_add(char *iname, int argc, char **argv, void const *arg)
 {
 	struct add_args aargs = { 0 };
+	struct mapping_rule fmr;
 	struct joolnl_socket sk;
 	struct jool_result result;
 
@@ -162,14 +172,16 @@ int handle_fmrt_add(char *iname, int argc, char **argv, void const *arg)
 		return requirement_print(reqs);
 	}
 
+	fmr.prefix6 = aargs.rule.prefix6.prefix;
+	fmr.prefix4 = aargs.rule.prefix4.prefix;
+	fmr.ea_bits_length = aargs.rule.ea_bits_length.value;
+	fmr.a = aargs.a.set ? aargs.a.value : 6;
+
 	result = joolnl_setup(&sk, xt_get());
 	if (result.error)
 		return pr_result(&result);
 
-	result = joolnl_fmrt_add(&sk, iname,
-			&aargs.rule.prefix6.prefix,
-			&aargs.rule.prefix4.prefix,
-			aargs.rule.ea_bits_length.value);
+	result = joolnl_fmrt_add(&sk, iname, &fmr);
 
 	joolnl_teardown(&sk);
 	return pr_result(&result);

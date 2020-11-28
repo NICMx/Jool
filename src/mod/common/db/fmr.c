@@ -63,31 +63,31 @@ int fmrt_find6(struct fmr_table *fmrt, struct in6_addr const *addr,
 	return rtrie_find(&fmrt->trie6, &key, fmr);
 }
 
-static int fmrt_add6(struct fmr_table *fmrt, struct mapping_rule *fmt)
+static int fmrt_add6(struct fmr_table *fmrt, struct mapping_rule *fmr)
 {
 	size_t addr_offset;
 	int error;
 
-	addr_offset = offsetof(typeof(*fmt), prefix6.addr);
-	error = rtrie_add(&fmrt->trie6, fmt, addr_offset, fmt->prefix6.len);
+	addr_offset = offsetof(typeof(*fmr), prefix6.addr);
+	error = rtrie_add(&fmrt->trie6, fmr, addr_offset, fmr->prefix6.len);
 	if (error == -EEXIST) {
-		log_err("Prefix %pI6c/%u already exists.", &fmt->prefix6.addr,
-				fmt->prefix6.len);
+		log_err("Prefix %pI6c/%u already exists.", &fmr->prefix6.addr,
+				fmr->prefix6.len);
 	}
 
 	return error;
 }
 
-static int fmrt_add4(struct fmr_table *fmrt, struct mapping_rule *fmt)
+static int fmrt_add4(struct fmr_table *fmrt, struct mapping_rule *fmr)
 {
 	size_t addr_offset;
 	int error;
 
-	addr_offset = offsetof(typeof(*fmt), prefix4.addr);
-	error = rtrie_add(&fmrt->trie4, fmt, addr_offset, fmt->prefix4.len);
+	addr_offset = offsetof(typeof(*fmr), prefix4.addr);
+	error = rtrie_add(&fmrt->trie4, fmr, addr_offset, fmr->prefix4.len);
 	if (error == -EEXIST) {
-		log_err("Prefix %pI4/%u already exists.", &fmt->prefix4.addr,
-				fmt->prefix4.len);
+		log_err("Prefix %pI4/%u already exists.", &fmr->prefix4.addr,
+				fmr->prefix4.len);
 	}
 
 	return error;
@@ -106,6 +106,8 @@ static void __revert_add6(struct fmr_table *fmrt, struct ipv6_prefix *prefix6)
 int fmrt_add(struct fmr_table *fmrt, struct mapping_rule *new)
 {
 	int error;
+
+	/* TODO (MAP-T) This seems to be missing lots of validations */
 
 	error = prefix6_validate(&new->prefix6);
 	if (error)
