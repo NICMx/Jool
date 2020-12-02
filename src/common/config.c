@@ -148,6 +148,8 @@ const struct nla_policy mapt_globals_policy[JNLAG_COUNT] = {
 	[JNLAG_TOS] = { .type = NLA_U8 },
 	[JNLAG_PLATEAUS] = { .type = NLA_NESTED },
 	[JNLAG_MAPT] = { .type = NLA_NESTED },
+	[JNLAG_POOL6791V6] = { .type = NLA_NESTED },
+	[JNLAG_POOL6791V4] = { .type = NLA_NESTED },
 };
 
 struct nla_policy mapt_policy[JNLAMT_COUNT] = {

@@ -1413,15 +1413,15 @@ static const struct joolnl_global_meta globals_metadata[] = {
 		.name = "randomize-rfc6791-addresses",
 		.type = &gt_bool,
 		.doc = "Randomize selection of address from the RFC6791 pool? Otherwise choose the 'Hop Limit'th address.",
-		.offset = offsetof(struct jool_globals, siit.randomize_error_addresses),
+		.offset = offsetof(struct jool_globals, randomize_error_addresses),
 		.xt = XT_SIIT,
 	}, {
 		.id = JNLAG_POOL6791V6,
 		.name = "rfc6791v6-prefix",
 		.type = &gt_prefix6,
 		.doc = "IPv6 prefix to generate RFC6791v6 addresses from.",
-		.offset = offsetof(struct jool_globals, siit.rfc6791_prefix6),
-		.xt = XT_SIIT,
+		.offset = offsetof(struct jool_globals, rfc6791_prefix6),
+		.xt = XT_SIIT | XT_MAPT,
 #ifdef __KERNEL__
 		.nl2raw = nl2raw_pool6791v6,
 #endif
@@ -1430,8 +1430,8 @@ static const struct joolnl_global_meta globals_metadata[] = {
 		.name = "rfc6791v4-prefix",
 		.type = &gt_prefix4,
 		.doc = "IPv4 prefix to generate RFC6791 addresses from.",
-		.offset = offsetof(struct jool_globals, siit.rfc6791_prefix4),
-		.xt = XT_SIIT,
+		.offset = offsetof(struct jool_globals, rfc6791_prefix4),
+		.xt = XT_SIIT | XT_MAPT,
 #ifdef __KERNEL__
 		.nl2raw = nl2raw_pool6791v4,
 #endif

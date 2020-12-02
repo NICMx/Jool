@@ -15,10 +15,10 @@ static int get_pool_address(struct xlation *state, struct in6_addr *result)
 	size_t host_bytes_num;
 	__u8 randomized_byte;
 
-	if (!state->jool.globals.siit.rfc6791_prefix6.set)
+	if (!state->jool.globals.rfc6791_prefix6.set)
 		return -EINVAL;
 
-	prefix = &state->jool.globals.siit.rfc6791_prefix6.prefix;
+	prefix = &state->jool.globals.rfc6791_prefix6.prefix;
 
 	segment_bytes_num = prefix->len >> 3; /* >> 3 = / 8 */
 	modulus = prefix->len & 7; /* & 7 = % 8 */
@@ -50,6 +50,7 @@ static int get_pool_address(struct xlation *state, struct in6_addr *result)
  */
 static void get_host_address_v6(struct xlation *state, struct in6_addr *result)
 {
+	log_debug(state, "pool6791v6: The source address will be decided later.");
 	memset(result, 0, sizeof(*result));
 }
 
@@ -61,7 +62,5 @@ int rfc6791v6_find(struct xlation *state, struct in6_addr *result)
 {
 	if (get_pool_address(state, result) != 0)
 		get_host_address_v6(state, result);
-
-	log_debug(state, "Chose %pI6c as RFC6791v6 address.", result);
 	return 0;
 }

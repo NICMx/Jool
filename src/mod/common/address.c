@@ -85,13 +85,18 @@ __u32 get_prefix4_mask(const struct ipv4_prefix *prefix)
 	return ((__u64) 0xffffffffU) << (32 - prefix->len);
 }
 
-bool prefix4_contains(const struct ipv4_prefix *prefix,
-		const struct in_addr *addr)
+bool __prefix4_contains(const struct ipv4_prefix *prefix, __be32 addr)
 {
 	__u32 maskbits = get_prefix4_mask(prefix);
 	__u32 prefixbits = be32_to_cpu(prefix->addr.s_addr) & maskbits;
-	__u32 addrbits = be32_to_cpu(addr->s_addr) & maskbits;
+	__u32 addrbits = be32_to_cpu(addr) & maskbits;
 	return prefixbits == addrbits;
+}
+
+bool prefix4_contains(const struct ipv4_prefix *prefix,
+		struct in_addr const *addr)
+{
+	return __prefix4_contains(prefix, addr->s_addr);
 }
 EXPORT_UNIT_SYMBOL(prefix4_contains)
 

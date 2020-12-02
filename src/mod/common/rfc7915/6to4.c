@@ -53,42 +53,50 @@ static verdict xlat64_external_addresses(struct xlation *state)
 
 static verdict xlat64_internal_addresses(struct xlation *state)
 {
+	xlator_type xtype;
+	struct ipv6hdr *hdr6;
 	struct bkp_skb_tuple bkp;
 	verdict result;
 
-	switch (xlator_get_type(&state->jool)) {
-	case XT_NAT64:
+	xtype = xlator_get_type(&state->jool);
+	if (xtype == XT_NAT64) {
 		state->flowx.v4.inner_src = state->out.tuple.dst.addr4.l3;
 		state->flowx.v4.inner_dst = state->out.tuple.src.addr4.l3;
 		return VERDICT_CONTINUE;
+	}
 
+	result = become_inner_packet(state, &bkp, false);
+	if (result != VERDICT_CONTINUE)
+		return result;
+
+	hdr6 = pkt_ip6_hdr(&state->in);
+	log_debug(state, "Translating internal addresses %pI6c->%pI6c...",
+			&hdr6->saddr, &hdr6->daddr);
+
+	switch (xtype) {
 	case XT_SIIT:
-		result = become_inner_packet(state, &bkp, false);
-		if (result != VERDICT_CONTINUE)
-			return result;
-		log_debug(state, "Translating internal addresses...");
 		result = translate_addrs64_siit(state,
 				&state->flowx.v4.inner_src.s_addr,
 				&state->flowx.v4.inner_dst.s_addr);
-		restore_outer_packet(state, &bkp, false);
-		return result;
-
+		break;
 	case XT_MAPT:
-		result = become_inner_packet(state, &bkp, false);
-		if (result != VERDICT_CONTINUE)
-			return result;
-		log_debug(state, "Translating internal addresses...");
 		result = translate_addrs64_mapt(state,
 				&state->flowx.v4.inner_src.s_addr,
 				&state->flowx.v4.inner_dst.s_addr,
 				true);
-		restore_outer_packet(state, &bkp, false);
-		return result;
+		break;
+	default:
+		WARN(1, "Unknown xlator type: %u",
+				xlator_get_type(&state->jool));
+		return drop(state, JSTAT_UNKNOWN);
 	}
 
-	WARN(1, "xlator type is not SIIT, NAT64 nor MAP-T: %u",
-			xlator_get_type(&state->jool));
-	return drop(state, JSTAT_UNKNOWN);
+	log_debug(state, "Result: %pI4->%pI4",
+			&state->flowx.v4.inner_src,
+			&state->flowx.v4.inner_dst);
+
+	restore_outer_packet(state, &bkp, false);
+	return result;
 }
 
 static verdict xlat64_tcp_ports(struct xlation *state)
@@ -223,6 +231,9 @@ static verdict compute_flowix64(struct xlation *state)
 	 */
 	flow4->flowi4_flags = FLOWI_FLAG_ANYSRC;
 
+	log_debug(state, "Translating packet addresses %pI6c->%pI6c...",
+			&hdr6->saddr, &hdr6->daddr);
+
 	result = xlat64_external_addresses(state);
 	if (result != VERDICT_CONTINUE)
 		return result;
@@ -306,6 +317,7 @@ success:
 static verdict __predict_route64(struct xlation *state)
 {
 	struct flowi4 *flow4;
+	bool deciding_saddr;
 	verdict result;
 
 #ifdef UNIT_TESTING
@@ -313,16 +325,24 @@ static verdict __predict_route64(struct xlation *state)
 #endif
 
 	flow4 = &state->flowx.v4.flowi;
+	deciding_saddr = (flow4->saddr == 0);
 
 	if (state->is_hairpin_1) {
 		log_debug(state, "Packet is hairpinning; skipping routing.");
 	} else {
-		log_debug(state, "Routing: %pI4->%pI4", &flow4->saddr, &flow4->daddr);
 		state->dst = route4(&state->jool, flow4);
 		if (!state->dst)
 			return untranslatable(state, JSTAT_FAILED_ROUTES);
 	}
 
+	/*
+	 * Update: At least for newer kernels, it seems this if is no longer
+	 * necessary. __ip_route_output_key() sets saddr if uninitialized.
+	 * Consider removing this if when we drop old kernels.
+	 *
+	 * I don't really know when the change happened, nor whether we actually
+	 * really needed this at some point.
+	 */
 	if (flow4->saddr == 0) { /* Empty pool4 or empty pool6791v4 */
 		if (state->dst) {
 			result = select_good_saddr(state);
@@ -336,6 +356,11 @@ static verdict __predict_route64(struct xlation *state)
 			if (result != VERDICT_CONTINUE)
 				return result;
 		}
+	}
+
+	if (deciding_saddr) {
+		log_debug(state, "Decided source address: %pI4",
+				&state->flowx.v4.flowi.saddr);
 	}
 
 	return VERDICT_CONTINUE;

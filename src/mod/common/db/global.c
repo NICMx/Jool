@@ -66,14 +66,14 @@ int globals_init(struct jool_globals *config, xlator_type type)
 	config->lowest_ipv6_mtu = DEFAULT_LOWEST_IPV6_MTU;
 	memcpy(config->plateaus.values, &PLATEAUS, sizeof(PLATEAUS));
 	config->plateaus.count = ARRAY_SIZE(PLATEAUS);
+	config->randomize_error_addresses = DEFAULT_RANDOMIZE_RFC6791;
+	config->rfc6791_prefix6.set = false;
+	config->rfc6791_prefix4.set = false;
 
 	switch (type) {
 	case XT_SIIT:
 		config->siit.compute_udp_csum_zero = DEFAULT_COMPUTE_UDP_CSUM0;
 		config->siit.eam_hairpin_mode = DEFAULT_EAM_HAIRPIN_MODE;
-		config->siit.randomize_error_addresses = DEFAULT_RANDOMIZE_RFC6791;
-		config->siit.rfc6791_prefix6.set = false;
-		config->siit.rfc6791_prefix4.set = false;
 		break;
 
 	case XT_NAT64:

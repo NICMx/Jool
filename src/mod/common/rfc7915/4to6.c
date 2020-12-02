@@ -50,6 +50,7 @@ static verdict xlat46_external_addresses(struct xlation *state)
 		return translate_addrs46_siit(state,
 				&state->flowx.v6.flowi.saddr,
 				&state->flowx.v6.flowi.daddr);
+
 	case XT_MAPT:
 		return translate_addrs46_mapt(state,
 				&state->flowx.v6.flowi.saddr,
@@ -64,42 +65,50 @@ static verdict xlat46_external_addresses(struct xlation *state)
 
 static verdict xlat46_internal_addresses(struct xlation *state)
 {
+	xlator_type xtype;
 	struct bkp_skb_tuple bkp;
+	struct iphdr *hdr4;
 	verdict result;
 
-	switch (xlator_get_type(&state->jool)) {
-	case XT_NAT64:
+	xtype = xlator_get_type(&state->jool);
+	if (xtype == XT_NAT64) {
 		state->flowx.v6.inner_src = state->out.tuple.dst.addr6.l3;
 		state->flowx.v6.inner_dst = state->out.tuple.src.addr6.l3;
 		return VERDICT_CONTINUE;
+	}
 
+	result = become_inner_packet(state, &bkp, false);
+	if (result != VERDICT_CONTINUE)
+		return result;
+
+	hdr4 = pkt_ip4_hdr(&state->in);
+	log_debug(state, "Translating internal addresses %pI4->%pI4...",
+			&hdr4->saddr, &hdr4->daddr);
+
+	switch (xtype) {
 	case XT_SIIT:
-		result = become_inner_packet(state, &bkp, false);
-		if (result != VERDICT_CONTINUE)
-			return result;
-		log_debug(state, "Translating internal addresses...");
 		result = translate_addrs46_siit(state,
 				&state->flowx.v6.inner_src,
 				&state->flowx.v6.inner_dst);
-		restore_outer_packet(state, &bkp, false);
-		return result;
-
+		break;
 	case XT_MAPT:
-		result = become_inner_packet(state, &bkp, false);
-		if (result != VERDICT_CONTINUE)
-			return result;
-		log_debug(state, "Translating internal addresses...");
 		result = translate_addrs46_mapt(state,
 				&state->flowx.v6.inner_src,
 				&state->flowx.v6.inner_dst,
 				true);
-		restore_outer_packet(state, &bkp, false);
-		return result;
+		break;
+	default:
+		WARN(1, "Unknown xlator type: %u",
+				xlator_get_type(&state->jool));
+		return drop(state, JSTAT_UNKNOWN);
 	}
 
-	WARN(1, "xlator type is not SIIT, NAT64 nor MAP-T: %u",
-			xlator_get_type(&state->jool));
-	return drop(state, JSTAT_UNKNOWN);
+	log_debug(state, "Result: %pI6c->%pI6c",
+			&state->flowx.v6.inner_src,
+			&state->flowx.v6.inner_dst);
+
+	restore_outer_packet(state, &bkp, false);
+	return result;
 }
 
 static verdict xlat46_tcp_ports(struct xlation *state)
@@ -232,15 +241,20 @@ static verdict xlat46_icmp_type(struct xlation *state)
 
 static verdict compute_flowix46(struct xlation *state)
 {
+	struct iphdr *hdr4;
 	struct flowi6 *flow6;
 	verdict result;
 
+	hdr4 = pkt_ip4_hdr(&state->in);
 	flow6 = &state->flowx.v6.flowi;
 
 	flow6->flowi6_mark = state->in.skb->mark;
 	flow6->flowi6_scope = RT_SCOPE_UNIVERSE;
-	flow6->flowi6_proto = xlat_nexthdr(pkt_ip4_hdr(&state->in)->protocol);
+	flow6->flowi6_proto = xlat_nexthdr(hdr4->protocol);
 	flow6->flowi6_flags = FLOWI_FLAG_ANYSRC;
+
+	log_debug(state, "Translating packet addresses %pI4->%pI4...",
+			&hdr4->saddr, &hdr4->daddr);
 
 	result = xlat46_external_addresses(state);
 	if (result != VERDICT_CONTINUE)
@@ -273,20 +287,19 @@ static verdict predict_route46(struct xlation *state)
 	return VERDICT_CONTINUE;
 #endif
 
+	flow6 = &state->flowx.v6.flowi;
+
 	if (state->is_hairpin_1) {
 		log_debug(state, "Packet is hairpinning; skipping routing.");
 	} else {
-		flow6 = &state->flowx.v6.flowi;
-		log_debug(state, "Routing: %pI6c->%pI6c", &flow6->saddr,
-				&flow6->daddr);
 		state->dst = route6(&state->jool, flow6);
 		if (!state->dst)
 			return untranslatable(state, JSTAT_FAILED_ROUTES);
 	}
 
 	if (ipv6_addr_any(&flow6->saddr)) { /* empty pool6791v6 */
-		if (WARN(!xlator_is_siit(&state->jool),
-			 "Zero source address on not SIIT!"))
+		if (WARN(xlator_is_nat64(&state->jool),
+			 "Zero source address on NAT64!"))
 			goto panic;
 		if (WARN(!is_icmp4_error(pkt_icmp4_hdr(&state->in)->type),
 			 "Zero source on not ICMP error!"))
@@ -302,6 +315,8 @@ static verdict predict_route46(struct xlation *state)
 			}
 			return drop(state, JSTAT46_6791_ENOENT);
 		}
+
+		log_debug(state, "Decided source address: %pI6c", &flow6->saddr);
 	}
 
 	return VERDICT_CONTINUE;

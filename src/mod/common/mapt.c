@@ -6,6 +6,8 @@
 #include "mod/common/log.h"
 #include "mod/common/rfc6052.h"
 #include "mod/common/db/fmr.h"
+#include "mod/common/db/rfc6791v6.h"
+#include "mod/common/db/rfc6791v4.h"
 
 static unsigned int get_o(struct mapping_rule *rule)
 {
@@ -82,7 +84,6 @@ static verdict use_pool6_46(struct xlation *state, __be32 in,
 		return drop(state, JSTAT_UNKNOWN);
 	}
 
-	log_debug(state, "Address: %pI6c", out);
 	return VERDICT_CONTINUE;
 }
 
@@ -105,10 +106,17 @@ static verdict ce46_src(struct xlation *state, __be32 in, struct in6_addr *out)
 	verdict result;
 
 	cfg = &state->jool.globals.mapt;
-	q = get_q(&cfg->bmr);
-	packet_psid = 0;
+
+	if (!__prefix4_contains(&cfg->bmr.prefix4, in)) {
+		log_debug(state, "Address '%pI4' does not match the BMR assigned to this CE.",
+				&in);
+		/* TODO stat */
+		return untranslatable(state, JSTAT_MAPT_PSID);
+	}
 
 	/* Check the NAPT made sure the port belongs to us */
+	q = get_q(&cfg->bmr);
+	packet_psid = 0;
 	if (q > 0) {
 		result = prpf_get_psid(state, &cfg->bmr,
 				state->in.tuple.src.addr4.l4, &packet_psid);
@@ -119,7 +127,8 @@ static verdict ce46_src(struct xlation *state, __be32 in, struct in6_addr *out)
 				cfg->bmr.prefix6.len + get_p(&cfg->bmr), q);
 
 		if (packet_psid != ce_psid) {
-			log_debug(state, "IPv4 packet's source port does not match the PSID assigned to this CE.");
+			log_debug(state, "Port '%u' does not match the PSID assigned to this CE.",
+					state->in.tuple.src.addr4.l4);
 			return untranslatable(state, JSTAT_MAPT_PSID);
 		}
 	}
@@ -239,6 +248,21 @@ static verdict br46_dst(struct xlation *state, __be32 in, struct in6_addr *out)
 
 typedef verdict (*xlat46_cb)(struct xlation *, __be32, struct in6_addr *);
 
+static verdict attempt_6791_fallback_46(struct xlation *state,
+		struct in6_addr *out)
+{
+	if (!pkt_is_icmp4_error(&state->in))
+		return VERDICT_UNTRANSLATABLE;
+
+	if (rfc6791v6_find(state, out)) {
+		log_debug(state, "The pool6791v6 fallback didn't work.");
+		/* TODO positive 6791 counter? */
+		return untranslatable(state, JSTAT46_6791_ENOENT);
+	}
+
+	return VERDICT_CONTINUE;
+}
+
 verdict translate_addrs46_mapt(struct xlation *state, struct in6_addr *out_src,
 		struct in6_addr *out_dst, bool invert)
 {
@@ -263,8 +287,19 @@ verdict translate_addrs46_mapt(struct xlation *state, struct in6_addr *out_src,
 	}
 
 	result = src_cb(state, in->saddr, out_src);
-	if (result != VERDICT_CONTINUE)
+	switch (result) {
+	case VERDICT_CONTINUE:
+		break;
+	case VERDICT_UNTRANSLATABLE:
+		result = attempt_6791_fallback_46(state, out_src);
+		if (result != VERDICT_CONTINUE)
+			return result;
+		break;
+	case VERDICT_DROP:
+	case VERDICT_STOLEN:
 		return result;
+	}
+
 	return dst_cb(state, in->daddr, out_dst);
 }
 EXPORT_UNIT_SYMBOL(translate_addrs46_mapt);
@@ -365,6 +400,23 @@ static verdict br64_dst(struct xlation *state, struct in6_addr const *in,
 
 typedef verdict (*xlat64_cb)(struct xlation *, struct in6_addr const *, __be32 *);
 
+static verdict attempt_6791_fallback_64(struct xlation *state, __be32 *out)
+{
+	struct in_addr tmp;
+
+	if (!pkt_is_icmp6_error(&state->in))
+		return VERDICT_UNTRANSLATABLE;
+
+	if (rfc6791v4_find(state, &tmp)) {
+		log_debug(state, "The pool6791v6 fallback didn't work.");
+		/* TODO positive 6791 counter? */
+		return untranslatable(state, JSTAT64_6791_ENOENT);
+	}
+
+	*out = tmp.s_addr;
+	return VERDICT_CONTINUE;
+}
+
 verdict translate_addrs64_mapt(struct xlation *state, __be32 *out_src,
 		__be32 *out_dst, bool invert)
 {
@@ -389,8 +441,19 @@ verdict translate_addrs64_mapt(struct xlation *state, __be32 *out_src,
 	}
 
 	result = src_cb(state, &in->saddr, out_src);
-	if (result != VERDICT_CONTINUE)
+	switch (result) {
+	case VERDICT_CONTINUE:
+		break;
+	case VERDICT_UNTRANSLATABLE:
+		result = attempt_6791_fallback_64(state, out_src);
+		if (result != VERDICT_CONTINUE)
+			return result;
+		break;
+	case VERDICT_DROP:
+	case VERDICT_STOLEN:
 		return result;
+	}
+
 	return dst_cb(state, &in->daddr, out_dst);
 }
 EXPORT_UNIT_SYMBOL(translate_addrs64_mapt);

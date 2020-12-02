@@ -37,6 +37,7 @@ bool prefix4_equals(const struct ipv4_prefix *a, const struct ipv4_prefix *b);
 
 __u32 get_prefix4_mask(const struct ipv4_prefix *prefix);
 
+bool __prefix4_contains(const struct ipv4_prefix *prefix, __be32 addr);
 bool prefix4_contains(const struct ipv4_prefix *prefix,
 		const struct in_addr *addr);
 bool prefix6_contains(const struct ipv6_prefix *prefix,

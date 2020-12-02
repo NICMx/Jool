@@ -575,6 +575,24 @@ struct jool_globals {
 	 */
 	struct mtu_plateaus plateaus;
 
+	/**
+	 * Randomize choice of RFC6791 address?
+	 * Otherwise it will be set depending on the incoming packet's Hop
+	 * Limit.
+	 * See https://github.com/NICMx/Jool/issues/130.
+	 */
+	bool randomize_error_addresses;
+	/**
+	 * Addresses used to source ICMPv6 errors when the original IPv4 address
+	 * wasn't translatable.
+	 */
+	struct config_prefix6 rfc6791_prefix6;
+	/**
+	 * Addresses used to source ICMPv4 errors when the original IPv6 address
+	 * wasn't translatable.
+	 */
+	struct config_prefix4 rfc6791_prefix4;
+
 	union {
 		struct {
 			/**
@@ -589,24 +607,6 @@ struct jool_globals {
 			 * See @eam_hairpinning_mode.
 			 */
 			__u8 eam_hairpin_mode;
-			/**
-			 * Randomize choice of RFC6791 address?
-			 * Otherwise it will be set depending on the incoming
-			 * packet's Hop Limit.
-			 * See https://github.com/NICMx/Jool/issues/130.
-			 */
-			bool randomize_error_addresses;
-
-			/**
-			 * Address used to represent a not translatable source
-			 * address of an incoming packet.
-			 */
-			struct config_prefix6 rfc6791_prefix6;
-			/**
-			 * Address used to represent a not translatable source
-			 * address of an incoming packet.
-			 */
-			struct config_prefix4 rfc6791_prefix4;
 		} siit;
 
 		struct {
