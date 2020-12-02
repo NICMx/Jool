@@ -441,7 +441,7 @@ static int nl2raw_ce(struct nlattr *attrs[], struct mapt_globals *cfg)
 			cfg->eui6p.addr = cfg->bmr.prefix6.addr;
 			cfg->eui6p.len = cfg->bmr.prefix6.len
 					+ cfg->bmr.ea_bits_length;
-			/* TODO set_bits cannot always receive 64 bit values */
+			/* TODO (MAP-T) set_bits cannot always receive 64 bit values */
 			addr6_set_bits(&cfg->eui6p.addr,
 					cfg->bmr.prefix6.len,
 					cfg->bmr.ea_bits_length,

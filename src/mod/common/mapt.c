@@ -110,7 +110,7 @@ static verdict ce46_src(struct xlation *state, __be32 in, struct in6_addr *out)
 	if (!__prefix4_contains(&cfg->bmr.prefix4, in)) {
 		log_debug(state, "Address '%pI4' does not match the BMR assigned to this CE.",
 				&in);
-		/* TODO stat */
+		/* TODO (MAP-T) stat */
 		return untranslatable(state, JSTAT_MAPT_PSID);
 	}
 
@@ -172,8 +172,19 @@ EXPORT_UNIT_STATIC verdict rule_xlat46(struct xlation *state,
 	unsigned int psid;
 	verdict result;
 
+	q = get_q(rule);
+	psid = 0;
+	if (q > 0) {
+		result = prpf_get_psid(state, rule, port, &psid);
+		if (result != VERDICT_CONTINUE)
+			return result;
+	}
+
+	/* Interface ID */
+	set_interface_id(in, out, psid);
+
 	/* IPv6 prefix */
-	memcpy(out, &rule->prefix6.addr, sizeof(rule->prefix6.addr));
+	addr6_copy_bits(&rule->prefix6.addr, out, 0, rule->prefix6.len);
 
 	/* Embedded IPv4 suffix */
 	p = get_p(rule);
@@ -182,18 +193,7 @@ EXPORT_UNIT_STATIC verdict rule_xlat46(struct xlation *state,
 	);
 
 	/* PSID */
-	q = get_q(rule);
-	psid = 0;
-	if (q > 0) {
-		result = prpf_get_psid(state, rule, port, &psid);
-		if (result != VERDICT_CONTINUE)
-			return result;
-		addr6_set_bits(out, rule->prefix6.len + p, q, psid);
-	}
-
-	/* Interface ID */
-	/* TODO this needs to be done first */
-	set_interface_id(in, out, psid);
+	addr6_set_bits(out, rule->prefix6.len + p, q, psid);
 
 	return VERDICT_CONTINUE;
 }
@@ -256,7 +256,7 @@ static verdict attempt_6791_fallback_46(struct xlation *state,
 
 	if (rfc6791v6_find(state, out)) {
 		log_debug(state, "The pool6791v6 fallback didn't work.");
-		/* TODO positive 6791 counter? */
+		/* TODO (MAP-T) positive 6791 counter? */
 		return untranslatable(state, JSTAT46_6791_ENOENT);
 	}
 
@@ -409,7 +409,7 @@ static verdict attempt_6791_fallback_64(struct xlation *state, __be32 *out)
 
 	if (rfc6791v4_find(state, &tmp)) {
 		log_debug(state, "The pool6791v6 fallback didn't work.");
-		/* TODO positive 6791 counter? */
+		/* TODO (MAP-T) positive 6791 counter? */
 		return untranslatable(state, JSTAT64_6791_ENOENT);
 	}
 
