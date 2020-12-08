@@ -376,18 +376,19 @@ Of course, it's not possible to physically assign a slice of an IPv4 address to 
 
 ![Diagram: Network, now with CEs and BRs](../images/intro/mapt/network.svg)
 
+(Note: Those address slices are not physically assigned. Note that the ISP cloud is still IPv6.)
+
 Customer Edges (CEs) and Border Relays (BRs) will, as usual, make sure everyone is unknowingly speaking the protocol everyone else wants to hear.
 
-- CEs are tasked with ensuring that its clients never use an IPv4 address/port outside of its assigned slice (which is simply accomplished by a NAPT), and to perform IP/ICMP translation. The "slice identifier" is encoded in the CE's IPv6 address, which is how you route a slice to its respective CE.
-- BR only translates.
+Each household will use private addresses (192.168.x.y), and each CE will consist of a traditional NAPT chained to a translator. The NAPT will reduce the private address space to the assigned slice, and the translator will convert the resulting packet into something that can traverse the IPv6 network.
 
 Here's an example:
 
-Suppose we've decided to reserve subnetwork <span style="background-color:#e9afdd">2001:db8:4464::/48</span> for CE usage, and we're using <span class="wkp">64:ff9b:1</span>::/96 to mask the IPv4 Internet as usual. Client <span style="background-color:#ffaaaa">192.168.0.4</span> is behind the CE who owns slice <span style="background-color:#f95;padding:0 0.2em">2</span> (ports 32768-49151), and wants to send a packet to IPv4 Internet HTTP server <span style="background-color:#afdde9">203.0.113.56</span>.
+Suppose we've decided to reserve subnetwork <span style="background-color:#e9afdd">2001:db8:ce::/48</span> for all our CE needs, and we're using <span class="wkp">64:ff9b:1</span>::/96 to mask the IPv4 Internet as usual. Client <span style="background-color:#ffaaaa">192.168.0.4</span> is behind the CE who owns slice <span style="background-color:#f95;padding:0 0.2em">2</span> (ports 32768-49151) (and therefore owns prefix <span style="background-color:#e9afdd">2001:db8:ce</span>:<span style="background-color:#f95">2</span>::/64), and wants to send a packet to IPv4 Internet HTTP server <span style="background-color:#afdde9">203.0.113.56</span>.
 
 ![Packet Flow: 182.168.0.4:12345--203.0.113.56:80 becomes 192.0.2.1:40000--203.0.113.56:80](../images/intro/mapt/flow-1.svg)
 
-The packet first gets NAPT'd from a private IPv4 transport address into a pseudorandom public IPv4 transport address that can be used by the CE.
+The packet first gets NAPT'd from a <span style="background-color:#ffaaaa">private</span> IPv4 transport address into a pseudorandom <span style="background-color:#ffe680">public</span> IPv4 transport address that can be used by the CE.
 
 Though you can be forgiven if you’ve never NAPT’d into a reduced port range, you can be assured that this is a perfectly ordinary stateful NAT operation. The packet would already be routable, if we had an IPv4 network on hand.
 
@@ -405,17 +406,17 @@ The BR mirrors the translation part of what the CE did, but not the NAPT part.
 
 The server responds. The BR applies the appropriate transformation to each address.
 
-You might be wondering: Since all CEs technically own address <span style="background-color:#ffe680">192.0.2.1</span>, how does the BR know that the intended CE is <span style="background-color:#f95;padding:0 0.2em">2</span>, and not one of the others?
-
-Because, by configuration, the BR knows that port 40000 belongs to slice <span style="background-color:#f95;padding:0 0.2em">2</span>.
+You might be wondering: Since all CEs technically own address <span style="background-color:#ffe680">192.0.2.1</span>, how does the BR know that the intended CE is <span style="background-color:#f95;padding:0 0.2em">2</span>, and not one of the others? Because, by configuration, the BR knows that port 40000 belongs to slice <span style="background-color:#f95;padding:0 0.2em">2</span>.
 
 ![Packet Flow: 64:ff9b:1::203.0.113.56:80--2001:db8:4464:2:::40000 becomes 203.0.113.56:80--182.168.0.4:12345](../images/intro/mapt/flow-5.svg)
 
-Things end by continuing to happen in reverse.
+The packet is then routed to the CE that owns the prefix it's <span style="background-color:#e9afdd">destined</span> <span style="background-color:#f95">to</span>. Things end by continuing to happen in reverse.
 
-Of course, while MAP-T is a technique primarily preoccupied with transferring IPv4 traffic through an IPv6 backbone, there's nothing stopping you from also assigning IPv6 addresses to your customers, and have that traffic routed normally.
+Of course, while MAP-T is a technique primarily preoccupied with transferring IPv4 traffic through an IPv6 backbone, there's nothing stopping you from also assigning IPv6 addresses to your customers, and have that traffic routed normally. (Through the R6 router.)
 
-As you might have noticed, MAP-T is most similar to 464XLAT. You can think of the _BR_ as a "stateless" Stateful NAT64, since all the mappings are preallocated instead of dynamic. While 464XLAT relies on stateless translators in the customer edge, and a stateful translator as the IPv4 Internet door, MAP-T uses stateless translators exclusively, while also having stateful NATs in the customer edge. In 464XLAT, the PLAT creates mappings on demand, while MAP-T has those allocations predefined (“pre-sliced”) by configuration.
+So what did we accomplish with this pseudoconvoluted address manhandling? Well, we've assembled a 464XLAT in which the PLAT is stateless, and which can therefore be replicated for redundancy. Also, it's interestig to note that, because the slices are preallocated, one malicious customer cannot exhaust all our public transport address; they would only exhaust their own.
+
+Here; have a comparison table:
 
 | 464XLAT | MAP-T |
 |---------|-------|

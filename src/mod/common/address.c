@@ -291,7 +291,7 @@ void addr6_copy_bits(struct in6_addr *src, struct in6_addr *dst,
 	}
 
 	/* Middle bytes */
-	last = (end >> 3u) - 1u;
+	last = end >> 3u;
 	if (last >= offset)
 		memcpy(&dst->s6_addr[offset], &src->s6_addr[offset], last - offset);
 

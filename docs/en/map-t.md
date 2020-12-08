@@ -26,12 +26,22 @@ title: MAP-T
 6. [BR Configuration](#br-configuration)
 7. [BR Behavior](#br-behavior)
 8. [Additional Configuration](#additional-configuration)
+	1. [The `a`, `k` and `m` configuration variables](#the-a-k-and-m-configuration-variables)
+	2. [FMR on the CE](#fmr-on-the-ce)
 
 ## Introduction
 
-This document is a layman's (but exhaustive) slightly sardonic explanation of MAP-T. It is intended to serve as a replacement for RFC 7599, or at least, as preparatory reading for it. I'm assuming you've already consumed the [general introduction to the topic](intro-xlat.html#map-t), so you know what you're getting into.
+This document is a layman's (but exhaustive) slightly sardonic explanation of MAP-T. It is intended to serve as a replacement for RFCs 7597 and 7599, or at least, as preparatory reading for them. **I'm assuming you've already consumed the [general introduction to the topic](intro-xlat.html#map-t), so you know what you're getting into.**
 
-> ![Warning!](../images/warning.svg) **This page is still under construction. It's bound to change. Do not use it as reference.**
+> ![Warning!](../images/warning.svg) Please be aware that Jool does not yet implement MAP-T. (Support will be added in version 4.2.0.)
+> 
+> In any case, this particular document does not deal with Jool in any way. (That's the [tutorial](run-mapt.html)'s job.)
+
+Expected background knowledge:
+
+- IPv4 addresses
+- IPv6 addresses
+- Hexadecimal and binary numbers
 
 ## Foreword
 
@@ -41,9 +51,7 @@ The MAP RFCs argue that, depending on how many IPv4 addresses you have, and how 
 2. You have the same number of IPv4 addresses as CEs, so each CE will have one IPv4 address.
 3. You have more IPv4 addresses than CEs, thus you can assign more than one IPv4 address to each CE.
 
-In my opinion, the first one is the only one that truly makes sense. (If you have that many IPv4 addresses, I think it'd be more straightforward to just add NAPTs to a SIIT-DC-2xlat scenario. Way simpler than dealing with MAP-T.) To simplify this document, most of it will assume you're dealing with scenario 1.
-
-But there's nothing in Jool stopping you from using it to assemble scenarios 2 and 3. (All you have to do is reduce the PSID length to zero. The PSID will be explained later.)
+In my opinion, the first scenario is the only one that truly makes sense. (If you have that many IPv4 addresses, I think SIIT-DC-2xlat would be a simpler alternative to MAP-T.) However, I will walk you through all three of them, in the hopes that some variety migh facilitate the "aha!" moment. (TODO: I still haven't done scenarios 2 nor 3.)
 
 <!--
 > ![Note!](../images/bulb.svg) The first is actually the only one I described in the general introduction. (In my opinion, it's the one that makes the most sense. Not that the others don't.)
@@ -51,11 +59,13 @@ But there's nothing in Jool stopping you from using it to assemble scenarios 2 a
 The reason why I'm explaining this is to segue into the notion that the CE identifier is not an accidental number you can arbitrarily assign, but rather, the concatenation of two crucial pieces of CE configuration you have to design: The _Full or partial IPv4 address_ (which identifies the IPv4 address assigned to the CE) and the _Port Set IDentifier_ (which, needless to say, identifies the Port Set assigned to the CE). They are explained thus:
 -->
 
+First, let's take a look at scenario 1.
+
 ## Thought Process
 
 In order to define your MAP-T network, you first need a general idea of how you're going to distribute your available public transport addresses.
 
-Suppose you have the entirety of block 192.0.2.0/24 to distribute among your CEs. Suppose, as well, that you have 5000 customers.
+Suppose you have the entirety of block <span class="addr4">192.0.2.0/24</span> to distribute among your CEs. Suppose, as well, that you have 5000 customers.
 
 Let's define some variables:
 
@@ -79,7 +89,7 @@ In our example,
 
 <img src="../images/mapt/equations1.png" alt="Equations: 1" class="equations" />
 
-> ![Note](../images/bulb.svg) Not sure if I should be explaining this, but the &#8968;&#8969; operation means [_ceiling_](https://en.wikipedia.org/wiki/Floor_and_ceiling_functions).
+> ![Note](../images/bulb.svg) Not sure if I should be explaining this, but the "&#8968;&#8969;" operator means [_ceiling_](https://en.wikipedia.org/wiki/Floor_and_ceiling_functions).
 
 As you can see, each address needs to be divided into 20 "Sets" of ports. (But MAP-T likes powers of two, so we'll have to round that up to 32.) We will assign each set to a different customer. (And leftovers will be reserved for a future growth of our customer pool or whatever.)
 
@@ -98,39 +108,29 @@ The first port of set _PSID_ is _P_ * _PSID_, and its last port is _P_ * (_PSID_
 
 In english:
 
-| Port Set ID (PSID) | First Port | Last Port |
+| Port Set #<br />(aka. "Port Set Identifier," "PSID") | First Port | Last Port |
 |--------------------|------------|-----------|
 | 0                  | 0          | 2047      |
 | 1                  | 2048       | 4095      |
 | 2                  | 4096       | 6143      |
+| 3                  | 6144       | 8191      |
 | ...                | ...        | ...       |
+| 30                 | 61440      | 63487     |
 | 31                 | 63488      | 65535     |
 
-With that in mind, I would like to introduce the notion of _Embedded Address bits_ ("EA-bits"). It's basically a CE identifier. (Each CE has a different one, except in scenario 3, in which every CE has several, but they're still unique.) It's composed of a concatenation of the suffix of the IPv4 address that has been assigned to the CE, as well as the identifier of its Port Set. In our example, we would need 8 bits for the suffix and 5 bits for the _Port Set IDentifier_:
+With that in mind, I would like to introduce the notion of _Embedded Address bits_ ("EA-bits"). It's basically a CE identifier. (In fact, I wish it were called that, but I don't make the rules.) It's composed of a concatenation of the suffix of the IPv4 address that has been assigned to the CE, as well as the identifier of its Port Set. We need `p` bits for the suffix, and <code>q = log<sub>2</sub>(S)</code> bits for the _PSID_. In our example, that would be `p = 8` and `q = 5`:
 
 ![Diagram: EA-bits](../images/mapt/ea-bits.svg)
+
+As my wishful name implies, each CE has a unique EA-bits number.
 
 > ![Note!](../images/bulb.svg) The general introduction used to refer to EA-bits as "slice ID."
 
 > ![Note!](../images/bulb.svg) Only scenario 1 includes PSID. Port Sets only need to exist if the IPv4 addresses are being shared.
 
-Let's visualize all of that. Don't stop looking at this picture until you've understood the relationship between each CE's number and its assigned IPv4 address and PSID:
+Let's visualize all of that. Please don't stop staring at this picture until you've understood the relationship between each CE's (hexadecimal) number and its assigned IPv4 address and (decimal) PSID:
 
 ![Network: EA-bits distribution](../images/mapt/distribution.svg)
-
-> **THE CONTENTS OF THIS BLOCK ARE NOT ACCURATE. IGNORE THIS BLOCK. WIP**
-> 
-> &lt;lies&gt;
-> 
-> ![Note!](../images/bulb.svg) You might be wondering why we're crossing out Port Set 0.
-> 
-> One reason is that it contains port 0, which is invalid. Port zero should never be used on the wire.
-> 
-> Another reason is that it contains the system port range (1-1023), which everyone is scared of (for reasons that are likely obsolete, IMO).
-> 
-> MAP implementations are supposed to be hardcoded into always leaving Port Set 0 unused.
-> 
-> &lt;/lies&gt;
 
 > ![Warning!](../images/warning.svg) The RFCs define a rather important notion called "MAP domain," whose meaning is unfortunately significantly inconsistent across the specification. (Probably as a result of its evolution as the documents were written.)
 > 
@@ -144,43 +144,45 @@ Once you've designed your own version of that, you're ready to start assigning I
 
 ## The MAP Address Format
 
-Remember when I [lied](intro-xlat.html#mapt)? Well, here's the full IPv6 address format defined by the MAP proposed standard:
+Remember when I [lied](intro-xlat.html#map-t)? Well, here's the full IPv6 address format defined by the MAP proposed standard:
 
 ![Diagram: MAP Address Format](../images/mapt/map-addr-format.svg)
 
-The addresses that are supposed to follow this structure are all "assigned" to the CEs. (In their CE configuration, not their interface configuration.)
+Though these are part of the CE configuration, they are actually used to mask the IPv4 island clients. (The address you will assign to the CE's IPv6-facing interface is a separate--and completely normal--IPv6 address.)
 
-<!-- ![Note!](../images/bulb.svg)  Personally, I wish the MAP Address Format were called the "CE Address Format." -->
-
-Here's an explanation of every field:
+There's a fair bit of information encoded in the MAP address, which might help you understand and troubleshoot your network. Therefore, here's an explanation of every field:
 
 ### End-user IPv6 Prefix
 
-The CE's unique prefix. All the traffic headed towards this prefix needs to be routed by the network towards the corresponding CE. It is interesting to note that this is actually the only part of the address that really matters; everything else is filler.
+The CE's unique prefix. All the traffic headed towards this prefix needs to be routed by the network towards the corresponding CE. It is interesting to note that, unless you're on scenario 3, this is actually the only technically meaningful part of the address; everything else is essentially cosmetics.
 
 ### Rule IPv6 Prefix
 
 This is just an arbitrary prefix owned by your organization, reserved for CE usage. (All CEs sharing a common MAP domain will have the same Rule IPv6 Prefix.)
 
-Way I see it, if your organization is assigned 2001:db8::/48, you might for example assign something like 2001:db8:0:4464::/67 as your "Rule IPv6 prefix." Each of your CEs needs to pick a subprefix from this pool to operate.
+Way I see it, if your organization owns 2001:db8::/32, you might for example assign something like <span class="r6p">2001:db8:ce::/51</span> as your "Rule IPv6 prefix." Each of your CEs would need to pick a subprefix (ie. the [End-user IPv6 Prefix](#end-user-ipv6-prefix)) from <span class="r6p">2001:db8:ce::/51</span> to operate.
+
+(These are just examples. Both the Rule IPv6 Prefix and the End-user IPv6 Prefix are technically allowed to span anywhere between 0 and 128 bits, so you can pick lengths that make more sense for your network.)
 
 ### EA-bits
 
-The CE's unique identifier. It contains both the IPv4 address suffix and the PSID. See [Thought Process](#thought-process) above.
+The CE's unique identifier. (See [Thought Process](#thought-process) for the rundown.)
+
+In scenario 1, EA-bits is actually two subfields glued together: the IPv4 address suffix and the PSID. In the other scenarios, EA-bits only contains the IPv4 address suffix.
+
+This field is allowed to length anywhere between 0 to 48 bits. (32 bits for a full IPv4 address plus 16 for an entire port as PSID.)
 
 ### Subnet ID
 
-This is a big fat hilariously overnamed nothing.
+The trailing bits required to assemble a full IPv4 address in scenario 3.
 
-Perhaps this field makes more sense in the context of encapsulation (as MAP-T is a sibling technology to MAP-E, ie. "MAP-T but with Encapsulation instead of Translation"), but neither of the MAP RFCs have much to say about it.
-
-As it stands, the _Subnet ID_ is just an optional block of padding (zeroes) meant to ensure that the _Interface ID_ starts in bit number 64. (Which, considering the _Interface ID_ starts with padding, itself doesn't really seem to serve any purpose.)
+(This field only exists in scenario 3, so ignore it for now.)
 
 ### Interface ID
 
 I'm guessing the length of IPv6 addresses left the MAP designers with too many surplus bits, and they decided to grant pointless purpose to the leftovers instead of leaving them in reserved status.
 
-The _Interface ID_ is just redundant data. It's so unnecesary, in fact, that the _End-user IPv6 Prefix_ is allowed to length up to 128 bits, an in order to accomplish this, it unapologetically overrides the _Interface ID_ bits. (So, even if I stated in the diagram that the _Interface ID_ lengths 64 bits, some of its leftmost bits might be chopped off.)
+The _Interface ID_ is just redundant data. It's so unnecesary, in fact, that the _End-user IPv6 Prefix_ is allowed to length up to 128 bits, and in order to accomplish this, it unapologetically overrides the _Interface ID_ bits. (So, even if I stated in the diagram that the _Interface ID_ lengths 64 bits, some of its leftmost bits might be chopped off.)
 
 My guess is that this field only exists so that, given a MAP address, you can visually locate the CE's public IPv4 address and PSID without having to analyze the EA-bits. (Assuming the former haven't been chopped off.) (And you'll still need to mentally convert the IPv4 address from hex to decimal.)
 
@@ -196,7 +198,7 @@ Just padding; sixteen zeroes with no meaning.
 
 Basically the full IPv4 address from which we extracted the EA-bits's IPv4 address suffix subfield.
 
-It's also the NAPT's public side address.
+It's also the public side address of the CE's NAPT.
 
 ### PSID
 
@@ -210,15 +212,19 @@ The CE's PSID again, right-aligned and left-padded with zeroes for your viewing 
 
 > ![Note!](../images/bulb.svg) Please note that, in this context, "CE" is used to refer to the translator mechanism exclusively (ie. Jool). The NAPT is assumed to be a separate tool, configured independently.
 
-In addition to usually requiring a NAPT to really make sense, a "minimal" <span class="footnote">([not really](#does-the-ce-really-need-the-bmr-at-all))</span> CE configuration contains
+In addition to usually requiring a NAPT to really make sense, a formal minimal CE configuration contains
+
+<!-- TODO delete the "footnote" class? -->
 
 1. [The End-user IPv6 Prefix](#end-user-ipv6-prefix)
 2. A _Basic Mapping Rule_ (BMR)
 3. A _Default Mapping Rule_ (DMR)
 
-More configuration parameters are defined by the standards, but we'll get to them later.
+(More configuration parameters are offered by the standards, but we'll get to them later.)
 
-Mapping Rules are "always" <span class="footnote">([not really](#dmr))</span> triplets of the following form:
+CEs sharing a MAP domain will always have the same BMR, and usually the same DMR too. The _End-user IPv6 prefix_ is the only important configuration-wise distinction between them.
+
+For some reason, the RFCs insist that "Mapping Rules" are always triplets of the following form:
 
 	{
 		<IPv6 Prefix>,
@@ -226,13 +232,15 @@ Mapping Rules are "always" <span class="footnote">([not really](#dmr))</span> tr
 		<EA-bits length>
 	}
 
-CEs sharing a MAP domain will have the same BMR and DMR. The _End-user IPv6 prefix_ is the only configuration-wise distinction between them.
+This is not really true, but we'll play along for now.
+
+Let's define those Mapping Rules:
 
 ### BMR
 
 > ![Warning!](../images/warning.svg) Because the definition of the BMR is intrinsically tied to the concept of a "MAP domain," the BMR is also inconsistent across the RFCs. Once again, the definition presented here is my preferred one.
 
-A MAP domain's common MAP address configuration.
+The _Basic Mapping Rule_ is a MAP domain's common MAP address configuration. Basically, this field is the essential piece of configuration that allows the translator to assemble [MAP addresses](#the-map-address-format) out of IPv4 addresses, and viceversa.
 
 It refers specifically to addresses that will be governed by the [MAP address format](#the-map-address-format), not the [RFC 6052 address format](#dmr). Again, the BMR defines the base MAP address configuration that all CEs share, while the _End-user IPv6 prefix_ describes the additional MAP address specifics that belong to one particular CE.
 
@@ -244,57 +252,35 @@ Here's what each of the triplet fields stand for in the BMR:
 		<EA-bits length>
 	}
 
-The "Rule IPv6 Prefix" is the same one defined [above](#rule-ipv6-prefix). The "IPv4 prefix reserved for CEs" is exactly what it sounds like (192.0.2.0/24 in the [example](#thought-process)). The "EA-bits length" is the length (in bits) of the [EA-bits](#ea-bits) field.
+The "Rule IPv6 Prefix" is the same one defined [above](#rule-ipv6-prefix). The "IPv4 prefix reserved for CEs" is exactly what it sounds like (<span class="addr4">192.0.2.0/24</span> in the [example](#thought-process)). The "EA-bits length" is the total length (in bits) of the [EA-bits](#ea-bits) field.
 
-So what does this do? Well, the suffix length of the _IPv4 prefix reserved for CEs_ (`p`) (Yes, the **suffix** is called `p`, because of course it is) and the _EA-bits length_ (`o`) describes the structure of the [EA-bits](#thought-process), and the _Rule IPv6 Prefix_ length describes their [offset](#the-map-address-format). If we define `r` as the length of the _IPv4 prefix reserved for CEs_,
+So what does this do? Well, the suffix length of the _IPv4 prefix reserved for CEs_ (`p`, as defined [above](#thought-process)) and the _EA-bits length_ (`o`) describes the structure of the [EA-bits](#thought-process), and the _Rule IPv6 Prefix_ length describes their [offset](#the-map-address-format). If we define `r` as the length of the _IPv4 prefix reserved for CEs_,
 
-- If `o + r > 32`, we're dealing with scenario 1. (And the length of the PSID field (`q`) is > 0.)
+- If `o + r > 32`, we're dealing with scenario 1. (`q > 0`)
 - If `o + r = 32`, we're dealing with scenario 2. (`q = 0`)
 - If `o + r < 32`, we're dealing with scenario 3. (`q = 0`)
 
 In our example, the BMR would be
 
-	{
-		2001:db8:0:4464::/64,
-		192.0.2.0/24,
-		13
-	}
+<style type="text/css">
+	.ebl { color: #f95;  }
+</style>
 
-That pretty much covers what the BMR is and what you need to put in it. I feel, however, that here linger a couple of inevitable questions that should probably be addressed:
+<pre><code>{
+	<span class="r6p">2001:db8:ce::/51</span>,
+	<span class="addr4">192.0.2.0/24</span>,
+	<span class="ebl">13</span>
+}</code></pre>
 
-#### What's with the redundant configuration?
+Which, in turn, will yield MAP Addresses that have the following form:
 
-If you stare at the CE configuration for long enough, you might notice that either the _Rule IPv6 Prefix_ or the _EA-bits length_ seems to be redundant. According to the [MAP Address Format](#the-map-address-format), the _EA-bits length_ is the difference between the length of the _End-user IPv6 prefix_ and the length of the _Rule IPv6 prefix_. Right? So, since the CE has both prefixes, we could do without it. Or better yet: The _End-user IPv6 prefix_ always contains the _Rule IPv6 prefix_, and the difference is, why unsurprisingly, _EA-bits length_. So we could chop off the entire Rule IPv6 prefix and not miss anything.
+![Diagram: MAP Address Example](../images/mapt/map-addr-example.svg)
 
-Well, all of that is correct. Thing is, the BMR makes more sense when you look at the whole picture, rather than one CE configuration specifically. The BMR is not only shared by all CEs, but once we get to the _BR_, you will notice that we will also echo the BMR in its configuration, and the BMR's fullness will make more sense there because the _BR_ lacks _End-user IPv6 prefixes_.
-
-Also, the BMR can be reused in the FMR (I'll explain the FMR later), but only in its full representation.
-
-You might therefore conclude that the _End-user IPv6 prefix_ is actually the one cluttering up the configuration. In its stead, the EA-bits alone would suffice. But my guess is that this would make things look confusing if the EA-bits are not aligned to 8-bit boundaries. For example, if the _Rule IPv6 Prefix_ is 2001:db8::/**33**, then _EA-bits_ 10101010<sub>2</sub> would look like "AA<sub>16</sub>" in configuration, but the actual End-user IPv6 prefix would be "2001:db8:55::" ("55" being "AA" shifted one bit to the right). So specifying the _End-user IPv6 prefix_ instead of the EA-bits looks more consistent with the actual addressing in these cases.
-
-Jool will, however, let you skip the _Rule IPv6 Prefix_ or the _EA-bits length_, or specify _EA-bits_ instead of an _End-user IPv6 prefix_ if you want.
-
-#### Does the CE really need the BMR at all?
-
-Not exactly. Though the BMR contains information that is formally essential to translate a MAP Address, there are situations in which a CE can infer (or obviate) each of the BMR fields.
-
-This is, however, nonstandard behavior. Make of it what you will.
-
-<!--
-No. The _End-user IPv6 prefix_ and the DMR are sometimes all the CE needs to forward traffic to-and-fro the _BR_.
-
-Formally, the CE is supposed to use the BMR to translate certain addresses. But since the _End-user IPv6 prefix_ contains the _Rule IPv6 Prefix_, the IPv4 address can be inferred from the [_Interface ID_](#interface-id) or from the NAPT's addresswork, and the CE only cares about the EA-bits in scenario 3, Jool will let you omit it.
-
-You are allowed to do this on scenario 1 and 2, and it works best if the _End-user IPv6 prefix_ lengths 80 or less. (Because then the full IPv4 address can be found in the _Interface ID_, so Jool doesn't have to guess it.)
-
-This is, however, nonstandard behavior. Make of it what you will.
-
-Also, since the BMR is often used as a FMR, omitting the BMR will mean that one CE's clients will be unable to communicate with another CE and its clients. (Again, this will be explained later in the FMR.)
--->
+Again, for context: These address will represent devices on the IPv4 customer islands. (ie. Behind the CEs.)
 
 ### DMR
 
-The _Default Mapping Rule_ is just pool6. It's the "default" prefix that should be added to an outbound destination address so the packet is routed by the IPv6 network towards the _BR_ (and therefore, towards the IPv4 Internet).
+_Default Mapping Rule_ is just a fancy name for pool6. It's the "default" prefix that should be added to an outbound destination address so the packet is routed by the IPv6 network towards the _BR_ (and therefore, towards the IPv4 Internet). It has the following form:
 
 	{
 		<pool6>,
@@ -306,11 +292,13 @@ Yes, defining this as a "Mapping Rule" triplet is a stretch. Code-wise, it doesn
 
 In our example, the DMR would be
 
-	{
-		64:ff9b::/96,
-		<unused>,
-		<unused>
-	}
+<pre><code>{
+	<span class="wkp">64:ff9b::/96</span>,
+	&lt;unused&gt;,
+	&lt;unused&gt;
+}</code></pre>
+
+Again: Addresses masked with the DMR will represent devices on the IPv4 Internet. (ie. Behind the BR.)
 
 ## CE Behavior
 
@@ -323,19 +311,18 @@ In our example, the DMR would be
 	.wkp     { color: #d40000; }
 </style>
 
-When one of the CE's clients makes an outbound request, the CE uses the BMR and/or the _End-user IPv6 prefix_ to translate the source address, and the DMR to translate the destination address.
+When one of the CE's clients makes an outbound request, the CE uses the BMR to translate the source address, and the DMR to translate the destination address.
 
 ![Packet flow: CE outbound](../images/mapt/flow-ce-outbound.svg)
 
 Here's the breakdown:
 
 - [<span class="r6p">Rule IPv6 Prefix</span>](#rule-ipv6-prefix)
-- [<span class="eabits">EA-bits</span>](#ea-bits) (<span class="eabits">65<sub>10</sub></span> = <span class="eabits">41<sub>16</sub></span> = <span class="suffix4">00000010</span><span class="psid">00001</span><sub>2</sub>)
-- [<span class="addr4">IPv4 address</span>](#ipv4-address)
-- [<span class="suffix4">IPv4 address suffix</span>](#ea-bits)
+- [<span class="eabits">EA-bits</span>](#ea-bits) (<span class="eabits">41</span><sub>16</sub> = <span class="suffix4">00000010</span><span class="psid">00001</span><sub>2</sub>)
+- [<span class="addr4">IPv4 prefix</span>](#bmr)
+- [<span class="suffix4">IPv4 suffix</span>](#ea-bits)
 - [<span class="psid">PSID</span>](#psid)
 - [<span class="wkp">DMR</span>](#dmr)
-- Because the [_End-user IPv6 Prefix_](#end-user-ipv6-prefix) lengths > 64, this example has no room for [Subnet ID](#subnet-id).
 - The last 3 bits of the _End-user IPv6 Prefix_ and the 13 bits of the <span class="eabits">EA-bits</span> have completely overridden the [16 bits](#16-bits) field.
 
 The opposite happens in the other direction:
@@ -344,7 +331,7 @@ The opposite happens in the other direction:
 
 ## BR Configuration
 
-The BR needs two things:
+The BR only needs two things:
 
 - A _Forwarding Mapping Rule_ (FMR) table
 - The _Default Mapping Rule_ (DMR)
@@ -355,7 +342,7 @@ In our example, the FMR would only have one entry:
 
 | IPv6 Prefix          | IPv4 Prefix  | EA-bits length |
 |----------------------|--------------|----------------|
-| 2001:db8:0:4464::/64 | 192.0.2.0/24 | 13             |
+| 2001:db8:ce::/51     | 192.0.2.0/24 | 13             |
 
 The DMR is, once again, pool6.
 
@@ -377,7 +364,86 @@ Source is translated by DMR, destination by FMR.
 
 ## Additional Configuration
 
+If you're curious to get some hands-on experience, by now you should have the fundamentals required to know what you're doing if you [set up your own MAP-T scenario 1 environment with Jool](run-mapt.html).
+
+Additional bells and whistles follow:
+
+### The `a`, `k` and `m` configuration variables
+
+Ok, so this is a bit of a doozy because the Linux kernel is not terribly well-equipped to deal with these variables, but I'll explain them nonetheless.
+
+If you were paying close attention, you might have noticed in the example above that, even though we happily assembled 32 port sets, one of them is actually unusable: Port Set zero. Why? Because it contains the "taboo" ports: 0-1023.
+
+To me, personally, this is not a big deal. You just refrain from using Port Set 0 and go eat some cookies. Or, you can set up the NAPT owning Port Set 0 to only use ports 1024-2048 (instead of 0-2048). (You'd assign that particular port set to low-traffic CEs.) But I guess the IETF wasn't having any of that, and decided to optimize the problem away. It's optional, but also some definition of "recommended." You'll get one extra full port set at the expense of some complexity. You do you.
+
+To understand the solution to the problem, you need to internalize how MAP-T divides the port space. Let's take a look at this table again, and add some binary representations:
+
+| PSID                                | First Port                                         | Last Port                                          |
+|-------------------------------------|----------------------------------------------------|----------------------------------------------------|
+| 0<sub>10</sub> (00000<sub>2</sub>)  | 0<sub>10</sub> (00000 00000000000<sub>2</sub>)     | 2047<sub>10</sub> (00000 11111111111<sub>2</sub>)  |
+| 1<sub>10</sub> (00001<sub>2</sub>)  | 2048<sub>10</sub> (00001 00000000000<sub>2</sub>)  | 4095<sub>10</sub> (00001 11111111111<sub>2</sub>)  |
+| 2<sub>10</sub> (00010<sub>2</sub>)  | 4096<sub>10</sub> (00010 00000000000<sub>2</sub>)  | 6143<sub>10</sub> (00010 11111111111<sub>2</sub>)  |
+| 3<sub>10</sub> (00011<sub>2</sub>)  | 6144<sub>10</sub> (00011 00000000000<sub>2</sub>)  | 8191<sub>10</sub> (00011 11111111111<sub>2</sub>)  |
+| ...                                 | ...                                                | ...                                                |
+| 30<sub>10</sub> (11110<sub>2</sub>) | 61440<sub>10</sub> (11110 00000000000<sub>2</sub>) | 63487<sub>10</sub> (11110 11111111111<sub>2</sub>) |
+| 31<sub>10</sub> (11111<sub>2</sub>) | 63488<sub>10</sub> (11111 00000000000<sub>2</sub>) | 65535<sub>10</sub> (11111 11111111111<sub>2</sub>) |
+
+See a pattern? Well, the first port always ends in pure zeroes, and the last port always ends in pure ones. But, even more critically, **the first `q` bits of the port number are always its PSID**.
+
+Therefore, we can think of a port number as a 16-bit field which can be subdivided into two separate pieces of information:
+
+![Diagram: Port Number - 2 fields](../images/mapt/port-number-2.svg)
+
+The first field tells you which subdivision ("Set") of the port space the port belongs to, and the second one tells you that port number's index within that group:
+
+![Diagram: Port Division - 2 fields](../images/mapt/port-division-2.svg)
+
+The taboo ports have a similar quirk. 0-1023 happen to be exactly the ports whose first 6 bits are all zero:
+
+![Diagram: Port Number - Taboo](../images/mapt/port-number-taboo.svg)
+
+So that's where we're at. By excluding PSID zero, we effectively also exclude the taboo ports. But we don't want to exclude PSID zero. What do?
+
+The solution is to add a third field to the port number:
+
+![Diagram: Port Number - 3 fields](../images/mapt/port-number-3.svg)
+
+> ![Warning!](../images/warning.svg) Just a heads up: I more or less made up "Port Block" and "Port Index." The RFC sort of uses them, but not in a formal capacity. "Port Block" is actually called `A` (though it's sometimes referred to as `i`), and "Port Index" is called `j`.
+> 
+> And by the way: Those are the actual values. The *lengths* of these values are `a`, `q` and `m`.
+
+> ![Note!](../images/bulb.svg) In our example, `a = 6`, `q = 5` and `m = 5`. However, they can be whatever non-negative numbers you need them to be, as long as `a + q + m = 16`.
+
+The result is a distribution that looks as follows. Each port number is the result of the binary concatenation of its block, then its set, and then its index:
+
+![Diagram: Port Division - 3 fields](../images/mapt/port-division-3.svg)
+
+What have we accomplished with this? Instead of excluding PSID zero, we now exclude Port Block 0. In other words, instead of excluding half of the ports from the first PSID, we exclude the first <code>2<sup>m</sup></code> ports from every PSID. And now all PSIDs are equal. (Each PSID has <code>(2<sup>a</sup> - 1) * 2<sup>m</sup></code> ports.)
+
+Per the three-subfield diagram above, `a` is the number of bits that will define the Port Block. (It defaults to 6, because that's exactly the number of bits you need to exclude exactly the taboo ports.) `q` is whatever you need your Port Set ID to length (in accordance to your network needs; `q = o - p`). `m` is whatever remains of the port's 16 bits.
+
+> ![Note!](../images/bulb.svg) So what's `k`, you ask? `k` is just a synonym for `q`.
+
+And I know this section has gone for too long already, but there's one more thing to say:
+
+Remember when I said that, despite what the RFC says, the Mapping Rules aren't actually triplets, and you assumed that I said it because the DMR has only one field? There's actually another reason: Mapping Rules are actually 4-tuples. The fourth field is `a`:
+
+	{
+		<Rule IPv6 Prefix>,
+		<Rule IPv4 Prefix>,
+		<EA-bits length>,
+		<a>
+	}
+
+The RFCs seem to be under the impression that `a`, `k` and `m` need to be instance-wide configuration parameters, but the problem is that it forces all the MAP Domains connected to one particular CE/BR to have the same `a`, `k` and `m` values. This might give you some headaches depending on how awkwardly arranged your available IPv4 addresses are.
+
+I have a proof of concept that demonstrates that there is no technical reason to deal with that. Each MAP Domain should be perfectly able to have its own `a`, `k` and `m`, which is why Jool's implementation includes `a` in both BMRs and FMRs.
+
+> ![Note!](../images/bulb.svg) If you're wondering why Mapping Rules need to define `a` but not `k` nor `m`, note that they already have an implicit `k` (`k = q = o - p`, `o` being the EA-bits length and `p` being the suffix length of the Rule IPv4 Prefix), and `m` is just `16 - a - k`.
+
 ### FMR on the CE
+
+> ![Warning!](../images/warning.svg) Under Construction.
 
 The CEs also have an FMR table. When an outgoing destination address matches one of the FMRs, the FMR is used as translation method instead of the DMR. This allows the clients of CEs to communicate directly with the clients of other CEs, without having to use the BR as a middleman.
 
@@ -385,6 +451,4 @@ The CEs also have an FMR table. When an outgoing destination address matches one
 
 In fact, a CE's BMR is usually added to its own FMR table. This allows clients from a MAP domain's CE to speak directly with other clients from the same MAP domain, but different CE.
 
-### `a`, `k` and `m`
 
-> ![Warning!](../images/warning.svg) Under construction

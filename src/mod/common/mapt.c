@@ -127,8 +127,9 @@ static verdict ce46_src(struct xlation *state, __be32 in, struct in6_addr *out)
 				cfg->bmr.prefix6.len + get_p(&cfg->bmr), q);
 
 		if (packet_psid != ce_psid) {
-			log_debug(state, "Port '%u' does not match the PSID assigned to this CE.",
-					state->in.tuple.src.addr4.l4);
+			log_debug(state, "Port '%u' belongs to PSID %u, which does not belong to this CE (PSID: %u).",
+					state->in.tuple.src.addr4.l4,
+					packet_psid, ce_psid);
 			return untranslatable(state, JSTAT_MAPT_PSID);
 		}
 	}

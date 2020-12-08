@@ -82,24 +82,25 @@
      borderopacity="1.0"
      inkscape:pageopacity="0.0"
      inkscape:pageshadow="2"
-     inkscape:zoom="1.3607595"
+     inkscape:zoom="1.3481013"
      inkscape:cx="384"
      inkscape:cy="316"
      inkscape:document-units="px"
-     inkscape:current-layer="layer4"
+     inkscape:current-layer="svg3053"
      showgrid="true"
      inkscape:snap-bbox="true"
      inkscape:snap-bbox-midpoints="true"
      inkscape:window-width="1920"
      inkscape:window-height="1043"
-     inkscape:window-x="0"
+     inkscape:window-x="1920"
      inkscape:window-y="0"
      inkscape:window-maximized="1"
      inkscape:document-rotation="0"
      inkscape:snap-global="true"
      inkscape:snap-text-baseline="true"
      inkscape:pagecheckerboard="false"
-     inkscape:snap-others="false">
+     inkscape:snap-others="false"
+     showguides="false">
     <inkscape:grid
        type="xygrid"
        id="grid3061"
@@ -287,32 +288,21 @@
         <path
            inkscape:connector-curvature="0"
            id="path3046"
-           d="m 30,194.625 -30,9 v 40 l 30,-9 20,6 v -40 z"
-           style="display:inline;fill:#ff9955;stroke:#000000;stroke-width:1;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1" />
-        <rect
-           transform="matrix(1,0.3,0,1,0,-796.36218)"
-           y="1000"
-           x="0"
-           height="40"
-           width="20"
+           d="m 30,194.625 -30,9 v 40 l 20,6.013 30,-9.013 v -40 z"
+           style="display:inline;fill:#ff9955;stroke:#000000;stroke-width:1;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1"
+           sodipodi:nodetypes="ccccccc" />
+        <path
            id="rect3048"
-           style="display:inline;fill:#ffe680;stroke:#000000;stroke-width:1.14459;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1" />
-        <rect
-           style="display:inline;fill:#ff9955;stroke:#000000;stroke-width:1;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1"
+           style="display:inline;fill:none;stroke:#000000;stroke-width:1;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1"
+           transform="matrix(1,0.3,0,1,0,-796.36218)"
+           d="m 0,1000 h 20 v 40"
+           sodipodi:nodetypes="ccc" />
+        <path
            id="rect3050"
-           width="30"
-           height="40"
-           x="20"
-           y="1012"
-           transform="matrix(1,-0.3,0,1,0,-796.36218)" />
-        <rect
-           style="display:inline;fill:#ff9955;stroke:#000000;stroke-width:1;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1"
-           id="rect3052"
-           width="20"
-           height="40"
-           x="0"
-           y="1000"
-           transform="matrix(1,0.3,0,1,0,-796.36218)" />
+           style="display:inline;fill:none;stroke:#000000;stroke-width:1;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1"
+           transform="matrix(1,-0.3,0,1,0,-796.36218)"
+           d="M 20,1012 H 50"
+           sodipodi:nodetypes="cc" />
         <rect
            transform="skewY(16.699244)"
            y="210"
@@ -528,14 +518,14 @@
          id="tspan3041"
          x="150.7739"
          y="168.89867"
-         style="font-size:11px;line-height:1.25;font-family:sans-serif">CE<tspan
-   style="font-size:65%;baseline-shift:sub"
-   id="tspan928" /></tspan><tspan
+         style="font-size:11px;line-height:1.25;font-family:sans-serif">CE</tspan><tspan
          sodipodi:role="line"
          x="150.7739"
          y="182.64867"
          style="font-size:11px;line-height:1.25;font-family:sans-serif"
-         id="tspan1060">0</tspan></text>
+         id="tspan1060">0<tspan
+   style="font-size:65%;baseline-shift:sub"
+   id="tspan1473" /></tspan></text>
     <text
        transform="skewY(-16.476623)"
        xml:space="preserve"
@@ -547,14 +537,14 @@
          id="tspan942"
          x="246.7739"
          y="197.29268"
-         style="font-size:11px;line-height:1.25;font-family:sans-serif">CE<tspan
-   style="font-size:65%;baseline-shift:sub"
-   id="tspan940" /></tspan><tspan
+         style="font-size:11px;line-height:1.25;font-family:sans-serif">CE</tspan><tspan
          sodipodi:role="line"
          x="246.7739"
          y="211.04268"
          style="font-size:11px;line-height:1.25;font-family:sans-serif"
-         id="tspan1062">1</tspan></text>
+         id="tspan1062">1<tspan
+   style="font-size:65%;baseline-shift:sub"
+   id="tspan1471" /></tspan></text>
     <text
        transform="skewY(-16.476623)"
        xml:space="preserve"
@@ -566,14 +556,14 @@
          id="tspan948"
          x="342.7739"
          y="225.68671"
-         style="font-size:11px;line-height:1.25;font-family:sans-serif">CE<tspan
-   style="font-size:65%;baseline-shift:sub"
-   id="tspan946" /></tspan><tspan
+         style="font-size:11px;line-height:1.25;font-family:sans-serif">CE</tspan><tspan
          sodipodi:role="line"
          x="342.7739"
          y="239.43671"
          style="font-size:11px;line-height:1.25;font-family:sans-serif"
-         id="tspan1064">2</tspan></text>
+         id="tspan1064">2<tspan
+   style="font-size:65%;baseline-shift:sub"
+   id="tspan1469" /></tspan></text>
     <text
        transform="skewY(-16.476623)"
        xml:space="preserve"
@@ -585,14 +575,14 @@
          id="tspan954"
          x="470.7739"
          y="263.54517"
-         style="font-size:11px;line-height:1.25;font-family:sans-serif">CE<tspan
-   style="font-size:65%;baseline-shift:sub"
-   id="tspan952" /></tspan><tspan
+         style="font-size:11px;line-height:1.25;font-family:sans-serif">CE</tspan><tspan
          sodipodi:role="line"
          x="470.7739"
          y="277.29517"
          style="font-size:11px;line-height:1.25;font-family:sans-serif"
-         id="tspan1066">31</tspan></text>
+         id="tspan1066">1F<tspan
+   style="font-size:65%;baseline-shift:sub"
+   id="tspan1467" /></tspan></text>
     <text
        transform="skewY(-16.476623)"
        xml:space="preserve"
@@ -604,14 +594,14 @@
          id="tspan893"
          x="150.7739"
          y="296.8988"
-         style="font-size:11px;line-height:1.25;font-family:sans-serif">CE<tspan
-   style="font-size:65%;baseline-shift:sub"
-   id="tspan890" /></tspan><tspan
+         style="font-size:11px;line-height:1.25;font-family:sans-serif">CE</tspan><tspan
          sodipodi:role="line"
          x="150.7739"
          y="310.6488"
          style="font-size:11px;line-height:1.25;font-family:sans-serif"
-         id="tspan1068">32</tspan></text>
+         id="tspan1068">20<tspan
+   style="font-size:65%;baseline-shift:sub"
+   id="tspan1459" /></tspan></text>
     <text
        transform="skewY(-16.476623)"
        xml:space="preserve"
@@ -623,14 +613,14 @@
          id="tspan901"
          x="246.7739"
          y="325.29272"
-         style="font-size:11px;line-height:1.25;font-family:sans-serif">CE<tspan
-   style="font-size:65%;baseline-shift:sub"
-   id="tspan899" /></tspan><tspan
+         style="font-size:11px;line-height:1.25;font-family:sans-serif">CE</tspan><tspan
          sodipodi:role="line"
          x="246.7739"
          y="339.04272"
          style="font-size:11px;line-height:1.25;font-family:sans-serif"
-         id="tspan1070">33</tspan></text>
+         id="tspan1070">21<tspan
+   style="font-size:65%;baseline-shift:sub"
+   id="tspan1461" /></tspan></text>
     <text
        transform="skewY(-16.476623)"
        xml:space="preserve"
@@ -642,14 +632,12 @@
          id="tspan909"
          x="342.7739"
          y="353.68668"
-         style="font-size:11px;line-height:1.25;font-family:sans-serif">CE<tspan
-   style="font-size:65%;baseline-shift:sub"
-   id="tspan907" /></tspan><tspan
+         style="font-size:11px;line-height:1.25;font-family:sans-serif">CE</tspan><tspan
          sodipodi:role="line"
          x="342.7739"
          y="367.43668"
          style="font-size:11px;line-height:1.25;font-family:sans-serif"
-         id="tspan1072">34</tspan></text>
+         id="tspan1072">22</tspan></text>
     <text
        transform="skewY(-16.476623)"
        xml:space="preserve"
@@ -661,14 +649,14 @@
          id="tspan917"
          x="470.7739"
          y="391.54532"
-         style="font-size:11px;line-height:1.25;font-family:sans-serif">CE<tspan
-   style="font-size:65%;baseline-shift:sub"
-   id="tspan915" /></tspan><tspan
+         style="font-size:11px;line-height:1.25;font-family:sans-serif">CE</tspan><tspan
          sodipodi:role="line"
          x="470.7739"
          y="405.29532"
          style="font-size:11px;line-height:1.25;font-family:sans-serif"
-         id="tspan1074">63</tspan></text>
+         id="tspan1074">3F<tspan
+   style="font-size:65%;baseline-shift:sub"
+   id="tspan1465" /></tspan></text>
     <text
        transform="skewY(-16.476623)"
        xml:space="preserve"
@@ -680,14 +668,14 @@
          id="tspan927"
          x="150.7739"
          y="424.89883"
-         style="font-size:11px;line-height:1.25;font-family:sans-serif">CE<tspan
-   style="font-size:65%;baseline-shift:sub"
-   id="tspan925" /></tspan><tspan
+         style="font-size:11px;line-height:1.25;font-family:sans-serif">CE</tspan><tspan
          sodipodi:role="line"
          x="150.7739"
          y="438.64883"
          style="font-size:11px;line-height:1.25;font-family:sans-serif"
-         id="tspan1076">64</tspan></text>
+         id="tspan1076">40<tspan
+   style="font-size:65%;baseline-shift:sub"
+   id="tspan1451" /></tspan></text>
     <text
        transform="skewY(-16.476623)"
        xml:space="preserve"
@@ -699,14 +687,14 @@
          id="tspan935"
          x="246.7739"
          y="453.29276"
-         style="font-size:11px;line-height:1.25;font-family:sans-serif">CE<tspan
-   style="font-size:65%;baseline-shift:sub"
-   id="tspan933" /></tspan><tspan
+         style="font-size:11px;line-height:1.25;font-family:sans-serif">CE</tspan><tspan
          sodipodi:role="line"
          x="246.7739"
          y="467.04276"
          style="font-size:11px;line-height:1.25;font-family:sans-serif"
-         id="tspan1078">65</tspan></text>
+         id="tspan1078">41<tspan
+   style="font-size:65%;baseline-shift:sub"
+   id="tspan1453" /></tspan></text>
     <text
        transform="skewY(-16.476623)"
        xml:space="preserve"
@@ -718,14 +706,14 @@
          id="tspan943"
          x="342.7739"
          y="481.68655"
-         style="font-size:11px;line-height:1.25;font-family:sans-serif">CE<tspan
-   style="font-size:65%;baseline-shift:sub"
-   id="tspan941" /></tspan><tspan
+         style="font-size:11px;line-height:1.25;font-family:sans-serif">CE</tspan><tspan
          sodipodi:role="line"
          x="342.7739"
          y="495.43655"
          style="font-size:11px;line-height:1.25;font-family:sans-serif"
-         id="tspan1080">66</tspan></text>
+         id="tspan1080">42<tspan
+   style="font-size:65%;baseline-shift:sub"
+   id="tspan1455" /></tspan></text>
     <text
        transform="skewY(-16.476623)"
        xml:space="preserve"
@@ -737,18 +725,18 @@
          id="tspan951"
          x="470.7739"
          y="519.54529"
-         style="font-size:11px;line-height:1.25;font-family:sans-serif">CE<tspan
-   style="font-size:65%;baseline-shift:sub"
-   id="tspan949" /></tspan><tspan
+         style="font-size:11px;line-height:1.25;font-family:sans-serif">CE</tspan><tspan
          sodipodi:role="line"
          x="470.7739"
          y="533.29529"
          style="font-size:11px;line-height:1.25;font-family:sans-serif"
-         id="tspan1082">95</tspan></text>
+         id="tspan1082">5F<tspan
+   style="font-size:65%;baseline-shift:sub"
+   id="tspan1457" /></tspan></text>
     <text
        transform="skewY(-16.476623)"
        xml:space="preserve"
-       style="font-style:normal;font-weight:normal;line-height:0%;font-family:sans-serif;text-align:center;letter-spacing:0px;word-spacing:0px;text-anchor:middle;display:inline;fill:#000000;fill-opacity:1;stroke:none"
+       style="font-style:normal;font-weight:normal;font-size:11px;line-height:0%;font-family:sans-serif;text-align:center;letter-spacing:0px;word-spacing:0px;text-anchor:middle;display:inline;fill:#000000;fill-opacity:1;stroke:none"
        x="150.7739"
        y="600.89868"
        id="text961"><tspan
@@ -756,18 +744,18 @@
          id="tspan959"
          x="150.7739"
          y="600.89868"
-         style="font-size:11px;line-height:1.25;font-family:sans-serif">CE<tspan
-   style="font-size:65%;baseline-shift:sub"
-   id="tspan957" /></tspan><tspan
+         style="font-size:11px;line-height:1.25;font-family:sans-serif">CE</tspan><tspan
          sodipodi:role="line"
          x="150.7739"
          y="614.64868"
          style="font-size:11px;line-height:1.25;font-family:sans-serif"
-         id="tspan1084">8160</tspan></text>
+         id="tspan1084">1FE0<tspan
+   style="font-size:11px;baseline-shift:sub"
+   id="tspan1449" /></tspan></text>
     <text
        transform="skewY(-16.476623)"
        xml:space="preserve"
-       style="font-style:normal;font-weight:normal;line-height:0%;font-family:sans-serif;text-align:center;letter-spacing:0px;word-spacing:0px;text-anchor:middle;display:inline;fill:#000000;fill-opacity:1;stroke:none"
+       style="font-style:normal;font-weight:normal;font-size:11px;line-height:0%;font-family:sans-serif;text-align:center;letter-spacing:0px;word-spacing:0px;text-anchor:middle;display:inline;fill:#000000;fill-opacity:1;stroke:none"
        x="246.7739"
        y="629.29272"
        id="text969"><tspan
@@ -780,11 +768,13 @@
          x="246.7739"
          y="643.04272"
          style="font-size:11px;line-height:1.25;font-family:sans-serif"
-         id="tspan1086">8161</tspan></text>
+         id="tspan1086">1FE1<tspan
+   style="font-size:11px;baseline-shift:sub"
+   id="tspan1447" /></tspan></text>
     <text
        transform="skewY(-16.476623)"
        xml:space="preserve"
-       style="font-style:normal;font-weight:normal;line-height:0%;font-family:sans-serif;text-align:center;letter-spacing:0px;word-spacing:0px;text-anchor:middle;display:inline;fill:#000000;fill-opacity:1;stroke:none"
+       style="font-style:normal;font-weight:normal;font-size:11px;line-height:0%;font-family:sans-serif;text-align:center;letter-spacing:0px;word-spacing:0px;text-anchor:middle;display:inline;fill:#000000;fill-opacity:1;stroke:none"
        x="342.7739"
        y="657.68665"
        id="text977"><tspan
@@ -792,18 +782,18 @@
          id="tspan975"
          x="342.7739"
          y="657.68665"
-         style="font-size:11px;line-height:1.25;font-family:sans-serif">CE<tspan
-   style="font-size:65%;baseline-shift:sub"
-   id="tspan973" /></tspan><tspan
+         style="font-size:11px;line-height:1.25;font-family:sans-serif">CE</tspan><tspan
          sodipodi:role="line"
          x="342.7739"
          y="671.43665"
          style="font-size:11px;line-height:1.25;font-family:sans-serif"
-         id="tspan1092">8162</tspan></text>
+         id="tspan1092">1FE2<tspan
+   style="font-size:11px;baseline-shift:sub"
+   id="tspan1445" /></tspan></text>
     <text
        transform="skewY(-16.476623)"
        xml:space="preserve"
-       style="font-style:normal;font-weight:normal;line-height:0%;font-family:sans-serif;text-align:center;letter-spacing:0px;word-spacing:0px;text-anchor:middle;display:inline;fill:#000000;fill-opacity:1;stroke:none"
+       style="font-style:normal;font-weight:normal;font-size:11px;line-height:0%;font-family:sans-serif;text-align:center;letter-spacing:0px;word-spacing:0px;text-anchor:middle;display:inline;fill:#000000;fill-opacity:1;stroke:none"
        x="470.7739"
        y="695.54529"
        id="text985"><tspan
@@ -811,14 +801,14 @@
          id="tspan983"
          x="470.7739"
          y="695.54529"
-         style="font-size:11px;line-height:1.25;font-family:sans-serif">CE<tspan
-   style="font-size:65%;baseline-shift:sub"
-   id="tspan981" /></tspan><tspan
+         style="font-size:11px;line-height:1.25;font-family:sans-serif">CE</tspan><tspan
          sodipodi:role="line"
          x="470.7739"
          y="709.29529"
          style="font-size:11px;line-height:1.25;font-family:sans-serif"
-         id="tspan1094">8191</tspan></text>
+         id="tspan1094">1FFF<tspan
+   style="font-size:11px;baseline-shift:sub"
+   id="tspan1443" /></tspan></text>
     <text
        xml:space="preserve"
        style="font-style:normal;font-weight:normal;line-height:0%;font-family:sans-serif;text-align:center;letter-spacing:0px;word-spacing:0px;text-anchor:middle;display:inline;fill:#ffffff;fill-opacity:1;stroke:none"
@@ -907,7 +897,9 @@
          sodipodi:role="line"
          x="128"
          y="32"
-         id="tspan1247">Port Set 0</tspan></text>
+         id="tspan1247">Port Set 0<tspan
+   style="font-size:65%;baseline-shift:sub"
+   id="tspan1475" /></tspan></text>
     <text
        xml:space="preserve"
        style="font-size:10px;line-height:1.25;font-family:sans-serif;text-align:center;letter-spacing:0px;text-anchor:middle"
@@ -917,7 +909,9 @@
          sodipodi:role="line"
          x="224"
          y="32"
-         id="tspan1253">Port Set 1</tspan></text>
+         id="tspan1253">Port Set 1<tspan
+   style="font-size:65%;baseline-shift:sub"
+   id="tspan1477" /></tspan></text>
     <text
        xml:space="preserve"
        style="font-size:10px;line-height:1.25;font-family:sans-serif;text-align:center;letter-spacing:0px;text-anchor:middle"
@@ -927,7 +921,9 @@
          sodipodi:role="line"
          x="320"
          y="32"
-         id="tspan1259">Port Set 2</tspan></text>
+         id="tspan1259">Port Set 2<tspan
+   style="font-size:65%;baseline-shift:sub"
+   id="tspan1479" /></tspan></text>
     <text
        xml:space="preserve"
        style="font-size:10px;line-height:1.25;font-family:sans-serif;text-align:center;letter-spacing:0px;text-anchor:middle"
@@ -937,7 +933,9 @@
          sodipodi:role="line"
          x="448"
          y="32"
-         id="tspan1265">Port Set 31</tspan></text>
+         id="tspan1265">Port Set 31<tspan
+   style="font-size:65%;baseline-shift:sub"
+   id="tspan1481" /></tspan></text>
     <text
        xml:space="preserve"
        style="font-size:8px;line-height:1.25;font-family:sans-serif;text-align:center;letter-spacing:0px;text-anchor:middle"
@@ -1264,9 +1262,7 @@
          sodipodi:role="line"
          id="tspan4797"
          x="640"
-         y="480">8162<tspan
-   style="font-size:65%;baseline-shift:sub;fill:#000000"
-   id="tspan4801">10</tspan> = 1FE2<tspan
+         y="480">1FE2<tspan
    style="font-size:65%;baseline-shift:sub;fill:#000000"
    id="tspan4803">16</tspan> = <tspan
    style="fill:#aa00d4;fill-opacity:1"

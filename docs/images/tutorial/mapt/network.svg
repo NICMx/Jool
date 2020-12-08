@@ -12,7 +12,7 @@
    height="256"
    id="svg3053"
    version="1.1"
-   inkscape:version="1.0.1 (3bc2e813f5, 2020-09-07)"
+   inkscape:version="1.0.1 (0767f8302a, 2020-10-17)"
    sodipodi:docname="network.svg">
   <defs
      id="defs3055">
@@ -53,7 +53,7 @@
      borderopacity="1.0"
      inkscape:pageopacity="0.0"
      inkscape:pageshadow="2"
-     inkscape:zoom="3.1108491"
+     inkscape:zoom="3.1509434"
      inkscape:cx="212"
      inkscape:cy="128"
      inkscape:document-units="px"
@@ -63,7 +63,7 @@
      inkscape:snap-bbox-midpoints="true"
      inkscape:window-width="1920"
      inkscape:window-height="1043"
-     inkscape:window-x="0"
+     inkscape:window-x="1920"
      inkscape:window-y="0"
      inkscape:window-maximized="1"
      inkscape:document-rotation="0"
@@ -250,7 +250,7 @@
          x="138.97346"
          y="811.52106"
          style="font-size:11px;line-height:1.25;font-family:sans-serif"
-         id="tspan970">501</tspan></text>
+         id="tspan970">11b</tspan></text>
     <use
        x="0"
        y="0"
@@ -298,7 +298,7 @@
          x="138.97346"
          y="939.52106"
          style="font-size:11px;line-height:1.25;font-family:sans-serif"
-         id="tspan972">7704</tspan></text>
+         id="tspan972">774</tspan></text>
     <text
        xml:space="preserve"
        style="font-size:10px;line-height:1.25;font-family:sans-serif;text-align:start;letter-spacing:0px;text-anchor:start"
@@ -308,7 +308,9 @@
          sodipodi:role="line"
          id="tspan889"
          x="192"
-         y="688.36218">192.0.2.15, PSID 21 (ports 43008-45055)</tspan></text>
+         y="688.36218">192.0.2.8, PSID 27<tspan
+   style="font-size:65%;baseline-shift:sub"
+   id="tspan911">10</tspan> (ports 55296-57343)</tspan></text>
     <text
        xml:space="preserve"
        style="font-size:10px;line-height:1.25;font-family:sans-serif;letter-spacing:0px"
@@ -318,7 +320,9 @@
          sodipodi:role="line"
          id="tspan897"
          x="196"
-         y="912.36218">192.0.2.240, PSID 24 (ports 49152-51199)</tspan></text>
+         y="912.36218">192.0.2.59, PSID 14<tspan
+   style="font-size:65%;baseline-shift:sub"
+   id="tspan913">10</tspan> (ports 28672-30719)</tspan></text>
     <path
        style="fill:none;stroke:#000000;stroke-width:2;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1;marker-end:url(#marker1092)"
        d="m 184,692.36218 -32,24"
@@ -398,7 +402,7 @@
          y="844.36218">.56</tspan></text>
     <text
        xml:space="preserve"
-       style="display:inline;font-size:10px;line-height:1.25;font-family:sans-serif;text-align:end;letter-spacing:0px;text-anchor:end"
+       style="font-size:10px;line-height:1.25;font-family:sans-serif;text-align:end;letter-spacing:0px;text-anchor:end;display:inline"
        x="248"
        y="836.36218"
        id="text909"><tspan
@@ -415,7 +419,7 @@
          sodipodi:role="line"
          id="tspan917"
          x="160"
-         y="748.36218">::501</tspan></text>
+         y="748.36218">::11b</tspan></text>
     <text
        xml:space="preserve"
        style="font-size:10px;line-height:1.25;font-family:sans-serif;letter-spacing:0px"
@@ -425,7 +429,7 @@
          sodipodi:role="line"
          id="tspan921"
          x="160"
-         y="876.36218">::7704</tspan></text>
+         y="876.36218">::774</tspan></text>
     <text
        xml:space="preserve"
        style="font-size:10px;line-height:1.25;font-family:sans-serif;text-align:center;letter-spacing:0px;text-anchor:middle"
@@ -435,7 +439,7 @@
          sodipodi:role="line"
          id="tspan925"
          x="216"
-         y="724.36218">2001:db8:0:6::/64</tspan></text>
+         y="724.36218">2001:db8:6::/64</tspan></text>
     <text
        xml:space="preserve"
        style="font-size:10px;line-height:1.25;font-family:sans-serif;letter-spacing:0px"
