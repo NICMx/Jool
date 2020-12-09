@@ -103,9 +103,13 @@ bool ASSERT_ADDR6(char const *expected_str,
 	if (!expected_str)
 		return __ASSERT_ADDR6(NULL, actual, test_name);
 
-	return str_to_addr6(expected_str, &expected)
-			? false
-			: __ASSERT_ADDR6(&expected, actual, test_name);
+	if (str_to_addr6(expected_str, &expected)) {
+		pr_err("Test '%s' failed.\n  Cannot parse '%s' as an IPv6 address.\n",
+				test_name, expected_str);
+		return false;
+	}
+
+	return __ASSERT_ADDR6(&expected, actual, test_name);
 }
 EXPORT_SYMBOL_GPL(ASSERT_ADDR6);
 

@@ -43,7 +43,7 @@ static verdict xlat64_external_addresses(struct xlation *state)
 
 	case XT_MAPT:
 		return translate_addrs64_mapt(state, &flow->saddr, &flow->daddr,
-				false);
+				true);
 	}
 
 	WARN(1, "xlator type is not SIIT, NAT64 nor MAP-T: %u",
@@ -83,7 +83,7 @@ static verdict xlat64_internal_addresses(struct xlation *state)
 		result = translate_addrs64_mapt(state,
 				&state->flowx.v4.inner_src.s_addr,
 				&state->flowx.v4.inner_dst.s_addr,
-				true);
+				false);
 		break;
 	default:
 		WARN(1, "Unknown xlator type: %u",

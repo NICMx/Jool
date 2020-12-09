@@ -144,7 +144,7 @@ static struct wargp_option add_opts[] = {
 	}, {
 		.name = "a",
 		.key = 'a',
-		.doc = "a", /* TODO (MAP-T) */
+		.doc = "Length of the MAP Domain's port structure's 'i' field (aka. 'A'), in bits.",
 		.offset = offsetof(struct add_args, a),
 		.type = &wt_u8,
 	},

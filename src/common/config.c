@@ -214,3 +214,4 @@ char const *xt2str(xlator_type xt)
 
 	return "Unknown";
 }
+EXPORT_UNIT_SYMBOL(xt2str)

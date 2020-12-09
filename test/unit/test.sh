@@ -8,6 +8,8 @@ fi
 COUNT=0
 
 sudo dmesg -C
+sudo modprobe jool_common
+sudo insmod framework/unit.ko
 
 for i in $TESTS
 do
@@ -23,4 +25,6 @@ do
 	COUNT=$((COUNT+1))
 done
 
+sudo rmmod unit.ko
+sudo modprobe -r jool_common
 echo "Ran $COUNT modules."

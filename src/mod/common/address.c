@@ -230,8 +230,9 @@ void addr6_set_bit(struct in6_addr *addr, unsigned int pos, bool value)
 unsigned int addr4_get_bits(__be32 addr, unsigned int offset,
 		unsigned int len)
 {
-	return (be32_to_cpu(addr) >> (32u - offset - len))
-			& ((1u << len) - 1u);
+	unsigned int result;
+	result = be32_to_cpu(addr) >> (32u - offset - len);
+	return (len != 32) ? (result & ((1u << len) - 1u)) : result;
 }
 
 unsigned int addr6_get_bits(struct in6_addr const *addr,

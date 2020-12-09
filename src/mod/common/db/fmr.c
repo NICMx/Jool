@@ -103,16 +103,42 @@ static void __revert_add6(struct fmr_table *fmrt, struct ipv6_prefix *prefix6)
 			error);
 }
 
+static int validate_mapping_rule(struct mapping_rule *rule)
+{
+	unsigned int k;
+	int error;
+
+	error = prefix6_validate(&rule->prefix6);
+	if (error)
+		return error;
+	error = prefix4_validate(&rule->prefix4);
+	if (error)
+		return error;
+	if (rule->ea_bits_length > 48) {
+		log_err("EA-bits Length > 48.");
+		return -EINVAL;
+	}
+
+	if (rule->ea_bits_length + rule->prefix4.len <= 32u)
+		return 0; /* a, k and m only matter when o + r > 32. */
+
+	k = rule->ea_bits_length - (32u - rule->prefix4.len);
+	if (rule->a + k > 16u) {
+		log_err("a + k > 16.");
+		log_err("(a:%u, k = EA-bits length - IPv4 suffix length = %u - %u)",
+				rule->a, rule->ea_bits_length,
+				32u - rule->prefix4.len);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 int fmrt_add(struct fmr_table *fmrt, struct mapping_rule *new)
 {
 	int error;
 
-	/* TODO (MAP-T) This seems to be missing lots of validations */
-
-	error = prefix6_validate(&new->prefix6);
-	if (error)
-		return error;
-	error = prefix4_validate(&new->prefix4);
+	error = validate_mapping_rule(new);
 	if (error)
 		return error;
 

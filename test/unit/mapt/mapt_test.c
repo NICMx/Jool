@@ -8,6 +8,7 @@
 #include "mod/common/packet.h"
 #include "mod/common/db/fmr.h"
 #include "mod/common/db/global.h"
+#include "mod/common/steps/determine_incoming_tuple.h"
 
 MODULE_LICENSE(JOOL_LICENSE);
 MODULE_AUTHOR("Alberto Leiva");
@@ -22,43 +23,45 @@ verdict rule_xlat46(struct xlation *state, struct mapping_rule *rule,
 
 static int setup_mapt(void)
 {
-	struct ipv6_prefix pool6;
-	struct ipv6_prefix eui6p;
-	struct mapping_rule bmr;
+	struct jool_globals globals;
 	int error;
 
-	error = prefix6_parse("2001:db8:ffff::/64", &pool6);
+	error = globals_init(&globals, XT_MAPT);
 	if (error)
 		return error;
 
-	error = xlator_init(&br, NULL, "BR", XT_MAPT | XF_IPTABLES, &pool6);
-	if (error)
-		return error;
-	error = xlator_init(&ce, NULL, "CE", XT_MAPT | XF_IPTABLES, &pool6);
+	globals.pool6.set = true;
+	error = prefix6_parse("2001:db8:ffff::/64", &globals.pool6.prefix);
 	if (error)
 		return error;
 
-	bmr.ea_bits_length = 16;
-	error = prefix6_parse("2001:db8:12:3400::/56", &eui6p)
-	    || prefix6_parse("2001:db8::/40", &bmr.prefix6)
-	    || prefix4_parse("192.0.2.0/24", &bmr.prefix4);
+	error = xlator_init(&br, NULL, "BR", XT_MAPT | XF_IPTABLES, &globals);
+	if (error)
+		return error;
+	error = xlator_init(&ce, NULL, "CE", XT_MAPT | XF_IPTABLES, &globals);
 	if (error)
 		return error;
 
 	memset(&br.globals.mapt, 0, sizeof(br.globals.mapt));
-	br.globals.mapt.a = 6;
-	memset(&ce.globals.mapt, 0, sizeof(ce.globals.mapt));
-	ce.globals.mapt.eui6p.set = true;
-	ce.globals.mapt.eui6p.prefix = eui6p;
-	ce.globals.mapt.bmr_p6.set = true;
-	ce.globals.mapt.bmr_p6.set = true;
-	ce.globals.mapt.bmr_p6.prefix = bmr.prefix6;
-	ce.globals.mapt.bmr_p4.set = true;
-	ce.globals.mapt.bmr_p4.prefix = bmr.prefix4;
-	ce.globals.mapt.bmr_ebl = bmr.ea_bits_length;
-	ce.globals.mapt.a = 6;
+	br.globals.mapt.type = MAPTYPE_BR;
 
-	return fmrt_add(br.mapt.fmrt, &bmr);
+	memset(&ce.globals.mapt, 0, sizeof(ce.globals.mapt));
+	ce.globals.mapt.type = MAPTYPE_CE;
+	error = prefix6_parse("2001:db8:12:3400::/56", &ce.globals.mapt.eui6p);
+	if (error)
+		return error;
+	error = prefix6_parse("2001:db8::/40", &ce.globals.mapt.bmr.prefix6);
+	if (error)
+		return error;
+	error = prefix4_parse("192.0.2.0/24", &ce.globals.mapt.bmr.prefix4);
+	if (error)
+		return error;
+	ce.globals.mapt.bmr.ea_bits_length = 16;
+	ce.globals.mapt.bmr.a = 6;
+
+	ce.globals.debug = true;
+
+	return fmrt_add(br.mapt.fmrt, &ce.globals.mapt.bmr);
 }
 
 void teardown_mapt(void)
@@ -75,13 +78,17 @@ static bool br46(void)
 	struct in6_addr dst;
 	bool success;
 
+	memset(&src, 0, sizeof(src));
+	memset(&dst, 0, sizeof(dst));
 	xlation_init(&state, &br);
 	if (!ASSERT_INT(0, create_skb4_tcp("10.2.3.4", 80, "192.0.2.18", 1232, 4, 64, &state.in.skb), "SKB creator"))
 		return false;
 	if (!ASSERT_INT(0, pkt_init_ipv4(&state, state.in.skb), "Pkt init"))
 		return false;
+	if (!ASSERT_VERDICT(CONTINUE, determine_in_tuple(&state), "DIT"))
+		return false;
 
-	success  = ASSERT_INT(VERDICT_CONTINUE, translate_addrs46_mapt(&state, &src, &dst), "translate_addrs46_mapt()");
+	success  = ASSERT_VERDICT(CONTINUE, translate_addrs46_mapt(&state, &src, &dst, true), "translate_addrs46_mapt()");
 	success &= ASSERT_ADDR6("2001:db8:ffff:0:a:203:0400::", &src, "Result source");
 	success &= ASSERT_ADDR6("2001:db8:12:3400::c000:212:34", &dst, "Result destination");
 
@@ -102,7 +109,7 @@ static bool br64(void)
 	if (!ASSERT_INT(0, pkt_init_ipv6(&state, state.in.skb), "Pkt init"))
 		return false;
 
-	success  = ASSERT_INT(VERDICT_CONTINUE, translate_addrs64_mapt(&state, &src.s_addr, &dst.s_addr), "translate_addrs64_mapt()");
+	success  = ASSERT_VERDICT(CONTINUE, translate_addrs64_mapt(&state, &src.s_addr, &dst.s_addr, true), "translate_addrs64_mapt()");
 	success &= ASSERT_ADDR4("192.0.2.18", &src, "Result source");
 	success &= ASSERT_ADDR4("10.2.3.4", &dst, "Result destination");
 
@@ -118,13 +125,17 @@ static bool ce46(void)
 	struct in6_addr dst;
 	bool success;
 
+	memset(&src, 0, sizeof(src));
+	memset(&dst, 0, sizeof(dst));
 	xlation_init(&state, &ce);
 	if (!ASSERT_INT(0, create_skb4_tcp("192.0.2.18", 1232, "10.2.3.4", 80, 4, 64, &state.in.skb), "SKB creator"))
 		return false;
 	if (!ASSERT_VERDICT(CONTINUE, pkt_init_ipv4(&state, state.in.skb), "Pkt init"))
 		return false;
+	if (!ASSERT_VERDICT(CONTINUE, determine_in_tuple(&state), "DIT"))
+		return false;
 
-	success  = ASSERT_VERDICT(CONTINUE, translate_addrs46_mapt(&state, &src, &dst), "translate_addrs46_mapt()");
+	success  = ASSERT_VERDICT(CONTINUE, translate_addrs46_mapt(&state, &src, &dst, true), "translate_addrs46_mapt()");
 	success &= ASSERT_ADDR6("2001:db8:12:3400::c000:212:34", &src, "Result source");
 	success &= ASSERT_ADDR6("2001:db8:ffff:0:a:203:400::", &dst, "Result destination");
 
@@ -145,13 +156,15 @@ static bool ce64(void)
 	if (!ASSERT_VERDICT(CONTINUE, pkt_init_ipv6(&state, state.in.skb), "Pkt init"))
 		return false;
 
-	success  = ASSERT_VERDICT(CONTINUE, translate_addrs64_mapt(&state, &src.s_addr, &dst.s_addr), "translate_addrs64_mapt()");
+	success  = ASSERT_VERDICT(CONTINUE, translate_addrs64_mapt(&state, &src.s_addr, &dst.s_addr, true), "translate_addrs64_mapt()");
 	success &= ASSERT_ADDR4("10.2.3.4", &src, "Result source");
 	success &= ASSERT_ADDR4("192.0.2.18", &dst, "Result destination");
 
 	kfree_skb(state.in.skb);
 	return success;
 }
+
+static unsigned int bmr_prefix4;
 
 static bool check_variant(unsigned int a, unsigned int r, unsigned int o,
 		char const *test, unsigned int port, char const *expected)
@@ -163,19 +176,20 @@ static bool check_variant(unsigned int a, unsigned int r, unsigned int o,
 	bool success;
 
 	xlation_init(&state, &ce);
-	state.jool.globals.mapt.a = a;
 
 	memset(&rule, 0, sizeof(rule));
 	rule.prefix6.addr.s6_addr32[0] = cpu_to_be32(0x20010db8);
 	rule.prefix6.len = 64 - o;
-	rule.prefix4.addr.s_addr = cpu_to_be32(0xc0000200);
+	rule.prefix4.addr.s_addr = cpu_to_be32(bmr_prefix4);
 	rule.prefix4.len = r;
 	rule.ea_bits_length = o;
+	rule.a = a;
 
 	if (!ASSERT_INT(0, str_to_addr4(test, &addr4), "IPv4 Address")) {
 		pr_err("'%s' does not parse as an IPv4 address.\n", test);
 		return false;
 	}
+	memset(&addr6, 0, sizeof(addr6));
 
 	pr_info("a:%u r:%u o:%u %s:%u\n", a, r, o, test, port);
 
@@ -193,6 +207,8 @@ static bool check_variant(unsigned int a, unsigned int r, unsigned int o,
 static bool o_plus_r_he_32(void)
 {
 	bool success = true;
+
+	bmr_prefix4 = 0xc0000200;
 
 	/*
 	 * See rfc7597#section-5.2.
@@ -269,6 +285,8 @@ static bool o_plus_r_lt_32(void)
 {
 	bool success = true;
 
+	bmr_prefix4 = 0xc6336400;
+
 	/*
 	 * o + r < 32
 	 *
@@ -278,12 +296,12 @@ static bool o_plus_r_lt_32(void)
 	 * a, k and m do not exist
 	 */
 
-	success &= check_variant(0,  8,  8, "198.51.100.89", 1234, "2001:db8:0:33::c633:6459:0");
-	success &= check_variant(0, 16, 15, "198.51.100.89", 1234, "2001:db8:0:322c::c633:6459:0");
-	success &= check_variant(0, 15, 16, "198.51.100.89", 1234, "2001:db8:0:b22c::c633:6459:0");
-	success &= check_variant(0,  0,  0, "198.51.100.89", 1234, "2001:db8::c633:6459:0");
-	success &= check_variant(0,  0, 31, "198.51.100.89", 1234, "2001:db8:6319:b22c::c633:6459:0");
-	success &= check_variant(0, 31,  0, "198.51.100.89", 1234, "2001:db8::c633:6459:0");
+	success &= check_variant(0,  8,  8, "198.51.100.89", 1234, "2001:db8:0:33:6459:c633:6459:0");
+	success &= check_variant(0, 16, 15, "198.51.100.89", 1234, "2001:db8:0:322c:8000:c633:6459:0");
+	success &= check_variant(0, 15, 16, "198.51.100.89", 1234, "2001:db8:0:b22c:8000:c633:6459:0");
+	success &= check_variant(0,  0,  0, "198.51.100.89", 1234, "2001:db8::c633:6459:6459:0");
+	success &= check_variant(0,  0, 31, "198.51.100.89", 1234, "2001:db8:6319:b22c:8000:c633:6459:0");
+	success &= check_variant(0, 31,  0, "198.51.100.89", 1234, "2001:db8::8000:c633:6459:0");
 
 	return success;
 }

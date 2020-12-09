@@ -95,7 +95,7 @@ static void set_interface_id(__be32 in, struct in6_addr *out, unsigned int psid)
 	out->s6_addr16[7] = cpu_to_be16(psid);
 }
 
-static verdict ce46_src(struct xlation *state, __be32 in, struct in6_addr *out)
+static verdict ce46_bmr(struct xlation *state, __be32 in, struct in6_addr *out)
 {
 	struct mapt_globals *cfg;
 	unsigned int q;
@@ -110,8 +110,7 @@ static verdict ce46_src(struct xlation *state, __be32 in, struct in6_addr *out)
 	if (!__prefix4_contains(&cfg->bmr.prefix4, in)) {
 		log_debug(state, "Address '%pI4' does not match the BMR assigned to this CE.",
 				&in);
-		/* TODO (MAP-T) stat */
-		return untranslatable(state, JSTAT_MAPT_PSID);
+		return untranslatable(state, JSTAT_MAPT_ADDR4);
 	}
 
 	/* Check the NAPT made sure the port belongs to us */
@@ -200,7 +199,7 @@ EXPORT_UNIT_STATIC verdict rule_xlat46(struct xlation *state,
 }
 EXPORT_UNIT_SYMBOL(rule_xlat46);
 
-static verdict ce46_dst(struct xlation *state, __be32 in, struct in6_addr *out)
+static verdict ce46_remote(struct xlation *state, __be32 in, struct in6_addr *out)
 {
 	struct mapping_rule fmr;
 	int error;
@@ -223,12 +222,12 @@ static verdict ce46_dst(struct xlation *state, __be32 in, struct in6_addr *out)
 	return drop(state, JSTAT_UNKNOWN);
 }
 
-static verdict br46_src(struct xlation *state, __be32 in, struct in6_addr *out)
+static verdict br46_dmr(struct xlation *state, __be32 in, struct in6_addr *out)
 {
 	return use_pool6_46(state, in, out);
 }
 
-static verdict br46_dst(struct xlation *state, __be32 in, struct in6_addr *out)
+static verdict br46_fmr(struct xlation *state, __be32 in, struct in6_addr *out)
 {
 	struct mapping_rule fmr;
 	int error;
@@ -257,7 +256,7 @@ static verdict attempt_6791_fallback_46(struct xlation *state,
 
 	if (rfc6791v6_find(state, out)) {
 		log_debug(state, "The pool6791v6 fallback didn't work.");
-		/* TODO (MAP-T) positive 6791 counter? */
+		/* TODO (fine) positive 6791 counter? */
 		return untranslatable(state, JSTAT46_6791_ENOENT);
 	}
 
@@ -265,7 +264,7 @@ static verdict attempt_6791_fallback_46(struct xlation *state,
 }
 
 verdict translate_addrs46_mapt(struct xlation *state, struct in6_addr *out_src,
-		struct in6_addr *out_dst, bool invert)
+		struct in6_addr *out_dst, bool external)
 {
 	struct iphdr *in = pkt_ip4_hdr(&state->in);
 	xlat46_cb src_cb;
@@ -274,12 +273,22 @@ verdict translate_addrs46_mapt(struct xlation *state, struct in6_addr *out_src,
 
 	switch (state->jool.globals.mapt.type) {
 	case MAPTYPE_CE:
-		src_cb = invert ? ce46_dst : ce46_src;
-		dst_cb = invert ? ce46_src : ce46_dst;
+		if (external) {
+			src_cb = ce46_bmr;
+			dst_cb = ce46_remote;
+		} else {
+			src_cb = ce46_remote;
+			dst_cb = ce46_bmr;
+		}
 		break;
 	case MAPTYPE_BR:
-		src_cb = invert ? br46_dst : br46_src;
-		dst_cb = invert ? br46_src : br46_dst;
+		if (external) {
+			src_cb = br46_dmr;
+			dst_cb = br46_fmr;
+		} else {
+			src_cb = br46_fmr;
+			dst_cb = br46_dmr;
+		}
 		break;
 	default:
 		log_debug(state, "Unknown MAP type: %d",
@@ -322,11 +331,6 @@ static verdict use_pool6_64(struct xlation *state, struct in6_addr const *in,
 		return untranslatable(state, JSTAT_MAPT_POOL6);
 	}
 
-	/* TODO (mapt) this probably only works for external packets */
-	if (state->jool.globals.mapt.type == MAPTYPE_BR &&
-	    fmrt_find4(state->jool.mapt.fmrt, __out.s_addr, NULL) == 0)
-		state->is_hairpin_1 = true;
-
 	*out = __out.s_addr;
 	return VERDICT_CONTINUE;
 }
@@ -340,7 +344,7 @@ static void extract_addr_64(struct mapping_rule *rule,
 	);
 }
 
-static verdict ce64_src(struct xlation *state, struct in6_addr const *in,
+static verdict ce64_remote(struct xlation *state, struct in6_addr const *in,
 		__be32 *out)
 {
 	struct mapping_rule fmr;
@@ -359,7 +363,7 @@ static verdict ce64_src(struct xlation *state, struct in6_addr const *in,
 	return drop(state, JSTAT_UNKNOWN);
 }
 
-static verdict ce64_dst(struct xlation *state, struct in6_addr const *in,
+static verdict ce64_island(struct xlation *state, struct in6_addr const *in,
 		__be32 *out)
 {
 	struct mapt_globals *cfg = &state->jool.globals.mapt;
@@ -373,7 +377,7 @@ static verdict ce64_dst(struct xlation *state, struct in6_addr const *in,
 	return VERDICT_CONTINUE;
 }
 
-static verdict br64_src(struct xlation *state, struct in6_addr const *in,
+static verdict br64_fmr(struct xlation *state, struct in6_addr const *in,
 		__be32 *out)
 {
 	struct mapping_rule fmr;
@@ -393,8 +397,23 @@ static verdict br64_src(struct xlation *state, struct in6_addr const *in,
 	return drop(state, JSTAT_UNKNOWN);
 }
 
-static verdict br64_dst(struct xlation *state, struct in6_addr const *in,
-		__be32 *out)
+static verdict br64_dmr_external(struct xlation *state,
+		struct in6_addr const *in, __be32 *out)
+{
+	verdict result;
+
+	result = use_pool6_64(state, in, out);
+	if (result != VERDICT_CONTINUE)
+		return result;
+
+	if (fmrt_find4(state->jool.mapt.fmrt, *out, NULL) == 0)
+		state->is_hairpin_1 = true;
+
+	return VERDICT_CONTINUE;
+}
+
+static verdict br64_dmr_internal(struct xlation *state,
+		struct in6_addr const *in, __be32 *out)
 {
 	return use_pool6_64(state, in, out);
 }
@@ -410,7 +429,7 @@ static verdict attempt_6791_fallback_64(struct xlation *state, __be32 *out)
 
 	if (rfc6791v4_find(state, &tmp)) {
 		log_debug(state, "The pool6791v6 fallback didn't work.");
-		/* TODO (MAP-T) positive 6791 counter? */
+		/* TODO (fine) positive 6791 counter? */
 		return untranslatable(state, JSTAT64_6791_ENOENT);
 	}
 
@@ -419,7 +438,7 @@ static verdict attempt_6791_fallback_64(struct xlation *state, __be32 *out)
 }
 
 verdict translate_addrs64_mapt(struct xlation *state, __be32 *out_src,
-		__be32 *out_dst, bool invert)
+		__be32 *out_dst, bool external)
 {
 	struct ipv6hdr *in = pkt_ip6_hdr(&state->in);
 	xlat64_cb src_cb;
@@ -428,12 +447,22 @@ verdict translate_addrs64_mapt(struct xlation *state, __be32 *out_src,
 
 	switch (state->jool.globals.mapt.type) {
 	case MAPTYPE_CE:
-		src_cb = invert ? ce64_dst : ce64_src;
-		dst_cb = invert ? ce64_src : ce64_dst;
+		if (external) {
+			src_cb = ce64_remote;
+			dst_cb = ce64_island;
+		} else {
+			src_cb = ce64_island;
+			dst_cb = ce64_remote;
+		}
 		break;
 	case MAPTYPE_BR:
-		src_cb = invert ? br64_dst : br64_src;
-		dst_cb = invert ? br64_src : br64_dst;
+		if (external) {
+			src_cb = br64_fmr;
+			dst_cb = br64_dmr_external;
+		} else {
+			src_cb = br64_dmr_internal;
+			dst_cb = br64_fmr;
+		}
 		break;
 	default:
 		log_debug(state, "Unknown MAP type: %d",

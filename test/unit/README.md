@@ -2,13 +2,24 @@
 
 The unit tests are implemented as several kernel modules, each of which pummel Jool's inner subroutines directly.
 
-They do not require a successful Jool installation, but you need to ensure they are run in a whitespace-free directory.
+First, compile the core kernel module with the `UNIT_TESTING` flag, then install it:
 
 ```bash
+cd ../../src/mod/common
+make JOOL_FLAGS=-DUNIT_TESTING
+sudo make install
+```
+
+Then run the tests:
+
+```bash
+cd ../../../test/unit
 make
 ./test.sh
 make clean # optional
 ```
+
+Remember to reinstall without `UNIT_TESTING` if you intend to do anything else.
 
 The `test.sh` script will run each test and show the results using `less` (so keep scrolling and hitting _q_). The last line of the output will indicate if any errors were found.
 

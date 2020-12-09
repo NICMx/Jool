@@ -55,7 +55,7 @@ static verdict xlat46_external_addresses(struct xlation *state)
 		return translate_addrs46_mapt(state,
 				&state->flowx.v6.flowi.saddr,
 				&state->flowx.v6.flowi.daddr,
-				false);
+				true);
 	}
 
 	WARN(1, "xlator type is not SIIT, NAT64 nor MAP-T: %u",
@@ -95,7 +95,7 @@ static verdict xlat46_internal_addresses(struct xlation *state)
 		result = translate_addrs46_mapt(state,
 				&state->flowx.v6.inner_src,
 				&state->flowx.v6.inner_dst,
-				true);
+				false);
 		break;
 	default:
 		WARN(1, "Unknown xlator type: %u",

@@ -207,7 +207,8 @@ static bool test_function_icmp4_to_icmp6_param_prob(void)
 
 	/* Annoying preparations */
 
-	memset(&jool, 0, sizeof(jool));
+	if (xlator_init(&jool, NULL, "test", XT_SIIT | XF_IPTABLES, NULL))
+		return false;
 	xlation_init(&state, &jool);
 	if (create_skb4_icmp_error("1.1.1.1", "2.2.2.2", 10, 10, &state.in.skb))
 		return false;

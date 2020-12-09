@@ -9,6 +9,7 @@ PROJECTS += rbtree
 PROJECTS += rfc6052
 PROJECTS += rfc6056
 PROJECTS += types
+PROJECTS += mapt
 
 # Layer 2 tests (tables)
 PROJECTS += eamt
@@ -24,7 +25,7 @@ PROJECTS += sessiondb
 #PROJECTS += joolns
 
 # Layer 5 tests (translation steps)
-PROJECTS += filtering
+#PROJECTS += filtering
 PROJECTS += translate
 
 # Layer 6 test (global translation)

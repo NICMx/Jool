@@ -939,6 +939,7 @@ xlator_type xlator_get_type(struct xlator const *instance)
 {
 	return instance->flags & XT_MASK;
 }
+EXPORT_UNIT_SYMBOL(xlator_get_type)
 
 xlator_framework xlator_get_framework(struct xlator const *instance)
 {
