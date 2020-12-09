@@ -146,7 +146,7 @@ This is actually the originally designed form of SIIT, and as such, it’s more 
 
 ![Network: SIIT-traditional](../images/intro/traditional/network.svg)
 
-The idea is to simply remove a <span class="traditional-prefix">prefix</span> (in this case, <span class="traditional-prefix">2001:db8::/96</span>) while translating from IPv6 to IPv4, and prepend it in the other direction:
+The idea is to simply remove a <span class="traditional-prefix">prefix</span> while translating from IPv6 to IPv4, and prepend it in the other direction:
 
 ![Packet flow: SIIT-traditional](../images/intro/traditional/flow.svg)
 
@@ -284,7 +284,7 @@ NAPT is a hack whose purpose is to minimize the amount of global ("real") IPv4 a
 
 ![Packet flow: NAPT 1](../images/intro/napt/flow-1.svg)
 
-Here's the setup: <span class="napt-a-ip">_A_</span> wants to request an <span class="napt-v-port">HTTP</span> resource from <span class="napt-v-ip">_V_</span>. It therefore sends a packet to <span class="napt-v-ip">203.0.113.16</span>:<span class="napt-v-port">80</span>. The <span class="napt-a-ip">source address</span> is its own IP, while the <span class="napt-a-port">source port</span> was chosen randomly when the socket was bound. These are all everyday TCP/IP twirls, and _NAPT_ has not interfered with anything yet.
+Here's the setup: <span class="napt-a-ip">_A_</span> wants to request an <span class="napt-v-port">HTTP</span> resource from <span class="napt-v-ip">_V_</span>. It therefore sends a packet to <span class="napt-v-ip">203.0.113.16</span>:<span class="napt-v-port">80</span>. The <span class="napt-a-ip">source address</span> is its own IP, while the <span class="napt-a-port">source port</span> was chosen randomly when the socket was bound. This is all normal and independent of _NAPT_.
 
 ![Packet flow: NAPT 2](../images/intro/napt/flow-2.svg)
 
@@ -414,18 +414,19 @@ Of course, it's not possible to physically assign a slice of an IPv4 address to 
 
 ![Diagram: Network, now with CEs and BRs](../images/intro/mapt/network.svg)
 
+(Note: Those address slices are not physically assigned. Note that the ISP cloud is still IPv6.)
+
 Customer Edges (CEs) and Border Relays (BRs) will, as usual, make sure everyone is unknowingly speaking the protocol everyone else wants to hear.
 
-- CEs are tasked with ensuring that its clients never use an IPv4 address/port outside of its assigned slice (which is simply accomplished by a NAPT), and to perform IP/ICMP translation. The "slice identifier" is encoded in the CE's IPv6 address, which is how you route a slice to its respective CE.
-- BR only translates.
+Each household will use private addresses (192.168.x.y), and each CE will consist of a traditional NAPT chained to a translator. The NAPT will reduce the private address space to the assigned slice, and the translator will convert the resulting packet into something that can traverse the IPv6 network.
 
 Here's an example:
 
-Suppose we've decided to reserve subnetwork <span style="background-color:#e9afdd">2001:db8:4464::/48</span> for CE usage, and we're using <span class="wkp">64:ff9b:1</span>::/96 to mask the IPv4 Internet as usual. Client <span style="background-color:#ffaaaa">192.168.0.4</span> is behind the CE who owns slice <span style="background-color:#f95;padding:0 0.2em">2</span> (ports 32768-49151), and wants to send a packet to IPv4 Internet HTTP server <span style="background-color:#afdde9">203.0.113.56</span>.
+Suppose we've decided to reserve subnetwork <span style="background-color:#e9afdd">2001:db8:ce::/48</span> for all our CE needs, and we're using <span class="wkp">64:ff9b:1</span>::/96 to mask the IPv4 Internet as usual. Client <span style="background-color:#ffaaaa">192.168.0.4</span> is behind the CE who owns slice <span style="background-color:#f95;padding:0 0.2em">2</span> (ports 32768-49151) (and therefore owns prefix <span style="background-color:#e9afdd">2001:db8:ce</span>:<span style="background-color:#f95">2</span>::/64), and wants to send a packet to IPv4 Internet HTTP server <span style="background-color:#afdde9">203.0.113.56</span>.
 
 ![Packet Flow: 182.168.0.4:12345--203.0.113.56:80 becomes 192.0.2.1:40000--203.0.113.56:80](../images/intro/mapt/flow-1.svg)
 
-The packet first gets NAPT'd from a private IPv4 transport address into a pseudorandom public IPv4 transport address that can be used by the CE.
+The packet first gets NAPT'd from a <span style="background-color:#ffaaaa">private</span> IPv4 transport address into a pseudorandom <span style="background-color:#ffe680">public</span> IPv4 transport address that can be used by the CE.
 
 Though you can be forgiven if you’ve never NAPT’d into a reduced port range, you can be assured that this is a perfectly ordinary stateful NAT operation. The packet would already be routable, if we had an IPv4 network on hand.
 
@@ -443,29 +444,23 @@ The BR mirrors the translation part of what the CE did, but not the NAPT part.
 
 The server responds. The BR applies the appropriate transformation to each address.
 
-You might be wondering: Since all CEs technically own address <span style="background-color:#ffe680">192.0.2.1</span>, how does the BR know that the intended CE is <span style="background-color:#f95;padding:0 0.2em">2</span>, and not one of the others?
-
-Because, by configuration, the BR knows that port 40000 belongs to slice <span style="background-color:#f95;padding:0 0.2em">2</span>.
+You might be wondering: Since all CEs technically own address <span style="background-color:#ffe680">192.0.2.1</span>, how does the BR know that the intended CE is <span style="background-color:#f95;padding:0 0.2em">2</span>, and not one of the others? Because, by configuration, the BR knows that port 40000 belongs to slice <span style="background-color:#f95;padding:0 0.2em">2</span>.
 
 ![Packet Flow: 64:ff9b:1::203.0.113.56:80--2001:db8:4464:2:::40000 becomes 203.0.113.56:80--182.168.0.4:12345](../images/intro/mapt/flow-5.svg)
 
-Things end by continuing to happen in reverse.
+The packet is then routed to the CE that owns the prefix it's <span style="background-color:#e9afdd">destined</span> <span style="background-color:#f95">to</span>. Things end by continuing to happen in reverse.
 
-Of course, while MAP-T is a technique primarily preoccupied with transferring IPv4 traffic through an IPv6 backbone, there's nothing stopping you from also assigning IPv6 addresses to your customers, and have that traffic routed normally.
+Of course, while MAP-T is a technique primarily preoccupied with transferring IPv4 traffic through an IPv6 backbone, there's nothing stopping you from also assigning IPv6 addresses to your customers, and have that traffic routed normally. (Through the R6 router.)
 
-> **USAGE!**
-> 
-> Way I see it, MAP-T is a non-dynamic (ie. stateless) [464XLAT](#464xlat). In fact, it was probably conceived that way.
-> 
-> The problem with 464XLAT is that its NAT64 (PLAT) is vulnerable to certain attacks (by virtue of being stateful). In the absence of filtering, a malicious IPv6 client might exhaust the PLAT's IPv4 transport address pool, which would negate the PLAT to everyone else. Also, there are some governments that demand that you [log mappings as they are created and destroyed](usr-flags-global.html#logging-bib) (which requires painful infrastructure) for the sake of crime tracking, and I've heard that some go as far as to demand that you [log all the session information](usr-flags-global.html#logging-session). (Which is unnecessary, since all relevant tracking information is available in the mapping.)
-> 
-> Because MAP-T employs a stateless translator in the border edge, all mappings are preallocated, and thus both problems are nonexistent.
-> 
-> | 464XLAT | MAP-T |
-> |---------|-------|
-> | You might be forced to perform [BIB logging](usr-flags-global.html#logging-bib) by your government. | No need to perform BIB logging, because all mappings are predefined by configuration. |
-> | The PLAT assigns public transport addresses to customers on demand. (Customers needing lots of public transport addresses will get more than those who need few.) | Everyone is assigned the same number of public transport addresses. |
-> | One customer can perform DoS to other customers by exhausting the PLAT's public transport address pool. | One customer cannot steal other customers' public transport addresses because they're all preallocated by configuration. |
+So what did we accomplish with this pseudoconvoluted address manhandling? Well, we've assembled a 464XLAT in which the PLAT is stateless, and which can therefore be replicated for redundancy. Also, it's interesting to note that, because the slices are preallocated, one malicious customer cannot exhaust all our public transport address; they would only exhaust their own.
+
+Here; have a comparison table:
+
+| 464XLAT | MAP-T |
+|---------|-------|
+| You might be forced to perform BIB/Session logging by your government. | No need to perform BIB/Session logging, because all mappings are predefined by configuration. |
+| The PLAT assigns public transport addresses to customers on demand. (Customers needing lots of public transport addresses will get more than those who need few.) | Everyone is assigned the same number of public transport addresses. |
+| One customer can perform DoS to other customers by exhausting the PLAT's public transport address pool. | One customer cannot steal other customers' public transport addresses because they're all preallocated by configuration. |
 
 MAP-T is formally defined by [RFC 7599](https://tools.ietf.org/html/rfc7599) and, to a significant extent, [RFC 7597](https://tools.ietf.org/html/rfc7597).
 

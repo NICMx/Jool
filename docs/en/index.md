@@ -24,6 +24,8 @@ As far as we know, Jool is a [compliant](intro-jool.html#compliance) SIIT and St
 
 Its latest version is [4.1.4](download.html#41x) and its most mature version is [4.0.9](download.html#40x).
 
+The MAP-T implementation is almost done. See the [news](#2020-12-08).
+
 -------------------
 
 ## Survey
@@ -34,17 +36,18 @@ Its latest version is [4.1.4](download.html#41x) and its most mature version is 
 
 ## Latest News
 
-### 2020-10-07
+### 2020-12-08
 
-[Jool 4.1.4](download.html) has been released.
+Hello, everyone.
 
-Bugfixes:
+I'm running out of known issues. The MAP-T code has matured a fair bit, and so I'd like to let loose an alpha version of Jool 4.2.
 
-1. [#341](https://github.com/NICMx/Jool/issues/341): Deprecate "blacklist4," add replacement "denylist4."
-2. [#342](https://github.com/NICMx/Jool/issues/342): Add /32 to the generic denylist again. (And remove secondary addresses, since nobody has actually requested them.)
-3. [#343](https://github.com/NICMx/Jool/issues/343): Clarify some documentation. (WIP)
+Early adopters: Please consume and criticize the new documentation pages, and maybe try out the software:
 
-I also largely rewrote the [intro to xlat](https://nicmx.github.io/Jool/en/intro-xlat.html), to reflect the changes from the MAP-T branch. Feedback would be appreciated.
+- [Early introduction to MAP-T](intro-xlat.html#map-t)
+- [Detailed explanation of MAP-T](map-t.html)
+- [Jool MAP-T tutorial](run-mapt.html)
+- [The code](https://github.com/NICMx/Jool/tree/mapt)
 
-> Remember that `lowest-ipv6-mtu`'s paranoid default might induce unnecessary fragmentation. If you want Jool 4.1 to reach 4.0's performance, please review the [MTU documentation](mtu.html).
+I'll aim to post a release candidate tar on December 16, and then wait a month and a half for issues.
 

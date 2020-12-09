@@ -34,6 +34,7 @@ See [RFC 6586](https://tools.ietf.org/html/rfc6586) for deployment experiences u
 2. [SIIT + EAM](run-eam.html)
 3. [Stateful NAT64](run-nat64.html)
 4. [DNS64](dns64.html)
+6. [MAP-T](run-mapt.html)
 5. [Persistence](run-persistent.html)
 
 ## IP/ICMP Translation in Detail

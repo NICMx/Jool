@@ -12,7 +12,7 @@
    height="320"
    id="svg2"
    version="1.1"
-   inkscape:version="1.0.1 (3bc2e813f5, 2020-09-07)"
+   inkscape:version="1.0.1 (0767f8302a, 2020-10-17)"
    sodipodi:docname="flow-ce-inbound.svg">
   <defs
      id="defs4">
@@ -38,7 +38,7 @@
      borderopacity="1.0"
      inkscape:pageopacity="0.0"
      inkscape:pageshadow="2"
-     inkscape:zoom="1.8525281"
+     inkscape:zoom="1.8764045"
      inkscape:cx="356"
      inkscape:cy="160"
      inkscape:document-units="px"
@@ -48,7 +48,7 @@
      inkscape:guide-bbox="true"
      inkscape:window-width="1920"
      inkscape:window-height="1043"
-     inkscape:window-x="0"
+     inkscape:window-x="1920"
      inkscape:window-y="0"
      inkscape:window-maximized="1"
      inkscape:document-rotation="0"
@@ -75,7 +75,7 @@
         <dc:format>image/svg+xml</dc:format>
         <dc:type
            rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
-        <dc:title></dc:title>
+        <dc:title />
         <cc:license
            rdf:resource="" />
       </cc:Work>
@@ -198,9 +198,7 @@
          sodipodi:role="line"
          id="tspan1049"
          x="272"
-         y="900.36218">CE 65<tspan
-   style="font-size:65%;baseline-shift:sub"
-   id="tspan888" /></tspan></text>
+         y="900.36218">CE 41</tspan></text>
     <text
        xml:space="preserve"
        style="font-style:normal;font-weight:normal;line-height:0%;font-family:sans-serif;text-align:center;letter-spacing:0px;word-spacing:0px;text-anchor:middle;display:inline;fill:#ff9955;fill-opacity:1;stroke:none"
@@ -377,7 +375,7 @@
          id="tspan973"
          style="font-size:12px;line-height:1.25;font-family:sans-serif">dst: <tspan
    style="fill:#668000;fill-opacity:1"
-   id="tspan943">192.0.2.2</tspan>:3000</tspan></text>
+   id="tspan943">192.0.2</tspan>.2:3000</tspan></text>
     <use
        x="0"
        y="0"
@@ -405,17 +403,17 @@
     <path
        id="rect1041"
        style="display:inline;fill:#ff9955;stroke:none;stroke-dasharray:4, 2"
-       d="M 517.5,140 H 533 v 12.73767 h -15.5 z"
+       d="M 501.5,140 H 517 v 12.73767 h -15.5 z"
        sodipodi:nodetypes="ccccc" />
     <path
        id="path929"
        style="display:inline;fill:#ff5555;stroke:none;stroke-dasharray:4, 2"
-       d="m 597,140 h 8 v 12.73767 h -8 z"
+       d="m 585,140 h 8 v 12.73767 h -8 z"
        sodipodi:nodetypes="ccccc" />
     <path
        id="path930"
        style="display:inline;fill:#ffe680;fill-opacity:1;stroke:none;stroke-dasharray:4, 2"
-       d="m 578,140 h 16 v 12.73767 h -16 z"
+       d="m 566,140 h 16 v 12.73767 h -16 z"
        sodipodi:nodetypes="ccccc" />
     <text
        xml:space="preserve"
@@ -438,9 +436,9 @@
          id="tspan983"
          style="font-size:12px;line-height:1.25;font-family:sans-serif">dst: [<tspan
    style="fill:#0055d4;fill-opacity:1"
-   id="tspan947">2001:db8:0:4464</tspan>:41:<tspan
+   id="tspan947">2001:db8:ce</tspan>:41::<tspan
    style="fill:#668000;fill-opacity:1"
-   id="tspan945">c000:202</tspan>:1]:3000</tspan></text>
+   id="tspan945">c000:2</tspan>02:1]:3000</tspan></text>
     <path
        style="display:inline;fill:none;stroke:#000000;stroke-width:1;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1;marker-end:url(#Arrow2Lend)"
        d="M 592,120 H 416"
