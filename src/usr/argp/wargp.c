@@ -18,9 +18,11 @@ int wargp_parse_u32(void *field, int key, char *str);
 int wargp_parse_u64(void *field, int key, char *str);
 int wargp_parse_l4proto(void *input, int key, char *str);
 int wargp_parse_string(void *input, int key, char *str);
+int wargp_parse_multi_string(void *void_field, int key, char *str);
 int wargp_parse_addr(void *void_field, int key, char *str);
 int wargp_parse_prefix6(void *input, int key, char *str);
 int wargp_parse_prefix4(void *input, int key, char *str);
+int wargp_parse_mapping_rule(void *input, int key, char *str);
 
 struct wargp_type wt_bool = {
 	/* Boolean opts need no argument; absence is false, presence is true. */
@@ -52,9 +54,26 @@ struct wargp_type wt_l4proto = {
 	.parse = wargp_parse_l4proto,
 };
 
+/*
+ * In contrast with a wt_multi_string, if the user entered multiple strings,
+ * a wt_string will end up pointing to the last one.
+ *
+ * wt_strings point to the original argp argument; they shouldn't be freed.
+ */
 struct wargp_type wt_string = {
 	.argument = "<string>",
 	.parse = wargp_parse_string,
+};
+
+/*
+ * In contrast with a wt_string, if the user entered multiple strings,
+ * a wt_multi_string will join them. (Tokens will be separated by spaces.)
+ *
+ * Multistrings live in the heap. They must be freed by the user function.
+ */
+struct wargp_type wt_multi_string = {
+	.argument = "<string>",
+	.parse = wargp_parse_multi_string,
 };
 
 struct wargp_type wt_addr = {
@@ -75,6 +94,11 @@ struct wargp_type wt_prefix6 = {
 struct wargp_type wt_prefix4 = {
 	.argument = "<IPv4 prefix>",
 	.parse = wargp_parse_prefix4,
+};
+
+struct wargp_type wt_mapping_rule = {
+	.argument = "<IPv6 Prefix> <IPv4 Prefix> <EA-bits length> [<a>]",
+	.parse = wargp_parse_mapping_rule,
 };
 
 struct wargp_args {
@@ -161,6 +185,27 @@ int wargp_parse_string(void *void_field, int key, char *str)
 	return 0;
 }
 
+int wargp_parse_multi_string(void *void_field, int key, char *str)
+{
+	struct wargp_string *field = void_field;
+	size_t old_len;
+
+	if (!field->value) {
+		field->value = strdup(str);
+		return field->value ? 0 : pr_enomem();
+	}
+
+	old_len = strlen(field->value);
+	field->value = realloc(field->value, old_len + strlen(str) + 2u);
+	if (!field->value)
+		return pr_enomem();
+
+	field->value[old_len] = ' ';
+	strcpy(&field->value[old_len + 1u], str);
+
+	return 0;
+}
+
 int wargp_parse_addr(void *void_field, int key, char *str)
 {
 	struct wargp_addr *field = void_field;
@@ -203,6 +248,36 @@ int wargp_parse_prefix4(void *void_field, int key, char *str)
 	if (result.error)
 		return pr_result(&result);
 
+	return 0;
+}
+
+int wargp_parse_mapping_rule(void *input, int key, char *str)
+{
+	struct wargp_mapping_rule *field = input;
+	struct jool_result result;
+
+	switch (field->fields) {
+	case 0:
+		result = str_to_prefix6(str, &field->rule.prefix6);
+		break;
+	case 1:
+		result = str_to_prefix4(str, &field->rule.prefix4);
+		break;
+	case 2:
+		result = str_to_u8(str, &field->rule.o, 48);
+		break;
+	case 3:
+		result = str_to_u8(str, &field->rule.a, 16);
+		break;
+	default:
+		pr_err("Too many arguments.");
+		return -EINVAL;
+	}
+
+	if (result.error)
+		return pr_result(&result);
+
+	field->fields++;
 	return 0;
 }
 

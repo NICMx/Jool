@@ -191,12 +191,11 @@ add_ce_translator() {
 	BMR4=$4
 	EABL=$5
 
-	ip netns exec $CE jool_mapt instance add "$CE" --iptables \
-			--end-user-ipv6-prefix $EUIP \
-			--bmr.ipv6-prefix $BMR6 \
-			--bmr.ipv4-prefix $BMR4 \
-			--bmr.ea-bits-length $EABL \
-			--dmr $DMR
+	ip netns exec $CE jool_mapt instance add "$CE" --iptables --dmr $DMR
+	ip netns exec $CE jool_mapt -i "$CE" global update end-user-ipv6-prefix $EUIP
+	ip netns exec $CE jool_mapt -i "$CE" global update bmr $BMR6 $BMR4 $EABL
+	ip netns exec $CE jool_mapt -i "$CE" global update map-t-type CE
+
 	ip netns exec $CE ip6tables -t mangle -A PREROUTING -d $EUIP           -j JOOL_MAPT --instance "$CE"
 	ip netns exec $CE iptables  -t mangle -A PREROUTING -d 192.0.2.0/24    -j JOOL_MAPT --instance "$CE"
 	ip netns exec $CE iptables  -t mangle -A PREROUTING -d 198.51.100.0/24 -j JOOL_MAPT --instance "$CE"

@@ -160,14 +160,6 @@ struct add_args {
 	struct wargp_bool iptables;
 	struct wargp_bool netfilter;
 	struct wargp_prefix6 pool6;
-	struct wargp_prefix6 eui6p;
-	struct wargp_u64 ea_bits;
-	struct wargp_prefix6 bmr_p6;
-	struct wargp_prefix4 bmr_p4;
-	struct wargp_u8 bmr_ebl;
-	struct wargp_u8 a;
-	struct wargp_u8 k;
-	struct wargp_u8 m;
 };
 
 static struct wargp_option add_opts[] = {
@@ -199,14 +191,6 @@ static struct wargp_option add_opts[] = {
 		.offset = offsetof(struct add_args, pool6),
 		.type = &wt_prefix6,
 	},
-	WOPT_GLOBAL_MAPT_EUI6P(struct add_args),
-	WOPT_GLOBAL_MAPT_EABITS(struct add_args),
-	WOPT_GLOBAL_MAPT_BMR6(struct add_args),
-	WOPT_GLOBAL_MAPT_BMR4(struct add_args),
-	WOPT_GLOBAL_MAPT_EBL(struct add_args),
-	WOPT_GLOBAL_MAPT_a(struct add_args),
-	WOPT_GLOBAL_MAPT_k(struct add_args),
-	WOPT_GLOBAL_MAPT_m(struct add_args),
 	{ 0 },
 };
 
@@ -214,7 +198,6 @@ int handle_instance_add(char *iname, int argc, char **argv, void const *arg)
 {
 	struct add_args aargs = { 0 };
 	struct joolnl_socket sk;
-	xlator_framework xf;
 	struct jool_result result;
 
 	result.error = wargp_parse(add_opts, argc, argv, &aargs);
@@ -246,25 +229,12 @@ int handle_instance_add(char *iname, int argc, char **argv, void const *arg)
 	if (result.error)
 		return pr_result(&result);
 
-	xf = aargs.netfilter.value ? XF_NETFILTER : XF_IPTABLES;
-	switch (xt_get()) {
-	case XT_SIIT:
-	case XT_NAT64:
-		result = joolnl_instance_add(&sk, xf, iname,
-				aargs.pool6.set ? &aargs.pool6.prefix : NULL);
-		break;
-	case XT_MAPT:
-		result = joolnl_instance_add_mapt(
-				&sk, xf, iname,
-				aargs.eui6p.set ? &aargs.eui6p.prefix : NULL,
-				aargs.bmr_p6.set ? &aargs.bmr_p6.prefix : NULL,
-				aargs.bmr_p4.set ? &aargs.bmr_p4.prefix : NULL,
-				aargs.bmr_ebl.set ? &aargs.bmr_ebl.value : NULL,
-				aargs.pool6.set ? &aargs.pool6.prefix: NULL,
-				aargs.a.set ? &aargs.a.value : NULL
-		);
-		break;
-	}
+	result = joolnl_instance_add(
+		&sk,
+		aargs.netfilter.value ? XF_NETFILTER : XF_IPTABLES,
+		iname,
+		aargs.pool6.set ? &aargs.pool6.prefix : NULL
+	);
 
 	joolnl_teardown(&sk);
 	return pr_result(&result);

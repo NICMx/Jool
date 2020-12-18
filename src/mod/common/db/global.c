@@ -100,7 +100,7 @@ int globals_init(struct jool_globals *config, xlator_type type)
 		break;
 
 	case XT_MAPT:
-		config->mapt.type = MAPTYPE_BR;
+		memset(&config->mapt, 0, sizeof(config->mapt));
 		break;
 
 	default:

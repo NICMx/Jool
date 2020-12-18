@@ -1,7 +1,9 @@
 #include "usr/argp/log.h"
 
+#include <errno.h>
 #include <stdarg.h>
 #include <stdio.h>
+#include <string.h>
 
 void pr_warn(const char *format, ...)
 {
@@ -38,4 +40,10 @@ int pr_result(struct jool_result *result)
 
 	result_cleanup(result);
 	return error;
+}
+
+int pr_enomem(void)
+{
+	pr_err("%s", strerror(-ENOMEM));
+	return -ENOMEM;
 }

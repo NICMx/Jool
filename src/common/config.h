@@ -152,7 +152,6 @@ enum joolnl_attr_instance_status {
 enum joolnl_attr_instance_add {
 	JNLAIA_XF = 1,
 	JNLAIA_POOL6,
-	JNLAIA_MAPT,
 	JNLAIA_COUNT,
 #define JNLAIA_MAX (JNLAIA_COUNT - 1)
 };
@@ -208,16 +207,16 @@ enum joolnl_attr_session {
 
 extern struct nla_policy joolnl_session_entry_policy[JNLASE_COUNT];
 
-enum joolnl_attr_fmr {
-	JNLAF_PREFIX6 = 1,
-	JNLAF_PREFIX4,
-	JNLAF_EA_BITS_LENGTH,
-	JNLAF_a,
-	JNLAF_COUNT,
-#define JNLAF_MAX (JNLAF_COUNT - 1)
+enum joolnl_attr_mapping_rule {
+	JNLAMR_PREFIX6 = 1,
+	JNLAMR_PREFIX4,
+	JNLAMR_EA_BITS_LENGTH,
+	JNLAMR_a,
+	JNLAMR_COUNT,
+#define JNLAMR_MAX (JNLAMR_COUNT - 1)
 };
 
-extern struct nla_policy joolnl_fmr_policy[JNLAF_COUNT];
+extern struct nla_policy joolnl_mr_policy[JNLAMR_COUNT];
 
 enum joolnl_attr_address_query {
 	JNLAAQ_ADDR6 = 1,
@@ -269,7 +268,9 @@ enum joolnl_attr_global {
 	JNLAG_JOOLD_MAX_PAYLOAD,
 
 	/* MAP-T */
-	JNLAG_MAPT,
+	JNLAG_MAPTYPE,
+	JNLAG_EUI6P, /* End-user IPv6 prefix */
+	JNLAG_BMR,
 
 	/* Needs to be last */
 	JNLAG_COUNT,
@@ -279,22 +280,6 @@ enum joolnl_attr_global {
 extern const struct nla_policy siit_globals_policy[JNLAG_COUNT];
 extern const struct nla_policy nat64_globals_policy[JNLAG_COUNT];
 extern const struct nla_policy mapt_globals_policy[JNLAG_COUNT];
-
-enum joolnl_attr_mapt {
-	JNLAMT_TYPE = 1,
-	JNLAMT_EUI6P,
-	JNLAMT_EABITS,
-	JNLAMT_BMR_P6,
-	JNLAMT_BMR_P4,
-	JNLAMT_BMR_EBL,
-	JNLAMT_a,
-	JNLAMT_k,
-	JNLAMT_m,
-	JNLAMT_COUNT,
-#define JNLAMT_MAX (JNLAMT_COUNT - 1)
-};
-
-extern struct nla_policy mapt_policy[JNLAMT_COUNT];
 
 enum joolnl_attr_error {
 	JNLAERR_CODE = 1,
@@ -352,6 +337,11 @@ struct config_prefix4 {
 	bool set;
 	/** Please note that this could be garbage; see above. */
 	struct ipv4_prefix prefix;
+};
+
+struct config_mapping_rule {
+	bool set;
+	struct mapping_rule rule;
 };
 
 /**
@@ -509,15 +499,15 @@ enum mapt_type {
 };
 
 struct mapt_globals {
-	enum mapt_type type;
+	__u8 type; /* enum mapt_type */
 	/*
 	 * The "End-user IPv6 prefix." CE-only.
 	 * Overkill name, honestly. Should be called "CE prefix," but I'm not
 	 * convinced to change the RFC terms yet.
 	 */
-	struct ipv6_prefix eui6p;
+	struct config_prefix6 eui6p;
 	/* The "Basic Mapping Rule." CE-only. */
-	struct mapping_rule bmr;
+	struct config_mapping_rule bmr;
 };
 
 /**

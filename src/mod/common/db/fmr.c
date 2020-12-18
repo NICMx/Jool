@@ -114,20 +114,19 @@ static int validate_mapping_rule(struct mapping_rule *rule)
 	error = prefix4_validate(&rule->prefix4);
 	if (error)
 		return error;
-	if (rule->ea_bits_length > 48) {
+	if (rule->o > 48) {
 		log_err("EA-bits Length > 48.");
 		return -EINVAL;
 	}
 
-	if (rule->ea_bits_length + rule->prefix4.len <= 32u)
+	if (rule->o + rule->prefix4.len <= 32u)
 		return 0; /* a, k and m only matter when o + r > 32. */
 
-	k = rule->ea_bits_length - (32u - rule->prefix4.len);
+	k = rule->o - (32u - rule->prefix4.len);
 	if (rule->a + k > 16u) {
 		log_err("a + k > 16.");
 		log_err("(a:%u, k = EA-bits length - IPv4 suffix length = %u - %u)",
-				rule->a, rule->ea_bits_length,
-				32u - rule->prefix4.len);
+				rule->a, rule->o, 32u - rule->prefix4.len);
 		return -EINVAL;
 	}
 

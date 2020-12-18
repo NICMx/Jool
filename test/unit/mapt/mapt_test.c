@@ -47,21 +47,22 @@ static int setup_mapt(void)
 
 	memset(&ce.globals.mapt, 0, sizeof(ce.globals.mapt));
 	ce.globals.mapt.type = MAPTYPE_CE;
-	error = prefix6_parse("2001:db8:12:3400::/56", &ce.globals.mapt.eui6p);
+	ce.globals.mapt.eui6p.set = true;
+	error = prefix6_parse("2001:db8:12:3400::/56", &ce.globals.mapt.eui6p.prefix);
 	if (error)
 		return error;
-	error = prefix6_parse("2001:db8::/40", &ce.globals.mapt.bmr.prefix6);
+	error = prefix6_parse("2001:db8::/40", &ce.globals.mapt.bmr.rule.prefix6);
 	if (error)
 		return error;
-	error = prefix4_parse("192.0.2.0/24", &ce.globals.mapt.bmr.prefix4);
+	error = prefix4_parse("192.0.2.0/24", &ce.globals.mapt.bmr.rule.prefix4);
 	if (error)
 		return error;
-	ce.globals.mapt.bmr.ea_bits_length = 16;
-	ce.globals.mapt.bmr.a = 6;
+	ce.globals.mapt.bmr.rule.o = 16;
+	ce.globals.mapt.bmr.rule.a = 6;
 
 	ce.globals.debug = true;
 
-	return fmrt_add(br.mapt.fmrt, &ce.globals.mapt.bmr);
+	return fmrt_add(br.mapt.fmrt, &ce.globals.mapt.bmr.rule);
 }
 
 void teardown_mapt(void)
@@ -182,7 +183,7 @@ static bool check_variant(unsigned int a, unsigned int r, unsigned int o,
 	rule.prefix6.len = 64 - o;
 	rule.prefix4.addr.s_addr = cpu_to_be32(bmr_prefix4);
 	rule.prefix4.len = r;
-	rule.ea_bits_length = o;
+	rule.o = o;
 	rule.a = a;
 
 	if (!ASSERT_INT(0, str_to_addr4(test, &addr4), "IPv4 Address")) {

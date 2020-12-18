@@ -8,8 +8,11 @@ fi
 COUNT=0
 
 sudo dmesg -C
+
+set -e
 sudo modprobe jool_common
 sudo insmod framework/unit.ko
+set +e
 
 for i in $TESTS
 do

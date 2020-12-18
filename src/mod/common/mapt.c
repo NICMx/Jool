@@ -9,11 +9,6 @@
 #include "mod/common/db/rfc6791v6.h"
 #include "mod/common/db/rfc6791v4.h"
 
-static unsigned int get_o(struct mapping_rule *rule)
-{
-	return rule->ea_bits_length;
-}
-
 /*
  * Note: The definition of p is inconsistent through the RFC. The two
  * definitions are
@@ -30,9 +25,7 @@ static unsigned int get_p(struct mapping_rule *rule)
 
 static unsigned int get_q(struct mapping_rule *rule)
 {
-	if (rule->prefix4.len + rule->ea_bits_length <= 32)
-		return 0;
-	return get_o(rule) - get_p(rule);
+	return (rule->prefix4.len + rule->o > 32) ? rule->o - get_p(rule) : 0;
 }
 
 static verdict prpf_get_psid(struct xlation *state,
@@ -49,7 +42,7 @@ static verdict prpf_get_psid(struct xlation *state,
 
 	if ((a + k) > 16u) {
 		log_debug(state, "Bad Port-Restricted Port Field: `a + k = %u + %u > 16` (`k = o - p = %u - %u`).",
-				a, k, get_o(rule), get_p(rule));
+				a, k, rule->o, get_p(rule));
 		return drop(state, JSTAT_MAPT_BAD_PRPF);
 	}
 
@@ -97,7 +90,7 @@ static void set_interface_id(__be32 in, struct in6_addr *out, unsigned int psid)
 
 static verdict ce46_bmr(struct xlation *state, __be32 in, struct in6_addr *out)
 {
-	struct mapt_globals *cfg;
+	struct mapping_rule *bmr;
 	unsigned int q;
 	unsigned int packet_psid;
 	unsigned int ce_psid;
@@ -105,25 +98,28 @@ static verdict ce46_bmr(struct xlation *state, __be32 in, struct in6_addr *out)
 	unsigned int len;
 	verdict result;
 
-	cfg = &state->jool.globals.mapt;
+	bmr = &state->jool.globals.mapt.bmr.rule;
 
-	if (!__prefix4_contains(&cfg->bmr.prefix4, in)) {
+	if (!__prefix4_contains(&bmr->prefix4, in)) {
 		log_debug(state, "Address '%pI4' does not match the BMR assigned to this CE.",
 				&in);
 		return untranslatable(state, JSTAT_MAPT_ADDR4);
 	}
 
 	/* Check the NAPT made sure the port belongs to us */
-	q = get_q(&cfg->bmr);
+	q = get_q(bmr);
 	packet_psid = 0;
 	if (q > 0) {
-		result = prpf_get_psid(state, &cfg->bmr,
-				state->in.tuple.src.addr4.l4, &packet_psid);
+		result = prpf_get_psid(state, bmr, state->in.tuple.src.addr4.l4,
+				&packet_psid);
 		if (result != VERDICT_CONTINUE)
 			return result;
 
-		ce_psid = addr6_get_bits(&cfg->eui6p.addr,
-				cfg->bmr.prefix6.len + get_p(&cfg->bmr), q);
+		ce_psid = addr6_get_bits(
+			&state->jool.globals.mapt.eui6p.prefix.addr,
+			bmr->prefix6.len + get_p(bmr),
+			q
+		);
 
 		if (packet_psid != ce_psid) {
 			log_debug(state, "Port '%u' belongs to PSID %u, which does not belong to this CE (PSID: %u).",
@@ -145,14 +141,14 @@ static verdict ce46_bmr(struct xlation *state, __be32 in, struct in6_addr *out)
 	 * because it contains trailing zeroes.)
 	 */
 	offset = 0;
-	len = cfg->bmr.prefix6.len;
-	addr6_copy_bits(&cfg->bmr.prefix6.addr, out, offset, len);
+	len = bmr->prefix6.len;
+	addr6_copy_bits(&bmr->prefix6.addr, out, offset, len);
 
 	/* IPv4 address suffix */
 	offset += len;
-	len = get_p(&cfg->bmr);
+	len = get_p(bmr);
 	addr6_set_bits(out, offset, len,
-		addr4_get_bits(in, cfg->bmr.prefix4.len, len)
+		addr4_get_bits(in, bmr->prefix4.len, len)
 	);
 
 	/* PSID */
@@ -211,7 +207,7 @@ static verdict ce46_remote(struct xlation *state, __be32 in, struct in6_addr *ou
 		result = rule_xlat46(state, &fmr, in,
 				state->in.tuple.dst.addr4.l4, out);
 		if (result == VERDICT_CONTINUE)
-			if (prefix6_contains(&state->jool.globals.mapt.eui6p, out))
+			if (prefix6_contains(&state->jool.globals.mapt.eui6p.prefix, out))
 				state->is_hairpin_1 = true;
 		return result;
 	case -ESRCH:
@@ -368,12 +364,12 @@ static verdict ce64_island(struct xlation *state, struct in6_addr const *in,
 {
 	struct mapt_globals *cfg = &state->jool.globals.mapt;
 
-	if (!prefix6_contains(&cfg->eui6p, in)) {
+	if (!prefix6_contains(&cfg->eui6p.prefix, in)) {
 		log_debug(state, "Packet's destination address does not match the End-User IPv6 Prefix.");
 		return untranslatable(state, JSTAT_MAPT_EUI6P);
 	}
 
-	extract_addr_64(&cfg->bmr, in, out);
+	extract_addr_64(&cfg->bmr.rule, in, out);
 	return VERDICT_CONTINUE;
 }
 

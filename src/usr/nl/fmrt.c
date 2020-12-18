@@ -18,7 +18,7 @@ static struct jool_result handle_foreach_response(struct nl_msg *response,
 	struct foreach_args *args = arg;
 	struct nlattr *attr;
 	int rem;
-	struct mapping_rule fmr;
+	struct config_mapping_rule fmr;
 	struct jool_result result;
 
 	result = joolnl_init_foreach_list(response, "fmr", &args->done);
@@ -26,15 +26,21 @@ static struct jool_result handle_foreach_response(struct nl_msg *response,
 		return result;
 
 	foreach_entry(attr, genlmsg_hdr(nlmsg_hdr(response)), rem) {
-		result = nla_get_fmr(attr, &fmr);
+		result = nla_get_mapping_rule(attr, &fmr);
+		if (result.error)
+			return result;
+		if (!fmr.set) {
+			return result_from_error(
+				-EINVAL,
+				"Invalid kernel response: FMR container is empty."
+			);
+		}
+
+		result = args->cb(&fmr.rule, args->args);
 		if (result.error)
 			return result;
 
-		result = args->cb(&fmr, args->args);
-		if (result.error)
-			return result;
-
-		args->last = fmr.prefix4;
+		args->last = fmr.rule.prefix4;
 	}
 
 	return result_success();
@@ -91,13 +97,13 @@ static struct jool_result __update(struct joolnl_socket *sk, char const *iname,
 	if (!root)
 		goto nla_put_failure;
 
-	if (nla_put_prefix6(msg, JNLAF_PREFIX6, &rule->prefix6) < 0)
+	if (nla_put_prefix6(msg, JNLAMR_PREFIX6, &rule->prefix6) < 0)
 		goto nla_put_failure;
-	if (nla_put_prefix4(msg, JNLAF_PREFIX4, &rule->prefix4) < 0)
+	if (nla_put_prefix4(msg, JNLAMR_PREFIX4, &rule->prefix4) < 0)
 		goto nla_put_failure;
-	if (nla_put_u8(msg, JNLAF_EA_BITS_LENGTH, rule->ea_bits_length) < 0)
+	if (nla_put_u8(msg, JNLAMR_EA_BITS_LENGTH, rule->o) < 0)
 		goto nla_put_failure;
-	if (nla_put_u8(msg, JNLAF_a, rule->a) < 0)
+	if (nla_put_u8(msg, JNLAMR_a, rule->a) < 0)
 		goto nla_put_failure;
 
 	nla_nest_end(msg, root);

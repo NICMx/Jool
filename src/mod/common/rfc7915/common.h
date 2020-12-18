@@ -55,7 +55,7 @@ bool will_need_frag_hdr(const struct iphdr *hdr);
 verdict ttpcomm_translate_inner_packet(struct xlation *state,
 		struct translation_steps const *steps);
 
-/* TODO maybe these should belong to packet */
+/* TODO (fine) maybe these should belong to packet */
 struct bkp_skb {
 	unsigned int pulled;
 	struct {

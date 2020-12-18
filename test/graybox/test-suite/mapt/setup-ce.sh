@@ -25,12 +25,11 @@ sysctl -w net.ipv6.conf.all.forwarding=$FORWARDING_OP > /dev/null
 case "$JOOL_OP" in
 	start)
 		modprobe jool_mapt
-		jool_mapt instance add "CE" --iptables \
-			--end-user-ipv6-prefix 2001:db8:4464:8::/64 \
-			--bmr.ipv6-prefix 2001:db8:4464::/56 \
-			--bmr.ipv4-prefix 192.0.2.0/24 \
-			--bmr.ea-bits-length 8 \
-			--dmr 64:ff9b::/96
+		jool_mapt instance add "CE" --iptables --dmr 64:ff9b::/96
+		jool_mapt -i "CE" global update end-user-ipv6-prefix 2001:db8:4464:8::/64
+		jool_mapt -i "CE" global update bmr 2001:db8:4464::/56 192.0.2.0/24 8
+		jool_mapt -i "CE" global update map-t-type CE
+
 		#jool_mapt -i "CE" global update logging-debug true
 
 		iptables  -t mangle -A PREROUTING -d 203.0.113.0/24       -j JOOL_MAPT --instance "CE"

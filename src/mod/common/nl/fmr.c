@@ -9,7 +9,17 @@
 
 static int serialize_fmr_entry(struct mapping_rule const *entry, void *arg)
 {
-	return jnla_put_fmr(arg, JNLAL_ENTRY, entry) ? 1 : 0;
+	struct config_mapping_rule rule;
+
+	if (entry) {
+		rule.set = true;
+		rule.rule = *entry;
+	} else {
+		rule.set = false;
+		memset(&rule.rule, 0, sizeof(rule.rule));
+	}
+
+	return jnla_put_mapping_rule(arg, JNLAL_ENTRY, &rule) ? 1 : 0;
 }
 
 int handle_fmrt_foreach(struct sk_buff *skb, struct genl_info *info)
@@ -66,7 +76,7 @@ revert_start:
 int handle_fmrt_add(struct sk_buff *skb, struct genl_info *info)
 {
 	struct xlator jool;
-	struct mapping_rule addend;
+	struct config_mapping_rule addend;
 	int error;
 
 	error = request_handle_start(info, XT_MAPT, &jool);
@@ -75,11 +85,16 @@ int handle_fmrt_add(struct sk_buff *skb, struct genl_info *info)
 
 	__log_debug(&jool, "Adding FMR entry.");
 
-	error = jnla_get_fmr(info->attrs[JNLAR_OPERAND], "Operand", &addend);
+	error = jnla_get_mapping_rule(info->attrs[JNLAR_OPERAND], "Operand", &addend);
 	if (error)
 		goto revert_start;
+	if (!addend.set) {
+		log_err("Request contains an empty FMR.");
+		error = -EINVAL;
+		goto revert_start;
+	}
 
-	error = fmrt_add(jool.mapt.fmrt, &addend);
+	error = fmrt_add(jool.mapt.fmrt, &addend.rule);
 revert_start:
 	error = jresponse_send_simple(&jool, info, error);
 	request_handle_end(&jool);

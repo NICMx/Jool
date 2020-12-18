@@ -407,6 +407,37 @@ static int basic_validations(char const *iname, bool allow_null_iname,
 	return 0;
 }
 
+static int validate_ce(struct mapt_globals *cfg)
+{
+	struct ipv6_prefix *euip;
+	struct mapping_rule *bmr;
+
+	if (!cfg->eui6p.set) {
+		log_err("The End-user IPv6 prefix is unset.");
+		return -EINVAL;
+	}
+	if (!cfg->bmr.set) {
+		log_err("The BMR is unset.");
+		return -EINVAL;
+	}
+
+	euip = &cfg->eui6p.prefix;
+	bmr = &cfg->bmr.rule;
+
+	if (bmr->prefix6.len + bmr->o != euip->len) {
+		log_err("The BMR's IPv6 prefix length (%u) plus the BMR's EA bits length (%u) does not equal the End-user IPv6 prefix's length (%u).",
+				bmr->prefix6.len, bmr->o, euip->len);
+		return -EINVAL;
+	}
+
+	if (!prefix6_contains(&bmr->prefix6, &euip->addr)) {
+		log_err("The BMR's IPv6 prefix does not contain the End-user IPv6 prefix.");
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 /** Basic validations when adding an xlator to the DB. */
 static int basic_add_validations(char *iname, xlator_flags flags,
 		struct jool_globals *globals)
@@ -426,6 +457,8 @@ static int basic_add_validations(char *iname, xlator_flags flags,
 		log_err("pool6 is mandatory in NAT64 instances.");
 		return -EINVAL;
 	}
+	if ((flags & XT_MAPT) && (globals->mapt.type == MAPTYPE_CE))
+		return validate_ce(&globals->mapt);
 
 	return 0;
 }

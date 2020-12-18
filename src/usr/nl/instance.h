@@ -27,18 +27,6 @@ struct jool_result joolnl_instance_add(
 	struct ipv6_prefix const *pool6
 );
 
-struct jool_result joolnl_instance_add_mapt(
-	struct joolnl_socket *sk,
-	xlator_framework xf,
-	char const *iname,
-	struct ipv6_prefix const *eui6p,
-	struct ipv6_prefix const *bmr6,
-	struct ipv4_prefix const *bmr4,
-	__u8 const *bmr_ebl,
-	struct ipv6_prefix const *dmr,
-	__u8 const *a
-);
-
 struct jool_result joolnl_instance_rm(
 	struct joolnl_socket *sk,
 	char const *iname

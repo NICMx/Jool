@@ -137,11 +137,6 @@ int handle_instance_add(struct sk_buff *skb, struct genl_info *info)
 			&globals.pool6);
 	if (error)
 		goto revert_start;
-	if ((xt & XT_MAPT) && attrs[JNLAIA_MAPT]) {
-		error = joolnl_mapt_nl2raw(attrs[JNLAIA_MAPT], &globals.mapt);
-		if (error)
-			goto revert_start;
-	}
 
 	return jresponse_send_simple(NULL, info, xlator_add(
 		xf | xt,

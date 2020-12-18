@@ -23,6 +23,7 @@ typedef int (*joolnl_global_raw2nl_fn)(
 	struct sk_buff *
 );
 typedef int (*joolnl_global_nl2raw_fn)(
+	struct joolnl_global_meta const *,
 	struct nlattr *,
 	void *,
 	bool
@@ -119,57 +120,35 @@ static int raw2nl_prefix4(struct joolnl_global_meta const *meta, void *raw,
 			prefix4->set ? &prefix4->prefix : NULL);
 }
 
-static int raw2nl_mapt(struct joolnl_global_meta const *meta, void *raw,
+static int raw2nl_mapping_rule(struct joolnl_global_meta const *meta, void *raw,
 		struct sk_buff *skb)
 {
-	struct mapt_globals *cfg = raw;
-	struct nlattr *root;
-	int error;
-
-	root = nla_nest_start(skb, meta->id);
-	if (!root)
-		return -EMSGSIZE;
-
-	error = nla_put_u8(skb, JNLAMT_TYPE, cfg->type);
-	if (error)
-		goto cancel;
-	if (cfg->type == MAPTYPE_CE) {
-		error = jnla_put_prefix6(skb, JNLAMT_EUI6P, &cfg->eui6p)
-		     || jnla_put_prefix6(skb, JNLAMT_BMR_P6, &cfg->bmr.prefix6)
-		     || jnla_put_prefix4(skb, JNLAMT_BMR_P4, &cfg->bmr.prefix4)
-		     || nla_put_u8(skb, JNLAMT_BMR_EBL, cfg->bmr.ea_bits_length)
-		     || nla_put_u8(skb, JNLAMT_a, cfg->bmr.a);
-		if (error)
-			goto cancel;
-	}
-
-	nla_nest_end(skb, root);
-	return 0;
-
-cancel:
-	nla_nest_cancel(skb, root);
-	return error;
+	return jnla_put_mapping_rule(skb, meta->id, raw);
 }
 
-static int nl2raw_bool(struct nlattr *attr, void *raw, bool force)
+static int nl2raw_bool(struct joolnl_global_meta const *meta,
+		struct nlattr *attr, void *raw, bool force)
 {
 	*((bool *)raw) = nla_get_u8(attr);
 	return 0;
 }
 
-static int nl2raw_u8(struct nlattr *attr, void *raw, bool force)
+static int nl2raw_u8(struct joolnl_global_meta const *meta, struct nlattr *attr,
+		void *raw, bool force)
 {
 	*((__u8 *)raw) = nla_get_u8(attr);
 	return 0;
 }
 
-static int nl2raw_u32(struct nlattr *attr, void *raw, bool force)
+static int nl2raw_u32(struct joolnl_global_meta const *meta,
+		struct nlattr *attr, void *raw, bool force)
 {
 	*((__u32 *)raw) = nla_get_u32(attr);
 	return 0;
 }
 
-static int nl2raw_plateaus(struct nlattr *attr, void *raw, bool force)
+static int nl2raw_plateaus(struct joolnl_global_meta const *meta,
+		struct nlattr *attr, void *raw, bool force)
 {
 	return jnla_get_plateaus(attr, raw);
 }
@@ -188,49 +167,53 @@ static int validate_prefix6791v4(struct config_prefix4 *prefix, bool force)
 	return prefix4_validate_scope(&prefix->prefix, force);
 }
 
-static int nl2raw_pool6(struct nlattr *attr, void *raw, bool force)
+static int nl2raw_pool6(struct joolnl_global_meta const *meta,
+		struct nlattr *attr, void *raw, bool force)
 {
 	struct config_prefix6 *prefix = raw;
 	int error;
 
-	error = jnla_get_prefix6_optional(attr, "pool6", prefix);
+	error = jnla_get_prefix6_optional(attr, meta->name, prefix);
 	if (error)
 		return error;
 
 	return pool6_validate(prefix, force);
 }
 
-static int nl2raw_pool6791v6(struct nlattr *attr, void *raw, bool force)
+static int nl2raw_prefix6(struct joolnl_global_meta const *meta,
+		struct nlattr *attr, void *raw, bool force)
 {
 	struct config_prefix6 *prefix = raw;
 	int error;
 
-	error = jnla_get_prefix6_optional(attr, "RFC 6791 prefix v6", prefix);
+	error = jnla_get_prefix6_optional(attr, meta->name, prefix);
 	if (error)
 		return error;
 
 	return prefix->set ? prefix6_validate(&prefix->prefix) : 0;
 }
 
-static int nl2raw_pool6791v4(struct nlattr *attr, void *raw, bool force)
+static int nl2raw_pool6791v4(struct joolnl_global_meta const *meta,
+		struct nlattr *attr, void *raw, bool force)
 {
 	struct config_prefix4 *prefix = raw;
 	int error;
 
-	error = jnla_get_prefix4_optional(attr, "RFC 6791 prefix v4", prefix);
+	error = jnla_get_prefix4_optional(attr, meta->name, prefix);
 	if (error)
 		return error;
 
 	return validate_prefix6791v4(prefix, force);
 }
 
-static int nl2raw_lowest_ipv6_mtu(struct nlattr *attr, void *raw, bool force)
+static int nl2raw_lowest_ipv6_mtu(struct joolnl_global_meta const *meta,
+		struct nlattr *attr, void *raw, bool force)
 {
 	__u32 lim;
 
 	lim = nla_get_u32(attr);
 	if (lim < 1280) {
-		log_err("lowest-ipv6-mtu (%u) is too small (min: 1280).", lim);
+		log_err("%s (%u) is too small (min: 1280).", meta->name, lim);
 		return -EINVAL;
 	}
 
@@ -238,7 +221,8 @@ static int nl2raw_lowest_ipv6_mtu(struct nlattr *attr, void *raw, bool force)
 	return 0;
 }
 
-static int nl2raw_hairpin_mode(struct nlattr *attr, void *raw, bool force)
+static int nl2raw_hairpin_mode(struct joolnl_global_meta const *meta,
+		struct nlattr *attr, void *raw, bool force)
 {
 	__u8 mode;
 
@@ -249,6 +233,21 @@ static int nl2raw_hairpin_mode(struct nlattr *attr, void *raw, bool force)
 	}
 
 	*((__u8 *)raw) = mode;
+	return 0;
+}
+
+static int nl2raw_maptype(struct joolnl_global_meta const *meta,
+		struct nlattr *attr, void *raw, bool force)
+{
+	__u8 type;
+
+	type = nla_get_u8(attr);
+	if (type != MAPTYPE_BR && type != MAPTYPE_CE) {
+		log_err("Unknown MAP-T type: %u", type);
+		return -EINVAL;
+	}
+
+	*((__u8 *)raw) = type;
 	return 0;
 }
 
@@ -263,52 +262,57 @@ static int validate_timeout(const char *what, __u32 timeout, unsigned int min)
 	return 0;
 }
 
-static int nl2raw_ttl_udp(struct nlattr *attr, void *raw, bool force)
+static int nl2raw_ttl_udp(struct joolnl_global_meta const *meta,
+		struct nlattr *attr, void *raw, bool force)
 {
 	__u32 ttl;
 	int error;
 
 	ttl = nla_get_u32(attr);
-	error = validate_timeout("udp", ttl, 1000 * UDP_MIN);
+	error = validate_timeout(meta->name, ttl, 1000 * UDP_MIN);
 	if (!error)
 		*((__u32 *)raw) = ttl;
 
 	return error;
 }
 
-static int nl2raw_ttl_tcp_est(struct nlattr *attr, void *raw, bool force)
+static int nl2raw_ttl_tcp_est(struct joolnl_global_meta const *meta,
+		struct nlattr *attr, void *raw, bool force)
 {
 	__u32 ttl;
 	int error;
 
 	ttl = nla_get_u32(attr);
-	error = validate_timeout("tcp-est", ttl, 1000 * TCP_EST);
+	error = validate_timeout(meta->name, ttl, 1000 * TCP_EST);
 	if (!error)
 		*((__u32 *)raw) = ttl;
 
 	return error;
 }
 
-static int nl2raw_ttl_tcp_trans(struct nlattr *attr, void *raw, bool force)
+static int nl2raw_ttl_tcp_trans(struct joolnl_global_meta const *meta,
+		struct nlattr *attr, void *raw, bool force)
 {
 	__u32 ttl;
 	int error;
 
 	ttl = nla_get_u32(attr);
-	error = validate_timeout("tcp-trans", ttl, 1000 * TCP_TRANS);
+	error = validate_timeout(meta->name, ttl, 1000 * TCP_TRANS);
 	if (!error)
 		*((__u32 *)raw) = ttl;
 
 	return error;
 }
 
-static int nl2raw_f_args(struct nlattr *attr, void *raw, bool force)
+static int nl2raw_f_args(struct joolnl_global_meta const *meta,
+		struct nlattr *attr, void *raw, bool force)
 {
 	__u8 f_args;
 
 	f_args = nla_get_u8(attr);
 	if (f_args > 0x0Fu) {
-		log_err("f-args (%u) is out of range. (0-%u)", f_args, 0x0Fu);
+		log_err("%s (%u) is out of range. (0-%u)", meta->name,
+				f_args, 0x0Fu);
 		return -EINVAL;
 	}
 
@@ -316,299 +320,10 @@ static int nl2raw_f_args(struct nlattr *attr, void *raw, bool force)
 	return 0;
 }
 
-static int validate_missing_eui6p(__u64 eabits, struct mapping_rule *bmr)
+static int nl2raw_mapping_rule(struct joolnl_global_meta const *meta,
+		struct nlattr *attr, void *raw, bool force)
 {
-	__u64 limit;
-
-	limit = ((__u64)1) << bmr->ea_bits_length;
-	if (eabits >= limit) {
-		log_err("EA-bits %llu (0x%llx) does not fit in the BMR's \"EA-bits length\" bits (%u).",
-				eabits, eabits, bmr->ea_bits_length);
-		return -EINVAL;
-	}
-
-	if (bmr->prefix6.len + bmr->ea_bits_length > 128) {
-		log_err("BMR IPv6 Prefix (%u) + BMR EA bits length (%u) > 128; cannot assemble a valid End-user IPv6 Prefix.",
-				bmr->prefix6.len, bmr->ea_bits_length);
-		return -EINVAL;
-	}
-
-	return 0;
-}
-
-static int validate_missing_bmr6(struct mapt_globals *cfg)
-{
-	if (cfg->eui6p.len < cfg->bmr.ea_bits_length) {
-		log_err("There is no room for the EA-bits (length %u) in the End-user IPv6 prefix (length %u).",
-				cfg->bmr.ea_bits_length,
-				cfg->eui6p.len);
-		return -EINVAL;
-	}
-
-	return 0;
-}
-
-static int nl2raw_ce(struct nlattr *attrs[], struct mapt_globals *cfg)
-{
-	__u64 eabits;
-	__u8 k, m;
-	int error;
-
-	if (attrs[JNLAMT_EUI6P]) {
-		error = jnla_get_prefix6(attrs[JNLAMT_EUI6P],
-				"End-user IPv6 Prefix",
-				&cfg->eui6p);
-		if (error)
-			return error;
-		error = prefix6_validate(&cfg->eui6p);
-		if (error)
-			return error;
-	}
-	if (attrs[JNLAMT_EABITS]) {
-		error = jnla_get_u64(attrs[JNLAMT_EABITS], "EA-bits", &eabits);
-		if (error)
-			return error;
-		if (eabits > 0xFFFFFFFFFFFFu) {
-			log_err("EA-bits > 0xFFFFFFFFFFFF.");
-			log_err("current value: %llu (0x%llx)", eabits, eabits);
-			return -EINVAL;
-		}
-	}
-	if (attrs[JNLAMT_BMR_P6]) {
-		error = jnla_get_prefix6(attrs[JNLAMT_BMR_P6],
-				"BMR's IPv6 prefix",
-				&cfg->bmr.prefix6);
-		if (error)
-			return error;
-		error = prefix6_validate(&cfg->bmr.prefix6);
-		if (error)
-			return error;
-	}
-	if (attrs[JNLAMT_BMR_P4]) {
-		error = jnla_get_prefix4(attrs[JNLAMT_BMR_P4],
-				"BMR's IPv4 prefix",
-				&cfg->bmr.prefix4);
-		if (error)
-			return error;
-		error = prefix4_validate(&cfg->bmr.prefix4);
-		if (error)
-			return error;
-	}
-	if (attrs[JNLAMT_BMR_EBL]) {
-		error = jnla_get_u8(attrs[JNLAMT_BMR_EBL],
-				"BMR's EA-bits length",
-				&cfg->bmr.ea_bits_length);
-		if (error)
-			return error;
-		if (cfg->bmr.ea_bits_length > 48) {
-			log_err("EA-bits Length > 48.");
-			return -EINVAL;
-		}
-	}
-	if (attrs[JNLAMT_a]) {
-		error = jnla_get_u8(attrs[JNLAMT_a], "a", &cfg->bmr.a);
-		if (error)
-			return error;
-		if (cfg->bmr.a > 16) {
-			log_err("a > 16.");
-			return -EINVAL;
-		}
-	}
-	if (attrs[JNLAMT_k]) {
-		error = jnla_get_u8(attrs[JNLAMT_k], "k", &k);
-		if (error)
-			return error;
-		if (k > 16) {
-			log_err("k > 16.");
-			return -EINVAL;
-		}
-	}
-	if (attrs[JNLAMT_m]) {
-		error = jnla_get_u8(attrs[JNLAMT_m], "m", &m);
-		if (m > 16) {
-			log_err("m > 16.");
-			return -EINVAL;
-		}
-	}
-
-	if (!attrs[JNLAMT_EUI6P]) {
-		if (attrs[JNLAMT_EABITS]
-		 && attrs[JNLAMT_BMR_P6]
-		 && attrs[JNLAMT_BMR_EBL]) {
-			error = validate_missing_eui6p(eabits, &cfg->bmr);
-			if (error)
-				return error;
-			cfg->eui6p.addr = cfg->bmr.prefix6.addr;
-			cfg->eui6p.len = cfg->bmr.prefix6.len
-					+ cfg->bmr.ea_bits_length;
-			/* TODO (MAP-T) set_bits cannot always receive 64 bit values */
-			addr6_set_bits(&cfg->eui6p.addr,
-					cfg->bmr.prefix6.len,
-					cfg->bmr.ea_bits_length,
-					eabits);
-		} else {
-			log_err("The request lacks an End-user IPv6 Prefix (or the [EA-bits, BMR IPv6 Prefix, BMR EA-bits length] triplet needed to infer it).");
-			return -EINVAL;
-		}
-	}
-	/* End-user IPv6 prefix guaranteed from now on. */
-
-	if (!attrs[JNLAMT_BMR_P6]) {
-		if (attrs[JNLAMT_BMR_EBL]) {
-			error = validate_missing_bmr6(cfg);
-			if (error)
-				return error;
-			cfg->bmr.prefix6.addr = cfg->eui6p.addr;
-			cfg->bmr.prefix6.len = cfg->eui6p.len
-					- cfg->bmr.ea_bits_length;
-			addr6_set_bits(&cfg->bmr.prefix6.addr,
-					cfg->bmr.prefix6.len,
-					cfg->bmr.ea_bits_length,
-					0);
-		} else {
-			log_err("The request lacks the BMR's IPv6 prefix (or the BMR EA-bits length needed to compute it.)");
-			return -EINVAL;
-		}
-	}
-	/* BMR IPv6 prefix guaranteed from now on. */
-
-	if (!attrs[JNLAMT_BMR_P4]) {
-		log_err("The request lacks the BMR's IPv4 prefix.");
-		return -EINVAL;
-	}
-	/* IPv4 prefix guaranteed from now on. */
-
-	if (!attrs[JNLAMT_BMR_EBL]) {
-		cfg->bmr.ea_bits_length = cfg->eui6p.len
-				- cfg->bmr.prefix6.len;
-	}
-	/* EA-bits length guaranteed from now on. */
-
-	if (cfg->bmr.ea_bits_length + cfg->bmr.prefix4.len <= 32u)
-		return 0; /* a, k and m only matter when o + r > 32. */
-
-	if (attrs[JNLAMT_k]) {
-		if (k != maprule_get_k(&cfg->bmr)) {
-			log_err("The PSID length (k:%u) must equal EA-bits length (o:%u) minus the suffix of the BMR's IPv4 address (p:%u).",
-					k, cfg->bmr.ea_bits_length,
-					32u - cfg->bmr.prefix4.len);
-			return -EINVAL;
-		}
-	} else {
-		k = maprule_get_k(&cfg->bmr);
-	}
-
-	/* "k" guaranteed from now on. */
-	/* (Also, remember that "a" has a default value.) */
-
-	if (attrs[JNLAMT_a] && attrs[JNLAMT_k] && attrs[JNLAMT_m]) {
-		if (cfg->bmr.a + k + m != 16) {
-			log_err("a + k + m must equal 16.");
-			log_err("current values: a:%u k:%u m:%u",
-					cfg->bmr.a, k, m);
-			return -EINVAL;
-		}
-
-	} else if (!attrs[JNLAMT_a] && attrs[JNLAMT_k] && attrs[JNLAMT_m]) {
-		if (k + m > 16) {
-			log_err("k + m must not exceed 16.");
-			log_err("current values: k:%u m:%u", k, m);
-			return -EINVAL;
-		}
-		cfg->bmr.a = 16 - k - m;
-
-	} else if (attrs[JNLAMT_a] && !attrs[JNLAMT_k] && attrs[JNLAMT_m]) {
-		if (cfg->bmr.a + k + m != 16) {
-			log_err("a + (o - p) + m != 16.");
-			log_err("(o is EA-bits length, p is the suffix of the BMR's IPv4 prefix.)");
-			log_err("current values: a:%u o:%u p:%u m:%u",
-					cfg->bmr.a, cfg->bmr.ea_bits_length,
-					32u - cfg->bmr.prefix4.len, m);
-			return -EINVAL;
-		}
-
-	} else if (attrs[JNLAMT_a] && attrs[JNLAMT_k] && !attrs[JNLAMT_m]) {
-		if (cfg->bmr.a + k > 16) {
-			log_err("a + k must not exceed 16.");
-			log_err("current values: a:%u k:%u", cfg->bmr.a, k);
-			return -EINVAL;
-		}
-
-	} else if (!attrs[JNLAMT_a] && !attrs[JNLAMT_k] && attrs[JNLAMT_m]) {
-		if (k + m > 16) {
-			log_err("(o - p) + m must not exceed 16.");
-			log_err("(o is EA-bits length, p is the suffix of the BMR's IPv4 prefix.)");
-			log_err("current values: o:%u p:%u m:%u",
-					cfg->bmr.ea_bits_length,
-					32u - cfg->bmr.prefix4.len, m);
-			return -EINVAL;
-		}
-		cfg->bmr.a = 16 - k - m;
-
-	} else if (!attrs[JNLAMT_a] && attrs[JNLAMT_k] && !attrs[JNLAMT_m]) {
-		cfg->bmr.a = 6;
-		if (cfg->bmr.a + k > 16) {
-			log_err("a + k must not exceed 16.");
-			log_err("current values: a:%u k:%u", cfg->bmr.a, k);
-			return -EINVAL;
-		}
-
-	} else if (attrs[JNLAMT_a] && !attrs[JNLAMT_k] && !attrs[JNLAMT_m]) {
-		if (cfg->bmr.a + k > 16) {
-			log_err("a + (o - p) must not exceed 16.");
-			log_err("(o is EA-bits length, p is the suffix of the BMR's IPv4 prefix.)");
-			log_err("current values: a:%u o:%u p:%u",
-					cfg->bmr.a, cfg->bmr.ea_bits_length,
-					32u - cfg->bmr.prefix4.len);
-			return -EINVAL;
-		}
-
-	} else { // Nothing set
-		cfg->bmr.a = 6;
-		if (cfg->bmr.a + k > 16) {
-			log_err("a + (o - p) must not exceed 16.");
-			log_err("(o is EA-bits length, p is the suffix of the BMR's IPv4 prefix.)");
-			log_err("current values: a:%u o:%u p:%u",
-					cfg->bmr.a, cfg->bmr.ea_bits_length,
-					32u - cfg->bmr.prefix4.len);
-			return -EINVAL;
-		}
-	}
-
-	return 0;
-}
-
-int joolnl_mapt_nl2raw(struct nlattr *attr, struct mapt_globals *result)
-{
-	struct nlattr *attrs[JNLAMT_COUNT];
-	__u8 type;
-	int error;
-
-	error = jnla_parse_nested(attrs, JNLAMT_MAX, attr, mapt_policy, "MAP-T");
-	if (error)
-		return error;
-
-	if (attrs[JNLAMT_TYPE]) {
-		error = jnla_get_u8(attrs[JNLAMT_TYPE], "MAP-T type", &type);
-		if (error)
-			return error;
-		if (type != MAPTYPE_CE && type != MAPTYPE_BR) {
-			log_err("Unknown MAP type: %u", type);
-			return -EINVAL;
-		}
-		result->type = type;
-	} else if (attrs[JNLAMT_EUI6P] || attrs[JNLAMT_EABITS]) {
-		result->type = MAPTYPE_CE;
-	} else {
-		result->type = MAPTYPE_BR;
-	}
-
-	return (result->type == MAPTYPE_CE) ? nl2raw_ce(attrs, result) : 0;
-}
-
-static int nl2raw_mapt(struct nlattr *attr, void *raw, bool force)
-{
-	return joolnl_mapt_nl2raw(attr, raw);
+	return jnla_get_mapping_rule(attr, meta->name, raw);
 }
 
 #else
@@ -719,6 +434,20 @@ static void print_hairpin_mode(void *value, bool csv)
 	printf("unknown");
 }
 
+static void print_maptype(void *value, bool csv)
+{
+	switch (*((__u8 *)value)) {
+	case MAPTYPE_BR:
+		printf("BR");
+		return;
+	case MAPTYPE_CE:
+		printf("CE");
+		return;
+	}
+
+	printf("unknown");
+}
+
 static void print_fargs(void *value, bool csv)
 {
 	__u8 uvalue = *((__u8 *)value);
@@ -749,51 +478,28 @@ static void __print_prefix4(struct ipv4_prefix *prefix)
 	__print_prefix(AF_INET, &prefix->addr, prefix->len);
 }
 
-static void print_mapt(void *value, bool csv)
+static void print_mapping_rule(void *value, bool csv)
 {
-	struct mapt_globals *globals = value;
-	__u8 k, m;
+	struct config_mapping_rule *_rule = value;
+	struct mapping_rule *rule;
 
-	switch (globals->type) {
-	case MAPTYPE_CE:
-		printf("CE");
-		k = maprule_get_k(&globals->bmr);
-		m = 16 - globals->bmr.a - k;
-
-		if (csv) {
-			printf("\nEnd-user IPv6 Prefix,");
-			__print_prefix6(&globals->eui6p);
-			printf("\nBMR IPv6 Prefix,");
-			__print_prefix6(&globals->bmr.prefix6);
-			printf("\nBMR IPv4 Prefix,");
-			__print_prefix4(&globals->bmr.prefix4);
-			printf("\nBMR EA-bits Length,%u\n",
-					globals->bmr.ea_bits_length);
-			printf("BMR a,%u\n", globals->bmr.a);
-			printf("BMR k,%u\n", k);
-			printf("BMR m,%u", m);
-		} else {
-			printf("\n  End-user IPv6 Prefix: ");
-			__print_prefix6(&globals->eui6p);
-			printf("\n  BMR: ");
-			printf("\n    IPv6 prefix: ");
-			__print_prefix6(&globals->bmr.prefix6);
-			printf("\n    IPv4 prefix: ");
-			__print_prefix4(&globals->bmr.prefix4);
-			printf("\n    EA-bits length: %u",
-					globals->bmr.ea_bits_length);
-			printf("\n    (a:%u k:%u m:%u)",
-					globals->bmr.a, k, m);
-		}
+	if (!_rule->set) {
+		printf("%s", csv ? "" : "(unset)");
 		return;
-
-	case MAPTYPE_BR:
-		printf("BR");
-		return;
-
 	}
 
-	printf("<unknown>");
+	rule = &_rule->rule;
+	if (csv) {
+		__print_prefix6(&rule->prefix6);
+		printf(",");
+		__print_prefix4(&rule->prefix4);
+		printf(",%u,%u", rule->o, rule->a);
+	} else {
+		__print_prefix6(&rule->prefix6);
+		printf(" ");
+		__print_prefix4(&rule->prefix4);
+		printf(" %u %u", rule->o, rule->a);
+	}
 }
 
 static struct jool_result nl2raw_bool(struct nlattr *attr, void *raw)
@@ -855,79 +561,9 @@ static struct jool_result nl2raw_prefix4(struct nlattr *attr, void *raw)
 	return result;
 }
 
-static struct jool_result nl2raw_mapt(struct nlattr *attr, void *raw)
+static struct jool_result nl2raw_mapping_rule(struct nlattr *attr, void *raw)
 {
-	struct nlattr *attrs[JNLAMT_COUNT];
-	struct mapt_globals *globals = raw;
-	struct jool_result result;
-	int error;
-
-	error = nla_parse_nested(attrs, JNLAMT_MAX, attr, mapt_policy);
-	if (error) {
-		return result_from_error(
-			-EINVAL,
-			"Could not parse a nested attribute in Jool's Netlink response: %s",
-			nl_geterror(error)
-		);
-	}
-
-	if (!attrs[JNLAMT_TYPE]) {
-		return result_from_error(
-			-ENOENT,
-			"Invalid kernel response: MAP-T lacks type."
-		);
-	}
-	globals->type = nla_get_u8(attrs[JNLAMT_TYPE]);
-
-	if (globals->type == MAPTYPE_CE) {
-		if (!attrs[JNLAMT_EUI6P]) {
-			return result_from_error(
-				-EINVAL,
-				"Invalid kernel response: CE lacks End-user IPv6 Prefix."
-			);
-		}
-		result = nla_get_prefix6(attrs[JNLAMT_EUI6P], &globals->eui6p);
-		if (result.error)
-			return result;
-
-		if (!attrs[JNLAMT_BMR_P6]) {
-			return result_from_error(
-				-EINVAL,
-				"Invalid kernel response: CE lacks BMR's IPv6 Prefix."
-			);
-		}
-		result = nla_get_prefix6(attrs[JNLAMT_BMR_P6], &globals->bmr.prefix6);
-		if (result.error)
-			return result;
-
-		if (!attrs[JNLAMT_BMR_P4]) {
-			return result_from_error(
-				-EINVAL,
-				"Invalid kernel response: CE lacks BMR's IPv4 Prefix."
-			);
-		}
-		result = nla_get_prefix4(attrs[JNLAMT_BMR_P4], &globals->bmr.prefix4);
-		if (result.error)
-			return result;
-
-		if (!attrs[JNLAMT_BMR_EBL]) {
-			return result_from_error(
-				-EINVAL,
-				"Invalid kernel response: CE lacks EA-bits Length."
-			);
-		}
-		globals->bmr.ea_bits_length = nla_get_u8(attrs[JNLAMT_BMR_EBL]);
-
-		if (!attrs[JNLAMT_a]) {
-			return result_from_error(
-				-EINVAL,
-				"Invalid kernel response: CE lacks the \"a\" value."
-			);
-		}
-		globals->bmr.a = nla_get_u8(attrs[JNLAMT_a]);
-	}
-
-	return result_success();
+	return nla_get_mapping_rule(attr, raw);
 }
 
 static struct jool_result str2nl_bool(enum joolnl_attr_global id,
@@ -1065,6 +701,84 @@ static struct jool_result str2nl_hairpin_mode(enum joolnl_attr_global id,
 			: result_success();
 }
 
+static struct jool_result str2nl_maptype(enum joolnl_attr_global id,
+		char const *str, struct nl_msg *msg)
+{
+	__u8 mode;
+
+	if (strcmp(str, "BR") == 0)
+		mode = MAPTYPE_BR;
+	else if (strcmp(str, "CE") == 0)
+		mode = MAPTYPE_CE;
+	else return result_from_error(
+		-EINVAL,
+		"'%s' cannot be parsed as a MAP-T type.\n"
+		"Available options: BR, CE", str
+	);
+
+	return (nla_put_u8(msg, id, mode) < 0)
+			? joolnl_err_msgsize()
+			: result_success();
+}
+
+static struct jool_result str2nl_mapping_rule(enum joolnl_attr_global id,
+		char const *str, struct nl_msg *msg)
+{
+	char *str_copy, *token, *saveptr;
+	unsigned int fields;
+	struct mapping_rule rule, *rule_ptr;
+	struct jool_result result;
+
+	if (strcmp(str, "null") == 0) {
+		rule_ptr = NULL;
+		goto end;
+	}
+
+	str_copy = strdup(str);
+	if (!str_copy)
+		return result_from_enomem();
+
+	rule.a = 6u;
+	for (
+		token = strtok_r(str_copy, " \t", &saveptr), fields = 0;
+		token;
+		token = strtok_r(NULL, " \t", &saveptr), fields++
+	) {
+		switch (fields) {
+		case 0:
+			result = str_to_prefix6(token, &rule.prefix6);
+			break;
+		case 1:
+			result = str_to_prefix4(token, &rule.prefix4);
+			break;
+		case 2:
+			result = str_to_u8(token, &rule.o, 48);
+			break;
+		case 3:
+			result = str_to_u8(token, &rule.a, 16);
+			break;
+		default:
+			return result_from_error(-EINVAL, "Too many arguments. Expected: <IPv6 Prefix> <IPv4 Prefix> <EA-bits length> [<a>]");
+		}
+
+		if (result.error)
+			return result;
+	}
+
+	if (fields < 3)
+		return result_from_error(-EINVAL, "Not enough arguments. Expected: <IPv6 Prefix> <IPv4 Prefix> <EA-bits length> [<a>]");
+
+	rule_ptr = &rule;
+	/* Fall through */
+
+end:
+	result.error = nla_put_mapping_rule(msg, id, rule_ptr);
+	if (result.error)
+		return joolnl_err_msgsize();
+
+	return result_success();
+}
+
 static struct jool_result json2nl_bool(struct joolnl_global_meta const *meta,
 		cJSON *json, struct nl_msg *msg)
 {
@@ -1190,69 +904,62 @@ static struct jool_result j2n_prefix4(cJSON *json, struct nl_msg *msg,
 	return result_success();
 }
 
-static struct jool_result json2nl_mapt(struct joolnl_global_meta const *meta,
-		cJSON *json, struct nl_msg *msg)
+static struct jool_result j2n_mapping_rule(cJSON *json, struct nl_msg *msg,
+		unsigned int key)
 {
 	struct nlattr *root;
 	cJSON *child;
 	struct jool_result result;
 
+	if (json->type == cJSON_NULL) {
+		root = jnla_nest_start(msg, key);
+		if (!root)
+			return joolnl_err_msgsize();
+
+		if (nla_put_prefix6(msg, JNLAMR_PREFIX6, NULL) < 0) {
+			nla_nest_cancel(msg, root);
+			return joolnl_err_msgsize();
+		}
+
+		nla_nest_end(msg, root);
+		return result_success();
+	}
+
 	if (json->type != cJSON_Object)
 		return type_mismatch(json->string, json, "Object");
 
-	root = jnla_nest_start(msg, JNLAG_MAPT);
+	root = jnla_nest_start(msg, key);
 	if (!root)
 		return joolnl_err_msgsize();
 
-	for (json = json->child; json; json = json->next) {
-		if (strcasecmp(json->string, "comment") == 0) {
-			/* Skip */
+	for (child = json->child; child; child = child->next) {
+		if (strcasecmp(json->string, "comment") == 0)
+			result = result_success(); /* Skip */
+		else if (strcasecmp(json->string, "IPv6 Prefix") == 0)
+			result = j2n_prefix6(json, msg, JNLAMR_PREFIX6);
+		else if (strcasecmp(json->string, "IPv4 Prefix") == 0)
+			result = j2n_prefix4(json, msg, JNLAMR_PREFIX4);
+		else if (strcasecmp(json->string, "EA-bits length") == 0)
+			result = __json2nl_u8(json, msg, JNLAMR_EA_BITS_LENGTH);
+		else if (strcasecmp(json->string, "a") == 0)
+			result = __json2nl_u8(json, msg, JNLAMR_a);
+		else
+			result = result_from_error(-EINVAL, "Unknown tag: '%s'", child->string);
 
-		} else if (strcasecmp(json->string, "End-User IPv6 Prefix") == 0) {
-			result = j2n_prefix6(json, msg, JNLAMT_EUI6P);
-			if (result.error)
-				goto cancel;
-
-		} else if (strcasecmp(json->string, "BMR") == 0) {
-			if (json->type != cJSON_Object) {
-				result = type_mismatch(json->string, json, "Object");
-				goto cancel;
-			}
-
-			for (child = json->child; child; child = child->next) {
-				if (strcasecmp(json->string, "comment") == 0)
-					result = result_success(); /* Skip */
-				else if (strcasecmp(json->string, "IPv6 Prefix") == 0)
-					result = j2n_prefix6(json, msg, JNLAMT_BMR_P6);
-				else if (strcasecmp(json->string, "IPv4 Prefix") == 0)
-					result = j2n_prefix4(json, msg, JNLAMT_BMR_P4);
-				else if (strcasecmp(json->string, "EA-bits length") == 0)
-					result = __json2nl_u8(json, msg, JNLAMT_BMR_EBL);
-				else if (strcasecmp(json->string, "a") == 0)
-					result = __json2nl_u8(json, msg, JNLAMT_a);
-				else if (strcasecmp(json->string, "k") == 0)
-					result = __json2nl_u8(json, msg, JNLAMT_k);
-				else if (strcasecmp(json->string, "m") == 0)
-					result = __json2nl_u8(json, msg, JNLAMT_m);
-				else
-					result = result_from_error(-EINVAL, "Unknown tag: '%s'", child->string);
-
-				if (result.error)
-					goto cancel;
-			}
-
-		} else {
-			result = result_from_error(-EINVAL, "Unknown tag: '%s'", json->string);
-			goto cancel;
+		if (result.error) {
+			nla_nest_cancel(msg, root);
+			return result;
 		}
 	}
 
 	nla_nest_end(msg, root);
 	return result_success();
+}
 
-cancel:
-	nla_nest_cancel(msg, root);
-	return result;
+static struct jool_result json2nl_mapping_rule(struct joolnl_global_meta const *meta,
+		cJSON *json, struct nl_msg *msg)
+{
+	return j2n_mapping_rule(json, msg, meta->id);
 }
 
 #endif
@@ -1306,7 +1013,7 @@ static struct joolnl_global_type gt_plateaus = {
 
 static struct joolnl_global_type gt_prefix6 = {
 	.name = "IPv6 prefix",
-	KERNEL_FUNCTIONS(raw2nl_prefix6, NULL)
+	KERNEL_FUNCTIONS(raw2nl_prefix6, nl2raw_prefix6)
 	USERSPACE_FUNCTIONS(print_prefix6, str2nl_prefix6, json2nl_string, nl2raw_prefix6)
 };
 
@@ -1323,10 +1030,17 @@ static struct joolnl_global_type gt_hairpin_mode = {
 	USERSPACE_FUNCTIONS(print_hairpin_mode, str2nl_hairpin_mode, json2nl_string, nl2raw_u8)
 };
 
-static struct joolnl_global_type gt_mapt = {
-	.name = "MAP-T Fields",
-	KERNEL_FUNCTIONS(raw2nl_mapt, nl2raw_mapt)
-	USERSPACE_FUNCTIONS(print_mapt, NULL, json2nl_mapt, nl2raw_mapt)
+static struct joolnl_global_type gt_maptype = {
+	.name = "MAP-T type",
+	.candidates = "CE BR",
+	KERNEL_FUNCTIONS(raw2nl_u8, nl2raw_maptype)
+	USERSPACE_FUNCTIONS(print_maptype, str2nl_maptype, json2nl_string, nl2raw_u8)
+};
+
+static struct joolnl_global_type gt_mapping_rule = {
+	.name = "MAP-T Mapping Rule",
+	KERNEL_FUNCTIONS(raw2nl_mapping_rule, nl2raw_mapping_rule)
+	USERSPACE_FUNCTIONS(print_mapping_rule, str2nl_mapping_rule, json2nl_mapping_rule, nl2raw_mapping_rule)
 };
 
 static const struct joolnl_global_meta globals_metadata[] = {
@@ -1422,9 +1136,6 @@ static const struct joolnl_global_meta globals_metadata[] = {
 		.doc = "IPv6 prefix to generate RFC6791v6 addresses from.",
 		.offset = offsetof(struct jool_globals, rfc6791_prefix6),
 		.xt = XT_SIIT | XT_MAPT,
-#ifdef __KERNEL__
-		.nl2raw = nl2raw_pool6791v6,
-#endif
 	}, {
 		.id = JNLAG_POOL6791V4,
 		.name = "rfc6791v4-prefix",
@@ -1581,11 +1292,25 @@ static const struct joolnl_global_meta globals_metadata[] = {
 		.offset = offsetof(struct jool_globals, nat64.joold.max_payload),
 		.xt = XT_NAT64,
 	}, {
-		.id = JNLAG_MAPT,
-		.name = "mapt",
-		.type = &gt_mapt,
-		.doc = "The MAP-T core fields.",
-		.offset = offsetof(struct jool_globals, mapt),
+		.id = JNLAG_MAPTYPE,
+		.name = "map-t-type",
+		.type = &gt_maptype,
+		.doc = "CE or BR.",
+		.offset = offsetof(struct jool_globals, mapt.type),
+		.xt = XT_MAPT,
+	}, {
+		.id = JNLAG_EUI6P,
+		.name = "end-user-ipv6-prefix",
+		.type = &gt_prefix6,
+		.doc = "The prefix identifier of this CE.",
+		.offset = offsetof(struct jool_globals, mapt.eui6p),
+		.xt = XT_MAPT,
+	}, {
+		.id = JNLAG_BMR,
+		.name = "bmr",
+		.type = &gt_mapping_rule,
+		.doc = "The MAP domain's common configuration.",
+		.offset = offsetof(struct jool_globals, mapt.bmr),
 		.xt = XT_MAPT,
 	}
 };
@@ -1668,6 +1393,12 @@ void *joolnl_global_get(struct joolnl_global_meta const *meta, struct jool_globa
 int joolnl_global_raw2nl(struct joolnl_global_meta const *meta, void *raw,
 		struct sk_buff *skb)
 {
+	if (!meta->type->raw2nl) {
+		log_err("The raw2nl callback of type '%s' is undefined.",
+				meta->type->name);
+		return -EINVAL;
+	}
+
 	return meta->type->raw2nl(meta, raw, skb);
 }
 
@@ -1675,8 +1406,18 @@ int joolnl_global_nl2raw(struct joolnl_global_meta const *meta,
 		struct nlattr *nl, void *raw, bool force)
 {
 	joolnl_global_nl2raw_fn nl2raw;
-	nl2raw = meta->nl2raw ? meta->nl2raw : meta->type->nl2raw;
-	return nl2raw(nl, raw, force);
+
+	if (meta->nl2raw)
+		nl2raw = meta->nl2raw;
+	else if (meta->type->nl2raw)
+		nl2raw = meta->type->nl2raw;
+	else {
+		log_err("Global '%s' has no nl2raw function, and its type doesn't either.",
+				meta->name);
+		return -EINVAL;
+	}
+
+	return nl2raw(meta, nl, raw, force);
 }
 
 #else
@@ -1684,18 +1425,42 @@ int joolnl_global_nl2raw(struct joolnl_global_meta const *meta,
 struct jool_result joolnl_global_nl2raw(struct joolnl_global_meta const *meta,
 		struct nlattr *nl, void *raw)
 {
+	if (!meta->type->nl2raw) {
+		return result_from_error(
+			-EINVAL,
+			"The nl2raw callback of type '%s' is undefined.",
+			meta->type->name
+		);
+	}
+
 	return meta->type->nl2raw(nl, raw);
 }
 
 struct jool_result joolnl_global_str2nl(struct joolnl_global_meta const *meta,
 		char const *str, struct nl_msg *nl)
 {
+	if (!meta->type->str2nl) {
+		return result_from_error(
+			-EINVAL,
+			"The str2nl callback of type '%s' is undefined.",
+			meta->type->name
+		);
+	}
+
 	return meta->type->str2nl(meta->id, str, nl);
 }
 
 struct jool_result joolnl_global_json2nl(struct joolnl_global_meta const *meta,
 		cJSON *json, struct nl_msg *msg)
 {
+	if (!meta->type->json2nl) {
+		return result_from_error(
+			-EINVAL,
+			"The json2nl callback of type '%s' is undefined.",
+			meta->type->name
+		);
+	}
+
 	return meta->type->json2nl(meta, json, msg);
 }
 
@@ -1703,7 +1468,17 @@ void joolnl_global_print(struct joolnl_global_meta const *meta, void *value,
 		bool csv)
 {
 	joolnl_global_print_fn print;
-	print = meta->print ? meta->print : meta->type->print;
+
+	if (meta->print)
+		print = meta->print;
+	else if (meta->type->print)
+		print = meta->type->print;
+	else {
+		fprintf(stderr, "Global '%s' has no print function, and its type doesn't either.\n",
+				meta->name);
+		return;
+	}
+
 	print(value, csv);
 }
 

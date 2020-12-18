@@ -154,7 +154,7 @@ int prefix6_validate(const struct ipv6_prefix *prefix)
 	}
 
 	if (prefix->len > 128) {
-		log_err("Prefix length %u is too high.", prefix->len);
+		log_err("Prefix length %u is too long.", prefix->len);
 		return -EINVAL;
 	}
 

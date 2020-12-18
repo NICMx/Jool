@@ -28,9 +28,8 @@ struct nla_policy joolnl_instance_entry_policy[JNLAIE_COUNT] = {
 };
 
 struct nla_policy joolnl_instance_add_policy[JNLAIA_COUNT] = {
-	[JNLAIA_XF] = { .type = NLA_U8},
+	[JNLAIA_XF] = { .type = NLA_U8 },
 	[JNLAIA_POOL6] = { .type = NLA_NESTED },
-	[JNLAIA_MAPT] = { .type = NLA_NESTED },
 };
 
 struct nla_policy joolnl_prefix6_policy[JNLAP_COUNT] = {
@@ -86,11 +85,11 @@ struct nla_policy joolnl_session_entry_policy[JNLASE_COUNT] = {
 	[JNLASE_EXPIRATION] = { .type = NLA_U32 },
 };
 
-struct nla_policy joolnl_fmr_policy[JNLAF_COUNT] = {
-	[JNLAF_PREFIX6] = { .type = NLA_NESTED },
-	[JNLAF_PREFIX4] = { .type = NLA_NESTED },
-	[JNLAF_EA_BITS_LENGTH] = { .type = NLA_U8 },
-	[JNLAF_a] = { .type = NLA_U8 },
+struct nla_policy joolnl_mr_policy[JNLAMR_COUNT] = {
+	[JNLAMR_PREFIX6] = { .type = NLA_NESTED },
+	[JNLAMR_PREFIX4] = { .type = NLA_NESTED },
+	[JNLAMR_EA_BITS_LENGTH] = { .type = NLA_U8 },
+	[JNLAMR_a] = { .type = NLA_U8 },
 };
 
 const struct nla_policy siit_globals_policy[JNLAG_COUNT] = {
@@ -147,21 +146,11 @@ const struct nla_policy mapt_globals_policy[JNLAG_COUNT] = {
 	[JNLAG_RESET_TOS] = { .type = NLA_U8 },
 	[JNLAG_TOS] = { .type = NLA_U8 },
 	[JNLAG_PLATEAUS] = { .type = NLA_NESTED },
-	[JNLAG_MAPT] = { .type = NLA_NESTED },
+	[JNLAG_MAPTYPE] = { .type = NLA_U8 },
+	[JNLAG_EUI6P] = { .type = NLA_NESTED },
+	[JNLAG_BMR] = { .type = NLA_NESTED },
 	[JNLAG_POOL6791V6] = { .type = NLA_NESTED },
 	[JNLAG_POOL6791V4] = { .type = NLA_NESTED },
-};
-
-struct nla_policy mapt_policy[JNLAMT_COUNT] = {
-	[JNLAMT_TYPE] = { .type = NLA_U8 },
-	[JNLAMT_EUI6P] = { .type = NLA_NESTED },
-	[JNLAMT_EABITS] = { .type = NLA_U64 },
-	[JNLAMT_BMR_P6] = { .type = NLA_NESTED },
-	[JNLAMT_BMR_P4] = { .type = NLA_NESTED },
-	[JNLAMT_BMR_EBL] = { .type = NLA_U8 },
-	[JNLAMT_a] = { .type = NLA_U8 },
-	[JNLAMT_k] = { .type = NLA_U8 },
-	[JNLAMT_m] = { .type = NLA_U8 },
 };
 
 int iname_validate(const char *iname, bool allow_null)

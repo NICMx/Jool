@@ -40,9 +40,11 @@ extern struct wargp_type wt_u32;
 extern struct wargp_type wt_u64;
 extern struct wargp_type wt_l4proto;
 extern struct wargp_type wt_string;
+extern struct wargp_type wt_multi_string;
 extern struct wargp_type wt_addr;
 extern struct wargp_type wt_prefix6;
 extern struct wargp_type wt_prefix4;
+extern struct wargp_type wt_mapping_rule;
 
 struct wargp_option {
 	xlator_type xt; /* Zero is treated as XT_ANY. */
@@ -92,6 +94,11 @@ struct wargp_prefix6 {
 struct wargp_prefix4 {
 	bool set;
 	struct ipv4_prefix prefix;
+};
+
+struct wargp_mapping_rule {
+	unsigned int fields;
+	struct mapping_rule rule;
 };
 
 #define ARGP_TCP 't'

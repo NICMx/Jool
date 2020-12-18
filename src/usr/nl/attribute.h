@@ -34,7 +34,7 @@ struct jool_result nla_get_eam(struct nlattr *attr, struct eamt_entry *out);
 struct jool_result nla_get_pool4(struct nlattr *attr, struct pool4_entry *out);
 struct jool_result nla_get_bib(struct nlattr *attr, struct bib_entry *out);
 struct jool_result nla_get_session(struct nlattr *attr, struct session_entry_usr *out);
-struct jool_result nla_get_fmr(struct nlattr *attr, struct mapping_rule *out);
+struct jool_result nla_get_mapping_rule(struct nlattr *attr, struct config_mapping_rule *out);
 struct jool_result nla_get_plateaus(struct nlattr *attr, struct mtu_plateaus *out);
 
 /*
@@ -73,5 +73,6 @@ int nla_put_bib_attrs(struct nl_msg *msg, int attrtype,
 		l4_protocol proto,
 		bool is_static);
 int nla_put_session(struct nl_msg *msg, int attrtype, struct session_entry_usr const *entry);
+int nla_put_mapping_rule(struct nl_msg *msg, int attrtype, struct mapping_rule const *rule);
 
 #endif /* SRC_USR_NL_ATTRIBUTE_H_ */

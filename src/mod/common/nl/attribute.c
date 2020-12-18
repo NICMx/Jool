@@ -49,18 +49,6 @@ int jnla_get_u32(struct nlattr *attr, char const *name, __u32 *out)
 	return 0;
 }
 
-int jnla_get_u64(struct nlattr *attr, char const *name, __u64 *out)
-{
-	int error;
-
-	error = validate_null(attr, name);
-	if (error)
-		return error;
-
-	*out = nla_get_u64(attr);
-	return 0;
-}
-
 static int validate_str(char const *str, size_t max_size)
 {
 	size_t i;
@@ -161,9 +149,13 @@ int jnla_get_prefix6_optional(struct nlattr *attr, char const *name,
 	}
 
 	out->set = true;
-	out->prefix.len = nla_get_u8(attrs[JNLAP_LEN]);
-	return jnla_get_addr6(attrs[JNLAP_ADDR], "IPv6 prefix address",
+	error = jnla_get_addr6(attrs[JNLAP_ADDR], "IPv6 prefix address",
 			&out->prefix.addr);
+	if (error)
+		return error;
+	out->prefix.len = nla_get_u8(attrs[JNLAP_LEN]);
+
+	return prefix6_validate(&out->prefix);
 }
 
 int jnla_get_prefix4(struct nlattr *attr, char const *name,
@@ -210,9 +202,13 @@ int jnla_get_prefix4_optional(struct nlattr *attr, char const *name,
 	}
 
 	out->set = true;
-	out->prefix.len = nla_get_u8(attrs[JNLAP_LEN]);
-	return jnla_get_addr4(attrs[JNLAP_ADDR], "IPv4 prefix address",
+	error = jnla_get_addr4(attrs[JNLAP_ADDR], "IPv4 prefix address",
 			&out->prefix.addr);
+	if (error)
+		return error;
+	out->prefix.len = nla_get_u8(attrs[JNLAP_LEN]);
+
+	return prefix4_validate(&out->prefix);
 }
 
 int jnla_get_taddr6(struct nlattr *attr, char const *name,
@@ -447,26 +443,70 @@ int jnla_get_session(struct nlattr *attr, char const *name,
 	return 0;
 }
 
-int jnla_get_fmr(struct nlattr *attr, char const *name, struct mapping_rule *fmr)
+int jnla_get_mapping_rule(struct nlattr *attr, char const *name,
+		struct config_mapping_rule *_rule)
 {
-	struct nlattr *attrs[JNLAF_COUNT];
+	struct nlattr *attrs[JNLAMR_COUNT];
+	struct mapping_rule *rule;
+	unsigned int suffix_len;
+	unsigned int sid_len;
+	unsigned int k;
 	int error;
 
 	error = validate_null(attr, name);
 	if (error)
 		return error;
 
-	error = jnla_parse_nested(attrs, JNLAF_MAX, attr, joolnl_fmr_policy, name);
+	error = jnla_parse_nested(attrs, JNLAMR_MAX, attr, joolnl_mr_policy, name);
 	if (error)
 		return error;
 
-	error = jnla_get_prefix6(attrs[JNLAF_PREFIX6], "IPv6 prefix", &fmr->prefix6)
-	     || jnla_get_prefix4(attrs[JNLAF_PREFIX4], "IPv4 prefix", &fmr->prefix4)
-	     || jnla_get_u8(attrs[JNLAF_EA_BITS_LENGTH], "EA-bits length", &fmr->ea_bits_length);
+	if (!attrs[JNLAMR_PREFIX4]) {
+		_rule->set = false;
+		return 0;
+	}
+
+	_rule->set = true;
+	rule = &_rule->rule;
+
+	error = jnla_get_prefix6(attrs[JNLAMR_PREFIX6], "IPv6 prefix", &rule->prefix6);
 	if (error)
 		return error;
+	error = jnla_get_prefix4(attrs[JNLAMR_PREFIX4], "IPv4 prefix", &rule->prefix4);
+	if (error)
+		return error;
+	error = jnla_get_u8(attrs[JNLAMR_EA_BITS_LENGTH], "EA-bits length", &rule->o);
+	if (error)
+		return error;
+	rule->a = attrs[JNLAMR_a] ? nla_get_u8(attrs[JNLAMR_a]) : 6;
 
-	fmr->a = attrs[JNLAF_a] ? nla_get_u8(attrs[JNLAF_a]) : 6;
+	if (rule->o > 48) {
+		log_err("EA-bits Length must not exceed 48.");
+		return -EINVAL;
+	}
+
+	suffix_len = 32u - rule->prefix4.len;
+	sid_len = (suffix_len > rule->o) ? (suffix_len - rule->o) : 0;
+	if (rule->prefix6.len + rule->o + sid_len > 128u) {
+		log_err("The rule's IPv6 prefix length (%u) plus the EA-bits length (%u) plus the Subnet ID length (%u) exceed 128.",
+				rule->prefix6.len, rule->o, sid_len);
+		return -EINVAL;
+	}
+
+	if (rule->o + rule->prefix4.len <= 32u)
+		return 0; /* a, k and m only matter when o + r > 32. */
+
+	if (rule->a > 16) {
+		log_err("'a' must not exceed 16.");
+		return -EINVAL;
+	}
+	k = maprule_get_k(rule);
+	if (rule->a + k > 16) {
+		log_err("a + k must not exceed 16.");
+		log_err("current values: a:%u k:%u", rule->a, k);
+		return -EINVAL;
+	}
+
 	return 0;
 }
 
@@ -759,8 +799,8 @@ int jnla_put_session(struct sk_buff *skb, int attrtype,
 	return 0;
 }
 
-int jnla_put_fmr(struct sk_buff *skb, int attrtype,
-		struct mapping_rule const *fmr)
+int jnla_put_mapping_rule(struct sk_buff *skb, int attrtype,
+		struct config_mapping_rule const *rule)
 {
 	struct nlattr *root;
 	int error;
@@ -769,17 +809,31 @@ int jnla_put_fmr(struct sk_buff *skb, int attrtype,
 	if (!root)
 		return -EMSGSIZE;
 
-	error = jnla_put_prefix6(skb, JNLAF_PREFIX6, &fmr->prefix6)
-	     || jnla_put_prefix4(skb, JNLAF_PREFIX4, &fmr->prefix4)
-	     || nla_put_u8(skb, JNLAF_EA_BITS_LENGTH, fmr->ea_bits_length)
-	     || nla_put_u8(skb, JNLAF_a, fmr->a);
-	if (error) {
-		nla_nest_cancel(skb, root);
-		return error;
+	if (rule->set) {
+		error = jnla_put_prefix6(skb, JNLAMR_PREFIX6, &rule->rule.prefix6);
+		if (error)
+			goto cancel;
+		error = jnla_put_prefix4(skb, JNLAMR_PREFIX4, &rule->rule.prefix4);
+		if (error)
+			goto cancel;
+		error = nla_put_u8(skb, JNLAMR_EA_BITS_LENGTH, rule->rule.o);
+		if (error)
+			goto cancel;
+		error = nla_put_u8(skb, JNLAMR_a, rule->rule.a);
+		if (error)
+			goto cancel;
+	} else {
+		error = jnla_put_prefix6(skb, JNLAMR_PREFIX6, NULL);
+		if (error)
+			goto cancel;
 	}
 
 	nla_nest_end(skb, root);
 	return 0;
+
+cancel:
+	nla_nest_cancel(skb, root);
+	return error;
 }
 
 int jnla_put_plateaus(struct sk_buff *skb, int attrtype,

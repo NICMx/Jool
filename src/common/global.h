@@ -44,11 +44,6 @@ void *joolnl_global_get(
 
 #ifdef __KERNEL__
 
-int joolnl_mapt_nl2raw(
-	struct nlattr *attr,
-	struct mapt_globals *result
-);
-
 int joolnl_global_raw2nl(
 	struct joolnl_global_meta const *meta,
 	void *raw,

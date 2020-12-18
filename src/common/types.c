@@ -98,5 +98,5 @@ bool ipv4_range_touches(struct ipv4_range const *r1, struct ipv4_range const *r2
 
 __u8 maprule_get_k(struct mapping_rule *rule)
 {
-	return rule->ea_bits_length - (32u - rule->prefix4.len);
+	return rule->o - (32u - rule->prefix4.len);
 }

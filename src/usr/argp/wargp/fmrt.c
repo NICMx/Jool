@@ -38,13 +38,12 @@ static struct jool_result print_entry(struct mapping_rule const *entry, void *ar
 		printf("%s/%u,%s/%u,%u,%u\n",
 				ipv6_str, entry->prefix6.len,
 				ipv4_str, entry->prefix4.len,
-				entry->ea_bits_length,
-				entry->a);
+				entry->o, entry->a);
 	} else {
 		printf("| %39s/%-3u | %15s/%-2u | %-14u | %2u |\n",
 				ipv6_str, entry->prefix6.len,
 				ipv4_str, entry->prefix4.len,
-				entry->ea_bits_length, entry->a);
+				entry->o, entry->a);
 	}
 
 	return result_success();
@@ -95,66 +94,20 @@ void autocomplete_fmrt_display(void const *args)
 	print_wargp_opts(display_opts);
 }
 
-struct wargp_mapping_rule {
-	struct wargp_prefix6 prefix6;
-	struct wargp_prefix4 prefix4;
-	struct wargp_u8 ea_bits_length;
-};
-
-struct add_args {
-	struct wargp_mapping_rule rule;
-	struct wargp_u8 a;
-};
-
-static int parse_fmrt_column(void *void_field, int key, char *str)
-{
-	struct wargp_mapping_rule *field = void_field;
-	struct jool_result result;
-
-	if (strchr(str, ':')) {
-		field->prefix6.set = true;
-		result = str_to_prefix6(str, &field->prefix6.prefix);
-		return pr_result(&result);
-	}
-	if (strchr(str, '.')) {
-		field->prefix4.set = true;
-		result = str_to_prefix4(str, &field->prefix4.prefix);
-		return pr_result(&result);
-	}
-	result = str_to_u8(str, &field->ea_bits_length.value, 128);
-	if (result.error)
-		return pr_result(&result);
-
-	field->ea_bits_length.set = true;
-	return 0;
-}
-
-struct wargp_type wt_rule = {
-	.argument = "<IPv6 prefix> <IPv4 prefix> <EA-bits Length>",
-	.parse = parse_fmrt_column,
-};
-
 static struct wargp_option add_opts[] = {
 	{
-		.name = "Mapping Rule",
+		.name = "Forwarding Mapping Rule",
 		.key = ARGP_KEY_ARG,
-		.doc = "Prefixes and EA-bits Length that will shape the new FMR",
-		.offset = offsetof(struct add_args, rule),
-		.type = &wt_rule,
-	}, {
-		.name = "a",
-		.key = 'a',
-		.doc = "Length of the MAP Domain's port structure's 'i' field (aka. 'A'), in bits.",
-		.offset = offsetof(struct add_args, a),
-		.type = &wt_u8,
+		.doc = "The Basic Mapping Rule (BMR) of a reachable MAP domain.",
+		.offset = 0,
+		.type = &wt_mapping_rule,
 	},
 	{ 0 },
 };
 
 int handle_fmrt_add(char *iname, int argc, char **argv, void const *arg)
 {
-	struct add_args aargs = { 0 };
-	struct mapping_rule fmr;
+	struct wargp_mapping_rule aargs = { .rule.a = 6 };
 	struct joolnl_socket sk;
 	struct jool_result result;
 
@@ -162,26 +115,18 @@ int handle_fmrt_add(char *iname, int argc, char **argv, void const *arg)
 	if (result.error)
 		return result.error;
 
-	if (!aargs.rule.prefix6.set || !aargs.rule.prefix4.set || !aargs.rule.ea_bits_length.set) {
-		struct requirement reqs[] = {
-				{ aargs.rule.prefix6.set, "an IPv6 prefix" },
-				{ aargs.rule.prefix4.set, "an IPv4 prefix" },
-				{ aargs.rule.ea_bits_length.set, "an EA-bits Length value" },
-				{ 0 },
-		};
-		return requirement_print(reqs);
+	if (aargs.fields < 3) {
+		pr_err("Not enough arguments. Expected: %s",
+				wt_mapping_rule.argument);
+		pr_err("Arguments parsed: %u", aargs.fields);
+		return -EINVAL;
 	}
-
-	fmr.prefix6 = aargs.rule.prefix6.prefix;
-	fmr.prefix4 = aargs.rule.prefix4.prefix;
-	fmr.ea_bits_length = aargs.rule.ea_bits_length.value;
-	fmr.a = aargs.a.set ? aargs.a.value : 6;
 
 	result = joolnl_setup(&sk, xt_get());
 	if (result.error)
 		return pr_result(&result);
 
-	result = joolnl_fmrt_add(&sk, iname, &fmr);
+	result = joolnl_fmrt_add(&sk, iname, &aargs.rule);
 
 	joolnl_teardown(&sk);
 	return pr_result(&result);
