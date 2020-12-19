@@ -225,34 +225,24 @@ Some observations:
 
 ```bash
 user@CE11b:~# /sbin/modprobe jool_mapt
-user@CE11b:~# jool_mapt instance add "CE 11b" --netfilter \
-			--end-user-ipv6-prefix 2001:db8:ce:11b::/64 \
-			--bmr.ipv6-prefix 2001:db8:ce::/51 \
-			--bmr.ipv4-prefix 192.0.2.0/24 \
-			--bmr.ea-bits-length 13 \
-			--dmr 64:ff9b::/96 \
-			--a 0
+user@CE11b:~# jool_mapt instance add "CE 11b" --netfilter --dmr 64:ff9b::/96
+user@CE11b:~# jool_mapt -i "CE 11b" global update end-user-ipv6-prefix 2001:db8:ce:11b::/64
+user@CE11b:~# jool_mapt -i "CE 11b" global update bmr 2001:db8:ce::/51 192.0.2.0/24 13 0
 ```
 
 ```bash
 user@CE774:~# /sbin/modprobe jool_mapt
-user@CE774:~# jool_mapt instance add "CE 774" --netfilter \
-			--end-user-ipv6-prefix 2001:db8:ce:774::/64 \
-			--bmr.ipv6-prefix 2001:db8:ce::/51 \
-			--bmr.ipv4-prefix 192.0.2.0/24 \
-			--bmr.ea-bits-length 13 \
-			--dmr 64:ff9b::/96 \
-			--a 0
+user@CE774:~# jool_mapt instance add "CE 774" --netfilter --dmr 64:ff9b::/96
+user@CE774:~# jool_mapt -i "CE 774" global update end-user-ipv6-prefix 2001:db8:ce:774::/64
+user@CE774:~# jool_mapt -i "CE 774" global update bmr 2001:db8:ce::/51 192.0.2.0/24 13 0
 ```
-
-> TODO it needs to be `--bmr.a 0`, not `--a 0`.
 
 ### Jool: BR
 
 ```bash
 user@BR:~# /sbin/modprobe jool_mapt
 user@BR:~# jool_mapt instance add "BR" --netfilter --dmr 64:ff9b::/96
-user@BR:~# jool_mapt -i "BR" fmr add 2001:db8:ce::/51 192.0.2.0/24 13 --a 0
+user@BR:~# jool_mapt -i "BR" fmrt add 2001:db8:ce::/51 192.0.2.0/24 13 0
 ```
 
 ## Testing

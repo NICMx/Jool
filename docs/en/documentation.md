@@ -37,6 +37,8 @@ See [RFC 6586](https://tools.ietf.org/html/rfc6586) for deployment experiences u
 6. [MAP-T](run-mapt.html)
 5. [Persistence](run-persistent.html)
 
+If you know what you're doing, try the [Cheat Sheet](cheat-sheet.html).
+
 ## IP/ICMP Translation in Detail
 
 1. [The IPv6 Address Pool](pool6.html)
@@ -91,4 +93,5 @@ See [RFC 6586](https://tools.ietf.org/html/rfc6586) for deployment experiences u
 1. [FAQ](faq.html)
 3. [MTU and Fragmentation](mtu.html)
 4. [Offloads](offloads.html)
+5. [Cheat Sheet](cheat-sheet.html)
 
