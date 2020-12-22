@@ -56,12 +56,13 @@ static int validate_version(struct joolnlhdr *hdr)
 	return -EINVAL;
 }
 
-int request_handle_start(struct genl_info *info, xlator_type xt, struct xlator *jool)
+int request_handle_start(struct genl_info *info, xlator_type xt,
+		struct xlator *jool, bool require_net_admin)
 {
 	struct joolnlhdr *hdr;
 	int error;
 
-	if (!capable(CAP_NET_ADMIN)) {
+	if (require_net_admin && !capable(CAP_NET_ADMIN)) {
 		log_err("CAP_NET_ADMIN capability required. (Maybe try su or sudo?)");
 		return -EPERM;
 	}

@@ -20,7 +20,7 @@ int handle_pool4_foreach(struct sk_buff *skb, struct genl_info *info)
 	struct pool4_entry offset, *offset_ptr;
 	int error;
 
-	error = request_handle_start(info, XT_NAT64, &jool);
+	error = request_handle_start(info, XT_NAT64, &jool, true);
 	if (error)
 		return jresponse_send_simple(NULL, info, error);
 
@@ -79,7 +79,7 @@ int handle_pool4_add(struct sk_buff *skb, struct genl_info *info)
 	struct pool4_entry entry;
 	int error;
 
-	error = request_handle_start(info, XT_NAT64, &jool);
+	error = request_handle_start(info, XT_NAT64, &jool, true);
 	if (error)
 		return jresponse_send_simple(NULL, info, error);
 
@@ -110,7 +110,7 @@ int handle_pool4_rm(struct sk_buff *skb, struct genl_info *info)
 	struct pool4_entry entry;
 	int error;
 
-	error = request_handle_start(info, XT_NAT64, &jool);
+	error = request_handle_start(info, XT_NAT64, &jool, true);
 	if (error)
 		return jresponse_send_simple(NULL, info, error);
 
@@ -135,7 +135,7 @@ int handle_pool4_flush(struct sk_buff *skb, struct genl_info *info)
 	struct xlator jool;
 	int error;
 
-	error = request_handle_start(info, XT_NAT64, &jool);
+	error = request_handle_start(info, XT_NAT64, &jool, true);
 	if (error)
 		return jresponse_send_simple(NULL, info, error);
 

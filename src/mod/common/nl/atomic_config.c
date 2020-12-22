@@ -11,7 +11,7 @@ int handle_atomconfig_request(struct sk_buff *skb, struct genl_info *info)
 
 	LOG_DEBUG("Handling atomic configuration request.");
 
-	error = request_handle_start(info, XT_ANY, NULL);
+	error = request_handle_start(info, XT_ANY, NULL, true);
 	if (!error)
 		error = atomconfig_add(skb, info);
 	request_handle_end(NULL);

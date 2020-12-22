@@ -26,6 +26,8 @@ They will give you an overview of the instance's view on your traffic. In partic
 
 More than anything, `stats` is intended for short-term troubleshooting purposes. The counters, their IDs and their descriptions are not set in stone, and can differ across different Jool versions.
 
+As of version 4.1.5, `stats` is Jool's only kernelside operation handler that does not require `CAP_NET_ADMIN` privileges.
+
 ## Syntax
 
 	(jool_siit | jool) stats (

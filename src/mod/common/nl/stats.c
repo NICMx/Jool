@@ -15,7 +15,7 @@ int handle_stats_foreach(struct sk_buff *skb, struct genl_info *info)
 	unsigned int written;
 	int error;
 
-	error = request_handle_start(info, XT_ANY, &jool);
+	error = request_handle_start(info, XT_ANY, &jool, false);
 	if (error)
 		return jresponse_send_simple(NULL, info, error);
 
