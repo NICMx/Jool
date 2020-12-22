@@ -93,3 +93,24 @@ user@T:~# jool stats display --csv --explain > stats.csv
 {% endhighlight %}
 
 [stats.csv](../obj/stats.csv)
+
+## Time Series Data Options
+
+### prometheus `jool-exporter`
+
+A python `jool-exporter` binary exports data for prometheus collection.
+The code is written as jool adds and removes stats they show up in the
+exported data.
+
+* `pip install jool-exporter`
+
+It is recommended to run jool-exporter via SystemD.
+Pull requests + enhancements welcome!
+
+**More Information:**
+
+* [GttHub Repo](https://github.com/cooperlees/jool-exporter)
+  * [README](https://github.com/cooperlees/jool-exporter/blob/main/README.md)
+* [PyPI](https://pypi.org/project/jool-exporter/)
+
+*Please Note: This tool is not maintained by the core Jool team.*
