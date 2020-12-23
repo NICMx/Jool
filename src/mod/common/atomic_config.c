@@ -8,7 +8,7 @@
 #include "mod/common/nl/global.h"
 #include "mod/common/nl/nl_common.h"
 #include "mod/common/db/eam.h"
-#include "mod/common/db/pool.h"
+#include "mod/common/db/denylist4.h"
 #include "mod/common/joold.h"
 #include "mod/common/db/pool4/db.h"
 #include "mod/common/db/bib/db.h"
@@ -221,7 +221,7 @@ static int handle_eamt(struct config_candidate *new, struct nlattr *root,
 	return 0;
 }
 
-static int handle_blacklist4(struct config_candidate *new, struct nlattr *root,
+static int handle_denylist4(struct config_candidate *new, struct nlattr *root,
 		bool force)
 {
 	struct nlattr *attr;
@@ -229,19 +229,19 @@ static int handle_blacklist4(struct config_candidate *new, struct nlattr *root,
 	int rem;
 	int error;
 
-	LOG_DEBUG("Handling atomic blacklist4 attribute.");
+	LOG_DEBUG("Handling atomic denylist4 attribute.");
 
-	error = check_xtype(new, XT_SIIT, "blacklist4");
+	error = check_xtype(new, XT_SIIT, "denylist4");
 	if (error)
 		return error;
 
 	nla_for_each_nested(attr, root, rem) {
 		if (nla_type(attr) != JNLAL_ENTRY)
 			continue; /* ? */
-		error = jnla_get_prefix4(attr, "IPv4 blacklist entry", &entry);
+		error = jnla_get_prefix4(attr, "IPv4 denylist4 entry", &entry);
 		if (error)
 			return error;
-		error = pool_add(new->xlator.siit.blacklist4, &entry, force);
+		error = denylist4_add(new->xlator.siit.denylist4, &entry, force);
 		if (error)
 			return error;
 	}
@@ -347,7 +347,7 @@ int atomconfig_add(struct sk_buff *skb, struct genl_info *info)
 			goto revert;
 	}
 	if (info->attrs[JNLAR_BL4_ENTRIES]) {
-		error = handle_blacklist4(candidate, info->attrs[JNLAR_BL4_ENTRIES], jhdr->flags & JOOLNLHDR_FLAGS_FORCE);
+		error = handle_denylist4(candidate, info->attrs[JNLAR_BL4_ENTRIES], jhdr->flags & JOOLNLHDR_FLAGS_FORCE);
 		if (error)
 			goto revert;
 	}

@@ -20,21 +20,24 @@ See [RFC 6586](https://tools.ietf.org/html/rfc6586) for deployment experiences u
 
 ## Installation
 
-1. [Installation in OpenWRT](openwrt.html)
-2. [Installation in Alpine Linux](alpine-linux.html)
-3. [Installation in openSUSE](opensuse.html)
 4. [Installation in Debian and its derivatives](debian.html)
 5. [Installation in Ubuntu (20.04+)](ubuntu.html)
+2. [Installation in Alpine Linux](alpine-linux.html)
+3. [Installation in openSUSE](opensuse.html)
+1. [Installation in OpenWRT](openwrt.html)
 6. [Installation in most other distros](install.html) (Installing from source)
 
 ## Basic Tutorials
 
+1. [Basic Linux Networking](run-linux.html)
 1. [SIIT](run-vanilla.html)
 2. [SIIT + EAM](run-eam.html)
 3. [Stateful NAT64](run-nat64.html)
 4. [DNS64](dns64.html)
 6. [MAP-T](run-mapt.html)
 5. [Persistence](run-persistent.html)
+
+If you know what you're doing, try the [Cheat Sheet](cheat-sheet.html).
 
 ## IP/ICMP Translation in Detail
 
@@ -61,7 +64,7 @@ See [RFC 6586](https://tools.ietf.org/html/rfc6586) for deployment experiences u
 	4. [`file`](config-atomic.html)
 2. `jool_siit`-only modes
 	1. [`eamt`](usr-flags-eamt.html)
-	2. [`blacklist4`](usr-flags-blacklist4.html)
+	2. [`denylist4`](usr-flags-denylist4.html)
 	3. [`address`](usr-flags-address.html)
 3. `jool`-only modes
 	1. [`pool4`](usr-flags-pool4.html)
@@ -90,4 +93,5 @@ See [RFC 6586](https://tools.ietf.org/html/rfc6586) for deployment experiences u
 1. [FAQ](faq.html)
 3. [MTU and Fragmentation](mtu.html)
 4. [Offloads](offloads.html)
+5. [Cheat Sheet](cheat-sheet.html)
 

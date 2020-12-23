@@ -258,7 +258,7 @@ void addr6_set_bits(struct in6_addr *addr, unsigned int offset,
 		addr6_set_bit(addr, offset + i, (value >> (len - i - 1u)) & 1u);
 }
 
-void __addr6_copy_bits(struct in6_addr *src, struct in6_addr *dst,
+static void __addr6_copy_bits(struct in6_addr *src, struct in6_addr *dst,
 		unsigned int offset, unsigned int last)
 {
 	unsigned int i;

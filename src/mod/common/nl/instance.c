@@ -64,7 +64,7 @@ int handle_instance_foreach(struct sk_buff *skb, struct genl_info *info)
 
 	LOG_DEBUG("Sending instance table to userspace.");
 
-	error = request_handle_start(info, XT_ANY, NULL);
+	error = request_handle_start(info, XT_ANY, NULL, true);
 	if (error)
 		goto fail;
 
@@ -108,7 +108,7 @@ int handle_instance_add(struct sk_buff *skb, struct genl_info *info)
 
 	LOG_DEBUG("Adding Jool instance.");
 
-	error = request_handle_start(info, XT_ANY, NULL);
+	error = request_handle_start(info, XT_ANY, NULL, true);
 	if (error)
 		goto abort;
 
@@ -158,7 +158,7 @@ int handle_instance_hello(struct sk_buff *skb, struct genl_info *info)
 
 	LOG_DEBUG("Handling instance Hello.");
 
-	error = request_handle_start(info, XT_ANY, NULL);
+	error = request_handle_start(info, XT_ANY, NULL, true);
 	if (error)
 		goto fail;
 
@@ -201,7 +201,7 @@ int handle_instance_rm(struct sk_buff *skb, struct genl_info *info)
 
 	LOG_DEBUG("Removing Jool instance.");
 
-	error = request_handle_start(info, XT_ANY, NULL);
+	error = request_handle_start(info, XT_ANY, NULL, true);
 	if (!error)
 		error = xlator_rm(get_jool_hdr(info)->xt, get_jool_hdr(info)->iname);
 	request_handle_end(NULL);
@@ -215,7 +215,7 @@ int handle_instance_flush(struct sk_buff *skb, struct genl_info *info)
 
 	LOG_DEBUG("Flushing all instances from this namespace.");
 
-	error = request_handle_start(info, XT_ANY, NULL);
+	error = request_handle_start(info, XT_ANY, NULL, true);
 	if (!error)
 		error = xlator_flush(get_jool_hdr(info)->xt);
 	request_handle_end(NULL);

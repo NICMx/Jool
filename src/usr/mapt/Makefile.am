@@ -9,7 +9,7 @@ jool_mapt_CFLAGS += -I${top_srcdir}/src
 
 jool_mapt_LDADD = ../argp/libjoolargp.la
 
-#dist_man_MANS = jool_mapt.8
+dist_man_MANS = jool_mapt.8
 
 if ENABLE_BASH_COMPLETION
 bashcompletiondir = $(BASH_COMPLETION_DIR)

@@ -4,7 +4,7 @@ libjoolnl_la_SOURCES = \
 	address.c address.h \
 	attribute.c attribute.h \
 	bib.c bib.h \
-	blacklist4.c blacklist4.h \
+	denylist4.c denylist4.h \
 	common.c common.h \
 	core.c core.h \
 	eamt.c eamt.h \

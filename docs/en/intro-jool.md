@@ -48,7 +48,8 @@ Please [let us know]({{ site.repository-url }}/issues) if you find additional co
 
 | Jool version                        | Supported Linux kernels (mainline)   | Supported Linux kernels (RHEL) |
 |-------------------------------------|--------------------------------------|--------------------------------|
-| [master]({{ site.repository-url }}),<br />[4.1.2](download.html#41x) | 3.16 - 3.19,<br />4.0 - 4.20,<br />5.0 - 5.7 | RHEL 7.6 - RHEL 7.7,<br />RHEL 8.0 |
+| [master]({{ site.repository-url }}),<br />[4.1.3](download.html#41x),<br />[4.1.4](download.html#41x) | 3.16 - 3.19,<br />4.0 - 4.20,<br />5.0 - 5.9 | RHEL 7.6 - RHEL 7.7,<br />RHEL 8.0 |
+| [4.1.2](download.html#41x) | 3.16 - 3.19,<br />4.0 - 4.20,<br />5.0 - 5.7 | RHEL 7.6 - RHEL 7.7,<br />RHEL 8.0 |
 | [4.1.1](download.html#41x),<br />[4.1.0](download.html#41x) | 3.16 - 3.19,<br />4.0 - 4.20,<br />5.0 - 5.7 | RHEL 7.6 - RHEL 7.7,<br /><del>[RHEL 8.0](https://github.com/NICMx/Jool/issues/334)</del> |
 | [4.0.9](download.html#40x)          | 3.13 - 3.19,<br />4.0 - 4.20,<br />5.0 - 5.6 | RHEL 7.0 - RHEL 7.7,<br /><del>[RHEL 8.0](https://github.com/NICMx/Jool/issues/334)</del> |
 | [4.0.8](download.html#40x)          | 3.13 - 3.19,<br />4.0 - 4.20,<br />5.0 - 5.5 | RHEL 7.0 - RHEL 7.7,<br /><del>[RHEL 8.0](https://github.com/NICMx/Jool/issues/334)</del> |
@@ -64,6 +65,8 @@ RHEL-based distributions (such as Red Hat and CentOS) do not follow the normal k
 ## Design
 
 A Jool instance can be attached to one of two different traffic-intercepting, plugin-enabling, kernel-based frameworks: _Netfilter_ and _iptables_. Despite some documentation out there, these two are not the same thing; at least not from Jool's point of view.
+
+> ![Note!](../images/bulb.svg) Yes, we know we're supposed to add nftables support, but it's going to be a lot of work, and so it's tentatively scheduled to come out in late 2021.
 
 ### Netfilter
 
@@ -124,11 +127,11 @@ SIIT Jool also returns the packet to the kernel when at least one of these condi
 - The packet is IPv4 and at least one of its addresses cannot be translated. An IPv4 address cannot be translated when
 	- it's subnet-scoped,
 	- belongs to one of the translator's interfaces,
-	- is [blacklist4ed](usr-flags-blacklist4.html), or
+	- is [denylist4ed](usr-flags-denylist4.html), or
 	- cannot be translated by any of the populated address translation strategies (EAMT, pool6 and rfc6791).
 - The packet is IPv6 and at least one of its addresses cannot be translated. An IPv6 address cannot be translated when
 	- it cannot be translated by any of the populated address translation strategies (EAMT, pool6 and rfc6791),
-	- its IPv4 counterpart is blacklist4ed,
+	- its IPv4 counterpart is denylist4ed,
 	- its IPv4 counterpart is subnet-scoped, or
 	- its IPv4 counterpart belongs to a local interface.
 

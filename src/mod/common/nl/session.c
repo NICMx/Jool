@@ -46,7 +46,7 @@ int handle_session_foreach(struct sk_buff *skb, struct genl_info *info)
 	l4_protocol proto;
 	int error;
 
-	error = request_handle_start(info, XT_NAT64, &jool);
+	error = request_handle_start(info, XT_NAT64, &jool, true);
 	if (error)
 		return jresponse_send_simple(NULL, info, error);
 

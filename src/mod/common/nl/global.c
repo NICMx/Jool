@@ -21,7 +21,7 @@ int handle_global_foreach(struct sk_buff *skb, struct genl_info *info)
 	enum joolnl_attr_global offset;
 	int error;
 
-	error = request_handle_start(info, XT_ANY, &jool);
+	error = request_handle_start(info, XT_ANY, &jool, true);
 	if (error)
 		return jresponse_send_simple(NULL, info, error);
 
@@ -101,7 +101,7 @@ int handle_global_update(struct sk_buff *skb, struct genl_info *info)
 	 * So let's STFU and do that.
 	 */
 
-	error = request_handle_start(info, XT_ANY, &jool);
+	error = request_handle_start(info, XT_ANY, &jool, true);
 	if (error)
 		return jresponse_send_simple(NULL, info, error);
 

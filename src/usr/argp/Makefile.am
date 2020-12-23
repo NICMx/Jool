@@ -12,7 +12,7 @@ libjoolargp_la_SOURCES = \
 	\
 	wargp/address.c wargp/address.h \
 	wargp/bib.c wargp/bib.h \
-	wargp/blacklist4.c wargp/blacklist4.h \
+	wargp/denylist4.c wargp/denylist4.h \
 	wargp/eamt.c wargp/eamt.h \
 	wargp/fmrt.c wargp/fmrt.h \
 	wargp/file.c wargp/file.h \

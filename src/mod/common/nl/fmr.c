@@ -29,7 +29,7 @@ int handle_fmrt_foreach(struct sk_buff *skb, struct genl_info *info)
 	struct ipv4_prefix offset, *offset_ptr;
 	int error;
 
-	error = request_handle_start(info, XT_MAPT, &jool);
+	error = request_handle_start(info, XT_MAPT, &jool, true);
 	if (error)
 		return jresponse_send_simple(NULL, info, error);
 
@@ -79,7 +79,7 @@ int handle_fmrt_add(struct sk_buff *skb, struct genl_info *info)
 	struct config_mapping_rule addend;
 	int error;
 
-	error = request_handle_start(info, XT_MAPT, &jool);
+	error = request_handle_start(info, XT_MAPT, &jool, true);
 	if (error)
 		return jresponse_send_simple(NULL, info, error);
 
@@ -106,7 +106,7 @@ int handle_fmrt_flush(struct sk_buff *skb, struct genl_info *info)
 	struct xlator jool;
 	int error;
 
-	error = request_handle_start(info, XT_MAPT, &jool);
+	error = request_handle_start(info, XT_MAPT, &jool, true);
 	if (error)
 		return jresponse_send_simple(NULL, info, error);
 

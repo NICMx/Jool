@@ -40,7 +40,7 @@ int handle_address_query64(struct sk_buff *skb, struct genl_info *info)
 	struct jool_response response;
 	int error;
 
-	error = request_handle_start(info, XT_SIIT, &jool);
+	error = request_handle_start(info, XT_SIIT, &jool, true);
 	if (error)
 		return jresponse_send_simple(NULL, info, error);
 
@@ -93,7 +93,7 @@ int handle_address_query46(struct sk_buff *skb, struct genl_info *info)
 	struct jool_response response;
 	int error;
 
-	error = request_handle_start(info, XT_SIIT, &jool);
+	error = request_handle_start(info, XT_SIIT, &jool, true);
 	if (error)
 		return jresponse_send_simple(NULL, info, error);
 
