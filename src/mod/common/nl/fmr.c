@@ -101,6 +101,34 @@ revert_start:
 	return error;
 }
 
+int handle_fmrt_rm(struct sk_buff *skb, struct genl_info *info)
+{
+	struct xlator jool;
+	struct config_mapping_rule subtrahend;
+	int error;
+
+	error = request_handle_start(info, XT_MAPT, &jool, true);
+	if (error)
+		return jresponse_send_simple(NULL, info, error);
+
+	__log_debug(&jool, "Removing FMR entry.");
+
+	error = jnla_get_mapping_rule(info->attrs[JNLAR_OPERAND], "Operand", &subtrahend);
+	if (error)
+		goto revert_start;
+	if (!subtrahend.set) {
+		log_err("Request contains an empty FMR.");
+		error = -EINVAL;
+		goto revert_start;
+	}
+
+	error = fmrt_rm(jool.mapt.fmrt, &subtrahend.rule);
+revert_start:
+	error = jresponse_send_simple(&jool, info, error);
+	request_handle_end(&jool);
+	return error;
+}
+
 int handle_fmrt_flush(struct sk_buff *skb, struct genl_info *info)
 {
 	struct xlator jool;

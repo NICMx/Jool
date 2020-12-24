@@ -375,3 +375,11 @@ int taddr4_compare(const struct ipv4_transport_addr *a1,
 
 	return ((int)a1->l4) - ((int)a2->l4);
 }
+
+bool maprule_equals(struct mapping_rule *r1, struct mapping_rule *r2)
+{
+	return prefix6_equals(&r1->prefix6, &r2->prefix6)
+	    && prefix4_equals(&r1->prefix4, &r2->prefix4)
+	    && r1->o == r2->o
+	    && r1->a == r2->a;
+}

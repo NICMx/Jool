@@ -15,6 +15,7 @@ int fmrt_find6(struct fmr_table *fmrt, struct in6_addr const *addr,
 		struct mapping_rule *fmr);
 
 int fmrt_add(struct fmr_table *fmrt, struct mapping_rule *new);
+int fmrt_rm(struct fmr_table *fmrt, struct mapping_rule *rule);
 void fmrt_flush(struct fmr_table *fmrt);
 
 typedef int (*fmr_foreach_cb)(struct mapping_rule const *, void *);

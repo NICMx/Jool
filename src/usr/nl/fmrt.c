@@ -120,6 +120,12 @@ struct jool_result joolnl_fmrt_add(struct joolnl_socket *sk, char const *iname,
 	return __update(sk, iname, JNLOP_FMRT_ADD, rule);
 }
 
+struct jool_result joolnl_fmrt_rm(struct joolnl_socket *sk, char const *iname,
+		struct mapping_rule const *rule)
+{
+	return __update(sk, iname, JNLOP_FMRT_RM, rule);
+}
+
 struct jool_result joolnl_fmrt_flush(struct joolnl_socket *sk, char const *iname)
 {
 	struct nl_msg *msg;

@@ -21,6 +21,12 @@ struct jool_result joolnl_fmrt_add(
 	struct mapping_rule const *rule
 );
 
+struct jool_result joolnl_fmrt_rm(
+	struct joolnl_socket *sk,
+	char const *iname,
+	struct mapping_rule const *rule
+);
+
 struct jool_result joolnl_fmrt_flush(
 	struct joolnl_socket *sk,
 	char const *iname

@@ -98,14 +98,18 @@ static struct wargp_option add_opts[] = {
 	{
 		.name = "Forwarding Mapping Rule",
 		.key = ARGP_KEY_ARG,
-		.doc = "The Basic Mapping Rule (BMR) of a reachable MAP domain.",
+		.doc = "The Basic Mapping Rule (BMR) of a MAP domain.",
 		.offset = 0,
 		.type = &wt_mapping_rule,
 	},
 	{ 0 },
 };
 
-int handle_fmrt_add(char *iname, int argc, char **argv, void const *arg)
+typedef struct jool_result (*update_cb)(struct joolnl_socket *, char const *,
+		struct mapping_rule const *);
+
+int __handle_fmrt_update(char *iname, int argc, char **argv, void const *arg,
+		update_cb cb)
 {
 	struct wargp_mapping_rule aargs = { .rule.a = 6 };
 	struct joolnl_socket sk;
@@ -126,13 +130,28 @@ int handle_fmrt_add(char *iname, int argc, char **argv, void const *arg)
 	if (result.error)
 		return pr_result(&result);
 
-	result = joolnl_fmrt_add(&sk, iname, &aargs.rule);
+	result = cb(&sk, iname, &aargs.rule);
 
 	joolnl_teardown(&sk);
 	return pr_result(&result);
 }
 
+int handle_fmrt_add(char *iname, int argc, char **argv, void const *arg)
+{
+	return __handle_fmrt_update(iname, argc, argv, arg, joolnl_fmrt_add);
+}
+
 void autocomplete_fmrt_add(void const *args)
+{
+	print_wargp_opts(add_opts);
+}
+
+int handle_fmrt_rm(char *iname, int argc, char **argv, void const *arg)
+{
+	return __handle_fmrt_update(iname, argc, argv, arg, joolnl_fmrt_rm);
+}
+
+void autocomplete_fmrt_rm(void const *args)
 {
 	print_wargp_opts(add_opts);
 }

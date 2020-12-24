@@ -178,6 +178,10 @@ static _CONST struct genl_ops ops[] = {
 		.doit = handle_fmrt_add,
 		JOOL_POLICY
 	}, {
+		.cmd = JNLOP_FMRT_RM,
+		.doit = handle_fmrt_rm,
+		JOOL_POLICY
+	}, {
 		.cmd = JNLOP_FMRT_FLUSH,
 		.doit = handle_fmrt_flush,
 		JOOL_POLICY

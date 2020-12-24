@@ -244,6 +244,11 @@ static struct cmd_option fmrt_ops[] = {
 			.handler = handle_fmrt_add,
 			.handle_autocomplete = autocomplete_fmrt_add,
 		}, {
+			.label = REMOVE,
+			.xt = XT_MAPT,
+			.handler = handle_fmrt_rm,
+			.handle_autocomplete = autocomplete_fmrt_rm,
+		}, {
 			.label = FLUSH,
 			.xt = XT_MAPT,
 			.handler = handle_fmrt_flush,

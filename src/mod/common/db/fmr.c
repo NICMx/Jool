@@ -4,6 +4,13 @@
 #include "mod/common/rtrie.h"
 #include "mod/common/wkmalloc.h"
 
+#define MR_PRINT "'%pI6c/%u %pI4/%u %u %u'"
+#define MR_PRARG(mr) \
+	&(mr)->prefix6.addr, (mr)->prefix6.len, \
+	&(mr)->prefix4.addr, (mr)->prefix4.len, \
+	(mr)->o, \
+	(mr)->a
+
 struct fmr_table {
 	struct rtrie trie6;
 	struct rtrie trie4;
@@ -70,10 +77,9 @@ static int fmrt_add6(struct fmr_table *fmrt, struct mapping_rule *fmr)
 
 	addr_offset = offsetof(typeof(*fmr), prefix6.addr);
 	error = rtrie_add(&fmrt->trie6, fmr, addr_offset, fmr->prefix6.len);
-	if (error == -EEXIST) {
-		log_err("Prefix %pI6c/%u already exists.", &fmr->prefix6.addr,
-				fmr->prefix6.len);
-	}
+	/* Already validated, therefore critical */
+	WARN(error == -EEXIST, "Prefix %pI6c/%u already exists.",
+			&fmr->prefix6.addr, fmr->prefix6.len);
 
 	return error;
 }
@@ -85,10 +91,9 @@ static int fmrt_add4(struct fmr_table *fmrt, struct mapping_rule *fmr)
 
 	addr_offset = offsetof(typeof(*fmr), prefix4.addr);
 	error = rtrie_add(&fmrt->trie4, fmr, addr_offset, fmr->prefix4.len);
-	if (error == -EEXIST) {
-		log_err("Prefix %pI4/%u already exists.", &fmr->prefix4.addr,
-				fmr->prefix4.len);
-	}
+	/* Already validated, therefore critical */
+	WARN(error == -EEXIST, "Prefix %pI4/%u already exists.",
+			&fmr->prefix4.addr, fmr->prefix4.len);
 
 	return error;
 }
@@ -99,6 +104,7 @@ static void __revert_add6(struct fmr_table *fmrt, struct ipv6_prefix *prefix6)
 	int error;
 
 	error = rtrie_rm(&fmrt->trie6, &key);
+	/* Already validated, therefore critical */
 	WARN(error, "Got error %d while trying to remove an FMR I just added.",
 			error);
 }
@@ -133,6 +139,40 @@ static int validate_mapping_rule(struct mapping_rule *rule)
 	return 0;
 }
 
+static int validate_collision(struct fmr_table *fmrt, struct mapping_rule *new)
+{
+	struct mapping_rule old;
+	int error;
+
+	error = fmrt_find6(fmrt, &new->prefix6.addr, &old);
+	switch (error) {
+	case 0:
+		if (maprule_equals(&old, new)) {
+			log_err("Entry already exists.");
+			return -EEXIST;
+		}
+		log_err("Entry collides with " MR_PRINT ".", MR_PRARG(&old));
+		return -EEXIST;
+	case -ESRCH:
+		break;
+	default:
+		WARN(error, "Unknown error: %d", error);
+		return error;
+	}
+
+	error = fmrt_find4(fmrt, new->prefix4.addr.s_addr, &old);
+	switch (error) {
+	case 0:
+		log_err("Entry collides with " MR_PRINT ".", MR_PRARG(&old));
+		return -EEXIST;
+	case -ESRCH:
+		return 0;
+	}
+
+	WARN(error, "Unknown error: %d", error);
+	return error;
+}
+
 int fmrt_add(struct fmr_table *fmrt, struct mapping_rule *new)
 {
 	int error;
@@ -142,6 +182,10 @@ int fmrt_add(struct fmr_table *fmrt, struct mapping_rule *new)
 		return error;
 
 	mutex_lock(&lock);
+
+	error = validate_collision(fmrt, new);
+	if (error)
+		goto end;
 
 	error = fmrt_add6(fmrt, new);
 	if (error)
@@ -155,6 +199,36 @@ end:
 	return error;
 }
 EXPORT_UNIT_SYMBOL(fmrt_add);
+
+int fmrt_rm(struct fmr_table *fmrt, struct mapping_rule *rule)
+{
+	struct mapping_rule old;
+	struct rtrie_key key6 = RTRIE_PREFIX_TO_KEY(&rule->prefix6);
+	struct rtrie_key key4 = RTRIE_PREFIX_TO_KEY(&rule->prefix4);
+	int error;
+
+	mutex_lock(&lock);
+
+	error = fmrt_find6(fmrt, &rule->prefix6.addr, &old);
+	if (error)
+		goto end;
+
+	if (!maprule_equals(&old, rule)) {
+		log_err("Entry not found.");
+		error = -ESRCH;
+		goto end;
+	}
+
+	error = rtrie_rm(&fmrt->trie6, &key6);
+	WARN(error, "rtrie_rm6: error %d", error);
+	error = rtrie_rm(&fmrt->trie4, &key4);
+	WARN(error, "rtrie_rm4: error %d", error);
+	/* Fall through */
+
+end:
+	mutex_unlock(&lock);
+	return error;
+}
 
 void fmrt_flush(struct fmr_table *fmrt)
 {
