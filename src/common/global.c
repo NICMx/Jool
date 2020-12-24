@@ -933,16 +933,16 @@ static struct jool_result j2n_mapping_rule(cJSON *json, struct nl_msg *msg,
 		return joolnl_err_msgsize();
 
 	for (child = json->child; child; child = child->next) {
-		if (strcasecmp(json->string, "comment") == 0)
+		if (strcasecmp(child->string, "comment") == 0)
 			result = result_success(); /* Skip */
-		else if (strcasecmp(json->string, "IPv6 Prefix") == 0)
-			result = j2n_prefix6(json, msg, JNLAMR_PREFIX6);
-		else if (strcasecmp(json->string, "IPv4 Prefix") == 0)
-			result = j2n_prefix4(json, msg, JNLAMR_PREFIX4);
-		else if (strcasecmp(json->string, "EA-bits length") == 0)
-			result = __json2nl_u8(json, msg, JNLAMR_EA_BITS_LENGTH);
-		else if (strcasecmp(json->string, "a") == 0)
-			result = __json2nl_u8(json, msg, JNLAMR_a);
+		else if (strcasecmp(child->string, "IPv6 Prefix") == 0)
+			result = j2n_prefix6(child, msg, JNLAMR_PREFIX6);
+		else if (strcasecmp(child->string, "IPv4 Prefix") == 0)
+			result = j2n_prefix4(child, msg, JNLAMR_PREFIX4);
+		else if (strcasecmp(child->string, "EA-bits length") == 0)
+			result = __json2nl_u8(child, msg, JNLAMR_EA_BITS_LENGTH);
+		else if (strcasecmp(child->string, "a") == 0)
+			result = __json2nl_u8(child, msg, JNLAMR_a);
 		else
 			result = result_from_error(-EINVAL, "Unknown tag: '%s'", child->string);
 

@@ -9,6 +9,7 @@
 #include "mod/common/nl/nl_common.h"
 #include "mod/common/db/eam.h"
 #include "mod/common/db/denylist4.h"
+#include "mod/common/db/fmr.h"
 #include "mod/common/joold.h"
 #include "mod/common/db/pool4/db.h"
 #include "mod/common/db/bib/db.h"
@@ -303,6 +304,37 @@ static int handle_bib(struct config_candidate *new, struct nlattr *root)
 	return 0;
 }
 
+static int handle_fmrt(struct config_candidate *new, struct nlattr *root)
+{
+	struct nlattr *attr;
+	struct config_mapping_rule entry;
+	int rem;
+	int error;
+
+	LOG_DEBUG("Handling atomic FMRT attribute.");
+
+	error = check_xtype(new, XT_MAPT, "FMRT");
+	if (error)
+		return error;
+
+	nla_for_each_nested(attr, root, rem) {
+		if (nla_type(attr) != JNLAL_ENTRY)
+			continue; /* ? */
+		error = jnla_get_mapping_rule(attr, "FMR", &entry);
+		if (error)
+			return error;
+		if (!entry.set) {
+			log_err("FMR is empty.");
+			return -EINVAL;
+		}
+		error = fmrt_add(new->xlator.mapt.fmrt, &entry.rule);
+		if (error)
+			return error;
+	}
+
+	return 0;
+}
+
 static int commit(struct config_candidate *candidate)
 {
 	int error;
@@ -363,6 +395,11 @@ int atomconfig_add(struct sk_buff *skb, struct genl_info *info)
 	}
 	if (info->attrs[JNLAR_BIB_ENTRIES]) {
 		error = handle_bib(candidate, info->attrs[JNLAR_BIB_ENTRIES]);
+		if (error)
+			goto revert;
+	}
+	if (info->attrs[JNLAR_FMRT_ENTRIES]) {
+		error = handle_fmrt(candidate, info->attrs[JNLAR_FMRT_ENTRIES]);
 		if (error)
 			goto revert;
 	}
