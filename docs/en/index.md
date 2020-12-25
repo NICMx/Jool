@@ -20,11 +20,9 @@ Jool is an Open Source [SIIT and NAT64](intro-xlat.html) for Linux.
 
 ## Status
 
-As far as we know, Jool is a [compliant](intro-jool.html#compliance) SIIT and Stateful NAT64.
-
-Its latest version is [4.1.4](download.html#41x) and its most mature version is [4.0.9](download.html#40x).
-
-The MAP-T implementation is almost done. See the [news](#2020-12-08).
+- The most mature version is [4.1.4](download.html#41x).
+- [4.0.9](download.html#40x) is still considered stable.
+- The first release candidate for version [4.2.0](download.html#42x) is also available now.
 
 -------------------
 
@@ -36,18 +34,18 @@ The MAP-T implementation is almost done. See the [news](#2020-12-08).
 
 ## Latest News
 
-### 2020-12-08
+### 2020-12-24
 
 Hello, everyone.
 
-I'm running out of known issues. The MAP-T code has matured a fair bit, and so I'd like to let loose an alpha version of Jool 4.2.
+The first release candidate for version 4.2.0 is ready.
 
 Early adopters: Please consume and criticize the new documentation pages, and maybe try out the software:
 
 - [Early introduction to MAP-T](intro-xlat.html#map-t)
 - [Detailed explanation of MAP-T](map-t.html)
 - [Jool MAP-T tutorial](run-mapt.html)
-- [The code](https://github.com/NICMx/Jool/tree/mapt)
-
-I'll aim to post a release candidate tar on December 16, and then wait a month and a half for issues.
+- The code:
+	- [tar.gz](https://github.com/NICMx/Jool/releases/download/v4.2.0-rc1/jool-4.2.0.rc1.tar.gz)
+	- Debian packages: [kernel](https://github.com/NICMx/Jool/releases/download/v4.2.0-rc1/jool-dkms_4.2.0.rc1-1_all.deb), [userspace](https://github.com/NICMx/Jool/releases/download/v4.2.0-rc1/jool-tools_4.2.0.rc1-1_amd64.deb)
 

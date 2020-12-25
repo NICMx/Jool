@@ -13,11 +13,21 @@ url-dl: https://github.com/NICMx/Jool/releases/download
 - Normal font signals recommended fallback versions in case the previous option fails you ([bug reports welcomed]({{ site.repository-url }}/issues)).
 - <del>Striked</del> versions are not recommended (either because they're too old or have known critical bugs).
 
+## 4.2.x
+
+Jool 4.2 is a compliant SIIT, Stateful NAT64 and MAP-T.
+
+| Release Date | Version | .tar.gz | .tar.gz Signature | Git commit | .deb |
+|--------------|---------|---------|-------------------|------------|------|
+| 2020-12-24   | 4.2.0-rc1 | [Download]({{ page.url-dl }}/v4.2.0-rc1/jool-4.2.0.rc1.tar.gz) | [Signature]({{ page.url-dl }}/v4.2.0-rc1/jool-4.2.0.rc1.tar.gz.asc) | <a href="{{ site.repository-url }}/tree/v4.2.0-rc1" target="_blank">Link</a> | [Kernel modules]({{ page.url-dl }}/v4.2.0-rc1/jool-dkms_4.2.0.rc1-1_all.deb)<br />[Userspace tools]({{ page.url-dl }}/v4.2.0-rc1/jool-tools_4.2.0.rc1-1_amd64.deb) (amd64 only) |
+
+"rc" stands for "Release Candidate."
+
 ## 4.1.x
 
 Jool 4.1 is a [compliant SIIT and Stateful NAT64](intro-jool.html#compliance).
 
-Currently, 4.1.4 is the latest version of Jool.
+Currently, 4.1.4 is the most mature version of Jool.
 
 | Release Date | Version | .tar.gz | .tar.gz Signature | Git commit | .deb |
 |--------------|---------|---------|-------------------|------------|------|
@@ -32,8 +42,6 @@ Currently, 4.1.4 is the latest version of Jool.
 ## 4.0.x
 
 Jool 4.0 is a generally compliant SIIT and Stateful NAT64.
-
-Currently, 4.0.9 is the most mature version of Jool.
 
 | Release Date | Version | .tar.gz | .tar.gz Signature | Git commit | .deb |
 |--------------|---------|---------|-------------------|------------|------|
@@ -52,8 +60,6 @@ Currently, 4.0.9 is the most mature version of Jool.
 | 2018-12-26   | <del>3.6.0-rc3</del> | [Download]({{ page.url-dl-old }}/jool_3.6.0-rc3.tar.gz) | - | <a href="{{ site.repository-url }}/tree/v3.6.0-rc3" target="_blank">Link</a> | - |
 | 2018-12-14   | <del>3.6.0-rc2</del> | [Download]({{ page.url-dl-old }}/jool_3.6.0-rc2.tar.gz) | - | <a href="{{ site.repository-url }}/tree/v3.6.0-rc2" target="_blank">Link</a> | - |
 | 2018-11-24   | <del>3.6.0-rc1</del> | [Download]({{ page.url-dl-old }}/jool_3.6.0-rc1.tar.gz) | - | <a href="{{ site.repository-url }}/tree/v3.6.0-rc1" target="_blank">Link</a> | - |
-
-"rc" stands for "Release Candidate."
 
 ## 3.5.x
 
