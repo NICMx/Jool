@@ -86,7 +86,7 @@ static int read_json(int argc, char **argv)
 	cJSON *json, *child;
 	struct jool_result result;
 
-	if (argc < 2) {
+	if (argc < 3) {
 		iname = NULL;
 		return 0;
 	}

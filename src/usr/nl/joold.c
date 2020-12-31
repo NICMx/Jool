@@ -4,6 +4,24 @@
 #include <netlink/msg.h>
 #include "common/config.h"
 
+static struct jool_result send_to_kernel(struct joolnl_socket *sk,
+		struct nl_msg *msg)
+{
+	int error;
+
+	error = nl_send_auto(sk->sk, msg);
+	nlmsg_free(msg);
+	if (error < 0) {
+		return result_from_error(
+			error,
+			"Could not dispatch the request to kernelspace: %s",
+			nl_geterror(error)
+		);
+	}
+
+	return result_success();
+}
+
 struct jool_result joolnl_joold_add(struct joolnl_socket *sk, char const *iname,
 		void const *data, size_t data_len)
 {
@@ -27,7 +45,7 @@ struct jool_result joolnl_joold_add(struct joolnl_socket *sk, char const *iname,
 		);
 	}
 
-	return joolnl_request(sk, msg, NULL, NULL);
+	return send_to_kernel(sk, msg);
 }
 
 struct jool_result joolnl_joold_advertise(struct joolnl_socket *sk,
@@ -40,7 +58,7 @@ struct jool_result joolnl_joold_advertise(struct joolnl_socket *sk,
 	if (result.error)
 		return result;
 
-	return joolnl_request(sk, msg, NULL, NULL);
+	return send_to_kernel(sk, msg);
 }
 
 struct jool_result joolnl_joold_ack(struct joolnl_socket *sk, char const *iname)
@@ -52,5 +70,5 @@ struct jool_result joolnl_joold_ack(struct joolnl_socket *sk, char const *iname)
 	if (result.error)
 		return result;
 
-	return joolnl_request(sk, msg, NULL, NULL);
+	return send_to_kernel(sk, msg);
 }

@@ -138,6 +138,10 @@ end:
  * "" (empty string).
  *
  * Consumes @msg, even on error.
+ *
+ * WARNING: This function is essentially userspace client boilerplate. It
+ * assumes nobody else is editing the socket's callback handlers, and it waits
+ * for an ACK. In particular, never use it from joold code.
  */
 struct jool_result joolnl_request(struct joolnl_socket *socket,
 		struct nl_msg *msg, joolnl_response_cb cb, void *cb_arg)
