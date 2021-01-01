@@ -50,24 +50,27 @@ static int updated_entries_cb(struct nl_msg *msg, void *arg)
 	nhdr = nlmsg_hdr(msg);
 	if (!genlmsg_valid_hdr(nhdr, sizeof(struct joolnlhdr))) {
 		syslog(LOG_ERR, "Kernel sent invalid data: Message too short to contain headers");
-		do_ack();
-		return -EINVAL;
+		goto einval;
 	}
-	ghdr = genlmsg_hdr(nhdr);
-	jhdr = genlmsg_user_hdr(ghdr);
 
+	ghdr = genlmsg_hdr(nhdr);
+
+	jhdr = genlmsg_user_hdr(ghdr);
+	result = validate_joolnlhdr(jhdr, XT_NAT64);
+	if (result.error) {
+		pr_result(&result);
+		goto fail;
+	}
 	if (jhdr->flags & JOOLNLHDR_FLAGS_ERROR) {
 		result = joolnl_msg2result(msg);
-		result.error = pr_result(&result);
-		do_ack();
-		return (result.error < 0) ? result.error : -result.error;
+		pr_result(&result);
+		goto fail;
 	}
 
 	root = genlmsg_attrdata(ghdr, sizeof(struct joolnlhdr));
 	if (nla_type(root) != JNLAR_SESSION_ENTRIES) {
 		syslog(LOG_ERR, "Kernel sent invalid data: Message lacks a session container");
-		do_ack();
-		return -EINVAL;
+		goto einval;
 	}
 
 	/*
@@ -78,6 +81,12 @@ static int updated_entries_cb(struct nl_msg *msg, void *arg)
 	netsocket_send(nla_data(root), nla_len(root));
 	do_ack();
 	return 0;
+
+einval:
+	result.error = -EINVAL;
+fail:
+	do_ack(); /* Tell kernel to flush the packet queue anyway. */
+	return (result.error < 0) ? result.error : -result.error;
 }
 
 static int read_json(int argc, char **argv)

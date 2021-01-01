@@ -17,6 +17,16 @@ struct joolnlhdr *get_jool_hdr(struct genl_info *info)
 	return info->userhdr;
 }
 
+static int validate_magic(struct joolnlhdr *hdr)
+{
+	if (hdr->magic[0] == 'j' && hdr->magic[1] == 'o'
+			&& hdr->magic[2] == 'o' && hdr->magic[3] == 'l')
+		return 0;
+
+	log_err("Don't know what to do: The packet I just received does not follow Jool's protocol.");
+	return -EINVAL;
+}
+
 static int validate_stateness(struct joolnlhdr *hdr)
 {
 	switch (hdr->xt) {
@@ -77,6 +87,9 @@ int request_handle_start(struct genl_info *info, xlator_type xt,
 		log_err("Userspace request lacks a Jool header.");
 		return -EINVAL;
 	}
+	error = validate_magic(hdr);
+	if (error)
+		return error;
 	error = validate_stateness(hdr);
 	if (error)
 		return error;

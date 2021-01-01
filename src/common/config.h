@@ -290,6 +290,8 @@ typedef __u8 joolnlhdr_flags; /** See JOOLNLHDR_FLAGS_* above. */
  * nlmsghdr, genlmsghdr)
  */
 struct joolnlhdr {
+	/** Always "jool". (Without terminating character.) */
+	char magic[4];
 	/** Jool's version. */
 	__be32 version;
 

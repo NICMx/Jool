@@ -24,6 +24,7 @@
 
 
 struct response_cb {
+	xlator_type xt;
 	joolnl_response_cb cb;
 	void *arg;
 	struct jool_result result;
@@ -55,16 +56,83 @@ struct jool_result joolnl_alloc_msg(struct joolnl_socket *socket,
 		);
 	}
 
+	memset(hdr, 0, sizeof(*hdr));
+	hdr->magic[0] = 'j';
+	hdr->magic[1] = 'o';
+	hdr->magic[2] = 'o';
+	hdr->magic[3] = 'l';
 	hdr->version = htonl(xlat_version());
 	hdr->xt = socket->xt;
 	hdr->flags = flags;
-	hdr->reserved1 = 0;
-	hdr->reserved2 = 0;
-	memset(hdr->iname, 0, sizeof(hdr->iname));
 	strcpy(hdr->iname, iname ? iname : "default");
 
 	*out = msg;
 	return result_success();
+}
+
+static struct jool_result validate_magic(struct joolnlhdr *hdr)
+{
+	if (hdr->magic[0] == 'j' && hdr->magic[1] == 'o'
+			&& hdr->magic[2] == 'o' && hdr->magic[3] == 'l')
+		return result_success();
+
+	return result_from_error(
+		-EINVAL,
+		"Don't know what to do: The packet I just received does not follow Jool's protocol."
+	);
+}
+
+static struct jool_result validate_version(struct joolnlhdr *hdr)
+{
+	__u32 hdr_version = ntohl(hdr->version);
+
+	if (xlat_version() == hdr_version)
+		return result_success();
+
+	return result_from_error(
+		-EINVAL,
+		"Version mismatch. The kernel module's version is %u.%u.%u.%u,\n"
+		"but mine is %u.%u.%u.%u.\n"
+		"Please update %s.",
+		hdr_version >> 24, (hdr_version >> 16) & 0xFFU,
+		(hdr_version >> 8) & 0xFFU, hdr_version & 0xFFU,
+		JOOL_VERSION_MAJOR, JOOL_VERSION_MINOR,
+		JOOL_VERSION_REV, JOOL_VERSION_DEV,
+		(xlat_version() > hdr_version) ? "the kernel module" : "me"
+	);
+}
+
+static struct jool_result validate_stateness(struct joolnlhdr *hdr,
+		xlator_type xt)
+{
+	if (hdr->xt & xt)
+		return result_success();
+
+	return result_from_error(
+		-EINVAL,
+		"Packet is meant for %s translators, but I'm a %s.",
+		xt2str(hdr->xt), xt2str(xt)
+	);
+}
+
+struct jool_result validate_joolnlhdr(struct joolnlhdr *hdr, xlator_type xt)
+{
+	struct jool_result result;
+
+	if (!hdr) {
+		return result_from_error(
+			-EINVAL,
+			"This Netlink message lacks a Jool header."
+		);
+	}
+
+	result = validate_magic(hdr);
+	if (result.error)
+		return result;
+	result = validate_version(hdr);
+	if (result.error)
+		return result;
+	return validate_stateness(hdr, xt);
 }
 
 /* Returns the error contained in @response in result form. */
@@ -83,8 +151,19 @@ struct jool_result joolnl_msg2result(struct nl_msg *response)
 	if (result.error)
 		return result;
 
-	code = attrs[JNLAERR_CODE] ? nla_get_u16(attrs[JNLAERR_CODE]) : EINVAL;
-	msg = attrs[JNLAERR_MSG] ? nla_get_string(attrs[JNLAERR_MSG]) : strerror(code);
+	if (!attrs[JNLAERR_CODE]) {
+		msg = attrs[JNLAERR_MSG] ? nla_get_string(attrs[JNLAERR_MSG]) : NULL;
+		return result_from_error(
+			EINVAL,
+			"The kernel module returned an error packet, but it lacks an error code attribute. Message is '%s'",
+			msg
+		);
+	}
+
+	code = nla_get_u16(attrs[JNLAERR_CODE]);
+	msg = attrs[JNLAERR_MSG]
+			? nla_get_string(attrs[JNLAERR_MSG])
+			: strerror(code);
 	return result_from_error(
 		code,
 		"The kernel module returned error %u: %s", code, msg
@@ -118,6 +197,9 @@ static int response_handler(struct nl_msg *response, void *_args)
 	}
 
 	jhdr = genlmsg_user_hdr(genlmsg_hdr(nhdr));
+	args->result = validate_joolnlhdr(jhdr, args->xt);
+	if (args->result.error)
+		goto end;
 	if (jhdr->flags & JOOLNLHDR_FLAGS_ERROR) {
 		args->result = joolnl_msg2result(response);
 		goto end;
@@ -149,6 +231,7 @@ struct jool_result joolnl_request(struct joolnl_socket *socket,
 	struct response_cb callback;
 	int error;
 
+	callback.xt = socket->xt;
 	callback.cb = cb;
 	callback.arg = cb_arg;
 	/* Clear out JRF_INITIALIZED and error code */
