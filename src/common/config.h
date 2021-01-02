@@ -17,6 +17,9 @@
 #define JOOLNL_FAMILY "Jool"
 #define JOOLNL_MULTICAST_GRP_NAME "joold"
 
+#define JOOLNL_HDR_MAGIC "jool"
+#define JOOLNL_HDR_MAGIC_LEN 4
+
 enum joolnl_operation {
 	JNLOP_INSTANCE_FOREACH,
 	JNLOP_INSTANCE_ADD,
@@ -291,7 +294,7 @@ typedef __u8 joolnlhdr_flags; /** See JOOLNLHDR_FLAGS_* above. */
  */
 struct joolnlhdr {
 	/** Always "jool". (Without terminating character.) */
-	char magic[4];
+	char magic[JOOLNL_HDR_MAGIC_LEN];
 	/** Jool's version. */
 	__be32 version;
 

@@ -139,10 +139,7 @@ static int allocate_joold_skb(struct xlator *jool)
 	}
 
 	memset(queue->jhdr, 0, sizeof(*queue->jhdr));
-	queue->jhdr->magic[0] = 'j';
-	queue->jhdr->magic[1] = 'o';
-	queue->jhdr->magic[2] = 'o';
-	queue->jhdr->magic[3] = 'l';
+	memmove(queue->jhdr->magic, JOOLNL_HDR_MAGIC, JOOLNL_HDR_MAGIC_LEN);
 	queue->jhdr->version = cpu_to_be32(xlat_version());
 	queue->jhdr->xt = XT_NAT64;
 	memcpy(queue->jhdr->iname, jool->iname, INAME_MAX_SIZE);

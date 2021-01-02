@@ -19,8 +19,7 @@ struct joolnlhdr *get_jool_hdr(struct genl_info *info)
 
 static int validate_magic(struct joolnlhdr *hdr)
 {
-	if (hdr->magic[0] == 'j' && hdr->magic[1] == 'o'
-			&& hdr->magic[2] == 'o' && hdr->magic[3] == 'l')
+	if (memcmp(hdr->magic, JOOLNL_HDR_MAGIC, JOOLNL_HDR_MAGIC_LEN) == 0)
 		return 0;
 
 	log_err("Don't know what to do: The packet I just received does not follow Jool's protocol.");

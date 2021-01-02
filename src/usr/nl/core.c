@@ -57,10 +57,7 @@ struct jool_result joolnl_alloc_msg(struct joolnl_socket *socket,
 	}
 
 	memset(hdr, 0, sizeof(*hdr));
-	hdr->magic[0] = 'j';
-	hdr->magic[1] = 'o';
-	hdr->magic[2] = 'o';
-	hdr->magic[3] = 'l';
+	memmove(hdr->magic, JOOLNL_HDR_MAGIC, JOOLNL_HDR_MAGIC_LEN);
 	hdr->version = htonl(xlat_version());
 	hdr->xt = socket->xt;
 	hdr->flags = flags;
@@ -72,8 +69,7 @@ struct jool_result joolnl_alloc_msg(struct joolnl_socket *socket,
 
 static struct jool_result validate_magic(struct joolnlhdr *hdr)
 {
-	if (hdr->magic[0] == 'j' && hdr->magic[1] == 'o'
-			&& hdr->magic[2] == 'o' && hdr->magic[3] == 'l')
+	if (memcmp(hdr->magic, JOOLNL_HDR_MAGIC, JOOLNL_HDR_MAGIC_LEN) == 0)
 		return result_success();
 
 	return result_from_error(
