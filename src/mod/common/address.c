@@ -258,47 +258,56 @@ void addr6_set_bits(struct in6_addr *addr, unsigned int offset,
 		addr6_set_bit(addr, offset + i, (value >> (len - i - 1u)) & 1u);
 }
 
-static void __addr6_copy_bits(struct in6_addr *src, struct in6_addr *dst,
-		unsigned int offset, unsigned int last)
+/**
+ * Like addr6_copy_bits(), except it assumes all the bits to be copied are
+ * located in the same byte.
+ */
+static void __addr6_copy_bits(struct in6_addr *asrc, struct in6_addr *adst,
+		unsigned int offset, unsigned int len)
 {
-	unsigned int i;
-	for (i = offset; i < last; i++)
-		addr6_set_bit(dst, i, addr6_get_bit(src, i));
+	__u8 src, *dst;
+	__u8 mask;
+
+	src = asrc->s6_addr[offset >> 3];
+	dst = &adst->s6_addr[offset >> 3];
+	offset &= 7u;
+	mask = ((1u << len) - 1u) << (8u - offset - len);
+
+	*dst = ((*dst) & ~mask) | (src & mask);
 }
 
 void addr6_copy_bits(struct in6_addr *src, struct in6_addr *dst,
 		unsigned int offset, unsigned int len)
 {
-	unsigned int last; /* temporary end */
-	unsigned int end; /* absolute end */
-
-	if (((offset & 7u) == 0) && ((len & 7u) == 0)) {
-		/* Fast path */
-		offset >>= 3u;
-		memcpy(&dst->s6_addr[offset], &src->s6_addr[offset], len >> 3u);
-		return;
-	}
-
-	end = offset + len;
+	unsigned int delta;
 
 	/* Rightmost bits of left byte */
-	if ((offset & 7u) == 0) {
-		offset = offset >> 3u;
-	} else {
-		last = (offset | 7u) + 1u;
-		last = (end > last) ? last : end;
-		__addr6_copy_bits(src, dst, offset, last);
-		offset = (offset >> 3u) + 1u;
+	if (offset & 7u) {
+		if (offset + len > (offset | 7u)) {
+			delta = (offset | 7u) - offset + 1;
+			__addr6_copy_bits(src, dst, offset, delta);
+			offset += delta;
+			len -= delta;
+		} else {
+			__addr6_copy_bits(src, dst, offset, len);
+			return;
+		}
 	}
 
 	/* Middle bytes */
-	last = end >> 3u;
-	if (last >= offset)
-		memcpy(&dst->s6_addr[offset], &src->s6_addr[offset], last - offset);
+	if (offset + len > (offset | 7u)) {
+		memcpy(&dst->s6_addr[offset >> 3u], &src->s6_addr[offset >> 3u],
+				len >> 3);
+		delta = len & ~7u;
+		offset += delta;
+		len -= delta;
+	}
 
 	/* Leftmost bits of right byte */
-	__addr6_copy_bits(src, dst, end & ~0x7, end);
+	if (len > 0)
+		__addr6_copy_bits(src, dst, offset, len);
 }
+EXPORT_UNIT_SYMBOL(addr6_copy_bits)
 
 __u64 prefix4_next(const struct ipv4_prefix *prefix)
 {
