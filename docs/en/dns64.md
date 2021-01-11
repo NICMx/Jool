@@ -28,12 +28,12 @@ Any correct DNS64 implementation is supposed to work; BIND will be used for illu
 
 <div>
 	<div class="selector-menu">
-		<span>Separate</span>
 		<span>Joined</span>
+		<span>Separate</span>
 	</div>
 	<div class="selector-items">
-		<img src="../images/tutorial/dns64/network-separate.svg" alt="Diagram: Network (Separated NAT64 and DNS64)" />
 		<img src="../images/tutorial/dns64/network-joined.svg" alt="Diagram: Network (NAT64 and DNS64 in same node)" />
+		<img src="../images/tutorial/dns64/network-separate.svg" alt="Diagram: Network (Separated NAT64 and DNS64)" />
 	</div>
 </div>
 
@@ -69,64 +69,117 @@ First, have a working BIND server. On Ubuntu, the only thing you have to do (ass
 
 <div>
 	<div class="selector-menu">
-		<span>Separate</span>
 		<span>Joined</span>
+		<span>Separate</span>
 	</div>
 	<div class="selector-items">
-		<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>user@D:~# apt <span class="nb">install </span>bind9</code></pre></div></div>
 		<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>user@T:~# apt <span class="nb">install </span>bind9</code></pre></div></div>
+		<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>user@D:~# apt <span class="nb">install </span>bind9</code></pre></div></div>
 	</div>
 </div>
 
 In order to enable DNS64, we need to append some directives in BIND configuration's `options` block. In Ubuntu, `options` can be found in `/etc/bind/named.conf.options`:
 
-	acl translator {
-		# Please list all the translator's addresses here.
-		# If the DNS64 and NAT64 are on the same device,
-		# you can get away with just "localhost;".
-		192.0.2.1; 2001:db8::1;
+<div>
+	<div class="selector-menu">
+		<span>Joined</span>
+		<span>Separate</span>
+	</div>
+	<div class="selector-items">
+		<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>acl translator {
+	# Please list all the translator's addresses here.
+	localhost;
+};
+acl dns64-good-clients {
+	# Please list here the clients that should be allowed to query
+	# the DNS64 service.
+	# "localnets" is a convenient moniker for devices sharing a
+	# network with our DNS64.
+	localnets;
+};
+
+options {
+	# Ubuntu BIND's default options.
+	# Might need to tweak this if you use some other distribution.
+	directory "/var/cache/bind";
+	dnssec-validation auto;
+        auth-nxdomain no;    # conform to RFC1035
+	listen-on-v6 { any; };
+
+	# Make sure our nameserver is not abused by external
+	# malicious users.
+	allow-query { dns64-good-clients; };
+
+	# This enables DNS64.
+	# "64:ff9b::/96" has to be the same as Jool's `pool6`.
+	dns64 64:ff9b::/96 {
+		# Though serving standard DNS to the translator device
+		# is perfectly normal, we want to exclude it from DNS64.
+		# Why? Well, one reason is that the translator is
+		# already connected to both IP protocols, so its own
+		# traffic doesn't need 64:ff9b for anything.
+		# But a more important reason is that Jool can only
+		# translate on PREROUTING [0]; it specifically excludes
+		# local traffic. If the Jool device itself attempts to
+		# communicate with 64:ff9b, it will fail.
+		# Listing !translator before our good clients here
+		# ensures the translator is excluded from DNS64, even
+		# when it belongs to the client networks.
+		clients { !translator; dns64-good-clients; };
+
+		# Other options per prefix (if you need them) here.
+		# More info here: https://kb.isc.org/article/AA-01031
 	};
-	acl dns64-good-clients {
-		# Please list here the clients that should be allowed to query
-		# the DNS64 service.
-		# "localnets" is a convenient moniker for devices sharing a
-		# network with our DNS64.
-		localnets;
+};
+</code></pre></div></div>
+		<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>acl translator {
+	# Please list all the translator's addresses here.
+	192.0.2.1; 2001:db8::1;
+};
+acl dns64-good-clients {
+	# Please list here the clients that should be allowed to query
+	# the DNS64 service.
+	# "localnets" is a convenient moniker for devices sharing a
+	# network with our DNS64.
+	localnets;
+};
+
+options {
+	# Ubuntu BIND's default options.
+	# Might need to tweak this if you use some other distribution.
+	directory "/var/cache/bind";
+	dnssec-validation auto;
+        auth-nxdomain no;    # conform to RFC1035
+	listen-on-v6 { any; };
+
+	# Make sure our nameserver is not abused by external
+	# malicious users.
+	allow-query { dns64-good-clients; };
+
+	# This enables DNS64.
+	# "64:ff9b::/96" has to be the same as Jool's `pool6`.
+	dns64 64:ff9b::/96 {
+		# Though serving standard DNS to the translator device
+		# is perfectly normal, we want to exclude it from DNS64.
+		# Why? Well, one reason is that the translator is
+		# already connected to both IP protocols, so its own
+		# traffic doesn't need 64:ff9b for anything.
+		# But a more important reason is that Jool can only
+		# translate on PREROUTING [0]; it specifically excludes
+		# local traffic. If the Jool device itself attempts to
+		# communicate with 64:ff9b, it will fail.
+		# Listing !translator before our good clients here
+		# ensures the translator is excluded from DNS64, even
+		# when it belongs to the client networks.
+		clients { !translator; dns64-good-clients; };
+
+		# Other options per prefix (if you need them) here.
+		# More info here: https://kb.isc.org/article/AA-01031
 	};
-
-	options {
-		# Ubuntu BIND's default options.
-		# Might need to tweak this if you use some other distribution.
-		directory "/var/cache/bind";
-		dnssec-validation auto;
-	        auth-nxdomain no;    # conform to RFC1035
-		listen-on-v6 { any; };
-
-		# Make sure our nameserver is not abused by external
-		# malicious users.
-		allow-query { dns64-good-clients; };
-
-		# This enables DNS64.
-		# "64:ff9b::/96" has to be the same as Jool's `pool6`.
-		dns64 64:ff9b::/96 {
-			# Though serving standard DNS to the translator device
-			# is perfectly normal, we want to exclude it from DNS64.
-			# Why? Well, one reason is that the translator is
-			# already connected to both IP protocols, so its own
-			# traffic doesn't need 64:ff9b for anything.
-			# But a more important reason is that Jool can only
-			# translate on PREROUTING [0]; it specifically excludes
-			# local traffic. If the Jool device itself attempts to
-			# communicate with 64:ff9b, it will fail.
-			# Listing !translator before our good clients here
-			# ensures the translator is excluded from DNS64, even
-			# when it belongs to the client networks.
-			clients { !translator; dns64-good-clients; };
-
-			# Other options per prefix (if you need them) here.
-			# More info here: https://kb.isc.org/article/AA-01031
-		};
-	};
+};
+</code></pre></div></div>
+	</div>
+</div>
 
 [0] [intro-jool.html#design](intro-jool.html#design)
 
@@ -134,12 +187,12 @@ And remember to reload:
 
 <div>
 	<div class="selector-menu">
-		<span>Separate</span>
 		<span>Joined</span>
+		<span>Separate</span>
 	</div>
 	<div class="selector-items">
-		<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>user@D:~# service bind9 restart</code></pre></div></div>
 		<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>user@T:~# service bind9 restart</code></pre></div></div>
+		<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>user@D:~# service bind9 restart</code></pre></div></div>
 	</div>
 </div>
 
@@ -158,12 +211,12 @@ And, if you sniff the traffic, you should see packets towards `example.com` on R
 
 <div>
 	<div class="selector-menu">
-		<span>Separate</span>
 		<span>Joined</span>
+		<span>Separate</span>
 	</div>
 	<div class="selector-items">
-		<img src="../images/tutorial/dns64/outcome-separate.svg" alt="Diagram: Outcome (Separated NAT64 and DNS64)" />
 		<img src="../images/tutorial/dns64/outcome-joined.svg" alt="Diagram: Outcome (NAT64 and DNS64 in same node)" />
+		<img src="../images/tutorial/dns64/outcome-separate.svg" alt="Diagram: Outcome (Separated NAT64 and DNS64)" />
 	</div>
 </div>
 
