@@ -257,7 +257,6 @@ int xlator_setup(void)
 
 	return 0;
 }
-EXPORT_UNIT_SYMBOL(xlator_setup)
 
 void xlator_set_defrag(void (*_defrag_enable)(struct net *ns))
 {
@@ -282,7 +281,6 @@ void xlator_teardown(void)
 	WARN(!list_empty(ni), "There are elements in the xlator list after a cleanup.");
 	__wkfree("xlator DB", ni);
 }
-EXPORT_UNIT_SYMBOL(xlator_teardown)
 
 static int init_siit(struct xlator *jool)
 {

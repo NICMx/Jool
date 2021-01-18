@@ -25,7 +25,7 @@ PROJECTS += sessiondb
 #PROJECTS += joolns
 
 # Layer 5 tests (translation steps)
-#PROJECTS += filtering
+PROJECTS += filtering
 PROJECTS += translate
 
 # Layer 6 test (global translation)

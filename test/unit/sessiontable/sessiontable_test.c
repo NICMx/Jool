@@ -290,7 +290,6 @@ int init_module(void)
 {
 	struct test_group test = {
 		.name = "Session table",
-		.teardown_fn = bib_teardown,
 		.init_fn = init,
 		.clean_fn = clean,
 	};

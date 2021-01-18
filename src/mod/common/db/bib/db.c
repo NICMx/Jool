@@ -344,7 +344,6 @@ void bib_teardown(void)
 	kmem_cache_destroy(session_cache);
 	session_cache = NULL;
 }
-EXPORT_UNIT_SYMBOL(bib_teardown)
 
 static enum session_fate just_die(struct session_entry *session, void *arg)
 {

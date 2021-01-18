@@ -7,7 +7,6 @@
 #include "framework/skb_generator.h"
 #include "mod/common/db/global.h"
 #include "mod/common/db/bib/db.h"
-#include "mod/common/db/pool4/rfc6056.h"
 #include "mod/common/steps/determine_incoming_tuple.h"
 #include "mod/common/steps/filtering_and_updating.h"
 
@@ -538,29 +537,8 @@ static void defrag_dummy(struct net *ns)
 
 static int setup(void)
 {
-	int error;
-
-	error = rfc6056_setup();
-	if (error)
-		goto rfc6056_fail;
-	error = xlator_setup();
-	if (error)
-		goto xlator_fail;
 	xlator_set_defrag(defrag_dummy);
-
 	return 0;
-
-xlator_fail:
-	rfc6056_teardown();
-rfc6056_fail:
-	return error;
-}
-
-static void teardown(void)
-{
-	xlator_teardown();
-	rfc6056_teardown();
-	bib_teardown();
 }
 
 static int init(void)
@@ -626,7 +604,6 @@ static int filtering_test_init(void)
 	struct test_group test = {
 		.name = "Filtering and Updating",
 		.setup_fn = setup,
-		.teardown_fn = teardown,
 		.init_fn = init,
 		.clean_fn = clean,
 	};
