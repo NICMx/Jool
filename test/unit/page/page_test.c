@@ -13,6 +13,7 @@ MODULE_LICENSE(JOOL_LICENSE);
 MODULE_AUTHOR("Alberto Leiva");
 MODULE_DESCRIPTION("Pages test");
 
+extern struct sk_buff *skb_out;
 static struct xlator jool;
 
 static int init(void)
@@ -357,8 +358,6 @@ int init_module(void)
 {
 	struct test_group test = {
 		.name = "Pages",
-		.setup_fn = xlator_setup,
-		.teardown_fn = xlator_teardown,
 		.init_fn = init,
 		.clean_fn = clean,
 	};
