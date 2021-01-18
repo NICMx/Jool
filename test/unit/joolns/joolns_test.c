@@ -1,6 +1,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/sched.h>
+
 #include "mod/common/atomic_config.h"
 #include "mod/common/linux_version.h"
 #include "mod/common/xlator.h"
@@ -21,6 +22,8 @@ MODULE_DESCRIPTION("Xlator test.");
 static struct net *ns;
 /** Number of references that @ns had at the beginning of the test. */
 static int old_refs;
+
+int jstat_refcount(struct jool_stats *stats);
 
 static int ns_refcount(struct net *ns)
 {
@@ -92,52 +95,39 @@ static bool simple_test(void)
 }
 
 /**
- * Superfluous test over the jparser. It's mostly just API manhandling so krefs
- * can be tested next.
+ * This used to be a "Superfluous test over the jparser," where "jparser" was
+ * apparently an old name for the atomic config handler.
+ * The interface became impractical to use by the unit framework, so I
+ * downgraded this to another one of these EAMT tests.
+ * It's better than nothing, I guess.
  */
 static bool atomic_test(void)
 {
-	unsigned char request[sizeof(__u16) + sizeof(struct eamt_entry)];
-	__u16 *type;
-	struct request_init *init;
-	struct eamt_entry *eam;
+	struct xlator jool;
+	struct eamt_entry eam;
 	int error;
 
-	type = (__u16 *)request;
-
-	*type = SEC_INIT;
-	init = (struct request_init *)(type + 1);
-	init->xf = XF_NETFILTER;
-	error = atomconfig_add(INAME_DEFAULT, XT_SIIT, request, sizeof(request),
-			false);
+	error = str_to_addr6("2001:db8:bbbb::", &eam.prefix6.addr);
 	if (error)
 		return false;
-
-	eam = (struct eamt_entry *)(type + 1);
-
-	*type = SEC_EAMT;
-	error = str_to_addr6("2001:db8:bbbb::", &eam->prefix6.addr);
+	eam.prefix6.len = 121;
+	error = str_to_addr4("198.51.100.0", &eam.prefix4.addr);
 	if (error)
 		return false;
-	eam->prefix6.len = 121;
-	error = str_to_addr4("198.51.100.0", &eam->prefix4.addr);
-	if (error)
-		return false;
-	eam->prefix4.len = 25;
+	eam.prefix4.len = 25;
 
-	error = atomconfig_add(INAME_DEFAULT, XT_SIIT, request, sizeof(request),
-			false);
+	error = xlator_find_current(INAME_DEFAULT, XF_NETFILTER | XT_SIIT,
+				&jool);
 	if (error) {
-		pr_info("atomconfig_add() 1 threw %d\n", error);
+		pr_info("xlator_find_current() threw %d\n", error);
 		return false;
 	}
 
-	*type = SEC_COMMIT;
-
-	error = atomconfig_add(INAME_DEFAULT, XT_SIIT, request, sizeof(*type),
-			false);
+	eamt_flush(jool.siit.eamt);
+	error = eamt_add(jool.siit.eamt, &eam, true);
+	xlator_put(&jool);
 	if (error) {
-		pr_info("atomconfig_add() 2 threw %d\n", error);
+		pr_info("eamt_add() threw %d\n", error);
 		return false;
 	}
 
@@ -212,38 +202,31 @@ static int init(void)
 	struct eamt_entry eam;
 	int error;
 
-	error = xlator_setup();
-	if (error) {
-		pr_info("xlator_setup() threw %d\n", error);
-		return error;
-	}
 	error = xlator_add(XF_NETFILTER | XT_SIIT, INAME_DEFAULT, NULL, &jool);
 	if (error) {
 		pr_info("xlator_add() threw %d\n", error);
-		goto fail1;
+		return error;
 	}
 
 	error = str_to_addr6("2001:db8::", &eam.prefix6.addr);
 	if (error)
-		goto fail2;
+		goto fail;
 	eam.prefix6.len = 120;
 	error = str_to_addr4("192.0.2.0", &eam.prefix4.addr);
 	if (error)
-		goto fail2;
+		goto fail;
 	eam.prefix4.len = 24;
-	error = eamt_add(jool.siit.eamt, &eam.prefix6, &eam.prefix4, true);
+	error = eamt_add(jool.siit.eamt, &eam, true);
 	if (error) {
 		pr_info("eamt_add() threw %d\n", error);
-		goto fail2;
+		goto fail;
 	}
 
 	xlator_put(&jool);
 	return 0;
 
-fail2:
+fail:
 	xlator_put(&jool);
-fail1:
-	xlator_teardown();
 	return error;
 }
 
@@ -252,10 +235,7 @@ fail1:
  */
 static bool clean(void)
 {
-	bool success;
-	success = ASSERT_INT(0, xlator_rm(XT_SIIT, INAME_DEFAULT), "xlator_rm");
-	xlator_teardown();
-	return success;
+	return ASSERT_INT(0, xlator_rm(XT_SIIT, INAME_DEFAULT), "xlator_rm");
 }
 
 int init_module(void)

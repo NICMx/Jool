@@ -436,6 +436,7 @@ int eamt_foreach(struct eam_table *eamt,
 	mutex_unlock(&lock);
 	return error;
 }
+EXPORT_UNIT_SYMBOL(eamt_foreach)
 
 void eamt_flush(struct eam_table *eamt)
 {

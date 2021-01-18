@@ -865,6 +865,7 @@ int xlator_find_current(const char *iname, xlator_flags flags,
 	put_net(ns);
 	return error;
 }
+EXPORT_UNIT_SYMBOL(xlator_find_current)
 
 int xlator_find_netfilter(struct net *ns, struct xlator *result)
 {

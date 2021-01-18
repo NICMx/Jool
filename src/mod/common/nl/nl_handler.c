@@ -217,8 +217,7 @@ static struct genl_family jool_family = {
 	.id = GENL_ID_GENERATE,
 #endif
 	.hdrsize = sizeof(struct joolnlhdr),
-	/* This is initialized below. See register_family(). */
-	/* .name = GNL_JOOL_FAMILY_NAME, */
+	.name = JOOLNL_FAMILY,
 	.version = 2,
 	.maxattr = JNLAR_MAX,
 	.netnsok = true,
@@ -255,8 +254,6 @@ static int register_family(void)
 	int error;
 
 	LOG_DEBUG("Registering Generic Netlink family...");
-
-	strcpy(jool_family.name, JOOLNL_FAMILY);
 
 #if LINUX_VERSION_LOWER_THAN(3, 13, 0, 7, 1)
 
@@ -314,3 +311,4 @@ struct genl_family *jnl_family(void)
 {
 	return &jool_family;
 }
+EXPORT_UNIT_SYMBOL(jnl_family)
