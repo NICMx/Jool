@@ -328,12 +328,6 @@ fail:
 }
 EXPORT_SYMBOL_GPL(ASSERT_SESSION);
 
-void print_session(struct session_entry *session)
-{
-	pr_cont(SESSION_KEY, SESSION_PRINT(session));
-}
-EXPORT_SYMBOL_GPL(print_session);
-
 #undef SESSION_PRINT
 #undef SESSION_KEY
 
@@ -380,10 +374,3 @@ int test_group_end(struct test_group *group)
 	return (group->failure_counter > 0) ? -EINVAL : 0;
 }
 EXPORT_SYMBOL_GPL(test_group_end);
-
-int broken_unit_call(const char *function)
-{
-	WARN(true, "%s() was called! The unit test is broken.", function);
-	return -EINVAL;
-}
-EXPORT_SYMBOL_GPL(broken_unit_call);
