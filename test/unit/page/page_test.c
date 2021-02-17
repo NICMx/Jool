@@ -1,5 +1,6 @@
 #include <linux/module.h>
 
+#include "framework/address.h"
 #include "framework/unit_test.h"
 #include "framework/send_packet.h"
 #include "framework/skb_generator.h"
@@ -21,7 +22,7 @@ static int init(void)
 	struct jool_globals globals;
 	int error;
 
-	error = globals_init(&globals, XT_SIIT);
+	error = globals_init(&globals, XT_SIIT, NULL);
 	if (error)
 		return error;
 
@@ -32,13 +33,13 @@ static int init(void)
 		return error;
 
 	return xlator_add(XF_NETFILTER | XT_SIIT, INAME_DEFAULT, &globals,
-			&jool);
+			&jool, NULL);
 }
 
 static void clean(void)
 {
 	xlator_put(&jool);
-	xlator_rm(XT_SIIT, INAME_DEFAULT);
+	xlator_rm(XT_SIIT, INAME_DEFAULT, NULL);
 }
 
 static bool validate_skb(struct sk_buff *skb, int payload_offset,

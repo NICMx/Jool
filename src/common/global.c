@@ -1,9 +1,9 @@
 #include "common/global.h"
 
 #ifdef __KERNEL__
-#include "mod/common/address.h"
 #include "mod/common/log.h"
 #include "mod/common/nl/attribute.h"
+#include "mod/common/nl/nl_common.h"
 #include "mod/common/db/global.h"
 #else
 #include <stddef.h>
@@ -26,7 +26,8 @@ typedef int (*joolnl_global_nl2raw_fn)(
 	struct joolnl_global_meta const *,
 	struct nlattr *,
 	void *,
-	bool
+	bool,
+	struct jnl_state *
 );
 
 #else
@@ -127,94 +128,106 @@ static int raw2nl_mapping_rule(struct joolnl_global_meta const *meta, void *raw,
 }
 
 static int nl2raw_bool(struct joolnl_global_meta const *meta,
-		struct nlattr *attr, void *raw, bool force)
+		struct nlattr *attr, void *raw, bool force,
+		struct jnl_state *state)
 {
 	*((bool *)raw) = nla_get_u8(attr);
 	return 0;
 }
 
-static int nl2raw_u8(struct joolnl_global_meta const *meta, struct nlattr *attr,
-		void *raw, bool force)
+static int nl2raw_u8(struct joolnl_global_meta const *meta,
+		struct nlattr *attr, void *raw, bool force,
+		struct jnl_state *state)
 {
 	*((__u8 *)raw) = nla_get_u8(attr);
 	return 0;
 }
 
 static int nl2raw_u32(struct joolnl_global_meta const *meta,
-		struct nlattr *attr, void *raw, bool force)
+		struct nlattr *attr, void *raw, bool force,
+		struct jnl_state *state)
 {
 	*((__u32 *)raw) = nla_get_u32(attr);
 	return 0;
 }
 
 static int nl2raw_plateaus(struct joolnl_global_meta const *meta,
-		struct nlattr *attr, void *raw, bool force)
+		struct nlattr *attr, void *raw, bool force,
+		struct jnl_state *state)
 {
-	return jnla_get_plateaus(attr, raw);
+	return jnla_get_plateaus(attr, raw, state);
 }
 
-static int validate_prefix6791v4(struct config_prefix4 *prefix, bool force)
+static int validate_prefix6791v4(struct config_prefix4 *prefix, bool force,
+		struct jnl_state *state)
 {
 	int error;
 
 	if (!prefix->set)
 		return 0;
 
-	error = prefix4_validate(&prefix->prefix);
+	error = prefix4_validate(&prefix->prefix, state);
 	if (error)
 		return error;
 
-	return prefix4_validate_scope(&prefix->prefix, force);
+	return prefix4_validate_scope(&prefix->prefix, force, state);
 }
 
 static int nl2raw_pool6(struct joolnl_global_meta const *meta,
-		struct nlattr *attr, void *raw, bool force)
+		struct nlattr *attr, void *raw, bool force,
+		struct jnl_state *state)
 {
 	struct config_prefix6 *prefix = raw;
 	int error;
 
-	error = jnla_get_prefix6_optional(attr, meta->name, prefix);
+	error = jnla_get_prefix6_optional(attr, meta->name, prefix, state);
 	if (error)
 		return error;
 
-	return pool6_validate(prefix, force);
+	return pool6_validate(prefix, force, state);
 }
 
 static int nl2raw_prefix6(struct joolnl_global_meta const *meta,
-		struct nlattr *attr, void *raw, bool force)
+		struct nlattr *attr, void *raw, bool force,
+		struct jnl_state *state)
 {
 	struct config_prefix6 *prefix = raw;
 	int error;
 
-	error = jnla_get_prefix6_optional(attr, meta->name, prefix);
+	error = jnla_get_prefix6_optional(attr, meta->name, prefix, state);
 	if (error)
 		return error;
 
-	return prefix->set ? prefix6_validate(&prefix->prefix) : 0;
+	return prefix->set ? prefix6_validate(&prefix->prefix, state) : 0;
 }
 
 static int nl2raw_pool6791v4(struct joolnl_global_meta const *meta,
-		struct nlattr *attr, void *raw, bool force)
+		struct nlattr *attr, void *raw, bool force,
+		struct jnl_state *state)
 {
 	struct config_prefix4 *prefix = raw;
 	int error;
 
-	error = jnla_get_prefix4_optional(attr, meta->name, prefix);
+	error = jnla_get_prefix4_optional(attr, meta->name, prefix, state);
 	if (error)
 		return error;
 
-	return validate_prefix6791v4(prefix, force);
+	return validate_prefix6791v4(prefix, force, state);
 }
 
 static int nl2raw_lowest_ipv6_mtu(struct joolnl_global_meta const *meta,
-		struct nlattr *attr, void *raw, bool force)
+		struct nlattr *attr, void *raw, bool force,
+		struct jnl_state *state)
 {
 	__u32 lim;
 
 	lim = nla_get_u32(attr);
 	if (lim < 1280) {
-		log_err("%s (%u) is too small (min: 1280).", meta->name, lim);
-		return -EINVAL;
+		return jnls_err(
+			state,
+			"%s (%u) is too small (min: 1280).",
+			meta->name, lim
+		);
 	}
 
 	*((__u32 *)raw) = lim;
@@ -222,54 +235,54 @@ static int nl2raw_lowest_ipv6_mtu(struct joolnl_global_meta const *meta,
 }
 
 static int nl2raw_hairpin_mode(struct joolnl_global_meta const *meta,
-		struct nlattr *attr, void *raw, bool force)
+		struct nlattr *attr, void *raw, bool force,
+		struct jnl_state *state)
 {
 	__u8 mode;
 
 	mode = nla_get_u8(attr);
-	if (mode != EHM_OFF && mode != EHM_SIMPLE && mode != EHM_INTRINSIC) {
-		log_err("Unknown hairpinning mode: %u", mode);
-		return -EINVAL;
-	}
+	if (mode != EHM_OFF && mode != EHM_SIMPLE && mode != EHM_INTRINSIC)
+		return jnls_err(state, "Unknown hairpinning mode: %u", mode);
 
 	*((__u8 *)raw) = mode;
 	return 0;
 }
 
 static int nl2raw_maptype(struct joolnl_global_meta const *meta,
-		struct nlattr *attr, void *raw, bool force)
+		struct nlattr *attr, void *raw, bool force,
+		struct jnl_state *state)
 {
 	__u8 type;
 
 	type = nla_get_u8(attr);
-	if (type != MAPTYPE_BR && type != MAPTYPE_CE) {
-		log_err("Unknown MAP-T type: %u", type);
-		return -EINVAL;
-	}
+	if (type != MAPTYPE_BR && type != MAPTYPE_CE)
+		return jnls_err(state, "Unknown MAP-T type: %u", type);
 
 	*((__u8 *)raw) = type;
 	return 0;
 }
 
-static int validate_timeout(const char *what, __u32 timeout, unsigned int min)
+static int validate_timeout(const char *what, __u32 timeout, unsigned int min,
+		struct jnl_state *state)
 {
 	if (timeout < min) {
-		log_err("The '%s' timeout (%u) is too small. (min: %u)", what,
-				timeout, min);
-		return -EINVAL;
+		return jnls_err(state,
+				"The '%s' timeout (%u) is too small. (min: %u)",
+				what, timeout, min);
 	}
 
 	return 0;
 }
 
 static int nl2raw_ttl_udp(struct joolnl_global_meta const *meta,
-		struct nlattr *attr, void *raw, bool force)
+		struct nlattr *attr, void *raw, bool force,
+		struct jnl_state *state)
 {
 	__u32 ttl;
 	int error;
 
 	ttl = nla_get_u32(attr);
-	error = validate_timeout(meta->name, ttl, 1000 * UDP_MIN);
+	error = validate_timeout(meta->name, ttl, 1000 * UDP_MIN, state);
 	if (!error)
 		*((__u32 *)raw) = ttl;
 
@@ -277,13 +290,14 @@ static int nl2raw_ttl_udp(struct joolnl_global_meta const *meta,
 }
 
 static int nl2raw_ttl_tcp_est(struct joolnl_global_meta const *meta,
-		struct nlattr *attr, void *raw, bool force)
+		struct nlattr *attr, void *raw, bool force,
+		struct jnl_state *state)
 {
 	__u32 ttl;
 	int error;
 
 	ttl = nla_get_u32(attr);
-	error = validate_timeout(meta->name, ttl, 1000 * TCP_EST);
+	error = validate_timeout(meta->name, ttl, 1000 * TCP_EST, state);
 	if (!error)
 		*((__u32 *)raw) = ttl;
 
@@ -291,13 +305,14 @@ static int nl2raw_ttl_tcp_est(struct joolnl_global_meta const *meta,
 }
 
 static int nl2raw_ttl_tcp_trans(struct joolnl_global_meta const *meta,
-		struct nlattr *attr, void *raw, bool force)
+		struct nlattr *attr, void *raw, bool force,
+		struct jnl_state *state)
 {
 	__u32 ttl;
 	int error;
 
 	ttl = nla_get_u32(attr);
-	error = validate_timeout(meta->name, ttl, 1000 * TCP_TRANS);
+	error = validate_timeout(meta->name, ttl, 1000 * TCP_TRANS, state);
 	if (!error)
 		*((__u32 *)raw) = ttl;
 
@@ -305,15 +320,15 @@ static int nl2raw_ttl_tcp_trans(struct joolnl_global_meta const *meta,
 }
 
 static int nl2raw_f_args(struct joolnl_global_meta const *meta,
-		struct nlattr *attr, void *raw, bool force)
+		struct nlattr *attr, void *raw, bool force,
+		struct jnl_state *state)
 {
 	__u8 f_args;
 
 	f_args = nla_get_u8(attr);
 	if (f_args > 0x0Fu) {
-		log_err("%s (%u) is out of range. (0-%u)", meta->name,
-				f_args, 0x0Fu);
-		return -EINVAL;
+		return jnls_err(state, "%s (%u) is out of range. (0-%u)",
+				meta->name, f_args, 0x0Fu);
 	}
 
 	*((__u8 *)raw) = f_args;
@@ -321,9 +336,10 @@ static int nl2raw_f_args(struct joolnl_global_meta const *meta,
 }
 
 static int nl2raw_mapping_rule(struct joolnl_global_meta const *meta,
-		struct nlattr *attr, void *raw, bool force)
+		struct nlattr *attr, void *raw, bool force,
+		struct jnl_state *state)
 {
-	return jnla_get_mapping_rule(attr, meta->name, raw);
+	return jnla_get_mapping_rule(attr, meta->name, raw, state);
 }
 
 #else
@@ -1391,19 +1407,19 @@ void *joolnl_global_get(struct joolnl_global_meta const *meta, struct jool_globa
 #ifdef __KERNEL__
 
 int joolnl_global_raw2nl(struct joolnl_global_meta const *meta, void *raw,
-		struct sk_buff *skb)
+		struct sk_buff *skb, struct jnl_state *state)
 {
 	if (!meta->type->raw2nl) {
-		log_err("The raw2nl callback of type '%s' is undefined.",
+		return jnls_err(state, "The raw2nl callback of type '%s' is undefined.",
 				meta->type->name);
-		return -EINVAL;
 	}
 
 	return meta->type->raw2nl(meta, raw, skb);
 }
 
 int joolnl_global_nl2raw(struct joolnl_global_meta const *meta,
-		struct nlattr *nl, void *raw, bool force)
+		struct nlattr *nl, void *raw, bool force,
+		struct jnl_state *state)
 {
 	joolnl_global_nl2raw_fn nl2raw;
 
@@ -1412,12 +1428,11 @@ int joolnl_global_nl2raw(struct joolnl_global_meta const *meta,
 	else if (meta->type->nl2raw)
 		nl2raw = meta->type->nl2raw;
 	else {
-		log_err("Global '%s' has no nl2raw function, and its type doesn't either.",
+		return jnls_err(state, "Global '%s' has no nl2raw function, and its type doesn't either.",
 				meta->name);
-		return -EINVAL;
 	}
 
-	return nl2raw(meta, nl, raw, force);
+	return nl2raw(meta, nl, raw, force, state);
 }
 
 #else

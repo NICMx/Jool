@@ -9,11 +9,6 @@ static inline bool state_debug(struct xlation const *state)
 	return state && state->jool.globals.debug;
 }
 
-static inline bool xlator_debug(struct xlator const *instance)
-{
-	return instance && instance->globals.debug;
-}
-
 #define JOOL_DEBUG(instance, text, ...) \
 	pr_info("Jool %s/%lx/%s: " text "\n", \
 			xt2str(xlator_get_type(instance)), \
@@ -33,7 +28,7 @@ static inline bool xlator_debug(struct xlator const *instance)
 	} while (0)
 #define __log_debug(jool, text, ...)					\
 	do {								\
-		if (xlator_debug(jool))					\
+		if (jool && jool->globals.debug)			\
 			JOOL_DEBUG(jool, text, ##__VA_ARGS__);		\
 	} while (0)
 #define ____log_debug(cond, text, ...)					\
@@ -79,15 +74,6 @@ static inline bool xlator_debug(struct xlator const *instance)
 			__last_log = jiffies; \
 		} \
 	} while (0)
-
-/**
- * "Your configuration cannot be applied, user."
- * log_warn_once() signals errors while processing packets. log_err() signals
- * errors while processing user requests.
- * I the code found a **programming** error, use WARN() or its variations
- * instead.
- */
-void log_err(const char *format, ...) __attribute__((format(printf, 1, 2)));
 
 /**
  * Used when a developer wants to print a debug message, but this message would

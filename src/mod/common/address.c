@@ -1,60 +1,6 @@
 #include "mod/common/address.h"
 
 #include <linux/inet.h>
-#include "common/types.h"
-#include "mod/common/log.h"
-
-int str_to_addr4(const char *str, struct in_addr *result)
-{
-	return in4_pton(str, -1, (u8 *) result, '\0', NULL) ? 0 : -EINVAL;
-}
-EXPORT_UNIT_SYMBOL(str_to_addr4)
-
-int str_to_addr6(const char *str, struct in6_addr *result)
-{
-	return in6_pton(str, -1, (u8 *) result, '\0', NULL) ? 0 : -EINVAL;
-}
-EXPORT_UNIT_SYMBOL(str_to_addr6)
-
-int prefix6_parse(char *str, struct ipv6_prefix *result)
-{
-	const char *slash_pos;
-
-	if (in6_pton(str, -1, (u8 *)&result->addr.s6_addr, '/', &slash_pos) != 1)
-		goto fail;
-	if (kstrtou8(slash_pos + 1, 0, &result->len) != 0)
-		goto fail;
-
-	return 0;
-
-fail:
-	log_err("IPv6 prefix is malformed: %s.", str);
-	return -EINVAL;
-}
-EXPORT_UNIT_SYMBOL(prefix6_parse)
-
-int prefix4_parse(char *str, struct ipv4_prefix *result)
-{
-	const char *slash_pos;
-
-	if (strchr(str, '/') != NULL) {
-		if (in4_pton(str, -1, (u8 *)&result->addr, '/', &slash_pos) != 1)
-			goto fail;
-		if (kstrtou8(slash_pos + 1, 0, &result->len) != 0)
-			goto fail;
-	} else {
-		if (in4_pton(str, -1, (u8 *)&result->addr, '\0', NULL) != 1)
-			goto fail;
-		result->len = 32;
-	}
-
-	return 0;
-
-fail:
-	log_err("IPv4 prefix or address is malformed: %s.", str);
-	return -EINVAL;
-}
-EXPORT_UNIT_SYMBOL(prefix4_parse)
 
 bool taddr6_equals(const struct ipv6_transport_addr *a,
 		const struct ipv6_transport_addr *b)
@@ -119,70 +65,6 @@ bool prefix6_contains(const struct ipv6_prefix *prefix,
 	return ipv6_prefix_equal(&prefix->addr, addr, prefix->len);
 }
 EXPORT_UNIT_SYMBOL(prefix6_contains)
-
-int prefix4_validate(const struct ipv4_prefix *prefix)
-{
-	__u32 suffix_mask;
-
-	if (unlikely(!prefix)) {
-		log_err("Prefix is NULL.");
-		return -EINVAL;
-	}
-
-	if (prefix->len > 32) {
-		log_err("Prefix length %u is too high.", prefix->len);
-		return -EINVAL;
-	}
-
-	suffix_mask = ~get_prefix4_mask(prefix);
-	if ((be32_to_cpu(prefix->addr.s_addr) & suffix_mask) != 0) {
-		log_err("'%pI4/%u' seems to have a suffix; please fix.",
-				&prefix->addr, prefix->len);
-		return -EINVAL;
-	}
-
-	return 0;
-}
-
-int prefix6_validate(const struct ipv6_prefix *prefix)
-{
-	unsigned int i;
-
-	if (unlikely(!prefix)) {
-		log_err("Prefix is NULL.");
-		return -EINVAL;
-	}
-
-	if (prefix->len > 128) {
-		log_err("Prefix length %u is too long.", prefix->len);
-		return -EINVAL;
-	}
-
-	for (i = prefix->len; i < 128; i++) {
-		if (addr6_get_bit(&prefix->addr, i)) {
-			log_err("'%pI6c/%u' seems to have a suffix; please fix.",
-					&prefix->addr, prefix->len);
-			return -EINVAL;
-		}
-	}
-
-	return 0;
-}
-
-int prefix4_validate_scope(struct ipv4_prefix *prefix, bool force)
-{
-	struct ipv4_prefix subnet;
-
-	if (!force && prefix4_has_subnet_scope(prefix, &subnet)) {
-		log_err("Prefix %pI4/%u intersects with subnet scoped network %pI4/%u.",
-				&prefix->addr, prefix->len,
-				&subnet.addr, subnet.len);
-		log_err("Will cancel the operation. Use --force to ignore this validation.");
-		return -EINVAL;
-	}
-
-	return 0;
-}
 
 __u32 addr4_get_bit(const struct in_addr *addr, unsigned int pos)
 {

@@ -2,6 +2,7 @@
 #include <linux/kernel.h>
 
 #include "common/constants.h"
+#include "framework/address.h"
 #include "framework/types.h"
 #include "framework/unit_test.h"
 #include "framework/skb_generator.h"
@@ -547,7 +548,7 @@ static int init(void)
 	struct pool4_entry entry;
 	int error;
 
-	error = globals_init(&globals, XT_NAT64);
+	error = globals_init(&globals, XT_NAT64, NULL);
 	if (error)
 		return error;
 
@@ -558,7 +559,7 @@ static int init(void)
 		return error;
 
 	error = xlator_add(XF_NETFILTER | XT_NAT64, INAME_DEFAULT, &globals,
-			&jool);
+			&jool, NULL);
 	if (error)
 		return error;
 
@@ -573,15 +574,15 @@ static int init(void)
 	entry.range.ports.max = 1024;
 
 	entry.proto = L4PROTO_TCP;
-	error = pool4db_add(jool.nat64.pool4, &entry);
+	error = pool4db_add(jool.nat64.pool4, &entry, NULL);
 	if (error)
 		goto fail;
 	entry.proto = L4PROTO_UDP;
-	error = pool4db_add(jool.nat64.pool4, &entry);
+	error = pool4db_add(jool.nat64.pool4, &entry, NULL);
 	if (error)
 		goto fail;
 	entry.proto = L4PROTO_ICMP;
-	error = pool4db_add(jool.nat64.pool4, &entry);
+	error = pool4db_add(jool.nat64.pool4, &entry, NULL);
 	if (error)
 		goto fail;
 
@@ -589,14 +590,14 @@ static int init(void)
 
 fail:
 	xlator_put(&jool);
-	xlator_rm(XT_NAT64, INAME_DEFAULT);
+	xlator_rm(XT_NAT64, INAME_DEFAULT, NULL);
 	return error;
 }
 
 static void clean(void)
 {
 	xlator_put(&jool);
-	xlator_rm(XT_NAT64, INAME_DEFAULT);
+	xlator_rm(XT_NAT64, INAME_DEFAULT, NULL);
 }
 
 static int filtering_test_init(void)

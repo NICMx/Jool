@@ -7,6 +7,7 @@
 #include "mod/common/icmp_wrapper.h"
 #include "mod/common/linux_version.h"
 #include "mod/common/log.h"
+#include "mod/common/route.h"
 #include "mod/common/wkmalloc.h"
 #include "mod/common/db/rbtree.h"
 #include "mod/common/db/bib/pkt_queue.h"
@@ -2290,8 +2291,8 @@ static void bib2tabled(struct bib_entry *bib, struct tabled_bib *tabled)
 	tabled->sessions = RB_ROOT;
 }
 
-static int __bib_add_static(struct xlator *jool, struct bib_entry *new,
-		struct bib_entry *old)
+static int __bib_add_static(struct bib *db, struct bib_entry *new,
+		struct bib_entry *old, struct jnl_state *state)
 {
 	struct bib_table *table;
 	struct tabled_bib *bib;
@@ -2299,11 +2300,11 @@ static int __bib_add_static(struct xlator *jool, struct bib_entry *new,
 	struct tree_slot slot6;
 	struct tree_slot slot4;
 
-	__log_debug(jool, "Adding static BIB entry (%pI6c#%u, %pI4#%u).",
+	jnls_debug(state, "Adding static BIB entry (%pI6c#%u, %pI4#%u).",
 			&new->addr6.l3, new->addr6.l4,
 			&new->addr4.l3, new->addr4.l4);
 
-	table = get_table(jool->nat64.bib, new->l4_proto);
+	table = get_table(db, new->l4_proto);
 	if (!table)
 		return -EINVAL;
 
@@ -2327,7 +2328,7 @@ static int __bib_add_static(struct xlator *jool, struct bib_entry *new,
 
 	treeslot_commit(&slot6);
 	treeslot_commit(&slot4);
-	jstat_inc(jool->stats, JSTAT_BIB_ENTRIES);
+	jstat_inc(jnls_xlator(state)->stats, JSTAT_BIB_ENTRIES);
 
 	/*
 	 * Since the BIB entry is now available, and assuming ADF is disabled,
@@ -2336,7 +2337,7 @@ static int __bib_add_static(struct xlator *jool, struct bib_entry *new,
 	 * going to retry anyway, so let's just forget the packets instead.
 	 */
 	if (new->l4_proto == L4PROTO_TCP)
-		pktqueue_rm(jool->nat64.bib->tcp.pkt_queue, &new->addr4);
+		pktqueue_rm(db->tcp.pkt_queue, &new->addr4);
 
 	spin_unlock_bh(&table->lock);
 	return 0;
@@ -2355,24 +2356,25 @@ eexist:
 }
 
 /* Noisy version. */
-int bib_add_static(struct xlator *jool, struct bib_entry *new)
+int bib_add_static(struct bib *db, struct bib_entry *new,
+		struct jnl_state *state)
 {
 	struct bib_entry old;
 	int error;
 
-	error = __bib_add_static(jool, new, &old);
+	error = __bib_add_static(db, new, &old, state);
 	switch (error) {
 	case 0:
 		break;
 	case -EEXIST:
-		log_err("Entry %pI4#%u|%pI6c#%u collides with %pI4#%u|%pI6c#%u.",
+		jnls_err(state, "Entry %pI4#%u|%pI6c#%u collides with %pI4#%u|%pI6c#%u.",
 				&new->addr4.l3, new->addr4.l4,
 				&new->addr6.l3, new->addr6.l4,
 				&old.addr4.l3, old.addr4.l4,
 				&old.addr6.l3, old.addr6.l4);
 		break;
 	default:
-		log_err("Unknown error code: %d", error);
+		jnls_err(state, "Unknown error code: %d", error);
 		break;
 	}
 
@@ -2380,14 +2382,14 @@ int bib_add_static(struct xlator *jool, struct bib_entry *new)
 }
 EXPORT_UNIT_SYMBOL(bib_add_static)
 
-int bib_rm(struct xlator *jool, struct bib_entry *entry)
+int bib_rm(struct bib *db, struct bib_entry *entry, struct jnl_state *state)
 {
 	struct bib_table *table;
 	struct tabled_bib key;
 	struct tabled_bib *bib;
 	int error = -ESRCH;
 
-	table = get_table(jool->nat64.bib, entry->l4_proto);
+	table = get_table(db, entry->l4_proto);
 	if (!table)
 		return -EINVAL;
 
@@ -2397,20 +2399,27 @@ int bib_rm(struct xlator *jool, struct bib_entry *entry)
 
 	bib = find_bib6(table, &key.src6);
 	if (bib && taddr4_equals(&key.src4, &bib->src4)) {
-		detach_bib(jool, table, bib);
+		detach_bib(jnls_xlator(state), table, bib);
 		error = 0;
 	}
 
 	spin_unlock_bh(&table->lock);
 
-	if (!error)
+	switch (error) {
+	case 0:
 		release_bib_entry(&bib->hook4, NULL);
+		return error;
+	case -ESRCH:
+		jnls_err(state, "Entry not found.");
+		return error;
+	}
 
+	WARN(1, "Unknown error: %d", error);
 	return error;
 }
 
-void bib_rm_range(struct xlator *jool, l4_protocol proto,
-		struct ipv4_range *range)
+void bib_rm_range(struct bib *db, l4_protocol proto, struct ipv4_range *range,
+		struct jnl_state *state)
 {
 	struct bib_table *table;
 	struct ipv4_transport_addr offset;
@@ -2419,7 +2428,7 @@ void bib_rm_range(struct xlator *jool, l4_protocol proto,
 	struct tabled_bib *bib;
 	struct bib_delete_list delete_list = { NULL };
 
-	table = get_table(jool->nat64.bib, proto);
+	table = get_table(db, proto);
 	if (!table)
 		return;
 
@@ -2436,7 +2445,7 @@ void bib_rm_range(struct xlator *jool, l4_protocol proto,
 		if (!prefix4_contains(&range->prefix, &bib->src4.l3))
 			break;
 		if (port_range_contains(&range->ports, bib->src4.l4)) {
-			detach_bib(jool, table, bib);
+			detach_bib(jnls_xlator(state), table, bib);
 			add_to_delete_list(&delete_list, node);
 		}
 	}
@@ -2466,9 +2475,9 @@ static void flush_table(struct xlator *jool, struct bib_table *table)
 	commit_delete_list(&delete_list);
 }
 
-void bib_flush(struct xlator *jool)
+void bib_flush(struct bib *db, struct jnl_state *state)
 {
-	struct bib *db = jool->nat64.bib;
+	struct xlator *jool = jnls_xlator(state);
 	flush_table(jool, &db->tcp);
 	flush_table(jool, &db->udp);
 	flush_table(jool, &db->icmp);

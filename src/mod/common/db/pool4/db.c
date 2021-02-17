@@ -322,7 +322,8 @@ void pool4db_put(struct pool4 *pool)
 }
 EXPORT_UNIT_SYMBOL(pool4db_put)
 
-static int max_iterations_validate(__u8 flags, __u32 iterations)
+static int max_iterations_validate(__u8 flags, __u32 iterations,
+		struct jnl_state *state)
 {
 	bool automatic = flags & ITERATIONS_AUTO;
 	bool infinite = flags & ITERATIONS_INFINITE;
@@ -330,15 +331,11 @@ static int max_iterations_validate(__u8 flags, __u32 iterations)
 	if (!(flags & ITERATIONS_SET))
 		return 0;
 
-	if (automatic && infinite) {
-		log_err("Max Iterations cannot be automatic and infinite at the same time.");
-		return -EINVAL;
-	}
+	if (automatic && infinite)
+		return jnls_err(state, "Max Iterations cannot be automatic and infinite at the same time.");
 
-	if (iterations == 0 && !automatic && !infinite) {
-		log_err("Zero is not a legal Max Iterations value.");
-		return -EINVAL;
-	}
+	if (iterations == 0 && !automatic && !infinite)
+		return jnls_err(state, "Zero is not a legal Max Iterations value.");
 
 	return 0;
 }
@@ -531,16 +528,17 @@ static int add_to_addr_tree(struct pool4 *pool,
 	return 0;
 }
 
-int pool4db_add(struct pool4 *pool, const struct pool4_entry *entry)
+int pool4db_add(struct pool4 *pool, const struct pool4_entry *entry,
+		struct jnl_state *state)
 {
 	struct ipv4_range addend = { .ports = entry->range.ports };
 	u64 tmp;
 	int error;
 
-	error = prefix4_validate(&entry->range.prefix);
+	error = prefix4_validate(&entry->range.prefix, state);
 	if (error)
 		return error;
-	error = max_iterations_validate(entry->flags, entry->iterations);
+	error = max_iterations_validate(entry->flags, entry->iterations, state);
 	if (error)
 		return error;
 
@@ -578,45 +576,10 @@ trainwreck:
 	 * So let's just let the user know that the database was left in an
 	 * inconsistent state and have them restart from scratch.
 	 */
-	log_err("pool4 was probably left in an inconsistent state because of a memory allocation failure or a bug. Please remove NAT64 Jool from your kernel.");
+	jnls_err(state, "pool4 was probably left in an inconsistent state because of a memory allocation failure or a bug. Please remove NAT64 Jool from your kernel.");
 	return error;
 }
 EXPORT_UNIT_SYMBOL(pool4db_add)
-
-int pool4db_update(struct pool4 *pool, const struct pool4_update *update)
-{
-	struct rb_root *tree;
-	struct pool4_table *table;
-	int error;
-
-	error = max_iterations_validate(update->flags, update->iterations);
-	if (error)
-		return error;
-
-	spin_lock_bh(&pool->lock);
-
-	tree = get_tree(&pool->tree_mark, update->l4_proto);
-	if (!tree) {
-		spin_unlock_bh(&pool->lock);
-		return -EINVAL;
-	}
-
-	table = find_by_mark(tree, update->mark);
-	if (!table) {
-		spin_unlock_bh(&pool->lock);
-		log_err("No entries match mark %u (protocol %s).", update->mark,
-				l4proto_to_string(update->l4_proto));
-		return -ESRCH;
-	}
-
-	if (update->flags & ITERATIONS_SET) {
-		table->max_iterations_flags = update->flags;
-		table->max_iterations_allowed = update->iterations;
-	}
-
-	spin_unlock_bh(&pool->lock);
-	return 0;
-}
 
 static int remove_range(struct rb_root *tree, struct pool4_table *table,
 		struct ipv4_range *rm)
@@ -754,11 +717,11 @@ static int rm_from_addr_tree(struct pool4 *pool, l4_protocol proto,
 }
 
 int pool4db_rm(struct pool4 *pool, const __u32 mark, l4_protocol proto,
-		struct ipv4_range *range)
+		struct ipv4_range *range, struct jnl_state *state)
 {
 	int error;
 
-	error = prefix4_validate(&range->prefix);
+	error = prefix4_validate(&range->prefix, state);
 	if (error)
 		return error;
 	if (range->ports.min > range->ports.max)
@@ -775,9 +738,10 @@ int pool4db_rm(struct pool4 *pool, const __u32 mark, l4_protocol proto,
 }
 EXPORT_UNIT_SYMBOL(pool4db_rm)
 
-int pool4db_rm_usr(struct pool4 *pool, struct pool4_entry *entry)
+int pool4db_rm_usr(struct pool4 *pool, struct pool4_entry *entry,
+		struct jnl_state *state)
 {
-	return pool4db_rm(pool, entry->mark, entry->proto, &entry->range);
+	return pool4db_rm(pool, entry->mark, entry->proto, &entry->range, state);
 }
 
 void pool4db_flush(struct pool4 *pool)
@@ -943,7 +907,7 @@ static void __update_sample(struct pool4_entry *sample,
  */
 int pool4db_foreach_sample(struct pool4 *pool, l4_protocol proto,
 		pool4db_foreach_entry_cb cb, void *arg,
-		struct pool4_entry *offset)
+		struct pool4_entry *offset, struct jnl_state *state)
 {
 	struct rb_root *tree;
 	struct rb_node *node;
@@ -993,7 +957,7 @@ end:
 
 eagain:
 	spin_unlock_bh(&pool->lock);
-	log_err("Oops. Pool4 changed while I was iterating so I lost track of where I was. Try again.");
+	jnls_err(state, "Oops. Pool4 changed while I was iterating so I lost track of where I was. Try again.");
 	return -EAGAIN;
 }
 EXPORT_UNIT_SYMBOL(pool4db_foreach_sample)

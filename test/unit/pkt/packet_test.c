@@ -67,7 +67,7 @@ static bool test_inner_validation4(void)
 	struct sk_buff *skb;
 	bool result = true;
 
-	if (xlator_init(&jool, NULL, "test", XT_SIIT | XF_IPTABLES, NULL))
+	if (xlator_init(&jool, NULL, "test", XT_SIIT | XF_IPTABLES, NULL, NULL))
 		return false;
 	xlation_init(&state, &jool);
 
@@ -97,7 +97,7 @@ static bool test_inner_validation6(void)
 	struct sk_buff *skb;
 	bool result = true;
 
-	if (xlator_init(&jool, NULL, "test", XT_SIIT | XF_IPTABLES, NULL))
+	if (xlator_init(&jool, NULL, "test", XT_SIIT | XF_IPTABLES, NULL, NULL))
 		return false;
 	xlation_init(&state, &jool);
 

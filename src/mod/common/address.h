@@ -1,20 +1,13 @@
 #ifndef SRC_MOD_COMMON_ADDRESS_H_
 #define SRC_MOD_COMMON_ADDRESS_H_
 
-#include <linux/string.h>
 #include <net/ipv6.h>
 #include "common/types.h"
-
-int str_to_addr4(const char *str, struct in_addr *result);
-int str_to_addr6(const char *str, struct in6_addr *result);
 
 union transport_addr {
 	struct ipv6_transport_addr addr6;
 	struct ipv4_transport_addr addr4;
 };
-
-int prefix6_parse(char *str, struct ipv6_prefix *result);
-int prefix4_parse(char *str, struct ipv4_prefix *result);
 
 static inline bool addr4_equals(const struct in_addr *a,
 		const struct in_addr *b)
@@ -47,10 +40,6 @@ bool prefix4_intersects(const struct ipv4_prefix *p1,
 		const struct ipv4_prefix *p2);
 
 __u64 prefix4_get_addr_count(const struct ipv4_prefix *prefix);
-
-int prefix4_validate(const struct ipv4_prefix *prefix);
-int prefix6_validate(const struct ipv6_prefix *prefix);
-int prefix4_validate_scope(struct ipv4_prefix *prefix, bool force);
 
 __u32 addr4_get_bit(const struct in_addr *addr, unsigned int pos);
 void addr4_set_bit(struct in_addr *addr, unsigned int pos, bool value);

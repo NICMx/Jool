@@ -3,9 +3,7 @@
 
 #include <linux/kref.h>
 #include <linux/rbtree.h>
-#include "common/config.h"
-#include "common/types.h"
-#include "mod/common/rtrie.h"
+#include "mod/common/nl/nl_common.h"
 
 struct eam_table;
 
@@ -27,9 +25,10 @@ bool eamt_is_empty(struct eam_table *eamt);
 
 /* Do-not-use-when-you-can't-sleep-functions */
 
-int eamt_add(struct eam_table *jool, struct eamt_entry *new, bool force);
+int eamt_add(struct eam_table *eamt, struct eamt_entry *new, bool force,
+		struct jnl_state *state);
 int eamt_rm(struct eam_table *eamt, struct ipv6_prefix *prefix6,
-		struct ipv4_prefix *prefix4);
+		struct ipv4_prefix *prefix4, struct jnl_state *state);
 void eamt_flush(struct eam_table *eamt);
 
 typedef int (*eamt_foreach_cb)(struct eamt_entry const *, void *);

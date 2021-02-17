@@ -2,11 +2,13 @@
 #include <linux/module.h>
 #include <linux/sched.h>
 
+#include "framework/address.h"
+#include "framework/unit_test.h"
+
 #include "mod/common/atomic_config.h"
 #include "mod/common/linux_version.h"
 #include "mod/common/xlator.h"
 #include "mod/common/db/eam.h"
-#include "framework/unit_test.h"
 
 /*
  * Er... this doesn't even try to test everything.
@@ -66,7 +68,7 @@ static bool validate(char *expected_addr6, __u8 expected_len6,
 	bool success = true;
 
 	error = xlator_find_current(INAME_DEFAULT, XF_NETFILTER | XT_SIIT,
-			&jool);
+			&jool, NULL);
 	if (error) {
 		pr_info("xlator_find_current() threw %d\n", error);
 		return false;
@@ -117,14 +119,14 @@ static bool atomic_test(void)
 	eam.prefix4.len = 25;
 
 	error = xlator_find_current(INAME_DEFAULT, XF_NETFILTER | XT_SIIT,
-				&jool);
+				&jool, NULL);
 	if (error) {
 		pr_info("xlator_find_current() threw %d\n", error);
 		return false;
 	}
 
 	eamt_flush(jool.siit.eamt);
-	error = eamt_add(jool.siit.eamt, &eam, true);
+	error = eamt_add(jool.siit.eamt, &eam, true, NULL);
 	xlator_put(&jool);
 	if (error) {
 		pr_info("eamt_add() threw %d\n", error);
@@ -144,7 +146,7 @@ static bool krefs_test(void)
 	bool success = true;
 
 	error = xlator_find_current(INAME_DEFAULT, XF_NETFILTER | XT_SIIT,
-			&jool);
+			&jool, NULL);
 	if (error) {
 		pr_info("xlator_find_current() threw %d\n", error);
 		return false;
@@ -202,7 +204,8 @@ static int init(void)
 	struct eamt_entry eam;
 	int error;
 
-	error = xlator_add(XF_NETFILTER | XT_SIIT, INAME_DEFAULT, NULL, &jool);
+	error = xlator_add(XF_NETFILTER | XT_SIIT, INAME_DEFAULT, NULL, &jool,
+			NULL);
 	if (error) {
 		pr_info("xlator_add() threw %d\n", error);
 		return error;
@@ -216,7 +219,7 @@ static int init(void)
 	if (error)
 		goto fail;
 	eam.prefix4.len = 24;
-	error = eamt_add(jool.siit.eamt, &eam, true);
+	error = eamt_add(jool.siit.eamt, &eam, true, NULL);
 	if (error) {
 		pr_info("eamt_add() threw %d\n", error);
 		goto fail;
@@ -235,7 +238,8 @@ fail:
  */
 static bool clean(void)
 {
-	return ASSERT_INT(0, xlator_rm(XT_SIIT, INAME_DEFAULT), "xlator_rm");
+	return ASSERT_INT(0, xlator_rm(XT_SIIT, INAME_DEFAULT, NULL),
+			"xlator_rm");
 }
 
 int init_module(void)

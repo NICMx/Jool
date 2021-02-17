@@ -122,11 +122,17 @@ int bib_find6(struct bib *db, l4_protocol proto,
 int bib_find4(struct bib *db, l4_protocol proto,
 		struct ipv4_transport_addr *addr,
 		struct bib_entry *result);
-int bib_add_static(struct xlator *jool, struct bib_entry *new);
-int bib_rm(struct xlator *jool, struct bib_entry *entry);
-void bib_rm_range(struct xlator *jool, l4_protocol proto,
-		struct ipv4_range *range);
-void bib_flush(struct xlator *jool);
+
+/* state cannot be NULL */
+int bib_add_static(struct bib *db, struct bib_entry *new,
+		struct jnl_state *state);
+/* state cannot be NULL */
+int bib_rm(struct bib *db, struct bib_entry *entry, struct jnl_state *state);
+/* state cannot be NULL */
+void bib_rm_range(struct bib *db, l4_protocol proto, struct ipv4_range *range,
+		struct jnl_state *state);
+/* state cannot be NULL */
+void bib_flush(struct bib *db, struct jnl_state *state);
 
 void bib_print(struct bib *db);
 

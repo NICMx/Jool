@@ -33,8 +33,9 @@ static bool add(__u32 addr, __u8 prefix_len, __u16 min, __u16 max)
 	entry.range.ports.min = min;
 	entry.range.ports.max = max;
 
-	return ASSERT_INT(0, pool4db_add(pool, &entry), "add %pI4/%u (%u-%u)",
-			&entry.range.prefix.addr, prefix_len, min, max);
+	return ASSERT_INT(0, pool4db_add(pool, &entry, NULL),
+			"add %pI4/%u (%u-%u)", &entry.range.prefix.addr,
+			prefix_len, min, max);
 }
 
 static bool rm(__u32 addr, __u8 prefix_len, __u16 min, __u16 max)
@@ -46,9 +47,9 @@ static bool rm(__u32 addr, __u8 prefix_len, __u16 min, __u16 max)
 	range.ports.min = min;
 	range.ports.max = max;
 
-	return ASSERT_INT(0, pool4db_rm(pool, 1, L4PROTO_TCP, &range),
-			"rm of %pI4/%u (%u-%u)",
-			&range.prefix.addr, prefix_len, min, max);
+	return ASSERT_INT(0, pool4db_rm(pool, 1, L4PROTO_TCP, &range, NULL),
+			"rm of %pI4/%u (%u-%u)", &range.prefix.addr,
+			prefix_len, min, max);
 }
 
 static bool add_common_samples(void)
@@ -149,7 +150,7 @@ static bool test_foreach_sample(void)
 	args.samples = 0;
 	args.taddrs = 0;
 	error = pool4db_foreach_sample(pool, L4PROTO_TCP, validate_sample,
-			&args, NULL);
+			&args, NULL, NULL);
 	success &= ASSERT_INT(0, error, "no-offset call");
 	success &= ASSERT_UINT(9, args.samples, "no-offset samples");
 	success &= ASSERT_UINT(16, args.taddrs, "no-offset taddrs");
@@ -161,7 +162,7 @@ static bool test_foreach_sample(void)
 		args.samples = 0;
 		args.taddrs = 0;
 		error = pool4db_foreach_sample(pool, L4PROTO_TCP,
-				validate_sample, &args, &expected[i]);
+				validate_sample, &args, &expected[i], NULL);
 		success &= ASSERT_INT(0, error, "call %u", i);
 		/* pr_info("--------------\n"); */
 	}
@@ -214,7 +215,7 @@ static bool __foreach(struct pool4_entry *expected, unsigned int expected_len,
 	args.taddrs = 0;
 
 	error = pool4db_foreach_sample(pool, L4PROTO_TCP, validate_sample,
-			&args, NULL);
+			&args, NULL, NULL);
 	success &= ASSERT_INT(0, error, "foreach result");
 	success &= ASSERT_UINT(expected_len, args.samples, "foreach count");
 	success &= ASSERT_UINT(expected_taddrs, args.taddrs, "foreach taddrs");

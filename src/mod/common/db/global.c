@@ -10,46 +10,48 @@
 #include "mod/common/mapt.h"
 #include "mod/common/nl/global.h"
 
-static int validate_pool6_len(__u8 len)
+static int validate_pool6_len(__u8 len, struct jnl_state *state)
 {
 	if (len == 32 || len == 40 || len == 48)
 		return 0;
 	if (len == 56 || len == 64 || len == 96)
 		return 0;
 
-	log_err("%u is not a valid prefix length (32, 40, 48, 56, 64, 96).", len);
-	return -EINVAL;
+	return jnls_err(state, "%u is not a valid prefix length (32, 40, 48, 56, 64, 96).",
+			len);
 }
 
-static int validate_ubit(struct ipv6_prefix *prefix, bool force)
+static int validate_ubit(struct ipv6_prefix *prefix, bool force,
+		struct jnl_state *state)
 {
 	if (force || !prefix->addr.s6_addr[8])
 		return 0;
 
-	log_err("The u-bit is nonzero; see https://github.com/NICMx/Jool/issues/174.\n"
+	return jnls_err(state, "The u-bit is nonzero; see https://github.com/NICMx/Jool/issues/174.\n"
 			"Will cancel the operation. Use --force to override this.");
-	return -EINVAL;
 }
 
-int pool6_validate(struct config_prefix6 *prefix, bool force)
+int pool6_validate(struct config_prefix6 *prefix, bool force,
+		struct jnl_state *state)
 {
 	int error;
 
 	if (!prefix->set)
 		return 0;
 
-	error = prefix6_validate(&prefix->prefix);
+	error = prefix6_validate(&prefix->prefix, state);
 	if (error)
 		return error;
 
-	error = validate_pool6_len(prefix->prefix.len);
+	error = validate_pool6_len(prefix->prefix.len, state);
 	if (error)
 		return error;
 
-	return validate_ubit(&prefix->prefix, force);
+	return validate_ubit(&prefix->prefix, force, state);
 }
 
-int globals_init(struct jool_globals *config, xlator_type type)
+int globals_init(struct jool_globals *config, xlator_type type,
+		struct jnl_state *state)
 {
 	static const __u16 PLATEAUS[] = DEFAULT_MTU_PLATEAUS;
 
@@ -104,8 +106,7 @@ int globals_init(struct jool_globals *config, xlator_type type)
 		break;
 
 	default:
-		log_err("Unknown translator type: %d", type);
-		return -EINVAL;
+		return jnls_err(state, "Unknown translator type: %d", type);
 	}
 
 	return 0;

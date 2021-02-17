@@ -151,7 +151,7 @@ static bool test_function_icmp6_minimum_mtu(void)
 	int i;
 	bool success = true;
 
-	if (globals_init(&state.jool.globals, XT_SIIT))
+	if (globals_init(&state.jool.globals, XT_SIIT, NULL))
 		return false;
 
 	/*
@@ -207,7 +207,7 @@ static bool test_function_icmp4_to_icmp6_param_prob(void)
 
 	/* Annoying preparations */
 
-	if (xlator_init(&jool, NULL, "test", XT_SIIT | XF_IPTABLES, NULL))
+	if (xlator_init(&jool, NULL, "test", XT_SIIT | XF_IPTABLES, NULL, NULL))
 		return false;
 	xlation_init(&state, &jool);
 	if (create_skb4_icmp_error("1.1.1.1", "2.2.2.2", 10, 10, &state.in.skb))

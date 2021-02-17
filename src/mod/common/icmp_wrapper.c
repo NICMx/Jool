@@ -11,10 +11,8 @@ static int route4_input(struct xlator *jool, struct sk_buff *skb)
 	struct iphdr *hdr;
 	int error;
 
-	if (!skb->dev) {
-		log_err("skb lacks an incoming device.");
+	if (WARN(!skb->dev, "skb lacks an incoming device."))
 		return -EINVAL;
-	}
 
 	hdr = ip_hdr(skb);
 	error = ip_route_input(skb, hdr->daddr, hdr->saddr, hdr->tos, skb->dev);

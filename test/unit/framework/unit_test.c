@@ -4,6 +4,8 @@
 #include <linux/module.h>
 #include <net/ipv6.h>
 
+#include "framework/address.h"
+
 MODULE_LICENSE(JOOL_LICENSE);
 MODULE_AUTHOR("Alberto Leiva");
 MODULE_DESCRIPTION("Tools for Jool's unit tests");

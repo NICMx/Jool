@@ -2,34 +2,38 @@
 
 #include <linux/sort.h>
 #include "common/constants.h"
+#include "mod/common/linux_version.h"
 #include "mod/common/log.h"
 
-static int validate_null(struct nlattr *attr, char const *name)
+static int validate_null(struct nlattr *attr, char const *name,
+		struct jnl_state *state)
 {
 	if (!attr) {
-		log_err("Invalid request: '%s' attribute is missing.", name);
-		return -EINVAL;
+		return jnls_err(state,
+				"Invalid request: '%s' attribute is missing.",
+				name);
 	}
 
 	return 0;
 }
 
-static int validate_len(struct nlattr *attr, char const *name, size_t expected_len)
+static int validate_len(struct nlattr *attr, char const *name,
+		size_t expected_len, struct jnl_state *state)
 {
 	if (nla_len(attr) < expected_len) {
-		log_err("Invalid request: %s has %d bytes instead of %zu.",
+		return jnls_err(state, "Invalid request: %s has %d bytes instead of %zu.",
 				name, nla_len(attr), expected_len);
-		return -EINVAL;
 	}
 
 	return 0;
 }
 
-int jnla_get_u8(struct nlattr *attr, char const *name, __u8 *out)
+int jnla_get_u8(struct nlattr *attr, char const *name, __u8 *out,
+		struct jnl_state *state)
 {
 	int error;
 
-	error = validate_null(attr, name);
+	error = validate_null(attr, name, state);
 	if (error)
 		return error;
 
@@ -37,11 +41,12 @@ int jnla_get_u8(struct nlattr *attr, char const *name, __u8 *out)
 	return 0;
 }
 
-int jnla_get_u32(struct nlattr *attr, char const *name, __u32 *out)
+int jnla_get_u32(struct nlattr *attr, char const *name, __u32 *out,
+		struct jnl_state *state)
 {
 	int error;
 
-	error = validate_null(attr, name);
+	error = validate_null(attr, name, state);
 	if (error)
 		return error;
 
@@ -60,11 +65,12 @@ static int validate_str(char const *str, size_t max_size)
 	return -EINVAL;
 }
 
-int jnla_get_str(struct nlattr *attr, char const *name, size_t size, char *out)
+int jnla_get_str(struct nlattr *attr, char const *name, size_t size, char *out,
+		struct jnl_state *state)
 {
 	int error;
 
-	error = validate_null(attr, name);
+	error = validate_null(attr, name, state);
 	if (error)
 		return error;
 	error = validate_str(nla_data(attr), size);
@@ -75,14 +81,15 @@ int jnla_get_str(struct nlattr *attr, char const *name, size_t size, char *out)
 	return 0;
 }
 
-int jnla_get_addr6(struct nlattr *attr, char const *name, struct in6_addr *out)
+int jnla_get_addr6(struct nlattr *attr, char const *name, struct in6_addr *out,
+		struct jnl_state *state)
 {
 	int error;
 
-	error = validate_null(attr, name);
+	error = validate_null(attr, name, state);
 	if (error)
 		return error;
-	error = validate_len(attr, name, sizeof(struct in6_addr));
+	error = validate_len(attr, name, sizeof(struct in6_addr), state);
 	if (error)
 		return error;
 
@@ -90,14 +97,15 @@ int jnla_get_addr6(struct nlattr *attr, char const *name, struct in6_addr *out)
 	return 0;
 }
 
-int jnla_get_addr4(struct nlattr *attr, char const *name, struct in_addr *out)
+int jnla_get_addr4(struct nlattr *attr, char const *name, struct in_addr *out,
+		struct jnl_state *state)
 {
 	int error;
 
-	error = validate_null(attr, name);
+	error = validate_null(attr, name, state);
 	if (error)
 		return error;
-	error = validate_len(attr, name, sizeof(struct in_addr));
+	error = validate_len(attr, name, sizeof(struct in_addr), state);
 	if (error)
 		return error;
 
@@ -106,18 +114,19 @@ int jnla_get_addr4(struct nlattr *attr, char const *name, struct in_addr *out)
 }
 
 int jnla_get_prefix6(struct nlattr *attr, char const *name,
-		struct ipv6_prefix *out)
+		struct ipv6_prefix *out, struct jnl_state *state)
 {
 	struct config_prefix6 tmp;
 	int error;
 
-	error = jnla_get_prefix6_optional(attr, name, &tmp);
+	error = jnla_get_prefix6_optional(attr, name, &tmp, state);
 	if (error)
 		return error;
 
 	if (!tmp.set) {
-		log_err("Malformed %s: null despite being mandatory", name);
-		return -EINVAL;
+		return jnls_err(state,
+				"Malformed %s: null despite being mandatory",
+				name);
 	}
 
 	*out = tmp.prefix;
@@ -125,23 +134,24 @@ int jnla_get_prefix6(struct nlattr *attr, char const *name,
 }
 
 int jnla_get_prefix6_optional(struct nlattr *attr, char const *name,
-		struct config_prefix6 *out)
+		struct config_prefix6 *out, struct jnl_state *state)
 {
 	struct nlattr *attrs[JNLAP_COUNT];
 	int error;
 
-	error = validate_null(attr, name);
+	error = validate_null(attr, name, state);
 	if (error)
 		return error;
 
 	error = jnla_parse_nested(attrs, JNLAP_MAX, attr, joolnl_prefix6_policy,
-			name);
+			name, state);
 	if (error)
 		return error;
 
 	if (!attrs[JNLAP_LEN]) {
-		log_err("Malformed %s: length attribute is missing", name);
-		return -EINVAL;
+		return jnls_err(state,
+				"Malformed %s: length attribute is missing",
+				name);
 	}
 	if (!attrs[JNLAP_ADDR]) {
 		out->set = false;
@@ -150,27 +160,28 @@ int jnla_get_prefix6_optional(struct nlattr *attr, char const *name,
 
 	out->set = true;
 	error = jnla_get_addr6(attrs[JNLAP_ADDR], "IPv6 prefix address",
-			&out->prefix.addr);
+			&out->prefix.addr, state);
 	if (error)
 		return error;
 	out->prefix.len = nla_get_u8(attrs[JNLAP_LEN]);
 
-	return prefix6_validate(&out->prefix);
+	return prefix6_validate(&out->prefix, state);
 }
 
 int jnla_get_prefix4(struct nlattr *attr, char const *name,
-		struct ipv4_prefix *out)
+		struct ipv4_prefix *out, struct jnl_state *state)
 {
 	struct config_prefix4 tmp;
 	int error;
 
-	error = jnla_get_prefix4_optional(attr, name, &tmp);
+	error = jnla_get_prefix4_optional(attr, name, &tmp, state);
 	if (error)
 		return error;
 
 	if (!tmp.set) {
-		log_err("Malformed %s: null despite being mandatory", name);
-		return -EINVAL;
+		return jnls_err(state,
+				"Malformed %s: null despite being mandatory",
+				name);
 	}
 
 	*out = tmp.prefix;
@@ -178,23 +189,24 @@ int jnla_get_prefix4(struct nlattr *attr, char const *name,
 }
 
 int jnla_get_prefix4_optional(struct nlattr *attr, char const *name,
-		struct config_prefix4 *out)
+		struct config_prefix4 *out, struct jnl_state *state)
 {
 	struct nlattr *attrs[JNLAP_COUNT];
 	int error;
 
-	error = validate_null(attr, name);
+	error = validate_null(attr, name, state);
 	if (error)
 		return error;
 
 	error = jnla_parse_nested(attrs, JNLAP_MAX, attr, joolnl_prefix4_policy,
-			name);
+			name, state);
 	if (error)
 		return error;
 
 	if (!attrs[JNLAP_LEN]) {
-		log_err("Malformed %s: length attribute is missing", name);
-		return -EINVAL;
+		return jnls_err(state,
+				"Malformed %s: length attribute is missing",
+				name);
 	}
 	if (!attrs[JNLAP_ADDR]) {
 		out->set = false;
@@ -203,84 +215,90 @@ int jnla_get_prefix4_optional(struct nlattr *attr, char const *name,
 
 	out->set = true;
 	error = jnla_get_addr4(attrs[JNLAP_ADDR], "IPv4 prefix address",
-			&out->prefix.addr);
+			&out->prefix.addr, state);
 	if (error)
 		return error;
 	out->prefix.len = nla_get_u8(attrs[JNLAP_LEN]);
 
-	return prefix4_validate(&out->prefix);
+	return prefix4_validate(&out->prefix, state);
 }
 
 int jnla_get_taddr6(struct nlattr *attr, char const *name,
-		struct ipv6_transport_addr *out)
+		struct ipv6_transport_addr *out, struct jnl_state *state)
 {
 	struct nlattr *attrs[JNLAT_COUNT];
 	int error;
 
-	error = validate_null(attr, name);
+	error = validate_null(attr, name, state);
 	if (error)
 		return error;
 
 	error = jnla_parse_nested(attrs, JNLAT_MAX, attr, joolnl_taddr6_policy,
-			name);
+			name, state);
 	if (error)
 		return error;
 
 	out->l4 = nla_get_u16(attrs[JNLAT_PORT]);
-	return jnla_get_addr6(attrs[JNLAT_ADDR], "IPv6 address", &out->l3);
+	return jnla_get_addr6(attrs[JNLAT_ADDR], "IPv6 address", &out->l3,
+			state);
 }
 
 int jnla_get_taddr4(struct nlattr *attr, char const *name,
-		struct ipv4_transport_addr *out)
+		struct ipv4_transport_addr *out, struct jnl_state *state)
 {
 	struct nlattr *attrs[JNLAT_COUNT];
 	int error;
 
-	error = validate_null(attr, name);
+	error = validate_null(attr, name, state);
 	if (error)
 		return error;
 
 	error = jnla_parse_nested(attrs, JNLAT_MAX, attr, joolnl_taddr4_policy,
-			name);
+			name, state);
 	if (error)
 		return error;
 
 	out->l4 = nla_get_u16(attrs[JNLAT_PORT]);
-	return jnla_get_addr4(attrs[JNLAT_ADDR], "IPv4 address", &out->l3);
+	return jnla_get_addr4(attrs[JNLAT_ADDR], "IPv4 address", &out->l3,
+			state);
 }
 
-int jnla_get_eam(struct nlattr *attr, char const *name, struct eamt_entry *eam)
+int jnla_get_eam(struct nlattr *attr, char const *name, struct eamt_entry *eam,
+		struct jnl_state *state)
 {
 	struct nlattr *attrs[JNLAE_COUNT];
 	int error;
 
-	error = validate_null(attr, name);
+	error = validate_null(attr, name, state);
 	if (error)
 		return error;
 
-	error = jnla_parse_nested(attrs, JNLAE_MAX, attr, joolnl_eam_policy, name);
+	error = jnla_parse_nested(attrs, JNLAE_MAX, attr, joolnl_eam_policy,
+			name, state);
 	if (error)
 		return error;
 
-	error = jnla_get_prefix6(attrs[JNLAE_PREFIX6], "IPv6 prefix", &eam->prefix6);
+	error = jnla_get_prefix6(attrs[JNLAE_PREFIX6], "IPv6 prefix",
+			&eam->prefix6, state);
 	if (error)
 		return error;
 
-	return jnla_get_prefix4(attrs[JNLAE_PREFIX4], "IPv4 prefix", &eam->prefix4);
+	return jnla_get_prefix4(attrs[JNLAE_PREFIX4], "IPv4 prefix",
+			&eam->prefix4, state);
 }
 
 int jnla_get_pool4(struct nlattr *attr, char const *name,
-		struct pool4_entry *entry)
+		struct pool4_entry *entry, struct jnl_state *state)
 {
 	struct nlattr *attrs[JNLAP4_COUNT];
 	int error;
 
-	error = validate_null(attr, name);
+	error = validate_null(attr, name, state);
 	if (error)
 		return error;
 
 	error = jnla_parse_nested(attrs, JNLAP4_MAX, attr,
-			joolnl_pool4_entry_policy, name);
+			joolnl_pool4_entry_policy, name, state);
 	if (error)
 		return error;
 
@@ -296,7 +314,7 @@ int jnla_get_pool4(struct nlattr *attr, char const *name,
 		entry->proto = nla_get_u8(attrs[JNLAP4_PROTO]);
 	if (attrs[JNLAP4_PREFIX]) {
 		error = jnla_get_prefix4(attrs[JNLAP4_PREFIX], "IPv4 prefix",
-				&entry->range.prefix);
+				&entry->range.prefix, state);
 		if (error)
 			return error;
 	}
@@ -308,17 +326,18 @@ int jnla_get_pool4(struct nlattr *attr, char const *name,
 	return 0;
 }
 
-int jnla_get_bib(struct nlattr *attr, char const *name, struct bib_entry *entry)
+int jnla_get_bib(struct nlattr *attr, char const *name, struct bib_entry *entry,
+		struct jnl_state *state)
 {
 	struct nlattr *attrs[JNLAB_COUNT];
 	int error;
 
-	error = validate_null(attr, name);
+	error = validate_null(attr, name, state);
 	if (error)
 		return error;
 
 	error = jnla_parse_nested(attrs, JNLAB_MAX, attr,
-			joolnl_bib_entry_policy, name);
+			joolnl_bib_entry_policy, name, state);
 	if (error)
 		return error;
 
@@ -326,13 +345,13 @@ int jnla_get_bib(struct nlattr *attr, char const *name, struct bib_entry *entry)
 
 	if (attrs[JNLAB_SRC6]) {
 		error = jnla_get_taddr6(attrs[JNLAB_SRC6],
-				"IPv6 transport address", &entry->addr6);
+				"IPv6 transport address", &entry->addr6, state);
 		if (error)
 			return error;
 	}
 	if (attrs[JNLAB_SRC4]) {
 		error = jnla_get_taddr4(attrs[JNLAB_SRC4],
-				"IPv4 transport address", &entry->addr4);
+				"IPv4 transport address", &entry->addr4, state);
 		if (error)
 			return error;
 	}
@@ -344,7 +363,8 @@ int jnla_get_bib(struct nlattr *attr, char const *name, struct bib_entry *entry)
 	return 0;
 }
 
-static int get_timeout(struct bib_config *config, struct session_entry *entry)
+static int get_timeout(struct bib_config *config, struct session_entry *entry,
+		struct jnl_state *state)
 {
 	unsigned long timeout;
 
@@ -361,8 +381,8 @@ static int get_timeout(struct bib_config *config, struct session_entry *entry)
 			timeout = TCP_INCOMING_SYN;
 			break;
 		default:
-			log_err("Unknown session timer: %u", entry->timer_type);
-			return -EINVAL;
+			return jnls_err(state, "Unknown session timer: %u",
+					entry->timer_type);
 		}
 		break;
 	case L4PROTO_UDP:
@@ -372,8 +392,7 @@ static int get_timeout(struct bib_config *config, struct session_entry *entry)
 		timeout = config->ttl.icmp;
 		break;
 	default:
-		log_err("Unknown protocol: %u", entry->proto);
-		return -EINVAL;
+		return jnls_err(state, "Unknown protocol: %u", entry->proto);
 	}
 
 	entry->timeout = msecs_to_jiffies(timeout);
@@ -381,18 +400,19 @@ static int get_timeout(struct bib_config *config, struct session_entry *entry)
 }
 
 int jnla_get_session(struct nlattr *attr, char const *name,
-		struct bib_config *config, struct session_entry *entry)
+		struct bib_config *config, struct session_entry *entry,
+		struct jnl_state *state)
 {
 	struct nlattr *attrs[JNLASE_COUNT];
 	unsigned long expiration;
 	int error;
 
-	error = validate_null(attr, name);
+	error = validate_null(attr, name, state);
 	if (error)
 		return error;
 
 	error = jnla_parse_nested(attrs, JNLASE_MAX, attr,
-			joolnl_session_entry_policy, name);
+			joolnl_session_entry_policy, name, state);
 	if (error)
 		return error;
 
@@ -400,25 +420,27 @@ int jnla_get_session(struct nlattr *attr, char const *name,
 
 	if (attrs[JNLASE_SRC6]) {
 		error = jnla_get_taddr6(attrs[JNLASE_SRC6],
-				"IPv6 source address", &entry->src6);
+				"IPv6 source address", &entry->src6, state);
 		if (error)
 			return error;
 	}
 	if (attrs[JNLASE_DST6]) {
 		error = jnla_get_taddr6(attrs[JNLASE_DST6],
-				"IPv6 destination address", &entry->dst6);
+				"IPv6 destination address", &entry->dst6,
+				state);
 		if (error)
 			return error;
 	}
 	if (attrs[JNLASE_SRC4]) {
 		error = jnla_get_taddr4(attrs[JNLASE_SRC4],
-				"IPv4 source address", &entry->src4);
+				"IPv4 source address", &entry->src4, state);
 		if (error)
 			return error;
 	}
 	if (attrs[JNLASE_DST4]) {
 		error = jnla_get_taddr4(attrs[JNLASE_DST4],
-				"IPv4 destination address", &entry->dst4);
+				"IPv4 destination address", &entry->dst4,
+				state);
 		if (error)
 			return error;
 	}
@@ -430,7 +452,7 @@ int jnla_get_session(struct nlattr *attr, char const *name,
 	if (attrs[JNLASE_TIMER])
 		entry->timer_type = nla_get_u8(attrs[JNLASE_TIMER]);
 
-	error = get_timeout(config, entry);
+	error = get_timeout(config, entry, state);
 	if (error)
 		return error;
 
@@ -444,7 +466,7 @@ int jnla_get_session(struct nlattr *attr, char const *name,
 }
 
 int jnla_get_mapping_rule(struct nlattr *attr, char const *name,
-		struct config_mapping_rule *_rule)
+		struct config_mapping_rule *_rule, struct jnl_state *state)
 {
 	struct nlattr *attrs[JNLAMR_COUNT];
 	struct mapping_rule *rule;
@@ -453,11 +475,12 @@ int jnla_get_mapping_rule(struct nlattr *attr, char const *name,
 	unsigned int k;
 	int error;
 
-	error = validate_null(attr, name);
+	error = validate_null(attr, name, state);
 	if (error)
 		return error;
 
-	error = jnla_parse_nested(attrs, JNLAMR_MAX, attr, joolnl_mr_policy, name);
+	error = jnla_parse_nested(attrs, JNLAMR_MAX, attr, joolnl_mr_policy,
+			name, state);
 	if (error)
 		return error;
 
@@ -469,41 +492,39 @@ int jnla_get_mapping_rule(struct nlattr *attr, char const *name,
 	_rule->set = true;
 	rule = &_rule->rule;
 
-	error = jnla_get_prefix6(attrs[JNLAMR_PREFIX6], "IPv6 prefix", &rule->prefix6);
+	error = jnla_get_prefix6(attrs[JNLAMR_PREFIX6], "IPv6 prefix",
+			&rule->prefix6, state);
 	if (error)
 		return error;
-	error = jnla_get_prefix4(attrs[JNLAMR_PREFIX4], "IPv4 prefix", &rule->prefix4);
+	error = jnla_get_prefix4(attrs[JNLAMR_PREFIX4], "IPv4 prefix",
+			&rule->prefix4, state);
 	if (error)
 		return error;
-	error = jnla_get_u8(attrs[JNLAMR_EA_BITS_LENGTH], "EA-bits length", &rule->o);
+	error = jnla_get_u8(attrs[JNLAMR_EA_BITS_LENGTH], "EA-bits length",
+			&rule->o, state);
 	if (error)
 		return error;
 	rule->a = attrs[JNLAMR_a] ? nla_get_u8(attrs[JNLAMR_a]) : 6;
 
-	if (rule->o > 48) {
-		log_err("EA-bits Length must not exceed 48.");
-		return -EINVAL;
-	}
+	if (rule->o > 48)
+		return jnls_err(state, "EA-bits Length must not exceed 48.");
 
 	suffix_len = 32u - rule->prefix4.len;
 	sid_len = (suffix_len > rule->o) ? (suffix_len - rule->o) : 0;
 	if (rule->prefix6.len + rule->o + sid_len > 128u) {
-		log_err("The rule's IPv6 prefix length (%u) plus the EA-bits length (%u) plus the Subnet ID length (%u) exceed 128.",
+		return jnls_err(state, "The rule's IPv6 prefix length (%u) plus the EA-bits length (%u) plus the Subnet ID length (%u) exceed 128.",
 				rule->prefix6.len, rule->o, sid_len);
-		return -EINVAL;
 	}
 
 	if (rule->o + rule->prefix4.len <= 32u)
 		return 0; /* a, k and m only matter when o + r > 32. */
 
-	if (rule->a > 16) {
-		log_err("'a' must not exceed 16.");
-		return -EINVAL;
-	}
+	if (rule->a > 16)
+		return jnls_err(state, "'a' must not exceed 16.");
 	k = maprule_get_k(rule);
 	if (rule->a + k > 16) {
-		log_err("a + k must not exceed 16.");
-		log_err("current values: a:%u k:%u", rule->a, k);
+		jnls_err(state, "a + k must not exceed 16.");
+		jnls_err(state, "current values: a:%u k:%u", rule->a, k);
 		return -EINVAL;
 	}
 
@@ -522,7 +543,8 @@ static void u16_swap(void *a, void *b, int size)
 	*(__u16 *)b = t;
 }
 
-static int validate_plateaus(struct mtu_plateaus *plateaus)
+static int validate_plateaus(struct mtu_plateaus *plateaus,
+		struct jnl_state *state)
 {
 	__u16 *values = plateaus->values;
 	unsigned int i, j;
@@ -540,23 +562,22 @@ static int validate_plateaus(struct mtu_plateaus *plateaus)
 		}
 	}
 
-	if (values[0] == 0) {
-		log_err("The plateaus list contains nothing but zeroes.");
-		return -EINVAL;
-	}
+	if (values[0] == 0)
+		return jnls_err(state, "The plateaus list contains nothing but zeroes.");
 
 	/* Update. */
 	plateaus->count = i + 1;
 	return 0;
 }
 
-int jnla_get_plateaus(struct nlattr *root, struct mtu_plateaus *out)
+int jnla_get_plateaus(struct nlattr *root, struct mtu_plateaus *out,
+		struct jnl_state *state)
 {
 	struct nlattr *attr;
 	int rem;
 	int error;
 
-	error = validate_null(root, "MTU plateaus");
+	error = validate_null(root, "MTU plateaus", state);
 	if (error)
 		return error;
 #if LINUX_VERSION_AT_LEAST(4, 12, 0, 8, 0)
@@ -571,16 +592,14 @@ int jnla_get_plateaus(struct nlattr *root, struct mtu_plateaus *out)
 
 	out->count = 0;
 	nla_for_each_nested(attr, root, rem) {
-		if (out->count >= PLATEAUS_MAX) {
-			log_err("Too many plateaus.");
-			return -EINVAL;
-		}
+		if (out->count >= PLATEAUS_MAX)
+			return jnls_err(state, "Too many plateaus.");
 
 		out->values[out->count] = nla_get_u16(attr);
 		out->count++;
 	}
 
-	return validate_plateaus(out);
+	return validate_plateaus(out, state);
 }
 
 int jnla_put_addr6(struct sk_buff *skb, int attrtype,
@@ -861,7 +880,7 @@ int jnla_put_plateaus(struct sk_buff *skb, int attrtype,
 
 int jnla_parse_nested(struct nlattr *tb[], int maxtype,
 		const struct nlattr *nla, const struct nla_policy *policy,
-		char const *name)
+		char const *name, struct jnl_state *state)
 {
 	int error;
 #if LINUX_VERSION_AT_LEAST(4, 12, 0, 8, 0)
@@ -869,19 +888,19 @@ int jnla_parse_nested(struct nlattr *tb[], int maxtype,
 
 	error = nla_parse_nested(tb, maxtype, nla, policy, &extack);
 	if (error)
-		log_err("The '%s' attribute is malformed: %s", name, extack._msg);
+		jnls_err(state, "The '%s' attribute is malformed: %s", name, extack._msg);
 #else
 	error = nla_parse_nested(tb, maxtype, nla, policy);
 	if (error)
-		log_err("The '%s' attribute is malformed", name);
+		jnls_err(state, "The '%s' attribute is malformed", name);
 #endif
 
 	return error;
 }
 
 
-void report_put_failure(void)
+void report_put_failure(struct jnl_state *state)
 {
-	log_err("The allocated Netlink packet is too small to contain the response. This might be a bug; please report it. PAGE_SIZE is %lu.",
+	jnls_err(state, "The allocated Netlink packet is too small to contain the response. This might be a bug; please report it. PAGE_SIZE is %lu.",
 			PAGE_SIZE);
 }

@@ -4,7 +4,6 @@
 #include "mod/common/xlator.h"
 #include "mod/common/nl/attribute.h"
 #include "mod/common/nl/nl_common.h"
-#include "mod/common/nl/nl_core.h"
 #include "mod/common/db/pool4/db.h"
 #include "mod/common/db/bib/db.h"
 
@@ -15,28 +14,23 @@ static int serialize_pool4_entry(struct pool4_entry const *entry, void *arg)
 
 int handle_pool4_foreach(struct sk_buff *skb, struct genl_info *info)
 {
-	struct xlator jool;
-	struct jool_response response;
+	struct jnl_state *state;
 	struct pool4_entry offset, *offset_ptr;
 	int error;
 
-	error = request_handle_start(info, XT_NAT64, &jool, true);
+	error = jnl_start(&state, info, XT_NAT64, true);
 	if (error)
-		return jresponse_send_simple(NULL, info, error);
+		return jnl_reply(state, error);
 
-	__log_debug(&jool, "Sending pool4 to userspace.");
-
-	error = jresponse_init(&response, info);
-	if (error)
-		goto revert_start;
+	jnls_debug(state, "Sending pool4 to userspace.");
 
 	if (info->attrs[JNLAR_OFFSET]) {
 		error = jnla_get_pool4(info->attrs[JNLAR_OFFSET],
-				"Iteration offset", &offset);
+				"Iteration offset", &offset, state);
 		if (error)
-			goto revert_response;
+			return jnl_reply(state, error);
 		offset_ptr = &offset;
-		__log_debug(&jool, "Offset: [%pI4/%u %u-%u %u %u %u %u]",
+		jnls_debug(state, "Offset: [%pI4/%u %u-%u %u %u %u %u]",
 				&offset.range.prefix.addr,
 				offset.range.prefix.len,
 				offset.range.ports.min,
@@ -49,51 +43,42 @@ int handle_pool4_foreach(struct sk_buff *skb, struct genl_info *info)
 		offset.proto = nla_get_u8(info->attrs[JNLAR_PROTO]);
 		offset_ptr = NULL;
 	} else {
-		log_err("The request is missing a protocol.");
-		error = -EINVAL;
-		goto revert_response;
+		return jnl_reply(state, jnls_err(state,
+				"The request is missing a protocol."));
 	}
 
-	error = pool4db_foreach_sample(jool.nat64.pool4,
-			offset.proto, serialize_pool4_entry, response.skb,
-			offset_ptr);
-
-	error = jresponse_send_array(&jool, &response, error);
-	if (error)
-		goto revert_response;
-
-	request_handle_end(&jool);
-	return 0;
-
-revert_response:
-	jresponse_cleanup(&response);
-revert_start:
-	error = jresponse_send_simple(&jool, info, error);
-	request_handle_end(&jool);
-	return error;
+	return jnl_reply_array(state, pool4db_foreach_sample(
+		jnls_xlator(state)->nat64.pool4,
+		offset.proto,
+		serialize_pool4_entry,
+		jnls_skb(state),
+		offset_ptr,
+		state
+	));
 }
 
 int handle_pool4_add(struct sk_buff *skb, struct genl_info *info)
 {
-	struct xlator jool;
+	struct jnl_state *state;
 	struct pool4_entry entry;
 	int error;
 
-	error = request_handle_start(info, XT_NAT64, &jool, true);
+	error = jnl_start(&state, info, XT_NAT64, true);
 	if (error)
-		return jresponse_send_simple(NULL, info, error);
+		return jnl_reply(state, error);
 
-	__log_debug(&jool, "Adding elements to pool4.");
+	jnls_debug(state, "Adding elements to pool4.");
 
-	error = jnla_get_pool4(info->attrs[JNLAR_OPERAND], "Operand", &entry);
+	error = jnla_get_pool4(info->attrs[JNLAR_OPERAND], "Operand", &entry,
+			state);
 	if (error)
-		goto revert_start;
+		return jnl_reply(state, error);
 
-	error = pool4db_add(jool.nat64.pool4, &entry);
-revert_start:
-	error = jresponse_send_simple(&jool, info, error);
-	request_handle_end(&jool);
-	return error;
+	return jnl_reply(state, pool4db_add(
+		jnls_xlator(state)->nat64.pool4,
+		&entry,
+		state
+	));
 }
 
 /*
@@ -106,52 +91,52 @@ int handle_pool4_update(struct sk_buff *skb, struct genl_info *info)
 
 int handle_pool4_rm(struct sk_buff *skb, struct genl_info *info)
 {
-	struct xlator jool;
+	struct jnl_state *state;
+	struct xlator *jool;
 	struct pool4_entry entry;
 	int error;
 
-	error = request_handle_start(info, XT_NAT64, &jool, true);
+	error = jnl_start(&state, info, XT_NAT64, true);
 	if (error)
-		return jresponse_send_simple(NULL, info, error);
+		return jnl_reply(state, error);
 
-	__log_debug(&jool, "Removing elements from pool4.");
+	jnls_debug(state, "Removing elements from pool4.");
 
-	error = jnla_get_pool4(info->attrs[JNLAR_OPERAND], "Operand", &entry);
+	error = jnla_get_pool4(info->attrs[JNLAR_OPERAND], "Operand", &entry,
+			state);
 	if (error)
-		goto revert_start;
+		return jnl_reply(state, error);
 
-	error = pool4db_rm_usr(jool.nat64.pool4, &entry);
-	if (!(get_jool_hdr(info)->flags & JOOLNLHDR_FLAGS_QUICK))
-		bib_rm_range(&jool, entry.proto, &entry.range);
+	jool = jnls_xlator(state);
+	error = pool4db_rm_usr(jool->nat64.pool4, &entry, state);
+	if (!(jnls_jhdr(state)->flags & JOOLNLHDR_FLAGS_QUICK))
+		bib_rm_range(jool->nat64.bib, entry.proto, &entry.range, state);
 
-revert_start:
-	error = jresponse_send_simple(&jool, info, error);
-	request_handle_end(&jool);
-	return error;
+	return jnl_reply(state, error);
 }
 
 int handle_pool4_flush(struct sk_buff *skb, struct genl_info *info)
 {
-	struct xlator jool;
+	struct jnl_state *state;
+	struct xlator *jool;
 	int error;
 
-	error = request_handle_start(info, XT_NAT64, &jool, true);
+	error = jnl_start(&state, info, XT_NAT64, true);
 	if (error)
-		return jresponse_send_simple(NULL, info, error);
+		return jnl_reply(state, error);
 
-	__log_debug(&jool, "Flushing pool4.");
+	jnls_debug(state, "Flushing pool4.");
 
-	pool4db_flush(jool.nat64.pool4);
-	if (!(get_jool_hdr(info)->flags & JOOLNLHDR_FLAGS_QUICK)) {
+	jool = jnls_xlator(state);
+	pool4db_flush(jool->nat64.pool4);
+	if (!(jnls_jhdr(state)->flags & JOOLNLHDR_FLAGS_QUICK)) {
 		/*
 		 * This will also clear *previously* orphaned entries, but given
 		 * that "not quick" generally means "please clean up," this is
 		 * more likely what people wants.
 		 */
-		bib_flush(&jool);
+		bib_flush(jool->nat64.bib, state);
 	}
 
-	error = jresponse_send_simple(&jool, info, error);
-	request_handle_end(&jool);
-	return error;
+	return jnl_reply(state, 0);
 }

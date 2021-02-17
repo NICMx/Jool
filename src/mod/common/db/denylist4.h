@@ -7,15 +7,17 @@
  */
 
 #include <net/net_namespace.h>
-#include "mod/common/address.h"
+#include "mod/common/nl/nl_common.h"
+
 
 struct addr4_pool *denylist4_alloc(void);
 void denylist4_get(struct addr4_pool *pool);
 void denylist4_put(struct addr4_pool *pool);
 
 int denylist4_add(struct addr4_pool *pool, struct ipv4_prefix *prefix,
-		bool force);
-int denylist4_rm(struct addr4_pool *pool, struct ipv4_prefix *prefix);
+		bool force, struct jnl_state *state);
+int denylist4_rm(struct addr4_pool *pool, struct ipv4_prefix *prefix,
+		struct jnl_state *state);
 int denylist4_flush(struct addr4_pool *pool);
 
 bool interface_contains(struct net *ns, struct in_addr *addr);

@@ -4,6 +4,7 @@
 #include "common/config.h"
 #include "mod/common/stats.h"
 #include "mod/common/types.h"
+#include "mod/common/nl/nl_common.h"
 
 /**
  * A Jool translator "instance". The point is that each network namespace has
@@ -59,22 +60,23 @@ void xlator_set_defrag(void (*defrag_enable)(struct net *ns));
 void xlator_teardown(void);
 
 int xlator_add(xlator_flags flags, char *iname, struct jool_globals *globals,
-		struct xlator *result);
-int xlator_rm(xlator_type xt, char *iname);
-int xlator_flush(xlator_type xt);
+		struct xlator *result, struct jnl_state *state);
+int xlator_rm(xlator_type xt, char *iname, struct jnl_state *state);
+int xlator_flush(xlator_type xt, struct jnl_state *state);
 void jool_xlator_flush_net(struct net *ns, xlator_type xt);
 void jool_xlator_flush_batch(struct list_head *net_exit_list, xlator_type xt);
 
 int xlator_init(struct xlator *jool, struct net *ns, char *iname,
-		xlator_flags flags, struct jool_globals *globals);
-int xlator_replace(struct xlator *jool);
+		xlator_flags flags, struct jool_globals *globals,
+		struct jnl_state *state);
+int xlator_replace(struct xlator *jool, struct jnl_state *state);
 
 /* Any context (reads) */
 
 int xlator_find(struct net *ns, xlator_flags flags, const char *iname,
-		struct xlator *result);
+		struct xlator *result, struct jnl_state *state);
 int xlator_find_current(const char *iname, xlator_flags flags,
-		struct xlator *result);
+		struct xlator *result, struct jnl_state *state);
 int xlator_find_netfilter(struct net *ns, struct xlator *result);
 void xlator_put(struct xlator *instance);
 

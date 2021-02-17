@@ -5,6 +5,7 @@
 
 #ifdef __KERNEL__
 #include <linux/skbuff.h>
+#include "mod/common/nl/nl_common.h"
 #else
 #include "usr/util/cJSON.h"
 #include "usr/util/result.h"
@@ -47,14 +48,16 @@ void *joolnl_global_get(
 int joolnl_global_raw2nl(
 	struct joolnl_global_meta const *meta,
 	void *raw,
-	struct sk_buff *skb
+	struct sk_buff *skb,
+	struct jnl_state *state
 );
 
 int joolnl_global_nl2raw(
 	struct joolnl_global_meta const *meta,
 	struct nlattr *nl,
 	void *raw,
-	bool force
+	bool force,
+	struct jnl_state *state
 );
 
 #else

@@ -3,7 +3,6 @@
 #include <linux/version.h>
 #include "common/graybox-types.h"
 #include "mod/common/linux_version.h"
-#include "mod/common/error_pool.h"
 
 static struct genl_family *family;
 
@@ -66,22 +65,8 @@ static int respond(struct genl_info *info, int error_code,
 
 int genl_respond(struct genl_info *info, int error_code)
 {
-	char *error_msg;
-	size_t error_msg_size;
-	int error;
-
 	pr_debug("Responding error code %d.\n", error_code);
-
-	error = error_pool_get_message(&error_msg, &error_msg_size);
-	if (error)
-		return error; /* Error msg already printed. */
-
-	error = respond(info, error_code, ATTR_ERROR_STRING, error_msg,
-			error_msg_size);
-	if (error_msg)
-		kfree(error_msg);
-
-	return error;
+	return respond(info, error_code, ATTR_ERROR_STRING, NULL, 0);
 }
 
 int genl_respond_attr(struct genl_info *info, int attr_id, void *attr,

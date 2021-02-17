@@ -1,5 +1,7 @@
 #include <linux/module.h>
 #include <linux/printk.h>
+
+#include "framework/address.h"
 #include "framework/unit_test.h"
 
 

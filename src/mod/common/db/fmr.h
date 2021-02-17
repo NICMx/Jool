@@ -1,7 +1,7 @@
 #ifndef SRC_MOD_COMMON_DB_FMR_H_
 #define SRC_MOD_COMMON_DB_FMR_H_
 
-#include "mod/common/types.h"
+#include "mod/common/nl/nl_common.h"
 
 /* Forwarding Mapping Rules Table */
 struct fmr_table;
@@ -14,8 +14,10 @@ int fmrt_find4(struct fmr_table *fmrt, __be32 addr, struct mapping_rule *fmr);
 int fmrt_find6(struct fmr_table *fmrt, struct in6_addr const *addr,
 		struct mapping_rule *fmr);
 
-int fmrt_add(struct fmr_table *fmrt, struct mapping_rule *new);
-int fmrt_rm(struct fmr_table *fmrt, struct mapping_rule *rule);
+int fmrt_add(struct fmr_table *fmrt, struct mapping_rule *new,
+		struct jnl_state *state);
+int fmrt_rm(struct fmr_table *fmrt, struct mapping_rule *rule,
+		struct jnl_state *state);
 void fmrt_flush(struct fmr_table *fmrt);
 
 typedef int (*fmr_foreach_cb)(struct mapping_rule const *, void *);

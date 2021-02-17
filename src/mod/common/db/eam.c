@@ -3,6 +3,7 @@
 #include "common/types.h"
 #include "mod/common/address.h"
 #include "mod/common/log.h"
+#include "mod/common/rtrie.h"
 #include "mod/common/wkmalloc.h"
 
 #define ADDR6_BITS		128
@@ -44,40 +45,37 @@ static bool eamt_entry_equals(const struct eamt_entry *eam1,
  * validate_prefixes - check @prefix6 and @prefix4 can be joined together to
  * form a (standalone) legal EAM entry.
  */
-static int validate_prefixes(struct eamt_entry *new)
+static int validate_prefixes(struct eamt_entry *new, struct jnl_state *state)
 {
 	int error;
 
-	error = prefix6_validate(&new->prefix6);
+	error = prefix6_validate(&new->prefix6, state);
 	if (error)
 		return error;
-	error = prefix4_validate(&new->prefix4);
+	error = prefix4_validate(&new->prefix4, state);
 	if (error)
 		return error;
 
-	if ((ADDR4_BITS - new->prefix4.len) > (ADDR6_BITS - new->prefix6.len)) {
-		log_err("The IPv4 suffix length must be smaller or equal than the IPv6 suffix length.");
-		return -EINVAL;
-	}
+	if ((ADDR4_BITS - new->prefix4.len) > (ADDR6_BITS - new->prefix6.len))
+		return jnls_err(state, "The IPv4 suffix length must be smaller or equal than the IPv6 suffix length.");
 
 	return 0;
 }
 
-static void msg_programming_error(void)
+static void msg_programming_error(struct jnl_state *state)
 {
-	log_err("(Note: This error should have been caught earlier.");
-	log_err("This looks like a bug; please report.)");
+	jnls_err(state, "(Note: This error should have been caught earlier. This looks like a bug; please report.)");
 }
 
 static int collision6(struct eamt_entry *new, struct eamt_entry *old,
-		bool force)
+		bool force, struct jnl_state *state)
 {
 	if (new->prefix6.len == old->prefix6.len) {
 		if (prefix4_equals(&new->prefix4, &old->prefix4)) {
-			log_err("The requested entry already exists.");
+			jnls_err(state, "The requested entry already exists.");
 			return -EEXIST;
 		}
-		log_err("Existing EAM [%pI6c/%u|%pI4/%u] already contains prefix %pI6c/%u.",
+		jnls_err(state, "Existing EAM [%pI6c/%u|%pI4/%u] already contains prefix %pI6c/%u.",
 				&old->prefix6.addr, old->prefix6.len,
 				&old->prefix4.addr, old->prefix4.len,
 				&new->prefix6.addr, new->prefix6.len);
@@ -87,7 +85,7 @@ static int collision6(struct eamt_entry *new, struct eamt_entry *old,
 	if (force)
 		return 0;
 
-	log_err("Prefix %pI6c/%u overlaps with EAM [%pI6c/%u|%pI4/%u].\n"
+	jnls_err(state, "Prefix %pI6c/%u overlaps with EAM [%pI6c/%u|%pI4/%u].\n"
 			"(Use --force to override this validation.)",
 			&new->prefix6.addr, new->prefix6.len,
 			&old->prefix6.addr, old->prefix6.len,
@@ -96,15 +94,15 @@ static int collision6(struct eamt_entry *new, struct eamt_entry *old,
 }
 
 static int collision4(struct eamt_entry *new, struct eamt_entry *old,
-		bool force)
+		bool force, struct jnl_state *state)
 {
 	if (new->prefix4.len == old->prefix4.len) {
 		if (prefix6_equals(&new->prefix6, &old->prefix6)) {
-			log_err("The requested entry already exists.");
-			msg_programming_error();
+			jnls_err(state, "The requested entry already exists.");
+			msg_programming_error(state);
 			return -EEXIST;
 		}
-		log_err("Existing EAM [%pI6c/%u|%pI4/%u] already contains prefix %pI4/%u.",
+		jnls_err(state, "Existing EAM [%pI6c/%u|%pI4/%u] already contains prefix %pI4/%u.",
 				&old->prefix6.addr, old->prefix6.len,
 				&old->prefix4.addr, old->prefix4.len,
 				&new->prefix4.addr, new->prefix4.len);
@@ -114,7 +112,7 @@ static int collision4(struct eamt_entry *new, struct eamt_entry *old,
 	if (force)
 		return 0;
 
-	log_err("Prefix %pI4/%u overlaps with EAM [%pI6c/%u|%pI4/%u].\n"
+	jnls_err(state, "Prefix %pI4/%u overlaps with EAM [%pI6c/%u|%pI4/%u].\n"
 			"(Use --force to override this validation.)",
 			&new->prefix4.addr, new->prefix4.len,
 			&old->prefix6.addr, old->prefix6.len,
@@ -123,7 +121,7 @@ static int collision4(struct eamt_entry *new, struct eamt_entry *old,
 }
 
 static int validate_overlapping(struct eam_table *eamt, struct eamt_entry *new,
-		bool force)
+		bool force, struct jnl_state *state)
 {
 	struct eamt_entry old;
 	struct rtrie_key key6 = RTRIE_PREFIX_TO_KEY(&new->prefix6);
@@ -135,14 +133,14 @@ static int validate_overlapping(struct eam_table *eamt, struct eamt_entry *new,
 
 	error = rtrie_find(&eamt->trie6, &key6, &old);
 	if (!error) {
-		error = collision6(new, &old, force);
+		error = collision6(new, &old, force, state);
 		if (error)
 			return error;
 	}
 
 	error = rtrie_find(&eamt->trie4, &key4, &old);
 	if (!error) {
-		error = collision4(new, &old, force);
+		error = collision4(new, &old, force, state);
 		if (error)
 			return error;
 	}
@@ -160,7 +158,8 @@ static void __revert_add6(struct eam_table *eamt, struct ipv6_prefix *prefix6)
 			error);
 }
 
-static int eamt_add6(struct eam_table *eamt, struct eamt_entry *eam)
+static int eamt_add6(struct eam_table *eamt, struct eamt_entry *eam,
+		struct jnl_state *state)
 {
 	size_t addr_offset;
 	int error;
@@ -168,16 +167,17 @@ static int eamt_add6(struct eam_table *eamt, struct eamt_entry *eam)
 	addr_offset = offsetof(typeof(*eam), prefix6.addr);
 	error = rtrie_add(&eamt->trie6, eam, addr_offset, eam->prefix6.len);
 	if (error == -EEXIST) {
-		log_err("Prefix %pI6c/%u already exists.",
+		jnls_err(state, "Prefix %pI6c/%u already exists.",
 				&eam->prefix6.addr, eam->prefix6.len);
-		msg_programming_error();
+		msg_programming_error(state);
 	}
 	/* rtrie_print("IPv6 trie after add", &eamt->trie6); */
 
 	return error;
 }
 
-static int eamt_add4(struct eam_table *eamt, struct eamt_entry *eam)
+static int eamt_add4(struct eam_table *eamt, struct eamt_entry *eam,
+		struct jnl_state *state)
 {
 	size_t addr_offset;
 	int error;
@@ -185,33 +185,34 @@ static int eamt_add4(struct eam_table *eamt, struct eamt_entry *eam)
 	addr_offset = offsetof(typeof(*eam), prefix4.addr);
 	error = rtrie_add(&eamt->trie4, eam, addr_offset, eam->prefix4.len);
 	if (error == -EEXIST) {
-		log_err("Prefix %pI4/%u already exists.",
+		jnls_err(state, "Prefix %pI4/%u already exists.",
 				&eam->prefix4.addr, eam->prefix4.len);
-		msg_programming_error();
+		msg_programming_error(state);
 	}
 	/* rtrie_print("IPv4 trie after add", &eamt->trie4); */
 
 	return error;
 }
 
-int eamt_add(struct eam_table *eamt, struct eamt_entry *new, bool force)
+int eamt_add(struct eam_table *eamt, struct eamt_entry *new, bool force,
+		struct jnl_state *state)
 {
 	int error;
 
-	error = validate_prefixes(new);
+	error = validate_prefixes(new, state);
 	if (error)
 		return error;
 
 	mutex_lock(&lock);
 
-	error = validate_overlapping(eamt, new, force);
+	error = validate_overlapping(eamt, new, force, state);
 	if (error)
 		goto end;
 
-	error = eamt_add6(eamt, new);
+	error = eamt_add6(eamt, new, state);
 	if (error)
 		goto end;
-	error = eamt_add4(eamt, new);
+	error = eamt_add4(eamt, new, state);
 	if (error) {
 		__revert_add6(eamt, &new->prefix6);
 		goto end;
@@ -224,29 +225,45 @@ end:
 EXPORT_UNIT_SYMBOL(eamt_add)
 
 static int get_exact6(struct eam_table *eamt, struct ipv6_prefix *prefix,
-		struct eamt_entry *eam)
+		struct eamt_entry *eam, struct jnl_state *state)
 {
 	struct rtrie_key key = RTRIE_PREFIX_TO_KEY(prefix);
 	int error;
 
 	error = rtrie_find(&eamt->trie6, &key, eam);
-	if (error)
+	if (error == -ESRCH)
+		goto esrch;
+	else if (WARN(error, "Unknown error: %d", error))
 		return error;
+	if (eam->prefix6.len != prefix->len)
+		goto esrch;
 
-	return (eam->prefix6.len == prefix->len) ? 0 : -ESRCH;
+	return 0;
+
+esrch:
+	jnls_err(state, "Entry not found.");
+	return -ESRCH;
 }
 
 static int get_exact4(struct eam_table *eamt, struct ipv4_prefix *prefix,
-		struct eamt_entry *eam)
+		struct eamt_entry *eam, struct jnl_state *state)
 {
 	struct rtrie_key key = RTRIE_PREFIX_TO_KEY(prefix);
 	int error;
 
 	error = rtrie_find(&eamt->trie4, &key, eam);
-	if (error)
+	if (error == -ESRCH)
+		goto esrch;
+	else if (WARN(error, "Unknown error: %d", error))
 		return error;
+	if (eam->prefix4.len != prefix->len)
+		goto esrch;
 
-	return (eam->prefix4.len == prefix->len) ? 0 : -ESRCH;
+	return 0;
+
+esrch:
+	jnls_err(state, "Entry not found.");
+	return -ESRCH;
 }
 
 static int __rm(struct eam_table *eamt,
@@ -276,37 +293,41 @@ corrupted:
 
 static int eamt_rm_lockless(struct eam_table *eamt,
 		struct ipv6_prefix *prefix6,
-		struct ipv4_prefix *prefix4)
+		struct ipv4_prefix *prefix4,
+		struct jnl_state *state)
 {
 	struct eamt_entry eam6;
 	struct eamt_entry eam4;
 	int error;
 
 	if (!prefix4) {
-		error = get_exact6(eamt, prefix6, &eam6);
+		error = get_exact6(eamt, prefix6, &eam6, state);
 		return error ? error : __rm(eamt, prefix6, &eam6.prefix4);
 	}
 
 	if (!prefix6) {
-		error = get_exact4(eamt, prefix4, &eam4);
+		error = get_exact4(eamt, prefix4, &eam4, state);
 		return error ? error : __rm(eamt, &eam4.prefix6, prefix4);
 	}
 
-	error = get_exact6(eamt, prefix6, &eam6);
+	error = get_exact6(eamt, prefix6, &eam6, state);
 	if (error)
 		return error;
-	error = get_exact4(eamt, prefix4, &eam4);
+	error = get_exact4(eamt, prefix4, &eam4, state);
 	if (error)
 		return error;
+	if (!eamt_entry_equals(&eam6, &eam4)) {
+		jnls_err(state, "Entry not found.");
+		return -ESRCH;
+	}
 
-	return eamt_entry_equals(&eam6, &eam4)
-			? __rm(eamt, prefix6, prefix4)
-			: -ESRCH;
+	return __rm(eamt, prefix6, prefix4);
 }
 
 int eamt_rm(struct eam_table *eamt,
 		struct ipv6_prefix *prefix6,
-		struct ipv4_prefix *prefix4)
+		struct ipv4_prefix *prefix4,
+		struct jnl_state *state)
 {
 	int error;
 
@@ -314,7 +335,7 @@ int eamt_rm(struct eam_table *eamt,
 		return -EINVAL;
 
 	mutex_lock(&lock);
-	error = eamt_rm_lockless(eamt, prefix6, prefix4);
+	error = eamt_rm_lockless(eamt, prefix6, prefix4, state);
 	mutex_unlock(&lock);
 
 	return error;

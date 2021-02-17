@@ -2,6 +2,7 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 
+#include "framework/address.h"
 #include "framework/types.h"
 #include "framework/unit_test.h"
 #include "mod/common/db/eam.h"
@@ -37,7 +38,7 @@ static int __add_entry(char *addr4, __u8 len4, char *addr6, __u8 len6)
 		return false;
 	new.prefix6.len = len6;
 
-	error = eamt_add(eamt, &new, true);
+	error = eamt_add(eamt, &new, true, NULL);
 	/*
 	if (error) {
 		pr_err("Errcode %d; I'm not going to print the tree.\n", error);
@@ -255,7 +256,8 @@ static bool remove_entry(char *addr4, __u8 len4, char *addr6, __u8 len6,
 		prefix6.len = len6;
 	}
 
-	error = eamt_rm(eamt, addr6 ? &prefix6 : NULL, addr4 ? &prefix4 : NULL);
+	error = eamt_rm(eamt, addr6 ? &prefix6 : NULL, addr4 ? &prefix4 : NULL,
+			NULL);
 	success = ASSERT_INT(expected_error, error, "removing EAM entry");
 
 	/* rtrie_print(eamt.tree6); */

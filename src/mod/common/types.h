@@ -6,11 +6,11 @@
  * Kernel-specific core data types and routines.
  */
 
-#include "common/types.h"
 #include <linux/kernel.h>
+
+#include "common/types.h"
 #include "common/xlat.h"
 #include "mod/common/address.h"
-#include "mod/common/error_pool.h"
 
 /**
  * An indicator of what a function expects its caller to do with the packet

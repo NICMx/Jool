@@ -109,29 +109,28 @@ static void __revert_add6(struct fmr_table *fmrt, struct ipv6_prefix *prefix6)
 			error);
 }
 
-static int validate_mapping_rule(struct mapping_rule *rule)
+static int validate_mapping_rule(struct mapping_rule *rule,
+		struct jnl_state *state)
 {
 	unsigned int k;
 	int error;
 
-	error = prefix6_validate(&rule->prefix6);
+	error = prefix6_validate(&rule->prefix6, state);
 	if (error)
 		return error;
-	error = prefix4_validate(&rule->prefix4);
+	error = prefix4_validate(&rule->prefix4, state);
 	if (error)
 		return error;
-	if (rule->o > 48) {
-		log_err("EA-bits Length > 48.");
-		return -EINVAL;
-	}
+	if (rule->o > 48)
+		return jnls_err(state, "EA-bits Length > 48.");
 
 	if (rule->o + rule->prefix4.len <= 32u)
 		return 0; /* a, k and m only matter when o + r > 32. */
 
 	k = rule->o - (32u - rule->prefix4.len);
 	if (rule->a + k > 16u) {
-		log_err("a + k > 16.");
-		log_err("(a:%u, k = EA-bits length - IPv4 suffix length = %u - %u)",
+		jnls_err(state, "a + k > 16.");
+		jnls_err(state, "(a:%u, k = EA-bits length - IPv4 suffix length = %u - %u)",
 				rule->a, rule->o, 32u - rule->prefix4.len);
 		return -EINVAL;
 	}
@@ -139,7 +138,8 @@ static int validate_mapping_rule(struct mapping_rule *rule)
 	return 0;
 }
 
-static int validate_collision(struct fmr_table *fmrt, struct mapping_rule *new)
+static int validate_collision(struct fmr_table *fmrt, struct mapping_rule *new,
+		struct jnl_state *state)
 {
 	struct mapping_rule old;
 	int error;
@@ -148,10 +148,10 @@ static int validate_collision(struct fmr_table *fmrt, struct mapping_rule *new)
 	switch (error) {
 	case 0:
 		if (maprule_equals(&old, new)) {
-			log_err("Entry already exists.");
+			jnls_err(state, "Entry already exists.");
 			return -EEXIST;
 		}
-		log_err("Entry collides with " MR_PRINT ".", MR_PRARG(&old));
+		jnls_err(state, "Entry collides with " MR_PRINT ".", MR_PRARG(&old));
 		return -EEXIST;
 	case -ESRCH:
 		break;
@@ -163,7 +163,7 @@ static int validate_collision(struct fmr_table *fmrt, struct mapping_rule *new)
 	error = fmrt_find4(fmrt, new->prefix4.addr.s_addr, &old);
 	switch (error) {
 	case 0:
-		log_err("Entry collides with " MR_PRINT ".", MR_PRARG(&old));
+		jnls_err(state, "Entry collides with " MR_PRINT ".", MR_PRARG(&old));
 		return -EEXIST;
 	case -ESRCH:
 		return 0;
@@ -173,17 +173,19 @@ static int validate_collision(struct fmr_table *fmrt, struct mapping_rule *new)
 	return error;
 }
 
-int fmrt_add(struct fmr_table *fmrt, struct mapping_rule *new)
+int fmrt_add(struct fmr_table *fmrt, struct mapping_rule *new,
+		struct jnl_state *state)
 {
+
 	int error;
 
-	error = validate_mapping_rule(new);
+	error = validate_mapping_rule(new, state);
 	if (error)
 		return error;
 
 	mutex_lock(&lock);
 
-	error = validate_collision(fmrt, new);
+	error = validate_collision(fmrt, new, state);
 	if (error)
 		goto end;
 
@@ -200,7 +202,8 @@ end:
 }
 EXPORT_UNIT_SYMBOL(fmrt_add);
 
-int fmrt_rm(struct fmr_table *fmrt, struct mapping_rule *rule)
+int fmrt_rm(struct fmr_table *fmrt, struct mapping_rule *rule,
+		struct jnl_state *state)
 {
 	struct mapping_rule old;
 	struct rtrie_key key6 = RTRIE_PREFIX_TO_KEY(&rule->prefix6);
@@ -214,7 +217,7 @@ int fmrt_rm(struct fmr_table *fmrt, struct mapping_rule *rule)
 		goto end;
 
 	if (!maprule_equals(&old, rule)) {
-		log_err("Entry not found.");
+		jnls_err(state, "Entry not found.");
 		error = -ESRCH;
 		goto end;
 	}

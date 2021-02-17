@@ -90,16 +90,16 @@ void denylist4_put(struct addr4_pool *pool)
 }
 
 int denylist4_add(struct addr4_pool *pool, struct ipv4_prefix *prefix,
-		bool force)
+		bool force, struct jnl_state *state)
 {
 	struct list_head *list;
 	struct pool_entry *entry;
 	int error;
 
-	error = prefix4_validate(prefix);
+	error = prefix4_validate(prefix, state);
 	if (error)
 		return error;
-	error = prefix4_validate_scope(prefix, force);
+	error = prefix4_validate_scope(prefix, force, state);
 	if (error)
 		return error;
 
@@ -120,7 +120,8 @@ end:
 	return error;
 }
 
-int denylist4_rm(struct addr4_pool *pool, struct ipv4_prefix *prefix)
+int denylist4_rm(struct addr4_pool *pool, struct ipv4_prefix *prefix,
+		struct jnl_state *state)
 {
 	struct list_head *list;
 	struct list_head *node;
@@ -141,7 +142,7 @@ int denylist4_rm(struct addr4_pool *pool, struct ipv4_prefix *prefix)
 	}
 
 	mutex_unlock(&lock);
-	log_err("Could not find the requested entry in the IPv4 pool.");
+	jnls_err(state, "Could not find the requested entry in the IPv4 pool.");
 	return -ESRCH;
 }
 

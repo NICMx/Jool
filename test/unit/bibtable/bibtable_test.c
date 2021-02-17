@@ -1,4 +1,6 @@
 #include <linux/module.h>
+
+#include "framework/address.h"
 #include "framework/unit_test.h"
 #include "mod/common/db/bib/db.h"
 
@@ -6,6 +8,7 @@ MODULE_LICENSE(JOOL_LICENSE);
 MODULE_AUTHOR("Alberto Leiva");
 MODULE_DESCRIPTION("BIB table module test.");
 
+static struct jnl_state *state;
 static struct xlator jool;
 #define TEST_BIB_COUNT 5
 static struct bib_entry entries[TEST_BIB_COUNT];
@@ -21,7 +24,7 @@ static bool inject(unsigned int index, char *addr4, u16 port4,
 	entries[index].addr6.l4 = port6;
 	entries[index].l4_proto = L4PROTO_UDP;
 
-	return !bib_add_static(&jool, &entries[index]);
+	return !bib_add_static(jool.nat64.bib, &entries[index], state);
 }
 
 static bool insert_test_bibs(void)
@@ -149,12 +152,25 @@ enum session_fate tcp_est_expire_cb(struct session_entry *session, void *arg)
 
 static int init(void)
 {
-	return xlator_init(&jool, NULL, INAME_DEFAULT, XF_NETFILTER | XT_NAT64,
-			NULL);
+	int error;
+
+	error = xlator_init(&jool, NULL, INAME_DEFAULT, XF_NETFILTER | XT_NAT64,
+			NULL, NULL);
+	if (error)
+		return error;
+
+	state = jnls_create(&jool);
+	if (!state) {
+		xlator_put(&jool);
+		return -ENOMEM;
+	}
+
+	return 0;
 }
 
 static void clean(void)
 {
+	jnls_destroy(state);
 	xlator_put(&jool);
 }
 

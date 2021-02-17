@@ -5,6 +5,7 @@ EXTRA_CFLAGS += -DUNIT_TESTING
 
 
 obj-m += unit.o
+unit-objs += address.o
 unit-objs += bib.o
 unit-objs += skb_generator.o
 unit-objs += types.o

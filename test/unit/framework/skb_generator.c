@@ -1,16 +1,6 @@
 #include "framework/skb_generator.h"
-#include "framework/types.h"
-#include "mod/common/log.h"
 
-#include <linux/if_ether.h>
-#include <linux/ipv6.h>
-#include <linux/ip.h>
-#include <net/ip.h>
-#include <net/ipv6.h>
-#include <linux/udp.h>
-#include <linux/tcp.h>
-#include <linux/icmp.h>
-
+#include "framework/address.h"
 
 static int store_bits(struct sk_buff *skb, int *offset, void *bits, size_t len)
 {

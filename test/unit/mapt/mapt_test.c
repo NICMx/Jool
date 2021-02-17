@@ -1,6 +1,7 @@
 #include <linux/module.h>
 #include <linux/printk.h>
 
+#include "framework/address.h"
 #include "framework/unit_test.h"
 #include "framework/skb_generator.h"
 
@@ -26,7 +27,7 @@ static int setup_mapt(void)
 	struct jool_globals globals;
 	int error;
 
-	error = globals_init(&globals, XT_MAPT);
+	error = globals_init(&globals, XT_MAPT, NULL);
 	if (error)
 		return error;
 
@@ -35,10 +36,10 @@ static int setup_mapt(void)
 	if (error)
 		return error;
 
-	error = xlator_init(&br, NULL, "BR", XT_MAPT | XF_IPTABLES, &globals);
+	error = xlator_init(&br, NULL, "BR", XT_MAPT | XF_IPTABLES, &globals, NULL);
 	if (error)
 		return error;
-	error = xlator_init(&ce, NULL, "CE", XT_MAPT | XF_IPTABLES, &globals);
+	error = xlator_init(&ce, NULL, "CE", XT_MAPT | XF_IPTABLES, &globals, NULL);
 	if (error)
 		return error;
 
@@ -62,7 +63,7 @@ static int setup_mapt(void)
 
 	ce.globals.debug = true;
 
-	return fmrt_add(br.mapt.fmrt, &ce.globals.mapt.bmr.rule);
+	return fmrt_add(br.mapt.fmrt, &ce.globals.mapt.bmr.rule, NULL);
 }
 
 void teardown_mapt(void)
