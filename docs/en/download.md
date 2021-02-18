@@ -19,6 +19,7 @@ Jool 4.2 is a compliant SIIT, Stateful NAT64 and MAP-T.
 
 | Release Date | Version | .tar.gz | .tar.gz Signature | Git commit | .deb |
 |--------------|---------|---------|-------------------|------------|------|
+| 2021-02-19   | 4.2.0-rc2 | [Download]({{ page.url-dl }}/v4.2.0-rc2/jool-4.2.0.rc2.tar.gz) | [Signature]({{ page.url-dl }}/v4.2.0-rc2/jool-4.2.0.rc2.tar.gz.asc) | <a href="{{ site.repository-url }}/tree/v4.2.0-rc2" target="_blank">Link</a> | [Kernel modules]({{ page.url-dl }}/v4.2.0-rc2/jool-dkms_4.2.0.rc2-1_all.deb)<br />[Userspace tools]({{ page.url-dl }}/v4.2.0-rc2/jool-tools_4.2.0.rc2-1_amd64.deb) (amd64 only) |
 | 2020-12-24   | 4.2.0-rc1 | [Download]({{ page.url-dl }}/v4.2.0-rc1/jool-4.2.0.rc1.tar.gz) | [Signature]({{ page.url-dl }}/v4.2.0-rc1/jool-4.2.0.rc1.tar.gz.asc) | <a href="{{ site.repository-url }}/tree/v4.2.0-rc1" target="_blank">Link</a> | [Kernel modules]({{ page.url-dl }}/v4.2.0-rc1/jool-dkms_4.2.0.rc1-1_all.deb)<br />[Userspace tools]({{ page.url-dl }}/v4.2.0-rc1/jool-tools_4.2.0.rc1-1_amd64.deb) (amd64 only) |
 
 "rc" stands for "Release Candidate."
@@ -27,11 +28,12 @@ Jool 4.2 is a compliant SIIT, Stateful NAT64 and MAP-T.
 
 Jool 4.1 is a [compliant SIIT and Stateful NAT64](intro-jool.html#compliance).
 
-Currently, 4.1.4 is the most mature version of Jool.
+Currently, 4.1.5 is the most mature version of Jool.
 
 | Release Date | Version | .tar.gz | .tar.gz Signature | Git commit | .deb |
 |--------------|---------|---------|-------------------|------------|------|
-| 2020-10-07   | **4.1.4** | [Download]({{ page.url-dl }}/v4.1.4/jool-4.1.4.tar.gz) | [Signature]({{ page.url-dl }}/v4.1.4/jool-4.1.4.tar.gz.asc) | <a href="{{ site.repository-url }}/tree/v4.1.4" target="_blank">Link</a> | [Kernel modules]({{ page.url-dl }}/v4.1.4/jool-dkms_4.1.4-1_all.deb)<br />[Userspace tools]({{ page.url-dl }}/v4.1.4/jool-tools_4.1.4-1_amd64.deb) (amd64 only) |
+| 2021-02-19   | **4.1.5** | [Download]({{ page.url-dl }}/v4.1.5/jool-4.1.5.tar.gz) | [Signature]({{ page.url-dl }}/v4.1.5/jool-4.1.5.tar.gz.asc) | <a href="{{ site.repository-url }}/tree/v4.1.5" target="_blank">Link</a> | [Kernel modules]({{ page.url-dl }}/v4.1.5/jool-dkms_4.1.5-1_all.deb)<br />[Userspace tools]({{ page.url-dl }}/v4.1.5/jool-tools_4.1.5-1_amd64.deb) (amd64 only) |
+| 2020-10-07   | 4.1.4 | [Download]({{ page.url-dl }}/v4.1.4/jool-4.1.4.tar.gz) | [Signature]({{ page.url-dl }}/v4.1.4/jool-4.1.4.tar.gz.asc) | <a href="{{ site.repository-url }}/tree/v4.1.4" target="_blank">Link</a> | [Kernel modules]({{ page.url-dl }}/v4.1.4/jool-dkms_4.1.4-1_all.deb)<br />[Userspace tools]({{ page.url-dl }}/v4.1.4/jool-tools_4.1.4-1_amd64.deb) (amd64 only) |
 | 2020-09-02   | 4.1.3 | [Download]({{ page.url-dl }}/v4.1.3/jool-4.1.3.tar.gz) | [Signature]({{ page.url-dl }}/v4.1.3/jool-4.1.3.tar.gz.asc) | <a href="{{ site.repository-url }}/tree/v4.1.3" target="_blank">Link</a> | [Kernel modules]({{ page.url-dl }}/v4.1.3/jool-dkms_4.1.3-1_all.deb)<br />[Userspace tools]({{ page.url-dl }}/v4.1.3/jool-tools_4.1.3-1_amd64.deb) (amd64 only) |
 | 2020-07-22   | <del>4.1.2</del> | [Download]({{ page.url-dl }}/v4.1.2/jool-4.1.2.tar.gz) | [Signature]({{ page.url-dl }}/v4.1.2/jool-4.1.2.tar.gz.asc) | <a href="{{ site.repository-url }}/tree/v4.1.2" target="_blank">Link</a> | [Kernel modules]({{ page.url-dl }}/v4.1.2/jool-dkms_4.1.2-1_all.deb)<br />[Userspace tools]({{ page.url-dl }}/v4.1.2/jool-tools_4.1.2-1_amd64.deb) (amd64 only) |
 | 2020-07-01   | <del>4.1.1</del> | [Download]({{ page.url-dl }}/v4.1.1/jool-4.1.1.tar.gz) | [Signature]({{ page.url-dl }}/v4.1.1/jool-4.1.1.tar.gz.asc) | <a href="{{ site.repository-url }}/tree/v4.1.1" target="_blank">Link</a> | [Kernel modules]({{ page.url-dl }}/v4.1.1/jool-dkms_4.1.1-1_all.deb)<br />[Userspace tools]({{ page.url-dl }}/v4.1.1/jool-tools_4.1.1-1_amd64.deb) (amd64 only) |
