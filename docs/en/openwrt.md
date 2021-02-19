@@ -9,6 +9,24 @@ title: OpenWRT
 
 # Jool in OpenWRT/LEDE
 
+> ![Warning!](../images/warning.svg) **WARNING!**
+> 
+> At time of writing, OpenWRT's "official" Jool package has been unmaintained since December 2016. It'll apparently be stuck in version 3.5.7 forever. I'm sorry; we don't have any control over it whatsoever.
+> 
+> You can find the old 3.5 documentation [here](https://github.com/NICMx/releases/raw/master/Jool/Jool-3.5-doc.zip).
+> 
+> A more up-to-date version of Jool is actually in fact available in OpenWRT, but it lives as a member of a community-maintained (but still "official," by some definition of "official" I don't quite grasp) package "feed." To install the new version, I understand that you have to [compile a new OpenWRT image](https://openwrt.org/docs/guide-developer/build-system/install-buildsystem), while [enabling the "packages" feed definitions](https://github.com/openwrt/packages).
+> 
+> Assuming you want to install the "packages" feed, the only part of this document I think still applies to you is [Using Jool](#using-jool). Sorry; I don't really know much about OpenWRT, so that's all I can tell you with relative certainty.
+
+## Index
+
+1. [Introduction](#introduction)
+2. [Installing Jool](#installing-jool)
+3. [Using Jool](#using-jool)
+
+## Introduction
+
 Compiling and installing kernel modules is not the way things are meat to be done in OpenWRT. Fortunately, the OpenWRT folks are kind enough to provide official packages for Jool. If you intend to use this distribution, please keep in mind the notes in this document while following the rest of the tutorials in the documentation.
 
 Please also note that these binaries are not maintained nor supervised by the Jool team. We are still available for advice if issues arise, however.

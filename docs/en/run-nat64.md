@@ -20,40 +20,38 @@ title: Stateful NAT64 Run
 
 ## Introduction
 
-This document explains how to run Jool in [Stateful NAT64 mode](intro-xlat.html#stateful-nat64).
+This document explains how to run Jool in [Stateful NAT64 mode](intro-xlat.html#stateful-nat64). Follow the link for more details on what to expect.
+
+I don't want to have to maintain three almost identical tutorials (it's a surprising amount of work), so please read the [traditional SIIT tutorial](run-vanilla.html#introduction) first. You don't need to follow it; just make sure you generally understand all the remarks.
 
 ## Sample Network
 
 ![Figure 1 - Sample Network](../images/network/stateful.svg)
 
-All the remarks in the first document's [Sample Network section](run-vanilla.html#sample-network) apply here.
+Again, all the remarks in the traditional SIIT's [Sample Network section](run-vanilla.html#sample-network) apply here.
 
 Nodes _A_ through _E_:
 
-{% highlight bash %}
-user@A:~# service network-manager stop
+```bash
 user@A:~# /sbin/ip link set eth0 up
 user@A:~# # Replace "::8" depending on which node you're on.
 user@A:~# /sbin/ip address add 2001:db8::8/96 dev eth0
 user@A:~# /sbin/ip route add 64:ff9b::/96 via 2001:db8::1
-{% endhighlight %}
+```
 
 Nodes _V_ through _Z_:
 
-{% highlight bash %}
-user@V:~# service network-manager stop
+```bash
 user@V:~# /sbin/ip link set eth0 up
 user@V:~# # Replace ".16" depending on which node you're on.
 user@V:~# /sbin/ip address add 203.0.113.16/24 dev eth0
-{% endhighlight %}
+```
 
 Notice these nodes do not need a default route. This is a consequence of them being in the same network as the NAT64; _T_ will be masking the IPv6 nodes, so _V_ through _Z_ think they're talking directly to it.
 
 Node _T_:
 
-{% highlight bash %}
-user@T:~# service network-manager stop
-user@T:~# 
+```bash
 user@T:~# /sbin/ip link set eth0 up
 user@T:~# /sbin/ip address add 2001:db8::1/96 dev eth0
 user@T:~# 
@@ -62,21 +60,15 @@ user@T:~# /sbin/ip address add 203.0.113.1/24 dev eth1
 user@T:~# 
 user@T:~# /sbin/sysctl -w net.ipv4.conf.all.forwarding=1
 user@T:~# /sbin/sysctl -w net.ipv6.conf.all.forwarding=1
-{% endhighlight %}
+```
 
-> ![Note!](../images/bulb.svg) In previous versions of Jool, _T_ used to need two or more IPv4 addresses. Because pool4 now stores port ranges, this is no longer the case.
-
-Remember you might want to cross-ping _T_ vs everything before continuing.
+Make sure _T_ can ping everyone before introducing Jool into the mix.
 
 ## Jool
 
-Even though they share a lot of code, because of kernel quirks, the NAT64 module is separate from the SIIT one. The name of the NAT64 module is `jool`.
+As with vanilla SIIT, all a minimal Stateful NAT64 needs is the translation <span style="color: #00aa88">prefix</span>.
 
-{% highlight bash %}
-user@T:~# /sbin/modprobe jool
-{% endhighlight %}
-
-Though the meaning of `pool6` is slightly different than in SIIT, the instance configuration looks pretty much the same:
+If you followed the SIIT tutorials, do keep in mind that the names of the NAT64 binaries are `jool`, not `jool_siit`:
 
 <div class="distro-menu">
 	<span class="distro-selector" onclick="showDistro(this);">Netfilter Jool</span>
@@ -84,30 +76,30 @@ Though the meaning of `pool6` is slightly different than in SIIT, the instance c
 </div>
 
 <!-- Netfilter Jool -->
-{% highlight bash %}
+```bash
+user@T:~# /sbin/modprobe jool
 user@T:~# jool instance add "example" --netfilter --pool6 64:ff9b::/96
  
 
  
-{% endhighlight %}
+```
 
 <!-- iptables Jool -->
-{% highlight bash %}
+```bash
+user@T:~# /sbin/modprobe jool
 user@T:~# jool instance add "example" --iptables  --pool6 64:ff9b::/96
 user@T:~#
 user@T:~# /sbin/ip6tables -t mangle -A PREROUTING -j JOOL --instance "example"
 user@T:~# /sbin/iptables  -t mangle -A PREROUTING -j JOOL --instance "example"
-{% endhighlight %}
-
-The iptables configuration, on the other hand, needs to use the `JOOL` target.
+```
 
 ## Testing
 
-If something doesn't work, try the [FAQ](faq.html).
+Remember the [FAQ](faq.html) and [debug logging](usr-flags-global.html#logging-debug) if something goes south.
 
 Test by sending requests from the IPv6 network:
 
-{% highlight bash %}
+```bash
 user@C:~$ ping6 64:ff9b::203.0.113.16
 PING 64:ff9b::203.0.113.16(64:ff9b::cb00:7110) 56 data bytes
 64 bytes from 64:ff9b::cb00:7110: icmp_seq=1 ttl=63 time=1.13 ms
@@ -118,7 +110,7 @@ PING 64:ff9b::203.0.113.16(64:ff9b::cb00:7110) 56 data bytes
 --- 64:ff9b::203.0.113.16 ping statistics ---
 4 packets transmitted, 4 received, 0% packet loss, time 3004ms
 rtt min/avg/max/mdev = 1.136/6.528/15.603/5.438 ms
-{% endhighlight %}
+```
 
 ![Figure 1 - IPv4 TCP from an IPv6 node](../images/run-stateful-firefox-4to6.png)
 
@@ -134,20 +126,20 @@ rtt min/avg/max/mdev = 1.136/6.528/15.603/5.438 ms
 </div>
 
 <!-- Netfilter Jool -->
-{% highlight bash %}
+```bash
  
  
 user@T:~# jool instance remove "example"
 user@T:~# /sbin/modprobe -r jool
-{% endhighlight %}
+```
 
 <!-- iptables Jool -->
-{% highlight bash %}
+```bash
 user@T:~# /sbin/ip6tables -t mangle -D PREROUTING -j JOOL --instance "example"
 user@T:~# /sbin/iptables  -t mangle -D PREROUTING -j JOOL --instance "example"
 user@T:~# jool instance remove "example"
 user@T:~# /sbin/modprobe -r jool
-{% endhighlight %}
+```
 
 ## Afterwords
 

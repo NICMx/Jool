@@ -20,7 +20,7 @@ int handle_bib_foreach(struct sk_buff *skb, struct genl_info *info)
 	struct bib_entry offset, *offset_ptr;
 	int error;
 
-	error = request_handle_start(info, XT_NAT64, &jool);
+	error = request_handle_start(info, XT_NAT64, &jool, true);
 	if (error)
 		return jresponse_send_simple(NULL, info, error);
 
@@ -72,7 +72,7 @@ int handle_bib_add(struct sk_buff *skb, struct genl_info *info)
 	struct bib_entry new;
 	int error;
 
-	error = request_handle_start(info, XT_NAT64, &jool);
+	error = request_handle_start(info, XT_NAT64, &jool, true);
 	if (error)
 		return jresponse_send_simple(NULL, info, error);
 
@@ -104,7 +104,7 @@ int handle_bib_rm(struct sk_buff *skb, struct genl_info *info)
 	struct bib_entry entry;
 	int error;
 
-	error = request_handle_start(info, XT_NAT64, &jool);
+	error = request_handle_start(info, XT_NAT64, &jool, true);
 	if (error)
 		return jresponse_send_simple(NULL, info, error);
 

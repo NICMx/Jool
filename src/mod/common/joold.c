@@ -24,7 +24,7 @@
 struct joold_queue {
 	/* The packet we're accumulating the sessions in. */
 	struct sk_buff *skb;
-	void *msg_head;
+	struct joolnlhdr *jhdr;
 	struct nlattr *root;
 	bool skb_full;
 
@@ -132,16 +132,22 @@ static int allocate_joold_skb(struct xlator *jool)
 	if (!queue->skb)
 		return -ENOMEM;
 
-	queue->msg_head = genlmsg_put(queue->skb, 0, 0, jnl_family(), 0, 0);
-	if (!queue->msg_head) {
+	queue->jhdr = genlmsg_put(queue->skb, 0, 0, jnl_family(), 0, 0);
+	if (!queue->jhdr) {
 		pr_err("genlmsg_put() returned NULL.\n");
 		goto kill_packet;
 	}
 
+	memset(queue->jhdr, 0, sizeof(*queue->jhdr));
+	memmove(queue->jhdr->magic, JOOLNL_HDR_MAGIC, JOOLNL_HDR_MAGIC_LEN);
+	queue->jhdr->version = cpu_to_be32(xlat_version());
+	queue->jhdr->xt = XT_NAT64;
+	memcpy(queue->jhdr->iname, jool->iname, INAME_MAX_SIZE);
+
 	queue->root = nla_nest_start(queue->skb, JNLAR_SESSION_ENTRIES);
 	if (!queue->root) {
 		pr_err("Joold packets cannot contain any sessions.\n");
-		queue->msg_head = NULL;
+		queue->jhdr = NULL;
 		goto kill_packet;
 	}
 
@@ -195,7 +201,7 @@ static struct sk_buff *send_to_userspace_prepare(struct xlator *jool)
 
 	skb = queue->skb;
 	nla_nest_end(skb, queue->root);
-	genlmsg_end(skb, queue->msg_head);
+	genlmsg_end(skb, queue->jhdr);
 
 	/*
 	 * BTW: This sucks.
@@ -205,7 +211,7 @@ static struct sk_buff *send_to_userspace_prepare(struct xlator *jool)
 	 * with the lock held, and I don't have the stomach for that.
 	 */
 	queue->skb = NULL;
-	queue->msg_head = NULL;
+	queue->jhdr = NULL;
 	queue->root = NULL;
 	queue->ack_received = false;
 	queue->last_flush_time = jiffies;
@@ -267,7 +273,7 @@ struct joold_queue *joold_alloc(struct net *ns)
 	}
 
 	queue->skb = NULL;
-	queue->msg_head = NULL;
+	queue->jhdr = NULL;
 	queue->root = NULL;
 	queue->skb_full = false;
 	INIT_LIST_HEAD(&queue->sessions);

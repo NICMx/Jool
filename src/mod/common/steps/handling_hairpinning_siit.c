@@ -12,22 +12,25 @@ bool is_hairpin_siit(struct xlation *state)
 
 verdict handling_hairpinning_siit(struct xlation *old)
 {
-	struct xlation new;
+	struct xlation *new;
 	verdict result;
 
 	log_debug(old, "Packet is hairpinning. U-turning...");
 
-	new.jool = old->jool;
-	new.in = old->out;
-	new.is_hairpin = true;
+	new = xlation_create(&old->jool);
+	if (!new)
+		return VERDICT_DROP;
+	new->in = old->out;
+	new->is_hairpin = true;
 
-	result = translating_the_packet(&new);
+	result = translating_the_packet(new);
 	if (result != VERDICT_CONTINUE)
-		return result;
-	result = sendpkt_send(&new);
+		goto end;
+	result = sendpkt_send(new);
 	if (result != VERDICT_CONTINUE)
-		return result;
+		goto end;
 
 	log_debug(old, "Done hairpinning.");
-	return VERDICT_CONTINUE;
+end:	xlation_destroy(new);
+	return result;
 }

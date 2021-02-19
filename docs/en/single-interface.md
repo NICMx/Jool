@@ -17,8 +17,6 @@ This is the same setup as in the [Stateful NAT64 Run](run-nat64.html), except fr
 
 _A_ and _V_ are configured exactly as in their stateful run counterparts, so I'll skip their commands. All that's different is _T_ now having all of its addresses on the same interface:
 
-	user@T:~# service network-manager stop
-	user@T:~# 
 	user@T:~# /sbin/ip link set eth0 up
 	user@T:~# /sbin/ip address add 2001:db8::1/96 dev eth0
 	user@T:~# /sbin/ip address add 203.0.113.1/24 dev eth0

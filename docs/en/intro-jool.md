@@ -46,9 +46,14 @@ Please [let us know]({{ site.repository-url }}/issues) if you find additional co
 
 ## Compatibility
 
+> ![Warning!](../images/warning.svg) As of 2020-12-24, the [lowest longterm mainline kernel is version 4.4](https://www.kernel.org/). Also, [CentOS doesn't seem to be doing very well](https://blog.centos.org/2020/12/future-is-centos-stream/). Jool support for old and RHEL kernels is likely to end soon.
+
+<!-- Remember: The man pages mention the lowest supported kernel. -->
+
 | Jool version                        | Supported Linux kernels (mainline)   | Supported Linux kernels (RHEL) |
 |-------------------------------------|--------------------------------------|--------------------------------|
-| [master]({{ site.repository-url }}),<br />[4.1.3](download.html#41x),<br />[4.1.4](download.html#41x) | 3.16 - 3.19,<br />4.0 - 4.20,<br />5.0 - 5.9 | RHEL 7.6 - RHEL 7.7,<br />RHEL 8.0 |
+| [master]({{ site.repository-url }}),<br />[4.1.5](download.html#41x) | 3.16 - 3.19,<br />4.0 - 4.20,<br />5.0 - 5.11 | RHEL 7.6 - RHEL 7.7,<br />RHEL 8.0 |
+| [4.1.3](download.html#41x),<br />[4.1.4](download.html#41x) | 3.16 - 3.19,<br />4.0 - 4.20,<br />5.0 - 5.9 | RHEL 7.6 - RHEL 7.7,<br />RHEL 8.0 |
 | [4.1.2](download.html#41x) | 3.16 - 3.19,<br />4.0 - 4.20,<br />5.0 - 5.7 | RHEL 7.6 - RHEL 7.7,<br />RHEL 8.0 |
 | [4.1.1](download.html#41x),<br />[4.1.0](download.html#41x) | 3.16 - 3.19,<br />4.0 - 4.20,<br />5.0 - 5.7 | RHEL 7.6 - RHEL 7.7,<br /><del>[RHEL 8.0](https://github.com/NICMx/Jool/issues/334)</del> |
 | [4.0.9](download.html#40x)          | 3.13 - 3.19,<br />4.0 - 4.20,<br />5.0 - 5.6 | RHEL 7.0 - RHEL 7.7,<br /><del>[RHEL 8.0](https://github.com/NICMx/Jool/issues/334)</del> |
@@ -65,6 +70,8 @@ RHEL-based distributions (such as Red Hat and CentOS) do not follow the normal k
 ## Design
 
 A Jool instance can be attached to one of two different traffic-intercepting, plugin-enabling, kernel-based frameworks: _Netfilter_ and _iptables_. Despite some documentation out there, these two are not the same thing; at least not from Jool's point of view.
+
+> ![Note!](../images/bulb.svg) Yes, we know we're supposed to add nftables support, but it's going to be a lot of work, and so it's tentatively scheduled to come out in late 2021.
 
 ### Netfilter
 

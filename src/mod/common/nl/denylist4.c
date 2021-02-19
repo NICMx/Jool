@@ -20,7 +20,7 @@ int handle_denylist4_foreach(struct sk_buff *skb, struct genl_info *info)
 	struct ipv4_prefix offset, *offset_ptr;
 	int error;
 
-	error = request_handle_start(info, XT_SIIT, &jool);
+	error = request_handle_start(info, XT_SIIT, &jool, true);
 	if (error)
 		return jresponse_send_simple(NULL, info, error);
 
@@ -65,7 +65,7 @@ int handle_denylist4_add(struct sk_buff *skb, struct genl_info *info)
 	struct ipv4_prefix operand;
 	int error;
 
-	error = request_handle_start(info, XT_SIIT, &jool);
+	error = request_handle_start(info, XT_SIIT, &jool, true);
 	if (error)
 		return jresponse_send_simple(NULL, info, error);
 
@@ -91,7 +91,7 @@ int handle_denylist4_rm(struct sk_buff *skb, struct genl_info *info)
 	struct ipv4_prefix operand;
 	int error;
 
-	error = request_handle_start(info, XT_SIIT, &jool);
+	error = request_handle_start(info, XT_SIIT, &jool, true);
 	if (error)
 		return jresponse_send_simple(NULL, info, error);
 
@@ -113,7 +113,7 @@ int handle_denylist4_flush(struct sk_buff *skb, struct genl_info *info)
 	struct xlator jool;
 	int error;
 
-	error = request_handle_start(info, XT_SIIT, &jool);
+	error = request_handle_start(info, XT_SIIT, &jool, true);
 	if (error)
 		return jresponse_send_simple(NULL, info, error);
 

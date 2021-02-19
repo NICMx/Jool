@@ -19,6 +19,7 @@ obj-m += $(UNIT).o
 $(UNIT)-objs += $(MIN_REQS)
 $(UNIT)-objs += ../../../src/mod/common/packet.o
 $(UNIT)-objs += ../../../src/mod/common/rfc6052.o
+$(UNIT)-objs += ../../../src/mod/common/skbuff.o
 $(UNIT)-objs += ../../../src/mod/common/translation_state.o
 $(UNIT)-objs += ../../../src/mod/common/wrapper-config.o
 $(UNIT)-objs += ../../../src/mod/common/wrapper-global.o

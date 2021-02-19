@@ -17,6 +17,15 @@ struct joolnlhdr *get_jool_hdr(struct genl_info *info)
 	return info->userhdr;
 }
 
+static int validate_magic(struct joolnlhdr *hdr)
+{
+	if (memcmp(hdr->magic, JOOLNL_HDR_MAGIC, JOOLNL_HDR_MAGIC_LEN) == 0)
+		return 0;
+
+	log_err("Don't know what to do: The packet I just received does not follow Jool's protocol.");
+	return -EINVAL;
+}
+
 static int validate_stateness(struct joolnlhdr *hdr)
 {
 	switch (hdr->xt) {
@@ -56,12 +65,13 @@ static int validate_version(struct joolnlhdr *hdr)
 	return -EINVAL;
 }
 
-int request_handle_start(struct genl_info *info, xlator_type xt, struct xlator *jool)
+int request_handle_start(struct genl_info *info, xlator_type xt,
+		struct xlator *jool, bool require_net_admin)
 {
 	struct joolnlhdr *hdr;
 	int error;
 
-	if (!capable(CAP_NET_ADMIN)) {
+	if (require_net_admin && !capable(CAP_NET_ADMIN)) {
 		log_err("CAP_NET_ADMIN capability required. (Maybe try su or sudo?)");
 		return -EPERM;
 	}
@@ -76,6 +86,9 @@ int request_handle_start(struct genl_info *info, xlator_type xt, struct xlator *
 		log_err("Userspace request lacks a Jool header.");
 		return -EINVAL;
 	}
+	error = validate_magic(hdr);
+	if (error)
+		return error;
 	error = validate_stateness(hdr);
 	if (error)
 		return error;

@@ -26,6 +26,8 @@ They will give you an overview of the instance's view on your traffic. In partic
 
 More than anything, `stats` is intended for short-term troubleshooting purposes. The counters, their IDs and their descriptions are not set in stone, and can differ across different Jool versions.
 
+As of version 4.1.5, `stats` is Jool's only kernelside operation handler that does not require `CAP_NET_ADMIN` privileges.
+
 ## Syntax
 
 	(jool_siit | jool) stats (
@@ -93,3 +95,24 @@ user@T:~# jool stats display --csv --explain > stats.csv
 {% endhighlight %}
 
 [stats.csv](../obj/stats.csv)
+
+## Time Series Data Options
+
+### prometheus `jool-exporter`
+
+A python `jool-exporter` binary exports data for prometheus collection.
+The code is written as jool adds and removes stats they show up in the
+exported data.
+
+* `pip install jool-exporter`
+
+It is recommended to run jool-exporter via SystemD.
+Pull requests + enhancements welcome!
+
+**More Information:**
+
+* [GttHub Repo](https://github.com/cooperlees/jool-exporter)
+  * [README](https://github.com/cooperlees/jool-exporter/blob/main/README.md)
+* [PyPI](https://pypi.org/project/jool-exporter/)
+
+*Please Note: This tool is not maintained by the core Jool team.*

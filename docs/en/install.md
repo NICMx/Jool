@@ -326,7 +326,7 @@ The repository version sometimes includes slight bugfixes not present in the lat
 
 ## Compilation and Installation
 
-> ![Warning!](../images/warning.svg) Please note: If you have previously installed Jool from a package (.deb or otherwise), the binaries installed here will not necessarily override them. Source Jool and package Jool tend to be installed in different locations by default. This means that, if you've previously installed from a package, both versions will coexist in your system, and the one you actually run will not necessarily be the one you expect.
+> ![Warning!](../images/warning.svg) Please note: If you have previously installed Jool from a package (.deb or otherwise), the binaries installed here will not necessarily override them. It supposedly depends on distro, but Source Jool and package Jool tend to be installed in different locations by default. This means that, if you've previously installed from a package, both versions will coexist in your system, and the one you actually run will not necessarily be the one you expect.
 > 
 > To minimize confusion, it is strongly recommended that you uninstall package Jool before proceeding.
 

@@ -12,7 +12,7 @@
    height="272"
    id="svg2"
    version="1.1"
-   inkscape:version="1.0.1 (3bc2e813f5, 2020-09-07)"
+   inkscape:version="1.0.1 (0767f8302a, 2020-10-17)"
    sodipodi:docname="flow-4.svg">
   <defs
      id="defs4">
@@ -38,7 +38,7 @@
      borderopacity="1.0"
      inkscape:pageopacity="0.0"
      inkscape:pageshadow="2"
-     inkscape:zoom="1.7174479"
+     inkscape:zoom="1.5690104"
      inkscape:cx="384"
      inkscape:cy="136"
      inkscape:document-units="px"
@@ -46,10 +46,10 @@
      showgrid="true"
      showguides="true"
      inkscape:guide-bbox="true"
-     inkscape:window-width="1920"
-     inkscape:window-height="1043"
-     inkscape:window-x="0"
-     inkscape:window-y="0"
+     inkscape:window-width="1848"
+     inkscape:window-height="1016"
+     inkscape:window-x="1992"
+     inkscape:window-y="27"
      inkscape:window-maximized="1"
      inkscape:document-rotation="0"
      inkscape:snap-text-baseline="true"
@@ -416,20 +416,16 @@
        width="100%"
        height="100%"
        style="display:inline" />
-    <rect
-       style="display:inline;fill:#e9afdd;stroke:none;stroke-dasharray:4, 2"
+    <path
        id="rect1814"
-       width="93.838348"
-       height="12.737671"
-       x="398.927"
-       y="180.23801" />
-    <rect
-       style="display:inline;fill:#ff9955;stroke:none;stroke-dasharray:4, 2"
+       style="display:inline;fill:#e9afdd;stroke:none;stroke-dasharray:4, 2"
+       d="m 408,180.23801 h 76 v 12.73767 h -76 z"
+       sodipodi:nodetypes="ccccc" />
+    <path
        id="rect1816"
-       width="9.4684143"
-       height="12.737671"
-       x="494.81018"
-       y="180.23801" />
+       style="display:inline;fill:#ff9955;stroke:none;stroke-dasharray:4, 2"
+       d="m 487,180.23801 h 9 v 12.73767 h -9 z"
+       sodipodi:nodetypes="ccccc" />
     <path
        style="display:inline;fill:none;stroke:#000000;stroke-width:1;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1;marker-end:url(#Arrow2Lend)"
        d="M 512,160 H 416"
@@ -453,7 +449,7 @@
          x="464"
          y="191"
          id="tspan1822"
-         style="font-size:12px;line-height:1.25;font-family:sans-serif">dst: [2001:db8:4464:2::]:40000</tspan></text>
+         style="font-size:12px;line-height:1.25;font-family:sans-serif">dst: [2001:db8:ce:2::]:40000</tspan></text>
     <g
        id="use1274"
        transform="translate(32,-628.36218)"

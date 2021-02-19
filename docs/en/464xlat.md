@@ -94,8 +94,6 @@ And the mangling will be mirrored for the response:
 
 _n6_ doesn't know it kind of owns another IPv6 address in the 2001:db8:2::/96 network. It never sees this traffic, because _R_ always translates it as 192.168.0.0/24.
 
-	service network-manager stop
-
 	ip link set eth0 up
 	ip addr add 2001:db8:1::8/64 dev eth0
 	ip addr add 192.168.0.8/24 dev eth0
@@ -104,8 +102,6 @@ _n6_ doesn't know it kind of owns another IPv6 address in the 2001:db8:2::/96 ne
 	ip route add default via 192.168.0.1
 
 This is _R_:
-
-	service network-manager stop
 
 	ip link set eth0 up
 	ip addr add 192.168.0.1/24 dev eth0
@@ -135,8 +131,6 @@ Also note that _R_ is an average SIIT implementation and you shouldn't think of 
 
 For completeness sake, here's _PLAT_'s network configuration:
 
-	service network-manager stop
-
 	ip link set eth0 up
 	ip addr add 2001:db8:100::2/64 dev eth0
 	# I'm pretending the ISP gave us these two prefixes to play with.
@@ -155,8 +149,6 @@ For completeness sake, here's _PLAT_'s network configuration:
 	jool pool4 add 203.0.113.2
 
 And _n4_ is thoroughly boring:
-
-	service network-manager stop
 
 	ip link set eth0 up
 	ip addr add 203.0.113.24/24 dev eth0

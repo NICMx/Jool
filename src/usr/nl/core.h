@@ -22,6 +22,7 @@ typedef struct jool_result (*joolnl_response_cb)(struct nl_msg *, void *);
 struct jool_result joolnl_request(struct joolnl_socket *sk, struct nl_msg *msg,
 		joolnl_response_cb cb, void *cb_arg);
 
+struct jool_result validate_joolnlhdr(struct joolnlhdr *hdr, xlator_type xt);
 struct jool_result joolnl_msg2result(struct nl_msg *response);
 
 #endif /* SRC_USR_NL_CORE_H_ */
