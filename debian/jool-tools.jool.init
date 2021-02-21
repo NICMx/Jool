@@ -1,7 +1,7 @@
 #!/bin/bash
 #
 # chkconfig: 2345 20 80
-# description: Jool NAT64 service
+# description: Jool NAT64 Configuration service
 
 ### BEGIN INIT INFO
 # Provides:          jool
@@ -16,7 +16,8 @@
 . /lib/lsb/init-functions
 
 # IF YOU INTEND TO MODIFY THIS FILE, NOTE THAT YOU WILL MOST LIKELY NEED TO
-# CASCADE THE CHANGES TO JOOL_SIIT, BECAUSE IT'S MOSTLY EXACTLY THE SAME.
+# CASCADE THE CHANGES TO JOOL_SIIT and JOOL_MAPT, BECAUSE THEY'RE MOSTLY EXACTLY
+# THE SAME.
 
 module_name=jool
 jool_bin=/usr/bin/$module_name

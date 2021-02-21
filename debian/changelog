@@ -1,3 +1,9 @@
+jool (4.2.0~rc2-1) unstable; urgency=low
+
+  * Second release candidate of version 4.2.0
+
+ -- Alberto Leiva Popper <ydahhrk@gmail.com>  Fri, 19 Feb 2021 17:06:44 -0600
+
 jool (4.1.5-1) unstable; urgency=low
 
   * New upstream release

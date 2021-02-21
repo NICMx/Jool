@@ -34,8 +34,11 @@ override_dh_install:
 override_dh_installsystemd:
 	dh_installsystemd --name=jool_siit
 	dh_installsystemd --name=jool
+	dh_installsystemd --name=jool_mapt
 
 # TODO delete this once they fix the policy
 override_dh_installinit:
 	dh_installinit --no-enable --no-start --name=jool_siit
 	dh_installinit --no-enable --no-start --name=jool
+	dh_installinit --no-enable --no-start --name=jool_mapt
+

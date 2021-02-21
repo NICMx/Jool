@@ -1,25 +1,25 @@
 #!/bin/bash
 #
 # chkconfig: 2345 20 80
-# description: Jool SIIT Configuration Service
+# description: Jool MAP-T Configuration Service
 
 ### BEGIN INIT INFO
-# Provides:          jool_siit
+# Provides:          jool_mapt
 # Required-Start:    $remote_fs $syslog $network
 # Required-Stop:     $remote_fs $syslog $network
 # Default-Start:     2 3 4 5
 # Default-Stop:      0 1 6
-# Short-Description: Jool SIIT service
-# Description:       IP/ICMP translation, stateless version.
+# Short-Description: Jool MAP-T service
+# Description:       IP/ICMP translation, MAP-T version.
 ### END INIT INFO
 
 . /lib/lsb/init-functions
 
 # IF YOU INTEND TO MODIFY THIS FILE, NOTE THAT YOU WILL MOST LIKELY NEED TO
-# CASCADE THE CHANGES TO JOOL and JOOL_MAPT, BECAUSE THEY'RE MOSTLY EXACTLY
+# CASCADE THE CHANGES TO JOOL and JOOL_SIIT, BECAUSE THEY'RE MOSTLY EXACTLY
 # THE SAME.
 
-module_name=jool_siit
+module_name=jool_mapt
 jool_bin=/usr/bin/$module_name
 config_file=/etc/jool/$module_name.conf
 

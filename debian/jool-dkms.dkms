@@ -4,7 +4,8 @@ AUTOINSTALL="yes"
 
 MAKE[0]="make -C ${kernel_source_dir} M=${dkms_tree}/${PACKAGE_NAME}/${PACKAGE_VERSION}/build/src/mod/common modules \
       && make -C ${kernel_source_dir} M=${dkms_tree}/${PACKAGE_NAME}/${PACKAGE_VERSION}/build/src/mod/nat64 modules \
-      && make -C ${kernel_source_dir} M=${dkms_tree}/${PACKAGE_NAME}/${PACKAGE_VERSION}/build/src/mod/siit modules"
+      && make -C ${kernel_source_dir} M=${dkms_tree}/${PACKAGE_NAME}/${PACKAGE_VERSION}/build/src/mod/siit modules \
+      && make -C ${kernel_source_dir} M=${dkms_tree}/${PACKAGE_NAME}/${PACKAGE_VERSION}/build/src/mod/mapt modules"
 
 CLEAN="make -C ${dkms_tree}/${PACKAGE_NAME}/${PACKAGE_VERSION}/build/src/mod clean"
 
@@ -19,3 +20,8 @@ DEST_MODULE_LOCATION[1]="/extra/"
 BUILT_MODULE_NAME[2]="jool_siit"
 BUILT_MODULE_LOCATION[2]="src/mod/siit/"
 DEST_MODULE_LOCATION[2]="/extra/"
+
+BUILT_MODULE_NAME[3]="jool_mapt"
+BUILT_MODULE_LOCATION[3]="src/mod/mapt/"
+DEST_MODULE_LOCATION[3]="/extra/"
+
