@@ -27,12 +27,14 @@ XTABLES_SO_DIR = $(shell pkg-config xtables --variable xtlibdir)
 all:
 	make libxt_JOOL_SIIT.so;
 	make libxt_JOOL.so;
+	make libxt_JOOL_MAPT.so;
 install:
 	mkdir -p ${DESTDIR}${XTABLES_SO_DIR}
 	cp *.so ${DESTDIR}${XTABLES_SO_DIR}
 uninstall:
 	rm -f ${DESTDIR}${XTABLES_SO_DIR}/libxt_JOOL_SIIT.so
 	rm -f ${DESTDIR}${XTABLES_SO_DIR}/libxt_JOOL.so
+	rm -f ${DESTDIR}${XTABLES_SO_DIR}/libxt_JOOL_MAPT.so
 lib%.so: lib%.o
 	${CC} -shared -fPIC ${LDFLAGS} -o $@ $^;
 lib%.o: lib%.c

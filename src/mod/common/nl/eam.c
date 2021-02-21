@@ -5,7 +5,6 @@
 #include "mod/common/xlator.h"
 #include "mod/common/nl/attribute.h"
 #include "mod/common/nl/nl_common.h"
-#include "mod/common/nl/nl_core.h"
 #include "mod/common/db/eam.h"
 
 static int serialize_eam_entry(struct eamt_entry const *entry, void *arg)
@@ -15,142 +14,122 @@ static int serialize_eam_entry(struct eamt_entry const *entry, void *arg)
 
 int handle_eamt_foreach(struct sk_buff *skb, struct genl_info *info)
 {
-	struct xlator jool;
-	struct jool_response response;
+	struct jnl_state *state;
 	struct ipv4_prefix offset, *offset_ptr;
 	int error;
 
-	error = request_handle_start(info, XT_SIIT, &jool, true);
+	error = jnl_start(&state, info, XT_SIIT, true);
 	if (error)
-		return jresponse_send_simple(NULL, info, error);
+		return jnl_reply(state, error);
 
-	__log_debug(&jool, "Sending EAMT to userspace.");
-
-	error = jresponse_init(&response, info);
-	if (error)
-		goto revert_start;
+	jnls_debug(state, "Sending EAMT to userspace.");
 
 	offset_ptr = NULL;
 	if (info->attrs[JNLAR_OFFSET]) {
 		error = jnla_get_prefix4(info->attrs[JNLAR_OFFSET],
-				"Iteration offset", &offset);
+				"Iteration offset", &offset, state);
 		if (error)
-			goto revert_response;
+			return jnl_reply(state, error);
 		offset_ptr = &offset;
-		__log_debug(&jool, "Offset: [%pI4/%u]", &offset.addr,
-				offset.len);
+		jnls_debug(state, "Offset: [%pI4/%u]", &offset.addr, offset.len);
 	}
 
-	error = eamt_foreach(jool.siit.eamt, serialize_eam_entry, response.skb, offset_ptr);
-	if (error < 0) {
-		log_err("Offset not found.");
-		jresponse_cleanup(&response);
-		goto revert_response;
-	}
-
-	error = jresponse_send_array(&jool, &response, error);
-	if (error)
-		goto revert_response;
-
-	request_handle_end(&jool);
-	return 0;
-
-revert_response:
-	jresponse_cleanup(&response);
-revert_start:
-	error = jresponse_send_simple(&jool, info, error);
-	request_handle_end(&jool);
-	return error;
+	return jnl_reply_array(state, eamt_foreach(
+		jnls_xlator(state)->siit.eamt,
+		serialize_eam_entry,
+		jnls_skb(state),
+		offset_ptr
+	));
 }
 
 int handle_eamt_add(struct sk_buff *skb, struct genl_info *info)
 {
-	struct xlator jool;
+	struct jnl_state *state;
 	struct eamt_entry addend;
 	int error;
 
-	error = request_handle_start(info, XT_SIIT, &jool, true);
+	error = jnl_start(&state, info, XT_SIIT, true);
 	if (error)
-		return jresponse_send_simple(NULL, info, error);
+		return jnl_reply(state, error);
 
-	__log_debug(&jool, "Adding EAM entry.");
+	jnls_debug(state, "Adding EAM entry.");
 
-	error = jnla_get_eam(info->attrs[JNLAR_OPERAND], "Operand", &addend);
+	error = jnla_get_eam(info->attrs[JNLAR_OPERAND], "Operand", &addend,
+			state);
 	if (error)
-		goto revert_start;
+		return jnl_reply(state, error);
 
-	error = eamt_add(jool.siit.eamt, &addend,
-			get_jool_hdr(info)->flags & JOOLNLHDR_FLAGS_FORCE);
-revert_start:
-	error = jresponse_send_simple(&jool, info, error);
-	request_handle_end(&jool);
-	return error;
+	return jnl_reply(state, eamt_add(
+		jnls_xlator(state)->siit.eamt,
+		&addend,
+		jnls_jhdr(state)->flags & JOOLNLHDR_FLAGS_FORCE,
+		state
+	));
 }
 
 int handle_eamt_rm(struct sk_buff *skb, struct genl_info *info)
 {
-	struct xlator jool;
+	struct jnl_state *state;
 	struct nlattr *attrs[JNLAE_COUNT];
 	struct ipv6_prefix prefix6, *prefix6_ptr;
 	struct ipv4_prefix prefix4, *prefix4_ptr;
 	int error;
 
-	error = request_handle_start(info, XT_SIIT, &jool, true);
+	error = jnl_start(&state, info, XT_SIIT, true);
 	if (error)
-		return jresponse_send_simple(NULL, info, error);
+		return jnl_reply(state, error);
 
-	__log_debug(&jool, "Removing EAM entry.");
+	jnls_debug(state, "Removing EAM entry.");
 
 	if (!info->attrs[JNLAR_OPERAND]) {
-		log_err("The request is missing the 'Operand' attribute.");
-		error = -EINVAL;
-		goto revert_start;
+		return jnl_reply(state, jnls_err(state,
+				"The request is missing the 'Operand' attribute."));
 	}
-	error = jnla_parse_nested(attrs, JNLAE_MAX, info->attrs[JNLAR_OPERAND], eam_policy, "EAM");
+	error = jnla_parse_nested(attrs, JNLAE_MAX, info->attrs[JNLAR_OPERAND],
+			joolnl_eam_policy, "EAM", state);
 	if (error)
-		goto revert_start;
+		return jnl_reply(state, error);
 
 	if (!attrs[JNLAE_PREFIX6] && !attrs[JNLAE_PREFIX4]) {
-		log_err("The request contains no prefixes.");
-		error = -ENOENT;
-		goto revert_start;
+		jnls_err(state, "The request contains no prefixes.");
+		return jnl_reply(state, -ENOENT);
 	}
 	prefix6_ptr = NULL;
 	if (attrs[JNLAE_PREFIX6]) {
-		error = jnla_get_prefix6(attrs[JNLAE_PREFIX6], "IPv6 prefix", &prefix6);
+		error = jnla_get_prefix6(attrs[JNLAE_PREFIX6], "IPv6 prefix",
+				&prefix6, state);
 		if (error)
-			goto revert_start;
+			return jnl_reply(state, error);
 		prefix6_ptr = &prefix6;
 	}
 	prefix4_ptr = NULL;
 	if (attrs[JNLAE_PREFIX4]) {
-		error = jnla_get_prefix4(attrs[JNLAE_PREFIX4], "IPv4 prefix", &prefix4);
+		error = jnla_get_prefix4(attrs[JNLAE_PREFIX4], "IPv4 prefix",
+				&prefix4, state);
 		if (error)
-			goto revert_start;
+			return jnl_reply(state, error);
 		prefix4_ptr = &prefix4;
 	}
 
-	error = eamt_rm(jool.siit.eamt, prefix6_ptr, prefix4_ptr);
-revert_start:
-	error = jresponse_send_simple(&jool, info, error);
-	request_handle_end(&jool);
-	return error;
+	return jnl_reply(state, eamt_rm(
+		jnls_xlator(state)->siit.eamt,
+		prefix6_ptr,
+		prefix4_ptr,
+		state
+	));
 }
 
 int handle_eamt_flush(struct sk_buff *skb, struct genl_info *info)
 {
-	struct xlator jool;
+	struct jnl_state *state;
 	int error;
 
-	error = request_handle_start(info, XT_SIIT, &jool, true);
+	error = jnl_start(&state, info, XT_SIIT, true);
 	if (error)
-		return jresponse_send_simple(NULL, info, error);
+		return jnl_reply(state, error);
 
-	__log_debug(&jool, "Flushing the EAMT.");
+	jnls_debug(state, "Flushing the EAMT.");
 
-	eamt_flush(jool.siit.eamt);
-
-	error = jresponse_send_simple(&jool, info, error);
-	request_handle_end(&jool);
-	return error;
+	eamt_flush(jnls_xlator(state)->siit.eamt);
+	return jnl_reply(state, 0);
 }

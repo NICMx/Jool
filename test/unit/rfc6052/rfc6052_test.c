@@ -2,6 +2,7 @@
 #include <linux/printk.h>
 #include <linux/inet.h>
 
+#include "framework/address.h"
 #include "framework/unit_test.h"
 #include "common/types.h"
 #include "mod/common/rfc6052.c"

@@ -30,6 +30,7 @@ built-in.a
 # Userspace binaries
 /src/usr/siit/jool_siit
 /src/usr/nat64/jool
+/src/usr/mapt/jool_mapt
 /src/usr/joold/joold
 /test/graybox/usr/graybox
 
@@ -102,6 +103,7 @@ autom4te.cache
 /src/usr/Makefile
 /src/usr/argp/Makefile
 /src/usr/joold/Makefile
+/src/usr/mapt/Makefile
 /src/usr/nat64/Makefile
 /src/usr/nl/Makefile
 /src/usr/siit/Makefile

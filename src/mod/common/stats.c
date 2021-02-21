@@ -110,4 +110,5 @@ int jstat_refcount(struct jool_stats *stats)
 	return atomic_read(&stats->refcounter.refcount);
 #endif
 }
+EXPORT_UNIT_SYMBOL(jstat_refcount)
 #endif

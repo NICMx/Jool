@@ -6,18 +6,17 @@
 #include "common/types.h"
 #include "mod/common/init.h"
 #include "mod/common/linux_version.h"
-#include "mod/common/log.h"
 #include "mod/common/xlator.h"
 #include "mod/common/nl/address.h"
 #include "mod/common/nl/atomic_config.h"
 #include "mod/common/nl/bib.h"
 #include "mod/common/nl/denylist4.h"
 #include "mod/common/nl/eam.h"
+#include "mod/common/nl/fmr.h"
 #include "mod/common/nl/global.h"
 #include "mod/common/nl/instance.h"
 #include "mod/common/nl/joold.h"
 #include "mod/common/nl/nl_common.h"
-#include "mod/common/nl/nl_core.h"
 #include "mod/common/nl/pool4.h"
 #include "mod/common/nl/session.h"
 #include "mod/common/nl/stats.h"
@@ -28,19 +27,6 @@
 #define _CONST
 #endif
 
-static int pre_handle_request(_CONST struct genl_ops *ops, struct sk_buff *skb,
-		struct genl_info *info)
-{
-	error_pool_activate();
-	return 0;
-}
-
-static void post_handle_request(_CONST struct genl_ops *ops, struct sk_buff *skb,
-		struct genl_info *info)
-{
-	error_pool_deactivate();
-}
-
 static struct nla_policy const jool_policy[JNLAR_COUNT] = {
 	[JNLAR_ADDR_QUERY] = { .type = NLA_BINARY },
 	[JNLAR_GLOBALS] = { .type = NLA_NESTED },
@@ -49,6 +35,7 @@ static struct nla_policy const jool_policy[JNLAR_COUNT] = {
 	[JNLAR_POOL4_ENTRIES] = { .type = NLA_NESTED },
 	[JNLAR_BIB_ENTRIES] = { .type = NLA_NESTED },
 	[JNLAR_SESSION_ENTRIES] = { .type = NLA_NESTED },
+	[JNLAR_FMRT_ENTRIES] = { .type = NLA_NESTED },
 	[JNLAR_OFFSET] = { .type = NLA_NESTED },
 	[JNLAR_OFFSET_U8] = { .type = NLA_U8 },
 	[JNLAR_OPERAND] = { .type = NLA_NESTED },
@@ -169,6 +156,22 @@ static _CONST struct genl_ops ops[] = {
 		.doit = handle_session_foreach,
 		JOOL_POLICY
 	}, {
+		.cmd = JNLOP_FMRT_FOREACH,
+		.doit = handle_fmrt_foreach,
+		JOOL_POLICY
+	}, {
+		.cmd = JNLOP_FMRT_ADD,
+		.doit = handle_fmrt_add,
+		JOOL_POLICY
+	}, {
+		.cmd = JNLOP_FMRT_RM,
+		.doit = handle_fmrt_rm,
+		JOOL_POLICY
+	}, {
+		.cmd = JNLOP_FMRT_FLUSH,
+		.doit = handle_fmrt_flush,
+		JOOL_POLICY
+	}, {
 		.cmd = JNLOP_FILE_HANDLE,
 		.doit = handle_atomconfig_request,
 		JOOL_POLICY
@@ -199,8 +202,7 @@ static struct genl_family jool_family = {
 	.id = GENL_ID_GENERATE,
 #endif
 	.hdrsize = sizeof(struct joolnlhdr),
-	/* This is initialized below. See register_family(). */
-	/* .name = GNL_JOOL_FAMILY_NAME, */
+	.name = JOOLNL_FAMILY,
 	.version = 2,
 	.maxattr = JNLAR_MAX,
 	.netnsok = true,
@@ -208,8 +210,6 @@ static struct genl_family jool_family = {
 #if LINUX_VERSION_AT_LEAST(5, 2, 0, 8, 0)
 	.policy = jool_policy,
 #endif
-	.pre_doit = pre_handle_request,
-	.post_doit = post_handle_request,
 
 #if LINUX_VERSION_AT_LEAST(4, 10, 0, 7, 5)
 	/*
@@ -236,22 +236,20 @@ static int register_family(void)
 {
 	int error;
 
-	LOG_DEBUG("Registering Generic Netlink family...");
-
-	strcpy(jool_family.name, JOOLNL_FAMILY);
+	pr_debug("Registering Generic Netlink family...\n");
 
 #if LINUX_VERSION_LOWER_THAN(3, 13, 0, 7, 1)
 
 	error = genl_register_family_with_ops(&jool_family, ops,
 			ARRAY_SIZE(ops));
 	if (error) {
-		log_err("Couldn't register family!");
+		pr_err("Couldn't register family!\n");
 		return error;
 	}
 
 	error = genl_register_mc_group(&jool_family, &(mc_groups[0]));
 	if (error) {
-		log_err("Couldn't register multicast group!");
+		pr_err("Couldn't register multicast group!\n");
 		return error;
 	}
 
@@ -259,13 +257,13 @@ static int register_family(void)
 	error = genl_register_family_with_ops_groups(&jool_family, ops,
 			mc_groups);
 	if (error) {
-		log_err("Family registration failed: %d", error);
+		pr_err("Family registration failed: %d\n", error);
 		return error;
 	}
 #else
 	error = genl_register_family(&jool_family);
 	if (error) {
-		log_err("Family registration failed: %d", error);
+		pr_err("Family registration failed: %d\n", error);
 		return error;
 	}
 #endif
@@ -275,14 +273,12 @@ static int register_family(void)
 
 int nlhandler_setup(void)
 {
-	error_pool_setup();
 	return register_family();
 }
 
 void nlhandler_teardown(void)
 {
 	genl_unregister_family(&jool_family);
-	error_pool_teardown();
 }
 
 #if LINUX_VERSION_LOWER_THAN(3, 13, 0, 7, 1)
@@ -296,3 +292,4 @@ struct genl_family *jnl_family(void)
 {
 	return &jool_family;
 }
+EXPORT_UNIT_SYMBOL(jnl_family)

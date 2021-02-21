@@ -2,67 +2,56 @@
 
 #include "mod/common/log.h"
 #include "mod/common/nl/nl_common.h"
-#include "mod/common/nl/nl_core.h"
 #include "mod/common/joold.h"
 
 int handle_joold_add(struct sk_buff *skb, struct genl_info *info)
 {
-	struct xlator jool;
+	struct jnl_state *state;
 	int error;
 
-	error = request_handle_start(info, XT_NAT64, &jool, true);
+	error = jnl_start(&state, info, XT_NAT64, true);
 	if (error)
-		return jresponse_send_simple(NULL, info, error);
+		return jnl_reply(state, error);
 
-	__log_debug(&jool, "Handling joold add.");
+	jnls_debug(state, "Handling joold add.");
 
-	error = joold_sync(&jool, info->attrs[JNLAR_SESSION_ENTRIES]);
+	error = joold_sync(state, info->attrs[JNLAR_SESSION_ENTRIES]);
 	if (error)
-		goto revert_start;
+		return jnl_reply(state, error);
 
-	request_handle_end(&jool);
 	/*
 	 * Do not bother userspace with an ACK; it's not
 	 * waiting nor has anything to do with it.
 	 */
+	jnl_cancel(state);
 	return 0;
-
-revert_start:
-	error = jresponse_send_simple(&jool, info, error);
-	request_handle_end(&jool);
-	return error;
 }
 
 int handle_joold_advertise(struct sk_buff *skb, struct genl_info *info)
 {
-	struct xlator jool;
+	struct jnl_state *state;
 	int error;
 
-	error = request_handle_start(info, XT_NAT64, &jool, true);
+	error = jnl_start(&state, info, XT_NAT64, true);
 	if (error)
-		return jresponse_send_simple(NULL, info, error);
+		return jnl_reply(state, error);
 
-	__log_debug(&jool, "Handling joold advertise.");
+	jnls_debug(state, "Handling joold advertise.");
 
-	error = joold_advertise(&jool);
-	error = jresponse_send_simple(&jool, info, error);
-	request_handle_end(&jool);
-	return error;
+	return jnl_reply(state, joold_advertise(state));
 }
 
 int handle_joold_ack(struct sk_buff *skb, struct genl_info *info)
 {
-	struct xlator jool;
+	struct jnl_state *state;
 	int error;
 
-	error = request_handle_start(info, XT_NAT64, &jool, true);
+	error = jnl_start(&state, info, XT_NAT64, true);
 	if (error)
-		return jresponse_send_simple(NULL, info, error);
+		return jnl_reply(state, error);
 
-	__log_debug(&jool, "Handling joold ack.");
+	jnls_debug(state, "Handling joold ack.");
 
-	joold_ack(&jool);
-
-	request_handle_end(&jool);
+	joold_ack(state);
 	return 0; /* Do not ack the ack. */
 }

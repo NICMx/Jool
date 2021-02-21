@@ -15,8 +15,10 @@
 #include "mod/common/wkmalloc.h"
 #include "mod/common/db/denylist4.h"
 #include "mod/common/db/eam.h"
+#include "mod/common/db/fmr.h"
 #include "mod/common/db/pool4/db.h"
 #include "mod/common/db/bib/db.h"
+#include "mod/common/steps/handling_hairpinning_mapt.h"
 #include "mod/common/steps/handling_hairpinning_nat64.h"
 #include "mod/common/steps/handling_hairpinning_siit.h"
 
@@ -145,6 +147,9 @@ static void xlator_get(struct xlator *jool)
 		bib_get(jool->nat64.bib);
 		joold_get(jool->nat64.joold);
 		break;
+	case XT_MAPT:
+		fmrt_get(jool->mapt.fmrt);
+		break;
 	}
 }
 
@@ -257,6 +262,7 @@ void xlator_set_defrag(void (*_defrag_enable)(struct net *ns))
 {
 	defrag_enable = _defrag_enable;
 }
+EXPORT_UNIT_SYMBOL(xlator_set_defrag)
 
 /**
  * Graceful termination of this module. Reverts xlator_setup().
@@ -276,17 +282,8 @@ void xlator_teardown(void)
 	__wkfree("xlator DB", ni);
 }
 
-static int init_siit(struct xlator *jool, struct ipv6_prefix *pool6)
+static int init_siit(struct xlator *jool)
 {
-	int error;
-
-	error = globals_init(&jool->globals, XT_SIIT, pool6);
-	if (error)
-		return error;
-
-	jool->stats = jstat_alloc();
-	if (!jool->stats)
-		goto stats_fail;
 	jool->siit.eamt = eamt_alloc();
 	if (!jool->siit.eamt)
 		goto eamt_fail;
@@ -301,22 +298,11 @@ static int init_siit(struct xlator *jool, struct ipv6_prefix *pool6)
 denylist4_fail:
 	eamt_put(jool->siit.eamt);
 eamt_fail:
-	jstat_put(jool->stats);
-stats_fail:
 	return -ENOMEM;
 }
 
-static int init_nat64(struct xlator *jool, struct ipv6_prefix *pool6)
+static int init_nat64(struct xlator *jool)
 {
-	int error;
-
-	error = globals_init(&jool->globals, XT_NAT64, pool6);
-	if (error)
-		return error;
-
-	jool->stats = jstat_alloc();
-	if (!jool->stats)
-		goto stats_fail;
 	jool->nat64.pool4 = pool4db_alloc();
 	if (!jool->nat64.pool4)
 		goto pool4_fail;
@@ -336,19 +322,30 @@ joold_fail:
 bib_fail:
 	pool4db_put(jool->nat64.pool4);
 pool4_fail:
-	jstat_put(jool->stats);
-stats_fail:
 	return -ENOMEM;
 }
 
-int xlator_init(struct xlator *jool, struct net *ns, char *iname,
-		xlator_flags flags, struct ipv6_prefix *pool6)
+static int init_mapt(struct xlator *jool)
 {
+	jool->mapt.fmrt = fmrt_alloc();
+	if (!jool->mapt.fmrt)
+		return -ENOMEM;
+
+	jool->is_hairpin = is_hairpin_mapt;
+	jool->handling_hairpinning = handling_hairpinning_mapt;
+	return 0;
+}
+
+int xlator_init(struct xlator *jool, struct net *ns, char *iname,
+		xlator_flags flags, struct jool_globals *globals,
+		struct jnl_state *state)
+{
+	xlator_type xt;
 	int error;
 
 	error = xf_validate(xlator_flags2xf(flags));
 	if (error) {
-		log_err(XF_VALIDATE_ERRMSG);
+		jnls_err(state, XF_VALIDATE_ERRMSG);
 		return error;
 	}
 
@@ -356,31 +353,78 @@ int xlator_init(struct xlator *jool, struct net *ns, char *iname,
 	strcpy(jool->iname, iname);
 	jool->flags = flags;
 
-	switch (xlator_flags2xt(flags)) {
-	case XT_SIIT:
-		return init_siit(jool, pool6);
-	case XT_NAT64:
-		return init_nat64(jool, pool6);
+	xt = xlator_flags2xt(flags);
+	if (globals) {
+		jool->globals = *globals;
+	} else {
+		error = globals_init(&jool->globals, xt, state);
+		if (error)
+			return error;
 	}
 
-	log_err(XT_VALIDATE_ERRMSG);
-	return -EINVAL;
+	jool->stats = jstat_alloc();
+	if (!jool->stats)
+		return -ENOMEM;
+
+	switch (xt) {
+	case XT_SIIT:
+		error = init_siit(jool);
+		break;
+	case XT_NAT64:
+		error = init_nat64(jool);
+		break;
+	case XT_MAPT:
+		error = init_mapt(jool);
+		break;
+	default:
+		error = jnls_err(state, XT_VALIDATE_ERRMSG);
+	}
+
+	if (error)
+		jstat_put(jool->stats);
+	return error;
 }
+EXPORT_UNIT_SYMBOL(xlator_init)
 
 static int basic_validations(char const *iname, bool allow_null_iname,
-		xlator_flags flags)
+		xlator_flags flags, struct jnl_state *state)
 {
 	int error;
 
 	error = iname_validate(iname, allow_null_iname);
 	if (error) {
-		log_err(INAME_VALIDATE_ERRMSG);
+		jnls_err(state, INAME_VALIDATE_ERRMSG);
 		return error;
 	}
 	error = xt_validate(xlator_flags2xt(flags));
 	if (error) {
-		log_err(XT_VALIDATE_ERRMSG);
+		jnls_err(state, XT_VALIDATE_ERRMSG);
 		return error;
+	}
+
+	return 0;
+}
+
+static int validate_ce(struct mapt_globals *cfg, struct jnl_state *state)
+{
+	struct ipv6_prefix *euip;
+	struct mapping_rule *bmr;
+
+	if (!cfg->eui6p.set)
+		return jnls_err(state, "The End-user IPv6 prefix is unset.");
+	if (!cfg->bmr.set)
+		return jnls_err(state, "The BMR is unset.");
+
+	euip = &cfg->eui6p.prefix;
+	bmr = &cfg->bmr.rule;
+
+	if (bmr->prefix6.len + bmr->o != euip->len) {
+		return jnls_err(state, "The BMR's IPv6 prefix length (%u) plus the BMR's EA bits length (%u) does not equal the End-user IPv6 prefix's length (%u).",
+				bmr->prefix6.len, bmr->o, euip->len);
+	}
+
+	if (!prefix6_contains(&bmr->prefix6, &euip->addr)) {
+		return jnls_err(state, "The BMR's IPv6 prefix does not contain the End-user IPv6 prefix.");
 	}
 
 	return 0;
@@ -388,22 +432,23 @@ static int basic_validations(char const *iname, bool allow_null_iname,
 
 /** Basic validations when adding an xlator to the DB. */
 static int basic_add_validations(char *iname, xlator_flags flags,
-		struct ipv6_prefix *pool6)
+		struct jool_globals *globals, struct jnl_state *state)
 {
 	int error;
 
-	error = basic_validations(iname, false, flags);
+	error = basic_validations(iname, false, flags, state);
 	if (error)
 		return error;
 	error = xf_validate(xlator_flags2xf(flags));
 	if (error) {
-		log_err(XF_VALIDATE_ERRMSG);
+		jnls_err(state, XF_VALIDATE_ERRMSG);
 		return error;
 	}
-	if ((flags & XT_NAT64) && !pool6) {
-		log_err("pool6 is mandatory in NAT64 instances.");
-		return -EINVAL;
-	}
+
+	if ((flags & XT_NAT64) && !globals->pool6.set)
+		return jnls_err(state, "pool6 is mandatory in NAT64 instances.");
+	if ((flags & XT_MAPT) && (globals->mapt.type == MAPTYPE_CE))
+		return validate_ce(&globals->mapt, state);
 
 	return 0;
 }
@@ -415,7 +460,8 @@ static int basic_add_validations(char *iname, xlator_flags flags,
  *
  * Assumes the DB mutex is locked.
  */
-static int validate_collision(struct net *ns, char *iname, xlator_flags flags)
+static int validate_collision(struct net *ns, char *iname, xlator_flags flags,
+		struct jnl_state *state)
 {
 	struct jool_instance *instance;
 	size_t i;
@@ -426,13 +472,13 @@ static int validate_collision(struct net *ns, char *iname, xlator_flags flags)
 		if (xlator_flags2xt(instance->jool.flags) != xlator_flags2xt(flags))
 			continue;
 		if (strcmp(instance->jool.iname, iname) == 0) {
-			log_err("This namespace already has a Jool instance named '%s'.",
+			jnls_err(state, "This namespace already has a Jool instance named '%s'.",
 					iname);
 			return -EEXIST;
 		}
 
 		if ((flags & XF_NETFILTER) && xlator_is_netfilter(&instance->jool)) {
-			log_err("This namespace already has a Netfilter Jool instance.");
+			jnls_err(state, "This namespace already has a Netfilter Jool instance.");
 			return -EEXIST;
 		}
 	}
@@ -478,7 +524,7 @@ static int __xlator_add(struct jool_instance *new, struct xlator *result)
 		list_add_tail_rcu(&new->list_hook, list);
 	}
 
-	if (new->jool.flags & XT_NAT64)
+	if (xlator_has_defrag(&new->jool))
 		defrag_enable(new->jool.ns);
 
 	if (result) {
@@ -495,20 +541,20 @@ static int __xlator_add(struct jool_instance *new, struct xlator *result)
  * @result: Will be initialized with a clone of the new translator. Send NULL
  *     if you're not interested.
  */
-int xlator_add(xlator_flags flags, char *iname, struct ipv6_prefix *pool6,
-		struct xlator *result)
+int xlator_add(xlator_flags flags, char *iname, struct jool_globals *globals,
+		struct xlator *result, struct jnl_state *state)
 {
 	struct jool_instance *instance;
 	struct net *ns;
 	int error;
 
-	error = basic_add_validations(iname, flags, pool6);
+	error = basic_add_validations(iname, flags, globals, state);
 	if (error)
 		return error;
 
 	ns = get_net_ns_by_pid(task_pid_vnr(current));
 	if (IS_ERR(ns)) {
-		log_err("Could not retrieve the current namespace.");
+		jnls_err(state, "Could not retrieve the current namespace.");
 		return PTR_ERR(ns);
 	}
 
@@ -522,7 +568,7 @@ int xlator_add(xlator_flags flags, char *iname, struct ipv6_prefix *pool6,
 
 	/* All *error* roads from now need to free @instance. */
 
-	error = xlator_init(&instance->jool, ns, iname, flags, pool6);
+	error = xlator_init(&instance->jool, ns, iname, flags, globals, state);
 	if (error) {
 		wkfree(struct jool_instance, instance);
 		put_net(ns);
@@ -541,7 +587,7 @@ int xlator_add(xlator_flags flags, char *iname, struct ipv6_prefix *pool6,
 
 	/* All roads from now on must unlock the mutex. */
 
-	error = validate_collision(ns, iname, flags);
+	error = validate_collision(ns, iname, flags, state);
 	if (error)
 		goto mutex_fail;
 
@@ -560,8 +606,10 @@ mutex_fail:
 	put_net(ns);
 	return error;
 }
+EXPORT_UNIT_SYMBOL(xlator_add)
 
-static int __xlator_rm(struct net *ns, char *iname, xlator_type xt)
+static int __xlator_rm(struct net *ns, char *iname, xlator_type xt,
+		struct jnl_state *state)
 {
 	struct jool_instance *instance;
 
@@ -570,7 +618,7 @@ static int __xlator_rm(struct net *ns, char *iname, xlator_type xt)
 	instance = find_instance(ns, xt, iname);
 	if (!instance) {
 		mutex_unlock(&lock);
-		log_err("The requested instance does not exist.");
+		jnls_err(state, "The requested instance does not exist.");
 		return -ESRCH;
 	}
 
@@ -594,45 +642,44 @@ static int __xlator_rm(struct net *ns, char *iname, xlator_type xt)
 	return 0;
 }
 
-int xlator_rm(xlator_type xt, char *iname)
+int xlator_rm(xlator_type xt, char *iname, struct jnl_state *state)
 {
 	struct net *ns;
 	int error;
 
 	error = xt_validate(xt);
 	if (error) {
-		log_err(XT_VALIDATE_ERRMSG);
+		jnls_err(state, XT_VALIDATE_ERRMSG);
 		return error;
 	}
 	error = iname_validate(iname, false);
 	if (error) {
-		log_err(INAME_VALIDATE_ERRMSG);
+		jnls_err(state, INAME_VALIDATE_ERRMSG);
 		return error;
 	}
 
 	ns = get_net_ns_by_pid(task_pid_vnr(current));
 	if (IS_ERR(ns)) {
-		log_err("Could not retrieve the current namespace.");
+		jnls_err(state, "Could not retrieve the current namespace.");
 		return PTR_ERR(ns);
 	}
 
-	error = __xlator_rm(ns, iname, xt);
+	error = __xlator_rm(ns, iname, xt, state);
 
 	put_net(ns);
 	return error;
 }
+EXPORT_UNIT_SYMBOL(xlator_rm)
 
-int xlator_replace(struct xlator *jool)
+int xlator_replace(struct xlator *jool, struct jnl_state *state)
 {
 	struct jool_instance *old;
 	struct jool_instance *new;
 	struct list_head *list;
 	int error;
 
-	error = basic_add_validations(jool->iname, jool->flags,
-			jool->globals.pool6.set
-					? &jool->globals.pool6.prefix
-					: NULL);
+	error = basic_add_validations(jool->iname, jool->flags, &jool->globals,
+			state);
 	if (error)
 		return error;
 
@@ -660,13 +707,13 @@ int xlator_replace(struct xlator *jool)
 	}
 
 	if (xlator_get_framework(&old->jool) != xlator_get_framework(&new->jool)) {
-		log_err("Sorry; you can't change an instance's framework for now.");
+		jnls_err(state, "Sorry; you can't change an instance's framework for now.");
 		goto abort;
 	}
 	if (xlator_is_nat64(&new->jool) && !prefix6_equals(
 			&old->jool.globals.pool6.prefix,
 			&new->jool.globals.pool6.prefix)) {
-		log_err("Sorry; you can't change a NAT64 instance's pool6 for now.");
+		jnls_err(state, "Sorry; you can't change a NAT64 instance's pool6 for now.");
 		goto abort;
 	}
 
@@ -716,20 +763,20 @@ abort:
 	return -EINVAL;
 }
 
-int xlator_flush(xlator_type xt)
+int xlator_flush(xlator_type xt, struct jnl_state *state)
 {
 	struct net *ns;
 	int error;
 
 	error = xt_validate(xt);
 	if (error) {
-		log_err(XT_VALIDATE_ERRMSG);
+		jnls_err(state, XT_VALIDATE_ERRMSG);
 		return error;
 	}
 
 	ns = get_net_ns_by_pid(task_pid_vnr(current));
 	if (IS_ERR(ns)) {
-		log_err("Could not retrieve the current namespace.");
+		jnls_err(state, "Could not retrieve the current namespace.");
 		return PTR_ERR(ns);
 	}
 
@@ -756,7 +803,7 @@ int xlator_flush(xlator_type xt)
  * (You are not meant to fork pointers to them.)
  */
 int xlator_find(struct net *ns, xlator_flags flags, char const *iname,
-		struct xlator *result)
+		struct xlator *result, struct jnl_state *state)
 {
 	struct jool_instance *instance;
 	int error;
@@ -765,7 +812,7 @@ int xlator_find(struct net *ns, xlator_flags flags, char const *iname,
 	 * There is at least one caller to this function which cares about error
 	 * code. You need to review it if you want to add or reuse error codes.
 	 */
-	error = basic_validations(iname, true, flags);
+	error = basic_validations(iname, true, flags, state);
 	if (error)
 		return error;
 
@@ -797,22 +844,23 @@ not_found:
  * Please xlator_put() the instance when you're done using it.
  */
 int xlator_find_current(const char *iname, xlator_flags flags,
-		struct xlator *result)
+		struct xlator *result, struct jnl_state *state)
 {
 	struct net *ns;
 	int error;
 
 	ns = get_net_ns_by_pid(task_pid_vnr(current));
 	if (IS_ERR(ns)) {
-		log_err("Could not retrieve the current namespace.");
+		jnls_err(state, "Could not retrieve the current namespace.");
 		return PTR_ERR(ns);
 	}
 
-	error = xlator_find(ns, flags, iname, result);
+	error = xlator_find(ns, flags, iname, result, state);
 
 	put_net(ns);
 	return error;
 }
+EXPORT_UNIT_SYMBOL(xlator_find_current)
 
 int xlator_find_netfilter(struct net *ns, struct xlator *result)
 {
@@ -865,10 +913,15 @@ void xlator_put(struct xlator *jool)
 		if (jool->nat64.joold)
 			joold_put(jool->nat64.joold);
 		return;
+
+	case XT_MAPT:
+		fmrt_put(jool->mapt.fmrt);
+		return;
 	}
 
 	WARN(1, "Unknown translator type: %d", xlator_get_type(jool));
 }
+EXPORT_UNIT_SYMBOL(xlator_put)
 
 static bool offset_equals(struct instance_entry_usr *offset,
 		struct jool_instance *instance)
@@ -911,10 +964,11 @@ int xlator_foreach(xlator_type xt, xlator_foreach_cb cb, void *args,
 
 xlator_type xlator_get_type(struct xlator const *instance)
 {
-	return xlator_is_nat64(instance) ? XT_NAT64 : XT_SIIT;
+	return instance->flags & XT_MASK;
 }
+EXPORT_UNIT_SYMBOL(xlator_get_type)
 
 xlator_framework xlator_get_framework(struct xlator const *instance)
 {
-	return xlator_is_netfilter(instance) ? XF_NETFILTER : XF_IPTABLES;
+	return instance->flags & XF_MASK;
 }

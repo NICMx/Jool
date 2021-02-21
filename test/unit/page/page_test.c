@@ -1,5 +1,6 @@
 #include <linux/module.h>
 
+#include "framework/address.h"
 #include "framework/unit_test.h"
 #include "framework/send_packet.h"
 #include "framework/skb_generator.h"
@@ -7,30 +8,38 @@
 
 #include "mod/common/core.h"
 #include "mod/common/xlator.h"
+#include "mod/common/db/global.h"
 
 MODULE_LICENSE(JOOL_LICENSE);
 MODULE_AUTHOR("Alberto Leiva");
 MODULE_DESCRIPTION("Pages test");
 
+extern struct sk_buff *skb_out;
 static struct xlator jool;
 
 static int init(void)
 {
-	struct ipv6_prefix pool6;
+	struct jool_globals globals;
 	int error;
 
-	pool6.len = 96;
-	error = str_to_addr6("2001:db8::", &pool6.addr);
+	error = globals_init(&globals, XT_SIIT, NULL);
 	if (error)
 		return error;
 
-	return xlator_add(XF_NETFILTER | XT_SIIT, INAME_DEFAULT, &pool6, &jool);
+	globals.pool6.set = true;
+	globals.pool6.prefix.len = 96;
+	error = str_to_addr6("2001:db8::", &globals.pool6.prefix.addr);
+	if (error)
+		return error;
+
+	return xlator_add(XF_NETFILTER | XT_SIIT, INAME_DEFAULT, &globals,
+			&jool, NULL);
 }
 
 static void clean(void)
 {
 	xlator_put(&jool);
-	xlator_rm(XT_SIIT, INAME_DEFAULT);
+	xlator_rm(XT_SIIT, INAME_DEFAULT, NULL);
 }
 
 static bool validate_skb(struct sk_buff *skb, int payload_offset,
@@ -51,7 +60,7 @@ static bool validate_skb(struct sk_buff *skb, int payload_offset,
 		copied = min(256, payload_len);
 
 		if (skb_copy_bits(skb, payload_offset, actual, copied)) {
-			log_err("Buffer extraction failed.");
+			pr_err("Buffer extraction failed.\n");
 			return false;
 		}
 
@@ -164,7 +173,7 @@ static bool basic_single_test(unsigned int head_len, unsigned int data_len)
 		return true; /* Invalid test, but we don't care */
 
 	xlation_init(&state, &jool);
-	log_debug(&state, "Test: %u %u", head_len, data_len);
+	pr_info("Test: %u %u\n", head_len, data_len);
 
 	skb_in = create_paged_tcp_skb(head_len, data_len);
 	if (!skb_in)
@@ -177,7 +186,7 @@ static bool basic_single_test(unsigned int head_len, unsigned int data_len)
 	success &= ASSERT_VERDICT(STOLEN, result, "full xlat");
 
 	if (skb_out == NULL) {
-		log_err("skb_out is null.");
+		pr_err("skb_out is null.\n");
 		return false;
 	}
 
@@ -261,7 +270,7 @@ static bool trim64_test(void)
 	success &= ASSERT_VERDICT(STOLEN, result, "full xlat");
 
 	if (skb_out == NULL) {
-		log_err("skb_out is null.");
+		pr_err("skb_out is null.\n");
 		return false;
 	}
 
@@ -332,7 +341,7 @@ static bool trim46_test(void)
 	success &= ASSERT_VERDICT(STOLEN, result, "full xlat");
 
 	if (skb_out == NULL) {
-		log_err("skb_out is null.");
+		pr_err("skb_out is null.\n");
 		return false;
 	}
 
@@ -350,8 +359,6 @@ int init_module(void)
 {
 	struct test_group test = {
 		.name = "Pages",
-		.setup_fn = xlator_setup,
-		.teardown_fn = xlator_teardown,
 		.init_fn = init,
 		.clean_fn = clean,
 	};

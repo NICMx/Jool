@@ -50,7 +50,7 @@ static bool inject(unsigned int index, __u32 src_addr, __u16 src_id,
 
 	error = bib_add_session(&jool, entry, NULL);
 	if (error) {
-		log_err("Errcode %d on sessiontable_add.", error);
+		pr_err("Errcode %d on sessiontable_add.\n", error);
 		return false;
 	}
 
@@ -95,7 +95,7 @@ static int cb(struct session_entry const *session, void *void_args)
 	unsigned int index;
 	bool success = true;
 
-	/* log_debug("Iterating: %pI6c#%u %pI6c#%u %pI4#%u %pI4#%u",
+	/* pr_info("Iterating: %pI6c#%u %pI6c#%u %pI4#%u %pI4#%u\n",
 			&session->src6.l3, session->src6.l4,
 			&session->dst6.l3, session->dst6.l4,
 			&session->src4.l3, session->src4.l4,
@@ -278,7 +278,7 @@ enum session_fate tcp_est_expire_cb(struct session_entry *session, void *arg)
 static int init(void)
 {
 	return xlator_init(&jool, NULL, INAME_DEFAULT, XF_NETFILTER | XT_NAT64,
-			NULL);
+			NULL, NULL);
 }
 
 static void clean(void)
@@ -290,7 +290,6 @@ int init_module(void)
 {
 	struct test_group test = {
 		.name = "Session table",
-		.teardown_fn = bib_teardown,
 		.init_fn = init,
 		.clean_fn = clean,
 	};

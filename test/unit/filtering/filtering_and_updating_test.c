@@ -2,12 +2,14 @@
 #include <linux/kernel.h>
 
 #include "common/constants.h"
+#include "framework/address.h"
 #include "framework/types.h"
 #include "framework/unit_test.h"
 #include "framework/skb_generator.h"
-#include "mod/common/db/pool4/rfc6056.h"
+#include "mod/common/db/global.h"
+#include "mod/common/db/bib/db.h"
 #include "mod/common/steps/determine_incoming_tuple.h"
-#include "mod/common/steps/filtering_and_updating.c"
+#include "mod/common/steps/filtering_and_updating.h"
 
 MODULE_LICENSE(JOOL_LICENSE);
 MODULE_AUTHOR("Roberto Aceves");
@@ -15,6 +17,11 @@ MODULE_AUTHOR("Alberto Leiva");
 MODULE_DESCRIPTION("Unit tests for the Filtering module");
 
 static struct xlator jool;
+
+verdict ipv4_simple(struct xlation *state);
+verdict ipv6_simple(struct xlation *state);
+verdict ipv4_tcp(struct xlation *state);
+verdict ipv6_tcp(struct xlation *state);
 
 static int bib_count_fn(struct bib_entry const *bib, void *arg)
 {
@@ -160,11 +167,11 @@ static bool assert_session_exists(char *src6_addr, u16 src6_port,
 static int invert_tuple(struct xlation *state)
 {
 	if (!state->entries.bib_set) {
-		log_err("Session was expected to have a BIB entry.");
+		pr_err("Session was expected to have a BIB entry.\n");
 		return -ESRCH;
 	}
 	if (!state->entries.session_set) {
-		log_err("Session was expected to have a session."); /* Lel */
+		pr_err("Session was expected to have a session.\n"); /* Lel */
 		return -ESRCH;
 	}
 
@@ -206,7 +213,7 @@ static bool test_filtering_and_updating(void)
 
 	xlation_init(&state, &jool);
 
-	log_debug(&state, "== ICMPv4 errors should succeed but not affect the tables ==");
+	pr_info("== ICMPv4 errors should succeed but not affect the tables ==\n");
 	if (create_skb4_icmp_error("8.7.6.5", "192.0.2.128", 100, 32, &skb))
 		return false;
 	if (pkt_init_ipv4(&state, skb))
@@ -226,7 +233,7 @@ static bool test_filtering_and_updating(void)
 	if (!success)
 		return false;
 
-	log_debug(&state, "== ICMPv6 errors should succeed but not affect the tables ==");
+	pr_info("== ICMPv6 errors should succeed but not affect the tables ==\n");
 	if (create_skb6_icmp_error("1::2", "3::3:4", 100, 32, &skb))
 		return false;
 	if (pkt_init_ipv6(&state, skb))
@@ -246,7 +253,7 @@ static bool test_filtering_and_updating(void)
 	if (!success)
 		return false;
 
-	log_debug(&state, "== Hairpinning loops should be dropped ==");
+	pr_info("== Hairpinning loops should be dropped ==\n");
 	if (create_skb6_udp("3::1:2", 1212, "3::3:4", 3434, 100, 32, &skb))
 		return false;
 	if (pkt_init_ipv6(&state, skb))
@@ -262,7 +269,7 @@ static bool test_filtering_and_updating(void)
 	if (!success)
 		return false;
 
-	log_debug(&state, "== Packets not headed to pool6 must not be translated ==");
+	pr_info("== Packets not headed to pool6 must not be translated ==\n");
 	if (create_skb6_udp("1::2", 1212, "4::1", 3434, 100, 32, &skb))
 		return false;
 	if (pkt_init_ipv6(&state, skb))
@@ -278,7 +285,7 @@ static bool test_filtering_and_updating(void)
 	if (!success)
 		return false;
 
-	log_debug(&state, "== Packets not headed to pool4 must not be translated ==");
+	pr_info("== Packets not headed to pool4 must not be translated ==\n");
 	if (create_skb4_udp("8.7.6.5", 8765, "5.6.7.8", 5678, 100, 32, &skb))
 		return false;
 	if (pkt_init_ipv4(&state, skb))
@@ -294,7 +301,7 @@ static bool test_filtering_and_updating(void)
 	if (!success)
 		return false;
 
-	log_debug(&state, "== Other IPv6 packets should survive validations ==");
+	pr_info("== Other IPv6 packets should survive validations ==\n");
 	if (create_skb6_udp("1::2", 1212, "3::3:4", 3434, 100, 32, &skb))
 		return false;
 	if (pkt_init_ipv6(&state, skb))
@@ -310,7 +317,7 @@ static bool test_filtering_and_updating(void)
 	if (!success)
 		return false;
 
-	log_debug(&state, "== Other IPv4 packets should survive validations ==");
+	pr_info("== Other IPv4 packets should survive validations ==\n");
 	if (!invert_packet(&state, &skb))
 		return false;
 
@@ -330,7 +337,7 @@ static bool test_udp(void)
 
 	xlation_init(&state, &jool);
 
-	log_debug(&state, "== An IPv4 packet attempts to be translated without state ==");
+	pr_info("== An IPv4 packet attempts to be translated without state ==\n");
 	if (create_skb4_udp("0.0.0.4", 3434, "192.0.2.128", 1024, 16, 32, &skb))
 		return false;
 	if (pkt_init_ipv4(&state, skb))
@@ -344,7 +351,7 @@ static bool test_udp(void)
 
 	kfree_skb(skb);
 
-	log_debug(&state, "== IPv6 packet gets translated correctly ==");
+	pr_info("== IPv6 packet gets translated correctly ==\n");
 	if (create_skb6_udp("1::2", 1212, "3::4", 3434, 16, 32, &skb))
 		return false;
 	if (pkt_init_ipv6(&state, skb))
@@ -363,7 +370,7 @@ static bool test_udp(void)
 
 	kfree_skb(skb);
 
-	log_debug(&state, "== Now that there's state, the IPv4 packet manages to traverse ==");
+	pr_info("== Now that there's state, the IPv4 packet manages to traverse ==\n");
 	if (!invert_packet(&state, &skb))
 		return false;
 
@@ -389,7 +396,7 @@ static bool test_icmp(void)
 
 	xlation_init(&state, &jool);
 
-	log_debug(&state, "== IPv4 packet attempts to be translated without state ==");
+	pr_info("== IPv4 packet attempts to be translated without state ==\n");
 	if (create_skb4_icmp_info("0.0.0.4", "192.0.2.128", 1024, 16, 32, &skb))
 		return false;
 	if (pkt_init_ipv4(&state, skb))
@@ -403,7 +410,7 @@ static bool test_icmp(void)
 
 	kfree_skb(skb);
 
-	log_debug(&state, "== IPv6 packet gets translated correctly ==");
+	pr_info("== IPv6 packet gets translated correctly ==\n");
 	if (create_skb6_icmp_info("1::2", "3::4", 1212, 16, 32, &skb))
 		return false;
 	if (pkt_init_ipv6(&state, skb))
@@ -422,7 +429,7 @@ static bool test_icmp(void)
 
 	kfree_skb(skb);
 
-	log_debug(&state, "== Now that there's state, the IPv4 packet manages to traverse ==");
+	pr_info("== Now that there's state, the IPv4 packet manages to traverse ==\n");
 	if (!invert_packet(&state, &skb))
 		return false;
 
@@ -451,7 +458,7 @@ static bool test_tcp(void)
 	struct sk_buff *skb;
 	bool success = true;
 
-	log_debug(&state, "== V6 SYN ==");
+	pr_info("== V6 SYN ==\n");
 	if (init_tuple6(&state.in.tuple, "1::2", 1212, "3::4", 3434, L4PROTO_TCP))
 		return false;
 	if (create_tcp_packet(&skb, L3PROTO_IPV6, true, false, false))
@@ -469,7 +476,7 @@ static bool test_tcp(void)
 
 	kfree_skb(skb);
 
-	log_debug(&state, "== V4 SYN ==");
+	pr_info("== V4 SYN ==\n");
 	if (invert_tuple(&state))
 		return false;
 	if (create_tcp_packet(&skb, L3PROTO_IPV4, true, false, false))
@@ -487,7 +494,7 @@ static bool test_tcp(void)
 
 	kfree_skb(skb);
 
-	log_debug(&state, "== V6 RST ==");
+	pr_info("== V6 RST ==\n");
 	if (init_tuple6(&state.in.tuple, "1::2", 1212, "3::4", 3434, L4PROTO_TCP))
 		return false;
 	if (create_tcp_packet(&skb, L3PROTO_IPV6, false, true, false))
@@ -505,7 +512,7 @@ static bool test_tcp(void)
 
 	kfree_skb(skb);
 
-	log_debug(&state, "== V6 SYN ==");
+	pr_info("== V6 SYN ==\n");
 	if (create_tcp_packet(&skb, L3PROTO_IPV6, true, false, false))
 		return false;
 	if (pkt_init_ipv6(&state, skb))
@@ -531,44 +538,28 @@ static void defrag_dummy(struct net *ns)
 
 static int setup(void)
 {
-	int error;
-
-	error = rfc6056_setup();
-	if (error)
-		goto rfc6056_fail;
-	error = xlator_setup();
-	if (error)
-		goto xlator_fail;
 	xlator_set_defrag(defrag_dummy);
-
 	return 0;
-
-xlator_fail:
-	rfc6056_teardown();
-rfc6056_fail:
-	return error;
-}
-
-static void teardown(void)
-{
-	xlator_teardown();
-	rfc6056_teardown();
-	bib_teardown();
 }
 
 static int init(void)
 {
-	struct ipv6_prefix pool6;
+	struct jool_globals globals;
 	struct pool4_entry entry;
 	int error;
 
-	pool6.len = 96;
-	error = str_to_addr6("3::", &pool6.addr);
+	error = globals_init(&globals, XT_NAT64, NULL);
 	if (error)
 		return error;
 
-	error = xlator_add(XF_NETFILTER | XT_NAT64, INAME_DEFAULT, &pool6,
-			&jool);
+	globals.pool6.set = true;
+	globals.pool6.prefix.len = 96;
+	error = str_to_addr6("3::", &globals.pool6.prefix.addr);
+	if (error)
+		return error;
+
+	error = xlator_add(XF_NETFILTER | XT_NAT64, INAME_DEFAULT, &globals,
+			&jool, NULL);
 	if (error)
 		return error;
 
@@ -583,15 +574,15 @@ static int init(void)
 	entry.range.ports.max = 1024;
 
 	entry.proto = L4PROTO_TCP;
-	error = pool4db_add(jool.nat64.pool4, &entry);
+	error = pool4db_add(jool.nat64.pool4, &entry, NULL);
 	if (error)
 		goto fail;
 	entry.proto = L4PROTO_UDP;
-	error = pool4db_add(jool.nat64.pool4, &entry);
+	error = pool4db_add(jool.nat64.pool4, &entry, NULL);
 	if (error)
 		goto fail;
 	entry.proto = L4PROTO_ICMP;
-	error = pool4db_add(jool.nat64.pool4, &entry);
+	error = pool4db_add(jool.nat64.pool4, &entry, NULL);
 	if (error)
 		goto fail;
 
@@ -599,15 +590,14 @@ static int init(void)
 
 fail:
 	xlator_put(&jool);
-	xlator_rm(XT_NAT64, INAME_DEFAULT);
+	xlator_rm(XT_NAT64, INAME_DEFAULT, NULL);
 	return error;
 }
 
 static void clean(void)
 {
-	icmp64_pop();
 	xlator_put(&jool);
-	xlator_rm(XT_NAT64, INAME_DEFAULT);
+	xlator_rm(XT_NAT64, INAME_DEFAULT, NULL);
 }
 
 static int filtering_test_init(void)
@@ -615,7 +605,6 @@ static int filtering_test_init(void)
 	struct test_group test = {
 		.name = "Filtering and Updating",
 		.setup_fn = setup,
-		.teardown_fn = teardown,
 		.init_fn = init,
 		.clean_fn = clean,
 	};

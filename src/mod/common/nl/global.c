@@ -3,61 +3,51 @@
 #include "common/constants.h"
 #include "mod/common/log.h"
 #include "mod/common/nl/nl_common.h"
-#include "mod/common/nl/nl_core.h"
 #include "mod/common/nl/attribute.h"
 #include "mod/common/db/eam.h"
 #include "mod/common/db/global.h"
 
 static int serialize_global(struct joolnl_global_meta const *meta, void *global,
-		void *skb)
+		void *_state)
 {
-	return joolnl_global_raw2nl(meta, global, skb) ? 1 : 0;
+	struct jnl_state *state = _state;
+	return !!joolnl_global_raw2nl(meta, global, jnls_skb(state), state);
 }
 
 int handle_global_foreach(struct sk_buff *skb, struct genl_info *info)
 {
-	struct xlator jool;
-	struct jool_response response;
+	struct jnl_state *state;
+	struct xlator *jool;
 	enum joolnl_attr_global offset;
 	int error;
 
-	error = request_handle_start(info, XT_ANY, &jool, true);
+	error = jnl_start(&state, info, XT_ANY, true);
 	if (error)
-		return jresponse_send_simple(NULL, info, error);
+		return jnl_reply(state, error);
 
-	__log_debug(&jool, "Returning 'Global' options.");
-
-	error = jresponse_init(&response, info);
-	if (error)
-		goto revert_start;
+	jnls_debug(state, "Returning 'Global' options.");
 
 	offset = 0;
 	if (info->attrs[JNLAR_OFFSET_U8]) {
 		offset = nla_get_u8(info->attrs[JNLAR_OFFSET_U8]);
-		__log_debug(&jool, "Offset: [%u]", offset);
+		jnls_debug(state, "Offset: [%u]", offset);
 	}
 
-	error = globals_foreach(&jool.globals, xlator_get_type(&jool),
-			serialize_global, response.skb, offset);
-
-	error = jresponse_send_array(&jool, &response, error);
-	if (error)
-		goto revert_response;
-
-	request_handle_end(&jool);
-	return 0;
-
-revert_response:
-	jresponse_cleanup(&response);
-revert_start:
-	error = jresponse_send_simple(&jool, info, error);
-	request_handle_end(&jool);
-	return error;
+	jool = jnls_xlator(state);
+	return jnl_reply_array(state, globals_foreach(
+		&jool->globals,
+		xlator_get_type(jool),
+		serialize_global,
+		state,
+		offset
+	));
 }
 
 int handle_global_update(struct sk_buff *skb, struct genl_info *info)
 {
-	struct xlator jool;
+	struct jnl_state *state;
+	struct xlator *jool;
+	struct joolnlhdr *jhdr;
 	int error;
 
 	/*
@@ -101,38 +91,34 @@ int handle_global_update(struct sk_buff *skb, struct genl_info *info)
 	 * So let's STFU and do that.
 	 */
 
-	error = request_handle_start(info, XT_ANY, &jool, true);
+	error = jnl_start(&state, info, XT_ANY, true);
 	if (error)
-		return jresponse_send_simple(NULL, info, error);
+		return jnl_reply(state, error);
 
-	__log_debug(&jool, "Updating 'Global' value.");
+	jnls_debug(state, "Updating 'Global' value.");
 
 	if (!info->attrs[JNLAR_GLOBALS]) {
-		log_err("Request is missing a globals container.");
-		error = -EINVAL;
-		goto revert_start;
+		return jnl_reply(state, jnls_err(state,
+				"Request is missing a globals container."));
 	}
 
-	error = global_update(&jool.globals, get_jool_hdr(info)->xt,
-			get_jool_hdr(info)->flags & JOOLNLHDR_FLAGS_FORCE,
-			info->attrs[JNLAR_GLOBALS]);
+	jool = jnls_xlator(state);
+	jhdr = jnls_jhdr(state);
+	error = global_update(&jool->globals, jhdr->xt,
+			jhdr->flags & JOOLNLHDR_FLAGS_FORCE,
+			info->attrs[JNLAR_GLOBALS], state);
 	if (error)
-		goto revert_start;
+		return jnl_reply(state, error);
 
 	/*
 	 * Notice that this @jool is also a clone and we're the only thread
 	 * with access to it.
 	 */
-	error = xlator_replace(&jool);
-
-revert_start:
-	error = jresponse_send_simple(&jool, info, error);
-	request_handle_end(&jool);
-	return error;
+	return jnl_reply(state, xlator_replace(jool, state));
 }
 
 int global_update(struct jool_globals *cfg, xlator_type xt, bool force,
-		struct nlattr *root)
+		struct nlattr *root, struct jnl_state *state)
 {
 	const struct nla_policy *policy;
 	struct nlattr *attrs[JNLAG_COUNT];
@@ -147,12 +133,15 @@ int global_update(struct jool_globals *cfg, xlator_type xt, bool force,
 	case XT_NAT64:
 		policy = nat64_globals_policy;
 		break;
+	case XT_MAPT:
+		policy = mapt_globals_policy;
+		break;
 	default:
-		log_err(XT_VALIDATE_ERRMSG);
-		return -EINVAL;
+		return jnls_err(state, XT_VALIDATE_ERRMSG);
 	}
 
-	error = jnla_parse_nested(attrs, JNLAG_MAX, root, policy, "Globals Container");
+	error = jnla_parse_nested(attrs, JNLAG_MAX, root, policy,
+			"Globals Container", state);
 	if (error)
 		return error;
 
@@ -165,7 +154,7 @@ int global_update(struct jool_globals *cfg, xlator_type xt, bool force,
 
 		error = joolnl_global_nl2raw(meta, attrs[id],
 				joolnl_global_get(meta, cfg),
-				force);
+				force, state);
 		if (error)
 			return error;
 	}

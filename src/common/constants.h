@@ -96,7 +96,7 @@
 
 /* -- IPv6 Pool -- */
 
-#define WELL_KNOWN_PREFIX "64:ff9b::/96"
+#define TYPICAL_XLAT_PREFIXES "64:ff9b::/96 64:ff9b:1::/"
 
 /**
  * RFC 6052's allowed prefix lengths.

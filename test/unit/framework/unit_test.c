@@ -1,7 +1,14 @@
 #include "framework/unit_test.h"
 
 #include <linux/kernel.h>
+#include <linux/module.h>
 #include <net/ipv6.h>
+
+#include "framework/address.h"
+
+MODULE_LICENSE(JOOL_LICENSE);
+MODULE_AUTHOR("Alberto Leiva");
+MODULE_DESCRIPTION("Tools for Jool's unit tests");
 
 bool __ASSERT_ADDR4(const struct in_addr *expected,
 		const struct in_addr *actual,
@@ -11,7 +18,7 @@ bool __ASSERT_ADDR4(const struct in_addr *expected,
 		return true;
 
 	if (!expected || !actual || expected->s_addr != actual->s_addr) {
-		log_err("Test '%s' failed.", test_name);
+		pr_err("Test '%s' failed.\n", test_name);
 		pr_err("  Expected: %pI4\n", expected);
 		pr_err("  Actual  : %pI4\n", actual);
 		return false;
@@ -19,6 +26,7 @@ bool __ASSERT_ADDR4(const struct in_addr *expected,
 
 	return true;
 }
+EXPORT_SYMBOL_GPL(__ASSERT_ADDR4);
 
 bool ASSERT_ADDR4(char const *expected_str, struct in_addr const *actual,
 		char const *test_name)
@@ -32,6 +40,7 @@ bool ASSERT_ADDR4(char const *expected_str, struct in_addr const *actual,
 			? false
 			: __ASSERT_ADDR4(&expected, actual, test_name);
 }
+EXPORT_SYMBOL_GPL(ASSERT_ADDR4);
 
 bool ASSERT_PREFIX4(struct ipv4_prefix const *expected,
 		struct ipv4_prefix const *actual,
@@ -41,12 +50,12 @@ bool ASSERT_PREFIX4(struct ipv4_prefix const *expected,
 		return true;
 
 	if (!expected) {
-		log_err("Test '%s' failed.", test_name);
+		pr_err("Test '%s' failed.\n", test_name);
 		pr_err("  Expected: NULL\n");
 		pr_err("  Actual  : %pI4/%u\n", &actual->addr, actual->len);
 	}
 	if (!actual) {
-		log_err("Test '%s' failed.", test_name);
+		pr_err("Test '%s' failed.\n", test_name);
 		pr_err("  Expected: %pI4/%u\n", &expected->addr, expected->len);
 		pr_err("  Actual  : NULL\n");
 	}
@@ -54,6 +63,7 @@ bool ASSERT_PREFIX4(struct ipv4_prefix const *expected,
 	return __ASSERT_ADDR4(&expected->addr, &actual->addr, test_name)
 			&& ASSERT_UINT(expected->len, actual->len, "%s", test_name);
 }
+EXPORT_SYMBOL_GPL(ASSERT_PREFIX4);
 
 bool ASSERT_TADDR4(struct ipv4_transport_addr const *expected,
 		struct ipv4_transport_addr const *actual,
@@ -62,11 +72,12 @@ bool ASSERT_TADDR4(struct ipv4_transport_addr const *expected,
 	if (taddr4_equals(expected, actual))
 		return true;
 
-	log_err("Test '%s' failed.", test_name);
+	pr_err("Test '%s' failed.\n", test_name);
 	pr_err("  Expected: %pI4#%u\n", &expected->l3, expected->l4);
 	pr_err("  Actual  : %pI4#%u\n", &actual->l3, actual->l4);
 	return false;
 }
+EXPORT_SYMBOL_GPL(ASSERT_TADDR4);
 
 bool __ASSERT_ADDR6(struct in6_addr const *expected,
 		struct in6_addr const *actual,
@@ -76,13 +87,14 @@ bool __ASSERT_ADDR6(struct in6_addr const *expected,
 		return true;
 
 	if (!expected || !actual || ipv6_addr_cmp(expected, actual)) {
-		log_err("Test '%s' failed. Expected:%pI6c Actual:%pI6c",
+		pr_err("Test '%s' failed.\n  Expected: %pI6\n  Actual:   %pI6\n",
 				test_name, expected, actual);
 		return false;
 	}
 
 	return true;
 }
+EXPORT_SYMBOL_GPL(__ASSERT_ADDR6);
 
 bool ASSERT_ADDR6(char const *expected_str,
 		struct in6_addr const *actual,
@@ -93,10 +105,15 @@ bool ASSERT_ADDR6(char const *expected_str,
 	if (!expected_str)
 		return __ASSERT_ADDR6(NULL, actual, test_name);
 
-	return str_to_addr6(expected_str, &expected)
-			? false
-			: __ASSERT_ADDR6(&expected, actual, test_name);
+	if (str_to_addr6(expected_str, &expected)) {
+		pr_err("Test '%s' failed.\n  Cannot parse '%s' as an IPv6 address.\n",
+				test_name, expected_str);
+		return false;
+	}
+
+	return __ASSERT_ADDR6(&expected, actual, test_name);
 }
+EXPORT_SYMBOL_GPL(ASSERT_ADDR6);
 
 bool ASSERT_PREFIX6(struct ipv6_prefix const *expected,
 		struct ipv6_prefix const *actual,
@@ -106,12 +123,12 @@ bool ASSERT_PREFIX6(struct ipv6_prefix const *expected,
 		return true;
 
 	if (!expected) {
-		log_err("Test '%s' failed.", test_name);
+		pr_err("Test '%s' failed.\n", test_name);
 		pr_err("  Expected: NULL\n");
 		pr_err("  Actual  : %pI6c/%u\n", &actual->addr, actual->len);
 	}
 	if (!actual) {
-		log_err("Test '%s' failed.", test_name);
+		pr_err("Test '%s' failed.\n", test_name);
 		pr_err("  Expected: %pI6c/%u\n", &expected->addr, expected->len);
 		pr_err("  Actual  : NULL\n");
 	}
@@ -119,6 +136,7 @@ bool ASSERT_PREFIX6(struct ipv6_prefix const *expected,
 	return __ASSERT_ADDR6(&expected->addr, &actual->addr, test_name)
 			&& ASSERT_UINT(expected->len, actual->len, "%s", test_name);
 }
+EXPORT_SYMBOL_GPL(ASSERT_PREFIX6);
 
 bool ASSERT_TADDR6(struct ipv6_transport_addr const *expected,
 		struct ipv6_transport_addr const *actual,
@@ -127,12 +145,13 @@ bool ASSERT_TADDR6(struct ipv6_transport_addr const *expected,
 	if (taddr6_equals(expected, actual))
 		return true;
 
-	log_err("Test '%s' failed. Expected:%pI6c#%u Actual:%pI6c#%u",
+	pr_err("Test '%s' failed. Expected:%pI6c#%u Actual:%pI6c#%u\n",
 			test_name,
 			&expected->l3, expected->l4,
 			&actual->l3, actual->l4);
 	return false;
 }
+EXPORT_SYMBOL_GPL(ASSERT_TADDR6);
 
 #define TUPLE_KEY "%pI4#%u -> %pI4#%u [%u]"
 #define TUPLE_PRINT(tuple) &tuple->src.addr4.l3, tuple->src.addr4.l4, \
@@ -156,7 +175,7 @@ static bool ASSERT_TUPLE4(struct tuple const *expected,
 	return true;
 
 fail:
-	log_err("Test '%s' failed.", test_name);
+	pr_err("Test '%s' failed.\n", test_name);
 	if (expected)
 		pr_err("  Expected:" TUPLE_KEY "\n", TUPLE_PRINT(expected));
 	else
@@ -193,7 +212,7 @@ static bool ASSERT_TUPLE6(struct tuple const *expected,
 	return true;
 
 fail:
-	log_err("Test '%s' failed.", test_name);
+	pr_err("Test '%s' failed.\n", test_name);
 	if (expected)
 		pr_err("  Expected:" TUPLE_KEY "\n", TUPLE_PRINT(expected));
 	else
@@ -213,7 +232,7 @@ bool ASSERT_TUPLE(struct tuple const *expected,
 		char const *test_name)
 {
 	if (expected->l3_proto != actual->l3_proto) {
-		log_err("Test '%s' failed; Expected:%u Actual:%u", test_name,
+		pr_err("Test '%s' failed; Expected:%u Actual:%u\n", test_name,
 				expected->l3_proto, actual->l3_proto);
 		return false;
 	}
@@ -225,9 +244,10 @@ bool ASSERT_TUPLE(struct tuple const *expected,
 		return ASSERT_TUPLE6(expected, actual, test_name);
 	}
 
-	log_err("?");
+	pr_err("?\n");
 	return false;
 }
+EXPORT_SYMBOL_GPL(ASSERT_TUPLE);
 
 #define BIB_KEY "[BIB %pI4#%u %pI6c#%u]"
 #define BIB_PRINT(bib) &bib->addr4.l3, bib->addr4.l4, &bib->addr6.l3, bib->addr6.l4
@@ -240,13 +260,13 @@ bool ASSERT_BIB(struct bib_entry const* expected,
 		return true;
 
 	if (!expected) {
-		log_err("Test '%s' failed:", test_name);
+		pr_err("Test '%s' failed:\n", test_name);
 		pr_err("  Expected: NULL\n");
 		pr_err("  Actual  : " BIB_KEY "\n", BIB_PRINT(actual));
 		return false;
 	}
 	if (!actual) {
-		log_err("Test '%s' failed:", test_name);
+		pr_err("Test '%s' failed:\n", test_name);
 		pr_err("  Expected: " BIB_KEY "\n", BIB_PRINT(expected));
 		pr_err("  Actual  : NULL\n");
 		return false;
@@ -254,7 +274,7 @@ bool ASSERT_BIB(struct bib_entry const* expected,
 
 	if (!taddr4_equals(&expected->addr4, &actual->addr4)
 			|| !taddr6_equals(&expected->addr6, &actual->addr6)) {
-		log_err("Test '%s' failed:", test_name);
+		pr_err("Test '%s' failed:\n", test_name);
 		pr_err("  Expected: " BIB_KEY "\n", BIB_PRINT(expected));
 		pr_err("  Actual  : " BIB_KEY "\n", BIB_PRINT(actual));
 		return false;
@@ -262,6 +282,7 @@ bool ASSERT_BIB(struct bib_entry const* expected,
 
 	return true;
 }
+EXPORT_SYMBOL_GPL(ASSERT_BIB);
 
 #undef BIB_PRINT
 #undef BIB_KEY
@@ -296,7 +317,7 @@ bool ASSERT_SESSION(struct session_entry const *expected,
 	return true;
 
 fail:
-	log_err("Test '%s' failed.", test_name);
+	pr_err("Test '%s' failed.\n", test_name);
 	if (expected)
 		pr_err("  Expected:" SESSION_KEY "\n", SESSION_PRINT(expected));
 	else
@@ -307,27 +328,24 @@ fail:
 		pr_err("  Actual:  NULL\n");
 	return false;
 }
-
-void print_session(struct session_entry *session)
-{
-	pr_cont(SESSION_KEY, SESSION_PRINT(session));
-}
+EXPORT_SYMBOL_GPL(ASSERT_SESSION);
 
 #undef SESSION_PRINT
 #undef SESSION_KEY
 
 int test_group_begin(struct test_group *group)
 {
-	log_info("Module '%s': Starting tests...", group->name);
+	pr_info("Module '%s': Starting tests...\n\n", group->name);
 	return group->setup_fn ? group->setup_fn() : 0;
 }
+EXPORT_SYMBOL_GPL(test_group_begin);
 
 void test_group_test(struct test_group *group, bool (*test)(void),
 		char *name)
 {
 	bool success;
 
-	log_info("Test '%s': Starting...", name);
+	pr_info("Test '%s': Starting...\n", name);
 	group->test_counter++;
 
 	if (group->init_fn && group->init_fn()) {
@@ -342,23 +360,19 @@ void test_group_test(struct test_group *group, bool (*test)(void),
 	if (group->clean_fn)
 		group->clean_fn();
 
-	log_info("Test '%s': %s.\n", name, success ? "Success" : "Failure");
+	pr_info("Test '%s': %s.\n\n", name, success ? "Success" : "Failure");
 }
+EXPORT_SYMBOL_GPL(test_group_test);
 
 int test_group_end(struct test_group *group)
 {
 	if (group->teardown_fn)
 		group->teardown_fn();
 
-	log_info("Finished. Runs: %d; Errors: %d",
+	pr_info("Finished. Runs: %d; Errors: %d\n",
 			group->test_counter,
 			group->failure_counter);
 
 	return (group->failure_counter > 0) ? -EINVAL : 0;
 }
-
-int broken_unit_call(const char *function)
-{
-	WARN(true, "%s() was called! The unit test is broken.", function);
-	return -EINVAL;
-}
+EXPORT_SYMBOL_GPL(test_group_end);

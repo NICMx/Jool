@@ -10,7 +10,7 @@
 		typeof(expected) __expected = expected;			\
 		typeof(actual) __actual = actual;			\
 		if (__expected != __actual) {				\
-			log_err("Test '" name "' failed.", ##__VA_ARGS__); \
+			pr_err("Test '" name "' failed.\n", ##__VA_ARGS__); \
 			pr_err("  Expected: " specifier "\n", __expected);  \
 			pr_err("  Actual  : " specifier "\n", __actual); \
 		}							\
@@ -78,8 +78,6 @@ bool ASSERT_SESSION(struct session_entry const *expected,
 		struct session_entry const *actual,
 		char const *test_name);
 
-void print_session(struct session_entry *session);
-
 struct test_group {
 	char *name;
 
@@ -99,7 +97,5 @@ struct test_group {
 int test_group_begin(struct test_group *group);
 void test_group_test(struct test_group *group, bool (*test)(void), char *name);
 int test_group_end(struct test_group *group);
-
-int broken_unit_call(const char *function);
 
 #endif /* _JOOL_UNIT_TEST_H */

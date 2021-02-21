@@ -1,20 +1,13 @@
 #ifndef SRC_MOD_COMMON_ADDRESS_H_
 #define SRC_MOD_COMMON_ADDRESS_H_
 
-#include <linux/string.h>
 #include <net/ipv6.h>
 #include "common/types.h"
-
-int str_to_addr4(const char *str, struct in_addr *result);
-int str_to_addr6(const char *str, struct in6_addr *result);
 
 union transport_addr {
 	struct ipv6_transport_addr addr6;
 	struct ipv4_transport_addr addr4;
 };
-
-int prefix6_parse(char *str, struct ipv6_prefix *result);
-int prefix4_parse(char *str, struct ipv4_prefix *result);
 
 static inline bool addr4_equals(const struct in_addr *a,
 		const struct in_addr *b)
@@ -37,6 +30,7 @@ bool prefix4_equals(const struct ipv4_prefix *a, const struct ipv4_prefix *b);
 
 __u32 get_prefix4_mask(const struct ipv4_prefix *prefix);
 
+bool __prefix4_contains(const struct ipv4_prefix *prefix, __be32 addr);
 bool prefix4_contains(const struct ipv4_prefix *prefix,
 		const struct in_addr *addr);
 bool prefix6_contains(const struct ipv6_prefix *prefix,
@@ -47,14 +41,19 @@ bool prefix4_intersects(const struct ipv4_prefix *p1,
 
 __u64 prefix4_get_addr_count(const struct ipv4_prefix *prefix);
 
-int prefix4_validate(const struct ipv4_prefix *prefix);
-int prefix6_validate(const struct ipv6_prefix *prefix);
-int prefix4_validate_scope(struct ipv4_prefix *prefix, bool force);
-
 __u32 addr4_get_bit(const struct in_addr *addr, unsigned int pos);
 void addr4_set_bit(struct in_addr *addr, unsigned int pos, bool value);
 __u32 addr6_get_bit(const struct in6_addr *addr, unsigned int pos);
 void addr6_set_bit(struct in6_addr *addr, unsigned int pos, bool value);
+
+unsigned int addr4_get_bits(__be32 addr, unsigned int offset,
+		unsigned int len);
+unsigned int addr6_get_bits(struct in6_addr const *addr,
+		unsigned int offset, unsigned int len);
+void addr6_set_bits(struct in6_addr *addr, unsigned int offset,
+		unsigned int len, unsigned int value);
+void addr6_copy_bits(struct in6_addr *src, struct in6_addr *dst,
+		unsigned int offset, unsigned int len);
 
 /**
  * foreach_addr4 - iterate over prefix's addresses.
@@ -95,5 +94,6 @@ bool addr4_is_scope_subnet(const __be32 addr);
 bool prefix4_has_subnet_scope(struct ipv4_prefix *prefix,
 		struct ipv4_prefix *subnet);
 
+bool maprule_equals(struct mapping_rule *r1, struct mapping_rule *r2);
 
 #endif /* SRC_MOD_COMMON_ADDRESS_H_ */

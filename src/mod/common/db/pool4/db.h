@@ -8,10 +8,8 @@
  */
 
 #include <linux/net.h>
-#include "common/config.h"
-#include "mod/common/route.h"
-#include "mod/common/translation_state.h"
 #include "mod/common/types.h"
+#include "mod/common/nl/nl_common.h"
 
 struct pool4;
 
@@ -23,11 +21,12 @@ struct pool4 *pool4db_alloc(void);
 void pool4db_get(struct pool4 *pool);
 void pool4db_put(struct pool4 *pool);
 
-int pool4db_add(struct pool4 *pool, const struct pool4_entry *entry);
-int pool4db_update(struct pool4 *pool, const struct pool4_update *update);
+int pool4db_add(struct pool4 *pool, const struct pool4_entry *entry,
+		struct jnl_state *state);
 int pool4db_rm(struct pool4 *pool, const __u32 mark, enum l4_protocol proto,
-		struct ipv4_range *range);
-int pool4db_rm_usr(struct pool4 *pool, struct pool4_entry *entry);
+		struct ipv4_range *range, struct jnl_state *state);
+int pool4db_rm_usr(struct pool4 *pool, struct pool4_entry *entry,
+		struct jnl_state *state);
 void pool4db_flush(struct pool4 *pool);
 
 /*
@@ -40,7 +39,7 @@ bool pool4db_contains(struct pool4 *pool, struct net *ns,
 typedef int (*pool4db_foreach_entry_cb)(struct pool4_entry const *, void *);
 int pool4db_foreach_sample(struct pool4 *pool, l4_protocol proto,
 		pool4db_foreach_entry_cb cb, void *arg,
-		struct pool4_entry *offset);
+		struct pool4_entry *offset, struct jnl_state *state);
 
 struct mask_domain;
 

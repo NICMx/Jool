@@ -30,11 +30,15 @@ typedef unsigned int xlator_framework; /** Bitwise or'd XF_* constants below. */
 
 #define XT_SIIT (1 << 0)
 #define XT_NAT64 (1 << 1)
-#define XF_NETFILTER (1 << 2)
-#define XF_IPTABLES (1 << 3)
+#define XT_MAPT (1 << 2)
+#define XT_MASK (XT_SIIT | XT_NAT64 | XT_MAPT)
 
-#define XT_ANY (XT_SIIT | XT_NAT64)
-#define XF_ANY (XF_NETFILTER | XF_IPTABLES)
+#define XF_NETFILTER (1 << 3)
+#define XF_IPTABLES (1 << 4)
+#define XF_MASK (XF_NETFILTER | XF_IPTABLES)
+
+#define XT_ANY XT_MASK
+#define XF_ANY XF_MASK
 
 int xf_validate(xlator_framework xf);
 int xt_validate(xlator_type xt);
@@ -43,7 +47,7 @@ xlator_type xlator_flags2xt(xlator_flags flags);
 xlator_framework xlator_flags2xf(xlator_flags flags);
 
 #define XT_VALIDATE_ERRMSG \
-	"The instance type must be either SIIT or NAT64."
+	"The instance type must be either SIIT, NAT64 or MAP-T."
 #define XF_VALIDATE_ERRMSG \
 	"The instance framework must be either Netfilter or iptables."
 
@@ -222,5 +226,59 @@ void port_range_fuse(struct port_range *r1, const struct port_range *r2);
 
 bool ipv4_range_equals(struct ipv4_range const *r1, struct ipv4_range const *r2);
 bool ipv4_range_touches(struct ipv4_range const *r1, struct ipv4_range const *r2);
+
+/* For MAP-T */
+struct mapping_rule {
+	struct ipv6_prefix prefix6;
+	struct ipv4_prefix prefix4;
+	__u8 o; /* The EA-bits length, in bits. */
+
+	/*
+	 * Length of the Port-Restricted Port Field's "i" slice. (Also known as
+	 * the "A" slice.)
+	 * The RFCs have an unfortunate long name for "a": "PSID offset."
+	 * In my opinion, this is a poor choice because it only makes sense if
+	 * you're looking at the Port-Restricted Port Field diagram, and is very
+	 * confusing if you're looking at the MAP IPv6 Address Format diagram.
+	 * (`a` does not have anything to do with `n + p`.)
+	 *
+	 * Remember that k = q = o - p, and m = 16 - a - k.
+	 * So storing those fields would be redundant.
+	 *
+	 * Yes, I know the RFCs imply that `a` doesn't belong to mapping rules.
+	 * But let's be honest: Those RFCs are massive, massive trainwrecks.
+	 * In practice, there's no reason to force all mapping rules to share
+	 * the same `a`.
+	 *
+	 * You see, the RFCs have a massive problem in that the notion of a
+	 * "MAP domain" is not consistent through them. I've decided to go with
+	 * the version that makes sense to me, which is "each MAP domain has a
+	 * distinct BMR." According to that definition, it doesn't make sense to
+	 * force every connected MAP domain to have the same Port-Restricted
+	 * Port Field.
+	 */
+	__u8 a;
+};
+
+__u8 maprule_get_k(struct mapping_rule *rule);
+
+#ifdef __KERNEL__
+
+#ifdef UNIT_TESTING
+/* Exported so the unit test modules can manhandle them */
+#define EXPORT_UNIT_SYMBOL(symbol) EXPORT_SYMBOL_GPL(symbol);
+#define EXPORT_UNIT_STATIC
+#else
+#define EXPORT_UNIT_SYMBOL(symbol)
+/* Static only if not exported */
+#define EXPORT_UNIT_STATIC static
+#endif
+
+#else /* __KERNEL__ */
+
+#define EXPORT_UNIT_SYMBOL(symbol)
+#define EXPORT_UNIT_STATIC static
+
+#endif
 
 #endif /* SRC_COMMON_TYPES_H */

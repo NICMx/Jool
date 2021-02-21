@@ -218,7 +218,7 @@ struct jool_result nla_get_eam(struct nlattr *root, struct eamt_entry *out)
 	struct nlattr *attrs[JNLAE_COUNT];
 	struct jool_result result;
 
-	result = jnla_parse_nested(attrs, JNLAE_MAX, root, eam_policy);
+	result = jnla_parse_nested(attrs, JNLAE_MAX, root, joolnl_eam_policy);
 	if (result.error)
 		return result;
 
@@ -291,6 +291,38 @@ struct jool_result nla_get_session(struct nlattr *root, struct session_entry_usr
 	out->proto = nla_get_u8(attrs[JNLASE_PROTO]);
 	out->state = nla_get_u8(attrs[JNLASE_STATE]);
 	out->dying_time = nla_get_u32(attrs[JNLASE_EXPIRATION]);
+	return result_success();
+}
+
+struct jool_result nla_get_mapping_rule(struct nlattr *root,
+		struct config_mapping_rule *rule)
+{
+	struct nlattr *attrs[JNLAMR_COUNT];
+	struct jool_result result;
+
+	result.error = nla_parse_nested(attrs, JNLAMR_MAX, root, joolnl_mr_policy);
+	if (result.error) {
+		return result_from_error(
+			result.error,
+			"Could not parse a nested attribute in Jool's Netlink response: %s",
+			nl_geterror(result.error)
+		);
+	}
+
+	if (!attrs[JNLAMR_PREFIX4]) {
+		rule->set = false;
+		return result_success();
+	}
+
+	rule->set = true;
+	result = nla_get_prefix6(attrs[JNLAMR_PREFIX6], &rule->rule.prefix6);
+	if (result.error)
+		return result;
+	result = nla_get_prefix4(attrs[JNLAMR_PREFIX4], &rule->rule.prefix4);
+	if (result.error)
+		return result;
+	rule->rule.o = nla_get_u8(attrs[JNLAMR_EA_BITS_LENGTH]);
+	rule->rule.a = nla_get_u8(attrs[JNLAMR_a]);
 	return result_success();
 }
 
@@ -543,6 +575,37 @@ int nla_put_session(struct nl_msg *msg, int attrtype, struct session_entry_usr c
 	NLA_PUT_U8(msg, JNLASE_PROTO, entry->proto);
 	NLA_PUT_U8(msg, JNLASE_STATE, entry->state);
 	NLA_PUT_U32(msg, JNLASE_EXPIRATION, entry->dying_time);
+
+	nla_nest_end(msg, root);
+	return 0;
+
+nla_put_failure:
+	nla_nest_cancel(msg, root);
+	return -NLE_NOMEM;
+}
+
+int nla_put_mapping_rule(struct nl_msg *msg, int attrtype,
+		struct mapping_rule const *rule)
+{
+	struct nlattr *root;
+
+	root = jnla_nest_start(msg, attrtype);
+	if (!root)
+		return -NLE_NOMEM;
+
+	if (rule) {
+		if (nla_put_prefix6(msg, JNLAMR_PREFIX6, &rule->prefix6))
+			goto nla_put_failure;
+		if (nla_put_prefix4(msg, JNLAMR_PREFIX4, &rule->prefix4))
+			goto nla_put_failure;
+		if (nla_put_u8(msg, JNLAMR_EA_BITS_LENGTH, rule->o))
+			goto nla_put_failure;
+		if (nla_put_u8(msg, JNLAMR_a, rule->a))
+			goto nla_put_failure;
+	} else {
+		if (nla_put_prefix6(msg, JNLAMR_PREFIX6, NULL))
+			goto nla_put_failure;
+	}
 
 	nla_nest_end(msg, root);
 	return 0;

@@ -2,9 +2,10 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 
+#include "framework/address.h"
 #include "framework/types.h"
 #include "framework/unit_test.h"
-#include "mod/common/db/eam.c"
+#include "mod/common/db/eam.h"
 
 MODULE_LICENSE(JOOL_LICENSE);
 MODULE_AUTHOR("dhernandez");
@@ -37,10 +38,10 @@ static int __add_entry(char *addr4, __u8 len4, char *addr6, __u8 len6)
 		return false;
 	new.prefix6.len = len6;
 
-	error = eamt_add(eamt, &new, true);
+	error = eamt_add(eamt, &new, true, NULL);
 	/*
 	if (error) {
-		log_err("Errcode %d; I'm not going to print the tree.", error);
+		pr_err("Errcode %d; I'm not going to print the tree.\n", error);
 	} else {
 		rtrie_print(eamt.tree6);
 	}
@@ -82,7 +83,7 @@ static bool add_test(void)
 static bool add_entry(char *addr4, __u8 len4, char *addr6, __u8 len6)
 {
 	if (__add_entry(addr4, len4, addr6, len6)) {
-		log_err("The call to eamt_add() failed.");
+		pr_err("The call to eamt_add() failed.\n");
 		return false;
 	}
 
@@ -239,7 +240,7 @@ static bool remove_entry(char *addr4, __u8 len4, char *addr6, __u8 len6,
 	int error;
 
 	if (!addr4 && !addr6) {
-		log_err("Both addr4 and addr6 are NULL.");
+		pr_err("Both addr4 and addr6 are NULL.\n");
 		return false;
 	}
 
@@ -255,7 +256,8 @@ static bool remove_entry(char *addr4, __u8 len4, char *addr6, __u8 len6,
 		prefix6.len = len6;
 	}
 
-	error = eamt_rm(eamt, addr6 ? &prefix6 : NULL, addr4 ? &prefix4 : NULL);
+	error = eamt_rm(eamt, addr6 ? &prefix6 : NULL, addr4 ? &prefix4 : NULL,
+			NULL);
 	success = ASSERT_INT(expected_error, error, "removing EAM entry");
 
 	/* rtrie_print(eamt.tree6); */
@@ -343,10 +345,6 @@ static bool remove_test(void)
 	success &= remove_entry(NULL, 0, "3::0", 120, 0);
 	success &= test_6to4("3::", NULL);
 	success &= test_4to6("30.0.0.0", NULL);
-
-	success &= ASSERT_U64(0ULL, eamt->count, "Table count");
-	if (!success)
-		return false;
 
 	/* trie is two nodes high */
 	success &= create_two_story_trie();

@@ -1,5 +1,7 @@
 #include "framework/types.h"
 
+#include "framework/address.h"
+
 int init_tuple4(struct tuple *tuple4, char *src_addr, u16 src_port,
 		char *dst_addr, u16 dst_port, l4_protocol l4_proto)
 {
@@ -20,6 +22,7 @@ int init_tuple4(struct tuple *tuple4, char *src_addr, u16 src_port,
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(init_tuple4);
 
 int init_tuple6(struct tuple *tuple6, char *src_addr, u16 src_port,
 		char *dst_addr, u16 dst_port, l4_protocol l4_proto)
@@ -41,3 +44,5 @@ int init_tuple6(struct tuple *tuple6, char *src_addr, u16 src_port,
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(init_tuple6);
+

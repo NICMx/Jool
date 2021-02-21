@@ -101,4 +101,8 @@ int rtrie_foreach(struct rtrie *trie,
 		rtrie_foreach_cb cb, void *arg,
 		struct rtrie_key *offset);
 
+#define RTRIE_INIT_KEY(ptr, length) { .bytes = (__u8 *)(ptr), .len = length }
+#define RTRIE_ADDR_TO_KEY(addr)     RTRIE_INIT_KEY(addr, 8 * sizeof(*addr))
+#define RTRIE_PREFIX_TO_KEY(prefix) RTRIE_INIT_KEY(&(prefix)->addr, (prefix)->len)
+
 #endif /* SRC_MOD_COMMON_RTRIE_H_ */

@@ -9,24 +9,6 @@ static inline bool state_debug(struct xlation const *state)
 	return state && state->jool.globals.debug;
 }
 
-static inline bool xlator_debug(struct xlator const *instance)
-{
-	return instance && instance->globals.debug;
-}
-
-/**
- * Messages to help us walk through a run. Also covers normal packet drops
- * (because users catch those from stats instead) and some failed memory
- * allocations (because the kernel already prints those).
- */
-#ifdef UNIT_TESTING
-
-#define log_debug(trash, f, ...) pr_debug(f, ##__VA_ARGS__)
-#define __log_debug log_debug
-#define ____log_debug log_debug
-
-#else
-
 #define JOOL_DEBUG(instance, text, ...) \
 	pr_info("Jool %s/%lx/%s: " text "\n", \
 			xt2str(xlator_get_type(instance)), \
@@ -34,6 +16,11 @@ static inline bool xlator_debug(struct xlator const *instance)
 			(instance)->iname, \
 			##__VA_ARGS__)
 
+/**
+ * Messages to help us walk through a run. Also covers normal packet drops
+ * (because users catch those from stats instead) and some failed memory
+ * allocations (because the kernel already prints those).
+ */
 #define log_debug(state, text, ...)					\
 	do {								\
 		if (state_debug(state))					\
@@ -41,7 +28,7 @@ static inline bool xlator_debug(struct xlator const *instance)
 	} while (0)
 #define __log_debug(jool, text, ...)					\
 	do {								\
-		if (xlator_debug(jool))					\
+		if (jool && jool->globals.debug)			\
 			JOOL_DEBUG(jool, text, ##__VA_ARGS__);		\
 	} while (0)
 #define ____log_debug(cond, text, ...)					\
@@ -49,8 +36,6 @@ static inline bool xlator_debug(struct xlator const *instance)
 		if (cond)						\
 			pr_info("Jool: " text "\n", ##__VA_ARGS__);	\
 	} while (0)
-
-#endif
 
 /*
  * Debug messages not associated with an instance. They need JOOL_FLAGS=-DDEBUG.
@@ -89,20 +74,6 @@ static inline bool xlator_debug(struct xlator const *instance)
 			__last_log = jiffies; \
 		} \
 	} while (0)
-
-/**
- * "Your configuration cannot be applied, user."
- * log_warn_once() signals errors while processing packets. log_err() signals
- * errors while processing user requests.
- * I the code found a **programming** error, use WARN() or its variations
- * instead.
- */
-#ifdef UNIT_TESTING
-#define log_err(text, ...) \
-	pr_err("Jool ERROR (%s): " text "\n", __func__, ##__VA_ARGS__)
-#else
-void log_err(const char *format, ...) __attribute__((format(printf, 1, 2)));
-#endif
 
 /**
  * Used when a developer wants to print a debug message, but this message would

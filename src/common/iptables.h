@@ -5,6 +5,7 @@
 
 #define IPTABLES_SIIT_MODULE_NAME "JOOL_SIIT"
 #define IPTABLES_NAT64_MODULE_NAME "JOOL"
+#define IPTABLES_MAPT_MODULE_NAME "JOOL_MAPT"
 
 /* Mind alignment on this structure. */
 struct target_info {

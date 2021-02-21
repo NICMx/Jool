@@ -1,9 +1,9 @@
 #include "common/global.h"
 
 #ifdef __KERNEL__
-#include "mod/common/address.h"
 #include "mod/common/log.h"
 #include "mod/common/nl/attribute.h"
+#include "mod/common/nl/nl_common.h"
 #include "mod/common/db/global.h"
 #else
 #include <stddef.h>
@@ -23,9 +23,11 @@ typedef int (*joolnl_global_raw2nl_fn)(
 	struct sk_buff *
 );
 typedef int (*joolnl_global_nl2raw_fn)(
+	struct joolnl_global_meta const *,
 	struct nlattr *,
 	void *,
-	bool
+	bool,
+	struct jnl_state *
 );
 
 #else
@@ -71,7 +73,7 @@ struct joolnl_global_meta {
 	size_t offset;
 	xlator_type xt;
 #ifdef __KERNEL__
-	joolnl_global_nl2raw_fn nl2raw; /* Overridets type->nl2raw. */
+	joolnl_global_nl2raw_fn nl2raw; /* Overrides type->nl2raw. */
 #else
 	joolnl_global_print_fn print; /* Overrides type->print. */
 #endif
@@ -119,169 +121,225 @@ static int raw2nl_prefix4(struct joolnl_global_meta const *meta, void *raw,
 			prefix4->set ? &prefix4->prefix : NULL);
 }
 
-static int nl2raw_bool(struct nlattr *attr, void *raw, bool force)
+static int raw2nl_mapping_rule(struct joolnl_global_meta const *meta, void *raw,
+		struct sk_buff *skb)
+{
+	return jnla_put_mapping_rule(skb, meta->id, raw);
+}
+
+static int nl2raw_bool(struct joolnl_global_meta const *meta,
+		struct nlattr *attr, void *raw, bool force,
+		struct jnl_state *state)
 {
 	*((bool *)raw) = nla_get_u8(attr);
 	return 0;
 }
 
-static int nl2raw_u8(struct nlattr *attr, void *raw, bool force)
+static int nl2raw_u8(struct joolnl_global_meta const *meta,
+		struct nlattr *attr, void *raw, bool force,
+		struct jnl_state *state)
 {
 	*((__u8 *)raw) = nla_get_u8(attr);
 	return 0;
 }
 
-static int nl2raw_u32(struct nlattr *attr, void *raw, bool force)
+static int nl2raw_u32(struct joolnl_global_meta const *meta,
+		struct nlattr *attr, void *raw, bool force,
+		struct jnl_state *state)
 {
 	*((__u32 *)raw) = nla_get_u32(attr);
 	return 0;
 }
 
-static int nl2raw_plateaus(struct nlattr *attr, void *raw, bool force)
+static int nl2raw_plateaus(struct joolnl_global_meta const *meta,
+		struct nlattr *attr, void *raw, bool force,
+		struct jnl_state *state)
 {
-	return jnla_get_plateaus(attr, raw);
+	return jnla_get_plateaus(attr, raw, state);
 }
 
-static int validate_prefix6791v4(struct config_prefix4 *prefix, bool force)
+static int validate_prefix6791v4(struct config_prefix4 *prefix, bool force,
+		struct jnl_state *state)
 {
 	int error;
 
 	if (!prefix->set)
 		return 0;
 
-	error = prefix4_validate(&prefix->prefix);
+	error = prefix4_validate(&prefix->prefix, state);
 	if (error)
 		return error;
 
-	return prefix4_validate_scope(&prefix->prefix, force);
+	return prefix4_validate_scope(&prefix->prefix, force, state);
 }
 
-static int nl2raw_pool6(struct nlattr *attr, void *raw, bool force)
+static int nl2raw_pool6(struct joolnl_global_meta const *meta,
+		struct nlattr *attr, void *raw, bool force,
+		struct jnl_state *state)
 {
 	struct config_prefix6 *prefix = raw;
 	int error;
 
-	error = jnla_get_prefix6_optional(attr, "pool6", prefix);
+	error = jnla_get_prefix6_optional(attr, meta->name, prefix, state);
 	if (error)
 		return error;
 
-	return pool6_validate(prefix, force);
+	return pool6_validate(prefix, force, state);
 }
 
-static int nl2raw_pool6791v6(struct nlattr *attr, void *raw, bool force)
+static int nl2raw_prefix6(struct joolnl_global_meta const *meta,
+		struct nlattr *attr, void *raw, bool force,
+		struct jnl_state *state)
 {
 	struct config_prefix6 *prefix = raw;
 	int error;
 
-	error = jnla_get_prefix6_optional(attr, "RFC 6791 prefix v6", prefix);
+	error = jnla_get_prefix6_optional(attr, meta->name, prefix, state);
 	if (error)
 		return error;
 
-	return prefix->set ? prefix6_validate(&prefix->prefix) : 0;
+	return prefix->set ? prefix6_validate(&prefix->prefix, state) : 0;
 }
 
-static int nl2raw_pool6791v4(struct nlattr *attr, void *raw, bool force)
+static int nl2raw_pool6791v4(struct joolnl_global_meta const *meta,
+		struct nlattr *attr, void *raw, bool force,
+		struct jnl_state *state)
 {
 	struct config_prefix4 *prefix = raw;
 	int error;
 
-	error = jnla_get_prefix4_optional(attr, "RFC 6791 prefix v4", prefix);
+	error = jnla_get_prefix4_optional(attr, meta->name, prefix, state);
 	if (error)
 		return error;
 
-	return validate_prefix6791v4(prefix, force);
+	return validate_prefix6791v4(prefix, force, state);
 }
 
-static int nl2raw_lowest_ipv6_mtu(struct nlattr *attr, void *raw, bool force)
+static int nl2raw_lowest_ipv6_mtu(struct joolnl_global_meta const *meta,
+		struct nlattr *attr, void *raw, bool force,
+		struct jnl_state *state)
 {
 	__u32 lim;
 
 	lim = nla_get_u32(attr);
 	if (lim < 1280) {
-		log_err("lowest-ipv6-mtu (%u) is too small (min: 1280).", lim);
-		return -EINVAL;
+		return jnls_err(
+			state,
+			"%s (%u) is too small (min: 1280).",
+			meta->name, lim
+		);
 	}
 
 	*((__u32 *)raw) = lim;
 	return 0;
 }
 
-static int nl2raw_hairpin_mode(struct nlattr *attr, void *raw, bool force)
+static int nl2raw_hairpin_mode(struct joolnl_global_meta const *meta,
+		struct nlattr *attr, void *raw, bool force,
+		struct jnl_state *state)
 {
 	__u8 mode;
 
 	mode = nla_get_u8(attr);
-	if (mode != EHM_OFF && mode != EHM_SIMPLE && mode != EHM_INTRINSIC) {
-		log_err("Unknown hairpinning mode: %u", mode);
-		return -EINVAL;
-	}
+	if (mode != EHM_OFF && mode != EHM_SIMPLE && mode != EHM_INTRINSIC)
+		return jnls_err(state, "Unknown hairpinning mode: %u", mode);
 
 	*((__u8 *)raw) = mode;
 	return 0;
 }
 
-static int validate_timeout(const char *what, __u32 timeout, unsigned int min)
+static int nl2raw_maptype(struct joolnl_global_meta const *meta,
+		struct nlattr *attr, void *raw, bool force,
+		struct jnl_state *state)
+{
+	__u8 type;
+
+	type = nla_get_u8(attr);
+	if (type != MAPTYPE_BR && type != MAPTYPE_CE)
+		return jnls_err(state, "Unknown MAP-T type: %u", type);
+
+	*((__u8 *)raw) = type;
+	return 0;
+}
+
+static int validate_timeout(const char *what, __u32 timeout, unsigned int min,
+		struct jnl_state *state)
 {
 	if (timeout < min) {
-		log_err("The '%s' timeout (%u) is too small. (min: %u)", what,
-				timeout, min);
-		return -EINVAL;
+		return jnls_err(state,
+				"The '%s' timeout (%u) is too small. (min: %u)",
+				what, timeout, min);
 	}
 
 	return 0;
 }
 
-static int nl2raw_ttl_udp(struct nlattr *attr, void *raw, bool force)
+static int nl2raw_ttl_udp(struct joolnl_global_meta const *meta,
+		struct nlattr *attr, void *raw, bool force,
+		struct jnl_state *state)
 {
 	__u32 ttl;
 	int error;
 
 	ttl = nla_get_u32(attr);
-	error = validate_timeout("udp", ttl, 1000 * UDP_MIN);
+	error = validate_timeout(meta->name, ttl, 1000 * UDP_MIN, state);
 	if (!error)
 		*((__u32 *)raw) = ttl;
 
 	return error;
 }
 
-static int nl2raw_ttl_tcp_est(struct nlattr *attr, void *raw, bool force)
+static int nl2raw_ttl_tcp_est(struct joolnl_global_meta const *meta,
+		struct nlattr *attr, void *raw, bool force,
+		struct jnl_state *state)
 {
 	__u32 ttl;
 	int error;
 
 	ttl = nla_get_u32(attr);
-	error = validate_timeout("tcp-est", ttl, 1000 * TCP_EST);
+	error = validate_timeout(meta->name, ttl, 1000 * TCP_EST, state);
 	if (!error)
 		*((__u32 *)raw) = ttl;
 
 	return error;
 }
 
-static int nl2raw_ttl_tcp_trans(struct nlattr *attr, void *raw, bool force)
+static int nl2raw_ttl_tcp_trans(struct joolnl_global_meta const *meta,
+		struct nlattr *attr, void *raw, bool force,
+		struct jnl_state *state)
 {
 	__u32 ttl;
 	int error;
 
 	ttl = nla_get_u32(attr);
-	error = validate_timeout("tcp-trans", ttl, 1000 * TCP_TRANS);
+	error = validate_timeout(meta->name, ttl, 1000 * TCP_TRANS, state);
 	if (!error)
 		*((__u32 *)raw) = ttl;
 
 	return error;
 }
 
-static int nl2raw_f_args(struct nlattr *attr, void *raw, bool force)
+static int nl2raw_f_args(struct joolnl_global_meta const *meta,
+		struct nlattr *attr, void *raw, bool force,
+		struct jnl_state *state)
 {
 	__u8 f_args;
 
 	f_args = nla_get_u8(attr);
 	if (f_args > 0x0Fu) {
-		log_err("f-args (%u) is out of range. (0-%u)", f_args, 0x0Fu);
-		return -EINVAL;
+		return jnls_err(state, "%s (%u) is out of range. (0-%u)",
+				meta->name, f_args, 0x0Fu);
 	}
 
 	*((__u8 *)raw) = f_args;
 	return 0;
+}
+
+static int nl2raw_mapping_rule(struct joolnl_global_meta const *meta,
+		struct nlattr *attr, void *raw, bool force,
+		struct jnl_state *state)
+{
+	return jnla_get_mapping_rule(attr, meta->name, raw, state);
 }
 
 #else
@@ -337,15 +395,10 @@ static void print_plateaus(void *value, bool csv)
 		printf("\"");
 }
 
-static void print_prefix(int af, const void *addr, __u8 len, bool set, bool csv)
+static void __print_prefix(int af, const void *addr, __u8 len)
 {
 	const char *str;
 	char buffer[INET6_ADDRSTRLEN];
-
-	if (!set) {
-		printf("%s", csv ? "" : "(unset)");
-		return;
-	}
 
 	str = inet_ntop(af, addr, buffer, sizeof(buffer));
 	if (str)
@@ -354,6 +407,17 @@ static void print_prefix(int af, const void *addr, __u8 len, bool set, bool csv)
 		perror("inet_ntop");
 }
 
+static void print_prefix(int af, const void *addr, __u8 len, bool set, bool csv)
+{
+	if (!set) {
+		printf("%s", csv ? "" : "(unset)");
+		return;
+	}
+
+	__print_prefix(af, addr, len);
+}
+
+/* Remember that @value is a config_prefix6, not an ipv6_prefix. */
 static void print_prefix6(void *value, bool csv)
 {
 	struct config_prefix6 *prefix = value;
@@ -361,6 +425,7 @@ static void print_prefix6(void *value, bool csv)
 			prefix->set, csv);
 }
 
+/* Remember that @value is a config_prefix4, not an ipv4_prefix. */
 static void print_prefix4(void *value, bool csv)
 {
 	struct config_prefix4 *prefix = value;
@@ -385,6 +450,20 @@ static void print_hairpin_mode(void *value, bool csv)
 	printf("unknown");
 }
 
+static void print_maptype(void *value, bool csv)
+{
+	switch (*((__u8 *)value)) {
+	case MAPTYPE_BR:
+		printf("BR");
+		return;
+	case MAPTYPE_CE:
+		printf("CE");
+		return;
+	}
+
+	printf("unknown");
+}
+
 static void print_fargs(void *value, bool csv)
 {
 	__u8 uvalue = *((__u8 *)value);
@@ -403,6 +482,40 @@ static void print_fargs(void *value, bool csv)
 	printf("SrcPort:%u ", (uvalue >> 2) & 1);
 	printf("DstAddr:%u ", (uvalue >> 1) & 1);
 	printf("DstPort:%u",  (uvalue >> 0) & 1);
+}
+
+static void __print_prefix6(struct ipv6_prefix *prefix)
+{
+	__print_prefix(AF_INET6, &prefix->addr, prefix->len);
+}
+
+static void __print_prefix4(struct ipv4_prefix *prefix)
+{
+	__print_prefix(AF_INET, &prefix->addr, prefix->len);
+}
+
+static void print_mapping_rule(void *value, bool csv)
+{
+	struct config_mapping_rule *_rule = value;
+	struct mapping_rule *rule;
+
+	if (!_rule->set) {
+		printf("%s", csv ? "" : "(unset)");
+		return;
+	}
+
+	rule = &_rule->rule;
+	if (csv) {
+		__print_prefix6(&rule->prefix6);
+		printf(",");
+		__print_prefix4(&rule->prefix4);
+		printf(",%u,%u", rule->o, rule->a);
+	} else {
+		__print_prefix6(&rule->prefix6);
+		printf(" ");
+		__print_prefix4(&rule->prefix4);
+		printf(" %u %u", rule->o, rule->a);
+	}
 }
 
 static struct jool_result nl2raw_bool(struct nlattr *attr, void *raw)
@@ -462,6 +575,11 @@ static struct jool_result nl2raw_prefix4(struct nlattr *attr, void *raw)
 	}
 
 	return result;
+}
+
+static struct jool_result nl2raw_mapping_rule(struct nlattr *attr, void *raw)
+{
+	return nla_get_mapping_rule(attr, raw);
 }
 
 static struct jool_result str2nl_bool(enum joolnl_attr_global id,
@@ -599,6 +717,84 @@ static struct jool_result str2nl_hairpin_mode(enum joolnl_attr_global id,
 			: result_success();
 }
 
+static struct jool_result str2nl_maptype(enum joolnl_attr_global id,
+		char const *str, struct nl_msg *msg)
+{
+	__u8 mode;
+
+	if (strcmp(str, "BR") == 0)
+		mode = MAPTYPE_BR;
+	else if (strcmp(str, "CE") == 0)
+		mode = MAPTYPE_CE;
+	else return result_from_error(
+		-EINVAL,
+		"'%s' cannot be parsed as a MAP-T type.\n"
+		"Available options: BR, CE", str
+	);
+
+	return (nla_put_u8(msg, id, mode) < 0)
+			? joolnl_err_msgsize()
+			: result_success();
+}
+
+static struct jool_result str2nl_mapping_rule(enum joolnl_attr_global id,
+		char const *str, struct nl_msg *msg)
+{
+	char *str_copy, *token, *saveptr;
+	unsigned int fields;
+	struct mapping_rule rule, *rule_ptr;
+	struct jool_result result;
+
+	if (strcmp(str, "null") == 0) {
+		rule_ptr = NULL;
+		goto end;
+	}
+
+	str_copy = strdup(str);
+	if (!str_copy)
+		return result_from_enomem();
+
+	rule.a = 6u;
+	for (
+		token = strtok_r(str_copy, " \t", &saveptr), fields = 0;
+		token;
+		token = strtok_r(NULL, " \t", &saveptr), fields++
+	) {
+		switch (fields) {
+		case 0:
+			result = str_to_prefix6(token, &rule.prefix6);
+			break;
+		case 1:
+			result = str_to_prefix4(token, &rule.prefix4);
+			break;
+		case 2:
+			result = str_to_u8(token, &rule.o, 48);
+			break;
+		case 3:
+			result = str_to_u8(token, &rule.a, 16);
+			break;
+		default:
+			return result_from_error(-EINVAL, "Too many arguments. Expected: <IPv6 Prefix> <IPv4 Prefix> <EA-bits length> [<a>]");
+		}
+
+		if (result.error)
+			return result;
+	}
+
+	if (fields < 3)
+		return result_from_error(-EINVAL, "Not enough arguments. Expected: <IPv6 Prefix> <IPv4 Prefix> <EA-bits length> [<a>]");
+
+	rule_ptr = &rule;
+	/* Fall through */
+
+end:
+	result.error = nla_put_mapping_rule(msg, id, rule_ptr);
+	if (result.error)
+		return joolnl_err_msgsize();
+
+	return result_success();
+}
+
 static struct jool_result json2nl_bool(struct joolnl_global_meta const *meta,
 		cJSON *json, struct nl_msg *msg)
 {
@@ -617,18 +813,24 @@ static struct jool_result json2nl_bool(struct joolnl_global_meta const *meta,
 	return type_mismatch(json->string, json, "boolean");
 }
 
-static struct jool_result json2nl_u8(struct joolnl_global_meta const *meta,
-		cJSON *json, struct nl_msg *msg)
+static struct jool_result __json2nl_u8(cJSON *json, struct nl_msg *msg,
+		unsigned int key)
 {
 	struct jool_result result;
 
-	result = validate_uint(json->string, json, 0, 255);
+	result = validate_uint(json->string, json, 0, MAX_U8);
 	if (result.error)
 		return result;
-	if (nla_put_u8(msg, meta->id, json->valueuint) < 0)
+	if (nla_put_u8(msg, key, json->valueuint) < 0)
 		return joolnl_err_msgsize();
 
 	return result_success();
+}
+
+static struct jool_result json2nl_u8(struct joolnl_global_meta const *meta,
+		cJSON *json, struct nl_msg *msg)
+{
+	return __json2nl_u8(json, msg, meta->id);
 }
 
 static struct jool_result json2nl_u32(struct joolnl_global_meta const *meta,
@@ -684,6 +886,98 @@ static struct jool_result json2nl_plateaus(struct joolnl_global_meta const *meta
 	return result_success();
 }
 
+static struct jool_result j2n_prefix6(cJSON *json, struct nl_msg *msg,
+		unsigned int key)
+{
+	struct ipv6_prefix prefix;
+	struct jool_result result;
+
+	if (json->type != cJSON_String)
+		return type_mismatch(json->string, json, "String");
+	result = str_to_prefix6(json->valuestring, &prefix);
+	if (result.error)
+		return result;
+	if (nla_put_prefix6(msg, key, &prefix) < 0)
+		return joolnl_err_msgsize();
+
+	return result_success();
+}
+
+static struct jool_result j2n_prefix4(cJSON *json, struct nl_msg *msg,
+		unsigned int key)
+{
+	struct ipv4_prefix prefix;
+	struct jool_result result;
+
+	if (json->type != cJSON_String)
+		return type_mismatch(json->string, json, "String");
+	result = str_to_prefix4(json->valuestring, &prefix);
+	if (result.error)
+		return result;
+	if (nla_put_prefix4(msg, key, &prefix) < 0)
+		return joolnl_err_msgsize();
+
+	return result_success();
+}
+
+static struct jool_result j2n_mapping_rule(cJSON *json, struct nl_msg *msg,
+		unsigned int key)
+{
+	struct nlattr *root;
+	cJSON *child;
+	struct jool_result result;
+
+	if (json->type == cJSON_NULL) {
+		root = jnla_nest_start(msg, key);
+		if (!root)
+			return joolnl_err_msgsize();
+
+		if (nla_put_prefix6(msg, JNLAMR_PREFIX6, NULL) < 0) {
+			nla_nest_cancel(msg, root);
+			return joolnl_err_msgsize();
+		}
+
+		nla_nest_end(msg, root);
+		return result_success();
+	}
+
+	if (json->type != cJSON_Object)
+		return type_mismatch(json->string, json, "Object");
+
+	root = jnla_nest_start(msg, key);
+	if (!root)
+		return joolnl_err_msgsize();
+
+	for (child = json->child; child; child = child->next) {
+		if (strcasecmp(child->string, "comment") == 0)
+			result = result_success(); /* Skip */
+		else if (strcasecmp(child->string, "IPv6 Prefix") == 0)
+			result = j2n_prefix6(child, msg, JNLAMR_PREFIX6);
+		else if (strcasecmp(child->string, "IPv4 Prefix") == 0)
+			result = j2n_prefix4(child, msg, JNLAMR_PREFIX4);
+		else if (strcasecmp(child->string, "EA-bits length") == 0)
+			result = __json2nl_u8(child, msg, JNLAMR_EA_BITS_LENGTH);
+		else if (strcasecmp(child->string, "a") == 0)
+			result = __json2nl_u8(child, msg, JNLAMR_a);
+		else
+			result = result_from_error(-EINVAL, "Unknown tag: '%s'", child->string);
+
+		if (result.error) {
+			nla_nest_cancel(msg, root);
+			return result;
+		}
+	}
+
+	nla_nest_end(msg, root);
+	return result_success();
+}
+
+static struct jool_result json2nl_mapping_rule(struct joolnl_global_meta const *meta,
+		cJSON *json, struct nl_msg *msg)
+{
+	return j2n_mapping_rule(json, msg, meta->id);
+}
+
 #endif
 
 #ifdef __KERNEL__
@@ -735,7 +1029,7 @@ static struct joolnl_global_type gt_plateaus = {
 
 static struct joolnl_global_type gt_prefix6 = {
 	.name = "IPv6 prefix",
-	KERNEL_FUNCTIONS(raw2nl_prefix6, NULL)
+	KERNEL_FUNCTIONS(raw2nl_prefix6, nl2raw_prefix6)
 	USERSPACE_FUNCTIONS(print_prefix6, str2nl_prefix6, json2nl_string, nl2raw_prefix6)
 };
 
@@ -750,6 +1044,19 @@ static struct joolnl_global_type gt_hairpin_mode = {
 	.candidates = "off simple intrinsic",
 	KERNEL_FUNCTIONS(raw2nl_u8, nl2raw_hairpin_mode)
 	USERSPACE_FUNCTIONS(print_hairpin_mode, str2nl_hairpin_mode, json2nl_string, nl2raw_u8)
+};
+
+static struct joolnl_global_type gt_maptype = {
+	.name = "MAP-T type",
+	.candidates = "CE BR",
+	KERNEL_FUNCTIONS(raw2nl_u8, nl2raw_maptype)
+	USERSPACE_FUNCTIONS(print_maptype, str2nl_maptype, json2nl_string, nl2raw_u8)
+};
+
+static struct joolnl_global_type gt_mapping_rule = {
+	.name = "MAP-T Mapping Rule",
+	KERNEL_FUNCTIONS(raw2nl_mapping_rule, nl2raw_mapping_rule)
+	USERSPACE_FUNCTIONS(print_mapping_rule, str2nl_mapping_rule, json2nl_mapping_rule, nl2raw_mapping_rule)
 };
 
 static const struct joolnl_global_meta globals_metadata[] = {
@@ -767,7 +1074,7 @@ static const struct joolnl_global_meta globals_metadata[] = {
 		.doc = "The IPv6 Address Pool prefix.",
 		.offset = offsetof(struct jool_globals, pool6),
 		.xt = XT_ANY,
-		.candidates = WELL_KNOWN_PREFIX,
+		.candidates = TYPICAL_XLAT_PREFIXES,
 #ifdef __KERNEL__
 		.nl2raw = nl2raw_pool6,
 #endif
@@ -836,25 +1143,22 @@ static const struct joolnl_global_meta globals_metadata[] = {
 		.name = "randomize-rfc6791-addresses",
 		.type = &gt_bool,
 		.doc = "Randomize selection of address from the RFC6791 pool? Otherwise choose the 'Hop Limit'th address.",
-		.offset = offsetof(struct jool_globals, siit.randomize_error_addresses),
+		.offset = offsetof(struct jool_globals, randomize_error_addresses),
 		.xt = XT_SIIT,
 	}, {
 		.id = JNLAG_POOL6791V6,
 		.name = "rfc6791v6-prefix",
 		.type = &gt_prefix6,
 		.doc = "IPv6 prefix to generate RFC6791v6 addresses from.",
-		.offset = offsetof(struct jool_globals, siit.rfc6791_prefix6),
-		.xt = XT_SIIT,
-#ifdef __KERNEL__
-		.nl2raw = nl2raw_pool6791v6,
-#endif
+		.offset = offsetof(struct jool_globals, rfc6791_prefix6),
+		.xt = XT_SIIT | XT_MAPT,
 	}, {
 		.id = JNLAG_POOL6791V4,
 		.name = "rfc6791v4-prefix",
 		.type = &gt_prefix4,
 		.doc = "IPv4 prefix to generate RFC6791 addresses from.",
-		.offset = offsetof(struct jool_globals, siit.rfc6791_prefix4),
-		.xt = XT_SIIT,
+		.offset = offsetof(struct jool_globals, rfc6791_prefix4),
+		.xt = XT_SIIT | XT_MAPT,
 #ifdef __KERNEL__
 		.nl2raw = nl2raw_pool6791v4,
 #endif
@@ -1003,7 +1307,28 @@ static const struct joolnl_global_meta globals_metadata[] = {
 		.doc = "Maximum amount of bytes joold should send per packet.",
 		.offset = offsetof(struct jool_globals, nat64.joold.max_payload),
 		.xt = XT_NAT64,
-	},
+	}, {
+		.id = JNLAG_MAPTYPE,
+		.name = "map-t-type",
+		.type = &gt_maptype,
+		.doc = "CE or BR.",
+		.offset = offsetof(struct jool_globals, mapt.type),
+		.xt = XT_MAPT,
+	}, {
+		.id = JNLAG_EUI6P,
+		.name = "end-user-ipv6-prefix",
+		.type = &gt_prefix6,
+		.doc = "The prefix identifier of this CE.",
+		.offset = offsetof(struct jool_globals, mapt.eui6p),
+		.xt = XT_MAPT,
+	}, {
+		.id = JNLAG_BMR,
+		.name = "bmr",
+		.type = &gt_mapping_rule,
+		.doc = "The MAP domain's common configuration.",
+		.offset = offsetof(struct jool_globals, mapt.bmr),
+		.xt = XT_MAPT,
+	}
 };
 
 static const unsigned int globals_metadata_len = sizeof(globals_metadata)
@@ -1082,17 +1407,32 @@ void *joolnl_global_get(struct joolnl_global_meta const *meta, struct jool_globa
 #ifdef __KERNEL__
 
 int joolnl_global_raw2nl(struct joolnl_global_meta const *meta, void *raw,
-		struct sk_buff *skb)
+		struct sk_buff *skb, struct jnl_state *state)
 {
+	if (!meta->type->raw2nl) {
+		return jnls_err(state, "The raw2nl callback of type '%s' is undefined.",
+				meta->type->name);
+	}
+
 	return meta->type->raw2nl(meta, raw, skb);
 }
 
 int joolnl_global_nl2raw(struct joolnl_global_meta const *meta,
-		struct nlattr *nl, void *raw, bool force)
+		struct nlattr *nl, void *raw, bool force,
+		struct jnl_state *state)
 {
 	joolnl_global_nl2raw_fn nl2raw;
-	nl2raw = meta->nl2raw ? meta->nl2raw : meta->type->nl2raw;
-	return nl2raw(nl, raw, force);
+
+	if (meta->nl2raw)
+		nl2raw = meta->nl2raw;
+	else if (meta->type->nl2raw)
+		nl2raw = meta->type->nl2raw;
+	else {
+		return jnls_err(state, "Global '%s' has no nl2raw function, and its type doesn't either.",
+				meta->name);
+	}
+
+	return nl2raw(meta, nl, raw, force, state);
 }
 
 #else
@@ -1100,18 +1440,42 @@ int joolnl_global_nl2raw(struct joolnl_global_meta const *meta,
 struct jool_result joolnl_global_nl2raw(struct joolnl_global_meta const *meta,
 		struct nlattr *nl, void *raw)
 {
+	if (!meta->type->nl2raw) {
+		return result_from_error(
+			-EINVAL,
+			"The nl2raw callback of type '%s' is undefined.",
+			meta->type->name
+		);
+	}
+
 	return meta->type->nl2raw(nl, raw);
 }
 
 struct jool_result joolnl_global_str2nl(struct joolnl_global_meta const *meta,
 		char const *str, struct nl_msg *nl)
 {
+	if (!meta->type->str2nl) {
+		return result_from_error(
+			-EINVAL,
+			"The str2nl callback of type '%s' is undefined.",
+			meta->type->name
+		);
+	}
+
 	return meta->type->str2nl(meta->id, str, nl);
 }
 
 struct jool_result joolnl_global_json2nl(struct joolnl_global_meta const *meta,
 		cJSON *json, struct nl_msg *msg)
 {
+	if (!meta->type->json2nl) {
+		return result_from_error(
+			-EINVAL,
+			"The json2nl callback of type '%s' is undefined.",
+			meta->type->name
+		);
+	}
+
 	return meta->type->json2nl(meta, json, msg);
 }
 
@@ -1119,7 +1483,17 @@ void joolnl_global_print(struct joolnl_global_meta const *meta, void *value,
 		bool csv)
 {
 	joolnl_global_print_fn print;
-	print = meta->print ? meta->print : meta->type->print;
+
+	if (meta->print)
+		print = meta->print;
+	else if (meta->type->print)
+		print = meta->type->print;
+	else {
+		fprintf(stderr, "Global '%s' has no print function, and its type doesn't either.\n",
+				meta->name);
+		return;
+	}
+
 	print(value, csv);
 }
 

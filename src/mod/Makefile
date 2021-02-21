@@ -1,4 +1,4 @@
-PROJECTS = common siit nat64
+PROJECTS = common siit nat64 mapt
 OTHER_TARGETS = modules modules_install clean debug
 
 
@@ -9,7 +9,7 @@ $(PROJECTS):
 $(OTHER_TARGETS):
 	$(foreach dir, $(PROJECTS), $(MAKE) -C $(dir) $@;)
 install:
-	# Don't want to execute depmod thrice; it takes too long.
+	# Don't want to execute depmod four times; it takes too long.
 	$(foreach dir, $(PROJECTS), $(MAKE) -C $(dir) modules_install;)
 	/sbin/depmod
 

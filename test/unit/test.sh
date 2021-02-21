@@ -1,13 +1,18 @@
 #!/bin/bash
 
 if [ -z $1 ]; then
-	TESTS=`ls -r */*.ko`
+	TESTS=`ls -r */*_test.ko`
 else
 	TESTS=$1/$1.ko
 fi
 COUNT=0
 
 sudo dmesg -C
+
+set -e
+sudo modprobe jool_common
+sudo insmod framework/unit.ko
+set +e
 
 for i in $TESTS
 do
@@ -23,4 +28,6 @@ do
 	COUNT=$((COUNT+1))
 done
 
+sudo rmmod unit.ko
+sudo modprobe -r jool_common
 echo "Ran $COUNT modules."

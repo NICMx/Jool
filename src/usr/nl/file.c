@@ -23,6 +23,7 @@
 #define OPTNAME_POOL4			"pool4"
 #define OPTNAME_BIB			"bib"
 #define OPTNAME_MAX_ITERATIONS		"max-iterations"
+#define OPTNAME_FMRT			"fmrt"
 
 /* TODO (warning) These variables prevent this module from being thread-safe. */
 static struct joolnl_socket sk;
@@ -258,6 +259,18 @@ revert_msg:
  * =================================
  */
 
+static struct jool_result json2u8(cJSON *json, void const *arg1, void *arg2)
+{
+	__u8 *value;
+
+	if (json->type != cJSON_Number || !(json->numflags & VALUENUM_UINT))
+		return type_mismatch(json->string, json, "unsigned integer");
+
+	value = arg2;
+	*value = json->valueuint;
+	return result_success();
+}
+
 static struct jool_result json2prefix6(cJSON *json, void const *arg1, void *arg2)
 {
 	return (json->type == cJSON_String)
@@ -454,6 +467,27 @@ static struct jool_result handle_bib_entry(cJSON *json, struct nl_msg *msg)
 			: result_success();
 }
 
+static struct jool_result handle_fmrt_entry(cJSON *json, struct nl_msg *msg)
+{
+	struct mapping_rule entry = { .a = 6 };
+	struct json_meta meta[] = {
+		{ "ipv6 prefix", json2prefix6, NULL, &entry.prefix6, true },
+		{ "ipv4 prefix", json2prefix4, NULL, &entry.prefix4, true },
+		{ "ea-bits length", json2u8, NULL, &entry.o, true },
+		{ "a", json2u8, NULL, &entry.a, false },
+		{ NULL },
+	};
+	struct jool_result result;
+
+	result = handle_object(json, meta);
+	if (result.error)
+		return result;
+
+	return (nla_put_mapping_rule(msg, JNLAL_ENTRY, &entry) < 0)
+			? joolnl_err_msgsize()
+			: result_success();
+}
+
 /*
  * ==========================================
  * = Second level tag handlers, second pass =
@@ -495,6 +529,11 @@ static struct jool_result handle_bib_tag(cJSON *json, void const *arg1, void *ar
 	return handle_array(json, JNLAR_BIB_ENTRIES, OPTNAME_BIB, handle_bib_entry);
 }
 
+static struct jool_result handle_fmrt_tag(cJSON *json, void const *arg1, void *arg2)
+{
+	return handle_array(json, JNLAR_FMRT_ENTRIES, OPTNAME_FMRT, handle_fmrt_entry);
+}
+
 /*
  * ==================================
  * = Root tag handlers, second pass =
@@ -529,6 +568,18 @@ static struct jool_result parse_nat64_json(cJSON *json)
 		{ NULL },
 	};
 
+	return handle_object(json, meta);
+}
+
+static struct jool_result parse_mapt_json(cJSON *json)
+{
+	struct json_meta meta[] = {
+		{ OPTNAME_INAME, do_nothing, NULL, NULL, true },
+		{ OPTNAME_FW, do_nothing, NULL, NULL, true },
+		{ OPTNAME_GLOBAL, handle_global_tag, NULL, NULL, false },
+		{ OPTNAME_FMRT, handle_fmrt_tag, NULL, NULL, false },
+		{ NULL },
+	};
 	return handle_object(json, meta);
 }
 
@@ -603,6 +654,7 @@ static struct jool_result prepare_instance(char const *_iname, cJSON *json)
 		{ OPTNAME_DENYLIST, do_nothing },
 		{ OPTNAME_POOL4, do_nothing },
 		{ OPTNAME_BIB, do_nothing },
+		{ OPTNAME_FMRT, do_nothing },
 		{ NULL },
 	};
 	struct jool_result result;
@@ -692,6 +744,9 @@ static struct jool_result do_parsing(char const *iname, char *buffer)
 		break;
 	case XT_NAT64:
 		result = parse_nat64_json(json);
+		break;
+	case XT_MAPT:
+		result = parse_mapt_json(json);
 		break;
 	default:
 		result = result_from_error(

@@ -3,18 +3,17 @@
 #include "mod/common/log.h"
 #include "mod/common/atomic_config.h"
 #include "mod/common/nl/nl_common.h"
-#include "mod/common/nl/nl_core.h"
 
 int handle_atomconfig_request(struct sk_buff *skb, struct genl_info *info)
 {
+	struct jnl_state *state;
 	int error;
 
 	LOG_DEBUG("Handling atomic configuration request.");
 
-	error = request_handle_start(info, XT_ANY, NULL, true);
-	if (!error)
-		error = atomconfig_add(skb, info);
-	request_handle_end(NULL);
+	error = __jnl_start(&state, info, XT_ANY, true);
+	if (error)
+		return jnl_reply(state, error);
 
-	return jresponse_send_simple(NULL, info, error);
+	return jnl_reply(state, atomconfig_add(state, info));
 }

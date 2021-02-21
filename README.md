@@ -1,6 +1,6 @@
 # [Jool](https://www.jool.mx)
 
-An [SIIT and a NAT64](https://www.jool.mx/en/intro-xlat.html) for Linux.
+An [SIIT, NAT64 and MAP-T](https://www.jool.mx/en/intro-xlat.html) for Linux.
 
 > Note!
 > 

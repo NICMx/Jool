@@ -67,8 +67,8 @@ static bool test_inner_validation4(void)
 	struct sk_buff *skb;
 	bool result = true;
 
-	/* Only state.result is expected, and default values are fine. */
-	memset(&jool, 0, sizeof(jool));
+	if (xlator_init(&jool, NULL, "test", XT_SIIT | XF_IPTABLES, NULL, NULL))
+		return false;
 	xlation_init(&state, &jool);
 
 	if (create_skb4_icmp_error("1.1.1.1", "2.2.2.2", 100, 32, &skb))
@@ -86,6 +86,7 @@ static bool test_inner_validation4(void)
 	result &= ASSERT_VERDICT(DROP, pkt_init_ipv4(&state, skb), "incomplete inner ipv4");
 	kfree_skb(skb);
 
+	xlator_put(&jool);
 	return result;
 }
 
@@ -96,8 +97,8 @@ static bool test_inner_validation6(void)
 	struct sk_buff *skb;
 	bool result = true;
 
-	/* Only state.result is expected, and default values are fine. */
-	memset(&jool, 0, sizeof(jool));
+	if (xlator_init(&jool, NULL, "test", XT_SIIT | XF_IPTABLES, NULL, NULL))
+		return false;
 	xlation_init(&state, &jool);
 
 	if (create_skb6_icmp_error("1::1", "2::2", 100, 32, &skb))
@@ -116,6 +117,7 @@ static bool test_inner_validation6(void)
 	result &= ASSERT_VERDICT(DROP, pkt_init_ipv6(&state, skb), "incomplete inner ipv6hdr");
 	kfree_skb(skb);
 
+	xlator_put(&jool);
 	return result;
 }
 

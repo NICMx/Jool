@@ -7,52 +7,53 @@
 #include "common/constants.h"
 #include "mod/common/address.h"
 #include "mod/common/log.h"
+#include "mod/common/mapt.h"
 #include "mod/common/nl/global.h"
 
-static int validate_pool6_len(__u8 len)
+static int validate_pool6_len(__u8 len, struct jnl_state *state)
 {
 	if (len == 32 || len == 40 || len == 48)
 		return 0;
 	if (len == 56 || len == 64 || len == 96)
 		return 0;
 
-	log_err("%u is not a valid prefix length (32, 40, 48, 56, 64, 96).", len);
-	return -EINVAL;
+	return jnls_err(state, "%u is not a valid prefix length (32, 40, 48, 56, 64, 96).",
+			len);
 }
 
-static int validate_ubit(struct ipv6_prefix *prefix, bool force)
+static int validate_ubit(struct ipv6_prefix *prefix, bool force,
+		struct jnl_state *state)
 {
 	if (force || !prefix->addr.s6_addr[8])
 		return 0;
 
-	log_err("The u-bit is nonzero; see https://github.com/NICMx/Jool/issues/174.\n"
+	return jnls_err(state, "The u-bit is nonzero; see https://github.com/NICMx/Jool/issues/174.\n"
 			"Will cancel the operation. Use --force to override this.");
-	return -EINVAL;
 }
 
-int pool6_validate(struct config_prefix6 *prefix, bool force)
+int pool6_validate(struct config_prefix6 *prefix, bool force,
+		struct jnl_state *state)
 {
 	int error;
 
 	if (!prefix->set)
 		return 0;
 
-	error = prefix6_validate(&prefix->prefix);
+	error = prefix6_validate(&prefix->prefix, state);
 	if (error)
 		return error;
 
-	error = validate_pool6_len(prefix->prefix.len);
+	error = validate_pool6_len(prefix->prefix.len, state);
 	if (error)
 		return error;
 
-	return validate_ubit(&prefix->prefix, force);
+	return validate_ubit(&prefix->prefix, force, state);
 }
 
 int globals_init(struct jool_globals *config, xlator_type type,
-		struct ipv6_prefix *pool6)
+		struct jnl_state *state)
 {
 	static const __u16 PLATEAUS[] = DEFAULT_MTU_PLATEAUS;
-	int error;
 
 	config->enabled = DEFAULT_INSTANCE_ENABLED;
 #ifdef DEBUG
@@ -60,33 +61,21 @@ int globals_init(struct jool_globals *config, xlator_type type,
 #else
 	config->debug = false;
 #endif
-
-	if (pool6) {
-		config->pool6.set = true;
-		config->pool6.prefix = *pool6;
-	} else {
-		config->pool6.set = false;
-	}
-
-	/* TODO (fine) force */
-	error = pool6_validate(&config->pool6, true);
-	if (error)
-		return error;
-
+	config->pool6.set = false;
 	config->reset_traffic_class = DEFAULT_RESET_TRAFFIC_CLASS;
 	config->reset_tos = DEFAULT_RESET_TOS;
 	config->new_tos = DEFAULT_NEW_TOS;
 	config->lowest_ipv6_mtu = DEFAULT_LOWEST_IPV6_MTU;
 	memcpy(config->plateaus.values, &PLATEAUS, sizeof(PLATEAUS));
 	config->plateaus.count = ARRAY_SIZE(PLATEAUS);
+	config->randomize_error_addresses = DEFAULT_RANDOMIZE_RFC6791;
+	config->rfc6791_prefix6.set = false;
+	config->rfc6791_prefix4.set = false;
 
 	switch (type) {
 	case XT_SIIT:
 		config->siit.compute_udp_csum_zero = DEFAULT_COMPUTE_UDP_CSUM0;
 		config->siit.eam_hairpin_mode = DEFAULT_EAM_HAIRPIN_MODE;
-		config->siit.randomize_error_addresses = DEFAULT_RANDOMIZE_RFC6791;
-		config->siit.rfc6791_prefix6.set = false;
-		config->siit.rfc6791_prefix4.set = false;
 		break;
 
 	case XT_NAT64:
@@ -112,13 +101,17 @@ int globals_init(struct jool_globals *config, xlator_type type,
 		config->nat64.joold.max_payload = DEFAULT_JOOLD_MAX_PAYLOAD;
 		break;
 
+	case XT_MAPT:
+		memset(&config->mapt, 0, sizeof(config->mapt));
+		break;
+
 	default:
-		log_err("Unknown translator type: %d", type);
-		return -EINVAL;
+		return jnls_err(state, "Unknown translator type: %d", type);
 	}
 
 	return 0;
 }
+EXPORT_UNIT_SYMBOL(globals_init)
 
 int globals_foreach(struct jool_globals *config,
 		xlator_type xt,

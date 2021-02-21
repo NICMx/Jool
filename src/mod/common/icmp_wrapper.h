@@ -43,11 +43,4 @@ bool icmp64_send4(struct xlator *jool, struct sk_buff *skb,
 bool icmp64_send(struct xlator *jool, struct sk_buff *skb,
 		icmp_error_code error, __u32 info);
 
-/**
- * Return the numbers of icmp error that was sent, also reset the static counter
- * This is only used in Unit Testing.
- */
-int icmp64_pop(void);
-
-
 #endif /* SRC_MOD_COMMON_ICMP_WRAPPER_H_ */

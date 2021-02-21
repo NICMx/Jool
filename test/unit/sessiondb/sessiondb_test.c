@@ -9,6 +9,7 @@ MODULE_LICENSE(JOOL_LICENSE);
 MODULE_AUTHOR("Alberto Leiva Popper");
 MODULE_DESCRIPTION("Session DB module test.");
 
+static struct jnl_state *state;
 static struct xlator jool;
 static const l4_protocol PROTO = L4PROTO_UDP;
 static struct session_entry session_instances[16];
@@ -121,7 +122,7 @@ static bool inject(unsigned int index, __u32 src_addr, __u16 src_id,
 
 	error = bib_add_session(&jool, entry, NULL);
 	if (error) {
-		log_err("Errcode %d on sessiontable_add.", error);
+		pr_err("Errcode %d on sessiontable_add.\n", error);
 		return false;
 	}
 
@@ -157,8 +158,8 @@ static bool insert_test_sessions(void)
 
 static bool flush(void)
 {
-	log_debug(NULL, "Flushing.");
-	bib_flush(&jool);
+	pr_info("Flushing.\n");
+	bib_flush(jool.nat64.bib, state);
 
 	memset(session_instances, 0, sizeof(session_instances));
 	memset(sessions, 0, sizeof(sessions));
@@ -175,12 +176,12 @@ static bool simple_session(void)
 
 	/* ---------------------------------------------------------- */
 
-	log_debug(NULL, "Deleting sessions by BIB.");
+	pr_info("Deleting sessions by BIB.\n");
 	range.prefix.addr.s_addr = cpu_to_be32(0xcb007101u);
 	range.prefix.len = 32;
 	range.ports.min = 1;
 	range.ports.max = 1;
-	bib_rm_range(&jool, PROTO, &range);
+	bib_rm_range(jool.nat64.bib, PROTO, &range, state);
 
 	sessions[1][1][2][2] = NULL;
 	sessions[1][1][2][1] = NULL;
@@ -190,8 +191,8 @@ static bool simple_session(void)
 
 	/* ---------------------------------------------------------- */
 
-	log_debug(NULL, "Deleting again.");
-	bib_rm_range(&jool, PROTO, &range);
+	pr_info("Deleting again.\n");
+	bib_rm_range(jool.nat64.bib, PROTO, &range, state);
 	success &= test_db();
 
 	/* ---------------------------------------------------------- */
@@ -202,12 +203,12 @@ static bool simple_session(void)
 
 	/* ---------------------------------------------------------- */
 
-	log_debug(NULL, "Deleting by range (all addresses, lower ports).");
+	pr_info("Deleting by range (all addresses, lower ports).\n");
 	range.prefix.addr.s_addr = cpu_to_be32(0xcb007100u);
 	range.prefix.len = 30;
 	range.ports.min = 0;
 	range.ports.max = 1;
-	bib_rm_range(&jool, PROTO, &range);
+	bib_rm_range(jool.nat64.bib, PROTO, &range, state);
 
 	sessions[2][1][2][1] = NULL;
 	sessions[2][1][1][1] = NULL;
@@ -227,12 +228,12 @@ static bool simple_session(void)
 
 	/* ---------------------------------------------------------- */
 
-	log_debug(NULL, "Deleting by range (lower addresses, all ports).");
+	pr_info("Deleting by range (lower addresses, all ports).\n");
 	range.prefix.addr.s_addr = cpu_to_be32(0xcb007100u);
 	range.prefix.len = 31;
 	range.ports.min = 0;
 	range.ports.max = 65535;
-	bib_rm_range(&jool, PROTO, &range);
+	bib_rm_range(jool.nat64.bib, PROTO, &range, state);
 
 	sessions[1][2][2][2] = NULL;
 	sessions[1][1][2][2] = NULL;
@@ -257,12 +258,25 @@ enum session_fate tcp_est_expire_cb(struct session_entry *session, void *arg)
 
 static int init(void)
 {
-	return xlator_init(&jool, NULL, INAME_DEFAULT, XF_NETFILTER | XT_NAT64,
-			NULL);
+	int error;
+
+	error = xlator_init(&jool, NULL, INAME_DEFAULT, XF_NETFILTER | XT_NAT64,
+			NULL, NULL);
+	if (error)
+		return error;
+
+	state = jnls_create(&jool);
+	if (!state) {
+		xlator_put(&jool);
+		return -ENOMEM;
+	}
+
+	return 0;
 }
 
 static void clean(void)
 {
+	jnls_destroy(state);
 	xlator_put(&jool);
 }
 
@@ -270,7 +284,6 @@ int init_module(void)
 {
 	struct test_group test = {
 		.name = "Session",
-		.teardown_fn = bib_teardown,
 		.init_fn = init,
 		.clean_fn = clean,
 	};

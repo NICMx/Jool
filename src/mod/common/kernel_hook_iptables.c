@@ -10,7 +10,8 @@ static verdict find_instance(struct net *ns, const struct target_info *info,
 {
 	int error;
 
-	error = xlator_find(ns, XF_IPTABLES | info->type, info->iname, result);
+	error = xlator_find(ns, XF_IPTABLES | info->type, info->iname, result,
+			NULL);
 	switch (error) {
 	case 0:
 		return VERDICT_CONTINUE;
@@ -40,12 +41,12 @@ int target_checkentry(const struct xt_tgchk_param *param)
 
 	error = iname_validate(info->iname, false);
 	if (error) {
-		log_err(INAME_VALIDATE_ERRMSG);
+		pr_err(INAME_VALIDATE_ERRMSG "\n");
 		return error;
 	}
 	error = xt_validate(info->type);
 	if (error) {
-		log_err(XT_VALIDATE_ERRMSG);
+		pr_err(XT_VALIDATE_ERRMSG "\n");
 		return error;
 	}
 

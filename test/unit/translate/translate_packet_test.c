@@ -1,17 +1,28 @@
 #include <linux/module.h>
 #include <linux/printk.h>
 
+#include "common/constants.h"
 #include "framework/unit_test.h"
 #include "framework/skb_generator.h"
 #include "framework/types.h"
 #include "mod/common/db/global.h"
-#include "mod/common/rfc7915/core.c"
-#include "mod/common/rfc7915/6to4.c"
-#include "mod/common/rfc7915/4to6.c"
+#include "mod/common/rfc7915/core.h"
+#include "mod/common/rfc7915/6to4.h"
+#include "mod/common/rfc7915/4to6.h"
 
 MODULE_LICENSE(JOOL_LICENSE);
 MODULE_AUTHOR("Alberto Leiva Popper");
 MODULE_DESCRIPTION("Translating the Packet module test.");
+
+bool has_unexpired_src_route(struct iphdr *);
+__be32 build_id_field(struct iphdr *);
+__be32 icmp6_minimum_mtu(struct xlation *, unsigned int, unsigned int,
+		unsigned int, __u16);
+verdict icmp4_to_icmp6_param_prob(struct xlation *);
+bool generate_df_flag(struct packet const *);
+__u8 xlat_proto(struct ipv6hdr const *);
+bool has_nonzero_segments_left(struct ipv6hdr const *, __u32 *);
+__be16 minimum(unsigned int, unsigned int, unsigned int);
 
 xlator_type xlator_get_type(struct xlator const *instance)
 {
@@ -25,7 +36,7 @@ static bool test_function_has_unexpired_src_route(void)
 	bool success = true;
 
 	if (!hdr) {
-		log_err("Can't allocate a test header.");
+		pr_err("Can't allocate a test header.\n");
 		return false;
 	}
 	options = (unsigned char *) (hdr + 1);
@@ -196,7 +207,8 @@ static bool test_function_icmp4_to_icmp6_param_prob(void)
 
 	/* Annoying preparations */
 
-	memset(&jool, 0, sizeof(jool));
+	if (xlator_init(&jool, NULL, "test", XT_SIIT | XF_IPTABLES, NULL, NULL))
+		return false;
 	xlation_init(&state, &jool);
 	if (create_skb4_icmp_error("1.1.1.1", "2.2.2.2", 10, 10, &state.in.skb))
 		return false;
@@ -260,7 +272,7 @@ static bool test_function_build_protocol_field(void)
 
 	ip6_hdr = kmalloc(sizeof(*ip6_hdr) + 8 + 16 + 24 + sizeof(struct tcphdr), GFP_ATOMIC);
 	if (!ip6_hdr) {
-		log_err("Could not allocate a test packet.");
+		pr_err("Could not allocate a test packet.\n");
 		goto failure;
 	}
 
@@ -314,7 +326,7 @@ static bool test_function_has_nonzero_segments_left(void)
 
 	ip6_hdr = kmalloc(sizeof(*ip6_hdr) + sizeof(*fragment_hdr) + sizeof(*routing_hdr), GFP_ATOMIC);
 	if (!ip6_hdr) {
-		log_err("Could not allocate a test packet.");
+		pr_err("Could not allocate a test packet.\n");
 		return false;
 	}
 	ip6_hdr->payload_len = cpu_to_be16(sizeof(*fragment_hdr) + sizeof(*routing_hdr));

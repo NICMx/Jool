@@ -1,16 +1,6 @@
 #include "framework/skb_generator.h"
-#include "framework/types.h"
-#include "mod/common/log.h"
 
-#include <linux/if_ether.h>
-#include <linux/ipv6.h>
-#include <linux/ip.h>
-#include <net/ip.h>
-#include <net/ipv6.h>
-#include <linux/udp.h>
-#include <linux/tcp.h>
-#include <linux/icmp.h>
-
+#include "framework/address.h"
 
 static int store_bits(struct sk_buff *skb, int *offset, void *bits, size_t len)
 {
@@ -25,7 +15,7 @@ static int store_bits(struct sk_buff *skb, int *offset, void *bits, size_t len)
 	delta = (room > len) ? len : room;
 	error = skb_store_bits(skb, *offset, bits, delta);
 	if (error) {
-		log_err("skb_store_bits() error: %d", error);
+		pr_err("skb_store_bits() error: %d\n", error);
 		return error;
 	}
 
@@ -65,6 +55,7 @@ int init_ipv4_hdr(struct sk_buff *skb, int *offset, char *src, char *dst,
 
 	return store_bits(skb, offset, &hdr, sizeof(hdr));
 }
+EXPORT_SYMBOL_GPL(init_ipv4_hdr);
 
 #define HDR6_LEN sizeof(struct ipv6hdr)
 int init_ipv6_hdr(struct sk_buff *skb, int *offset, char *src, char *dst,
@@ -90,6 +81,7 @@ int init_ipv6_hdr(struct sk_buff *skb, int *offset, char *src, char *dst,
 
 	return store_bits(skb, offset, &hdr, sizeof(hdr));
 }
+EXPORT_SYMBOL_GPL(init_ipv6_hdr);
 
 #define UDP_HDR_LEN sizeof(struct udphdr)
 static int init_udp_hdr(struct sk_buff *skb, int *offset, __u16 src, __u16 dst,
@@ -131,6 +123,7 @@ int init_tcp_hdr(struct sk_buff *skb, int *offset, __u16 src, __u16 dst,
 
 	return store_bits(skb, offset, &hdr, sizeof(hdr));
 }
+EXPORT_SYMBOL_GPL(init_tcp_hdr);
 
 #define ICMP4_HDR_LEN sizeof(struct icmphdr)
 static int init_icmp4_hdr_info(struct sk_buff *skb, int *offset,
@@ -160,6 +153,7 @@ int init_icmp4_hdr_error(struct sk_buff *skb, int *offset, __u16 src, __u16 dst,
 
 	return store_bits(skb, offset, &hdr, sizeof(hdr));
 }
+EXPORT_SYMBOL_GPL(init_icmp4_hdr_error);
 
 #define ICMP6_HDR_LEN sizeof(struct icmp6hdr)
 static int init_icmp6_hdr_info(struct sk_buff *skb, int *offset,
@@ -188,6 +182,7 @@ int init_icmp6_hdr_error(struct sk_buff *skb, int *offset, __u16 src, __u16 dst,
 
 	return store_bits(skb, offset, &hdr, sizeof(hdr));
 }
+EXPORT_SYMBOL_GPL(init_icmp6_hdr_error);
 
 int init_payload_normal(struct sk_buff *skb, int *offset)
 {
@@ -207,6 +202,7 @@ int init_payload_normal(struct sk_buff *skb, int *offset)
 	*offset = i;
 	return 0;
 }
+EXPORT_SYMBOL_GPL(init_payload_normal);
 
 static int init_payload_inner_ipv6(struct sk_buff *skb, int *offset)
 {
@@ -399,7 +395,7 @@ static int create_skb(struct proto_meta *l3, char *src, char *dst, u8 ttl,
 
 	skb = alloc_skb(LL_MAX_HEADER + l3->hdr_len + dlen, GFP_ATOMIC);
 	if (!skb) {
-		log_err("New packet allocation failed.");
+		pr_err("New packet allocation failed.\n");
 		return -ENOMEM;
 	}
 	skb->protocol = htons(l3->hdr_type);
@@ -441,6 +437,7 @@ int create_skb6_udp(char *saddr, __u16 sport, char *daddr, __u16 dport,
 			ipv6_udp_post,
 			result);
 }
+EXPORT_SYMBOL_GPL(create_skb6_udp);
 
 int create_skb6_tcp(char *saddr, __u16 sport, char *daddr, __u16 dport,
 		u16 payload_len, u8 ttl, struct sk_buff **result)
@@ -451,6 +448,7 @@ int create_skb6_tcp(char *saddr, __u16 sport, char *daddr, __u16 dport,
 			ipv6_tcp_post,
 			result);
 }
+EXPORT_SYMBOL_GPL(create_skb6_tcp);
 
 int create_skb6_icmp_info(char *saddr, char *daddr, __u16 id,
 		u16 payload_len, u8 ttl, struct sk_buff **result)
@@ -461,6 +459,7 @@ int create_skb6_icmp_info(char *saddr, char *daddr, __u16 id,
 			ipv6_icmp_post,
 			result);
 }
+EXPORT_SYMBOL_GPL(create_skb6_icmp_info);
 
 int create_skb6_icmp_error(char *saddr, char *daddr,
 		u16 payload_len, u8 ttl, struct sk_buff **result)
@@ -471,6 +470,7 @@ int create_skb6_icmp_error(char *saddr, char *daddr,
 			ipv6_icmp_post,
 			result);
 }
+EXPORT_SYMBOL_GPL(create_skb6_icmp_error);
 
 int create_skb4_udp(char *saddr, __u16 sport, char *daddr, __u16 dport,
 		u16 payload_len, u8 ttl, struct sk_buff **result)
@@ -481,6 +481,7 @@ int create_skb4_udp(char *saddr, __u16 sport, char *daddr, __u16 dport,
 			ipv4_udp_post,
 			result);
 }
+EXPORT_SYMBOL_GPL(create_skb4_udp);
 
 int create_skb4_tcp(char *saddr, __u16 sport, char *daddr, __u16 dport,
 		u16 payload_len, u8 ttl, struct sk_buff **result)
@@ -491,6 +492,7 @@ int create_skb4_tcp(char *saddr, __u16 sport, char *daddr, __u16 dport,
 			ipv4_tcp_post,
 			result);
 }
+EXPORT_SYMBOL_GPL(create_skb4_tcp);
 
 int create_skb4_icmp_info(char *saddr, char *daddr, __u16 id,
 		u16 payload_len, u8 ttl, struct sk_buff **result)
@@ -501,6 +503,7 @@ int create_skb4_icmp_info(char *saddr, char *daddr, __u16 id,
 			ipv4_icmp_post,
 			result);
 }
+EXPORT_SYMBOL_GPL(create_skb4_icmp_info);
 
 int create_skb4_icmp_error(char *saddr, char *daddr,
 		u16 payload_len, u8 ttl, struct sk_buff **result)
@@ -511,6 +514,7 @@ int create_skb4_icmp_error(char *saddr, char *daddr,
 			ipv4_icmp_post,
 			result);
 }
+EXPORT_SYMBOL_GPL(create_skb4_icmp_error);
 
 int create_tcp_packet(struct sk_buff **skb, l3_protocol l3_proto, bool syn, bool rst, bool fin)
 {
@@ -539,3 +543,4 @@ int create_tcp_packet(struct sk_buff **skb, l3_protocol l3_proto, bool syn, bool
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(create_tcp_packet);

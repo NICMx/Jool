@@ -27,6 +27,11 @@ struct nla_policy joolnl_instance_entry_policy[JNLAIE_COUNT] = {
 	},
 };
 
+struct nla_policy joolnl_instance_add_policy[JNLAIA_COUNT] = {
+	[JNLAIA_XF] = { .type = NLA_U8 },
+	[JNLAIA_POOL6] = { .type = NLA_NESTED },
+};
+
 struct nla_policy joolnl_prefix6_policy[JNLAP_COUNT] = {
 	[JNLAP_ADDR] = JOOLNL_ADDR6_POLICY,
 	[JNLAP_LEN] = { .type = NLA_U8 },
@@ -47,7 +52,7 @@ struct nla_policy joolnl_taddr4_policy[JNLAT_COUNT] = {
 	[JNLAT_PORT] = { .type = NLA_U16 },
 };
 
-struct nla_policy eam_policy[JNLAE_COUNT] = {
+struct nla_policy joolnl_eam_policy[JNLAE_COUNT] = {
 	[JNLAE_PREFIX6] = { .type = NLA_NESTED },
 	[JNLAE_PREFIX4] = { .type = NLA_NESTED },
 };
@@ -80,7 +85,14 @@ struct nla_policy joolnl_session_entry_policy[JNLASE_COUNT] = {
 	[JNLASE_EXPIRATION] = { .type = NLA_U32 },
 };
 
-struct nla_policy siit_globals_policy[JNLAG_COUNT] = {
+struct nla_policy joolnl_mr_policy[JNLAMR_COUNT] = {
+	[JNLAMR_PREFIX6] = { .type = NLA_NESTED },
+	[JNLAMR_PREFIX4] = { .type = NLA_NESTED },
+	[JNLAMR_EA_BITS_LENGTH] = { .type = NLA_U8 },
+	[JNLAMR_a] = { .type = NLA_U8 },
+};
+
+const struct nla_policy siit_globals_policy[JNLAG_COUNT] = {
 	[JNLAG_ENABLED] = { .type = NLA_U8 },
 	[JNLAG_POOL6] = { .type = NLA_NESTED },
 	[JNLAG_LOWEST_IPV6_MTU] = { .type = NLA_U32 },
@@ -96,7 +108,7 @@ struct nla_policy siit_globals_policy[JNLAG_COUNT] = {
 	[JNLAG_POOL6791V4] = { .type = NLA_NESTED },
 };
 
-struct nla_policy nat64_globals_policy[JNLAG_COUNT] = {
+const struct nla_policy nat64_globals_policy[JNLAG_COUNT] = {
 	[JNLAG_ENABLED] = { .type = NLA_U8 },
 	[JNLAG_POOL6] = { .type = NLA_NESTED },
 	[JNLAG_LOWEST_IPV6_MTU] = { .type = NLA_U32 },
@@ -125,6 +137,22 @@ struct nla_policy nat64_globals_policy[JNLAG_COUNT] = {
 	[JNLAG_JOOLD_MAX_PAYLOAD] = { .type = NLA_U32 },
 };
 
+const struct nla_policy mapt_globals_policy[JNLAG_COUNT] = {
+	[JNLAG_ENABLED] = { .type = NLA_U8 },
+	[JNLAG_POOL6] = { .type = NLA_NESTED },
+	[JNLAG_LOWEST_IPV6_MTU] = { .type = NLA_U32 },
+	[JNLAG_DEBUG] = { .type = NLA_U8 },
+	[JNLAG_RESET_TC] = { .type = NLA_U8 },
+	[JNLAG_RESET_TOS] = { .type = NLA_U8 },
+	[JNLAG_TOS] = { .type = NLA_U8 },
+	[JNLAG_PLATEAUS] = { .type = NLA_NESTED },
+	[JNLAG_MAPTYPE] = { .type = NLA_U8 },
+	[JNLAG_EUI6P] = { .type = NLA_NESTED },
+	[JNLAG_BMR] = { .type = NLA_NESTED },
+	[JNLAG_POOL6791V6] = { .type = NLA_NESTED },
+	[JNLAG_POOL6791V4] = { .type = NLA_NESTED },
+};
+
 int iname_validate(const char *iname, bool allow_null)
 {
 	unsigned int i;
@@ -144,7 +172,7 @@ int iname_validate(const char *iname, bool allow_null)
 
 int xt_validate(xlator_type xt)
 {
-	return (xt == XT_SIIT || xt == XT_NAT64) ? 0 : -EINVAL;
+	return (xt == XT_SIIT || xt == XT_NAT64 || xt == XT_MAPT) ? 0 : -EINVAL;
 }
 
 int xf_validate(xlator_framework xf)
@@ -154,12 +182,12 @@ int xf_validate(xlator_framework xf)
 
 xlator_type xlator_flags2xt(xlator_flags flags)
 {
-	return flags & 0x03;
+	return flags & XT_MASK;
 }
 
 xlator_framework xlator_flags2xf(xlator_flags flags)
 {
-	return flags & 0x0C;
+	return flags & XF_MASK;
 }
 
 char const *xt2str(xlator_type xt)
@@ -169,7 +197,10 @@ char const *xt2str(xlator_type xt)
 		return "SIIT";
 	case XT_NAT64:
 		return "NAT64";
+	case XT_MAPT:
+		return "MAP-T";
 	}
 
 	return "Unknown";
 }
+EXPORT_UNIT_SYMBOL(xt2str)

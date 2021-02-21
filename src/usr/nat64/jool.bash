@@ -1,7 +1,7 @@
 _jool() {
 	# Given the following incomplete command:
 	#
-	#     $ jool_siit global update m
+	#     $ jool global update m
 	#
 	# This function (_jool()) gets called when the user hits tab.
 	# It is expected to place the autocompletion candidates (in this

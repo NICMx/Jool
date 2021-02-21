@@ -34,6 +34,7 @@ void xlation_init(struct xlation *state, struct xlator *jool)
 	if (jool)
 		memcpy(&state->jool, jool, sizeof(*jool));
 }
+EXPORT_UNIT_SYMBOL(xlation_init)
 
 void xlation_destroy(struct xlation *state)
 {

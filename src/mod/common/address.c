@@ -1,68 +1,20 @@
 #include "mod/common/address.h"
 
 #include <linux/inet.h>
-#include "common/types.h"
-#include "mod/common/log.h"
-
-int str_to_addr4(const char *str, struct in_addr *result)
-{
-	return in4_pton(str, -1, (u8 *) result, '\0', NULL) ? 0 : -EINVAL;
-}
-
-int str_to_addr6(const char *str, struct in6_addr *result)
-{
-	return in6_pton(str, -1, (u8 *) result, '\0', NULL) ? 0 : -EINVAL;
-}
-
-int prefix6_parse(char *str, struct ipv6_prefix *result)
-{
-	const char *slash_pos;
-
-	if (in6_pton(str, -1, (u8 *)&result->addr.s6_addr, '/', &slash_pos) != 1)
-		goto fail;
-	if (kstrtou8(slash_pos + 1, 0, &result->len) != 0)
-		goto fail;
-
-	return 0;
-
-fail:
-	log_err("IPv6 prefix is malformed: %s.", str);
-	return -EINVAL;
-}
-
-int prefix4_parse(char *str, struct ipv4_prefix *result)
-{
-	const char *slash_pos;
-
-	if (strchr(str, '/') != NULL) {
-		if (in4_pton(str, -1, (u8 *)&result->addr, '/', &slash_pos) != 1)
-			goto fail;
-		if (kstrtou8(slash_pos + 1, 0, &result->len) != 0)
-			goto fail;
-	} else {
-		if (in4_pton(str, -1, (u8 *)&result->addr, '\0', NULL) != 1)
-			goto fail;
-		result->len = 32;
-	}
-
-	return 0;
-
-fail:
-	log_err("IPv4 prefix or address is malformed: %s.", str);
-	return -EINVAL;
-}
 
 bool taddr6_equals(const struct ipv6_transport_addr *a,
 		const struct ipv6_transport_addr *b)
 {
 	return addr6_equals(&a->l3, &b->l3) && (a->l4 == b->l4);
 }
+EXPORT_UNIT_SYMBOL(taddr6_equals)
 
 bool taddr4_equals(const struct ipv4_transport_addr *a,
 		const struct ipv4_transport_addr *b)
 {
 	return addr4_equals(&a->l3, &b->l3) && (a->l4 == b->l4);
 }
+EXPORT_UNIT_SYMBOL(taddr4_equals)
 
 bool prefix6_equals(const struct ipv6_prefix *a, const struct ipv6_prefix *b)
 {
@@ -79,14 +31,20 @@ __u32 get_prefix4_mask(const struct ipv4_prefix *prefix)
 	return ((__u64) 0xffffffffU) << (32 - prefix->len);
 }
 
-bool prefix4_contains(const struct ipv4_prefix *prefix,
-		const struct in_addr *addr)
+bool __prefix4_contains(const struct ipv4_prefix *prefix, __be32 addr)
 {
 	__u32 maskbits = get_prefix4_mask(prefix);
 	__u32 prefixbits = be32_to_cpu(prefix->addr.s_addr) & maskbits;
-	__u32 addrbits = be32_to_cpu(addr->s_addr) & maskbits;
+	__u32 addrbits = be32_to_cpu(addr) & maskbits;
 	return prefixbits == addrbits;
 }
+
+bool prefix4_contains(const struct ipv4_prefix *prefix,
+		struct in_addr const *addr)
+{
+	return __prefix4_contains(prefix, addr->s_addr);
+}
+EXPORT_UNIT_SYMBOL(prefix4_contains)
 
 bool prefix4_intersects(const struct ipv4_prefix *p1,
 		const struct ipv4_prefix *p2)
@@ -99,76 +57,14 @@ __u64 prefix4_get_addr_count(const struct ipv4_prefix *prefix)
 {
 	return ((__u64) 1U) << (32 - prefix->len);
 }
+EXPORT_UNIT_SYMBOL(prefix4_get_addr_count)
 
 bool prefix6_contains(const struct ipv6_prefix *prefix,
 		const struct in6_addr *addr)
 {
 	return ipv6_prefix_equal(&prefix->addr, addr, prefix->len);
 }
-
-int prefix4_validate(const struct ipv4_prefix *prefix)
-{
-	__u32 suffix_mask;
-
-	if (unlikely(!prefix)) {
-		log_err("Prefix is NULL.");
-		return -EINVAL;
-	}
-
-	if (prefix->len > 32) {
-		log_err("Prefix length %u is too high.", prefix->len);
-		return -EINVAL;
-	}
-
-	suffix_mask = ~get_prefix4_mask(prefix);
-	if ((be32_to_cpu(prefix->addr.s_addr) & suffix_mask) != 0) {
-		log_err("'%pI4/%u' seems to have a suffix; please fix.",
-				&prefix->addr, prefix->len);
-		return -EINVAL;
-	}
-
-	return 0;
-}
-
-int prefix6_validate(const struct ipv6_prefix *prefix)
-{
-	unsigned int i;
-
-	if (unlikely(!prefix)) {
-		log_err("Prefix is NULL.");
-		return -EINVAL;
-	}
-
-	if (prefix->len > 128) {
-		log_err("Prefix length %u is too high.", prefix->len);
-		return -EINVAL;
-	}
-
-	for (i = prefix->len; i < 128; i++) {
-		if (addr6_get_bit(&prefix->addr, i)) {
-			log_err("'%pI6c/%u' seems to have a suffix; please fix.",
-					&prefix->addr, prefix->len);
-			return -EINVAL;
-		}
-	}
-
-	return 0;
-}
-
-int prefix4_validate_scope(struct ipv4_prefix *prefix, bool force)
-{
-	struct ipv4_prefix subnet;
-
-	if (!force && prefix4_has_subnet_scope(prefix, &subnet)) {
-		log_err("Prefix %pI4/%u intersects with subnet scoped network %pI4/%u.",
-				&prefix->addr, prefix->len,
-				&subnet.addr, subnet.len);
-		log_err("Will cancel the operation. Use --force to ignore this validation.");
-		return -EINVAL;
-	}
-
-	return 0;
-}
+EXPORT_UNIT_SYMBOL(prefix6_contains)
 
 __u32 addr4_get_bit(const struct in_addr *addr, unsigned int pos)
 {
@@ -212,6 +108,88 @@ void addr6_set_bit(struct in6_addr *addr, unsigned int pos, bool value)
 	else
 		*quadrant &= cpu_to_be32(~mask);
 }
+
+unsigned int addr4_get_bits(__be32 addr, unsigned int offset,
+		unsigned int len)
+{
+	unsigned int result;
+	result = be32_to_cpu(addr) >> (32u - offset - len);
+	return (len != 32) ? (result & ((1u << len) - 1u)) : result;
+}
+
+unsigned int addr6_get_bits(struct in6_addr const *addr,
+		unsigned int offset, unsigned int len)
+{
+	unsigned int i;
+	unsigned int result;
+
+	result = 0;
+	for (i = 0; i < len; i++)
+		if (addr6_get_bit(addr, i + offset))
+			result |= 1 << (len - i - 1);
+
+	return result;
+}
+
+/* TODO (performance) if bits are aligned, copy bytes instead. */
+void addr6_set_bits(struct in6_addr *addr, unsigned int offset,
+		unsigned int len, unsigned int value)
+{
+	unsigned int i;
+	for (i = 0; i < len; i++)
+		addr6_set_bit(addr, offset + i, (value >> (len - i - 1u)) & 1u);
+}
+
+/**
+ * Like addr6_copy_bits(), except it assumes all the bits to be copied are
+ * located in the same byte.
+ */
+static void __addr6_copy_bits(struct in6_addr *asrc, struct in6_addr *adst,
+		unsigned int offset, unsigned int len)
+{
+	__u8 src, *dst;
+	__u8 mask;
+
+	src = asrc->s6_addr[offset >> 3];
+	dst = &adst->s6_addr[offset >> 3];
+	offset &= 7u;
+	mask = ((1u << len) - 1u) << (8u - offset - len);
+
+	*dst = ((*dst) & ~mask) | (src & mask);
+}
+
+void addr6_copy_bits(struct in6_addr *src, struct in6_addr *dst,
+		unsigned int offset, unsigned int len)
+{
+	unsigned int delta;
+
+	/* Rightmost bits of left byte */
+	if (offset & 7u) {
+		if (offset + len > (offset | 7u)) {
+			delta = (offset | 7u) - offset + 1;
+			__addr6_copy_bits(src, dst, offset, delta);
+			offset += delta;
+			len -= delta;
+		} else {
+			__addr6_copy_bits(src, dst, offset, len);
+			return;
+		}
+	}
+
+	/* Middle bytes */
+	if (offset + len > (offset | 7u)) {
+		memcpy(&dst->s6_addr[offset >> 3u], &src->s6_addr[offset >> 3u],
+				len >> 3);
+		delta = len & ~7u;
+		offset += delta;
+		len -= delta;
+	}
+
+	/* Leftmost bits of right byte */
+	if (len > 0)
+		__addr6_copy_bits(src, dst, offset, len);
+}
+EXPORT_UNIT_SYMBOL(addr6_copy_bits)
 
 __u64 prefix4_next(const struct ipv4_prefix *prefix)
 {
@@ -287,4 +265,12 @@ int taddr4_compare(const struct ipv4_transport_addr *a1,
 		return gap;
 
 	return ((int)a1->l4) - ((int)a2->l4);
+}
+
+bool maprule_equals(struct mapping_rule *r1, struct mapping_rule *r2)
+{
+	return prefix6_equals(&r1->prefix6, &r2->prefix6)
+	    && prefix4_equals(&r1->prefix4, &r2->prefix4)
+	    && r1->o == r2->o
+	    && r1->a == r2->a;
 }

@@ -4,11 +4,12 @@
 #include <net/genetlink.h>
 
 #include "common/constants.h"
+#include "mod/common/linux_version.h"
 #include "mod/common/log.h"
 #include "mod/common/wkmalloc.h"
 #include "mod/common/xlator.h"
 #include "mod/common/nl/attribute.h"
-#include "mod/common/nl/nl_core.h"
+#include "mod/common/nl/nl_common.h"
 #include "mod/common/nl/nl_handler.h"
 #include "mod/common/db/bib/db.h"
 
@@ -386,7 +387,7 @@ static enum session_fate collision_cb(struct session_entry *old, void *arg)
 		return FATE_TIMER_SLOW;
 	}
 
-	log_err("We're out of sync: Incoming %s session entry %pI6c#%u|%pI6c#%u|%pI4#%u|%pI4#%u collides with DB entry %pI6c#%u|%pI6c#%u|%pI4#%u|%pI4#%u.",
+	pr_err("We're out of sync: Incoming %s session entry %pI6c#%u|%pI6c#%u|%pI4#%u|%pI4#%u collides with DB entry %pI6c#%u|%pI6c#%u|%pI4#%u|%pI4#%u.\n",
 			l4proto_to_string(new->proto),
 			&new->src6.l3, new->src6.l4,
 			&new->dst6.l3, new->dst6.l4,
@@ -400,16 +401,18 @@ static enum session_fate collision_cb(struct session_entry *old, void *arg)
 	return FATE_PRESERVE;
 }
 
-static bool add_new_session(struct xlator *jool, struct nlattr *attr)
+static bool add_new_session(struct jnl_state *state, struct nlattr *attr)
 {
+	struct xlator *jool;
 	struct add_params params;
 	struct collision_cb cb;
 	int error;
 
+	jool = jnls_xlator(state);
 	__log_debug(jool, "Adding session!");
 
 	error = jnla_get_session(attr, "Joold session",
-			&jool->globals.nat64.bib, &params.new);
+			&jool->globals.nat64.bib, &params.new, state);
 	if (error)
 		return false;
 
@@ -421,19 +424,17 @@ static bool add_new_session(struct xlator *jool, struct nlattr *attr)
 	if (error == -EEXIST)
 		return params.success;
 	if (error) {
-		log_err("sessiondb_add() threw unknown error code %d.", error);
+		jnls_err(state, "sessiondb_add() error code: %d", error);
 		return false;
 	}
 
 	return true;
 }
 
-static int validate_enabled(struct xlator *jool)
+static int validate_enabled(struct jnl_state *state)
 {
-	if (!GLOBALS(jool).enabled) {
-		log_err("Session sync is disabled on this instance.");
-		return -EINVAL;
-	}
+	if (!GLOBALS(jnls_xlator(state)).enabled)
+		return jnls_err(state, "Session sync is disabled on this instance.");
 
 	return 0;
 }
@@ -445,22 +446,22 @@ static int validate_enabled(struct xlator *jool)
  * This is the function that gets called whenever the jool daemon sends data to
  * the @jool Jool instance.
  */
-int joold_sync(struct xlator *jool, struct nlattr *root)
+int joold_sync(struct jnl_state *state, struct nlattr *root)
 {
 	struct nlattr *attr;
 	int rem;
 	int error;
 	bool success;
 
-	error = validate_enabled(jool);
+	error = validate_enabled(state);
 	if (error)
 		return error;
 
 	success = true;
 	nla_for_each_nested(attr, root, rem)
-		success &= add_new_session(jool, attr);
+		success &= add_new_session(state, attr);
 
-	__log_debug(jool, "Done.");
+	jnls_debug(state, "Done.");
 	return success ? 0 : -EINVAL;
 }
 
@@ -499,16 +500,18 @@ static int prepare_advertisement(struct joold_queue *queue)
 	return add_advertise_node(queue, L4PROTO_ICMP);
 }
 
-int joold_advertise(struct xlator *jool)
+int joold_advertise(struct jnl_state *state)
 {
+	struct xlator *jool;
 	struct joold_queue *queue;
 	struct sk_buff *skb;
 	int error;
 
-	error = validate_enabled(jool);
+	error = validate_enabled(state);
 	if (error)
 		return error;
 
+	jool = jnls_xlator(state);
 	queue = jool->nat64.joold;
 
 	spin_lock_bh(&queue->lock);
@@ -522,12 +525,14 @@ int joold_advertise(struct xlator *jool)
 	return error;
 }
 
-void joold_ack(struct xlator *jool)
+void joold_ack(struct jnl_state *state)
 {
+	struct xlator *jool;
 	struct joold_queue *queue;
 	struct sk_buff *skb;
 
-	if (validate_enabled(jool))
+	jool = jnls_xlator(state);
+	if (validate_enabled(state))
 		return;
 
 	queue = jool->nat64.joold;

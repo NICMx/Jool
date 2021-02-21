@@ -1,9 +1,8 @@
-#include "send_packet.h"
+#include "mod/common/steps/send_packet.h"
 
 #include "mod/common/linux_version.h"
 #include "mod/common/log.h"
 #include "mod/common/packet.h"
-/* #include "mod/common/skbuff.h" */
 
 static verdict __sendpkt_send(struct xlation *state, struct sk_buff *out)
 {
@@ -33,11 +32,21 @@ static verdict __sendpkt_send(struct xlation *state, struct sk_buff *out)
 	return VERDICT_CONTINUE;
 }
 
+#ifdef UNIT_TESTING
+struct sk_buff *skb_out;
+EXPORT_UNIT_SYMBOL(skb_out)
+#endif
+
 verdict sendpkt_send(struct xlation *state)
 {
 	struct sk_buff *skb;
 	struct sk_buff *next;
 	verdict result;
+
+#ifdef UNIT_TESTING
+	skb_out = state->out.skb;
+	return VERDICT_CONTINUE;
+#endif
 
 	for (skb = state->out.skb; skb != NULL; skb = next) {
 		next = skb->next;
@@ -52,3 +61,4 @@ verdict sendpkt_send(struct xlation *state)
 
 	return VERDICT_CONTINUE;
 }
+EXPORT_UNIT_SYMBOL(sendpkt_send)

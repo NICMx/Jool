@@ -29,10 +29,13 @@ static verdict core_common(struct xlation *state)
 {
 	verdict result;
 
-	if (xlation_is_nat64(state)) {
+	if (xlation_is_nat64(state) || xlation_is_mapt(state)) {
 		result = determine_in_tuple(state);
 		if (result != VERDICT_CONTINUE)
 			return result;
+	}
+
+	if (xlation_is_nat64(state)) {
 		result = filtering_and_updating(state);
 		if (result != VERDICT_CONTINUE)
 			return result;
@@ -40,6 +43,7 @@ static verdict core_common(struct xlation *state)
 		if (result != VERDICT_CONTINUE)
 			return result;
 	}
+
 	result = translating_the_packet(state);
 	if (result != VERDICT_CONTINUE)
 		return result;
@@ -117,6 +121,7 @@ end:
 	send_icmp4_error(state, result);
 	return result;
 }
+EXPORT_UNIT_SYMBOL(core_4to6)
 
 static void send_icmp6_error(struct xlation *state, verdict result)
 {
@@ -170,3 +175,4 @@ end:
 	send_icmp6_error(state, result);
 	return result;
 }
+EXPORT_UNIT_SYMBOL(core_6to4)

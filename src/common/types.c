@@ -1,4 +1,4 @@
-#include "types.h"
+#include "common/types.h"
 
 #ifdef __KERNEL__
 #include <linux/string.h>
@@ -62,6 +62,7 @@ bool port_range_touches(const struct port_range *r1,
 {
 	return r1->max >= (r2->min - 1) && r1->min <= (r2->max + 1);
 }
+EXPORT_UNIT_SYMBOL(port_range_touches)
 
 bool port_range_contains(const struct port_range *range, __u16 port)
 {
@@ -72,6 +73,7 @@ unsigned int port_range_count(const struct port_range *range)
 {
 	return range->max - range->min + 1U;
 }
+EXPORT_UNIT_SYMBOL(port_range_count)
 
 void port_range_fuse(struct port_range *r1, const struct port_range *r2)
 {
@@ -92,4 +94,9 @@ bool ipv4_range_touches(struct ipv4_range const *r1, struct ipv4_range const *r2
 	return r1->prefix.addr.s_addr == r2->prefix.addr.s_addr
 			&& r1->prefix.len == r2->prefix.len
 			&& port_range_touches(&r1->ports, &r2->ports);
+}
+
+__u8 maprule_get_k(struct mapping_rule *rule)
+{
+	return rule->o - (32u - rule->prefix4.len);
 }

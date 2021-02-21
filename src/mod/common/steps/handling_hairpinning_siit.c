@@ -7,7 +7,7 @@
 
 bool is_hairpin_siit(struct xlation *state)
 {
-	return state->is_hairpin;
+	return state->is_hairpin_1;
 }
 
 verdict handling_hairpinning_siit(struct xlation *old)
@@ -21,7 +21,7 @@ verdict handling_hairpinning_siit(struct xlation *old)
 	if (!new)
 		return VERDICT_DROP;
 	new->in = old->out;
-	new->is_hairpin = true;
+	new->is_hairpin_2 = true;
 
 	result = translating_the_packet(new);
 	if (result != VERDICT_CONTINUE)

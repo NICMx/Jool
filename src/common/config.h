@@ -56,6 +56,11 @@ enum joolnl_operation {
 
 	JNLOP_SESSION_FOREACH,
 
+	JNLOP_FMRT_FOREACH,
+	JNLOP_FMRT_ADD,
+	JNLOP_FMRT_RM,
+	JNLOP_FMRT_FLUSH,
+
 	JNLOP_FILE_HANDLE,
 
 	JNLOP_JOOLD_ADD,
@@ -71,6 +76,7 @@ enum joolnl_attr_root {
 	JNLAR_POOL4_ENTRIES,
 	JNLAR_BIB_ENTRIES,
 	JNLAR_SESSION_ENTRIES,
+	JNLAR_FMRT_ENTRIES,
 	JNLAR_OFFSET,
 	JNLAR_OFFSET_U8,
 	JNLAR_OPERAND,
@@ -155,6 +161,8 @@ enum joolnl_attr_instance_add {
 #define JNLAIA_MAX (JNLAIA_COUNT - 1)
 };
 
+extern struct nla_policy joolnl_instance_add_policy[JNLAIA_COUNT];
+
 enum joolnl_attr_eam {
 	JNLAE_PREFIX6 = 1,
 	JNLAE_PREFIX4,
@@ -162,7 +170,7 @@ enum joolnl_attr_eam {
 #define JNLAE_MAX (JNLAE_COUNT - 1)
 };
 
-extern struct nla_policy eam_policy[JNLAE_COUNT];
+extern struct nla_policy joolnl_eam_policy[JNLAE_COUNT];
 
 enum joolnl_attr_pool4 {
 	JNLAP4_MARK = 1,
@@ -203,6 +211,17 @@ enum joolnl_attr_session {
 };
 
 extern struct nla_policy joolnl_session_entry_policy[JNLASE_COUNT];
+
+enum joolnl_attr_mapping_rule {
+	JNLAMR_PREFIX6 = 1,
+	JNLAMR_PREFIX4,
+	JNLAMR_EA_BITS_LENGTH,
+	JNLAMR_a,
+	JNLAMR_COUNT,
+#define JNLAMR_MAX (JNLAMR_COUNT - 1)
+};
+
+extern struct nla_policy joolnl_mr_policy[JNLAMR_COUNT];
 
 enum joolnl_attr_address_query {
 	JNLAAQ_ADDR6 = 1,
@@ -253,13 +272,19 @@ enum joolnl_attr_global {
 	JNLAG_JOOLD_CAPACITY,
 	JNLAG_JOOLD_MAX_PAYLOAD,
 
+	/* MAP-T */
+	JNLAG_MAPTYPE,
+	JNLAG_EUI6P, /* End-user IPv6 prefix */
+	JNLAG_BMR,
+
 	/* Needs to be last */
 	JNLAG_COUNT,
 #define JNLAG_MAX (JNLAG_COUNT - 1)
 };
 
-extern struct nla_policy siit_globals_policy[JNLAG_COUNT];
-extern struct nla_policy nat64_globals_policy[JNLAG_COUNT];
+extern const struct nla_policy siit_globals_policy[JNLAG_COUNT];
+extern const struct nla_policy nat64_globals_policy[JNLAG_COUNT];
+extern const struct nla_policy mapt_globals_policy[JNLAG_COUNT];
 
 enum joolnl_attr_error {
 	JNLAERR_CODE = 1,
@@ -319,6 +344,11 @@ struct config_prefix4 {
 	bool set;
 	/** Please note that this could be garbage; see above. */
 	struct ipv4_prefix prefix;
+};
+
+struct config_mapping_rule {
+	bool set;
+	struct mapping_rule rule;
 };
 
 /**
@@ -470,6 +500,23 @@ struct joold_config {
 	__u32 max_payload;
 };
 
+enum mapt_type {
+	MAPTYPE_BR,
+	MAPTYPE_CE,
+};
+
+struct mapt_globals {
+	__u8 type; /* enum mapt_type */
+	/*
+	 * The "End-user IPv6 prefix." CE-only.
+	 * Overkill name, honestly. Should be called "CE prefix," but I'm not
+	 * convinced to change the RFC terms yet.
+	 */
+	struct config_prefix6 eui6p;
+	/* The "Basic Mapping Rule." CE-only. */
+	struct config_mapping_rule bmr;
+};
+
 /**
  * A copy of the entire running configuration, excluding databases.
  */
@@ -525,6 +572,24 @@ struct jool_globals {
 	 */
 	struct mtu_plateaus plateaus;
 
+	/**
+	 * Randomize choice of RFC6791 address?
+	 * Otherwise it will be set depending on the incoming packet's Hop
+	 * Limit.
+	 * See https://github.com/NICMx/Jool/issues/130.
+	 */
+	bool randomize_error_addresses;
+	/**
+	 * Addresses used to source ICMPv6 errors when the original IPv4 address
+	 * wasn't translatable.
+	 */
+	struct config_prefix6 rfc6791_prefix6;
+	/**
+	 * Addresses used to source ICMPv4 errors when the original IPv6 address
+	 * wasn't translatable.
+	 */
+	struct config_prefix4 rfc6791_prefix4;
+
 	union {
 		struct {
 			/**
@@ -539,26 +604,8 @@ struct jool_globals {
 			 * See @eam_hairpinning_mode.
 			 */
 			__u8 eam_hairpin_mode;
-			/**
-			 * Randomize choice of RFC6791 address?
-			 * Otherwise it will be set depending on the incoming
-			 * packet's Hop Limit.
-			 * See https://github.com/NICMx/Jool/issues/130.
-			 */
-			bool randomize_error_addresses;
-
-			/**
-			 * Address used to represent a not translatable source
-			 * address of an incoming packet.
-			 */
-			struct config_prefix6 rfc6791_prefix6;
-			/**
-			 * Address used to represent a not translatable source
-			 * address of an incoming packet.
-			 */
-			struct config_prefix4 rfc6791_prefix4;
-
 		} siit;
+
 		struct {
 			/** Filter ICMPv6 Informational packets? */
 			bool drop_icmp6_info;
@@ -569,14 +616,14 @@ struct jool_globals {
 			 */
 			bool src_icmp6errs_better;
 			/**
-			 * Fields of the packet that will be sent to the F() function.
-			 * (RFC 6056 algorithm 3.)
+			 * Fields of the packet that will be sent to the F()
+			 * function. (RFC 6056 algorithm 3.)
 			 * See "enum f_args".
 			 */
 			__u8 f_args;
 			/**
-			 * Decrease timer when a FIN packet is received during the
-			 * `V4 FIN RCV` or `V6 FIN RCV` states?
+			 * Decrease timer when a FIN packet is received during
+			 * the `V4 FIN RCV` or `V6 FIN RCV` states?
 			 * https://github.com/NICMx/Jool/issues/212
 			 */
 			bool handle_rst_during_fin_rcv;
@@ -584,6 +631,8 @@ struct jool_globals {
 			struct bib_config bib;
 			struct joold_config joold;
 		} nat64;
+
+		struct mapt_globals mapt;
 	};
 };
 

@@ -88,6 +88,20 @@ static struct joolnl_stat_metadata const jstat_metadatas[] = {
 	DEFINE_STAT(JSTAT_ICMP4ERR_FAILURE, "ICMPv4 errors (created by Jool, not translated) that could not be sent."),
 	DEFINE_STAT(JSTAT_ICMPEXT_SMALL, "Illegal ICMP header length. (Inner packet has less than 128 bytes.)"),
 	DEFINE_STAT(JSTAT_ICMPEXT_BIG, "Illegal ICMP header length. (Exceeds available payload in packet.)"),
+	DEFINE_STAT(JSTAT_MAPT_ADDR4, "The incoming IPv4 packet had a source address that did not match the assigned to this CE. (If there is a NAPT, there is a mismatch between its configuration and my own.)"),
+	DEFINE_STAT(JSTAT_MAPT_PSID, "The incoming IPv4 packet had a source port that did not match the PSID assigned to this CE. (There is a mismatch between the NAPT's configuration and my own.)"),
+	DEFINE_STAT(JSTAT_MAPT_POOL6, "The incoming IPv6 packet's destination address did not match the DMR (pool6) assigned to this BR."),
+	DEFINE_STAT(JSTAT_MAPT_EUI6P, "The incoming IPv6 packet's destination address did not match the End-user IPv6 Prefix assigned to this CE."),
+	DEFINE_STAT(JSTAT_MAPT_FMR6, "The incoming IPv6 packet's source address did not match any FMRs assigned to this BR."),
+	DEFINE_STAT(JSTAT_MAPT_FMR4, "The incoming IPv4 packet's destination address did not match any FMRs assigned to this BR."),
+	DEFINE_STAT(JSTAT_MAPT_BAD_PRPF, "The Port-Restricted Port Field is invalid: a + k > 16.\n"
+			"Basically, a MAP IPv6 address cannot be assembled if a + k + m != 16, where a >= 0, k >= 0, m >= 0.\n"
+			"- a is a configuration global.\n"
+			"- k = o - p\n"
+			"- o = Mapping Rule's EA-bits length\n"
+			"- p = Mapping Rule's IPv4 suffix length\n"
+			"- \"Mapping Rule\" is the BMR or one of the FMRs.\n"
+			"- m is basically just 16 - a - k."),
 	DEFINE_STAT(JSTAT_UNKNOWN, TC "Programming error found. The module recovered, but the packet was dropped."),
 	DEFINE_STAT(JSTAT_PADDING, "Dummy; ignore this one."),
 };

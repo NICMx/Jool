@@ -7,16 +7,13 @@
 #include "usr/argp/requirements.h"
 #include "usr/argp/wargp.h"
 #include "usr/argp/xlator_type.h"
+#include "usr/argp/wargp/global.h"
 #include "usr/util/str_utils.h"
 #include "usr/nl/core.h"
 #include "usr/nl/instance.h"
 
 #define OPTNAME_NETFILTER		"netfilter"
 #define OPTNAME_IPTABLES		"iptables"
-
-#define ARGP_IPTABLES 1000
-#define ARGP_NETFILTER 1001
-#define ARGP_POOL6 '6'
 
 struct wargp_iname {
 	bool set;
@@ -169,20 +166,28 @@ static struct wargp_option add_opts[] = {
 	WARGP_INAME(struct add_args, iname, "add"),
 	{
 		.name = OPTNAME_IPTABLES,
-		.key = ARGP_IPTABLES,
+		.key = 'i',
 		.doc = "Sit the translator on top of iptables",
 		.offset = offsetof(struct add_args, iptables),
 		.type = &wt_bool,
 	}, {
 		.name = OPTNAME_NETFILTER,
-		.key = ARGP_NETFILTER,
+		.key = 'n',
 		.doc = "Sit the translator on top of Netfilter",
 		.offset = offsetof(struct add_args, netfilter),
 		.type = &wt_bool,
 	}, {
+		.xt = XT_SIIT | XT_NAT64,
 		.name = "pool6",
-		.key = ARGP_POOL6,
+		.key = '6',
 		.doc = "Prefix that will populate the IPv6 Address Pool",
+		.offset = offsetof(struct add_args, pool6),
+		.type = &wt_prefix6,
+	}, {
+		.xt = XT_MAPT,
+		.name = "dmr",
+		.key = '6',
+		.doc = "The prefix the IPv4 Internet is being masked with.",
 		.offset = offsetof(struct add_args, pool6),
 		.type = &wt_prefix6,
 	},
@@ -193,7 +198,6 @@ int handle_instance_add(char *iname, int argc, char **argv, void const *arg)
 {
 	struct add_args aargs = { 0 };
 	struct joolnl_socket sk;
-	xlator_framework xf;
 	struct jool_result result;
 
 	result.error = wargp_parse(add_opts, argc, argv, &aargs);
@@ -225,9 +229,12 @@ int handle_instance_add(char *iname, int argc, char **argv, void const *arg)
 	if (result.error)
 		return pr_result(&result);
 
-	xf = aargs.netfilter.value ? XF_NETFILTER : XF_IPTABLES;
-	result = joolnl_instance_add(&sk, xf, iname,
-			aargs.pool6.set ? &aargs.pool6.prefix : NULL);
+	result = joolnl_instance_add(
+		&sk,
+		aargs.netfilter.value ? XF_NETFILTER : XF_IPTABLES,
+		iname,
+		aargs.pool6.set ? &aargs.pool6.prefix : NULL
+	);
 
 	joolnl_teardown(&sk);
 	return pr_result(&result);

@@ -17,7 +17,7 @@ static struct ipv6hdr *kmalloc_packet(__u16 payload_len, __u8 nexthdr)
 {
 	struct ipv6hdr *result = kmalloc(HDR6_LEN + payload_len, GFP_ATOMIC);
 	if (!result) {
-		log_err("Unable to allocate a test header.");
+		pr_err("Unable to allocate a test header.\n");
 		return NULL;
 	}
 

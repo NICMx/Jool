@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Quick 'n dirty kernel-to-userspace Netlink packet fragmentation test.
-# First, go to /src/mod/common/nl/nl_core.c. In the jresponse_init() function,
+# First, go to /src/mod/common/nl/nl_common.c. In the jresponse_init() function,
 # change
 #
 #	response->skb = genlmsg_new(GENLMSG_DEFAULT_SIZE, GFP_KERNEL);

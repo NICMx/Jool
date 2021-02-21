@@ -3,14 +3,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <errno.h>
+#include <limits.h>
 #include <string.h>
 #include <regex.h>
 #include <netinet/in.h>
-
-/* The maximum network length for IPv4. */
-static const __u8 IPV4_MAX_PREFIX = 32;
-/* The maximum network length for IPv6. */
-static const __u8 IPV6_MAX_PREFIX = 128;
 
 static struct jool_result validate_uint(const char *str)
 {
@@ -144,6 +140,17 @@ struct jool_result str_to_u32(const char *str, __u32 *u32_out)
 	return result;
 }
 
+struct jool_result str_to_u64(const char *str, __u64 *u64_out)
+{
+	unsigned long long int out;
+	struct jool_result result;
+
+	result = str_to_ull(str, NULL, 0, ULLONG_MAX, &out);
+
+	*u64_out = out;
+	return result;
+}
+
 struct jool_result str_to_timeout(const char *str, __u32 *out)
 {
 	unsigned long long int seconds = 0;
@@ -254,194 +261,183 @@ struct jool_result str_to_addr6(const char *str, struct in6_addr *addr)
 	return result_success();
 }
 
-#undef STR_MAX_LEN
-/* [addr + null chara] + # + port */
-#define STR_MAX_LEN (INET_ADDRSTRLEN + 1 + 5)
 struct jool_result str_to_addr4_port(const char *str,
 		struct ipv4_transport_addr *addr_out)
 {
 	const char *FORMAT = "<IPv4 address>#<port> (eg. 203.0.113.8#80)";
-	/* strtok corrupts the string, so we'll be using this copy instead. */
-	char str_copy[STR_MAX_LEN];
-	char *token;
+	char *str_copy, *token, *saveptr; /* strtok_r tools */
 	struct jool_result result;
 
-	if (strlen(str) + 1 > STR_MAX_LEN) {
-		return result_from_error(
-			-EINVAL,
-			"'%s' is too long for this poor, limited parser...", str
-		);
-	}
-	strcpy(str_copy, str);
+	str_copy = strdup(str);
+	if (!str_copy)
+		return result_from_enomem();
+	saveptr = NULL;
 
-	token = strtok(str_copy, "#");
+	token = strtok_r(str_copy, "#", &saveptr);
 	if (!token) {
-		return result_from_error(
+		result = result_from_error(
 			-EINVAL,
 			"Cannot parse '%s' as a %s.", str, FORMAT
 		);
+		goto end;
 	}
 
 	result = str_to_addr4(token, &addr_out->l3);
 	if (result.error)
-		return result;
+		goto end;
 
-	token = strtok(NULL, "#");
+	token = strtok_r(NULL, "#", &saveptr);
 	if (!token) {
-		return result_from_error(
+		result = result_from_error(
 			-EINVAL,
 			"'%s' does not seem to contain a port (format: %s).",
 			str, FORMAT
 		);
+		goto end;
 	}
-	return str_to_u16(token, &addr_out->l4);
+	result = str_to_u16(token, &addr_out->l4);
+	/* Fall through */
+end:
+	free(str_copy);
+	return result;
 }
 
-#undef STR_MAX_LEN
-/* [addr + null chara] + # + port */
-#define STR_MAX_LEN (INET6_ADDRSTRLEN + 1 + 5)
 struct jool_result str_to_addr6_port(const char *str,
 		struct ipv6_transport_addr *addr_out)
 {
 	const char *FORMAT = "<IPv6 address>#<port> (eg. 2001:db8::1#96)";
-	/* strtok corrupts the string, so we'll be using this copy instead. */
-	char str_copy[STR_MAX_LEN];
-	char *token;
+	char *str_copy, *token, *saveptr; /* strtok_r tools */
 	struct jool_result result;
 
-	if (strlen(str) + 1 > STR_MAX_LEN) {
-		return result_from_error(
-			-EINVAL,
-			"'%s' is too long for this poor, limited parser...", str
-		);
-	}
-	strcpy(str_copy, str);
+	str_copy = strdup(str);
+	if (!str_copy)
+		return result_from_enomem();
+	saveptr = NULL;
 
-	token = strtok(str_copy, "#");
+	token = strtok_r(str_copy, "#", &saveptr);
 	if (!token) {
-		return result_from_error(
+		result = result_from_error(
 			-EINVAL,
 			"Cannot parse '%s' as a %s.", str, FORMAT
 		);
+		goto end;
 	}
 
 	result = str_to_addr6(token, &addr_out->l3);
 	if (result.error)
-		return result;
+		goto end;
 
-	token = strtok(NULL, "#");
+	token = strtok_r(NULL, "#", &saveptr);
 	if (!token) {
-		return result_from_error(
+		result = result_from_error(
 			-EINVAL,
 			"'%s' does not seem to contain a port (format: %s).",
 			str, FORMAT
 		);
+		goto end;
 	}
-	return str_to_u16(token, &addr_out->l4);
+	result = str_to_u16(token, &addr_out->l4);
+	/* Fall through */
+end:
+	free(str_copy);
+	return result;
 }
 
-#undef STR_MAX_LEN
-/* [addr + null chara] + / + mask */
-#define STR_MAX_LEN (INET_ADDRSTRLEN + 1 + 2)
 struct jool_result str_to_prefix4(const char *str,
 		struct ipv4_prefix *prefix_out)
 {
 	const char *FORMAT = "<IPv4 address>[/<mask>] (eg. 192.0.2.0/24)";
-	/* strtok corrupts the string, so we'll be using this copy instead. */
-	char str_copy[STR_MAX_LEN];
-	char *token;
+	char *str_copy, *token, *saveptr; /* strtok_r tools */
 	struct jool_result result;
 
-	if (strlen(str) + 1 > STR_MAX_LEN) {
-		return result_from_error(
-			-EINVAL,
-			"'%s' is too long for this poor, limited parser...", str
-		);
-	}
-	strcpy(str_copy, str);
+	str_copy = strdup(str);
+	if (!str_copy)
+		return result_from_enomem();
+	saveptr = NULL;
 
-	token = strtok(str_copy, "/");
+	token = strtok_r(str_copy, "/", &saveptr);
 	if (!token) {
-		return result_from_error(
+		result = result_from_error(
 			-EINVAL,
 			"Cannot parse '%s' as a %s.", str, FORMAT
 		);
+		goto end;
 	}
 
 	result = str_to_addr4(token, &prefix_out->addr);
 	if (result.error)
-		return result;
+		goto end;
 
-	token = strtok(NULL, "/");
+	token = strtok_r(NULL, "/", &saveptr);
 	if (!token) {
-		prefix_out->len = IPV4_MAX_PREFIX;
-		return result_success();
+		prefix_out->len = 32;
+		result = result_success();
+		goto end;
 	}
-	return str_to_u8(token, &prefix_out->len, 32);
+	result = str_to_u8(token, &prefix_out->len, 32);
+	/* Fall through */
+end:
+	free(str_copy);
+	return result;
 }
 
-#undef STR_MAX_LEN
-/* [addr + null chara] + / + pref len */
-#define STR_MAX_LEN (INET6_ADDRSTRLEN + 1 + 3)
 struct jool_result str_to_prefix6(const char *str,
 		struct ipv6_prefix *prefix_out)
 {
 	const char *FORMAT = "<IPv6 address>[/<length>] (eg. 64:ff9b::/96)";
-	/* strtok corrupts the string, so we'll be using this copy instead. */
-	char str_copy[STR_MAX_LEN];
-	char *token;
+	char *str_copy, *token, *saveptr; /* strtok_r tools */
 	struct jool_result result;
 
-	if (strlen(str) + 1 > STR_MAX_LEN) {
-		return result_from_error(
-			-EINVAL,
-			"'%s' is too long for this poor, limited parser...", str
-		);
-	}
-	strcpy(str_copy, str);
+	str_copy = strdup(str);
+	if (!str_copy)
+		return result_from_enomem();
+	saveptr = NULL;
 
-	token = strtok(str_copy, "/");
+	token = strtok_r(str_copy, "/", &saveptr);
 	if (!token) {
-		return result_from_error(
+		result = result_from_error(
 			-EINVAL,
 			"Cannot parse '%s' as a %s.", str, FORMAT
 		);
+		goto end;
 	}
 
 	result = str_to_addr6(token, &prefix_out->addr);
 	if (result.error)
-		return result;
+		goto end;
 
-	token = strtok(NULL, "/");
+	token = strtok_r(NULL, "/", &saveptr);
 	if (!token) {
-		prefix_out->len = IPV6_MAX_PREFIX;
-		return result_success();
+		prefix_out->len = 128;
+		result = result_success();
+		goto end;
 	}
-	return str_to_u8(token, &prefix_out->len, 128);
+	result = str_to_u8(token, &prefix_out->len, 128);
+	/* Fall through */
+end:
+	free(str_copy);
+	return result;
 }
 
-struct jool_result str_to_plateaus_array(const char *str, struct mtu_plateaus *plateaus)
+struct jool_result str_to_plateaus_array(const char *str,
+		struct mtu_plateaus *plateaus)
 {
-	/* strtok corrupts the string, so we'll be using this copy instead. */
-	char *str_copy;
-	char *token;
+	char *str_copy, *token, *saveptr; /* strtok_r tools */
 	unsigned int len;
 	struct jool_result result;
 
 	/* Validate str and copy it to the temp buffer. */
-	/* TODO (fine) strdup, damn it */
-	str_copy = malloc(strlen(str) + 1);
+	str_copy = strdup(str);
 	if (!str_copy)
 		return result_from_enomem();
 
-	strcpy(str_copy, str);
-
 	/* Count the number of elements in the string. */
+	saveptr = NULL;
 	len = 0;
-	token = strtok(str_copy, ",");
+	token = strtok_r(str_copy, ",", &saveptr);
 	while (token) {
 		len++;
-		token = strtok(NULL, ",");
+		token = strtok_r(NULL, ",", &saveptr);
 	}
 
 	if (len == 0) {
@@ -462,9 +458,10 @@ struct jool_result str_to_plateaus_array(const char *str, struct mtu_plateaus *p
 
 	/* Build the result. */
 	plateaus->count = len;
+	saveptr = NULL;
 	len = 0;
 	strcpy(str_copy, str);
-	token = strtok(str_copy, ",");
+	token = strtok_r(str_copy, ",", &saveptr);
 	while (token) {
 		result = str_to_u16(token, &plateaus->values[len]);
 		if (result.error) {
@@ -473,7 +470,7 @@ struct jool_result str_to_plateaus_array(const char *str, struct mtu_plateaus *p
 		}
 
 		len++;
-		token = strtok(NULL, ",");
+		token = strtok_r(NULL, ",", &saveptr);
 	}
 
 	free(str_copy);

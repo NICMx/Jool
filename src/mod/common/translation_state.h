@@ -65,10 +65,20 @@ struct xlation {
 
 	/**
 	 * Intrinsic hairpin?
-	 * Intrinsic EAM hairpinning only. RFC6052 hairpin and Simple EAM
-	 * hairpin don't need any flags.
+	 * Intrinsic EAM hairpin and MAP-T hairpin only. RFC6052 hairpin and
+	 * Simple EAM hairpin don't need any flags.
+	 * This flag is enabled during the first pass. (Ie. from the moment Jool
+	 * realizes the packet is going to hairpin, to the moment the first
+	 * packet translation is done.)
 	 */
-	bool is_hairpin;
+	bool is_hairpin_1;
+	/**
+	 * Intrinsic hairpin?
+	 * This flag is enabled during the second pass. (Ie. From the moment the
+	 * second packet translation is started, to the moment the second packet
+	 * translation is done.)
+	 */
+	bool is_hairpin_2;
 
 	struct xlation_result result;
 };
@@ -91,5 +101,7 @@ verdict stolen(struct xlation *state, enum jool_stat_id stat);
 
 #define xlation_is_siit(state) xlator_is_siit(&(state)->jool)
 #define xlation_is_nat64(state) xlator_is_nat64(&(state)->jool)
+#define xlation_is_mapt(state) xlator_is_mapt(&(state)->jool)
+#define xlation_has_defrag(state) xlator_has_defrag(&(state)->jool)
 
 #endif /* SRC_MOD_COMMON_TRANSLATION_STATE_H_ */

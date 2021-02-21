@@ -5,6 +5,8 @@
 #include "usr/argp/userspace-types.h"
 #include "usr/argp/wargp.h"
 #include "usr/argp/xlator_type.h"
+#include "usr/nl/attribute.h"
+#include "usr/nl/common.h"
 #include "usr/nl/core.h"
 #include "usr/nl/global.h"
 
@@ -77,12 +79,13 @@ static struct wargp_option update_opts[] = {
 		.key = ARGP_KEY_ARG,
 		.doc = "New value the variable should be changed to",
 		.offset = offsetof(struct update_args, global_str),
-		.type = &wt_string,
+		.type = &wt_multi_string,
 	},
 	{ 0 },
 };
 
-static int handle_global_update(char *iname, int argc, char **argv, void const *field)
+static int handle_global_update(char *iname, int argc, char **argv,
+		void const *field)
 {
 	struct update_args uargs = { 0 };
 	struct joolnl_socket sk;
@@ -99,10 +102,13 @@ static int handle_global_update(char *iname, int argc, char **argv, void const *
 
 	result = joolnl_setup(&sk, xt_get());
 	if (result.error)
-		return pr_result(&result);
-	result = joolnl_global_update(&sk, iname, field, uargs.global_str.value, uargs.force.value);
+		goto end;
+	result = joolnl_global_update(&sk, iname, field, uargs.global_str.value,
+			uargs.force.value);
 	joolnl_teardown(&sk);
-
+	/* Fall through */
+end:
+	free(uargs.global_str.value);
 	return pr_result(&result);
 }
 

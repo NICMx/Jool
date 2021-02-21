@@ -7,6 +7,7 @@ MODULE_LICENSE(JOOL_LICENSE);
 MODULE_AUTHOR("Alberto Leiva");
 MODULE_DESCRIPTION("BIB DB module test.");
 
+static struct jnl_state *state;
 static struct xlator jool;
 static const l4_protocol PROTO = L4PROTO_TCP;
 static struct bib_entry bibs[8];
@@ -153,12 +154,12 @@ static bool test_flow(void)
 
 	/* ---------------------------------------------------------- */
 
-	log_debug(NULL, "Removing all ports from a range.");
+	pr_info("Removing all ports from a range.\n");
 	range.prefix.addr.s_addr = cpu_to_be32(0xc0000200);
 	range.prefix.len = 31;
 	range.ports.min = 0;
 	range.ports.max = 65535;
-	bib_rm_range(&jool, PROTO, &range);
+	bib_rm_range(jool.nat64.bib, PROTO, &range, state);
 
 	drop_bib(0, 10, 1, 21);
 	drop_bib(1, 19, 0, 20);
@@ -168,12 +169,12 @@ static bool test_flow(void)
 
 	/* ---------------------------------------------------------- */
 
-	log_debug(NULL, "Deleting only certain ports from a range.");
+	pr_info("Deleting only certain ports from a range.\n");
 	range.prefix.addr.s_addr = cpu_to_be32(0xc0000202);
 	range.prefix.len = 31;
 	range.ports.min = 11;
 	range.ports.max = 20;
-	bib_rm_range(&jool, PROTO, &range);
+	bib_rm_range(jool.nat64.bib, PROTO, &range, state);
 
 	drop_bib(2, 18, 3, 20);
 	drop_bib(0, 20, 2, 12);
@@ -181,12 +182,12 @@ static bool test_flow(void)
 
 	/* ---------------------------------------------------------- */
 
-	log_debug(NULL, "Flushing using bib_rm_range().");
+	pr_info("Flushing using bib_rm_range().\n");
 	range.prefix.addr.s_addr = cpu_to_be32(0x00000000);
 	range.prefix.len = 0;
 	range.ports.min = 0;
 	range.ports.max = 65535;
-	bib_rm_range(&jool, PROTO, &range);
+	bib_rm_range(jool.nat64.bib, PROTO, &range, state);
 
 	drop_bib(3, 10, 3, 10);
 	drop_bib(3, 20, 2, 22);
@@ -197,8 +198,8 @@ static bool test_flow(void)
 	if (!insert_test_bibs())
 		return false;
 
-	log_debug(NULL, "Flushing using bib_flush().");
-	bib_flush(&jool);
+	pr_info("Flushing using bib_flush().\n");
+	bib_flush(jool.nat64.bib, state);
 	drop_test_bibs();
 	success &= test_db();
 
@@ -212,20 +213,32 @@ enum session_fate tcp_est_expire_cb(struct session_entry *session, void *arg)
 
 static int init(void)
 {
-	return xlator_init(&jool, NULL, INAME_DEFAULT, XF_NETFILTER | XT_NAT64,
-			NULL);
+	int error;
+
+	error = xlator_init(&jool, NULL, INAME_DEFAULT, XF_NETFILTER | XT_NAT64,
+			NULL, NULL);
+	if (error)
+		return error;
+
+	state = jnls_create(&jool);
+	if (!state) {
+		xlator_put(&jool);
+		return -ENOMEM;
+	}
+
+	return 0;
 }
 
 static void clean(void)
 {
+	jnls_destroy(state);
 	xlator_put(&jool);
 }
 
 int init_module(void)
 {
 	struct test_group test = {
-		.name = "Filtering and Updating",
-		.teardown_fn = bib_teardown,
+		.name = "BIB DB",
 		.init_fn = init,
 		.clean_fn = clean,
 	};

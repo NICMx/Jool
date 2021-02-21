@@ -6,7 +6,6 @@
 #include "log.h"
 #include "sender.h"
 #include "common/types.h"
-#include "mod/common/error_pool.h"
 #include "mod/common/linux_version.h"
 
 static DEFINE_MUTEX(config_mutex);
@@ -124,7 +123,6 @@ static int handle_userspace_msg(struct sk_buff *skb, struct genl_info *info)
 	int error;
 
 	mutex_lock(&config_mutex);
-	error_pool_activate();
 
 	switch (info->genlhdr->cmd) {
 	case COMMAND_EXPECT_ADD:
@@ -144,11 +142,9 @@ static int handle_userspace_msg(struct sk_buff *skb, struct genl_info *info)
 		break;
 	default:
 		log_err("Unknown command code: %d", info->genlhdr->cmd);
-		error_pool_deactivate();
 		return genl_respond(info, -EINVAL);
 	}
 
-	error_pool_deactivate();
 	mutex_unlock(&config_mutex);
 
 	return error;

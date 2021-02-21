@@ -6,6 +6,7 @@
 #include "mod/common/ipv6_hdr_iterator.h"
 #include "mod/common/linux_version.h"
 #include "mod/common/log.h"
+#include "mod/common/mapt.h"
 #include "mod/common/route.h"
 #include "mod/common/steps/compute_outgoing_tuple.h"
 
@@ -17,7 +18,7 @@ static __u8 xlat_tos(struct jool_globals const *config, struct ipv6hdr const *hd
 /**
  * One-liner for creating the IPv4 header's Protocol field.
  */
-static __u8 xlat_proto(struct ipv6hdr const *hdr6)
+EXPORT_UNIT_STATIC __u8 xlat_proto(struct ipv6hdr const *hdr6)
 {
 	struct hdr_iterator iterator = HDR_ITERATOR_INIT(hdr6);
 	hdr_iterator_last(&iterator);
@@ -25,6 +26,7 @@ static __u8 xlat_proto(struct ipv6hdr const *hdr6)
 			? IPPROTO_ICMP
 			: iterator.hdr_type;
 }
+EXPORT_UNIT_SYMBOL(xlat_proto)
 
 static verdict xlat64_external_addresses(struct xlation *state)
 {
@@ -38,39 +40,63 @@ static verdict xlat64_external_addresses(struct xlation *state)
 
 	case XT_SIIT:
 		return translate_addrs64_siit(state, &flow->saddr, &flow->daddr);
+
+	case XT_MAPT:
+		return translate_addrs64_mapt(state, &flow->saddr, &flow->daddr,
+				true);
 	}
 
-	WARN(1, "xlator type is not SIIT nor NAT64: %u",
+	WARN(1, "xlator type is not SIIT, NAT64 nor MAP-T: %u",
 			xlator_get_type(&state->jool));
 	return drop(state, JSTAT_UNKNOWN);
 }
 
 static verdict xlat64_internal_addresses(struct xlation *state)
 {
+	xlator_type xtype;
+	struct ipv6hdr *hdr6;
 	struct bkp_skb_tuple bkp;
 	verdict result;
 
-	switch (xlator_get_type(&state->jool)) {
-	case XT_NAT64:
+	xtype = xlator_get_type(&state->jool);
+	if (xtype == XT_NAT64) {
 		state->flowx.v4.inner_src = state->out.tuple.dst.addr4.l3;
 		state->flowx.v4.inner_dst = state->out.tuple.src.addr4.l3;
 		return VERDICT_CONTINUE;
+	}
 
+	result = become_inner_packet(state, &bkp, false);
+	if (result != VERDICT_CONTINUE)
+		return result;
+
+	hdr6 = pkt_ip6_hdr(&state->in);
+	log_debug(state, "Translating internal addresses %pI6c->%pI6c...",
+			&hdr6->saddr, &hdr6->daddr);
+
+	switch (xtype) {
 	case XT_SIIT:
-		result = become_inner_packet(state, &bkp, false);
-		if (result != VERDICT_CONTINUE)
-			return result;
-		log_debug(state, "Translating internal addresses...");
 		result = translate_addrs64_siit(state,
 				&state->flowx.v4.inner_src.s_addr,
 				&state->flowx.v4.inner_dst.s_addr);
-		restore_outer_packet(state, &bkp, false);
-		return result;
+		break;
+	case XT_MAPT:
+		result = translate_addrs64_mapt(state,
+				&state->flowx.v4.inner_src.s_addr,
+				&state->flowx.v4.inner_dst.s_addr,
+				false);
+		break;
+	default:
+		WARN(1, "Unknown xlator type: %u",
+				xlator_get_type(&state->jool));
+		return drop(state, JSTAT_UNKNOWN);
 	}
 
-	WARN(1, "xlator type is not SIIT nor NAT64: %u",
-			xlator_get_type(&state->jool));
-	return drop(state, JSTAT_UNKNOWN);
+	log_debug(state, "Result: %pI4->%pI4",
+			&state->flowx.v4.inner_src,
+			&state->flowx.v4.inner_dst);
+
+	restore_outer_packet(state, &bkp, false);
+	return result;
 }
 
 static verdict xlat64_tcp_ports(struct xlation *state)
@@ -85,6 +111,7 @@ static verdict xlat64_tcp_ports(struct xlation *state)
 		flow4->fl4_dport = cpu_to_be16(state->out.tuple.dst.addr4.l4);
 		break;
 	case XT_SIIT:
+	case XT_MAPT:
 		hdr = pkt_tcp_hdr(&state->in);
 		flow4->fl4_sport = hdr->source;
 		flow4->fl4_dport = hdr->dest;
@@ -105,6 +132,7 @@ static verdict xlat64_udp_ports(struct xlation *state)
 		flow4->fl4_dport = cpu_to_be16(state->out.tuple.dst.addr4.l4);
 		break;
 	case XT_SIIT:
+	case XT_MAPT:
 		udp = pkt_udp_hdr(&state->in);
 		flow4->fl4_sport = udp->source;
 		flow4->fl4_dport = udp->dest;
@@ -203,9 +231,14 @@ static verdict compute_flowix64(struct xlation *state)
 	 */
 	flow4->flowi4_flags = FLOWI_FLAG_ANYSRC;
 
+	log_debug(state, "Translating packet addresses %pI6c->%pI6c...",
+			&hdr6->saddr, &hdr6->daddr);
+
 	result = xlat64_external_addresses(state);
 	if (result != VERDICT_CONTINUE)
 		return result;
+
+	log_debug(state, "Result: %pI4->%pI4", &flow4->saddr, &flow4->daddr);
 
 	switch (flow4->flowi4_proto) {
 	case IPPROTO_TCP:
@@ -284,6 +317,7 @@ success:
 static verdict __predict_route64(struct xlation *state)
 {
 	struct flowi4 *flow4;
+	bool deciding_saddr;
 	verdict result;
 
 #ifdef UNIT_TESTING
@@ -291,16 +325,24 @@ static verdict __predict_route64(struct xlation *state)
 #endif
 
 	flow4 = &state->flowx.v4.flowi;
+	deciding_saddr = (flow4->saddr == 0);
 
-	if (state->is_hairpin) {
+	if (state->is_hairpin_1) {
 		log_debug(state, "Packet is hairpinning; skipping routing.");
 	} else {
-		log_debug(state, "Routing: %pI4->%pI4", &flow4->saddr, &flow4->daddr);
 		state->dst = route4(&state->jool, flow4);
 		if (!state->dst)
 			return untranslatable(state, JSTAT_FAILED_ROUTES);
 	}
 
+	/*
+	 * Update: At least for newer kernels, it seems this if is no longer
+	 * necessary. __ip_route_output_key() sets saddr if uninitialized.
+	 * Consider removing this if when we drop old kernels.
+	 *
+	 * I don't really know when the change happened, nor whether we actually
+	 * really needed this at some point.
+	 */
 	if (flow4->saddr == 0) { /* Empty pool4 or empty pool6791v4 */
 		if (state->dst) {
 			result = select_good_saddr(state);
@@ -314,6 +356,11 @@ static verdict __predict_route64(struct xlation *state)
 			if (result != VERDICT_CONTINUE)
 				return result;
 		}
+	}
+
+	if (deciding_saddr) {
+		log_debug(state, "Decided source address: %pI4",
+				&state->flowx.v4.flowi.saddr);
 	}
 
 	return VERDICT_CONTINUE;
@@ -545,7 +592,7 @@ static void generate_ipv4_id(struct xlation const *state, struct iphdr *hdr4,
 /**
  * One-liner for creating the IPv4 header's Dont Fragment flag.
  */
-static bool generate_df_flag(struct packet const *out)
+EXPORT_UNIT_STATIC bool generate_df_flag(struct packet const *out)
 {
 	unsigned int len;
 
@@ -555,6 +602,7 @@ static bool generate_df_flag(struct packet const *out)
 
 	return len > 1260;
 }
+EXPORT_UNIT_SYMBOL(generate_df_flag)
 
 static __be16 xlat_frag_off(struct frag_hdr const *hdr_frag, struct packet const *out)
 {
@@ -583,7 +631,7 @@ static __be16 xlat_frag_off(struct frag_hdr const *hdr_frag, struct packet const
  *		of the segments left field (from the start of @hdr6) will be
  *		stored here.
  */
-static bool has_nonzero_segments_left(struct ipv6hdr const *hdr6,
+EXPORT_UNIT_STATIC bool has_nonzero_segments_left(struct ipv6hdr const *hdr6,
 		__u32 *location)
 {
 	struct ipv6_rt_hdr const *rt_hdr;
@@ -600,6 +648,7 @@ static bool has_nonzero_segments_left(struct ipv6hdr const *hdr6,
 	*location = offset + offsetof(struct ipv6_rt_hdr, segments_left);
 	return true;
 }
+EXPORT_UNIT_SYMBOL(has_nonzero_segments_left)
 
 /**
  * Translates @state->in's IPv6 header into @state->out's IPv4 header.
@@ -616,10 +665,6 @@ static verdict ttp64_ipv4_external(struct xlation *state)
 
 	hdr6 = pkt_ip6_hdr(&state->in);
 
-	if (hdr6->hop_limit <= 1) {
-		log_debug(state, "Packet's hop limit <= 1.");
-		return drop_icmp(state, JSTAT64_TTL, ICMPERR_TTL, 0);
-	}
 	if (has_nonzero_segments_left(hdr6, &nonzero_location)) {
 		log_debug(state, "Packet's segments left field is nonzero.");
 		return drop_icmp(state, JSTAT64_SEGMENTS_LEFT,
@@ -636,7 +681,17 @@ static verdict ttp64_ipv4_external(struct xlation *state)
 	hdr4->tot_len = cpu_to_be16(state->out.skb->len);
 	generate_ipv4_id(state, hdr4, hdr_frag);
 	hdr4->frag_off = xlat_frag_off(hdr_frag, &state->out);
-	hdr4->ttl = hdr6->hop_limit - 1;
+
+	if (!state->is_hairpin_2) {
+		if (hdr6->hop_limit <= 1) {
+			log_debug(state, "Packet's hop limit <= 1.");
+			return drop_icmp(state, JSTAT64_TTL, ICMPERR_TTL, 0);
+		}
+		hdr4->ttl = hdr6->hop_limit - 1;
+	} else {
+		hdr4->ttl = hdr6->hop_limit;
+	}
+
 	hdr4->protocol = flow4->flowi4_proto;
 	/* ip4_hdr->check is set later; please scroll down. */
 	hdr4->saddr = flow4->saddr;
@@ -679,10 +734,12 @@ static verdict ttp64_ipv4_internal(struct xlation *state)
  * One liner for creating the ICMPv4 header's MTU field.
  * Returns the smallest out of the three parameters.
  */
-static __be16 minimum(unsigned int mtu1, unsigned int mtu2, unsigned int mtu3)
+EXPORT_UNIT_STATIC __be16 minimum(unsigned int mtu1, unsigned int mtu2,
+		unsigned int mtu3)
 {
 	return cpu_to_be16(min(mtu1, min(mtu2, mtu3)));
 }
+EXPORT_UNIT_SYMBOL(minimum)
 
 static verdict compute_mtu4(struct xlation const *state)
 {

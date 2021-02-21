@@ -21,6 +21,7 @@
 #include "usr/argp/wargp/bib.h"
 #include "usr/argp/wargp/denylist4.h"
 #include "usr/argp/wargp/eamt.h"
+#include "usr/argp/wargp/fmrt.h"
 #include "usr/argp/wargp/file.h"
 #include "usr/argp/wargp/global.h"
 #include "usr/argp/wargp/instance.h"
@@ -231,6 +232,31 @@ static struct cmd_option session_ops[] = {
 		{ 0 },
 };
 
+static struct cmd_option fmrt_ops[] = {
+		{
+			.label = DISPLAY,
+			.xt = XT_MAPT,
+			.handler = handle_fmrt_display,
+			.handle_autocomplete = autocomplete_fmrt_display,
+		}, {
+			.label = ADD,
+			.xt = XT_MAPT,
+			.handler = handle_fmrt_add,
+			.handle_autocomplete = autocomplete_fmrt_add,
+		}, {
+			.label = REMOVE,
+			.xt = XT_MAPT,
+			.handler = handle_fmrt_rm,
+			.handle_autocomplete = autocomplete_fmrt_rm,
+		}, {
+			.label = FLUSH,
+			.xt = XT_MAPT,
+			.handler = handle_fmrt_flush,
+			.handle_autocomplete = autocomplete_fmrt_flush,
+		},
+		{ 0 },
+};
+
 static struct cmd_option file_ops[] = {
 		{
 			.label = "handle",
@@ -293,6 +319,10 @@ struct cmd_option tree[] = {
 			.xt = XT_NAT64,
 			.children = session_ops,
 		}, {
+			.label = "fmrt",
+			.xt = XT_MAPT,
+			.children = fmrt_ops,
+		}, {
 			.label = "file",
 			.xt = XT_ANY,
 			.children = file_ops,
@@ -301,7 +331,7 @@ struct cmd_option tree[] = {
 			.xt = XT_NAT64,
 			.children = joold_ops,
 		}, {
-			/* See files jool.bash and jool_siit.bash. */
+			/* See files jool*.bash */
 			.label = "autocomplete",
 			.xt = XT_ANY,
 			.hidden = true,

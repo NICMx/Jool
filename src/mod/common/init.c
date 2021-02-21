@@ -19,6 +19,7 @@ MODULE_VERSION(JOOL_VERSION_STR);
 
 static unsigned int siit_refs = 0;
 static unsigned int nat64_refs = 0;
+static unsigned int mapt_refs = 0;
 static DEFINE_MUTEX(lock);
 
 static int setup_common_modules(void)
@@ -32,7 +33,7 @@ static int setup_common_modules(void)
 	error = rfc6056_setup();
 	if (error)
 		goto rfc6056_fail;
-	/* TODO SIIT-only shouldn't need to pay for this; move. */
+	/* TODO (performance) SIIT-only shouldn't need to pay for this; move. */
 	error = jtimer_setup();
 	if (error)
 		goto jtimer_fail;
@@ -124,6 +125,26 @@ void jool_nat64_put(void)
 }
 EXPORT_SYMBOL_GPL(jool_nat64_put);
 
+int jool_mapt_get(void (*defrag_enable)(struct net *ns))
+{
+	mutex_lock(&lock);
+	mapt_refs++;
+	if (mapt_refs == 1)
+		xlator_set_defrag(defrag_enable);
+	mutex_unlock(&lock);
+	return 0;
+}
+EXPORT_SYMBOL_GPL(jool_mapt_get);
+
+void jool_mapt_put(void)
+{
+	mutex_lock(&lock);
+	if (!WARN(mapt_refs == 0, "Too many jool_mapt_put()s!"))
+		mapt_refs--;
+	mutex_unlock(&lock);
+}
+EXPORT_SYMBOL_GPL(jool_mapt_put);
+
 bool is_siit_enabled(void)
 {
 	int refs;
@@ -141,6 +162,17 @@ bool is_nat64_enabled(void)
 
 	mutex_lock(&lock);
 	refs = nat64_refs;
+	mutex_unlock(&lock);
+
+	return !!refs;
+}
+
+bool is_mapt_enabled(void)
+{
+	int refs;
+
+	mutex_lock(&lock);
+	refs = mapt_refs;
 	mutex_unlock(&lock);
 
 	return !!refs;

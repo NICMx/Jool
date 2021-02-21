@@ -1,0 +1,278 @@
+.\" Manpage for jool's userspace app.
+.\" Report bugs to jool@nic.mx.
+
+.TH jool 8 2020-12-23 v4.2.0-rc2 "MAP-T Jool's Userspace Client"
+
+.SH NAME
+jool - Interact with MAP-T Jool (the kernel module).
+
+.SH DESCRIPTION
+Sends commands and requests to MAP-T Jool.
+.br
+MAP-T Jool is a kernel module you load into a Linux kernel. It implements the MAP-T half of RFCs 7597 and 7599.
+
+.SH AVAILABILITY
+Linux is the only OS in which this program makes sense.
+.br
+Kernels 3.16 and up.
+
+.SH SYNTAX
+.RI "jool_mapt [" <argp1> "] instance ("
+.br
+	display
+.br
+		[--csv]
+.br
+		[--no-headers]
+.br
+	| add
+.br
+.I			[<Instance-Name>]
+.br
+		(--netfilter | --iptables)
+.br
+.RI "		[--dmr " <IPv6-prefix> ]
+.br
+	| remove
+.br
+.I			[<Instance-Name>]
+.br
+	| flush
+.br
+.RI "	| " <help>
+.br
+)
+.P
+.RI "jool_mapt [" <argp1> "] stats ("
+.br
+	display
+.br
+		[--csv]
+.br
+		[--no-headers]
+.br
+		[--all]
+.br
+		[--explain]
+.br
+.RI "	| " <help>
+.br
+)
+.P
+.RI "jool_mapt [" <argp1> "] global ("
+.br
+	display
+.br
+		[--csv]
+.br
+		[--no-headers]
+.br
+	| update
+.br
+.I			<Key> <Value>
+.br
+.RI "	| " <help>
+.br
+)
+.P
+.RI "jool [" <argp1> "] fmrt ("
+.br
+	display
+.br
+		[--csv]
+.br
+		[--no-headers]
+.br
+	| add
+.br
+.I			<IPv6-Prefix> <IPv4-Prefix> <EA-bits length> [<a>]
+.br
+	| remove
+.br
+.I			<IPv6-Prefix> <IPv4-Prefix> <EA-bits length> [<a>]
+.br
+	| flush
+.br
+.RI "	| " <help>
+.br
+)
+.P
+.RI "jool [" <argp1> "] file ("
+.br
+.RI "	handle " <JSON-File>
+.br
+.RI "	| " <help>
+.br
+)
+.P
+.IR <argp1> " := (" <help> " | --instance " <Name> " | --file " <File> ")"
+.P
+.IR <help> " := (--help | --usage | --version)"
+
+.SH OPTIONS
+.SS Modes and Operations
+
+.IP "instance display"
+Show all instances from all namespaces.
+.IP "instance add"
+Create a new instance.
+.IP "instance remove"
+Drop an existing instance.
+.IP "instance flush"
+Drop all instances from the current namespace.
+.IP "stats display"
+Show internal counters.
+.IP "global display"
+Show the current values of the instance's tweakable internal variables.
+.IP "global update"
+Tweak one of the instance's internal variables.
+.IP "fmrt display"
+Show the FMR table.
+.IP "fmrt add"
+Upload an entry to the FMR table.
+.IP "fmrt remove"
+Drop an entry from the FMR table.
+.IP "fmrt flush"
+Empty the FMR table.
+.IP "file handle"
+Parse all the configuration from a JSON file.
+.br
+Create instance if it doesn't exist, update if it does.
+
+.SS Flags
+.IP "--instance <Name>"
+Name of the instance you want to interact with.
+.br
+It's an ASCII string, 15 characters max. Defaults to 'default'.
+.IP "--file <File>"
+JSON file which contains the name of the instance you want to interact with.
+.br
+Same JSON structure as the one from atomic configuration.
+.IP --csv
+Output in CSV table format.
+.IP --no-headers
+Do not print table headers.
+(Nor footer, if applies.)
+.IP --netfilter
+Sit the instance on top of the Netfilter framework.
+.IP --iptables
+Sit the instance on top of the iptables framework.
+.IP "--dmr <IPv6-prefix>"
+Default Mapping Rule (also known as pool6) of the new instance.
+.br
+The format is 'PREFIX_ADDRESS[/PREFIX_LENGTH]'.
+.IP --all
+Show all the counters.
+.br
+(Otherwise, only the nonzero ones are printed.)
+.IP --explain
+Show a description of each counter.
+.IP --force
+Apply operation even if certain validations fail.
+
+.SS Other Arguments
+.IP "<Key> <Value>"
+Name of the variable you want to edit (see 'Globals' section), and its new value.
+.IP "<IPv6-Prefix> <IPv4-Prefix> <EA-bits length> [<a>]"
+The four fields that compose the Mapping Rule you want to add or delete.
+.br
+<EA-bits length> and <a> are unsigned integers.
+.IP <Instance-Name>
+Name of the instance you want to add or remove.
+.br
+If --instance or --file were included in <argp1>, then the instance names must match.
+.IP <JSON-File>
+Path to a JSON file.
+
+.SS Globals
+.IP "manually-enabled <Boolean>"
+Enable or disable the instance.
+.IP "pool6 <IPv6 Prefix>"
+The IPv6 pool's prefix.
+.br
+The format is 'PREFIX_ADDRESS[/PREFIX_LENGTH]'.
+.IP "lowest-ipv6-mtu <Unsigned 32-bit integer>"
+Smallest reachable IPv6 MTU.
+.IP "logging-debug <Boolean>"
+Enable logging of debug messages?
+.IP "zeroize-traffic-class <Boolean>"
+Always set the IPv6 header's 'Traffic Class' field as zero?
+.br
+Otherwise copy from IPv4 header's 'TOS'.
+.IP "override-tos <Boolean>"
+Override the IPv4 header's 'TOS' field as --tos?
+.br
+Otherwise copy from IPv6 header's 'Traffic Class'.
+.IP "tos <Unsigned 8-bit integer>"
+Value to override TOS as (only when override-tos is ON)
+.IP "mtu-plateaus <Comma-separated list of unsigned 16-bit integers>"
+Set the list of plateaus for ICMPv4 Fragmentation Neededs with MTU unset.
+.IP "rfc6791v6-prefix (<IPv6 Prefix> | null)"
+IPv6 prefix to generate RFC6791v6 addresses from.
+.br
+Use null to clear.
+.IP "rfc6791v4-prefix (<IPv4 Prefix> | null)"
+IPv4 prefix to generate RFC6791v4 addresses from.
+.br
+Use null to clear.
+.IP "map-t-type (CE | BR)"
+Type of MAP device the instance must behave as.
+.IP "end-user-ipv6-prefix <IPv6 prefix>"
+If map-t-type is BR, this field is ignored.
+.br
+If map-t-type is CE, this field represents the Rule IPv6 prefix + EA-bits of the current CE.
+.IP "bmr ((<IPv6-Prefix> <IPv4-Prefix> <EA-bits length> [<a>]) | null)"
+If map-t-type is BR, this field is ignored.
+.br
+If map-t-type is CE, this field represents the Basic Mapping Rule of the current CE's MAP domain.
+
+.SH EXAMPLES
+Create a new instance named "Example." It will behave as a BR until configured otherwise:
+.br
+	jool instance add Example --iptables --dmr 64:ff9b::/96
+.P
+Add Forwarding Mapping Rule { 2001:db8::/32, 192.0.2.0/24, 16, 6 } to the FMR table:
+.br
+	jool -i Example fmrt add 2001:db8::/32 192.0.2.0/24 16 6
+.P
+Print the FMR table:
+.br
+	jool -i Example fmrt display
+.P
+Print the global configuration values:
+.br
+	jool -i Example global display
+.P
+Turn the translator into a CE:
+.br
+	jool -i Example global update end-user-ipv6-prefix 2001:db8:cafe::/48
+.br
+	jool -i Example global update bmr 2001:db8::/32 192.0.2.0/24 16 6
+.br
+	jool -i Example global update map-t-type CE
+
+.SH NOTES
+TRUE, FALSE, 1, 0, YES, NO, ON and OFF are all valid booleans. You can mix case too.
+
+.SH EXIT STATUS
+Zero on success, non-zero on failure.
+
+.SH AUTHOR
+NIC Mexico & ITESM
+
+.SH REPORTING BUGS
+Our issue tracker is https://github.com/NICMx/Jool/issues.
+If you want to mail us instead, use jool@nic.mx.
+
+.SH COPYRIGHT
+Copyright 2020 NIC Mexico.
+.br
+License: GPLv2 (GNU GPL version 2)
+.br
+This is free software: you are free to change and redistribute it.
+There is NO WARRANTY, to the extent permitted by law.
+
+.SH SEE ALSO
+https://www.jool.mx
+.br
+https://www.jool.mx/en/documentation.html

@@ -2,7 +2,7 @@
 #include <linux/module.h>
 
 #include "framework/unit_test.h"
-#include "mod/common/db/pool4/db.c"
+#include "mod/common/db/pool4/db.h"
 
 MODULE_LICENSE(JOOL_LICENSE);
 MODULE_AUTHOR("Ramiro Nava");
@@ -33,8 +33,9 @@ static bool add(__u32 addr, __u8 prefix_len, __u16 min, __u16 max)
 	entry.range.ports.min = min;
 	entry.range.ports.max = max;
 
-	return ASSERT_INT(0, pool4db_add(pool, &entry), "add %pI4/%u (%u-%u)",
-			&entry.range.prefix.addr, prefix_len, min, max);
+	return ASSERT_INT(0, pool4db_add(pool, &entry, NULL),
+			"add %pI4/%u (%u-%u)", &entry.range.prefix.addr,
+			prefix_len, min, max);
 }
 
 static bool rm(__u32 addr, __u8 prefix_len, __u16 min, __u16 max)
@@ -46,9 +47,9 @@ static bool rm(__u32 addr, __u8 prefix_len, __u16 min, __u16 max)
 	range.ports.min = min;
 	range.ports.max = max;
 
-	return ASSERT_INT(0, pool4db_rm(pool, 1, L4PROTO_TCP, &range),
-			"rm of %pI4/%u (%u-%u)",
-			&range.prefix.addr, prefix_len, min, max);
+	return ASSERT_INT(0, pool4db_rm(pool, 1, L4PROTO_TCP, &range, NULL),
+			"rm of %pI4/%u (%u-%u)", &range.prefix.addr,
+			prefix_len, min, max);
 }
 
 static bool add_common_samples(void)
@@ -96,7 +97,7 @@ static int validate_sample(struct pool4_entry const *sample, void *void_args)
 	struct foreach_sample_args *args = void_args;
 	bool success = true;
 
-	/* log_debug("  foreaching %pI4 %u-%u", &sample->range.addr,
+	/* pr_info("  foreaching %pI4 %u-%u\n", &sample->range.addr,
 			sample->range.ports.min, sample->range.ports.max); */
 
 	success &= ASSERT_BOOL(true, args->samples < args->expected_len,
@@ -140,7 +141,7 @@ static bool test_foreach_sample(void)
 	init_sample(&expected[i++], 0xc0000223U, 1, 1);
 
 	if (i != COUNT) {
-		log_err("Input mismatch. Unit test is broken: %u %u", i, COUNT);
+		pr_err("Input mismatch. Unit test is broken: %u %u\n", i, COUNT);
 		return false;
 	}
 
@@ -149,7 +150,7 @@ static bool test_foreach_sample(void)
 	args.samples = 0;
 	args.taddrs = 0;
 	error = pool4db_foreach_sample(pool, L4PROTO_TCP, validate_sample,
-			&args, NULL);
+			&args, NULL, NULL);
 	success &= ASSERT_INT(0, error, "no-offset call");
 	success &= ASSERT_UINT(9, args.samples, "no-offset samples");
 	success &= ASSERT_UINT(16, args.taddrs, "no-offset taddrs");
@@ -161,9 +162,9 @@ static bool test_foreach_sample(void)
 		args.samples = 0;
 		args.taddrs = 0;
 		error = pool4db_foreach_sample(pool, L4PROTO_TCP,
-				validate_sample, &args, &expected[i]);
+				validate_sample, &args, &expected[i], NULL);
 		success &= ASSERT_INT(0, error, "call %u", i);
-		/* log_debug("--------------"); */
+		/* pr_info("--------------\n"); */
 	}
 
 	return success;
@@ -214,7 +215,7 @@ static bool __foreach(struct pool4_entry *expected, unsigned int expected_len,
 	args.taddrs = 0;
 
 	error = pool4db_foreach_sample(pool, L4PROTO_TCP, validate_sample,
-			&args, NULL);
+			&args, NULL, NULL);
 	success &= ASSERT_INT(0, error, "foreach result");
 	success &= ASSERT_UINT(expected_len, args.samples, "foreach count");
 	success &= ASSERT_UINT(expected_taddrs, args.taddrs, "foreach taddrs");
@@ -526,7 +527,7 @@ static int init(void)
 
 	ns = get_net_ns_by_pid(task_pid_vnr(current));
 	if (IS_ERR(ns)) {
-		log_err("Could not retrieve the current namespace.");
+		pr_err("Could not retrieve the current namespace.\n");
 		pool4db_put(pool);
 		return PTR_ERR(ns);
 	}
