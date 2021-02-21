@@ -95,9 +95,6 @@ static void print_skb_fields(struct sk_buff *skb, unsigned int tabs)
 	print(tabs, "ip_summed:%u (%s)", skb->ip_summed,
 			ipsummed2string(skb->ip_summed));
 	print(tabs, "csum_valid:%u", skb->csum_valid);
-#if LINUX_VERSION_LOWER_THAN(4, 13, 0, 9999, 0)
-	print(tabs, "csum_bad:%u", skb->csum_bad);
-#endif
 	print(tabs, "csum_start:%u", skb->csum_start);
 	print(tabs, "csum_offset:%u", skb->csum_offset);
 	print(tabs, "mark:%u", skb->mark);
@@ -469,8 +466,12 @@ static void print_shinfo_fields(struct sk_buff *skb, unsigned int tabs)
 	tabs++;
 	for (f = 0; f < shinfo->nr_frags; f++) {
 		print(tabs, "%u page_offset:%u size:%u", f,
+#if LINUX_VERSION_AT_LEAST(5, 4, 0, 9999, 0)
+				skb_frag_off(&shinfo->frags[f]),
+#else
 				shinfo->frags[f].page_offset,
-				shinfo->frags[f].size);
+#endif
+				skb_frag_size(&shinfo->frags[f]));
 	}
 	tabs--;
 

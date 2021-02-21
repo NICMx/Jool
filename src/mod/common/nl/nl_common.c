@@ -58,6 +58,13 @@ void jnls_destroy(struct jnl_state *state)
 }
 EXPORT_UNIT_SYMBOL(jnls_destroy)
 
+static int validate_magic(struct jnl_state *state, struct joolnlhdr *hdr)
+{
+	if (memcmp(hdr->magic, JOOLNL_HDR_MAGIC, JOOLNL_HDR_MAGIC_LEN) == 0)
+		return 0;
+
+	return jnls_err(state, "Don't know what to do: The packet I just received does not follow Jool's protocol.");
+}
 
 static int validate_stateness(struct jnl_state *state)
 {
@@ -155,6 +162,9 @@ int __jnl_start(struct jnl_state **_state, struct genl_info *info,
 	hdr = jnls_jhdr(state);
 	if (!hdr)
 		return jnls_err(state, "Userspace request lacks a Jool header.");
+	error = validate_magic(state, hdr);
+	if (error)
+		return error;
 	error = validate_stateness(state);
 	if (error)
 		return error;
