@@ -9,21 +9,12 @@ title: OpenWRT
 
 # Jool in OpenWRT/LEDE
 
-> ![Warning!](../images/warning.svg) **WARNING!**
-> 
-> At time of writing, OpenWRT's "official" Jool package has been unmaintained since December 2016. It'll apparently be stuck in version 3.5.7 forever. I'm sorry; we don't have any control over it whatsoever.
-> 
-> You can find the old 3.5 documentation [here](https://github.com/NICMx/releases/raw/master/Jool/Jool-3.5-doc.zip).
-> 
-> A more up-to-date version of Jool is actually in fact available in OpenWRT, but it lives as a member of a community-maintained (but still "official," by some definition of "official" I don't quite grasp) package "feed." To install the new version, I understand that you have to [compile a new OpenWRT image](https://openwrt.org/docs/guide-developer/build-system/install-buildsystem), while [enabling the "packages" feed definitions](https://github.com/openwrt/packages).
-> 
-> Assuming you want to install the "packages" feed, the only part of this document I think still applies to you is [Using Jool](#using-jool). Sorry; I don't really know much about OpenWRT, so that's all I can tell you with relative certainty.
-
 ## Index
 
 1. [Introduction](#introduction)
 2. [Installing Jool](#installing-jool)
-3. [Using Jool](#using-jool)
+	1. [Method 1: Installing OpenWRT's official package](#method-1-installing-openwrts-official-package)
+	2. [Method 2: Installing the "packages" feed](#method-2-installing-the-packages-feed)
 
 ## Introduction
 
@@ -35,40 +26,63 @@ And finally: It might take an indeterminate amount of time for the latest versio
 
 ## Installing Jool
 
-> ![Warning!](../images/warning.svg) If you have somehow previously installed Jool from source in your machine, then those binaries may conflict with the ones installed here.
->
-> You may uninstall source-installed binaries by following [these steps](install.html#uninstalling).
+### Method 1: Installing OpenWRT's official package
 
-You need LEDE 17.01 at least. I tested it in LEDE-17.01.1, but newer is better, of course.
+> ![Warning!](../images/warning.svg) As of April 2021, this method installs Jool 3.5.7, which is very old.
+> 
+> Please note that Jool 3.5.7 and the current Jool ({{ site.latest-version }}) are very different beasts. All other tutorials on this site employ the {{ site.latest-version}} syntax, and so few of them will work with 3.5.7.
+> 
+> You can download a snapshot of the old 3.5 documentation [here](https://github.com/NICMx/releases/raw/master/Jool/Jool-3.5-doc.zip).
+
+You need LEDE 17.01 at least. (I tested it in LEDE-17.01.1, as well as 19.07.7.)
 
 	opkg update
 	opkg install kmod-jool
 	opkg install jool-tools
 
-That's it as far as installation goes.
+To check Jool's version, run
 
-## Using Jool
+	jool --version
 
-There's one significant caveat when using the module: OpenWRT's `modprobe` is rather lacking in features. There are alternatives, however:
+If that prints 3.5.7, then again, ignore the rest of this site; refer to the [old documentation](https://github.com/NICMx/releases/raw/master/Jool/Jool-3.5-doc.zip) instead.
 
-1. `insmod` is the proper way of saying `/sbin/modprobe --first-time`.
-2. `rmmod` is the proper way of saying `/sbin/modprobe -r`.
+### Method 2: Installing the "packages" feed
 
-So when Jool's documentation asks you to issue a command such as the following:
+OpenWRT "feeds" are community-maintained groups of packages. The feed that happens to be named "[packages](https://github.com/openwrt/packages)" has, for several years, been diligent in maintaining an up-to-date version of Jool.
 
-	/sbin/modprobe --first-time jool pool6=64:ff9b::/96
+Though it gives you a recent Jool, installing package feeds is somewhat involved. You have to compile a new OpenWRT image (by following [these steps](https://openwrt.org/docs/guide-developer/quickstart-build-images)), making sure to enable the feed "packages" in step 2.3, and then Jool in step 3.
 
-Run this instead:
+Here's a summarized recipe. Tested in 2021-04-06. It assumes you're compiling in Debian or a derivative:
 
-	insmod jool pool6=64:ff9b::/96
+```bash
+# Download dependencies.
+sudo apt update
+sudo apt install build-essential ccache ecj fastjar file g++ gawk \
+	gettext git java-propose-classpath libelf-dev libncurses5-dev \
+	libncursesw5-dev libssl-dev python python2.7-dev python3 unzip wget \
+	python3-distutils python3-setuptools rsync subversion swig time \
+	xsltproc zlib1g-dev
 
-And instead of this:
+# Get the OpenWRT code.
+git clone https://git.openwrt.org/openwrt/openwrt.git
+cd openwrt
 
-	/sbin/modprobe -r jool
+# Enable the "packages" feed.
+scripts/feeds update packages
+scripts/feeds install -p packages jool
 
-Do this:
+# Configure your image.
+# (You need to specify your hardware in this menu.
+# Unfortunately, I can't help you, because I don't have your hardware.
+# Try finding it in the database, and read its notes: https://openwrt.org/toh/start )
+# Also enable "Network" -> "jool-tools"
+# Also enable "Kernel modules" -> "Network Support" -> "kmod-jool"
+make menuconfig
 
-	rmmod jool
+# Compile.
+# (This takes between 60 and 130 minutes in my PC.)
+make
+```
 
-With this in mind, you should be ready to tackle the [basic tutorials](documentation.html#basic-tutorials).
+That's it. The image file is at `bin/targets/<something>/<something>/`; flash it like normal. Jool will be already installed.
 

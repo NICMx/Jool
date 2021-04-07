@@ -25,7 +25,7 @@ title: MAP-T Run
 
 This document explains how to run Jool in [MAP-T mode](intro-xlat.html#map-t).
 
-> ![Warning!](../images/warning.svg) MAP-T support will come out in Jool 4.2. (The latest official release is version 4.1.4.) If you want to follow this tutorial, use the code from the [mapt](https://github.com/NICMx/Jool/tree/mapt) branch.
+> ![Warning!](../images/warning.svg) MAP-T support will come out in Jool 4.2. (The latest official release is version {{ site.latest-version }}.) If you want to follow this tutorial, use the code from the [mapt](https://github.com/NICMx/Jool/tree/mapt) branch.
 
 ## Sample Network
 

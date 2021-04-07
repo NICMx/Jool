@@ -65,7 +65,27 @@ Make sure _T_ can ping everyone before introducing Jool into the mix.
 
 ## Jool
 
-From the [introduction to EAMT SIIT](intro-xlat.html#siit-eamt), you might recall that all EAMT SIIT needs as minimal configuration is the EAM table.
+First, teach your kernel what SIIT is by attaching the `jool_siit` module to your kernel:
+
+<div class="distro-menu">
+	<span class="distro-selector" onclick="showDistro(this);">Most distros</span>
+	<span class="distro-selector" onclick="showDistro(this);">OpenWRT</span>
+</div>
+
+<!-- Netfilter Jool -->
+```bash
+user@T:~# /sbin/modprobe jool_siit
+```
+
+<!-- iptables Jool -->
+```bash
+user@T:~# # Please remember: This assumes you're using the packages feed.
+user@T:~# # If your Jool version is 3.5.7, you shouldn't be here!
+user@T:~# insmod jool_common
+user@T:~# insmod jool_siit
+```
+
+Then create and configure the instance:
 
 > ![Note!](../images/bulb.svg) [This section](intro-jool.html#design) discusses Netfilter Jool vs iptables Jool.
 
@@ -76,8 +96,7 @@ From the [introduction to EAMT SIIT](intro-xlat.html#siit-eamt), you might recal
 
 <!-- Netfilter Jool -->
 ```bash
-user@T:~# /sbin/modprobe jool_siit
-user@T:~# jool_siit instance add "example" --iptables
+user@T:~# jool_siit instance add "example" --netfilter
 user@T:~# jool_siit -i "example" eamt add 2001:db8:6::/120 198.51.100.0/24
 user@T:~# jool_siit -i "example" eamt add 2001:db8:4::/120 192.0.2.0/24
  
@@ -87,7 +106,6 @@ user@T:~# jool_siit -i "example" eamt add 2001:db8:4::/120 192.0.2.0/24
 
 <!-- iptables Jool -->
 ```bash
-user@T:~# /sbin/modprobe jool_siit
 user@T:~# jool_siit instance add "example" --iptables
 user@T:~# jool_siit -i "example" eamt add 2001:db8:6::/120 198.51.100.0/24
 user@T:~# jool_siit -i "example" eamt add 2001:db8:4::/120 192.0.2.0/24
@@ -154,7 +172,7 @@ Then maybe another one in _B_ and request from _X_:
 
 ## Stopping Jool
 
-Same as in the previous walkthrough:
+Remove the instance:
 
 <div class="distro-menu">
 	<span class="distro-selector" onclick="showDistro(this);">Netfilter Jool</span>
@@ -166,7 +184,6 @@ Same as in the previous walkthrough:
  
  
 user@T:~# jool_siit instance remove "example"
-user@T:~# /sbin/modprobe -r jool_siit
 ```
 
 <!-- iptables Jool -->
@@ -174,7 +191,25 @@ user@T:~# /sbin/modprobe -r jool_siit
 user@T:~# /sbin/ip6tables -t mangle -D PREROUTING -j JOOL_SIIT --instance "example"
 user@T:~# /sbin/iptables  -t mangle -D PREROUTING -j JOOL_SIIT --instance "example"
 user@T:~# jool_siit instance remove "example"
+```
+
+And (optionally) remove the kernel modules:
+
+<div class="distro-menu">
+	<span class="distro-selector" onclick="showDistro(this);">Most distros</span>
+	<span class="distro-selector" onclick="showDistro(this);">OpenWRT</span>
+</div>
+
+<!-- Most distros -->
+```bash
 user@T:~# /sbin/modprobe -r jool_siit
+ 
+```
+
+<!-- OpenWRT -->
+```bash
+user@T:~# rmmod jool_siit
+user@T:~# rmmod jool_common
 ```
 
 ## Afterwords
