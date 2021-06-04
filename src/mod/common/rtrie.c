@@ -342,7 +342,7 @@ static int add_full_collision(struct rtrie *trie, struct rtrie_node *parent,
 
 	rcu_assign_pointer(parent->left, NULL);
 	rcu_assign_pointer(parent->right, NULL);
-	synchronize_rcu_bh();
+//	synchronize_rcu_bh();
 	rcu_assign_pointer(parent->left, smallest_prefix);
 	rcu_assign_pointer(parent->right, inode);
 
@@ -405,7 +405,7 @@ int rtrie_add(struct rtrie *trie, void *value, size_t key_offset, __u8 key_len)
 		RCU_INIT_POINTER(new->right, right);
 		rcu_assign_pointer(parent->left, NULL);
 		rcu_assign_pointer(parent->right, NULL);
-		synchronize_rcu_bh();
+//		synchronize_rcu_bh();
 		rcu_assign_pointer(parent->right, new);
 
 		left->parent = new;
@@ -501,7 +501,7 @@ int rtrie_rm(struct rtrie *trie, struct rtrie_key *key)
 		parent_ptr = get_parent_ptr(trie, node);
 
 		rcu_assign_pointer(*parent_ptr, new);
-		synchronize_rcu_bh();
+//		synchronize_rcu_bh();
 
 		deref_updater(trie, new->left)->parent = new;
 		deref_updater(trie, new->right)->parent = new;
@@ -522,7 +522,7 @@ int rtrie_rm(struct rtrie *trie, struct rtrie_key *key)
 
 		if (node->left) {
 			rcu_assign_pointer(*parent_ptr, node->left);
-			synchronize_rcu_bh();
+//			synchronize_rcu_bh();
 			deref_updater(trie, node->left)->parent = parent;
 			list_del(&node->list_hook);
 			__wkfree("Rtrie node", node);
@@ -531,7 +531,7 @@ int rtrie_rm(struct rtrie *trie, struct rtrie_key *key)
 
 		if (node->right) {
 			rcu_assign_pointer(*parent_ptr, node->right);
-			synchronize_rcu_bh();
+//			synchronize_rcu_bh();
 			deref_updater(trie, node->right)->parent = parent;
 			list_del(&node->list_hook);
 			__wkfree("Rtrie node", node);
@@ -539,7 +539,7 @@ int rtrie_rm(struct rtrie *trie, struct rtrie_key *key)
 		}
 
 		rcu_assign_pointer(*parent_ptr, NULL);
-		synchronize_rcu_bh();
+//		synchronize_rcu_bh();
 		list_del(&node->list_hook);
 		__wkfree("Rtrie node", node);
 
@@ -563,7 +563,7 @@ void rtrie_flush(struct rtrie *trie)
 	rcu_assign_pointer(trie->root, NULL);
 	list_replace_init(&trie->list, &tmp_list);
 
-	synchronize_rcu_bh();
+//	synchronize_rcu_bh();
 
 	list_for_each_entry_safe(node, tmp_node, &tmp_list, list_hook) {
 		list_del(&node->list_hook);
