@@ -10,7 +10,7 @@
 #define JOOL_VERSION_MAJOR 4
 #define JOOL_VERSION_MINOR 1
 #define JOOL_VERSION_REV 5
-#define JOOL_VERSION_DEV 1
+#define JOOL_VERSION_DEV 2
 
 /** See http://stackoverflow.com/questions/195975 */
 #define STR_VALUE(arg) #arg
