@@ -39,7 +39,7 @@ struct addrxlat_result addrxlat_siit64(struct xlator *instance,
 	int error;
 
 	if (is_illegal_source(in)) {
-		result.verdict = ADDRXLAT_DROP;
+		result.verdict = ADDRXLAT_ACCEPT;
 		result.reason = "IPv6 source address (::1) is illegal (according to RFC 7915)";
 		return result;
 	}
