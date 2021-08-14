@@ -23,6 +23,7 @@ ltmain.sh
 .tmp_versions
 .cache.mk
 built-in.a
+*.dwo
 
 # ?
 *.o.d
