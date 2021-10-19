@@ -356,7 +356,7 @@ You might have noticed that, through our 32 outlined port sets, one of them is s
 
 The RFCs imply to believe that the Well-known ports are problematic, and this renders PSID 0 unusable.
 
-> ![Note!](../images/bulb.svg) I should mention, however, that one of my users pointed out that PSID 0 can actually the seen as the most valuable one, because you can sell it to whoever is willing to pay a little extra for (say) a public HTTP server.
+> ![Note!](../images/bulb.svg) I should mention, however, that one of my users pointed out that PSID 0 can actually be seen as the most valuable one, because you can sell it to whoever is willing to pay a little extra for (say) a public HTTP server.
 
 If you agree that the Well-known ports are undesirable, one way to avoid them is to simply refrain from using PSID 0. Another solution is to set up the NAPT owning PSID 0 to only use ports 1024-2048 (instead of 0-2048). (You'd assign that particular port set to low-traffic CEs.) The RFCs opt to recommend a third option, which allows you to employ Port Set 0 while still excluding the Well-known ports, at the expense of some complexity.
 

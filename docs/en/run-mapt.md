@@ -74,7 +74,7 @@ Because of technical difficulties that have to do with the architecture of the L
 
 > Why? The Linux kernel wasn't really designed with MAP-T in mind. In fact, it wasn't exactly friendly with SIIT and NAT64 either, but [we dealt with that](intro-jool.html#design). MAP-T has an additional significant problem in that the CE translation wants to happen during PREROUTING, but NAPT happens during POSTROUTING. And, per the [packet flow example](map-t.html#ce-behavior), the CE has to translate **after** NAPT.
 > 
-> At the moment, that appears to be an unsolvable problem.
+> By placing the two components in separate network namespaces, we force the NAPT and translator to happen in the order we want.
 
 If you don't know how to work with network namespaces, [here's an introduction](TODO).
 
@@ -228,6 +228,7 @@ user@CE11b:~# /sbin/modprobe jool_mapt
 user@CE11b:~# jool_mapt instance add "CE 11b" --netfilter --dmr 64:ff9b::/96
 user@CE11b:~# jool_mapt -i "CE 11b" global update end-user-ipv6-prefix 2001:db8:ce:11b::/64
 user@CE11b:~# jool_mapt -i "CE 11b" global update bmr 2001:db8:ce::/51 192.0.2.0/24 13 0
+user@CE11b:~# jool_mapt -i "CE 11b" global update map-t-type CE
 ```
 
 ```bash
@@ -235,6 +236,7 @@ user@CE774:~# /sbin/modprobe jool_mapt
 user@CE774:~# jool_mapt instance add "CE 774" --netfilter --dmr 64:ff9b::/96
 user@CE774:~# jool_mapt -i "CE 774" global update end-user-ipv6-prefix 2001:db8:ce:774::/64
 user@CE774:~# jool_mapt -i "CE 774" global update bmr 2001:db8:ce::/51 192.0.2.0/24 13 0
+user@CE774:~# jool_mapt -i "CE 774" global update map-t-type CE
 ```
 
 ### Jool: BR
@@ -243,6 +245,7 @@ user@CE774:~# jool_mapt -i "CE 774" global update bmr 2001:db8:ce::/51 192.0.2.0
 user@BR:~# /sbin/modprobe jool_mapt
 user@BR:~# jool_mapt instance add "BR" --netfilter --dmr 64:ff9b::/96
 user@BR:~# jool_mapt -i "BR" fmrt add 2001:db8:ce::/51 192.0.2.0/24 13 0
+user@BR:~# jool_mapt -i "BR" global update map-t-type BR
 ```
 
 ## Testing
