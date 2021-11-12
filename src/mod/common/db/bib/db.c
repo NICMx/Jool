@@ -421,44 +421,42 @@ void bib_get(struct bib *db)
 }
 
 /**
- * Potentially includes a laggy packet fetch; please do not hold spinlocks while
- * calling this function!
- */
-static void release_session(struct rb_node *node, void *arg)
-{
-	struct tabled_session *session = node2session(node);
-
-	if (session->stored) {
-		icmp64_send(NULL, session->stored, ICMPERR_PORT_UNREACHABLE, 0);
-		kfree_skb(session->stored);
-	}
-
-	free_session(session);
-}
-
-/**
  * Potentially includes laggy packet fetches; please do not hold spinlocks while
  * calling this function!
  */
-static void release_bib_entry(struct rb_node *node, void *arg)
+static void release_bib_entry(struct tabled_bib *bib)
 {
-	struct tabled_bib *bib = bib4_entry(node);
-	rbtree_clear(&bib->sessions, release_session, NULL);
+	struct tabled_session *sessions, *tmp;
+
+	rbtree_foreach(sessions, tmp, &bib->sessions, tree_hook) {
+		if (sessions->stored) {
+			icmp64_send(NULL, sessions->stored,
+					ICMPERR_PORT_UNREACHABLE, 0);
+			kfree_skb(sessions->stored);
+		}
+		free_session(sessions);
+	}
+
 	free_bib(bib);
 }
 
 static void bib_release(struct kref *refs)
 {
 	struct bib *db;
+	struct tabled_bib *bib, *tmp;
+
 	db = container_of(refs, struct bib, refs);
 
 	/*
 	 * The trees share the entries, so only one tree of each protocol
 	 * needs to be emptied.
 	 */
-	rbtree_clear(&db->udp.tree4, release_bib_entry, NULL);
-	rbtree_clear(&db->tcp.tree4, release_bib_entry, NULL);
-	rbtree_clear(&db->icmp.tree4, release_bib_entry, NULL);
+	rbtree_foreach(bib, tmp, &db->udp.tree4, hook4)
+		release_bib_entry(bib);
+	rbtree_foreach(bib, tmp, &db->tcp.tree4, hook4)
+		release_bib_entry(bib);
+	rbtree_foreach(bib, tmp, &db->icmp.tree4, hook4)
+		release_bib_entry(bib);
 
 	pktqueue_release(db->tcp.pkt_queue);
 
@@ -1180,28 +1178,19 @@ static int commit_add(struct xlator *jool,
 	return 0;
 }
 
-struct detach_args {
-	struct bib_table *table;
-	struct sk_buff *probes;
-	int detached;
-};
-
-static void detach_session(struct rb_node *node, void *arg)
-{
-	struct tabled_session *session = node2session(node);
-	struct detach_args *args = arg;
-
-	list_del(&session->list_hook);
-	if (session->stored)
-		args->table->pkt_count--;
-	args->detached--;
-}
-
 static int detach_sessions(struct bib_table *table, struct tabled_bib *bib)
 {
-	struct detach_args arg = { .table = table, .detached = 0, };
-	rbtree_foreach(&bib->sessions, detach_session, &arg);
-	return arg.detached;
+	struct tabled_session *session, *tmp;
+	int detached = 0;
+
+	rbtree_foreach(session, tmp, &bib->sessions, tree_hook) {
+		list_del(&session->list_hook);
+		if (session->stored)
+			table->pkt_count--;
+		detached--;
+	}
+
+	return detached;
 }
 
 static void detach_bib(struct xlator *jool, struct bib_table *table,
@@ -1232,7 +1221,7 @@ static void commit_delete_list(struct bib_delete_list *list)
 
 	for (node = list->first; node; node = next) {
 		next = node->rb_right;
-		release_bib_entry(node, NULL);
+		release_bib_entry(bib4_entry(node));
 	}
 }
 
@@ -2398,7 +2387,7 @@ int bib_rm(struct xlator *jool, struct bib_entry *entry)
 	spin_unlock_bh(&table->lock);
 
 	if (!error)
-		release_bib_entry(&bib->hook4, NULL);
+		release_bib_entry(bib);
 
 	return error;
 }

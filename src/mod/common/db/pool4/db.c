@@ -290,21 +290,22 @@ static void destroy_table(struct pool4_table *table)
 	__wkfree("pool4table", table);
 }
 
-static void destroy_table_by_node(struct rb_node *node, void *arg)
+static void clear_tree(struct rb_root *root)
 {
-	struct pool4_table *table;
-	table = rb_entry(node, struct pool4_table, tree_hook);
-	destroy_table(table);
+	struct pool4_table *table, *tmp;
+	rbtree_foreach(table, tmp, root, tree_hook)
+		destroy_table(table);
+	root->rb_node = NULL;
 }
 
 static void clear_trees(struct pool4 *pool)
 {
-	rbtree_clear(&pool->tree_mark.tcp, destroy_table_by_node, NULL);
-	rbtree_clear(&pool->tree_mark.udp, destroy_table_by_node, NULL);
-	rbtree_clear(&pool->tree_mark.icmp, destroy_table_by_node, NULL);
-	rbtree_clear(&pool->tree_addr.tcp, destroy_table_by_node, NULL);
-	rbtree_clear(&pool->tree_addr.udp, destroy_table_by_node, NULL);
-	rbtree_clear(&pool->tree_addr.icmp, destroy_table_by_node, NULL);
+	clear_tree(&pool->tree_mark.tcp);
+	clear_tree(&pool->tree_mark.udp);
+	clear_tree(&pool->tree_mark.icmp);
+	clear_tree(&pool->tree_addr.tcp);
+	clear_tree(&pool->tree_addr.udp);
+	clear_tree(&pool->tree_addr.icmp);
 }
 
 static void pool4db_release(struct kref *refcounter)
