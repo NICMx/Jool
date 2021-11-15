@@ -16,4 +16,5 @@ title: Contact
 - [jool@nic.mx](mailto:jool@nic.mx) is a mail alias you can use to reach us developers only.  
   Though we're willing to provide advice via this medium, we'd be grateful is you used jool-list@nic.mx for this purpose instead so a future archive surfer can benefit from the experience.
 - Our official bug tracker is the [Github corner]({{ site.repository-url }}/issues). This is also a good place to request features.
+- If you prefer a chat, we are on Matrix. you can find us in #jool:ungleich.ch. If you don't have a Matrix account, you can sign up for one at [chat.with.ungleich.ch](https://chat.with.ungleich.ch).
 
