@@ -54,8 +54,7 @@ struct jool_instance {
 	struct list_head list_hook;
 #if LINUX_VERSION_AT_LEAST(4, 13, 0, 8, 0)
 	/**
-	 * This points to a 2-sized array for nf_register_net_hooks().
-	 * The 2 is currently hardcoded in code below.
+	 * This points to a copy of the netfilter_hooks array.
 	 *
 	 * It needs to be a pointer to an array and not an array because the
 	 * ops needs to survive atomic configuration; the jool_instance needs to
@@ -120,7 +119,8 @@ static void destroy_jool_instance(struct jool_instance *instance, bool unhook)
 	if (xlator_is_netfilter(&instance->jool)) {
 		if (unhook) {
 			nf_unregister_net_hooks(instance->jool.ns,
-					instance->nf_ops, 2);
+					instance->nf_ops,
+					ARRAY_SIZE(netfilter_hooks));
 		}
 		__wkfree("nf_hook_ops", instance->nf_ops);
 	}
@@ -452,8 +452,9 @@ static int __xlator_add(struct jool_instance *new, struct xlator *result)
 		struct nf_hook_ops *ops;
 		int error;
 
-		ops = __wkmalloc("nf_hook_ops", 2 * sizeof(struct nf_hook_ops),
-				GFP_KERNEL);
+		ops = __wkmalloc("nf_hook_ops",
+		    ARRAY_SIZE(netfilter_hooks) * sizeof(struct nf_hook_ops),
+		    GFP_KERNEL);
 		if (!ops)
 			return -ENOMEM;
 
@@ -461,7 +462,8 @@ static int __xlator_add(struct jool_instance *new, struct xlator *result)
 
 		memcpy(ops, netfilter_hooks, sizeof(netfilter_hooks));
 
-		error = nf_register_net_hooks(new->jool.ns, ops, 2);
+		error = nf_register_net_hooks(new->jool.ns, ops,
+				ARRAY_SIZE(netfilter_hooks));
 		if (error) {
 			__wkfree("nf_hook_ops", ops);
 			return error;
