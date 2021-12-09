@@ -705,7 +705,9 @@ static bool decide_fate(struct xlator *jool,
 		 * TRANS.
 		 */
 		handle_probe(jool, table, probes, session, &tmp);
-		/* Fall through. */
+		handle_fate_timer(session, &table->trans_timer);
+		break;
+
 	case FATE_TIMER_TRANS:
 		handle_fate_timer(session, &table->trans_timer);
 		break;
