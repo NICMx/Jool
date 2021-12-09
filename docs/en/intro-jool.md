@@ -46,13 +46,12 @@ Please [let us know]({{ site.repository-url }}/issues) if you find additional co
 
 ## Compatibility
 
-> ![Warning!](../images/warning.svg) As of 2020-12-24, the [lowest longterm mainline kernel is version 4.4](https://www.kernel.org/). Also, [CentOS doesn't seem to be doing very well](https://blog.centos.org/2020/12/future-is-centos-stream/). Jool support for old and RHEL kernels is likely to end soon.
-
 <!-- Remember: The man pages mention the lowest supported kernel. -->
 
 | Jool version                        | Supported Linux kernels (mainline)   | Supported Linux kernels (RHEL) |
 |-------------------------------------|--------------------------------------|--------------------------------|
-| [master]({{ site.repository-url }}),<br />[4.1.5](download.html#41x) | 3.16 - 3.19,<br />4.0 - 4.20,<br />5.0 - 5.11 | RHEL 7.6 - RHEL 7.7,<br />RHEL 8.0 |
+| [master]({{ site.repository-url }}),<br />[4.1.6](download.html#41x) | 4.4 - 4.20,<br />5.0 - 5.15 | RHEL 8.5 |
+| [4.1.5](download.html#41x) | 3.16 - 3.19,<br />4.0 - 4.20,<br />5.0 - 5.11 | RHEL 7.6 - RHEL 7.7,<br />RHEL 8.0 |
 | [4.1.3](download.html#41x),<br />[4.1.4](download.html#41x) | 3.16 - 3.19,<br />4.0 - 4.20,<br />5.0 - 5.9 | RHEL 7.6 - RHEL 7.7,<br />RHEL 8.0 |
 | [4.1.2](download.html#41x) | 3.16 - 3.19,<br />4.0 - 4.20,<br />5.0 - 5.7 | RHEL 7.6 - RHEL 7.7,<br />RHEL 8.0 |
 | [4.1.1](download.html#41x),<br />[4.1.0](download.html#41x) | 3.16 - 3.19,<br />4.0 - 4.20,<br />5.0 - 5.7 | RHEL 7.6 - RHEL 7.7,<br /><del>[RHEL 8.0](https://github.com/NICMx/Jool/issues/334)</del> |
