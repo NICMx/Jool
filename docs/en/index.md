@@ -20,8 +20,7 @@ Jool is an Open Source [SIIT and NAT64](intro-xlat.html) for Linux.
 
 ## Status
 
-- The most mature version is [4.1.5](download.html#41x).
-- [4.0.9](download.html#40x) is soon going to be deprecated.
+- The most mature version is [4.1.6](download.html#41x).
 - The second release candidate for version [4.2.0](download.html#42x) is also available now.
 
 Due to a temporary resource shortage, the project's development has slowed down to essential maintenance. No new features are expected to be developed during the first half of 2021 (at least), but bugfixing and support will remain active.
@@ -36,13 +35,17 @@ Due to a temporary resource shortage, the project's development has slowed down 
 
 ## Latest News
 
-### 2021-02-19
+### 2021-12-10
 
-Version 4.1.5 has been released. Changelog:
+Version 4.1.6 has been released. Changelog:
 
-- [#340](https://github.com/NICMx/Jool/issues/340): Patch several joold bugs.
-- [#345](https://github.com/NICMx/Jool/issues/345), [#354](https://github.com/NICMx/Jool/issues/354): Improve some documentation. (Includes a [Cheat Sheet](cheat-sheet.html).)
-- [#350](https://github.com/NICMx/Jool/issues/350): Remove `CAP_NET_ADMIN` requirement from `stats display`.
+- [#362](https://github.com/NICMx/Jool/issues/362): Fix joold in kernels 5.10+.
+- [#363](https://github.com/NICMx/Jool/issues/363): Improve performance of EAMT table insertions during atomic configuration.
+- [#364](https://github.com/NICMx/Jool/pull/364): Tweak the TCP state machine so [`--handle-rst-during-fin-rcv`](https://www.jool.mx/en/usr-flags-global.html#handle-rst-during-fin-rcv) works in both translation directions (IPv4 -> IPv6, IPv6 -> IPv4).
+- [#368](https://github.com/NICMx/Jool/issues/368): Fix kernel crash during `pool4 flush`.
+- [#369](https://github.com/NICMx/Jool/issues/369): Fix localhost traffic on Netfilter SIIT mode.
+- [#370](https://github.com/NICMx/Jool/issues/370): Fix ICMP errors bounced back as responses from echo requests or echo replies.
+- Update the [kernel support table](intro-jool.html#compatibility).
 
 The second release candidate for version 4.2.0 is also available. Changelog:
 

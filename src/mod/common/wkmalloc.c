@@ -112,14 +112,12 @@ void wkmalloc_print_leaks(void)
 		log_info("None.");
 }
 
-static void destroy_node(struct rb_node *node, void *arg)
-{
-	kfree(kmn_entry(node));
-}
-
 void wkmalloc_teardown(void)
 {
-	rbtree_clear(&tree, destroy_node, NULL);
+	struct kmalloc_entry *entry, *tmp;
+	rbtree_foreach(entry, tmp, &tree, hook)
+		kfree(entry);
+	tree.rb_node = NULL;
 }
 
 #endif /* JKMEMLEAK */

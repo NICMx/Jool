@@ -27,12 +27,12 @@ bool eamt_is_empty(struct eam_table *eamt);
 
 /* Do-not-use-when-you-can't-sleep-functions */
 
-int eamt_add(struct eam_table *jool, struct eamt_entry *new, bool force);
+/* See rtrie.h for info on the "synchronize" flag */
+int eamt_add(struct eam_table *jool, struct eamt_entry *new, bool force,
+		bool synchronize);
 int eamt_rm(struct eam_table *eamt, struct ipv6_prefix *prefix6,
 		struct ipv4_prefix *prefix4);
 void eamt_flush(struct eam_table *eamt);
-
-int eamt_count(struct eam_table *eamt, __u64 *count);
 
 typedef int (*eamt_foreach_cb)(struct eamt_entry const *, void *);
 int eamt_foreach(struct eam_table *eamt,

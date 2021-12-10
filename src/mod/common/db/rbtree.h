@@ -195,15 +195,6 @@ void treeslot_commit(struct tree_slot *slot);
 		} \
 	})
 
-void rbtree_foreach(struct rb_root *root,
-		void (*cb)(struct rb_node *, void *),
-		void *arg);
-
-/**
- * Destroys all the nodes from "root"'s tree.
- */
-void rbtree_clear(struct rb_root *root,
-		void (*destructor)(struct rb_node *, void *),
-		void *arg);
+#define rbtree_foreach rbtree_postorder_for_each_entry_safe
 
 #endif /* SRC_MOD_COMMON_RBTREE_H_ */

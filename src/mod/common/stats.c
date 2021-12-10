@@ -104,7 +104,7 @@ __u64 *jstat_query(struct jool_stats *stats)
 #ifdef UNIT_TESTING
 int jstat_refcount(struct jool_stats *stats)
 {
-#if LINUX_VERSION_AT_LEAST(4, 11, 0, 9999, 0)
+#if LINUX_VERSION_AT_LEAST(4, 11, 0, 8, 4)
 	return kref_read(&stats->refcounter);
 #else
 	return atomic_read(&stats->refcounter.refcount);

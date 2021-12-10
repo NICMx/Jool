@@ -61,6 +61,9 @@ static verdict xlat46_internal_addresses(struct xlation *state)
 	struct bkp_skb_tuple bkp;
 	verdict result;
 
+	if (pkt_is_inner(&state->in))
+		return VERDICT_CONTINUE; /* Called from xlat46_icmp_type() */
+
 	switch (xlator_get_type(&state->jool)) {
 	case XT_NAT64:
 		state->flowx.v6.inner_src = state->out.tuple.dst.addr6.l3;
@@ -124,27 +127,24 @@ static verdict xlat46_udp_ports(struct xlation *state)
 	return VERDICT_CONTINUE;
 }
 
-static verdict xlat46_icmp_type(struct xlation *state)
+static verdict xlat46_icmp_type(__u8 *out_type, __u8 *out_code,
+		struct xlation *state)
 {
-	struct icmphdr const *hdr;
-	struct flowi6 *flow6;
+	struct icmphdr const *in_hdr = pkt_icmp4_hdr(&state->in);
 
-	hdr = pkt_icmp4_hdr(&state->in);
-	flow6 = &state->flowx.v6.flowi;
-
-	switch (hdr->type) {
+	switch (in_hdr->type) {
 	case ICMP_ECHO:
-		flow6->fl6_icmp_type = ICMPV6_ECHO_REQUEST;
-		flow6->fl6_icmp_code = 0;
+		*out_type = ICMPV6_ECHO_REQUEST;
+		*out_code = 0;
 		return VERDICT_CONTINUE;
 
 	case ICMP_ECHOREPLY:
-		flow6->fl6_icmp_type = ICMPV6_ECHO_REPLY;
-		flow6->fl6_icmp_code = 0;
+		*out_type = ICMPV6_ECHO_REPLY;
+		*out_code = 0;
 		return VERDICT_CONTINUE;
 
 	case ICMP_DEST_UNREACH:
-		switch (hdr->code) {
+		switch (in_hdr->code) {
 		case ICMP_NET_UNREACH:
 		case ICMP_HOST_UNREACH:
 		case ICMP_SR_FAILED:
@@ -153,46 +153,46 @@ static verdict xlat46_icmp_type(struct xlation *state)
 		case ICMP_HOST_ISOLATED:
 		case ICMP_NET_UNR_TOS:
 		case ICMP_HOST_UNR_TOS:
-			flow6->fl6_icmp_type = ICMPV6_DEST_UNREACH;
-			flow6->fl6_icmp_code = ICMPV6_NOROUTE;
+			*out_type = ICMPV6_DEST_UNREACH;
+			*out_code = ICMPV6_NOROUTE;
 			return xlat46_internal_addresses(state);
 
 		case ICMP_PROT_UNREACH:
-			flow6->fl6_icmp_type = ICMPV6_PARAMPROB;
-			flow6->fl6_icmp_code = ICMPV6_UNK_NEXTHDR;
+			*out_type = ICMPV6_PARAMPROB;
+			*out_code = ICMPV6_UNK_NEXTHDR;
 			return xlat46_internal_addresses(state);
 
 		case ICMP_PORT_UNREACH:
-			flow6->fl6_icmp_type = ICMPV6_DEST_UNREACH;
-			flow6->fl6_icmp_code = ICMPV6_PORT_UNREACH;
+			*out_type = ICMPV6_DEST_UNREACH;
+			*out_code = ICMPV6_PORT_UNREACH;
 			return xlat46_internal_addresses(state);
 
 		case ICMP_FRAG_NEEDED:
-			flow6->fl6_icmp_type = ICMPV6_PKT_TOOBIG;
-			flow6->fl6_icmp_code = 0;
+			*out_type = ICMPV6_PKT_TOOBIG;
+			*out_code = 0;
 			return xlat46_internal_addresses(state);
 
 		case ICMP_NET_ANO:
 		case ICMP_HOST_ANO:
 		case ICMP_PKT_FILTERED:
 		case ICMP_PREC_CUTOFF:
-			flow6->fl6_icmp_type = ICMPV6_DEST_UNREACH;
-			flow6->fl6_icmp_code = ICMPV6_ADM_PROHIBITED;
+			*out_type = ICMPV6_DEST_UNREACH;
+			*out_code = ICMPV6_ADM_PROHIBITED;
 			return xlat46_internal_addresses(state);
 		}
 		break;
 
 	case ICMP_TIME_EXCEEDED:
-		flow6->fl6_icmp_type = ICMPV6_TIME_EXCEED;
-		flow6->fl6_icmp_code = hdr->code;
+		*out_type = ICMPV6_TIME_EXCEED;
+		*out_code = in_hdr->code;
 		return xlat46_internal_addresses(state);
 
 	case ICMP_PARAMETERPROB:
-		flow6->fl6_icmp_type = ICMPV6_PARAMPROB;
-		switch (hdr->code) {
+		*out_type = ICMPV6_PARAMPROB;
+		switch (in_hdr->code) {
 		case ICMP_PTR_INDICATES_ERROR:
 		case ICMP_BAD_LENGTH:
-			flow6->fl6_icmp_code = ICMPV6_HDR_FIELD;
+			*out_code = ICMPV6_HDR_FIELD;
 			return xlat46_internal_addresses(state);
 		}
 	}
@@ -206,7 +206,7 @@ static verdict xlat46_icmp_type(struct xlation *state)
 	 * This time there's no ICMP error.
 	 */
 	log_debug(state, "ICMPv4 messages type %u code %u lack an ICMPv6 counterpart.",
-			hdr->type, hdr->code);
+			in_hdr->type, in_hdr->code);
 	return drop(state, JSTAT_UNKNOWN_ICMP4_TYPE);
 }
 
@@ -232,7 +232,8 @@ static verdict compute_flowix46(struct xlation *state)
 	case NEXTHDR_UDP:
 		return xlat46_udp_ports(state);
 	case NEXTHDR_ICMP:
-		return xlat46_icmp_type(state);
+		return xlat46_icmp_type(&state->flowx.v6.flowi.fl6_icmp_type,
+				&state->flowx.v6.flowi.fl6_icmp_code, state);
 	}
 
 	return VERDICT_CONTINUE;
@@ -1323,8 +1324,15 @@ static verdict ttp46_icmp(struct xlation *state)
 	struct icmp6hdr *icmpv6_hdr = pkt_icmp6_hdr(&state->out);
 	verdict result;
 
-	icmpv6_hdr->icmp6_type = state->flowx.v6.flowi.fl6_icmp_type;
-	icmpv6_hdr->icmp6_code = state->flowx.v6.flowi.fl6_icmp_code;
+	if (pkt_is_outer(&state->in)) {
+		icmpv6_hdr->icmp6_type = state->flowx.v6.flowi.fl6_icmp_type;
+		icmpv6_hdr->icmp6_code = state->flowx.v6.flowi.fl6_icmp_code;
+	} else {
+		result = xlat46_icmp_type(&icmpv6_hdr->icmp6_type,
+				&icmpv6_hdr->icmp6_code, state);
+		if (result != VERDICT_CONTINUE)
+			return result;
+	}
 	icmpv6_hdr->icmp6_cksum = icmpv4_hdr->checksum; /* default. */
 
 	/* -- First the ICMP header. -- */

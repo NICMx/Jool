@@ -80,7 +80,7 @@ int handle_eamt_add(struct sk_buff *skb, struct genl_info *info)
 		goto revert_start;
 
 	error = eamt_add(jool.siit.eamt, &addend,
-			get_jool_hdr(info)->flags & JOOLNLHDR_FLAGS_FORCE);
+			get_jool_hdr(info)->flags & JOOLNLHDR_FLAGS_FORCE, true);
 revert_start:
 	error = jresponse_send_simple(&jool, info, error);
 	request_handle_end(&jool);

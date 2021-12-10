@@ -7,7 +7,7 @@ An [SIIT and a NAT64](https://www.jool.mx/en/intro-xlat.html) for Linux.
 > Jool's website is hosted in two separate domains simultaneously:
 > 
 > - https://www.jool.mx (Might be outdated for a few days at a time)
-> - https://nicmx.github.io/Jool (Unavailable from IPv6)
+> - https://nicmx.github.io/Jool ([Used](https://github.com/isaacs/github/issues/354#event-5407912041) to be unavailable from IPv6.)
 
 ## Documentation
 

@@ -396,7 +396,7 @@ Just to be clear: _PLAT_ is the Stateful NAT64. The _CLAT_ is still an SIIT. Sin
 
 <!-- https://github.com/NICMx/Jool/blob/265a4d24b6639ab262a5e48596d9fc0350066e35/en/intro-xlat.md -->
 
-> ![Warning!](../images/warning.svg) MAP-T support on Jool is still in development. It's scheduled to come out it late 2020.
+> ![Warning!](../images/warning.svg) MAP-T support on Jool is presently in late development. It will come out in Jool 4.2.0. See [Downloads](download.html).
 
 (Note: This is an oversimplification meant as a general introduction. The terminology is particularly concealed because I have some beef with the official one. Please read the [MAP-T summary](map-t.html) after this to learn more.)
 

@@ -159,23 +159,26 @@ static int validate_overlapping(struct eam_table *eamt, struct eamt_entry *new,
 	return 0;
 }
 
-static void __revert_add6(struct eam_table *eamt, struct ipv6_prefix *prefix6)
+static void __revert_add6(struct eam_table *eamt, struct ipv6_prefix *prefix6,
+		bool synchronize)
 {
 	struct rtrie_key key = PREFIX_TO_KEY(prefix6);
 	int error;
 
-	error = rtrie_rm(&eamt->trie6, &key);
+	error = rtrie_rm(&eamt->trie6, &key, synchronize);
 	WARN(error, "Got error %d while trying to remove an EAM I just added.",
 			error);
 }
 
-static int eamt_add6(struct eam_table *eamt, struct eamt_entry *eam)
+static int eamt_add6(struct eam_table *eamt, struct eamt_entry *eam,
+		bool synchronize)
 {
 	size_t addr_offset;
 	int error;
 
 	addr_offset = offsetof(typeof(*eam), prefix6.addr);
-	error = rtrie_add(&eamt->trie6, eam, addr_offset, eam->prefix6.len);
+	error = rtrie_add(&eamt->trie6, eam, addr_offset, eam->prefix6.len,
+			synchronize);
 	if (error == -EEXIST) {
 		log_err("Prefix %pI6c/%u already exists.",
 				&eam->prefix6.addr, eam->prefix6.len);
@@ -186,13 +189,15 @@ static int eamt_add6(struct eam_table *eamt, struct eamt_entry *eam)
 	return error;
 }
 
-static int eamt_add4(struct eam_table *eamt, struct eamt_entry *eam)
+static int eamt_add4(struct eam_table *eamt, struct eamt_entry *eam,
+		bool synchronize)
 {
 	size_t addr_offset;
 	int error;
 
 	addr_offset = offsetof(typeof(*eam), prefix4.addr);
-	error = rtrie_add(&eamt->trie4, eam, addr_offset, eam->prefix4.len);
+	error = rtrie_add(&eamt->trie4, eam, addr_offset, eam->prefix4.len,
+			synchronize);
 	if (error == -EEXIST) {
 		log_err("Prefix %pI4/%u already exists.",
 				&eam->prefix4.addr, eam->prefix4.len);
@@ -203,7 +208,8 @@ static int eamt_add4(struct eam_table *eamt, struct eamt_entry *eam)
 	return error;
 }
 
-int eamt_add(struct eam_table *eamt, struct eamt_entry *new, bool force)
+int eamt_add(struct eam_table *eamt, struct eamt_entry *new, bool force,
+		bool synchronize)
 {
 	int error;
 
@@ -217,12 +223,12 @@ int eamt_add(struct eam_table *eamt, struct eamt_entry *new, bool force)
 	if (error)
 		goto end;
 
-	error = eamt_add6(eamt, new);
+	error = eamt_add6(eamt, new, synchronize);
 	if (error)
 		goto end;
-	error = eamt_add4(eamt, new);
+	error = eamt_add4(eamt, new, synchronize);
 	if (error) {
-		__revert_add6(eamt, &new->prefix6);
+		__revert_add6(eamt, &new->prefix6, synchronize);
 		goto end;
 	}
 
@@ -266,10 +272,10 @@ static int __rm(struct eam_table *eamt,
 	struct rtrie_key key4 = PREFIX_TO_KEY(prefix4);
 	int error;
 
-	error = rtrie_rm(&eamt->trie6, &key6);
+	error = rtrie_rm(&eamt->trie6, &key6, true);
 	if (error)
 		goto corrupted;
-	error = rtrie_rm(&eamt->trie4, &key4);
+	error = rtrie_rm(&eamt->trie4, &key4, true);
 	if (error)
 		goto corrupted;
 	eamt->count--;

@@ -143,7 +143,7 @@ verdict translate_addrs46_siit(struct xlation *state, struct in6_addr *src_out,
 			addr6.entry.method = AXM_RFC6791;
 			break; /* Ok, success. */
 		}
-		/* Fall through */
+		return untranslatable(state, JSTAT46_SRC);
 	case ADDRXLAT_ACCEPT:
 		return untranslatable(state, JSTAT46_SRC);
 	case ADDRXLAT_DROP:

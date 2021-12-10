@@ -200,7 +200,7 @@ static int handle_eamt(struct config_candidate *new, struct nlattr *root,
 		error = jnla_get_eam(attr, "EAMT entry", &entry);
 		if (error)
 			return error;
-		error = eamt_add(new->xlator.siit.eamt, &entry, force);
+		error = eamt_add(new->xlator.siit.eamt, &entry, force, false);
 		if (error)
 			return error;
 	}
