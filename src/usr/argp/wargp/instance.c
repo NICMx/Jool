@@ -165,6 +165,12 @@ struct add_args {
 	struct wargp_prefix6 pool6;
 };
 
+#ifdef XTABLES_DISABLED
+#pragma message("Xtables disabled")
+#else
+#pragma message("Xtables enabled")
+#endif
+
 static struct wargp_option add_opts[] = {
 	WARGP_INAME(struct add_args, iname, "add"),
 	{

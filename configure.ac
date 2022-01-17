@@ -33,22 +33,30 @@ AC_SEARCH_LIBS([pow], [m])
 AC_SEARCH_LIBS([pthread_create], [pthread])
 AC_CHECK_LIB([argp], [argp_parse])
 
-# Checks for dependencies.
+# Dependency: libnlgenl (mandatory)
 PKG_CHECK_MODULES(LIBNLGENL3, libnl-genl-3.0 >= 3.2.22)
 
-# xtables will only be included if available.
-PKG_CHECK_MODULES(XTABLES, xtables,
-	WITH_XTABLES="yes",
-	WITH_XTABLES="no")
-AM_CONDITIONAL([XTABLES_ENABLED], [test "x$WITH_XTABLES" = "xyes"])
+# Dependency: xtables (optional)
+AC_ARG_WITH(
+	[xtables],
+	AS_HELP_STRING(
+		[--with-xtables@<:@=yes|no@:>@],
+		[Include xtables dependency? @<:@default=yes@:>@]
+	)
+)
+AS_IF([test "x$with_xtables" != "xno"], [
+	PKG_CHECK_MODULES(XTABLES, xtables)
+])
+AM_CONDITIONAL([XTABLES_ENABLED], [test "x$with_xtables" != "xno"])
 
 # Bash autocompletion option (https://www.swansontec.com/bash-completion.html):
 # 1. Offer the user the `--with-bash-completion-dir` configure option,
 #    which can be set to a directory, "yes" (default; means autodetect
 #    directory) or "no" (disable autocompletion).
 AC_ARG_WITH([bash-completion-dir],
-	AS_HELP_STRING([--with-bash-completion-dir[=PATH]],
-		[Install the bash auto-completion script. @<:@default=yes@:>@]),
+	AS_HELP_STRING([--with-bash-completion-dir@<:@=yes|no|PATH@:>@],
+		[Directory where the bash auto-completion script will be installed.
+		("yes" attempts to guess.) @<:@default=yes@:>@]),
 	[],
 	[with_bash_completion_dir=yes])
 
