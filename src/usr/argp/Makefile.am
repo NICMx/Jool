@@ -25,6 +25,9 @@ libjoolargp_la_SOURCES = \
 libjoolargp_la_CFLAGS  = ${WARNINGCFLAGS}
 libjoolargp_la_CFLAGS += -I${top_srcdir}/src
 libjoolargp_la_CFLAGS += ${LIBNLGENL3_CFLAGS}
+if !XTABLES_ENABLED
+libjoolargp_la_CFLAGS += -DXTABLES_DISABLED
+endif
 
 libjoolargp_la_LIBADD  = ../util/libjoolutil.la
 libjoolargp_la_LIBADD += ../nl/libjoolnl.la

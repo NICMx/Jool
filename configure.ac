@@ -35,7 +35,12 @@ AC_CHECK_LIB([argp], [argp_parse])
 
 # Checks for dependencies.
 PKG_CHECK_MODULES(LIBNLGENL3, libnl-genl-3.0 >= 3.2.22)
-PKG_CHECK_MODULES(XTABLES, xtables)
+
+# xtables will only be included if available.
+PKG_CHECK_MODULES(XTABLES, xtables,
+	WITH_XTABLES="yes",
+	WITH_XTABLES="no")
+AM_CONDITIONAL([XTABLES_ENABLED], [test "x$WITH_XTABLES" = "xyes"])
 
 # Bash autocompletion option (https://www.swansontec.com/bash-completion.html):
 # 1. Offer the user the `--with-bash-completion-dir` configure option,

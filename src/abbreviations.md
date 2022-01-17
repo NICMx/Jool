@@ -33,6 +33,7 @@ Some shortcuts used while naming variables and functions through the code or doc
 - l3 = layer 3 (network; IPv4 or IPv6.)
 - l4 = layer 4 (transport; TCP, UDP. Also ICMP and ICMPv6 for convenience.)
 - len = length
+- mft = Manifest
 - mod = kernel module
 - NIC = Network Interface Card
 - nf = Netfilter (http://www.netfilter.org/)

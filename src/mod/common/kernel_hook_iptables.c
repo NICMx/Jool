@@ -1,3 +1,5 @@
+#ifndef XTABLES_DISABLED
+
 #include "mod/common/kernel_hook.h"
 
 #include "common/iptables.h"
@@ -149,3 +151,5 @@ end:	xlation_destroy(state);
 	return verdict2iptables(result, enable_debug);
 }
 EXPORT_SYMBOL_GPL(target_ipv4);
+
+#endif /* !XTABLES_DISABLED */
