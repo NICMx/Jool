@@ -58,6 +58,13 @@ static int __init siit_init(void)
 	int error;
 
 	pr_debug("Inserting SIIT Jool...\n");
+
+#ifdef XTABLES_DISABLED
+	pr_info("(Xtables disabled)\n");
+#else
+	pr_info("(Xtables enabled)\n");
+#endif
+
 	/* Careful with the order */
 
 	error = register_pernet_subsys(&joolns_ops);
