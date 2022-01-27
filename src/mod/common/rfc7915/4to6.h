@@ -10,12 +10,6 @@
 
 #include "mod/common/rfc7915/common.h"
 
-#ifdef XTABLES_DISABLED
-#pragma message("Xtables disabled")
-#else
-#pragma message("Xtables enabled")
-#endif
-
 extern const struct translation_steps ttp46_steps;
 
 #endif /* SRC_MOD_COMMON_RFC7915_4TO6_H_ */

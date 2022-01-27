@@ -639,12 +639,6 @@ int jool_main(int argc, char **argv)
 	char *iname = NULL;
 	struct jool_result result;
 
-#ifdef XTABLES_DISABLED
-	printf("(Xtables disabled)\n");
-#else
-	printf("(Xtables enabled)\n");
-#endif
-
 	if (argc == 1)
 		return show_help(argv[0]);
 
