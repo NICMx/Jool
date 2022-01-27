@@ -53,7 +53,8 @@ static inline bool xlator_debug(struct xlator const *instance)
 #endif
 
 /*
- * Debug messages not associated with an instance. They need JOOL_FLAGS=-DDEBUG.
+ * Debug messages not associated with an instance. They need
+ * CFLAGS_MODULE=-DDEBUG.
  * I think this is fine for now; people normally wants debug messages to learn
  * why an instance is misbehaving.
  */

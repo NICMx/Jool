@@ -11,6 +11,8 @@ MODULE_AUTHOR("NIC-ITESM");
 MODULE_DESCRIPTION("Stateless IP/ICMP Translation (RFC 7915)");
 MODULE_VERSION(JOOL_VERSION_STR);
 
+#ifndef XTABLES_DISABLED
+
 static int iptables_error;
 
 static struct xt_target targets[] = {
@@ -33,6 +35,8 @@ static struct xt_target targets[] = {
 	},
 };
 
+#endif /* !XTABLES_DISABLED */
+
 static void flush_net(struct net *ns)
 {
 	jool_xlator_flush_net(ns, XT_SIIT);
@@ -54,24 +58,29 @@ static int __init siit_init(void)
 	int error;
 
 	pr_debug("Inserting SIIT Jool...\n");
+
 	/* Careful with the order */
 
 	error = register_pernet_subsys(&joolns_ops);
 	if (error)
 		return error;
 
+#ifndef XTABLES_DISABLED
 	iptables_error = xt_register_targets(targets, ARRAY_SIZE(targets));
 	if (iptables_error) {
 		log_warn("Error code %d while trying to register the iptables targets.\n"
 				"iptables SIIT Jool will not be available.",
 				iptables_error);
 	}
+#endif
 
 	/* SIIT instances can now function properly; unlock them. */
 	error = jool_siit_get();
 	if (error) {
+#ifndef XTABLES_DISABLED
 		if (!iptables_error)
 			xt_unregister_targets(targets, ARRAY_SIZE(targets));
+#endif
 		unregister_pernet_subsys(&joolns_ops);
 		return error;
 	}
@@ -83,8 +92,10 @@ static int __init siit_init(void)
 static void __exit siit_exit(void)
 {
 	jool_siit_put();
+#ifndef XTABLES_DISABLED
 	if (!iptables_error)
 		xt_unregister_targets(targets, ARRAY_SIZE(targets));
+#endif
 	unregister_pernet_subsys(&joolns_ops);
 	pr_info("SIIT Jool v" JOOL_VERSION_STR " module removed.\n");
 }

@@ -25,7 +25,7 @@ static verdict find_instance(struct sk_buff *skb, struct xlator *result)
 		return VERDICT_UNTRANSLATABLE;
 	}
 
-	WARN(true, "Unknown error code %d while trying to find iptables a Jool instance.",
+	WARN(true, "Unknown error code %d while trying to find a Jool instance.",
 			error);
 	return VERDICT_UNTRANSLATABLE;
 }

@@ -4,9 +4,9 @@
  * I didn't want to recompile the kernel yet again so I made this.
  * It's nowhere near as good but it took much less time. Sorry.
  *
- * Include in the compilation by adding JKMEMLEAK to Jool's variables.
+ * Include in the compilation by adding JKMEMLEAK to CFLAGS.
  *
- * 	make JOOL_FLAGS=-DJKMEMLEAK
+ * 	make CFLAGS_MODULE=-DJKMEMLEAK
  *
  * Will print a report when you modprobe -r.
  */

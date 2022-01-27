@@ -10,7 +10,7 @@
 #
 #	msg = nlmsg_alloc_size(256);
 #
-# Then recompile/reinstall jool using `make JOOL_FLAGS="-DDEBUG -DJKMEMLEAK"`
+# Then recompile/reinstall jool using `make CFLAGS_MODULE="-DDEBUG -DJKMEMLEAK"`
 # and run this script.
 # All validations are visual for now; sorry.
 
