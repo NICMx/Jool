@@ -1,3 +1,11 @@
+jool (4.1.7-1) unstable; urgency=low
+
+  * New upstream release
+  * Fix joold in Linux > 5.10. Closes: #1001060
+  * (Actually, joold was fixed in 4.1.6-1. I forgot to close.)
+
+ -- Alberto Leiva Popper <ydahhrk@gmail.com>  Thu, 27 Jan 2022 16:37:34 -0600
+
 jool (4.1.6-1) unstable; urgency=low
 
   * New upstream release
