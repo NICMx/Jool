@@ -412,6 +412,12 @@ static inline struct packet *pkt_original_pkt(const struct packet *pkt)
  *
  * Includes l3 header, l4 header, data payload area and paged area.
  * Does not include frag_list area.
+ *
+ * TODO (issue375) this function is pure liability now. Its implementation seems
+ * to believe the frags array represents slices of a common packet. I now
+ * understand it more as a buffer that lengths whatever the source managed to
+ * allocate.
+ * Reimplement callers properly and delete this function.
  */
 static inline unsigned int pkt_len(const struct packet *pkt)
 {

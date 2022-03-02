@@ -480,7 +480,7 @@ static verdict allocate_slow(struct xlation *state, unsigned int mpl)
 
 	in = &state->in;
 	previous = &state->out.skb;
-	payload_left = pkt_len(in) - pkt_l3hdr_len(in);
+	payload_left = in->skb->len - pkt_l3hdr_len(in);
 	payload_per_frag = (mpl - HDRS_LEN) & 0xFFFFFFF8U;
 	bytes_consumed = 0;
 
@@ -505,11 +505,11 @@ static verdict allocate_slow(struct xlation *state, unsigned int mpl)
 		skb_reset_mac_header(out);
 		skb_reset_network_header(out);
 		skb_put(out, sizeof(struct ipv6hdr));
-		frag = (struct frag_hdr *)skb_put(out, sizeof(struct frag_hdr));
+		frag = skb_put(out, sizeof(struct frag_hdr));
 		l3_payload = skb_put(out, fragment_payload_len);
 
+		skb_set_transport_header(out, HDRS_LEN);
 		if (out == state->out.skb) {
-			skb_set_transport_header(out, HDRS_LEN);
 			pkt_fill(&state->out, out, L3PROTO_IPV6,
 					pkt_l4_proto(in), frag,
 					l3_payload + pkt_l4hdr_len(in),
@@ -1415,6 +1415,15 @@ static __sum16 update_csum_4to6(__sum16 csum16,
 /**
  * Removes the IPv4 pseudoheader, adds the IPv6 pseudoheader.
  * Input and result are unfolded.
+ *
+ * TODO (issue375) This doesn't make sense to me anymore, but I can't tell if
+ * it's because it's wrong or because I forgot some important detail about
+ * CHECKSUM_PARTIAL.
+ * If the NIC expects the checksum to contain the pseudoheader, wouldn't it make
+ * sense to zero-out then add new pseudoheader, rather than remove old
+ * pseudoheader then add new pseudoheader?
+ * It's especially jarring in Slow Path, because that doesn't even start with a
+ * sensible pre-existing checksum to begin with.
  */
 static __sum16 update_csum_4to6_partial(__sum16 csum16, struct iphdr *in4,
 		struct ipv6hdr *out6)
