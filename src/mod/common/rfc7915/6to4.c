@@ -2,6 +2,8 @@
 
 #include <linux/inetdevice.h>
 #include <net/ip6_checksum.h>
+#include <net/udp.h>
+#include <net/tcp.h>
 
 #include "mod/common/ipv6_hdr_iterator.h"
 #include "mod/common/linux_version.h"
@@ -1083,15 +1085,6 @@ static __sum16 update_csum_6to4(__sum16 csum16,
 	return csum_fold(csum);
 }
 
-static __sum16 update_csum_6to4_partial(__sum16 csum16, struct ipv6hdr const *in_ip6,
-		struct iphdr *out_ip4)
-{
-	__wsum csum = csum_unfold(csum16);
-	csum = csum_sub(csum, pseudohdr6_csum(in_ip6));
-	csum = csum_add(csum, pseudohdr4_csum(out_ip4));
-	return ~csum_fold(csum);
-}
-
 static verdict ttp64_tcp(struct xlation *state)
 {
 	struct packet const *in = &state->in;
@@ -1117,9 +1110,11 @@ static verdict ttp64_tcp(struct xlation *state)
 				pkt_ip6_hdr(in), &tcp_copy, sizeof(tcp_copy),
 				pkt_ip4_hdr(out), tcp_out, sizeof(*tcp_out));
 		out->skb->ip_summed = CHECKSUM_NONE;
+
 	} else {
-		tcp_out->check = update_csum_6to4_partial(tcp_in->check,
-				pkt_ip6_hdr(in), pkt_ip4_hdr(out));
+		tcp_out->check = ~tcp_v4_check(pkt_datagram_len(out),
+				pkt_ip4_hdr(out)->saddr,
+				pkt_ip4_hdr(out)->daddr, 0);
 		partialize_skb(out->skb, offsetof(struct tcphdr, check));
 	}
 
@@ -1153,9 +1148,11 @@ static verdict ttp64_udp(struct xlation *state)
 		if (udp_out->check == 0)
 			udp_out->check = CSUM_MANGLED_0;
 		out->skb->ip_summed = CHECKSUM_NONE;
+
 	} else {
-		udp_out->check = update_csum_6to4_partial(udp_in->check,
-				pkt_ip6_hdr(in), pkt_ip4_hdr(out));
+		udp_out->check = ~udp_v4_check(pkt_datagram_len(out),
+				pkt_ip4_hdr(out)->saddr,
+				pkt_ip4_hdr(out)->daddr, 0);
 		partialize_skb(out->skb, offsetof(struct udphdr, check));
 	}
 

@@ -297,7 +297,9 @@ if [ -z "$1" -o "$1" = "rfc7915" ]; then
 	# e
 	test44_11 7915 eat1 eae1 $TOS,$IDENTIFICATION
 	ip netns exec joolns jool_siit global update amend-udp-checksum-zero 1
-	test46_11 7915 eat1 ebe1
+	# Cannot be tested by graybox anymore, because the checksum is now
+	# offloaded. The interface refuses to do it because it's virtual.
+	#test46_11 7915 eat1 ebe1
 	test44_11 7915 ect1 ece1 $TOS,$IDENTIFICATION
 	ip netns exec joolns jool_siit global update amend-udp-checksum-zero 0
 	test44_11 7915 ect1 ece1 $TOS,$IDENTIFICATION

@@ -11,28 +11,15 @@
 #include "mod/common/steps/compute_outgoing_tuple.h"
 
 /**
- * RFC 7915:
- * "When the IPv4 sender does not set the DF bit, the translator MUST NOT
- * include the Fragment Header for the non-fragmented IPv6 packets."
+ * Note: Fragmentation offloading is handled transparently: NIC joins fragments,
+ * we translate the large and seemingly unfragmented packet, then NIC fragments
+ * again, re-adding the fragment header.
  *
- * Very strange wording. I believe that DF enabled also implies no fragmentation
- * (as everyone seems to assume no one generates DF-enabled fragments), which,
- * stacked with the general direction of the atomic fragments deprecation
- * effort, I think what it actually means is
+ * Same happens with defrag: Defrag defrags, Jool translates seemingly
+ * unfragmented, enfrag enfrags.
  *
- * The translator MUST NOT include the Fragment Header for non-fragmented IPv6
- * packets. (Obviously, if the packet is fragmented, the fragment header MUST
- * be included.)
- *
- * (i.e. The translator must include the Fragment header if, and only if, the
- * packet is fragmented.)
- *
- * The following quote also supports this logic:
- * "If there is a need to add a Fragment Header (the packet is a fragment
- * or the DF bit is not set and the packet size is greater than the
- * minimum IPv6 MTU (...)),"
- *
- * So that's why I implemented it this way.
+ * This function only returns true when WE are supposed to worry about the
+ * fragment header. (ie. we're translating a completely unmanhandled fragment.)
  */
 bool will_need_frag_hdr(const struct iphdr *hdr)
 {
@@ -299,7 +286,7 @@ end:
  *
  * This function handles the skb fields setting part.
  */
-void partialize_skb(struct sk_buff *out_skb, unsigned int csum_offset)
+void partialize_skb(struct sk_buff *out_skb, __u16 csum_offset)
 {
 	out_skb->ip_summed = CHECKSUM_PARTIAL;
 	out_skb->csum_start = skb_transport_header(out_skb) - out_skb->head;

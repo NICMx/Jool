@@ -50,7 +50,7 @@ struct translation_steps {
 	header_xlat_fn xlat_icmp;
 };
 
-void partialize_skb(struct sk_buff *skb, unsigned int csum_offset);
+void partialize_skb(struct sk_buff *skb, __u16 csum_offset);
 bool will_need_frag_hdr(const struct iphdr *hdr);
 verdict ttpcomm_translate_inner_packet(struct xlation *state,
 		struct translation_steps const *steps);
