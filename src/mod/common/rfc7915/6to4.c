@@ -545,21 +545,39 @@ static void generate_ipv4_id(struct xlation const *state, struct iphdr *hdr4,
 	}
 }
 
-/**
- * One-liner for creating the IPv4 header's Dont Fragment flag.
- */
-static bool generate_df_flag(struct packet const *out)
+static bool generate_df_flag(struct xlation const *state)
 {
-	unsigned int len;
+	struct packet const *in;
+	struct packet const *out;
 
-	len = pkt_is_outer(out)
-			? pkt_len(out)
-			: be16_to_cpu(pkt_ip4_hdr(out)->tot_len);
+	/* This is the RFC logic, but it's complicated by frag_list and GRO. */
 
-	return len > 1260;
+	in = &state->in;
+	out = &state->out;
+
+	if (pkt_is_inner(out)) {
+		/* Unimportant. Guess: RFC logic. Meh. */
+		return ntohs(pkt_ip4_hdr(out)->tot_len) > 1260;
+	}
+	if (skb_has_frag_list(in->skb)) {
+		/* Clearly fragmented */
+		return false;
+	}
+	if (skb_is_gso(in->skb)) {
+		if (pkt_l4_proto(in) != L4PROTO_TCP) {
+			/* UDP fragmented, ICMP & OTHER undefined */
+			return false;
+		}
+		/* TCP not fragmented */
+		return pkt_hdrs_len(out) + skb_shinfo(in->skb)->gso_size > 1260;
+	}
+
+	/* Not fragmented */
+	return out->skb->len > 1260;
 }
 
-static __be16 xlat_frag_off(struct frag_hdr const *hdr_frag, struct packet const *out)
+static __be16 xlat_frag_off(struct frag_hdr const *hdr_frag,
+		struct xlation const *state)
 {
 	bool df;
 	__u16 mf;
@@ -570,7 +588,7 @@ static __be16 xlat_frag_off(struct frag_hdr const *hdr_frag, struct packet const
 		mf = is_mf_set_ipv6(hdr_frag);
 		frag_offset = get_fragment_offset_ipv6(hdr_frag);
 	} else {
-		df = generate_df_flag(out);
+		df = generate_df_flag(state);
 		mf = 0;
 		frag_offset = 0;
 	}
@@ -638,7 +656,7 @@ static verdict ttp64_ipv4_external(struct xlation *state)
 	hdr4->tos = flow4->flowi4_tos;
 	hdr4->tot_len = cpu_to_be16(state->out.skb->len);
 	generate_ipv4_id(state, hdr4, hdr_frag);
-	hdr4->frag_off = xlat_frag_off(hdr_frag, &state->out);
+	hdr4->frag_off = xlat_frag_off(hdr_frag, state);
 	hdr4->ttl = hdr6->hop_limit - 1;
 	hdr4->protocol = flow4->flowi4_proto;
 	/* ip4_hdr->check is set later; please scroll down. */
@@ -667,7 +685,7 @@ static verdict ttp64_ipv4_internal(struct xlation *state)
 	hdr4->tot_len = cpu_to_be16(get_tot_len_ipv6(in->skb) - pkt_hdrs_len(in)
 			+ pkt_hdrs_len(out));
 	generate_ipv4_id(state, hdr4, hdr_frag);
-	hdr4->frag_off = xlat_frag_off(hdr_frag, out);
+	hdr4->frag_off = xlat_frag_off(hdr_frag, state);
 	hdr4->ttl = hdr6->hop_limit;
 	hdr4->protocol = xlat_proto(hdr6);
 	hdr4->saddr = state->flowx.v4.inner_src.s_addr;

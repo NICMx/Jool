@@ -403,28 +403,6 @@ static inline struct packet *pkt_original_pkt(const struct packet *pkt)
 }
 
 /**
- * Returns the length of @pkt as a layer-3 packet. It includes layer 3 headers
- * and layer 3 payload.
- *
- * It is supposed to replace @pkt->skb->len in certain situations. This is
- * because @pkt->skb->len also counts bytes present in subsequent fragments, and
- * that is not always what a translator wants.
- *
- * Includes l3 header, l4 header, data payload area and paged area.
- * Does not include frag_list area.
- *
- * TODO (issue375) this function is pure liability now. Its implementation seems
- * to believe the frags array represents slices of a common packet. I now
- * understand it more as a buffer that lengths whatever the source managed to
- * allocate.
- * Reimplement callers properly and delete this function.
- */
-static inline unsigned int pkt_len(const struct packet *pkt)
-{
-	return skb_pagelen(pkt->skb);
-}
-
-/**
  * Returns the length of @pkt's layer-3 headers, including options or extension
  * headers.
  * Only counts bytes actually present within @pkt. In other words, headers of
