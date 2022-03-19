@@ -548,6 +548,7 @@ static verdict ttp46_alloc_skb(struct xlation *state)
 	 * - Out = Outgoing packet
 	 * - IPL: Ideal (Outgoing) Packet Length
 	 * - MPL: Maximum (allowed) Packet Length
+	 * - LIM: lowest-ipv6-mtu (Configuration option)
 	 * - Slow Path: Out packets will have to be created from scratch, data
 	 *   will have to be copied from In to Out(s)
 	 * - Fast Path: Out packet will share In packet's fragment and paged
@@ -566,7 +567,7 @@ static verdict ttp46_alloc_skb(struct xlation *state)
 	 * ip6_output() -> ip6_finish_output() -> ip6_fragment() to return
 	 * PTB because we want a FN instead. (We wouldn't translate
 	 * ip6_fragment()'s PTB to FN because we're stuck in prerouting, so
-	 * it'd never reach us.) PMTUD depends on this. We avoid the PTB by
+	 * it wouldn't reach us.) PMTUD depends on this. We avoid the PTB by
 	 * sending the FN ourselves by querying dst_mtu() (the same MTU function
 	 * ip6_fragment() uses to compute the MTU).
 	 *
@@ -585,14 +586,19 @@ static verdict ttp46_alloc_skb(struct xlation *state)
 	 * next pointers. (We don't need prev for anything.)
 	 *
 	 * At time of writing, we need Slow Path (ie. we need to fragment
-	 * ourselves) because the kernel's IPv6 fragmentator does not care about
-	 * already existing fragment headers, which complicates the survival of
-	 * the Fragment Identification value needed when the packet is already
-	 * fragmented. If Jool sends an IPv6 packet containing a fragment header
-	 * hoping that the kernel will reuse it if it needs to fragment, the
-	 * kernel will just add another fragment header instead.
+	 * ourselves) for two reasons:
 	 *
-	 * I love you, Linux, but you can be such a moron.
+	 * 1. The kernel's IPv6 fragmentator doesn't care about already existing
+	 *    fragment headers, which complicates the survival of the Fragment
+	 *    Identification value needed when the packet is already fragmented.
+	 *    If Jool sends an IPv6 packet containing a fragment header (hoping
+	 *    that the kernel will reuse it if it needs to fragment), the kernel
+	 *    will just add another fragment header instead.
+	 * 2. We don't have a means to inform LIM to the kernel.
+	 *
+	 * Actually, I don't know if 2 is strictly true. I suppose we could
+	 * override state->dst->dev->mtu, but because it's a shared structure,
+	 * it's probably illegal.
 	 *
 	 * # GRO and GSO
 	 *
@@ -713,16 +719,15 @@ static verdict ttp46_alloc_skb(struct xlation *state)
 
 	} else if (fragment_exceeds_mtu46(in, mpl)) {
 		/*
-		 * Force preservation of Fragmentation ID by
-		 * doing manual fragmentation.
+		 * Force LIM and Fragmentation ID preservation through manual
+		 * fragmentation.
 		 */
 		result = allocate_slow(state, mpl);
 
 	} else {
 		/*
-		 * Dodged a bullet; no need to fragment further,
-		 * we'll just build the Fragmentation header
-		 * ourselves.
+		 * Dodged a bullet; no need to fragment further, we'll just
+		 * build the Fragmentation header ourselves.
 		 */
 		result = allocate_fast(state, false, 0);
 	}

@@ -355,27 +355,18 @@ static int fragment_exceeds_mtu64(struct packet const *in, unsigned int mtu)
 	int delta;
 
 	/*
-	 * I haven't found a hard definition of what shinfo->gso_size is
-	 * supposed to represent, but my general impression is that it's the
-	 * value the kernel uses (during resegmentation) to remember the length
-	 * of the original segments after GRO. It's the length of the largest
-	 * segment, after stripping the common headers out. (In other words,
-	 * just the L4 payload length.)
+	 * shinfo->gso_size is the value the kernel uses (during resegmentation)
+	 * to remember the length of the original segments after GRO.
 	 *
-	 * I ran into a surprising quirk: If packet A has frag_list fragments B,
-	 * and B have frags fragments C, then A's gso_size also applies to B,
-	 * as well as C.
+	 * Interestingly, if packet A has frag_list fragments B, and B have
+	 * frags fragments C, then A's gso_size also applies to B, as well as C.
 	 *
-	 * I don't know if gso_size is populated if there are frag_list
-	 * fragments but not frags fragments. Luckily, the solution I wrote
-	 * below should handle things correctly either way.
+	 * (Note: Ugh. This comment is old. I don't remember if I checked
+	 * whether B's gso_size was nonzero.)
 	 *
-	 * (One way to observe this madness is to connect two Virtualbox VMs
-	 * and trace iperf traffic.)
-	 *
-	 * I notice that there's also IP6CB(skb)->frag_max_size, which appears
-	 * to be a defrag-only thing, and I've no idea how it relates to
-	 * gso_size.
+	 * I don't know if gso_size can be populated if there are frag_list
+	 * fragments but not frags fragments. Luckily, this code should work
+	 * either way.
 	 *
 	 * See ip_exceeds_mtu() and ip6_pkt_too_big().
 	 */
@@ -393,7 +384,7 @@ static int fragment_exceeds_mtu64(struct packet const *in, unsigned int mtu)
 
 	/*
 	 * TODO (performance) This loop could probably be optimized away by
-	 * querying frag_max_size. You'll have to test it.
+	 * querying IP6CB(skb)->frag_max_size. You'll have to test it.
 	 */
 	mtu -= sizeof(struct iphdr);
 	skb_walk_frags(in->skb, iter)
@@ -443,11 +434,10 @@ static verdict ttp64_alloc_skb(struct xlation *state)
 		goto revert;
 
 	/*
-	 * I'm going to use __pskb_copy() (via pskb_copy()) because I need the
-	 * incoming and outgoing packets to share the same paged data. This is
-	 * not only for the sake of performance (prevents lots of data copying
-	 * and large contiguous skbs in memory) but also because the pages need
-	 * to survive the translation for GSO to work.
+	 * pskb_copy() is more efficient than allocating a new packet, because
+	 * it shares (not copies) the original's paged data with the copy. This
+	 * is great, because we don't need to modify the payload in either
+	 * packet.
 	 *
 	 * Since the IPv4 version of the packet is going to be invariably
 	 * smaller than its IPv6 counterpart, you'd think we should reserve less
@@ -550,7 +540,10 @@ static bool generate_df_flag(struct xlation const *state)
 	struct packet const *in;
 	struct packet const *out;
 
-	/* This is the RFC logic, but it's complicated by frag_list and GRO. */
+	/*
+	 * This is the RFC logic, but it's complicated by frag_list, GRO and
+	 * internal packets.
+	 */
 
 	in = &state->in;
 	out = &state->out;

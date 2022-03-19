@@ -5,79 +5,39 @@
  * @file
  * Random packet-related functions.
  *
- * TODO (doc) though this comment is not wrong, it's probably not as relevant as
- * it used to be. Thanks to the 3.6 refactors, Jool doesn't often care (if at
- * all) about different types of packets anymore.
+ * Relevant topics:
  *
- * You might want to be aware of the different types of packets the kernel can
- * throw at Jool; see below.
+ * # Packet Buffering
  *
- * (Note that when I say "fragment" I mean "IP fragment". "Page fragments" are
- * something else altogether and are somewhat transparent to Jool. All the
- * variations below can be paged, except for subsequent packets already
- * represented as pages.)
+ * GRO, nf_defrag_ipv6 and nf_defrag_ipv4 can merge a bunch of related packets
+ * on input, by buffering them in `skb_shinfo(skb)->frags` or queuing them in
+ * `skb_shinfo(skb)->frag_list`. Lots of kernel functions will try to fool you
+ * into thinking they're a single packet.
  *
- * 1. A "real full packet" is a packet that is not fragmented. It is a single
- *    skb with fragment offset = 0 and MF = 0.
- * 2. A "fake full packet" is a packet which is fragmented but the kernel API
- *    wants us to believe otherwise.
- *    These are "assembled" skbs in that the skb points to the first fragment
- *    and the remaining fragments are queued in skb_shinfo(skb)->frag_list.
- *    Though many kernel functions want us to believe the skb is a real full
- *    packet, and ideally we would follow suit, doing surgery on individual
- *    fragments is sometimes necessary evil for PMTU reasons.
+ * For the most part, this is fine. Unfortunately, individual fragment surgery
+ * is sometimes necessary evil for PMTU reasons. Therefore, you need to
+ * understand frags and frag_list if you're going to manipulate lengths (and
+ * probably checksums).
  *
- * (A "full packet" is either a real full packet or a fake full packet.)
+ * # Internal Packets
  *
- * 3. A "fragmented packet" is a normal fragmented packet that hasn't suffered
- *    defrag alterations.
- *    In other words, fragment offset > 0 and/or MF == true, shinfo->frag_list
- *    isn't populated and the skb is not queued in any other packet's frag_list.
- *    These are fragments but are separated from their ilk during translation as
- *    you would expect from a stateless forwarding machine.
- * 4. An "internal packet" is a packet wrapped as payload in an ICMP error.
- *    These are set up and used by the RFC7915 submodule.
- *    Internal packets can be truncated! Header lengths might contradict the
- *    sizes from the skb fields. Jool in general should *rarely* rely on header
- *    lengths.
- *    I repeat: Because of internal packets, JOOL IN GENERAL SHOULD RARELY RELY
- *    ON HEADER LENGTHS!
- * 5. A "subsequent packet" is a fragment that has been queued in some fake full
- *    packet's frag_list. These packets are special in that they have stripped
- *    (deleted) l3 headers for no apparent reason.
- *    As I understand it, while forwarding, the kernel regenerates "subsequent
- *    headers" from scratch so any special differences between the original
- *    headers are lost. Ever since the atomic fragment hack was removed from the
- *    xlat standards this is no longer harmful so we don't mind it anymore.
- *    So yeah, do not translate subsequent headers. They do not exist.
- *    Another thing worth mentioning is that some kernels are even more insane
- *    in that they queue subsequent fragments in ->frags instead of ->frag_list.
- *    This is, in fact, also not entirely harmful because we can simply transfer
- *    pages as they are and the kernel should automatically turn them into
- *    fragments if they won't fit through the MTU. I don't think this is as
- *    deterministic as it should be, since the kernel might not be aware of the
- *    path MTU (and therefore linearize fragment pages), but there is nothing
- *    else we can do because there is nothing that will tell us whether a
- *    ->frags member is a fragment or a page.
+ * Packets contained inside ICMP errors. A good chunk of the RFC7915 code is
+ * reused by external and internal packets.
  *
- * For the most part, full/fragmented/internal packets can be handled similarly.
- * Subsequent packets, freaks of nature as they are, are thankfully often
- * transparent to us.
+ * They can be truncated. When this happens, their header lengths will
+ * contradict their actual lengths. For this reason, in general, Jool should
+ * *rarely* rely on header lengths.
  *
- * Also consider the following while reading this documentation:
+ * # Local Glossary
  *
- * - "data payload area" refers to the bytes that lie in an skb between
- *   skb->head and skb->tail, excluding headers.
- * - "paged area" refers to the bytes that the skb stores in
- *   skb_shinfo(skb)->frags. (Though sometimes these represent IP fragments,
- *   they *never* feature headers.)
- * - "frag_list area" refers to the bytes that the skb stores in
- *   skb_shinfo(skb)->frag_list, and *also* the bytes that these fragments store
- *   in their own paged area. Though these are valid skbs, the kernel wants us
- *   to believe that they don't have headers, and Jool should not attempt to
- *   read them.
- *   (The fragments in theory should never contain sub-frag_lists, but maybe
- *   Jool should consider this now that I think about it.)
+ * - data payload area: Bytes that lie in an skb between skb->head and
+ *   skb->tail, excluding headers.
+ * - paged area: Bytes the skb stores in skb_shinfo(skb)->frags.
+ * - frag_list area: Bytes the skb stores in skb_shinfo(skb)->frag_list,
+ *   and *also* the bytes these fragments store in their own paged areas.
+ *
+ * These are all L4 payload only. The kernel deletes frags and frag_list headers
+ * on input, then recreates them on output.
  */
 
 #include <linux/skbuff.h>
@@ -140,8 +100,6 @@ static inline __u16 get_fragment_offset_ipv4(const struct iphdr *hdr)
 
 /**
  * Pretends @skb's IPv6 header has a "total length" field and returns its value.
- * This function exists because turning "payload length" into "total length" by
- * hand takes almost a full line by itself, which forces us to break lines.
  */
 static inline unsigned int get_tot_len_ipv6(const struct sk_buff *skb)
 {
