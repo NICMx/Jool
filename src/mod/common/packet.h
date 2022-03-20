@@ -188,15 +188,6 @@ static inline unsigned int tcp_hdr_len(const struct tcphdr *hdr)
 	return hdr->doff << 2;
 }
 
-#define SNAPSHOT_FRAGS_SIZE 5
-
-struct pkt_snapshot {
-	unsigned int len;
-	unsigned int data_len;
-	unsigned char nr_frags;
-	unsigned int frags[SNAPSHOT_FRAGS_SIZE];
-};
-
 /**
  * We need to store packet metadata, so we encapsulate sk_buffs into this.
  *
@@ -245,11 +236,6 @@ struct packet {
 	 * packet.
 	 */
 	struct packet *original_pkt;
-
-	struct {
-		struct pkt_snapshot shot1;
-		struct pkt_snapshot shot2;
-	} debug;
 };
 
 /**
@@ -449,8 +435,5 @@ verdict pkt_init_ipv4(struct xlation *state, struct sk_buff *skb);
 
 unsigned char *jskb_pull(struct sk_buff *skb, unsigned int len);
 unsigned char *jskb_push(struct sk_buff *skb, unsigned int len);
-
-void snapshot_record(struct pkt_snapshot *shot, struct sk_buff *skb);
-void snapshot_report(struct pkt_snapshot *shot, char *prefix);
 
 #endif /* SRC_MOD_COMMON_PACKET_H_ */
