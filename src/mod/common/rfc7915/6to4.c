@@ -535,11 +535,7 @@ static void generate_ipv4_id(struct xlation const *state, struct iphdr *hdr4,
 	if (hdr_frag) {
 		hdr4->id = cpu_to_be16(be32_to_cpu(hdr_frag->identification));
 	} else {
-#if LINUX_VERSION_AT_LEAST(4, 1, 0, 7, 3)
 		__ip_select_ident(state->jool.ns, hdr4, 1);
-#else
-		__ip_select_ident(hdr4, 1);
-#endif
 	}
 }
 

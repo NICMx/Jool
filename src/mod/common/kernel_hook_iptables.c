@@ -66,10 +66,8 @@ static struct net *action_param_net(const struct xt_action_param *param)
 {
 #if LINUX_VERSION_AT_LEAST(4, 10, 0, 8, 0)
 	return param->state->net;
-#elif LINUX_VERSION_AT_LEAST(4, 4, 0, 9999, 0)
-	return param->net;
 #else
-	return dev_net(param->in);
+	return param->net;
 #endif
 }
 

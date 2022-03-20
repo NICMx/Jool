@@ -1,6 +1,5 @@
 #include "nl_handler.h"
 
-#include <linux/version.h>
 #include "expecter.h"
 #include "genetlink.h"
 #include "log.h"

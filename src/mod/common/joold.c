@@ -227,9 +227,6 @@ static void send_to_userspace(struct xlator *jool, struct sk_buff *skb,
 		return;
 
 	__log_debug(jool, "Sending multicast message.");
-#if LINUX_VERSION_LOWER_THAN(3, 13, 0, 7, 1)
-	error = genlmsg_multicast_netns(ns, skb, 0, jnl_gid(), GFP_ATOMIC);
-#else
 	/*
 	 * Note: Starting from kernel 3.13, all groups of a common family share
 	 * a group offset (from a common pool), and they are numbered
@@ -241,7 +238,6 @@ static void send_to_userspace(struct xlator *jool, struct sk_buff *skb,
 	 * family.
 	 */
 	error = genlmsg_multicast_netns(jnl_family(), ns, skb, 0, 0, GFP_ATOMIC);
-#endif
 	if (error) {
 		log_warn_once("Looks like nobody received my multicast message. Is the joold daemon really active? (errcode %d)",
 				error);

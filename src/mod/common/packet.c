@@ -1,6 +1,5 @@
 #include "mod/common/packet.h"
 
-#include <linux/version.h>
 #include <linux/icmp.h>
 #include <net/route.h>
 #include "common/types.h"

@@ -1,7 +1,6 @@
 #include "mod/common/icmp_wrapper.h"
 
 #include <linux/icmpv6.h>
-#include <linux/version.h>
 #include <net/icmp.h>
 #include "common/types.h"
 #include "mod/common/log.h"

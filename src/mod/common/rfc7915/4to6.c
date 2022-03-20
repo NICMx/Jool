@@ -504,7 +504,7 @@ static verdict allocate_slow(struct xlation *state, unsigned int mpl)
 		skb_reset_mac_header(out);
 		skb_reset_network_header(out);
 		skb_put(out, sizeof(struct ipv6hdr));
-		frag = skb_put(out, sizeof(struct frag_hdr));
+		frag = (struct frag_hdr *)skb_put(out, sizeof(struct frag_hdr));
 		l3_payload = skb_put(out, fragment_payload_len);
 
 		skb_set_transport_header(out, HDRS_LEN);

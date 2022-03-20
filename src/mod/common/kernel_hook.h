@@ -4,14 +4,15 @@
 #include <linux/netfilter_ipv4.h>
 #include <linux/netfilter_ipv6.h>
 #include "common/config.h"
-#include "mod/common/nf_wrapper.h"
 
 #ifndef XTABLES_DISABLED
 #include <linux/netfilter/x_tables.h>
 #endif
 
-NF_CALLBACK(hook_ipv6, skb);
-NF_CALLBACK(hook_ipv4, skb);
+unsigned int hook_ipv6(void *priv, struct sk_buff *skb,
+		const struct nf_hook_state *nhs);
+unsigned int hook_ipv4(void *priv, struct sk_buff *skb,
+		const struct nf_hook_state *nhs);
 
 #ifndef XTABLES_DISABLED
 
