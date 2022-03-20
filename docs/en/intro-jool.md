@@ -50,7 +50,8 @@ Please [let us know]({{ site.repository-url }}/issues) if you find additional co
 
 | Jool version                        | Supported Linux kernels (mainline)   | Supported Linux kernels (RHEL) |
 |-------------------------------------|--------------------------------------|--------------------------------|
-| [master]({{ site.repository-url }}),<br />[4.1.6](download.html#41x) | 4.4 - 4.20,<br />5.0 - 5.15 | RHEL 8.5 |
+| [master]({{ site.repository-url }}),<br />[4.1.8](download.html#41x) | 4.9 - 4.20,<br />5.0 - 5.16 | RHEL 8.5 |
+| [4.1.6](download.html#41x),<br />[4.1.7](download.html#41x) | 4.4 - 4.20,<br />5.0 - 5.15 | RHEL 8.5 |
 | [4.1.5](download.html#41x) | 3.16 - 3.19,<br />4.0 - 4.20,<br />5.0 - 5.11 | RHEL 7.6 - RHEL 7.7,<br />RHEL 8.0 |
 | [4.1.3](download.html#41x),<br />[4.1.4](download.html#41x) | 3.16 - 3.19,<br />4.0 - 4.20,<br />5.0 - 5.9 | RHEL 7.6 - RHEL 7.7,<br />RHEL 8.0 |
 | [4.1.2](download.html#41x) | 3.16 - 3.19,<br />4.0 - 4.20,<br />5.0 - 5.7 | RHEL 7.6 - RHEL 7.7,<br />RHEL 8.0 |

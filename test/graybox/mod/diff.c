@@ -256,7 +256,7 @@ static const struct field_metadata icmph_fields[] = {
 };
 
 static const struct field_metadata fragh_fields[] = {
-	{ "nexh header", 8, 0 },
+	{ "next header", 8, 0 },
 	{ "reserved", 8, 8 },
 	{ "fragment offset", 13, 16 },
 	{ "res", 2, 29 },

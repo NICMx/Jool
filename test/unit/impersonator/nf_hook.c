@@ -1,11 +1,13 @@
-#include "mod/common/nf_wrapper.h"
+#include <linux/netfilter.h>
 
-NF_CALLBACK(hook_ipv6, skb)
+unsigned int hook_ipv6(void *priv, struct sk_buff *skb,
+		const struct nf_hook_state *nhs)
 {
 	return NF_ACCEPT;
 }
 
-NF_CALLBACK(hook_ipv4, skb)
+unsigned int hook_ipv4(void *priv, struct sk_buff *skb,
+		const struct nf_hook_state *nhs)
 {
 	return NF_ACCEPT;
 }

@@ -20,10 +20,10 @@ Jool is an Open Source [SIIT and NAT64](intro-xlat.html) for Linux.
 
 ## Status
 
-- The most mature version is [4.1.7](download.html#41x).
-- The second release candidate for version [4.2.0](download.html#42x) is also available now.
+> ![Warning](../images/warning.svg) The project's development has slowed down to essential maintenance. Bugfixing and support will remain active, but there will be no new features in the foreseeable future.
 
-The project's development has slowed down to essential maintenance. Bugfixing and support will remain active, but there will be no new features in the foreseeable future.
+- The most mature version is [4.1.8](download.html#41x).
+- The second release candidate for version [4.2.0](download.html#42x) is also available now.
 
 -------------------
 
@@ -35,9 +35,19 @@ The project's development has slowed down to essential maintenance. Bugfixing an
 
 ## Latest News
 
-### 2022-01-27
+### 2022-03-20
 
-Version 4.1.7 has been released:
+Version 4.1.8 has been released.
 
-- [#372](https://github.com/NICMx/Jool/issues/372): iptables dependency now optional.
+- [#366](https://github.com/NICMx/Jool/issues/366), [#375](https://github.com/NICMx/Jool/issues/375): Fix checksums in Slow Path.  
+  This is a fairly critical bug; please upgrade. It affects packets that fulfill the following conditions:
+	- IPv4-to-IPv6
+	- Not ICMP error
+	- Incoming packet's DF was disabled
+	- Packet was large, or GRO-aggregated
+- Add validation to more verbosely reject IPv6 packets that contain more than one fragment header.
+- Add validation to more verbosely reject fragmented (and not reassembled by `nf_defrag_ipv*`) ICMP errors.  
+  (Aside from being fairly illegal, these packets cannot be translated because the "ICMPv6 length" of the [ICMP pseudoheader](https://en.wikipedia.org/wiki/Internet_Control_Message_Protocol_for_IPv6#Checksum) is unknown.)
+- Bugfix: When routing TCP/UDP fragments, the code was including header ports even though nonzero fragment-offset packets lack TCP/UDP headers.  
+  This bug probably doesn't affect you, unless your routing is somehow port-based.
 

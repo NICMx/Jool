@@ -22,20 +22,14 @@
 #include "mod/common/nl/session.h"
 #include "mod/common/nl/stats.h"
 
-#if LINUX_VERSION_AT_LEAST(0, 0, 0, 7, 1)
-#define _CONST const
-#else
-#define _CONST
-#endif
-
-static int pre_handle_request(_CONST struct genl_ops *ops, struct sk_buff *skb,
+static int pre_handle_request(const struct genl_ops *ops, struct sk_buff *skb,
 		struct genl_info *info)
 {
 	error_pool_activate();
 	return 0;
 }
 
-static void post_handle_request(_CONST struct genl_ops *ops, struct sk_buff *skb,
+static void post_handle_request(const struct genl_ops *ops, struct sk_buff *skb,
 		struct genl_info *info)
 {
 	error_pool_deactivate();
@@ -63,7 +57,7 @@ static struct nla_policy const jool_policy[JNLAR_COUNT] = {
 #define JOOL_POLICY .policy = jool_policy,
 #endif
 
-static _CONST struct genl_ops ops[] = {
+static const struct genl_ops ops[] = {
 	{
 		.cmd = JNLOP_INSTANCE_FOREACH,
 		.doit = handle_instance_foreach,
@@ -240,22 +234,7 @@ static int register_family(void)
 
 	strcpy(jool_family.name, JOOLNL_FAMILY);
 
-#if LINUX_VERSION_LOWER_THAN(3, 13, 0, 7, 1)
-
-	error = genl_register_family_with_ops(&jool_family, ops,
-			ARRAY_SIZE(ops));
-	if (error) {
-		log_err("Couldn't register family!");
-		return error;
-	}
-
-	error = genl_register_mc_group(&jool_family, &(mc_groups[0]));
-	if (error) {
-		log_err("Couldn't register multicast group!");
-		return error;
-	}
-
-#elif LINUX_VERSION_LOWER_THAN(4, 10, 0, 7, 5)
+#if LINUX_VERSION_LOWER_THAN(4, 10, 0, 7, 5)
 	error = genl_register_family_with_ops_groups(&jool_family, ops,
 			mc_groups);
 	if (error) {
@@ -284,13 +263,6 @@ void nlhandler_teardown(void)
 	genl_unregister_family(&jool_family);
 	error_pool_teardown();
 }
-
-#if LINUX_VERSION_LOWER_THAN(3, 13, 0, 7, 1)
-u32 jnl_gid(void)
-{
-	return mc_groups[0].id;
-}
-#endif
 
 struct genl_family *jnl_family(void)
 {

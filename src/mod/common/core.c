@@ -108,7 +108,6 @@ verdict core_4to6(struct sk_buff *skb, struct xlation *state)
 
 	if (state->jool.globals.debug)
 		pkt_trace4(state);
-	/* skb_log(skb, "Incoming IPv4 packet"); */
 
 	result = core_common(state);
 	/* Fall through */
@@ -145,8 +144,6 @@ verdict core_6to4(struct sk_buff *skb, struct xlation *state)
 	 * pkt_init_ipv6() HAS pskb_may_pull()ED THEM.
 	 */
 
-	snapshot_record(&state->in.debug.shot1, skb);
-
 	result = validate_xlator(state);
 	if (result != VERDICT_CONTINUE)
 		goto end;
@@ -160,8 +157,6 @@ verdict core_6to4(struct sk_buff *skb, struct xlation *state)
 
 	if (state->jool.globals.debug)
 		pkt_trace6(state);
-	/* skb_log(skb, "Incoming IPv6 packet"); */
-	snapshot_record(&state->in.debug.shot2, skb);
 
 	result = core_common(state);
 	/* Fall through */

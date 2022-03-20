@@ -515,7 +515,7 @@ verdict filtering_and_updating(struct xlation *state)
 			return untranslatable(state, JSTAT_POOL6_MISMATCH);
 		}
 
-		/* ICMP errors should not be filtered or affect the tables. */
+		/* ICMP errors should not be filtered nor affect the tables. */
 		if (pkt_is_icmp6_error(in)) {
 			log_debug(state, "Packet is ICMPv6 error; skipping step...");
 			return VERDICT_CONTINUE;
@@ -529,7 +529,7 @@ verdict filtering_and_updating(struct xlation *state)
 			return untranslatable(state, JSTAT_POOL4_MISMATCH);
 		}
 
-		/* ICMP errors should not be filtered or affect the tables. */
+		/* ICMP errors should not be filtered nor affect the tables. */
 		if (pkt_is_icmp4_error(in)) {
 			log_debug(state, "Packet is ICMPv4 error; skipping step...");
 			return VERDICT_CONTINUE;

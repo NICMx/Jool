@@ -8,7 +8,6 @@
 #include "common/types.h"
 #include "mod/common/address.h"
 #include "mod/common/linux_version.h"
-#include "mod/common/nf_wrapper.h"
 #include "diff.h"
 #include "log.h"
 #include "util.h"
@@ -29,7 +28,8 @@ static struct graybox_stats stats;
 
 static int expecter_handle_pkt(struct sk_buff *actual);
 
-static NF_CALLBACK(hook_cb, skb)
+unsigned int hook_cb(void *priv, struct sk_buff *skb,
+		const struct nf_hook_state *nhs)
 {
 	log_debug("========= Graybox: Received packet =========");
 	return expecter_handle_pkt(skb);

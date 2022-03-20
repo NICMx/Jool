@@ -470,23 +470,14 @@ void bib_put(struct bib *db)
 
 static void log_bib(struct xlator *jool, struct tabled_bib *bib, char *action)
 {
-#if LINUX_VERSION_AT_LEAST(4, 8, 0, 9999, 0)
 	time64_t tsec;
-#else
-	struct timeval tval;
-#endif
 	struct tm time;
 
 	if (!jool->globals.nat64.bib.bib_logging)
 		return;
 
-#if LINUX_VERSION_AT_LEAST(4, 8, 0, 9999, 0)
 	tsec = ktime_get_real_seconds();
 	time64_to_tm(tsec, 0, &time);
-#else
-	do_gettimeofday(&tval);
-	time_to_tm(tval.tv_sec, 0, &time);
-#endif
 	log_info("%s %ld/%d/%d %d:%d:%d (GMT) - %s %pI6c#%u to %pI4#%u (%s)",
 			jool->iname,
 			1900 + time.tm_year, time.tm_mon + 1, time.tm_mday,
@@ -505,23 +496,14 @@ static void log_session(struct xlator *jool,
 		struct tabled_session *session,
 		char *action)
 {
-#if LINUX_VERSION_AT_LEAST(4, 8, 0, 9999, 0)
 	time64_t tsec;
-#else
-	struct timeval tval;
-#endif
 	struct tm time;
 
 	if (!jool->globals.nat64.bib.session_logging)
 		return;
 
-#if LINUX_VERSION_AT_LEAST(4, 8, 0, 9999, 0)
 	tsec = ktime_get_real_seconds();
 	time64_to_tm(tsec, 0, &time);
-#else
-	do_gettimeofday(&tval);
-	time_to_tm(tval.tv_sec, 0, &time);
-#endif
 	log_info("%s %ld/%d/%d %d:%d:%d (GMT) - %s %pI6c#%u|%pI6c#%u|"
 			"%pI4#%u|%pI4#%u|%s", jool->iname,
 			1900 + time.tm_year, time.tm_mon + 1, time.tm_mday,
@@ -819,11 +801,7 @@ static void send_probe_packet(struct xlator *jool, struct session_entry *session
 	skb_dst_set(skb, dst);
 
 	/* Implicit kfree_skb(skb) here. */
-#if LINUX_VERSION_AT_LEAST(4, 4, 0, 8, 0)
 	error = dst_output(jool->ns, NULL, skb);
-#else
-	error = dst_output(skb);
-#endif
 	if (error) {
 		__log_debug(jool, "dst_output() returned errcode %d.", error);
 		goto fail;

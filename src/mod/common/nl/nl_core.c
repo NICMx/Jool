@@ -2,7 +2,6 @@
 
 #include <linux/stddef.h>
 #include <linux/types.h>
-#include <linux/version.h>
 
 #include "common/config.h"
 #include "common/types.h"

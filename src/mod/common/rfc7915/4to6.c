@@ -90,6 +90,7 @@ static verdict xlat46_internal_addresses(struct xlation *state)
 static verdict xlat46_tcp_ports(struct xlation *state)
 {
 	struct flowi6 *flow6;
+	struct packet const *in;
 	struct tcphdr const *hdr;
 
 	flow6 = &state->flowx.v6.flowi;
@@ -99,9 +100,12 @@ static verdict xlat46_tcp_ports(struct xlation *state)
 		flow6->fl6_dport = cpu_to_be16(state->out.tuple.dst.addr6.l4);
 		break;
 	case XT_SIIT:
-		hdr = pkt_tcp_hdr(&state->in);
-		flow6->fl6_sport = hdr->source;
-		flow6->fl6_dport = hdr->dest;
+		in = &state->in;
+		if (is_first_frag4(pkt_ip4_hdr(in))) {
+			hdr = pkt_tcp_hdr(in);
+			flow6->fl6_sport = hdr->source;
+			flow6->fl6_dport = hdr->dest;
+		}
 	}
 
 	return VERDICT_CONTINUE;
@@ -110,6 +114,7 @@ static verdict xlat46_tcp_ports(struct xlation *state)
 static verdict xlat46_udp_ports(struct xlation *state)
 {
 	struct flowi6 *flow6;
+	struct packet const *in;
 	struct udphdr const *udp;
 
 	flow6 = &state->flowx.v6.flowi;
@@ -119,9 +124,12 @@ static verdict xlat46_udp_ports(struct xlation *state)
 		flow6->fl6_dport = cpu_to_be16(state->out.tuple.dst.addr6.l4);
 		break;
 	case XT_SIIT:
-		udp = pkt_udp_hdr(&state->in);
-		flow6->fl6_sport = udp->source;
-		flow6->fl6_dport = udp->dest;
+		in = &state->in;
+		if (is_first_frag4(pkt_ip4_hdr(in))) {
+			udp = pkt_udp_hdr(in);
+			flow6->fl6_sport = udp->source;
+			flow6->fl6_dport = udp->dest;
+		}
 	}
 
 	return VERDICT_CONTINUE;
@@ -257,7 +265,7 @@ static verdict predict_route46(struct xlation *state)
 		if (WARN(!xlator_is_siit(&state->jool),
 			 "Zero source address on not SIIT!"))
 			goto panic;
-		if (WARN(!is_icmp4_error(pkt_icmp4_hdr(&state->in)->type),
+		if (WARN(!pkt_is_icmp4_error(&state->in),
 			 "Zero source on not ICMP error!"))
 			goto panic;
 
@@ -279,32 +287,22 @@ panic:
 	return drop(state, JSTAT_UNKNOWN);
 }
 
-struct ttp46_delta {
-	/* Actual delta Jool is supposed to work with. */
-	int actual;
-	/*
-	 * This delta always include the fragment header, and it's only for
-	 * allocation purposes.
-	 */
-	int reserve;
-};
-
 static int iphdr_delta(struct iphdr *hdr4)
 {
 	return sizeof(struct ipv6hdr) - (hdr4->ihl << 2);
 }
 
 /*
- * Returns the "ideal" (ie. Fast Path only) difference in size between in->skb
- * and out->skb. in->skb->len + delta should equal out->skb->len.
+ * Returns the "ideal" (ie. Fast Path only) allocation difference between
+ * in->skb and out->skb.
  *
  * Please note that there is no guarantee that delta will be positive. If the
  * IPv4 header has lots of options, it might exceed the IPv6 header length.
  */
-static void get_delta(struct packet *in, struct ttp46_delta *delta)
+static int get_delta(struct packet *in)
 {
 	struct iphdr *hdr4;
-	int __delta;
+	int delta;
 
 	/*
 	 * The following is assumed by this code:
@@ -323,76 +321,75 @@ static void get_delta(struct packet *in, struct ttp46_delta *delta)
 	 */
 
 	hdr4 = pkt_ip4_hdr(in);
-	__delta = iphdr_delta(hdr4);
-	/*
-	 * - defrag4 always removes MF and fragment offset.
-	 * - This fragment header will only included if defrag4 is not mangling
-	 *   packets.
-	 * - If defrag4 is mangling packets, Linux might add a fragment header
-	 *   later, but it's none of Jool's concern. (Except for allocation
-	 *   purposes.)
-	 */
-	delta->actual = will_need_frag_hdr(hdr4) ? sizeof(struct frag_hdr) : 0;
-	delta->reserve = sizeof(struct frag_hdr);
+	delta = iphdr_delta(hdr4) + sizeof(struct frag_hdr);
 
-	if (is_first_frag4(hdr4) && pkt_is_icmp4_error(in)) {
+	if (pkt_is_icmp4_error(in)) {
 		hdr4 = pkt_payload(in);
-		__delta += iphdr_delta(hdr4);
+		delta += iphdr_delta(hdr4);
 		if (will_need_frag_hdr(hdr4))
-			__delta += sizeof(struct frag_hdr);
+			delta += sizeof(struct frag_hdr);
 	}
 
-	delta->actual += __delta;
-	delta->reserve += __delta;
+	return delta;
 }
 
-/*
- * Returns:
- *
- * - 0: No fragments exceed MTU
- * - 1: First fragment exceeds MTU
- * - 2: Subsequent fragment exceeds MTU
- */
-static int fragment_exceeds_mtu46(struct packet *in, int delta,
-		unsigned int mtu)
+static bool fragment_exceeds_mtu46(struct packet *in, unsigned int mtu)
 {
-	unsigned short gso_size;
-	unsigned int l3_len;
-	struct sk_buff *iter;
+	struct skb_shared_info *shinfo;
+	unsigned int out_hdrs_len;
+	unsigned int out_payload_len;
 
-	gso_size = skb_shinfo(in->skb)->gso_size;
-	if (gso_size) {
-		l3_len = sizeof(struct ipv6hdr)
-				+ (will_need_frag_hdr(pkt_ip4_hdr(in))
-				? sizeof(struct frag_hdr) : 0);
-		if (l3_len + pkt_l4hdr_len(in) + gso_size > mtu)
-			goto generic_too_big;
-		return 0;
+	out_hdrs_len = sizeof(struct ipv6hdr);
+	if (will_need_frag_hdr(pkt_ip4_hdr(in)))
+		out_hdrs_len += sizeof(struct frag_hdr);
+	out_hdrs_len += pkt_l4hdr_len(in);
+
+	/*
+	 * Damn it. Should I worry about frag_list before or after GRO?
+	 *
+	 * My gut says it doesn't make sense for frag_list packets to contain
+	 * GRO data, because if the GRO was TCP, then how would it have
+	 * unsegmented (L4) data that hasn't been defragmented (L3) yet? And UFO
+	 * already defragments, so why would nf_defrag_ipv4 kick in?
+	 *
+	 * On the other hand, I think I *have* seen populated frags in
+	 * frag_list. But that's not necessarily GRO's doing. Maybe the NIC
+	 * simply allocated small buffers for a single packet. I don't think I
+	 * queried gso_size that time.
+	 *
+	 * Bleargh.
+	 */
+
+	shinfo = skb_shinfo(in->skb);
+	out_payload_len = shinfo->gso_size;
+	if (out_payload_len)
+		return (out_hdrs_len + out_payload_len) > mtu;
+
+	if (shinfo->frag_list) {
+		/*
+		 * Note: From context, we know DF is enabled.
+		 * nf_defrag_ipv4 only enables DF when the biggest DF fragment
+		 * is also the biggest fragment.
+		 */
+		return IPCB(in->skb)->frag_max_size > mtu;
 	}
 
-	if (skb_headlen(in->skb) + delta > mtu)
-		goto generic_too_big;
-
-	mtu -= sizeof(struct ipv6hdr) + sizeof(struct frag_hdr);
-	skb_walk_frags(in->skb, iter)
-		if (iter->len > mtu)
-			return 2;
-
-	return 0;
-
-generic_too_big:
-	return is_first_frag4(pkt_ip4_hdr(in)) ? 1 : 2;
+	out_payload_len = in->skb->len - pkt_hdrs_len(in);
+	return (out_hdrs_len + out_payload_len) > mtu;
 }
 
-static verdict allocate_fast(struct xlation *state, int delta, bool ignore_df)
+static verdict allocate_fast(struct xlation *state, bool ignore_df,
+		unsigned short gso_size)
 {
 	struct packet *in = &state->in;
 	struct sk_buff *out;
 	struct iphdr *hdr4_inner;
 	struct frag_hdr *hdr_frag;
 	struct skb_shared_info *shinfo;
+	int delta;
 
 	/* Dunno what happens when headroom is negative, so don't risk it. */
+	delta = get_delta(in);
 	if (delta < 0)
 		delta = 0;
 
@@ -413,7 +410,7 @@ static verdict allocate_fast(struct xlation *state, int delta, bool ignore_df)
 	/* Remove outer l3 and l4 headers from the copy. */
 	skb_pull(out, pkt_hdrs_len(in));
 
-	if (is_first_frag4(pkt_ip4_hdr(in)) && pkt_is_icmp4_error(in)) {
+	if (pkt_is_icmp4_error(in)) {
 		hdr4_inner = pkt_payload(in);
 
 		/* Remove inner l3 headers from the copy. */
@@ -456,6 +453,8 @@ static verdict allocate_fast(struct xlation *state, int delta, bool ignore_df)
 	out->protocol = htons(ETH_P_IPV6);
 
 	shinfo = skb_shinfo(out);
+	if (shinfo->gso_size && gso_size)
+		shinfo->gso_size = gso_size;
 	if (shinfo->gso_type & SKB_GSO_TCPV4) {
 		shinfo->gso_type &= ~SKB_GSO_TCPV4;
 		shinfo->gso_type |= SKB_GSO_TCPV6;
@@ -480,7 +479,7 @@ static verdict allocate_slow(struct xlation *state, unsigned int mpl)
 
 	in = &state->in;
 	previous = &state->out.skb;
-	payload_left = pkt_len(in) - pkt_l3hdr_len(in);
+	payload_left = in->skb->len - pkt_l3hdr_len(in);
 	payload_per_frag = (mpl - HDRS_LEN) & 0xFFFFFFF8U;
 	bytes_consumed = 0;
 
@@ -508,8 +507,8 @@ static verdict allocate_slow(struct xlation *state, unsigned int mpl)
 		frag = (struct frag_hdr *)skb_put(out, sizeof(struct frag_hdr));
 		l3_payload = skb_put(out, fragment_payload_len);
 
+		skb_set_transport_header(out, HDRS_LEN);
 		if (out == state->out.skb) {
-			skb_set_transport_header(out, HDRS_LEN);
 			pkt_fill(&state->out, out, L3PROTO_IPV6,
 					pkt_l4_proto(in), frag,
 					l3_payload + pkt_l4hdr_len(in),
@@ -553,36 +552,20 @@ static verdict ttp46_alloc_skb(struct xlation *state)
 	/*
 	 * Glossary:
 	 *
+	 * - In = Incoming packet
+	 * - Out = Outgoing packet
 	 * - IPL: Ideal (Outgoing) Packet Length
-	 * - MPL: Maximum Packet Length
-	 * - Slow Path: Out packet(s) will have to be created from scratch, data
-	 *   will be inevitably copied from In to Out(s)
+	 * - MPL: Maximum (allowed) Packet Length
+	 * - LIM: lowest-ipv6-mtu (Configuration option)
+	 * - Slow Path: Out packets will have to be created from scratch, data
+	 *   will have to be copied from In to Out(s)
 	 * - Fast Path: Out packet will share In packet's fragment and paged
 	 *   data if possible
 	 * - PTB: Packet Too Big (ICMPv6 error type 2 code 0)
 	 * - FN: Fragmentation Needed (ICMPv4 error type 3 code 4)
 	 *
-	 * My tools are skb_copy_bits() and friends. I intend to attempt no
-	 * frags surgery whatsoever.
-	 *
 	 * This is a pain in the ass because of lowest-ipv6-mtu and GRO/GSO.
-	 * Here's the general algorithm in pseudocode:
-	 *
-	 *	If ICMP error:
-	 *		Fast Path
-	 *
-	 *	Else if fragmentation prohibited:
-	 *		If first fragment exceeds MTU:
-	 *			FN
-	 *		Else if subsequent fragment exceeds MTU:
-	 *			Silent drop
-	 *		Else:
-	 *			Fast Path
-	 *	Else:
-	 *		If at least one fragment exceeds MTU:
-	 *			Slow Path
-	 *		Else:
-	 *			Fast Path
+	 * Slow Path undoes GRO, so we want to avoid it as much as possible.
 	 *
 	 * Design notes:
 	 *
@@ -592,7 +575,7 @@ static verdict ttp46_alloc_skb(struct xlation *state)
 	 * ip6_output() -> ip6_finish_output() -> ip6_fragment() to return
 	 * PTB because we want a FN instead. (We wouldn't translate
 	 * ip6_fragment()'s PTB to FN because we're stuck in prerouting, so
-	 * it'd never reach us.) PMTUD depends on this. We avoid the PTB by
+	 * it wouldn't reach us.) PMTUD depends on this. We avoid the PTB by
 	 * sending the FN ourselves by querying dst_mtu() (the same MTU function
 	 * ip6_fragment() uses to compute the MTU).
 	 *
@@ -603,11 +586,6 @@ static verdict ttp46_alloc_skb(struct xlation *state)
 	 * (If, on the other hand, a future namespace returns a PTB, it will
 	 * cross our prerouting so it'll be converted to a FN no problem.)
 	 *
-	 * lowest-ipv6-mtu acts as a second line of defense, since it's (in
-	 * theory) guaranteeing that the kernel will never enter ip6_fragment()
-	 * in the first place. Though I'm glad it's not the only one because the
-	 * user could misconfigure it.
-	 *
 	 * # Slow/Fast Path
 	 *
 	 * In Fast Path the result will be a single skb, sharing the incoming
@@ -616,31 +594,19 @@ static verdict ttp46_alloc_skb(struct xlation *state)
 	 * next pointers. (We don't need prev for anything.)
 	 *
 	 * At time of writing, we need Slow Path (ie. we need to fragment
-	 * ourselves) because the kernel's IPv6 fragmentator does not care about
-	 * already existing fragment headers, which complicates the survival of
-	 * the Fragment Identification value needed when the packet is already
-	 * fragmented. If Jool sends an IPv6 packet containing a fragment header
-	 * hoping that the kernel will reuse it if it needs to fragment, the
-	 * kernel will just add another fragment header instead.
+	 * ourselves) for two reasons:
 	 *
-	 * I love you, Linux, but you can be such a moron.
+	 * 1. The kernel's IPv6 fragmentator doesn't care about already existing
+	 *    fragment headers, which complicates the survival of the Fragment
+	 *    Identification value needed when the packet is already fragmented.
+	 *    If Jool sends an IPv6 packet containing a fragment header (hoping
+	 *    that the kernel will reuse it if it needs to fragment), the kernel
+	 *    will just add another fragment header instead.
+	 * 2. We don't have a means to inform LIM to the kernel.
 	 *
-	 * (Must not forget: The above might suggest that the following
-	 * situation could be handled by Fast Path:
-	 * - Fragmentation allowed
-	 * - Packet not already fragmented
-	 * - Packet too big
-	 * And it seems this would be true, but it would
-	 * 1. Complicate the code further. (Need to perform packet surgery in
-	 * the form of IP6CB(skb)->frag_max_size.)
-	 * 2. Not be particularly faster. (Because the fragmentator would end up
-	 * performing an operation equivalent to our Slow Path anyway.))
-	 *
-	 * Obviously, we want to use Fast Path whenever possible. Problem is,
-	 * it's risky because it could mess up packet sizes if done carelessly,
-	 * which borks PMTUD.
-	 *
-	 * Slow Path always works but breaks GRO/GSO optimizations.
+	 * Actually, I don't know if 2 is strictly true. I suppose we could
+	 * override state->dst->dev->mtu, but because it's a shared structure,
+	 * it's probably illegal.
 	 *
 	 * # GRO and GSO
 	 *
@@ -671,11 +637,11 @@ static verdict ttp46_alloc_skb(struct xlation *state)
 	 * disabled. This appears to be true for all currently supported
 	 * kernels.
 	 *
-	 * 2. The original packet size (agreed upon by way of PMTUD) will not
-	 * be mangled by GRO/GSO. I can assume this because PMTUD is sacred, and
-	 * I can't see any way to reconcile it with GRO/GSO if the latter
-	 * mangles packet sizes. (Though I must emphasize that I could be
-	 * overlooking something.)
+	 * 2. Thanks to gso_size, the original packet size (agreed upon by way
+	 * of PMTUD) will not be mangled by GRO/GSO. I can assume this because
+	 * PMTUD is sacred, and I can't see any way to reconcile it with GRO/GSO
+	 * if the latter mangles packet sizes. (Though I must emphasize that I
+	 * could be overlooking something.)
 	 *
 	 * 3. IPv4 GRO/GSO and IPv6 GRO/GSO basically function the same way (ie.
 	 * a translated IPv4 GRO packet will be correctly segmented by the IPv6
@@ -688,10 +654,10 @@ static verdict ttp46_alloc_skb(struct xlation *state)
 	 * Fast Path, because it preserves packet sizes. This is awesome.
 	 *
 	 * 2. If fragmentation is allowed, GSO might lead us to translate a
-	 * large DF-disabled IPv4 packet into a large IPv6 packet, which is a
-	 * problem. We need to throw GSO away in those situations. (Or verify
-	 * each page size independently. But this would definitely meander deep
-	 * into the realms of "packet surgery," so I'd rather not do it.)
+	 * large DF-disabled IPv4 packet into a large IPv6 packet, so we need to
+	 * impose LIM. If the packet is already fragmented, we need to preserve
+	 * the Fragmentation ID, which AFAIK, is impossible through the kernel
+	 * API. Therefore, Slow Path.
 	 *
 	 * (Note: GRO enabled on !DF suggests there might exist some potential
 	 * optimization I could be missing somewhere.)
@@ -700,20 +666,19 @@ static verdict ttp46_alloc_skb(struct xlation *state)
 	 *
 	 * # LRO
 	 *
-	 * I'm not worrying about LRO because
-	 *
 	 * a) I don't know how it works. (eg. Does it affect skb_is_gso()?)
 	 * b) I'm assuming it's always disabled nowadays. (Corollary: I can't
-	 * test it because I can't find any hardware that supports it.)
+	 *    test it because I can't find any hardware that supports it.)
 	 * c) It's lossy, which means it might be inherently incompatible with
-	 * IP XLAT anyway.
+	 *    IP XLAT.
 	 * d) The code is already convoluted enough as it is.
+	 * e) I think it was obsoleted many kernels ago?
+	 * f) I don't care.
 	 *
-	 * The code might or might not work if LRO is enabled.
+	 * LRO is not supported.
 	 */
 
 	struct packet *in;
-	struct ttp46_delta delta;
 	unsigned int nexthop_mtu;
 	unsigned int lim;
 	unsigned int mpl;
@@ -727,7 +692,6 @@ static verdict ttp46_alloc_skb(struct xlation *state)
 		return result;
 
 	in = &state->in;
-	get_delta(in, &delta);
 #ifndef UNIT_TESTING
 	nexthop_mtu = dst_mtu(state->dst);
 #else
@@ -740,43 +704,40 @@ static verdict ttp46_alloc_skb(struct xlation *state)
 		goto fail;
 	}
 
-	if (is_icmp4_error(pkt_icmp4_hdr(in)->type)) {
-		/* Fragment header will not be added because ICMP error */
-		result = allocate_fast(state, delta.reserve, false);
+	if (pkt_is_icmp4_error(in)) {
+		/*
+		 * Fragment header will never be added because ICMP error,
+		 * so Fast Path is always viable.
+		 */
+		result = allocate_fast(state, false, 0);
 
 	} else if (is_df_set(pkt_ip4_hdr(in))) {
 		/*
-		 * Fragment header will not be added because DF.
-		 * ...Unless it's already fragmented.
-		 * If defrag disabled:
-		 * 	Fragment header already included in delta.
-		 * Else:
-		 * 	Fragment header not included in delta.
+		 * Good; sender is not a dumbass.
+		 * Fragment header will only be included if already fragmented.
 		 */
-		switch (fragment_exceeds_mtu46(in, delta.actual, nexthop_mtu)) {
-		case 0:
-			result = allocate_fast(state, delta.reserve,
-					in->skb->ignore_df);
-			break;
-		case 1:
+		if (fragment_exceeds_mtu46(in, nexthop_mtu)) {
 			result = drop_icmp(state, JSTAT_PKT_TOO_BIG,
 					ICMPERR_FRAG_NEEDED,
 					max(576u, nexthop_mtu - 20u));
-			break;
-		case 2:
-			result = drop(state, JSTAT_PKT_TOO_BIG);
-			break;
-		default:
-			WARN(1, "fragment_exceeds_mtu() returned garbage.");
-			result = drop(state, JSTAT_UNKNOWN);
-			break;
+		} else {
+			result = allocate_fast(state, in->skb->ignore_df,
+					skb_shinfo(in->skb)->gso_size);
 		}
 
-	} else { /* Fragmentation allowed */
-		if (fragment_exceeds_mtu46(in, delta.actual, mpl))
-			result = allocate_slow(state, mpl);
-		else
-			result = allocate_fast(state, delta.reserve, true);
+	} else if (fragment_exceeds_mtu46(in, mpl)) {
+		/*
+		 * Force LIM and Fragmentation ID preservation through manual
+		 * fragmentation.
+		 */
+		result = allocate_slow(state, mpl);
+
+	} else {
+		/*
+		 * Dodged a bullet; no need to fragment further, we'll just
+		 * build the Fragmentation header ourselves.
+		 */
+		result = allocate_fast(state, false, 0);
 	}
 
 	if (result != VERDICT_CONTINUE)
@@ -926,13 +887,7 @@ static verdict ttcp46_ipv6_common(struct xlation *state)
 	return VERDICT_CONTINUE;
 }
 
-/**
- * Infers a IPv6 header from "in"'s IPv4 header and "tuple". Places the result
- * in "out"->l3_hdr.
- * This is RFC 7915 section 4.1.
- *
- * This is used to translate both outer and inner headers.
- */
+/* RFC 7915, section 4.1. */
 static verdict ttp46_ipv6_external(struct xlation *state)
 {
 	struct packet *in = &state->in;
@@ -1384,6 +1339,31 @@ static __be16 get_dst_port46(struct xlation *state)
 			: cpu_to_be16(state->out.tuple.dst.addr6.l4);
 }
 
+/*
+ * Computes the L4 checksum from scratch for Slow Path packet @out.
+ */
+static __wsum skb_list_csum(struct sk_buff *out, __u8 proto)
+{
+	struct sk_buff *skb;
+	__wsum csum;
+	int l4_offset;
+	int cursor_len;
+	int total_len;
+
+	csum = 0;
+	cursor_len = 0;
+	total_len = 0;
+	for (skb = out; skb; skb = skb->next) {
+		l4_offset = skb_transport_offset(skb);
+		cursor_len = skb->len - l4_offset;
+		csum = skb_checksum(skb, l4_offset, cursor_len, csum);
+		total_len += cursor_len;
+	}
+
+	return csum_ipv6_magic(&ipv6_hdr(out)->saddr, &ipv6_hdr(out)->daddr,
+			total_len, proto, csum);
+}
+
 /**
  * Removes the IPv4 pseudoheader and L4 header, adds the IPv6 pseudoheader and
  * L4 header. Input and result are folded.
@@ -1410,27 +1390,6 @@ static __sum16 update_csum_4to6(__sum16 csum16,
 	csum = csum_add(csum, csum_partial(out_l4_hdr, l4_hdr_len, 0));
 
 	return csum_fold(csum);
-}
-
-/**
- * Removes the IPv4 pseudoheader, adds the IPv6 pseudoheader.
- * Input and result are unfolded.
- */
-static __sum16 update_csum_4to6_partial(__sum16 csum16, struct iphdr *in4,
-		struct ipv6hdr *out6)
-{
-	__wsum csum, pseudohdr_csum;
-
-	csum = csum_unfold(csum16);
-
-	pseudohdr_csum = csum_tcpudp_nofold(in4->saddr, in4->daddr, 0, 0, 0);
-	csum = csum_sub(csum, pseudohdr_csum);
-
-	pseudohdr_csum = ~csum_unfold(csum_ipv6_magic(&out6->saddr,
-			&out6->daddr, 0, 0, 0));
-	csum = csum_add(csum, pseudohdr_csum);
-
-	return ~csum_fold(csum);
 }
 
 static bool can_compute_csum(struct xlation *state)
@@ -1469,52 +1428,6 @@ static bool can_compute_csum(struct xlation *state)
 	return true;
 }
 
-/**
- * Assumes that "out" is IPv6 and UDP, and computes and sets its l4-checksum.
- * This has to be done because the field is mandatory only in IPv6, so Jool has
- * to make up for lazy IPv4 nodes.
- * This is actually required in the Determine Incoming Tuple step, but we can't
- * modify the incoming packet, so we do it here.
- */
-static int handle_zero_csum(struct xlation *state)
-{
-	struct packet *in = &state->in;
-	struct ipv6hdr *hdr6 = pkt_ip6_hdr(&state->out);
-	struct udphdr *hdr_udp = pkt_udp_hdr(&state->out);
-	__wsum csum;
-
-	if (!can_compute_csum(state))
-		return -EINVAL;
-
-	/*
-	 * Here's the deal:
-	 * We want to compute out's checksum. **out is a packet whose fragment
-	 * offset is zero**.
-	 *
-	 * Problem is, out's payload hasn't been translated yet. Because it can
-	 * be scattered through several fragments, moving this step would make
-	 * it look annoyingly out of place way later.
-	 *
-	 * Instead, we can exploit the fact that the translation does not affect
-	 * the UDP payload, so here's what we will actually include in the
-	 * checksum:
-	 * - out's pseudoheader (this will actually be summed last).
-	 * - out's UDP header.
-	 * - in's payload.
-	 *
-	 * That's the reason why we needed more than just the outgoing packet
-	 * as argument.
-	 */
-
-	csum = csum_partial(hdr_udp, sizeof(*hdr_udp), 0);
-	csum = skb_checksum(in->skb, in->payload_offset,
-			in->skb->len - pkt_hdrs_len(in), csum);
-	hdr_udp->check = csum_ipv6_magic(&hdr6->saddr, &hdr6->daddr,
-			pkt_datagram_len(in), IPPROTO_UDP, csum);
-
-	return 0;
-}
-
 static verdict ttp46_tcp(struct xlation *state)
 {
 	struct packet *in = &state->in;
@@ -1540,9 +1453,15 @@ static verdict ttp46_tcp(struct xlation *state)
 				pkt_ip4_hdr(in), &tcp_copy,
 				pkt_ip6_hdr(out), tcp_out,
 				sizeof(*tcp_out));
+
+	} else if (out->skb->next) {
+		tcp_out->check = 0;
+		tcp_out->check = skb_list_csum(out->skb, NEXTHDR_TCP);
+
 	} else {
-		tcp_out->check = update_csum_4to6_partial(tcp_in->check,
-				pkt_ip4_hdr(in), pkt_ip6_hdr(out));
+		tcp_out->check = ~tcp_v6_check(pkt_datagram_len(out),
+				&pkt_ip6_hdr(out)->saddr,
+				&pkt_ip6_hdr(out)->daddr, 0);
 		partialize_skb(out->skb, offsetof(struct tcphdr, check));
 	}
 
@@ -1565,32 +1484,38 @@ static verdict ttp46_udp(struct xlation *state)
 	}
 
 	/* Header.checksum */
-	if (udp_in->check != 0) {
-		if (in->skb->ip_summed != CHECKSUM_PARTIAL) {
-			memcpy(&udp_copy, udp_in, sizeof(*udp_in));
-			udp_copy.check = 0;
+	if (udp_in->check == 0) {
+		if (can_compute_csum(state))
+			goto partial;
 
-			udp_out->check = 0;
-			udp_out->check = update_csum_4to6(udp_in->check,
-					pkt_ip4_hdr(in), &udp_copy,
-					pkt_ip6_hdr(out), udp_out,
-					sizeof(*udp_out));
-		} else {
-			udp_out->check = update_csum_4to6_partial(udp_in->check,
-					pkt_ip4_hdr(in), pkt_ip6_hdr(out));
-			partialize_skb(out->skb, offsetof(struct udphdr, check));
-		}
+		return drop_icmp(state, JSTAT46_FRAGMENTED_ZERO_CSUM,
+				ICMPERR_FILTER, 0);
+
+	} else if (in->skb->ip_summed != CHECKSUM_PARTIAL) {
+		memcpy(&udp_copy, udp_in, sizeof(*udp_in));
+		udp_copy.check = 0;
+
+		udp_out->check = 0;
+		udp_out->check = update_csum_4to6(udp_in->check,
+				pkt_ip4_hdr(in), &udp_copy,
+				pkt_ip6_hdr(out), udp_out,
+				sizeof(*udp_out));
+
+	} else if (out->skb->next) {
+		udp_out->check = 0;
+		udp_out->check = skb_list_csum(out->skb, NEXTHDR_UDP);
+
 	} else {
-		/*
-		 * TODO (performance) handling this as partial might work just
-		 * as well, or better.
-		 */
-		if (handle_zero_csum(state)) {
-			return drop_icmp(state, JSTAT46_FRAGMENTED_ZERO_CSUM,
-					ICMPERR_FILTER, 0);
-		}
+		goto partial;
 	}
 
+	return VERDICT_CONTINUE;
+
+partial:
+	udp_out->check = ~udp_v6_check(pkt_datagram_len(out),
+			&pkt_ip6_hdr(out)->saddr,
+			&pkt_ip6_hdr(out)->daddr, 0);
+	partialize_skb(out->skb, offsetof(struct udphdr, check));
 	return VERDICT_CONTINUE;
 }
 

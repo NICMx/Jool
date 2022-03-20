@@ -1216,15 +1216,16 @@ Non-forwarding PMTUD tests were already included in the previous section.
 #### eb
 
 - Requirement: If `amend-udp-checksum-zero` is enabled, an unfragmented UDP packet with checksum = 0 must be translated, its checksum computed from scratch.
-- Environment: Enable `amend-udp-checksum-zero` configuration option.
-- Test packets:
-	1. Same as `ea.test-1`.
-- Expected packets:
-	1. IPv6/UDP packet
-		1. IPv6: 40 (TTL-1, swap addresses)
-		2. UDP: 8
-		3. Payload: 4
 - Validation: `test-1` must yield `expected-1`.
+- Environment: Enable `amend-udp-checksum-zero` configuration option.
+
+	packet test-1
+		Same as ea.test-1
+
+	packet expected-1
+		40	IPv6	swap ttl--
+		8	UDP
+		4	Payload
 
 #### ec
 

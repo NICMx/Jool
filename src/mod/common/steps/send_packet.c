@@ -20,11 +20,7 @@ static verdict __sendpkt_send(struct xlation *state, struct sk_buff *out)
 	/* skb_log(out, "Translated packet"); */
 
 	/* Implicit kfree_skb(out) here. */
-#if LINUX_VERSION_AT_LEAST(4, 4, 0, 8, 0)
 	error = dst_output(state->jool.ns, NULL, out);
-#else
-	error = dst_output(out);
-#endif
 	if (error) {
 		log_debug(state, "dst_output() returned errcode %d.", error);
 		return drop(state, JSTAT_DST_OUTPUT);

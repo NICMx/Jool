@@ -2,6 +2,8 @@
 
 #include <linux/inetdevice.h>
 #include <net/ip6_checksum.h>
+#include <net/udp.h>
+#include <net/tcp.h>
 
 #include "mod/common/ipv6_hdr_iterator.h"
 #include "mod/common/linux_version.h"
@@ -79,6 +81,7 @@ static verdict xlat64_internal_addresses(struct xlation *state)
 static verdict xlat64_tcp_ports(struct xlation *state)
 {
 	struct flowi4 *flow4;
+	struct packet const *in;
 	struct tcphdr const *hdr;
 
 	flow4 = &state->flowx.v4.flowi;
@@ -88,9 +91,12 @@ static verdict xlat64_tcp_ports(struct xlation *state)
 		flow4->fl4_dport = cpu_to_be16(state->out.tuple.dst.addr4.l4);
 		break;
 	case XT_SIIT:
-		hdr = pkt_tcp_hdr(&state->in);
-		flow4->fl4_sport = hdr->source;
-		flow4->fl4_dport = hdr->dest;
+		in = &state->in;
+		if (is_first_frag6(pkt_frag_hdr(in))) {
+			hdr = pkt_tcp_hdr(in);
+			flow4->fl4_sport = hdr->source;
+			flow4->fl4_dport = hdr->dest;
+		}
 	}
 
 	return VERDICT_CONTINUE;
@@ -99,6 +105,7 @@ static verdict xlat64_tcp_ports(struct xlation *state)
 static verdict xlat64_udp_ports(struct xlation *state)
 {
 	struct flowi4 *flow4;
+	struct packet const *in;
 	struct udphdr const *udp;
 
 	flow4 = &state->flowx.v4.flowi;
@@ -108,9 +115,12 @@ static verdict xlat64_udp_ports(struct xlation *state)
 		flow4->fl4_dport = cpu_to_be16(state->out.tuple.dst.addr4.l4);
 		break;
 	case XT_SIIT:
-		udp = pkt_udp_hdr(&state->in);
-		flow4->fl4_sport = udp->source;
-		flow4->fl4_dport = udp->dest;
+		in = &state->in;
+		if (is_first_frag6(pkt_frag_hdr(in))) {
+			udp = pkt_udp_hdr(in);
+			flow4->fl4_sport = udp->source;
+			flow4->fl4_dport = udp->dest;
+		}
 	}
 
 	return VERDICT_CONTINUE;
@@ -353,27 +363,18 @@ static int fragment_exceeds_mtu64(struct packet const *in, unsigned int mtu)
 	int delta;
 
 	/*
-	 * I haven't found a hard definition of what shinfo->gso_size is
-	 * supposed to represent, but my general impression is that it's the
-	 * value the kernel uses (during resegmentation) to remember the length
-	 * of the original segments after GRO. It's the length of the largest
-	 * segment, after stripping the common headers out. (In other words,
-	 * just the L4 payload length.)
+	 * shinfo->gso_size is the value the kernel uses (during resegmentation)
+	 * to remember the length of the original segments after GRO.
 	 *
-	 * I ran into a surprising quirk: If packet A has frag_list fragments B,
-	 * and B have frags fragments C, then A's gso_size also applies to B,
-	 * as well as C.
+	 * Interestingly, if packet A has frag_list fragments B, and B have
+	 * frags fragments C, then A's gso_size also applies to B, as well as C.
 	 *
-	 * I don't know if gso_size is populated if there are frag_list
-	 * fragments but not frags fragments. Luckily, the solution I wrote
-	 * below should handle things correctly either way.
+	 * (Note: Ugh. This comment is old. I don't remember if I checked
+	 * whether B's gso_size was nonzero.)
 	 *
-	 * (One way to observe this madness is to connect two Virtualbox VMs
-	 * and trace iperf traffic.)
-	 *
-	 * I notice that there's also IP6CB(skb)->frag_max_size, which appears
-	 * to be a defrag-only thing, and I've no idea how it relates to
-	 * gso_size.
+	 * I don't know if gso_size can be populated if there are frag_list
+	 * fragments but not frags fragments. Luckily, this code should work
+	 * either way.
 	 *
 	 * See ip_exceeds_mtu() and ip6_pkt_too_big().
 	 */
@@ -391,7 +392,7 @@ static int fragment_exceeds_mtu64(struct packet const *in, unsigned int mtu)
 
 	/*
 	 * TODO (performance) This loop could probably be optimized away by
-	 * querying frag_max_size. You'll have to test it.
+	 * querying IP6CB(skb)->frag_max_size. You'll have to test it.
 	 */
 	mtu -= sizeof(struct iphdr);
 	skb_walk_frags(in->skb, iter)
@@ -408,7 +409,7 @@ static verdict validate_size(struct xlation *state)
 {
 	unsigned int nexthop_mtu;
 
-	if (!state->dst || is_icmp6_error(pkt_icmp6_hdr(&state->in)->icmp6_type))
+	if (!state->dst || pkt_is_icmp6_error(&state->in))
 		return VERDICT_CONTINUE;
 
 	nexthop_mtu = dst_mtu(state->dst);
@@ -441,11 +442,10 @@ static verdict ttp64_alloc_skb(struct xlation *state)
 		goto revert;
 
 	/*
-	 * I'm going to use __pskb_copy() (via pskb_copy()) because I need the
-	 * incoming and outgoing packets to share the same paged data. This is
-	 * not only for the sake of performance (prevents lots of data copying
-	 * and large contiguous skbs in memory) but also because the pages need
-	 * to survive the translation for GSO to work.
+	 * pskb_copy() is more efficient than allocating a new packet, because
+	 * it shares (not copies) the original's paged data with the copy. This
+	 * is great, because we don't need to modify the payload in either
+	 * packet.
 	 *
 	 * Since the IPv4 version of the packet is going to be invariably
 	 * smaller than its IPv6 counterpart, you'd think we should reserve less
@@ -535,29 +535,46 @@ static void generate_ipv4_id(struct xlation const *state, struct iphdr *hdr4,
 	if (hdr_frag) {
 		hdr4->id = cpu_to_be16(be32_to_cpu(hdr_frag->identification));
 	} else {
-#if LINUX_VERSION_AT_LEAST(4, 1, 0, 7, 3)
 		__ip_select_ident(state->jool.ns, hdr4, 1);
-#else
-		__ip_select_ident(hdr4, 1);
-#endif
 	}
 }
 
-/**
- * One-liner for creating the IPv4 header's Dont Fragment flag.
- */
-static bool generate_df_flag(struct packet const *out)
+static bool generate_df_flag(struct xlation const *state)
 {
-	unsigned int len;
+	struct packet const *in;
+	struct packet const *out;
 
-	len = pkt_is_outer(out)
-			? pkt_len(out)
-			: be16_to_cpu(pkt_ip4_hdr(out)->tot_len);
+	/*
+	 * This is the RFC logic, but it's complicated by frag_list, GRO and
+	 * internal packets.
+	 */
 
-	return len > 1260;
+	in = &state->in;
+	out = &state->out;
+
+	if (pkt_is_inner(out)) {
+		/* Unimportant. Guess: RFC logic. Meh. */
+		return ntohs(pkt_ip4_hdr(out)->tot_len) > 1260;
+	}
+	if (skb_has_frag_list(in->skb)) {
+		/* Clearly fragmented */
+		return false;
+	}
+	if (skb_is_gso(in->skb)) {
+		if (pkt_l4_proto(in) != L4PROTO_TCP) {
+			/* UDP fragmented, ICMP & OTHER undefined */
+			return false;
+		}
+		/* TCP not fragmented */
+		return pkt_hdrs_len(out) + skb_shinfo(in->skb)->gso_size > 1260;
+	}
+
+	/* Not fragmented */
+	return out->skb->len > 1260;
 }
 
-static __be16 xlat_frag_off(struct frag_hdr const *hdr_frag, struct packet const *out)
+static __be16 xlat_frag_off(struct frag_hdr const *hdr_frag,
+		struct xlation const *state)
 {
 	bool df;
 	__u16 mf;
@@ -568,7 +585,7 @@ static __be16 xlat_frag_off(struct frag_hdr const *hdr_frag, struct packet const
 		mf = is_mf_set_ipv6(hdr_frag);
 		frag_offset = get_fragment_offset_ipv6(hdr_frag);
 	} else {
-		df = generate_df_flag(out);
+		df = generate_df_flag(state);
 		mf = 0;
 		frag_offset = 0;
 	}
@@ -636,7 +653,7 @@ static verdict ttp64_ipv4_external(struct xlation *state)
 	hdr4->tos = flow4->flowi4_tos;
 	hdr4->tot_len = cpu_to_be16(state->out.skb->len);
 	generate_ipv4_id(state, hdr4, hdr_frag);
-	hdr4->frag_off = xlat_frag_off(hdr_frag, &state->out);
+	hdr4->frag_off = xlat_frag_off(hdr_frag, state);
 	hdr4->ttl = hdr6->hop_limit - 1;
 	hdr4->protocol = flow4->flowi4_proto;
 	/* ip4_hdr->check is set later; please scroll down. */
@@ -665,7 +682,7 @@ static verdict ttp64_ipv4_internal(struct xlation *state)
 	hdr4->tot_len = cpu_to_be16(get_tot_len_ipv6(in->skb) - pkt_hdrs_len(in)
 			+ pkt_hdrs_len(out));
 	generate_ipv4_id(state, hdr4, hdr_frag);
-	hdr4->frag_off = xlat_frag_off(hdr_frag, out);
+	hdr4->frag_off = xlat_frag_off(hdr_frag, state);
 	hdr4->ttl = hdr6->hop_limit;
 	hdr4->protocol = xlat_proto(hdr6);
 	hdr4->saddr = state->flowx.v4.inner_src.s_addr;
@@ -1083,15 +1100,6 @@ static __sum16 update_csum_6to4(__sum16 csum16,
 	return csum_fold(csum);
 }
 
-static __sum16 update_csum_6to4_partial(__sum16 csum16, struct ipv6hdr const *in_ip6,
-		struct iphdr *out_ip4)
-{
-	__wsum csum = csum_unfold(csum16);
-	csum = csum_sub(csum, pseudohdr6_csum(in_ip6));
-	csum = csum_add(csum, pseudohdr4_csum(out_ip4));
-	return ~csum_fold(csum);
-}
-
 static verdict ttp64_tcp(struct xlation *state)
 {
 	struct packet const *in = &state->in;
@@ -1117,9 +1125,11 @@ static verdict ttp64_tcp(struct xlation *state)
 				pkt_ip6_hdr(in), &tcp_copy, sizeof(tcp_copy),
 				pkt_ip4_hdr(out), tcp_out, sizeof(*tcp_out));
 		out->skb->ip_summed = CHECKSUM_NONE;
+
 	} else {
-		tcp_out->check = update_csum_6to4_partial(tcp_in->check,
-				pkt_ip6_hdr(in), pkt_ip4_hdr(out));
+		tcp_out->check = ~tcp_v4_check(pkt_datagram_len(out),
+				pkt_ip4_hdr(out)->saddr,
+				pkt_ip4_hdr(out)->daddr, 0);
 		partialize_skb(out->skb, offsetof(struct tcphdr, check));
 	}
 
@@ -1153,9 +1163,11 @@ static verdict ttp64_udp(struct xlation *state)
 		if (udp_out->check == 0)
 			udp_out->check = CSUM_MANGLED_0;
 		out->skb->ip_summed = CHECKSUM_NONE;
+
 	} else {
-		udp_out->check = update_csum_6to4_partial(udp_in->check,
-				pkt_ip6_hdr(in), pkt_ip4_hdr(out));
+		udp_out->check = ~udp_v4_check(pkt_datagram_len(out),
+				pkt_ip4_hdr(out)->saddr,
+				pkt_ip4_hdr(out)->daddr, 0);
 		partialize_skb(out->skb, offsetof(struct udphdr, check));
 	}
 

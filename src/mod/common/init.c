@@ -32,7 +32,7 @@ static int setup_common_modules(void)
 	error = rfc6056_setup();
 	if (error)
 		goto rfc6056_fail;
-	/* TODO SIIT-only shouldn't need to pay for this; move. */
+	/* TODO (performance) SIIT-only shouldn't need to pay for this; move. */
 	error = jtimer_setup();
 	if (error)
 		goto jtimer_fail;
