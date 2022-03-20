@@ -81,6 +81,7 @@ static verdict xlat64_internal_addresses(struct xlation *state)
 static verdict xlat64_tcp_ports(struct xlation *state)
 {
 	struct flowi4 *flow4;
+	struct packet const *in;
 	struct tcphdr const *hdr;
 
 	flow4 = &state->flowx.v4.flowi;
@@ -90,9 +91,12 @@ static verdict xlat64_tcp_ports(struct xlation *state)
 		flow4->fl4_dport = cpu_to_be16(state->out.tuple.dst.addr4.l4);
 		break;
 	case XT_SIIT:
-		hdr = pkt_tcp_hdr(&state->in);
-		flow4->fl4_sport = hdr->source;
-		flow4->fl4_dport = hdr->dest;
+		in = &state->in;
+		if (is_first_frag6(pkt_frag_hdr(in))) {
+			hdr = pkt_tcp_hdr(in);
+			flow4->fl4_sport = hdr->source;
+			flow4->fl4_dport = hdr->dest;
+		}
 	}
 
 	return VERDICT_CONTINUE;
@@ -101,6 +105,7 @@ static verdict xlat64_tcp_ports(struct xlation *state)
 static verdict xlat64_udp_ports(struct xlation *state)
 {
 	struct flowi4 *flow4;
+	struct packet const *in;
 	struct udphdr const *udp;
 
 	flow4 = &state->flowx.v4.flowi;
@@ -110,9 +115,12 @@ static verdict xlat64_udp_ports(struct xlation *state)
 		flow4->fl4_dport = cpu_to_be16(state->out.tuple.dst.addr4.l4);
 		break;
 	case XT_SIIT:
-		udp = pkt_udp_hdr(&state->in);
-		flow4->fl4_sport = udp->source;
-		flow4->fl4_dport = udp->dest;
+		in = &state->in;
+		if (is_first_frag6(pkt_frag_hdr(in))) {
+			udp = pkt_udp_hdr(in);
+			flow4->fl4_sport = udp->source;
+			flow4->fl4_dport = udp->dest;
+		}
 	}
 
 	return VERDICT_CONTINUE;
@@ -401,7 +409,7 @@ static verdict validate_size(struct xlation *state)
 {
 	unsigned int nexthop_mtu;
 
-	if (!state->dst || is_icmp6_error(pkt_icmp6_hdr(&state->in)->icmp6_type))
+	if (!state->dst || pkt_is_icmp6_error(&state->in))
 		return VERDICT_CONTINUE;
 
 	nexthop_mtu = dst_mtu(state->dst);

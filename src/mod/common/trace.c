@@ -32,14 +32,10 @@ void pkt_trace4(struct xlation *state)
 		}
 		break;
 	case L4PROTO_ICMP:
-		if (is_first_frag4(pkt_ip4_hdr(&state->in))) {
-			ptr.icmp = pkt_icmp4_hdr(&state->in);
-			log_debug(state, "ICMPv4 type:%u code:%u id:%u",
-					ptr.icmp->type, ptr.icmp->code,
-					be16_to_cpu(ptr.icmp->un.echo.id));
-		} else {
-			log_debug(state, "ICMPv4 (Fragment; ICMP data unavailable.)");
-		}
+		ptr.icmp = pkt_icmp4_hdr(&state->in);
+		log_debug(state, "ICMPv4 type:%u code:%u id:%u",
+				ptr.icmp->type, ptr.icmp->code,
+				be16_to_cpu(ptr.icmp->un.echo.id));
 		break;
 	case L4PROTO_OTHER:
 		log_debug(state, "Unknown l4 protocol");
@@ -76,14 +72,10 @@ void pkt_trace6(struct xlation *state)
 		}
 		break;
 	case L4PROTO_ICMP:
-		if (is_first_frag6(pkt_frag_hdr(&state->in))) {
-			ptr.icmp = pkt_icmp6_hdr(&state->in);
-			log_debug(state, "ICMPv6 type:%u code:%u id:%u",
-					ptr.icmp->icmp6_type, ptr.icmp->icmp6_code,
-					be16_to_cpu(ptr.icmp->icmp6_identifier));
-		} else {
-			log_debug(state, "ICMPv6 (Fragment; ICMP data unavailable.)");
-		}
+		ptr.icmp = pkt_icmp6_hdr(&state->in);
+		log_debug(state, "ICMPv6 type:%u code:%u id:%u",
+				ptr.icmp->icmp6_type, ptr.icmp->icmp6_code,
+				be16_to_cpu(ptr.icmp->icmp6_identifier));
 		break;
 	case L4PROTO_OTHER:
 		log_debug(state, "Unknown l4 protocol");

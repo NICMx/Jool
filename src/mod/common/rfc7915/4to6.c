@@ -90,6 +90,7 @@ static verdict xlat46_internal_addresses(struct xlation *state)
 static verdict xlat46_tcp_ports(struct xlation *state)
 {
 	struct flowi6 *flow6;
+	struct packet const *in;
 	struct tcphdr const *hdr;
 
 	flow6 = &state->flowx.v6.flowi;
@@ -99,9 +100,12 @@ static verdict xlat46_tcp_ports(struct xlation *state)
 		flow6->fl6_dport = cpu_to_be16(state->out.tuple.dst.addr6.l4);
 		break;
 	case XT_SIIT:
-		hdr = pkt_tcp_hdr(&state->in);
-		flow6->fl6_sport = hdr->source;
-		flow6->fl6_dport = hdr->dest;
+		in = &state->in;
+		if (is_first_frag4(pkt_ip4_hdr(in))) {
+			hdr = pkt_tcp_hdr(in);
+			flow6->fl6_sport = hdr->source;
+			flow6->fl6_dport = hdr->dest;
+		}
 	}
 
 	return VERDICT_CONTINUE;
@@ -110,6 +114,7 @@ static verdict xlat46_tcp_ports(struct xlation *state)
 static verdict xlat46_udp_ports(struct xlation *state)
 {
 	struct flowi6 *flow6;
+	struct packet const *in;
 	struct udphdr const *udp;
 
 	flow6 = &state->flowx.v6.flowi;
@@ -119,9 +124,12 @@ static verdict xlat46_udp_ports(struct xlation *state)
 		flow6->fl6_dport = cpu_to_be16(state->out.tuple.dst.addr6.l4);
 		break;
 	case XT_SIIT:
-		udp = pkt_udp_hdr(&state->in);
-		flow6->fl6_sport = udp->source;
-		flow6->fl6_dport = udp->dest;
+		in = &state->in;
+		if (is_first_frag4(pkt_ip4_hdr(in))) {
+			udp = pkt_udp_hdr(in);
+			flow6->fl6_sport = udp->source;
+			flow6->fl6_dport = udp->dest;
+		}
 	}
 
 	return VERDICT_CONTINUE;
@@ -315,7 +323,7 @@ static int get_delta(struct packet *in)
 	hdr4 = pkt_ip4_hdr(in);
 	delta = iphdr_delta(hdr4) + sizeof(struct frag_hdr);
 
-	if (is_first_frag4(hdr4) && pkt_is_icmp4_error(in)) {
+	if (pkt_is_icmp4_error(in)) {
 		hdr4 = pkt_payload(in);
 		delta += iphdr_delta(hdr4);
 		if (will_need_frag_hdr(hdr4))
@@ -402,7 +410,7 @@ static verdict allocate_fast(struct xlation *state, bool ignore_df,
 	/* Remove outer l3 and l4 headers from the copy. */
 	skb_pull(out, pkt_hdrs_len(in));
 
-	if (is_first_frag4(pkt_ip4_hdr(in)) && pkt_is_icmp4_error(in)) {
+	if (pkt_is_icmp4_error(in)) {
 		hdr4_inner = pkt_payload(in);
 
 		/* Remove inner l3 headers from the copy. */
@@ -660,9 +668,9 @@ static verdict ttp46_alloc_skb(struct xlation *state)
 	 *
 	 * a) I don't know how it works. (eg. Does it affect skb_is_gso()?)
 	 * b) I'm assuming it's always disabled nowadays. (Corollary: I can't
-	 * test it because I can't find any hardware that supports it.)
+	 *    test it because I can't find any hardware that supports it.)
 	 * c) It's lossy, which means it might be inherently incompatible with
-	 * IP XLAT.
+	 *    IP XLAT.
 	 * d) The code is already convoluted enough as it is.
 	 * e) I think it was obsoleted many kernels ago?
 	 * f) I don't care.

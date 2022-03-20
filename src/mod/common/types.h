@@ -73,6 +73,8 @@ const static verdict VERDICT_STOLEN = &verstolen;
 */
 
 /**
+ * RFC 6146 tuple.
+ *
  * A tuple is sort of a summary of a packet; it is a quick accesor for several
  * of its key elements.
  *
