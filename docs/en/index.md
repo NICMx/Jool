@@ -29,7 +29,7 @@ Jool is an Open Source [SIIT and NAT64](intro-xlat.html) for Linux.
 
 ## Survey
 
-<iframe src="https://docs.google.com/forms/d/e/1FAIpQLSe_9_wBttFGd9aJ7lKXiJvIN7wWZm_C6yy3gU0Ttepha275nQ/viewform?embedded=true" width="640" height="300" frameborder="0" marginheight="0" marginwidth="0">Loading…</iframe>
+<iframe src="https://docs.google.com/forms/d/e/1FAIpQLSdeqszHfo-vjQY2uG4mZC3cIy1wQVg5BBs0zUPA5ZuA96Li4w/viewform?embedded=true" width="640" height="560" frameborder="0" marginheight="0" marginwidth="0">Loading…</iframe>
 
 -------------------
 
@@ -50,4 +50,6 @@ Version 4.1.8 has been released.
   (Aside from being fairly illegal, these packets cannot be translated because the "ICMPv6 length" of the [ICMP pseudoheader](https://en.wikipedia.org/wiki/Internet_Control_Message_Protocol_for_IPv6#Checksum) is unknown.)
 - Bugfix: When routing TCP/UDP fragments, the code was including header ports even though nonzero fragment-offset packets lack TCP/UDP headers.  
   This bug probably doesn't affect you, unless your routing is somehow port-based.
+
+Also, please consider answering the [survey above](#survey).
 
