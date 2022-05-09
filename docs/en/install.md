@@ -308,8 +308,6 @@ You have two options:
 	<span class="distro-selector" onclick="showDistro(this);">git clone</span>
 </div>
 
-<!-- wget https://jool.mx/download/jool-{{ site.latest-version }}.tar.gz -->
-
 <!-- tarballs -->
 {% highlight bash %}
 $ wget https://github.com/NICMx/Jool/releases/download/v{{ site.latest-version }}/jool-{{ site.latest-version }}.tar.gz

@@ -30,15 +30,15 @@ Barring [RFC 6384](https://tools.ietf.org/html/rfc6384), NAT64 only translates n
 
 For example, some IPv6-unaware website, which would normally contain this HTML:
 
-	<a href="www.jool.mx/index.html">Link to something.</a>
+	<a href="nicmx.github.io/Jool">Link to something.</a>
 
 Could be poorly coded like this:
 
-	<a href="203.0.113.24/index.html">Link to something.</a>
+	<a href="203.0.113.24/Jool">Link to something.</a>
 
 This address lies within the body of an HTML file, not a network or transport header. It is not viable for a NAT64 to support translation of all existing application protocols.
 
-Clicking the latter version of the link from an IPv6-only node via a NAT64 will result in failure, because the node doesn't have an IPv4 stack which to access `203.0.113.24` with. `www.jool.mx` works fine because the DNS64 appends the NAT64 prefix once the node asks about it; on the other hand, if all the node has is `203.0.113.24`, it can't really tell it's talking via a NAT64, much less know which prefix should be appended.
+Clicking the latter version of the link from an IPv6-only node via a NAT64 will result in failure, because the node doesn't have an IPv4 stack which to access `203.0.113.24` with. `nicmx.github.io` works fine because the DNS64 appends the NAT64 prefix once the node asks about it; on the other hand, if all the node has is `203.0.113.24`, it can't really tell it's talking via a NAT64, much less know which prefix should be appended.
 
 [464XLAT](https://tools.ietf.org/html/rfc6877) is a technique meant to address this limitation. It appends an SIIT to the path, which mirrors the NAT64's work, which grants a controlled amount of clients a fallback IPv4 stack to access IP literals with.
 

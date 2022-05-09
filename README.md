@@ -1,19 +1,18 @@
-# [Jool](https://www.jool.mx)
+# Update
 
-An [SIIT and a NAT64](https://www.jool.mx/en/intro-xlat.html) for Linux.
+jool.mx is no longer maintained. Please use https://nicmx.github.io/Jool instead.
 
-> Note!
-> 
-> Jool's website is hosted in two separate domains simultaneously:
-> 
-> - https://www.jool.mx (Might be outdated for a few days at a time)
-> - https://nicmx.github.io/Jool ([Used](https://github.com/isaacs/github/issues/354#event-5407912041) to be unavailable from IPv6.)
+**I REPEAT: jool.mx IS (AND WILL PROBABLY FOREVER BE) OUTDATED. DO NOT QUERY IT ANYMORE. PLEASE UPDATE YOUR BOOKMARKS.**
+
+# [Jool](https://nicmx.github.io/Jool)
+
+An [SIIT and a NAT64](https://nicmx.github.io/Jool/en/intro-xlat.html) for Linux.
 
 ## Documentation
 
-[See here](https://www.jool.mx/en/documentation.html). You can also [generate the docs yourself](docs/).
+[See here](https://nicmx.github.io/Jool/en/documentation.html). You can also [generate the docs yourself](docs/).
 
-You might also want to see [contact info](https://www.jool.mx/en/contact.html).
+You might also want to see [contact info](https://nicmx.github.io/Jool/en/contact.html).
 
 ## Credits
 

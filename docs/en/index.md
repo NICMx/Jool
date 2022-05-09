@@ -24,6 +24,7 @@ Jool is an Open Source [SIIT and NAT64](intro-xlat.html) for Linux.
 
 - The most mature version is [4.1.8](download.html#41x).
 - The second release candidate for version [4.2.0](download.html#42x) is also available now.
+- **jool.mx is no longer maintained. Please use https://nicmx.github.io/Jool instead.**
 
 -------------------
 
@@ -53,3 +54,10 @@ Version 4.1.8 has been released.
 
 Also, please consider answering the [survey above](#survey).
 
+### 2022-05-09
+
+jool.mx has been abandoned. It still exists, but I cannot update it anymore. Please use https://nicmx.github.io/Jool instead.
+
+**Jool 4.1.8 was released over a month ago. Please upgrade; 4.1.7 has an [important bug](https://github.com/NICMx/Jool/issues/366).**
+
+Also, please consider answering the [survey](#survey).
