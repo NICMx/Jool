@@ -166,7 +166,7 @@ int rfc6056_f(struct xlation *state, unsigned int *result)
 
 	desc->tfm = shash;
 /* Linux commit: 877b5691f27a1aec0d9b53095a323e45c30069e2 */
-#if LINUX_VERSION_LOWER_THAN(5, 2, 0, 9999, 0)
+#if LINUX_VERSION_LOWER_THAN(5, 2, 0, 9, 99)
 	desc->flags = 0;
 #endif
 

@@ -401,7 +401,7 @@ static verdict allocate_fast(struct xlation *state, bool ignore_df,
 	}
 
 	/* https://github.com/NICMx/Jool/issues/289 */
-#if LINUX_VERSION_AT_LEAST(5, 4, 0, 9999, 0)
+#if LINUX_VERSION_AT_LEAST(5, 4, 0, 9, 99)
 	nf_reset_ct(out);
 #else
 	nf_reset(out);
