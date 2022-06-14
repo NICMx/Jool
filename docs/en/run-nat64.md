@@ -113,9 +113,9 @@ user@T:~# /sbin/iptables  -t mangle -A PREROUTING -j JOOL --instance "example"
 
 ## Testing
 
-Remember the [FAQ](faq.html) and [debug logging](usr-flags-global.html#logging-debug) if something goes south.
+Remember the [FAQ](faq.html) and [debug logging](usr-flags-global.html#logging-debug) if something goes south. **Do not try a `64:ff9b::X.X.X.X` ping from the translator; it's [not going to work](faq.html#why-is-my-ping-not-working).**
 
-Test by sending requests from the IPv6 network:
+Test by sending requests from an IPv6-only node:
 
 ```bash
 user@C:~$ ping6 64:ff9b::203.0.113.16
