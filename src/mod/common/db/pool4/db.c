@@ -188,13 +188,13 @@ static struct pool4_table *find_by_mark(struct rb_root *tree, __u32 mark)
 	return rbtree_find(mark, tree, cmp_mark, struct pool4_table, tree_hook);
 }
 
-static int cmp_addr(struct pool4_table *table, struct in_addr *addr)
+static int cmp_addr(struct pool4_table *table, struct in_addr const *addr)
 {
 	return ipv4_addr_cmp(&table->addr, addr);
 }
 
 static struct pool4_table *find_by_addr(struct rb_root *tree,
-		struct in_addr *addr)
+		struct in_addr const *addr)
 {
 	if (unlikely(!tree))
 		return NULL;
@@ -812,7 +812,7 @@ static struct ipv4_range *find_port_range(struct pool4_table *entry, __u16 port)
  * Mark is only used in the 6-to-4 direction.
  */
 bool pool4db_contains(struct pool4 *pool, struct net *ns, l4_protocol proto,
-		struct ipv4_transport_addr *addr)
+		struct ipv4_transport_addr const *addr)
 {
 	struct pool4_table *table;
 	bool found = false;
