@@ -24,15 +24,47 @@ And finally: It might take an indeterminate amount of time for the latest versio
 
 ## Installing Jool
 
-You need LEDE 21.02 at least. (I tested it in 21.02.1.)
+For OpenWRT 22.03 the netfilter version of Jool is available as pre-built packages and can configured and installed from the LuCI web interface.
 
-	opkg update
-	opkg install kmod-jool
-	opkg install jool-tools
+### LuCI web console
+
+1. System > Software: Install `jool-tools-netfilter` (this will install `kmod-jool-netfilter` and other dependencies).
+2. System > Startup > Local Startup: Add the following to /etc/rc.local:
+```
+jool instance add --pool6 64:ff9b::/96
+```
+3. System > Reboot > Perform reboot
+4. Confirm working NAT64 from a device inside your LAN `ping 64:ff9b::8.8.8.8`
+
+### Command line
+
+Using your router command line (e.g. SSH into the device).
+
+```
+# Install packages
+opkg update
+opkg install kmod-jool-netfilter jool-tools-netfilter
+```
+
+```
+# Add the following line to /etc/rc.local (before the exit 0)
+jool instance add --pool6 64:ff9b::/96
+```
+
+```
+# Confirm working NAT64 from a device inside your LAN
+ping 64:ff9b::8.8.8.8
+```
 
 To check Jool's version, run
 
-	jool --version
+```
+jool --version
+```
 
-As of 2021-11-16, that installs Jool 4.1.5.
+As of 2022-10-24, the above installs Jool 4.1.6.1, with "(Xtables disabled)".
+
+## Note: older versions
+
+On older versions there may be different packages, e.g. OpenWRT 21.02 had packages `kmod-jool` and `jool-tools` with some additional module and iptables setup. More details are in the past documentation.
 
