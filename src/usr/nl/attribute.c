@@ -491,6 +491,27 @@ nla_put_failure:
 	return -NLE_NOMEM;
 }
 
+int nla_put_p4block(struct nl_msg *msg, int attrtype, struct p4block const *blk)
+{
+	struct nlattr *root;
+
+	root = jnla_nest_start(msg, attrtype);
+	if (!root)
+		return -NLE_NOMEM;
+
+	if (nla_put_addr4(msg, JNLAPB_ADDR, &blk->addr) < 0)
+		goto nla_put_failure;
+	NLA_PUT_U16(msg, JNLAPB_PORT_MIN, blk->ports.min);
+	NLA_PUT_U16(msg, JNLAPB_PORT_MAX, blk->ports.max);
+
+	nla_nest_end(msg, root);
+	return 0;
+
+nla_put_failure:
+	nla_nest_cancel(msg, root);
+	return -NLE_NOMEM;
+}
+
 int nla_put_bib_attrs(struct nl_msg *msg, int attrtype,
 		struct ipv6_transport_addr const *addr6,
 		struct ipv4_transport_addr const *addr4,

@@ -19,6 +19,7 @@ int jnla_get_taddr6(struct nlattr *attr, char const *name, struct ipv6_transport
 int jnla_get_taddr4(struct nlattr *attr, char const *name, struct ipv4_transport_addr *out);
 int jnla_get_eam(struct nlattr *attr, char const *name, struct eamt_entry *eam);
 int jnla_get_pool4(struct nlattr *attr, char const *name, struct pool4_entry *entry);
+int jnla_get_p4block(struct nlattr *attr, char const *name, struct p4block *entry);
 int jnla_get_bib(struct nlattr *attr, char const *name, struct bib_entry *entry);
 int jnla_get_session(struct nlattr *attr, char const *name, struct bib_config *config, struct session_entry *entry);
 int jnla_get_plateaus(struct nlattr *attr, struct mtu_plateaus *out);
@@ -32,6 +33,7 @@ int jnla_put_taddr6(struct sk_buff *skb, int attrtype, struct ipv6_transport_add
 int jnla_put_taddr4(struct sk_buff *skb, int attrtype, struct ipv4_transport_addr const *prefix);
 int jnla_put_eam(struct sk_buff *skb, int attrtype, struct eamt_entry const *eam);
 int jnla_put_pool4(struct sk_buff *skb, int attrtype, struct pool4_entry const *bib);
+int jnla_put_p4block(struct sk_buff *skb, int attrtype, struct p4block const *entry);
 int jnla_put_bib(struct sk_buff *skb, int attrtype, struct bib_entry const *bib);
 int jnla_put_session(struct sk_buff *skb, int attrtype, struct session_entry const *entry);
 int jnla_put_plateaus(struct sk_buff *skb, int attrtype, struct mtu_plateaus const *plateaus);

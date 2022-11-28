@@ -518,6 +518,152 @@ static bool test_flush(void)
 	return success;
 }
 
+static bool validate_masks(struct mask_domain *masks, const char *expected)
+{
+	struct ipv4_transport_addr actual;
+	bool consecutive;
+	unsigned int a;
+	bool success;
+
+	a = 0;
+	success = true;
+
+	pr_debug("Mask domain:\n");
+	while (mask_domain_next(masks, &actual, &consecutive) == 0) {
+		pr_debug("   %pI4:%u\n", &actual.l3, actual.l4);
+		success &= ASSERT_ADDR4(expected, &actual.l3, "addr4");
+		a++;
+	}
+	success &= ASSERT_UINT(5, a, "total transport addresses");
+
+	return success;
+}
+
+#define TARGET(a, b) __mask_domain_find_block(blocks, a, b)
+
+static bool test_block(void)
+{
+	struct p4blocks *blocks;
+	struct p4block blk1, blk2, blk3, blk4;
+	struct in6_addr src;
+	struct mask_domain *masks;
+	bool success = true;
+
+	blocks = p4block_init();
+	success &= ASSERT_BOOL(true, blocks != NULL, "p4block init");
+	if (!success)
+		return false;
+
+	memset(&src, 0, sizeof(src));
+
+	/* Try empty database */
+
+	src.s6_addr16[7] = cpu_to_be16(1);
+	success &= ASSERT_UINT(JSTAT_UNKNOWN, TARGET(&src, &masks), "jstat 0");
+
+	p4block_print(blocks, "Should print empty");
+
+	/* Populate database */
+
+	blk1.addr.s_addr = cpu_to_be32(0xc0000201);
+	blk1.ports.min = 10;
+	blk1.ports.max = 14;
+	success &= ASSERT_INT(0, p4block_add(blocks, &blk1), "add 1");
+
+	blk2.addr.s_addr = cpu_to_be32(0xc0000202);
+	blk2.ports.min = 15;
+	blk2.ports.max = 19;
+	success &= ASSERT_INT(0, p4block_add(blocks, &blk2), "add 2");
+
+	blk3.addr.s_addr = cpu_to_be32(0xc0000203);
+	blk3.ports.min = 20;
+	blk3.ports.max = 24;
+	success &= ASSERT_INT(0, p4block_add(blocks, &blk3), "add 3");
+
+	blk4.addr.s_addr = cpu_to_be32(0xc0000204);
+	blk4.ports.min = 25;
+	blk4.ports.max = 29;
+	success &= ASSERT_INT(0, p4block_add(blocks, &blk4), "add 4");
+
+	p4block_print(blocks, "All entries recently added");
+
+	/* Try populated database */
+
+	src.s6_addr16[7] = cpu_to_be16(1);
+	success &= ASSERT_UINT(JSTAT_SUCCESS, TARGET(&src, &masks), "jstat 1");
+	validate_masks(masks, "192.0.2.1");
+	mask_domain_put(masks);
+
+	src.s6_addr16[7] = cpu_to_be16(2);
+	success &= ASSERT_UINT(JSTAT_SUCCESS, TARGET(&src, &masks), "jstat 2");
+	validate_masks(masks, "192.0.2.2");
+	mask_domain_put(masks);
+
+	p4block_print(blocks, "Assigned two entries");
+
+	src.s6_addr16[7] = cpu_to_be16(3);
+	success &= ASSERT_UINT(JSTAT_SUCCESS, TARGET(&src, &masks), "jstat 3");
+	validate_masks(masks, "192.0.2.3");
+	mask_domain_put(masks);
+
+	src.s6_addr16[7] = cpu_to_be16(4);
+	success &= ASSERT_UINT(JSTAT_SUCCESS, TARGET(&src, &masks), "jstat 4");
+	validate_masks(masks, "192.0.2.4");
+	mask_domain_put(masks);
+
+	src.s6_addr16[7] = cpu_to_be16(5);
+	success &= ASSERT_UINT(JSTAT_UNKNOWN, TARGET(&src, &masks), "jstat 5");
+
+	p4block_print(blocks, "Assigned all entries");
+
+	/* Try already assigned blocks */
+
+	src.s6_addr16[7] = cpu_to_be16(2);
+	success &= ASSERT_UINT(JSTAT_SUCCESS, TARGET(&src, &masks), "jstat 2");
+	validate_masks(masks, "192.0.2.2");
+	mask_domain_put(masks);
+
+	src.s6_addr16[7] = cpu_to_be16(1);
+	success &= ASSERT_UINT(JSTAT_SUCCESS, TARGET(&src, &masks), "jstat 1");
+	validate_masks(masks, "192.0.2.1");
+	mask_domain_put(masks);
+
+	src.s6_addr16[7] = cpu_to_be16(4);
+	success &= ASSERT_UINT(JSTAT_SUCCESS, TARGET(&src, &masks), "jstat 4");
+	validate_masks(masks, "192.0.2.4");
+	mask_domain_put(masks);
+
+	src.s6_addr16[7] = cpu_to_be16(3);
+	success &= ASSERT_UINT(JSTAT_SUCCESS, TARGET(&src, &masks), "jstat 3");
+	validate_masks(masks, "192.0.2.3");
+	mask_domain_put(masks);
+
+	/* Try rm() */
+
+	success &= ASSERT_INT(0, p4block_rm(blocks, &blk1), "rm 1");
+	success &= ASSERT_INT(0, p4block_rm(blocks, &blk3), "rm 2");
+	success &= ASSERT_INT(-ESRCH, p4block_rm(blocks, &blk1), "rm 3");
+	success &= ASSERT_INT(-ESRCH, p4block_rm(blocks, &blk3), "rm 4");
+
+	p4block_print(blocks, "Removed 2 blocks");
+
+	/* Try expire() */
+
+	success &= ASSERT_INT(0, p4block_add(blocks, &blk1), "add 5");
+	success &= ASSERT_INT(0, p4block_add(blocks, &blk3), "add 6");
+	p4block_expire(blocks, 10000);
+
+	p4block_print(blocks, "Added blocks back, expired nothing");
+
+	p4block_cheat(blocks);
+	p4block_expire(blocks, 10000);
+
+	p4block_print(blocks, "All nodes should be clear");
+
+	p4block_put(blocks);
+	return success;
+}
+
 static int init(void)
 {
 	pool = pool4db_alloc();
@@ -559,6 +705,7 @@ int init_module(void)
 	test_group_test(&test, test_add, "Add");
 	test_group_test(&test, test_rm, "Rm");
 	test_group_test(&test, test_flush, "Flush");
+	test_group_test(&test, test_block, "Block");
 
 	return test_group_end(&test);
 }

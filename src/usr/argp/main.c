@@ -25,6 +25,7 @@
 #include "usr/argp/wargp/global.h"
 #include "usr/argp/wargp/instance.h"
 #include "usr/argp/wargp/joold.h"
+#include "usr/argp/wargp/p4block.h"
 #include "usr/argp/wargp/pool4.h"
 #include "usr/argp/wargp/session.h"
 #include "usr/argp/wargp/stats.h"
@@ -201,6 +202,26 @@ struct cmd_option pool4_ops[] = {
 		{ 0 },
 };
 
+struct cmd_option p4block_ops[] = {
+		{
+			.label = DISPLAY,
+			.xt = XT_NAT64,
+			.handler = handle_p4block_display,
+			.handle_autocomplete = autocomplete_p4block_display,
+		}, {
+			.label = ADD,
+			.xt = XT_NAT64,
+			.handler = handle_p4block_add,
+			.handle_autocomplete = autocomplete_p4block_add,
+		}, {
+			.label = REMOVE,
+			.xt = XT_NAT64,
+			.handler = handle_p4block_remove,
+			.handle_autocomplete = autocomplete_p4block_remove,
+		},
+		{ 0 },
+};
+
 static struct cmd_option bib_ops[] = {
 		{
 			.label = DISPLAY,
@@ -284,6 +305,10 @@ struct cmd_option tree[] = {
 			.label = "pool4",
 			.xt = XT_NAT64,
 			.children = pool4_ops,
+		}, {
+			.label = "p4block",
+			.xt = XT_NAT64,
+			.children = p4block_ops,
 		}, {
 			.label = "bib",
 			.xt = XT_NAT64,

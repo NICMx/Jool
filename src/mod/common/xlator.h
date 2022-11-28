@@ -40,6 +40,7 @@ struct xlator {
 		} siit;
 		struct {
 			struct pool4 *pool4;
+			struct p4blocks *blocks;
 			struct bib *bib;
 			struct joold_queue *joold;
 		} nat64;

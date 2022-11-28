@@ -3,7 +3,6 @@ ccflags-y := -I$(src)/../..
 
 obj-m += jool_common.o
 
-
 jool_common-objs += rfc7915/4to6.o
 jool_common-objs += rfc7915/6to4.o
 jool_common-objs += rfc7915/common.o
@@ -37,7 +36,6 @@ jool_common-objs += wrapper-config.o
 jool_common-objs += wrapper-global.o
 jool_common-objs += wrapper-types.o
 jool_common-objs += xlator.o
-
 jool_common-objs += steps/send_packet.o
 
 jool_common-objs += nl/address.o
@@ -52,6 +50,7 @@ jool_common-objs += nl/global.o
 jool_common-objs += nl/instance.o
 jool_common-objs += nl/joold.o
 jool_common-objs += nl/nl_common.o
+jool_common-objs += nl/p4block.o
 jool_common-objs += nl/pool4.o
 jool_common-objs += nl/session.o
 jool_common-objs += nl/stats.o
@@ -66,6 +65,7 @@ jool_common-objs += db/rfc6791v6.o
 jool_common-objs += db/pool4/empty.o
 jool_common-objs += db/pool4/db.o
 jool_common-objs += db/pool4/rfc6056.o
+jool_common-objs += db/pool4-v2/block.o
 
 jool_common-objs += db/bib/db.o
 jool_common-objs += db/bib/entry.o

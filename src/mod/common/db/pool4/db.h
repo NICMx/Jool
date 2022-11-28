@@ -44,6 +44,8 @@ int pool4db_foreach_sample(struct pool4 *pool, l4_protocol proto,
 
 struct mask_domain;
 
+verdict mask_domain_find_block(struct xlation *state, struct mask_domain **out);
+
 verdict mask_domain_find(struct xlation *state, struct mask_domain **out);
 void mask_domain_put(struct mask_domain *masks);
 int mask_domain_next(struct mask_domain *masks,

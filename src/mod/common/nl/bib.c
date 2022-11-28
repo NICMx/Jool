@@ -5,7 +5,7 @@
 #include "mod/common/nl/attribute.h"
 #include "mod/common/nl/nl_common.h"
 #include "mod/common/nl/nl_core.h"
-#include "mod/common/db/pool4/db.h"
+#include "mod/common/db/pool4-v2/block.h"
 #include "mod/common/db/bib/db.h"
 
 static int serialize_bib_entry(struct bib_entry const *entry, void *arg)
@@ -82,8 +82,9 @@ int handle_bib_add(struct sk_buff *skb, struct genl_info *info)
 	if (error)
 		goto revert_start;
 
-	if (!pool4db_contains(jool.nat64.pool4, jool.ns, new.l4_proto, &new.addr4)) {
-		log_err("The transport address '%pI4#%u' does not belong to pool4.\n"
+//	if (!pool4db_contains(jool.nat64.pool4, jool.ns, new.l4_proto, &new.addr4)) {
+	if (!p4block_contains(jool.nat64.blocks, &new.addr4)) {
+		log_err("The transport address '%pI4#%u' does not belong to p4block.\n"
 				"Please add it there first.",
 				&new.addr4.l3, new.addr4.l4);
 		error = -EINVAL;

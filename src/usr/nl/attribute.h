@@ -65,6 +65,7 @@ int nla_put_prefix4(struct nl_msg *msg, int attrtype, struct ipv4_prefix const *
 int nla_put_plateaus(struct nl_msg *msg, int attrtype, struct mtu_plateaus const *plateaus);
 int nla_put_eam(struct nl_msg *msg, int attrtype, struct eamt_entry const *entry);
 int nla_put_pool4(struct nl_msg *msg, int attrtype, struct pool4_entry const *entry);
+int nla_put_p4block(struct nl_msg *msg, int attrtype, struct p4block const *blk);
 int nla_put_bib(struct nl_msg *msg, int attrtype, struct bib_entry const *entry);
 int nla_put_bib_attrs(struct nl_msg *msg, int attrtype,
 		struct ipv6_transport_addr const *addr6,

@@ -5,7 +5,7 @@
 #include "mod/common/steps/send_packet.h"
 #include "mod/common/steps/compute_outgoing_tuple.h"
 #include "mod/common/steps/filtering_and_updating.h"
-#include "mod/common/db/pool4/db.h"
+#include "mod/common/db/pool4-v2/block.h"
 
 
 /**
@@ -28,8 +28,10 @@ bool is_hairpin_nat64(struct xlation *state)
 	 * for its node. It might take a miracle for these packets to exist,
 	 * but hey, why the hell not.
 	 */
-	return pool4db_contains(state->jool.nat64.pool4, state->jool.ns,
-			state->out.tuple.l4_proto, &state->out.tuple.dst.addr4);
+//	return pool4db_contains(state->jool.nat64.pool4, state->jool.ns,
+//			state->out.tuple.l4_proto, &state->out.tuple.dst.addr4);
+	return p4block_contains(state->jool.nat64.blocks,
+			&state->out.tuple.dst.addr4);
 }
 
 /**

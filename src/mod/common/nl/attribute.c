@@ -300,6 +300,25 @@ int jnla_get_pool4(struct nlattr *attr, char const *name,
 	return 0;
 }
 
+int jnla_get_p4block(struct nlattr *attr, char const *name, struct p4block *blk)
+{
+	struct nlattr *attrs[JNLAPB_COUNT];
+	int error;
+
+	error = validate_null(attr, name);
+	if (error)
+		return error;
+
+	error = jnla_parse_nested(attrs, JNLAPB_MAX, attr,
+			joolnl_p4block_policy, name);
+	if (error)
+		return error;
+
+	blk->ports.min = nla_get_u16(attrs[JNLAPB_PORT_MIN]);
+	blk->ports.max = nla_get_u16(attrs[JNLAPB_PORT_MAX]);
+	return jnla_get_addr4(attrs[JNLAPB_ADDR], "IPv4 address", &blk->addr);
+}
+
 int jnla_get_bib(struct nlattr *attr, char const *name, struct bib_entry *entry)
 {
 	struct nlattr *attrs[JNLAB_COUNT];
@@ -675,6 +694,28 @@ int jnla_put_pool4(struct sk_buff *skb, int attrtype,
 		|| jnla_put_prefix4(skb, JNLAP4_PREFIX, &entry->range.prefix)
 		|| nla_put_u16(skb, JNLAP4_PORT_MIN, entry->range.ports.min)
 		|| nla_put_u16(skb, JNLAP4_PORT_MAX, entry->range.ports.max);
+	if (error) {
+		nla_nest_cancel(skb, root);
+		return error;
+	}
+
+	nla_nest_end(skb, root);
+	return 0;
+}
+
+int jnla_put_p4block(struct sk_buff *skb, int attrtype,
+		struct p4block const *entry)
+{
+	struct nlattr *root;
+	int error;
+
+	root = nla_nest_start(skb, attrtype);
+	if (!root)
+		return -EMSGSIZE;
+
+	error = jnla_put_addr4(skb, JNLAPB_ADDR, &entry->addr)
+		|| nla_put_u16(skb, JNLAPB_PORT_MIN, entry->ports.min)
+		|| nla_put_u16(skb, JNLAPB_PORT_MAX, entry->ports.max);
 	if (error) {
 		nla_nest_cancel(skb, root);
 		return error;

@@ -88,6 +88,8 @@ static struct jool_result __update(struct joolnl_socket *sk, char const *iname,
 	if (result.error)
 		return result;
 
+	/* TODO why is this code not using nla_put_eam()? */
+
 	root = jnla_nest_start(msg, JNLAR_OPERAND);
 	if (!root)
 		goto nla_put_failure;

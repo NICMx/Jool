@@ -16,6 +16,7 @@
 #include "mod/common/db/denylist4.h"
 #include "mod/common/db/eam.h"
 #include "mod/common/db/pool4/db.h"
+#include "mod/common/db/pool4-v2/block.h"
 #include "mod/common/db/bib/db.h"
 #include "mod/common/steps/handling_hairpinning_nat64.h"
 #include "mod/common/steps/handling_hairpinning_siit.h"
@@ -142,6 +143,7 @@ static void xlator_get(struct xlator *jool)
 		break;
 	case XT_NAT64:
 		pool4db_get(jool->nat64.pool4);
+		p4block_get(jool->nat64.blocks);
 		bib_get(jool->nat64.bib);
 		joold_get(jool->nat64.joold);
 		break;
@@ -320,6 +322,9 @@ static int init_nat64(struct xlator *jool, struct ipv6_prefix *pool6)
 	jool->nat64.pool4 = pool4db_alloc();
 	if (!jool->nat64.pool4)
 		goto pool4_fail;
+	jool->nat64.blocks = p4block_init();
+	if (!jool->nat64.blocks)
+		goto p4block_fail;
 	jool->nat64.bib = bib_alloc();
 	if (!jool->nat64.bib)
 		goto bib_fail;
@@ -334,6 +339,8 @@ static int init_nat64(struct xlator *jool, struct ipv6_prefix *pool6)
 joold_fail:
 	bib_put(jool->nat64.bib);
 bib_fail:
+	p4block_put(jool->nat64.blocks);
+p4block_fail:
 	pool4db_put(jool->nat64.pool4);
 pool4_fail:
 	jstat_put(jool->stats);
@@ -633,8 +640,9 @@ static int check_bib(struct bib_entry const *bib, void *_arg)
 {
 	struct check_bib_arg *arg = _arg;
 
-	if (!pool4db_contains(arg->jool->nat64.pool4, arg->jool->ns,
-			bib->l4_proto, &bib->addr4)) {
+//	if (!pool4db_contains(arg->jool->nat64.pool4, arg->jool->ns,
+//			bib->l4_proto, &bib->addr4)) {
+	if (!p4block_contains(arg->jool->nat64.blocks, &bib->addr4)) {
 		arg->badbib = *bib;
 		return -EINVAL;
 	}
@@ -904,6 +912,7 @@ void xlator_put(struct xlator *jool)
 		 * have to leave those modules around.
 		 */
 		pool4db_put(jool->nat64.pool4);
+		p4block_put(jool->nat64.blocks);
 		if (jool->nat64.bib)
 			bib_put(jool->nat64.bib);
 		if (jool->nat64.joold)

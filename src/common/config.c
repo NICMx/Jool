@@ -62,6 +62,12 @@ struct nla_policy joolnl_pool4_entry_policy[JNLAP4_COUNT] = {
 	[JNLAP4_PORT_MAX] = { .type = NLA_U16 },
 };
 
+struct nla_policy joolnl_p4block_policy[JNLAPB_COUNT] = {
+	[JNLAPB_ADDR] = JOOLNL_ADDR4_POLICY,
+	[JNLAPB_PORT_MIN] = { .type = NLA_U16 },
+	[JNLAPB_PORT_MAX] = { .type = NLA_U16 },
+};
+
 struct nla_policy joolnl_bib_entry_policy[JNLAB_COUNT] = {
 	[JNLAB_SRC6] = { .type = NLA_NESTED },
 	[JNLAB_SRC4] = { .type = NLA_NESTED },

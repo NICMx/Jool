@@ -203,6 +203,11 @@ struct pool4_entry {
 	struct ipv4_range range;
 };
 
+struct p4block {
+	struct in_addr addr;
+	struct port_range ports;
+};
+
 /*
  * A mask that dictates which IPv4 transport address is being used to mask a
  * given IPv6 (transport) client.

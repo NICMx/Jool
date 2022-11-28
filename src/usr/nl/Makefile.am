@@ -13,6 +13,7 @@ libjoolnl_la_SOURCES = \
 	instance.c instance.h \
 	joold.c joold.h \
 	json.c json.h \
+	p4block.c p4block.h \
 	pool4.c pool4.h \
 	session.c session.h \
 	stats.c stats.h \

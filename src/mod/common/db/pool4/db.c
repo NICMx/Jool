@@ -10,6 +10,7 @@
 #include "mod/common/db/rbtree.h"
 #include "mod/common/db/pool4/empty.h"
 #include "mod/common/db/pool4/rfc6056.h"
+#include "mod/common/db/pool4-v2/block.h"
 
 /*
  * pool4 (struct pool4) is made out of two tree groups (struct pool4_trees).
@@ -1070,6 +1071,54 @@ static verdict find_empty(struct xlation *state, unsigned int offset,
 	masks->dynamic = true;
 
 	*out = masks;
+	return VERDICT_CONTINUE;
+}
+
+enum jool_stat_id __mask_domain_find_block(struct p4blocks *blocks,
+		struct in6_addr *src, struct mask_domain **out)
+{
+	struct mask_domain *result;
+	struct ipv4_range *range;
+	struct p4block block;
+	__u16 starting_port;
+
+	result = __wkmalloc("mask_domain",
+			sizeof(struct mask_domain) + sizeof(struct ipv4_range),
+			GFP_ATOMIC);
+	if (!result)
+		return JSTAT_ENOMEM;
+	range = (struct ipv4_range *) (result + 1);
+
+	if (p4block_find(blocks, src, &block) != 0) {
+		__wkfree("mask_domain", result);
+		return JSTAT_UNKNOWN; // TODO fix stat
+	}
+
+	result->pool_mark = 0;
+	result->taddr_count = block.ports.max - block.ports.min + 1;
+	result->taddr_counter = 0;
+	result->max_iterations = 0;
+	result->range_count = 1;
+	result->current_range = range;
+	get_random_bytes(&starting_port, sizeof(starting_port));
+	result->current_port = block.ports.min + starting_port % result->taddr_count;
+	result->dynamic = false;
+	range->prefix.addr = block.addr;
+	range->prefix.len = 32;
+	range->ports.min = block.ports.min;
+	range->ports.max = block.ports.max;
+
+	*out = result;
+	return JSTAT_SUCCESS;
+}
+
+verdict mask_domain_find_block(struct xlation *state, struct mask_domain **out)
+{
+	enum jool_stat_id stat;
+	stat = __mask_domain_find_block(state->jool.nat64.blocks,
+			&pkt_ip6_hdr(&state->in)->saddr, out);
+	if (stat != JSTAT_SUCCESS)
+		return drop(state, stat);
 	return VERDICT_CONTINUE;
 }
 

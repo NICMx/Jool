@@ -50,6 +50,10 @@ enum joolnl_operation {
 	JNLOP_POOL4_RM,
 	JNLOP_POOL4_FLUSH,
 
+	JNLOP_P4BLOCK_FOREACH,
+	JNLOP_P4BLOCK_ADD,
+	JNLOP_P4BLOCK_RM,
+
 	JNLOP_BIB_FOREACH,
 	JNLOP_BIB_ADD,
 	JNLOP_BIB_RM,
@@ -177,6 +181,16 @@ enum joolnl_attr_pool4 {
 };
 
 extern struct nla_policy joolnl_pool4_entry_policy[JNLAP4_COUNT];
+
+enum joolnl_attr_p4block {
+	JNLAPB_ADDR = 1,
+	JNLAPB_PORT_MIN,
+	JNLAPB_PORT_MAX,
+	JNLAPB_COUNT,
+#define JNLAPB_MAX (JNLAPB_COUNT - 1)
+};
+
+extern struct nla_policy joolnl_p4block_policy[JNLAPB_COUNT];
 
 enum joolnl_attr_bib {
 	JNLAB_SRC6 = 1,

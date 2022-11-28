@@ -14,7 +14,7 @@
 #include "mod/common/stats.h"
 #include "mod/common/rfc7915/6to4.h"
 #include "mod/common/joold.h"
-#include "mod/common/db/pool4/db.h"
+#include "mod/common/db/pool4-v2/block.h"
 #include "mod/common/db/bib/db.h"
 
 enum session_fate tcp_est_expire_cb(struct session_entry *session, void *arg)
@@ -132,7 +132,7 @@ static verdict ipv6_simple(struct xlation *state)
 
 	if (xlat_dst_6to4(state, &dst4))
 		return drop(state, JSTAT_UNTRANSLATABLE_DST6);
-	result = mask_domain_find(state, &masks);
+	result = mask_domain_find_block(state, &masks);
 	if (result != VERDICT_CONTINUE) {
 		log_debug(state, "There is no mask domain mapped to mark %u.",
 				state->in.skb->mark);
@@ -449,7 +449,7 @@ static verdict ipv6_tcp(struct xlation *state)
 
 	if (xlat_dst_6to4(state, &dst4))
 		return drop(state, JSTAT_UNTRANSLATABLE_DST6);
-	result = mask_domain_find(state, &masks);
+	result = mask_domain_find_block(state, &masks);
 	if (result != VERDICT_CONTINUE) {
 		log_debug(state, "There is no mask domain mapped to mark %u.",
 				state->in.skb->mark);
@@ -523,9 +523,11 @@ verdict filtering_and_updating(struct xlation *state)
 		break;
 	case L3PROTO_IPV4:
 		/* Get rid of unexpected packets */
-		if (!pool4db_contains(state->jool.nat64.pool4, state->jool.ns,
-				in->tuple.l4_proto, &in->tuple.dst.addr4)) {
-			log_debug(state, "Packet does not belong to pool4.");
+//		if (!pool4db_contains(state->jool.nat64.pool4, state->jool.ns,
+//				in->tuple.l4_proto, &in->tuple.dst.addr4)) {
+		if (!p4block_contains(state->jool.nat64.blocks,
+				&in->tuple.dst.addr4)) {
+			log_debug(state, "Packet does not belong to p4block.");
 			return untranslatable(state, JSTAT_POOL4_MISMATCH);
 		}
 

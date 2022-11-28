@@ -18,6 +18,7 @@
 #include "mod/common/nl/joold.h"
 #include "mod/common/nl/nl_common.h"
 #include "mod/common/nl/nl_core.h"
+#include "mod/common/nl/p4block.h"
 #include "mod/common/nl/pool4.h"
 #include "mod/common/nl/session.h"
 #include "mod/common/nl/stats.h"
@@ -145,6 +146,18 @@ static const struct genl_ops ops[] = {
 	}, {
 		.cmd = JNLOP_POOL4_FLUSH,
 		.doit = handle_pool4_flush,
+		JOOL_POLICY
+	}, {
+		.cmd = JNLOP_P4BLOCK_FOREACH,
+		.doit = handle_p4block_foreach,
+		JOOL_POLICY
+	}, {
+		.cmd = JNLOP_P4BLOCK_ADD,
+		.doit = handle_p4block_add,
+		JOOL_POLICY
+	}, {
+		.cmd = JNLOP_P4BLOCK_RM,
+		.doit = handle_p4block_rm,
 		JOOL_POLICY
 	}, {
 		.cmd = JNLOP_BIB_FOREACH,

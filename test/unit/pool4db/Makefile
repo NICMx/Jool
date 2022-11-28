@@ -24,6 +24,7 @@ $(UNIT)-objs += ../../../src/mod/common/wrapper-global.o
 $(UNIT)-objs += ../../../src/mod/common/db/global.o
 $(UNIT)-objs += ../../../src/mod/common/db/rbtree.o
 $(UNIT)-objs += ../../../src/mod/common/db/pool4/empty.o
+$(UNIT)-objs += ../../../src/mod/common/db/pool4-v2/block.o
 $(UNIT)-objs += ../../../src/mod/common/nl/attribute.o
 $(UNIT)-objs += ../impersonator/route.o
 $(UNIT)-objs += impersonator.o
