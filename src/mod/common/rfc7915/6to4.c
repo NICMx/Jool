@@ -467,7 +467,7 @@ static verdict ttp64_alloc_skb(struct xlation *state)
 	}
 
 	/* https://github.com/NICMx/Jool/issues/289 */
-#if LINUX_VERSION_AT_LEAST(5, 4, 0, 9, 99)
+#if LINUX_VERSION_AT_LEAST(5, 4, 0, 9, 0)
 	nf_reset_ct(out);
 #else
 	nf_reset(out);

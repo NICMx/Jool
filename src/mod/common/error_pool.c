@@ -1,9 +1,6 @@
 #include "mod/common/error_pool.h"
 
 #include "mod/common/linux_version.h"
-#if LINUX_VERSION_LOWER_THAN(5, 15, 0, 9, 99)
-#include <stdarg.h>
-#endif
 
 #include <linux/string.h>
 #include <linux/slab.h>
