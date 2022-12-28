@@ -81,6 +81,7 @@ You might also want to see [contact info](https://nicmx.github.io/Jool/en/contac
 
 ### License Disclaimer
 
+```
 Jool - SIIT and NAT64 for Linux
 Copyright (C) 2022  NIC Mexico <jool@nic.mx>
 
@@ -96,4 +97,4 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software Foundation, Inc.,
 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
-
+```

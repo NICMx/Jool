@@ -267,7 +267,7 @@ user@T:~# zypper install git-core automake autoconf libtool
 user@T:~# pacman -S git # autotools already included in base-devel.
 {% endhighlight %}
 
-And if you don't, you will need a `.tar.gz` extraction tool. Most distros include this by default, but just for completeness sake,
+But if you prefer to install the official release, you will need a `.tar.gz` extraction tool. Most distros include this by default, but just for completeness sake,
 
 <div class="distro-menu">
 	<span class="distro-selector" onclick="showDistro(this);">Debian</span>
@@ -320,7 +320,7 @@ $ git clone https://github.com/NICMx/Jool.git
  
 {% endhighlight %}
 
-The repository version sometimes includes slight bugfixes not present in the latest official tarball, which you can access by sticking to the latest commit of the `master` branch. (Tarballs and `master` are considered stable, other branches are development.)
+The repository version sometimes includes slight bugfixes not present in the latest official tarball, which you can access by sticking to the latest commit of the `main` branch. (Tarballs and `main` are considered stable, other branches are development.)
 
 ## Compilation and Installation
 
