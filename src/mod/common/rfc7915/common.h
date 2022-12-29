@@ -86,7 +86,7 @@ bool must_not_translate(struct in_addr *addr, struct net *ns);
 /* un.reserved does not exist in old kernels. */
 #define icmp4_length(hdr) (((__u8 *)(&(hdr)->un.gateway))[1])
 
-/* See /test/graybox/test-suite/rfc/7915.md#ic */
+/* See /test/graybox/test-suite/siit/7915/README.md#ic */
 struct icmpext_args {
 	size_t max_pkt_len; /* Maximum (allowed outgoing) Packet Length */
 	size_t ipl; /* Internal Packet Length */
