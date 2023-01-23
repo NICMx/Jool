@@ -49,7 +49,7 @@ static int validate_version(struct joolnlhdr *hdr)
 {
 	__u32 hdr_version = ntohl(hdr->version);
 
-	if (xlat_version() == hdr_version)
+	if ((xlat_version() & 0xFFFF0000u) == (hdr_version & 0xFFFF0000u))
 		return 0;
 
 	log_err("Version mismatch. The userspace client's version is %u.%u.%u.%u,\n"
