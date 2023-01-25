@@ -1342,7 +1342,7 @@ static __be16 get_dst_port46(struct xlation *state)
 /*
  * Computes the L4 checksum from scratch for Slow Path packet @out.
  */
-static __wsum skb_list_csum(struct sk_buff *out, __u8 proto)
+static __sum16 skb_list_csum(struct sk_buff *out, __u8 proto)
 {
 	struct sk_buff *skb;
 	__wsum csum;

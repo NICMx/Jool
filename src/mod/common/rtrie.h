@@ -88,7 +88,7 @@ void rtrie_clean(struct rtrie *trie);
 int rtrie_find(struct rtrie *trie, struct rtrie_key *key, void *result);
 bool rtrie_contains(struct rtrie *trie, struct rtrie_key *key);
 bool rtrie_is_empty(struct rtrie *trie);
-void rtrie_print(char *prefix, struct rtrie *trie);
+void rtrie_print(char const *prefix, struct rtrie *trie);
 
 /* Lock-before-using functions. */
 

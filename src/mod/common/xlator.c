@@ -642,7 +642,7 @@ static int check_bib(struct bib_entry const *bib, void *_arg)
 	return 0;
 }
 
-int basic_replace_validations(struct xlator *jool)
+static int basic_replace_validations(struct xlator *jool)
 {
 	struct check_bib_arg arg;
 
