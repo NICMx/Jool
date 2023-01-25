@@ -176,6 +176,7 @@ struct jool_result joolnl_stats_foreach(struct joolnl_socket *sk,
 	qargs.cb = cb;
 	qargs.args = args;
 	qargs.done = true;
+	qargs.last = 0;
 
 	do {
 		result = joolnl_alloc_msg(sk, iname, JNLOP_STATS_FOREACH, 0, &msg);
