@@ -466,7 +466,7 @@ static void print_shinfo_fields(struct sk_buff *skb, unsigned int tabs)
 	tabs++;
 	for (f = 0; f < shinfo->nr_frags; f++) {
 		print(tabs, "%u page_offset:%u size:%u", f,
-#if LINUX_VERSION_AT_LEAST(5, 4, 0, 9999, 0)
+#if LINUX_VERSION_AT_LEAST(5, 4, 0, 9, 0)
 				skb_frag_off(&shinfo->frags[f]),
 #else
 				shinfo->frags[f].page_offset,

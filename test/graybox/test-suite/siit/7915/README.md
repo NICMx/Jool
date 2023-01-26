@@ -1443,7 +1443,7 @@ This is not actually required by the RFC. It's just my common sense speaking.
 
 #### ic
 
-This is not actually required by the RFC. It's just my common sense speaking.
+This is implicitly required by RFC 4884, not 7915.
 
 Local glossary:
 
@@ -1553,7 +1553,7 @@ OP preserved, IE barely within limits:
 		40	IPv6
 		8	ICMPv6		length:16
 		128	Payload		file:ic4ha
-		420	Payload		# ICMP Extension		
+		420	Payload		# ICMP Extension
 
 	packet ic4e: ICMPv4 error sized 576, OP intact, IE intact
 		20	IPv4		ttl-- !df swap
@@ -1570,7 +1570,7 @@ OP preserved, IE too large:
 		40	IPv6
 		8	ICMPv6		length:16
 		128	Payload		file:ic4ha
-		421	Payload		# ICMP Extension		
+		421	Payload		# ICMP Extension
 
 	packet ic5e: ICMPv4 error, OP intact, IE chopped off
 		20	IPv4		ttl-- !df swap
@@ -1599,7 +1599,32 @@ OP and IE too large, so truncate OP and remove IE:
 		2. ICMPv4: 8
 		3. `helper-6b` (truncated: 548)
 
-Validations: `test-n` must yield `expected-n`.
+##### ic7
+
+Invalidly small OP, salvaged for issue #396:
+
+	packet ic7ha
+		40	IPv6		ttl-- swap
+		8	UDP
+
+	packet ic7hb
+		20	IPv4		ttl-- !df
+		8	UDP
+
+	packet ic7t: ICMPv6 error, OP small, IE whatever
+		40	IPv6
+		8	ICMPv6		length:6
+		48	Payload		file:ic7ha
+		40	Payload		# ICMP Extension
+
+	packet ic7e: ICMPv4 error, padded OP, IE intact
+		20	IPv4		ttl-- !df swap
+		8	ICMPv4		length:32
+		28	Payload		file:ic7hb
+		100	Padding
+		40	Payload		# ICMP Extension
+
+--------------------------------
 
 Variants to consider:
 
@@ -1626,6 +1651,8 @@ Same as `ic`, except in the IPv4 -> IPv6 direction.
 	- [idi](#idi): Large OP, large IE
 - Both OP truncation and IE removal:
 	- [idj](#idj): Large OP, Large IE
+- Invalidly small OP, salvaged for issue #396:
+	- [idk](#idk): Invalidly small OP, IE whatever
 - Leftovers:
 	- [idz](#idz)
 	- [idy](#idy)
@@ -1808,6 +1835,29 @@ This test is tight because the ICMPv4 header's length range prevents the IPv4 in
 ##### idj
 
 This test cannot be done, because the ICMPv4 length does not have enough capacity to translate into an IPv6 internal packet that truncates in absence of an ICMPv6 Extension.
+
+##### idk
+
+	packet idkha
+		20	IPv4		ttl-- swap
+		8	UDP
+
+	packet idkhb
+		40	IPv6		ttl--
+		8	UDP
+
+	packet idkt: ICMPv4 error, OP small, IE whatever
+		20	IPv4
+		8	ICMPv4		length:7
+		28	Payload		file:idkha
+		40	Payload		# ICMP Extension
+
+	packet idke: ICMPv6 error, padded OP, IE intact
+		40	IPv6		swap ttl--
+		8	ICMPv6		length:16
+		48	Payload		file:idkhb
+		80	Padding
+		40	Payload		# ICMP Extension
 
 ##### idz
 

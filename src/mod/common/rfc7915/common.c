@@ -323,7 +323,7 @@ copy_fail:
  * 	- If it does fit, trim the Optional Part if needed.
  * - Add padding to the internal packet if necessary.
  *
- * Again, see /test/graybox/test-suite/rfc/7915.md#ic.
+ * Again, see /test/graybox/test-suite/siit/7915/README.md#ic.
  *
  * "Handle the ICMP Extension" does NOT mean:
  *
@@ -353,11 +353,16 @@ verdict handle_icmp_extension(struct xlation *state,
 	/* Validate input */
 	if (args->ipl == 0)
 		return VERDICT_CONTINUE;
-	if (args->ipl < 128) {
-		log_debug(state, "Illegal internal packet length (%zu < 128)",
-				args->ipl);
-		return drop(state, JSTAT_ICMPEXT_SMALL);
-	}
+	/*
+	 * There used to be a validation here, dropping packets whose args->ipl
+	 * was less than 128. RFC4884 requires the essential part of ICMP
+	 * extension'd packets to length >= 128, but certain Internet routers
+	 * break this rule, and this in turn breaks traceroutes.
+	 * https://github.com/NICMx/Jool/issues/396
+	 *
+	 * Current implementation: Translate < 128 incorrect unpadded packets
+	 * into 128 correct padded packets.
+	 */
 
 	payload_len = in->skb->len - pkt_hdrs_len(in);
 	if (args->ipl == payload_len) {
@@ -386,6 +391,8 @@ verdict handle_icmp_extension(struct xlation *state,
 	} else {
 		out_ipl = min((size_t)out->skb->len, args->max_pkt_len) - in_iel
 				- pkt_hdrs_len(out);
+		/* Note to self: Yes, truncate. It's already maximized;
+		 * we can't add any zeroes. Just make it fit. */
 		out_ipl &= (~(size_t)0) << args->out_bits;
 		out_pad = (out_ipl < 128) ? (128 - out_ipl) : 0;
 		out_iel = in_iel;

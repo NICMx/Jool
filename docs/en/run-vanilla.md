@@ -153,7 +153,7 @@ That's all.
 
 ## Testing
 
-If something doesn't work, try the [FAQ](faq.html). In particular, if you think Jool is misbehaving, try [enabling debug](usr-flags-global.html#logging-debug).
+If something doesn't work, try the [FAQ](faq.html). In particular, if you think Jool is misbehaving, try [enabling debug](usr-flags-global.html#logging-debug). **Do not try a `2001:db8::X.X.X.X` ping from the translator; it's [not going to work](faq.html#why-is-my-ping-not-working).**
 
 Try to ping _A_ from _V_ like this:
 

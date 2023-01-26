@@ -624,6 +624,45 @@ int xlator_rm(xlator_type xt, char *iname)
 	return error;
 }
 
+struct check_bib_arg {
+	struct xlator *jool;
+	struct bib_entry badbib;
+};
+
+static int check_bib(struct bib_entry const *bib, void *_arg)
+{
+	struct check_bib_arg *arg = _arg;
+
+	if (!pool4db_contains(arg->jool->nat64.pool4, arg->jool->ns,
+			bib->l4_proto, &bib->addr4)) {
+		arg->badbib = *bib;
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static int basic_replace_validations(struct xlator *jool)
+{
+	struct check_bib_arg arg;
+
+	if (!xlator_is_nat64(jool))
+		return 0; // Nothing to validate for SIIT.
+
+	arg.jool = jool;
+	if (bib_foreach(jool->nat64.bib, L4PROTO_TCP, check_bib, &arg, NULL) ||
+	    bib_foreach(jool->nat64.bib, L4PROTO_UDP, check_bib, &arg, NULL) ||
+	    bib_foreach(jool->nat64.bib, L4PROTO_ICMP, check_bib, &arg, NULL)) {
+		log_err("%s BIB transport address '%pI4#%u' does not belong to pool4.\n"
+				"Please add it there first.",
+				l4proto_to_string(arg.badbib.l4_proto),
+				&arg.badbib.addr4.l3, arg.badbib.addr4.l4);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 int xlator_replace(struct xlator *jool)
 {
 	struct jool_instance *old;
@@ -635,6 +674,9 @@ int xlator_replace(struct xlator *jool)
 			jool->globals.pool6.set
 					? &jool->globals.pool6.prefix
 					: NULL);
+	if (error)
+		return error;
+	error = basic_replace_validations(jool);
 	if (error)
 		return error;
 

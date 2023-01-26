@@ -1,19 +1,18 @@
-# [Jool](https://www.jool.mx)
+# Update
 
-An [SIIT and a NAT64](https://www.jool.mx/en/intro-xlat.html) for Linux.
+jool.mx is no longer maintained. Please use https://nicmx.github.io/Jool instead.
 
-> Note!
-> 
-> Jool's website is hosted in two separate domains simultaneously:
-> 
-> - https://www.jool.mx (Might be outdated for a few days at a time)
-> - https://nicmx.github.io/Jool ([Used](https://github.com/isaacs/github/issues/354#event-5407912041) to be unavailable from IPv6.)
+**I REPEAT: jool.mx IS (AND WILL PROBABLY FOREVER BE) OUTDATED. DO NOT QUERY IT ANYMORE. PLEASE UPDATE YOUR BOOKMARKS.**
+
+# [Jool](https://nicmx.github.io/Jool)
+
+An [SIIT and a NAT64](https://nicmx.github.io/Jool/en/intro-xlat.html) for Linux.
 
 ## Documentation
 
-[See here](https://www.jool.mx/en/documentation.html). You can also [generate the docs yourself](docs/).
+[See here](https://nicmx.github.io/Jool/en/documentation.html). You can also [generate the docs yourself](docs/).
 
-You might also want to see [contact info](https://www.jool.mx/en/contact.html).
+You might also want to see [contact info](https://nicmx.github.io/Jool/en/contact.html).
 
 ## Credits
 
@@ -79,3 +78,23 @@ You might also want to see [contact info](https://www.jool.mx/en/contact.html).
 * Terry Froy
 * [Tore Anderson](https://github.com/toreanderson)
 * Washam Fan
+
+### License Disclaimer
+
+```
+Jool - SIIT and NAT64 for Linux
+Copyright (C) 2023  NIC Mexico <jool@nic.mx>
+
+This program is free software; you can redistribute it and/or
+modify it under the terms of the GNU General Public License
+version 2, as published by the Free Software Foundation.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program; if not, write to the Free Software Foundation, Inc.,
+51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
+```

@@ -130,7 +130,7 @@ And again, the IPv6 prefix and the EAM table are not exclusive operation modes. 
 
 ## Testing
 
-Remember the [FAQ](faq.html) and [debug logging](usr-flags-global.html#logging-debug) if something goes south.
+Remember the [FAQ](faq.html) and [debug logging](usr-flags-global.html#logging-debug) if something goes south. **Do not try a `2001:db8::X.X.X.X` ping from the translator; it's [not going to work](faq.html#why-is-my-ping-not-working).**
 
 Try to ping _V_ from _A_ like this:
 

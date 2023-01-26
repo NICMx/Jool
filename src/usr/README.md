@@ -22,7 +22,7 @@ These are iptables plugins, which enable `JOOL` and `JOOL_SIIT` targets. They ar
 
 Source code of `joold`.
 
-`joold` is the [session synchronization](https://jool.mx/en/session-synchronization.html) daemon, intended to enable NAT64 redundancy. (Though alternate instances are intended to be used as backups, not simultaneously.)
+`joold` is the [session synchronization](https://nicmx.github.io/Jool/en/session-synchronization.html) daemon, intended to enable NAT64 redundancy. (Though alternate instances are intended to be used as backups, not simultaneously.)
 
 ## `argp/`
 

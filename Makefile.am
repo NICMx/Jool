@@ -41,4 +41,4 @@ DIST_SUBDIRS = src/common src/mod src/usr
 # Needed by libtoolize. (Othewise autoreconf complains.)
 ACLOCAL_AMFLAGS=-I m4
 
-EXTRA_DIST=dkms.conf LICENSE README.md
+EXTRA_DIST=dkms.conf README.md

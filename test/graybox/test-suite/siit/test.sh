@@ -327,6 +327,7 @@ if [ -z "$1" -o "$1" = "rfc7915" ]; then
 	test64_11 7915 ic4t ic4e $IDENTIFICATION,$INNER_IDENTIFICATION
 	test64_11 7915 ic5t ic5e $IDENTIFICATION,$INNER_IDENTIFICATION
 	test64_11 7915 ic6t ic6e $IDENTIFICATION,$INNER_IDENTIFICATION
+	test64_11 7915 ic7t ic7e $IDENTIFICATION,$INNER_IDENTIFICATION
 	test46_11 7915 idat idae
 	test46_11 7915 idbt idbe
 	test46_11 7915 idct idce
@@ -334,6 +335,7 @@ if [ -z "$1" -o "$1" = "rfc7915" ]; then
 	test46_11 7915 idet idee
 	test46_11 7915 idft idfe
 	test46_11 7915 idht idhe
+	test46_11 7915 idkt idke
 	test46_11 7915 idzt idze
 
 	ip netns exec client4ns ip link set dev to_jool_v4 mtu 2153

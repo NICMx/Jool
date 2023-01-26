@@ -185,6 +185,10 @@ Also, `pool6` is mandatory and immutable (as normal). It must be set during inst
 			"protocol": "TCP",
 			"prefix": "192.0.2.1/32"
 		}, {
+			"protocol": "TCP",
+			"prefix": "192.0.2.1/32",
+			"port range": "80"
+		}, {
 			"mark": 0,
 			"protocol": "UDP",
 			"prefix": "192.0.2.1/32",

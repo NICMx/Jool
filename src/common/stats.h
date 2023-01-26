@@ -91,7 +91,6 @@ enum jool_stat_id {
 	JSTAT_ICMP4ERR_SUCCESS,
 	JSTAT_ICMP4ERR_FAILURE,
 
-	JSTAT_ICMPEXT_SMALL,
 	JSTAT_ICMPEXT_BIG,
 
 	/* These 3 need to be last, and in this order. */

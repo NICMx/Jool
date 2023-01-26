@@ -652,7 +652,7 @@ static void print_node(struct rtrie_node *node, unsigned int level)
  *
  * This function is recursive. Do not use in production code.
  */
-void rtrie_print(char *prefix, struct rtrie *trie)
+void rtrie_print(char const *prefix, struct rtrie *trie)
 {
 	struct rtrie_node *root;
 

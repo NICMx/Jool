@@ -41,7 +41,7 @@ Interacts with Jool's Explicit Address Mapping Table (EAMT). See [the introducti
 * `remove`: Deletes from the table the EAM entry described by `<IPv4-prefix>` and/or `<IPv6-prefix>`.
 * `flush`: Removes all entries from the table.
 
-> ![Warning!](../images/warning.svg) If you want to add many EAM entries at once, `eamt add` might [turn out to be very slow](https://github.com/NICMx/Jool/issues/363). If you run into this problem, try adding them through [atomic configuration](config-atomic.html) instead. (But this only works on Jool 4.1.6+, or the current master.)
+> ![Warning!](../images/warning.svg) If you want to add many EAM entries at once, `eamt add` might [turn out to be very slow](https://github.com/NICMx/Jool/issues/363). If you run into this problem, try adding them through [atomic configuration](config-atomic.html) instead.
 
 ### Options
 
