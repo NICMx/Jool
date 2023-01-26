@@ -82,7 +82,7 @@ static struct jool_result validate_version(struct joolnlhdr *hdr)
 {
 	__u32 hdr_version = ntohl(hdr->version);
 
-	if (xlat_version() == hdr_version)
+	if ((xlat_version() & 0xFFFF0000u) == (hdr_version & 0xFFFF0000u))
 		return result_success();
 
 	return result_from_error(
