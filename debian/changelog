@@ -1,3 +1,11 @@
+jool (4.1.9-1) unstable; urgency=medium
+
+  * New upstream release
+  * Switch to dh-sequence-dkms. Closes: #1027877
+  * Declare Testsuite: autopkgtest-pkg-dkms
+
+ -- Alberto Leiva Popper <ydahhrk@gmail.com>  Wed, 25 Jan 2023 20:06:52 -0600
+
 jool (4.1.8-1) unstable; urgency=low
 
   * New upstream release

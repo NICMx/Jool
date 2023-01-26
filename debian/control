@@ -3,15 +3,17 @@ Maintainer: Jool Team <jool@nic.mx>
 Uploaders: Alberto Leiva Popper <ydahhrk@gmail.com>
 Section: kernel
 Priority: optional
-Build-Depends: debhelper (>= 11), dkms,
+Build-Depends:
+ debhelper (>= 11), dh-sequence-dkms,
  mime-support, pkg-config, gawk, file, cpio,
  libnl-genl-3-dev, libnl-3-dev,
  libxtables-dev
-Standards-Version: 4.3.0
+Standards-Version: 4.5.1
 Rules-Requires-Root: no
 Homepage: https://jool.mx
 Vcs-Browser: https://github.com/NICMx/Jool
 Vcs-Git: https://github.com/NICMx/Jool.git -b debian
+Testsuite: autopkgtest-pkg-dkms
 
 Package: jool-dkms
 Architecture: all
