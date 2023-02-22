@@ -3,7 +3,7 @@
 #include "mod/common/linux_version.h"
 #include "mod/common/log.h"
 #include "mod/common/packet.h"
-/* #include "mod/common/skbuff.h" */
+#include "mod/common/skbuff.h"
 
 static verdict __sendpkt_send(struct xlation *state, struct sk_buff *out)
 {
@@ -22,6 +22,8 @@ static verdict __sendpkt_send(struct xlation *state, struct sk_buff *out)
 	/* Implicit kfree_skb(out) here. */
 	error = dst_output(state->jool.ns, NULL, out);
 	if (error) {
+		if (error == 1)
+			skb_log(out, "EPERM packet");
 		log_debug(state, "dst_output() returned errcode %d.", error);
 		return drop(state, JSTAT_DST_OUTPUT);
 	}
