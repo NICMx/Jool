@@ -77,8 +77,10 @@ struct xlation {
 #define DBGFLAG_HAIRPIN (1 << 4)
 #define DBGFLAG_BAD_LEN_0 (1 << 5)
 #define DBGFLAG_BAD_LEN_1 (1 << 6)
-#define DBGFLAG_BAD_VERSION_0 (1 << 7)
-#define DBGFLAG_BAD_VERSION_1 (1 << 8)
+#define DBGFLAG_BAD_LEN_2 (1 << 7)
+#define DBGFLAG_BAD_VERSION_0 (1 << 8)
+#define DBGFLAG_BAD_VERSION_1 (1 << 9)
+#define DBGFLAG_BAD_VERSION_2 (1 << 10)
 
 	/** For issue #382. */
 	unsigned int debug_flags;

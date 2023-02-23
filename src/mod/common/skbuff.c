@@ -485,6 +485,11 @@ static void __skb_log(struct sk_buff *skb, char *header, unsigned int tabs)
 	print(tabs, "%s", header);
 	tabs++;
 
+	if (!skb) {
+		print(tabs, "Null.");
+		return;
+	}
+
 	print_skb_fields(skb, tabs);
 	print_headers(skb, tabs);
 	print_shinfo_fields(skb, tabs);
