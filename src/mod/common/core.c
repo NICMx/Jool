@@ -45,6 +45,7 @@ static verdict core_common(struct xlation *state)
 		return result;
 
 	if (state->jool.is_hairpin(state)) {
+		state->debug_flags |= DBGFLAG_HAIRPIN;
 		skb_dst_drop(state->out.skb);
 		result = state->jool.handling_hairpinning(state);
 		kfree_skb(state->out.skb); /* Put this inside of hh()? */

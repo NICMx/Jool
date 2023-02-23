@@ -70,6 +70,19 @@ struct xlation {
 	 */
 	bool is_hairpin;
 
+#define DBGFLAG_64 (1 << 0)
+#define DBGFLAG_46 (1 << 1)
+#define DBGFLAG_FAST_PATH (1 << 2)
+#define DBGFLAG_SLOW_PATH (1 << 3)
+#define DBGFLAG_HAIRPIN (1 << 4)
+#define DBGFLAG_BAD_LEN_0 (1 << 5)
+#define DBGFLAG_BAD_LEN_1 (1 << 6)
+#define DBGFLAG_BAD_VERSION_0 (1 << 7)
+#define DBGFLAG_BAD_VERSION_1 (1 << 8)
+
+	/** For issue #382. */
+	unsigned int debug_flags;
+
 	struct xlation_result result;
 };
 
@@ -91,5 +104,8 @@ verdict stolen(struct xlation *state, enum jool_stat_id stat);
 
 #define xlation_is_siit(state) xlator_is_siit(&(state)->jool)
 #define xlation_is_nat64(state) xlator_is_nat64(&(state)->jool)
+
+void xlation_check_382(struct xlation *state, unsigned int len_flag,
+		unsigned int version_flag);
 
 #endif /* SRC_MOD_COMMON_TRANSLATION_STATE_H_ */

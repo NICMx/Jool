@@ -388,6 +388,8 @@ static verdict allocate_fast(struct xlation *state, bool ignore_df,
 	struct skb_shared_info *shinfo;
 	int delta;
 
+	state->debug_flags |= DBGFLAG_FAST_PATH;
+
 	/* Dunno what happens when headroom is negative, so don't risk it. */
 	delta = get_delta(in);
 	if (delta < 0)
@@ -476,6 +478,8 @@ static verdict allocate_slow(struct xlation *state, unsigned int mpl)
 	unsigned int bytes_consumed;
 	struct frag_hdr *frag;
 	unsigned char *l3_payload;
+
+	state->debug_flags |= DBGFLAG_SLOW_PATH;
 
 	in = &state->in;
 	previous = &state->out.skb;
@@ -683,6 +687,8 @@ static verdict ttp46_alloc_skb(struct xlation *state)
 	unsigned int lim;
 	unsigned int mpl;
 	verdict result;
+
+	state->debug_flags |= DBGFLAG_46;
 
 	result = compute_flowix46(state);
 	if (result != VERDICT_CONTINUE)

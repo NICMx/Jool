@@ -84,11 +84,16 @@ verdict translating_the_packet(struct xlation *state)
 	result = steps->xlat_outer_l3(state);
 	if (result != VERDICT_CONTINUE)
 		goto revert;
+
+	xlation_check_382(state, DBGFLAG_BAD_LEN_0, DBGFLAG_BAD_VERSION_0);
+
 	if (has_l4_hdr(state)) {
 		result = xlat_l4_function(state, steps);
 		if (result != VERDICT_CONTINUE)
 			goto revert;
 	}
+
+	xlation_check_382(state, DBGFLAG_BAD_LEN_1, DBGFLAG_BAD_VERSION_1);
 
 	if (xlation_is_nat64(state))
 		log_debug(state, "Done step 4.");

@@ -434,6 +434,8 @@ static verdict ttp64_alloc_skb(struct xlation *state)
 	struct skb_shared_info *shinfo;
 	verdict result;
 
+	state->debug_flags |= DBGFLAG_64;
+
 	result = predict_route64(state);
 	if (result != VERDICT_CONTINUE)
 		return result;

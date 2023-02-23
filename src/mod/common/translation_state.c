@@ -77,3 +77,21 @@ verdict stolen(struct xlation *state, enum jool_stat_id stat)
 	jstat_inc(state->jool.stats, stat);
 	return VERDICT_STOLEN;
 }
+
+void xlation_check_382(struct xlation *state, unsigned int len_flag,
+		unsigned int version_flag)
+{
+	struct sk_buff *skb = state->out.skb;
+	__u8 version;
+
+	if (skb->len > 0xFFFF)
+		state->debug_flags |= len_flag;
+	else
+		state->debug_flags &= ~len_flag;
+
+	version = (skb->data[0] >> 4);
+	if ((version != 4) && (version != 6))
+		state->debug_flags |= version_flag;
+	else
+		state->debug_flags &= ~version_flag;
+}
