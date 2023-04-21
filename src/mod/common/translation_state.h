@@ -81,6 +81,8 @@ struct xlation {
 #define DBGFLAG_BAD_VERSION_0 (1 << 8)
 #define DBGFLAG_BAD_VERSION_1 (1 << 9)
 #define DBGFLAG_BAD_VERSION_2 (1 << 10)
+#define DBGFLAG_BAD_LEN_REPORTED (1 << 11)
+#define DBGFLAG_BAD_DATALEN_REPORTED (1 << 12)
 
 	/** For issue #382. */
 	unsigned int debug_flags;
@@ -109,5 +111,10 @@ verdict stolen(struct xlation *state, enum jool_stat_id stat);
 
 void xlation_check_382(struct xlation *state, unsigned int len_flag,
 		unsigned int version_flag);
+
+void check_skb_len(struct xlation *, struct sk_buff *, char const *,
+		unsigned int, char const *);
+#define CHECK_SKB_LENGTH(state, skb) \
+	check_skb_len(state, skb, __FILE__, __LINE__, __func__)
 
 #endif /* SRC_MOD_COMMON_TRANSLATION_STATE_H_ */

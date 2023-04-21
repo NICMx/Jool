@@ -107,11 +107,15 @@ unsigned int target_ipv6(struct sk_buff *skb,
 	if (!state)
 		return NF_DROP;
 
+	CHECK_SKB_LENGTH(state, skb);
+
 	result = find_instance(action_param_net(param), param->targinfo,
 			&state->jool);
 	if (result != VERDICT_CONTINUE)
 		goto end;
 	enable_debug = state->jool.globals.debug;
+
+	CHECK_SKB_LENGTH(state, skb);
 
 	result = core_6to4(skb, state);
 
@@ -136,11 +140,15 @@ unsigned int target_ipv4(struct sk_buff *skb,
 	if (!state)
 		return NF_DROP;
 
+	CHECK_SKB_LENGTH(state, skb);
+
 	result = find_instance(action_param_net(param), param->targinfo,
 			&state->jool);
 	if (result != VERDICT_CONTINUE)
 		goto end;
 	enable_debug = state->jool.globals.debug;
+
+	CHECK_SKB_LENGTH(state, skb);
 
 	result = core_4to6(skb, state);
 

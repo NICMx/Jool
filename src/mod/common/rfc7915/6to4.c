@@ -436,9 +436,14 @@ static verdict ttp64_alloc_skb(struct xlation *state)
 
 	state->debug_flags |= DBGFLAG_64;
 
+	CHECK_SKB_LENGTH(state, in->skb);
+
 	result = predict_route64(state);
 	if (result != VERDICT_CONTINUE)
 		return result;
+
+	CHECK_SKB_LENGTH(state, in->skb);
+
 	result = validate_size(state);
 	if (result != VERDICT_CONTINUE)
 		goto revert;
@@ -461,12 +466,16 @@ static verdict ttp64_alloc_skb(struct xlation *state)
 	 * We will therefore *not* attempt to allocate less.
 	 */
 
+	CHECK_SKB_LENGTH(state, in->skb);
+
 	out = pskb_copy(in->skb, GFP_ATOMIC);
 	if (!out) {
 		log_debug(state, "pskb_copy() returned NULL.");
 		result = drop(state, JSTAT64_PSKB_COPY);
 		goto revert;
 	}
+
+	CHECK_SKB_LENGTH(state, out);
 
 	/* https://github.com/NICMx/Jool/issues/289 */
 #if LINUX_VERSION_AT_LEAST(5, 4, 0, 9, 0)
@@ -475,8 +484,12 @@ static verdict ttp64_alloc_skb(struct xlation *state)
 	nf_reset(out);
 #endif
 
+	CHECK_SKB_LENGTH(state, out);
+
 	/* Remove outer l3 and l4 headers from the copy. */
 	skb_pull(out, pkt_hdrs_len(in));
+
+	CHECK_SKB_LENGTH(state, out);
 
 	if (is_first_frag6(pkt_frag_hdr(in)) && pkt_is_icmp6_error(in)) {
 		struct ipv6hdr *hdr = pkt_payload(in);
@@ -490,23 +503,36 @@ static verdict ttp64_alloc_skb(struct xlation *state)
 		skb_push(out, sizeof(struct iphdr));
 	}
 
+	CHECK_SKB_LENGTH(state, out);
+
 	/* Add outer l4 headers to the copy. */
 	skb_push(out, pkt_l4hdr_len(in));
+
+	CHECK_SKB_LENGTH(state, out);
+
 	/* Add outer l3 headers to the copy. */
 	skb_push(out, sizeof(struct iphdr));
+
+	CHECK_SKB_LENGTH(state, out);
 
 	skb_reset_mac_header(out);
 	skb_reset_network_header(out);
 	skb_set_transport_header(out, sizeof(struct iphdr));
+
+	CHECK_SKB_LENGTH(state, out);
 
 	/* Wrap up. */
 	pkt_fill(&state->out, out, L3PROTO_IPV4, pkt_l4_proto(in),
 			NULL, skb_transport_header(out) + pkt_l4hdr_len(in),
 			pkt_original_pkt(in));
 
+	CHECK_SKB_LENGTH(state, out);
+
 	memset(out->cb, 0, sizeof(out->cb));
 	out->mark = state->flowx.v4.flowi.flowi4_mark;
 	out->protocol = htons(ETH_P_IP);
+
+	CHECK_SKB_LENGTH(state, out);
 
 	shinfo = skb_shinfo(out);
 	if (shinfo->gso_type & SKB_GSO_TCPV6) {
@@ -514,10 +540,14 @@ static verdict ttp64_alloc_skb(struct xlation *state)
 		shinfo->gso_type |= SKB_GSO_TCPV4;
 	}
 
+	CHECK_SKB_LENGTH(state, out);
+
 	if (state->dst) {
 		skb_dst_set(out, state->dst);
 		state->dst = NULL;
 	}
+
+	CHECK_SKB_LENGTH(state, out);
 	return VERDICT_CONTINUE;
 
 revert:
@@ -525,6 +555,8 @@ revert:
 		dst_release(state->dst);
 		state->dst = NULL;
 	}
+
+	CHECK_SKB_LENGTH(state, out);
 	return result;
 }
 

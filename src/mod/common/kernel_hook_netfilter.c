@@ -66,10 +66,14 @@ unsigned int hook_ipv6(void *priv, struct sk_buff *skb,
 	if (!state)
 		return NF_DROP;
 
+	CHECK_SKB_LENGTH(state, skb);
+
 	result = find_instance(skb, &state->jool);
 	if (result != VERDICT_CONTINUE)
 		goto end;
 	enable_debug = state->jool.globals.debug;
+
+	CHECK_SKB_LENGTH(state, skb);
 
 	result = core_6to4(skb, state);
 
@@ -94,10 +98,14 @@ unsigned int hook_ipv4(void *priv, struct sk_buff *skb,
 	if (!state)
 		return NF_DROP;
 
+	CHECK_SKB_LENGTH(state, skb);
+
 	result = find_instance(skb, &state->jool);
 	if (result != VERDICT_CONTINUE)
 		goto end;
 	enable_debug = state->jool.globals.debug;
+
+	CHECK_SKB_LENGTH(state, skb);
 
 	result = core_4to6(skb, state);
 

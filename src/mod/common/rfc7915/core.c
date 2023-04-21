@@ -57,6 +57,8 @@ verdict translating_the_packet(struct xlation *state)
 	struct translation_steps const *steps;
 	verdict result;
 
+	CHECK_SKB_LENGTH(state, state->in.skb);
+
 	switch (xlator_get_type(&state->jool)) {
 	case XT_NAT64:
 		log_debug(state, "Step 4: Translating the Packet");
@@ -78,13 +80,19 @@ verdict translating_the_packet(struct xlation *state)
 		return drop(state, JSTAT_UNKNOWN);
 	}
 
+	CHECK_SKB_LENGTH(state, state->in.skb);
+
 	result = steps->skb_alloc(state);
 	if (result != VERDICT_CONTINUE)
 		return result;
+
+	CHECK_SKB_LENGTH(state, state->out.skb);
+
 	result = steps->xlat_outer_l3(state);
 	if (result != VERDICT_CONTINUE)
 		goto revert;
 
+	CHECK_SKB_LENGTH(state, state->out.skb);
 	xlation_check_382(state, DBGFLAG_BAD_LEN_0, DBGFLAG_BAD_VERSION_0);
 
 	if (has_l4_hdr(state)) {
@@ -93,6 +101,7 @@ verdict translating_the_packet(struct xlation *state)
 			goto revert;
 	}
 
+	CHECK_SKB_LENGTH(state, state->out.skb);
 	xlation_check_382(state, DBGFLAG_BAD_LEN_1, DBGFLAG_BAD_VERSION_1);
 
 	if (xlation_is_nat64(state))

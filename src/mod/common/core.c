@@ -33,21 +33,34 @@ static verdict core_common(struct xlation *state)
 		result = determine_in_tuple(state);
 		if (result != VERDICT_CONTINUE)
 			return result;
+
+		CHECK_SKB_LENGTH(state, state->in.skb);
+
 		result = filtering_and_updating(state);
 		if (result != VERDICT_CONTINUE)
 			return result;
+
+		CHECK_SKB_LENGTH(state, state->in.skb);
+
 		result = compute_out_tuple(state);
 		if (result != VERDICT_CONTINUE)
 			return result;
 	}
+
+	CHECK_SKB_LENGTH(state, state->in.skb);
+
 	result = translating_the_packet(state);
 	if (result != VERDICT_CONTINUE)
 		return result;
 
+	CHECK_SKB_LENGTH(state, state->out.skb);
+
 	if (state->jool.is_hairpin(state)) {
 		state->debug_flags |= DBGFLAG_HAIRPIN;
 		skb_dst_drop(state->out.skb);
+		CHECK_SKB_LENGTH(state, state->out.skb);
 		result = state->jool.handling_hairpinning(state);
+		CHECK_SKB_LENGTH(state, state->out.skb);
 		kfree_skb(state->out.skb); /* Put this inside of hh()? */
 	} else {
 		result = sendpkt_send(state);
@@ -96,19 +109,27 @@ verdict core_4to6(struct sk_buff *skb, struct xlation *state)
 	 * pkt_init_ipv4() HAS pskb_may_pull()ED THEM.
 	 */
 
+	CHECK_SKB_LENGTH(state, skb);
+
 	result = validate_xlator(state);
 	if (result != VERDICT_CONTINUE)
 		goto end;
 
 	log_debug(state, "===============================================");
 
+	CHECK_SKB_LENGTH(state, skb);
+
 	/* Reminder: This function might change pointers. */
 	result = pkt_init_ipv4(state, skb);
 	if (result != VERDICT_CONTINUE)
 		goto end;
 
+	CHECK_SKB_LENGTH(state, skb);
+
 	if (state->jool.globals.debug)
 		pkt_trace4(state);
+
+	CHECK_SKB_LENGTH(state, skb);
 
 	result = core_common(state);
 	/* Fall through */
@@ -145,19 +166,27 @@ verdict core_6to4(struct sk_buff *skb, struct xlation *state)
 	 * pkt_init_ipv6() HAS pskb_may_pull()ED THEM.
 	 */
 
+	CHECK_SKB_LENGTH(state, skb);
+
 	result = validate_xlator(state);
 	if (result != VERDICT_CONTINUE)
 		goto end;
 
 	log_debug(state, "===============================================");
 
+	CHECK_SKB_LENGTH(state, skb);
+
 	/* Reminder: This function might change pointers. */
 	result = pkt_init_ipv6(state, skb);
 	if (result != VERDICT_CONTINUE)
 		goto end;
 
+	CHECK_SKB_LENGTH(state, skb);
+
 	if (state->jool.globals.debug)
 		pkt_trace6(state);
+
+	CHECK_SKB_LENGTH(state, skb);
 
 	result = core_common(state);
 	/* Fall through */

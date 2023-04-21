@@ -95,3 +95,42 @@ void xlation_check_382(struct xlation *state, unsigned int len_flag,
 	else
 		state->debug_flags &= ~version_flag;
 }
+
+static void check_len(struct xlation *state, struct sk_buff *skb,
+		char const *src_file, unsigned int src_line,
+		char const *src_function)
+{
+	if (state->debug_flags & DBGFLAG_BAD_LEN_REPORTED)
+		return;
+
+	if (skb->len > 0xFFFFu) {
+		pr_err("%s:%d (%s()): skb length is %u.\n", src_file, src_line,
+				src_function, skb->len);
+		state->debug_flags |= DBGFLAG_BAD_LEN_REPORTED;
+	}
+}
+
+static void check_data_len(struct xlation *state, struct sk_buff *skb,
+		char const *src_file, unsigned int src_line,
+		char const *src_function)
+{
+	if (state->debug_flags & DBGFLAG_BAD_DATALEN_REPORTED)
+		return;
+
+	if (skb->data_len > 0xFFFFu) {
+		pr_err("%s:%d (%s()): skb data_len is %u.\n", src_file,
+				src_line, src_function, skb->data_len);
+		state->debug_flags |= DBGFLAG_BAD_DATALEN_REPORTED;
+	}
+}
+
+void check_skb_len(struct xlation *state, struct sk_buff *skb,
+		char const *src_file, unsigned int src_line,
+		char const *src_function)
+{
+	if (skb == NULL)
+		return;
+
+	check_len(state, skb, src_file, src_line, src_function);
+	check_data_len(state, skb, src_file, src_line, src_function);
+}

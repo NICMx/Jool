@@ -390,10 +390,14 @@ static verdict allocate_fast(struct xlation *state, bool ignore_df,
 
 	state->debug_flags |= DBGFLAG_FAST_PATH;
 
+	CHECK_SKB_LENGTH(state, in->skb);
+
 	/* Dunno what happens when headroom is negative, so don't risk it. */
 	delta = get_delta(in);
 	if (delta < 0)
 		delta = 0;
+
+	CHECK_SKB_LENGTH(state, in->skb);
 
 	/* Allocate the outgoing packet as a copy of @in with shared pages. */
 	out = __pskb_copy(in->skb, delta + skb_headroom(in->skb), GFP_ATOMIC);
@@ -402,6 +406,8 @@ static verdict allocate_fast(struct xlation *state, bool ignore_df,
 		return drop(state, JSTAT46_PSKB_COPY);
 	}
 
+	CHECK_SKB_LENGTH(state, out);
+
 	/* https://github.com/NICMx/Jool/issues/289 */
 #if LINUX_VERSION_AT_LEAST(5, 4, 0, 9, 0)
 	nf_reset_ct(out);
@@ -409,8 +415,12 @@ static verdict allocate_fast(struct xlation *state, bool ignore_df,
 	nf_reset(out);
 #endif
 
+	CHECK_SKB_LENGTH(state, out);
+
 	/* Remove outer l3 and l4 headers from the copy. */
 	skb_pull(out, pkt_hdrs_len(in));
+
+	CHECK_SKB_LENGTH(state, out);
 
 	if (pkt_is_icmp4_error(in)) {
 		hdr4_inner = pkt_payload(in);
@@ -424,13 +434,19 @@ static verdict allocate_fast(struct xlation *state, bool ignore_df,
 		skb_push(out, sizeof(struct ipv6hdr));
 	}
 
+	CHECK_SKB_LENGTH(state, out);
+
 	/* Add outer l4 headers to the copy. */
 	skb_push(out, pkt_l4hdr_len(in));
+
+	CHECK_SKB_LENGTH(state, out);
 
 	/* Add outer l3 headers to the copy. */
 	if (will_need_frag_hdr(pkt_ip4_hdr(in)))
 		skb_push(out, sizeof(struct frag_hdr));
 	skb_push(out, sizeof(struct ipv6hdr));
+
+	CHECK_SKB_LENGTH(state, out);
 
 	skb_reset_mac_header(out);
 	skb_reset_network_header(out);
@@ -444,15 +460,21 @@ static verdict allocate_fast(struct xlation *state, bool ignore_df,
 		skb_set_transport_header(out, sizeof(struct ipv6hdr));
 	}
 
+	CHECK_SKB_LENGTH(state, out);
+
 	/* Wrap up. */
 	pkt_fill(&state->out, out, L3PROTO_IPV6, pkt_l4_proto(in),
 			hdr_frag, skb_transport_header(out) + pkt_l4hdr_len(in),
 			pkt_original_pkt(in));
 
+	CHECK_SKB_LENGTH(state, out);
+
 	memset(out->cb, 0, sizeof(out->cb));
 	out->ignore_df = ignore_df;
 	out->mark = in->skb->mark;
 	out->protocol = htons(ETH_P_IPV6);
+
+	CHECK_SKB_LENGTH(state, out);
 
 	shinfo = skb_shinfo(out);
 	if (shinfo->gso_size && gso_size)
@@ -461,6 +483,8 @@ static verdict allocate_fast(struct xlation *state, bool ignore_df,
 		shinfo->gso_type &= ~SKB_GSO_TCPV4;
 		shinfo->gso_type |= SKB_GSO_TCPV6;
 	}
+
+	CHECK_SKB_LENGTH(state, out);
 
 	return VERDICT_CONTINUE;
 }
@@ -487,6 +511,8 @@ static verdict allocate_slow(struct xlation *state, unsigned int mpl)
 	payload_per_frag = (mpl - HDRS_LEN) & 0xFFFFFFF8U;
 	bytes_consumed = 0;
 
+	CHECK_SKB_LENGTH(state, in->skb);
+
 	while (payload_left > 0) {
 		if (payload_left > payload_per_frag) {
 			fragment_payload_len = payload_per_frag;
@@ -496,13 +522,19 @@ static verdict allocate_slow(struct xlation *state, unsigned int mpl)
 			payload_left = 0;
 		}
 
+		CHECK_SKB_LENGTH(state, in->skb);
+
 		out = alloc_skb(skb_headroom(in->skb) + HDRS_LEN
 				+ fragment_payload_len, GFP_ATOMIC);
 		if (!out)
 			goto fail;
 
+		CHECK_SKB_LENGTH(state, out);
+
 		*previous = out;
 		previous = &out->next;
+
+		CHECK_SKB_LENGTH(state, out);
 
 		skb_reserve(out, skb_headroom(in->skb));
 		skb_reset_mac_header(out);
@@ -510,6 +542,8 @@ static verdict allocate_slow(struct xlation *state, unsigned int mpl)
 		skb_put(out, sizeof(struct ipv6hdr));
 		frag = (struct frag_hdr *)skb_put(out, sizeof(struct frag_hdr));
 		l3_payload = skb_put(out, fragment_payload_len);
+
+		CHECK_SKB_LENGTH(state, out);
 
 		skb_set_transport_header(out, HDRS_LEN);
 		if (out == state->out.skb) {
@@ -519,14 +553,21 @@ static verdict allocate_slow(struct xlation *state, unsigned int mpl)
 					pkt_original_pkt(in));
 		}
 
+		CHECK_SKB_LENGTH(state, out);
+
 		out->ignore_df = false;
 		out->mark = in->skb->mark;
 		out->protocol = htons(ETH_P_IPV6);
+
+		CHECK_SKB_LENGTH(state, out);
 
 		if (skb_copy_bits(in->skb,
 				skb_transport_offset(in->skb) + bytes_consumed,
 				l3_payload, fragment_payload_len))
 			goto fail;
+
+		CHECK_SKB_LENGTH(state, out);
+
 		bytes_consumed += fragment_payload_len;
 	}
 
@@ -690,12 +731,19 @@ static verdict ttp46_alloc_skb(struct xlation *state)
 
 	state->debug_flags |= DBGFLAG_46;
 
+	CHECK_SKB_LENGTH(state, state->in.skb);
+
 	result = compute_flowix46(state);
 	if (result != VERDICT_CONTINUE)
 		return result;
+
+	CHECK_SKB_LENGTH(state, state->in.skb);
+
 	result = predict_route46(state);
 	if (result != VERDICT_CONTINUE)
 		return result;
+
+	CHECK_SKB_LENGTH(state, state->in.skb);
 
 	in = &state->in;
 #ifndef UNIT_TESTING
@@ -709,6 +757,8 @@ static verdict ttp46_alloc_skb(struct xlation *state)
 		result = drop(state, JSTAT46_BAD_MTU);
 		goto fail;
 	}
+
+	CHECK_SKB_LENGTH(state, state->in.skb);
 
 	if (pkt_is_icmp4_error(in)) {
 		/*
@@ -748,6 +798,8 @@ static verdict ttp46_alloc_skb(struct xlation *state)
 
 	if (result != VERDICT_CONTINUE)
 		goto fail;
+
+	CHECK_SKB_LENGTH(state, state->out.skb);
 
 	autofill_dst(state);
 	return VERDICT_CONTINUE;
