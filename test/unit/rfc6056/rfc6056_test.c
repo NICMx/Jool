@@ -7,11 +7,12 @@ MODULE_LICENSE(JOOL_LICENSE);
 MODULE_AUTHOR("Alberto Leiva");
 MODULE_DESCRIPTION("Port allocator module test.");
 
-static bool test_md5(void)
+static bool test_f(void)
 {
 	struct xlation state;
 	struct tuple *tuple6;
-	unsigned int result;
+	__u32 shash;
+	__u32 phash;
 	bool success = true;
 
 	xlation_init(&state, NULL);
@@ -33,87 +34,34 @@ static bool test_md5(void)
 	tuple6->src.addr6.l3.s6_addr[13] = 'n';
 	tuple6->src.addr6.l3.s6_addr[14] = 'o';
 	tuple6->src.addr6.l3.s6_addr[15] = 'p';
-	tuple6->dst.addr6.l3.s6_addr[0] = 'q';
-	tuple6->dst.addr6.l3.s6_addr[1] = 'r';
-	tuple6->dst.addr6.l3.s6_addr[2] = 's';
-	tuple6->dst.addr6.l3.s6_addr[3] = 't';
-	tuple6->dst.addr6.l3.s6_addr[4] = 'u';
-	tuple6->dst.addr6.l3.s6_addr[5] = 'v';
-	tuple6->dst.addr6.l3.s6_addr[6] = 'w';
-	tuple6->dst.addr6.l3.s6_addr[7] = 'x';
-	tuple6->dst.addr6.l3.s6_addr[8] = 'y';
-	tuple6->dst.addr6.l3.s6_addr[9] = 'z';
-	tuple6->dst.addr6.l3.s6_addr[10] = 'A';
-	tuple6->dst.addr6.l3.s6_addr[11] = 'B';
-	tuple6->dst.addr6.l3.s6_addr[12] = 'C';
-	tuple6->dst.addr6.l3.s6_addr[13] = 'D';
-	tuple6->dst.addr6.l3.s6_addr[14] = 'E';
-	tuple6->dst.addr6.l3.s6_addr[15] = 'F';
-	tuple6->dst.addr6.l4 = (__force __u16)cpu_to_be16(('G' << 8) | 'H');
-	state.jool.globals.nat64.f_args = 0b1011;
+	tuple6->src.addr6.l4 = (__force __u16)cpu_to_be16(('q' << 8) | 'r');
+	tuple6->dst.addr6.l3.s6_addr[0] = 's';
+	tuple6->dst.addr6.l3.s6_addr[1] = 't';
+	tuple6->dst.addr6.l3.s6_addr[2] = 'u';
+	tuple6->dst.addr6.l3.s6_addr[3] = 'v';
+	tuple6->dst.addr6.l3.s6_addr[4] = 'w';
+	tuple6->dst.addr6.l3.s6_addr[5] = 'x';
+	tuple6->dst.addr6.l3.s6_addr[6] = 'y';
+	tuple6->dst.addr6.l3.s6_addr[7] = 'z';
+	tuple6->dst.addr6.l3.s6_addr[8] = 'A';
+	tuple6->dst.addr6.l3.s6_addr[9] = 'B';
+	tuple6->dst.addr6.l3.s6_addr[10] = 'C';
+	tuple6->dst.addr6.l3.s6_addr[11] = 'D';
+	tuple6->dst.addr6.l3.s6_addr[12] = 'E';
+	tuple6->dst.addr6.l3.s6_addr[13] = 'F';
+	tuple6->dst.addr6.l3.s6_addr[14] = 'G';
+	tuple6->dst.addr6.l3.s6_addr[15] = 'H';
+	tuple6->dst.addr6.l4 = (__force __u16)cpu_to_be16(('I' << 8) | 'J');
 
-	secret_key[0] = 'I';
-	secret_key[1] = 'J';
+	secret_key[0] = 'K';
+	secret_key[1] = 'L';
 	secret_key_len = 2;
 
-	success &= ASSERT_INT(0, rfc6056_f(&state, &result), "errcode");
-	/* Expected value gotten from DuckDuckGo. Look up "md5 abcdefg...". */
-	success &= ASSERT_BE32(0xb6a824a9u, (__force __be32)result, "hash");
-
-	return success;
-}
-
-static bool f_args_test(void)
-{
-	struct xlation state;
-	bool success = true;
-	unsigned int result1;
-	unsigned int result2;
-
-	xlation_init(&state, NULL);
-
-	if (init_tuple6(&state.in.tuple, "1::1", 1111, "2::2", 2222, L4PROTO_TCP))
-		return false;
-	state.jool.globals.nat64.f_args = 0b1111;
-
-	success &= ASSERT_INT(0, rfc6056_f(&state, &result1), "result 1");
-	success &= ASSERT_INT(0, rfc6056_f(&state, &result2), "result 2");
-	success &= ASSERT_UINT(result1, result2,
-			"Same arguments, result has to be the same");
-
-	state.in.tuple.src.addr6.l4 = 0;
-
-	/*
-	 * All fields matter, so a small change should yield a different result.
-	 * Since this is a hash and the secret key is secret, there is a very
-	 * small change this test will spit a false negative.
-	 * But the chance is small enough that it shouldn't matter.
-	 */
-	success &= ASSERT_INT(0, rfc6056_f(&state, &result2), "result 3");
-	success &= ASSERT_BOOL(true, result1 != result2,
-			"Small change on all fields matter");
-
-	if (init_tuple6(&state.in.tuple, "1::1", 1111, "2::2", 2222, L4PROTO_TCP))
-		return false;
-	state.jool.globals.nat64.f_args = 0b0010;
-
-	success &= ASSERT_INT(0, rfc6056_f(&state, &result1), "result 4");
-	success &= ASSERT_INT(0, rfc6056_f(&state, &result2), "result 5");
-	success &= ASSERT_UINT(result1, result2,
-			"Same arguments, fewer arguments than first test");
-
-	memset(&state.in.tuple.src, 3, sizeof(state.in.tuple.src));
-	state.in.tuple.dst.addr6.l4 = 3333;
-
-	success &= ASSERT_INT(0, rfc6056_f(&state, &result2), "result 6");
-	success &= ASSERT_UINT(result1, result2,
-			"All fields that don't matter changed");
-
-	memset(&state.in.tuple.dst.addr6.l3, 3, sizeof(state.in.tuple.dst.addr6.l3));
-
-	success &= ASSERT_INT(0, rfc6056_f(&state, &result2), "result 7");
-	success &= ASSERT_BOOL(true, result1 != result2,
-			"The one field that matters changed");
+	success &= ASSERT_INT(0, rfc6056_f(&state, &shash, &phash), "errcode");
+	/* MD5("abcdefghijklmnopKL") = 0x71ba00cc749f861f488b4c86c5858dc0 */
+	success &= ASSERT_BE32(0xc5858dc0u, (__force __be32)shash, "addr");
+	/* MD5("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKL") = 0x2dffea1088e039d98e57ab255bcd4b75 */
+	success &= ASSERT_BE32(0x5bcd4b75u, (__force __be32)phash, "port");
 
 	return success;
 }
@@ -129,8 +77,7 @@ int init_module(void)
 	if (test_group_begin(&test))
 		return -EINVAL;
 
-	test_group_test(&test, test_md5, "MD5 Test");
-	test_group_test(&test, f_args_test, "F() arguments test");
+	test_group_test(&test, test_f, "MD5 Test");
 
 	return test_group_end(&test);
 }

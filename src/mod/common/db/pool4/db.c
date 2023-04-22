@@ -1,10 +1,5 @@
 #include "mod/common/db/pool4/db.h"
 
-#include <linux/hash.h>
-#include <linux/list.h>
-#include <linux/slab.h>
-
-#include "common/types.h"
 #include "mod/common/log.h"
 #include "mod/common/wkmalloc.h"
 #include "mod/common/db/rbtree.h"
@@ -127,31 +122,6 @@ struct mask_domain {
 };
 
 /**
- * From RFC 6056, algorithm 3.
- *
- * TODO (issue175) This is not perfect. According to the RFC, there would
- * ideally be one of these per `--f-args`-defined tuple, but since that's not
- * rational, it settles with one per pool4 table.
- * This being a global variable, we're doing one per NAT64 kernel module. (Which
- * is even farther from the ideal.)
- *
- * As far as the RFC is concerned, this is actually perfectly fine. (The only
- * purpose of `next_ephemeral` (as far as I can tell) is to reduce looping for
- * port allocations that share the `--f-args` fields. This implementation
- * definitely does that.) But this is only because it doesn't care about gaming
- * (see the giant note at rfc6056.c). This being a global variable puts a hamper
- * on gaming because it means unrelated traffic will separate the connections of
- * a game's client too much. This is, in fact, a natural problem of algorithm 3
- * (again, because the RFC doesn't care), but we're making it worse.
- *
- * Because @next_ephemeral is needed during mask iteration, which does not have
- * access to the pool4 for significant locking/performance reasons, this is not
- * trivial to fix. I'm hoping (though haven't actually given it much thought)
- * that it will be more feasible once issue175 is implemented.
- */
-static atomic_t next_ephemeral = ATOMIC_INIT(0);
-
-/**
  * Assumes @domain has at least one entry.
  */
 #define foreach_domain_range(entry, domain) \
@@ -235,6 +205,12 @@ static struct ipv4_range *last_table_entry(struct pool4_table *table)
 static struct ipv4_range *first_domain_entry(struct mask_domain *domain)
 {
 	return (struct ipv4_range *)(domain + 1);
+}
+
+static struct ipv4_range *get_domain_entry(struct mask_domain *domain,
+		unsigned int index)
+{
+	return first_domain_entry(domain) + index;
 }
 
 /* Leaves table->addr and table->mark undefined! */
@@ -1040,12 +1016,15 @@ void pool4db_print(struct pool4 *pool)
 	print_tree(&pool->tree_addr.icmp, false);
 }
 
-static verdict find_empty(struct xlation *state, unsigned int offset,
-		struct mask_domain **out)
+static verdict find_empty(struct xlation *state, struct mask_domain **out)
 {
 	struct mask_domain *masks;
 	struct ipv4_range *range;
+	__u32 offset;
 	verdict result;
+
+	if (rfc6056_f(state, NULL, &offset))
+		return drop(state, JSTAT_6056_F);
 
 	masks = __wkmalloc("mask_domain",
 			sizeof(struct mask_domain) * sizeof(struct ipv4_range),
@@ -1079,19 +1058,15 @@ verdict mask_domain_find(struct xlation *state, struct mask_domain **out)
 	struct pool4_table *table;
 	struct ipv4_range *entry;
 	struct mask_domain *masks;
-	unsigned int offset;
-
-	if (rfc6056_f(state, &offset))
-		return drop(state, JSTAT_6056_F);
-
-	offset += atomic_read(&next_ephemeral);
+	__u32 entry_offset;
+	__u32 port_offset;
 
 	pool = state->jool.nat64.pool4;
 	spin_lock_bh(&pool->lock);
 
 	if (is_empty(pool)) {
 		spin_unlock_bh(&pool->lock);
-		return find_empty(state, offset, out);
+		return find_empty(state, out);
 	}
 
 	table = find_by_mark(get_tree(&pool->tree_mark,
@@ -1114,24 +1089,22 @@ verdict mask_domain_find(struct xlation *state, struct mask_domain **out)
 
 	spin_unlock_bh(&pool->lock);
 
+	if (rfc6056_f(state, &entry_offset, &port_offset)) {
+		__wkfree("mask_domain", masks);
+		return drop(state, JSTAT_6056_F);
+	}
+
 	masks->pool_mark = state->in.skb->mark;
 	masks->taddr_counter = 0;
 	masks->dynamic = false;
-	offset %= masks->taddr_count;
+	entry = get_domain_entry(masks, entry_offset % masks->range_count);
+	masks->current_range = entry;
+	masks->current_port = entry->ports.min
+			+ (port_offset % port_range_count(&entry->ports))
+			- 1;
 
-	foreach_domain_range(entry, masks) {
-		if (offset <= port_range_count(&entry->ports)) {
-			masks->current_range = entry;
-			masks->current_port = entry->ports.min + offset - 1;
-			*out = masks;
-			return VERDICT_CONTINUE; /* Happy path */
-		}
-		offset -= port_range_count(&entry->ports);
-	}
-
-	WARN(true, "Bug: pool4 entry counter does not match entry count.");
-	__wkfree("mask_domain", masks);
-	return drop(state, JSTAT_UNKNOWN);
+	*out = masks;
+	return VERDICT_CONTINUE;
 
 fail:
 	spin_unlock_bh(&pool->lock);
@@ -1168,22 +1141,6 @@ int mask_domain_next(struct mask_domain *masks,
 	addr->l3 = masks->current_range->prefix.addr;
 	addr->l4 = masks->current_port;
 	return 0;
-}
-
-/*
- * According to the kernel, adding to an atomic integer is "much slower"
- * (https://elixir.bootlin.com/linux/v5.0/source/arch/alpha/include/asm/atomic.h#L13)
- * than adding to a normal integer. That's why this function exists: We add once
- * when the loop is over instead of every time mask_domain_next() is called.
- *
- * Now, this does mean that retrievals of @next_ephemeral that happen
- * concurrent to the loop will not get the maybe intended value, but RFC 6056 is
- * silent about what is actually supposed to happen in these cases. Also, I'm
- * probably micro-optimizing at this point.
- */
-void mask_domain_commit(struct mask_domain *masks)
-{
-	atomic_add(masks->taddr_counter, &next_ephemeral);
 }
 
 bool mask_domain_matches(struct mask_domain *masks,

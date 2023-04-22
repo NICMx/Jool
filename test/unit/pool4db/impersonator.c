@@ -1,7 +1,7 @@
 #include "mod/common/db/pool4/rfc6056.h"
 #include "framework/unit_test.h"
 
-int rfc6056_f(struct xlation *state, unsigned int *result)
+int rfc6056_f(struct xlation *state, __u32 *entry_offset, __u32 *port_offset)
 {
 	return broken_unit_call(__func__);
 }

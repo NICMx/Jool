@@ -890,12 +890,7 @@ static const struct joolnl_global_meta globals_metadata[] = {
 		.id = JNLAG_F_ARGS,
 		.name = "f-args",
 		.type = &gt_uint8,
-		.doc = "Defines the arguments that will be sent to F().\n"
-			"(F() is defined by algorithm 3 of RFC 6056.)\n"
-			"- First (leftmost) bit is source address.\n"
-			"- Second bit is source port.\n"
-			"- Third bit is destination address.\n"
-			"- Fourth (rightmost) bit is destination port.",
+		.doc = "Deprecated; does nothing as of Jool 4.1.10.\n",
 		.offset = offsetof(struct jool_globals, nat64.f_args),
 		.xt = XT_NAT64,
 #ifdef __KERNEL__

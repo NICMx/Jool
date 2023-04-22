@@ -7,6 +7,6 @@
 int rfc6056_setup(void);
 void rfc6056_teardown(void);
 
-int rfc6056_f(struct xlation *state, unsigned int *result);
+int rfc6056_f(struct xlation *state, __u32 *entry_offset, __u32 *port_offset);
 
 #endif /* SRC_MOD_NAT64_POOL4_RFC6056_H_ */
