@@ -98,7 +98,7 @@ int request_handle_start(struct genl_info *info, xlator_type xt,
 
 	if (!(hdr->xt & xt)) {
 		log_err("Command unsupported by %s translators.", xt2str(hdr->xt));
-		return error;
+		return -EINVAL;
 	}
 
 	if (jool) {
