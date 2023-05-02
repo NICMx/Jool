@@ -203,6 +203,18 @@ int jnla_get_prefix4_optional(struct nlattr *attr, char const *name,
 			&out->prefix.addr);
 }
 
+static int jnla_get_port(struct nlattr *attr, __u16 *out)
+{
+	int error;
+
+	error = validate_null(attr, "port");
+	if (error)
+		return error;
+
+	*out = nla_get_u16(attr);
+	return 0;
+}
+
 int jnla_get_taddr6(struct nlattr *attr, char const *name,
 		struct ipv6_transport_addr *out)
 {
@@ -218,8 +230,10 @@ int jnla_get_taddr6(struct nlattr *attr, char const *name,
 	if (error)
 		return error;
 
-	out->l4 = nla_get_u16(attrs[JNLAT_PORT]);
-	return jnla_get_addr6(attrs[JNLAT_ADDR], "IPv6 address", &out->l3);
+	error = jnla_get_addr6(attrs[JNLAT_ADDR], "IPv6 address", &out->l3);
+	if (error)
+		return error;
+	return jnla_get_port(attrs[JNLAT_PORT], &out->l4);
 }
 
 int jnla_get_taddr4(struct nlattr *attr, char const *name,
@@ -237,8 +251,10 @@ int jnla_get_taddr4(struct nlattr *attr, char const *name,
 	if (error)
 		return error;
 
-	out->l4 = nla_get_u16(attrs[JNLAT_PORT]);
-	return jnla_get_addr4(attrs[JNLAT_ADDR], "IPv4 address", &out->l3);
+	error = jnla_get_addr4(attrs[JNLAT_ADDR], "IPv4 address", &out->l3);
+	if (error)
+		return error;
+	return jnla_get_port(attrs[JNLAT_PORT], &out->l4);
 }
 
 int jnla_get_eam(struct nlattr *attr, char const *name, struct eamt_entry *eam)
