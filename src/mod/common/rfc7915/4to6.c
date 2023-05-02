@@ -4,7 +4,6 @@
 #include <net/ip6_checksum.h>
 
 #include "common/constants.h"
-#include "mod/common/linux_version.h"
 #include "mod/common/log.h"
 #include "mod/common/rfc6052.h"
 #include "mod/common/route.h"
@@ -400,12 +399,7 @@ static verdict allocate_fast(struct xlation *state, bool ignore_df,
 		return drop(state, JSTAT46_PSKB_COPY);
 	}
 
-	/* https://github.com/NICMx/Jool/issues/289 */
-#if LINUX_VERSION_AT_LEAST(5, 4, 0, 9, 0)
-	nf_reset_ct(out);
-#else
-	nf_reset(out);
-#endif
+	skb_cleanup_copy(out);
 
 	/* Remove outer l3 and l4 headers from the copy. */
 	skb_pull(out, pkt_hdrs_len(in));
