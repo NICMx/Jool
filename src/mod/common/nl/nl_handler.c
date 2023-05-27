@@ -22,15 +22,21 @@
 #include "mod/common/nl/session.h"
 #include "mod/common/nl/stats.h"
 
-static int pre_handle_request(const struct genl_ops *ops, struct sk_buff *skb,
-		struct genl_info *info)
+#if LINUX_VERSION_AT_LEAST(6, 2, 0, 9999, 0)
+#define GENL_OPS_ARG_TYPE genl_split_ops
+#else
+#define GENL_OPS_ARG_TYPE genl_ops
+#endif
+
+static int pre_handle_request(const struct GENL_OPS_ARG_TYPE *ops,
+		struct sk_buff *skb, struct genl_info *info)
 {
 	error_pool_activate();
 	return 0;
 }
 
-static void post_handle_request(const struct genl_ops *ops, struct sk_buff *skb,
-		struct genl_info *info)
+static void post_handle_request(const struct GENL_OPS_ARG_TYPE *ops,
+		struct sk_buff *skb, struct genl_info *info)
 {
 	error_pool_deactivate();
 }
