@@ -32,6 +32,7 @@ built-in.a
 /src/usr/siit/jool_siit
 /src/usr/nat64/jool
 /src/usr/joold/joold
+/src/usr/dual-request/dual
 /test/graybox/usr/graybox
 
 # Documentation
@@ -108,6 +109,7 @@ autom4te.cache
 /src/usr/nl/Makefile
 /src/usr/siit/Makefile
 /src/usr/util/Makefile
+/src/usr/dual-request/Makefile
 /test/graybox/Makefile
 /test/graybox/usr/Makefile
 
