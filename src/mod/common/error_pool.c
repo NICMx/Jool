@@ -1,7 +1,5 @@
 #include "mod/common/error_pool.h"
 
-#include "mod/common/linux_version.h"
-
 #include <linux/string.h>
 #include <linux/slab.h>
 #include <linux/printk.h>

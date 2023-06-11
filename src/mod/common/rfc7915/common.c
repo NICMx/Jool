@@ -1,9 +1,9 @@
 #include "mod/common/rfc7915/common.h"
 
 #include <linux/icmp.h>
-
 #include "common/config.h"
 #include "mod/common/ipv6_hdr_iterator.h"
+#include "mod/common/linux_version.h"
 #include "mod/common/log.h"
 #include "mod/common/packet.h"
 #include "mod/common/stats.h"
@@ -402,4 +402,21 @@ verdict handle_icmp_extension(struct xlation *state,
 	/* Move everything around */
 	return fix_ie(state, skb_network_offset(in->skb) + in_ieo, out_ipl,
 			out_pad, out_iel);
+}
+
+void skb_cleanup_copy(struct sk_buff *skb)
+{
+	/* https://github.com/NICMx/Jool/issues/289 */
+#if LINUX_VERSION_AT_LEAST(5, 4, 0, 9, 0)
+	nf_reset_ct(skb);
+#else
+	nf_reset(skb);
+#endif
+
+	/* https://github.com/NICMx/Jool/issues/400 */
+#if LINUX_VERSION_AT_LEAST(5, 18, 0, 9999, 9)
+	skb_clear_tstamp(skb);
+#else
+	skb->tstamp = 0;
+#endif
 }

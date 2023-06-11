@@ -4,7 +4,6 @@
 
 #include "common/iptables.h"
 #include "mod/common/core.h"
-#include "mod/common/linux_version.h"
 #include "mod/common/log.h"
 
 static verdict find_instance(struct net *ns, const struct target_info *info,
@@ -64,11 +63,7 @@ EXPORT_SYMBOL_GPL(target_checkentry);
 
 static struct net *action_param_net(const struct xt_action_param *param)
 {
-#if LINUX_VERSION_AT_LEAST(4, 10, 0, 8, 0)
 	return param->state->net;
-#else
-	return param->net;
-#endif
 }
 
 static unsigned int verdict2iptables(verdict result, bool enable_debug)

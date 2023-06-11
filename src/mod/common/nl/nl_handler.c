@@ -22,15 +22,21 @@
 #include "mod/common/nl/session.h"
 #include "mod/common/nl/stats.h"
 
-static int pre_handle_request(const struct genl_ops *ops, struct sk_buff *skb,
-		struct genl_info *info)
+#if LINUX_VERSION_AT_LEAST(6, 2, 0, 9999, 0)
+#define GENL_OPS_ARG_TYPE genl_split_ops
+#else
+#define GENL_OPS_ARG_TYPE genl_ops
+#endif
+
+static int pre_handle_request(const struct GENL_OPS_ARG_TYPE *ops,
+		struct sk_buff *skb, struct genl_info *info)
 {
 	error_pool_activate();
 	return 0;
 }
 
-static void post_handle_request(const struct genl_ops *ops, struct sk_buff *skb,
-		struct genl_info *info)
+static void post_handle_request(const struct GENL_OPS_ARG_TYPE *ops,
+		struct sk_buff *skb, struct genl_info *info)
 {
 	error_pool_deactivate();
 }
@@ -188,10 +194,6 @@ static struct genl_multicast_group mc_groups[] = {
 };
 
 static struct genl_family jool_family = {
-#if LINUX_VERSION_LOWER_THAN(4, 10, 0, 7, 5)
-	/* This variable became "private" on kernel 4.10. */
-	.id = GENL_ID_GENERATE,
-#endif
 	.hdrsize = sizeof(struct joolnlhdr),
 	/* This is initialized below. See register_family(). */
 	/* .name = GNL_JOOL_FAMILY_NAME, */
@@ -205,7 +207,6 @@ static struct genl_family jool_family = {
 	.pre_doit = pre_handle_request,
 	.post_doit = post_handle_request,
 
-#if LINUX_VERSION_AT_LEAST(4, 10, 0, 7, 5)
 	/*
 	 * "module" was added in Linux 3.11 (commit
 	 * 33c6b1f6b154894321f5734e50c66621e9134e7e). However, it seems to be
@@ -223,7 +224,6 @@ static struct genl_family jool_family = {
 	.n_ops = ARRAY_SIZE(ops),
 	.mcgrps = mc_groups,
 	.n_mcgrps = ARRAY_SIZE(mc_groups),
-#endif
 };
 
 static int register_family(void)
@@ -234,22 +234,11 @@ static int register_family(void)
 
 	strcpy(jool_family.name, JOOLNL_FAMILY);
 
-#if LINUX_VERSION_LOWER_THAN(4, 10, 0, 7, 5)
-	error = genl_register_family_with_ops_groups(&jool_family, ops,
-			mc_groups);
-	if (error) {
-		log_err("Family registration failed: %d", error);
-		return error;
-	}
-#else
 	error = genl_register_family(&jool_family);
-	if (error) {
+	if (error)
 		log_err("Family registration failed: %d", error);
-		return error;
-	}
-#endif
 
-	return 0;
+	return error;
 }
 
 int nlhandler_setup(void)

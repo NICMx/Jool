@@ -101,6 +101,8 @@ The following commands assume _App_'s packet is `192.0.2.1 -> 203.0.113.2` and t
 
 ### 6: Confirm that it works
 
+From the left node's global namespace, start a ping to the IPv6 node on the right using its new mask:
+
 	# ping -c1 203.0.113.2
 	PING 203.0.113.2 (203.0.113.2) 56(84) bytes of data.
 	64 bytes from 203.0.113.2: icmp_req=1 ttl=62 time=0.843 ms

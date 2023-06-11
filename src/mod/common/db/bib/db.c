@@ -5,7 +5,6 @@
 
 #include "common/constants.h"
 #include "mod/common/icmp_wrapper.h"
-#include "mod/common/linux_version.h"
 #include "mod/common/log.h"
 #include "mod/common/wkmalloc.h"
 #include "mod/common/db/rbtree.h"

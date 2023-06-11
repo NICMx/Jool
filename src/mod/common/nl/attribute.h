@@ -3,7 +3,6 @@
 
 #include <linux/netlink.h>
 #include "common/config.h"
-#include "mod/common/linux_version.h"
 #include "mod/common/db/bib/entry.h"
 
 int jnla_get_u8(struct nlattr *attr, char const *name, __u8 *out);

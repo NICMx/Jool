@@ -1,7 +1,5 @@
 #include <linux/module.h>
 #include <linux/slab.h>
-
-#include "mod/common/linux_version.h"
 #include <linux/rbtree_augmented.h>
 
 #include "framework/unit_test.h"

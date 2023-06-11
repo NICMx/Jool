@@ -97,4 +97,6 @@ struct icmpext_args {
 verdict handle_icmp_extension(struct xlation *state,
 		struct icmpext_args *args);
 
+void skb_cleanup_copy(struct sk_buff *skb);
+
 #endif /* SRC_MOD_COMMON_RFC7915_COMMON_H_ */

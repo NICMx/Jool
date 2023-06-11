@@ -6,7 +6,6 @@
 #include "sender.h"
 #include "common/types.h"
 #include "mod/common/error_pool.h"
-#include "mod/common/linux_version.h"
 
 static DEFINE_MUTEX(config_mutex);
 
@@ -177,30 +176,21 @@ static struct genl_ops ops[] = {
 };
 
 static struct genl_family family = {
-#if LINUX_VERSION_LOWER_THAN(4, 10, 0, 7, 5)
-	.id = GENL_ID_GENERATE,
-#endif
 	.hdrsize = 0,
 	.name = "graybox",
 	.version = 1,
 	.maxattr = __ATTR_MAX,
 	.netnsok = true,
-#if LINUX_VERSION_AT_LEAST(4, 10, 0, 7, 5)
 	.module = THIS_MODULE,
 	.ops = ops,
 	.n_ops = ARRAY_SIZE(ops),
-#endif
 };
 
 int nlhandler_setup(void)
 {
 	int error;
 
-#if LINUX_VERSION_LOWER_THAN(4, 10, 0, 7, 5)
-	error = genl_register_family_with_ops(&family, ops);
-#else
 	error = genl_register_family(&family);
-#endif
 	if (error) {
 		log_err("Errcode %d registering the Genetlink family.", error);
 		return error;
