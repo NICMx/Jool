@@ -501,13 +501,8 @@ int jnla_get_plateaus(struct nlattr *root, struct mtu_plateaus *out)
 	error = validate_null(root, "MTU plateaus");
 	if (error)
 		return error;
-#if LINUX_VERSION_AT_LEAST(4, 12, 0, 8, 0)
 	error = nla_validate(nla_data(root), nla_len(root), JNLAL_MAX,
 			joolnl_plateau_list_policy, NULL);
-#else
-	error = nla_validate(nla_data(root), nla_len(root), JNLAL_MAX,
-			joolnl_plateau_list_policy);
-#endif
 	if (error)
 		return error;
 
@@ -785,17 +780,11 @@ int jnla_parse_nested(struct nlattr *tb[], int maxtype,
 		char const *name)
 {
 	int error;
-#if LINUX_VERSION_AT_LEAST(4, 12, 0, 8, 0)
 	struct netlink_ext_ack extack;
 
 	error = nla_parse_nested(tb, maxtype, nla, policy, &extack);
 	if (error)
 		log_err("The '%s' attribute is malformed: %s", name, extack._msg);
-#else
-	error = nla_parse_nested(tb, maxtype, nla, policy);
-	if (error)
-		log_err("The '%s' attribute is malformed", name);
-#endif
 
 	return error;
 }

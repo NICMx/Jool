@@ -1,7 +1,6 @@
 #include "genetlink.h"
 
 #include "common/graybox-types.h"
-#include "mod/common/linux_version.h"
 #include "mod/common/error_pool.h"
 
 static struct genl_family *family;

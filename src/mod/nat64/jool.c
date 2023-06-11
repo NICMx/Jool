@@ -5,7 +5,6 @@
 #include <net/netfilter/ipv6/nf_defrag_ipv6.h>
 
 #include "common/iptables.h"
-#include "mod/common/linux_version.h"
 #include "mod/common/log.h"
 #include "mod/common/kernel_hook.h"
 #include "mod/common/xlator.h"
@@ -77,13 +76,8 @@ static struct pernet_operations joolns_ops = {
 
 static void defrag_enable(struct net *ns)
 {
-#if LINUX_VERSION_AT_LEAST(4, 10, 0, 8, 0)
 	nf_defrag_ipv4_enable(ns);
 	nf_defrag_ipv6_enable(ns);
-#else
-	nf_defrag_ipv4_enable();
-	nf_defrag_ipv6_enable();
-#endif
 }
 
 static int __init nat64_init(void)

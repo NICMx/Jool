@@ -3,7 +3,6 @@
 #include <linux/kref.h>
 #include <net/ip.h>
 #include <net/snmp.h>
-#include "mod/common/linux_version.h"
 #include "mod/common/wkmalloc.h"
 
 struct jool_mib {
@@ -89,10 +88,6 @@ __u64 *jstat_query(struct jool_stats *stats)
 #ifdef UNIT_TESTING
 int jstat_refcount(struct jool_stats *stats)
 {
-#if LINUX_VERSION_AT_LEAST(4, 11, 0, 8, 4)
 	return kref_read(&stats->refcounter);
-#else
-	return atomic_read(&stats->refcounter.refcount);
-#endif
 }
 #endif
