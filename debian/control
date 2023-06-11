@@ -4,7 +4,7 @@ Uploaders: Alberto Leiva Popper <ydahhrk@gmail.com>
 Section: kernel
 Priority: optional
 Build-Depends:
- debhelper (>= 11), dh-sequence-dkms,
+ debhelper (>= 11), dh-sequence-dkms, dkms,
  mime-support, pkg-config, gawk, file, cpio,
  libnl-genl-3-dev, libnl-3-dev,
  libxtables-dev
