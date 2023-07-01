@@ -1,6 +1,7 @@
 #include "mod/common/rfc7915/6to4.h"
 
 #include <linux/inetdevice.h>
+#include <net/ip6_checksum.h>
 #include <net/udp.h>
 #include <net/tcp.h>
 
