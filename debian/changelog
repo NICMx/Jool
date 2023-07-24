@@ -1,3 +1,11 @@
+jool (4.1.10-2) unstable; urgency=medium
+
+  * Remove dkms dependency. Closes: #1041311
+  * Remove all links to jool.mx. Closes: #1041856
+  * Include latest upstream patch
+
+ -- Alberto Leiva Popper <ydahhrk@gmail.com>  Mon, 24 Jul 2023 17:00:52 -0600
+
 jool (4.1.10-1) unstable; urgency=medium
 
   * New upstream release

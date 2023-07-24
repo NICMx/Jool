@@ -1,6 +1,6 @@
 [Unit]
 Description=Stateful NAT64
-Documentation=https://jool.mx/en/documentation.html
+Documentation=https://nicmx.github.io/Jool
 After=network.target
 ConditionPathExists=/etc/jool/jool.conf
 
