@@ -30,8 +30,6 @@ struct joold_queue {
 
 	/** Additional sessions we've queued but don't fit in @skb yet. */
 	struct list_head sessions;
-	/** Number of nodes in @sessions. */
-	unsigned int count;
 	/** Number of advertisement nodes in @sessions. */
 	unsigned int advertisement_count;
 
@@ -213,6 +211,7 @@ static struct sk_buff *send_to_userspace_prepare(struct xlator *jool)
 	queue->skb = NULL;
 	queue->jhdr = NULL;
 	queue->root = NULL;
+	queue->skb_full = false;
 	queue->ack_received = false;
 	queue->last_flush_time = jiffies;
 	return skb;
@@ -273,7 +272,6 @@ struct joold_queue *joold_alloc(struct net *ns)
 	queue->root = NULL;
 	queue->skb_full = false;
 	INIT_LIST_HEAD(&queue->sessions);
-	queue->count = 0;
 	queue->advertisement_count = 0;
 	queue->ack_received = true;
 	queue->last_flush_time = jiffies;
@@ -301,7 +299,6 @@ static void purge_sessions(struct joold_queue *queue)
 		wkmem_cache_free("joold node", node_cache, node);
 	}
 
-	queue->count = 0;
 	queue->advertisement_count = 0;
 	queue->ack_received = true;
 	queue->last_flush_time = jiffies;
@@ -331,7 +328,7 @@ void joold_put(struct joold_queue *queue)
 void joold_add(struct xlator *jool, struct session_entry *entry)
 {
 	struct joold_queue *queue;
-	struct joold_node *copy;
+	struct joold_node *node;
 	struct sk_buff *skb;
 
 	if (!GLOBALS(jool).enabled)
@@ -346,14 +343,29 @@ void joold_add(struct xlator *jool, struct session_entry *entry)
 		return;
 	}
 
+	while (!list_empty(&queue->sessions)) {
+		node = list_first_entry(&queue->sessions, struct joold_node,
+				nextprev);
+		/*
+		 * Ignore result code, as we can't really do anything
+		 * differently if it fails, especially because we're delivering
+		 * these sessions best-effortly.
+		 * Since I disabled joold advertise, there should ever only
+		 * exist one queued entry, and the packet should be currently
+		 * empty, so failure is theoretically impossible.
+		 */
+		jnla_put_session(queue->skb, JNLAL_ENTRY, &node->single);
+		list_del(&node->nextprev);
+		wkmem_cache_free("joold node", node_cache, node);
+	}
+
 	queue->skb_full = jnla_put_session(queue->skb, JNLAL_ENTRY, entry);
 	if (queue->skb_full) {
-		copy = wkmem_cache_alloc("joold node", node_cache, GFP_ATOMIC);
-		if (copy) {
-			copy->is_group = false;
-			copy->single = *entry;
-			list_add_tail(&copy->nextprev, &queue->sessions);
-			queue->count++;
+		node = wkmem_cache_alloc("joold node", node_cache, GFP_ATOMIC);
+		if (node) {
+			node->is_group = false;
+			node->single = *entry;
+			list_add_tail(&node->nextprev, &queue->sessions);
 		} /* Else discard it; can't do anything. */
 	}
 
@@ -474,7 +486,6 @@ static int add_advertise_node(struct joold_queue *queue, l4_protocol proto)
 	node->group.proto = proto;
 
 	list_add_tail(&node->nextprev, &queue->sessions);
-	queue->count++;
 	queue->advertisement_count++;
 
 	return 0;

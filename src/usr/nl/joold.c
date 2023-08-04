@@ -55,6 +55,11 @@ struct jool_result joolnl_joold_advertise(struct joolnl_socket *sk,
 	struct nl_msg *msg;
 	struct jool_result result;
 
+	return result_from_error(
+		1,
+		"Sorry; joold advertise is disabled for now."
+	);
+
 	result = joolnl_alloc_msg(sk, iname, JNLOP_JOOLD_ADVERTISE, 0, &msg);
 	if (result.error)
 		return result;

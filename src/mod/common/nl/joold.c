@@ -44,7 +44,10 @@ int handle_joold_advertise(struct sk_buff *skb, struct genl_info *info)
 
 	__log_debug(&jool, "Handling joold advertise.");
 
-	error = joold_advertise(&jool);
+	log_err("Sorry; advertise is disabled for now.");
+	error = -EINVAL;
+
+	/* error = joold_advertise(&jool); */
 	error = jresponse_send_simple(&jool, info, error);
 	request_handle_end(&jool);
 	return error;
