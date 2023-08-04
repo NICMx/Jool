@@ -30,6 +30,8 @@ struct joold_queue {
 
 	/** Additional sessions we've queued but don't fit in @skb yet. */
 	struct list_head sessions;
+	/** Number of nodes in @sessions. */
+	unsigned int count;
 	/** Number of advertisement nodes in @sessions. */
 	unsigned int advertisement_count;
 
@@ -272,6 +274,7 @@ struct joold_queue *joold_alloc(struct net *ns)
 	queue->root = NULL;
 	queue->skb_full = false;
 	INIT_LIST_HEAD(&queue->sessions);
+	queue->count = 0;
 	queue->advertisement_count = 0;
 	queue->ack_received = true;
 	queue->last_flush_time = jiffies;
@@ -299,6 +302,7 @@ static void purge_sessions(struct joold_queue *queue)
 		wkmem_cache_free("joold node", node_cache, node);
 	}
 
+	queue->count = 0;
 	queue->advertisement_count = 0;
 	queue->ack_received = true;
 	queue->last_flush_time = jiffies;
@@ -330,11 +334,13 @@ void joold_add(struct xlator *jool, struct session_entry *entry)
 	struct joold_queue *queue;
 	struct joold_node *node;
 	struct sk_buff *skb;
+	bool full;
 
 	if (!GLOBALS(jool).enabled)
 		return;
 
 	queue = jool->nat64.joold;
+	full = false;
 
 	spin_lock_bh(&queue->lock);
 
@@ -358,15 +364,23 @@ void joold_add(struct xlator *jool, struct session_entry *entry)
 		list_del(&node->nextprev);
 		wkmem_cache_free("joold node", node_cache, node);
 	}
+	queue->count = 0;
 
 	queue->skb_full = jnla_put_session(queue->skb, JNLAL_ENTRY, entry);
 	if (queue->skb_full) {
-		node = wkmem_cache_alloc("joold node", node_cache, GFP_ATOMIC);
-		if (node) {
-			node->is_group = false;
-			node->single = *entry;
-			list_add_tail(&node->nextprev, &queue->sessions);
-		} /* Else discard it; can't do anything. */
+		if (queue->count < GLOBALS(jool).capacity) {
+			node = wkmem_cache_alloc("joold node", node_cache,
+					GFP_ATOMIC);
+			if (node) {
+				node->is_group = false;
+				node->single = *entry;
+				list_add_tail(&node->nextprev,
+						&queue->sessions);
+				queue->count++;
+			} /* Else discard it; can't do anything. */
+		} else {
+			full = true; /* Warn outside of the spinlock */
+		}
 	}
 
 	skb = send_to_userspace_prepare(jool);
@@ -374,6 +388,11 @@ void joold_add(struct xlator *jool, struct session_entry *entry)
 	spin_unlock_bh(&queue->lock);
 
 	send_to_userspace(jool, skb, jool->ns);
+
+	if (full) {
+		log_warn_once("Too many sessions queued! I need to drop some; sorry.");
+		/* Actually we already did, but whatever. */
+	}
 }
 
 struct add_params {
@@ -486,6 +505,7 @@ static int add_advertise_node(struct joold_queue *queue, l4_protocol proto)
 	node->group.proto = proto;
 
 	list_add_tail(&node->nextprev, &queue->sessions);
+	queue->count++;
 	queue->advertisement_count++;
 
 	return 0;
