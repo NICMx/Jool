@@ -11,7 +11,7 @@
 		typeof(actual) __actual = actual;			\
 		if (__expected != __actual) {				\
 			log_err("Test '" name "' failed.", ##__VA_ARGS__); \
-			pr_err("  Expected: " specifier "\n", __expected);  \
+			pr_err("  Expected: " specifier "\n", __expected); \
 			pr_err("  Actual  : " specifier "\n", __actual); \
 		}							\
 		__expected == __actual;					\
@@ -37,13 +37,22 @@
 		ASSERT_PRIMITIVE(expected, be32_to_cpu(actual), "%u", name, \
 				##__VA_ARGS__)
 #define ASSERT_VERDICT(expected, actual, name, ...) \
-	ASSERT_PRIMITIVE(VERDICT_ ## expected, actual, "%d", name, ##__VA_ARGS__)
+		ASSERT_PRIMITIVE(VERDICT_ ## expected, actual, "%d", name, \
+				##__VA_ARGS__)
+
+#define ASSERT_TRUE(actual, name, ...) \
+	ASSERT_BOOL(true, actual, name, ##__VA_ARGS__)
+#define ASSERT_FALSE(actual, name, ...) \
+	ASSERT_BOOL(false, actual, name, ##__VA_ARGS__)
+#define ASSERT_NULL(actual, name, ...) \
+	ASSERT_PTR(NULL, actual, name, ##__VA_ARGS__)
 
 /*
  * Ehh... there aren't macros, but they're still all caps so they're even
  * easier to recognize.
  */
 
+bool ASSERT_NOTNULL(void *ptr, char const *test_name);
 bool ASSERT_ADDR4(char const *expected,
 		struct in_addr const *actual,
 		char const *test_name);

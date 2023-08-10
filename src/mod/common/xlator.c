@@ -303,7 +303,7 @@ static int init_nat64(struct xlator *jool, struct ipv6_prefix *pool6)
 	jool->nat64.bib = bib_alloc();
 	if (!jool->nat64.bib)
 		goto bib_fail;
-	jool->nat64.joold = joold_alloc(jool->ns);
+	jool->nat64.joold = joold_alloc();
 	if (!jool->nat64.joold)
 		goto joold_fail;
 
@@ -629,10 +629,11 @@ static int basic_replace_validations(struct xlator *jool)
 	if (bib_foreach(jool->nat64.bib, L4PROTO_TCP, check_bib, &arg, NULL) ||
 	    bib_foreach(jool->nat64.bib, L4PROTO_UDP, check_bib, &arg, NULL) ||
 	    bib_foreach(jool->nat64.bib, L4PROTO_ICMP, check_bib, &arg, NULL)) {
-		log_err("%s BIB transport address '%pI4#%u' does not belong to pool4.\n"
+		log_err("%s BIB transport address '" TA4PP
+				"' does not belong to pool4.\n"
 				"Please add it there first.",
 				l4proto_to_string(arg.badbib.l4_proto),
-				&arg.badbib.addr4.l3, arg.badbib.addr4.l4);
+				TA4PA(arg.badbib.addr4));
 		return -EINVAL;
 	}
 

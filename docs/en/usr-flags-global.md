@@ -670,7 +670,7 @@ If SS cannot keep up with the amount of traffic it needs to multicast, this maxi
 
 Watch out for this message in the kernel logs:
 
-	Too many sessions queued! I need to drop some; sorry.
+	Joold: Too many sessions deferred! I need to drop some; sorry.
 
 ### `ss-max-payload`
 

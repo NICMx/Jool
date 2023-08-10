@@ -15,7 +15,7 @@ struct joold_queue;
 /* joold_setup() not needed. */
 void joold_teardown(void);
 
-struct joold_queue *joold_alloc(struct net *ns);
+struct joold_queue *joold_alloc(void);
 void joold_get(struct joold_queue *queue);
 void joold_put(struct joold_queue *queue);
 

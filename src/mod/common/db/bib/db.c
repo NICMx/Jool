@@ -477,12 +477,11 @@ static void log_bib(struct xlator *jool, struct tabled_bib *bib, char *action)
 
 	tsec = ktime_get_real_seconds();
 	time64_to_tm(tsec, 0, &time);
-	log_info("%s %ld/%d/%d %d:%d:%d (GMT) - %s %pI6c#%u to %pI4#%u (%s)",
+	log_info("%s %ld/%d/%d %d:%d:%d (GMT) - %s " TA6PP " to " TA4PP " (%s)",
 			jool->iname,
 			1900 + time.tm_year, time.tm_mon + 1, time.tm_mday,
 			time.tm_hour, time.tm_min, time.tm_sec, action,
-			&bib->src6.l3, bib->src6.l4,
-			&bib->src4.l3, bib->src4.l4,
+			TA6PA(bib->src6), TA4PA(bib->src4),
 			l4proto_to_string(bib->proto));
 }
 
@@ -503,14 +502,12 @@ static void log_session(struct xlator *jool,
 
 	tsec = ktime_get_real_seconds();
 	time64_to_tm(tsec, 0, &time);
-	log_info("%s %ld/%d/%d %d:%d:%d (GMT) - %s %pI6c#%u|%pI6c#%u|"
-			"%pI4#%u|%pI4#%u|%s", jool->iname,
+	log_info("%s %ld/%d/%d %d:%d:%d (GMT) - %s " TA6PP "|" TA6PP "|"
+			TA4PP "|" TA4PP "|%s", jool->iname,
 			1900 + time.tm_year, time.tm_mon + 1, time.tm_mday,
 			time.tm_hour, time.tm_min, time.tm_sec, action,
-			&session->bib->src6.l3, session->bib->src6.l4,
-			&session->dst6.l3, session->dst6.l4,
-			&session->bib->src4.l3, session->bib->src4.l4,
-			&session->dst4.l3, session->dst4.l4,
+			TA6PA(session->bib->src6), TA6PA(session->dst6),
+			TA4PA(session->bib->src4), TA4PA(session->dst4),
 			l4proto_to_string(session->bib->proto));
 }
 
@@ -2262,9 +2259,7 @@ static int __bib_add_static(struct xlator *jool, struct bib_entry *new,
 	struct tree_slot slot6;
 	struct tree_slot slot4;
 
-	__log_debug(jool, "Adding static BIB entry (%pI6c#%u, %pI4#%u).",
-			&new->addr6.l3, new->addr6.l4,
-			&new->addr4.l3, new->addr4.l4);
+	__log_debug(jool, "Adding static BIB entry " BEPP ".", BEPA(new));
 
 	table = get_table(jool->nat64.bib, new->l4_proto);
 	if (!table)
@@ -2328,11 +2323,8 @@ int bib_add_static(struct xlator *jool, struct bib_entry *new)
 	case 0:
 		break;
 	case -EEXIST:
-		log_err("Entry %pI4#%u|%pI6c#%u collides with %pI4#%u|%pI6c#%u.",
-				&new->addr4.l3, new->addr4.l4,
-				&new->addr6.l3, new->addr6.l4,
-				&old.addr4.l3, old.addr4.l4,
-				&old.addr6.l3, old.addr6.l4);
+		log_err("Entry " BEPP " collides with " BEPP ".",
+				BEPA(new), BEPA(&old));
 		break;
 	default:
 		log_err("Unknown error code: %d", error);
@@ -2452,9 +2444,8 @@ static void print_session(struct rb_node *node, int tabs, char *prefix)
 
 	session = node2session(node);
 	print_tabs(tabs);
-	pr_cont("[%s] %pI4#%u %pI6c#%u\n", prefix,
-			&session->dst4.l3, session->dst4.l4,
-			&session->dst6.l3, session->dst6.l4);
+	pr_cont("[%s] " TA4PP " " TA6PP "\n", prefix, TA4PA(session->dst4),
+			TA6PA(session->dst6));
 
 	print_session(node->rb_left, tabs + 1, "L"); /* "Left" */
 	print_session(node->rb_right, tabs + 1, "R"); /* "Right" */
@@ -2470,8 +2461,7 @@ static void print_bib(struct rb_node *node, int tabs)
 
 	bib = bib4_entry(node);
 	print_tabs(tabs);
-	pr_cont("%pI4#%u %pI6c#%u\n", &bib->src4.l3, bib->src4.l4,
-			&bib->src6.l3, bib->src6.l4);
+	pr_cont(TA4PP " " TA6PP "\n", TA4PA(bib->src4), TA6PA(bib->src6));
 
 	print_session(bib->sessions.rb_node, tabs + 1, "T"); /* "Tree" */
 	print_bib(node->rb_left, tabs + 1);

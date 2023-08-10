@@ -125,6 +125,18 @@ struct tuple {
 #define icmp6_id src.addr6.l4
 };
 
+/* IPv6 Tuple Printk Pattern */
+#define T6PP TA6PP " -> " TA6PP " [%s]"
+/* IPv6 Tuple Printk Arguments */
+#define T6PA(t) TA6PA((t)->src.addr6), TA6PA((t)->dst.addr6), \
+		l4proto_to_string((t)->l4_proto)
+
+/* IPv4 Tuple Printk Pattern */
+#define T4PP TA4PP " -> " TA4PP " [%s]"
+/* IPv4 Tuple Printk Arguments */
+#define T4PA(t) TA4PA((t)->src.addr4), TA4PA((t)->dst.addr4), \
+		l4proto_to_string((t)->l4_proto)
+
 /**
  * Returns true if @tuple represents a '3-tuple' (address-address-ICMP id), as
  * defined by RFC 6146.

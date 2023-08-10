@@ -10,7 +10,7 @@ void joold_add(struct xlator *jool, struct session_entry *entry)
 	/* No code. */
 }
 
-struct joold_queue *joold_alloc(struct net *ns)
+struct joold_queue *joold_alloc(void)
 {
 	return (struct joold_queue *)&dummy;
 }

@@ -9,6 +9,7 @@ Some shortcuts used while naming variables and functions through the code or doc
 
 - 4to6 = translation from IPv4 to IPv6
 - 6to4 = translation from IPv6 to IPv4
+- ad = advertise (if verb), advertisement (if noun)
 - alloc = memory allocation
 - addr = address
 - ADF = Address-Dependent Filtering

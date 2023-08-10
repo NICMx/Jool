@@ -23,4 +23,11 @@
  */
 verdict sendpkt_send(struct xlation *state);
 
+/**
+ * Joold's multicast packet sender. Sends the packet to the Netlink multicast
+ * group, not the network.
+ * Separated from joold for mocking reasons.
+ */
+void sendpkt_multicast(struct xlator *jool, struct sk_buff *skb);
+
 #endif /* SRC_MOD_COMMON_SEND_PACKET_H_ */
