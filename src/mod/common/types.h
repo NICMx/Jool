@@ -175,4 +175,17 @@ bool is_icmp4_info(__u8 type);
 bool is_icmp6_error(__u8 type);
 bool is_icmp4_error(__u8 type);
 
+/* Moves all the elements from @src to the tail of @dst. */
+static inline void list_move_all(struct list_head *src, struct list_head *dst)
+{
+	if (list_empty(src))
+		return;
+
+	dst->prev->next = src->next;
+	src->next->prev = dst->prev;
+	dst->prev = src->prev;
+	dst->prev->next = dst;
+	INIT_LIST_HEAD(src);
+}
+
 #endif /* SRC_MOD_COMMON_TYPES_H_ */

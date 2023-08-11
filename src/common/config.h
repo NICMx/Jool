@@ -252,6 +252,7 @@ enum joolnl_attr_global {
 	JNLAG_JOOLD_FLUSH_DEADLINE,
 	JNLAG_JOOLD_CAPACITY,
 	JNLAG_JOOLD_MAX_PAYLOAD,
+	JNLAG_JOOLD_MAX_SESSIONS_PER_PACKET,
 
 	/* Needs to be last */
 	JNLAG_COUNT,
@@ -308,6 +309,8 @@ struct joolnlhdr {
 
 	char iname[INAME_MAX_SIZE];
 };
+
+#define JOOLNL_HDRLEN NLMSG_ALIGN(sizeof(struct joolnlhdr))
 
 struct config_prefix6 {
 	bool set;
@@ -452,22 +455,23 @@ struct joold_config {
 	 */
 	__u32 capacity;
 
+	/** Deprecated as of 4.1.11, does nothing. */
+	__u32 max_payload;
+
 	/**
-	 * Maximum amount of bytes joold should send per packet, excluding
-	 * IP/UDP headers.
+	 * Maximum number of sessions joold should send per packet.
 	 *
 	 * This exists because userspace joold sends sessions via UDP. UDP is
 	 * rather packet-oriented, as opposed to stream-oriented, so it doesn't
 	 * discover PMTU and instead tends to fragment when we send too many
 	 * sessions per packet. Which is bad.
 	 *
-	 * So the user, after figuring out the MTU, can tweak this number to
-	 * prevent fragmentation.
+	 * So the user can tweak this number to prevent fragmentation.
 	 *
 	 * We should probably handle this ourselves but it sounds like a lot of
 	 * code. (I guess I'm missing something.)
 	 */
-	__u32 max_payload;
+	__u32 max_sessions_per_pkt;
 };
 
 /**

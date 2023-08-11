@@ -94,6 +94,25 @@
  */
 #define DEFAULT_JOOLD_MAX_PAYLOAD 1452
 
+/**
+ * This needs to be
+ *
+ * 	floor(
+ * 		(
+ * 			Typical MTU
+ * 			- max(IPv4 header size, IPv6 header size)
+ * 			- UDP header size
+ * 			- root attribute header size
+ * 		) / (
+ * 			serialized session size
+ * 		)
+ * 	)
+ *
+ * The root attribute header size and serialized session size need to be
+ * computed the hard way. Run the joold unit test to find them in dmesg.
+ */
+#define DEFAULT_JOOLD_MAX_SESSIONS_PER_PKT ((1500 - 40 - 8 - 4) / 140)
+
 /* -- IPv6 Pool -- */
 
 #define WELL_KNOWN_PREFIX "64:ff9b::/96"
