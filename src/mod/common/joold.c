@@ -353,7 +353,7 @@ static enum session_fate collision_cb(struct session_entry *old, void *arg)
 		return FATE_TIMER_SLOW;
 	}
 
-	log_err("We're out of sync: Incoming session entry " SEPP
+	log_warn_once("We're out of sync: Incoming session entry " SEPP
 			" collides with DB entry " SEPP ".",
 			SEPA(new), SEPA(old));
 	params->success = false;
