@@ -89,6 +89,23 @@ static struct joolnl_stat_metadata const jstat_metadatas[] = {
 	DEFINE_STAT(JSTAT_ICMP4ERR_SUCCESS, "ICMPv4 errors (created by Jool, not translated) sent successfully."),
 	DEFINE_STAT(JSTAT_ICMP4ERR_FAILURE, "ICMPv4 errors (created by Jool, not translated) that could not be sent."),
 	DEFINE_STAT(JSTAT_ICMPEXT_BIG, "Illegal ICMP header length. (Exceeds available payload in packet.)"),
+
+	DEFINE_STAT(JSTAT_JOOLD_EMPTY, "Joold packet not sent; no sessions queued."),
+	DEFINE_STAT(JSTAT_JOOLD_TIMEOUT, "Joold packet sent; ss-flush-deadline reached."),
+	DEFINE_STAT(JSTAT_JOOLD_MISSING_ACK, "Joold packet not sent; still waiting for ACK."),
+	DEFINE_STAT(JSTAT_JOOLD_AD_ONGOING, "Joold packet sent; advertise still ongoing."),
+	DEFINE_STAT(JSTAT_JOOLD_FLUSH_ASAP, "Joold packet sent; ss-flush-asap enabled."),
+	DEFINE_STAT(JSTAT_JOOLD_PKT_FULL, "Joold packet sent; session packet full."),
+	DEFINE_STAT(JSTAT_JOOLD_QUEUING, "Joold packet not sent; packet still has room for more sessions."),
+
+	DEFINE_STAT(JSTAT_JOOLD_SSS_QUEUED, "Joold: Total sessions queued."),
+	DEFINE_STAT(JSTAT_JOOLD_SSS_SENT, "Joold: Total sessions successfully sent."),
+	DEFINE_STAT(JSTAT_JOOLD_SSS_RCVD, "Joold: Total sessions successfully received."),
+	DEFINE_STAT(JSTAT_JOOLD_PKT_SENT, "Joold: Total session packets successfully sent."),
+	DEFINE_STAT(JSTAT_JOOLD_PKT_RCVD, "Joold: Total session packets successfully received."),
+	DEFINE_STAT(JSTAT_JOOLD_ADS, "Joold: Total advertises queued."),
+	DEFINE_STAT(JSTAT_JOOLD_ACKS, "Joold: Total ACKs received from userspace."),
+
 	DEFINE_STAT(JSTAT_UNKNOWN, TC "Programming error found. The module recovered, but the packet was dropped."),
 	DEFINE_STAT(JSTAT_PADDING, "Dummy; ignore this one."),
 };

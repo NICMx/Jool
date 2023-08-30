@@ -119,23 +119,39 @@ static bool should_send(struct xlator *jool)
 
 	queue = jool->nat64.joold;
 
-	if (queue->deferred.count == 0)
+	if (queue->deferred.count == 0) {
+		jstat_inc(jool->stats, JSTAT_JOOLD_EMPTY);
 		return false;
+	}
 
 	deadline = msecs_to_jiffies(GLOBALS(jool).flush_deadline);
-	if (time_before(queue->last_flush_time + deadline, jiffies))
+	if (time_before(queue->last_flush_time + deadline, jiffies)) {
+		jstat_inc(jool->stats, JSTAT_JOOLD_TIMEOUT);
 		return true;
+	}
 
-	if (!(queue->flags & JQF_ACK_RECEIVED))
+	if (!(queue->flags & JQF_ACK_RECEIVED)) {
+		jstat_inc(jool->stats, JSTAT_JOOLD_MISSING_ACK);
 		return false;
+	}
 
-	if (queue->flags & JQF_AD_ONGOING)
+	if (queue->flags & JQF_AD_ONGOING) {
+		jstat_inc(jool->stats, JSTAT_JOOLD_AD_ONGOING);
 		return true;
+	}
 
-	if (GLOBALS(jool).flush_asap)
+	if (GLOBALS(jool).flush_asap) {
+		jstat_inc(jool->stats, JSTAT_JOOLD_FLUSH_ASAP);
 		return true;
+	}
 
-	return queue->deferred.count >= GLOBALS(jool).max_sessions_per_pkt;
+	if (queue->deferred.count >= GLOBALS(jool).max_sessions_per_pkt) {
+		jstat_inc(jool->stats, JSTAT_JOOLD_PKT_FULL);
+		return true;
+	}
+
+	jstat_inc(jool->stats, JSTAT_JOOLD_QUEUING);
+	return false;
 }
 
 static bool too_many_sessions(struct xlator *jool)
@@ -209,7 +225,7 @@ static void send_to_userspace(struct xlator *jool, struct list_head *sessions)
 	struct joolnlhdr *jhdr;
 	struct nlattr *root;
 	struct deferred_session *session;
-	unsigned int count;
+	int count;
 	int error;
 
 	if (list_empty(sessions))
@@ -243,6 +259,9 @@ static void send_to_userspace(struct xlator *jool, struct list_head *sessions)
 		FREE_DEFERRED(session);
 		count++;
 	}
+
+	jstat_add(jool->stats, JSTAT_JOOLD_SSS_SENT, count);
+	jstat_inc(jool->stats, JSTAT_JOOLD_PKT_SENT);
 
 	nla_nest_end(skb, root);
 	genlmsg_end(skb, jhdr);
@@ -333,6 +352,7 @@ void joold_add(struct xlator *jool, struct session_entry *_session)
 	spin_unlock_bh(&queue->lock);
 
 	send_to_userspace(jool, &prepared);
+	jstat_inc(jool->stats, JSTAT_JOOLD_SSS_QUEUED);
 }
 
 struct add_params {
@@ -409,14 +429,21 @@ int joold_sync(struct xlator *jool, struct nlattr *root)
 {
 	struct nlattr *attr;
 	int rem;
+	int rcvd;
 	bool success;
 
 	if (joold_disabled(jool))
 		return -EINVAL;
 
 	success = true;
-	nla_for_each_nested(attr, root, rem)
+	rcvd = 0;
+	nla_for_each_nested(attr, root, rem) {
 		success &= add_new_session(jool, attr);
+		rcvd++;
+	}
+
+	jstat_add(jool->stats, JSTAT_JOOLD_SSS_RCVD, rcvd);
+	jstat_inc(jool->stats, JSTAT_JOOLD_PKT_RCVD);
 
 	__log_debug(jool, "Done.");
 	return success ? 0 : -EINVAL;
@@ -470,6 +497,7 @@ int joold_advertise(struct xlator *jool)
 	spin_unlock_bh(&queue->lock);
 
 	send_to_userspace(jool, &prepared);
+	jstat_inc(jool->stats, JSTAT_JOOLD_ADS);
 	return 0;
 }
 
@@ -490,6 +518,7 @@ void joold_ack(struct xlator *jool)
 	spin_unlock_bh(&queue->lock);
 
 	send_to_userspace(jool, &prepared);
+	jstat_inc(jool->stats, JSTAT_JOOLD_ACKS);
 }
 
 /**
