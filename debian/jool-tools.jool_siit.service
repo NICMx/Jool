@@ -1,7 +1,7 @@
 [Unit]
 Description=Stateless IP/ICMP Translator
 Documentation=https://nicmx.github.io/Jool
-After=network.target
+After=network-pre.target
 ConditionPathExists=/etc/jool/jool_siit.conf
 
 [Service]

@@ -1,7 +1,7 @@
 [Unit]
 Description=Stateful NAT64
 Documentation=https://nicmx.github.io/Jool
-After=network.target
+After=network-pre.target
 ConditionPathExists=/etc/jool/jool.conf
 
 [Service]
