@@ -54,7 +54,7 @@ int handle_address_query64(struct sk_buff *skb, struct genl_info *info)
 	/* Perform query */
 	verdict = addrxlat_siit64(&jool, &request, &result, true);
 	if (verdict.verdict != ADDRXLAT_CONTINUE) {
-		log_err("%s.", verdict.reason);
+		log_err("Unable to translate %pI6c: %s", &request, verdict.reason);
 		error = -EINVAL;
 		goto revert_start;
 	}
@@ -107,7 +107,7 @@ int handle_address_query46(struct sk_buff *skb, struct genl_info *info)
 	/* Perform query */
 	verdict = addrxlat_siit46(&jool, request.s_addr, &result, true, true);
 	if (verdict.verdict != ADDRXLAT_CONTINUE) {
-		log_err("%s.", verdict.reason);
+		log_err("Unable to translate %pI4: %s", &request, verdict.reason);
 		error = -EINVAL;
 		goto revert_start;
 	}
