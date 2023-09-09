@@ -61,6 +61,8 @@ static int updated_entries_cb(struct nl_msg *msg, void *arg)
 		pr_result(&result);
 		goto fail;
 	}
+	if (strcasecmp(jhdr->iname, iname) != 0)
+		return 0; /* Packet is not intended for us. */
 	if (jhdr->flags & JOOLNLHDR_FLAGS_ERROR) {
 		result = joolnl_msg2result(msg);
 		pr_result(&result);
