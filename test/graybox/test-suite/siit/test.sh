@@ -249,7 +249,7 @@ if [ -z "$1" -o "$1" = "rfc7915" ]; then
 
 	# c
 	jool_siit global update lowest-ipv6-mtu 1500
-	ip link set dev to_client_v6 mtu 1280
+	ip link set dev siit0 mtu 1280
 	test44_11 7915 cat1 cae1 $TOS,$IDENTIFICATION
 	test44_11 7915 cat2 cae2 $TOS,$IDENTIFICATION
 	test46_11 7915 cbt1 cbe1
@@ -270,12 +270,13 @@ if [ -z "$1" -o "$1" = "rfc7915" ]; then
 	test46_11 7915 cet1 cee1
 	test46_11 7915 cet2 cee1
 	test46_12 7915 cft1 cfe1 cfe2
-	ip link set dev to_client_v6 mtu 1500
+	ip link set dev siit0 mtu 1500
 
-	ip link set dev to_client_v4 mtu 1400
+	ip link set dev siit0 mtu 1500
 	test66_11 7915 cgt1 cge1
 	test66_11 7915 cgt2 cge2
-	ip link set dev to_client_v4 mtu 1500
+	ip link set dev siit0 mtu 1500
+
 
 	test64_11 7915 cht1 che1 $IDENTIFICATION
 	test64_11 7915 cit1 cie1 $IDENTIFICATION
@@ -338,14 +339,14 @@ if [ -z "$1" -o "$1" = "rfc7915" ]; then
 	test46_11 7915 idkt idke
 	test46_11 7915 idzt idze
 
-	ip link set dev to_jool_v4 mtu 2153
-	ip link set dev to_client_v4 mtu 2153
+	ip link set dev siit0 mtu 2153
+	ip link set dev siit0 mtu 2153
 	sleep 0.5
 	test46_11 7915 idgt idge
 	test46_11 7915 idit idie
 	test46_11 7915 idyt idye
-	ip link set dev to_jool_v4 mtu 1500
-	ip link set dev to_client_v4 mtu 1500
+	ip link set dev siit0 mtu 1500
+	ip link set dev siit0 mtu 1500
 
 	# j
 	jool_siit global update lowest-ipv6-mtu 1500
