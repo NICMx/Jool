@@ -101,6 +101,7 @@ static struct joolnl_stat_metadata const jstat_metadatas[] = {
 	DEFINE_STAT(JSTAT_JOOLD_SSS_QUEUED, "Joold: Total sessions queued."),
 	DEFINE_STAT(JSTAT_JOOLD_SSS_SENT, "Joold: Total sessions successfully sent."),
 	DEFINE_STAT(JSTAT_JOOLD_SSS_RCVD, "Joold: Total sessions successfully received."),
+	DEFINE_STAT(JSTAT_JOOLD_SSS_ENOSPC, "Joold: Total sessions dropped because the queue was full."),
 	DEFINE_STAT(JSTAT_JOOLD_PKT_SENT, "Joold: Total session packets successfully sent."),
 	DEFINE_STAT(JSTAT_JOOLD_PKT_RCVD, "Joold: Total session packets successfully received."),
 	DEFINE_STAT(JSTAT_JOOLD_ADS, "Joold: Total advertises queued."),

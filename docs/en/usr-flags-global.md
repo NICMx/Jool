@@ -673,6 +673,13 @@ Watch out for this message in the kernel logs:
 
 	joold: Too many sessions deferred! I need to drop some; sorry.
 
+If you want to find out how many sessions have been lost, query the `JSTAT_JOOLD_SSS_ENOSPC` [stat](https://nicmx.github.io/Jool/en/usr-flags-stats.html):
+
+```
+$ jool stats display --all | grep JSTAT_JOOLD_SSS_ENOSPC
+JSTAT_JOOLD_SSS_ENOSPC: 0
+```
+
 ### `ss-max-payload`
 
 - Type: Integer

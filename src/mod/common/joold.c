@@ -182,6 +182,7 @@ static void send_to_userspace_prepare(struct xlator *jool,
 	if (session) {
 		if (too_many_sessions(jool)) {
 			log_warn_once("joold: Too many sessions deferred! I need to drop some; sorry.");
+			jstat_inc(jool->stats, JSTAT_JOOLD_SSS_ENOSPC);
 			FREE_DEFERRED(session);
 		} else {
 			list_add_tail(&session->lh, &queue->deferred.list);
