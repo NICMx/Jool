@@ -61,7 +61,7 @@ struct jool_result joolnl_alloc_msg(struct joolnl_socket *socket,
 	hdr->version = htonl(xlat_version());
 	hdr->xt = socket->xt;
 	hdr->flags = flags;
-	strcpy(hdr->iname, iname ? iname : "default");
+	strcpy(hdr->iname, iname ? iname : INAME_DEFAULT);
 
 	*out = msg;
 	return result_success();

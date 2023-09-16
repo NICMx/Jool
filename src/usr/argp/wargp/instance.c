@@ -51,7 +51,7 @@ static int parse_iname(void *void_field, int key, char *str)
 struct wargp_type wt_iname = {
 	.argument = "<instance name>",
 	.parse = parse_iname,
-	.candidates = "default",
+	.candidates = INAME_DEFAULT,
 };
 
 struct display_args {

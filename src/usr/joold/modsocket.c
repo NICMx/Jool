@@ -98,8 +98,8 @@ static int read_json(int argc, char **argv)
 	struct jool_result result;
 
 	if (argc < 3) {
-		iname = NULL;
-		return 0;
+		iname = strdup(INAME_DEFAULT);
+		return (iname != NULL) ? 0 : -ENOMEM;
 	}
 
 	syslog(LOG_INFO, "Opening file %s...", argv[2]);
@@ -119,14 +119,10 @@ static int read_json(int argc, char **argv)
 	free(file);
 
 	child = cJSON_GetObjectItem(json, "instance");
-	if (child) {
-		iname = strdup(child->valuestring);
-		if (!iname) {
-			cJSON_Delete(json);
-			return -ENOMEM;
-		}
-	} else {
-		iname = NULL;
+	iname = strdup(child ? child->valuestring : INAME_DEFAULT);
+	if (!iname) {
+		cJSON_Delete(json);
+		return -ENOMEM;
 	}
 
 	cJSON_Delete(json);
