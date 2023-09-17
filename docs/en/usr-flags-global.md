@@ -692,7 +692,7 @@ Deprecated; does nothing as of Jool 4.1.11.
 ### `ss-max-sessions-per-packet`
 
 - Type: Integer
-- Default: 10
+- Default: 27
 - Modes: Stateful NAT64 only
 - Source: [Issue 113]({{ site.repository-url }}/issues/113), [issue 410]({{ site.repository-url }}/issues/410)
 
@@ -721,13 +721,13 @@ $ make
 $ sudo make test | head
 ...
 Jool: Netlink attribute header size: 4
-Jool: Serialized session size: 140
+Jool: Serialized session size: 52
 ...
 ```
 
 So the default value came out of
 
 ```
-floor((1500 - max(20, 40) - 8 - 4) / 140)
+floor((1500 - max(20, 40) - 8 - 4) / 52)
 ```
 

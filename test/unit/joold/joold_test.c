@@ -62,6 +62,16 @@ int bib_add_session(struct xlator *jool,
 	return -EINVAL;
 }
 
+void jstat_inc(struct jool_stats *stats, enum jool_stat_id stat)
+{
+	/* Empty */
+}
+
+void jstat_add(struct jool_stats *stats, enum jool_stat_id stat, int addend)
+{
+	/* Empty */
+}
+
 /********************** Init **********************/
 
 static void init_session(unsigned int index, struct session_entry *result)
