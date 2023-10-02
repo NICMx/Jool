@@ -874,27 +874,27 @@ This section contains some seemingly broken fragments (in that their payloads do
 
 - Requirement: If an IPv4 packet has DF enabled and is too large, Jool must return Fragmentation Needed.
 - Environment: IPv6 MTU = 1280, IPv4 MTU >= 1261
-- Test Packets:
-	1. IPv4 packet sized 1261
-		1. IPv4: 20 (DF)
-		2. TCP: 20
-		3. Payload: 1221
-	2. IPv4 fragment sized 1261
-		1. IPv4: 20 (identification:1234, DF, MF)
-		2. TCP: 20
-		3. Payload: 1221
-- Expected packets:
-	1. Fragmentation Needed containing `test-1`, size 576
-		1. IPv4: 20 (src: 198.51.100.1, dst: 198.51.100.2, !DF)
-		2. ICMPv4: 8 (3/4, MTU: 1260)
-		3. Payload: `test-1` (truncated to 548)
-	2. Fragmentation Needed containing `test-2`, size 576
-		1. IPv4: 20 (src: 198.51.100.1, dst: 198.51.100.2, !DF)
-		2. ICMPv4: 8 (3/4, MTU: 1260)
-		3. Payload: `test-2` (truncated to 548)
 - Validation: `test-n` must yield `expected-n`.
 
-!DF on the expected packets is a Linux quirk. Perhaps that field should be ignored instead.
+	packet cat1: IPv4 packet sized 1261
+		20	IPv4
+		20	TCP
+		1221	Payload
+
+	packet cat2: IPv4 fragment sized 1261
+		20	IPv4	identification:1234 mf:true
+		20	TCP
+		1221	Payload
+
+	packet cae1: Fragmentation Needed containing `cat1`, size 576
+		20	IPv4	src:198.51.100.1 dst:198.51.100.2
+		8	ICMPv4	type:3 code:4 rest2:1260
+		548	Payload	file:cat1
+
+	packet cae2: Fragmentation Needed containing `cat2`, size 576
+		20	IPv4	src:198.51.100.1 dst:198.51.100.2
+		8	ICMPv4	type:3 code:4 rest2:1260
+		548	Payload	file:cat2
 
 IPv6 counterpart: [cg](#cg)
 
@@ -1136,62 +1136,67 @@ Non-forwarding PMTUD tests were already included in the previous section.
 
 - Requirement: Packet too Big should become Fragmentation Needed, with MTU adjusted.
 - Environment: IPv6 MTU > 1280, IPv4 MTU > 1260 (Just go back to 1500 defaults at this point)
-- Helper packets:
-	1. IPv6 request
-		1. IPv6: 40 (src: 2001:db8:1c6:3364:2::, dst: 2001:db8:3::60, TTL-1)
-		2. TCP: 20
-		3. Payload: 1221
-	2. IPv4 request
-		1. IPv4: 20 (src: 198.51.100.2, dst: 1.0.0.96, TTL-1)
-		2. TCP: 20
-		3. Payload: 1221
-- Test packets:
-	1. Packet too Big
-		1. IPv6: 40
-		2. ICMPv6: 8 (2/0, MTU 1280)
-		3. Payload: `helper-1` (truncated to 1232)
-- Expected packets:
-	1. Fragmentation Needed
-		1. IPv4: 20 (TTL-1, !DF, swap addresses)
-		2. ICMPv4: 8 (3/4, MTU 1260)
-		3. Payload: `helper-2` (truncated to 548)
 - Validation: `test-1` must yield `expected-1`.
+
+	packet dah1: IPv6 request
+		40	IPv6	src:2001:db8:1c6:3364:2:: dst:2001:db8:108:0808:08:: ttl--
+		20	TCP
+		1221	Payload
+
+	packet dah2: IPv4 request
+		20	IPv4	src:198.51.100.2 dst:8.8.8.8 ttl--
+		20	TCP
+		1221	Payload
+
+	packet dat1: Packet too Big
+		40	IPv6
+		8	ICMPv6	type:2 code:0 rest2:1280
+		1232	Payload	file:dah1
+
+	packet dae1: Fragmentation Needed
+		20	IPv4	ttl-- !df swap
+		8	ICMPv4	type:3 code:4 rest2:1260
+		548	Payload	file:dah2
 
 #### db
 
 - Requirement: Fragmentation Needed should become Packet too Big, with MTU adjusted. IPv6 MTU must not go below 1280.
-- Helper packets:
-	1. IPv4 request sized sized 1262
-		1. IPv4: 20 (src: 192.0.2.33, dst: 10.0.0.96, TTL-1)
-		2. UDP: 8
-		3. Payload: 1234
-	2. IPv6 request
-		1. IPv6: 40 (src: 2001:db8:1c0:2:21::, dst: 2001:db8:2::60, TTL-1)
-		2. UDP: 8
-		3. Payload: 1234
-- Test packets:
-	1. Fragmentation Needed
-		1. IPv4: 20
-		2. ICMPv4: 8 (3/4, MTU 1261)
-		3. Payload: `helper-1`
-	2. Fragmentation Needed
-		1. IPv4: 20
-		2. ICMPv4: 8 (3/4, MTU 1260)
-		3. Payload: `helper-1`
-	3. Fragmentation Needed
-		1. IPv4: 20
-		2. ICMPv4: 8 (3/4, MTU 1259)
-		3. Payload: `helper-1`
-- Expected packets:
-	1. Packet too Big
-		1. IPv6: 40 (TTL-1, swap addresses)
-		2. ICMPv6: 8 (2/0, MTU 1281)
-		3. Payload: `helper-2` (truncated to 1232)
-	2. Packet too Big
-		1. IPv6: 40 (TTL-1, swap addresses)
-		2. ICMPv6: 8 (2/0, MTU 1280)
-		3. Payload: `helper-2` (truncated to 1232)
 - Validation: `test-1` must yield `expected-1`, `test-2` and `test-3` must yield `expected-2`.
+
+	packet dbh1: IPv4 request sized sized 1262
+		20	IPv4	src:192.0.2.33 dst:8.8.8.8 ttl--
+		8	UDP
+		1234	Payload
+
+	packet dbh2: IPv6 request
+		40	IPv6	src:2001:db8:1c0:2:21:: dst:2001:db8:108:0808:08:: ttl--
+		8	UDP
+		1234	Payload
+
+	packet dbt1: Fragmentation Needed
+		20	IPv4
+		8	ICMPv4	type:3 code:4 rest2:1261
+		1262	Payload	file:dbh1
+
+	packet dbt2: Fragmentation Needed
+		20	IPv4
+		8	ICMPv4	type:3 code:4 rest2:1260
+		1262	Payload	file:dbh1
+
+	packet dbt3: Fragmentation Needed
+		20	IPv4
+		8	ICMPv4	type:3 code:4 rest2:1259
+		1262	Payload	file:dbh1
+
+	packet dbe1: Packet too Big
+		40	IPv6	ttl-- swap
+		8	ICMPv6	type:2 code:0 rest2:1281
+		1232	Payload	file:dbh2
+
+	packet dbe2: Packet too Big
+		40	IPv6	ttl-- swap
+		8	ICMPv6	type:2 code:0 rest2:1280
+		1232	Payload	file:dbh2
 
 ### Zero UDP Checksum Tests
 
@@ -1199,19 +1204,17 @@ Non-forwarding PMTUD tests were already included in the previous section.
 
 - Requirement: If `amend-udp-checksum-zero` is disabled, an unfragmented UDP packet with checksum = 0 must be _rejected_.
 - Environment: Disable `amend-udp-checksum-zero` configuration option.
-- Test packets:
-	1. IPv4/UDP packet
-		1. IPv4: 20
-		2. UDP: 8 (Checksum 0)
-		3. Payload: 4
-- Expected packets:
-	1. ICMP error
-		1. IPv4: 20 (src: 198.51.100.1, dst: 198.51.100.2, !DF)
-		2. ICMPv4: 8 (3/13)
-		3. Payload: `test-1`
 - Validation: `test-1` must yield `expected-1`.
 
-!DF on `expected-1` is a Linux quirk. Perhaps that field should be ignored instead.
+	packet eat1: IPv4/UDP packet
+		20	IPv4
+		8	UDP	checksum:0
+		4	Payload
+
+	packet eae1: ICMP error
+		20	IPv4	src:198.51.100.1 dst:198.51.100.2
+		8	ICMPv4	type:3 code:13
+		32	Payload	file:eat1
 
 #### eb
 
@@ -1230,19 +1233,17 @@ Non-forwarding PMTUD tests were already included in the previous section.
 #### ec
 
 - Requirement: Fragmented UDP packets with checksum = 0 must be _rejected_.
-- Test packets:
-	1. IPv4/UDP fragment
-		1. IPv4: 20 (MF)
-		2. UDP: 8 (checksum 0)
-		3. Payload: 4
-- Expected packets:
-	1. ICMP error
-		1. IPv4: 20 (src: 198.51.100.1, dst: 198.51.100.2, !DF)
-		2. ICMPv4: 8 (3/13)
-		3. Payload: `test-1`
 - Validation: `test-1` must yield `expected-1` regardless of `amend-udp-checksum-zero`.
 
-!DF on `expected-1` is a Linux quirk. Perhaps that field should be ignored instead.
+	packet ect1: IPv4/UDP fragment
+		20	IPv4	mf:true
+		8	UDP	checksum:0
+		4	Payload
+
+	packet ece1: ICMP error
+		20	IPv4	src:198.51.100.1 dst:198.51.100.2
+		8	ICMPv4	type:3 code:13
+		32	Payload	file:ect1
 
 Again, I'm assuming the ICMP error from section 4.4 is supposed to kick in.
 

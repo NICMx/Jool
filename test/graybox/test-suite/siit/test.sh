@@ -20,6 +20,7 @@
 
 
 GRAYBOX=`dirname $0`/../../usr/graybox
+JOOLIF_CLIENT=/home/al/git/joolif/usr/joolif
 
 # When Linux creates an ICMPv4 error on behalf of Jool, it writes 'c0' on the
 # outer TOS field for me. This seems to mean "Network Control" messages
@@ -203,28 +204,31 @@ fi
 
 # "Manual" tests
 if [ -z "$1" -o "$1" = "misc" ]; then
+	sudo /home/al/git/joolif/usr/joolif siit0 pool6791v4 203.0.113.8
 	test64_11 manual 6791v64t 6791v64e $IDENTIFICATION,$INNER_IDENTIFICATION
+	sudo /home/al/git/joolif/usr/joolif siit0 pool6791v4 198.51.100.1
+
+	# FIXME all the tests below need adjustments
 	test66_11 manual 6791v66t 6791v66e
 
-	jool_siit global update rfc6791v4-prefix null
+	$JOOLIF_CLIENT siit0 pool6791v4 0.0.0.0
 	test64_11 manual 6791v64t 6791v64e-empty $IDENTIFICATION,$INNER_IDENTIFICATION
-	jool_siit global update rfc6791v4-prefix 203.0.113.8
+	$JOOLIF_CLIENT siit0 pool6791v4 203.0.113.8
 
-	jool_siit global update pool6 null
-	jool_siit eamt add 198.51.100.0/24 2001:db8:1c6:3364::/72
-	jool_siit eamt add 192.0.2.0/24 2001:db8:1c0:2::/72
+	#$JOOLIF_CLIENT siit0 pool6 null
+	#jool_siit eamt add 198.51.100.0/24 2001:db8:1c6:3364::/72
+	#jool_siit eamt add 192.0.2.0/24 2001:db8:1c0:2::/72
 	test46_11 manual 6791v46t 6791v46e-empty
-	jool_siit global update rfc6791v6-prefix 2::2
+	$JOOLIF_CLIENT siit0 pool6791v6 2::2
 	test46_11 manual 6791v46t 6791v46e
-	jool_siit global update pool6 2001:db8:100::/40
-	jool_siit eamt remove 198.51.100.0/24 2001:db8:1c6:3364::/72
-	jool_siit eamt remove 192.0.2.0/24 2001:db8:1c0:2::/72
-	jool_siit global update rfc6791v6-prefix null
+	$JOOLIF_CLIENT siit0 pool6 2001:db8:100::/40
+	#jool_siit eamt remove 198.51.100.0/24 2001:db8:1c6:3364::/72
+	#jool_siit eamt remove 192.0.2.0/24 2001:db8:1c0:2::/72
+	#$JOOLIF_CLIENT siit0 pool6791v6 null
 fi
 
 # "RFC 6791" tests
-if [ -z "$1" -o "$1" = "rfc7915" ]; then
-	# a
+if [ -z "$1" -o "$1" = "rfc7915a" ]; then
 	test46_11 7915 aat1 aae1
 	test46_11 7915 aat2 aae1
 	test46_11 7915 aat3 aae1
@@ -239,16 +243,18 @@ if [ -z "$1" -o "$1" = "rfc7915" ]; then
 	test66_11 7915 act6 ace6
 	test64_11 7915 adt1 ade1 $IDENTIFICATION
 	test64_11 7915 adt2 ade2
+fi
 
-	# b
+if [ -z "$1" -o "$1" = "rfc7915b" ]; then
 	test46_11 7915 bat1 bae1
 	test46_11 7915 bbt1 bbe1
 	test46_11 7915 bct1 bce1
 	test64_11 7915 bdt1 bde1 $IDENTIFICATION,$INNER_IDENTIFICATION
 	test64_11 7915 bet1 bee1 $IDENTIFICATION,$INNER_IDENTIFICATION
+fi
 
-	# c
-	jool_siit global update lowest-ipv6-mtu 1500
+if [ -z "$1" -o "$1" = "rfc7915c" ]; then
+	$JOOLIF_CLIENT siit0 lowest-ipv6-mtu 1500
 	ip link set dev siit0 mtu 1280
 	test44_11 7915 cat1 cae1 $TOS,$IDENTIFICATION
 	test44_11 7915 cat2 cae2 $TOS,$IDENTIFICATION
@@ -272,12 +278,6 @@ if [ -z "$1" -o "$1" = "rfc7915" ]; then
 	test46_12 7915 cft1 cfe1 cfe2
 	ip link set dev siit0 mtu 1500
 
-	ip link set dev siit0 mtu 1500
-	test66_11 7915 cgt1 cge1
-	test66_11 7915 cgt2 cge2
-	ip link set dev siit0 mtu 1500
-
-
 	test64_11 7915 cht1 che1 $IDENTIFICATION
 	test64_11 7915 cit1 cie1 $IDENTIFICATION
 	test64_11 7915 cjt1 cje1
@@ -285,38 +285,40 @@ if [ -z "$1" -o "$1" = "rfc7915" ]; then
 	test64_11 7915 cjt3 cje3
 	test64_11 7915 cjt4 cje4
 
-	jool_siit global update lowest-ipv6-mtu 1280
+	$JOOLIF_CLIENT siit0 lowest-ipv6-mtu 1280
 	# This one is actually ck.
 	test46_12 7915 cct1 cce1 cce2
+fi
 
-	# d
+if [ -z "$1" -o "$1" = "rfc7915d" ]; then
 	test64_11 7915 dat1 dae1 $IDENTIFICATION,$INNER_IDENTIFICATION
 	test46_11 7915 dbt1 dbe1
 	test46_11 7915 dbt2 dbe2
 	test46_11 7915 dbt3 dbe2
+fi
 
-	# e
+if [ -z "$1" -o "$1" = "rfc7915e" ]; then
 	test44_11 7915 eat1 eae1 $TOS,$IDENTIFICATION
-	jool_siit global update amend-udp-checksum-zero 1
+	$JOOLIF_CLIENT siit0 amend-udp-checksum-zero 1
 	# Cannot be tested by graybox anymore, because the checksum is now
 	# offloaded. The interface refuses to do it because it's virtual.
 	#test46_11 7915 eat1 ebe1
 	test44_11 7915 ect1 ece1 $TOS,$IDENTIFICATION
-	jool_siit global update amend-udp-checksum-zero 0
+	$JOOLIF_CLIENT siit0 amend-udp-checksum-zero 0
 	test44_11 7915 ect1 ece1 $TOS,$IDENTIFICATION
+fi
 
-	# f
+if [ -z "$1" -o "$1" = "rfc7915f" ]; then
 	test46_11 7915 fat1 fae1
 	test64_11 7915 fbt1 fbe1 $IDENTIFICATION
+fi
 
-	# g
-	test66_11 7915 gat1 gae1
-
-	# h
+if [ -z "$1" -o "$1" = "rfc7915h" ]; then
 	test46_11 7915 hat1 hae1
 	test46_11 7915 hat2 hae2
+fi
 
-	# i
+if [ -z "$1" -o "$1" = "rfc7915i" ]; then
 	test64_11 7915 ia1t ia1e $IDENTIFICATION,$INNER_IDENTIFICATION
 	test46_11 7915 ia2t ia2e
 	test64_11 7915 ib1t ib1e $IDENTIFICATION,$INNER_IDENTIFICATION
@@ -347,22 +349,20 @@ if [ -z "$1" -o "$1" = "rfc7915" ]; then
 	test46_11 7915 idyt idye
 	ip link set dev siit0 mtu 1500
 	ip link set dev siit0 mtu 1500
+fi
 
-	# j
-	jool_siit global update lowest-ipv6-mtu 1500
+if [ -z "$1" -o "$1" = "rfc7915j" ]; then
+	$JOOLIF_CLIENT siit0 lowest-ipv6-mtu 1500
 	test46_11 7915 jat jae
-	jool_siit global update lowest-ipv6-mtu 1280
+	$JOOLIF_CLIENT siit0 lowest-ipv6-mtu 1280
 
 	test46_12 7915 jbat jbae1 jbae2
 	test46_11 7915 jbbt jbbe
-	jool_siit global update lowest-ipv6-mtu 1402
+	$JOOLIF_CLIENT siit0 lowest-ipv6-mtu 1402
 	test46_12 7915 jcat jcae1 jcae2
 	test46_11 7915 jcbt jcbe
-	jool_siit global update lowest-ipv6-mtu 1280
+	$JOOLIF_CLIENT siit0 lowest-ipv6-mtu 1280
 fi
-
-#if [ -z "$1" -o "$1" = "new" ]; then
-#fi
 
 $GRAYBOX stats display
 result=$?
