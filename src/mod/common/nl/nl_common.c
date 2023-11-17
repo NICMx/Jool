@@ -14,7 +14,7 @@ char *get_iname(struct genl_info *info)
 
 struct joolnlhdr *get_jool_hdr(struct genl_info *info)
 {
-	return info->userhdr;
+	return (struct joolnlhdr *)((u8 *)info->genlhdr + GENL_HDRLEN);
 }
 
 static int validate_magic(struct joolnlhdr *hdr)
