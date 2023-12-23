@@ -1,11 +1,10 @@
 Source: jool
 Maintainer: Alberto Leiva Popper <ydahhrk@gmail.com>
-Uploaders: Alberto Leiva Popper <ydahhrk@gmail.com>
 Section: kernel
 Priority: optional
 Build-Depends:
- debhelper (>= 11), dh-sequence-dkms,
- mime-support, pkg-config, gawk, file, cpio,
+ debhelper (>= 11), dh-sequence-dkms, dkms,
+ pkg-config, gawk, file, cpio,
  libnl-genl-3-dev, libnl-3-dev,
  libxtables-dev
 Standards-Version: 4.5.1

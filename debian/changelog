@@ -1,3 +1,13 @@
+jool (4.1.11-1) unstable; urgency=medium
+
+  * New upstream release
+  * Add the "distclean" target to the kernelmod Makefiles. Closes: #1046037
+  * Add support for kernels up to 6.7-rc6. Closes: #1057445
+  * Remove mime-support from build dependencies. Closes: #1057703
+  * Move jool service startup to After=network-pre.target. (See Github #409.)
+
+ -- Alberto Leiva Popper <ydahhrk@gmail.com>  Fri, 22 Dec 2023 17:45:56 -0600
+
 jool (4.1.10-2) unstable; urgency=medium
 
   * Remove dkms dependency. Closes: #1041311
