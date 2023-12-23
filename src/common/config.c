@@ -123,6 +123,7 @@ struct nla_policy nat64_globals_policy[JNLAG_COUNT] = {
 	[JNLAG_JOOLD_FLUSH_DEADLINE] = { .type = NLA_U32 },
 	[JNLAG_JOOLD_CAPACITY] = { .type = NLA_U32 },
 	[JNLAG_JOOLD_MAX_PAYLOAD] = { .type = NLA_U32 },
+	[JNLAG_JOOLD_MAX_SESSIONS_PER_PACKET] = { .type = NLA_U32 },
 };
 
 int iname_validate(const char *iname, bool allow_null)

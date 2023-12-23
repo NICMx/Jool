@@ -3,6 +3,18 @@
 #include <linux/kernel.h>
 #include <net/ipv6.h>
 
+bool ASSERT_NOTNULL(void *ptr, char const *test_name)
+{
+	if (ptr == NULL) {
+		log_err("Test '%s' failed.", test_name);
+		pr_err("  Expected: !NULL\n");
+		pr_err("  Actual  : NULL\n");
+		return false;
+	}
+
+	return true;
+}
+
 bool __ASSERT_ADDR4(const struct in_addr *expected,
 		const struct in_addr *actual,
 		const char *test_name)
@@ -63,8 +75,8 @@ bool ASSERT_TADDR4(struct ipv4_transport_addr const *expected,
 		return true;
 
 	log_err("Test '%s' failed.", test_name);
-	pr_err("  Expected: %pI4#%u\n", &expected->l3, expected->l4);
-	pr_err("  Actual  : %pI4#%u\n", &actual->l3, actual->l4);
+	pr_err("  Expected: " TA4PP "\n", TA4PA(*expected));
+	pr_err("  Actual  : " TA4PP "\n", TA4PA(*actual));
 	return false;
 }
 
@@ -127,16 +139,11 @@ bool ASSERT_TADDR6(struct ipv6_transport_addr const *expected,
 	if (taddr6_equals(expected, actual))
 		return true;
 
-	log_err("Test '%s' failed. Expected:%pI6c#%u Actual:%pI6c#%u",
-			test_name,
-			&expected->l3, expected->l4,
-			&actual->l3, actual->l4);
+	log_err("Test '%s' failed.", test_name);
+	pr_err("  Expected: " TA6PP "\n", TA6PA(*expected));
+	pr_err("  Actual  : " TA6PP "\n", TA6PA(*actual));
 	return false;
 }
-
-#define TUPLE_KEY "%pI4#%u -> %pI4#%u [%u]"
-#define TUPLE_PRINT(tuple) &tuple->src.addr4.l3, tuple->src.addr4.l4, \
-	&tuple->dst.addr4.l3, tuple->dst.addr4.l4, tuple->l4_proto
 
 static bool ASSERT_TUPLE4(struct tuple const *expected,
 		struct tuple const *actual,
@@ -158,22 +165,15 @@ static bool ASSERT_TUPLE4(struct tuple const *expected,
 fail:
 	log_err("Test '%s' failed.", test_name);
 	if (expected)
-		pr_err("  Expected:" TUPLE_KEY "\n", TUPLE_PRINT(expected));
+		pr_err("  Expected:" T4PP "\n", T4PA(expected));
 	else
 		pr_err("  Expected:NULL\n");
 	if (actual)
-		pr_err("  Actual:  " TUPLE_KEY "\n", TUPLE_PRINT(actual));
+		pr_err("  Actual:  " T4PP "\n", T4PA(actual));
 	else
 		pr_err("  Actual:  NULL\n");
 	return false;
 }
-
-#undef TUPLE_KEY
-#undef TUPLE_PRINT
-
-#define TUPLE_KEY "%pI6c#%u -> %pI6c#%u [%u]"
-#define TUPLE_PRINT(tuple) &tuple->src.addr6.l3, tuple->src.addr6.l4, \
-	&tuple->dst.addr6.l3, tuple->dst.addr6.l4, tuple->l4_proto
 
 static bool ASSERT_TUPLE6(struct tuple const *expected,
 		struct tuple const *actual,
@@ -195,18 +195,15 @@ static bool ASSERT_TUPLE6(struct tuple const *expected,
 fail:
 	log_err("Test '%s' failed.", test_name);
 	if (expected)
-		pr_err("  Expected:" TUPLE_KEY "\n", TUPLE_PRINT(expected));
+		pr_err("  Expected:" T6PP "\n", T6PA(expected));
 	else
 		pr_err("  Expected:NULL\n");
 	if (actual)
-		pr_err("  Actual:  " TUPLE_KEY "\n", TUPLE_PRINT(actual));
+		pr_err("  Actual:  " T6PP "\n", T6PA(actual));
 	else
 		pr_err("  Actual:  NULL\n");
 	return false;
 }
-
-#undef TUPLE_KEY
-#undef TUPLE_PRINT
 
 bool ASSERT_TUPLE(struct tuple const *expected,
 		struct tuple const *actual,
@@ -229,9 +226,6 @@ bool ASSERT_TUPLE(struct tuple const *expected,
 	return false;
 }
 
-#define BIB_KEY "[BIB %pI4#%u %pI6c#%u]"
-#define BIB_PRINT(bib) &bib->addr4.l3, bib->addr4.l4, &bib->addr6.l3, bib->addr6.l4
-
 bool ASSERT_BIB(struct bib_entry const* expected,
 		struct bib_entry const* actual,
 		char const *test_name)
@@ -242,12 +236,12 @@ bool ASSERT_BIB(struct bib_entry const* expected,
 	if (!expected) {
 		log_err("Test '%s' failed:", test_name);
 		pr_err("  Expected: NULL\n");
-		pr_err("  Actual  : " BIB_KEY "\n", BIB_PRINT(actual));
+		pr_err("  Actual  : BIB " BEPP "\n", BEPA(actual));
 		return false;
 	}
 	if (!actual) {
 		log_err("Test '%s' failed:", test_name);
-		pr_err("  Expected: " BIB_KEY "\n", BIB_PRINT(expected));
+		pr_err("  Expected: BIB " BEPP "\n", BEPA(expected));
 		pr_err("  Actual  : NULL\n");
 		return false;
 	}
@@ -255,23 +249,13 @@ bool ASSERT_BIB(struct bib_entry const* expected,
 	if (!taddr4_equals(&expected->addr4, &actual->addr4)
 			|| !taddr6_equals(&expected->addr6, &actual->addr6)) {
 		log_err("Test '%s' failed:", test_name);
-		pr_err("  Expected: " BIB_KEY "\n", BIB_PRINT(expected));
-		pr_err("  Actual  : " BIB_KEY "\n", BIB_PRINT(actual));
+		pr_err("  Expected: BIB " BEPP "\n", BEPA(expected));
+		pr_err("  Actual  : BIB " BEPP "\n", BEPA(actual));
 		return false;
 	}
 
 	return true;
 }
-
-#undef BIB_PRINT
-#undef BIB_KEY
-
-#define SESSION_KEY "[Session %pI6c#%u %pI6c#%u %pI4#%u %pI4#%u]"
-#define SESSION_PRINT(session) \
-	&session->src6.l3, session->src6.l4, \
-	&session->dst6.l3, session->dst6.l4, \
-	&session->src4.l3, session->src4.l4, \
-	&session->dst4.l3, session->dst4.l4 \
 
 bool ASSERT_SESSION(struct session_entry const *expected,
 		struct session_entry const *actual,
@@ -298,23 +282,20 @@ bool ASSERT_SESSION(struct session_entry const *expected,
 fail:
 	log_err("Test '%s' failed.", test_name);
 	if (expected)
-		pr_err("  Expected:" SESSION_KEY "\n", SESSION_PRINT(expected));
+		pr_err("  Expected: Session " SEPP "\n", SEPA(expected));
 	else
-		pr_err("  Expected:NULL\n");
+		pr_err("  Expected: NULL\n");
 	if (actual)
-		pr_err("  Actual:  " SESSION_KEY "\n", SESSION_PRINT(actual));
+		pr_err("  Actual:   Session " SEPP "\n", SEPA(actual));
 	else
-		pr_err("  Actual:  NULL\n");
+		pr_err("  Actual:   NULL\n");
 	return false;
 }
 
 void print_session(struct session_entry *session)
 {
-	pr_cont(SESSION_KEY, SESSION_PRINT(session));
+	pr_cont(SEPP, SEPA(session));
 }
-
-#undef SESSION_PRINT
-#undef SESSION_KEY
 
 int test_group_begin(struct test_group *group)
 {

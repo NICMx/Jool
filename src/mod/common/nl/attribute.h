@@ -6,6 +6,7 @@
 #include "mod/common/db/bib/entry.h"
 
 int jnla_get_u8(struct nlattr *attr, char const *name, __u8 *out);
+int jnla_get_u16(struct nlattr *attr, char const *name, __u16 *out);
 int jnla_get_u32(struct nlattr *attr, char const *name, __u32 *out);
 int jnla_get_str(struct nlattr *attr, char const *name, size_t len, char *out);
 int jnla_get_addr6(struct nlattr *attr, char const *name, struct in6_addr *out);

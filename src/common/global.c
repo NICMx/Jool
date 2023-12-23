@@ -1000,8 +1000,15 @@ static const struct joolnl_global_meta globals_metadata[] = {
 		.id = JNLAG_JOOLD_MAX_PAYLOAD,
 		.name = "ss-max-payload",
 		.type = &gt_uint32,
-		.doc = "Maximum amount of bytes joold should send per packet.",
+		.doc = "Deprecated; does nothing as of Jool 4.1.11.",
 		.offset = offsetof(struct jool_globals, nat64.joold.max_payload),
+		.xt = XT_NAT64,
+	}, {
+		.id = JNLAG_JOOLD_MAX_SESSIONS_PER_PACKET,
+		.name = "ss-max-sessions-per-packet",
+		.type = &gt_uint32,
+		.doc = "Maximum number of sessions to send, per joold packet.",
+		.offset = offsetof(struct jool_globals, nat64.joold.max_sessions_per_pkt),
 		.xt = XT_NAT64,
 	},
 };

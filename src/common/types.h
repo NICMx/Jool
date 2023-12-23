@@ -88,6 +88,8 @@ const char *l3proto_to_string(l3_protocol proto);
  * We do not use IPPROTO_TCP and friends because I want the compiler to pester
  * me during defaultless `switch`s. Also, the zero-based index is convenient in
  * the Translate Packet module.
+ *
+ * Please don't change the order; there's at least one for that relies on it.
  */
 typedef enum l4_protocol {
 	/** Signals the presence of a TCP header. */
@@ -135,6 +137,11 @@ struct ipv4_transport_addr {
 	__u16 l4;
 };
 
+/* IPv4 Transport Address Prink Pattern */
+#define TA4PP "%pI4#%u"
+/* IPv4 Transport Address Prink Arguments */
+#define TA4PA(ta) &(ta).l3, (ta).l4
+
 /**
  * A layer-3 (IPv6) identifier attached to a layer-4 identifier.
  * Because they're paired all the time in this project.
@@ -145,6 +152,11 @@ struct ipv6_transport_addr {
 	/** The layer-4 identifier (Either the TCP/UDP port or the ICMP id). */
 	__u16 l4;
 };
+
+/* IPv6 Transport Address Prink Pattern */
+#define TA6PP "%pI6c#%u"
+/* IPv6 Transport Address Prink Arguments */
+#define TA6PA(ta) &(ta).l3, (ta).l4
 
 struct taddr4_tuple {
 	struct ipv4_transport_addr src;
@@ -217,6 +229,12 @@ struct bib_entry {
 	/** Created by userspace app client? */
 	bool is_static;
 };
+
+/* BIB Entry Printk Pattern */
+#define BEPP "[" TA6PP ", " TA4PP ", %s]"
+/* BIB Entry Printk Arguments */
+#define BEPA(b) TA6PA((b)->addr6), TA4PA((b)->addr4), \
+	l4proto_to_string((b)->l4_proto)
 
 bool port_range_equals(const struct port_range *r1,
 		const struct port_range *r2);

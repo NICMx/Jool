@@ -27,9 +27,7 @@ struct session_entry {
 	 * unfortunate, as they only make sense in the 6-to-4 direction.
 	 *
 	 * @src6 is the remote IPv6 node's transport address.
-	 *     We used to call it "remote6".
 	 * @dst6 is the address the NAT64 is using to mask the IPv4 endpoint.
-	 *     We used to call it "local6".
 	 */
 	struct ipv6_transport_addr src6;
 	struct ipv6_transport_addr dst6;
@@ -41,9 +39,7 @@ struct session_entry {
 	 * unfortunate, as they only make sense in the 6-to-4 direction.
 	 *
 	 * @src4 is the address the NAT64 is using to mask the IPv6 endpoint.
-	 *     We used to call it "local4".
 	 * @dst4 is the remote IPv4 node's transport address.
-	 *     We used to call it "remote4".
 	 */
 	struct ipv4_transport_addr src4;
 	struct ipv4_transport_addr dst4;
@@ -65,6 +61,14 @@ struct session_entry {
 
 	bool has_stored;
 };
+
+/* Session Entry Printk Pattern */
+#define SEPP "[" TA6PP ", " TA6PP ", " TA4PP ", " TA4PP ", %s]"
+/* Session Entry Printk Arguments */
+#define SEPA(s) \
+	TA6PA((s)->src6), TA6PA((s)->dst6), \
+	TA4PA((s)->src4), TA4PA((s)->dst4), \
+	l4proto_to_string((s)->proto)
 
 struct bib_session {
 	/** Are @session.src6, @session.src4, @session.proto set? */

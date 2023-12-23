@@ -95,11 +95,7 @@ static int cb(struct session_entry const *session, void *void_args)
 	unsigned int index;
 	bool success = true;
 
-	/* log_debug("Iterating: %pI6c#%u %pI6c#%u %pI4#%u %pI4#%u",
-			&session->src6.l3, session->src6.l4,
-			&session->dst6.l3, session->dst6.l4,
-			&session->src4.l3, session->src4.l4,
-			&session->dst4.l3, session->dst4.l4); */
+	pr_debug("Iterating: " SEPP "\n", SEPA(session));
 
 	index = args->offset + args->i;
 	success &= ASSERT_BOOL(true, index < TEST_SESSION_COUNT, "overflow");

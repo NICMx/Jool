@@ -37,7 +37,7 @@ verdict compute_out_tuple(struct xlation *state)
 	return VERDICT_DROP;
 }
 
-struct joold_queue *joold_alloc(struct net *ns)
+struct joold_queue *joold_alloc(void)
 {
 	fail(__func__);
 	return NULL;

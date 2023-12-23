@@ -37,6 +37,18 @@ int jnla_get_u8(struct nlattr *attr, char const *name, __u8 *out)
 	return 0;
 }
 
+int jnla_get_u16(struct nlattr *attr, char const *name, __u16 *out)
+{
+	int error;
+
+	error = validate_null(attr, name);
+	if (error)
+		return error;
+
+	*out = nla_get_u16(attr);
+	return 0;
+}
+
 int jnla_get_u32(struct nlattr *attr, char const *name, __u32 *out)
 {
 	int error;
@@ -300,20 +312,20 @@ int jnla_get_pool4(struct nlattr *attr, char const *name,
 		entry->iterations = nla_get_u32(attrs[JNLAP4_ITERATIONS]);
 	if (attrs[JNLAP4_FLAGS])
 		entry->flags = nla_get_u8(attrs[JNLAP4_FLAGS]);
-	if (attrs[JNLAP4_PROTO])
-		entry->proto = nla_get_u8(attrs[JNLAP4_PROTO]);
-	if (attrs[JNLAP4_PREFIX]) {
-		error = jnla_get_prefix4(attrs[JNLAP4_PREFIX], "IPv4 prefix",
-				&entry->range.prefix);
-		if (error)
-			return error;
-	}
-	if (attrs[JNLAP4_PORT_MIN])
-		entry->range.ports.min = nla_get_u16(attrs[JNLAP4_PORT_MIN]);
-	if (attrs[JNLAP4_PORT_MAX])
-		entry->range.ports.max = nla_get_u16(attrs[JNLAP4_PORT_MAX]);
 
-	return 0;
+	error = jnla_get_u8(attrs[JNLAP4_PROTO], "Protocol", &entry->proto);
+	if (error)
+		return error;
+	error = jnla_get_prefix4(attrs[JNLAP4_PREFIX], "IPv4 prefix",
+			&entry->range.prefix);
+	if (error)
+		return error;
+	error = jnla_get_u16(attrs[JNLAP4_PORT_MIN], "Minimum port",
+			&entry->range.ports.min);
+	if (error)
+		return error;
+	return jnla_get_u16(attrs[JNLAP4_PORT_MAX], "Maximum port",
+			&entry->range.ports.max);
 }
 
 int jnla_get_bib(struct nlattr *attr, char const *name, struct bib_entry *entry)
@@ -332,20 +344,17 @@ int jnla_get_bib(struct nlattr *attr, char const *name, struct bib_entry *entry)
 
 	memset(entry, 0, sizeof(*entry));
 
-	if (attrs[JNLAB_SRC6]) {
-		error = jnla_get_taddr6(attrs[JNLAB_SRC6],
-				"IPv6 transport address", &entry->addr6);
-		if (error)
-			return error;
-	}
-	if (attrs[JNLAB_SRC4]) {
-		error = jnla_get_taddr4(attrs[JNLAB_SRC4],
-				"IPv4 transport address", &entry->addr4);
-		if (error)
-			return error;
-	}
-	if (attrs[JNLAB_PROTO])
-		entry->l4_proto = nla_get_u8(attrs[JNLAB_PROTO]);
+	error = jnla_get_taddr6(attrs[JNLAB_SRC6], "IPv6 transport address",
+			&entry->addr6);
+	if (error)
+		return error;
+	error = jnla_get_taddr4(attrs[JNLAB_SRC4], "IPv4 transport address",
+			&entry->addr4);
+	if (error)
+		return error;
+	error = jnla_get_u8(attrs[JNLAB_PROTO], "Protocol", &entry->l4_proto);
+	if (error)
+		return error;
 	if (attrs[JNLAB_STATIC])
 		entry->is_static = nla_get_u8(attrs[JNLAB_STATIC]);
 
@@ -392,7 +401,8 @@ int jnla_get_session(struct nlattr *attr, char const *name,
 		struct bib_config *config, struct session_entry *entry)
 {
 	struct nlattr *attrs[JNLASE_COUNT];
-	unsigned long expiration;
+	__u8 u8;
+	__u32 expiration;
 	int error;
 
 	error = validate_null(attr, name);
@@ -406,46 +416,43 @@ int jnla_get_session(struct nlattr *attr, char const *name,
 
 	memset(entry, 0, sizeof(*entry));
 
-	if (attrs[JNLASE_SRC6]) {
-		error = jnla_get_taddr6(attrs[JNLASE_SRC6],
-				"IPv6 source address", &entry->src6);
-		if (error)
-			return error;
-	}
-	if (attrs[JNLASE_DST6]) {
-		error = jnla_get_taddr6(attrs[JNLASE_DST6],
-				"IPv6 destination address", &entry->dst6);
-		if (error)
-			return error;
-	}
-	if (attrs[JNLASE_SRC4]) {
-		error = jnla_get_taddr4(attrs[JNLASE_SRC4],
-				"IPv4 source address", &entry->src4);
-		if (error)
-			return error;
-	}
-	if (attrs[JNLASE_DST4]) {
-		error = jnla_get_taddr4(attrs[JNLASE_DST4],
-				"IPv4 destination address", &entry->dst4);
-		if (error)
-			return error;
-	}
+	error = jnla_get_taddr6(attrs[JNLASE_SRC6], "IPv6 source address",
+			&entry->src6);
+	if (error)
+		return error;
+	error = jnla_get_taddr6(attrs[JNLASE_DST6], "IPv6 destination address",
+			&entry->dst6);
+	if (error)
+		return error;
+	error = jnla_get_taddr4(attrs[JNLASE_SRC4], "IPv4 source address",
+			&entry->src4);
+	if (error)
+		return error;
+	error = jnla_get_taddr4(attrs[JNLASE_DST4], "IPv4 destination address",
+			&entry->dst4);
+	if (error)
+		return error;
 
-	if (attrs[JNLASE_PROTO])
-		entry->proto = nla_get_u8(attrs[JNLASE_PROTO]);
-	if (attrs[JNLASE_STATE])
-		entry->state = nla_get_u8(attrs[JNLASE_STATE]);
-	if (attrs[JNLASE_TIMER])
-		entry->timer_type = nla_get_u8(attrs[JNLASE_TIMER]);
+	error = jnla_get_u8(attrs[JNLASE_PROTO], "Protocol", &u8);
+	if (error)
+		return error;
+	entry->proto = u8;
+	error = jnla_get_u8(attrs[JNLASE_STATE], "State", &u8);
+	if (error)
+		return error;
+	entry->state = u8;
+	error = jnla_get_u8(attrs[JNLASE_TIMER], "Timer", &u8);
+	if (error)
+		return error;
+	entry->timer_type = u8;
 
 	error = get_timeout(config, entry);
 	if (error)
 		return error;
-
-	if (attrs[JNLASE_EXPIRATION]) {
-		expiration = msecs_to_jiffies(nla_get_u32(attrs[JNLASE_EXPIRATION]));
-		entry->update_time = jiffies + expiration - entry->timeout;
-	}
+	error = jnla_get_u32(attrs[JNLASE_EXPIRATION], "Expiration", &expiration);
+	if (error)
+		return error;
+	entry->update_time = jiffies + msecs_to_jiffies(expiration) - entry->timeout;
 	entry->has_stored = false;
 
 	return 0;
