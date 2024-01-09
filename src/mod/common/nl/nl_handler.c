@@ -22,7 +22,7 @@
 #include "mod/common/nl/session.h"
 #include "mod/common/nl/stats.h"
 
-#if LINUX_VERSION_AT_LEAST(6, 2, 0, 9999, 0)
+#if LINUX_VERSION_AT_LEAST(6, 2, 0, 9, 3)
 #define GENL_OPS_ARG_TYPE genl_split_ops
 #else
 #define GENL_OPS_ARG_TYPE genl_ops

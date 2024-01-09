@@ -9,7 +9,7 @@
 #include "usr/argp/log.h"
 
 const char *argp_program_version = JOOL_VERSION_STR;
-const char *argp_program_bug_address = "jool@nic.mx";
+const char *argp_program_bug_address = "ydahhrk@gmail.com";
 
 int wargp_parse_bool(void *input, int key, char *str);
 int wargp_parse_u32(void *field, int key, char *str);

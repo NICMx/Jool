@@ -40,6 +40,18 @@ int jnla_get_u8(struct nlattr *attr, char const *name, __u8 *out)
 	return 0;
 }
 
+int jnla_get_u16(struct nlattr *attr, char const *name, __u16 *out)
+{
+	int error;
+
+	error = validate_null(attr, name);
+	if (error)
+		return error;
+
+	*out = nla_get_u16(attr);
+	return 0;
+}
+
 int jnla_get_u32(struct nlattr *attr, char const *name, __u32 *out)
 {
 	int error;
@@ -303,20 +315,20 @@ int jnla_get_pool4(struct nlattr *attr, char const *name,
 		entry->iterations = nla_get_u32(attrs[JNLAP4_ITERATIONS]);
 	if (attrs[JNLAP4_FLAGS])
 		entry->flags = nla_get_u8(attrs[JNLAP4_FLAGS]);
-	if (attrs[JNLAP4_PROTO])
-		entry->proto = nla_get_u8(attrs[JNLAP4_PROTO]);
-	if (attrs[JNLAP4_PREFIX]) {
-		error = jnla_get_prefix4(attrs[JNLAP4_PREFIX], "IPv4 prefix",
-				&entry->range.prefix);
-		if (error)
-			return error;
-	}
-	if (attrs[JNLAP4_PORT_MIN])
-		entry->range.ports.min = nla_get_u16(attrs[JNLAP4_PORT_MIN]);
-	if (attrs[JNLAP4_PORT_MAX])
-		entry->range.ports.max = nla_get_u16(attrs[JNLAP4_PORT_MAX]);
 
-	return 0;
+	error = jnla_get_u8(attrs[JNLAP4_PROTO], "Protocol", &entry->proto);
+	if (error)
+		return error;
+	error = jnla_get_prefix4(attrs[JNLAP4_PREFIX], "IPv4 prefix",
+			&entry->range.prefix);
+	if (error)
+		return error;
+	error = jnla_get_u16(attrs[JNLAP4_PORT_MIN], "Minimum port",
+			&entry->range.ports.min);
+	if (error)
+		return error;
+	return jnla_get_u16(attrs[JNLAP4_PORT_MAX], "Maximum port",
+			&entry->range.ports.max);
 }
 
 int jnla_get_bib(struct nlattr *attr, char const *name, struct bib_entry *entry)
@@ -335,20 +347,17 @@ int jnla_get_bib(struct nlattr *attr, char const *name, struct bib_entry *entry)
 
 	memset(entry, 0, sizeof(*entry));
 
-	if (attrs[JNLAB_SRC6]) {
-		error = jnla_get_taddr6(attrs[JNLAB_SRC6],
-				"IPv6 transport address", &entry->addr6);
-		if (error)
-			return error;
-	}
-	if (attrs[JNLAB_SRC4]) {
-		error = jnla_get_taddr4(attrs[JNLAB_SRC4],
-				"IPv4 transport address", &entry->addr4);
-		if (error)
-			return error;
-	}
-	if (attrs[JNLAB_PROTO])
-		entry->l4_proto = nla_get_u8(attrs[JNLAB_PROTO]);
+	error = jnla_get_taddr6(attrs[JNLAB_SRC6], "IPv6 transport address",
+			&entry->addr6);
+	if (error)
+		return error;
+	error = jnla_get_taddr4(attrs[JNLAB_SRC4], "IPv4 transport address",
+			&entry->addr4);
+	if (error)
+		return error;
+	error = jnla_get_u8(attrs[JNLAB_PROTO], "Protocol", &entry->l4_proto);
+	if (error)
+		return error;
 	if (attrs[JNLAB_STATIC])
 		entry->is_static = nla_get_u8(attrs[JNLAB_STATIC]);
 
@@ -395,7 +404,7 @@ static int get_timeout(struct bib_config *config, struct session_entry *entry)
 	memcpy(&field, serialized, sizeof(field));			\
 	serialized += sizeof(field);
 
-int jnla_get_session(struct nlattr *attr, char const *name,
+int jnla_get_session_joold(struct nlattr *attr, char const *name,
 		struct bib_config *config, struct session_entry *entry)
 {
 	__u8 *serialized;
@@ -429,15 +438,17 @@ int jnla_get_session(struct nlattr *attr, char const *name,
 	entry->dst6.l4 = ntohs(tmp16);
 	READ_RAW(serialized, tmp16);
 	entry->src4.l4 = ntohs(tmp16);
+
 	READ_RAW(serialized, tmp16);
 	__tmp16 = ntohs(tmp16);
-
-	entry->dst4.l3.s_addr = entry->dst6.l3.s6_addr32[3];
-	entry->dst4.l4 = entry->dst6.l4;
-
 	entry->proto = (__tmp16 >> 5) & 3;
 	entry->state = (__tmp16 >> 2) & 7;
 	entry->timer_type = __tmp16 & 3;
+
+	entry->dst4.l3.s_addr = entry->dst6.l3.s6_addr32[3];
+	entry->dst4.l4 = (entry->proto == L4PROTO_ICMP)
+			? entry->src4.l4
+			: entry->dst6.l4;
 
 	error = get_timeout(config, entry);
 	if (error)
@@ -716,11 +727,46 @@ int jnla_put_bib(struct sk_buff *skb, int attrtype, struct bib_entry const *bib)
 	return 0;
 }
 
+int jnla_put_session(struct sk_buff *skb, int attrtype,
+		struct session_entry const *entry)
+{
+	struct nlattr *root;
+	unsigned long dying_time;
+	int error;
+
+	root = nla_nest_start(skb, attrtype);
+	if (!root)
+		return -EMSGSIZE;
+
+	dying_time = entry->update_time + entry->timeout;
+	dying_time = (dying_time > jiffies)
+			? jiffies_to_msecs(dying_time - jiffies)
+			: 0;
+	if (dying_time > MAX_U32)
+		dying_time = MAX_U32;
+
+	error = jnla_put_taddr6(skb, JNLASE_SRC6, &entry->src6)
+		|| jnla_put_taddr6(skb, JNLASE_DST6, &entry->dst6)
+		|| jnla_put_taddr4(skb, JNLASE_SRC4, &entry->src4)
+		|| jnla_put_taddr4(skb, JNLASE_DST4, &entry->dst4)
+		|| nla_put_u8(skb, JNLASE_PROTO, entry->proto)
+		|| nla_put_u8(skb, JNLASE_STATE, entry->state)
+		|| nla_put_u8(skb, JNLASE_TIMER, entry->timer_type)
+		|| nla_put_u32(skb, JNLASE_EXPIRATION, dying_time);
+	if (error) {
+		nla_nest_cancel(skb, root);
+		return error;
+	}
+
+	nla_nest_end(skb, root);
+	return 0;
+}
+
 #define ADD_RAW(buffer, offset, content)				\
 	memcpy(buffer + offset, &content, sizeof(content));		\
 	offset += sizeof(content)
 
-int jnla_put_session(struct sk_buff *skb, int attrtype,
+int jnla_put_session_joold(struct sk_buff *skb, int attrtype,
 		struct session_entry const *entry)
 {
 	__u8 buffer[SERIALIZED_SESSION_SIZE];

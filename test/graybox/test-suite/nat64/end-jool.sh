@@ -1,8 +1,5 @@
 #!/bin/sh
 
-ip6tables -t mangle -F
-iptables  -t mangle -F
-
 modprobe -rq jool
 
 ip route del 2001:db8:1::/96 via 2001:db8::5

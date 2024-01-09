@@ -254,7 +254,7 @@ static void send_to_userspace(struct xlator *jool, struct list_head *sessions)
 	count = 0;
 	while (!list_empty(sessions)) {
 		session = first_deferred(sessions);
-		error = jnla_put_session(skb, JNLAL_ENTRY, &session->session);
+		error = jnla_put_session_joold(skb, JNLAL_ENTRY, &session->session);
 		if (WARN(error, "jnla_put_session() returned %d", error))
 			goto revert_skb;
 		list_del(&session->lh);
@@ -390,7 +390,7 @@ static bool add_new_session(struct xlator *jool, struct nlattr *attr)
 
 	__log_debug(jool, "Adding session!");
 
-	error = jnla_get_session(attr, "joold session",
+	error = jnla_get_session_joold(attr, "joold session",
 			&jool->globals.nat64.bib, &params.new);
 	if (error)
 		return false;

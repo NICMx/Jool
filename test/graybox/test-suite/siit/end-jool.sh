@@ -1,8 +1,5 @@
 #!/bin/sh
 
-ip6tables -t mangle -F
-iptables  -t mangle -F
-
 modprobe -rq jool_siit
 
 ip addr flush dev to_client_v6 scope global
