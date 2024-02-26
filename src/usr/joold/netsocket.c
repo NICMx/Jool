@@ -2,6 +2,7 @@
 
 #include <errno.h>
 #include <netdb.h>
+#include <stdatomic.h>
 #include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
@@ -47,6 +48,11 @@ static int sk;
 static struct addrinfo *addr_candidates;
 /** Candidate from @addr_candidates that we managed to bind the socket with. */
 static struct addrinfo *bound_address;
+
+atomic_int netsocket_pkts_rcvd;
+atomic_int netsocket_bytes_rcvd;
+atomic_int netsocket_pkts_sent;
+atomic_int netsocket_bytes_sent;
 
 static struct in_addr *get_addr4(struct addrinfo *addr)
 {
@@ -482,6 +488,9 @@ void *netsocket_listen(void *arg)
 			continue;
 		}
 
+		netsocket_pkts_rcvd++;
+		netsocket_bytes_rcvd += bytes;
+
 		syslog(LOG_DEBUG, "Received %d bytes from the network.", bytes);
 		modsocket_send(buffer, bytes);
 	} while (true);
@@ -499,6 +508,9 @@ void netsocket_send(void *buffer, size_t size)
 			bound_address->ai_addrlen);
 	if (bytes < 0)
 		pr_perror("Could not send a packet to the network", errno);
-	else
+	else {
 		syslog(LOG_DEBUG, "Sent %d bytes to the network.\n", bytes);
+		netsocket_pkts_sent++;
+		netsocket_bytes_sent += bytes;
+	}
 }

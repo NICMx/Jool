@@ -1,6 +1,7 @@
 #include "modsocket.h"
 
 #include <errno.h>
+#include <stdatomic.h>
 #include <string.h>
 #include <syslog.h>
 #include <netlink/genl/ctrl.h>
@@ -14,6 +15,9 @@
 
 static struct joolnl_socket jsocket;
 static char *iname;
+
+atomic_int modsocket_pkts_sent;
+atomic_int modsocket_bytes_sent;
 
 /* Called by the net socket whenever joold receives data from the network. */
 void modsocket_send(void *request, size_t request_len)
@@ -82,6 +86,9 @@ static int updated_entries_cb(struct nl_msg *msg, void *arg)
 	 */
 	netsocket_send(nla_data(root), nla_len(root));
 	do_ack();
+
+	modsocket_pkts_sent++;
+	modsocket_bytes_sent += nla_len(root);
 	return 0;
 
 einval:
