@@ -9,7 +9,7 @@
 
 static DEFINE_MUTEX(config_mutex);
 
-int verify_superpriv(void)
+static int verify_superpriv(void)
 {
 	if (!capable(CAP_NET_ADMIN)) {
 		log_err("Administrative privileges required.");
@@ -28,19 +28,19 @@ static int handle_expect_add(struct genl_info *info)
 	log_debug("========= Expect Add =========");
 
 	if (verify_superpriv())
-		return -EPERM;
+		return genl_respond(info, -EPERM);
 
 	attr = info->attrs[ATTR_FILENAME];
 	if (!attr) {
 		log_err("Request lacks a file name.");
-		return -EINVAL;
+		return genl_respond(info, -EINVAL);
 	}
 	pkt.filename = nla_data(attr);
 
 	attr = info->attrs[ATTR_PKT];
 	if (!attr) {
 		log_err("Request lacks a packet.");
-		return -EINVAL;
+		return genl_respond(info, -EINVAL);
 	}
 	pkt.bytes = nla_data(attr);
 	pkt.bytes_len = nla_len(attr);
@@ -50,7 +50,7 @@ static int handle_expect_add(struct genl_info *info)
 		nla_for_each_nested(attr, info->attrs[ATTR_EXCEPTIONS], rem) {
 			if (pkt.exceptions.count >= PLATEAUS_MAX) {
 				log_err("Too many exceptions.");
-				return -EINVAL;
+				return genl_respond(info, -EINVAL);
 			}
 			pkt.exceptions.values[pkt.exceptions.count] = nla_get_u16(attr);
 			pkt.exceptions.count++;
@@ -73,14 +73,14 @@ static int handle_send(struct genl_info *info)
 	attr = info->attrs[ATTR_FILENAME];
 	if (!attr) {
 		log_err("Request lacks a file name.");
-		return -EINVAL;
+		return genl_respond(info, -EINVAL);
 	}
 	filename = nla_data(attr);
 
 	attr = info->attrs[ATTR_PKT];
 	if (!attr) {
 		log_err("Request lacks a packet.");
-		return -EINVAL;
+		return genl_respond(info, -EINVAL);
 	}
 
 	error = sender_send(filename, nla_data(attr), nla_len(attr));
@@ -93,7 +93,7 @@ static int handle_expect_flush(struct genl_info *info)
 	log_debug("========= Expect Flush =========");
 
 	if (verify_superpriv())
-		return -EPERM;
+		return genl_respond(info, -EPERM);
 
 	expecter_flush();
 	return genl_respond(info, 0);
