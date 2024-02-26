@@ -6,6 +6,7 @@
 #include "sender.h"
 #include "common/types.h"
 #include "mod/common/error_pool.h"
+#include "mod/common/linux_version.h"
 
 static DEFINE_MUTEX(config_mutex);
 
@@ -152,26 +153,45 @@ static int handle_userspace_msg(struct sk_buff *skb, struct genl_info *info)
 	return error;
 }
 
+static struct nla_policy const graybox_policy[__ATTR_MAX] = {
+	[ATTR_FILENAME] = { .type = NLA_STRING },
+	[ATTR_PKT] = { .type = NLA_BINARY },
+	[ATTR_EXCEPTIONS] = { .type = NLA_NESTED },
+	[ATTR_ERROR_CODE] = { .type = NLA_U16 },
+	[ATTR_STATS] = { .type = NLA_BINARY },
+};
+
+#if LINUX_VERSION_AT_LEAST(5, 2, 0, 8, 0)
+#define GRAYBOX_POLICY
+#else
+#define GRAYBOX_POLICY .policy = graybox_policy,
+#endif
+
 static struct genl_ops ops[] = {
 	{
 		.cmd = COMMAND_EXPECT_ADD,
 		.doit = handle_userspace_msg,
+		GRAYBOX_POLICY
 	},
 	{
 		.cmd = COMMAND_EXPECT_FLUSH,
 		.doit = handle_userspace_msg,
+		GRAYBOX_POLICY
 	},
 	{
 		.cmd = COMMAND_SEND,
 		.doit = handle_userspace_msg,
+		GRAYBOX_POLICY
 	},
 	{
 		.cmd = COMMAND_STATS_DISPLAY,
 		.doit = handle_userspace_msg,
+		GRAYBOX_POLICY
 	},
 	{
 		.cmd = COMMAND_STATS_FLUSH,
 		.doit = handle_userspace_msg,
+		GRAYBOX_POLICY
 	},
 };
 
@@ -182,6 +202,9 @@ static struct genl_family family = {
 	.maxattr = __ATTR_MAX,
 	.netnsok = true,
 	.module = THIS_MODULE,
+#if LINUX_VERSION_AT_LEAST(5, 2, 0, 8, 0)
+	.policy = graybox_policy,
+#endif
 	.ops = ops,
 	.n_ops = ARRAY_SIZE(ops),
 };
