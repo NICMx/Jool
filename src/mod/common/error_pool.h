@@ -3,6 +3,8 @@
 
 #include <linux/types.h>
 
+/* TODO (fine) This is nonsense; find a better way to send messages to userspace. */
+
 void error_pool_setup(void);
 void error_pool_teardown(void);
 

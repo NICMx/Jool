@@ -9,5 +9,4 @@ graybox-objs += expecter.o
 graybox-objs += genetlink.o
 graybox-objs += sender.o
 graybox-objs += nl_handler.o
-graybox-objs += ../../../src/mod/common/error_pool.o
 graybox-objs += ../../../src/mod/common/ipv6_hdr_iterator.o
