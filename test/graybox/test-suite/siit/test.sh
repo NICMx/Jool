@@ -1,5 +1,6 @@
 #!/bin/sh
 
+set -x
 
 # Arguments:
 # $1: List of the names of the test groups you want to run, separated by any
@@ -204,9 +205,9 @@ fi
 
 # "Manual" tests
 if [ -z "$1" -o "$1" = "misc" ]; then
-	sudo /home/al/git/joolif/usr/joolif siit0 pool6791v4 203.0.113.8
+	$JOOLIF_CLIENT siit0 pool6791v4 203.0.113.8
 	test64_11 manual 6791v64t 6791v64e $IDENTIFICATION,$INNER_IDENTIFICATION
-	sudo /home/al/git/joolif/usr/joolif siit0 pool6791v4 198.51.100.1
+	$JOOLIF_CLIENT siit0 pool6791v4 198.51.100.1
 
 	# FIXME all the tests below need adjustments
 	test66_11 manual 6791v66t 6791v66e
