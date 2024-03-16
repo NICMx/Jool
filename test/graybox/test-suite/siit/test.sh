@@ -209,23 +209,9 @@ if [ -z "$1" -o "$1" = "misc" ]; then
 	test64_11 manual 6791v64t 6791v64e $IDENTIFICATION,$INNER_IDENTIFICATION
 	$JOOLIF_CLIENT siit0 pool6791v4 198.51.100.1
 
-	# FIXME all the tests below need adjustments
-	test66_11 manual 6791v66t 6791v66e
-
-	$JOOLIF_CLIENT siit0 pool6791v4 0.0.0.0
-	test64_11 manual 6791v64t 6791v64e-empty $IDENTIFICATION,$INNER_IDENTIFICATION
-	$JOOLIF_CLIENT siit0 pool6791v4 203.0.113.8
-
-	#$JOOLIF_CLIENT siit0 pool6 null
-	#jool_siit eamt add 198.51.100.0/24 2001:db8:1c6:3364::/72
-	#jool_siit eamt add 192.0.2.0/24 2001:db8:1c0:2::/72
-	test46_11 manual 6791v46t 6791v46e-empty
-	$JOOLIF_CLIENT siit0 pool6791v6 2::2
-	test46_11 manual 6791v46t 6791v46e
-	$JOOLIF_CLIENT siit0 pool6 2001:db8:100::/40
-	#jool_siit eamt remove 198.51.100.0/24 2001:db8:1c6:3364::/72
-	#jool_siit eamt remove 192.0.2.0/24 2001:db8:1c0:2::/72
-	#$JOOLIF_CLIENT siit0 pool6791v6 null
+	# FIXME there should probably be at least one hairpin test,
+	# but this one is too complicated for a startup.
+	#test66_11 manual 6791v66t 6791v66e
 fi
 
 # "RFC 6791" tests

@@ -14,7 +14,7 @@ Test of pool6791v4, populated version.
 		32	Payload
 
 	packet 6791v64e
-		20	IPv4	!df ttl-- swap src:203.0.113.8
+		20	IPv4	!df ttl-- swap src:198.51.100.1
 		8	ICMPv4
 		20	IPv4	!df
 		8	UDP
