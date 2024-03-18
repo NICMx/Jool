@@ -715,20 +715,47 @@ Notes:
 
 - Requirement: Jool must _reject_ packets containing SEHs after the Fragment Header.
 - Test packets:
-	1. IPv6 packet with Fragment Header, then a Hop-by-Hop extension header.
-	2. IPv6 packet with Fragment Header, then a Destination Options extension header.
-	3. IPv6 packet with Fragment Header, then a Routing extension header.
-	4. IPv6 packet with a Hop-by-Hop extension header, then a Fragment Header, then a Hop-by-Hop extension header.
-	5. IPv6 packet with a Destination Options extension header, then a Fragment Header, then a Destination Options extension header.
-	6. IPv6 packet with a Routing extension header, then a Fragment Header, then a Routing extension header.
-- Expected packets (src: `2001:db8:1c0:2:1::`, dst: `2001:db8:1c0:2:21::`, no hop limit - 1):
-	1. ICMPv6 1/1 error containing `test-1`.
-	2. ICMPv6 1/1 error containing `test-2`.
-	3. ICMPv6 1/1 error containing `test-3`.
-	4. ICMPv6 1/1 error containing `test-4`.
-	5. ICMPv6 1/1 error containing `test-5`.
-	6. ICMPv6 1/1 error containing `test-6`.
-- Validation: `test-n` must yield `expected-n`.
+	1. `act1`: IPv6 packet with Fragment Header, then a Hop-by-Hop extension header.
+	2. `act2`: IPv6 packet with Fragment Header, then a Destination Options extension header.
+	3. `act3`: IPv6 packet with Fragment Header, then a Routing extension header.
+	4. `act4`: IPv6 packet with a Hop-by-Hop extension header, then a Fragment Header, then a Hop-by-Hop extension header.
+	5. `act5`: IPv6 packet with a Destination Options extension header, then a Fragment Header, then a Destination Options extension header.
+	6. `act6`: IPv6 packet with a Routing extension header, then a Fragment Header, then a Routing extension header.
+- Expected:
+
+```
+	packet ace1
+		40	IPv6	src:2001:db8:1c0:2:1:: dst:2001:db8:1c0:2:21::
+		8	ICMPv6	type:1 code:1
+		68	Payload	file:act1
+
+	packet ace2
+		40	IPv6	src:2001:db8:1c0:2:1:: dst:2001:db8:1c0:2:21::
+		8	ICMPv6	type:1 code:1
+		68	Payload	file:act2
+
+	packet ace3
+		40	IPv6	src:2001:db8:1c0:2:1:: dst:2001:db8:1c0:2:21::
+		8	ICMPv6	type:1 code:1
+		100	Payload	file:act3
+
+	packet ace4
+		40	IPv6	src:2001:db8:1c0:2:1:: dst:2001:db8:1c0:2:21::
+		8	ICMPv6	type:1 code:1
+		76	Payload	file:act4
+
+	packet ace5
+		40	IPv6	src:2001:db8:1c0:2:1:: dst:2001:db8:1c0:2:21::
+		8	ICMPv6	type:1 code:1
+		76	Payload	file:act5
+
+	packet ace6
+		40	IPv6	src:2001:db8:1c0:2:1:: dst:2001:db8:1c0:2:21::
+		8	ICMPv6	type:1 code:1
+		140	Payload	file:act6
+```
+
+- Validation: `act<n>` must yield `ace<n>`.
 
 Design notes: The RFC states that these packets "SHOULD be dropped and logged," which seemingly implies that the default ICMP error from [section 5.4](https://tools.ietf.org/html/rfc7915#section-5.4) is supposed to kick in.
 

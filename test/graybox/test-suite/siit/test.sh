@@ -214,7 +214,7 @@ if [ -z "$1" -o "$1" = "misc" ]; then
 	#test66_11 manual 6791v66t 6791v66e
 fi
 
-# "RFC 6791" tests
+# "RFC 7915" tests
 if [ -z "$1" -o "$1" = "rfc7915a" ]; then
 	test46_11 7915 aat1 aae1
 	test46_11 7915 aat2 aae1
