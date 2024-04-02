@@ -112,7 +112,7 @@ int statsocket_start(int argc, char **argv)
 	pthread_t thread;
 	int error;
 
-	if (argc < 3) {
+	if (argc < 4) {
 		syslog(LOG_INFO, "statsocket port unavailable; skipping statsocket.");
 		return 0;
 	}
