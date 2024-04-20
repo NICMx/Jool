@@ -1,27 +1,40 @@
 #!/bin/sh
 
+if [ $(id -u) != 0 ]; then
+	echo "Sorry; I need more privileges."
+	exit 1
+fi
+
+if [ -z "$1" ]; then
+	echo "I need the path to joolif's binary as argument."
+	exit 1
+fi
+
 set -x
 
 # Arguments:
-# $1: List of the names of the test groups you want to run, separated by any
+# $1: Path to joolif's binary.
+#     Typically "~/git/joolif/usr/joolif". If you installed it for some reason,
+#     you can probably get away with just "joolif".
+# $2: List of the names of the test groups you want to run, separated by any
 #     character.
 #     Example: "udp64, tcp46, icmpe64"
 #     If this argument is unspecified, the script will run all the tests.
 #     The current groups are:
-#     - udp64: IPv6->IPv4 UDP tests (documented in ../../rfc/pktgen.md)
-#     - udp46: IPv4->IPv6 UDP tests (documented in ../../rfc/pktgen.md)
-#     - tcp64: IPv6->IPv4 TCP tests (documented in ../../rfc/pktgen.md)
-#     - icmpi64: IPv6->IPv4 ICMP ping tests (documented in ../../rfc/pktgen.md)
-#     - icmpi46: IPv4->IPv6 ICMP ping tests (documented in ../../rfc/pktgen.md)
-#     - icmpe64: IPv6->IPv4 ICMP error tests (documented in ../../rfc/pktgen.md)
-#     - icmpe46: IPv4->IPv6 ICMP error tests (documented in ../../rfc/pktgen.md)
-#     - manual: random tests (documented in ../../rfc/manual.md)
-#     - rfc7915: RFC 7915 compliance tests (documented in ../../rfc/7915.md)
+#     - udp64: IPv6->IPv4 UDP tests (documented in pktgen/README.md)
+#     - udp46: IPv4->IPv6 UDP tests (documented in pktgen/README.md)
+#     - tcp64: IPv6->IPv4 TCP tests (documented in pktgen/README.md)
+#     - icmpi64: IPv6->IPv4 ICMP ping tests (documented in pktgen/README.md)
+#     - icmpi46: IPv4->IPv6 ICMP ping tests (documented in pktgen/README.md)
+#     - icmpe64: IPv6->IPv4 ICMP error tests (documented in pktgen/README.md)
+#     - icmpe46: IPv4->IPv6 ICMP error tests (documented in pktgen/README.md)
+#     - manual: random tests (documented in manual/README.md)
+#     - rfc7915: RFC 7915 compliance tests (documented in 7915/README.md)
 #     (Feel free to add new groups if you want.)
 
 
 GRAYBOX=`dirname $0`/../../usr/graybox
-JOOLIF_CLIENT=/home/al/git/joolif/usr/joolif
+JOOLIF_CLIENT="$1"
 
 # When Linux creates an ICMPv4 error on behalf of Jool, it writes 'c0' on the
 # outer TOS field for me. This seems to mean "Network Control" messages
@@ -124,7 +137,7 @@ echo "Testing! Please wait..."
 
 
 # UDP, 6 -> 4
-if [ -z "$1" -o "$1" = "udp64" ]; then
+if [ -z "$2" -o "$2" = "udp64" ]; then
 	test64_auto 6-udp-csumok-df-nofrag 4-udp-csumok-df-nofrag $IDENTIFICATION
 	test64_auto 6-udp-csumok-nodf-nofrag 4-udp-csumok-nodf-nofrag
 	test64_auto 6-udp-csumok-nodf-frag0 4-udp-csumok-nodf-frag0
@@ -139,7 +152,7 @@ if [ -z "$1" -o "$1" = "udp64" ]; then
 fi
 
 # UDP, 4 -> 6
-if [ -z "$1" -o "$1" = "udp46" ]; then
+if [ -z "$2" -o "$2" = "udp46" ]; then
 	test46_auto 4-udp-csumok-df-nofrag 6-udp-csumok-df-nofrag
 	test46_auto 4-udp-csumok-nodf-nofrag 6-udp-csumok-nodf-nofrag
 	test46_auto 4-udp-csumok-nodf-frag0 6-udp-csumok-nodf-frag0
@@ -154,7 +167,7 @@ if [ -z "$1" -o "$1" = "udp46" ]; then
 fi
 
 # TCP, 6 -> 4
-if [ -z "$1" -o "$1" = "tcp64" ]; then
+if [ -z "$2" -o "$2" = "tcp64" ]; then
 	test64_auto 6-tcp-csumok-df-nofrag 4-tcp-csumok-df-nofrag $IDENTIFICATION
 	test64_auto 6-tcp-csumok-nodf-nofrag 4-tcp-csumok-nodf-nofrag
 	test64_auto 6-tcp-csumok-nodf-frag0 4-tcp-csumok-nodf-frag0
@@ -169,7 +182,7 @@ if [ -z "$1" -o "$1" = "tcp64" ]; then
 fi
 
 # ICMP info, 6 -> 4
-if [ -z "$1" -o "$1" = "icmpi64" ]; then
+if [ -z "$2" -o "$2" = "icmpi64" ]; then
 	test64_auto 6-icmp6info-csumok-df-nofrag 4-icmp4info-csumok-df-nofrag $IDENTIFICATION
 	test64_auto 6-icmp6info-csumok-nodf-nofrag 4-icmp4info-csumok-nodf-nofrag
 
@@ -178,7 +191,7 @@ if [ -z "$1" -o "$1" = "icmpi64" ]; then
 fi
 
 # ICMP info, 4 -> 6
-if [ -z "$1" -o "$1" = "icmpi46" ]; then
+if [ -z "$2" -o "$2" = "icmpi46" ]; then
 	test46_auto 4-icmp4info-csumok-df-nofrag 6-icmp6info-csumok-df-nofrag
 	test46_auto 4-icmp4info-csumok-nodf-nofrag 6-icmp6info-csumok-nodf-nofrag
 
@@ -187,7 +200,7 @@ if [ -z "$1" -o "$1" = "icmpi46" ]; then
 fi
 
 # ICMP error, 6 -> 4
-if [ -z "$1" -o "$1" = "icmpe64" ]; then
+if [ -z "$2" -o "$2" = "icmpe64" ]; then
 	# 22,23 = ICMP csum. Inherits the followind fields' randomness.
 	# 32,33 = inner frag id. Same as above.
 	# 34 = inner DF. An atomic fragments free Jool has no way to know the DF of the original packet.
@@ -198,13 +211,13 @@ if [ -z "$1" -o "$1" = "icmpe64" ]; then
 fi
 
 # ICMP error, 4 -> 6
-if [ -z "$1" -o "$1" = "icmpe46" ]; then
+if [ -z "$2" -o "$2" = "icmpe46" ]; then
 	test46_auto 4-icmp4err-csumok-df-nofrag 6-icmp6err-csumok-df-nofrag
 	test46_auto 4-icmp4err-csumok-nodf-nofrag 6-icmp6err-csumok-nodf-nofrag
 fi
 
 # "Manual" tests
-if [ -z "$1" -o "$1" = "misc" ]; then
+if [ -z "$2" -o "$2" = "misc" ]; then
 	$JOOLIF_CLIENT siit0 pool6791v4 203.0.113.8
 	test64_11 manual 6791v64t 6791v64e $IDENTIFICATION,$INNER_IDENTIFICATION
 	$JOOLIF_CLIENT siit0 pool6791v4 198.51.100.1
@@ -215,7 +228,7 @@ if [ -z "$1" -o "$1" = "misc" ]; then
 fi
 
 # "RFC 7915" tests
-if [ -z "$1" -o "$1" = "rfc7915a" ]; then
+if [ -z "$2" -o "$2" = "rfc7915a" ]; then
 	test46_11 7915 aat1 aae1
 	test46_11 7915 aat2 aae1
 	test46_11 7915 aat3 aae1
@@ -232,7 +245,7 @@ if [ -z "$1" -o "$1" = "rfc7915a" ]; then
 	test64_11 7915 adt2 ade2
 fi
 
-if [ -z "$1" -o "$1" = "rfc7915b" ]; then
+if [ -z "$2" -o "$2" = "rfc7915b" ]; then
 	test46_11 7915 bat1 bae1
 	test46_11 7915 bbt1 bbe1
 	test46_11 7915 bct1 bce1
@@ -240,7 +253,7 @@ if [ -z "$1" -o "$1" = "rfc7915b" ]; then
 	test64_11 7915 bet1 bee1 $IDENTIFICATION,$INNER_IDENTIFICATION
 fi
 
-if [ -z "$1" -o "$1" = "rfc7915c" ]; then
+if [ -z "$2" -o "$2" = "rfc7915c" ]; then
 	$JOOLIF_CLIENT siit0 lowest-ipv6-mtu 1500
 	ip link set dev siit0 mtu 1280
 	test44_11 7915 cat1 cae1 $TOS,$IDENTIFICATION
@@ -277,14 +290,14 @@ if [ -z "$1" -o "$1" = "rfc7915c" ]; then
 	test46_12 7915 cct1 cce1 cce2
 fi
 
-if [ -z "$1" -o "$1" = "rfc7915d" ]; then
+if [ -z "$2" -o "$2" = "rfc7915d" ]; then
 	test64_11 7915 dat1 dae1 $IDENTIFICATION,$INNER_IDENTIFICATION
 	test46_11 7915 dbt1 dbe1
 	test46_11 7915 dbt2 dbe2
 	test46_11 7915 dbt3 dbe2
 fi
 
-if [ -z "$1" -o "$1" = "rfc7915e" ]; then
+if [ -z "$2" -o "$2" = "rfc7915e" ]; then
 	test44_11 7915 eat1 eae1 $TOS,$IDENTIFICATION
 	$JOOLIF_CLIENT siit0 amend-udp-checksum-zero 1
 	# Cannot be tested by graybox anymore, because the checksum is now
@@ -295,17 +308,17 @@ if [ -z "$1" -o "$1" = "rfc7915e" ]; then
 	test44_11 7915 ect1 ece1 $TOS,$IDENTIFICATION
 fi
 
-if [ -z "$1" -o "$1" = "rfc7915f" ]; then
+if [ -z "$2" -o "$2" = "rfc7915f" ]; then
 	test46_11 7915 fat1 fae1
 	test64_11 7915 fbt1 fbe1 $IDENTIFICATION
 fi
 
-if [ -z "$1" -o "$1" = "rfc7915h" ]; then
+if [ -z "$2" -o "$2" = "rfc7915h" ]; then
 	test46_11 7915 hat1 hae1
 	test46_11 7915 hat2 hae2
 fi
 
-if [ -z "$1" -o "$1" = "rfc7915i" ]; then
+if [ -z "$2" -o "$2" = "rfc7915i" ]; then
 	test64_11 7915 ia1t ia1e $IDENTIFICATION,$INNER_IDENTIFICATION
 	test46_11 7915 ia2t ia2e
 	test64_11 7915 ib1t ib1e $IDENTIFICATION,$INNER_IDENTIFICATION
@@ -338,7 +351,7 @@ if [ -z "$1" -o "$1" = "rfc7915i" ]; then
 	ip link set dev siit0 mtu 1500
 fi
 
-if [ -z "$1" -o "$1" = "rfc7915j" ]; then
+if [ -z "$2" -o "$2" = "rfc7915j" ]; then
 	$JOOLIF_CLIENT siit0 lowest-ipv6-mtu 1500
 	test46_11 7915 jat jae
 	$JOOLIF_CLIENT siit0 lowest-ipv6-mtu 1280
