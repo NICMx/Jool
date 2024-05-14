@@ -9,7 +9,7 @@
 #include "nl_handler.h"
 
 /* Implementation function required by xlat.h */
-char const *xlat_get_name(void)
+static char const *xlat_get_name(void)
 {
 	return "Graybox";
 }

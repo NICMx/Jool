@@ -3,7 +3,6 @@
 #include <linux/ip.h>
 #include <linux/netdevice.h>
 #include <linux/skbuff.h>
-#include <net/ip6_route.h>
 #include <net/route.h>
 
 #include "common/types.h"
@@ -49,56 +48,40 @@ static struct net *find_current_namespace(void)
 	return ns;
 }
 
-static struct dst_entry *route4(struct net *ns, struct flowi4 *flow)
+static struct dst_entry *route(struct net *ns, struct flowi *flow, int family)
 {
-	struct rtable *table;
 	struct dst_entry *dst;
+	int error;
 
-	table = __ip_route_output_key(ns, flow);
-	if (!table || IS_ERR(table)) {
-		log_err("__ip_route_output_key() returned %ld. Cannot route packet.",
-				PTR_ERR(table));
+	dst = NULL;
+	error = nf_route(ns, &dst, flow, false, family);
+	if (error) {
+		log_err("nf_route() returned %d. Cannot route packet.", error);
 		return NULL;
-	}
-
-	dst = &table->dst;
-	if (dst->error) {
-		log_err("__ip_route_output_key() returned error %d. Cannot route packet.",
-				dst->error);
-		goto revert;
-	}
-
-	if (!dst->dev) {
-		log_err("I found a dst entry with no dev; I don't know what to do.");
-		goto revert;
 	}
 
 	log_debug("Packet routed via device '%s'.", dst->dev->name);
 	return dst;
-
-revert:
-	dst_release(dst);
-	return NULL;
 }
 
 static struct dst_entry *route_ipv4(struct net *ns, struct sk_buff *skb)
 {
 	struct iphdr *hdr;
-	struct flowi4 flow;
+	struct flowi flow;
 	struct dst_entry *dst;
 
 	hdr = ip_hdr(skb);
 
 	memset(&flow, 0, sizeof(flow));
-	flow.flowi4_mark = skb->mark;
-	flow.flowi4_tos = hdr->tos;
-	flow.flowi4_scope = RT_SCOPE_UNIVERSE;
-	flow.flowi4_proto = hdr->protocol;
-	flow.flowi4_flags = FLOWI_FLAG_ANYSRC;
-	flow.saddr = 0;
-	flow.daddr = hdr->daddr;
+	flow.u.ip4.flowi4_mark = skb->mark;
+	flow.u.ip4.flowi4_tos = hdr->tos;
+	flow.u.ip4.flowi4_scope = RT_SCOPE_UNIVERSE;
+	flow.u.ip4.flowi4_proto = hdr->protocol;
+	flow.u.ip4.flowi4_flags = FLOWI_FLAG_ANYSRC;
+	flow.u.ip4.saddr = 0;
+	flow.u.ip4.daddr = hdr->daddr;
 
-	dst = route4(ns, &flow);
+	dst = route(ns, &flow, AF_INET);
 	if (!dst)
 		return NULL;
 
@@ -119,31 +102,11 @@ static l4_protocol nexthdr_to_l4proto(__u8 nexthdr)
 	return L4PROTO_OTHER;
 }
 
-static struct dst_entry *route6(struct net *ns, struct flowi6 *flow)
-{
-	struct dst_entry *dst;
-
-	dst = ip6_route_output(ns, NULL, flow);
-	if (!dst) {
-		log_err("ip6_route_output() returned NULL. Cannot route packet.");
-		return NULL;
-	}
-	if (dst->error) {
-		log_err("ip6_route_output() returned error %d. Cannot route packet.",
-				dst->error);
-		dst_release(dst);
-		return NULL;
-	}
-
-	log_debug("Packet routed via device '%s'.", dst->dev->name);
-	return dst;
-}
-
 static struct dst_entry *route_ipv6(struct net *ns, struct sk_buff *skb)
 {
 	struct ipv6hdr *hdr;
 	struct hdr_iterator iterator;
-	struct flowi6 flow;
+	struct flowi flow;
 	struct dst_entry *dst;
 
 	hdr = ipv6_hdr(skb);
@@ -151,14 +114,14 @@ static struct dst_entry *route_ipv6(struct net *ns, struct sk_buff *skb)
 	hdr_iterator_init(&iterator, hdr);
 	hdr_iterator_last(&iterator);
 
-	flow.flowi6_mark = skb->mark;
-	flow.flowi6_scope = RT_SCOPE_UNIVERSE;
-	flow.flowi6_proto = nexthdr_to_l4proto(iterator.hdr_type);
-	flow.flowi6_flags = FLOWI_FLAG_ANYSRC;
-	flow.saddr = hdr->saddr;
-	flow.daddr = hdr->daddr;
+	flow.u.ip6.flowi6_mark = skb->mark;
+	flow.u.ip6.flowi6_scope = RT_SCOPE_UNIVERSE;
+	flow.u.ip6.flowi6_proto = nexthdr_to_l4proto(iterator.hdr_type);
+	flow.u.ip6.flowi6_flags = FLOWI_FLAG_ANYSRC;
+	flow.u.ip6.saddr = hdr->saddr;
+	flow.u.ip6.daddr = hdr->daddr;
 
-	dst = route6(ns, &flow);
+	dst = route(ns, &flow, AF_INET6);
 	if (!dst)
 		return NULL;
 
