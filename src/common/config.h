@@ -189,6 +189,7 @@ enum joolnl_attr_bib {
 
 extern struct nla_policy joolnl_bib_entry_policy[JNLAB_COUNT];
 
+/* TODO (fine) Most of these fields are obsolete; rm them in a minor release. */
 enum joolnl_attr_session {
 	JNLASE_SRC6 = 1,
 	JNLASE_DST6,

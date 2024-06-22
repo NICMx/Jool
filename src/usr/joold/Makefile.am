@@ -6,7 +6,8 @@ joold_SOURCES = \
 	joold.c \
 	log.c log.h \
 	modsocket.c modsocket.h \
-	netsocket.c netsocket.h
+	netsocket.c netsocket.h \
+	statsocket.c statsocket.h
 
 joold_CFLAGS  = ${WARNINGCFLAGS}
 joold_CFLAGS += -I${top_srcdir}/src

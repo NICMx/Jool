@@ -1,6 +1,7 @@
 #include "modsocket.h"
 
 #include <errno.h>
+#include <stdatomic.h>
 #include <string.h>
 #include <syslog.h>
 #include <netlink/genl/ctrl.h>
@@ -14,6 +15,9 @@
 
 static struct joolnl_socket jsocket;
 static char *iname;
+
+atomic_int modsocket_pkts_sent;
+atomic_int modsocket_bytes_sent;
 
 /* Called by the net socket whenever joold receives data from the network. */
 void modsocket_send(void *request, size_t request_len)
@@ -61,6 +65,8 @@ static int updated_entries_cb(struct nl_msg *msg, void *arg)
 		pr_result(&result);
 		goto fail;
 	}
+	if (strcasecmp(jhdr->iname, iname) != 0)
+		return 0; /* Packet is not intended for us. */
 	if (jhdr->flags & JOOLNLHDR_FLAGS_ERROR) {
 		result = joolnl_msg2result(msg);
 		pr_result(&result);
@@ -80,6 +86,9 @@ static int updated_entries_cb(struct nl_msg *msg, void *arg)
 	 */
 	netsocket_send(nla_data(root), nla_len(root));
 	do_ack();
+
+	modsocket_pkts_sent++;
+	modsocket_bytes_sent += nla_len(root);
 	return 0;
 
 einval:
@@ -96,8 +105,8 @@ static int read_json(int argc, char **argv)
 	struct jool_result result;
 
 	if (argc < 3) {
-		iname = NULL;
-		return 0;
+		iname = strdup(INAME_DEFAULT);
+		return (iname != NULL) ? 0 : -ENOMEM;
 	}
 
 	syslog(LOG_INFO, "Opening file %s...", argv[2]);
@@ -117,14 +126,10 @@ static int read_json(int argc, char **argv)
 	free(file);
 
 	child = cJSON_GetObjectItem(json, "instance");
-	if (child) {
-		iname = strdup(child->valuestring);
-		if (!iname) {
-			cJSON_Delete(json);
-			return -ENOMEM;
-		}
-	} else {
-		iname = NULL;
+	iname = strdup(child ? child->valuestring : INAME_DEFAULT);
+	if (!iname) {
+		cJSON_Delete(json);
+		return -ENOMEM;
 	}
 
 	cJSON_Delete(json);
