@@ -2,7 +2,7 @@
 # Process this file with autoconf to produce a configure script.
 
 AC_PREREQ([2.68])
-AC_INIT([Jool], [4.1.11], [ydahhrk@gmail.com])
+AC_INIT([Jool], [4.1.12], [ydahhrk@gmail.com])
 AC_CONFIG_SRCDIR([src/common/xlat.h])
 AM_INIT_AUTOMAKE([subdir-objects])
 LT_PREREQ([2.4.6])

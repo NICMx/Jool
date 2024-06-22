@@ -19,14 +19,17 @@ title: Daemon Configuration Options
 	4. [`out interface`](#out-interface)
 	5. [`reuseaddr`](#reuseaddr)
 	6. [`ttl`](#ttl)
+3. [Module Socket Configuration File](#module-socket-configuration-file)
+	1. [`instance`](#instance)
+4. [Stats Server Port](#stats-server-port)
 
 ## Introduction
 
 `joold` (Jool's userspace daemon binary) is part of the [Session Synchronization](session-synchronization.html) gimmic. Follow the link for context.
 
-It expects two optional files as program arguments:
+It expects two files and one port number as optionl program arguments:
 
-	$ joold [/path/to/netsocket/config] [/path/to/modsocket/config]
+	$ joold [/path/to/netsocket/config] [/path/to/modsocket/config] [UDP stats server port]
 
 The "net socket" file name defaults to `netsocket.json`, and the "module socket" file name defaults to `modsocket.json`. (They are both expected to be found in the same directory the command is executed in.)
 
@@ -164,3 +167,31 @@ Name of the instance the daemon is supposed to synchronize. It's the one you des
 
 The instance is expected to exist within the same network namespace the daemon is running in.
 
+## Stats Server Port
+
+A port number joold will use to serve stats via UDP. If absent, the server will not be started.
+
+Start joold with a third argument representing the port number:
+
+```bash
+$ joold netsocket.json modsocket.json 45678
+```
+
+It's rudimentary. Query using a simple UDP request:
+
+```bash
+$ echo "" | nc -u 127.0.0.1 45678
+KERNEL_SENT_PKTS,4
+KERNEL_SENT_BYTES,208
+NET_RCVD_PKTS,0
+NET_RCVD_BYTES,0
+NET_SENT_PKTS,4
+NET_SENT_BYTES,208
+```
+
+- `KERNEL_SENT_PKTS`: Packets sent to the kernel module. (It should match the local instance's `JSTAT_JOOLD_PKT_RCVD` stat.)
+- `KERNEL_SENT_BYTES`: Session bytes sent to the kernel module. (It should match the local instance's `JSTAT_JOOLD_SSS_RCVD` multiplied by the session size.)
+- `NET_RCVD_PKTS`: Packets received from the network. (It should match the remote instance's `JSTAT_JOOLD_PKT_SENT`.)
+- `NET_RCVD_BYTES`: Session bytes received from the network. (It should match the remote instance's `JSTAT_JOOLD_SSS_SENT` multiplied by the session size.)
+- `NET_SENT_PKTS`: Packets sent to the network. (It should match the remote joold's `NET_RCVD_PKTS`.)
+- `NET_SENT_BYTES`: Session bytes sent to the network. (It should match the remote joold's `NET_RCVD_BYTES`.)
