@@ -3,11 +3,11 @@ Maintainer: Alberto Leiva Popper <ydahhrk@gmail.com>
 Section: kernel
 Priority: optional
 Build-Depends:
- debhelper (>= 11), dh-sequence-dkms, dkms,
- pkg-config, gawk, file, cpio,
+ debhelper (>= 11), dh-sequence-dkms,
+ pkgconf, gawk, file, cpio,
  libnl-genl-3-dev, libnl-3-dev,
  libxtables-dev
-Standards-Version: 4.5.1
+Standards-Version: 4.6.2
 Rules-Requires-Root: no
 Homepage: https://nicmx.github.io/Jool
 Vcs-Browser: https://github.com/NICMx/Jool
