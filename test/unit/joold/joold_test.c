@@ -62,6 +62,16 @@ int bib_add_session(struct xlator *jool,
 	return -EINVAL;
 }
 
+void jstat_inc(struct jool_stats *stats, enum jool_stat_id stat)
+{
+	/* Empty */
+}
+
+void jstat_add(struct jool_stats *stats, enum jool_stat_id stat, int addend)
+{
+	/* Empty */
+}
+
 /********************** Init **********************/
 
 static void init_session(unsigned int index, struct session_entry *result)
@@ -183,7 +193,7 @@ static bool assert_skb(int garbage, ...)
 	va_start(args, garbage);
 
 	nla_for_each_nested(attr, root, rem) {
-		error = jnla_get_session(attr, "session", &bibcfg, &actual);
+		error = jnla_get_session_joold(attr, "session", &bibcfg, &actual);
 		if (error) {
 			log_err("jnla_get_session: errcode %d", error);
 			success = false;
@@ -242,7 +252,7 @@ static bool print_sizes(void)
 	root_size = skb->len - basic_size;
 
 	memset(&dummy_session, 0, sizeof(dummy_session));
-	if (jnla_put_session(skb, JNLAL_ENTRY, &dummy_session) != 0)
+	if (jnla_put_session_joold(skb, JNLAL_ENTRY, &dummy_session) != 0)
 		goto end;
 
 	session_size = skb->len - basic_size - root_size;

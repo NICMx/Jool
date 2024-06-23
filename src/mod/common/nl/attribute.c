@@ -4,6 +4,9 @@
 #include "common/constants.h"
 #include "mod/common/log.h"
 
+#define SERIALIZED_SESSION_SIZE (2 * sizeof(struct in6_addr) \
+		+ sizeof(struct in_addr) + sizeof(__be32) + 4 * sizeof(__be16))
+
 static int validate_null(struct nlattr *attr, char const *name)
 {
 	if (!attr) {
@@ -397,62 +400,62 @@ static int get_timeout(struct bib_config *config, struct session_entry *entry)
 	return 0;
 }
 
-int jnla_get_session(struct nlattr *attr, char const *name,
+#define READ_RAW(serialized, field)					\
+	memcpy(&field, serialized, sizeof(field));			\
+	serialized += sizeof(field);
+
+int jnla_get_session_joold(struct nlattr *attr, char const *name,
 		struct bib_config *config, struct session_entry *entry)
 {
-	struct nlattr *attrs[JNLASE_COUNT];
-	__u8 u8;
-	__u32 expiration;
+	__u8 *serialized;
+	__be32 tmp32;
+	__be16 tmp16;
+	__u16 __tmp16;
+	unsigned long expiration;
 	int error;
 
 	error = validate_null(attr, name);
 	if (error)
 		return error;
 
-	error = jnla_parse_nested(attrs, JNLASE_MAX, attr,
-			joolnl_session_entry_policy, name);
-	if (error)
-		return error;
+	if (attr->nla_len < SERIALIZED_SESSION_SIZE) {
+		log_err("Invalid request: Session size (%u) < %zu",
+				attr->nla_len, SERIALIZED_SESSION_SIZE);
+		return -EINVAL;
+	}
 
 	memset(entry, 0, sizeof(*entry));
+	serialized = nla_data(attr);
 
-	error = jnla_get_taddr6(attrs[JNLASE_SRC6], "IPv6 source address",
-			&entry->src6);
-	if (error)
-		return error;
-	error = jnla_get_taddr6(attrs[JNLASE_DST6], "IPv6 destination address",
-			&entry->dst6);
-	if (error)
-		return error;
-	error = jnla_get_taddr4(attrs[JNLASE_SRC4], "IPv4 source address",
-			&entry->src4);
-	if (error)
-		return error;
-	error = jnla_get_taddr4(attrs[JNLASE_DST4], "IPv4 destination address",
-			&entry->dst4);
-	if (error)
-		return error;
+	READ_RAW(serialized, entry->src6.l3);
+	READ_RAW(serialized, entry->dst6.l3);
+	READ_RAW(serialized, entry->src4.l3);
+	READ_RAW(serialized, tmp32);
 
-	error = jnla_get_u8(attrs[JNLASE_PROTO], "Protocol", &u8);
-	if (error)
-		return error;
-	entry->proto = u8;
-	error = jnla_get_u8(attrs[JNLASE_STATE], "State", &u8);
-	if (error)
-		return error;
-	entry->state = u8;
-	error = jnla_get_u8(attrs[JNLASE_TIMER], "Timer", &u8);
-	if (error)
-		return error;
-	entry->timer_type = u8;
+	READ_RAW(serialized, tmp16);
+	entry->src6.l4 = ntohs(tmp16);
+	READ_RAW(serialized, tmp16);
+	entry->dst6.l4 = ntohs(tmp16);
+	READ_RAW(serialized, tmp16);
+	entry->src4.l4 = ntohs(tmp16);
+
+	READ_RAW(serialized, tmp16);
+	__tmp16 = ntohs(tmp16);
+	entry->proto = (__tmp16 >> 5) & 3;
+	entry->state = (__tmp16 >> 2) & 7;
+	entry->timer_type = __tmp16 & 3;
+
+	entry->dst4.l3.s_addr = entry->dst6.l3.s6_addr32[3];
+	entry->dst4.l4 = (entry->proto == L4PROTO_ICMP)
+			? entry->src4.l4
+			: entry->dst6.l4;
 
 	error = get_timeout(config, entry);
 	if (error)
 		return error;
-	error = jnla_get_u32(attrs[JNLASE_EXPIRATION], "Expiration", &expiration);
-	if (error)
-		return error;
-	entry->update_time = jiffies + msecs_to_jiffies(expiration) - entry->timeout;
+
+	expiration = msecs_to_jiffies(ntohl(tmp32));
+	entry->update_time = jiffies + expiration - entry->timeout;
 	entry->has_stored = false;
 
 	return 0;
@@ -757,6 +760,65 @@ int jnla_put_session(struct sk_buff *skb, int attrtype,
 
 	nla_nest_end(skb, root);
 	return 0;
+}
+
+#define ADD_RAW(buffer, offset, content)				\
+	memcpy(buffer + offset, &content, sizeof(content));		\
+	offset += sizeof(content)
+
+int jnla_put_session_joold(struct sk_buff *skb, int attrtype,
+		struct session_entry const *entry)
+{
+	__u8 buffer[SERIALIZED_SESSION_SIZE];
+	size_t offset;
+	unsigned long dying_time;
+	__be32 tmp32;
+	__be16 tmp16;
+
+	/*
+	 * The session object is huge, and joold wants to fit as many sessions
+	 * as possible in one single packet.
+	 * Therefore, instead of adding each field as a Netlink attribute,
+	 * we'll do some low level byte hacking.
+	 */
+
+	offset = 0;
+
+	/* 128 bit fields */
+	ADD_RAW(buffer, offset, entry->src6.l3);
+	ADD_RAW(buffer, offset, entry->dst6.l3);
+
+	/* 32 bit fields */
+	ADD_RAW(buffer, offset, entry->src4.l3);
+	/* Skip dst4; it can be inferred from dst6. */
+
+	dying_time = entry->update_time + entry->timeout;
+	dying_time = (dying_time > jiffies)
+			? jiffies_to_msecs(dying_time - jiffies)
+			: 0;
+	if (dying_time > MAX_U32)
+		dying_time = MAX_U32;
+
+	tmp32 = htonl(dying_time);
+	ADD_RAW(buffer, offset, tmp32);
+
+	/* 16 bit fields */
+	tmp16 = htons(entry->src6.l4);
+	ADD_RAW(buffer, offset, tmp16);
+	tmp16 = htons(entry->dst6.l4);
+	ADD_RAW(buffer, offset, tmp16);
+	tmp16 = htons(entry->src4.l4);
+	ADD_RAW(buffer, offset, tmp16);
+
+	/* Well, this fits in a byte, but use 2 to avoid slop */
+	tmp16 = htons(
+		(entry->proto << 5) /* 2 bits */
+		| (entry->state << 2) /* 3 bits */
+		| entry->timer_type /* 2 bits */
+	);
+	ADD_RAW(buffer, offset, tmp16);
+
+	return nla_put(skb, attrtype, sizeof(buffer), buffer);
 }
 
 int jnla_put_plateaus(struct sk_buff *skb, int attrtype,

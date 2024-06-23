@@ -1,6 +1,6 @@
 .\" Manpage for jool's session synchronization daemon.
 
-.TH joold 8 2023-12-22 v4.1.11 "NAT64 Jool's Session Synchronization Daemon"
+.TH joold 8 2024-06-22 v4.1.12 "NAT64 Jool's Session Synchronization Daemon"
 
 .SH NAME
 joold - Userspace Session Synchronization (SS) daemon for NAT64 Jool.
@@ -17,18 +17,24 @@ Running the daemons is not enough to have successful session synchronization; SS
 .SH AVAILABILITY
 Linux is the only OS in which this program makes sense.
 .br
-Kernels 4.14 and up.
+Kernels 4.19 and up.
 
 .SH SYNTAX
-.RI "joold [" FILE "]"
+.RI "joold [" NETSOCKET "] [" MODSOCKET "] [PORT]"
 
 .SH OPTIONS
-.IP FILE
+.IP NETSOCKET
 Path to JSON file containing the network socket's configuration.
 .br
 Defaults to "netsocket.json".
+
+.IP MODSOCKET
+Path to JSON file containing the Netlink socket's configuration.
 .br
-(The Netlink socket currently does not need configuration.)
+Defaults to "modsocket.json".
+
+.IP PORT
+If present, starts an UDP server bound to port PORT, where the daemon serves stat counters.
 
 .SH NETWORK SOCKET CONFIGURATION
 The file is a JSON-formatted collection of keyvalues.
@@ -63,6 +69,17 @@ Please always include and enable this.
 .IP ttl=<INT>
 Time-to-live of packets sent out by this socket.
 
+.SH NETLINK SOCKET CONFIGURATION
+The file is a JSON-formatted collection of keyvalues.
+
+.IP instance=<String>
+Name of the instance the daemon is supposed to synchronize. It's the one you designate during
+.B jool instance add.
+.br
+The instance is expected to exist within the same network namespace the daemon is running in.
+.br
+As usual, it defaults to "default". 
+
 .SH EXAMPLES
 IPv6 version:
 .P
@@ -84,7 +101,7 @@ IPv6 version:
 .br
 	$ cat ipv6-netsocket.json
 .br
-	{
+	  {
 .br
 		"multicast address": "ff08::db8:64:64",
 .br
@@ -98,9 +115,17 @@ IPv6 version:
 .br
 		"ttl": 3
 .br
-	}
+	  }
 .br
-	$ joold ipv6-netsocket.json &
+	$
+.br
+	$ cat modsocket.json
+.br
+	  { "instance": "default" }
+.br
+	$
+.br
+	$ joold ipv6-netsocket.json modsocket.json 45678 &
 .P
 IPv4 version:
 .P
@@ -122,7 +147,7 @@ IPv4 version:
 .br
 	$ cat ipv4-netsocket.json
 .br
-	{
+	  {
 .br
 		"multicast address": "233.252.0.64",
 .br
@@ -136,9 +161,33 @@ IPv4 version:
 .br
 		"ttl": 3
 .br
-	}
+	  }
 .br
-	$ joold ipv4-netsocket.json &
+	$
+.br
+	$ cat modsocket.json
+.br
+	  { "instance": "default" }
+.br
+	$
+.br
+	$ joold ipv4-netsocket.json modsocket.json 45678 &
+.P
+Request stats:
+.P
+	$ echo "" | nc -u 127.0.0.1 45678
+.br
+	KERNEL_SENT_PKTS,4
+.br
+	KERNEL_SENT_BYTES,208
+.br
+	NET_RCVD_PKTS,0
+.br
+	NET_RCVD_BYTES,0
+.br
+	NET_SENT_PKTS,4
+.br
+	NET_SENT_BYTES,208
 
 .SH EXIT STATUS
 Zero on success, non-zero on failure.
@@ -157,7 +206,7 @@ https://github.com/NICMx/Jool/issues
 To be perfectly honest, the main reason why fixing this isn't in the radar is because joold is giving me the impression that nobody is using it.
 
 .SH COPYRIGHT
-Copyright 2023 NIC Mexico.
+Copyright 2024 NIC Mexico.
 .br
 License: GPLv2 (GNU GPL version 2)
 .br
@@ -166,6 +215,8 @@ There is NO WARRANTY, to the extent permitted by law.
 
 .SH SEE ALSO
 https://nicmx.github.io/Jool/en/session-synchronization.html
+.br
 https://nicmx.github.io/Jool/en/config-joold.html
+.br
 https://nicmx.github.io/Jool/en/usr-flags-joold.html
 

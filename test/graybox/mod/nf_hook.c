@@ -3,7 +3,6 @@
 
 #include "common/types.h"
 #include "common/xlat.h"
-#include "mod/common/error_pool.h"
 
 #include "expecter.h"
 #include "log.h"
@@ -28,10 +27,8 @@ static int graybox_init(void)
 	error = nlhandler_setup();
 	if (error)
 		return error;
-	error_pool_setup();
 	error = expecter_setup();
 	if (error) {
-		error_pool_teardown();
 		nlhandler_teardown();
 		return error;
 	}
@@ -43,7 +40,6 @@ static int graybox_init(void)
 static void graybox_exit(void)
 {
 	expecter_teardown();
-	error_pool_teardown();
 	nlhandler_teardown();
 
 	log_info("%s module removed.", xlat_get_name());

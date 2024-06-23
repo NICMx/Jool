@@ -27,11 +27,12 @@ Jool 4.2 is a compliant SIIT, Stateful NAT64 and MAP-T.
 
 Jool 4.1 is a [compliant SIIT and Stateful NAT64](intro-jool.html#compliance).
 
-Currently, 4.1.11 is the most mature version of Jool.
+Currently, 4.1.12 is the most mature version of Jool.
 
 | Release Date | Version | .tar.gz | .tar.gz Signature | Git commit | .deb |
 |--------------|---------|---------|-------------------|------------|------|
-| 2023-12-22   | **4.1.11** | [Download]({{ page.url-dl }}/v4.1.11/jool-4.1.11.tar.gz) | [Signature]({{ page.url-dl }}/v4.1.11/jool-4.1.11.tar.gz.asc) | <a href="{{ site.repository-url }}/tree/v4.1.11" target="_blank">Link</a> | [Kernel modules]({{ page.url-dl }}/v4.1.11/jool-dkms_4.1.11-1_all.deb)<br />[Userspace tools]({{ page.url-dl }}/v4.1.11/jool-tools_4.1.11-1_amd64.deb) (amd64 only) |
+| 2024-06-22   | **4.1.12** | [Download]({{ page.url-dl }}/v4.1.12/jool-4.1.12.tar.gz) | [Signature]({{ page.url-dl }}/v4.1.12/jool-4.1.12.tar.gz.asc) | <a href="{{ site.repository-url }}/tree/v4.1.12" target="_blank">Link</a> | [Kernel modules]({{ page.url-dl }}/v4.1.12/jool-dkms_4.1.12-1_all.deb)<br />[Userspace tools]({{ page.url-dl }}/v4.1.12/jool-tools_4.1.12-1_amd64.deb) (amd64 only) |
+| 2023-12-22   | 4.1.11 | [Download]({{ page.url-dl }}/v4.1.11/jool-4.1.11.tar.gz) | [Signature]({{ page.url-dl }}/v4.1.11/jool-4.1.11.tar.gz.asc) | <a href="{{ site.repository-url }}/tree/v4.1.11" target="_blank">Link</a> | [Kernel modules]({{ page.url-dl }}/v4.1.11/jool-dkms_4.1.11-1_all.deb)<br />[Userspace tools]({{ page.url-dl }}/v4.1.11/jool-tools_4.1.11-1_amd64.deb) (amd64 only) |
 | 2023-06-11   | 4.1.10 | [Download]({{ page.url-dl }}/v4.1.10/jool-4.1.10.tar.gz) | [Signature]({{ page.url-dl }}/v4.1.10/jool-4.1.10.tar.gz.asc) | <a href="{{ site.repository-url }}/tree/v4.1.10" target="_blank">Link</a> | [Kernel modules]({{ page.url-dl }}/v4.1.10/jool-dkms_4.1.10-1_all.deb)<br />[Userspace tools]({{ page.url-dl }}/v4.1.10/jool-tools_4.1.10-1_amd64.deb) (amd64 only) |
 | 2023-01-25   | 4.1.9 | [Download]({{ page.url-dl }}/v4.1.9/jool-4.1.9.tar.gz) | [Signature]({{ page.url-dl }}/v4.1.9/jool-4.1.9.tar.gz.asc) | <a href="{{ site.repository-url }}/tree/v4.1.9" target="_blank">Link</a> | [Kernel modules]({{ page.url-dl }}/v4.1.9/jool-dkms_4.1.9-1_all.deb)<br />[Userspace tools]({{ page.url-dl }}/v4.1.9/jool-tools_4.1.9-1_amd64.deb) (amd64 only) |
 | 2022-03-20   | 4.1.8 | [Download]({{ page.url-dl }}/v4.1.8/jool-4.1.8.tar.gz) | [Signature]({{ page.url-dl }}/v4.1.8/jool-4.1.8.tar.gz.asc) | <a href="{{ site.repository-url }}/tree/v4.1.8" target="_blank">Link</a> | [Kernel modules]({{ page.url-dl }}/v4.1.8/jool-dkms_4.1.8-1_all.deb)<br />[Userspace tools]({{ page.url-dl }}/v4.1.8/jool-tools_4.1.8-1_amd64.deb) (amd64 only) |

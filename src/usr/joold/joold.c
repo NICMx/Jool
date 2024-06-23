@@ -7,6 +7,7 @@
 #include "common/xlat.h"
 #include "usr/joold/modsocket.h"
 #include "usr/joold/netsocket.h"
+#include "usr/joold/statsocket.h"
 
 static void cancel_thread(pthread_t thread)
 {
@@ -44,6 +45,9 @@ int main(int argc, char **argv)
 		netsocket_teardown();
 		goto end;
 	}
+	error = statsocket_start(argc, argv);
+	if (error)
+		goto clean;
 
 	error = pthread_create(&mod2net_thread, NULL, modsocket_listen, NULL);
 	if (error) {

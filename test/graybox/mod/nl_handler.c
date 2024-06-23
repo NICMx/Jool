@@ -5,11 +5,11 @@
 #include "log.h"
 #include "sender.h"
 #include "common/types.h"
-#include "mod/common/error_pool.h"
+#include "mod/common/linux_version.h"
 
 static DEFINE_MUTEX(config_mutex);
 
-int verify_superpriv(void)
+static int verify_superpriv(void)
 {
 	if (!capable(CAP_NET_ADMIN)) {
 		log_err("Administrative privileges required.");
@@ -28,19 +28,19 @@ static int handle_expect_add(struct genl_info *info)
 	log_debug("========= Expect Add =========");
 
 	if (verify_superpriv())
-		return -EPERM;
+		return genl_respond(info, -EPERM);
 
 	attr = info->attrs[ATTR_FILENAME];
 	if (!attr) {
 		log_err("Request lacks a file name.");
-		return -EINVAL;
+		return genl_respond(info, -EINVAL);
 	}
 	pkt.filename = nla_data(attr);
 
 	attr = info->attrs[ATTR_PKT];
 	if (!attr) {
 		log_err("Request lacks a packet.");
-		return -EINVAL;
+		return genl_respond(info, -EINVAL);
 	}
 	pkt.bytes = nla_data(attr);
 	pkt.bytes_len = nla_len(attr);
@@ -50,7 +50,7 @@ static int handle_expect_add(struct genl_info *info)
 		nla_for_each_nested(attr, info->attrs[ATTR_EXCEPTIONS], rem) {
 			if (pkt.exceptions.count >= PLATEAUS_MAX) {
 				log_err("Too many exceptions.");
-				return -EINVAL;
+				return genl_respond(info, -EINVAL);
 			}
 			pkt.exceptions.values[pkt.exceptions.count] = nla_get_u16(attr);
 			pkt.exceptions.count++;
@@ -73,14 +73,14 @@ static int handle_send(struct genl_info *info)
 	attr = info->attrs[ATTR_FILENAME];
 	if (!attr) {
 		log_err("Request lacks a file name.");
-		return -EINVAL;
+		return genl_respond(info, -EINVAL);
 	}
 	filename = nla_data(attr);
 
 	attr = info->attrs[ATTR_PKT];
 	if (!attr) {
 		log_err("Request lacks a packet.");
-		return -EINVAL;
+		return genl_respond(info, -EINVAL);
 	}
 
 	error = sender_send(filename, nla_data(attr), nla_len(attr));
@@ -93,7 +93,7 @@ static int handle_expect_flush(struct genl_info *info)
 	log_debug("========= Expect Flush =========");
 
 	if (verify_superpriv())
-		return -EPERM;
+		return genl_respond(info, -EPERM);
 
 	expecter_flush();
 	return genl_respond(info, 0);
@@ -122,7 +122,6 @@ static int handle_userspace_msg(struct sk_buff *skb, struct genl_info *info)
 	int error;
 
 	mutex_lock(&config_mutex);
-	error_pool_activate();
 
 	switch (info->genlhdr->cmd) {
 	case COMMAND_EXPECT_ADD:
@@ -142,36 +141,53 @@ static int handle_userspace_msg(struct sk_buff *skb, struct genl_info *info)
 		break;
 	default:
 		log_err("Unknown command code: %d", info->genlhdr->cmd);
-		error_pool_deactivate();
 		return genl_respond(info, -EINVAL);
 	}
 
-	error_pool_deactivate();
 	mutex_unlock(&config_mutex);
 
 	return error;
 }
 
+static struct nla_policy const graybox_policy[__ATTR_MAX] = {
+	[ATTR_FILENAME] = { .type = NLA_STRING },
+	[ATTR_PKT] = { .type = NLA_BINARY },
+	[ATTR_EXCEPTIONS] = { .type = NLA_NESTED },
+	[ATTR_ERROR_CODE] = { .type = NLA_U16 },
+	[ATTR_STATS] = { .type = NLA_BINARY },
+};
+
+#if LINUX_VERSION_AT_LEAST(5, 2, 0, 8, 0)
+#define GRAYBOX_POLICY
+#else
+#define GRAYBOX_POLICY .policy = graybox_policy,
+#endif
+
 static struct genl_ops ops[] = {
 	{
 		.cmd = COMMAND_EXPECT_ADD,
 		.doit = handle_userspace_msg,
+		GRAYBOX_POLICY
 	},
 	{
 		.cmd = COMMAND_EXPECT_FLUSH,
 		.doit = handle_userspace_msg,
+		GRAYBOX_POLICY
 	},
 	{
 		.cmd = COMMAND_SEND,
 		.doit = handle_userspace_msg,
+		GRAYBOX_POLICY
 	},
 	{
 		.cmd = COMMAND_STATS_DISPLAY,
 		.doit = handle_userspace_msg,
+		GRAYBOX_POLICY
 	},
 	{
 		.cmd = COMMAND_STATS_FLUSH,
 		.doit = handle_userspace_msg,
+		GRAYBOX_POLICY
 	},
 };
 
@@ -182,6 +198,9 @@ static struct genl_family family = {
 	.maxattr = __ATTR_MAX,
 	.netnsok = true,
 	.module = THIS_MODULE,
+#if LINUX_VERSION_AT_LEAST(5, 2, 0, 8, 0)
+	.policy = graybox_policy,
+#endif
 	.ops = ops,
 	.n_ops = ARRAY_SIZE(ops),
 };

@@ -46,11 +46,10 @@ Please [let us know]({{ site.repository-url }}/issues) if you find additional co
 
 ## Compatibility
 
-<!-- Remember: The man pages mention the lowest supported kernel. -->
-
 | Jool version                        | Supported Linux kernels (mainline)   | Supported Linux kernels (RHEL) |
 |-------------------------------------|--------------------------------------|--------------------------------|
-| [main]({{ site.repository-url }}),<br />[4.1.11](download.html#41x) | 4.18 - 4.20,<br />5.0 - 5.19,<br />6.0 - 6.7 | RHEL 8.6 - 8.9,<br />RHEL 9.0 - 9.3 |
+| [main]({{ site.repository-url }}),<br />[4.1.12](download.html#41x) | 4.19 - 4.20,<br />5.0 - 5.19,<br />6.0 - 6.10(-rc4) | RHEL 8.9 - 8.10,<br />RHEL 9.0 - 9.4 |
+| [4.1.11](download.html#41x) | 4.18 - 4.20,<br />5.0 - 5.19,<br />6.0 - 6.7 | RHEL 8.6 - 8.9,<br />RHEL 9.0 - 9.3 |
 | [4.1.10](download.html#41x) | 4.14 - 4.20,<br />5.0 - 5.19,<br />6.0 - 6.3 | RHEL 8.6 - 8.7,<br />RHEL 9.0 - 9.3 |
 | [4.1.9](download.html#41x) | 4.9 - 4.20,<br />5.0 - 5.19,<br />6.0 - 6.1 | RHEL 8.6 - 8.7,<br />RHEL 9.0 - 9.1 |
 | [4.1.8](download.html#41x) | 4.9 - 4.20,<br />5.0 - 5.16 | RHEL 8.5 |
