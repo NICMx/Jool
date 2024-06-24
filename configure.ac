@@ -89,4 +89,5 @@ AC_OUTPUT(Makefile
 	src/usr/argp/Makefile
 	src/usr/siit/Makefile
 	src/usr/nat64/Makefile
-	src/usr/joold/Makefile)
+	src/usr/joold/Makefile
+	src/usr/jnetflow/Makefile)
