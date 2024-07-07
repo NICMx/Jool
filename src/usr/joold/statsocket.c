@@ -117,7 +117,7 @@ int statsocket_start(int argc, char **argv)
 		return 0;
 	}
 
-	error = create_socket(argv[2], &sk);
+	error = create_socket(argv[3], &sk);
 	if (error)
 		return error;
 
