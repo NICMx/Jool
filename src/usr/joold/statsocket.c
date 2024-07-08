@@ -4,61 +4,26 @@
 #include <netdb.h>
 #include <pthread.h>
 #include <stdatomic.h>
-#include <stddef.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
 #include <syslog.h>
-#include <unistd.h>
+#include <arpa/inet.h>
+#include <sys/queue.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 
-#include "log.h"
+#include "usr/joold/log.h"
+#include "usr/joold/json.h"
 
-static int create_socket(char const *port, int *fd)
-{
-	int sk;
-	struct addrinfo hints = { 0 };
-	struct addrinfo *ais, *ai;
-	int err;
+struct statsocket_cfg statcfg;
 
-	syslog(LOG_INFO, "Setting up statsocket (port %s)...", port);
+struct sockfd {
+	int fd;
+	SLIST_ENTRY(sockfd) hook;
+};
 
-	hints.ai_family = AF_UNSPEC;
-	hints.ai_socktype = SOCK_DGRAM;
-	hints.ai_flags |= AI_PASSIVE;
-
-	err = getaddrinfo(NULL, port, &hints, &ais);
-	if (err) {
-		syslog(LOG_ERR, "getaddrinfo() failed: %s", gai_strerror(err));
-		return err;
-	}
-
-	for (ai = ais; ai; ai = ai->ai_next) {
-		syslog(LOG_INFO, "Trying an address candidate...");
-
-		sk = socket(ai->ai_family, ai->ai_socktype, ai->ai_protocol);
-		if (sk < 0) {
-			pr_perror("socket() failed", errno);
-			continue;
-		}
-
-		if (bind(sk, ai->ai_addr, ai->ai_addrlen)) {
-			pr_perror("bind() failed", errno);
-			close(sk);
-			continue;
-		}
-
-		syslog(LOG_INFO, "Statsocket created successfully.");
-		freeaddrinfo(ais);
-		*fd = sk;
-		return 0;
-	}
-
-	syslog(LOG_ERR, "None of the candidates yielded a valid statsocket.");
-	freeaddrinfo(ais);
-	return 1;
-}
+SLIST_HEAD(sockfds, sockfd);
 
 extern atomic_int modsocket_pkts_sent;
 extern atomic_int modsocket_bytes_sent;
@@ -67,22 +32,118 @@ extern atomic_int netsocket_bytes_rcvd;
 extern atomic_int netsocket_pkts_sent;
 extern atomic_int netsocket_bytes_sent;
 
+int statsocket_config(char const *filename)
+{
+	cJSON *json;
+	int error;
+
+	statcfg.enabled = true;
+
+	error = read_json(filename, &json);
+	if (error)
+		return error;
+
+	error = json2str(json, "address", &statcfg.address);
+	if (error)
+		goto end;
+	error = json2str(json, "port", &statcfg.port);
+
+end:	cJSON_Delete(json);
+	return error;
+}
+
+/* buf must length INET6_ADDRSTRLEN. */
+static char const *
+addr2str(struct addrinfo *info, char *buf)
+{
+	struct sockaddr_storage *sockaddr;
+	void *addr;
+	char const *result;
+
+	sockaddr = (struct sockaddr_storage *) info->ai_addr;
+	if (!sockaddr)
+		return statcfg.address;
+
+	switch (sockaddr->ss_family) {
+	case AF_INET:
+		addr = &((struct sockaddr_in *) sockaddr)->sin_addr;
+		break;
+	case AF_INET6:
+		addr = &((struct sockaddr_in6 *) sockaddr)->sin6_addr;
+		break;
+	default:
+		return statcfg.address;
+	}
+
+	result = inet_ntop(sockaddr->ss_family, addr, buf, INET6_ADDRSTRLEN);
+	return result ? result : statcfg.address;
+}
+
+static int create_sockets(struct sockfds *fds)
+{
+	struct sockfd *fd;
+	struct addrinfo hints = { 0 };
+	struct addrinfo *ais, *ai;
+	int error;
+
+	hints.ai_family = AF_UNSPEC;
+	hints.ai_socktype = SOCK_DGRAM;
+	hints.ai_flags |= AI_PASSIVE;
+
+	error = getaddrinfo(statcfg.address, statcfg.port, &hints, &ais);
+	if (error) {
+		syslog(LOG_ERR, "getaddrinfo() failed: %s", gai_strerror(error));
+		return error;
+	}
+
+	for (ai = ais; ai; ai = ai->ai_next) {
+		char buf[INET6_ADDRSTRLEN];
+		int sk;
+
+		syslog(LOG_INFO, "Trying address '[%s]:%s'...",
+				addr2str(ai, buf), statcfg.port);
+
+		sk = socket(ai->ai_family, ai->ai_socktype, ai->ai_protocol);
+		if (sk < 0) {
+			error = errno;
+			pr_perror("socket() failed", error);
+			return error;
+		}
+
+		if (bind(sk, ai->ai_addr, ai->ai_addrlen)) {
+			error = errno;
+			pr_perror("bind() failed", error);
+			return error;
+		}
+
+		syslog(LOG_INFO, "Socket bound successfully.");
+
+		fd = malloc(sizeof(struct sockfd));
+		if (!fd)
+			return ENOMEM;
+		fd->fd = sk;
+		SLIST_INSERT_HEAD(fds, fd, hook);
+	}
+
+	freeaddrinfo(ais);
+	return 0;
+}
+
 #define BUFFER_SIZE 1024
 
 void *serve_stats(void *arg)
 {
-	int sk;
+	struct sockfd *sfd;
 	struct sockaddr_storage peer_addr;
 	socklen_t peer_addr_len;
 	int nread, nstr, nwritten;
 	char buffer[BUFFER_SIZE];
 
-	sk = *((int *)arg);
-	free(arg);
+	sfd = (struct sockfd *) arg;
 
 	while (true) {
 		peer_addr_len = sizeof(peer_addr);
-		nread = recvfrom(sk, buffer, BUFFER_SIZE, 0,
+		nread = recvfrom(sfd->fd, buffer, BUFFER_SIZE, 0,
 				(struct sockaddr *) &peer_addr,
 				&peer_addr_len);
 		if (nread == -1)
@@ -98,7 +159,7 @@ void *serve_stats(void *arg)
 		if (nstr >= BUFFER_SIZE)
 			snprintf(buffer, BUFFER_SIZE, "Bug!");
 
-		nwritten = sendto(sk, buffer, nstr, 0,
+		nwritten = sendto(sfd->fd, buffer, nstr, 0,
 				(struct sockaddr *) &peer_addr,
 				peer_addr_len);
 		if (nwritten != nstr)
@@ -106,31 +167,35 @@ void *serve_stats(void *arg)
 	}
 }
 
-int statsocket_start(int argc, char **argv)
+int statsocket_start(void)
 {
-	int sk, *sk2;
+	struct sockfds fds;
+	struct sockfd *fd;
 	pthread_t thread;
 	int error;
 
-	if (argc < 4) {
-		syslog(LOG_INFO, "statsocket port unavailable; skipping statsocket.");
+	syslog(LOG_INFO, "Opening statsocket...");
+
+	if (!statcfg.enabled) {
+		syslog(LOG_INFO, "Not configured; skipping statsocket.");
 		return 0;
 	}
 
-	error = create_socket(argv[3], &sk);
+	SLIST_INIT(&fds);
+
+	error = create_sockets(&fds);
 	if (error)
 		return error;
 
-	sk2 = malloc(sizeof(int));
-	if (!sk2)
-		return -ENOMEM;
-	*sk2 = sk;
-
-	error = pthread_create(&thread, NULL, serve_stats, sk2);
-	if (error) {
-		free(sk2);
-		close(sk);
+	SLIST_FOREACH(fd, &fds, hook) {
+		error = pthread_create(&thread, NULL, serve_stats, fd);
+		if (error) {
+			syslog(LOG_ERR, "Unable to start statsocket thread: %s",
+					strerror(error));
+			return error;
+		}
 	}
 
-	return error;
+	syslog(LOG_INFO, "Statsocket ready.");
+	return 0;
 }

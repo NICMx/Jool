@@ -4,6 +4,7 @@
 bin_PROGRAMS = joold
 joold_SOURCES = \
 	joold.c \
+	json.c json.h \
 	log.c log.h \
 	modsocket.c modsocket.h \
 	netsocket.c netsocket.h \
