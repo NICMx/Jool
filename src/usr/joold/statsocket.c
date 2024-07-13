@@ -43,10 +43,10 @@ int statsocket_config(char const *filename)
 	if (error)
 		return error;
 
-	error = json2str(json, "address", &statcfg.address);
+	error = json2str(filename, json, "address", &statcfg.address);
 	if (error)
 		goto end;
-	error = json2str(json, "port", &statcfg.port);
+	error = json2str(filename, json, "port", &statcfg.port);
 
 end:	cJSON_Delete(json);
 	return error;

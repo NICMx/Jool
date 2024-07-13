@@ -53,33 +53,33 @@ bool is_multicast6(struct in6_addr *addr)
 	return (addr->s6_addr32[0] & htonl(0xff000000)) == htonl(0xff000000);
 }
 
-int netsocket_config(char const *filename)
+int netsocket_config(char const *file)
 {
 	cJSON *json;
 	int error;
 
 	netcfg.enabled = true;
 
-	error = read_json(filename, &json);
+	error = read_json(file, &json);
 	if (error)
 		return error;
 
-	error = json2str(json, "multicast address", &netcfg.mcast_addr);
+	error = json2str(file, json, "multicast address", &netcfg.mcast_addr);
 	if (error)
 		goto end;
-	error = json2str(json, "multicast port", &netcfg.mcast_port);
+	error = json2str(file, json, "multicast port", &netcfg.mcast_port);
 	if (error)
 		goto end;
-	error = json2str(json, "in interface", &netcfg.in_interface);
+	error = json2str(file, json, "in interface", &netcfg.in_interface);
 	if (error)
 		goto end;
-	error = json2str(json, "out interface", &netcfg.out_interface);
+	error = json2str(file, json, "out interface", &netcfg.out_interface);
 	if (error)
 		goto end;
-	error = json2int(json, "ttl", &netcfg.ttl);
+	error = json2int(file, json, "ttl", &netcfg.ttl);
 
 	if (netcfg.ttl < 0 || 256 < netcfg.ttl) {
-		syslog(LOG_ERR, "ttl out of range: %d\n", netcfg.ttl);
+		fprintf(stderr, "%s: ttl out of range: %d\n", file, netcfg.ttl);
 		return 1;
 	}
 
@@ -162,11 +162,11 @@ static int mcast4opt_add_membership(void)
 	}
 
 	if (setsockopt4(sk, IP_ADD_MEMBERSHIP, mreq)) {
-		pr_perror("-> setsockopt(IP_ADD_MEMBERSHIP) failed", errno);
+		pr_perror("setsockopt(IP_ADD_MEMBERSHIP) failed", errno);
 		return 1;
 	}
 
-	syslog(LOG_INFO, "-> We're now registered to the multicast group.");
+	syslog(LOG_INFO, "We're now registered to the multicast group.");
 	return 0;
 }
 
@@ -175,22 +175,22 @@ static int mcast4opt_disable_loopback(void)
 	int loop = 0;
 
 	if (setsockopt4(sk, IP_MULTICAST_LOOP, loop)) {
-		pr_perror("-> setsockopt(IP_MULTICAST_LOOP) failed", errno);
+		pr_perror("setsockopt(IP_MULTICAST_LOOP) failed", errno);
 		return 1;
 	}
 
-	syslog(LOG_INFO, "-> Multicast loopback disabled.");
+	syslog(LOG_INFO, "Multicast loopback disabled.");
 	return 0;
 }
 
 static int mcast4opt_set_ttl(void)
 {
 	if (setsockopt4(sk, IP_MULTICAST_TTL, netcfg.ttl)) {
-		pr_perror("-> setsockopt(IP_MULTICAST_TTL) failed", errno);
+		pr_perror("setsockopt(IP_MULTICAST_TTL) failed", errno);
 		return 1;
 	}
 
-	syslog(LOG_INFO, "-> Tweaked the TTL of multicasts.");
+	syslog(LOG_INFO, "Tweaked the TTL of multicasts.");
 	return 0;
 }
 
@@ -209,11 +209,11 @@ static int mcast4opt_set_out_interface(void)
 	}
 
 	if (setsockopt4(sk, IP_MULTICAST_IF, addr)) {
-		pr_perror("-> setsockopt(IP_MULTICAST_IF) failed", errno);
+		pr_perror("setsockopt(IP_MULTICAST_IF) failed", errno);
 		return 1;
 	}
 
-	syslog(LOG_INFO, "-> The outgoing interface was overridden.");
+	syslog(LOG_INFO, "The outgoing interface was overridden.");
 	return 0;
 }
 

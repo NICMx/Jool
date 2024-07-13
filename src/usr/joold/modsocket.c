@@ -107,7 +107,7 @@ int modsocket_config(char const *filename)
 	if (error)
 		return error;
 
-	error = json2str(json, "instance", &modcfg.iname);
+	error = json2str(filename, json, "instance", &modcfg.iname);
 
 	cJSON_Delete(json);
 	return error;

@@ -2,11 +2,18 @@
 
 #include <errno.h>
 #include <stdlib.h>
+#include <stdio.h>
 #include <string.h>
-#include <sys/syslog.h>
 
-#include "usr/joold/log.h"
 #include "usr/util/file.h"
+
+static int pr_result(char const *filename, struct jool_result *result)
+{
+	int error = result->error;
+	fprintf(stderr, "%s: %s\n", filename, result->msg);
+	result_cleanup(result);
+	return error;
+}
 
 int read_json(char const *filename, cJSON **out)
 {
@@ -14,16 +21,15 @@ int read_json(char const *filename, cJSON **out)
 	cJSON *json;
 	struct jool_result result;
 
-	syslog(LOG_INFO, "Opening file %s...", filename);
 	result = file_to_string(filename, &file);
 	if (result.error)
-		return pr_result(&result);
+		return pr_result(filename, &result);
 
 	json = cJSON_Parse(file);
 	if (!json) {
-		syslog(LOG_ERR, "JSON syntax error.");
-		syslog(LOG_ERR, "The JSON parser got confused around about here:");
-		syslog(LOG_ERR, "%s", cJSON_GetErrorPtr());
+		fprintf(stderr, "%s: JSON syntax error.\n", filename);
+		fprintf(stderr, "The JSON parser got confused around about here:\n");
+		fprintf(stderr, "%s\n", cJSON_GetErrorPtr());
 		free(file);
 		return 1;
 	}
@@ -33,7 +39,7 @@ int read_json(char const *filename, cJSON **out)
 	return 0;
 }
 
-int json2str(cJSON *json, char const *key, char **dst)
+int json2str(char const *filename, cJSON *json, char const *key, char **dst)
 {
 	char *tmp;
 
@@ -41,23 +47,29 @@ int json2str(cJSON *json, char const *key, char **dst)
 	if (!json)
 		return 0;
 
+	if (json->type != cJSON_String) {
+		fprintf(stderr, "%s: Field '%s' is not a string.\n",
+			filename, key);
+		return EINVAL;
+	}
+
 	tmp = strdup(json->valuestring);
-	if (tmp)
+	if (!tmp)
 		return ENOMEM;
 
 	*dst = tmp;
 	return 0;
 }
 
-int json2int(cJSON *json, char const *key, int *dst)
+int json2int(char const *filename, cJSON *json, char const *key, int *dst)
 {
 	json = cJSON_GetObjectItem(json, key);
 	if (!json)
 		return 0;
 
 	if (!(json->numflags & VALUENUM_INT)) {
-		syslog(LOG_ERR, "%s '%s' is not a valid integer.", key,
-			json->valuestring);
+		fprintf(stderr, "%s: Field '%s' is not a valid integer.\n",
+			filename, key);
 		return EINVAL;
 	}
 

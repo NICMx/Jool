@@ -5,7 +5,7 @@
 
 int read_json(char const *, cJSON **);
 
-int json2str(cJSON *, char const *, char **);
-int json2int(cJSON *, char const *, int *);
+int json2str(char const *, cJSON *, char const *, char **);
+int json2int(char const *, cJSON *, char const *, int *);
 
 #endif /* SRC_USR_JOOLD_JSON_H_ */

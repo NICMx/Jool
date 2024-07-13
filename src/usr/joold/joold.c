@@ -2,6 +2,7 @@
 #include <getopt.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <syslog.h>
 
 #include "log.h"
@@ -22,25 +23,13 @@ static const struct option OPTIONS[] = {
 		.val = 'h',
 	},
 
-	/* Files */
-
-	{
-		.name = "modsocket",
-		.has_arg = required_argument,
-		.val = 'm',
-	}, {
-		.name = "netsocket",
-		.has_arg = required_argument,
-		.val = 'n',
-	}, {
-		.name = "statsocket",
-		.has_arg = required_argument,
-		.val = 's',
-	},
-
 	/* Modsocket */
 
 	{
+		.name = "mod",
+		.has_arg = required_argument,
+		.val = 'm',
+	}, {
 		.name = "instance",
 		.has_arg = required_argument,
 		.val = 'i',
@@ -49,23 +38,27 @@ static const struct option OPTIONS[] = {
 	/* Netsocket */
 
 	{
-		.name = "--net.multicast.addr",
+		.name = "net",
+		.has_arg = required_argument,
+		.val = 'n',
+	}, {
+		.name = "net.mcast.address",
 		.has_arg = required_argument,
 		.val = 1100,
 	}, {
-		.name = "--net.multicast.port",
+		.name = "net.mcast.port",
 		.has_arg = required_argument,
 		.val = 1101,
 	}, {
-		.name = "--net.interface.in",
+		.name = "net.dev.in",
 		.has_arg = required_argument,
 		.val = 1102,
 	}, {
-		.name = "--net.interface.out",
+		.name = "net.dev.out",
 		.has_arg = required_argument,
 		.val = 1103,
 	}, {
-		.name = "--net.ttl",
+		.name = "net.ttl",
 		.has_arg = required_argument,
 		.val = 1104,
 	},
@@ -73,6 +66,10 @@ static const struct option OPTIONS[] = {
 	/* Statsocket */
 
 	{
+		.name = "stats",
+		.has_arg = required_argument,
+		.val = 's',
+	}, {
 		.name = "stats.address",
 		.has_arg = required_argument,
 		.val = 1200,
@@ -86,26 +83,24 @@ static const struct option OPTIONS[] = {
 
 static void print_help(void)
 {
-	printf("-V, --version              Print program version number\n");
-	printf("-h, --help                 Print this\n\n");
-
-	printf("-m, --modsocket=FILE       Path to file containing kernel socket config\n");
-	printf("-n, --netsocket=FILE       Path to file containing network socket config\n");
-	printf("-s, --statsocket=FILE      Path to file containing stats socket config\n\n");
-
-	printf("-i, --instance=STRING      Kernelspace Jool instance name\n");
-	printf("                           (Default: \"default\")\n\n");
-
-	printf("--net.multicast.addr=ADDR  Address where the sessions will be advertised\n");
-	printf("--net.multicast.port=STR   UDP port where the sessions will be advertised\n");
-	printf("--net.interface.in=STR     IPv4: IP_ADD_MEMBERSHIP; IPv6: IPV6_ADD_MEMBERSHIP\n");
-	printf("                           (see ip(7))\n");
-	printf("--net.interface.out=STR    IPv4: IP_MULTICAST_IF, IPv6: IPV6_MULTICAST_IF\n");
-	printf("                           (see ip(7))\n");
-	printf("--net.ttl=INT              Multicast datagram Time To Live\n\n");
-
-	printf("--stats.address=ADDR       Address to bind the stats socket to\n");
-	printf("--stats.port=INT           Port to bind the stats socket to\n");
+	printf("-V --version              Print program version number\n");
+	printf("-h --help                 Print this\n");
+	printf("\n");
+	printf("-m --mod=FILE             Path to file containing kernel socket config\n");
+	printf("-i --instance=INAME       Kernelspace Jool instance name (Default: \"default\")\n");
+	printf("\n");
+	printf("-n --net=FILE             Path to file containing network socket config\n");
+	printf("   --net.mcast.addr=ADDR  Address where the sessions will be advertised\n");
+	printf("   --net.mcast.port=STR   UDP port where the sessions will be advertised\n");
+	printf("   --net.dev.in=STR       IPv4: IP_ADD_MEMBERSHIP; IPv6: IPV6_ADD_MEMBERSHIP\n");
+	printf("                          (see ip(7))\n");
+	printf("   --net.dev.out=STR      IPv4: IP_MULTICAST_IF, IPv6: IPV6_MULTICAST_IF\n");
+	printf("                          (see ip(7))\n");
+	printf("   --net.ttl=INT          Multicast datagram Time To Live\n");
+	printf("\n");
+	printf("-s --stats=FILE           Path to file containing stats socket config\n");
+	printf("   --stats.addr=ADDR      Address to bind the stats socket to\n");
+	printf("   --stats.port=STR       Port to bind the stats socket to\n");
 }
 
 int main(int argc, char **argv)
@@ -117,6 +112,7 @@ int main(int argc, char **argv)
 
 	modcfg.iname = "default";
 	netcfg.ttl = 1;
+	statcfg.address = "::";
 
 	while ((opt = getopt_long(argc, argv, OPTS, OPTIONS, NULL)) != -1) {
 		switch (opt) {
@@ -169,7 +165,7 @@ int main(int argc, char **argv)
 			errno = 0;
 			ul = strtoul(optarg, NULL, 10);
 			if (ul > 255 || errno) {
-				syslog(LOG_ERR, "ttl out of range: %s\n", optarg);
+				fprintf(stderr, "ttl out of range: %s\n", optarg);
 				return 1;
 			}
 			netcfg.ttl = ul;
@@ -186,6 +182,21 @@ int main(int argc, char **argv)
 		}
 	}
 
+	printf("Config:\n");
+	printf("  mod.instance: %s\n", modcfg.iname);
+	if (netcfg.enabled) {
+		printf("  net.mcast.addr: %s\n", netcfg.mcast_addr);
+		printf("  net.mcast.port: %s\n", netcfg.mcast_port);
+		printf("  net.dev.in: %s\n", netcfg.in_interface);
+		printf("  net.dev.out: %s\n", netcfg.out_interface);
+		printf("  net.ttl: %d\n", netcfg.ttl);
+	}
+	if (statcfg.enabled) {
+		printf("  stats.addr: %s\n", statcfg.address);
+		printf("  stats.port: %s\n", statcfg.port);
+	}
+
+	printf("\n");
 	printf("joold is intended as a daemon, so it outputs straight to syslog.\n");
 	printf("The standard streams will mostly shut up from now on.\n");
 	printf("---------------------------------------------\n");
