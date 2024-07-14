@@ -13,7 +13,9 @@ install:
 	$(foreach dir, $(PROJECTS), $(MAKE) -C $(dir) modules_install;)
 	/sbin/depmod
 
-distclean maintainer-clean: clean
+distclean maintainer-clean:
+	find . -type f -a \! \( -name \*.h -o -name \*.c -o -name Makefile -o -name Kbuild \) -print0 | xargs -0r rm
+	find . -type f -a -name \*.mod.c -print0 | xargs -0r rm
 
 # This target is needed to generate the upstream tarball.
 # It's not a standard Kbuild target.
