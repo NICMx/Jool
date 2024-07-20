@@ -32,7 +32,6 @@ built-in.a
 /src/usr/siit/jool_siit
 /src/usr/nat64/jool
 /src/usr/joold/joold
-/src/usr/jnetflow/jnetflow
 /test/graybox/usr/graybox
 
 # Documentation
@@ -105,7 +104,6 @@ autom4te.cache
 /src/usr/Makefile
 /src/usr/argp/Makefile
 /src/usr/joold/Makefile
-/src/usr/jnetflow/Makefile
 /src/usr/nat64/Makefile
 /src/usr/nl/Makefile
 /src/usr/siit/Makefile

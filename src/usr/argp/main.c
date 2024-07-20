@@ -227,6 +227,11 @@ static struct cmd_option session_ops[] = {
 			.xt = XT_NAT64,
 			.handler = handle_session_display,
 			.handle_autocomplete = autocomplete_session_display,
+		}, {
+			.label = "follow",
+			.xt = XT_NAT64,
+			.handler = handle_session_follow,
+			.handle_autocomplete = autocomplete_session_follow,
 		},
 		{ 0 },
 };
