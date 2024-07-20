@@ -137,8 +137,8 @@ int handle_session_display(char *iname, int argc, char **argv, void const *arg)
 /******************************************************************************/
 
 #define SERIALIZED_SESSION_SIZE (		\
-		2 * sizeof(struct in6_addr)	\
-		+ sizeof(struct in_addr)	\
+		sizeof(struct in6_addr)		\
+		+ 2 * sizeof(struct in_addr)	\
 		+ sizeof(__be32)		\
 		+ 4 * sizeof(__be16)		\
 )
@@ -151,7 +151,6 @@ typedef enum session_timer_type {
 
 struct session_entry {
 	struct ipv6_transport_addr src6;
-	struct ipv6_transport_addr dst6;
 	struct ipv4_transport_addr src4;
 	struct ipv4_transport_addr dst4;
 
@@ -188,27 +187,22 @@ static int jnla_get_session_joold(struct nlattr *attr,
 	serialized = nla_data(attr);
 
 	READ_RAW(serialized, entry->src6.l3);
-	READ_RAW(serialized, entry->dst6.l3);
 	READ_RAW(serialized, entry->src4.l3);
+	READ_RAW(serialized, entry->dst4.l3);
 	READ_RAW(serialized, tmp32);
 
 	READ_RAW(serialized, tmp16);
 	entry->src6.l4 = ntohs(tmp16);
 	READ_RAW(serialized, tmp16);
-	entry->dst6.l4 = ntohs(tmp16);
-	READ_RAW(serialized, tmp16);
 	entry->src4.l4 = ntohs(tmp16);
+	READ_RAW(serialized, tmp16);
+	entry->dst4.l4 = ntohs(tmp16);
 
 	READ_RAW(serialized, tmp16);
 	__tmp16 = ntohs(tmp16);
 	entry->proto = (__tmp16 >> 5) & 3;
 	entry->state = (__tmp16 >> 2) & 7;
 	entry->timer_type = __tmp16 & 3;
-
-	entry->dst4.l3.s_addr = entry->dst6.l3.s6_addr32[3]; /* XXX wtf? */
-	entry->dst4.l4 = (entry->proto == L4PROTO_ICMP)
-			? entry->src4.l4
-			: entry->dst6.l4;
 
 	entry->expiration = ntohl(tmp32);
 
@@ -220,22 +214,21 @@ static void print_sessions(struct nlattr *root)
 	struct nlattr *attr;
 	int rem;
 	struct session_entry session;
-	char hostaddr[INET6_ADDRSTRLEN];
+	char buffer[INET6_ADDRSTRLEN];
 
 	nla_for_each_nested(attr, root, rem) {
 		if (jnla_get_session_joold(attr, &session) != 0)
 			return;
 
-		inet_ntop(AF_INET6, &session.src6.l3, hostaddr, sizeof(hostaddr));
-		printf("%s,%u,", hostaddr, session.src6.l4);
-		inet_ntop(AF_INET6, &session.dst6.l3, hostaddr, sizeof(hostaddr));
-		printf("%s,%u,", hostaddr, session.dst6.l4);
-		inet_ntop(AF_INET, &session.src4.l3, hostaddr, sizeof(hostaddr));
-		printf("%s,%u,", hostaddr, session.src4.l4);
-		inet_ntop(AF_INET, &session.dst4.l3, hostaddr, sizeof(hostaddr));
-		printf("%s,%u,", hostaddr, session.dst4.l4);
 		printf("%s,", l4proto_to_string(session.proto));
-		printf("%lu\n", session.expiration);
+		inet_ntop(AF_INET6, &session.src6.l3, buffer, sizeof(buffer));
+		printf("%s,%u,", buffer, session.src6.l4);
+		inet_ntop(AF_INET, &session.src4.l3, buffer, sizeof(buffer));
+		printf("%s,%u,", buffer, session.src4.l4);
+		inet_ntop(AF_INET, &session.dst4.l3, buffer, sizeof(buffer));
+		printf("%s,%u,", buffer, session.dst4.l4);
+		timeout2str(session.expiration, buffer);
+		printf("%s\n", buffer);
 	}
 }
 

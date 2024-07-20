@@ -3,9 +3,14 @@
 #include <linux/sort.h>
 #include "common/constants.h"
 #include "mod/common/log.h"
+#include "mod/common/rfc6052.h"
 
-#define SERIALIZED_SESSION_SIZE (2 * sizeof(struct in6_addr) \
-		+ sizeof(struct in_addr) + sizeof(__be32) + 4 * sizeof(__be16))
+#define SERIALIZED_SESSION_SIZE (		\
+		sizeof(struct in6_addr)		\
+		+ 2 * sizeof(struct in_addr)	\
+		+ sizeof(__be32)		\
+		+ 4 * sizeof(__be16)		\
+)
 
 static int validate_null(struct nlattr *attr, char const *name)
 {
@@ -405,7 +410,7 @@ static int get_timeout(struct bib_config *config, struct session_entry *entry)
 	serialized += sizeof(field);
 
 int jnla_get_session_joold(struct nlattr *attr, char const *name,
-		struct bib_config *config, struct session_entry *entry)
+		struct jool_globals *cfg, struct session_entry *se)
 {
 	__u8 *serialized;
 	__be32 tmp32;
@@ -424,39 +429,39 @@ int jnla_get_session_joold(struct nlattr *attr, char const *name,
 		return -EINVAL;
 	}
 
-	memset(entry, 0, sizeof(*entry));
+	memset(se, 0, sizeof(*se));
 	serialized = nla_data(attr);
 
-	READ_RAW(serialized, entry->src6.l3);
-	READ_RAW(serialized, entry->dst6.l3);
-	READ_RAW(serialized, entry->src4.l3);
+	READ_RAW(serialized, se->src6.l3);
+	READ_RAW(serialized, se->src4.l3);
+	READ_RAW(serialized, se->dst4.l3);
 	READ_RAW(serialized, tmp32);
 
 	READ_RAW(serialized, tmp16);
-	entry->src6.l4 = ntohs(tmp16);
+	se->src6.l4 = ntohs(tmp16);
 	READ_RAW(serialized, tmp16);
-	entry->dst6.l4 = ntohs(tmp16);
+	se->src4.l4 = ntohs(tmp16);
 	READ_RAW(serialized, tmp16);
-	entry->src4.l4 = ntohs(tmp16);
+	se->dst4.l4 = ntohs(tmp16);
 
 	READ_RAW(serialized, tmp16);
 	__tmp16 = ntohs(tmp16);
-	entry->proto = (__tmp16 >> 5) & 3;
-	entry->state = (__tmp16 >> 2) & 7;
-	entry->timer_type = __tmp16 & 3;
+	se->proto = (__tmp16 >> 5) & 3;
+	se->state = (__tmp16 >> 2) & 7;
+	se->timer_type = __tmp16 & 3;
 
-	entry->dst4.l3.s_addr = entry->dst6.l3.s6_addr32[3];
-	entry->dst4.l4 = (entry->proto == L4PROTO_ICMP)
-			? entry->src4.l4
-			: entry->dst6.l4;
+	error = __rfc6052_4to6(&cfg->pool6.prefix, &se->dst4.l3, &se->dst6.l3);
+	if (error)
+		return error;
+	se->dst6.l4 = (se->proto == L4PROTO_ICMP) ? se->src6.l4 : se->dst4.l4;
 
-	error = get_timeout(config, entry);
+	error = get_timeout(&cfg->nat64.bib, se);
 	if (error)
 		return error;
 
 	expiration = msecs_to_jiffies(ntohl(tmp32));
-	entry->update_time = jiffies + expiration - entry->timeout;
-	entry->has_stored = false;
+	se->update_time = jiffies + expiration - se->timeout;
+	se->has_stored = false;
 
 	return 0;
 }
@@ -786,11 +791,11 @@ int jnla_put_session_joold(struct sk_buff *skb, int attrtype,
 
 	/* 128 bit fields */
 	ADD_RAW(buffer, offset, entry->src6.l3);
-	ADD_RAW(buffer, offset, entry->dst6.l3);
+	/* Skip dst6; it can be inferred from dst4. */
 
 	/* 32 bit fields */
 	ADD_RAW(buffer, offset, entry->src4.l3);
-	/* Skip dst4; it can be inferred from dst6. */
+	ADD_RAW(buffer, offset, entry->dst4.l3);
 
 	dying_time = entry->update_time + entry->timeout;
 	dying_time = (dying_time > jiffies)
@@ -805,9 +810,9 @@ int jnla_put_session_joold(struct sk_buff *skb, int attrtype,
 	/* 16 bit fields */
 	tmp16 = htons(entry->src6.l4);
 	ADD_RAW(buffer, offset, tmp16);
-	tmp16 = htons(entry->dst6.l4);
-	ADD_RAW(buffer, offset, tmp16);
 	tmp16 = htons(entry->src4.l4);
+	ADD_RAW(buffer, offset, tmp16);
+	tmp16 = htons(entry->dst4.l4);
 	ADD_RAW(buffer, offset, tmp16);
 
 	/* Well, this fits in a byte, but use 2 to avoid slop */
