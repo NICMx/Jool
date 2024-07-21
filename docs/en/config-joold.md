@@ -12,30 +12,67 @@ title: Daemon Configuration Options
 ## Index
 
 1. [Introduction](#introduction)
-2. [Network Socket Configuration File](#network-socket-configuration-file)
-	1. [`multicast address`](#multicast-address)
-	2. [`multicast port`](#multicast-port)
-	3. [`in interface`](#in-interface)
-	4. [`out interface`](#out-interface)
-	5. [`reuseaddr`](#reuseaddr)
-	6. [`ttl`](#ttl)
-3. [Module Socket Configuration File](#module-socket-configuration-file)
-	1. [`instance`](#instance)
-4. [Stats Server Port](#stats-server-port)
+2. [Kernel Socket Configuration](#kernel-socket-configuration)
+3. [Network Socket Configuration](#network-socket-configuration)
+4. [Statistics Socket Configuration](#statistics-socket-configuration)
 
 ## Introduction
 
 `joold` (Jool's userspace daemon binary) is part of the [Session Synchronization](session-synchronization.html) gimmic. Follow the link for context.
 
-It expects two files and one port number as optionl program arguments:
+Syntax:
 
-	$ joold [/path/to/netsocket/config] [/path/to/modsocket/config] [UDP stats server port]
+```
+joold
+      --version               # Print program version number
+    | --help                  # Print argument reminders
+    | (
+                              # Kernel Socket Configuration
+      [--mod=FILE]            # Path to file containing kernel socket config
+      [--instance=STR]        # Kernelspace Jool instance name (Default: "default")
 
-The "net socket" file name defaults to `netsocket.json`, and the "module socket" file name defaults to `modsocket.json`. (They are both expected to be found in the same directory the command is executed in.)
+                              # Network Socket Configuration
+      [--net=FILE]            # Path to file containing --net.* arguments
+      [--net.mcast.addr=ADDR] # Address where the sessions will be advertised
+      [--net.mcast.port=STR]  # UDP port where the sessions will be advertised
+      [--net.dev.in=STR]      # IPv4: IP_ADD_MEMBERSHIP; IPv6: IPV6_ADD_MEMBERSHIP (see ip(7))
+      [--net.dev.out=STR]     # IPv4: IP_MULTICAST_IF, IPv6: IPV6_MULTICAST_IF (see ip(7))
+      [--net.ttl=INT]         # Multicast datagram Time To Live
 
-## Network Socket Configuration File
+                              # Statistics Socket Configuration
+      [--stats=FILE]          # Path to file containing --stats.* arguments
+      [--stats.addr=ADDR]     # Address to bind the stats socket to
+      [--stats.port=INT]      # Port to bind the stats socket to
+    )
+```
 
-This is a Json file that configures the daemon's SS **network** socket. (ie. The one it uses to communicate to other synchronization daemons.) Here are two example of its contents:
+## Kernel Socket Configuration
+
+This configures the daemon's Netlink socket; the one it uses to communicate with its designated kernelspace Jool instance.
+
+It only has one option: The name of the kernelspace Jool instance you designated during [`jool instance add`](usr-flags-instance.html). As usual, it defaults to "`default`."
+
+Send it as a program argument:
+
+```bash
+$ joold --instance potato
+```
+
+Or feed it from a file:
+
+```bash
+$ cat modsocket.json
+{ "instance": "potato" }
+$ joold --mod modsocket.json
+```
+
+The kernel instance needs to be located in the same network namespace as its daemon.
+
+## Network Socket Configuration
+
+This configures the daemon's network socket; the one it uses to communicate with other synchronization daemons.
+
+Sample configuration file:
 
 <div class="distro-menu">
 	<span class="distro-selector" onclick="showDistro(this);">IPv6</span>
@@ -43,46 +80,44 @@ This is a Json file that configures the daemon's SS **network** socket. (ie. The
 </div>
 
 <!-- IPv6 -->
-{% highlight json %}
+```json
 {
 	"multicast address": "ff08::db8:64:64",
 	"multicast port": "6464",
 	"in interface": "eth0",
 	"out interface": "eth0",
-	"reuseaddr": 1,
 	"ttl": 3
 }
-{% endhighlight %}
+```
 
 <!-- IPv4 -->
-{% highlight json %}
+```json
 {
 	"multicast address": "233.252.0.64",
 	"multicast port": "6464",
 	"in interface": "192.0.2.1",
 	"out interface": "192.0.2.1",
-	"reuseaddr": 1,
 	"ttl": 3
 }
-{% endhighlight %}
+```
 
 These are the options:
 
-### `multicast address`
+### `multicast address` (`--net.mcast.addr`)
 
 - Type: String (IPv4/v6 address)
-- Default: None (Field is mandatory)
+- Default: None (The network socket is disabled if absent)
 
 Address the SS traffic will be sent to and listened from.
 
-### `multicast port`
+### `multicast port` (`--net.mcast.port`)
 
 - Type: String (port number or service name)
-- Default: None (Field is mandatory)
+- Default: None (The network socket is disabled if absent)
 
 TCP port where the SS traffic will be sent to and listened from.
 
-### `in interface`
+### `in interface` (`--net.dev.in`)
 
 - Type: String
 - Default: NULL (kernel chooses an interface and address for you)
@@ -93,7 +128,7 @@ If `multicast address` is IPv4, this should be one addresses from the interface 
 
 Though they are optional, it is strongly recommended that you define both `in interface` and `out interface` to ensure the SS traffic does not leak through other interfaces.
 
-### `out interface`
+### `out interface` (`--net.dev.out`)
 
 - Type: String
 - Default: NULL (kernel chooses an interface and address for you)
@@ -102,40 +137,7 @@ If `multicast address` is IPv4, this should be one addresses from the interface 
 
 Though they are optional, it is strongly recommended that you define both `in interface` and `out interface` to ensure the SS traffic does not leak through other interfaces.
 
-### `reuseaddr`
-
-- Type: Integer
-- Default: 0
-
-Same as `SO_REUSEADDR`. From `man 7 socket`:
-
-	SO_REUSEADDR
-		Indicates that the rules used in validating addresses supplied
-		in a bind(2) call should allow reuse of local addresses. For
-		AF_INET sockets this means that a socket may bind, except when
-		there is an active listening socket bound to the address. When
-		the listening socket is bound to INADDR_ANY with a specific port
-		then it is not possible to bind to this port for any local
-		address. Argument is an integer boolean flag.
-
-A rather more humane explanation can be found in [Stack Overflow](http://stackoverflow.com/questions/14388706):
-
-	In other words, for multicast addresses `SO_REUSEADDR` behaves exactly
-	as `SO_REUSEPORT` for unicast addresses.
-
-	...
-
-	Basically, `SO_REUSEPORT` allows you to bind an arbitrary number of
-	sockets to exactly the same source address and port as long as all prior
-	bound sockets also had `SO_REUSEPORT` set before they were bound. If the
-	first socket that is bound to an address and port does not have
-	`SO_REUSEPORT` set, no other socket can be bound to exactly the same
-	address and port, regardless if this other socket has `SO_REUSEPORT` set
-	or not, until the first socket releases its binding again.
-
-You do not want a hanging joold to prevent future joolds from having access to the SS traffic, so there is likely no reason to ever turn this value off. Unless you have a specific reason to change this, you should **always** include this value, and **always** override the default.
-
-### `ttl`
+### `ttl` (`--net.ttl`)
 
 - Type: Integer
 - Default: 1
@@ -149,35 +151,28 @@ Same as `IP_MULTICAST_TTL`. From `man 7 ip`:
 		multicast packets don't leave the local network unless the user
 		program explicitly requests it. Argument is an integer.
 
-## Module Socket Configuration File
+## Statistics Socket Configuration
 
-This is a Json file that configures the daemon's SS **Netlink** socket. (ie. the one it uses to communicate with its designated Jool instance.) Here's an example of its contents:
+Serves stats. It's optional; if you don't configure it, joold won't start it.
 
-```json
-{
-	"instance": "potato"
-}
-```
-
-These are the options:
-
-### `instance`
-
-Name of the instance the daemon is supposed to synchronize. It's the one you designate during [`jool instance add`](usr-flags-instance.html). As usual, it defaults to "`default`."
-
-The instance is expected to exist within the same network namespace the daemon is running in.
-
-## Stats Server Port
-
-A port number joold will use to serve stats via UDP. If absent, the server will not be started.
-
-Start joold with a third argument representing the port number:
+Sample by command:
 
 ```bash
-$ joold netsocket.json modsocket.json 45678
+$ joold --stats.address 127.0.0.1 --stats.port 45678
 ```
 
-It's rudimentary. Query using a simple UDP request:
+Equivalent by file:
+
+```bash
+$ cat statsocket.json
+{
+	"address": "127.0.0.1",
+	"port": 45678
+}
+$ joold --stats statsocket.json
+```
+
+It's rudimentary. Sample query:
 
 ```bash
 $ echo "" | nc -u 127.0.0.1 45678
@@ -195,3 +190,5 @@ NET_SENT_BYTES,208
 - `NET_RCVD_BYTES`: Session bytes received from the network. (It should match the remote instance's `JSTAT_JOOLD_SSS_SENT` multiplied by the session size.)
 - `NET_SENT_PKTS`: Packets sent to the network. (It should match the remote joold's `NET_RCVD_PKTS`.)
 - `NET_SENT_BYTES`: Session bytes sent to the network. (It should match the remote joold's `NET_RCVD_BYTES`.)
+
+Note, because of Linux quirks, `--stats.address=0.0.0.0` does not imply `::`, but `--stats.address=::` implies `0.0.0.0`. If you want the stats served via IPv6 but not IPv4, probably block them by firewall.

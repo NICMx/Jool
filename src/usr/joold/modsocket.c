@@ -1,20 +1,20 @@
 #include "modsocket.h"
 
 #include <errno.h>
-#include <stdatomic.h>
-#include <string.h>
-#include <syslog.h>
 #include <netlink/genl/ctrl.h>
 #include <netlink/genl/genl.h>
+#include <stdatomic.h>
+#include <stdbool.h>
+#include <syslog.h>
 
-#include "usr/util/cJSON.h"
-#include "usr/util/file.h"
-#include "usr/nl/joold.h"
+#include "usr/joold/json.h"
 #include "usr/joold/log.h"
+#include "usr/nl/joold.h"
 #include "usr/joold/netsocket.h"
 
+struct modsocket_cfg modcfg;
+
 static struct joolnl_socket jsocket;
-static char *iname;
 
 atomic_int modsocket_pkts_sent;
 atomic_int modsocket_bytes_sent;
@@ -23,7 +23,7 @@ atomic_int modsocket_bytes_sent;
 void modsocket_send(void *request, size_t request_len)
 {
 	struct jool_result result;
-	result = joolnl_joold_add(&jsocket, iname, request, request_len);
+	result = joolnl_joold_add(&jsocket, modcfg.iname, request, request_len);
 	pr_result(&result);
 }
 
@@ -31,7 +31,7 @@ static void do_ack(void)
 {
 	struct jool_result result;
 
-	result = joolnl_joold_ack(&jsocket, iname);
+	result = joolnl_joold_ack(&jsocket, modcfg.iname);
 	if (result.error)
 		pr_result(&result);
 }
@@ -65,7 +65,7 @@ static int updated_entries_cb(struct nl_msg *msg, void *arg)
 		pr_result(&result);
 		goto fail;
 	}
-	if (strcasecmp(jhdr->iname, iname) != 0)
+	if (strcasecmp(jhdr->iname, modcfg.iname) != 0)
 		return 0; /* Packet is not intended for us. */
 	if (jhdr->flags & JOOLNLHDR_FLAGS_ERROR) {
 		result = joolnl_msg2result(msg);
@@ -98,48 +98,28 @@ fail:
 	return (result.error < 0) ? result.error : -result.error;
 }
 
-static int read_json(int argc, char **argv)
+int modsocket_config(char const *filename)
 {
-	char *file;
-	cJSON *json, *child;
-	struct jool_result result;
+	cJSON *json;
+	int error;
 
-	if (argc < 3) {
-		iname = strdup(INAME_DEFAULT);
-		return (iname != NULL) ? 0 : -ENOMEM;
-	}
+	error = read_json(filename, &json);
+	if (error)
+		return error;
 
-	syslog(LOG_INFO, "Opening file %s...", argv[2]);
-	result = file_to_string(argv[2], &file);
-	if (result.error)
-		return pr_result(&result);
-
-	json = cJSON_Parse(file);
-	if (!json) {
-		syslog(LOG_ERR, "JSON syntax error.");
-		syslog(LOG_ERR, "The JSON parser got confused around about here:");
-		syslog(LOG_ERR, "%s", cJSON_GetErrorPtr());
-		free(file);
-		return 1;
-	}
-
-	free(file);
-
-	child = cJSON_GetObjectItem(json, "instance");
-	iname = strdup(child ? child->valuestring : INAME_DEFAULT);
-	if (!iname) {
-		cJSON_Delete(json);
-		return -ENOMEM;
-	}
+	error = json2str(filename, json, "instance", &modcfg.iname);
 
 	cJSON_Delete(json);
-	return 0;
+	return error;
 }
 
-static int create_socket(void)
+int modsocket_setup(void)
 {
 	int family_mc_grp;
 	struct jool_result result;
+
+	syslog(LOG_INFO, "Opening kernel socket (Instance name: %s)...",
+			modcfg.iname);
 
 	result = joolnl_setup(&jsocket, XT_NAT64);
 	if (result.error)
@@ -166,29 +146,13 @@ static int create_socket(void)
 		goto fail;
 	}
 
+	syslog(LOG_INFO, "Kernel socket ready.");
 	return 0;
 
 fail:
 	joolnl_teardown(&jsocket);
 	syslog(LOG_ERR, "Netlink error message: %s", nl_geterror(result.error));
 	return result.error;
-}
-
-int modsocket_setup(int argc, char **argv)
-{
-	int error;
-
-	error = read_json(argc, argv);
-	if (error)
-		return error;
-
-	return create_socket();
-}
-
-void modsocket_teardown(void)
-{
-	free(iname);
-	joolnl_teardown(&jsocket);
 }
 
 void *modsocket_listen(void *arg)
