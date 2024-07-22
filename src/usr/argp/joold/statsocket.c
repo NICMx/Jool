@@ -1,4 +1,4 @@
-#include "usr/joold/statsocket.h"
+#include "usr/argp/joold/statsocket.h"
 
 #include <errno.h>
 #include <netdb.h>
@@ -13,10 +13,9 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 
-#include "usr/joold/log.h"
-#include "usr/joold/json.h"
+#include "usr/argp/log.h"
 
-struct statsocket_cfg statcfg;
+static struct statsocket_cfg statcfg;
 
 struct sockfd {
 	int fd;
@@ -31,26 +30,6 @@ extern atomic_int netsocket_pkts_rcvd;
 extern atomic_int netsocket_bytes_rcvd;
 extern atomic_int netsocket_pkts_sent;
 extern atomic_int netsocket_bytes_sent;
-
-int statsocket_config(char const *filename)
-{
-	cJSON *json;
-	int error;
-
-	statcfg.enabled = true;
-
-	error = read_json(filename, &json);
-	if (error)
-		return error;
-
-	error = json2str(filename, json, "address", &statcfg.address);
-	if (error)
-		goto end;
-	error = json2str(filename, json, "port", &statcfg.port);
-
-end:	cJSON_Delete(json);
-	return error;
-}
 
 /* buf must length INET6_ADDRSTRLEN. */
 static char const *
@@ -167,13 +146,14 @@ void *serve_stats(void *arg)
 	}
 }
 
-int statsocket_start(void)
+int statsocket_start(struct statsocket_cfg *cfg)
 {
 	struct sockfds fds;
 	struct sockfd *fd;
 	pthread_t thread;
 	int error;
 
+	statcfg = *cfg;
 	syslog(LOG_INFO, "Opening statsocket...");
 
 	if (!statcfg.enabled) {

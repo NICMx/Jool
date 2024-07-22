@@ -23,8 +23,8 @@ title: Session synchronization
 	3. [Load Balancer](#load-balancer)
 	4. [Testing](#testing)
 6. [Configuration](#configuration)
-	1. [`jool`](#jool)
-	2. [`joold`](#joold)
+	1. [`jool global`](#jool-global)
+	2. [`jool session`](#jool-session)
 
 ## Introduction
 
@@ -76,7 +76,7 @@ When `J` dies, `K` has everything it needs to impersonate `J` and continue the c
 
 ## Architecture
 
-Each machine hosting a NAT64 will also hold a daemon that will bridge SS traffic between the private network and its Jool instance. This daemon is named `joold`. So the kernel modules will generate SS traffic and offset the delivery task to these daemons:
+Each machine hosting a NAT64 will also hold a daemon that will bridge SS traffic between the private network and its Jool instance. So the kernel modules will generate SS traffic and offset the delivery task to userspace:
 
 ![Figure - joold](../images/network/joold.svg)
 
@@ -182,7 +182,7 @@ This needs to be applied both in `J` and `K`.
 ### Daemon
 
 ```bash
-joold	--instance default			\
+jool -i "default" session proxy			\
 	--net.mcast.addr ff08::db8:64:64	\
 	--net.mcast.port 6464			\
 	--net.dev.in eth2			\
@@ -192,7 +192,7 @@ joold	--instance default			\
 
 `J` and `K` happen to use the same command in this setup.
 
-A description of each field can be found [here](config-joold.html). For now, suffice to say that the nodes will send and receive SS traffic through multicast address `ff08::db8:64:64` on port `6464`. Each will exchange sessions with a Jool instance named `default`.
+A description of each field can be found [here](usr-flags-session.html#proxy). For now, suffice to say that the nodes will send and receive SS traffic through multicast address `ff08::db8:64:64` on port `6464`. Each will exchange sessions with a Jool instance named `default`.
 
 Please note that `ff08::db8:64:64` is a [documentation address](https://tools.ietf.org/html/rfc6676#section-3) and you should probably change it (along with the others) once you're done experimenting.
 
@@ -396,7 +396,7 @@ Watch the session being cascaded into `K`:
 
 <!-- J -->
 ```bash
-# jool session display --icmp --numeric
+user@j:~/# jool session display --icmp --numeric
 ICMP:
 ---------------------------------
 Expires in 59 seconds
@@ -408,7 +408,7 @@ Local: 192.0.2.1#2168	64:ff9b::c000:208#10713
 
 <!-- K -->
 ```bash
-# jool session display --icmp --numeric
+user@k:~/# jool session display --icmp --numeric
 ICMP:
 ---------------------------------
 Expires in 59 seconds
@@ -443,7 +443,7 @@ Restart `J`. The ping should pause again and, after a while, `J` should claim co
 			&& jool pool4 add udp 192.0.2.1 61001-65535 \
 			&& jool pool4 add icmp 192.0.2.1 0-65535 \
 			&& jool global update ss-enabled true \
-			&& joold /path/to/netsocket.json &
+			&& jool session proxy (...) &
 
 Notice that you need to initialize `J`'s NAT64 in one go; otherwise the new instance will miss `K`'s advertise.
 
@@ -455,7 +455,7 @@ That's all.
 
 ## Configuration
 
-### `jool`
+### `jool global`
 
 1. [`ss-enabled`](usr-flags-global.html#ss-enabled)
 2. [`ss-flush-asap`](usr-flags-global.html#ss-flush-asap)
@@ -463,7 +463,7 @@ That's all.
 4. [`ss-capacity`](usr-flags-global.html#ss-capacity)
 5. [`ss-max-sessions-per-packet`](usr-flags-global.html#ss-max-sessions-per-packet)
 
-### `joold`
+### `jool session`
 
-See the [dedicated page](config-joold.html).
+See the [dedicated page](usr-flags-session.html).
 

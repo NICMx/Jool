@@ -13,9 +13,10 @@ title: session Mode
 
 1. [Description](#description)
 2. [Syntax](#syntax)
-3. [Arguments](#arguments)
-   1. [`display`](#display)
-   2. [Flags](#flags)
+3. [Subcommands](#subcommands)
+   1. [display](#display)
+   2. [follow](#follow)
+   3. [proxy](#proxy)
 4. [Examples](#examples)
 
 ## Description
@@ -28,19 +29,26 @@ You can use this command to get information on each of these connections.
 
 ## Syntax
 
-	jool session display [PROTOCOL] [--numeric] [--csv] [--no-headers]
+	jool [-i INAME] session (
+		display [--tcp | --udp | --icmp]
+			[--numeric]
+			[--csv]
+			[--no-headers]
+		| follow
+		| proxy [--net.mcast.port=STR]
+			[--net.dev.in=STR]
+			[--net.dev.out=STR]
+			[--net.ttl]
+			[--stats.address=STR]
+			[--stats.port=STR]
+			NET_MCAST_ADDR
+	)
 
-	PROTOCOL := --tcp | --udp | --icmp
+## Subcommands
 
-> ![../images/warning.svg](../images/warning.svg) **Warning**: Jool 3's `PROTOCOL` label used to be defined as `[--tcp] [--udp] [--icmp]`. The flags are mutually exclusive now, and default to `--tcp`.
-
-## Arguments
-
-### `display`
+### display
 
 The session table that corresponds to the `PROTOCOL` protocol is printed in standard output.
-
-### Flags
 
 | **Flag** | **Description** |
 | `--tcp` | Operate on the TCP table. This is the default protocol. |
@@ -49,6 +57,103 @@ The session table that corresponds to the `PROTOCOL` protocol is printed in stan
 | `--numeric` | By default, `display` will attempt to resolve the names of the remote nodes involved in each session. _If your nameservers aren't answering, this will pepper standard error with messages and slow the output down_.<br />Use `--numeric` to disable the lookups. |
 | `--csv` | Print the table in [_Comma/Character-Separated Values_ format](http://en.wikipedia.org/wiki/Comma-separated_values). This is intended to be redirected into a .csv file.<br />Because every record is printed in a single line, CSV is also better for grepping. |
 | `--no-headers` | Print the table entries only; omit the headers. (Table headers exist only on CSV mode.) |
+
+### follow
+
+Listen to `INAME`'s sessions forever, printing them in standard output.
+
+The `INAME` instance must have [SS](usr-flags-global.html#ss-enabled) enabled.
+
+### proxy
+
+Listen to sessions forever, exchanging them between the `INAME` instance and other listening proxies. A tutorial can be found [here](session-synchronization.html).
+
+> Until Jool 4.1.12, the session proxy used to be named "joold". As a matter of fact, the `joold` binary still exists, but it's deprecated.
+
+The `INAME` instance must have [SS](usr-flags-global.html#ss-enabled) enabled.
+
+#### `NET_MCAST_ADDR`
+
+- Type: String (IPv4/v6 address)
+- Default: None (Mandatory)
+
+Address the SS traffic will be sent to and listened from.
+
+#### `--net.mcast.port`
+
+- Type: String (port number or service name)
+- Default: 6400
+
+UDP port where the SS traffic will be sent to and listened from.
+
+#### `--net.dev.in`
+
+- Type: String
+- Default: NULL (kernel chooses interface and address for you)
+
+Address or interface to bind the socket in.
+
+If `NET_MCAST_ADDR` is IPv4, this should be one addresses from the interface where the SS traffic is expected to be received. If `NET_MCAST_ADDR` is IPv6, this should be the name of the interface (eg. "eth0").
+
+Though they are optional, it is recommended that you define both `--net.dev.in` and `--net.dev.out` to ensure the SS traffic does not leak through other interfaces.
+
+#### `--net.dev.out`
+
+- Type: String
+- Default: NULL (kernel chooses interface and address for you)
+
+If `NET_MCAST_ADDR` is IPv4, this should be one addresses from the interface where the multicast traffic is expected to be sent. If `NET_MCAST_ADDR` is IPv6, this should be the name of the interface (eg. "eth0").
+
+Though they are optional, it is strongly recommended that you define both `--net.dev.in` and `--net.dev.out` to ensure the SS traffic does not leak through other interfaces.
+
+#### `--net.ttl`
+
+- Type: Integer
+- Default: 1
+
+Same as `IP_MULTICAST_TTL`. From `man 7 ip`:
+
+	IP_MULTICAST_TTL (since Linux 1.2)
+		Set or read the time-to-live value of outgoing multicast packets
+		for this socket. It is very important for multicast packets to
+		set the smallest TTL possible. The default is 1 which means that
+		multicast packets don't leave the local network unless the user
+		program explicitly requests it. Argument is an integer.
+
+#### `--stats.address`
+
+- Type: String (IPv4/v6 address)
+- Default: None (Stats server not started if absent)
+
+Address for statistics server. It's optional; if you don't configure it, `jool session proxy` will not start it.
+
+It's presently rudimentary, as it was spawned by a debugging session. Sample query:
+
+```bash
+$ echo "" | nc -u 127.0.0.1 45678
+KERNEL_SENT_PKTS,4
+KERNEL_SENT_BYTES,208
+NET_RCVD_PKTS,0
+NET_RCVD_BYTES,0
+NET_SENT_PKTS,4
+NET_SENT_BYTES,208
+```
+
+- `KERNEL_SENT_PKTS`: Packets sent to the kernel module. (It should match the local instance's `JSTAT_JOOLD_PKT_RCVD` stat.)
+- `KERNEL_SENT_BYTES`: Session bytes sent to the kernel module. (It should match the local instance's `JSTAT_JOOLD_SSS_RCVD` multiplied by the session size.)
+- `NET_RCVD_PKTS`: Packets received from the network. (It should match the remote instance's `JSTAT_JOOLD_PKT_SENT`.)
+- `NET_RCVD_BYTES`: Session bytes received from the network. (It should match the remote instance's `JSTAT_JOOLD_SSS_SENT` multiplied by the session size.)
+- `NET_SENT_PKTS`: Packets sent to the network. (It should match the remote `jool`'s `NET_RCVD_PKTS`.)
+- `NET_SENT_BYTES`: Session bytes sent to the network. (It should match the remote `jool`'s `NET_RCVD_BYTES`.)
+
+Note, because of Linux quirks, `--stats.address=0.0.0.0` does not imply `::`, but `--stats.address=::` implies `0.0.0.0`. If you want the stats served via IPv6 but not IPv4, probably block them by firewall.
+
+#### `--stats.port`
+
+- Type: String (port number or service name)
+- Default: 6401
+
+Port for the [`--stats.address`](#--statsaddress) server.
 
 ## Examples
 

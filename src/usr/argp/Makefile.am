@@ -20,7 +20,11 @@ libjoolargp_la_SOURCES = \
 	wargp/joold.c wargp/joold.h \
 	wargp/pool4.c wargp/pool4.h \
 	wargp/session.c wargp/session.h \
-	wargp/stats.c wargp/stats.h
+	wargp/stats.c wargp/stats.h \
+	\
+	joold/modsocket.c joold/modsocket.h \
+	joold/netsocket.c joold/netsocket.h \
+	joold/statsocket.c joold/statsocket.h
 
 libjoolargp_la_CFLAGS  = ${WARNINGCFLAGS}
 libjoolargp_la_CFLAGS += -I${top_srcdir}/src

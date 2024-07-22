@@ -70,10 +70,6 @@ If you know what you're doing, try the [Cheat Sheet](cheat-sheet.html).
 	3. [`session`](usr-flags-session.html)
 	4. [`joold`](usr-flags-joold.html)
 
-## Other Configuration
-
-2. [`joold`](config-joold.html)
-
 ## Defined Architectures
 
 1. [SIIT-DC](siit-dc.html)

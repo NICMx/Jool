@@ -1,12 +1,12 @@
-#ifndef SRC_USR_JOOLD_NETSOCKET_H_
-#define SRC_USR_JOOLD_NETSOCKET_H_
+#ifndef SRC_USR_ARGP_JOOLD_NETSOCKET_H_
+#define SRC_USR_ARGP_JOOLD_NETSOCKET_H_
 
 /* This is the socket we use to talk to other joold instances in the network. */
 
 #include <stdbool.h>
 #include <stddef.h>
 
-extern struct netsocket_cfg {
+struct netsocket_cfg {
 	bool enabled;
 	/** Address where the sessions will be advertised. Lacks a default. */
 	char *mcast_addr;
@@ -24,11 +24,10 @@ extern struct netsocket_cfg {
 	char *out_interface;
 
 	int ttl;
-} netcfg;
+};
 
-int netsocket_config(char const *filename);
-int netsocket_start(void);
-
+int netsocket_start(struct netsocket_cfg *);
+bool netsocket_enabled(void);
 void netsocket_send(void *buffer, size_t size);
 
-#endif /* SRC_USR_JOOLD_NETSOCKET_H_ */
+#endif /* SRC_USR_ARGP_JOOLD_NETSOCKET_H_ */

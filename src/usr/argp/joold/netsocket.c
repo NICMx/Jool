@@ -1,4 +1,4 @@
-#include "usr/joold/netsocket.h"
+#include "usr/argp/joold/netsocket.h"
 
 #include <errno.h>
 #include <netdb.h>
@@ -12,11 +12,11 @@
 
 #include "modsocket.h"
 #include "common/config.h"
+#include "usr/argp/log.h"
 #include "usr/joold/json.h"
-#include "usr/joold/log.h"
 #include "usr/util/str_utils.h"
 
-struct netsocket_cfg netcfg;
+static struct netsocket_cfg netcfg;
 
 static int sk;
 /** Processed version of the configuration's hostname and service. */
@@ -41,50 +41,6 @@ static struct in_addr *get_addr4(struct addrinfo *addr)
 static struct in6_addr *get_addr6(struct addrinfo *addr)
 {
 	return &((struct sockaddr_in6 *)addr->ai_addr)->sin6_addr;
-}
-
-bool is_multicast4(struct in_addr *addr)
-{
-	return (addr->s_addr & htonl(0xf0000000)) == htonl(0xe0000000);
-}
-
-bool is_multicast6(struct in6_addr *addr)
-{
-	return (addr->s6_addr32[0] & htonl(0xff000000)) == htonl(0xff000000);
-}
-
-int netsocket_config(char const *file)
-{
-	cJSON *json;
-	int error;
-
-	netcfg.enabled = true;
-
-	error = read_json(file, &json);
-	if (error)
-		return error;
-
-	error = json2str(file, json, "multicast address", &netcfg.mcast_addr);
-	if (error)
-		goto end;
-	error = json2str(file, json, "multicast port", &netcfg.mcast_port);
-	if (error)
-		goto end;
-	error = json2str(file, json, "in interface", &netcfg.in_interface);
-	if (error)
-		goto end;
-	error = json2str(file, json, "out interface", &netcfg.out_interface);
-	if (error)
-		goto end;
-	error = json2int(file, json, "ttl", &netcfg.ttl);
-
-	if (netcfg.ttl < 0 || 256 < netcfg.ttl) {
-		fprintf(stderr, "%s: ttl out of range: %d\n", file, netcfg.ttl);
-		return 1;
-	}
-
-end:	cJSON_Delete(json);
-	return error;
 }
 
 static int try_address(void)
@@ -154,7 +110,7 @@ static int mcast4opt_add_membership(void)
 	if (netcfg.in_interface) {
 		result = str_to_addr4(netcfg.in_interface, &mreq.imr_interface);
 		if (result.error) {
-			pr_result(&result);
+			pr_result_syslog(&result);
 			return 1;
 		}
 	} else {
@@ -204,7 +160,7 @@ static int mcast4opt_set_out_interface(void)
 
 	result = str_to_addr4(netcfg.out_interface, &addr);
 	if (result.error) {
-		pr_result(&result);
+		pr_result_syslog(&result);
 		return 1;
 	}
 
@@ -367,16 +323,21 @@ static void *netsocket_listen(void *arg)
 	return NULL;
 }
 
-int netsocket_start(void)
+int netsocket_start(struct netsocket_cfg *cfg)
 {
 	pthread_t net_thread;
 	int error;
 
+	netcfg = *cfg;
 	syslog(LOG_INFO, "Opening netsocket...");
 
 	if (!netcfg.enabled) {
 		syslog(LOG_INFO, "Not configured; skipping netsocket.");
 		return 0;
+	}
+	if (!cfg->mcast_addr) {
+		syslog(LOG_ERR, "The multicast address is mandatory.");
+		return EINVAL;
 	}
 
 	error = create_socket();
@@ -395,6 +356,11 @@ int netsocket_start(void)
 
 	syslog(LOG_INFO, "Netsocket ready.");
 	return 0;
+}
+
+bool netsocket_enabled(void)
+{
+	return netcfg.enabled;
 }
 
 void netsocket_send(void *buffer, size_t size)

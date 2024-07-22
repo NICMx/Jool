@@ -121,7 +121,7 @@ static int parse_eamt_column(void *void_field, int key, char *str)
 }
 
 struct wargp_type wt_prefixes = {
-	.argument = "<IPv6 prefix> <IPv4 prefix>",
+	.arg = "IP6PREFIX IP4PREFIX",
 	.parse = parse_eamt_column,
 };
 

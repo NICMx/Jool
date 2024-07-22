@@ -4,11 +4,7 @@
 bin_PROGRAMS = joold
 joold_SOURCES = \
 	joold.c \
-	json.c json.h \
-	log.c log.h \
-	modsocket.c modsocket.h \
-	netsocket.c netsocket.h \
-	statsocket.c statsocket.h
+	json.c json.h
 
 joold_CFLAGS  = ${WARNINGCFLAGS}
 joold_CFLAGS += -I${top_srcdir}/src
@@ -17,5 +13,6 @@ joold_CFLAGS += ${LIBNLGENL3_CFLAGS}
 joold_LDADD  = ${LIBNLGENL3_LIBS}
 joold_LDADD += ../nl/libjoolnl.la
 joold_LDADD += ../util/libjoolutil.la
+joold_LDADD += ../argp/libjoolargp.la
 
 dist_man_MANS = joold.8

@@ -1,189 +1,112 @@
 #include <errno.h>
-#include <getopt.h>
+#include <stdbool.h>
 #include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <syslog.h>
 
-#include "log.h"
-#include "common/types.h"
-#include "common/xlat.h"
-#include "usr/joold/modsocket.h"
-#include "usr/joold/netsocket.h"
-#include "usr/joold/statsocket.h"
+#include "usr/joold/json.h"
+#include "usr/argp/wargp/session.h"
 
-static const struct option OPTIONS[] = {
-	{
-		.name = "version",
-		.has_arg = no_argument,
-		.val = 'V',
-	}, {
-		.name = "help",
-		.has_arg = no_argument,
-		.val = 'h',
-	},
-
-	/* Modsocket */
-
-	{
-		.name = "mod",
-		.has_arg = required_argument,
-		.val = 'm',
-	}, {
-		.name = "instance",
-		.has_arg = required_argument,
-		.val = 'i',
-	},
-
-	/* Netsocket */
-
-	{
-		.name = "net",
-		.has_arg = required_argument,
-		.val = 'n',
-	}, {
-		.name = "net.mcast.address",
-		.has_arg = required_argument,
-		.val = 1100,
-	}, {
-		.name = "net.mcast.port",
-		.has_arg = required_argument,
-		.val = 1101,
-	}, {
-		.name = "net.dev.in",
-		.has_arg = required_argument,
-		.val = 1102,
-	}, {
-		.name = "net.dev.out",
-		.has_arg = required_argument,
-		.val = 1103,
-	}, {
-		.name = "net.ttl",
-		.has_arg = required_argument,
-		.val = 1104,
-	},
-
-	/* Statsocket */
-
-	{
-		.name = "stats",
-		.has_arg = required_argument,
-		.val = 's',
-	}, {
-		.name = "stats.address",
-		.has_arg = required_argument,
-		.val = 1200,
-	}, {
-		.name = "stats.port",
-		.has_arg = required_argument,
-		.val = 1201,
-	},
-	{ 0 },
-};
-
-static void print_help(void)
+static int modsocket_config(char const *filename, char **iname)
 {
-	printf("-V --version              Print program version number\n");
-	printf("-h --help                 Print this\n");
-	printf("\n");
-	printf("-m --mod=FILE             Path to file containing kernel socket config\n");
-	printf("-i --instance=INAME       Kernelspace Jool instance name (Default: \"default\")\n");
-	printf("\n");
-	printf("-n --net=FILE             Path to file containing network socket config\n");
-	printf("   --net.mcast.addr=ADDR  Address where the sessions will be advertised\n");
-	printf("   --net.mcast.port=STR   UDP port where the sessions will be advertised\n");
-	printf("   --net.dev.in=STR       IPv4: IP_ADD_MEMBERSHIP; IPv6: IPV6_ADD_MEMBERSHIP\n");
-	printf("                          (see ip(7))\n");
-	printf("   --net.dev.out=STR      IPv4: IP_MULTICAST_IF, IPv6: IPV6_MULTICAST_IF\n");
-	printf("                          (see ip(7))\n");
-	printf("   --net.ttl=INT          Multicast datagram Time To Live\n");
-	printf("\n");
-	printf("-s --stats=FILE           Path to file containing stats socket config\n");
-	printf("   --stats.addr=ADDR      Address to bind the stats socket to\n");
-	printf("   --stats.port=STR       Port to bind the stats socket to\n");
+	cJSON *json;
+	int error;
+
+	error = read_json(filename, &json);
+	if (error)
+		return error;
+
+	error = json2str(filename, json, "instance", iname);
+
+	cJSON_Delete(json);
+	return error;
+}
+
+static int netsocket_config(char const *file, struct netsocket_cfg *cfg)
+{
+	cJSON *json;
+	int error;
+
+	cfg->enabled = true;
+
+	error = read_json(file, &json);
+	if (error)
+		return error;
+
+	error = json2str(file, json, "multicast address", &cfg->mcast_addr);
+	if (error)
+		goto end;
+	error = json2str(file, json, "multicast port", &cfg->mcast_port);
+	if (error)
+		goto end;
+	error = json2str(file, json, "in interface", &cfg->in_interface);
+	if (error)
+		goto end;
+	error = json2str(file, json, "out interface", &cfg->out_interface);
+	if (error)
+		goto end;
+	error = json2int(file, json, "ttl", &cfg->ttl);
+
+	if (cfg->ttl < 0 || 256 < cfg->ttl) {
+		fprintf(stderr, "%s: ttl out of range: %d\n", file, cfg->ttl);
+		return 1;
+	}
+
+end:	cJSON_Delete(json);
+	return error;
+}
+
+static int statsocket_config(char const *filename, struct statsocket_cfg *cfg)
+{
+	cJSON *json;
+	int error;
+
+	cfg->enabled = true;
+
+	error = read_json(filename, &json);
+	if (error)
+		return error;
+
+	error = json2str(filename, json, "address", &cfg->address);
+	if (error)
+		goto end;
+	error = json2str(filename, json, "port", &cfg->port);
+
+end:	cJSON_Delete(json);
+	return error;
 }
 
 int main(int argc, char **argv)
 {
-	char const *OPTS = "Vhm:n:s:i:";
-	int opt;
-	unsigned long ul;
+	char *iname = "default";
+	struct netsocket_cfg netcfg = { .enabled = true, .ttl = 1 };
+	struct statsocket_cfg statcfg = { .address = "::" };
 	int error;
 
-	modcfg.iname = "default";
-	netcfg.ttl = 1;
-	statcfg.address = "::";
+	fprintf(stderr, "Warning: `joold` is deprecated. See `jool session proxy --help`.\n");
 
-	while ((opt = getopt_long(argc, argv, OPTS, OPTIONS, NULL)) != -1) {
-		switch (opt) {
-		case 'V':
-			printf(JOOL_VERSION_STR "\n");
-			return 0;
-		case 'h':
-			print_help();
-			return 0;
-
-		case 'm':
-			error = modsocket_config(optarg);
-			if (error)
-				return error;
-			break;
-		case 'n':
-			error = netsocket_config(optarg);
-			if (error)
-				return error;
-			break;
-		case 's':
-			error = statsocket_config(optarg);
-			if (error)
-				return error;
-			break;
-
-		case 'i':
-			modcfg.iname = optarg;
-			break;
-
-		case 1100:
-			netcfg.enabled = true;
-			netcfg.mcast_addr = optarg;
-			break;
-		case 1101:
-			netcfg.enabled = true;
-			netcfg.mcast_port = optarg;
-			break;
-
-		case 1102:
-			netcfg.enabled = true;
-			netcfg.in_interface = optarg;
-			break;
-		case 1103:
-			netcfg.enabled = true;
-			netcfg.out_interface = optarg;
-			break;
-		case 1104:
-			netcfg.enabled = true;
-			errno = 0;
-			ul = strtoul(optarg, NULL, 10);
-			if (ul > 255 || errno) {
-				fprintf(stderr, "ttl out of range: %s\n", optarg);
-				return 1;
-			}
-			netcfg.ttl = ul;
-			break;
-
-		case 1200:
-			statcfg.enabled = true;
-			statcfg.address = optarg;
-			break;
-		case 1201:
-			statcfg.enabled = true;
-			statcfg.port = optarg;
-			break;
-		}
+	if (argc < 3) {
+		fprintf(stderr, "Not enough arguments.\n");
+		return EINVAL;
 	}
 
+	error = modsocket_config(argv[2], &iname);
+	if (error)
+		return error;
+	error = netsocket_config(argv[1], &netcfg);
+	if (error)
+		return error;
+	if (argc >= 4) {
+		error = statsocket_config(argv[3], &statcfg);
+		if (error)
+			return error;
+	}
+
+	if (!netcfg.mcast_port)
+		netcfg.mcast_port = "6400";
+	if (!statcfg.port)
+		statcfg.port = "6401";
+
 	printf("Config:\n");
-	printf("  mod.instance: %s\n", modcfg.iname);
+	printf("  mod.instance: %s\n", iname);
 	if (netcfg.enabled) {
 		printf("  net.mcast.addr: %s\n", netcfg.mcast_addr);
 		printf("  net.mcast.port: %s\n", netcfg.mcast_port);
@@ -201,21 +124,5 @@ int main(int argc, char **argv)
 	printf("The standard streams will mostly shut up from now on.\n");
 	printf("---------------------------------------------\n");
 
-	openlog("joold", 0, LOG_DAEMON);
-
-	error = modsocket_setup();
-	if (error)
-		goto end;
-	error = netsocket_start();
-	if (error)
-		goto end;
-	error = statsocket_start();
-	if (error)
-		goto end;
-
-	modsocket_listen(NULL); /* Loops forever */
-
-end:	closelog();
-	fprintf(stderr, "joold error: %d\n", error);
-	return error;
+	return joold_start(iname, &netcfg, &statcfg);
 }

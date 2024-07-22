@@ -190,7 +190,7 @@ static int parse_max_iterations(void *void_field, int key, char *str)
 }
 
 struct wargp_type wt_max_iterations = {
-	.argument = "(<integer>|auto|infinity)",
+	.arg = "(INT|auto|infinity)",
 	.parse = parse_max_iterations,
 	.candidates = "auto infinity",
 };
@@ -213,7 +213,7 @@ static int parse_pool4_entry(void *void_field, int key, char *str)
 }
 
 struct wargp_type wt_pool4_entry = {
-	.argument = "<IPv4 prefix> <port range>",
+	.arg = "IP4PREFIX PORT_RANGE",
 	.parse = parse_pool4_entry,
 };
 
