@@ -11,6 +11,7 @@
 #include "mod/common/kernel_hook.h"
 #include "mod/common/log.h"
 #include "mod/common/rcu.h"
+#include "mod/common/compat_32_64.h"
 #include "mod/common/wkmalloc.h"
 #include "mod/common/db/denylist4.h"
 #include "mod/common/db/eam.h"
@@ -890,7 +891,7 @@ void xlator_put(struct xlator *jool)
 static bool offset_equals(struct instance_entry_usr *offset,
 		struct jool_instance *instance)
 {
-	return (offset->ns == ((__u64)instance->jool.ns & 0xFFFFFFFF))
+	return (offset->ns == ((PTR_AS_UINT_TYPE)instance->jool.ns & 0xFFFFFFFF))
 			&& (strcmp(offset->iname, instance->jool.iname) == 0);
 }
 
