@@ -125,9 +125,9 @@ Same as `IP_MULTICAST_TTL`. From `man 7 ip`:
 #### `--stats.address`
 
 - Type: String (IPv4/v6 address)
-- Default: None (Stats server not started if absent)
+- Default: "::"
 
-Address for statistics server. It's optional; if you don't configure it, `jool session proxy` will not start it.
+Address for statistics server. It's optional; if you don't configure `--stats.address` and/or `--stats.port`, `jool session proxy` will not start the server.
 
 It's presently rudimentary, as it was spawned by a debugging session. Sample query:
 

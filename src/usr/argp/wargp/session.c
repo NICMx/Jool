@@ -238,8 +238,10 @@ int handle_session_proxy(char *iname, int argc, char **argv, void const *arg)
 	netcfg.out_interface = pargs.net_dev_out.value;
 	netcfg.ttl = pargs.net_ttl;
 
-	statcfg.enabled = pargs.stats_addr.value != NULL;
-	statcfg.address = pargs.stats_addr.value;
+	statcfg.enabled = pargs.stats_addr.value || pargs.stats_port.value;
+	statcfg.address = (pargs.stats_addr.value != NULL)
+			? pargs.stats_addr.value
+			: "::";
 	statcfg.port = (pargs.stats_port.value != NULL)
 			? pargs.stats_port.value
 			: "6401";
@@ -286,6 +288,27 @@ int joold_start(char const *iname, struct netsocket_cfg *netcfg,
 		struct statsocket_cfg *statcfg)
 {
 	int error;
+
+	iname = iname ? iname : "default";
+
+	printf("Config:\n");
+	printf("  mod.instance: %s\n", iname);
+	if (netcfg->enabled) {
+		printf("  net.mcast.addr: %s\n", netcfg->mcast_addr);
+		printf("  net.mcast.port: %s\n", netcfg->mcast_port);
+		printf("  net.dev.in: %s\n", netcfg->in_interface);
+		printf("  net.dev.out: %s\n", netcfg->out_interface);
+		printf("  net.ttl: %d\n", netcfg->ttl);
+	}
+	if (statcfg->enabled) {
+		printf("  stats.addr: %s\n", statcfg->address);
+		printf("  stats.port: %s\n", statcfg->port);
+	}
+
+	printf("\n");
+	printf("joold is intended as a daemon, so it outputs straight to syslog.\n");
+	printf("The standard streams will mostly shut up from now on.\n");
+	printf("---------------------------------------------\n");
 
 	openlog("joold", 0, LOG_DAEMON);
 

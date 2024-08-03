@@ -25,8 +25,6 @@ static int netsocket_config(char const *file, struct netsocket_cfg *cfg)
 	cJSON *json;
 	int error;
 
-	cfg->enabled = true;
-
 	error = read_json(file, &json);
 	if (error)
 		return error;
@@ -63,8 +61,15 @@ static void statsocket_config(char *port, struct statsocket_cfg *cfg)
 int main(int argc, char **argv)
 {
 	char *iname = "default";
-	struct netsocket_cfg netcfg = { .enabled = true, .ttl = 1 };
-	struct statsocket_cfg statcfg = { .address = "::" };
+	struct netsocket_cfg netcfg = {
+		.mcast_port = "6400",
+		.enabled = true,
+		.ttl = 1,
+	};
+	struct statsocket_cfg statcfg = {
+		.address = "::",
+		.port = "6401",
+	};
 	int error;
 
 	fprintf(stderr, "Warning: `joold` is deprecated. See `jool session proxy --help`.\n");
@@ -82,30 +87,6 @@ int main(int argc, char **argv)
 		return error;
 	if (argc >= 4)
 		statsocket_config(argv[3], &statcfg);
-
-	if (!netcfg.mcast_port)
-		netcfg.mcast_port = "6400";
-	if (!statcfg.port)
-		statcfg.port = "6401";
-
-	printf("Config:\n");
-	printf("  mod.instance: %s\n", iname);
-	if (netcfg.enabled) {
-		printf("  net.mcast.addr: %s\n", netcfg.mcast_addr);
-		printf("  net.mcast.port: %s\n", netcfg.mcast_port);
-		printf("  net.dev.in: %s\n", netcfg.in_interface);
-		printf("  net.dev.out: %s\n", netcfg.out_interface);
-		printf("  net.ttl: %d\n", netcfg.ttl);
-	}
-	if (statcfg.enabled) {
-		printf("  stats.addr: %s\n", statcfg.address);
-		printf("  stats.port: %s\n", statcfg.port);
-	}
-
-	printf("\n");
-	printf("joold is intended as a daemon, so it outputs straight to syslog.\n");
-	printf("The standard streams will mostly shut up from now on.\n");
-	printf("---------------------------------------------\n");
 
 	return joold_start(iname, &netcfg, &statcfg);
 }
