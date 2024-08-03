@@ -54,24 +54,10 @@ end:	cJSON_Delete(json);
 	return error;
 }
 
-static int statsocket_config(char const *filename, struct statsocket_cfg *cfg)
+static void statsocket_config(char *port, struct statsocket_cfg *cfg)
 {
-	cJSON *json;
-	int error;
-
 	cfg->enabled = true;
-
-	error = read_json(filename, &json);
-	if (error)
-		return error;
-
-	error = json2str(filename, json, "address", &cfg->address);
-	if (error)
-		goto end;
-	error = json2str(filename, json, "port", &cfg->port);
-
-end:	cJSON_Delete(json);
-	return error;
+	cfg->port = port;
 }
 
 int main(int argc, char **argv)
@@ -94,11 +80,8 @@ int main(int argc, char **argv)
 	error = netsocket_config(argv[1], &netcfg);
 	if (error)
 		return error;
-	if (argc >= 4) {
-		error = statsocket_config(argv[3], &statcfg);
-		if (error)
-			return error;
-	}
+	if (argc >= 4)
+		statsocket_config(argv[3], &statcfg);
 
 	if (!netcfg.mcast_port)
 		netcfg.mcast_port = "6400";
