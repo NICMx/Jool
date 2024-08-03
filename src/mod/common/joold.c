@@ -391,7 +391,7 @@ static bool add_new_session(struct xlator *jool, struct nlattr *attr)
 	__log_debug(jool, "Adding session!");
 
 	error = jnla_get_session_joold(attr, "joold session",
-			&jool->globals.nat64.bib, &params.new);
+			&jool->globals, &params.new);
 	if (error)
 		return false;
 

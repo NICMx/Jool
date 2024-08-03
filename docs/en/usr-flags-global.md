@@ -652,7 +652,7 @@ In reality, some degree of queuing is still done when this flag is enabled, as o
 
 If there are queued sessions, an SS packet will be forced out after this amount of time has ellapsed since the last.
 
-Whenever the kernel module sends a packet to userspace, `joold` is expected to answer an ACK. Jool accounts this ACK as a green light to send the next SS packet. This prevents Jool from over-saturating the Netlink channel.
+Whenever the kernel module sends a packet to userspace, the proxy is expected to answer an ACK. Jool accounts this ACK as a green light to send the next SS packet. This prevents Jool from over-saturating the Netlink channel.
 
 Being that Netlink is not a reliable protocol, the main intent of `ss-flush-deadline` is to prevent lost ACKs from stagnating the SS queue.
 
@@ -696,18 +696,18 @@ Deprecated; does nothing as of Jool 4.1.11.
 - Modes: Stateful NAT64 only
 - Source: [Issue 113]({{ site.repository-url }}/issues/113), [issue 410]({{ site.repository-url }}/issues/410)
 
-`joold` (the daemon) is (aside from a few validations) just a bridge; it receives bytes from the kernel module, wraps them in a UDP packet and sends it to other daemons, who similarly pass the bytes untouched. They are not even aware that those bytes contain sessions.
+`jool session proxy` is (aside from a few validations) just a bridge; it receives bytes from the kernel module, wraps them in a UDP packet and sends it to other daemons, who similarly pass the bytes untouched. They are not even aware that those bytes contain sessions.
 
 Since fragmentation is undesired, and since the kernel module is (to all intents and purposes) the one that's building the SS packets, it should not exceed the PMTU while doing so. The module has little understanding of the "multicast" network though, so it lacks fancy utilities to compute it. That's where this option comes in.
 
-`ss-max-sessions-per-packet` is the maximum number of sessions joold will transfer per joold packet. You want to maximize it as much as possible, while avoiding IPv4/IPv6 fragmentation.
+`ss-max-sessions-per-packet` is the maximum number of sessions kernelspace Jool will transfer per Netlink packet. You want to maximize it as much as possible, while avoiding IPv4/IPv6 fragmentation.
 
-When `ss-flush-asap false`, Jool will pretty much always wait until this number of sessions has been collected before sending a joold packet. On `ss-flush-asap true`, it will tend to send sessions more eagerly, but will still strictly constrain itself to the maximum.
+When `ss-flush-asap false`, Jool will pretty much always wait until this number of sessions has been collected before sending a Netlink packet. On `ss-flush-asap true`, it will tend to send sessions more eagerly, but will still strictly constrain itself to the maximum.
 
 The optimal value is `floor((M - I - U - R) / S)`, where
 
-1. `M` is the MTU of the path between your joolds (usually 1500),
-2. `I` is the size of the header of the IP protocol your joolds will use to exchange sessions (40 for IPv6, 20 for IPv4),
+1. `M` is the MTU of the path between your proxies (usually 1500),
+2. `I` is the size of the header of the IP protocol your proxies will use to exchange sessions (40 for IPv6, 20 for IPv4),
 3. `U` is the size of the UDP header (8),
 4. `R` is the size of a Netlink attribute header,
 5. and `S` is the size of a serialized session.

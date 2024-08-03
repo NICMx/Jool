@@ -23,8 +23,8 @@ title: Session synchronization
 	3. [Load Balancer](#load-balancer)
 	4. [Testing](#testing)
 6. [Configuration](#configuration)
-	1. [`jool`](#jool)
-	2. [`joold`](#joold)
+	1. [`jool global`](#jool-global)
+	2. [`jool session`](#jool-session)
 
 ## Introduction
 
@@ -76,7 +76,7 @@ When `J` dies, `K` has everything it needs to impersonate `J` and continue the c
 
 ## Architecture
 
-Each machine hosting a NAT64 will also hold a daemon that will bridge SS traffic between the private network and its Jool instance. This daemon is named `joold`. So the kernel modules will generate SS traffic and offset the delivery task to these daemons:
+Each machine hosting a NAT64 will also hold a daemon that will bridge SS traffic between the private network and its Jool instance. So the kernel modules will generate SS traffic and offset the delivery task to userspace:
 
 ![Figure - joold](../images/network/joold.svg)
 
@@ -113,7 +113,7 @@ This is an example of the Active/Passive model. We will remove `L` from the setu
 </div>
 
 <!-- J -->
-{% highlight bash %}
+```bash
 ip addr add 2001:db8::4/96 dev eth0
 ip addr add 192.0.2.4/24 dev eth1
 ip addr add 2001:db8:ff08::4/96 dev eth2
@@ -130,10 +130,10 @@ jool instance add --netfilter --pool6 64:ff9b::/96
 jool pool4 add --tcp 192.0.2.1 61001-65535
 jool pool4 add --udp 192.0.2.1 61001-65535
 jool pool4 add --icmp 192.0.2.1 0-65535
-{% endhighlight %}
+```
 
 <!-- K -->
-{% highlight bash %}
+```bash
 ip addr add 2001:db8::5/96 dev eth0
 ip addr add 192.0.2.5/24 dev eth1
 ip addr add 2001:db8:ff08::5/96 dev eth2
@@ -150,18 +150,18 @@ jool instance add --netfilter --pool6 64:ff9b::/96
 jool pool4 add --tcp 192.0.2.1 61001-65535
 jool pool4 add --udp 192.0.2.1 61001-65535
 jool pool4 add --icmp 192.0.2.1 0-65535
-{% endhighlight %}
+```
 
 <!-- n6 -->
-{% highlight bash %}
+```bash
 ip addr add 2001:db8::8/96 dev eth0
 ip route add 64:ff9b::/96 via 2001:db8::1
-{% endhighlight %}
+```
 
 <!-- n4 -->
-{% highlight bash %}
+```bash
 ip addr add 192.0.2.8/24 dev eth0
-{% endhighlight %}
+```
 
 This is generally usual boilerplate Jool mumbo jumbo. `2001:db8::4-5` and `192.0.2.4-5` are `J` and `K`'s permanent addresses; `2001:db8::1` and `192.0.2.1` are what Keepalived names "virtual addresses" -- The address the active translator will claim, and through which traffic will be translated. You can have multiple of these.
 
@@ -181,39 +181,22 @@ This needs to be applied both in `J` and `K`.
 
 ### Daemon
 
-`joold` has two configuration files: One for the socket it uses to exchange sessions with the network, and one for the socket it uses to exchange sessions with its dedicated Jool instance. The latter is presently optional.
-
-This is `netsocket.json`, the network socket configuration file for our example:
-
-```json
-{
-	"multicast address": "ff08::db8:64:64",
-	"multicast port": "6464",
-	"in interface": "eth2",
-	"out interface": "eth2",
-	"reuseaddr": 1
-}
+```bash
+jool -i "default" session proxy			\
+	--net.mcast.addr ff08::db8:64:64	\
+	--net.mcast.port 6464			\
+	--net.dev.in eth2			\
+	--net.dev.out eth2			\
+	&
 ```
 
-And this `modsocket.json`, our kernel socket configuration file:
+`J` and `K` happen to use the same command in this setup.
 
-```json
-{
-	"instance": "default"
-}
-```
-
-`J` and `K` happen to use the same files in this setup.
-
-A description of each field can be found [here](config-joold.html). For now, suffice to say that the nodes will send and receive SS traffic through multicast address `ff08::db8:64:64` on port `6464`. They will exchange sessions with the Jool instance named `default`.
+A description of each field can be found [here](usr-flags-session.html#proxy). For now, suffice to say that the nodes will send and receive SS traffic through multicast address `ff08::db8:64:64` on port `6464`. Each will exchange sessions with a Jool instance named `default`.
 
 Please note that `ff08::db8:64:64` is a [documentation address](https://tools.ietf.org/html/rfc6676#section-3) and you should probably change it (along with the others) once you're done experimenting.
 
-Start the daemon (both in `J` and `K`) and send it to the background:
-
-	$ joold /path/to/netsocket.json &
-
-Find any errors by querying syslog; you can probably do this by `tail`ing `/var/log/syslog`.
+Find any errors by querying syslog; you can probably do this by querying `journalctl`.
 
 As far as Jool is concerned, that would be all. If `J` is translating traffic, you should see its sessions being mirrored in `K`:
 
@@ -246,7 +229,7 @@ Create `/etc/keepalived/keepalived.conf` and paste something like the following.
 </div>
 
 <!-- J -->
-{% highlight bash %}
+```bash
 # Keepalived will monitor this action.
 # The userspace application `jool` fails when the kernel module is not
 # responding, so we will run it every two seconds to monitor its health.
@@ -311,10 +294,10 @@ vrrp_instance VI_2 {
 
 	notify_backup /etc/keepalived/backup.sh
 }
-{% endhighlight %}
+```
 
 <!-- K -->
-{% highlight bash %}
+```bash
 # Keepalived will monitor this action.
 # The userspace application `jool` fails when the kernel module is not
 # responding, so we will run it every two seconds to monitor its health.
@@ -379,13 +362,13 @@ vrrp_instance VI_2 {
 
 	notify_backup /etc/keepalived/backup.sh
 }
-{% endhighlight %}
+```
 
 This is `/etc/keepalived/backup.sh`:
 
-	jool joold advertise
+	jool session advertise
 
-See [`joold`](usr-flags-joold.html).
+See [`advertise`](usr-flags-session.html#advertise).
 
 Start keepalived in both `J` and `K`:
 
@@ -412,8 +395,8 @@ Watch the session being cascaded into `K`:
 </div>
 
 <!-- J -->
-{% highlight bash %}
-# jool session display --icmp --numeric
+```bash
+user@j:~/# jool session display --icmp --numeric
 ICMP:
 ---------------------------------
 Expires in 59 seconds
@@ -421,11 +404,11 @@ Remote: 192.0.2.8#2168	2001:db8::8#10713
 Local: 192.0.2.1#2168	64:ff9b::c000:208#10713
 ---------------------------------
   (Fetched 1 entries.)
-{% endhighlight %}
+```
 
 <!-- K -->
-{% highlight bash %}
-# jool session display --icmp --numeric
+```bash
+user@k:~/# jool session display --icmp --numeric
 ICMP:
 ---------------------------------
 Expires in 59 seconds
@@ -433,7 +416,7 @@ Remote: 192.0.2.8#2168	2001:db8::8#10713
 Local: 192.0.2.1#2168	64:ff9b::c000:208#10713
 ---------------------------------
   (Fetched 1 entries.)
-{% endhighlight %}
+```
 
 Then disable `J` somehow.
 
@@ -460,19 +443,19 @@ Restart `J`. The ping should pause again and, after a while, `J` should claim co
 			&& jool pool4 add udp 192.0.2.1 61001-65535 \
 			&& jool pool4 add icmp 192.0.2.1 0-65535 \
 			&& jool global update ss-enabled true \
-			&& joold /path/to/netsocket.json &
+			&& jool session proxy (...) &
 
 Notice that you need to initialize `J`'s NAT64 in one go; otherwise the new instance will miss `K`'s advertise.
 
 If you forget that for some reason, you can ask `K` to advertise its sessions again manually:
 
-	user@K:~/# jool joold advertise
+	user@K:~/# jool session advertise
 
 That's all.
 
 ## Configuration
 
-### `jool`
+### `jool global`
 
 1. [`ss-enabled`](usr-flags-global.html#ss-enabled)
 2. [`ss-flush-asap`](usr-flags-global.html#ss-flush-asap)
@@ -480,7 +463,7 @@ That's all.
 4. [`ss-capacity`](usr-flags-global.html#ss-capacity)
 5. [`ss-max-sessions-per-packet`](usr-flags-global.html#ss-max-sessions-per-packet)
 
-### `joold`
+### `jool session`
 
-See the [dedicated page](config-joold.html).
+See the [dedicated page](usr-flags-session.html).
 
