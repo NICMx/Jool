@@ -10,6 +10,7 @@
 #include "common/session.h"
 #include "usr/util/str_utils.h"
 #include "usr/nl/core.h"
+#include "usr/nl/joold.h"
 #include "usr/nl/session.h"
 #include "usr/argp/dns.h"
 #include "usr/argp/log.h"
@@ -246,6 +247,21 @@ int handle_session_proxy(char *iname, int argc, char **argv, void const *arg)
 	return joold_start(iname, &netcfg, &statcfg);
 }
 
+int handle_session_advertise(char *iname, int argc, char **argv, void const *arg)
+{
+	struct joolnl_socket sk;
+	struct jool_result result;
+
+	result = joolnl_setup(&sk, xt_get());
+	if (result.error)
+		return pr_result(&result);
+
+	result = joolnl_joold_advertise(&sk, iname);
+
+	joolnl_teardown(&sk);
+	return pr_result(&result);
+}
+
 void autocomplete_session_display(void const *args)
 {
 	print_wargp_opts(display_opts);
@@ -259,6 +275,11 @@ void autocomplete_session_follow(void const *args)
 void autocomplete_session_proxy(void const *args)
 {
 	print_wargp_opts(proxy_opts);
+}
+
+void autocomplete_session_advertise(void const *args)
+{
+	/* Nothing needed here. */
 }
 
 int joold_start(char const *iname, struct netsocket_cfg *netcfg,

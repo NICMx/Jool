@@ -366,9 +366,9 @@ vrrp_instance VI_2 {
 
 This is `/etc/keepalived/backup.sh`:
 
-	jool joold advertise
+	jool session advertise
 
-See [`joold`](usr-flags-joold.html).
+See [`advertise`](usr-flags-session.html#advertise).
 
 Start keepalived in both `J` and `K`:
 
@@ -449,7 +449,7 @@ Notice that you need to initialize `J`'s NAT64 in one go; otherwise the new inst
 
 If you forget that for some reason, you can ask `K` to advertise its sessions again manually:
 
-	user@K:~/# jool joold advertise
+	user@K:~/# jool session advertise
 
 That's all.
 

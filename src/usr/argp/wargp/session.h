@@ -7,10 +7,12 @@
 int handle_session_display(char *, int, char **, void const *);
 int handle_session_follow(char *, int, char **, void const *);
 int handle_session_proxy(char *, int, char **, void const *);
+int handle_session_advertise(char *, int, char **, void const *);
 
 void autocomplete_session_display(void const *);
 void autocomplete_session_follow(void const *);
 void autocomplete_session_proxy(void const *);
+void autocomplete_session_advertise(void const *);
 
 int joold_start(char const *iname, struct netsocket_cfg *netcfg,
 		struct statsocket_cfg *statcfg);

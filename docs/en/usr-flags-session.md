@@ -17,6 +17,7 @@ title: session Mode
    1. [display](#display)
    2. [follow](#follow)
    3. [proxy](#proxy)
+   4. [advertise](#advertise)
 4. [Examples](#examples)
 
 ## Description
@@ -42,6 +43,7 @@ You can use this command to get information on each of these connections.
 			[--stats.address=STR]
 			[--stats.port=STR]
 			NET_MCAST_ADDR
+		| advertise
 	)
 
 ## Subcommands
@@ -154,6 +156,16 @@ Note, because of Linux quirks, `--stats.address=0.0.0.0` does not imply `::`, bu
 - Default: 6401
 
 Port for the [`--stats.address`](#--statsaddress) server.
+
+### advertise
+
+Commands the module to multicast the entire session database. This can be useful if you've recently added a new NAT64 to a [session sync](#session-synchronization) cluster.
+
+_The size of the session database can make this is an expensive operation_; executing this command repeatedly is not recommended.
+
+Only one Jool instance needs to advertise when a new NAT64 joins the group; the databases are supposed to be identical.
+
+This exists because the synchronization protocol, at least in this first iteration, is very minimalistic. The instances only announce their sessions to everyone else; there are no handshakes or agreements. Full advertisements need to be triggered manually.
 
 ## Examples
 
