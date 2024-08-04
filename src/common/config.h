@@ -423,20 +423,7 @@ struct joold_config {
 	/** Is joold enabled on this Jool instance? */
 	bool enabled;
 
-	/**
-	 * true:  Whenever a session changes, packet it up and send it.
-	 *        (Note: In theory, this might be more often than it seems.
-	 *        It's not whenever a connection is initiated;
-	 *        it's on every translated packet except ICMP errors.
-	 *        In practice however, flushes are prohibited until the next
-	 *        ACK (otherwise joold quickly saturates the kernel), so
-	 *        sessions will end up queuing up even in this mode.)
-	 *        This is the preferred method in active scenarios.
-	 * false: Wait until we have enough sessions to fill a packet before
-	 *        sending them.
-	 *        (ACKs are still required, but expected to arrive faster.)
-	 *        This is the preferred method in passive scenarios.
-	 */
+	/** Deprecated; does nothing as of 4.1.13. */
 	bool flush_asap;
 
 	/**

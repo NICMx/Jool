@@ -979,7 +979,7 @@ static const struct joolnl_global_meta globals_metadata[] = {
 		.id = JNLAG_JOOLD_FLUSH_ASAP,
 		.name = "ss-flush-asap",
 		.type = &gt_bool,
-		.doc = "Try to synchronize sessions as soon as possible?",
+		.doc = "Deprecated; does nothing as of Jool 4.1.13.",
 		.offset = offsetof(struct jool_globals, nat64.joold.flush_asap),
 		.xt = XT_NAT64,
 	}, {

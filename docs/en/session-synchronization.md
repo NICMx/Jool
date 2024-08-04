@@ -84,24 +84,17 @@ Why are the daemons necessary? because kernel modules cannot open IP sockets; at
 
 Synchronizing sessions is _all_ the daemons do; the traffic redirection part is delegated to other protocols. [Keepalived](http://www.keepalived.org/) is the implementation that takes care of this in the sample configuration below, but any other load balancer should also get the job done.
 
-In this proposed/inauguratory implementation, SS traffic is distributed through an IPv4 or IPv6 unencrypted UDP connection. You might want to cast votes on the issue tracker or propose code if you favor some other solution.
-
-There are two operation modes in which SS can be used:
-
-1. Active/Passive: One Jool instance serves traffic at any given time, the other ones serve as backup. The load balancer redirects traffic when the current active NAT64 dies.
-2. Active/Active: All Jool instances serve traffic. The load balancer distributes traffic so no NAT64 is too heavily encumbered.
-
-> ![Warning!](../images/warning.svg) Active/Active is discouraged because the session synchronization across Jool instances does not lock and is not instantaneous; if the translating traffic is faster, the session tables can end up desynchronized. Users will perceive this mainly as difficulties opening connections through the translators.
+In this proposed/inauguratory implementation, SS traffic is distributed through an IPv4 or IPv6 unencrypted UDP connection. You might want to cast votes on the issue tracker or propose code if you favor some other solution. Only Active/Passive set-ups are supported.
 
 It is also important to note that SS is relatively resource-intensive; its traffic is not only _extra_ traffic, but it must also do two full U-turns to userspace before reaching its destination:
 
 ![Figure - joold U-turns](../images/network/joold-uturn.svg)
 
-To alleviate this to some extent, sessions are normally accumulated in Active/Passive mode before being sent to the private network. Transmitting several sessions in one packet substantially reduces the overhead of SS.
+To alleviate this to some extent, sessions are normally accumulated before being sent to the private network. Transmitting several sessions in one packet substantially reduces the overhead of SS.
 
 ## Basic Tutorial
 
-This is an example of the Active/Passive model. We will remove `L` from the setup since its configuration is very similar to `K`'s.
+We will remove `L` from the setup since its configuration is very similar to `K`'s.
 
 ### Network
 
@@ -458,7 +451,6 @@ That's all.
 ### `jool global`
 
 1. [`ss-enabled`](usr-flags-global.html#ss-enabled)
-2. [`ss-flush-asap`](usr-flags-global.html#ss-flush-asap)
 3. [`ss-flush-deadline`](usr-flags-global.html#ss-flush-deadline)
 4. [`ss-capacity`](usr-flags-global.html#ss-capacity)
 5. [`ss-max-sessions-per-packet`](usr-flags-global.html#ss-max-sessions-per-packet)

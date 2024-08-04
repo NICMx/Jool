@@ -140,11 +140,6 @@ static bool should_send(struct xlator *jool)
 		return true;
 	}
 
-	if (GLOBALS(jool).flush_asap) {
-		jstat_inc(jool->stats, JSTAT_JOOLD_FLUSH_ASAP);
-		return true;
-	}
-
 	if (queue->deferred.count >= GLOBALS(jool).max_sessions_per_pkt) {
 		jstat_inc(jool->stats, JSTAT_JOOLD_PKT_FULL);
 		return true;
