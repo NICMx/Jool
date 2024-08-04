@@ -62,9 +62,46 @@ The session table that corresponds to the `PROTOCOL` protocol is printed in stan
 
 ### follow
 
-Listen to `INAME`'s sessions forever, printing them in standard output.
+Listen to `INAME`'s sessions (whenever they are updated) forever, printing them in standard output.
 
-The `INAME` instance must have [SS](usr-flags-global.html#ss-enabled) enabled.
+The `INAME` instance must have [SS](usr-flags-global.html#ss-enabled) enabled:
+
+```bash
+$ jool -i "default" global update ss-enabled true
+$ jool -i "default" session follow
+TCP,2001:db8::8,37878,192.0.2.1,62805,192.0.2.8,1234,0:04:00
+TCP,2001:db8::8,37878,192.0.2.1,62805,192.0.2.8,1234,1:59:58.232
+UDP,2001:db8::8,60927,192.0.2.1,62806,192.0.2.8,1234,0:04:59.028
+UDP,2001:db8::8,60927,192.0.2.1,62806,192.0.2.8,1234,0:04:59.292
+ICMP,2001:db8::8,211,192.0.2.1,15308,192.0.2.8,15308,0:01:00
+ICMP,2001:db8::8,211,192.0.2.1,15308,192.0.2.8,15308,0:00:57.512
+```
+
+It's a bit different from [`logging-session`](usr-flags-global.html#logging-session) in that it doesn't print the sessions' death.
+
+For TCP and UDP, the columns are
+
+- IPv6 peer address
+- IPv6 peer port
+- IPv4-masked IPv6 peer address
+- IPv4-masked IPv6 peer port
+- IPv4 peer address
+- IPv4 peer port
+- Layer 4 Protocol (pretends ICMP is L4)
+- Milliseconds to expiration
+
+Please note that the IPv6-masked IPv4 peer address is excluded because it always equals [pool6](usr-flags-global.html#pool6) plus the IPv4 peer address. The IPv6-masked IPv4 peer port is also excluded, because it always equals the IPv4 peer port.
+
+For ICMP,
+
+- IPv6 peer address
+- IPv6 ICMP identifier
+- IPv4-masked IPv6 peer address
+- IPv4 identifier
+- IPv4 peer address
+- IPv4 identifier (yes, this is redundant)
+- Layer 4 Protocol (pretends ICMP is L4)
+- Milliseconds to expiration
 
 ### proxy
 
