@@ -2,6 +2,7 @@
 
 #include <errno.h>
 #include <netlink/genl/genl.h>
+#include "common/xlat.h"
 #include "usr/nl/attribute.h"
 #include "usr/nl/common.h"
 
@@ -140,6 +141,22 @@ struct query_args {
 	enum jool_stat_id last;
 };
 
+static void warn_unknown_stat(struct nl_msg *response)
+{
+	struct joolnlhdr *jhdr;
+	__u32 version;
+
+	jhdr = genlmsg_user_hdr(genlmsg_hdr(nlmsg_hdr(response)));
+	version = ntohl(jhdr->version);
+
+	fprintf(stderr, "Warning: Unknown stat. Other stats might be mislabeled.\n");
+	fprintf(stderr, "Kernel module version is %u.%u.%u.%u, userspace client is %u.%u.%u.%u.\n",
+			version >> 24, (version >> 16) & 0xFFU,
+			(version >> 8) & 0xFFU, version & 0xFFU,
+			JOOL_VERSION_MAJOR, JOOL_VERSION_MINOR,
+			JOOL_VERSION_REV, JOOL_VERSION_DEV);
+}
+
 static struct jool_result stats_query_response(struct nl_msg *response,
 		void *args)
 {
@@ -160,10 +177,14 @@ static struct jool_result stats_query_response(struct nl_msg *response,
 
 	nla_for_each_attr(attr, head, len, rem) {
 		qargs->last = nla_type(attr);
-		if (qargs->last < 1 || qargs->last >= JSTAT_PADDING)
-			goto bad_id;
-
-		stat.meta = jstat_metadatas[qargs->last];
+		if (qargs->last < 1 || JSTAT_MAX <= qargs->last) {
+			warn_unknown_stat(response);
+			stat.meta.id = qargs->last;
+			stat.meta.name = "????";
+			stat.meta.doc = "This stat is unknown.";
+		} else {
+			stat.meta = jstat_metadatas[qargs->last];
+		}
 		stat.value = nla_get_u64(attr);
 		result = qargs->cb(&stat, qargs->args);
 		if (result.error)
@@ -171,12 +192,6 @@ static struct jool_result stats_query_response(struct nl_msg *response,
 	}
 
 	return result_success();
-
-bad_id:
-	return result_from_error(
-		-EINVAL,
-		"The kernel module returned an unknown stat counter."
-	);
 }
 
 struct jool_result joolnl_stats_foreach(struct joolnl_socket *sk,
