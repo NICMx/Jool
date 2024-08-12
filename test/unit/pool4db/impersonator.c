@@ -1,7 +1,16 @@
-#include "mod/common/db/pool4/rfc6056.h"
 #include "framework/unit_test.h"
+#include "mod/common/dev.h"
+#include "mod/common/rfc6052.h"
+#include "mod/common/db/pool4/rfc6056.h"
+#include "mod/common/rfc7915/6to4.h"
 
 int rfc6056_f(struct xlation *state, unsigned int *result)
+{
+	return broken_unit_call(__func__);
+}
+
+int __rfc6052_4to6(struct ipv6_prefix const *prefix, struct in_addr const *src,
+		struct in6_addr *dst)
 {
 	return broken_unit_call(__func__);
 }

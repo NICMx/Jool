@@ -538,7 +538,7 @@ static void clean(void)
 	pool4db_put(pool);
 }
 
-int init_module(void)
+static int pool4db_test_init(void)
 {
 	struct test_group test = {
 		.name = "IPv4 Pool DB",
@@ -561,7 +561,10 @@ int init_module(void)
 	return test_group_end(&test);
 }
 
-void cleanup_module(void)
+static void pool4db_test_exit(void)
 {
 	/* No code. */
 }
+
+module_init(pool4db_test_init);
+module_exit(pool4db_test_exit);

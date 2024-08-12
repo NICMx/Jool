@@ -258,7 +258,7 @@ static bool clean(void)
 	return success;
 }
 
-int init_module(void)
+static int joolns_test_init(void)
 {
 	struct test_group test = {
 		.name = "Xlator",
@@ -285,7 +285,10 @@ int init_module(void)
 	return test_group_end(&test);
 }
 
-void cleanup_module(void)
+static void joolns_test_exit(void)
 {
 	/* No code. */
 }
+
+module_init(joolns_test_init);
+module_exit(joolns_test_exit);

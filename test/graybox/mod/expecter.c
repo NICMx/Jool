@@ -27,7 +27,7 @@ static struct graybox_stats stats;
 
 static int expecter_handle_pkt(struct sk_buff *actual);
 
-unsigned int hook_cb(void *priv, struct sk_buff *skb,
+static unsigned int hook_cb(void *priv, struct sk_buff *skb,
 		const struct nf_hook_state *nhs)
 {
 	log_debug("========= Graybox: Received packet =========");

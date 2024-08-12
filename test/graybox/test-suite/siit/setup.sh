@@ -2,7 +2,7 @@
 
 # Assumes the network namespaces have already been created.
 
-ip netns exec joolns `dirname $0`/setup-jool.sh
+ip netns exec joolns `dirname $0`/setup-jool.sh $1
 ip netns exec client6ns `dirname $0`/setup-n6.sh
 ip netns exec client4ns `dirname $0`/setup-n4.sh
 

@@ -8,12 +8,6 @@
 #include "log.h"
 #include "nl_handler.h"
 
-/* Implementation function required by xlat.h */
-char const *xlat_get_name(void)
-{
-	return "Graybox";
-}
-
 MODULE_LICENSE(JOOL_LICENSE);
 MODULE_AUTHOR("NIC-ITESM");
 MODULE_DESCRIPTION("Graybox test gimmic for Jool.");
@@ -33,7 +27,7 @@ static int graybox_init(void)
 		return error;
 	}
 
-	log_info("%s module inserted.", xlat_get_name());
+	log_info("Graybox module inserted.");
 	return 0;
 }
 
@@ -42,7 +36,7 @@ static void graybox_exit(void)
 	expecter_teardown();
 	nlhandler_teardown();
 
-	log_info("%s module removed.", xlat_get_name());
+	log_info("Graybox module removed.");
 }
 
 module_init(graybox_init);

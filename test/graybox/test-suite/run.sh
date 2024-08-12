@@ -12,16 +12,23 @@ if [ $(id -u) != 0 ]; then
 	exit 1
 fi
 
+if [ -z "$1" ]; then
+	NAT64="jool"
+	SIIT="jool_siit"
+else
+	NAT64="$1/jool"
+	SIIT="$1/jool_siit"
+fi
 
 ./namespace-create.sh
 
-siit/setup.sh
-siit/test.sh
+siit/setup.sh "$SIIT"
+siit/test.sh "" "$SIIT"
 siit_result=$?
 siit/end.sh
 
-nat64/setup.sh
-nat64/test.sh
+nat64/setup.sh "$NAT64"
+nat64/test.sh "" "$NAT64"
 nat64_result=$?
 nat64/end.sh
 

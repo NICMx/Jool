@@ -2,6 +2,7 @@
 #include <linux/printk.h>
 #include "framework/unit_test.h"
 #include "framework/bib.h"
+#include "mod/common/rfc6052.h"
 
 MODULE_LICENSE(JOOL_LICENSE);
 MODULE_AUTHOR("Alberto Leiva");
@@ -12,6 +13,12 @@ static const l4_protocol PROTO = L4PROTO_TCP;
 static struct bib_entry bibs[8];
 static struct bib_entry *bibs4[4][25];
 static struct bib_entry *bibs6[4][25];
+
+int __rfc6052_4to6(struct ipv6_prefix const *prefix, struct in_addr const *src,
+		struct in6_addr *dst)
+{
+	return broken_unit_call(__func__);
+}
 
 static bool assert4(unsigned int addr_id, unsigned int port)
 {
@@ -221,7 +228,7 @@ static void clean(void)
 	xlator_put(&jool);
 }
 
-int init_module(void)
+static int bibdb_test_init(void)
 {
 	struct test_group test = {
 		.name = "BIB DB",
@@ -238,7 +245,10 @@ int init_module(void)
 	return test_group_end(&test);
 }
 
-void cleanup_module(void)
+static void bibdb_test_exit(void)
 {
 	/* No code. */
 }
+
+module_init(bibdb_test_init);
+module_exit(bibdb_test_exit);

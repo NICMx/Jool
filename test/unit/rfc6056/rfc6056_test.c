@@ -118,7 +118,7 @@ static bool f_args_test(void)
 	return success;
 }
 
-int init_module(void)
+static int rfc6056_test_init(void)
 {
 	struct test_group test = {
 		.name = "Port Allocator",
@@ -135,7 +135,10 @@ int init_module(void)
 	return test_group_end(&test);
 }
 
-void cleanup_module(void)
+static void rfc6056_test_exit(void)
 {
 	/* No code. */
 }
+
+module_init(rfc6056_test_init);
+module_exit(rfc6056_test_exit);

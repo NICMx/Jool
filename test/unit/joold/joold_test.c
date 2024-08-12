@@ -164,7 +164,7 @@ static bool assert_skb(int garbage, ...)
 {
 	struct session_entry *expected, actual;
 	struct nlattr *root, *attr;
-	struct bib_config bibcfg;
+	struct jool_globals cfg;
 	int rem;
 	va_list args;
 	bool success;
@@ -184,16 +184,18 @@ static bool assert_skb(int garbage, ...)
 	root = nlmsg_attrdata(nlmsg_hdr(sent), GENL_HDRLEN + JOOLNL_HDRLEN);
 	success = ASSERT_UINT(JNLAR_SESSION_ENTRIES, nla_type(root), "root");
 
-	memset(&bibcfg, 0, sizeof(bibcfg));
-	bibcfg.ttl.tcp_est = 1000 * TCP_EST;
-	bibcfg.ttl.tcp_trans = 1000 * TCP_TRANS;
-	bibcfg.ttl.udp = 1000 * UDP_DEFAULT;
-	bibcfg.ttl.icmp = 1000 * ICMP_DEFAULT;
+	memset(&cfg, 0, sizeof(cfg));
+	cfg.pool6.prefix.addr.s6_addr32[0] = cpu_to_be32(0x0064ff9b);
+	cfg.pool6.prefix.len = 96;
+	cfg.nat64.bib.ttl.tcp_est = 1000 * TCP_EST;
+	cfg.nat64.bib.ttl.tcp_trans = 1000 * TCP_TRANS;
+	cfg.nat64.bib.ttl.udp = 1000 * UDP_DEFAULT;
+	cfg.nat64.bib.ttl.icmp = 1000 * ICMP_DEFAULT;
 
 	va_start(args, garbage);
 
 	nla_for_each_nested(attr, root, rem) {
-		error = jnla_get_session_joold(attr, "session", &bibcfg, &actual);
+		error = jnla_get_session_joold(attr, "session", &cfg, &actual);
 		if (error) {
 			log_err("jnla_get_session: errcode %d", error);
 			success = false;
@@ -565,7 +567,7 @@ end:	joold_put(joold);
 
 /********************** Hooks **********************/
 
-int init_module(void)
+static int joold_test_init(void)
 {
 	struct test_group test = {
 		.name = "joold",
@@ -580,7 +582,10 @@ int init_module(void)
 	return test_group_end(&test);
 }
 
-void cleanup_module(void)
+static void joold_test_exit(void)
 {
 	/* No code. */
 }
+
+module_init(joold_test_init);
+module_exit(joold_test_exit);

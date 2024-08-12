@@ -119,7 +119,7 @@ static bool test_inner_validation6(void)
 	return result;
 }
 
-int init_module(void)
+static int packet_test_init(void)
 {
 	struct test_group test = {
 		.name = "Packet",
@@ -138,7 +138,10 @@ int init_module(void)
 	return test_group_end(&test);
 }
 
-void cleanup_module(void)
+static void packet_test_exit(void)
 {
 	/* No code. */
 }
+
+module_init(packet_test_init);
+module_exit(packet_test_exit);

@@ -1,24 +1,22 @@
-# It appears the -C's during the makes below prevent this include from happening
-# when it's supposed to. Therefore, I can't just do "include ../common.mk".
-# I need the absolute path of the file.
-# The easiest way I found to get to the "current" directory is the mouthful
-# below.
-# It still has at least one major problem: if the path contains whitespace,
-# `lastword $(MAKEFILE_LIST)` goes apeshit. This is the one and only reason why
-# the unit tests need to be run in a space-free directory.
-include $(shell dirname $(realpath $(lastword $(MAKEFILE_LIST))))/../common.mk
-
+MODULES_DIR ?= /lib/modules/$(shell uname -r)
+KERNEL_DIR ?= ${MODULES_DIR}/build
 
 UNIT = joold
 
 obj-m += $(UNIT).o
 
-$(UNIT)-objs += $(MIN_REQS)
+$(UNIT)-objs += ../../../src/common/types.o
+$(UNIT)-objs += ../../../src/mod/common/types.o
+$(UNIT)-objs += ../../../src/mod/common/address.o
+$(UNIT)-objs += ../framework/unit_test.o
 $(UNIT)-objs += ../../../src/common/config.o
+$(UNIT)-objs += ../../../src/mod/common/rfc6052.o
 $(UNIT)-objs += ../../../src/mod/common/db/bib/entry.o
 $(UNIT)-objs += ../../../src/mod/common/nl/attribute.o
 $(UNIT)-objs += joold_test.o
 
+EXTRA_CFLAGS += -DDEBUG -DUNIT_TESTING
+ccflags-y := -I$(src)/../../../src -I$(src)/..
 
 all:
 	make -C ${KERNEL_DIR} M=$$PWD;

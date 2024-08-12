@@ -1,22 +1,15 @@
-# It appears the -C's during the makes below prevent this include from happening
-# when it's supposed to.
-# For that reason, I can't just do "include ../common.mk". I need the absolute
-# path of the file.
-# Unfortunately, while the (as always utterly useless) working directory is (as
-# always) brain-dead easy to access, the easiest way I found to get to the
-# "current" directory is the mouthful below.
-# And yet, it still has at least one major problem: if the path contains
-# whitespace, `lastword $(MAKEFILE_LIST)` goes apeshit.
-# This is the one and only reason why the unit tests need to be run in a
-# space-free directory.
-include $(shell dirname $(realpath $(lastword $(MAKEFILE_LIST))))/../common.mk
-
+MODULES_DIR ?= /lib/modules/$(shell uname -r)
+KERNEL_DIR ?= ${MODULES_DIR}/build
 
 UNIT = filtering
 
 obj-m += $(UNIT).o
 
-$(UNIT)-objs += $(MIN_REQS)
+$(UNIT)-objs += ../../../src/common/types.o
+$(UNIT)-objs += ../../../src/mod/common/types.o
+$(UNIT)-objs += ../../../src/mod/common/address.o
+$(UNIT)-objs += ../framework/unit_test.o
+
 $(UNIT)-objs += ../../../src/mod/common/packet.o
 $(UNIT)-objs += ../../../src/mod/common/rfc6052.o
 $(UNIT)-objs += ../../../src/mod/common/skbuff.o
@@ -52,6 +45,9 @@ $(UNIT)-objs += ../../../src/mod/common/rfc7915/common.o
 $(UNIT)-objs += ../../../src/mod/common/rfc7915/core.o
 $(UNIT)-objs += ../../../src/mod/common/rfc7915/4to6.o
 $(UNIT)-objs += ../../../src/mod/common/rfc7915/6to4.o
+
+EXTRA_CFLAGS += -DDEBUG -DUNIT_TESTING
+ccflags-y := -I$(src)/../../../src -I$(src)/..
 
 all:
 	make -C ${KERNEL_DIR} M=$$PWD;

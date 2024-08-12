@@ -1,5 +1,6 @@
 #include <linux/module.h>
 #include "framework/unit_test.h"
+#include "mod/common/rfc6052.h"
 #include "mod/common/db/bib/db.h"
 
 MODULE_LICENSE(JOOL_LICENSE);
@@ -9,6 +10,12 @@ MODULE_DESCRIPTION("BIB table module test.");
 static struct xlator jool;
 #define TEST_BIB_COUNT 5
 static struct bib_entry entries[TEST_BIB_COUNT];
+
+int __rfc6052_4to6(struct ipv6_prefix const *prefix, struct in_addr const *src,
+		struct in6_addr *dst)
+{
+	return broken_unit_call(__func__);
+}
 
 static bool inject(unsigned int index, char *addr4, u16 port4,
 		char *addr6, u16 port6)
@@ -158,7 +165,7 @@ static void clean(void)
 	xlator_put(&jool);
 }
 
-int init_module(void)
+static int bibtable_test_init(void)
 {
 	struct test_group test = {
 		.name = "BIB table",
@@ -175,7 +182,10 @@ int init_module(void)
 	return test_group_end(&test);
 }
 
-void cleanup_module(void)
+static void bibtable_test_exit(void)
 {
 	/* No code. */
 }
+
+module_init(bibtable_test_init);
+module_exit(bibtable_test_exit);

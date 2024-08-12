@@ -3,6 +3,7 @@
 #include "mod/common/db/bib/db.h"
 #include "mod/common/steps/compute_outgoing_tuple.h"
 #include "mod/common/steps/determine_incoming_tuple.h"
+#include "mod/common/steps/handling_hairpinning_nat64.h"
 #include "mod/common/steps/filtering_and_updating.h"
 
 /**

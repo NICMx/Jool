@@ -115,7 +115,7 @@ static bool test_add_and_remove(void)
 	return success;
 }
 
-int init_module(void)
+static int rbtree_test_init(void)
 {
 	struct test_group test = {
 		.name = "RB Tree",
@@ -133,7 +133,10 @@ int init_module(void)
 	return test_group_end(&test);
 }
 
-void cleanup_module(void)
+static void rbtree_test_exit(void)
 {
 	/* No code. */
 }
+
+module_init(rbtree_test_init);
+module_exit(rbtree_test_exit);

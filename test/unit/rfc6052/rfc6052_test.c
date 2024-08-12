@@ -78,7 +78,7 @@ static bool test_rfc6052_table(void)
 	return success;
 }
 
-int init_module(void)
+static int rfc6052_test_init(void)
 {
 	struct test_group test = {
 		.name = "rfc6052.c",
@@ -92,7 +92,10 @@ int init_module(void)
 	return test_group_end(&test);
 }
 
-void cleanup_module(void)
+static void rfc6052_test_exit(void)
 {
 	/* No code. */
 }
+
+module_init(rfc6052_test_init);
+module_exit(rfc6052_test_exit);
