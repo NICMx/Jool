@@ -1340,11 +1340,11 @@ static int upgrade_pktqueue_session(struct xlator *jool,
 		 * happens. But that doesn't yield satisfactory behavior either;
 		 * The SO failed anyway. To fix this properly we would need to
 		 * sync the pktqueue sessions. Combine that with the fact that
-		 * sending the ICMP error would be a pain in the ass (because we
-		 * want to do it outside of the spinlock, and we don't want to
-		 * send it if the random src4 selected happens to match the
-		 * stored session), and the result is a big fat meh. I really
-		 * don't want to do it.
+		 * sending the ICMP error would be a pain (because we want to do
+		 * it outside of the spinlock, and we don't want to send it if
+		 * the random src4 selected happens to match the stored
+		 * session), and the result is a big fat meh. I really don't
+		 * want to do it.
 		 *
 		 * The admin signed a best-effort contract when s/he enabled
 		 * joold anyway. And this is only a problem in active-active
@@ -1736,7 +1736,7 @@ verdict bib_add_tcp6(struct xlation *state,
 			tstobs(state, old.session);
 			result = VERDICT_CONTINUE;
 		} else {
-			/* TODO (fine) shitty hack; we're assuming SO_EXISTS. */
+			/* TODO (fine) ugly hack; we're assuming SO_EXISTS. */
 			result = drop(state, JSTAT_SO_EXISTS);
 		}
 		goto end;
@@ -1808,7 +1808,7 @@ verdict bib_add_tcp4(struct xlation *state,
 			tstobs(state, old.session);
 			result = VERDICT_CONTINUE;
 		} else {
-			/* TODO (fine) shitty hack; we're assuming SO_EXISTS. */
+			/* TODO (fine) ugly hack; we're assuming SO_EXISTS. */
 			result = drop(state, JSTAT_SO_EXISTS);
 		}
 		goto end;

@@ -1084,11 +1084,11 @@ static __sum16 update_csum_6to4(__sum16 csum16,
 	 * Do the same with proto since we're feeling ballsy.
 	 */
 
-	/* Remove the IPv6 crap. */
+	/* Remove the IPv6 stuff. */
 	csum = csum_sub(csum, pseudohdr6_csum(in_ip6));
 	csum = csum_sub(csum, csum_partial(in_l4_hdr, in_l4_hdr_len, 0));
 
-	/* Add the IPv4 crap. */
+	/* Add the IPv4 stuff. */
 	csum = csum_add(csum, pseudohdr4_csum(out_ip4));
 	csum = csum_add(csum, csum_partial(out_l4_hdr, out_l4_hdr_len, 0));
 

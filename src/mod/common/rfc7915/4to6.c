@@ -344,7 +344,7 @@ static bool fragment_exceeds_mtu46(struct packet *in, unsigned int mtu)
 	out_hdrs_len += pkt_l4hdr_len(in);
 
 	/*
-	 * Damn it. Should I worry about frag_list before or after GRO?
+	 * Hmmm. Should I worry about frag_list before or after GRO?
 	 *
 	 * My gut says it doesn't make sense for frag_list packets to contain
 	 * GRO data, because if the GRO was TCP, then how would it have
@@ -558,7 +558,7 @@ static verdict ttp46_alloc_skb(struct xlation *state)
 	 * - PTB: Packet Too Big (ICMPv6 error type 2 code 0)
 	 * - FN: Fragmentation Needed (ICMPv4 error type 3 code 4)
 	 *
-	 * This is a pain in the ass because of lowest-ipv6-mtu and GRO/GSO.
+	 * This is a pain because of lowest-ipv6-mtu and GRO/GSO.
 	 * Slow Path undoes GRO, so we want to avoid it as much as possible.
 	 *
 	 * Design notes:
@@ -707,7 +707,7 @@ static verdict ttp46_alloc_skb(struct xlation *state)
 
 	} else if (is_df_set(pkt_ip4_hdr(in))) {
 		/*
-		 * Good; sender is not a dumbass.
+		 * Good; sender is smart.
 		 * Fragment header will only be included if already fragmented.
 		 */
 		if (fragment_exceeds_mtu46(in, nexthop_mtu)) {
