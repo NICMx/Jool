@@ -110,7 +110,7 @@
  * The root attribute header size and serialized session size need to be
  * computed the hard way. Run the joold unit test to find them in dmesg.
  */
-#define DEFAULT_JOOLD_MAX_SESSIONS_PER_PKT ((1500 - 40 - 8 - 4) / 140)
+#define DEFAULT_JOOLD_MAX_SESSIONS_PER_PKT ((1500 - 40 - 8 - 4) / 40)
 
 /* -- IPv6 Pool -- */
 

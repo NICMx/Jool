@@ -13,7 +13,7 @@ NAT64 Jool is a kernel module you load into a Linux kernel. It implements RFC 61
 .SH AVAILABILITY
 Linux is the only OS in which this program makes sense.
 .br
-Kernels 4.19 and up.
+Kernels 5.15 and up.
 
 .SH SYNTAX
 .RI "jool [" <argp1> "] instance ("
@@ -38,8 +38,6 @@ Kernels 4.19 and up.
 .br
 	| flush
 .br
-.RI "	| " <help>
-.br
 )
 .P
 .RI "jool [" <argp1> "] stats ("
@@ -54,8 +52,6 @@ Kernels 4.19 and up.
 .br
 		[--explain]
 .br
-.RI "	| " <help>
-.br
 )
 .P
 .RI "jool [" <argp1> "] global ("
@@ -69,8 +65,6 @@ Kernels 4.19 and up.
 	| update
 .br
 .I			<Key> <Value>
-.br
-.RI "	| " <help>
 .br
 )
 .P
@@ -110,8 +104,6 @@ Kernels 4.19 and up.
 .br
 		[--quick]
 .br
-.RI "	| " <help>
-.br
 )
 .P
 .RI "jool [" <argp1> "] bib ("
@@ -142,8 +134,6 @@ Kernels 4.19 and up.
 .br
 		[--tcp | --udp | --icmp]
 .br
-.RI "	| " <help>
-.br
 )
 .P
 .RI "jool [" <argp1> "] session ("
@@ -158,7 +148,25 @@ Kernels 4.19 and up.
 .br
 		[--numeric]
 .br
-.RI "	| " <help>
+	| follow
+.br
+	| proxy
+.br
+		[--net.dev.in=<NETDEVIN>]
+.br
+		[--net.dev.out=<NETDEVOUT>]
+.br
+		[--net.mcast.port=<NETMCASTPORT>]
+.br
+		[--stats.address=<STATSADDR>]
+.br
+		[--stats.port=<STATSPORT>]
+.br
+		[--net.ttl=<NETTTL>]
+.br
+		<NETMCASTADDR>
+.br
+	| advertise
 .br
 )
 .P
@@ -166,13 +174,9 @@ Kernels 4.19 and up.
 .br
 .RI "	handle " <JSON-File>
 .br
-.RI "	| " <help>
-.br
 )
 .P
-.IR <argp1> " := (" <help> " | --instance " <Name> " | --file " <File> ")"
-.P
-.IR <help> " := (--help | --usage | --version)"
+.IR <argp1> " := (--instance " <Name> " | --file " <File> ")"
 
 .SH OPTIONS
 .SS Modes and Operations
@@ -213,6 +217,16 @@ Remove an entry (static or otherwise) from the BIB.
 Show one of the the session tables.
 .br
 (Each protocol has one table.)
+.IP "session follow"
+Listen to the instance's sessions (whenever they are updated) forever, printing them in standard output.
+.br
+The instance must have ss-enabled=1.
+.IP "session proxy"
+Listen to sessions forever, exchanging them between the instance and other listening proxies.
+.br
+The -i instance must have ss-enabled=1.
+.IP "session advertise"
+Requests the instance to send its entire session table to listening followers and proxies.
 .IP "file handle"
 Parse all the configuration from a JSON file.
 .br
@@ -292,6 +306,23 @@ Name of the instance you want to add or remove.
 If --instance or --file were included in <argp1>, then the instance names must match.
 .IP <JSON-file>
 Path to a JSON file.
+
+.IP <NETMCASTADDR>
+Address SS traffic will be sent to and listened from.
+.IP <NETMCASTPORT>
+UDP port where SS traffic will be sent to and listened from.
+.IP <NETDEVIN>
+Address or interface to bind the socket in.
+.br
+.RI "If " <NETMCASTADDR> " is IPv4, this should be one addresses from the interface where the SS traffic is expected to be received. If " <NETMCASTADDR> " is IPv6, this should be the name of the interface (eg. " eth0 ")."
+.IP <NETDEVOUT>
+.RI "If " <NETMCASTADDR> " is IPv4, this should be one addresses from the interface where the multicast traffic is expected to be sent. If " <NETMCASTADDR> " is IPv6, this should be the name of the interface (eg. " eth0 ")."
+.IP <NETTTL>
+.RI "Same as " IP_MULTICAST_TTL ", from " ip(7) "."
+.IP <STATSADDR>
+Address for (optional) statistics server.
+.IP <STATSPORT>
+.RI "Port for the " <STATSADDR> " server."
 
 .SS Globals
 .IP "manually-enabled <Boolean>"

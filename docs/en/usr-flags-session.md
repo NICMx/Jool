@@ -88,7 +88,7 @@ For TCP and UDP, the columns are
 - IPv4 peer address
 - IPv4 peer port
 - Layer 4 Protocol (pretends ICMP is L4)
-- Milliseconds to expiration
+- Time to expiration
 
 Please note that the IPv6-masked IPv4 peer address is excluded because it always equals [pool6](usr-flags-global.html#pool6) plus the IPv4 peer address. The IPv6-masked IPv4 peer port is also excluded, because it always equals the IPv4 peer port.
 
@@ -101,7 +101,7 @@ For ICMP,
 - IPv4 peer address
 - IPv4 identifier (yes, this is redundant)
 - Layer 4 Protocol (pretends ICMP is L4)
-- Milliseconds to expiration
+- Time to expiration
 
 ### proxy
 

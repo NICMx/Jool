@@ -158,13 +158,13 @@ if [ -z "$1" -o "$1" = "errors" ]; then
 	test44_11 icmp-error/bibless-test icmp-error/bibless-expected 1,4,5,10,11
 
 	# Try sending large packets.
-	sudo ip netns exec joolns ip link set to_client_v4 mtu 1000
+	ip netns exec joolns ip link set to_client_v4 mtu 1000
 	test66_11 icmp-error/ptb64-test icmp-error/ptb64-expected 1,2,3
-	sudo ip netns exec joolns ip link set to_client_v4 mtu 1500
+	ip netns exec joolns ip link set to_client_v4 mtu 1500
 
-	sudo ip netns exec joolns ip link set to_client_v6 mtu 1280
+	ip netns exec joolns ip link set to_client_v6 mtu 1280
 	test44_11 icmp-error/ptb46-test icmp-error/ptb46-expected 1,4,5,6,10,11
-	sudo ip netns exec joolns ip link set to_client_v6 mtu 1500
+	ip netns exec joolns ip link set to_client_v6 mtu 1500
 fi
 
 # Packet Too Big tests

@@ -6,18 +6,9 @@
 joold - Userspace Session Synchronization (SS) daemon for NAT64 Jool.
 
 .SH DESCRIPTION
-Opens two sockets: A Netlink socket to the current namespace's NAT64 Jool instance, and a network TCP socket to other/remote joold instances. Exchanges sessions indiscriminately between them.
-.P
-The intent is to keep the NAT64 session databases synchronized for the sake of having backup fallback NAT64s.
-.P
-The setup is strongly recommended to be Active/Passive; Active/Active is technically allowed, but not very reliable.
-.P
-Running the daemons is not enough to have successful session synchronization; SS needs to be enabled in the kernel instances as well. (See the --ss-* flags described in jool(8).)
-
-.SH AVAILABILITY
-Linux is the only OS in which this program makes sense.
-.br
-Kernels 4.19 and up.
+This command is deprecated, and it's now implemented as a wrapper for
+.B jool session proxy.
+See jool(8).
 
 .SH SYNTAX
 .RI "joold [" NETSOCKET "] [" MODSOCKET "] [PORT]"
@@ -62,9 +53,6 @@ If multicast address is IPv4, this should be one addresses from the interface wh
 Optional. Defaults to be automatically assigned by the kernel.
 .br
 It is strongly recommended that you define this value to ensure the SS traffic does not leak through other interfaces.
-
-.IP reuseaddr=<INT>
-Please always include and enable this.
 
 .IP ttl=<INT>
 Time-to-live of packets sent out by this socket.
@@ -111,8 +99,6 @@ IPv6 version:
 .br
 		"out interface": "eth0",
 .br
-		"reuseaddr": 1,
-.br
 		"ttl": 3
 .br
 	  }
@@ -157,8 +143,6 @@ IPv4 version:
 .br
 		"out interface": "192.0.2.1",
 .br
-		"reuseaddr": 1,
-.br
 		"ttl": 3
 .br
 	  }
@@ -199,9 +183,7 @@ NIC Mexico & ITESM
 https://github.com/NICMx/Jool/issues
 
 .SH KNOWN BUGS
-1. reuseaddr should probably default to 1...
-.br
-2. Maybe the daemon should be able to automatically enable SS on the kernel module.
+1. Maybe the daemon should be able to automatically enable SS on the kernel module.
 .P
 To be perfectly honest, the main reason why fixing this isn't in the radar is because joold is giving me the impression that nobody is using it.
 
@@ -216,7 +198,4 @@ There is NO WARRANTY, to the extent permitted by law.
 .SH SEE ALSO
 https://nicmx.github.io/Jool/en/session-synchronization.html
 .br
-https://nicmx.github.io/Jool/en/config-joold.html
-.br
-https://nicmx.github.io/Jool/en/usr-flags-joold.html
-
+https://nicmx.github.io/Jool/en/usr-flags-session.html

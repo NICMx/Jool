@@ -333,9 +333,6 @@ static void cleanup(void)
 	vfree(iterations);
 }
 
-/**
- * This is what happens when the user execs `sudo insmod iterations.ko`.
- */
 static int iterations_test_init(void)
 {
 	int error = init();
@@ -347,9 +344,6 @@ static int iterations_test_init(void)
 	return 0;
 }
 
-/**
- * This is what happens when the user execs `sudo rmmod iterations`.
- */
 static void iterations_test_exit(void)
 {
 	/* No code. */

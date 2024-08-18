@@ -146,6 +146,8 @@ int handle_session_follow(char *iname, int argc, char **argv, void const *arg)
 	if (error)
 		return error;
 
+	printf("Commands parsed successfully; switching to syslog.\n");
+	printf("See journalctl for error messages from now on.\n");
 	openlog("joold", 0, LOG_DAEMON);
 
 	error = modsocket_setup(iname);
