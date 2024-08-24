@@ -82,7 +82,7 @@ for i in $VERSIONS; do
 	fi
 
 	echo "Copying kernel to '$OUT_DIR/$i'."
-	# TODO Wait, what the hell? do we really need all of it?
+	# TODO Wait, what? do we really need all of it?
 	cp -r * $OUT_DIR/$i
 
 	echo "Cleaning $i."

@@ -150,10 +150,10 @@ int xt_validate(xlator_type xt)
 
 int xf_validate(xlator_framework xf)
 {
-#ifdef XTABLES_DISABLED
-	return (xf == XF_NETFILTER) ? 0 : -EINVAL;
-#else
+#ifdef NETFILTER_XTABLES
 	return (xf == XF_NETFILTER || xf == XF_IPTABLES) ? 0 : -EINVAL;
+#else
+	return (xf == XF_NETFILTER) ? 0 : -EINVAL;
 #endif
 }
 

@@ -25,7 +25,7 @@ struct wargp_type {
 	 * `argument` to be "<bar>", then argp will print this on `--help`:
 	 *     `--foo=<bar>`
 	 */
-	char *argument;
+	char *arg;
 	wargp_parse_type parse;
 	/*
 	 * A (single) string listing the autocompletion candidates for the
@@ -48,6 +48,7 @@ struct wargp_option {
 	const char *doc;
 	size_t offset;
 	struct wargp_type *type;
+	const char *arg; /* Overrides wargp_type.argument */
 };
 
 struct wargp_bool {

@@ -1,6 +1,6 @@
 # Unit tests
 
-The unit tests are implemented as several kernel modules, each of which pummel Jool's inner subroutines directly.
+The unit tests are implemented as several kernel modules, each of which hammer Jool's inner subroutines directly.
 
 They do not require a successful Jool installation, but you need to ensure they are run in a whitespace-free directory.
 

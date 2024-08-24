@@ -347,7 +347,7 @@ static bool test_function_icmp4_minimum_mtu(void)
 	return success;
 }
 
-int init_module(void)
+static int translate_packet_test_init(void)
 {
 	struct test_group test = {
 		.name = "Translating the Packet",
@@ -369,7 +369,10 @@ int init_module(void)
 	return test_group_end(&test);
 }
 
-void cleanup_module(void)
+static void translate_packet_test_exit(void)
 {
 	/* No code. */
 }
+
+module_init(translate_packet_test_init);
+module_exit(translate_packet_test_exit);

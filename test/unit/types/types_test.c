@@ -142,7 +142,7 @@ static bool test_list_move_all(void)
 	return success;
 }
 
-int init_module(void)
+static int types_test_init(void)
 {
 	struct test_group test = {
 		.name = "Types",
@@ -157,7 +157,10 @@ int init_module(void)
 	return test_group_end(&test);
 }
 
-void cleanup_module(void)
+static void types_test_exit(void)
 {
 	/* No code. */
 }
+
+module_init(types_test_init);
+module_exit(types_test_exit);

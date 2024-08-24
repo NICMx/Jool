@@ -173,7 +173,6 @@ Also, `pool6` is mandatory and immutable (as normal). It must be set during inst
 		"<a href="usr-flags-global.html#logging-session">logging-session</a>": false,
 		"<a href="usr-flags-global.html#maximum-simultaneous-opens">maximum-simultaneous-opens</a>": 10,
 		"<a href="usr-flags-global.html#ss-enabled">ss-enabled</a>": false,
-		"<a href="usr-flags-global.html#ss-flush-asap">ss-flush-asap</a>": true,
 		"<a href="usr-flags-global.html#ss-flush-deadline">ss-flush-deadline</a>": 2000,
 		"<a href="usr-flags-global.html#ss-capacity">ss-capacity</a>": 512,
 		"<a href="usr-flags-global.html#ss-max-payload">ss-max-payload</a>": 1452,

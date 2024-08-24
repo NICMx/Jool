@@ -48,9 +48,9 @@
  * 500), so it's also 6146-unfriendly. It also has the drawback that `N` needs
  * to be configurable, so please no.
  *
- * In all reality, the ideal solution would be to just fuck it and implement all
- * 5 algorithms. But since probably nobody cares, this would be a lot of
- * unnecesary work. 3 remains the winner for me.
+ * In reality, the ideal solution would be to implement all 5 algorithms.
+ * But nobody cares, probably, so this would be a lot of work for nothing.
+ * 3 remains the winner for me.
  *
  * Also, I wonder if this whole gaming gimmic is that much of a factor. Do
  * servers really expect clients to maintain consistent IP addresses when NAT44

@@ -68,11 +68,6 @@ If you know what you're doing, try the [Cheat Sheet](cheat-sheet.html).
 	1. [`pool4`](usr-flags-pool4.html)
 	2. [`bib`](usr-flags-bib.html)
 	3. [`session`](usr-flags-session.html)
-	4. [`joold`](usr-flags-joold.html)
-
-## Other Configuration
-
-2. [`joold`](config-joold.html)
 
 ## Defined Architectures
 

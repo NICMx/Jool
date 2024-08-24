@@ -49,7 +49,7 @@ static int parse_iname(void *void_field, int key, char *str)
 }
 
 struct wargp_type wt_iname = {
-	.argument = "<instance name>",
+	.arg = "STR",
 	.parse = parse_iname,
 	.candidates = INAME_DEFAULT,
 };
@@ -168,7 +168,7 @@ struct add_args {
 static struct wargp_option add_opts[] = {
 	WARGP_INAME(struct add_args, iname, "add"),
 	{
-#ifndef XTABLES_DISABLED
+#ifdef NETFILTER_XTABLES
 		.name = OPTNAME_IPTABLES,
 		.key = ARGP_IPTABLES,
 		.doc = "Sit the translator on top of iptables",
@@ -217,7 +217,7 @@ int handle_instance_add(char *iname, int argc, char **argv, void const *arg)
 		pr_err("The translator can only be hooked to one framework.");
 		return -EINVAL;
 	}
-#ifdef XTABLES_DISABLED
+#ifndef NETFILTER_XTABLES
 	if (aargs.iptables.value) {
 		pr_err("iptables cannot be used; it was disabled during compilation.");
 		return -EINVAL;

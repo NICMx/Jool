@@ -34,7 +34,7 @@ void log_err(const char *format, ...)
 
 	msg = __wkmalloc("error_code.msg", 256, GFP_ATOMIC);
 	if (!msg) {
-		/* Fall back to shitty print */
+		/* Fall back to stock print */
 		va_start(args, format);
 		vprintk(format, args);
 		va_end(args);

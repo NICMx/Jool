@@ -5,6 +5,8 @@
 #include "mod/common/db/eam.h"
 #include "mod/common/db/rfc6791v4.h"
 #include "mod/common/db/rfc6791v6.h"
+#include "mod/common/steps/compute_outgoing_tuple.h"
+#include "mod/common/steps/handling_hairpinning_siit.h"
 
 /**
  * @file
@@ -93,13 +95,15 @@ struct addrxlat_result addrxlat_siit46(struct xlator *instance,
 	return fail_addr();
 }
 
-verdict translate_addrs64_siit(struct xlation *state)
+verdict translate_addrs64_siit(struct xlation *state, __be32 *src_out,
+		__be32 *dst_out)
 {
 	fail(__func__);
 	return VERDICT_DROP;
 }
 
-verdict translate_addrs46_siit(struct xlation *state)
+verdict translate_addrs46_siit(struct xlation *state, struct in6_addr *src_out,
+		struct in6_addr *dst_out)
 {
 	fail(__func__);
 	return VERDICT_DROP;

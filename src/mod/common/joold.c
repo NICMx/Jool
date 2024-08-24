@@ -140,11 +140,6 @@ static bool should_send(struct xlator *jool)
 		return true;
 	}
 
-	if (GLOBALS(jool).flush_asap) {
-		jstat_inc(jool->stats, JSTAT_JOOLD_FLUSH_ASAP);
-		return true;
-	}
-
 	if (queue->deferred.count >= GLOBALS(jool).max_sessions_per_pkt) {
 		jstat_inc(jool->stats, JSTAT_JOOLD_PKT_FULL);
 		return true;
@@ -391,7 +386,7 @@ static bool add_new_session(struct xlator *jool, struct nlattr *attr)
 	__log_debug(jool, "Adding session!");
 
 	error = jnla_get_session_joold(attr, "joold session",
-			&jool->globals.nat64.bib, &params.new);
+			&jool->globals, &params.new);
 	if (error)
 		return false;
 

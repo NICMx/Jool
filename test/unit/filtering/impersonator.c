@@ -1,3 +1,4 @@
+#include "mod/common/dev.h"
 #include "mod/common/joold.h"
 #include "framework/unit_test.h"
 

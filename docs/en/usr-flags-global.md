@@ -625,23 +625,11 @@ Enable/Disable [Session Synchronization (SS)](session-synchronization.html) on t
 ### `ss-flush-asap`
 
 - Type: Boolean
-- Default: ON
+- Default: OFF
 - Modes: Stateful NAT64 only
 - Source: [Issue 113]({{ site.repository-url }}/issues/113)
 
-Try to send SS sessions as soon as they are created?
-
-When SS is enabled, every packet translation yields an update to the session tables that must be informed to other Jool instances.
-
-In the Active/Active scenario in particular, this essentially means that every translation should ideally yield two packets: A translated version of the input and a multicast to inform the session update to other NAT64 instances. This second packet needs to be sent as soon as possible so whichever instance happens to receive the response to the original packet is updated and prepared for it.
-
-In the Active/Passive model, on the other hand, this level of compulsive replication is rather undesired. Since a single big packet is easier to send than the equivalent many smaller ones, it is preferable to queue the session updates and wrap a bunch of them in a single big multicast, thereby reducing the SS packet-to-translated packet ratio and CPU overhead. This is appropriate in Active/Passive mode because the backup NAT64s are not expected to receive traffic in the near future, and losing a few recent queued session updates on crash is no big deal when the sizeable rest of the database has already been dispatched.
-
-Sessions will be queued until the maximum packet size is reached or a timer expires. The maximum packet size is defined by [`ss-max-sessions-per-packet`](#ss-max-sessions-per-packet) and the duration of the timer is [`ss-flush-deadline`](#ss-flush-deadline).
-
-As a rule of thumb, you might think of this option as an "Active/Active vs Active/Passive" switch; in the former this flag is practically mandatory, while in the latter it is needlessly CPU-taxing. (But still legal, which explains the default.)
-
-In reality, some degree of queuing is still done when this flag is enabled, as otherwise Jool tends to saturate the Netlink (kernel-to-userspace) channel, losing sessions.
+Deprecated; does nothing as of Jool 4.1.13.
 
 ### `ss-flush-deadline`
 
@@ -650,13 +638,7 @@ In reality, some degree of queuing is still done when this flag is enabled, as o
 - Modes: Stateful NAT64 only
 - Source: [Issue 113]({{ site.repository-url }}/issues/113)
 
-If there are queued sessions, an SS packet will be forced out after this amount of time has ellapsed since the last.
-
-Whenever the kernel module sends a packet to userspace, `joold` is expected to answer an ACK. Jool accounts this ACK as a green light to send the next SS packet. This prevents Jool from over-saturating the Netlink channel.
-
-Being that Netlink is not a reliable protocol, the main intent of `ss-flush-deadline` is to prevent lost ACKs from stagnating the SS queue.
-
-It also prevents sessions from staying in the queue for too long regardless of that, particularly when [`ss-flush-asap`](#ss-flush-asap) is disabled.
+If there are queued sessions, an SS packet will be forced out after this amount of time has ellapsed since the last. This prevents sessions from accidentally being stuck in the queue for long periods of time. (Either waiting for a Userspace ACK, or waiting for other sessions to fill up the SS packet.)
 
 ### `ss-capacity`
 
@@ -692,22 +674,20 @@ Deprecated; does nothing as of Jool 4.1.11.
 ### `ss-max-sessions-per-packet`
 
 - Type: Integer
-- Default: 27
+- Default: 36
 - Modes: Stateful NAT64 only
 - Source: [Issue 113]({{ site.repository-url }}/issues/113), [issue 410]({{ site.repository-url }}/issues/410)
 
-`joold` (the daemon) is (aside from a few validations) just a bridge; it receives bytes from the kernel module, wraps them in a UDP packet and sends it to other daemons, who similarly pass the bytes untouched. They are not even aware that those bytes contain sessions.
+`jool session proxy` is (aside from a few validations) just a bridge; it receives bytes from the kernel module, wraps them in a UDP packet and sends it to other daemons, who similarly pass the bytes untouched. They are not even aware that those bytes contain sessions.
 
 Since fragmentation is undesired, and since the kernel module is (to all intents and purposes) the one that's building the SS packets, it should not exceed the PMTU while doing so. The module has little understanding of the "multicast" network though, so it lacks fancy utilities to compute it. That's where this option comes in.
 
-`ss-max-sessions-per-packet` is the maximum number of sessions joold will transfer per joold packet. You want to maximize it as much as possible, while avoiding IPv4/IPv6 fragmentation.
-
-When `ss-flush-asap false`, Jool will pretty much always wait until this number of sessions has been collected before sending a joold packet. On `ss-flush-asap true`, it will tend to send sessions more eagerly, but will still strictly constrain itself to the maximum.
+`ss-max-sessions-per-packet` is the maximum number of sessions kernelspace Jool will transfer per Netlink packet. You want to maximize it as much as possible, while avoiding IPv4/IPv6 fragmentation.
 
 The optimal value is `floor((M - I - U - R) / S)`, where
 
-1. `M` is the MTU of the path between your joolds (usually 1500),
-2. `I` is the size of the header of the IP protocol your joolds will use to exchange sessions (40 for IPv6, 20 for IPv4),
+1. `M` is the MTU of the path between your proxies (usually 1500),
+2. `I` is the size of the header of the IP protocol your proxies will use to exchange sessions (40 for IPv6, 20 for IPv4),
 3. `U` is the size of the UDP header (8),
 4. `R` is the size of a Netlink attribute header,
 5. and `S` is the size of a serialized session.
@@ -721,13 +701,13 @@ $ make
 $ sudo make test | head
 ...
 Jool: Netlink attribute header size: 4
-Jool: Serialized session size: 52
+Jool: Serialized session size: 40
 ...
 ```
 
 So the default value came out of
 
 ```
-floor((1500 - max(20, 40) - 8 - 4) / 52)
+floor((1500 - max(20, 40) - 8 - 4) / 40)
 ```
 

@@ -21,28 +21,28 @@ int wargp_parse_prefix4(void *input, int key, char *str);
 
 struct wargp_type wt_bool = {
 	/* Boolean opts need no argument; absence is false, presence is true. */
-	.argument = NULL,
+	.arg = NULL,
 	.parse = wargp_parse_bool,
 };
 
 struct wargp_type wt_u32 = {
-	.argument = "<integer>",
+	.arg = "INT",
 	.parse = wargp_parse_u32,
 };
 
 struct wargp_type wt_l4proto = {
 	/* The flag itself signals the protocol. */
-	.argument = NULL,
+	.arg = NULL,
 	.parse = wargp_parse_l4proto,
 };
 
 struct wargp_type wt_string = {
-	.argument = "<string>",
+	.arg = "STR",
 	.parse = wargp_parse_string,
 };
 
 struct wargp_type wt_addr = {
-	.argument = "<IP Address>",
+	.arg = "IPADDR",
 	.parse = wargp_parse_addr,
 };
 
@@ -51,13 +51,13 @@ struct wargp_type wt_addr = {
  * refer to the pool6 prefix.
  */
 struct wargp_type wt_prefix6 = {
-	.argument = "<IPv6 Prefix>",
+	.arg = "IP6PREFIX",
 	.parse = wargp_parse_prefix6,
 	.candidates = WELL_KNOWN_PREFIX,
 };
 
 struct wargp_type wt_prefix4 = {
-	.argument = "<IPv4 prefix>",
+	.arg = "IP4PREFIX",
 	.parse = wargp_parse_prefix4,
 };
 
@@ -196,7 +196,7 @@ static int adapt_options(struct argp *argp, struct wargp_option *wopts,
 		if (wopt->key != ARGP_KEY_ARG) {
 			opt->name = wopt->name;
 			opt->key = wopt->key;
-			opt->arg = wopt->type->argument;
+			opt->arg = wopt->arg ? wopt->arg : wopt->type->arg;
 			opt->doc = wopt->doc;
 			opt++;
 
@@ -206,7 +206,7 @@ static int adapt_options(struct argp *argp, struct wargp_option *wopts,
 				free(opts);
 				return -EINVAL;
 			}
-			argp->args_doc = wopt->type->argument;
+			argp->args_doc = wopt->arg ? wopt->arg : wopt->type->arg;
 		}
 
 		wopt++;

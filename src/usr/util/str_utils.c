@@ -429,7 +429,7 @@ struct jool_result str_to_plateaus_array(const char *str, struct mtu_plateaus *p
 	struct jool_result result;
 
 	/* Validate str and copy it to the temp buffer. */
-	/* TODO (fine) strdup, damn it */
+	/* TODO (fine) strdup? */
 	str_copy = malloc(strlen(str) + 1);
 	if (!str_copy)
 		return result_from_enomem();

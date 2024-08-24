@@ -164,7 +164,7 @@ static bool assert_skb(int garbage, ...)
 {
 	struct session_entry *expected, actual;
 	struct nlattr *root, *attr;
-	struct bib_config bibcfg;
+	struct jool_globals cfg;
 	int rem;
 	va_list args;
 	bool success;
@@ -184,16 +184,18 @@ static bool assert_skb(int garbage, ...)
 	root = nlmsg_attrdata(nlmsg_hdr(sent), GENL_HDRLEN + JOOLNL_HDRLEN);
 	success = ASSERT_UINT(JNLAR_SESSION_ENTRIES, nla_type(root), "root");
 
-	memset(&bibcfg, 0, sizeof(bibcfg));
-	bibcfg.ttl.tcp_est = 1000 * TCP_EST;
-	bibcfg.ttl.tcp_trans = 1000 * TCP_TRANS;
-	bibcfg.ttl.udp = 1000 * UDP_DEFAULT;
-	bibcfg.ttl.icmp = 1000 * ICMP_DEFAULT;
+	memset(&cfg, 0, sizeof(cfg));
+	cfg.pool6.prefix.addr.s6_addr32[0] = cpu_to_be32(0x0064ff9b);
+	cfg.pool6.prefix.len = 96;
+	cfg.nat64.bib.ttl.tcp_est = 1000 * TCP_EST;
+	cfg.nat64.bib.ttl.tcp_trans = 1000 * TCP_TRANS;
+	cfg.nat64.bib.ttl.udp = 1000 * UDP_DEFAULT;
+	cfg.nat64.bib.ttl.icmp = 1000 * ICMP_DEFAULT;
 
 	va_start(args, garbage);
 
 	nla_for_each_nested(attr, root, rem) {
-		error = jnla_get_session_joold(attr, "session", &bibcfg, &actual);
+		error = jnla_get_session_joold(attr, "session", &cfg, &actual);
 		if (error) {
 			log_err("jnla_get_session: errcode %d", error);
 			success = false;
@@ -388,149 +390,6 @@ end:	joold_put(joold);
 	return success;
 }
 
-static bool test_flush_asap(void)
-{
-	struct xlator jool;
-	struct joold_queue *joold;
-	bool success = true;
-
-	joold = init_xlator(&jool);
-	if (!joold)
-		return false;
-	jool.globals.nat64.joold.flush_asap = true;
-
-	/* Flush immediately */
-	log_info("1");
-	joold_add(&jool, &ss[0]);
-	success &= ASSERT_UINT(0, joold->flags, "flags1");
-	success &= assert_deferred(joold, NULL);
-	success &= assert_skb(0, &ss[0], NULL);
-	if (!success)
-		goto end;
-
-	/* No ACK; postpone flush despite ss-flush-asap */
-	log_info("2");
-	joold_add(&jool, &ss[1]);
-	success &= ASSERT_UINT(0, joold->flags, "flags2");
-	success &= assert_deferred(joold, &ss[1], NULL);
-	success &= assert_skb(0, NULL);
-	if (!success)
-		goto end;
-
-	/* ACK; flush */
-	log_info("3");
-	joold_ack(&jool);
-	success &= ASSERT_UINT(0, joold->flags, "flags3");
-	success &= assert_deferred(joold, NULL);
-	success &= assert_skb(0, &ss[1], NULL);
-	if (!success)
-		goto end;
-
-	/* Reach capacity */
-	log_info("4");
-	joold_add(&jool, &ss[0]);
-	success &= ASSERT_UINT(0, joold->flags, "flags4");
-	success &= assert_deferred(joold, &ss[0], NULL);
-	success &= assert_skb(0, NULL);
-	if (!success)
-		goto end;
-
-	log_info("5");
-	joold_add(&jool, &ss[1]);
-	success &= ASSERT_UINT(0, joold->flags, "flags5");
-	success &= assert_deferred(joold, &ss[0], &ss[1], NULL);
-	success &= assert_skb(0, NULL);
-	if (!success)
-		goto end;
-
-	log_info("6");
-	joold_add(&jool, &ss[2]);
-	success &= ASSERT_UINT(0, joold->flags, "flags6");
-	success &= assert_deferred(joold, &ss[0], &ss[1], &ss[2], NULL);
-	success &= assert_skb(0, NULL);
-	if (!success)
-		goto end;
-
-	log_info("7");
-	joold_add(&jool, &ss[3]);
-	success &= ASSERT_UINT(0, joold->flags, "flags7");
-	success &= assert_deferred(joold, &ss[0], &ss[1], &ss[2], &ss[3], NULL);
-	success &= assert_skb(0, NULL);
-	if (!success)
-		goto end;
-
-	/* Capacity reached; drop session */
-	log_info("8");
-	joold_add(&jool, &ss[4]);
-	success &= ASSERT_UINT(0, joold->flags, "flags8");
-	success &= assert_deferred(joold, &ss[0], &ss[1], &ss[2], &ss[3], NULL);
-	success &= assert_skb(0, NULL);
-	if (!success)
-		goto end;
-
-	/* Again */
-	log_info("9");
-	joold_add(&jool, &ss[5]);
-	success &= ASSERT_UINT(0, joold->flags, "flags9");
-	success &= assert_deferred(joold, &ss[0], &ss[1], &ss[2], &ss[3], NULL);
-	success &= assert_skb(0, NULL);
-	if (!success)
-		goto end;
-
-	/* ACK, finally */
-	log_info("10");
-	joold_ack(&jool);
-	success &= ASSERT_UINT(0, joold->flags, "flags10");
-	success &= assert_deferred(joold, &ss[3], NULL);
-	success &= assert_skb(0, &ss[0], &ss[1], &ss[2], NULL);
-	if (!success)
-		goto end;
-
-	/* Again */
-	log_info("11");
-	joold_ack(&jool);
-	success &= ASSERT_UINT(0, joold->flags, "flags11");
-	success &= assert_deferred(joold, NULL);
-	success &= assert_skb(0, &ss[3], NULL);
-	if (!success)
-		goto end;
-
-	/* Again */
-	log_info("12");
-	joold_ack(&jool);
-	success &= ASSERT_UINT(JQF_ACK_RECEIVED, joold->flags, "flags12");
-	success &= assert_deferred(joold, NULL);
-	success &= assert_skb(0, NULL);
-	if (!success)
-		goto end;
-
-	/* Flush, ACK, flush */
-	log_info("13");
-	joold_add(&jool, &ss[0]);
-	success &= ASSERT_UINT(0, joold->flags, "flags13");
-	success &= assert_deferred(joold, NULL);
-	success &= assert_skb(0, &ss[0], NULL);
-	if (!success)
-		goto end;
-
-	log_info("14");
-	joold_ack(&jool);
-	success &= ASSERT_UINT(JQF_ACK_RECEIVED, joold->flags, "flags14");
-	success &= assert_deferred(joold, NULL);
-	success &= assert_skb(0, NULL);
-	if (!success)
-		goto end;
-
-	log_info("15");
-	joold_add(&jool, &ss[0]);
-	success &= ASSERT_UINT(0, joold->flags, "flags15");
-	success &= assert_deferred(joold, NULL);
-	success &= assert_skb(0, &ss[0], NULL);
-
-end:	joold_put(joold);
-	return success;
-}
-
 static bool test_advertise(void)
 {
 	struct xlator jool;
@@ -708,7 +567,7 @@ end:	joold_put(joold);
 
 /********************** Hooks **********************/
 
-int init_module(void)
+static int joold_test_init(void)
 {
 	struct test_group test = {
 		.name = "joold",
@@ -719,12 +578,14 @@ int init_module(void)
 		return -EINVAL;
 	test_group_test(&test, print_sizes, "print sizes");
 	test_group_test(&test, test_no_flush_asap, "ss-flush-asap disabled");
-	test_group_test(&test, test_flush_asap, "ss-flush-asap enabled");
 	test_group_test(&test, test_advertise, "advertise");
 	return test_group_end(&test);
 }
 
-void cleanup_module(void)
+static void joold_test_exit(void)
 {
 	/* No code. */
 }
+
+module_init(joold_test_init);
+module_exit(joold_test_exit);

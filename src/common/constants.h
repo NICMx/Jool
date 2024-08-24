@@ -84,7 +84,6 @@
 #define DEFAULT_MTU_PLATEAUS { 65535, 32000, 17914, 8166, 4352, 2002, 1492, \
 		1006, 508, 296, 68 }
 #define DEFAULT_JOOLD_ENABLED false
-#define DEFAULT_JOOLD_FLUSH_ASAP true
 #define DEFAULT_JOOLD_DEADLINE 2
 #define DEFAULT_JOOLD_CAPACITY 512
 /**
@@ -111,7 +110,7 @@
  * The root attribute header size and serialized session size need to be
  * computed the hard way. Run the joold unit test to find them in dmesg.
  */
-#define DEFAULT_JOOLD_MAX_SESSIONS_PER_PKT ((1500 - 40 - 8 - 4) / 140)
+#define DEFAULT_JOOLD_MAX_SESSIONS_PER_PKT ((1500 - 40 - 8 - 4) / 40)
 
 /* -- IPv6 Pool -- */
 

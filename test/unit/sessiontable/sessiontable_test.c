@@ -1,6 +1,7 @@
 #include <linux/module.h>
 #include "framework/unit_test.h"
 #include "common/constants.h"
+#include "mod/common/rfc6052.h"
 #include "mod/common/db/bib/db.h"
 
 MODULE_LICENSE(JOOL_LICENSE);
@@ -10,6 +11,12 @@ MODULE_DESCRIPTION("Session table module test.");
 static struct xlator jool;
 #define TEST_SESSION_COUNT 9
 static struct session_entry entries[TEST_SESSION_COUNT];
+
+int __rfc6052_4to6(struct ipv6_prefix const *prefix, struct in_addr const *src,
+		struct in6_addr *dst)
+{
+	return broken_unit_call(__func__);
+}
 
 static void init_src6(struct in6_addr *addr, __u16 last_byte)
 {
@@ -282,7 +289,7 @@ static void clean(void)
 	xlator_put(&jool);
 }
 
-int init_module(void)
+static int sessiontable_test_init(void)
 {
 	struct test_group test = {
 		.name = "Session table",
@@ -299,7 +306,10 @@ int init_module(void)
 	return test_group_end(&test);
 }
 
-void cleanup_module(void)
+static void sessiontable_test_exit(void)
 {
 	/* No code. */
 }
+
+module_init(sessiontable_test_init);
+module_exit(sessiontable_test_exit);

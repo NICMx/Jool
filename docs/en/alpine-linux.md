@@ -31,9 +31,9 @@ If you get `ERROR: unsatisfiable constraints: jool-tools (missing)`, you probabl
 
 ## Using Jool
 
-Adjust configuration files in directory `/etc/jool` to your needs. Then you can start services `jool`, `jool_siit` and/or `joold` using `rc-service <svcname> start` (or `/etc/init.d/<svcname> start`). To make the services start automatically at the system startup, add them to a runlevel using `rc-update add <svcname>`.
+Adjust configuration files in directory `/etc/jool` to your needs. Then you can start services `jool` and/or `jool_siit` using `rc-service <svcname> start` (or `/etc/init.d/<svcname> start`). To make the services start automatically at the system startup, add them to a runlevel using `rc-update add <svcname>`.
 
-If you want to run multiple instances of `jool`, `jool_siit` or `joold`, you can make symlinks for the init scripts named `<svcname>.<instance>` (or `<svcname>-<instance>`). Each service expects JSON configuration file named after the init script plus `.conf` suffix (e.g. `jool_siit.conf`, `jool_siit.lan.conf`, ...) in directory `/etc/jool`. For example:
+If you want to run multiple instances of `jool` or `jool_siit`, you can make symlinks for the init scripts named `<svcname>.<instance>` (or `<svcname>-<instance>`). Each service expects JSON configuration file named after the init script plus `.conf` suffix (e.g. `jool_siit.conf`, `jool_siit.lan.conf`, ...) in directory `/etc/jool`. For example:
 
 	ln -s jool_siit /etc/init.d/jool_siit.lan
 	cp /etc/jool/jool_siit.conf /etc/jool/jool_siit.lan.conf

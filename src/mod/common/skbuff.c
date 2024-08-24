@@ -109,9 +109,9 @@ static void print_skb_fields(struct sk_buff *skb, unsigned int tabs)
 	print(tabs, "network_header:%u", skb->network_header);
 	print(tabs, "mac_header:%u", skb->mac_header);
 	print(tabs, "head:%p", skb->head);
-	print(tabs, "data:%ld", skb->data - skb->head);
-	print(tabs, "tail:%u", skb->tail);
-	print(tabs, "end:%u", skb->end);
+	print(tabs, "data:%u", (unsigned int)(skb->data - skb->head));
+	print(tabs, "tail:%u", (unsigned int)(skb->tail));
+	print(tabs, "end:%u", (unsigned int)(skb->end));
 }
 
 static int truncated(unsigned int tabs)

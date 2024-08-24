@@ -17,6 +17,8 @@
 #     - manual: random tests (documented in ../../rfc/manual.md)
 #     - rfc7915: RFC 7915 compliance tests (documented in ../../rfc/7915.md)
 #     (Feel free to add new groups if you want.)
+# $2: Path to the SIIT jool client binary.
+#     Optional; defaults to `jool_siit`.
 
 
 GRAYBOX=`dirname $0`/../../usr/graybox
@@ -32,6 +34,10 @@ TOS=1
 IDENTIFICATION=4,5,10,11
 INNER_IDENTIFICATION=32,33,38,39
 
+JOOLCLIENT="$2"
+if [ -z "$JOOLCLIENT" ]; then
+	JOOLCLIENT="jool_siit"
+fi
 
 # IPv6 to IPv4 test boilerplate: pktgen tests.
 # $1: Test packet
@@ -206,20 +212,20 @@ if [ -z "$1" -o "$1" = "misc" ]; then
 	test64_11 manual 6791v64t 6791v64e $IDENTIFICATION,$INNER_IDENTIFICATION
 	test66_11 manual 6791v66t 6791v66e
 
-	ip netns exec joolns jool_siit global update rfc6791v4-prefix null
+	ip netns exec joolns "$JOOLCLIENT" global update rfc6791v4-prefix null
 	test64_11 manual 6791v64t 6791v64e-empty $IDENTIFICATION,$INNER_IDENTIFICATION
-	ip netns exec joolns jool_siit global update rfc6791v4-prefix 203.0.113.8
+	ip netns exec joolns "$JOOLCLIENT" global update rfc6791v4-prefix 203.0.113.8
 
-	ip netns exec joolns jool_siit global update pool6 null
-	ip netns exec joolns jool_siit eamt add 198.51.100.0/24 2001:db8:1c6:3364::/72
-	ip netns exec joolns jool_siit eamt add 192.0.2.0/24 2001:db8:1c0:2::/72
+	ip netns exec joolns "$JOOLCLIENT" global update pool6 null
+	ip netns exec joolns "$JOOLCLIENT" eamt add 198.51.100.0/24 2001:db8:1c6:3364::/72
+	ip netns exec joolns "$JOOLCLIENT" eamt add 192.0.2.0/24 2001:db8:1c0:2::/72
 	test46_11 manual 6791v46t 6791v46e-empty
-	ip netns exec joolns jool_siit global update rfc6791v6-prefix 2::2
+	ip netns exec joolns "$JOOLCLIENT" global update rfc6791v6-prefix 2::2
 	test46_11 manual 6791v46t 6791v46e
-	ip netns exec joolns jool_siit global update pool6 2001:db8:100::/40
-	ip netns exec joolns jool_siit eamt remove 198.51.100.0/24 2001:db8:1c6:3364::/72
-	ip netns exec joolns jool_siit eamt remove 192.0.2.0/24 2001:db8:1c0:2::/72
-	ip netns exec joolns jool_siit global update rfc6791v6-prefix null
+	ip netns exec joolns "$JOOLCLIENT" global update pool6 2001:db8:100::/40
+	ip netns exec joolns "$JOOLCLIENT" eamt remove 198.51.100.0/24 2001:db8:1c6:3364::/72
+	ip netns exec joolns "$JOOLCLIENT" eamt remove 192.0.2.0/24 2001:db8:1c0:2::/72
+	ip netns exec joolns "$JOOLCLIENT" global update rfc6791v6-prefix null
 fi
 
 # "RFC 6791" tests
@@ -248,7 +254,7 @@ if [ -z "$1" -o "$1" = "rfc7915" ]; then
 	test64_11 7915 bet1 bee1 $IDENTIFICATION,$INNER_IDENTIFICATION
 
 	# c
-	ip netns exec joolns jool_siit global update lowest-ipv6-mtu 1500
+	ip netns exec joolns "$JOOLCLIENT" global update lowest-ipv6-mtu 1500
 	ip netns exec joolns ip link set dev to_client_v6 mtu 1280
 	test44_11 7915 cat1 cae1 $TOS,$IDENTIFICATION
 	test44_11 7915 cat2 cae2 $TOS,$IDENTIFICATION
@@ -284,7 +290,7 @@ if [ -z "$1" -o "$1" = "rfc7915" ]; then
 	test64_11 7915 cjt3 cje3
 	test64_11 7915 cjt4 cje4
 
-	ip netns exec joolns jool_siit global update lowest-ipv6-mtu 1280
+	ip netns exec joolns "$JOOLCLIENT" global update lowest-ipv6-mtu 1280
 	# This one is actually ck.
 	test46_12 7915 cct1 cce1 cce2
 
@@ -296,12 +302,12 @@ if [ -z "$1" -o "$1" = "rfc7915" ]; then
 
 	# e
 	test44_11 7915 eat1 eae1 $TOS,$IDENTIFICATION
-	ip netns exec joolns jool_siit global update amend-udp-checksum-zero 1
+	ip netns exec joolns "$JOOLCLIENT" global update amend-udp-checksum-zero 1
 	# Cannot be tested by graybox anymore, because the checksum is now
 	# offloaded. The interface refuses to do it because it's virtual.
 	#test46_11 7915 eat1 ebe1
 	test44_11 7915 ect1 ece1 $TOS,$IDENTIFICATION
-	ip netns exec joolns jool_siit global update amend-udp-checksum-zero 0
+	ip netns exec joolns "$JOOLCLIENT" global update amend-udp-checksum-zero 0
 	test44_11 7915 ect1 ece1 $TOS,$IDENTIFICATION
 
 	# f
@@ -348,16 +354,16 @@ if [ -z "$1" -o "$1" = "rfc7915" ]; then
 	ip netns exec joolns ip link set dev to_client_v4 mtu 1500
 
 	# j
-	ip netns exec joolns jool_siit global update lowest-ipv6-mtu 1500
+	ip netns exec joolns "$JOOLCLIENT" global update lowest-ipv6-mtu 1500
 	test46_11 7915 jat jae
-	ip netns exec joolns jool_siit global update lowest-ipv6-mtu 1280
+	ip netns exec joolns "$JOOLCLIENT" global update lowest-ipv6-mtu 1280
 
 	test46_12 7915 jbat jbae1 jbae2
 	test46_11 7915 jbbt jbbe
-	ip netns exec joolns jool_siit global update lowest-ipv6-mtu 1402
+	ip netns exec joolns "$JOOLCLIENT" global update lowest-ipv6-mtu 1402
 	test46_12 7915 jcat jcae1 jcae2
 	test46_11 7915 jcbt jcbe
-	ip netns exec joolns jool_siit global update lowest-ipv6-mtu 1280
+	ip netns exec joolns "$JOOLCLIENT" global update lowest-ipv6-mtu 1280
 fi
 
 #if [ -z "$1" -o "$1" = "new" ]; then

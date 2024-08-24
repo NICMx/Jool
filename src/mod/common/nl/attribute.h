@@ -20,7 +20,7 @@ int jnla_get_taddr4(struct nlattr *attr, char const *name, struct ipv4_transport
 int jnla_get_eam(struct nlattr *attr, char const *name, struct eamt_entry *eam);
 int jnla_get_pool4(struct nlattr *attr, char const *name, struct pool4_entry *entry);
 int jnla_get_bib(struct nlattr *attr, char const *name, struct bib_entry *entry);
-int jnla_get_session_joold(struct nlattr *attr, char const *name, struct bib_config *config, struct session_entry *entry);
+int jnla_get_session_joold(struct nlattr *attr, char const *name, struct jool_globals *cfg, struct session_entry *entry);
 int jnla_get_plateaus(struct nlattr *attr, struct mtu_plateaus *out);
 
 /* Note: None of these print error messages. */
