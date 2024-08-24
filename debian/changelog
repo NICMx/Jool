@@ -1,3 +1,10 @@
+jool (4.1.13-1) unstable; urgency=medium
+
+  * New upstream release
+  * Improve kernel module's Makefile distclean. Closes: #1074120
+
+ -- Alberto Leiva Popper <ydahhrk@gmail.com>  Fri, 23 Aug 2024 22:11:05 -0600
+
 jool (4.1.12-1) unstable; urgency=medium
 
   * New upstream release
