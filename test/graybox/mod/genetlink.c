@@ -1,8 +1,6 @@
 #include "genetlink.h"
 
-#include <linux/version.h>
 #include "common/graybox-types.h"
-#include "mod/common/linux_version.h"
 
 static struct genl_family *family;
 
@@ -66,7 +64,7 @@ static int respond(struct genl_info *info, int error_code,
 int genl_respond(struct genl_info *info, int error_code)
 {
 	pr_debug("Responding error code %d.\n", error_code);
-	return respond(info, error_code, ATTR_ERROR_STRING, NULL, 0);
+	return respond(info, error_code, 0, NULL, 0);
 }
 
 int genl_respond_attr(struct genl_info *info, int attr_id, void *attr,

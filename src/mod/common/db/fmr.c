@@ -76,7 +76,7 @@ static int fmrt_add6(struct fmr_table *fmrt, struct mapping_rule *fmr)
 	int error;
 
 	addr_offset = offsetof(typeof(*fmr), prefix6.addr);
-	error = rtrie_add(&fmrt->trie6, fmr, addr_offset, fmr->prefix6.len);
+	error = rtrie_add(&fmrt->trie6, fmr, addr_offset, fmr->prefix6.len, true);
 	/* Already validated, therefore critical */
 	WARN(error == -EEXIST, "Prefix %pI6c/%u already exists.",
 			&fmr->prefix6.addr, fmr->prefix6.len);
@@ -90,7 +90,7 @@ static int fmrt_add4(struct fmr_table *fmrt, struct mapping_rule *fmr)
 	int error;
 
 	addr_offset = offsetof(typeof(*fmr), prefix4.addr);
-	error = rtrie_add(&fmrt->trie4, fmr, addr_offset, fmr->prefix4.len);
+	error = rtrie_add(&fmrt->trie4, fmr, addr_offset, fmr->prefix4.len, true);
 	/* Already validated, therefore critical */
 	WARN(error == -EEXIST, "Prefix %pI4/%u already exists.",
 			&fmr->prefix4.addr, fmr->prefix4.len);
@@ -103,7 +103,7 @@ static void __revert_add6(struct fmr_table *fmrt, struct ipv6_prefix *prefix6)
 	struct rtrie_key key = RTRIE_PREFIX_TO_KEY(prefix6);
 	int error;
 
-	error = rtrie_rm(&fmrt->trie6, &key);
+	error = rtrie_rm(&fmrt->trie6, &key, true);
 	/* Already validated, therefore critical */
 	WARN(error, "Got error %d while trying to remove an FMR I just added.",
 			error);
@@ -222,9 +222,9 @@ int fmrt_rm(struct fmr_table *fmrt, struct mapping_rule *rule,
 		goto end;
 	}
 
-	error = rtrie_rm(&fmrt->trie6, &key6);
+	error = rtrie_rm(&fmrt->trie6, &key6, true);
 	WARN(error, "rtrie_rm6: error %d", error);
-	error = rtrie_rm(&fmrt->trie4, &key4);
+	error = rtrie_rm(&fmrt->trie4, &key4, true);
 	WARN(error, "rtrie_rm4: error %d", error);
 	/* Fall through */
 

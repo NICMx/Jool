@@ -95,10 +95,11 @@ int globals_init(struct jool_globals *config, xlator_type type,
 		config->nat64.bib.max_stored_pkts = DEFAULT_MAX_STORED_PKTS;
 
 		config->nat64.joold.enabled = DEFAULT_JOOLD_ENABLED;
-		config->nat64.joold.flush_asap = DEFAULT_JOOLD_FLUSH_ASAP;
+		config->nat64.joold.flush_asap = false;
 		config->nat64.joold.flush_deadline = 1000 * DEFAULT_JOOLD_DEADLINE;
 		config->nat64.joold.capacity = DEFAULT_JOOLD_CAPACITY;
 		config->nat64.joold.max_payload = DEFAULT_JOOLD_MAX_PAYLOAD;
+		config->nat64.joold.max_sessions_per_pkt = DEFAULT_JOOLD_MAX_SESSIONS_PER_PKT;
 		break;
 
 	case XT_MAPT:

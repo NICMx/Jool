@@ -140,6 +140,7 @@ static struct jool_result handle_array(cJSON *json, int attrtype, char *name,
 		return type_mismatch(name, json, "Array");
 
 	msg = NULL;
+	root = NULL;
 	entries_written = 0;
 	for (json = json->child; json; json = json->next) {
 		if (msg == NULL) {

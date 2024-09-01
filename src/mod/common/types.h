@@ -72,6 +72,8 @@ const static verdict VERDICT_STOLEN = &verstolen;
 */
 
 /**
+ * RFC 6146 tuple.
+ *
  * A tuple is sort of a summary of a packet; it is a quick accesor for several
  * of its key elements.
  *
@@ -122,6 +124,18 @@ struct tuple {
 #define icmp6_id src.addr6.l4
 };
 
+/* IPv6 Tuple Printk Pattern */
+#define T6PP TA6PP " -> " TA6PP " [%s]"
+/* IPv6 Tuple Printk Arguments */
+#define T6PA(t) TA6PA((t)->src.addr6), TA6PA((t)->dst.addr6), \
+		l4proto_to_string((t)->l4_proto)
+
+/* IPv4 Tuple Printk Pattern */
+#define T4PP TA4PP " -> " TA4PP " [%s]"
+/* IPv4 Tuple Printk Arguments */
+#define T4PA(t) TA4PA((t)->src.addr4), TA4PA((t)->dst.addr4), \
+		l4proto_to_string((t)->l4_proto)
+
 /**
  * Returns true if @tuple represents a '3-tuple' (address-address-ICMP id), as
  * defined by RFC 6146.
@@ -159,5 +173,18 @@ bool is_icmp4_info(__u8 type);
  */
 bool is_icmp6_error(__u8 type);
 bool is_icmp4_error(__u8 type);
+
+/* Moves all the elements from @src to the tail of @dst. */
+static inline void list_move_all(struct list_head *src, struct list_head *dst)
+{
+	if (list_empty(src))
+		return;
+
+	dst->prev->next = src->next;
+	src->next->prev = dst->prev;
+	dst->prev = src->prev;
+	dst->prev->next = dst;
+	INIT_LIST_HEAD(src);
+}
 
 #endif /* SRC_MOD_COMMON_TYPES_H_ */

@@ -5,7 +5,6 @@
 #include <net/netfilter/ipv6/nf_defrag_ipv6.h>
 
 #include "common/iptables.h"
-#include "mod/common/linux_version.h"
 #include "mod/common/log.h"
 #include "mod/common/kernel_hook.h"
 #include "mod/common/xlator.h"
@@ -32,6 +31,8 @@ static char const *banner = "\n"
 	";   |.'      `--''                      \\   \\####/      '  ,/   \n"
 	"'---'                                    `---`--`       '--'    \n";
 
+#ifndef XTABLES_DISABLED
+
 static int iptables_error;
 
 /** iptables module registration object */
@@ -55,6 +56,8 @@ static struct xt_target targets[] = {
 	},
 };
 
+#endif /* !XTABLES_DISABLED */
+
 static void flush_net(struct net *ns)
 {
 	jool_xlator_flush_net(ns, XT_NAT64);
@@ -73,13 +76,8 @@ static struct pernet_operations joolns_ops = {
 
 static void defrag_enable(struct net *ns)
 {
-#if LINUX_VERSION_AT_LEAST(4, 10, 0, 8, 0)
 	nf_defrag_ipv4_enable(ns);
 	nf_defrag_ipv6_enable(ns);
-#else
-	nf_defrag_ipv4_enable();
-	nf_defrag_ipv6_enable();
-#endif
 }
 
 static int __init nat64_init(void)
@@ -88,24 +86,29 @@ static int __init nat64_init(void)
 
 	pr_debug("%s", banner);
 	pr_debug("Inserting NAT64 Jool...\n");
+
 	/* Careful with the order */
 
 	error = register_pernet_subsys(&joolns_ops);
 	if (error)
 		return error;
 
+#ifndef XTABLES_DISABLED
 	iptables_error = xt_register_targets(targets, ARRAY_SIZE(targets));
 	if (iptables_error) {
 		log_warn("Error code %d while trying to register the iptables targets.\n"
 				"iptables SIIT Jool will not be available.",
 				iptables_error);
 	}
+#endif
 
 	/* NAT64 instances can now function properly; unlock them. */
 	error = jool_nat64_get(defrag_enable);
 	if (error) {
+#ifndef XTABLES_DISABLED
 		if (!iptables_error)
 			xt_unregister_targets(targets, ARRAY_SIZE(targets));
+#endif
 		unregister_pernet_subsys(&joolns_ops);
 		return error;
 	}
@@ -117,8 +120,10 @@ static int __init nat64_init(void)
 static void __exit nat64_exit(void)
 {
 	jool_nat64_put();
+#ifndef XTABLES_DISABLED
 	if (!iptables_error)
 		xt_unregister_targets(targets, ARRAY_SIZE(targets));
+#endif
 	unregister_pernet_subsys(&joolns_ops);
 	pr_info("NAT64 Jool v" JOOL_VERSION_STR " module removed.\n");
 }

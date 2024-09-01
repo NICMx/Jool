@@ -2,6 +2,7 @@
 
 #include "framework/address.h"
 #include "framework/unit_test.h"
+#include "mod/common/rfc6052.h"
 #include "mod/common/db/bib/db.h"
 
 MODULE_LICENSE(JOOL_LICENSE);
@@ -174,7 +175,7 @@ static void clean(void)
 	xlator_put(&jool);
 }
 
-int init_module(void)
+static int bibtable_test_init(void)
 {
 	struct test_group test = {
 		.name = "BIB table",
@@ -190,7 +191,10 @@ int init_module(void)
 	return test_group_end(&test);
 }
 
-void cleanup_module(void)
+static void bibtable_test_exit(void)
 {
 	/* No code. */
 }
+
+module_init(bibtable_test_init);
+module_exit(bibtable_test_exit);

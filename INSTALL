@@ -1,8 +1,8 @@
-See https://jool.mx/en/install.html.
+See https://nicmx.github.io/Jool/en/install.html
 
 Quick version:
 
-	./autogen.sh         # If this script does not exist, skip this command.
+	./autogen.sh         # If this script does not exist, skip it.
 	./configure
 	make
 	sudo make install    # userspace tools

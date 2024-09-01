@@ -1,9 +1,10 @@
 #include "mod/common/nl/nl_common.h"
 
 #include "mod/common/init.h"
-#include "mod/common/xlator.h"
+#include "mod/common/linux_version.h"
 #include "mod/common/nl/attribute.h"
 #include "mod/common/nl/nl_handler.h"
+#include "mod/common/xlator.h"
 
 /*
  * Intent:
@@ -90,7 +91,7 @@ static int validate_version(struct jnl_state *state)
 {
 	__u32 hdr_version = ntohl(jnls_jhdr(state)->version);
 
-	if (xlat_version() == hdr_version)
+	if ((xlat_version() & 0xFFFF0000u) == (hdr_version & 0xFFFF0000u))
 		return 0;
 
 	return jnls_err(state, "Version mismatch. The userspace client's version is %u.%u.%u.%u,\n"
@@ -319,6 +320,7 @@ struct xlator *jnls_xlator(struct jnl_state *state)
 {
 	return state->jool;
 }
+EXPORT_UNIT_SYMBOL(jnls_xlator)
 
 struct sk_buff *jnls_skb(struct jnl_state *state)
 {
@@ -327,7 +329,11 @@ struct sk_buff *jnls_skb(struct jnl_state *state)
 
 struct joolnlhdr *jnls_jhdr(struct jnl_state *state)
 {
+#if LINUX_VERSION_AT_LEAST(6, 6, 0, 9999, 0)
+	return genl_info_userhdr(state->gnlinfo);
+#else
 	return state->gnlinfo->userhdr;
+#endif
 }
 
 void jnls_set_xlator(struct jnl_state *state, struct xlator *jool)
@@ -423,6 +429,7 @@ void __jnls_debug(struct xlator *jool, const char *format, ...)
 	vprintk(format, args);
 	va_end(args);
 }
+EXPORT_UNIT_SYMBOL(__jnls_debug)
 
 int jnls_err(struct jnl_state *state, const char *fmt, ...)
 {
@@ -455,3 +462,4 @@ fallback:
 	va_end(args);
 	return -EINVAL;
 }
+EXPORT_UNIT_SYMBOL(jnls_err)

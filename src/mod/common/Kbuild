@@ -1,5 +1,5 @@
 #CC=cgcc    # More healthy warnings.
-ccflags-y := -I$(src)/../.. $(JOOL_FLAGS)
+ccflags-y := -I$(src)/../..
 
 obj-m += jool_common.o
 

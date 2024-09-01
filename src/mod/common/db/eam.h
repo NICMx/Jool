@@ -3,6 +3,8 @@
 
 #include <linux/kref.h>
 #include <linux/rbtree.h>
+
+#include "common/config.h"
 #include "mod/common/nl/nl_common.h"
 
 struct eam_table;
@@ -25,11 +27,14 @@ bool eamt_is_empty(struct eam_table *eamt);
 
 /* Do-not-use-when-you-can't-sleep-functions */
 
+/* See rtrie.h for info on the "synchronize" flag */
 int eamt_add(struct eam_table *eamt, struct eamt_entry *new, bool force,
-		struct jnl_state *state);
+		bool synchronize, struct jnl_state *state);
 int eamt_rm(struct eam_table *eamt, struct ipv6_prefix *prefix6,
 		struct ipv4_prefix *prefix4, struct jnl_state *state);
 void eamt_flush(struct eam_table *eamt);
+
+int eamt_count(struct eam_table *eamt, __u64 *count); // XXX ?
 
 typedef int (*eamt_foreach_cb)(struct eamt_entry const *, void *);
 int eamt_foreach(struct eam_table *eamt,

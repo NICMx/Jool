@@ -2,6 +2,8 @@
 
 #include <linux/inetdevice.h>
 #include <net/ip6_checksum.h>
+#include <net/tcp.h>
+#include <net/udp.h>
 
 #include "mod/common/ipv6_hdr_iterator.h"
 #include "mod/common/linux_version.h"
@@ -58,6 +60,9 @@ static verdict xlat64_internal_addresses(struct xlation *state)
 	struct bkp_skb_tuple bkp;
 	verdict result;
 
+	if (pkt_is_inner(&state->in))
+		return VERDICT_CONTINUE; /* Called from xlat64_icmp_type() */
+
 	xtype = xlator_get_type(&state->jool);
 	if (xtype == XT_NAT64) {
 		state->flowx.v4.inner_src = state->out.tuple.dst.addr4.l3;
@@ -102,6 +107,7 @@ static verdict xlat64_internal_addresses(struct xlation *state)
 static verdict xlat64_tcp_ports(struct xlation *state)
 {
 	struct flowi4 *flow4;
+	struct packet const *in;
 	struct tcphdr const *hdr;
 
 	flow4 = &state->flowx.v4.flowi;
@@ -112,9 +118,12 @@ static verdict xlat64_tcp_ports(struct xlation *state)
 		break;
 	case XT_SIIT:
 	case XT_MAPT:
-		hdr = pkt_tcp_hdr(&state->in);
-		flow4->fl4_sport = hdr->source;
-		flow4->fl4_dport = hdr->dest;
+		in = &state->in;
+		if (is_first_frag6(pkt_frag_hdr(in))) {
+			hdr = pkt_tcp_hdr(in);
+			flow4->fl4_sport = hdr->source;
+			flow4->fl4_dport = hdr->dest;
+		}
 	}
 
 	return VERDICT_CONTINUE;
@@ -123,6 +132,7 @@ static verdict xlat64_tcp_ports(struct xlation *state)
 static verdict xlat64_udp_ports(struct xlation *state)
 {
 	struct flowi4 *flow4;
+	struct packet const *in;
 	struct udphdr const *udp;
 
 	flow4 = &state->flowx.v4.flowi;
@@ -133,69 +143,69 @@ static verdict xlat64_udp_ports(struct xlation *state)
 		break;
 	case XT_SIIT:
 	case XT_MAPT:
-		udp = pkt_udp_hdr(&state->in);
-		flow4->fl4_sport = udp->source;
-		flow4->fl4_dport = udp->dest;
+		in = &state->in;
+		if (is_first_frag6(pkt_frag_hdr(in))) {
+			udp = pkt_udp_hdr(in);
+			flow4->fl4_sport = udp->source;
+			flow4->fl4_dport = udp->dest;
+		}
 	}
 
 	return VERDICT_CONTINUE;
 }
 
-static verdict xlat64_icmp_type(struct xlation *state)
+static verdict xlat64_icmp_type(__u8 *out_type, __u8 *out_code,
+		struct xlation *state)
 {
-	struct icmp6hdr const *hdr;
-	struct flowi4 *flow4;
+	struct icmp6hdr const *in_hdr = pkt_icmp6_hdr(&state->in);
 
-	hdr = pkt_icmp6_hdr(&state->in);
-	flow4 = &state->flowx.v4.flowi;
-
-	switch (hdr->icmp6_type) {
+	switch (in_hdr->icmp6_type) {
 	case ICMPV6_ECHO_REQUEST:
-		flow4->fl4_icmp_type = ICMP_ECHO;
-		flow4->fl4_icmp_code = 0;
+		*out_type = ICMP_ECHO;
+		*out_code = 0;
 		return VERDICT_CONTINUE;
 
 	case ICMPV6_ECHO_REPLY:
-		flow4->fl4_icmp_type = ICMP_ECHOREPLY;
-		flow4->fl4_icmp_code = 0;
+		*out_type = ICMP_ECHOREPLY;
+		*out_code = 0;
 		return VERDICT_CONTINUE;
 
 	case ICMPV6_DEST_UNREACH:
-		flow4->fl4_icmp_type = ICMP_DEST_UNREACH;
-		switch (hdr->icmp6_code) {
+		*out_type = ICMP_DEST_UNREACH;
+		switch (in_hdr->icmp6_code) {
 		case ICMPV6_NOROUTE:
 		case ICMPV6_NOT_NEIGHBOUR:
 		case ICMPV6_ADDR_UNREACH:
-			flow4->fl4_icmp_code = ICMP_HOST_UNREACH;
+			*out_code = ICMP_HOST_UNREACH;
 			return xlat64_internal_addresses(state);
 		case ICMPV6_ADM_PROHIBITED:
-			flow4->fl4_icmp_code = ICMP_HOST_ANO;
+			*out_code = ICMP_HOST_ANO;
 			return xlat64_internal_addresses(state);
 		case ICMPV6_PORT_UNREACH:
-			flow4->fl4_icmp_code = ICMP_PORT_UNREACH;
+			*out_code = ICMP_PORT_UNREACH;
 			return xlat64_internal_addresses(state);
 		}
 		break;
 
 	case ICMPV6_PKT_TOOBIG:
-		flow4->fl4_icmp_type = ICMP_DEST_UNREACH;
-		flow4->fl4_icmp_code = ICMP_FRAG_NEEDED;
+		*out_type = ICMP_DEST_UNREACH;
+		*out_code = ICMP_FRAG_NEEDED;
 		return xlat64_internal_addresses(state);
 
 	case ICMPV6_TIME_EXCEED:
-		flow4->fl4_icmp_type = ICMP_TIME_EXCEEDED;
-		flow4->fl4_icmp_code = hdr->icmp6_code;
+		*out_type = ICMP_TIME_EXCEEDED;
+		*out_code = in_hdr->icmp6_code;
 		return xlat64_internal_addresses(state);
 
 	case ICMPV6_PARAMPROB:
-		switch (hdr->icmp6_code) {
+		switch (in_hdr->icmp6_code) {
 		case ICMPV6_HDR_FIELD:
-			flow4->fl4_icmp_type = ICMP_PARAMETERPROB;
-			flow4->fl4_icmp_code = 0;
+			*out_type = ICMP_PARAMETERPROB;
+			*out_code = 0;
 			return xlat64_internal_addresses(state);
 		case ICMPV6_UNK_NEXTHDR:
-			flow4->fl4_icmp_type = ICMP_DEST_UNREACH;
-			flow4->fl4_icmp_code = ICMP_PROT_UNREACH;
+			*out_type = ICMP_DEST_UNREACH;
+			*out_code = ICMP_PROT_UNREACH;
 			return xlat64_internal_addresses(state);
 		}
 	}
@@ -206,7 +216,7 @@ static verdict xlat64_icmp_type(struct xlation *state)
 	 * Discover messages (133 - 137).
 	 */
 	log_debug(state, "ICMPv6 messages type %u code %u lack an ICMPv4 counterpart.",
-			hdr->icmp6_type, hdr->icmp6_code);
+			in_hdr->icmp6_type, in_hdr->icmp6_code);
 	return drop(state, JSTAT_UNKNOWN_ICMP6_TYPE);
 }
 
@@ -246,7 +256,8 @@ static verdict compute_flowix64(struct xlation *state)
 	case IPPROTO_UDP:
 		return xlat64_udp_ports(state);
 	case IPPROTO_ICMP:
-		return xlat64_icmp_type(state);
+		return xlat64_icmp_type(&state->flowx.v4.flowi.fl4_icmp_type,
+				&state->flowx.v4.flowi.fl4_icmp_code, state);
 	}
 
 	return VERDICT_CONTINUE;
@@ -399,27 +410,18 @@ static int fragment_exceeds_mtu64(struct packet const *in, unsigned int mtu)
 	int delta;
 
 	/*
-	 * I haven't found a hard definition of what shinfo->gso_size is
-	 * supposed to represent, but my general impression is that it's the
-	 * value the kernel uses (during resegmentation) to remember the length
-	 * of the original segments after GRO. It's the length of the largest
-	 * segment, after stripping the common headers out. (In other words,
-	 * just the L4 payload length.)
+	 * shinfo->gso_size is the value the kernel uses (during resegmentation)
+	 * to remember the length of the original segments after GRO.
 	 *
-	 * I ran into a surprising quirk: If packet A has frag_list fragments B,
-	 * and B have frags fragments C, then A's gso_size also applies to B,
-	 * as well as C.
+	 * Interestingly, if packet A has frag_list fragments B, and B have
+	 * frags fragments C, then A's gso_size also applies to B, as well as C.
 	 *
-	 * I don't know if gso_size is populated if there are frag_list
-	 * fragments but not frags fragments. Luckily, the solution I wrote
-	 * below should handle things correctly either way.
+	 * (Note: Ugh. This comment is old. I don't remember if I checked
+	 * whether B's gso_size was nonzero.)
 	 *
-	 * (One way to observe this madness is to connect two Virtualbox VMs
-	 * and trace iperf traffic.)
-	 *
-	 * I notice that there's also IP6CB(skb)->frag_max_size, which appears
-	 * to be a defrag-only thing, and I've no idea how it relates to
-	 * gso_size.
+	 * I don't know if gso_size can be populated if there are frag_list
+	 * fragments but not frags fragments. Luckily, this code should work
+	 * either way.
 	 *
 	 * See ip_exceeds_mtu() and ip6_pkt_too_big().
 	 */
@@ -437,7 +439,7 @@ static int fragment_exceeds_mtu64(struct packet const *in, unsigned int mtu)
 
 	/*
 	 * TODO (performance) This loop could probably be optimized away by
-	 * querying frag_max_size. You'll have to test it.
+	 * querying IP6CB(skb)->frag_max_size. You'll have to test it.
 	 */
 	mtu -= sizeof(struct iphdr);
 	skb_walk_frags(in->skb, iter)
@@ -454,7 +456,7 @@ static verdict validate_size(struct xlation *state)
 {
 	unsigned int nexthop_mtu;
 
-	if (!state->dst || is_icmp6_error(pkt_icmp6_hdr(&state->in)->icmp6_type))
+	if (!state->dst || pkt_is_icmp6_error(&state->in))
 		return VERDICT_CONTINUE;
 
 	nexthop_mtu = dst_mtu(state->dst);
@@ -487,11 +489,10 @@ static verdict ttp64_alloc_skb(struct xlation *state)
 		goto revert;
 
 	/*
-	 * I'm going to use __pskb_copy() (via pskb_copy()) because I need the
-	 * incoming and outgoing packets to share the same paged data. This is
-	 * not only for the sake of performance (prevents lots of data copying
-	 * and large contiguous skbs in memory) but also because the pages need
-	 * to survive the translation for GSO to work.
+	 * pskb_copy() is more efficient than allocating a new packet, because
+	 * it shares (not copies) the original's paged data with the copy. This
+	 * is great, because we don't need to modify the payload in either
+	 * packet.
 	 *
 	 * Since the IPv4 version of the packet is going to be invariably
 	 * smaller than its IPv6 counterpart, you'd think we should reserve less
@@ -512,12 +513,7 @@ static verdict ttp64_alloc_skb(struct xlation *state)
 		goto revert;
 	}
 
-	/* https://github.com/NICMx/Jool/issues/289 */
-#if LINUX_VERSION_AT_LEAST(5, 4, 0, 9999, 0)
-	nf_reset_ct(out);
-#else
-	nf_reset(out);
-#endif
+	skb_cleanup_copy(out);
 
 	/* Remove outer l3 and l4 headers from the copy. */
 	skb_pull(out, pkt_hdrs_len(in));
@@ -581,30 +577,47 @@ static void generate_ipv4_id(struct xlation const *state, struct iphdr *hdr4,
 	if (hdr_frag) {
 		hdr4->id = cpu_to_be16(be32_to_cpu(hdr_frag->identification));
 	} else {
-#if LINUX_VERSION_AT_LEAST(4, 1, 0, 7, 3)
 		__ip_select_ident(state->jool.ns, hdr4, 1);
-#else
-		__ip_select_ident(hdr4, 1);
-#endif
 	}
 }
 
-/**
- * One-liner for creating the IPv4 header's Dont Fragment flag.
- */
-EXPORT_UNIT_STATIC bool generate_df_flag(struct packet const *out)
+EXPORT_UNIT_STATIC bool generate_df_flag(struct xlation const *state)
 {
-	unsigned int len;
+	struct packet const *in;
+	struct packet const *out;
 
-	len = pkt_is_outer(out)
-			? pkt_len(out)
-			: be16_to_cpu(pkt_ip4_hdr(out)->tot_len);
+	/*
+	 * This is the RFC logic, but it's complicated by frag_list, GRO and
+	 * internal packets.
+	 */
 
-	return len > 1260;
+	in = &state->in;
+	out = &state->out;
+
+	if (pkt_is_inner(out)) {
+		/* Unimportant. Guess: RFC logic. Meh. */
+		return ntohs(pkt_ip4_hdr(out)->tot_len) > 1260;
+	}
+	if (skb_has_frag_list(in->skb)) {
+		/* Clearly fragmented */
+		return false;
+	}
+	if (skb_is_gso(in->skb)) {
+		if (pkt_l4_proto(in) != L4PROTO_TCP) {
+			/* UDP fragmented, ICMP & OTHER undefined */
+			return false;
+		}
+		/* TCP not fragmented */
+		return pkt_hdrs_len(out) + skb_shinfo(in->skb)->gso_size > 1260;
+	}
+
+	/* Not fragmented */
+	return out->skb->len > 1260;
 }
 EXPORT_UNIT_SYMBOL(generate_df_flag)
 
-static __be16 xlat_frag_off(struct frag_hdr const *hdr_frag, struct packet const *out)
+static __be16 xlat_frag_off(struct frag_hdr const *hdr_frag,
+		struct xlation const *state)
 {
 	bool df;
 	__u16 mf;
@@ -615,7 +628,7 @@ static __be16 xlat_frag_off(struct frag_hdr const *hdr_frag, struct packet const
 		mf = is_mf_set_ipv6(hdr_frag);
 		frag_offset = get_fragment_offset_ipv6(hdr_frag);
 	} else {
-		df = generate_df_flag(out);
+		df = generate_df_flag(state);
 		mf = 0;
 		frag_offset = 0;
 	}
@@ -680,7 +693,7 @@ static verdict ttp64_ipv4_external(struct xlation *state)
 	hdr4->tos = flow4->flowi4_tos;
 	hdr4->tot_len = cpu_to_be16(state->out.skb->len);
 	generate_ipv4_id(state, hdr4, hdr_frag);
-	hdr4->frag_off = xlat_frag_off(hdr_frag, &state->out);
+	hdr4->frag_off = xlat_frag_off(hdr_frag, state);
 
 	if (!state->is_hairpin_2) {
 		if (hdr6->hop_limit <= 1) {
@@ -719,7 +732,7 @@ static verdict ttp64_ipv4_internal(struct xlation *state)
 	hdr4->tot_len = cpu_to_be16(get_tot_len_ipv6(in->skb) - pkt_hdrs_len(in)
 			+ pkt_hdrs_len(out));
 	generate_ipv4_id(state, hdr4, hdr_frag);
-	hdr4->frag_off = xlat_frag_off(hdr_frag, out);
+	hdr4->frag_off = xlat_frag_off(hdr_frag, state);
 	hdr4->ttl = hdr6->hop_limit;
 	hdr4->protocol = xlat_proto(hdr6);
 	hdr4->saddr = state->flowx.v4.inner_src.s_addr;
@@ -1035,8 +1048,15 @@ static verdict ttp64_icmp(struct xlation *state)
 	struct icmphdr *icmpv4_hdr = pkt_icmp4_hdr(&state->out);
 	verdict result;
 
-	icmpv4_hdr->type = state->flowx.v4.flowi.fl4_icmp_type;
-	icmpv4_hdr->code = state->flowx.v4.flowi.fl4_icmp_code;
+	if (pkt_is_outer(&state->in)) {
+		icmpv4_hdr->type = state->flowx.v4.flowi.fl4_icmp_type;
+		icmpv4_hdr->code = state->flowx.v4.flowi.fl4_icmp_code;
+	} else {
+		result = xlat64_icmp_type(&icmpv4_hdr->type, &icmpv4_hdr->code,
+				state);
+		if (result != VERDICT_CONTINUE)
+			return result;
+	}
 	icmpv4_hdr->checksum = icmpv6_hdr->icmp6_cksum; /* default. */
 
 	switch (icmpv6_hdr->icmp6_type) {
@@ -1121,24 +1141,15 @@ static __sum16 update_csum_6to4(__sum16 csum16,
 	 * Do the same with proto since we're feeling ballsy.
 	 */
 
-	/* Remove the IPv6 crap. */
+	/* Remove the IPv6 stuff. */
 	csum = csum_sub(csum, pseudohdr6_csum(in_ip6));
 	csum = csum_sub(csum, csum_partial(in_l4_hdr, in_l4_hdr_len, 0));
 
-	/* Add the IPv4 crap. */
+	/* Add the IPv4 stuff. */
 	csum = csum_add(csum, pseudohdr4_csum(out_ip4));
 	csum = csum_add(csum, csum_partial(out_l4_hdr, out_l4_hdr_len, 0));
 
 	return csum_fold(csum);
-}
-
-static __sum16 update_csum_6to4_partial(__sum16 csum16, struct ipv6hdr const *in_ip6,
-		struct iphdr *out_ip4)
-{
-	__wsum csum = csum_unfold(csum16);
-	csum = csum_sub(csum, pseudohdr6_csum(in_ip6));
-	csum = csum_add(csum, pseudohdr4_csum(out_ip4));
-	return ~csum_fold(csum);
 }
 
 static verdict ttp64_tcp(struct xlation *state)
@@ -1166,9 +1177,11 @@ static verdict ttp64_tcp(struct xlation *state)
 				pkt_ip6_hdr(in), &tcp_copy, sizeof(tcp_copy),
 				pkt_ip4_hdr(out), tcp_out, sizeof(*tcp_out));
 		out->skb->ip_summed = CHECKSUM_NONE;
+
 	} else {
-		tcp_out->check = update_csum_6to4_partial(tcp_in->check,
-				pkt_ip6_hdr(in), pkt_ip4_hdr(out));
+		tcp_out->check = ~tcp_v4_check(pkt_datagram_len(out),
+				pkt_ip4_hdr(out)->saddr,
+				pkt_ip4_hdr(out)->daddr, 0);
 		partialize_skb(out->skb, offsetof(struct tcphdr, check));
 	}
 
@@ -1202,9 +1215,11 @@ static verdict ttp64_udp(struct xlation *state)
 		if (udp_out->check == 0)
 			udp_out->check = CSUM_MANGLED_0;
 		out->skb->ip_summed = CHECKSUM_NONE;
+
 	} else {
-		udp_out->check = update_csum_6to4_partial(udp_in->check,
-				pkt_ip6_hdr(in), pkt_ip4_hdr(out));
+		udp_out->check = ~udp_v4_check(pkt_datagram_len(out),
+				pkt_ip4_hdr(out)->saddr,
+				pkt_ip4_hdr(out)->daddr, 0);
 		partialize_skb(out->skb, offsetof(struct udphdr, check));
 	}
 

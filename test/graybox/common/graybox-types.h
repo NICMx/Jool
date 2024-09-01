@@ -19,7 +19,6 @@ enum graybox_attribute {
 
 	/* Response fields */
 	ATTR_ERROR_CODE,
-	ATTR_ERROR_STRING,
 	ATTR_STATS,
 
 	__ATTR_MAX,

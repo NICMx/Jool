@@ -18,14 +18,20 @@ libjoolargp_la_SOURCES = \
 	wargp/file.c wargp/file.h \
 	wargp/global.c wargp/global.h \
 	wargp/instance.c wargp/instance.h \
-	wargp/joold.c wargp/joold.h \
 	wargp/pool4.c wargp/pool4.h \
 	wargp/session.c wargp/session.h \
-	wargp/stats.c wargp/stats.h
+	wargp/stats.c wargp/stats.h \
+	\
+	joold/modsocket.c joold/modsocket.h \
+	joold/netsocket.c joold/netsocket.h \
+	joold/statsocket.c joold/statsocket.h
 
 libjoolargp_la_CFLAGS  = ${WARNINGCFLAGS}
 libjoolargp_la_CFLAGS += -I${top_srcdir}/src
 libjoolargp_la_CFLAGS += ${LIBNLGENL3_CFLAGS}
+if !XTABLES_ENABLED
+libjoolargp_la_CFLAGS += -DXTABLES_DISABLED
+endif
 
 libjoolargp_la_LIBADD  = ../util/libjoolutil.la
 libjoolargp_la_LIBADD += ../nl/libjoolnl.la

@@ -1,6 +1,5 @@
 #include "mod/common/packet.h"
 
-#include <linux/version.h>
 #include <linux/icmp.h>
 #include <net/route.h>
 #include "common/types.h"
@@ -17,11 +16,13 @@
  */
 struct pkt_metadata {
 	/*
+	 * "Offset of the Fragment Header."
+	 *
 	 * Offset is from skb->data. Zero if there's no fragment header.
-	 * Note: The fact that a packet has a fragment header does not imply
-	 * that it is fragmented.
+	 * Note, having a fragment header does not imply that the packet is
+	 * fragmented.
 	 */
-	unsigned int frag_offset;
+	unsigned int fhdr_offset;
 	/* Actual packet protocol; not tuple protocol. */
 	enum l4_protocol l4_proto;
 	/* Offset is from skb->data. */
@@ -161,7 +162,7 @@ static verdict summarize_skb6(struct xlation *state,
 	nexthdr = *ptr.nexthdr;
 	offset = hdr6_offset + sizeof(struct ipv6hdr);
 
-	meta->frag_offset = 0;
+	meta->fhdr_offset = 0;
 
 	do {
 		switch (nexthdr) {
@@ -196,11 +197,16 @@ static verdict summarize_skb6(struct xlation *state,
 			return VERDICT_CONTINUE;
 
 		case NEXTHDR_FRAGMENT:
+			if (meta->fhdr_offset) {
+				log_debug(state, "Double fragment header.");
+				return drop(state, JSTAT64_2XFRAG);
+			}
+
 			ptr.frag = skb_hdr_ptr(skb, offset, buffer.frag);
 			if (!ptr.frag)
 				return truncated(state, "fragment header");
 
-			meta->frag_offset = offset;
+			meta->fhdr_offset = offset;
 			is_first = is_first_frag6(ptr.frag);
 
 			offset += sizeof(struct frag_hdr);
@@ -210,7 +216,7 @@ static verdict summarize_skb6(struct xlation *state,
 		case NEXTHDR_HOP:
 		case NEXTHDR_ROUTING:
 		case NEXTHDR_DEST:
-			if (meta->frag_offset) {
+			if (meta->fhdr_offset) {
 				log_debug(state, "There's a known extension header (%u) after Fragment.",
 						nexthdr);
 				return drop_icmp(state, JSTAT64_FRAG_THEN_EXT,
@@ -264,8 +270,8 @@ static verdict validate_inner6(struct xlation *state,
 	if (result != VERDICT_CONTINUE)
 		return result;
 
-	if (meta.frag_offset) {
-		ptr.frag = skb_hdr_ptr(state->in.skb, meta.frag_offset,
+	if (meta.fhdr_offset) {
+		ptr.frag = skb_hdr_ptr(state->in.skb, meta.fhdr_offset,
 				buffer.frag);
 		if (!ptr.frag)
 			return truncated(state, "inner fragment header");
@@ -300,31 +306,26 @@ static verdict handle_icmp6(struct xlation *state, struct pkt_metadata const *me
 		struct icmp6hdr *icmp;
 		struct frag_hdr *frag;
 	} ptr;
-	verdict result;
+
+	/* See handle_icmp4() comment */
+	if (meta->fhdr_offset) {
+		ptr.frag = skb_hdr_ptr(state->in.skb, meta->fhdr_offset,
+				buffer.frag);
+		if (!ptr.frag)
+			return truncated(state, "fragment header");
+		if (is_fragmented_ipv6(ptr.frag)) {
+			log_debug(state, "Packet is fragmented and ICMP; ICMP checksum cannot be translated.");
+			return drop(state, JSTAT64_FRAGMENTED_ICMP);
+		}
+	}
 
 	ptr.icmp = skb_hdr_ptr(state->in.skb, meta->l4_offset, buffer.icmp);
 	if (!ptr.icmp)
 		return truncated(state, "ICMPv6 header");
 
-	if (has_inner_pkt6(ptr.icmp->icmp6_type)) {
-		result = validate_inner6(state, meta);
-		if (result != VERDICT_CONTINUE)
-			return result;
-	}
-
-	if (!xlation_has_defrag(state)
-			&& meta->frag_offset
-			&& is_icmp6_info(ptr.icmp->icmp6_type)) {
-		ptr.frag = skb_hdr_ptr(state->in.skb, meta->frag_offset, buffer.frag);
-		if (!ptr.frag)
-			return truncated(state, "fragment header");
-		if (is_fragmented_ipv6(ptr.frag)) {
-			log_debug(state, "Packet is a fragmented ping; its checksum cannot be translated.");
-			return drop(state, JSTAT_FRAGMENTED_PING);
-		}
-	}
-
-	return VERDICT_CONTINUE;
+	return has_inner_pkt6(ptr.icmp->icmp6_type)
+			? validate_inner6(state, meta)
+			: VERDICT_CONTINUE;
 }
 
 verdict pkt_init_ipv6(struct xlation *state, struct sk_buff *skb)
@@ -372,7 +373,7 @@ verdict pkt_init_ipv6(struct xlation *state, struct sk_buff *skb)
 	state->in.l3_proto = L3PROTO_IPV6;
 	state->in.l4_proto = meta.l4_proto;
 	state->in.is_inner = 0;
-	state->in.frag_offset = meta.frag_offset;
+	state->in.frag_offset = meta.fhdr_offset;
 	skb_set_transport_header(skb, meta.l4_offset);
 	state->in.payload_offset = meta.payload_offset;
 	state->in.original_pkt = &state->in;
@@ -434,26 +435,33 @@ static verdict validate_inner4(struct xlation *state, struct pkt_metadata *meta)
 static verdict handle_icmp4(struct xlation *state, struct pkt_metadata *meta)
 {
 	struct icmphdr buffer, *ptr;
-	verdict result;
+
+	/*
+	 * If fragmented:
+	 * 	If NAT64:
+	 * 		Impossible (because nf_defrag_ipv4)
+	 * 	Else (ie. SIIT):
+	 * 		If ICMP error:
+	 * 			Drop (because illegal)
+	 * 		Else (ie. ICMP info):
+	 * 			Drop (because csum cannot be translated)
+	 *
+	 * In short: Don't ever allow fragmented ICMP.
+	 * (Which doesn't mean fragmented ICMP will never be translated;
+	 * nf_defrag_ipv4 will trump this if.)
+	 */
+	if (is_fragmented_ipv4(pkt_ip4_hdr(&state->in))) {
+		log_debug(state, "Packet is fragmented and ICMP; ICMP checksum cannot be translated.");
+		return drop(state, JSTAT46_FRAGMENTED_ICMP);
+	}
 
 	ptr = skb_hdr_ptr(state->in.skb, meta->l4_offset, buffer);
 	if (!ptr)
 		return truncated(state, "ICMP header");
 
-	if (has_inner_pkt4(ptr->type)) {
-		result = validate_inner4(state, meta);
-		if (result != VERDICT_CONTINUE)
-			return result;
-	}
-
-	if (!xlation_has_defrag(state)
-			&& is_icmp4_info(ptr->type)
-			&& is_fragmented_ipv4(ip_hdr(state->in.skb))) {
-		log_debug(state, "Packet is a fragmented ping; its checksum cannot be translated.");
-		return drop(state, JSTAT_FRAGMENTED_PING);
-	}
-
-	return VERDICT_CONTINUE;
+	return has_inner_pkt4(ptr->type)
+			? validate_inner4(state, meta)
+			: VERDICT_CONTINUE;
 }
 
 static verdict summarize_skb4(struct xlation *state, struct pkt_metadata *meta)
@@ -464,7 +472,7 @@ static verdict summarize_skb4(struct xlation *state, struct pkt_metadata *meta)
 	hdr4 = ip_hdr(state->in.skb);
 	offset = skb_network_offset(state->in.skb) + (hdr4->ihl << 2);
 
-	meta->frag_offset = 0;
+	meta->fhdr_offset = 0;
 	meta->l4_offset = offset;
 	meta->payload_offset = offset;
 
@@ -567,66 +575,4 @@ unsigned char *jskb_pull(struct sk_buff *skb, unsigned int len)
 	WARN(!result, "Bug: We tried to pull %u bytes out of a %u-length skb.",
 			len, skb->len);
 	return result;
-}
-
-#define SIMPLE_MIN(a, b) ((a < b) ? a : b)
-
-void snapshot_record(struct pkt_snapshot *shot, struct sk_buff *skb)
-{
-	struct skb_shared_info *shinfo = skb_shinfo(skb);
-	unsigned int limit;
-	unsigned int i;
-
-	shot->len = skb->len;
-	shot->data_len = skb->data_len;
-	shot->nr_frags = shinfo->nr_frags;
-
-	limit = SIMPLE_MIN(SNAPSHOT_FRAGS_SIZE, shot->nr_frags);
-	for (i = 0; i < limit; i++)
-		shot->frags[i] = skb_frag_size(&shinfo->frags[i]);
-
-	/*
-	 * Ok so I only have room for SNAPSHOT_FRAGS_SIZE page sizes, unless I
-	 * allocate. I don't want to allocate because that's an additional fail
-	 * opportunity and I want this to be as unintrusive as possible.
-	 *
-	 * First of all, since PAGE_SIZE is 4k in my VM, and the typical
-	 * Internet MTU is 1500 max, I don't think the packet is going
-	 * to have more than one page.
-	 *
-	 * (Unless IP fragments are being treated as pages, but I don't think
-	 * that's the case here because the crashing packet was an ICMP error,
-	 * and defrag discards fragmented ICMP errors on reception because they
-	 * are BS.)
-	 *
-	 * Second, even if we get multiple pages, I don't see why would they
-	 * have different sizes. Except for the last one, that is.
-	 *
-	 * (Unless the crashing pages were IP fragments. Again, I don't think
-	 * this is the case.)
-	 *
-	 * Therefore, if the packet has more than SNAPSHOT_FRAGS_SIZE pages,
-	 * I'm going to risk it and override the last slottable page size with
-	 * the most interesting one. (The last one.)
-	 *
-	 * Consider that when you're reading the output.
-	 */
-	if (shot->nr_frags > SNAPSHOT_FRAGS_SIZE) {
-		shot->frags[SNAPSHOT_FRAGS_SIZE - 1]
-			    = skb_frag_size(&shinfo->frags[shot->nr_frags - 1]);
-	}
-}
-
-void snapshot_report(struct pkt_snapshot *shot, char *prefix)
-{
-	unsigned int limit;
-	unsigned int i;
-
-	pr_err("%s len: %u\n", prefix, shot->len);
-	pr_err("%s data_len: %u\n", prefix, shot->data_len);
-	pr_err("%s nr_frags: %u\n", prefix, shot->nr_frags);
-
-	limit = SIMPLE_MIN(SNAPSHOT_FRAGS_SIZE, shot->nr_frags);
-	for (i = 0; i < limit; i++)
-		pr_err("    %s frag %u: %u\n", prefix, i, shot->frags[i]);
 }

@@ -9,9 +9,9 @@
 #include "mod/common/atomic_config.h"
 #include "mod/common/joold.h"
 #include "mod/common/kernel_hook.h"
-#include "mod/common/linux_version.h"
 #include "mod/common/log.h"
 #include "mod/common/rcu.h"
+#include "mod/common/compat_32_64.h"
 #include "mod/common/wkmalloc.h"
 #include "mod/common/db/denylist4.h"
 #include "mod/common/db/eam.h"
@@ -54,10 +54,8 @@ struct jool_instance {
 	u32 hash;
 
 	struct list_head list_hook;
-#if LINUX_VERSION_AT_LEAST(4, 13, 0, 8, 0)
 	/**
-	 * This points to a 2-sized array for nf_register_net_hooks().
-	 * The 2 is currently hardcoded in code below.
+	 * This points to a copy of the netfilter_hooks array.
 	 *
 	 * It needs to be a pointer to an array and not an array because the
 	 * ops needs to survive atomic configuration; the jool_instance needs to
@@ -66,7 +64,6 @@ struct jool_instance {
 	 * This is only set if @jool.flags matches FW_NETFILTER.
 	 */
 	struct nf_hook_ops *nf_ops;
-#endif
 };
 
 static DEFINE_HASHTABLE(instances, 6); /* The identifier is (ns, xt, iname). */
@@ -118,15 +115,14 @@ static struct jool_instance *find_instance(struct net *ns, xlator_type xt,
 
 static void destroy_jool_instance(struct jool_instance *instance, bool unhook)
 {
-#if LINUX_VERSION_AT_LEAST(4, 13, 0, 8, 0)
 	if (xlator_is_netfilter(&instance->jool)) {
 		if (unhook) {
 			nf_unregister_net_hooks(instance->jool.ns,
-					instance->nf_ops, 2);
+					instance->nf_ops,
+					ARRAY_SIZE(netfilter_hooks));
 		}
 		__wkfree("nf_hook_ops", instance->nf_ops);
 	}
-#endif
 
 	xlator_put(&instance->jool);
 	log_info("Deleted instance '%s'.", instance->jool.iname);
@@ -237,23 +233,12 @@ EXPORT_SYMBOL_GPL(jool_xlator_flush_batch);
 int xlator_setup(void)
 {
 	struct list_head *list;
-#if LINUX_VERSION_LOWER_THAN(4, 13, 0, 8, 0)
-	int error;
-#endif
 
 	list = __wkmalloc("xlator DB", sizeof(struct list_head), GFP_KERNEL);
 	if (!list)
 		return -ENOMEM;
 	INIT_LIST_HEAD(list);
 	RCU_INIT_POINTER(netfilter_instances, list);
-
-#if LINUX_VERSION_LOWER_THAN(4, 13, 0, 8, 0)
-	error = nf_register_hooks(netfilter_hooks, ARRAY_SIZE(netfilter_hooks));
-	if (error) {
-		__wkfree("xlator DB", list);
-		return error;
-	}
-#endif
 
 	return 0;
 }
@@ -271,10 +256,6 @@ EXPORT_UNIT_SYMBOL(xlator_set_defrag)
 void xlator_teardown(void)
 {
 	struct list_head *ni;
-
-#if LINUX_VERSION_LOWER_THAN(4, 13, 0, 8, 0)
-	nf_unregister_hooks(netfilter_hooks, ARRAY_SIZE(netfilter_hooks));
-#endif
 
 	WARN(!hash_empty(instances), "There are elements in the xlator table after a cleanup.");
 	ni = rcu_dereference_raw(netfilter_instances);
@@ -309,7 +290,7 @@ static int init_nat64(struct xlator *jool)
 	jool->nat64.bib = bib_alloc();
 	if (!jool->nat64.bib)
 		goto bib_fail;
-	jool->nat64.joold = joold_alloc(jool->ns);
+	jool->nat64.joold = joold_alloc();
 	if (!jool->nat64.joold)
 		goto joold_fail;
 
@@ -493,12 +474,12 @@ static int __xlator_add(struct jool_instance *new, struct xlator *result)
 {
 	struct list_head *list;
 
-#if LINUX_VERSION_AT_LEAST(4, 13, 0, 8, 0)
 	if (xlator_is_netfilter(&new->jool)) {
 		struct nf_hook_ops *ops;
 		int error;
 
-		ops = __wkmalloc("nf_hook_ops", 2 * sizeof(struct nf_hook_ops),
+		ops = __wkmalloc("nf_hook_ops",
+				ARRAY_SIZE(netfilter_hooks) * sizeof(struct nf_hook_ops),
 				GFP_KERNEL);
 		if (!ops)
 			return -ENOMEM;
@@ -507,7 +488,8 @@ static int __xlator_add(struct jool_instance *new, struct xlator *result)
 
 		memcpy(ops, netfilter_hooks, sizeof(netfilter_hooks));
 
-		error = nf_register_net_hooks(new->jool.ns, ops, 2);
+		error = nf_register_net_hooks(new->jool.ns, ops,
+				ARRAY_SIZE(netfilter_hooks));
 		if (error) {
 			__wkfree("nf_hook_ops", ops);
 			return error;
@@ -515,7 +497,6 @@ static int __xlator_add(struct jool_instance *new, struct xlator *result)
 
 		new->nf_ops = ops;
 	}
-#endif
 
 	hash_add_rcu(instances, &new->table_hook, get_instance_hash(new));
 	if (new->jool.flags & XF_NETFILTER) {
@@ -576,9 +557,7 @@ int xlator_add(xlator_flags flags, char *iname, struct jool_globals *globals,
 	}
 	instance->hash_set = false;
 	instance->hash = 0;
-#if LINUX_VERSION_AT_LEAST(4, 13, 0, 8, 0)
 	instance->nf_ops = NULL;
-#endif
 
 	/* Error roads from now no longer need to free @instance. */
 	/* Error roads from now need to properly destroy @instance. */
@@ -671,6 +650,44 @@ int xlator_rm(xlator_type xt, char *iname, struct jnl_state *state)
 }
 EXPORT_UNIT_SYMBOL(xlator_rm)
 
+struct check_bib_arg {
+	struct xlator *jool;
+	struct bib_entry badbib;
+};
+
+static int check_bib(struct bib_entry const *bib, void *_arg)
+{
+	struct check_bib_arg *arg = _arg;
+
+	if (!pool4db_contains(arg->jool->nat64.pool4, arg->jool->ns,
+			bib->l4_proto, &bib->addr4)) {
+		arg->badbib = *bib;
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static int basic_replace_validations(struct xlator *jool, struct jnl_state *state)
+{
+	struct check_bib_arg arg;
+
+	if (!xlator_is_nat64(jool))
+		return 0;
+
+	arg.jool = jool;
+	if (bib_foreach(jool->nat64.bib, L4PROTO_TCP, check_bib, &arg, NULL) ||
+	    bib_foreach(jool->nat64.bib, L4PROTO_UDP, check_bib, &arg, NULL) ||
+	    bib_foreach(jool->nat64.bib, L4PROTO_ICMP, check_bib, &arg, NULL))
+		return jnls_err(state, "%s BIB transport address '" TA4PP
+				"' does not belong to pool4.\n"
+				"Please add it there first.",
+				l4proto_to_string(arg.badbib.l4_proto),
+				TA4PA(arg.badbib.addr4));
+
+	return 0;
+}
+
 int xlator_replace(struct xlator *jool, struct jnl_state *state)
 {
 	struct jool_instance *old;
@@ -682,6 +699,9 @@ int xlator_replace(struct xlator *jool, struct jnl_state *state)
 			state);
 	if (error)
 		return error;
+	error = basic_replace_validations(jool, state);
+	if (error)
+		return error;
 
 	new = wkmalloc(struct jool_instance, GFP_KERNEL);
 	if (!new)
@@ -689,9 +709,7 @@ int xlator_replace(struct xlator *jool, struct jnl_state *state)
 	memcpy(&new->jool, jool, sizeof(*jool));
 	xlator_get(&new->jool);
 	new->hash_set = false;
-#if LINUX_VERSION_AT_LEAST(4, 13, 0, 8, 0)
 	new->nf_ops = NULL;
-#endif
 
 	mutex_lock(&lock);
 
@@ -719,9 +737,8 @@ int xlator_replace(struct xlator *jool, struct jnl_state *state)
 
 	new->hash_set = old->hash_set;
 	new->hash = old->hash;
-#if LINUX_VERSION_AT_LEAST(4, 13, 0, 8, 0)
 	new->nf_ops = old->nf_ops;
-#endif
+
 	/*
 	 * The old BIB and joold must survive,
 	 * because they shouldn't be reset by atomic configuration.
@@ -745,9 +762,8 @@ int xlator_replace(struct xlator *jool, struct jnl_state *state)
 
 	synchronize_rcu_bh();
 
-#if LINUX_VERSION_AT_LEAST(4, 13, 0, 8, 0)
 	old->nf_ops = NULL;
-#endif
+
 	if (xlator_is_nat64(&old->jool)) {
 		old->jool.nat64.bib = NULL;
 		old->jool.nat64.joold = NULL;
@@ -926,7 +942,7 @@ EXPORT_UNIT_SYMBOL(xlator_put)
 static bool offset_equals(struct instance_entry_usr *offset,
 		struct jool_instance *instance)
 {
-	return (offset->ns == ((__u64)instance->jool.ns & 0xFFFFFFFF))
+	return (offset->ns == ((PTR_AS_UINT_TYPE)instance->jool.ns & 0xFFFFFFFF))
 			&& (strcmp(offset->iname, instance->jool.iname) == 0);
 }
 

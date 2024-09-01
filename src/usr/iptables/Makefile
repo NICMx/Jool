@@ -39,7 +39,7 @@ lib%.so: lib%.o
 	${CC} -shared -fPIC ${LDFLAGS} -o $@ $^;
 lib%.o: lib%.c
 	${CC} ${DEFAULT_CFLAGS} ${CPPFLAGS} ${CFLAGS} -D_INIT=lib$*_init -fPIC -c -o $@ $<;
-clean distclean:
+clean distclean maintainer-clean:
 	rm -f *.so
 distdir:
 	mkdir -p ${distdir}

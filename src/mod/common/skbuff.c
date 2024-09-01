@@ -109,9 +109,9 @@ static void print_skb_fields(struct sk_buff *skb, unsigned int tabs)
 	print(tabs, "network_header:%u", skb->network_header);
 	print(tabs, "mac_header:%u", skb->mac_header);
 	print(tabs, "head:%p", skb->head);
-	print(tabs, "data:%ld", skb->data - skb->head);
-	print(tabs, "tail:%u", skb->tail);
-	print(tabs, "end:%u", skb->end);
+	print(tabs, "data:%u", (unsigned int)(skb->data - skb->head));
+	print(tabs, "tail:%u", (unsigned int)(skb->tail));
+	print(tabs, "end:%u", (unsigned int)(skb->end));
 }
 
 static int truncated(unsigned int tabs)
@@ -466,7 +466,7 @@ static void print_shinfo_fields(struct sk_buff *skb, unsigned int tabs)
 	tabs++;
 	for (f = 0; f < shinfo->nr_frags; f++) {
 		print(tabs, "%u page_offset:%u size:%u", f,
-#if LINUX_VERSION_AT_LEAST(5, 4, 0, 9999, 0)
+#if LINUX_VERSION_AT_LEAST(5, 4, 0, 9, 0)
 				skb_frag_off(&shinfo->frags[f]),
 #else
 				shinfo->frags[f].page_offset,

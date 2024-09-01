@@ -3,6 +3,7 @@
 
 #include "framework/unit_test.h"
 #include "common/constants.h"
+#include "mod/common/rfc6052.h"
 #include "mod/common/db/bib/db.h"
 
 MODULE_LICENSE(JOOL_LICENSE);
@@ -280,7 +281,7 @@ static void clean(void)
 	xlator_put(&jool);
 }
 
-int init_module(void)
+static int sessiondb_test_init(void)
 {
 	struct test_group test = {
 		.name = "Session",
@@ -296,7 +297,10 @@ int init_module(void)
 	return test_group_end(&test);
 }
 
-void cleanup_module(void)
+static void sessiondb_test_exit(void)
 {
 	/* No code. */
 }
+
+module_init(sessiondb_test_init);
+module_exit(sessiondb_test_exit);

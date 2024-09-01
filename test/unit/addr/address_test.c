@@ -1,6 +1,5 @@
 #include <linux/module.h>
 #include <linux/printk.h>
-
 #include "framework/address.h"
 #include "framework/unit_test.h"
 
@@ -174,7 +173,7 @@ static bool addr6_copy_bits_test(void)
 	return success;
 }
 
-int init_module(void)
+static int address_test_init(void)
 {
 	struct test_group test = {
 		.name = "Addr",
@@ -190,7 +189,10 @@ int init_module(void)
 	return test_group_end(&test);
 }
 
-void cleanup_module(void)
+static void address_test_exit(void)
 {
 	/* No code. */
 }
+
+module_init(address_test_init);
+module_exit(address_test_exit);

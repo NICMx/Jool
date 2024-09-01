@@ -1,7 +1,5 @@
 #include <linux/module.h>
 #include <linux/slab.h>
-
-#include "mod/common/linux_version.h"
 #include <linux/rbtree_augmented.h>
 
 #include "framework/unit_test.h"
@@ -117,110 +115,7 @@ static bool test_add_and_remove(void)
 	return success;
 }
 
-struct foreach_arg {
-	int expected[16];
-	int iteration;
-	int success;
-};
-
-static void cb(struct rb_node *node, void *void_arg)
-{
-	struct node_thing *thing;
-	struct foreach_arg *arg = void_arg;
-
-	if (!arg->success)
-		return;
-
-	arg->success = ASSERT_BOOL(true, arg->iteration < 16, "iteration count");
-	if (!arg->success)
-		return;
-
-	thing = rb_entry(node, struct node_thing, hook);
-	arg->success = ASSERT_INT(arg->expected[arg->iteration], thing->i,
-			"iteration %u", arg->iteration);
-
-	arg->iteration++;
-}
-
-static struct node_thing fnodes[16];
-
-static void define_node(int node, int parent, int left, int right)
-{
-	if (parent != -1)
-		rb_set_parent(&fnodes[node].hook, &fnodes[parent].hook);
-	if (left != -1)
-		fnodes[node].hook.rb_left = &fnodes[left].hook;
-	if (right != -1)
-		fnodes[node].hook.rb_right = &fnodes[right].hook;
-}
-
-static bool test_foreach(void)
-{
-	struct rb_root root = RB_ROOT;
-	struct foreach_arg arg;
-	unsigned int i;
-
-	/*
-	 *          4
-	 *        +-+-------+
-	 *        3         8
-	 *  +-----+       +-+-------+
-	 *  0             7         c
-	 *  +-+         +-+     +---+---+
-	 *    1         6       a       e
-	 *    +-+     +-+     +-+-+   +-+-+
-	 *      2     5       9   b   d   f
-	 *
-	 * Hopefully that's all the combinations plus some noise.
-	 */
-
-	memset(&fnodes, 0, sizeof(fnodes));
-	for (i = 0; i < ARRAY_SIZE(fnodes); i++)
-		fnodes[i].i = i;
-
-	/* I don't use rbtree_add() because it autobalances. */
-	root.rb_node = &fnodes[4].hook;
-	define_node(0, 3, -1, 1);
-	define_node(1, 0, -1, 2);
-	define_node(2, 1, -1, -1);
-	define_node(3, 4, 0, -1);
-	define_node(4, -1, 3, 8);
-	define_node(5, 6, -1, -1);
-	define_node(6, 7, 5, -1);
-	define_node(7, 8, 6, -1);
-	define_node(8, 4, 7, 12);
-	define_node(9, 10, -1, -1);
-	define_node(10, 12, 9, 11);
-	define_node(11, 10, -1, -1);
-	define_node(12, 8, 10, 14);
-	define_node(13, 14, -1, -1);
-	define_node(14, 12, 13, 15);
-	define_node(15, 14, -1, -1);
-
-	arg.expected[0] = 2;
-	arg.expected[1] = 1;
-	arg.expected[2] = 0;
-	arg.expected[3] = 3;
-	arg.expected[4] = 5;
-	arg.expected[5] = 6;
-	arg.expected[6] = 7;
-	arg.expected[7] = 9;
-	arg.expected[8] = 0xb;
-	arg.expected[9] = 0xa;
-	arg.expected[10] = 0xd;
-	arg.expected[11] = 0xf;
-	arg.expected[12] = 0xe;
-	arg.expected[13] = 0xc;
-	arg.expected[14] = 8;
-	arg.expected[15] = 4;
-	arg.iteration = 0;
-	arg.success = true;
-	rbtree_foreach(&root, cb, &arg);
-
-	return arg.success;
-}
-
-int init_module(void)
+static int rbtree_test_init(void)
 {
 	struct test_group test = {
 		.name = "RB Tree",
@@ -230,7 +125,6 @@ int init_module(void)
 		return -EINVAL;
 
 	test_group_test(&test, test_add_and_remove, "Add/Remove Test");
-	test_group_test(&test, test_foreach, "Foreach Test");
 	/*
 	 * I'm lazy. The BIB and session modules already test the get functions
 	 * and whatnot.
@@ -239,7 +133,10 @@ int init_module(void)
 	return test_group_end(&test);
 }
 
-void cleanup_module(void)
+static void rbtree_test_exit(void)
 {
 	/* No code. */
 }
+
+module_init(rbtree_test_init);
+module_exit(rbtree_test_exit);

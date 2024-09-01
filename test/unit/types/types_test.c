@@ -33,7 +33,117 @@ static bool test_port_range_touches(void)
 	return success;
 }
 
-int init_module(void)
+static void init_list(struct list_head *list, ...)
+{
+	struct list_head *cursor;
+	va_list args;
+
+	INIT_LIST_HEAD(list);
+
+	va_start(args, list);
+	while ((cursor = va_arg(args, struct list_head *)) != NULL)
+		list_add_tail(cursor, list);
+	va_end(args);
+}
+
+static bool assert_list(struct list_head *list, ...)
+{
+	struct list_head *expected, *actual;
+	va_list args;
+
+	va_start(args, list);
+	list_for_each(actual, list) {
+		expected = va_arg(args, struct list_head *);
+		if (expected != actual)
+			goto fail;
+	}
+
+	expected = va_arg(args, struct list_head *);
+	if (expected != NULL)
+		goto fail;
+
+	va_end(args);
+	return true;
+
+fail:
+	va_end(args);
+
+	pr_err("Bad list.\n");
+
+	pr_err("  Expected: ");
+	va_start(args, list);
+	while ((expected = va_arg(args, struct list_head *)) != NULL)
+		pr_cont("%p ", expected);
+	va_end(args);
+	pr_cont("\n");
+
+	pr_err("  Actual  : ");
+	list_for_each(actual, list)
+		pr_cont("%p ", actual);
+	pr_cont("\n");
+
+	return false;
+}
+
+static bool test_list_move_all(void)
+{
+	struct list_head node1, node2, node3, node4;
+	struct list_head src, dst;
+	bool success = true;
+
+	/* Empty */
+	log_info("1");
+	init_list(&src, NULL);
+	init_list(&dst, NULL);
+	list_move_all(&src, &dst);
+	success &= assert_list(&src, NULL);
+	success &= assert_list(&dst, NULL);
+	if (!success)
+		return false;
+
+	/* Move 1 to empty */
+	log_info("2");
+	list_add(&node1, &src);
+	list_move_all(&src, &dst);
+	success &= assert_list(&src, NULL);
+	success &= assert_list(&dst, &node1, NULL);
+	if (!success)
+		return false;
+
+	/* Move all to empty */
+	log_info("3");
+	init_list(&src, &node1, &node2, &node3, &node4, NULL);
+	init_list(&dst, NULL);
+	list_move_all(&src, &dst);
+	success &= assert_list(&src, NULL);
+	success &= assert_list(&dst, &node1, &node2, &node3, &node4, NULL);
+	if (!success)
+		return false;
+
+	/* Move 2 to 1 */
+	log_info("4");
+	init_list(&src, &node1, &node2, NULL);
+	init_list(&dst, &node3, NULL);
+	list_move_all(&src, &dst);
+	success &= assert_list(&src, NULL);
+	success &= assert_list(&dst, &node3, &node1, &node2, NULL);
+	if (!success)
+		return false;
+
+	/* Move 2 to 2, weird order */
+	log_info("5");
+	init_list(&src, &node3, &node1, NULL);
+	init_list(&dst, &node2, &node4, NULL);
+	list_move_all(&src, &dst);
+	success &= assert_list(&src, NULL);
+	success &= assert_list(&dst, &node2, &node4, &node3, &node1, NULL);
+	if (!success)
+		return false;
+
+	return success;
+}
+
+static int types_test_init(void)
 {
 	struct test_group test = {
 		.name = "Types",
@@ -43,11 +153,15 @@ int init_module(void)
 		return -EINVAL;
 
 	test_group_test(&test, test_port_range_touches, "port range touches function");
+	test_group_test(&test, test_list_move_all, "list move all function");
 
 	return test_group_end(&test);
 }
 
-void cleanup_module(void)
+static void types_test_exit(void)
 {
 	/* No code. */
 }
+
+module_init(types_test_init);
+module_exit(types_test_exit);

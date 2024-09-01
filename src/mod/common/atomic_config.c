@@ -221,7 +221,7 @@ static int handle_eamt(struct jnl_state *state, struct nlattr *root, bool force)
 		if (error)
 			return error;
 		error = eamt_add(jnls_xlator(state)->siit.eamt, &entry, force,
-				state);
+				false, state);
 		if (error)
 			return error;
 	}

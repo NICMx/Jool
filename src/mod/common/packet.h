@@ -5,79 +5,43 @@
  * @file
  * Random packet-related functions.
  *
- * TODO (doc) though this comment is not wrong, it's probably not as relevant as
- * it used to be. Thanks to the 3.6 refactors, Jool doesn't often care (if at
- * all) about different types of packets anymore.
+ * Relevant topics:
  *
- * You might want to be aware of the different types of packets the kernel can
- * throw at Jool; see below.
+ * # Packet Buffering
  *
- * (Note that when I say "fragment" I mean "IP fragment". "Page fragments" are
- * something else altogether and are somewhat transparent to Jool. All the
- * variations below can be paged, except for subsequent packets already
- * represented as pages.)
+ * GRO, nf_defrag_ipv6 and nf_defrag_ipv4 can merge a bunch of related packets
+ * on input, by buffering them in `skb_shinfo(skb)->frags` or queuing them in
+ * `skb_shinfo(skb)->frag_list`. Lots of kernel functions will try to fool you
+ * into thinking they're a single packet.
  *
- * 1. A "real full packet" is a packet that is not fragmented. It is a single
- *    skb with fragment offset = 0 and MF = 0.
- * 2. A "fake full packet" is a packet which is fragmented but the kernel API
- *    wants us to believe otherwise.
- *    These are "assembled" skbs in that the skb points to the first fragment
- *    and the remaining fragments are queued in skb_shinfo(skb)->frag_list.
- *    Though many kernel functions want us to believe the skb is a real full
- *    packet, and ideally we would follow suit, doing surgery on individual
- *    fragments is sometimes necessary evil for PMTU reasons.
+ * For the most part, this is fine. Unfortunately, individual fragment surgery
+ * is sometimes necessary evil for PMTU reasons. Therefore, you need to
+ * understand frags and frag_list if you're going to manipulate lengths (and
+ * sometimes checksums).
  *
- * (A "full packet" is either a real full packet or a fake full packet.)
+ * # Internal Packets
  *
- * 3. A "fragmented packet" is a normal fragmented packet that hasn't suffered
- *    defrag alterations.
- *    In other words, fragment offset > 0 and/or MF == true, shinfo->frag_list
- *    isn't populated and the skb is not queued in any other packet's frag_list.
- *    These are fragments but are separated from their ilk during translation as
- *    you would expect from a stateless forwarding machine.
- * 4. An "internal packet" is a packet wrapped as payload in an ICMP error.
- *    These are set up and used by the RFC7915 submodule.
- *    Internal packets can be truncated! Header lengths might contradict the
- *    sizes from the skb fields. Jool in general should *rarely* rely on header
- *    lengths.
- *    I repeat: Because of internal packets, JOOL IN GENERAL SHOULD RARELY RELY
- *    ON HEADER LENGTHS!
- * 5. A "subsequent packet" is a fragment that has been queued in some fake full
- *    packet's frag_list. These packets are special in that they have stripped
- *    (deleted) l3 headers for no apparent reason.
- *    As I understand it, while forwarding, the kernel regenerates "subsequent
- *    headers" from scratch so any special differences between the original
- *    headers are lost. Ever since the atomic fragment hack was removed from the
- *    xlat standards this is no longer harmful so we don't mind it anymore.
- *    So yeah, do not translate subsequent headers. They do not exist.
- *    Another thing worth mentioning is that some kernels are even more insane
- *    in that they queue subsequent fragments in ->frags instead of ->frag_list.
- *    This is, in fact, also not entirely harmful because we can simply transfer
- *    pages as they are and the kernel should automatically turn them into
- *    fragments if they won't fit through the MTU. I don't think this is as
- *    deterministic as it should be, since the kernel might not be aware of the
- *    path MTU (and therefore linearize fragment pages), but there is nothing
- *    else we can do because there is nothing that will tell us whether a
- *    ->frags member is a fragment or a page.
+ * Packets contained inside ICMP errors. A good chunk of the RFC7915 code is
+ * reused by external and internal packets.
  *
- * For the most part, full/fragmented/internal packets can be handled similarly.
- * Subsequent packets, freaks of nature as they are, are thankfully often
- * transparent to us.
+ * They can be truncated. When this happens, their header lengths will
+ * contradict their actual lengths. For this reason, in general, Jool should
+ * rarely rely on header lengths.
  *
- * Also consider the following while reading this documentation:
+ * # Local Glossary
  *
- * - "data payload area" refers to the bytes that lie in an skb between
- *   skb->head and skb->tail, excluding headers.
- * - "paged area" refers to the bytes that the skb stores in
- *   skb_shinfo(skb)->frags. (Though sometimes these represent IP fragments,
- *   they *never* feature headers.)
- * - "frag_list area" refers to the bytes that the skb stores in
- *   skb_shinfo(skb)->frag_list, and *also* the bytes that these fragments store
- *   in their own paged area. Though these are valid skbs, the kernel wants us
- *   to believe that they don't have headers, and Jool should not attempt to
- *   read them.
- *   (The fragments in theory should never contain sub-frag_lists, but maybe
- *   Jool should consider this now that I think about it.)
+ * - data payload area: Bytes that lie in an skb between skb->head and
+ *   skb->tail, excluding headers.
+ * - paged area: Bytes the skb stores in skb_shinfo(skb)->frags.
+ * - frag_list area: Bytes the skb stores in skb_shinfo(skb)->frag_list,
+ *   and *also* the bytes these fragments store in their own paged areas.
+ *
+ * These are all L4 payload only. The kernel deletes frags and frag_list headers
+ * on input, then recreates them on output.
+ *
+ * - Subsequent fragment: Packet with fragment offset nonzero.
+ *   (These only show up when nf_defrag_ipv* is disabled; ie. stateless
+ *   translators only.)
  */
 
 #include <linux/skbuff.h>
@@ -140,8 +104,6 @@ static inline __u16 get_fragment_offset_ipv4(const struct iphdr *hdr)
 
 /**
  * Pretends @skb's IPv6 header has a "total length" field and returns its value.
- * This function exists because turning "payload length" into "total length" by
- * hand takes almost a full line by itself, which forces us to break lines.
  */
 static inline unsigned int get_tot_len_ipv6(const struct sk_buff *skb)
 {
@@ -172,8 +134,7 @@ static inline bool is_first_frag6(const struct frag_hdr *hdr)
  */
 static inline bool is_fragmented_ipv4(const struct iphdr *hdr)
 {
-	/* TODO (fine) Maybe use ip_is_fragment() instead. */
-	return (get_fragment_offset_ipv4(hdr) != 0) || is_mf_set_ipv4(hdr);
+	return ip_is_fragment(hdr);
 }
 
 static inline bool is_fragmented_ipv6(const struct frag_hdr *hdr)
@@ -227,29 +188,11 @@ static inline unsigned int tcp_hdr_len(const struct tcphdr *hdr)
 	return hdr->doff << 2;
 }
 
-#define SNAPSHOT_FRAGS_SIZE 5
-
-struct pkt_snapshot {
-	unsigned int len;
-	unsigned int data_len;
-	unsigned char nr_frags;
-	unsigned int frags[SNAPSHOT_FRAGS_SIZE];
-};
-
-union ip_address {
-	struct in_addr v4;
-	struct in6_addr v6;
-};
-
 /**
  * We need to store packet metadata, so we encapsulate sk_buffs into this.
  *
  * Do **not** use control buffers (skb->cb) for this purpose. The kernel is
  * known to misbehave and store information there which we should not override.
- *
- * By the way: Jool never creates `struct packet`s out of subsequent packets
- * alone. If you're holding a `struct packet`, you can be sure the contained skb
- * is one of the other variations.
  */
 struct packet {
 	struct sk_buff *skb;
@@ -265,14 +208,10 @@ struct packet {
 	/**
 	 * Protocol of the layer-4 header of the packet. To the best of my
 	 * knowledge, the kernel also uses skb->proto for this, but only on
-	 * layer-4 code (of which Jool isn't).
-	 * Skbs otherwise do not store a layer-4 identifier.
+	 * layer-4 code.
 	 */
 	enum l4_protocol l4_proto;
-	/**
-	 * Is this a subpacket, contained in an ICMP error?
-	 * (Used by the RFC7915 code.)
-	 */
+	/** Is this a subpacket, contained in an ICMP error? */
 	bool is_inner;
 
 	/** Offset of the skb's fragment header (from skb->data), if any. */
@@ -295,14 +234,8 @@ struct packet {
 	 * to the same packet (pkt->original_pkt = pkt). Otherwise (which
 	 * includes hairpin packets), this points to the original (incoming)
 	 * packet.
-	 * Used by the pkt queue.
 	 */
 	struct packet *original_pkt;
-
-	struct {
-		struct pkt_snapshot shot1;
-		struct pkt_snapshot shot2;
-	} debug;
 };
 
 /**
@@ -323,58 +256,53 @@ static inline void pkt_fill(struct packet *pkt, struct sk_buff *skb,
 	pkt->original_pkt = original_pkt;
 }
 
-/**
- * Returns @skb's layer-3 protocol in enum format.
- */
 static inline l3_protocol pkt_l3_proto(const struct packet *pkt)
 {
 	return pkt->l3_proto;
 }
 
+/* l3_proto must be IPv4. */
 static inline struct iphdr *pkt_ip4_hdr(const struct packet *pkt)
 {
 	return ip_hdr(pkt->skb);
 }
 
+/* l3_proto must be IPv6. */
 static inline struct ipv6hdr *pkt_ip6_hdr(const struct packet *pkt)
 {
 	return ipv6_hdr(pkt->skb);
 }
 
-/**
- * Returns @skb's layer-4 protocol in enum format.
- */
 static inline l4_protocol pkt_l4_proto(const struct packet *pkt)
 {
 	return pkt->l4_proto;
 }
 
-/*
- * These functions assume that @pkt is not a subsequent fragment.
- *
- * TODO (NOW) review that.
- */
-
+/* Incompatible with subsequent fragments, l4_proto must be TCP. */
 static inline struct udphdr *pkt_udp_hdr(const struct packet *pkt)
 {
 	return udp_hdr(pkt->skb);
 }
 
+/* Incompatible with subsequent fragments, l4_proto must be UDP. */
 static inline struct tcphdr *pkt_tcp_hdr(const struct packet *pkt)
 {
 	return tcp_hdr(pkt->skb);
 }
 
+/* l4_proto must be ICMP. */
 static inline struct icmphdr *pkt_icmp4_hdr(const struct packet *pkt)
 {
 	return icmp_hdr(pkt->skb);
 }
 
+/* l4_proto must be ICMP. */
 static inline struct icmp6hdr *pkt_icmp6_hdr(const struct packet *pkt)
 {
 	return icmp6_hdr(pkt->skb);
 }
 
+/* l3_proto must be IPv6. */
 static inline struct frag_hdr *pkt_frag_hdr(const struct packet *pkt)
 {
 	if (!pkt->frag_offset)
@@ -403,27 +331,11 @@ static inline struct packet *pkt_original_pkt(const struct packet *pkt)
 }
 
 /**
- * Returns the length of @pkt as a layer-3 packet. It includes layer 3 headers
- * and layer 3 payload.
+ * Returns the length of @pkt's first set of layer-3 headers (including options
+ * and extension headers).
+ * Counts neither frag_list headers, frag headers nor ICMP error inner headers.
  *
- * It is supposed to replace @pkt->skb->len in certain situations. This is
- * because @pkt->skb->len also counts bytes present in subsequent fragments, and
- * that is not always what a translator wants.
- *
- * Includes l3 header, l4 header, data payload area and paged area.
- * Does not include frag_list area.
- */
-static inline unsigned int pkt_len(const struct packet *pkt)
-{
-	return skb_pagelen(pkt->skb);
-}
-
-/**
- * Returns the length of @pkt's layer-3 headers, including options or extension
- * headers.
- * Only counts bytes actually present within @pkt. In other words, headers of
- * any subsequent fragments linked to @pkt are ignored.
- * Also, it doesn't count inner l3 headers (from ICMP errors).
+ * Compatible with fragments.
  *
  * Includes l3 header.
  * Does not include l4 header, data payload area, paged area nor frag_list area.
@@ -434,9 +346,11 @@ static inline unsigned int pkt_l3hdr_len(const struct packet *pkt)
 }
 
 /**
- * Returns the length of @pkt's layer-4 header, including options.
- * Returns zero if @pkt has no transport headers.
- * It doesn't count inner l4 headers (from ICMP errors).
+ * Returns the length of @pkt's first set of layer-4 headers (including
+ * options).
+ * Counts neither frag headers nor ICMP error inner headers.
+ *
+ * Compatible with fragments. (Returns 0 on subsequent fragments.)
  *
  * Includes l4 header.
  * Does not include l3 header, data payload area, paged area nor frag_list area.
@@ -447,10 +361,10 @@ static inline unsigned int pkt_l4hdr_len(const struct packet *pkt)
 }
 
 /**
- * Returns the length of @pkt's layer-3 and layer-4 headers.
- * Only counts bytes actually present within @pkt. In other words, headers of
- * any subsequent fragments linked to @pkt are ignored.
- * Also, it doesn't count inner headers (from ICMP errors).
+ * Returns the length of @pkt's first set of layer-3 and layer-4 headers.
+ * Counts neither frag_list headers, frag headers nor ICMP error inner headers.
+ *
+ * Compatible with fragments.
  *
  * Includes l3 header and l4 header.
  * Does not include data payload area, paged area nor frag_list area.
@@ -461,12 +375,12 @@ static inline unsigned int pkt_hdrs_len(const struct packet *pkt)
 }
 
 /**
- * Returns the length of "skb"'s layer-3 payload.
- * Includes the entire layer-3 payload (ie. including subsequent fragment
- * payload).
+ * Returns the length of @pkt's layer-3 payload.
+ * Includes headroom payload, frag_list payload and frags payload.
  *
- * This function is only compatible with full packets; the result is otherwise
- * undefined.
+ * Technically (but not semantically) compatible with fragments. (There is no
+ * "datagram" in a fragment.) If you want to use this function outside of the
+ * context of checksum computation, please update this comment.
  *
  * Includes l4 header, data payload area, paged area and frag_list area.
  * Does not include l3 header.
@@ -476,17 +390,15 @@ static inline unsigned int pkt_datagram_len(const struct packet *pkt)
 	return pkt->skb->len - pkt_l3hdr_len(pkt);
 }
 
-/* This function assumes that @pkt is not a subsequent fragment. */
 static inline bool pkt_is_icmp6_error(const struct packet *pkt)
 {
-	return pkt_l4_proto(pkt) == L4PROTO_ICMP
+	return pkt_l4_proto(pkt) == L4PROTO_ICMP /* Implies "not subsequent" */
 			&& is_icmp6_error(pkt_icmp6_hdr(pkt)->icmp6_type);
 }
 
-/* This function assumes that @pkt is not a subsequent fragment. */
 static inline bool pkt_is_icmp4_error(const struct packet *pkt)
 {
-	return pkt_l4_proto(pkt) == L4PROTO_ICMP
+	return pkt_l4_proto(pkt) == L4PROTO_ICMP /* Implies "not subsequent" */
 			&& is_icmp4_error(pkt_icmp4_hdr(pkt)->type);
 }
 
@@ -523,8 +435,5 @@ verdict pkt_init_ipv4(struct xlation *state, struct sk_buff *skb);
 
 unsigned char *jskb_pull(struct sk_buff *skb, unsigned int len);
 unsigned char *jskb_push(struct sk_buff *skb, unsigned int len);
-
-void snapshot_record(struct pkt_snapshot *shot, struct sk_buff *skb);
-void snapshot_report(struct pkt_snapshot *shot, char *prefix);
 
 #endif /* SRC_MOD_COMMON_PACKET_H_ */

@@ -129,7 +129,7 @@ static int response_handler(struct nl_msg *msg, void *arg_void)
 	 */
 
 	if (!attrs[ATTR_ERROR_CODE]) {
-		pr_err("Jool's response lacks a success/error code.");
+		pr_err("Graybox's response lacks a success/error code.");
 		arg->jool_error = -EINVAL;
 		return 0;
 	}
@@ -137,13 +137,7 @@ static int response_handler(struct nl_msg *msg, void *arg_void)
 	error = nla_get_u16(attrs[ATTR_ERROR_CODE]);
 	arg->jool_error = error;
 	if (error) {
-		if (attrs[ATTR_ERROR_STRING]) {
-			pr_err("The module threw error %d: %s", error,
-					nla_get_string(attrs[ATTR_ERROR_STRING]));
-		} else {
-			pr_err("The module's response contains error %d.", error);
-			pr_err("(Sorry; the response lacks an error message.)");
-		}
+		pr_err("The module returned error %d. (See dmesg.)", error);
 		return 0;
 	}
 

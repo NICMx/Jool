@@ -54,7 +54,7 @@ int handle_address_query64(struct sk_buff *skb, struct genl_info *info)
 	/* Perform query */
 	verdict = addrxlat_siit64(jnls_xlator(state), &request, &result, true);
 	if (verdict.verdict != ADDRXLAT_CONTINUE)
-		return jnl_reply(state, jnls_err(state, "%s.", verdict.reason));
+		return jnl_reply(state, jnls_err(state, "Unable to translate %pI6c: %s", &request, verdict.reason));
 
 	/* Build response */
 	error = jnla_put_addr4(jnls_skb(state), JNLAAQ_ADDR4, &result.addr);
@@ -90,7 +90,7 @@ int handle_address_query46(struct sk_buff *skb, struct genl_info *info)
 	verdict = addrxlat_siit46(jnls_xlator(state), query.s_addr, &result,
 			true, true);
 	if (verdict.verdict != ADDRXLAT_CONTINUE)
-		return jnl_reply(state, jnls_err(state, "%s.", verdict.reason));
+		return jnl_reply(state, jnls_err(state, "Unable to translate %pI4: %s", &query, verdict.reason));
 
 	/* Build response */
 	error = jnla_put_addr6(jnls_skb(state), JNLAAQ_ADDR6, &result.addr);

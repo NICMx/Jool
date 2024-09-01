@@ -25,7 +25,6 @@
 #include "usr/argp/wargp/file.h"
 #include "usr/argp/wargp/global.h"
 #include "usr/argp/wargp/instance.h"
-#include "usr/argp/wargp/joold.h"
 #include "usr/argp/wargp/pool4.h"
 #include "usr/argp/wargp/session.h"
 #include "usr/argp/wargp/stats.h"
@@ -228,6 +227,21 @@ static struct cmd_option session_ops[] = {
 			.xt = XT_NAT64,
 			.handler = handle_session_display,
 			.handle_autocomplete = autocomplete_session_display,
+		}, {
+			.label = "follow",
+			.xt = XT_NAT64,
+			.handler = handle_session_follow,
+			.handle_autocomplete = autocomplete_session_follow,
+		}, {
+			.label = "proxy",
+			.xt = XT_NAT64,
+			.handler = handle_session_proxy,
+			.handle_autocomplete = autocomplete_session_proxy,
+		},{
+			.label = "advertise",
+			.xt = XT_NAT64,
+			.handler = handle_session_advertise,
+			.handle_autocomplete = autocomplete_session_advertise,
 		},
 		{ 0 },
 };
@@ -271,8 +285,9 @@ static struct cmd_option joold_ops[] = {
 		{
 			.label = "advertise",
 			.xt = XT_NAT64,
-			.handler = handle_joold_advertise,
-			.handle_autocomplete = autocomplete_joold_advertise,
+			.hidden = true,
+			.handler = handle_session_advertise,
+			.handle_autocomplete = autocomplete_session_advertise,
 		},
 		{ 0 },
 };
@@ -329,6 +344,7 @@ struct cmd_option tree[] = {
 		}, {
 			.label = "joold",
 			.xt = XT_NAT64,
+			.hidden = true,
 			.children = joold_ops,
 		}, {
 			/* See files jool*.bash */

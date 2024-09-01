@@ -21,10 +21,10 @@
 #include "mod/common/nl/session.h"
 #include "mod/common/nl/stats.h"
 
-#if LINUX_VERSION_AT_LEAST(0, 0, 0, 7, 1)
-#define _CONST const
+#if LINUX_VERSION_AT_LEAST(6, 2, 0, 9, 3)
+#define GENL_OPS_ARG_TYPE genl_split_ops
 #else
-#define _CONST
+#define GENL_OPS_ARG_TYPE genl_ops
 #endif
 
 static struct nla_policy const jool_policy[JNLAR_COUNT] = {
@@ -50,7 +50,7 @@ static struct nla_policy const jool_policy[JNLAR_COUNT] = {
 #define JOOL_POLICY .policy = jool_policy,
 #endif
 
-static _CONST struct genl_ops ops[] = {
+static const struct genl_ops ops[] = {
 	{
 		.cmd = JNLOP_INSTANCE_FOREACH,
 		.doit = handle_instance_foreach,
@@ -197,12 +197,9 @@ static struct genl_multicast_group mc_groups[] = {
 };
 
 static struct genl_family jool_family = {
-#if LINUX_VERSION_LOWER_THAN(4, 10, 0, 7, 5)
-	/* This variable became "private" on kernel 4.10. */
-	.id = GENL_ID_GENERATE,
-#endif
 	.hdrsize = sizeof(struct joolnlhdr),
-	.name = JOOLNL_FAMILY,
+	/* This is initialized below. See register_family(). */
+	/* .name = GNL_JOOL_FAMILY_NAME, */
 	.version = 2,
 	.maxattr = JNLAR_MAX,
 	.netnsok = true,
@@ -211,7 +208,6 @@ static struct genl_family jool_family = {
 	.policy = jool_policy,
 #endif
 
-#if LINUX_VERSION_AT_LEAST(4, 10, 0, 7, 5)
 	/*
 	 * "module" was added in Linux 3.11 (commit
 	 * 33c6b1f6b154894321f5734e50c66621e9134e7e). However, it seems to be
@@ -229,7 +225,6 @@ static struct genl_family jool_family = {
 	.n_ops = ARRAY_SIZE(ops),
 	.mcgrps = mc_groups,
 	.n_mcgrps = ARRAY_SIZE(mc_groups),
-#endif
 };
 
 static int register_family(void)
@@ -238,35 +233,13 @@ static int register_family(void)
 
 	pr_debug("Registering Generic Netlink family...\n");
 
-#if LINUX_VERSION_LOWER_THAN(3, 13, 0, 7, 1)
+	strcpy(jool_family.name, JOOLNL_FAMILY);
 
-	error = genl_register_family_with_ops(&jool_family, ops,
-			ARRAY_SIZE(ops));
-	if (error) {
-		pr_err("Couldn't register family!\n");
-		return error;
-	}
-
-	error = genl_register_mc_group(&jool_family, &(mc_groups[0]));
-	if (error) {
-		pr_err("Couldn't register multicast group!\n");
-		return error;
-	}
-
-#elif LINUX_VERSION_LOWER_THAN(4, 10, 0, 7, 5)
-	error = genl_register_family_with_ops_groups(&jool_family, ops,
-			mc_groups);
-	if (error) {
-		pr_err("Family registration failed: %d\n", error);
-		return error;
-	}
-#else
 	error = genl_register_family(&jool_family);
 	if (error) {
 		pr_err("Family registration failed: %d\n", error);
 		return error;
 	}
-#endif
 
 	return 0;
 }
@@ -280,13 +253,6 @@ void nlhandler_teardown(void)
 {
 	genl_unregister_family(&jool_family);
 }
-
-#if LINUX_VERSION_LOWER_THAN(3, 13, 0, 7, 1)
-u32 jnl_gid(void)
-{
-	return mc_groups[0].id;
-}
-#endif
 
 struct genl_family *jnl_family(void)
 {

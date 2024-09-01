@@ -61,7 +61,7 @@ struct jool_result joolnl_alloc_msg(struct joolnl_socket *socket,
 	hdr->version = htonl(xlat_version());
 	hdr->xt = socket->xt;
 	hdr->flags = flags;
-	strcpy(hdr->iname, iname ? iname : "default");
+	strcpy(hdr->iname, iname ? iname : INAME_DEFAULT);
 
 	*out = msg;
 	return result_success();
@@ -82,7 +82,7 @@ static struct jool_result validate_version(struct joolnlhdr *hdr)
 {
 	__u32 hdr_version = ntohl(hdr->version);
 
-	if (xlat_version() == hdr_version)
+	if ((xlat_version() & 0xFFFF0000u) == (hdr_version & 0xFFFF0000u))
 		return result_success();
 
 	return result_from_error(

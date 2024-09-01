@@ -1,8 +1,9 @@
+#ifndef XTABLES_DISABLED
+
 #include "mod/common/kernel_hook.h"
 
 #include "common/iptables.h"
 #include "mod/common/core.h"
-#include "mod/common/linux_version.h"
 #include "mod/common/log.h"
 
 static verdict find_instance(struct net *ns, const struct target_info *info,
@@ -63,13 +64,7 @@ EXPORT_SYMBOL_GPL(target_checkentry);
 
 static struct net *action_param_net(const struct xt_action_param *param)
 {
-#if LINUX_VERSION_AT_LEAST(4, 10, 0, 8, 0)
 	return param->state->net;
-#elif LINUX_VERSION_AT_LEAST(4, 4, 0, 9999, 0)
-	return param->net;
-#else
-	return dev_net(param->in);
-#endif
 }
 
 static unsigned int verdict2iptables(verdict result, bool enable_debug)
@@ -150,3 +145,5 @@ end:	xlation_destroy(state);
 	return verdict2iptables(result, enable_debug);
 }
 EXPORT_SYMBOL_GPL(target_ipv4);
+
+#endif /* !XTABLES_DISABLED */

@@ -1,5 +1,5 @@
 KERNEL_DIR := /lib/modules/$(shell uname -r)/build
-KBUILD_EXTRA_SYMBOLS  = $(src)/../../../src/mod/common/Module.symvers
+KBUILD_EXTRA_SYMBOLS += $(src)/../../../src/mod/common/Module.symvers
 KBUILD_EXTRA_SYMBOLS += $(src)/../framework/Module.symvers
 ccflags-y += -I$(src)/../../../src -I$(src)/..
 
@@ -20,4 +20,4 @@ test:
 	-sudo insmod $(UNIT).ko && sudo rmmod $(UNIT)
 	sudo rmmod unit.ko
 	sudo modprobe -r jool_common
-	dmesg -t | less
+	sudo dmesg -t | less

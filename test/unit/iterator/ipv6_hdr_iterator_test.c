@@ -398,7 +398,7 @@ static bool test_find_unsupported(void)
 	return success;
 }
 
-int init_module(void)
+static int ipv6_hdr_iterator_test_init(void)
 {
 	struct test_group test = {
 		.name = "IPv6 header iterator",
@@ -422,7 +422,10 @@ int init_module(void)
 	return test_group_end(&test);
 }
 
-void cleanup_module(void)
+static void ipv6_hdr_iterator_test_exit(void)
 {
 	/* No code. */
 }
+
+module_init(ipv6_hdr_iterator_test_init);
+module_exit(ipv6_hdr_iterator_test_exit);

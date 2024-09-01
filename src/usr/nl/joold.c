@@ -32,7 +32,8 @@ struct jool_result joolnl_joold_add(struct joolnl_socket *sk, char const *iname,
 	if (result.error)
 		return result;
 
-	result.error = nla_put(msg, JNLAR_SESSION_ENTRIES, data_len, data);
+	result.error = nla_put(msg, NLA_F_NESTED | JNLAR_SESSION_ENTRIES,
+			data_len, data);
 	if (result.error < 0) {
 		nlmsg_free(msg);
 		/*

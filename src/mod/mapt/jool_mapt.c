@@ -15,9 +15,10 @@ MODULE_AUTHOR("NIC-ITESM");
 MODULE_DESCRIPTION("MAP-T (RFC 7599)");
 MODULE_VERSION(JOOL_VERSION_STR);
 
+#ifndef XTABLES_DISABLED
+
 static int iptables_error;
 
-/** iptables module registration object */
 static struct xt_target targets[] = {
 	{
 		.name       = IPTABLES_MAPT_MODULE_NAME,
@@ -38,6 +39,8 @@ static struct xt_target targets[] = {
 	},
 };
 
+#endif /* !XTABLES_DISABLED */
+
 static void flush_net(struct net *ns)
 {
 	jool_xlator_flush_net(ns, XT_MAPT);
@@ -56,13 +59,8 @@ static struct pernet_operations joolns_ops = {
 
 static void defrag_enable(struct net *ns)
 {
-#if LINUX_VERSION_AT_LEAST(4, 10, 0, 8, 0)
 	nf_defrag_ipv4_enable(ns);
 	nf_defrag_ipv6_enable(ns);
-#else
-	nf_defrag_ipv4_enable();
-	nf_defrag_ipv6_enable();
-#endif
 }
 
 static int __init mapt_init(void)
@@ -70,37 +68,44 @@ static int __init mapt_init(void)
 	int error;
 
 	pr_debug("Inserting MAPT Jool...\n");
+
 	/* Careful with the order */
 
 	error = register_pernet_subsys(&joolns_ops);
 	if (error)
 		return error;
 
+#ifndef XTABLES_DISABLED
 	iptables_error = xt_register_targets(targets, ARRAY_SIZE(targets));
 	if (iptables_error) {
 		log_warn("Error code %d while trying to register the iptables targets.\n"
 				"iptables SIIT Jool will not be available.",
 				iptables_error);
 	}
+#endif
 
 	/* MAP-T instances can now function properly; unlock them. */
 	error = jool_mapt_get(defrag_enable);
 	if (error) {
+#ifndef XTABLES_DISABLED
 		if (!iptables_error)
 			xt_unregister_targets(targets, ARRAY_SIZE(targets));
+#endif
 		unregister_pernet_subsys(&joolns_ops);
 		return error;
 	}
 
 	pr_info("MAPT Jool v" JOOL_VERSION_STR " module inserted.\n");
-	return error;
+	return 0;
 }
 
 static void __exit mapt_exit(void)
 {
 	jool_mapt_put();
+#ifndef XTABLES_DISABLED
 	if (!iptables_error)
 		xt_unregister_targets(targets, ARRAY_SIZE(targets));
+#endif
 	unregister_pernet_subsys(&joolns_ops);
 	pr_info("MAPT Jool v" JOOL_VERSION_STR " module removed.\n");
 }

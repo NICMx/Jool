@@ -47,16 +47,10 @@ void log_tuple(struct xlation *state, struct tuple *tuple)
 {
 	switch (tuple->l3_proto) {
 	case L3PROTO_IPV4:
-		log_debug(state, "Tuple: %pI4#%u -> %pI4#%u (%s)",
-				&tuple->src.addr4.l3, tuple->src.addr4.l4,
-				&tuple->dst.addr4.l3, tuple->dst.addr4.l4,
-				l4proto_to_string(tuple->l4_proto));
+		log_debug(state, "Tuple: " T4PP, T4PA(tuple));
 		break;
 	case L3PROTO_IPV6:
-		log_debug(state, "Tuple: %pI6c#%u -> %pI6c#%u (%s)",
-				&tuple->src.addr6.l3, tuple->src.addr6.l4,
-				&tuple->dst.addr6.l3, tuple->dst.addr6.l4,
-				l4proto_to_string(tuple->l4_proto));
+		log_debug(state, "Tuple: " T6PP, T6PA(tuple));
 		break;
 	}
 }

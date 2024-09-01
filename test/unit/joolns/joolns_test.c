@@ -29,10 +29,10 @@ int jstat_refcount(struct jool_stats *stats);
 
 static int ns_refcount(struct net *ns)
 {
-#if LINUX_VERSION_AT_LEAST(4, 16, 0, 9999, 0)
-	return refcount_read(&ns->count);
+#if LINUX_VERSION_AT_LEAST(5, 12, 0, 9999, 0)
+	return refcount_read(&ns->ns.count);
 #else
-	return atomic_read(&ns->count);
+	return refcount_read(&ns->count);
 #endif
 }
 
@@ -126,7 +126,7 @@ static bool atomic_test(void)
 	}
 
 	eamt_flush(jool.siit.eamt);
-	error = eamt_add(jool.siit.eamt, &eam, true, NULL);
+	error = eamt_add(jool.siit.eamt, &eam, true, false, NULL);
 	xlator_put(&jool);
 	if (error) {
 		pr_info("eamt_add() threw %d\n", error);
@@ -219,7 +219,7 @@ static int init(void)
 	if (error)
 		goto fail;
 	eam.prefix4.len = 24;
-	error = eamt_add(jool.siit.eamt, &eam, true, NULL);
+	error = eamt_add(jool.siit.eamt, &eam, true, false, NULL);
 	if (error) {
 		pr_info("eamt_add() threw %d\n", error);
 		goto fail;
@@ -242,7 +242,7 @@ static bool clean(void)
 			"xlator_rm");
 }
 
-int init_module(void)
+static int joolns_test_init(void)
 {
 	struct test_group test = {
 		.name = "Xlator",
@@ -269,7 +269,10 @@ int init_module(void)
 	return test_group_end(&test);
 }
 
-void cleanup_module(void)
+static void joolns_test_exit(void)
 {
 	/* No code. */
 }
+
+module_init(joolns_test_init);
+module_exit(joolns_test_exit);

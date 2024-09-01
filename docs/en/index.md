@@ -20,42 +20,26 @@ Jool is an Open Source [SIIT and NAT64](intro-xlat.html) for Linux.
 
 ## Status
 
-- The most mature version is [4.1.5](download.html#41x).
-- [4.0.9](download.html#40x) is soon going to be deprecated.
-- The second release candidate for version [4.2.0](download.html#42x) is also available now.
+> ![Warning](../images/warning.svg) The project's development has slowed down to essential maintenance. Bugfixing and support will remain active, but there will be no new features in the foreseeable future.
 
-Due to a temporary resource shortage, the project's development has slowed down to essential maintenance. No new features are expected to be developed during the first half of 2021 (at least), but bugfixing and support will remain active.
-
--------------------
-
-## Survey
-
-<iframe src="https://docs.google.com/forms/d/e/1FAIpQLSe_9_wBttFGd9aJ7lKXiJvIN7wWZm_C6yy3gU0Ttepha275nQ/viewform?embedded=true" width="640" height="300" frameborder="0" marginheight="0" marginwidth="0">Loading…</iframe>
+- The most mature version is [4.1.13](download.html#41x).
+- **jool.mx is no longer maintained. Please use https://nicmx.github.io/Jool instead.**
 
 -------------------
 
 ## Latest News
 
-### 2021-02-19
+### 2024-08-23
 
-Version 4.1.5 has been released. Changelog:
+Version 4.1.13 has been released. Bugfixes:
 
-- [#340](https://github.com/NICMx/Jool/issues/340): Patch several joold bugs.
-- [#345](https://github.com/NICMx/Jool/issues/345), [#354](https://github.com/NICMx/Jool/issues/354): Improve some documentation. (Includes a [Cheat Sheet](cheat-sheet.html).)
-- [#350](https://github.com/NICMx/Jool/issues/350): Remove `CAP_NET_ADMIN` requirement from `stats display`.
-
-The second release candidate for version 4.2.0 is also available. Changelog:
-
-- Patch some [MAP-T address translation bugs](https://github.com/NICMx/Jool/commit/5f19e8a7efcbb4e9df708405c0b4e77d1bbbaec3).
-- [Clean](https://github.com/NICMx/Jool/commit/5a46e74e5e1dd03fb62aaa13fac38c5ac1446de7) [up](https://github.com/NICMx/Jool/commit/b7e8ea876a6d155f4d59fe0b0645efadadbf2f08) [unit](https://github.com/NICMx/Jool/commit/6c06470e9bb04c2ce3ea92053d847d674838064d) [tests](https://github.com/NICMx/Jool/commit/76929f81ed720635066223c2b99d165c7cd01d1a).
-- [Internal API cleanups](https://github.com/NICMx/Jool/commit/41e3ca69459ae2ab461fdf2c106d1e9bf47d51ff).
-
-As a reminder, here's the MAP-T documentation:
-
-- [Early introduction to MAP-T](intro-xlat.html#map-t)
-- [Detailed explanation of MAP-T](map-t.html)
-- [Jool MAP-T tutorial](run-mapt.html)
-- The code:
-	- [tar.gz](https://github.com/NICMx/Jool/releases/download/v4.2.0-rc2/jool-4.2.0.rc2.tar.gz)
-	- Debian packages: [kernel](https://github.com/NICMx/Jool/releases/download/v4.2.0-rc2/jool-dkms_4.2.0.rc2-1_all.deb), [userspace](https://github.com/NICMx/Jool/releases/download/v4.2.0-rc2/jool-tools_4.2.0.rc2-1_amd64.deb)
-
+- [#410](https://github.com/NICMx/Jool/issues/410):
+	1. Move `joold` to [`jool session proxy`](usr-flags-session.html#proxy)
+	2. Move `jool joold advertise` to [`jool session advertise`](usr-flags-session.html#advertise)
+- [Debian#1074120](https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=1074120): Fix implementation of kernel modules' `make distclean`
+- [#421](https://github.com/NICMx/Jool/issues/421): [`jool session follow`](usr-flags-session.html#follow)
+- [#422](https://github.com/NICMx/Jool/pull/422): Patch compilation on 32-bit architectures
+- [e8c49da](https://github.com/NICMx/Jool/commit/e8c49daaa5ae2fc5e75ad4bf7079b815775f1a50): Allow pool6 with prefix length ≠ 96 on joold
+- [78812d6](https://github.com/NICMx/Jool/commit/78812d66d5b1b7e3ae767b24a1e12bd9dc5b2eab): Deprecate and no-op `--ss-flush-asap`
+- [80760bb](https://github.com/NICMx/Jool/commit/80760bbc6e972cad0ea3ecff7d6452077b0222f4): Stop the userspace client from killing itself when the kernel module sends an unknown stat
+- [5150753](https://github.com/NICMx/Jool/commit/51507535de7d621263544237485bed3085ae3643): Drop `XTABLES_DISABLED`. (The kernel module now automatically detects whether the kernel was compiled with xtables support. The userspace client still needs to be told with `./configure --with-xtables=no`.)

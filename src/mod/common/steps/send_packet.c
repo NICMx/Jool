@@ -1,7 +1,7 @@
 #include "mod/common/steps/send_packet.h"
 
-#include "mod/common/linux_version.h"
 #include "mod/common/log.h"
+#include "mod/common/nl/nl_handler.h"
 #include "mod/common/packet.h"
 
 static verdict __sendpkt_send(struct xlation *state, struct sk_buff *out)
@@ -19,11 +19,7 @@ static verdict __sendpkt_send(struct xlation *state, struct sk_buff *out)
 	/* skb_log(out, "Translated packet"); */
 
 	/* Implicit kfree_skb(out) here. */
-#if LINUX_VERSION_AT_LEAST(4, 4, 0, 8, 0)
 	error = dst_output(state->jool.ns, NULL, out);
-#else
-	error = dst_output(out);
-#endif
 	if (error) {
 		log_debug(state, "dst_output() returned errcode %d.", error);
 		return drop(state, JSTAT_DST_OUTPUT);
@@ -60,5 +56,30 @@ verdict sendpkt_send(struct xlation *state)
 	}
 
 	return VERDICT_CONTINUE;
+}
+
+void sendpkt_multicast(struct xlator *jool, struct sk_buff *skb)
+{
+	int error;
+
+	__log_debug(jool, "Sending multicast message.");
+	/*
+	 * Note: Starting from kernel 3.13, all groups of a common family share
+	 * a group offset (from a common pool), and they are numbered
+	 * monotonically from there. That means if all we have is one group,
+	 * its id will always be zero.
+	 *
+	 * That's the reason why so many callers of this function stopped
+	 * providing a group when the API started forcing them to provide a
+	 * family.
+	 */
+	error = genlmsg_multicast_netns(jnl_family(), jool->ns, skb, 0, 0,
+			GFP_ATOMIC);
+	if (error) {
+		log_warn_once("Looks like nobody received my multicast message. Is the joold daemon really active? (errcode %d)",
+				error);
+	} else {
+		__log_debug(jool, "Multicast message sent.");
+	}
 }
 EXPORT_UNIT_SYMBOL(sendpkt_send)

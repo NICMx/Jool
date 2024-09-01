@@ -110,6 +110,9 @@ int handle_global_update(struct sk_buff *skb, struct genl_info *info)
 	if (error)
 		return jnl_reply(state, error);
 
+	if (jool->globals.nat64.joold.flush_asap)
+		log_warn_once("ss-flush-asap is deprecated.");
+
 	/*
 	 * Notice that this @jool is also a clone and we're the only thread
 	 * with access to it.

@@ -33,6 +33,7 @@ const char *l4proto_to_string(l4_protocol l4_proto)
 
 	return NULL;
 }
+EXPORT_UNIT_SYMBOL(l4proto_to_string)
 
 l4_protocol str_to_l4proto(char *str)
 {

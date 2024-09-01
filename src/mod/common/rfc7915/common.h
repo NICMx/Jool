@@ -50,12 +50,11 @@ struct translation_steps {
 	header_xlat_fn xlat_icmp;
 };
 
-void partialize_skb(struct sk_buff *skb, unsigned int csum_offset);
+void partialize_skb(struct sk_buff *skb, __u16 csum_offset);
 bool will_need_frag_hdr(const struct iphdr *hdr);
 verdict ttpcomm_translate_inner_packet(struct xlation *state,
 		struct translation_steps const *steps);
 
-/* TODO (fine) maybe these should belong to packet */
 struct bkp_skb {
 	unsigned int pulled;
 	struct {
@@ -87,15 +86,17 @@ bool must_not_translate(struct in_addr *addr, struct net *ns);
 /* un.reserved does not exist in old kernels. */
 #define icmp4_length(hdr) (((__u8 *)(&(hdr)->un.gateway))[1])
 
-/* See /test/graybox/test-suite/rfc/7915.md#ic */
+/* See /test/graybox/test-suite/siit/7915/README.md#ic */
 struct icmpext_args {
 	size_t max_pkt_len; /* Maximum (allowed outgoing) Packet Length */
 	size_t ipl; /* Internal Packet Length */
 	size_t out_bits; /* 4->6: Set as 3; 6->4: Set as 2 */
-	bool force_remove_ie; /* Force the removal of the IE? */
+	bool force_remove_ie; /* Force removal of ICMP Extension? */
 };
 
 verdict handle_icmp_extension(struct xlation *state,
 		struct icmpext_args *args);
+
+void skb_cleanup_copy(struct sk_buff *skb);
 
 #endif /* SRC_MOD_COMMON_RFC7915_COMMON_H_ */

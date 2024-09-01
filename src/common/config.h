@@ -197,6 +197,7 @@ enum joolnl_attr_bib {
 
 extern struct nla_policy joolnl_bib_entry_policy[JNLAB_COUNT];
 
+/* TODO (fine) Most of these fields are obsolete; rm them in a minor release. */
 enum joolnl_attr_session {
 	JNLASE_SRC6 = 1,
 	JNLASE_DST6,
@@ -271,6 +272,7 @@ enum joolnl_attr_global {
 	JNLAG_JOOLD_FLUSH_DEADLINE,
 	JNLAG_JOOLD_CAPACITY,
 	JNLAG_JOOLD_MAX_PAYLOAD,
+	JNLAG_JOOLD_MAX_SESSIONS_PER_PACKET,
 
 	/* MAP-T */
 	JNLAG_MAPTYPE,
@@ -333,6 +335,8 @@ struct joolnlhdr {
 
 	char iname[INAME_MAX_SIZE];
 };
+
+#define JOOLNL_HDRLEN NLMSG_ALIGN(sizeof(struct joolnlhdr))
 
 struct config_prefix6 {
 	bool set;
@@ -449,20 +453,7 @@ struct joold_config {
 	/** Is joold enabled on this Jool instance? */
 	bool enabled;
 
-	/**
-	 * true:  Whenever a session changes, packet it up and send it.
-	 *        (Note: In theory, this might be more often than it seems.
-	 *        It's not whenever a connection is initiated;
-	 *        it's on every translated packet except ICMP errors.
-	 *        In practice however, flushes are prohibited until the next
-	 *        ACK (otherwise joold quickly saturates the kernel), so
-	 *        sessions will end up queuing up even in this mode.)
-	 *        This is the preferred method in active scenarios.
-	 * false: Wait until we have enough sessions to fill a packet before
-	 *        sending them.
-	 *        (ACKs are still required, but expected to arrive faster.)
-	 *        This is the preferred method in passive scenarios.
-	 */
+	/** Deprecated; does nothing as of 4.1.13. */
 	bool flush_asap;
 
 	/**
@@ -482,22 +473,23 @@ struct joold_config {
 	 */
 	__u32 capacity;
 
+	/** Deprecated as of 4.1.11, does nothing. */
+	__u32 max_payload;
+
 	/**
-	 * Maximum amount of bytes joold should send per packet, excluding
-	 * IP/UDP headers.
+	 * Maximum number of sessions joold should send per packet.
 	 *
 	 * This exists because userspace joold sends sessions via UDP. UDP is
 	 * rather packet-oriented, as opposed to stream-oriented, so it doesn't
 	 * discover PMTU and instead tends to fragment when we send too many
 	 * sessions per packet. Which is bad.
 	 *
-	 * So the user, after figuring out the MTU, can tweak this number to
-	 * prevent fragmentation.
+	 * So the user can tweak this number to prevent fragmentation.
 	 *
 	 * We should probably handle this ourselves but it sounds like a lot of
 	 * code. (I guess I'm missing something.)
 	 */
-	__u32 max_payload;
+	__u32 max_sessions_per_pkt;
 };
 
 enum mapt_type {

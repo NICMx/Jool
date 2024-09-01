@@ -9,6 +9,7 @@ Some shortcuts used while naming variables and functions through the code or doc
 
 - 4to6 = translation from IPv4 to IPv6
 - 6to4 = translation from IPv6 to IPv4
+- ad = advertise (if verb), advertisement (if noun)
 - alloc = memory allocation
 - addr = address
 - ADF = Address-Dependent Filtering
@@ -36,6 +37,7 @@ Some shortcuts used while naming variables and functions through the code or doc
 - l3 = layer 3 (network; IPv4 or IPv6.)
 - l4 = layer 4 (transport; TCP, UDP. Also ICMP and ICMPv6 for convenience.)
 - len = length
+- mft = Manifest
 - mod = kernel module
 - NIC = Network Interface Card
 - nf = Netfilter (http://www.netfilter.org/)

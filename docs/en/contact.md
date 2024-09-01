@@ -7,13 +7,11 @@ title: Contact
 
 # Contact
 
-- jool-list@nic.mx is a mail list intended for general public discussion and news. Questions, requests and comments welcomed.  
-  You can register to this list [here](https://mail-lists.nic.mx/listas/listinfo/jool-list).
-- jool-news@nic.mx is a mail list intended to inform news to its recipients. At this point, it is only used to signal new releases being published at this site.  
-  Anyone can listen, but only the dev team can place mails here, so you don't have to worry about spam.  
-  You can register to this list [here](https://mail-lists.nic.mx/listas/listinfo/jool-news).  
-  Because of its purpose, this list rarely sees more than one e-mail a month.
-- [jool@nic.mx](mailto:jool@nic.mx) is a mail alias you can use to reach us developers only.  
-  Though we're willing to provide advice via this medium, we'd be grateful is you used jool-list@nic.mx for this purpose instead so a future archive surfer can benefit from the experience.
-- Our official bug tracker is the [Github corner]({{ site.repository-url }}/issues). This is also a good place to request features.
+Our bug tracker is [Github issues]({{ site.repository-url }}/issues).
+
+For support and/or general discussion, try our [chat on Matrix](https://matrix.ungleich.ch/#/room/#jool:ungleich.ch) or the [jool-list@nic.mx mailing list](https://mail-lists.nic.mx/listas/listinfo/jool-list).
+
+If you want to be notified when new releases are available, [watch the project on Github](https://github.com/NICMx/Jool) or subscribe to the [news mailing list](https://mail-lists.nic.mx/listas/listinfo/jool-news).
+
+There's also [jool@nic.mx](mailto:jool@nic.mx), which is a mail alias you can use to reach us developers only.
 

@@ -27,7 +27,7 @@ static struct addrxlat_result programming_error(void)
 {
 	struct addrxlat_result result;
 	result.verdict = ADDRXLAT_DROP;
-	result.reason = "Programming error";
+	result.reason = "Programming error.";
 	return result;
 }
 
@@ -39,8 +39,8 @@ struct addrxlat_result addrxlat_siit64(struct xlator *instance,
 	int error;
 
 	if (is_illegal_source(in)) {
-		result.verdict = ADDRXLAT_DROP;
-		result.reason = "IPv6 source address (::1) is illegal (according to RFC 7915)";
+		result.verdict = ADDRXLAT_ACCEPT;
+		result.reason = "IPv6 source address (::1) is illegal (according to RFC 7915).";
 		return result;
 	}
 
@@ -52,7 +52,7 @@ struct addrxlat_result addrxlat_siit64(struct xlator *instance,
 
 	if (!instance->globals.pool6.set || rfc6052_6to4(&instance->globals.pool6.prefix, in, out)) {
 		result.verdict = ADDRXLAT_TRY_SOMETHING_ELSE;
-		result.reason = "The input address lacks both pool6 prefix and EAM";
+		result.reason = "Address lacks both pool6 prefix and EAM.";
 		return result;
 	}
 
@@ -60,14 +60,14 @@ struct addrxlat_result addrxlat_siit64(struct xlator *instance,
 			&out->addr)) {
 		result.verdict = ADDRXLAT_ACCEPT;
 		/* No, that's not a typo. */
-		result.reason = "The resulting address (%pI4) is denylist4ed";
+		result.reason = "Address is denylist4ed.";
 		return result;
 	}
 
 success:
 	if (enable_denylists && must_not_translate(&out->addr, instance->ns)) {
 		result.verdict = ADDRXLAT_ACCEPT;
-		result.reason = "The resulting address is subnet-scoped or belongs to a local interface";
+		result.reason = "Address is subnet-scoped or belongs to a local interface.";
 		return result;
 	}
 
@@ -86,7 +86,7 @@ struct addrxlat_result addrxlat_siit46(struct xlator *instance,
 
 	if (enable_denylists && must_not_translate(&tmp, instance->ns)) {
 		result.verdict = ADDRXLAT_ACCEPT;
-		result.reason = "The address is subnet-scoped or belongs to a local interface";
+		result.reason = "Address is subnet-scoped or belongs to a local interface.";
 		return result;
 	}
 
@@ -100,13 +100,13 @@ struct addrxlat_result addrxlat_siit46(struct xlator *instance,
 
 	if (denylist4_contains(instance->siit.denylist4, &tmp)) {
 		result.verdict = ADDRXLAT_ACCEPT;
-		result.reason = "The address lacks EAMT entry and is denylist4ed";
+		result.reason = "Address lacks EAMT entry and is denylist4ed.";
 		return result;
 	}
 
 	if (!instance->globals.pool6.set) {
 		result.verdict = ADDRXLAT_TRY_SOMETHING_ELSE;
-		result.reason = "The address lacks EAMT entry and there's no pool6 prefix";
+		result.reason = "Address lacks EAMT entry and there's no pool6 prefix.";
 		return result;
 	}
 

@@ -117,7 +117,7 @@ struct add_args {
 };
 
 struct wargp_type wt_taddr = {
-	.argument = "<IPv6 transport address> <IPv4 transport address>",
+	.arg = "IP6ADDR#PORT IP4ADDR#PORT",
 	.parse = parse_taddr,
 };
 

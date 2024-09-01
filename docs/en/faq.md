@@ -11,10 +11,41 @@ title: FAQ
 
 ## Index
 
+1. [Error: Don't know what to do: The packet I just received does not follow Jool's protocol.](#error-dont-know-what-to-do-the-packet-i-just-received-does-not-follow-jools-protocol)
 1. [Why is Jool not doing anything?](#why-is-jool-not-doing-anything)
 2. [Why is my ping not working?](#why-is-my-ping-not-working)
 3. [Jool is intermitently unable to translate traffic.](#jool-is-intermitently-unable-to-translate-traffic)
 4. [The throughput is terrible!](#the-throughput-is-terrible)
+
+## Error: Don't know what to do: The packet I just received does not follow Jool's protocol.
+
+Sorry; this error message is supposed to be 
+
+	Version mismatch. The userspace client's version is X.X.X.X,
+	but the kernel module is Y.Y.Y.Y.
+	Please update the (userspace client|kernel module).
+
+but, because of [this bug](https://github.com/NICMx/Jool/issues/340), the relevant protocol details changed between Jool 4.1.4 and Jool 4.1.5.
+
+The problem is that you updated either the userspace client or the kernel module, but not both.
+
+You can check your userspace client version with
+
+```bash
+$ jool --version
+X.X.X.X
+```
+
+And the kernel module version by querying `dmesg` after a successful `modprobe`:
+
+```bash
+$ sudo modprobe jool
+$ dmesg -t | grep inserted
+Jool: Core Jool vY.Y.Y.Y module inserted.
+NAT64 Jool vY.Y.Y.Y module inserted.
+```
+
+Update either artifact by following the [corresponding instructions](documentation.html#installation).
 
 ## Why is Jool not doing anything?
 

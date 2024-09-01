@@ -7,7 +7,6 @@
 #include "usr/argp/requirements.h"
 #include "usr/argp/wargp.h"
 #include "usr/argp/xlator_type.h"
-#include "usr/argp/wargp/global.h"
 #include "usr/util/str_utils.h"
 #include "usr/nl/core.h"
 #include "usr/nl/instance.h"
@@ -46,9 +45,9 @@ static int parse_iname(void *void_field, int key, char *str)
 }
 
 struct wargp_type wt_iname = {
-	.argument = "<instance name>",
+	.arg = "STR",
 	.parse = parse_iname,
-	.candidates = "default",
+	.candidates = INAME_DEFAULT,
 };
 
 struct display_args {
@@ -165,15 +164,17 @@ struct add_args {
 static struct wargp_option add_opts[] = {
 	WARGP_INAME(struct add_args, iname, "add"),
 	{
+#ifndef XTABLES_DISABLED
 		.name = OPTNAME_IPTABLES,
 		.key = 'i',
 		.doc = "Sit the translator on top of iptables",
 		.offset = offsetof(struct add_args, iptables),
 		.type = &wt_bool,
 	}, {
+#endif
 		.name = OPTNAME_NETFILTER,
 		.key = 'n',
-		.doc = "Sit the translator on top of Netfilter",
+		.doc = "Sit the translator on top of Netfilter (default)",
 		.offset = offsetof(struct add_args, netfilter),
 		.type = &wt_bool,
 	}, {
@@ -213,17 +214,18 @@ int handle_instance_add(char *iname, int argc, char **argv, void const *arg)
 		iname = aargs.iname.value;
 
 	/* Validate framework */
-	if (!aargs.netfilter.value && !aargs.iptables.value) {
-		pr_err("Please specify instance framework. (--"
-				OPTNAME_NETFILTER " or --"
-				OPTNAME_IPTABLES ".)");
-		pr_err("(The Jool 3.5 behavior was --" OPTNAME_NETFILTER ".)");
-		return -EINVAL;
-	}
+	if (!aargs.netfilter.value && !aargs.iptables.value)
+		aargs.netfilter.value = true;
 	if (aargs.netfilter.value && aargs.iptables.value) {
 		pr_err("The translator can only be hooked to one framework.");
 		return -EINVAL;
 	}
+#ifdef XTABLES_DISABLED
+	if (aargs.iptables.value) {
+		pr_err("iptables cannot be used; it was disabled during compilation.");
+		return -EINVAL;
+	}
+#endif
 
 	result = joolnl_setup(&sk, xt_get());
 	if (result.error)

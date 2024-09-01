@@ -33,8 +33,8 @@ void pool4db_flush(struct pool4 *pool);
  * Read functions (Legal to use anywhere)
  */
 
-bool pool4db_contains(struct pool4 *pool, struct net *ns,
-		enum l4_protocol proto, struct ipv4_transport_addr *addr);
+bool pool4db_contains(struct pool4 *pool, struct net *ns, l4_protocol proto,
+		struct ipv4_transport_addr const *addr);
 
 typedef int (*pool4db_foreach_entry_cb)(struct pool4_entry const *, void *);
 int pool4db_foreach_sample(struct pool4 *pool, l4_protocol proto,

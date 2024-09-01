@@ -4,9 +4,9 @@
  * I didn't want to recompile the kernel yet again so I made this.
  * It's nowhere near as good but it took much less time. Sorry.
  *
- * Include in the compilation by adding JKMEMLEAK to Jool's variables.
+ * Include in the compilation by adding JKMEMLEAK to CFLAGS.
  *
- * 	make JOOL_FLAGS=-DJKMEMLEAK
+ * 	make CFLAGS_MODULE=-DJKMEMLEAK
  *
  * Will print a report when you modprobe -r.
  */
@@ -112,14 +112,12 @@ void wkmalloc_print_leaks(void)
 		log_info("None.");
 }
 
-static void destroy_node(struct rb_node *node, void *arg)
-{
-	kfree(kmn_entry(node));
-}
-
 void wkmalloc_teardown(void)
 {
-	rbtree_clear(&tree, destroy_node, NULL);
+	struct kmalloc_entry *entry, *tmp;
+	rbtree_foreach(entry, tmp, &tree, hook)
+		kfree(entry);
+	tree.rb_node = NULL;
 }
 
 #endif /* JKMEMLEAK */

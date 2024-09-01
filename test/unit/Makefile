@@ -20,6 +20,7 @@ PROJECTS += sessiontable
 PROJECTS += pool4db
 PROJECTS += bibdb
 PROJECTS += sessiondb
+PROJECTS += joold
 
 # Layer 4 tests (utils that depend on the dbs)
 PROJECTS += joolns

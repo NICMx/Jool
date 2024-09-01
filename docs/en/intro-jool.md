@@ -46,19 +46,14 @@ Please [let us know]({{ site.repository-url }}/issues) if you find additional co
 
 ## Compatibility
 
-> ![Warning!](../images/warning.svg) As of 2020-12-24, the [lowest longterm mainline kernel is version 4.4](https://www.kernel.org/). Also, [CentOS doesn't seem to be doing very well](https://blog.centos.org/2020/12/future-is-centos-stream/). Jool support for old and RHEL kernels is likely to end soon.
-
-<!-- Remember: The man pages mention the lowest supported kernel. -->
-
 | Jool version                        | Supported Linux kernels (mainline)   | Supported Linux kernels (RHEL) |
 |-------------------------------------|--------------------------------------|--------------------------------|
-| [master]({{ site.repository-url }}),<br />[4.1.5](download.html#41x) | 3.16 - 3.19,<br />4.0 - 4.20,<br />5.0 - 5.11 | RHEL 7.6 - RHEL 7.7,<br />RHEL 8.0 |
-| [4.1.3](download.html#41x),<br />[4.1.4](download.html#41x) | 3.16 - 3.19,<br />4.0 - 4.20,<br />5.0 - 5.9 | RHEL 7.6 - RHEL 7.7,<br />RHEL 8.0 |
-| [4.1.2](download.html#41x) | 3.16 - 3.19,<br />4.0 - 4.20,<br />5.0 - 5.7 | RHEL 7.6 - RHEL 7.7,<br />RHEL 8.0 |
-| [4.1.1](download.html#41x),<br />[4.1.0](download.html#41x) | 3.16 - 3.19,<br />4.0 - 4.20,<br />5.0 - 5.7 | RHEL 7.6 - RHEL 7.7,<br /><del>[RHEL 8.0](https://github.com/NICMx/Jool/issues/334)</del> |
-| [4.0.9](download.html#40x)          | 3.13 - 3.19,<br />4.0 - 4.20,<br />5.0 - 5.6 | RHEL 7.0 - RHEL 7.7,<br /><del>[RHEL 8.0](https://github.com/NICMx/Jool/issues/334)</del> |
-| [4.0.8](download.html#40x)          | 3.13 - 3.19,<br />4.0 - 4.20,<br />5.0 - 5.5 | RHEL 7.0 - RHEL 7.7,<br /><del>[RHEL 8.0](https://github.com/NICMx/Jool/issues/334)</del> |
-| [4.0.7](download.html#40x)          | 3.13 - 3.19,<br />4.0 - 4.20,<br />5.0 - 5.4 | RHEL 7.0 - RHEL 7.7,<br /><del>[RHEL 8.0](https://github.com/NICMx/Jool/issues/334)</del> |
+| [main]({{ site.repository-url }}),<br />[4.1.13](download.html#41x) | 5.15 - 5.19&#42;,<br />6.0 - 6.11(-rc2) | RHEL 9.0 - 9.4&#42; |
+| [4.1.12](download.html#41x) | 4.19 - 4.20,<br />5.0 - 5.19,<br />6.0 - 6.10 | RHEL 8.9 - 8.10,<br />RHEL 9.0 - 9.4 |
+| [4.1.11](download.html#41x) | 4.18 - 4.20,<br />5.0 - 5.19,<br />6.0 - 6.7 | RHEL 8.6 - 8.9,<br />RHEL 9.0 - 9.3 |
+| [4.1.10](download.html#41x) | 4.14 - 4.20,<br />5.0 - 5.19,<br />6.0 - 6.3 | RHEL 8.6 - 8.7,<br />RHEL 9.0 - 9.3 |
+| [4.1.9](download.html#41x) | 4.9 - 4.20,<br />5.0 - 5.19,<br />6.0 - 6.1 | RHEL 8.6 - 8.7,<br />RHEL 9.0 - 9.1 |
+| [4.1.8](download.html#41x) | 4.9 - 4.20,<br />5.0 - 5.16 | RHEL 8.5 |
 
 If you're using a non-RHEL distribution (eg. Debian derivatives), execute `uname -r` to print the kernel version you're running. Suffixes rarely matter. Here's an example from my running machine, which states that my running kernel is 4.15:
 
@@ -67,11 +62,11 @@ If you're using a non-RHEL distribution (eg. Debian derivatives), execute `uname
 
 RHEL-based distributions (such as Red Hat and CentOS) do not follow the normal kernel versioning conventions; use the third column instead.
 
+&#42; Jool 4.1.13 still probably compiles and runs fine in kernels 4.19 to 5.14 (and RHEL 8), but I have lost the ability to test them to the merciless and everlasting ravage of entropy. If you're interested in any particular kernel, try running the test suite yourself: [1](https://github.com/NICMx/Jool/tree/main/test/unit), [2](https://github.com/NICMx/Jool/tree/main/test/graybox).
+
 ## Design
 
 A Jool instance can be attached to one of two different traffic-intercepting, plugin-enabling, kernel-based frameworks: _Netfilter_ and _iptables_. Despite some documentation out there, these two are not the same thing; at least not from Jool's point of view.
-
-> ![Note!](../images/bulb.svg) Yes, we know we're supposed to add nftables support, but it's going to be a lot of work, and so it's tentatively scheduled to come out in late 2021.
 
 ### Netfilter
 

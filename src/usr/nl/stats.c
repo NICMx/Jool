@@ -2,6 +2,8 @@
 
 #include <errno.h>
 #include <netlink/genl/genl.h>
+
+#include "common/xlat.h"
 #include "usr/nl/attribute.h"
 #include "usr/nl/common.h"
 
@@ -66,6 +68,8 @@ static struct joolnl_stat_metadata const jstat_metadatas[] = {
 	DEFINE_STAT(JSTAT64_ICMP_CSUM, TC "Incoming ICMPv6 error packet's checksum was incorrect."),
 	DEFINE_STAT(JSTAT64_UNTRANSLATABLE_PARAM_PROB_PTR, TC "Packet was an ICMv6 Parameter Problem error message, but its pointer was untranslatable."),
 	DEFINE_STAT(JSTAT64_TTL, TC "IPv6 packet's Hop Limit field was 0 or 1."),
+	DEFINE_STAT(JSTAT64_FRAGMENTED_ICMP, TC "IPv6 Packet was fragmented and ICMP, so its checksum was impossible to translate. (Unknown total packet length from IPv6 pseudoheader.)"),
+	DEFINE_STAT(JSTAT64_2XFRAG, TC "IPv6 packet has two fragment headers."),
 	DEFINE_STAT(JSTAT64_FRAG_THEN_EXT, TC "IPv6 packet has a Hop-by-Hop, Destination or Routing header after the Fragment header."),
 	DEFINE_STAT(JSTAT64_SEGMENTS_LEFT, TC "IPv6 packet had a Segments Left field, and it was nonzero."),
 	DEFINE_STAT(JSTAT46_SRC, TC "IPv4 packet's source address was denylist4ed, or did not match pool6 nor any EAMT entries."),
@@ -75,6 +79,7 @@ static struct joolnl_stat_metadata const jstat_metadatas[] = {
 	DEFINE_STAT(JSTAT46_ICMP_CSUM, TC "Incoming ICMPv4 error packet's checksum was incorrect."),
 	DEFINE_STAT(JSTAT46_UNTRANSLATABLE_PARAM_PROBLEM_PTR, TC "Packet was an ICMv4 Parameter Problem error message, but its pointer was untranslatable."),
 	DEFINE_STAT(JSTAT46_TTL, TC "IPv4 packet's TTL field was 0 or 1."),
+	DEFINE_STAT(JSTAT46_FRAGMENTED_ICMP, TC "IPv4 Packet was fragmented and ICMP, so its checksum was impossible to translate. (Unknown total packet length for IPv6 pseudoheader.)"),
 	DEFINE_STAT(JSTAT46_SRC_ROUTE, TC "Packet had an unexpired Source Route. (Untranslatable.)"),
 	DEFINE_STAT(JSTAT46_FRAGMENTED_ZERO_CSUM, TC "IPv4 packet's UDP checksum was zero. Jool dropped the packet because --amend-udp-checksum-zero was disabled, and/or the packet was fragmented.\n"
 			"(In IPv4, the UDP checksum is optional, but in IPv6 it is not. Because stateless translators do not collect fragments, they cannot compute packet-wide checksums from scratch. Zero-checksum UDP fragments are thus untranslatable.)"),
@@ -88,6 +93,7 @@ static struct joolnl_stat_metadata const jstat_metadatas[] = {
 	DEFINE_STAT(JSTAT_ICMP4ERR_FAILURE, "ICMPv4 errors (created by Jool, not translated) that could not be sent."),
 	DEFINE_STAT(JSTAT_ICMPEXT_SMALL, "Illegal ICMP header length. (Inner packet has less than 128 bytes.)"),
 	DEFINE_STAT(JSTAT_ICMPEXT_BIG, "Illegal ICMP header length. (Exceeds available payload in packet.)"),
+
 	DEFINE_STAT(JSTAT_MAPT_ADDR4, "The incoming IPv4 packet had a source address that did not match the assigned to this CE. (If there is a NAPT, there is a mismatch between its configuration and my own.)"),
 	DEFINE_STAT(JSTAT_MAPT_PSID, "The incoming IPv4 packet had a source port that did not match the PSID assigned to this CE. (There is a mismatch between the NAPT's configuration and my own.)"),
 	DEFINE_STAT(JSTAT_MAPT_POOL6, "The incoming IPv6 packet's destination address did not match the DMR (pool6) assigned to this BR."),
@@ -102,6 +108,23 @@ static struct joolnl_stat_metadata const jstat_metadatas[] = {
 			"- p = Mapping Rule's IPv4 suffix length\n"
 			"- \"Mapping Rule\" is the BMR or one of the FMRs.\n"
 			"- m is basically just 16 - a - k."),
+
+	DEFINE_STAT(JSTAT_JOOLD_EMPTY, "Joold packet not sent; no sessions queued."),
+	DEFINE_STAT(JSTAT_JOOLD_TIMEOUT, "Joold packet sent; ss-flush-deadline reached."),
+	DEFINE_STAT(JSTAT_JOOLD_MISSING_ACK, "Joold packet not sent; still waiting for ACK."),
+	DEFINE_STAT(JSTAT_JOOLD_AD_ONGOING, "Joold packet sent; advertise still ongoing."),
+	DEFINE_STAT(JSTAT_JOOLD_PKT_FULL, "Joold packet sent; session packet full."),
+	DEFINE_STAT(JSTAT_JOOLD_QUEUING, "Joold packet not sent; packet still has room for more sessions."),
+
+	DEFINE_STAT(JSTAT_JOOLD_SSS_QUEUED, "Joold: Total sessions queued."),
+	DEFINE_STAT(JSTAT_JOOLD_SSS_SENT, "Joold: Total sessions successfully sent."),
+	DEFINE_STAT(JSTAT_JOOLD_SSS_RCVD, "Joold: Total sessions successfully received."),
+	DEFINE_STAT(JSTAT_JOOLD_SSS_ENOSPC, "Joold: Total sessions dropped because the queue was full."),
+	DEFINE_STAT(JSTAT_JOOLD_PKT_SENT, "Joold: Total session packets successfully sent."),
+	DEFINE_STAT(JSTAT_JOOLD_PKT_RCVD, "Joold: Total session packets successfully received."),
+	DEFINE_STAT(JSTAT_JOOLD_ADS, "Joold: Total advertises queued."),
+	DEFINE_STAT(JSTAT_JOOLD_ACKS, "Joold: Total ACKs received from userspace."),
+
 	DEFINE_STAT(JSTAT_UNKNOWN, TC "Programming error found. The module recovered, but the packet was dropped."),
 	DEFINE_STAT(JSTAT_PADDING, "Dummy; ignore this one."),
 };
@@ -136,6 +159,22 @@ struct query_args {
 	enum jool_stat_id last;
 };
 
+static void warn_unknown_stat(struct nl_msg *response)
+{
+	struct joolnlhdr *jhdr;
+	__u32 version;
+
+	jhdr = genlmsg_user_hdr(genlmsg_hdr(nlmsg_hdr(response)));
+	version = ntohl(jhdr->version);
+
+	fprintf(stderr, "Warning: Unknown stat. Other stats might be mislabeled.\n");
+	fprintf(stderr, "Kernel module version is %u.%u.%u.%u, userspace client is %u.%u.%u.%u.\n",
+			version >> 24, (version >> 16) & 0xFFU,
+			(version >> 8) & 0xFFU, version & 0xFFU,
+			JOOL_VERSION_MAJOR, JOOL_VERSION_MINOR,
+			JOOL_VERSION_REV, JOOL_VERSION_DEV);
+}
+
 static struct jool_result stats_query_response(struct nl_msg *response,
 		void *args)
 {
@@ -156,10 +195,14 @@ static struct jool_result stats_query_response(struct nl_msg *response,
 
 	nla_for_each_attr(attr, head, len, rem) {
 		qargs->last = nla_type(attr);
-		if (qargs->last < 1 || qargs->last >= JSTAT_PADDING)
-			goto bad_id;
-
-		stat.meta = jstat_metadatas[qargs->last];
+		if (qargs->last < 1 || JSTAT_MAX <= qargs->last) {
+			warn_unknown_stat(response);
+			stat.meta.id = qargs->last;
+			stat.meta.name = "????";
+			stat.meta.doc = "This stat is unknown.";
+		} else {
+			stat.meta = jstat_metadatas[qargs->last];
+		}
 		stat.value = nla_get_u64(attr);
 		result = qargs->cb(&stat, qargs->args);
 		if (result.error)
@@ -167,12 +210,6 @@ static struct jool_result stats_query_response(struct nl_msg *response,
 	}
 
 	return result_success();
-
-bad_id:
-	return result_from_error(
-		-EINVAL,
-		"The kernel module returned an unknown stat counter."
-	);
 }
 
 struct jool_result joolnl_stats_foreach(struct joolnl_socket *sk,
@@ -189,6 +226,7 @@ struct jool_result joolnl_stats_foreach(struct joolnl_socket *sk,
 	qargs.cb = cb;
 	qargs.args = args;
 	qargs.done = true;
+	qargs.last = 0;
 
 	do {
 		result = joolnl_alloc_msg(sk, iname, JNLOP_STATS_FOREACH, 0, &msg);

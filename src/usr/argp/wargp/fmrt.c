@@ -121,7 +121,7 @@ int __handle_fmrt_update(char *iname, int argc, char **argv, void const *arg,
 
 	if (aargs.fields < 3) {
 		pr_err("Not enough arguments. Expected: %s",
-				wt_mapping_rule.argument);
+				wt_mapping_rule.arg);
 		pr_err("Arguments parsed: %u", aargs.fields);
 		return -EINVAL;
 	}

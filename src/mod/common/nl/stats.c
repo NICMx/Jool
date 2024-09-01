@@ -34,12 +34,8 @@ int handle_stats_foreach(struct sk_buff *skb, struct genl_info *info)
 	/* Build response */
 	written = 0;
 	for (id++; id <= JSTAT_UNKNOWN; id++) {
-#if LINUX_VERSION_AT_LEAST(4, 7, 0, 7, 4)
 		error = nla_put_u64_64bit(jnls_skb(state), id, stats[id],
 				JSTAT_PADDING);
-#else
-		error = nla_put_u64(jnls_skb(state), id, stats[id]);
-#endif
 		if (error) {
 			if (!written) {
 				kfree(stats);

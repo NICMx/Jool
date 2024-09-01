@@ -235,7 +235,7 @@ static void clean(void)
 	xlator_put(&jool);
 }
 
-int init_module(void)
+static int bibdb_test_init(void)
 {
 	struct test_group test = {
 		.name = "BIB DB",
@@ -251,7 +251,10 @@ int init_module(void)
 	return test_group_end(&test);
 }
 
-void cleanup_module(void)
+static void bibdb_test_exit(void)
 {
 	/* No code. */
 }
+
+module_init(bibdb_test_init);
+module_exit(bibdb_test_exit);

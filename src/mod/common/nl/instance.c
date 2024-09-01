@@ -3,6 +3,7 @@
 #include "common/types.h"
 #include "mod/common/log.h"
 #include "mod/common/xlator.h"
+#include "mod/common/compat_32_64.h"
 #include "mod/common/db/global.h"
 #include "mod/common/nl/attribute.h"
 #include "mod/common/nl/nl_common.h"
@@ -38,7 +39,7 @@ static int serialize_instance(struct xlator *entry, void *arg)
 	if (!root)
 		return 1;
 
-	error = nla_put_u32(skb, JNLAIE_NS, ((__u64)entry->ns) & 0xFFFFFFFF);
+	error = nla_put_u32(skb, JNLAIE_NS, ((PTR_AS_UINT_TYPE)entry->ns) & 0xFFFFFFFF);
 	if (error)
 		goto cancel;
 	error = nla_put_u8(skb, JNLAIE_XF, xlator_flags2xf(entry->flags));

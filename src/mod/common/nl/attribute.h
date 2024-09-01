@@ -7,6 +7,7 @@
 #include "mod/common/nl/nl_common.h"
 
 int jnla_get_u8(struct nlattr *attr, char const *name, __u8 *out, struct jnl_state *state);
+int jnla_get_u16(struct nlattr *attr, char const *name, __u16 *out, struct jnl_state *state);
 int jnla_get_u32(struct nlattr *attr, char const *name, __u32 *out, struct jnl_state *state);
 int jnla_get_str(struct nlattr *attr, char const *name, size_t len, char *out, struct jnl_state *state);
 int jnla_get_addr6(struct nlattr *attr, char const *name, struct in6_addr *out, struct jnl_state *state);
@@ -20,7 +21,7 @@ int jnla_get_taddr4(struct nlattr *attr, char const *name, struct ipv4_transport
 int jnla_get_eam(struct nlattr *attr, char const *name, struct eamt_entry *eam, struct jnl_state *state);
 int jnla_get_pool4(struct nlattr *attr, char const *name, struct pool4_entry *entry, struct jnl_state *state);
 int jnla_get_bib(struct nlattr *attr, char const *name, struct bib_entry *entry, struct jnl_state *state);
-int jnla_get_session(struct nlattr *attr, char const *name, struct bib_config *config, struct session_entry *entry, struct jnl_state *state);
+int jnla_get_session_joold(struct nlattr *attr, char const *name, struct jool_globals *cfg, struct session_entry *entry, struct jnl_state *state);
 int jnla_get_mapping_rule(struct nlattr *attr, char const *name, struct config_mapping_rule *rule, struct jnl_state *state);
 int jnla_get_plateaus(struct nlattr *attr, struct mtu_plateaus *out, struct jnl_state *state);
 
@@ -35,6 +36,7 @@ int jnla_put_eam(struct sk_buff *skb, int attrtype, struct eamt_entry const *eam
 int jnla_put_pool4(struct sk_buff *skb, int attrtype, struct pool4_entry const *entry);
 int jnla_put_bib(struct sk_buff *skb, int attrtype, struct bib_entry const *bib);
 int jnla_put_session(struct sk_buff *skb, int attrtype, struct session_entry const *entry);
+int jnla_put_session_joold(struct sk_buff *skb, int attrtype, struct session_entry const *entry);
 int jnla_put_mapping_rule(struct sk_buff *skb, int attrtype, struct config_mapping_rule const *rule);
 int jnla_put_plateaus(struct sk_buff *skb, int attrtype, struct mtu_plateaus const *plateaus);
 

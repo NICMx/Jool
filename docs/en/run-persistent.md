@@ -104,11 +104,11 @@ That's all. If the service is configured correctly, it will start automatically 
 
 First, figure out whether you're using systemd or System V, and whether you need an SIIT or a NAT64.
 
-- [This](https://raw.githubusercontent.com/ydahhrk/packaging/master/Jool/debian/jool-tools.jool_siit.service) is Debian's SIIT systemd unit file. (It probably needs to be renamed as `/lib/systemd/system/jool_siit.service`.)
-- [This](https://raw.githubusercontent.com/ydahhrk/packaging/master/Jool/debian/jool-tools.jool.service) is Debian's NAT64 systemd unit file. (It probably needs to be renamed as `/lib/systemd/system/jool.service`.)
-- [This](https://raw.githubusercontent.com/ydahhrk/packaging/master/Jool/debian/jool-tools.jool_siit.init) is Debian's SIIT System V script. (It probably needs to be renamed as `/etc/init.d/jool_siit`.)
-- [This](https://raw.githubusercontent.com/ydahhrk/packaging/master/Jool/debian/jool-tools.jool.init) is Debian's NAT64 System V script.  (It probably needs to be renamed as `/etc/init.d/jool_siit`.)
+- [This](https://raw.githubusercontent.com/NICMx/Jool/debian/debian/jool-tools.jool_siit.service) is Debian's SIIT systemd unit file. (It probably needs to be renamed as `/lib/systemd/system/jool_siit.service`.)
+- [This](https://raw.githubusercontent.com/NICMx/Jool/debian/debian/jool-tools.jool.service) is Debian's NAT64 systemd unit file. (It probably needs to be renamed as `/lib/systemd/system/jool.service`.)
+- [This](https://raw.githubusercontent.com/NICMx/Jool/debian/debian/jool-tools.jool_siit.init) is Debian's SIIT System V script. (It probably needs to be renamed as `/etc/init.d/jool_siit`.)
+- [This](https://raw.githubusercontent.com/NICMx/Jool/debian/debian/jool-tools.jool.init) is Debian's NAT64 System V script.  (It probably needs to be renamed as `/etc/init.d/jool_siit`.)
 
 Grab the one you need and adapt it to your needs. To wit, the only thing you might need to modify is the path to the jool userspace client binary. In the files above it's `/usr/bin/jool_siit` and `/usr/bin/jool`, but your installation might have likely placed them in `/usr/local/bin` instead.
 
-Once that's done, simply follow the [Debian directions above](#debian). [This](https://raw.githubusercontent.com/ydahhrk/packaging/master/Jool/debian/examples/jool_siit.conf) is the sample SIIT sample configuration file, and [this](https://raw.githubusercontent.com/ydahhrk/packaging/master/Jool/debian/examples/jool.conf) is the NAT64 sample configuration file.
+Once that's done, simply follow the [Debian directions above](#debian). [This](https://raw.githubusercontent.com/NICMx/Jool/debian/debian/examples/jool_siit.conf) is the sample SIIT sample configuration file, and [this](https://raw.githubusercontent.com/NICMx/Jool/debian/debian/examples/jool.conf) is the NAT64 sample configuration file.

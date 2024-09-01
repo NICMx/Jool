@@ -1,4 +1,4 @@
-#include "db.h"
+#include "mod/common/db/pool4/db.h"
 
 #include <linux/hash.h>
 #include <linux/list.h>
@@ -188,13 +188,13 @@ static struct pool4_table *find_by_mark(struct rb_root *tree, __u32 mark)
 	return rbtree_find(mark, tree, cmp_mark, struct pool4_table, tree_hook);
 }
 
-static int cmp_addr(struct pool4_table *table, struct in_addr *addr)
+static int cmp_addr(struct pool4_table *table, struct in_addr const *addr)
 {
 	return ipv4_addr_cmp(&table->addr, addr);
 }
 
 static struct pool4_table *find_by_addr(struct rb_root *tree,
-		struct in_addr *addr)
+		struct in_addr const *addr)
 {
 	if (unlikely(!tree))
 		return NULL;
@@ -291,21 +291,22 @@ static void destroy_table(struct pool4_table *table)
 	__wkfree("pool4table", table);
 }
 
-static void destroy_table_by_node(struct rb_node *node, void *arg)
+static void clear_tree(struct rb_root *root)
 {
-	struct pool4_table *table;
-	table = rb_entry(node, struct pool4_table, tree_hook);
-	destroy_table(table);
+	struct pool4_table *table, *tmp;
+	rbtree_foreach(table, tmp, root, tree_hook)
+		destroy_table(table);
+	root->rb_node = NULL;
 }
 
 static void clear_trees(struct pool4 *pool)
 {
-	rbtree_clear(&pool->tree_mark.tcp, destroy_table_by_node, NULL);
-	rbtree_clear(&pool->tree_mark.udp, destroy_table_by_node, NULL);
-	rbtree_clear(&pool->tree_mark.icmp, destroy_table_by_node, NULL);
-	rbtree_clear(&pool->tree_addr.tcp, destroy_table_by_node, NULL);
-	rbtree_clear(&pool->tree_addr.udp, destroy_table_by_node, NULL);
-	rbtree_clear(&pool->tree_addr.icmp, destroy_table_by_node, NULL);
+	clear_tree(&pool->tree_mark.tcp);
+	clear_tree(&pool->tree_mark.udp);
+	clear_tree(&pool->tree_mark.icmp);
+	clear_tree(&pool->tree_addr.tcp);
+	clear_tree(&pool->tree_addr.udp);
+	clear_tree(&pool->tree_addr.icmp);
 }
 
 static void pool4db_release(struct kref *refcounter)
@@ -780,7 +781,7 @@ static struct ipv4_range *find_port_range(struct pool4_table *entry, __u16 port)
  * Mark is only used in the 6-to-4 direction.
  */
 bool pool4db_contains(struct pool4 *pool, struct net *ns, l4_protocol proto,
-		struct ipv4_transport_addr *addr)
+		struct ipv4_transport_addr const *addr)
 {
 	struct pool4_table *table;
 	bool found = false;

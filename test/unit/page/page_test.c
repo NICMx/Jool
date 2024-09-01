@@ -355,7 +355,7 @@ static bool trim46_test(void)
 	return success;
 }
 
-int init_module(void)
+static int page_test_init(void)
 {
 	struct test_group test = {
 		.name = "Pages",
@@ -378,7 +378,10 @@ int init_module(void)
 	return test_group_end(&test);
 }
 
-void cleanup_module(void)
+static void page_test_exit(void)
 {
 	/* No code. */
 }
+
+module_init(page_test_init);
+module_exit(page_test_exit);

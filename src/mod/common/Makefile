@@ -2,7 +2,7 @@ MODULES_DIR ?= /lib/modules/$(shell uname -r)
 KERNEL_DIR ?= ${MODULES_DIR}/build
 
 all:
-	make -C ${KERNEL_DIR} M=$$PWD JOOL_FLAGS="${JOOL_FLAGS}"
+	make -C ${KERNEL_DIR} M=$$PWD
 modules:
 	make -C ${KERNEL_DIR} M=$$PWD $@
 modules_install:
@@ -12,4 +12,4 @@ install: modules_install
 clean:
 	make -C ${KERNEL_DIR} M=$$PWD $@
 debug:
-	make all JOOL_FLAGS+=-DDEBUG
+	make CFLAGS_MODULE+=-DDEBUG all

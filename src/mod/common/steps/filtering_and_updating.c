@@ -52,7 +52,7 @@ static void log_entries(struct xlation *state)
 	session = &entries->session;
 
 	if (entries->bib_set) {
-		log_debug(state, "BIB entry: %pI6c#%u - %pI4#%u (%s)",
+		log_debug(state, "BIB entry: " BEPP,
 				&session->src6.l3, session->src6.l4,
 				&session->src4.l3, session->src4.l4,
 				l4proto_to_string(session->proto));
@@ -60,16 +60,10 @@ static void log_entries(struct xlation *state)
 		log_debug(state, "BIB entry: None");
 	}
 
-	if (entries->session_set) {
-		log_debug(state, "Session entry: %pI6c#%u - %pI6c#%u | %pI4#%u - %pI4#%u (%s)",
-				&session->src6.l3, session->src6.l4,
-				&session->dst6.l3, session->dst6.l4,
-				&session->src4.l3, session->src4.l4,
-				&session->dst4.l3, session->dst4.l4,
-				l4proto_to_string(session->proto));
-	} else {
+	if (entries->session_set)
+		log_debug(state, "Session entry: " SEPP, SEPA(session));
+	else
 		log_debug(state, "Session entry: None");
-	}
 }
 
 static verdict succeed(struct xlation *state)
@@ -350,18 +344,16 @@ static enum session_fate tcp_v4_fin_rcv_state(struct session_entry *session,
 		struct xlation *state)
 {
 	struct packet *pkt = &state->in;
-	struct tcphdr *hdr;
+	struct tcphdr *hdr = pkt_tcp_hdr(pkt);
 
-	if (pkt_l3_proto(pkt) == L3PROTO_IPV6) {
-		hdr = pkt_tcp_hdr(pkt);
-		if (hdr->fin) {
-			session->state = V4_FIN_V6_FIN_RCV;
-			return FATE_TIMER_TRANS;
-		}
-		if (hdr->rst && handle_rst_during_fin_rcv(state)) {
-			/* https://github.com/NICMx/Jool/issues/212 */
-			return FATE_TIMER_TRANS;
-		}
+	if (pkt_l3_proto(pkt) == L3PROTO_IPV6 && hdr->fin) {
+		session->state = V4_FIN_V6_FIN_RCV;
+		return FATE_TIMER_TRANS;
+	}
+
+	if (hdr->rst && handle_rst_during_fin_rcv(state)) {
+		/* https://github.com/NICMx/Jool/issues/212 */
+		return FATE_TIMER_TRANS;
 	}
 
 	return FATE_TIMER_EST;
@@ -375,18 +367,16 @@ static enum session_fate tcp_v6_fin_rcv_state(struct session_entry *session,
 		struct xlation *state)
 {
 	struct packet *pkt = &state->in;
-	struct tcphdr *hdr;
+	struct tcphdr *hdr = pkt_tcp_hdr(pkt);
 
-	if (pkt_l3_proto(pkt) == L3PROTO_IPV4) {
-		hdr = pkt_tcp_hdr(pkt);
-		if (hdr->fin) {
-			session->state = V4_FIN_V6_FIN_RCV;
-			return FATE_TIMER_TRANS;
-		}
-		if (hdr->rst && handle_rst_during_fin_rcv(state)) {
-			/* https://github.com/NICMx/Jool/issues/212 */
-			return FATE_TIMER_TRANS;
-		}
+	if (pkt_l3_proto(pkt) == L3PROTO_IPV4 && hdr->fin) {
+		session->state = V4_FIN_V6_FIN_RCV;
+		return FATE_TIMER_TRANS;
+	}
+
+	if (hdr->rst && handle_rst_during_fin_rcv(state)) {
+		/* https://github.com/NICMx/Jool/issues/212 */
+		return FATE_TIMER_TRANS;
 	}
 
 	return FATE_TIMER_EST;
@@ -523,7 +513,7 @@ verdict filtering_and_updating(struct xlation *state)
 			return untranslatable(state, JSTAT_POOL6_MISMATCH);
 		}
 
-		/* ICMP errors should not be filtered or affect the tables. */
+		/* ICMP errors should not be filtered nor affect the tables. */
 		if (pkt_is_icmp6_error(in)) {
 			log_debug(state, "Packet is ICMPv6 error; skipping step...");
 			return VERDICT_CONTINUE;
@@ -537,7 +527,7 @@ verdict filtering_and_updating(struct xlation *state)
 			return untranslatable(state, JSTAT_POOL4_MISMATCH);
 		}
 
-		/* ICMP errors should not be filtered or affect the tables. */
+		/* ICMP errors should not be filtered nor affect the tables. */
 		if (pkt_is_icmp4_error(in)) {
 			log_debug(state, "Packet is ICMPv4 error; skipping step...");
 			return VERDICT_CONTINUE;

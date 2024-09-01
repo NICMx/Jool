@@ -25,7 +25,7 @@ static verdict find_instance(struct sk_buff *skb, struct xlator *result)
 		return VERDICT_UNTRANSLATABLE;
 	}
 
-	WARN(true, "Unknown error code %d while trying to find iptables a Jool instance.",
+	WARN(true, "Unknown error code %d while trying to find a Jool instance.",
 			error);
 	return VERDICT_UNTRANSLATABLE;
 }
@@ -55,7 +55,8 @@ static unsigned int verdict2netfilter(verdict result, bool enable_debug)
  * This is the function that the kernel calls whenever a packet reaches Jool's
  * IPv6 Netfilter hook.
  */
-NF_CALLBACK(hook_ipv6, skb)
+unsigned int hook_ipv6(void *priv, struct sk_buff *skb,
+		const struct nf_hook_state *nhs)
 {
 	struct xlation *state;
 	verdict result;
@@ -82,7 +83,8 @@ EXPORT_SYMBOL_GPL(hook_ipv6);
  * This is the function that the kernel calls whenever a packet reaches Jool's
  * IPv4 Netfilter hook.
  */
-NF_CALLBACK(hook_ipv4, skb)
+unsigned int hook_ipv4(void *priv, struct sk_buff *skb,
+		const struct nf_hook_state *nhs)
 {
 	struct xlation *state;
 	verdict result;

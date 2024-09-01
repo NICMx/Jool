@@ -135,6 +135,7 @@ const struct nla_policy nat64_globals_policy[JNLAG_COUNT] = {
 	[JNLAG_JOOLD_FLUSH_DEADLINE] = { .type = NLA_U32 },
 	[JNLAG_JOOLD_CAPACITY] = { .type = NLA_U32 },
 	[JNLAG_JOOLD_MAX_PAYLOAD] = { .type = NLA_U32 },
+	[JNLAG_JOOLD_MAX_SESSIONS_PER_PACKET] = { .type = NLA_U32 },
 };
 
 const struct nla_policy mapt_globals_policy[JNLAG_COUNT] = {
@@ -177,7 +178,11 @@ int xt_validate(xlator_type xt)
 
 int xf_validate(xlator_framework xf)
 {
+#ifdef XTABLES_DISABLED
+	return (xf == XF_NETFILTER) ? 0 : -EINVAL;
+#else
 	return (xf == XF_NETFILTER || xf == XF_IPTABLES) ? 0 : -EINVAL;
+#endif
 }
 
 xlator_type xlator_flags2xt(xlator_flags flags)

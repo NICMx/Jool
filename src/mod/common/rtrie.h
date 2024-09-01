@@ -88,12 +88,21 @@ void rtrie_clean(struct rtrie *trie);
 int rtrie_find(struct rtrie *trie, struct rtrie_key *key, void *result);
 bool rtrie_contains(struct rtrie *trie, struct rtrie_key *key);
 bool rtrie_is_empty(struct rtrie *trie);
-void rtrie_print(char *prefix, struct rtrie *trie);
+void rtrie_print(char const *prefix, struct rtrie *trie);
 
 /* Lock-before-using functions. */
 
-int rtrie_add(struct rtrie *trie, void *value, size_t key_offset, __u8 key_len);
-int rtrie_rm(struct rtrie *trie, struct rtrie_key *key);
+/*
+ * The "synchronize" flag controls whether RCU synchronization is performed.
+ * By default, send true. If you absolutely know for sure that there are no
+ * readers, send false.
+ * This flag exists because synchronize_rcu() has shown to be cripplingly slow
+ * in some systems: https://github.com/NICMx/Jool/issues/363
+ */
+
+int rtrie_add(struct rtrie *trie, void *value, size_t key_offset, __u8 key_len,
+		bool synchronize);
+int rtrie_rm(struct rtrie *trie, struct rtrie_key *key, bool synchronize);
 void rtrie_flush(struct rtrie *trie);
 
 typedef int (*rtrie_foreach_cb)(void const *, void *);

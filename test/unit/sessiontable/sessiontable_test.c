@@ -95,11 +95,7 @@ static int cb(struct session_entry const *session, void *void_args)
 	unsigned int index;
 	bool success = true;
 
-	/* pr_info("Iterating: %pI6c#%u %pI6c#%u %pI4#%u %pI4#%u\n",
-			&session->src6.l3, session->src6.l4,
-			&session->dst6.l3, session->dst6.l4,
-			&session->src4.l3, session->src4.l4,
-			&session->dst4.l3, session->dst4.l4); */
+	pr_debug("Iterating: " SEPP "\n", SEPA(session));
 
 	index = args->offset + args->i;
 	success &= ASSERT_BOOL(true, index < TEST_SESSION_COUNT, "overflow");
@@ -286,7 +282,7 @@ static void clean(void)
 	xlator_put(&jool);
 }
 
-int init_module(void)
+static int sessiontable_test_init(void)
 {
 	struct test_group test = {
 		.name = "Session table",
@@ -302,7 +298,10 @@ int init_module(void)
 	return test_group_end(&test);
 }
 
-void cleanup_module(void)
+static void sessiontable_test_exit(void)
 {
 	/* No code. */
 }
+
+module_init(sessiontable_test_init);
+module_exit(sessiontable_test_exit);

@@ -3,7 +3,6 @@
 #include <linux/ip.h>
 #include <linux/netdevice.h>
 #include <linux/skbuff.h>
-#include <linux/version.h>
 #include <net/ip6_route.h>
 #include <net/route.h>
 
@@ -219,11 +218,7 @@ int sender_send(char *pkt_name, void *pkt, size_t pkt_len)
 	}
 
 	if (dst) {
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 4, 0)
 		error = dst_output(ns, NULL, skb);
-#else
-		error = dst_output(skb);
-#endif
 		if (error)
 			log_err("dst_output() returned %d.", error);
 	} else {

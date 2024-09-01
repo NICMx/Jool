@@ -190,12 +190,10 @@ static bool assert_contains_range(__u32 addr_min, __u32 addr_max,
 		for (taddr.l4 = port_min; taddr.l4 <= port_max; taddr.l4++) {
 			result = pool4db_contains(pool, ns, L4PROTO_TCP, &taddr);
 			success &= ASSERT_BOOL(expected, result,
-					"contains %pI4#%u",
-					&taddr.l3, taddr.l4);
+					"contains " TA4PP, TA4PA(taddr));
 			result = pool4db_contains(pool, ns, L4PROTO_TCP, &taddr);
 			success &= ASSERT_BOOL(expected, result,
-					"contains_all %pI4#%u",
-					&taddr.l3, taddr.l4);
+					"contains_all " TA4PP, TA4PA(taddr));
 		}
 	}
 
@@ -541,7 +539,7 @@ static void clean(void)
 	pool4db_put(pool);
 }
 
-int init_module(void)
+static int pool4db_test_init(void)
 {
 	struct test_group test = {
 		.name = "IPv4 Pool DB",
@@ -564,7 +562,10 @@ int init_module(void)
 	return test_group_end(&test);
 }
 
-void cleanup_module(void)
+static void pool4db_test_exit(void)
 {
 	/* No code. */
 }
+
+module_init(pool4db_test_init);
+module_exit(pool4db_test_exit);

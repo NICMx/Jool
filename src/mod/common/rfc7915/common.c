@@ -1,9 +1,9 @@
 #include "mod/common/rfc7915/common.h"
 
 #include <linux/icmp.h>
-
 #include "common/config.h"
 #include "mod/common/ipv6_hdr_iterator.h"
+#include "mod/common/linux_version.h"
 #include "mod/common/log.h"
 #include "mod/common/packet.h"
 #include "mod/common/stats.h"
@@ -11,86 +11,25 @@
 #include "mod/common/steps/compute_outgoing_tuple.h"
 
 /**
- * RFC 7915:
- * "When the IPv4 sender does not set the DF bit, the translator MUST NOT
- * include the Fragment Header for the non-fragmented IPv6 packets."
+ * Note: Fragmentation offloading is handled transparently: NIC joins fragments,
+ * we translate the large and seemingly unfragmented packet, then NIC fragments
+ * again, re-adding the fragment header.
  *
- * Very strange wording. I believe that DF enabled also implies no fragmentation
- * (as everyone seems to assume no one generates DF-enabled fragments), which,
- * stacked with the general direction of the atomic fragments deprecation
- * effort, I think what it actually means is
+ * Same happens with defrag: Defrag defrags, Jool translates seemingly
+ * unfragmented, enfrag enfrags.
  *
- * The translator MUST NOT include the Fragment Header for non-fragmented IPv6
- * packets. (Obviously, if the packet is fragmented, the fragment header MUST
- * be included.)
- *
- * (i.e. The translator must include the Fragment header if, and only if, the
- * packet is fragmented.)
- *
- * The following quote also supports this logic:
- * "If there is a need to add a Fragment Header (the packet is a fragment
- * or the DF bit is not set and the packet size is greater than the
- * minimum IPv6 MTU (...)),"
- *
- * So that's why I implemented it this way.
+ * This function only returns true when WE are supposed to worry about the
+ * fragment header. (ie. we're translating a completely unmanhandled fragment.)
  */
 bool will_need_frag_hdr(const struct iphdr *hdr)
 {
 	return is_fragmented_ipv4(hdr);
 }
 
-static int report_bug247(struct packet *pkt, __u8 proto)
-{
-	struct sk_buff *skb = pkt->skb;
-	struct skb_shared_info *shinfo = skb_shinfo(skb);
-	unsigned int i;
-	unsigned char *pos;
-
-	pr_err("----- JOOL OUTPUT -----\n");
-	pr_err("Bug #247 happened!\n");
-
-	pr_err("xlator: " JOOL_VERSION_STR);
-	pr_err("Page size: %lu\n", PAGE_SIZE);
-	pr_err("Page shift: %u\n", PAGE_SHIFT);
-	pr_err("protocols: %u %u %u\n", pkt->l3_proto, pkt->l4_proto, proto);
-
-	snapshot_report(&pkt->debug.shot1, "initial");
-	snapshot_report(&pkt->debug.shot2, "mid");
-
-	pr_err("current len: %u\n", skb->len);
-	pr_err("current data_len: %u\n", skb->data_len);
-	pr_err("current nr_frags: %u\n", shinfo->nr_frags);
-	for (i = 0; i < shinfo->nr_frags; i++) {
-		pr_err("    current frag %u: %u\n", i,
-				skb_frag_size(&shinfo->frags[i]));
-	}
-
-	pr_err("skb head:%p data:%p tail:%p end:%p\n",
-			skb->head, skb->data,
-			skb_tail_pointer(skb),
-			skb_end_pointer(skb));
-	pr_err("skb l3-hdr:%p l4-hdr:%p payload:%p\n",
-			skb_network_header(skb),
-			skb_transport_header(skb),
-			pkt_payload(pkt));
-
-	pr_err("packet content: ");
-	for (pos = skb->head; pos < skb_end_pointer(skb); pos++)
-		pr_cont("%x ", *pos);
-	pr_cont("\n");
-
-	pr_err("Dropping packet.\n");
-	pr_err("-----------------------\n");
-	return -EINVAL;
-}
-
 static int move_pointers_in(struct packet *pkt, __u8 protocol,
 		unsigned int l3hdr_len)
 {
 	unsigned int l4hdr_len;
-
-	if (unlikely(pkt->skb->len - pkt_hdrs_len(pkt) < pkt->skb->data_len))
-		return report_bug247(pkt, protocol);
 
 	if (!jskb_pull(pkt->skb, pkt_hdrs_len(pkt)))
 		return -EINVAL;
@@ -299,7 +238,7 @@ end:
  *
  * This function handles the skb fields setting part.
  */
-void partialize_skb(struct sk_buff *out_skb, unsigned int csum_offset)
+void partialize_skb(struct sk_buff *out_skb, __u16 csum_offset)
 {
 	out_skb->ip_summed = CHECKSUM_PARTIAL;
 	out_skb->csum_start = skb_transport_header(out_skb) - out_skb->head;
@@ -384,7 +323,7 @@ copy_fail:
  * 	- If it does fit, trim the Optional Part if needed.
  * - Add padding to the internal packet if necessary.
  *
- * Again, see /test/graybox/test-suite/rfc/7915.md#ic.
+ * Again, see /test/graybox/test-suite/siit/7915/README.md#ic.
  *
  * "Handle the ICMP Extension" does NOT mean:
  *
@@ -414,11 +353,16 @@ verdict handle_icmp_extension(struct xlation *state,
 	/* Validate input */
 	if (args->ipl == 0)
 		return VERDICT_CONTINUE;
-	if (args->ipl < 128) {
-		log_debug(state, "Illegal internal packet length (%zu < 128)",
-				args->ipl);
-		return drop(state, JSTAT_ICMPEXT_SMALL);
-	}
+	/*
+	 * There used to be a validation here, dropping packets whose args->ipl
+	 * was less than 128. RFC4884 requires the essential part of ICMP
+	 * extension'd packets to length >= 128, but certain Internet routers
+	 * break this rule, and this in turn breaks traceroutes.
+	 * https://github.com/NICMx/Jool/issues/396
+	 *
+	 * Current implementation: Translate < 128 incorrect unpadded packets
+	 * into 128 correct padded packets.
+	 */
 
 	payload_len = in->skb->len - pkt_hdrs_len(in);
 	if (args->ipl == payload_len) {
@@ -447,6 +391,8 @@ verdict handle_icmp_extension(struct xlation *state,
 	} else {
 		out_ipl = min((size_t)out->skb->len, args->max_pkt_len) - in_iel
 				- pkt_hdrs_len(out);
+		/* Note to self: Yes, truncate. It's already maximized;
+		 * we can't add any zeroes. Just make it fit. */
 		out_ipl &= (~(size_t)0) << args->out_bits;
 		out_pad = (out_ipl < 128) ? (128 - out_ipl) : 0;
 		out_iel = in_iel;
@@ -456,4 +402,21 @@ verdict handle_icmp_extension(struct xlation *state,
 	/* Move everything around */
 	return fix_ie(state, skb_network_offset(in->skb) + in_ieo, out_ipl,
 			out_pad, out_iel);
+}
+
+void skb_cleanup_copy(struct sk_buff *skb)
+{
+	/* https://github.com/NICMx/Jool/issues/289 */
+#if LINUX_VERSION_AT_LEAST(5, 4, 0, 9, 0)
+	nf_reset_ct(skb);
+#else
+	nf_reset(skb);
+#endif
+
+	/* https://github.com/NICMx/Jool/issues/400 */
+#if LINUX_VERSION_AT_LEAST(5, 18, 0, 9999, 9)
+	skb_clear_tstamp(skb);
+#else
+	skb->tstamp = 0;
+#endif
 }

@@ -104,6 +104,9 @@ user@T:~# /sbin/modprobe jool_siit
 
 <!-- OpenWRT -->
 {% highlight bash %}
+user@T:~# # Please remember: This assumes you're using the packages feed.
+user@T:~# # If your Jool version is 3.5.7, you shouldn't be here!
+user@T:~# insmod jool_common
 user@T:~# insmod jool_siit
 {% endhighlight %}
 
@@ -150,7 +153,7 @@ That's all.
 
 ## Testing
 
-If something doesn't work, try the [FAQ](faq.html). In particular, if you think Jool is misbehaving, try [enabling debug](usr-flags-global.html#logging-debug).
+If something doesn't work, try the [FAQ](faq.html). In particular, if you think Jool is misbehaving, try [enabling debug](usr-flags-global.html#logging-debug). **Do not try a `2001:db8::X.X.X.X` ping from the translator; it's [not going to work](faq.html#why-is-my-ping-not-working).**
 
 Try to ping _A_ from _V_ like this:
 
@@ -213,7 +216,7 @@ user@T:~# /sbin/iptables  -t mangle -D PREROUTING -j JOOL_SIIT --instance "examp
 user@T:~# jool_siit instance remove "example"
 {% endhighlight %}
 
-And unteach SIIT from your kernel by reverting the `modprobe` if you want:
+And "unteach" SIIT from your kernel by reverting the `modprobe` if you want:
 
 <div class="distro-menu">
 	<span class="distro-selector" onclick="showDistro(this);">Most Distros</span>
@@ -223,11 +226,13 @@ And unteach SIIT from your kernel by reverting the `modprobe` if you want:
 <!-- Most Distros -->
 {% highlight bash %}
 user@T:~# /sbin/modprobe -r jool_siit
+ 
 {% endhighlight %}
 
 <!-- OpenWRT -->
 {% highlight bash %}
 user@T:~# rmmod jool_siit
+user@T:~# rmmod jool_common
 {% endhighlight %}
 
 ## Afterwords

@@ -9,21 +9,10 @@ title: OpenWRT
 
 # Jool in OpenWRT/LEDE
 
-> ![Warning!](../images/warning.svg) **WARNING!**
-> 
-> At time of writing, OpenWRT's "official" Jool package has been unmaintained since December 2016. It'll apparently be stuck in version 3.5.7 forever. I'm sorry; we don't have any control over it whatsoever.
-> 
-> You can find the old 3.5 documentation [here](https://github.com/NICMx/releases/raw/master/Jool/Jool-3.5-doc.zip).
-> 
-> A more up-to-date version of Jool is actually in fact available in OpenWRT, but it lives as a member of a community-maintained (but still "official," by some definition of "official" I don't quite grasp) package "feed." To install the new version, I understand that you have to [compile a new OpenWRT image](https://openwrt.org/docs/guide-developer/build-system/install-buildsystem), while [enabling the "packages" feed definitions](https://github.com/openwrt/packages).
-> 
-> Assuming you want to install the "packages" feed, the only part of this document I think still applies to you is [Using Jool](#using-jool). Sorry; I don't really know much about OpenWRT, so that's all I can tell you with relative certainty.
-
 ## Index
 
 1. [Introduction](#introduction)
 2. [Installing Jool](#installing-jool)
-3. [Using Jool](#using-jool)
 
 ## Introduction
 
@@ -35,40 +24,47 @@ And finally: It might take an indeterminate amount of time for the latest versio
 
 ## Installing Jool
 
-> ![Warning!](../images/warning.svg) If you have somehow previously installed Jool from source in your machine, then those binaries may conflict with the ones installed here.
->
-> You may uninstall source-installed binaries by following [these steps](install.html#uninstalling).
+For OpenWRT 22.03 the netfilter version of Jool is available as pre-built packages and can configured and installed from the LuCI web interface.
 
-You need LEDE 17.01 at least. I tested it in LEDE-17.01.1, but newer is better, of course.
+### LuCI web console
 
-	opkg update
-	opkg install kmod-jool
-	opkg install jool-tools
+1. System > Software: Install `jool-tools-netfilter` (this will install `kmod-jool-netfilter` and other dependencies).
+2. System > Startup > Local Startup: Add the following to /etc/rc.local:
+```
+jool instance add --pool6 64:ff9b::/96
+```
+3. System > Reboot > Perform reboot
+4. Confirm working NAT64 from a device inside your LAN `ping 64:ff9b::8.8.8.8`
 
-That's it as far as installation goes.
+### Command line
 
-## Using Jool
+Using your router command line (e.g. SSH into the device).
 
-There's one significant caveat when using the module: OpenWRT's `modprobe` is rather lacking in features. There are alternatives, however:
+```
+# Install packages
+opkg update
+opkg install kmod-jool-netfilter jool-tools-netfilter
+```
 
-1. `insmod` is the proper way of saying `/sbin/modprobe --first-time`.
-2. `rmmod` is the proper way of saying `/sbin/modprobe -r`.
+```
+# Add the following line to /etc/rc.local (before the exit 0)
+jool instance add --pool6 64:ff9b::/96
+```
 
-So when Jool's documentation asks you to issue a command such as the following:
+```
+# Confirm working NAT64 from a device inside your LAN
+ping 64:ff9b::8.8.8.8
+```
 
-	/sbin/modprobe --first-time jool pool6=64:ff9b::/96
+To check Jool's version, run
 
-Run this instead:
+```
+jool --version
+```
 
-	insmod jool pool6=64:ff9b::/96
+As of 2022-10-24, the above installs Jool 4.1.6.1, with "(Xtables disabled)".
 
-And instead of this:
+## Note: older versions
 
-	/sbin/modprobe -r jool
-
-Do this:
-
-	rmmod jool
-
-With this in mind, you should be ready to tackle the [basic tutorials](documentation.html#basic-tutorials).
+On older versions there may be different packages, e.g. OpenWRT 21.02 had packages `kmod-jool` and `jool-tools` with some additional module and iptables setup. More details are in the past documentation.
 

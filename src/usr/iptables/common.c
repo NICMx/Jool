@@ -124,10 +124,21 @@ static struct xtables_target targets[] = {
 };
 
 /*
- * Please don't add the static modifier to this function.
- * https://github.com/NICMx/Jool/issues/337
+ * This function has been problematic.
+ *
+ * In issue #337, someone found out that removing the static keyword fixed some
+ * Python crash: https://github.com/NICMx/Jool/issues/337. This seemed to work
+ * fine for a while, until Debian bug #1029268 happened:
+ * https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=1029268
+ *
+ * Looking at the dlopen(3) manual page, it would seem both bugs were caused by
+ * our (by now deprecated) use of the "_init" function. Turns out people
+ * nowadays use __attribute__((constructor)) instead.
+ *
+ * Now that the code has been modernized, I decided to return the static
+ * keyword. Try removing it again if someone complains.
  */
-void _init(void)
+static void __attribute__((constructor)) IPTABLES_MODULE_MAIN(void)
 {
 	xtables_register_targets(targets, sizeof(targets) / sizeof(targets[0]));
 }

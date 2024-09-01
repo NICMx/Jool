@@ -5,7 +5,6 @@
 
 #include "common/constants.h"
 #include "mod/common/icmp_wrapper.h"
-#include "mod/common/linux_version.h"
 #include "mod/common/log.h"
 #include "mod/common/route.h"
 #include "mod/common/wkmalloc.h"
@@ -422,44 +421,42 @@ void bib_get(struct bib *db)
 }
 
 /**
- * Potentially includes a laggy packet fetch; please do not hold spinlocks while
- * calling this function!
- */
-static void release_session(struct rb_node *node, void *arg)
-{
-	struct tabled_session *session = node2session(node);
-
-	if (session->stored) {
-		icmp64_send(NULL, session->stored, ICMPERR_PORT_UNREACHABLE, 0);
-		kfree_skb(session->stored);
-	}
-
-	free_session(session);
-}
-
-/**
  * Potentially includes laggy packet fetches; please do not hold spinlocks while
  * calling this function!
  */
-static void release_bib_entry(struct rb_node *node, void *arg)
+static void release_bib_entry(struct tabled_bib *bib)
 {
-	struct tabled_bib *bib = bib4_entry(node);
-	rbtree_clear(&bib->sessions, release_session, NULL);
+	struct tabled_session *sessions, *tmp;
+
+	rbtree_foreach(sessions, tmp, &bib->sessions, tree_hook) {
+		if (sessions->stored) {
+			icmp64_send(NULL, sessions->stored,
+					ICMPERR_PORT_UNREACHABLE, 0);
+			kfree_skb(sessions->stored);
+		}
+		free_session(sessions);
+	}
+
 	free_bib(bib);
 }
 
 static void bib_release(struct kref *refs)
 {
 	struct bib *db;
+	struct tabled_bib *bib, *tmp;
+
 	db = container_of(refs, struct bib, refs);
 
 	/*
 	 * The trees share the entries, so only one tree of each protocol
 	 * needs to be emptied.
 	 */
-	rbtree_clear(&db->udp.tree4, release_bib_entry, NULL);
-	rbtree_clear(&db->tcp.tree4, release_bib_entry, NULL);
-	rbtree_clear(&db->icmp.tree4, release_bib_entry, NULL);
+	rbtree_foreach(bib, tmp, &db->udp.tree4, hook4)
+		release_bib_entry(bib);
+	rbtree_foreach(bib, tmp, &db->tcp.tree4, hook4)
+		release_bib_entry(bib);
+	rbtree_foreach(bib, tmp, &db->icmp.tree4, hook4)
+		release_bib_entry(bib);
 
 	pktqueue_release(db->tcp.pkt_queue);
 
@@ -473,29 +470,19 @@ void bib_put(struct bib *db)
 
 static void log_bib(struct xlator *jool, struct tabled_bib *bib, char *action)
 {
-#if LINUX_VERSION_AT_LEAST(4, 8, 0, 9999, 0)
 	time64_t tsec;
-#else
-	struct timeval tval;
-#endif
 	struct tm time;
 
 	if (!jool->globals.nat64.bib.bib_logging)
 		return;
 
-#if LINUX_VERSION_AT_LEAST(4, 8, 0, 9999, 0)
 	tsec = ktime_get_real_seconds();
 	time64_to_tm(tsec, 0, &time);
-#else
-	do_gettimeofday(&tval);
-	time_to_tm(tval.tv_sec, 0, &time);
-#endif
-	log_info("%s %ld/%d/%d %d:%d:%d (GMT) - %s %pI6c#%u to %pI4#%u (%s)",
+	log_info("%s %ld/%d/%d %d:%d:%d (GMT) - %s " TA6PP " to " TA4PP " (%s)",
 			jool->iname,
 			1900 + time.tm_year, time.tm_mon + 1, time.tm_mday,
 			time.tm_hour, time.tm_min, time.tm_sec, action,
-			&bib->src6.l3, bib->src6.l4,
-			&bib->src4.l3, bib->src4.l4,
+			TA6PA(bib->src6), TA4PA(bib->src4),
 			l4proto_to_string(bib->proto));
 }
 
@@ -508,31 +495,20 @@ static void log_session(struct xlator *jool,
 		struct tabled_session *session,
 		char *action)
 {
-#if LINUX_VERSION_AT_LEAST(4, 8, 0, 9999, 0)
 	time64_t tsec;
-#else
-	struct timeval tval;
-#endif
 	struct tm time;
 
 	if (!jool->globals.nat64.bib.session_logging)
 		return;
 
-#if LINUX_VERSION_AT_LEAST(4, 8, 0, 9999, 0)
 	tsec = ktime_get_real_seconds();
 	time64_to_tm(tsec, 0, &time);
-#else
-	do_gettimeofday(&tval);
-	time_to_tm(tval.tv_sec, 0, &time);
-#endif
-	log_info("%s %ld/%d/%d %d:%d:%d (GMT) - %s %pI6c#%u|%pI6c#%u|"
-			"%pI4#%u|%pI4#%u|%s", jool->iname,
+	log_info("%s %ld/%d/%d %d:%d:%d (GMT) - %s " TA6PP "|" TA6PP "|"
+			TA4PP "|" TA4PP "|%s", jool->iname,
 			1900 + time.tm_year, time.tm_mon + 1, time.tm_mday,
 			time.tm_hour, time.tm_min, time.tm_sec, action,
-			&session->bib->src6.l3, session->bib->src6.l4,
-			&session->dst6.l3, session->dst6.l4,
-			&session->bib->src4.l3, session->bib->src4.l4,
-			&session->dst4.l3, session->dst4.l4,
+			TA6PA(session->bib->src6), TA6PA(session->dst6),
+			TA4PA(session->bib->src4), TA4PA(session->dst4),
 			l4proto_to_string(session->bib->proto));
 }
 
@@ -708,7 +684,9 @@ static bool decide_fate(struct xlator *jool,
 		 * TRANS.
 		 */
 		handle_probe(jool, table, probes, session, &tmp);
-		/* Fall through. */
+		handle_fate_timer(session, &table->trans_timer);
+		break;
+
 	case FATE_TIMER_TRANS:
 		handle_fate_timer(session, &table->trans_timer);
 		break;
@@ -820,11 +798,7 @@ static void send_probe_packet(struct xlator *jool, struct session_entry *session
 	skb_dst_set(skb, dst);
 
 	/* Implicit kfree_skb(skb) here. */
-#if LINUX_VERSION_AT_LEAST(4, 4, 0, 8, 0)
 	error = dst_output(jool->ns, NULL, skb);
-#else
-	error = dst_output(skb);
-#endif
 	if (error) {
 		__log_debug(jool, "dst_output() returned errcode %d.", error);
 		goto fail;
@@ -1181,28 +1155,19 @@ static int commit_add(struct xlator *jool,
 	return 0;
 }
 
-struct detach_args {
-	struct bib_table *table;
-	struct sk_buff *probes;
-	int detached;
-};
-
-static void detach_session(struct rb_node *node, void *arg)
-{
-	struct tabled_session *session = node2session(node);
-	struct detach_args *args = arg;
-
-	list_del(&session->list_hook);
-	if (session->stored)
-		args->table->pkt_count--;
-	args->detached--;
-}
-
 static int detach_sessions(struct bib_table *table, struct tabled_bib *bib)
 {
-	struct detach_args arg = { .table = table, .detached = 0, };
-	rbtree_foreach(&bib->sessions, detach_session, &arg);
-	return arg.detached;
+	struct tabled_session *session, *tmp;
+	int detached = 0;
+
+	rbtree_foreach(session, tmp, &bib->sessions, tree_hook) {
+		list_del(&session->list_hook);
+		if (session->stored)
+			table->pkt_count--;
+		detached--;
+	}
+
+	return detached;
 }
 
 static void detach_bib(struct xlator *jool, struct bib_table *table,
@@ -1233,7 +1198,7 @@ static void commit_delete_list(struct bib_delete_list *list)
 
 	for (node = list->first; node; node = next) {
 		next = node->rb_right;
-		release_bib_entry(node, NULL);
+		release_bib_entry(bib4_entry(node));
 	}
 }
 
@@ -1376,11 +1341,11 @@ static int upgrade_pktqueue_session(struct xlator *jool,
 		 * happens. But that doesn't yield satisfactory behavior either;
 		 * The SO failed anyway. To fix this properly we would need to
 		 * sync the pktqueue sessions. Combine that with the fact that
-		 * sending the ICMP error would be a pain in the ass (because we
-		 * want to do it outside of the spinlock, and we don't want to
-		 * send it if the random src4 selected happens to match the
-		 * stored session), and the result is a big fat meh. I really
-		 * don't want to do it.
+		 * sending the ICMP error would be a pain (because we want to do
+		 * it outside of the spinlock, and we don't want to send it if
+		 * the random src4 selected happens to match the stored
+		 * session), and the result is a big fat meh. I really don't
+		 * want to do it.
 		 *
 		 * The admin signed a best-effort contract when s/he enabled
 		 * joold anyway. And this is only a problem in active-active
@@ -1772,7 +1737,7 @@ verdict bib_add_tcp6(struct xlation *state,
 			tstobs(state, old.session);
 			result = VERDICT_CONTINUE;
 		} else {
-			/* TODO (fine) shitty hack; we're assuming SO_EXISTS. */
+			/* TODO (fine) ugly hack; we're assuming SO_EXISTS. */
 			result = drop(state, JSTAT_SO_EXISTS);
 		}
 		goto end;
@@ -1844,7 +1809,7 @@ verdict bib_add_tcp4(struct xlation *state,
 			tstobs(state, old.session);
 			result = VERDICT_CONTINUE;
 		} else {
-			/* TODO (fine) shitty hack; we're assuming SO_EXISTS. */
+			/* TODO (fine) ugly hack; we're assuming SO_EXISTS. */
 			result = drop(state, JSTAT_SO_EXISTS);
 		}
 		goto end;
@@ -2300,9 +2265,7 @@ static int __bib_add_static(struct bib *db, struct bib_entry *new,
 	struct tree_slot slot6;
 	struct tree_slot slot4;
 
-	jnls_debug(state, "Adding static BIB entry (%pI6c#%u, %pI4#%u).",
-			&new->addr6.l3, new->addr6.l4,
-			&new->addr4.l3, new->addr4.l4);
+	jnls_debug(state, "Adding static BIB entry " BEPP ".", BEPA(new));
 
 	table = get_table(db, new->l4_proto);
 	if (!table)
@@ -2367,11 +2330,8 @@ int bib_add_static(struct bib *db, struct bib_entry *new,
 	case 0:
 		break;
 	case -EEXIST:
-		jnls_err(state, "Entry %pI4#%u|%pI6c#%u collides with %pI4#%u|%pI6c#%u.",
-				&new->addr4.l3, new->addr4.l4,
-				&new->addr6.l3, new->addr6.l4,
-				&old.addr4.l3, old.addr4.l4,
-				&old.addr6.l3, old.addr6.l4);
+		jnls_err(state, "Entry " BEPP " collides with " BEPP ".",
+				BEPA(new), BEPA(&old));
 		break;
 	default:
 		jnls_err(state, "Unknown error code: %d", error);
@@ -2407,7 +2367,7 @@ int bib_rm(struct bib *db, struct bib_entry *entry, struct jnl_state *state)
 
 	switch (error) {
 	case 0:
-		release_bib_entry(&bib->hook4, NULL);
+		release_bib_entry(bib);
 		return error;
 	case -ESRCH:
 		jnls_err(state, "Entry not found.");
@@ -2501,9 +2461,8 @@ static void print_session(struct rb_node *node, int tabs, char *prefix)
 
 	session = node2session(node);
 	print_tabs(tabs);
-	pr_cont("[%s] %pI4#%u %pI6c#%u\n", prefix,
-			&session->dst4.l3, session->dst4.l4,
-			&session->dst6.l3, session->dst6.l4);
+	pr_cont("[%s] " TA4PP " " TA6PP "\n", prefix, TA4PA(session->dst4),
+			TA6PA(session->dst6));
 
 	print_session(node->rb_left, tabs + 1, "L"); /* "Left" */
 	print_session(node->rb_right, tabs + 1, "R"); /* "Right" */
@@ -2519,8 +2478,7 @@ static void print_bib(struct rb_node *node, int tabs)
 
 	bib = bib4_entry(node);
 	print_tabs(tabs);
-	pr_cont("%pI4#%u %pI6c#%u\n", &bib->src4.l3, bib->src4.l4,
-			&bib->src6.l3, bib->src6.l4);
+	pr_cont(TA4PP " " TA6PP "\n", TA4PA(bib->src4), TA6PA(bib->src6));
 
 	print_session(bib->sessions.rb_node, tabs + 1, "T"); /* "Tree" */
 	print_bib(node->rb_left, tabs + 1);

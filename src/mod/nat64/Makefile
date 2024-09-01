@@ -3,12 +3,12 @@ KERNEL_DIR ?= ${MODULES_DIR}/build
 KBUILD_EXTRA_SYMBOLS = $(src)/../common/Module.symvers
 
 #CC=cgcc    # More healthy warnings.
-ccflags-y := -I$(src)/../.. $(JOOL_FLAGS)
+ccflags-y := -I$(src)/../..
 
 obj-m += jool.o
 
 all:
-	make -C ${KERNEL_DIR} M=$$PWD JOOL_FLAGS="${JOOL_FLAGS}"
+	make -C ${KERNEL_DIR} M=$$PWD
 modules:
 	make -C ${KERNEL_DIR} M=$$PWD $@
 modules_install:
@@ -18,4 +18,4 @@ install: modules_install
 clean:
 	make -C ${KERNEL_DIR} M=$$PWD $@
 debug:
-	make all JOOL_FLAGS+=-DDEBUG
+	make CFLAGS_MODULE+=-DDEBUG all

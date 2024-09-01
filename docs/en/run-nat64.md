@@ -71,13 +71,32 @@ As with vanilla SIIT, all a minimal Stateful NAT64 needs is the translation <spa
 If you followed the SIIT tutorials, do keep in mind that the names of the NAT64 binaries are `jool`, not `jool_siit`:
 
 <div class="distro-menu">
+	<span class="distro-selector" onclick="showDistro(this);">Most distros</span>
+	<span class="distro-selector" onclick="showDistro(this);">OpenWRT</span>
+</div>
+
+<!-- Most distros -->
+```bash
+user@T:~# /sbin/modprobe jool
+```
+
+<!-- OpenWRT -->
+```bash
+user@T:~# # Please remember: This assumes you're using the packages feed.
+user@T:~# # If your Jool version is 3.5.7, you shouldn't be here!
+user@T:~# insmod jool_common
+user@T:~# insmod jool
+```
+
+The same applies to the userspace clients:
+
+<div class="distro-menu">
 	<span class="distro-selector" onclick="showDistro(this);">Netfilter Jool</span>
 	<span class="distro-selector" onclick="showDistro(this);">iptables Jool</span>
 </div>
 
 <!-- Netfilter Jool -->
 ```bash
-user@T:~# /sbin/modprobe jool
 user@T:~# jool instance add "example" --netfilter --pool6 64:ff9b::/96
  
 
@@ -86,7 +105,6 @@ user@T:~# jool instance add "example" --netfilter --pool6 64:ff9b::/96
 
 <!-- iptables Jool -->
 ```bash
-user@T:~# /sbin/modprobe jool
 user@T:~# jool instance add "example" --iptables  --pool6 64:ff9b::/96
 user@T:~#
 user@T:~# /sbin/ip6tables -t mangle -A PREROUTING -j JOOL --instance "example"
@@ -95,9 +113,9 @@ user@T:~# /sbin/iptables  -t mangle -A PREROUTING -j JOOL --instance "example"
 
 ## Testing
 
-Remember the [FAQ](faq.html) and [debug logging](usr-flags-global.html#logging-debug) if something goes south.
+Remember the [FAQ](faq.html) and [debug logging](usr-flags-global.html#logging-debug) if something goes south. **Do not try a `64:ff9b::X.X.X.X` ping from the translator; it's [not going to work](faq.html#why-is-my-ping-not-working).**
 
-Test by sending requests from the IPv6 network:
+Test by sending requests from an IPv6-only node:
 
 ```bash
 user@C:~$ ping6 64:ff9b::203.0.113.16
@@ -120,6 +138,8 @@ rtt min/avg/max/mdev = 1.136/6.528/15.603/5.438 ms
 
 ## Stopping Jool
 
+Delete instance:
+
 <div class="distro-menu">
 	<span class="distro-selector" onclick="showDistro(this);">Netfilter Jool</span>
 	<span class="distro-selector" onclick="showDistro(this);">iptables Jool</span>
@@ -130,7 +150,6 @@ rtt min/avg/max/mdev = 1.136/6.528/15.603/5.438 ms
  
  
 user@T:~# jool instance remove "example"
-user@T:~# /sbin/modprobe -r jool
 ```
 
 <!-- iptables Jool -->
@@ -138,7 +157,25 @@ user@T:~# /sbin/modprobe -r jool
 user@T:~# /sbin/ip6tables -t mangle -D PREROUTING -j JOOL --instance "example"
 user@T:~# /sbin/iptables  -t mangle -D PREROUTING -j JOOL --instance "example"
 user@T:~# jool instance remove "example"
+```
+
+Remove module:
+
+<div class="distro-menu">
+	<span class="distro-selector" onclick="showDistro(this);">Most distros</span>
+	<span class="distro-selector" onclick="showDistro(this);">OpenWRT</span>
+</div>
+
+<!-- Most distros -->
+```bash
 user@T:~# /sbin/modprobe -r jool
+ 
+```
+
+<!-- OpenWRT -->
+```bash
+user@T:~# rmmod jool
+user@T:~# rmmod jool_common
 ```
 
 ## Afterwords

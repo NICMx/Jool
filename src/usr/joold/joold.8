@@ -1,34 +1,31 @@
 .\" Manpage for jool's session synchronization daemon.
 
-.TH joold 8 2020-02-19 v4.2.0-rc2 "NAT64 Jool's Session Synchronization Daemon"
+.TH joold 8 2024-08-31 v4.2.0-rc3 "NAT64 Jool's Session Synchronization Daemon"
 
 .SH NAME
 joold - Userspace Session Synchronization (SS) daemon for NAT64 Jool.
 
 .SH DESCRIPTION
-Opens two sockets: A Netlink socket to the current namespace's NAT64 Jool instance, and a network TCP socket to other/remote joold instances. Exchanges sessions indiscriminately between them.
-.P
-The intent is to keep the NAT64 session databases synchronized for the sake of having backup fallback NAT64s.
-.P
-The setup is strongly recommended to be Active/Passive; Active/Active is technically allowed, but not very reliable.
-.P
-Running the daemons is not enough to have successful session synchronization; SS needs to be enabled in the kernel instances as well. (See the --ss-* flags described in jool(8).)
-
-.SH AVAILABILITY
-Linux is the only OS in which this program makes sense.
-.br
-Kernels 3.2.0 and up.
+This command is deprecated, and it's now implemented as a wrapper for
+.B jool session proxy.
+See jool(8).
 
 .SH SYNTAX
-.RI "joold [" FILE "]"
+.RI "joold [" NETSOCKET "] [" MODSOCKET "] [PORT]"
 
 .SH OPTIONS
-.IP FILE
+.IP NETSOCKET
 Path to JSON file containing the network socket's configuration.
 .br
 Defaults to "netsocket.json".
+
+.IP MODSOCKET
+Path to JSON file containing the Netlink socket's configuration.
 .br
-(The Netlink socket currently does not need configuration.)
+Defaults to "modsocket.json".
+
+.IP PORT
+If present, starts an UDP server bound to port PORT, where the daemon serves stat counters.
 
 .SH NETWORK SOCKET CONFIGURATION
 The file is a JSON-formatted collection of keyvalues.
@@ -57,11 +54,19 @@ Optional. Defaults to be automatically assigned by the kernel.
 .br
 It is strongly recommended that you define this value to ensure the SS traffic does not leak through other interfaces.
 
-.IP reuseaddr=<INT>
-Please always include and enable this.
-
 .IP ttl=<INT>
 Time-to-live of packets sent out by this socket.
+
+.SH NETLINK SOCKET CONFIGURATION
+The file is a JSON-formatted collection of keyvalues.
+
+.IP instance=<String>
+Name of the instance the daemon is supposed to synchronize. It's the one you designate during
+.B jool instance add.
+.br
+The instance is expected to exist within the same network namespace the daemon is running in.
+.br
+As usual, it defaults to "default". 
 
 .SH EXAMPLES
 IPv6 version:
@@ -84,7 +89,7 @@ IPv6 version:
 .br
 	$ cat ipv6-netsocket.json
 .br
-	{
+	  {
 .br
 		"multicast address": "ff08::db8:64:64",
 .br
@@ -94,13 +99,19 @@ IPv6 version:
 .br
 		"out interface": "eth0",
 .br
-		"reuseaddr": 1,
-.br
 		"ttl": 3
 .br
-	}
+	  }
 .br
-	$ joold ipv6-netsocket.json &
+	$
+.br
+	$ cat modsocket.json
+.br
+	  { "instance": "default" }
+.br
+	$
+.br
+	$ joold ipv6-netsocket.json modsocket.json 45678 &
 .P
 IPv4 version:
 .P
@@ -122,7 +133,7 @@ IPv4 version:
 .br
 	$ cat ipv4-netsocket.json
 .br
-	{
+	  {
 .br
 		"multicast address": "233.252.0.64",
 .br
@@ -132,13 +143,35 @@ IPv4 version:
 .br
 		"out interface": "192.0.2.1",
 .br
-		"reuseaddr": 1,
-.br
 		"ttl": 3
 .br
-	}
+	  }
 .br
-	$ joold ipv4-netsocket.json &
+	$
+.br
+	$ cat modsocket.json
+.br
+	  { "instance": "default" }
+.br
+	$
+.br
+	$ joold ipv4-netsocket.json modsocket.json 45678 &
+.P
+Request stats:
+.P
+	$ echo "" | nc -u 127.0.0.1 45678
+.br
+	KERNEL_SENT_PKTS,4
+.br
+	KERNEL_SENT_BYTES,208
+.br
+	NET_RCVD_PKTS,0
+.br
+	NET_RCVD_BYTES,0
+.br
+	NET_SENT_PKTS,4
+.br
+	NET_SENT_BYTES,208
 
 .SH EXIT STATUS
 Zero on success, non-zero on failure.
@@ -147,19 +180,15 @@ Zero on success, non-zero on failure.
 NIC Mexico & ITESM
 
 .SH REPORTING BUGS
-Our issue tracker is https://github.com/NICMx/Jool/issues.
-.br
-If you want to mail us instead, use jool@nic.mx.
+https://github.com/NICMx/Jool/issues
 
 .SH KNOWN BUGS
-1. reuseaddr should probably default to 1...
-.br
-2. Maybe the daemon should be able to automatically enable SS on the kernel module.
+1. Maybe the daemon should be able to automatically enable SS on the kernel module.
 .P
 To be perfectly honest, the main reason why fixing this isn't in the radar is because joold is giving me the impression that nobody is using it.
 
 .SH COPYRIGHT
-Copyright 2021 NIC Mexico.
+Copyright 2024 NIC Mexico.
 .br
 License: GPLv2 (GNU GPL version 2)
 .br
@@ -167,7 +196,6 @@ This is free software: you are free to change and redistribute it.
 There is NO WARRANTY, to the extent permitted by law.
 
 .SH SEE ALSO
-https://jool.mx/en/session-synchronization.html
-https://jool.mx/en/config-joold.html
-https://jool.mx/en/usr-flags-joold.html
-
+https://nicmx.github.io/Jool/en/session-synchronization.html
+.br
+https://nicmx.github.io/Jool/en/usr-flags-session.html

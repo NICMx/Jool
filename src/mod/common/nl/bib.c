@@ -30,10 +30,7 @@ int handle_bib_foreach(struct sk_buff *skb, struct genl_info *info)
 		if (error)
 			return jnl_reply(state, error);
 		offset_ptr = &offset;
-		jnls_debug(state, "Offset: [%pI6c#%u %pI4#%u %u %u]",
-				&offset.addr6.l3, offset.addr6.l4,
-				&offset.addr4.l3, offset.addr4.l4,
-				offset.is_static, offset.l4_proto);
+		jnls_debug(state, "Offset: " BEPP, BEPA(offset_ptr));
 	} else if (info->attrs[JNLAR_PROTO]) {
 		offset.l4_proto = nla_get_u8(info->attrs[JNLAR_PROTO]);
 		offset_ptr = NULL;
@@ -73,9 +70,8 @@ int handle_bib_add(struct sk_buff *skb, struct genl_info *info)
 	if (!pool4db_contains(jool->nat64.pool4, jool->ns, new.l4_proto, &new.addr4)) {
 		return jnl_reply(state, jnls_err(
 			state,
-			"The transport address '%pI4#%u' does not belong to pool4. Please add it there first.",
-			&new.addr4.l3,
-			new.addr4.l4
+			"Transport address '" TA4PP "' does not belong to pool4.\n"
+			"Please add it there first.", TA4PA(new.addr4)
 		));
 	}
 

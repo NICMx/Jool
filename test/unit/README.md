@@ -1,12 +1,12 @@
 # Unit tests
 
-The unit tests are implemented as several kernel modules, each of which pummel Jool's inner subroutines directly.
+The unit tests are implemented as several kernel modules, each of which hammer Jool's inner subroutines directly.
 
 First, compile the core kernel module with the `UNIT_TESTING` flag, then install it:
 
 ```bash
 cd ../../src/mod/common
-make JOOL_FLAGS=-DUNIT_TESTING
+make CFLAGS_MODULE=-DUNIT_TESTING
 sudo make install
 ```
 

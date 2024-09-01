@@ -23,6 +23,7 @@ ltmain.sh
 .tmp_versions
 .cache.mk
 built-in.a
+*.dwo
 
 # ?
 *.o.d
@@ -37,6 +38,7 @@ built-in.a
 # Documentation
 docs/_site/
 test/graybox/test-suite/rfc/_site/
+.jekyll-metadata
 
 # git #
 #######

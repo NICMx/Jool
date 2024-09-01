@@ -232,31 +232,6 @@ static bool test_function_icmp4_to_icmp6_param_prob(void)
 	return success;
 }
 
-static bool test_function_generate_df_flag(void)
-{
-	struct packet pkt;
-	struct sk_buff *skb;
-	bool success = true;
-
-	skb = alloc_skb(1500, GFP_ATOMIC);
-	if (!skb)
-		return false;
-	pkt.skb = skb;
-	pkt.is_inner = false;
-
-	skb_put(skb, 1000);
-	success &= ASSERT_UINT(0, generate_df_flag(&pkt), "Len < 1260");
-
-	skb_put(skb, 260);
-	success &= ASSERT_UINT(0, generate_df_flag(&pkt), "Len = 1260");
-
-	skb_put(skb, 200);
-	success &= ASSERT_UINT(1, generate_df_flag(&pkt), "Len > 1260");
-
-	kfree_skb(skb);
-	return success;
-}
-
 /**
  * By the way. This test kind of looks like it should test more combinations of headers.
  * But that'd be testing the header iterator, not the build_protocol_field() function.
@@ -384,7 +359,7 @@ static bool test_function_icmp4_minimum_mtu(void)
 	return success;
 }
 
-int init_module(void)
+static int translate_packet_test_init(void)
 {
 	struct test_group test = {
 		.name = "Translating the Packet",
@@ -399,7 +374,6 @@ int init_module(void)
 	test_group_test(&test, test_function_icmp6_minimum_mtu, "ICMP6 Minimum MTU function");
 	test_group_test(&test, test_function_icmp4_to_icmp6_param_prob, "Param problem function");
 
-	test_group_test(&test, test_function_generate_df_flag, "Generate DF flag function");
 	test_group_test(&test, test_function_build_protocol_field, "Build protocol function");
 	test_group_test(&test, test_function_has_nonzero_segments_left, "Segments left indicator function");
 	test_group_test(&test, test_function_icmp4_minimum_mtu, "ICMP4 Minimum MTU function");
@@ -407,7 +381,10 @@ int init_module(void)
 	return test_group_end(&test);
 }
 
-void cleanup_module(void)
+static void translate_packet_test_exit(void)
 {
 	/* No code. */
 }
+
+module_init(translate_packet_test_init);
+module_exit(translate_packet_test_exit);

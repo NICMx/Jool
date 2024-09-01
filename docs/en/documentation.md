@@ -9,8 +9,6 @@ title: Documentation Index
 
 Welcome to Jool 4's documentation index.
 
-> ![../images/bulb.svg](../images/bulb.svg) **Note**: If you are looking for Jool 3.5's documentation, you can download it [here](https://github.com/NICMx/releases/raw/master/Jool/Jool-3.5-doc.zip). 
-
 ## Introduction
 
 1. [What is SIIT/NAT64?](intro-xlat.html)
@@ -70,11 +68,6 @@ If you know what you're doing, try the [Cheat Sheet](cheat-sheet.html).
 	1. [`pool4`](usr-flags-pool4.html)
 	2. [`bib`](usr-flags-bib.html)
 	3. [`session`](usr-flags-session.html)
-	4. [`joold`](usr-flags-joold.html)
-
-## Other Configuration
-
-2. [`joold`](config-joold.html)
 
 ## Defined Architectures
 

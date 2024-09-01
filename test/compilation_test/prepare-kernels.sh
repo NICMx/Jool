@@ -9,7 +9,7 @@
 # - $2: Space-separated list of commits you want to generate precompiled Linuxes
 #       out of.
 #       These can be any git-compatible commit labels such as commit hashes
-#       ("afd2ff9b7e1b367"), tag names ("v3.13") and branches ("master").
+#       ("afd2ff9b7e1b367"), tag names ("v3.13") and branches ("main").
 # - $3: Directory where the Linux instances will be stored. Must be absolute.
 #       Eg. kernel v3.13 will be placed in $3/v3.13.
 #       Optional. Will default to `pwd`. (ie. caller's directory.)
@@ -82,7 +82,7 @@ for i in $VERSIONS; do
 	fi
 
 	echo "Copying kernel to '$OUT_DIR/$i'."
-	# TODO Wait, what the hell? do we really need all of it?
+	# TODO Wait, what? do we really need all of it?
 	cp -r * $OUT_DIR/$i
 
 	echo "Cleaning $i."
