@@ -1,4 +1,4 @@
-#ifdef NETFILTER_XTABLES
+#ifndef XTABLES_DISABLED
 
 #include "mod/common/kernel_hook.h"
 
@@ -145,4 +145,4 @@ end:	xlation_destroy(state);
 }
 EXPORT_SYMBOL_GPL(target_ipv4);
 
-#endif /* NETFILTER_XTABLES */
+#endif /* !XTABLES_DISABLED */

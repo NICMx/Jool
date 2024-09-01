@@ -31,7 +31,7 @@ static char const *banner = "\n"
 	";   |.'      `--''                      \\   \\####/      '  ,/   \n"
 	"'---'                                    `---`--`       '--'    \n";
 
-#ifdef NETFILTER_XTABLES
+#ifndef XTABLES_DISABLED
 
 static int iptables_error;
 
@@ -56,7 +56,7 @@ static struct xt_target targets[] = {
 	},
 };
 
-#endif /* NETFILTER_XTABLES */
+#endif /* !XTABLES_DISABLED */
 
 static void flush_net(struct net *ns)
 {
@@ -93,7 +93,7 @@ static int __init nat64_init(void)
 	if (error)
 		return error;
 
-#ifdef NETFILTER_XTABLES
+#ifndef XTABLES_DISABLED
 	iptables_error = xt_register_targets(targets, ARRAY_SIZE(targets));
 	if (iptables_error) {
 		log_warn("Error code %d while trying to register the iptables targets.\n"
@@ -105,7 +105,7 @@ static int __init nat64_init(void)
 	/* NAT64 instances can now function properly; unlock them. */
 	error = jool_nat64_get(defrag_enable);
 	if (error) {
-#ifdef NETFILTER_XTABLES
+#ifndef XTABLES_DISABLED
 		if (!iptables_error)
 			xt_unregister_targets(targets, ARRAY_SIZE(targets));
 #endif
@@ -120,7 +120,7 @@ static int __init nat64_init(void)
 static void __exit nat64_exit(void)
 {
 	jool_nat64_put();
-#ifdef NETFILTER_XTABLES
+#ifndef XTABLES_DISABLED
 	if (!iptables_error)
 		xt_unregister_targets(targets, ARRAY_SIZE(targets));
 #endif
