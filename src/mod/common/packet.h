@@ -61,15 +61,6 @@ static inline __u8 get_traffic_class(const struct ipv6hdr *hdr)
 	return (upper_bits << 4) | lower_bits;
 }
 
-/**
- * Returns a big endian (but otherwise hack-free) version of the 'Flow label'
- * field from @hdr.
- */
-static inline __be32 get_flow_label(const struct ipv6hdr *hdr)
-{
-	return (*(__be32 *) hdr) & IPV6_FLOWLABEL_MASK;
-}
-
 /** Returns IP_DF if the DF flag from @hdr is set, 0 otherwise. */
 static inline __u16 is_df_set(const struct iphdr *hdr)
 {

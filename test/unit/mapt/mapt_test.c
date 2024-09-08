@@ -66,7 +66,7 @@ static int setup_mapt(void)
 	return fmrt_add(br.mapt.fmrt, &ce.globals.mapt.bmr.rule, NULL);
 }
 
-void teardown_mapt(void)
+static void teardown_mapt(void)
 {
 	xlator_put(&br);
 	xlator_put(&ce);
