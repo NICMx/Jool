@@ -15,7 +15,7 @@ char *get_iname(struct genl_info *info)
 
 struct joolnlhdr *get_jool_hdr(struct genl_info *info)
 {
-#if LINUX_VERSION_AT_LEAST(6, 6, 0, 9999, 0)
+#if LINUX_VERSION_AT_LEAST(6, 6, 0, 9, 5)
 	return genl_info_userhdr(info);
 #else
 	return info->userhdr;
