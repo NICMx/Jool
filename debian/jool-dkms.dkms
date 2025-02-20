@@ -6,7 +6,7 @@ MAKE[0]="make -C ${kernel_source_dir} M=${dkms_tree}/${PACKAGE_NAME}/${PACKAGE_V
       && make -C ${kernel_source_dir} M=${dkms_tree}/${PACKAGE_NAME}/${PACKAGE_VERSION}/build/src/mod/nat64 modules \
       && make -C ${kernel_source_dir} M=${dkms_tree}/${PACKAGE_NAME}/${PACKAGE_VERSION}/build/src/mod/siit modules"
 
-CLEAN="make -C ${dkms_tree}/${PACKAGE_NAME}/${PACKAGE_VERSION}/build/src/mod clean"
+CLEAN="make KERNEL_DIR=${kernel_source_dir} -C ${dkms_tree}/${PACKAGE_NAME}/${PACKAGE_VERSION}/build/src/mod clean"
 
 BUILT_MODULE_NAME[0]="jool_common"
 BUILT_MODULE_LOCATION[0]="src/mod/common/"
