@@ -2,6 +2,9 @@ PACKAGE_NAME="jool-dkms"
 PACKAGE_VERSION="#MODULE_VERSION#"
 AUTOINSTALL="yes"
 
+# 5-argument nla_validate()
+BUILD_EXCLUSIVE_KERNEL_MIN="4.12"
+
 MAKE[0]="make -C ${kernel_source_dir} M=${dkms_tree}/${PACKAGE_NAME}/${PACKAGE_VERSION}/build/src/mod/common modules \
       && make -C ${kernel_source_dir} M=${dkms_tree}/${PACKAGE_NAME}/${PACKAGE_VERSION}/build/src/mod/nat64 modules \
       && make -C ${kernel_source_dir} M=${dkms_tree}/${PACKAGE_NAME}/${PACKAGE_VERSION}/build/src/mod/siit modules"
