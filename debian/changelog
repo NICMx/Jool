@@ -1,3 +1,12 @@
+jool (4.1.13-1.1) unstable; urgency=medium
+
+  * Non-maintainer upload.
+  * Remove -dkms suffix from dkms module name. Closes: #1098833
+  * dkms.conf: Fix CLEAN command: use the headers that were used for building.
+  * dkms.conf: Declare BUILD_EXCLUSIVE_KERNEL_MIN="4.12".
+
+ -- Andreas Beckmann <anbe@debian.org>  Wed, 05 Mar 2025 10:59:56 +0100
+
 jool (4.1.13-1) unstable; urgency=medium
 
   * New upstream release
