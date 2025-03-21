@@ -14,6 +14,7 @@
 #include "common/config.h"
 #include "usr/argp/log.h"
 #include "usr/joold/json.h"
+#include "usr/joold/log.h"
 #include "usr/util/str_utils.h"
 
 static struct netsocket_cfg netcfg;
@@ -316,7 +317,7 @@ static void *netsocket_listen(void *arg)
 		netsocket_pkts_rcvd++;
 		netsocket_bytes_rcvd += bytes;
 
-		syslog(LOG_DEBUG, "Received %d bytes from the network.", bytes);
+		SYSLOG_DBG("Received %d bytes from the network.", bytes);
 		modsocket_send(buffer, bytes);
 	} while (true);
 
@@ -367,14 +368,14 @@ void netsocket_send(void *buffer, size_t size)
 {
 	int bytes;
 
-	syslog(LOG_DEBUG, "Sending %zu bytes to the network...", size);
+	SYSLOG_DBG("Sending %zu bytes to the network...", size);
 	bytes = sendto(sk, buffer, size, 0,
 			bound_address->ai_addr,
 			bound_address->ai_addrlen);
 	if (bytes < 0)
 		pr_perror("Could not send a packet to the network", errno);
 	else {
-		syslog(LOG_DEBUG, "Sent %d bytes to the network.\n", bytes);
+		SYSLOG_DBG("Sent %d bytes to the network.\n", bytes);
 		netsocket_pkts_sent++;
 		netsocket_bytes_sent += bytes;
 	}
