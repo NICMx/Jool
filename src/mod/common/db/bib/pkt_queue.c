@@ -150,11 +150,6 @@ void pktqueue_rm(struct pktqueue *queue, struct ipv4_transport_addr *src4)
 	}
 }
 
-/**
- * Returns > 0 if node.session.*4 > session.*4.
- * Returns < 0 if node.session.*4 < session.*4.
- * Returns 0 if node.session.*4 == session.*4.
- */
 static int compare_simple(const struct pktqueue_session *node,
 		const struct ipv6_transport_addr *addr)
 {
