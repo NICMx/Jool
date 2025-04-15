@@ -2,7 +2,7 @@
 # Process this file with autoconf to produce a configure script.
 
 AC_PREREQ([2.68])
-AC_INIT([Jool], [4.1.13], [ydahhrk@gmail.com])
+AC_INIT([Jool], [4.1.14], [ydahhrk@gmail.com])
 AC_CONFIG_SRCDIR([src/common/xlat.h])
 AM_INIT_AUTOMAKE([subdir-objects])
 LT_PREREQ([2.4.6])
@@ -81,7 +81,7 @@ LT_INIT
 AC_CONFIG_MACRO_DIRS([m4])
 
 # Spit out the makefiles.
-AC_OUTPUT(Makefile
+AC_CONFIG_FILES([Makefile
 	src/common/Makefile
 	src/usr/Makefile
 	src/usr/util/Makefile
@@ -89,4 +89,5 @@ AC_OUTPUT(Makefile
 	src/usr/argp/Makefile
 	src/usr/siit/Makefile
 	src/usr/nat64/Makefile
-	src/usr/joold/Makefile)
+	src/usr/joold/Makefile])
+AC_OUTPUT

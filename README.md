@@ -83,7 +83,7 @@ You might also want to see [contact info](https://nicmx.github.io/Jool/en/contac
 
 ```
 Jool - SIIT and NAT64 for Linux
-Copyright (C) 2024  NIC Mexico <jool@nic.mx>
+Copyright (C) 2025  NIC Mexico <jool@nic.mx>
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License

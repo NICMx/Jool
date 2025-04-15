@@ -45,12 +45,12 @@ xlator_framework xlator_flags2xf(xlator_flags flags);
 #define XT_VALIDATE_ERRMSG \
 	"The instance type must be either SIIT or NAT64."
 
-#ifdef NETFILTER_XTABLES
-#define XF_VALIDATE_ERRMSG \
-	"Netfilter and iptables are the only available instance frameworks."
-#else
+#ifdef XTABLES_DISABLED
 #define XF_VALIDATE_ERRMSG \
 	"Netfilter is the only available instance framework."
+#else
+#define XF_VALIDATE_ERRMSG \
+	"Netfilter and iptables are the only available instance frameworks."
 #endif
 
 char const *xt2str(xlator_type xt);

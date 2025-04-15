@@ -2,6 +2,7 @@
 
 #include "common/types.h"
 #include "mod/common/init.h"
+#include "mod/common/linux_version.h"
 #include "mod/common/log.h"
 #include "mod/common/nl/nl_core.h"
 
@@ -14,7 +15,11 @@ char *get_iname(struct genl_info *info)
 
 struct joolnlhdr *get_jool_hdr(struct genl_info *info)
 {
-	return (struct joolnlhdr *)((u8 *)info->genlhdr + GENL_HDRLEN);
+#if LINUX_VERSION_AT_LEAST(6, 6, 0, 9, 5)
+	return genl_info_userhdr(info);
+#else
+	return info->userhdr;
+#endif
 }
 
 static int validate_magic(struct joolnlhdr *hdr)
