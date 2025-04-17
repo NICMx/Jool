@@ -7,7 +7,7 @@ Build-Depends:
  pkgconf, gawk, file, cpio,
  libnl-genl-3-dev, libnl-3-dev,
  libxtables-dev
-Standards-Version: 4.6.2
+Standards-Version: 4.7.2
 Rules-Requires-Root: no
 Homepage: https://nicmx.github.io/Jool
 Vcs-Browser: https://github.com/NICMx/Jool
