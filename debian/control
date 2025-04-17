@@ -3,7 +3,8 @@ Maintainer: Alberto Leiva Popper <ydahhrk@gmail.com>
 Section: kernel
 Priority: optional
 Build-Depends:
- debhelper (>= 11), dh-sequence-dkms,
+ debhelper-compat (= 13),
+ debhelper (>= 13), dh-sequence-dkms,
  pkgconf, gawk, file, cpio,
  libnl-genl-3-dev, libnl-3-dev,
  libxtables-dev
