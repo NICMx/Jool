@@ -1,3 +1,9 @@
+jool (4.1.14-2) unstable; urgency=medium
+
+  * Remove wildcards from installs. Closes: #1103714
+
+ -- Alberto Leiva Popper <ydahhrk@gmail.com>  Tue, 29 Apr 2025 12:54:04 -0600
+
 jool (4.1.14-1) unstable; urgency=medium
 
   * New upstream release

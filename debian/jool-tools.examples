@@ -1,1 +1,2 @@
-debian/examples/*
+debian/examples/jool.conf
+debian/examples/jool_siit.conf
