@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 
 # Hello.
 # Run this file to generate the configure script.

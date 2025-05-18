@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # Author: Cristobal De Leon @ Nic Mexico
 
 # Load configuration file

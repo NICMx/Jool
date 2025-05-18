@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 echo "Note: This will take up lots of CPU."
 echo "If this freezes, please wait a few minutes; it should come back."
