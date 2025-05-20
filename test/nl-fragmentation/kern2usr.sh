@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # Quick 'n dirty kernel-to-userspace Netlink packet fragmentation test.
 # First, go to /src/mod/common/nl/nl_core.c. In the jresponse_init() function,

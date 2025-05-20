@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # Author: cdeleon @ Nic Mexico
 
 # Set the LINUX_INDEX to 0

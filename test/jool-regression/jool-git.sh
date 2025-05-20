@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # This updates the Jool repository, then checks out whichever branch you want to test
 
 # Load configuration 

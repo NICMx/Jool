@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # Quick 'n dirty userspace-to-kernel Netlink packet fragmentation test.
 # First, go to /src/usr/nl/core.c. In the joolnl_alloc_msg() function,
