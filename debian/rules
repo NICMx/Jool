@@ -22,12 +22,9 @@ override_dh_dkms:
 	# -V enables us to use #MODULE_VERSION# in the jool-dkms.dkms file.
 	dh_dkms -V
 
-override_dh_install:
-	# See `debhelper(7)`, not `dh_install(1)`.
-	dh_install -Njool-dkms
-	dh_install -pjool-dkms \
-		-X/usr/ -X.o -XMakefile.in -XMakefile.am \
-		src usr/src/jool-$(DEB_VERSION_UPSTREAM)
+execute_after_dh_install-indep:
+	dh_install -X/usr/ -X.o -XMakefile.in -XMakefile.am \
+ 		src usr/src/jool-$(DEB_VERSION_UPSTREAM)
 
 # -- Overrides needed by the systemd unit files --
 

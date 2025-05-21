@@ -1,3 +1,12 @@
+jool (4.1.14-3) unstable; urgency=medium
+
+  * Move the source copying to `execute_after_dh_install-indep`.
+    Thanks to Santiago Vila and Andreas Beckmann for this solution to #1105183.
+  * Update FSF contactin copyright. Fixes Lintian warning:
+    "old-fsf-address-in-copyright-file"
+
+ -- Alberto Leiva Popper <ydahhrk@gmail.com>  Wed, 21 May 2025 12:57:23 -0600
+
 jool (4.1.14-2) unstable; urgency=medium
 
   * Remove wildcards from installs. Closes: #1103714
