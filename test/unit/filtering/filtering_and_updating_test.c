@@ -583,15 +583,15 @@ static int init(void)
 	entry.range.ports.max = 1024;
 
 	entry.proto = L4PROTO_TCP;
-	error = pool4db_add(jool.nat64.pool4, &entry);
+	error = pool4db_add(jool.nat64.pool4, &entry, NULL, false);
 	if (error)
 		goto fail;
 	entry.proto = L4PROTO_UDP;
-	error = pool4db_add(jool.nat64.pool4, &entry);
+	error = pool4db_add(jool.nat64.pool4, &entry, NULL, false);
 	if (error)
 		goto fail;
 	entry.proto = L4PROTO_ICMP;
-	error = pool4db_add(jool.nat64.pool4, &entry);
+	error = pool4db_add(jool.nat64.pool4, &entry, NULL, false);
 	if (error)
 		goto fail;
 

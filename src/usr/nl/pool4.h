@@ -19,7 +19,8 @@ struct jool_result joolnl_pool4_foreach(
 struct jool_result joolnl_pool4_add(
 	struct joolnl_socket *sk,
 	char const *iname,
-	struct pool4_entry const *entry
+	struct pool4_entry const *entry,
+	bool force
 );
 
 struct jool_result joolnl_pool4_rm(

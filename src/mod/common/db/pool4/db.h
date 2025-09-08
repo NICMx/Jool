@@ -23,7 +23,8 @@ struct pool4 *pool4db_alloc(void);
 void pool4db_get(struct pool4 *pool);
 void pool4db_put(struct pool4 *pool);
 
-int pool4db_add(struct pool4 *pool, const struct pool4_entry *entry);
+int pool4db_add(struct pool4 *pool, const struct pool4_entry *entry,
+		struct net *ns, bool force);
 int pool4db_update(struct pool4 *pool, const struct pool4_update *update);
 int pool4db_rm(struct pool4 *pool, const __u32 mark, enum l4_protocol proto,
 		struct ipv4_range *range);

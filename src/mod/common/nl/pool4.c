@@ -89,7 +89,8 @@ int handle_pool4_add(struct sk_buff *skb, struct genl_info *info)
 	if (error)
 		goto revert_start;
 
-	error = pool4db_add(jool.nat64.pool4, &entry);
+	error = pool4db_add(jool.nat64.pool4, &entry, jool.ns,
+			get_jool_hdr(info)->flags & JOOLNLHDR_FLAGS_FORCE);
 revert_start:
 	error = jresponse_send_simple(&jool, info, error);
 	request_handle_end(&jool);
