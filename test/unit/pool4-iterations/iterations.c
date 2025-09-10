@@ -142,7 +142,7 @@ static int init(void)
 	entry.range.ports.max = TADDRS_PER_RANGE - 1;
 	for (i = 0; i < RANGE_COUNT; i++) {
 		entry.range.prefix.addr.s_addr = cpu_to_be32(0xc0000200 + i);
-		error = pool4db_add(pool, &entry);
+		error = pool4db_add(pool, &entry, NULL);
 		if (error)
 			goto destroy_pool4_onwards;
 	}

@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # Compiles a kernel module on every linux instance found in the $2 directory.
 #

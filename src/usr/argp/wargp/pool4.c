@@ -280,7 +280,7 @@ int handle_pool4_add(char *iname, int argc, char **argv, void const *arg)
 	if (result.error)
 		return pr_result(&result);
 
-	result = joolnl_pool4_add(&sk, iname, &aargs.entry.meat);
+	result = joolnl_pool4_add(&sk, iname, &aargs.entry.meat, aargs.force);
 
 	joolnl_teardown(&sk);
 	return pr_result(&result);

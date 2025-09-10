@@ -81,7 +81,7 @@ LT_INIT
 AC_CONFIG_MACRO_DIRS([m4])
 
 # Spit out the makefiles.
-AC_OUTPUT(Makefile
+AC_CONFIG_FILES([Makefile
 	src/common/Makefile
 	src/usr/Makefile
 	src/usr/util/Makefile
@@ -90,4 +90,5 @@ AC_OUTPUT(Makefile
 	src/usr/siit/Makefile
 	src/usr/nat64/Makefile
 	src/usr/mapt/Makefile
-	src/usr/joold/Makefile)
+	src/usr/joold/Makefile])
+AC_OUTPUT

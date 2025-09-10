@@ -34,8 +34,8 @@ static bool add(__u32 addr, __u8 prefix_len, __u16 min, __u16 max)
 	entry.range.ports.max = max;
 
 	return ASSERT_INT(0, pool4db_add(pool, &entry, NULL),
-			"add %pI4/%u (%u-%u)", &entry.range.prefix.addr,
-			prefix_len, min, max);
+			"add %pI4/%u (%u-%u)",
+			&entry.range.prefix.addr, prefix_len, min, max);
 }
 
 static bool rm(__u32 addr, __u8 prefix_len, __u16 min, __u16 max)
@@ -48,8 +48,8 @@ static bool rm(__u32 addr, __u8 prefix_len, __u16 min, __u16 max)
 	range.ports.max = max;
 
 	return ASSERT_INT(0, pool4db_rm(pool, 1, L4PROTO_TCP, &range, NULL),
-			"rm of %pI4/%u (%u-%u)", &range.prefix.addr,
-			prefix_len, min, max);
+			"rm of %pI4/%u (%u-%u)",
+			&range.prefix.addr, prefix_len, min, max);
 }
 
 static bool add_common_samples(void)

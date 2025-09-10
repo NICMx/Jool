@@ -329,7 +329,7 @@ struct sk_buff *jnls_skb(struct jnl_state *state)
 
 struct joolnlhdr *jnls_jhdr(struct jnl_state *state)
 {
-#if LINUX_VERSION_AT_LEAST(6, 6, 0, 9999, 0)
+#if LINUX_VERSION_AT_LEAST(6, 6, 0, 9, 5)
 	return genl_info_userhdr(state->gnlinfo);
 #else
 	return state->gnlinfo->userhdr;
@@ -390,12 +390,14 @@ int prefix6_validate(const struct ipv6_prefix *prefix, struct jnl_state *state)
 	return 0;
 }
 
-int prefix4_validate_scope(struct ipv4_prefix *prefix, bool force,
-		struct jnl_state *state)
+int prefix4_validate_scope(struct ipv4_prefix *prefix, struct jnl_state *state)
 {
 	struct ipv4_prefix subnet;
 
-	if (!force && prefix4_has_subnet_scope(prefix, &subnet)) {
+	if (jnls_jhdr(state)->flags & JOOLNLHDR_FLAGS_FORCE)
+		return 0;
+
+	if (prefix4_has_subnet_scope(prefix, &subnet)) {
 		jnls_err(state, "Prefix %pI4/%u intersects with subnet scoped network %pI4/%u.",
 				&prefix->addr, prefix->len,
 				&subnet.addr, subnet.len);

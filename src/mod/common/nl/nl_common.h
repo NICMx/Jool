@@ -40,8 +40,7 @@ void jnls_enable_m(struct jnl_state *state);
 
 int prefix4_validate(const struct ipv4_prefix *prefix, struct jnl_state *state);
 int prefix6_validate(const struct ipv6_prefix *prefix, struct jnl_state *state);
-int prefix4_validate_scope(struct ipv4_prefix *prefix, bool force,
-		struct jnl_state *state);
+int prefix4_validate_scope(struct ipv4_prefix *prefix, struct jnl_state *state);
 
 /* -- Logging -- */
 void __jnls_debug(struct xlator *jool, const char *fmt, ...)

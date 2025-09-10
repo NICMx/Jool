@@ -201,7 +201,7 @@ static int handle_global(struct jnl_state *state, struct nlattr *attr,
 			!!(flags & JOOLNLHDR_FLAGS_FORCE), attr, state);
 }
 
-static int handle_eamt(struct jnl_state *state, struct nlattr *root, bool force)
+static int handle_eamt(struct jnl_state *state, struct nlattr *root)
 {
 	struct nlattr *attr;
 	struct eamt_entry entry;
@@ -220,7 +220,7 @@ static int handle_eamt(struct jnl_state *state, struct nlattr *root, bool force)
 		error = jnla_get_eam(attr, "EAMT entry", &entry, state);
 		if (error)
 			return error;
-		error = eamt_add(jnls_xlator(state)->siit.eamt, &entry, force,
+		error = eamt_add(jnls_xlator(state)->siit.eamt, &entry,
 				false, state);
 		if (error)
 			return error;
@@ -229,8 +229,7 @@ static int handle_eamt(struct jnl_state *state, struct nlattr *root, bool force)
 	return 0;
 }
 
-static int handle_denylist4(struct jnl_state *state, struct nlattr *root,
-		bool force)
+static int handle_denylist4(struct jnl_state *state, struct nlattr *root)
 {
 	struct nlattr *attr;
 	struct ipv4_prefix entry;
@@ -251,7 +250,7 @@ static int handle_denylist4(struct jnl_state *state, struct nlattr *root,
 		if (error)
 			return error;
 		error = denylist4_add(jnls_xlator(state)->siit.denylist4,
-				&entry, force, state);
+				&entry, state);
 		if (error)
 			return error;
 	}
@@ -394,14 +393,12 @@ int atomconfig_add(struct jnl_state *state, struct genl_info const *info)
 			goto revert;
 	}
 	if (info->attrs[JNLAR_BL4_ENTRIES]) {
-		error = handle_denylist4(state, info->attrs[JNLAR_BL4_ENTRIES],
-				jhdr->flags & JOOLNLHDR_FLAGS_FORCE);
+		error = handle_denylist4(state, info->attrs[JNLAR_BL4_ENTRIES]);
 		if (error)
 			goto revert;
 	}
 	if (info->attrs[JNLAR_EAMT_ENTRIES]) {
-		error = handle_eamt(state, info->attrs[JNLAR_EAMT_ENTRIES],
-				jhdr->flags & JOOLNLHDR_FLAGS_FORCE);
+		error = handle_eamt(state, info->attrs[JNLAR_EAMT_ENTRIES]);
 		if (error)
 			goto revert;
 	}

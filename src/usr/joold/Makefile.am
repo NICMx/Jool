@@ -4,7 +4,8 @@
 bin_PROGRAMS = joold
 joold_SOURCES = \
 	joold.c \
-	json.c json.h
+	json.c json.h \
+	log.h
 
 joold_CFLAGS  = ${WARNINGCFLAGS}
 joold_CFLAGS += -I${top_srcdir}/src

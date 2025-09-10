@@ -5,4 +5,5 @@ AM_INIT_AUTOMAKE([subdir-objects])
 
 AC_PROG_CC
 PKG_CHECK_MODULES(LIBNLGENL3, libnl-genl-3.0 >= 3.1)
-AC_OUTPUT(Makefile usr/Makefile)
+AC_CONFIG_FILES([Makefile usr/Makefile])
+AC_OUTPUT

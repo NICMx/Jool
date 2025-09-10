@@ -126,7 +126,7 @@ static bool atomic_test(void)
 	}
 
 	eamt_flush(jool.siit.eamt);
-	error = eamt_add(jool.siit.eamt, &eam, true, false, NULL);
+	error = eamt_add(jool.siit.eamt, &eam, false, NULL);
 	xlator_put(&jool);
 	if (error) {
 		pr_info("eamt_add() threw %d\n", error);
@@ -219,7 +219,7 @@ static int init(void)
 	if (error)
 		goto fail;
 	eam.prefix4.len = 24;
-	error = eamt_add(jool.siit.eamt, &eam, true, false, NULL);
+	error = eamt_add(jool.siit.eamt, &eam, false, NULL);
 	if (error) {
 		pr_info("eamt_add() threw %d\n", error);
 		goto fail;

@@ -63,7 +63,6 @@ int handle_denylist4_add(struct sk_buff *skb, struct genl_info *info)
 	return jnl_reply(state, denylist4_add(
 		jnls_xlator(state)->siit.denylist4,
 		&operand,
-		jnls_jhdr(state)->flags & JOOLNLHDR_FLAGS_FORCE,
 		state
 	));
 }

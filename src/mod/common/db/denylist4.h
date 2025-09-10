@@ -15,7 +15,7 @@ void denylist4_get(struct addr4_pool *pool);
 void denylist4_put(struct addr4_pool *pool);
 
 int denylist4_add(struct addr4_pool *pool, struct ipv4_prefix *prefix,
-		bool force, struct jnl_state *state);
+		struct jnl_state *state);
 int denylist4_rm(struct addr4_pool *pool, struct ipv4_prefix *prefix,
 		struct jnl_state *state);
 int denylist4_flush(struct addr4_pool *pool);

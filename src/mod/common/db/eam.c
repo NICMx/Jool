@@ -68,7 +68,7 @@ static void msg_programming_error(struct jnl_state *state)
 }
 
 static int collision6(struct eamt_entry *new, struct eamt_entry *old,
-		bool force, struct jnl_state *state)
+		struct jnl_state *state)
 {
 	if (new->prefix6.len == old->prefix6.len) {
 		if (prefix4_equals(&new->prefix4, &old->prefix4)) {
@@ -82,7 +82,7 @@ static int collision6(struct eamt_entry *new, struct eamt_entry *old,
 		return -EEXIST;
 	}
 
-	if (force)
+	if (!state || (jnls_jhdr(state)->flags & JOOLNLHDR_FLAGS_FORCE))
 		return 0;
 
 	jnls_err(state, "Prefix %pI6c/%u overlaps with EAM [%pI6c/%u|%pI4/%u].\n"
@@ -94,7 +94,7 @@ static int collision6(struct eamt_entry *new, struct eamt_entry *old,
 }
 
 static int collision4(struct eamt_entry *new, struct eamt_entry *old,
-		bool force, struct jnl_state *state)
+		struct jnl_state *state)
 {
 	if (new->prefix4.len == old->prefix4.len) {
 		if (prefix6_equals(&new->prefix6, &old->prefix6)) {
@@ -109,7 +109,7 @@ static int collision4(struct eamt_entry *new, struct eamt_entry *old,
 		return -EEXIST;
 	}
 
-	if (force)
+	if (!state || (jnls_jhdr(state)->flags & JOOLNLHDR_FLAGS_FORCE))
 		return 0;
 
 	jnls_err(state, "Prefix %pI4/%u overlaps with EAM [%pI6c/%u|%pI4/%u].\n"
@@ -121,7 +121,7 @@ static int collision4(struct eamt_entry *new, struct eamt_entry *old,
 }
 
 static int validate_overlapping(struct eam_table *eamt, struct eamt_entry *new,
-		bool force, struct jnl_state *state)
+		struct jnl_state *state)
 {
 	struct eamt_entry old;
 	struct rtrie_key key6 = RTRIE_PREFIX_TO_KEY(&new->prefix6);
@@ -133,14 +133,14 @@ static int validate_overlapping(struct eam_table *eamt, struct eamt_entry *new,
 
 	error = rtrie_find(&eamt->trie6, &key6, &old);
 	if (!error) {
-		error = collision6(new, &old, force, state);
+		error = collision6(new, &old, state);
 		if (error)
 			return error;
 	}
 
 	error = rtrie_find(&eamt->trie4, &key4, &old);
 	if (!error) {
-		error = collision4(new, &old, force, state);
+		error = collision4(new, &old, state);
 		if (error)
 			return error;
 	}
@@ -197,7 +197,7 @@ static int eamt_add4(struct eam_table *eamt, struct eamt_entry *eam,
 	return error;
 }
 
-int eamt_add(struct eam_table *eamt, struct eamt_entry *new, bool force,
+int eamt_add(struct eam_table *eamt, struct eamt_entry *new,
 		bool synchronize, struct jnl_state *state)
 {
 	int error;
@@ -208,7 +208,7 @@ int eamt_add(struct eam_table *eamt, struct eamt_entry *new, bool force,
 
 	mutex_lock(&lock);
 
-	error = validate_overlapping(eamt, new, force, state);
+	error = validate_overlapping(eamt, new, state);
 	if (error)
 		goto end;
 

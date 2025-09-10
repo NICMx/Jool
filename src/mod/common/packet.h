@@ -269,13 +269,13 @@ static inline l4_protocol pkt_l4_proto(const struct packet *pkt)
 	return pkt->l4_proto;
 }
 
-/* Incompatible with subsequent fragments, l4_proto must be TCP. */
+/* Incompatible with subsequent fragments, l4_proto must be UDP. */
 static inline struct udphdr *pkt_udp_hdr(const struct packet *pkt)
 {
 	return udp_hdr(pkt->skb);
 }
 
-/* Incompatible with subsequent fragments, l4_proto must be UDP. */
+/* Incompatible with subsequent fragments, l4_proto must be TCP. */
 static inline struct tcphdr *pkt_tcp_hdr(const struct packet *pkt)
 {
 	return tcp_hdr(pkt->skb);

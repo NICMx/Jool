@@ -63,5 +63,9 @@ int jtimer_setup(void)
  */
 void jtimer_teardown(void)
 {
+#if LINUX_VERSION_AT_LEAST(6, 2, 0, 9, 3)
+	timer_delete_sync(&timer);
+#else
 	del_timer_sync(&timer);
+#endif
 }

@@ -62,7 +62,6 @@ int handle_eamt_add(struct sk_buff *skb, struct genl_info *info)
 	return jnl_reply(state, eamt_add(
 		jnls_xlator(state)->siit.eamt,
 		&addend,
-		jnls_jhdr(state)->flags & JOOLNLHDR_FLAGS_FORCE,
 		true,
 		state
 	));

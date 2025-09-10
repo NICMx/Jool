@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 
 git clean -dfx \
 	-e .cproject \

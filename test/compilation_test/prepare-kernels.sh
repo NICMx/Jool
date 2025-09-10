@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # Compiles the minimum Linux kernel necessary for module cross-compilation.
 #

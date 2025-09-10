@@ -28,7 +28,7 @@ bool eamt_is_empty(struct eam_table *eamt);
 /* Do-not-use-when-you-can't-sleep-functions */
 
 /* See rtrie.h for info on the "synchronize" flag */
-int eamt_add(struct eam_table *eamt, struct eamt_entry *new, bool force,
+int eamt_add(struct eam_table *eamt, struct eamt_entry *new,
 		bool synchronize, struct jnl_state *state);
 int eamt_rm(struct eam_table *eamt, struct ipv6_prefix *prefix6,
 		struct ipv4_prefix *prefix4, struct jnl_state *state);

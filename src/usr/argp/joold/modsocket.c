@@ -12,6 +12,7 @@
 #include "usr/argp/joold/netsocket.h"
 #include "usr/argp/log.h"
 #include "usr/util/str_utils.h"
+#include "usr/joold/log.h"
 
 static char const *iname;
 
@@ -141,7 +142,7 @@ static int updated_entries_cb(struct nl_msg *msg, void *arg)
 	struct nlattr *root;
 	struct jool_result result;
 
-	syslog(LOG_DEBUG, "Received a packet from kernelspace.");
+	SYSLOG_DBG("Received a packet from kernelspace.");
 
 	nhdr = nlmsg_hdr(msg);
 	if (!genlmsg_valid_hdr(nhdr, sizeof(struct joolnlhdr))) {
@@ -158,7 +159,7 @@ static int updated_entries_cb(struct nl_msg *msg, void *arg)
 		goto fail;
 	}
 	if (strcasecmp(jhdr->iname, iname) != 0) {
-		syslog(LOG_DEBUG, "%s: Packet is intended for %s, not me.",
+		SYSLOG_DBG("%s: Packet is intended for %s, not me.",
 				iname, jhdr->iname);
 		return 0;
 	}

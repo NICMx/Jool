@@ -169,7 +169,7 @@ static int validate_prefix6791v4(struct config_prefix4 *prefix, bool force,
 	if (error)
 		return error;
 
-	return prefix4_validate_scope(&prefix->prefix, force, state);
+	return prefix4_validate_scope(&prefix->prefix, state);
 }
 
 static int nl2raw_pool6(struct joolnl_global_meta const *meta,

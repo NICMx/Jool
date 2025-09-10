@@ -215,7 +215,7 @@ Do note that pure IPv6 traffic is not affected by the translator in any way:
 
 ![Packet flow: SIIT-DC 66](../images/intro/siit-dc/flow-v6.svg)
 
-Naturally, DNS-wise, the _A_ record of <span class="a6">_s6b_</span> should be <span class="a4">203.0.113.6</span>, and its _AAAA_ record should be <span class="a6">2001:db8:12:34:1</span>. As usual, you’ve effectively given <span class="a6">_s6b_</span> a dual stack (ie. both IPv4 and IPv6 capabilities) without it knowing it.
+Naturally, DNS-wise, the _A_ record of <span class="a6">_s6b_</span> should be <span class="a4">203.0.113.6</span>, and its _AAAA_ record should be <span class="a6">2001:db8:12:34::6b</span>. As usual, you’ve effectively given <span class="a6">_s6b_</span> a dual stack (ie. both IPv4 and IPv6 capabilities) without it knowing it.
 
 This is how <span class="a6">_s6b_</span> views the network:
 
@@ -288,7 +288,7 @@ Here's the setup: <span class="napt-a-ip">_A_</span> wants to request an <span c
 
 ![Packet flow: NAPT 2](../images/intro/napt/flow-2.svg)
 
-When <span class="napt-a-ip">_A_</span>’s first packet arrives to _NAPT_, the latter realizes it lacks an mapping for <span class="napt-a-ip">192.168.0.8</span>:<span class="napt-a-port">1234</span>, so it opens a new socket <span class="napt-ref">(1)</span> towards <span class="napt-v-ip">_V_</span>. (Again, the <span class="napt-napt-ip">source address</span> is its own IP, while the <span class="napt-napt-port">source port</span> is chosen randomly.)
+When <span class="napt-a-ip">_A_</span>’s first packet arrives to _NAPT_, the latter realizes it lacks a mapping for <span class="napt-a-ip">192.168.0.8</span>:<span class="napt-a-port">1234</span>, so it opens a new socket <span class="napt-ref">(1)</span> towards <span class="napt-v-ip">_V_</span>. (Again, the <span class="napt-napt-ip">source address</span> is its own IP, while the <span class="napt-napt-port">source port</span> is chosen randomly.)
 
 It will, from now, act as a middleman, and proceed to copy the data received from one socket to the other <span class="napt-ref">(2)</span>.
 

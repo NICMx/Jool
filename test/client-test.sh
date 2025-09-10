@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 if [[ $UID != 0 ]]; then
 	echo "Please start the script as root or sudo."

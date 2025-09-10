@@ -38,7 +38,7 @@ static int __add_entry(char *addr4, __u8 len4, char *addr6, __u8 len6)
 		return false;
 	new.prefix6.len = len6;
 
-	error = eamt_add(eamt, &new, true, false, NULL);
+	error = eamt_add(eamt, &new, false, NULL);
 	/*
 	if (error) {
 		pr_err("Errcode %d; I'm not going to print the tree.\n", error);

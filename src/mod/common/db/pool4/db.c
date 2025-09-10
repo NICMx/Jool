@@ -529,10 +529,40 @@ static int add_to_addr_tree(struct pool4 *pool,
 	return 0;
 }
 
+static int
+validate_ports(struct jnl_state *state, struct port_range *ports)
+{
+	int eph_min, eph_max;
+	struct net *ns;
+
+	if (!state)
+		return 0;
+	if (jnls_jhdr(state)->flags & JOOLNLHDR_FLAGS_FORCE)
+		return 0;
+	ns = jnls_xlator(state)->ns;
+	if (!ns)
+		return 0;
+
+	eph_min = ns->ipv4.ip_local_ports.range[0];
+	eph_max = ns->ipv4.ip_local_ports.range[1];
+	if (ports->max >= eph_min && eph_max >= ports->min)
+		return jnls_err(
+			state,
+			"Port range %u-%u intersects with the namespace's ephemeral range (%d-%d).\n"
+			"Please read https://nicmx.github.io/Jool/en/usr-flags-pool4.html#port-range\n"
+			"Rejecting request; add --force to skip this validation.",
+			ports->min, ports->max,
+			eph_min, eph_max
+		);
+
+	return 0;
+}
+
 int pool4db_add(struct pool4 *pool, const struct pool4_entry *entry,
 		struct jnl_state *state)
 {
 	struct ipv4_range addend = { .ports = entry->range.ports };
+
 	u64 tmp;
 	int error;
 
@@ -545,9 +575,13 @@ int pool4db_add(struct pool4 *pool, const struct pool4_entry *entry,
 
 	if (addend.ports.min > addend.ports.max)
 		swap(addend.ports.min, addend.ports.max);
-	if (entry->proto == L4PROTO_TCP || entry->proto == L4PROTO_UDP)
+	if (entry->proto == L4PROTO_TCP || entry->proto == L4PROTO_UDP) {
 		if (addend.ports.min == 0)
 			addend.ports.min = 1;
+		error = validate_ports(state, &addend.ports);
+		if (error)
+			return error;
+	}
 
 	addend.prefix.len = 32;
 	foreach_addr4(addend.prefix.addr, tmp, &entry->range.prefix) {
