@@ -5,6 +5,7 @@
 #include <linux/slab.h>
 
 #include "common/types.h"
+#include "mod/common/linux_version.h"
 #include "mod/common/log.h"
 #include "mod/common/wkmalloc.h"
 #include "mod/common/db/rbtree.h"
@@ -530,6 +531,26 @@ static int add_to_addr_tree(struct pool4 *pool,
 	return 0;
 }
 
+static int
+get_min_eph(struct local_ports *ports)
+{
+#if LINUX_VERSION_AT_LEAST(6, 8, 0, 9999, 9)
+	return ports->range & 0xFFFFu;
+#else
+	return ports->range[0];
+#endif
+}
+
+static int
+get_max_eph(struct local_ports *ports)
+{
+#if LINUX_VERSION_AT_LEAST(6, 8, 0, 9999, 9)
+	return (ports->range >> 16u) & 0xFFFFu;
+#else
+	return ports->range[1];
+#endif
+}
+
 int pool4db_add(struct pool4 *pool, const struct pool4_entry *entry,
 		struct net *ns, bool force)
 {
@@ -552,8 +573,8 @@ int pool4db_add(struct pool4 *pool, const struct pool4_entry *entry,
 			addend.ports.min = 1;
 
 		if (!force && ns) {
-			eph_min = ns->ipv4.ip_local_ports.range[0];
-			eph_max = ns->ipv4.ip_local_ports.range[1];
+			eph_min = get_min_eph(&ns->ipv4.ip_local_ports);
+			eph_max = get_max_eph(&ns->ipv4.ip_local_ports);
 			if (addend.ports.max >= eph_min &&
 			    eph_max >= addend.ports.min) {
 				log_err("Port range %u-%u intersects with the namespace's ephemeral range (%d-%d).\n"
