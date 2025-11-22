@@ -153,7 +153,7 @@
          sodipodi:role="line"
          id="tspan875"
          x="152"
-         y="880.36218">2001:db8:11::a</tspan></text>
+         y="880.36218">2001:db8:ab::a</tspan></text>
     <text
        xml:space="preserve"
        style="font-size:10px;line-height:1.25;font-family:sans-serif;text-align:end;letter-spacing:0px;text-anchor:end"
@@ -163,7 +163,7 @@
          sodipodi:role="line"
          id="tspan879"
          x="368"
-         y="880.36218">2001:db8:11::b</tspan></text>
+         y="880.36218">2001:db8:ab::b</tspan></text>
     <text
        xml:space="preserve"
        style="font-size:10px;line-height:1.25;font-family:sans-serif;text-align:start;letter-spacing:0px;text-anchor:start"
@@ -173,7 +173,7 @@
          sodipodi:role="line"
          id="tspan883"
          x="408"
-         y="880.36218">2001:db8:22::b</tspan></text>
+         y="880.36218">2001:db8:bc::b</tspan></text>
     <text
        xml:space="preserve"
        style="font-size:10px;line-height:1.25;font-family:sans-serif;text-align:end;letter-spacing:0px;text-anchor:end"
@@ -183,7 +183,7 @@
          sodipodi:role="line"
          id="tspan887"
          x="624"
-         y="880.36218">2001:db8:22::c</tspan></text>
+         y="880.36218">2001:db8:bc::c</tspan></text>
   </g>
   <g
      inkscape:groupmode="layer"
@@ -205,7 +205,7 @@
          x="16"
          y="35"
          style="font-size:12px;fill:#ffffff"
-         id="tspan866">        add 2001:db8:bc::a/96 \</tspan><tspan
+         id="tspan866">        add 2001:db8:bc::/96 \</tspan><tspan
          sodipodi:role="line"
          x="16"
          y="50"
