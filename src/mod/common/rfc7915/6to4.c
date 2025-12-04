@@ -395,8 +395,8 @@ static int fragment_exceeds_mtu64(struct packet const *in, unsigned int mtu)
 		goto generic_too_big;
 
 	/*
-	 * TODO (performance) This loop could probably be optimized away by
-	 * querying IP6CB(skb)->frag_max_size. You'll have to test it.
+	 * IP6CB(skb)->frag_max_size is sometimes uninitialized despite
+	 * fragmentation; don't trust it.
 	 */
 	mtu -= sizeof(struct iphdr);
 	skb_walk_frags(in->skb, iter)
