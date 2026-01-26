@@ -33,7 +33,8 @@ static bool add(__u32 addr, __u8 prefix_len, __u16 min, __u16 max)
 	entry.range.ports.min = min;
 	entry.range.ports.max = max;
 
-	return ASSERT_INT(0, pool4db_add(pool, &entry), "add %pI4/%u (%u-%u)",
+	return ASSERT_INT(0, pool4db_add(pool, &entry, NULL, false),
+			"add %pI4/%u (%u-%u)",
 			&entry.range.prefix.addr, prefix_len, min, max);
 }
 

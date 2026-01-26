@@ -83,12 +83,12 @@ cancel:
 
 static struct jool_result __update(struct joolnl_socket *sk, char const *iname,
 		enum joolnl_operation operation, struct pool4_entry const *entry,
-		bool quick)
+		int flags)
 {
 	struct nl_msg *msg;
 	struct jool_result result;
 
-	result = joolnl_alloc_msg(sk, iname, operation, quick ? JOOLNLHDR_FLAGS_QUICK : 0, &msg);
+	result = joolnl_alloc_msg(sk, iname, operation, flags, &msg);
 	if (result.error)
 		return result;
 
@@ -101,19 +101,19 @@ static struct jool_result __update(struct joolnl_socket *sk, char const *iname,
 }
 
 struct jool_result joolnl_pool4_add(struct joolnl_socket *sk, char const *iname,
-		struct pool4_entry const *entry)
+		struct pool4_entry const *entry, bool force)
 {
-	return __update(sk, iname, JNLOP_POOL4_ADD, entry, false);
+	return __update(sk, iname, JNLOP_POOL4_ADD, entry, force ? JOOLNLHDR_FLAGS_FORCE : 0);
 }
 
 struct jool_result joolnl_pool4_rm(struct joolnl_socket *sk, char const *iname,
 		struct pool4_entry const *entry, bool quick)
 {
-	return __update(sk, iname, JNLOP_POOL4_RM, entry, quick);
+	return __update(sk, iname, JNLOP_POOL4_RM, entry, quick ? JOOLNLHDR_FLAGS_QUICK : 0);
 }
 
 struct jool_result joolnl_pool4_flush(struct joolnl_socket *sk,
 		char const *iname, bool quick)
 {
-	return __update(sk, iname, JNLOP_POOL4_FLUSH, NULL, quick);
+	return __update(sk, iname, JNLOP_POOL4_FLUSH, NULL, quick ? JOOLNLHDR_FLAGS_QUICK : 0);
 }

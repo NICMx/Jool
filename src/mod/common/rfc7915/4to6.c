@@ -332,6 +332,30 @@ static int get_delta(struct packet *in)
 	return delta;
 }
 
+/* Predicts the fragment size of the largest outgoing fragment */
+static unsigned int
+get_frag_max_size(struct packet *in)
+{
+	unsigned int frag_max_size;
+	unsigned int frag_size;
+	struct sk_buff *iter;
+
+	/*
+	 * IPCB(skb)->frag_max_size has been found to be uninitialized on
+	 * fragmented pings. I don't trust it.
+	 */
+
+	frag_max_size = skb_headlen(in->skb) - pkt_hdrs_len(in) + HDRS_LEN;
+
+	skb_walk_frags(in->skb, iter) {
+		frag_size = iter->len + HDRS_LEN;
+		if (frag_size > frag_max_size)
+			frag_max_size = frag_size;
+	}
+
+	return frag_max_size;
+}
+
 static bool fragment_exceeds_mtu46(struct packet *in, unsigned int mtu)
 {
 	struct skb_shared_info *shinfo;
@@ -364,14 +388,8 @@ static bool fragment_exceeds_mtu46(struct packet *in, unsigned int mtu)
 	if (out_payload_len)
 		return (out_hdrs_len + out_payload_len) > mtu;
 
-	if (shinfo->frag_list) {
-		/*
-		 * Note: From context, we know DF is enabled.
-		 * nf_defrag_ipv4 only enables DF when the biggest DF fragment
-		 * is also the biggest fragment.
-		 */
-		return IPCB(in->skb)->frag_max_size > mtu;
-	}
+	if (shinfo->frag_list)
+		return get_frag_max_size(in) > mtu;
 
 	out_payload_len = in->skb->len - pkt_hdrs_len(in);
 	return (out_hdrs_len + out_payload_len) > mtu;

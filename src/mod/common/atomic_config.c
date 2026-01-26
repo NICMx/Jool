@@ -237,7 +237,8 @@ static int handle_denylist4(struct config_candidate *new, struct nlattr *root,
 	return 0;
 }
 
-static int handle_pool4(struct config_candidate *new, struct nlattr *root)
+static int handle_pool4(struct config_candidate *new, struct nlattr *root,
+		bool force)
 {
 	struct nlattr *attr;
 	struct pool4_entry entry;
@@ -257,7 +258,8 @@ static int handle_pool4(struct config_candidate *new, struct nlattr *root)
 		error = jnla_get_pool4(attr, "pool4 entry", &entry);
 		if (error)
 			return error;
-		error = pool4db_add(new->xlator.nat64.pool4, &entry);
+		error = pool4db_add(new->xlator.nat64.pool4, &entry,
+				new->xlator.ns, force);
 		if (error)
 			return error;
 	}
@@ -347,7 +349,7 @@ int atomconfig_add(struct sk_buff *skb, struct genl_info *info)
 			goto revert;
 	}
 	if (info->attrs[JNLAR_POOL4_ENTRIES]) {
-		error = handle_pool4(candidate, info->attrs[JNLAR_POOL4_ENTRIES]);
+		error = handle_pool4(candidate, info->attrs[JNLAR_POOL4_ENTRIES], jhdr->flags & JOOLNLHDR_FLAGS_FORCE);
 		if (error)
 			goto revert;
 	}
