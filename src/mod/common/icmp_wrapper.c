@@ -3,6 +3,7 @@
 #include <linux/icmpv6.h>
 #include <net/icmp.h>
 #include "common/types.h"
+#include "mod/common/linux_version.h"
 #include "mod/common/log.h"
 
 static int route4_input(struct xlator *jool, struct sk_buff *skb)
@@ -16,7 +17,13 @@ static int route4_input(struct xlator *jool, struct sk_buff *skb)
 	}
 
 	hdr = ip_hdr(skb);
-	error = ip_route_input(skb, hdr->daddr, hdr->saddr, hdr->tos, skb->dev);
+	error = ip_route_input(skb, hdr->daddr, hdr->saddr,
+#if LINUX_VERSION_AT_LEAST(6, 13, 0, 9999, 0)
+			ip4h_dscp(hdr),
+#else
+			hdr->tos,
+#endif
+			skb->dev);
 	if (error)
 		__log_debug(jool, "ip_route_input failed: %d", error);
 
