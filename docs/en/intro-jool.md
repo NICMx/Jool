@@ -48,7 +48,8 @@ Please [let us know]({{ site.repository-url }}/issues) if you find additional co
 
 | Jool version                        | Supported Linux kernels (mainline)   | Supported Linux kernels (RHEL) |
 |-------------------------------------|--------------------------------------|--------------------------------|
-| [main]({{ site.repository-url }}) | 5.15 - 5.19&#42;,<br />6.0 - 6.15-rc2 | RHEL 9.0 - 9.5&#42; |
+| [main]({{ site.repository-url }}) | 5.15 - 5.19&#42;,<br />6.0 - 6.18 | RHEL 9.0 - 9.7&#42; |
+| [4.1.15]({{ site.repository-url }}) | 5.15 - 5.19&#42;,<br />6.0 - 6.18 | RHEL 9.0 - 9.7&#42; |
 | [4.1.14](download.html#41x) | 5.15 - 5.19&#42;,<br />6.0 - 6.15-rc2 | RHEL 9.0 - 9.5&#42; |
 | [4.1.13](download.html#41x) | 5.15 - 5.19&#42;,<br />6.0 - 6.11-rc2 | RHEL 9.0 - 9.4&#42; |
 | [4.1.12](download.html#41x) | 4.19 - 4.20,<br />5.0 - 5.19,<br />6.0 - 6.10 | RHEL 8.9 - 8.10,<br />RHEL 9.0 - 9.4 |
