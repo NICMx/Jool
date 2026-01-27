@@ -1,3 +1,10 @@
+jool (4.1.15-1) unstable; urgency=medium
+
+  * New upstream release
+  * Add support for kernel 6.18. Closes: #1120527
+
+ -- Alberto Leiva Popper <ydahhrk@gmail.com>  Mon, 26 Jan 2026 15:14:24 -0600
+
 jool (4.1.14-3) unstable; urgency=medium
 
   * Move the source copying to `execute_after_dh_install-indep`.
