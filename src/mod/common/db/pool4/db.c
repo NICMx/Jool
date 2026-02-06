@@ -534,7 +534,7 @@ static int add_to_addr_tree(struct pool4 *pool,
 static int
 get_min_eph(struct local_ports *ports)
 {
-#if LINUX_VERSION_AT_LEAST(6, 8, 0, 9999, 9)
+#if LINUX_VERSION_AT_LEAST(6, 8, 0, 10, 99)
 	return ports->range & 0xFFFFu;
 #else
 	return ports->range[0];
@@ -544,7 +544,7 @@ get_min_eph(struct local_ports *ports)
 static int
 get_max_eph(struct local_ports *ports)
 {
-#if LINUX_VERSION_AT_LEAST(6, 8, 0, 9999, 9)
+#if LINUX_VERSION_AT_LEAST(6, 8, 0, 10, 99)
 	return (ports->range >> 16u) & 0xFFFFu;
 #else
 	return ports->range[1];
