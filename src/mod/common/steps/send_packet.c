@@ -5,6 +5,36 @@
 #include "mod/common/nl/nl_handler.h"
 /* #include "mod/common/skbuff.h" */
 
+static void
+log_pkt_sizes(struct xlation *state, struct sk_buff *skb)
+{
+	struct xlator *jool;
+	struct sk_buff *frag;
+	struct skb_shared_info *sh;
+
+	jool = &state->jool;
+	JOOL_DEBUG(jool, "Sending packet.");
+	JOOL_DEBUG(jool, "  len:%u data_len:%u", skb->len, skb->data_len);
+
+	sh = skb_shinfo(skb);
+	if (!sh)
+		return;
+
+	JOOL_DEBUG(jool, "  nr_frags:%u gso_size:%u gso_segs:%u gso_type:%u",
+	    sh->nr_frags, sh->gso_size, sh->gso_segs, sh->gso_type);
+	skb_walk_frags(skb, frag) {
+		JOOL_DEBUG(jool, "  - frag: len:%u data_len:%u",
+		    frag->len, frag->data_len);
+
+		sh = skb_shinfo(frag);
+		if (!sh)
+			continue;
+		JOOL_DEBUG(jool,
+		    "    nr_frags:%u gso_size:%u gso_segs:%u gso_type:%u",
+		    sh->nr_frags, sh->gso_size, sh->gso_segs, sh->gso_type);
+	}
+}
+
 static verdict __sendpkt_send(struct xlation *state, struct sk_buff *out)
 {
 	struct dst_entry *dst;
@@ -15,7 +45,8 @@ static verdict __sendpkt_send(struct xlation *state, struct sk_buff *out)
 		return drop(state, JSTAT_UNKNOWN);
 
 	out->dev = dst->dev;
-	log_debug(state, "Sending packet.");
+	if (state_debug(state))
+		log_pkt_sizes(state, out);
 
 	/* skb_log(out, "Translated packet"); */
 
