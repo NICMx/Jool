@@ -5,11 +5,12 @@
 
 /* #pragma GCC diagnostic error "-Wframe-larger-than=1" */
 
-static verdict find_instance(struct sk_buff *skb, struct xlator *result)
+static verdict find_instance(struct sk_buff *skb, xlator_type xt,
+		struct xlator *result)
 {
 	int error;
 
-	error = xlator_find_netfilter(dev_net(skb->dev), result);
+	error = xlator_find_netfilter(dev_net(skb->dev), xt, result);
 	switch (error) {
 	case 0:
 		return VERDICT_CONTINUE;
@@ -66,7 +67,10 @@ unsigned int hook_ipv6(void *priv, struct sk_buff *skb,
 	if (!state)
 		return NF_DROP;
 
-	result = find_instance(skb, &state->jool);
+	{
+		xlator_type xt = (xlator_type)(uintptr_t)priv;
+		result = find_instance(skb, xt, &state->jool);
+	}
 	if (result != VERDICT_CONTINUE)
 		goto end;
 	enable_debug = state->jool.globals.debug;
@@ -94,7 +98,10 @@ unsigned int hook_ipv4(void *priv, struct sk_buff *skb,
 	if (!state)
 		return NF_DROP;
 
-	result = find_instance(skb, &state->jool);
+	{
+		xlator_type xt = (xlator_type)(uintptr_t)priv;
+		result = find_instance(skb, xt, &state->jool);
+	}
 	if (result != VERDICT_CONTINUE)
 		goto end;
 	enable_debug = state->jool.globals.debug;

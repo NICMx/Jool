@@ -442,6 +442,15 @@ static int __xlator_add(struct jool_instance *new, struct xlator *result)
 
 		memcpy(ops, netfilter_hooks, sizeof(netfilter_hooks));
 
+		/* Tag each hook op with the translator type so the hook callback
+		 * can look up the correct instance (NAT64 vs SIIT). */
+		{
+			int i;
+			xlator_type xt = xlator_flags2xt(new->jool.flags);
+			for (i = 0; i < ARRAY_SIZE(netfilter_hooks); i++)
+				ops[i].priv = (void *)(uintptr_t)xt;
+		}
+
 		error = nf_register_net_hooks(new->jool.ns, ops,
 				ARRAY_SIZE(netfilter_hooks));
 		if (error) {
@@ -832,7 +841,7 @@ int xlator_find_current(const char *iname, xlator_flags flags,
 	return error;
 }
 
-int xlator_find_netfilter(struct net *ns, struct xlator *result)
+int xlator_find_netfilter(struct net *ns, xlator_type xt, struct xlator *result)
 {
 	struct list_head *list;
 	struct jool_instance *instance;
@@ -841,7 +850,8 @@ int xlator_find_netfilter(struct net *ns, struct xlator *result)
 
 	list = rcu_dereference_bh(netfilter_instances);
 	list_for_each_entry_rcu(instance, list, list_hook) {
-		if (ns == instance->jool.ns) {
+		if (ns == instance->jool.ns
+				&& xlator_flags2xt(instance->jool.flags) == xt) {
 			xlator_get(&instance->jool);
 			memcpy(result, &instance->jool, sizeof(*result));
 			rcu_read_unlock_bh();
