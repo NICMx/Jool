@@ -2,6 +2,8 @@
 
 #include "mod/common/kernel_hook.h"
 
+#include <linux/ip.h>
+#include <linux/ipv6.h>
 #include "common/iptables.h"
 #include "mod/common/core.h"
 #include "mod/common/log.h"
@@ -70,6 +72,7 @@ static unsigned int verdict2iptables(verdict result, bool enable_debug)
 {
 	switch (result) {
 	case VERDICT_STOLEN:
+		____log_debug(enable_debug, "Packet stolen (translated successfully).");
 		return NF_STOLEN; /* This is the happy path. */
 	case VERDICT_UNTRANSLATABLE:
 		____log_debug(enable_debug, "Returning packet to the iptables chain.");
@@ -108,6 +111,14 @@ unsigned int target_ipv6(struct sk_buff *skb,
 		goto end;
 	enable_debug = state->jool.globals.debug;
 
+	____log_debug(enable_debug,
+			"target_ipv6 %s/%s: src=%pI6c dst=%pI6c dev=%s",
+			xt2str(xlator_get_type(&state->jool)),
+			state->jool.iname,
+			&ipv6_hdr(skb)->saddr,
+			&ipv6_hdr(skb)->daddr,
+			skb->dev ? skb->dev->name : "(none)");
+
 	result = core_6to4(skb, state);
 
 	xlator_put(&state->jool);
@@ -136,6 +147,14 @@ unsigned int target_ipv4(struct sk_buff *skb,
 	if (result != VERDICT_CONTINUE)
 		goto end;
 	enable_debug = state->jool.globals.debug;
+
+	____log_debug(enable_debug,
+			"target_ipv4 %s/%s: src=%pI4 dst=%pI4 dev=%s",
+			xt2str(xlator_get_type(&state->jool)),
+			state->jool.iname,
+			&ip_hdr(skb)->saddr,
+			&ip_hdr(skb)->daddr,
+			skb->dev ? skb->dev->name : "(none)");
 
 	result = core_4to6(skb, state);
 
