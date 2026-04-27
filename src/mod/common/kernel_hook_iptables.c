@@ -68,17 +68,22 @@ static struct net *action_param_net(const struct xt_action_param *param)
 	return param->state->net;
 }
 
-static unsigned int verdict2iptables(verdict result, bool enable_debug)
+/*
+ * @jool: The active instance, or NULL when no instance was found. When NULL
+ * no debug logging is emitted (there is no debug flag to consult and no
+ * instance context to print).
+ */
+static unsigned int verdict2iptables(verdict result, struct xlator *jool)
 {
 	switch (result) {
 	case VERDICT_STOLEN:
-		____log_debug(enable_debug, "Packet stolen (translated successfully).");
+		__log_debug(jool, "Packet stolen (translated successfully).");
 		return NF_STOLEN; /* This is the happy path. */
 	case VERDICT_UNTRANSLATABLE:
-		____log_debug(enable_debug, "Returning packet to the iptables chain.");
+		__log_debug(jool, "Returning packet to the iptables chain.");
 		return XT_CONTINUE;
 	case VERDICT_DROP:
-		____log_debug(enable_debug, "Jool: Dropping packet.");
+		__log_debug(jool, "Dropping packet.");
 		return NF_DROP;
 	case VERDICT_CONTINUE:
 		WARN(true, "At time of writing, Jool core is not supposed to return CONTINUE after the packet is handled.\n"
@@ -99,7 +104,7 @@ unsigned int target_ipv6(struct sk_buff *skb,
 {
 	struct xlation *state;
 	verdict result;
-	bool enable_debug = false;
+	unsigned int xt_result;
 
 	state = xlation_create(NULL);
 	if (!state)
@@ -107,23 +112,23 @@ unsigned int target_ipv6(struct sk_buff *skb,
 
 	result = find_instance(action_param_net(param), param->targinfo,
 			&state->jool);
-	if (result != VERDICT_CONTINUE)
-		goto end;
-	enable_debug = state->jool.globals.debug;
+	if (result != VERDICT_CONTINUE) {
+		xlation_destroy(state);
+		return verdict2iptables(result, NULL);
+	}
 
-	____log_debug(enable_debug,
-			"target_ipv6 %s/%s: src=%pI6c dst=%pI6c dev=%s",
-			xt2str(xlator_get_type(&state->jool)),
-			state->jool.iname,
+	log_debug(state,
+			"target_ipv6: src=%pI6c dst=%pI6c dev=%s",
 			&ipv6_hdr(skb)->saddr,
 			&ipv6_hdr(skb)->daddr,
 			skb->dev ? skb->dev->name : "(none)");
 
 	result = core_6to4(skb, state);
 
+	xt_result = verdict2iptables(result, &state->jool);
 	xlator_put(&state->jool);
-end:	xlation_destroy(state);
-	return verdict2iptables(result, enable_debug);
+	xlation_destroy(state);
+	return xt_result;
 }
 EXPORT_SYMBOL_GPL(target_ipv6);
 
@@ -136,7 +141,7 @@ unsigned int target_ipv4(struct sk_buff *skb,
 {
 	struct xlation *state;
 	verdict result;
-	bool enable_debug = false;
+	unsigned int xt_result;
 
 	state = xlation_create(NULL);
 	if (!state)
@@ -144,23 +149,23 @@ unsigned int target_ipv4(struct sk_buff *skb,
 
 	result = find_instance(action_param_net(param), param->targinfo,
 			&state->jool);
-	if (result != VERDICT_CONTINUE)
-		goto end;
-	enable_debug = state->jool.globals.debug;
+	if (result != VERDICT_CONTINUE) {
+		xlation_destroy(state);
+		return verdict2iptables(result, NULL);
+	}
 
-	____log_debug(enable_debug,
-			"target_ipv4 %s/%s: src=%pI4 dst=%pI4 dev=%s",
-			xt2str(xlator_get_type(&state->jool)),
-			state->jool.iname,
+	log_debug(state,
+			"target_ipv4: src=%pI4 dst=%pI4 dev=%s",
 			&ip_hdr(skb)->saddr,
 			&ip_hdr(skb)->daddr,
 			skb->dev ? skb->dev->name : "(none)");
 
 	result = core_4to6(skb, state);
 
+	xt_result = verdict2iptables(result, &state->jool);
 	xlator_put(&state->jool);
-end:	xlation_destroy(state);
-	return verdict2iptables(result, enable_debug);
+	xlation_destroy(state);
+	return xt_result;
 }
 EXPORT_SYMBOL_GPL(target_ipv4);
 
