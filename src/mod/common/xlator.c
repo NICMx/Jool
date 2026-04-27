@@ -35,6 +35,14 @@ static struct nf_hook_ops netfilter_hooks[] = {
 	},
 };
 
+/*
+ * Priority offset added to SIIT instances so they always run after NAT64
+ * within the same PRE_ROUTING hook chain. A value of 1 is sufficient since
+ * both translators share the same hook point and a higher priority number
+ * means the hook runs later.
+ */
+#define SIIT_PRIORITY_OFFSET 1
+
 /**
  * An xlator, except it's the database node version.
  */
@@ -443,12 +451,19 @@ static int __xlator_add(struct jool_instance *new, struct xlator *result)
 		memcpy(ops, netfilter_hooks, sizeof(netfilter_hooks));
 
 		/* Tag each hook op with the translator type so the hook callback
-		 * can look up the correct instance (NAT64 vs SIIT). */
+		 * can look up the correct instance (NAT64 vs SIIT). Adjust
+		 * priority so NAT64 (unchanged) always runs before SIIT
+		 * (+1 offset) within the same PRE_ROUTING hook chain. */
 		{
 			int i;
 			xlator_type xt = xlator_flags2xt(new->jool.flags);
-			for (i = 0; i < ARRAY_SIZE(netfilter_hooks); i++)
+			int prio_delta = (xt & XT_NAT64) ? 0 : SIIT_PRIORITY_OFFSET;
+
+			for (i = 0; i < ARRAY_SIZE(netfilter_hooks); i++) {
 				ops[i].priv = (void *)(uintptr_t)xt;
+				ops[i].priority = netfilter_hooks[i].priority
+						+ prio_delta;
+			}
 		}
 
 		error = nf_register_net_hooks(new->jool.ns, ops,
