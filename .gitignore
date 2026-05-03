@@ -82,6 +82,7 @@ Thumbs.db
 .settings
 .metadata
 Debug/
+.vscode/
 
 # autoconf
 ##########
