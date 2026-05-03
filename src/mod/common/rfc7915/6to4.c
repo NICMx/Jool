@@ -204,7 +204,7 @@ static verdict compute_flowix64(struct xlation *state)
 
 	flow4->flowi4_mark = state->in.skb->mark;
 #if LINUX_VERSION_AT_LEAST(6, 18, 0, 9999, 0)
-	flow4->flowi4_dscp = xlat_tos(&state->jool.globals, hdr6);
+	flow4->flowi4_dscp = inet_dsfield_to_dscp(xlat_tos(&state->jool.globals, hdr6));
 #else
 	flow4->flowi4_tos = xlat_tos(&state->jool.globals, hdr6);
 #endif
@@ -650,7 +650,7 @@ static verdict ttp64_ipv4_external(struct xlation *state)
 	hdr4->version = 4;
 	hdr4->ihl = 5;
 #if LINUX_VERSION_AT_LEAST(6, 18, 0, 9999, 0)
-	hdr4->tos = flow4->flowi4_dscp;
+	hdr4->tos = inet_dscp_to_dsfield(flow4->flowi4_dscp);
 #else
 	hdr4->tos = flow4->flowi4_tos;
 #endif
