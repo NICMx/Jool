@@ -182,10 +182,6 @@ static int check_ifa(struct in_ifaddr *ifa, void const *arg)
 			return DENY_ADDRESS;
 	}
 
-	/* /32 (https://github.com/NICMx/Jool/issues/342) */
-	if (ifa->ifa_prefixlen == 32)
-		return ALLOW_ADDRESS;
-
 	/* Address belongs to this node */
 	ifaddr.s_addr = ifa->ifa_local;
 	if (ipv4_addr_cmp(&ifaddr, query) == 0)
