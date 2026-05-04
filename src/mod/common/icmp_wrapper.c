@@ -18,7 +18,7 @@ static int route4_input(struct xlator *jool, struct sk_buff *skb)
 
 	hdr = ip_hdr(skb);
 	error = ip_route_input(skb, hdr->daddr, hdr->saddr,
-#if LINUX_VERSION_AT_LEAST(6, 13, 0, 9999, 0)
+#if LINUX_VERSION_AT_LEAST(6, 13, 0, 9, 0)
 			ip4h_dscp(hdr),
 #else
 			hdr->tos,
