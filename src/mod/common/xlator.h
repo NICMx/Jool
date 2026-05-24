@@ -72,7 +72,7 @@ int xlator_find(struct net *ns, xlator_flags flags, const char *iname,
 		struct xlator *result);
 int xlator_find_current(const char *iname, xlator_flags flags,
 		struct xlator *result);
-int xlator_find_netfilter(struct net *ns, struct xlator *result);
+int xlator_find_netfilter(struct net *ns, xlator_type xt, struct xlator *result);
 void xlator_put(struct xlator *instance);
 
 typedef int (*xlator_foreach_cb)(struct xlator *, void *);
