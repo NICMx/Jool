@@ -224,6 +224,7 @@ enum joolnl_attr_global {
 	JNLAG_RESET_TOS,
 	JNLAG_TOS,
 	JNLAG_PLATEAUS,
+	JNLAG_FWD_CSUM_ZERO,
 
 	/* SIIT */
 	JNLAG_COMPUTE_CSUM_ZERO,
@@ -516,6 +517,8 @@ struct jool_globals {
 	 * less than the incoming packet's Total Length field.
 	 */
 	struct mtu_plateaus plateaus;
+
+	bool fwd_udp_csum_zero;
 
 	union {
 		struct {

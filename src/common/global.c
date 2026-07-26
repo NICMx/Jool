@@ -817,6 +817,13 @@ static const struct joolnl_global_meta globals_metadata[] = {
 		.offset = offsetof(struct jool_globals, plateaus),
 		.xt = XT_ANY,
 	}, {
+		.id = JNLAG_FWD_CSUM_ZERO,
+		.name = "forward-udp-checksum-zero",
+		.type = &gt_bool,
+		.doc = "Translate UDP checksum zero as zero?",
+		.offset = offsetof(struct jool_globals, fwd_udp_csum_zero),
+		.xt = XT_ANY,
+	}, {
 		.id = JNLAG_COMPUTE_CSUM_ZERO,
 		.name = "amend-udp-checksum-zero",
 		.type = &gt_bool,

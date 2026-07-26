@@ -79,6 +79,7 @@ int globals_init(struct jool_globals *config, xlator_type type,
 	config->lowest_ipv6_mtu = DEFAULT_LOWEST_IPV6_MTU;
 	memcpy(config->plateaus.values, &PLATEAUS, sizeof(PLATEAUS));
 	config->plateaus.count = ARRAY_SIZE(PLATEAUS);
+	config->fwd_udp_csum_zero = false;
 
 	switch (type) {
 	case XT_SIIT:

@@ -1497,11 +1497,14 @@ static verdict ttp46_udp(struct xlation *state)
 
 	/* Header.checksum */
 	if (udp_in->check == 0) {
-		if (can_compute_csum(state))
-			goto partial;
-
-		return drop_icmp(state, JSTAT46_FRAGMENTED_ZERO_CSUM,
-				ICMPERR_FILTER, 0);
+		if (state->jool.globals.fwd_udp_csum_zero) {
+			out->skb->ip_summed = CHECKSUM_NONE;
+		} else {
+			if (can_compute_csum(state))
+				goto partial;
+			return drop_icmp(state, JSTAT46_FRAGMENTED_ZERO_CSUM,
+					ICMPERR_FILTER, 0);
+		}
 
 	} else if (in->skb->ip_summed != CHECKSUM_PARTIAL) {
 		memcpy(&udp_copy, udp_in, sizeof(*udp_in));

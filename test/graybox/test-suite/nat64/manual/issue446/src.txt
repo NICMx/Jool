@@ -1,0 +1,17 @@
+packet udp0csum-46-v4
+	20	IPv4
+	8	UDP	swap checksum:0
+	100	Payload
+packet udp0csum-46-v6
+	40	IPv6	swap ttl--
+	8	UDP	swap checksum:0
+	100	Payload
+
+packet udp0csum-64-v6
+	40	IPv6
+	8	UDP	checksum:0
+	100	Payload
+packet udp0csum-64-v4
+	20	IPv4	swap ttl-- !df
+	8	UDP	checksum:0
+	100	Payload

@@ -211,6 +211,12 @@ if [ -z "$1" -o "$1" = "frag" ]; then
 	test46_12 frag minmtu6-big-test minmtu6-big0-expected minmtu6-big1-expected
 fi
 
+if [ -z "$1" -o "$1" = "446" ]; then
+	ip netns exec joolns "$JOOLCLIENT" global update forward-udp-checksum-zero true
+	test46_11 issue446/udp0csum-46-v4 issue446/udp0csum-46-v6
+	test64_11 issue446/udp0csum-64-v6 issue446/udp0csum-64-v4 4,5,10,11
+fi
+
 $GRAYBOX stats display
 result=$?
 $GRAYBOX stats flush

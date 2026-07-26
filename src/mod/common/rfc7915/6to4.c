@@ -1155,7 +1155,15 @@ static verdict ttp64_udp(struct xlation *state)
 	}
 
 	/* Header.checksum */
-	if (in->skb->ip_summed != CHECKSUM_PARTIAL) {
+	if (udp_in->check == 0) {
+		if (state->jool.globals.fwd_udp_csum_zero) {
+			out->skb->ip_summed = CHECKSUM_NONE;
+		} else {
+			log_debug(state, "UDP checksum zero in IPv6 packet; dropping.");
+			return VERDICT_DROP;
+		}
+
+	} else if (in->skb->ip_summed != CHECKSUM_PARTIAL) {
 		memcpy(&udp_copy, udp_in, sizeof(*udp_in));
 		udp_copy.check = 0;
 

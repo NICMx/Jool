@@ -335,8 +335,11 @@ static unsigned int old_algorithm(struct expected_packet *expected,
 			continue;
 		}
 
-		if (expected->bytes[i] != actual_ptr[i])
+		if (expected->bytes[i] != actual_ptr[i]) {
+			log_info("old algorithm %zuth byte: expected:%u != actual:%u",
+			    i, expected->bytes[i], actual_ptr[i]);
 			return 1;
+		}
 	}
 
 	return 0;

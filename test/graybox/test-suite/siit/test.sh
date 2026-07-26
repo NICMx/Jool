@@ -366,8 +366,11 @@ if [ -z "$1" -o "$1" = "rfc7915" ]; then
 	ip netns exec joolns "$JOOLCLIENT" global update lowest-ipv6-mtu 1280
 fi
 
-#if [ -z "$1" -o "$1" = "new" ]; then
-#fi
+if [ -z "$1" -o "$1" = "446" ]; then
+	ip netns exec joolns "$JOOLCLIENT" global update forward-udp-checksum-zero true
+	test46_11 issues/446 udp0csum-46-v4 udp0csum-46-v6
+	test64_11 issues/446 udp0csum-64-v6 udp0csum-64-v4 $IDENTIFICATION
+fi
 
 $GRAYBOX stats display
 result=$?
