@@ -1498,7 +1498,8 @@ static verdict ttp46_udp(struct xlation *state)
 	/* Header.checksum */
 	if (udp_in->check == 0) {
 		if (state->jool.globals.fwd_udp_csum_zero) {
-			out->skb->ip_summed = CHECKSUM_NONE;
+			if (pkt_is_outer(in))
+				out->skb->ip_summed = CHECKSUM_NONE;
 		} else {
 			if (can_compute_csum(state))
 				goto partial;
