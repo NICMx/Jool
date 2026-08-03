@@ -506,7 +506,6 @@ static int validate_plateaus(struct mtu_plateaus *plateaus)
 	return 0;
 }
 
-
 int jnla_get_plateaus(struct nlattr *root, struct mtu_plateaus *out)
 {
 	struct nlattr *attr;

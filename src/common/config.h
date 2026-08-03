@@ -224,7 +224,6 @@ enum joolnl_attr_global {
 	JNLAG_RESET_TOS,
 	JNLAG_TOS,
 	JNLAG_PLATEAUS,
-	JNLAG_FWD_CSUM_ZERO,
 
 	/* SIIT */
 	JNLAG_COMPUTE_CSUM_ZERO,
@@ -255,6 +254,10 @@ enum joolnl_attr_global {
 	JNLAG_JOOLD_CAPACITY,
 	JNLAG_JOOLD_MAX_PAYLOAD,
 	JNLAG_JOOLD_MAX_SESSIONS_PER_PACKET,
+
+	/* Added later */
+	JNLAG_FWD_CSUM_ZERO,
+	JNLAG_FWD_CSUM_ZERO_PORTS,
 
 	/* Needs to be last */
 	JNLAG_COUNT,
@@ -519,6 +522,7 @@ struct jool_globals {
 	struct mtu_plateaus plateaus;
 
 	bool fwd_udp_csum_zero;
+	struct mtu_plateaus allowed_0csum_ports;
 
 	union {
 		struct {

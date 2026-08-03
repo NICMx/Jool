@@ -99,4 +99,6 @@ verdict handle_icmp_extension(struct xlation *state,
 
 void skb_cleanup_copy(struct sk_buff *skb);
 
+bool allow_udp_csum_zero(struct xlation *state);
+
 #endif /* SRC_MOD_COMMON_RFC7915_COMMON_H_ */

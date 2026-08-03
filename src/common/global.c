@@ -817,13 +817,6 @@ static const struct joolnl_global_meta globals_metadata[] = {
 		.offset = offsetof(struct jool_globals, plateaus),
 		.xt = XT_ANY,
 	}, {
-		.id = JNLAG_FWD_CSUM_ZERO,
-		.name = "forward-udp-checksum-zero",
-		.type = &gt_bool,
-		.doc = "Translate UDP checksum zero as zero?",
-		.offset = offsetof(struct jool_globals, fwd_udp_csum_zero),
-		.xt = XT_ANY,
-	}, {
 		.id = JNLAG_COMPUTE_CSUM_ZERO,
 		.name = "amend-udp-checksum-zero",
 		.type = &gt_bool,
@@ -1017,6 +1010,20 @@ static const struct joolnl_global_meta globals_metadata[] = {
 		.doc = "Maximum number of sessions to send, per joold packet.",
 		.offset = offsetof(struct jool_globals, nat64.joold.max_sessions_per_pkt),
 		.xt = XT_NAT64,
+	}, {
+		.id = JNLAG_FWD_CSUM_ZERO,
+		.name = "forward-udp-checksum-zero",
+		.type = &gt_bool,
+		.doc = "Translate UDP checksum zero as zero?",
+		.offset = offsetof(struct jool_globals, fwd_udp_csum_zero),
+		.xt = XT_ANY,
+	}, {
+		.id = JNLAG_FWD_CSUM_ZERO_PORTS,
+		.name = "forward-udp-checksum-zero-ports",
+		.type = &gt_plateaus,
+		.doc = "UDP zero checksum forward allow list",
+		.offset = offsetof(struct jool_globals, allowed_0csum_ports),
+		.xt = XT_ANY,
 	},
 };
 

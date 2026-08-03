@@ -420,3 +420,26 @@ void skb_cleanup_copy(struct sk_buff *skb)
 	skb->tstamp = 0;
 #endif
 }
+
+bool allow_udp_csum_zero(struct xlation *state)
+{
+	struct jool_globals *globals;
+	struct udphdr *hdr;
+	size_t p;
+	__be16 port;
+
+	globals = &state->jool.globals;
+	if (!globals->fwd_udp_csum_zero)
+		return false;
+	if (globals->allowed_0csum_ports.count == 0)
+		return true;
+
+	hdr = pkt_udp_hdr(&state->in);
+	for (p = 0; p < globals->allowed_0csum_ports.count; p++) {
+		port = cpu_to_be16(globals->allowed_0csum_ports.values[p]);
+		if (port == hdr->source || port == hdr->dest)
+			return true;
+	}
+
+	return false;
+}

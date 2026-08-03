@@ -89,12 +89,13 @@ struct nla_policy siit_globals_policy[JNLAG_COUNT] = {
 	[JNLAG_RESET_TOS] = { .type = NLA_U8 },
 	[JNLAG_TOS] = { .type = NLA_U8 },
 	[JNLAG_PLATEAUS] = { .type = NLA_NESTED },
-	[JNLAG_FWD_CSUM_ZERO] = { .type = NLA_U8 },
 	[JNLAG_COMPUTE_CSUM_ZERO] = { .type = NLA_U8 },
 	[JNLAG_HAIRPIN_MODE] = { .type = NLA_U8 },
 	[JNLAG_RANDOMIZE_ERROR_ADDR] = { .type = NLA_U8 },
 	[JNLAG_POOL6791V6] = { .type = NLA_NESTED },
 	[JNLAG_POOL6791V4] = { .type = NLA_NESTED },
+	[JNLAG_FWD_CSUM_ZERO] = { .type = NLA_U8 },
+	[JNLAG_FWD_CSUM_ZERO_PORTS] = { .type = NLA_NESTED },
 };
 
 struct nla_policy nat64_globals_policy[JNLAG_COUNT] = {
@@ -106,7 +107,6 @@ struct nla_policy nat64_globals_policy[JNLAG_COUNT] = {
 	[JNLAG_RESET_TOS] = { .type = NLA_U8 },
 	[JNLAG_TOS] = { .type = NLA_U8 },
 	[JNLAG_PLATEAUS] = { .type = NLA_NESTED },
-	[JNLAG_FWD_CSUM_ZERO] = { .type = NLA_U8 },
 	[JNLAG_DROP_ICMP6_INFO] = { .type = NLA_U8 },
 	[JNLAG_SRC_ICMP6_BETTER] = { .type = NLA_U8 },
 	[JNLAG_F_ARGS] = { .type = NLA_U8 },
@@ -126,6 +126,8 @@ struct nla_policy nat64_globals_policy[JNLAG_COUNT] = {
 	[JNLAG_JOOLD_CAPACITY] = { .type = NLA_U32 },
 	[JNLAG_JOOLD_MAX_PAYLOAD] = { .type = NLA_U32 },
 	[JNLAG_JOOLD_MAX_SESSIONS_PER_PACKET] = { .type = NLA_U32 },
+	[JNLAG_FWD_CSUM_ZERO] = { .type = NLA_U8 },
+	[JNLAG_FWD_CSUM_ZERO_PORTS] = { .type = NLA_NESTED },
 };
 
 int iname_validate(const char *iname, bool allow_null)
