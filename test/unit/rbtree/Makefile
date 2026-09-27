@@ -12,8 +12,7 @@ $(UNIT)-objs += ../framework/unit_test.o
 $(UNIT)-objs += rbtree_test.o
 $(UNIT)-objs += ../../../src/mod/common/db/rbtree.o
 
-EXTRA_CFLAGS += -DDEBUG -DUNIT_TESTING
-ccflags-y := -I$(src)/../../../src -I$(src)/..
+ccflags-y := -I$(src)/../../../src -I$(src)/.. -DDEBUG -DUNIT_TESTING
 
 all:
 	make -C ${KERNEL_DIR} M=$$PWD;

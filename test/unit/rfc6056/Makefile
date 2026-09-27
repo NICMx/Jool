@@ -14,8 +14,7 @@ $(UNIT)-objs += ../../../src/mod/common/translation_state.o
 $(UNIT)-objs += ../framework/types.o
 $(UNIT)-objs += rfc6056_test.o
 
-EXTRA_CFLAGS += -DDEBUG -DUNIT_TESTING
-ccflags-y := -I$(src)/../../../src -I$(src)/..
+ccflags-y := -I$(src)/../../../src -I$(src)/.. -DDEBUG -DUNIT_TESTING
 
 all:
 	make -C ${KERNEL_DIR} M=$$PWD;

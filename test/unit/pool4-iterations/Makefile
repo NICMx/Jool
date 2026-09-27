@@ -15,8 +15,7 @@ $(UNIT)-objs += ../../../src/mod/nat64/pool4/rfc6056.o
 $(UNIT)-objs += ../impersonator/route.o
 $(UNIT)-objs += iterations.o
 
-EXTRA_CFLAGS += -DDEBUG -DUNIT_TESTING
-ccflags-y := -I$(src)/../../../src -I$(src)/..
+ccflags-y := -I$(src)/../../../src -I$(src)/.. -DDEBUG -DUNIT_TESTING
 
 all:
 	make -C ${KERNEL_DIR} M=$$PWD;

@@ -12,8 +12,7 @@ $(UNIT)-objs += ../framework/unit_test.o
 $(UNIT)-objs += ../../../src/mod/common/rtrie.o
 $(UNIT)-objs += eamt_test.o
 
-EXTRA_CFLAGS += -DDEBUG -DUNIT_TESTING
-ccflags-y := -I$(src)/../../../src -I$(src)/..
+ccflags-y := -I$(src)/../../../src -I$(src)/.. -DDEBUG -DUNIT_TESTING
 
 all:
 	make -C ${KERNEL_DIR} M=$$PWD;

@@ -48,8 +48,7 @@ $(UNIT)-objs += ../../../src/mod/common/core.o
 $(UNIT)-objs += impersonator.o
 $(UNIT)-objs += page_test.o
 
-EXTRA_CFLAGS += -DDEBUG -DUNIT_TESTING
-ccflags-y := -I$(src)/../../../src -I$(src)/..
+ccflags-y := -I$(src)/../../../src -I$(src)/.. -DDEBUG -DUNIT_TESTING
 
 all:
 	make -C ${KERNEL_DIR} M=$$PWD;
