@@ -7,6 +7,7 @@
 #include <net/route.h>
 
 #include "common/types.h"
+#include "mod/common/linux_version.h"
 #include "mod/common/ipv6_hdr_iterator.h"
 #include "mod/common/steps/send_packet.h"
 #include "log.h"
@@ -91,7 +92,11 @@ static struct dst_entry *route_ipv4(struct net *ns, struct sk_buff *skb)
 
 	memset(&flow, 0, sizeof(flow));
 	flow.flowi4_mark = skb->mark;
+#if LINUX_VERSION_AT_LEAST(6, 18, 0, 9999, 0)
+	flow.flowi4_dscp = inet_dsfield_to_dscp(hdr->tos);
+#else
 	flow.flowi4_tos = hdr->tos;
+#endif
 	flow.flowi4_scope = RT_SCOPE_UNIVERSE;
 	flow.flowi4_proto = hdr->protocol;
 	flow.flowi4_flags = FLOWI_FLAG_ANYSRC;
