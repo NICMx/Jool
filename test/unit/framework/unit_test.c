@@ -6,7 +6,7 @@
 bool ASSERT_NOTNULL(void *ptr, char const *test_name)
 {
 	if (ptr == NULL) {
-		log_err("Test '%s' failed.", test_name);
+		pr_err("Test '%s' failed.\n", test_name);
 		pr_err("  Expected: !NULL\n");
 		pr_err("  Actual  : NULL\n");
 		return false;
@@ -23,7 +23,7 @@ bool __ASSERT_ADDR4(const struct in_addr *expected,
 		return true;
 
 	if (!expected || !actual || expected->s_addr != actual->s_addr) {
-		log_err("Test '%s' failed.", test_name);
+		pr_err("Test '%s' failed.\n", test_name);
 		pr_err("  Expected: %pI4\n", expected);
 		pr_err("  Actual  : %pI4\n", actual);
 		return false;
@@ -53,12 +53,12 @@ bool ASSERT_PREFIX4(struct ipv4_prefix const *expected,
 		return true;
 
 	if (!expected) {
-		log_err("Test '%s' failed.", test_name);
+		pr_err("Test '%s' failed.\n", test_name);
 		pr_err("  Expected: NULL\n");
 		pr_err("  Actual  : %pI4/%u\n", &actual->addr, actual->len);
 	}
 	if (!actual) {
-		log_err("Test '%s' failed.", test_name);
+		pr_err("Test '%s' failed.\n", test_name);
 		pr_err("  Expected: %pI4/%u\n", &expected->addr, expected->len);
 		pr_err("  Actual  : NULL\n");
 	}
@@ -74,7 +74,7 @@ bool ASSERT_TADDR4(struct ipv4_transport_addr const *expected,
 	if (taddr4_equals(expected, actual))
 		return true;
 
-	log_err("Test '%s' failed.", test_name);
+	pr_err("Test '%s' failed.\n", test_name);
 	pr_err("  Expected: " TA4PP "\n", TA4PA(*expected));
 	pr_err("  Actual  : " TA4PP "\n", TA4PA(*actual));
 	return false;
@@ -88,7 +88,7 @@ bool __ASSERT_ADDR6(struct in6_addr const *expected,
 		return true;
 
 	if (!expected || !actual || ipv6_addr_cmp(expected, actual)) {
-		log_err("Test '%s' failed. Expected:%pI6c Actual:%pI6c",
+		pr_err("Test '%s' failed. Expected:%pI6c Actual:%pI6c\n",
 				test_name, expected, actual);
 		return false;
 	}
@@ -118,12 +118,12 @@ bool ASSERT_PREFIX6(struct ipv6_prefix const *expected,
 		return true;
 
 	if (!expected) {
-		log_err("Test '%s' failed.", test_name);
+		pr_err("Test '%s' failed.\n", test_name);
 		pr_err("  Expected: NULL\n");
 		pr_err("  Actual  : %pI6c/%u\n", &actual->addr, actual->len);
 	}
 	if (!actual) {
-		log_err("Test '%s' failed.", test_name);
+		pr_err("Test '%s' failed.\n", test_name);
 		pr_err("  Expected: %pI6c/%u\n", &expected->addr, expected->len);
 		pr_err("  Actual  : NULL\n");
 	}
@@ -139,7 +139,7 @@ bool ASSERT_TADDR6(struct ipv6_transport_addr const *expected,
 	if (taddr6_equals(expected, actual))
 		return true;
 
-	log_err("Test '%s' failed.", test_name);
+	pr_err("Test '%s' failed.\n", test_name);
 	pr_err("  Expected: " TA6PP "\n", TA6PA(*expected));
 	pr_err("  Actual  : " TA6PP "\n", TA6PA(*actual));
 	return false;
@@ -163,7 +163,7 @@ static bool ASSERT_TUPLE4(struct tuple const *expected,
 	return true;
 
 fail:
-	log_err("Test '%s' failed.", test_name);
+	pr_err("Test '%s' failed.\n", test_name);
 	if (expected)
 		pr_err("  Expected:" T4PP "\n", T4PA(expected));
 	else
@@ -193,7 +193,7 @@ static bool ASSERT_TUPLE6(struct tuple const *expected,
 	return true;
 
 fail:
-	log_err("Test '%s' failed.", test_name);
+	pr_err("Test '%s' failed.\n", test_name);
 	if (expected)
 		pr_err("  Expected:" T6PP "\n", T6PA(expected));
 	else
@@ -210,7 +210,7 @@ bool ASSERT_TUPLE(struct tuple const *expected,
 		char const *test_name)
 {
 	if (expected->l3_proto != actual->l3_proto) {
-		log_err("Test '%s' failed; Expected:%u Actual:%u", test_name,
+		pr_err("Test '%s' failed; Expected:%u Actual:%u\n", test_name,
 				expected->l3_proto, actual->l3_proto);
 		return false;
 	}
@@ -222,7 +222,7 @@ bool ASSERT_TUPLE(struct tuple const *expected,
 		return ASSERT_TUPLE6(expected, actual, test_name);
 	}
 
-	log_err("?");
+	pr_err("?\n");
 	return false;
 }
 
@@ -234,13 +234,13 @@ bool ASSERT_BIB(struct bib_entry const* expected,
 		return true;
 
 	if (!expected) {
-		log_err("Test '%s' failed:", test_name);
+		pr_err("Test '%s' failed:\n", test_name);
 		pr_err("  Expected: NULL\n");
 		pr_err("  Actual  : BIB " BEPP "\n", BEPA(actual));
 		return false;
 	}
 	if (!actual) {
-		log_err("Test '%s' failed:", test_name);
+		pr_err("Test '%s' failed:\n", test_name);
 		pr_err("  Expected: BIB " BEPP "\n", BEPA(expected));
 		pr_err("  Actual  : NULL\n");
 		return false;
@@ -248,7 +248,7 @@ bool ASSERT_BIB(struct bib_entry const* expected,
 
 	if (!taddr4_equals(&expected->addr4, &actual->addr4)
 			|| !taddr6_equals(&expected->addr6, &actual->addr6)) {
-		log_err("Test '%s' failed:", test_name);
+		pr_err("Test '%s' failed:\n", test_name);
 		pr_err("  Expected: BIB " BEPP "\n", BEPA(expected));
 		pr_err("  Actual  : BIB " BEPP "\n", BEPA(actual));
 		return false;
@@ -280,7 +280,7 @@ bool ASSERT_SESSION(struct session_entry const *expected,
 	return true;
 
 fail:
-	log_err("Test '%s' failed.", test_name);
+	pr_err("Test '%s' failed.\n", test_name);
 	if (expected)
 		pr_err("  Expected: Session " SEPP "\n", SEPA(expected));
 	else
@@ -299,7 +299,7 @@ void print_session(struct session_entry *session)
 
 int test_group_begin(struct test_group *group)
 {
-	log_info("Module '%s': Starting tests...", group->name);
+	pr_info("Module '%s': Starting tests...\n", group->name);
 	return group->setup_fn ? group->setup_fn() : 0;
 }
 
@@ -308,7 +308,7 @@ void test_group_test(struct test_group *group, bool (*test)(void),
 {
 	bool success;
 
-	log_info("Test '%s': Starting...", name);
+	pr_info("Test '%s': Starting...\n", name);
 	group->test_counter++;
 
 	if (group->init_fn && group->init_fn()) {
@@ -323,7 +323,7 @@ void test_group_test(struct test_group *group, bool (*test)(void),
 	if (group->clean_fn)
 		group->clean_fn();
 
-	log_info("Test '%s': %s.\n", name, success ? "Success" : "Failure");
+	pr_info("Test '%s': %s.\n", name, success ? "Success" : "Failure");
 }
 
 int test_group_end(struct test_group *group)
@@ -331,7 +331,7 @@ int test_group_end(struct test_group *group)
 	if (group->teardown_fn)
 		group->teardown_fn();
 
-	log_info("Finished. Runs: %d; Errors: %d",
+	pr_info("Finished. Runs: %d; Errors: %d\n",
 			group->test_counter,
 			group->failure_counter);
 
@@ -342,4 +342,9 @@ int broken_unit_call(const char *function)
 {
 	WARN(true, "%s() was called! The unit test is broken.", function);
 	return -EINVAL;
+}
+
+void log_silent(void)
+{
+	/* Nothing */
 }

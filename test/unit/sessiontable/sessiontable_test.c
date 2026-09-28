@@ -102,7 +102,7 @@ static int cb(struct session_entry const *session, void *void_args)
 	unsigned int index;
 	bool success = true;
 
-	pr_debug("Iterating: " SEPP "\n", SEPA(session));
+	/* pr_debug("Iterating: " SEPP "\n", SEPA(session)); */
 
 	index = args->offset + args->i;
 	success &= ASSERT_BOOL(true, index < TEST_SESSION_COUNT, "overflow");
