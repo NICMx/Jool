@@ -81,13 +81,9 @@ __u64 *jstat_query(struct jool_stats *stats)
 		return NULL;
 
 	for (i = 0; i < JSTAT_COUNT; i++) {
-#if LINUX_VERSION_AT_LEAST(7, 2, 0, 0, 0)
 		int cpu;
 		for_each_possible_cpu(cpu)
 			result[i] += snmp_get_cpu_field(stats->mib, cpu, i);
-#else
-		result[i] = snmp_fold_field(stats->mib, i);
-#endif
 	}
 
 	return result;
