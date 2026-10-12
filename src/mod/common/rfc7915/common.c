@@ -195,18 +195,23 @@ verdict ttpcomm_translate_inner_packet(struct xlation *state,
 	result = steps->xlat_inner_l3(state);
 	if (result == VERDICT_UNTRANSLATABLE) {
 		/*
-		 * Accepting because of an inner packet doesn't make sense.
-		 * Also we couldn't have translated this inner packet.
+		 * This instance cannot translate the inner packet's L3 header
+		 * (e.g. the address does not belong to this translator's pool).
+		 * Return UNTRANSLATABLE so the packet is passed to the kernel
+		 * (NF_ACCEPT) and another Jool instance in the hook chain (e.g.
+		 * a SIIT instance co-existing with this NAT64) gets a chance to
+		 * handle the ICMP error.
 		 */
-		result = VERDICT_DROP;
 		goto end;
 	}
 	if (result != VERDICT_CONTINUE)
 		goto end;
 
 	result = xlat_l4_function(state, steps);
-	if (result == VERDICT_UNTRANSLATABLE)
-		result = VERDICT_DROP;
+	/*
+	 * If VERDICT_UNTRANSLATABLE, propagate it unchanged (same rationale as
+	 * the xlat_inner_l3 case above: let the next Jool instance try).
+	 */
 
 end:
 	restore_outer_packet(state, &bkp, true);

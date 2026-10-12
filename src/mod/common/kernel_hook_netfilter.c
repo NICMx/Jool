@@ -1,15 +1,18 @@
 #include "mod/common/kernel_hook.h"
 
+#include <linux/ip.h>
+#include <linux/ipv6.h>
 #include "mod/common/log.h"
 #include "mod/common/core.h"
 
 /* #pragma GCC diagnostic error "-Wframe-larger-than=1" */
 
-static verdict find_instance(struct sk_buff *skb, struct xlator *result)
+static verdict find_instance(struct sk_buff *skb, xlator_type xt,
+		struct xlator *result)
 {
 	int error;
 
-	error = xlator_find_netfilter(dev_net(skb->dev), result);
+	error = xlator_find_netfilter(dev_net(skb->dev), xt, result);
 	switch (error) {
 	case 0:
 		return VERDICT_CONTINUE;
@@ -30,16 +33,22 @@ static verdict find_instance(struct sk_buff *skb, struct xlator *result)
 	return VERDICT_UNTRANSLATABLE;
 }
 
-static unsigned int verdict2netfilter(verdict result, bool enable_debug)
+/*
+ * @jool: The active instance, or NULL when no instance was found. When NULL
+ * no debug logging is emitted (there is no debug flag to consult and no
+ * instance context to print).
+ */
+static unsigned int verdict2netfilter(verdict result, struct xlator *jool)
 {
 	switch (result) {
 	case VERDICT_STOLEN:
+		__log_debug(jool, "Packet stolen (translated successfully).");
 		return NF_STOLEN; /* This is the happy path. */
 	case VERDICT_UNTRANSLATABLE:
-		____log_debug(enable_debug, "Returning the packet to the kernel.");
+		__log_debug(jool, "Returning the packet to the kernel.");
 		return NF_ACCEPT;
 	case VERDICT_DROP:
-		____log_debug(enable_debug, "Dropping packet.");
+		__log_debug(jool, "Dropping packet.");
 		return NF_DROP;
 	case VERDICT_CONTINUE:
 		WARN(true, "At time of writing, Jool core is not supposed to return CONTINUE after the packet is handled.\n"
@@ -60,22 +69,33 @@ unsigned int hook_ipv6(void *priv, struct sk_buff *skb,
 {
 	struct xlation *state;
 	verdict result;
-	bool enable_debug = false;
+	unsigned int nf_result;
 
 	state = xlation_create(NULL);
 	if (!state)
 		return NF_DROP;
 
-	result = find_instance(skb, &state->jool);
-	if (result != VERDICT_CONTINUE)
-		goto end;
-	enable_debug = state->jool.globals.debug;
+	{
+		xlator_type xt = (xlator_type)(uintptr_t)priv;
+		result = find_instance(skb, xt, &state->jool);
+	}
+	if (result != VERDICT_CONTINUE) {
+		xlation_destroy(state);
+		return verdict2netfilter(result, NULL);
+	}
+
+	log_debug(state,
+			"hook_ipv6: src=%pI6c dst=%pI6c dev=%s",
+			&ipv6_hdr(skb)->saddr,
+			&ipv6_hdr(skb)->daddr,
+			skb->dev ? skb->dev->name : "(none)");
 
 	result = core_6to4(skb, state);
 
+	nf_result = verdict2netfilter(result, &state->jool);
 	xlator_put(&state->jool);
-end:	xlation_destroy(state);
-	return verdict2netfilter(result, enable_debug);
+	xlation_destroy(state);
+	return nf_result;
 }
 EXPORT_SYMBOL_GPL(hook_ipv6);
 
@@ -88,21 +108,32 @@ unsigned int hook_ipv4(void *priv, struct sk_buff *skb,
 {
 	struct xlation *state;
 	verdict result;
-	bool enable_debug = false;
+	unsigned int nf_result;
 
 	state = xlation_create(NULL);
 	if (!state)
 		return NF_DROP;
 
-	result = find_instance(skb, &state->jool);
-	if (result != VERDICT_CONTINUE)
-		goto end;
-	enable_debug = state->jool.globals.debug;
+	{
+		xlator_type xt = (xlator_type)(uintptr_t)priv;
+		result = find_instance(skb, xt, &state->jool);
+	}
+	if (result != VERDICT_CONTINUE) {
+		xlation_destroy(state);
+		return verdict2netfilter(result, NULL);
+	}
+
+	log_debug(state,
+			"hook_ipv4: src=%pI4 dst=%pI4 dev=%s",
+			&ip_hdr(skb)->saddr,
+			&ip_hdr(skb)->daddr,
+			skb->dev ? skb->dev->name : "(none)");
 
 	result = core_4to6(skb, state);
 
+	nf_result = verdict2netfilter(result, &state->jool);
 	xlator_put(&state->jool);
-end:	xlation_destroy(state);
-	return verdict2netfilter(result, enable_debug);
+	xlation_destroy(state);
+	return nf_result;
 }
 EXPORT_SYMBOL_GPL(hook_ipv4);
