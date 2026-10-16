@@ -10,6 +10,7 @@ RemainAfterExit=yes
 
 ExecStartPre=/sbin/modprobe jool_siit
 ExecStart=/usr/bin/jool_siit file handle /etc/jool/jool_siit.conf
+ExecReload=/usr/bin/jool_siit file handle /etc/jool/jool_siit.conf
 ExecStop=/usr/bin/jool_siit -f /etc/jool/jool_siit.conf instance remove
 # Do not modprobe -r; some other instance could be running.
 
